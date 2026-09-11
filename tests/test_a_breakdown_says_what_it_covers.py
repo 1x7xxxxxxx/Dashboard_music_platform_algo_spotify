@@ -52,12 +52,40 @@ def rendered(monkeypatch):
     return run
 
 
+@pytest.fixture
+def rendered_results(monkeypatch):
+    """La même chose, mais sur la colonne `results`."""
+    import pandas as pd
+
+    from src.dashboard.views import meta_breakdowns as mb
+
+    written: list[str] = []
+    monkeypatch.setattr(mb.st, "caption", lambda text, *a, **k: written.append(str(text)))
+
+    def run(shown: float, total: float):
+        written.clear()
+        mb._render_coverage(pd.DataFrame({"results": [shown], "_results_total": [total]}))
+        return list(written)
+
+    return run
+
+
 def test_a_partial_breakdown_names_its_share(rendered) -> None:
     said = rendered(2348.0, 3087.82)
     assert said, "la ventilation ne couvre que 76 % de la dépense et ne le dit pas"
     note = said[0]
     assert "76" in note, f"la part n'est pas nommée : {note}"
     assert "2" in note and "3" in note, f"les deux montants ne sont pas dits : {note}"
+
+
+def test_results_get_their_own_share(rendered_results) -> None:
+    """R93 : la dépense n'était pas seule à diverger.
+
+    Mesuré sur l'artiste 1 : 24 873 résultats sur `_performance_day` contre 18 143
+    sur `_country`. Même cause que la dépense, et la note ne parlait que d'euros.
+    """
+    said = rendered_results(18143, 24873)
+    assert said and "73" in said[0], f"la part des résultats n'est pas dite : {said}"
 
 
 def test_a_complete_breakdown_stays_silent(rendered) -> None:
@@ -128,18 +156,27 @@ def test_the_query_and_the_note_agree_on_the_column_name() -> None:
         if isinstance(part, ast.Constant) and isinstance(part.value, str)
         and "AS _" in part.value
     }
-    alias = {seg.split("AS ")[1].split()[0]
+    # `.strip(",")` : l'alias est suivi d'une virgule quand la requête en produit
+    # plusieurs, et sans ça le garde rougissait sur sa propre extraction.
+    alias = {seg.split("AS ")[1].split()[0].strip(",")
              for seg in produced if "AS _" in seg}
 
-    # Côté NOTE : les colonnes que `_render_coverage` indexe réellement.
+    # Côté NOTE : les noms de colonne que `_render_coverage` NOMME.
+    #
+    # Elle les indexait directement (`df["_spend_total"]`) ; depuis qu'elle boucle sur
+    # deux métriques, l'indice est une variable et le littéral vit dans le tuple de
+    # la boucle. On collecte donc toutes les constantes `_*` de la fonction — c'est
+    # toujours la STRUCTURE, jamais le texte du fichier.
     fn = next(n for n in ast.walk(tree)
               if isinstance(n, ast.FunctionDef) and n.name == "_render_coverage")
-    read = {n.slice.value for n in ast.walk(fn)
-            if isinstance(n, ast.Subscript) and isinstance(n.slice, ast.Constant)
-            and isinstance(n.slice.value, str)}
+    read = {n.value for n in ast.walk(fn)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)
+            and n.value.startswith("_")}
 
-    assert "_spend_total" in alias, (
-        f"la requête ne produit plus d'alias `_spend_total` (elle produit {alias}) — "
-        "la note ne sortira jamais, et rien ne le dira")
-    assert "_spend_total" in read, (
-        f"la note ne lit plus `_spend_total` (elle lit {sorted(read)})")
+    # Les DEUX colonnes : la dépense (2026-09-11) et les résultats (R93, 2026-09-12).
+    for col in ("_spend_total", "_results_total"):
+        assert col in alias, (
+            f"la requête ne produit plus d'alias `{col}` (elle produit {alias}) — "
+            "la note correspondante ne sortira jamais, et rien ne le dira")
+        assert col in read, (
+            f"la note ne lit plus `{col}` (elle lit {sorted(read)})")

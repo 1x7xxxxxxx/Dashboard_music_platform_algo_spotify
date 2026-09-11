@@ -72,16 +72,29 @@ def get_summary(
     aid: Optional[int] = Depends(require_artist_scope),
 ):
     artist_frag, params = _artist_clause(aid)
+    # LE TOTAL VIENT DE LA COUCHE OR (ADR-019), le reste de la table de fait.
+    #
+    # `SUM(streams)` était ici la deuxième définition du total Spotify : la couche or
+    # déduplique d'abord par (date, titre) et somme le MAX — deux imports du même jour
+    # ne doivent pas doubler les écoutes. Les deux s'accordent aujourd'hui (165 065
+    # mesuré par les deux chemins le 2026-09-11) parce qu'un index unique interdit le
+    # doublon ; le jour où il saute, l'API et le dashboard donnent deux nombres, et
+    # c'est l'API — un AUTRE processus — qui diverge en silence.
+    #
+    # `unique_songs` et `latest_date` ne sont pas des métriques métier : un décompte
+    # de titres et une date de dernière ligne n'ont pas de définition à centraliser.
+    # Ils restent sur le fait, et la ligne du filtre « Total » avec eux.
     df = db.fetch_df(
         f"""
         SELECT
-            COALESCE(SUM(streams), 0)        AS total_streams,
+            (SELECT COALESCE(SUM(total), 0) FROM v_platform_totals
+              WHERE platform = 'spotify' {artist_frag}) AS total_streams,
             COUNT(DISTINCT song)              AS unique_songs,
             MAX(date)::text                   AS latest_date
         FROM s4a_song_timeline
         WHERE song NOT ILIKE %s {artist_frag}
         """,
-        (f"%{_ARTIST_NAME_FILTER}%",) + params,
+        params + (f"%{_ARTIST_NAME_FILTER}%",) + params,
     )
     row = df.iloc[0] if not df.empty else {}
     return StreamSummary(

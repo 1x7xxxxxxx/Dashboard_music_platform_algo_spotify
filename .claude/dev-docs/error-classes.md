@@ -98,6 +98,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-note-outlives-the-figure-it-explains](#a-note-outlives-the-figure-it-explains) | P2 | deterministic | guarded | none |
 | [a-bucket-sums-deltas-instead-of-deriving-the-counter](#a-bucket-sums-deltas-instead-of-deriving-the-counter) | P2 | deterministic | guarded | none |
 | [a-metric-computed-outside-the-metrics-layer](#a-metric-computed-outside-the-metrics-layer) | P2 | deterministic | guarded | none |
+| [an-overload-makes-the-old-call-ambiguous](#an-overload-makes-the-old-call-ambiguous) | P2 | deterministic | guarded | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -4815,3 +4816,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-11: **le comptage sépare le risque du défaut, et c'est ce qui le rend actionnable.** Les 62 sites ne sont pas 62 bugs : mesurés en production le même jour, ils s'accordent. Les traiter comme des défauts aurait produit une réécriture massive contre zéro bénéfice ; les ignorer aurait laissé revenir la classe. Un cliquet dit la seule chose vraie — « ça ne remonte pas » — et transforme un chantier en direction.
   - 2026-09-11: la couche or couvre **3 métriques** : les écoutes (`v_platform_totals`, migration 097), le revenu (`v_artist_monthly_revenue`) et la dépense Meta (`v_meta_spend_totals`, migration 101, écrite le jour même parce que le cliquet de la frontière du bronze a refusé qu'une page lise la table brute pour afficher un pourcentage de couverture). Restent sans définition unique : **Apple** (sa règle vit en Python, cinq fichiers lisent la table), l'engagement SoundCloud, et les RÉSULTATS Meta (24 873 contre 18 143 selon la table lue).
   - 2026-09-11: deux écarts mesurés qui ne relèvent PAS de cette classe, consignés pour qu'on ne les « corrige » pas : les breakdowns Meta ne couvrent que 76 % de la dépense parce que Meta n'attribue pas tout à une dimension (la page le dit désormais, en le mesurant), et la vue revenu compte la répartition SACEM brute (43,06 €) plutôt que le versement (36,49 €) — un choix de définition, cohérent avec le brut distributeur.
+
+
+## an-overload-makes-the-old-call-ambiguous
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une tuile passe à **0** après une migration qui n'a rien retiré. Mesuré le 2026-09-12 : « Total Streams (Cumul) » affichait **0** sur la page Apple Music pendant que « Total Shazams » affichait 1 770, et la page ne signalait rien.
+- root_cause: la migration 103 a ajouté `gold_apple_lifetime(integer, text DEFAULT 'plays')` à côté de `gold_apple_lifetime(integer)` créée par la 102. Un appel à UN argument matche alors les deux, et Postgres rend `AmbiguousFunction` — pas « fonction absente », pas un résultat faux : une erreur. Elle tombe dans l'`except` qui protège la page (« une tuile absente ne fait pas tomber la page ») et ressort en **zéro affirmé**. Ajouter un paramètre à défaut n'est donc PAS rétrocompatible en SQL, contrairement à Python.
+- long_term_fix: une migration qui ajoute une surcharge retire l'ancienne dans le même fichier, et dans cet ordre — créer la nouvelle, repointer les objets qui dépendent de l'ancienne (une vue refuse un `DROP FUNCTION` dont elle dépend), retirer l'ancienne. Règle générale, et c'est la moitié la plus utile : **un `except` qui protège l'affichage transforme toute erreur de schéma en valeur nulle affirmée.** Une fonction de la couche or doit donc être unique par nom, ce qu'un contrôle sur `pg_proc` vérifie en une requête.
+- autofix: none
+- signature: `python3 -c "import os,sys,psycopg2${IFS}try:${IFS} c=psycopg2.connect(host='127.0.0.1',port=5433,dbname='spotify_etl',user='postgres',password=os.environ.get('DB_PASSWORD',''))${IFS}except Exception:${IFS} sys.exit(0)${IFS}cur=c.cursor();cur.execute(\"SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname LIKE 'gold_%' GROUP BY 1 HAVING count(*)>1\");bad=cur.fetchall();c.close();sys.exit(1 if bad else 0)"`
+- guard: tests/test_the_gold_layer_defines_every_platform.py — les trois branches de la règle Apple sont épinglées sur données synthétiques dans une transaction annulée, et la page Apple Music est rendue au complet dans le render-smoke. Signature vue exit=1 en recréant la surcharge, 0 après l'avoir retirée.
+- rex_ref: migrations/103_gold_apple_metric.sql
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: **trouvé en REGARDANT la page, pas en lisant le SQL.** La migration s'appliquait sans erreur, les tests passaient, et `gold_apple_lifetime(1, 'shazam_count')` rendait la bonne valeur en psql — c'est l'appel à un seul argument qui échouait, et seul le rendu le montrait. Cinquième fois que ce dépôt l'apprend.
+  - 2026-09-12: le premier correctif — un `DROP FUNCTION` placé avant le `CREATE` — a échoué : `view v_platform_totals depends on function gold_apple_lifetime(integer)`. L'ordre est donc contraint et il est écrit dans la migration, parce qu'un lecteur pressé le remettrait en tête.

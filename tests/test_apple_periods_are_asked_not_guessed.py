@@ -46,6 +46,23 @@ class _DB:
         self.last_lifetime = last_lifetime
 
     def fetch_query(self, sql, params=None):  # noqa: ANN001
+        # LA RÈGLE EST DESCENDUE EN SQL le 2026-09-12 (migrations 102/103), et
+        # `apple_lifetime_plays` ne fait plus que l'appeler. Cette doublure la rejoue
+        # donc en Python pour rester utilisable hors base — et c'est assumé : ce
+        # fichier teste la FORME du raisonnement (ne jamais compter deux fois une
+        # période imbriquée), pas l'implémentation. La règle réelle est épinglée
+        # contre le vrai Postgres par
+        # `tests/test_the_gold_layer_defines_every_platform.py`, sur données
+        # synthétiques et pour ses trois branches.
+        if "gold_apple_lifetime" in sql:
+            if self.readings:
+                widest = max(self.readings, key=lambda r: (r[1] - r[0], r[2]))
+                cover = sum(p for _s, _e, p in
+                            __import__("src.dashboard.utils.platform_timeseries",
+                                       fromlist=["x"]).non_overlapping_cover(
+                                           self.readings))
+                return [(max(widest[2], cover),)]
+            return [(self.last_lifetime or 0,)]
         if "period_start IS NOT NULL" in sql and "GROUP BY 1, 2" in sql:
             return list(self.readings)
         if "MAX(snapshot_date)" in sql:

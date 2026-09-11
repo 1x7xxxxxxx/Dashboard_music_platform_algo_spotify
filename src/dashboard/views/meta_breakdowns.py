@@ -259,10 +259,14 @@ def show() -> None:
         inner = (f"SELECT {dim_cols}, {metrics} FROM {table} "
                  f"WHERE artist_id = %s{_acct_tbl}{where_entity} GROUP BY {dim_cols}")
         if family == "performance":
-            sql = (f"SELECT b.*, (SELECT COALESCE(SUM(spend), 0) FROM "
-                   f"v_meta_spend_totals WHERE artist_id = %s{_acct}) "
-                   f"AS _spend_total FROM ({inner}) b")
-            args = tuple(params) + (artist_id, *_acct_params)
+            sql = (f"SELECT b.*, "
+                   f"(SELECT COALESCE(SUM(spend), 0) FROM v_meta_spend_totals "
+                   f" WHERE artist_id = %s{_acct}) AS _spend_total, "
+                   f"(SELECT COALESCE(SUM(results), 0) FROM v_meta_spend_totals "
+                   f" WHERE artist_id = %s{_acct}) AS _results_total "
+                   f"FROM ({inner}) b")
+            args = (tuple(params) + (artist_id, *_acct_params)
+                    + (artist_id, *_acct_params))
         else:
             sql, args = inner, tuple(params)
         df = db.fetch_df(sql, args)
@@ -277,8 +281,9 @@ def show() -> None:
 
     if family == "performance":
         _render_coverage(df)
-        _render_performance(df.drop(columns=["_spend_total"], errors="ignore"),
-                            dim_key, entity_label)
+        _render_performance(
+            df.drop(columns=["_spend_total", "_results_total"], errors="ignore"),
+            dim_key, entity_label)
     else:
         _render_engagement(df, dim_key, entity_label)
 
@@ -301,18 +306,27 @@ def _render_coverage(df) -> None:
     campagne et de la période collectée, et une constante deviendrait fausse à la
     première nouvelle campagne.
     """
-    if "spend" not in df.columns or "_spend_total" not in df.columns:
-        return
-    shown = float(df["spend"].fillna(0).sum())
-    total = float(df["_spend_total"].iloc[0] or 0)
-    if total <= 0 or shown <= 0 or shown >= total * 0.995:
+    parts = []
+    for col, total_col, unit in (("spend", "_spend_total", " €"),
+                                 ("results", "_results_total", "")):
+        if col not in df.columns or total_col not in df.columns:
+            continue
+        shown = float(df[col].fillna(0).sum())
+        total = float(df[total_col].iloc[0] or 0)
+        if total <= 0 or shown <= 0 or shown >= total * 0.995:
+            continue
+        parts.append(t(
+            "meta_breakdowns.coverage_part",
+            "**{shown}{unit}** sur **{total}{unit}** ({pct} %)"
+        ).format(shown=f"{shown:,.0f}".replace(",", "\u202f"),
+                 total=f"{total:,.0f}".replace(",", "\u202f"),
+                 unit=unit, pct=f"{100 * shown / total:.0f}"))
+    if not parts:
         return
     st.caption(t(
         "meta_breakdowns.coverage",
-        "ⓘ Cette ventilation porte **{shown} €** sur **{total} €** dépensés, soit "
-        "**{pct} %**. Meta n'attribue pas toute la dépense à une dimension — les "
-        "impressions dont il ignore le pays, l'âge ou le placement ne sont dans "
-        "aucune barre. L'écart n'est pas une donnée manquante de notre côté."
-    ).format(shown=f"{shown:,.0f}".replace(",", "\u202f"),
-             total=f"{total:,.0f}".replace(",", "\u202f"),
-             pct=f"{100 * shown / total:.0f}"))
+        "ⓘ Cette ventilation porte {parts}. Meta n'attribue pas tout à une "
+        "dimension — les impressions dont il ignore le pays, l'âge ou le placement "
+        "ne sont dans aucune barre. L'écart n'est pas une donnée manquante de notre "
+        "côté."
+    ).format(parts=" et ".join(parts)))
