@@ -107,6 +107,7 @@ _clear()
 # On mesure l'état « configuré », celui d'un artiste installé — c'est la page que
 # la plupart des rendus servent. Le coût de la mise en route se mesure ailleurs.
 import src.dashboard.utils.setup_completion as _sc
+_sc_original = _sc.read_setup_state
 _sc.read_setup_state = lambda *a, **k: _sc.SetupState(
     steps=[_sc.Step(k_, True, p_) for k_, p_ in _sc._STEP_PAGES],
     show_on_login=False, collected=True)
@@ -118,6 +119,15 @@ try:
     from src.dashboard.views.home import show
     show()
 finally:
+    # LA DOUBLURE EST RENDUE. Elle a été posée par une affectation nue, dans un
+    # script qui s'exécute DANS le processus des tests : sans ce rétablissement,
+    # tous les tests suivants du même worker voyaient une mise en route
+    # TERMINÉE. Mesuré en CI le 2026-09-11 :
+    # `test_the_tab_bar_skips_what_is_done` trouvait l'onglet « 📂 Mes fichiers »
+    # vert pour un locataire qui venait d'être créé vide. Un test qui change
+    # l'état du processus doit le rendre — classe « une suite de tests a un
+    # rayon de souffle ».
+    _sc.read_setup_state = _sc_original
     open({out!r}, 'w').write(json.dumps(dict(_seen)))
 """
 
