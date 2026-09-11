@@ -142,17 +142,27 @@ def test_the_curve_never_goes_down(db) -> None:
         + "\n".join(drops[:10]))
 
 
-def test_the_series_does_not_read_the_channel_counter() -> None:
-    """Sans base : la propriété tient dans le SQL lui-même."""
-    from src.dashboard.utils import platform_timeseries as pts
+def test_the_series_does_not_read_the_channel_counter(db) -> None:
+    """La propriété a DÉMÉNAGÉ dans la vue, elle n'a pas disparu.
 
-    sql = pts._SQL_YT_CUMULATIVE.lower()
-    assert "youtube_video_stats" in sql
-    assert "youtube_channel_history" not in sql, (
+    Elle tenait dans `_SQL_YT_CUMULATIVE`, une constante du module. Depuis la
+    migration 104, le report en avant vit dans `v_platform_levels` pour les trois
+    plateformes — le garder aussi en Python serait une seconde définition du même
+    niveau. Le test suit la règle là où elle est, plutôt que de disparaître avec la
+    constante qu'il nommait.
+    """
+    definition = db.fetch_query(
+        "SELECT pg_get_viewdef('v_platform_levels'::regclass, true)", ())[0][0].lower()
+    assert "youtube_video_stats" in definition
+    assert "youtube_channel_history" not in definition, (
         "la série cumulée est revenue au compteur de chaîne")
-    assert "count(" in sql and "over (partition by" in sql, (
+    assert "count(" in definition and "over (partition by" in definition, (
         "le report en avant a disparu : sans lui, un jour de collecte partielle fait "
         "plonger la courbe et son dernier point ne vaut le total que par chance")
+    assert "playback_count > 0" in definition and "view_count > 0" in definition, (
+        "le filtre des ZÉROS a sauté : une collecte ratée écrit 0, pas NULL, et le "
+        "niveau s'effondre. Mesuré le 2026-06-01 — 19 titres SoundCloud à 0, le "
+        "niveau tombait de 23 475 à 0 avant de remonter.")
 
 
 # ── LE MÊME INVARIANT, MAIS SUR LA FIGURE ──────────────────────────────────
