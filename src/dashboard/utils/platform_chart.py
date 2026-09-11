@@ -516,6 +516,7 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                           since=None, until=None, only=None, step=None,
                           mode: str = "cumulative",
                           cumulative: dict | None = None,
+                          discarded: dict | None = None,
                           key: str = "platform_chart") -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
@@ -619,14 +620,50 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     # autres plateformes », signalé le 2026-09-11 sur « Par période », « par année » et
     # « par semaine ». C'est le même geste que pour Apple juste en dessous : une
     # plateforme dont la forme de mesure diffère n'a pas à passer l'examen des autres.
-    served = ([k for k, rows in (cumulative or {}).items() if rows]
-              if mode == "cumulative" else [])
+    # « PAR PÉRIODE » AUSSI, DÈS QUE LE SEAU EST PLUS LARGE QU'UN JOUR.
+    #
+    # Mesuré le 2026-09-11 sur l'artiste 1, « Depuis le début » (pas hebdomadaire) :
+    # la somme des seaux YouTube vaut **124** quand le compteur a gagné **18 740**.
+    # Facteur **151**. La bande est alors à 0,14 % de Spotify, c'est-à-dire sous le
+    # pixel — « je n'ai aucune data sur YouTube ».
+    #
+    # La raison est celle du cumulé : un écart quotidien n'existe qu'entre deux jours
+    # CONSÉCUTIFS, et YouTube n'est relevée que 39 % des jours. Mais la croissance
+    # d'un compteur sur un SEAU est dérivable de ses niveaux, exactement comme elle
+    # l'est sur une fenêtre — c'est la même règle que `platform_totals` borné.
+    #
+    # ⚠️ PAS AU PAS QUOTIDIEN, et c'est la limite du raisonnement. Entre deux relevés
+    # distants de neuf jours, attribuer tout l'écart au jour du second relevé
+    # inventerait un pic. À la semaine, l'écart est attribué à la semaine où il a été
+    # OBSERVÉ, ce qui est une approximation qu'on assume : l'alternative mesurée est
+    # de sous-déclarer d'un facteur 151. Au jour, on garde les écarts honnêtes, et la
+    # note « écoutes non traçables » continue de dire ce qui manque.
+    _has_gold = [k for k, rows in (cumulative or {}).items() if rows]
+    served = _has_gold if (mode == "cumulative" or step != "day") else []
     for k in served:
         aligned.setdefault(k, [None] * len(span))
+
+    if served and mode != "cumulative":
+        # Le seau porte la CROISSANCE du compteur : niveau à la fin du seau moins
+        # niveau à la fin du précédent. Le premier seau n'a pas de prédécesseur, donc
+        # sa croissance est inconnue — `None`, jamais 0, qui affirmerait l'immobilité.
+        for k in served:
+            levels = _carry_forward(span, cumulative[k], step)
+            growth = [None]
+            for prev, cur in zip(levels, levels[1:]):
+                growth.append(None if prev is None or cur is None
+                              else max(cur - prev, 0))
+            aligned[k] = growth
 
     order = [k for k in PLATFORM_LABELS
              if k in aligned and (k in order or k in served or STEP_ONLY.get(k) == step)]
     thin = {k: v for k, v in thin.items() if k in aligned and k not in order}
+    # `coarse` a été décidé AVANT l'admission, donc il nomme encore les plateformes
+    # qu'on vient de réintégrer. Mesuré le 2026-09-11 au pas ANNUEL : la figure traçait
+    # YouTube et SoundCloud, et affichait sous elle « 🎬 YouTube n'apparaît pas à ce
+    # pas ». Une note qui nie la bande qu'on regarde est le défaut de
+    # `a-note-outlives-the-figure-it-explains`, une ligne plus bas.
+    coarse = [k for k in coarse if k not in served]
     if only:
         # Le filtre de SOURCES, demandé le 2026-09-08 : « il faudrait pouvoir
         # sélectionner différentes sources, par exemple afficher que YouTube sur la
@@ -682,7 +719,8 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                        palette=palette, ink=ink, muted=muted, surface=surface,
                        grid=grid, title=title, step=step, total=total, key=key)
         _render_notes(span, aligned_raw, order, thin, coarse, step,
-                      stacked=False, coarsened=coarsened, mode=mode, served=served)
+                      stacked=False, coarsened=coarsened, mode=mode, served=served,
+                      discarded=discarded)
         return True
 
     # LA LÉGENDE EST LE FILTRE DE SOURCES, et c'est ce qui retire un widget.
@@ -812,7 +850,7 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     )
     st.plotly_chart(fig, width="stretch", key=key)
     _render_notes(span, aligned_raw, order, thin, coarse, step,
-                  coarsened=coarsened, mode=mode, served=served)
+                  coarsened=coarsened, mode=mode, served=served, discarded=discarded)
     return True
 
 
@@ -869,7 +907,8 @@ def t_trend_caption(step: str, mode: str) -> str:
 
 def _render_notes(span: list, aligned_raw: dict, order: list, thin: dict,
                   coarse: list, step: str, *, stacked: bool = True,
-                  coarsened=None, mode: str = "absolute", served=()) -> None:
+                  coarsened=None, mode: str = "absolute", served=(),
+                  discarded: dict | None = None) -> None:
     """Ce que la figure ne peut pas dessiner, écrit sous elle. Jamais tu.
 
     Une plateforme qui manque sans explication se lit comme une panne — la leçon de la
@@ -899,6 +938,33 @@ def _render_notes(span: list, aligned_raw: dict, order: list, thin: dict,
         st.caption(t_too_thin(label, measured, total))
     for pkey in coarse:
         st.caption(t_too_coarse(PLATFORM_LABELS[pkey], step))
+
+    # « ÉCOUTES NON TRAÇABLES » — seulement quand la figure trace vraiment les écarts
+    # quotidiens, c'est-à-dire au pas du JOUR et hors mode cumulé.
+    #
+    # Elle vivait dans l'accueil, et elle ne pouvait pas y être juste : cette vue
+    # connaît le pas DEMANDÉ, et « Automatique » n'en est pas un — seul ce module sait
+    # lequel a été retenu. C'est exactement l'argument qui avait déjà fait descendre
+    # `t_trend_caption` ici le 2026-09-10 ; la note voisine était restée en haut.
+    #
+    # Depuis que le seau plus large qu'un jour porte la CROISSANCE du compteur, ces
+    # écoutes sont dans la figure dès le pas hebdomadaire. Les annoncer perdues sous
+    # une figure qui les montre est le défaut qu'on vient de corriger, dans l'autre
+    # sens.
+    if discarded and mode != "cumulative" and step == "day":
+        from src.dashboard.utils.i18n import t
+
+        parts = ", ".join(
+            f"{PLATFORM_LABELS.get(k, k)} {v[2]:,}".replace(",", "\u202f")
+            for k, v in sorted(discarded.items(), key=lambda kv: -kv[1][2]) if v[2])
+        if parts:
+            st.caption(t(
+                "home.trend_discarded",
+                "⏸️ Écoutes mesurées mais **non traçables** : {parts}. Elles se sont "
+                "produites entre deux collectes espacées de plus d'un jour — on sait "
+                "combien, jamais quel jour. Les attribuer à une date inventerait un "
+                "pic. **Par semaine** ou **Par année**, elles sont comptées."
+            ).format(parts=parts))
 
 
 def _render_facets(*, fig_span: list, aligned: dict, order: list, segments: dict,

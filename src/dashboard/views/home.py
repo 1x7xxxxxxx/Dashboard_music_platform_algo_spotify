@@ -254,12 +254,17 @@ def _render_trend(db, series, since, until, range_key, artist_id) -> None:
     # DIFFÉRENCES n'additionne que les journées consécutives — mesuré le 2026-09-11
     # sur l'artiste 1 : 21 pour YouTube au lieu de 118 219, 8 pour SoundCloud au lieu
     # de 23 486.
-    from src.dashboard.utils.platform_timeseries import cumulative_by_platform
-    cumulative = cumulative_by_platform(db, artist_id) if mode == "cumulative" else None
+    from src.dashboard.utils.platform_timeseries import (cumulative_by_platform,
+                                                          discarded_deltas)
+    cumulative = cumulative_by_platform(db, artist_id)
+    # Ce que la conversion cumul → quotidien jette. La figure décide si la phrase
+    # s'applique : elle seule connaît le pas retenu quand l'utilisateur a dit
+    # « Automatique ».
+    _discarded = discarded_deltas(db, artist_id)
 
     if not render_platform_chart(
             series, since=since, until=until, only=chosen, step=step, mode=mode,
-            cumulative=cumulative,
+            cumulative=cumulative, discarded=_discarded,
             title=t("home.trend_title", "Toutes tes plateformes, un seul écran")
             + f" — {date_range.label(range_key)}",
             key=f"home_trend_{artist_id}"):
@@ -291,26 +296,6 @@ def _render_trend(db, series, since, until, range_key, artist_id) -> None:
     # Mesuré le 2026-09-10 sur l'artiste 1 : la figure trace 21 écoutes YouTube et en
     # écarte 167. Une figure qui montre un neuvième du volume sans le dire se lit comme
     # une plateforme morte.
-    # ⚠️ SEULEMENT DANS LES MODES QUI TRACENT LA SÉRIE QUOTIDIENNE.
-    #
-    # En mode « Cumulé », la courbe ne vient plus de cette série mais de la couche or,
-    # qui lit le COMPTEUR : ces écoutes-là y sont, par construction. Les annoncer
-    # « non traçables » sous une figure qui les trace est un mensonge dans l'autre
-    # sens, et c'est celui qui a été signalé le 2026-09-11 — « je n'ai aucune data sur
-    # YouTube depuis le début », sous une courbe qui affichait 118 334.
-    from src.dashboard.utils.platform_timeseries import discarded_deltas
-    _lost = discarded_deltas(db, artist_id) if mode != "cumulative" else {}
-    if _lost:
-        _parts = ", ".join(
-            f"{PLATFORM_LABELS.get(k, k)} {v[2]:,}".replace(",", " ")
-            for k, v in sorted(_lost.items(), key=lambda kv: -kv[1][2]) if v[2])
-        if _parts:
-            st.caption(t(
-                "home.trend_discarded",
-                "⏸️ Écoutes mesurées mais **non traçables** : {parts}. Elles se sont "
-                "produites entre deux collectes espacées de plus d'un jour — on sait "
-                "combien, jamais quel jour. Les attribuer à une date inventerait un pic."
-            ).format(parts=_parts))
     render_missing_history_note()
 
 

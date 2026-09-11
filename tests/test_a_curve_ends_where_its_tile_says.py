@@ -447,3 +447,88 @@ def test_the_merged_query_says_exactly_what_the_single_ones_say(db) -> None:
     assert any(merged.get(k) for k in ("youtube", "soundcloud")), (
         "aucune des deux plateformes ne rend de point : ce test passerait sur deux "
         "listes vides égales, ce qui est exactement le défaut qu'il vise")
+
+
+# ── « PAR PÉRIODE » : UN SEAU PORTE LA CROISSANCE DU COMPTEUR ──────────────
+
+def test_a_coarse_bucket_carries_the_counter_growth_not_the_measured_deltas() -> None:
+    """Le mode « Par période » sous-déclarait un compteur d'un facteur 151.
+
+    Mesuré en production le 2026-09-11, artiste 1, « Depuis le début » (pas
+    hebdomadaire) : la somme des seaux YouTube valait **124** quand le compteur avait
+    gagné **18 740**. La bande tombait alors à 0,14 % de Spotify, c'est-à-dire sous le
+    pixel — « je n'ai aucune data sur YouTube ».
+
+    La raison est celle du cumulé : un écart quotidien n'existe qu'entre deux jours
+    CONSÉCUTIFS, et YouTube n'est relevée que 39 % des jours. Mais la croissance d'un
+    compteur sur un SEAU se dérive de ses niveaux, exactement comme sur une fenêtre —
+    c'est déjà ce que fait `platform_totals` borné, et les deux devaient s'accorder.
+    """
+    import datetime as _d
+
+    from src.dashboard.utils import platform_chart as pc
+
+    captured = {}
+    real_chart, real_caption = pc.st.plotly_chart, pc.st.caption
+    pc.st.plotly_chart = lambda fig, **k: captured.__setitem__("fig", fig)
+    pc.st.caption = lambda *a, **k: None
+
+    days = [_d.date(2026, 1, 5) + _d.timedelta(days=i) for i in range(70)]
+    # Un jour sur sept mesuré : la série quotidienne ne porte AUCUN couple
+    # consécutif, donc la somme des écarts vaut 0.
+    series = {"spotify": [(d, 10) for d in days],
+              "youtube": [(d, 1) for i, d in enumerate(days) if i % 7 == 0]}
+    gold = {"youtube": [(days[0], 1_000), (days[-1], 21_000)]}
+    try:
+        assert pc.render_platform_chart(series, since=days[0], until=days[-1],
+                                        step="week", mode="absolute",
+                                        cumulative=gold, key="g")
+        fig = captured["fig"]
+    finally:
+        pc.st.plotly_chart, pc.st.caption = real_chart, real_caption
+
+    total = sum(v for t in fig.data if "YouTube" in t.name
+                for v in t.y if v is not None)
+    assert total == 20_000, (
+        f"les seaux YouTube totalisent {total:,} au lieu des 20 000 que le compteur a "
+        "gagnés. Ils additionnent les écarts quotidiens, qui n'existent qu'entre deux "
+        "jours consécutifs — en production, 124 au lieu de 18 740.")
+
+
+def test_the_daily_step_keeps_the_honest_deltas() -> None:
+    """La limite du raisonnement, et elle est délibérée.
+
+    Attribuer à UNE journée l'écart observé entre deux relevés distants de neuf jours
+    inventerait un pic. À la semaine, l'écart est attribué à la semaine où il a été
+    OBSERVÉ — une approximation assumée, dont l'alternative mesurée est de
+    sous-déclarer d'un facteur 151. Au jour, on garde les écarts honnêtes, et la note
+    « écoutes non traçables » dit ce qui manque.
+
+    Sans ce test, dériver les niveaux à TOUS les pas serait vert.
+    """
+    import datetime as _d
+
+    from src.dashboard.utils import platform_chart as pc
+
+    captured = {}
+    real_chart, real_caption = pc.st.plotly_chart, pc.st.caption
+    pc.st.plotly_chart = lambda fig, **k: captured.__setitem__("fig", fig)
+    pc.st.caption = lambda *a, **k: None
+
+    days = [_d.date(2026, 1, 5) + _d.timedelta(days=i) for i in range(20)]
+    series = {"spotify": [(d, 10) for d in days],
+              "youtube": [(d, 1) for i, d in enumerate(days) if i % 7 == 0]}
+    gold = {"youtube": [(days[0], 1_000), (days[-1], 21_000)]}
+    try:
+        pc.render_platform_chart(series, since=days[0], until=days[-1], step="day",
+                                 mode="absolute", cumulative=gold, key="g")
+        fig = captured.get("fig")
+    finally:
+        pc.st.plotly_chart, pc.st.caption = real_chart, real_caption
+
+    total = sum(v for t in (fig.data if fig else []) if "YouTube" in t.name
+                for v in t.y if v is not None)
+    assert total < 1_000, (
+        f"au pas du JOUR, YouTube totalise {total:,} : les 20 000 du compteur ont été "
+        "attribués à des journées précises, ce qui invente un pic là où on sait "
+        "seulement COMBIEN, jamais QUEL JOUR.")
