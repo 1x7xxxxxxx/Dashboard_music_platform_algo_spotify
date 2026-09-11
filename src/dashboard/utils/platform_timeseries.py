@@ -195,9 +195,34 @@ _SQL_DISCARDED_YOUTUBE = """
     ) w WHERE vu_max IS NOT NULL AND jour - veille > 1
 """
 
-_SQL_DISCARDED_SOUNDCLOUD = _SQL_DISCARDED_YOUTUBE.replace(
-    "view_count", "playback_count").replace("video_id", "track_id").replace(
-    "youtube_video_stats", "soundcloud_tracks_daily")
+# ÉCRITE, pas fabriquée par substitution sur celle de YouTube.
+#
+# Elle l'était — trois `.replace()` enchaînés — et la classe
+# `a-query-assembled-by-string-substitution` dit pourquoi c'est un piège : le SQL
+# final n'existe nulle part sous forme lisible, et le jour où une substitution attrape
+# un mot de trop, la requête se compile et rend zéro ligne en silence. C'est
+# exactement ce qui est arrivé le 2026-09-11 à la requête cumulée fusionnée.
+#
+# Douze lignes recopiées contre une requête que personne ne peut relire : le choix
+# n'est pas difficile.
+_SQL_DISCARDED_SOUNDCLOUD = """
+    SELECT COUNT(*)::int AS trous,
+           COALESCE(SUM(jour - veille - 1), 0)::int AS jours_non_couverts,
+           COALESCE(SUM(GREATEST(playback_count - vu_max, 0)), 0)::bigint AS ecoutes_ecartees
+      FROM (
+        SELECT jour, playback_count,
+               MAX(playback_count) OVER (PARTITION BY track_id ORDER BY jour
+                   ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS vu_max,
+               LAG(jour) OVER (PARTITION BY track_id ORDER BY jour) AS veille
+          FROM (
+            SELECT collected_at::date AS jour, track_id,
+                   MAX(playback_count) AS playback_count
+              FROM soundcloud_tracks_daily
+             WHERE artist_id = %s AND playback_count IS NOT NULL
+             GROUP BY 1, 2
+          ) t
+    ) w WHERE vu_max IS NOT NULL AND jour - veille > 1
+"""
 
 
 # ── LES SÉRIES CUMULÉES : UNE SEULE SOURCE ─────────────────────────────────
