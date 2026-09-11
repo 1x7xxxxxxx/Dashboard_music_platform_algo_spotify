@@ -76,7 +76,11 @@ def pooled():
     """
     from src.database import postgres_handler as ph
     ph.disable_pool()
-    ph.enable_pool(1, 3, **_KW)
+    # `enable_pool` ne prend AUCUNE configuration : le pool se construit à la
+    # première connexion, à partir des attributs déjà résolus du handler. Sa
+    # première version lisait l'environnement elle-même et `test_one_door_onto_
+    # the_database` l'a refusée en CI — une quatrième copie de la précédence DSN.
+    ph.enable_pool(1, 3)
     try:
         yield ph
     finally:
@@ -153,14 +157,29 @@ def test_close_returns_the_connection_instead_of_destroying_it(pooled, monkeypat
     monkeypatch.setattr(psycopg2, "connect", counting)
     monkeypatch.setattr(pooled.psycopg2, "connect", counting)
 
-    for _ in range(5):
-        db = pooled.PostgresHandler(**_KW)
-        db.fetch_query("SELECT 1")
-        db.close()
+    def cycles(n: int) -> None:
+        for _ in range(n):
+            db = pooled.PostgresHandler(**_KW)
+            db.fetch_query("SELECT 1")
+            db.close()
 
-    assert handshakes["n"] == 0, (
-        f"{handshakes['n']} new handshake(s) for 5 open/close cycles — close() is "
-        "destroying pooled connections instead of returning them."
+    # La PREMIÈRE série construit le pool, qui ouvre ses `minconn` connexions —
+    # une poignée de main légitime, et une seule fois. Compter zéro ici serait
+    # faux : la première version de ce test le faisait et a rougi dès que le pool
+    # est devenu paresseux, sur un comportement pourtant correct.
+    cycles(5)
+    after_warmup = handshakes["n"]
+    assert after_warmup <= 3, (
+        f"{after_warmup} poignées de main pour amorcer un pool de 3 — il en ouvre "
+        "plus que sa taille, donc il n'en réutilise aucune."
+    )
+
+    # La SECONDE n'en coûte aucune. C'est la propriété qui compte, et elle ne
+    # dépend ni de la taille du pool ni du moment où il est construit.
+    cycles(5)
+    assert handshakes["n"] == after_warmup, (
+        f"{handshakes['n'] - after_warmup} nouvelle(s) poignée(s) de main sur 5 cycles "
+        "à pool déjà chaud — `close()` détruit les connexions au lieu de les rendre."
     )
 
 

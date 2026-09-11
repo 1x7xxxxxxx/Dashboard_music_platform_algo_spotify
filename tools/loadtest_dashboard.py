@@ -85,7 +85,6 @@ completion, so the render is already finished and timed when this raises.
 from __future__ import annotations
 
 import argparse
-import os
 import statistics
 import sys
 import threading
@@ -283,10 +282,21 @@ def main() -> int:
     if args.self_check:
         return _self_check()
 
-    if not (os.environ.get("DATABASE_URL") or os.environ.get("DATABASE_HOST")):
-        print("❌ Ni DATABASE_URL ni DATABASE_HOST. Lancer là où le dashboard tourne :\n"
-              "   docker exec streamlytics_dashboard python /app/tools/loadtest_dashboard.py",
-              file=sys.stderr)
+    # On INTERROGE la porte unique au lieu de deviner ses entrées.
+    #
+    # La première version lisait `DATABASE_URL` / `DATABASE_HOST` pour dire « rien
+    # n'est configuré », et `tests/test_one_door_onto_the_database.py` l'a refusée
+    # en CI. Le garde a raison même ici : deux endroits qui savent nommer les
+    # variables du DSN sont deux endroits à corriger le jour où elles changent.
+    # Et ouvrir vraiment est un meilleur test que vérifier des noms — il attrape
+    # aussi un mot de passe faux, que la présence d'une variable n'aurait pas vu.
+    try:
+        from src.database.postgres_handler import PostgresHandler
+        PostgresHandler.from_env_or_config().close()
+    except Exception as exc:      # noqa: BLE001 — le message compte, pas le type
+        print(f"❌ Base injoignable ({type(exc).__name__}). Lancer là où le dashboard "
+              f"tourne :\n   docker exec streamlytics_dashboard python "
+              f"/app/tools/loadtest_dashboard.py", file=sys.stderr)
         return 1
 
     on_drvfs = str(_ROOT).startswith("/mnt/")

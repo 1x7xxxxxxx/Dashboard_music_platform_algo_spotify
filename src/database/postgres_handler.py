@@ -85,62 +85,53 @@ _VALID_IDENTIFIER_RE = re.compile(r'^[a-z_][a-z0-9_]*$')
 # `statement_timeout` voyage dans les options de connexion, donc un pool qui les
 # oublierait supprimerait la borne des 15 s **en silence**.
 _POOL = None
+_POOL_LIMITS = None          # (min, max) demandés ; None = pas de pool
 _POOL_LOCK = threading.Lock()
 
 
-def enable_pool(minconn: int = 1, maxconn: int = 10, **connect_kwargs) -> None:
-    """Crée le pool du processus. Idempotent ; sans effet si déjà créé."""
+def enable_pool(minconn: int = 1, maxconn: int = 10) -> None:
+    """Demande un pool pour ce processus. Il sera construit à la première connexion.
+
+    CETTE FONCTION NE RÉSOUT RIEN, et c'est le point. Sa première version lisait
+    `DATABASE_URL` puis retombait sur `resolve_kwargs()` — une QUATRIÈME copie de
+    la précédence `DATABASE_URL → DATABASE_* → config.yaml`, écrite sous un
+    commentaire qui affirmait ne pas la recopier.
+    `tests/test_one_door_onto_the_database.py` l'a refusée en CI, et il avait
+    raison : les deux moitiés du produit ont déjà atteint la même base par deux
+    mécanismes dont aucun ne marchait à la place de l'autre.
+
+    Le pool est donc construit à partir des attributs du PREMIER handler, qui les
+    tient de `from_env_or_config()` — la porte unique. Il hérite ainsi, par
+    construction, de la précédence de l'appelant, quelle qu'elle soit.
+    """
+    global _POOL_LIMITS
+    with _POOL_LOCK:
+        if _POOL is None:
+            _POOL_LIMITS = (minconn, maxconn)
+
+
+def _build_pool_from(handler) -> None:
+    """Construit le pool avec la configuration que ce handler a déjà résolue."""
     global _POOL
     with _POOL_LOCK:
-        if _POOL is not None:
+        if _POOL is not None or _POOL_LIMITS is None:
             return
         from psycopg2.pool import ThreadedConnectionPool
+        minconn, maxconn = _POOL_LIMITS
         _POOL = ThreadedConnectionPool(
             minconn, maxconn,
             connect_timeout=5, options="-c statement_timeout=15000",
-            **connect_kwargs,
+            host=handler.host, port=handler.port, database=handler.database,
+            user=handler.user, password=handler.password,
         )
         logger.info("pool de connexions actif (%d-%d)", minconn, maxconn)
 
 
-def enable_pool_from_env(minconn: int = 1, maxconn: int = 10) -> bool:
-    """Active le pool avec la configuration que l'application utilise déjà.
-
-    La précédence `DATABASE_URL` → `DATABASE_*` → `config.yaml` n'est pas
-    recopiée ici : elle vit dans `PostgresHandler.from_env_or_config()` et
-    `src.utils.pg_connect.resolve_kwargs()`. Une seconde copie dériverait, et ce
-    dépôt a déjà payé pour cette forme exacte — la moitié API et la moitié
-    Airflow atteignaient la même base par deux mécanismes dont aucun ne
-    fonctionnait à la place de l'autre.
-
-    Rend False (sans lever) quand rien n'est configuré : un pool absent est un
-    ralentissement, pas une panne.
-    """
-    try:
-        url = os.environ.get("DATABASE_URL")
-        if url:
-            parsed = urlparse(url)
-            kwargs = {
-                "host": parsed.hostname or "localhost",
-                "port": parsed.port or 5432,
-                "database": parsed.path.lstrip("/"),
-                "user": parsed.username or "postgres",
-                "password": parsed.password or "",
-            }
-        else:
-            from src.utils.pg_connect import resolve_kwargs
-            kwargs = resolve_kwargs()
-        enable_pool(minconn, maxconn, **kwargs)
-        return True
-    except Exception as exc:      # noqa: BLE001 — sans pool on retombe sur le direct
-        logger.warning("pool non activé (%s) — connexions directes", type(exc).__name__)
-        return False
-
-
 def disable_pool() -> None:
     """Ferme le pool et revient aux connexions directes (tests, arrêt propre)."""
-    global _POOL
+    global _POOL, _POOL_LIMITS
     with _POOL_LOCK:
+        _POOL_LIMITS = None
         if _POOL is None:
             return
         try:
@@ -313,6 +304,8 @@ class PostgresHandler:
         est appelé par le dashboard et l'API, jamais par Airflow, dont les tâches
         tiennent une connexion pendant des minutes et n'y gagneraient rien.
         """
+        if _POOL is None and _POOL_LIMITS is not None:
+            _build_pool_from(self)
         pool = _borrow_from_pool()
         if pool is not None:
             self.conn, self._from_pool = pool, True

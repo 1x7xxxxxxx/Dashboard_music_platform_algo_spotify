@@ -67,9 +67,8 @@ def get_db_connection() -> Optional[PostgresHandler]:
     # Mesuré le 2026-09-11 en production : un rendu de page ouvre 4 connexions à
     # 13 ms de poignée de main, soit 52 ms sur 287. Sans pool, c'est 18 % du
     # rendu dépensé à se présenter.
-    from src.database.postgres_handler import enable_pool_from_env, pool_is_enabled
-    if not pool_is_enabled():
-        enable_pool_from_env(minconn=1, maxconn=8)
+    from src.database.postgres_handler import enable_pool
+    enable_pool(minconn=1, maxconn=8)   # idempotent ; le pool naît à la 1re connexion
 
     # Et le cache des séries, au même moment et pour la même raison : une fois
     # par processus, au premier besoin, jamais à l'import.
