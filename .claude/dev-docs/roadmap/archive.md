@@ -9,6 +9,60 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+### R88 — Étendre la couche or aux SÉRIES (livrée 2026-09-11)
+
+- [x] **R88 — Étendre la couche or aux SÉRIES.** Mesure de départ (base locale,
+  artiste 1) : le mode « Cumulé » affichait **21** écoutes YouTube contre **118 219**
+  dans `v_platform_totals`, et **8** pour SoundCloud contre **23 486**.
+
+  Ce qui a été livré :
+  - `platform_timeseries.youtube_cumulative_views` / `soundcloud_cumulative_plays` —
+    la série qui aboutit au total de la couche or : dernier compteur connu par entité,
+    **reporté en avant** les jours non relevés. Le dernier point égale
+    `v_platform_totals` **par construction**, vérifié pour chaque locataire.
+  - `cumulative_by_platform()` — dit quelles plateformes ont besoin de ce traitement
+    (Spotify non : sa source est véritablement quotidienne).
+  - `platform_chart._as_mode(..., cumulative, span, step)` LIT ces séries au lieu de
+    les reconstruire ; les tranches de la courbe sont recalculées sur le niveau, et le
+    sous-titre annonce le niveau d'arrivée au lieu d'une somme de cumuls.
+  - Appelants branchés : `views/home.py` et `views/onboarding.py` (frère trouvé dans
+    le même geste, même figure, sans fenêtre).
+  - `views/youtube.py` ne trace plus le compteur de CHAÎNE (120 627 affichés contre
+    118 219 partout ailleurs) ; il est conservé en tuile sous son propre nom
+    « 📺 Vues de la chaîne », avec l'aide qui dit ce qu'il contient de plus.
+  - `pdf_exporter/_collectors.py` — QUATRIÈME copie de la règle, repointée sur la
+    fonction unique. Résultat identique sur les données d'aujourd'hui (0 divergence
+    sur 34 points) ; ce qu'elle retire est `views.get(day, 0)`, qui écrivait 0 pour un
+    jour où la chaîne est relevée sans ses vidéos.
+
+  Gardes (tous vus rouges par mutation avant d'être crus) :
+  - `tests/test_a_curve_ends_where_its_tile_says.py` — le dernier point égale la vue
+    or pour chaque locataire, le cumul ne recule jamais, + 5 tests purs (lecture de la
+    couche or, report en avant, seau grossier qui prend le DERNIER niveau, niveau de
+    départ hérité d'avant la fenêtre). Mutations : `gold = None` → 4 échecs ; le seau
+    qui somme → 3 ; le trou qui casse la courbe → 3.
+  - `tests/test_every_surface_gives_the_same_total.py` — le garde du compteur de
+    chaîne, élargi de **trois emplacements nommés** à un **balayage de propriété** sur
+    tout `src/` et `airflow/` : lire `youtube_channel_history.view_count` est permis,
+    le présenter sans le nommer ne l'est pas (alias `AS channel_*` exigé). Les
+    ÉCRITURES sont exclues — le premier prédicat épousait le symptôme et rapportait le
+    DAG de collecte et son script de débogage, deux sites corrects. Un second test
+    interroge le balayage lui-même pour qu'il ne puisse pas passer à vide.
+  - Classe d'erreur `cumulative-counter-drawn-as-its-own-history` passée de
+    `reported` à **`guarded`**, avec une signature AST vue exit=1 sur le défaut et
+    exit=0 après le fix.
+
+  À noter aussi, car c'est le résultat d'audit et il **dément une prémisse de la
+  roadmap** : l'audit des filtres n'a trouvé **aucune incohérence**. Il n'y a pas sept
+  implémentations concurrentes mais **deux gabarits** — `date_range.py` (accueil) et
+  `period_filter.py` (7 vues) — et les deux `st.date_input` bruts repérés (`hypeddit`,
+  `promo_admin`) sont des **champs de saisie** (date d'une entrée, date d'expiration
+  d'un code), pas des filtres. Sur les 28 requêtes temporelles des pages filtrées, 20
+  portent la fenêtre et les 8 restantes sont légitimes (KPI « dernier instantané »,
+  historique volontairement non borné, filtrage en Pandas, branche « tout » d'un
+  if/else). Balayage des `cumsum` du dépôt : les 7 autres sites cumulent de vraies
+  quantités de période (dépense, revenu, streams S4A, mouvements) — aucun frère.
+
 ### R72 · R73 · R74 — les trois premières de l'audit transverse (clos 2026-09-10)
 
 - [x] **R72 — le payeur ne choisit plus le locataire à provisionner.** `client_reference_id`
@@ -3982,3 +4036,108 @@ consentement, et elle part depuis `streamlytics_dashboard`, qui porte bien
   serveur rend un p50 au-dessus de **200 ms**, ou `usage_events` montre plus de
   **20 sessions distinctes** dans une même minute :
   `SELECT max(s) FROM (SELECT count(DISTINCT session_id) s FROM usage_events GROUP BY date_trunc('minute', ts)) x`
+
+- [x] **R89 — Le double axe : un critère écrit, et trois figures converties** (P4) —
+  LIVRÉE le 2026-09-11. La tâche demandait « une décision écrite, ou `twinx()` retiré »
+  sur `pdf_charts.youtube_channel_growth`. Le balayage a rendu **six** `twinx()`, pas un.
+  Le critère est écrit une fois en tête de `pdf_charts.py` :
+  - MÊME NATURE (deux comptes du même genre d'événement) → petits multiples. Le double
+    axe y fabrique un croisement, et le croisement est ce que le lecteur vient chercher.
+  - NATURES DIFFÉRENTES (personnes/vues, euros/coût unitaire, comptes/pourcentage) →
+    double axe conservé, c'est la forme standard : sans échelle commune il n'y a pas de
+    croisement à sur-interpréter.
+
+  Tri : `apple_daily_growth` (streams/j vs shazams/j) et `apple_timeline` (plays vs
+  shazams cumulés) sont de même nature → convertis en panneaux empilés via le nouvel
+  helper `_stacked()`. `sc_multiaxis`, `ig_engagement`, `meta_daily` joignent des natures
+  différentes → conservés, chacun avec sa raison. `youtube_channel_growth` est converti
+  aussi mais pour une AUTRE raison, dite explicitement : abonnés et vues sont bien de
+  natures différentes, mais la page YouTube du dashboard les trace déjà en deux
+  panneaux — la même donnée ne prend plus deux formes dans le même produit. Sa courbe de
+  vues passe du pointillé gris au trait plein : le pointillé disait « série secondaire »,
+  ce qui n'a plus d'objet sur son propre panneau.
+
+  Les trois figures ont été RENDUES et REGARDÉES en PNG avant d'être crues.
+
+  Garde : `tests/test_a_dual_axis_only_joins_two_different_natures.py` — le jugement est
+  rendu une fois dans `_SAME_NATURE` / `_DIFFERENT_NATURES`, et une figure à double axe
+  qui n'est dans aucune des deux listes n'a jamais été jugée : c'est elle que le test
+  attrape. Un troisième test CONSTRUIT les figures et compte les panneaux, parce qu'un
+  `twinx()` retiré au profit d'un seul panneau superposé serait pire. Mutations vues
+  rouges : twinx revenu sur `apple_timeline`, un seul panneau, une nouvelle figure
+  jamais jugée.
+
+- [x] **R90 — La légende est devenue le filtre de sources** (P4) — LIVRÉE le
+  2026-09-11. « Peut-on intégrer le clickage des plateformes directement sur le
+  graphique plutôt qu'avec le filtre ? ça enlèverait de la complexité ». Le
+  `multiselect` « Sources affichées » est retiré de `home.py` sauf en mode « part ». Un
+  clic de légende est côté navigateur : il ne relance pas le script, là où le widget
+  coûtait un rendu complet (287 ms mesurés en production).
+
+  Trois détails qui cassent en silence, chacun épinglé : seule la PREMIÈRE tranche de
+  chaque plateforme porte l'entrée de légende (une plateforme est découpée en plusieurs
+  traces) ; `groupclick="togglegroup"` fait que le clic les bascule toutes ; la légende
+  est ancrée SOUS la figure (`y=-0.18`), jamais en haut où elle recouvrait le titre — le
+  défaut du 2026-09-08 et le défaut de Plotly. Les étiquettes de marge sont conservées :
+  elles nomment la bande à hauteur d'œil, la légende sert à la faire disparaître.
+
+  Le mode « part » garde son widget pour une raison de calcul et non de goût : ses
+  pourcentages sont établis sur l'ensemble affiché, et un clic de légende masque une
+  trace sans recalculer les autres — la pile ne ferait plus 100 %.
+
+  Garde : `tests/test_the_legend_is_the_source_filter.py`, 5 mutations vues rouges
+  (entrée dupliquée, `groupclick` au défaut, légende remontée sur le titre, mode « part »
+  cliquable, widget revenu hors mode « part »).
+
+  ⚠️ **À vérifier à l'œil au navigateur** : la légende du bas et les étiquettes de marge
+  nomment les mêmes plateformes. C'est redondant par choix — je n'ai pas pu rendre une
+  figure Plotly hors navigateur (kaleido absent). Si c'est chargé, retirer
+  `annotations=margin_labels(...)` est un changement d'une ligne.
+
+- [x] **R91 — Le PDF a la figure phare, et il partage les fonctions de l'écran** (P3) —
+  LIVRÉE le 2026-09-11. L'inventaire a nommé le manque : le PDF portait **25 figures** et
+  aucune ne montrait l'évolution multi-plateformes, celle qui ouvre l'accueil —
+  seulement `platform_breakdown`, un bâton par plateforme. `pdf_charts.platform_evolution`
+  la porte désormais, au-dessus du bâton dans la section « Vue d'ensemble ».
+
+  Le rendu ne peut pas être partagé (kaleido absent, Plotly → PNG impossible) ; tout le
+  reste l'est : `daily_streams_by_platform` et `cumulative_by_platform` pour les
+  séries, `platform_chart._window` / `_aggregate` / `_as_mode` / `stackable` pour la
+  mise en forme. Le report en avant, le plancher de seau et le refus d'inventer un jour
+  non mesuré s'appliquent donc sans être réécrits — il n'y a pas de cinquième copie de
+  la règle.
+
+  **Deux défauts trouvés en REGARDANT le PDF rendu, invisibles à la lecture du code :**
+
+  1. *La pile retombait à zéro au bord droit.* Le `span` va jusqu'à la dernière mesure
+     de la plateforme la plus récente (YouTube au 06-12) alors que S4A s'arrête au
+     06-07 ; un `None` devenu 0 dans un `stackplot` dit « plus aucune écoute » là où il
+     faut dire « plus aucune mesure ». La figure est tronquée à la dernière date où
+     toutes les bandes sont connues. L'autre extrémité n'est pas symétrique et n'est pas
+     tronquée : avant sa première mesure, une plateforme valait bien zéro.
+  2. *Les deux figures de la même page se contredisaient par un facteur 887.* La courbe
+     montrait YouTube à 118 219, le bâton juste en dessous annonçait **21**. Cause :
+     `platform_totals` sur une fenêtre bornée sommait les écarts quotidiens, qui
+     n'existent qu'entre jours CONSÉCUTIFS. Or la croissance d'un compteur sur une
+     fenêtre n'a besoin d'aucune attribution — c'est son niveau à la fin moins son
+     niveau au début. Corrigé : YouTube **21 → 18 625**, SoundCloud **8 → 245**, Spotify
+     inchangé (23 251, sa source est vraiment quotidienne), et une fenêtre sans collecte
+     rend toujours `None` et jamais 0.
+
+  Deux défauts mineurs corrigés au passage, eux aussi vus à l'œil : les emoji des
+  libellés sortaient en carrés vides (DejaVu Sans n'en a aucun), et la palette du PDF
+  donnait à chaque plateforme une couleur DIFFÉRENTE de celle de l'écran — Spotify bleu
+  dans l'évolution, vert dans le bâton.
+
+  Gardes : `tests/test_the_pdf_and_the_screen_read_the_same_functions.py` (5 tests : les
+  deux surfaces lisent les mêmes fonctions, la figure réutilise les transformations de
+  l'écran et n'interroge pas la base elle-même, la pile ne tombe pas au bord droit, une
+  plateforme a une seule couleur) et deux tests ajoutés à
+  `tests/test_a_curve_ends_where_its_tile_says.py` pour le total borné. Toutes les
+  mutations vues rouges.
+
+  PDF complet régénéré sur données réelles : **1,4 Mo, 28 figures sur 29**, page « Vue
+  d'ensemble » rendue en PNG et regardée avant et après.
+
+  État de la suite à la livraison des trois briques : **931 tests verts, 23 skippés**, 0
+  échec sur l'ensemble atteint par le diff. `ruff check src/ tests/ tools/` vert.

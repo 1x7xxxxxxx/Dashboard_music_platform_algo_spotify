@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import smart_period_filter
+from src.dashboard.utils import platform_timeseries as pts
 
 def parse_duration(duration_str):
     """Convertit 'PT1M30S' en secondes."""
@@ -33,16 +34,26 @@ def show():
                 artist_id=artist_id, key="yt_channel", default_override="all",
             )
             frag, frag_params = window.sql_between("collected_at")
+            # Les ABONNÉS n'existent que sur la chaîne — cette table est leur seule
+            # source. Les VUES, non : le compteur de chaîne porte des vidéos absentes
+            # du catalogue et avance par paliers. Il est lu plus bas, sous son propre
+            # nom, et la courbe vient de la couche or. Voir
+            # `platform_timeseries.youtube_cumulative_views`.
             hist_query = f"""
                 SELECT date(collected_at) as date,
                        MAX(subscriber_count) as subs,
-                       MAX(view_count) as views
+                       MAX(view_count) as channel_views
                 FROM youtube_channel_history
                 WHERE artist_id = %s {frag}
                 GROUP BY date(collected_at)
                 ORDER BY date
             """
             df_hist = db.fetch_df(hist_query, (artist_id, *frag_params))
+
+            views_series = [
+                (d, v) for d, v in pts.youtube_cumulative_views(db, artist_id)
+                if window.is_all_history or window.start <= d <= window.end
+            ]
 
             if not df_hist.empty:
                 from plotly.subplots import make_subplots
@@ -67,7 +78,7 @@ def show():
                 # Axe Y2 (Droite) : Vues Totales (Blanc/Gris clair pour Dark Mode)
                 # ✅ CORRECTION COULEUR (Visible sur fond noir)
                 fig_channel.add_trace(go.Scatter(
-                    x=df_hist['date'], y=df_hist['views'],
+                    x=[d for d, _ in views_series], y=[v for _, v in views_series],
                     name=t("youtube.total_views", "Vues Totales"),
                     mode='lines+markers',
                     line=dict(color='#E0E0E0', width=2, dash='dot'),
@@ -104,11 +115,23 @@ def show():
                 )
                 st.plotly_chart(fig_channel, width="stretch")
 
-                # KPIs actuels
+                # KPIs actuels. Les deux compteurs de vues sont affichés côte à
+                # côte et nommés : celui du CATALOGUE est celui de la courbe et des
+                # totaux du produit, celui de la CHAÎNE est ce qu'annonce YouTube.
+                # Les voir diverger est une information ; en voir un sans savoir
+                # lequel est ce qui a produit 120 627 ici et 118 219 ailleurs.
                 latest = df_hist.iloc[-1]
-                c1, c2 = st.columns(2)
-                c1.metric(t("youtube.kpi_current_subs", "👥 Abonnés Actuels"), f"{int(latest['subs']):,}")
-                c2.metric(t("youtube.kpi_total_views", "👁️ Vues Totales"), f"{int(latest['views']):,}")
+                c1, c2, c3 = st.columns(3)
+                c1.metric(t("youtube.kpi_current_subs", "👥 Abonnés Actuels"),
+                          f"{int(latest['subs']):,}")
+                c2.metric(t("youtube.kpi_total_views", "👁️ Vues Totales"),
+                          f"{views_series[-1][1]:,}" if views_series else "—")
+                c3.metric(t("youtube.kpi_channel_views", "📺 Vues de la chaîne"),
+                          f"{int(latest['channel_views']):,}",
+                          help=t("youtube.kpi_channel_views_help",
+                                 "Compteur annoncé par YouTube pour la chaîne entière : "
+                                 "il inclut les vidéos privées, supprimées et les "
+                                 "agrégats internes, absents du catalogue analysé ici."))
 
             else:
                 st.info(t("youtube.no_channel_history", "Pas encore d'historique pour la chaîne."))

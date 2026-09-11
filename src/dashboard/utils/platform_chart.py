@@ -441,11 +441,55 @@ MODES = {
 # qui la croit. Le seul mode qui n'empile pas se lit désormais où il est utilisé.
 
 
-def _as_mode(aligned: dict, order: list, mode: str) -> dict:
-    """Les mêmes séries, lues selon le mode. `None` reste `None` : on n'invente rien."""
+def _carry_forward(span: list, rows: list, step: str) -> list:
+    """Le niveau cumulé connu à chaque point de l'axe. `None` avant la 1ʳᵉ mesure.
+
+    `rows` est une série CUMULÉE — pas des quantités à sommer. Un seau prend donc le
+    DERNIER relevé qui y tombe, et un seau sans relevé garde celui d'avant : entre
+    deux collectes, le compteur n'est pas inconnu, il n'a simplement pas été relu.
+    Les relevés antérieurs à la fenêtre comptent aussi — ils fixent le niveau de
+    départ, sans quoi une fenêtre bornée ferait repartir le cumul de zéro.
+    """
+    pairs = [(_bucket_key(d, step), v) for d, v in sorted(rows)]
+    out, i, last = [], 0, None
+    for key in span:
+        while i < len(pairs) and pairs[i][0] <= key:
+            last = pairs[i][1]
+            i += 1
+        out.append(last)
+    return out
+
+
+def _as_mode(aligned: dict, order: list, mode: str,
+             cumulative: dict | None = None, span: list | None = None,
+             step: str = "day") -> dict:
+    """Les mêmes séries, lues selon le mode. `None` reste `None` : on n'invente rien.
+
+    LE CUMUL NE SE DÉDUIT PAS TOUJOURS DU QUOTIDIEN, et c'est le défaut que l'artiste
+    a signalé le 2026-09-11 : « j'ai le cumulé pour Spotify mais YouTube j'ai des
+    valeurs incohérentes et idem pour SoundCloud ».
+
+    Pour Spotify, la somme courante des jours EST le cumul : S4A livre des quantités
+    quotidiennes, toutes les journées sont là. Pour YouTube et SoundCloud, non. Leur
+    série quotidienne est une DIFFÉRENCE de compteurs, et cette différence n'est
+    honnête qu'entre deux jours consécutifs (`_SQL_YOUTUBE`) — les 61 % de journées
+    non collectées sont jetées pour de bon, pour ne pas inventer un pic. Les cumuler
+    revient donc à additionner ce qui reste : **136** affichés pour l'artiste 1 quand
+    le produit en compte **118 219** partout ailleurs. Un facteur 870.
+
+    La couche or sait, elle, ce que vaut le compteur à chaque date
+    (`platform_timeseries.youtube_cumulative_views`). Quand l'appelant la fournit, le
+    mode cumulé la LIT au lieu de la reconstruire — c'est ADR-019 appliqué aux séries.
+    Sans elle, on retombe sur la somme courante, correcte pour les sources
+    véritablement quotidiennes.
+    """
     if mode == "cumulative":
         out = {}
         for key, values in aligned.items():
+            gold = (cumulative or {}).get(key)
+            if gold and span is not None:
+                out[key] = _carry_forward(span, gold, step)
+                continue
             total, acc = 0, []
             for v in values:
                 if v is None:
@@ -471,6 +515,7 @@ def _as_mode(aligned: dict, order: list, mode: str) -> dict:
 def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                           since=None, until=None, only=None, step=None,
                           mode: str = "cumulative",
+                          cumulative: dict | None = None,
                           key: str = "platform_chart") -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
@@ -558,8 +603,29 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     # moitié — un total annuel bâti sur 15 jours sur 163 serait ~10× trop bas. Elle
     # disparaît alors de CE pas, et il faut le dire plutôt que la laisser manquer.
     coarse = [k for k in order if k not in aligned]
+
+    # UNE PLATEFORME SERVIE PAR LA COUCHE OR EST JUGÉE SUR LA COURBE QU'ON TRACE.
+    #
+    # Les deux verdicts ci-dessus portent sur la série QUOTIDIENNE : `stackable` écarte
+    # ce qui est trop clairsemé pour faire une aire, et `_aggregate` vide un seau
+    # mesuré à moins de la moitié. Les deux sont justes pour des quantités — un jour
+    # non collecté est une ignorance. Ils ne le sont pas pour un NIVEAU : entre deux
+    # relevés le compteur est connu, donc la courbe cumulée a un point à chaque pas
+    # depuis sa première mesure, et elle est dense par construction.
+    #
+    # Sans cette admission, le correctif du cumul ne serait jamais visible là où il
+    # compte : YouTube est relevée 39 % des jours, donc elle est écartée comme
+    # clairsemée ou vidée par le plancher de seau — « je n'ai aucune data pour les
+    # autres plateformes », signalé le 2026-09-11 sur « Par période », « par année » et
+    # « par semaine ». C'est le même geste que pour Apple juste en dessous : une
+    # plateforme dont la forme de mesure diffère n'a pas à passer l'examen des autres.
+    served = ([k for k, rows in (cumulative or {}).items() if rows]
+              if mode == "cumulative" else [])
+    for k in served:
+        aligned.setdefault(k, [None] * len(span))
+
     order = [k for k in PLATFORM_LABELS
-             if k in aligned and (k in order or STEP_ONLY.get(k) == step)]
+             if k in aligned and (k in order or k in served or STEP_ONLY.get(k) == step)]
     thin = {k: v for k, v in thin.items() if k in aligned and k not in order}
     if only:
         # Le filtre de SOURCES, demandé le 2026-09-08 : « il faudrait pouvoir
@@ -583,9 +649,34 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
 
     # `_as_mode` réécrit les valeurs ; les TROUS se lisent sur la série d'origine.
     aligned_raw = aligned
-    aligned = _as_mode(aligned, order, mode)
+    aligned = _as_mode(aligned, order, mode, cumulative, span, step)
 
-    total = sum(v for pkey in order for v in aligned_raw[pkey] if v)
+    # LES TRANCHES SUIVENT LA SÉRIE QU'ON TRACE. Elles sont décidées plus haut sur la
+    # série quotidienne, dont les trous sont réels : un jour non collecté est un jour
+    # dont on ignore les écoutes. Un NIVEAU cumulé, lui, reste connu entre deux
+    # relevés — c'est le dernier compteur lu. Garder les coupures du quotidien
+    # découperait la courbe de YouTube en 39 % de fragments pour cacher une valeur
+    # qu'on connaît, et la bande empilée retomberait à chaque trou.
+    drawn = [k for k in order if k in served]
+    if drawn:
+        segments = {**segments, **_segments(span, aligned, drawn)}
+        # Admise plus haut, mais toujours rien à tracer : sa première mesure est
+        # POSTÉRIEURE à la fenêtre. On la retire plutôt que de lui laisser une
+        # étiquette dans la marge — une étiquette qui ne nomme aucune bande se lit
+        # comme une bande disparue.
+        order = [k for k in order if k not in drawn or segments.get(k)]
+        if not order:
+            return False
+
+    if mode == "cumulative":
+        # Le sous-titre annonce le NIVEAU où la courbe finit, pas une somme de pas :
+        # additionner des cumuls avait déjà produit 16 568 594 écoutes pour un artiste
+        # qui en a 186 000. Avec la couche or, la somme des derniers points est aussi
+        # le total que les tuiles affichent — c'est la propriété qu'on veut visible.
+        total = sum(next((v for v in reversed(aligned[k]) if v is not None), 0)
+                    for k in order)
+    else:
+        total = sum(v for pkey in order for v in aligned_raw[pkey] if v)
     if mode == "facets":
         _render_facets(fig_span=span, aligned=aligned, order=order, segments=segments,
                        palette=palette, ink=ink, muted=muted, surface=surface,
@@ -594,15 +685,30 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                       stacked=False, coarsened=coarsened, mode=mode)
         return True
 
+    # LA LÉGENDE EST LE FILTRE DE SOURCES, et c'est ce qui retire un widget.
+    #
+    # Demandé le 2026-09-11 : « peut-on intégrer le clickage des plateformes
+    # directement sur le graphique plutôt qu'avec le filtre qui doit sélectionner ? ça
+    # enlèverait de la complexité ». Un clic de légende est côté navigateur : il ne
+    # relance pas le script, donc il est instantané là où le `multiselect` coûtait un
+    # rendu complet — 287 ms mesurés en production.
+    #
+    # Une plateforme est découpée en TRANCHES (une par plage continue), donc plusieurs
+    # traces. Seule la première porte l'entrée de légende, et `legendgroup` +
+    # `groupclick="togglegroup"` font que le clic les bascule toutes ensemble : sans
+    # ça, masquer YouTube n'en masquerait qu'un morceau.
+    legend_done: set = set()
     fig = go.Figure()
     for pkey in order:
         for seg in segments[pkey]:
+            first = pkey not in legend_done
+            legend_done.add(pkey)
             fig.add_trace(go.Scatter(
                 x=[span[i] for i in seg],
                 y=[aligned[pkey][i] or 0 for i in seg],
                 name=PLATFORM_LABELS[pkey],
                 legendgroup=pkey,
-                showlegend=False,             # étiquettes directes — voir plus bas
+                showlegend=first and mode != "share",
                 mode="lines",
                 # UNE SEULE pile pour tout le monde. Les tranches étant désormais
                 # propres à chaque plateforme, deux morceaux d'une même source ne se
@@ -670,9 +776,9 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
             text=(f"<b>{title}</b><br><span style='font-size:12px;color:{muted}'>"
                   + (f"{len(span)} {_STEP_BUCKETS[step]} · part de chaque plateforme"
                      if mode == "share" else
-                     f"{format(total, ',').replace(',', chr(8239))} écoutes sur "
-                     f"{len(span)} {_STEP_BUCKETS[step]}"
-                     + (" · cumulé" if mode == "cumulative" else ""))
+                     f"{format(total, ',').replace(',', chr(8239))} écoutes "
+                     + ("cumulées · " if mode == "cumulative" else "sur ")
+                     + f"{len(span)} {_STEP_BUCKETS[step]}")
                   + "</span>" if title else None),
             x=0, xanchor="left"),
         hovermode="x unified",
@@ -682,8 +788,21 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         # Assez de place à GAUCHE pour les graduations et EN BAS pour les dates : à
         # 8 px, le rendu du 2026-09-08 coupait « 150 k » en « k » et mangeait la moitié
         # des libellés de l'axe des temps. La marge droite, elle, porte les étiquettes.
-        margin=dict(l=56, r=132, t=58 if title else 12, b=32),
-        showlegend=False,
+        margin=dict(l=56, r=132, t=58 if title else 12,
+                    b=62 if mode != "share" else 32),
+        # EN BAS, jamais en haut. La version de 2026-09-08 l'ancrait à `y=1.0`,
+        # c'est-à-dire dans la marge où vit le titre sur deux lignes : les deux se
+        # recouvraient — « la légende est masquée, c'est assez moche ». Sous la figure,
+        # elle n'a rien à recouvrir. Les étiquettes de marge restent : elles nomment la
+        # bande à hauteur d'œil, la légende sert à la faire disparaître.
+        #
+        # PAS EN MODE « PART ». Les pourcentages y sont calculés sur l'ensemble
+        # affiché ; un clic de légende masque une trace SANS recalculer les autres, et
+        # la pile ne ferait plus 100 %. C'est le seul mode où le `multiselect` reste.
+        showlegend=mode != "share",
+        legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="left", x=0,
+                    groupclick="togglegroup", bgcolor="rgba(0,0,0,0)",
+                    font=dict(size=11, color=muted)),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color=ink),
         xaxis=dict(showgrid=False, linecolor=grid, title=None),

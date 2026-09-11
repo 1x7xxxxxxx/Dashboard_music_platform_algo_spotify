@@ -145,8 +145,9 @@ def _example_chart(name: str) -> None:
 def _tenant_series(db, artist_id):
     """Les séries du locataire pour la première figure, ou `None` s'il n'y a rien.
 
-    Rend `{plateforme: [(jour, écoutes du jour), …]}` — la forme que
-    `render_platform_chart` attend — et `None` quand `figure_source` dit « exemple ».
+    Rend `({plateforme: [(jour, écoutes du jour), …]}, {plateforme: série cumulée})`
+    — les deux formes que `render_platform_chart` attend — et `None` quand
+    `figure_source` dit « exemple ».
     Un seul point de décision : le libellé et la courbe ne peuvent pas diverger.
 
     `tenant_daily_streams` reste la porte d'entrée parce que c'est elle qui décide
@@ -169,7 +170,12 @@ def _tenant_series(db, artist_id):
     # d'une figure vide — le mélange exact que `figure_source` existe pour empêcher.
     if len(combined_daily_streams(series)) < MIN_POINTS_DRAWN:
         return None
-    return series
+    # La figure est tracée en mode CUMULÉ (le défaut de `render_platform_chart`), et
+    # le cumul des plateformes à compteur ne se déduit pas de leur série quotidienne :
+    # les journées non consécutives en sont absentes. C'est la deuxième moitié du même
+    # reproche — « les datas sont incohérentes » — sur l'autre axe.
+    from src.dashboard.utils.platform_timeseries import cumulative_by_platform
+    return series, cumulative_by_platform(db, artist_id)
 
 
 def _language_buttons() -> None:
@@ -314,7 +320,8 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
                 #
                 # Les deux sont maintenant réglés au même endroit que l'accueil.
                 from src.dashboard.utils.platform_chart import render_platform_chart
-                render_platform_chart(_mine, key="onb_trend")
+                render_platform_chart(_mine[0], cumulative=_mine[1],
+                                      key="onb_trend")
             else:
                 _example_chart(image)
             st.markdown(t(key, default))

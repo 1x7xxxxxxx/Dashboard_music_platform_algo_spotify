@@ -121,10 +121,26 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None,
     _explain_tracks = _sel or ([_focus_song] if _focus_song else [])
     ml_explain = _collect_ml_explain(db, artist_id, _explain_tracks)
     from src.dashboard.utils import pdf_charts
+    from src.dashboard.utils.platform_timeseries import (
+        apple_yearly_series, cumulative_by_platform, daily_streams_by_platform,
+    )
     streams_dict = {'s4a': s4a, 'youtube': yt, 'soundcloud': sc, 'apple': apple}
+    # Les MÊMES fonctions que l'accueil, pas une requête de plus : c'est la forme que
+    # R91 demandait — partager la DONNÉE, le rendu ne pouvant pas l'être (kaleido est
+    # absent, donc Plotly → PNG est impossible).
+    _evo_series = daily_streams_by_platform(db, artist_id)
+    _apple_evo = apple_yearly_series(db, artist_id)
+    if _apple_evo:
+        _evo_series['apple'] = _apple_evo
+    _evo_cumulative = cumulative_by_platform(db, artist_id)
     charts = {
         'streams':  pdf_charts.streams_timeline(db, artist_id, from_date, to_date),
         'platform': pdf_charts.platform_breakdown(streams_dict),
+        # La figure qui ouvre l'accueil, absente du PDF jusqu'au 2026-09-11 : il
+        # portait 25 figures et aucune ne montrait l'ÉVOLUTION multi-plateformes,
+        # seulement `platform_breakdown`, un bâton par plateforme. Les deux séries
+        # viennent des mêmes fonctions que l'écran (R91).
+        'platform_evo': pdf_charts.platform_evolution(_evo_series, _evo_cumulative),
         'ml':       pdf_charts.ml_probabilities(db, artist_id, latest_release) if latest_release else None,
         'j28':      pdf_charts.j28_trajectory(j28),
         'roi':      pdf_charts.roi_breakeven(roi),
@@ -255,7 +271,9 @@ def render_html(data, artist_name, sections=None, lang="fr"):
     if sections.get('overview'):
         h_overview = _t("pdf.section.overview", "Vue d'ensemble")
         _sec(f"<div class='section'><h2>{h_overview}</h2>\n"
-             f"{_render_overview(data)}{_chart(charts.get('platform'))}</div>")
+             f"{_render_overview(data)}"
+             f"{_chart(charts.get('platform_evo'))}"
+             f"{_chart(charts.get('platform'))}</div>")
 
     # ── 📁 Données — credentials & mapping ──
     if sections.get('data_setup'):

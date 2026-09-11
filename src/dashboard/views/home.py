@@ -209,15 +209,30 @@ def _render_trend(db, series, since, until, range_key, artist_id) -> None:
                  # une panne.
                  if (STEP_ONLY.get(k) is None or STEP_ONLY[k] == step)
                  and measured_days(series, k, since, until)]
+    # LE FILTRE DE SOURCES EST LA LÉGENDE DE LA FIGURE, sauf en mode « part ».
+    #
+    # « Peut-on intégrer le clickage des plateformes directement sur le graphique
+    # plutôt qu'avec le filtre qui doit sélectionner ? ça enlèverait de la
+    # complexité » (2026-09-11). Un clic de légende est côté navigateur : il ne
+    # relance pas le script. Le `multiselect`, lui, coûtait un rendu complet — 287 ms
+    # mesurés en production — pour masquer une bande.
+    #
+    # « Part de chaque plateforme » est l'exception, et pour une raison de calcul et
+    # non de goût : ses pourcentages sont établis sur l'ensemble AFFICHÉ, et un clic
+    # de légende masque une trace sans recalculer les autres. La pile ne ferait plus
+    # 100 %, ce qui est un chiffre faux et pas seulement une figure incomplète.
     chosen = available
     with col_src:
-        if len(available) > 1:
+        if mode == "share" and len(available) > 1:
             chosen = st.multiselect(
                 t("home.trend_sources", "Sources affichées"), available,
                 default=available, format_func=lambda k: PLATFORM_LABELS[k],
                 key=f"home_trend_sources_{artist_id}",
                 label_visibility="collapsed",
                 placeholder=t("home.trend_sources_ph", "Toutes les sources")) or available
+        elif len(available) > 1:
+            st.caption(t("home.trend_sources_legend",
+                         "👆 Clique une plateforme dans la légende pour la masquer."))
 
     if mode != 'facets' and len(chosen) > 1:
         st.caption(t(
@@ -233,8 +248,18 @@ def _render_trend(db, series, since, until, range_key, artist_id) -> None:
             "des totaux de période, pas des chiffres du jour. L'étaler sur 365 jours "
             "inventerait une valeur que personne n'a mesurée."))
 
+    # Le mode « Cumulé » ne reconstruit pas le cumul des plateformes à COMPTEUR : il
+    # lit celui de la couche or, dont le dernier point est le total que les tuiles
+    # affichent juste au-dessus. Sans lui, la somme courante d'une série de
+    # DIFFÉRENCES n'additionne que les journées consécutives — mesuré le 2026-09-11
+    # sur l'artiste 1 : 21 pour YouTube au lieu de 118 219, 8 pour SoundCloud au lieu
+    # de 23 486.
+    from src.dashboard.utils.platform_timeseries import cumulative_by_platform
+    cumulative = cumulative_by_platform(db, artist_id) if mode == "cumulative" else None
+
     if not render_platform_chart(
             series, since=since, until=until, only=chosen, step=step, mode=mode,
+            cumulative=cumulative,
             title=t("home.trend_title", "Toutes tes plateformes, un seul écran")
             + f" — {date_range.label(range_key)}",
             key=f"home_trend_{artist_id}"):

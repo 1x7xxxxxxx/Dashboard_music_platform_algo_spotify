@@ -120,32 +120,124 @@ def test_no_surface_reads_the_channel_counter_as_streams(db) -> None:
     # On balaie donc TOUTES les surfaces qui affichent un total, et on n'accepte le
     # compteur de chaîne que là où il est légitime : les ABONNÉS, qui n'ont pas d'autre
     # source.
-    for path in ("src/dashboard/utils/kpi_helpers.py",
-                 "src/dashboard/utils/pdf_exporter/_collectors.py",
-                 "src/dashboard/views/data_wrapped.py"):
-        tree = ast.parse(pathlib.Path(path).read_text(encoding="utf-8"))
-        # Les DOCSTRINGS sont exclues : ce garde a rougi sur l'explication du correctif
-        # qu'il venait de garder — deuxième fois dans la même séance. Un garde qui
-        # oblige à cesser de documenter apprend que le rouge est du bruit.
-        docstrings = {
-            d for n in ast.walk(tree)
-            if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef,
-                              ast.AsyncFunctionDef))
-            for d in [ast.get_docstring(n, clean=False)] if d is not None
-        }
-        for node in ast.walk(tree):
-            if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+    _sweep_the_channel_counter()
+
+
+# Les fichiers qui DÉCLARENT la colonne plutôt que de la lire. Exclure le DDL n'est pas
+# une exemption de confort : une table doit bien porter la colonne pour que la page
+# puisse l'afficher sous son nom.
+_DDL_FILES = frozenset({"src/database/youtube_schema.py"})
+
+
+def _channel_counter_reads() -> tuple[list[str], list[str]]:
+    """Partout dans `src/` et `airflow/` : lire le compteur de chaîne, c'est le NOMMER.
+
+    LA PORTÉE ÉTAIT LE DÉFAUT, deux fois. Ce garde ne regardait d'abord que
+    `platform_timeseries` et l'API ; le compteur de chaîne a survécu comme TOTAL dans
+    `kpi_helpers` et le PDF jusqu'au 2026-09-10. On a alors nommé trois fichiers de
+    plus — et le 2026-09-11 il restait vivant dans `src/dashboard/views/youtube.py`,
+    qui n'était dans aucune des deux listes : **120 627** affichés là contre
+    **118 219** partout ailleurs, pour le même artiste au même instant.
+
+    Un garde ancré sur des emplacements ne garde que ses emplacements. Celui-ci balaie
+    l'arbre et tient une PROPRIÉTÉ : le compteur de chaîne n'est pas interdit — il est
+    ce que YouTube annonce, et les ABONNÉS n'ont pas d'autre source — mais une requête
+    qui le lit doit l'aliaser sous un nom qui contient `channel`. Un chiffre qui
+    s'appelle « vues » sans dire lesquelles est exactement ce qui a produit l'écart.
+
+    Ce que ce garde ne peut pas voir : un alias juste posé sur une valeur ensuite
+    affichée sous un mauvais libellé. Il tient la source, pas le libellé.
+
+    Rend `(lus, non_nommés)` — les deux listes, parce que la seconde vide ne prouve
+    rien si la première l'est aussi.
+    """
+    import ast
+    import pathlib
+
+    reads, offenders = [], []
+    for root in ("src", "airflow"):
+        for path in sorted(pathlib.Path(root).rglob("*.py")):
+            rel = path.as_posix()
+            if rel in _DDL_FILES:
                 continue
-            sql = node.value
-            if sql in docstrings:
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError):
                 continue
-            if "youtube_channel_history" not in sql:
-                continue
-            assert "view_count" not in sql, (
-                f"{path}:{node.lineno} lit `youtube_channel_history.view_count`. "
-                "Ce compteur avance par paliers et porte des vidéos qui ne sont pas "
-                "les siennes : il ne peut pas être un total de vues. La définition "
-                "unique est la vue `v_platform_totals` (ADR-019).")
+            # Les DOCSTRINGS sont exclues : ce garde a rougi sur l'explication du
+            # correctif qu'il venait de garder. Un garde qui oblige à cesser de
+            # documenter apprend que le rouge est du bruit.
+            docstrings = {
+                d for n in ast.walk(tree)
+                if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                                  ast.AsyncFunctionDef))
+                for d in [ast.get_docstring(n, clean=False)] if d is not None
+            }
+            for node in ast.walk(tree):
+                if not (isinstance(node, ast.Constant)
+                        and isinstance(node.value, str)):
+                    continue
+                sql = node.value
+                if sql in docstrings:
+                    continue
+                low = sql.lower()
+                if "youtube_channel_history" not in low or "view_count" not in low:
+                    continue
+                # ÉCRIRE le compteur n'est pas le LIRE. Le collecteur doit l'insérer :
+                # c'est ce que YouTube annonce, et les abonnés viennent de la même
+                # ligne. La classe de défaut est de le lire COMME étant « les vues ».
+                # Le premier prédicat épousait le symptôme (« la colonne apparaît »)
+                # plutôt que la question, et rapportait le DAG de collecte et son
+                # script de débogage — deux sites corrects.
+                if "insert into youtube_channel_history" in low:
+                    continue
+                if "select" not in low:
+                    continue
+                site = f"{rel}:{node.lineno}"
+                reads.append(site)
+                if "as channel_" in low:
+                    continue
+                offenders.append(site)
+    return reads, offenders
+
+
+def _sweep_the_channel_counter() -> None:
+    _, offenders = _channel_counter_reads()
+    assert not offenders, (
+        "Lecture non nommée de `youtube_channel_history.view_count` :\n  "
+        + "\n  ".join(offenders)
+        + "\n\nCe compteur avance par paliers et porte des vidéos absentes du "
+          "catalogue (privées, supprimées, agrégats internes). Il ne peut pas être "
+          "« les vues » : la définition unique est `v_platform_totals` (ADR-019), et "
+          "la série qui y aboutit est "
+          "`platform_timeseries.youtube_cumulative_views`.\n"
+          "Si tu veux vraiment afficher le compteur de la chaîne, alias-le "
+          "`AS channel_views` et libelle-le comme tel à l'écran."
+    )
+
+
+def test_the_sweep_still_finds_the_place_the_counter_legitimately_lives() -> None:
+    """Un balayage qui n'examine plus aucun site est un balayage qui ne garde rien.
+
+    Il ne suffit pas que le test ci-dessus soit vert : il l'est aussi quand plus rien
+    ne lit le compteur de chaîne, et ce jour-là il ne garde que le vide. Le « prédicat
+    sans site » que ce dépôt a déjà payé.
+
+    La première version de ce test cherchait deux chaînes n'importe où dans la page —
+    elle est restée VERTE sur sa propre mutation (l'alias posé sur `subscriber_count`,
+    donc plus aucune lecture du compteur à examiner). Elle interroge maintenant le
+    balayage lui-même.
+    """
+    reads, _ = _channel_counter_reads()
+    assert reads, (
+        "aucune lecture de `youtube_channel_history.view_count` dans tout l'arbre : "
+        "le balayage ci-dessus passe à vide. Si c'est voulu — plus aucune surface "
+        "n'affiche le compteur de chaîne — retire ce test en le disant."
+    )
+    assert any("views/youtube.py" in r for r in reads), (
+        f"la page YouTube ne lit plus le compteur de chaîne (sites vus : {reads}). "
+        "C'est la seule surface où il est légitime, sous son propre nom."
+    )
 
 
 def test_a_bounded_period_is_never_larger_than_the_lifetime(db) -> None:
