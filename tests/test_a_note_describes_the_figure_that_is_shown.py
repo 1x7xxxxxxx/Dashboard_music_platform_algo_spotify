@@ -55,11 +55,14 @@ def notes():
               "youtube": [(d, 3) for i, d in enumerate(days) if i % 5 == 0]}
     gold = {"youtube": [(days[0], 1000), (days[-1], 5000)]}
 
-    def build(mode: str, with_gold: bool = True):
+    # (mesuré, total, écarté) — la forme que `discarded_deltas` rend.
+    discarded = {"youtube": (12, 400, 167)}
+
+    def build(mode: str, with_gold: bool = True, step: str = "day"):
         written.clear()
-        pc.render_platform_chart(series, since=days[0], until=days[-1], step="day",
+        pc.render_platform_chart(series, since=days[0], until=days[-1], step=step,
                                  mode=mode, cumulative=(gold if with_gold else None),
-                                 key="guard")
+                                 discarded=discarded, key="guard")
         return list(written)
 
     try:
@@ -101,25 +104,119 @@ def test_without_a_gold_series_the_cumulative_mode_still_warns(notes) -> None:
         "trouée : la note doit rester.")
 
 
-def test_the_home_page_hides_the_discarded_note_in_cumulative_mode() -> None:
-    """L'autre moitié du défaut, rendue par la vue et pas par le module.
+# `test_the_home_page_hides_the_discarded_note_in_cumulative_mode` vivait ici. Il
+# tenait une vraie propriété — la note « non traçables » ne doit pas s'afficher sous
+# une figure qui compte ces écoutes — mais il la tenait AU MAUVAIS ENDROIT : il
+# vérifiait que l'accueil conditionnait l'appel au mode.
+#
+# La note a déménagé dans `platform_chart` le 2026-09-11, parce que la condition ne
+# pouvait pas être écrite depuis la vue : elle dépend aussi du PAS RETENU, que seul le
+# module connaît quand l'utilisateur a choisi « Automatique ». Le retirer d'ici n'est
+# donc pas un assouplissement — les deux tests ci-dessous tiennent la même propriété
+# sur les quatre combinaisons de mode et de pas, et sur l'emplacement lui-même.
 
-    « Écoutes mesurées mais non traçables : YouTube 167 » est vrai de la conversion
-    cumul → quotidien, et faux de la courbe cumulée, qui les porte.
+
+def test_the_discarded_note_only_speaks_where_the_daily_deltas_are_drawn(notes) -> None:
+    """« Écoutes non traçables » est vrai du pas QUOTIDIEN, et faux au-delà.
+
+    Depuis qu'un seau plus large qu'un jour porte la CROISSANCE du compteur — niveau
+    de fin moins niveau de fin du seau précédent — ces écoutes sont dans la figure dès
+    le pas hebdomadaire. Les y annoncer perdues est le même défaut que celui de ce
+    fichier, dans l'autre sens.
     """
+    assert any("non traçables" in n for n in notes("absolute", step="day")), (
+        "au pas du JOUR la note doit rester : l'écart entre deux relevés distants "
+        "n'est attribuable à aucune journée, et il n'est donc pas tracé")
+    for mode, step in (("absolute", "week"), ("absolute", "year"),
+                       ("cumulative", "day"), ("cumulative", "week")):
+        said = notes(mode, step=step)
+        assert not any("non traçables" in n for n in said), (
+            f"mode={mode} pas={step} annonce des écoutes non traçables alors que la "
+            f"figure les compte. Notes : {said}")
+
+
+def test_the_note_lives_where_the_resolved_step_is_known() -> None:
+    """Elle ne peut pas être juste depuis la vue, et ce n'est pas un détail de style.
+
+    L'accueil connaît le pas DEMANDÉ ; « Automatique » n'en est pas un. Seul le module
+    sait lequel a été retenu — il descend même d'un cran quand le pas demandé ne
+    produit qu'un seul seau. Une note rendue depuis la vue se trompe donc exactement
+    dans les cas où le pas a été choisi pour elle. C'est l'argument qui avait déjà
+    fait descendre `t_trend_caption` ici ; la note voisine était restée en haut.
+    """
+
     home = (_ROOT / "src" / "dashboard" / "views" / "home.py").read_text(encoding="utf-8")
     tree = ast.parse(home)
-    call = next(
-        (n for n in ast.walk(tree) if isinstance(n, ast.Call)
-         and getattr(n.func, "id", "") == "discarded_deltas"), None)
-    assert call is not None, "l'accueil n'appelle plus `discarded_deltas`"
-    guarded = [
-        n for n in ast.walk(tree)
-        if isinstance(n, ast.IfExp)
-        and any(isinstance(c, ast.Constant) and c.value == "cumulative"
-                for c in ast.walk(n.test))
-        and any(x is call for x in ast.walk(n))
-    ]
-    assert guarded, (
-        "l'appel à `discarded_deltas` n'est plus conditionné au mode : la note "
-        "« non traçables » réapparaît sous une courbe qui, elle, les trace.")
+    captions = [n for n in ast.walk(tree)
+                if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "caption"]
+    assert not [c for c in captions
+                if any(isinstance(a, ast.Constant) and "trend_discarded" in str(a.value)
+                       for a in ast.walk(c))], (
+        "l'accueil rend de nouveau la note lui-même : elle se trompera dès que le pas "
+        "sera « Automatique »")
+    assert any(k.arg == "discarded"
+               for n in ast.walk(tree) if isinstance(n, ast.Call)
+               for k in n.keywords), (
+        "l'accueil ne passe plus `discarded` à la figure : la note a disparu au lieu "
+        "de déménager, et ce qui manque n'est plus dit nulle part")
+
+
+def test_no_note_contradicts_what_the_figure_shows(notes) -> None:
+    """La propriété générale, au lieu d'une note à la fois.
+
+    Trois notes de ce module nomment une plateforme pour dire qu'il lui manque
+    quelque chose, et chacune affirme une chose PRÉCISE :
+
+      * « n'apparaît pas à ce pas » — elle n'a aucune trace. Faux si elle est tracée.
+      * « son aire s'interrompt » — sa bande ne couvre pas tout l'axe. Faux si elle
+        le couvre entièrement.
+      * « écoutes non traçables » — la figure montre les écarts quotidiens, donc
+        seulement au pas du JOUR et hors mode cumulé.
+
+    Les trois ont été corrigées séparément le 2026-09-11, et la troisième n'a été
+    trouvée que parce que la mutation d'une autre l'a fait apparaître dans sa sortie.
+    Ce test pose la question une fois pour toutes, sur les six combinaisons de mode et
+    de pas — et il vérifie CHAQUE phrase contre ce que la figure montre vraiment,
+    plutôt que d'interdire en bloc de nommer une plateforme tracée. La première
+    version le faisait, et elle refusait « s'interrompt » sur une bande qui
+    s'interrompt réellement : au pas du jour, YouTube est tracée ET trouée, les deux
+    en même temps.
+    """
+    from src.dashboard.utils import platform_chart as pc
+
+    for mode in ("cumulative", "absolute"):
+        for step in ("day", "week", "year"):
+            captured = {}
+            real = pc.st.plotly_chart
+            pc.st.plotly_chart = lambda fig, **k: captured.__setitem__("fig", fig)
+            try:
+                said = notes(mode, step=step)
+            finally:
+                pc.st.plotly_chart = real
+            fig = captured.get("fig")
+            if fig is None:
+                continue
+
+            axis = {x for t in fig.data for x in t.x}
+            covered: dict = {}
+            for t in fig.data:
+                covered.setdefault(t.name, set()).update(t.x)
+            where = f"mode={mode} pas={step}"
+
+            for label, xs in covered.items():
+                for note in said:
+                    if label not in note:
+                        continue
+                    if "n'apparaît pas" in note:
+                        raise AssertionError(
+                            f"{where} : « {label} » est TRACÉE et la note dit qu'elle "
+                            f"n'apparaît pas.\n  {note[:160]}")
+                    if "s'interrompt" in note and xs >= axis:
+                        raise AssertionError(
+                            f"{where} : « {label} » couvre tout l'axe et la note dit "
+                            f"que son aire s'interrompt.\n  {note[:160]}")
+                    if ("non traçables" in note
+                            and not (step == "day" and mode == "absolute")):
+                        raise AssertionError(
+                            f"{where} : la note annonce des écoutes non traçables "
+                            f"alors que la figure les compte.\n  {note[:160]}")
