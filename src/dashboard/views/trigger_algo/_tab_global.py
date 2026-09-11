@@ -45,12 +45,14 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
     try:
         if artist_id:
             streams = db.fetch_query(
-                "SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline WHERE song = %s AND artist_id = %s AND date BETWEEN %s AND %s",
+                "SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily "
+                "WHERE song = %s AND artist_id = %s AND day BETWEEN %s AND %s",
                 (track, artist_id, date_from, date_to)
             )[0][0]
         else:
             streams = db.fetch_query(
-                "SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline WHERE song = %s AND date BETWEEN %s AND %s",
+                "SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily "
+                "WHERE song = %s AND day BETWEEN %s AND %s",
                 (track, date_from, date_to)
             )[0][0]
     except Exception:

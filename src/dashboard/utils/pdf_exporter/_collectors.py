@@ -48,18 +48,18 @@ def get_available_songs(db, artist_id):
         if artist_id is not None:
             rows = db.fetch_query(
                 """SELECT song, SUM(streams) AS total
-                   FROM s4a_song_timeline
-                   WHERE artist_id = %s AND song NOT ILIKE %s
+                   FROM v_s4a_song_daily
+                   WHERE artist_id = %s
                    GROUP BY song ORDER BY total DESC""",
-                (artist_id, f"%{ARTIST_NAME_FILTER}%")
+                    (artist_id)
             )
         else:
             rows = db.fetch_query(
                 """SELECT song, SUM(streams) AS total
-                   FROM s4a_song_timeline
+                   FROM v_s4a_song_daily
                    WHERE song NOT ILIKE %s
                    GROUP BY song ORDER BY total DESC""",
-                (f"%{ARTIST_NAME_FILTER}%",)
+                    ()
             )
         return [r[0] for r in rows] if rows else []
     except Exception as exc:  # noqa: BLE001
@@ -94,16 +94,16 @@ def _collect_songs_focus(db, artist_id, songs, from_date, to_date):
             if artist_id is not None:
                 row = db.fetch_query(
                     """SELECT COALESCE(SUM(streams), 0)
-                       FROM s4a_song_timeline
-                       WHERE song = %s AND song NOT ILIKE %s AND artist_id = %s AND date BETWEEN %s AND %s""",
-                    (song, f"%{ARTIST_NAME_FILTER}%", artist_id, from_date, to_date)
+                       FROM v_s4a_song_daily
+                       WHERE song = %s AND artist_id = %s AND day BETWEEN %s AND %s""",
+                    (song,artist_id, from_date, to_date)
                 )
             else:
                 row = db.fetch_query(
                     """SELECT COALESCE(SUM(streams), 0)
-                       FROM s4a_song_timeline
-                       WHERE song = %s AND song NOT ILIKE %s AND date BETWEEN %s AND %s""",
-                    (song, f"%{ARTIST_NAME_FILTER}%", from_date, to_date)
+                       FROM v_s4a_song_daily
+                       WHERE song = %s AND day BETWEEN %s AND %s""",
+                    (song,from_date, to_date)
                 )
             entry['total_streams'] = int(row[0][0] or 0)
         except Exception as exc:  # noqa: BLE001
@@ -115,17 +115,17 @@ def _collect_songs_focus(db, artist_id, songs, from_date, to_date):
             if artist_id is not None:
                 row = db.fetch_query(
                     """SELECT COALESCE(SUM(streams), 0)
-                       FROM s4a_song_timeline
-                       WHERE song = %s AND song NOT ILIKE %s AND artist_id = %s
-                         AND date >= CURRENT_DATE - INTERVAL '7 days'""",
-                    (song, f"%{ARTIST_NAME_FILTER}%", artist_id)
+                       FROM v_s4a_song_daily
+                       WHERE song = %s AND artist_id = %s
+                         AND day >= CURRENT_DATE - INTERVAL '7 days'""",
+                    (song,artist_id)
                 )
             else:
                 row = db.fetch_query(
                     """SELECT COALESCE(SUM(streams), 0)
-                       FROM s4a_song_timeline
-                       WHERE song = %s AND song NOT ILIKE %s AND date >= CURRENT_DATE - INTERVAL '7 days'""",
-                    (song, f"%{ARTIST_NAME_FILTER}%")
+                       FROM v_s4a_song_daily
+                       WHERE song = %s AND day >= CURRENT_DATE - INTERVAL '7 days'""",
+                    (song)
                 )
             entry['last7d_streams'] = int(row[0][0] or 0)
         except Exception as exc:  # noqa: BLE001
@@ -184,27 +184,19 @@ def _collect_s4a_top_songs(db, artist_id, from_date, to_date, songs_filter=None)
         if artist_id is not None:
             rows = db.fetch_query(
                 f"""SELECT song, SUM(streams) AS total
-                   FROM (
-                       SELECT DISTINCT ON (date, song) song, streams
-                       FROM s4a_song_timeline
-                       WHERE song NOT ILIKE %s AND artist_id = %s
-                         AND date BETWEEN %s AND %s {song_clause}
-                       ORDER BY date, song, collected_at DESC
-                   ) sub
-                   GROUP BY song ORDER BY total DESC LIMIT 15""",
-                (f"%{ARTIST_NAME_FILTER}%", artist_id, from_date, to_date, *song_params),
+                       FROM v_s4a_song_daily
+                      WHERE artist_id = %s
+                        AND day BETWEEN %s AND %s {song_clause}
+                      GROUP BY song ORDER BY total DESC LIMIT 15""",
+                    (artist_id, from_date, to_date, *song_params),
             )
         else:
             rows = db.fetch_query(
                 f"""SELECT song, SUM(streams) AS total
-                   FROM (
-                       SELECT DISTINCT ON (date, song) song, streams
-                       FROM s4a_song_timeline
-                       WHERE song NOT ILIKE %s AND date BETWEEN %s AND %s {song_clause}
-                       ORDER BY date, song, collected_at DESC
-                   ) sub
-                   GROUP BY song ORDER BY total DESC LIMIT 15""",
-                (f"%{ARTIST_NAME_FILTER}%", from_date, to_date, *song_params),
+                       FROM v_s4a_song_daily
+                      WHERE day BETWEEN %s AND %s {song_clause}
+                      GROUP BY song ORDER BY total DESC LIMIT 15""",
+                    (from_date, to_date, *song_params),
             )
         if not rows:
             return []
@@ -213,17 +205,17 @@ def _collect_s4a_top_songs(db, artist_id, from_date, to_date, songs_filter=None)
         for song in songs_list:
             if artist_id is not None:
                 r7 = db.fetch_query(
-                    """SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline
-                       WHERE song = %s AND song NOT ILIKE %s AND artist_id = %s
-                         AND date >= CURRENT_DATE - INTERVAL '7 days'""",
-                    (song, f"%{ARTIST_NAME_FILTER}%", artist_id),
+                    """SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily
+                       WHERE song = %s AND artist_id = %s
+                         AND day >= CURRENT_DATE - INTERVAL '7 days'""",
+                    (song,artist_id),
                 )
             else:
                 r7 = db.fetch_query(
-                    """SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline
-                       WHERE song = %s AND song NOT ILIKE %s
-                         AND date >= CURRENT_DATE - INTERVAL '7 days'""",
-                    (song, f"%{ARTIST_NAME_FILTER}%"),
+                    """SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily
+                       WHERE song = %s
+                         AND day >= CURRENT_DATE - INTERVAL '7 days'""",
+                    (song),
                 )
             last7_map[song] = int(r7[0][0] or 0) if r7 else 0
         return [(r[0], int(r[1] or 0), last7_map.get(r[0], 0)) for r in rows]
@@ -550,10 +542,10 @@ def _collect_meta_x_spotify(db, artist_id, from_date, to_date, ad_account=None):
                GROUP BY day_date ORDER BY day_date""",
             (artist_id, *_acct_p, name, c_from, c_to))
         streams = db.fetch_query(
-            """SELECT date::text, SUM(streams) FROM s4a_song_timeline
-               WHERE artist_id = %s AND song NOT ILIKE %s AND date BETWEEN %s AND %s
-               GROUP BY date ORDER BY date""",
-            (artist_id, f"%{ARTIST_NAME_FILTER}%", c_from, c_to))
+            """SELECT day::text, SUM(streams) FROM v_s4a_song_daily
+               WHERE artist_id = %s AND day BETWEEN %s AND %s
+               GROUP BY day ORDER BY day""",
+                    (artist_id,c_from, c_to))
         pop = db.fetch_query(
             f"""SELECT date::text, MAX(popularity) FROM track_popularity_history
                 WHERE {canonical_song_sql('track_name')} NOT ILIKE %s
@@ -720,12 +712,12 @@ def _collect_s4a_daily(db, artist_id, from_date, to_date):
         return []
     try:
         rows = db.fetch_query(
-            """SELECT date, SUM(daily_max) FROM (
-                   SELECT date, song, MAX(streams) AS daily_max FROM s4a_song_timeline
-                   WHERE artist_id = %s AND song NOT ILIKE %s AND date BETWEEN %s AND %s
-                   GROUP BY date, song) t
-               GROUP BY date ORDER BY date""",
-            (artist_id, f"%{ARTIST_NAME_FILTER}%", from_date, to_date))
+            """SELECT day, SUM(daily_max) FROM (
+                   SELECT day, song, MAX(streams) AS daily_max FROM v_s4a_song_daily
+                   WHERE artist_id = %s AND day BETWEEN %s AND %s
+                   GROUP BY day, song) t
+               GROUP BY day ORDER BY day""",
+                    (artist_id,from_date, to_date))
         return [(r[0], int(r[1] or 0)) for r in rows] if rows else []
     except Exception as exc:  # noqa: BLE001
         logger.warning("PDF: _collect_s4a_daily unreadable: %s", type(exc).__name__)
@@ -753,8 +745,8 @@ def _collect_j28(db, artist_id, song):
         return []
     try:
         rows = db.fetch_query(
-            "SELECT date, streams FROM s4a_song_timeline "
-            "WHERE song = %s AND artist_id = %s AND date IS NOT NULL ORDER BY date ASC",
+            "SELECT day, streams FROM v_s4a_song_daily "
+            "WHERE song = %s AND artist_id = %s ORDER BY day ASC",
             (song, artist_id))
     except Exception as exc:  # noqa: BLE001
         logger.warning("PDF: _collect_j28 unreadable: %s", type(exc).__name__)
@@ -779,10 +771,9 @@ def _collect_song_timeline(db, artist_id, song, from_date, to_date):
         return []
     try:
         rows = db.fetch_query(
-            """SELECT date, streams FROM (
-                   SELECT DISTINCT ON (date) date, streams FROM s4a_song_timeline
-                   WHERE artist_id = %s AND song = %s AND date BETWEEN %s AND %s
-                   ORDER BY date, collected_at DESC) t ORDER BY date""",
+            """SELECT day, streams FROM v_s4a_song_daily
+                    WHERE artist_id = %s AND song = %s AND day BETWEEN %s AND %s
+                    ORDER BY day""",
             (artist_id, song, from_date, to_date))
         return [(r[0], int(r[1] or 0)) for r in rows] if rows else []
     except Exception as exc:  # noqa: BLE001

@@ -82,15 +82,15 @@ def _standardization_block(db, track, artist_id, age_weeks, benchmark_df):
     try:
         if artist_id:
             rows = db.fetch_query(
-                """SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline
+                """SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily
                    WHERE song = %s AND artist_id = %s
-                     AND song NOT ILIKE %s AND date >= CURRENT_DATE - 28""",
-                (track, artist_id, "%1x7xxxxxxx%"))
+                     AND day >= CURRENT_DATE - 28""",
+                (track, artist_id))
         else:
             rows = db.fetch_query(
-                """SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline
-                   WHERE song = %s AND song NOT ILIKE %s AND date >= CURRENT_DATE - 28""",
-                (track, "%1x7xxxxxxx%"))
+                """SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily
+                   WHERE song = %s AND day >= CURRENT_DATE - 28""",
+                (track,))
         live_28d = float(rows[0][0]) if rows else 0.0
     except Exception:
         st.info(t("trigger_algo.common.std_no_streams", "Streams du titre indisponibles."))

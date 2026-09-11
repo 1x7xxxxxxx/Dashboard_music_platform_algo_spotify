@@ -44,18 +44,14 @@ def show():
         # B. KPIs (Dédupliqués)
         # On calcule la somme des streams en ne prenant que la ligne la plus récente pour chaque jour/chanson
         kpi_query = f"""
-            SELECT
-                COUNT(DISTINCT song),
-                SUM(streams)
-            FROM (
-                SELECT DISTINCT ON (date, song) song, streams
-                FROM s4a_song_timeline
-                WHERE song NOT ILIKE %s
-                {artist_frag}
-                ORDER BY date, song, collected_at DESC
-            ) sub
+            SELECT COUNT(DISTINCT song), SUM(streams)
+              FROM v_s4a_song_daily
+             WHERE TRUE {artist_frag}
         """
-        stats_res = db.fetch_query(kpi_query, (f"%{ARTIST_NAME_FILTER}%", *artist_params))
+        # Plus de `%1x7xxxxxxx%` en paramètre : le filtre de la ligne « Total » vit
+        # dans `v_s4a_song_daily` (migration 105), avec la déduplication par
+        # (date, titre). Deux règles que chaque requête devait se rappeler.
+        stats_res = db.fetch_query(kpi_query, tuple(artist_params))
         songs_count = stats_res[0][0] or 0
         total_streams_individual = stats_res[0][1] or 0
 
@@ -103,20 +99,14 @@ def show():
         st.header(t("spotify_s4a_combined.top_header", "🏆 Top Chansons"))
 
         df_top = db.fetch_df(f"""
-            SELECT
-                song,
-                SUM(streams) as total_streams
-            FROM (
-                SELECT DISTINCT ON (date, song) song, streams
-                FROM s4a_song_timeline
-                WHERE song NOT ILIKE %s
+            SELECT song, SUM(streams) as total_streams
+              FROM v_s4a_song_daily
+             WHERE TRUE
                 {artist_frag}
-                ORDER BY date, song, collected_at DESC
-            ) sub
             GROUP BY song
             ORDER BY total_streams DESC
             LIMIT 10
-        """, (f"%{ARTIST_NAME_FILTER}%", *artist_params))
+        """, tuple(artist_params))
 
         if not df_top.empty:
             fig_top = px.bar(
@@ -162,20 +152,17 @@ def show():
         end_date_aud = col2.date_input(t("spotify_s4a_combined.end", "Fin"), value=today, key="date_aud_end")
 
         audience_query = f"""
-            SELECT date, SUM(streams) as daily_streams
-            FROM (
-                SELECT DISTINCT ON (date, song) date, streams
-                FROM s4a_song_timeline
-                WHERE song NOT ILIKE %s
+            SELECT day AS date, SUM(streams) as daily_streams
+              FROM v_s4a_song_daily
+             WHERE TRUE
                 {artist_frag}
-                  AND date >= %s
-                  AND date <= %s
-                ORDER BY date, song, collected_at DESC
-            ) sub
-            GROUP BY date
-            ORDER BY date
+                  AND day >= %s
+                  AND day <= %s
+            GROUP BY day
+            ORDER BY day
         """
-        df_audience = db.fetch_df(audience_query, (f"%{ARTIST_NAME_FILTER}%", *artist_params, start_date_aud, end_date_aud))
+        df_audience = db.fetch_df(audience_query,
+                                  (*artist_params, start_date_aud, end_date_aud))
 
         if not df_audience.empty:
             fig_aud = go.Figure()
@@ -207,17 +194,13 @@ def show():
                                   "📈 Évolution cumulée (Spotify S4A)")):
             try:
                 cum_query = f"""
-                    SELECT date, SUM(daily_max) AS value
-                    FROM (
-                        SELECT date, song, MAX(streams) AS daily_max
-                        FROM s4a_song_timeline
-                        WHERE song NOT ILIKE %s
+                    SELECT day AS date, SUM(streams) AS value
+                      FROM v_s4a_song_daily
+                     WHERE TRUE
                         {artist_frag}
-                        GROUP BY date, song
-                    ) sub
-                    GROUP BY date ORDER BY date ASC
+                    GROUP BY day ORDER BY day ASC
                 """
-                df_cum = db.fetch_df(cum_query, (f"%{ARTIST_NAME_FILTER}%", *artist_params))
+                df_cum = db.fetch_df(cum_query, tuple(artist_params))
                 if not df_cum.empty:
                     df_cum['date'] = pd.to_datetime(df_cum['date'])
                     df_cum['value'] = df_cum['value'].cumsum()
@@ -283,16 +266,19 @@ def show():
                     artist_id=tenant_scope(), key=f"s4a_song_{selected_song}",
                     latest_release=song_release_date, default_override="last_release",
                 )
-            frag, frag_params = window.sql_between("date")
+            # `day`, pas `date` : la requête lit `v_s4a_song_daily`, dont c'est le
+            # nom de colonne. La fenêtre reste choisie sur la table de fait — c'est
+            # son étendue réelle — mais elle s'applique à la vue.
+            frag, frag_params = window.sql_between("day")
 
             # Même logique de déduplication ici aussi pour être cohérent
             df_song = db.fetch_df(f"""
-                SELECT DISTINCT ON (date) date, streams
-                FROM s4a_song_timeline
+                SELECT day AS date, streams
+                FROM v_s4a_song_daily
                 WHERE song = %s
                 {artist_frag}
                 {frag}
-                ORDER BY date, collected_at DESC
+                ORDER BY day
             """, (selected_song, *artist_params, *frag_params))
 
             if not df_song.empty:

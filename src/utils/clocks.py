@@ -144,6 +144,13 @@ class Dates:
 
 COLUMN_SUBJECT: dict[str, str] = {
     "date": Dates.EVENT,                 # s4a, hypeddit, apple : le jour rapporté
+    # `day` est la colonne de date des VUES de la couche or — `v_s4a_song_daily`,
+    # `v_platform_levels`. Elle porte le MÊME sujet que la colonne dont elle dérive :
+    # le jour que la plateforme rapporte, pas celui où nous l'avons lu. Ajoutée le
+    # 2026-09-12 avec la migration 105, quand les surfaces ont cessé de lire la table
+    # de fait — sans cette déclaration, une figure bornée sur la couche or ne pouvait
+    # plus dire de quoi elle parle.
+    "day": Dates.EVENT,
     "day_date": Dates.EVENT,             # Meta : sa journée publicitaire
     "reporting_date": Dates.EVENT,
     "line_date": Dates.EVENT,

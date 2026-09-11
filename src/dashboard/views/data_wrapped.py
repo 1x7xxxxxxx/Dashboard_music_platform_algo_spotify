@@ -250,10 +250,9 @@ def _recap_spotify(db, aid):
     st.markdown(t("data_wrapped.recap_top5_header", "#### 🏆 Top 5 titres (streams cumulés)"))
     try:
         df_top = db.fetch_df(
-            "SELECT song, SUM(daily_max) AS streams FROM ("
-            "  SELECT song, date, MAX(streams) AS daily_max FROM s4a_song_timeline"
-            "  WHERE artist_id = %s AND song NOT ILIKE %s GROUP BY song, date) t "
-            "GROUP BY song ORDER BY streams DESC LIMIT 5", (aid, _ARTIST_FILTER))
+            "SELECT song, SUM(streams) AS streams FROM v_s4a_song_daily "
+            " WHERE artist_id = %s "
+            " GROUP BY song ORDER BY streams DESC LIMIT 5", (aid,))
         if df_top is not None and not df_top.empty:
             fig = go.Figure(go.Bar(
                 x=df_top["streams"], y=df_top["song"], orientation="h",
