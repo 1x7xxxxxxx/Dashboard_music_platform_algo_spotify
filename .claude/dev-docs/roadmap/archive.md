@@ -4141,3 +4141,46 @@ consentement, et elle part depuis `streamlytics_dashboard`, qui porte bien
 
   État de la suite à la livraison des trois briques : **931 tests verts, 23 skippés**, 0
   échec sur l'ensemble atteint par le diff. `ruff check src/ tests/ tools/` vert.
+
+- [x] **R92 — Apple entre dans la couche or** (P2) — LIVRÉE le 2026-09-12. C'était la
+  dernière plateforme dont le total n'avait aucune définition SQL. Sa règle n'est pas un
+  agrégat : elle choisit entre trois formes (relevé borné le plus large → découpage non
+  chevauchant des années → dernier instantané), dont une **sélection gloutonne
+  d'intervalles** qu'un `GROUP BY` n'exprime pas. Elle vit donc dans
+  `gold_apple_lifetime()` (migration 102), et la MÉTRIQUE en est un paramètre (migration
+  103, allowlist côté SQL) parce que les Shazams suivaient la même règle, recopiée en
+  Python dans `apple_music.py`. `apple_lifetime_plays` ne réimplémente plus rien : elle
+  LIT la fonction — deux implémentations qui s'accordent ne sont pas une définition.
+
+  Garde : `tests/test_the_gold_layer_defines_every_platform.py`, les trois branches
+  épinglées sur données synthétiques dans une transaction annulée (la prod n'a qu'un
+  locataire Apple, une preuve sur un cas n'en est pas une). Trois mutations rouges,
+  chacune rendant le mauvais nombre attendu : 1 700 au lieu de 1 000, 400 au lieu de
+  700, 400 au lieu de 250.
+
+  Plafond du cliquet Apple : **2 → 0**.
+
+- [x] **R93 — la couverture des Breakdowns porte aussi les résultats** (P3) — LIVRÉE le
+  2026-09-12. La page annonce désormais « **2 348 € sur 3 088 € (76 %) et 18 143 sur
+  24 873 (73 %)** ». Même cause que la dépense : Meta n'attribue pas tout à une
+  dimension. La part est recalculée à chaque rendu, jamais écrite en dur, et le total
+  voyage en sous-requête scalaire depuis `v_meta_spend_totals` — le cliquet d'allers-
+  retours avait refusé une requête de plus.
+
+- [x] **R95 — la matrice mode × pas est écrite** (P3) — LIVRÉE le 2026-09-12.
+  `.claude/dev-docs/chart-derivation-matrix.md` : les douze cellules, ce que chacune
+  calcule selon le régime de la source (quantité vs compteur), **la seule cellule qui
+  perd de l'information et pourquoi** (« Par période × jour × compteur » — attribuer à
+  une journée l'écart observé entre deux relevés distants de neuf jours inventerait un
+  pic), les quatre garanties, et la classe d'erreur déjà payée sur chaque cellule.
+  `test_every_way_of_asking_gives_one_answer.py` la parcourt et exige que les classes y
+  soient rattachées.
+
+**Et un défaut introduit puis corrigé dans la foulée**, capitalisé en
+`an-overload-makes-the-old-call-ambiguous` : ajouter un paramètre à défaut n'est PAS
+rétrocompatible en SQL — les deux surcharges matchent un appel à un argument, Postgres
+rend `AmbiguousFunction`, et l'`except` qui protège la page transforme l'erreur en
+**zéro affirmé**. La tuile « Total Streams » affichait 0 pendant que « Total Shazams »
+affichait 1 770. Trouvé en REGARDANT la page ; le premier correctif a échoué aussi
+(`view v_platform_totals depends on function…`), donc l'ordre est contraint et écrit
+dans la migration.
