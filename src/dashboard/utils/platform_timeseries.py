@@ -200,43 +200,21 @@ _SQL_DISCARDED_SOUNDCLOUD = _SQL_DISCARDED_YOUTUBE.replace(
     "youtube_video_stats", "soundcloud_tracks_daily")
 
 
-# ── LA SÉRIE QUI ABOUTIT AU TOTAL OR ───────────────────────────────────────
+# ── LES SÉRIES CUMULÉES : UNE SEULE SOURCE ─────────────────────────────────
 #
-# `v_platform_totals` (migration 097) définit le total YouTube : le DERNIER compteur
-# connu de CHAQUE vidéo, additionné. La couche or définissait donc un scalaire sans
-# définir la courbe qui y mène — et une courbe dont le dernier point contredit la
-# tuile est exactement la contradiction qu'ADR-019 existe pour empêcher.
+# `_SQL_YT_CUMULATIVE` et `_SQL_SC_CUMULATIVE` vivaient ici et portaient le report en
+# avant en SQL applicatif. `v_platform_levels` (migration 104) le porte pour les trois
+# plateformes, et les garder serait une SECONDE définition du même niveau — ce que ce
+# module passe sa vie à retirer ailleurs.
 #
-# Le report en avant (`carried`) est ce qui rend l'égalité VRAIE PAR CONSTRUCTION :
-# une vidéo non relevée un jour garde sa dernière valeur connue au lieu de disparaître
-# de la somme. Sans lui la courbe plonge les jours de collecte partielle — YouTube
-# n'est mesurée que 39 % des jours — et son dernier point ne vaut le total que par
-# chance, le jour où toutes les vidéos ont été relevées.
-#
-# `COUNT(...) OVER (…)` compte les relevés non nuls vus jusqu'ici : il est constant
-# entre deux relevés, donc chaque groupe contient exactement UNE valeur, que le `MAX`
-# diffuse. C'est un report de la dernière valeur, pas un maximum courant — la
-# distinction compte le jour où un compteur recule (vidéo passée en privé), car c'est
-# le recul que la couche or retient.
-_SQL_YT_CUMULATIVE = """
-    WITH per_day AS (
-        SELECT video_id, collected_at::date AS j, MAX(view_count) AS vc
-          FROM youtube_video_stats
-         WHERE artist_id = %s AND view_count IS NOT NULL
-         GROUP BY 1, 2
-    ), grid AS (
-        SELECT v.video_id, d.j
-          FROM (SELECT DISTINCT video_id FROM per_day) v
-          CROSS JOIN (SELECT DISTINCT j FROM per_day) d
-    ), filled AS (
-        SELECT g.video_id, g.j, p.vc,
-               COUNT(p.vc) OVER (PARTITION BY g.video_id ORDER BY g.j) AS grp
-          FROM grid g
-          LEFT JOIN per_day p ON p.video_id = g.video_id AND p.j = g.j
-    ), carried AS (
-        SELECT video_id, j, MAX(vc) OVER (PARTITION BY video_id, grp) AS vc FROM filled
-    )
-    SELECT j, SUM(vc)::bigint FROM carried WHERE vc IS NOT NULL GROUP BY j ORDER BY j
+# Ce que le déménagement a corrigé au passage, et qui ne se voyait pas ici : une
+# collecte ratée écrit des ZÉROS, pas des NULL. Le 2026-06-01, les 19 titres
+# SoundCloud de l'artiste 1 étaient tous à 0 ; l'ancien filtre `IS NOT NULL` les
+# prenait pour un relevé, et le niveau s'effondrait de 23 475 à 0 avant de remonter.
+# La vue filtre `> 0` — un compteur ne redescend pas à zéro une fois positif.
+_SQL_LEVEL_ONE = """
+    SELECT day, level FROM v_platform_levels
+     WHERE artist_id = %s AND platform = %s ORDER BY day
 """
 
 
@@ -248,125 +226,52 @@ def youtube_cumulative_views(db: Any, artist_id: Optional[int]) -> list[tuple]:
     il avance par paliers : +360 vues attribuées à une seule journée le 2026-09-08
     quand YouTube Studio en annonçait 64 sur la période.
 
-    L'export PDF l'a abandonné ce jour-là. **La page YouTube du dashboard, non.** Écart
-    mesuré en production le 2026-09-11 pour l'artiste 1 : **120 627** sur cette page
-    contre **118 219** dans la couche or. Deux nombres pour la même chose, dans le même
-    produit — et le compteur de chaîne reste affiché ailleurs sur cette page, LABELLÉ
-    « chaîne », ce qui est légitime : ce qui ne l'est pas, c'est de le tracer comme la
-    série des vues des vidéos.
-
-    Le dernier point de cette série égale `v_platform_totals` par construction.
-    Garde : `tests/test_a_curve_ends_where_its_tile_says.py`.
+    Le dernier point égale `v_platform_totals` par construction, et c'est la même vue
+    qui le garantit. Garde : `tests/test_a_curve_ends_where_its_tile_says.py`.
     """
     if db is None or artist_id is None:
         return []
-    return _rows(db, _SQL_YT_CUMULATIVE, (artist_id,))
-
-
-# SoundCloud, même forme, même raison : `v_platform_totals` additionne le dernier
-# `playback_count` connu de chaque titre. Écart mesuré pour l'artiste 1 le 2026-09-11 :
-# la somme courante des deltas quotidiens rend **77**, le produit en compte **23 563**.
-_SQL_SC_CUMULATIVE = _SQL_YT_CUMULATIVE.replace(
-    "video_id", "track_id").replace(
-    "view_count", "playback_count").replace(
-    "youtube_video_stats", "soundcloud_tracks_daily")
+    return _rows(db, _SQL_LEVEL_ONE, (artist_id, "youtube"))
 
 
 def soundcloud_cumulative_plays(db: Any, artist_id: Optional[int]) -> list[tuple]:
     """[(jour, écoutes cumulées)] — dernier compteur connu par TITRE, additionné."""
     if db is None or artist_id is None:
         return []
-    return _rows(db, _SQL_SC_CUMULATIVE, (artist_id,))
+    return _rows(db, _SQL_LEVEL_ONE, (artist_id, "soundcloud"))
 
 
-# UNE SEULE REQUÊTE POUR LES DEUX PLATEFORMES, sur la forme de `v_platform_totals`.
+# LA SÉRIE CUMULÉE EST LA COUCHE OR, depuis la migration 104.
 #
-# Elles en faisaient deux, et le cliquet d'allers-retours de l'accueil l'a refusé :
-# 14 contre un plafond de 13 gelé le 2026-09-10. Son message dit quoi faire — « elle
-# la lit dans une requête existante ou passe par la couche or » — et c'est le même
-# geste que la migration 097 a fait pour les totaux scalaires : un `UNION ALL` avec
-# une colonne `platform`, une définition par plateforme, une seule lecture.
-# UNE SEULE REQUÊTE POUR LES DEUX PLATEFORMES, sur la forme de `v_platform_totals`.
+# Ces requêtes portaient le report en avant en Python-SQL, et `v_platform_levels` le
+# porte désormais pour les trois plateformes. Les garder serait une SECONDE
+# définition du même niveau — exactement ce que ce module passe sa vie à retirer.
 #
-# Elles en faisaient deux, et le cliquet d'allers-retours de l'accueil l'a refusé :
-# 14 contre un plafond de 13 gelé le 2026-09-10. Son message dit quoi faire — « elle
-# la lit dans une requête existante ou passe par la couche or » — et c'est le même
-# geste que la migration 097 a fait pour les totaux scalaires : un `UNION ALL` avec
-# une colonne `platform`, une définition par plateforme, une seule lecture.
-#
-# Elle est ÉCRITE, pas fabriquée par substitution sur `_SQL_YT_CUMULATIVE` : la
-# première version l'était, les CTE se sont mélangées et la requête rendait zéro
-# ligne en silence — `_rows3` avale, donc les deux courbes disparaissaient sans un
-# mot. Une requête assemblée par `.replace()` n'est lisible par personne, à commencer
-# par celui qui la relit.
-_SQL_CUMULATIVE_ALL = """
-    WITH
-    yt_day AS (
-        SELECT video_id, collected_at::date AS j, MAX(view_count) AS vc
-          FROM youtube_video_stats
-         WHERE artist_id = %s AND view_count IS NOT NULL
-         GROUP BY 1, 2
-    ), yt_grid AS (
-        SELECT e.video_id, d.j
-          FROM (SELECT DISTINCT video_id FROM yt_day) e
-          CROSS JOIN (SELECT DISTINCT j FROM yt_day) d
-    ), yt_filled AS (
-        SELECT g.video_id, g.j, p.vc,
-               COUNT(p.vc) OVER (PARTITION BY g.video_id ORDER BY g.j) AS grp
-          FROM yt_grid g
-          LEFT JOIN yt_day p ON p.video_id = g.video_id AND p.j = g.j
-    ), yt_carried AS (
-        SELECT j, MAX(vc) OVER (PARTITION BY video_id, grp) AS vc FROM yt_filled
-    ),
-    sc_day AS (
-        SELECT track_id, collected_at::date AS j, MAX(playback_count) AS vc
-          FROM soundcloud_tracks_daily
-         WHERE artist_id = %s AND playback_count IS NOT NULL
-         GROUP BY 1, 2
-    ), sc_grid AS (
-        SELECT e.track_id, d.j
-          FROM (SELECT DISTINCT track_id FROM sc_day) e
-          CROSS JOIN (SELECT DISTINCT j FROM sc_day) d
-    ), sc_filled AS (
-        SELECT g.track_id, g.j, p.vc,
-               COUNT(p.vc) OVER (PARTITION BY g.track_id ORDER BY g.j) AS grp
-          FROM sc_grid g
-          LEFT JOIN sc_day p ON p.track_id = g.track_id AND p.j = g.j
-    ), sc_carried AS (
-        SELECT j, MAX(vc) OVER (PARTITION BY track_id, grp) AS vc FROM sc_filled
-    )
-    SELECT 'youtube'::text AS platform, j, SUM(vc)::bigint
-      FROM yt_carried WHERE vc IS NOT NULL GROUP BY j
-    UNION ALL
-    SELECT 'soundcloud'::text, j, SUM(vc)::bigint
-      FROM sc_carried WHERE vc IS NOT NULL GROUP BY j
-    ORDER BY 1, 2
+# La vue n'expose que les plateformes à série quotidienne : Apple en est absente, ses
+# exports étant des totaux de période. Le dictionnaire ne rend donc que ce qui a un
+# niveau par jour, et l'appelant distingue « pas de niveau » de « niveau à zéro ».
+_SQL_LEVELS = """
+    SELECT platform, day, level FROM v_platform_levels
+     WHERE artist_id = %s ORDER BY platform, day
 """
 
 
 def cumulative_by_platform(db: Any, artist_id: Optional[int]) -> dict:
-    """{plateforme: série CUMULÉE} — pour les seules plateformes à compteur.
+    """{plateforme: série CUMULÉE} — lue dans `v_platform_levels` (migration 104).
 
-    Spotify n'y figure pas, et c'est le fond du sujet : S4A livre des quantités
-    QUOTIDIENNES et toutes les journées sont présentes, donc la somme courante de sa
-    série est déjà son cumul exact. YouTube et SoundCloud livrent des COMPTEURS, dont
-    la série quotidienne est une différence qui jette les journées non consécutives —
-    cumuler ce qui reste donnait 21 au lieu de 118 219.
+    Spotify n'y est pas une exception : sa somme courante EST son niveau, et la vue
+    la calcule comme telle. Ce qui change d'une plateforme à l'autre est la façon
+    dont le niveau se construit — somme courante pour une quantité, report en avant
+    pour un compteur — et cette différence vit dans la vue, à un seul endroit.
 
-    Le dictionnaire dit donc littéralement : « voici les plateformes dont le cumul ne
-    se déduit pas du quotidien ». `platform_chart` lit cette clé et retombe sur la
-    somme courante pour les autres.
-
-    Une seule requête, et une clé présente même vide : un appelant qui teste
-    `if rows` doit pouvoir distinguer « cette plateforme a un compteur » de « cette
-    plateforme n'en a pas », sans quoi une base sans SoundCloud la ferait traiter
-    comme Spotify.
+    Les clés sont présentes même vides : un appelant qui teste `if rows` doit pouvoir
+    distinguer « cette plateforme a un niveau » de « elle n'en a pas », sans quoi une
+    base sans SoundCloud la ferait traiter comme Apple.
     """
     if db is None or artist_id is None:
         return {}
     out: dict = {"youtube": [], "soundcloud": []}
-    for row in _rows3(db, _SQL_CUMULATIVE_ALL, (artist_id, artist_id)):
-        platform, day, value = row
+    for platform, day, value in _rows3(db, _SQL_LEVELS, (artist_id,)):
         if platform in out:
             out[platform].append((day, value))
     return out

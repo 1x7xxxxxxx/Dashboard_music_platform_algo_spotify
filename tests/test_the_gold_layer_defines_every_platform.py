@@ -214,3 +214,92 @@ def test_python_reads_the_sql_rule_instead_of_repeating_it() -> None:
     assert "non_overlapping_cover" not in called, (
         "la sélection gloutonne est revenue en Python : c'est la copie qu'on vient "
         "de retirer.")
+
+
+# ── LE GRAIN TEMPOREL (migration 104) ──────────────────────────────────────
+
+def test_the_last_level_is_the_lifetime_total(scratch) -> None:
+    """`v_platform_levels` et `v_platform_totals` répondent la même chose au bout.
+
+    C'est l'invariant qui rend la vue utilisable : le total « depuis le début » EST le
+    dernier niveau. S'ils divergent, on a de nouveau deux définitions — et cette
+    fois-ci du même nombre, dans la même couche.
+    """
+    scratch.execute("""
+        SELECT l.artist_id, l.platform, l.level, t.total
+          FROM (SELECT DISTINCT ON (artist_id, platform) artist_id, platform, level
+                  FROM v_platform_levels ORDER BY artist_id, platform, day DESC) l
+          JOIN v_platform_totals t USING (artist_id, platform)
+    """)
+    rows = scratch.fetchall()
+    if not rows:
+        pytest.skip("aucun niveau dans cette base")
+    wrong = [f"artiste {a} / {p} : dernier niveau {lv:,}, total {tot:,}"
+             for a, p, lv, tot in rows if lv != tot]
+    assert not wrong, (
+        "Le dernier niveau ne vaut pas le total — deux définitions du même nombre "
+        "dans la couche or elle-même.\n" + "\n".join(wrong))
+
+
+def test_a_level_never_goes_down(scratch) -> None:
+    """Un niveau est un cumul : il ne recule pas.
+
+    C'est le symptôme d'un report en avant qui a sauté un jour — la faute que la vue
+    existe pour rendre impossible.
+    """
+    scratch.execute("""
+        SELECT artist_id, platform, day, level,
+               LAG(level) OVER (PARTITION BY artist_id, platform ORDER BY day) AS prev
+          FROM v_platform_levels
+    """)
+    drops = [f"artiste {a} / {p} / {d} : {lv:,} après {pv:,}"
+             for a, p, d, lv, pv in scratch.fetchall() if pv is not None and lv < pv]
+    assert not drops, ("Un niveau recule :\n" + "\n".join(drops[:10]))
+
+
+def test_apple_is_deliberately_absent_from_the_levels(scratch) -> None:
+    """Et c'est dit, pas sous-entendu.
+
+    Ses exports sont des totaux de PÉRIODE. Lui inventer un niveau par jour étalerait
+    900 écoutes sur 366 journées que personne n'a mesurées — la faute que
+    `platform_timeseries` existe pour empêcher. Si quelqu'un l'ajoute un jour, ce test
+    le force à écrire pourquoi.
+    """
+    scratch.execute("SELECT pg_get_viewdef('v_platform_levels'::regclass, true)")
+    definition = scratch.fetchone()[0]
+    assert "'apple'" not in definition, (
+        "Apple a été ajoutée aux niveaux quotidiens : ses relevés sont des totaux de "
+        "période, et lui inventer un grain jour invente des valeurs. Si c'est "
+        "délibéré, retire ce test en disant ce qui a changé dans la source.")
+
+
+def test_python_reads_the_levels_instead_of_rebuilding_them() -> None:
+    """Le report en avant ne doit pas revenir en Python-SQL.
+
+    `cumulative_by_platform` le portait dans une constante de 30 lignes jusqu'au
+    2026-09-12. La vue le porte maintenant pour les trois plateformes ; garder l'autre
+    serait une seconde définition du même niveau.
+    """
+    import ast
+    import inspect
+
+    from src.dashboard.utils import platform_timeseries as pts
+
+    fn = ast.parse(inspect.getsource(pts.cumulative_by_platform).lstrip()).body[0]
+    doc = ast.get_docstring(fn, clean=False)
+    names = {n.id for n in ast.walk(fn) if isinstance(n, ast.Name)}
+    assert "_SQL_LEVELS" in names, (
+        "`cumulative_by_platform` ne lit plus `v_platform_levels` — le report en "
+        "avant est revenu en Python.")
+    module_sql = [v for k, v in vars(pts).items()
+                  if k.startswith("_SQL") and isinstance(v, str)]
+    # Le marqueur du REPORT EN AVANT est le groupe `grp` — `COUNT(...) OVER (...)`
+    # seul ne suffit pas : `_SQL_DISCARDED_*` l'utilise pour compter ce que la
+    # conversion cumul → quotidien JETTE, ce qui est une autre question et reste
+    # légitime ici. Le prédicat les rapportait toutes les deux.
+    rebuilt = [q for q in module_sql
+               if "grp" in q.lower() and "over (partition by" in q.lower()
+               and q != doc]
+    assert not rebuilt, (
+        f"{len(rebuilt)} requête(s) du module refont le report en avant que la vue "
+        "porte déjà — c'est une seconde définition du même niveau.")
