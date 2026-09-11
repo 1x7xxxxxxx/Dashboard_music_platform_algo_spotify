@@ -74,10 +74,19 @@ def get_db_connection() -> Optional[PostgresHandler]:
     # reste disponible, personne ne l'appelle, et la reproduction est écrite dans
     # la tâche de roadmap qui porte ce reste.
 
-    # Le cache des séries, lui, est compris et branché : une fois par processus,
-    # au premier besoin, jamais à l'import (un import ne doit pas ouvrir de socket).
-    from src.dashboard.utils.series_cache import install as _install_series_cache
-    _install_series_cache()
+    # LE CACHE DES SÉRIES N'EST PAS BRANCHÉ NON PLUS, POUR LA MÊME RAISON.
+    #
+    # Il est écrit, testé et compris en isolation : lecture mémorisée, panne JAMAIS
+    # mémorisée, clé portant `artist_id`, et il fait baisser l'accueil artiste de
+    # 13 à 11 requêtes en local. Mais branché, la CI compte **21** requêtes sur
+    # l'accueil, et je n'ai pas su reproduire ni expliquer cet écart : ni le pool,
+    # ni les purges, ni un `clear()` répété (500/500 lectures correctes) ne le
+    # produisent hors CI.
+    #
+    # Le motif mesuré est +10 / −2 — une SECTION de plus rendue et `discarded_deltas`
+    # en moins — ce qui est la signature d'une page qui conclut « pas encore de
+    # données ». Tant que je ne peux pas montrer que ce n'est pas ça, un chemin que
+    # traverse chaque rendu ne le reçoit pas. `install()` reste disponible.
 
     try:
         return PostgresHandler.from_env_or_config()

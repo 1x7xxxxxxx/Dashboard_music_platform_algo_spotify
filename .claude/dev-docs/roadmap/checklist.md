@@ -26,6 +26,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R84 | Déployer la migration 100 **avant** le code YouTube qui en dépend | P2 | `pytest tests/test_an_upsert_targets_an_index_that_exists.py` contre la prod : vert = l'index existe |
+| R85 | **Brancher** le cache des séries (écrit, testé, non branché) — comprendre d'abord pourquoi la CI compte 21 requêtes sur l'accueil alors qu'en local il le fait passer de 13 à 11 | P3 | `pytest tests/test_a_page_asks_the_same_question_once.py` reste à 13/11 **en CI** avec `install()` branché |
 | R86 | **Activer** le pool (écrit et testé, personne ne l'appelle) — comprendre d'abord pourquoi il fait passer l'accueil de 13 à 23 requêtes | P3 | `pytest tests/test_a_page_asks_the_same_question_once.py` doit rester à 13/11 **avec** `enable_pool()` branché dans `get_db_connection` |
 | R87 | Répliques Streamlit + `lb_policy cookie` dans Caddy | P3 | un test de charge **au niveau websocket** ; `loadtest_dashboard.py` ne sait pas le faire et le dit |
 
@@ -82,9 +83,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-11, R84 · R86 · R87 ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-11, R84 à R87 ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R84,R86,R87 -->
+<!-- reprise: open=R84,R85,R86,R87 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
