@@ -9,6 +9,8 @@ EN = {
     "youtube.channel_chart_title": "Growth: Subscribers vs Total Views",
     "youtube.cumulative_views": "Cumulative Views",
     "youtube.kpi_current_subs": "👥 Current Subscribers",
+    "youtube.kpi_channel_views": "📺 Channel views",
+    "youtube.kpi_channel_views_help": "The counter YouTube reports for the whole channel: it includes private and deleted videos and internal aggregates, none of which are in the catalogue analysed here.",
     "youtube.kpi_total_views": "👁️ Total Views",
     "youtube.no_channel_history": "No channel history yet.",
     "youtube.top_header": "🏆 Top Content (Multi-Axis Analysis)",

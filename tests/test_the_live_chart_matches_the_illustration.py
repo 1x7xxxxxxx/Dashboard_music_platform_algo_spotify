@@ -224,6 +224,14 @@ def test_the_labels_are_on_the_bands_not_in_a_legend_box() -> None:
     C'est aussi ce qui règle « la légende est masquée, c'est assez moche » : la légende
     horizontale était ancrée dans la marge où vit le titre sur deux lignes, et les deux
     se recouvraient. Une étiquette collée à sa bande n'a rien à recouvrir.
+
+    ⚠️ Mis à jour le 2026-09-11. La légende est REVENUE, et c'est voulu : elle est
+    devenue le filtre de sources, à la place d'un `multiselect` qui coûtait un rendu
+    complet pour masquer une bande. Ce qui reste vrai est la contrainte, pas son
+    implémentation — elle est SOUS la figure, où elle n'a rien à recouvrir, et les
+    étiquettes de marge restent le relief que l'avertissement de contraste exige.
+    `test_the_legend_never_returns_to_the_title_margin` tient la position ; ce test-ci
+    tient que les deux réglages sont posés explicitement plutôt que laissés au défaut.
     """
     tree = ast.parse(_CHART.read_text(encoding="utf-8"))
     fn = next(f for f in ast.walk(tree)

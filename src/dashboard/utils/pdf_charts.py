@@ -24,7 +24,12 @@ _GREEN = "#1DB954"
 _DARK = "#1a1a2e"
 _RED = "#FF4444"
 _GREY = "#9aa0a6"
-_PLATFORM_COLORS = ["#1DB954", "#FF0000", "#FF7700", "#333333"]  # Spotify/YT/SC/Apple
+# La palette de l'illustration, celle de l'écran — validée le 2026-09-08 sur les six
+# contrôles de contraste. Elle était différente ici (vert/rouge/orange/noir), et les
+# deux figures de la page « Vue d'ensemble » donnaient donc DEUX couleurs à chaque
+# plateforme : Spotify bleu dans l'évolution, vert dans le bâton juste en dessous.
+# Vu en regardant la page, le 2026-09-11.
+_PLATFORM_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]  # Spotify/YT/SC/Apple
 _ARTIST_FILTER = "%1x7xxxxxxx%"
 
 
@@ -44,6 +49,68 @@ def _style(ax) -> None:
     ax.tick_params(colors="#666666", labelsize=8)
     ax.grid(axis="y", color="#eeeeee", linewidth=0.8)
     ax.set_axisbelow(True)
+
+
+# ── LE DOUBLE AXE : QUAND IL MENT, ET QUAND IL EST LA BONNE FORME ──────────
+#
+# `platform_chart` s'interdit le double axe et dit pourquoi : deux séries de MÊME
+# NATURE d'ampleurs incomparables, posées sur deux échelles choisies par nous, se
+# croisent où nous avons décidé qu'elles se croisent. Le lecteur y lit une corrélation
+# que la donnée ne porte pas. La forme admissible est alors les petits multiples — une
+# facette par série, chacune sur son échelle, l'axe des temps partagé.
+#
+# Cet interdit ne se transporte PAS mécaniquement au PDF, et c'est ce que R89 demandait
+# de trancher. Le critère, écrit une fois :
+#
+#   • MÊME NATURE (deux comptes du même genre d'événement) → petits multiples.
+#     Le double axe y fabrique un croisement, et le croisement est précisément ce que
+#     le lecteur vient chercher — « les Shazams précèdent-ils les streams ? ». Des
+#     panneaux empilés à axe des temps partagé répondent à la même question sans
+#     inventer la réponse.
+#
+#   • NATURES DIFFÉRENTES (des personnes et des vues, des euros et un coût unitaire,
+#     des comptes et un pourcentage) → le double axe reste la forme standard et
+#     honnête : il n'existe aucune échelle commune, donc aucun croisement à
+#     sur-interpréter. Il est conservé, avec ses libellés d'axe COLORÉS comme la
+#     courbe qu'ils décrivent — sans quoi le lecteur ne sait pas quel axe lire.
+#
+# Balayage du 2026-09-11 — six `twinx()` dans ce fichier, et le tri :
+#
+#   | figure                   | gauche          | droite              | verdict        |
+#   |--------------------------|-----------------|---------------------|----------------|
+#   | `apple_daily_growth`     | streams / jour  | shazams / jour      | MÊME → empilé  |
+#   | `apple_timeline`         | plays cumulés   | shazams cumulés     | MÊME → empilé  |
+#   | `youtube_channel_growth` | abonnés         | vues cumulées       | voir ci-dessous|
+#   | `sc_multiaxis`           | écoutes         | likes/reposts/comm. | différent → OK |
+#   | `ig_engagement`          | likes, comm.    | taux d'engagement % | différent → OK |
+#   | `meta_daily`             | budget €        | résultats           | différent → OK |
+#
+# `youtube_channel_growth` est le cas que R89 nommait, et il est converti pour une
+# raison qui n'est PAS le critère ci-dessus : des abonnés et des vues sont bien de
+# natures différentes. Mais la page YouTube du dashboard trace déjà ces deux séries en
+# DEUX PANNEAUX EMPILÉS (`make_subplots(rows=2, shared_xaxes=True)`). La même donnée
+# prenait donc deux formes dans le même produit, et le PDF est censé être ce que
+# l'artiste emporte de l'écran. La cohérence tranche là où le critère ne tranchait pas.
+
+
+def _ascii_label(label: str) -> str:
+    """Le libellé sans son emoji — DejaVu Sans n'en a aucun, et rend un carré vide."""
+    return "".join(c for c in label if ord(c) < 0x2190).strip()
+
+
+def _stacked(n: int, height: float = 3.0):
+    """`n` panneaux empilés, axe des temps partagé, chacun sur SON échelle.
+
+    La forme admissible quand deux séries de même nature ont des ampleurs
+    incomparables. Le retour est `(fig, axes)` avec `axes` toujours une liste, même
+    à `n == 1`.
+    """
+    fig, axes = plt.subplots(n, 1, sharex=True, figsize=(8.6, height * n * 0.78))
+    axes = [axes] if n == 1 else list(axes)
+    for ax in axes:
+        _style(ax)
+    fig.subplots_adjust(hspace=0.22)
+    return fig, axes
 
 
 def streams_timeline(db, artist_id, from_date, to_date, title=None) -> str | None:
@@ -130,23 +197,28 @@ def song_timeline(rows, song) -> str | None:
 
 
 def youtube_channel_growth(rows) -> str | None:
-    """rows: [(date, subscribers, views)] — subs (left) + cumulative views (right)."""
+    """rows: [(date, subscribers, views)] — deux panneaux, la forme de l'écran.
+
+    Double axe retiré le 2026-09-11. Pas parce que le critère l'interdisait — des
+    abonnés et des vues sont de natures différentes — mais parce que la page YouTube
+    du dashboard trace déjà ces deux séries en deux panneaux empilés. La même donnée
+    ne prend plus deux formes dans le même produit.
+    """
     rows = [r for r in (rows or []) if r[1] is not None or r[2] is not None]
     if len(rows) < 2:
         return None
     xs = [r[0] for r in rows]
-    fig, ax = plt.subplots(figsize=(8.6, 3.0))
     _subs = _t("pdf.chart.subscribers", "Abonnés")
     _cum_views = _t("pdf.chart.cumulative_views", "Vues cumulées")
+    fig, (ax, ax2) = _stacked(2)
     ax.plot(xs, [int(r[1] or 0) for r in rows], color="#FF0000", linewidth=2,
-            marker="o", markersize=3, label=_subs)
-    _style(ax)
+            marker="o", markersize=3)
     ax.set_ylabel(_subs, color="#FF0000", fontsize=8)
-    ax2 = ax.twinx()
-    ax2.plot(xs, [int(r[2] or 0) for r in rows], color="#888888", linewidth=1.8,
-             linestyle="--", label=_cum_views)
-    ax2.set_ylabel(_cum_views, color="#888888", fontsize=8)
-    ax2.spines["top"].set_visible(False)
+    # Trait plein, pas pointillé : le pointillé disait « série secondaire », ce qui
+    # avait un sens sur un axe de droite et n'en a plus sur son propre panneau — et
+    # c'est la série que le total du produit annonce.
+    ax2.plot(xs, [int(r[2] or 0) for r in rows], color="#606060", linewidth=2)
+    ax2.set_ylabel(_cum_views, color="#606060", fontsize=8)
     ax.set_title(_t("pdf.chart.youtube_channel_growth", "YouTube — croissance de la chaîne"),
                  color=_DARK, fontsize=11, fontweight="bold", loc="left")
     fig.autofmt_xdate(rotation=30)
@@ -167,6 +239,103 @@ def platform_breakdown(streams: dict) -> str | None:
     for b, v in zip(bars, vals):
         ax.text(b.get_x() + b.get_width() / 2, v, f"{v:,}", ha="center",
                 va="bottom", fontsize=8, color="#444")
+    return _fig_to_uri(fig)
+
+
+def platform_evolution(series, cumulative, since=None, until=None) -> str | None:
+    """La figure phare de l'accueil, dans le PDF — mêmes données, mêmes règles.
+
+    R91 demandait de « donner au PDF les figures pertinentes en partageant la DONNÉE,
+    pas le rendu ». L'inventaire du 2026-09-11 a nommé le manque : le PDF portait 25
+    figures et **aucune** ne montrait l'évolution multi-plateformes, celle qui ouvre
+    l'accueil. Il n'avait que `platform_breakdown`, un bâton par plateforme — des
+    totaux, pas une histoire.
+
+    Le rendu ne peut pas être partagé : `kaleido` est absent, donc Plotly → PNG est
+    impossible, et c'est la raison pour laquelle ce module existe en matplotlib. Ce
+    qui est partagé, c'est tout le reste — et c'est ce qui compte, parce que c'est là
+    que vivent les règles :
+
+      * `platform_timeseries.daily_streams_by_platform` et `cumulative_by_platform`
+        fournissent les séries, exactement comme à l'écran ;
+      * `platform_chart._window`, `_aggregate` et `_as_mode` les mettent en forme —
+        donc le report en avant des compteurs, le plancher de seau, et le refus
+        d'inventer un jour non mesuré s'appliquent ici sans être réécrits.
+
+    Une règle recopiée diverge : ce dépôt a payé QUATRE copies de « somme des
+    compteurs par vidéo », dont trois fausses. Il n'y en a pas de cinquième.
+
+    Importer `platform_chart` amène Streamlit — mais ce module en dépend déjà par
+    `_config` → `i18n`, y compris quand le DAG `onboarding_report` produit le PDF.
+    Aucune contrainte nouvelle, et seules des fonctions PURES sont appelées.
+    """
+    from src.dashboard.utils import platform_chart as pc
+
+    if not series:
+        return None
+    step = "day"
+    span, aligned = pc._window(series, None, since, until)
+    if span and len(span) > pc._WEEKLY_ABOVE_DAYS:
+        step = "week"
+        w_since = pc._bucket_key(since, step) if since is not None else None
+        w_until = pc._bucket_key(until, step) if until is not None else None
+        span, aligned = pc._window(pc._aggregate(series, step, since, until),
+                                   None, w_since, w_until, step_days=7)
+    if not span or not aligned or len(span) < 2:
+        return None
+
+    order, _thin = pc.stackable(span, aligned)
+    served = [k for k, rows in (cumulative or {}).items() if rows]
+    for key in served:
+        aligned.setdefault(key, [None] * len(span))
+    order = [k for k in pc.PLATFORM_LABELS
+             if k in aligned and (k in order or k in served)]
+    if not order:
+        return None
+    aligned = pc._as_mode(aligned, order, "cumulative", cumulative, span, step)
+
+    # LA QUEUE SE COUPE, elle ne se dessine pas à zéro.
+    #
+    # Vu en regardant la figure, pas en lisant le code : les trois bandes tombaient à
+    # la verticale sur le bord droit. La cause est que le `span` va jusqu'à la
+    # dernière mesure de LA PLUS RÉCENTE des plateformes — S4A s'arrêtait le 06-07,
+    # YouTube le 06-12 — et qu'un `None` devenu 0 dans un `stackplot` dit « plus
+    # aucune écoute » là où il faut dire « plus aucune mesure ». C'est le défaut que
+    # `known()` nomme à l'écran, et que l'écran règle en COUPANT la bande.
+    #
+    # Un `stackplot` ne sait pas couper une bande sans couper les autres. On tronque
+    # donc la figure à la dernière date où TOUTES les bandes tracées sont connues.
+    # L'autre extrémité n'est pas symétrique et ne se tronque pas : avant sa première
+    # mesure, une plateforme valait bien zéro — elle n'était pas encore collectée.
+    ends = []
+    for key in order:
+        seen = [i for i, v in enumerate(aligned[key]) if v is not None]
+        if not seen:
+            return None
+        ends.append(seen[-1])
+    last = min(ends)
+    if last < 1:
+        return None
+    span = span[:last + 1]
+    stacks = [[v or 0 for v in aligned[k][:last + 1]] for k in order]
+    if not any(any(col) for col in stacks):
+        return None
+
+    fig, ax = plt.subplots(figsize=(8.6, 3.2))
+    # Les libellés portent un emoji, absent de DejaVu Sans : matplotlib le rend en
+    # carré vide. Un identifiant à moitié dessiné est un identifiant faux — la
+    # légende du PDF prend donc le nom nu.
+    ax.stackplot(span, *stacks,
+                 colors=[pc._PALETTE_LIGHT[k] for k in order],
+                 labels=[_ascii_label(pc.PLATFORM_LABELS[k]) for k in order],
+                 linewidth=0.6, edgecolor="white")
+    _style(ax)
+    ax.set_title(_t("pdf.chart.platform_evolution",
+                    "Toutes tes plateformes — évolution cumulée"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
+    ax.legend(fontsize=8, frameon=False, loc="upper left", ncol=len(order))
+    ax.margins(x=0)
+    fig.autofmt_xdate(rotation=30)
     return _fig_to_uri(fig)
 
 
@@ -411,21 +580,22 @@ def j28_trajectory(points) -> str | None:
 
 
 def apple_daily_growth(rows) -> str | None:
-    """rows: [(date, daily_streams, daily_shazams)] — streams line + shazams bars."""
+    """rows: [(date, daily_streams, daily_shazams)] — deux comptes quotidiens, empilés.
+
+    Double axe retiré le 2026-09-11 : deux comptes d'événements du même genre, donc
+    deux séries de MÊME NATURE. La question qu'on vient poser à cette figure est « les
+    Shazams précèdent-ils les streams ? », et un croisement placé par notre choix
+    d'échelles y répondait à notre place.
+    """
     rows = [r for r in (rows or []) if r[1] is not None]
     if len(rows) < 2:
         return None
     xs = [r[0] for r in rows]
-    fig, ax = plt.subplots(figsize=(8.6, 3.0))
-    ax.plot(xs, [int(r[1] or 0) for r in rows], color=_GREEN, linewidth=2,
-            label=_t("pdf.chart.streams_per_day_short", "Streams/j"))
-    _style(ax)
+    fig, (ax, ax2) = _stacked(2)
+    ax.plot(xs, [int(r[1] or 0) for r in rows], color=_GREEN, linewidth=2)
     ax.set_ylabel(_t("pdf.chart.streams_per_day", "Streams / jour"), color=_GREEN, fontsize=8)
-    ax2 = ax.twinx()
-    ax2.bar(xs, [int(r[2] or 0) for r in rows], color="#FFA500", alpha=0.4, width=1.0,
-            label=_t("pdf.chart.shazams_per_day_short", "Shazams/j"))
+    ax2.bar(xs, [int(r[2] or 0) for r in rows], color="#FFA500", alpha=0.6, width=1.0)
     ax2.set_ylabel(_t("pdf.chart.shazams_per_day", "Shazams / jour"), color="#FFA500", fontsize=8)
-    ax2.spines["top"].set_visible(False)
     ax.set_title(_t("pdf.chart.apple_daily_growth", "Apple Music — croissance quotidienne"),
                  color=_DARK, fontsize=11, fontweight="bold", loc="left")
     fig.autofmt_xdate(rotation=30)
@@ -449,23 +619,25 @@ def sc_playback_evolution(rows) -> str | None:
 
 
 def apple_timeline(rows) -> str | None:
-    """rows: [(date, plays_cumul, shazams_cumul)] — dual-axis: plays + shazams over time."""
+    """rows: [(date, plays_cumul, shazams_cumul)] — deux cumuls de même nature, empilés.
+
+    Double axe retiré le 2026-09-11, même raison qu'`apple_daily_growth` : deux
+    cumuls d'événements du même genre. Sur deux échelles choisies par nous, la courbe
+    la plus petite peut être dessinée au-dessus de la plus grande.
+    """
     rows = [r for r in (rows or []) if r[1] is not None or r[2] is not None]
     if len(rows) < 2:
         return None
     xs = [r[0] for r in rows]
-    fig, ax = plt.subplots(figsize=(8.6, 3.0))
     _plays_cum = _t("pdf.chart.plays_cumulative", "Plays (cumul)")
     _shazams_cum = _t("pdf.chart.shazams_cumulative", "Shazams (cumul)")
+    fig, (ax, ax2) = _stacked(2)
     ax.plot(xs, [int(r[1] or 0) for r in rows], color=_GREEN, linewidth=2,
-            marker="o", markersize=4, label=_plays_cum)
-    _style(ax)
+            marker="o", markersize=4)
     ax.set_ylabel(_plays_cum, color=_GREEN, fontsize=8)
-    ax2 = ax.twinx()
     ax2.plot(xs, [int(r[2] or 0) for r in rows], color="#FFA500", linewidth=2,
-             marker="s", markersize=4, label=_shazams_cum)
+             marker="s", markersize=4)
     ax2.set_ylabel(_shazams_cum, color="#FFA500", fontsize=8)
-    ax2.spines["top"].set_visible(False)
     ax.set_title(_t("pdf.chart.apple_plays_shazams", "Apple Music — plays & shazams (cumul)"),
                  color=_DARK, fontsize=11, fontweight="bold", loc="left")
     fig.autofmt_xdate(rotation=30)

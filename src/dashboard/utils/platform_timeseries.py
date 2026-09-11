@@ -200,6 +200,188 @@ _SQL_DISCARDED_SOUNDCLOUD = _SQL_DISCARDED_YOUTUBE.replace(
     "youtube_video_stats", "soundcloud_tracks_daily")
 
 
+# ── LA SÉRIE QUI ABOUTIT AU TOTAL OR ───────────────────────────────────────
+#
+# `v_platform_totals` (migration 097) définit le total YouTube : le DERNIER compteur
+# connu de CHAQUE vidéo, additionné. La couche or définissait donc un scalaire sans
+# définir la courbe qui y mène — et une courbe dont le dernier point contredit la
+# tuile est exactement la contradiction qu'ADR-019 existe pour empêcher.
+#
+# Le report en avant (`carried`) est ce qui rend l'égalité VRAIE PAR CONSTRUCTION :
+# une vidéo non relevée un jour garde sa dernière valeur connue au lieu de disparaître
+# de la somme. Sans lui la courbe plonge les jours de collecte partielle — YouTube
+# n'est mesurée que 39 % des jours — et son dernier point ne vaut le total que par
+# chance, le jour où toutes les vidéos ont été relevées.
+#
+# `COUNT(...) OVER (…)` compte les relevés non nuls vus jusqu'ici : il est constant
+# entre deux relevés, donc chaque groupe contient exactement UNE valeur, que le `MAX`
+# diffuse. C'est un report de la dernière valeur, pas un maximum courant — la
+# distinction compte le jour où un compteur recule (vidéo passée en privé), car c'est
+# le recul que la couche or retient.
+_SQL_YT_CUMULATIVE = """
+    WITH per_day AS (
+        SELECT video_id, collected_at::date AS j, MAX(view_count) AS vc
+          FROM youtube_video_stats
+         WHERE artist_id = %s AND view_count IS NOT NULL
+         GROUP BY 1, 2
+    ), grid AS (
+        SELECT v.video_id, d.j
+          FROM (SELECT DISTINCT video_id FROM per_day) v
+          CROSS JOIN (SELECT DISTINCT j FROM per_day) d
+    ), filled AS (
+        SELECT g.video_id, g.j, p.vc,
+               COUNT(p.vc) OVER (PARTITION BY g.video_id ORDER BY g.j) AS grp
+          FROM grid g
+          LEFT JOIN per_day p ON p.video_id = g.video_id AND p.j = g.j
+    ), carried AS (
+        SELECT video_id, j, MAX(vc) OVER (PARTITION BY video_id, grp) AS vc FROM filled
+    )
+    SELECT j, SUM(vc)::bigint FROM carried WHERE vc IS NOT NULL GROUP BY j ORDER BY j
+"""
+
+
+def youtube_cumulative_views(db: Any, artist_id: Optional[int]) -> list[tuple]:
+    """[(jour, vues cumulées)] — la somme des compteurs PAR VIDÉO, jamais celui de la chaîne.
+
+    Le compteur de CHAÎNE (`youtube_channel_history.view_count`) porte des vidéos qui
+    ne sont pas dans le catalogue lu ici — privées, supprimées, agrégats internes — et
+    il avance par paliers : +360 vues attribuées à une seule journée le 2026-09-08
+    quand YouTube Studio en annonçait 64 sur la période.
+
+    L'export PDF l'a abandonné ce jour-là. **La page YouTube du dashboard, non.** Écart
+    mesuré en production le 2026-09-11 pour l'artiste 1 : **120 627** sur cette page
+    contre **118 219** dans la couche or. Deux nombres pour la même chose, dans le même
+    produit — et le compteur de chaîne reste affiché ailleurs sur cette page, LABELLÉ
+    « chaîne », ce qui est légitime : ce qui ne l'est pas, c'est de le tracer comme la
+    série des vues des vidéos.
+
+    Le dernier point de cette série égale `v_platform_totals` par construction.
+    Garde : `tests/test_a_curve_ends_where_its_tile_says.py`.
+    """
+    if db is None or artist_id is None:
+        return []
+    return _rows(db, _SQL_YT_CUMULATIVE, (artist_id,))
+
+
+# SoundCloud, même forme, même raison : `v_platform_totals` additionne le dernier
+# `playback_count` connu de chaque titre. Écart mesuré pour l'artiste 1 le 2026-09-11 :
+# la somme courante des deltas quotidiens rend **77**, le produit en compte **23 563**.
+_SQL_SC_CUMULATIVE = _SQL_YT_CUMULATIVE.replace(
+    "video_id", "track_id").replace(
+    "view_count", "playback_count").replace(
+    "youtube_video_stats", "soundcloud_tracks_daily")
+
+
+def soundcloud_cumulative_plays(db: Any, artist_id: Optional[int]) -> list[tuple]:
+    """[(jour, écoutes cumulées)] — dernier compteur connu par TITRE, additionné."""
+    if db is None or artist_id is None:
+        return []
+    return _rows(db, _SQL_SC_CUMULATIVE, (artist_id,))
+
+
+# UNE SEULE REQUÊTE POUR LES DEUX PLATEFORMES, sur la forme de `v_platform_totals`.
+#
+# Elles en faisaient deux, et le cliquet d'allers-retours de l'accueil l'a refusé :
+# 14 contre un plafond de 13 gelé le 2026-09-10. Son message dit quoi faire — « elle
+# la lit dans une requête existante ou passe par la couche or » — et c'est le même
+# geste que la migration 097 a fait pour les totaux scalaires : un `UNION ALL` avec
+# une colonne `platform`, une définition par plateforme, une seule lecture.
+# UNE SEULE REQUÊTE POUR LES DEUX PLATEFORMES, sur la forme de `v_platform_totals`.
+#
+# Elles en faisaient deux, et le cliquet d'allers-retours de l'accueil l'a refusé :
+# 14 contre un plafond de 13 gelé le 2026-09-10. Son message dit quoi faire — « elle
+# la lit dans une requête existante ou passe par la couche or » — et c'est le même
+# geste que la migration 097 a fait pour les totaux scalaires : un `UNION ALL` avec
+# une colonne `platform`, une définition par plateforme, une seule lecture.
+#
+# Elle est ÉCRITE, pas fabriquée par substitution sur `_SQL_YT_CUMULATIVE` : la
+# première version l'était, les CTE se sont mélangées et la requête rendait zéro
+# ligne en silence — `_rows3` avale, donc les deux courbes disparaissaient sans un
+# mot. Une requête assemblée par `.replace()` n'est lisible par personne, à commencer
+# par celui qui la relit.
+_SQL_CUMULATIVE_ALL = """
+    WITH
+    yt_day AS (
+        SELECT video_id, collected_at::date AS j, MAX(view_count) AS vc
+          FROM youtube_video_stats
+         WHERE artist_id = %s AND view_count IS NOT NULL
+         GROUP BY 1, 2
+    ), yt_grid AS (
+        SELECT e.video_id, d.j
+          FROM (SELECT DISTINCT video_id FROM yt_day) e
+          CROSS JOIN (SELECT DISTINCT j FROM yt_day) d
+    ), yt_filled AS (
+        SELECT g.video_id, g.j, p.vc,
+               COUNT(p.vc) OVER (PARTITION BY g.video_id ORDER BY g.j) AS grp
+          FROM yt_grid g
+          LEFT JOIN yt_day p ON p.video_id = g.video_id AND p.j = g.j
+    ), yt_carried AS (
+        SELECT j, MAX(vc) OVER (PARTITION BY video_id, grp) AS vc FROM yt_filled
+    ),
+    sc_day AS (
+        SELECT track_id, collected_at::date AS j, MAX(playback_count) AS vc
+          FROM soundcloud_tracks_daily
+         WHERE artist_id = %s AND playback_count IS NOT NULL
+         GROUP BY 1, 2
+    ), sc_grid AS (
+        SELECT e.track_id, d.j
+          FROM (SELECT DISTINCT track_id FROM sc_day) e
+          CROSS JOIN (SELECT DISTINCT j FROM sc_day) d
+    ), sc_filled AS (
+        SELECT g.track_id, g.j, p.vc,
+               COUNT(p.vc) OVER (PARTITION BY g.track_id ORDER BY g.j) AS grp
+          FROM sc_grid g
+          LEFT JOIN sc_day p ON p.track_id = g.track_id AND p.j = g.j
+    ), sc_carried AS (
+        SELECT j, MAX(vc) OVER (PARTITION BY track_id, grp) AS vc FROM sc_filled
+    )
+    SELECT 'youtube'::text AS platform, j, SUM(vc)::bigint
+      FROM yt_carried WHERE vc IS NOT NULL GROUP BY j
+    UNION ALL
+    SELECT 'soundcloud'::text, j, SUM(vc)::bigint
+      FROM sc_carried WHERE vc IS NOT NULL GROUP BY j
+    ORDER BY 1, 2
+"""
+
+
+def cumulative_by_platform(db: Any, artist_id: Optional[int]) -> dict:
+    """{plateforme: série CUMULÉE} — pour les seules plateformes à compteur.
+
+    Spotify n'y figure pas, et c'est le fond du sujet : S4A livre des quantités
+    QUOTIDIENNES et toutes les journées sont présentes, donc la somme courante de sa
+    série est déjà son cumul exact. YouTube et SoundCloud livrent des COMPTEURS, dont
+    la série quotidienne est une différence qui jette les journées non consécutives —
+    cumuler ce qui reste donnait 21 au lieu de 118 219.
+
+    Le dictionnaire dit donc littéralement : « voici les plateformes dont le cumul ne
+    se déduit pas du quotidien ». `platform_chart` lit cette clé et retombe sur la
+    somme courante pour les autres.
+
+    Une seule requête, et une clé présente même vide : un appelant qui teste
+    `if rows` doit pouvoir distinguer « cette plateforme a un compteur » de « cette
+    plateforme n'en a pas », sans quoi une base sans SoundCloud la ferait traiter
+    comme Spotify.
+    """
+    if db is None or artist_id is None:
+        return {}
+    out: dict = {"youtube": [], "soundcloud": []}
+    for row in _rows3(db, _SQL_CUMULATIVE_ALL, (artist_id, artist_id)):
+        platform, day, value = row
+        if platform in out:
+            out[platform].append((day, value))
+    return out
+
+
+def _rows3(db: Any, sql: str, params: tuple) -> list[tuple]:
+    """Comme `_rows`, pour une requête qui rend (plateforme, jour, valeur)."""
+    try:
+        return [(r[0], r[1], int(r[2] or 0)) for r in (_q(db, sql, params) or [])
+                if r[0] is not None and r[1] is not None]
+    except Exception as exc:      # noqa: BLE001 — une courbe absente vaut mieux qu'une page morte
+        logger.warning("cumulative series unavailable: %s", type(exc).__name__)
+        return []
+
+
 def discarded_deltas(db: Any, artist_id: Optional[int]) -> dict:
     """{plateforme: (trous, jours non couverts, écoutes écartées)} — ce qu'on ne trace pas.
 
@@ -544,9 +726,21 @@ def platform_totals(db, artist_id, since=None, until=None) -> dict:
       la somme des compteurs PAR VIDÉO (le dernier relevé de chacune) et non le compteur
       de chaîne : celui-ci avance par paliers et compte des vidéos qui ne sont pas les
       siennes.
-    * **Une période bornée.** On ne peut additionner que ce qu'on a MESURÉ : la somme des
-      écarts quotidiens. Zéro mesure rend `None` — jamais `0`, qui affirmerait qu'il ne
-      s'est rien passé.
+    * **Une période bornée.** Spotify additionne ses quantités du jour : le CSV S4A les
+      porte toutes, la somme est exacte. Pour un COMPTEUR — YouTube, SoundCloud — la
+      somme des écarts quotidiens ne l'est pas : un écart n'est calculé qu'entre deux
+      jours consécutifs, et les journées non collectées sont écartées pour de bon.
+      Mesuré le 2026-09-11 sur l'artiste 1, du 2025-01-01 au 2026-06-12 : cette somme
+      rendait **21** vues YouTube quand le compteur passait de 99 594 à 118 219, soit
+      **18 625** — un facteur 887. Le PDF imprimait les deux sur la même page, la
+      courbe à 118 000 et le bâton à 21.
+
+      La croissance d'un compteur sur une fenêtre n'a pourtant besoin d'aucune
+      attribution : c'est son NIVEAU à la fin moins son niveau au début. Savoir quel
+      jour elle a eu lieu est ce qu'on ignore, et ce n'est pas la question posée. On
+      lit donc la série cumulée de la couche or, aux deux bornes.
+
+      Zéro mesure rend `None` — jamais `0`, qui affirmerait qu'il ne s'est rien passé.
 
     Apple suit sa propre règle dans les deux cas (`apple_lifetime_plays` /
     `apple_period_plays`) : ses relevés sont des totaux de période qui s'imbriquent.
@@ -556,10 +750,27 @@ def platform_totals(db, artist_id, since=None, until=None) -> dict:
 
     if since is not None:
         series = daily_streams_by_platform(db, artist_id)
+        levels = cumulative_by_platform(db, artist_id)
         out = {}
         for key in ("spotify", "youtube", "soundcloud"):
             if not measured_days(series, key, since, until):
                 out[key] = None
+                continue
+            rows = levels.get(key)
+            if rows:
+                # Un COMPTEUR : sa croissance sur la fenêtre est la différence de ses
+                # niveaux. Le niveau de départ est le dernier relevé AVANT la fenêtre
+                # quand il y en a un — sinon le premier relevé dedans, et la première
+                # journée observée ne compte alors pour aucune croissance, ce qui est
+                # la seule chose honnête à dire d'une plateforme qu'on venait de
+                # commencer à mesurer.
+                inside = [(d, v) for d, v in rows if since <= d <= until]
+                if not inside:
+                    out[key] = None
+                    continue
+                before = [v for d, v in rows if d < since]
+                start = before[-1] if before else inside[0][1]
+                out[key] = max(inside[-1][1] - start, 0)
                 continue
             out[key] = sum(v for d, v in series.get(key, []) if since <= d <= until)
         out["apple"] = apple_period_plays(db, artist_id, since, until)

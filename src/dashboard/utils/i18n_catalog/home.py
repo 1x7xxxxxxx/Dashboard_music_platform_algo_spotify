@@ -70,6 +70,7 @@ EN = {
         "totals, not daily figures. Spreading one over 365 days would invent a value "
         "nobody measured."),
     "home.trend_sources": "Sources shown",
+    "home.trend_sources_legend": "👆 Click a platform in the legend to hide it.",
     "home.trend_sources_ph": "All sources",
     "home.trend_title": "All your platforms, one screen",
     "home.trend_discarded": (

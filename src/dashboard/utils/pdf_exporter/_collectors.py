@@ -657,32 +657,44 @@ def _collect_youtube_history(db, artist_id):
     période. Tracé ici, il produisait une courbe dont les marches n'existent pas, et
     dont le dernier point contredisait le total imprimé plus haut dans le MÊME PDF —
     120 627 contre 118 219 pour l'artiste 1 le 2026-09-10.
+
+    La règle des vues ne vit plus ici. Elle était la QUATRIÈME copie de « somme des
+    compteurs par vidéo » dans ce dépôt, et trois des quatre s'étaient trompées au
+    moins une fois. Elle est maintenant lue à un seul endroit
+    (`platform_timeseries.youtube_cumulative_views`), et son dernier point égale
+    `v_platform_totals` par construction — la même propriété que la courbe du
+    dashboard, donc les deux surfaces ne peuvent plus diverger.
+
+    Ce que le remplacement change, mesuré le 2026-09-11 sur l'artiste 1 : **rien**,
+    0 point divergent sur 34. Il retire deux fragilités plutôt qu'un défaut visible :
+    la somme d'origine ne comptait que les vidéos relevées le jour même (aucune ne
+    manque aujourd'hui, rien ne le garantit demain), et `views.get(day, 0)` écrivait
+    **0** pour une journée où la chaîne est relevée sans ses vidéos — une courbe
+    cumulée qui retombe à zéro, la forme que ce module a déjà payée ailleurs.
     """
     if artist_id is None:
         return []
     try:
-        # DEUX requêtes, une table chacune, et c'est délibéré : jointes dans une seule
-        # chaîne, `youtube_channel_history` et `view_count` cohabitent, et le garde
-        # `test_no_surface_reads_the_channel_counter_as_streams` ne peut plus distinguer
-        # « le compteur de chaîne sert de total » de « les deux tables sont lues ». Un
-        # garde qu'on doit affaiblir pour faire passer son propre correctif est un garde
-        # qu'on vient de perdre — on change la forme du code, pas le prédicat.
+        from src.dashboard.utils.platform_timeseries import youtube_cumulative_views
+
         subs_rows = db.fetch_query(
             "SELECT date(collected_at), MAX(subscriber_count) "
             "FROM youtube_channel_history WHERE artist_id = %s GROUP BY 1",
             (artist_id,)) or []
-        views_rows = db.fetch_query(
-            """SELECT j, SUM(view_count) FROM (
-                   SELECT DISTINCT ON (video_id, date(collected_at))
-                          date(collected_at) AS j, video_id, view_count
-                     FROM youtube_video_stats WHERE artist_id = %s
-                    ORDER BY video_id, date(collected_at), collected_at DESC
-               ) d GROUP BY j""",
-            (artist_id,)) or []
         subs = {r[0]: int(r[1] or 0) for r in subs_rows}
-        views = {r[0]: int(r[1] or 0) for r in views_rows}
-        return [(day, subs.get(day, 0), views.get(day, 0))
-                for day in sorted(set(subs) | set(views))]
+        views = dict(youtube_cumulative_views(db, artist_id))
+
+        # Un jour sans relevé de vues garde le DERNIER connu, jamais 0 : entre deux
+        # collectes le compteur n'est pas tombé, il n'a pas été relu. Les abonnés, eux,
+        # gardent 0 — c'est leur forme d'origine et leur table est relevée chaque jour
+        # où la courbe existe.
+        last = None
+        out = []
+        for day in sorted(set(subs) | set(views)):
+            if day in views:
+                last = views[day]
+            out.append((day, subs.get(day, 0), last))
+        return [(d, s, v) for d, s, v in out if v is not None]
     except Exception as exc:  # noqa: BLE001
         logger.warning("PDF: _collect_youtube_history unreadable: %s", type(exc).__name__)
         return []
