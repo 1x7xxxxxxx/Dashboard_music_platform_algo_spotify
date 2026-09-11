@@ -3821,3 +3821,102 @@ ne peut pas faire.
 La ligne telle qu'elle était dans l'actif, conservée intégralement :
 
 | R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 75 migrations, Caddy inclus — l'empreinte de schéma courante est en tête de fichier, un seul chiffre fait foi). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. **Le filet revérifié en production le 2026-09-10, ligne par ligne, plutôt que cru sur parole** : canari Spotify ✅ / YouTube ✅ (200 vidéos) / SoundCloud ✅ (1 500 lignes) les deux dernières nuits ; Meta et Instagram sondés par locataire ; inscription ouverte (`200`) ; SMTP Brevo armé ; et `APP_BASE_URL` vérifié jusqu'au bout — `https://streamlytics.fr/?page=verify&token=…` **et** le sous-domaine `app.` servent tous deux l'application, donc le lien de vérification aboutit. Aucun mécanisme d'invitation n'existe ni n'est nécessaire : l'artiste s'inscrit lui-même, le geste est d'envoyer l'adresse. Il n'y a plus rien à construire pour cette tâche. |
+
+## Historique daté, roté depuis `checklist.md` le 2026-09-11
+
+Déplacé — jamais supprimé — parce que `checklist.md` a atteint son plafond de
+50 Ko, celui que `/resume` lit avant tout le reste à chaque séance. Son garde
+demande exactement ce geste : sortir l'historique le plus ancien plutôt que de
+relever le nombre.
+
+### Ce que le 2026-09-04 (soir) a changé sous cette ligne
+
+Deux lots de parcours artiste, traités et déployés le même jour — DEVLOG « suite 10 »
+et « suite 11 ». Vingt remarques, une seule famille : **l'app parlait d'elle-même**.
+Les gestes qui la fermaient sont, dans l'ordre de ce qu'ils ont coûté à un artiste :
+
+- un **verdict de connexion calculé et jamais montré** (le `st.rerun()` effaçait le
+  message juste avant qu'il s'affiche) ;
+- **Apple Music cochable et ne menant nulle part** — aucun onglet, aucun repli, aucun
+  message, et éternellement « Suivante » ;
+- un **sélecteur d'OS** en tête de chaque onglet alors qu'aucun guide ne dépend plus
+  du clavier ;
+- une **alerte DAG** qui envoyait remplir `SPOTIFY_ARTIST_IDS`, variable qui doit
+  rester vide sous peine de réarmer la fuite de locataire du 2026-08-20 ;
+- un **bac à sable qui masquait un conflit d'identité entre deux vrais locataires**
+  (classe `exempt-row-hides-others-conflict`, P2).
+
+### Ce que le 2026-09-04 avait déjà changé
+
+Rien n'a été rouvert ; trois choses ont été **retirées ou rendues prouvables**.
+
+- **ADR-014** tranche la stack data moderne (dbt, ClickHouse, DuckDB, dlt, Dagster,
+  Parquet/R2, Supabase, ECharts) : tout différé, chaque refus avec un déclencheur
+  **calculable**. Le chiffre qui tranche : 43 Mo de base, agrégat à 18,5 ms.
+- **Le seul trou de robustesse réel a été comblé** — les 21 sauvegardes vivaient sur le
+  disque de la base, et le drill de restauration n'avait aucun appelant depuis juin.
+  **Refermé pour de bon le 2026-09-04** : R57 attendait un bucket, donc une carte
+  bancaire ; elle est partie sur un dépôt privé chiffré (ADR-015), 22 archives
+  distantes, et la restauration a été prouvée **sans le serveur** — archive tirée de
+  GitHub, déchiffrée localement, 93 tables. Le geste humain a disparu avec la tâche.
+- **Airflow a maigri** : parsing 30 → 300 s, métadonnées 246 → 91 Mo, et les 4
+  `*_csv_watcher` **supprimés** — 98,4 % des lignes de métadonnées pour sonder des
+  répertoires vides. La page d'import garde désormais le fichier 14 jours, ce qui
+  était la seule moitié utile d'un watcher.
+
+**R1 a commencé le 2026-08-30** : premier parcours d'onboarding fait en entier, ~20
+remarques de terrain, toutes traitées et déployées (PR #115, migration 079). Aucune ne
+portait sur la lenteur — la classe dominante était du texte adressé au mauvais lecteur.
+R1 reste ouverte parce que le test n'est pas fini : l'artiste reprend là où il s'était
+arrêté.
+
+### Audit du 2026-09-03 — trois jours de tourne sans intervention
+
+La prod tourne depuis 64 jours (`postgres` 2 mois, `dashboard`/`api` 3 jours). **Rien
+n'a cassé pendant l'absence** et, pour la première fois, ce n'est pas une déduction :
+les surfaces de preuve construites en août ont toutes répondu.
+
+| Ce qui a été lu | Verdict |
+|---|---|
+| 16 DAGs, 4 jours de runs | **0 tâche Airflow en échec** ; les 4 DAGs sans run récent sont hebdomadaires (`0 * * 1`), pas muets |
+| `etl_run_log`, par locataire × plateforme | 1 seule défaillance : `meta_ads_api_daily` / Benken (12), 5 nuits d'affilée, `act_65390907` — **le blocage connu de partage de compte, pas une régression** |
+| `check_tenant_contamination` | **0 constat** — aucune ligne sous un locataire qui ne peut pas la porter |
+| `check_canary_health` (locataire 14) | 0 problème, et il redit lui-même qu'il ne couvre ni Meta ni Instagram (ADR-010) |
+| `check_row_dips` | 0 collecte partielle |
+| Sources périmées | 2 : **S4A (88 j) et Apple Music (79 j)** — les deux alimentées par CSV, que personne ne dépose. Attendu, pas un incident (R46) |
+| Meta Ads « silencieux » | qualifié `expected_silence` : 34 campagnes connues, aucune active — la vue distingue enfin « pas de données » de « pas de campagne » |
+| `app.` / `api.` / apex `streamlytics.fr` | 200, ~0,2 s ; `/health` → `{"status":"ok"}` |
+| Sauvegardes | quotidiennes à 03:00, 4 dernières présentes et **croissantes** (1,52 → 1,79 Mo) |
+| Disque / RAM | 42 % de 150 Go ; 4,5 Go dispo sur 7,7 |
+
+**Le point le plus utile de l'audit** : le mail nocturne n'est pas parti, et c'est
+**décidé**. Le log dit `✉️ not re-sent (constats inchangés depuis le dernier envoi
+(2j), renvoi dans 4j ou dès qu'un constat change)`. Un silence obtenu par dédup nommée,
+pas un silence par accident — exactement ce que le commit `5d22bd2` visait.
+
+**Ce qui attend une décision, pas un correctif** : `STREAMLYTICS_ALLOW_ARTIST_EMAIL`
+n'est posée dans aucun conteneur de prod. Le garde d'audience de PR #121 est donc actif,
+et **aucun e-mail ne partira jamais vers un locataire** tant qu'elle n'est pas posée.
+C'est l'état voulu aujourd'hui ; c'est aussi la variable à poser le jour où R1 passe à
+l'invitation réelle. `verification_email` n'est pas concernée — l'inscription vaut
+consentement, et elle part depuis `streamlytics_dashboard`, qui porte bien
+`STREAMLYTICS_ENV=production` et ses trois variables SMTP.
+
+> `streamlytics_api` n'a pas `STREAMLYTICS_ENV`. Sans effet aujourd'hui : `src/api/`
+> n'importe ni `email_alerts` ni `instance_identity`, donc aucun chemin d'envoi n'y
+> passe. À reposer si l'API se met un jour à écrire à quelqu'un.
+
+> La ligne `<!-- reprise: open=… -->` ci-dessus n'est pas décorative : c'est la même
+> affirmation que le paragraphe, sous une forme que `tests/test_the_resume_header_is_checked.py`
+> peut comparer aux deux tableaux d'index. Une prose ne se vérifie pas ; une prose
+> **ancrée** se vérifie.
+
+> ⚠️ Ce bloc nommait encore R13, R17 et R55 le 2026-08-28 alors que les trois étaient
+> closes. Le corps du fichier le disait déjà ; c'est l'en-tête qui n'avait pas suivi.
+> Une roadmap se périme comme un commentaire, et son en-tête plus vite que son corps :
+> c'est la seule partie que `/resume` recopie sans la relire. Les comptes rendus des
+> séances du 26 au 30 août ont été **rotés dans `archive.md` le 2026-09-03** — le
+> fichier actif était à 42 Ko dont ~80 % d'historique.
+
+📥 **Erreurs applicatives non triées : 0** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.
+<!-- error-inbox: open=0 -->

@@ -14,6 +14,7 @@ from src.dashboard.utils.status_matrix import render_status_matrix
 from src.dashboard.utils.airflow_monitor import AirflowMonitor, cached_last_run_per_dag
 from src.dashboard.utils.kpi_helpers import (
     get_source_freshness, freshness_status, get_instagram_followers,
+    SOURCES_CONFIG,
 )
 
 
@@ -33,33 +34,57 @@ def _freshness_badge(label, icon, last_dt):
 
 
 def _section_freshness(db, artist_id):
-    st.subheader(t("home.freshness_header", "📡 Fraîcheur des données"))
-    st.caption(t(
-        "home.freshness_caption",
-        "🔄 Sources **API** (Spotify, YouTube, SoundCloud, Instagram, Meta Ads) : collecte "
-        "**automatique chaque jour** pour chaque artiste. Sources **fichier** (Spotify for "
-        "Artists, Apple Music, distributeurs) : mises à jour **à chaque import CSV** "
-        "(dossier surveillé toutes les 15 min)."
-    ))
-    freshness = get_source_freshness(db, artist_id)
-    cols = st.columns(len(freshness))
-    for col, (label, info) in zip(cols, freshness.items()):
-        emoji, color, age_label = freshness_status(info['last_dt'])
-        date_str = info['last_dt'].strftime("%d/%m %H:%M") if info['last_dt'] else "—"
-        with col:
-            # HIGH-07: html.escape() on all interpolated values — defence-in-depth
-            # against stored XSS if a DB-sourced value ever reaches these variables.
-            st.markdown(
-                f"""<div style="border:1px solid {_html.escape(color)}; border-radius:8px;
-                    padding:8px 6px; background:{_html.escape(color)}18; text-align:center;">
-                    <div style="font-size:1.2em;">{_html.escape(str(info['icon']))}</div>
-                    <div style="font-weight:600; font-size:0.8em; white-space:nowrap;">{_html.escape(label)}</div>
-                    <div style="font-size:0.75em; color:{_html.escape(color)};">{_html.escape(emoji)} {_html.escape(age_label)}</div>
-                    <div style="font-size:0.65em; color:#888;">{_html.escape(date_str)}</div>
-                </div>""",
-                unsafe_allow_html=True
-            )
+    """Deux groupes, parce que ce sont deux CONTRATS différents.
 
+    Les huit sources étaient sur une seule ligne, sous un paragraphe qui expliquait
+    en prose laquelle était automatique et laquelle attendait un fichier. Le lecteur
+    devait donc retenir une liste pour interpréter une grille — et l'information qui
+    compte vraiment, « à quelle heure ça arrive », n'était nulle part.
+
+    Chaque source porte désormais son contrat (`kind`) et son heure (`at`) dans
+    `SOURCES_CONFIG`, et la grille les montre là où on les lit : sous la source.
+    """
+    st.subheader(t("home.freshness_header", "📡 Fraîcheur des données"))
+    freshness = get_source_freshness(db, artist_id)
+    meta = {src["label"]: src for src in SOURCES_CONFIG}
+
+    groups = (
+        ("api", t("home.freshness_api", "🔄 Collecte automatique"),
+         t("home.freshness_api_hint",
+           "Rien à faire : ça part tout seul chaque matin, heure de Paris.")),
+        ("csv", t("home.freshness_csv", "📂 À déposer toi-même"),
+         t("home.freshness_csv_hint",
+           "Ces sources ne bougent qu'au dépôt d'un fichier — il n'y a pas d'API "
+           "qui nous les donne.")),
+    )
+    for kind, title, hint in groups:
+        labels = [lbl for lbl in freshness if meta.get(lbl, {}).get("kind") == kind]
+        if not labels:
+            continue
+        st.markdown(f"**{title}**")
+        st.caption(hint)
+        cols = st.columns(len(labels))
+        for col, label in zip(cols, labels):
+            info = freshness[label]
+            emoji, color, age_label = freshness_status(info["last_dt"])
+            date_str = info["last_dt"].strftime("%d/%m %H:%M") if info["last_dt"] else "—"
+            at = meta.get(label, {}).get("at")
+            when = (t("home.freshness_every_day", "chaque jour à {h}").format(h=at)
+                    if at else t("home.freshness_on_upload", "à chaque import"))
+            with col:
+                # HIGH-07: html.escape() on all interpolated values — defence-in-depth
+                # against stored XSS if a DB-sourced value ever reaches these variables.
+                st.markdown(
+                    f"""<div style="border:1px solid {_html.escape(color)}; border-radius:8px;
+                        padding:8px 6px; background:{_html.escape(color)}18; text-align:center;">
+                        <div style="font-size:1.2em;">{_html.escape(str(info['icon']))}</div>
+                        <div style="font-weight:600; font-size:0.8em; white-space:nowrap;">{_html.escape(label)}</div>
+                        <div style="font-size:0.75em; color:{_html.escape(color)};">{_html.escape(emoji)} {_html.escape(age_label)}</div>
+                        <div style="font-size:0.65em; color:#888;">{_html.escape(date_str)}</div>
+                        <div style="font-size:0.62em; color:#999; margin-top:2px;">{_html.escape(when)}</div>
+                    </div>""",
+                    unsafe_allow_html=True
+                )
 
 def _section_streams(db, artist_id):
     """Le filtre en haut au centre, la courbe à gauche, les chiffres à droite.

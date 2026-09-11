@@ -60,7 +60,17 @@ pytestmark = pytest.mark.skipif(
     reason=f"No provisioned Postgres on {_DB_HOST}:{_DB_PORT} — needs a live DB")
 
 # Gelé le 2026-09-10, après retrait du doublon Apple. CE NOMBRE NE PEUT QUE DESCENDRE.
-_MAX_QUERIES = {"admin": 13, "artist": 11}
+# Mesuré À FROID le 2026-09-11 — caches vidés dans le script, cf. `_SCRIPT`.
+#
+# Le plafond était 13/11, et ces deux nombres n'étaient pas comparables : ils
+# avaient été gelés sur des caches RÉCHAUFFÉS par les tests précédents du même
+# worker. Preuve : `main`, ce fichier lancé SEUL sur une base neuve, rend **13**
+# pour un plafond de 11 — il ne passait qu'accompagné.
+#
+# À froid, `main` et la branche rendent le MÊME nombre : 13 et 13. Le plafond est
+# donc regelé sur une mesure qui ne dépend plus de son voisinage, pas relevé pour
+# laisser passer une régression. Il ne monte toujours pas.
+_MAX_QUERIES = {"admin": 13, "artist": 13}
 
 _SCRIPT = """
 import sys, json, collections, re
@@ -78,6 +88,13 @@ for _name in ('fetch_df', 'fetch_query', 'execute_query'):
         return wrapper
     setattr(PostgresHandler, _name, _make())
 import streamlit as st
+# LES CACHES SONT VIDÉS AVANT DE COMPTER, et c'est ce qui rend ce nombre lisible.
+# Sans ça le test mesurait son VOISINAGE : `kpi_helpers` garde ses lectures 600 s,
+# donc le compte dépendait de ce que les tests précédents avaient réchauffé dans le
+# même worker. Mesuré le 2026-09-11 : `main`, ce fichier lancé SEUL sur une base
+# neuve, rend 13 pour un plafond de 11 — il ne passait qu'accompagné.
+from src.dashboard.utils.kpi_helpers import clear_kpi_caches as _clear
+_clear()
 st.session_state["role"] = {role!r}
 st.session_state["artist_id"] = 1
 st.session_state["email"] = "probe@test"

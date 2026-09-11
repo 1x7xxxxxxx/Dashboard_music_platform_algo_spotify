@@ -92,6 +92,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [ddl-resurrects-a-migrated-fix](#ddl-resurrects-a-migrated-fix) | P2 | deterministic | guarded | none |
 | [on-conflict-target-without-index](#on-conflict-target-without-index) | P2 | deterministic | guarded | none |
 | [write-path-without-cache-invalidation](#write-path-without-cache-invalidation) | P3 | deterministic | guarded | none |
+| [cumulative-counter-drawn-as-its-own-history](#cumulative-counter-drawn-as-its-own-history) | P2 | manual | reported | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -4700,3 +4701,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-11: trouvé par une revue `code-critic` d'une conception de cache — qui a par ailleurs été REFUSÉE, le défaut vivant valant plus que la fonctionnalité proposée.
   - 2026-09-11: **la mutation du garde est passée verte.** Le prédicat demandait `"clear_kpi_caches" in text` ; le nom survivait dans le commentaire expliquant le correctif. Cinquième instance dans ce dépôt de « un garde textuel est aveugle », écrite l'heure même où la leçon était citée. Le prédicat exige désormais un NŒUD D'APPEL, et un test fige qu'un commentaire ne le satisfait pas.
   - 2026-09-11: la question posée en TEXTE rendait onze fichiers, dont deux écrivaient réellement. La question structurelle rend exactement les modules qui peuvent rendre le cache faux.
+
+## cumulative-counter-drawn-as-its-own-history
+- status: reported
+- severity: P2
+- kind: manual
+- symptom: la courbe « Cumulé » et la tuile de la même plateforme, sur le MÊME écran, donnent deux totaux. Mesuré en production le 2026-09-11 pour l'artiste 1 : YouTube **136** tracés contre **118 334** annoncés (×870), SoundCloud **77** contre **23 563** (×306). Spotify, lui, tombe juste au point près (165 065 = 165 065).
+- root_cause: le mode « Cumulé » fait un `cumsum` de la série QUOTIDIENNE (`platform_chart._as_mode`). Pour Spotify c'est la vérité — le CSV S4A porte l'historique jour par jour. Pour YouTube et SoundCloud, cette série est un ÉCART entre deux relevés d'un compteur, calculé uniquement entre jours consécutifs : elle ne contient rien d'avant notre première collecte, et rien des trous. Son cumul répond donc à « ce que nous avons vu croître depuis qu'on regarde », jamais à « combien au total ». La même racine explique les autres symptômes : YouTube n'est mesuré que 115 jours et SoundCloud 95, contre 1 344 pour Spotify, donc le plancher de seau (`_BUCKET_FLOOR = 0.5`, posé à raison) élimine presque tous les seaux dès qu'on agrège — au pas ANNUEL, YouTube en garde **0**.
+- long_term_fix: pour une plateforme dont la source est un COMPTEUR, le mode cumulé doit tracer le compteur lui-même (dernier relevé par entité, la définition que porte déjà `v_platform_totals`), pas la somme de nos écarts. Règle générale : une série dérivée par différence ne peut pas être ré-intégrée pour reconstituer son total — il manque la constante d'intégration, qui est précisément ce que le compteur donne gratuitement. Tant que ce n'est pas fait, ne pas proposer « Cumulé » comme défaut pour ces plateformes.
+- autofix: none
+- guard: —
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-11
+- History:
+  - 2026-09-11: signalé par l'artiste sous six formes distinctes (« cumulé incohérent », « uniquement journalière », « aucune data en Par période », « idem par année/semaine »). La mesure a montré **une seule cause** et une conséquence de couverture, pas six défauts.
+  - 2026-09-11: le balayage d'impact a trouvé deux FRÈRES dans l'export PDF, tous deux déjà corrigés côté application et jamais reportés : `pdf_charts.youtube_channel_growth` lit `youtube_channel_history.view_count` — le compteur de CHAÎNE, prouvé ~10× faux le 2026-09-08 et remplacé par les compteurs par vidéo — et il trace un DOUBLE AXE, que la doctrine de `platform_chart` interdit explicitement (« la seule alternative admissible au double axe, que ce module n'utilisera jamais »).
+  - 2026-09-11: pas de garde livré ce jour-là, et c'est dit plutôt que simulé — le correctif change ce que la figure SIGNIFIE pour deux plateformes, ce qui est une décision de produit, pas une retouche. La tâche de roadmap porte la mesure et la reproduction.
