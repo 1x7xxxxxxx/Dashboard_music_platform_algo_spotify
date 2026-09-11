@@ -255,6 +255,48 @@ def show() -> None:
         return
 
     if family == "performance":
+        _render_coverage(db, artist_id, df, _acct_tbl, params[0] if params else artist_id)
         _render_performance(df, dim_key, entity_label)
     else:
         _render_engagement(df, dim_key, entity_label)
+
+
+def _render_coverage(db, artist_id, df, _acct_tbl: str, _aid) -> None:
+    """Quelle PART de la dépense cette ventilation couvre, mesurée à chaque rendu.
+
+    Meta n'attribue pas toute la dépense à une dimension : les impressions dont il
+    ignore le pays, l'âge ou le placement n'apparaissent dans aucune ligne du
+    breakdown. Mesuré en production le 2026-09-11 sur l'artiste 1 : **2 348 €** dans
+    la ventilation par pays contre **3 088 €** de dépense totale — **76 %**, et les
+    ventilations par âge et par placement tombent sur la même part.
+
+    Ce n'est pas notre défaut, c'est celui de la source. Ce qui SERAIT notre défaut,
+    c'est de ne pas le dire : le lecteur qui additionne les barres trouve 740 € de
+    moins que le chiffre de l'onglet d'à côté, et ce dépôt a déjà payé trois fois
+    pour deux nombres sans explication.
+
+    La part est RECALCULÉE, jamais écrite en dur : elle dépend du compte, de la
+    campagne et de la période collectée, et une constante deviendrait fausse à la
+    première nouvelle campagne.
+    """
+    if "spend" not in df.columns:
+        return
+    shown = float(df["spend"].fillna(0).sum())
+    try:
+        row = db.fetch_query(
+            f"SELECT COALESCE(SUM(spend), 0) FROM meta_insights_performance_day "
+            f"WHERE artist_id = %s{_acct_tbl}", (artist_id,))
+        total = float(row[0][0] or 0)
+    except Exception:      # noqa: BLE001 — une note absente vaut mieux qu'une page morte
+        return
+    if total <= 0 or shown <= 0 or shown >= total * 0.995:
+        return
+    st.caption(t(
+        "meta_breakdowns.coverage",
+        "ⓘ Cette ventilation porte **{shown} €** sur **{total} €** dépensés, soit "
+        "**{pct} %**. Meta n'attribue pas toute la dépense à une dimension — les "
+        "impressions dont il ignore le pays, l'âge ou le placement ne sont dans "
+        "aucune barre. L'écart n'est pas une donnée manquante de notre côté."
+    ).format(shown=f"{shown:,.0f}".replace(",", "\u202f"),
+             total=f"{total:,.0f}".replace(",", "\u202f"),
+             pct=f"{100 * shown / total:.0f}"))
