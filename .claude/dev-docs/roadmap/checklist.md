@@ -25,10 +25,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R92 | Apple entre dans la couche or | P2 | `v_platform_totals` rend une ligne `apple`, et `platform_totals(db, aid)['apple']` la lit ; plafond Apple du cliquet à 0 |
-| R93 | Les RÉSULTATS Meta ont deux nombres (24 873 vs 18 143) | P3 | la page Breakdowns annonce sa couverture en RÉSULTATS comme elle le fait pour la dépense |
-| R94 | Faire descendre le plafond Spotify S4A (33) et Meta Ads (22) | P4 | le plafond du cliquet, plateforme par plateforme |
-| R95 | La matrice mode × pas n'est explicite nulle part | P3 | un tableau des douze cellules dans `.claude/dev-docs/`, et un test qui les parcourt toutes |
+| R94 | Faire descendre les plafonds Spotify S4A (31) et Meta Ads (22) | P4 | le plafond du cliquet, plateforme par plateforme |
 
 **Quatre tâches rouvertes le 2026-09-11**, issues de l'audit metrics layer détaillé
 plus bas dans ce fichier (section « L'audit metrics layer du 2026-09-11 ») : R92 à R95.
@@ -90,9 +87,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-11, quatre tâches ouvertes — R92 à R95 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-12, une tâche ouverte — R94 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R92,R93,R94,R95 -->
+<!-- reprise: open=R94 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -200,35 +197,33 @@ remontent jamais, ils doivent rester SERRÉS (un plafond au-dessus du réel auto
 autant de régressions silencieuses), et les deux plateformes à zéro sont nommées
 explicitement. Classe d'erreur `a-metric-computed-outside-the-metrics-layer`.
 
-- [ ] **R92 — Apple entre dans la couche or** (P2) — c'est la dernière plateforme dont
-  le total n'a AUCUNE définition SQL : sa règle vit dans
-  `platform_timeseries.apple_lifetime_plays` (relevé borné le plus large → sinon
-  découpage non chevauchant des années → sinon dernier relevé sans bornes), et cinq
-  fichiers lisent `apple_songs_performance` directement — aujourd'hui pour lister, rien
-  n'empêche le prochain de totaliser à sa façon. C'est exactement comme ça que YouTube a
-  eu trois définitions. **Mesuré par** : `v_platform_totals` rend une ligne `apple`, et
-  `platform_totals(db, aid)['apple']` la lit ; plafond Apple du cliquet à 0.
+- [ ] **R94 — Faire descendre les plafonds Spotify S4A (31) et Meta Ads (22)** (P4) —
+  entamée le 2026-09-12 : l'API ne calcule plus le total Spotify elle-même (33 → 31) —
+  un AUTRE processus est l'endroit le plus probable d'une divergence silencieuse.
+  Restent par ordre de rendement : `pdf_exporter/_collectors.py` (17 couples bronze, la
+  surface la plus chargée du dépôt), `meta_ads_overview.py` (9), `data_wrapped.py`.
+  ⚠️ Une partie de ces sites sont des VENTILATIONS (avec `GROUP BY`) ou des requêtes
+  BORNÉES par une fenêtre, et la couche or n'a pas de grain date : elles ne peuvent pas
+  lire les vues telles quelles. Le préalable est donc de trancher si la couche or gagne
+  un grain temporel, ou si `platform_totals(db, aid, since, until)` reste la porte
+  unique pour les fenêtres. **Mesuré par** : le plafond du cliquet, plateforme par
+  plateforme.
 
-- [ ] **R93 — Les RÉSULTATS Meta ont deux nombres** (P3) — 24 873 sur
-  `meta_insights_performance_day` contre 18 143 sur `_country`, mesuré sur l'artiste 1.
-  Même cause que la dépense (Meta n'attribue pas tout à une dimension), même correctif
-  que la couverture déjà posée sur les Breakdowns — mais `results` n'a pas encore sa
-  note, et `v_meta_spend_totals` le porte déjà en colonne. **Mesuré par** : la page
-  Breakdowns annonce sa couverture en RÉSULTATS comme elle le fait pour la dépense.
+### Vérification finale mesurée en production le 2026-09-12
 
-- [ ] **R94 — Faire descendre le plafond Spotify S4A (33) et Meta Ads (22)** (P4) — par
-  ordre de rendement : `pdf_exporter/_collectors.py` (17 couples bronze, la surface la
-  plus chargée du dépôt), puis `meta_ads_overview.py` (9) et `data_wrapped.py`. Chaque
-  repointage baisse le plafond du cliquet — c'est le seul critère de fin. **Mesuré par**
-  : le plafond du cliquet, plateforme par plateforme.
+| KPI | couche or | porte Python | courbe |
+|---|---|---|---|
+| Spotify — écoutes | 165 065 | 165 065 | — |
+| YouTube — vues | 118 334 | 118 334 | 118 334 |
+| SoundCloud — écoutes | 23 563 | 23 563 | 23 563 |
+| Apple — plays | 3 718 | 3 718 | — |
+| Apple — shazams | 1 772 | 1 772 | — |
+| Revenu — total | 260,96 € | 260,96 € | — |
+| Meta — dépense | 3 087,82 € | 3 087,82 € | — |
+| Instagram — abonnés | 1 525 | 1 525 | — |
 
-- [ ] **R95 — La matrice mode × pas n'est explicite nulle part** (P3) — quatre modes
-  (Cumulé, Par période, Part, Facettes) × trois pas (jour, semaine, année) = douze
-  cellules, chacune exigeant une dérivation différente ; les trois défauts du 2026-09-11
-  étaient trois cellules que personne n'avait énumérées.
-  `test_every_way_of_asking_gives_one_answer.py` en couvre une partie ; la matrice
-  elle-même n'est écrite dans aucun document. **Mesuré par** : un tableau des douze
-  cellules dans `.claude/dev-docs/`, et un test qui les parcourt toutes.
+**Aucune divergence.** Trois plateformes à zéro agrégat hors couche or : YouTube,
+SoundCloud, Apple.
 
 **Deux écarts mesurés à NE PAS corriger, consignés pour qu'on ne les reprenne pas :**
 
