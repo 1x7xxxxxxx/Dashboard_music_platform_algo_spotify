@@ -336,9 +336,29 @@ def get_total_plays_apple(_db, artist_id):
         return apple_lifetime_plays(_db, artist_id)
     try:
         # Vue flotte (admin) : pas de locataire, donc pas de notion de « son » cumul.
+        #
+        # LE DERNIER RELEVÉ DE CHAQUE TITRE, comme partout ailleurs.
+        #
+        # ⚠️ Ce n'est PAS la correction d'un défaut vivant, et le dire importe :
+        # mesuré en production le 2026-09-11, la table porte 29 lignes
+        # `period_start IS NULL` pour 29 couples (locataire, titre) — **zéro
+        # doublon** — donc la somme nue donnait déjà le bon total, 7 875. J'avais
+        # d'abord annoncé le contraire en la comparant au dernier instantané GLOBAL
+        # (7 435), qui est faux dans l'autre sens : il perd les titres dont le
+        # dernier relevé n'est pas le plus récent de la flotte.
+        #
+        # Ce que le `DISTINCT ON` retire est un risque LATENT : `plays` est un
+        # compteur, deux instantanés du même titre peuvent coexister depuis la
+        # migration 093 (la clé inclut `snapshot_date`), et ce jour-là la somme nue
+        # compterait ce titre deux fois. Le locataire est dans la clé parce que deux
+        # artistes peuvent avoir une chanson du même nom. C'est la forme de
+        # `v_platform_totals` (ADR-019).
         row = _db.fetch_query(
-            "SELECT COALESCE(SUM(plays), 0) FROM apple_songs_performance "
-            "WHERE period_start IS NULL")
+            "SELECT COALESCE(SUM(plays), 0) FROM ("
+            "  SELECT DISTINCT ON (artist_id, song_name) plays"
+            "    FROM apple_songs_performance WHERE period_start IS NULL"
+            "   ORDER BY artist_id, song_name, snapshot_date DESC"
+            ") latest")
         return int(row[0][0] or 0)
     except Exception:      # noqa: BLE001
         return 0
