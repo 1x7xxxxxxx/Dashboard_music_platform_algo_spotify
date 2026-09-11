@@ -25,11 +25,17 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R92 | Apple entre dans la couche or | P2 | `v_platform_totals` rend une ligne `apple`, et `platform_totals(db, aid)['apple']` la lit ; plafond Apple du cliquet à 0 |
+| R93 | Les RÉSULTATS Meta ont deux nombres (24 873 vs 18 143) | P3 | la page Breakdowns annonce sa couverture en RÉSULTATS comme elle le fait pour la dépense |
+| R94 | Faire descendre le plafond Spotify S4A (33) et Meta Ads (22) | P4 | le plafond du cliquet, plateforme par plateforme |
+| R95 | La matrice mode × pas n'est explicite nulle part | P3 | un tableau des douze cellules dans `.claude/dev-docs/`, et un test qui les parcourt toutes |
 
-**Vide depuis le 2026-09-11.** R89, R90 et R91 — les trois dernières tâches ouvertes —
-ont été livrées le jour même et rotées dans `archive.md` : critère du double axe écrit
-et six figures triées, légende devenue le filtre de sources, PDF doté de la figure
-d'évolution multi-plateformes. Détail complet dans l'archive.
+**Quatre tâches rouvertes le 2026-09-11**, issues de l'audit metrics layer détaillé
+plus bas dans ce fichier (section « L'audit metrics layer du 2026-09-11 ») : R92 à R95.
+R89, R90 et R91 — les trois tâches ouvertes juste avant — ont été livrées le jour même
+et rotées dans `archive.md` : critère du double axe écrit et six figures triées, légende
+devenue le filtre de sources, PDF doté de la figure d'évolution multi-plateformes.
+Détail complet dans l'archive.
 
 R59, R60, R61 et R62 ont été closes le 2026-09-05 (voir `archive.md`) : deux par un
 correctif, une par un ADR qui montre que sa prémisse était fausse, une par un ADR qui
@@ -84,9 +90,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-11, aucune tâche ouverte (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-11, quatre tâches ouvertes — R92 à R95 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R92,R93,R94,R95 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -157,6 +163,81 @@ Une couche or qui définit un total sans définir la série qui y aboutit laisse
 contradiction visible. R88 est donc énoncée comme une extension de la frontière, pas
 comme la correction d'un mode : le premier énoncé empêche la classe de revenir, le
 second ne corrige qu'une instance.
+
+### L'audit metrics layer du 2026-09-11
+
+Critère : Reis & Housley, *Fundamentals of Data Engineering* p. 482 — une **metrics
+layer** est l'endroit, et le seul, où la logique métier est maintenue et calculée.
+ADR-019 en est la version locale.
+
+Inventaire mesuré — agrégats (`SUM`/`AVG`) posés sur une table de fait depuis une
+surface d'affichage, hors couche or :
+
+| plateforme | agrégats hors couche or |
+|---|---|
+| Spotify S4A | 33 |
+| Meta Ads | 22 |
+| Instagram | 3 |
+| Apple | 2 |
+| Hypeddit | 1 |
+| Revenu | 1 |
+| **YouTube** | **0** |
+| **SoundCloud** | **0** |
+
+**Ce ne sont pas 62 défauts.** Mesuré en production le même jour, ces surfaces
+s'accordent : S4A rend 165 065 par quatre chemins, Instagram 1 525 par deux, la vue
+revenu égale exactement ses trois sources. Ce sont 62 **risques** — rien ne garantit
+qu'elles s'accordent demain, et le dépôt connaît le prix : trois totaux YouTube
+incompatibles avant la migration 097, puis trois contradictions le 2026-09-11 (×5 630,
+×887, ×151).
+
+La couche or couvre aujourd'hui **3 métriques** : les écoutes (`v_platform_totals`,
+migration 097), le revenu (`v_artist_monthly_revenue`), la dépense Meta
+(`v_meta_spend_totals`, migration 101, déployée le 2026-09-11).
+
+Le cliquet `tests/test_the_metrics_layer_only_grows.py` gèle ces huit plafonds : ils ne
+remontent jamais, ils doivent rester SERRÉS (un plafond au-dessus du réel autorise
+autant de régressions silencieuses), et les deux plateformes à zéro sont nommées
+explicitement. Classe d'erreur `a-metric-computed-outside-the-metrics-layer`.
+
+- [ ] **R92 — Apple entre dans la couche or** (P2) — c'est la dernière plateforme dont
+  le total n'a AUCUNE définition SQL : sa règle vit dans
+  `platform_timeseries.apple_lifetime_plays` (relevé borné le plus large → sinon
+  découpage non chevauchant des années → sinon dernier relevé sans bornes), et cinq
+  fichiers lisent `apple_songs_performance` directement — aujourd'hui pour lister, rien
+  n'empêche le prochain de totaliser à sa façon. C'est exactement comme ça que YouTube a
+  eu trois définitions. **Mesuré par** : `v_platform_totals` rend une ligne `apple`, et
+  `platform_totals(db, aid)['apple']` la lit ; plafond Apple du cliquet à 0.
+
+- [ ] **R93 — Les RÉSULTATS Meta ont deux nombres** (P3) — 24 873 sur
+  `meta_insights_performance_day` contre 18 143 sur `_country`, mesuré sur l'artiste 1.
+  Même cause que la dépense (Meta n'attribue pas tout à une dimension), même correctif
+  que la couverture déjà posée sur les Breakdowns — mais `results` n'a pas encore sa
+  note, et `v_meta_spend_totals` le porte déjà en colonne. **Mesuré par** : la page
+  Breakdowns annonce sa couverture en RÉSULTATS comme elle le fait pour la dépense.
+
+- [ ] **R94 — Faire descendre le plafond Spotify S4A (33) et Meta Ads (22)** (P4) — par
+  ordre de rendement : `pdf_exporter/_collectors.py` (17 couples bronze, la surface la
+  plus chargée du dépôt), puis `meta_ads_overview.py` (9) et `data_wrapped.py`. Chaque
+  repointage baisse le plafond du cliquet — c'est le seul critère de fin. **Mesuré par**
+  : le plafond du cliquet, plateforme par plateforme.
+
+- [ ] **R95 — La matrice mode × pas n'est explicite nulle part** (P3) — quatre modes
+  (Cumulé, Par période, Part, Facettes) × trois pas (jour, semaine, année) = douze
+  cellules, chacune exigeant une dérivation différente ; les trois défauts du 2026-09-11
+  étaient trois cellules que personne n'avait énumérées.
+  `test_every_way_of_asking_gives_one_answer.py` en couvre une partie ; la matrice
+  elle-même n'est écrite dans aucun document. **Mesuré par** : un tableau des douze
+  cellules dans `.claude/dev-docs/`, et un test qui les parcourt toutes.
+
+**Deux écarts mesurés à NE PAS corriger, consignés pour qu'on ne les reprenne pas :**
+
+- les breakdowns Meta ne couvrent que **76 %** de la dépense (2 348 € sur 3 088) — c'est
+  Meta qui n'attribue pas tout à une dimension, la page le mesure et le dit désormais ;
+- la vue revenu compte la **répartition SACEM brute** (43,06 €) et non le versement
+  (`payout` 36,49 €, après TVA −14,67 et charges −6,90) — choix de définition, cohérent
+  avec le brut distributeur. À trancher avec l'utilisateur, pas à « corriger » ;
+- iMusician : 217,90 (rollup mensuel) contre 217,8895 (détail) — un centime d'arrondi.
 
 ### Conditions d'attente — ce qui n'est PAS une tâche
 
