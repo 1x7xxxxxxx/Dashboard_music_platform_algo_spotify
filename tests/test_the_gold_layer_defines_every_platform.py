@@ -169,12 +169,17 @@ def test_the_gold_view_answers_for_all_four_platforms(scratch) -> None:
     un appelant qui teste `if total` traitait donc Apple comme « pas de données »
     alors que la valeur existait, dans une fonction Python que lui seul connaissait.
     """
-    scratch.execute("SELECT DISTINCT platform FROM v_platform_totals")
-    platforms = {r[0] for r in scratch.fetchall()}
+    # LA DÉFINITION, pas le contenu. La première version lisait
+    # `SELECT DISTINCT platform FROM v_platform_totals` — et une vue ne rend une
+    # plateforme que pour les locataires QUI EN ONT. En CI, base neuve, elle rendait
+    # `['youtube']` et le test accusait la couche or d'un trou qui était une absence
+    # de données. Un garde de schéma ne se mesure pas sur les lignes.
+    scratch.execute("SELECT pg_get_viewdef('v_platform_totals'::regclass, true)")
+    definition = scratch.fetchone()[0]
     for expected in ("spotify", "youtube", "soundcloud", "apple"):
-        assert expected in platforms, (
+        assert f"'{expected}'" in definition, (
             f"la couche or ne définit pas « {expected} » : une surface qui veut son "
-            f"total devra la recalculer. Vue actuelle : {sorted(platforms)}")
+            "total devra la recalculer.")
 
 
 def test_python_reads_the_sql_rule_instead_of_repeating_it() -> None:
