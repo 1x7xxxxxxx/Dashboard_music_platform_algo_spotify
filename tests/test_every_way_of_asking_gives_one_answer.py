@@ -221,3 +221,34 @@ def test_the_cumulative_curve_never_exceeds_the_lifetime_total(db, step) -> None
                 wrong.append(f"artiste {aid} / {key} / pas={step} : absente de la figure "
                              f"alors que son compteur vaut {total:,}")
     assert not wrong, "\n".join(wrong)
+
+
+def test_the_matrix_is_written_down_where_someone_will_read_it() -> None:
+    """R95 : douze cellules, et aucune n'était écrite nulle part.
+
+    Les trois défauts du 2026-09-11 étaient trois cellules de la matrice mode × pas.
+    Un tableau dans un document ne garde rien à lui seul — mais son ABSENCE explique
+    pourquoi personne n'a vu que fermer une cellule laissait les autres ouvertes.
+
+    Ce test tient la seule chose mécanisable : le document existe, il nomme les
+    quatre modes et les trois pas, et il nomme les classes d'erreur déjà payées.
+    """
+    import pathlib
+
+    doc = (pathlib.Path(__file__).resolve().parent.parent
+           / ".claude" / "dev-docs" / "chart-derivation-matrix.md")
+    assert doc.exists(), "la matrice mode × pas n'est écrite nulle part"
+    text = doc.read_text(encoding="utf-8")
+
+    from src.dashboard.utils.platform_chart import MODES
+
+    for mode in MODES.values():
+        assert mode in text, f"le mode « {mode} » n'est pas dans la matrice"
+    for step in ("jour", "semaine", "année"):
+        assert step in text, f"le pas « {step} » n'est pas dans la matrice"
+    for klass in ("cumulative-counter-drawn-as-its-own-history",
+                  "a-bucket-sums-deltas-instead-of-deriving-the-counter",
+                  "a-note-outlives-the-figure-it-explains"):
+        assert klass in text, (
+            f"la classe `{klass}` n'est pas rattachée à sa cellule : la matrice "
+            "n'apprend rien de ce qu'on a déjà payé")

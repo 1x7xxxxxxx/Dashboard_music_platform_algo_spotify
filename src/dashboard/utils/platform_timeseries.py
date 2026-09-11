@@ -636,35 +636,52 @@ def apple_period_plays(db, artist_id, since=None, until=None):
 
 
 def apple_lifetime_plays(db, artist_id):
-    """Le total Apple « depuis le début », sans compter deux fois.
+    """Le total Apple « depuis le début » — LU dans la couche or, jamais recalculé.
 
-    Trois formes peuvent coexister, et l'ordre de préférence est celui de la précision
-    décroissante :
+    La règle elle-même vit dans `gold_apple_lifetime()` (migration 102) et nulle part
+    ailleurs. Elle choisit entre trois formes, par précision décroissante :
 
-    1. le relevé borné le plus LARGE — c'est l'export « depuis le début », qui porte
-       déjà tout ce que les années contiennent ;
-    2. sinon, la somme du découpage non chevauchant des années ;
-    3. sinon, le dernier relevé sans bornes connues (les lignes d'avant la lecture
-       automatique de la période).
+    1. le relevé borné le plus LARGE — l'export « depuis le début », qui contient déjà
+       les années ;
+    2. la somme du découpage non chevauchant — 2024 et 2025 additionnés, mais jamais
+       2024 en plus d'un cumul qui le contient ;
+    3. à défaut de tout relevé borné, le dernier instantané sans bornes.
+
+    Cette fonction en portait une COPIE Python jusqu'au 2026-09-12. Les deux
+    s'accordaient — vérifié sur tous les locataires — et c'est précisément ce qu'on ne
+    peut pas garantir dans le temps : Apple était la dernière plateforme dont le total
+    n'avait aucune définition SQL, et cinq fichiers lisaient sa table directement.
+    C'est ainsi que YouTube a eu trois définitions avant la migration 097.
+
+    Ne lève jamais : une tuile absente ne fait pas tomber une page.
     """
     if db is None or artist_id is None:
         return 0
-    readings = _apple_readings(db, artist_id)
-    if readings:
-        widest = max(readings, key=lambda r: (r[1] - r[0], r[2]))
-        cover_total = sum(p for _s, _e, p in non_overlapping_cover(readings))
-        return max(widest[2], cover_total)
     try:
-        row = _q(db,
-            "SELECT COALESCE(SUM(plays), 0)::bigint FROM apple_songs_performance "
-            "WHERE artist_id = %s AND period_start IS NULL "
-            "  AND snapshot_date = (SELECT MAX(snapshot_date) "
-            "                         FROM apple_songs_performance "
-            "                        WHERE artist_id = %s AND period_start IS NULL)",
-            (artist_id, artist_id))
+        row = _q(db, "SELECT COALESCE(gold_apple_lifetime(%s), 0)::bigint",
+                 (artist_id,))
         return int(row[0][0] or 0) if row else 0
     except Exception as exc:      # noqa: BLE001
         logger.warning("apple lifetime unavailable: %s", type(exc).__name__)
+        return 0
+
+
+def apple_lifetime_shazams(db, artist_id):
+    """Les Shazams « depuis le début » — même règle que les plays, même fonction.
+
+    `views/apple_music.py` en portait une copie Python, avec sa propre branche
+    `if/else` : deux implémentations d'un même algorithme, dont une seule était
+    testée. La métrique est désormais un PARAMÈTRE de `gold_apple_lifetime`
+    (migration 103), validé contre une allowlist côté SQL.
+    """
+    if db is None or artist_id is None:
+        return 0
+    try:
+        row = _q(db, "SELECT COALESCE(gold_apple_lifetime(%s, 'shazam_count'), 0)::bigint",
+                 (artist_id,))
+        return int(row[0][0] or 0) if row else 0
+    except Exception as exc:      # noqa: BLE001
+        logger.warning("apple shazams unavailable: %s", type(exc).__name__)
         return 0
 
 

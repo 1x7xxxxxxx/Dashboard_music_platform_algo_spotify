@@ -28,9 +28,11 @@ EN = {
         "(no period filter)."
     ),
     "meta_breakdowns.coverage": (
-        "ⓘ This breakdown covers **{shown} €** of **{total} €** spent, i.e. "
-        "**{pct} %**. Meta does not attribute every euro to a dimension — impressions whose country, age or placement it does not know appear in no bar. The gap is not missing data on our side."
+        "ⓘ This breakdown covers {parts}. Meta does not attribute everything to a "
+        "dimension — impressions whose country, age or placement it does not know "
+        "appear in no bar. The gap is not missing data on our side."
     ),
+    "meta_breakdowns.coverage_part": "**{shown}{unit}** of **{total}{unit}** ({pct} %)",
     "meta_breakdowns.no_data": (
         "No data for this selection. If the grain is Adset/Creative, "
         "check that a full collection has run."

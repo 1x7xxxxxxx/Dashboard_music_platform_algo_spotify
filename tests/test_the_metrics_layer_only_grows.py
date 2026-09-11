@@ -73,10 +73,10 @@ _FACTS: dict[str, tuple[str, ...]] = {
 
 # Le plafond, gelé le 2026-09-11. IL NE MONTE JAMAIS — le baisser est le travail.
 _CEILING: dict[str, int] = {
-    "Spotify S4A": 33,
+    "Spotify S4A": 31,
     "Meta Ads":    22,
     "Instagram":    3,
-    "Apple":        2,
+    "Apple":        0,
     "Hypeddit":     1,
     "Revenu":       1,
     "YouTube":      0,
@@ -140,16 +140,17 @@ def test_no_platform_gains_a_metric_computed_outside_the_gold_layer() -> None:
         "le plafond si tu viens d'en retirer un.\n\n" + "\n".join(grown))
 
 
-def test_the_two_clean_platforms_stay_clean() -> None:
-    """YouTube et SoundCloud sont à zéro, et c'est l'état cible.
+def test_the_clean_platforms_stay_clean() -> None:
+    """YouTube, SoundCloud et Apple sont à zéro, et c'est l'état cible.
 
-    Elles y sont arrivées le 2026-09-11, après trois défauts qui se contredisaient
-    entre eux. Le test général les couvrirait aussi, mais nommer les deux est ce qui
-    rend la régression LISIBLE : « Spotify passe de 33 à 34 » se discute, « YouTube
-    n'est plus à zéro » ne se discute pas.
+    Les deux premières y sont arrivées le 2026-09-11, après trois défauts qui se
+    contredisaient entre eux ; Apple le 2026-09-12, quand sa règle est descendue en
+    SQL (migrations 102 et 103). Le test général les couvrirait aussi, mais NOMMER
+    les plateformes propres est ce qui rend la régression lisible : « Spotify passe
+    de 31 à 32 » se discute, « Apple n'est plus à zéro » ne se discute pas.
     """
     sites = _sites()
-    for platform in ("YouTube", "SoundCloud"):
+    for platform in ("YouTube", "SoundCloud", "Apple"):
         found = sites.get(platform, [])
         assert not found, (
             f"{platform} agrège de nouveau une table de fait hors de la couche or :\n"

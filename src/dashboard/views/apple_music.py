@@ -41,29 +41,13 @@ def show():
             # page affichait donc un total Apple différent de celui de l'accueil, pour
             # le même artiste au même instant.
             from src.dashboard.utils.platform_timeseries import (
-                apple_lifetime_plays, non_overlapping_cover,
+                apple_lifetime_plays, apple_lifetime_shazams,
             )
+            # Les DEUX métriques suivent la même règle à trois branches, et cette
+            # page en portait une copie Python pour les Shazams. Elle lit désormais
+            # la même porte que l'accueil et le PDF (migration 103).
             total_plays = apple_lifetime_plays(db, artist_id)
-            # Les Shazams suivent la même règle : on ne somme que le découpage non
-            # chevauchant, sinon une année comptée dans le cumul l'est deux fois.
-            _shazam_rows = db.fetch_query(
-                "SELECT period_start, period_end, COALESCE(SUM(shazam_count), 0)::bigint "
-                "FROM apple_songs_performance WHERE artist_id = %s "
-                "  AND period_start IS NOT NULL AND period_end IS NOT NULL "
-                "GROUP BY 1, 2", (artist_id,)) or []
-            if _shazam_rows:
-                total_shazams = sum(
-                    v for _s, _e, v in non_overlapping_cover(
-                        [(r[0], r[1], int(r[2] or 0)) for r in _shazam_rows]))
-            else:
-                _row = db.fetch_query(
-                    "SELECT COALESCE(SUM(shazam_count), 0)::bigint "
-                    "FROM apple_songs_performance WHERE artist_id = %s "
-                    "  AND period_start IS NULL AND snapshot_date = ("
-                    "    SELECT MAX(snapshot_date) FROM apple_songs_performance "
-                    "     WHERE artist_id = %s AND period_start IS NULL)",
-                    (artist_id, artist_id))
-                total_shazams = int(_row[0][0] or 0) if _row else 0
+            total_shazams = apple_lifetime_shazams(db, artist_id)
 
             col2.metric(t("apple_music.kpi_streams", "▶️ Total Streams (Cumul)"), f"{total_plays:,}")
             col3.metric(t("apple_music.kpi_shazams", "⚡ Total Shazams (Cumul)"), f"{total_shazams:,}")
