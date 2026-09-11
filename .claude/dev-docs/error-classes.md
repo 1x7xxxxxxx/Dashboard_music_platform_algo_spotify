@@ -97,6 +97,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-filtered-test-run-proves-nothing](#a-filtered-test-run-proves-nothing) | P3 | manual | reported | none |
 | [a-note-outlives-the-figure-it-explains](#a-note-outlives-the-figure-it-explains) | P2 | deterministic | guarded | none |
 | [a-bucket-sums-deltas-instead-of-deriving-the-counter](#a-bucket-sums-deltas-instead-of-deriving-the-counter) | P2 | deterministic | guarded | none |
+| [a-metric-computed-outside-the-metrics-layer](#a-metric-computed-outside-the-metrics-layer) | P2 | deterministic | guarded | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -4796,3 +4797,21 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-11: **le correctif du mode Cumulé n'avait pas suffi, et c'est le point.** `cumulative-counter-drawn-as-its-own-history` a été fermée en faisant lire la couche or au mode Cumulé, et déclarée résolue après vérification en production. Les deux AUTRES modes lisaient toujours la somme des écarts. Fermer une classe sur la surface où elle a été signalée laisse ses frères vivants : le balayage doit porter sur les MODES d'une figure comme il porte sur les fichiers d'un dépôt.
   - 2026-09-11: le défaut était invisible à toute la batterie de gardes parce qu'aucun ne comparait deux façons de répondre à la MÊME question. Le total borné disait 18 625 et la figure 124, dans le même produit, sur la même période — et chacun était vert dans son test. Le garde qui manquait est un garde de COHÉRENCE entre surfaces, pas de justesse d'une surface.
+
+
+## a-metric-computed-outside-the-metrics-layer
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: deux surfaces du même produit répondent deux nombres à la même question, sans qu'aucune soit « en panne ». Instances mesurées : trois définitions incompatibles du total YouTube avant la migration 097 (120 627 sur deux surfaces, 118 219 sur trois, au même instant) ; le mode Cumulé à 21 contre 118 219 ; le total borné à 21 contre 18 625, imprimé sur la MÊME page de PDF que la courbe qui le contredisait ; « Par période » à 124 contre 18 740. Aucun de ces nombres n'était rouge dans son propre test.
+- root_cause: la logique métier — « combien d'écoutes », « combien dépensé », « quelle croissance » — est recalculée par chaque surface au lieu d'être maintenue à un seul endroit. Reis & Housley appellent cet endroit une **metrics layer** (*Fundamentals of Data Engineering*, p. 482) : « a tool for maintaining and computing business logic ». ADR-019 en est la version locale. Inventaire du 2026-09-11 : **62 agrégats** posés sur une table de fait depuis une surface d'affichage, répartis en Spotify S4A 33, Meta Ads 22, Instagram 3, Apple 2, Hypeddit 1, Revenu 1 — et YouTube 0, SoundCloud 0, les deux repointées le jour même.
+- long_term_fix: une métrique se définit une fois, dans une vue `v_*` ou une fonction qui en est la porte unique, et toute surface la LIT. Le geste complet coûterait une réécriture de 62 sites contre un bénéfice nul aujourd'hui (mesuré : les surfaces s'accordent — S4A rend 165 065 par quatre chemins, Instagram 1 525 par deux), ce qu'ADR-007 interdit. Le fix durable est donc un CLIQUET par plateforme : le compte ne remonte jamais, et les plateformes à zéro ne peuvent plus régresser. Chaque repointage baisse le plafond, et le plafond doit rester serré — un plafond au-dessus du réel autorise autant de régressions silencieuses.
+- autofix: none
+- signature: `python3 -m pytest tests/test_the_metrics_layer_only_grows.py -q >/dev/null 2>&1`
+- guard: tests/test_the_metrics_layer_only_grows.py — quatre tests : le plafond par plateforme, les deux plateformes propres nommées explicitement (« YouTube n'est plus à zéro » ne se discute pas, « Spotify passe de 33 à 34 » se discute), toute plateforme de fait doit avoir un plafond, et le plafond doit être SERRÉ. Mutations vues rouges le 2026-09-11 : un agrégat rogue ajouté à la page YouTube, un plafond desserré de 10, une plateforme ajoutée sans plafond.
+- rex_ref: docs/adr/ADR-019-*.md
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-11: **le comptage sépare le risque du défaut, et c'est ce qui le rend actionnable.** Les 62 sites ne sont pas 62 bugs : mesurés en production le même jour, ils s'accordent. Les traiter comme des défauts aurait produit une réécriture massive contre zéro bénéfice ; les ignorer aurait laissé revenir la classe. Un cliquet dit la seule chose vraie — « ça ne remonte pas » — et transforme un chantier en direction.
+  - 2026-09-11: la couche or couvre **3 métriques** : les écoutes (`v_platform_totals`, migration 097), le revenu (`v_artist_monthly_revenue`) et la dépense Meta (`v_meta_spend_totals`, migration 101, écrite le jour même parce que le cliquet de la frontière du bronze a refusé qu'une page lise la table brute pour afficher un pourcentage de couverture). Restent sans définition unique : **Apple** (sa règle vit en Python, cinq fichiers lisent la table), l'engagement SoundCloud, et les RÉSULTATS Meta (24 873 contre 18 143 selon la table lue).
+  - 2026-09-11: deux écarts mesurés qui ne relèvent PAS de cette classe, consignés pour qu'on ne les « corrige » pas : les breakdowns Meta ne couvrent que 76 % de la dépense parce que Meta n'attribue pas tout à une dimension (la page le dit désormais, en le mesurant), et la vue revenu compte la répartition SACEM brute (43,06 €) plutôt que le versement (36,49 €) — un choix de définition, cohérent avec le brut distributeur.
