@@ -95,6 +95,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [cumulative-counter-drawn-as-its-own-history](#cumulative-counter-drawn-as-its-own-history) | P2 | deterministic | guarded | none |
 | [a-query-assembled-by-string-substitution](#a-query-assembled-by-string-substitution) | P2 | deterministic | guarded | none |
 | [a-filtered-test-run-proves-nothing](#a-filtered-test-run-proves-nothing) | P3 | manual | reported | none |
+| [a-note-outlives-the-figure-it-explains](#a-note-outlives-the-figure-it-explains) | P2 | deterministic | guarded | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -4757,3 +4758,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-11
 - History:
   - 2026-09-11: livré sans signature, délibérément. La commande du défaut (`pytest -k …`) est légitime en soi ; ce qui ne l'est pas est la conclusion qu'on en tire, et aucune commande shell ne voit une conclusion. Une signature inventée ici aurait été une fausse garantie — le catalogue préfère `manual` sans signature à `deterministic` non vérifiée.
+
+
+## a-note-outlives-the-figure-it-explains
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: la figure est juste et le lecteur croit qu'elle est vide, parce que la légende sous elle décrit l'ancienne figure. Signalé le 2026-09-11 **après** le déploiement du correctif : « je n'ai aucune data sur youtube depuis le début ». Mesuré dans le conteneur de production le même soir, filtre « Depuis le début », à tous les pas : la courbe traçait YouTube à **118 334**, SoundCloud à 23 563, Spotify à 165 065. Les trois bandes étaient là. Ce qui disait le contraire : « 🎬 YouTube 26 [semaines non mesurées], **leur aire s'interrompt là** » et « ⏸️ Écoutes mesurées mais **non traçables** : 🎬 YouTube 167 ».
+- root_cause: les deux notes sont calculées sur `aligned_raw`, la série QUOTIDIENNE, et elles étaient exactes tant que la courbe en venait. Le correctif de `cumulative-counter-drawn-as-its-own-history` a fait lire la couche or au mode cumulé : une plateforme à compteur n'a alors plus de trou — entre deux relevés son niveau est connu — et les 167 vues « non traçables » sont DANS la courbe, puisque le compteur les porte. Le correctif a donc rendu sa propre explication fausse, et personne ne relit une note quand on corrige une figure.
+- long_term_fix: une note qui explique une figure prend en entrée CE QUI A ÉTÉ TRACÉ, pas la série d'origine. `_render_notes` reçoit désormais `served` — les plateformes servies par la couche or — et l'exemption suit la SOURCE et non le mode : sans série or, le cumul reste reconstruit à partir d'une série trouée et la note demeure. Règle générale : quand un correctif change ce qu'une figure SIGNIFIE, la prose autour d'elle fait partie du correctif, au même titre que les axes et les couleurs.
+- autofix: none
+- signature: `python3 -c "import ast,sys;src=open('src/dashboard/utils/platform_chart.py').read();f=next((n for n in ast.walk(ast.parse(src)) if isinstance(n,ast.FunctionDef) and n.name=='_render_notes'),None);ok=f is not None and 'served' in [a.arg for a in f.args.args+f.args.kwonlyargs];h=ast.parse(open('src/dashboard/views/home.py').read());ok=ok and any(isinstance(n,ast.IfExp) and any(isinstance(c,ast.Constant) and c.value=='cumulative' for c in ast.walk(n.test)) and any(getattr(x.func,'id','')=='discarded_deltas' for x in ast.walk(n) if isinstance(x,ast.Call)) for n in ast.walk(h));sys.exit(0 if ok else 1)"`
+- guard: tests/test_a_note_describes_the_figure_that_is_shown.py — quatre tests, dont un qui tient l'exemption DANS L'AUTRE SENS (le mode « Par période » trace bien la série trouée et doit garder sa note). Mutations vues rouges le 2026-09-11 : la note qui ignore le mode, la note retirée PARTOUT (la sur-correction, verte sans ce deuxième test), et « non traçables » rendue en mode cumulé.
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-11
+- History:
+  - 2026-09-11: **aucun test ne pouvait le voir, et c'est le point.** Les gardes de ce dépôt demandent « le chiffre est-il juste ? » ; ici il l'était. La question qui manquait est « la phrase et la figure disent-elles la même chose ? ». Le render-smoke rend la page sans lire ce qu'elle écrit, et les gardes de figure lisent `fig.data` sans lire les `st.caption`.
+  - 2026-09-11: le diagnostic a d'abord cherché au mauvais endroit — j'ai reproduit la figure trois fois (accueil à tous les pas, page YouTube, filtre de sources) en cherchant une bande manquante, et les trois étaient correctes. Ce qui a tranché est d'avoir rendu la page et **lu les légendes** plutôt que les données. Quand la mesure contredit le signalement, c'est souvent que le signalement décrit ce qui est ÉCRIT et la mesure ce qui est CALCULÉ.
