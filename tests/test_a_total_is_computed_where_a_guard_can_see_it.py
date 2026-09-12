@@ -118,6 +118,36 @@ def _root_name(node: ast.AST) -> str | None:
     return node.id if isinstance(node, ast.Name) else None
 
 
+def _raw_returning_functions(tree: ast.AST, scope: dict[str, ast.AST],
+                             facts: frozenset[str]) -> dict[str, list[str]]:
+    """Les fonctions du fichier qui RENDENT des lignes de fait non agrégées.
+
+    ⚠️ Sans ce passage, la page Distributeur échappait au garde : elle écrit
+    `df = _load_revenues(db, artist_id, tables)` puis `df['revenue_eur'].sum()`,
+    et `_load_revenues` fait `return db.fetch_df(...)`. Le résultat n'est jamais
+    AFFECTÉ dans la fonction qui lit le SQL — il est rendu. Un lecteur qui ne
+    regarde que les affectations voit une page sans agrégat.
+    """
+    out: dict[str, list[str]] = {}
+    for fn in (n for n in ast.walk(tree)
+               if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))):
+        tables: set[str] = set()
+        for node in ast.walk(fn):
+            if not (isinstance(node, ast.Return) and node.value is not None):
+                continue
+            call = node.value
+            if not (isinstance(call, ast.Call)
+                    and getattr(call.func, "attr", "") in _READERS and call.args):
+                continue
+            sql = _sql_of(call.args[0], scope)
+            if not sql or _AGG_SQL.search(sql):
+                continue
+            tables |= {t for t in _FROMJOIN.findall(sql) if t in facts}
+        if tables:
+            out[fn.name] = sorted(tables)
+    return out
+
+
 def _sites(facts: frozenset[str]) -> list[str]:
     out: list[str] = []
     for path in sorted(_SCANNED.rglob("*.py")):
@@ -143,6 +173,7 @@ def _sites(facts: frozenset[str]) -> list[str]:
                         if isinstance(t, ast.Name):
                             scope[t.id] = stmt.value
             raw: dict[str, tuple[list[str], int]] = {}
+            returners = _raw_returning_functions(tree, scope, facts)
             for node in ast.walk(fn):
                 if not (isinstance(node, ast.Assign)
                         and isinstance(node.value, ast.Call)
@@ -158,6 +189,19 @@ def _sites(facts: frozenset[str]) -> list[str]:
                 for target in node.targets:
                     if isinstance(target, ast.Name):
                         raw[target.id] = (tables, node.lineno)
+            # La seconde forme : `df = _load_revenues(...)`, où la lecture du fait
+            # vit dans le `return` d'une fonction voisine.
+            for node in ast.walk(fn):
+                if not (isinstance(node, ast.Assign)
+                        and isinstance(node.value, ast.Call)):
+                    continue
+                called = getattr(node.value.func, "id", None)
+                if called not in returners:
+                    continue
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        raw.setdefault(target.id,
+                                       (returners[called], node.lineno))
             for node in ast.walk(fn):
                 if not (isinstance(node, ast.Call)
                         and isinstance(node.func, ast.Attribute)

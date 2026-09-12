@@ -136,6 +136,15 @@ _DECLARED_RAW_AGGREGATES: dict[tuple[str, str], str] = {
     ("src/dashboard/views/trigger_algo/_common/_budget_roi.py", "meta_ads"):
         "même requête que ci-dessus : la jointure vers les créatives sert à lire "
         "leur call_to_action, jamais à sommer.",
+    ("src/dashboard/views/meta_creatives.py", "meta_campaigns"):
+        "`_QUERY_UNCOLLECTED` : COUNT(DISTINCT ad_id) et un `HAVING SUM(spend) = 0` "
+        "qui SÉLECTIONNE les campagnes sans détail par créative. Le montant affiché "
+        "à côté vient de `v_meta_daily` ; ici la somme est un prédicat, pas un "
+        "nombre — et elle doit porter sur la table de fait, puisque la question est "
+        "précisément « cette table est-elle vide pour cette campagne ».",
+    ("src/dashboard/views/meta_creatives.py", "meta_ads"):
+        "même requête : le COUNT des créatives d'une campagne dont les insights "
+        "manquent. Un décompte de diagnostic, jamais affiché comme une mesure.",
     ("src/utils/freshness_monitor.py", "meta_campaigns"):
         "count(*) FILTER (status = 'ACTIVE') — une sonde de santé. Elle demande "
         "« ce locataire a-t-il des campagnes », pas « combien ont-elles coûté ».",
@@ -158,7 +167,17 @@ def _watched_by_ratchet(rel: str, table: str) -> bool:
         return False
     return table in _RATCHET_FACTS
 
-_MAX_HOPS = 2
+# Plafond de relèvement, MESURÉ et non choisi. Sur ce dépôt, le 2026-09-12 :
+#
+#     2 sauts : 27 indéterminées, 110 plusieurs amonts
+#     3 sauts : 23 indéterminées, 111 plusieurs amonts   ← retenu
+#     4 sauts : 23 indéterminées, 111 plusieurs amonts   ← n'apporte rien
+#
+# Le troisième cran résout QUATRE surfaces de plus pour un seul « plusieurs
+# amonts » supplémentaire ; le quatrième n'apporte rien et ne coûte que de la
+# surface d'erreur. Remesurer avant de le bouger — un plafond choisi d'instinct
+# est la classe `un-seuil-écrit-d-instinct`.
+_MAX_HOPS = 3
 _MAX_CALLERS = 3
 
 # ── vocabulaire fermé de la confiance ──────────────────────────────────────
@@ -543,8 +562,10 @@ def build_scope(fn: ast.AST) -> Scope:
     return Scope(fn, defs, mut, params, _stmt_paths(fn))
 
 
-def _sql_text(node: ast.AST, scope: Scope, pf: PyFile) -> str | None:
+def _sql_text(node: ast.AST, scope: Scope, pf: PyFile, depth: int = 0) -> str | None:
     """Le SQL littéral d'une expression, avec sentinelle sur toute interpolation."""
+    if depth > 4:
+        return None
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return None if id(node) in pf.docstrings else node.value
     if isinstance(node, ast.JoinedStr):
@@ -556,8 +577,8 @@ def _sql_text(node: ast.AST, scope: Scope, pf: PyFile) -> str | None:
                 parts.append(_SENTINEL)
         return "".join(parts)
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-        left = _sql_text(node.left, scope, pf)
-        right = _sql_text(node.right, scope, pf)
+        left = _sql_text(node.left, scope, pf, depth + 1)
+        right = _sql_text(node.right, scope, pf, depth + 1)
         if left is None and right is None:
             return None
         return (left or _SENTINEL) + (right or _SENTINEL)
@@ -565,10 +586,24 @@ def _sql_text(node: ast.AST, scope: Scope, pf: PyFile) -> str | None:
         cands = [v for _, v in (scope.defs.get(node.id) or [])]
         if not cands and node.id in pf.consts:
             cands = [pf.consts[node.id]]
-        texts = [t for t in (_sql_text(v, scope, pf) for v in cands) if t]
+        texts = [t for t in (_sql_text(v, scope, pf, depth + 1) for v in cands) if t]
         return texts[-1] if texts else None
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
-            and node.func.attr in ("format", "join", "strip"):
+            and node.func.attr == "format":
+        # `_QUERY_CREATIVES.format(acct=acct)` est un LITTÉRAL avec des trous, pas
+        # une requête dynamique. La première version rendait la sentinelle entière
+        # ici, et classait `sql-dynamique` vingt-huit surfaces dont la table est
+        # parfaitement lisible — un livrable qui déclare « je ne sais pas » là où il
+        # sait est aussi trompeur qu'un livrable qui invente.
+        #
+        # Le texte du receveur est résolu, puis chaque `{…}` devient la sentinelle :
+        # une table interpolée reste indécidable, une table littérale se lit.
+        base = _sql_text(node.func.value, scope, pf, depth + 1)
+        if base is None:
+            return _SENTINEL
+        return re.sub(r"\{[^{}]*\}", _SENTINEL, base)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+            and node.func.attr in ("join", "strip"):
         return _SENTINEL
     return None
 
@@ -1212,7 +1247,8 @@ _LIMITS = [
     ("appelants-multiples",
      "rendu partagé par plus de trois appelants : un site, N jeux de données"),
     ("profondeur",
-     f"chaîne de plus de {_MAX_HOPS} sauts — plafond assumé"),
+     f"chaîne de plus de {_MAX_HOPS} sauts — plafond MESURÉ : le cran suivant "
+     "n'apporte rien"),
     ("sans-appelant",
      "fonction dont aucun appel n'est résoluble statiquement"),
     ("clé-à-l-exécution",

@@ -87,8 +87,14 @@ def counters() -> dict[str, int]:
 # Les baisser est le travail : chaque unité en moins est une surface dont on a
 # compris d'où vient sa donnée, ou un agrégat qu'un cliquet garde enfin.
 _CEILING: dict[str, int] = {
-    "figures.unknown": 15,
-    "tiles.unknown": 18,
+    # 15 → 7, 18 → 11 le 2026-09-12 (soir), et pour deux raisons qui ne sont PAS
+    # des correctifs de code : `_QUERY.format(acct=…)` est un littéral avec des
+    # trous, pas une requête dynamique — le lecteur le résout désormais ; et le
+    # plafond de sauts est passé de 2 à 3, sur une MESURE (le cran suivant
+    # n'apporte rien). Un livrable qui déclare « je ne sais pas » là où il sait est
+    # aussi trompeur qu'un livrable qui invente.
+    "figures.unknown": 7,
+    "tiles.unknown": 11,
     "pdf.unknown": 5,
     "gold-objects.orphans": 0,
     # 21 → 18 → 0 le 2026-09-12. Les 12 derniers n'ont pas été « repointés » : ils
@@ -125,7 +131,7 @@ _FLOOR: dict[str, int] = {
     "figures.total": 89,
     "tiles.total": 207,
     "pdf.total": 29,
-    "gold-objects.total": 13,
+    "gold-objects.total": 15,
     "ratchets.total": 17,
     "error-classes.total": 287,
     "ci.steps": 12,

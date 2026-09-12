@@ -25,9 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R96 | Faire baisser les 38 surfaces dont la carte ne sait pas d'où vient la donnée | P4 | `<!-- gold-coverage-*: unknown=… -->`, sous cliquet |
-| R99 | Faire descendre la frontière de bronze (132 couples) | P4 | `_CEILING` de `tests/test_the_bronze_boundary_only_tightens.py` |
-| R100 | Trancher dbt : le déclencheur d'ADR-014 est atteint (13 objets dérivés, 4 interdépendants) | P4 | ADR-014 §déclencheurs, recompté dans ADR-022 |
 
 **Quatre tâches rouvertes le 2026-09-11**, issues de l'audit metrics layer détaillé
 plus bas dans ce fichier (section « L'audit metrics layer du 2026-09-11 ») : R92 à R95.
@@ -89,9 +86,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-12 (soir), trois tâches ouvertes — R96, R99, R100 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-12 (soir), AUCUNE tâche ouverte (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R96,R99,R100 -->
+<!-- reprise: open= -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -250,34 +247,34 @@ Trois mutations ont ÉCHOUÉ, et c'est la moitié la plus utile :
 * et un `git checkout` réflexe a détruit le travail non commité de
   `tools/dev/gold_coverage.py`. Troisième fois que ce dépôt l'enregistre.
 
-Les trois tâches ci-dessous sont ce qui reste. Chacune est un compteur écrit par une
-machine, sous cliquet : aucune ne peut empirer en silence.
+### La troisième passe a fermé les trois dernières
 
-- [ ] **R96 — Faire baisser les 38 surfaces dont la carte ne sait pas d'où vient la
-  donnée** (P4) — 15 figures sur 89, 18 tuiles sur 207, 5 figures PDF sur 29 sont
-  publiées `indéterminée`, avec leur motif : `sql-dynamique` (28), `profondeur` (22),
-  `appelants-multiples` (10), `clé-à-l-exécution` (5), `sans-appelant` (3),
-  `receveur-inconnu` (1). Elles sont triées **en tête** de leur tableau, jamais en
-  queue. Le plus rentable est `sql-dynamique` : ce n'est pas une limite de l'outil mais
-  une trouvaille sur le code — une requête assemblée hors littéral n'est lisible par
-  aucun garde. **Mesuré par** : `<!-- gold-coverage-*: unknown=… -->`, plafonds gelés
-  dans `tests/test_the_gold_coverage_only_improves.py`.
+| compteur | départ | fin | ce qui l'a fermé |
+|---|---|---|---|
+| figures sans source établie | 15 | **7** | deux corrections du LECTEUR, pas du code |
+| tuiles sans source établie | 18 | **11** | idem |
+| couples bronze | 132 | **110** | `csv_exporter.py` déclaré : un export de lignes brutes n'est pas une dette |
+| dbt | question ouverte | **tranchée** | ADR-023 |
 
-- [ ] **R99 — Faire descendre la frontière de bronze (132 couples)** (P4) — le plafond
-  a MONTÉ de 124 à 132 le 2026-09-12, et c'est un progrès : sa portée ne nommait que
-  `pdf_exporter` sous `src/dashboard/utils`, donc `csv_exporter.py` — qui exporte du
-  bronze à un utilisateur, la définition même d'une surface — n'y était pas. 124 était
-  faux, 132 est vrai. À partir d'ici il ne peut que descendre. **Mesuré par** :
-  `_CEILING` de `tests/test_the_bronze_boundary_only_tightens.py`.
+Les deux corrections du lecteur valent d'être nommées, parce qu'elles disaient le
+contraire de la vérité : `_QUERY.format(acct=…)` est un **littéral avec des trous**,
+pas une requête dynamique — vingt-huit surfaces étaient déclarées `sql-dynamique`
+alors que leur table se lit. Et le plafond de sauts est passé de 2 à 3 sur une
+MESURE (2 → 27 indéterminées, 3 → 23, 4 → 23 : le quatrième cran n'apporte rien).
+Un livrable qui déclare « je ne sais pas » là où il sait est aussi trompeur qu'un
+livrable qui invente.
 
-- [ ] **R100 — Trancher dbt** (P4) — ADR-014 différait dbt tant que le dépôt n'aurait
-  pas **≥ 10 objets dérivés ET ≥ 3 qui dépendent l'un de l'autre**. Recompté le
-  2026-09-12 : **13 objets dérivés**, **4 impliqués dans une dépendance**
-  (`v_platform_totals` → `v_s4a_song_daily`, `v_soundcloud_track_latest`,
-  `gold_apple_lifetime`). Le déclencheur qu'ADR-014 s'était donné est franchi ; ADR-022
-  l'enregistre sans trancher, parce que trancher est une décision, pas une conséquence.
-  Ce qui manquait pour instruire la question existe maintenant : la carte donne le
-  graphe complet. **Mesuré par** : ADR-014 §déclencheurs, recompté dans ADR-022.
+**Et le repointage a introduit un défaut, corrigé le même soir** : `_QUERY_CREATIVES`
+reçoit désormais un fragment de compte `ma.`-aliasé alors qu'il lit une VUE, donc
+`missing FROM-clause entry for table "ma"`. La troisième forme du même défaut, dans
+le correctif des deux premières. Le garde la couvre maintenant, et il a fallu
+suivre `TEMPLATE.format(acct=X)` pour la voir — le gabarit et l'alias vivent dans
+deux fichiers qui ne savent rien l'un de l'autre.
+
+**La roadmap n'a plus de tâche ouverte sur ce sujet.** Ce qui reste vit dans les
+compteurs de `.claude/dev-docs/gold-coverage.md`, tous sous cliquet : sept figures,
+onze tuiles et cinq figures PDF dont la source n'est pas attribuable — et le
+document dit, pour chacune, POURQUOI.
 
 ### Vérification finale mesurée en production le 2026-09-12
 

@@ -112,9 +112,16 @@ def carriers() -> frozenset[str]:
     return frozenset(rows)
 
 
-def _aliased_names(tree: ast.AST) -> set[str]:
-    """Les noms liés à un `account_clause(..., "préfixe.")` — donc qualifiés."""
-    out: set[str] = set()
+def _aliased_names(tree: ast.AST) -> dict[str, str]:
+    """{nom lié -> préfixe} pour chaque `account_clause(..., "préfixe.")`.
+
+    Le préfixe compte autant que la présence : un fragment ` AND ma.ad_account_id
+    = %s` collé dans une requête qui ne déclare aucun `ma` lève
+    `missing FROM-clause entry for table "ma"`. Troisième forme du même défaut,
+    introduite le 2026-09-12 en repointant `_QUERY_CREATIVES` vers une vue sans
+    regarder l'alias que son appelant lui passait.
+    """
+    out: dict[str, str] = {}
     for node in ast.walk(tree):
         if not (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)):
             continue
@@ -127,13 +134,26 @@ def _aliased_names(tree: ast.AST) -> set[str]:
                 alias = kw.value
         if not (isinstance(alias, ast.Constant) and alias.value):
             continue                                   # pas d'alias : non qualifié
+        prefix = str(alias.value).rstrip(".")
         for target in node.targets:
             if isinstance(target, ast.Tuple) and target.elts:
                 if isinstance(target.elts[0], ast.Name):
-                    out.add(target.elts[0].id)
+                    out[target.elts[0].id] = prefix
             elif isinstance(target, ast.Name):
-                out.add(target.id)
+                out[target.id] = prefix
     return out
+
+
+_ALIAS_DECL = re.compile(
+    r"\b(?:FROM|JOIN)\s+(?:public\.)?[a-zA-Z_][a-zA-Z0-9_]*\s+(?:AS\s+)?"
+    r"([a-zA-Z_][a-zA-Z0-9_]*)\b", re.I)
+_SQL_KEYWORDS = {"on", "where", "group", "order", "having", "left", "right",
+                 "inner", "outer", "join", "union", "limit", "using", "and", "or"}
+
+
+def _declared_aliases(text: str) -> set[str]:
+    """Les alias que la requête déclare réellement dans ses FROM/JOIN."""
+    return {a for a in _ALIAS_DECL.findall(text) if a.lower() not in _SQL_KEYWORDS}
 
 
 def _enclosing_select(text: str, at: int) -> str:
@@ -168,9 +188,15 @@ def _enclosing_select(text: str, at: int) -> str:
     return text
 
 
-def _sql_sites() -> list[tuple[str, int, str]]:
-    """(site, texte, marqueur) pour chaque littéral SQL qui reçoit un fragment."""
+def _sql_sites(dangling: list[str] | None = None) -> list[tuple[str, int, str]]:
+    """(site, texte, marqueur) pour chaque littéral SQL qui reçoit un fragment.
+
+    `dangling` se remplit des fragments QUALIFIÉS dont l'alias n'existe pas dans
+    la requête — la troisième forme du défaut, celle qui lève
+    `missing FROM-clause entry`.
+    """
     out: list[tuple[str, int, str]] = []
+    dangling = [] if dangling is None else dangling
     for root in _SCANNED:
         for path in sorted((_ROOT / root).rglob("*.py")):
             if "__pycache__" in path.parts:
@@ -180,8 +206,44 @@ def _sql_sites() -> list[tuple[str, int, str]]:
             except (SyntaxError, UnicodeDecodeError):
                 continue
             aliased = _aliased_names(tree)
+            rel = path.relative_to(_ROOT).as_posix()
+
+            # ── Le point de RENCONTRE : `TEMPLATE.format(acct=_acct_ma)`.
+            #
+            # Le gabarit est une constante de module qui porte `{acct}` ; l'alias
+            # vit chez l'APPELANT, dans le nom qu'il passe. Ni l'un ni l'autre ne
+            # sait ce que sait l'autre, et c'est exactement là que le défaut se
+            # loge — un repointage change le gabarit, l'appel ne bouge pas.
+            consts = {t.id: stmt.value for stmt in tree.body
+                      if isinstance(stmt, ast.Assign) for t in stmt.targets
+                      if isinstance(t, ast.Name)}
+            for node in ast.walk(tree):
+                if not (isinstance(node, ast.Call)
+                        and isinstance(node.func, ast.Attribute)
+                        and node.func.attr == "format"
+                        and isinstance(node.func.value, ast.Name)):
+                    continue
+                tpl = consts.get(node.func.value.id)
+                tpl_text = tpl.value if isinstance(tpl, ast.Constant) and isinstance(
+                    tpl.value, str) else None
+                if not tpl_text or not _FROMJOIN.search(tpl_text):
+                    continue
+                declared = _declared_aliases(tpl_text)
+                for kw in node.keywords:
+                    if not isinstance(kw.value, ast.Name):
+                        continue
+                    prefix = aliased.get(kw.value.id)
+                    if prefix and prefix not in declared:
+                        dangling.append(
+                            f"{rel}:{node.lineno} : `{node.func.value.id}"
+                            f".format({kw.arg}={kw.value.id})` colle un fragment "
+                            f"qualifié `{prefix}.` dans un gabarit qui ne déclare "
+                            f"pas cet alias (il a : "
+                            f"{', '.join(sorted(declared)) or 'aucun'}). "
+                            f'→ missing FROM-clause entry for table "{prefix}"')
             for node in ast.walk(tree):
                 text, carries = None, False
+                prefixes: set[str] = set()
                 if isinstance(node, ast.JoinedStr):
                     parts = []
                     for value in node.values:
@@ -190,24 +252,35 @@ def _sql_sites() -> list[tuple[str, int, str]]:
                             continue
                         names = {n.id for n in ast.walk(value) if isinstance(n, ast.Name)}
                         hit = {n for n in names if "acct" in n or "account" in n}
-                        if hit and not (hit & aliased):
+                        qualified = {aliased[n] for n in hit if n in aliased}
+                        if hit and not qualified:
                             carries = True
                             parts.append("\x01")        # la place du fragment
                         else:
+                            prefixes |= qualified
                             parts.append("{}")
                     text = "".join(parts)
                 elif isinstance(node, ast.Constant) and isinstance(node.value, str):
                     text = node.value
-                    marker = re.search(r"\{(acct[a-z_]*)\}", text)
-                    if marker and marker.group(1) not in aliased:
+                    for marker in re.finditer(r"\{(acct[a-z_]*)\}", text):
+                        if marker.group(1) in aliased:
+                            prefixes.add(aliased[marker.group(1)])
+                            continue
                         carries = True
                         text = text[:marker.start()] + "\x01" + text[marker.end():]
-                if not (text and carries):
+                        break
+                if not text or not _FROMJOIN.search(text):
                     continue
-                if not _FROMJOIN.search(text):
-                    continue
-                out.append((f"{path.relative_to(_ROOT).as_posix()}:{node.lineno}",
-                            node.lineno, text))
+                site = f"{path.relative_to(_ROOT).as_posix()}:{node.lineno}"
+                if carries:
+                    out.append((site, node.lineno, text))
+                for prefix in prefixes:
+                    if prefix not in _declared_aliases(text):
+                        dangling.append(
+                            f"{site} : le fragment de compte est qualifié `{prefix}.` "
+                            f"mais la requête ne déclare pas d'alias `{prefix}` "
+                            f"(elle a : {', '.join(sorted(_declared_aliases(text))) or 'aucun'}). "
+                            f'→ missing FROM-clause entry for table "{prefix}"')
     return out
 
 
@@ -243,6 +316,35 @@ def test_every_account_filter_resolves_to_exactly_one_column(carriers) -> None:
         "Le remède est le même dans les deux cas : lire la vue or. Elle n'a qu'une\n"
         "colonne de ce nom, donc ni absence ni ambiguïté possibles.\n\n"
         + "\n".join(offenders))
+
+
+def test_no_account_fragment_names_an_alias_the_query_does_not_declare() -> None:
+    """La troisième forme : l'alias du fragment n'existe pas dans la requête.
+
+    `account_clause(_account, "ma.")` rend ` AND ma.ad_account_id = %s`. Collé dans
+    une requête qui lit une VUE — une seule relation, sans alias — Postgres lève
+    `missing FROM-clause entry for table "ma"`. Et comme le fragment est vide tant
+    qu'aucun compte n'est choisi, le défaut ne frappe que les locataires
+    multi-comptes, comme les deux autres formes.
+
+    Mesuré le 2026-09-12 : je l'ai introduit moi-même en repointant
+    `_QUERY_CREATIVES` vers `v_meta_creative_daily` sans regarder l'alias que son
+    appelant lui passait — en corrigeant la forme « colonne ambiguë ». Les deux
+    premières formes ne pouvaient pas le voir : la colonne existe, et une seule
+    relation la porte.
+
+    Mutation record — 2026-09-12 : `account_clause(_account, "ma.")` remis à son
+    appel, ce test nomme le site et l'alias manquant ; sans alias, il passe.
+    """
+    dangling: list[str] = []
+    _sql_sites(dangling)
+    assert not dangling, (
+        "Un fragment de compte est qualifié par un alias que sa requête ne déclare\n"
+        "pas. La requête LÈVE, donc la page tombe — et seulement pour les locataires\n"
+        "multi-comptes.\n\n"
+        "Remède : `account_clause(compte)` sans alias quand la requête lit UNE\n"
+        "relation, avec l'alias exact quand elle en joint plusieurs.\n\n"
+        + "\n".join(dangling))
 
 
 def test_the_gold_views_still_carry_the_column(carriers) -> None:
