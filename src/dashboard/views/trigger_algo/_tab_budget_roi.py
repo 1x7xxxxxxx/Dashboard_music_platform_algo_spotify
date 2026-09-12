@@ -87,7 +87,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
                 (artist_id,)
             )
             spend_row = db.fetch_query(
-                "SELECT COALESCE(SUM(spend), 0) FROM meta_insights_performance_day WHERE artist_id = %s AND day_date BETWEEN %s AND %s",
+                "SELECT COALESCE(SUM(spend), 0) FROM v_meta_daily WHERE artist_id = %s AND day BETWEEN %s AND %s",
                 (artist_id, date_from, date_to)
             )
             streams_row = db.fetch_query(
@@ -100,7 +100,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
                 "SELECT COALESCE(SUM(lifetime_budget), 0), COALESCE(SUM(daily_budget), 0) FROM meta_campaigns WHERE status = 'ACTIVE'"
             )
             spend_row = db.fetch_query(
-                "SELECT COALESCE(SUM(spend), 0) FROM meta_insights_performance_day WHERE day_date BETWEEN %s AND %s",
+                "SELECT COALESCE(SUM(spend), 0) FROM v_meta_daily WHERE day BETWEEN %s AND %s",
                 (date_from, date_to)
             )
             streams_row = db.fetch_query(
@@ -322,7 +322,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
     try:
         if artist_id:
             df_spend_d = db.fetch_df(
-                "SELECT day_date AS date, SUM(spend) AS spend FROM meta_insights_performance_day WHERE artist_id = %s GROUP BY day_date ORDER BY day_date",
+                "SELECT day AS date, SUM(spend) AS spend FROM v_meta_daily WHERE artist_id = %s GROUP BY day ORDER BY day",
                 (artist_id,)
             )
             df_rev = db.fetch_df(
@@ -335,10 +335,10 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
             )
         else:
             df_spend_d = db.fetch_df(
-                "SELECT day_date AS date, SUM(spend) AS spend FROM meta_insights_performance_day GROUP BY day_date ORDER BY day_date"
+                "SELECT day AS date, SUM(spend) AS spend FROM v_meta_daily GROUP BY day ORDER BY day"
             )
             df_rev = db.fetch_df(
-                "SELECT make_date(year, month, 1) AS date, SUM(revenue_eur) AS revenue_eur FROM imusician_monthly_revenue GROUP BY year, month ORDER BY year, month"
+                "SELECT make_date(year, month, 1) AS date, SUM(revenue_eur) AS revenue_eur FROM v_artist_monthly_revenue GROUP BY year, month ORDER BY year, month"
             )
             df_pop_be = db.fetch_df(
                 "SELECT date, popularity FROM track_popularity_history WHERE track_name = %s ORDER BY date",

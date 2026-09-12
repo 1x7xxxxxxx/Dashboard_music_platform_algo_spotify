@@ -135,6 +135,11 @@ def show():
         )
         try:
             frag_m, params_m = win_m.sql_between("timestamp")
+            # La requête d'engagement lit `v_instagram_media_monthly`, dont la colonne
+            # de date s'appelle `month` — la table, elle, a `timestamp`, et le second
+            # usage de `frag_m` plus bas la lit encore. Deux fragments, une seule
+            # fenêtre : c'est la même période, exprimée dans les deux vocabulaires.
+            frag_month, params_month = win_m.sql_between("month")
 
             # CE N'EST PAS UN ENGAGEMENT PAR MOIS. C'EST UNE COHORTE DE PUBLICATION.
             #
@@ -153,14 +158,14 @@ def show():
             # Le correctif est donc de NOMMER ce que la barre porte, comme pour Apple :
             # un chiffre juste sous un mauvais titre est un chiffre faux.
             df_eng = db.fetch_df(f"""
-                SELECT date_trunc('month', timestamp) AS mois,
-                       SUM(like_count) AS likes,
-                       SUM(comments_count) AS comments,
-                       COUNT(*) AS posts
-                FROM instagram_media
-                WHERE artist_id = %s {frag_m}
+                SELECT month AS mois,
+                       SUM(likes) AS likes,
+                       SUM(comments) AS comments,
+                       SUM(posts) AS posts
+                FROM v_instagram_media_monthly
+                WHERE artist_id = %s {frag_month}
                 GROUP BY 1 ORDER BY 1
-            """, (artist_id, *params_m))
+            """, (artist_id, *params_month))
 
             if not show_empty_state(df_eng, t("instagram.no_posts", "Aucun post sur cette période.")):
                 df_eng['mois'] = pd.to_datetime(df_eng['mois'])

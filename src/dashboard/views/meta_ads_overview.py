@@ -389,11 +389,14 @@ def _show_meta_ads(db, artist_id):
     # ==============================================================================
     st.subheader(t("meta_ads_overview.time_evolution", "⏳ Évolution Temporelle (Budget vs Résultat vs CPR)"))
 
+    # `v_meta_daily` (migration 106) porte cette maille — (locataire, compte,
+    # campagne, jour) — et dix surfaces la demandaient. Les colonnes gardent leurs
+    # noms d'affichage (`day_date`) par un alias : la figure en aval les lit.
     query_day = (
-        "SELECT day_date, SUM(spend) as spend, SUM(results) as results, "
+        "SELECT day AS day_date, SUM(spend) as spend, SUM(results) as results, "
         "SUM(custom_conversions) as custom_conversions "
-        f"FROM meta_insights_performance_day WHERE artist_id = %s{_campaign_in} "
-        "GROUP BY day_date ORDER BY day_date ASC"
+        f"FROM v_meta_daily WHERE artist_id = %s{_campaign_in} "
+        "GROUP BY day ORDER BY day ASC"
     )
     df_day = db.fetch_df(query_day, params)
 
