@@ -25,6 +25,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R102 | Écrire les 19 tests des cases vides du tableau plateforme × famille | P3 | `<!-- gold-coverage-guard-matrix: holes=19 -->`, sous cliquet |
 
 **Quatre tâches rouvertes le 2026-09-11**, issues de l'audit metrics layer détaillé
 plus bas dans ce fichier (section « L'audit metrics layer du 2026-09-11 ») : R92 à R95.
@@ -86,9 +87,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-12 (soir), AUCUNE tâche ouverte (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-12 (soir), une tâche ouverte — R102 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R102 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -246,6 +247,34 @@ Trois mutations ont ÉCHOUÉ, et c'est la moitié la plus utile :
   secondaire VIVANT, rendu par deux vues. Portée élargie, axe déclaré avec sa raison ;
 * et un `git checkout` réflexe a détruit le travail non commité de
   `tools/dev/gold_coverage.py`. Troisième fois que ce dépôt l'enregistre.
+
+### Ce que la mesure de « ce qui n'est gardé par rien » a rendu (2026-09-12, soir)
+
+Le livrable disait ce qui existe, jamais ce qui n'est gardé par rien. Le tableau
+**plateforme × famille** le dit maintenant : cinq familles sur dix-sept ont une forme
+plateforme, et **19 cases sur 40 sont vides**. C'est la liste des tests à écrire, et
+c'est R102.
+
+Deux trouvailles en le construisant :
+
+* **Instagram** — `followers_count` est un NIVEAU (1 525 → 1 606) qu'aucun garde ne
+  traitait comme un compteur. L'ajouter tel quel aurait produit un détecteur MUET :
+  `MIN_ENTITIES = 3` est calibré sur des catalogues et Instagram a 1,0 entité par
+  locataire et par jour. Le plancher est devenu un attribut de la cible.
+* **Un facteur 3 049**, trouvé par un garde existant qui a rougi tout seul quand une
+  collecte fraîche a fait qualifier l'artiste 471. Une collecte à 1 vidéo sur 200
+  devenait la ligne de base des niveaux, et le pas demandé dégradait vers le jour où
+  la dérivation par les niveaux est désactivée. Migration 112, seuil lu dans la
+  distribution réelle. **La première version du correctif a été attrapée par un
+  invariant écrit une heure plus tôt** — écart de 5 vues, nommé.
+
+- [ ] **R102 — Les 19 cases vides du tableau plateforme × famille** (P3) — chaque
+  case est une plateforme pour laquelle aucun garde de cette famille ne lit une seule
+  de ses relations. Les plus exposées : **Hypeddit**, couvert par aucune des cinq
+  familles, et `une-erreur-avalée-devient-une-absence`, qui ne couvre que Spotify
+  alors que c'est la famille la plus chère de la séance. Le tableau et ses raisons
+  vivent dans `.claude/dev-docs/gold-coverage.md`. **Mesuré par** :
+  `<!-- gold-coverage-guard-matrix: holes=19 -->`, plafond gelé.
 
 ### La troisième passe a fermé les trois dernières
 
