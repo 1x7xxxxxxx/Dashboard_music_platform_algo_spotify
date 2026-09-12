@@ -5,6 +5,86 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-12 (soir) — La base ne revenait pas avec son hôte, et une mutation restée verte
+
+### Ce qui a changé
+
+**Treize conteneurs sont remontés, un seul est resté à terre.** WSL a redémarré ;
+`postgres_spotify_airflow` est sorti en `Exited (255)` et n'est jamais revenu. C'était
+la SEULE ligne `restart:` absente de `docker-compose.yml`, alors que ses trois
+dépendants Airflow portent `unless-stopped` — ils sont revenus et ont tapé contre une
+base morte. Le symptôme lisible n'était donc pas « la base est tombée » mais « Airflow
+tourne et ne voit rien », ce qui envoie chercher dans l'applicatif.
+
+`docker-compose.example.yml`, le fichier de PROD, portait la ligne depuis toujours — et
+la prod n'a jamais eu le défaut (vérifié sur la boîte : `postgres restart=
+unless-stopped`). C'était une dérive entre les deux composes, et `test_compose_parity.py`
+ne la voyait pas : il compare les services et les montages, pas les politiques de reprise.
+
+L'invariant écrit n'est pas « postgres doit avoir un restart » — ça ne garde qu'une
+instance. **Un service requis TOURNANT par un autre déclare une reprise au moins aussi
+durable que la sienne**, un lanceur à un coup (`service_completed_successfully`) excepté.
+Le garde parcourt le graphe `depends_on` des deux composes : un service neuf entre dans
+la population sans qu'on y pense. Classe `a-dependency-that-does-not-come-back`.
+
+**Le crash avait aussi vidé un fichier.** `tests/test_the_legend_says_what_the_figure_shows.py`
+était à 0 octet — écriture tronquée sur /mnt/c. Restauré depuis HEAD, il importait
+`_STEP_BUCKETS`, retirée dans ce chantier avec son dernier lecteur : la colonne
+« mesurés » du récapitulatif. Le garde devenu sans population a été retiré EN ÉCRIVANT
+pourquoi — un garde dont la population est vide passe au vert sur n'importe quoi, et
+supprimer un garde est exactement ce qu'on fait quand on veut du vert.
+
+**Les tuiles KPI reviennent**, et le motif de leur retrait du 2026-09-10 était juste
+pour la mauvaise cible : ce n'était pas la tuile le défaut, c'était le chiffre qu'elle
+portait — un total « depuis le début » à côté d'une courbe bornée. `platform_totals()`
+est borné à la fenêtre depuis le 2026-09-11. On avait retiré la SURFACE au lieu de la
+DONNÉE.
+
+**Et les remettre a fait rougir le cliquet de la couche or** : les quatre tuiles
+sortaient de la carte, motif `appelants-multiples`. Mesuré sur le dépôt entier —
+plafond 3 → **27** surfaces indéterminées, 4 → **23**, 5 → 23, 6 → 23, 8 → 23. Le
+quatrième cran attribue exactement ces quatre tuiles à `platform_totals()`, la porte
+d'ADR-019 ; le cinquième n'apporte rien. Plafond porté à 4 SUR LA MESURE, comme le
+plafond de sauts l'avait été (2 → 27, 3 → 23, 4 → 23). Un livrable qui écrit « je ne
+sais pas » là où il sait est aussi trompeur qu'un livrable qui invente.
+
+**Trois métriques de plus au récapitulatif, zéro requête de plus** : plateforme
+dominante, périodes mesurées, variation contre la fenêtre de MÊME LONGUEUR qui précède.
+Le plafond de 13 allers-retours tient — le cache `(sql, params)` ne porte qu'`artist_id`,
+donc relire une autre fenêtre ne coûte qu'un découpage Python.
+
+### Une mutation restée VERTE, et c'est la trouvaille la plus utile
+
+Trois mutations écrites sur les trois nouvelles métriques. Deux ont rougi. La
+troisième — `if prev_total and now_total` → `if prev_total is not None and now_total` —
+est **restée verte**, et la raison est instructive : sur `prev_total=0` elle lève une
+division par zéro, `render_platform_chart` avale l'exception (`recap metrics
+unavailable`), les CINQ métriques disparaissent, et l'assertion « la ligne de variation
+est absente » est satisfaite **par l'effondrement**.
+
+Une assertion d'ABSENCE n'est valide qu'accompagnée d'une assertion de PRÉSENCE sur un
+voisin du même bloc : la présence prouve que le bloc s'est exécuté jusqu'au bout. Classe
+`a-guard-satisfied-by-the-collapse-it-should-catch`. Parenté avec « le harnais peut
+mentir, pas seulement le prédicat », avec une différence qui compte : ici le harnais est
+le CODE DE PRODUCTION, pas l'outillage de test — c'est le `except` tolérant de la vraie
+surface qui produit le faux vert.
+
+### Ce que la vérification du déploiement a rendu
+
+Déployé sur `71046bb`, api et dashboard sains, 0 erreur dans les journaux. Puis
+`make artist-firstlook-prod` a rapporté **2 pages sur 6 en ERREUR** — et les deux
+fonctionnent. L'outil importe `views.<nom_de_page>` quand `app.py` route `upload_csv`
+vers `views.credentials` depuis la fusion du 2026-09-04. Le nom d'une page et le module
+qui la sert ont cessé d'être la même chose, et le diagnostic ne l'a pas appris.
+
+C'est **R103**, la seule tâche ouverte de la roadmap. Un diagnostic qui crie sur deux
+pages saines apprend à lire ses ❌ en diagonale — même forme que le garde `/kpis` dont
+les 28 assertions « pas de 500 » étaient toutes satisfaites par des 401.
+
+Suite complète : **5460 passed**, 0 échec, 108 skipped. Ruff propre. CI verte, PR #150.
+
+---
+
 ## 2026-09-12 (suite) — Sept remarques, et une palette qu'on ne peut plus choisir à l'œil
 
 ### Ce qui a changé

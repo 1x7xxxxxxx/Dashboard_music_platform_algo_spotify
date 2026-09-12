@@ -25,9 +25,9 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R103 | `artist_first_look` importe `views.<nom>` au lieu de suivre la table de routage d'`app.py` — il rapporte 2 pages en ERREUR que le produit sert correctement | P3 | `make artist-firstlook-prod PROD_SSH=… ARTIST=1` ne rapporte plus `process_guide` ni `upload_csv` en ❌ |
 
-**Aucune tâche ouverte** — le tableau ci-dessus est vide et l'ancre `open=` l'est
-aussi. R92 à R95, les quatre tâches de l'audit metrics layer du 2026-09-11, ont été
+**Une tâche ouverte**, R103, mesurée le 2026-09-12 en déployant. R92 à R95, les quatre tâches de l'audit metrics layer du 2026-09-11, ont été
 closes et rotées dans `archive.md`, comme R89, R90 et R91 avant elles (critère du
 double axe écrit et six figures triées, légende devenue le filtre de sources, PDF doté
 de la figure d'évolution multi-plateformes). Détail complet dans l'archive.
@@ -91,9 +91,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-12 (soir), AUCUNE tâche ouverte (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-12 (soir), UNE tâche ouverte : R103 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R103 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -638,3 +638,31 @@ natural (or need redoing) under a React/Next.js front-end. Parked here per user 
 - **Rich client interactions** — anything that fought the rerun model (live event hooks,
   drag/drop, fine-grained widget state, real-time updates without full reruns) becomes
   first-class under React; revisit UX patterns that were simplified to fit Streamlit.
+
+
+## R103 — un diagnostic qui rapporte des pannes que le produit n'a pas
+
+- [ ] `tools/artist_first_look.py` résout chaque page par la table de routage
+      d'`app.py`, et non par `from src.dashboard.views.<nom> import show`.
+
+**Mesuré le 2026-09-12**, en vérifiant un déploiement avec
+`make artist-firstlook-prod PROD_SSH=root@… ARTIST=1` : le rapport annonce **2 pages
+sur 6 en ERREUR** — `process_guide` (`ModuleNotFoundError`) et `upload_csv`
+(`ImportError: cannot import name 'show'`). **Les deux pages fonctionnent.** `app.py`
+les route ailleurs depuis la fusion du 2026-09-04 : `upload_csv` → `views.credentials`,
+et `process_guide` a sa propre branche. C'est l'outil qui importe le module portant le
+nom de la page, alors que le nom d'une page et le module qui la sert ont cessé d'être
+la même chose.
+
+**Pourquoi ça compte plus qu'un faux positif.** Cet outil existe pour répondre à « que
+voit un artiste », et c'est le dernier contrôle avant de déclarer un déploiement sain.
+Un diagnostic qui crie sur deux pages saines apprend à lire ses ❌ en diagonale — et le
+jour où l'une est vraie, elle passe avec les deux autres. Le dépôt a déjà payé cette
+forme : un garde `/kpis` dont les 28 assertions « pas de 500 » étaient toutes
+satisfaites par des 401.
+
+**La classe est nommée** : `a-diagnostic-that-reads-a-name-not-a-route`. Le correctif
+durable n'est pas de mettre à jour deux lignes de la liste — elle se périmera encore au
+prochain regroupement de vues — mais de faire lire à l'outil la SOURCE de vérité du
+routage. Un garde doit alors rougir si une page listée n'est atteignable par aucune
+branche d'`app.py`.
