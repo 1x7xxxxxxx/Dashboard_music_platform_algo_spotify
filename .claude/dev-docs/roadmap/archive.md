@@ -9,6 +9,67 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+### R96 — L'absence devient un pixel, et la mise en route dit ce qui manque (livrée 2026-09-12)
+
+- [x] **R96 — Les neuf remarques sur l'accueil.** Demandées le 2026-09-12, toutes de
+  la même famille : la page affirmait des choses qu'elle n'avait pas mesurées, et
+  expliquait en prose ce qu'elle aurait dû montrer.
+
+  Ce qui a été livré :
+  - **La bande hachurée.** La bande d'une plateforme non mesurée était déjà coupée,
+    mais `stackgroup` infère zéro pour la trace absente : le total empilé redescendait
+    et se lisait comme une chute d'audience. `unmeasured_spans()` + `_hatch_traces()`
+    posent une bande hachurée SOUS les aires, avec une entrée de légende
+    « ▨ Aucune mesure ». Par FACETTE en petits multiples — le trou de l'une ne
+    concerne qu'elle.
+  - **Cinq figures de plus** passées à la même méthode : `meta_x_spotify` (cinq zéros
+    fabriqués d'un coup), `meta_ads_overview` (courbe traversant les jours sans ligne,
+    CPR à 0 € un jour sans conversion), `hypeddit`, et trois séries du PDF — dont la
+    pile, qu'un `stackplot` ne sait pas couper et qui porte donc un
+    `ax.fill_between(..., hatch="///")`.
+  - **Six textes retirés**, dont les cinq nommés. `t_trend_caption` et `t_missing`
+    paraphrasaient ce que la hachure dessine ; le COMBIEN par plateforme est passé
+    dans le récapitulatif à droite de la figure, **dérivé des mêmes listes que la
+    courbe** — c'est ce qui avait fait retirer les tuiles le 2026-09-10.
+  - **Deux menus deviennent des barres** (`st.segmented_control`), le pas gagne
+    « Jour » et « Mois », défaut au jour tant que la fenêtre tient en 120 jours.
+  - **La mise en route passe de 3 à 5 étapes**, déclarées une fois au lieu de trois
+    tables parallèles : API (5 plateformes OK/NOK), fichiers (8 types OK/NOK, deux
+    lignes fusionnées), mapping cross-plateforme, playlists S4A, premier PDF.
+    Toujours **une seule requête**, et `should_autostart` exige toujours un CSV
+    **Spotify** — d'où `spotify_csv`, gardé à côté de `collected`.
+
+  ⚠️ Contrainte de rendu à ne pas réapprendre : `add_vrect` — une SHAPE Plotly — **ne
+  supporte pas** `fillpattern`. Vérifié sur la prod (5.24.1) et en local (6.5.2). La
+  hachure doit être une TRACE `Scatter` avec `fill="toself"`.
+
+  Trois défauts trouvés en REGARDANT, pas en lisant :
+  - « Pas encore assez d'historique » affiché à un locataire qui en a **quatre ans**,
+    alors que la vérité était « rien mesuré dans cette fenêtre ». Les deux silences
+    demandent des gestes OPPOSÉS.
+  - Ouvrir le pas MOIS a révélé que le premier seau d'un compteur perdait sa
+    croissance observée : **182 432 dessinés contre 206 555 gagnés** (12 %), invisible
+    tant que la dégradation tombait sur la semaine. *Un nouveau réglage ne fait pas
+    qu'ajouter une possibilité — il change le régime où les gardes mesurent.*
+  - Lire huit libellés dans `views/upload_csv` depuis `setup_completion` coûtait
+    **1 073 ms au premier rendu de l'accueil**. Le balayage a trouvé un frère vivant :
+    `status_matrix._requires_sharing` importait `credentials._registry` (1 950 ms)
+    pour un booléen, sur l'accueil de tout artiste en cours de mise en route.
+
+  Cinq classes d'erreur, huit mutations vues rouges avec leur MESSAGE lu :
+  `a-gap-rendered-as-a-zero-by-the-stack`,
+  `a-first-bucket-declared-unknown-when-it-was-observed`,
+  `a-shared-module-drags-a-view-behind-it`, `two-silences-one-message`,
+  `a-marker-shared-by-several-sites-guards-none`.
+
+  Trois modules créés parce qu'un cliquet a refusé : `platform_chart_notes.py`
+  (longueur, 1 246 → 1 066 lignes), `csv_platforms.py` et `platform_sharing.py`
+  (la donnée descend, la vue la relit — jamais une seconde copie).
+
+  Aucune migration. Suite : **5 377 passés, 108 skippés, 0 échec**. PR #147.
+
+---
+
 ### R88 — Étendre la couche or aux SÉRIES (livrée 2026-09-11)
 
 - [x] **R88 — Étendre la couche or aux SÉRIES.** Mesure de départ (base locale,
