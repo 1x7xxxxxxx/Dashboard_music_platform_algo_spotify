@@ -1168,6 +1168,44 @@ def scan_error_classes() -> list[ErrClass]:
     return out
 
 
+def scan_invariants() -> tuple[list[tuple[str, str, str]], set[str]]:
+    """Les paires réconciliées, et les objets or qu'elles touchent.
+
+    ADR-019 garantit qu'une métrique a une seule DÉFINITION. Que deux définitions
+    censées coïncider coïncident est une propriété des DONNÉES, et elle se vérifie
+    ailleurs : `src/utils/gold_invariants.py`. Un objet or qu'aucun invariant ne
+    touche peut diverger de ses voisins sans que rien ne le dise — c'est
+    exactement ce qui s'est produit sur le spend Meta, pendant des semaines.
+    """
+    path = ROOT / "src" / "utils" / "gold_invariants.py"
+    if not path.exists():
+        return [], set()
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    pairs: list[tuple[str, str, str]] = []
+    touched: set[str] = set()
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call)
+                and getattr(node.func, "id", "") == "Invariant"):
+            continue
+        got = {k.arg: k.value for k in node.keywords}
+
+        def text(key: str) -> str:
+            v = got.get(key)
+            if isinstance(v, ast.Constant) and isinstance(v.value, str):
+                return v.value
+            if isinstance(v, ast.BinOp):
+                return "".join(c.value for c in ast.walk(v)
+                               if isinstance(c, ast.Constant)
+                               and isinstance(c.value, str))
+            return ""
+
+        pairs.append((text("name"), text("left_label"), text("right_label")))
+        for key in ("left_sql", "right_sql"):
+            touched |= {r for r in _FROM_RE.findall(text(key))}
+            touched |= {m for m in re.findall(r"\b(gold_[a-z_]+)\s*\(", text(key))}
+    return pairs, touched
+
+
 def scan_ci() -> list[tuple[str, str, bool]]:
     """(étape, ce qu'elle lance, bloquante ?) — lu dans le workflow, pas récité."""
     if not _CI.exists():
@@ -1492,6 +1530,26 @@ def render(gold, surfaces, files, reads) -> str:
         L += ["", "Sans chemin de garde : "
               + " · ".join(f"`{c.cid}`" for c in unnamed) + ".", ""]
 
+    pairs, touched = scan_invariants()
+    unreconciled = sorted(g.name for g in gold.values() if g.name not in touched)
+    L += ["", "## Les invariants", "",
+          f"**{len(pairs)} paires** de définitions or que rien n'oblige à coïncider "
+          "sauf la donnée elle-même. ADR-019 garantit qu'une métrique a une seule "
+          "**définition** ; que deux définitions censées coïncider coïncident est une "
+          "propriété des DONNÉES, vérifiée chaque nuit par "
+          "`alert_monitor.check_gold_invariants` et à chaque exécution de la suite "
+          "par `tests/test_the_gold_layer_agrees_with_itself.py`.", "",
+          "Le défaut qui a fait naître cette section : `meta_insights_performance` et "
+          "`meta_insights_performance_day` répondent à la même question et "
+          "divergeaient d'un **facteur deux** en production, pendant des semaines. "
+          "Chaque côté était cohérent avec lui-même ; personne ne comparait.", "",
+          f"**{len(unreconciled)} objet(s) or ne sont touchés par aucun invariant** : "
+          + (" · ".join(f"`{n}`" for n in unreconciled) if unreconciled else "aucun")
+          + ". Un objet que rien ne confronte peut dériver en silence — c'est le "
+            "premier à le faire.", ""]
+    L += _table([[f"`{n}`", f"`{a}`", f"`{b}`"] for n, a, b in pairs],
+                ["invariant", "un côté", "l'autre"])
+
     steps = scan_ci()
     L += ["", "## Les étapes de la CI", "",
           f"**{len(steps)} étapes**, dont **{sum(1 for _, _, b in steps if b)} "
@@ -1595,6 +1653,8 @@ def render(gold, surfaces, files, reads) -> str:
         f"without_nonvacuity={len(no_nonvac)} without_mutation={len(no_mut)} -->",
         f"<!-- gold-coverage-error-classes: total={len(classes)} "
         f"guard_missing={len(broken)} guard_unnamed={len(unnamed)} -->",
+        f"<!-- gold-coverage-invariants: pairs={len(pairs)} "
+        f"unreconciled={len(unreconciled)} -->",
         f"<!-- gold-coverage-ci: steps={len(steps)} "
         f"blocking={sum(1 for _, _, b in steps if b)} -->",
         "",

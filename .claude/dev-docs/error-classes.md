@@ -109,6 +109,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-ratchet-with-no-floor-under-its-population](#a-ratchet-with-no-floor-under-its-population) | P2 | deterministic | guarded | none |
 | [a-guard-that-sees-the-binding-not-the-application](#a-guard-that-sees-the-binding-not-the-application) | P3 | manual | reported | none |
 | [an-exemption-that-outlives-what-it-exempted](#an-exemption-that-outlives-what-it-exempted) | P3 | deterministic | guarded | none |
+| [two-definitions-that-must-coincide-are-never-compared](#two-definitions-that-must-coincide-are-never-compared) | P2 | deterministic | guarded | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -4994,3 +4995,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: signature vue exit 1 dans les DEUX sens — l'axe déclaré retiré du fichier (« l'exemption est devenue du budget »), puis un second axe ajouté dans le fichier exempté (« 2 trouvé(s), 1 déclaré »). Exit 0 sur l'arbre sain.
+
+## two-definitions-that-must-coincide-are-never-compared
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: deux chemins qui répondent à la même question rendent deux nombres différents, chacun cohérent avec lui-même, pendant des semaines. Mesuré en PRODUCTION le 2026-09-12 : 6 165,65 € contre 3 087,82 € pour le même locataire et la même dépense Meta.
+- root_cause: une couche sémantique garantit qu'une métrique a **une seule définition** (ADR-019). C'est une propriété du CODE, et elle ne dit rien de la donnée : deux définitions *censées* coïncider peuvent diverger parce que la SOURCE porte deux générations de lignes, parce qu'une jointure en perd, ou parce qu'un prédicat a été recopié d'un seul côté. Aucune revue de diff ne le voit — les deux côtés sont justes séparément. Moses/Gavish/Vorwerck (*Data Quality Fundamentals* p. 107) distinguent explicitement le suivi d'une DISTRIBUTION (un seuil) de l'ASSERTION (une égalité) ; c'est une assertion, et elle manquait.
+- long_term_fix: déclarer les paires dont l'égalité est une **propriété** et non une coïncidence, et les vérifier sur les données réelles — à chaque exécution de la suite ET chaque nuit. `src/utils/gold_invariants.py` en porte douze, chacune avec le défaut qu'elle aurait attrapé ; le compte d'objets or qu'AUCUNE paire ne touche est publié dans `.claude/dev-docs/gold-coverage.md` et gelé à **zéro**. Un objet que rien ne confronte est le premier à dériver en silence. Corollaire : la tolérance est celle du flottant, jamais un écart relatif — sur un locataire à 3 €, un facteur deux fait 3 € et passerait sous n'importe quel seuil « raisonnable ».
+- autofix: none
+- signature: `python3 -m pytest tests/test_the_gold_layer_agrees_with_itself.py -q`
+- guard: { type: pytest, ref: tests/test_the_gold_layer_agrees_with_itself.py }
+- rex_ref: src/utils/gold_invariants.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: `check_metric_bounds` faisait déjà ça — pour TROIS plateformes, à travers deux portes Python, et sans regarder les vues. Quatorze vues or existaient ; les définitions derrière trois d'entre elles étaient réconciliées. Signature vue exit 1 en faisant rendre le double à `v_meta_spend_totals` dans une transaction annulée : elle nomme l'invariant, le locataire, les deux nombres et le ratio (×2.00). Exit 0 sur l'arbre sain.
+  - 2026-09-12: en câblant le contrôle nocturne, un cliquet de longueur a refusé d'agrandir `alert_monitor.py`. Réponse : sortir les BOUCLES de `check_metric_bounds` et `check_zero_resets` vers leurs modules, où leur prédicat vivait déjà. Le fichier est passé de 2 724 à 2 701 lignes **en gagnant un contrôle**, et trois contrôles sont devenus exerçables hors d'Airflow — ce qu'un docstring promettait depuis des semaines pour un SQL qui, lui, était resté dans le DAG.

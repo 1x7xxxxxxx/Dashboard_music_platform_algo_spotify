@@ -11,6 +11,7 @@ Tasks:
   5b. check_row_dips         — per-tenant daily-insert DIP (partial collection, R39)
   5c. check_zero_resets      — cumulative counters written back to zero (bad collect)
   5d. check_metric_bounds    — the numbers the product COMPUTES disagree with each other
+  5e. check_gold_invariants  — two gold definitions that must coincide, don't
   6. send_consolidated_alert — build and send one email with all findings
 
 Implements bricks:
@@ -880,17 +881,6 @@ def check_row_dips(**context):
 # `s4a_song_timeline.streams` n'y est pas, et c'est le point : c'est une quantité du
 # jour, où zéro est le cas normal 27 à 55 % du temps. Rejoué sur l'historique réel,
 # le prédicat « taux de zéros > 2× la veille » y sonnait 93 fois sur 1 254 jours.
-ZERO_RESET_TARGETS = [
-    ("soundcloud_tracks_daily", "playback_count", "track_id", "collected_at"),
-    ("youtube_video_stats", "view_count", "video_id", "collected_at"),
-]
-_ZR_TABLES = frozenset(t for t, _c, _e, _d in ZERO_RESET_TARGETS)
-_ZR_COLUMNS = frozenset(
-    [c for _t, c, _e, _d in ZERO_RESET_TARGETS]
-    + [e for _t, _c, e, _d in ZERO_RESET_TARGETS]
-    + [d for _t, _c, _e, d in ZERO_RESET_TARGETS]
-)
-
 
 def check_zero_resets(**context):
     """Les lignes sont arrivées ; leurs VALEURS sont fausses.
@@ -910,7 +900,7 @@ def check_zero_resets(**context):
     mesure qui a fait écarter le patron du livre écrite à côté.
     """
     from src.database.postgres_handler import PostgresHandler
-    from src.utils.value_monitor import is_reportable, zero_reset_finding
+    from src.utils.value_monitor import run
 
     db = PostgresHandler(
         host=os.getenv('DATABASE_HOST', 'postgres'),
@@ -919,64 +909,8 @@ def check_zero_resets(**context):
         user=os.getenv('DATABASE_USER', 'postgres'),
         password=os.getenv('DATABASE_PASSWORD'),
     )
-    resets = []
     try:
-        for table, col, entity, date_col in ZERO_RESET_TARGETS:
-            # Règle #8 : allowlist AVANT l'interpolation, jamais après.
-            if (table not in _ZR_TABLES or col not in _ZR_COLUMNS
-                    or entity not in _ZR_COLUMNS or date_col not in _ZR_COLUMNS):
-                logger.warning(f"Zero-reset: identifiant hors allowlist: {table}.{col}")
-                continue
-            # Le maximum ANTÉRIEUR de la même entité, jamais la veille seule : une
-            # collecte peut sauter des jours, et comparer au dernier point connu ferait
-            # dépendre le verdict de la régularité de la collecte plutôt que de la
-            # valeur. C'est la même règle que la conversion cumul → quotidien.
-            rows = db.fetch_query(
-                f"""WITH d AS (
-                        SELECT artist_id, {entity} AS entity,
-                               {date_col}::date AS day, max({col}) AS v
-                        FROM {table}
-                        WHERE artist_id IS NOT NULL
-                        GROUP BY 1, 2, 3
-                    ),
-                    flagged AS (
-                        SELECT artist_id, day, entity,
-                               max(v) OVER (PARTITION BY artist_id, entity
-                                            ORDER BY day
-                                            ROWS BETWEEN UNBOUNDED PRECEDING
-                                                     AND 1 PRECEDING) AS prev_max,
-                               v
-                        FROM d
-                    )
-                    SELECT artist_id, day::text,
-                           count(*) FILTER (WHERE prev_max > 0 AND v = 0),
-                           count(*)
-                    FROM flagged
-                    -- SUR LE DERNIER JOUR COMPLET, comme `check_row_dips`, et pour la
-                    -- même raison. Sans cette borne le détecteur balaie tout
-                    -- l'historique : lancé en production le 2026-09-08, il a remonté
-                    -- l'incident du **2026-06-01** — juste, et qu'il aurait alors
-                    -- répété chaque nuit pendant trois mois. Un détecteur qui redit
-                    -- tous les jours un fait vieux de trois mois est la classe
-                    -- `watchdog-becomes-the-noise`, déjà au catalogue.
-                    --
-                    -- Le jour EN COURS est exclu : une collecte à moitié écrite
-                    -- ressemble à une collecte fautive, et l'alerte partirait chaque
-                    -- matin. Deux détecteurs voisins avec deux politiques de fenêtre
-                    -- seraient illisibles ; celle-ci est celle du pilier Volume.
-                    WHERE day = (SELECT max(day) FROM d WHERE day < CURRENT_DATE)
-                    GROUP BY 1, 2
-                    HAVING count(*) FILTER (WHERE prev_max > 0 AND v = 0) > 0
-                    ORDER BY 1"""
-            )
-            for tenant, day, hit, total in rows or []:
-                if is_reportable(hit, total):
-                    resets.append(zero_reset_finding(table, col, tenant, day,
-                                                     hit, total))
-                    logger.warning(
-                        f"Zero reset: {table}.{col} tenant={tenant} {hit}/{total} "
-                        f"counters back to zero on {day}"
-                    )
+        resets = run(db, logger)
     finally:
         db.close()
 
@@ -1710,16 +1644,12 @@ def check_metric_bounds(**context):
     fenêtre en contenait 8 490 — ×2,7 — et aucun contrôle ne pouvait le voir.
 
     Ce contrôle lit les DEUX chemins que le tableau de bord emploie réellement
-    (`platform_totals` et `daily_streams_by_platform` de `platform_timeseries`) et les
-    confronte. Pour une source quotidienne ils doivent être ÉGAUX ; pour un compteur
-    cumulé, la somme mesurée ne peut pas dépasser le compteur. Le prédicat vit dans
-    `src.utils.metric_bounds`, testable sans Airflow.
+    (`platform_totals` et `daily_streams_by_platform`) et les confronte. Il ne couvre
+    que trois plateformes ; les VUES or, elles, sont réconciliées par (5e).
+    Boucle et prédicat vivent dans `src.utils.metric_bounds`, testable sans Airflow.
     """
     from src.database.postgres_handler import PostgresHandler
-    from src.dashboard.utils.platform_timeseries import (
-        daily_streams_by_platform, platform_totals,
-    )
-    from src.utils.metric_bounds import KINDS, report
+    from src.utils.metric_bounds import run
 
     db = PostgresHandler(
         host=os.getenv('DATABASE_HOST', 'postgres'),
@@ -1728,20 +1658,9 @@ def check_metric_bounds(**context):
         user=os.getenv('DATABASE_USER', 'postgres'),
         password=os.getenv('DATABASE_PASSWORD'),
     )
-    findings = []
+    findings, tenants = [], 0
     try:
-        tenants = [r[0] for r in db.fetch_query(
-            "SELECT DISTINCT artist_id FROM s4a_song_timeline WHERE artist_id IS NOT NULL "
-            "UNION SELECT DISTINCT artist_id FROM soundcloud_tracks_daily WHERE artist_id IS NOT NULL "
-            "UNION SELECT DISTINCT artist_id FROM youtube_video_stats WHERE artist_id IS NOT NULL"
-        ) or []]
-        for aid in tenants:
-            lifetime = platform_totals(db, aid)
-            series = daily_streams_by_platform(db, aid)
-            rows = [(k, lifetime.get(k), sum(v for _, v in series.get(k, []) or []) or None)
-                    for k in KINDS]
-            for msg in report(rows):
-                findings.append(f"artiste {aid} — {msg}")
+        findings, tenants = run(db)
     except Exception as exc:      # noqa: BLE001 — un contrôle ne fait pas tomber le DAG
         # Le TYPE seulement : un message d'exception peut porter une chaîne de
         # connexion ou un identifiant de locataire, et ce journal part en clair.
@@ -1752,8 +1671,50 @@ def check_metric_bounds(**context):
         except Exception:      # noqa: BLE001
             pass
 
-    logger.info("Metric bounds: %d désaccord(s)", len(findings))
+    logger.info("Metric bounds: %d désaccord(s) sur %d locataire(s)", len(findings), tenants)
     context['task_instance'].xcom_push(key='metric_bounds', value=findings)
+    return findings
+
+
+def check_gold_invariants(**context):
+    """Deux définitions or censées rendre le même nombre n'en rendent pas le même.
+
+    `check_metric_bounds` (5d) réconcilie déjà deux PORTES Python, pour trois
+    plateformes — `KINDS = {spotify, soundcloud, youtube}`. Il ne regarde ni Apple,
+    ni Meta, ni le revenu, et il compare des portes et non des VUES : une vue or qui
+    diverge de sa vue sœur lui est invisible.
+
+    Mesuré en production le 2026-09-12 : `meta_insights_performance` et
+    `meta_insights_performance_day` répondent à la même question et divergeaient d'un
+    **facteur deux** — 6 165,65 € contre 3 087,82 € pour l'artiste 1, depuis des
+    semaines. Chaque côté était cohérent avec lui-même ; personne ne comparait.
+
+    Les sept paires et le contrôle vivent dans `src.utils.gold_invariants`, testable
+    sans Airflow, chacune avec le défaut qu'elle aurait attrapé.
+    """
+    from src.database.postgres_handler import PostgresHandler
+    from src.utils.gold_invariants import run
+
+    db = PostgresHandler(
+        host=os.getenv('DATABASE_HOST', 'postgres'),
+        port=int(os.getenv('DATABASE_PORT', 5432)),
+        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
+        user=os.getenv('DATABASE_USER', 'postgres'),
+        password=os.getenv('DATABASE_PASSWORD'),
+    )
+    findings, compared = [], 0
+    try:
+        findings, compared = run(db)
+    except Exception as exc:      # noqa: BLE001 — un contrôle ne fait pas tomber le DAG
+        logger.error("check_gold_invariants: %s", type(exc).__name__)
+    finally:
+        try:
+            db.close()
+        except Exception:      # noqa: BLE001
+            pass
+
+    logger.info("Gold invariants: %d désaccord(s) sur %d couple(s)", len(findings), compared)
+    context['task_instance'].xcom_push(key='gold_invariants', value=findings)
     return findings
 
 
@@ -1774,6 +1735,8 @@ def send_consolidated_alert(**context):
     row_dips = ti.xcom_pull(task_ids='check_row_dips', key='row_dips') or []
     zero_resets = ti.xcom_pull(task_ids='check_zero_resets', key='zero_resets') or []
     metric_bounds = ti.xcom_pull(task_ids='check_metric_bounds', key='metric_bounds') or []
+    gold_invariants = ti.xcom_pull(task_ids='check_gold_invariants',
+                                   key='gold_invariants') or []
     tenant_gaps = ti.xcom_pull(task_ids='check_data_freshness', key='tenant_freshness_gaps') or []
     central_broken = ti.xcom_pull(task_ids='check_central_apps',
                                   key='central_apps_broken') or []
@@ -1838,6 +1801,7 @@ def send_consolidated_alert(**context):
     has_issues = (failing_dags or stale_sources or missing_creds or sparks or drift
                   or billing_issues or row_anomalies or row_dips or zero_resets
                   or metric_bounds
+                  or gold_invariants
             or tenant_gaps or readiness_flags
                   or central_broken or canary or stalled_tenants
                   or canary_preflight or collection_failures or contamination
@@ -2248,6 +2212,13 @@ def send_consolidated_alert(**context):
           ils lisent la même table. Un écart veut dire qu'un des deux chemins a changé
           de sens — vérifier `platform_timeseries` avant de croire l'écran.</p>
         <ul style="font-size:0.9em">{items}</ul>""")
+
+    # Section: deux VUES or censées coïncider ne coïncident pas. Le voisin
+    # ci-dessus compare deux portes Python sur trois plateformes ; celui-ci compare
+    # les vues elles-mêmes, sur les sept paires où l'égalité est une propriété.
+    from src.utils.gold_invariants import email_section
+    if gold_invariants:
+        sections.append(email_section(gold_invariants, escape))
 
     # Section: compteurs cumulés revenus à zéro (pilier « valeurs »).
     if zero_resets:
@@ -2712,6 +2683,11 @@ with DAG(
         python_callable=check_app_errors,
     )
 
+    t_gold_invariants = PythonOperator(
+        task_id='check_gold_invariants',
+        python_callable=check_gold_invariants,
+    )
+
     t_alert = PythonOperator(
         task_id='send_consolidated_alert',
         python_callable=send_consolidated_alert,
@@ -2721,4 +2697,5 @@ with DAG(
     [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
      t_billing, t_anomalies, t_readiness, t_central, t_canary,
      t_preflight, t_outcomes, t_contamination, t_dips, t_offsite,
-     t_app_errors, t_csv_rejects, t_zero_resets, t_metric_bounds] >> t_alert
+     t_app_errors, t_csv_rejects, t_zero_resets, t_metric_bounds,
+     t_gold_invariants] >> t_alert

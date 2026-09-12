@@ -98,3 +98,33 @@ def report(rows) -> list[str]:
         if msg:
             out.append(msg)
     return out
+
+
+def run(db) -> tuple[list[str], int]:
+    """`(constats, locataires examinés)` — le contrôle entier, hors d'Airflow.
+
+    Sorti de `alert_monitor.check_metric_bounds` le 2026-09-12, pour la raison que
+    son voisin `gold_invariants.run` documente : un contrôle enfermé dans un DAG
+    n'est exerçable que par Airflow. Le prédicat vivait déjà ici ; seule la boucle
+    qui lit la base restait de l'autre côté, et c'est elle qui portait la question
+    « sur quels locataires ? ».
+    """
+    from src.dashboard.utils.platform_timeseries import (
+        daily_streams_by_platform, platform_totals,
+    )
+
+    tenants = [r[0] for r in db.fetch_query(
+        "SELECT DISTINCT artist_id FROM s4a_song_timeline WHERE artist_id IS NOT NULL "
+        "UNION SELECT DISTINCT artist_id FROM soundcloud_tracks_daily "
+        "WHERE artist_id IS NOT NULL "
+        "UNION SELECT DISTINCT artist_id FROM youtube_video_stats "
+        "WHERE artist_id IS NOT NULL"
+    ) or []]
+    findings: list[str] = []
+    for aid in tenants:
+        lifetime = platform_totals(db, aid)
+        series = daily_streams_by_platform(db, aid)
+        rows = [(k, lifetime.get(k), sum(v for _, v in series.get(k, []) or []) or None)
+                for k in KINDS]
+        findings += [f"artiste {aid} — {msg}" for msg in report(rows)]
+    return findings, len(tenants)

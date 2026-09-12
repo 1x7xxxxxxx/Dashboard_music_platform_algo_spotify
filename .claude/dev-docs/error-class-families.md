@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**290 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**291 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -10,7 +10,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 
 | famille | classes | la question |
 |---|---|---|
-| [le-locataire](#le-locataire) | 36 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
+| [le-locataire](#le-locataire) | 37 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 12 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 10 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 12 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
@@ -33,7 +33,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 
 **Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ?**
 
-Règle de rattachement : `tenant|locataire|artist[_-]id|multitenant|fleet|canary|sandbox` sur l'identifiant et le symptôme. 36 classe(s).
+Règle de rattachement : `tenant|locataire|artist[_-]id|multitenant|fleet|canary|sandbox` sur l'identifiant et le symptôme. 37 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -73,6 +73,7 @@ Règle de rattachement : `tenant|locataire|artist[_-]id|multitenant|fleet|canary
 | [`a-truncated-read-recorded-as-a-complete-one`](error-classes.md#a-truncated-read-recorded-as-a-complete-one) | la collecte d'un locataire s'enregistre `success`, et une partie de ses données n'a pas été lue. L'artiste voit un historique amputé sans que rien ne  |
 | [`write-path-without-cache-invalidation`](error-classes.md#write-path-without-cache-invalidation) | le locataire enregistre, l'écran confirme (« ✅ Importé »), et le chiffre affiché reste l'ancien pendant jusqu'à 600 s, sans que rien n'explique pourqu |
 | [`an-account-filter-that-names-no-single-column`](error-classes.md#an-account-filter-that-names-no-single-column) | une page tombe — pas un chiffre faux, une exception — et **seulement chez les locataires multi-comptes**. `column "ad_account_id" does not exist` ou ` |
+| [`two-definitions-that-must-coincide-are-never-compared`](error-classes.md#two-definitions-that-must-coincide-are-never-compared) | deux chemins qui répondent à la même question rendent deux nombres différents, chacun cohérent avec lui-même, pendant des semaines. Mesuré en PRODUCTI |
 
 ## un-cumul-pris-pour-un-quotidien
 
@@ -481,6 +482,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=290 families=17 orphans=3 -->
+<!-- error-class-families: total=291 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=fb882f3f45994da37b1c00f8a612d1231b1e1e29eff219c14f59eafbe98c7974 -->
+<!-- error-class-families: sha256=4897594523267ef236f193fc622b39c90fcf729cc085813dc16a593162e4c9b9 -->

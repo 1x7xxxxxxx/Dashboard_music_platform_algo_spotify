@@ -85,3 +85,94 @@ def is_reportable(entities: int, total: int) -> bool:
     if not entities or entities < MIN_ENTITIES:
         return False
     return entities <= (total or entities)
+
+
+# ── Les cibles et la requête, sorties du DAG le 2026-09-12 ────────────────────
+#
+# Le docstring de ce module annonçait déjà « le prédicat vit ici, testable sans
+# Airflow » alors que le SQL — la partie difficile, celle qui porte la fenêtre et la
+# comparaison au maximum ANTÉRIEUR — était resté de l'autre côté. Un module qui
+# promet d'être testable et laisse sa moitié la plus subtile dans un DAG ne tient pas
+# sa promesse : ce dépôt a mesuré qu'un DAG n'est pas importable hors conteneur, donc
+# ce SQL n'était exerçable par personne.
+#
+ZERO_RESET_TARGETS = [
+    ("soundcloud_tracks_daily", "playback_count", "track_id", "collected_at"),
+    ("youtube_video_stats", "view_count", "video_id", "collected_at"),
+]
+_ZR_TABLES = frozenset(t for t, _c, _e, _d in ZERO_RESET_TARGETS)
+_ZR_COLUMNS = frozenset(
+    [c for _t, c, _e, _d in ZERO_RESET_TARGETS]
+    + [e for _t, _c, e, _d in ZERO_RESET_TARGETS]
+    + [d for _t, _c, _e, d in ZERO_RESET_TARGETS]
+)
+
+
+def run(db, logger) -> list[dict]:
+    """Les collectes qui ont écrit des zéros sur des compteurs cumulés.
+
+    `logger` est injecté plutôt qu'importé : ce module ne dépend de rien, et c'est
+    ce qui le rend appelable depuis un test, un DAG et un script.
+    """
+    resets = []
+    try:
+        for table, col, entity, date_col in ZERO_RESET_TARGETS:
+            # Règle #8 : allowlist AVANT l'interpolation, jamais après.
+            if (table not in _ZR_TABLES or col not in _ZR_COLUMNS
+                    or entity not in _ZR_COLUMNS or date_col not in _ZR_COLUMNS):
+                logger.warning(f"Zero-reset: identifiant hors allowlist: {table}.{col}")
+                continue
+            # Le maximum ANTÉRIEUR de la même entité, jamais la veille seule : une
+            # collecte peut sauter des jours, et comparer au dernier point connu ferait
+            # dépendre le verdict de la régularité de la collecte plutôt que de la
+            # valeur. C'est la même règle que la conversion cumul → quotidien.
+            rows = db.fetch_query(
+                f"""WITH d AS (
+                        SELECT artist_id, {entity} AS entity,
+                               {date_col}::date AS day, max({col}) AS v
+                        FROM {table}
+                        WHERE artist_id IS NOT NULL
+                        GROUP BY 1, 2, 3
+                    ),
+                    flagged AS (
+                        SELECT artist_id, day, entity,
+                               max(v) OVER (PARTITION BY artist_id, entity
+                                            ORDER BY day
+                                            ROWS BETWEEN UNBOUNDED PRECEDING
+                                                     AND 1 PRECEDING) AS prev_max,
+                               v
+                        FROM d
+                    )
+                    SELECT artist_id, day::text,
+                           count(*) FILTER (WHERE prev_max > 0 AND v = 0),
+                           count(*)
+                    FROM flagged
+                    -- SUR LE DERNIER JOUR COMPLET, comme `check_row_dips`, et pour la
+                    -- même raison. Sans cette borne le détecteur balaie tout
+                    -- l'historique : lancé en production le 2026-09-08, il a remonté
+                    -- l'incident du **2026-06-01** — juste, et qu'il aurait alors
+                    -- répété chaque nuit pendant trois mois. Un détecteur qui redit
+                    -- tous les jours un fait vieux de trois mois est la classe
+                    -- `watchdog-becomes-the-noise`, déjà au catalogue.
+                    --
+                    -- Le jour EN COURS est exclu : une collecte à moitié écrite
+                    -- ressemble à une collecte fautive, et l'alerte partirait chaque
+                    -- matin. Deux détecteurs voisins avec deux politiques de fenêtre
+                    -- seraient illisibles ; celle-ci est celle du pilier Volume.
+                    WHERE day = (SELECT max(day) FROM d WHERE day < CURRENT_DATE)
+                    GROUP BY 1, 2
+                    HAVING count(*) FILTER (WHERE prev_max > 0 AND v = 0) > 0
+                    ORDER BY 1"""
+            )
+            for tenant, day, hit, total in rows or []:
+                if is_reportable(hit, total):
+                    resets.append(zero_reset_finding(table, col, tenant, day,
+                                                     hit, total))
+                    logger.warning(
+                        f"Zero reset: {table}.{col} tenant={tenant} {hit}/{total} "
+                        f"counters back to zero on {day}"
+                    )
+    finally:
+        db.close()
+
+    return resets
