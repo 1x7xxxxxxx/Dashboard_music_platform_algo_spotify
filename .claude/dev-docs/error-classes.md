@@ -375,6 +375,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-guard-satisfied-by-the-collapse-it-should-catch](#a-guard-satisfied-by-the-collapse-it-should-catch) | P2 | deterministic | guarded | none |
 | [a-test-whose-input-derives-from-its-subject](#a-test-whose-input-derives-from-its-subject) | P2 | deterministic | guarded | none |
 | [a-method-change-counted-as-growth](#a-method-change-counted-as-growth) | P2 | deterministic | guarded | none |
+| [a-stack-that-mixes-two-baselines](#a-stack-that-mixes-two-baselines) | P2 | deterministic | guarded | none |
+| [one-fact-two-answers-by-display-mode](#one-fact-two-answers-by-display-mode) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -5421,3 +5423,31 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: seuil calibré sur les CINQ séries de compteur de la production — a1/youtube 1 676, a1/soundcloud 20,4, a12/soundcloud 3,0, a14/youtube 1,5, a14/soundcloud 1,4. Une seule sort. Rapport retenu 100, dans le creux : 5× au-dessus de la plus forte croissance légitime, 16× sous la rupture. Passé sur tout le parc : une détection, zéro faux positif. Effet mesuré sur une fenêtre mai→juillet : 18 558 → 120 vues (99,4 % du chiffre était la rupture) ; fenêtre sans rupture inchangée, 75 → 75. Parenté avec la migration 112 (`un relevé PARTIEL n'est pas un niveau`), qui est la forme MIROIR — un niveau trop BAS au lieu d'un saut trop haut — et dont le seuil était déjà lu dans la distribution réelle.
+
+## a-stack-that-mixes-two-baselines
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une série disparaît d'un graphique empilé alors qu'elle y est bien tracée. Elle n'est ni absente ni à zéro — elle est ÉCRASÉE, parce qu'une série voisine porte des valeurs d'un autre ordre de grandeur. Le lecteur signale « je n'ai pas X », et une lecture du code conclut que tout va bien : la trace existe, ses valeurs sont justes.
+- root_cause: deux séries de la même pile sont exprimées dans deux RÉFÉRENCES différentes. Mesuré le 2026-09-13, artiste 1, fenêtre de 30 jours : Spotify portait 545 — sa somme courante DANS la fenêtre — pendant que YouTube portait 118 300 et SoundCloud 23 500, leurs compteurs À VIE. Une source quotidienne repart de zéro au début d'une fenêtre bornée ; un compteur non. Les empiler revient à additionner un écart et un total, et la part de la série bornée tombe à 0,4 % de la pile, sous le pixel.
+- long_term_fix: **sur une fenêtre bornée, toute série de la pile repart de la même origine** — on retranche le niveau d'entrée des compteurs, c'est-à-dire le dernier relevé à ou avant le début de la fenêtre. La propriété qui rend le résultat vérifiable, et qui est ce qu'on garde : le DERNIER POINT de chaque courbe vaut ce que sa tuile annonce pour la même période. Un lecteur peut poser le doigt sur la fin d'une courbe et retrouver le chiffre. ⚠️ La règle ne s'applique QUE si la fenêtre est bornée : sur « depuis le début », la question est « où j'en suis » et la réponse est le compteur à vie — y retrancher le premier relevé recrée le même défaut dans l'autre sens.
+- signature: `python3 -m pytest tests/test_a_bounded_cumulative_starts_at_zero.py -q`
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_bounded_cumulative_starts_at_zero.py }
+- first_seen: 2026-09-13
+- History:
+  - 2026-09-13: signalé comme « bug sur la vue cumulé 30 jours je n'ai pas spotify alors que c'est ma première source de revenue ». Signature vue ≠ 0 sur le défaut (`bounded=False`) et 0 après. Deux mutations gardées, une par sens : jamais rebaser (Spotify reste écrasée) et rebaser toujours (la courbe dirait 304 quand la tuile dit 118 336). Parenté avec `a-metric-computed-outside-the-metrics-layer` : deux surfaces répondent à la même question, sauf qu'ici les deux nombres sont JUSTES et c'est leur mise en commun qui ment.
+
+## one-fact-two-answers-by-display-mode
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: la même phrase de l'interface affiche deux valeurs différentes selon un réglage d'affichage que l'utilisateur vient de changer. Aucune des deux n'est absurde, donc rien ne signale l'erreur — c'est en comparant deux captures d'écran qu'on la voit.
+- root_cause: le texte est dérivé d'une variable dont la NATURE change avec le mode, et non de la source du fait. Mesuré le 2026-09-13 : « SoundCloud mesurée depuis le 31/03/2026 » au pas du jour contre « depuis décembre 2025 » au pas du mois — trois mois et demi d'écart. `_late_starts` lisait `aligned`, qui porte la série quotidienne en mode « par période » au pas du jour et les niveaux partout ailleurs. Or la série quotidienne d'un compteur est une DIFFÉRENCE entre deux relevés CONSÉCUTIFS : elle ne peut pas commencer avant le deuxième jour où deux relevés se suivent.
+- long_term_fix: **un fait se lit dans la source qui le porte, jamais dans la variable qui se trouve sous la main.** Quand une fonction d'affichage reçoit un tableau dont la forme dépend du mode, elle doit recevoir EN PLUS la source de vérité du fait qu'elle énonce, et la préférer. Le contrôle qui rend la classe visible est le même partout : rendre la surface sous tous les réglages et exiger que la phrase soit identique. C'est plus large qu'une date — toute prose dérivée (« depuis », « sur », « parmi ») est concernée.
+- signature: `python3 -m pytest tests/test_the_first_reading_date_is_one_date.py -q`
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_first_reading_date_is_one_date.py }
+- first_seen: 2026-09-13
+- History:
+  - 2026-09-13: trouvée en VÉRIFIANT une autre correction, pas en la cherchant — la note qui explique la falaise du cumulé donnait deux dates. Signature vue ≠ 0 sur le défaut (`levels` ignoré) et 0 après. Ce n'est pas un détail d'affichage : cette phrase est celle qui explique pourquoi la courbe part d'une falaise, et une mauvaise date envoie chercher la panne au mauvais endroit.
