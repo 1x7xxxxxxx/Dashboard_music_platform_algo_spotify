@@ -5,6 +5,76 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-13 (nuit, suite) — Spotify était tracée et invisible, et l'onboarding YouTube a un mur
+
+### « Je n'ai pas spotify sur la vue cumulé 30 jours »
+
+Spotify ÉTAIT tracée. Elle était **invisible**, et la cause est une pile qui mélangeait
+deux références. Mesuré en production, fenêtre de 30 jours, artiste 1 :
+
+| plateforme | ce que la courbe portait |
+|---|---|
+| Spotify | **545** — somme courante DANS la fenêtre |
+| YouTube | **118 300** — niveau ABSOLU, cumul à vie |
+| SoundCloud | **23 500** — idem |
+
+Spotify pesait **0,4 % de la pile**, moins d'un pixel, alors que c'est la seule
+plateforme qui ait bougé ces trente jours. Les compteurs n'avaient pas « plus
+d'écoutes » : ils portaient tout leur passé, que la fenêtre ne demandait pas. Empiler un
+écart et un total revient à additionner deux choses différentes.
+
+**Sur une fenêtre bornée, le cumul repart désormais de zéro** — on retranche le niveau
+d'entrée. Vérifié en production, fenêtre de 30 jours : Spotify **693 = 693**, YouTube
+**75 = 75**, SoundCloud **80 = 80**. Chaque courbe finit exactement où sa boîte
+l'annonce, et Spotify pèse 82 % de la pile au lieu de 0,4 %.
+
+⚠️ **Pas sur « Depuis le début »**, où la question est « où j'en suis » et la réponse le
+compteur à vie. Y retrancher le premier relevé ferait dire 304 à la courbe et 118 336 à
+la tuile : le même défaut, dans l'autre sens. Les deux mutations sont gardées.
+
+### Deux gardes m'ont repris pendant le correctif
+
+`test_a_platform_served_by_the_gold_layer_is_not_dropped_for_being_sparse` attendait
+1 600 — le niveau absolu. La bonne valeur est 600, la croissance de la fenêtre. J'en ai
+profité pour rendre sa mise en scène discriminante : ses deux attentes portaient le même
+nombre, donc il passait au vert si les séries étaient interverties.
+
+`test_a_file_only_gets_shorter` a signalé que `platform_chart.py` venait de franchir
+1 200 lignes. Son message le dit : « Les ajouter à FROZEN fige la dette ; les découper la
+retire. » Les étiquettes de valeur sont parties dans `platform_chart_labels.py` — une
+couture réelle : poser un texte sur une aire ne demande rien des seaux, des trous ni des
+modes d'agrégation.
+
+### L'onboarding YouTube : le mur n'est pas technique
+
+Recherché, pas supposé. `yt-analytics.readonly` et `youtube.readonly` sont des scopes
+**sensibles** — à reconfirmer dans la console GCP, qui affiche le niveau au moment où on
+ajoute le scope.
+
+| fait | conséquence |
+|---|---|
+| App **External** + scope sensible | **vérification Google obligatoire** — politique de confidentialité, domaine vérifié, vidéo de démonstration |
+| Délai | 3 à 10 jours ouvrés annoncés, semaines avec allers-retours |
+| Évaluation de sécurité payante | **non** — réservée aux scopes *restreints* (Gmail, Drive) |
+| Mode **Testing** | 100 utilisateurs max, et **refresh tokens expirant à 7 JOURS** |
+| Statut **Internal** | inutilisable — réservé à un domaine Workspace |
+
+**C'est ce qui décide de la forme de la tâche.** Construire le flux OAuth sans la
+vérification livrerait une étape d'onboarding qui casse tous les sept jours — l'inverse
+exact de « faciliter un maximum le parcours utilisateur ». Le code est le même dans les
+deux cas ; ce qui change est s'il sert à quelque chose.
+
+L'ordre tenu : le geste humain d'abord (déposer le dossier, écrit dans le runbook avec ce
+qu'il faut préparer), le flux développable pendant l'attente sur le compte du
+propriétaire du projet — qui ne voit pas l'écran d'avertissement et dont le jeton ne
+meurt pas, donc assez pour rapatrier l'historique de l'artiste 1 — et l'ouverture à tous
+après. L'export manuel YouTube Studio reste, même après : c'est le seul chemin pour un
+artiste qui refuse le consentement.
+
+Suite complète : **5521 passed**, 0 échec.
+
+---
+
 ## 2026-09-13 (nuit) — Ce que les compteurs ne diront jamais, et ce qu'on peut encore aller chercher
 
 ### La question

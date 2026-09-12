@@ -503,3 +503,60 @@ n'est pas une sauvegarde.
 Rien à réécrire : créer le bucket, `rclone config`, puis
 `echo 'R2_REMOTE=r2:streamlytics-backups/db' >> /opt/streamlytics/.env`. `R2_REMOTE` est
 prioritaire dans le script ; le chemin git s'éteint de lui-même.
+
+---
+
+## 11. R105 — Faire vérifier l'application Google pour lire les stats YouTube des artistes
+
+**Pourquoi c'est toi et pas moi** : Google demande un dossier au nom du propriétaire du
+projet Cloud — politique de confidentialité, domaine vérifié, vidéo de démonstration.
+Aucune ligne de Python ne le dépose.
+
+**Pourquoi ça bloque vraiment** : sans vérification, l'écran de consentement reste en
+mode *Testing*, et **les refresh tokens y expirent au bout de 7 jours**. Une collecte
+nocturne meurt donc chaque semaine, et l'artiste doit re-consentir. Construire l'étape
+d'onboarding avant d'avoir déposé le dossier livrerait un parcours qui casse tous les
+sept jours.
+
+⚠️ **Reconfirme d'abord le niveau des scopes dans la console.** Google n'en publie pas
+de tableau lisible ; l'indicateur « Sensitive » s'affiche au moment où tu ajoutes le
+scope à l'écran de consentement. Si l'un des deux ressort **Restricted**, arrête-toi et
+dis-le : ça ferait entrer une évaluation de sécurité tierce PAYANTE, et l'arbitrage
+change complètement.
+
+### Ce qu'il faut préparer
+
+| pièce | où | note |
+|---|---|---|
+| Politique de confidentialité en ligne | déjà servie par l'app | l'URL doit être celle de l'écran de consentement |
+| Domaine vérifié | Google Search Console | même domaine que l'URL ci-dessus |
+| Vidéo de démonstration | non répertoriée sur YouTube | doit montrer le flux de consentement **et** l'usage réel du scope dans l'app |
+| Scopes demandés | `yt-analytics.readonly`, `youtube.readonly` | ne rien demander de plus : chaque scope en trop allonge l'examen |
+
+### Les étapes
+
+1. Console Google Cloud → APIs & Services → **OAuth consent screen**.
+2. Type d'utilisateur : **External**. (Internal est réservé à un domaine Workspace ;
+   nos artistes ont des comptes Gmail personnels, ils recevraient `access_denied`.)
+3. Ajouter les deux scopes, **et noter le niveau affiché en face de chacun**.
+4. Renseigner la politique de confidentialité et le domaine.
+5. Passer le statut en **Production** → « Submit for verification ».
+6. Joindre la vidéo.
+
+### La commande qui prouve que c'est fait
+
+```bash
+# Un artiste qui n'est PAS toi consent sans voir « application non vérifiée »,
+# et son refresh token survit au-delà de 7 jours :
+make artist-preflight-prod PROD_SSH=root@167.233.92.1 ARTIST=<id>
+```
+
+Tant que ce n'est pas déposé, R105 reste développable **sur ton propre compte** : en tant
+que propriétaire du projet GCP tu ne vois pas l'écran d'avertissement et ton jeton ne
+meurt pas. Cela suffit à rapatrier TON historique, pas celui des autres.
+
+### Ce qu'on garde même après
+
+L'export manuel YouTube Studio → Analytics → **Mode avancé** → « Exporter la vue
+actuelle » (CSV, 500 vidéos max) reste le seul chemin pour un artiste qui refuse le
+consentement. Ne pas le retirer une fois R105 livrée.

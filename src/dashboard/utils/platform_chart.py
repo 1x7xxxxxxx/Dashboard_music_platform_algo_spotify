@@ -62,6 +62,7 @@ from src.dashboard.utils.platform_chart_notes import (      # noqa: F401
     render_collection_start_note,
     render_missing_history_note, t_coarsened, t_too_coarse, t_too_thin,
 )
+from src.dashboard.utils.platform_chart_labels import annotate_series
 from src.dashboard.utils.platform_timeseries import (
     PLATFORM_LABELS,
     STEP_ONLY,
@@ -453,7 +454,7 @@ def _carry_forward(span: list, rows: list, step: str) -> list:
 
 def _as_mode(aligned: dict, order: list, mode: str,
              cumulative: dict | None = None, span: list | None = None,
-             step: str = "day") -> dict:
+             step: str = "day", bounded: bool = False) -> dict:
     """Les mêmes séries, lues selon le mode. `None` reste `None` : on n'invente rien.
 
     LE CUMUL NE SE DÉDUIT PAS TOUJOURS DU QUOTIDIEN, et c'est le défaut que l'artiste
@@ -479,7 +480,42 @@ def _as_mode(aligned: dict, order: list, mode: str,
         for key, values in aligned.items():
             gold = (cumulative or {}).get(key)
             if gold and span is not None:
-                out[key] = _carry_forward(span, gold, step)
+                levels = _carry_forward(span, gold, step)
+                # ── SUR UNE FENÊTRE BORNÉE, LE CUMUL REPART DE ZÉRO ──────────
+                #
+                # « Bug sur la vue cumulé 30 jours je n'ai pas spotify alors que
+                # c'est ma première source de revenue » (2026-09-13). Spotify ÉTAIT
+                # tracée ; elle était invisible, et la cause est une pile qui
+                # mélangeait deux références.
+                #
+                # Mesuré en production, fenêtre de 30 jours, artiste 1 :
+                #
+                #     Spotify    →   545   (somme courante DANS la fenêtre)
+                #     YouTube    → 118 300 (niveau ABSOLU, cumul à vie)
+                #     SoundCloud →  23 500 (idem)
+                #
+                # Spotify pesait **0,4 % de la pile** — moins d'un pixel — alors que
+                # c'est la seule plateforme qui ait réellement bougé ces trente
+                # jours. Les compteurs n'avaient pas « plus d'écoutes » : ils
+                # portaient tout leur passé, que la fenêtre ne demandait pas.
+                #
+                # Une source quotidienne repart de zéro au début de la fenêtre, un
+                # compteur non : les empiler revenait à additionner un écart et un
+                # total. On retranche donc le niveau d'ENTRÉE — le dernier relevé à
+                # ou avant le début de la fenêtre. Toutes les courbes partent alors
+                # de zéro, et le dernier point de chacune est exactement ce que sa
+                # boîte annonce pour cette période.
+                #
+                # ⚠️ PAS SUR « DEPUIS LE DÉBUT » (`bounded=False`). Là, la question
+                # est « où j'en suis », et la réponse est le compteur à vie —
+                # 118 336, ce qu'affiche la boîte. Retrancher le premier relevé y
+                # ferait dire 304 à la courbe et 118 336 à la tuile : le défaut
+                # qu'on vient de corriger, dans l'autre sens.
+                base = next((v for v in levels if v is not None), None)
+                if bounded and base is not None:
+                    levels = [None if v is None else max(v - base, 0)
+                              for v in levels]
+                out[key] = levels
                 continue
             total, acc = 0, []
             for v in values:
@@ -808,7 +844,10 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
 
     # `_as_mode` réécrit les valeurs ; les TROUS se lisent sur la série d'origine.
     aligned_raw = aligned
-    aligned = _as_mode(aligned, order, mode, cumulative, span, step)
+    # `bounded` : une fenêtre qui a un début demandé par l'artiste. C'est elle
+    # qui décide si le cumul repart de zéro — voir `_as_mode`.
+    aligned = _as_mode(aligned, order, mode, cumulative, span, step,
+                       bounded=since is not None)
 
     # LES TRANCHES SUIVENT LA SÉRIE QU'ON TRACE. Elles sont décidées plus haut sur la
     # série quotidienne, dont les trous sont réels : un jour non collecté est un jour
@@ -1007,53 +1046,10 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                    range=[0, 100] if mode == "share" else None,
                    ticksuffix=" %" if mode == "share" else None),
     )
-    # ── UNE ÉTIQUETTE PAR PLATEFORME, DANS SA COULEUR ────────────────────────
-    #
-    # « peux-tu ajouter des valeurs étiquettes pertinentes vers le max ou la dernière
-    # valeur obtenue dans la couleur adéquate » (2026-09-12).
-    #
-    # LAQUELLE DES DEUX, ET LE MODE TRANCHE :
-    #   * en CUMULÉ, la courbe ne fait que monter — son maximum EST son dernier
-    #     point. Étiqueter « le max » y répéterait la fin de la courbe ; on étiquette
-    #     donc la dernière valeur, qui est le total de la période ;
-    #   * en PAR PÉRIODE, la dernière valeur est le dernier seau, souvent partiel et
-    #     rarement intéressant. C'est le PIC qui répond à la question qu'on se pose
-    #     devant la courbe — « c'était quand, le meilleur moment ? ».
-    #
-    # UNE SEULE PAR PLATEFORME. Étiqueter chaque point ferait un mur de chiffres sur
-    # une courbe de 44 points, et l'infobulle les donne déjà tous.
-    #
-    # ⚠️ LA COULEUR EST CELLE DE LA PALETTE, jamais une couleur choisie ici. Les
-    # couleurs de cette figure ont été mesurées en deutéranopie le 2026-09-12 : en
-    # réécrire une à l'œil défait ce travail en silence.
-    #
-    # LES AIRES SONT EMPILÉES, donc l'étiquette se pose sur le CUMUL des plateformes
-    # sous elle — la hauteur réelle de la bande à l'écran. La poser sur la valeur
-    # brute la mettrait à l'intérieur de la pile, sur une autre couleur.
-    _stack = [0.0] * len(span)
-    for pkey in order:
-        vals = aligned.get(pkey) or []
-        best_i, best_v = None, None
-        for i in range(min(len(vals), len(span))):
-            v = vals[i]
-            if v is None:
-                continue
-            if mode == "cumulative":
-                best_i, best_v = i, v          # la dernière mesure connue
-            elif best_v is None or v > best_v:
-                best_i, best_v = i, v          # le pic de la période
-        for i in range(min(len(vals), len(span))):
-            _stack[i] += (vals[i] or 0)
-        if best_i is None or not best_v:
-            continue
-        fig.add_annotation(
-            x=span[best_i], y=_stack[best_i],
-            text=f"<b>{int(round(best_v)):,}</b>".replace(",", "\u202f"),
-            showarrow=False, yshift=9,
-            font=dict(size=11, color=palette[pkey]),
-            # Un fond opaque : sur une aire pleine de la même teinte, un chiffre
-            # sans fond devient illisible dès que la bande est haute.
-            bgcolor=surface, borderpad=2, opacity=0.92)
+    # Les étiquettes de valeur vivent dans `platform_chart_labels` : ce fichier a
+    # franchi 1 200 lignes le 2026-09-13 et `test_a_file_only_gets_shorter` l'a dit.
+    # Figer la dette dans sa liste était l'option paresseuse ; la découper la retire.
+    annotate_series(fig, span, aligned, order, palette, surface, mode)
 
     st.plotly_chart(fig, width="stretch", key=key)
     if recap is not None:
