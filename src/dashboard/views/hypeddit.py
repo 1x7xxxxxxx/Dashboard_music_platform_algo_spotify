@@ -145,24 +145,47 @@ def _render_global_stats(db):
         st.info(t("hypeddit.no_data_period", "📭 Aucune donnée trouvée pour la période sélectionnée."))
         return
 
-    # Nettoyage et conversion
-    df['visits'] = pd.to_numeric(df['visits'], errors='coerce').fillna(0)
-    df['clicks'] = pd.to_numeric(df['clicks'], errors='coerce').fillna(0)
+    # Nettoyage et conversion. PAS de `fillna(0)` : une valeur absente sur une ligne
+    # présente est une mesure qu'on n'a pas, et la compter pour zéro tire la moyenne
+    # vers le bas tout en dessinant une journée creuse qui n'a pas eu lieu. `NaN`
+    # traverse : la moyenne l'ignore, la figure y coupe sa ligne.
+    df['visits'] = pd.to_numeric(df['visits'], errors='coerce')
+    df['clicks'] = pd.to_numeric(df['clicks'], errors='coerce')
     df['date'] = pd.to_datetime(df['date'])
 
     # KPIs Moyens — visites/clics seulement (le budget « Hypeddit » était en fait la
     # dépense Meta Ads, retiré de toute la vue ; voir ROI Breakeven pour la dépense pub).
     st.subheader(t("hypeddit.daily_averages", "Moyennes Journalières (Toutes campagnes)"))
     k1, k2 = st.columns(2)
-    k1.metric(t("hypeddit.kpi_avg_visits", "👁️ Visites Moy."), f"{int(df['visits'].mean()):,}")
-    k2.metric(t("hypeddit.kpi_avg_clicks", "🖱️ Clicks Moy."), f"{int(df['clicks'].mean()):,}")
+    def _avg(col: str) -> str:
+        """La moyenne des jours MESURÉS, ou « — » quand il n'y en a aucun.
+
+        `int(nan)` lève ; afficher « 0 » affirmerait zéro visite là où l'on n'a
+        simplement rien mesuré.
+        """
+        value = df[col].mean()
+        return "—" if pd.isna(value) else f"{int(value):,}"
+
+    k1.metric(t("hypeddit.kpi_avg_visits", "👁️ Visites Moy."), _avg('visits'))
+    k2.metric(t("hypeddit.kpi_avg_clicks", "🖱️ Clicks Moy."), _avg('clicks'))
 
     st.markdown("---")
 
     # Graphique Combiné (visites & clics)
     st.subheader(t("hypeddit.global_performance", "📈 Performance Globale"))
 
-    df_agg = df.groupby('date')[['visits', 'clicks']].sum().reset_index()
+    # `min_count=1` : une somme de rien vaut `NaN`, pas 0. Sans lui, un jour dont
+    # toutes les campagnes sont non mesurées ressortait à 0 visite — le zéro inventé
+    # que cette page corrige, reconstruit par l'agrégation juste après qu'on l'ait
+    # retiré de la lecture.
+    df_agg = df.groupby('date')[['visits', 'clicks']].sum(min_count=1).reset_index()
+    # Et le calendrier complet, sinon un jour sans AUCUNE ligne sort de l'axe et la
+    # courbe des clics le traverse en ligne droite : une interpolation que personne
+    # n'a mesurée.
+    df_agg = (df_agg.set_index('date')
+              .reindex(pd.date_range(df_agg['date'].min(), df_agg['date'].max(),
+                                     freq='D'))
+              .rename_axis('date').reset_index())
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -170,7 +193,7 @@ def _render_global_stats(db):
         name=t("hypeddit.visits", "Visites"), marker_color='rgba(135, 206, 250, 0.5)', yaxis='y'
     ))
     fig.add_trace(go.Scatter(
-        x=df_agg['date'], y=df_agg['clicks'],
+        x=df_agg['date'], y=df_agg['clicks'], connectgaps=False,
         name='Clicks', mode='lines+markers', line=dict(color='#2ECC71', width=2), yaxis='y'
     ))
 

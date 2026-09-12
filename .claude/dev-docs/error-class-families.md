@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**296 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**301 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -10,18 +10,18 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 
 | famille | classes | la question |
 |---|---|---|
-| [le-locataire](#le-locataire) | 37 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
+| [le-locataire](#le-locataire) | 39 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 14 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 10 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 13 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 18 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 21 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
-| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 17 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 33 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 18 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 34 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 34 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 6 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
-| [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 6 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
+| [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 6 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 3 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 17 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
@@ -33,7 +33,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 
 **Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ?**
 
-Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|canary|sandbox|deux locataires|par locataire|du locataire|son locataire|le locataire|d'un locataire|leur locataire|chaque locataire|un locataire|locataires? multi|aux locataires` sur l'identifiant et le symptôme. 37 classe(s).
+Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|canary|sandbox|deux locataires|par locataire|du locataire|son locataire|le locataire|d'un locataire|leur locataire|chaque locataire|un locataire|locataires? multi|aux locataires` sur l'identifiant et le symptôme. 39 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -74,6 +74,8 @@ Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|cana
 | [`write-path-without-cache-invalidation`](error-classes.md#write-path-without-cache-invalidation) | le locataire enregistre, l'écran confirme (« ✅ Importé »), et le chiffre affiché reste l'ancien pendant jusqu'à 600 s, sans que rien n'explique pourqu |
 | [`an-account-filter-that-names-no-single-column`](error-classes.md#an-account-filter-that-names-no-single-column) | une page tombe — pas un chiffre faux, une exception — et **seulement chez les locataires multi-comptes**. `column "ad_account_id" does not exist` ou ` |
 | [`a-late-platform-has-no-tenant-guard`](error-classes.md#a-late-platform-has-no-tenant-guard) | une plateforme arrivée tard dans le produit n'est couverte par AUCUN garde de tenance. Aucun symptôme visible — jusqu'au jour où une lecture sans `art |
+| [`a-first-bucket-declared-unknown-when-it-was-observed`](error-classes.md#a-first-bucket-declared-unknown-when-it-was-observed) | la figure totalise MOINS que ce que le compteur a gagné, sans qu'aucun message ne le dise. Mesuré sur un locataire réel le 2026-09-12 : **182 432 dess |
+| [`two-silences-one-message`](error-classes.md#two-silences-one-message) | l'écran dit « Pas encore assez d'historique pour tracer une évolution » à un locataire qui en a **quatre ans**. Vu au navigateur le 2026-09-12 sur « 9 |
 
 ## un-cumul-pris-pour-un-quotidien
 
@@ -229,7 +231,7 @@ Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|diver
 
 **Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ?**
 
-Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|outside-its-condition|read-that-failed|failed-read|except.*number` sur l'identifiant et le symptôme. 17 classe(s).
+Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|outside-its-condition|read-that-failed|failed-read|except.*number` sur l'identifiant et le symptôme. 18 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -250,12 +252,13 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 | [`verified-locally-observed-in-prod`](error-classes.md#verified-locally-observed-in-prod) | un utilisateur signale plusieurs fois la même absence ; chaque vérification confirme que la chose est là ; les corrections successives portent sur le  |
 | [`a-partial-bucket-drawn-as-a-full-one`](error-classes.md#a-partial-bucket-drawn-as-a-full-one) | une agrégation sous-estime silencieusement, d'un facteur qui dépend de la collecte. Mesuré le 2026-09-08 : **38 %** des semaines YouTube et **31 %** d |
 | [`a-read-that-failed-is-rendered-as-a-number`](error-classes.md#a-read-that-failed-is-rendered-as-a-number) | une tuile affiche un chiffre alors que la requête a LEVÉ. Quatre occurrences en deux jours, aucune n'a produit d'erreur visible : « Total Streams : ** |
+| [`a-gap-rendered-as-a-zero-by-the-stack`](error-classes.md#a-gap-rendered-as-a-zero-by-the-stack) | la bande d'une plateforme est correctement COUPÉE sur un jour non mesuré, et le total empilé la compte quand même pour zéro — la pile redescend, et ça |
 
 ## un-garde-qui-ne-garde-pas
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 33 classe(s).
+Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 34 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -292,6 +295,7 @@ Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuou
 | [`a-signature-anchored-on-a-location`](error-classes.md#a-signature-anchored-on-a-location) | une signature de classe d'erreur rougit sur un arbre sain, deux fois en deux jours, parce que le correctif a déplacé ou renommé ce qu'elle nommait. On |
 | [`a-ratchet-with-no-floor-under-its-population`](error-classes.md#a-ratchet-with-no-floor-under-its-population) | un cliquet à zéro reste vert alors que la propriété qu'il annonce n'est plus vérifiée — parce qu'il ne mesure plus rien. Mesuré le 2026-09-12 : **5 de |
 | [`a-guard-that-sees-the-binding-not-the-application`](error-classes.md#a-guard-that-sees-the-binding-not-the-application) | un garde reste vert sur le défaut exact qu'il décrit, parce qu'il vérifie qu'une valeur est CALCULÉE et non qu'elle est UTILISÉE. |
+| [`a-marker-shared-by-several-sites-guards-none`](error-classes.md#a-marker-shared-by-several-sites-guards-none) | un test de non-régression qui cherche la PRÉSENCE d'un marqueur dans un fichier reste vert quand un seul des sites qui l'utilisent perd son correctif. |
 
 ## un-document-qui-affirme-un-état-périmé
 
@@ -355,7 +359,7 @@ Règle de rattachement : `never-pass|env-independent|host-env|container|reachab|
 
 **Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ?**
 
-Règle de rattachement : `runs-twice|concurrency-group|overload|competing-for-one-decision|costs-more-than|waste|duplicate-run|too-many` sur l'identifiant et le symptôme. 6 classe(s).
+Règle de rattachement : `runs-twice|concurrency-group|overload|competing-for-one-decision|costs-more-than|waste|duplicate-run|too-many|drags-a-.*-behind|paid-by|first-render` sur l'identifiant et le symptôme. 7 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -365,6 +369,7 @@ Règle de rattachement : `runs-twice|concurrency-group|overload|competing-for-on
 | [`too-many-charts-competing-for-one-decision`](error-classes.md#too-many-charts-competing-for-one-decision) | une vue s'ouvre sur un mur de graphiques. Aucun n'est faux, aucun n'est de trop pris isolément, et l'utilisateur ne sait pas où regarder. |
 | [`orchestrator-costs-more-than-what-it-orchestrates`](error-classes.md#orchestrator-costs-more-than-what-it-orchestrates) | l'outil qui coordonne le travail consomme plus que le travail lui-même, et personne ne le remarque parce que tout est vert. |
 | [`an-overload-makes-the-old-call-ambiguous`](error-classes.md#an-overload-makes-the-old-call-ambiguous) | une tuile passe à **0** après une migration qui n'a rien retiré. Mesuré le 2026-09-12 : « Total Streams (Cumul) » affichait **0** sur la page Apple Mu |
+| [`a-shared-module-drags-a-view-behind-it`](error-classes.md#a-shared-module-drags-a-view-behind-it) | le premier rendu d'une page quadruple, et rien dans le code ne le montre. Mesuré le 2026-09-12 : `setup_completion` — lu dans le chemin de la barre la |
 
 ## un-seuil-écrit-d-instinct
 
@@ -487,6 +492,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=296 families=17 orphans=3 -->
+<!-- error-class-families: total=301 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=d8f24bcc3a5a5559e6ba4939c31bb6c0ad940b97c2326877d35fb070e2f707a3 -->
+<!-- error-class-families: sha256=e2fa19b8f655fead904d6adf4b3169601ad8191aabf5c445d236df6c2a591543 -->

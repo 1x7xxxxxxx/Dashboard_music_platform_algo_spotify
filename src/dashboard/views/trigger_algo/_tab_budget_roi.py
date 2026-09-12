@@ -360,6 +360,15 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
             df_tl = pd.DataFrame({"date": all_dates})
             df_tl = df_tl.merge(df_spend_d, on="date", how="left")
             df_tl = df_tl.merge(df_rev.rename(columns={"revenue_eur": "revenue"}), on="date", how="left")
+            # ⚠️ CE `fillna(0)`-CI EST JUSTE, et il est le seul du dépôt à l'être
+            # en contexte temporel — écrit ici pour qu'un balayage de la classe
+            # « un trou rendu comme un zéro » ne le corrige pas par symétrie.
+            #
+            # La valeur ne va pas dans la figure : elle va dans un `cumsum`. Un jour
+            # sans dépense n'ajoute rien au cumul, et c'est exactement ce que 0
+            # exprime ; `NaN` propagerait à TOUTE la suite du cumul et effacerait la
+            # courbe. Ce qui est faux, c'est de PROLONGER un cumul au-delà de sa
+            # dernière mesure — et c'est le sujet du bloc juste en dessous.
             df_tl["spend"] = df_tl["spend"].fillna(0)
             df_tl["revenue"] = df_tl["revenue"].fillna(0)
             df_tl["cumul_spend"] = df_tl["spend"].cumsum()

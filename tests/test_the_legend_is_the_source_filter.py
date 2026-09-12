@@ -84,7 +84,17 @@ def test_each_platform_has_exactly_one_legend_entry(figure, mode) -> None:
     assert sorted(entries) == sorted(set(entries)), (
         f"une plateforme apparaît plusieurs fois dans la légende : {entries}. "
         "Seule la PREMIÈRE tranche doit porter l'entrée.")
-    assert len(entries) == 2, f"attendu Spotify + YouTube, obtenu {entries}"
+
+    # La clé « ▨ Aucune mesure » n'est pas une plateforme : c'est la LÉGENDE d'un
+    # encodage visuel, ajoutée le 2026-09-12 avec la bande hachurée. Elle n'a droit
+    # qu'à UNE entrée, comme les plateformes — plusieurs bandes hachurées, une seule
+    # clé. Sans cette distinction, le test compterait une entrée de plus à chaque
+    # trou et se lirait comme « Spotify apparaît deux fois ».
+    absence = [e for e in entries if e.startswith("▨")]
+    assert len(absence) <= 1, f"la clé d'absence est répétée : {absence}"
+
+    platforms = [e for e in entries if not e.startswith("▨")]
+    assert len(platforms) == 2, f"attendu Spotify + YouTube, obtenu {platforms}"
 
 
 @pytest.mark.parametrize("mode", ["cumulative", "absolute"])

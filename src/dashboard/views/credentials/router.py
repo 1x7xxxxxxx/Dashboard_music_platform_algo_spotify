@@ -457,7 +457,11 @@ def show():
         from src.dashboard.utils.setup_completion import read_setup_state
         try:
             _setup = read_setup_state(db, target_artist_id)
-            _csv_done = any(step.key == "s4a" and step.done for step in _setup.steps)
+            # `spotify_csv`, pas l'étape « fichiers » : la pastille est sur l'onglet
+            # d'import S4A, et l'étape se coche depuis le 2026-09-12 sur N'IMPORTE
+            # quel import réussi. La verdir sur un relevé SACEM dirait que le CSV
+            # Spotify est là alors qu'il ne l'est pas.
+            _csv_done = bool(_setup.spotify_csv)
         except Exception:  # noqa: BLE001 — une pastille absente vaut mieux qu'un écran mort
             _csv_done = False
 

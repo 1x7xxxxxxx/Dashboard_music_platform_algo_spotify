@@ -26,7 +26,7 @@ from pathlib import Path
 import pytest
 
 from src.dashboard.utils.collection_trigger import should_autostart
-from src.dashboard.utils.setup_completion import steps_from_counts
+from src.dashboard.utils.setup_completion import steps_from_facts
 
 
 def _repo_root() -> Path:
@@ -45,20 +45,55 @@ _TRIGGER_SITES = (
 )
 
 
-@pytest.mark.parametrize("creds,csv,apple,runs,expected", [
-    (1, 1, 1, 0, True),    # tout fait sauf la collecte → on démarre
-    (1, 1, 0, 0, True),    # Apple est FACULTATIF : beaucoup n'ont pas de compte
-    (1, 0, 0, 0, False),   # pas de CSV S4A : le parcours n'est pas bouclé
-    (0, 1, 1, 0, False),   # pas d'identifiant : rien à collecter
-    (1, 1, 1, 1, False),   # une collecte a DÉJÀ réussi → jamais deux fois
-    (1, 1, 0, 3, False),
+def _state(*, creds: bool, files, runs: int = 0):
+    """Un `SetupState` depuis les faits, comme la base les rend.
+
+    `files` est l'ensemble des types de fichiers importés ; `spotify_csv` en dérive
+    exactement comme dans `read_setup_state`, sinon la mise en scène testerait une
+    règle que la production n'applique pas.
+    """
+    files = set(files)
+    return steps_from_facts(
+        declared={"spotify"} if creds else set(), imported=files,
+        has_mapping=False, has_playlists=False, has_pdf=False,
+        has_runs=bool(runs), spotify_csv="s4a" in files)
+
+
+# Les six cas d'origine, portés sur les faits que la base rend vraiment. Le cas
+# « apple seul » a gagné en force le 2026-09-12 : depuis que les deux lignes d'import
+# ont fusionné, l'ÉTAPE se coche sur un import Apple — et l'autostart ne doit
+# toujours pas partir, puisque rien de collectable n'a été déposé. C'est exactement
+# ce que la fusion risquait de casser.
+@pytest.mark.parametrize("creds,files,runs,expected", [
+    (True,  {"s4a", "apple"}, 0, True),    # tout fait sauf la collecte → on démarre
+    (True,  {"s4a"},          0, True),    # Apple est FACULTATIF
+    (True,  set(),            0, False),   # pas de CSV : le parcours n'est pas bouclé
+    (True,  {"apple"},        0, False),   # un import, mais pas celui qui se collecte
+    (True,  {"sacem"},        0, False),   # idem : un relevé SACEM ne collecte rien
+    (False, {"s4a", "apple"}, 0, False),   # pas d'identifiant : rien à collecter
+    (True,  {"s4a", "apple"}, 1, False),   # une collecte a DÉJÀ réussi → jamais deux fois
+    (True,  {"s4a"},          3, False),
 ])
-def test_the_rule_is_read_from_the_journey_itself(creds, csv, apple, runs, expected):
-    """La règle, sur les quatre compteurs réels — sans base, sans Streamlit."""
-    state = steps_from_counts(creds, csv, apple, runs)
-    assert should_autostart(state) is expected, (
-        f"creds={creds} csv={csv} apple={apple} runs={runs} : "
-        f"attendu {expected}")
+def test_the_rule_is_read_from_the_journey_itself(creds, files, runs, expected):
+    """La règle, sur les faits réels — sans base, sans Streamlit."""
+    assert should_autostart(_state(creds=creds, files=files, runs=runs)) is expected, (
+        f"creds={creds} files={sorted(files)} runs={runs} : attendu {expected}")
+
+
+def test_the_merged_csv_step_ticks_on_any_import_but_the_autostart_does_not():
+    """La fusion demandée le 2026-09-12, et la limite qu'elle ne doit pas franchir.
+
+    « Consolide les 2 lignes import csv en 1 seule » — la ligne se coche donc dès
+    UN import. Faire suivre l'autostart aurait déclenché la collecte sur un relevé
+    SACEM, qui ne collecte rien : la case verte aurait annoncé une collecte qui
+    n'arrive jamais.
+    """
+    state = _state(creds=True, files={"sacem"})
+    csv_step = next(s for s in state.steps if s.key == "csv")
+    assert csv_step.done, "l'étape « fichiers » ne se coche plus sur un import réussi"
+    assert should_autostart(state) is False, (
+        "l'autostart suit maintenant l'étape fusionnée : un relevé SACEM déclenche "
+        "une collecte Spotify qui n'a rien à collecter")
 
 
 def test_an_unreadable_state_never_starts_anything():
@@ -96,12 +131,15 @@ def test_the_idempotence_is_derived_from_the_runs_not_from_a_flag():
         "l'empêche de relancer une collecte à chaque enregistrement")
     keys = {n.value for n in ast.walk(fn)
             if isinstance(n, ast.Constant) and isinstance(n.value, str)}
-    assert "creds" in keys and "s4a" in keys, (
-        "la condition ne lit plus les étapes de l'artiste")
+    assert "creds" in keys, "la condition ne lit plus les identifiants"
+    assert "spotify_csv" in body, (
+        "la condition ne lit plus le CSV **Spotify**. Depuis la fusion des deux "
+        "lignes d'import (2026-09-12), lire l'étape « fichiers » ferait partir la "
+        "collecte sur un relevé SACEM.")
 
     setup = (_ROOT / "utils" / "setup_completion.py").read_text(encoding="utf-8")
     maker = next(n for n in ast.walk(ast.parse(setup))
-                 if isinstance(n, ast.FunctionDef) and n.name == "steps_from_counts")
+                 if isinstance(n, ast.FunctionDef) and n.name == "steps_from_facts")
     assert "collected=bool(has_runs)" in ast.unparse(maker).replace(" ", ""), (
         "`collected` ne vient plus du compteur de runs — c'est devenu un drapeau, "
         "donc une seconde source de vérité qui peut affirmer « déjà lancé » alors "

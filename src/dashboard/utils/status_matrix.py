@@ -412,16 +412,22 @@ def render_platform_state(db, artist_id: int, platform_key: str) -> None:
 def _requires_sharing(platform_key: str) -> bool:
     """Cette plateforme demande-t-elle un partage que nous ne pouvons pas faire ?
 
-    Lu dans le registre (`_registry.PLATFORMS[...]['requires_sharing']`) et non écrit
-    ici : un `if key == "meta"` dans le rendu serait la forme que ce dépôt a déjà
-    payée — une mise en page clavée sur une liste tapée à la main, muette le jour où
-    une seconde plateforme rejoint le cas.
+    Lu dans `utils/platform_sharing.REQUIRES_SHARING` et non écrit ici : un
+    `if key == "meta"` dans le rendu serait la forme que ce dépôt a déjà payée — une
+    mise en page clavée sur une liste tapée à la main, muette le jour où une seconde
+    plateforme rejoint le cas.
     """
-    try:
-        from src.dashboard.views.credentials._registry import PLATFORMS
-    except Exception:  # noqa: BLE001 — la matrice se rend sans le registre
-        return False
-    return bool((PLATFORMS.get(platform_key) or {}).get("requires_sharing"))
+    # Lu dans `utils/platform_sharing`, PAS dans `views.credentials._registry`.
+    #
+    # Il l'était, et cette lecture coûtait **1 950 ms** au premier rendu : le paquet
+    # `credentials/__init__.py` tire son routeur, et `_registry` tire les quatre
+    # modules de test de connexion (spotipy, googleapiclient, le SDK Meta) — pour un
+    # booléen. Or `render_status_matrix` est rendu SUR L'ACCUEIL pour tout artiste
+    # dont la mise en route n'est pas finie, c'est-à-dire tout nouvel arrivant, et le
+    # budget d'une page complète est de 287 ms. Mesuré le 2026-09-12, trouvé par
+    # `tests/test_a_shared_path_does_not_drag_a_view_behind_it.py`.
+    from src.dashboard.utils.platform_sharing import requires_sharing
+    return requires_sharing(platform_key)
 
 
 def _sharing_line(row: dict, remembered) -> str:

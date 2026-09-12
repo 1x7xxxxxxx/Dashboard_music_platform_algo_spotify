@@ -413,8 +413,31 @@ def _show_meta_ads(db, artist_id):
 
     if not df_day.empty:
         for c in ['spend', 'results', 'custom_conversions']:
-            df_day[c] = pd.to_numeric(df_day[c], errors='coerce').fillna(0)
-        df_day['cpr'] = (df_day['spend'] / df_day['custom_conversions']).where(df_day['custom_conversions'] > 0).fillna(0)
+            df_day[c] = pd.to_numeric(df_day[c], errors='coerce')
+
+        # UN JOUR SANS LIGNE N'EST PAS UN JOUR À ZÉRO, ET IL N'EST PAS NON PLUS UNE
+        # LIGNE DROITE.
+        #
+        # `v_meta_daily` ne rend que les jours qui ont des lignes. Un jour manquant
+        # sortait donc de l'axe entièrement, et la courbe des clics le TRAVERSAIT en
+        # ligne droite — une interpolation que personne n'a mesurée, d'autant plus
+        # trompeuse que le lecteur y cherche l'effet d'une dépense. On réindexe sur
+        # le calendrier complet : le jour existe, sa valeur est `NaN`, la ligne s'y
+        # coupe (`connectgaps=False`) et la barre n'y dessine rien.
+        df_day['day_date'] = pd.to_datetime(df_day['day_date'])
+        df_day = (df_day.set_index('day_date')
+                  .reindex(pd.date_range(df_day['day_date'].min(),
+                                         df_day['day_date'].max(), freq='D'))
+                  .rename_axis('day_date').reset_index())
+
+        # LE CPR D'UN JOUR SANS CONVERSION EST INDÉFINI, PAS NUL. `fillna(0)` le
+        # traçait à 0 €, c'est-à-dire « ce jour-là les résultats étaient gratuits » —
+        # l'inverse de la vérité, qui est qu'il n'y en a pas eu. Le collecteur fait
+        # déjà ce choix pour les objectifs sans conversion (CPR NULL), et
+        # `meta_x_spotify` le documente : « No recompute — that would fabricate a
+        # CPR Meta hid. »
+        df_day['cpr'] = (df_day['spend'] / df_day['custom_conversions']
+                         ).where(df_day['custom_conversions'] > 0)
 
         # TROIS UNITÉS, TROIS CADRES. Des euros dépensés, un nombre de clics et un coût
         # par résultat n'ont ni la même unité ni le même ordre de grandeur ; trois axes
@@ -434,10 +457,12 @@ def _show_meta_ads(db, artist_id):
         fig_time.add_trace(go.Scatter(
             x=df_day['day_date'], y=df_day['custom_conversions'],
             name=t("meta_ads_overview.spotify_clicks", "Clics Spotify"),
-            mode='lines', line=dict(color='#1baf7a', width=2)), row=2, col=1)
+            mode='lines', connectgaps=False,
+            line=dict(color='#1baf7a', width=2)), row=2, col=1)
         fig_time.add_trace(go.Scatter(
             x=df_day['day_date'], y=df_day['cpr'], name='CPR (€)',
-            mode='lines+markers', line=dict(color='#eda100', width=2)), row=3, col=1)
+            mode='lines+markers', connectgaps=False,
+            line=dict(color='#eda100', width=2)), row=3, col=1)
         fig_time.update_layout(
             height=560, title=t("meta_ads_overview.daily_dynamics", "Dynamique Quotidienne"),
             hovermode="x unified", showlegend=False)

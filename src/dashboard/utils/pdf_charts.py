@@ -161,6 +161,17 @@ def s4a_cumulative(rows) -> str | None:
     return _fig_to_uri(fig)
 
 
+def _measured(value):
+    """La valeur, ou `NaN` quand il n'y en a pas — jamais 0.
+
+    Matplotlib COUPE une ligne sur un `NaN` et la dessine sur un 0 : c'est la seule
+    différence entre « on n'a pas mesuré ce jour-là » et « il n'y a eu personne ».
+    Les figures du PDF écrivaient `int(v or 0)`, donc la seconde phrase, sur trois
+    séries. Corrigé le 2026-09-12 avec la même règle qu'à l'écran.
+    """
+    return float("nan") if value is None else float(value)
+
+
 def s4a_audience_evolution(rows) -> str | None:
     """rows: [(date, listeners, followers)] — two lines over time."""
     rows = [r for r in (rows or []) if r[1] is not None or r[2] is not None]
@@ -168,9 +179,13 @@ def s4a_audience_evolution(rows) -> str | None:
         return None
     xs = [r[0] for r in rows]
     fig, ax = plt.subplots(figsize=(8.6, 3.0))
-    ax.plot(xs, [int(r[1] or 0) for r in rows], color=_GREEN, linewidth=2,
+    # `float("nan")` ET NON `or 0` : matplotlib COUPE la ligne sur un NaN, et
+    # dessine 0 sur un zéro. Un jour où S4A n'a rendu ni auditeurs ni abonnés était
+    # tracé comme une chute verticale à zéro puis une remontée — la même chose que
+    # l'écran a cessé de faire le 2026-09-12, au même endroit du PDF.
+    ax.plot(xs, [_measured(r[1]) for r in rows], color=_GREEN, linewidth=2,
             label=_t("pdf.chart.listeners", "Listeners"))
-    ax.plot(xs, [int(r[2] or 0) for r in rows], color="#457b9d", linewidth=2,
+    ax.plot(xs, [_measured(r[2]) for r in rows], color="#457b9d", linewidth=2,
             label=_t("pdf.chart.followers", "Followers"))
     _style(ax)
     ax.set_title(_t("pdf.chart.s4a_audience", "Audience S4A — listeners & followers"),
@@ -213,13 +228,13 @@ def youtube_channel_growth(rows) -> str | None:
     _subs = _t("pdf.chart.subscribers", "Abonnés")
     _cum_views = _t("pdf.chart.cumulative_views", "Vues cumulées")
     fig, (ax, ax2) = _stacked(2)
-    ax.plot(xs, [int(r[1] or 0) for r in rows], color="#FF0000", linewidth=2,
+    ax.plot(xs, [_measured(r[1]) for r in rows], color="#FF0000", linewidth=2,
             marker="o", markersize=3)
     ax.set_ylabel(_subs, color="#FF0000", fontsize=8)
     # Trait plein, pas pointillé : le pointillé disait « série secondaire », ce qui
     # avait un sens sur un axe de droite et n'en a plus sur son propre panneau — et
     # c'est la série que le total du produit annonce.
-    ax2.plot(xs, [int(r[2] or 0) for r in rows], color="#606060", linewidth=2)
+    ax2.plot(xs, [_measured(r[2]) for r in rows], color="#606060", linewidth=2)
     ax2.set_ylabel(_cum_views, color="#606060", fontsize=8)
     ax.set_title(_t("pdf.chart.youtube_channel_growth", "YouTube — croissance de la chaîne"),
                  color=_DARK, fontsize=11, fontweight="bold", loc="left")
@@ -319,7 +334,8 @@ def platform_evolution(series, cumulative, since=None, until=None) -> str | None
     if last < 1:
         return None
     span = span[:last + 1]
-    stacks = [[v or 0 for v in aligned[k][:last + 1]] for k in order]
+    kept = {k: aligned[k][:last + 1] for k in order}
+    stacks = [[v or 0 for v in kept[k]] for k in order]
     if not any(any(col) for col in stacks):
         return None
 
@@ -331,11 +347,31 @@ def platform_evolution(series, cumulative, since=None, until=None) -> str | None
                  colors=[pc._PALETTE_LIGHT[k] for k in order],
                  labels=[_ascii_label(pc.PLATFORM_LABELS[k]) for k in order],
                  linewidth=0.6, edgecolor="white")
+    # ET LE TROU AU MILIEU SE HACHURE. La troncature ci-dessus ne règle que la
+    # QUEUE ; entre deux mesures, `v or 0` fait toujours retomber la pile, et un
+    # `stackplot` ne sait pas couper une bande sans couper les autres.
+    #
+    # La réponse est celle de l'écran, transposée : l'écran pose une trace Plotly
+    # hachurée sous les aires, le PDF pose un `fill_between` hachuré par-dessus.
+    # `facecolor="none"` ne peint rien — seules les diagonales se voient, donc la
+    # pile reste lisible dessous. C'est la même lecture que « ▨ Aucune mesure ».
+    _gaps = pc.unmeasured_spans(kept, order)
+    if _gaps:
+        _ceiling = max((sum(col[i] for col in stacks) for i in range(len(span))),
+                       default=0) or 1
+        _holes = {i for a, b in _gaps for i in range(a, b + 1)}
+        ax.fill_between(span, 0, _ceiling * 1.02,
+                        where=[i in _holes for i in range(len(span))],
+                        facecolor="none", edgecolor="#9a9a97", hatch="///",
+                        linewidth=0.0, step="mid",
+                        label=_ascii_label(_t("platform_chart.unmeasured",
+                                              "Aucune mesure")))
     _style(ax)
     ax.set_title(_t("pdf.chart.platform_evolution",
                     "Toutes tes plateformes — évolution cumulée"),
                  color=_DARK, fontsize=11, fontweight="bold", loc="left")
-    ax.legend(fontsize=8, frameon=False, loc="upper left", ncol=len(order))
+    ax.legend(fontsize=8, frameon=False, loc="upper left",
+              ncol=len(order) + (1 if _gaps else 0))
     ax.margins(x=0)
     fig.autofmt_xdate(rotation=30)
     return _fig_to_uri(fig)

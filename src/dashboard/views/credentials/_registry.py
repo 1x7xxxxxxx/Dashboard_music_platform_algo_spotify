@@ -5,6 +5,8 @@ Uses: the four _platform_* modules
 The single wiring point: PLATFORMS field definitions, CONNECTION_TESTS map,
 and the per-platform guide dispatcher. Pure relocation — no logic change.
 """
+from src.dashboard.utils.platform_sharing import requires_sharing
+
 from ._platform_spotify import _test_spotify
 from ._platform_youtube import _test_youtube
 from ._platform_soundcloud import _test_soundcloud
@@ -96,11 +98,13 @@ PLATFORMS = {
         # partage, l'appel rend `(#3) capability` et aucune donnée n'arrive — même
         # avec un identifiant parfaitement valide.
         #
-        # Déclaré ICI, dans la donnée, parce que la matrice d'état doit le montrer et
-        # qu'une liste `if key == "meta"` dans le rendu serait la forme que ce dépôt
-        # a déjà payée (`layout-keyed-by-a-hand-written-list`). Une plateforme future
-        # qui demanderait un partage l'écrira à côté de ses champs.
-        'requires_sharing': True,
+        # Déclaré dans `utils/platform_sharing`, et LU ici — pas l'inverse. Il vivait
+        # dans cette donnée, et la matrice d'état l'y lisait en important ce paquet :
+        # 1 950 ms au premier rendu de l'accueil pour un booléen (2026-09-12). La
+        # déclaration est descendue dans un module partagé ; ce registre la relit pour
+        # qu'il n'y ait qu'une liste, et un `if key == "meta"` dans le rendu reste la
+        # forme refusée (`layout-keyed-by-a-hand-written-list`).
+        'requires_sharing': requires_sharing('meta'),
         # Shared System User app (access_token/app_id/app_secret) comes from the
         # platform env; the artist provides their own Ad Account ID and — for
         # Instagram — their Instagram Business Account ID. Stored per-artist app

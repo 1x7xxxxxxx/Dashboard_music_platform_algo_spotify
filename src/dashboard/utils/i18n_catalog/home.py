@@ -22,18 +22,10 @@ EN = {
     "home.title": "🎵 streaMLytics — Music platform dashboard",
     "home.freshness_header": "📡 Data freshness",
     "home.freshness_api": "🔄 Collected automatically",
-    "home.freshness_api_hint": "Nothing to do: it runs on its own every morning, Paris time.",
     "home.freshness_csv": "📂 You upload these",
-    "home.freshness_csv_hint": "These sources only move when a file is dropped — no API gives them to us.",
     "home.freshness_every_day": "every day at {h}",
     "home.freshness_on_upload": "on every upload",
     "home.streams_header": "🎧 Total streams",
-    "platform_chart.caption_period": (
-        "Plays **{unit}**, platform by platform. A gap in {shape} means no "
-        "measurement {when} — not zero plays."),
-    "platform_chart.caption_cumulative": (
-        "Running total **since the start of the period**, platform by platform. "
-        "A break in {shape} means no measurement — not a counter falling back."),
     "platform_chart.too_thin": (
         "{label} is not drawn: only **{measured} reading(s)**, and an area needs two. "
         "Its figures stay in the table below."),
@@ -42,49 +34,48 @@ EN = {
         "two. Showing **{used}**. 🎎 Apple Music only exists at the Yearly step: widen "
         "the period to see it again."),
     "platform_chart.too_coarse": (
-        "{label} does not appear at this step: none of its {unit}s is measured on "
+        "{label} does not appear at this step: none of its {unit} is measured on "
         "enough days to make an honest total. Pick a finer step to see it."),
-    "platform_chart.gaps_unstacked": (
-        "Over {total} {unit}, some platforms were not measured everywhere ({who}). "
-        "Their line stops there — a blank, never a zero: a zero would say \"no "
-        "plays\"."),
-    "platform_chart.gaps": (
-        "Over {total} {unit}, some platforms were not measured everywhere ({who}). "
-        "Their area stops there; the others carry on, so the total for those {unit} is "
-        "lower — no play was lost."),
     "home.trend_mode": "Display",
     "home.mode_cumulative": "Cumulative",
     "home.mode_absolute": "Per period",
     "home.mode_share": "Share of each platform",
     "home.mode_facets": "Each on its own scale",
-    "home.trend_share_hint": (
-        "A platform can be invisible without being absent: if one carries most of the "
-        "total, the others fall below one pixel. **Each on its own scale** gives every "
-        "platform its own panel, and makes the smallest one readable."),
     "home.trend_step": "Step",
-    "home.step_auto": "Automatic",
+    "home.step_day": "Daily",
     "home.step_week": "Weekly",
+    "home.step_month": "Monthly",
     "home.step_year": "Yearly",
     "home.trend_apple_hint": (
         "🎎 **Apple Music** only appears at the **Yearly** step: its exports are period "
         "totals, not daily figures. Spreading one over 365 days would invent a value "
         "nobody measured."),
     "home.trend_sources": "Sources shown",
-    "home.trend_sources_legend": "👆 Click a platform in the legend to hide it.",
+    "platform_chart.unmeasured": "▨ No measurement",
+    "platform_chart.recap_title": "Over the period",
+    "platform_chart.recap_platform": "Platform",
+    "platform_chart.recap_total": "Total",
+    "platform_chart.recap_measured": "Measured",
+    "platform_chart.recap_all": "Total",
     "home.trend_sources_ph": "All sources",
     "home.trend_title": "All your platforms, one screen",
     "home.trend_discarded": (
         "⏸️ Plays measured but **not chartable**: {parts}. They happened between two "
         "collections more than a day apart — we know how many, never on which day. "
         "Pinning them to a date would invent a spike."),
+    "home.trend_nothing_in_window": (
+        "No measurement over this period. The latest one is from **{last}** — upload "
+        "a recent export, or widen the window to see the history again."),
     "home.trend_no_series": (
         "Not enough history yet to draw a trend: it takes at least two consecutive "
         "days of collection on one platform."),
     # Onboarding tracker
     "home.matrix_caption": "Per platform — hover a box for the detail:",
-    "home.onboarding_creds": "🔑 Configure API credentials",
-    "home.onboarding_s4a": "📂 Upload a Spotify for Artists CSV",
-    "home.onboarding_apple": "🍎 Upload an Apple Music CSV",
+    "home.onboarding_creds": "🔑 Set up the APIs",
+    "home.onboarding_csv": "📂 Upload my files",
+    "home.onboarding_mapping": "🔗 Confirm the cross-platform mapping",
+    "home.onboarding_playlists": "📝 Enter my playlist adds (S4A)",
+    "home.onboarding_pdf": "📄 Generate my first PDF report",
     "home.onboarding_done_header": "#### ✅ Getting started — setup complete",
     "home.onboarding_done": "All getting-started steps are complete. 🎉",
     "home.onboarding_ticks_on_action": "A step is ticked when the action is **done**, not when the page is opened.",

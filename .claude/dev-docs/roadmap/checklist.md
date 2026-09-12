@@ -26,12 +26,17 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 
-**Quatre tâches rouvertes le 2026-09-11**, issues de l'audit metrics layer détaillé
-plus bas dans ce fichier (section « L'audit metrics layer du 2026-09-11 ») : R92 à R95.
-R89, R90 et R91 — les trois tâches ouvertes juste avant — ont été livrées le jour même
-et rotées dans `archive.md` : critère du double axe écrit et six figures triées, légende
-devenue le filtre de sources, PDF doté de la figure d'évolution multi-plateformes.
-Détail complet dans l'archive.
+**Aucune tâche ouverte** — le tableau ci-dessus est vide et l'ancre `open=` l'est
+aussi. R92 à R95, les quatre tâches de l'audit metrics layer du 2026-09-11, ont été
+closes et rotées dans `archive.md`, comme R89, R90 et R91 avant elles (critère du
+double axe écrit et six figures triées, légende devenue le filtre de sources, PDF doté
+de la figure d'évolution multi-plateformes). Détail complet dans l'archive.
+
+⚠️ Ce paragraphe annonçait encore « quatre tâches rouvertes » le 2026-09-12, alors que
+les quatre étaient closes et l'index vide. Aucun garde ne pouvait le voir : l'ancre et
+le tableau étaient justes, c'est la PROSE à côté qui affirmait le contraire. C'est la
+classe `a-prose-claim-that-cannot-be-verified`, et la parade reste la même — quand une
+phrase de ce fichier compte des tâches, elle doit compter ce que l'index compte.
 
 R59, R60, R61 et R62 ont été closes le 2026-09-05 (voir `archive.md`) : deux par un
 correctif, une par un ADR qui montre que sa prémisse était fausse, une par un ADR qui

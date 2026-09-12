@@ -52,9 +52,14 @@ REPO = Path(__file__).resolve().parent.parent
 #        fichiers que personne ne regardait. Le chiffre MONTE et c'est un progrès.
 #   110  `csv_exporter.py` déclaré : 21 couples qui ne sont pas une dette, c'est
 #        un export de lignes brutes, et c'est ce qu'il promet.
+#   108  `setup_completion.py` déclaré le 2026-09-12, en même temps que ses cinq
+#        étapes de mise en route. Il posait 3 couples de plus (mapping, playlists
+#        S4A) pour répondre « déjà fait ? », jamais « combien » — et le cliquet
+#        avait raison de le signaler : c'est en le regardant qu'on a vérifié que
+#        rien n'y calcule de quantité.
 #
 # À partir d'ici, il ne peut que descendre.
-_CEILING = 110
+_CEILING = 108
 
 # Les surfaces qui montrent des chiffres à quelqu'un.
 # ⚠️ LA PORTÉE ÉTAIT L'ANGLE MORT. Elle ne nommait que `pdf_exporter` sous
@@ -86,6 +91,13 @@ _DECLARED_BRONZE_SURFACES: dict[str, str] = {
     "src/dashboard/utils/csv_exporter.py":
         "export ZIP « toutes mes lignes » : un SELECT * par table, aucun agrégat. "
         "La couche bronze remise au locataire, ce qui est sa définition.",
+    "src/dashboard/utils/setup_completion.py":
+        "état de MISE EN ROUTE : il demande « ce locataire a-t-il déjà fait X ? », "
+        "jamais « combien ». Chaque lecture est un EXISTS — pas même un nombre à "
+        "réduire en booléen — et rien n'en atteint un écran. Monter ces "
+        "existences en couche or créerait des vues dont le seul travail serait "
+        "`COUNT(*) > 0` — une indirection qui n'empêche aucune divergence, puisqu'il "
+        "n'y a pas de règle à diverger.",
 }
 
 # Ce qui n'est pas une métrique métier : on ne le juge pas.
@@ -166,11 +178,16 @@ def test_the_declared_bronze_surfaces_still_read_bronze_and_still_do_not_aggrega
         assert read, (
             f"{rel} est déclaré comme lecteur de bronze mais n'en lit plus aucune "
             "table. La déclaration est devenue un plafond offert à autre chose.")
+        # `COUNT` est volontairement HORS de cette liste : c'est le seul agrégat
+        # qu'une question d'existence puisse porter, et c'est ce que
+        # `setup_completion` fait. `SUM`, `AVG`, `MIN`, `MAX` produisent une
+        # QUANTITÉ — dès qu'une surface déclarée en calcule une, sa raison écrite
+        # ne tient plus et sa déclaration devient du budget.
         aggregating = [lit[:80] for lit in literals
-                       if re.search(r"\b(SUM|AVG)\s*\(", lit, re.I)
+                       if re.search(r"\b(SUM|AVG|MIN|MAX)\s*\(", lit, re.I)
                        and any(t.lower() in bronze for t in _FROM.findall(lit))]
         assert not aggregating, (
-            f"{rel} est déclaré « aucun agrégat » et en porte maintenant "
+            f"{rel} est déclaré « aucune quantité » et en calcule maintenant "
             f"{len(aggregating)} sur une table de bronze. La raison écrite ne tient "
             f"plus : {aggregating[:2]}")
 
