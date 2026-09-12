@@ -4640,3 +4640,73 @@ geste, et lui seul : **R1** — inviter la bêta.
   Deux plafonds ont été posés d'instinct puis mesurés : 24 → **5** pour les `except`
   numériques. Écrire un plafond avant de compter est la classe
   `un-seuil-écrit-d-instinct`, dans le garde qui la dénonce.
+
+## R104 — une rupture de méthode dessinée comme une croissance
+
+- [x] **R104 — une croissance de niveau invraisemblable au regard de la distribution propre à la plateforme est traitée comme une DISCONTINUITÉ, pas comme une quantité.**
+
+**Mesuré en production le 2026-09-12, artiste 1**, après le signalement « filtre par
+période, j'ai un pic à 18000 pour youtube alors que c'est faux » :
+
+| | valeur |
+|---|---|
+| Niveau YouTube au 2026-06-10 | 99 778 |
+| Niveau YouTube au 2026-06-11 | 118 216 |
+| Croissance en une nuit | **+18 438** |
+| Plus gros écart QUOTIDIEN de toute la série (116 points) | **7** |
+| Médiane des écarts quotidiens | **1** |
+
+Le pic est **réel dans les données et faux comme information**. Le 11 juin, la collecte
+a changé de DÉFINITION : du compteur de CHAÎNE — qui plafonnait à 99 xxx et compte des
+vidéos qui ne sont pas les siennes, prouvé ~10× faux le 2026-09-08 — à la somme des
+compteurs PAR VIDÉO. Une rupture de méthode ne devient pas une quantité parce qu'on la
+soustrait à la veille.
+
+**Ce qui a été fait le 2026-09-12 :** le mode « Par période », seul à transformer cette
+marche en un bâton de 18 438 attribué à un jour, a été retiré de l'accueil. C'est un
+correctif d'AFFICHAGE — il cesse de déguiser la rupture, il ne la corrige pas. En
+cumulé la marche reste visible, ce qui est honnête : une marche se lit comme une
+discontinuité.
+
+**Ce qui reste, et pourquoi ce n'est pas une retouche :** décider ce que vaut
+l'historique d'avant le changement de méthode est une question de DÉFINITION. Trois
+options, aucune gratuite — recaler l'ancien historique sur la nouvelle base (invente des
+vues qu'on n'a pas mesurées), couper la série au 11 juin (perd sept mois), ou marquer la
+discontinuité et refuser toute croissance qui la traverse (honnête, mais laisse un trou
+dans les totaux par période qui l'enjambent).
+
+La migration 112 connaît déjà la forme MIROIR — un relevé partiel n'est pas un niveau —
+et son seuil est lu dans la distribution réelle. C'est le précédent à suivre : le
+critère doit être mesuré sur la plateforme elle-même, jamais posé d'instinct.
+
+⚠️ **À vérifier sur les autres locataires avant de trancher** : la même bascule a pu se
+produire ailleurs, à d'autres dates. Un correctif calibré sur l'artiste 1 seul serait
+un correctif pour une instance, pas pour la classe.
+
+### ✅ Close le 2026-09-12 au soir
+
+Le seuil a été **mesuré**, pas posé : chaque série de compteur de la production
+comparée à son propre 95ᵉ centile — a1/youtube **1 676**, a1/soundcloud 20,4,
+a12/soundcloud 3,0, a14/youtube 1,5, a14/soundcloud 1,4. Une seule sort, et c'est la
+rupture connue. Le rapport retenu est **100**, dans le creux : 5× au-dessus de la plus
+forte croissance légitime du parc, 16× sous la rupture.
+
+**Passé sur tout le parc, le détecteur trouve exactement une rupture** — celle du
+2026-06-11 — et aucun faux positif.
+
+Les DEUX surfaces qui la comptaient sont corrigées, et c'est le point : n'en corriger
+qu'une aurait donné une figure juste à côté d'une tuile fausse.
+
+| surface | traitement | mesuré en prod |
+|---|---|---|
+| la figure (`platform_chart`) | le seau qui enjambe rend **`None`** — bande hachurée, jamais `0` | le bâton de 18 438 disparaît |
+| les totaux (`platform_totals`) | le saut est **soustrait**, la fenêtre n'est pas vidée | fenêtre mai→juillet : **18 558 → 120** ; fenêtre sans rupture : 75 → 75 |
+
+`None` et non `0` sur la figure : un zéro affirmerait « rien ne s'est passé ce mois-là »,
+ce qui est faux — il s'est passé quelque chose, on ne sait pas combien. Soustraction et
+non remise à zéro sur les totaux : une fenêtre est un total qu'on doit rendre, là où un
+seau est une case qu'on peut laisser vide.
+
+Garde : `tests/test_a_method_change_is_not_a_quantity.py`, 10 assertions, 6 mutations
+vues rouges — dont les deux qui encadrent le seuil (trop haut : rupture ratée ; trop
+bas : la vraie poussée de a1/soundcloud effacée).

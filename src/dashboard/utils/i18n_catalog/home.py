@@ -44,7 +44,6 @@ EN = {
         "🎎 **Apple Music** only appears at the **Yearly** step: its exports are period "
         "totals, not daily figures. Spreading one over 365 days would invent a value "
         "nobody measured."),
-    "home.trend_sources": "Sources shown",
     "platform_chart.unmeasured": "▨ No measurement",
     "platform_chart.no_data_hover": "No data collected for this period",
     "platform_chart.recap_metrics": "Indicators",
@@ -95,7 +94,6 @@ EN = {
     "platform_chart.collected_since": "{label} measured since {since}",
     "platform_chart.week_of": "the week of {d}",
     "platform_chart.day_of": "{d}",
-    "home.trend_sources_ph": "All sources",
     "home.trend_discarded": (
         "⏸️ Plays measured but **not chartable**: {parts}. They happened between two "
         "collections more than a day apart — we know how many, never on which day. "

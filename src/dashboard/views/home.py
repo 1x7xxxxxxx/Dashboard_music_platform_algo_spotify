@@ -518,30 +518,34 @@ def _render_trend(db, series, since, until, range_key, artist_id,
     #
     # Pleine largeur, plus rien n'est contraint : les quatre modes tiennent sur une
     # ligne, et le filtre de sources est rendu plus bas, uniquement quand il existe.
-    # ── « PAR PÉRIODE » A ÉTÉ RETIRÉ LE 2026-09-12, ET C'EST UN CORRECTIF ────
+    # ── DEUX MODES, ET DEUX SEULEMENT ────────────────────────────────────────
     #
-    # « filtre par période, j'ai un pic à 18000 pour youtube alors que c'est faux.
-    # Je propose de supprimer le par période ». Le pic est RÉEL dans les données et
-    # FAUX comme information : mesuré en production, le niveau YouTube passe de
-    # 99 778 à 118 216 entre le 10 et le 11 juin 2026, soit **+18 438 en une nuit**.
-    # Le plus gros écart quotidien de toute la série vaut 7, et sa médiane 1.
+    # « supprime-moi le filtre "part de chaque plateforme" et "chacune à son
+    # echelle", je veux uniquement un filtre cumulé ou normal » (2026-09-12).
     #
-    # Ce n'est pas une audience, c'est le jour où la collecte a changé de
-    # DÉFINITION — du compteur de CHAÎNE (qui plafonnait à 99 xxx et compte des
-    # vidéos qui ne sont pas les siennes, prouvé ~10× faux le 2026-09-08) à la
-    # somme des compteurs PAR VIDÉO. Une rupture de méthode ne devient pas une
-    # quantité parce qu'on la soustrait à la veille.
+    # Les deux retirés répondaient à des questions réelles — quelle part pèse chaque
+    # plateforme, à quoi ressemble chaque courbe sur sa propre échelle — mais les
+    # boîtes de droite portent maintenant les deux réponses : chaque plateforme y a
+    # son total, côte à côte, en valeur absolue. Quatre modes pour deux questions
+    # déjà répondues ailleurs, c'est un menu à lire avant de pouvoir regarder.
     #
-    # Le mode « Par période » était le seul à transformer cette marche en un bâton
-    # de 18 438. En cumulé elle reste visible comme une marche — et une marche se
-    # lit comme ce qu'elle est, une discontinuité — mais elle n'est plus attribuée
-    # à un jour comme si l'artiste avait fait 18 438 vues ce jour-là.
+    # ⚠️ ET « PART » EMPORTE LE `multiselect` AVEC LUI. Il était le SEUL mode où le
+    # filtre de sources restait un widget : ses pourcentages sont établis sur
+    # l'ensemble affiché, et un clic de légende masque une trace sans recalculer les
+    # autres, donc la pile ne ferait plus 100 %. Sans lui, la légende redevient le
+    # filtre partout — « je voulais cette légende cliquable pour les sélectionner ».
+    # Un clic de légende est côté navigateur : il ne relance pas le script, là où le
+    # `multiselect` coûtait un rendu complet (287 ms mesurés en production) pour
+    # masquer une bande.
     #
-    # ⚠️ Ce retrait ne CORRIGE pas la rupture, il cesse de la déguiser. La corriger
-    # demande de décider ce que vaut l'historique d'avant le changement de méthode,
-    # ce qui est une question de définition, pas d'affichage — elle est ouverte en
-    # roadmap plutôt que tranchée en silence ici.
-    _MODES_HOME = {k: v for k, v in MODES.items() if k != "absolute"}
+    # « PAR PÉRIODE » REVIENT, ET SEULEMENT PARCE QUE SON DÉFAUT EST CORRIGÉ. Il
+    # avait été retiré le jour même à cause du pic de 18 438 vues YouTube du
+    # 2026-06-11 — un changement de définition de la collecte, pas une audience.
+    # `level_discontinuities` le détecte désormais sur un seuil MESURÉ (rapport 100
+    # au 95ᵉ centile ; la rupture sort à 1 676, la plus forte croissance légitime du
+    # parc à 20,4), et le seau qui l'enjambe rend `None` — une bande hachurée, pas un
+    # bâton. Rendre le mode sans corriger la cause aurait ramené le défaut.
+    _MODES_HOME = {k: v for k, v in MODES.items() if k in ("cumulative", "absolute")}
     mode = st.segmented_control(
         t("home.trend_mode", "Affichage"), list(_MODES_HOME),
         format_func=lambda k: t(f"home.mode_{k}", _MODES_HOME[k]),
@@ -569,26 +573,22 @@ def _render_trend(db, series, since, until, range_key, artist_id,
                  # une panne.
                  if (STEP_ONLY.get(k) is None or STEP_ONLY[k] == step)
                  and measured_days(series, k, since, until)]
-    # LE FILTRE DE SOURCES EST LA LÉGENDE DE LA FIGURE, sauf en mode « part ».
+    # LE FILTRE DE SOURCES EST LA LÉGENDE DE LA FIGURE. Plus d'exception.
     #
     # « Peut-on intégrer le clickage des plateformes directement sur le graphique
     # plutôt qu'avec le filtre qui doit sélectionner ? ça enlèverait de la
-    # complexité » (2026-09-11). Un clic de légende est côté navigateur : il ne
-    # relance pas le script. Le `multiselect`, lui, coûtait un rendu complet — 287 ms
-    # mesurés en production — pour masquer une bande.
+    # complexité » (2026-09-11), puis « tu m'as remis le filtre spotify soundcloud
+    # youtube alors que je voulais cette légende cliquable » (2026-09-12).
     #
-    # « Part de chaque plateforme » est l'exception, et pour une raison de calcul et
-    # non de goût : ses pourcentages sont établis sur l'ensemble AFFICHÉ, et un clic
-    # de légende masque une trace sans recalculer les autres. La pile ne ferait plus
-    # 100 %, ce qui est un chiffre faux et pas seulement une figure incomplète.
+    # Le `multiselect` n'avait jamais été « remis » : il ne s'affichait qu'en mode
+    # « Part de chaque plateforme », le seul où un clic de légende serait FAUX — ses
+    # pourcentages sont établis sur l'ensemble affiché, et masquer une trace sans
+    # recalculer les autres ferait une pile qui ne fait plus 100 %. Ce mode étant
+    # retiré, l'exception n'a plus d'objet et le widget disparaît avec elle.
+    #
+    # C'est la bonne façon de retirer un widget : supprimer le cas qui l'exigeait,
+    # pas le masquer en laissant le cas vivant.
     chosen = available
-    if mode == "share" and len(available) > 1:
-        chosen = st.multiselect(
-            t("home.trend_sources", "Sources affichées"), available,
-            default=available, format_func=lambda k: PLATFORM_LABELS[k],
-            key=f"home_trend_sources_{artist_id}",
-            label_visibility="collapsed",
-            placeholder=t("home.trend_sources_ph", "Toutes les sources")) or available
 
     if step != 'year' and any(k in series and series[k] for k in STEP_ONLY):
         st.caption(t(
