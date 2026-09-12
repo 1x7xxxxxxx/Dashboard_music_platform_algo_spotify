@@ -147,7 +147,9 @@ def _section_streams(db, artist_id):
     # sur une période bornée — et refuse d'additionner deux formes. Le grand total vert
     # additionnait ici le compteur de CHAÎNE YouTube, celui qu'on a prouvé ~10× faux le
     # 2026-09-08 : trois pages du même produit donnaient trois totaux différents.
-    from src.dashboard.utils.platform_timeseries import combined_total, platform_totals
+    from src.dashboard.utils.platform_timeseries import (
+        combined_total, cumulative_by_platform, platform_totals,
+    )
     totals = platform_totals(db, artist_id, since, until)
     grand_total = combined_total(totals)
 
@@ -189,6 +191,30 @@ def _section_streams(db, artist_id):
     _side = dict(_side)
     _side["last_measured"] = {
         k: max(d for d, _v in rows) for k, rows in (series or {}).items() if rows}
+
+    # ── CE QUE NOUS AVONS VU CROÎTRE, ET CE QUI NOUS PRÉCÈDE ─────────────────
+    #
+    # « j'ai des chiffres qui disent n'importe quoi pour le non cumulé »
+    # (2026-09-13). Mesuré en production : la figure totalise **304 vues YouTube**
+    # sur tout l'historique quand la boîte en annonce **118 336**. Les deux sont
+    # justes et répondent à deux questions ; rien ne le disait.
+    #
+    # 118 336 est le compteur À VIE. Nous ne le relevons que depuis le 29 novembre
+    # 2025 : les 118 032 vues qui précèdent notre première mesure ont eu lieu, mais
+    # AUCUNE DATE ne peut les porter — on ne sait pas quel jour elles se sont
+    # produites. Une figure « en fonction du temps » ne peut donc pas les dessiner,
+    # et les répartir uniformément inventerait une histoire.
+    #
+    # ⚠️ DANS L'INFOBULLE, PAS SOUS LA BOÎTE. Une ligne de plus ne toucherait que
+    # les deux boîtes à compteur et casserait l'alignement de la rangée — ce qui
+    # vient d'être corrigé sur la boîte Meta. C'est un contexte qu'on va chercher
+    # quand le chiffre surprend, pas un titre.
+    _observed = {}
+    for _k, _rows in (cumulative_by_platform(db, artist_id) or {}).items():
+        _rows = sorted(_rows or [])
+        if len(_rows) >= 2:
+            _observed[_k] = (_rows[0][0], _rows[-1][1] - _rows[0][1])
+    _side["observed_growth"] = _observed
 
     # ── UNE SEULE RANGÉE : LA FIGURE À GAUCHE, LES KPI À DROITE ──────────────
     #
@@ -289,6 +315,21 @@ def _render_tiles(totals: dict, grand_total: int, ig_count: int,
         # de l'accueil sont sorties de la carte de la couche or pour cette raison
         # exacte le 2026-09-12.
         value, before = _t.get(key), _p.get(key)
+        # LE COMPTEUR À VIE PORTE CE QU'ON N'A PAS VU. Pour YouTube et SoundCloud,
+        # le total est le compteur de la plateforme : il inclut tout ce qui précède
+        # notre première collecte. L'infobulle nomme les deux nombres — celui de la
+        # boîte et celui que la figure peut dessiner — parce que leur écart est ce
+        # qui fait dire « ces chiffres disent n'importe quoi ».
+        _obs = (_s.get("observed_growth") or {}).get(key)
+        if _obs and value and _obs[1] < value:
+            help_text = (help_text + " " if help_text else "") + t(
+                "home.tile_counter_history",
+                "Compteur à vie. Nous relevons cette plateforme depuis le {since} : "
+                "**{seen}** depuis cette date, le reste précède notre première "
+                "mesure et aucune date ne peut le porter — c'est pourquoi la courbe "
+                "« par période » en montre moins.").format(
+                    since=_obs[0].strftime("%d/%m/%y"),
+                    seen=f"{int(_obs[1]):,}".replace(",", "\u202f"))
         with col.container(border=True):
             st.metric(label, _n(value), delta=_delta(value, before), help=help_text)
             if not value and _last.get(key):

@@ -703,6 +703,33 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     # OBSERVÉ, ce qui est une approximation qu'on assume : l'alternative mesurée est
     # de sous-déclarer d'un facteur 151. Au jour, on garde les écarts honnêtes, et la
     # note « écoutes non traçables » continue de dire ce qui manque.
+    # ── L'EXCEPTION DU PAS QUOTIDIEN EST DÉLIBÉRÉE, ET DEUX GARDES LA TIENNENT ─
+    #
+    # « j'ai des chiffres qui disent n'importe quoi pour le non cumulé »
+    # (2026-09-13). Mesuré : la figure totalise **138** vues YouTube au pas du jour
+    # et **304** au pas du mois, sur la même période. Deux réponses, et l'artiste ne
+    # choisit plus le grain — il voit donc le nombre changer en déplaçant un filtre.
+    #
+    # J'AI ESSAYÉ DE LIRE LES NIVEAUX À TOUS LES PAS. Deux gardes ont refusé, et ils
+    # ont raison :
+    #
+    #   * `test_the_daily_step_keeps_the_honest_deltas` — entre deux relevés
+    #     espacés de trente jours, attribuer tout l'écart au jour du second INVENTE
+    #     un pic : on sait COMBIEN, jamais QUEL JOUR. Le test l'a mesuré sur sa mise
+    #     en scène : 20 000 attribués à une seule journée ;
+    #   * `test_the_same_platform_IS_hatched_when_the_daily_series_is_drawn` — la
+    #     série de niveaux n'a pas de trous (elle reporte en avant), donc la figure
+    #     perdait ses bandes hachurées et retombait au zéro inventé qu'on corrige
+    #     depuis le 2026-09-12.
+    #
+    # L'écart entre 138 et 304 n'est donc pas une incohérence à supprimer : c'est le
+    # PRIX de l'honnêteté au grain fin, et il est déjà nommé à l'écran par la note
+    # « ⏸️ Écoutes mesurées mais non traçables », qui ne s'affiche QUE dans ce cas
+    # précis — pas quotidien, mode non cumulé.
+    #
+    # Ce qui manquait vraiment à l'artiste était ailleurs, et c'est corrigé : la
+    # boîte annonce le compteur À VIE (118 336) quand la figure ne peut dessiner que
+    # ce qu'on a vu croître (304). L'infobulle de la boîte le dit désormais.
     _has_gold = [k for k, rows in (cumulative or {}).items() if rows]
     served = _has_gold if (mode == "cumulative" or step != "day") else []
     for k in served:

@@ -65,6 +65,12 @@ EN = {
         "per result along with the budget it consumed."),
     "home.tile_best_cpr": "🎯 CPR {cpr}{budget}",
     "home.tile_last_seen": "Last reading: {d}",
+    # Pourquoi la courbe « par période » montre moins que le compteur de la boîte :
+    # le compteur est à VIE, nous ne le relevons que depuis une date donnée.
+    "home.tile_counter_history": (
+        "Lifetime counter. We have been reading this platform since {since}: "
+        "**{seen}** since that date. The rest predates our first reading and no date "
+        "can carry it — which is why the « per period » curve shows less."),
     # Les trois portes algorithmiques de la dernière sortie (2026-09-12). « Predicted »
     # est porté par le bandeau ET par l'aide : c'est une PRÉDICTION, jamais un taux
     # observé — aucune issue n'a encore été saisie.

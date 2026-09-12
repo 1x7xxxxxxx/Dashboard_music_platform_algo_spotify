@@ -5,6 +5,72 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-13 (soir) — Deux gardes refusent un correctif plausible, pour la deuxième fois
+
+### Le signalement, et ce que la mesure a rendu
+
+« j'ai des chiffres qui disent n'importe quoi pour le non cumulé […] normalement avec
+les calculs de la couche argent et or il ne devrait pas y avoir de problème ».
+
+Mesuré en production, artiste 1, historique complet :
+
+| | figure « par période » | couche or |
+|---|---|---|
+| Spotify | 165 065 | 165 065 ✅ |
+| YouTube | **304** | **118 336** |
+| SoundCloud | **323** | **23 564** |
+
+Et, selon le grain : **138** vues YouTube au pas du jour, **304** au pas du mois. Deux
+réponses à la même question — et depuis que le grain se dérive de la fenêtre, l'artiste
+voit ce nombre changer en déplaçant un filtre de période, sans avoir rien choisi.
+
+### Le correctif évident était faux, et deux gardes l'ont dit
+
+La cause du 138/304 est une exception : au pas du jour, les compteurs retombent sur la
+somme des ÉCARTS QUOTIDIENS, et un écart n'existe qu'entre deux jours CONSÉCUTIFS.
+YouTube n'étant relevée que 39 % des jours, 55 % du gain était perdu. J'ai donc lu les
+niveaux à tous les pas — la suite a rougi immédiatement :
+
+* `test_the_daily_step_keeps_the_honest_deltas` : « les 20 000 du compteur ont été
+  attribués à des journées précises, ce qui invente un pic là où on sait seulement
+  COMBIEN, jamais QUEL JOUR » ;
+* `test_the_same_platform_IS_hatched_when_the_daily_series_is_drawn` : la série de
+  niveaux n'a pas de trous (report en avant), donc la figure perdait ses bandes
+  hachurées et retombait au zéro inventé corrigé le 2026-09-12.
+
+**L'écart 138/304 n'est pas une incohérence à supprimer : c'est le prix de l'honnêteté
+au grain fin.** Et il est déjà nommé à l'écran — vérifié en production, la note
+« ⏸️ Écoutes mesurées mais **non traçables** : ☁️ SoundCloud 239, 🎬 YouTube 167 »
+s'affiche exactement dans ce cas, et 138 + 167 = 305, soit les 304 du pas mois.
+
+C'est la deuxième fois en deux jours qu'un garde arrête un correctif plausible avant la
+production. Le premier avait refusé de corriger la figure et les totaux séparément.
+
+### Ce qui manquait vraiment, et qui est corrigé
+
+Le second écart — 304 dessinés contre 118 336 dans la boîte — n'était nommé nulle part.
+Les deux nombres sont justes et répondent à deux questions : 118 336 est le compteur **à
+vie**, et nous ne le relevons que depuis le **29/11/2025**. Les 118 032 vues antérieures
+ont eu lieu, mais **aucune date ne peut les porter** : une figure « en fonction du
+temps » ne peut pas les dessiner, et les répartir uniformément inventerait une histoire.
+
+L'infobulle de la boîte le dit désormais, avec les deux chiffres et la date de première
+mesure. **Dans l'infobulle, pas sous la boîte** : une ligne de plus ne toucherait que
+les deux boîtes à compteur et casserait l'alignement de la rangée, ce qui vient d'être
+corrigé sur la boîte Meta.
+
+### Et un test qui échouait sur sa propre mise en scène
+
+Le nouveau garde relevait son compteur d'essai **un jour sur sept**. Les seaux mensuels
+tombaient à 13 % de couverture, le plancher les vidait tous, et la figure dessinait 58
+au lieu de 570 : le test échouait sur sa mise en scène, pas sur son sujet. Cinq jours
+sur sept — assez dense pour passer le plancher, assez troué pour que le défaut existe.
+Un garde qui échoue sur sa mise en scène finit relâché jusqu'à ce qu'il se taise.
+
+Suite complète : **5503 passed**, 0 échec.
+
+---
+
 ## 2026-09-13 (suite) — Un interrupteur, et une bande qui pèse 0,18 %
 
 ### Ce qui a changé
