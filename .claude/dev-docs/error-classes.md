@@ -106,6 +106,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-ratchet-at-zero-over-a-scope-that-excludes-the-defect](#a-ratchet-at-zero-over-a-scope-that-excludes-the-defect) | P2 | deterministic | guarded | none |
 | [a-procedural-rule-in-the-database](#a-procedural-rule-in-the-database) | P3 | deterministic | guarded | none |
 | [a-signature-anchored-on-a-location](#a-signature-anchored-on-a-location) | P3 | deterministic | guarded | none |
+| [a-ratchet-with-no-floor-under-its-population](#a-ratchet-with-no-floor-under-its-population) | P2 | deterministic | guarded | none |
+| [a-guard-that-sees-the-binding-not-the-application](#a-guard-that-sees-the-binding-not-the-application) | P3 | manual | reported | none |
+| [an-exemption-that-outlives-what-it-exempted](#an-exemption-that-outlives-what-it-exempted) | P3 | deterministic | guarded | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -4947,3 +4950,47 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: 0 hit sur les 284 classes existantes. Signature vue exit 1 en ajoutant une entrée dont la signature nommait `src/dashboard/utils/platform_chart.py:851`, exit 0 après l'avoir retirée.
+
+## a-ratchet-with-no-floor-under-its-population
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un cliquet à zéro reste vert alors que la propriété qu'il annonce n'est plus vérifiée — parce qu'il ne mesure plus rien. Mesuré le 2026-09-12 : **5 des 17 valeurs gelées du dépôt** n'avaient aucun plancher sous leur population.
+- root_cause: `total <= plafond` est vrai pour `total = 0`, et zéro arrive de trois façons qui n'ont rien d'exceptionnel — le prédicat cesse de matcher (un nom de fonction renommé), la population disparaît (un fichier budgété supprimé), ou le rendu échoue en silence (une page qui ne s'affiche plus émet zéro requête). Dans les trois cas le cliquet passe au vert en ne vérifiant plus rien, et rien dans son message ne distingue « zéro trouvé » de « zéro cherché ».
+- long_term_fix: tout cliquet porte DEUX assertions — un plafond sur les offenseurs ET un plancher sur la population balayée, gelé à la mesure du jour avec sa date. Le plancher est la moitié qu'on oublie. Contrôle mécanique : `tools/dev/gold_coverage.py` compte les valeurs gelées sans test de non-vacuité, et ce compte est lui-même sous cliquet à **0**.
+- autofix: none
+- signature: `python3 -m pytest tests/test_the_gold_coverage_only_improves.py::test_no_counter_of_holes_ever_grows -q`
+- guard: { type: pytest, ref: tests/test_the_gold_coverage_only_improves.py::test_no_counter_of_holes_ever_grows }
+- rex_ref: tools/dev/gold_coverage.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: les cinq trous comblés le jour même — `_MAX_QUERIES` (un rendu raté émet zéro requête), `_BUDGET` (sept plafonds sur des fichiers dont aucun n'était vérifié comme existant), `_MAX_FIRST_SCREEN` (paramétré sur une liste qui, vide, n'exécute AUCUN cas et ne rougit jamais), et les deux bornes du websocket (vraies par vacuité sur un réglage absent — donc vertes sur la configuration par défaut de Streamlit, celle qui n'envoie aucun keepalive). Signature vue exit 1 en remettant le compte à 5, exit 0 après.
+
+## a-guard-that-sees-the-binding-not-the-application
+- status: reported
+- severity: P3
+- kind: manual
+- symptom: un garde reste vert sur le défaut exact qu'il décrit, parce qu'il vérifie qu'une valeur est CALCULÉE et non qu'elle est UTILISÉE.
+- root_cause: `tests/test_a_chart_is_bounded_by_the_period_it_announces.py` cherche un nom de fenêtre dans une comparaison, à l'intérieur d'un fragment de 45 lignes autour de la requête. Mesuré le 2026-09-12 : retirer `{frag}` de la requête bornée d'`apple_music.py:165` — le défaut réel, celui où l'artiste choisit « 30 jours » et voit tout l'historique — le laisse VERT, même en neutralisant aussi `window.sql_between("date")`. Le garde voit la fenêtre LIÉE dans le voisinage, jamais la fenêtre APPLIQUÉE au littéral SQL.
+- long_term_fix: suivre le fragment jusqu'au littéral SQL par une tranche arrière — le même mécanisme que `tools/dev/gold_coverage.py`, qui résout déjà `Name → définition` et recolle les f-strings avec une sentinelle. Le garde cesserait alors de demander « une fenêtre existe-t-elle près d'ici » pour demander « cette requête porte-t-elle la fenêtre ».
+- autofix: none
+- guard: — (le trou est DÉCLARÉ dans le docstring du test, pas comblé ; l'autre moitié de sa mutation, elle, est rouge)
+- rex_ref: tests/test_a_chart_is_bounded_by_the_period_it_announces.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: livrée en `kind: manual` SANS signature, délibérément. Je n'ai pas pu produire les deux exécutions — le défaut existe et le garde reste vert, donc aucune commande ne sort ≠ 0 dessus aujourd'hui. Une signature non vérifiée coûte plus cher qu'une absence de signature ; le trou est écrit à l'endroit où il se lit, dans le docstring du test.
+
+## an-exemption-that-outlives-what-it-exempted
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une exemption reste dans une liste après la disparition de ce qu'elle exemptait. Elle ne casse rien le jour où ça arrive — elle devient du **budget** pour la prochaine occurrence, que plus personne n'a décidé d'autoriser.
+- root_cause: une exemption est écrite avec une raison, puis la raison disparaît sans que la ligne bouge. Deux formes, symétriques et toutes deux vues ici : un axe secondaire déclaré dans `utils/charts.py` qui serait converti en petits multiples (l'exemption couvrirait alors gratuitement le prochain), et un SECOND axe ajouté dans ce même fichier que l'exemption couvrirait sans qu'on l'ait voulu.
+- long_term_fix: une exemption est NOMINATIVE et **quantifiée**, et un test vérifie l'égalité dans les deux sens — ni plus, ni moins que ce qui est déclaré. Le précédent est `test_uniqueness_names_its_tenant.py::test_the_exemption_still_names_a_table_that_exists` ; la version quantifiée est `test_the_visual_rules_only_tighten.py::test_the_declared_axis_still_exists_and_still_has_its_axis`.
+- autofix: none
+- signature: `python3 -m pytest tests/test_the_visual_rules_only_tighten.py::test_the_declared_axis_still_exists_and_still_has_its_axis tests/test_uniqueness_names_its_tenant.py::test_the_exemption_still_names_a_table_that_exists -q`
+- guard: { type: pytest, ref: tests/test_the_visual_rules_only_tighten.py::test_the_declared_axis_still_exists_and_still_has_its_axis }
+- rex_ref: tests/test_the_visual_rules_only_tighten.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: signature vue exit 1 dans les DEUX sens — l'axe déclaré retiré du fichier (« l'exemption est devenue du budget »), puis un second axe ajouté dans le fichier exempté (« 2 trouvé(s), 1 déclaré »). Exit 0 sur l'arbre sain.

@@ -39,6 +39,10 @@ from pathlib import Path
 VIEWS = Path(__file__).resolve().parents[1] / "src" / "dashboard" / "views"
 
 # Gelé le 2026-09-10, après passage de 2 à 0. CE NOMBRE NE PEUT QUE DESCENDRE.
+#
+# Mutation record — 2026-09-12 : un `artist_id = get_artist_id()` suivi d'un
+# `if artist_id is None: artist_id = 1` réintroduit en tête de `views/sacem.py`,
+# ce cliquet nomme `sacem.py:86` et échoue ; retiré, il passe.
 _MAX_OPEN_CODED = 0
 
 

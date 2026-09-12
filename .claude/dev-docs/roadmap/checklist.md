@@ -26,10 +26,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R96 | Faire baisser les 38 surfaces dont la carte ne sait pas d'où vient la donnée | P4 | `<!-- gold-coverage-*: unknown=… -->`, sous cliquet |
-| R97 | Repointer ou garder les 18 agrégats qu'aucun cliquet ne regarde | P3 | `<!-- gold-coverage-unguarded-aggregates -->`, sous cliquet |
-| R98 | Ranger les 68 classes d'erreur sans famille | P4 | `<!-- error-class-families: orphans=… -->`, sous cliquet |
 | R99 | Faire descendre la frontière de bronze (132 couples) | P4 | `_CEILING` de `tests/test_the_bronze_boundary_only_tightens.py` |
-| R101 | Écrire la trace de mutation des 10 cliquets qui n'en ont pas, et la non-vacuité des 5 | P3 | `<!-- gold-coverage-ratchets -->`, sous cliquet |
 | R100 | Trancher dbt : le déclencheur d'ADR-014 est atteint (13 objets dérivés, 4 interdépendants) | P4 | ADR-014 §déclencheurs, recompté dans ADR-022 |
 
 **Quatre tâches rouvertes le 2026-09-11**, issues de l'audit metrics layer détaillé
@@ -92,9 +89,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-12 (soir), six tâches ouvertes — R96 à R101 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-12 (soir), trois tâches ouvertes — R96, R99, R100 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R96,R97,R98,R99,R100,R101 -->
+<!-- reprise: open=R96,R99,R100 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -228,9 +225,33 @@ verts ne voyaient pas :
   commentaire ne garde rien : le garde s'appelle
   `tests/test_a_total_is_computed_where_a_guard_can_see_it.py`.
 
-Les cinq tâches ci-dessous sont les restes MESURÉS de cette soirée. Chacune est un
-compteur écrit par une machine, sous cliquet : aucune ne peut empirer en silence, et
-chacune baisse par un travail nommé.
+### Ce que la seconde passe a fermé, et comment
+
+Énumérer des trous n'est pas les fermer. Trois des six l'ont été le soir même, et
+**aucun par une phrase** :
+
+| compteur | avant | après | ce qui a fermé le trou |
+|---|---|---|---|
+| cliquets sans non-vacuité | 5 | **0** | un plancher sous la population de chacun |
+| cliquets sans trace de mutation | 10 | **0** | dix mutations faites, dix messages lus |
+| agrégats hors cliquet | 21 | **0** | 9 repointés, 12 DÉCLARÉS avec leur raison |
+| classes d'erreur sans famille | 68 | **3** | cinq familles qui manquaient |
+
+Trois mutations ont ÉCHOUÉ, et c'est la moitié la plus utile :
+
+* retirer `{frag}` d'une requête bornée laisse
+  `test_a_chart_is_bounded_by_the_period_it_announces` **vert** — il voit la fenêtre
+  LIÉE, jamais la fenêtre APPLIQUÉE. Classe
+  `a-guard-that-sees-the-binding-not-the-application`, livrée en `kind: manual`
+  SANS signature : le défaut existe, donc aucune commande ne sort ≠ 0 dessus ;
+* un second axe ajouté dans `utils/` laissait `test_the_visual_rules_only_tighten`
+  vert — sa portée s'arrêtait à `views/`, et `utils/charts.py` portait un axe
+  secondaire VIVANT, rendu par deux vues. Portée élargie, axe déclaré avec sa raison ;
+* et un `git checkout` réflexe a détruit le travail non commité de
+  `tools/dev/gold_coverage.py`. Troisième fois que ce dépôt l'enregistre.
+
+Les trois tâches ci-dessous sont ce qui reste. Chacune est un compteur écrit par une
+machine, sous cliquet : aucune ne peut empirer en silence.
 
 - [ ] **R96 — Faire baisser les 38 surfaces dont la carte ne sait pas d'où vient la
   donnée** (P4) — 15 figures sur 89, 18 tuiles sur 207, 5 figures PDF sur 29 sont
@@ -242,43 +263,12 @@ chacune baisse par un travail nommé.
   aucun garde. **Mesuré par** : `<!-- gold-coverage-*: unknown=… -->`, plafonds gelés
   dans `tests/test_the_gold_coverage_only_improves.py`.
 
-- [ ] **R97 — Repointer ou garder les 18 agrégats qu'aucun cliquet ne regarde** (P3) —
-  la colonne « dont hors cliquet » de la carte. Dix sur `meta_campaigns`, deux sur
-  `meta_ads`, deux sur `s4a_song_timeline` (`utils/ml_inference.py:261`,
-  `utils/saves_history.py:56`), un sur `distrokid_monthly_revenue`, un sur
-  `imusician_monthly_revenue`, un sur `meta_adsets`, un sur
-  `meta_insights_performance_day` (`collectors/_meta_insight_fetch.py:59`). Chacun est
-  soit un agrégat à repointer, soit un `MIN`/`MAX`/`COUNT` d'inventaire qui n'a rien à
-  centraliser — **les deux méritent d'être regardés, pas corrigés d'office.** Le cas le
-  plus clair est le budget des campagnes actives (`SUM(lifetime_budget)` sur
-  `meta_campaigns WHERE status = 'ACTIVE'`, recopié dans quatre branches de deux
-  fichiers), qui appelle une vue or. **Mesuré par** :
-  `<!-- gold-coverage-unguarded-aggregates: total=18 -->`.
-
-- [ ] **R98 — Ranger les 68 classes d'erreur sans famille** (P4) — 287 classes, 12
-  familles, 219 rangées. Une classe hors famille n'est pas une erreur de classement :
-  c'est une **question qu'on n'a pas encore su formuler**, et c'est ça le livrable.
-  Corriger le motif dans `tools/dev/error_class_families.py`, jamais l'entrée du
-  catalogue — il est append-only. **Mesuré par** :
-  `<!-- error-class-families: orphans=68 -->`.
-
 - [ ] **R99 — Faire descendre la frontière de bronze (132 couples)** (P4) — le plafond
   a MONTÉ de 124 à 132 le 2026-09-12, et c'est un progrès : sa portée ne nommait que
   `pdf_exporter` sous `src/dashboard/utils`, donc `csv_exporter.py` — qui exporte du
   bronze à un utilisateur, la définition même d'une surface — n'y était pas. 124 était
   faux, 132 est vrai. À partir d'ici il ne peut que descendre. **Mesuré par** :
   `_CEILING` de `tests/test_the_bronze_boundary_only_tightens.py`.
-
-- [ ] **R101 — Les cliquets qui ne prouvent pas qu'ils gardent** (P3) — la carte
-  recense **17 valeurs gelées** dans 12 fichiers de test. **Dix n'ont aucune trace de
-  mutation** dans leur fichier et **cinq n'ont pas de test de non-vacuité**. Les deux
-  trous sont différents : sans trace de mutation, rien ne distingue un garde d'un test
-  qui ne peut pas échouer ; sans non-vacuité, le cliquet passe au vert le jour où sa
-  population disparaît — « zéro indéterminée » sur zéro figure est vrai et ne dit rien.
-  Le plus exposé est `test_a_page_asks_the_same_question_once.py` (`_MAX_QUERIES`), qui
-  n'a ni l'un ni l'autre. La détection se fait sur le TEXTE du fichier : un faux négatif
-  se corrige en écrivant la phrase, après avoir fait la mutation. **Mesuré par** :
-  `<!-- gold-coverage-ratchets: without_nonvacuity=5 without_mutation=10 -->`.
 
 - [ ] **R100 — Trancher dbt** (P4) — ADR-014 différait dbt tant que le dépôt n'aurait
   pas **≥ 10 objets dérivés ET ≥ 3 qui dépendent l'un de l'autre**. Recompté le

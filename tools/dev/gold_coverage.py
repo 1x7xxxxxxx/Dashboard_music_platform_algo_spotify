@@ -111,6 +111,45 @@ _RATCHET_FACTS = frozenset({
 })
 
 
+# Les agrégats DÉCLARÉS : une lecture agrégée d'une table de fait qui n'est PAS une
+# métrique, et n'a donc aucune définition à centraliser. Chaque entrée porte sa
+# raison, et `tests/test_the_gold_coverage_only_improves.py` vérifie que le site
+# existe encore — une déclaration qui survit à ce qu'elle déclarait est du budget
+# pour la prochaine occurrence (classe `an-exemption-that-outlives-what-it-exempted`).
+#
+# La frontière, et elle est nette : un COMPTE, une DATE ou une CONCATÉNATION de noms
+# répond « qu'y a-t-il », pas « combien ». Une somme d'argent, d'écoutes, de vues ou
+# de clics répond « combien » et appartient à la couche or, sans exception.
+_DECLARED_RAW_AGGREGATES: dict[tuple[str, str], str] = {
+    ("src/dashboard/views/meta_mapping/_campaigns.py", "meta_campaigns"):
+        "catalogue de campagnes à associer : MAX(start_time), string_agg de noms, "
+        "bool_or d'un marqueur de rejet. Aucun montant, aucune performance.",
+    ("src/dashboard/views/meta_mapping/_campaigns.py", "meta_ads"):
+        "string_agg des noms de créatives, pour reconnaître de quelle sortie parle "
+        "une campagne. Un nom n'est pas une mesure.",
+    ("src/dashboard/views/meta_mapping/_campaigns.py", "meta_adsets"):
+        "MIN/MAX des dates d'activité d'un ad set, pour comparer à la date de "
+        "sortie du titre. Une fenêtre, pas un chiffre affiché.",
+    ("src/dashboard/views/trigger_algo/_common/_budget_roi.py", "meta_campaigns"):
+        "string_agg(DISTINCT call_to_action) — l'inventaire des appels à l'action "
+        "d'une campagne, à côté de sa performance qui, elle, vient de la couche or.",
+    ("src/dashboard/views/trigger_algo/_common/_budget_roi.py", "meta_ads"):
+        "même requête que ci-dessus : la jointure vers les créatives sert à lire "
+        "leur call_to_action, jamais à sommer.",
+    ("src/utils/freshness_monitor.py", "meta_campaigns"):
+        "count(*) FILTER (status = 'ACTIVE') — une sonde de santé. Elle demande "
+        "« ce locataire a-t-il des campagnes », pas « combien ont-elles coûté ».",
+    ("src/collectors/_meta_insight_fetch.py", "meta_insights_performance_day"):
+        "MAX(day_date) : le point de reprise de la collecte incrémentale. Un "
+        "collecteur n'est pas une surface, et cette date n'est affichée nulle part.",
+    ("src/utils/distrokid_rollup.py", "distrokid_monthly_revenue"):
+        "COUNT(*) des mois issus d'un import, renvoyé par le rollup qui vient de "
+        "les écrire. C'est un accusé de réception, pas un revenu.",
+    ("src/utils/imusician_rollup.py", "imusician_monthly_revenue"):
+        "idem : le compte des mois que le rollup vient d'écrire.",
+}
+
+
 def _watched_by_ratchet(rel: str, table: str) -> bool:
     """Le cliquet des agrégats verrait-il une somme ici, sur cette table ?"""
     if rel in _RATCHET_DOORS:
@@ -1463,14 +1502,18 @@ def render(gold, surfaces, files, reads) -> str:
         "regarder — chacune est soit un agrégat à repointer, soit un `MIN`/`MAX`/"
         "`COUNT` d'inventaire qui n'a rien à centraliser.", "",
     ]
-    unguarded = sum(1 for rs in covered.values() for r in rs
-                    if r.aggregates
-                    and not _watched_by_ratchet(r.rel, next(iter(r.relations & set(gold_reads)))))
+    unguarded = 0
+    for table, rs in covered.items():
+        for r in rs:
+            if (r.aggregates and not _watched_by_ratchet(r.rel, table)
+                    and (r.rel, table) not in _DECLARED_RAW_AGGREGATES):
+                unguarded += 1
     if covered:
         rows = []
         for t, rs in sorted(covered.items()):
             agg = [r for r in rs if r.aggregates]
-            blind = [r for r in agg if not _watched_by_ratchet(r.rel, t)]
+            blind = [r for r in agg if not _watched_by_ratchet(r.rel, t)
+                     and (r.rel, t) not in _DECLARED_RAW_AGGREGATES]
             rows.append([
                 f"`{t}`", f"`{gold_reads[t]}`", str(len(rs)),
                 str(len(agg)) if agg else "—",
@@ -1484,6 +1527,20 @@ def render(gold, surfaces, files, reads) -> str:
                            "où (les hors-cliquet d'abord)"])
     else:
         L += ["Aucune table brute couverte par une vue or n'est lue ailleurs.", ""]
+
+    L += ["", "### Les agrégats DÉCLARÉS", "",
+          f"**{len(_DECLARED_RAW_AGGREGATES)} couples (fichier, table)** agrègent une "
+          "table de fait hors de tout cliquet, délibérément. La frontière est nette : "
+          "un COMPTE, une DATE ou une CONCATÉNATION de noms répond « qu'y a-t-il » ; "
+          "une somme d'argent, d'écoutes, de vues ou de clics répond « combien » et "
+          "appartient à la couche or, sans exception.", "",
+          "Chaque déclaration est vérifiée : le site doit encore exister et encore "
+          "agréger cette table. Une déclaration qui survit à ce qu'elle déclarait est "
+          "du budget pour la prochaine occurrence.", ""]
+    L += _table(
+        [[f"`{rel.split('src/')[-1]}`", f"`{t}`", reason]
+         for (rel, t), reason in sorted(_DECLARED_RAW_AGGREGATES.items())],
+        ["fichier", "table", "pourquoi ce n'est pas une métrique"])
 
     n_f, u_f, _, _ = counts(figs)
     n_t, u_t, _, _ = counts(tiles)

@@ -57,6 +57,17 @@ def _server_config() -> dict:
 
 
 def test_the_websocket_ping_is_configured():
+    """Les deux bornes, ET la non-vacuité qui les rend comparables à quelque chose.
+
+    L'assertion `interval is not None` n'est pas une politesse : sans elle, deux
+    bornes sur une valeur ABSENTE sont vraies par vacuité, et le test passerait sur
+    la configuration par défaut de Streamlit — celle qui n'envoie aucun keepalive,
+    c'est-à-dire exactement le défaut du 2026-08-30.
+
+    Mutation record — 2026-09-12 : `websocketPingInterval` retiré de
+    `.streamlit/config.toml`, ce test nomme le réglage absent ; remis à 90 s, il
+    nomme la borne haute. Vu rouge sur les deux formes.
+    """
     interval = _server_config().get("websocketPingInterval")
     assert interval is not None, (
         "server.websocketPingInterval is unset, so Streamlit sends NO websocket "

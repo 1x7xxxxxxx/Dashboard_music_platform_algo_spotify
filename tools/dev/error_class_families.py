@@ -62,6 +62,38 @@ FAMILIES: list[tuple[str, str, str]] = [
      "pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ?",
      r"cumulative|counter|compteur|delta|lifetime|two-generations|snapshot"),
 
+    ("un-travail-qui-n-arrive-nulle-part",
+     "Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose "
+     "qu'un humain peut déclencher ?",
+     r"never-sent|not-alerted|never-read|nothing-happens|nothing-routes|"
+     r"nobody-call|never-hit|not-when-it-is-needed|nobody-writes|"
+     r"rebuilt-per-rerun|unwired|debranch|not-reached|orphan"),
+
+    ("un-nombre-affirmé-qui-n-a-pas-été-mesuré",
+     "Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer "
+     "« zéro » de « on ne sait pas » ?",
+     r"unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|"
+     r"rendered-as-health|sums-the-display|discarded-in-silence|"
+     r"erases-every-other|past-the-end-of-its-evidence|renders-nothing|"
+     r"named-like-a-final-one|imput|estimat"),
+
+    ("le-message-parle-au-mauvais-lecteur",
+     "Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que "
+     "ce lecteur-là peut faire ?",
+     r"assumes-a-shell|assumes-visibility|by-direction-not-by-name|"
+     r"wrong-advice|blames-the-most-common|names-an-action|"
+     r"flattened-for-the-narrowest|without-naming-the-reason|leaves-no-trace|"
+     r"announces-a-field|instruction-|-instruction|speaks-its-own-plumbing|"
+     r"addressed-to|reader"),
+
+    ("un-état-qui-déborde-de-sa-portée",
+     "Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour "
+     "quelqu'un d'autre ?",
+     r"outlives-the-visit|written-after-instantiation|per-worker|"
+     r"namespaced-by-another|connection|closes-a-connection|"
+     r"only-inside-a-session|loses-the-race|first-row|session|cache|"
+     r"state-file|leak"),
+
     ("deux-surfaces-deux-nombres",
      "Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ?",
      r"metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|"
@@ -71,7 +103,8 @@ FAMILIES: list[tuple[str, str, str]] = [
      "Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et "
      "l'utilisateur voit-il la différence ?",
      r"silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|"
-     r"empty-bracket|no-op|returns-none|degrade"),
+     r"empty-bracket|no-op|returns-none|degrade|logged-as-success|"
+     r"outside-its-condition"),
 
     ("un-garde-qui-ne-garde-pas",
      "Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée "
@@ -82,13 +115,21 @@ FAMILIES: list[tuple[str, str, str]] = [
     ("un-document-qui-affirme-un-état-périmé",
      "Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?",
      r"stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|"
-     r"generated|index|diagram|map|guide|runbook"),
+     r"generated|index|diagram|map|guide|runbook|lags-its-source|"
+     r"hand-written-list"),
 
     ("un-contrôle-qui-ne-peut-jamais-passer",
      "Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il "
      "lui faut pour réussir un jour ?",
      r"never-pass|env-independent|host-env|container|reachab|unreachable|"
-     r"not-wired|orphan|dead-code|no-caller|unrun|install"),
+     r"not-wired|orphan|dead-code|no-caller|unrun|install|"
+     r"shares-the-fate|unstated-import-path|below-detection"),
+
+    ("un-coût-payé-sans-contrepartie",
+     "Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention "
+     "du lecteur — et lui rend-il quelque chose ?",
+     r"runs-twice|concurrency-group|overload|competing-for-one-decision|"
+     r"costs-more-than|waste|duplicate-run|too-many"),
 
     ("un-seuil-écrit-d-instinct",
      "Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test "
@@ -112,7 +153,9 @@ FAMILIES: list[tuple[str, str, str]] = [
      "Ce que ce code envoie dehors — un mail, une requête, un paiement, un "
      "secret — est-il ce qu'on croit, et vers qui ?",
      r"secret|token|credential|auth|jwt|mail|smtp|http|webhook|stripe|payment|"
-     r"url|cors|leak|redact|external|api-"),
+     r"url|cors|redact|external|api-|fstring-identifier|string-substitution|"
+     r"untrusted|privileged|access-gate|is-not-an-identity|"
+     r"rendered-to-the-visitor|bare-except|containment"),
 
     ("une-configuration-qui-diverge-de-la-prod",
      "Ce que le dépôt déclare est-il ce que la production exécute ?",

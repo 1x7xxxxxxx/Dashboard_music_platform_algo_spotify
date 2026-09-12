@@ -82,6 +82,22 @@ def _first_screen_charts(path: Path) -> list[int]:
     )
 
 
+def test_the_scan_is_not_vacuous():
+    """NON-VACUITÉ. Ajoutée le 2026-09-12.
+
+    Le cliquet est paramétré sur une liste de vues. Une liste vide ne produit
+    AUCUN cas de test — pytest n'échoue pas, il n'exécute rien — et le plafond de
+    cinq éléments de premier écran certifie alors une propriété sur zéro page.
+
+    Mutation record — 2026-09-12 : avec `_VIEWS` réduit à `[]`, le cliquet ne
+    produit plus aucun cas et reste « vert » ; ce test rougit en nommant la liste.
+    """
+    scanned = _view_files()
+    assert len(scanned) >= 20, (
+        f"{len(scanned)} vue(s) balayée(s) — il y en avait 44 le 2026-09-12. Un "
+        "cliquet paramétré sur une liste vide n'exécute rien et ne rougit jamais.")
+
+
 def test_the_tool_still_exists():
     ui = (_ROOT / "src" / "dashboard" / "utils" / "ui.py").read_text(encoding="utf-8")
     assert "def secondary_analyses" in ui, (

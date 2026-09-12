@@ -40,10 +40,18 @@ import pytest
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 _DOC = _ROOT / ".claude" / "dev-docs" / "error-class-families.md"
 
-# Gelés le 2026-09-12, à la mesure du jour.
-_MAX_ORPHANS = 68
-_MIN_TOTAL = 287
-_MIN_FAMILIES = 12
+# Gelés le 2026-09-12, à la mesure du jour. 68 orphelines au premier jet, puis 3 :
+# les 65 rangées n'ont pas été « mieux classées », elles ont fait apparaître CINQ
+# familles qui manquaient — un travail qui n'arrive nulle part, un nombre affirmé
+# qui n'a pas été mesuré, un message qui parle au mauvais lecteur, un état qui
+# déborde de sa portée, un coût payé sans contrepartie. C'est le livrable : une
+# classe hors famille est une question qu'on n'a pas encore su formuler.
+#
+# Les trois qui restent sont des cas isolés, et les laisser dehors est plus honnête
+# qu'une famille inventée pour trois membres.
+_MAX_ORPHANS = 3
+_MIN_TOTAL = 290
+_MIN_FAMILIES = 17
 
 
 @pytest.fixture(scope="module")

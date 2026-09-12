@@ -108,6 +108,11 @@ _CEILING: dict[str, int] = {
     "SoundCloud":  0,
 }
 
+# Mutation record — 2026-09-12 : avec `SUM(likes_count) FROM soundcloud_tracks_daily`
+# remis dans `kpi_helpers.py`, ce cliquet nomme `kpi_helpers.py:414` et échoue sur
+# SoundCloud ; repointé sur `v_soundcloud_track_latest`, il passe. C'est la première
+# fois qu'il est vu rouge sur un fichier de `src/dashboard/utils` — sa portée ne
+# l'atteignait pas jusqu'à ce jour-là, et c'était le défaut.
 _AGG = re.compile(r"\b(SUM|AVG)\s*\(", re.I)
 
 
