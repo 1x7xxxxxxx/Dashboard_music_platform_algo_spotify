@@ -21,13 +21,18 @@ donc ignoré — et un test qu'on ignore ne garde rien. On gèle la mesure du jo
 fichier par fichier, et elle ne peut que descendre. C'est le mécanisme qui a déjà
 fait passer les gardes textuels de 32 à 21 et les axes secondaires de 12 à 0.
 
-Ce qui n'est PAS fait, et pourquoi
------------------------------------
-La navigation d'`app.py` n'est pas découpée. Deux causes racines de navigation ont
-déjà traversé 3 755 tests verts ici, parce que le harnais de rendu appelle chaque
-`show()` isolément et jamais `_main_body` : un découpage de la navigation ne peut
-être validé qu'au navigateur. Le faire sans cette vérification échangerait de la
-dette lisible contre un risque de régression invisible.
+Ce qui a fini par être fait, et à quelle condition
+--------------------------------------------------
+La navigation d'`app.py` **a été découpée le 2026-09-12** — `_NAV_SECTIONS` vit
+maintenant dans `utils/nav_sections.py`. Ce fichier l'avait différée pour une raison
+qui reste vraie : deux causes racines de navigation ont traversé 3 755 tests verts
+ici, parce que le harnais de rendu appelle chaque `show()` isolément et jamais
+`_main_body`. Un découpage de la navigation ne se valide qu'AU NAVIGATEUR, et celui-ci
+l'a été avant d'être livré.
+
+C'est aussi le cliquet qui l'a provoqué : `app.py` était exactement à 1 073, et ajouter
+une entrée de menu avec le commentaire que ce dépôt exige était impossible. Le garde a
+donc refusé la dette au lieu d'être relevé — ce pour quoi il existe.
 """
 from __future__ import annotations
 
@@ -49,7 +54,12 @@ FROZEN = {
     # dans utils/csv_serialization.py, comme le message de ce cliquet le demande.
     "src/dashboard/views/upload_csv.py": 1203,
     "src/dashboard/views/credentials/_render.py": 1229,
-    "src/dashboard/app.py": 1073,
+    # 1073 → 997 le 2026-09-12 : `_NAV_SECTIONS` est sortie dans
+    # `utils/nav_sections.py`. Le cliquet a PROVOQUÉ ce découpage — le fichier
+    # était exactement à son plafond, donc ajouter une entrée de menu avec son
+    # commentaire était impossible. C'est le mécanisme qui marche : refuser la
+    # dette plutôt que la figer.
+    "src/dashboard/app.py": 997,
 }
 
 

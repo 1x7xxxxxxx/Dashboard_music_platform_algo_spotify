@@ -4,7 +4,8 @@ Guard — l'assistant de mise en route doit être joignable, et les étapes doiv
 Type: Sub
 Uses: ast, pathlib
 Triggers: pytest
-Depends on: src/dashboard/app.py, src/dashboard/views/home.py
+Depends on: src/dashboard/utils/nav_sections.py, src/dashboard/app.py,
+  src/dashboard/views/home.py
 Persists in: nothing
 
 Error class: the-page-that-tells-you-what-to-do-is-unreachable.
@@ -37,15 +38,13 @@ _PLANS = _ROOT / "src" / "database" / "stripe_schema.py"
 
 
 def _nav_keys() -> set[str]:
-    """Toutes les clés de page déclarées dans `_NAV_SECTIONS`."""
-    tree = ast.parse(_APP.read_text(encoding="utf-8"))
-    node = next(n for n in ast.walk(tree)
-                if isinstance(n, ast.Assign)
-                and any(getattr(t, "id", "") == "_NAV_SECTIONS" for t in n.targets))
-    return {
-        c.value for c in ast.walk(node.value)
-        if isinstance(c, ast.Constant) and isinstance(c.value, str)
-    }
+    """Toutes les clés de page déclarées dans le menu.
+
+    Où le menu vit se demande à `tests/nav_source.py` — il a déménagé d'`app.py`
+    le 2026-09-12 et neuf gardes sont devenus rouges le même jour.
+    """
+    from tests.nav_source import menu_pages
+    return menu_pages()
 
 
 def test_the_wizard_is_in_the_navigation():

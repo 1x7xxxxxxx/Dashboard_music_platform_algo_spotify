@@ -53,6 +53,10 @@ EN = {
     "home.trend_sources": "Sources shown",
     "platform_chart.unmeasured": "▨ No measurement",
     "platform_chart.no_data_hover": "No data collected for this period",
+    "platform_chart.not_yet_collected": "not collected yet — from {since}",
+    "platform_chart.collected_since": "{label} measured since {since}",
+    "platform_chart.week_of": "the week of {d}",
+    "platform_chart.day_of": "{d}",
     "platform_chart.recap_title": "Over the period",
     "platform_chart.recap_platform": "Platform",
     "platform_chart.recap_total": "Total",
@@ -60,6 +64,7 @@ EN = {
     "platform_chart.recap_all": "Total",
     "platform_chart.recap_other": "Other platforms",
     "platform_chart.recap_over_period": "Over the period",
+    "platform_chart.recap_unit": "Unit",
     "home.recap_unit_plays": "plays",
     "home.recap_unit_followers": "followers",
     "home.trend_sources_ph": "All sources",
@@ -78,9 +83,10 @@ EN = {
     "home.onboarding_creds": "🔑 Set up the APIs",
     "home.onboarding_csv": "📂 Upload my files",
     "home.onboarding_mapping": "🔗 Confirm the cross-platform mapping",
-    "home.onboarding_playlists": (
-        "📝 Enter my playlist adds (S4A) — to sharpen the predictive models for "
-        "Spotify playlist pickups (Discover Weekly, Radio, Release Radar)"),
+    "home.onboarding_playlists": "📝 Enter my playlist adds (S4A)",
+    "home.onboarding_playlists_why": (
+        "Sharpens the predictive models for Spotify playlist pickups "
+        "(Discover Weekly, Radio, Release Radar)."),
     "home.onboarding_pdf": "📄 Generate my first PDF report",
     "home.onboarding_done_header": "#### ✅ Getting started — setup complete",
     "home.onboarding_done": "All getting-started steps are complete. 🎉",

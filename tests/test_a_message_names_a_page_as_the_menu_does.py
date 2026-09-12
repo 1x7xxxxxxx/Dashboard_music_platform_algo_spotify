@@ -1,8 +1,8 @@
 """Quand un message envoie l'artiste sur une page, il l'appelle par son nom du menu.
 
 Type: Test
-Uses: app._NAV_SECTIONS, les catalogues i18n, les vues qui renvoient ailleurs
-Depends on: src/dashboard/app.py, src/dashboard/**/*.py
+Uses: tests/nav_source.py, les catalogues i18n, les vues qui renvoient ailleurs
+Depends on: src/dashboard/utils/nav_sections.py, src/dashboard/**/*.py
 Persists in: nothing
 
 Le défaut, trouvé le 2026-09-04
@@ -60,20 +60,11 @@ _RETIRED_LOWER = {k.lower(): k for k in _RETIRED_PAGE_NAMES}
 
 
 def _nav_labels() -> set[str]:
-    tree = ast.parse(_APP.read_text(encoding="utf-8"))
-    labels: set[str] = set()
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Assign):
-            continue
-        if not any(getattr(x, "id", "") == "_NAV_SECTIONS" for x in node.targets):
-            continue
-        for sub in ast.walk(node.value):
-            if isinstance(sub, ast.Tuple) and len(sub.elts) == 2:
-                a, b = sub.elts
-                if (isinstance(a, ast.Constant) and isinstance(a.value, str)
-                        and isinstance(b, ast.Constant) and isinstance(b.value, str)):
-                    labels.add(a.value)
-    return labels
+    # OÙ vit le menu se demande à `tests/nav_source.py`, pas ici. La déclaration a
+    # déménagé d'`app.py` le 2026-09-12 et NEUF gardes sont devenus rouges le même
+    # jour, chacun avec sa propre façon de la chercher.
+    from tests.nav_source import menu_labels
+    return menu_labels()
 
 
 def test_the_menu_labels_are_readable_at_all():

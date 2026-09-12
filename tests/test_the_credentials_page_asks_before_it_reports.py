@@ -1,7 +1,7 @@
 """La page où l'on saisit ne commence pas par un bilan.
 
 Type: Test
-Uses: credentials.router (AST), app._NAV_SECTIONS, views/platform_status.py
+Uses: credentials.router (AST), tests/nav_source.py, views/platform_status.py
 Depends on: src/dashboard/views/credentials/router.py, src/dashboard/app.py
 Persists in: nothing
 
@@ -222,17 +222,11 @@ def test_the_old_csv_route_still_answers():
 
 def test_the_menu_offers_one_place_to_connect_a_source():
     """Le menu ne doit plus porter l'ancienne entrée séparée."""
-    tree = ast.parse(_APP.read_text(encoding="utf-8"))
-    entries = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and any(
-                getattr(x, "id", "") == "_NAV_SECTIONS" for x in node.targets):
-            for sub in ast.walk(node.value):
-                if isinstance(sub, ast.Tuple) and len(sub.elts) == 2:
-                    a, b = sub.elts
-                    if (isinstance(a, ast.Constant) and isinstance(b, ast.Constant)
-                            and isinstance(b.value, str)):
-                        entries.append((a.value, b.value))
+    # Où vit le menu se demande à `tests/nav_source.py` — la déclaration a quitté
+    # `app.py` le 2026-09-12 et neuf gardes sont devenus rouges le même jour.
+    from tests.nav_source import menu_entries
+    entries = menu_entries()
+    assert entries, "la lecture du menu a cassé — ce garde ne prouverait rien"
     keys = [k for _lbl, k in entries]
     assert "upload_csv" not in keys, (
         "l'entrée de menu séparée pour l'import CSV est revenue : deux entrées pour "

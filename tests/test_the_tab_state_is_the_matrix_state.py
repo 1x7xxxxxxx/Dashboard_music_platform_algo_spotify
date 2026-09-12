@@ -188,15 +188,11 @@ def test_the_status_page_left_the_menu_but_not_the_router():
     app = (_ROOT / "src" / "dashboard" / "app.py").read_text(encoding="utf-8")
     tree = ast.parse(app)
 
-    entries = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and any(
-                getattr(x, "id", "") == "_NAV_SECTIONS" for x in node.targets):
-            for sub in ast.walk(node.value):
-                if isinstance(sub, ast.Tuple) and len(sub.elts) == 2:
-                    a, b = sub.elts
-                    if isinstance(b, ast.Constant) and isinstance(b.value, str):
-                        entries.append(b.value)
+    # L'ENTRÉE de menu vit dans `utils/nav_sections.py` depuis le 2026-09-12 ; la
+    # ROUTE, elle, reste dans `app.py` — et ce test tient précisément qu'elles se
+    # sont séparées : l'entrée retirée, la route gardée.
+    from tests.nav_source import menu_pages
+    entries = menu_pages()
     assert entries, "la lecture du menu a cassé — ce garde ne prouverait rien"
     assert "platform_status" not in entries, (
         "la page d'état est revenue au menu : chaque onglet montre déjà les quatre "

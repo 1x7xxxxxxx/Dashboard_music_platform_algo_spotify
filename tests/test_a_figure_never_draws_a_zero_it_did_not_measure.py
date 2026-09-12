@@ -200,6 +200,162 @@ def test_the_gap_is_covered_by_a_hatched_band(monkeypatch, mode, step):
         "message — deux étiquettes pour un seul fait.")
 
 
+@pytest.mark.parametrize("step", ("day", "week", "month"))
+def test_a_platform_collected_late_says_so_without_erasing_the_others(monkeypatch, step):
+    """Une plateforme branchée tard ne montre pas trois ans de zéro muet.
+
+    Signalé le 2026-09-12 : « pourquoi je n'ai pas de data pour youtube et
+    soundcloud depuis le début cumulé par mois, ça a l'air de commencer en novembre
+    et décembre 2025 ». C'était VRAI — la collecte YouTube démarre le 2025-11-29 —
+    et c'est précisément ce que la figure ne disait pas : elle traçait la plateforme
+    depuis 2023 avec `y=None`, que `stackgroup` rend à zéro, puis un saut à 99 594.
+
+    ⚠️ CE N'EST PAS LA HACHURE QUI PORTE CE FAIT, et la première version de ce garde
+    exigeait le contraire. La hachure est pleine hauteur : elle affirme quelque chose
+    de TOUTES les plateformes à la fois. Mesuré sur l'artiste 1 avant livraison —
+    SoundCloud démarrant le 2026-03-31, **1 185 jours sur 1 350** passaient sous les
+    hachures, dont les trois années où Spotify est mesurée chaque jour. La figure
+    aurait affirmé qu'on n'avait rien mesuré depuis 2023 : une plateforme arrivée
+    tard effaçait l'historique d'une ancienne, exactement ce que `known()` avait été
+    écrite pour empêcher.
+
+    Le fait est INDIVIDUEL, donc il se dit individuellement : une trace de survol au
+    nom de la plateforme sur sa seule préhistoire. Et parce qu'un fait qui ne se lit
+    qu'au survol ne se lit pas — la remarque ci-dessus a été écrite en REGARDANT la
+    figure — une note sous la figure nomme la date de départ.
+
+    ⚠️ `known()` n'est pas en cause et ne doit pas bouger : elle pilote les BANDES,
+    et la changer supprimerait l'aire au lieu de l'expliquer.
+    """
+    import streamlit as st_mod
+    captured: dict = {}
+    notes: list = []
+    monkeypatch.setattr(st_mod, "plotly_chart",
+                        lambda fig, **k: captured.setdefault("fig", fig))
+    monkeypatch.setattr(st_mod, "caption", lambda *a, **k: notes.append(str(a[0])))
+    monkeypatch.setattr(st_mod, "info", lambda *a, **k: None)
+
+    days = [_d.date(2024, 1, 1) + _d.timedelta(days=i) for i in range(400)]
+    late = days[300]          # la seconde plateforme n'existe qu'au dernier quart
+    series = {"spotify": [(x, 10) for x in days],
+              "youtube": [(x, 3) for x in days if x >= late]}
+    assert pc.render_platform_chart(series, since=days[0], until=days[-1], step=step,
+                                    mode="cumulative", key="late")
+    fig = captured["fig"]
+
+    # 1. Le survol NOMME la plateforme et sa préhistoire.
+    pre = [tr for tr in fig.data
+           if "pas encore collect" in (getattr(tr, "hovertemplate", "") or "")]
+    assert pre, (
+        f"pas={step} — rien ne se survole avant la 1ʳᵉ mesure de YouTube. Les points "
+        "y valent `None`, donc l'infobulle groupée n'affiche AUCUNE ligne pour eux : "
+        "« j'ai pas de data pour youtube » est la lecture exacte de ce silence.")
+    assert all("YouTube" in str(tr.name) for tr in pre), (
+        f"pas={step} — la trace de préhistoire ne porte pas le nom de sa plateforme, "
+        f"donc sa ligne n'apparaît pas au bon endroit : {[tr.name for tr in pre]}")
+    covered = sorted(x for tr in pre for x in (tr.x or []))
+    assert covered and covered[0] <= days[0], (
+        f"pas={step} — le survol ne remonte pas au début de la fenêtre.")
+
+    # 2. Il S'ARRÊTE à la première mesure — sinon il nierait ce que la figure trace.
+    # LE PORTEUR DE SURVOL PORTE LE MÊME NOM QUE LA BANDE — c'est fait pour : sa
+    # ligne doit apparaître au bon endroit dans l'infobulle groupée. Il faut donc
+    # l'exclure ici sur autre chose que le nom, sinon « le premier point tracé »
+    # devient le premier point INVISIBLE et l'assertion se compare à elle-même.
+    drawn = sorted({x for tr in fig.data
+                    if "YouTube" in str(tr.name) and tr not in pre
+                    for x, y in zip(tr.x or [], tr.y or []) if y is not None})
+    assert drawn, "la plateforme tardive n'est pas tracée du tout"
+    assert max(covered) < drawn[0], (
+        f"pas={step} — le survol « pas encore collectée » déborde jusqu'au "
+        f"{max(covered)} alors que la figure trace un point dès le {drawn[0]}.")
+
+    # 3. La note se LIT sans survoler.
+    note = next((n for n in notes if "mesurée depuis" in n), None)
+    assert note, (
+        f"pas={step} — aucune note ne dit depuis quand YouTube est mesurée. "
+        f"Notes rendues : {notes}")
+    # 3 bis. ET ELLE NOMME UN SEAU, PAS UN JOUR QU'ON N'A PAS MESURÉ. `span[i]` est
+    # le DÉBUT du seau : au pas mois, une première mesure du 30/11 y devient
+    # « 01/12 ». Écrire cette date invente un jour — même piège qu'un seuil écrit
+    # au pas jour et relu au pas semaine, ici sur un libellé.
+    shaped = {"day": "/", "week": "semaine du", "month": str(late.year)}[step]
+    assert shaped in note, (
+        f"pas={step} — la note dit « {note} », qui ne se lit pas comme un {step}. "
+        "Un début de seau présenté comme une date affirme une mesure qu'on n'a pas "
+        "faite.")
+    if step == "month":
+        assert "/" not in note, (
+            f"pas=month — la note écrit une date pleine (« {note} ») alors que le "
+            "seau vaut un mois entier : le jour qu'elle nomme est le 1er du mois, "
+            "pas celui de la mesure.")
+
+    # 4. Et SURTOUT : la préhistoire d'une plateforme ne hachure pas la fenêtre
+    #    entière. Spotify est mesurée dès le premier pas — rien n'est « non mesuré ».
+    hatched = [tr for tr in fig.data
+               if getattr(tr, "legendgroup", None) == "__unmeasured__"
+               and getattr(tr, "fill", None) == "toself"]
+    assert not hatched, (
+        f"pas={step} — {len(hatched)} bande(s) hachurée(s) alors que Spotify est "
+        "mesurée tous les jours de la fenêtre. Une hachure pleine hauteur affirme "
+        "que PERSONNE ne mesurait ; l'unionner avec la préhistoire d'une plateforme "
+        "tardive efface l'historique des autres (1 185 jours sur 1 350, artiste 1).")
+
+
+def test_the_window_never_starts_before_the_first_measurement():
+    """Pourquoi la préhistoire n'est PAS une affaire de hachure — le fait, épinglé.
+
+    On a voulu hachurer « les pas où personne n'avait encore commencé ». Ce cas ne
+    se produit jamais : `_window` fait partir le `span` du premier jour mesuré
+    TOUTES plateformes confondues, donc au moins une plateforme a sa première mesure
+    à l'indice 0. Le paramètre `before_first` aurait été du code correct que rien
+    n'atteint — la forme que ce dépôt paie le plus souvent.
+
+    Ce test tient le fait plutôt que la constante : si `_window` cesse un jour de
+    borner ainsi (une fenêtre qui respecte `since` même sans donnée), il rougit, et
+    c'est ce jour-là qu'une hachure de préhistoire redeviendrait une question.
+    """
+    days = [_d.date(2024, 1, 1) + _d.timedelta(days=i) for i in range(400)]
+    series = {"spotify": [(x, 10) for x in days if x >= days[200]],
+              "youtube": [(x, 3) for x in days if x >= days[300]]}
+    span, aligned = pc._window(series, None, days[0], days[-1])
+    assert span and span[0] == days[200], (
+        f"la fenêtre commence le {span[0] if span else None}, pas au premier jour "
+        f"mesuré ({days[200]}) : un pas antérieur à TOUTE mesure existe désormais, "
+        "et la figure l'y dessine en zéro muet.")
+    firsts = [pc._measured_range(aligned[k])[0] for k in aligned]
+    assert min(f for f in firsts if f is not None) == 0, (
+        "aucune plateforme ne mesure au premier pas de la fenêtre — l'intersection "
+        "« personne ne regardait » est redevenue non vide.")
+
+
+def test_the_facets_do_not_hatch_a_platform_own_prehistory(monkeypatch):
+    """En petits multiples, chaque facette vit sur SA plage.
+
+    Y hachurer « avant la première mesure » hachurerait du vide : la facette de
+    YouTube n'a pas à expliquer qu'elle ne montre rien là où elle n'a rien à
+    montrer. C'est le seul mode où `before_first=False`, et sans ce test la
+    distinction disparaîtrait au premier nettoyage.
+    """
+    import streamlit as st_mod
+    captured: dict = {}
+    monkeypatch.setattr(st_mod, "plotly_chart",
+                        lambda fig, **k: captured.setdefault("fig", fig))
+    monkeypatch.setattr(st_mod, "caption", lambda *a, **k: None)
+
+    days = [_d.date(2024, 1, 1) + _d.timedelta(days=i) for i in range(400)]
+    series = {"spotify": [(x, 10) for x in days],
+              "youtube": [(x, 3) for x in days if x >= days[300]]}
+    assert pc.render_platform_chart(series, since=days[0], until=days[-1], step="day",
+                                    mode="facets", key="late")
+    hatched = [tr for tr in captured["fig"].data
+               if getattr(tr, "legendgroup", None) == "__unmeasured__"
+               and getattr(tr, "fill", None) == "toself"]
+    assert not hatched, (
+        "les facettes hachurent la préhistoire d'une plateforme. Chacune a son "
+        "propre cadre : il n'y a rien à expliquer là où il n'y a rien à comparer.")
+
+
 def test_only_one_legend_entry_names_the_absence(monkeypatch):
     """Une bande par trou, UNE entrée de légende. Sinon la légende compte les trous."""
     fig = _figure(monkeypatch, mode="absolute", step="day")

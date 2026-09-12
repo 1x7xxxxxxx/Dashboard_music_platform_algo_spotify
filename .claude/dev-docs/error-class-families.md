@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**309 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**311 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -11,7 +11,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | famille | classes | la question |
 |---|---|---|
 | [le-locataire](#le-locataire) | 39 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
-| [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 14 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
+| [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 16 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 10 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 13 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 21 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
@@ -81,7 +81,7 @@ Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|cana
 
 **Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ?**
 
-Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generations|snapshot` sur l'identifiant et le symptôme. 14 classe(s).
+Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generations|snapshot` sur l'identifiant et le symptôme. 16 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -99,6 +99,8 @@ Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generat
 | [`two-generations-of-rows-in-one-fact-table`](error-classes.md#two-generations-of-rows-in-one-fact-table) | un total affiché vaut **le double** du même total lu ailleurs, sans qu'aucune requête soit fausse. Mesuré le 2026-09-12 : la tuile « Dépenses » de la  |
 | [`a-partial-collection-becomes-a-baseline-level`](error-classes.md#a-partial-collection-becomes-a-baseline-level) | une figure sous-déclare d'un facteur **3 049**. Mesuré le 2026-09-12 sur l'artiste 471 : « par semaine » totalisait 11 053 écoutes là où le compteur Y |
 | [`a-quantity-mistaken-for-a-counter`](error-classes.md#a-quantity-mistaken-for-a-counter) | l'erreur SYMÉTRIQUE de celle qui a coûté un facteur 151 — traiter une quantité du jour comme un compteur cumulé. Le report en avant inventerait des vi |
+| [`a-counter-drawn-from-zero-before-anyone-was-looking`](error-classes.md#a-counter-drawn-from-zero-before-anyone-was-looking) | une bande de plateforme est **plate à zéro pendant des années**, puis saute d'un coup au niveau du compteur. Mesuré le 2026-09-12 sur « depuis le débu |
+| [`a-rule-that-was-right-for-quantities-applied-to-counters`](error-classes.md#a-rule-that-was-right-for-quantities-applied-to-counters) | la famille. Une règle écrite pour une quantité du jour — « la somme du seau », « zéro avant la première mesure », « le total de la période » — est app |
 
 ## un-travail-qui-n-arrive-nulle-part
 
@@ -500,6 +502,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=309 families=17 orphans=3 -->
+<!-- error-class-families: total=311 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=85641dd696a15734020a1c8f08b2fe6fd766885c0622b537df169beda92e02e6 -->
+<!-- error-class-families: sha256=a9a21b1b135472af20bc77e5aec9e7377cc09255f2320ddf0337c533da787b5a -->
