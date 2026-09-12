@@ -50,7 +50,7 @@ _STEP_BUCKETS = {"day": "jours", "week": "semaines", "month": "mois",
 
 
 def _render_recap(slot, span: list, aligned: dict, aligned_raw: dict, order: list,
-                  thin: dict, mode: str, step: str) -> None:
+                  thin: dict, mode: str, step: str, extra=None) -> None:
     """Le tableau à droite de la figure, DÉRIVÉ des séries que la figure trace.
 
     Il avait été retiré le 2026-09-10 pour une raison qui tient toujours : les tuiles
@@ -70,6 +70,15 @@ def _render_recap(slot, span: list, aligned: dict, aligned_raw: dict, order: lis
     Les plateformes trop minces pour une aire (`thin`) y figurent aussi : `t_too_thin`
     promet « ses chiffres restent dans le tableau ci-dessous » depuis le 2026-09-08, et
     la phrase était fausse depuis que le tableau avait disparu.
+
+    `extra` — LES PLATEFORMES QUI NE COMPTENT PAS DES ÉCOUTES, dans leur propre bloc.
+    Apple, Instagram et Meta Ads ont été demandées le 2026-09-12. Elles ne peuvent pas
+    entrer dans la colonne « Total » du haut : on y additionne des écoutes, et Instagram
+    compte des abonnés, Meta des euros. Les mélanger donnerait une colonne dont la somme
+    ne veut rien dire — et la ligne Total en bas la calcule.
+    Elles vivent donc SOUS un séparateur, chacune avec son unité écrite. Toutes sont
+    bornées à la même période que la figure : c'est la condition qui manquait aux tuiles
+    retirées le 2026-09-10.
     """
     from src.dashboard.utils.i18n import t
 
@@ -113,6 +122,18 @@ def _render_recap(slot, span: list, aligned: dict, aligned_raw: dict, order: lis
             f"| **{t('platform_chart.recap_all', 'Total')}** | **{_num(grand)}** "
             f"| {len(span)} {unit} |")
         st.markdown("\n".join(lines))
+
+        # LE SECOND BLOC : une unité par ligne, écrite. Pas de colonne « Total »
+        # commune — on n'additionne pas des abonnés avec des euros.
+        rows_x = [(lab, txt) for lab, txt in (extra or []) if txt]
+        if rows_x:
+            st.markdown("**" + t("platform_chart.recap_other", "Autres plateformes")
+                        + "**")
+            st.markdown("\n".join(
+                [f"| {t('platform_chart.recap_platform', 'Plateforme')} "
+                 f"| {t('platform_chart.recap_over_period', 'Sur la période')} |",
+                 "|:--|--:|"]
+                + [f"| {lab} | {txt} |" for lab, txt in rows_x]))
 
 
 def _render_notes(thin: dict, coarse: list, step: str, *, coarsened=None,

@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**301 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**309 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -14,19 +14,19 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 14 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 10 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 13 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
-| [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
+| [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 21 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 18 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
-| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 21 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
+| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 22 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 18 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 34 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 34 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 36 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 36 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 6 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
-| [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 6 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
+| [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 7 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 3 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 17 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 20 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
-| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 18 | Ce que le dépôt déclare est-il ce que la production exécute ? |
+| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 19 | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | _sans famille_ | 3 | — |
 
 ## le-locataire
@@ -145,7 +145,7 @@ Règle de rattachement : `unmeasured|claimed-not-measured|outranks-the-measureme
 
 **Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ?**
 
-Règle de rattachement : `assumes-a-shell|assumes-visibility|by-direction-not-by-name|wrong-advice|blames-the-most-common|names-an-action|flattened-for-the-narrowest|without-naming-the-reason|leaves-no-trace|announces-a-field|instruction-|-instruction|speaks-its-own-plumbing|addressed-to|reader` sur l'identifiant et le symptôme. 20 classe(s).
+Règle de rattachement : `assumes-a-shell|assumes-visibility|by-direction-not-by-name|wrong-advice|blames-the-most-common|names-an-action|flattened-for-the-narrowest|without-naming-the-reason|leaves-no-trace|announces-a-field|instruction-|-instruction|speaks-its-own-plumbing|addressed-to|reader|becomes-the-word-|undefined` sur l'identifiant et le symptôme. 21 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -169,6 +169,7 @@ Règle de rattachement : `assumes-a-shell|assumes-visibility|by-direction-not-by
 | [`a-guess-that-leaves-no-trace`](error-classes.md#a-guess-that-leaves-no-trace) | un fichier est refusé, ou pire, importé avec des chiffres faux — et rien nulle part ne dit comment il a été LU. Le diagnostic après coup est impossibl |
 | [`empty-list-blames-the-most-common-cause`](error-classes.md#empty-list-blames-the-most-common-cause) | une liste vide affiche un message écrit d'avance qui demande à l'utilisateur des gestes qu'il vient de faire. Il ne peut ni corriger ce qu'on lui repr |
 | [`one-identity-two-readers`](error-classes.md#one-identity-two-readers) | deux colonnes de la MÊME ligne se contredisent — « Saisi ✅ » à côté de « Format ? — forme non vérifiable pour cette plateforme ». Signalé le 2026-09-0 |
+| [`a-removed-title-becomes-the-word-undefined`](error-classes.md#a-removed-title-becomes-the-word-undefined) | la figure affiche le mot **« undefined »** en gras là où son titre a été retiré. Vu au navigateur le 2026-09-12, immédiatement après avoir supprimé le |
 
 ## un-état-qui-déborde-de-sa-portée
 
@@ -201,7 +202,7 @@ Règle de rattachement : `outlives-the-visit|written-after-instantiation|per-wor
 
 **Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ?**
 
-Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced` sur l'identifiant et le symptôme. 21 classe(s).
+Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced` sur l'identifiant et le symptôme. 22 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -226,6 +227,7 @@ Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|diver
 | [`a-metric-computed-outside-the-metrics-layer`](error-classes.md#a-metric-computed-outside-the-metrics-layer) | deux surfaces du même produit répondent deux nombres à la même question, sans qu'aucune soit « en panne ». Instances mesurées : trois définitions inco |
 | [`an-aggregate-computed-in-pandas-escapes-every-sql-guard`](error-classes.md#an-aggregate-computed-in-pandas-escapes-every-sql-guard) | un cliquet certifie « zéro agrégat hors de la couche or » pendant qu'une tuile affiche un total faux. Les deux affirmations sont vraies : le total n'e |
 | [`two-definitions-that-must-coincide-are-never-compared`](error-classes.md#two-definitions-that-must-coincide-are-never-compared) | deux chemins qui répondent à la même question rendent deux nombres différents, chacun cohérent avec lui-même, pendant des semaines. Mesuré en PRODUCTI |
+| [`one-scale-for-two-contracts`](error-classes.md#one-scale-for-two-contracts) | une tuile de fraîcheur passe au **rouge** pour un comportement parfaitement normal. Signalé le 2026-09-12 : « c'est en rouge alors qu'on a que 3 jours |
 
 ## une-erreur-avalée-devient-une-absence
 
@@ -258,7 +260,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 34 classe(s).
+Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 36 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -296,12 +298,14 @@ Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuou
 | [`a-ratchet-with-no-floor-under-its-population`](error-classes.md#a-ratchet-with-no-floor-under-its-population) | un cliquet à zéro reste vert alors que la propriété qu'il annonce n'est plus vérifiée — parce qu'il ne mesure plus rien. Mesuré le 2026-09-12 : **5 de |
 | [`a-guard-that-sees-the-binding-not-the-application`](error-classes.md#a-guard-that-sees-the-binding-not-the-application) | un garde reste vert sur le défaut exact qu'il décrit, parce qu'il vérifie qu'une valeur est CALCULÉE et non qu'elle est UTILISÉE. |
 | [`a-marker-shared-by-several-sites-guards-none`](error-classes.md#a-marker-shared-by-several-sites-guards-none) | un test de non-régression qui cherche la PRÉSENCE d'un marqueur dans un fichier reste vert quand un seul des sites qui l'utilisent perd son correctif. |
+| [`a-kill-pattern-that-matches-its-own-shell`](error-classes.md#a-kill-pattern-that-matches-its-own-shell) | une commande composée s'arrête au milieu, sans message, et rend le code **144**. Ce qui suit n'a jamais tourné — relancer la suite, écrire le script,  |
+| [`a-verdict-from-a-tree-that-moved-under-it`](error-classes.md#a-verdict-from-a-tree-that-moved-under-it) | la suite complète rend des échecs qui **n'existent pas** — verts dès qu'on les rejoue. Mesuré le 2026-09-12 : quatre signalés sur deux exécutions, **t |
 
 ## un-document-qui-affirme-un-état-périmé
 
 **Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?**
 
-Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list` sur l'identifiant et le symptôme. 34 classe(s).
+Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list` sur l'identifiant et le symptôme. 36 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -339,6 +343,8 @@ Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|cap
 | [`a-caption-written-beside-the-behaviour-instead-of-derived-from-it`](error-classes.md#a-caption-written-beside-the-behaviour-instead-of-derived-from-it) | la légende sous une figure affirme trois choses fausses en même temps, sans qu'aucune ne soit un bug de calcul. Vu au rendu le 2026-09-10 en « Chacune |
 | [`on-conflict-target-without-index`](error-classes.md#on-conflict-target-without-index) | l'import ne se dégrade pas, il LÈVE — `ERROR: there is no unique or exclusion constraint matching the ON CONFLICT specification`. Prouvé en production |
 | [`a-note-outlives-the-figure-it-explains`](error-classes.md#a-note-outlives-the-figure-it-explains) | la figure est juste et le lecteur croit qu'elle est vide, parce que la légende sous elle décrit l'ancienne figure. Signalé le 2026-09-11 **après** le  |
+| [`a-verdict-whose-validator-lives-outside-the-repo`](error-classes.md#a-verdict-whose-validator-lives-outside-the-repo) | une règle est écrite dans un commentaire avec son chiffre, et personne ne peut la rejouer. La palette portait « refusé : ΔE 4.5 (deutan) » depuis le 2 |
+| [`a-bash-hook-that-blocks-the-prose-about-the-gesture`](error-classes.md#a-bash-hook-that-blocks-the-prose-about-the-gesture) | **écrire sur un défaut devient impossible.** Trois commandes bloquées d'affilée le 2026-09-12, toutes en train d'écrire la classe d'erreur du geste co |
 
 ## un-contrôle-qui-ne-peut-jamais-passer
 
@@ -375,7 +381,7 @@ Règle de rattachement : `runs-twice|concurrency-group|overload|competing-for-on
 
 **Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ?**
 
-Règle de rattachement : `threshold|seuil|min[_-]|floor|ceiling|limit|budget|quota|window|magic-number|hardcoded` sur l'identifiant et le symptôme. 6 classe(s).
+Règle de rattachement : `threshold|seuil|min[_-]|floor|ceiling|limit|budget|quota|window|magic-number|hardcoded` sur l'identifiant et le symptôme. 7 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -385,6 +391,7 @@ Règle de rattachement : `threshold|seuil|min[_-]|floor|ceiling|limit|budget|quo
 | [`second-factor-budget-refunded-by-the-first`](error-classes.md#second-factor-budget-refunded-by-the-first) | a multi-factor flow rate-limits each step, and the earlier step's success resets the later step's budget. The attacker holds the earlier factor by ass |
 | [`a-window-widened-to-its-bucket-instead-of-the-bucket-clipped`](error-classes.md#a-window-widened-to-its-bucket-instead-of-the-bucket-clipped) | une figure ou un total bornés par une période affichent PLUS que ce que la période contient. Mesuré le 2026-09-10 sur l'accueil : « 12 mois · Par anné |
 | [`an-exemption-that-outlives-what-it-exempted`](error-classes.md#an-exemption-that-outlives-what-it-exempted) | une exemption reste dans une liste après la disparition de ce qu'elle exemptait. Elle ne casse rien le jour où ça arrive — elle devient du **budget**  |
+| [`a-threshold-true-at-one-grain-and-false-at-another`](error-classes.md#a-threshold-true-at-one-grain-and-false-at-another) | un garde rougit alors que rien n'est cassé, uniquement parce que la figure a changé de PAS. Le sien exigeait « au moins 30 pas non mesurés couverts »  |
 
 ## une-écriture-qui-écrase
 
@@ -457,7 +464,7 @@ Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhoo
 
 **Ce que le dépôt déclare est-il ce que la production exécute ?**
 
-Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version` sur l'identifiant et le symptôme. 18 classe(s).
+Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version` sur l'identifiant et le symptôme. 19 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -479,6 +486,7 @@ Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compos
 | [`a-zero-that-was-never-measured-passes-for-a-measurement`](error-classes.md#a-zero-that-was-never-measured-passes-for-a-measurement) | une colonne de mesure est remplie sur toutes les lignes, donc elle a l'air mesurée, et toute moyenne calculée dessus est fausse — pas approximative, f |
 | [`the-application-connects-as-a-superuser`](error-classes.md#the-application-connects-as-a-superuser) | aucun. Tout fonctionne — c'est le propre de cette classe : elle ne se manifeste que le jour où autre chose échoue. |
 | [`a-procedural-rule-in-the-database`](error-classes.md#a-procedural-rule-in-the-database) | une règle métier vit en PL/pgSQL. Elle n'est ni testable par pytest, ni lisible dans une revue de diff Python, ni déplaçable — et le jour où elle est  |
+| [`a-visual-constant-copied-into-a-second-renderer`](error-classes.md#a-visual-constant-copied-into-a-second-renderer) | la même plateforme porte **deux couleurs** dans le même produit — Spotify en vert à l'écran, en bleu dans le PDF du même artiste, le même jour. |
 
 ## Sans famille
 
@@ -492,6 +500,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=301 families=17 orphans=3 -->
+<!-- error-class-families: total=309 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=e2fa19b8f655fead904d6adf4b3169601ad8191aabf5c445d236df6c2a591543 -->
+<!-- error-class-families: sha256=85641dd696a15734020a1c8f08b2fe6fd766885c0622b537df169beda92e02e6 -->

@@ -118,6 +118,26 @@ def test_no_trace_carries_a_zero_where_nothing_was_measured(monkeypatch, mode, s
 
 
 @pytest.mark.parametrize("mode", _MODES)
+def test_the_hover_carrier_covers_every_unmeasured_day(monkeypatch, mode):
+    """Au pas du JOUR le compte est connu : 40 jours de trou, 40 colonnes à couvrir.
+
+    L'invariant relatif du test voisin ne dit pas COMBIEN ; celui-ci le dit, au seul
+    pas où la mise en scène le détermine. Une colonne ratée retombe sur le « 0 »
+    inféré par la pile, c'est-à-dire exactement le défaut qu'on corrige.
+    """
+    fig = _figure(monkeypatch, mode=mode, step="day")
+    if fig is None:
+        pytest.skip(f"rien de traçable en mode={mode}")
+    xs = {x for tr in fig.data
+          if getattr(tr, "legendgroup", None) == "__unmeasured__"
+          and getattr(tr, "fill", None) != "toself"
+          for x in (tr.x or [])}
+    assert len(xs) == 40, (
+        f"{len(xs)} jours couverts par le porteur de survol au lieu de 40 — "
+        "YouTube est non mesurée du 31ᵉ au 70ᵉ jour de la mise en scène.")
+
+
+@pytest.mark.parametrize("mode", _MODES)
 @pytest.mark.parametrize("step", ("day", "week"))
 def test_the_gap_is_covered_by_a_hatched_band(monkeypatch, mode, step):
     """Couper la bande ne suffit pas : il faut DIRE que le trou en est un.
@@ -129,8 +149,20 @@ def test_the_gap_is_covered_by_a_hatched_band(monkeypatch, mode, step):
     fig = _figure(monkeypatch, mode=mode, step=step)
     if fig is None:
         pytest.skip(f"rien de traçable en mode={mode} pas={step}")
-    hatched = [tr for tr in fig.data
-               if getattr(tr, "legendgroup", None) == "__unmeasured__"]
+    # DEUX RÔLES DANS LE MÊME GROUPE DE LÉGENDE, et il faut les distinguer.
+    #
+    # Le groupe `__unmeasured__` porte la BANDE (un rectangle `fill="toself"` avec un
+    # motif) et, depuis le 2026-09-12, le PORTEUR DE SURVOL (des marqueurs invisibles,
+    # un par pas non mesuré). Ils partagent le groupe pour qu'un clic de légende les
+    # bascule ensemble — cacher la hachure sans cacher son infobulle laisserait une
+    # étiquette flotter sur rien.
+    #
+    # Ce test exige donc les deux, séparément : la bande se VOIT, le porteur se
+    # SURVOLE. Une seule assertion sur « toutes les traces du groupe ont un motif »
+    # rougissait sur le porteur, qui n'en a légitimement aucun.
+    group = [tr for tr in fig.data
+             if getattr(tr, "legendgroup", None) == "__unmeasured__"]
+    hatched = [tr for tr in group if getattr(tr, "fill", None) == "toself"]
     assert hatched, (
         f"mode={mode} pas={step} — YouTube a 40 pas non mesurés au MILIEU de sa "
         "plage et aucune bande hachurée ne les couvre. L'absence redevient "
@@ -140,6 +172,32 @@ def test_the_gap_is_covered_by_a_hatched_band(monkeypatch, mode, step):
             "la bande est posée sans motif : un rectangle transparent ne se voit "
             "pas. ⚠️ `add_vrect` (une SHAPE) ne supporte pas `fillpattern` — "
             "vérifié sur plotly 5.24.1 et 6.5.2 ; c'est pourquoi c'est une trace.")
+
+    carrier = [tr for tr in group if getattr(tr, "fill", None) != "toself"]
+    assert carrier, (
+        f"mode={mode} pas={step} — la hachure se voit mais ne se SURVOLE pas. Un "
+        "rectangle n'a que quatre coins : en `hovermode=\"x unified\"` il ne "
+        "contribue à aucune colonne entre les deux, et l'artiste qui survole un trou "
+        "lit « 0 » — le chiffre qu'on a justement cessé de dessiner.")
+    # L'INVARIANT EST RELATIF AU PAS, pas un nombre absolu. Les 40 jours non mesurés
+    # de la mise en scène font 40 colonnes au pas JOUR et 5 seaux au pas SEMAINE ;
+    # un seuil écrit pour le premier rougit sur le second sans qu'aucun défaut
+    # existe. C'est `un-seuil-écrit-d-instinct`, pris sur mon propre garde.
+    #
+    # Ce qui est vrai à tous les pas : le porteur couvre au moins un point, et
+    # AUCUN de ses points ne tombe hors d'une bande hachurée — sinon il annoncerait
+    # « pas de donnée » là où la figure en trace une.
+    xs = [x for tr in carrier for x in (tr.x or [])]
+    assert xs, "le porteur de survol n'a aucun point"
+    windows = [(min(tr.x), max(tr.x)) for tr in hatched]
+    stray = [x for x in xs if not any(lo <= x <= hi for lo, hi in windows)]
+    assert not stray, (
+        f"{len(stray)} point(s) du porteur de survol tombent HORS des bandes "
+        f"hachurées (p.ex. {stray[0]}) : il annoncerait « pas de donnée » sur un pas "
+        "que la figure trace.")
+    assert all("<extra></extra>" in (tr.hovertemplate or "") for tr in carrier), (
+        "le porteur de survol affiche encore la boîte de nom de trace à côté de son "
+        "message — deux étiquettes pour un seul fait.")
 
 
 def test_only_one_legend_entry_names_the_absence(monkeypatch):

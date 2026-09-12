@@ -9,6 +9,54 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+### R97 — Sept remarques d'ergonomie, et une palette mesurable (livrée 2026-09-12)
+
+- [x] **R97 — Le second lot du même écran.** Demandé le 2026-09-12, après la livraison
+  de R96 et en la regardant.
+
+  - **Le 0 s'explique au survol** : une trace invisible porte un point à chaque pas
+    non mesuré (« Pas de donnée récoltée sur cette période ») — la hachure montrait OÙ
+    sans pouvoir être survolée. Et un VRAI zéro dit lequel des deux il est :
+    « compteur inchangé » sur une plateforme à compteur, « aucune écoute ce jour-là »
+    sur une source quotidienne.
+  - **Le tableau porte Apple, Instagram et Meta Ads**, dans un second bloc avec leur
+    unité écrite, bornées à la période — et **sans une requête de plus** :
+    `period_side_metrics` rend les deux en un aller-retour et remplace
+    `get_instagram_followers`, parce que l'accueil est à 13/13 et que le plafond ne
+    monte pas.
+  - **Deux barèmes de fraîcheur** : API 24 h/72 h, CSV 7 j/30 j. Un CSV de trois jours
+    était rouge, et un rouge qui s'allume sur un comportement normal cesse d'être lu.
+  - **La mise en route perd ses « OK »** (`✅ spotify · ❌ youtube`) et la ligne S4A dit
+    à quoi elle sert.
+  - **Titre et sous-titre de la figure retirés** — le filtre porte la période, le
+    tableau porte le total.
+  - **Palette par famille de marque** : Spotify vert, YouTube rouge, SoundCloud
+    orange, Apple magenta. **ΔE 16,9 en clair**, au-dessus du plancher de 15, cherchée
+    sur ~1,7 M de combinaisons. Les couleurs exactes restent refusées (ΔE 4,6 en
+    deutan entre le rouge YouTube et l'orange SoundCloud).
+
+  ⚠️ **Le mode sombre plafonne à ΔE 13,9, et c'est une borne mesurée** : sa bande de
+  clarté laisse 0,19 pour séparer trois teintes chaudes. Plancher posé à 13,5 — un
+  plancher de 15 y serait infranchissable, donc rouge à vie, donc ignoré.
+
+  Trois défauts trouvés en REGARDANT : `title=None` fait écrire « undefined » par
+  Plotly (invisible en Python, `layout.title.text` valait bien `None`) ; le PDF gardait
+  une COPIE de la palette et peignait Spotify en bleu ; une clé i18n orpheline.
+
+  Cinq classes d'erreur, toutes avec une signature vue rouge :
+  `a-removed-title-becomes-the-word-undefined`,
+  `a-visual-constant-copied-into-a-second-renderer`, `one-scale-for-two-contracts`,
+  `a-verdict-whose-validator-lives-outside-the-repo`,
+  `a-threshold-true-at-one-grain-and-false-at-another`.
+
+  Deux gardes créés : `test_the_palette_can_be_attributed.py` (CIEDE2000 + simulation
+  dichromate en stdlib — le validateur externe n'existait pas ici, donc le verdict
+  n'était rejouable nulle part) et `test_a_scale_matches_the_contract_it_judges.py`.
+
+  Aucune migration.
+
+---
+
 ### R96 — L'absence devient un pixel, et la mise en route dit ce qui manque (livrée 2026-09-12)
 
 - [x] **R96 — Les neuf remarques sur l'accueil.** Demandées le 2026-09-12, toutes de

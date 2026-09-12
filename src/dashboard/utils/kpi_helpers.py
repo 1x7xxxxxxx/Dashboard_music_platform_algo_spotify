@@ -27,9 +27,24 @@ logger = logging.getLogger(__name__)
 _KPI_TTL = 600
 
 
-# Seuils de fraîcheur (en heures)
+# SEUILS DE FRAÎCHEUR — DEUX CONTRATS, DEUX BARÈMES (en heures).
+#
+# Un seul barème servait les deux, et il était calibré sur les API : vert < 24 h,
+# orange < 72 h, rouge au-delà. Appliqué à un CSV, il rend un fichier déposé il y a
+# **trois jours** en ROUGE — « c'est en rouge alors qu'on a que 3 jours de retard »
+# (2026-09-12). Le rouge doit vouloir dire « quelque chose est cassé » ; s'il
+# s'allume sur un comportement normal, on apprend à ne plus le regarder, et il ne
+# dira plus rien le jour où ça casse vraiment.
+#
+#   API  — une collecte tourne CHAQUE MATIN. Passer une nuit est déjà anormal, deux
+#          est une panne. Inchangé.
+#   CSV  — personne ne dépose un export tous les jours. Spotify for Artists publie
+#          par semaine ; une semaine sans dépôt est ordinaire, un mois est un
+#          abandon. D'où 7 j / 30 j, demandés et non déduits.
 _FRESH_H = 24
 _WARN_H = 72
+_CSV_FRESH_H = 24 * 7        # une semaine : le rythme de publication de S4A
+_CSV_WARN_H = 24 * 30        # un mois sans dépôt — là, la donnée est vraiment vieille
 
 # Filtre ligne "Total" des CSV Spotify for Artists
 ARTIST_NAME_FILTER = "1x7xxxxxxx"
@@ -195,8 +210,14 @@ def get_source_freshness(_db, artist_id):
     return result
 
 
-def freshness_status(last_dt):
-    """(emoji, couleur, libellé) selon l'âge de `last_dt`.
+def freshness_status(last_dt, kind: str = "api"):
+    """(emoji, couleur, libellé) selon l'âge de `last_dt` ET la nature de la source.
+
+    `kind` vient de `SOURCES_CONFIG` et vaut `"api"` ou `"csv"`. Il ne change pas la
+    mesure, il change le BARÈME : une API muette depuis trois jours est en panne, un
+    CSV non redéposé depuis trois jours est un mardi ordinaire. Le défaut reste
+    `"api"`, le barème le plus strict — une source dont on ignore la nature est
+    surveillée comme la plus exigeante, jamais l'inverse.
 
     DEUX HORLOGES ÉTAIENT SOUSTRAITES L'UNE DE L'AUTRE. `datetime.now()` nu rend
     l'heure LOCALE de l'hôte, tandis que `last_dt` sort d'une colonne sans fuseau où
@@ -217,9 +238,12 @@ def freshness_status(last_dt):
     _now = datetime.now(_tz.utc)
     _ref = last_dt if last_dt.tzinfo is not None else last_dt.replace(tzinfo=_tz.utc)
     age_h = (_now - _ref).total_seconds() / 3600
-    if age_h < _FRESH_H:
-        return "🟢", "#1DB954", f"Il y a {int(age_h)}h"
-    elif age_h < _WARN_H:
+    _fresh, _warn = ((_CSV_FRESH_H, _CSV_WARN_H) if kind == "csv"
+                     else (_FRESH_H, _WARN_H))
+    if age_h < _fresh:
+        return "🟢", "#1DB954", (f"Il y a {int(age_h)}h" if age_h < 24
+                                 else f"Il y a {int(age_h / 24)}j")
+    elif age_h < _warn:
         days = int(age_h / 24)
         return "🟠", "#FFA500", f"Il y a {days}j"
     else:

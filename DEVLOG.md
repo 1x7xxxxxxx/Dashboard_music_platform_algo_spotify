@@ -5,6 +5,97 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-12 (suite) — Sept remarques, et une palette qu'on ne peut plus choisir à l'œil
+
+### Ce qui a changé
+
+**Le 0 s'explique au survol.** La hachure montre OÙ la mesure manque ; elle ne se
+survolait pas — un rectangle n'a que quatre coins, donc en `hovermode="x unified"` il
+ne contribue à aucune colonne entre les deux. Une trace invisible porte maintenant un
+point à chaque pas non mesuré : « Pas de donnée récoltée sur cette période ». Et un
+VRAI zéro dit lequel des deux il est — « compteur inchangé » sur YouTube et
+SoundCloud, « aucune écoute ce jour-là » sur Spotify. Le même chiffre, deux faits.
+
+**Le tableau porte Apple, Instagram et Meta Ads**, dans un second bloc et jamais dans
+la colonne « Total » : on n'additionne pas des abonnés avec des euros. Toutes bornées
+à la période de la figure — la condition qui manquait aux tuiles retirées le
+2026-09-10. Et **sans une requête de plus** : l'accueil est à 13/13, le plafond ne
+monte pas, donc `period_side_metrics` rend Instagram ET Meta en un aller-retour et
+REMPLACE l'appel à `get_instagram_followers`.
+
+**Deux barèmes de fraîcheur, un par contrat.** Un seul servait les deux, calibré sur
+les API : un CSV déposé il y a trois jours s'affichait ROUGE. Le rouge doit vouloir
+dire « quelque chose est cassé » ; s'il s'allume sur un comportement normal, on
+apprend à ne plus le regarder. API 24 h/72 h, CSV 7 j/30 j, et le défaut reste le
+barème STRICT — une source dont on ignore la nature est surveillée comme la plus
+exigeante.
+
+**La mise en route perd ses « OK ».** `✅ spotify · ❌ youtube` : la couleur porte le
+verdict, et ❌ se distingue de ✅ par la FORME autant que par la couleur. La ligne S4A
+dit désormais à quoi elle sert — les playlists nourrissent les modèles prédictifs,
+c'est la seule étape dont le bénéfice n'est pas devinable depuis son nom.
+
+**Le titre et le sous-titre de la figure sont partis** : le premier répétait le filtre
+de période, le second le total du tableau. 58 px rendus à la figure.
+
+### La palette, et pourquoi elle ne se choisit plus à l'œil
+
+Demandé : « youtube rouge… ». Les couleurs de MARQUE exactes restent impossibles, et
+je l'ai remesuré plutôt que de croire le commentaire :
+
+    youtube #FF0000 ↔ soundcloud #FF5500   ΔE 9.6 normale ·  4.6 deutan
+    youtube          ↔ apple #FA243C       ΔE 9.0 normale ·  3.0 deutan
+
+Trois teintes dans l'arc chaud : un deutéranope ne peut attribuer aucune des trois
+aires. Ce qui a été livré n'est pas « d'autres couleurs », c'est la MEILLEURE position
+dans chaque famille de marque, cherchée sur ~1,7 M de combinaisons — **clair ΔE 16,9,
+au-dessus du plancher de 15**. Apple est en magenta parce que YouTube prend le rouge.
+
+⚠️ **Le mode sombre plafonne à 13,9 et c'est une borne, pas un confort.** Sa bande de
+clarté (0,48–0,67 contre 0,43–0,77) laisse 0,19 pour séparer trois teintes chaudes ; le
+maximum atteignable y est 13,9 avec Apple, 14,6 sans elle. Un plancher de 15 en sombre
+serait infranchissable, donc rouge à vie, donc ignoré. Il est à 13,5.
+
+**Le verdict venait d'un outil absent du dépôt** (`node scripts/validate_palette.js`,
+skill `dataviz`) : la mesure n'était rejouable nulle part, et la palette a changé deux
+fois sans qu'aucune exécution puisse dire si elle passait encore. CIEDE2000 et la
+simulation dichromate de Viénot/Brettel vivent maintenant ici, en stdlib, avec leur
+propre non-vacuité — le garde rejoue le refus de 2026-09-08 et échoue si sa formule
+cesse de le reproduire.
+
+### Trois défauts trouvés en REGARDANT
+
+* **`title=None` écrit « undefined »** en toutes lettres au-dessus de la figure. Aucun
+  test Python ne pouvait le voir : `layout.title.text` valait bien `None`, ce qu'on
+  avait demandé. Le mot naît à la sérialisation vers le JS.
+* **Le PDF gardait une COPIE de la palette** et peignait encore Spotify en bleu quand
+  l'écran était passé au vert. Attrapé par un garde qui existait déjà — le seul cas de
+  la séance où une divergence n'a coûté aucune lecture.
+* Une clé i18n orpheline, laissée par le titre retiré.
+
+### Ce que j'ai appris contre moi-même
+
+* **Le même changement de pas dit deux choses opposées.** Le matin, ouvrir le pas Mois
+  révélait un vrai défaut (12 % de croissance perdue) ; l'après-midi, il faisait rougir
+  mon propre garde sur du code juste, parce que j'y avais écrit « au moins 30 pas non
+  mesurés » — vrai au pas jour, faux au pas semaine où 40 jours font 5 seaux. Ce qui
+  les distingue : regarder QUI varie avec le grain, la mise en scène ou la mesure.
+* **Une trace neuve dans une figure partagée est une ligne neuve pour tout garde qui
+  énumère les traces.** Le porteur de survol n'a délibérément pas de nom, et quatre
+  gardes ont levé un `TypeError` dessus. Lui donner un nom aurait réparé les quatre
+  sans les toucher — et c'est le mauvais remède : il serait alors compté comme une
+  plateforme dans les totaux comparés.
+* **Ne pas éditer l'arbre pendant une suite complète**, deux fois payé aujourd'hui :
+  les « échecs » disparaissent sur l'arbre stable, et une suite qui tourne sous un
+  arbre mouvant ne prouve rien, dans les deux sens.
+
+Cinq classes de plus (dix sur la journée) : `a-removed-title-becomes-the-word-undefined`,
+`a-visual-constant-copied-into-a-second-renderer`, `one-scale-for-two-contracts`,
+`a-verdict-whose-validator-lives-outside-the-repo`,
+`a-threshold-true-at-one-grain-and-false-at-another`.
+
+---
+
 ## 2026-09-12 — L'absence devient un pixel, et la prose qui la racontait disparaît
 
 ### Ce qui a changé

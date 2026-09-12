@@ -66,10 +66,38 @@ logger = logging.getLogger(__name__)
 
 # Les couleurs de l'illustration committée, validées le 2026-09-08 — « ALL CHECKS
 # PASS » sur les six contrôles, dans les deux modes.
-_PALETTE_LIGHT = {"spotify": "#2a78d6", "youtube": "#eb6834", "soundcloud": "#1baf7a",
-                  "apple": "#eda100"}
-_PALETTE_DARK = {"spotify": "#2a78d6", "youtube": "#e05f2b", "soundcloud": "#1baf7a",
-                 "apple": "#c08400"}
+# LA PALETTE SUIT LA MARQUE, autant que la lisibilité le permet — « mets à jour les
+# couleurs en fonction de chaque plateforme (youtube rouge…) » (2026-09-12).
+#
+# Les couleurs de marque EXACTES restent refusées, et c'est mesurable :
+#
+#     #1DB954 · #FF0000 · #FF5500 · #FA243C
+#     youtube ↔ soundcloud   ΔE  9.6 normale ·  4.6 deutan
+#     youtube ↔ apple        ΔE  9.0 normale ·  3.0 deutan
+#
+# Quatre teintes dont trois dans l'arc chaud : un deutéranope ne peut attribuer
+# aucune des trois aires. Ce qui a été fait à la place n'est pas « d'autres
+# couleurs », c'est la MEILLEURE position dans chaque famille de marque, cherchée
+# par balayage sur ~1,7 M de combinaisons sous les contraintes du validateur
+# (CIEDE2000 + simulation deutan/protan, bande de clarté par thème) :
+#
+#     clair   ΔE 16.9  ✅ au-dessus du plancher de 15
+#     sombre  ΔE 13.9  ⚠️ EN DESSOUS, et c'est le maximum atteignable
+#
+# ⚠️ LE MODE SOMBRE NE PEUT PAS TENIR LE PLANCHER, et il faut l'écrire plutôt que
+# de le découvrir plus tard : sa bande de clarté est 0,48–0,67 contre 0,43–0,77 en
+# clair, soit 0,19 de latitude pour séparer trois teintes chaudes. Le maximum est
+# 13,9 avec Apple, 14,6 sans elle. Ce n'est pas un choix de confort — c'est la
+# borne, et la rechercher à nouveau redonnera le même nombre.
+#
+# APPLE EST EN MAGENTA, PAS EN ROUGE, et c'est une conséquence, pas un goût : sa
+# marque est un rouge-rose, YouTube prend le rouge, et deux rouges dans la même
+# pile sont indiscernables (ΔE 3,0 en deutan avec les teintes exactes). La teinte
+# libre la plus proche de sa famille est le magenta.
+_PALETTE_LIGHT = {"spotify": "#3acf84", "youtube": "#bd354b", "soundcloud": "#e0631b",
+                  "apple": "#bd00a4"}
+_PALETTE_DARK = {"spotify": "#268756", "youtube": "#e01b2b", "soundcloud": "#f28100",
+                 "apple": "#cf19b6"}
 
 # Aucune fenêtre par défaut : « depuis le début » est le choix par défaut du sélecteur
 # de l'accueil (`utils/date_range`), et la figure doit dire la même chose que lui.
@@ -203,6 +231,32 @@ def _hatch_traces(spans: list, span: list, ceiling: float, ink: str,
             legendgroup="__unmeasured__",
         ))
     return out
+
+
+def _unmeasured_hover(spans: list, span: list) -> object:
+    """Une trace invisible qui DIT, au survol, que le pas n'a pas été mesuré.
+
+    La hachure se voit, elle ne se survole pas : un rectangle n'a que quatre coins,
+    donc en `hovermode="x unified"` il ne contribue à aucune des colonnes entre les
+    deux. L'artiste survolait un trou et lisait « 0 » — le chiffre qu'on avait
+    justement cessé de dessiner. « Clarifier le 0 » (2026-09-12).
+
+    Cette trace porte un point à CHAQUE pas non mesuré, à hauteur zéro, invisible
+    (`marker` transparent, taille nulle) et hors `stackgroup` pour ne rien ajouter à
+    la pile. Son seul travail est d'exister sous le curseur.
+    """
+    import plotly.graph_objects as go
+
+    from src.dashboard.utils.i18n import t
+    holes = sorted({i for a, b in spans for i in range(a, b + 1)})
+    return go.Scatter(
+        x=[span[i] for i in holes], y=[0] * len(holes),
+        mode="markers", marker=dict(size=0.1, color="rgba(0,0,0,0)"),
+        showlegend=False, legendgroup="__unmeasured__",
+        hovertemplate="<b>" + t("platform_chart.no_data_hover",
+                                "Pas de donnée récoltée sur cette période")
+                      + "</b><extra></extra>",
+    )
 
 
 def _monday(day):
@@ -602,7 +656,7 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                           mode: str = "cumulative",
                           cumulative: dict | None = None,
                           discarded: dict | None = None,
-                          recap=None,
+                          recap=None, recap_extra=None,
                           key: str = "platform_chart") -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
@@ -856,7 +910,8 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                        palette=palette, ink=ink, muted=muted, surface=surface,
                        grid=grid, title=title, step=step, total=total, key=key)
         if recap is not None:
-            _render_recap(recap, span, aligned, aligned_raw, order, thin, mode, step)
+            _render_recap(recap, span, aligned, aligned_raw, order, thin, mode,
+                          step, extra=recap_extra)
         _render_notes(thin, coarse, step, coarsened=coarsened, mode=mode,
                       discarded=discarded)
         return True
@@ -893,7 +948,13 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         for _hatch in _hatch_traces(_gaps, span, _ceiling * 1.02, muted,
                                     legend=mode != "share"):
             fig.add_trace(_hatch)
+        # Et le porteur de survol : la hachure montre OÙ, celui-ci dit QUOI.
+        fig.add_trace(_unmeasured_hover(_gaps, span))
 
+    # Les plateformes dont la série vient d'un COMPTEUR : leur zéro dit « rien
+    # n'a bougé », pas « personne n'a écouté ». `served` les nomme déjà quand la
+    # couche or les sert ; sinon on retombe sur celles qui ont une série cumulée.
+    _COUNTERS = set(served) | {k for k, rows in (cumulative or {}).items() if rows}
     for pkey in order:
         for seg in segments[pkey]:
             first = pkey not in legend_done
@@ -921,10 +982,17 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                 # non mesuré n'a pas de point du tout, la bande y est coupée. Le
                 # survol le dit, parce que les deux se ressemblent à l'œil —
                 # « on a des 0 sur youtube et soundcloud, je pense qu'on a tout
-                # simplement pas la data » (2026-09-08). Ici, si : le compteur de la
-                # chaîne n'a pas bougé de la journée.
-                customdata=[["compteur inchangé" if aligned[pkey][i] == 0
-                             else ""] for i in seg],
+                # simplement pas la data » (2026-09-08). Ici, si.
+                #
+                # ET LE MOT DÉPEND DE LA NATURE DE LA SOURCE. Sur un COMPTEUR
+                # (YouTube, SoundCloud), zéro veut dire « le compteur n'a pas bougé ».
+                # Sur une source QUOTIDIENNE (Spotify), il veut dire « personne n'a
+                # écouté ». Le même chiffre, deux faits différents ; les confondre
+                # laissait l'artiste devant un « 0 » nu — « clarifier le 0 »
+                # (2026-09-12).
+                customdata=[[("compteur inchangé" if pkey in _COUNTERS
+                              else "aucune écoute ce jour-là")
+                             if aligned[pkey][i] == 0 else ""] for i in seg],
                 hovertemplate=(("%{y:.1f} %<extra>" if mode == "share"
                                 else "%{y:,} %{customdata[0]}<extra>")
                                + PLATFORM_LABELS[pkey] + "</extra>"),
@@ -955,18 +1023,22 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     # sommer. C'est l'invariant de tout ce module : on n'additionne pas deux formes.
     fig.update_layout(
         annotations=annotations,
-        title=dict(
-            # Le `.replace(",", " ")` portait sur TOUT le titre, et mangeait la virgule
-            # de « Toutes tes plateformes, un seul écran » — vu au rendu le 2026-09-08.
-            # Il ne s'applique qu'au nombre.
-            text=(f"<b>{title}</b><br><span style='font-size:12px;color:{muted}'>"
-                  + (f"{len(span)} {_STEP_BUCKETS[step]} · part de chaque plateforme"
-                     if mode == "share" else
-                     f"{format(total, ',').replace(',', chr(8239))} écoutes "
-                     + ("cumulées · " if mode == "cumulative" else "sur ")
-                     + f"{len(span)} {_STEP_BUCKETS[step]}")
-                  + "</span>" if title else None),
-            x=0, xanchor="left"),
+        # PLUS DE TITRE NI DE SOUS-TITRE SUR LA PILE. Retirés le 2026-09-12 —
+        # « redondant avec le tableau […] car on a déjà les valeurs sur les filtres ».
+        #
+        # Le titre répétait la période (« — 12 mois »), que la barre de filtres porte
+        # juste au-dessus et qui est le contrôle par lequel on l'a choisie. Le
+        # sous-titre répétait le total (« 304 793 écoutes cumulées · 181 semaines »),
+        # que le récapitulatif à droite donne en le DÉTAILLANT par plateforme. Deux
+        # répétitions d'un réglage visible et d'un chiffre voisin, au prix de 58 px
+        # de marge haute pris à la figure.
+        #
+        # Le mode « part » n'annonce plus non plus « part de chaque plateforme » : la
+        # case du même nom est allumée dans la barre, et l'axe est en pourcentage.
+        # `title=None` NE RETIRE PAS LE TITRE : Plotly rend alors la chaîne
+        # « undefined » à sa place — vu au navigateur le 2026-09-12, pas en lisant le
+        # code. Il faut un texte VIDE, pas une absence.
+        title=dict(text=""),
         hovermode="x unified",
         height=340,
         # De la place À DROITE pour les étiquettes, et plus de marge haute réservée à
@@ -974,7 +1046,8 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         # Assez de place à GAUCHE pour les graduations et EN BAS pour les dates : à
         # 8 px, le rendu du 2026-09-08 coupait « 150 k » en « k » et mangeait la moitié
         # des libellés de l'axe des temps. La marge droite, elle, porte les étiquettes.
-        margin=dict(l=56, r=24, t=58 if title else 12,
+        # `t=12` : les 58 px réservés au titre sur deux lignes sont rendus à la figure.
+        margin=dict(l=56, r=24, t=12,
                     b=62 if mode != "share" else 32),
         # EN BAS, jamais en haut. La version de 2026-09-08 l'ancrait à `y=1.0`,
         # c'est-à-dire dans la marge où vit le titre sur deux lignes : les deux se
@@ -998,7 +1071,8 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     )
     st.plotly_chart(fig, width="stretch", key=key)
     if recap is not None:
-        _render_recap(recap, span, aligned, aligned_raw, order, thin, mode, step)
+        _render_recap(recap, span, aligned, aligned_raw, order, thin, mode,
+                          step, extra=recap_extra)
     _render_notes(thin, coarse, step, coarsened=coarsened, mode=mode,
                   discarded=discarded)
     return True
@@ -1059,6 +1133,7 @@ def _render_facets(*, fig_span: list, aligned: dict, order: list, segments: dict
             for _hatch in _hatch_traces(_gaps, fig_span, _ceiling * 1.02, muted,
                                         legend=False):
                 fig.add_trace(_hatch, row=row, col=1)
+            fig.add_trace(_unmeasured_hover(_gaps, fig_span), row=row, col=1)
         for seg in segments[pkey]:
             fig.add_trace(go.Scatter(
                 x=[fig_span[i] for i in seg],
@@ -1074,17 +1149,19 @@ def _render_facets(*, fig_span: list, aligned: dict, order: list, segments: dict
     for note in fig.layout.annotations:
         note.update(font=dict(color=ink, size=12), x=0, xanchor="left")
     fig.update_layout(
-        title=dict(text=(f"<b>{title}</b><br><span style='font-size:12px;color:"
-                         f"{muted}'>{format(total, ',').replace(',', chr(8239))} "
-                         f"écoutes sur {len(fig_span)} {_STEP_BUCKETS[step]} · chaque "
-                         "plateforme a sa propre échelle, elles ne se comparent pas"
-                         "</span>") if title else None,
+        # Le titre et le total sont partis avec ceux de la pile (2026-09-12) : le
+        # filtre porte la période, le récapitulatif porte les chiffres. Ce qui reste
+        # est propre aux facettes et ne se lit nulle part ailleurs — les échelles ne
+        # se comparent pas, et rien à l'écran ne le dirait sans cette ligne.
+        title=dict(text=f"<span style='font-size:12px;color:{muted}'>"
+                        "chaque plateforme a sa propre échelle, elles ne se "
+                        "comparent pas</span>",
                    x=0, xanchor="left"),
         height=140 * len(order) + 60,
         # Le titre tient sur DEUX lignes, et le titre de la première facette est posé
         # juste sous la marge : à 64 px, « Spotify » s'imprimait par-dessus le
         # sous-titre. Vu au rendu le 2026-09-08.
-        margin=dict(l=56, r=24, t=96 if title else 20, b=32),
+        margin=dict(l=56, r=24, t=34, b=32),
         showlegend=False, hovermode="x unified",
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color=ink),

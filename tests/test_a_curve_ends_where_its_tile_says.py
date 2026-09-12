@@ -297,7 +297,11 @@ def _render(series, gold, mode="cumulative", step="day", **kw):
     # une plateforme peut donc être nommée sans porter la moindre trace, et c'est
     # précisément ce qu'on veut interdire. Les vérifier sur `fig.data` ne le voit pas.
     labels = [a.text for a in (fig.layout.annotations or []) if getattr(a, "text", None)]
-    return drawn, {t.name: list(t.y)[-1] for t in fig.data}, labels
+    # `if t.name` : la figure porte depuis le 2026-09-12 une trace SANS NOM — le
+    # porteur de survol des pas non mesurés, qui ne nomme aucune plateforme et ne
+    # fait que couvrir l'axe. Trois gardes de ce dépôt ont levé un `TypeError` sur
+    # son `name` valant `None` avant que la règle ne soit écrite ici.
+    return drawn, {t.name: list(t.y)[-1] for t in fig.data if t.name}, labels
 
 
 def test_a_platform_served_by_the_gold_layer_is_not_dropped_for_being_sparse() -> None:
@@ -497,7 +501,7 @@ def test_a_coarse_bucket_carries_the_counter_growth_not_the_measured_deltas() ->
     finally:
         pc.st.plotly_chart, pc.st.caption = real_chart, real_caption
 
-    total = sum(v for t in fig.data if "YouTube" in t.name
+    total = sum(v for t in fig.data if t.name and "YouTube" in t.name
                 for v in t.y if v is not None)
     assert total == 20_000, (
         f"les seaux YouTube totalisent {total:,} au lieu des 20 000 que le compteur a "
@@ -536,7 +540,8 @@ def test_the_daily_step_keeps_the_honest_deltas() -> None:
     finally:
         pc.st.plotly_chart, pc.st.caption = real_chart, real_caption
 
-    total = sum(v for t in (fig.data if fig else []) if "YouTube" in t.name
+    total = sum(v for t in (fig.data if fig else [])
+                if t.name and "YouTube" in t.name
                 for v in t.y if v is not None)
     assert total < 1_000, (
         f"au pas du JOUR, YouTube totalise {total:,} : les 20 000 du compteur ont été "

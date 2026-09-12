@@ -749,6 +749,68 @@ def platform_totals(db, artist_id, since=None, until=None) -> dict:
     }
 
 
+def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
+    """Les métriques de période qui ne sont PAS des écoutes, en UN aller-retour.
+
+    Instagram compte des abonnés, Meta Ads des euros : ni l'un ni l'autre n'entre
+    dans `platform_totals`, qui ne parle que d'écoutes et refuse par contrat
+    d'additionner deux formes. Ils ont pourtant leur place dans le récapitulatif de
+    l'accueil — demandé le 2026-09-12 — à condition d'y porter leur unité.
+
+    **BORNÉES À LA PÉRIODE, comme tout ce tableau.** C'est la leçon du 2026-09-10 :
+    les tuiles avaient été retirées parce qu'elles affichaient des compteurs DEPUIS
+    LE DÉBUT à côté d'une courbe bornée, et qu'aucune prose ne rattrape deux nombres
+    qui ne répondent pas à la même question. Instagram rend donc un ÉCART d'abonnés
+    (`dernier − premier` sur la fenêtre), pas un effectif ; Meta rend la dépense de
+    la fenêtre, pas celle du compte.
+
+    **UNE SEULE REQUÊTE, et c'est une contrainte, pas une élégance.** L'accueil est
+    à 13 allers-retours pour un plafond de 13 (`test_a_page_asks_the_same_question_once`),
+    et ce plafond ne monte pas. Cette fonction REMPLACE l'appel à
+    `get_instagram_followers` : son `last` porte le même effectif courant, donc la
+    page gagne deux métriques sans gagner une requête.
+
+    Rend `None` par métrique quand rien n'a été mesuré — jamais `0`, qui affirmerait
+    qu'il ne s'est rien passé.
+    """
+    if db is None or artist_id is None:
+        return {}
+    try:
+        rows = _q(db, """
+            SELECT
+              (SELECT MAX(followers_count) FROM instagram_daily_stats
+                 WHERE artist_id = %s AND (%s::date IS NULL OR collected_at::date >= %s)
+                   AND (%s::date IS NULL OR collected_at::date <= %s)
+                   AND collected_at::date = (
+                     SELECT MIN(collected_at::date) FROM instagram_daily_stats
+                      WHERE artist_id = %s
+                        AND (%s::date IS NULL OR collected_at::date >= %s))) AS ig_first,
+              (SELECT MAX(followers_count) FROM instagram_daily_stats
+                 WHERE artist_id = %s AND (%s::date IS NULL OR collected_at::date <= %s)
+                   AND collected_at::date = (
+                     SELECT MAX(collected_at::date) FROM instagram_daily_stats
+                      WHERE artist_id = %s
+                        AND (%s::date IS NULL OR collected_at::date <= %s))) AS ig_last,
+              (SELECT SUM(spend) FROM v_meta_daily
+                 WHERE artist_id = %s AND (%s::date IS NULL OR day >= %s)
+                   AND (%s::date IS NULL OR day <= %s))                       AS spend
+        """, (artist_id, since, since, until, until, artist_id, since, since,
+              artist_id, until, until, artist_id, until, until,
+              artist_id, since, since, until, until))
+    except Exception as e:      # noqa: BLE001 — le récapitulatif se rend sans ces lignes
+        logger.warning("side metrics unreadable: %s", type(e).__name__)
+        return {}
+    if not rows:
+        return {}
+    ig_first, ig_last, spend = rows[0]
+    return {
+        "ig_followers": ig_last,
+        "ig_delta": (None if ig_first is None or ig_last is None
+                     else int(ig_last) - int(ig_first)),
+        "meta_spend": float(spend) if spend is not None else None,
+    }
+
+
 def combined_total(totals: dict) -> int:
     """La somme des plateformes MESURÉES. Une absence ne compte pas pour zéro."""
     return sum(v for v in (totals or {}).values() if v)

@@ -281,17 +281,32 @@ def test_a_yearly_bucket_is_not_called_a_year() -> None:
             f"le pas `{step}` a changé de vocabulaire sans raison : un seau y vaut "
             "son unité, et deux mots pour la même chose est du bruit")
 
-    # Et les trois sous-titres doivent LIRE `_STEP_BUCKETS`. Les avoir corrigés dans
-    # le module sans les brancher serait la classe « du code correct que rien
-    # n'atteint », déjà payée six fois ici.
-    tree = _tree("src/dashboard/utils/platform_chart.py")
-    reading = sum(1 for n in ast.walk(tree)
-                  if isinstance(n, ast.Subscript)
-                  and isinstance(n.value, ast.Name)
-                  and n.value.id == "_STEP_BUCKETS")
-    assert reading >= 3, (
-        f"seulement {reading} sous-titre(s) lisent `_STEP_BUCKETS` — il y en a trois "
-        "(pile, part, facettes), et celui qu'on oublie repart sur « années »")
+    # ET LE VOCABULAIRE DOIT ÊTRE LU QUELQUE PART. Corriger la constante sans la
+    # brancher serait « du code correct que rien n'atteint », déjà payé six fois ici.
+    #
+    # Les trois SOUS-TITRES qui la lisaient sont partis le 2026-09-12 (« redondant
+    # avec le tableau […] on a déjà les valeurs sur les filtres »). Le mot survit là
+    # où il compte encore des seaux : la ligne « Total » du récapitulatif, qui écrit
+    # « 181 semaines » à côté du nombre. Le garde suit le lecteur, il ne disparaît pas
+    # avec l'ancien.
+    # LES DEUX FORMES D'ACCÈS, et ne compter que l'une est le défaut que ce garde
+    # vient de commettre : `_STEP_BUCKETS[step]` est un `Subscript`, mais le
+    # récapitulatif écrit `_STEP_BUCKETS.get(step, "points")`, un `Attribute`. Le
+    # prédicat ne voyait que la première et a déclaré morte une constante lue.
+    def _reads(node) -> bool:
+        if isinstance(node, ast.Subscript):
+            return getattr(node.value, "id", "") == "_STEP_BUCKETS"
+        if isinstance(node, ast.Attribute):
+            return getattr(node.value, "id", "") == "_STEP_BUCKETS"
+        return False
+
+    reading = sum(
+        1 for rel in ("src/dashboard/utils/platform_chart.py",
+                      "src/dashboard/utils/platform_chart_notes.py")
+        for n in ast.walk(_tree(rel)) if _reads(n))
+    assert reading >= 1, (
+        "plus personne ne lit `_STEP_BUCKETS` : le vocabulaire des seaux est devenu "
+        "une constante morte, et le prochain lecteur repartira sur « années »")
 
 
 def test_no_dead_constant_pretends_to_drive_the_subtitle() -> None:

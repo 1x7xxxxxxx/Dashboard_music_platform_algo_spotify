@@ -24,6 +24,54 @@ import subprocess
 import shutil
 
 
+# ── Une suite qui tourne sous un arbre qui bouge ne prouve rien ───────────────
+#
+# Mesuré DEUX fois le 2026-09-12. La suite complète met 6 min 35 ; j'ai édité des
+# modules et régénéré des documents pendant qu'elle tournait. Résultat : quatre
+# « échecs » signalés, dont **trois n'existaient pas** — verts dès qu'on les rejoue
+# sur l'arbre stable.
+#
+# Le coût n'est pas le temps de tri. Un vrai échec noyé dans des faux se traite comme
+# du bruit, et c'est exactement ce qui a failli arriver au seul vrai des quatre.
+#
+# Ce constat ne peut PAS être un rappel dans un fichier de règles : il dépend d'un
+# fait que je ne vois pas au moment du geste — une suite tourne-t-elle, et depuis
+# quand. C'est pour ça qu'il vit dans un hook, et qu'il arrive au moment de l'édition.
+#
+# AVERTISSEMENT, jamais blocage : éditer pendant une exécution ciblée (`-k`) est
+# normal, et même pendant une suite complète c'est parfois le bon choix — à condition
+# de savoir que le verdict qui suivra ne vaudra rien.
+_FULL_SUITE = "pytest tests/"
+
+
+def warn_if_a_full_suite_is_running() -> None:
+    """Dit qu'une suite complète tourne — son verdict ne décrira plus cet arbre.
+
+    Ne lève jamais et ne bloque jamais : ce hook suit CHAQUE écriture de `.py`.
+    """
+    try:
+        out = subprocess.run(["ps", "-eo", "pid,etimes,args"],
+                             capture_output=True, text=True, timeout=5)
+        for line in out.stdout.splitlines():
+            if _FULL_SUITE not in line or " -k " in line or "grep" in line:
+                continue
+            parts = line.split(None, 2)
+            if len(parts) < 3 or not parts[1].isdigit():
+                continue
+            print(
+                f"⚠️  Une suite COMPLÈTE tourne depuis {int(parts[1])} s (pid "
+                f"{parts[0]}). Le fichier qu'on vient d'écrire n'y sera pas — son "
+                "verdict décrira un arbre qui n'existe plus.\n"
+                "   Deux fois le 2026-09-12 : 3 « échecs » sur 4 n'existaient pas, "
+                "et le seul vrai a failli être rangé avec eux.\n"
+                "   Soit tuer la suite et la relancer après, soit ne rien conclure "
+                "de ce qu'elle rendra.",
+                file=sys.stderr)
+            return
+    except Exception:      # noqa: BLE001 — un hook qui lève bloquerait chaque écriture
+        return
+
+
 def run_ruff(file_path: str) -> int:
     """Lance ruff, retourne le code de sortie à utiliser."""
     result = subprocess.run(
@@ -84,6 +132,8 @@ def main():
 
     if tool_name not in ("Write", "Edit") or not file_path.endswith(".py"):
         sys.exit(0)
+
+    warn_if_a_full_suite_is_running()
 
     if shutil.which("ruff"):
         sys.exit(run_ruff(file_path))

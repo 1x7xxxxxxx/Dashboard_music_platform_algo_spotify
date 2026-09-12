@@ -29,7 +29,21 @@ _GREY = "#9aa0a6"
 # deux figures de la page « Vue d'ensemble » donnaient donc DEUX couleurs à chaque
 # plateforme : Spotify bleu dans l'évolution, vert dans le bâton juste en dessous.
 # Vu en regardant la page, le 2026-09-11.
-_PLATFORM_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]  # Spotify/YT/SC/Apple
+# LA PALETTE EST LUE, PAS RECOPIÉE. Cette liste était une seconde copie, et elle a
+# divergé dès que l'écran est passé aux familles de marque le 2026-09-12 : le PDF
+# peignait encore Spotify en bleu et YouTube en orange pendant que l'écran les
+# peignait en vert et en rouge — la même plateforme, deux couleurs, dans le même
+# produit. Attrapée par `test_a_platform_has_one_colour_in_the_whole_product`, qui
+# existait précisément pour ça.
+#
+# L'ordre reste positionnel (Spotify, YouTube, SoundCloud, Apple) parce que les
+# appelants d'ici indexent par position ; la SOURCE, elle, est unique.
+def _platform_colors() -> list:
+    from src.dashboard.utils.platform_chart import _PALETTE_LIGHT
+    return [_PALETTE_LIGHT[k] for k in ("spotify", "youtube", "soundcloud", "apple")]
+
+
+_PLATFORM_COLORS = _platform_colors()
 # `_ARTIST_FILTER` a disparu d'ici le 2026-09-12 : le retrait de la ligne « Total »
 # des CSV est une RÈGLE, et elle vit dans `v_s4a_song_daily`. Une constante recopiée
 # dans sept fichiers est sept occasions de l'oublier dans un huitième.
