@@ -6,6 +6,24 @@ Ce document répond à une seule question, pour chaque figure, chaque tuile et c
 
 Il est écrit par une machine qui lit `migrations/*.sql`, `init_db.sql` et l'AST de `src/`. Elle n'exécute rien, ne lit aucune base, et **ne porte aucun horodatage** — deux exécutions sur le même arbre rendent exactement les mêmes octets, ce qui est la seule façon pour `--check` de dire quelque chose.
 
+## Les onze axes, et où chacun est répondu
+
+Un inventaire de figures ne suffit pas : il décrit un état sans dire ce qui le tient, et c'est l'état qui dérive. Chaque axe ci-dessous a sa section, et sa colonne de trous.
+
+| # | axe | la question | où |
+|---|---|---|---|
+| 1 | Graphique | quelle donnée trace-t-il, d'où vient-elle ? | [Les figures d'écran](#les-figures-décran) |
+| 2 | Tuile (`.metric`) | quel nombre affirme-t-elle, par quelle porte ? | [Les tuiles](#les-tuiles) |
+| 3 | Plateforme | quelles vues or la définissent, et que reste-t-il de brut ? | [Les plateformes](#les-plateformes) |
+| 4 | Vue or | qui la lit — et depuis quel processus ? | [La couche or](#la-couche-or) |
+| 5 | Porte Python | quelle vue lit-elle ? porte-t-elle une règle que la vue n'a pas ? | [La couche or](#la-couche-or) (colonne « lit ») |
+| 6 | Figure PDF | le document envoyé à des tiers lit-il les mêmes définitions ? | [Les figures du PDF](#les-figures-du-pdf) |
+| 7 | Classe d'erreur | le garde qu'elle nomme existe-t-il encore ? | [Les classes d'erreur](#les-classes-derreur) |
+| 8 | Garde | a-t-il une trace de mutation — a-t-il été VU rouge ? | [Les cliquets](#les-cliquets) |
+| 9 | Cliquet | sa valeur est-elle serrée, et a-t-il un test de non-vacuité ? | [Les cliquets](#les-cliquets) |
+| 10 | Étape CI | qu'est-ce qui bloque, qu'est-ce qui ne fait que rapporter ? | [Les étapes de la CI](#les-étapes-de-la-ci) |
+| 11 | Trou | figure sans source · classe sans garde · cliquet sans non-vacuité | [Ce qui n'est atteint par rien](#ce-qui-nest-atteint-par-rien) et les chiffres gelés |
+
 ## Ce que ce document ne sait pas
 
 Lis cette section avant les tableaux. Un aveu placé après la donnée est un aveu que personne ne lit.
@@ -401,6 +419,84 @@ Prises à leur site de câblage dans `_report.py` : les fonctions de `pdf_charts
 | `utils/pdf_exporter/_report.py:186` | `collect_report_data` | pdf_charts.s4a_audience_evolution | PDF | `s4a_audience` | brut | directe | — | ?`s4a_song_timeline` |
 | `utils/pdf_exporter/_report.py:188` | `collect_report_data` | pdf_charts.song_timeline | PDF | `v_s4a_song_daily` | or | portée (1 saut) | sans-appelant | ?`s4a_song_timeline` |
 
+## Les plateformes
+
+Une ligne par plateforme. « Lectures brutes » compte les lectures de ses tables de fait **hors des portes** : ce n'est pas un compte de défauts — un catalogue de titres ou une date de dernier relevé n'a rien à centraliser — mais c'est là que la prochaine divergence naîtra.
+
+| plateforme | tables de fait | vues or qui la définissent | lectures des vues or | lectures brutes |
+|---|---|---|---|---|
+| Apple Music | `apple_songs_history` · `apple_songs_performance` | `gold_apple_lifetime` · `v_platform_totals` | 16 | 8 |
+| Hypeddit | `hypeddit_daily_stats` | `v_hypeddit_daily` | 3 | 1 |
+| Instagram | `instagram_daily_stats` · `instagram_media` | `v_instagram_media_monthly` | 2 | 8 |
+| Meta Ads | `meta_ads` · `meta_adsets` · `meta_campaigns` · `meta_insights` · `meta_insights_performance` · `meta_insights_performance_day` | `v_meta_adset_daily` · `v_meta_campaign_daily` · `v_meta_creative_daily` · `v_meta_daily` · `v_meta_spend_totals` | 25 | 24 |
+| Revenu | `distrokid_monthly_revenue` · `imusician_monthly_revenue` · `sacem_statement` | `v_artist_monthly_revenue` | 10 | 4 |
+| SoundCloud | `soundcloud_tracks_daily` | `v_platform_levels` · `v_platform_totals` · `v_soundcloud_track_latest` | 20 | 5 |
+| Spotify S4A | `s4a_audience` · `s4a_song_timeline` · `s4a_songs_global` | `v_platform_levels` · `v_platform_totals` · `v_s4a_song_daily` | 45 | 33 |
+| YouTube | `youtube_channel_history` · `youtube_video_stats` | `v_platform_levels` · `v_platform_totals` | 17 | 8 |
+
+## Les cliquets
+
+**17 valeurs gelées** dans 12 fichiers. Un cliquet pose deux questions, et la seconde est celle qu'on oublie : le plafond est-il **serré** (égal à la mesure — un plafond au-dessus est du mou qui autorise en silence ce qu'il interdit), et la population est-elle **plancherée** ? « Zéro indéterminée » sur zéro figure est vrai et ne dit rien.
+
+**5 sans test de non-vacuité** et **10 sans trace de mutation** dans leur fichier. Une trace de mutation est une phrase qui dit que le garde a été VU rouge sur le défaut qu'il vise ; sans elle, rien ne distingue un garde d'un test qui ne peut pas échouer.
+
+Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une phrase de mutation, un nom de test de non-vacuité) : un faux négatif est possible, il se corrige en écrivant la phrase.
+
+| fichier | constante | valeur gelée | non-vacuité | trace de mutation |
+|---|---|---|---|---|
+| `test_a_chart_is_bounded_by_the_period_it_announces.py` | `_MAX_UNBOUNDED_FIGURES` | 0 | — | **absente** |
+| `test_a_page_asks_the_same_question_once.py` | `_MAX_QUERIES` | 2 entrées | **absent** | **absente** |
+| `test_a_view_opens_on_one_decision.py` | `_MAX_FIRST_SCREEN` | 5 | **absent** | **absente** |
+| `test_chart_budget.py` | `_BUDGET` | 7 entrées | **absent** | **absente** |
+| `test_the_metrics_layer_only_grows.py` | `_CEILING` | 8 entrées | — | **absente** |
+| `test_the_tenant_guard_is_written_once.py` | `_MAX_OPEN_CODED` | 0 | — | **absente** |
+| `test_the_visual_rules_only_tighten.py` | `_MAX_SECONDARY_AXES` | 0 | — | **absente** |
+| `test_the_visual_rules_only_tighten.py` | `_MAX_LITERAL_KEYS` | 77 | — | **absente** |
+| `test_the_websocket_survives_the_proxy.py` | `_MAX_SAFE_INTERVAL_S` | 60 | **absent** | **absente** |
+| `test_the_websocket_survives_the_proxy.py` | `_MIN_SANE_INTERVAL_S` | 5 | **absent** | **absente** |
+| `test_a_sql_identifier_comes_from_a_closed_set.py` | `_MAX_UNSOURCED` | 0 | — | — |
+| `test_the_bronze_boundary_only_tightens.py` | `_CEILING` | 132 | — | — |
+| `test_the_error_class_families_only_improve.py` | `_MAX_ORPHANS` | 68 | — | — |
+| `test_the_error_class_families_only_improve.py` | `_MIN_TOTAL` | 287 | — | — |
+| `test_the_error_class_families_only_improve.py` | `_MIN_FAMILIES` | 12 | — | — |
+| `test_the_gold_coverage_only_improves.py` | `_CEILING` | 9 entrées | — | — |
+| `test_the_gold_coverage_only_improves.py` | `_FLOOR` | 8 entrées | — | — |
+
+## Les classes d'erreur
+
+**287 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
+
+**fixed** : 10· **guarded** : 262· **open** : 4· **reported** : 11
+
+**0 classe(s) nomment un fichier de garde qui n'existe plus** et **10** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
+
+_Aucune classe ne nomme un garde disparu._
+
+
+Sans chemin de garde : `db-connection-per-show` · `view-session-adoption` · `snapshot-fixture-hook-reflow` · `dag-trigger-without-tenant-scope` · `ast-guard-blind-to-bom` · `migration-ahead-of-its-code` · `repo-copy-of-a-config-is-not-what-runs` · `mermaid-block-does-not-render` · `guard-anchored-on-shape-not-question` · `a-filtered-test-run-proves-nothing`.
+
+
+## Les étapes de la CI
+
+**12 étapes**, dont **12 bloquantes**. Lu dans `.github/workflows/ci.yml`, jamais récité — une liste d'étapes écrite à la main décrit la CI qu'on croit avoir.
+
+⚠️ Une CI rouge cache tout ce qui la suit : ce dépôt l'a mesuré deux fois (8 exécutions bloquées à l'étape 3/8, puis 27 à l'étape 10/15). C'est `if: !cancelled()` qui l'a arrêté, pas la leçon écrite entre les deux.
+
+| # | étape | ce qu'elle lance | rôle |
+|---|---|---|---|
+| 1 | Install uv | — | bloquante |
+| 2 | Set up Python 3.11 | — | bloquante |
+| 3 | Install system dependencies (build tools for any wheel-less package) | — | bloquante |
+| 4 | Install dependencies from lockfile | sync | bloquante |
+| 5 | Manifest consistency (blocking) | check_manifest_consistency.py | bloquante |
+| 6 | Lint (ruff) — full project (blocking) | ruff check | bloquante |
+| 7 | REX integrity + deterministic error-class guards (blocking) | validate_rex.py, audit_runner.py, check_config_refs.py, check_ci_waste.py, gold_coverage.py, error_class_famil | bloquante |
+| 8 | Error-class schema completeness | audit_runner.py | bloquante |
+| 9 | Provision Postgres (schema + migrations) | test_suite_runs_against_two_tenants.py | bloquante |
+| 10 | Mint a throwaway Fernet key for this run | — | bloquante |
+| 11 | Run tests | pytest | bloquante |
+| 12 | Upload coverage artifact | — | bloquante |
+
 ## Ce qui n'est atteint par rien
 
 C'est la vraie valeur de ce document. Les deux tableaux ne disent pas la même chose et il ne faut pas les lire pareil.
@@ -437,5 +533,8 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-pdf: total=29 unknown=5 -->
 <!-- gold-coverage-gold-objects: total=13 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=18 -->
+<!-- gold-coverage-ratchets: total=17 without_nonvacuity=5 without_mutation=10 -->
+<!-- gold-coverage-error-classes: total=287 guard_missing=0 guard_unnamed=10 -->
+<!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=6c905f0f5940cd57cbd4f433c957d84653cdd1e998179e3b2582992e332669c3 -->
+<!-- gold-coverage: sha256=da14f9595c149e7edf63ad26a5c2e05cfaa2486a18576c9f7ec0b5b5c1976a6d -->

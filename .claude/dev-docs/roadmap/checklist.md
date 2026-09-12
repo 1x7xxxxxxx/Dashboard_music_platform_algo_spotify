@@ -29,6 +29,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | R97 | Repointer ou garder les 18 agrégats qu'aucun cliquet ne regarde | P3 | `<!-- gold-coverage-unguarded-aggregates -->`, sous cliquet |
 | R98 | Ranger les 68 classes d'erreur sans famille | P4 | `<!-- error-class-families: orphans=… -->`, sous cliquet |
 | R99 | Faire descendre la frontière de bronze (132 couples) | P4 | `_CEILING` de `tests/test_the_bronze_boundary_only_tightens.py` |
+| R101 | Écrire la trace de mutation des 10 cliquets qui n'en ont pas, et la non-vacuité des 5 | P3 | `<!-- gold-coverage-ratchets -->`, sous cliquet |
 | R100 | Trancher dbt : le déclencheur d'ADR-014 est atteint (13 objets dérivés, 4 interdépendants) | P4 | ADR-014 §déclencheurs, recompté dans ADR-022 |
 
 **Quatre tâches rouvertes le 2026-09-11**, issues de l'audit metrics layer détaillé
@@ -91,9 +92,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-12 (soir), cinq tâches ouvertes — R96 à R100 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-12 (soir), six tâches ouvertes — R96 à R101 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R96,R97,R98,R99,R100 -->
+<!-- reprise: open=R96,R97,R98,R99,R100,R101 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -267,6 +268,17 @@ chacune baisse par un travail nommé.
   bronze à un utilisateur, la définition même d'une surface — n'y était pas. 124 était
   faux, 132 est vrai. À partir d'ici il ne peut que descendre. **Mesuré par** :
   `_CEILING` de `tests/test_the_bronze_boundary_only_tightens.py`.
+
+- [ ] **R101 — Les cliquets qui ne prouvent pas qu'ils gardent** (P3) — la carte
+  recense **17 valeurs gelées** dans 12 fichiers de test. **Dix n'ont aucune trace de
+  mutation** dans leur fichier et **cinq n'ont pas de test de non-vacuité**. Les deux
+  trous sont différents : sans trace de mutation, rien ne distingue un garde d'un test
+  qui ne peut pas échouer ; sans non-vacuité, le cliquet passe au vert le jour où sa
+  population disparaît — « zéro indéterminée » sur zéro figure est vrai et ne dit rien.
+  Le plus exposé est `test_a_page_asks_the_same_question_once.py` (`_MAX_QUERIES`), qui
+  n'a ni l'un ni l'autre. La détection se fait sur le TEXTE du fichier : un faux négatif
+  se corrige en écrivant la phrase, après avoir fait la mutation. **Mesuré par** :
+  `<!-- gold-coverage-ratchets: without_nonvacuity=5 without_mutation=10 -->`.
 
 - [ ] **R100 — Trancher dbt** (P4) — ADR-014 différait dbt tant que le dépôt n'aurait
   pas **≥ 10 objets dérivés ET ≥ 3 qui dépendent l'un de l'autre**. Recompté le

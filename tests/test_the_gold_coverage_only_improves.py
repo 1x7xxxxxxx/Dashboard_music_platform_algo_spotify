@@ -92,6 +92,15 @@ _CEILING: dict[str, int] = {
     "pdf.unknown": 5,
     "gold-objects.orphans": 0,
     "unguarded-aggregates.total": 18,
+    # Les trous des axes « garde » et « cliquet », ajoutés le 2026-09-12 avec eux.
+    # Un cliquet sans test de non-vacuité passe au vert dès que sa population
+    # disparaît ; un garde sans trace de mutation n'a peut-être jamais pu échouer.
+    "ratchets.without_nonvacuity": 5,
+    "ratchets.without_mutation": 10,
+    # Une classe `guarded` dont le fichier de garde n'existe plus se lit exactement
+    # comme une classe gardée. Celui-là doit rester à zéro.
+    "error-classes.guard_missing": 0,
+    "error-classes.guard_unnamed": 10,
 }
 
 # Les populations, pour qu'un compteur ne puisse pas baisser en SUPPRIMANT la
@@ -101,6 +110,10 @@ _FLOOR: dict[str, int] = {
     "tiles.total": 207,
     "pdf.total": 29,
     "gold-objects.total": 13,
+    "ratchets.total": 17,
+    "error-classes.total": 287,
+    "ci.steps": 12,
+    "ci.blocking": 12,
 }
 
 

@@ -979,6 +979,188 @@ def neighbourhood(files, slicer, surfaces):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Les autres axes — plateformes, classes, gardes, cliquets, CI
+# ═══════════════════════════════════════════════════════════════════════════
+# Ces cinq axes ne parlent plus de « quelle donnée dessine cette figure », mais
+# de « qu'est-ce qui EMPÊCHE qu'elle se trompe ». Sans eux le livrable décrit un
+# état sans dire ce qui le tient, et c'est l'état qui dérive — jamais le document.
+
+_TESTS = ROOT / "tests"
+_CLASSES_DOC = ROOT / ".claude" / "dev-docs" / "error-classes.md"
+_CI = ROOT / ".github" / "workflows" / "ci.yml"
+
+_CEILING_NAME = re.compile(r"^_?(CEILING|PLAFOND|MAX|FLOOR|MIN|LIMIT|BUDGET)(_|$)", re.I)
+
+# Un test de NON-VACUITÉ est celui qui refuse « zéro trouvé parce que zéro
+# cherché ». On le reconnaît à ce qu'il affirme, pas à son nom seul : un plancher
+# sur la population, ou une assertion que le balayage a vu des sites.
+_NONVACUITY = re.compile(
+    r"vacuous|vacant|vacuit|non[_-]?vacu|is_not_slack|not_slack|"
+    r"reaches_real|reaches_|still_(?:names|finds|reaches|points)|_floor|"
+    r"scan_is_not|does_not_rot|not_empty|at_least", re.I)
+
+_MUTATION = re.compile(
+    r"mutation record|vu(?:e)? rouge|seen red|vue exit ?[1-9]|rougit|"
+    r"mutation[ -]verif|mutation faite|a rougi", re.I)
+
+
+@dataclass
+class Ratchet:
+    rel: str
+    name: str
+    value: str
+    nonvacuity: bool
+    mutation: bool
+
+
+def scan_ratchets() -> list[Ratchet]:
+    """Les valeurs gelées des tests, et ce qui les empêche de mentir.
+
+    Un cliquet pose DEUX questions, et la seconde est celle qu'on oublie :
+    le plafond est-il SERRÉ (égal à la mesure, pas au-dessus — un plafond
+    au-dessus est du mou), et la population est-elle plancherée (« zéro
+    indéterminée » sur zéro figure est vrai et ne dit rien) ?
+    """
+    out: list[Ratchet] = []
+    for path in sorted(_TESTS.glob("*.py")):
+        try:
+            src = path.read_text(encoding="utf-8")
+            tree = ast.parse(src)
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        nonvac = bool(_NONVACUITY.search(src))
+        mut = bool(_MUTATION.search(src))
+        for stmt in tree.body:
+            targets: list[ast.AST] = []
+            if isinstance(stmt, ast.Assign):
+                targets = list(stmt.targets)
+                value = stmt.value
+            elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
+                targets = [stmt.target]
+                value = stmt.value
+            else:
+                continue
+            for tgt in targets:
+                if not (isinstance(tgt, ast.Name)
+                        and _CEILING_NAME.match(tgt.id.lstrip("_"))):
+                    continue
+                if isinstance(value, ast.Constant) and isinstance(value.value, int):
+                    shown = str(value.value)
+                elif isinstance(value, ast.Dict):
+                    shown = f"{len(value.keys)} entrées"
+                else:
+                    continue
+                out.append(Ratchet(path.relative_to(ROOT).as_posix(),
+                                   tgt.id, shown, nonvac, mut))
+    return out
+
+
+@dataclass
+class ErrClass:
+    cid: str
+    severity: str
+    kind: str
+    status: str
+    guard: str
+    guard_exists: bool | None
+
+
+def scan_error_classes() -> list[ErrClass]:
+    """Les classes du catalogue, et si le garde qu'elles nomment existe encore.
+
+    Une classe `guarded` dont le garde a été supprimé se lit exactement comme une
+    classe gardée. Le dépôt a déjà payé cette forme
+    (`named-guard-deleted-while-the-class-reads-guarded`).
+    """
+    if not _CLASSES_DOC.exists():
+        return []
+    text = _CLASSES_DOC.read_text(encoding="utf-8")
+    marks = [(m.group(1), m.start(), m.end())
+             for m in re.finditer(r"^## ([a-z0-9][a-z0-9-]+)$", text, re.M)]
+    out: list[ErrClass] = []
+    for i, (cid, _, end) in enumerate(marks):
+        stop = marks[i + 1][1] if i + 1 < len(marks) else len(text)
+        body = text[end:stop]
+
+        def field(name: str) -> str:
+            m = re.search(rf"^- {name}: (.+)$", body, re.M)
+            return m.group(1).strip() if m else ""
+
+        guard = field("guard")
+        paths = re.findall(r"((?:tests|\.claude|tools|src|\.github)/[\w./-]+\.\w+)", guard)
+        exists = None if not paths else all((ROOT / p).exists() for p in paths)
+        out.append(ErrClass(cid, field("severity"), field("kind"),
+                            field("status"), guard[:90], exists))
+    return out
+
+
+def scan_ci() -> list[tuple[str, str, bool]]:
+    """(étape, ce qu'elle lance, bloquante ?) — lu dans le workflow, pas récité."""
+    if not _CI.exists():
+        return []
+    text = _CI.read_text(encoding="utf-8")
+    out: list[tuple[str, str, bool]] = []
+    for m in re.finditer(r"^      - name: (.+)$", text, re.M):
+        name = m.group(1).strip()
+        tail = text[m.end():]
+        nxt = re.search(r"^      - name: ", tail, re.M)
+        block = tail[:nxt.start()] if nxt else tail
+        # Seulement ce qui vit sous `run:` — pas les clés YAML autour. La première
+        # version listait `uses`, `with`, `if` comme des commandes, ce qui décrivait
+        # la forme du fichier et pas ce que la CI exécute.
+        runs = re.findall(r"^\s+run: \|?\s*\n((?:^\s{10,}.*\n)+)|^\s+run: (.+)$",
+                          block, re.M)
+        body = "".join((a or "") + (b or "\n") for a, b in runs)
+        cmds = re.findall(
+            r"(?:uv run |uv |)(?:python3? -m |python3? |make |)"
+            r"((?:tools|\.claude|src|tests)/[\w./-]+\.\w+|pytest|ruff [a-z]+|"
+            r"[a-z][\w-]*\.py|sync|migrate)",
+            body)
+        seen = ", ".join(dict.fromkeys(c.split("/")[-1] for c in cmds))
+        blocking = "continue-on-error: true" not in block
+        out.append((name, seen[:110] or "—", blocking))
+    return out
+
+
+def platform_rows(gold, reads) -> list[list[str]]:
+    """Une ligne par plateforme : ses faits, ses vues or, ses lecteurs."""
+    rows = []
+    for platform, facts in sorted(_PLATFORM_FACTS.items()):
+        views = sorted(g.name for g in gold.values()
+                       if set(g.reads) & set(facts))
+        # Une vue or qui lit une autre vue or de cette plateforme en fait partie.
+        for _ in range(2):
+            views = sorted(set(views) | {g.name for g in gold.values()
+                                         if set(g.reads) & set(views)})
+        readers = len({f"{r.rel}:{r.line}" for r in reads
+                       if set(r.relations) & set(views)})
+        raw = len({f"{r.rel}:{r.line}" for r in reads
+                   if set(r.relations) & set(facts) and not r.door})
+        rows.append([
+            platform,
+            " · ".join(f"`{f}`" for f in sorted(facts)),
+            " · ".join(f"`{v}`" for v in views) or "**aucune**",
+            str(readers), str(raw),
+        ])
+    return rows
+
+
+_PLATFORM_FACTS: dict[str, tuple[str, ...]] = {
+    "Spotify S4A": ("s4a_song_timeline", "s4a_audience", "s4a_songs_global"),
+    "YouTube": ("youtube_video_stats", "youtube_channel_history"),
+    "SoundCloud": ("soundcloud_tracks_daily",),
+    "Apple Music": ("apple_songs_performance", "apple_songs_history"),
+    "Instagram": ("instagram_daily_stats", "instagram_media"),
+    "Meta Ads": ("meta_insights", "meta_insights_performance_day",
+                 "meta_insights_performance", "meta_ads", "meta_adsets",
+                 "meta_campaigns"),
+    "Hypeddit": ("hypeddit_daily_stats",),
+    "Revenu": ("imusician_monthly_revenue", "distrokid_monthly_revenue",
+               "sacem_statement"),
+}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Le rendu
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -1081,6 +1263,37 @@ def render(gold, surfaces, files, reads) -> str:
         "horodatage** — deux exécutions sur le même arbre rendent exactement les mêmes "
         "octets, ce qui est la seule façon pour `--check` de dire quelque chose.",
         "",
+        "## Les onze axes, et où chacun est répondu",
+        "",
+        "Un inventaire de figures ne suffit pas : il décrit un état sans dire ce qui "
+        "le tient, et c'est l'état qui dérive. Chaque axe ci-dessous a sa section, et "
+        "sa colonne de trous.",
+        "",
+    ] + _table([
+        ["1", "Graphique", "quelle donnée trace-t-il, d'où vient-elle ?",
+         "[Les figures d'écran](#les-figures-décran)"],
+        ["2", "Tuile (`.metric`)", "quel nombre affirme-t-elle, par quelle porte ?",
+         "[Les tuiles](#les-tuiles)"],
+        ["3", "Plateforme", "quelles vues or la définissent, et que reste-t-il de brut ?",
+         "[Les plateformes](#les-plateformes)"],
+        ["4", "Vue or", "qui la lit — et depuis quel processus ?",
+         "[La couche or](#la-couche-or)"],
+        ["5", "Porte Python", "quelle vue lit-elle ? porte-t-elle une règle que la vue n'a pas ?",
+         "[La couche or](#la-couche-or) (colonne « lit »)"],
+        ["6", "Figure PDF", "le document envoyé à des tiers lit-il les mêmes définitions ?",
+         "[Les figures du PDF](#les-figures-du-pdf)"],
+        ["7", "Classe d'erreur", "le garde qu'elle nomme existe-t-il encore ?",
+         "[Les classes d'erreur](#les-classes-derreur)"],
+        ["8", "Garde", "a-t-il une trace de mutation — a-t-il été VU rouge ?",
+         "[Les cliquets](#les-cliquets)"],
+        ["9", "Cliquet", "sa valeur est-elle serrée, et a-t-il un test de non-vacuité ?",
+         "[Les cliquets](#les-cliquets)"],
+        ["10", "Étape CI", "qu'est-ce qui bloque, qu'est-ce qui ne fait que rapporter ?",
+         "[Les étapes de la CI](#les-étapes-de-la-ci)"],
+        ["11", "Trou", "figure sans source · classe sans garde · cliquet sans non-vacuité",
+         "[Ce qui n'est atteint par rien](#ce-qui-nest-atteint-par-rien) et les chiffres gelés"],
+    ], ["#", "axe", "la question", "où"]) + [
+        "",
         "## Ce que ce document ne sait pas",
         "",
         "Lis cette section avant les tableaux. Un aveu placé après la donnée est un "
@@ -1145,6 +1358,76 @@ def render(gold, surfaces, files, reads) -> str:
             f"des attribuées ont plusieurs amonts.", "",
         ]
         L += _table(_surface_rows(group), _HEAD)
+
+    L += ["", "## Les plateformes", "",
+          "Une ligne par plateforme. « Lectures brutes » compte les lectures de ses "
+          "tables de fait **hors des portes** : ce n'est pas un compte de défauts — "
+          "un catalogue de titres ou une date de dernier relevé n'a rien à "
+          "centraliser — mais c'est là que la prochaine divergence naîtra.", ""]
+    L += _table(platform_rows(gold, reads),
+                ["plateforme", "tables de fait", "vues or qui la définissent",
+                 "lectures des vues or", "lectures brutes"])
+
+    ratchets = scan_ratchets()
+    no_nonvac = [r for r in ratchets if not r.nonvacuity]
+    no_mut = [r for r in ratchets if not r.mutation]
+    L += ["", "## Les cliquets", "",
+          f"**{len(ratchets)} valeurs gelées** dans {len({r.rel for r in ratchets})} "
+          "fichiers. Un cliquet pose deux questions, et la seconde est celle qu'on "
+          "oublie : le plafond est-il **serré** (égal à la mesure — un plafond "
+          "au-dessus est du mou qui autorise en silence ce qu'il interdit), et la "
+          "population est-elle **plancherée** ? « Zéro indéterminée » sur zéro figure "
+          "est vrai et ne dit rien.", "",
+          f"**{len(no_nonvac)} sans test de non-vacuité** et **{len(no_mut)} sans "
+          "trace de mutation** dans leur fichier. Une trace de mutation est une phrase "
+          "qui dit que le garde a été VU rouge sur le défaut qu'il vise ; sans elle, "
+          "rien ne distingue un garde d'un test qui ne peut pas échouer.", "",
+          "Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test "
+          "(une phrase de mutation, un nom de test de non-vacuité) : un faux négatif "
+          "est possible, il se corrige en écrivant la phrase.", ""]
+    L += _table(
+        [[f"`{r.rel.split('/')[-1]}`", f"`{r.name}`", r.value,
+          "—" if r.nonvacuity else "**absent**",
+          "—" if r.mutation else "**absente**"]
+         for r in sorted(ratchets, key=lambda x: (x.nonvacuity and x.mutation, x.rel))],
+        ["fichier", "constante", "valeur gelée", "non-vacuité", "trace de mutation"])
+
+    classes = scan_error_classes()
+    broken = [c for c in classes if c.guard_exists is False]
+    unnamed = [c for c in classes if c.guard_exists is None]
+    by_status: dict[str, int] = defaultdict(int)
+    for c in classes:
+        by_status[c.status or "—"] += 1
+    L += ["", "## Les classes d'erreur", "",
+          f"**{len(classes)} classes** au catalogue. Le regroupement en familles vit "
+          "dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui "
+          "se périme : **le garde que la classe nomme existe-t-il encore ?** Une "
+          "classe `guarded` dont le garde a été supprimé se lit exactement comme une "
+          "classe gardée.", "",
+          "· ".join(f"**{k}** : {v}" for k, v in sorted(by_status.items())), "",
+          f"**{len(broken)} classe(s) nomment un fichier de garde qui n'existe plus** "
+          f"et **{len(unnamed)}** ne nomment aucun chemin (leur garde est une règle "
+          "transverse, un hook, ou rien).", ""]
+    if broken:
+        L += _table([[f"`{c.cid}`", c.status, c.guard] for c in broken],
+                    ["classe", "statut", "garde annoncé"])
+    else:
+        L += ["_Aucune classe ne nomme un garde disparu._", ""]
+    if unnamed:
+        L += ["", "Sans chemin de garde : "
+              + " · ".join(f"`{c.cid}`" for c in unnamed) + ".", ""]
+
+    steps = scan_ci()
+    L += ["", "## Les étapes de la CI", "",
+          f"**{len(steps)} étapes**, dont **{sum(1 for _, _, b in steps if b)} "
+          "bloquantes**. Lu dans `.github/workflows/ci.yml`, jamais récité — une "
+          "liste d'étapes écrite à la main décrit la CI qu'on croit avoir.", "",
+          "⚠️ Une CI rouge cache tout ce qui la suit : ce dépôt l'a mesuré deux fois "
+          "(8 exécutions bloquées à l'étape 3/8, puis 27 à l'étape 10/15). C'est "
+          "`if: !cancelled()` qui l'a arrêté, pas la leçon écrite entre les deux.", ""]
+    L += _table([[str(i + 1), n, c or "—", "bloquante" if b else "rapporte"]
+                 for i, (n, c, b) in enumerate(steps)],
+                ["#", "étape", "ce qu'elle lance", "rôle"])
 
     unread = sorted(g.name for g in gold.values()
                     if not any(g.name in r.relations for r in reads))
@@ -1215,6 +1498,12 @@ def render(gold, surfaces, files, reads) -> str:
         f"<!-- gold-coverage-pdf: total={n_p} unknown={u_p} -->",
         f"<!-- gold-coverage-gold-objects: total={len(gold)} orphans={len(unread)} -->",
         f"<!-- gold-coverage-unguarded-aggregates: total={unguarded} -->",
+        f"<!-- gold-coverage-ratchets: total={len(ratchets)} "
+        f"without_nonvacuity={len(no_nonvac)} without_mutation={len(no_mut)} -->",
+        f"<!-- gold-coverage-error-classes: total={len(classes)} "
+        f"guard_missing={len(broken)} guard_unnamed={len(unnamed)} -->",
+        f"<!-- gold-coverage-ci: steps={len(steps)} "
+        f"blocking={sum(1 for _, _, b in steps if b)} -->",
         "",
     ]
     body = "\n".join(L).rstrip("\n") + "\n"
