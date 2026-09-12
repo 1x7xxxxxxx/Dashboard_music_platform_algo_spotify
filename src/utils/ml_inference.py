@@ -261,13 +261,17 @@ def build_features(db, artist_id: int, song: str) -> dict:
     row = db.fetch_query(
         """
         SELECT
-            COALESCE(SUM(CASE WHEN date >= CURRENT_DATE - 7 THEN streams ELSE 0 END), 0) AS s7,
-            COALESCE(SUM(CASE WHEN date >= CURRENT_DATE - 28 THEN streams ELSE 0 END), 0) AS s28,
-            COALESCE(SUM(CASE WHEN date >= CURRENT_DATE - 35 AND date < CURRENT_DATE - 7 THEN streams ELSE 0 END), 0) AS s_prev21,
-            MIN(date) AS first_date
-        FROM s4a_song_timeline
+            COALESCE(SUM(CASE WHEN day >= CURRENT_DATE - 7 THEN streams ELSE 0 END), 0) AS s7,
+            COALESCE(SUM(CASE WHEN day >= CURRENT_DATE - 28 THEN streams ELSE 0 END), 0) AS s28,
+            COALESCE(SUM(CASE WHEN day >= CURRENT_DATE - 35 AND day < CURRENT_DATE - 7 THEN streams ELSE 0 END), 0) AS s_prev21,
+            MIN(day) AS first_date
+        -- Les features du modèle lisent la MÊME définition que les tuiles et le PDF.
+        -- La version brute sommait les lignes ; la couche or somme le MAX par jour et
+        -- par titre. Les deux s'accordent tant qu'un index unique interdit le doublon
+        -- (0 couple en double le 2026-09-12) — le jour où il saute, le modèle
+        -- s'entraîne sur des écoutes que personne n'affiche.
+        FROM v_s4a_song_daily
         WHERE artist_id = %s AND song = %s
-          AND song NOT ILIKE '%%1x7xxxxxxx%%'
         """,
         (artist_id, song)
     )

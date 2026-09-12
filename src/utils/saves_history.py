@@ -54,9 +54,11 @@ def detect_saves_resurrection(db, artist_id: int, *, min_age_days: int = 180,
     `factor`x its prior baseline rate. Dormant ([]) until history accumulates.
     """
     age_rows = db.fetch_query(
-        """SELECT song, MIN(date) FROM s4a_song_timeline
-           WHERE artist_id = %s AND song NOT ILIKE %s GROUP BY song""",
-        (artist_id, ARTIST_FILTER),
+        # `v_s4a_song_daily` porte le retrait de la ligne « Total » des CSV : la
+        # recopier ici était une occasion de plus de l'oublier.
+        """SELECT song, MIN(day) FROM v_s4a_song_daily
+           WHERE artist_id = %s GROUP BY song""",
+        (artist_id,),
     )
     today = date.today()
     age = {song: (today - first).days for song, first in (age_rows or []) if first}

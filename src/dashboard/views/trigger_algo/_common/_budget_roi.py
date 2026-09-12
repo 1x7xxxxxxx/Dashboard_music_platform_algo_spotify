@@ -139,13 +139,15 @@ def _show_budget_pacing_calculator(db, artist_id) -> None:
     default_budget, current_daily = 200.0, 0.0
     try:
         if artist_id:
+            # `v_meta_active_budget` (migration 110) porte le prédicat
+            # `status = 'ACTIVE'`, qui vivait recopié dans quatre branches.
             row = db.fetch_query(
                 "SELECT COALESCE(SUM(lifetime_budget),0), COALESCE(SUM(daily_budget),0) "
-                "FROM meta_campaigns WHERE artist_id = %s AND status = 'ACTIVE'", (artist_id,))
+                "FROM v_meta_active_budget WHERE artist_id = %s", (artist_id,))
         else:
             row = db.fetch_query(
                 "SELECT COALESCE(SUM(lifetime_budget),0), COALESCE(SUM(daily_budget),0) "
-                "FROM meta_campaigns WHERE status = 'ACTIVE'")
+                "FROM v_meta_active_budget")
         default_budget = float(row[0][0] or 0) or 200.0
         current_daily = float(row[0][1] or 0)
     except Exception:

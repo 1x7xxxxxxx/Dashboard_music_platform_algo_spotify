@@ -72,6 +72,32 @@ def test_view_opens_on_at_most_its_chart_budget(filename, budget):
     )
 
 
+def test_the_counter_still_sees_charts_and_every_budgeted_file_exists():
+    """NON-VACUITÉ. Ajoutée le 2026-09-12.
+
+    `count <= budget` est vrai quand le compteur rend zéro — ce qu'il ferait si
+    `st.plotly_chart` était renommé, si un fichier budgété disparaissait, ou si
+    `_primary_chart_count` cessait de parser. Les trois laisseraient les sept
+    plafonds au vert en ne mesurant plus rien.
+
+    Mutation record — 2026-09-12 : en retirant `"soundcloud.py"` du disque (copie
+    déplacée), ce test le nomme ; en faisant rendre 0 à `_primary_chart_count`, il
+    rougit sur le total. Le cliquet lui-même reste vert dans les deux cas, ce qui
+    est précisément la raison d'être de celui-ci.
+    """
+    total = 0
+    for name in _BUDGET:
+        path = _VIEWS / name
+        assert path.is_file(), (
+            f"{name} est budgété mais n'existe plus sous {_VIEWS.name}/. Son plafond "
+            "ne mesure plus rien et reste vert pour cette raison.")
+        total += _primary_chart_count(path)
+    assert total >= 8, (
+        f"{total} figure(s) de premier écran vues sur les {len(_BUDGET)} fichiers "
+        "budgétés — il y en avait 13 le 2026-09-12. Le compteur est devenu aveugle, "
+        "et sept plafonds certifient alors une propriété qu'ils ne vérifient plus.")
+
+
 def test_secondary_analyses_actually_shields_charts():
     """The counter must respond to the mechanism, or the budget means nothing."""
     src = (

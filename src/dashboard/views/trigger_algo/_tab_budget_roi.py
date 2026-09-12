@@ -83,7 +83,10 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
     try:
         if artist_id:
             budget_row = db.fetch_query(
-                "SELECT COALESCE(SUM(lifetime_budget), 0), COALESCE(SUM(daily_budget), 0) FROM meta_campaigns WHERE artist_id = %s AND status = 'ACTIVE'",
+                # `v_meta_active_budget` (migration 110) — le prédicat `status =
+                # 'ACTIVE'` était recopié ici et dans `_common/_budget_roi.py`.
+                "SELECT COALESCE(SUM(lifetime_budget), 0), COALESCE(SUM(daily_budget), 0) "
+                "FROM v_meta_active_budget WHERE artist_id = %s",
                 (artist_id,)
             )
             spend_row = db.fetch_query(
@@ -97,7 +100,8 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
             )
         else:
             budget_row = db.fetch_query(
-                "SELECT COALESCE(SUM(lifetime_budget), 0), COALESCE(SUM(daily_budget), 0) FROM meta_campaigns WHERE status = 'ACTIVE'"
+                "SELECT COALESCE(SUM(lifetime_budget), 0), COALESCE(SUM(daily_budget), 0) "
+                "FROM v_meta_active_budget"
             )
             spend_row = db.fetch_query(
                 "SELECT COALESCE(SUM(spend), 0) FROM v_meta_daily WHERE day BETWEEN %s AND %s",

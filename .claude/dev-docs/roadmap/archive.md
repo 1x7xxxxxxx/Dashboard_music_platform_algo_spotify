@@ -4402,3 +4402,54 @@ redite de **R1**, le geste humain porté par la table « En attente de toi » ci
 
 Ce qui rouvre chacun est écrit dans son bloc, dans l'archive. Ne reste donc qu'**un**
 geste, et lui seul : **R1** — inviter la bêta.
+
+## ✅ R97, R98, R101 — les trous de la carte, fermés le soir de leur mesure
+
+- [x] **R101 — Les cliquets qui ne prouvent pas qu'ils gardent** (P3) — close.
+  **5 → 0** sans test de non-vacuité, **10 → 0** sans trace de mutation, sur les 17
+  valeurs gelées du dépôt. Aucun trou n'a été fermé par une phrase : dix mutations
+  faites, dix messages lus. Les planchers ajoutés : `_MAX_QUERIES` (un rendu raté
+  émet zéro requête et passait), `_BUDGET` (sept plafonds dont aucun fichier n'était
+  vérifié comme existant), `_MAX_FIRST_SCREEN` (paramétré sur une liste qui, vide,
+  n'exécute AUCUN cas et ne rougit jamais), les deux bornes du websocket (vraies par
+  vacuité sur un réglage absent — donc vertes sur la configuration par défaut de
+  Streamlit, celle qui n'envoie aucun keepalive).
+
+  **Deux mutations ont échoué, et c'est la moitié la plus utile.** Retirer `{frag}`
+  d'une requête bornée laisse `test_a_chart_is_bounded_by_the_period_it_announces`
+  vert : il voit la fenêtre LIÉE dans le voisinage, jamais la fenêtre APPLIQUÉE au
+  littéral SQL. Classe `a-guard-that-sees-the-binding-not-the-application`, livrée en
+  `kind: manual` SANS signature — le défaut existe et le garde reste vert dessus,
+  donc aucune commande ne sort ≠ 0 aujourd'hui, et une signature non vérifiée coûte
+  plus cher qu'une absence. Et un second axe ajouté dans `utils/` laissait
+  `test_the_visual_rules_only_tighten` vert : sa portée s'arrêtait à `views/` pendant
+  que `utils/charts.py` portait un axe secondaire VIVANT (`pareto_spend_cpr`, rendu
+  par deux vues). Portée élargie à `src/dashboard`, axe déclaré avec sa raison —
+  dépense (€, total) contre CPR (€/résultat, taux), le seul cas admis.
+
+- [x] **R97 — Les agrégats qu'aucun cliquet ne regarde** (P3) — close, **21 → 0**.
+  Neuf repointés : les quatre branches du budget Meta actif sur
+  `v_meta_active_budget` (migration 110, qui porte le prédicat `status = 'ACTIVE'`
+  recopié dans deux fichiers), les features du modèle et l'historique des saves sur
+  `v_s4a_song_daily` — le modèle s'entraînait sur une somme de lignes brutes là où
+  les tuiles somment le MAX par jour et par titre ; les deux s'accordent tant qu'un
+  index unique interdit le doublon.
+
+  Les douze derniers n'ont pas été repointés, ils ont été **LUS** : aucun n'était une
+  métrique. Des `MAX(date)`, des `COUNT(*)`, des `string_agg` de noms. Ils sont
+  DÉCLARÉS avec leur raison dans `_DECLARED_RAW_AGGREGATES`, et un test vérifie que
+  chaque déclaration désigne encore un site qui existe et qui agrège encore — une
+  déclaration qui survit à ce qu'elle déclarait est du budget pour la prochaine
+  occurrence (`an-exemption-that-outlives-what-it-exempted`). La frontière écrite :
+  un COMPTE, une DATE ou une CONCATÉNATION répond « qu'y a-t-il » ; une somme
+  d'argent, d'écoutes, de vues ou de clics répond « combien » et appartient à la
+  couche or.
+
+- [x] **R98 — Les classes d'erreur sans famille** (P4) — close, **68 → 3**. Les 65
+  rangées n'ont pas été « mieux classées » : elles ont fait apparaître **cinq
+  familles qui manquaient** — un travail qui n'arrive nulle part · un nombre affirmé
+  qui n'a pas été mesuré · le message parle au mauvais lecteur · un état qui déborde
+  de sa portée · un coût payé sans contrepartie. C'est exactement ce que le livrable
+  devait produire : une classe hors famille est une question qu'on n'avait pas su
+  formuler. Les trois qui restent sont des cas isolés, et les laisser dehors est plus
+  honnête qu'une famille inventée pour trois membres.

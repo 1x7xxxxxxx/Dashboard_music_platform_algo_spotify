@@ -162,3 +162,16 @@ def test_the_number_of_round_trips_only_goes_down(role, tmp_path) -> None:
         f"un plafond de {_MAX_QUERIES[role]} gelé le 2026-09-10. Ce plafond ne monte "
         "pas : si la page a besoin d'une donnée de plus, elle la lit dans une requête "
         "existante ou passe par la couche or.")
+
+    # NON-VACUITÉ. Ajoutée le 2026-09-12 : `total <= plafond` est vrai pour ZÉRO
+    # requête, et un rendu qui échoue silencieusement en produit zéro. Le cliquet
+    # était alors au vert sur une page qui ne s'affiche plus — la forme exacte que
+    # ce dépôt appelle « un prédicat sans site ».
+    assert total >= 5, (
+        f"seulement {total} requête(s) pour un rendu complet de l'accueil en "
+        f"`{role}` : il y en avait 13 le 2026-09-10. Le rendu n'a probablement pas "
+        "abouti, et un plafond comparé à zéro ne garde rien.")
+
+    # Mutation record — 2026-09-12 : plancher abaissé à 0 et le script neutralisé,
+    # le test reste vert ; avec le plancher, il nomme le compte. Et un plafond
+    # descendu à 12 le fait rougir sur la mesure réelle (13).

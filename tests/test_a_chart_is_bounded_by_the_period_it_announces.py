@@ -57,6 +57,25 @@ _DRAWS = re.compile(r"plotly_chart|px\.(bar|line|area|scatter|pie)|st\.(bar|line
 # Gelé le 2026-09-10 : 15 requêtes sous une fenêtre, 0 figure non bornée.
 _MAX_UNBOUNDED_FIGURES = 0
 
+# Mutation record — 2026-09-12, et la MOITIÉ QUI A ÉCHOUÉ compte autant.
+#
+# ✅ Un `st.plotly_chart` ajouté sous la requête non bornée de `instagram.py:230` :
+#    le cliquet le nomme et échoue. Il voit donc bien « dessine ET ne borne pas ».
+#
+# ❌ Retirer `{frag}` de la requête bornée d'`apple_music.py:165` — le défaut réel,
+#    celui où l'artiste choisit « 30 jours » et voit tout l'historique — le laisse
+#    VERT. Même en remplaçant aussi `window.sql_between("date")` par `"", ()`.
+#    La raison est dans `_compares_with` : il cherche un nom de fenêtre dans une
+#    comparaison à l'intérieur d'un fragment de 45 lignes, donc il voit la fenêtre
+#    LIÉE, pas la fenêtre APPLIQUÉE à la requête. Un `frag` calculé puis non passé
+#    lui est invisible.
+#
+# Écrit ici plutôt que corrigé à chaud : resserrer ce prédicat demande de suivre le
+# fragment jusqu'au littéral SQL, ce qui est le même travail que la tranche arrière
+# de `tools/dev/gold_coverage.py`. La classe est nommée
+# `a-guard-that-sees-the-binding-not-the-application`, et le trou est déclaré plutôt
+# que tu.
+
 
 def _names_in(node: ast.AST) -> set[str]:
     out: set[str] = set()

@@ -91,16 +91,32 @@ _CEILING: dict[str, int] = {
     "tiles.unknown": 18,
     "pdf.unknown": 5,
     "gold-objects.orphans": 0,
-    "unguarded-aggregates.total": 18,
+    # 21 → 18 → 0 le 2026-09-12. Les 12 derniers n'ont pas été « repointés » : ils
+    # ont été LUS. Aucun n'était une métrique — des MAX(date), des COUNT(*), des
+    # string_agg de noms. Ils sont déclarés avec leur raison dans
+    # `_DECLARED_RAW_AGGREGATES`, et le test ci-dessous vérifie que chaque
+    # déclaration désigne encore un site qui existe et qui agrège encore.
+    "unguarded-aggregates.total": 0,
     # Les trous des axes « garde » et « cliquet », ajoutés le 2026-09-12 avec eux.
     # Un cliquet sans test de non-vacuité passe au vert dès que sa population
     # disparaît ; un garde sans trace de mutation n'a peut-être jamais pu échouer.
-    "ratchets.without_nonvacuity": 5,
-    "ratchets.without_mutation": 10,
+    # 5 → 0 et 10 → 0 le 2026-09-12 : les quinze trous ont été comblés en faisant
+    # les mutations, pas en écrivant les phrases. Deux d'entre elles ont échoué et
+    # c'est écrit là où elles ont échoué : retirer `{frag}` d'une requête bornée ne
+    # rougit PAS `test_a_chart_is_bounded_by_the_period_it_announces`, et un second
+    # axe dans `utils/` ne rougissait pas `test_the_visual_rules_only_tighten` —
+    # cette seconde-là a été corrigée en élargissant la portée.
+    "ratchets.without_nonvacuity": 0,
+    "ratchets.without_mutation": 0,
     # Une classe `guarded` dont le fichier de garde n'existe plus se lit exactement
     # comme une classe gardée. Celui-là doit rester à zéro.
     "error-classes.guard_missing": 0,
-    "error-classes.guard_unnamed": 10,
+    # 10 → 11 le 2026-09-12, et c'est la SEULE hausse légitime de ce fichier :
+    # `a-guard-that-sees-the-binding-not-the-application` est livrée en
+    # `kind: manual` SANS signature, délibérément — le défaut existe et le garde
+    # reste vert dessus, donc aucune commande ne sort ≠ 0 aujourd'hui. Une
+    # signature non vérifiée coûte plus cher qu'une absence de signature.
+    "error-classes.guard_unnamed": 11,
 }
 
 # Les populations, pour qu'un compteur ne puisse pas baisser en SUPPRIMANT la
@@ -169,6 +185,32 @@ def test_the_scan_is_not_vacuous(counters) -> None:
         "jamais rougir.\n\n"
         "Si la baisse est légitime (une vue supprimée), baisse le plancher DANS LE "
         "MÊME commit, avec la raison.\n\n" + "\n".join(shrunk))
+
+
+def test_every_declared_raw_aggregate_still_exists(gc) -> None:
+    """Une déclaration qui survit à ce qu'elle déclarait est du budget.
+
+    Le jour où `freshness_monitor.py` cesse d'agréger `meta_campaigns`, sa ligne
+    dans `_DECLARED_RAW_AGGREGATES` autorise gratuitement le prochain agrégat du
+    même fichier sur la même table — que plus personne n'a décidé d'autoriser.
+    C'est la classe `an-exemption-that-outlives-what-it-exempted`, et elle est la
+    contrepartie exacte du passage du compteur à zéro.
+
+    Mutation record — 2026-09-12 : une entrée ajoutée pour un fichier qui n'agrège
+    pas cette table, ce test la nomme ; retirée, il passe.
+    """
+    gold, known = gc.scan_sql()
+    files = gc.load_python()
+    slicer = gc.Slicer(files, gc.build_call_index(files), gold, known,
+                       gc.sql_wrappers(files))
+    live = {(r.rel, t) for r in gc.all_reads(files, slicer) if r.aggregates
+            for t in r.relations}
+    stale = sorted(k for k in gc._DECLARED_RAW_AGGREGATES if k not in live)
+    assert not stale, (
+        "déclaration(s) d'agrégat brut qui ne désignent plus rien — le fichier "
+        "n'agrège plus cette table, et la ligne est devenue du budget pour la "
+        f"prochaine occurrence : {stale}"
+    )
 
 
 def test_the_two_declarations_of_the_ratchet_scope_agree(gc) -> None:

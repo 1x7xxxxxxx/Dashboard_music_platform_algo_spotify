@@ -48,13 +48,52 @@ import ast
 import re
 from pathlib import Path
 
-VIEWS = Path(__file__).resolve().parent.parent / "src" / "dashboard" / "views"
+# ⚠️ LA PORTÉE ÉTAIT L'ANGLE MORT — troisième fois le 2026-09-12, sur un troisième
+# cliquet. Elle ne nommait que `views/`, alors que `utils/charts.py` fabrique une
+# figure à DEUX AXES (`pareto_spend_cpr`, `overlaying: 'y'`, `side: 'right'`) rendue
+# par deux vues. Le plafond affichait 0 axe secondaire pendant qu'il y en avait un,
+# vivant. Et `utils/` portait six clés de widget littérales de plus.
+#
+# La portée est donc tout `src/dashboard`. Un composant de figure n'est pas moins une
+# surface parce qu'il vit dans `utils/`.
+SCANNED = Path(__file__).resolve().parent.parent / "src" / "dashboard"
 
 # Gelés le 2026-09-10. CES NOMBRES NE PEUVENT QUE DESCENDRE.
 # Descendu de 12 à 0 le 2026-09-10 : les douze axes ont été convertis en
 # petits multiples. Ce n'est plus un cliquet, c'est une RÈGLE.
+#
+# Le plafond des clés monte de 77 à 119 le 2026-09-12, et c'est un progrès : 77 était
+# la mesure d'un périmètre trop étroit. À partir d'ici il ne peut que descendre.
 _MAX_SECONDARY_AXES = 0
-_MAX_LITERAL_KEYS = 77
+_MAX_LITERAL_KEYS = 119
+
+# Mutation record — 2026-09-12, quatre mutations, quatre rouges :
+#   * une fonction avec `fig.update_layout(yaxis2=dict(overlaying='y'))` ajoutée à
+#     `views/sacem.py` → « 1 axes secondaires contre un plafond de 0 » ;
+#   * la même fonction avec `st.slider('x', key='une_cle_litterale')` → « 78 clés
+#     de widget littérales contre un plafond de 77 » (avant l'élargissement) ;
+#   * l'axe de `utils/charts.py` retiré alors qu'il reste déclaré → l'exemption est
+#     devenue du budget, et le test de déclaration le nomme ;
+#   * un SECOND axe ajouté dans ce même fichier exempté → « 2 trouvé(s), 1 déclaré ».
+#
+# La même fonction ajoutée à `utils/platform_chart.py` laissait tout VERT avant le
+# 2026-09-12 : c'est cette mutation-là qui a révélé que la portée s'arrêtait à
+# `views/`, et donc que le plafond « 0 axe secondaire » était faux pendant que
+# `utils/charts.py` en portait un, vivant, rendu par deux vues.
+
+# Le second axe DÉCLARÉ, avec sa raison — pas un plafond relevé.
+#
+# `pareto_spend_cpr` superpose une dépense (€, un total) et un CPR (€ par résultat,
+# un TAUX). Ce sont deux NATURES différentes, seul cas où
+# `tests/test_a_dual_axis_only_joins_two_different_natures.py` admet la forme : le
+# lecteur ne peut pas confondre les deux échelles parce qu'elles ne mesurent pas la
+# même chose. Un second axe entre deux totaux reste interdit.
+#
+# L'exemption est nominative pour qu'un axe ajouté À CÔTÉ rougisse quand même.
+_DECLARED_AXES: dict[str, tuple[int, str]] = {
+    "charts.py": (1, "pareto_spend_cpr : dépense (€, total) vs CPR (€/résultat, taux) "
+                     "— deux natures, le seul cas admis"),
+}
 
 # La source-sonde de la seconde forme, gardée hors des tests pour rester lisible.
 SECOND_FORM = ('fig = make_subplots(specs=[[{"secondary_y": True}]])\n'
@@ -112,7 +151,9 @@ def _count_axes_in(tree: ast.AST) -> int:
 
 def _counts() -> tuple[dict, dict]:
     axes, keys = {}, {}
-    for f in sorted(VIEWS.rglob("*.py")):
+    for f in sorted(SCANNED.rglob("*.py")):
+        if "__pycache__" in f.parts:
+            continue
         try:
             tree = ast.parse(f.read_text(encoding="utf-8"))
         except SyntaxError:
@@ -123,8 +164,9 @@ def _counts() -> tuple[dict, dict]:
         n_k = sum(1 for n in ast.walk(tree)
                   if isinstance(n, ast.keyword) and n.arg == "key"
                   and isinstance(n.value, ast.Constant))
-        if n_ax:
-            axes[f.name] = n_ax
+        declared = _DECLARED_AXES.get(f.name, (0, ""))[0]
+        if n_ax > declared:
+            axes[f.name] = n_ax - declared
         if n_k:
             keys[f.name] = n_k
     return axes, keys
@@ -161,6 +203,26 @@ def test_the_ceilings_are_not_slack() -> None:
     assert sum(keys.values()) >= _MAX_LITERAL_KEYS - 12, (
         f"{sum(keys.values())} clés pour un plafond de {_MAX_LITERAL_KEYS} : "
         "descendre le plafond.")
+
+
+def test_the_declared_axis_still_exists_and_still_has_its_axis() -> None:
+    """Une exemption pour un fichier disparu élargit la règle en silence.
+
+    Et une exemption POUR UN AXE QUI N'EST PLUS LÀ est du budget : le jour où
+    `pareto_spend_cpr` est converti en petits multiples, le `1` déclaré ici
+    autorise gratuitement le prochain second axe du même fichier.
+    """
+    for name, (count, reason) in _DECLARED_AXES.items():
+        matches = [f for f in SCANNED.rglob(name) if "__pycache__" not in f.parts]
+        assert matches, f"{name} est exempté mais n'existe plus sous src/dashboard"
+        found = sum(_count_axes_in(ast.parse(f.read_text(encoding="utf-8")))
+                    for f in matches)
+        assert found == count, (
+            f"{name} : {found} axe(s) secondaire(s) trouvé(s), {count} déclaré(s) "
+            f"— raison : {reason}.\n"
+            "Plus que déclaré : un axe a été ajouté et l'exemption le couvre sans "
+            "l'avoir décidé. Moins : l'exemption est devenue du budget, retire-la."
+        )
 
 
 def test_the_predicate_sees_both_shapes() -> None:
