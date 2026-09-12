@@ -68,8 +68,7 @@ from pathlib import Path
 
 import pytest
 
-from src.dashboard.utils.platform_chart import (
-    MODES, _FINER_STEPS, _STEP_BUCKETS, _STEP_UNITS)
+from src.dashboard.utils.platform_chart import MODES, _FINER_STEPS
 
 ROOT = Path(__file__).resolve().parents[1]
 _STEPS = ("day", "week", "month", "year")
@@ -266,47 +265,23 @@ def test_the_notes_renderer_receives_the_mode() -> None:
             "sur le défaut « la bande », faux en facettes.")
 
 
-def test_a_yearly_bucket_is_not_called_a_year() -> None:
-    """Une fenêtre de 12 mois donne 2 seaux annuels, pas deux ans d'historique.
-
-    Au pas jour et au pas semaine un seau vaut à peu près son unité, et la confusion
-    n'existe pas — c'est pourquoi seul le pas annuel change de mot.
-    """
-    assert _STEP_BUCKETS["year"] != "années", (
-        "le sous-titre compte des SEAUX et les nomme comme des unités de temps "
-        "écoulé : « 8 490 écoutes sur 2 années » pour une fenêtre de 12 mois se lit "
-        "comme deux ans de données.")
-    for step in ("day", "week"):
-        assert _STEP_BUCKETS[step] == _STEP_UNITS[step], (
-            f"le pas `{step}` a changé de vocabulaire sans raison : un seau y vaut "
-            "son unité, et deux mots pour la même chose est du bruit")
-
-    # ET LE VOCABULAIRE DOIT ÊTRE LU QUELQUE PART. Corriger la constante sans la
-    # brancher serait « du code correct que rien n'atteint », déjà payé six fois ici.
-    #
-    # Les trois SOUS-TITRES qui la lisaient sont partis le 2026-09-12 (« redondant
-    # avec le tableau […] on a déjà les valeurs sur les filtres »). Le mot survit là
-    # où il compte encore des seaux : la ligne « Total » du récapitulatif, qui écrit
-    # « 181 semaines » à côté du nombre. Le garde suit le lecteur, il ne disparaît pas
-    # avec l'ancien.
-    # LES DEUX FORMES D'ACCÈS, et ne compter que l'une est le défaut que ce garde
-    # vient de commettre : `_STEP_BUCKETS[step]` est un `Subscript`, mais le
-    # récapitulatif écrit `_STEP_BUCKETS.get(step, "points")`, un `Attribute`. Le
-    # prédicat ne voyait que la première et a déclaré morte une constante lue.
-    def _reads(node) -> bool:
-        if isinstance(node, ast.Subscript):
-            return getattr(node.value, "id", "") == "_STEP_BUCKETS"
-        if isinstance(node, ast.Attribute):
-            return getattr(node.value, "id", "") == "_STEP_BUCKETS"
-        return False
-
-    reading = sum(
-        1 for rel in ("src/dashboard/utils/platform_chart.py",
-                      "src/dashboard/utils/platform_chart_notes.py")
-        for n in ast.walk(_tree(rel)) if _reads(n))
-    assert reading >= 1, (
-        "plus personne ne lit `_STEP_BUCKETS` : le vocabulaire des seaux est devenu "
-        "une constante morte, et le prochain lecteur repartira sur « années »")
+# `test_a_yearly_bucket_is_not_called_a_year` A ÉTÉ RETIRÉ LE 2026-09-12, AVEC SON
+# SUJET — et le geste mérite ses quatre lignes, parce que supprimer un garde est
+# exactement ce qu'on fait quand on veut du vert.
+#
+# Il gardait `_STEP_BUCKETS`, le vocabulaire qui distingue « 2 seaux annuels » de
+# « 2 années d'historique ». Son dernier lecteur était la ligne « Total » du
+# récapitulatif, qui écrivait « 181 semaines » à côté du nombre — c'est-à-dire la
+# colonne « mesurés », retirée le même jour sur demande (« à quoi correspond la
+# colonne mesurés ? Enlève-la »). Plus une seule surface ne compte de seaux à
+# l'écran : la constante a été retirée de `platform_chart_notes.py`, et ce garde
+# n'a plus de population.
+#
+# Un garde dont la population est VIDE est pire que pas de garde : il passe au vert
+# sur n'importe quoi. `test_no_dead_constant_pretends_to_drive_the_subtitle`,
+# ci-dessous, couvre ce qui reste — qu'aucune constante déclarée ne fasse semblant
+# de piloter un texte que personne ne lit. Si un sous-titre recompte des seaux un
+# jour, c'est LUI qui redevient le sujet, et ce garde se réécrit à ce moment-là.
 
 
 def test_no_dead_constant_pretends_to_drive_the_subtitle() -> None:

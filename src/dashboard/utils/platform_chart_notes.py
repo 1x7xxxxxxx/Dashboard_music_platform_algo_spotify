@@ -48,55 +48,67 @@ from src.dashboard.utils.platform_timeseries import MISSING_HISTORY, PLATFORM_LA
 # 2 années », ce qui se lit comme deux ans d'historique. Vu au rendu le 2026-09-10.
 _STEP_UNITS = {"day": "jours", "week": "semaines", "month": "mois", "year": "années"}
 
-# Le mot juste quand le seau peut être PLUS LARGE que la fenêtre. Au pas jour et au pas
-# semaine, un seau vaut à peu près son unité et la confusion n'existe pas ; au pas
-# annuel, un seau peut ne couvrir qu'un mois de la fenêtre demandée.
-_STEP_BUCKETS = {"day": "jours", "week": "semaines", "month": "mois",
-                 "year": "points annuels"}
+# `_STEP_BUCKETS` VIVAIT ICI et a été RETIRÉE le 2026-09-12, avec son dernier
+# lecteur. Elle disait « points annuels » là où `_STEP_UNITS` dit « années », pour
+# une raison juste : une fenêtre de 12 mois donne DEUX seaux annuels, et écrire
+# « sur 2 années » se lit comme deux ans d'historique.
+#
+# Le seul endroit qui comptait encore des seaux était la cellule « 181 semaines » de
+# la ligne Total du récapitulatif, partie avec la colonne d'unité (« enlève l'unité
+# également inutile »). Une constante gardée sans lecteur est « du code correct que
+# rien n'atteint » ; lui inventer un lecteur pour la sauver est pire — c'est ajouter
+# une phrase à l'écran pour faire taire un test.
+#
+# Ce qui reste tenu : `_STEP_UNITS` est lue par `t_too_coarse`, et son pluriel vient
+# de la table et non d'un « s » collé (le « moiss » du 2026-09-12). Si une surface
+# recommence un jour à COMPTER des seaux, c'est là que la distinction revient.
 
 
 
 def _render_recap(slot, span: list, aligned: dict, aligned_raw: dict, order: list,
-                  thin: dict, mode: str, step: str, extra=None) -> None:
-    """Le tableau à droite de la figure, DÉRIVÉ des séries que la figure trace.
+                  thin: dict, mode: str, step: str, extra=None,
+                  metrics=None) -> None:
+    """UN tableau à droite de la figure, DÉRIVÉ des séries qu'elle trace.
 
     Il avait été retiré le 2026-09-10 pour une raison qui tient toujours : les tuiles
     d'alors montraient le total DEPUIS LE DÉBUT à côté d'une courbe bornée à la
-    période, et les deux chiffres ne pouvaient pas se répondre. « Où est passé le
-    tableau juste à côté du graphique qui montre les métriques » (2026-09-12) —
-    remis, mais construit autrement : il ne pose AUCUNE requête et ne relit AUCUNE
-    table. Il somme `aligned`/`aligned_raw`, c'est-à-dire exactement les listes
-    remises à Plotly. Les deux nombres ne peuvent donc pas diverger : ce sont les
-    mêmes.
+    période, et les deux chiffres ne pouvaient pas se répondre. Remis le 2026-09-12,
+    mais construit autrement : il ne pose AUCUNE requête et ne relit AUCUNE table. Il
+    somme `aligned`/`aligned_raw`, c'est-à-dire exactement les listes remises à
+    Plotly. Les deux nombres ne peuvent donc pas diverger : ce sont les mêmes.
 
-    La colonne « mesurés » est ce qui remplace `t_missing` : elle dit COMBIEN de pas
-    chaque plateforme a réellement renseignés, là où la hachure dit seulement OÙ le
-    trou se trouve. Une plateforme sans mesure porte « — », jamais « 0 » — un zéro
-    affirmerait une écoute comptée.
+    UN SEUL TABLEAU, DEUX COLONNES — et trois choses en moins, toutes demandées le
+    2026-09-12 après lecture à l'écran :
 
-    Les plateformes trop minces pour une aire (`thin`) y figurent aussi : `t_too_thin`
-    promet « ses chiffres restent dans le tableau ci-dessous » depuis le 2026-09-08, et
-    la phrase était fausse depuis que le tableau avait disparu.
+    * « À quoi correspond la colonne mesurés ? Enlève-la. » Elle disait `171 / 181`,
+      c'est-à-dire le nombre de pas réellement renseignés. L'information est réelle,
+      mais elle répond à une question que le lecteur ne se pose pas devant un
+      récapitulatif — et la hachure de la figure la porte déjà, à l'endroit exact où
+      le trou se trouve. Une question à laquelle il faut demander la réponse n'est
+      pas une colonne.
+    * « Fais uniquement 1 tableau. » Il y en avait deux, séparés parce qu'on
+      n'additionne pas des abonnés avec des euros. La séparation reste — mais par une
+      ligne de section DANS le tableau, pas par une seconde table. La ligne « Total »
+      ne compte toujours que les écoutes, et elle est posée AVANT la section suivante
+      pour qu'on voie ce qu'elle somme.
+    * « Enlève "Sur la période" en haut et l'unité. » Le titre redisait le filtre qui
+      est juste au-dessus. L'unité redevient un suffixe du LIBELLÉ (`📸 Instagram
+      (abonnés)`) : elle coûtait une colonne entière pour trois lignes, et c'est la
+      colonne qui empêchait la table d'être étroite.
 
-    `extra` — LES PLATEFORMES QUI NE COMPTENT PAS DES ÉCOUTES, dans leur propre bloc.
-    Apple, Instagram et Meta Ads ont été demandées le 2026-09-12. Elles ne peuvent pas
-    entrer dans la colonne « Total » du haut : on y additionne des écoutes, et Instagram
-    compte des abonnés, Meta des euros. Les mélanger donnerait une colonne dont la somme
-    ne veut rien dire — et la ligne Total en bas la calcule.
-    Elles vivent donc SOUS un séparateur, chacune avec son unité écrite. Toutes sont
-    bornées à la même période que la figure : c'est la condition qui manquait aux tuiles
-    retirées le 2026-09-10.
+    `metrics` — LES LIGNES QUI NE SONT PAS DES PLATEFORMES. Meilleur jour, coût par
+    écoute, meilleur CPR, probabilité de déclenchement. Elles arrivent déjà formatées
+    en `(libellé, valeur, aide)` : cette fonction ne calcule pas de métrique, elle
+    dessine un tableau.
     """
     from src.dashboard.utils.i18n import t
 
     def _num(v) -> str:
         return f"{int(round(v)):,}".replace(",", "\u202f")
 
-    unit = _STEP_BUCKETS.get(step, "points")
     rows, grand = [], 0
     for pkey in order:
         drawn = aligned.get(pkey) or []
-        measured = sum(1 for v in drawn if v is not None)
         if mode == "cumulative":
             # Un cumul ne se somme pas : le total de la période est le DERNIER niveau
             # atteint. Additionner des cumuls avait produit 16 568 594 écoutes pour un
@@ -108,52 +120,60 @@ def _render_recap(slot, span: list, aligned: dict, aligned_raw: dict, order: lis
             value = sum(v for v in (aligned_raw.get(pkey) or []) if v) or None
         else:
             value = sum(v for v in drawn if v) or None
-        # La ligne Total est celle du sous-titre de la figure, par construction :
-        # somme des derniers niveaux en cumulé, somme des seaux sinon.
         grand += value or 0
-        rows.append((PLATFORM_LABELS[pkey], value, measured))
-    for label, measured, _plage in thin.values():
-        rows.append((label, None, measured))
+        rows.append((PLATFORM_LABELS[pkey], value))
+    # Les plateformes trop minces pour une aire y figurent aussi : `t_too_thin` promet
+    # « ses chiffres restent dans le tableau ci-dessous » depuis le 2026-09-08, et la
+    # phrase était fausse depuis que le tableau avait disparu.
+    for label, _measured, _plage in thin.values():
+        rows.append((label, None))
 
     with slot:
-        st.markdown("**" + t("platform_chart.recap_title", "Sur la période") + "**")
-        head = (t("platform_chart.recap_platform", "Plateforme"),
-                t("platform_chart.recap_total", "Total"),
-                t("platform_chart.recap_measured", "Mesurés"))
-        lines = [f"| {head[0]} | {head[1]} | {head[2]} |", "|:--|--:|--:|"]
-        for label, value, measured in rows:
-            lines.append(
-                f"| {label} | {_num(value) if value is not None else '—'} "
-                f"| {measured if measured else '—'} / {len(span)} |")
-        lines.append(
-            f"| **{t('platform_chart.recap_all', 'Total')}** | **{_num(grand)}** "
-            f"| {len(span)} {unit} |")
-        st.markdown("\n".join(lines))
-
-        # LE SECOND BLOC A LA MÊME ARITÉ QUE LE PREMIER, et c'est ce qui l'aligne.
+        lines = [f"| {t('platform_chart.recap_platform', 'Plateforme')} "
+                 f"| {t('platform_chart.recap_total', 'Total')} |", "|:--|--:|"]
+        lines += [f"| {lab} | {_num(v) if v is not None else '—'} |"
+                  for lab, v in rows]
+        # « TOTAL TRACÉ » ET NON « TOTAL », parce que les deux nombres DIFFÈRENT et
+        # que le lecteur les voit ensemble. La bannière au-dessus de la figure porte
+        # `combined_total`, qui compte TOUTES les plateformes de la période — Apple
+        # comprise. Cette ligne-ci ne somme que les séries que la figure DESSINE, et
+        # Apple n'en est pas : ses relevés sont des totaux de dépôt, traçables au
+        # seul pas annuel. Mesuré à l'écran le 2026-09-12 : 308 060 en bannière,
+        # 304 793 ici, l'écart valant exactement les 3 267 écoutes Apple listées
+        # deux lignes plus bas.
         #
-        # Il avait DEUX colonnes contre trois : deux tables markdown d'arités
-        # différentes se rendent à des largeurs différentes, calculées par le
-        # navigateur sur leur propre contenu, donc rien ne peut les faire tomber sur
-        # la même grille. Signalé le 2026-09-12 — « aligner le tableau autre
-        # plateforme avec le graph et le tableau plateforme ». Aucun CSS global de
-        # table n'existe dans l'app, et en ajouter un serait une surface de plus à
-        # tenir pour un problème que trois colonnes règlent.
-        #
-        # L'unité quitte donc la valeur (`−82 abonnés` → `−82` + colonne `abonnés`),
-        # ce qui aligne aussi les nombres à droite comme au-dessus. Pas de colonne
-        # « Total » commune pour autant : on n'additionne pas des abonnés avec des
-        # euros, et la ligne Total du premier tableau ne les compte pas.
-        rows_x = [(lab, val, unit) for lab, val, unit in (extra or []) if val]
+        # Nommer la portée coûte un mot ; ne pas la nommer, c'est remettre en place
+        # la contradiction pour laquelle les tuiles avaient été retirées le
+        # 2026-09-10 — deux nombres justes, côte à côte, qu'aucun titre ne distingue.
+        lines.append(f"| **{t('platform_chart.recap_all', 'Total tracé')}** "
+                     f"| **{_num(grand)}** |")
+        # LA SECTION SUIVANTE EST SOUS LE TOTAL, jamais dedans. On n'additionne pas
+        # des abonnés avec des euros ; une ligne de section le dit sans qu'il faille
+        # une seconde table ni une colonne d'unité.
+        rows_x = [(lab, val) for lab, val, _u in (extra or []) if val]
         if rows_x:
-            st.markdown("**" + t("platform_chart.recap_other", "Autres plateformes")
-                        + "**")
-            st.markdown("\n".join(
-                [f"| {t('platform_chart.recap_platform', 'Plateforme')} "
-                 f"| {t('platform_chart.recap_over_period', 'Sur la période')} "
-                 f"| {t('platform_chart.recap_unit', 'Unité')} |",
-                 "|:--|--:|--:|"]
-                + [f"| {lab} | {val} | {unit} |" for lab, val, unit in rows_x]))
+            lines.append(f"| *{t('platform_chart.recap_other', 'Autres plateformes')}"
+                         f"* | |")
+            lines += [f"| {lab} | {val} |" for lab, val in rows_x]
+        rows_m = [r for r in (metrics or []) if r and r[1]]
+        if rows_m:
+            # « INDICATEURS » ET NON « SUR LA PÉRIODE » — demandé le 2026-09-12, et
+            # le titre a d'abord disparu du HAUT de la table sans que cet intitulé
+            # de section change. C'était la même faute deux fois : *tout* ce tableau
+            # est sur la période, donc le dire ici ne distingue pas cette section
+            # des deux autres — ça répète le filtre qui est trois lignes plus haut.
+            # Une ligne de section doit nommer ce que la section EST : au-dessus des
+            # plateformes et des écoutes, en dessous des chiffres DÉRIVÉS.
+            lines.append(f"| *{t('platform_chart.recap_metrics', 'Indicateurs')}"
+                         f"* | |")
+            lines += [f"| {lab} | {val} |" for lab, val, _h in rows_m]
+        st.markdown("\n".join(lines))
+        # Les aides des métriques ne tiennent pas dans une cellule markdown : elles
+        # vivent sous la table, en une seule ligne discrète. Sans elles, « 0,011 € »
+        # et « 11,8 % » sont deux nombres dont on ne sait pas ce qu'ils mesurent.
+        helps = [h for _l, _v, h in rows_m if h]
+        if helps:
+            st.caption(" · ".join(helps))
 
 
 def _render_notes(thin: dict, coarse: list, step: str, *, coarsened=None,

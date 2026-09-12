@@ -58,7 +58,7 @@ from src.dashboard.utils.platform_absence import (          # noqa: F401
     _unmeasured_hover, known, unmeasured_spans,
 )
 from src.dashboard.utils.platform_chart_notes import (      # noqa: F401
-    _STEP_BUCKETS, _STEP_UNITS, _render_notes, _render_recap,
+    _STEP_UNITS, _render_notes, _render_recap,
     render_collection_start_note,
     render_missing_history_note, t_coarsened, t_too_coarse, t_too_thin,
 )
@@ -511,12 +511,43 @@ def _as_mode(aligned: dict, order: list, mode: str,
     return aligned
 
 
+def _derive_metrics(builder, aligned: dict, aligned_raw: dict, span: list,
+                    mode: str, step: str):
+    """Appelle le constructeur de métriques de l'appelant AVEC CE QUI A ÉTÉ DESSINÉ.
+
+    L'appelant sait ce qu'une métrique VEUT DIRE ; seule la figure sait ce qu'elle a
+    réellement tracé. Un rappel (callback) donne les deux sans que la vue ait à
+    refaire l'agrégation — et c'est la condition qui manquait aux tuiles retirées le
+    2026-09-10 : deux chemins de calcul pour la même période finissent par diverger,
+    un seul ne le peut pas.
+
+    En mode `share`, `aligned` porte des POURCENTAGES : les métriques d'écoutes s'y
+    liraient comme des parts. On passe donc la série d'avant conversion. En mode
+    cumulé, le total de la période est le dernier niveau, pas la somme — la même
+    règle que le tableau juste à côté, écrite une seule fois ici.
+    """
+    if builder is None:
+        return []
+    src = aligned_raw if mode == "share" else aligned
+    if mode == "cumulative":
+        grand = sum(next((v for v in reversed(src.get(k) or []) if v is not None), 0)
+                    for k in src)
+    else:
+        grand = sum(v for k in src for v in (src.get(k) or []) if v)
+    try:
+        return builder(src, span, int(grand), step, mode)
+    except Exception:      # noqa: BLE001 — le tableau se rend sans ses métriques
+        logger.warning("recap metrics unavailable", exc_info=True)
+        return []
+
+
 def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                           since=None, until=None, only=None, step=None,
                           mode: str = "cumulative",
                           cumulative: dict | None = None,
                           discarded: dict | None = None,
                           recap=None, recap_extra=None,
+                          recap_metrics=None,
                           key: str = "platform_chart") -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
@@ -771,7 +802,9 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                        grid=grid, title=title, step=step, total=total, key=key)
         if recap is not None:
             _render_recap(recap, span, aligned, aligned_raw, order, thin, mode,
-                          step, extra=recap_extra)
+                          step, extra=recap_extra,
+                          metrics=_derive_metrics(recap_metrics, aligned,
+                                                  aligned_raw, span, mode, step))
         _render_notes(thin, coarse, step, coarsened=coarsened, mode=mode,
                       discarded=discarded)
         return True
@@ -937,7 +970,9 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     st.plotly_chart(fig, width="stretch", key=key)
     if recap is not None:
         _render_recap(recap, span, aligned, aligned_raw, order, thin, mode,
-                          step, extra=recap_extra)
+                      step, extra=recap_extra,
+                      metrics=_derive_metrics(recap_metrics, aligned, aligned_raw,
+                                              span, mode, step))
     _render_notes(thin, coarse, step, coarsened=coarsened, mode=mode,
                   discarded=discarded)
     # Les plateformes dont la collecte commence APRÈS le début de la fenêtre. Leur

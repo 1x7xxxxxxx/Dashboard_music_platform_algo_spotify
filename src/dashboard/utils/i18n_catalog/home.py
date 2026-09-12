@@ -53,18 +53,61 @@ EN = {
     "home.trend_sources": "Sources shown",
     "platform_chart.unmeasured": "▨ No measurement",
     "platform_chart.no_data_hover": "No data collected for this period",
+    "platform_chart.recap_all": "Drawn total",
+    "platform_chart.recap_metrics": "Indicators",
+    # Les trois métriques dérivées ajoutées le 2026-09-12, et les unités de pas
+    # qu'elles nomment. « Periods measured » garde le mot « periods » et non
+    # « days » : la ligne compte des SEAUX au grain affiché, pas des journées.
+    "home.metric_top_share": "🥇 Leading platform",
+    "home.metric_top_share_help": (
+        "🥇 the platform with the largest share of the period, and its share of the "
+        "streams DRAWN — Apple is excluded, its series only exists at yearly step"),
+    "home.metric_measured": "📅 Periods measured",
+    "home.metric_measured_help": (
+        "📅 how many {unit} had at least one platform collected, out of the whole "
+        "window — the rest are the hatched bands on the chart"),
+    "home.metric_vs_prev": "↔️ vs previous period",
+    "home.metric_vs_prev_help": (
+        "↔️ change against the window of the SAME LENGTH immediately before this "
+        "one — nothing is shown if it was never measured, a “+100 %” against "
+        "nothing is not growth"),
+    "home.step_days": "days",
+    "home.step_weeks": "weeks",
+    "home.step_months": "months",
+    "home.step_years": "years",
+    # Tuiles + métriques dérivées du récapitulatif (2026-09-12)
+    "home.total_all_platforms": "🎧 Total streams, all platforms",
+    "home.apple_no_window": (
+        "Apple Music only reports a total per CSV upload: it cannot be split by "
+        "period. Pick « Since the beginning » for its total."),
+    "home.ig_is_a_headcount": (
+        "A follower HEADCOUNT, not a play count: it cannot be split by period and "
+        "is not part of the total above. The change over the period is in the table."),
+    "home.metric_best_day": "📈 Best day",
+    "home.metric_best_week": "📈 Best week",
+    "home.metric_best_month": "📈 Best month",
+    "home.metric_best_step": "📈 Best point",
+    "home.metric_cost_per_stream": "💸 Cost per stream",
+    "home.metric_cost_per_stream_help": (
+        "💸 cost per stream = Meta spend over the period ÷ streams over the period "
+        "(all platforms, not only the ones the ads targeted)"),
+    "home.metric_best_cpr": "🎯 Best CPR",
+    "home.metric_best_cpr_help": (
+        "🎯 best CPR = the period's campaign with the LOWEST cost per result, "
+        "followed by the budget it spent — without it, a very good cost on £18 "
+        "reads as repeatable"),
+    "home.metric_best_algo": "🔮 Predicted trigger prob.",
+    "home.metric_best_algo_help": (
+        "🔮 probability PREDICTED by the model that the best-placed track enters an "
+        "algorithmic playlist — this is not an observed rate: no outcome has been "
+        "recorded yet"),
     "platform_chart.not_yet_collected": "not collected yet — from {since}",
     "platform_chart.collected_since": "{label} measured since {since}",
     "platform_chart.week_of": "the week of {d}",
     "platform_chart.day_of": "{d}",
-    "platform_chart.recap_title": "Over the period",
     "platform_chart.recap_platform": "Platform",
     "platform_chart.recap_total": "Total",
-    "platform_chart.recap_measured": "Measured",
-    "platform_chart.recap_all": "Total",
     "platform_chart.recap_other": "Other platforms",
-    "platform_chart.recap_over_period": "Over the period",
-    "platform_chart.recap_unit": "Unit",
     "home.recap_unit_plays": "plays",
     "home.recap_unit_followers": "followers",
     "home.trend_sources_ph": "All sources",
