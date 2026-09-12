@@ -42,11 +42,31 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 
-# Gelé le 2026-09-10. CE NOMBRE NE PEUT QUE DESCENDRE.
-_CEILING = 124
+# Gelé le 2026-09-10 à 124 sur une portée trop étroite. Le 2026-09-12 : les
+# migrations 107-109 et leurs repointages l'ont fait tomber à 105 sur cette
+# portée-là — puis l'élargissement ci-dessous l'a remonté à 132, parce que 27
+# couples vivaient dans des fichiers que personne ne regardait.
+#
+# **Le chiffre monte et c'est un progrès** : 124 était faux, 132 est vrai. C'est
+# la seule fois où relever un plafond est légitime, et elle se paie d'une phrase
+# qui dit pourquoi. À partir d'ici, il ne peut que descendre.
+_CEILING = 132
 
 # Les surfaces qui montrent des chiffres à quelqu'un.
-_SURFACES = ("src/dashboard/views", "src/dashboard/utils/pdf_exporter", "src/api/routers")
+# ⚠️ LA PORTÉE ÉTAIT L'ANGLE MORT. Elle ne nommait que `pdf_exporter` sous
+# `src/dashboard/utils`, donc `csv_exporter.py` — qui EXPORTE du bronze à un
+# utilisateur, la définition même d'une surface — n'y était pas, ni
+# `setup_completion.py`, ni `kpi_helpers.py`. Élargie le 2026-09-12, le jour où le
+# cliquet voisin (`test_the_metrics_layer_only_grows.py`) s'est fait prendre sur
+# exactement la même omission.
+_SURFACES = ("src/dashboard/views", "src/dashboard/utils", "src/api/routers")
+
+# La PORTE, et un catalogue de traduction. Ni l'une ni l'autre n'est une surface :
+# `platform_timeseries` a pour travail de lire le bronze et d'en faire la règle
+# (ADR-022), et `i18n_catalog/` ne contient que des chaînes traduites — un nom de
+# table y apparaît dans une phrase, jamais dans une requête.
+_NOT_A_SURFACE = ("src/dashboard/utils/platform_timeseries.py",
+                  "src/dashboard/utils/i18n_catalog/")
 
 # Ce qui n'est pas une métrique métier : on ne le juge pas.
 _OPERATIONAL = re.compile(
@@ -78,6 +98,9 @@ def _direct_reads() -> dict[str, set[str]]:
     out: dict[str, set[str]] = defaultdict(set)
     for root in _SURFACES:
         for f in (REPO / root).rglob("*.py"):
+            rel = f.relative_to(REPO).as_posix()
+            if any(rel == x or rel.startswith(x) for x in _NOT_A_SURFACE):
+                continue
             try:
                 tree = ast.parse(f.read_text(encoding="utf-8", errors="ignore"))
             except SyntaxError:

@@ -14,7 +14,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: example-charts error-inbox error-resolve help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: example-charts error-inbox error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -98,6 +98,18 @@ example-charts: ## Régénère les 3 figures d'exemple de la mise en route (PNG 
 
 error-inbox: check-db ## Registre des erreurs applicatives → .claude/dev-docs/error-inbox.md
 	@python3 tools/error_inbox.py
+
+gold-coverage: ## Carte de la couche or → .claude/dev-docs/gold-coverage.md
+	@python3 tools/dev/gold_coverage.py
+
+gold-coverage-check: ## Échoue si la carte ne décrit plus le dépôt (CI)
+	@python3 tools/dev/gold_coverage.py --check
+
+error-families: ## Familles de classes d'erreur → .claude/dev-docs/error-class-families.md
+	@python3 tools/dev/error_class_families.py
+
+error-families-check: ## Échoue si la taxonomie ne décrit plus le catalogue (CI)
+	@python3 tools/dev/error_class_families.py --check
 
 error-resolve: check-db ## Ferme une entrée du registre. FP=<12 car.> NOTE="..."
 	@test -n "$(FP)" || { echo "❌ FP manquant. Ex: make error-resolve FP=a1b2c3d4e5f6 NOTE=\"corrigé par …\""; exit 1; }

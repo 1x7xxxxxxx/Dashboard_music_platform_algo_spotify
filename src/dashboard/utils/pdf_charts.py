@@ -30,7 +30,9 @@ _GREY = "#9aa0a6"
 # plateforme : Spotify bleu dans l'évolution, vert dans le bâton juste en dessous.
 # Vu en regardant la page, le 2026-09-11.
 _PLATFORM_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]  # Spotify/YT/SC/Apple
-_ARTIST_FILTER = "%1x7xxxxxxx%"
+# `_ARTIST_FILTER` a disparu d'ici le 2026-09-12 : le retrait de la ligne « Total »
+# des CSV est une RÈGLE, et elle vit dans `v_s4a_song_daily`. Une constante recopiée
+# dans sept fichiers est sept occasions de l'oublier dans un huitième.
 
 
 def _fig_to_uri(fig) -> str:
@@ -116,10 +118,10 @@ def _stacked(n: int, height: float = 3.0):
 def streams_timeline(db, artist_id, from_date, to_date, title=None) -> str | None:
     try:
         rows = db.fetch_query(
-            """SELECT date, SUM(streams) FROM s4a_song_timeline
-               WHERE artist_id = %s AND date BETWEEN %s AND %s AND song NOT ILIKE %s
-               GROUP BY date ORDER BY date""",
-            (artist_id, from_date, to_date, _ARTIST_FILTER))
+            """SELECT day, SUM(streams) FROM v_s4a_song_daily
+               WHERE artist_id = %s AND day BETWEEN %s AND %s
+               GROUP BY day ORDER BY day""",
+            (artist_id, from_date, to_date))
     except Exception:
         return None
     rows = [r for r in (rows or []) if r[1] is not None]

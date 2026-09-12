@@ -54,10 +54,12 @@ def _load_campaign_context(db, artist_id: int) -> dict:
     for name, adsets, ads, pstart, pend in (rows or []):
         period = f"{pstart} → {pend}" if pstart and pend else (str(pstart) if pstart else "—")
         out[name] = {'adsets': adsets or '', 'ads': ads or '', 'period': period, 'spend': 0.0}
-    # Spend per campaign over its active period (meta_insights_performance is a lifetime
-    # aggregate keyed by campaign_name) — shown left of the campaign for context.
+    # Spend per campaign — `v_meta_campaign_daily` (migration 109). Le commentaire
+    # que cette ligne portait disait que la table était « a lifetime aggregate » :
+    # elle ne l'est plus depuis que le collecteur écrit du quotidien, et sommer les
+    # deux générations de lignes doublait la dépense affichée.
     spend_rows = db.fetch_query(
-        "SELECT campaign_name, COALESCE(SUM(spend), 0) FROM meta_insights_performance "
+        "SELECT campaign_name, COALESCE(SUM(spend), 0) FROM v_meta_campaign_daily "
         "WHERE artist_id = %s GROUP BY campaign_name", (artist_id,))
     for cn, sp in (spend_rows or []):
         if cn in out:

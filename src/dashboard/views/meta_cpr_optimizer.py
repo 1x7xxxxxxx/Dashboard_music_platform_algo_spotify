@@ -59,7 +59,7 @@ LEFT JOIN (
         CASE WHEN SUM(results) > 0
              THEN ROUND(SUM(spend)::numeric / SUM(results), 4)
              ELSE NULL END                                                 AS cpr
-    FROM meta_insights_performance
+    FROM v_meta_campaign_daily
     -- Le marqueur de compte est doublé : cette constante est une f-string
     -- (elle interpole canonical_song_sql), donc un marqueur simple serait
     -- consommé à la définition et le .format() de l'appelant ne trouverait
@@ -87,7 +87,7 @@ SELECT
     CASE WHEN SUM(results) > 0
          THEN SUM(spend)::numeric / SUM(results)
          ELSE NULL END AS cpr
-FROM meta_insights_performance
+FROM v_meta_campaign_daily
 WHERE artist_id = %s{acct} AND results > 0
 GROUP BY campaign_name
 """

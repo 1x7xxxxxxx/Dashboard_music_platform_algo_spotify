@@ -49,17 +49,17 @@ def _show_meta_ads(db, artist_id):
     try:
         # Sort campaigns by launch date (MIN(day_date)) descending — most recent release first.
         # LEFT JOIN keeps campaigns without day-level data, sorted to the end via NULLS LAST.
+        # `v_meta_campaign_daily` (migration 109) porte déjà le jour : la jointure
+        # vers la table quotidienne servait uniquement à le retrouver.
         df_list = db.fetch_df(
             """
-            SELECT p.campaign_name, MIN(d.day_date) AS first_day
-            FROM meta_insights_performance p
-            LEFT JOIN meta_insights_performance_day d
-              ON d.campaign_name = p.campaign_name AND d.artist_id = p.artist_id
-            WHERE p.artist_id = %s"""
-            f"{_acct_p}"
+            SELECT campaign_name, MIN(day) AS first_day
+            FROM v_meta_campaign_daily
+            WHERE artist_id = %s"""
+            f"{_acct}"
             """
-            GROUP BY p.campaign_name
-            ORDER BY first_day DESC NULLS LAST, p.campaign_name DESC
+            GROUP BY campaign_name
+            ORDER BY first_day DESC NULLS LAST, campaign_name DESC
             """,
             (artist_id, *_acct_params)
         )
@@ -96,10 +96,21 @@ def _show_meta_ads(db, artist_id):
     # 🟢 SECTION 1 : VUE MACRO (KPIS)
     # ==============================================================================
 
+    # ⚠️ Les totaux de cette page se calculent EN PANDAS (`df_perf['spend'].sum()`).
+    # Aucun garde SQL ne peut les voir : il n'y a pas de `SUM(` dans la requête. La
+    # tuile « Dépenses » affichait donc 6 165,65 € pour l'artiste 1 là où la couche
+    # or en compte 3 087,82 — `meta_insights_performance` porte, en plus de ses
+    # lignes quotidiennes, 21 lignes de cumul à vie d'un collecteur antérieur.
+    #
+    # La vue les écarte ET rend une ligne par campagne, ce que le tableau des taux
+    # plus bas supposait déjà : il affichait 252 lignes pour 21 campagnes.
     query_perf = (
-        "SELECT campaign_name, spend, results, custom_conversions, lp_views, "
-        "impressions, reach, frequency, link_clicks "
-        f"FROM meta_insights_performance WHERE artist_id = %s{_campaign_in} ORDER BY spend DESC"
+        "SELECT campaign_name, SUM(spend) AS spend, SUM(results) AS results, "
+        "SUM(custom_conversions) AS custom_conversions, SUM(lp_views) AS lp_views, "
+        "SUM(impressions) AS impressions, SUM(reach) AS reach, "
+        "AVG(frequency) AS frequency, SUM(link_clicks) AS link_clicks "
+        f"FROM v_meta_campaign_daily WHERE artist_id = %s{_campaign_in} "
+        "GROUP BY campaign_name ORDER BY SUM(spend) DESC"
     )
     df_perf = db.fetch_df(query_perf, params)
 
@@ -515,17 +526,27 @@ def _show_meta_ads(db, artist_id):
         f" AND p.campaign_name IN ({','.join(['%s'] * len(selected_campaigns))})"
         if selected_campaigns else ""
     )
+    # La jointure d'engagement ne nommait pas le locataire : deux artistes ayant une
+    # campagne du même nom mélangeaient leurs saves et leurs partages.
     query_full = (
-        'SELECT p.campaign_name, p.spend as "Dépenses", p.custom_conversions as "Clics Spotify",'
-        ' p.lp_views as "Vues LP", p.link_clicks as "Clics pub",'
-        ' p.cpr as "CPR", p.impressions as "Impressions", p.cpm as "CPM",'
-        ' p.ctr as "CTR (%%)",'
-        ' e.saves as "Saves", e.shares as "Shares", e.page_interactions as "Interactions",'
-        ' p.collected_at as "Mise à jour"'
-        " FROM meta_insights_performance p"
-        " LEFT JOIN meta_insights_engagement e ON p.campaign_name = e.campaign_name"
+        'SELECT p.campaign_name, SUM(p.spend) as "Dépenses",'
+        ' SUM(p.custom_conversions) as "Clics Spotify",'
+        ' SUM(p.lp_views) as "Vues LP", SUM(p.link_clicks) as "Clics pub",'
+        ' CASE WHEN SUM(p.custom_conversions) > 0'
+        '      THEN SUM(p.spend) / SUM(p.custom_conversions) END as "CPR",'
+        ' SUM(p.impressions) as "Impressions",'
+        ' CASE WHEN SUM(p.impressions) > 0'
+        '      THEN SUM(p.spend) / SUM(p.impressions) * 1000 END as "CPM",'
+        ' CASE WHEN SUM(p.impressions) > 0'
+        '      THEN SUM(p.link_clicks)::numeric / SUM(p.impressions) * 100 END as "CTR (%%)",'
+        ' MAX(e.saves) as "Saves", MAX(e.shares) as "Shares",'
+        ' MAX(e.page_interactions) as "Interactions",'
+        ' MAX(p.collected_at) as "Mise à jour"'
+        " FROM v_meta_campaign_daily p"
+        " LEFT JOIN meta_insights_engagement e ON e.campaign_name = p.campaign_name"
+        "                                     AND e.artist_id = p.artist_id"
         f" WHERE p.artist_id = %s{_campaign_in_p}"
-        " ORDER BY p.spend DESC"
+        ' GROUP BY p.campaign_name ORDER BY SUM(p.spend) DESC'
     )
     df_full = db.fetch_df(query_full, params)
 
@@ -548,18 +569,19 @@ def _show_meta_ads(db, artist_id):
     st.caption(t("meta_ads_overview.targeting_caption",
                  "Dépense & CPR agrégés par attribut de ciblage des ad sets (résultats ad-level)."))
 
+    # `v_meta_adset_daily` (migration 108) porte la chaîne adsets → ads → insights.
+    # Celle qui vivait ici ne nommait le locataire que sur `meta_adsets` : deux
+    # locataires partageant un `adset_id` ou un `ad_id` mélangeaient leurs dépenses.
+    # C'est la classe que la migration 106 décrit, recopiée une quatrième fois.
     df_tgt = db.fetch_df(
         """
-        SELECT s.optimization_goal, s.gender, s.publisher_platforms,
-               s.age_min, s.age_max,
-               SUM(mi.spend) AS spend, SUM(mi.conversions) AS results
-        FROM meta_adsets s
-        JOIN meta_ads a ON a.adset_id = s.adset_id
-        JOIN meta_insights mi ON mi.ad_id = a.ad_id
-        WHERE s.artist_id = %s"""
-        f"{_acct_s}"
+        SELECT optimization_goal, gender, publisher_platforms, age_min, age_max,
+               SUM(spend) AS spend, SUM(conversions) AS results
+        FROM v_meta_adset_daily
+        WHERE artist_id = %s"""
+        f"{_acct}"
         """
-        GROUP BY s.optimization_goal, s.gender, s.publisher_platforms, s.age_min, s.age_max
+        GROUP BY optimization_goal, gender, publisher_platforms, age_min, age_max
         """,
         (artist_id, *_acct_params),
     )

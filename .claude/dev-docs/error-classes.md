@@ -99,6 +99,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-bucket-sums-deltas-instead-of-deriving-the-counter](#a-bucket-sums-deltas-instead-of-deriving-the-counter) | P2 | deterministic | guarded | none |
 | [a-metric-computed-outside-the-metrics-layer](#a-metric-computed-outside-the-metrics-layer) | P2 | deterministic | guarded | none |
 | [an-overload-makes-the-old-call-ambiguous](#an-overload-makes-the-old-call-ambiguous) | P2 | deterministic | guarded | none |
+| [an-account-filter-that-names-no-single-column](#an-account-filter-that-names-no-single-column) | P2 | deterministic | guarded | none |
+| [two-generations-of-rows-in-one-fact-table](#two-generations-of-rows-in-one-fact-table) | P2 | deterministic | guarded | none |
+| [an-aggregate-computed-in-pandas-escapes-every-sql-guard](#an-aggregate-computed-in-pandas-escapes-every-sql-guard) | P2 | deterministic | guarded | none |
+| [a-generated-document-asserts-a-stale-state](#a-generated-document-asserts-a-stale-state) | P3 | deterministic | guarded | none |
+| [a-ratchet-at-zero-over-a-scope-that-excludes-the-defect](#a-ratchet-at-zero-over-a-scope-that-excludes-the-defect) | P2 | deterministic | guarded | none |
+| [a-procedural-rule-in-the-database](#a-procedural-rule-in-the-database) | P3 | deterministic | guarded | none |
+| [a-signature-anchored-on-a-location](#a-signature-anchored-on-a-location) | P3 | deterministic | guarded | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -4834,3 +4841,109 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-12: **trouvé en REGARDANT la page, pas en lisant le SQL.** La migration s'appliquait sans erreur, les tests passaient, et `gold_apple_lifetime(1, 'shazam_count')` rendait la bonne valeur en psql — c'est l'appel à un seul argument qui échouait, et seul le rendu le montrait. Cinquième fois que ce dépôt l'apprend.
   - 2026-09-12: le premier correctif — un `DROP FUNCTION` placé avant le `CREATE` — a échoué : `view v_platform_totals depends on function gold_apple_lifetime(integer)`. L'ordre est donc contraint et il est écrit dans la migration, parce qu'un lecteur pressé le remettrait en tête.
+
+## an-account-filter-that-names-no-single-column
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une page tombe — pas un chiffre faux, une exception — et **seulement chez les locataires multi-comptes**. `column "ad_account_id" does not exist` ou `column reference "ad_account_id" is ambiguous`. Mesuré le 2026-09-12 : cinq requêtes de `meta_creatives.py` et `meta_ads_overview.py`, toutes rendues par la page Créatives.
+- root_cause: `account_clause()` (`src/dashboard/utils/meta_accounts.py:115`) rend ` AND ad_account_id = %s` — **et rend la chaîne vide quand aucun compte n'est choisi**. Un développeur mono-compte ne l'atteint jamais. Deux façons de casser : (1) la migration 106 a fait descendre la jointure créative dans `v_meta_creative_daily` et le repointage a été fait colonne par colonne sur la liste du SELECT, sans regarder le WHERE — la vue ne portait pas `ad_account_id` ; (2) `meta_ads`, `meta_adsets` et `meta_campaigns` portent toutes les trois cette colonne, donc un filtre non qualifié sur leur jointure ne désigne rien.
+- long_term_fix: lire une vue or. Une vue n'a qu'une colonne de ce nom, donc ni absence ni ambiguïté ne sont exprimables — le défaut cesse d'avoir une forme. Et la règle générale, qui vaut au-delà de Meta : **un repointage vers une vue vérifie le WHERE autant que le SELECT.** Une colonne qu'on filtre est une colonne dont on dépend.
+- autofix: none
+- signature: `python3 -m pytest tests/test_an_account_filter_names_one_column.py -q`
+- guard: { type: pytest, ref: tests/test_an_account_filter_names_one_column.py }
+- rex_ref: migrations/108_gold_meta_creative_account_and_adset.sql
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: trouvé par `tools/dev/gold_coverage.py` à sa première exécution — la carte listait les tables brutes encore lues, et la lecture d'une de ces lignes a mené au `ad_account_id` manquant. Prouvé contre la base par un `SELECT` qui lève, corrigé par les migrations 108/109, gardé par un test vu rouge sur les DEUX formes (absente et ambiguë). 23 sites surveillés.
+
+## two-generations-of-rows-in-one-fact-table
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un total affiché vaut **le double** du même total lu ailleurs, sans qu'aucune requête soit fausse. Mesuré le 2026-09-12 : la tuile « Dépenses » de la page Meta Ads affichait 6 165,65 € quand la couche or en comptait 3 087,82.
+- root_cause: `meta_insights_performance` porte 231 lignes QUOTIDIENNES (une par campagne et par jour, écrites par la boucle `time_increment=1` de `_meta_insight_fetch.py`) **et** 21 lignes de CUMUL À VIE d'un collecteur antérieur, `date_start` valant le jour de la collecte. Les sommer ensemble compte chaque euro deux fois. La contrainte d'unicité ne l'empêche pas : les deux générations ont des clés distinctes. C'est la forme Apple (`period_start IS NULL` vs périodes bornées) sur une autre plateforme.
+- long_term_fix: une vue or qui écarte la génération obsolète par un prédicat STRUCTUREL, jamais par un seuil de date : `v_meta_campaign_daily` (migration 109) ne garde que les lignes qui ont une jumelle dans `meta_insights_performance_day`, parce que la boucle du collecteur écrit les deux dans la même itération. Un seuil de date se périme et une ligne quotidienne du jour même porterait la même date que sa collecte. Règle générale : **avant de sommer une table de fait, demander combien de générations de lignes elle porte** — une contrainte d'unicité ne répond pas à cette question.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_total_is_computed_where_a_guard_can_see_it.py tests/test_the_metrics_layer_only_grows.py -q`
+- guard: { type: pytest, ref: tests/test_a_total_is_computed_where_a_guard_can_see_it.py }
+- rex_ref: migrations/109_gold_meta_campaign_daily.sql
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: la leçon était DÉJÀ écrite, mot pour mot, dans un commentaire de `src/dashboard/utils/pdf_exporter/_collectors.py:329` — « meta_insights_performance double-comptait les fenêtres (≈2× le spend réel) ». Le PDF avait été corrigé ; la classe est restée vivante dans six autres surfaces pendant des semaines. **Un commentaire ne garde rien** : c'est la démonstration la plus nette que ce dépôt ait produite.
+  - 2026-09-12: `meta_insights_performance` est entrée dans `_FACTS` le même jour. Son absence était la moitié du défaut : `\b` fait que `meta_insights\b` ne matche pas `meta_insights_performance`, donc le cliquet des agrégats était vert sur la table qu'il visait.
+
+## an-aggregate-computed-in-pandas-escapes-every-sql-guard
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un cliquet certifie « zéro agrégat hors de la couche or » pendant qu'une tuile affiche un total faux. Les deux affirmations sont vraies : le total n'est pas dans le SQL.
+- root_cause: `df = db.fetch_df("SELECT campaign_name, spend, … FROM <fait>")` puis `df['spend'].sum()`. Aucun `SUM(` n'apparaît dans la requête, donc aucun garde qui lit le SQL ne peut voir cet agrégat — ni `test_the_metrics_layer_only_grows.py`, ni `gold_coverage.py`, ni une signature grep. Deux sites mesurés le 2026-09-12 : la page Meta Ads (6 165,65 € au lieu de 3 087,82) et les quatre tuiles de la page SoundCloud (justes, mais sur un `DISTINCT ON (track_id)` sans locataire).
+- long_term_fix: le garde descend d'un cran — il ne cherche plus un `SUM(` dans le texte, il cherche une **frame issue d'une table de fait non agrégée, réduite ensuite par pandas**. `tests/test_a_total_is_computed_where_a_guard_can_see_it.py` fait exactement ça, en important la liste des faits au lieu de la recopier. Règle générale : **un garde qui lit le SQL ne couvre que les totaux écrits en SQL ; le périmètre d'un garde est sa portée, pas son prédicat.**
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_total_is_computed_where_a_guard_can_see_it.py -q`
+- guard: { type: pytest, ref: tests/test_a_total_is_computed_where_a_guard_can_see_it.py }
+- rex_ref: tests/test_a_total_is_computed_where_a_guard_can_see_it.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: **la première version de ce garde est restée VERTE sur son propre défaut.** Elle ne lisait que `fetch_df("<littéral>")`, et `meta_ads_overview` écrit `query_perf = (…)` puis `fetch_df(query_perf, params)` — l'argument est un `Name`. La mutation l'a montré ; le lecteur suit désormais les variables, locales et de module. Sixième fois que ce dépôt mesure « la portée du garde est le défaut », et la première sur un garde écrit le jour même pour cette raison.
+
+## a-generated-document-asserts-a-stale-state
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un document généré décrit un dépôt qui n'existe plus. Il ne porte aucune marque de péremption — il se lit exactement comme une mesure fraîche, et c'est ce qui le rend plus cher qu'un document absent.
+- root_cause: un générateur sans mode `--check` câblé. `error-inbox.md` n'a aucun test de fraîcheur et `.claude/scripts/check_stale_deliverables.py` n'était appelé de nulle part. Aggravant : un document horodaté ne PEUT pas être comparé octet pour octet, donc l'horodatage lui-même interdit le seul contrôle qui marche.
+- long_term_fix: un livrable généré (1) ne porte aucun horodatage, pour que deux exécutions sur le même arbre rendent les mêmes octets ; (2) expose `--check` qui régénère en mémoire et compare ; (3) est câblé dans l'étape déterministe sans base de la CI. `tools/dev/gold_coverage.py` respecte les trois, et `tests/test_the_gold_coverage_only_improves.py` refait la comparaison en important le générateur.
+- autofix: none
+- signature: `python3 tools/dev/gold_coverage.py --check`
+- guard: { type: ci-step, ref: .github/workflows/ci.yml }
+- rex_ref: tools/dev/gold_coverage.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: signature vue exit 1 sur une ligne ajoutée à la main dans `.claude/dev-docs/gold-coverage.md`, exit 0 après régénération. `error-inbox.md` reste sans contrôle de fraîcheur — il est horodaté, donc la même recette ne s'y applique pas telle quelle.
+
+## a-ratchet-at-zero-over-a-scope-that-excludes-the-defect
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un cliquet affiche zéro et la propriété qu'il annonce est fausse. Le prédicat est juste, la portée ne l'est pas — et rien dans le message ne distingue « zéro trouvé » de « zéro cherché ».
+- root_cause: `tests/test_the_metrics_layer_only_grows.py` a certifié « huit plateformes à zéro agrégat hors de la couche or » le 2026-09-12 avec un `_SURFACES` qui ne nommait pas `src/dashboard/utils`. `kpi_helpers.py` (onze agrégats) et `pdf_charts.py` (un) étaient dehors. Deuxième forme le même jour : `_FACTS` ne listait pas `meta_insights_performance`, et `\b` fait que `meta_insights\b` ne le matche pas.
+- long_term_fix: la portée cesse d'être une opinion et devient une donnée comparable. `tools/dev/gold_coverage.py` publie une colonne « dont hors cliquet » — le nombre d'agrégats qu'AUCUN cliquet ne regarde — et ce nombre est lui-même sous cliquet. Les deux déclarations de la portée (celle du cliquet, celle du générateur) sont comparées par un test : une règle recopiée diverge, deux règles comparées ne le peuvent pas.
+- autofix: none
+- signature: `python3 -m pytest tests/test_the_gold_coverage_only_improves.py -q`
+- guard: { type: pytest, ref: tests/test_the_gold_coverage_only_improves.py::test_the_two_declarations_of_the_ratchet_scope_agree }
+- rex_ref: tests/test_the_gold_coverage_only_improves.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: signature vue exit 1 en retirant une table de `_RATCHET_FACTS` d'un seul côté, et en desserrant un plafond d'une unité. Le compte « hors cliquet » valait 21 à la première mesure, 18 après les migrations 107-109.
+
+## a-procedural-rule-in-the-database
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une règle métier vit en PL/pgSQL. Elle n'est ni testable par pytest, ni lisible dans une revue de diff Python, ni déplaçable — et le jour où elle est fausse, le correctif est une migration.
+- root_cause: la tentation est réelle et légitime une fois : `gold_apple_lifetime()` fait une sélection gloutonne d'intervalles non chevauchants, qu'aucun `GROUP BY` n'exprime. Le risque n'est pas cette fonction, c'est la SUIVANTE — celle qu'on écrira « comme la précédente » pour une règle qu'une vue déclarative exprimerait très bien.
+- long_term_fix: Kleppmann, *DDIA* p. 527 : procédures stockées et UDF « ont été un peu une arrière-pensée dans la conception des bases », et la séparation du code applicatif et de l'état est la position par défaut. La règle écrite ici : **une VUE déclarative, toujours. Une fonction PL/pgSQL, seulement quand un `GROUP BY` ne l'exprime pas** — et le compte de fonctions `gold_*` est gelé à 1. Le franchir demande une décision, pas une inadvertance. Voir `docs/adr/ADR-022`.
+- autofix: none
+- signature: `test "$(grep -hoE 'CREATE (OR REPLACE )?FUNCTION gold_[a-z_]+' migrations/*.sql | awk '{print $NF}' | sort -u | wc -l)" -le 1`
+- guard: { type: ci-step, ref: .claude/scripts/audit_runner.py }
+- rex_ref: docs/adr/ADR-022-the-grain-lives-in-sql-the-door-shapes-it.md
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: gelée à 1 (`gold_apple_lifetime`). Signature vue exit 1 en ajoutant une seconde fonction `gold_` à une migration, exit 0 après l'avoir retirée.
+
+## a-signature-anchored-on-a-location
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une signature de classe d'erreur rougit sur un arbre sain, deux fois en deux jours, parce que le correctif a déplacé ou renommé ce qu'elle nommait. On finit par la desserrer — donc par retirer la garde — pour faire taire la CI.
+- root_cause: une signature qui nomme un EMPLACEMENT (`fichier:ligne`, une constante, un nom de fonction précis) est couplée à la forme du code, pas à la propriété. Vu le 2026-09-12 : une signature ancrée sur `_SQL_CUMULATIVE_ALL`, constante retirée par un correctif ultérieur.
+- long_term_fix: une signature interroge une PROPRIÉTÉ — un test qui lit l'AST, une requête au catalogue Postgres, un compte. Contrôle mécanique : aucune signature du catalogue ne contient de numéro de ligne. Mesuré le 2026-09-12 : 0 sur 284.
+- autofix: none
+- signature: `! grep -nE '^- signature: .*[a-zA-Z_/]+\.(py|sql|md):[0-9]+' .claude/dev-docs/error-classes.md`
+- guard: { type: ci-step, ref: .claude/scripts/audit_runner.py }
+- rex_ref: .claude/dev-docs/error-classes.md
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: 0 hit sur les 284 classes existantes. Signature vue exit 1 en ajoutant une entrée dont la signature nommait `src/dashboard/utils/platform_chart.py:851`, exit 0 après l'avoir retirée.

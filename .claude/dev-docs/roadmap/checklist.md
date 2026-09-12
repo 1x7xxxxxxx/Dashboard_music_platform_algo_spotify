@@ -25,7 +25,11 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R94 | Faire descendre les plafonds Spotify S4A (31) et Meta Ads (22) | P4 | le plafond du cliquet, plateforme par plateforme |
+| R96 | Faire baisser les 38 surfaces dont la carte ne sait pas d'où vient la donnée | P4 | `<!-- gold-coverage-*: unknown=… -->`, sous cliquet |
+| R97 | Repointer ou garder les 18 agrégats qu'aucun cliquet ne regarde | P3 | `<!-- gold-coverage-unguarded-aggregates -->`, sous cliquet |
+| R98 | Ranger les 68 classes d'erreur sans famille | P4 | `<!-- error-class-families: orphans=… -->`, sous cliquet |
+| R99 | Faire descendre la frontière de bronze (132 couples) | P4 | `_CEILING` de `tests/test_the_bronze_boundary_only_tightens.py` |
+| R100 | Trancher dbt : le déclencheur d'ADR-014 est atteint (13 objets dérivés, 4 interdépendants) | P4 | ADR-014 §déclencheurs, recompté dans ADR-022 |
 
 **Quatre tâches rouvertes le 2026-09-11**, issues de l'audit metrics layer détaillé
 plus bas dans ce fichier (section « L'audit metrics layer du 2026-09-11 ») : R92 à R95.
@@ -87,9 +91,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-12, une tâche ouverte — R94 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-12 (soir), cinq tâches ouvertes — R96 à R100 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R94 -->
+<!-- reprise: open=R96,R97,R98,R99,R100 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -197,17 +201,81 @@ remontent jamais, ils doivent rester SERRÉS (un plafond au-dessus du réel auto
 autant de régressions silencieuses), et les deux plateformes à zéro sont nommées
 explicitement. Classe d'erreur `a-metric-computed-outside-the-metrics-layer`.
 
-- [ ] **R94 — Faire descendre les plafonds Spotify S4A (31) et Meta Ads (22)** (P4) —
-  entamée le 2026-09-12 : l'API ne calcule plus le total Spotify elle-même (33 → 31) —
-  un AUTRE processus est l'endroit le plus probable d'une divergence silencieuse.
-  Restent par ordre de rendement : `pdf_exporter/_collectors.py` (17 couples bronze, la
-  surface la plus chargée du dépôt), `meta_ads_overview.py` (9), `data_wrapped.py`.
-  ⚠️ Une partie de ces sites sont des VENTILATIONS (avec `GROUP BY`) ou des requêtes
-  BORNÉES par une fenêtre, et la couche or n'a pas de grain date : elles ne peuvent pas
-  lire les vues telles quelles. Le préalable est donc de trancher si la couche or gagne
-  un grain temporel, ou si `platform_totals(db, aid, since, until)` reste la porte
-  unique pour les fenêtres. **Mesuré par** : le plafond du cliquet, plateforme par
-  plateforme.
+### La soirée du 2026-09-12 — la carte, et les deux défauts qu'elle a trouvés
+
+R94 est close : les plafonds du cliquet des agrégats sont à **zéro sur les huit
+plateformes**, et son préalable — « la couche or gagne-t-elle un grain temporel, ou
+`platform_totals()` reste-t-il la porte unique ? » — est tranché par **ADR-022** : les
+deux, en couches. Le grain descend en SQL (lisible par l'API, Airflow, `psql`), la porte
+ne porte que la forme. Détail dans `archive.md`.
+
+Ce qui a rendu la clôture possible n'est pas un correctif de plus, c'est **une carte** :
+`.claude/dev-docs/gold-coverage.md`, générée par `make gold-coverage`, sans base et sans
+horodatage. À sa PREMIÈRE exécution elle a trouvé deux défauts vivants que 5 200 tests
+verts ne voyaient pas :
+
+- **la page Créatives tombait** pour tout locataire multi-comptes (`column
+  "ad_account_id" does not exist` × 3, `is ambiguous` × 2) — la migration 106 avait fait
+  descendre une jointure dans une vue sans y emporter une colonne que trois `WHERE`
+  filtraient. Prouvé contre la base, corrigé par les migrations 108/109, gardé par
+  `tests/test_an_account_filter_names_one_column.py` (23 sites surveillés) ;
+- **la tuile « Dépenses » de la page Meta Ads affichait le double** : 6 165,65 € pour
+  3 087,82 € réels. `meta_insights_performance` porte deux générations de lignes —
+  231 quotidiennes et 21 cumuls à vie d'un collecteur antérieur — et la page les sommait
+  **en pandas**, donc aucun garde SQL du dépôt ne pouvait le voir. La leçon était écrite
+  depuis des semaines dans un commentaire de `pdf_exporter/_collectors.py:329`. Un
+  commentaire ne garde rien : le garde s'appelle
+  `tests/test_a_total_is_computed_where_a_guard_can_see_it.py`.
+
+Les cinq tâches ci-dessous sont les restes MESURÉS de cette soirée. Chacune est un
+compteur écrit par une machine, sous cliquet : aucune ne peut empirer en silence, et
+chacune baisse par un travail nommé.
+
+- [ ] **R96 — Faire baisser les 38 surfaces dont la carte ne sait pas d'où vient la
+  donnée** (P4) — 15 figures sur 89, 18 tuiles sur 207, 5 figures PDF sur 29 sont
+  publiées `indéterminée`, avec leur motif : `sql-dynamique` (28), `profondeur` (22),
+  `appelants-multiples` (10), `clé-à-l-exécution` (5), `sans-appelant` (3),
+  `receveur-inconnu` (1). Elles sont triées **en tête** de leur tableau, jamais en
+  queue. Le plus rentable est `sql-dynamique` : ce n'est pas une limite de l'outil mais
+  une trouvaille sur le code — une requête assemblée hors littéral n'est lisible par
+  aucun garde. **Mesuré par** : `<!-- gold-coverage-*: unknown=… -->`, plafonds gelés
+  dans `tests/test_the_gold_coverage_only_improves.py`.
+
+- [ ] **R97 — Repointer ou garder les 18 agrégats qu'aucun cliquet ne regarde** (P3) —
+  la colonne « dont hors cliquet » de la carte. Dix sur `meta_campaigns`, deux sur
+  `meta_ads`, deux sur `s4a_song_timeline` (`utils/ml_inference.py:261`,
+  `utils/saves_history.py:56`), un sur `distrokid_monthly_revenue`, un sur
+  `imusician_monthly_revenue`, un sur `meta_adsets`, un sur
+  `meta_insights_performance_day` (`collectors/_meta_insight_fetch.py:59`). Chacun est
+  soit un agrégat à repointer, soit un `MIN`/`MAX`/`COUNT` d'inventaire qui n'a rien à
+  centraliser — **les deux méritent d'être regardés, pas corrigés d'office.** Le cas le
+  plus clair est le budget des campagnes actives (`SUM(lifetime_budget)` sur
+  `meta_campaigns WHERE status = 'ACTIVE'`, recopié dans quatre branches de deux
+  fichiers), qui appelle une vue or. **Mesuré par** :
+  `<!-- gold-coverage-unguarded-aggregates: total=18 -->`.
+
+- [ ] **R98 — Ranger les 68 classes d'erreur sans famille** (P4) — 287 classes, 12
+  familles, 219 rangées. Une classe hors famille n'est pas une erreur de classement :
+  c'est une **question qu'on n'a pas encore su formuler**, et c'est ça le livrable.
+  Corriger le motif dans `tools/dev/error_class_families.py`, jamais l'entrée du
+  catalogue — il est append-only. **Mesuré par** :
+  `<!-- error-class-families: orphans=68 -->`.
+
+- [ ] **R99 — Faire descendre la frontière de bronze (132 couples)** (P4) — le plafond
+  a MONTÉ de 124 à 132 le 2026-09-12, et c'est un progrès : sa portée ne nommait que
+  `pdf_exporter` sous `src/dashboard/utils`, donc `csv_exporter.py` — qui exporte du
+  bronze à un utilisateur, la définition même d'une surface — n'y était pas. 124 était
+  faux, 132 est vrai. À partir d'ici il ne peut que descendre. **Mesuré par** :
+  `_CEILING` de `tests/test_the_bronze_boundary_only_tightens.py`.
+
+- [ ] **R100 — Trancher dbt** (P4) — ADR-014 différait dbt tant que le dépôt n'aurait
+  pas **≥ 10 objets dérivés ET ≥ 3 qui dépendent l'un de l'autre**. Recompté le
+  2026-09-12 : **13 objets dérivés**, **4 impliqués dans une dépendance**
+  (`v_platform_totals` → `v_s4a_song_daily`, `v_soundcloud_track_latest`,
+  `gold_apple_lifetime`). Le déclencheur qu'ADR-014 s'était donné est franchi ; ADR-022
+  l'enregistre sans trancher, parce que trancher est une décision, pas une conséquence.
+  Ce qui manquait pour instruire la question existe maintenant : la carte donne le
+  graphe complet. **Mesuré par** : ADR-014 §déclencheurs, recompté dans ADR-022.
 
 ### Vérification finale mesurée en production le 2026-09-12
 
@@ -339,197 +407,6 @@ tests. Détail dans l'archive ; ne reste ouvert de ce lot que **R70** (couches b
 argent / or, P4, ADR à écrire — voir la table ci-dessus).
 
 Ce qui suit décrivait l'état au 2026-09-08.
-
-### Ce que le 2026-09-08 a changé (rien n'ouvre de tâche)
-
-**Deux défauts remontés par le parcours artiste, corrigés et DÉPLOYÉS le jour même**
-(`2840423`, api + dashboard sains, `make sync-check` vert : prod == canonique, 972
-colonnes / 95 tables, code déployé == `origin/main`).
-
-- **Le bouton qui terminait la mise en route était mort, aux DEUX sorties** — « 🔗
-  Confirmer le nom des titres » après un import de CSV, et « 🏠 Aller au dashboard → »
-  après la dernière plateforme connectée. Le compte rendu qui les porte était consommé
-  (`session_state.pop`) à l'affichage ; au rerun du clic le bloc n'existait plus, le
-  widget n'était pas ré-instancié, le geste était jeté. `utils/pending_notice.py`
-  remplace la consommation par une borne de page. Classe
-  `consumed-state-hides-its-own-widget`.
-- **« Aucune suggestion de campagne Meta » était NORMAL, et rien ne le disait.** Le bac
-  à sable est exempté du garde d'unicité d'identité — sa raison d'être — donc il
-  déclare le compte publicitaire du profil principal ; `meta_campaigns` ayant
-  `campaign_id` pour seule clé de conflit, il n'obtiendra jamais une campagne. Mesuré :
-  224 insights, 12 titres, **0 campagne**. Cause distincte `SANDBOX_SHARES_ACCOUNT` et
-  un texte qui nomme l'exemption. Classe
-  `an-exemption-on-one-surface-reads-as-a-failure-on-another`.
-
-- **« Cumulé · par année · cette année » ne montrait AUCUNE plateforme** : un pas annuel
-  sur une période d'un an ne produit qu'un seul seau, et une aire d'un point ne dessine
-  rien. La contrainte `_MIN_POINTS = 2` existait déjà, appliquée aux séries et jamais à
-  l'axe. Un pas qui ne tient pas **descend** au pas plus fin et le dit. Classe
-  `a-form-constraint-checked-on-the-series-not-on-the-axis`.
-- **La déduplication `SUM(streams)` par `(date, song)` n'a PAS lieu d'être** — mesuré,
-  pas supposé : `UNIQUE(artist_id, song, date)` existe en local et en prod, 0 doublon,
-  `SUM` brut = `SUM` dédoublonné = 163 088. Les 6 `DISTINCT ON (date, song)` sont
-  redondants. Les 5 sommes sans `artist_id` sont les branches flotte de l'admin, hors
-  d'atteinte d'un locataire (`view_session` / `tenant_scope`). Vérifier a évité un
-  refactor de dix sites sur une prémisse fausse.
-- **Le « gros trou dans les données de S4A » n'existait pas** : S4A a 365 / 366 / 365 /
-  248 jours consécutifs depuis le 2023-01-01. Le trou était dans la FIGURE — les
-  tranches de la bande étaient communes, donc un jour sans collecte YouTube coupait
-  aussi Spotify : **19 semaines** effacées, dont **13** dont YouTube était seul
-  responsable. Les tranches sont désormais **par plateforme** ; Spotify est tracé
-  181/181 en une seule tranche. Classe `a-gap-in-one-series-erases-every-other`.
-- **Une semaine mesurée un jour sur sept était tracée comme une semaine pleine** —
-  38 % des semaines YouTube, 31 % SoundCloud. Sous la moitié des jours qu'il contient,
-  un seau devient **inconnu** ; le plancher est calibré sur les distributions réelles,
-  épinglées dans le test. Classe `a-partial-bucket-drawn-as-a-full-one`.
-- **Le sous-titre annonçait 16 568 594 écoutes pour 163 102** — facteur 89 — parce
-  qu'il sommait la série APRÈS transformation, donc des cumuls. Aucun test ne le
-  voyait ; c'est d'avoir **rendu la figure et regardé l'image** qui l'a trouvé. Classe
-  `a-total-that-sums-the-display-instead-of-the-data`.
-- **« Je ne vois que Spotify » a enfin sa réponse** : le mode « part » n'en était pas
-  une (0,26 % occupe 0,26 % de la hauteur). Quatrième mode, **« Chacune à son
-  échelle »** — des petits multiples, une facette par plateforme. La règle de couverture
-  qui excluait YouTube (24 j sur 195) et SoundCloud (12 sur 74) de toutes les vues a
-  disparu : elle compensait le défaut des tranches communes, retiré ci-dessus.
-- **Rien d'écrasé n'est perdu** (ADR-018, migration **096**) : un déclencheur générique
-  journalise dans `data_revisions` toute mise à jour qui CHANGE une valeur surveillée.
-  Motif : Spotify retire rétroactivement des écoutes (leur page *Artificial Streaming*),
-  et nos upserts écrasaient sans trace. Côté base, parce qu'un déclencheur ne s'oublie
-  pas.
-- **Un pilier de contrôle manquait — les VALEURS.** Le 2026-06-01, SoundCloud a écrit
-  **19 compteurs cumulés sur 19 à zéro** ; fraîcheur, pics et collecte partielle avaient
-  tous raison de ne rien voir. `check_zero_resets` le signale (jamais ne le réécrit). Le
-  patron du livre a été mesuré puis **écarté** : 93 alertes sur 1 254 jours contre 1
-  pour le prédicat retenu. Classe `a-failed-collection-writes-zeros`.
-- **Un seul calcul de total** pour l'accueil, le PDF (qui ignorait sa propre période),
-  la page Apple et l'API — quatre versions qui ne s'accordaient pas. `welcome_figures`
-  perd son SQL en double, celui qui additionnait un cumul et un quotidien.
-
-- **La matrice Meta du bac à sable criait une panne inexistante** (🟡 « la collecte
-  s'est arrêtée, on regarde ») sur le compte où le profil principal lisait 🟢 « rien à
-  faire », le même jour. `_silence_reason` comptait les campagnes du LOCATAIRE ; il lit
-  maintenant celles du compte **déclaré**. Troisième surface de la même exemption.
-
-- **Quatre modes d'affichage sur la courbe** : Cumulé (défaut, l'allure de
-  l'illustration), Par période, Part de chaque plateforme, et **Chacune à son échelle**
-  — ce dernier est le seul qui rende visibles YouTube (0,22 %) et SoundCloud (0,04 %)
-  à côté de Spotify (99,74 %).
-- **Migration 095** : la clé d'unicité Apple était sur des EXPRESSIONS, donc
-  inappariable par un `ON CONFLICT (col, …)` — cinq imports échouaient. `NULLS NOT
-  DISTINCT` (PostgreSQL 15+) rend la cible appariable sans perdre la déduplication.
-- **Apple figure sur la courbe, au pas ANNUEL uniquement** — ses exports sont des
-  totaux de période ; les étaler sur des jours inventerait une valeur. Sélecteur de pas
-  (Automatique / semaine / année) sur l'accueil, et le guide demande un export par
-  période.
-- **La période d'un export Apple se lit dans le NOM du fichier**
-  (`songs_…_2015-06-30_2026-09-04.csv`) : rien à saisir, la question n'est qu'un repli
-  pour un fichier renommé. Les périodes imbriquées ne sont jamais sommées à l'aveugle
-  (`non_overlapping_cover`).
-- **Apple gagne une précision par ANNÉE** (migration 094) : l'export n'ayant aucune
-  colonne de date, la période est **demandée** au dépôt. Périodes bornées → sommées ;
-  cumuls → soustraits ; total → le dernier cumul, sinon la somme des années. Le guide
-  invite désormais à déposer un export par année.
-- **YouTube lisait le compteur de CHAÎNE**, mis à jour par paliers : +360 attribués à
-  une seule journée contre 64 vues chez YouTube Studio. Il lit désormais les compteurs
-  **par vidéo** (44 sur 28 j — le bon ordre de grandeur), écart pris par vidéo.
-- **Apple ne pouvait pas avoir d'historique** : `UNIQUE(artist_id, song_name)` sans
-  date faisait écraser chaque dépôt de CSV par le suivant. Migration **093** —
-  `snapshot_date` entre dans la clé, et la tuile compare deux relevés.
-- **Le bouton « Lancer TOUTES les collectes » a été RETIRÉ de la barre latérale** : les
-  cinq collectes ont leur cron quotidien (Meta 5 h · Spotify 7 h · YouTube 8 h ·
-  SoundCloud 9 h · Instagram 10 h) et une collecte repart dès qu'un identifiant est
-  enregistré. Les 5 textes qui l'envoyaient « dans la barre latérale » ont été réécrits.
-- **L'accueil est en deux colonnes** — courbe à gauche, chiffres à droite, filtre au
-  centre en haut — avec une période « 📅 Sur mesure », un écart d'abonnés Instagram sur
-  la période, et « — » plutôt que « 0 » pour une plateforme non mesurée.
-- **L'accueil porte un sélecteur de période** (« Depuis le début » par défaut, Cette
-  année / 12 mois / 90 / 30 jours) qui vaut pour les tuiles ET la courbe, un seul
-  propriétaire du réglage. La bande s'agrège **par semaine** au-delà de 92 jours : nos
-  sources n'ont pas la même cadence (Spotify 100 %, SoundCloud 56 %, YouTube 39 % de
-  jours mesurés), et au pas quotidien deux périodes perdaient une plateforme entière.
-- **Le bandeau de mise en route se replie quand la configuration est terminée**, et la
-  figure de l'accueil redevient celle de l'illustration : des **aires empilées** aux
-  couleurs du générateur d'exemples, une par plateforme. Une source trop clairsemée
-  (2 jours sur 90) est nommée sous la figure au lieu d'empêcher toute la pile — la
-  régression trouvée en **vérifiant** le déploiement, pas en attendant un signalement.
-- **Cinq points du parcours artiste, quatre défauts et une mesure** (suite 2) : la
-  colonne « Format » lisait une seule des deux copies de l'identité Spotify ; l'étape 2
-  de l'assistant n'était atteignable par **aucun** chemin sur un compte configuré ; la
-  courbe « tes chiffres » additionnait un cumul et un quotidien (23 560 → 1 748 par
-  jour) ; l'accueil porte désormais l'**évolution par plateforme** sous les totaux. Le
-  cinquième — « le bac à sable n'a pas la même app » — est **faux, mesuré** : les deux
-  rendus diffèrent d'une ligne, celle du plan.
-
-**Le mapping des campagnes n'est pas rejouable dans le bac à sable, par construction** —
-c'est le seul geste du parcours qui demande le profil principal. Mesuré : le bac à sable
-a les insights Meta (224 lignes, 21 campagnes, ventilations à 87–99 % du principal) mais
-aucune ligne de configuration (`meta_campaigns` 0/34, `meta_adsets` 0/69, `meta_ads`
-0/144, `campaign_track_mapping` 0/19). Les onglets qui lisent les insights tracent ; ceux
-qui joignent la configuration restent vides.
-
-Ce qui suit décrivait l'état au 2026-09-07.
-
-
-### Ce que le 2026-09-06 et le 2026-09-07 ont changé (rien n'ouvre de tâche)
-
-**Ce qui reste ouvert est inchangé : R1, et rien d'autre.** Ces deux journées n'ont
-inscrit aucune tâche — elles ont fermé une série de CI rouge et corrigé des défauts
-trouvés en s'appuyant sur les données, pas en les auditant.
-
-- **La CI est verte** (run `34034904194`). La série de **27 exécutions rouges** est
-  close : `Run tests` n'avait plus tourné depuis le 2026-09-04, et il a rendu 5 échecs
-  réels dès qu'on l'a débloqué — aucun n'était visible en local. Réparer l'étape
-  bloquante n'était pas la fin de la séance, c'était ce qui rendait le reste
-  observable.
-- **Le rapprochement des titres était faux au-dessus du seuil d'auto-acceptation**
-  (2026-09-07) : « remix » était le seul marqueur de version reconnu, donc un radio
-  edit, un live ou un instrumental valait 0,90 contre son titre de base et ses écoutes
-  s'ajoutaient à l'original. Corrigé et **mesuré sur les 21 rapprochements réels de
-  production, figés en filet AVANT de toucher à l'algorithme** : 21/21 conservés, zéro
-  régression.
-- **17 % du catalogue était invisible** : `imusician_sales_detail` porte `isrc`,
-  `track_title` et `track_version` que rien ne lisait, et l'export S4A « 12 mois » ne
-  montre que ce qui a été écouté. Deux vraies sorties passaient pour des intrus.
-- **2 533 lignes portaient la chaîne littérale `nan`** — un NaN pandas est vrai en
-  booléen. Sur une clé comme l'ISRC, ça regroupe sous une même valeur tout ce qui n'a
-  pas d'identifiant. Corrigé + **migration 092**.
-- **Un garde textuel a été refusé par le cliquet et réécrit sur l'AST** : il a trouvé
-  du premier coup un site frère (`csv_dialect.py:50`) que la recherche de chaîne
-  ratait. Registre : **230 classes, propre.**
-
-Ce qui suit décrivait l'état au 2026-09-05.
-
-
-**▶️ Aucune tâche de développement ouverte.** Les quatre inscrites dans la journée
-(R59-R62) ont été closes le soir même — DEVLOG « suite 14 ». Ce qui reste est **R1**,
-inviter la bêta : un geste humain qu'aucune ligne de code ne débloque.
-
-Deux d'entre elles ont été closes **sans correctif, et c'est le point** : R59 parce que
-sa prémisse était fausse (ADR-016), R62 parce que la mesure a montré une porte fermée
-côté Meta (ADR-017). Vérifier avant de coder a évité deux chantiers.
-
-Ce qui suit décrivait l'état au 2026-09-04.
-
-**▶️ Aucune tâche de développement ouverte.** R58 — la dernière — a été livrée le
-2026-09-04 et rotée dans `archive.md` : les figures de l'écran de bienvenue viennent
-des données du locataire dès qu'il en a sept jours. Elle disait attendre R1 ; vérifié
-avant de la parquer une seconde fois, deux tiers l'attendaient (le mot de bienvenue
-part AVANT toute collecte, et `kaleido` manque pour l'export PNG), un tiers non.
-
-**Ne reste que R1**, dans « 🙋 En attente de toi » plus bas : inviter la bêta. Aucune
-ligne de code ne la débloque.
-
-**Le reste : zéro `- [ ]` dans ce fichier.** Les 19 derniers ont été **rotés dans
-`archive.md` le 2026-09-03 au soir**, marqués `[CLOS — décision, non livré]` : aucun
-n'était un travail qu'on pouvait commencer. Huit étaient des décisions de performance
-conditionnées par ADR-007 — dont les quatre déclencheurs ont été lus contre la
-production et ne sont pas tirés — et trois d'entre elles étaient **dupliquées** entre
-deux blocs. Cinq étaient bloquées par l'accumulation de temps (des paires étiquetées
-qu'aucune saisie ne fabrique d'avance). Les deux derniers, E1 et E2, étaient la
-redite de **R1**, le geste humain porté par la table « En attente de toi » ci-dessous.
-
-Ce qui rouvre chacun est écrit dans son bloc, dans l'archive. Ne reste donc qu'**un**
-geste, et lui seul : **R1** — inviter la bêta.
 
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 

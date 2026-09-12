@@ -45,9 +45,17 @@ DOCS = (
 # nécessaire. `architecture_dossier/main.py` a rejoint la liste le 2026-09-10, découvert
 # parce qu'une signature de classe d'erreur le nomme — la découverte a donc bien
 # fonctionné, et la réponse est de DÉCLARER, pas d'affaiblir le prédicat.
+# `gold_coverage.py` a rejoint la liste le 2026-09-12, pour la raison qui la définit :
+# il ne lit ni base ni environnement — `migrations/*.sql`, `init_db.sql` et l'AST de
+# `src/`, rien d'autre. Lui faire appeler `load_project_env()` ajouterait un appel
+# décoratif, et le prochain lecteur en conclurait que le générateur dépend d'une
+# configuration. C'est précisément ce qu'il ne fait pas : deux exécutions sur le même
+# arbre rendent les mêmes octets, et c'est cette propriété qui rend son `--check`
+# utilisable en CI sans service.
 _NO_ENV = {"tools/dev/check_manifest_consistency.py", "tools/dev/graphify_render_html.py",
            "tools/dev/make_avatar_gif.py",
-           "tools/dev/architecture_dossier/main.py"}
+           "tools/dev/architecture_dossier/main.py",
+           "tools/dev/gold_coverage.py"}
 
 
 def _documented_tools() -> list[str]:

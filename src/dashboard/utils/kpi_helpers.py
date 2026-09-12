@@ -231,31 +231,25 @@ def freshness_status(last_dt):
 
 @st.cache_data(ttl=_KPI_TTL)
 def get_total_streams_s4a(_db, artist_id):
-    """Total streams Spotify S4A (dédupliqué par MAX/jour/chanson)."""
+    """Total streams Spotify S4A — la branche `spotify` de la couche or.
+
+    La déduplication par (jour, titre) et le retrait de la ligne « Total » des CSV
+    vivent dans `v_s4a_song_daily` (migration 105), que `v_platform_totals` agrège.
+    Les recopier ici les faisait diverger : c'est la plateforme dont le total avait
+    trois définitions différentes le 2026-09-11.
+    """
     db = _db
     try:
         if artist_id is not None:
-            q = """
-                SELECT SUM(daily_max) FROM (
-                    SELECT MAX(streams) AS daily_max
-                    FROM s4a_song_timeline
-                    WHERE song NOT ILIKE %s AND artist_id = %s
-                    GROUP BY date, song
-                ) sub
-            """
-            row = db.fetch_query(q, (f"%{ARTIST_NAME_FILTER}%", artist_id))
+            row = db.fetch_query(
+                "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals"
+                " WHERE platform = 'spotify' AND artist_id = %s", (artist_id,))
         else:
-            q = """
-                SELECT SUM(daily_max) FROM (
-                    SELECT MAX(streams) AS daily_max
-                    FROM s4a_song_timeline
-                    WHERE song NOT ILIKE %s
-                    GROUP BY date, song
-                ) sub
-            """
-            row = db.fetch_query(q, (f"%{ARTIST_NAME_FILTER}%",))
+            row = db.fetch_query(
+                "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals"
+                " WHERE platform = 'spotify'")
         return int(row[0][0] or 0)
-    except Exception:
+    except Exception:      # noqa: BLE001
         return 0
 
 
@@ -290,28 +284,23 @@ def get_total_views_youtube(_db, artist_id):
 
 @st.cache_data(ttl=_KPI_TTL)
 def get_total_plays_soundcloud(_db, artist_id):
-    """Total plays SoundCloud (dernière snapshot disponible)."""
+    """Total plays SoundCloud — la branche `soundcloud` de la couche or.
+
+    SoundCloud est un COMPTEUR : le total est le dernier relevé de chaque titre, et
+    cette règle vit dans `v_soundcloud_track_latest` (migration 107). La version
+    recopiée ici dédupliquait par `track_id` SEUL — deux locataires qui repostent le
+    même titre n'en gardaient qu'un.
+    """
     db = _db
     try:
         if artist_id is not None:
-            q = """
-                SELECT SUM(playback_count) FROM (
-                    SELECT DISTINCT ON (track_id) playback_count
-                    FROM soundcloud_tracks_daily
-                    WHERE artist_id = %s
-                    ORDER BY track_id, collected_at DESC
-                ) latest
-            """
-            row = db.fetch_query(q, (artist_id,))
+            row = db.fetch_query(
+                "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals"
+                " WHERE platform = 'soundcloud' AND artist_id = %s", (artist_id,))
         else:
-            q = """
-                SELECT SUM(playback_count) FROM (
-                    SELECT DISTINCT ON (track_id) playback_count
-                    FROM soundcloud_tracks_daily
-                    ORDER BY track_id, collected_at DESC
-                ) latest
-            """
-            row = db.fetch_query(q)
+            row = db.fetch_query(
+                "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals"
+                " WHERE platform = 'soundcloud'")
         return int(row[0][0] or 0)
     except Exception:
         return 0
@@ -354,11 +343,8 @@ def get_total_plays_apple(_db, artist_id):
         # artistes peuvent avoir une chanson du même nom. C'est la forme de
         # `v_platform_totals` (ADR-019).
         row = _db.fetch_query(
-            "SELECT COALESCE(SUM(plays), 0) FROM ("
-            "  SELECT DISTINCT ON (artist_id, song_name) plays"
-            "    FROM apple_songs_performance WHERE period_start IS NULL"
-            "   ORDER BY artist_id, song_name, snapshot_date DESC"
-            ") latest")
+            "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals"
+            " WHERE platform = 'apple'")
         return int(row[0][0] or 0)
     except Exception:      # noqa: BLE001
         return 0
@@ -411,28 +397,21 @@ def get_instagram_followers(_db, artist_id):
 
 @st.cache_data(ttl=_KPI_TTL)
 def get_soundcloud_likes(_db, artist_id):
-    """Total likes SoundCloud (dernière snapshot)."""
+    """Total likes SoundCloud — le dernier relevé de chaque titre.
+
+    `v_platform_totals` ne porte qu'une colonne « total » et ne peut donc pas
+    exprimer une deuxième mesure ; les likes se lisent sur la vue de grain,
+    `v_soundcloud_track_latest`. Même règle que les écoutes, écrite une seule fois.
+    """
     db = _db
     try:
         if artist_id is not None:
-            q = """
-                SELECT SUM(likes_count) FROM (
-                    SELECT DISTINCT ON (track_id) likes_count
-                    FROM soundcloud_tracks_daily
-                    WHERE artist_id = %s
-                    ORDER BY track_id, collected_at DESC
-                ) latest
-            """
-            row = db.fetch_query(q, (artist_id,))
+            row = db.fetch_query(
+                "SELECT COALESCE(SUM(likes_count), 0) FROM v_soundcloud_track_latest"
+                " WHERE artist_id = %s", (artist_id,))
         else:
-            q = """
-                SELECT SUM(likes_count) FROM (
-                    SELECT DISTINCT ON (track_id) likes_count
-                    FROM soundcloud_tracks_daily
-                    ORDER BY track_id, collected_at DESC
-                ) latest
-            """
-            row = db.fetch_query(q)
+            row = db.fetch_query(
+                "SELECT COALESCE(SUM(likes_count), 0) FROM v_soundcloud_track_latest")
         return int(row[0][0] or 0)
     except Exception:
         return 0
@@ -529,14 +508,14 @@ def get_roi_data(_db, artist_id, from_date, to_date):
     try:
         if artist_id is not None:
             row = _db.fetch_query(
-                """SELECT SUM(spend) FROM meta_insights_performance_day
-                   WHERE artist_id = %s AND day_date BETWEEN %s AND %s""",
+                """SELECT SUM(spend) FROM v_meta_daily
+                   WHERE artist_id = %s AND day BETWEEN %s AND %s""",
                 (artist_id, eff_from, eff_to)
             )
         else:
             row = _db.fetch_query(
-                """SELECT SUM(spend) FROM meta_insights_performance_day
-                   WHERE day_date BETWEEN %s AND %s""",
+                """SELECT SUM(spend) FROM v_meta_daily
+                   WHERE day BETWEEN %s AND %s""",
                 (eff_from, eff_to)
             )
         raw = row[0][0] if row else None
@@ -601,12 +580,12 @@ def get_monthly_roi_series(_db, artist_id, from_date, to_date):
 
     # Meta spend per month
     df_spend = _q(
-        """SELECT DATE_TRUNC('month', day_date)::date AS period_date, SUM(spend) AS meta_spend
-           FROM meta_insights_performance_day
-           WHERE artist_id = %s AND day_date BETWEEN %s AND %s
+        """SELECT DATE_TRUNC('month', day)::date AS period_date, SUM(spend) AS meta_spend
+           FROM v_meta_daily
+           WHERE artist_id = %s AND day BETWEEN %s AND %s
            GROUP BY 1 ORDER BY 1""",
-        """SELECT DATE_TRUNC('month', day_date)::date AS period_date, SUM(spend) AS meta_spend
-           FROM meta_insights_performance_day WHERE day_date BETWEEN %s AND %s
+        """SELECT DATE_TRUNC('month', day)::date AS period_date, SUM(spend) AS meta_spend
+           FROM v_meta_daily WHERE day BETWEEN %s AND %s
            GROUP BY 1 ORDER BY 1""",
         ['period_date', 'meta_spend'])
 
