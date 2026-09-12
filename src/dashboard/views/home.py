@@ -24,7 +24,12 @@ from src.dashboard.utils.kpi_helpers import (
 # le rendu coûte plus que ce qu'il montre. 120 jours ≈ un trimestre glissant, la
 # plus longue fenêtre où un point par jour reste lisible sur la largeur d'un écran.
 # L'artiste peut toujours forcer le jour : c'est un défaut, pas une contrainte.
-_DAY_UNTIL_DAYS = 120
+# Au-delà de cette fenêtre, le pas du jour cède au mois. 360 et non 365 : le
+# filtre « 12 mois » vaut 365 jours et doit basculer, une année bissextile ou un
+# arrondi de bornes ne doit pas décider du grain affiché.
+_DAY_UNTIL_YEAR = 360
+# Au-delà de ce nombre de points, une courbe devient une bande. ~5 ans au pas mois.
+_MAX_BUCKETS = 60
 
 
 def _freshness_badge(label, icon, last_dt):
@@ -158,7 +163,35 @@ def _section_streams(db, artist_id):
                      "onboarding** dit quelle source ne répond pas, et pourquoi."))
         return
 
-    _render_tiles(totals, grand_total, ig_count)
+    # ── LA PÉRIODE PRÉCÉDENTE, DE MÊME LONGUEUR, COLLÉE DEVANT CELLE-CI ──────
+    #
+    # Elle alimente l'écart de CHAQUE boîte. Elle ne coûte aucun aller-retour :
+    # `platform_totals` relit `daily_streams_by_platform` et
+    # `cumulative_by_platform`, dont les requêtes ne portent que `artist_id` et sont
+    # donc déjà dans le cache `(sql, params)`. Seul le découpage change.
+    #
+    # « Depuis le début » n'a PAS de période précédente : inventer une borne
+    # produirait une comparaison contre du vide, et `None` ne dessine pas de flèche.
+    _prev, _prev_grand = None, None
+    if since is not None:
+        _u = until or _dt.date.today()
+        _len = (_u - since).days
+        if _len > 0:
+            _prev = platform_totals(db, artist_id,
+                                    since - _dt.timedelta(days=_len + 1),
+                                    since - _dt.timedelta(days=1))
+            _prev_grand = combined_total(_prev or {}) or None
+
+    # LA DERNIÈRE MESURE PAR PLATEFORME, dérivée de `series` — déjà en mémoire.
+    # C'est ce qui permet à une boîte vide de dire « dernier relevé : 05/09/26 »
+    # plutôt que de laisser croire à zéro écoute. Mesuré en prod le 2026-09-12 :
+    # Spotify s'arrêtait sept jours en arrière, et rien ne le nommait.
+    _side = dict(_side)
+    _side["last_measured"] = {
+        k: max(d for d, _v in rows) for k, rows in (series or {}).items() if rows}
+
+    _render_tiles(totals, grand_total, ig_count,
+                  prev=_prev, side=_side, prev_grand=_prev_grand)
 
     # `totals` et `_side` sont DÉJÀ calculés au-dessus : les repasser évite de
     # les redemander, et le plafond de requêtes est atteint.
@@ -166,33 +199,73 @@ def _section_streams(db, artist_id):
                   totals=totals, side=_side)
 
 
-def _render_tiles(totals: dict, grand_total: int, ig_count: int) -> None:
-    """Le total, puis une tuile par plateforme — BORNÉES À LA PÉRIODE.
+def _render_tiles(totals: dict, grand_total: int, ig_count: int,
+                  prev: dict | None = None, side: dict | None = None,
+                  prev_grand: int | None = None) -> None:
+    """Une BOÎTE par plateforme, chacune avec son écart contre la période d'avant.
 
     Elles avaient quitté l'écran le 2026-09-10, et le motif était juste : elles
     portaient les compteurs « DEPUIS LE DÉBUT » pendant que la figure, à côté, ne
     traçait que la période choisie. Deux nombres pour la même ligne, aucun faux, et
-    une note (`RANGE_NOTE`) dont le seul travail était d'excuser l'écart en prose.
+    une note dont le seul travail était d'excuser l'écart en prose. Ce n'était pas la
+    TUILE le défaut, c'était le CHIFFRE — et `platform_totals()` est borné à la
+    fenêtre depuis le 2026-09-11.
 
-    ⚠️ Elles sont retirées sans que ce soit demandé, et l'artiste les réclame :
-    « tu m'avais fait une proposition avec plusieurs KPI streams totaux et je
-    trouvais que ça rendait bien, pourquoi on ne peut plus l'intégrer ? »
-    (2026-09-12). La réponse honnête est : on peut, maintenant. Ce n'était pas la
-    TUILE le défaut, c'était le CHIFFRE qu'elle portait — et ce chiffre a changé
-    depuis. `platform_totals(db, artist_id, since, until)` est borné à la fenêtre
-    depuis le 2026-09-11, et c'est la source unique du tableau à droite de la figure.
-    Les tuiles et le tableau lisent donc le MÊME dict : ils ne peuvent pas se
-    contredire, parce qu'il n'y a plus deux chemins de calcul.
+    ── L'ÉCART, ET POURQUOI C'EST LA PÉRIODE PRÉCÉDENTE DE MÊME LONGUEUR ─────────
 
-    La leçon à en garder n'est pas « ne jamais retirer » : c'est qu'on avait retiré
-    la surface au lieu de la donnée. Le bon geste aurait été de borner le total dès
-    le 2026-09-10 — il a été fait le lendemain, pour le PDF, sans que personne ne
-    remette les tuiles.
+    « l'écart relatif en delta vs une autre période qui restera à définir selon le
+    filtre temporel (si 30 jours sélectionnés, on fait le delta vs les 30 jours
+    d'avant si c'est pertinent pour toi ?) » (2026-09-12). Oui, et c'est le seul
+    choix qui ne demande rien à personne : la fenêtre de même longueur collée devant
+    est définie pour TOUT filtre, elle ne dépend pas du calendrier, et elle compare
+    des durées égales. « Le même mois l'an dernier » serait plus parlant sur douze
+    mois et absurde sur trente jours ; « depuis le début » ne serait pas un écart.
+
+    Elle ne coûte AUCUNE requête : `platform_totals` relit
+    `daily_streams_by_platform` et `cumulative_by_platform`, dont les requêtes ne
+    portent que `artist_id` — déjà dans le cache `(sql, params)` de la page. Changer
+    la fenêtre change un découpage Python, pas un aller-retour.
+
+    ⚠️ **AUCUN ÉCART N'EST AFFICHÉ CONTRE UNE PÉRIODE NON MESURÉE.** Un « +100 % »
+    contre une fenêtre où l'on n'avait pas encore collecté transforme le début de
+    NOTRE observation en croissance de l'artiste. C'est le mensonge le plus facile
+    de cet écran, et il est rendu impossible par construction : `prev` vaut `None`
+    pour une plateforme sans mesure, et `None` ne produit pas de flèche.
+
+    ── CE QUE LA BOÎTE DIT QUAND LA FENÊTRE EST VIDE MAIS L'HISTORIQUE NON ───────
+
+    Mesuré en production le 2026-09-12 : la série Spotify s'arrête au **5 septembre**,
+    sept jours avant le jour où l'artiste regarde. Sur « 3 derniers jours » il n'y a
+    donc réellement rien — et c'était signalé comme une incohérence, parce que
+    YouTube et SoundCloud, eux, avaient des points : la figure se dessinait, Spotify
+    disparaissait, et RIEN ne nommait la différence entre « zéro écoute » et « aucun
+    export déposé ».
+
+    La boîte le dit maintenant, à l'endroit où l'artiste lit le chiffre. C'est le
+    bon endroit précisément parce que ce n'est PAS une note sous la figure : les
+    notes de ce genre viennent d'être retirées à sa demande, et elles l'étaient à
+    raison — une prose qui s'excuse ne remplace pas un chiffre qui se lit.
 
     Apple reste « — » sur une période bornée : ses relevés sont des totaux de dépôt,
-    pas des quantités du jour, donc aucune fenêtre ne les découpe. L'aide le dit
-    plutôt que d'afficher un zéro qui affirmerait l'absence d'écoutes.
+    pas des quantités du jour, donc aucune fenêtre ne les découpe.
     """
+    _t = totals or {}
+    _p = prev or {}
+    _s = side or {}
+
+    def _n(v) -> str:
+        # `—` ET JAMAIS `0`. Un zéro affirme « personne n'a écouté » ; l'absence dit
+        # « nous n'avons rien mesuré ». C'est la distinction que toute cette page
+        # défend, et une tuile est le pire endroit pour la perdre : elle est lue en
+        # premier et sans contexte.
+        return f"{int(v):,}".replace(",", "\u202f") if v else "—"
+
+    def _delta(now, before):
+        """L'écart relatif, ou `None` — jamais un pourcentage contre du vide."""
+        if not now or not before:
+            return None
+        return f"{(now - before) / before * 100:+.1f}".replace(".", ",") + " %"
+
     st.markdown(
         f"""<div style="text-align:center; padding:14px; background:#f0f2f6;
             border-radius:10px; margin-bottom:12px;">
@@ -201,82 +274,98 @@ def _render_tiles(totals: dict, grand_total: int, ig_count: int) -> None:
                   "🎧 Total streams toutes plateformes")}</div>
             <div style="font-size:2.6em; color:#1DB954; font-weight:800;">{
                 grand_total:,}</div>
+            <div style="color:#666; font-size:0.9em;">{
+                _delta(grand_total, prev_grand) or ""}</div>
         </div>""".replace(",", "\u202f"),
         unsafe_allow_html=True)
 
-    def _v(n) -> str:
-        # `—` ET JAMAIS `0`. Un zéro affirme « personne n'a écouté » ; l'absence dit
-        # « nous n'avons rien mesuré ». C'est la distinction que toute cette page
-        # défend, et une tuile est le pire endroit pour la perdre : elle est lue en
-        # premier et sans contexte.
-        return f"{int(n):,}".replace(",", "\u202f") if n else "—"
-
-    # ⚠️ `_v` REÇOIT LA VALEUR, PAS LA CLÉ — et ce n'est pas un goût d'écriture.
-    # Sous sa première forme (`_v("spotify")`), la tuile n'était attribuable à
-    # AUCUNE source : `make gold-coverage` marquait les quatre « indéterminée ·
-    # appelants-multiples », parce que la lecture de `totals` se faisait DANS `_v`,
-    # une fonction à 4 appelants pour un plafond de 3 sauts. Le lecteur abandonnait
-    # là, et quatre tuiles de l'accueil — l'écran le plus lu du produit — sortaient
-    # de la carte de la couche or le jour même où on les remettait.
+    # ⚠️ `platform_totals` EST LU SUR LE SITE D'APPEL, PAS DANS UN HELPER — et ce
+    # n'est pas un goût d'écriture. Sous sa première forme (`_v("spotify")`), la
+    # tuile n'était attribuable à AUCUNE source : `make gold-coverage` marquait les
+    # quatre « indéterminée · appelants-multiples », le lecteur abandonnant sur un
+    # helper à plus d'appelants que son plafond. Quatre tuiles de l'écran le plus lu
+    # du produit sortaient de la carte de la couche or le jour même où on les
+    # remettait. En lisant `_t.get(...)` ici, la tranche repart de `totals`,
+    # paramètre à UN seul appelant, jusqu'à `platform_totals()` — la porte d'ADR-019.
     #
-    # En sortant `totals.get(...)` sur le site d'appel, la tranche repart de
-    # `totals`, paramètre à UN seul appelant, jusqu'à `platform_totals()` : la porte
-    # unique d'ADR-019. Le chiffre n'a pas changé — c'est ce qui le PROUVE qui
-    # existe maintenant. Une valeur juste que rien ne relie à sa définition est
-    # exactement ce qu'ADR-019 interdit.
-    _t = totals or {}
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("🎵 Spotify", _v(_t.get("spotify")))
-    c2.metric("🎬 YouTube", _v(_t.get("youtube")))
-    c3.metric("☁️ SoundCloud", _v(_t.get("soundcloud")))
-    c4.metric("🎎 Apple Music", _v(_t.get("apple")),
-              help=t("home.apple_no_window",
-                     "Apple Music ne fournit qu'un relevé par dépôt de CSV : "
-                     "impossible de le découper par période. Choisis « Depuis le "
-                     "début » pour son total."))
-    c5.metric("📸 Instagram",
-              f"{int(ig_count):,}".replace(",", "\u202f") if ig_count else "—",
-              help=t("home.ig_is_a_headcount",
-                     "Un EFFECTIF d'abonnés, pas un cumul d'écoutes : il ne se "
-                     "découpe pas par période et n'entre pas dans le total "
-                     "ci-dessus. L'écart sur la période est dans le tableau."))
+    # LA DERNIÈRE MESURE, pour distinguer « zéro » de « pas encore collecté ». Elle
+    # se dérive de `side`, déjà en mémoire : aucune requête de plus.
+    _last = _s.get("last_measured") or {}
+
+    def _box(col, key: str, label: str, help_text: str | None = None) -> None:
+        value, before = _t.get(key), _p.get(key)
+        with col.container(border=True):
+            st.metric(label, _n(value), delta=_delta(value, before),
+                      help=help_text)
+            # L'ABSENCE SE NOMME, ET SEULEMENT QUAND ELLE EST UNE ABSENCE. Une
+            # plateforme qui n'a jamais rien livré n'a pas de « dernier relevé » à
+            # montrer ; celle qui en a un, hors fenêtre, en a un à montrer.
+            if not value and _last.get(key):
+                st.caption(t("home.tile_last_seen",
+                             "Dernier relevé : {d}").format(
+                                 d=_last[key].strftime("%d/%m/%y")))
+
+    c1, c2, c3 = st.columns(3)
+    _box(c1, "spotify", "🎵 Spotify")
+    _box(c2, "youtube", "🎬 YouTube")
+    _box(c3, "soundcloud", "☁️ SoundCloud")
+
+    c4, c5, c6 = st.columns(3)
+    _box(c4, "apple", "🎎 Apple Music",
+         t("home.apple_no_window",
+           "Apple Music ne fournit qu'un relevé par dépôt de CSV : impossible de le "
+           "découper par période. Choisis « Depuis le début » pour son total."))
+
+    # INSTAGRAM PORTE UN EFFECTIF, ET SON ÉCART EST DÉJÀ UN ÉCART. `ig_delta` est le
+    # gain d'abonnés SUR LA FENÊTRE (`dernier − premier`), pas un cumul : le passer
+    # en `delta` d'une tuile dont la valeur est l'effectif courant dit exactement la
+    # bonne chose, et sans la requête qu'un second appel aurait coûtée.
+    _ig_d = _s.get("ig_delta")
+    with c5.container(border=True):
+        st.metric("📸 Instagram", _n(ig_count),
+                  delta=(f"{_ig_d:+d}".replace("+", "+") if _ig_d else None),
+                  help=t("home.ig_is_a_headcount",
+                         "Un EFFECTIF d'abonnés, pas un cumul d'écoutes : il ne se "
+                         "découpe pas par période et n'entre pas dans le total "
+                         "ci-dessus. L'écart est celui de la période affichée."))
+
+    # META ADS DANS LA MÊME RANGÉE — « ajoute meta ads avec l'argent dépensé et le
+    # meilleur CPR obtenu avec le budget associé dans la même box » (2026-09-12).
+    #
+    # LE BUDGET EST COLLÉ AU CPR, jamais seul. « 0,0112 € » sans « sur 18,41 € »
+    # laisse croire à une performance reproductible alors que c'est peut-être un
+    # coup de chance sur une petite dépense — c'est la raison pour laquelle cette
+    # métrique avait été demandée AVEC son budget dès le premier jour.
+    _spend, _cpr, _cpr_spend, _cpr_name = (_s.get("meta_spend"), _s.get("best_cpr"),
+                                           _s.get("best_cpr_spend"),
+                                           _s.get("best_cpr_name"))
+    with c6.container(border=True):
+        st.metric(t("home.tile_meta", "📊 Meta Ads"),
+                  (f"{_spend:,.2f}".replace(",", "\u202f").replace(".", ",")
+                   + "\u00a0€") if _spend else "—",
+                  delta=_delta(_spend, _s.get("prev_meta_spend")),
+                  help=t("home.tile_meta_help",
+                         "Dépense publicitaire de la période affichée, et la "
+                         "campagne au coût par résultat le plus BAS avec le budget "
+                         "qu'elle a consommé."))
+        if _cpr:
+            st.caption(t("home.tile_best_cpr", "🎯 Meilleur CPR {cpr}{budget}{name}")
+                       .format(
+                           cpr=f"{_cpr:,.4f}".replace(",", "\u202f")
+                               .replace(".", ",") + "\u00a0€",
+                           budget=(" · " + f"{_cpr_spend:,.2f}"
+                                   .replace(",", "\u202f").replace(".", ",")
+                                   + "\u00a0€") if _cpr_spend else "",
+                           name=f" — {_cpr_name}" if _cpr_name else ""))
 
 
-def _recap_extra(totals: dict, side: dict) -> list:
-    """Les lignes du récapitulatif qui ne comptent PAS des écoutes, avec leur unité.
-
-    Apple sort de `platform_totals` — déjà calculée, bornée à la même période que la
-    figure — mais elle n'entre pas dans le tableau du haut : sa série n'existe qu'au
-    pas ANNUEL (`STEP_ONLY`), donc aux autres pas elle n'a aucune bande, et une ligne
-    sans mesure dans une colonne « Total » se lirait comme un zéro.
-
-    Instagram et Meta ne comptent ni l'un ni l'autre des écoutes. Chaque valeur porte
-    donc son unité écrite, et chacune est bornée à la période — la condition qui
-    manquait aux tuiles retirées le 2026-09-10, où un compteur « depuis le début »
-    côtoyait une courbe bornée sans que rien ne le dise.
-    """
-    def _n(v) -> str:
-        return f"{int(round(v)):,}".replace(",", "\u202f")
-
-    # DES TRIPLETS `(libellé, valeur, unité)` : l'unité est une COLONNE, pas un
-    # suffixe collé au nombre. C'est ce qui donne au second tableau la même arité
-    # que le premier, donc la même largeur — et ce qui aligne ses nombres à droite.
-    out = []
-    ap = (totals or {}).get("apple")
-    if ap:
-        out.append((f"🎎 Apple Music ({t('home.recap_unit_plays', 'écoutes')})",
-                    _n(ap), None))
-    dl = (side or {}).get("ig_delta")
-    if dl is not None:
-        # Le SIGNE est porté explicitement : « 82 abonnés » sur une période où le
-        # compte en a PERDU 82 serait faux dans le sens qui compte.
-        out.append((f"📸 Instagram ({t('home.recap_unit_followers', 'abonnés')})",
-                    f"{'+' if dl >= 0 else '−'}{_n(abs(dl))}", None))
-    sp = (side or {}).get("meta_spend")
-    if sp:
-        out.append(("📊 Meta Ads (€)",
-                    f"{sp:,.2f}".replace(",", "\u202f").replace(".", ","), None))
-    return out
+# `_recap_extra` A ÉTÉ SUPPRIMÉE LE 2026-09-12, pas mise de côté. Elle fabriquait
+# les lignes « Apple Music / Instagram / Meta Ads » de la table de droite, avec leur
+# unité entre parenthèses. Les trois ont désormais leur BOÎTE dans la rangée du haut,
+# où elles portent en plus l'écart contre la période précédente. Garder la fonction
+# « au cas où » aurait produit ce que ce dépôt paie le plus souvent : du code correct
+# que rien n'atteint, et qui pourrit jusqu'à ce qu'on le rebranche sur un écran qui a
+# changé sous lui.
 
 
 def _recap_metrics(side: dict, totals: dict, aligned: dict, span: list,
@@ -371,23 +460,10 @@ def _recap_metrics(side: dict, totals: dict, aligned: dict, span: list,
                       "de la période (toutes plateformes, pas seulement celles que "
                       "la pub visait)")))
 
-    cpr, cpr_name, cpr_spend = ((side or {}).get("best_cpr"),
-                                (side or {}).get("best_cpr_name"),
-                                (side or {}).get("best_cpr_spend"))
-    if cpr:
-        # QUATRE DÉCIMALES, et l'euro sur les DEUX nombres. À deux décimales le
-        # meilleur CPR réel (0,011 €) s'affichait « 0,01 », et le `.replace(" €","")`
-        # le laissait nu à côté d'un « 18,41 € » : deux nombres de natures
-        # différentes — un coût unitaire et un budget — que rien ne distinguait.
-        out.append((t("home.metric_best_cpr", "🎯 Meilleur CPR"),
-                    _eur(cpr, 4)
-                    + (f" · {_eur(cpr_spend)}" if cpr_spend else ""),
-                    t("home.metric_best_cpr_help",
-                      "🎯 meilleur CPR = la campagne de la période au coût par "
-                      "résultat le plus BAS, suivie du budget qu'elle a dépensé — "
-                      "sans lui, un très bon coût sur 18 € se lit comme "
-                      "reproductible")
-                    + (f" — {cpr_name}" if cpr_name else "")))
+    # LE MEILLEUR CPR N'EST PLUS ICI — il est dans la boîte Meta Ads, au-dessus,
+    # « avec l'argent dépensé […] dans la même box » (2026-09-12). Le laisser aussi
+    # dans les indicateurs mettrait le même nombre deux fois sur un écran, ce qui est
+    # exactement le motif pour lequel la table de droite a été retirée.
 
     algo_p, algo_name = ((side or {}).get("best_algo_p"),
                          (side or {}).get("best_algo_name"))
@@ -455,30 +531,14 @@ def _recap_metrics(side: dict, totals: dict, aligned: dict, span: list,
                           "collectée, sur le total de la fenêtre — les autres sont "
                           "les bandes hachurées de la figure").format(unit=unit)))
 
-    # LA VARIATION CONTRE LA PÉRIODE PRÉCÉDENTE — de MÊME LONGUEUR, collée devant.
-    #
-    # `prev_total` est calculé par `_render_trend`, qui seul connaît les bornes, et
-    # il ne coûte RIEN : `platform_totals` relit `daily_streams_by_platform` et
-    # `cumulative_by_platform`, dont les requêtes ne portent que `artist_id` et sont
-    # donc déjà dans le cache `(sql, params)` de la page. Changer la fenêtre change
-    # le découpage en Python, pas l'aller-retour.
-    #
-    # ⚠️ RIEN N'EST AFFICHÉ QUAND LA PÉRIODE PRÉCÉDENTE N'A PAS ÉTÉ MESURÉE. Un
-    # « +100 % » contre une fenêtre où l'on n'avait simplement pas encore collecté
-    # est le mensonge le plus facile de tout ce tableau — il transforme le début de
-    # notre observation en croissance de l'artiste.
-    from src.dashboard.utils.platform_timeseries import combined_total
-    now_total = combined_total(totals or {})
-    if prev_total and now_total:
-        pct = (now_total - prev_total) / prev_total * 100
-        out.append((t("home.metric_vs_prev", "↔️ vs période précédente"),
-                    ("+" if pct >= 0 else "−")
-                    + f"{abs(pct):.1f}".replace(".", ",") + " %",
-                    t("home.metric_vs_prev_help",
-                      "↔️ écart avec la fenêtre de MÊME LONGUEUR qui précède "
-                      "immédiatement celle-ci — rien n'est affiché si elle n'a pas "
-                      "été mesurée, un « +100 % » contre du vide n'est pas une "
-                      "croissance")))
+    # LA VARIATION CONTRE LA PÉRIODE PRÉCÉDENTE N'EST PLUS UNE LIGNE : c'est la
+    # FLÈCHE de chaque boîte du haut, une par plateforme au lieu d'un seul chiffre
+    # agrégé. L'aide qui l'accompagnait — « ↔️ écart avec la fenêtre de MÊME
+    # LONGUEUR qui précède immédiatement celle-ci… » — a été nommée inutile le
+    # 2026-09-12, et elle l'était : une flèche verte à côté d'un nombre se lit sans
+    # qu'on explique ce qu'elle compare. La règle qu'elle énonçait, elle, n'a pas
+    # bougé d'un cran — `_delta()` rend `None` contre une période non mesurée.
+
     return out
 
 
@@ -504,26 +564,53 @@ def _render_trend(db, series, since, until, range_key, artist_id,
 
     from src.dashboard.utils.platform_chart import MODES
 
-    # LE PAS, en BARRE et non en menu déroulant — « je souhaiterais qu'il s'intègre
-    # au format du filtre depuis le début, cette année, 12 mois » (2026-09-12). C'est
-    # `st.segmented_control`, le même widget que le filtre de période juste au-dessus
-    # (`date_range.py`) : les options sont visibles d'un coup, pas repliées.
+    # ── LE PAS N'EST PLUS UN CHOIX : IL SE DÉRIVE DE LA FENÊTRE ──────────────
     #
-    # JOUR PAR DÉFAUT, sauf fenêtre longue. Sur « Depuis le début » (≈4 ans) le pas
-    # jour donnerait ~1 400 points par plateforme ; au-delà de `_DAY_UNTIL_DAYS` le
-    # défaut s'ouvre sur la semaine, et la barre montre CE pas-là comme actif —
-    # l'artiste voit donc toujours le pas réellement appliqué, et peut forcer le jour
-    # d'un clic.
+    # « on ne devrait pas supprimer le filtre jour semaine mois année et
+    # automatiquement trier depuis le début via année ou mois selon la date si
+    # >360j et automatiquement mettre par jour si on est à 90jours 30jours ou sur
+    # mesure <359j ? » (2026-09-12). Oui — et c'est plus juste que ce que je venais
+    # d'écrire.
     #
-    # « Année » reste le seul pas où Apple existe : ses exports sont des totaux de
-    # période, pas des quantités du jour, et les étaler inventerait des valeurs.
-    steps = {'day': t("home.step_day", "Jour"),
-             'week': t("home.step_week", "Semaine"),
-             'month': t("home.step_month", "Mois"),
-             'year': t("home.step_year", "Année")}
+    # La barre avait d'abord proposé les quatre pas à toutes les fenêtres, ce qui
+    # offrait « Année » sur 30 jours : un seau, une figure qui se replie, une note
+    # sous elle pour s'en excuser. J'avais corrigé en FILTRANT la barre selon la
+    # fenêtre. C'était encore une demi-mesure : le pas pertinent est entièrement
+    # déterminé par la fenêtre, donc le demander est demander à l'artiste de
+    # trancher une question dont la réponse est calculable. Un contrôle dont toutes
+    # les options sauf une sont mauvaises n'est pas un contrôle, c'est un piège.
+    #
+    # LA RÈGLE, telle qu'énoncée, avec une seule addition MESURÉE :
+    #   * fenêtre < `_DAY_UNTIL_YEAR` jours  → **jour** (30 j, 90 j, sur mesure)
+    #   * fenêtre ≥ `_DAY_UNTIL_YEAR`        → **mois**, sauf si le mois rendrait
+    #     plus de `_MAX_BUCKETS` points, auquel cas **année**
+    #   * « Depuis le début » (fenêtre inconnue) → même règle, sur l'étendue réelle
+    #     des données
+    #
+    # Le garde-fou du haut n'est pas un seuil de confort : au-delà, les points se
+    # chevauchent et la courbe devient une bande. Il ne se déclenche qu'au-delà de
+    # cinq ans d'historique — aucun locataire n'y est (le plus ancien porte
+    # 1 344 jours, mesuré le 2026-09-12), donc il est écrit pour le jour où ça
+    # arrivera, pas pour aujourd'hui.
+    #
+    # ⚠️ CE QUE ÇA COÛTE, ET IL FAUT LE DIRE : **Apple Music ne sera plus jamais
+    # tracée.** Sa série n'existe qu'au pas ANNUEL (`STEP_ONLY`) — ses exports sont
+    # des totaux de dépôt, pas des quantités du jour — et le pas annuel n'est plus
+    # atteignable que sur plus de cinq ans de données. Son total n'est pas perdu
+    # pour autant : il est dans sa BOÎTE, en haut, où il est même plus lisible qu'un
+    # point isolé sur une courbe. C'est un arbitrage assumé, pas un oubli.
     _window_days = (until - since).days if since and until else None
-    _default_step = ('day' if _window_days is not None and _window_days <= _DAY_UNTIL_DAYS
-                     else 'week')
+    if _window_days is None:
+        # « Depuis le début » : la fenêtre est celle des données, pas du filtre.
+        _dates = [d for rows in (series or {}).values() for d, _v in rows]
+        _window_days = (max(_dates) - min(_dates)).days if _dates else 0
+
+    if _window_days < _DAY_UNTIL_YEAR:
+        step = 'day'
+    elif _window_days / 30 <= _MAX_BUCKETS:
+        step = 'month'
+    else:
+        step = 'year'
 
     # LE MODE, en barre lui aussi : « je pense que c'est mieux de mettre des cases à
     # cocher plutôt qu'un onglet déroulant pour voir toutes les possibilités direct ».
@@ -544,24 +631,20 @@ def _render_trend(db, series, since, until, range_key, artist_id,
         default="cumulative",
         key=f"home_trend_mode_{artist_id}", label_visibility="collapsed",
     ) or "cumulative"
-    step = st.segmented_control(
-        t("home.trend_step", "Pas"), list(steps), format_func=steps.get,
-        default=_default_step,
-        # LA CLÉ PORTE LA PÉRIODE, et c'est ce qui rend le défaut réel.
-        #
-        # Un widget Streamlit à clé stable n'applique son `default` qu'au premier
-        # rendu : ensuite la valeur de session gagne. Sans la période dans la
-        # clé, un artiste arrivé sur « Depuis le début » (donc semaine) qui passe
-        # à « 30 jours » RESTE à la semaine — un pas qu'il n'a jamais choisi, sur
-        # une fenêtre où le jour est lisible. Le défaut ne servirait qu'une fois
-        # dans la vie de la session.
-        #
-        # Le prix est assumé : un pas choisi à la main ne survit pas au changement
-        # de période. C'est le bon sens du compromis — le pas suit la fenêtre
-        # qu'on regarde, et un clic suffit à le reprendre.
-        key=f"home_trend_step_{artist_id}_{range_key}",
-        label_visibility="collapsed",
-    ) or _default_step
+
+    # LE GRAIN EST AFFICHÉ, MÊME S'IL N'EST PLUS CHOISI — et c'est la contrepartie
+    # de l'avoir automatisé. Un axe dont le pas change sous le curseur sans un mot
+    # est exactement le défaut que ce module garde depuis le 2026-09-08 : un réglage
+    # appliqué en silence se lit comme une panne. Ici il n'y a pas de réglage repris,
+    # mais il y a un fait que le lecteur ne peut pas deviner en regardant l'axe —
+    # « chaque point est un mois » n'est pas lisible sur une courbe de 44 points.
+    st.caption({
+        'day': t("home.grain_day", "Chaque point est un **jour**."),
+        'month': t("home.grain_month", "Chaque point est un **mois** — la fenêtre "
+                                       "dépasse un an, le pas du jour la rendrait "
+                                       "illisible."),
+        'year': t("home.grain_year", "Chaque point est une **année**."),
+    }.get(step, ""))
 
     available = [k for k in PLATFORM_LABELS
                  # Une source qui n'existe qu'à un pas donné n'est proposée qu'à ce
@@ -619,42 +702,43 @@ def _render_trend(db, series, since, until, range_key, artist_id,
     # se répondaient pas. Le conteneur est passé à la figure, qui le remplit avec les
     # listes qu'elle vient de remettre à Plotly — aucune requête neuve, et aucune
     # possibilité de divergence.
-    # LA FENÊTRE PRÉCÉDENTE, DE MÊME LONGUEUR, COLLÉE DEVANT CELLE-CI.
+    # ── LE RÉCAPITULATIF À DROITE DE LA FIGURE A ÉTÉ RETIRÉ LE 2026-09-12 ─────
     #
-    # Elle ne coûte aucun aller-retour : `platform_totals` relit
-    # `daily_streams_by_platform` et `cumulative_by_platform`, dont les requêtes ne
-    # portent que `artist_id` — elles sont déjà dans le cache `(sql, params)` de la
-    # page. Seul le découpage change, et il se fait en Python.
+    # « supprime-le et remplace-le par celui qu'on a validé qui est actuellement
+    # placé en haut du graphique ». Il y avait DEUX récapitulatifs sur le même
+    # écran — les boîtes au-dessus et cette table markdown à droite — et ils
+    # répondaient à la même question avec deux mises en page. Le dépôt connaît le
+    # prix de deux surfaces pour un même nombre : c'est la raison même pour
+    # laquelle les tuiles avaient été retirées le 2026-09-10.
     #
-    # « Depuis le début » n'a PAS de période précédente : `since is None` rend le
-    # calcul impossible, et inventer une borne y produirait une comparaison contre
-    # du vide. On ne rend rien, et le tableau n'affiche pas la ligne.
-    _prev_total = None
-    if since is not None:
-        _until = until or _dt.date.today()
-        _len = (_until - since).days
-        if _len > 0:
-            from src.dashboard.utils.platform_timeseries import (
-                combined_total, platform_totals,
-            )
-            _prev = platform_totals(db, artist_id,
-                                    since - _dt.timedelta(days=_len + 1),
-                                    since - _dt.timedelta(days=1))
-            _prev_total = combined_total(_prev or {}) or None
-
-    col_fig, col_recap = st.columns([3, 2])
-    with col_fig:
-        drawn = render_platform_chart(
-            series, since=since, until=until, only=chosen, step=step, mode=mode,
-            cumulative=cumulative, discarded=_discarded, recap=col_recap,
-            recap_extra=_recap_extra(totals, side),
-            # UN RAPPEL, pas une liste toute faite : les métriques dérivées doivent
-            # être calculées sur les séries que la figure a RÉELLEMENT dessinées, au
-            # grain qu'elle a retenu. La vue ne les connaît ni l'une ni l'autre —
-            # « Automatique » peut descendre au pas semaine sans la prévenir.
-            recap_metrics=lambda al, sp, _gr, st_, md: _recap_metrics(
-                side, totals, al, sp, st_, md, prev_total=_prev_total),
-            key=f"home_trend_{artist_id}")
+    # Ce qui a été CONSERVÉ, et où : les totaux par plateforme, Instagram, Apple et
+    # Meta Ads vivent dans les boîtes du haut, avec en plus l'écart contre la
+    # période précédente que la table ne portait pas. Le meilleur CPR et son budget
+    # sont dans la boîte Meta. Rien de ce que la table affichait n'a disparu de
+    # l'écran — c'est la CONDITION pour retirer une surface, et pas seulement la
+    # politesse : une suppression qui perd une information est une régression
+    # déguisée en simplification.
+    #
+    # Sont parties avec elle les aides que l'artiste a nommées comme inutiles — la
+    # ligne « 🔮 probabilité PRÉDITE … · ↔️ écart avec la fenêtre de MÊME LONGUEUR
+    # … » était le `st.caption` de cette table. L'écart, lui, est devenu une flèche
+    # dans chaque boîte : il se lit, il ne se raconte plus.
+    #
+    # La figure prend donc toute la largeur, comme entre le 2026-09-10 et le
+    # 2026-09-12.
+    drawn = render_platform_chart(
+        series, since=since, until=until, only=chosen, step=step, mode=mode,
+        cumulative=cumulative, discarded=_discarded,
+        # `recap=True` ET NON UNE COLONNE : sans conteneur, les indicateurs
+        # tombent là où la figure les rend — juste sous elle, dans l'ordre de
+        # lecture. C'est le seul endroit d'où l'on connaît le grain RÉELLEMENT
+        # retenu quand l'artiste a laissé « Automatique ».
+        recap=True,
+        # UN RAPPEL, pas une liste toute faite : les métriques dérivées doivent
+        # être calculées sur les séries que la figure a RÉELLEMENT dessinées.
+        recap_metrics=lambda al, sp, _gr, st_, md: _recap_metrics(
+            side, totals, al, sp, st_, md),
+        key=f"home_trend_{artist_id}")
     if not drawn:
         # DEUX SILENCES TRÈS DIFFÉRENTS, ET UN SEUL MESSAGE LES DISAIT.
         #
@@ -975,8 +1059,20 @@ def show():
     # 2026-09-08 : « enlève les 2 traits blancs qui entourent mise en route ». Un
     # séparateur sépare deux choses ; celui-ci encadrait un bloc qui porte déjà sa
     # propre bordure d'accordéon, donc il doublait un trait déjà là.
-    st.title(t("home.title", "🎵 streaMLytics — Dashboard plateformes musicales"))
-
+    # PAS DE TITRE DE PAGE — retiré le 2026-09-12 sur demande. Il redisait ce que
+    # la barre latérale et l'onglet du navigateur portent déjà, en occupant la
+    # première hauteur d'écran : l'artiste connaît le nom du produit sur lequel il
+    # vient de se connecter. Ce que cet espace doit porter, ce sont ses chiffres.
+    #
+    # ⚠️ LA CLÉ `home.title` PART AVEC LUI. J'ai d'abord écrit ici qu'elle servait
+    # au titre de l'onglet et à la navigation, donc qu'il fallait la garder. C'était
+    # FAUX — `grep -rn "home.title" src/` ne rend que le catalogue lui-même. Un
+    # commentaire qui justifie de garder quelque chose, et que le code dément, est
+    # exactement la classe `a-prose-claim-that-cannot-be-verified` : il aurait
+    # protégé une entrée morte pour toujours, parce que personne ne revérifie une
+    # raison écrite. Vérifié, puis retirée — et `test_no_orphan_en_keys` l'aurait
+    # attrapée de toute façon, ce qui est le bon ordre : le garde ne remplace pas
+    # la vérification, il la rattrape.
     artist_id = tenant_scope()  # None = admin only, never a stray artist
 
     with project_db() as db:

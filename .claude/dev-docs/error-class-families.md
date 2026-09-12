@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**313 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**314 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -18,7 +18,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 18 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 22 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 19 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 36 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 37 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 37 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 6 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
@@ -263,7 +263,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 36 classe(s).
+Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 37 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -303,6 +303,7 @@ Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuou
 | [`a-marker-shared-by-several-sites-guards-none`](error-classes.md#a-marker-shared-by-several-sites-guards-none) | un test de non-régression qui cherche la PRÉSENCE d'un marqueur dans un fichier reste vert quand un seul des sites qui l'utilisent perd son correctif. |
 | [`a-kill-pattern-that-matches-its-own-shell`](error-classes.md#a-kill-pattern-that-matches-its-own-shell) | une commande composée s'arrête au milieu, sans message, et rend le code **144**. Ce qui suit n'a jamais tourné — relancer la suite, écrire le script,  |
 | [`a-verdict-from-a-tree-that-moved-under-it`](error-classes.md#a-verdict-from-a-tree-that-moved-under-it) | la suite complète rend des échecs qui **n'existent pas** — verts dès qu'on les rejoue. Mesuré le 2026-09-12 : quatre signalés sur deux exécutions, **t |
+| [`a-test-whose-input-derives-from-its-subject`](error-classes.md#a-test-whose-input-derives-from-its-subject) | un garde reste VERT quand on mute la constante qu'il prétend garder. Il n'échoue sur aucune valeur, si extrême soit-elle, parce que l'entrée qu'il con |
 
 ## un-document-qui-affirme-un-état-périmé
 
@@ -504,6 +505,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=313 families=17 orphans=3 -->
+<!-- error-class-families: total=314 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=8d8bf995d38634216f333461d216343b79c260dac1b4e4c58fe6617466804207 -->
+<!-- error-class-families: sha256=8fb0ac9a8290414e3fc2e314cf676f157f7060023c9c6c8129c99a588cf75d62 -->

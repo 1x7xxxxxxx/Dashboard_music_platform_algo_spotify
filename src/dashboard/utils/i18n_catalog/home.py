@@ -19,7 +19,6 @@ EN = {
     "home.launch_refused": "❌ {n} collection(s) refused: {why}",
     "home.launch_unavailable": "⚠️ Launching is not available here. Use the "
                                "**🚀 Run ALL collections** button in the sidebar.",
-    "home.title": "🎵 streaMLytics — Music platform dashboard",
     "home.freshness_header": "📡 Data freshness",
     "home.freshness_api": "🔄 Collected automatically",
     "home.freshness_csv": "📂 You upload these",
@@ -41,11 +40,6 @@ EN = {
     "home.mode_absolute": "Per period",
     "home.mode_share": "Share of each platform",
     "home.mode_facets": "Each on its own scale",
-    "home.trend_step": "Step",
-    "home.step_day": "Daily",
-    "home.step_week": "Weekly",
-    "home.step_month": "Monthly",
-    "home.step_year": "Yearly",
     "home.trend_apple_hint": (
         "🎎 **Apple Music** only appears at the **Yearly** step: its exports are period "
         "totals, not daily figures. Spreading one over 365 days would invent a value "
@@ -53,7 +47,6 @@ EN = {
     "home.trend_sources": "Sources shown",
     "platform_chart.unmeasured": "▨ No measurement",
     "platform_chart.no_data_hover": "No data collected for this period",
-    "platform_chart.recap_all": "Drawn total",
     "platform_chart.recap_metrics": "Indicators",
     # Les trois métriques dérivées ajoutées le 2026-09-12, et les unités de pas
     # qu'elles nomment. « Periods measured » garde le mot « periods » et non
@@ -66,15 +59,23 @@ EN = {
     "home.metric_measured_help": (
         "📅 how many {unit} had at least one platform collected, out of the whole "
         "window — the rest are the hatched bands on the chart"),
-    "home.metric_vs_prev": "↔️ vs previous period",
-    "home.metric_vs_prev_help": (
-        "↔️ change against the window of the SAME LENGTH immediately before this "
-        "one — nothing is shown if it was never measured, a “+100 %” against "
-        "nothing is not growth"),
     "home.step_days": "days",
     "home.step_weeks": "weeks",
     "home.step_months": "months",
     "home.step_years": "years",
+    # Les boîtes du 2026-09-12 : Meta Ads dans la rangée des plateformes, et la
+    # date du dernier relevé pour une boîte vide.
+    "home.tile_meta": "📊 Meta Ads",
+    "home.tile_meta_help": (
+        "Ad spend over the displayed period, and the campaign with the LOWEST cost "
+        "per result along with the budget it consumed."),
+    "home.tile_best_cpr": "🎯 Best CPR {cpr}{budget}{name}",
+    "home.tile_last_seen": "Last reading: {d}",
+    # Le grain appliqué, depuis que la barre de pas a été supprimée (2026-09-12).
+    "home.grain_day": "Each point is a **day**.",
+    "home.grain_month": ("Each point is a **month** — the window is longer than a "
+                         "year, a daily step would be unreadable."),
+    "home.grain_year": "Each point is a **year**.",
     # Tuiles + métriques dérivées du récapitulatif (2026-09-12)
     "home.total_all_platforms": "🎧 Total streams, all platforms",
     "home.apple_no_window": (
@@ -91,11 +92,6 @@ EN = {
     "home.metric_cost_per_stream_help": (
         "💸 cost per stream = Meta spend over the period ÷ streams over the period "
         "(all platforms, not only the ones the ads targeted)"),
-    "home.metric_best_cpr": "🎯 Best CPR",
-    "home.metric_best_cpr_help": (
-        "🎯 best CPR = the period's campaign with the LOWEST cost per result, "
-        "followed by the budget it spent — without it, a very good cost on £18 "
-        "reads as repeatable"),
     "home.metric_best_algo": "🔮 Predicted trigger prob.",
     "home.metric_best_algo_help": (
         "🔮 probability PREDICTED by the model that the best-placed track enters an "
@@ -105,11 +101,6 @@ EN = {
     "platform_chart.collected_since": "{label} measured since {since}",
     "platform_chart.week_of": "the week of {d}",
     "platform_chart.day_of": "{d}",
-    "platform_chart.recap_platform": "Platform",
-    "platform_chart.recap_total": "Total",
-    "platform_chart.recap_other": "Other platforms",
-    "home.recap_unit_plays": "plays",
-    "home.recap_unit_followers": "followers",
     "home.trend_sources_ph": "All sources",
     "home.trend_discarded": (
         "⏸️ Plays measured but **not chartable**: {parts}. They happened between two "

@@ -68,112 +68,66 @@ _STEP_UNITS = {"day": "jours", "week": "semaines", "month": "mois", "year": "ann
 def _render_recap(slot, span: list, aligned: dict, aligned_raw: dict, order: list,
                   thin: dict, mode: str, step: str, extra=None,
                   metrics=None) -> None:
-    """UN tableau à droite de la figure, DÉRIVÉ des séries qu'elle trace.
+    """Les INDICATEURS DÉRIVÉS, en boîtes, sous la figure qui les a produits.
 
-    Il avait été retiré le 2026-09-10 pour une raison qui tient toujours : les tuiles
-    d'alors montraient le total DEPUIS LE DÉBUT à côté d'une courbe bornée à la
-    période, et les deux chiffres ne pouvaient pas se répondre. Remis le 2026-09-12,
-    mais construit autrement : il ne pose AUCUNE requête et ne relit AUCUNE table. Il
-    somme `aligned`/`aligned_raw`, c'est-à-dire exactement les listes remises à
-    Plotly. Les deux nombres ne peuvent donc pas diverger : ce sont les mêmes.
+    ── CE QUI A CHANGÉ LE 2026-09-12, ET POURQUOI CE N'EST PAS UNE SUPPRESSION ──
 
-    UN SEUL TABLEAU, DEUX COLONNES — et trois choses en moins, toutes demandées le
-    2026-09-12 après lecture à l'écran :
+    Cette fonction rendait une TABLE MARKDOWN à droite de la figure : totaux par
+    plateforme, Instagram, Apple, Meta, puis les indicateurs. Retirée sur demande —
+    « supprime-le et remplace-le par celui qu'on a validé qui est actuellement placé
+    en haut du graphique ». Il y avait deux récapitulatifs sur le même écran, et ils
+    répondaient à la même question avec deux mises en page.
 
-    * « À quoi correspond la colonne mesurés ? Enlève-la. » Elle disait `171 / 181`,
-      c'est-à-dire le nombre de pas réellement renseignés. L'information est réelle,
-      mais elle répond à une question que le lecteur ne se pose pas devant un
-      récapitulatif — et la hachure de la figure la porte déjà, à l'endroit exact où
-      le trou se trouve. Une question à laquelle il faut demander la réponse n'est
-      pas une colonne.
-    * « Fais uniquement 1 tableau. » Il y en avait deux, séparés parce qu'on
-      n'additionne pas des abonnés avec des euros. La séparation reste — mais par une
-      ligne de section DANS le tableau, pas par une seconde table. La ligne « Total »
-      ne compte toujours que les écoutes, et elle est posée AVANT la section suivante
-      pour qu'on voie ce qu'elle somme.
-    * « Enlève "Sur la période" en haut et l'unité. » Le titre redisait le filtre qui
-      est juste au-dessus. L'unité redevient un suffixe du LIBELLÉ (`📸 Instagram
-      (abonnés)`) : elle coûtait une colonne entière pour trois lignes, et c'est la
-      colonne qui empêchait la table d'être étroite.
+    **Les totaux sont partis dans les boîtes du haut, pas à la poubelle** : chaque
+    plateforme y a sa boîte, avec en plus l'écart contre la période précédente que
+    la table ne portait pas, et Meta Ads y porte sa dépense ET son meilleur CPR avec
+    le budget associé. Ce qui reste ici est ce qu'AUCUNE de ces boîtes ne peut
+    porter : les chiffres qui dépendent de ce que la figure a RÉELLEMENT dessiné, au
+    grain qu'elle a retenu — meilleur pas, coût par écoute, plateforme dominante,
+    périodes mesurées, probabilité de déclenchement.
 
-    `metrics` — LES LIGNES QUI NE SONT PAS DES PLATEFORMES. Meilleur jour, coût par
-    écoute, meilleur CPR, probabilité de déclenchement. Elles arrivent déjà formatées
-    en `(libellé, valeur, aide)` : cette fonction ne calcule pas de métrique, elle
-    dessine un tableau.
+    C'est la seule raison pour laquelle cette surface survit. Une vue ne peut pas
+    les recalculer : « Automatique » peut descendre au pas semaine sans la prévenir,
+    et deux chemins de calcul pour la même période finissent par diverger — le
+    défaut exact qui avait fait retirer les tuiles le 2026-09-10.
+
+    **`slot` n'est plus une colonne.** Sans conteneur, l'écriture tombe là où
+    `_render_recap` est appelée, c'est-à-dire juste APRÈS `st.plotly_chart` : sous
+    la figure, dans l'ordre de lecture. Un slot reste accepté pour les appelants qui
+    en passent un (le mode facettes), mais l'accueil n'en passe plus.
+
+    **Les aides ne sont plus une ligne de prose.** Elles étaient concaténées en un
+    `st.caption` que l'artiste a nommé inutile — « 🔮 probabilité PRÉDITE … · ↔️
+    écart avec la fenêtre de MÊME LONGUEUR … ». Chacune est maintenant l'infobulle
+    de SA boîte : disponible pour qui la cherche, invisible pour qui ne la cherche
+    pas. Une explication qui s'impose à tous les lecteurs pour servir le premier
+    d'entre eux est un coût permanent pour un bénéfice unique.
     """
     from src.dashboard.utils.i18n import t
 
-    def _num(v) -> str:
-        return f"{int(round(v)):,}".replace(",", "\u202f")
+    rows = [r for r in (metrics or []) if r and r[1]]
+    if not rows:
+        return
 
-    rows, grand = [], 0
-    for pkey in order:
-        drawn = aligned.get(pkey) or []
-        if mode == "cumulative":
-            # Un cumul ne se somme pas : le total de la période est le DERNIER niveau
-            # atteint. Additionner des cumuls avait produit 16 568 594 écoutes pour un
-            # artiste qui en a 186 000.
-            value = next((v for v in reversed(drawn) if v is not None), None)
-        elif mode == "share":
-            # `aligned` porte des pourcentages ici ; le total en écoutes se lit sur la
-            # série d'avant conversion, sinon la colonne additionnerait des parts.
-            value = sum(v for v in (aligned_raw.get(pkey) or []) if v) or None
-        else:
-            value = sum(v for v in drawn if v) or None
-        grand += value or 0
-        rows.append((PLATFORM_LABELS[pkey], value))
-    # Les plateformes trop minces pour une aire y figurent aussi : `t_too_thin` promet
-    # « ses chiffres restent dans le tableau ci-dessous » depuis le 2026-09-08, et la
-    # phrase était fausse depuis que le tableau avait disparu.
-    for label, _measured, _plage in thin.values():
-        rows.append((label, None))
-
-    with slot:
-        lines = [f"| {t('platform_chart.recap_platform', 'Plateforme')} "
-                 f"| {t('platform_chart.recap_total', 'Total')} |", "|:--|--:|"]
-        lines += [f"| {lab} | {_num(v) if v is not None else '—'} |"
-                  for lab, v in rows]
-        # « TOTAL TRACÉ » ET NON « TOTAL », parce que les deux nombres DIFFÈRENT et
-        # que le lecteur les voit ensemble. La bannière au-dessus de la figure porte
-        # `combined_total`, qui compte TOUTES les plateformes de la période — Apple
-        # comprise. Cette ligne-ci ne somme que les séries que la figure DESSINE, et
-        # Apple n'en est pas : ses relevés sont des totaux de dépôt, traçables au
-        # seul pas annuel. Mesuré à l'écran le 2026-09-12 : 308 060 en bannière,
-        # 304 793 ici, l'écart valant exactement les 3 267 écoutes Apple listées
-        # deux lignes plus bas.
-        #
-        # Nommer la portée coûte un mot ; ne pas la nommer, c'est remettre en place
-        # la contradiction pour laquelle les tuiles avaient été retirées le
-        # 2026-09-10 — deux nombres justes, côte à côte, qu'aucun titre ne distingue.
-        lines.append(f"| **{t('platform_chart.recap_all', 'Total tracé')}** "
-                     f"| **{_num(grand)}** |")
-        # LA SECTION SUIVANTE EST SOUS LE TOTAL, jamais dedans. On n'additionne pas
-        # des abonnés avec des euros ; une ligne de section le dit sans qu'il faille
-        # une seconde table ni une colonne d'unité.
-        rows_x = [(lab, val) for lab, val, _u in (extra or []) if val]
-        if rows_x:
-            lines.append(f"| *{t('platform_chart.recap_other', 'Autres plateformes')}"
-                         f"* | |")
-            lines += [f"| {lab} | {val} |" for lab, val in rows_x]
-        rows_m = [r for r in (metrics or []) if r and r[1]]
-        if rows_m:
-            # « INDICATEURS » ET NON « SUR LA PÉRIODE » — demandé le 2026-09-12, et
-            # le titre a d'abord disparu du HAUT de la table sans que cet intitulé
-            # de section change. C'était la même faute deux fois : *tout* ce tableau
-            # est sur la période, donc le dire ici ne distingue pas cette section
-            # des deux autres — ça répète le filtre qui est trois lignes plus haut.
-            # Une ligne de section doit nommer ce que la section EST : au-dessus des
-            # plateformes et des écoutes, en dessous des chiffres DÉRIVÉS.
-            lines.append(f"| *{t('platform_chart.recap_metrics', 'Indicateurs')}"
-                         f"* | |")
-            lines += [f"| {lab} | {val} |" for lab, val, _h in rows_m]
-        st.markdown("\n".join(lines))
-        # Les aides des métriques ne tiennent pas dans une cellule markdown : elles
-        # vivent sous la table, en une seule ligne discrète. Sans elles, « 0,011 € »
-        # et « 11,8 % » sont deux nombres dont on ne sait pas ce qu'ils mesurent.
-        helps = [h for _l, _v, h in rows_m if h]
-        if helps:
-            st.caption(" · ".join(helps))
+    import contextlib
+    # `True` VEUT DIRE « rends-les, sans conteneur ». L'accueil le passe pour que
+    # les boîtes tombent sous la figure ; le mode facettes passe une vraie colonne.
+    # Distinguer « pas de récapitulatif » (`None`) de « un récapitulatif sans
+    # colonne » (`True`) est ce qui évite un booléen implicite sur un objet
+    # Streamlit, dont la véracité n'est pas garantie.
+    ctx = (contextlib.nullcontext() if slot is None or slot is True else slot)
+    with ctx:
+        st.caption(t("platform_chart.recap_metrics", "Indicateurs"))
+        # QUATRE PAR RANGÉE AU PLUS. À cinq, les libellés — « 🔮 Proba.
+        # déclenchement prédite » est le plus long — passent à la ligne au milieu
+        # d'un mot sur un écran de portable, et une boîte dont le titre est coupé
+        # se lit plus lentement qu'une ligne de table.
+        for i in range(0, len(rows), 4):
+            chunk = rows[i:i + 4]
+            cols = st.columns(4)
+            for col, (label, value, help_text) in zip(cols, chunk):
+                with col.container(border=True):
+                    st.metric(label, value, help=help_text)
 
 
 def _render_notes(thin: dict, coarse: list, step: str, *, coarsened=None,
@@ -194,6 +148,27 @@ def _render_notes(thin: dict, coarse: list, step: str, *, coarsened=None,
     plateforme trop mince pour un total honnête, un pas trop grossier pour elle, et
     des écoutes mesurées qu'aucune date ne peut porter.
     """
+    # LA MENTION DU REPLI A ÉTÉ RÉDUITE LE 2026-09-12, PAS SUPPRIMÉE — et la
+    # nuance est tout le sujet.
+    #
+    # Elle disait : « **Par année** ne donne qu'un seul point sur cette période —
+    # une aire a besoin d'au moins deux. Affiché **Par mois**. 🎎 Apple Music
+    # n'existe qu'au pas Par année : élargis la période pour le retrouver. » Nommée
+    # inutile par l'artiste, et elle l'était : trois phrases pour s'excuser d'un
+    # choix que la barre venait elle-même d'offrir.
+    #
+    # La CAUSE a été retirée à la source — la barre de l'accueil ne propose plus
+    # qu'un pas rendant au moins deux seaux (`_offers`, `views/home.py`). Sur
+    # l'accueil, cette ligne ne peut donc plus s'afficher.
+    #
+    # ⚠️ MAIS `render_platform_chart` A D'AUTRES APPELANTS — l'export PDF et les
+    # vues qui lui passent un pas fixe — et là le repli reste possible. La retirer
+    # entièrement l'aurait rendu SILENCIEUX chez eux : un réglage changé sans le
+    # dire se lit comme une panne, et c'est exactement ce que
+    # `test_a_step_that_yields_one_bucket_falls_back` garde depuis le 2026-09-08.
+    # Ce test m'a arrêté ; sans lui la régression partait en production.
+    #
+    # Ce qui reste est le FAIT, sans l'excuse : quel pas est affiché.
     if coarsened:
         st.caption(t_coarsened(*coarsened))
     for label, measured, total in thin.values():
@@ -240,15 +215,25 @@ def t_too_thin(label: str, measured: int, total: int) -> str:
 
 
 def t_coarsened(asked: str, used: str) -> str:
-    """Le pas demandé ne dessinait rien ; on le dit, et on dit ce que ça coûte."""
+    """Le pas réellement appliqué, quand ce n'est pas celui qui a été demandé.
+
+    UNE PHRASE, ET RIEN D'AUTRE. La version longue expliquait la règle des deux
+    points et rappelait où trouver Apple Music — deux informations vraies dont
+    personne n'avait besoin à cet instant, sous une figure qui, elle, se dessinait
+    correctement. Le lecteur a besoin de savoir QUEL pas il regarde ; pourquoi
+    l'autre était impossible ne change aucune de ses décisions.
+    """
     from src.dashboard.utils.i18n import t
     names = {"day": "Par jour", "week": "Par semaine", "month": "Par mois",
              "year": "Par année"}
-    return t("platform_chart.coarsened",
-             "**{asked}** ne donne qu'un seul point sur cette période — une aire a "
-             "besoin d'au moins deux. Affiché **{used}**. 🎎 Apple Music n'existe "
-             "qu'au pas Par année : élargis la période pour le retrouver."
-             ).format(asked=names.get(asked, asked), used=names.get(used, used))
+    # LES DEUX PAS, PAS UN SEUL. « Affiché **Par mois**. » dit ce qu'on regarde mais
+    # pas qu'un choix a été repris : l'artiste qui a cliqué « Par année » doit faire
+    # le rapprochement lui-même. Nommer les deux coûte trois mots et supprime
+    # l'inférence — c'est ce que garde
+    # `test_a_step_that_yields_one_bucket_falls_back` depuis le 2026-09-08, et il a
+    # attrapé la version à un seul pas avant qu'elle parte.
+    return t("platform_chart.coarsened", "**{asked}** → affiché **{used}**.").format(
+        asked=names.get(asked, asked), used=names.get(used, used))
 
 
 def t_too_coarse(label: str, step: str) -> str:
