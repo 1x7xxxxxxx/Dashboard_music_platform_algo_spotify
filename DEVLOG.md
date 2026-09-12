@@ -5,6 +5,100 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-12 (nuit) — Des boîtes, un grain qu'on ne choisit plus, et deux mutations vertes
+
+### Ce qui a changé à l'écran
+
+**Une boîte par KPI, avec son écart contre la période précédente.** Spotify, YouTube,
+SoundCloud, Apple Music, Instagram et — nouveau — Meta Ads, chacune dans un cadre, avec
+la flèche de variation. La période de comparaison est la fenêtre de MÊME LONGUEUR
+collée devant : c'est le seul choix défini pour tout filtre, qui ne dépend pas du
+calendrier et qui compare des durées égales. Elle ne coûte aucune requête — le cache
+`(sql, params)` ne porte qu'`artist_id`, donc relire une autre fenêtre n'est qu'un
+découpage Python.
+
+**Aucun écart n'est affiché contre une période non mesurée.** Un « +100 % » contre une
+fenêtre jamais collectée transformerait le début de NOTRE observation en croissance de
+l'artiste.
+
+**Le tableau à droite de la figure a disparu**, et avec lui le `st.caption` qui
+concaténait les aides — « 🔮 probabilité PRÉDITE … · ↔️ écart avec la fenêtre de MÊME
+LONGUEUR … », nommé inutile. Il y avait deux récapitulatifs sur le même écran. Ce qu'il
+portait n'est pas perdu : les totaux sont dans les boîtes du haut, les indicateurs
+dérivés sont devenus des boîtes SOUS la figure, et chaque aide est l'infobulle de la
+sienne. Une suppression qui perd une information est une régression déguisée en
+simplification.
+
+**Le gros titre de page est parti** — il redisait ce que la barre latérale porte déjà,
+sur la première hauteur d'écran.
+
+### Le grain ne se choisit plus
+
+Signalé : « filtre 30 jours, quand je sélectionne "année", c'est incohérent ». La barre
+proposait les quatre pas à toutes les fenêtres — « Année » sur 30 jours rend UN seau,
+donc la figure se repliait et une note sous elle s'en excusait.
+
+Premier correctif : FILTRER la barre selon la fenêtre. Puis, la même heure : « on ne
+devrait pas supprimer le filtre jour semaine mois année et automatiquement trier
+[…] ? » C'était mieux, et la raison dépasse ce widget — **le pas pertinent est
+entièrement déterminé par la fenêtre, donc le demander revient à faire trancher une
+question dont la réponse est calculable. Un contrôle dont toutes les options sauf une
+sont mauvaises n'est pas un contrôle.**
+
+La règle : sous 360 jours → **jour** ; au-delà → **mois**, et **année** seulement
+au-delà de 60 points (vingt ans ; aucun locataire n'en est proche, le plus ancien porte
+1 344 jours). Le grain retenu reste ÉCRIT sous la barre de mode — « chaque point est un
+mois » n'est pas lisible sur l'axe d'une courbe de 44 points, et un pas appliqué en
+silence se lit comme une panne.
+
+**Ce que ça coûte, et il faut le dire : Apple Music ne sera plus tracée.** Sa série
+n'existe qu'au pas annuel, désormais hors de portée. Son total vit dans sa boîte, où il
+est plus lisible qu'un point isolé. Arbitrage assumé, pas un oubli.
+
+### L'incohérence Spotify n'était pas un bug d'affichage
+
+« Il n'y a pas les datas de spotify sur les 3 derniers jours ». Mesuré en production :
+la série S4A s'arrête au **5 septembre**, sept jours en arrière. Il n'y a réellement
+rien. Le défaut était que **rien ne le disait** — YouTube et SoundCloud avaient des
+points, la figure se dessinait, Spotify disparaissait, et « zéro écoute » ne se
+distinguait pas de « aucun export déposé ».
+
+Une boîte vide nomme maintenant son dernier relevé. À cet endroit précisément : les
+notes sous la figure viennent d'être retirées, et à raison — une prose qui s'excuse ne
+remplace pas un chiffre qui se lit.
+
+### Deux mutations restées vertes, et c'est la moitié la plus utile
+
+Onze mutations écrites, neuf rouges du premier coup. Les deux vertes :
+
+* le garde de l'écart passait parce que la mutation fait LEVER le bloc entier, que
+  `render_platform_chart` avale l'exception, et qu'une surface effondrée est vide donc
+  conforme. Classe `a-guard-satisfied-by-the-collapse-it-should-catch` ;
+* le garde du plafond de points calculait sa fenêtre d'essai À PARTIR du plafond testé
+  (`huge = (_MAX_BUCKETS + 1) * 30 + 1`) : porter le plafond à 99 999 laissait le test
+  vert, l'entrée grandissant avec lui. Classe
+  `a-test-whose-input-derives-from-its-subject`. La borne d'un test doit être un fait
+  EXTÉRIEUR à la règle — ici vingt ans.
+
+Les deux disent la même chose sous deux angles : **vérifier qu'une mutation rougit ne
+suffit pas, il faut vérifier qu'elle rougit pour la bonne raison.**
+
+### Et un garde m'a arrêté avant la production
+
+`test_a_step_that_yields_one_bucket_falls_back` (2026-09-08) a refusé la suppression
+pure et simple de la note de repli. `render_platform_chart` a d'autres appelants —
+l'export PDF, d'autres vues — qui lui passent un pas fixe : là, le repli restait
+possible et je venais de le rendre SILENCIEUX. La note est réduite à son fait
+(« **Par année** → affiché **Par mois**. ») au lieu d'être supprimée.
+
+Trois autres gardes ont suivi leur sujet plutôt que d'être retirés : la barre de pas,
+le vocabulaire des grains, et la somme des cumuls — dont c'est la TROISIÈME surface
+depuis le 2026-09-08.
+
+Suite complète : **5472 passed**, 0 échec, 108 skipped. Ruff propre.
+
+---
+
 ## 2026-09-12 (soir) — La base ne revenait pas avec son hôte, et une mutation restée verte
 
 ### Ce qui a changé

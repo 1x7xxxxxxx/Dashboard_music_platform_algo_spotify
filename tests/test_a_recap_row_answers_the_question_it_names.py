@@ -1,51 +1,55 @@
-"""Le récapitulatif de l'accueil : une colonne, une question, un chiffre stable.
+"""Une boîte, une question, un chiffre stable — et jamais un écart contre du vide.
 
 Type: Test
-Uses: pytest, platform_chart.render_platform_chart, home._recap_metrics
+Uses: pytest, platform_chart.render_platform_chart, home._recap_metrics, home._render_tiles
 Depends on: src/dashboard/utils/platform_chart_notes.py, src/dashboard/views/home.py
 Persists in: nothing
 
 Pourquoi ce garde existe
 ------------------------
-Le tableau à droite de la figure a gagné des lignes DÉRIVÉES le 2026-09-12 — meilleur
-pas, coût par écoute, meilleur CPR, probabilité de déclenchement. Trois défauts sont
-apparus **au rendu, pas à la lecture du code**, et aucun test existant ne pouvait les
-voir :
+L'accueil a porté un TABLEAU MARKDOWN à droite de la figure du 2026-09-12 au soir du
+même jour, puis des BOÎTES : une par plateforme au-dessus de la figure, une par
+indicateur dérivé en dessous. Le garde a suivi son sujet plutôt que de rester sur une
+surface morte — un test qui garde une mise en page disparue passe au vert sur tout.
 
-1. **Le coût par écoute changeait avec le MODE D'AFFICHAGE** — 0,0170 € en « Par
-   période », 0,0101 € en « Cumulé », même période, même dépense. Basculer un mode ne
-   change pas ce qu'une écoute a coûté : le dénominateur était la série DESSINÉE, et
-   la somme des écarts quotidiens d'un compteur sous-compte (facteur 887 mesuré le
-   2026-09-11). Corrigé en lisant `platform_totals`, qui prend la différence de
-   niveau.
-2. **« 📈 Meilleure semaine 286 346 · 01/06/26 » en mode cumulé** — une série cumulée
-   ne fait que monter, donc son maximum est toujours son DERNIER point. Le chiffre
-   était le niveau final et la date la fin de la fenêtre : deux façons de ne rien
-   dire, présentées comme un pic. Un commentaire annonçait déjà que « la ligne
-   saute » ; rien ne la faisait sauter.
-3. **La bannière et la ligne Total affichaient 308 060 et 304 793** côte à côte, sans
-   qu'un mot distingue leurs portées — l'écart valant exactement les écoutes Apple,
-   qui ne sont pas traçables hors du pas annuel. C'est la contradiction pour laquelle
-   les tuiles avaient été RETIRÉES le 2026-09-10 ; la remettre en place en les
-   rendant aurait rejoué la même séance.
+Ce qu'il tient, et chacune de ces questions a coûté un défaut vu à l'écran :
 
-La question commune : **une ligne répond-elle à la question que son libellé pose ?**
-Un nombre juste sous un mauvais libellé est plus coûteux qu'un nombre absent.
+1. **Le coût par écoute ne dépend pas du MODE D'AFFICHAGE.** Mesuré à 0,0170 € en
+   « Par période » et 0,0101 € en « Cumulé » pour la même période et la même dépense :
+   le dénominateur était reparti sur la série dessinée, dont la somme sous-compte un
+   compteur (facteur 887 mesuré le 2026-09-11).
+2. **Une série cumulée n'a pas de « meilleur pas ».** Elle ne fait que monter, donc
+   son maximum est toujours son dernier point : « Meilleure semaine 286 346 ·
+   01/06/26 » affichait le niveau final et la fin de la fenêtre comme un pic.
+3. **La plateforme dominante n'existe pas en « Part » ni en « Cumulé ».** En part,
+   `aligned` porte déjà des pourcentages — ce serait la part d'une part ; en cumulé,
+   des niveaux, dont le rapport n'est pas une part de période.
+4. **« 200 / 200 » n'est pas une information.** La ligne des périodes mesurées ne
+   s'affiche que si la fenêtre a des trous.
+5. **Aucun écart n'est affiché contre une période non mesurée.** Un « +100 % » contre
+   une fenêtre jamais collectée transforme le début de NOTRE observation en croissance
+   de l'artiste.
+6. **Une boîte vide nomme son dernier relevé.** Mesuré en prod le 2026-09-12 : Spotify
+   s'arrêtait au 5 septembre, sept jours en arrière ; YouTube et SoundCloud avaient
+   des points, la figure se dessinait, et rien ne distinguait « zéro écoute » de
+   « aucun export déposé ».
 
-Journal de mutation — 2026-09-12, chacune vue rouge avec son message :
-  * dénominateur remis sur la série dessinée → le cas 1 nomme les deux coûts ;
-  * garde `mode != "cumulative"` retiré → le cas 2 nomme la ligne et sa valeur ;
-  * « Total tracé » renommé « Total » → le cas 3 nomme les deux nombres.
+Journal de mutation — chacune vue ROUGE avant que le garde soit gardé, le 2026-09-12 :
+  * dénominateur remis sur la série dessinée → cas 1 nomme les deux coûts ;
+  * garde `mode != "cumulative"` du meilleur pas retiré → cas 2 ;
+  * `mode not in ("share", "cumulative")` réduit à `!= "cumulative"` → cas 3 ;
+  * plancher `seen < len(span)` retiré → cas 4 nomme « 200 / 200 » ;
+  * `_delta` rendant `0 %` au lieu de `None` sur `before` absent → cas 5 ;
+  * `if not value and _last.get(key)` réduit à `if _last.get(key)` → cas 6.
 """
 from __future__ import annotations
 
 import datetime as _d
+from contextlib import nullcontext
 from unittest.mock import patch
 
-import pytest
-
 from src.dashboard.utils import platform_chart as pc
-from src.dashboard.views.home import _recap_extra, _recap_metrics
+from src.dashboard.views.home import _recap_metrics, _render_tiles
 
 _DAYS = [_d.date(2025, 1, 1) + _d.timedelta(days=i) for i in range(200)]
 
@@ -59,12 +63,17 @@ _SERIES = {
 # le test ne dépende d'aucune base. 20 000 est volontairement loin de la somme des
 # écarts dessinés — sans cet écart, le cas 1 ne pourrait pas rougir.
 _TOTALS = {"spotify": 20_000, "youtube": 20_000}
-_SIDE = {"meta_spend": 400.0, "ig_delta": -5,
+_SIDE = {"meta_spend": 400.0, "ig_delta": -5, "ig_followers": 1_525,
          "best_cpr": 0.0112, "best_cpr_name": "CONKRETE", "best_cpr_spend": 18.41,
          "best_algo_p": 0.118, "best_algo_name": "Radio", "best_algo_song": "X"}
 
 
-class _Slot:
+class _Col:
+    """Une colonne Streamlit réduite à ce que le code sous test lui demande."""
+
+    def container(self, **_k):
+        return nullcontext()
+
     def __enter__(self):
         return self
 
@@ -72,44 +81,65 @@ class _Slot:
         return False
 
 
-def _table(mode: str, step: str = "month", prev_total=None) -> str:
-    """Rend la figure et retourne la table markdown du récapitulatif."""
-    out: list = []
+def _metrics(mode: str, step: str = "month") -> list[tuple]:
+    """Rend la figure et retourne les appels à `st.metric` des INDICATEURS."""
+    seen: list[tuple] = []
+
+    def _rec(label, value, delta=None, help=None, **_k):   # noqa: A002
+        seen.append((str(label), str(value), delta, help))
+
     with patch("streamlit.plotly_chart", lambda f, **k: None), \
          patch("streamlit.caption", lambda *a, **k: None), \
          patch("streamlit.info", lambda *a, **k: None), \
-         patch("streamlit.markdown", lambda v, **k: out.append(str(v))):
+         patch("streamlit.markdown", lambda *a, **k: None), \
+         patch("streamlit.columns", lambda n, **k: [_Col() for _ in range(
+             n if isinstance(n, int) else len(n))]), \
+         patch("streamlit.metric", _rec):
         drawn = pc.render_platform_chart(
             _SERIES, since=_DAYS[0], until=_DAYS[-1], step=step, mode=mode,
-            recap=_Slot(), recap_extra=_recap_extra(_TOTALS, _SIDE),
-            recap_metrics=lambda al, sp, gr, st_, md: _recap_metrics(
-                _SIDE, _TOTALS, al, sp, st_, md, prev_total=prev_total),
-            key=f"recap_{mode}_{step}_{prev_total}")
+            recap=True,
+            recap_metrics=lambda al, sp, _gr, st_, md: _recap_metrics(
+                _SIDE, _TOTALS, al, sp, st_, md),
+            key=f"recap_{mode}_{step}")
     assert drawn, f"la figure ne s'est pas rendue en mode {mode}"
-    tbl = next((x for x in out if x.startswith("|")), None)
-    assert tbl, f"aucune table markdown rendue en mode {mode} — le garde est aveugle"
-    return tbl
+    return seen
 
 
-def _row(tbl: str, needle: str) -> str | None:
-    """La ligne de CORPS qui porte `needle` — jamais l'en-tête ni le séparateur.
+def _one(rows: list[tuple], needle: str):
+    """La boîte dont le libellé porte `needle` — jamais une autre."""
+    return next((r for r in rows if needle in r[0]), None)
 
-    Les deux premières versions de ce fichier ont rougi sur leurs propres aiguilles :
-    « Meilleur » attrapait « Meilleur CPR », et « Total » attrapait l'en-tête
-    `| Plateforme | Total |`. Un garde qui échoue sur sa mise en scène plutôt que sur
-    son sujet est pire qu'absent : on relâche l'assertion jusqu'à ce qu'il se taise.
-    """
-    body = tbl.split("\n")[2:]
-    return next((r for r in body if needle in r), None)
 
+def _tiles(totals: dict, prev=None, side=None, last=None) -> list[tuple]:
+    """Rend la rangée de boîtes du haut et retourne ses appels à `st.metric`."""
+    seen: list[tuple] = []
+
+    def _rec(label, value, delta=None, help=None, **_k):   # noqa: A002
+        seen.append((str(label), str(value), delta, help))
+
+    side = dict(side or _SIDE)
+    if last is not None:
+        side["last_measured"] = last
+
+    with patch("streamlit.markdown", lambda *a, **k: None), \
+         patch("streamlit.caption", lambda *a, **k: seen.append(("caption", str(a[0]), None, None))), \
+         patch("streamlit.columns", lambda n, **k: [_Col() for _ in range(
+             n if isinstance(n, int) else len(n))]), \
+         patch("streamlit.metric", _rec):
+        _render_tiles(totals, sum(v for v in totals.values() if v), 1_525,
+                      prev=prev, side=side, prev_grand=None)
+    return seen
+
+
+# ── 1-4 : les indicateurs dérivés, sous la figure ────────────────────────────
 
 def test_the_cost_per_stream_does_not_depend_on_the_display_mode():
     """Basculer « Cumulé » ↔ « Par période » ne change pas ce qu'une écoute a coûté."""
     seen = {}
     for mode in ("absolute", "cumulative", "share"):
-        row = _row(_table(mode), "Coût par écoute")
-        assert row, f"la ligne « coût par écoute » a disparu en mode {mode}"
-        seen[mode] = row.split("|")[2].strip()
+        row = _one(_metrics(mode), "Coût par écoute")
+        assert row, f"la boîte « coût par écoute » a disparu en mode {mode}"
+        seen[mode] = row[1]
     assert len(set(seen.values())) == 1, (
         "le coût par écoute change avec le MODE D'AFFICHAGE : "
         + " · ".join(f"{k}={v}" for k, v in seen.items())
@@ -119,153 +149,74 @@ def test_the_cost_per_stream_does_not_depend_on_the_display_mode():
 
 
 def test_a_cumulative_series_has_no_best_step():
-    """Le maximum d'une série qui ne fait que monter est son dernier point."""
-    tbl = _table("cumulative")
-    row = _row(tbl, "📈")
+    """Une courbe qui ne fait que monter a son maximum au dernier point."""
+    row = _one(_metrics("cumulative"), "Meilleur")
     assert row is None, (
-        f"le récapitulatif annonce un pic en mode cumulé : « {row.strip()} ». Une "
-        "série cumulée ne redescend jamais, donc ce « meilleur » est le niveau final "
-        "et sa date la fin de la fenêtre — deux façons de ne rien dire, présentées "
-        "comme un pic.")
-
-
-def test_a_period_series_does_have_one():
-    """NON-VACUITÉ : sans ce sens, supprimer la ligne rendrait le test ci-dessus vert."""
-    row = _row(_table("absolute"), "📈")
-    assert row, (
-        "aucune ligne « meilleur pas » en mode « Par période », où elle a un sens : "
-        "le test du mode cumulé passerait alors en ne mesurant rien.")
-
-
-def test_the_drawn_total_says_that_it_is_drawn():
-    """Deux totaux justes côte à côte, dont un plus petit, se distinguent par un mot."""
-    tbl = _table("absolute")
-    row = _row(tbl, "**")
-    assert row and "tracé" in row, (
-        f"la ligne de total ne nomme pas sa portée : « {(row or '').strip()} ». La "
-        "bannière au-dessus de la figure porte TOUTES les plateformes de la période "
-        "(Apple comprise) ; cette ligne ne somme que ce que la figure DESSINE. "
-        "Mesuré à l'écran le 2026-09-12 : 308 060 contre 304 793, l'écart valant les "
-        "3 267 écoutes Apple listées deux lignes plus bas. C'est la contradiction "
-        "pour laquelle les tuiles avaient été retirées le 2026-09-10.")
-
-
-def test_a_predicted_probability_is_never_called_an_observed_rate():
-    """`s4a_song_algo_outcomes` porte 0 ligne : aucun taux observé n'existe.
-
-    Mesuré le 2026-09-12, tous locataires confondus. Ce qui est affiché est la sortie
-    du modèle ; l'appeler « taux de déclenchement » inventerait une mesure que
-    personne n'a prise.
-    """
-    row = _row(_table("absolute"), "%")
-    assert row, "la ligne de probabilité a disparu du récapitulatif"
-    low = row.lower()
-    assert "prédite" in low or "prédit" in low, (
-        f"« {row.strip()} » ne dit pas que le chiffre est PRÉDIT. Le taux observé "
-        "demanderait `s4a_song_algo_outcomes`, à 0 ligne : le mot est la seule chose "
-        "qui sépare une prédiction d'une mesure.")
-    assert "taux" not in low, (
-        f"« {row.strip()} » annonce un TAUX. Un taux se constate ; ceci se calcule.")
-
-
-@pytest.mark.parametrize("gone", ["Mesurés", "Unité"])
-def test_the_columns_the_reader_could_not_name_are_gone(gone):
-    """« À quoi correspond la colonne mesurés ? » — une colonne qu'on doit expliquer.
-
-    Elle disait `171 / 181`, le nombre de pas renseignés. L'information est vraie, et
-    la hachure de la figure la porte déjà là où le trou se trouve. L'unité, elle,
-    coûtait une colonne entière pour trois lignes — elle est passée dans le libellé.
-    """
-    tbl = _table("absolute")
-    header = tbl.split("\n")[0]
-    assert gone not in header, (
-        f"la colonne « {gone} » est revenue dans l'en-tête : {header.strip()}")
-    assert header.count("|") == 3, (
-        f"le tableau n'a plus deux colonnes : {header.strip()}. Une table large "
-        "repousse la figure, et c'est elle qu'on regarde.")
-
-
-# ── LES TROIS MÉTRIQUES AJOUTÉES LE 2026-09-12 ───────────────────────────────
-#
-# Chacune ouvre un piège précis, et chacun a déjà été payé sous une autre forme
-# dans ce même fichier : une règle juste pour un régime, fausse pour un autre.
-#
-# Journal de mutation — chacune vue ROUGE avant que le garde soit gardé :
-#   * `mode not in ("share", "cumulative")` réduit à `mode != "cumulative"`
-#     → test_the_dominant_platform_is_absent_where_it_would_be_a_share_of_a_share
-#       ÉCHOUE en nommant le mode et la valeur affichée ;
-#   * `if prev_total and now_total` réduit à `if prev_total is not None`
-#     → test_no_growth_is_claimed_against_an_unmeasured_period ÉCHOUE ;
-#   * plancher `seen < len(span)` retiré → test_measured_periods_only_speaks_when_
-#     the_window_has_holes ÉCHOUE en nommant « 200 / 200 ».
+        f"« {row[0]} » s'affiche en mode cumulé avec {row[1]!r}. Une série cumulée "
+        "atteint toujours son maximum à son dernier point : le chiffre est le niveau "
+        "final et la date la fin de la fenêtre — deux façons de ne rien dire, "
+        "présentées comme un pic." if row else "")
+    assert _one(_metrics("absolute"), "Meilleur"), (
+        "« Meilleur … » a disparu du mode où il est JUSTE — un garde de régime qui "
+        "interdit tous les régimes ne garde rien")
 
 
 def test_the_dominant_platform_is_absent_where_it_would_be_a_share_of_a_share():
-    """En mode « Part », `aligned` porte déjà des pourcentages.
-
-    En tirer une part donnerait la part d'une part — un nombre qui ressemble à une
-    réponse. En mode « Cumulé », les valeurs sont des NIVEAUX : leur somme n'est pas
-    un total de période, donc le rapport non plus. La ligne ne doit exister que là où
-    elle a un sens, et son absence ailleurs est la garantie.
-    """
-    row = _row(_table("absolute"), "Plateforme dominante")
-    assert row, (
-        "la ligne « Plateforme dominante » a disparu du mode où elle est JUSTE — "
-        "un garde de régime qui interdit tous les régimes ne garde rien")
-
+    """En « Part » ce serait la part d'une part ; en « Cumulé », un rapport de niveaux."""
+    assert _one(_metrics("absolute"), "dominante"), (
+        "la boîte « Plateforme dominante » a disparu du mode où elle est JUSTE")
     for mode in ("share", "cumulative"):
-        bad = _row(_table(mode), "Plateforme dominante")
+        bad = _one(_metrics(mode), "dominante")
         assert bad is None, (
-            f"« Plateforme dominante » s'affiche en mode {mode} : {bad!r}. En "
-            "« Part » c'est la part d'une part ; en « Cumulé » c'est un rapport de "
-            "niveaux, pas de quantités. Même famille que le meilleur pas, qui "
-            "affichait le dernier point d'une courbe cumulée comme un pic.")
-
-
-def test_no_growth_is_claimed_against_an_unmeasured_period():
-    """Sans période précédente MESURÉE, aucune variation n'est affichée."""
-    for prev in (None, 0):
-        tbl = _table("absolute", prev_total=prev)
-        assert _row(tbl, "période précédente") is None, (
-            f"une variation s'affiche contre une période précédente à {prev!r}. Un "
-            "« +100 % » contre une fenêtre jamais collectée transforme le début de "
-            "NOTRE observation en croissance de l'artiste — le mensonge le plus "
-            "facile de ce tableau.")
-        # ⚠️ ET LE BLOC DOIT AVOIR TOURNÉ. Sans cette seconde assertion, le garde
-        # passe pour la mauvaise raison, mesuré le 2026-09-12 : `prev_total=0` avec
-        # un prédicat `is not None` lève une division par zéro, que le `try/except`
-        # de `render_platform_chart` avale (« recap metrics unavailable »). TOUTES
-        # les métriques disparaissent alors, « période précédente » comprise, et
-        # l'absence attendue est produite par l'effondrement au lieu du garde.
-        #
-        # C'est la classe `a-guard-satisfied-by-the-collapse-it-should-catch` : le
-        # harnais ment, pas le prédicat. On exige donc qu'une AUTRE métrique du même
-        # bloc soit là — preuve que le bloc s'est exécuté jusqu'au bout.
-        assert _row(tbl, "Coût par écoute"), (
-            f"avec prev_total={prev!r}, AUCUNE métrique ne s'affiche : le bloc a "
-            "levé et `render_platform_chart` a avalé l'exception. L'absence de "
-            "« période précédente » ne prouve alors rien — elle est un symptôme de "
-            "la panne, pas l'effet du garde.")
-
-    row = _row(_table("absolute", prev_total=10_000), "période précédente")
-    assert row, (
-        "aucune variation affichée alors que la période précédente vaut 10 000 : "
-        "le garde ci-dessus ne prouve plus rien, il passerait sur une ligne morte")
-    # `_TOTALS` somme 40 000 : +300 % exactement. Un signe inversé est la faute que
-    # ce chiffre rend visible, et elle ne se verrait pas sur un écart proche de zéro.
-    assert "+300,0 %" in row, (
-        f"la variation ne vaut pas +300,0 % contre 10 000 pour 40 000 : {row!r}")
+            f"« Plateforme dominante » s'affiche en mode {mode} : {bad[1]!r}. En "
+            "« Part » c'est la part d'une part ; en « Cumulé » un rapport de niveaux, "
+            "pas de quantités.")
 
 
 def test_measured_periods_only_speaks_when_the_window_has_holes():
-    """« 200 / 200 » ne dit rien — la ligne ne s'affiche que si elle informe."""
-    # Au pas MOIS sur 200 jours, YouTube est collecté un jour sur sept : les seaux
-    # existent tous, donc aucun trou et aucune ligne.
-    full = _row(_table("absolute", step="month"), "Périodes mesurées")
-    if full is not None:
-        head, val = full.split("|")[1].strip(), full.split("|")[2].strip()
-        a, _, b = val.partition(" / ")
+    """« 200 / 200 » ne dit rien — la boîte ne s'affiche que si elle informe."""
+    row = _one(_metrics("absolute", step="month"), "Périodes mesurées")
+    if row is not None:
+        a, _, b = row[1].partition(" / ")
         assert a != b.split()[0], (
-            f"« {head} » affiche {val} : une fenêtre sans trou ne mérite pas de "
-            "ligne. Elle occupe une place que le lecteur relit à chaque rendu pour "
-            "y trouver la même absence d'information.")
+            f"« {row[0]} » affiche {row[1]} : une fenêtre sans trou ne mérite pas de "
+            "boîte. Elle occupe une place que le lecteur relit à chaque rendu pour y "
+            "trouver la même absence d'information.")
+
+
+# ── 5-6 : les boîtes du haut ─────────────────────────────────────────────────
+
+def test_no_delta_is_claimed_against_an_unmeasured_period():
+    """Sans période précédente MESURÉE, aucune flèche — jamais un « +100 % »."""
+    for prev in (None, {}, {"spotify": None}, {"spotify": 0}):
+        rows = _tiles({"spotify": 20_000}, prev=prev)
+        box = _one(rows, "Spotify")
+        assert box, f"la boîte Spotify a disparu avec prev={prev!r}"
+        assert box[2] is None, (
+            f"un écart {box[2]!r} s'affiche contre une période précédente {prev!r}. "
+            "Un « +100 % » contre une fenêtre jamais collectée transforme le début de "
+            "NOTRE observation en croissance de l'artiste.")
+
+    # ⚠️ ET LA FLÈCHE DOIT EXISTER QUAND ELLE EST LÉGITIME. Sans cette moitié, le
+    # garde passerait sur un `_delta` qui rend toujours `None` — l'absence attendue
+    # serait produite par une fonction morte, pas par la règle.
+    box = _one(_tiles({"spotify": 20_000}, prev={"spotify": 10_000}), "Spotify")
+    assert box and box[2] == "+100,0 %", (
+        f"l'écart de 10 000 → 20 000 ne vaut pas +100,0 % : {box[2]!r}")
+
+
+def test_an_empty_box_names_its_last_reading():
+    """Zéro écoute et « aucun export déposé » sont deux faits différents."""
+    day = _d.date(2026, 9, 5)
+    rows = _tiles({"spotify": None, "youtube": 12_000},
+                  last={"spotify": day, "youtube": _d.date(2026, 9, 12)})
+    captions = [r[1] for r in rows if r[0] == "caption"]
+    assert any("05/09/26" in c for c in captions), (
+        "une plateforme SANS mesure sur la fenêtre, mais avec un relevé au "
+        f"{day}, n'affiche pas sa dernière date : {captions!r}. C'est le signalement "
+        "du 2026-09-12 — la figure se dessinait grâce aux autres plateformes, et "
+        "rien ne distinguait « zéro écoute » de « aucun export déposé ».")
+    assert not any("12/09/26" in c for c in captions), (
+        "une plateforme qui A des chiffres sur la fenêtre affiche quand même son "
+        "dernier relevé : la mention devient du bruit sur toutes les boîtes au lieu "
+        "de signaler les seules qui manquent.")

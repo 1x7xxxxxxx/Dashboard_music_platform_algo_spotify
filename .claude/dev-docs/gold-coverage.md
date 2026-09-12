@@ -171,7 +171,7 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 
 `st.metric` n'est que 17 des 207 tuiles du produit ; les 190 autres passent par une poignée de colonne (`c1.metric`). Un inventaire qui n'aurait compté que le receveur `st` décrirait 8 % du produit.
 
-**95 sur 212** portent une source établie ; **11** sont déclarées indéterminées et listées en tête ; 106 sont hors base par nature — la tranche a fini proprement sans lire la base — et 52 des attribuées ont plusieurs amonts.
+**93 sur 211** portent une source établie ; **11** sont déclarées indéterminées et listées en tête ; 107 sont hors base par nature — la tranche a fini proprement sans lire la base — et 51 des attribuées ont plusieurs amonts.
 
 | fichier:ligne | fonction | surface | visible | source établie | couche | confiance | motif | lu dans la même fonction (aucun lien prouvé) |
 |---|---|---|---|---|---|---|---|---|
@@ -196,10 +196,9 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/billing.py:340` | `_show_admin_view` | billing.paying_artists | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_artists` |
 | `views/billing.py:341` | `_show_admin_view` | ARPU | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_artists` |
 | `views/data_wrapped.py:247` | `_recap_spotify` | data_wrapped.recap_followers | à l'écran | `s4a_audience` | brut | plusieurs amonts | — | ?`v_s4a_song_daily` |
-| `views/home.py:229` | `_render_tiles` | 🎵 Spotify | à l'écran | `platform_totals()` | or | plusieurs amonts | — | — |
-| `views/home.py:230` | `_render_tiles` | 🎬 YouTube | à l'écran | `platform_totals()` | or | plusieurs amonts | — | — |
-| `views/home.py:231` | `_render_tiles` | ☁️ SoundCloud | à l'écran | `platform_totals()` | or | plusieurs amonts | — | — |
-| `views/home.py:232` | `_render_tiles` | 🎎 Apple Music | à l'écran | `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:298` | `_box` | — | autre onglet | `apple_yearly_series()` · `combined_total()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:325` | `_render_tiles` | 📸 Instagram | autre onglet | `apple_yearly_series()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:343` | `_render_tiles` | home.tile_meta | autre onglet | `apple_yearly_series()` · `combined_total()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
 | `views/meta_ads_overview.py:141` | `_show_meta_ads` | meta_ads_overview.spend | à l'écran | `v_meta_campaign_daily` | or | plusieurs amonts | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_daily` |
 | `views/meta_ads_overview.py:142` | `_show_meta_ads` | meta_ads_overview.impressions | à l'écran | `v_meta_campaign_daily` | or | plusieurs amonts | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_daily` |
 | `views/meta_ads_overview.py:143` | `_show_meta_ads` | meta_ads_overview.link_clicks | à l'écran | `v_meta_campaign_daily` | or | plusieurs amonts | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_daily` |
@@ -243,6 +242,7 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `utils/ml_widgets.py:139` | `render_classification_scorecard` | Recall | à l'écran | — | — | hors base | — | — |
 | `utils/ml_widgets.py:140` | `render_classification_scorecard` | F1 | à l'écran | — | — | hors base | — | — |
 | `utils/ml_widgets.py:141` | `render_classification_scorecard` | Lift top-10% | à l'écran | — | — | hors base | — | — |
+| `utils/platform_chart_notes.py:130` | `_render_recap` | — | autre onglet | — | — | hors base | — | — |
 | `views/account.py:56` | `_section_profile` | account.username | à l'écran | — | — | hors base | — | — |
 | `views/account.py:57` | `_section_profile` | account.role | à l'écran | — | — | hors base | — | — |
 | `views/account.py:58` | `_section_profile` | account.email_verified | à l'écran | — | — | hors base | — | — |
@@ -290,7 +290,6 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/etl_logs.py:81` | `_section_kpis` | etl_logs.kpi_avg_duration | à l'écran | `etl_run_log` | brut | directe | — | — |
 | `views/etl_logs.py:82` | `_section_kpis` | etl_logs.kpi_rows_inserted | à l'écran | — | — | hors base | — | ?`etl_run_log` |
 | `views/etl_logs.py:83` | `_section_kpis` | etl_logs.kpi_failed_runs | à l'écran | `etl_run_log` | brut | directe | — | — |
-| `views/home.py:237` | `_render_tiles` | 📸 Instagram | à l'écran | `period_side_metrics()` | or | portée (1 saut) | — | — |
 | `views/hypeddit.py:169` | `_render_global_stats` | hypeddit.kpi_avg_visits | à l'écran | — | — | hors base | — | — |
 | `views/hypeddit.py:170` | `_render_global_stats` | hypeddit.kpi_avg_clicks | à l'écran | — | — | hors base | — | — |
 | `views/imusician.py:427` | `show` | imusician.roi_revenue | à l'écran | `fmt_eur()` | or | directe | — | ?`saas_artists` |
@@ -472,9 +471,9 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 ## Les classes d'erreur
 
-**313 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
+**314 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
 
-**fixed** : 10· **guarded** : 286· **open** : 4· **reported** : 13
+**fixed** : 10· **guarded** : 287· **open** : 4· **reported** : 13
 
 **0 classe(s) nomment un fichier de garde qui n'existe plus** et **11** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
@@ -612,14 +611,14 @@ Chaque déclaration est vérifiée : le site doit encore exister et encore agré
 Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_coverage_only_improves.py` les compare à un plafond posé **à** la mesure, jamais au-dessus.
 
 <!-- gold-coverage-figures: total=89 unknown=7 -->
-<!-- gold-coverage-tiles: total=212 unknown=11 -->
+<!-- gold-coverage-tiles: total=211 unknown=11 -->
 <!-- gold-coverage-pdf: total=29 unknown=5 -->
 <!-- gold-coverage-gold-objects: total=15 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=18 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=313 guard_missing=0 guard_unnamed=11 -->
+<!-- gold-coverage-error-classes: total=314 guard_missing=0 guard_unnamed=11 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=12 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=d91c4be4869ba72a1e6749e2188ffd3314016536b93d2d1203ab1ccbbd4f1f1c -->
+<!-- gold-coverage: sha256=bb07da5cdd7bb9f6916930ced868d8b7b30871263e2ffbf4316a121b9105d4e2 -->

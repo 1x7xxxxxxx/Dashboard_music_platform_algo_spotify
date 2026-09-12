@@ -88,65 +88,84 @@ def _home_call(name: str) -> list[ast.Call]:
             if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == name]
 
 
-def test_the_step_and_the_mode_are_chosen_on_a_visible_bar() -> None:
+def test_the_mode_is_chosen_on_a_visible_bar() -> None:
     """« Voir toutes les possibilités direct » — pas replié dans un menu.
 
     Le filtre de période juste au-dessus est déjà une barre (`date_range.py`). Deux
     widgets voisins qui font la même chose sous deux formes différentes se lisent
     comme deux natures de réglage.
+
+    ── IL N'Y EN A PLUS QU'UNE DEPUIS LE 2026-09-12 ─────────────────────────────
+
+    Ce garde en exigeait DEUX, le mode et le pas. La barre du PAS a été supprimée :
+    le grain se dérive de la fenêtre, parce qu'un contrôle dont toutes les options
+    sauf une sont mauvaises n'est pas un contrôle — « filtre 30 jours, quand je
+    sélectionne "année", c'est incohérent », puis « on ne devrait pas supprimer le
+    filtre […] et automatiquement trier ».
+
+    Abaisser un seuil de garde est exactement ce qu'on fait quand on veut du vert,
+    donc le remplacement est nommé : la règle de dérivation est gardée par
+    `tests/test_a_step_is_offered_only_where_it_draws.py`, qui vérifie AUSSI que le
+    grain retenu reste écrit à l'écran. Rien n'est moins gardé qu'avant ; la
+    question a changé de fichier avec son sujet.
     """
     bars = _home_call("segmented_control")
-    assert len(bars) >= 2, (
-        f"{len(bars)} barre(s) dans `_render_trend` — il en faut deux, le mode et le "
-        "pas. Un `st.selectbox` replie les options : l'artiste ne sait pas qu'elles "
-        "existent.")
+    assert len(bars) >= 1, (
+        f"{len(bars)} barre(s) dans `_render_trend` — il en faut au moins une, celle "
+        "du MODE. Un `st.selectbox` replie les options : l'artiste ne sait pas "
+        "qu'elles existent.")
     dropdowns = _home_call("selectbox")
     assert not dropdowns, (
         f"{len(dropdowns)} menu(s) déroulant(s) sont revenus dans `_render_trend` "
         f"(lignes {[n.lineno for n in dropdowns]}).")
 
 
-def test_the_bar_offers_a_step_the_figure_can_actually_draw() -> None:
-    """Une case qui ne produit rien se lit comme une panne.
+def test_the_figure_can_draw_every_grain_the_rule_can_produce() -> None:
+    """Un grain que la figure ne sait pas agréger rendrait une figure VIDE.
 
-    Le pas `month` n'existait nulle part dans la figure jusqu'au 2026-09-12 ; le
-    proposer sans l'implémenter aurait rendu la figure vide sur un clic.
+    La question n'a pas bougé depuis le 2026-09-12 — « la figure sait-elle dessiner
+    tout ce qui peut lui être demandé ? » — mais son sujet, oui. Elle portait sur
+    les cases d'une barre ; elle porte maintenant sur les valeurs que la règle de
+    dérivation peut produire. Sans ce garde, ajouter un palier `'quarter'` à la
+    règle viderait la figure sans qu'aucun test ne bronche.
     """
     fn = next(n for n in ast.walk(_tree("src/dashboard/views/home.py"))
               if isinstance(n, ast.FunctionDef) and n.name == "_render_trend")
-    steps = next(
-        (n for n in ast.walk(fn) if isinstance(n, ast.Assign)
-         and any(getattr(t, "id", "") == "steps" for t in n.targets)), None)
-    assert steps is not None and isinstance(steps.value, ast.Dict), (
-        "`_render_trend` ne déclare plus le dictionnaire `steps` — la barre de pas "
-        "est construite ailleurs et ce garde ne voit plus rien")
-    offered = {k.value for k in steps.value.keys if isinstance(k, ast.Constant)}
-    assert offered == set(_STEPS), (
-        f"la barre propose {sorted(offered)} ; les quatre grains demandés le "
-        f"2026-09-12 sont {sorted(_STEPS)}")
-    unknown = offered - set(_FINER_STEPS) - {"day"}
+    # Les valeurs littérales affectées à `step` dans la fonction : c'est ce que la
+    # règle peut produire, lu dans la structure et non dans un commentaire.
+    produced = {n.value.value for n in ast.walk(fn)
+                if isinstance(n, ast.Assign)
+                and any(getattr(t, "id", "") == "step" for t in n.targets)
+                and isinstance(n.value, ast.Constant)
+                and isinstance(n.value.value, str)}
+    assert produced, (
+        "`_render_trend` n'affecte plus de grain littéral à `step` — la règle de "
+        "dérivation est ailleurs et ce garde ne voit plus rien")
+    unknown = produced - set(_FINER_STEPS) - {"day"}
     assert not unknown, (
-        f"pas(s) proposé(s) que la figure ne sait pas agréger : {sorted(unknown)}. "
-        "Cliquer la case rendrait une figure vide, ce qui se lit comme une panne.")
+        f"grain(s) que la règle produit mais que la figure ne sait pas agréger : "
+        f"{sorted(unknown)}. La figure sortirait VIDE, ce qui se lit comme une panne.")
 
 
-def test_the_day_is_the_default_unless_the_window_is_long() -> None:
-    """Réglé « sur journalier par défaut » — sans rendre 1 400 points par plateforme."""
+def test_the_day_gives_way_to_the_month_around_the_year() -> None:
+    """Réglé « sur journalier » sous l'année — sans rendre 1 400 points sur quatre ans.
+
+    `_DAY_UNTIL_DAYS` est devenu `_DAY_UNTIL_YEAR` le 2026-09-12, et ce n'est pas un
+    renommage cosmétique : ce n'est plus le plafond d'un DÉFAUT qu'un clic pouvait
+    reprendre, c'est la bascule d'une règle que personne ne peut contourner. Le
+    chiffre doit donc être plus serré qu'avant — autour de l'année, pas « quelque
+    part entre 30 et 400 jours ».
+    """
     home = (ROOT / "src/dashboard/views/home.py").read_text(encoding="utf-8")
     tree = ast.parse(home)
     ceiling = next(
         (n.value.value for n in ast.walk(tree) if isinstance(n, ast.Assign)
-         and any(getattr(t, "id", "") == "_DAY_UNTIL_DAYS" for t in n.targets)
+         and any(getattr(t, "id", "") == "_DAY_UNTIL_YEAR" for t in n.targets)
          and isinstance(n.value, ast.Constant)), None)
-    assert isinstance(ceiling, int) and 30 <= ceiling <= 400, (
-        f"`_DAY_UNTIL_DAYS` vaut {ceiling!r} — un plafond hors de portée rend le "
-        "défaut soit toujours jour (illisible sur 4 ans), soit jamais jour.")
-    fn = next(n for n in ast.walk(tree)
-              if isinstance(n, ast.FunctionDef) and n.name == "_render_trend")
-    src = ast.unparse(fn)
-    assert "_DAY_UNTIL_DAYS" in src and "'day'" in src, (
-        "`_render_trend` ne compare plus la fenêtre à `_DAY_UNTIL_DAYS` — le défaut "
-        "n'est plus dérivé de la période affichée")
+    assert isinstance(ceiling, int) and 300 <= ceiling <= 400, (
+        f"`_DAY_UNTIL_YEAR` vaut {ceiling!r} — la bascule jour → mois doit se faire "
+        "autour de l'année. Plus bas, « 90 jours » perdrait le pas du jour ; plus "
+        "haut, « 12 mois » dessinerait 365 points par plateforme.")
 
 
 def test_no_caption_reformulates_what_the_hatch_already_draws() -> None:

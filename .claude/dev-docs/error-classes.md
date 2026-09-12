@@ -373,6 +373,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-window-applied-to-the-wrong-date](#a-window-applied-to-the-wrong-date) | P2 | deterministic | guarded | none |
 | [a-dependency-that-does-not-come-back](#a-dependency-that-does-not-come-back) | P2 | deterministic | guarded | none |
 | [a-guard-satisfied-by-the-collapse-it-should-catch](#a-guard-satisfied-by-the-collapse-it-should-catch) | P2 | deterministic | guarded | none |
+| [a-test-whose-input-derives-from-its-subject](#a-test-whose-input-derives-from-its-subject) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -4224,7 +4225,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un total affiché est faux d'un ou deux ordres de grandeur, sans erreur ni trou. Vu au rendu le 2026-09-08 : **16 568 594 écoutes** en sous-titre de la vue par défaut, pour un artiste qui en a 163 102 — un facteur 89.
 - root_cause: le sous-titre lisait `aligned`, c'est-à-dire la série APRÈS `_as_mode`. En mode cumulé chaque point porte le total depuis le début, donc les additionner somme des cumuls. Le correctif précédent du même jour avait déplacé le calcul de `series` (la série brute, qui ignorait le filtre de sources et comparait des dates du jour à des clés de seau) vers `aligned` — plus près, toujours faux, et sur une variable dont le nom ne dit pas qu'elle a été transformée.
-- signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py::test_the_recap_sums_quantities_not_cumulative_values -q`
+- signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py::test_no_indicator_ever_sums_cumulative_values -q`
 - long_term_fix: `aligned_raw` conserve les quantités par pas avant `_as_mode`, et c'est la seule forme qu'on somme. Le garde lit le sous-titre RENDU — il rend la figure, extrait le nombre du titre et le compare à la somme connue — au lieu de vérifier quelle variable la fonction utilise : c'est le nombre affiché qui était faux.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
@@ -5391,3 +5392,17 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: trouvée en MUTANT un garde écrit dix minutes plus tôt — la mutation est restée verte là où les deux autres du même lot rougissaient. Parenté directe avec `a-verdict-from-a-tree-that-moved-under-it` et avec la leçon « le harnais peut mentir, pas seulement le prédicat » : dans les deux cas le test mesure autre chose que son sujet. Différence utile : ici le harnais est le CODE DE PRODUCTION, pas l'outillage de test — c'est le `except` tolérant de la vraie surface qui produit le faux vert.
+
+## a-test-whose-input-derives-from-its-subject
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un garde reste VERT quand on mute la constante qu'il prétend garder. Il n'échoue sur aucune valeur, si extrême soit-elle, parce que l'entrée qu'il construit grandit avec la constante — le test suit son sujet au lieu de le contredire.
+- root_cause: l'entrée du test est CALCULÉE à partir de la valeur testée. Mesuré le 2026-09-12 : `huge = (_MAX_BUCKETS + 1) * 30 + 1` puis `assert _step_for(huge) == "year"`. Porter `_MAX_BUCKETS` de 60 à 99 999 laisse le test vert — `huge` devient 3 000 031 jours, et la règle bascule toujours. La constante n'est gardée sur AUCUNE valeur. C'est la parenté directe de `a-guard-satisfied-by-the-collapse-it-should-catch`, trouvée la même journée : dans les deux cas, le mécanisme qui devait produire l'échec produit le succès.
+- long_term_fix: **la borne d'un test est un fait EXTÉRIEUR à la règle testée** — une fenêtre de vingt ans, un volume réel mesuré en production, une date fixe. Quand un seuil doit être comparé à quelque chose, comparer à ce fait extérieur, et ajouter l'assertion qui dit que le seuil est ATTEIGNABLE (« une borne qui ne peut pas être atteinte n'est pas une borne »). Le contrôle de la méthode est le même que pour toute la famille : muter la constante et EXIGER le rouge — un garde jamais vu échouer sur son propre sujet n'est pas un garde.
+- signature: `python3 -m pytest tests/test_a_step_is_offered_only_where_it_draws.py -q`
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_step_is_offered_only_where_it_draws.py }
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: deuxième mutation restée verte de la même séance, et deuxième fois que c'est le mutant — pas le test initial — qui révèle le défaut. Les deux classes cousines disent la même chose sous deux angles : vérifier que la mutation rougit NE SUFFIT PAS, il faut vérifier qu'elle rougit POUR LA BONNE RAISON.

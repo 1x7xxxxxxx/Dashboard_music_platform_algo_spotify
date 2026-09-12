@@ -554,33 +554,69 @@ def _recap_text(monkeypatch, series: dict, **kw) -> str:
     return "\n".join(written)
 
 
-def test_the_recap_sums_quantities_not_cumulative_values(monkeypatch) -> None:
+def test_no_indicator_ever_sums_cumulative_values(monkeypatch) -> None:
     """En mode cumulé, additionner les points somme des cumuls — et c'est énorme.
 
-    Mesuré au rendu du 2026-09-08 : **16 568 594 écoutes** annoncées pour un artiste qui
-    en a 163 102. Faux d'un facteur 89, sur la vue par DÉFAUT, et aucun test ne le
-    voyait — il a fallu regarder la figure. `aligned` est la série après `_as_mode` ;
-    seule `aligned_raw` porte des quantités, la seule forme qu'on ait le droit de
-    sommer.
+    Mesuré au rendu du 2026-09-08 : **16 568 594 écoutes** annoncées pour un artiste
+    qui en a 163 102. Faux d'un facteur 89, sur la vue par DÉFAUT, et aucun test ne le
+    voyait — il a fallu regarder la figure.
+
+    ── LA TROISIÈME SURFACE DE CE MÊME GARDE ────────────────────────────────────
+
+    Il lisait le SOUS-TITRE jusqu'au 2026-09-12 (supprimé ce jour-là), puis la ligne
+    « Total » du tableau markdown à droite de la figure, supprimée le soir même —
+    « supprime-le et remplace-le par celui qu'on a validé ». Les totaux par
+    plateforme vivent désormais dans les BOÎTES au-dessus de la figure, qui lisent
+    `platform_totals()` : la porte de la couche or, qui ne somme pas des cumuls par
+    construction — elle lit une différence de niveau.
+
+    Ce qui reste ici, et qui n'est gardé nulle part ailleurs, c'est la moitié que la
+    figure produit encore : **les indicateurs dérivés** sous elle, calculés sur les
+    listes remises à Plotly. C'est exactement le chemin qui avait produit le ×89. Le
+    garde suit donc le NOMBRE, pas la mise en page — pour la troisième fois.
+
+    10 jours × 10 écoutes = 100. Une somme de cumuls rendrait 550.
     """
     import datetime as dt
+    from contextlib import nullcontext
+
+    import streamlit as st_mod
+
     day = dt.date(2026, 1, 1)
     series = {"spotify": [(day + dt.timedelta(days=i), 10) for i in range(10)]}
 
+    class _Col:
+        def container(self, **_k):
+            return nullcontext()
+
+    seen: list = []
+    monkeypatch.setattr(st_mod, "plotly_chart", lambda fig, **k: None)
+    monkeypatch.setattr(st_mod, "caption", lambda *a, **k: None)
+    monkeypatch.setattr(st_mod, "columns",
+                        lambda n, **k: [_Col() for _ in range(
+                            n if isinstance(n, int) else len(n))])
+    monkeypatch.setattr(st_mod, "metric",
+                        lambda label, value, **k: seen.append((str(label), str(value))))
+
     for mode in ("cumulative", "absolute"):
-        text = _recap_text(monkeypatch, series, step="day", mode=mode)
-        # La ligne Total du récapitulatif, en gras. 10 jours × 10 écoutes = 100 ;
-        # une somme de cumuls rendrait 550.
-        import re as _re
-        totals = _re.findall(r"\*\*([\d\u202f]+)\*\*", text)
-        assert totals, f"mode {mode} : le récapitulatif n'affiche aucun total\n{text}"
-        got = int(totals[-1].replace("\u202f", ""))
+        seen.clear()
+        # Le constructeur rend le GRAND TOTAL que la figure lui passe — c'est
+        # `_derive_metrics` qui le calcule, et c'est LUI qui sommait des cumuls.
+        assert pc.render_platform_chart(
+            series, title="T", since=day, until=day + dt.timedelta(days=9),
+            step="day", mode=mode, recap=True,
+            recap_metrics=lambda _al, _sp, grand, _st, _md: [
+                ("🧪 Total", f"{grand}", None)],
+            key=f"sum_{mode}")
+        row = next((r for r in seen if "Total" in r[0]), None)
+        assert row, f"mode {mode} : aucun indicateur rendu — le garde est aveugle"
+        got = int(row[1])
         assert got == 100, (
-            f"mode {mode} : le récapitulatif annonce {got} au lieu de 100 — "
-            "il additionne des cumuls")
+            f"mode {mode} : le grand total remis aux indicateurs vaut {got} au lieu "
+            "de 100 — il additionne des cumuls. `aligned` est la série APRÈS "
+            "`_as_mode` ; seule `aligned_raw` porte des quantités, et en cumulé le "
+            "total de la période est le DERNIER niveau, pas la somme.")
 
-
-# ── Un pas qui ne dessine rien descend, au lieu de rendre une page muette ───
 
 def test_a_step_that_yields_one_bucket_falls_back(monkeypatch) -> None:
     """« Cumulé · par année · cette année » ne montrait AUCUNE plateforme.
