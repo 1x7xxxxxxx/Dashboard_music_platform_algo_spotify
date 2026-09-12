@@ -101,6 +101,11 @@ def _drawn_total(series, cumulative, mode, step, since, until) -> dict:
     fig = captured.get("fig")
     out: dict = {}
     for trace in (fig.data if fig else []):
+        # La trace SANS NOM est le porteur de survol des pas non mesurés : elle
+        # ne nomme aucune plateforme, et l'agréger sous la clé `None` ferait
+        # apparaître une « plateforme » fantôme dans la comparaison.
+        if not trace.name:
+            continue
         out[trace.name] = out.get(trace.name, 0) + sum(v for v in trace.y if v)
     return out
 

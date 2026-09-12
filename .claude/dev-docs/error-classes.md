@@ -120,6 +120,14 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-shared-module-drags-a-view-behind-it](#a-shared-module-drags-a-view-behind-it) | P3 | deterministic | guarded | none |
 | [two-silences-one-message](#two-silences-one-message) | P3 | deterministic | guarded | none |
 | [a-marker-shared-by-several-sites-guards-none](#a-marker-shared-by-several-sites-guards-none) | P3 | deterministic | guarded | none |
+| [a-removed-title-becomes-the-word-undefined](#a-removed-title-becomes-the-word-undefined) | P3 | deterministic | guarded | none |
+| [a-visual-constant-copied-into-a-second-renderer](#a-visual-constant-copied-into-a-second-renderer) | P2 | deterministic | guarded | none |
+| [one-scale-for-two-contracts](#one-scale-for-two-contracts) | P3 | deterministic | guarded | none |
+| [a-verdict-whose-validator-lives-outside-the-repo](#a-verdict-whose-validator-lives-outside-the-repo) | P3 | deterministic | guarded | none |
+| [a-threshold-true-at-one-grain-and-false-at-another](#a-threshold-true-at-one-grain-and-false-at-another) | P3 | deterministic | guarded | none |
+| [a-kill-pattern-that-matches-its-own-shell](#a-kill-pattern-that-matches-its-own-shell) | P3 | deterministic | guarded | none |
+| [a-verdict-from-a-tree-that-moved-under-it](#a-verdict-from-a-tree-that-moved-under-it) | P3 | heuristic | guarded | none |
+| [a-bash-hook-that-blocks-the-prose-about-the-gesture](#a-bash-hook-that-blocks-the-prose-about-the-gesture) | P2 | deterministic | guarded | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -4211,7 +4219,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un total affiché est faux d'un ou deux ordres de grandeur, sans erreur ni trou. Vu au rendu le 2026-09-08 : **16 568 594 écoutes** en sous-titre de la vue par défaut, pour un artiste qui en a 163 102 — un facteur 89.
 - root_cause: le sous-titre lisait `aligned`, c'est-à-dire la série APRÈS `_as_mode`. En mode cumulé chaque point porte le total depuis le début, donc les additionner somme des cumuls. Le correctif précédent du même jour avait déplacé le calcul de `series` (la série brute, qui ignorait le filtre de sources et comparait des dates du jour à des clés de seau) vers `aligned` — plus près, toujours faux, et sur une variable dont le nom ne dit pas qu'elle a été transformée.
-- signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py::test_the_subtitle_sums_quantities_not_cumulative_values -q`
+- signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py::test_the_recap_sums_quantities_not_cumulative_values -q`
 - long_term_fix: `aligned_raw` conserve les quantités par pas avant `_as_mode`, et c'est la seule forme qu'on somme. Le garde lit le sous-titre RENDU — il rend la figure, extrait le nombre du titre et le compare à la somme connue — au lieu de vérifier quelle variable la fonction utilise : c'est le nombre affiché qui était faux.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
@@ -5116,6 +5124,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - rex_ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py
 - first_seen: 2026-09-12
 - History:
+  - 2026-09-12: **une trace neuve dans une figure partagée est une ligne neuve pour TOUT garde qui énumère les traces.** Le porteur de survol des pas non mesurés n'a délibérément pas de nom — il ne nomme aucune plateforme — et quatre gardes ont levé un `TypeError` sur `t.name` valant `None`, ou l'auraient compté comme une plateforme fantôme. Lui DONNER un nom aurait réparé les quatre sans les toucher, et c'est le mauvais remède : il serait alors agrégé comme une plateforme dans les totaux comparés. Les gardes sautent donc les traces sans nom, et la raison est écrite à chaque site. Sites : `test_a_curve_ends_where_its_tile_says.py` (×3), `test_every_way_of_asking_gives_one_answer.py`, `test_a_note_describes_the_figure_that_is_shown.py`.
   - 2026-09-12: ⚠️ contrainte de rendu à ne pas réapprendre — `add_vrect` (une SHAPE Plotly) **ne supporte pas** `fillpattern`, vérifié sur la version de production (5.24.1) et en local (6.5.2). La hachure doit être une TRACE `Scatter` avec `fill="toself"`, supportée des deux côtés.
   - 2026-09-12: cinq mutations vues rouges, messages lus : `or 0` remis sur le `y` de la pile (nomme la plateforme et les index) ; `unmeasured_spans` rendant `[]` (nomme le mode) ; le garde-fou du mode « part » désarmé (90 pas dessinés sur 90) ; les facettes privées de hachure ; le correctif du PDF retiré.
   - 2026-09-12: le cliquet pandas a d'abord compté TOUS les `.fillna(0)` des vues — **23 sur 11 fichiers**, dont aucun n'était le défaut : ils remplissent des CATÉGORIES (un pays sans dépense, un titre sans like), où zéro est une réponse. Un cliquet qui crie sur 23 sites sains pour en garder 4 apprend que le rouge est du bruit. Le prédicat cherche désormais la classe et non le mot : une fonction qui ÉLARGIT une trame (`pd.date_range` / `reindex`) **et** la bouche avec des zéros. Trois fonctions restent, lues et justifiées une par une.
@@ -5185,3 +5194,132 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-12: variante de `a-textual-guard-is-blind` sur un axe qu'elle ne couvrait pas. Celle-là dit « un garde textuel voit un nom survivre dans un commentaire » ; celle-ci dit « un garde textuel voit un nom survivre **dans un autre site du même fichier** ». La cécité ne vient pas du texte, elle vient de la CARDINALITÉ — et un garde AST aurait été tout aussi vert s'il s'était contenté de `any(...)`.
   - 2026-09-12: signature vue rouge par mutation sur DEUX fichiers différents — `_measured` retiré d'une courbe du PDF (« 2 `_measured` au lieu de 4 »), puis `connectgaps` retiré de la figure Hypeddit (« 0 au lieu de 1 »). Verte sur l'arbre corrigé.
+
+## a-removed-title-becomes-the-word-undefined
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: la figure affiche le mot **« undefined »** en gras là où son titre a été retiré. Vu au navigateur le 2026-09-12, immédiatement après avoir supprimé le titre et le sous-titre de la pile.
+- root_cause: `fig.update_layout(title=None)` ne retire pas le titre — Plotly sérialise l'absence vers son moteur JS, qui rend la chaîne `undefined`. Le titre de la pile venait d'être supprimé parce qu'il répétait le filtre de période et le récapitulatif ; le geste était juste, sa forme non.
+- long_term_fix: un titre qu'on retire est une chaîne **vide** (`title=dict(text="")`), jamais une absence. Le garde rend la figure dans les quatre modes et refuse un `layout.title.text` à `None`.
+- autofix: none
+- signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py::test_a_removed_title_is_empty_not_none -q`
+- guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py::test_a_removed_title_is_empty_not_none }
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: **aucun test Python ne pouvait le voir, et c'est le cœur de la classe.** `layout.title.text` valait `None` — exactement ce qu'on avait demandé, donc tout garde qui interroge l'objet Python est vert. Le mot naît à la SÉRIALISATION vers le JS, c'est-à-dire dans le navigateur. C'est la 8ᵉ fois que ce dépôt trouve un défaut de figure en regardant l'écran et zéro fois en lisant le code.
+  - 2026-09-12: signature vue rouge en remettant `title=None`, verte avec `title=dict(text="")`. Le garde interroge `is not None` et non le contenu : exiger un texte précis reviendrait à interdire de retirer le titre.
+
+## a-visual-constant-copied-into-a-second-renderer
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: la même plateforme porte **deux couleurs** dans le même produit — Spotify en vert à l'écran, en bleu dans le PDF du même artiste, le même jour.
+- root_cause: `pdf_charts._PLATFORM_COLORS` était une COPIE littérale de `platform_chart._PALETTE_LIGHT`, écrite quand un seul rendu en avait besoin. Le 2026-09-12 l'écran est passé aux familles de marque ; la copie n'a pas suivi, et rien dans le PDF ne pouvait le signaler — il était cohérent avec lui-même. C'est la forme visuelle de `two-definitions-that-must-coincide-are-never-compared`.
+- long_term_fix: le PDF LIT la palette de l'écran au lieu de la recopier (`_platform_colors()` dérive la liste de `_PALETTE_LIGHT`). L'ordre reste positionnel pour ses appelants, mais la source est unique : une couleur changée à l'écran change dans le document, par construction.
+- autofix: none
+- signature: `python3 -m pytest tests/test_the_pdf_and_the_screen_read_the_same_functions.py::test_a_platform_has_one_colour_in_the_whole_product -q`
+- guard: { type: pytest, ref: tests/test_the_pdf_and_the_screen_read_the_same_functions.py::test_a_platform_has_one_colour_in_the_whole_product }
+- rex_ref: src/dashboard/utils/pdf_charts.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: **le garde existait avant le défaut et l'a attrapé le jour même** — c'est le seul cas de la séance où la divergence n'a coûté aucune lecture. Il nommait les deux listes côte à côte. Une constante VISUELLE se duplique aussi facilement qu'une règle métier, et elle est plus dure à voir : les deux rendus sont cohérents chacun de son côté, et personne ne les ouvre en même temps.
+
+## one-scale-for-two-contracts
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une tuile de fraîcheur passe au **rouge** pour un comportement parfaitement normal. Signalé le 2026-09-12 : « c'est en rouge alors qu'on a que 3 jours de retard », sur un CSV que personne ne dépose quotidiennement.
+- root_cause: `freshness_status` appliquait un seul barème — 24 h vert, 72 h orange, au-delà rouge — à deux contrats opposés. Une API tourne chaque matin (deux nuits manquées = panne) ; un CSV est déposé à la main et Spotify for Artists publie par semaine. Le `kind` existait déjà dans `SOURCES_CONFIG` depuis le 2026-09-11 et rien ne le lisait pour décider de la couleur.
+- long_term_fix: le barème est DÉRIVÉ du contrat déclaré, jamais écrit à côté : `freshness_status(last_dt, kind)` choisit 24 h/72 h pour une API et 7 j/30 j pour un CSV, et le défaut reste le barème STRICT — une source dont on ignore la nature est surveillée comme la plus exigeante, jamais l'inverse.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_scale_matches_the_contract_it_judges.py -q`
+- guard: { type: pytest, ref: tests/test_a_scale_matches_the_contract_it_judges.py }
+- rex_ref: src/dashboard/utils/kpi_helpers.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: **le coût n'est pas cosmétique, et c'est ce qui en fait une classe P3 et non P4.** Un rouge qui s'allume sur un comportement normal cesse d'être lu — il ne dira plus rien le jour où la source casse vraiment. Le voyant est consommé par le bruit. Même famille que `watchdog-becomes-the-noise`, du côté de l'ÉCHELLE et non du détecteur.
+  - 2026-09-12: deux mutations vues rouges — le barème rendu insensible à son `kind` (« une source csv vieille de 3 j s'affiche 🔴, attendu 🟢 », le symptôme signalé reproduit à l'identique), et l'appel de la vue privé de son `kind` (le barème existe et n'est pas branché, la classe payée six fois ici).
+
+## a-verdict-whose-validator-lives-outside-the-repo
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une règle est écrite dans un commentaire avec son chiffre, et personne ne peut la rejouer. La palette portait « refusé : ΔE 4.5 (deutan) » depuis le 2026-09-08 ; le verdict venait de `node scripts/validate_palette.js`, un script de la skill `dataviz` **absent de ce dépôt**.
+- root_cause: la mesure vivait dans un outil externe et son RÉSULTAT dans un commentaire. Conséquence mesurée : la palette a changé deux fois (2026-09-08, 2026-09-12) sans qu'aucune exécution ne puisse dire si elle passait encore, et le second changement — demandé, « youtube rouge… » — a d'abord produit un quatuor à ΔE 10,5 en vision normale, invisible.
+- long_term_fix: la mesure elle-même entre dans le dépôt. `tests/test_the_palette_can_be_attributed.py` porte CIEDE2000 et la simulation dichromate de Viénot/Brettel en stdlib — il ne remplace pas la skill, il rend son verdict reproductible ici. Règle générale : quand un chiffre d'un outil externe devient une règle du dépôt, c'est la MESURE qu'il faut importer, pas le chiffre.
+- autofix: none
+- signature: `python3 -m pytest tests/test_the_palette_can_be_attributed.py -q`
+- guard: { type: pytest, ref: tests/test_the_palette_can_be_attributed.py }
+- rex_ref: tests/test_the_palette_can_be_attributed.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: le garde porte sa propre NON-VACUITÉ, et elle est indispensable ici : il rejoue le refus de 2026-09-08 (`#FF0000` ↔ `#FF5500`, ΔE deutan mesuré 4,6 contre 4,5 à l'époque) et échoue si sa formule cesse de le reproduire. Sans ce test, une erreur de colorimétrie rendrait tout vert et le fichier entier serait un garde qui ne garde rien.
+  - 2026-09-12: **les deux planchers diffèrent, et c'est une borne mesurée et non un confort.** La bande de clarté du mode sombre (0,48–0,67 contre 0,43–0,77) laisse 0,19 pour séparer trois teintes chaudes ; balayage exhaustif : le MAXIMUM atteignable y est 13,9 (14,6 sans Apple) contre 16,9 en clair. Un plancher de 15 en sombre serait infranchissable, donc rouge à vie, donc ignoré. Il est à 13,5 — 0,4 au-dessus du maximum, assez pour refuser toute dégradation.
+  - 2026-09-12: signature vue rouge en remettant les couleurs de marque exactes (quatre paires sous le plancher, dont ΔE 4,6 en deutan), verte sur la palette livrée.
+
+## a-threshold-true-at-one-grain-and-false-at-another
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un garde rougit alors que rien n'est cassé, uniquement parce que la figure a changé de PAS. Le sien exigeait « au moins 30 pas non mesurés couverts » ; au pas semaine, les 40 jours de la mise en scène font 5 seaux, et il accusait un code correct.
+- root_cause: le seuil avait été écrit en regardant le pas JOUR, où la mise en scène détermine 40 trous — un nombre vrai, mais vrai d'UN grain. Le même garde tournait sur quatre modes × deux pas sans que le nombre suive le pas. C'est `un-seuil-écrit-d-instinct` retourné contre son auteur, et il a été commis en écrivant le garde d'une AUTRE classe le même jour.
+- long_term_fix: un invariant indépendant du grain — aucun point du porteur de survol ne tombe hors d'une bande hachurée — plus une assertion EXACTE au seul pas où le compte est déterminé (40 jours au pas jour). Règle générale : un garde qui tourne sur plusieurs grains n'épingle un NOMBRE qu'au grain qui le détermine ; partout ailleurs il épingle une RELATION.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py -q`
+- guard: { type: pytest, ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py }
+- rex_ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: quatre paramétrisations rouges sur huit, toutes au pas semaine, toutes sur du code juste. Le signal était clair — un échec qui suit exactement une dimension du produit cartésien accuse le TEST, pas la cible. La leçon voisine du même jour (`a-first-bucket-declared-unknown-when-it-was-observed`) dit l'inverse : là, le changement de pas révélait un vrai défaut. Les deux se distinguent en regardant QUI varie avec le grain — la mise en scène, ou la mesure.
+
+## a-kill-pattern-that-matches-its-own-shell
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une commande composée s'arrête au milieu, sans message, et rend le code **144**. Ce qui suit n'a jamais tourné — relancer la suite, écrire le script, lister ce qui reste. Le code ressemble à un échec de la cible ; la cible a très bien été tuée.
+- root_cause: `pkill -f <motif>` compare le motif à la ligne de commande de CHAQUE processus, **y compris celle du shell qui l'exécute**, laquelle contient le motif par construction. Le shell se suicide donc systématiquement. Arrivé trois fois le 2026-09-12 ; deux fois j'ai cru que le kill avait échoué.
+- long_term_fix: hook `PreToolUse` sur Bash. Il BLOQUE la forme suivie d'autre chose sur la même ligne et propose celle où le motif ne peut plus se contenir lui-même — un crochet à la grep, `"[p]attern"`, suffit. Un appel seul en fin de ligne n'est pas bloqué : s'y suicider après avoir tué ne coûte rien.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_bash_guard_reads_the_command_not_the_prose.py -q`
+- guard: { type: pretooluse-hook, ref: .claude/hooks/guard_destructive.py }
+- rex_ref: .claude/hooks/guard_destructive.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: **le blocage est CONDITIONNEL, et c'est ce qui le rend tenable.** Interdire le geste tout court serait faux : en fin de ligne il est inoffensif et c'est l'idiome courant. Le garde ne bloque que la forme qui coûte — quelque chose suit. Même conception que le garde de rétablissement juste au-dessus dans le même fichier : ne bloquer que s'il y a réellement à perdre, et nommer quoi.
+  - 2026-09-12: trois occurrences en une séance, et la leçon avait été ÉCRITE après la première. C'est le deuxième geste réflexe de ce dépôt à démontrer qu'une note ne retient rien — le premier était `checkout` le 2026-09-10.
+
+## a-verdict-from-a-tree-that-moved-under-it
+- status: guarded
+- severity: P3
+- kind: heuristic
+- symptom: la suite complète rend des échecs qui **n'existent pas** — verts dès qu'on les rejoue. Mesuré le 2026-09-12 : quatre signalés sur deux exécutions, **trois faux**.
+- root_cause: la suite met 6 min 35, et j'ai édité des modules, régénéré des documents et ajouté des fichiers de test pendant qu'elle tournait. pytest lit les fichiers au fil de la collecte et de l'exécution : un arbre qui bouge sous elle produit un verdict qui ne décrit aucun état réel du dépôt.
+- long_term_fix: hook `PostToolUse` sur Write|Edit. Il dit, AU MOMENT de l'écriture, qu'une suite complète tourne et depuis combien de temps. Ce constat ne peut pas être une note : il dépend d'un fait invisible au moment du geste. Avertissement et jamais blocage — éditer pendant une exécution ciblée (`-k`) est normal, et même sous une suite complète c'est parfois le bon choix, à condition de savoir que le verdict ne vaudra rien.
+- autofix: none
+- signature: `python3 -c "import sys;sys.path.insert(0,'.claude/hooks');import check_python_syntax as m;sys.exit(0 if callable(getattr(m,'warn_if_a_full_suite_is_running',None)) else 1)"`
+- guard: { type: posttooluse-hook, ref: .claude/hooks/check_python_syntax.py }
+- rex_ref: .claude/hooks/check_python_syntax.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: le coût n'est pas le temps de tri. **Un vrai échec noyé dans des faux se traite comme du bruit** — le seul vrai des quatre (une trace sans nom cassant quatre gardes) a failli être rangé avec les autres, et il a fallu rejouer chacun séparément pour le distinguer.
+  - 2026-09-12: `kind: heuristic` assumé. Le prédicat cherche `pytest tests/` sans `-k` dans la table des processus : il ne voit pas une suite lancée autrement, et il crierait sur une exécution complète volontairement concurrente. Il avertit, il ne bloque pas — un faux positif coûte une ligne lue, jamais un travail arrêté.
+  - 2026-09-12: **le hook a signalé le défaut sur sa propre première exécution.** Écrit pendant que la suite tournait à 95 %, il a dit exactement ce qu'il existe pour dire. C'est la meilleure preuve de non-vacuité qu'on puisse demander, et elle n'était pas prévue.
+
+## a-bash-hook-that-blocks-the-prose-about-the-gesture
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: **écrire sur un défaut devient impossible.** Trois commandes bloquées d'affilée le 2026-09-12, toutes en train d'écrire la classe d'erreur du geste concerné. Le hook comparait des sous-chaînes : nommer le geste suffisait à déclencher le garde du geste.
+- root_cause: `guard_destructive.py` cherchait `pkill -f` et `git checkout -- ` n'importe où dans la commande, sans vérifier que le geste en soit la COMMANDE. Un `echo` d'une phrase, un heredoc de documentation ou l'édition du hook lui-même suffisaient. **Le mode d'échec du volet rétablissement est pire qu'un faux positif** : les jetons de la phrase deviennent des chemins passés à `git status`, et l'un d'eux peut être `:` — en syntaxe de pathspec git cela désigne TOUS les fichiers, donc une phrase en prose faisait croire au garde que le dépôt entier allait être écrasé. Vérifié par mutation : la phrase de documentation faisait lister de vrais fichiers modifiés.
+- long_term_fix: les deux volets exigent désormais que le geste soit la commande de son segment — premiers jetons après `shlex.split`, `sudo`/`time`/`nohup` admis. C'est le minimum structurel : lire ce que le shell EXÉCUTERAIT, pas ce que la ligne contient.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_bash_guard_reads_the_command_not_the_prose.py -q`
+- guard: { type: pytest, ref: tests/test_a_bash_guard_reads_the_command_not_the_prose.py }
+- rex_ref: .claude/hooks/guard_destructive.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: c'est `a-textual-guard-is-blind` porté sur les HOOKS et non sur les tests, et la conséquence y est symétrique : là-bas un garde textuel reste VERT sur son propre défaut, ici il reste ROUGE sur sa propre documentation. Les deux ont le même remède et le même coût si on ne le prend pas — la seule façon de continuer est d'arrêter d'écrire, ce que le dépôt avait déjà constaté le 2026-08-03 sur une signature.
+  - 2026-09-12: deux mutations vues rouges, une par volet, chacune nommant la phrase qu'elle refuse. Celle du rétablissement affiche la liste des fichiers qu'elle croyait perdus — la preuve du pathspec `:`.
+  - 2026-09-12: la non-vacuité est tenue dans l'autre sens par `test_a_restore_that_would_lose_work_still_blocks`, qui salit `README.md` **en binaire** puis le rend : en mode texte, un montage Windows réécrirait les fins de ligne du fichier entier et la sonde abîmerait ce qu'elle vérifie.

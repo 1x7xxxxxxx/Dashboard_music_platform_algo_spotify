@@ -95,8 +95,13 @@ FAMILIES: list[tuple[str, str, str]] = [
      r"assumes-a-shell|assumes-visibility|by-direction-not-by-name|"
      r"wrong-advice|blames-the-most-common|names-an-action|"
      r"flattened-for-the-narrowest|without-naming-the-reason|leaves-no-trace|"
+     # `becomes-the-word-` est entré le 2026-09-12 : `title=None` fait écrire
+     # « undefined » en toutes lettres au-dessus de la figure. Un mot de moteur de
+     # rendu montré à un artiste est exactement la question de cette famille — à
+     # qui cette phrase s'adresse-t-elle, et nomme-t-elle un geste ? — même si
+     # personne ne l'a écrite volontairement.
      r"announces-a-field|instruction-|-instruction|speaks-its-own-plumbing|"
-     r"addressed-to|reader"),
+     r"addressed-to|reader|becomes-the-word-|undefined"),
 
     ("un-état-qui-déborde-de-sa-portée",
      "Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour "

@@ -152,6 +152,24 @@ def _paths_that_would_lose_work(command: str) -> list[str]:
             m = _RESTORE_RE.search(segment)
             if not m:
                 continue
+            # LE GESTE DOIT ÊTRE LA COMMANDE, pas une mention dans une phrase.
+            #
+            # Ce filtre manquait, et le garde bloquait toute commande dont le TEXTE
+            # contenait le geste — y compris `echo` d'une phrase qui l'explique, ou
+            # un heredoc qui documente le garde lui-même. Trois commandes bloquées
+            # d'affilée le 2026-09-12 en écrivant la classe d'erreur du hook voisin.
+            #
+            # Et le mode d'échec est pire qu'un simple faux positif : les jetons de
+            # la phrase deviennent des chemins passés à `git status`, et l'un d'eux
+            # peut être `:` — en syntaxe de pathspec git, cela désigne TOUS les
+            # fichiers. Une phrase en prose faisait donc croire au garde que le
+            # dépôt entier allait être écrasé.
+            try:
+                head = shlex.split(segment)
+            except ValueError:
+                head = segment.split()
+            if not any(t.rsplit("/", 1)[-1] == "git" for t in head[:3]):
+                continue
             raw = m.group("paths")
             # `--staged` et `--source` ne touchent pas l'arbre de travail.
             if "--staged" in raw or "--source" in raw:
@@ -177,6 +195,73 @@ def _paths_that_would_lose_work(command: str) -> list[str]:
         return []
 
 
+# ── Le geste qui se tue lui-même, et emporte la suite de la ligne ─────────────
+#
+# `pkill -f "<motif>"` compare le motif à la ligne de commande de CHAQUE processus —
+# y compris celle du shell qui l'exécute, puisqu'elle CONTIENT le motif. Le shell se
+# suicide donc systématiquement, sort en 144, et **tout ce qui suit sur la ligne ne
+# part jamais**.
+#
+# Mesuré TROIS fois dans la séance du 2026-09-12, à chaque fois avec le même dégât :
+# la commande d'après — celle qui relançait la suite, celle qui écrivait le script,
+# celle qui listait ce qui restait — n'a pas tourné, et le shell a rendu un code
+# d'erreur qui ressemblait à un échec de la cible. Deux fois j'ai cru que le kill
+# avait raté ; il avait réussi, c'est moi qui étais mort.
+#
+# Le garde ne bloque PAS un `pkill -f` seul en fin de ligne : là, se tuer après avoir
+# tué est sans conséquence. Il bloque quand quelque chose suit, parce que c'est
+# exactement le cas où le silence coûte.
+#
+# La forme sûre ne passe pas par un motif qui se contient lui-même :
+#     ps -eo pid,cmd | grep "[p]ytest tests/" | awk '{print $1}' \
+#       | while read p; do kill "$p"; done
+# Le crochet `[p]` fait que la ligne du shell ne correspond plus au motif cherché.
+
+_PKILL_RE = re.compile(r"\bpkill\s+(?:-\w+\s+)*-\w*f\w*\s+(?P<pat>\S+)")
+
+
+def _pkill_would_kill_its_own_shell(command: str) -> str | None:
+    """Le motif d'un `pkill -f` suivi d'autre chose sur la même ligne, ou `None`.
+
+    Ne lève jamais : ce hook précède chaque appel Bash, et une exception y bloquerait
+    tout le travail au lieu d'un seul geste.
+    """
+    try:
+        segments = re.split(r"&&|\|\||;|\n", command)
+        for i, segment in enumerate(segments):
+            m = _PKILL_RE.search(segment)
+            if not m:
+                continue
+            # LE GESTE DOIT ÊTRE LA COMMANDE, pas un mot dans un argument.
+            #
+            # Sans ce filtre, le garde bloque toute MENTION du geste — le test qui
+            # le vérifie, la documentation qui l'explique, l'édition du hook
+            # lui-même. Il s'est bloqué ainsi à sa première utilisation, le
+            # 2026-09-12, trois commandes d'affilée, et le correctif n'a pas pu
+            # être écrit tant que la cause n'était pas comprise. C'est
+            # `a-textual-guard-is-blind`, commis en écrivant le garde d'à côté.
+            try:
+                head = shlex.split(segment)
+            except ValueError:
+                head = segment.split()
+            # `sudo`, `time`, `nohup`… peuvent précéder ; au-delà de trois jetons
+            # ce n'est plus la commande de tête.
+            if not any(t.rsplit("/", 1)[-1] == "pkill" for t in head[:3]):
+                continue
+            # Rien après ? Se tuer en dernier ne coûte rien.
+            if not any(seg.strip() for seg in segments[i + 1:]):
+                continue
+            pattern = m.group("pat").strip("\"'")
+            # Un motif qui ne peut pas se contenir lui-même (crochet à la grep) est
+            # déjà la forme sûre — on ne crie pas dessus.
+            if "[" in pattern:
+                continue
+            return pattern
+    except Exception:  # noqa: BLE001 — un garde qui lève bloquerait chaque commande
+        return None
+    return None
+
+
 # ── Detection ─────────────────────────────────────────────────────────────────
 
 def check_command(cmd: str) -> tuple[str, str] | None:
@@ -185,7 +270,19 @@ def check_command(cmd: str) -> tuple[str, str] | None:
     level is 'block' or 'warn'. Returns None if safe.
     """
     cmd_lower = cmd.lower()
-    # D'abord le garde à ÉTAT. Il ne bloque que si du travail serait réellement perdu,
+    # Le suicide de shell d'abord : il ne détruit pas de fichier, mais il fait
+    # DISPARAÎTRE en silence tout ce qui suit, ce qui est plus dur à voir.
+    suicidal = _pkill_would_kill_its_own_shell(cmd)
+    if suicidal:
+        return ("block",
+                f"`pkill -f {suicidal}` va tuer le shell qui l'exécute : sa propre "
+                "ligne de commande CONTIENT ce motif. Tout ce qui suit sur cette "
+                "ligne ne partira jamais, et le shell sortira en 144 — un code qui "
+                "ressemble à un échec de la cible. Arrivé trois fois le 2026-09-12.\n"
+                "Forme sûre, où le motif ne se contient plus lui-même :\n"
+                f"  ps -eo pid,cmd | grep \"[{suicidal[:1]}]{suicidal[1:]}\" "
+                "| awk '{print $1}' | while read p; do kill \"$p\"; done")
+    # Puis le garde à ÉTAT. Il ne bloque que si du travail serait réellement perdu,
     # et son message peut NOMMER les fichiers — ce qu'aucun tier littéral ne peut faire.
     lost = _paths_that_would_lose_work(cmd)
     if lost:

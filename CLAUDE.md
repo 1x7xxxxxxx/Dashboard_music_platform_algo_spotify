@@ -277,9 +277,31 @@ et par la règle de la boucle d'ingénierie — pas par un tableau.
 
 ### Hooks
 - **UserPromptSubmit** → `inject_context.py` — keyword-triggered skill injection (domain patterns)
-- **PostToolUse** → `check_python_syntax.py` — ruff after every Write/Edit; exit 2 blocks on E9 syntax errors
+- **PreToolUse (Bash)** → `guard_destructive.py` — bloque les gestes irréversibles. Deux
+  gardes à **ÉTAT**, qui ne bloquent que s'il y a réellement à perdre et qui NOMMENT quoi :
+  un rétablissement git sur un fichier portant du travail non commité, et un `kill` par
+  motif suivi d'autre chose sur la même ligne (le motif matche la ligne du shell, qui se
+  tue, et la suite ne part jamais — code 144).
+- **PostToolUse** → `check_python_syntax.py` — ruff après chaque Write/Edit ; exit 2 bloque
+  sur E9. Avertit aussi quand une **suite complète tourne** : le fichier qu'on vient
+  d'écrire n'y sera pas, donc son verdict décrira un arbre qui n'existe plus.
 - **Stop** → `session_summary.py` — git diff (≤5 files), Docker health, turn count
 → Full specification: `.claude/hooks/hook.md`
+
+> **Pourquoi des hooks et pas des règles ici.** Ces trois comportements sont des gestes
+> RÉFLEXES, et le dépôt a mesuré deux fois qu'une note ne les retient pas : le même
+> `checkout` a détruit du travail deux fois le 2026-09-10, la leçon écrite entre les
+> deux ; le même `kill` s'est tué trois fois le 2026-09-12. Un garde arrive au moment du
+> geste et connaît un fait que la prose ne peut pas porter — y a-t-il du travail à
+> perdre, une suite tourne-t-elle. Classes :
+> `a-kill-pattern-that-matches-its-own-shell`, `a-verdict-from-a-tree-that-moved-under-it`,
+> `a-bash-hook-that-blocks-the-prose-about-the-gesture`.
+>
+> ⚠️ Et un garde de Bash lit la **structure** : le geste doit être la COMMANDE de son
+> segment, jamais un mot dans un argument. Sans ce filtre, écrire *sur* un défaut
+> déclenche le garde du défaut — trois commandes bloquées d'affilée le 2026-09-12, toutes
+> en train de documenter le geste. Contrôle :
+> `tests/test_a_bash_guard_reads_the_command_not_the_prose.py`.
 
 ## MCP Servers
 

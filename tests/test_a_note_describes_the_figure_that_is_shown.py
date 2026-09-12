@@ -255,6 +255,11 @@ def test_no_note_contradicts_what_the_figure_shows(notes) -> None:
             axis = {x for t in fig.data for x in t.x}
             covered: dict = {}
             for t in fig.data:
+                # Le porteur de survol des pas non mesurés n'a PAS de nom : il ne
+                # nomme aucune plateforme, il ne fait que couvrir l'axe. Le compter
+                # ici comparait `None` à des phrases et levait un `TypeError`.
+                if not t.name:
+                    continue
                 covered.setdefault(t.name, set()).update(t.x)
             where = f"mode={mode} pas={step}"
 

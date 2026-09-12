@@ -13,7 +13,7 @@ from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.status_matrix import render_status_matrix
 from src.dashboard.utils.airflow_monitor import AirflowMonitor, cached_last_run_per_dag
 from src.dashboard.utils.kpi_helpers import (
-    get_source_freshness, freshness_status, get_instagram_followers,
+    get_source_freshness, freshness_status,
     SOURCES_CONFIG,
 )
 
@@ -72,7 +72,9 @@ def _section_freshness(db, artist_id):
         cols = st.columns(len(labels))
         for col, label in zip(cols, labels):
             info = freshness[label]
-            emoji, color, age_label = freshness_status(info["last_dt"])
+            # Le BARÈME suit le contrat de la source : un CSV non redéposé
+            # depuis trois jours n'est pas une panne, une API muette si.
+            emoji, color, age_label = freshness_status(info["last_dt"], kind)
             date_str = info["last_dt"].strftime("%d/%m %H:%M") if info["last_dt"] else "—"
             at = meta.get(label, {}).get("at")
             when = (t("home.freshness_every_day", "chaque jour à {h}").format(h=at)
@@ -119,8 +121,14 @@ def _section_streams(db, artist_id):
     _apple = apple_yearly_series(db, artist_id)
     if _apple:
         series['apple'] = _apple
-    ig = get_instagram_followers(db, artist_id)
-    ig_count = ig['followers'] if ig else 0
+    # INSTAGRAM ET META PASSENT PAR LA MÊME REQUÊTE, et ce n'est pas une élégance :
+    # l'accueil est à 13 allers-retours pour un plafond de 13, et ce plafond ne monte
+    # pas (`test_a_page_asks_the_same_question_once`). `period_side_metrics` REMPLACE
+    # `get_instagram_followers` — son `ig_followers` porte le même effectif courant —
+    # donc la page gagne la dépense Meta et l'écart d'abonnés sans gagner une requête.
+    from src.dashboard.utils.platform_timeseries import period_side_metrics
+    _side = period_side_metrics(db, artist_id, since, until)
+    ig_count = _side.get("ig_followers") or 0
 
     # UN SEUL CALCUL, pour toutes les surfaces. `platform_totals` porte les deux
     # régimes — compteurs des plateformes « depuis le début », somme des écarts mesurés
@@ -154,17 +162,55 @@ def _section_streams(db, artist_id):
                      "onboarding** dit quelle source ne répond pas, et pourquoi."))
         return
 
-    _render_trend(db, series, since, until, range_key, artist_id)
+    # `totals` et `_side` sont DÉJÀ calculés au-dessus : les repasser évite de
+    # les redemander, et le plafond de requêtes est atteint.
+    _render_trend(db, series, since, until, range_key, artist_id,
+                  totals=totals, side=_side)
 
 
-def _render_trend(db, series, since, until, range_key, artist_id) -> None:
+def _recap_extra(totals: dict, side: dict) -> list:
+    """Les lignes du récapitulatif qui ne comptent PAS des écoutes, avec leur unité.
+
+    Apple sort de `platform_totals` — déjà calculée, bornée à la même période que la
+    figure — mais elle n'entre pas dans le tableau du haut : sa série n'existe qu'au
+    pas ANNUEL (`STEP_ONLY`), donc aux autres pas elle n'a aucune bande, et une ligne
+    sans mesure dans une colonne « Total » se lirait comme un zéro.
+
+    Instagram et Meta ne comptent ni l'un ni l'autre des écoutes. Chaque valeur porte
+    donc son unité écrite, et chacune est bornée à la période — la condition qui
+    manquait aux tuiles retirées le 2026-09-10, où un compteur « depuis le début »
+    côtoyait une courbe bornée sans que rien ne le dise.
+    """
+    def _n(v) -> str:
+        return f"{int(round(v)):,}".replace(",", "\u202f")
+
+    out = []
+    ap = (totals or {}).get("apple")
+    if ap:
+        out.append(("🎎 Apple Music",
+                    _n(ap) + " " + t("home.recap_unit_plays", "écoutes")))
+    dl = (side or {}).get("ig_delta")
+    if dl is not None:
+        # Le SIGNE est porté explicitement : « 82 abonnés » sur une période où le
+        # compte en a PERDU 82 serait faux dans le sens qui compte.
+        out.append(("📸 Instagram",
+                    f"{'+' if dl >= 0 else '−'}{_n(abs(dl))} "
+                    + t("home.recap_unit_followers", "abonnés")))
+    sp = (side or {}).get("meta_spend")
+    if sp:
+        out.append(("📊 Meta Ads",
+                    f"{sp:,.2f}".replace(",", "\u202f").replace(".", ",") + " €"))
+    return out
+
+
+def _render_trend(db, series, since, until, range_key, artist_id,
+                  totals=None, side=None) -> None:
     """La figure de l'accueil — pleine largeur depuis que les tuiles sont parties.
 
     Chaque valeur est une quantité du JOUR : `platform_timeseries` ramène les compteurs
     cumulatifs (SoundCloud, YouTube) à leur écart quotidien, sans quoi la courbe
     additionnerait des totaux-depuis-toujours à des streams quotidiens.
     """
-    from src.dashboard.utils import date_range
     from src.dashboard.utils.platform_chart import (
         render_missing_history_note, render_platform_chart,
     )
@@ -298,8 +344,7 @@ def _render_trend(db, series, since, until, range_key, artist_id) -> None:
         drawn = render_platform_chart(
             series, since=since, until=until, only=chosen, step=step, mode=mode,
             cumulative=cumulative, discarded=_discarded, recap=col_recap,
-            title=t("home.trend_title", "Toutes tes plateformes, un seul écran")
-            + f" — {date_range.label(range_key)}",
+            recap_extra=_recap_extra(totals, side),
             key=f"home_trend_{artist_id}")
     if not drawn:
         # DEUX SILENCES TRÈS DIFFÉRENTS, ET UN SEUL MESSAGE LES DISAIT.
@@ -424,9 +469,16 @@ def _render_step_detail(detail) -> None:
     """
     if not detail:
         return
-    st.caption(" · ".join(
-        f"{'✅' if ok else '⬜'} {name} {'OK' if ok else 'NOK'}"
-        for name, ok in detail))
+    # LA COULEUR PORTE LE VERDICT, PLUS LE MOT. « Vu qu'on a mis les cases vertes,
+    # retire les OK » (2026-09-12) : « ✅ spotify OK » disait deux fois la même
+    # chose, et la répétition allongeait la ligne au point de la faire passer sur
+    # deux rangées avec huit types de fichiers.
+    #
+    # ⬜ était le mauvais signe pour le manque : un carré blanc se lit « pas encore
+    # regardé », pas « il manque quelque chose ». ❌ le dit, et il se distingue de ✅
+    # par la FORME autant que par la couleur — un lecteur daltonien voit une croix
+    # contre une coche, pas deux gris.
+    st.caption(" · ".join(f"{'✅' if ok else '❌'} {name}" for name, ok in detail))
 
 
 def _render_onboarding_body(db, artist_id: int, steps, completed: int,

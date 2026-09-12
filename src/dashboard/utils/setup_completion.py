@@ -149,9 +149,15 @@ _STEPS: tuple[_Declared, ...] = (
     _Declared("mapping", "meta_mapping",
               lambda: _t("home.onboarding_mapping",
                          "🔗 Valider le mapping cross-plateforme")),
+    # Cette étape est la seule dont le BÉNÉFICE n'est pas devinable depuis son nom :
+    # saisir des ajouts en playlist ne rend rien à l'artiste tout de suite, ça nourrit
+    # les modèles. Dit le 2026-09-12 — une étape dont on ne voit pas le gain est une
+    # étape qu'on saute, et c'est celle dont dépend la précision des prédictions.
     _Declared("playlists", "saisie_s4a",
               lambda: _t("home.onboarding_playlists",
-                         "📝 Saisir mes ajouts en playlist (S4A)")),
+                         "📝 Saisir mes ajouts en playlist (S4A) — pour optimiser la "
+                         "précision des algorithmes prédictifs sur l'intégration des "
+                         "playlists Spotify (Discover Weekly, Radio, Release Radar)")),
     _Declared("pdf", "export_pdf",
               lambda: _t("home.onboarding_pdf", "📄 Générer mon premier rapport PDF")),
 )

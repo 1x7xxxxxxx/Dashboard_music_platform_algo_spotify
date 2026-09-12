@@ -61,18 +61,71 @@ def test_the_live_palette_is_the_illustration_palette() -> None:
         "deux figures différentes pour la même promesse")
 
 
-def test_the_dark_palette_only_moves_what_the_validator_refused() -> None:
-    """Le mode sombre garde la figure reconnaissable — un seul pas bouge.
+def test_a_removed_title_is_empty_not_none(monkeypatch) -> None:
+    """`title=None` fait écrire « undefined » à Plotly, en toutes lettres.
 
-    La bande de clarté du mode sombre (0,48–0,67) refuse `#eb6834` (YouTube) et
-    `#eda100` (Apple, ajoutée le 2026-09-08) ; les deux autres passent tels quels.
-    Décaler les quatre « pour l'harmonie » ferait de la figure sombre une autre figure.
+    Vu au navigateur le 2026-09-12 et NULLE PART ailleurs : le titre et le
+    sous-titre de la pile venaient d'être retirés — redondants avec le filtre de
+    période et le récapitulatif — et `update_layout(title=None)` a remplacé le texte
+    par la chaîne littérale « undefined », en gras, au-dessus de la figure.
+
+    Un test de rendu Python ne pouvait pas le voir : `layout.title.text` valait bien
+    `None`, ce qui est ce qu'on avait demandé. C'est la sérialisation vers le JS qui
+    transforme l'absence en mot. La règle est donc : un titre qu'on retire est une
+    chaîne VIDE, jamais une absence.
     """
+    import datetime as dt
+    day = dt.date(2026, 1, 1)
+    series = {"spotify": [(day + dt.timedelta(days=i), 10) for i in range(10)]}
+    import streamlit as st_mod
+    captured = {}
+    monkeypatch.setattr(st_mod, "plotly_chart",
+                        lambda fig, **k: captured.setdefault("fig", fig))
+    monkeypatch.setattr(st_mod, "caption", lambda *a, **k: None)
+    for mode in ("cumulative", "absolute", "share", "facets"):
+        captured.clear()
+        if not pc.render_platform_chart(series, key="t", step="day", mode=mode):
+            continue
+        text = captured["fig"].layout.title.text
+        assert text is not None, (
+            f"mode {mode} : le titre vaut `None`, et Plotly écrit « undefined » à sa "
+            "place au-dessus de la figure. Un titre retiré est une chaîne vide.")
+
+
+def test_the_dark_palette_stays_in_the_same_hue_family() -> None:
+    """Le mode sombre garde la figure RECONNAISSABLE : même teinte, autre clarté.
+
+    Ce garde exigeait « seules deux couleurs bougent ». C'était vrai de l'ancienne
+    palette, pas de la règle : le 2026-09-12 la palette est passée aux familles de
+    MARQUE (« youtube rouge… »), et la bande de clarté du sombre — 0,48–0,67 contre
+    0,43–0,77 — force un optimum différent pour les QUATRE. Compter les couleurs qui
+    bougent mesurait un symptôme de l'ancienne palette.
+
+    Ce qui tient dans les deux cas, et qui est la vraie promesse : **une plateforme
+    garde sa teinte d'un thème à l'autre**. Spotify reste vert, YouTube rouge,
+    SoundCloud orange, Apple magenta. Changer de clarté garde la figure lisible ;
+    changer de teinte en ferait une autre figure, et c'est ce qu'on refuse.
+    """
+    import colorsys
+
+    def hue(h: str) -> float:
+        h = h.lstrip("#")
+        r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+        return colorsys.rgb_to_hsv(r, g, b)[0] * 360
+
     light, dark = pc._PALETTE_LIGHT, pc._PALETTE_DARK
-    moved = sorted(k for k in light if light[k].lower() != dark[k].lower())
-    assert moved == ["apple", "youtube"], (
-        f"le mode sombre déplace {moved} — seuls l'orange et l'ambre ont été refusés "
-        "par le validateur, le reste doit rester identique")
+    assert set(light) == set(dark), "les deux thèmes ne nomment pas les mêmes plateformes"
+    drifted = []
+    for k in sorted(light):
+        d = abs(hue(light[k]) - hue(dark[k]))
+        d = min(d, 360 - d)          # la teinte est un cercle : 358° et 2° sont voisins
+        if d > 20:
+            drifted.append(f"{k}: {light[k]} ({hue(light[k]):.0f}°) → "
+                           f"{dark[k]} ({hue(dark[k]):.0f}°), écart {d:.0f}°")
+    assert not drifted, (
+        "le mode sombre change la TEINTE d'une plateforme, pas seulement sa clarté — "
+        "l'artiste voit deux figures différentes selon son thème :\n"
+        + "\n".join(drifted))
 
 
 def test_the_form_is_a_stack_not_overlapping_lines() -> None:
@@ -468,22 +521,40 @@ def test_a_series_already_at_the_bucket_grain_escapes_the_floor() -> None:
 
 # ── Le sous-titre compte des quantités, jamais des cumuls ───────────────────
 
-def _subtitle(monkeypatch, series: dict, **kw) -> str:
-    """Rend la figure pour de vrai et rend le texte de son titre.
+class _Slot:
+    """Un conteneur Streamlit minimal : le récapitulatif n'a besoin que de ça."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def _recap_text(monkeypatch, series: dict, **kw) -> str:
+    """Rend la figure pour de vrai et rend le texte du RÉCAPITULATIF.
 
     Par EFFET, et pas en lisant quelle variable la fonction utilise : c'est le nombre
     affiché qui était faux, et c'est lui qu'il faut lire.
+
+    Il lisait le SOUS-TITRE jusqu'au 2026-09-12 — supprimé ce jour-là comme redondant
+    avec ce tableau, qui porte désormais le même total en le détaillant par
+    plateforme. Le garde suit le nombre : la propriété qu'il défend (on n'additionne
+    pas des cumuls, le défaut ×89 du 2026-09-08) n'a pas bougé d'un pouce, seule la
+    surface qui l'affiche a changé.
     """
     import streamlit as st_mod
-    captured = {}
-    monkeypatch.setattr(st_mod, "plotly_chart",
-                        lambda fig, **k: captured.setdefault("fig", fig))
+
+    import src.dashboard.utils.platform_chart_notes as pcn
+    written: list = []
+    monkeypatch.setattr(st_mod, "plotly_chart", lambda fig, **k: None)
     monkeypatch.setattr(st_mod, "caption", lambda *a, **k: None)
-    assert pc.render_platform_chart(series, title="T", key="t", **kw)
-    return captured["fig"].layout.title.text
+    monkeypatch.setattr(pcn.st, "markdown", lambda text, *a, **k: written.append(str(text)))
+    assert pc.render_platform_chart(series, key="t", recap=_Slot(), **kw)
+    return "\n".join(written)
 
 
-def test_the_subtitle_sums_quantities_not_cumulative_values(monkeypatch) -> None:
+def test_the_recap_sums_quantities_not_cumulative_values(monkeypatch) -> None:
     """En mode cumulé, additionner les points somme des cumuls — et c'est énorme.
 
     Mesuré au rendu du 2026-09-08 : **16 568 594 écoutes** annoncées pour un artiste qui
@@ -497,10 +568,15 @@ def test_the_subtitle_sums_quantities_not_cumulative_values(monkeypatch) -> None
     series = {"spotify": [(day + dt.timedelta(days=i), 10) for i in range(10)]}
 
     for mode in ("cumulative", "absolute"):
-        text = _subtitle(monkeypatch, series, step="day", mode=mode)
-        digits = "".join(c for c in text.split("écoutes")[0] if c.isdigit())
-        assert digits.endswith("100"), (
-            f"mode {mode} : le sous-titre annonce {digits} au lieu de 100 — "
+        text = _recap_text(monkeypatch, series, step="day", mode=mode)
+        # La ligne Total du récapitulatif, en gras. 10 jours × 10 écoutes = 100 ;
+        # une somme de cumuls rendrait 550.
+        import re as _re
+        totals = _re.findall(r"\*\*([\d\u202f]+)\*\*", text)
+        assert totals, f"mode {mode} : le récapitulatif n'affiche aucun total\n{text}"
+        got = int(totals[-1].replace("\u202f", ""))
+        assert got == 100, (
+            f"mode {mode} : le récapitulatif annonce {got} au lieu de 100 — "
             "il additionne des cumuls")
 
 

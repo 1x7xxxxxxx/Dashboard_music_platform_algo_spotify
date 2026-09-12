@@ -57,7 +57,11 @@ INK = "#1a1a19"
 INK_MUTED = "#6b6b68"
 GRID = "#e6e6e3"
 # Categorical slots 1-4 (light). Order is fixed and never cycled.
-BLUE, ORANGE, AQUA, YELLOW = "#2a78d6", "#eb6834", "#1baf7a", "#eda100"
+# Repris de `platform_chart._PALETTE_LIGHT` le 2026-09-12 : les couleurs suivent
+# désormais les familles de marque (Spotify vert, YouTube rouge, SoundCloud
+# orange, Apple magenta). Les noms restent positionnels — c'est la 1ʳᵉ, la 2ᵉ,
+# la 3ᵉ et la 4ᵉ série — parce que ce fichier ne connaît pas les plateformes.
+BLUE, ORANGE, AQUA, YELLOW = "#3acf84", "#bd354b", "#e0631b", "#bd00a4"
 
 plt.rcParams.update({
     "figure.facecolor": SURFACE, "axes.facecolor": SURFACE,
