@@ -88,36 +88,43 @@ def _home_call(name: str) -> list[ast.Call]:
             if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == name]
 
 
-def test_the_mode_is_chosen_on_a_visible_bar() -> None:
-    """« Voir toutes les possibilités direct » — pas replié dans un menu.
+def test_the_display_setting_is_never_folded_into_a_menu() -> None:
+    """« Voir toutes les possibilités direct » — jamais replié dans un `selectbox`.
 
-    Le filtre de période juste au-dessus est déjà une barre (`date_range.py`). Deux
-    widgets voisins qui font la même chose sous deux formes différentes se lisent
-    comme deux natures de réglage.
+    ── CE GARDE A SUIVI SON SUJET DEUX FOIS ────────────────────────────────────
 
-    ── IL N'Y EN A PLUS QU'UNE DEPUIS LE 2026-09-12 ─────────────────────────────
+    Il a exigé DEUX barres (le mode et le pas), puis UNE (le pas se dérivant de la
+    fenêtre depuis le 2026-09-12), et maintenant ZÉRO : le mode est devenu un
+    INTERRUPTEUR le 2026-09-13 — « je veux uniquement le bouton cumulé allumé ou
+    non ». Deux boutons dont l'un est toujours actif sont un interrupteur qui
+    s'ignore.
 
-    Ce garde en exigeait DEUX, le mode et le pas. La barre du PAS a été supprimée :
-    le grain se dérive de la fenêtre, parce qu'un contrôle dont toutes les options
-    sauf une sont mauvaises n'est pas un contrôle — « filtre 30 jours, quand je
-    sélectionne "année", c'est incohérent », puis « on ne devrait pas supprimer le
-    filtre […] et automatiquement trier ».
+    Ce qui n'a pas bougé d'un cran, et qui est la vraie question : **aucun réglage
+    d'affichage ne se replie dans un menu déroulant**. Un `st.selectbox` cache ses
+    options, donc l'artiste ne sait pas qu'elles existent — c'est la demande
+    d'origine (« je pense que c'est mieux de mettre des cases à cocher plutôt qu'un
+    onglet déroulant pour voir toutes les possibilités direct »), et elle survit à
+    tous les changements de widget.
 
-    Abaisser un seuil de garde est exactement ce qu'on fait quand on veut du vert,
-    donc le remplacement est nommé : la règle de dérivation est gardée par
-    `tests/test_a_step_is_offered_only_where_it_draws.py`, qui vérifie AUSSI que le
-    grain retenu reste écrit à l'écran. Rien n'est moins gardé qu'avant ; la
-    question a changé de fichier avec son sujet.
+    Le nombre exact de réglages et leur forme sont gardés ailleurs, par
+    `tests/test_a_method_change_is_not_a_quantity.py` — un interrupteur, allumé par
+    défaut, et aucune barre.
     """
-    bars = _home_call("segmented_control")
-    assert len(bars) >= 1, (
-        f"{len(bars)} barre(s) dans `_render_trend` — il en faut au moins une, celle "
-        "du MODE. Un `st.selectbox` replie les options : l'artiste ne sait pas "
-        "qu'elles existent.")
     dropdowns = _home_call("selectbox")
     assert not dropdowns, (
-        f"{len(dropdowns)} menu(s) déroulant(s) sont revenus dans `_render_trend` "
-        f"(lignes {[n.lineno for n in dropdowns]}).")
+        f"{len(dropdowns)} menu(s) déroulant(s) dans `_render_trend` "
+        f"(lignes {[n.lineno for n in dropdowns]}). Un `selectbox` replie ses "
+        "options : l'artiste ne sait pas qu'elles existent.")
+
+    # ET IL DOIT RESTER UN RÉGLAGE VISIBLE. Sans cette moitié, le garde passerait
+    # aussi bien sur une vue qui n'offre plus AUCUN contrôle d'affichage — ce qui
+    # satisfait « pas de menu déroulant » sans rendre le service demandé.
+    visible = _home_call("toggle") + _home_call("segmented_control") + _home_call("radio")
+    assert visible, (
+        "plus aucun réglage d'affichage visible dans `_render_trend` : ni "
+        "interrupteur, ni barre, ni boutons radio. « Pas de menu déroulant » est "
+        "alors satisfait par l'absence de contrôle, ce qui n'est pas ce qui a été "
+        "demandé.")
 
 
 def test_the_figure_can_draw_every_grain_the_rule_can_produce() -> None:

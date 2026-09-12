@@ -258,3 +258,55 @@ def test_no_gate_is_shown_without_a_prediction():
             "pour la dernière sortie. Un « — » dans une boîte de probabilité se lit "
             "comme « le modèle donne zéro chance », pas comme « le modèle n'a pas "
             "encore tourné ».")
+
+
+# ── LA BOÎTE META : SON CPR, ET LA MÊME HAUTEUR QUE SES VOISINES ────────────
+#
+# « il faut ramener la taille de la box meta de la même dimension que les autres »
+# (2026-09-13). Elle portait sa légende de CPR dans un `st.caption` SOUS la
+# métrique, ce qui lui ajoutait une ligne : dans une grille de six, une case plus
+# haute casse l'alignement de toute la rangée, et l'œil lit ce décalage comme une
+# hiérarchie qui n'existe pas.
+#
+# Le CPR n'est pas supprimé pour autant — il passe dans la ligne `delta`, la même
+# que celle où les autres boîtes affichent leur écart. Même structure, même hauteur,
+# et le chiffre demandé reste visible sans survol.
+#
+# Journal de mutation :
+#   * `delta=_cpr_line` remplacé par `delta=None` → test_the_meta_box_shows_its_cpr
+#     ÉCHOUE (mutation restée VERTE avant l'écriture de ce cas — c'est elle qui l'a
+#     fait écrire) ;
+#   * le `st.caption` du CPR remis sous la métrique →
+#     test_no_box_is_taller_than_its_neighbours ÉCHOUE.
+
+_META = {"meta_spend": 3087.82, "best_cpr": 0.1090, "best_cpr_spend": 755.52,
+         "best_cpr_name": "O chiotte l'arbitre"}
+
+
+def test_the_meta_box_shows_its_cpr():
+    """Le CPR de la dernière campagne est LISIBLE, pas caché dans une infobulle."""
+    rows = _tiles({"spotify": 20_000}, side={**_SIDE, **_META})
+    box = _one(rows, "Meta Ads")
+    assert box, f"la boîte Meta Ads a disparu. Rendues : {[r[0] for r in rows]}"
+    secondary = box[2]
+    assert secondary and "CPR" in str(secondary), (
+        f"la boîte Meta n'affiche plus son CPR : {secondary!r}. C'est le chiffre "
+        "demandé le 2026-09-12 — le coût par résultat de la DERNIÈRE campagne, pas "
+        "le record de toutes. Le mettre en infobulle le rendrait invisible à qui ne "
+        "survole pas.")
+    assert "755,52" in str(secondary), (
+        f"le budget qui a produit ce CPR n'est pas affiché : {secondary!r}. "
+        "« 0,1090 € » sans « sur 755,52 € » laisse croire à une performance "
+        "reproductible alors que c'est peut-être un coup de chance sur une petite "
+        "dépense.")
+
+
+def test_no_box_is_taller_than_its_neighbours():
+    """Une case plus haute casse l'alignement de toute la rangée."""
+    rows = _tiles({"spotify": 20_000, "youtube": 12_000}, side={**_SIDE, **_META})
+    # Une légende SOUS une métrique n'est légitime que pour nommer un dernier
+    # relevé absent — jamais pour porter un second chiffre, qui a sa ligne `delta`.
+    captions = [r[1] for r in rows if r[0] == "caption"]
+    assert not any("CPR" in c for c in captions), (
+        f"le CPR est redescendu dans un `st.caption` : {captions!r}. Il ajoute une "
+        "ligne à la seule boîte Meta, qui devient plus haute que ses cinq voisines.")

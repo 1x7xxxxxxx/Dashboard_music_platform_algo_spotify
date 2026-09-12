@@ -35,7 +35,6 @@ EN = {
     "platform_chart.too_coarse": (
         "{label} does not appear at this step: none of its {unit} is measured on "
         "enough days to make an honest total. Pick a finer step to see it."),
-    "home.trend_mode": "Display",
     "home.mode_cumulative": "Cumulative",
     "home.mode_absolute": "Per period",
     "home.mode_share": "Share of each platform",
@@ -64,16 +63,22 @@ EN = {
     "home.tile_meta_help": (
         "Ad spend over the displayed period, and the campaign with the LOWEST cost "
         "per result along with the budget it consumed."),
-    "home.tile_best_cpr": "🎯 Best CPR {cpr}{budget}{name}",
+    "home.tile_best_cpr": "🎯 CPR {cpr}{budget}",
     "home.tile_last_seen": "Last reading: {d}",
     # Les trois portes algorithmiques de la dernière sortie (2026-09-12). « Predicted »
     # est porté par le bandeau ET par l'aide : c'est une PRÉDICTION, jamais un taux
     # observé — aucune issue n'a encore été saisie.
-    "home.gates_for": "🔮 **Predicted** probabilities for **{song}**",
+    "home.gates_for": "🔮 **Maximum predicted** probabilities for **{song}**",
     "home.gates_age": " · released {n} days ago",
     "home.gate_dw": "🎯 Discover Weekly",
     "home.gate_radio": "📻 Radio",
     "home.gate_rr": "🆕 Release Radar",
+    # L'interrupteur du cumulé (2026-09-13), qui remplace la barre de modes.
+    "home.trend_cumulative": "Cumulative",
+    "home.trend_cumulative_help": (
+        "On: the curve only rises and its last point is the period total. Off: each "
+        "point is what was gained over that step — useful on a short window, hard to "
+        "read over several years where one platform dwarfs the others."),
     "home.gate_help": ("Probability PREDICTED by the model that this track enters "
                        "this algorithmic playlist. It is not an observed rate: no "
                        "outcome has been recorded yet."),

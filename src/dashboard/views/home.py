@@ -280,32 +280,6 @@ def _render_tiles(totals: dict, grand_total: int, ig_count: int,
         </div>""".replace(",", "\u202f"),
         unsafe_allow_html=True)
 
-    # ── LES TROIS PORTES DE LA DERNIÈRE SORTIE ──────────────────────────────
-    _song, _age = _s.get("release_song"), _s.get("release_age")
-    _gates = (("release_dw", t("home.gate_dw", "🎯 Discover Weekly")),
-              ("release_radio", t("home.gate_radio", "📻 Radio")),
-              ("release_rr", t("home.gate_rr", "🆕 Release Radar")))
-    if any(_s.get(k) for k, _lab in _gates):
-        # LE TITRE EST NOMMÉ AU-DESSUS, UNE FOIS. Trois pourcentages sans le titre
-        # auquel ils se rapportent seraient trois nombres orphelins ; le répéter
-        # dans chaque boîte volerait la place du chiffre.
-        st.caption(t("home.gates_for", "🔮 Probabilités **prédites** pour **{song}**")
-                   .format(song=_song or "—")
-                   + (t("home.gates_age", " · sortie il y a {n} j").format(n=_age)
-                      if _age is not None else ""))
-        g1, g2, g3 = st.columns(3)
-        for col, (key, label) in zip((g1, g2, g3), _gates):
-            val = _s.get(key)
-            with col.container(border=True):
-                st.metric(label,
-                          (f"{val * 100:.1f}".replace(".", ",") + " %")
-                          if val else "—",
-                          help=t("home.gate_help",
-                                 "Probabilité PRÉDITE par le modèle que ce titre "
-                                 "entre dans cette playlist algorithmique. Ce n'est "
-                                 "pas un taux observé : aucune issue n'a encore été "
-                                 "saisie."))
-
     _last = _s.get("last_measured") or {}
 
     def _box(col, key: str, label: str, help_text: str | None = None) -> None:
@@ -354,22 +328,36 @@ def _render_tiles(totals: dict, grand_total: int, ig_count: int,
     # d'œil, là où un rapprochement flou sur le titre se tromperait en silence.
     _spend, _cpr = _s.get("meta_spend"), _s.get("best_cpr")
     _cpr_spend, _cpr_name = _s.get("best_cpr_spend"), _s.get("best_cpr_name")
+    # LE CPR EST DANS LA LIGNE `delta`, PAS DANS UN `st.caption` SOUS LA BOÎTE.
+    #
+    # « il faut ramener la taille de la box meta de la même dimension que les
+    # autres » (2026-09-13). La légende sous la métrique ajoutait une ligne à cette
+    # boîte seule : dans une grille de six, une case plus haute que ses voisines
+    # casse l'alignement de toute la rangée, et l'œil lit ce décalage comme une
+    # hiérarchie qui n'existe pas.
+    #
+    # `delta_color="off"` parce que ce n'est PAS une variation : c'est un second
+    # chiffre de nature différente. Le teinter en vert ou en rouge lui ferait dire
+    # « ça monte » ou « ça baisse », ce qui n'a aucun sens pour un coût par résultat
+    # affiché seul. L'écart de dépense cède sa place — entre « la dépense a varié de
+    # x % » et « voici le CPR de la dernière campagne », c'est le second qui a été
+    # demandé, et une boîte ne porte qu'un chiffre secondaire.
+    _cpr_line = None
+    if _cpr:
+        _cpr_line = t("home.tile_best_cpr", "🎯 CPR {cpr}{budget}").format(
+            cpr=f"{_cpr:,.4f}".replace(",", "\u202f").replace(".", ",") + "\u00a0€",
+            budget=(" · " + f"{_cpr_spend:,.2f}".replace(",", "\u202f")
+                    .replace(".", ",") + "\u00a0€") if _cpr_spend else "")
     with c2.container(border=True):
         st.metric(t("home.tile_meta", "📊 Meta Ads"),
                   (f"{_spend:,.2f}".replace(",", "\u202f").replace(".", ",")
                    + "\u00a0€") if _spend else "—",
-                  delta=_delta(_spend, _s.get("prev_meta_spend")),
+                  delta=_cpr_line, delta_color="off",
                   help=t("home.tile_meta_help",
                          "Dépense publicitaire de la période affichée, et le coût "
                          "par résultat de la campagne la plus RÉCENTE — celle de la "
-                         "dernière sortie, pas le record de toutes les campagnes."))
-        if _cpr:
-            st.caption(t("home.tile_best_cpr", "🎯 CPR {cpr}{budget}{name}").format(
-                cpr=f"{_cpr:,.4f}".replace(",", "\u202f").replace(".", ",")
-                    + "\u00a0€",
-                budget=(" · " + f"{_cpr_spend:,.2f}".replace(",", "\u202f")
-                        .replace(".", ",") + "\u00a0€") if _cpr_spend else "",
-                name=f" — {_cpr_name}" if _cpr_name else ""))
+                         "dernière sortie, pas le record de toutes les campagnes.")
+                  + (f" Campagne : {_cpr_name}." if _cpr_name else ""))
 
 
 # `_recap_extra` A ÉTÉ SUPPRIMÉE LE 2026-09-12, pas mise de côté. Elle fabriquait
@@ -380,6 +368,44 @@ def _render_tiles(totals: dict, grand_total: int, ig_count: int,
 # que rien n'atteint, et qui pourrit jusqu'à ce qu'on le rebranche sur un écran qui a
 # changé sous lui.
 
+
+    # ── LES TROIS PORTES DE LA DERNIÈRE SORTIE, SOUS LES PLATEFORMES ────────
+    #
+    # « place les 3 box en dessous de insta & meta ads » (2026-09-13). Elles étaient
+    # juste sous le total, en tête de colonne. Elles y coupaient la lecture : les six
+    # boîtes de plateformes racontent ce qui S'EST PASSÉ, ces trois-là ce qui POURRAIT
+    # se passer. Mélanger du mesuré et du prédit dans le même coup d'œil est le
+    # meilleur moyen de faire lire une prédiction comme un relevé.
+    #
+    # Le libellé le dit désormais en toutes lettres — « Probabilités prédites maximum
+    # atteintes pour » : ce sont les maximums que le modèle a attribués à ce titre,
+    # pas des taux constatés. Le taux constaté demanderait `s4a_song_algo_outcomes`,
+    # à **0 ligne** tous locataires confondus (mesuré le 2026-09-12).
+    _song, _age = _s.get("release_song"), _s.get("release_age")
+    _gates = (("release_dw", t("home.gate_dw", "🎯 Discover Weekly")),
+              ("release_radio", t("home.gate_radio", "📻 Radio")),
+              ("release_rr", t("home.gate_rr", "🆕 Release Radar")))
+    if any(_s.get(k) for k, _lab in _gates):
+        # LE TITRE EST NOMMÉ AU-DESSUS, UNE FOIS. Trois pourcentages sans le titre
+        # auquel ils se rapportent seraient trois nombres orphelins ; le répéter
+        # dans chaque boîte volerait la place du chiffre.
+        st.caption(t("home.gates_for",
+                     "🔮 Probabilités **prédites maximum atteintes** pour **{song}**")
+                   .format(song=_song or "—")
+                   + (t("home.gates_age", " · sortie il y a {n} j").format(n=_age)
+                      if _age is not None else ""))
+        g1, g2, g3 = st.columns(3)
+        for col, (key, label) in zip((g1, g2, g3), _gates):
+            val = _s.get(key)
+            with col.container(border=True):
+                st.metric(label,
+                          (f"{val * 100:.1f}".replace(".", ",") + " %")
+                          if val else "—",
+                          help=t("home.gate_help",
+                                 "Probabilité PRÉDITE par le modèle que ce titre "
+                                 "entre dans cette playlist algorithmique. Ce n'est "
+                                 "pas un taux observé : aucune issue n'a encore été "
+                                 "saisie."))
 
 def _recap_metrics(side: dict, totals: dict, aligned: dict, span: list,
                    step: str, mode: str, prev_total=None) -> list:
@@ -455,8 +481,6 @@ def _render_trend(db, series, since, until, range_key, artist_id,
         PLATFORM_LABELS, STEP_ONLY, measured_days,
     )
 
-    from src.dashboard.utils.platform_chart import MODES
-
     # ── LE PAS N'EST PLUS UN CHOIX : IL SE DÉRIVE DE LA FENÊTRE ──────────────
     #
     # « on ne devrait pas supprimer le filtre jour semaine mois année et
@@ -518,40 +542,39 @@ def _render_trend(db, series, since, until, range_key, artist_id,
     #
     # Pleine largeur, plus rien n'est contraint : les quatre modes tiennent sur une
     # ligne, et le filtre de sources est rendu plus bas, uniquement quand il existe.
-    # ── DEUX MODES, ET DEUX SEULEMENT ────────────────────────────────────────
+    # ── UN INTERRUPTEUR, PAS UNE BARRE ───────────────────────────────────────
     #
-    # « supprime-moi le filtre "part de chaque plateforme" et "chacune à son
-    # echelle", je veux uniquement un filtre cumulé ou normal » (2026-09-12).
+    # « je veux uniquement le bouton cumulé allumé ou non » (2026-09-13). La barre a
+    # porté quatre modes, puis deux ; deux boutons dont l'un est toujours actif est
+    # un interrupteur qui s'ignore. `st.toggle` dit la même chose en une case, et
+    # son état est lisible sans avoir à comparer deux libellés.
     #
-    # Les deux retirés répondaient à des questions réelles — quelle part pèse chaque
-    # plateforme, à quoi ressemble chaque courbe sur sa propre échelle — mais les
-    # boîtes de droite portent maintenant les deux réponses : chaque plateforme y a
-    # son total, côte à côte, en valeur absolue. Quatre modes pour deux questions
-    # déjà répondues ailleurs, c'est un menu à lire avant de pouvoir regarder.
+    # ALLUMÉ PAR DÉFAUT. Le cumulé est le mode qui répond à la question que l'artiste
+    # pose en premier — « où j'en suis ? » — et c'est le seul où toutes les
+    # plateformes sont visibles à l'écran.
     #
-    # ⚠️ ET « PART » EMPORTE LE `multiselect` AVEC LUI. Il était le SEUL mode où le
-    # filtre de sources restait un widget : ses pourcentages sont établis sur
-    # l'ensemble affiché, et un clic de légende masque une trace sans recalculer les
-    # autres, donc la pile ne ferait plus 100 %. Sans lui, la légende redevient le
-    # filtre partout — « je voulais cette légende cliquable pour les sélectionner ».
-    # Un clic de légende est côté navigateur : il ne relance pas le script, là où le
-    # `multiselect` coûtait un rendu complet (287 ms mesurés en production) pour
-    # masquer une bande.
+    # ⚠️ ÉTEINT, IL RESTE HONNÊTE MAIS PEU PARLANT, et c'est mesuré, pas supposé :
+    # « je n'ai pas de données avec le filtre depuis le début ». La figure trace bien
+    # quelque chose — 45 points Spotify, 35 YouTube, 36 SoundCloud sur l'historique
+    # complet, vérifié en production le 2026-09-13. Ce qui se voit est autre chose :
+    # depuis que les ruptures de méthode sont recalées, la croissance OBSERVÉE de
+    # YouTube sur tout l'historique vaut **304 vues**, contre **165 065** pour
+    # Spotify. Sa bande pèse 0,18 % de la pile, donc moins d'un pixel.
     #
-    # « PAR PÉRIODE » REVIENT, ET SEULEMENT PARCE QUE SON DÉFAUT EST CORRIGÉ. Il
-    # avait été retiré le jour même à cause du pic de 18 438 vues YouTube du
-    # 2026-06-11 — un changement de définition de la collecte, pas une audience.
-    # `level_discontinuities` le détecte désormais sur un seuil MESURÉ (rapport 100
-    # au 95ᵉ centile ; la rupture sort à 1 676, la plus forte croissance légitime du
-    # parc à 20,4), et le seau qui l'enjambe rend `None` — une bande hachurée, pas un
-    # bâton. Rendre le mode sans corriger la cause aurait ramené le défaut.
-    _MODES_HOME = {k: v for k, v in MODES.items() if k in ("cumulative", "absolute")}
-    mode = st.segmented_control(
-        t("home.trend_mode", "Affichage"), list(_MODES_HOME),
-        format_func=lambda k: t(f"home.mode_{k}", _MODES_HOME[k]),
-        default="cumulative",
-        key=f"home_trend_mode_{artist_id}", label_visibility="collapsed",
-    ) or "cumulative"
+    # Ce n'est pas un défaut d'affichage à corriger : c'est ce que nous avons
+    # réellement vu croître. On ne mesure YouTube par vidéo que depuis juin, et son
+    # compteur a très peu bougé depuis. Le chiffre qui compte — le total de 118 336 —
+    # est dans sa boîte, à droite, où il n'est écrasé par personne. C'est
+    # exactement pour cette raison que les boîtes existent.
+    mode = ("cumulative" if st.toggle(
+        t("home.trend_cumulative", "Cumulé"), value=True,
+        key=f"home_trend_cumul_{artist_id}",
+        help=t("home.trend_cumulative_help",
+               "Allumé : la courbe monte et son dernier point est le total de la "
+               "période. Éteint : chaque point est ce qui a été gagné sur ce "
+               "pas-là — utile sur une fenêtre courte, peu lisible sur plusieurs "
+               "années où une plateforme écrase les autres."),
+    ) else "absolute")
 
     # LE GRAIN EST AFFICHÉ, MÊME S'IL N'EST PLUS CHOISI — et c'est la contrepartie
     # de l'avoir automatisé. Un axe dont le pas change sous le curseur sans un mot

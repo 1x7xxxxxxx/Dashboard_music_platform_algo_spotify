@@ -5,6 +5,76 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-13 (suite) — Un interrupteur, et une bande qui pèse 0,18 %
+
+### Ce qui a changé
+
+**Le mode est un interrupteur, plus une barre.** « je veux uniquement le bouton cumulé
+allumé ou non ». Deux boutons dont l'un est toujours actif sont un interrupteur qui
+s'ignore ; `st.toggle` dit la même chose en une case, allumée par défaut.
+
+**Les trois portes algorithmiques passent SOUS Instagram et Meta Ads**, et leur bandeau
+dit maintenant ce qu'elles sont : « Probabilités **prédites maximum atteintes** pour ».
+Elles coupaient la lecture en tête de colonne — les six boîtes de plateformes racontent
+ce qui S'EST PASSÉ, ces trois-là ce qui POURRAIT se passer, et mélanger du mesuré et du
+prédit dans le même coup d'œil est le meilleur moyen de faire lire une prédiction comme
+un relevé.
+
+**La boîte Meta a la hauteur de ses voisines.** Son CPR vivait dans un `st.caption` sous
+la métrique, ce qui lui ajoutait une ligne : dans une grille de six, une case plus haute
+casse l'alignement de toute la rangée. Le CPR passe dans la ligne `delta`, celle où les
+autres boîtes portent leur écart, avec `delta_color="off"` — ce n'est pas une variation,
+et le teinter en vert lui ferait dire « ça monte », ce qui n'a aucun sens pour un coût
+par résultat affiché seul.
+
+### « Je n'ai pas de données avec le filtre depuis le début » — mesuré, et ce n'en est pas
+
+Vérifié en production le 2026-09-13, mode « par période », historique complet : la figure
+trace **45 points Spotify, 35 YouTube, 36 SoundCloud**. Il y a des données.
+
+Ce qui ne se voit pas, c'est la PROPORTION. Depuis que les ruptures de méthode sont
+recalées (la veille), la croissance **observée** de YouTube sur tout l'historique vaut
+**304 vues**, contre **165 065** pour Spotify. Sa bande pèse **0,18 %** de la pile —
+moins d'un pixel.
+
+**Ce n'est pas un défaut d'affichage à corriger, c'est ce que nous avons réellement vu
+croître.** On ne mesure YouTube par vidéo que depuis juin, et son compteur a très peu
+bougé depuis. Avant le recalage, la même bande affichait 18 742 — dont 18 438
+d'artefact. Le chiffre qui compte, le total de 118 336, est dans sa boîte à droite, où
+il n'est écrasé par personne. C'est exactement la raison d'être des boîtes.
+
+L'interrupteur reste donc allumé par défaut, et son infobulle le dit : éteint, chaque
+point est ce qui a été gagné sur ce pas-là — utile sur une fenêtre courte, peu lisible
+sur plusieurs années où une plateforme écrase les autres.
+
+### Deux mutations restées vertes, encore
+
+* **le CPR retiré de la boîte Meta** : rien ne gardait qu'elle le porte. Deux
+  assertions écrites — le CPR est dans la ligne `delta` (pas dans une infobulle, qui le
+  rendrait invisible à qui ne survole pas) et le budget l'accompagne (« 0,1090 € » sans
+  « sur 755,52 € » laisse croire à une performance reproductible) ;
+* **le CPR redescendu en `st.caption`** : rien ne gardait la hauteur uniforme. Une
+  assertion de plus, qui refuse un second chiffre sous la métrique.
+
+Troisième et quatrième de la série. Le motif se répète : **une mutation qui reste verte
+désigne un endroit où le garde n'avait pas de sujet**, pas un endroit où le code est
+correct.
+
+### Trois gardes ont suivi leur sujet
+
+`test_only_two_modes_are_offered` → `test_the_mode_is_a_single_toggle_defaulting_to_cumulative`,
+qui vérifie AUSSI que l'interrupteur est allumé par défaut. Le garde de la légende
+n'interroge plus un dict de modes mais les littéraux de `_render_trend`, ce qui survit au
+prochain changement de widget. Et `test_the_mode_is_chosen_on_a_visible_bar` est devenu
+`test_the_display_setting_is_never_folded_into_a_menu` : il a exigé deux barres, puis
+une, puis zéro — mais la question d'origine, « aucun réglage ne se replie dans un menu
+déroulant », n'a pas bougé d'un cran. Il vérifie en plus qu'il reste un réglage VISIBLE,
+sans quoi « pas de menu déroulant » serait satisfait par l'absence de contrôle.
+
+Suite complète : **5495 passed**, 0 échec.
+
+---
+
 ## 2026-09-13 — Deux modes, une légende, et un garde qui refuse un correctif à moitié
 
 ### La rupture YouTube est corrigée, et pas comme je l'avais écrit
