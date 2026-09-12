@@ -111,6 +111,10 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [an-exemption-that-outlives-what-it-exempted](#an-exemption-that-outlives-what-it-exempted) | P3 | deterministic | guarded | none |
 | [two-definitions-that-must-coincide-are-never-compared](#two-definitions-that-must-coincide-are-never-compared) | P2 | deterministic | guarded | none |
 | [a-partial-collection-becomes-a-baseline-level](#a-partial-collection-becomes-a-baseline-level) | P2 | deterministic | guarded | none |
+| [an-unmeasured-platform-is-rendered-as-zero](#an-unmeasured-platform-is-rendered-as-zero) | P2 | deterministic | guarded | none |
+| [a-read-that-failed-is-rendered-as-a-number](#a-read-that-failed-is-rendered-as-a-number) | P2 | deterministic | guarded | none |
+| [a-quantity-mistaken-for-a-counter](#a-quantity-mistaken-for-a-counter) | P3 | deterministic | guarded | none |
+| [a-late-platform-has-no-tenant-guard](#a-late-platform-has-no-tenant-guard) | P2 | deterministic | guarded | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -5028,3 +5032,65 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-12: trouvé par un garde EXISTANT qui a rougi tout seul quand une collecte fraîche a fait qualifier ce locataire. Il était vert la veille sur les mêmes données moins un jour — un garde de cohérence dépend de la donnée, et son silence n'est pas une preuve.
   - 2026-09-12: **la première version du correctif a été attrapée par un invariant écrit une heure plus tôt.** Retirer les LIGNES du jour partiel faisait disparaître une vidéo vue ce seul jour-là, et `levels_vs_total_youtube` a nommé l'écart : 5 vues exactement. Le filtre porte donc sur l'axe, jamais sur le pool de mesures. C'est le meilleur retour sur investissement de la séance.
+
+## an-unmeasured-platform-is-rendered-as-zero
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un artiste qui vient de s'inscrire lit **« 0 écoute »** sur les quatre plateformes. Ça ne se lit pas comme « la collecte n'a pas encore tourné », ça se lit comme un produit qui ne marche pas.
+- root_cause: `platform_totals(db, <locataire sans données>)` rendait `{'spotify': 0, 'youtube': 0, 'soundcloud': 0, 'apple': 0}` pendant que les vues or rendaient correctement « aucune ligne ». Trois `COALESCE(..., 0)` empilés effaçaient la distinction : un dans `_SQL_LIFETIME`, un dans le `or 0` de `_lifetime`, un troisième dans `gold_apple_lifetime`. Chacun était défendable seul — ensemble ils transformaient une absence en mesure. Et le même `return 0` couvrait l'EXCEPTION, donc une lecture échouée s'affichait aussi en zéro.
+- long_term_fix: la porte distingue TROIS cas et le dit dans son code : aucune ligne → `None` ; une ligne à 0 → `0`, mesuré ; une exception → `None`. La vue or n'a pas à changer — elle rendait déjà la bonne chose, c'est la porte qui la masquait. ADR-022 le promettait mot pour mot depuis le début (« elle rend `None` quand rien n'a été mesuré, jamais `0` ») ; le test est la phrase exécutable de cette ADR, et il balaie les HUIT plateformes parce que la question se repose pour chacune.
+- autofix: none
+- signature: `python3 -m pytest tests/test_an_unmeasured_platform_says_so.py -q`
+- guard: { type: pytest, ref: tests/test_an_unmeasured_platform_says_so.py }
+- rex_ref: migrations/113_gold_apple_absence_is_not_zero.sql
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: trouvé en construisant le tableau `plateforme × famille`, qui comptait HUIT cases vides sur cette famille — c'est-à-dire qu'aucun garde ne posait la question pour aucune plateforme. Le défaut était donc invisible par construction, et il a suffi de poser la question à un identifiant inexistant pour le voir. Signature vue exit 1 sur les deux moitiés : le `COALESCE` remis dans la porte, puis remis dans la fonction PL/pgSQL.
+  - 2026-09-12: le test porte aussi l'assertion INVERSE — un locataire mesuré à zéro rend toujours `0`. Sans elle, « rendre None partout » satisferait la première moitié et détruirait l'information symétrique.
+
+## a-read-that-failed-is-rendered-as-a-number
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une tuile affiche un chiffre alors que la requête a LEVÉ. Quatre occurrences en deux jours, aucune n'a produit d'erreur visible : « Total Streams : **0** » pendant que Shazams affichait 1 770 · `platform_totals` rendant 0 sur une exception · un top 5 du PDF passé de 11 lignes à 0 · une figure Data Wrapped disparue.
+- root_cause: un `except` qui enjambe une lecture de base et rend un NOMBRE. Le motif est partout défendable localement — « une tuile absente ne fait pas tomber la page » — et faux globalement : un chiffre faux se lit comme un chiffre, alors qu'un `None` se lit comme une absence. Le cas le plus cher était `_lifetime` dans la porte des plateformes : un seul `return 0` couvrait à la fois « jamais mesuré », « mesuré à zéro » et « lecture échouée », pour les QUATRE plateformes de streaming à la fois.
+- long_term_fix: un `except` qui enjambe une lecture rend `None`, une collection vide, ou lève — jamais un nombre. Le garde lit l'AST (`ExceptHandler` contenant un `Return` d'une constante numérique, dans une fonction qui appelle un lecteur), donc un commentaire qui explique le correctif ne peut pas le satisfaire. La PORTE est à zéro et le restera ; les cinq sites de `kpi_helpers` sont sous cliquet descendant — les descendre demande de reprendre chaque appelant, parce que `f"{None:,}"` lève. C'est exactement ce qui a été fait pour la page Apple Music : la tuile affiche « — ».
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_failed_read_is_not_an_absence.py -q`
+- guard: { type: pytest, ref: tests/test_a_failed_read_is_not_an_absence.py }
+- rex_ref: src/dashboard/utils/platform_timeseries.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: en écrivant le garde, DEUX sites de plus sont apparus dans la porte — `apple_lifetime_shazams` et `apple_snapshot_count`. Le premier est le jumeau d'`apple_lifetime_plays`, corrigé une heure plus tôt et pas lui : deux fonctions qui portent la même règle se corrigent ensemble, sinon la seconde est la prochaine occurrence. Le second comptait des relevés, où zéro EST une réponse valide — seule l'exception rend `None`, et la nuance est écrite dans son docstring.
+  - 2026-09-12: le plafond a été posé à 24 d'instinct, puis mesuré à **5**. Écrire un plafond avant de compter est la classe `un-seuil-écrit-d-instinct`, dans le garde qui la dénonce.
+
+## a-quantity-mistaken-for-a-counter
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: l'erreur SYMÉTRIQUE de celle qui a coûté un facteur 151 — traiter une quantité du jour comme un compteur cumulé. Le report en avant inventerait des visites qui n'ont pas eu lieu, et un retour à zéro déclencherait une alerte sur un jour normal : 93 alertes sur 1 254 jours, mesuré.
+- root_cause: le dépôt a un garde solide pour « un cumul tracé comme un quotidien » et aucun pour l'inverse. Mesuré le 2026-09-12 via le tableau `plateforme × famille` : **Hypeddit n'était couvert par aucune famille de forme plateforme**, et le revenu par aucune des deux concernées. Ce sont les deux sources les plus récentes de la couche or, et les moins gardées — la page Hypeddit n'a été repointée que ce jour-là.
+- long_term_fix: la forme se prouve sur la DONNÉE, pas sur l'intention : un compteur ne redescend jamais, donc une source dont le minimum est ≤ 0 est une quantité. Vérifié `hypeddit_daily_stats.visits` (min 0) et `v_artist_monthly_revenue` (montants négatifs — les charges SACEM). Le test refuse en plus qu'une de ces tables entre dans `ZERO_RESET_TARGETS`, et vérifie que toute lecture des relations Hypeddit et revenu nomme son locataire.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_quantity_is_summed_and_names_its_tenant.py -q`
+- guard: { type: pytest, ref: tests/test_a_quantity_is_summed_and_names_its_tenant.py }
+- rex_ref: tests/test_a_quantity_is_summed_and_names_its_tenant.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: la première version du volet « locataire » criait sur QUATRE lectures flotte parfaitement légitimes. Le dépôt écrit `if artist_id is not None: <scopé> else: <flotte>`, et une cinquième passait la paire `(sql_scopé, sql_flotte)` à un helper — la branche vivait donc dans le helper, pas autour du littéral. Les deux formes sont reconnues structurellement : un garde qui crie sur l'idiome normal est un garde qu'on désactive.
+
+## a-late-platform-has-no-tenant-guard
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une plateforme arrivée tard dans le produit n'est couverte par AUCUN garde de tenance. Aucun symptôme visible — jusqu'au jour où une lecture sans `artist_id` rend les chiffres d'un autre artiste, ce que la migration 064 a payé sur YouTube avec deux artistes bêta.
+- root_cause: les gardes de tenance ont été écrits plateforme par plateforme, au fil des incidents. Hypeddit est arrivé après, sa page n'a été repointée sur `v_hypeddit_daily` que le 2026-09-12, et personne n'a repassé la liste. Le trou n'était pas visible parce que rien ne mesurait la COUVERTURE — c'est le tableau `plateforme × famille` qui l'a nommé, pas une relecture.
+- long_term_fix: le tableau `plateforme × famille` de `.claude/dev-docs/gold-coverage.md` croise les cinq familles de forme plateforme avec les huit plateformes, et son compte de cases vides est sous cliquet à **zéro**. Une plateforme neuve ajoute cinq cases d'un coup et fait rougir le cliquet : brancher une source sans la garder devient impossible en silence. C'est le seul mécanisme qui empêche la reconstitution du trou, parce qu'il ne dépend d'aucune relecture humaine.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_quantity_is_summed_and_names_its_tenant.py::test_every_read_of_these_relations_names_its_tenant -q`
+- guard: { type: pytest, ref: tests/test_a_quantity_is_summed_and_names_its_tenant.py::test_every_read_of_these_relations_names_its_tenant }
+- rex_ref: .claude/dev-docs/gold-coverage.md
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: signature vue exit 1 en ajoutant `SELECT SUM(visits) FROM v_hypeddit_daily` sans `artist_id` dans `views/hypeddit.py` — le garde nomme le fichier et la ligne. Exit 0 après retrait.

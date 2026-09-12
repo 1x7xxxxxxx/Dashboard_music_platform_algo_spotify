@@ -131,7 +131,16 @@ _CEILING: dict[str, int] = {
     # rallonge pas. Une plateforme neuve ajoute huit cases d'un coup et fera rougir
     # ce plafond — c'est voulu : brancher une plateforme sans la garder est
     # exactement ce qui a coûté le plus cher ici.
-    "guard-matrix.holes": 19,
+    # 19 → 0 le 2026-09-12 (soir). Les cases n'ont pas été « remplies » : trois
+    # gardes ont été écrits pour les questions que personne ne posait, et deux
+    # défauts vivants sont sortis en les écrivant — la porte affirmait quatre zéros
+    # pour un locataire jamais mesuré, et deux fonctions Apple rendaient un nombre
+    # sur une lecture échouée.
+    #
+    # Une plateforme neuve ajoute cinq cases d'un coup et fera rougir ce plafond.
+    # C'est voulu : brancher une source sans la garder est ce qui a coûté le plus
+    # cher ici, et c'est le seul mécanisme qui l'empêche sans relecture humaine.
+    "guard-matrix.holes": 0,
 }
 
 # Les populations, pour qu'un compteur ne puisse pas baisser en SUPPRIMANT la
@@ -141,8 +150,8 @@ _FLOOR: dict[str, int] = {
     "tiles.total": 207,
     "pdf.total": 29,
     "gold-objects.total": 15,
-    "ratchets.total": 17,
-    "error-classes.total": 292,
+    "ratchets.total": 18,
+    "error-classes.total": 296,
     "ci.steps": 12,
     "ci.blocking": 12,
     "invariants.pairs": 12,

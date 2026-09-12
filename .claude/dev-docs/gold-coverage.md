@@ -53,7 +53,7 @@ Cinq mots de confiance, et rien d'autre :
 
 | objet | genre | définie par | lit | surfaces qui la lisent | définitions supplantées |
 |---|---|---|---|---|---|
-| `gold_apple_lifetime` | fonction | `migrations/103_gold_apple_metric.sql` | `apple_songs_performance` | 2 | `migrations/102_gold_apple.sql` |
+| `gold_apple_lifetime` | fonction | `migrations/113_gold_apple_absence_is_not_zero.sql` | `apple_songs_performance` | 2 | `migrations/102_gold_apple.sql` · `migrations/103_gold_apple_metric.sql` |
 | `v_artist_monthly_revenue` | vue | `init_db.sql` | `distrokid_monthly_revenue` · `imusician_monthly_revenue` · `sacem_statement` | 20 | `migrations/056_v_artist_monthly_revenue.sql` · `migrations/111_gold_sacem_monthly.sql` |
 | `v_hypeddit_daily` | vue | `migrations/106_gold_remaining_grains.sql` | `hypeddit_daily_stats` | 5 | — |
 | `v_instagram_media_monthly` | vue | `migrations/106_gold_remaining_grains.sql` | `instagram_media` | 4 | — |
@@ -87,8 +87,8 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `utils/platform_chart.py:884` | `render_platform_chart` | plotly_chart | à l'écran | `get()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur | — |
 | `utils/platform_chart.py:1055` | `_render_facets` | plotly_chart | à l'écran | `get()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur | — |
 | `views/alerts.py:277` | `_section_plan_evolution` | plotly_chart | à l'écran | `subscription_plan_history` | brut | plusieurs amonts | — | — |
-| `views/apple_music.py:93` | `show` | plotly_chart | à l'écran | `apple_songs_history` · `apple_songs_performance` | brut | plusieurs amonts | — | — |
-| `views/apple_music.py:205` | `show` | plotly_chart | à l'écran | `apple_songs_history` · `apple_songs_performance` | brut | plusieurs amonts | — | — |
+| `views/apple_music.py:100` | `show` | plotly_chart | à l'écran | `apple_songs_history` · `apple_songs_performance` | brut | plusieurs amonts | — | — |
+| `views/apple_music.py:212` | `show` | plotly_chart | à l'écran | `apple_songs_history` · `apple_songs_performance` | brut | plusieurs amonts | — | — |
 | `views/data_wrapped.py:628` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | appelants-multiples | — |
 | `views/data_wrapped.py:638` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | appelants-multiples | — |
 | `views/data_wrapped.py:644` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | appelants-multiples | — |
@@ -261,8 +261,8 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/airflow_kpi.py:562` | `show` | airflow_kpi.metric_failures_7d | à l'écran | — | — | hors base | — | — |
 | `views/alerts.py:283` | `_section_plan_evolution` | alerts.total_artists | à l'écran | — | — | hors base | — | ?`subscription_plan_history` |
 | `views/apple_music.py:33` | `show` | apple_music.kpi_songs | à l'écran | `apple_songs_performance` | brut | directe | — | ?`apple_songs_history` |
-| `views/apple_music.py:52` | `show` | apple_music.kpi_streams | à l'écran | `apple_lifetime_plays()` | or | directe | — | ?`apple_songs_history` · ?`apple_songs_performance` |
-| `views/apple_music.py:53` | `show` | apple_music.kpi_shazams | à l'écran | `apple_lifetime_shazams()` | or | directe | — | ?`apple_songs_history` · ?`apple_songs_performance` |
+| `views/apple_music.py:57` | `show` | apple_music.kpi_streams | à l'écran | `apple_lifetime_plays()` | or | directe | — | ?`apple_songs_history` · ?`apple_songs_performance` |
+| `views/apple_music.py:59` | `show` | apple_music.kpi_shazams | à l'écran | `apple_lifetime_shazams()` | or | directe | — | ?`apple_songs_history` · ?`apple_songs_performance` |
 | `views/billing.py:162` | `_show_current_plan` | billing.metric_plan | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | directe | — | ?`saas_artists` |
 | `views/billing.py:163` | `_show_current_plan` | billing.metric_price | à l'écran | — | — | hors base | — | ?`artist_subscriptions` · ?`saas_artists` · ?`subscription_plans` |
 | `views/billing.py:164` | `_show_current_plan` | billing.metric_status | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | directe | — | ?`saas_artists` |
@@ -438,7 +438,7 @@ Une ligne par plateforme. « Lectures brutes » compte les lectures de ses table
 
 ## Les cliquets
 
-**17 valeurs gelées** dans 12 fichiers. Un cliquet pose deux questions, et la seconde est celle qu'on oublie : le plafond est-il **serré** (égal à la mesure — un plafond au-dessus est du mou qui autorise en silence ce qu'il interdit), et la population est-elle **plancherée** ? « Zéro indéterminée » sur zéro figure est vrai et ne dit rien.
+**18 valeurs gelées** dans 13 fichiers. Un cliquet pose deux questions, et la seconde est celle qu'on oublie : le plafond est-il **serré** (égal à la mesure — un plafond au-dessus est du mou qui autorise en silence ce qu'il interdit), et la population est-elle **plancherée** ? « Zéro indéterminée » sur zéro figure est vrai et ne dit rien.
 
 **0 sans test de non-vacuité** et **0 sans trace de mutation** dans leur fichier. Une trace de mutation est une phrase qui dit que le garde a été VU rouge sur le défaut qu'il vise ; sans elle, rien ne distingue un garde d'un test qui ne peut pas échouer.
 
@@ -447,13 +447,14 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 | fichier | constante | valeur gelée | non-vacuité | trace de mutation |
 |---|---|---|---|---|
 | `test_a_chart_is_bounded_by_the_period_it_announces.py` | `_MAX_UNBOUNDED_FIGURES` | 0 | — | — |
+| `test_a_failed_read_is_not_an_absence.py` | `_CEILING` | 5 | — | — |
 | `test_a_page_asks_the_same_question_once.py` | `_MAX_QUERIES` | 2 entrées | — | — |
 | `test_a_sql_identifier_comes_from_a_closed_set.py` | `_MAX_UNSOURCED` | 0 | — | — |
 | `test_a_view_opens_on_one_decision.py` | `_MAX_FIRST_SCREEN` | 5 | — | — |
 | `test_chart_budget.py` | `_BUDGET` | 7 entrées | — | — |
 | `test_the_bronze_boundary_only_tightens.py` | `_CEILING` | 110 | — | — |
 | `test_the_error_class_families_only_improve.py` | `_MAX_ORPHANS` | 3 | — | — |
-| `test_the_error_class_families_only_improve.py` | `_MIN_TOTAL` | 292 | — | — |
+| `test_the_error_class_families_only_improve.py` | `_MIN_TOTAL` | 296 | — | — |
 | `test_the_error_class_families_only_improve.py` | `_MIN_FAMILIES` | 17 | — | — |
 | `test_the_gold_coverage_only_improves.py` | `_CEILING` | 11 entrées | — | — |
 | `test_the_gold_coverage_only_improves.py` | `_FLOOR` | 10 entrées | — | — |
@@ -466,9 +467,9 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 ## Les classes d'erreur
 
-**292 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
+**296 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
 
-**fixed** : 10· **guarded** : 266· **open** : 4· **reported** : 12
+**fixed** : 10· **guarded** : 270· **open** : 4· **reported** : 12
 
 **0 classe(s) nomment un fichier de garde qui n'existe plus** et **11** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
@@ -488,11 +489,11 @@ Le chiffre d'une case est le nombre de fichiers de garde qui NOMMENT une relatio
 
 | famille | Apple Music | Hypeddit | Instagram | Meta Ads | Revenu | SoundCloud | Spotify S4A | YouTube |
 |---|---|---|---|---|---|---|---|---|
-| [le-locataire](error-class-families.md#le-locataire) | 3 | **—** | 2 | 2 | 1 | 4 | 5 | 3 |
-| [un-cumul-pris-pour-un-quotidien](error-class-families.md#un-cumul-pris-pour-un-quotidien) | 2 | **—** | 1 | 1 | **—** | 4 | 3 | 3 |
-| [deux-surfaces-deux-nombres](error-class-families.md#deux-surfaces-deux-nombres) | 1 | **—** | 1 | 2 | 1 | 1 | 1 | 1 |
-| [une-erreur-avalée-devient-une-absence](error-class-families.md#une-erreur-avalée-devient-une-absence) | **—** | **—** | **—** | **—** | **—** | **—** | 1 | **—** |
-| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](error-class-families.md#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | **—** | **—** | **—** | **—** | **—** | **—** | **—** | **—** |
+| [le-locataire](error-class-families.md#le-locataire) | 1 | 1 | 1 | 2 | 2 | 2 | 3 | 1 |
+| [un-cumul-pris-pour-un-quotidien](error-class-families.md#un-cumul-pris-pour-un-quotidien) | 2 | 1 | 1 | 1 | 1 | 4 | 3 | 3 |
+| [deux-surfaces-deux-nombres](error-class-families.md#deux-surfaces-deux-nombres) | 3 | 1 | 2 | 3 | 2 | 3 | 3 | 3 |
+| [une-erreur-avalée-devient-une-absence](error-class-families.md#une-erreur-avalée-devient-une-absence) | 2 | 1 | 2 | 1 | 1 | 2 | 4 | 2 |
+| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](error-class-families.md#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 2 | 1 | 2 | 1 | 1 | 2 | 2 | 2 |
 
 Pourquoi ces familles et pas les autres :
 
@@ -504,9 +505,9 @@ Pourquoi ces familles et pas les autres :
 | `une-erreur-avalée-devient-une-absence` | chaque plateforme a son `except` autour de sa lecture, et chacun peut rendre zéro à la place d'une panne. |
 | `un-nombre-affirmé-qui-n-a-pas-été-mesuré` | une collecte ratée écrit des zéros, et ce qu'un zéro VEUT DIRE dépend de la plateforme — c'est tout l'objet de `value_monitor`. |
 
-**19 case(s) vide(s)** — la liste des tests à écrire :
+**0 case(s) vide(s)** — la liste des tests à écrire :
 
-`Hypeddit · le-locataire` · `Hypeddit · un-cumul-pris-pour-un-quotidien` · `Revenu · un-cumul-pris-pour-un-quotidien` · `Hypeddit · deux-surfaces-deux-nombres` · `Apple Music · une-erreur-avalée-devient-une-absence` · `Hypeddit · une-erreur-avalée-devient-une-absence` · `Instagram · une-erreur-avalée-devient-une-absence` · `Meta Ads · une-erreur-avalée-devient-une-absence` · `Revenu · une-erreur-avalée-devient-une-absence` · `SoundCloud · une-erreur-avalée-devient-une-absence` · `YouTube · une-erreur-avalée-devient-une-absence` · `Apple Music · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `Hypeddit · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `Instagram · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `Meta Ads · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `Revenu · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `SoundCloud · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `Spotify S4A · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `YouTube · un-nombre-affirmé-qui-n-a-pas-été-mesuré`
+_aucune._
 
 
 ## Les invariants
@@ -610,10 +611,10 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-pdf: total=29 unknown=5 -->
 <!-- gold-coverage-gold-objects: total=15 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
-<!-- gold-coverage-ratchets: total=17 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=292 guard_missing=0 guard_unnamed=11 -->
-<!-- gold-coverage-guard-matrix: cells=40 holes=19 -->
+<!-- gold-coverage-ratchets: total=18 without_nonvacuity=0 without_mutation=0 -->
+<!-- gold-coverage-error-classes: total=296 guard_missing=0 guard_unnamed=11 -->
+<!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=12 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=c557b0385e4b6430f8e9048e7f0cf87ec4f9bf9a5249826c2637f6a2dfa119f4 -->
+<!-- gold-coverage: sha256=63bb0456eccd1802730d19f899c13cb04bc8af784bd553834b0d0f8bdab12730 -->

@@ -55,7 +55,19 @@ FAMILIES: list[tuple[str, str, str]] = [
     ("le-locataire",
      "Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — "
      "toutes, et pas seulement la première ?",
-     r"tenant|locataire|artist[_-]id|multitenant|fleet|canary|sandbox"),
+     # ⚠️ PAS le mot « locataire » nu. C'est le mot que ce dépôt emploie pour dire
+     # « client », et il apparaît dans la moitié des symptômes — la famille en
+     # capturait 37 et volait leurs membres aux suivantes. Le cas qui l'a montré :
+     # `two-definitions-that-must-coincide-are-never-compared` atterrissait ici
+     # parce que son symptôme dit « pour le même locataire », alors que son sujet
+     # est deux définitions qui divergent.
+     #
+     # On garde donc les formes qui parlent VRAIMENT de tenance : un identifiant,
+     # ou une tournure où le locataire est le sujet du défaut.
+     r"tenant|artist[_-]id|saas_artist|multitenant|fleet|canary|sandbox|"
+     r"deux locataires|par locataire|du locataire|son locataire|le locataire|"
+     r"d'un locataire|leur locataire|chaque locataire|un locataire|"
+     r"locataires? multi|aux locataires"),
 
     ("un-cumul-pris-pour-un-quotidien",
      "Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend "
@@ -104,7 +116,10 @@ FAMILIES: list[tuple[str, str, str]] = [
      "l'utilisateur voit-il la différence ?",
      r"silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|"
      r"empty-bracket|no-op|returns-none|degrade|logged-as-success|"
-     r"outside-its-condition"),
+     # `read-that-failed`, ajouté le 2026-09-12 : la classe atterrissait dans
+     # « une configuration qui diverge de la prod » à cause du mot `prod` dans son
+     # symptôme. Un motif qui ne nomme pas la forme la laisse au premier venu.
+     r"outside-its-condition|read-that-failed|failed-read|except.*number"),
 
     ("un-garde-qui-ne-garde-pas",
      "Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée "

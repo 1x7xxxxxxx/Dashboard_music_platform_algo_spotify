@@ -50,7 +50,7 @@ _DOC = _ROOT / ".claude" / "dev-docs" / "error-class-families.md"
 # Les trois qui restent sont des cas isolés, et les laisser dehors est plus honnête
 # qu'une famille inventée pour trois membres.
 _MAX_ORPHANS = 3
-_MIN_TOTAL = 292
+_MIN_TOTAL = 296
 _MIN_FAMILIES = 17
 
 
