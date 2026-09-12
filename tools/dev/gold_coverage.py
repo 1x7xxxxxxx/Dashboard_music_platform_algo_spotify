@@ -1168,6 +1168,124 @@ def scan_error_classes() -> list[ErrClass]:
     return out
 
 
+# Les familles de classes d'erreur qui ont une forme PLATEFORME — celles où « est-ce
+# gardé ? » se pose une fois par plateforme, et où une réponse pour Spotify ne dit
+# rien d'Instagram.
+#
+# Les autres sont transverses : un document périmé, un cliquet sans plancher ou un
+# seuil écrit d'instinct n'appartiennent à aucune plateforme. Les compter par
+# plateforme fabriquerait cent faux trous, et un livrable qui crie cent fois est un
+# livrable que personne ne lit — c'est la mesure qui a fait écarter le patron du
+# livre dans `value_monitor`.
+_PLATFORM_SHAPED: dict[str, str] = {
+    "le-locataire":
+        "chaque plateforme a ses tables, et chacune peut oublier le locataire dans "
+        "SA jointure. Migration 064 l'a payé sur YouTube, la 107 sur SoundCloud, "
+        "la 108 sur Meta.",
+    "un-cumul-pris-pour-un-quotidien":
+        "la question « cette colonne est-elle un compteur ou une quantité du jour » "
+        "a une réponse DIFFÉRENTE par plateforme, et se retrompe à chaque nouvelle.",
+    "deux-surfaces-deux-nombres":
+        "un total par plateforme, donc une divergence possible par plateforme.",
+    "une-erreur-avalée-devient-une-absence":
+        "chaque plateforme a son `except` autour de sa lecture, et chacun peut "
+        "rendre zéro à la place d'une panne.",
+    "un-nombre-affirmé-qui-n-a-pas-été-mesuré":
+        "une collecte ratée écrit des zéros, et ce qu'un zéro VEUT DIRE dépend de "
+        "la plateforme — c'est tout l'objet de `value_monitor`.",
+}
+
+
+def platform_guard_matrix(gold, families_module) -> tuple[list[list[str]], list[str]]:
+    """(lignes du tableau, trous) — quelle famille est gardée pour quelle plateforme.
+
+    Un garde « couvre » une plateforme quand il NOMME une de ses relations dans un
+    littéral SQL, docstrings exclues. Pas quand il prononce son nom : une mention
+    dans un commentaire ne garde rien, et ce dépôt a pris quatre gardes au vert sur
+    leur propre commentaire.
+    """
+    families, _ = families_module.classify()
+    classes = {c.cid: c for c in scan_error_classes()}
+
+    owned: dict[str, set[str]] = {}
+    for platform, facts in _PLATFORM_FACTS.items():
+        names = set(facts)
+        for _ in range(3):
+            names |= {g.name for g in gold.values() if set(g.reads) & names}
+        owned[platform] = names
+
+    rows, holes = [], []
+    for family, reason in _PLATFORM_SHAPED.items():
+        files: set[str] = set()
+        for cid, _sym in families.get(family, []):
+            entry = classes.get(cid)
+            if entry:
+                files |= set(re.findall(r"(tests/[\w./-]+\.py)", entry.guard))
+        # ⚠️ Le fichier de test NE SUFFIT PAS. Depuis que les contrôles vivent dans
+        # `src/utils/*` (le SQL de `value_monitor`, les paires de `gold_invariants`),
+        # un garde peut ne contenir aucun littéral SQL et pourtant tout couvrir. La
+        # première version de ce tableau rendait DEUX lignes entièrement vides pour
+        # cette seule raison — elle voyait la liaison, pas l'application, et c'est la
+        # classe écrite le matin même.
+        #
+        # On suit donc les imports de première partie, sur un cran.
+        scanned: set[Path] = set()
+        for rel in files:
+            path = ROOT / rel.split("::")[0]
+            if not path.exists():
+                continue
+            scanned.add(path)
+            try:
+                imported = ast.parse(path.read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError):
+                continue
+            for node in ast.walk(imported):
+                mod = None
+                if isinstance(node, ast.ImportFrom) and node.module:
+                    mod = node.module
+                elif isinstance(node, ast.Import):
+                    mod = node.names[0].name
+                if not mod or not mod.startswith("src."):
+                    continue
+                candidate = ROOT / (mod.replace(".", "/") + ".py")
+                if candidate.exists():
+                    scanned.add(candidate)
+
+        read: dict[str, set[str]] = {}
+        for path in sorted(scanned):
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError):
+                continue
+            docs = {id(n.body[0].value) for n in ast.walk(tree)
+                    if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                                      ast.AsyncFunctionDef))
+                    and n.body and isinstance(n.body[0], ast.Expr)
+                    and isinstance(n.body[0].value, ast.Constant)}
+            seen: set[str] = set()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                    if id(node) not in docs:
+                        seen |= set(_FROM_RE.findall(node.value))
+                elif isinstance(node, ast.JoinedStr):
+                    seen |= set(_FROM_RE.findall("".join(
+                        v.value if isinstance(v, ast.Constant) else "{}"
+                        for v in node.values)))
+            for platform, names in owned.items():
+                if seen & names:
+                    read.setdefault(platform, set()).add(path.name)
+
+        cells = []
+        for platform in sorted(_PLATFORM_FACTS):
+            if platform in read:
+                cells.append(str(len(read[platform])))
+            else:
+                cells.append("**—**")
+                holes.append(f"{platform} · {family}")
+        rows.append([f"[{family}](error-class-families.md#{family})"] + cells)
+    return rows, holes
+
+
 def scan_invariants() -> tuple[list[tuple[str, str, str]], set[str]]:
     """Les paires réconciliées, et les objets or qu'elles touchent.
 
@@ -1530,6 +1648,29 @@ def render(gold, surfaces, files, reads) -> str:
         L += ["", "Sans chemin de garde : "
               + " · ".join(f"`{c.cid}`" for c in unnamed) + ".", ""]
 
+    import error_class_families as _ecf
+    matrix, holes = platform_guard_matrix(gold, _ecf)
+    L += ["", "## Ce qui n'est gardé par rien", "",
+          "La question du livrable qui restait sans réponse : **quelles erreurs "
+          "pourrait-on encore faire ?** Une case vide est une plateforme pour "
+          "laquelle aucun garde de cette famille ne lit une seule de ses relations "
+          "— donc un test à écrire, et c'est la liste des tests CI à intégrer.", "",
+          "Seules les familles de forme PLATEFORME sont ici. Un document périmé ou "
+          "un seuil écrit d'instinct n'appartiennent à aucune plateforme ; les "
+          "compter ainsi fabriquerait cent faux trous, et un livrable qui crie cent "
+          "fois est un livrable que personne ne lit.", "",
+          "Le chiffre d'une case est le nombre de fichiers de garde qui NOMMENT une "
+          "relation de cette plateforme dans un littéral SQL — jamais dans un "
+          "commentaire : ce dépôt a pris quatre gardes au vert sur leur propre "
+          "commentaire.", ""]
+    L += _table(matrix, ["famille"] + sorted(_PLATFORM_FACTS))
+    L += ["",
+          "Pourquoi ces familles et pas les autres :", ""]
+    L += _table([[f"`{f}`", why] for f, why in _PLATFORM_SHAPED.items()],
+                ["famille", "pourquoi elle se pose par plateforme"])
+    L += ["", f"**{len(holes)} case(s) vide(s)** — la liste des tests à écrire :", "",
+          " · ".join(f"`{h}`" for h in holes) if holes else "_aucune._", ""]
+
     pairs, touched = scan_invariants()
     unreconciled = sorted(g.name for g in gold.values() if g.name not in touched)
     L += ["", "## Les invariants", "",
@@ -1653,6 +1794,8 @@ def render(gold, surfaces, files, reads) -> str:
         f"without_nonvacuity={len(no_nonvac)} without_mutation={len(no_mut)} -->",
         f"<!-- gold-coverage-error-classes: total={len(classes)} "
         f"guard_missing={len(broken)} guard_unnamed={len(unnamed)} -->",
+        f"<!-- gold-coverage-guard-matrix: cells={len(matrix) * len(_PLATFORM_FACTS)} "
+        f"holes={len(holes)} -->",
         f"<!-- gold-coverage-invariants: pairs={len(pairs)} "
         f"unreconciled={len(unreconciled)} -->",
         f"<!-- gold-coverage-ci: steps={len(steps)} "

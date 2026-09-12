@@ -63,7 +63,7 @@ Cinq mots de confiance, et rien d'autre :
 | `v_meta_creative_daily` | vue | `migrations/108_gold_meta_creative_account_and_adset.sql` | `meta_ads` · `meta_adsets` · `meta_campaigns` · `meta_insights` | 17 | `migrations/106_gold_remaining_grains.sql` |
 | `v_meta_daily` | vue | `migrations/106_gold_remaining_grains.sql` | `meta_insights_performance_day` | 20 | — |
 | `v_meta_spend_totals` | vue | `migrations/101_gold_meta_spend.sql` | `meta_insights_performance_day` | 1 | — |
-| `v_platform_levels` | vue | `migrations/104_gold_platform_levels.sql` | `s4a_song_timeline` · `soundcloud_tracks_daily` · `youtube_video_stats` | 3 | — |
+| `v_platform_levels` | vue | `migrations/112_gold_partial_collection_is_not_a_level.sql` | `s4a_song_timeline` · `soundcloud_tracks_daily` · `youtube_video_stats` | 3 | `migrations/104_gold_platform_levels.sql` |
 | `v_platform_totals` | vue | `migrations/107_gold_soundcloud_track_latest.sql` | `apple_songs_performance` · `gold_apple_lifetime` · `v_s4a_song_daily` · `v_soundcloud_track_latest` · `youtube_video_stats` | 15 | `migrations/097_v_platform_totals.sql` · `migrations/102_gold_apple.sql` · `migrations/103_gold_apple_metric.sql` |
 | `v_s4a_song_daily` | vue | `migrations/105_gold_s4a_song_daily.sql` | `s4a_song_timeline` | 44 | — |
 | `v_sacem_monthly` | vue | `migrations/111_gold_sacem_monthly.sql` | `sacem_statement` | 4 | — |
@@ -84,8 +84,8 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | ⚠️ `views/meta_ads_overview.py:612` | `_show_meta_ads` | plotly_chart | à l'écran | — | — | indéterminée | clé-à-l-exécution | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_campaign_daily` · ?`v_meta_daily` |
 | ⚠️ `views/meta_breakdowns.py:96` | `_render_performance` | plotly_chart | à l'écran | — | — | indéterminée | clé-à-l-exécution | — |
 | ⚠️ `views/trigger_algo/_common/_pi_gates.py:76` | `_show_pi_gate_section` | plotly_chart | à l'écran | — | — | indéterminée | profondeur | — |
-| `utils/platform_chart.py:851` | `render_platform_chart` | plotly_chart | à l'écran | `get()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur | — |
-| `utils/platform_chart.py:1022` | `_render_facets` | plotly_chart | à l'écran | `get()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur | — |
+| `utils/platform_chart.py:884` | `render_platform_chart` | plotly_chart | à l'écran | `get()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur | — |
+| `utils/platform_chart.py:1055` | `_render_facets` | plotly_chart | à l'écran | `get()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur | — |
 | `views/alerts.py:277` | `_section_plan_evolution` | plotly_chart | à l'écran | `subscription_plan_history` | brut | plusieurs amonts | — | — |
 | `views/apple_music.py:93` | `show` | plotly_chart | à l'écran | `apple_songs_history` · `apple_songs_performance` | brut | plusieurs amonts | — | — |
 | `views/apple_music.py:205` | `show` | plotly_chart | à l'écran | `apple_songs_history` · `apple_songs_performance` | brut | plusieurs amonts | — | — |
@@ -453,10 +453,10 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 | `test_chart_budget.py` | `_BUDGET` | 7 entrées | — | — |
 | `test_the_bronze_boundary_only_tightens.py` | `_CEILING` | 110 | — | — |
 | `test_the_error_class_families_only_improve.py` | `_MAX_ORPHANS` | 3 | — | — |
-| `test_the_error_class_families_only_improve.py` | `_MIN_TOTAL` | 291 | — | — |
+| `test_the_error_class_families_only_improve.py` | `_MIN_TOTAL` | 292 | — | — |
 | `test_the_error_class_families_only_improve.py` | `_MIN_FAMILIES` | 17 | — | — |
-| `test_the_gold_coverage_only_improves.py` | `_CEILING` | 10 entrées | — | — |
-| `test_the_gold_coverage_only_improves.py` | `_FLOOR` | 9 entrées | — | — |
+| `test_the_gold_coverage_only_improves.py` | `_CEILING` | 11 entrées | — | — |
+| `test_the_gold_coverage_only_improves.py` | `_FLOOR` | 10 entrées | — | — |
 | `test_the_metrics_layer_only_grows.py` | `_CEILING` | 8 entrées | — | — |
 | `test_the_tenant_guard_is_written_once.py` | `_MAX_OPEN_CODED` | 0 | — | — |
 | `test_the_visual_rules_only_tighten.py` | `_MAX_SECONDARY_AXES` | 0 | — | — |
@@ -466,9 +466,9 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 ## Les classes d'erreur
 
-**291 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
+**292 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
 
-**fixed** : 10· **guarded** : 265· **open** : 4· **reported** : 12
+**fixed** : 10· **guarded** : 266· **open** : 4· **reported** : 12
 
 **0 classe(s) nomment un fichier de garde qui n'existe plus** et **11** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
@@ -476,6 +476,37 @@ _Aucune classe ne nomme un garde disparu._
 
 
 Sans chemin de garde : `db-connection-per-show` · `view-session-adoption` · `snapshot-fixture-hook-reflow` · `dag-trigger-without-tenant-scope` · `ast-guard-blind-to-bom` · `migration-ahead-of-its-code` · `repo-copy-of-a-config-is-not-what-runs` · `mermaid-block-does-not-render` · `guard-anchored-on-shape-not-question` · `a-filtered-test-run-proves-nothing` · `a-guard-that-sees-the-binding-not-the-application`.
+
+
+## Ce qui n'est gardé par rien
+
+La question du livrable qui restait sans réponse : **quelles erreurs pourrait-on encore faire ?** Une case vide est une plateforme pour laquelle aucun garde de cette famille ne lit une seule de ses relations — donc un test à écrire, et c'est la liste des tests CI à intégrer.
+
+Seules les familles de forme PLATEFORME sont ici. Un document périmé ou un seuil écrit d'instinct n'appartiennent à aucune plateforme ; les compter ainsi fabriquerait cent faux trous, et un livrable qui crie cent fois est un livrable que personne ne lit.
+
+Le chiffre d'une case est le nombre de fichiers de garde qui NOMMENT une relation de cette plateforme dans un littéral SQL — jamais dans un commentaire : ce dépôt a pris quatre gardes au vert sur leur propre commentaire.
+
+| famille | Apple Music | Hypeddit | Instagram | Meta Ads | Revenu | SoundCloud | Spotify S4A | YouTube |
+|---|---|---|---|---|---|---|---|---|
+| [le-locataire](error-class-families.md#le-locataire) | 3 | **—** | 2 | 2 | 1 | 4 | 5 | 3 |
+| [un-cumul-pris-pour-un-quotidien](error-class-families.md#un-cumul-pris-pour-un-quotidien) | 2 | **—** | 1 | 1 | **—** | 4 | 3 | 3 |
+| [deux-surfaces-deux-nombres](error-class-families.md#deux-surfaces-deux-nombres) | 1 | **—** | 1 | 2 | 1 | 1 | 1 | 1 |
+| [une-erreur-avalée-devient-une-absence](error-class-families.md#une-erreur-avalée-devient-une-absence) | **—** | **—** | **—** | **—** | **—** | **—** | 1 | **—** |
+| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](error-class-families.md#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | **—** | **—** | **—** | **—** | **—** | **—** | **—** | **—** |
+
+Pourquoi ces familles et pas les autres :
+
+| famille | pourquoi elle se pose par plateforme |
+|---|---|
+| `le-locataire` | chaque plateforme a ses tables, et chacune peut oublier le locataire dans SA jointure. Migration 064 l'a payé sur YouTube, la 107 sur SoundCloud, la 108 sur Meta. |
+| `un-cumul-pris-pour-un-quotidien` | la question « cette colonne est-elle un compteur ou une quantité du jour » a une réponse DIFFÉRENTE par plateforme, et se retrompe à chaque nouvelle. |
+| `deux-surfaces-deux-nombres` | un total par plateforme, donc une divergence possible par plateforme. |
+| `une-erreur-avalée-devient-une-absence` | chaque plateforme a son `except` autour de sa lecture, et chacun peut rendre zéro à la place d'une panne. |
+| `un-nombre-affirmé-qui-n-a-pas-été-mesuré` | une collecte ratée écrit des zéros, et ce qu'un zéro VEUT DIRE dépend de la plateforme — c'est tout l'objet de `value_monitor`. |
+
+**19 case(s) vide(s)** — la liste des tests à écrire :
+
+`Hypeddit · le-locataire` · `Hypeddit · un-cumul-pris-pour-un-quotidien` · `Revenu · un-cumul-pris-pour-un-quotidien` · `Hypeddit · deux-surfaces-deux-nombres` · `Apple Music · une-erreur-avalée-devient-une-absence` · `Hypeddit · une-erreur-avalée-devient-une-absence` · `Instagram · une-erreur-avalée-devient-une-absence` · `Meta Ads · une-erreur-avalée-devient-une-absence` · `Revenu · une-erreur-avalée-devient-une-absence` · `SoundCloud · une-erreur-avalée-devient-une-absence` · `YouTube · une-erreur-avalée-devient-une-absence` · `Apple Music · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `Hypeddit · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `Instagram · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `Meta Ads · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `Revenu · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `SoundCloud · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `Spotify S4A · un-nombre-affirmé-qui-n-a-pas-été-mesuré` · `YouTube · un-nombre-affirmé-qui-n-a-pas-été-mesuré`
 
 
 ## Les invariants
@@ -580,8 +611,9 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-gold-objects: total=15 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=17 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=291 guard_missing=0 guard_unnamed=11 -->
+<!-- gold-coverage-error-classes: total=292 guard_missing=0 guard_unnamed=11 -->
+<!-- gold-coverage-guard-matrix: cells=40 holes=19 -->
 <!-- gold-coverage-invariants: pairs=12 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=619da2eb454d7bb02867d3693f1bafced3693627e4cf421dddb2dac2912a5840 -->
+<!-- gold-coverage: sha256=c557b0385e4b6430f8e9048e7f0cf87ec4f9bf9a5249826c2637f6a2dfa119f4 -->

@@ -554,6 +554,26 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     # muette — au pas hebdomadaire, la même période porte 24 points sur les trois
     # plateformes. Le choix de l'utilisateur n'est pas ignoré en silence : `t_coarsened`
     # le dit, et nomme ce que le pas plus fin coûte (Apple n'existe qu'au pas annuel).
+    # ⚠️ LE SEAU D'UNE PLATEFORME SERVIE PAR LA COUCHE OR EXISTE MÊME SANS SÉRIE
+    # QUOTIDIENNE — et l'oublier annule tout le correctif ci-dessous.
+    #
+    # Mesuré le 2026-09-12 sur l'artiste 471 : sept collectes YouTube réparties sur
+    # 24 jours, dont DEUX consécutives. La série quotidienne ne porte donc que deux
+    # points, le seau hebdomadaire n'en fait qu'un, `len(span) >= _MIN_POINTS` échoue,
+    # le pas DÉGRADE vers le jour — et au pas jour la dérivation par les niveaux est
+    # désactivée par construction. Résultat : la figure totalise **11 053** là où le
+    # compteur a gagné **33 697 394**. Facteur **3 049**, sur une plateforme dont les
+    # niveaux sont pourtant denses tous les jours depuis la première mesure.
+    #
+    # C'est le même défaut que celui corrigé trente lignes plus bas, à un étage de
+    # plus : un verdict pris sur la série QUOTIDIENNE appliqué à une plateforme dont
+    # la forme de mesure est un NIVEAU. Ici il ne vidait pas le seau, il supprimait
+    # le pas tout entier.
+    #
+    # Les dates des niveaux entrent donc dans le calcul du span. Elles n'ajoutent
+    # aucune donnée — `_continuous` et `_carry_forward` remplissent ensuite — elles
+    # disent seulement « ce pas a de quoi être tracé ».
+    _level_days = sorted({d for rows in (cumulative or {}).values() for d, _ in rows})
     for candidate in _FINER_STEPS.get(step, [step]):
         span, aligned = daily_span, daily_aligned
         if candidate != "day":
@@ -573,11 +593,24 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                 years = sorted({d for rows in agg.values() for d, _ in rows
                                 if (w_since is None or d >= w_since)
                                 and (w_until is None or d <= w_until)})
-                span = years
+                span = sorted(set(years) | {
+                    _bucket_key(d, candidate) for d in _level_days
+                    if (w_since is None or _bucket_key(d, candidate) >= w_since)
+                    and (w_until is None or _bucket_key(d, candidate) <= w_until)})
                 aligned = {k: _continuous(rows, span) for k, rows in agg.items() if rows}
             else:
-                span, aligned = _window(_aggregate(series, candidate, since, until),
-                                        None, w_since, w_until, step_days=7)
+                bucketed = _aggregate(series, candidate, since, until)
+                if _level_days:
+                    # Une entrée à ZÉRO aux bornes des niveaux : elle n'affirme rien —
+                    # `_as_mode` réécrit entièrement la bande des plateformes servies
+                    # à partir de leurs niveaux — elle étend seulement l'axe pour que
+                    # le pas demandé ait de quoi exister.
+                    edge = "__levels__"
+                    bucketed = dict(bucketed)
+                    bucketed[edge] = [(_bucket_key(d, candidate), 0)
+                                      for d in (_level_days[0], _level_days[-1])]
+                span, aligned = _window(bucketed, None, w_since, w_until, step_days=7)
+                aligned.pop("__levels__", None)
         if span and aligned and len(span) >= _MIN_POINTS:
             if candidate != step:
                 coarsened = (step, candidate)

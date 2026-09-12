@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**291 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**292 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -11,7 +11,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | famille | classes | la question |
 |---|---|---|
 | [le-locataire](#le-locataire) | 37 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
-| [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 12 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
+| [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 13 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 10 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 12 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 21 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
@@ -79,7 +79,7 @@ Règle de rattachement : `tenant|locataire|artist[_-]id|multitenant|fleet|canary
 
 **Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ?**
 
-Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generations|snapshot` sur l'identifiant et le symptôme. 12 classe(s).
+Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generations|snapshot` sur l'identifiant et le symptôme. 13 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -95,6 +95,7 @@ Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generat
 | [`cumulative-counter-drawn-as-its-own-history`](error-classes.md#cumulative-counter-drawn-as-its-own-history) | la courbe « Cumulé » et la tuile de la même plateforme, sur le MÊME écran, donnent deux totaux. Mesuré en production le 2026-09-11 pour l'artiste 1 :  |
 | [`a-bucket-sums-deltas-instead-of-deriving-the-counter`](error-classes.md#a-bucket-sums-deltas-instead-of-deriving-the-counter) | un agrégat de période sur une plateforme à COMPTEUR vaut une fraction de la réalité, et la bande devient invisible. Mesuré en production le 2026-09-11 |
 | [`two-generations-of-rows-in-one-fact-table`](error-classes.md#two-generations-of-rows-in-one-fact-table) | un total affiché vaut **le double** du même total lu ailleurs, sans qu'aucune requête soit fausse. Mesuré le 2026-09-12 : la tuile « Dépenses » de la  |
+| [`a-partial-collection-becomes-a-baseline-level`](error-classes.md#a-partial-collection-becomes-a-baseline-level) | une figure sous-déclare d'un facteur **3 049**. Mesuré le 2026-09-12 sur l'artiste 471 : « par semaine » totalisait 11 053 écoutes là où le compteur Y |
 
 ## un-travail-qui-n-arrive-nulle-part
 
@@ -482,6 +483,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=291 families=17 orphans=3 -->
+<!-- error-class-families: total=292 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=4897594523267ef236f193fc622b39c90fcf729cc085813dc16a593162e4c9b9 -->
+<!-- error-class-families: sha256=5d9dd3e775ed436657d0711bf8a368c3524668a407783d8910df06544e356488 -->
