@@ -53,8 +53,11 @@ import logging
 
 import streamlit as st
 
+from src.dashboard.utils.platform_chart_notes import (      # noqa: F401
+    _STEP_BUCKETS, _STEP_UNITS, _render_notes, _render_recap,
+    render_missing_history_note, t_coarsened, t_too_coarse, t_too_thin,
+)
 from src.dashboard.utils.platform_timeseries import (
-    MISSING_HISTORY,
     PLATFORM_LABELS,
     STEP_ONLY,
 )
@@ -108,35 +111,98 @@ _WEEKLY_ABOVE_DAYS = 92
 
 # Vers quoi descendre quand le pas demandé ne produit pas assez de seaux pour dessiner
 # quoi que ce soit. Du plus grossier au plus fin, en s'arrêtant au premier qui tient.
-_FINER_STEPS = {"year": ["year", "week", "day"], "week": ["week", "day"], "day": ["day"]}
-
-# Le mot qui suit le nombre, dans le sous-titre. Il compte des SEAUX, pas des unités
-# de temps écoulé — et la nuance n'est pas de la pédanterie : sur une fenêtre de 12 mois
-# à cheval sur deux années civiles, la figure a 2 seaux annuels et disait « sur
-# 2 années », ce qui se lit comme deux ans d'historique. Vu au rendu le 2026-09-10.
-_STEP_UNITS = {"day": "jours", "week": "semaines", "year": "années"}
-
-# Le mot juste quand le seau peut être PLUS LARGE que la fenêtre. Au pas jour et au pas
-# semaine, un seau vaut à peu près son unité et la confusion n'existe pas ; au pas
-# annuel, un seau peut ne couvrir qu'un mois de la fenêtre demandée.
-_STEP_BUCKETS = {"day": "jours", "week": "semaines", "year": "points annuels"}
+# Le MOIS est arrivé le 2026-09-12 avec la barre de pas : le sélecteur n'offrait que
+# `auto / semaine / année`, et le mois — le pas qu'un artiste demande en premier —
+# n'existait nulle part dans ce module.
+_FINER_STEPS = {
+    "year": ["year", "month", "week", "day"],
+    "month": ["month", "week", "day"],
+    "week": ["week", "day"],
+    "day": ["day"],
+}
 
 
-def margin_labels(order: list, ink: str) -> list:
-    """Les étiquettes, espacées dans la marge droite, dans l'ordre visuel de la pile.
+# `margin_labels` a été RETIRÉE le 2026-09-12. Elle posait dans la marge droite une
+# étiquette par plateforme — les mêmes noms que la boîte de légende, qui avait été
+# réintroduite en bas le 2026-09-11 pour servir de filtre cliquable. Deux légendes
+# disant la même chose, dont une seule est actionnable : « tu peux supprimer la
+# légende en doublon car on a déjà la légende cliquable que je préfère ».
+#
+# La marge droite retombe donc de 132 px à 24 : c'est de la place rendue à la figure.
 
-    Exportée pour que son garde l'APPELLE : `annotations=` peut être passé avec
-    n'importe quoi, et vérifier qu'un mot-clé existe ne dit rien de ce qu'il porte.
+
+def unmeasured_spans(aligned: dict, order: list) -> list:
+    """Les intervalles d'indices où une plateforme DÉJÀ APPARUE n'a pas de mesure.
+
+    C'est la réponse en PIXELS à « on ne voit pas la différence entre zéro et pas de
+    donnée ». Jusqu'ici la bande se coupait — bien — mais `stackgroup` infère zéro
+    pour la plateforme manquante, donc **le total empilé redescend** et se lit comme
+    une chute. Le seul rattrapage était une phrase sous la figure.
+
+    `known()` fait déjà la distinction qui compte : avant la première mesure d'une
+    plateforme, zéro est vrai (elle n'existait pas dans nos données) ; entre deux
+    mesures et après la dernière, on ne sait pas. On ne hachure que le second cas.
+
+    Rend des intervalles FERMÉS `(début, fin)` sur les indices de `span`, fusionnés :
+    trois jours manquants d'affilée font une bande, pas trois.
     """
-    top_first = list(reversed(order))      # l'ordre visuel de la pile, de haut en bas
-    step = 1.0 / (len(top_first) + 1)
-    return [
-        dict(x=1.0, y=1.0 - step * (n + 1), xref="paper", yref="paper",
-             xanchor="left", xshift=12,
-             text=f"<b>{PLATFORM_LABELS[pkey]}</b>", showarrow=False,
-             font=dict(color=ink, size=12), align="left")
-        for n, pkey in enumerate(top_first)
-    ]
+    holes = sorted({
+        i for pkey in order
+        for i in range(len(aligned.get(pkey) or []))
+        if not known(aligned[pkey], i)
+    })
+    if not holes:
+        return []
+    spans, start, prev = [], holes[0], holes[0]
+    for i in holes[1:]:
+        if i == prev + 1:
+            prev = i
+            continue
+        spans.append((start, prev))
+        start = prev = i
+    spans.append((start, prev))
+    return spans
+
+
+def _hatch_traces(spans: list, span: list, ceiling: float, ink: str,
+                  legend: bool = True) -> list:
+    """Une trace hachurée par intervalle non mesuré, posée SOUS les aires.
+
+    ⚠️ Pourquoi une trace et pas un `add_vrect` : une SHAPE Plotly ne supporte pas
+    `fillpattern` — vérifié le 2026-09-12 sur la version de production (5.24.1) et en
+    local (6.5.2). `Scatter.fillpattern`, lui, est supporté des deux côtés. Le
+    rectangle est donc une trace fermée, hors `stackgroup` pour ne pas entrer dans la
+    pile, et `hoverinfo="skip"` pour ne rien affirmer au survol.
+    """
+    import plotly.graph_objects as go      # paresseux, comme dans la figure
+
+    from src.dashboard.utils.i18n import t
+    label = t("platform_chart.unmeasured", "▨ Aucune mesure")
+    out = []
+    for n, (a, b) in enumerate(spans):
+        # Le seau est élargi d'un demi-pas de chaque côté quand c'est possible : un
+        # trou d'un seul jour doit rester visible, et un rectangle de largeur nulle
+        # ne se voit pas.
+        x0 = span[max(a - 1, 0)] if a > 0 else span[a]
+        x1 = span[min(b + 1, len(span) - 1)] if b < len(span) - 1 else span[b]
+        out.append(go.Scatter(
+            x=[x0, x1, x1, x0, x0],
+            y=[0, 0, ceiling, ceiling, 0],
+            mode="lines",
+            line=dict(width=0),
+            fill="toself",
+            fillcolor="rgba(0,0,0,0)",
+            fillpattern=dict(shape="/", size=7, solidity=0.12,
+                             fgcolor=ink, bgcolor="rgba(0,0,0,0)"),
+            hoverinfo="skip",
+            # UNE SEULE entrée, et elle n'est pas cliquable en mode « part » : la
+            # légende y est désactivée en entier, parce qu'un clic masquerait une
+            # trace sans recalculer les parts.
+            showlegend=legend and n == 0,
+            name=label,
+            legendgroup="__unmeasured__",
+        ))
+    return out
 
 
 def _monday(day):
@@ -148,6 +214,8 @@ def _bucket_key(day, step: str):
     """Le point auquel ce jour appartient, selon le pas."""
     if step == "year":
         return _dt.date(day.year, 1, 1)
+    if step == "month":
+        return _dt.date(day.year, day.month, 1)
     if step == "week":
         return _monday(day)
     return day
@@ -181,6 +249,13 @@ def _bucket_days(key, step: str, lo, hi) -> int:
     """
     if step == "year":
         start, end = _dt.date(key.year, 1, 1), _dt.date(key.year, 12, 31)
+    elif step == "month":
+        # 28, 29, 30 ou 31 : le mois est le seul pas dont la longueur dépend du mois
+        # lui-même. Le dernier jour se trouve en reculant d'un jour depuis le 1ᵉʳ du
+        # suivant, ce qui est juste aussi en février d'une année bissextile.
+        nxt = (_dt.date(key.year + 1, 1, 1) if key.month == 12
+               else _dt.date(key.year, key.month + 1, 1))
+        start, end = key, nxt - _dt.timedelta(days=1)
     else:
         start, end = key, key + _dt.timedelta(days=6)
     start, end = max(start, lo), min(end, hi)
@@ -380,7 +455,9 @@ def _segments(span: list, aligned: dict, order: list) -> dict:
     Chaque plateforme porte donc ses propres coupures. La contrepartie est assumée et
     doit être DITE : Plotly empile par `stackgroup`, donc le total d'un jour incomplet
     est celui des plateformes présentes ce jour-là — la bande y descend sans qu'aucune
-    écoute ait disparu. C'est `t_missing` qui le nomme, avec le compte par plateforme.
+    écoute ait disparu. C'est la BANDE HACHURÉE qui le montre (`unmeasured_spans`), et
+    le récapitulatif qui le chiffre. `t_missing` le disait en prose jusqu'au
+    2026-09-12.
     """
     out = {}
     for key in order:
@@ -504,6 +581,14 @@ def _as_mode(aligned: dict, order: list, mode: str,
     if mode == "share":
         out = {k: list(v) for k, v in aligned.items()}
         for i in range(len(next(iter(aligned.values()), []))):
+            # UNE PART SE CALCULE SUR UN TOUT CONNU. Compter une plateforme non
+            # mesurée pour 0 au dénominateur gonfle la part des présentes — elles se
+            # partagent 100 % sans que rien ne le dise. Si une plateforme attendue
+            # manque à ce pas, le pas entier est inconnu, pour tout le monde.
+            if any(not known(aligned[k], i) for k in order):
+                for k in order:
+                    out[k][i] = None
+                continue
             total = sum(aligned[k][i] or 0 for k in order)
             for k in order:
                 out[k][i] = None if aligned[k][i] is None else (
@@ -517,6 +602,7 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                           mode: str = "cumulative",
                           cumulative: dict | None = None,
                           discarded: dict | None = None,
+                          recap=None,
                           key: str = "platform_chart") -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
@@ -586,9 +672,10 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
             # muettes pour un décalage de trois jours.
             w_since = _bucket_key(since, candidate) if since is not None else None
             w_until = _bucket_key(until, candidate) if until is not None else None
-            if candidate == "year":
-                # Un pas ANNUEL ne se parcourt pas en jours fixes : 365 ou 366. On
-                # construit donc l'axe sur les 1ᵉʳ janvier réellement présents.
+            if candidate in ("year", "month"):
+                # Un pas ANNUEL ou MENSUEL ne se parcourt pas en jours fixes : 365 ou
+                # 366, 28 à 31. On construit donc l'axe sur les clés de seau
+                # réellement présentes, jamais par incréments.
                 agg = _aggregate(series, candidate, since, until)
                 years = sorted({d for rows in agg.values() for d, _ in rows
                                 if (w_since is None or d >= w_since)
@@ -678,14 +765,31 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
 
     if served and mode != "cumulative":
         # Le seau porte la CROISSANCE du compteur : niveau à la fin du seau moins
-        # niveau à la fin du précédent. Le premier seau n'a pas de prédécesseur, donc
-        # sa croissance est inconnue — `None`, jamais 0, qui affirmerait l'immobilité.
+        # niveau à la fin du précédent.
+        #
+        # LE PREMIER SEAU A UN PRÉDÉCESSEUR, et le nier coûtait de vraies écoutes.
+        # Il était rendu `None` — « pas de seau avant, donc croissance inconnue » —
+        # ce qui est faux dès que la série cumulée commence DANS ce seau : entre son
+        # premier relevé et la fin du seau, la croissance est observée. Tant que la
+        # dégradation tombait sur la semaine, le manque restait sous le pour-cent et
+        # personne ne le voyait ; en ouvrant le pas MOIS le 2026-09-12 il est passé
+        # à **12 %** sur un locataire réel — 182 432 dessinés contre 206 555 gagnés,
+        # et `test_every_way_of_asking_gives_one_answer` l'a nommé.
+        #
+        # Le niveau d'entrée est donc le dernier relevé à ou avant le début de la
+        # fenêtre ; à défaut, le premier relevé de la série, qui tombe alors dans le
+        # premier seau. Reste `None` quand la série commence APRÈS le premier seau —
+        # là, la croissance y est réellement inconnue.
         for k in served:
             levels = _carry_forward(span, cumulative[k], step)
-            growth = [None]
-            for prev, cur in zip(levels, levels[1:]):
+            rows = sorted(cumulative[k])
+            earlier = [v for d, v in rows if d < span[0]]
+            base = earlier[-1] if earlier else (rows[0][1] if rows else None)
+            growth, prev = [], base
+            for cur in levels:
                 growth.append(None if prev is None or cur is None
                               else max(cur - prev, 0))
+                prev = cur
             aligned[k] = growth
 
     order = [k for k in PLATFORM_LABELS
@@ -751,8 +855,9 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         _render_facets(fig_span=span, aligned=aligned, order=order, segments=segments,
                        palette=palette, ink=ink, muted=muted, surface=surface,
                        grid=grid, title=title, step=step, total=total, key=key)
-        _render_notes(span, aligned_raw, order, thin, coarse, step,
-                      stacked=False, coarsened=coarsened, mode=mode, served=served,
+        if recap is not None:
+            _render_recap(recap, span, aligned, aligned_raw, order, thin, mode, step)
+        _render_notes(thin, coarse, step, coarsened=coarsened, mode=mode,
                       discarded=discarded)
         return True
 
@@ -770,13 +875,37 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     # ça, masquer YouTube n'en masquerait qu'un morceau.
     legend_done: set = set()
     fig = go.Figure()
+
+    # LA BANDE HACHURÉE D'ABORD : une trace ajoutée avant les autres passe dessous.
+    #
+    # Elle répond à « ne pas visualiser 0 mais (absence de data) ». Couper la bande
+    # ne suffisait pas : `stackgroup` infère zéro pour la plateforme manquante, donc
+    # le TOTAL empilé redescend et se lit comme une chute d'audience. Le rattrapage
+    # était une phrase sous la figure ; c'est maintenant un pixel dans la figure.
+    _gaps = unmeasured_spans(aligned, order)
+    if _gaps:
+        _stack = [
+            sum(aligned[k][i] for k in order
+                if i < len(aligned.get(k) or []) and aligned[k][i] is not None)
+            for i in range(len(span))
+        ]
+        _ceiling = (max(_stack) if _stack else 0) or 1
+        for _hatch in _hatch_traces(_gaps, span, _ceiling * 1.02, muted,
+                                    legend=mode != "share"):
+            fig.add_trace(_hatch)
+
     for pkey in order:
         for seg in segments[pkey]:
             first = pkey not in legend_done
             legend_done.add(pkey)
             fig.add_trace(go.Scatter(
                 x=[span[i] for i in seg],
-                y=[aligned[pkey][i] or 0 for i in seg],
+                # PAS de `or 0` : un `None` reste un `None`. Les segments sont
+                # déjà découpés sur les trous, donc les seules valeurs qui
+                # restaient à écraser ici étaient les indices ANTÉRIEURS à la
+                # première mesure — dessinés à 0 avec l'infobulle « compteur
+                # inchangé », c'est-à-dire une mesure affirmée sans mesure.
+                y=[aligned[pkey][i] for i in seg],
                 name=PLATFORM_LABELS[pkey],
                 legendgroup=pkey,
                 showlegend=first and mode != "share",
@@ -794,34 +923,20 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                 # « on a des 0 sur youtube et soundcloud, je pense qu'on a tout
                 # simplement pas la data » (2026-09-08). Ici, si : le compteur de la
                 # chaîne n'a pas bougé de la journée.
-                customdata=[["compteur inchangé" if (aligned[pkey][i] or 0) == 0
+                customdata=[["compteur inchangé" if aligned[pkey][i] == 0
                              else ""] for i in seg],
                 hovertemplate=(("%{y:.1f} %<extra>" if mode == "share"
                                 else "%{y:,} %{customdata[0]}<extra>")
                                + PLATFORM_LABELS[pkey] + "</extra>"),
             ))
 
-    # LES ÉTIQUETTES SONT POSÉES SUR LA FIGURE, pas dans une boîte de légende.
+    # PLUS D'ÉTIQUETTES DE MARGE. La boîte de légende, en bas, nomme les mêmes
+    # plateformes ET les fait disparaître d'un clic ; les étiquettes ne faisaient que
+    # répéter. Retirées le 2026-09-12 — « on a déjà la légende cliquable ».
     #
-    # C'est la forme de l'illustration, et c'est aussi le correctif du 2026-09-08 :
-    # « sur le graphique évolution par plateforme, la légende est masquée, c'est assez
-    # moche ». La légende horizontale était ancrée à `y=1.0`, c'est-à-dire dans la
-    # marge où vit déjà le titre sur deux lignes — les deux se recouvraient.
-    #
-    # Une étiquette collée à la bande qu'elle nomme n'a rien à recouvrir, et elle porte
-    # le RELIEF qu'exige l'avertissement de contraste du validateur : l'identité d'une
-    # aire ne repose alors plus sur sa seule couleur.
-    # Espacées dans la MARGE, pas collées au milieu de leur bande.
-    #
-    # La première version les ancrait au centre de l'aire, ce qui les empilait les unes
-    # sur les autres dès qu'une bande devenait fine — vu au rendu : « SoundCloud » et
-    # « Spotify » se recouvraient sur la vue « Depuis le début », où YouTube et
-    # SoundCloud pèsent quelques écoutes contre plusieurs milliers.
-    #
-    # C'est aussi ce que fait l'illustration : ses quatre étiquettes sont à des
-    # hauteurs fixes à droite, dans l'ordre de la pile. Une étiquette n'a pas à
-    # désigner une épaisseur, elle a à nommer une couleur.
-    annotations = margin_labels(order, ink)
+    # Ce qui reste ici : la bande hachurée des périodes non mesurées, qui n'est pas
+    # une annotation mais une trace (une shape Plotly ne sait pas hachurer).
+    annotations: list = []
 
     # LE TOTAL DU SOUS-TITRE SE LIT SUR LES QUANTITÉS, jamais sur le mode d'affichage.
     #
@@ -859,7 +974,7 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         # Assez de place à GAUCHE pour les graduations et EN BAS pour les dates : à
         # 8 px, le rendu du 2026-09-08 coupait « 150 k » en « k » et mangeait la moitié
         # des libellés de l'axe des temps. La marge droite, elle, porte les étiquettes.
-        margin=dict(l=56, r=132, t=58 if title else 12,
+        margin=dict(l=56, r=24, t=58 if title else 12,
                     b=62 if mode != "share" else 32),
         # EN BAS, jamais en haut. La version de 2026-09-08 l'ancrait à `y=1.0`,
         # c'est-à-dire dans la marge où vit le titre sur deux lignes : les deux se
@@ -882,122 +997,30 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                    ticksuffix=" %" if mode == "share" else None),
     )
     st.plotly_chart(fig, width="stretch", key=key)
-    _render_notes(span, aligned_raw, order, thin, coarse, step,
-                  coarsened=coarsened, mode=mode, served=served, discarded=discarded)
+    if recap is not None:
+        _render_recap(recap, span, aligned, aligned_raw, order, thin, mode, step)
+    _render_notes(thin, coarse, step, coarsened=coarsened, mode=mode,
+                  discarded=discarded)
     return True
 
 
-# Ce que porte un point, selon le pas — et ce qu'un blanc veut dire au même pas.
-_STEP_POINT = {
-    "day": ("du jour", "ce jour-là"),
-    "week": ("de la semaine", "cette semaine-là"),
-    "year": ("de l'année", "cette année-là"),
-}
+# `t_trend_caption` ET `_MODE_SHAPE` VIVAIENT ICI. Retirés le 2026-09-12, à la demande
+# — « supprime-moi le texte inutile ».
+#
+# La légende disait deux choses. La première — « Total depuis le début de la période »,
+# « Écoutes hebdomadaires » — est maintenant portée par la BARRE DE PAS et la barre de
+# mode, visibles au-dessus de la figure : depuis que « Automatique » a disparu, le pas
+# demandé EST le pas appliqué, donc l'unité se lit sur le contrôle qui la choisit.
+# La seconde — « une interruption veut dire qu'on n'a pas de mesure, pas un zéro » —
+# est exactement ce que la BANDE HACHURÉE dessine, avec son entrée de légende
+# « ▨ Aucune mesure ». Une phrase qui paraphrase un pixel visible est du bruit ; c'est
+# la même raison qui avait fait descendre cette fonction ici le 2026-09-10, poussée
+# d'un cran de plus.
+#
+# Ce qui reste écrit sous la figure, ce sont les notes qui parlent de ce que la figure
+# NE PEUT PAS montrer : un seau élargi (`t_coarsened`), une plateforme trop mince
+# (`t_too_thin`), un pas trop grossier (`t_too_coarse`), des écoutes non traçables.
 
-# La forme que le lecteur a sous les yeux, selon le mode. Un « blanc dans la bande »
-# n'a aucun sens quand il n'y a pas de bande.
-_MODE_SHAPE = {
-    "cumulative": "la courbe",
-    "absolute": "la bande",
-    "share": "la courbe",
-    "facets": "la facette",
-}
-
-
-def t_trend_caption(step: str, mode: str) -> str:
-    """La légende sous la figure, DÉRIVÉE de ce que la figure fait.
-
-    Elle était fixe dans `views/home.py` et disait « Écoutes **du jour** […] un blanc
-    dans la bande […] pas de mesure ce jour-là » — sous TOUS les modes et TOUS les pas.
-    Vu au rendu le 2026-09-10 en « Chacune à son échelle · Par année » : trois
-    affirmations fausses d'un coup, sur une figure qui montrait des totaux ANNUELS en
-    facettes séparées.
-
-    C'est la cause (E) de l'audit du 2026-09-10 — « le texte est écrit à côté du
-    comportement, pas dérivé de lui » — et c'est pourquoi la fonction vit ICI : le
-    module de la figure est le seul endroit qui connaisse le pas EFFECTIF. `views/home.py`
-    ne connaît que le pas demandé, et « Automatique » n'en est pas un.
-
-    En mode cumulé, un point ne porte pas la quantité d'une période mais le total
-    depuis le début : la phrase change de sujet, pas seulement d'unité.
-    """
-    from src.dashboard.utils.i18n import t
-    unit, when = _STEP_POINT.get(step, _STEP_POINT["day"])
-    shape = _MODE_SHAPE.get(mode, "la bande")
-    if mode == "cumulative":
-        return t(
-            "platform_chart.caption_cumulative",
-            "Total **depuis le début de la période**, plateforme par plateforme. Une "
-            "interruption dans {shape} veut dire qu'on n'a pas de mesure — pas que le "
-            "compteur est retombé."
-        ).format(shape=shape)
-    return t(
-        "platform_chart.caption_period",
-        "Écoutes **{unit}**, plateforme par plateforme. Un blanc dans {shape} veut "
-        "dire qu'on n'a pas de mesure {when} — pas zéro écoute."
-    ).format(unit=unit, shape=shape, when=when)
-
-
-def _render_notes(span: list, aligned_raw: dict, order: list, thin: dict,
-                  coarse: list, step: str, *, stacked: bool = True,
-                  coarsened=None, mode: str = "absolute", served=(),
-                  discarded: dict | None = None) -> None:
-    """Ce que la figure ne peut pas dessiner, écrit sous elle. Jamais tu.
-
-    Une plateforme qui manque sans explication se lit comme une panne — la leçon de la
-    matrice d'état, appliquée à une figure.
-
-    UNE NOTE QUI DÉCRIT UNE AUTRE FIGURE QUE CELLE AFFICHÉE EST PIRE QUE PAS DE NOTE.
-    Signalé le 2026-09-11 : « je n'ai aucune data sur YouTube depuis le début ». La
-    figure traçait pourtant YouTube à 118 334, et c'est la PROSE qui disait le
-    contraire — « 🎬 YouTube 26 [semaines non mesurées], leur aire s'interrompt là ».
-    Ces notes sont calculées sur `aligned_raw`, la série QUOTIDIENNE, et elles étaient
-    exactes tant que la courbe en venait. Depuis que le mode cumulé lit la couche or,
-    une plateforme à compteur n'a plus de trou : entre deux relevés son niveau est
-    connu, la courbe est continue, et l'annoncer interrompue fait lire une panne là où
-    il y a une mesure. `served` nomme ces plateformes, et elles sortent de la note.
-    """
-    # La légende générale d'abord : elle dit ce que la figure MONTRE. Les notes qui
-    # suivent disent ce qu'elle ne peut pas montrer.
-    st.caption(t_trend_caption(step, mode))
-    if coarsened:
-        st.caption(t_coarsened(*coarsened))
-    _no_gaps = set(served) if mode == "cumulative" else set()
-    gaps = {k: n for k, n in gap_counts(span, aligned_raw, order).items()
-            if n and k not in _no_gaps}
-    if gaps:
-        st.caption(t_missing(gaps, len(span), step, stacked=stacked))
-    for label, measured, total in thin.values():
-        st.caption(t_too_thin(label, measured, total))
-    for pkey in coarse:
-        st.caption(t_too_coarse(PLATFORM_LABELS[pkey], step))
-
-    # « ÉCOUTES NON TRAÇABLES » — seulement quand la figure trace vraiment les écarts
-    # quotidiens, c'est-à-dire au pas du JOUR et hors mode cumulé.
-    #
-    # Elle vivait dans l'accueil, et elle ne pouvait pas y être juste : cette vue
-    # connaît le pas DEMANDÉ, et « Automatique » n'en est pas un — seul ce module sait
-    # lequel a été retenu. C'est exactement l'argument qui avait déjà fait descendre
-    # `t_trend_caption` ici le 2026-09-10 ; la note voisine était restée en haut.
-    #
-    # Depuis que le seau plus large qu'un jour porte la CROISSANCE du compteur, ces
-    # écoutes sont dans la figure dès le pas hebdomadaire. Les annoncer perdues sous
-    # une figure qui les montre est le défaut qu'on vient de corriger, dans l'autre
-    # sens.
-    if discarded and mode != "cumulative" and step == "day":
-        from src.dashboard.utils.i18n import t
-
-        parts = ", ".join(
-            f"{PLATFORM_LABELS.get(k, k)} {v[2]:,}".replace(",", "\u202f")
-            for k, v in sorted(discarded.items(), key=lambda kv: -kv[1][2]) if v[2])
-        if parts:
-            st.caption(t(
-                "home.trend_discarded",
-                "⏸️ Écoutes mesurées mais **non traçables** : {parts}. Elles se sont "
-                "produites entre deux collectes espacées de plus d'un jour — on sait "
-                "combien, jamais quel jour. Les attribuer à une date inventerait un "
-                "pic. **Par semaine** ou **Par année**, elles sont comptées."
-            ).format(parts=parts))
 
 
 def _render_facets(*, fig_span: list, aligned: dict, order: list, segments: dict,
@@ -1022,10 +1045,24 @@ def _render_facets(*, fig_span: list, aligned: dict, order: list, segments: dict
                         vertical_spacing=0.06,
                         subplot_titles=[PLATFORM_LABELS[k] for k in order])
     for row, pkey in enumerate(order, start=1):
+        # LA HACHURE EST PAR FACETTE, et c'est la différence avec la pile.
+        #
+        # Ici chaque plateforme a son cadre, donc le trou de l'une ne concerne
+        # qu'elle : hachurer toute la colonne dirait que SoundCloud manque parce que
+        # YouTube manque. En petits multiples il n'y a pas non plus de total qui
+        # retombe — l'aire s'interrompt simplement — mais une interruption reste
+        # muette sur sa raison, et c'est ce que la hachure dit.
+        _gaps = unmeasured_spans({pkey: aligned[pkey]}, [pkey])
+        if _gaps:
+            _measured = [v for v in aligned[pkey] if v is not None]
+            _ceiling = (max(_measured) if _measured else 0) or 1
+            for _hatch in _hatch_traces(_gaps, fig_span, _ceiling * 1.02, muted,
+                                        legend=False):
+                fig.add_trace(_hatch, row=row, col=1)
         for seg in segments[pkey]:
             fig.add_trace(go.Scatter(
                 x=[fig_span[i] for i in seg],
-                y=[aligned[pkey][i] or 0 for i in seg],
+                y=[aligned[pkey][i] for i in seg],   # ni `or 0` ici
                 name=PLATFORM_LABELS[pkey], mode="lines", fill="tozeroy",
                 line=dict(width=1.6, color=palette[pkey]),
                 fillcolor=palette[pkey], showlegend=False,
@@ -1053,76 +1090,3 @@ def _render_facets(*, fig_span: list, aligned: dict, order: list, segments: dict
         font=dict(color=ink),
     )
     st.plotly_chart(fig, width="stretch", key=key)
-
-
-def t_too_thin(label: str, measured: int, total: int) -> str:
-    """Pourquoi une plateforme n'est pas dans la pile — nommée, jamais tue."""
-    from src.dashboard.utils.i18n import t
-    return t("platform_chart.too_thin",
-             "{label} n'est pas tracée : **{measured} mesure(s)** seulement, et il en "
-             "faut deux pour dessiner une aire. Ses chiffres restent dans le tableau "
-             "ci-dessous."
-             ).format(label=label, measured=measured, total=total)
-
-
-def t_coarsened(asked: str, used: str) -> str:
-    """Le pas demandé ne dessinait rien ; on le dit, et on dit ce que ça coûte."""
-    from src.dashboard.utils.i18n import t
-    names = {"day": "Par jour", "week": "Par semaine", "year": "Par année"}
-    return t("platform_chart.coarsened",
-             "**{asked}** ne donne qu'un seul point sur cette période — une aire a "
-             "besoin d'au moins deux. Affiché **{used}**. 🎎 Apple Music n'existe "
-             "qu'au pas Par année : élargis la période pour le retrouver."
-             ).format(asked=names.get(asked, asked), used=names.get(used, used))
-
-
-def t_too_coarse(label: str, step: str) -> str:
-    """Pourquoi une plateforme disparaît à CE pas, alors qu'elle existe au pas du jour."""
-    from src.dashboard.utils.i18n import t
-    unit = {"week": "semaine", "year": "année"}.get(step, "période")
-    return t("platform_chart.too_coarse",
-             "{label} n'apparaît pas à ce pas : aucune de ses {unit}s n'est mesurée "
-             "sur assez de jours pour en faire un total honnête. Choisis un pas plus "
-             "fin pour la voir."
-             ).format(label=label, unit=unit)
-
-
-def t_missing(gaps: dict, total: int, step: str = "day", *,
-              stacked: bool = True) -> str:
-    """Le blanc n'est plus commun : chaque plateforme dit ce qu'elle n'a pas mesuré.
-
-    L'ancienne phrase comptait les pas où **au moins une** plateforme manquait, et
-    c'était la formulation d'une figure où une source absente coupait tout le monde.
-    Maintenant que les autres continuent, il faut dire deux choses : qui manque, et que
-    le total de ces pas-là est plus bas SANS qu'une écoute ait disparu.
-
-    Sauf quand la figure n'empile pas — en petits multiples il n'y a pas de total à
-    faire baisser, et le dire quand même ferait chercher au lecteur une chute qui
-    n'existe nulle part sur l'image.
-    """
-    from src.dashboard.utils.i18n import t
-    unit = _STEP_UNITS.get(step, "jours")
-    who = " · ".join(f"{PLATFORM_LABELS.get(k, k)} {n}" for k, n in sorted(
-        gaps.items(), key=lambda kv: -kv[1]))
-    if not stacked:
-        return t("platform_chart.gaps_unstacked",
-                 "Sur {total} {unit}, certaines plateformes n'ont pas été mesurées "
-                 "partout ({who}). Leur courbe s'interrompt là — un blanc, jamais un "
-                 "zéro : un zéro dirait « aucune écoute »."
-                 ).format(total=total, unit=unit, who=who)
-    return t("platform_chart.gaps",
-             "Sur {total} {unit}, certaines plateformes n'ont pas été mesurées "
-             "partout ({who}). Leur aire s'interrompt là ; les autres continuent, et "
-             "le total de ces {unit}-là est donc plus bas — aucune écoute n'a "
-             "disparu."
-             ).format(total=total, unit=unit, who=who)
-
-
-def render_missing_history_note() -> None:
-    """Nomme ce qui n'a PAS de série, plutôt que de le dessiner à zéro.
-
-    Une plateforme absente sans explication se lit comme une panne — c'est la leçon
-    de `_silence_reason` et de la matrice d'état, appliquée à une figure.
-    """
-    for label, why in MISSING_HISTORY.values():
-        st.caption(f"{label} — {why}.")

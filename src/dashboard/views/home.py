@@ -18,6 +18,14 @@ from src.dashboard.utils.kpi_helpers import (
 )
 
 
+# Au-delà de cette fenêtre, le pas JOUR n'est plus le défaut : « Depuis le début »
+# couvre ~4 ans, soit ~1 400 points par plateforme — la figure devient illisible et
+# le rendu coûte plus que ce qu'il montre. 120 jours ≈ un trimestre glissant, la
+# plus longue fenêtre où un point par jour reste lisible sur la largeur d'un écran.
+# L'artiste peut toujours forcer le jour : c'est un défaut, pas une contrainte.
+_DAY_UNTIL_DAYS = 120
+
+
 def _freshness_badge(label, icon, last_dt):
     """Génère une carte de fraîcheur HTML."""
     emoji, color, age_label = freshness_status(last_dt)
@@ -48,21 +56,19 @@ def _section_freshness(db, artist_id):
     freshness = get_source_freshness(db, artist_id)
     meta = {src["label"]: src for src in SOURCES_CONFIG}
 
+    # Deux titres, aucune glose. « 🔄 Collecte automatique » et « 📂 À déposer
+    # toi-même » disent déjà tout ce que les deux phrases retirées le 2026-09-12
+    # répétaient ; et chaque tuile d'API porte son heure, ce que la phrase ne
+    # faisait pas.
     groups = (
-        ("api", t("home.freshness_api", "🔄 Collecte automatique"),
-         t("home.freshness_api_hint",
-           "Rien à faire : ça part tout seul chaque matin, heure de Paris.")),
-        ("csv", t("home.freshness_csv", "📂 À déposer toi-même"),
-         t("home.freshness_csv_hint",
-           "Ces sources ne bougent qu'au dépôt d'un fichier — il n'y a pas d'API "
-           "qui nous les donne.")),
+        ("api", t("home.freshness_api", "🔄 Collecte automatique")),
+        ("csv", t("home.freshness_csv", "📂 À déposer toi-même")),
     )
-    for kind, title, hint in groups:
+    for kind, title in groups:
         labels = [lbl for lbl in freshness if meta.get(lbl, {}).get("kind") == kind]
         if not labels:
             continue
         st.markdown(f"**{title}**")
-        st.caption(hint)
         cols = st.columns(len(labels))
         for col, label in zip(cols, labels):
             info = freshness[label]
@@ -171,37 +177,64 @@ def _render_trend(db, series, since, until, range_key, artist_id) -> None:
         PLATFORM_LABELS, STEP_ONLY, measured_days,
     )
 
-    # LE PAS. Automatique par défaut ; « Par année » est le SEUL où Apple existe, parce
-    # que ses exports sont des totaux de période et non des quantités du jour. Étaler
-    # une année sur 366 points inventerait une valeur que personne n'a mesurée.
     from src.dashboard.utils.platform_chart import MODES
 
-    steps = {'auto': t("home.step_auto", "Automatique"),
-             'week': t("home.step_week", "Par semaine"),
-             'year': t("home.step_year", "Par année")}
-    # LE MODE. « Cumulé » est le défaut : c'est la forme de l'illustration, des bandes
-    # qui montent, et c'est ce qu'un artiste vient voir.
+    # LE PAS, en BARRE et non en menu déroulant — « je souhaiterais qu'il s'intègre
+    # au format du filtre depuis le début, cette année, 12 mois » (2026-09-12). C'est
+    # `st.segmented_control`, le même widget que le filtre de période juste au-dessus
+    # (`date_range.py`) : les options sont visibles d'un coup, pas repliées.
     #
-    # Les deux derniers existent pour une raison MESURÉE : Spotify pèse 99,74 % du total
-    # de l'artiste 1, YouTube 0,22 %, SoundCloud 0,04 %. À l'échelle linéaire, deux
-    # plateformes sur trois sont sous le pixel — « je ne vois que Spotify » n'était pas
-    # un bug, c'était l'échelle.
+    # JOUR PAR DÉFAUT, sauf fenêtre longue. Sur « Depuis le début » (≈4 ans) le pas
+    # jour donnerait ~1 400 points par plateforme ; au-delà de `_DAY_UNTIL_DAYS` le
+    # défaut s'ouvre sur la semaine, et la barre montre CE pas-là comme actif —
+    # l'artiste voit donc toujours le pas réellement appliqué, et peut forcer le jour
+    # d'un clic.
     #
-    # « Part de chaque plateforme » a d'abord été donné comme la réponse. Il ne l'est
-    # pas, et il a fallu regarder la figure pour le voir : 0,26 % occupe 0,26 % de la
-    # hauteur, en pourcentage comme en écoutes. C'est « Chacune à son échelle » — des
-    # petits multiples, une facette par plateforme — qui règle vraiment la plainte.
-    col_mode, col_step, col_src = st.columns([1, 1, 2])
+    # « Année » reste le seul pas où Apple existe : ses exports sont des totaux de
+    # période, pas des quantités du jour, et les étaler inventerait des valeurs.
+    steps = {'day': t("home.step_day", "Jour"),
+             'week': t("home.step_week", "Semaine"),
+             'month': t("home.step_month", "Mois"),
+             'year': t("home.step_year", "Année")}
+    _window_days = (until - since).days if since and until else None
+    _default_step = ('day' if _window_days is not None and _window_days <= _DAY_UNTIL_DAYS
+                     else 'week')
+
+    # LE MODE, en barre lui aussi : « je pense que c'est mieux de mettre des cases à
+    # cocher plutôt qu'un onglet déroulant pour voir toutes les possibilités direct ».
+    # Un seul mode à la fois — deux figures empilées doubleraient la hauteur de page
+    # et le plafond de figures du premier écran est à cinq.
+    # 3/2/1 et non 2/2/1 : « Part de chaque plateforme » et « Chacune à son
+    # échelle » sont longs, et à 2/5 de la largeur la barre de mode passait à la
+    # ligne — un choix unique coupé en deux rangées se lit comme deux réglages.
+    # Vu au navigateur le 2026-09-12, pas en lisant le code.
+    col_mode, col_step, col_src = st.columns([3, 2, 1])
     with col_mode:
-        mode = st.selectbox(
+        mode = st.segmented_control(
             t("home.trend_mode", "Affichage"), list(MODES),
             format_func=lambda k: t(f"home.mode_{k}", MODES[k]),
-            key=f"home_trend_mode_{artist_id}", label_visibility="collapsed")
+            default="cumulative",
+            key=f"home_trend_mode_{artist_id}", label_visibility="collapsed",
+        ) or "cumulative"
     with col_step:
-        step = st.selectbox(
+        step = st.segmented_control(
             t("home.trend_step", "Pas"), list(steps), format_func=steps.get,
-            key=f"home_trend_step_{artist_id}", label_visibility="collapsed")
-    step = None if step == 'auto' else step
+            default=_default_step,
+            # LA CLÉ PORTE LA PÉRIODE, et c'est ce qui rend le défaut réel.
+            #
+            # Un widget Streamlit à clé stable n'applique son `default` qu'au premier
+            # rendu : ensuite la valeur de session gagne. Sans la période dans la
+            # clé, un artiste arrivé sur « Depuis le début » (donc semaine) qui passe
+            # à « 30 jours » RESTE à la semaine — un pas qu'il n'a jamais choisi, sur
+            # une fenêtre où le jour est lisible. Le défaut ne servirait qu'une fois
+            # dans la vie de la session.
+            #
+            # Le prix est assumé : un pas choisi à la main ne survit pas au changement
+            # de période. C'est le bon sens du compromis — le pas suit la fenêtre
+            # qu'on regarde, et un clic suffit à le reprendre.
+            key=f"home_trend_step_{artist_id}_{range_key}",
+            label_visibility="collapsed",
+        ) or _default_step
 
     available = [k for k in PLATFORM_LABELS
                  # Une source qui n'existe qu'à un pas donné n'est proposée qu'à ce
@@ -230,17 +263,7 @@ def _render_trend(db, series, since, until, range_key, artist_id) -> None:
                 key=f"home_trend_sources_{artist_id}",
                 label_visibility="collapsed",
                 placeholder=t("home.trend_sources_ph", "Toutes les sources")) or available
-        elif len(available) > 1:
-            st.caption(t("home.trend_sources_legend",
-                         "👆 Clique une plateforme dans la légende pour la masquer."))
 
-    if mode != 'facets' and len(chosen) > 1:
-        st.caption(t(
-            "home.trend_share_hint",
-            "Une plateforme peut être invisible sans être absente : si l'une pèse "
-            "l'essentiel du total, les autres passent sous le pixel. **Chacune à son "
-            "échelle** donne à chaque plateforme son propre cadre, et rend la plus "
-            "petite lisible."))
     if step != 'year' and any(k in series and series[k] for k in STEP_ONLY):
         st.caption(t(
             "home.trend_apple_hint",
@@ -262,16 +285,50 @@ def _render_trend(db, series, since, until, range_key, artist_id) -> None:
     # « Automatique ».
     _discarded = discarded_deltas(db, artist_id)
 
-    if not render_platform_chart(
+    # LE RÉCAPITULATIF EST À DROITE DE LA FIGURE, et il est CONSTRUIT PAR ELLE.
+    #
+    # « Où est passé le tableau juste à côté du graphique qui montre les métriques »
+    # (2026-09-12). Il avait été retiré le 2026-09-10 parce qu'il montrait le total
+    # DEPUIS LE DÉBUT à côté d'une courbe bornée à la période : deux chiffres qui ne
+    # se répondaient pas. Le conteneur est passé à la figure, qui le remplit avec les
+    # listes qu'elle vient de remettre à Plotly — aucune requête neuve, et aucune
+    # possibilité de divergence.
+    col_fig, col_recap = st.columns([3, 2])
+    with col_fig:
+        drawn = render_platform_chart(
             series, since=since, until=until, only=chosen, step=step, mode=mode,
-            cumulative=cumulative, discarded=_discarded,
+            cumulative=cumulative, discarded=_discarded, recap=col_recap,
             title=t("home.trend_title", "Toutes tes plateformes, un seul écran")
             + f" — {date_range.label(range_key)}",
-            key=f"home_trend_{artist_id}"):
-        st.info(t(
-            "home.trend_no_series",
-            "Pas encore assez d'historique pour tracer une évolution : il faut au "
-            "moins deux journées de collecte consécutives sur une plateforme."))
+            key=f"home_trend_{artist_id}")
+    if not drawn:
+        # DEUX SILENCES TRÈS DIFFÉRENTS, ET UN SEUL MESSAGE LES DISAIT.
+        #
+        # Vu au navigateur le 2026-09-12, sur « 90 jours · Jour · Par période » :
+        # l'écran affichait « pas encore assez d'historique » à un locataire qui a
+        # **quatre ans** de mesures. La vérité était « rien n'a été mesuré dans
+        # cette fenêtre » — le CSV Spotify n'avait pas été déposé depuis 92 jours,
+        # c'est-à-dire exactement le cas que cette séance traite.
+        #
+        # Un message qui se trompe de cause envoie l'artiste chercher le mauvais
+        # geste : le premier fait attendre, le second demande un import. C'est la
+        # même famille que la note qui décrivait une autre figure, et elle se règle
+        # de la même façon — dériver le texte de l'état, pas l'écrire à côté.
+        _last = max((d for rows in (series or {}).values() for d, _ in rows),
+                    default=None)
+        if _last is not None and since is not None and _last < since:
+            st.warning(t(
+                "home.trend_nothing_in_window",
+                "Aucune mesure sur cette période. La dernière remonte au **{last}** "
+                "— dépose un export récent, ou élargis la fenêtre pour revoir "
+                "l'historique."
+            ).format(last=_last.strftime("%d/%m/%Y")))
+        else:
+            st.info(t(
+                "home.trend_no_series",
+                "Pas encore assez d'historique pour tracer une évolution : il faut "
+                "au moins deux journées de collecte consécutives sur une "
+                "plateforme."))
         return
     # LA LÉGENDE EST PARTIE DANS LE MODULE DE LA FIGURE, le 2026-09-10.
     #
@@ -329,7 +386,7 @@ def _section_onboarding(db, artist_id: int) -> None:
     if not state.steps:
         return
 
-    steps = [(s.done, STEP_LABELS[s.key](), s.page) for s in state.steps]
+    steps = [(s.done, STEP_LABELS[s.key](), s.page, s.detail) for s in state.steps]
     completed = state.done_count
     all_done = state.complete
 
@@ -348,6 +405,28 @@ def _section_onboarding(db, artist_id: int) -> None:
                          done=completed, total=len(steps)))
     with st.expander(header, expanded=not all_done):
         _render_onboarding_body(db, artist_id, steps, completed, all_done)
+
+
+def _render_step_detail(detail) -> None:
+    """Le listing OK / NOK sous une étape, quand elle en a un.
+
+    « Rajoute sur la ligne configurer api la liste de toutes les plateformes avec
+    mention OK, NOK », et de même pour les imports (2026-09-12). L'étape disait
+    « fait / pas fait » et l'artiste devait ouvrir la page pour savoir CE QUI
+    manquait — la même plainte que la matrice d'état avait déjà réglée pour les
+    plateformes : un verdict global n'indique aucun geste.
+
+    ⚠️ LE DÉTAIL N'EST PAS LA CONDITION. Une étape est cochée dès qu'UNE ligne est
+    OK ; les NOK disent ce qu'il reste à gagner, ils ne bloquent pas. Exiger les
+    huit types d'import laisserait la ligne rouge à vie pour un artiste sans SACEM
+    ni DistroKid — l'erreur exacte de l'ancienne étape Apple obligatoire, qui
+    tenait l'autostart à l'arrêt.
+    """
+    if not detail:
+        return
+    st.caption(" · ".join(
+        f"{'✅' if ok else '⬜'} {name} {'OK' if ok else 'NOK'}"
+        for name, ok in detail))
 
 
 def _render_onboarding_body(db, artist_id: int, steps, completed: int,
@@ -377,9 +456,10 @@ def _render_onboarding_body(db, artist_id: int, steps, completed: int,
     # Few (*Information Dashboard Design*) : un tableau de bord sert de rampe de
     # lancement, on clique la donnée elle-même. Une étape faite reste du texte : il n'y
     # a rien à y faire, et un bouton inutile est du bruit.
-    for idx, (done, label, page_key) in enumerate(steps):
+    for idx, (done, label, page_key, detail) in enumerate(steps):
         if done:
             st.markdown(f"✅ {label}")
+            _render_step_detail(detail)
             continue
         # L'étape « lancer ta première collecte » NOMMAIT le geste et envoyait vers une
         # autre page pour le faire ; le bouton, lui, est dans la barre latérale. Deux
@@ -393,6 +473,7 @@ def _render_onboarding_body(db, artist_id: int, steps, completed: int,
         if st.button(f"⬜ {label}", key=f"home_step_{idx}",
                      width="stretch"):
             goto(page_key)
+        _render_step_detail(detail)
 
     # One compact line of per-platform boxes, only while something is still amber or
     # red. The steps above are STAGES ("import a CSV"); this is per PLATFORM, which

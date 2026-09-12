@@ -26,6 +26,23 @@ Une note qui décrit une autre figure que celle affichée est pire que pas de no
 lecteur croit la prose plutôt que ses yeux. C'est la troisième fois que ce dépôt paie
 un texte adressé à la mauvaise figure, et la première fois que le correctif d'un
 défaut crée le suivant dans sa propre explication.
+
+Retourné le 2026-09-12 : la propriété passe de la prose aux pixels
+------------------------------------------------------------------
+`t_missing` a été retirée — « supprime-moi le texte inutile ». Ce qu'elle disait est
+maintenant DESSINÉ : une bande hachurée sur les intervalles non mesurés, et une
+colonne « mesurés » dans le récapitulatif à droite.
+
+Les trois tests qui l'interrogeaient auraient tous viré au vert en devenant vides : la
+phrase absente, plus personne ne dit « YouTube ». Ils sont donc réécrits sur la
+FIGURE, avec exactement la même mise en scène et les mêmes trois cas — une plateforme
+servie par la couche or n'est pas hachurée en cumulé, elle l'est en « Par période », et
+elle l'est de nouveau en cumulé quand la couche or ne la sert pas. Retirer la hachure
+les fait rougir ; c'est vérifié plus bas dans le journal de mutation.
+
+Mutation — 2026-09-12 : avec `unmeasured_spans` rendant `[]` en dur, les deux tests qui
+exigent la hachure rougissent en la nommant ; avec la hachure ajoutée sans condition,
+celui qui l'interdit en cumulé rougit.
 """
 from __future__ import annotations
 
@@ -71,37 +88,75 @@ def notes():
         pc.st.plotly_chart, pc.st.caption = real_chart, real_caption
 
 
-def test_a_platform_served_by_the_gold_layer_is_not_announced_as_interrupted(notes) -> None:
-    """Sa courbe est continue : dire qu'elle s'interrompt fait lire une panne."""
-    said = " ".join(notes("cumulative"))
-    assert "YouTube" not in said, (
-        "le mode cumulé annonce encore YouTube comme non mesurée, alors que sa courbe "
-        "est continue — sa valeur est connue entre deux relevés. Notes écrites :\n"
-        + "\n".join(notes("cumulative")))
+@pytest.fixture
+def hatched():
+    """Rend la figure et renvoie, par appel, les intervalles réellement HACHURÉS.
+
+    On lit la trace remise à Plotly, pas la fonction qui la calcule : une hachure
+    calculée et jamais ajoutée à la figure serait du code correct que rien n'atteint,
+    la classe que ce dépôt a déjà payée six fois.
+    """
+    from src.dashboard.utils import platform_chart as pc
+
+    seen: list = []
+    real_chart, real_caption = pc.st.plotly_chart, pc.st.caption
+    pc.st.plotly_chart = lambda fig, **k: seen.append(fig)
+    pc.st.caption = lambda text, *a, **k: None
+
+    days = [_d.date(2026, 1, 1) + _d.timedelta(days=i) for i in range(60)]
+    series = {"spotify": [(d, 10) for d in days],
+              "youtube": [(d, 3) for i, d in enumerate(days) if i % 5 == 0]}
+    gold = {"youtube": [(days[0], 1000), (days[-1], 5000)]}
+
+    def build(mode: str, with_gold: bool = True, step: str = "day") -> int:
+        seen.clear()
+        pc.render_platform_chart(series, since=days[0], until=days[-1], step=step,
+                                 mode=mode, cumulative=(gold if with_gold else None),
+                                 key="guard")
+        assert seen, f"aucune figure rendue en mode {mode}"
+        return sum(1 for tr in seen[-1].data
+                   if getattr(tr, "legendgroup", None) == "__unmeasured__")
+
+    try:
+        yield build
+    finally:
+        pc.st.plotly_chart, pc.st.caption = real_chart, real_caption
 
 
-def test_the_same_platform_IS_announced_when_the_daily_series_is_drawn(notes) -> None:
+def test_a_platform_served_by_the_gold_layer_is_not_hatched(hatched) -> None:
+    """Sa courbe est continue : la hachurer ferait lire une panne.
+
+    C'est mot pour mot la propriété que la note tenait jusqu'au 2026-09-12, portée
+    sur la surface qui l'a remplacée. Spotify est complète dans cette mise en scène,
+    donc la SEULE hachure possible viendrait de YouTube.
+    """
+    assert hatched("cumulative") == 0, (
+        "le mode cumulé hachure encore, alors que la courbe de YouTube est continue : "
+        "son niveau est connu entre deux relevés. Une bande d'absence sous une courbe "
+        "pleine se lit comme une panne.")
+
+
+def test_the_same_platform_IS_hatched_when_the_daily_series_is_drawn(hatched) -> None:
     """L'exemption ne vaut que pour le mode qui lit la couche or.
 
-    Sans ce test, retirer la note partout serait vert — et « Par période » trace bien
-    la série trouée, où l'aire s'interrompt vraiment.
+    Sans ce test, retirer la hachure partout serait vert — et « Par période » trace
+    bien la série trouée, où l'aire s'interrompt vraiment.
     """
-    said = " ".join(notes("absolute"))
-    assert "YouTube" in said, (
-        "le mode « Par période » trace la série quotidienne, pleine de trous, et ne "
-        "le dit plus. Notes écrites :\n" + "\n".join(notes("absolute")))
+    assert hatched("absolute") > 0, (
+        "le mode « Par période » trace la série quotidienne, mesurée un jour sur "
+        "cinq, et ne montre plus ses trous. La pile y retombe à la valeur des "
+        "présentes, ce qui est exactement le zéro inventé qu'on corrige.")
 
 
-def test_without_a_gold_series_the_cumulative_mode_still_warns(notes) -> None:
+def test_without_a_gold_series_the_cumulative_mode_still_hatches(hatched) -> None:
     """L'exemption suit la SOURCE, pas le mode.
 
     Une plateforme dont le cumul est reconstruit à partir des écarts quotidiens a
     bien des trous, en mode cumulé comme ailleurs.
     """
-    said = " ".join(notes("cumulative", with_gold=False))
-    assert "YouTube" in said, (
+    assert hatched("cumulative", with_gold=False) > 0, (
         "sans série de la couche or, le cumul est reconstruit à partir d'une série "
-        "trouée : la note doit rester.")
+        "trouée : la hachure doit rester.")
 
 
 # `test_the_home_page_hides_the_discarded_note_in_cumulative_mode` vivait ici. Il

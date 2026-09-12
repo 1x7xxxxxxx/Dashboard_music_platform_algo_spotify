@@ -33,7 +33,20 @@ import pytest
 
 from src.dashboard.utils import platform_timeseries as pts
 
+# DEUX FICHIERS, DEUX QUESTIONS — et les confondre a cassé deux tests voisins.
+#
+# La vue porte le CODE de l'import (`_apple_period_bounds`, la lecture du nom de
+# fichier) ; le registre porte la DÉCLARATION (table, clé de conflit, libellé). Le
+# second a quitté la vue le 2026-09-12 pour `utils/csv_platforms.py` : la mise en
+# route avait besoin de ses libellés, et importer la vue pour les lire coûtait
+# 1 073 ms au premier rendu de l'accueil.
+#
+# Ce fichier a rougi sur ce déménagement, et c'est ce qu'on lui demande : il dit
+# « la configuration d'import Apple a disparu » au lieu de ne rien trouver en
+# silence. Un garde qui cherche un littéral dans UN fichier doit échouer bruyamment
+# quand le littéral bouge, sinon il devient vert et vide.
 _UPLOAD = pathlib.Path("src/dashboard/views/upload_csv.py")
+_REGISTRY = pathlib.Path("src/dashboard/utils/csv_platforms.py")
 
 
 class _DB:
@@ -253,7 +266,7 @@ def test_the_upsert_key_lets_a_second_reading_exist() -> None:
     Le garde lit la clé de conflit de la page d'import — celle qui décide vraiment,
     plus que le DDL, parce que c'est elle qu'`upsert_many` envoie à Postgres.
     """
-    tree = ast.parse(_UPLOAD.read_text(encoding="utf-8"))
+    tree = ast.parse(_REGISTRY.read_text(encoding="utf-8"))
     apple_cfg = None
     for node in ast.walk(tree):
         if not isinstance(node, ast.Dict):
@@ -293,7 +306,7 @@ def test_the_conflict_target_can_actually_be_matched_by_postgres() -> None:
     """
     schema = pathlib.Path("src/database/apple_music_csv_schema.py").read_text(
         encoding="utf-8")
-    tree = ast.parse(_UPLOAD.read_text(encoding="utf-8"))
+    tree = ast.parse(_REGISTRY.read_text(encoding="utf-8"))
     apple_cfg = None
     for node in ast.walk(tree):
         if not isinstance(node, ast.Dict):

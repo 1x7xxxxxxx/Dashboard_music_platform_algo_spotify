@@ -115,6 +115,11 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-read-that-failed-is-rendered-as-a-number](#a-read-that-failed-is-rendered-as-a-number) | P2 | deterministic | guarded | none |
 | [a-quantity-mistaken-for-a-counter](#a-quantity-mistaken-for-a-counter) | P3 | deterministic | guarded | none |
 | [a-late-platform-has-no-tenant-guard](#a-late-platform-has-no-tenant-guard) | P2 | deterministic | guarded | none |
+| [a-gap-rendered-as-a-zero-by-the-stack](#a-gap-rendered-as-a-zero-by-the-stack) | P2 | deterministic | guarded | none |
+| [a-first-bucket-declared-unknown-when-it-was-observed](#a-first-bucket-declared-unknown-when-it-was-observed) | P2 | deterministic | guarded | none |
+| [a-shared-module-drags-a-view-behind-it](#a-shared-module-drags-a-view-behind-it) | P3 | deterministic | guarded | none |
+| [two-silences-one-message](#two-silences-one-message) | P3 | deterministic | guarded | none |
+| [a-marker-shared-by-several-sites-guards-none](#a-marker-shared-by-several-sites-guards-none) | P3 | deterministic | guarded | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -4788,11 +4793,14 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - root_cause: les deux notes sont calculées sur `aligned_raw`, la série QUOTIDIENNE, et elles étaient exactes tant que la courbe en venait. Le correctif de `cumulative-counter-drawn-as-its-own-history` a fait lire la couche or au mode cumulé : une plateforme à compteur n'a alors plus de trou — entre deux relevés son niveau est connu — et les 167 vues « non traçables » sont DANS la courbe, puisque le compteur les porte. Le correctif a donc rendu sa propre explication fausse, et personne ne relit une note quand on corrige une figure.
 - long_term_fix: une note qui explique une figure prend en entrée CE QUI A ÉTÉ TRACÉ, pas la série d'origine. `_render_notes` reçoit désormais `served` — les plateformes servies par la couche or — et l'exemption suit la SOURCE et non le mode : sans série or, le cumul reste reconstruit à partir d'une série trouée et la note demeure. Règle générale : quand un correctif change ce qu'une figure SIGNIFIE, la prose autour d'elle fait partie du correctif, au même titre que les axes et les couleurs.
 - autofix: none
-- signature: `python3 -c "import ast,sys;src=open('src/dashboard/utils/platform_chart.py').read();f=next((n for n in ast.walk(ast.parse(src)) if isinstance(n,ast.FunctionDef) and n.name=='_render_notes'),None);args=[a.arg for a in (f.args.args+f.args.kwonlyargs)] if f else [];body=ast.unparse(f) if f else '';ok='served' in args and 'discarded' in args and \"step == 'day'\" in body;h=ast.parse(open('src/dashboard/views/home.py').read());ok=ok and any(k.arg=='discarded' for n in ast.walk(h) if isinstance(n,ast.Call) for k in n.keywords);sys.exit(0 if ok else 1)"`
+- signature: `python3 -c "import ast,pathlib,sys;mods=[ast.parse(q.read_text(encoding='utf-8')) for q in pathlib.Path('src/dashboard/utils').glob('platform_chart*.py')];f=next((n for t in mods for n in ast.walk(t) if isinstance(n,ast.FunctionDef) and n.name=='_render_notes'),None);args=[a.arg for a in (f.args.args+f.args.kwonlyargs)] if f else [];gated=f is not None and any(isinstance(n,ast.Compare) and getattr(n.left,'id','')=='step' and any(isinstance(c,ast.Constant) and c.value=='day' for c in n.comparators) for node in ast.walk(f) if isinstance(node,ast.If) for n in ast.walk(node.test));calls=[n for t in mods for n in ast.walk(t) if isinstance(n,ast.Call) and getattr(n.func,'id','')=='unmeasured_spans' and n.args];h=ast.parse(pathlib.Path('src/dashboard/views/home.py').read_text(encoding='utf-8'));ok=bool(f) and 'discarded' in args and gated and bool(calls) and all('aligned_raw' not in ast.unparse(c.args[0]) for c in calls) and any(k.arg=='discarded' for n in ast.walk(h) if isinstance(n,ast.Call) for k in n.keywords);sys.exit(0 if ok else 1)"`
 - guard: tests/test_a_note_describes_the_figure_that_is_shown.py — quatre tests, dont un qui tient l'exemption DANS L'AUTRE SENS (le mode « Par période » trace bien la série trouée et doit garder sa note). Mutations vues rouges le 2026-09-11 : la note qui ignore le mode, la note retirée PARTOUT (la sur-correction, verte sans ce deuxième test), et « non traçables » rendue en mode cumulé.
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-11
 - History:
+  - 2026-09-12: **signature re-triagée, pas relâchée.** Elle exigeait `served` dans `_render_notes` — le paramètre par lequel les plateformes servies par la couche or sortaient de `t_missing`. `t_missing` a été SUPPRIMÉE ce jour-là : la hachure dit la même chose en pixels, donc plus personne ne lit `served` et le paramètre est parti avec. La propriété que cette classe défend est intacte — *une note prend en entrée ce qui a été TRACÉ* — mais son porteur a changé : c'est maintenant `unmeasured_spans(aligned, …)`, la série post-`_as_mode`, et la signature le vérifie. Mutation : `aligned_raw` remis à la place d'`aligned`, exit 1.
+  - 2026-09-12: la signature était ancrée sur `platform_chart.py`, et `_render_notes` a déménagé dans `platform_chart_notes.py` le même jour (cliquet de longueur). Elle a donc rougi sur un déplacement, pas sur un défaut — **troisième instance de `a-signature-anchored-on-a-location` dans la journée**, après les deux gardes Apple/canari cassés par le déménagement de `_PLATFORMS`. Elle cherche désormais la FONCTION dans `platform_chart*.py`, pas un chemin.
+  - 2026-09-12: et son volet « la note reste bornée au pas du jour » a d'abord été écrit `"step == 'day'" in ast.unparse(f)` — **vert sur la mutation qui retirait la borne**, parce que `ast.unparse` conserve les DOCSTRINGS et que celle de la fonction contient la phrase. Le garde était aveugle sur sa propre documentation, la forme que ce dépôt a déjà payée quatre fois en une soirée. Réécrit en cherchant une `ast.Compare` réelle entre `step` et `'day'`.
   - 2026-09-11 (nuit) : **la classe avait DEUX autres instances, trouvées le soir même.** « 🎬 YouTube n'apparaît pas à ce pas » s'affichait au pas ANNUEL sous une figure qui la traçait — `coarse` était décidé AVANT l'admission des plateformes servies par la couche or. Et « écoutes non traçables » est devenue fausse dès le pas hebdomadaire quand un seau s'est mis à porter la croissance du compteur ; elle a dû DÉMÉNAGER de l'accueil vers le module, parce que la vue connaît le pas *demandé* et que « Automatique » n'en est pas un.
   - 2026-09-11 (nuit) : **la signature a rougi en CI sur le correctif, et elle avait raison.** Elle vérifiait que l'accueil conditionnait `discarded_deltas` au mode ; le correctif a déplacé la condition dans le module. Une signature ancrée sur un EMPLACEMENT bloque le déménagement qui la rendrait inutile — repointée sur le contrat (`_render_notes` prend `served` et `discarded`, et la note est gardée par `step == 'day'`), elle survit au prochain.
   - 2026-09-11 (nuit) : le garde général a d'abord été écrit trop large — « une plateforme tracée ne peut être nommée dans aucune note de manque ». Il refusait « s'interrompt » sur une bande qui s'interrompt RÉELLEMENT : au pas du jour, YouTube est tracée ET trouée, les deux en même temps. Chaque phrase est maintenant vérifiée contre ce qu'elle AFFIRME — aucune trace pour « n'apparaît pas », une couverture partielle de l'axe pour « s'interrompt », le pas du jour pour « non traçables ».
@@ -5094,3 +5102,86 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: signature vue exit 1 en ajoutant `SELECT SUM(visits) FROM v_hypeddit_daily` sans `artist_id` dans `views/hypeddit.py` — le garde nomme le fichier et la ligne. Exit 0 après retrait.
+
+## a-gap-rendered-as-a-zero-by-the-stack
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: la bande d'une plateforme est correctement COUPÉE sur un jour non mesuré, et le total empilé la compte quand même pour zéro — la pile redescend, et ça se lit comme une chute d'audience. Le rattrapage était une phrase sous la figure, pas un pixel dedans. Signalé le 2026-09-12 : « ne pas visualiser 0 mais genre (absence de data) quand on a pas importé le csv de spotify des derniers jours ».
+- root_cause: `stackgroup` de Plotly infère **zéro** pour une trace qui n'a pas de point à un index (`stackgaps` vaut « infer zero » par défaut). Couper la série par `known()` — réglé le 2026-09-10 — ne suffit donc pas : la coupure est invisible dans une pile, seul le total bouge. Même famille côté pandas : `df.reindex(pd.date_range(...)).fillna(0)` fabrique des jours puis les remplit de zéros, sur cinq figures (`meta_x_spotify:207`, `meta_ads_overview:416`, `hypeddit:149`, `pdf_charts:171,216,322`).
+- long_term_fix: l'absence devient un OBJET DESSINÉ et non une phrase — `unmeasured_spans()` rend les intervalles non mesurés, `_hatch_traces()` en fait une bande hachurée posée SOUS les aires, avec une entrée de légende « ▨ Aucune mesure ». La prose qui la paraphrasait (`t_missing`, `t_trend_caption`) est supprimée, et le COMBIEN par plateforme passe dans le récapitulatif chiffré à droite de la figure, dérivé des mêmes listes que la courbe. Côté pandas, le zéro devient `NaN` + `connectgaps=False` ; côté PDF, un `ax.fill_between(..., hatch="///")`, `stackplot` ne sachant pas couper.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py -q`
+- guard: { type: pytest, ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py }
+- rex_ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: ⚠️ contrainte de rendu à ne pas réapprendre — `add_vrect` (une SHAPE Plotly) **ne supporte pas** `fillpattern`, vérifié sur la version de production (5.24.1) et en local (6.5.2). La hachure doit être une TRACE `Scatter` avec `fill="toself"`, supportée des deux côtés.
+  - 2026-09-12: cinq mutations vues rouges, messages lus : `or 0` remis sur le `y` de la pile (nomme la plateforme et les index) ; `unmeasured_spans` rendant `[]` (nomme le mode) ; le garde-fou du mode « part » désarmé (90 pas dessinés sur 90) ; les facettes privées de hachure ; le correctif du PDF retiré.
+  - 2026-09-12: le cliquet pandas a d'abord compté TOUS les `.fillna(0)` des vues — **23 sur 11 fichiers**, dont aucun n'était le défaut : ils remplissent des CATÉGORIES (un pays sans dépense, un titre sans like), où zéro est une réponse. Un cliquet qui crie sur 23 sites sains pour en garder 4 apprend que le rouge est du bruit. Le prédicat cherche désormais la classe et non le mot : une fonction qui ÉLARGIT une trame (`pd.date_range` / `reindex`) **et** la bouche avec des zéros. Trois fonctions restent, lues et justifiées une par une.
+  - 2026-09-12: **ouvrir le pas MOIS a révélé une perte qui existait déjà**, et qu'aucune tolérance ne voyait. Le premier seau d'une plateforme à compteur était rendu `None` (« pas de seau avant, donc croissance inconnue ») — faux dès que la série cumulée COMMENCE dans ce seau : entre son premier relevé et la fin du seau, la croissance est observée. Tant que la dégradation de pas tombait sur la semaine, le manque restait sous le pour-cent ; au mois il est passé à **12 %** — 182 432 dessinés contre 206 555 gagnés sur un locataire réel, nommé par `test_every_way_of_asking_gives_one_answer`. Le niveau d'entrée est désormais le dernier relevé à ou avant le début de la fenêtre. Corollaire : un nouveau réglage n'ajoute pas seulement une possibilité, il **change le régime où les gardes existants mesurent**.
+  - 2026-09-12: la première version du test « les correctifs ne sont pas revenus » cherchait la chaîne `_measured(` dans `pdf_charts` — elle y reste tant qu'UNE des quatre courbes l'utilise, et la mutation qui en cassait une est restée verte. Un marqueur partagé par plusieurs sites ne garde aucun d'eux ; le test compte désormais les appels.
+
+## a-first-bucket-declared-unknown-when-it-was-observed
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: la figure totalise MOINS que ce que le compteur a gagné, sans qu'aucun message ne le dise. Mesuré sur un locataire réel le 2026-09-12 : **182 432 dessinés contre 206 555 gagnés**, soit 12 % perdus, sur une plateforme servie par la couche or en mode « Par période ».
+- root_cause: `platform_chart.py` calculait la croissance d'un seau comme « niveau de fin moins niveau de fin du seau précédent », et rendait le PREMIER seau `None` — « pas de seau avant, donc croissance inconnue ». C'est faux dès que la série cumulée COMMENCE dans ce seau : entre son premier relevé et la fin du seau, la croissance est **observée**, pas inconnue. Le raisonnement confondait « pas de prédécesseur » et « pas de baseline ».
+- long_term_fix: le niveau d'entrée du premier seau est désormais le dernier relevé à ou avant le début de la fenêtre, à défaut le premier relevé de la série — et il reste `None` quand la série commence réellement après le premier seau, où l'ignorance est vraie. La somme de la figure égale alors la croissance du compteur par construction, ce que le garde vérifie sur tous les locataires de la base.
+- autofix: none
+- signature: `python3 -m pytest tests/test_every_way_of_asking_gives_one_answer.py::test_the_period_mode_totals_what_the_lifetime_total_says -q`
+- guard: { type: pytest, ref: tests/test_every_way_of_asking_gives_one_answer.py::test_the_period_mode_totals_what_the_lifetime_total_says }
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: **ce défaut existait depuis toujours et aucune tolérance ne le voyait.** Il n'est apparu qu'en OUVRANT le pas MOIS : tant que la dégradation de pas tombait sur la semaine, le premier seau perdu représentait moins de 1 %, sous la tolérance du garde ; au mois il est passé à 12 %. La leçon n'est pas « le pas mois est risqué » — c'est qu'**un nouveau réglage ne fait pas qu'ajouter une possibilité, il change le régime où les gardes existants mesurent**. Ajouter une option, c'est rejouer les gardes de cohérence dans le nouveau régime.
+  - 2026-09-12: signature vue rouge sur le défaut (elle l'a NOMMÉ, avec le locataire, la plateforme et les deux nombres) et verte après le correctif. C'est le garde qui a trouvé le défaut, pas l'inverse.
+
+## a-shared-module-drags-a-view-behind-it
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: le premier rendu d'une page quadruple, et rien dans le code ne le montre. Mesuré le 2026-09-12 : `setup_completion` — lu dans le chemin de la barre latérale, donc à chaque page — mettait **1 073 ms au premier appel et 2 ms au second**. L'écart est l'IMPORT, pas la requête.
+- root_cause: `setup_completion._csv_detail` avait besoin des huit LIBELLÉS de `views/upload_csv._PLATFORMS` et les lisait par un import paresseux de la vue, qui tire pandas, les transformateurs CSV et Streamlit — pour huit chaînes, contre un budget de page de 287 ms. Le balayage a trouvé un frère VIVANT sur l'accueil : `status_matrix._requires_sharing` importait `views.credentials._registry` (1 950 ms) pour un booléen, et `render_status_matrix` est rendu pour tout artiste dont la mise en route n'est pas finie.
+- long_term_fix: la DONNÉE descend dans un module partagé et la vue la relit — `utils/csv_platforms.py` puis `utils/platform_sharing.py`. Jamais une seconde copie (ce serait la divergence que ce dépôt paie à chaque fois), jamais l'utilitaire qui monte vers la vue : une vue est une feuille du graphe. Le garde interdit tout import de `views.*` depuis `utils/`, **y compris écrit dans un corps de fonction** — c'est la forme du défaut, et un prédicat aveugle aux imports paresseux aurait été vert le jour où l'accueil a quadruplé.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_shared_path_does_not_drag_a_view_behind_it.py -q`
+- guard: { type: pytest, ref: tests/test_a_shared_path_does_not_drag_a_view_behind_it.py }
+- rex_ref: tests/test_a_shared_path_does_not_drag_a_view_behind_it.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: signature vue rouge en remettant l'import de la vue dans `_csv_detail` — elle nomme `setup_completion.py:186 → src.dashboard.views.upload_csv` — et verte après retrait.
+  - 2026-09-12: **le critère n'est pas le coût, c'est le chemin.** Les quatre modules de vue mesurés coûtent tous cher (`trigger_algo._common` 2 501 ms, `credentials._registry` 1 950, `credentials.router` 1 774, `upload_csv` 1 551). Ce qui décide est QUI paie : un import atteint depuis l'accueil est payé par tout le monde à chaque visite ; le même depuis la page qui a déjà chargé le paquet ne coûte rien. Les trois exemptions ont donc été lues jusqu'à leur appelant, pas jugées sur leur nom — et c'est cette lecture qui a séparé les deux usages de `status_matrix`, dont un seul était chaud.
+
+## two-silences-one-message
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: l'écran dit « Pas encore assez d'historique pour tracer une évolution » à un locataire qui en a **quatre ans**. Vu au navigateur le 2026-09-12 sur « 90 jours · Jour · Par période ».
+- root_cause: `views/home.py` n'avait qu'un message pour l'absence de figure, et la figure ne dessine rien dans deux cas très différents — un compte NEUF (rien n'a encore été collecté) et une FENÊTRE VIDE (tout a été collecté, mais rien dans la période demandée). Ici le CSV Spotify n'avait pas été déposé depuis 92 jours, ce qui est exactement le sujet de la séance, et le message envoyait chercher le mauvais geste.
+- long_term_fix: le message se DÉRIVE de l'état au lieu d'être écrit à côté : la dernière mesure est comparée à la borne basse de la fenêtre, et les deux textes existent. Les deux silences demandent des gestes OPPOSÉS — le premier fait attendre, le second demande un import — donc les confondre ne coûte pas un mot, il coûte une action.
+- autofix: none
+- signature: `python3 -m pytest tests/test_the_legend_says_what_the_figure_shows.py::test_an_empty_window_is_not_called_a_missing_history -q`
+- guard: { type: pytest, ref: tests/test_the_legend_says_what_the_figure_shows.py::test_an_empty_window_is_not_called_a_missing_history }
+- rex_ref: src/dashboard/views/home.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: **invisible à la lecture du code, trouvé en REGARDANT la page.** Le code était cohérent : une figure absente, un message. Il fallait le rendu, sur un locataire dont les CSV s'étaient arrêtés, pour voir que la phrase parlait d'autre chose. Même famille que `text-addressed-to-the-wrong-reader`, du côté de la CAUSE et non du lecteur.
+  - 2026-09-12: la première version du garde lisait l'ARBRE de `_render_trend` et vérifiait que les deux clés et `since` y figuraient. Avec la condition remplacée par `if False:`, elle est restée **VERTE** — un prédicat sans site. Réécrite en rendant vraiment la section et en lisant le texte affiché ; vue rouge dans les DEUX sens (`if False:` → le message de fenêtre vide manque ; `if True:` → c'est l'autre qui manque).
+
+## a-marker-shared-by-several-sites-guards-none
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un test de non-régression qui cherche la PRÉSENCE d'un marqueur dans un fichier reste vert quand un seul des sites qui l'utilisent perd son correctif. Il ressemble à un garde et ne garde rien.
+- root_cause: `tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py` vérifiait que la chaîne `_measured(` apparaissait dans `pdf_charts.py`. Quatre courbes l'utilisent : casser l'une d'elles laisse les trois autres, donc le marqueur, donc le vert. Mutation exécutée le 2026-09-12 — le correctif de la courbe S4A retiré, le test est resté vert.
+- long_term_fix: un garde de non-régression COMPTE ses sites au lieu de constater une présence, et le compte est mesuré, jamais estimé — quatre appels à `_measured`, deux `connectgaps` par figure corrigée. Règle générale : dès qu'un marqueur est partagé par N sites, `marqueur in fichier` répond à « au moins un », jamais à « tous », et c'est « tous » qu'on voulait.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py::test_the_fixed_sites_did_not_come_back -q`
+- guard: { type: pytest, ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py::test_the_fixed_sites_did_not_come_back }
+- rex_ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: variante de `a-textual-guard-is-blind` sur un axe qu'elle ne couvrait pas. Celle-là dit « un garde textuel voit un nom survivre dans un commentaire » ; celle-ci dit « un garde textuel voit un nom survivre **dans un autre site du même fichier** ». La cécité ne vient pas du texte, elle vient de la CARDINALITÉ — et un garde AST aurait été tout aussi vert s'il s'était contenté de `any(...)`.
+  - 2026-09-12: signature vue rouge par mutation sur DEUX fichiers différents — `_measured` retiré d'une courbe du PDF (« 2 `_measured` au lieu de 4 »), puis `connectgaps` retiré de la figure Hypeddit (« 0 au lieu de 1 »). Verte sur l'arbre corrigé.

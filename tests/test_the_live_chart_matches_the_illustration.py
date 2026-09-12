@@ -247,27 +247,67 @@ def test_the_labels_are_on_the_bands_not_in_a_legend_box() -> None:
         "marge du titre, qu'elle recouvre")
 
 
-def test_the_labels_are_spaced_in_the_margin_not_stuck_to_the_bands() -> None:
-    """Ancrées à la FIGURE, à des hauteurs distinctes — sinon elles se recouvrent.
+def _rendered(*, mode: str, step: str):
+    """La figure RÉELLEMENT remise à Streamlit — pas une reconstruction.
 
-    La première version les posait au milieu de leur aire : dès qu'une bande devient
-    fine, deux étiquettes se superposent. Vu au rendu le 2026-09-08 sur « Depuis le
-    début », où YouTube et SoundCloud pèsent quelques écoutes contre plusieurs milliers.
-
-    Le garde exerce la fonction plutôt que de lire le fichier : `annotations=` peut
-    être passé avec n'importe quoi.
+    `annotations=` et `margin=` peuvent être passés avec n'importe quoi : seul
+    l'objet rendu dit ce que l'artiste voit.
     """
-    span = list(range(10))
-    aligned = {"spotify": [1000] * 10, "youtube": [1] * 10, "soundcloud": [1] * 10}
-    order, _ = pc.stackable(span, aligned)
-    labels = pc.margin_labels(order, ink="#000")
-    assert len(labels) == len(order), "une plateforme empilée sans étiquette"
-    assert {a["yref"] for a in labels} == {"paper"}, (
-        "les étiquettes suivent l'épaisseur des bandes : elles se recouvriront")
-    ys = sorted(a["y"] for a in labels)
-    gaps = [round(b - a, 6) for a, b in zip(ys, ys[1:])]
-    assert gaps and min(gaps) > 0.1, (
-        f"les étiquettes sont trop proches ({gaps}) — elles se chevaucheront")
+    import datetime as _dt
+
+    base = _dt.date(2026, 1, 1)
+    series = {
+        "spotify": [(base + _dt.timedelta(days=i), 100 + i) for i in range(40)],
+        "youtube": [(base + _dt.timedelta(days=i), 10 + i) for i in range(40)
+                    if i not in (12, 13, 14)],
+    }
+    captured: dict = {}
+    real_chart, real_caption = pc.st.plotly_chart, pc.st.caption
+    pc.st.plotly_chart = lambda fig, **k: captured.__setitem__("fig", fig)
+    pc.st.caption = lambda *a, **k: None
+    try:
+        pc.render_platform_chart(series, mode=mode, step=step, key="illustration")
+    finally:
+        pc.st.plotly_chart, pc.st.caption = real_chart, real_caption
+    fig = captured.get("fig")
+    assert fig is not None, "aucune figure rendue — la mise en scène est cassée"
+    return fig
+
+
+def test_no_annotation_repeats_what_the_legend_already_names() -> None:
+    """L'inverse du garde qu'il remplace, et pour une raison mesurée.
+
+    `margin_labels` posait une étiquette par plateforme dans la marge droite. Elle
+    avait été écrite le 2026-09-08, quand la légende Plotly venait d'être RETIRÉE du
+    haut de la figure (« la légende est masquée, c'est assez moche »). La boîte de
+    légende est revenue en bas le 2026-09-11 pour servir de filtre cliquable — et
+    personne n'a retiré les étiquettes. Deux légendes disant la même chose depuis,
+    dont une seule est actionnable.
+
+    Retirée le 2026-09-12 : « tu peux supprimer la légende en doublon car on a déjà
+    la légende cliquable que je préfère ». La marge droite retombe de 132 px à 24.
+
+    Ce test tient la propriété, pas l'absence d'une fonction : une annotation peut
+    revenir (un repère de date, une note d'axe), mais aucune ne doit REDIRE le nom
+    d'une plateforme que la légende porte déjà.
+    """
+    fig = _rendered(mode="absolute", step="day")
+    named = {t.name for t in fig.data if t.showlegend and t.name}
+    echoes = [
+        a.text for a in (fig.layout.annotations or [])
+        if any(n.strip("▨ ") in (a.text or "") for n in named)
+    ]
+    assert not echoes, (
+        f"une annotation répète une entrée de légende : {echoes}. La légende nomme "
+        "ET masque d'un clic ; une étiquette ne fait que nommer.")
+
+    assert fig.layout.margin.r <= 40, (
+        f"la marge droite vaut {fig.layout.margin.r} px — elle était à 132 pour loger "
+        "les étiquettes retirées. Cette place revient à la figure.")
+
+    assert not hasattr(pc, "margin_labels"), (
+        "`margin_labels` est revenue. Une fonction morte laissée en place finit par "
+        "cacher une conséquence vivante — et celle-ci n'est pas morte, elle DESSINE.")
 
 
 def test_the_daily_table_is_gone_and_nothing_still_calls_it() -> None:

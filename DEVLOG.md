@@ -5,6 +5,103 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-12 — L'absence devient un pixel, et la prose qui la racontait disparaît
+
+### Ce qui a changé
+
+Neuf remarques sur l'accueil, une seule famille : **la page affirmait des choses qu'elle
+n'avait pas mesurées, et expliquait en prose ce qu'elle aurait dû montrer.**
+
+**La bande hachurée.** Une plateforme non mesurée voyait déjà sa bande coupée — réglé le
+2026-09-10 — mais Plotly EMPILE : `stackgroup` infère zéro pour la trace absente, donc
+le total redescendait et se lisait comme une chute d'audience. Le seul rattrapage était
+une phrase. `unmeasured_spans()` rend maintenant les intervalles non mesurés et
+`_hatch_traces()` en fait une bande hachurée posée sous les aires, avec une entrée de
+légende « ▨ Aucune mesure ». En petits multiples la hachure est PAR FACETTE : le trou de
+l'une ne concerne qu'elle.
+
+⚠️ **Contrainte de rendu à ne pas réapprendre** : `add_vrect` — une SHAPE Plotly — ne
+supporte pas `fillpattern`. Vérifié sur la version de production (5.24.1) et en local
+(6.5.2). La hachure doit être une TRACE `Scatter` avec `fill="toself"`.
+
+**Cinq figures de plus.** `meta_x_spotify` fabriquait cinq zéros d'un coup (union des
+dates des trois sources, `how='left'`, `fillna(0)`) ; `meta_ads_overview` et `hypeddit`
+laissaient leur courbe TRAVERSER en ligne droite les jours sans ligne, et le CPR d'un
+jour sans conversion valait 0 € — « les résultats étaient gratuits », l'inverse de la
+vérité. Le PDF traçait `int(v or 0)` sur trois séries, et sa pile ne pouvait pas couper :
+elle porte un `ax.fill_between(..., hatch="///")`.
+
+**Six textes retirés**, dont les cinq demandés. `t_trend_caption` et `t_missing`
+paraphrasaient ce que la hachure dessine ; leur moitié utile — le COMBIEN par
+plateforme — est passée dans le récapitulatif chiffré à droite de la figure, **dérivé
+des mêmes listes que la courbe**, donc incapable d'en diverger. C'est ce qui avait fait
+retirer les tuiles le 2026-09-10.
+
+**Deux menus déroulants deviennent des barres** (`st.segmented_control`, comme le filtre
+de période), le pas gagne « Jour » et « Mois », et le défaut est le jour tant que la
+fenêtre tient en 120 jours.
+
+**La mise en route passe de 3 à 5 étapes**, déclarées une seule fois au lieu de trois
+tables parallèles : API (les 5 plateformes du registre d'identités, OK/NOK), fichiers
+(les 8 types de l'importateur, OK/NOK, une seule ligne au lieu de deux), mapping
+cross-plateforme, saisie playlists S4A, premier PDF. Toujours **une seule requête**.
+
+### Ce qui a été trouvé en REGARDANT, pas en lisant
+
+Sur « 90 jours · Jour », l'écran disait **« Pas encore assez d'historique »** à un
+locataire qui en a quatre ans. La vérité était « rien mesuré dans cette fenêtre » — le
+CSV Spotify n'avait pas été déposé depuis 92 jours, c'est-à-dire exactement le cas que
+la séance traitait. Les deux silences demandent des gestes OPPOSÉS : l'un fait attendre,
+l'autre demande un import. Deux messages, choisis sur l'état.
+
+### Un pas plus large a révélé une perte qui existait déjà
+
+Ouvrir le pas **Mois** a fait rougir `test_every_way_of_asking_gives_one_answer` : sur un
+locataire réel, la figure totalisait **182 432** quand le compteur YouTube en avait gagné
+**206 555**. Le pas mois n'était pas la cause, il était le révélateur.
+
+Le premier seau d'une plateforme à compteur était rendu `None` — « pas de seau avant,
+donc croissance inconnue ». C'est faux dès que la série cumulée COMMENCE dans ce
+seau : entre son premier relevé et la fin du seau, la croissance est observée. Tant que
+la dégradation de pas tombait sur la semaine, le manque restait sous le pour-cent et
+aucune tolérance ne le voyait ; au mois il est passé à 12 %. Le niveau d'entrée est
+maintenant le dernier relevé à ou avant le début de la fenêtre, à défaut le premier
+relevé de la série — et il reste `None` quand la série commence vraiment après.
+
+### Ce que les gardes ont appris
+
+* **Un cliquet qui compte le mot rate la classe.** Le cliquet pandas comptait tous les
+  `.fillna(0)` des vues : 23 sur 11 fichiers, dont **aucun** n'était le défaut — ils
+  remplissent des catégories (un pays sans dépense, un titre sans like), où zéro est une
+  réponse. Un cliquet qui crie sur 23 sites sains apprend que le rouge est du bruit. Le
+  prédicat cherche désormais la classe : une fonction qui ÉLARGIT une trame
+  (`pd.date_range` / `reindex`) **et** la bouche avec des zéros. Trois restent, lues et
+  justifiées une par une.
+* **Un marqueur partagé ne garde aucun site.** Le test « les correctifs ne sont pas
+  revenus » cherchait la chaîne `_measured(` dans `pdf_charts` : elle y survit tant
+  qu'UNE des quatre courbes l'utilise, et la mutation qui en cassait une est restée
+  verte. Il compte maintenant les appels.
+* **Un prédicat sans site, la cinquième fois.** Le garde du message de fenêtre vide
+  lisait l'arbre et vérifiait que les deux clés y figuraient. Avec la condition
+  remplacée par `if False:`, il est resté VERT. Réécrit en rendant vraiment la section
+  et en lisant le texte affiché.
+* **Le cliquet de longueur a refusé `platform_chart.py`** à 1 246 lignes. Honoré par
+  extraction : `platform_chart_notes.py` prend ce qui s'écrit À CÔTÉ de la figure (le
+  récapitulatif, les notes, le vocabulaire des pas). 1 246 → 1 066.
+* **Le cliquet de frontière bronze avait raison de crier.** `setup_completion` posait 3
+  couples de plus ; c'est en le regardant qu'on a vérifié que rien n'y calcule de
+  quantité — ses lectures sont des `COUNT(*)` réduits à des booléens. Déclaré, plafond
+  descendu à 108, et la vérification de la déclaration refuse désormais `MIN`/`MAX` en
+  plus de `SUM`/`AVG`.
+
+### Ce qui n'a PAS bougé
+
+`should_autostart` exige toujours les identifiants **et un CSV Spotify**. L'étape
+affichée se coche sur n'importe quel import ; déclencher la collecte sur un relevé SACEM
+ne collecterait rien. D'où `spotify_csv`, gardé dans l'état à côté de `collected`.
+
+---
+
 ## 2026-09-10 (fin) — Un geste réflexe se garde par un hook, pas par une note
 
 ### Le commit qui écrase, mesuré

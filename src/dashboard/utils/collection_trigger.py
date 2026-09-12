@@ -104,10 +104,17 @@ def should_autostart(state) -> bool:
     # une collecte repartirait à chaque enregistrement d'identifiant.
     if getattr(state, "collected", False):
         return False        # une collecte a déjà réussi : plus rien à démarrer
-    # Les étapes de l'artiste. `apple` n'en fait PAS partie : l'import Apple Music est
+    # Les étapes de l'artiste. Apple n'en fait PAS partie : l'import Apple Music est
     # facultatif — beaucoup d'artistes n'ont pas de compte Apple for Artists, et
     # l'exiger laisserait leur collecte à l'arrêt indéfiniment.
-    return bool(by_key.get("creds")) and bool(by_key.get("s4a"))
+    #
+    # ET ON NE LIT PAS L'ÉTAPE « fichiers », ON LIT LE FAIT. Les deux lignes d'import
+    # ont fusionné en une le 2026-09-12 (« consolide les 2 lignes import csv en 1
+    # seule »), et cette étape se coche donc dès UN import quelconque — un relevé
+    # SACEM, un rapport DistroKid. Déclencher la collecte là-dessus ne collecterait
+    # rien : ce qui la rend possible, c'est le CSV Spotify, que `SetupState` garde
+    # séparément pour exactement cette raison.
+    return bool(by_key.get("creds")) and bool(getattr(state, "spotify_csv", False))
 
 
 def autostart_if_journey_complete(db, artist_id, session_state,

@@ -216,8 +216,17 @@ def test_readiness_reads_a_table_the_dag_actually_writes():
     # faux pour le produit, puisque `upload_csv._PLATFORMS` l'alimente depuis toujours.
     # La portée du garde suivait une hypothèse (« une table est écrite par un DAG ou un
     # collecteur ») que le dépôt venait de rendre fausse.
-    page = (root / "src" / "dashboard" / "views" / "upload_csv.py").read_text(
-        encoding="utf-8", errors="ignore")
+    #
+    # Le registre lui-même a déménagé dans `utils/csv_platforms.py` le 2026-09-12 —
+    # les deux fichiers sont donc lus, la vue pour ce qu'elle écrit encore en dur et
+    # le registre pour les tables qu'il déclare. Ce garde a rougi sur ce
+    # déménagement, ce qui est exactement son travail : il nomme la table devenue
+    # orpheline au lieu de passer vert sur un fichier rétréci.
+    page = "\n".join(
+        (root / rel).read_text(encoding="utf-8", errors="ignore")
+        for rel in ("src/dashboard/views/upload_csv.py",
+                    "src/dashboard/utils/csv_platforms.py")
+    )
     written = dags + collectors + page
 
     unwritten = [

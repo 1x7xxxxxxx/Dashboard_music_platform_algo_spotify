@@ -200,11 +200,24 @@ def _show_body(db, artist_id):
         df_spotify['date'] = pd.to_datetime(df_spotify['date'])
         df_master = pd.merge(df_master, df_spotify, on='date', how='left')
 
-    # Force conversion to float (cpr handled separately — must stay nullable)
+    # UN JOUR NON MESURÉ N'EST PAS UN JOUR À ZÉRO — et cette figure en fabriquait
+    # cinq à la fois.
+    #
+    # `df_master` est l'UNION des dates des trois sources, chacune ramenée par un
+    # `how='left'`. Un jour où Meta a tourné mais où la collecte Spotify n'a rien
+    # rendu arrivait donc en `NaN`, et `fillna(0)` le traçait à **0 stream** : une
+    # chute à zéro sur la courbe, exactement au moment où l'artiste regarde l'effet
+    # de sa campagne. Trois lignes plus bas ce même fichier écrivait déjà, à propos
+    # du CPR : « NaN is kept as-is → chart shows a gap. No recompute — that would
+    # fabricate a value. » Deux traitements opposés dans la même figure ; c'est
+    # celui-ci qui avait tort, comme pour `popularity` juste en dessous.
+    #
+    # `NaN` conservé, Plotly coupe la ligne (`connectgaps=False`, son défaut, posé
+    # explicitement sur les traces pour qu'un garde puisse le lire).
     cols_num = ['spend', 'results', 'hypeddit_clicks', 'hypeddit_visits', 'streams', 'popularity']
     for c in cols_num:
         if c in df_master.columns:
-            df_master[c] = pd.to_numeric(df_master[c], errors='coerce').fillna(0).astype(float)
+            df_master[c] = pd.to_numeric(df_master[c], errors='coerce').astype(float)
 
     if 'popularity' in df_master.columns:
         # UNE POPULARITÉ RECOPIÉE EST UNE MESURE INVENTÉE.
@@ -249,6 +262,7 @@ def _show_body(db, artist_id):
     if idx is not None:
         fig.add_trace(go.Scatter(
             x=df_master['date'], y=idx, name=t("meta_x_spotify.budget_eur", "Budget (€)"), mode='lines',
+            connectgaps=False,
             line=dict(color='#ff6361', width=0), fill='tozeroy',
             fillcolor='rgba(255, 99, 97, 0.12)',
             customdata=raw,
@@ -270,6 +284,7 @@ def _show_body(db, artist_id):
             continue
         fig.add_trace(go.Scatter(
             x=df_master['date'], y=idx, name=label, mode='lines',
+            connectgaps=False,
             line=dict(color=color, width=2, dash=dash), customdata=raw,
             hovertemplate=f"{label} : %{{customdata:{fmt}}} (idx %{{y:.0f}})<extra></extra>",
         ))

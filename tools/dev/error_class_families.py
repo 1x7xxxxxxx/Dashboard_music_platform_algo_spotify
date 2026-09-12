@@ -143,8 +143,14 @@ FAMILIES: list[tuple[str, str, str]] = [
     ("un-coût-payé-sans-contrepartie",
      "Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention "
      "du lecteur — et lui rend-il quelque chose ?",
+     # `drags-a-view-behind-it` est entré le 2026-09-12 : un module partagé qui
+     # importe une vue fait payer un chargement de page entière à tous ses
+     # appelants pour ce qu'un seul y lit. C'est exactement la question de la
+     # famille — qui paie, et pour quoi — et le motif ne la voyait pas parce qu'il
+     # ne nommait que des coûts de CI. Un coût de PREMIER ÉCRAN est le même sujet.
      r"runs-twice|concurrency-group|overload|competing-for-one-decision|"
-     r"costs-more-than|waste|duplicate-run|too-many"),
+     r"costs-more-than|waste|duplicate-run|too-many|drags-a-.*-behind|"
+     r"paid-by|first-render"),
 
     ("un-seuil-écrit-d-instinct",
      "Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test "
