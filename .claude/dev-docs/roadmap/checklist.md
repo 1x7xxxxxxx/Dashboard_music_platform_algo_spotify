@@ -25,9 +25,10 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R104 | La série de niveaux YouTube porte une RUPTURE DE MÉTHODE (+18 438 en une nuit le 2026-06-11, compteur de chaîne → somme par vidéo) que rien ne nomme | P2 | une requête sur `v_platform_levels` ne rend plus de croissance quotidienne supérieure à 100× le maximum observé de la plateforme, ou la rupture est annotée |
 | R103 | `artist_first_look` importe `views.<nom>` au lieu de suivre la table de routage d'`app.py` — il rapporte 2 pages en ERREUR que le produit sert correctement | P3 | `make artist-firstlook-prod PROD_SSH=… ARTIST=1` ne rapporte plus `process_guide` ni `upload_csv` en ❌ |
 
-**Une tâche ouverte**, R103, mesurée le 2026-09-12 en déployant. R92 à R95, les quatre tâches de l'audit metrics layer du 2026-09-11, ont été
+**Deux tâches ouvertes**, R103 et R104, mesurées le 2026-09-12. R92 à R95, les quatre tâches de l'audit metrics layer du 2026-09-11, ont été
 closes et rotées dans `archive.md`, comme R89, R90 et R91 avant elles (critère du
 double axe écrit et six figures triées, légende devenue le filtre de sources, PDF doté
 de la figure d'évolution multi-plateformes). Détail complet dans l'archive.
@@ -91,9 +92,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-12 (soir), UNE tâche ouverte : R103 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-12 (soir), DEUX tâches ouvertes : R103, R104 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R103 -->
+<!-- reprise: open=R103,R104 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -666,3 +667,47 @@ durable n'est pas de mettre à jour deux lignes de la liste — elle se périmer
 prochain regroupement de vues — mais de faire lire à l'outil la SOURCE de vérité du
 routage. Un garde doit alors rougir si une page listée n'est atteignable par aucune
 branche d'`app.py`.
+
+
+## R104 — une rupture de méthode dessinée comme une croissance
+
+- [ ] Une croissance de niveau invraisemblable au regard de la distribution propre à
+      la plateforme est traitée comme une DISCONTINUITÉ, pas comme une quantité.
+
+**Mesuré en production le 2026-09-12, artiste 1**, après le signalement « filtre par
+période, j'ai un pic à 18000 pour youtube alors que c'est faux » :
+
+| | valeur |
+|---|---|
+| Niveau YouTube au 2026-06-10 | 99 778 |
+| Niveau YouTube au 2026-06-11 | 118 216 |
+| Croissance en une nuit | **+18 438** |
+| Plus gros écart QUOTIDIEN de toute la série (116 points) | **7** |
+| Médiane des écarts quotidiens | **1** |
+
+Le pic est **réel dans les données et faux comme information**. Le 11 juin, la collecte
+a changé de DÉFINITION : du compteur de CHAÎNE — qui plafonnait à 99 xxx et compte des
+vidéos qui ne sont pas les siennes, prouvé ~10× faux le 2026-09-08 — à la somme des
+compteurs PAR VIDÉO. Une rupture de méthode ne devient pas une quantité parce qu'on la
+soustrait à la veille.
+
+**Ce qui a été fait le 2026-09-12 :** le mode « Par période », seul à transformer cette
+marche en un bâton de 18 438 attribué à un jour, a été retiré de l'accueil. C'est un
+correctif d'AFFICHAGE — il cesse de déguiser la rupture, il ne la corrige pas. En
+cumulé la marche reste visible, ce qui est honnête : une marche se lit comme une
+discontinuité.
+
+**Ce qui reste, et pourquoi ce n'est pas une retouche :** décider ce que vaut
+l'historique d'avant le changement de méthode est une question de DÉFINITION. Trois
+options, aucune gratuite — recaler l'ancien historique sur la nouvelle base (invente des
+vues qu'on n'a pas mesurées), couper la série au 11 juin (perd sept mois), ou marquer la
+discontinuité et refuser toute croissance qui la traverse (honnête, mais laisse un trou
+dans les totaux par période qui l'enjambent).
+
+La migration 112 connaît déjà la forme MIROIR — un relevé partiel n'est pas un niveau —
+et son seuil est lu dans la distribution réelle. C'est le précédent à suivre : le
+critère doit être mesuré sur la plateforme elle-même, jamais posé d'instinct.
+
+⚠️ **À vérifier sur les autres locataires avant de trancher** : la même bascule a pu se
+produire ailleurs, à d'autres dates. Un correctif calibré sur l'artiste 1 seul serait
+un correctif pour une instance, pas pour la classe.

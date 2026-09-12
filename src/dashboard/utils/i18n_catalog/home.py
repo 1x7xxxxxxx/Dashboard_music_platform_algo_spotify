@@ -51,10 +51,6 @@ EN = {
     # Les trois métriques dérivées ajoutées le 2026-09-12, et les unités de pas
     # qu'elles nomment. « Periods measured » garde le mot « periods » et non
     # « days » : la ligne compte des SEAUX au grain affiché, pas des journées.
-    "home.metric_top_share": "🥇 Leading platform",
-    "home.metric_top_share_help": (
-        "🥇 the platform with the largest share of the period, and its share of the "
-        "streams DRAWN — Apple is excluded, its series only exists at yearly step"),
     "home.metric_measured": "📅 Periods measured",
     "home.metric_measured_help": (
         "📅 how many {unit} had at least one platform collected, out of the whole "
@@ -71,6 +67,17 @@ EN = {
         "per result along with the budget it consumed."),
     "home.tile_best_cpr": "🎯 Best CPR {cpr}{budget}{name}",
     "home.tile_last_seen": "Last reading: {d}",
+    # Les trois portes algorithmiques de la dernière sortie (2026-09-12). « Predicted »
+    # est porté par le bandeau ET par l'aide : c'est une PRÉDICTION, jamais un taux
+    # observé — aucune issue n'a encore été saisie.
+    "home.gates_for": "🔮 **Predicted** probabilities for **{song}**",
+    "home.gates_age": " · released {n} days ago",
+    "home.gate_dw": "🎯 Discover Weekly",
+    "home.gate_radio": "📻 Radio",
+    "home.gate_rr": "🆕 Release Radar",
+    "home.gate_help": ("Probability PREDICTED by the model that this track enters "
+                       "this algorithmic playlist. It is not an observed rate: no "
+                       "outcome has been recorded yet."),
     # Le grain appliqué, depuis que la barre de pas a été supprimée (2026-09-12).
     "home.grain_day": "Each point is a **day**.",
     "home.grain_month": ("Each point is a **month** — the window is longer than a "
@@ -84,19 +91,6 @@ EN = {
     "home.ig_is_a_headcount": (
         "A follower HEADCOUNT, not a play count: it cannot be split by period and "
         "is not part of the total above. The change over the period is in the table."),
-    "home.metric_best_day": "📈 Best day",
-    "home.metric_best_week": "📈 Best week",
-    "home.metric_best_month": "📈 Best month",
-    "home.metric_best_step": "📈 Best point",
-    "home.metric_cost_per_stream": "💸 Cost per stream",
-    "home.metric_cost_per_stream_help": (
-        "💸 cost per stream = Meta spend over the period ÷ streams over the period "
-        "(all platforms, not only the ones the ads targeted)"),
-    "home.metric_best_algo": "🔮 Predicted trigger prob.",
-    "home.metric_best_algo_help": (
-        "🔮 probability PREDICTED by the model that the best-placed track enters an "
-        "algorithmic playlist — this is not an observed rate: no outcome has been "
-        "recorded yet"),
     "platform_chart.not_yet_collected": "not collected yet — from {since}",
     "platform_chart.collected_since": "{label} measured since {since}",
     "platform_chart.week_of": "the week of {d}",

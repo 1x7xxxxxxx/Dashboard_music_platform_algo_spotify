@@ -131,47 +131,25 @@ def _tiles(totals: dict, prev=None, side=None, last=None) -> list[tuple]:
     return seen
 
 
-# ── 1-4 : les indicateurs dérivés, sous la figure ────────────────────────────
-
-def test_the_cost_per_stream_does_not_depend_on_the_display_mode():
-    """Basculer « Cumulé » ↔ « Par période » ne change pas ce qu'une écoute a coûté."""
-    seen = {}
-    for mode in ("absolute", "cumulative", "share"):
-        row = _one(_metrics(mode), "Coût par écoute")
-        assert row, f"la boîte « coût par écoute » a disparu en mode {mode}"
-        seen[mode] = row[1]
-    assert len(set(seen.values())) == 1, (
-        "le coût par écoute change avec le MODE D'AFFICHAGE : "
-        + " · ".join(f"{k}={v}" for k, v in seen.items())
-        + ". Le dénominateur est reparti sur la série dessinée ; la somme des écarts "
-          "quotidiens d'un compteur sous-compte (facteur 887 mesuré le 2026-09-11). "
-          "Il doit venir de `platform_totals`, qui lit la différence de niveau.")
-
-
-def test_a_cumulative_series_has_no_best_step():
-    """Une courbe qui ne fait que monter a son maximum au dernier point."""
-    row = _one(_metrics("cumulative"), "Meilleur")
-    assert row is None, (
-        f"« {row[0]} » s'affiche en mode cumulé avec {row[1]!r}. Une série cumulée "
-        "atteint toujours son maximum à son dernier point : le chiffre est le niveau "
-        "final et la date la fin de la fenêtre — deux façons de ne rien dire, "
-        "présentées comme un pic." if row else "")
-    assert _one(_metrics("absolute"), "Meilleur"), (
-        "« Meilleur … » a disparu du mode où il est JUSTE — un garde de régime qui "
-        "interdit tous les régimes ne garde rien")
-
-
-def test_the_dominant_platform_is_absent_where_it_would_be_a_share_of_a_share():
-    """En « Part » ce serait la part d'une part ; en « Cumulé », un rapport de niveaux."""
-    assert _one(_metrics("absolute"), "dominante"), (
-        "la boîte « Plateforme dominante » a disparu du mode où elle est JUSTE")
-    for mode in ("share", "cumulative"):
-        bad = _one(_metrics(mode), "dominante")
-        assert bad is None, (
-            f"« Plateforme dominante » s'affiche en mode {mode} : {bad[1]!r}. En "
-            "« Part » c'est la part d'une part ; en « Cumulé » un rapport de niveaux, "
-            "pas de quantités.")
-
+# ── LES INDICATEURS DÉRIVÉS, SOUS LA FIGURE ─────────────────────────────────
+#
+# TROIS CAS ONT ÉTÉ RETIRÉS LE 2026-09-12 AVEC LEUR SUJET, et le geste mérite d'être
+# nommé : supprimer des tests est exactement ce qu'on fait quand on veut du vert.
+#
+#   * `test_the_cost_per_stream_does_not_depend_on_the_display_mode`
+#   * `test_a_cumulative_series_has_no_best_step`
+#   * `test_the_dominant_platform_is_absent_where_it_would_be_a_share_of_a_share`
+#
+# Les trois gardaient le coût par écoute, le meilleur pas et la plateforme dominante,
+# retirés de l'écran sur demande (« Enlève-moi les kpi : meilleur mois, coût par
+# écoute, plateforme dominante »). Un garde dont la population est VIDE est pire
+# qu'absent : il passe au vert sur n'importe quoi.
+#
+# ⚠️ Ce qu'ils défendaient n'est pas perdu pour autant. La règle « on ne somme pas des
+# cumuls », qui était le fond du premier, vit dans
+# `tests/test_the_live_chart_matches_the_illustration.py::test_no_indicator_ever_sums_cumulative_values`
+# — mutation vue rouge le 2026-09-12. Si l'un de ces trois chiffres revient à
+# l'écran un jour, son garde se réécrit à ce moment-là, contre la surface qu'il aura.
 
 def test_measured_periods_only_speaks_when_the_window_has_holes():
     """« 200 / 200 » ne dit rien — la boîte ne s'affiche que si elle informe."""
@@ -220,3 +198,63 @@ def test_an_empty_box_names_its_last_reading():
         "une plateforme qui A des chiffres sur la fenêtre affiche quand même son "
         "dernier relevé : la mention devient du bruit sur toutes les boîtes au lieu "
         "de signaler les seules qui manquent.")
+
+
+# ── LES TROIS PORTES DE LA DERNIÈRE SORTIE (2026-09-12) ─────────────────────
+#
+# « rajoute dans les kpi juste en dessous de streams totaux, la meilleure
+# probabilité pour la dernière release de trigger : DW Radio et RR : 3 kpi ».
+#
+# Journal de mutation, chacune vue ROUGE :
+#   * `_gates` réduit au seul maximum des trois → test_the_three_gates_are_three
+#     ÉCHOUE en nommant les libellés trouvés ;
+#   * le mot « prédite » retiré du bandeau → test_a_prediction_never_passes_for_an
+#     _observed_rate ÉCHOUE ;
+#   * `if any(...)` remplacé par `if True` → test_no_gate_is_shown_without_a
+#     _prediction ÉCHOUE en nommant les « — » affichés.
+
+_RELEASE = {"release_song": "Ô Chiotte l'arbitre", "release_age": 743,
+            "release_dw": 0.07002, "release_rr": 0.06554, "release_radio": 0.11068}
+
+
+def test_the_three_gates_are_three():
+    """Trois portes distinctes, trois chiffres — jamais leur maximum."""
+    rows = _tiles({"spotify": 20_000}, side={**_SIDE, **_RELEASE})
+    labels = [r[0] for r in rows if r[0] != "caption"]
+    for needle, pct in (("Discover Weekly", "7,0 %"),
+                        ("Radio", "11,1 %"),
+                        ("Release Radar", "6,6 %")):
+        box = next((r for r in rows if needle in r[0]), None)
+        assert box, (
+            f"la porte « {needle} » n'a pas sa boîte. Libellés rendus : {labels}. "
+            "Le maximum des trois répond à « quel titre du catalogue est le mieux "
+            "placé », pas à « comment se présente ma dernière sortie ».")
+        assert box[1] == pct, (
+            f"« {needle} » affiche {box[1]!r} au lieu de {pct!r} — les trois "
+            "probabilités ont été mélangées ou arrondies autrement")
+
+
+def test_a_prediction_never_passes_for_an_observed_rate():
+    """Le taux OBSERVÉ demanderait `s4a_song_algo_outcomes`, à 0 ligne."""
+    rows = _tiles({"spotify": 20_000}, side={**_SIDE, **_RELEASE})
+    captions = " ".join(r[1] for r in rows if r[0] == "caption")
+    assert "prédite" in captions.lower() or "prédit" in captions.lower(), (
+        f"aucun texte ne dit que ces pourcentages sont PRÉDITS : {captions!r}. "
+        "Aucune issue de prédiction n'a jamais été saisie (0 ligne dans "
+        "`s4a_song_algo_outcomes`, mesuré le 2026-09-12) : les présenter comme un "
+        "taux de déclenchement inventerait une mesure.")
+    assert "Ô Chiotte l'arbitre" in captions, (
+        f"le titre auquel se rapportent les trois pourcentages n'est pas nommé : "
+        f"{captions!r}. Trois nombres sans leur sujet sont trois nombres orphelins.")
+
+
+def test_no_gate_is_shown_without_a_prediction():
+    """Sans prédiction, pas de bloc — jamais trois « — » qui occupent la place."""
+    rows = _tiles({"spotify": 20_000}, side=_SIDE)   # `_SIDE` n'a pas de release_*
+    for needle in ("Discover Weekly", "Release Radar"):
+        bad = next((r for r in rows if needle in r[0]), None)
+        assert bad is None, (
+            f"« {needle} » s'affiche à {bad[1]!r} alors qu'aucune prédiction n'existe "
+            "pour la dernière sortie. Un « — » dans une boîte de probabilité se lit "
+            "comme « le modèle donne zéro chance », pas comme « le modèle n'a pas "
+            "encore tourné ».")

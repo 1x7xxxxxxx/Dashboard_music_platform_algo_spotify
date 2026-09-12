@@ -790,20 +790,60 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
     try:
         rows = _q(db, """
             WITH best_cpr AS (
-                -- Le CPR le plus BAS est le meilleur : c'est un coût. Le HAVING
-                -- écarte les campagnes sans résultat, dont le CPR n'est pas
-                -- « infini » mais indéfini — une division par zéro n'est pas une
-                -- mauvaise performance.
+                -- ── LA CAMPAGNE DE LA DERNIÈRE SORTIE, PAS LA MEILLEURE DE TOUS
+                --    LES TEMPS ──────────────────────────────────────────────────
+                --
+                -- « met en automatique la dernière release et pas forcément les
+                -- meilleurs résultats qu'on a obtenu toute campagne confondue »
+                -- (2026-09-12). Le `ORDER BY cpr ASC` d'avant rendait le RECORD
+                -- historique : un excellent coût obtenu il y a deux ans sur une
+                -- audience qui n'existe plus ne dit rien de ce qui marche
+                -- aujourd'hui, et il est irréfutable — on ne peut pas faire mieux
+                -- qu'un record, donc la métrique ne bouge jamais.
+                --
+                -- ⚠️ LA CAMPAGNE LA PLUS RÉCENTE, ET NON UNE CORRESPONDANCE DE NOM
+                -- avec le titre de la sortie. Mesuré le 2026-09-12 sur l'artiste 1 :
+                -- la dernière sortie est « Ô Chiotte l'arbitre Tucome Back -
+                -- Original » et sa campagne « O chiotte l'arbitre Tucome Back » —
+                -- accent, casse et suffixe diffèrent tous les trois. Un
+                -- rapprochement flou qui se trompe de campagne en SILENCE est pire
+                -- qu'une règle simple que l'artiste peut vérifier d'un coup d'œil :
+                -- le nom de la campagne retenue est affiché avec le chiffre.
                 SELECT campaign_name, spend, spend / results AS cpr
                   FROM (SELECT campaign_name, SUM(spend) AS spend,
-                               SUM(results) AS results
+                               SUM(results) AS results, MAX(day) AS last_day
                           FROM v_meta_campaign_daily
                          WHERE artist_id = %s
                            AND (%s::date IS NULL OR day >= %s)
                            AND (%s::date IS NULL OR day <= %s)
                          GROUP BY campaign_name
                         HAVING SUM(results) > 0 AND SUM(spend) > 0) q
-                 ORDER BY spend / results ASC
+                 ORDER BY last_day DESC
+                 LIMIT 1
+            ), last_release AS (
+                -- ── LA DERNIÈRE SORTIE, SANS JOINTURE ET SANS DATE ──────────────
+                --
+                -- `track_release_reference.release_date` est NULL pour deux titres
+                -- sur trois de l'artiste 1 (mesuré le 2026-09-12) : s'y fier
+                -- écarterait justement les sorties les plus récentes, celles que
+                -- personne n'a encore rapprochées d'une référence. `days_since_release`
+                -- vit dans la prédiction elle-même et est renseigné partout.
+                --
+                -- La dernière sortie est donc le titre au plus PETIT âge, sur la
+                -- prédiction la plus RÉCENTE. Les deux critères comptent : sans le
+                -- second on lirait un classement figé d'une ancienne exécution du
+                -- modèle.
+                SELECT song, days_since_release,
+                       COALESCE(dw_probability, 0)    AS dw,
+                       COALESCE(rr_probability, 0)    AS rr,
+                       COALESCE(radio_probability, 0) AS radio
+                  FROM ml_song_predictions
+                 WHERE artist_id = %s
+                   AND prediction_date = (
+                        SELECT MAX(prediction_date) FROM ml_song_predictions
+                         WHERE artist_id = %s)
+                   AND days_since_release IS NOT NULL
+                 ORDER BY days_since_release ASC
                  LIMIT 1
             ), best_algo AS (
                 -- PROBABILITÉ PRÉDITE, pas taux observé : voir le docstring.
@@ -851,8 +891,14 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
               (SELECT spend FROM best_cpr)                          AS best_cpr_spend,
               (SELECT p FROM best_algo)                             AS best_algo_p,
               (SELECT algo FROM best_algo)                          AS best_algo_name,
-              (SELECT song FROM best_algo)                          AS best_algo_song
+              (SELECT song FROM best_algo)                          AS best_algo_song,
+              (SELECT song FROM last_release)                       AS release_song,
+              (SELECT days_since_release FROM last_release)         AS release_age,
+              (SELECT dw FROM last_release)                         AS release_dw,
+              (SELECT rr FROM last_release)                         AS release_rr,
+              (SELECT radio FROM last_release)                      AS release_radio
         """, (artist_id, since, since, until, until,
+              artist_id, artist_id,
               artist_id, since, since, until, until,
               artist_id, since, since, until, until, artist_id, since, since,
               artist_id, until, until, artist_id, until, until,
@@ -863,7 +909,8 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
     if not rows:
         return {}
     (ig_first, ig_last, spend, best_cpr, best_cpr_name, best_cpr_spend,
-     best_algo_p, best_algo_name, best_algo_song) = rows[0]
+     best_algo_p, best_algo_name, best_algo_song,
+     release_song, release_age, release_dw, release_rr, release_radio) = rows[0]
     return {
         "ig_followers": ig_last,
         "ig_delta": (None if ig_first is None or ig_last is None
@@ -878,6 +925,16 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
         "best_algo_p": float(best_algo_p) if best_algo_p is not None else None,
         "best_algo_name": best_algo_name,
         "best_algo_song": best_algo_song,
+        # LA DERNIÈRE SORTIE ET SES TROIS PROBABILITÉS — chacune séparément, jamais
+        # leur maximum. « la meilleure probabilité pour la dernière release de
+        # trigger : DW Radio et RR : 3 kpi » (2026-09-12) : trois portes distinctes,
+        # trois chiffres. Le `GREATEST` d'`best_algo` répond à une autre question —
+        # quel titre du catalogue est le mieux placé — et il la garde.
+        "release_song": release_song,
+        "release_age": int(release_age) if release_age is not None else None,
+        "release_dw": float(release_dw) if release_dw else None,
+        "release_rr": float(release_rr) if release_rr else None,
+        "release_radio": float(release_radio) if release_radio else None,
     }
 
 
