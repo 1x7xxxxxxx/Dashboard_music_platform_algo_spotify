@@ -256,14 +256,15 @@ def youtube_cumulative_views(db: Any, artist_id: Optional[int]) -> list[tuple]:
     """
     if db is None or artist_id is None:
         return []
-    return _rows(db, _SQL_LEVEL_ONE, (artist_id, "youtube"))
+    return rebase_method_changes(_rows(db, _SQL_LEVEL_ONE, (artist_id, "youtube")))
 
 
 def soundcloud_cumulative_plays(db: Any, artist_id: Optional[int]) -> list[tuple]:
     """[(jour, écoutes cumulées)] — dernier compteur connu par TITRE, additionné."""
     if db is None or artist_id is None:
         return []
-    return _rows(db, _SQL_LEVEL_ONE, (artist_id, "soundcloud"))
+    return rebase_method_changes(
+        _rows(db, _SQL_LEVEL_ONE, (artist_id, "soundcloud")))
 
 
 # LA SÉRIE CUMULÉE EST LA COUCHE OR, depuis la migration 104.
@@ -279,6 +280,92 @@ _SQL_LEVELS = """
     SELECT platform, day, level FROM v_platform_levels
      WHERE artist_id = %s ORDER BY platform, day
 """
+
+
+# ── UNE RUPTURE DE MÉTHODE N'EST PAS UNE CROISSANCE ─────────────────────────
+#
+# Signalé le 2026-09-12 : « j'ai un pic à 18000 pour youtube alors que c'est faux ».
+# Mesuré en production, artiste 1 : le niveau YouTube passe de 99 778 à 118 216
+# entre le 10 et le 11 juin 2026, soit **+18 438 en une nuit**, quand le plus gros
+# écart quotidien de toute la série vaut 7 et sa médiane 1.
+#
+# Le 11 juin, la collecte a changé de DÉFINITION — du compteur de CHAÎNE, qui
+# plafonnait à 99 xxx et comptait des vidéos qui ne sont pas les siennes (prouvé
+# ~10× faux le 2026-09-08), à la somme des compteurs PAR VIDÉO. La marche est réelle
+# dans les données et fausse comme quantité : personne n'a fait 18 438 vues ce
+# jour-là.
+#
+# LE SEUIL EST MESURÉ, PAS POSÉ. Balayé sur les cinq séries de compteur de la
+# production le 2026-09-12, chacune comparant son plus gros écart à son 95ᵉ centile :
+#
+#   | série             | n   | p95    | max    | rapport  |
+#   |-------------------|-----|--------|--------|----------|
+#   | a1 youtube        |  73 |     11 | 18 438 | **1 676** |
+#   | a1 soundcloud     |  56 |      8 |    163 |     20,4 |
+#   | a12 soundcloud    |  34 |      2 |      6 |      3,0 |
+#   | a14 youtube       |  22 | 17 106 | 25 450 |      1,5 |
+#   | a14 soundcloud    |  21 |  4 056 |  5 486 |      1,4 |
+#
+# Une seule série sort, et c'est la rupture connue. Le creux entre 20,4 et 1 676 est
+# large : 100 y est 5× au-dessus de la plus forte croissance LÉGITIME observée et 16×
+# sous la rupture. Un seuil posé d'instinct aurait raté ce creux — le dépôt a déjà
+# payé un plancher écrit à l'instinct qui rendait un détecteur aveugle à deux
+# locataires sur trois.
+_DISCONTINUITY_RATIO = 100
+# En dessous, un 95ᵉ centile ne veut rien dire et tout écart un peu gros serait
+# déclaré rupture. Une série trop courte ne dit rien : on ne coupe rien.
+_DISCONTINUITY_MIN_POINTS = 10
+
+
+def level_discontinuities(rows: list) -> dict:
+    """{jour: taille du saut} — les marches qu'aucune audience n'explique.
+
+    `rows` est une série de niveaux `[(jour, valeur)]`. Le jour rendu est celui du
+    niveau APRÈS le saut : c'est là que la marche apparaît.
+
+    ⚠️ Rend un dict VIDE plutôt que de deviner quand la série est trop courte. Une
+    détection qui s'active sur cinq points transformerait la première vraie poussée
+    d'un artiste en « rupture de méthode » et l'effacerait de sa figure — le contraire
+    exact du service rendu ici.
+    """
+    rows = sorted(rows or [])
+    if len(rows) < _DISCONTINUITY_MIN_POINTS:
+        return {}
+    growths = [(d1, max(v1 - v0, 0))
+               for (_d0, v0), (d1, v1) in zip(rows, rows[1:])]
+    positive = sorted(g for _d, g in growths if g > 0)
+    if len(positive) < _DISCONTINUITY_MIN_POINTS // 2:
+        return {}
+    p95 = positive[max(int(len(positive) * 0.95) - 1, 0)]
+    floor = max(p95, 1) * _DISCONTINUITY_RATIO
+    return {d: g for d, g in growths if g > floor}
+
+
+def rebase_method_changes(rows: list) -> list:
+    """Relève l'historique d'AVANT chaque rupture, pour rendre la série continue.
+
+    Ce n'est pas inventer des vues : c'est cesser de mesurer avec le mauvais
+    instrument. Les vidéos AVAIENT ces vues avant le 2026-06-11 ; c'est le compteur
+    de CHAÎNE qui ne les voyait pas, et on a prouvé le 2026-09-08 qu'il est ~10× faux.
+
+    **Le niveau FINAL ne bouge pas d'une vue** — seuls les antérieurs sont relevés.
+    C'est ce qui préserve l'accord avec la couche or : le total « depuis le début »
+    est le compteur courant, et il est juste.
+
+    ⚠️ **UN SEUL ENDROIT.** La première version du correctif traitait les totaux et
+    la figure SÉPARÉMENT ; `test_a_bounded_total_on_a_counter_is_a_difference_of_levels`
+    a mesuré le résultat — le total borné rendait 187 quand la courbe montait de
+    18 625 sur la même fenêtre. Deux nombres pour la même question, ce qu'ADR-019
+    interdit. Toute lecture d'une série de niveaux passe donc ici, y compris celles
+    du PDF et de la vue YouTube, qui ne lisent pas `cumulative_by_platform`.
+    """
+    breaks = level_discontinuities(rows)
+    if not breaks:
+        return rows
+    out = list(rows)
+    for day, jump in sorted(breaks.items()):
+        out = [(d, v + jump if d < day else v) for d, v in out]
+    return out
 
 
 def cumulative_by_platform(db: Any, artist_id: Optional[int]) -> dict:
@@ -299,6 +386,28 @@ def cumulative_by_platform(db: Any, artist_id: Optional[int]) -> dict:
     for platform, day, value in _rows3(db, _SQL_LEVELS, (artist_id,)):
         if platform in out:
             out[platform].append((day, value))
+    # ── LES RUPTURES DE MÉTHODE SONT RECALÉES ICI, ET NULLE PART AILLEURS ────
+    #
+    # Première tentative, le 2026-09-12 : soustraire le saut des totaux et blanchir
+    # le seau de la figure. **Un garde l'a refusée** —
+    # `test_a_bounded_total_on_a_counter_is_a_difference_of_levels` a mesuré que le
+    # total borné rendait 187 pendant que la courbe montait de 18 625 sur la même
+    # fenêtre. Deux nombres pour la même question sur le même écran, ce qu'ADR-019
+    # interdit, et exactement le défaut que le PDF imprimait sur une seule page.
+    #
+    # La bonne correction est en amont : **recaler l'historique d'avant la rupture**.
+    # Ce n'est pas inventer des vues — c'est cesser de mesurer avec le mauvais
+    # instrument. Les vidéos AVAIENT ces vues avant le 11 juin ; c'est le compteur de
+    # CHAÎNE qui ne les voyait pas, et on a prouvé le 2026-09-08 qu'il est ~10× faux.
+    # Le niveau final ne bouge pas d'une vue (118 216 reste 118 216) ; seuls les
+    # niveaux ANTÉRIEURS sont relevés du saut, ce qui rend la série continue.
+    #
+    # Une seule correction, en un seul endroit, et TOUT ce qui en dérive devient
+    # cohérent : la courbe cumulée, les seaux de la figure, les totaux bornés, le
+    # PDF et l'API. Corriger chaque surface séparément était la mauvaise idée, et le
+    # garde l'a dit avant la production.
+    for platform, rows in out.items():
+        out[platform] = rebase_method_changes(rows)
     return out
 
 
@@ -735,6 +844,11 @@ def platform_totals(db, artist_id, since=None, until=None) -> dict:
                     continue
                 before = [v for d, v in rows if d < since]
                 start = before[-1] if before else inside[0][1]
+                # LES RUPTURES DE MÉTHODE SONT DÉJÀ RECALÉES par
+                # `cumulative_by_platform` : la différence de niveaux est donc juste
+                # ici sans traitement supplémentaire, et — c'est le point — elle est
+                # LA MÊME que la montée de la courbe sur la même fenêtre. Les
+                # corriger séparément avait produit 187 contre 18 625.
                 out[key] = max(inside[-1][1] - start, 0)
                 continue
             out[key] = sum(v for d, v in series.get(key, []) if since <= d <= until)

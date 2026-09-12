@@ -730,6 +730,19 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
             rows = sorted(cumulative[k])
             earlier = [v for d, v in rows if d < span[0]]
             base = earlier[-1] if earlier else (rows[0][1] if rows else None)
+
+            # LES RUPTURES DE MÉTHODE SONT RECALÉES EN AMONT, dans
+            # `cumulative_by_platform` et les deux lectures simples : la série reçue
+            # ici est déjà continue, et un seau ne peut plus porter une marche de
+            # +18 438 (le passage compteur-de-chaîne → somme-par-vidéo du
+            # 2026-06-11).
+            #
+            # ⚠️ Le traitement a VÉCU ICI dans une première version, et c'était
+            # l'erreur : il corrigeait la figure pendant que `platform_totals`
+            # corrigeait les totaux de son côté.
+            # `test_a_bounded_total_on_a_counter_is_a_difference_of_levels` a mesuré
+            # le résultat — 187 contre 18 625 sur la même fenêtre. Une correction en
+            # amont, un seul endroit, et tout ce qui en dérive s'accorde.
             growth, prev = [], base
             for cur in levels:
                 growth.append(None if prev is None or cur is None
@@ -967,6 +980,54 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                    range=[0, 100] if mode == "share" else None,
                    ticksuffix=" %" if mode == "share" else None),
     )
+    # ── UNE ÉTIQUETTE PAR PLATEFORME, DANS SA COULEUR ────────────────────────
+    #
+    # « peux-tu ajouter des valeurs étiquettes pertinentes vers le max ou la dernière
+    # valeur obtenue dans la couleur adéquate » (2026-09-12).
+    #
+    # LAQUELLE DES DEUX, ET LE MODE TRANCHE :
+    #   * en CUMULÉ, la courbe ne fait que monter — son maximum EST son dernier
+    #     point. Étiqueter « le max » y répéterait la fin de la courbe ; on étiquette
+    #     donc la dernière valeur, qui est le total de la période ;
+    #   * en PAR PÉRIODE, la dernière valeur est le dernier seau, souvent partiel et
+    #     rarement intéressant. C'est le PIC qui répond à la question qu'on se pose
+    #     devant la courbe — « c'était quand, le meilleur moment ? ».
+    #
+    # UNE SEULE PAR PLATEFORME. Étiqueter chaque point ferait un mur de chiffres sur
+    # une courbe de 44 points, et l'infobulle les donne déjà tous.
+    #
+    # ⚠️ LA COULEUR EST CELLE DE LA PALETTE, jamais une couleur choisie ici. Les
+    # couleurs de cette figure ont été mesurées en deutéranopie le 2026-09-12 : en
+    # réécrire une à l'œil défait ce travail en silence.
+    #
+    # LES AIRES SONT EMPILÉES, donc l'étiquette se pose sur le CUMUL des plateformes
+    # sous elle — la hauteur réelle de la bande à l'écran. La poser sur la valeur
+    # brute la mettrait à l'intérieur de la pile, sur une autre couleur.
+    _stack = [0.0] * len(span)
+    for pkey in order:
+        vals = aligned.get(pkey) or []
+        best_i, best_v = None, None
+        for i in range(min(len(vals), len(span))):
+            v = vals[i]
+            if v is None:
+                continue
+            if mode == "cumulative":
+                best_i, best_v = i, v          # la dernière mesure connue
+            elif best_v is None or v > best_v:
+                best_i, best_v = i, v          # le pic de la période
+        for i in range(min(len(vals), len(span))):
+            _stack[i] += (vals[i] or 0)
+        if best_i is None or not best_v:
+            continue
+        fig.add_annotation(
+            x=span[best_i], y=_stack[best_i],
+            text=f"<b>{int(round(best_v)):,}</b>".replace(",", "\u202f"),
+            showarrow=False, yshift=9,
+            font=dict(size=11, color=palette[pkey]),
+            # Un fond opaque : sur une aire pleine de la même teinte, un chiffre
+            # sans fond devient illisible dès que la bande est haute.
+            bgcolor=surface, borderpad=2, opacity=0.92)
+
     st.plotly_chart(fig, width="stretch", key=key)
     if recap is not None:
         _render_recap(recap, span, aligned, aligned_raw, order, thin, mode,

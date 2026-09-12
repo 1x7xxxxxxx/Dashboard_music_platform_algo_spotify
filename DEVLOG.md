@@ -5,6 +5,93 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-13 — Deux modes, une légende, et un garde qui refuse un correctif à moitié
+
+### La rupture YouTube est corrigée, et pas comme je l'avais écrit
+
+Le pic de +18 438 vues du 2026-06-11 — le passage du compteur de CHAÎNE à la somme PAR
+VIDÉO — avait été **contourné** la veille en retirant le mode « Par période ». L'artiste
+le redemande (« je veux uniquement un filtre cumulé ou normal »), donc il fallait le
+corriger pour de bon.
+
+**Le seuil est mesuré, pas posé.** Chaque série de compteur de la production comparée à
+son propre 95ᵉ centile :
+
+| série | n | p95 | max | rapport |
+|---|---|---|---|---|
+| a1 youtube | 73 | 11 | 18 438 | **1 676** |
+| a1 soundcloud | 56 | 8 | 163 | 20,4 |
+| a12 soundcloud | 34 | 2 | 6 | 3,0 |
+| a14 youtube | 22 | 17 106 | 25 450 | 1,5 |
+| a14 soundcloud | 21 | 4 056 | 5 486 | 1,4 |
+
+Une seule sort, et c'est la rupture connue. Le rapport retenu est **100**, dans le creux :
+5× au-dessus de la plus forte croissance LÉGITIME du parc, 16× sous la rupture. Passé sur
+tout le parc : **une détection, zéro faux positif.**
+
+### Le garde a refusé ma première correction, et il avait raison
+
+Première version : soustraire le saut des totaux, blanchir le seau de la figure. **Deux
+corrections, deux surfaces.** `test_a_bounded_total_on_a_counter_is_a_difference_of_levels`
+a mesuré le résultat — le total borné rendait **187** pendant que la courbe montait de
+**18 625** sur la même fenêtre. Deux nombres pour la même question sur le même écran,
+ce qu'ADR-019 interdit, et exactement le défaut que le PDF imprimait sur une seule page.
+
+La bonne correction est **en amont** : recaler l'historique d'avant la rupture. Ce n'est
+pas inventer des vues — c'est cesser de mesurer avec le mauvais instrument. Les vidéos
+AVAIENT ces vues avant le 11 juin ; c'est le compteur de chaîne qui ne les voyait pas, et
+il est ~10× faux (prouvé le 2026-09-08).
+
+Mesuré en production après recalage : plus gros saut **82** au lieu de 18 438, **niveau
+final inchangé** (118 336, donc l'accord avec la couche or tient), fenêtre mai→juillet
+**18 558 → 120**, fenêtre sans rupture **intacte** (75 → 75).
+
+**Et les TROIS lectures passent par là.** Le PDF et la vue YouTube n'appellent pas
+`cumulative_by_platform` — ils lisent `youtube_cumulative_views` directement. N'en
+corriger qu'une aurait laissé le pic sur deux surfaces ; le garde le vérifie pour les
+trois.
+
+### L'écran
+
+**Deux modes, et deux seulement** : Cumulé et Par période. « Part de chaque plateforme »
+et « Chacune à son échelle » répondaient à des questions que les boîtes de droite
+répondent déjà, en valeur absolue et côte à côte.
+
+**Et « Part » emporte le `multiselect` avec lui.** Il était le SEUL mode où le filtre de
+sources restait un widget — ses pourcentages sont établis sur l'ensemble affiché, et un
+clic de légende masque une trace sans recalculer les autres, donc la pile ne ferait plus
+100 %. Sans lui, la légende redevient le filtre partout : « je voulais cette légende
+cliquable pour les sélectionner ». Un clic de légende est côté navigateur, là où le
+widget coûtait un rendu complet — 287 ms mesurés.
+
+C'est la bonne façon de retirer un widget : **supprimer le cas qui l'exigeait**, pas le
+masquer en laissant le cas vivant. Le garde correspondant est passé de « exactement un »
+à **zéro**, et il vérifie en plus que le mode « Part » n'est pas revenu sans son widget.
+
+**Une étiquette par plateforme, dans sa couleur.** En cumulé c'est la dernière valeur —
+une courbe qui ne fait que monter a son maximum à son dernier point, l'étiqueter
+« au max » y répéterait la fin. En par période c'est le PIC, qui répond à « c'était
+quand, le meilleur moment ? ». Une seule par plateforme : l'infobulle donne déjà tous les
+points, et un mur de chiffres sur 44 points rend la courbe illisible. La couleur vient de
+la palette mesurée en deutéranopie, jamais d'un choix à l'œil.
+
+### Une tolérance ancrée à sa population
+
+`test_the_period_mode_totals_what_the_lifetime_total_says` a rougi après le recalage :
+173 dessinés contre 187 au pas annuel. Les 14 vues manquantes sont le seau **2025**,
+mesuré 33 jours sur 365, écarté par le plancher de couverture — une règle délibérée, pas
+un bug.
+
+Le recalage n'a pas créé l'écart, il l'a rendu proportionnellement gros : à 18 742 le
+même 14 valait 0,07 %. La tolérance de 1 % gagne donc un **plancher absolu de 50 vues**,
+au-dessus du seau écarté mesuré et deux ordres de grandeur sous les divergences que ce
+fichier existe pour voir (×151, ×887). Vérifié par mutation : la figure sous-comptant de
+moitié le fait toujours rougir.
+
+Suite complète : **5493 passed**, 0 échec.
+
+---
+
 ## 2026-09-12 (nuit, suite) — Le pic YouTube était un changement de définition
 
 ### Le signalement, et ce qu'il a trouvé

@@ -374,6 +374,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-dependency-that-does-not-come-back](#a-dependency-that-does-not-come-back) | P2 | deterministic | guarded | none |
 | [a-guard-satisfied-by-the-collapse-it-should-catch](#a-guard-satisfied-by-the-collapse-it-should-catch) | P2 | deterministic | guarded | none |
 | [a-test-whose-input-derives-from-its-subject](#a-test-whose-input-derives-from-its-subject) | P2 | deterministic | guarded | none |
+| [a-method-change-counted-as-growth](#a-method-change-counted-as-growth) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -5406,3 +5407,17 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: deuxième mutation restée verte de la même séance, et deuxième fois que c'est le mutant — pas le test initial — qui révèle le défaut. Les deux classes cousines disent la même chose sous deux angles : vérifier que la mutation rougit NE SUFFIT PAS, il faut vérifier qu'elle rougit POUR LA BONNE RAISON.
+
+## a-method-change-counted-as-growth
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une figure ou un total affiche un pic énorme et parfaitement faux, à une date où rien n'est arrivé. Le chiffre est DÉRIVÉ correctement d'une série correcte — c'est la série qui a changé de sens ce jour-là. Aucun test ne le voit : les données sont cohérentes avec elles-mêmes.
+- root_cause: la croissance d'un compteur est calculée comme une différence de niveaux, ce qui suppose que les deux niveaux mesurent la MÊME chose. Quand la collecte change de définition entre les deux, la différence est une marche, pas une quantité. Mesuré le 2026-09-12, artiste 1 : le niveau YouTube passe de 99 778 à 118 216 dans la nuit du 2026-06-11 — le jour où la collecte est passée du compteur de CHAÎNE (plafonné, comptant des vidéos tierces, prouvé ~10× faux le 2026-09-08) à la somme des compteurs PAR VIDÉO. +18 438 quand le plus gros écart quotidien de la série vaut 7 et sa médiane 1.
+- long_term_fix: **détecter la discontinuité dans la série de niveaux, sur un seuil MESURÉ sur la plateforme elle-même**, et la retirer des deux surfaces qui la comptent — jamais d'une seule, sinon la figure est juste et la tuile fausse. Le traitement diffère selon ce que la surface doit rendre : un SEAU de figure rend `None` (bande hachurée — « il s'est passé quelque chose, on ne sait pas combien »), un TOTAL de fenêtre SOUSTRAIT le saut sans vider la fenêtre (un total doit être rendu, une case peut rester vide). Le seuil : rapport au 95ᵉ centile des croissances positives de la série, plancher de points sous lequel on ne juge pas — une série courte ferait passer la première vraie poussée d'un artiste pour une rupture.
+- signature: `python3 -m pytest tests/test_a_method_change_is_not_a_quantity.py -q`
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_method_change_is_not_a_quantity.py }
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: seuil calibré sur les CINQ séries de compteur de la production — a1/youtube 1 676, a1/soundcloud 20,4, a12/soundcloud 3,0, a14/youtube 1,5, a14/soundcloud 1,4. Une seule sort. Rapport retenu 100, dans le creux : 5× au-dessus de la plus forte croissance légitime, 16× sous la rupture. Passé sur tout le parc : une détection, zéro faux positif. Effet mesuré sur une fenêtre mai→juillet : 18 558 → 120 vues (99,4 % du chiffre était la rupture) ; fenêtre sans rupture inchangée, 75 → 75. Parenté avec la migration 112 (`un relevé PARTIEL n'est pas un niveau`), qui est la forme MIROIR — un niveau trop BAS au lieu d'un saut trop haut — et dont le seuil était déjà lu dans la distribution réelle.

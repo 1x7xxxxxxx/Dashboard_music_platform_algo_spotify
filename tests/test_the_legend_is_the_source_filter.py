@@ -130,31 +130,48 @@ def test_the_share_mode_keeps_its_widget_because_clicking_would_lie(figure) -> N
     assert not any(t.showlegend for t in fig.data)
 
 
-def test_home_offers_the_widget_only_in_share_mode() -> None:
-    """Le `multiselect` de sources ne doit subsister que dans l'exception.
+def test_home_has_no_source_widget_at_all() -> None:
+    """La légende EST le filtre — il n'y a plus d'exception.
 
-    Lu par AST plutôt qu'en cherchant une chaîne : le nom `multiselect` survit dans un
-    commentaire, et ce dépôt s'est déjà fait prendre par un garde textuel.
+    ── CE GARDE A CHANGÉ DE SENS LE 2026-09-12, ET C'EST UN RENFORCEMENT ────────
+
+    Il exigeait **exactement un** `multiselect`, celui du mode « Part de chaque
+    plateforme » : la seule exception légitime, parce que les pourcentages y sont
+    établis sur l'ensemble affiché et qu'un clic de légende masque une trace sans
+    recalculer les autres — la pile ne ferait plus 100 %, ce qui est un chiffre faux
+    et pas seulement une figure incomplète.
+
+    Ce mode a été retiré de l'accueil (« je veux uniquement un filtre cumulé ou
+    normal »), donc l'exception n'a plus d'objet. L'exigence passe de « exactement
+    un » à **zéro** : plus stricte, pas plus laxiste. C'est la bonne façon de retirer
+    un widget — supprimer le cas qui l'exigeait, et non le masquer en laissant le cas
+    vivant.
+
+    Lu par AST plutôt qu'en cherchant une chaîne : le nom `multiselect` survit dans
+    les commentaires qui racontent ce retrait, et ce dépôt s'est déjà fait prendre
+    par un garde textuel.
     """
     home = (_ROOT / "src" / "dashboard" / "views" / "home.py").read_text(encoding="utf-8")
     tree = ast.parse(home)
     calls = [n for n in ast.walk(tree)
              if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "multiselect"]
-    sources = [n for n in calls
-               if any(isinstance(a, ast.Constant) and "trend_sources" in str(a.value)
-                      for a in ast.walk(n))]
-    assert len(sources) == 1, (
-        f"{len(sources)} `multiselect` de sources dans home.py — attendu exactement "
-        "un, celui du mode « part »")
+    assert not calls, (
+        f"{len(calls)} `multiselect` dans home.py (lignes {[n.lineno for n in calls]}) "
+        "alors que la légende est le filtre partout. Un clic de légende est côté "
+        "navigateur et ne relance pas le script, là où le widget coûtait un rendu "
+        "complet — 287 ms mesurés en production — pour masquer une bande.")
 
-    # Il doit vivre sous un test qui NOMME le mode « share ».
-    guarded = [
-        n for n in ast.walk(tree)
-        if isinstance(n, ast.If)
-        and any(isinstance(c, ast.Constant) and c.value == "share"
-                for c in ast.walk(n.test))
-        and any(m is sources[0] for m in ast.walk(n))
-    ]
-    assert guarded, (
-        "le `multiselect` de sources n'est plus conditionné au mode « part » : il "
-        "réapparaît dans les modes où la légende fait déjà le travail")
+    # ET LE MODE QUI JUSTIFIAIT L'EXCEPTION DOIT AVOIR DISPARU AVEC LUI. Sans cette
+    # moitié, remettre « Part » sans son widget passerait — et la pile afficherait
+    # des pourcentages faux dès qu'on clique une légende.
+    modes = next((n for n in ast.walk(tree) if isinstance(n, ast.Assign)
+                  and any(getattr(t, "id", "") == "_MODES_HOME" for t in n.targets)),
+                 None)
+    assert modes is not None, "`_MODES_HOME` a disparu — les modes sont construits ailleurs"
+    kept = {c.value for c in ast.walk(modes.value)
+            if isinstance(c, ast.Constant) and isinstance(c.value, str)}
+    assert "share" not in kept, (
+        "le mode « Part de chaque plateforme » est revenu sans son `multiselect` : "
+        "un clic de légende y masque une trace sans recalculer les pourcentages, "
+        "donc la pile ne fait plus 100 %. Si ce mode revient, son widget doit "
+        "revenir avec lui.")

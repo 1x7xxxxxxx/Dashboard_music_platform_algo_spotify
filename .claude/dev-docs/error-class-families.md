@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**314 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**315 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -24,7 +24,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 7 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 3 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
-| [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 17 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
+| [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 18 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 20 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
 | [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 19 | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | _sans famille_ | 3 | — |
@@ -414,7 +414,7 @@ Règle de rattachement : `overwrit|écrase|clobber|upsert|conflict|restore|delet
 
 **Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ?**
 
-Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|window-applied|day|month|period` sur l'identifiant et le symptôme. 17 classe(s).
+Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|window-applied|day|month|period` sur l'identifiant et le symptôme. 18 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -435,6 +435,7 @@ Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|wi
 | [`a-batch-that-commits-one-row-at-a-time`](error-classes.md#a-batch-that-commits-one-row-at-a-time) | une écriture de lot est lente, et — le vrai défaut — un échec en cours de route laisse la première moitié en base. Mesuré le 2026-09-10 : sur 1 001 li |
 | [`a-date-that-does-not-say-which-clock-produced-it`](error-classes.md#a-date-that-does-not-say-which-clock-produced-it) | aucun, tant qu'on ne compare pas deux périodes — et alors l'écart est de quelques heures, change avec la saison, et personne ne peut dire s'il est rée |
 | [`a-figure-under-a-period-selector-that-ignores-it`](error-classes.md#a-figure-under-a-period-selector-that-ignores-it) | l'artiste choisit « 30 jours » et la figure lui montre autre chose, sans que rien ne le dise. Aucune erreur, aucun trou : des barres pleines, sur une  |
+| [`a-method-change-counted-as-growth`](error-classes.md#a-method-change-counted-as-growth) | une figure ou un total affiche un pic énorme et parfaitement faux, à une date où rien n'est arrivé. Le chiffre est DÉRIVÉ correctement d'une série cor |
 
 ## la-frontière-avec-le-dehors
 
@@ -505,6 +506,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=314 families=17 orphans=3 -->
+<!-- error-class-families: total=315 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=8fb0ac9a8290414e3fc2e314cf676f157f7060023c9c6c8129c99a588cf75d62 -->
+<!-- error-class-families: sha256=b5dc67dad2296d516f04eed8c449caa88ab961e6dc0a0c9f2fa907e32e4c08ac -->
