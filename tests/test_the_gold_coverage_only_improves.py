@@ -123,6 +123,9 @@ _CEILING: dict[str, int] = {
     # reste vert dessus, donc aucune commande ne sort ≠ 0 aujourd'hui. Une
     # signature non vérifiée coûte plus cher qu'une absence de signature.
     "error-classes.guard_unnamed": 11,
+    # Un objet or que rien ne confronte est le premier à dériver en silence : le
+    # spend Meta l'a fait pendant des semaines. Zéro, et ça ne remonte pas.
+    "invariants.unreconciled": 0,
 }
 
 # Les populations, pour qu'un compteur ne puisse pas baisser en SUPPRIMANT la
@@ -136,6 +139,7 @@ _FLOOR: dict[str, int] = {
     "error-classes.total": 287,
     "ci.steps": 12,
     "ci.blocking": 12,
+    "invariants.pairs": 12,
 }
 
 

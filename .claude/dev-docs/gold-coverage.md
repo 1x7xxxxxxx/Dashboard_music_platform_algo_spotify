@@ -432,9 +432,9 @@ Une ligne par plateforme. « Lectures brutes » compte les lectures de ses table
 | Instagram | `instagram_daily_stats` · `instagram_media` | `v_instagram_media_monthly` | 2 | 8 |
 | Meta Ads | `meta_ads` · `meta_adsets` · `meta_campaigns` · `meta_insights` · `meta_insights_performance` · `meta_insights_performance_day` | `v_meta_active_budget` · `v_meta_adset_daily` · `v_meta_campaign_daily` · `v_meta_creative_daily` · `v_meta_daily` · `v_meta_spend_totals` | 34 | 21 |
 | Revenu | `distrokid_monthly_revenue` · `imusician_monthly_revenue` · `sacem_statement` | `v_artist_monthly_revenue` · `v_sacem_monthly` | 11 | 4 |
-| SoundCloud | `soundcloud_tracks_daily` | `v_platform_levels` · `v_platform_totals` · `v_soundcloud_track_latest` | 20 | 5 |
-| Spotify S4A | `s4a_audience` · `s4a_song_timeline` · `s4a_songs_global` | `v_platform_levels` · `v_platform_totals` · `v_s4a_song_daily` | 47 | 31 |
-| YouTube | `youtube_channel_history` · `youtube_video_stats` | `v_platform_levels` · `v_platform_totals` | 17 | 8 |
+| SoundCloud | `soundcloud_tracks_daily` | `v_platform_levels` · `v_platform_totals` · `v_soundcloud_track_latest` | 20 | 6 |
+| Spotify S4A | `s4a_audience` · `s4a_song_timeline` · `s4a_songs_global` | `v_platform_levels` · `v_platform_totals` · `v_s4a_song_daily` | 47 | 32 |
+| YouTube | `youtube_channel_history` · `youtube_video_stats` | `v_platform_levels` · `v_platform_totals` | 17 | 9 |
 
 ## Les cliquets
 
@@ -453,10 +453,10 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 | `test_chart_budget.py` | `_BUDGET` | 7 entrées | — | — |
 | `test_the_bronze_boundary_only_tightens.py` | `_CEILING` | 110 | — | — |
 | `test_the_error_class_families_only_improve.py` | `_MAX_ORPHANS` | 3 | — | — |
-| `test_the_error_class_families_only_improve.py` | `_MIN_TOTAL` | 290 | — | — |
+| `test_the_error_class_families_only_improve.py` | `_MIN_TOTAL` | 291 | — | — |
 | `test_the_error_class_families_only_improve.py` | `_MIN_FAMILIES` | 17 | — | — |
-| `test_the_gold_coverage_only_improves.py` | `_CEILING` | 9 entrées | — | — |
-| `test_the_gold_coverage_only_improves.py` | `_FLOOR` | 8 entrées | — | — |
+| `test_the_gold_coverage_only_improves.py` | `_CEILING` | 10 entrées | — | — |
+| `test_the_gold_coverage_only_improves.py` | `_FLOOR` | 9 entrées | — | — |
 | `test_the_metrics_layer_only_grows.py` | `_CEILING` | 8 entrées | — | — |
 | `test_the_tenant_guard_is_written_once.py` | `_MAX_OPEN_CODED` | 0 | — | — |
 | `test_the_visual_rules_only_tighten.py` | `_MAX_SECONDARY_AXES` | 0 | — | — |
@@ -466,9 +466,9 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 ## Les classes d'erreur
 
-**290 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
+**291 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
 
-**fixed** : 10· **guarded** : 264· **open** : 4· **reported** : 12
+**fixed** : 10· **guarded** : 265· **open** : 4· **reported** : 12
 
 **0 classe(s) nomment un fichier de garde qui n'existe plus** et **11** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
@@ -477,6 +477,29 @@ _Aucune classe ne nomme un garde disparu._
 
 Sans chemin de garde : `db-connection-per-show` · `view-session-adoption` · `snapshot-fixture-hook-reflow` · `dag-trigger-without-tenant-scope` · `ast-guard-blind-to-bom` · `migration-ahead-of-its-code` · `repo-copy-of-a-config-is-not-what-runs` · `mermaid-block-does-not-render` · `guard-anchored-on-shape-not-question` · `a-filtered-test-run-proves-nothing` · `a-guard-that-sees-the-binding-not-the-application`.
 
+
+## Les invariants
+
+**12 paires** de définitions or que rien n'oblige à coïncider sauf la donnée elle-même. ADR-019 garantit qu'une métrique a une seule **définition** ; que deux définitions censées coïncider coïncident est une propriété des DONNÉES, vérifiée chaque nuit par `alert_monitor.check_gold_invariants` et à chaque exécution de la suite par `tests/test_the_gold_layer_agrees_with_itself.py`.
+
+Le défaut qui a fait naître cette section : `meta_insights_performance` et `meta_insights_performance_day` répondent à la même question et divergeaient d'un **facteur deux** en production, pendant des semaines. Chaque côté était cohérent avec lui-même ; personne ne comparait.
+
+**0 objet(s) or ne sont touchés par aucun invariant** : aucun. Un objet que rien ne confronte peut dériver en silence — c'est le premier à le faire.
+
+| invariant | un côté | l'autre |
+|---|---|---|
+| `meta_spend_two_grains` | `v_meta_daily` | `v_meta_campaign_daily` |
+| `meta_spend_creative_vs_adset` | `v_meta_creative_daily` | `v_meta_adset_daily` |
+| `meta_spend_totals_vs_daily` | `v_meta_spend_totals` | `v_meta_daily` |
+| `spotify_total_vs_song_grain` | `v_platform_totals[spotify]` | `v_s4a_song_daily` |
+| `soundcloud_total_vs_track_grain` | `v_platform_totals[soundcloud]` | `v_soundcloud_track_latest` |
+| `sacem_revenue_vs_statement_grain` | `v_artist_monthly_revenue[sacem]` | `v_sacem_monthly[repartition]` |
+| `apple_total_vs_function` | `v_platform_totals[apple]` | `gold_apple_lifetime()` |
+| `levels_vs_total_youtube` | `v_platform_levels[youtube] au dernier jour` | `v_platform_totals[youtube]` |
+| `levels_vs_total_soundcloud` | `v_platform_levels[soundcloud] au dernier jour` | `v_platform_totals[soundcloud]` |
+| `hypeddit_view_loses_no_row` | `v_hypeddit_daily` | `hypeddit_daily_stats` |
+| `meta_active_budget_matches_its_filter` | `v_meta_active_budget` | `meta_campaigns[status=ACTIVE]` |
+| `instagram_view_loses_no_post_that_has_a_date` | `v_instagram_media_monthly` | `instagram_media[timestamp non nul]` |
 
 ## Les étapes de la CI
 
@@ -522,10 +545,10 @@ Le second tableau liste les **tables brutes encore lues hors des portes**, alors
 | `meta_insights` | `v_meta_adset_daily` | 1 | 1 | 0 | dashboard/views/meta_creatives.py:593 |
 | `meta_insights_performance` | `v_meta_campaign_daily` | 1 | 1 | 0 | dashboard/views/meta_mapping/_campaigns.py:190 |
 | `meta_insights_performance_day` | `v_meta_campaign_daily` | 6 | 5 | 0 | collectors/_meta_insight_fetch.py:59 · dashboard/views/imusician.py:36 · dashboard/views/imusician.py:45 · dashboard/views/meta_x_spotify.py:57 · dashboard/views/meta_x_spotify.py:80 |
-| `s4a_song_timeline` | `v_s4a_song_daily` | 19 | 4 | 0 | api/routers/streams.py:87 · dashboard/utils/pdf_exporter/_report.py:75 · dashboard/utils/setup_completion.py:139 · dashboard/views/spotify_s4a_combined.py:41 |
+| `s4a_song_timeline` | `v_s4a_song_daily` | 20 | 4 | 0 | api/routers/streams.py:87 · dashboard/utils/pdf_exporter/_report.py:75 · dashboard/utils/setup_completion.py:139 · dashboard/views/spotify_s4a_combined.py:41 |
 | `sacem_statement` | `v_sacem_monthly` | 1 | — | 0 | dashboard/views/sacem.py:26 |
-| `soundcloud_tracks_daily` | `v_soundcloud_track_latest` | 5 | 1 | 0 | dashboard/views/soundcloud.py:38 |
-| `youtube_video_stats` | `v_platform_levels` | 5 | 3 | 0 | dashboard/utils/pdf_exporter/_collectors.py:249 · dashboard/views/youtube.py:183 · dashboard/views/youtube.py:201 |
+| `soundcloud_tracks_daily` | `v_soundcloud_track_latest` | 6 | 1 | 0 | dashboard/views/soundcloud.py:38 |
+| `youtube_video_stats` | `v_platform_levels` | 6 | 3 | 0 | dashboard/utils/pdf_exporter/_collectors.py:249 · dashboard/views/youtube.py:183 · dashboard/views/youtube.py:201 |
 
 ### Les agrégats DÉCLARÉS
 
@@ -557,7 +580,8 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-gold-objects: total=15 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=17 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=290 guard_missing=0 guard_unnamed=11 -->
+<!-- gold-coverage-error-classes: total=291 guard_missing=0 guard_unnamed=11 -->
+<!-- gold-coverage-invariants: pairs=12 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=17a1a74d73f8a91c1dec3f68687c821ccdb626e13377a66f7d1bc97f59d88738 -->
+<!-- gold-coverage: sha256=619da2eb454d7bb02867d3693f1bafced3693627e4cf421dddb2dac2912a5840 -->

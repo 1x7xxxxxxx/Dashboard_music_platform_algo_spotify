@@ -31,6 +31,13 @@ from src.utils.value_monitor import (
 )
 
 _DAG = pathlib.Path("airflow/dags/alert_monitor.py")
+# Le détecteur a DÉMÉNAGÉ le 2026-09-12 : cibles et requête sont sorties du DAG vers
+# `src/utils/value_monitor.py`, où le prédicat vivait déjà. Les trois tests ci-dessous
+# le suivaient par son EMPLACEMENT et ont rougi sur un déménagement qui les
+# renforçait — c'est exactement la classe `a-signature-anchored-on-a-location`,
+# écrite le matin même. Ils demandent désormais « le détecteur existe-t-il, est-il
+# borné, est-il appelé », sans préjuger du fichier qui le porte.
+_MODULE = pathlib.Path("src/utils/value_monitor.py")
 
 
 def test_a_counter_that_falls_back_to_zero_is_impossible() -> None:
@@ -79,12 +86,15 @@ def test_the_detector_never_reads_a_daily_quantity() -> None:
     Un détecteur qui crie 93 fois est un détecteur que personne ne lit — la classe
     `watchdog-becomes-the-noise`, déjà au catalogue.
     """
-    tree = ast.parse(_DAG.read_text(encoding="utf-8"))
+    tree = ast.parse(_MODULE.read_text(encoding="utf-8"))
     targets = next((n.value for n in ast.walk(tree)
                     if isinstance(n, ast.Assign)
                     and any(getattr(t, "id", "") == "ZERO_RESET_TARGETS"
                             for t in n.targets)), None)
-    assert targets is not None, "ZERO_RESET_TARGETS a disparu du DAG"
+    assert targets is not None, (
+        "ZERO_RESET_TARGETS n'est plus déclaré dans src/utils/value_monitor.py — "
+        "si le détecteur a déménagé, c'est ce chemin qu'il faut suivre, pas la liste "
+        "qu'il faut vider")
     tables = {e.elts[0].value for e in targets.elts}
     assert tables == {"soundcloud_tracks_daily", "youtube_video_stats"}, (
         f"le périmètre a changé : {sorted(tables)}. Une table de quantités du jour y "
@@ -103,10 +113,23 @@ def test_a_task_actually_runs_the_detector() -> None:
     fn = next((n for n in ast.walk(tree)
                if isinstance(n, ast.FunctionDef) and n.name == "check_zero_resets"), None)
     assert fn is not None, "la tâche a disparu"
-    called = {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
-              for n in ast.walk(fn) if isinstance(n, ast.Call)}
-    assert {"is_reportable", "zero_reset_finding"} <= called, (
-        f"la tâche n'appelle pas le prédicat : {sorted(called)}")
+
+    # La CHAÎNE, pas l'emplacement : la tâche appelle quelque chose, et ce quelque
+    # chose finit par appeler le prédicat. Une tâche qui appelle `run()` sans que
+    # `run()` n'appelle le prédicat serait une chaîne coupée, et c'est ça qu'on
+    # refuse — pas le déménagement.
+    task_calls = {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
+                  for n in ast.walk(fn) if isinstance(n, ast.Call)}
+    module = ast.parse(_MODULE.read_text(encoding="utf-8"))
+    runner = next((n for n in ast.walk(module)
+                   if isinstance(n, ast.FunctionDef) and n.name == "run"), None)
+    assert runner is not None, "src/utils/value_monitor.py n'expose plus de run()"
+    assert "run" in task_calls, (
+        f"la tâche n'appelle plus le contrôle : {sorted(task_calls)}")
+    inner = {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
+             for n in ast.walk(runner) if isinstance(n, ast.Call)}
+    assert {"is_reportable", "zero_reset_finding"} <= inner, (
+        f"le contrôle n'appelle pas le prédicat : {sorted(inner)}")
 
     wired = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
              and getattr(n.func, "id", "") == "PythonOperator"
@@ -127,9 +150,9 @@ def test_the_detector_only_looks_at_the_last_complete_day() -> None:
     politique : le dernier jour COMPLET, le jour en cours exclu parce qu'une collecte à
     moitié écrite ressemble à une collecte fautive.
     """
-    tree = ast.parse(_DAG.read_text(encoding="utf-8"))
+    tree = ast.parse(_MODULE.read_text(encoding="utf-8"))
     fn = next(n for n in ast.walk(tree)
-              if isinstance(n, ast.FunctionDef) and n.name == "check_zero_resets")
+              if isinstance(n, ast.FunctionDef) and n.name == "run")
     sql = " ".join(n.value for n in ast.walk(fn)
                    if isinstance(n, ast.Constant) and isinstance(n.value, str)
                    and "FROM flagged" in n.value)
