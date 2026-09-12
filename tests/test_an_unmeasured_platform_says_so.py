@@ -138,20 +138,35 @@ def test_the_python_door_says_none_for_every_platform_it_serves() -> None:
     est la phrase exécutable de cette ADR.
     """
     sys.path.insert(0, str(_ROOT))
-    import psycopg2  # noqa: F401 — l'import prouve la dépendance avant de connecter
     from src.dashboard.utils.platform_timeseries import platform_totals
-    from src.database.postgres_handler import PostgresHandler
 
-    db = PostgresHandler(
-        host=_DB_HOST, port=_DB_PORT,
-        database=os.environ.get("DATABASE_NAME", "spotify_etl"),
-        user=os.environ.get("DATABASE_USER", "postgres"),
-        password=os.environ.get("DATABASE_PASSWORD") or os.environ.get("DB_PASSWORD", ""),
-    )
+    # ⚠️ LA CONNEXION VIENT DE `_CONN`, jamais de constantes.
+    #
+    # La première version construisait un `PostgresHandler(host="127.0.0.1",
+    # port=5433, …)` — les valeurs de CE poste — alors que `_dsn()` résout aussi
+    # `DATABASE_URL`. En CI, où la base écoute ailleurs, le module ne skippait pas
+    # (le DSN existe) et la connexion échouait : `connection refused`. Un garde qui
+    # lit la machine plutôt que la configuration est vert là où il a été écrit et
+    # rouge là où il tourne — la classe `guard-predicate-depends-on-the-host-env`,
+    # et `check_guards_are_env_independent.py` la surveille.
+    class _Handle:
+        """Le minimum que `platform_totals` attend d'un handler : `fetch_query`."""
+
+        def __init__(self, cursor):
+            self._cursor = cursor
+
+        def fetch_query(self, sql, params=None):
+            self._cursor.execute(sql, params or ())
+            return self._cursor.fetchall()
+
+    psycopg2 = pytest.importorskip("psycopg2")
+    conn = psycopg2.connect(**_CONN)
     try:
-        totals = platform_totals(db, _GHOST)
+        with conn.cursor() as cur:
+            totals = platform_totals(_Handle(cur), _GHOST)
     finally:
-        db.close()
+        conn.rollback()
+        conn.close()
 
     affirmed = {k: v for k, v in (totals or {}).items() if v == 0}
     assert not affirmed, (
