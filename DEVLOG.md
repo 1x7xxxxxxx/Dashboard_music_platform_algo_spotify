@@ -5,6 +5,72 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-13 (nuit) — Ce que les compteurs ne diront jamais, et ce qu'on peut encore aller chercher
+
+### La question
+
+« j'ai fait des streams avant le 1er novembre 2025 avec soundcloud et youtube mais ça me
+les marque en cumulé de 0 à des dizaines de milliers directement, est-ce qu'on peut
+calculer via couche or le nombre de streams journaliers depuis le début de soundcloud ou
+ce sont des données inaccessibles ? »
+
+### La falaise n'est pas dans nos données
+
+Vérifié : `aligned` vaut bien `None` avant la première mesure — nous n'inventons aucun
+zéro. C'est la pile Plotly qui infère zéro pour un point absent, d'où le mur vertical à
+la date de première collecte. Le fait est déjà nommé sous la figure.
+
+**Nos collecteurs ne demandent qu'un cumul à vie**, et c'est la vraie réponse :
+
+| plateforme | appel | 1ʳᵉ collecte | total à vie | vu croître depuis |
+|---|---|---|---|---|
+| YouTube | `videos.list(part='statistics')` | 29/11/2025 | 118 336 | **304** |
+| SoundCloud | `GET /tracks/{id}` | 16/12/2025 | 23 564 | **323** |
+
+Un compteur dit COMBIEN, jamais QUAND. Tout ce qui précède notre première lecture existe
+dans le nombre sans pouvoir être placé sur un jour.
+
+### Recherché, pas supposé — ADR-024
+
+**YouTube : récupérable.** `youtubeAnalytics.reports.query` rend les vues journalières
+historiques (`dimensions=day`, ou `day,video`), sans limite d'ancienneté documentée.
+⚠️ Ne pas confondre avec la *Reporting* API, dont les fichiers ne vivent que 30-60 jours :
+c'est de là que vient l'idée reçue « YouTube ne garde que 60 jours ».
+
+Le coût n'est pas technique mais humain — l'Analytics API demande un OAuth de
+PROPRIÉTAIRE DE CHAÎNE, donc un consentement par locataire et une étape d'onboarding de
+plus. Notre clé Data API v3 ne suffit pas. C'est **R105**, en P3.
+
+**SoundCloud : inaccessible, et c'est définitif.** Aucune API publique ou partenaire ne
+donne l'historique journalier — les issues #68 et #180 du dépôt officiel le réclament
+depuis des années. Et **aucun export CSV** : la page d'aide « Exporting Insights » dit
+qu'Insights n'offre qu'une vue graphique. Les 23 564 écoutes resteront un total dont la
+part antérieure au 16/12/2025 ne sera jamais datable. L'étaler uniformément produirait
+une histoire que l'artiste lirait comme vraie ; on ne le fera pas.
+
+Écrit en ADR-024 pour que personne ne recherche une deuxième fois.
+
+### Et une date qui en valait deux
+
+En vérifiant la note qui nomme la falaise, elle donnait **deux réponses au même fait** :
+
+    SoundCloud, pas JOUR → « mesurée depuis le 31/03/2026 »
+    SoundCloud, pas MOIS → « mesurée depuis décembre 2025 »
+
+Trois mois et demi d'écart. `_late_starts` lisait `aligned`, qui change de NATURE selon
+le mode : série quotidienne au pas du jour, niveaux ailleurs. Or la série quotidienne
+d'un compteur est une différence entre relevés CONSÉCUTIFS — elle ne peut pas commencer
+avant le deuxième jour où deux relevés se suivent, et pour SoundCloud cela n'est arrivé
+qu'en mars.
+
+Elle lit désormais les NIVEAUX quand l'appelant les fournit : une question, une source,
+une réponse. Ce n'est pas un détail d'affichage — c'est la phrase qui explique la
+falaise, et une mauvaise date envoie chercher la panne au mauvais endroit.
+
+Suite complète : **5510 passed**, 0 échec.
+
+---
+
 ## 2026-09-13 (soir) — Deux gardes refusent un correctif plausible, pour la deuxième fois
 
 ### Le signalement, et ce que la mesure a rendu

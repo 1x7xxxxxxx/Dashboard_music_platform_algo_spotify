@@ -209,14 +209,39 @@ def _unmeasured_hover(spans: list, span: list) -> object:
 
 
 def _late_starts(aligned: dict, order: list, span: list,
-                 labels: dict) -> list:
+                 labels: dict, levels: dict | None = None) -> list:
     """`(libellé, date)` pour chaque plateforme dont la 1ʳᵉ mesure suit la fenêtre.
 
     Index 0 exclu : une plateforme mesurée dès le premier pas n'a pas de préhistoire
     à expliquer, et le dire serait du bruit sur la ligne la plus utile.
+
+    ── `levels` : LA DATE NE DOIT PAS DÉPENDRE DU MODE NI DU GRAIN ───────────────
+
+    « depuis quand mesure-t-on cette plateforme ? » n'a qu'une réponse, et cette
+    fonction en donnait DEUX. Mesuré en production le 2026-09-13, artiste 1 :
+
+        SoundCloud, pas JOUR  → « mesurée depuis le 31/03/2026 »
+        SoundCloud, pas MOIS  → « mesurée depuis décembre 2025 »
+
+    Trois mois et demi d'écart, pour le même fait. La cause est que `aligned` change
+    de NATURE selon le mode : série quotidienne en « par période » au pas du jour,
+    niveaux partout ailleurs. Or la série quotidienne d'un compteur est une
+    DIFFÉRENCE entre deux relevés consécutifs — elle ne peut pas commencer avant le
+    deuxième jour où deux relevés se suivent, et pour SoundCloud cela n'est arrivé
+    qu'en mars.
+
+    La vraie date est celle du premier RELEVÉ, qui vit dans les niveaux. Quand
+    l'appelant les fournit, on les lit ; sinon on retombe sur `aligned`, correct pour
+    une source véritablement quotidienne comme Spotify.
     """
     out = []
     for pkey in order:
+        rows = (levels or {}).get(pkey)
+        if rows:
+            first_day = min(d for d, _v in rows)
+            if first_day > span[0]:
+                out.append((labels.get(pkey, pkey), first_day))
+            continue
         first, _ = _measured_range(aligned.get(pkey) or [])
         if first:
             out.append((labels.get(pkey, pkey), span[first]))

@@ -25,9 +25,10 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R105 | Récupérer l'historique journalier YouTube d'avant notre première collecte (Analytics API, OAuth propriétaire de chaîne) — ADR-024 | P3 | `daily_streams_by_platform(db, 1)["youtube"]` porte des points antérieurs au 29/11/2025 |
 | R103 | `artist_first_look` importe `views.<nom>` au lieu de suivre la table de routage d'`app.py` — il rapporte 2 pages en ERREUR que le produit sert correctement | P3 | `make artist-firstlook-prod PROD_SSH=… ARTIST=1` ne rapporte plus `process_guide` ni `upload_csv` en ❌ |
 
-**Une tâche ouverte**, R103. R104 a été close le soir même — la rupture de
+**Deux tâches ouvertes**, R103 et R105. R104 a été close le soir même — la rupture de
 méthode YouTube est détectée sur un seuil mesuré et retirée des deux surfaces
 qui la comptaient (figure et totaux). Détail dans `archive.md`. R92 à R95, les quatre tâches de l'audit metrics layer du 2026-09-11, ont été
 closes et rotées dans `archive.md`, comme R89, R90 et R91 avant elles (critère du
@@ -93,9 +94,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-12 (soir), UNE tâche ouverte : R103 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-13, DEUX tâches ouvertes : R103, R105 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R103 -->
+<!-- reprise: open=R103,R105 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -668,3 +669,39 @@ durable n'est pas de mettre à jour deux lignes de la liste — elle se périmer
 prochain regroupement de vues — mais de faire lire à l'outil la SOURCE de vérité du
 routage. Un garde doit alors rougir si une page listée n'est atteignable par aucune
 branche d'`app.py`.
+
+
+## R105 — l'historique YouTube d'avant notre première collecte
+
+- [ ] **R105 — les vues journalières YouTube antérieures au 29/11/2025 sont collectées via
+      l'API YouTube Analytics, ou l'impossibilité est écrite noir sur blanc.**
+
+**Mesuré en production le 2026-09-13**, après le signalement « j'ai fait des streams
+avant le 1er novembre 2025 […] ça me les marque en cumulé de 0 à des dizaines de
+milliers directement » :
+
+| plateforme | 1ʳᵉ collecte | total à vie | vu croître depuis |
+|---|---|---|---|
+| YouTube | 29/11/2025 | 118 336 | **304** |
+| SoundCloud | 16/12/2025 | 23 564 | **323** |
+
+Nos collecteurs ne demandent qu'un cumul — `videos.list(part='statistics')` et
+`GET /tracks/{id}` — qui dit COMBIEN, jamais QUAND.
+
+**YouTube est récupérable.** `youtubeAnalytics.reports.query` rend les vues journalières
+historiques (`dimensions=day`, ou `day,video`), sans limite d'ancienneté documentée.
+⚠️ Ne pas confondre avec la *Reporting* API, dont les fichiers ne vivent que 30-60 jours
+— c'est de là que vient l'idée reçue « YouTube ne garde que 60 jours ».
+
+**Le coût réel n'est pas technique, il est humain** : l'Analytics API demande un OAuth de
+PROPRIÉTAIRE DE CHAÎNE (scope `yt-analytics.readonly`), donc un consentement par
+locataire, donc une étape d'onboarding de plus. Notre clé Data API v3 actuelle ne suffit
+pas. C'est ce qui classe cette tâche P3 et non P2 : le chemin est connu, le prix est un
+geste de plus demandé à chaque artiste.
+
+Repli sans OAuth : export manuel YouTube Studio → Analytics → Mode avancé → « Exporter la
+vue actuelle » (CSV, 500 vidéos max).
+
+**SoundCloud ne l'est pas, et c'est tranché** — voir ADR-024. Aucune API publique ou
+partenaire ne donne l'historique, aucun export CSV depuis Insights. Ne pas rouvrir sans
+un élément nouveau à la source.
