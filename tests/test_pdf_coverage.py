@@ -1,8 +1,8 @@
 """PDF coverage guard.
 
 Type: Utility
-Ensures every artist-facing analytics view in the sidebar (`_NAV_SECTIONS` in
-app.py) is reflected by a section in the PDF report (`ALL_SECTIONS` in
+Ensures every artist-facing analytics view in the sidebar (`NAV_SECTIONS` in
+utils/nav_sections.py) is reflected by a section in the PDF report (`ALL_SECTIONS` in
 pdf_exporter.py). If a new analytics view is added without a PDF section — or a
 deliberate exclusion — this test fails, so the report can't silently drift out of
 sync with the app.
@@ -22,13 +22,10 @@ _APP = _ROOT / "src" / "dashboard" / "app.py"
 
 
 def _load_const(name):
-    tree = ast.parse(_APP.read_text(encoding="utf-8"))
-    for node in tree.body:
-        if isinstance(node, ast.Assign):
-            for tgt in node.targets:
-                if isinstance(tgt, ast.Name) and tgt.id == name:
-                    return ast.literal_eval(node.value)
-    raise AssertionError(f"{name} introuvable dans app.py")
+    """Le menu vient de `tests/nav_source.py` — un seul endroit sait où il vit."""
+    assert name == "_NAV_SECTIONS", f"seul le menu se lit ainsi, pas {name}"
+    from tests.nav_source import nav_sections
+    return nav_sections()
 
 
 # Pages that are NOT analytics reports → out of PDF scope by design.

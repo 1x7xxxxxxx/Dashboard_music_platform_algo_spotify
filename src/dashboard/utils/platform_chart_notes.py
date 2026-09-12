@@ -24,9 +24,16 @@ jamais l'inverse.
 
 Ce qui N'EST PAS ici
 --------------------
-`unmeasured_spans` et `_hatch_traces` sont restés dans la figure : une bande hachurée
-est un pixel, pas une note. C'est précisément l'échange du 2026-09-12 — la phrase
-`t_missing` a été supprimée parce que la hachure dit la même chose, mieux.
+`unmeasured_spans` et `_hatch_traces` ne sont pas ici : une bande hachurée est un
+pixel, pas une note. C'est précisément l'échange du 2026-09-12 — la phrase
+`t_missing` a été supprimée parce que la hachure dit la même chose, mieux. Elles
+vivent depuis le même jour dans `platform_absence.py`, avec `known` et les deux
+surfaces de préhistoire ; ce fichier ne garde que ce qui s'ÉCRIT.
+
+L'exception assumée est `render_collection_start_note` : elle écrit une phrase, donc
+elle est une note — mais elle existe parce que la hachure NE PEUT PAS porter son
+fait. Une hachure est pleine hauteur, donc elle parle de toutes les plateformes à la
+fois, alors que « YouTube n'était pas encore collectée » n'en concerne qu'une.
 """
 from __future__ import annotations
 
@@ -123,17 +130,30 @@ def _render_recap(slot, span: list, aligned: dict, aligned_raw: dict, order: lis
             f"| {len(span)} {unit} |")
         st.markdown("\n".join(lines))
 
-        # LE SECOND BLOC : une unité par ligne, écrite. Pas de colonne « Total »
-        # commune — on n'additionne pas des abonnés avec des euros.
-        rows_x = [(lab, txt) for lab, txt in (extra or []) if txt]
+        # LE SECOND BLOC A LA MÊME ARITÉ QUE LE PREMIER, et c'est ce qui l'aligne.
+        #
+        # Il avait DEUX colonnes contre trois : deux tables markdown d'arités
+        # différentes se rendent à des largeurs différentes, calculées par le
+        # navigateur sur leur propre contenu, donc rien ne peut les faire tomber sur
+        # la même grille. Signalé le 2026-09-12 — « aligner le tableau autre
+        # plateforme avec le graph et le tableau plateforme ». Aucun CSS global de
+        # table n'existe dans l'app, et en ajouter un serait une surface de plus à
+        # tenir pour un problème que trois colonnes règlent.
+        #
+        # L'unité quitte donc la valeur (`−82 abonnés` → `−82` + colonne `abonnés`),
+        # ce qui aligne aussi les nombres à droite comme au-dessus. Pas de colonne
+        # « Total » commune pour autant : on n'additionne pas des abonnés avec des
+        # euros, et la ligne Total du premier tableau ne les compte pas.
+        rows_x = [(lab, val, unit) for lab, val, unit in (extra or []) if val]
         if rows_x:
             st.markdown("**" + t("platform_chart.recap_other", "Autres plateformes")
                         + "**")
             st.markdown("\n".join(
                 [f"| {t('platform_chart.recap_platform', 'Plateforme')} "
-                 f"| {t('platform_chart.recap_over_period', 'Sur la période')} |",
-                 "|:--|--:|"]
-                + [f"| {lab} | {txt} |" for lab, txt in rows_x]))
+                 f"| {t('platform_chart.recap_over_period', 'Sur la période')} "
+                 f"| {t('platform_chart.recap_unit', 'Unité')} |",
+                 "|:--|--:|--:|"]
+                + [f"| {lab} | {val} | {unit} |" for lab, val, unit in rows_x]))
 
 
 def _render_notes(thin: dict, coarse: list, step: str, *, coarsened=None,
@@ -235,6 +255,55 @@ def t_too_coarse(label: str, step: str) -> str:
 # mesurés », avec un « — » là où il n'y a pas de mesure.
 #
 # `gap_counts` reste : c'est le calcul, et il alimente désormais le récapitulatif.
+
+
+_MONTHS_FR = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+              "août", "septembre", "octobre", "novembre", "décembre")
+
+
+def _bucket_label(day, step: str) -> str:
+    """Le seau, nommé comme un seau — jamais comme une date qu'on n'a pas mesurée.
+
+    ⚠️ `span[i]` est le DÉBUT DU SEAU, pas la date de la mesure. Au pas mois, la
+    première mesure YouTube du 30/11/2025 tombe dans le seau `2025-12-01`, et
+    l'écrire « depuis le 01/12/2025 » invente un jour. C'est le même piège qu'un
+    seuil écrit au pas jour et relu au pas semaine, ici sur un LIBELLÉ : la valeur
+    est juste, l'unité est fausse.
+    """
+    from src.dashboard.utils.i18n import t
+
+    if step == "month":
+        return f"{_MONTHS_FR[day.month - 1]} {day.year}"
+    if step == "year":
+        return str(day.year)
+    if step == "week":
+        return t("platform_chart.week_of", "la semaine du {d}").format(
+            d=day.strftime("%d/%m/%Y"))
+    return t("platform_chart.day_of", "le {d}").format(d=day.strftime("%d/%m/%Y"))
+
+
+def render_collection_start_note(starts: list, step: str = "day") -> None:
+    """« Mesurée depuis le … », une ligne par plateforme arrivée après la fenêtre.
+
+    La hachure ne peut pas porter ce fait : elle est pleine hauteur, donc elle parle
+    de toutes les plateformes à la fois, alors que la préhistoire est individuelle —
+    Spotify mesure depuis 2023 pendant que SoundCloud n'existe pas encore. Tenter de
+    le dire en hachurant faisait passer **1 185 jours sur 1 350** sous les hachures
+    pour l'artiste 1, et affirmait que rien n'avait été mesuré depuis 2023.
+
+    Le survol le dit aussi, plateforme par plateforme. Cette note existe parce qu'un
+    fait qui ne se lit qu'au survol ne se lit pas : « ça a l'air de commencer en
+    novembre et décembre 2025 » a été écrit en REGARDANT la figure, pas en la
+    survolant.
+    """
+    from src.dashboard.utils.i18n import t
+
+    if not starts:
+        return
+    st.caption(" · ".join(
+        t("platform_chart.collected_since", "{label} mesurée depuis {since}")
+        .format(label=label, since=_bucket_label(since, step))
+        for label, since in starts))
 
 
 def render_missing_history_note() -> None:

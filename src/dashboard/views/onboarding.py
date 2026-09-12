@@ -507,7 +507,7 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
 # qui décide « par où commencer ».
 
 
-def _step_status(db, artist_id: int) -> None:
+def _step_status(db, artist_id: int, plan: str) -> None:
     """Étape 2 : où tu en es, et par où sortir.
 
     Ce que l'ancienne étape 2 faisait — demander de choisir — se fait maintenant sur
@@ -531,6 +531,8 @@ def _step_status(db, artist_id: int) -> None:
             "onboarding.matrix_legend",
             "🟢 vert = fait · ⚪ blanc = pas encore · 🔴 rouge = à corriger."))
 
+    next_page = _render_setup_checklist(db, artist_id, plan)
+
     # UN SEUL bouton. Il y en avait QUATRE sur cet écran : « ← Retour »,
     # « 🔑 Connecter mes sources → », « 🏠 Aller au dashboard → » ici, et un SECOND
     # « 🔑 Connecter mes sources → » juste dessous, rendu par `_render_landing_choice`.
@@ -544,13 +546,62 @@ def _step_status(db, artist_id: int) -> None:
     #     l'assistant rouvre sur l'étape 1 il n'y a plus de retour à faire ;
     #   * « 🏠 Aller au dashboard » — c'est « 🏠 Accueil », première entrée du menu.
     #
+    # 2026-09-12 — « rajoute l'action de saisir mes ajouts en playlist S4A dans la
+    # mise en route ». C'est un CINQUIÈME bouton qu'on a failli poser, et le
+    # paragraphe ci-dessus dit pourquoi ce serait rouvrir la plaie. La saisie S4A
+    # entre donc comme une LIGNE D'ÉTAT de la liste juste au-dessus, au même titre
+    # que les quatre autres étapes, et c'est la DESTINATION du bouton unique qui
+    # devient variable : il vise la première étape non faite, lue dans le registre.
+    # Un artiste qui a déjà ses credentials et son mapping voit donc ici « 📝 Saisir
+    # mes ajouts en playlist → », sans qu'aucun bouton ne s'ajoute à l'écran.
+    #
     # Reste l'action que le parcours incite à faire, seule et primaire.
     st.markdown("---")
     _l, _mid, _r = st.columns([1, 2, 1])
     with _mid:
-        if st.button(t("onboarding.go_configure", "🔑 Connecter mes sources →"),
-                     type="primary", width="stretch", key="_onb_done_creds"):
-            _goto('credentials')
+        label, page = next_page
+        if st.button(label, type="primary", width="stretch", key="_onb_done_creds"):
+            _goto(page)
+
+
+def _render_setup_checklist(db, artist_id: int, plan: str) -> tuple:
+    """Les étapes déclarées, en lignes d'état — et la prochaine à faire.
+
+    Cet écran portait sa PROPRE liste d'étapes, comme `onboarding_health` et comme
+    l'accueil : une même question, trois listes, la forme que ce dépôt paie le plus
+    souvent. Les trois lisent maintenant `setup_completion`, seul endroit où une
+    étape se déclare — c'est ce qui fait que la saisie S4A, ajoutée le 2026-09-12 au
+    registre, apparaît ici sans qu'une ligne y soit recopiée.
+
+    `plan` est passé pour que rien ne s'affiche qui mène à un mur de paiement : un
+    compte Free ne voit pas l'étape « rapport PDF », Premium depuis le 2026-09-04.
+
+    Ne lit RIEN de plus que la connexion déjà ouverte par `show()` — la page est
+    plafonnée à une seule (règle transverse #9).
+    """
+    from src.dashboard.utils.setup_completion import (
+        STEP_HINTS, STEP_LABELS, read_setup_state)
+
+    fallback = (t("onboarding.go_configure", "🔑 Connecter mes sources →"),
+                'credentials')
+    try:
+        state = read_setup_state(db, artist_id, plan=plan)
+    except Exception:      # noqa: BLE001 — affichage facultatif : la matrice suffit
+        return fallback
+    if not state.steps:
+        return fallback
+
+    st.markdown("#### " + t("onboarding.checklist_title", "Ta mise en route"))
+    for step in state.steps:
+        st.markdown(f"- {'✅' if step.done else '⬜'} {STEP_LABELS[step.key]()}")
+        hint = STEP_HINTS.get(step.key)
+        if hint is not None:
+            st.caption(hint())
+
+    todo = [s for s in state.steps if not s.done]
+    if not todo:
+        return fallback
+    return (STEP_LABELS[todo[0].key]() + " →", todo[0].page)
 
 
 def sync_step_on_arrival() -> None:
@@ -700,7 +751,7 @@ def show() -> None:
         if step == 1:
             _step_welcome(plan, artist_id, db)
         else:
-            _step_status(db, artist_id)
+            _step_status(db, artist_id, plan)
     finally:
         if db is not None:
             db.close()

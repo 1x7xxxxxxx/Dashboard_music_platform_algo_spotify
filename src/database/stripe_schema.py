@@ -63,6 +63,16 @@ _FREE_FEATURES = {
     'soundcloud', 'apple_music', 'hypeddit', 'imusician', 'upload_csv', 'credentials',
     'export_csv', 'data_wrapped', 'meta_mapping', 'referral', 'sacem',
     'db_health',
+    # `saisie_s4a` a REJOINT Free le 2026-09-12, et c'était une incohérence à
+    # corriger plutôt qu'un cadeau. `setup_completion` écrit la règle noir sur
+    # blanc — « chaque page nommée ici doit être ouverte au plan gratuit » — et
+    # l'étape « saisir mes ajouts en playlist », ajoutée le matin même, pointait
+    # vers un mur de paiement. C'est exactement ce qui avait fait supprimer
+    # l'étape « lancer ta première collecte », qui menait à une page Premium.
+    #
+    # Et la brider se retournait contre nous : ces saisies NOURRISSENT les modèles
+    # prédictifs. Les réserver aux payants, c'est dégrader la précision qu'on vend.
+    'saisie_s4a',
 }
 PLAN_FEATURES = {
     'free':  set(_FREE_FEATURES),
@@ -105,6 +115,26 @@ PLAN_CAPABILITIES: dict[str, frozenset[str]] = {
 # cette liste existe pour empêcher.
 ALWAYS_ACCESSIBLE = {'account', 'billing', 'process_guide', 'onboarding',
                      'onboarding_health'}
+
+def page_is_locked(plan: str, page_key: str) -> bool:
+    """Ce plan interdit-il cette page ? LA question, posée à un seul endroit.
+
+    Elle était écrite deux fois — `app.py` pour la pastille 🔒 du menu, `onboarding.py`
+    pour la comparaison Free/Premium — et il en fallait une troisième le 2026-09-12
+    pour que la mise en route cesse de proposer une étape derrière un mur de paiement.
+    Trois copies d'un même prédicat divergent au premier `ALWAYS_ACCESSIBLE` ajouté ;
+    une suffit.
+
+    Rend `False` pour un plan inconnu du catalogue ? **Non** — un plan qu'on ne sait
+    pas lire n'ouvre que ce qu'`ALWAYS_ACCESSIBLE` ouvre. Le repli est le plus
+    restrictif, jamais l'inverse : se tromper en ouvrant, c'est livrer gratuitement ce
+    qui se vend.
+    """
+    accessible = PLAN_FEATURES.get(plan, set())
+    if '*' in accessible:
+        return False
+    return page_key not in ALWAYS_ACCESSIBLE and page_key not in accessible
+
 
 # 'basic' kept as an alias (rank of premium) so any legacy 'basic' value still
 # resolves to full access until migration 048 rewrites the rows.

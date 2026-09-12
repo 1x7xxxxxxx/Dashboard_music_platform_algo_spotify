@@ -43,7 +43,6 @@ from src.utils.airflow_trigger import AirflowTrigger
 from src.dashboard.auth import (require_login, show_user_sidebar, get_artist_plan,
                                 render_logout_footer)
 from src.dashboard.utils.i18n import t
-from src.database.stripe_schema import PLAN_FEATURES, ALWAYS_ACCESSIBLE
 from src.dashboard.utils.setup_completion import FIRST_RUN_FOCUS
 
 st.set_page_config(page_title="streaMLytics", page_icon="🎵", layout="wide")
@@ -87,88 +86,13 @@ from src.dashboard.email_actions import _unsubscribe, _verify_email
 
 
 
-# Sidebar layout: ordered sections, each (stable_id, header_label, [(item_label, page_key), ...]).
-# Order = user journey. Empty header = no visual separator (top entry).
-_NAV_SECTIONS = [
-    # Les exports étaient les entrées n°2 et n°3, AVANT le guide et les credentials —
-    # on proposait d'exporter avant qu'il y ait quoi que ce soit à exporter, alors que
-    # le commentaire ci-dessus annonce « Order = user journey ». Descendus après les
-    # analytics, là où l'artiste a enfin quelque chose à emporter.
-    ("start",     "",                       [("🏠 Accueil", "home")]),
-    # L'ORDRE SUIT LE PARCOURS : assistant → où j'en suis → je saisis → je rapproche
-    # les titres. Révisé le 2026-09-06 en fin de journée, après un parcours réel :
-    # « mets l'onglet santé onboarding juste après mise en route, il faut que
-    # credential API + CSV soit juste avant mapping cross-plateforme ».
-    #
-    # Le matin, la même journée, « Santé onboarding » avait été placée APRÈS
-    # Credentials, au motif qu'on configure puis qu'on regarde si ça a pris. Le
-    # parcours a tranché autrement, et c'est lui qui décide : on ouvre l'assistant,
-    # on veut savoir ce qui manque, on va le saisir, puis on confirme les titres.
-    # Credentials doit toucher le mapping parce que ce qu'on vient d'importer est
-    # exactement ce que le mapping demande de rapprocher.
-    #
-    # « 📋 Guide de démarrage » a été RETIRÉE le même jour : « l'app est bien mieux
-    # faite et ça rajoute de l'inutile ». Elle redisait en quatre listes à puces ce que
-    # l'assistant montre, ce que les onglets de Credentials déplient, et ce que la
-    # matrice d'état mesure. Ses deux seules sections qui n'existaient nulle part
-    # ailleurs — le PDF des identifiants et la définition des CSV attendus — ont
-    # déménagé dans « 🚦 Santé onboarding », où l'artiste est quand il se demande ce
-    # qu'il lui manque. La ROUTE survit et mène là-bas : des liens la visent.
-    ("data",      "⚙️ Configuration de streaMLytics",             [("🚀 Mise en route (assistant)", "onboarding"),
-                                             ("🚦 Santé onboarding", "onboarding_health"),
-                                             ("🔑 Credentials API + imports CSV", "credentials"),
-                                             # « 📋 État de tes plateformes » a été
-                                             # RETIRÉE du menu le 2026-09-05 : chaque
-                                             # onglet de Credentials porte désormais
-                                             # les quatre mêmes pastilles pour SA
-                                             # plateforme, calculées par les mêmes
-                                             # fonctions. Une page entière pour redire
-                                             # ce que l'onglet montre là où l'on agit
-                                             # est une redirection de plus, pas une
-                                             # information de plus. La ROUTE survit
-                                             # (voir `_main_body`) — des liens la
-                                             # visent.
-                                             ("🔗 Mapping cross-plateforme", "meta_mapping"),
-                                             ("🗄️ Santé des données", "db_health")]),
-    ("analytics", "📊 Analytics plateformes", [("🎵 Spotify + Spotify for Artists", "spotify_s4a_combined"),
-                                             ("🎵 META x Spotify", "meta_x_spotify"),
-                                             ("🎎 Apple Music", "apple_music"),
-                                             ("🎬 YouTube", "youtube"),
-                                             ("☁️ SoundCloud", "soundcloud"),
-                                             ("📸 Instagram", "instagram"),
-                                             ("📱 Hypeddit", "hypeddit"),
-                                             # Data Wrapped vivait dans « Rapports &
-                                             # exports », à côté des exports PDF/CSV.
-                                             # Ce n'est pas un export : c'est une
-                                             # lecture de ses chiffres, comme les six
-                                             # entrées au-dessus. Déplacé le
-                                             # 2026-09-04 à la demande de l'artiste.
-                                             ("🎁 Data Wrapped", "data_wrapped")]),
-    ("advanced",  "🔮 Prédiction algos Spotify", [("📝 Saisie S4A (playlist & Discovery)", "saisie_s4a"),
-                                             ("🚀 Prédiction déclenchement algos Spotify (DW, Radio, RR…)", "trigger_algo")]),
-    ("ads",       "📣 Publicité Meta Ads",  [("📱 Vue d'ensemble", "meta_ads_overview"),
-                                             ("🎨 Visuels de campagne", "meta_creatives"),
-                                             ("🌍 Qui a vu tes pubs (pays, âge, placement)", "meta_breakdowns"),
-                                             ("📊 CPR Optimizer", "meta_cpr_optimizer")]),
-    ("revenue",   "💶 Revenus",             [("💰 Distributeurs (iMusician, DistroKid…)", "imusician"),
-                                             ("🎼 SACEM", "sacem"),
-                                             ("📈 Prévisions revenus", "revenue_forecast")]),
-    ("reports",   "🎁 Rapports & exports",  [("📄 Export PDF", "export_pdf"),
-                                             ("⬇️ Export CSV", "export_csv")]),
-    ("account",   "👤 Compte",              [("👤 Mon compte", "account"),
-                                             ("💳 Billing", "billing"),
-                                             ("🎁 Parrainage", "referral")]),
-    ("admin",     "🛠️ Admin / Ops",        [("⚡ Perf. Dashboard", "perf_monitor"),
-                                             ("📈 Usage Analytics", "usage_analytics"),
-                                             ("🏗️ Monitoring ETL", "airflow_kpi"),
-                                             ("🗂️ Historique ETL", "etl_logs"),
-                                             ("🤖 Perf. Modèles ML", "ml_performance"),
-                                             ("🚨 Alertes", "alerts"),
-                                             ("📊 Referral KPIs", "referral_kpi"),
-                                             ("🎟️ Promo Codes", "promo_admin"),
-                                             ("🔧 Liens & Outils", "useful_links"),
-                                             ("⚙️ Admin", "admin")]),
-]
+# L'ORDRE DU MENU EST UNE DÉCLARATION : il vit dans `utils/nav_sections.py`, hors
+# de ce fichier, qui garde le ROUTAGE. Extrait le 2026-09-12 parce qu'`app.py`
+# était EXACTEMENT à son plafond de longueur et qu'ajouter une ligne de menu —
+# commentaire compris — faisait rougir la CI. Le cliquet a refusé la dette au lieu
+# d'être relevé, et le découpage a été vérifié au navigateur, comme il l'exigeait.
+from src.dashboard.utils.nav_sections import NAV_SECTIONS as _NAV_SECTIONS
+from src.database.stripe_schema import page_is_locked
 # Pages réservées admin (cachées pour le rôle 'artist')
 # `db_health` a rejoint la liste le 2026-09-06. Il répond à la même question que
 # « 🚦 Santé onboarding » — « mes données arrivent-elles ? » — mais dans le vocabulaire
@@ -252,7 +176,8 @@ def _setup_is_unfinished(role: str) -> bool:
         if db is None:
             return False
         try:
-            state = read_setup_state(db, artist_id, st.session_state.get('user_id'))
+            state = read_setup_state(db, artist_id, st.session_state.get(
+                'user_id'), plan=get_artist_plan())
         finally:
             db.close()
         if not state.steps or state.complete or not state.show_on_login:
@@ -413,11 +338,9 @@ def render_navigation(role: str, rendered, all_skeys) -> str:
     """Draw the section radios; return the page, plan-gating applied."""
     # Plan-based gating: locked pages shown with 🔒 and routed to upgrade view
     plan = get_artist_plan()
-    accessible = PLAN_FEATURES.get(plan, set())
-    is_all = '*' in accessible  # premium: unrestricted
-
+    # UNE SEULE lecture du verrou (2026-09-12), écrite ici ET dans `onboarding.py`.
     def _is_locked(key: str) -> bool:
-        return not (is_all or key in ALWAYS_ACCESSIBLE or key in accessible)
+        return page_is_locked(plan, key)
 
     # Le titre, et deux flèches pour passer d'une page à la suivante sans chercher
     # dans une liste de quarante entrées. Demandé le 2026-09-04 : « rajoute 2 flèches

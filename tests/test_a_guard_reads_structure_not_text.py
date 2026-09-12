@@ -100,6 +100,15 @@ def _reads_source_textually(path: Path) -> bool:
     body = path.read_text(encoding="utf-8")
     if "ast.parse" in body or "ast.walk" in body:
         return False
+    # DÉLÉGUER LA LECTURE STRUCTURELLE N'EST PAS LA PERDRE. Depuis le 2026-09-12,
+    # `tests/nav_source.py` est le seul endroit qui sait où vit la déclaration du
+    # menu et l'évalue par `ast` — neuf gardes la lisaient chacun à sa façon, et le
+    # déménagement de la constante hors d'`app.py` les a tous cassés le même jour.
+    # Un garde qui l'importe fait donc EXACTEMENT ce que ce fichier demande, une
+    # fois de moins ; sans cette ligne, le cliquet pousserait à recopier un
+    # `ast.parse` décoratif dans chacun pour le faire taire.
+    if "nav_source import" in body:
+        return False
     # `read_text(` et non `read_text(encoding` : un appel coupé sur deux lignes
     # (`read_text(\n    encoding="utf-8")`) cassait la sous-chaîne contiguë et
     # exemptait le fichier entier. Un site y échappait pour cette seule raison.

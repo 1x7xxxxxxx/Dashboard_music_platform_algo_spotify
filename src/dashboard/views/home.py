@@ -107,11 +107,17 @@ def _section_streams(db, artist_id):
 
     st.subheader(t("home.streams_header", "🎧 Tes chiffres"))
 
-    # LE FILTRE, EN HAUT AU CENTRE. Un seul propriétaire du réglage : tout ce qui suit
-    # le LIT.
-    _l, _mid, _r = st.columns([1, 3, 1])
-    with _mid:
-        range_key = date_range.render_selector()
+    # LES TROIS BARRES SUR LA MÊME GRILLE, alignées au bord gauche.
+    #
+    # Ce filtre vivait dans un `st.columns([1, 3, 1])`, donc il commençait à 20 % de
+    # la largeur pendant que la barre mode/pas commençait à 0 % et la figure à 0 %.
+    # Trois réglages du même écran sur trois grilles : c'est la cause mesurée du
+    # désalignement signalé le 2026-09-12, et le centrage ne rendait rien en échange.
+    #
+    # Empilées et pleine largeur, les trois se lisent de haut en bas — période, puis
+    # affichage, puis pas — et aucune ne bouge quand un libellé change de longueur.
+    # Un seul propriétaire du réglage : tout ce qui suit le LIT.
+    range_key = date_range.render_selector()
     since, until = date_range.bounds(range_key)
 
     series = daily_streams_by_platform(db, artist_id)
@@ -184,22 +190,24 @@ def _recap_extra(totals: dict, side: dict) -> list:
     def _n(v) -> str:
         return f"{int(round(v)):,}".replace(",", "\u202f")
 
+    # DES TRIPLETS `(libellé, valeur, unité)` : l'unité est une COLONNE, pas un
+    # suffixe collé au nombre. C'est ce qui donne au second tableau la même arité
+    # que le premier, donc la même largeur — et ce qui aligne ses nombres à droite.
     out = []
     ap = (totals or {}).get("apple")
     if ap:
-        out.append(("🎎 Apple Music",
-                    _n(ap) + " " + t("home.recap_unit_plays", "écoutes")))
+        out.append(("🎎 Apple Music", _n(ap),
+                    t("home.recap_unit_plays", "écoutes")))
     dl = (side or {}).get("ig_delta")
     if dl is not None:
         # Le SIGNE est porté explicitement : « 82 abonnés » sur une période où le
         # compte en a PERDU 82 serait faux dans le sens qui compte.
-        out.append(("📸 Instagram",
-                    f"{'+' if dl >= 0 else '−'}{_n(abs(dl))} "
-                    + t("home.recap_unit_followers", "abonnés")))
+        out.append(("📸 Instagram", f"{'+' if dl >= 0 else '−'}{_n(abs(dl))}",
+                    t("home.recap_unit_followers", "abonnés")))
     sp = (side or {}).get("meta_spend")
     if sp:
         out.append(("📊 Meta Ads",
-                    f"{sp:,.2f}".replace(",", "\u202f").replace(".", ",") + " €"))
+                    f"{sp:,.2f}".replace(",", "\u202f").replace(".", ","), "€"))
     return out
 
 
@@ -250,37 +258,39 @@ def _render_trend(db, series, since, until, range_key, artist_id,
     # cocher plutôt qu'un onglet déroulant pour voir toutes les possibilités direct ».
     # Un seul mode à la fois — deux figures empilées doubleraient la hauteur de page
     # et le plafond de figures du premier écran est à cinq.
-    # 3/2/1 et non 2/2/1 : « Part de chaque plateforme » et « Chacune à son
-    # échelle » sont longs, et à 2/5 de la largeur la barre de mode passait à la
-    # ligne — un choix unique coupé en deux rangées se lit comme deux réglages.
-    # Vu au navigateur le 2026-09-12, pas en lisant le code.
-    col_mode, col_step, col_src = st.columns([3, 2, 1])
-    with col_mode:
-        mode = st.segmented_control(
-            t("home.trend_mode", "Affichage"), list(MODES),
-            format_func=lambda k: t(f"home.mode_{k}", MODES[k]),
-            default="cumulative",
-            key=f"home_trend_mode_{artist_id}", label_visibility="collapsed",
-        ) or "cumulative"
-    with col_step:
-        step = st.segmented_control(
-            t("home.trend_step", "Pas"), list(steps), format_func=steps.get,
-            default=_default_step,
-            # LA CLÉ PORTE LA PÉRIODE, et c'est ce qui rend le défaut réel.
-            #
-            # Un widget Streamlit à clé stable n'applique son `default` qu'au premier
-            # rendu : ensuite la valeur de session gagne. Sans la période dans la
-            # clé, un artiste arrivé sur « Depuis le début » (donc semaine) qui passe
-            # à « 30 jours » RESTE à la semaine — un pas qu'il n'a jamais choisi, sur
-            # une fenêtre où le jour est lisible. Le défaut ne servirait qu'une fois
-            # dans la vie de la session.
-            #
-            # Le prix est assumé : un pas choisi à la main ne survit pas au changement
-            # de période. C'est le bon sens du compromis — le pas suit la fenêtre
-            # qu'on regarde, et un clic suffit à le reprendre.
-            key=f"home_trend_step_{artist_id}_{range_key}",
-            label_visibility="collapsed",
-        ) or _default_step
+    # DEUX BARRES EMPILÉES, pleine largeur, dans l'ordre où on les lit.
+    #
+    # Elles partageaient une rangée en 3/2/1 avec une TROISIÈME colonne — le filtre
+    # de sources — qui n'existe qu'en mode « part », donc vide trois fois sur
+    # quatre tout en occupant 1/6 de la largeur en permanence. Le partage forçait
+    # aussi la barre de mode à 3/5, juste assez pour que ses libellés tiennent.
+    #
+    # Pleine largeur, plus rien n'est contraint : les quatre modes tiennent sur une
+    # ligne, et le filtre de sources est rendu plus bas, uniquement quand il existe.
+    mode = st.segmented_control(
+        t("home.trend_mode", "Affichage"), list(MODES),
+        format_func=lambda k: t(f"home.mode_{k}", MODES[k]),
+        default="cumulative",
+        key=f"home_trend_mode_{artist_id}", label_visibility="collapsed",
+    ) or "cumulative"
+    step = st.segmented_control(
+        t("home.trend_step", "Pas"), list(steps), format_func=steps.get,
+        default=_default_step,
+        # LA CLÉ PORTE LA PÉRIODE, et c'est ce qui rend le défaut réel.
+        #
+        # Un widget Streamlit à clé stable n'applique son `default` qu'au premier
+        # rendu : ensuite la valeur de session gagne. Sans la période dans la
+        # clé, un artiste arrivé sur « Depuis le début » (donc semaine) qui passe
+        # à « 30 jours » RESTE à la semaine — un pas qu'il n'a jamais choisi, sur
+        # une fenêtre où le jour est lisible. Le défaut ne servirait qu'une fois
+        # dans la vie de la session.
+        #
+        # Le prix est assumé : un pas choisi à la main ne survit pas au changement
+        # de période. C'est le bon sens du compromis — le pas suit la fenêtre
+        # qu'on regarde, et un clic suffit à le reprendre.
+        key=f"home_trend_step_{artist_id}_{range_key}",
+        label_visibility="collapsed",
+    ) or _default_step
 
     available = [k for k in PLATFORM_LABELS
                  # Une source qui n'existe qu'à un pas donné n'est proposée qu'à ce
@@ -301,14 +311,13 @@ def _render_trend(db, series, since, until, range_key, artist_id,
     # de légende masque une trace sans recalculer les autres. La pile ne ferait plus
     # 100 %, ce qui est un chiffre faux et pas seulement une figure incomplète.
     chosen = available
-    with col_src:
-        if mode == "share" and len(available) > 1:
-            chosen = st.multiselect(
-                t("home.trend_sources", "Sources affichées"), available,
-                default=available, format_func=lambda k: PLATFORM_LABELS[k],
-                key=f"home_trend_sources_{artist_id}",
-                label_visibility="collapsed",
-                placeholder=t("home.trend_sources_ph", "Toutes les sources")) or available
+    if mode == "share" and len(available) > 1:
+        chosen = st.multiselect(
+            t("home.trend_sources", "Sources affichées"), available,
+            default=available, format_func=lambda k: PLATFORM_LABELS[k],
+            key=f"home_trend_sources_{artist_id}",
+            label_visibility="collapsed",
+            placeholder=t("home.trend_sources_ph", "Toutes les sources")) or available
 
     if step != 'year' and any(k in series and series[k] for k in STEP_ONLY):
         st.caption(t(
@@ -425,13 +434,19 @@ def _section_onboarding(db, artist_id: int) -> None:
     # Elle était écrite ICI et l'aiguillage d'accueil en posait une AUTRE (« l'artiste
     # n'a-t-il rien branché du tout ? ») : deux surfaces, même question, réponses
     # opposées dès la deuxième connexion. Une seule règle, deux lecteurs.
-    from src.dashboard.utils.setup_completion import STEP_LABELS, read_setup_state
+    from src.dashboard.utils.setup_completion import (
+        STEP_LABELS, read_setup_state)
 
-    state = read_setup_state(db, artist_id, st.session_state.get('user_id'))
+    # LE PLAN FILTRE LES ÉTAPES : une étape qui mène à une page verrouillée
+    # enverrait l'artiste sur le paywall depuis son parcours de mise en route.
+    from src.dashboard.auth import get_artist_plan
+    state = read_setup_state(db, artist_id, st.session_state.get('user_id'),
+                             plan=get_artist_plan())
     if not state.steps:
         return
 
-    steps = [(s.done, STEP_LABELS[s.key](), s.page, s.detail) for s in state.steps]
+    steps = [(s.done, STEP_LABELS[s.key](), s.page, s.detail, s.key)
+             for s in state.steps]
     completed = state.done_count
     all_done = state.complete
 
@@ -481,6 +496,20 @@ def _render_step_detail(detail) -> None:
     st.caption(" · ".join(f"{'✅' if ok else '❌'} {name}" for name, ok in detail))
 
 
+def _render_step_hint(key: str) -> None:
+    """Ce que l'étape RAPPORTE, quand son nom ne le dit pas.
+
+    Seule la saisie S4A en porte un : c'est la seule étape dont le bénéfice n'est
+    pas devinable depuis le geste — saisir des ajouts en playlist ne rend rien tout
+    de suite, ça nourrit les modèles. Une étape dont on ne voit pas le gain est une
+    étape qu'on saute, et c'est celle dont dépend la précision des prédictions.
+    """
+    from src.dashboard.utils.setup_completion import STEP_HINTS
+    hint = STEP_HINTS.get(key)
+    if hint is not None:
+        st.caption(hint())
+
+
 def _render_onboarding_body(db, artist_id: int, steps, completed: int,
                             all_done: bool) -> None:
     """Le CONTENU du bandeau, extrait pour qu'il puisse être replié.
@@ -508,9 +537,10 @@ def _render_onboarding_body(db, artist_id: int, steps, completed: int,
     # Few (*Information Dashboard Design*) : un tableau de bord sert de rampe de
     # lancement, on clique la donnée elle-même. Une étape faite reste du texte : il n'y
     # a rien à y faire, et un bouton inutile est du bruit.
-    for idx, (done, label, page_key, detail) in enumerate(steps):
+    for idx, (done, label, page_key, detail, key) in enumerate(steps):
         if done:
             st.markdown(f"✅ {label}")
+            _render_step_hint(key)
             _render_step_detail(detail)
             continue
         # L'étape « lancer ta première collecte » NOMMAIT le geste et envoyait vers une
@@ -525,6 +555,7 @@ def _render_onboarding_body(db, artist_id: int, steps, completed: int,
         if st.button(f"⬜ {label}", key=f"home_step_{idx}",
                      width="stretch"):
             goto(page_key)
+        _render_step_hint(key)
         _render_step_detail(detail)
 
     # One compact line of per-platform boxes, only while something is still amber or

@@ -127,6 +127,14 @@ class _Declared(NamedTuple):
     key: str
     page: str
     label: Callable[[], str]
+    # LE POURQUOI EST UN CHAMP, PAS UNE RALLONGE DU LIBELLÉ. L'étape S4A avait été
+    # déclarée le 2026-09-12 avec son bénéfice DANS son libellé, parce que c'était
+    # le seul endroit où l'écrire. Conséquence mesurée sur trois surfaces : un
+    # bouton d'accueil de 180 caractères, une ligne de renvoi qui passe sur trois
+    # rangées, et un bouton primaire d'assistant illisible. Le libellé nomme le
+    # geste, le `hint` dit ce qu'il rapporte, et chaque surface choisit si elle a
+    # la place de le rendre.
+    hint: Callable[[], str] | None = None
 
 
 def _t(key: str, default: str) -> str:
@@ -155,15 +163,18 @@ _STEPS: tuple[_Declared, ...] = (
     # étape qu'on saute, et c'est celle dont dépend la précision des prédictions.
     _Declared("playlists", "saisie_s4a",
               lambda: _t("home.onboarding_playlists",
-                         "📝 Saisir mes ajouts en playlist (S4A) — pour optimiser la "
-                         "précision des algorithmes prédictifs sur l'intégration des "
-                         "playlists Spotify (Discover Weekly, Radio, Release Radar)")),
+                         "📝 Saisir mes ajouts en playlist (S4A)"),
+              lambda: _t("home.onboarding_playlists_why",
+                         "Optimise la précision des algorithmes prédictifs sur "
+                         "l'intégration des playlists Spotify (Discover Weekly, "
+                         "Radio, Release Radar).")),
     _Declared("pdf", "export_pdf",
               lambda: _t("home.onboarding_pdf", "📄 Générer mon premier rapport PDF")),
 )
 
 # Conservé sous son ancien nom : `home._section_onboarding` le lit.
 STEP_LABELS = {d.key: d.label for d in _STEPS}
+STEP_HINTS = {d.key: d.hint for d in _STEPS if d.hint is not None}
 _STEP_PAGES = tuple((d.key, d.page) for d in _STEPS)
 
 
@@ -196,7 +207,7 @@ def _csv_detail(imported: set) -> tuple[tuple[str, bool], ...]:
 
 def steps_from_facts(*, declared: set, imported: set, has_mapping: bool,
                      has_playlists: bool, has_pdf: bool, has_runs: bool = False,
-                     spotify_csv: bool = False,
+                     spotify_csv: bool = False, plan: str | None = None,
                      show_on_login: bool = True) -> SetupState:
     """Pure : les faits bruts → l'état que chaque surface rend.
 
@@ -212,16 +223,32 @@ def steps_from_facts(*, declared: set, imported: set, has_mapping: bool,
         "pdf": bool(has_pdf),
     }
     detail = {"creds": _api_detail(declared), "csv": _csv_detail(imported)}
+    # UNE ÉTAPE NE MÈNE JAMAIS À UN MUR DE PAIEMENT, et cette règle est écrite
+    # au-dessus depuis le jour où l'étape « lancer ta première collecte » a été
+    # supprimée pour avoir envoyé un artiste Free sur le paywall de la page ML.
+    #
+    # Elle était de nouveau violée le 2026-09-12 : `export_pdf` est Premium depuis
+    # le 2026-09-04 par décision de prix, et l'étape « générer mon premier PDF »
+    # la nommait quand même. On ne retire pas la page du catalogue pour autant —
+    # c'est ce qui se vend — on retire l'ÉTAPE au plan qui ne peut pas la faire.
+    # Un compte Free voit donc quatre étapes, et les quatre sont faisables.
+    #
+    # `plan=None` ne filtre rien : les appelants qui ne connaissent pas le plan
+    # (un DAG, un test pur) gardent la déclaration complète.
+    from src.database.stripe_schema import page_is_locked
+    visible = [d for d in _STEPS
+               if plan is None or not page_is_locked(plan, d.page)]
     return SetupState(
         steps=[Step(d.key, done[d.key], d.page, detail.get(d.key, ()))
-               for d in _STEPS],
+               for d in visible],
         show_on_login=bool(show_on_login),
         collected=bool(has_runs),
         spotify_csv=bool(spotify_csv),
     )
 
 
-def read_setup_state(db, artist_id: int, user_id: Optional[int] = None) -> SetupState:
+def read_setup_state(db, artist_id: int, user_id: Optional[int] = None,
+                     plan: str | None = None) -> SetupState:
     """Tous les faits + la préférence de connexion, en UN aller-retour.
 
     Une seule requête, délibérément : ce code tourne dans le chemin de la barre
@@ -301,7 +328,7 @@ def read_setup_state(db, artist_id: int, user_id: Optional[int] = None) -> Setup
         declared=set(declared), imported=files,
         has_mapping=bool(has_mapping), has_playlists=bool(has_playlists),
         has_pdf=bool(has_pdf), has_runs=bool(has_runs),
-        spotify_csv=bool(has_s4a), show_on_login=show,
+        spotify_csv=bool(has_s4a), plan=plan, show_on_login=show,
     )
 
 

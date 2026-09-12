@@ -55,14 +55,10 @@ def test_a_page_in_the_app_offers_the_guide_for_download():
 
 def test_that_page_is_reachable_from_the_navigation():
     """Being downloadable somewhere unreachable is the same defect, one level up."""
-    app = ast.parse((REPO / "src/dashboard/app.py").read_text(encoding="utf-8"))
-    pages = set()
-    for node in ast.walk(app):
-        if isinstance(node, ast.Assign) and any(
-                getattr(x, "id", "") == "_NAV_SECTIONS" for x in node.targets):
-            for sub in ast.walk(node.value):
-                if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
-                    pages.add(sub.value)
+    # Où vit le menu se demande à `tests/nav_source.py` — la déclaration a quitté
+    # `app.py` le 2026-09-12 et neuf gardes sont devenus rouges le même jour.
+    from tests.nav_source import menu_pages
+    pages = menu_pages()
     # La page est DÉDUITE du fichier surveillé, plus écrite ici. C'est la deuxième
     # fois que ce test déménage (2026-09-04, puis 2026-09-06), et à chaque fois la
     # clé était recopiée à la main — donc à chaque fois elle a menti d'un déménagement
@@ -136,18 +132,12 @@ def test_the_guide_follows_the_readers_language():
 
 
 def test_the_wizard_is_reachable_from_the_navigation():
-    """Not only from the mail. Asserted on `_NAV_SECTIONS`, not on the text of app.py,
-    because the deep link kept existing while the entry did not."""
+    """Not only from the mail. Asserted on the MENU DECLARATION, not on the text of
+    app.py, because the deep link kept existing while the entry did not."""
     assert ONBOARDING.exists(), "the wizard file is gone; this guard is blind"
-    app = ast.parse((REPO / "src/dashboard/app.py").read_text(encoding="utf-8"))
-    pages = set()
-    for node in ast.walk(app):
-        if isinstance(node, ast.Assign) and any(
-                getattr(t, "id", "") == "_NAV_SECTIONS" for t in node.targets):
-            for sub in ast.walk(node.value):
-                if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
-                    pages.add(sub.value)
-    assert pages, "_NAV_SECTIONS not found — this guard is now blind"
+    from tests.nav_source import menu_pages
+    pages = menu_pages()
+    assert pages, "the menu declaration reads empty — this guard is now blind"
     assert "onboarding" in pages, (
         "the setup wizard left the navigation again; it would be reachable only "
         f"through the verification e-mail. Pages found: {sorted(pages)[:12]}…")

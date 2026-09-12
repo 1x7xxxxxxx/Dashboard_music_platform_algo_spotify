@@ -25,6 +25,7 @@ EN = {
     "onboarding.your_plan": " ← *your plan*",
     "onboarding.upgrade_to": "Upgrade to {tier} →",
     # Step 2 — Credentials
+    "onboarding.checklist_title": "Your setup",
     "onboarding.matrix_legend":
         "**Set up**: the identifier is entered. **Responds**: the platform "
         "answered us. **Data**: figures have arrived.",

@@ -128,6 +128,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-kill-pattern-that-matches-its-own-shell](#a-kill-pattern-that-matches-its-own-shell) | P3 | deterministic | guarded | none |
 | [a-verdict-from-a-tree-that-moved-under-it](#a-verdict-from-a-tree-that-moved-under-it) | P3 | heuristic | guarded | none |
 | [a-bash-hook-that-blocks-the-prose-about-the-gesture](#a-bash-hook-that-blocks-the-prose-about-the-gesture) | P2 | deterministic | guarded | none |
+| [a-counter-drawn-from-zero-before-anyone-was-looking](#a-counter-drawn-from-zero-before-anyone-was-looking) | P2 | deterministic | guarded | none |
+| [a-rule-that-was-right-for-quantities-applied-to-counters](#a-rule-that-was-right-for-quantities-applied-to-counters) | P2 | manual | reported | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -1520,6 +1522,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-12 (Grinch) — named 2026-08-22
 - History:
   - 2026-08-22: `guarded`. Verified RED by mutation and, more usefully, by the CONTRAST: removing `instagram` from the registry leaves the parametrised uniqueness suite green with fewer cases (8 passed) while the literal ratchet fails. Pasting the old four-entry literal back into `create_canary.py` fails all three derived-map assertions, including the AST one that an equality check could never make.
+  - 2026-09-12: **troisième forme, et la plus discrète : interroger la sortie FILTRÉE du mécanisme qu'on garde.** Le garde neuf « aucune étape de mise en route ne mène à un mur de paiement » lisait `steps_from_facts(plan=…)`, dont le filtre par plan est précisément ce qui retire les étapes verrouillées. Il ne pouvait donc jamais rougir. Muté — `saisie_s4a` sortie du plan gratuit — il est resté **vert**, alors que le dégât cherché venait d'arriver : l'étape avait disparu du parcours gratuit. Réécrit sur la DÉCLARATION (`_STEPS`) avec une liste explicite de ce qu'on accepte de cacher, il rouge en nommant `playlists → saisie_s4a`. La question à poser devant un garde : *lit-il l'entrée du mécanisme, ou sa sortie déjà corrigée ?*
 - Notes:
   - The three pure assertions were moved OUT of `tests/test_create_canary.py`
     into their own file because that module is DB-gated as a whole. They needed no
@@ -5323,3 +5326,38 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-12: c'est `a-textual-guard-is-blind` porté sur les HOOKS et non sur les tests, et la conséquence y est symétrique : là-bas un garde textuel reste VERT sur son propre défaut, ici il reste ROUGE sur sa propre documentation. Les deux ont le même remède et le même coût si on ne le prend pas — la seule façon de continuer est d'arrêter d'écrire, ce que le dépôt avait déjà constaté le 2026-08-03 sur une signature.
   - 2026-09-12: deux mutations vues rouges, une par volet, chacune nommant la phrase qu'elle refuse. Celle du rétablissement affiche la liste des fichiers qu'elle croyait perdus — la preuve du pathspec `:`.
   - 2026-09-12: la non-vacuité est tenue dans l'autre sens par `test_a_restore_that_would_lose_work_still_blocks`, qui salit `README.md` **en binaire** puis le rend : en mode texte, un montage Windows réécrirait les fins de ligne du fichier entier et la sonde abîmerait ce qu'elle vérifie.
+
+## a-counter-drawn-from-zero-before-anyone-was-looking
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une bande de plateforme est **plate à zéro pendant des années**, puis saute d'un coup au niveau du compteur. Mesuré le 2026-09-12 sur « depuis le début · cumulé · par mois », artiste 1 : YouTube et SoundCloud tracées depuis 2023-01-01 alors que leur collecte démarre les 2025-11-29 et 2025-12-16, et un saut de **0 à 99 594 vues** d'un mois sur l'autre. La figure affirme deux choses fausses — que le compteur valait zéro, et qu'il a gagné 99 594 en un mois.
+- root_cause: `known(values, i)` rend délibérément `True` avant la première mesure d'une série — « zéro est vrai, la plateforme n'était pas collectée ». C'était juste, et c'est ce qui empêche SoundCloud de couper les 1 142 jours de Spotify. Mais ce raisonnement vaut pour une QUANTITÉ du jour, pas pour un niveau de COMPTEUR : le premier niveau d'un cumul n'est pas « zéro plus la croissance », c'est un stock hérité d'années qu'on n'a jamais regardées. `stackgroup` complète alors les index sans point à zéro (`stackgaps` par défaut), et la bande descend au sol.
+- long_term_fix: **deux surfaces PAR PLATEFORME**, et surtout pas la hachure. `_not_yet_collected_hover` pose une trace invisible au nom de la plateforme sur sa seule préhistoire, donc l'infobulle groupée affiche « pas encore collectée — depuis le … » là où elle n'affichait rien ; `render_collection_start_note` écrit la même date sous la figure, parce qu'un fait qui ne se lit qu'au survol ne se lit pas — la remarque d'origine a été écrite en REGARDANT. `known()` n'est PAS touchée, délibérément : elle décide des bandes, et la changer supprimerait l'aire de YouTube avant 2025-11 au lieu d'expliquer pourquoi elle est plate.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py -q`
+- guard: { type: pytest, ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py }
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: **c'est le jumeau symétrique du correctif du matin même**, et c'est ce qui le rend intéressant. `known()` avait été écrite pour empêcher une plateforme récente de tronquer l'historique d'une ancienne — problème réel, remède juste. Le même remède, appliqué à un compteur, invente un passé à zéro. La question générique est en `a-rule-that-was-right-for-quantities-applied-to-counters`.
+  - 2026-09-12: **la première correction a été hachurer la préhistoire, et elle était pire que le défaut.** Une hachure est pleine hauteur : elle affirme quelque chose de TOUTES les plateformes. Unionnée avec la préhistoire de chacune, elle mettait **1 185 jours sur 1 350** — 35 seaux sur 42 au pas mois — sous les hachures pour l'artiste 1, dont les trois années où Spotify est mesurée chaque jour. La figure aurait affirmé qu'on n'avait rien mesuré depuis 2023 : une plateforme arrivée tard effaçait l'historique d'une ancienne, exactement ce que `known()` existait pour empêcher. Vu en mesurant les intervalles sur les VRAIES données avant de livrer, pas en relisant le code.
+  - 2026-09-12: le repli suivant — hachurer à l'INTERSECTION, « seulement là où personne n'avait commencé » — s'est révélé **inatteignable**. `_window` fait partir le `span` du premier jour mesuré toutes plateformes confondues, donc une plateforme a toujours sa première mesure à l'indice 0. Le paramètre aurait été du code correct que rien n'atteint ; il a été retiré, et le fait est épinglé par `test_the_window_never_starts_before_the_first_measurement` — qui tient `_window`, pas la constante, et rougira le jour où cette borne changera.
+  - 2026-09-12: le garde du matin (`test_a_platform_served_by_the_gold_layer_is_not_hatched`) survit sans modification — sa mise en scène démarre YouTube à l'index 0, donc sans préhistoire à hachurer. Vérifié avant d'écrire, pas après : un garde voisin qui rougit sur un correctif juste est ce qui fait relever les seuils.
+
+## a-rule-that-was-right-for-quantities-applied-to-counters
+- status: reported
+- severity: P2
+- kind: manual
+- symptom: la famille. Une règle écrite pour une quantité du jour — « la somme du seau », « zéro avant la première mesure », « le total de la période » — est appliquée à un niveau de compteur, où elle rend un chiffre faux d'un ordre de grandeur, jamais un plantage. **Quatre instances en deux jours** : le ×151 des seaux (`a-bucket-sums-deltas-instead-of-deriving-the-counter`), le ×887 des totaux bornés, le premier seau d'un compteur rendu `None` (×0,88 sur douze mois, invisible au pas jour), et la préhistoire à zéro ci-dessus.
+- root_cause: rien dans le code ne dit de quelle ESPÈCE est une série. `s4a_song_timeline.streams` est une quantité, `youtube_channel_history.view_count` et `soundcloud_tracks_daily.playback_count` sont des cumuls, `apple_music` n'a qu'un instantané — et toutes arrivent dans la même liste de `(date, valeur)`. Une règle qui traverse cette frontière sans la nommer est correcte sur la moitié des plateformes et fausse sur l'autre, pour toujours.
+- long_term_fix: **aucune signature ne tient les quatre instances** — c'est la raison du `kind: manual`, et l'énoncer est plus honnête que d'en inventer une qui n'en tiendrait qu'une. Ce qui EST mécanisé : `platform_timeseries.py` est le seul chemin autorisé (`a-cumulative-counter-charted-as-a-daily-figure`), les deux sens sont gardés (`a-quantity-mistaken-for-a-counter` tient l'inverse), et `.claude/dev-docs/gold-coverage.md` croise plateforme × famille avec un cliquet à zéro case vide. Ce que cette entrée ajoute est **la question à poser devant le code** : *cette règle a-t-elle été écrite pour une quantité du jour ou pour un niveau de compteur ?* — c'est le rôle d'une famille dans `make error-families`, pas celui d'un test.
+- autofix: none
+- signature: `python3 -m pytest tests/test_the_gold_coverage_only_improves.py -q`
+- guard: { type: ratchet, ref: tests/test_the_gold_coverage_only_improves.py }
+- rex_ref: src/dashboard/utils/platform_timeseries.py
+- first_seen: 2026-09-11 (nommée 2026-09-12)
+- History:
+  - 2026-09-12: les quatre instances ont en commun d'être **silencieuses et plausibles**. Aucune ne lève, aucune ne rend une valeur absurde à l'œil : 182 432 au lieu de 206 555, une bande plate avant 2025, un total qui a l'air grand parce que le compteur est grand. Elles se trouvent en COMPARANT deux chemins qui devraient s'accorder — le dessin contre la croissance, la figure contre le tableau — jamais en relisant l'un des deux.
+  - 2026-09-12: le `guard:` nommé n'est PAS un garde de ce défaut-ci — c'est le cliquet qui tient la matrice `plateforme × famille` à zéro case vide, seul mécanisme qui empêche qu'une source neuve arrive sans qu'on ait dit de quelle espèce elle est. Nommer un chemin plutôt qu'un tiret a une raison mesurée : `gold_coverage.py` compte les classes sans chemin de garde sous cliquet, et ce compteur existe pour que « la règle est transverse » ne devienne pas l'échappatoire par défaut. La classe dit donc où se lit la contrainte, et son `kind: manual` dit qu'elle ne se prouve pas instance par instance.
+  - 2026-09-12: la moitié de ces défauts n'apparaissent qu'au pas SEMAINE ou MOIS. Le premier seau à `None` coûtait 12 % sur douze mois et ~0 % au pas jour ; il a attendu que le pas mois existe pour devenir visible. Un changement de grain n'est pas cosmétique : il change quelles règles fausses deviennent mesurables.

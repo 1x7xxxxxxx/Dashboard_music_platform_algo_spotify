@@ -98,7 +98,7 @@ def show():
         st.markdown("---")
         _render_credentials_pdf()
         _render_csv_definitions()
-        _render_next_step_mapping()
+        _render_remaining_steps(db)
     finally:
         db.close()
 
@@ -166,8 +166,55 @@ def _render_csv_definitions() -> None:
                         .format(cols=", ".join(exp.columns)))
 
 
+def _render_remaining_steps(db) -> None:
+    """Ce qu'il RESTE à faire, LU dans la déclaration — jamais recopié ici.
+
+    Demandé le 2026-09-12 : « rajouter dans mise en route + santé onboarding
+    l'action de saisir mes ajouts en playlist S4A ».
+
+    La tentation était d'écrire un second `_render_next_step_*` à la main. Ce serait
+    une TROISIÈME liste des mêmes étapes — l'accueil en a une, `setup_completion` la
+    déclare — et la classe que ce dépôt paie le plus souvent est exactement celle-là :
+    une même question, plusieurs listes, qui divergent au premier ajout. L'étape
+    suivante ajoutée au registre apparaîtra ici sans qu'on y touche.
+
+    Ne montre que les étapes NON FAITES : cette page répond à « qu'est-ce qui me
+    manque », et lister ce qui est déjà fait la transformerait en récapitulatif.
+
+    Elle résout le locataire ELLE-MÊME. La variable `aid` de `show()` n'existe que
+    dans la branche non-admin — la lui passer levait un `NameError` pour un admin,
+    qui voit la page de TOUS les artistes. Sans locataire courant, il n'y a pas de
+    geste personnel à proposer, et la section ne s'affiche pas.
+    """
+    from src.dashboard.auth import get_artist_plan
+    from src.dashboard.utils.navigation import goto
+    from src.dashboard.utils.setup_completion import (
+        STEP_HINTS, STEP_LABELS, read_setup_state)
+
+    artist_id = get_artist_id()
+    if artist_id is None:
+        return
+    try:
+        state = read_setup_state(db, artist_id, plan=get_artist_plan())
+    except Exception:      # noqa: BLE001 — un renvoi absent vaut mieux qu'un écran mort
+        return
+    todo = [s for s in state.steps if not s.done]
+    if not todo:
+        return
+    st.subheader(t("onboarding_health.next_title", "👉 Et ensuite"))
+    for step in todo:
+        if st.button(STEP_LABELS[step.key](), key=f"_health_goto_{step.key}",
+                     width="stretch"):
+            goto(step.page)
+        hint = STEP_HINTS.get(step.key)
+        if hint is not None:
+            st.caption(hint())
+
+
 def _render_next_step_mapping() -> None:
-    """Le geste d'APRÈS, nommé là où l'on constate que le reste est fait.
+    """CONSERVÉE mais plus appelée — voir `_render_remaining_steps`.
+
+    Le geste d'APRÈS, nommé là où l'on constate que le reste est fait.
 
     Demandé le 2026-09-06 : « je sais pas trop où mettre l'action de valider le
     mapping automatique une fois qu'on a terminé avec les credentials ».
