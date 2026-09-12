@@ -64,10 +64,16 @@ load_project_env()
 # The journey, in the order an artist meets it. Kept explicit rather than derived
 # from _NAV_SECTIONS: the point is to walk what a NEW artist walks, which is a
 # deliberate subset, not every page that exists.
-# `useful_links`, `onboarding_health`, `alerts`… sont dans `app._ADMIN_ONLY` : un
-# artiste ne les voit jamais dans sa navigation. Les mettre ici faisait remonter
-# « ⛔ Accès réservé à l'administrateur » comme un défaut du produit, alors que
-# c'était une erreur de CETTE liste.
+# `useful_links`, `alerts`, `db_health`… sont dans `app._ADMIN_ONLY` : un artiste ne
+# les voit jamais dans sa navigation. Les mettre ici faisait remonter « ⛔ Accès
+# réservé à l'administrateur » comme un défaut du produit, alors que c'était une
+# erreur de CETTE liste.
+#
+# ⚠️ `onboarding_health` y était nommée à tort et l'a été longtemps : elle n'est PAS
+# admin-only — elle est dans `ALWAYS_ACCESSIBLE` et figure au menu de tout artiste,
+# deuxième entrée de « Configuration ». Corrigé le 2026-09-12. Un exemple faux dans
+# un commentaire d'exclusion est pire qu'aucun exemple : il justifie une omission
+# que rien ne justifiait.
 JOURNEY = [
     ("onboarding", "Le parcours guidé, juste après la vérification de l'e-mail"),
     ("home", "L'accueil — la première chose vue à chaque connexion"),
