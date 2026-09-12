@@ -96,9 +96,31 @@ def test_the_detector_never_reads_a_daily_quantity() -> None:
         "si le détecteur a déménagé, c'est ce chemin qu'il faut suivre, pas la liste "
         "qu'il faut vider")
     tables = {e.elts[0].value for e in targets.elts}
-    assert tables == {"soundcloud_tracks_daily", "youtube_video_stats"}, (
-        f"le périmètre a changé : {sorted(tables)}. Une table de quantités du jour y "
-        "produirait du bruit quotidien — mesuré à 93 alertes sur 1 254 jours")
+
+    # La liste PEUT grandir — Instagram l'a rejointe le 2026-09-12. Ce qui est
+    # interdit, c'est d'y mettre une table de QUANTITÉS DU JOUR : le prédicat y
+    # sonne 93 fois sur 1 254 jours, mesuré, et un détecteur qui crie 93 fois est un
+    # détecteur que personne ne lit. Geler la liste aurait fait de ce test un
+    # obstacle à toute extension légitime ; c'est la RÈGLE qu'il garde.
+    daily_quantities = {"s4a_song_timeline", "s4a_audience", "s4a_songs_global",
+                        "hypeddit_daily_stats", "meta_insights",
+                        "meta_insights_performance_day"}
+    assert not (tables & daily_quantities), (
+        f"table(s) de quantités du jour dans le périmètre : "
+        f"{sorted(tables & daily_quantities)}. Zéro y veut dire « rien aujourd'hui », "
+        "pas « collecte ratée » — mesuré à 93 alertes sur 1 254 jours")
+    assert {"soundcloud_tracks_daily", "youtube_video_stats"} <= tables, (
+        f"une cible historique a disparu : {sorted(tables)}. Les deux compteurs qui "
+        "ont motivé ce détecteur en 2026-09-08 ne sortent pas sans raison écrite.")
+
+    # Chaque cible porte SON plancher d'entités, et un plancher au-dessus de ce que
+    # la table contient rend le détecteur muet — la classe
+    # `un-contrôle-qui-ne-peut-jamais-passer`. Mesuré : Instagram a 1,0 entité par
+    # locataire et par jour, SoundCloud 18,4.
+    floors = {e.elts[0].value: e.elts[4].value for e in targets.elts}
+    assert floors.get("instagram_daily_stats") == 1, (
+        "Instagram n'a qu'UN compte par locataire : un plancher de 3 rendrait ce "
+        f"détecteur incapable de sonner. Plancher lu : {floors.get('instagram_daily_stats')}")
 
 
 def test_a_task_actually_runs_the_detector() -> None:

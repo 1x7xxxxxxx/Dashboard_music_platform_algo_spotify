@@ -110,6 +110,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-guard-that-sees-the-binding-not-the-application](#a-guard-that-sees-the-binding-not-the-application) | P3 | manual | reported | none |
 | [an-exemption-that-outlives-what-it-exempted](#an-exemption-that-outlives-what-it-exempted) | P3 | deterministic | guarded | none |
 | [two-definitions-that-must-coincide-are-never-compared](#two-definitions-that-must-coincide-are-never-compared) | P2 | deterministic | guarded | none |
+| [a-partial-collection-becomes-a-baseline-level](#a-partial-collection-becomes-a-baseline-level) | P2 | deterministic | guarded | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -5011,3 +5012,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-12: `check_metric_bounds` faisait déjà ça — pour TROIS plateformes, à travers deux portes Python, et sans regarder les vues. Quatorze vues or existaient ; les définitions derrière trois d'entre elles étaient réconciliées. Signature vue exit 1 en faisant rendre le double à `v_meta_spend_totals` dans une transaction annulée : elle nomme l'invariant, le locataire, les deux nombres et le ratio (×2.00). Exit 0 sur l'arbre sain.
   - 2026-09-12: en câblant le contrôle nocturne, un cliquet de longueur a refusé d'agrandir `alert_monitor.py`. Réponse : sortir les BOUCLES de `check_metric_bounds` et `check_zero_resets` vers leurs modules, où leur prédicat vivait déjà. Le fichier est passé de 2 724 à 2 701 lignes **en gagnant un contrôle**, et trois contrôles sont devenus exerçables hors d'Airflow — ce qu'un docstring promettait depuis des semaines pour un SQL qui, lui, était resté dans le DAG.
+
+## a-partial-collection-becomes-a-baseline-level
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une figure sous-déclare d'un facteur **3 049**. Mesuré le 2026-09-12 sur l'artiste 471 : « par semaine » totalisait 11 053 écoutes là où le compteur YouTube avait gagné 33 697 394.
+- root_cause: le 2026-08-20, la collecte a écrit **1 vidéo sur 200**. Le niveau de ce jour vaut 5 vues, contre 33 490 844 le lendemain. Ce 5 n'est pas une donnée fausse — cette vidéo avait bien 5 vues — il est faux **en tant que niveau du locataire**, et il devient la ligne de base de tout ce qui se dérive ensuite. `is_partial_collection` (pilier Volume, R39) connaît cette forme et compte les LIGNES d'une collecte ; la couche or, elle, voyait un jour avec des lignes valides et en faisait un point de courbe. Aggravant : la série quotidienne n'ayant que 2 jours consécutifs, le pas demandé DÉGRADAIT vers le jour, où la dérivation par les niveaux est désactivée par construction — le correctif du facteur 151 était donc annulé pour ce locataire.
+- long_term_fix: deux changements, et les deux sont des questions de PORTÉE. (1) `v_platform_levels` écarte de l'AXE un jour dont le nombre d'entités tombe sous 10 % de la médiane du locataire — seuil lu dans la distribution réelle (1 jour sur 60 en dessous, 6 entre 50 et 90 %, 53 au-dessus), médiane et non moyenne parce qu'un jour à 1/200 tire une moyenne vers le bas et se protège lui-même. (2) Le report en avant court sur TOUS les jours, y compris les partiels : seul l'affichage est restreint. Et dans la figure, les dates des NIVEAUX entrent dans le calcul du span, sans quoi une plateforme dense par construction perd le pas demandé parce que sa série quotidienne est clairsemée.
+- autofix: none
+- signature: `python3 -m pytest tests/test_every_way_of_asking_gives_one_answer.py -q`
+- guard: { type: pytest, ref: tests/test_every_way_of_asking_gives_one_answer.py::test_the_period_mode_totals_what_the_lifetime_total_says }
+- rex_ref: migrations/112_gold_partial_collection_is_not_a_level.sql
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: trouvé par un garde EXISTANT qui a rougi tout seul quand une collecte fraîche a fait qualifier ce locataire. Il était vert la veille sur les mêmes données moins un jour — un garde de cohérence dépend de la donnée, et son silence n'est pas une preuve.
+  - 2026-09-12: **la première version du correctif a été attrapée par un invariant écrit une heure plus tôt.** Retirer les LIGNES du jour partiel faisait disparaître une vidéo vue ce seul jour-là, et `levels_vs_total_youtube` a nommé l'écart : 5 vues exactement. Le filtre porte donc sur l'axe, jamais sur le pool de mesures. C'est le meilleur retour sur investissement de la séance.

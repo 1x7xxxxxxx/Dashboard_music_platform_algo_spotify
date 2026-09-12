@@ -80,9 +80,15 @@ def zero_reset_finding(table: str, column: str, tenant: int, day: str,
     }
 
 
-def is_reportable(entities: int, total: int) -> bool:
-    """Assez d'entités touchées pour que ce soit une collecte, pas un cas isolé."""
-    if not entities or entities < MIN_ENTITIES:
+def is_reportable(entities: int, total: int, floor: int = MIN_ENTITIES) -> bool:
+    """Assez d'entités touchées pour que ce soit une collecte, pas un cas isolé.
+
+    `floor` est celui de la CIBLE et non une constante globale : voir
+    `ZERO_RESET_TARGETS`. Un plancher de 3 appliqué à un compte Instagram unique
+    rend le détecteur incapable de sonner, et un détecteur qui ne peut jamais
+    sonner ressemble exactement à un détecteur qui ne trouve rien.
+    """
+    if not entities or entities < floor:
         return False
     return entities <= (total or entities)
 
@@ -96,15 +102,34 @@ def is_reportable(entities: int, total: int) -> bool:
 # sa promesse : ce dépôt a mesuré qu'un DAG n'est pas importable hors conteneur, donc
 # ce SQL n'était exerçable par personne.
 #
+# Le cinquième champ est le PLANCHER D'ENTITÉS de cette cible, et il n'est pas
+# décoratif.
+#
+# `MIN_ENTITIES = 3` a été calibré sur des catalogues : un locataire qui a dix-neuf
+# titres et en retire un ne mérite pas une alerte. Appliqué à Instagram, il rend le
+# détecteur INCAPABLE DE SONNER — mesuré le 2026-09-12 : `instagram_daily_stats`
+# porte exactement **1 entité par locataire et par jour** (un compte Instagram), donc
+# `1 >= 3` est faux tous les jours. C'est la classe `un-contrôle-qui-ne-peut-jamais-
+# passer`, et l'ajouter sans regarder aurait produit un détecteur décoratif.
+#
+# Le plancher existe pour distinguer « un titre a disparu du catalogue » d'« une
+# collecte a échoué ». Sur un compte unique cette ambiguïté n'existe pas : un nombre
+# d'abonnés qui tombe à zéro alors que le compte en avait 1 525 la veille n'est pas
+# un désabonnement, c'est une collecte ratée. Son plancher est donc 1, et la raison
+# est écrite ici plutôt que dans une constante globale qui devrait mentir pour l'un
+# ou pour l'autre.
+#
+# Mesuré : SoundCloud 18,4 entités/locataire/jour, Instagram 1,0.
 ZERO_RESET_TARGETS = [
-    ("soundcloud_tracks_daily", "playback_count", "track_id", "collected_at"),
-    ("youtube_video_stats", "view_count", "video_id", "collected_at"),
+    ("soundcloud_tracks_daily", "playback_count", "track_id", "collected_at", 3),
+    ("youtube_video_stats", "view_count", "video_id", "collected_at", 3),
+    ("instagram_daily_stats", "followers_count", "ig_user_id", "collected_at", 1),
 ]
-_ZR_TABLES = frozenset(t for t, _c, _e, _d in ZERO_RESET_TARGETS)
+_ZR_TABLES = frozenset(t for t, _c, _e, _d, _m in ZERO_RESET_TARGETS)
 _ZR_COLUMNS = frozenset(
-    [c for _t, c, _e, _d in ZERO_RESET_TARGETS]
-    + [e for _t, _c, e, _d in ZERO_RESET_TARGETS]
-    + [d for _t, _c, _e, d in ZERO_RESET_TARGETS]
+    [c for _t, c, _e, _d, _m in ZERO_RESET_TARGETS]
+    + [e for _t, _c, e, _d, _m in ZERO_RESET_TARGETS]
+    + [d for _t, _c, _e, d, _m in ZERO_RESET_TARGETS]
 )
 
 
@@ -116,7 +141,7 @@ def run(db, logger) -> list[dict]:
     """
     resets = []
     try:
-        for table, col, entity, date_col in ZERO_RESET_TARGETS:
+        for table, col, entity, date_col, floor in ZERO_RESET_TARGETS:
             # Règle #8 : allowlist AVANT l'interpolation, jamais après.
             if (table not in _ZR_TABLES or col not in _ZR_COLUMNS
                     or entity not in _ZR_COLUMNS or date_col not in _ZR_COLUMNS):
@@ -165,7 +190,7 @@ def run(db, logger) -> list[dict]:
                     ORDER BY 1"""
             )
             for tenant, day, hit, total in rows or []:
-                if is_reportable(hit, total):
+                if is_reportable(hit, total, floor):
                     resets.append(zero_reset_finding(table, col, tenant, day,
                                                      hit, total))
                     logger.warning(

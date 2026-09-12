@@ -126,6 +126,12 @@ _CEILING: dict[str, int] = {
     # Un objet or que rien ne confronte est le premier à dériver en silence : le
     # spend Meta l'a fait pendant des semaines. Zéro, et ça ne remonte pas.
     "invariants.unreconciled": 0,
+    # Les cases vides du tableau plateforme × famille : « quelles erreurs
+    # pourrait-on encore faire ». C'est la liste des tests CI à écrire, et elle ne
+    # rallonge pas. Une plateforme neuve ajoute huit cases d'un coup et fera rougir
+    # ce plafond — c'est voulu : brancher une plateforme sans la garder est
+    # exactement ce qui a coûté le plus cher ici.
+    "guard-matrix.holes": 19,
 }
 
 # Les populations, pour qu'un compteur ne puisse pas baisser en SUPPRIMANT la
@@ -136,10 +142,11 @@ _FLOOR: dict[str, int] = {
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 17,
-    "error-classes.total": 287,
+    "error-classes.total": 292,
     "ci.steps": 12,
     "ci.blocking": 12,
     "invariants.pairs": 12,
+    "guard-matrix.cells": 40,
 }
 
 
