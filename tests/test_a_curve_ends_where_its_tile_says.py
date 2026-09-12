@@ -323,13 +323,22 @@ def test_a_platform_served_by_the_gold_layer_is_not_dropped_for_being_sparse() -
     span = [_d.date(2026, 1, 1) + _d.timedelta(days=i) for i in range(60)]
     series = {"spotify": [(d, 10) for d in span],
               "youtube": [(span[3], 5)]}          # UN seul point : trop clairsemée
-    gold = {"youtube": [(span[0], 1000), (span[-1], 1600)]}
+    # 1 000 au départ, 2 200 à l'arrivée : la CROISSANCE sur la fenêtre vaut 1 200,
+    # et c'est ce que la courbe doit finir par afficher depuis le 2026-09-13 — sur
+    # une fenêtre bornée, toutes les courbes repartent de zéro et leur dernier point
+    # égale ce que la boîte annonce pour cette période.
+    #
+    # ⚠️ 2 200 et non 1 600 : à 1 600 la croissance valait 600, c'est-à-dire
+    # exactement le total de Spotify, et les deux assertions ci-dessous ne
+    # distinguaient plus rien. Un garde dont les deux attentes portent le même
+    # nombre passe au vert si les séries sont interverties.
+    gold = {"youtube": [(span[0], 1000), (span[-1], 2200)]}
 
     drawn, ends, _lbl = _render(series, gold, since=span[0], until=span[-1])
     assert drawn, "la figure n'a rien rendu"
     yt = next((v for k, v in ends.items() if "YouTube" in k), None)
-    assert yt == 1600, (
-        f"YouTube vaut {yt} au lieu de 1600 — servie par la couche or, elle est encore "
+    assert yt == 1200, (
+        f"YouTube vaut {yt} au lieu de 1200 — servie par la couche or, elle est encore "
         f"jugée sur sa série quotidienne. Bandes tracées : {sorted(ends)}")
     assert next(v for k, v in ends.items() if "Spotify" in k) == 600, (
         "Spotify a changé : l'admission doit ajouter une plateforme, jamais en "

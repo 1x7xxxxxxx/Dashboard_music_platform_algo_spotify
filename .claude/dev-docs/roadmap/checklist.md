@@ -674,34 +674,53 @@ branche d'`app.py`.
 ## R105 — l'historique YouTube d'avant notre première collecte
 
 - [ ] **R105 — les vues journalières YouTube antérieures au 29/11/2025 sont collectées via
-      l'API YouTube Analytics, ou l'impossibilité est écrite noir sur blanc.**
+      l'API YouTube Analytics.**
 
-**Mesuré en production le 2026-09-13**, après le signalement « j'ai fait des streams
-avant le 1er novembre 2025 […] ça me les marque en cumulé de 0 à des dizaines de
-milliers directement » :
+**Mesuré en production le 2026-09-13**, après « j'ai fait des streams avant le 1er
+novembre 2025 […] ça me les marque en cumulé de 0 à des dizaines de milliers
+directement » :
 
 | plateforme | 1ʳᵉ collecte | total à vie | vu croître depuis |
 |---|---|---|---|
 | YouTube | 29/11/2025 | 118 336 | **304** |
 | SoundCloud | 16/12/2025 | 23 564 | **323** |
 
-Nos collecteurs ne demandent qu'un cumul — `videos.list(part='statistics')` et
-`GET /tracks/{id}` — qui dit COMBIEN, jamais QUAND.
+Nos collecteurs ne demandent qu'un cumul — `videos.list(part='statistics')` — qui dit
+COMBIEN, jamais QUAND. `youtubeAnalytics.reports.query` rend les vues journalières
+historiques (`dimensions=day`, ou `day,video`), **sans limite d'ancienneté documentée**.
+⚠️ Ne pas confondre avec la *Reporting* API, dont les fichiers ne vivent que 30-60 jours.
 
-**YouTube est récupérable.** `youtubeAnalytics.reports.query` rend les vues journalières
-historiques (`dimensions=day`, ou `day,video`), sans limite d'ancienneté documentée.
-⚠️ Ne pas confondre avec la *Reporting* API, dont les fichiers ne vivent que 30-60 jours
-— c'est de là que vient l'idée reçue « YouTube ne garde que 60 jours ».
+### ⛔ LE BLOCAGE N'EST PAS TECHNIQUE, ET IL DÉCIDE DE LA FORME DE LA TÂCHE
 
-**Le coût réel n'est pas technique, il est humain** : l'Analytics API demande un OAuth de
-PROPRIÉTAIRE DE CHAÎNE (scope `yt-analytics.readonly`), donc un consentement par
-locataire, donc une étape d'onboarding de plus. Notre clé Data API v3 actuelle ne suffit
-pas. C'est ce qui classe cette tâche P3 et non P2 : le chemin est connu, le prix est un
-geste de plus demandé à chaque artiste.
+Recherché le 2026-09-13 ; à reconfirmer dans la console GCP, qui affiche le niveau du
+scope au moment où on l'ajoute :
 
-Repli sans OAuth : export manuel YouTube Studio → Analytics → Mode avancé → « Exporter la
-vue actuelle » (CSV, 500 vidéos max).
+| fait | conséquence |
+|---|---|
+| `yt-analytics.readonly` et `youtube.readonly` sont des scopes **SENSIBLES** | une app **External** en Production doit passer la **vérification Google** |
+| Vérification : politique de confidentialité, **domaine vérifié** (Search Console), **vidéo de démonstration** | 3 à 10 jours ouvrés annoncés, plusieurs semaines avec allers-retours |
+| **Pas d'évaluation de sécurité payante** — réservée aux scopes *restreints* (Gmail, Drive) | le coût est du temps, pas de l'argent |
+| Mode **Testing** : 100 utilisateurs max, et **les refresh tokens expirent au bout de 7 JOURS** | une collecte nocturne meurt chaque semaine ; l'artiste devrait re-consentir tous les 7 jours |
+| Statut **Internal** : réservé à un domaine Google Workspace | inutilisable, nos artistes ont des comptes Gmail personnels |
+
+**C'est le point qui décide** : construire le flux OAuth sans la vérification livre une
+étape d'onboarding qui casse tous les sept jours — l'inverse exact de « faciliter un
+maximum le parcours utilisateur ». Le code est le même dans les deux cas ; ce qui change
+est s'il sert à quelque chose.
+
+### L'ordre à tenir
+
+1. **Geste humain d'abord** — déposer la demande de vérification Google. Écrit dans
+   `.claude/dev-docs/runbook-actions-utilisateur.md`, avec ce qu'il faut préparer.
+2. **Pendant l'attente**, le flux est développable et testable sur le propre compte du
+   propriétaire du projet GCP : il ne voit pas l'écran « application non vérifiée » et
+   son refresh token ne meurt pas. Cela suffit à rapatrier l'historique de l'artiste 1.
+3. **Après la vérification**, l'étape s'ouvre à tous sans re-consentement hebdomadaire.
+
+Repli permanent, sans OAuth : export manuel YouTube Studio → Analytics → Mode avancé →
+« Exporter la vue actuelle » (CSV, 500 vidéos max). À garder même après R105 — c'est le
+seul chemin pour un artiste qui refuse le consentement.
 
 **SoundCloud ne l'est pas, et c'est tranché** — voir ADR-024. Aucune API publique ou
-partenaire ne donne l'historique, aucun export CSV depuis Insights. Ne pas rouvrir sans
-un élément nouveau à la source.
+partenaire, aucun export CSV depuis Insights. Ne pas rouvrir sans un élément nouveau à
+la source.
