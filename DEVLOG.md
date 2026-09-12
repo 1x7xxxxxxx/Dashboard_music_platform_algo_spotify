@@ -5,6 +5,73 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-13 (clôture) — Un arbitrage produit, et du code écrit puis retiré le même jour
+
+### La décision
+
+« le but de l'app c'est de mêler insta meta ads spotify hyppedit s4a et shazam + ML, pas
+forcément soundcloud et youtube ». **ADR-025.**
+
+Les chiffres de la séance la soutiennent, et ils avaient été mesurés avant qu'elle soit
+prise — c'est ce qui la rend solide plutôt qu'arbitraire :
+
+| plateforme | écoutes observées | part |
+|---|---|---|
+| Spotify (S4A) | **165 065** | **99,2 %** |
+| SoundCloud | 323 | 0,2 % |
+| YouTube | 304 | 0,2 % |
+
+YouTube et SoundCloud pèsent **0,4 %** du signal, et ils ont occupé la moitié de ces deux
+jours : la rupture de méthode du 11 juin, le recalage des niveaux, la falaise du cumulé,
+les deux dates de première mesure, la recherche sur les API d'historique, un flux OAuth
+complet. Pendant ce temps, **Shazam n'est toujours pas sur la page d'accueil** alors
+qu'il est dans le cœur du produit.
+
+### Le code de R105 a été écrit, puis retiré le jour même
+
+Helper OAuth, collecteur Analytics, migration 114, étape de consentement dans la page
+Credentials, tâche Airflow en aval, 14 assertions de garde dont quatre mutations vues
+rouges sur l'identité du locataire. Tout fonctionnait, et les huit gardes du dépôt qui
+ont rougi dessus m'ont appris huit conventions au passage — allowlist des tables, index
+unique lu dans le catalogue vivant, `from_env_or_config()`, exception jamais recopiée
+dans un journal, budget d'une connexion par vue, plafond de lignes par fichier.
+
+**Retiré, et non désactivé.** « Une couche débranchée pourrit » est une leçon déjà payée
+trois fois ici : du code que rien n'exécute cesse d'être vrai sans que personne le voie,
+et se rebranche un jour sur un produit qui a changé sous lui. Ce qui reste est l'ADR, qui
+dit ce qui a été essayé, ce que ça aurait coûté, et le déclencheur mesuré qui rouvrirait
+la question — un artiste dont YouTube ou SoundCloud dépasse 20 % de ses écoutes.
+
+Ce que le détour a laissé et qui vaut plus que l'étape abandonnée : la rupture de méthode
+détectée et recalée sur un seuil mesuré, la falaise du cumulé bornée, une seule date de
+première mesure au lieu de deux, et **ADR-024** qui ferme définitivement la question
+SoundCloud — aucune API, aucun export CSV, ne pas rouvrir sans élément nouveau.
+
+### Ce qui s'ouvre
+
+**R106** — Shazam n'est pas sur l'accueil, alors que l'accueil porte deux plateformes que
+l'ADR classe en périphérie. La tâche commence par une question de définition : un
+compteur à vie, un écart entre deux dépôts, ou les deux ?
+
+**R107** — trois décisions produit qui n'attendent aucun code, et qui décident de ce qui
+sera écrit ensuite : que devient la périphérie sur l'accueil, le revenu compte-t-il le
+brut ou le versé (en attente depuis le 2026-09-12), et que fait-on des 24 % de dépense
+Meta que les breakdowns n'attribuent pas.
+
+### Deux classes de plus au catalogue
+
+* `a-stack-that-mixes-two-baselines` — une série écrasée parce que ses voisines de pile
+  sont exprimées dans une autre référence. Les deux nombres sont JUSTES ; c'est leur
+  mise en commun qui ment ;
+* `one-fact-two-answers-by-display-mode` — la même phrase affiche deux valeurs selon un
+  réglage, parce qu'elle est dérivée d'une variable dont la nature change avec le mode
+  au lieu de la source du fait.
+
+Les deux signatures ont été vues **≠ 0 sur le défaut et 0 après**, par mutation, avant
+d'être écrites.
+
+---
+
 ## 2026-09-13 (nuit, suite) — Spotify était tracée et invisible, et l'onboarding YouTube a un mur
 
 ### « Je n'ai pas spotify sur la vue cumulé 30 jours »

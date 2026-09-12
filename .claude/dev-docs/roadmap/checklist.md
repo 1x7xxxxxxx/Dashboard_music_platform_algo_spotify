@@ -25,10 +25,13 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R105 | Récupérer l'historique journalier YouTube d'avant notre première collecte (Analytics API, OAuth propriétaire de chaîne) — ADR-024 | P3 | `daily_streams_by_platform(db, 1)["youtube"]` porte des points antérieurs au 29/11/2025 |
+| R106 | Shazam n'est pas sur la page d'accueil alors qu'il est dans le cœur du produit (ADR-025) | P3 | une boîte Shazam existe dans `_render_tiles` et affiche un chiffre pour l'artiste 1 |
+| R107 | Trois décisions produit à prendre avant le prochain lot — détail plus bas | P3 | les trois blocs de R107 portent une ligne « tranché le … » |
 | R103 | `artist_first_look` importe `views.<nom>` au lieu de suivre la table de routage d'`app.py` — il rapporte 2 pages en ERREUR que le produit sert correctement | P3 | `make artist-firstlook-prod PROD_SSH=… ARTIST=1` ne rapporte plus `process_guide` ni `upload_csv` en ❌ |
 
-**Deux tâches ouvertes**, R103 et R105. R104 a été close le soir même — la rupture de
+**Trois tâches ouvertes**, R103, R106 et R107. R105 a été ABANDONNÉE le
+2026-09-13 par ADR-025 : le produit est Spotify + Meta + ML, et YouTube pèse
+0,2 % du signal. Le code écrit pour elle a été retiré, pas désactivé. R104 a été close le soir même — la rupture de
 méthode YouTube est détectée sur un seuil mesuré et retirée des deux surfaces
 qui la comptaient (figure et totaux). Détail dans `archive.md`. R92 à R95, les quatre tâches de l'audit metrics layer du 2026-09-11, ont été
 closes et rotées dans `archive.md`, comme R89, R90 et R91 avant elles (critère du
@@ -94,9 +97,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-13, DEUX tâches ouvertes : R103, R105 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-13, TROIS tâches ouvertes : R103, R106, R107 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R103,R105 -->
+<!-- reprise: open=R103,R106,R107 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -671,56 +674,58 @@ routage. Un garde doit alors rougir si une page listée n'est atteignable par au
 branche d'`app.py`.
 
 
-## R105 — l'historique YouTube d'avant notre première collecte
+## R106 — Shazam n'est pas sur la page d'accueil
 
-- [ ] **R105 — les vues journalières YouTube antérieures au 29/11/2025 sont collectées via
-      l'API YouTube Analytics.**
+- [ ] **R106 — une boîte Shazam figure dans la rangée de KPI de l'accueil.**
 
-**Mesuré en production le 2026-09-13**, après « j'ai fait des streams avant le 1er
-novembre 2025 […] ça me les marque en cumulé de 0 à des dizaines de milliers
-directement » :
+ADR-025 énonce le cœur du produit : Instagram, Meta Ads, Spotify, Hypeddit, **Shazam**,
+et le ML qui les relie. Shazam y est, et il n'est nulle part sur l'écran le plus lu.
+L'accueil porte Spotify, YouTube, SoundCloud, Apple, Instagram et Meta Ads — dont deux
+plateformes que le même ADR classe en périphérie.
 
-| plateforme | 1ʳᵉ collecte | total à vie | vu croître depuis |
-|---|---|---|---|
-| YouTube | 29/11/2025 | 118 336 | **304** |
-| SoundCloud | 16/12/2025 | 23 564 | **323** |
+**Ce qu'il faut trancher avant d'écrire une ligne** : ce qu'une boîte Shazam affiche.
+La donnée existe (`apple_music` porte 1 772 shazams pour l'artiste 1, mesuré le
+2026-09-12), mais elle arrive par dépôt de CSV, comme Apple — donc c'est un RELEVÉ, pas
+une quantité datée. Trois formes possibles, et elles ne disent pas la même chose :
 
-Nos collecteurs ne demandent qu'un cumul — `videos.list(part='statistics')` — qui dit
-COMBIEN, jamais QUAND. `youtubeAnalytics.reports.query` rend les vues journalières
-historiques (`dimensions=day`, ou `day,video`), **sans limite d'ancienneté documentée**.
-⚠️ Ne pas confondre avec la *Reporting* API, dont les fichiers ne vivent que 30-60 jours.
+1. le compteur à vie, comme Apple — honnête, mais insensible au filtre de période ;
+2. l'écart entre deux dépôts — daté, mais dépendant du rythme de dépôt de l'artiste ;
+3. les deux, la seconde en ligne d'écart.
 
-### ⛔ LE BLOCAGE N'EST PAS TECHNIQUE, ET IL DÉCIDE DE LA FORME DE LA TÂCHE
+C'est la même question que celle qui a occupé le 2026-09-13 sur les compteurs. La
+trancher AVANT évite de la redécouvrir à l'écran.
 
-Recherché le 2026-09-13 ; à reconfirmer dans la console GCP, qui affiche le niveau du
-scope au moment où on l'ajoute :
+## R107 — Trois décisions produit à prendre
 
-| fait | conséquence |
-|---|---|
-| `yt-analytics.readonly` et `youtube.readonly` sont des scopes **SENSIBLES** | une app **External** en Production doit passer la **vérification Google** |
-| Vérification : politique de confidentialité, **domaine vérifié** (Search Console), **vidéo de démonstration** | 3 à 10 jours ouvrés annoncés, plusieurs semaines avec allers-retours |
-| **Pas d'évaluation de sécurité payante** — réservée aux scopes *restreints* (Gmail, Drive) | le coût est du temps, pas de l'argent |
-| Mode **Testing** : 100 utilisateurs max, et **les refresh tokens expirent au bout de 7 JOURS** | une collecte nocturne meurt chaque semaine ; l'artiste devrait re-consentir tous les 7 jours |
-| Statut **Internal** : réservé à un domaine Google Workspace | inutilisable, nos artistes ont des comptes Gmail personnels |
+- [ ] **R107 — les trois décisions ci-dessous sont tranchées et écrites.**
 
-**C'est le point qui décide** : construire le flux OAuth sans la vérification livre une
-étape d'onboarding qui casse tous les sept jours — l'inverse exact de « faciliter un
-maximum le parcours utilisateur ». Le code est le même dans les deux cas ; ce qui change
-est s'il sert à quelque chose.
+Aucune ne demande de code pour être prise, et chacune décide de ce qui sera écrit
+ensuite. Les laisser implicites ferait trancher par défaut, à l'écriture, sans que
+personne ne le voie.
 
-### L'ordre à tenir
+### 1. Que devient la périphérie sur l'accueil ?
 
-1. **Geste humain d'abord** — déposer la demande de vérification Google. Écrit dans
-   `.claude/dev-docs/runbook-actions-utilisateur.md`, avec ce qu'il faut préparer.
-2. **Pendant l'attente**, le flux est développable et testable sur le propre compte du
-   propriétaire du projet GCP : il ne voit pas l'écran « application non vérifiée » et
-   son refresh token ne meurt pas. Cela suffit à rapatrier l'historique de l'artiste 1.
-3. **Après la vérification**, l'étape s'ouvre à tous sans re-consentement hebdomadaire.
+ADR-025 laisse YouTube et SoundCloud collectées « comme aujourd'hui ». L'accueil leur
+donne pourtant deux boîtes sur six, pour **0,2 % du signal** — et Shazam, qui est dans
+le cœur, n'en a aucune.
 
-Repli permanent, sans OAuth : export manuel YouTube Studio → Analytics → Mode avancé →
-« Exporter la vue actuelle » (CSV, 500 vidéos max). À garder même après R105 — c'est le
-seul chemin pour un artiste qui refuse le consentement.
+| option | ce qu'on gagne | ce qu'on perd |
+|---|---|---|
+| les garder telles quelles | rien à faire | deux boîtes sur six pour 0,2 %, et Shazam sans place |
+| les regrouper en une boîte « Autres plateformes » | une place pour Shazam, la donnée reste visible | un clic de plus pour voir le détail |
+| les sortir de l'accueil, garder leurs pages | l'accueil ne montre que le cœur | un artiste qui compte sur YouTube ne le voit plus au premier écran |
 
-**SoundCloud ne l'est pas, et c'est tranché** — voir ADR-024. Aucune API publique ou
-partenaire, aucun export CSV depuis Insights. Ne pas rouvrir sans un élément nouveau à
-la source.
+### 2. La vue revenu compte-t-elle le BRUT ou le VERSÉ ?
+
+Mesuré le 2026-09-12 et laissé en l'état depuis : la vue compte la répartition SACEM
+**brute** (43,06 €) et non le versement (`payout` 36,49 €, après TVA −14,67 et charges
+−6,90). Les deux sont défendables — le brut est cohérent avec le brut distributeur, le
+versé est ce qui arrive sur le compte. **C'est un choix de définition, pas un défaut**,
+et il attend depuis le 2026-09-12.
+
+### 3. Jusqu'où va la couverture Meta ?
+
+Les breakdowns Meta ne couvrent que **76 %** de la dépense (2 348 € sur 3 088). C'est
+Meta qui n'attribue pas tout à une dimension ; la page le mesure et le dit. Faut-il
+s'en contenter, ou faire apparaître les 24 % non attribués comme une catégorie à part
+entière dans les graphiques ?

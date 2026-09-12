@@ -506,7 +506,20 @@ prioritaire dans le script ; le chemin git s'éteint de lui-même.
 
 ---
 
-## 11. R105 — Faire vérifier l'application Google pour lire les stats YouTube des artistes
+## 11. ~~R105 — Faire vérifier l'application Google pour lire les stats YouTube~~ · ⛔ ABANDONNÉE le 2026-09-13
+
+> **Ne fais pas cette démarche.** ADR-025 a tranché le jour même où cette section a été
+> écrite : le produit est Spotify + Meta + ML, et YouTube pèse **0,2 %** des écoutes
+> observées (304 contre 165 065). Le code qui aurait utilisé ce consentement a été
+> retiré, pas désactivé.
+>
+> La section est conservée telle quelle parce qu'elle porte ce qu'il faudrait préparer
+> le jour où un artiste dont YouTube dépasse 20 % de ses écoutes le justifierait. Elle
+> décrit une procédure VALIDE ; elle ne décrit plus une procédure À FAIRE.
+
+<details>
+<summary>La procédure, si la question se rouvre un jour</summary>
+
 
 **Pourquoi c'est toi et pas moi** : Google demande un dossier au nom du propriétaire du
 projet Cloud — politique de confidentialité, domaine vérifié, vidéo de démonstration.
@@ -560,3 +573,5 @@ meurt pas. Cela suffit à rapatrier TON historique, pas celui des autres.
 L'export manuel YouTube Studio → Analytics → **Mode avancé** → « Exporter la vue
 actuelle » (CSV, 500 vidéos max) reste le seul chemin pour un artiste qui refuse le
 consentement. Ne pas le retirer une fois R105 livrée.
+
+</details>

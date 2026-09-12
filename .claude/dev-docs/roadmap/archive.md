@@ -4710,3 +4710,35 @@ seau est une case qu'on peut laisser vide.
 Garde : `tests/test_a_method_change_is_not_a_quantity.py`, 10 assertions, 6 mutations
 vues rouges — dont les deux qui encadrent le seuil (trop haut : rupture ratée ; trop
 bas : la vraie poussée de a1/soundcloud effacée).
+
+## R105 — l'historique YouTube d'avant notre première collecte · ⛔ ABANDONNÉE
+
+- [x] **R105 — ABANDONNÉE le 2026-09-13 par ADR-025. Le code écrit pour elle a été
+      RETIRÉ, pas désactivé.**
+
+Ouverte le 2026-09-13 au matin : nos collecteurs ne demandent qu'un compteur à vie, donc
+118 032 des 118 336 vues YouTube de l'artiste 1 n'ont aucune date. L'API YouTube
+Analytics les rend datées.
+
+**Elle a été écrite** — helper OAuth (`google_oauth.py`), collecteur Analytics, migration
+114, étape de consentement dans la page Credentials, tâche Airflow en aval de la
+collecte, et 14 assertions de garde dont quatre mutations vues rouges sur l'identité du
+locataire. Puis **retirée le jour même**, avant livraison, quand l'arbitrage produit a
+été posé : « le but de l'app c'est de mêler insta meta ads spotify hyppedit s4a et
+shazam + ML, pas forcément soundcloud et youtube ».
+
+**Le chiffre qui a tranché** : YouTube pèse **0,2 %** des écoutes observées (304 contre
+165 065 pour Spotify). L'étape aurait coûté un consentement Google par artiste, une
+vérification Google avant de servir qui que ce soit d'autre que le propriétaire du
+projet, et des refresh tokens expirant tous les 7 jours en attendant.
+
+**Retirée et non désactivée**, parce que « une couche débranchée pourrit » est une leçon
+déjà payée trois fois ici : du code que rien n'exécute cesse d'être vrai sans que
+personne le voie. Ce qui reste est l'ADR, qui dit ce qui a été essayé et pourquoi on ne
+le refera pas sans un déclencheur mesuré — un artiste dont YouTube ou SoundCloud dépasse
+20 % de ses écoutes.
+
+Ce que la séance a gardé de ce détour, et qui vaut plus que l'étape abandonnée : la
+rupture de méthode du 2026-06-11 détectée et recalée, la falaise du cumulé bornée, une
+seule date de première mesure au lieu de deux, et ADR-024 qui ferme définitivement la
+question SoundCloud.
