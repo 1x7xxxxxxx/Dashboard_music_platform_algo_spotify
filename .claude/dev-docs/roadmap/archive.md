@@ -4453,3 +4453,47 @@ geste, et lui seul : **R1** — inviter la bêta.
   devait produire : une classe hors famille est une question qu'on n'avait pas su
   formuler. Les trois qui restent sont des cas isolés, et les laisser dehors est plus
   honnête qu'une famille inventée pour trois membres.
+
+## ✅ R96, R99, R100 — les trois dernières, closes le 2026-09-12
+
+- [x] **R96 — Les surfaces dont la carte ne sait pas d'où vient la donnée** (P4) —
+  close. 15 → **7** figures, 18 → **11** tuiles. Aucune ligne de code de produit n'a
+  changé pour ça : c'est le LECTEUR qui se trompait. `_QUERY.format(acct=…)` est un
+  littéral avec des trous, pas une requête dynamique — vingt-huit surfaces étaient
+  déclarées `sql-dynamique` alors que leur table se lit parfaitement. Et le plafond
+  de relèvement de paramètre est passé de 2 à 3 sauts sur une mesure : 2 → 27
+  indéterminées, 3 → 23, 4 → 23. Le quatrième cran n'apporte rien et ne coûte que de
+  la surface d'erreur, et c'est écrit à côté de la constante.
+
+  En résolvant les `.format()`, deux agrégats bruts sont devenus VISIBLES
+  (`_QUERY_UNCOLLECTED`) et un DÉFAUT est apparu : `_QUERY_CREATIVES` recevait un
+  fragment de compte qualifié `ma.` alors qu'il lit désormais une vue —
+  `missing FROM-clause entry for table "ma"`, la troisième forme du défaut que le
+  repointage corrigeait. Le garde la couvre, et il a fallu suivre
+  `TEMPLATE.format(acct=X)` pour la voir : le gabarit et l'alias vivent dans deux
+  fichiers qui ne savent rien l'un de l'autre.
+
+  Trouvé au passage : la page SACEM sommait ses trois totaux EN PANDAS sur les
+  lignes brutes, dont un — les royalties brutes — qui est déjà une définition de la
+  couche or. Migration 111 (`v_sacem_monthly`), et `v_artist_monthly_revenue` cesse
+  de redéclarer `line_type = 'repartition'`.
+
+- [x] **R99 — La frontière de bronze** (P4) — close, 132 → **110**.
+  `csv_exporter.py` portait 21 des 131 couples et n'est pas une dette : c'est un
+  `SELECT * FROM <table>` par table, **zéro agrégat**, l'export « toutes mes lignes »
+  remis au locataire. Lui faire lire les vues or lui rendrait des agrégats à la
+  place de ses données — le contraire de ce qu'il promet. Déclaré, avec un test qui
+  vérifie la raison dans les DEUX sens : le fichier lit encore du bronze, et il
+  n'agrège toujours pas.
+
+- [x] **R100 — Trancher dbt** (P4) — close par **ADR-023 : non**. Le déclencheur
+  d'ADR-014 était franchi (15 objets dérivés, 5 interdépendants), et un déclencheur
+  franchi oblige à instruire, pas à répondre oui. Mesuré : profondeur du graphe
+  **2**, trois arêtes. Tout ce que dbt vend est déjà acheté ici moins cher — l'ordre
+  de construction est le numéro de migration, les tests de données sont 5 282 tests
+  pytest qui couvrent aussi le Python que dbt ne voit pas, et le lignage est dans
+  `gold-coverage.md`, qui relie chaque vue à la FIGURE qui la lit.
+
+  ADR-023 remplace le déclencheur par le bon : **profondeur ≥ 4**, ou ≥ 3 objets
+  dont la reconstruction demande un ordre qui n'est pas celui des migrations. Il se
+  recompte en une requête, écrite dans l'ADR.

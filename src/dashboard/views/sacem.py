@@ -16,10 +16,31 @@ from src.dashboard.utils.i18n import t
 
 
 def _load(db, artist_id):
+    """Le DÉTAIL du relevé — une ligne par mouvement, pour le tableau du bas.
+
+    Les trois totaux de la page ne se calculent PAS d'ici : ils viennent de
+    `_load_totals`. Les sommer en pandas sur ces lignes était la forme que ce
+    dépôt a payée sur la tuile « Dépenses » de Meta Ads — aucun `SUM(` dans la
+    requête, donc invisible à tout garde SQL.
+    """
     return db.fetch_df(
         "SELECT line_date, libelle, mouvement_eur, solde_eur, line_type "
         "FROM sacem_statement WHERE artist_id = %s ORDER BY line_date DESC, id DESC",
         (artist_id,))
+
+
+def _load_totals(db, artist_id) -> dict[str, float]:
+    """{nature de ligne: montant} — `v_sacem_monthly` (migration 111).
+
+    `repartition` est la MÊME définition que la branche sacem de
+    `v_artist_monthly_revenue`, qui lit désormais cette vue : le prédicat
+    `line_type = 'repartition'` n'est plus écrit deux fois.
+    """
+    rows = db.fetch_query(
+        "SELECT line_type, COALESCE(SUM(amount), 0) FROM v_sacem_monthly "
+        "WHERE artist_id = %s GROUP BY line_type",
+        (artist_id,))
+    return {line_type: float(amount or 0) for line_type, amount in (rows or [])}
 
 
 def show():
@@ -48,9 +69,10 @@ def show():
             return
 
         df['mouvement_eur'] = pd.to_numeric(df['mouvement_eur'], errors='coerce').fillna(0.0)
-        gross = float(df.loc[df.line_type == 'repartition', 'mouvement_eur'].sum())
-        charges = float(df.loc[df.line_type == 'charge', 'mouvement_eur'].sum())   # ≤ 0
-        tva = float(df.loc[df.line_type == 'tva', 'mouvement_eur'].sum())
+        totals = _load_totals(db, artist_id)
+        gross = totals.get('repartition', 0.0)
+        charges = totals.get('charge', 0.0)     # ≤ 0
+        tva = totals.get('tva', 0.0)
         net = gross + charges + tva
 
         k1, k2, k3 = st.columns(3)

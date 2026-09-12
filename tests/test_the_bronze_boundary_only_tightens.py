@@ -42,15 +42,19 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 
-# Gelé le 2026-09-10 à 124 sur une portée trop étroite. Le 2026-09-12 : les
-# migrations 107-109 et leurs repointages l'ont fait tomber à 105 sur cette
-# portée-là — puis l'élargissement ci-dessous l'a remonté à 132, parce que 27
-# couples vivaient dans des fichiers que personne ne regardait.
+# Journal du plafond, parce qu'un nombre qui bouge sans raison écrite est un
+# nombre qu'on finira par relever sans raison :
 #
-# **Le chiffre monte et c'est un progrès** : 124 était faux, 132 est vrai. C'est
-# la seule fois où relever un plafond est légitime, et elle se paie d'une phrase
-# qui dit pourquoi. À partir d'ici, il ne peut que descendre.
-_CEILING = 132
+#   124  gelé le 2026-09-10, sur une portée qui ne nommait que `views/` et
+#        `pdf_exporter/` — donc FAUX : `csv_exporter.py` n'y était pas.
+#   105  après les migrations 107-109 et leurs repointages, sur cette portée-là.
+#   132  portée élargie à tout `src/dashboard` : +27 couples qui vivaient dans des
+#        fichiers que personne ne regardait. Le chiffre MONTE et c'est un progrès.
+#   110  `csv_exporter.py` déclaré : 21 couples qui ne sont pas une dette, c'est
+#        un export de lignes brutes, et c'est ce qu'il promet.
+#
+# À partir d'ici, il ne peut que descendre.
+_CEILING = 110
 
 # Les surfaces qui montrent des chiffres à quelqu'un.
 # ⚠️ LA PORTÉE ÉTAIT L'ANGLE MORT. Elle ne nommait que `pdf_exporter` sous
@@ -67,6 +71,22 @@ _SURFACES = ("src/dashboard/views", "src/dashboard/utils", "src/api/routers")
 # table y apparaît dans une phrase, jamais dans une requête.
 _NOT_A_SURFACE = ("src/dashboard/utils/platform_timeseries.py",
                   "src/dashboard/utils/i18n_catalog/")
+
+# Les surfaces DÉCLARÉES : elles lisent le bronze, et c'est leur travail.
+#
+# `csv_exporter.py` est un `SELECT * FROM <table>` par table, **zéro agrégat** —
+# vérifié par le test ci-dessous, pas par une lecture rapide. Un export « toutes
+# mes lignes » EST la couche bronze remise au locataire : lui faire lire les vues
+# or lui rendrait des agrégats à la place de ses données. C'est exactement le
+# contraire de ce qu'il promet.
+#
+# La déclaration est quantifiée pour la même raison que celle des axes : une
+# exemption qui survit à ce qu'elle exemptait devient du budget.
+_DECLARED_BRONZE_SURFACES: dict[str, str] = {
+    "src/dashboard/utils/csv_exporter.py":
+        "export ZIP « toutes mes lignes » : un SELECT * par table, aucun agrégat. "
+        "La couche bronze remise au locataire, ce qui est sa définition.",
+}
 
 # Ce qui n'est pas une métrique métier : on ne le juge pas.
 _OPERATIONAL = re.compile(
@@ -101,6 +121,8 @@ def _direct_reads() -> dict[str, set[str]]:
             rel = f.relative_to(REPO).as_posix()
             if any(rel == x or rel.startswith(x) for x in _NOT_A_SURFACE):
                 continue
+            if rel in _DECLARED_BRONZE_SURFACES:
+                continue
             try:
                 tree = ast.parse(f.read_text(encoding="utf-8", errors="ignore"))
             except SyntaxError:
@@ -118,6 +140,39 @@ def _direct_reads() -> dict[str, set[str]]:
                     if t.lower() in bronze:
                         out[str(f.relative_to(REPO))].add(t.lower())
     return out
+
+
+def test_the_declared_bronze_surfaces_still_read_bronze_and_still_do_not_aggregate() -> None:
+    """Une déclaration se vérifie dans les DEUX sens, sinon c'est du budget.
+
+    Le jour où `csv_exporter.py` se met à sommer, sa ligne ici couvre le nouvel
+    agrégat sans que personne l'ait décidé. Et le jour où il cesse de lire le
+    bronze, la ligne est un plafond de 21 offert à autre chose.
+
+    Mutation record — 2026-09-12 : un `SUM(spend)` ajouté à une requête de
+    `csv_exporter.py`, ce test le nomme ; la déclaration pointée sur un fichier
+    qui ne lit aucune table de bronze, il le nomme aussi.
+    """
+    bronze = _bronze_tables()
+    for rel, reason in _DECLARED_BRONZE_SURFACES.items():
+        path = REPO / rel
+        assert path.is_file(), f"{rel} est déclaré mais n'existe plus — {reason}"
+        src = path.read_text(encoding="utf-8", errors="ignore")
+        tree = ast.parse(src)
+        literals = [n.value for n in ast.walk(tree)
+                    if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+        read = {t.lower() for lit in literals for t in _FROM.findall(lit)
+                if t.lower() in bronze}
+        assert read, (
+            f"{rel} est déclaré comme lecteur de bronze mais n'en lit plus aucune "
+            "table. La déclaration est devenue un plafond offert à autre chose.")
+        aggregating = [lit[:80] for lit in literals
+                       if re.search(r"\b(SUM|AVG)\s*\(", lit, re.I)
+                       and any(t.lower() in bronze for t in _FROM.findall(lit))]
+        assert not aggregating, (
+            f"{rel} est déclaré « aucun agrégat » et en porte maintenant "
+            f"{len(aggregating)} sur une table de bronze. La raison écrite ne tient "
+            f"plus : {aggregating[:2]}")
 
 
 def test_the_bronze_boundary_never_loosens() -> None:

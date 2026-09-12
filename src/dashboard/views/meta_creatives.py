@@ -579,7 +579,13 @@ def show() -> None:
         # `meta_campaigns`, qui portent `ad_account_id` — `meta_insights` est à la
         # maille ad_id, globalement unique, donc filtrer l'ancre suffit.
         _account = account_scope(db, artist_id, key="meta_creatives_acct")
-        _acct_ma, _acct_params = account_clause(_account, "ma.")
+        # PAS d'alias : `_QUERY_CREATIVES` lit `v_meta_creative_daily`, une seule
+        # relation. Un fragment ` AND ma.ad_account_id = %s` y lève
+        # `missing FROM-clause entry for table "ma"` — j'ai introduit ce défaut le
+        # 2026-09-12 en repointant la requête sans regarder l'alias que son appelant
+        # lui passait, c'est-à-dire la MÊME erreur que celle que le repointage
+        # corrigeait, dans sa troisième forme.
+        _acct_ma, _acct_params = account_clause(_account)
         _acct_mc, _ = account_clause(_account, "mc.")
         _acct_bare, _ = account_clause(_account)
         df = db.fetch_df(_QUERY_CREATIVES.format(acct=_acct_ma),
