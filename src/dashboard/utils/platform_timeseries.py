@@ -770,6 +770,18 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
     `get_instagram_followers` : son `last` porte le même effectif courant, donc la
     page gagne deux métriques sans gagner une requête.
 
+    **DEUX MÉTRIQUES DE PLUS le 2026-09-12, et toujours UN aller-retour.** Le
+    meilleur CPR de la période et la plus haute probabilité de déclenchement sont
+    demandés pour le récapitulatif ; le plafond de la page est atteint, donc elles
+    entrent comme des CTE de CETTE requête et non comme deux appels. C'est la
+    contrainte qui a dicté la forme, pas l'inverse.
+
+    ⚠️ `best_algo_p` est une **probabilité PRÉDITE**, jamais un taux observé. Le taux
+    observé demanderait `s4a_song_algo_outcomes`, qui porte **0 ligne** (mesuré le
+    2026-09-12, tous locataires confondus) : personne n'a jamais saisi l'issue d'une
+    prédiction. Rendre une prédiction sous le nom « taux de déclenchement » serait
+    l'inventer — la surface qui l'affiche DOIT dire qu'elle prédit.
+
     Rend `None` par métrique quand rien n'a été mesuré — jamais `0`, qui affirmerait
     qu'il ne s'est rien passé.
     """
@@ -777,6 +789,46 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
         return {}
     try:
         rows = _q(db, """
+            WITH best_cpr AS (
+                -- Le CPR le plus BAS est le meilleur : c'est un coût. Le HAVING
+                -- écarte les campagnes sans résultat, dont le CPR n'est pas
+                -- « infini » mais indéfini — une division par zéro n'est pas une
+                -- mauvaise performance.
+                SELECT campaign_name, spend, spend / results AS cpr
+                  FROM (SELECT campaign_name, SUM(spend) AS spend,
+                               SUM(results) AS results
+                          FROM v_meta_campaign_daily
+                         WHERE artist_id = %s
+                           AND (%s::date IS NULL OR day >= %s)
+                           AND (%s::date IS NULL OR day <= %s)
+                         GROUP BY campaign_name
+                        HAVING SUM(results) > 0 AND SUM(spend) > 0) q
+                 ORDER BY spend / results ASC
+                 LIMIT 1
+            ), best_algo AS (
+                -- PROBABILITÉ PRÉDITE, pas taux observé : voir le docstring.
+                SELECT song, prediction_date,
+                       GREATEST(COALESCE(dw_probability, 0),
+                                COALESCE(rr_probability, 0),
+                                COALESCE(radio_probability, 0))  AS p,
+                       CASE WHEN COALESCE(radio_probability, 0)
+                                 >= GREATEST(COALESCE(dw_probability, 0),
+                                             COALESCE(rr_probability, 0))
+                            THEN 'Radio'
+                            WHEN COALESCE(dw_probability, 0)
+                                 >= COALESCE(rr_probability, 0)
+                            THEN 'Discover Weekly'
+                            ELSE 'Release Radar' END              AS algo
+                  FROM ml_song_predictions
+                 WHERE artist_id = %s
+                   AND (%s::date IS NULL OR prediction_date >= %s)
+                   AND (%s::date IS NULL OR prediction_date <= %s)
+                   AND GREATEST(COALESCE(dw_probability, 0),
+                                COALESCE(rr_probability, 0),
+                                COALESCE(radio_probability, 0)) > 0
+                 ORDER BY p DESC
+                 LIMIT 1
+            )
             SELECT
               (SELECT MAX(followers_count) FROM instagram_daily_stats
                  WHERE artist_id = %s AND (%s::date IS NULL OR collected_at::date >= %s)
@@ -793,8 +845,16 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
                         AND (%s::date IS NULL OR collected_at::date <= %s))) AS ig_last,
               (SELECT SUM(spend) FROM v_meta_daily
                  WHERE artist_id = %s AND (%s::date IS NULL OR day >= %s)
-                   AND (%s::date IS NULL OR day <= %s))                       AS spend
-        """, (artist_id, since, since, until, until, artist_id, since, since,
+                   AND (%s::date IS NULL OR day <= %s))                       AS spend,
+              (SELECT cpr FROM best_cpr)                            AS best_cpr,
+              (SELECT campaign_name FROM best_cpr)                  AS best_cpr_name,
+              (SELECT spend FROM best_cpr)                          AS best_cpr_spend,
+              (SELECT p FROM best_algo)                             AS best_algo_p,
+              (SELECT algo FROM best_algo)                          AS best_algo_name,
+              (SELECT song FROM best_algo)                          AS best_algo_song
+        """, (artist_id, since, since, until, until,
+              artist_id, since, since, until, until,
+              artist_id, since, since, until, until, artist_id, since, since,
               artist_id, until, until, artist_id, until, until,
               artist_id, since, since, until, until))
     except Exception as e:      # noqa: BLE001 — le récapitulatif se rend sans ces lignes
@@ -802,12 +862,22 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
         return {}
     if not rows:
         return {}
-    ig_first, ig_last, spend = rows[0]
+    (ig_first, ig_last, spend, best_cpr, best_cpr_name, best_cpr_spend,
+     best_algo_p, best_algo_name, best_algo_song) = rows[0]
     return {
         "ig_followers": ig_last,
         "ig_delta": (None if ig_first is None or ig_last is None
                      else int(ig_last) - int(ig_first)),
         "meta_spend": float(spend) if spend is not None else None,
+        "best_cpr": float(best_cpr) if best_cpr is not None else None,
+        "best_cpr_name": best_cpr_name,
+        "best_cpr_spend": (float(best_cpr_spend)
+                           if best_cpr_spend is not None else None),
+        # `best_algo_p` est une PRÉDICTION. Le nom de la clé le dit, et la surface
+        # qui l'affiche doit le dire aussi — voir le docstring.
+        "best_algo_p": float(best_algo_p) if best_algo_p is not None else None,
+        "best_algo_name": best_algo_name,
+        "best_algo_song": best_algo_song,
     }
 
 

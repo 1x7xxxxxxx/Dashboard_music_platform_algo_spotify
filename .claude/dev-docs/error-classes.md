@@ -371,6 +371,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-caption-written-beside-the-behaviour-instead-of-derived-from-it](#a-caption-written-beside-the-behaviour-instead-of-derived-from-it) | P3 | deterministic | guarded | none |
 | [a-figure-under-a-period-selector-that-ignores-it](#a-figure-under-a-period-selector-that-ignores-it) | P2 | deterministic | guarded | none |
 | [a-window-applied-to-the-wrong-date](#a-window-applied-to-the-wrong-date) | P2 | deterministic | guarded | none |
+| [a-dependency-that-does-not-come-back](#a-dependency-that-does-not-come-back) | P2 | deterministic | guarded | none |
+| [a-guard-satisfied-by-the-collapse-it-should-catch](#a-guard-satisfied-by-the-collapse-it-should-catch) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -5361,3 +5363,31 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-12: les quatre instances ont en commun d'être **silencieuses et plausibles**. Aucune ne lève, aucune ne rend une valeur absurde à l'œil : 182 432 au lieu de 206 555, une bande plate avant 2025, un total qui a l'air grand parce que le compteur est grand. Elles se trouvent en COMPARANT deux chemins qui devraient s'accorder — le dessin contre la croissance, la figure contre le tableau — jamais en relisant l'un des deux.
   - 2026-09-12: le `guard:` nommé n'est PAS un garde de ce défaut-ci — c'est le cliquet qui tient la matrice `plateforme × famille` à zéro case vide, seul mécanisme qui empêche qu'une source neuve arrive sans qu'on ait dit de quelle espèce elle est. Nommer un chemin plutôt qu'un tiret a une raison mesurée : `gold_coverage.py` compte les classes sans chemin de garde sous cliquet, et ce compteur existe pour que « la règle est transverse » ne devienne pas l'échappatoire par défaut. La classe dit donc où se lit la contrainte, et son `kind: manual` dit qu'elle ne se prouve pas instance par instance.
   - 2026-09-12: la moitié de ces défauts n'apparaissent qu'au pas SEMAINE ou MOIS. Le premier seau à `None` coûtait 12 % sur douze mois et ~0 % au pas jour ; il a attendu que le pas mois existe pour devenir visible. Un changement de grain n'est pas cosmétique : il change quelles règles fausses deviennent mesurables.
+
+## a-dependency-that-does-not-come-back
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: après un redémarrage de l'hôte (WSL, Docker Desktop, la machine), les services qui DÉPENDENT d'un autre remontent et celui dont ils dépendent reste à terre. Le symptôme visible n'est donc pas « la base est tombée » mais « le scheduler tourne et ne voit rien » — ce qui envoie chercher la panne du côté de l'applicatif, pas de l'infrastructure.
+- root_cause: dans `docker-compose.yml`, le service `postgres` ne déclarait AUCUNE ligne `restart:` — le seul des quatre dans ce cas — alors que `airflow-webserver` et `airflow-scheduler`, qui en dépendent en `condition: service_healthy`, portaient tous deux `unless-stopped`. La valeur par défaut de Compose est `no`. `docker-compose.example.yml`, le fichier de PRODUCTION, portait la ligne depuis toujours : c'est une divergence entre les deux composes, et `tests/test_compose_parity.py` ne la voyait pas parce qu'il compare les services et les montages, pas les politiques de reprise.
+- long_term_fix: l'invariant n'est pas « postgres doit avoir un restart » (ça ne garde qu'une instance) mais **« un service requis TOURNANT par un autre déclare une politique de reprise au moins aussi durable que celle de son dépendant »**. Un lanceur à un coup (`service_completed_successfully`, ici `airflow-init`) est exempté par construction : il a vocation à sortir. Le garde parcourt le graphe `depends_on` des DEUX composes et compare les durabilités, donc un service neuf entre dans la population sans qu'on y pense.
+- signature: `python3 -m pytest tests/test_a_dependency_comes_back_with_its_host.py -q`
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_dependency_comes_back_with_its_host.py }
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: WSL redémarre. Treize conteneurs remontent seuls, un seul reste à terre — `postgres_spotify_airflow`, `Exited (255)`, `RestartPolicy: no`. Signature vue ≠ 0 sur le défaut, 0 après ajout de `restart: unless-stopped`. Deux mutations vues ROUGES avant écriture du fix : ligne retirée (le garde nomme le service, ses 3 dépendants et la ligne à ajouter), et `restart: "no"` posé (durabilité plus faible que le dépendant). Parenté avec `a-guards-scope-is-the-defect` : la parité entre les deux composes existait déjà, sa PORTÉE n'incluait pas la reprise.
+
+## a-guard-satisfied-by-the-collapse-it-should-catch
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un garde qui affirme une ABSENCE (« cette ligne ne doit pas s'afficher », « ce champ ne doit pas apparaître ») reste vert sur le défaut, parce que le défaut fait tomber le bloc ENTIER et qu'une surface effondrée est vide — donc conforme. Le garde est mutation-testé, il rougit sur d'autres mutations, et il ne verra jamais celle-là.
+- root_cause: la surface testée vit sous un `try/except` qui dégrade en silence — ici `render_platform_chart`, qui journalise « recap metrics unavailable » et rend la figure sans ses métriques. Mesuré le 2026-09-12 : la mutation `if prev_total and now_total` → `if prev_total is not None and now_total` lève une `ZeroDivisionError` sur `prev_total=0`, l'exception est avalée, les CINQ métriques disparaissent, et l'assertion « la ligne de variation est absente » passe. Le harnais mentait, pas le prédicat.
+- long_term_fix: **une assertion d'absence n'est valide qu'accompagnée d'une assertion de PRÉSENCE sur un voisin du même bloc.** La présence prouve que le bloc s'est exécuté jusqu'au bout ; l'absence ne prouve alors plus que ce qu'on veut lui faire dire. La règle se généralise à tout garde posé sur une surface avalée : rendu Streamlit, collecteur, export PDF, section d'un rapport construite dans un `except` tolérant. Écrire la mutation ET vérifier qu'elle rougit POUR LA BONNE RAISON — un `FAILED` sur le bon test peut encore venir du mauvais mécanisme.
+- signature: `python3 -m pytest tests/test_a_recap_row_answers_the_question_it_names.py -q`
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_recap_row_answers_the_question_it_names.py }
+- first_seen: 2026-09-12
+- History:
+  - 2026-09-12: trouvée en MUTANT un garde écrit dix minutes plus tôt — la mutation est restée verte là où les deux autres du même lot rougissaient. Parenté directe avec `a-verdict-from-a-tree-that-moved-under-it` et avec la leçon « le harnais peut mentir, pas seulement le prédicat » : dans les deux cas le test mesure autre chose que son sujet. Différence utile : ici le harnais est le CODE DE PRODUCTION, pas l'outillage de test — c'est le `except` tolérant de la vraie surface qui produit le faux vert.

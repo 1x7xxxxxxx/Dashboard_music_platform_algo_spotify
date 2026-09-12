@@ -34,10 +34,10 @@ Une attribution n'est publiée que s'il existe un **chemin def-use prouvé** ent
 |---|---|---|
 | `sql-dynamique` | requête ou table assemblée hors littéral — indécidable sans exécuter | 17 |
 | `identifiant-non-résolu` | un nom capté dans un FROM qui n'existe ni en migration ni dans init_db.sql (CTE, alias, sous-requête) — écarté plutôt que publié | 0 |
-| `appelants-multiples` | rendu partagé par plus de trois appelants : un site, N jeux de données | 17 |
+| `appelants-multiples` | rendu partagé par plus de trois appelants : un site, N jeux de données | 6 |
 | `profondeur` | chaîne de plus de 3 sauts — plafond MESURÉ : le cran suivant n'apporte rien | 12 |
-| `sans-appelant` | fonction dont aucun appel n'est résoluble statiquement | 3 |
-| `clé-à-l-exécution` | argument passé par **kwargs, partial, ou conteneur indexé par une variable | 5 |
+| `sans-appelant` | fonction dont aucun appel n'est résoluble statiquement | 4 |
+| `clé-à-l-exécution` | argument passé par **kwargs, partial, ou conteneur indexé par une variable | 13 |
 | `receveur-inconnu` | `X.metric(...)` où X n'est lié ni à st.columns ni à st.tabs — compté, pas deviné | 1 |
 | `sans-retour` | fonction traversée qui ne retourne rien d'attribuable | 0 |
 
@@ -59,7 +59,7 @@ Cinq mots de confiance, et rien d'autre :
 | `v_instagram_media_monthly` | vue | `migrations/106_gold_remaining_grains.sql` | `instagram_media` | 4 | — |
 | `v_meta_active_budget` | vue | `migrations/110_gold_meta_active_budget.sql` | `meta_campaigns` | 4 | — |
 | `v_meta_adset_daily` | vue | `migrations/108_gold_meta_creative_account_and_adset.sql` | `meta_ads` · `meta_adsets` · `meta_insights` | 1 | — |
-| `v_meta_campaign_daily` | vue | `migrations/109_gold_meta_campaign_daily.sql` | `meta_insights_performance` · `meta_insights_performance_day` | 26 | — |
+| `v_meta_campaign_daily` | vue | `migrations/109_gold_meta_campaign_daily.sql` | `meta_insights_performance` · `meta_insights_performance_day` | 27 | — |
 | `v_meta_creative_daily` | vue | `migrations/108_gold_meta_creative_account_and_adset.sql` | `meta_ads` · `meta_adsets` · `meta_campaigns` · `meta_insights` | 17 | `migrations/106_gold_remaining_grains.sql` |
 | `v_meta_daily` | vue | `migrations/106_gold_remaining_grains.sql` | `meta_insights_performance_day` | 21 | — |
 | `v_meta_spend_totals` | vue | `migrations/101_gold_meta_spend.sql` | `meta_insights_performance_day` | 1 | — |
@@ -77,26 +77,26 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 
 | fichier:ligne | fonction | surface | visible | source établie | couche | confiance | motif | lu dans la même fonction (aucun lien prouvé) |
 |---|---|---|---|---|---|---|---|---|
-| ⚠️ `utils/ml_widgets.py:224` | `render_prerelease_rr_estimator` | plotly_chart | à l'écran | — | — | indéterminée | appelants-multiples · profondeur | — |
+| ⚠️ `utils/ml_widgets.py:224` | `render_prerelease_rr_estimator` | plotly_chart | à l'écran | — | — | indéterminée | profondeur | — |
 | ⚠️ `utils/ml_widgets.py:294` | `render_lever_sensitivity` | plotly_chart | à l'écran | — | — | indéterminée | clé-à-l-exécution · profondeur | — |
-| ⚠️ `views/admin.py:466` | `_render_costs` | plotly_chart | à l'écran | — | — | indéterminée | appelants-multiples · profondeur | — |
+| ⚠️ `views/admin.py:466` | `_render_costs` | plotly_chart | à l'écran | — | — | indéterminée | profondeur | — |
 | ⚠️ `views/db_health.py:234` | `_show_freshness_bar` | plotly_chart | à l'écran | — | — | indéterminée | sql-dynamique | — |
 | ⚠️ `views/meta_ads_overview.py:637` | `_show_meta_ads` | plotly_chart | à l'écran | — | — | indéterminée | clé-à-l-exécution | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_campaign_daily` · ?`v_meta_daily` |
 | ⚠️ `views/meta_breakdowns.py:96` | `_render_performance` | plotly_chart | à l'écran | — | — | indéterminée | clé-à-l-exécution | — |
 | ⚠️ `views/trigger_algo/_common/_pi_gates.py:76` | `_show_pi_gate_section` | plotly_chart | à l'écran | — | — | indéterminée | profondeur | — |
-| `utils/platform_chart.py:937` | `render_platform_chart` | plotly_chart | à l'écran | `get()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur | — |
-| `utils/platform_chart.py:1038` | `_render_facets` | plotly_chart | à l'écran | `get()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur | — |
+| `utils/platform_chart.py:970` | `render_platform_chart` | plotly_chart | à l'écran | `get()` · `apple_yearly_series()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur · sans-appelant | — |
+| `utils/platform_chart.py:1073` | `_render_facets` | plotly_chart | à l'écran | `get()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | clé-à-l-exécution · profondeur | — |
 | `views/alerts.py:277` | `_section_plan_evolution` | plotly_chart | à l'écran | `subscription_plan_history` | brut | plusieurs amonts | — | — |
 | `views/apple_music.py:100` | `show` | plotly_chart | à l'écran | `apple_songs_history` · `apple_songs_performance` | brut | plusieurs amonts | — | — |
 | `views/apple_music.py:212` | `show` | plotly_chart | à l'écran | `apple_songs_history` · `apple_songs_performance` | brut | plusieurs amonts | — | — |
-| `views/data_wrapped.py:628` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | appelants-multiples | — |
-| `views/data_wrapped.py:638` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | appelants-multiples | — |
-| `views/data_wrapped.py:644` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | appelants-multiples | — |
-| `views/data_wrapped.py:661` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | appelants-multiples | — |
-| `views/data_wrapped.py:667` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | appelants-multiples | — |
-| `views/data_wrapped.py:675` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | appelants-multiples | — |
-| `views/data_wrapped.py:681` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | appelants-multiples | — |
-| `views/data_wrapped.py:695` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | appelants-multiples | — |
+| `views/data_wrapped.py:628` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
+| `views/data_wrapped.py:638` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
+| `views/data_wrapped.py:644` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
+| `views/data_wrapped.py:661` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
+| `views/data_wrapped.py:667` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
+| `views/data_wrapped.py:675` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
+| `views/data_wrapped.py:681` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
+| `views/data_wrapped.py:695` | `show` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
 | `views/etl_logs.py:230` | `_section_trend` | plotly_chart | à l'écran | `etl_run_log` | brut | plusieurs amonts | — | — |
 | `views/hypeddit.py:209` | `_render_global_stats` | plotly_chart | à l'écran | `v_hypeddit_daily` | or | plusieurs amonts | — | — |
 | `views/imusician.py:329` | `show` | plotly_chart | à l'écran | `get_monthly_roi_series()` | or | plusieurs amonts | sql-dynamique | ?`saas_artists` |
@@ -171,7 +171,7 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 
 `st.metric` n'est que 17 des 207 tuiles du produit ; les 190 autres passent par une poignée de colonne (`c1.metric`). Un inventaire qui n'aurait compté que le receveur `st` décrirait 8 % du produit.
 
-**90 sur 207** portent une source établie ; **11** sont déclarées indéterminées et listées en tête ; 106 sont hors base par nature — la tranche a fini proprement sans lire la base — et 48 des attribuées ont plusieurs amonts.
+**95 sur 212** portent une source établie ; **11** sont déclarées indéterminées et listées en tête ; 106 sont hors base par nature — la tranche a fini proprement sans lire la base — et 52 des attribuées ont plusieurs amonts.
 
 | fichier:ligne | fonction | surface | visible | source établie | couche | confiance | motif | lu dans la même fonction (aucun lien prouvé) |
 |---|---|---|---|---|---|---|---|---|
@@ -196,6 +196,10 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/billing.py:340` | `_show_admin_view` | billing.paying_artists | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_artists` |
 | `views/billing.py:341` | `_show_admin_view` | ARPU | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_artists` |
 | `views/data_wrapped.py:247` | `_recap_spotify` | data_wrapped.recap_followers | à l'écran | `s4a_audience` | brut | plusieurs amonts | — | ?`v_s4a_song_daily` |
+| `views/home.py:229` | `_render_tiles` | 🎵 Spotify | à l'écran | `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:230` | `_render_tiles` | 🎬 YouTube | à l'écran | `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:231` | `_render_tiles` | ☁️ SoundCloud | à l'écran | `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:232` | `_render_tiles` | 🎎 Apple Music | à l'écran | `platform_totals()` | or | plusieurs amonts | — | — |
 | `views/meta_ads_overview.py:141` | `_show_meta_ads` | meta_ads_overview.spend | à l'écran | `v_meta_campaign_daily` | or | plusieurs amonts | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_daily` |
 | `views/meta_ads_overview.py:142` | `_show_meta_ads` | meta_ads_overview.impressions | à l'écran | `v_meta_campaign_daily` | or | plusieurs amonts | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_daily` |
 | `views/meta_ads_overview.py:143` | `_show_meta_ads` | meta_ads_overview.link_clicks | à l'écran | `v_meta_campaign_daily` | or | plusieurs amonts | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_daily` |
@@ -286,6 +290,7 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/etl_logs.py:81` | `_section_kpis` | etl_logs.kpi_avg_duration | à l'écran | `etl_run_log` | brut | directe | — | — |
 | `views/etl_logs.py:82` | `_section_kpis` | etl_logs.kpi_rows_inserted | à l'écran | — | — | hors base | — | ?`etl_run_log` |
 | `views/etl_logs.py:83` | `_section_kpis` | etl_logs.kpi_failed_runs | à l'écran | `etl_run_log` | brut | directe | — | — |
+| `views/home.py:237` | `_render_tiles` | 📸 Instagram | à l'écran | `period_side_metrics()` | or | portée (1 saut) | — | — |
 | `views/hypeddit.py:169` | `_render_global_stats` | hypeddit.kpi_avg_visits | à l'écran | — | — | hors base | — | — |
 | `views/hypeddit.py:170` | `_render_global_stats` | hypeddit.kpi_avg_clicks | à l'écran | — | — | hors base | — | — |
 | `views/imusician.py:427` | `show` | imusician.roi_revenue | à l'écran | `fmt_eur()` | or | directe | — | ?`saas_artists` |
@@ -467,9 +472,9 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 ## Les classes d'erreur
 
-**311 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
+**313 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
 
-**fixed** : 10· **guarded** : 284· **open** : 4· **reported** : 13
+**fixed** : 10· **guarded** : 286· **open** : 4· **reported** : 13
 
 **0 classe(s) nomment un fichier de garde qui n'existe plus** et **11** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
@@ -607,14 +612,14 @@ Chaque déclaration est vérifiée : le site doit encore exister et encore agré
 Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_coverage_only_improves.py` les compare à un plafond posé **à** la mesure, jamais au-dessus.
 
 <!-- gold-coverage-figures: total=89 unknown=7 -->
-<!-- gold-coverage-tiles: total=207 unknown=11 -->
+<!-- gold-coverage-tiles: total=212 unknown=11 -->
 <!-- gold-coverage-pdf: total=29 unknown=5 -->
 <!-- gold-coverage-gold-objects: total=15 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=18 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=311 guard_missing=0 guard_unnamed=11 -->
+<!-- gold-coverage-error-classes: total=313 guard_missing=0 guard_unnamed=11 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=12 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=724d4e4d51eaa9dd83768b5aa18f3e4a6f120cad1efc312f5a4165c79e39f9a6 -->
+<!-- gold-coverage: sha256=d91c4be4869ba72a1e6749e2188ffd3314016536b93d2d1203ab1ccbbd4f1f1c -->

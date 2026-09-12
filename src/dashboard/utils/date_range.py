@@ -42,9 +42,24 @@ _KEY = "_home_range"
 
 # L'ordre est celui du sélecteur. `None` = pas de borne — « depuis le début ».
 # Les libellés sont volontairement courts : ils vivent dans une barre horizontale.
+# « Cette année » a été RETIRÉE le 2026-09-12 — « c'est pareil non ? garde
+# uniquement 12 mois ». Les deux ne sont pas identiques et c'est justement le
+# problème : au 12 septembre, YTD couvre 255 jours et « 12 mois » 365, donc elles
+# rendent presque la même figure ; au 5 janvier, l'une en couvre 5 et l'autre 365.
+# Une option dont l'écart avec sa voisine dépend du MOIS où on la lit se choisit au
+# hasard onze mois sur douze, et surprend le douzième.
+#
+# LE CALCUL PART AVEC L'ENTRÉE, et c'est délibéré. On a d'abord gardé la branche
+# `span == "ytd"` « au cas où un signet la porte » — puis on l'a exécutée : comme la
+# clé n'est plus dans `RANGES`, `bounds("ytd")` retombe sur le défaut et rend
+# `(None, None)`. La branche était déjà inatteignable, et le commentaire qui la
+# gardait affirmait le contraire. C'est « du code correct que rien n'atteint », la
+# forme que ce dépôt paie le plus souvent — retirée plutôt que gardée.
+#
+# Conséquence assumée : un signet `?range=ytd` ouvre « Depuis le début ». C'est déjà
+# ce que fait n'importe quelle clé inconnue, et `current_key` le dit depuis toujours.
 RANGES: dict = {
     "all": (None, "Depuis le début"),
-    "ytd": ("ytd", "Cette année"),
     "12m": (365, "12 mois"),
     "90d": (90, "90 jours"),
     "30d": (30, "30 jours"),
@@ -77,8 +92,6 @@ def bounds(key: str | None = None, today: _dt.date | None = None):
     if span is None:
         return None, None
     day = today or _today_in_display_tz()
-    if span == "ytd":
-        return _dt.date(day.year, 1, 1), day
     if span == "custom":
         since, until = custom_bounds()
         # Tant que les deux dates ne sont pas posées, « sur mesure » ne borne rien :

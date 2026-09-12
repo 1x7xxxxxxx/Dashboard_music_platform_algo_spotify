@@ -178,7 +178,18 @@ def _watched_by_ratchet(rel: str, table: str) -> bool:
 # surface d'erreur. Remesurer avant de le bouger — un plafond choisi d'instinct
 # est la classe `un-seuil-écrit-d-instinct`.
 _MAX_HOPS = 3
-_MAX_CALLERS = 3
+# 4 ET NON 3, SUR UNE MESURE — jamais « au cas où ». Balayé le 2026-09-12 sur le
+# dépôt entier : plafond 3 → 27 surfaces indéterminées, 4 → 23, 5 → 23, 6 → 23,
+# 8 → 23. Le cinquième cran n'attribue rien de plus, le quatrième attribue quatre
+# surfaces, et ce sont les quatre tuiles de l'ACCUEIL — l'écran le plus lu du
+# produit. Elles remontent à `platform_totals()`, la porte de la couche or : le
+# lecteur les déclarait « indéterminées » alors que leur source était la bonne.
+#
+# C'est la même correction que le plafond de sauts passé de 2 à 3 (2 → 27, 3 → 23,
+# 4 → 23) : un livrable qui écrit « je ne sais pas » là où il sait est aussi
+# trompeur qu'un livrable qui invente. Rejouer la mesure avant de toucher ce
+# chiffre — un plafond choisi à l'instinct ne garde rien.
+_MAX_CALLERS = 4
 
 # ── vocabulaire fermé de la confiance ──────────────────────────────────────
 DIRECT = "directe"

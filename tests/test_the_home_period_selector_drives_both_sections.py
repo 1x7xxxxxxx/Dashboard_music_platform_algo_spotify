@@ -72,10 +72,24 @@ def test_the_default_is_since_the_beginning() -> None:
     assert date_range.is_bounded("all") is False
 
 
-def test_this_year_starts_on_january_first() -> None:
-    """`today` est injecté : un test qui lit l'horloge change de verdict le 1ᵉʳ janvier."""
-    since, until = date_range.bounds("ytd", today=_dt.date(2026, 9, 8))
-    assert (since, until) == (_dt.date(2026, 1, 1), _dt.date(2026, 9, 8))
+def test_this_year_left_the_selector_with_its_calculation() -> None:
+    """« Cette année » retirée le 2026-09-12 — l'entrée ET le calcul, ensemble.
+
+    Garder le calcul « au cas où un signet le porte » ne marchait pas : la clé
+    n'étant plus dans `RANGES`, `bounds` retombe sur le défaut avant d'atteindre la
+    branche. Une branche inatteignable gardée par un commentaire qui affirme le
+    contraire est exactement ce que ce dépôt paie le plus souvent.
+
+    Le sens est double : l'option ne revient pas dans le menu (elle était choisie au
+    hasard — au 12 septembre elle couvre 255 jours contre 365 pour sa voisine), et
+    `bounds` ne prétend plus la calculer.
+    """
+    assert "ytd" not in date_range.RANGES, (
+        "« Cette année » est revenue au sélecteur, à trois options de « 12 mois » "
+        "dont elle ne se distingue qu'au mois de janvier")
+    assert date_range.bounds("ytd", today=_dt.date(2026, 9, 8)) == (None, None), (
+        "`bounds('ytd')` calcule encore une fenêtre alors que rien ne peut plus "
+        "produire cette clé : la branche est du code que rien n'atteint")
 
 
 @pytest.mark.parametrize("key,span", [("30d", 30), ("90d", 90), ("12m", 365)])
@@ -213,51 +227,79 @@ def test_a_custom_range_is_offered_and_bounded_by_its_two_dates() -> None:
     assert date_range.bounds("custom") == (None, None)
 
 
-def test_the_home_shows_no_per_platform_tile_to_contradict_its_curve() -> None:
-    """L'accueil ne porte plus de tuile par plateforme — et c'est une DÉCISION.
+def test_a_platform_tile_never_shows_a_zero_it_did_not_measure() -> None:
+    """Les tuiles sont REVENUES — et ce test reprend exactement ce qu'il tenait avant.
 
-    Ce test s'appelait `test_the_tile_of_an_unmeasured_platform_shows_a_dash_on_
-    screen` et vérifiait qu'une plateforme sans mesure affiche « — » plutôt que
-    « 0 ». Il a cessé d'être vrai le 2026-09-10, quand les tuiles ont quitté cet
-    écran : elles portaient les compteurs « depuis le début » à côté d'une figure
-    qui ne trace que ce qu'on a MESURÉ, soit deux nombres pour la même période
-    sans qu'aucun soit faux (`views/home.py`, commentaire « LES TUILES ONT QUITTÉ
-    CET ÉCRAN »).
+    Son histoire en trois temps, et le troisième est celui qui apprend quelque chose :
 
-    Il ne l'a pas dit tout de suite. Il cherche un couple (locataire, période) où
-    une plateforme a des mesures et une autre non, et SAUTE quand il n'en trouve
-    pas — donc il est resté vert par absence de cas pendant que sa cible
-    disparaissait. Il n'a rougi que le 2026-09-11, quand un locataire local
-    (471, 1 001 lignes YouTube et zéro ailleurs) a fini par lui en fournir un. Un
-    garde qui saute est un garde dont on n'apprend rien.
+    1. Il s'appelait `test_the_tile_of_an_unmeasured_platform_shows_a_dash_on_screen`
+       et vérifiait qu'une plateforme sans mesure affiche « — » plutôt que « 0 ».
+    2. Le 2026-09-10 les tuiles ont quitté l'écran : elles portaient les compteurs
+       « depuis le début » à côté d'une figure qui ne trace que la période. Le test
+       a été retourné pour tenir leur ABSENCE — et il a nommé la condition de leur
+       retour : « si une tuile revient, la règle "— plutôt que 0" redevient
+       nécessaire et ce test le rappellera ».
+    3. Le 2026-09-12 elles reviennent, demandées : « tu m'avais fait une proposition
+       avec plusieurs KPI streams totaux et je trouvais que ça rendait bien,
+       pourquoi on ne peut plus l'intégrer ? Je te rappelle que tu l'as supprimé
+       sans que je te le demande ». Le garde a rougi au premier rendu, avec sa
+       propre consigne dans le message. Il n'a pas fallu se souvenir.
 
-    Ce qu'il tient maintenant est la décision elle-même : si une tuile par
-    plateforme revient sur l'accueil, la règle « — plutôt que 0 » redevient
-    nécessaire et ce test le rappellera. La règle côté helper reste couverte par
-    le test suivant.
+    **Ce n'était pas la TUILE le défaut, c'était le CHIFFRE qu'elle portait.**
+    `platform_totals(db, artist_id, since, until)` est borné à la fenêtre depuis le
+    2026-09-11, et c'est la source unique des tuiles ET du tableau : deux surfaces,
+    un seul calcul, aucune divergence possible. Le bon geste au 2026-09-10 aurait été
+    de borner la donnée ; on avait retiré la surface.
+
+    Ce que ce test tient donc à nouveau : une tuile de plateforme non mesurée montre
+    « — ». Un « 0 » affirmerait que personne n'a écouté — c'est la distinction que
+    toute cette page défend, et une tuile est le pire endroit pour la perdre : elle
+    est lue en premier et sans contexte.
     """
     from src.dashboard.utils import get_db_connection
+    from src.dashboard.utils.platform_timeseries import platform_totals
 
     db = get_db_connection()
     if db is None:
         pytest.skip("pas de base")
     try:
         rows = db.fetch_query(
-            "SELECT id FROM saas_artists WHERE active ORDER BY id LIMIT 1") or []
+            "SELECT id FROM saas_artists WHERE active ORDER BY id") or []
         if not rows:
             pytest.skip("aucun locataire actif")
-        at = _home(int(rows[0][0]))
+        # UN LOCATAIRE OÙ LE CAS EXISTE, sinon le garde ne juge rien. On cherche
+        # celui dont une plateforme au moins est mesurée et une autre non — c'est
+        # l'écart entre « — » et « 0 » qui est en jeu, pas leur présence.
+        target, missing = None, []
+        for (aid,) in rows:
+            tot = platform_totals(db, int(aid))
+            got = [k for k in ("spotify", "youtube", "soundcloud") if tot.get(k)]
+            gone = [k for k in ("spotify", "youtube", "soundcloud")
+                    if not tot.get(k)]
+            if got and gone:
+                target, missing = int(aid), gone
+                break
+        if target is None:
+            pytest.skip("aucun locataire n'a une plateforme mesurée et une autre non")
+        at = _home(target)
     finally:
         db.close()
 
-    platform_tiles = [m.label for m in at.metric
-                      if any(k in m.label for k in ("Spotify S4A", "YouTube", "SoundCloud"))]
-    assert not platform_tiles, (
-        f"des tuiles par plateforme sont revenues sur l'accueil : {platform_tiles}. "
-        "Elles y côtoient une figure qui ne trace que ce qui a été mesuré — rétablir "
-        "alors la règle « — plutôt que 0 » (une absence de mesure n'est pas un zéro), "
-        "et remettre ce test sur elle."
-    )
+    tiles = {m.label: m.value for m in at.metric}
+    assert tiles, (
+        "aucune tuile rendue sur l'accueil — le garde ne mesure rien. Elles sont "
+        "revenues le 2026-09-12 ; si elles repartent, c'est ce test qu'il faut "
+        "retourner, pas taire.")
+    _LABELS = {"spotify": "🎵 Spotify", "youtube": "🎬 YouTube",
+               "soundcloud": "☁️ SoundCloud"}
+    for key in missing:
+        label = _LABELS[key]
+        shown = next((v for k, v in tiles.items() if k.startswith(label)), None)
+        assert shown == "—", (
+            f"la tuile « {label} » du locataire {target} affiche « {shown} » alors "
+            f"que rien n'a été mesuré pour cette plateforme. Un zéro affirme "
+            f"« personne n'a écouté » ; l'absence dit « nous n'avons rien mesuré ». "
+            f"Tuiles rendues : {tiles}")
 
 
 def test_the_measured_days_helper_separates_the_two_absences() -> None:

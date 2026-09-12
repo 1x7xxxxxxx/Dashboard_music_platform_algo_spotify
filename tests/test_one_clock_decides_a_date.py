@@ -68,6 +68,10 @@ def test_the_period_bounds_follow_the_product_day_not_the_host() -> None:
 
 
 def test_an_injected_day_still_wins() -> None:
-    """Le test doit pouvoir figer le calendrier : sans ça il change d'avis le 1ᵉʳ janvier."""
-    assert date_range.bounds("ytd", today=dt.date(2026, 3, 4)) == (
-        dt.date(2026, 1, 1), dt.date(2026, 3, 4))
+    """Le test doit pouvoir figer le calendrier : sans ça il change d'avis le 1ᵉʳ janvier.
+
+    Porté sur « 12 mois » le 2026-09-12 : « Cette année » a quitté le sélecteur, et
+    l'injection de `today` est ce qui est vérifié ici — pas la fenêtre choisie.
+    """
+    assert date_range.bounds("12m", today=dt.date(2026, 3, 4)) == (
+        dt.date(2025, 3, 5), dt.date(2026, 3, 4))
