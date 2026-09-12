@@ -173,19 +173,39 @@ def test_the_rebase_preserves_the_lifetime_level():
 
 # ── LES DEUX MODES, ET LA LÉGENDE COMME FILTRE ──────────────────────────────
 
-def test_only_two_modes_are_offered():
-    """« je veux uniquement un filtre cumulé ou normal » (2026-09-12)."""
+def test_the_mode_is_a_single_toggle_defaulting_to_cumulative():
+    """« je veux uniquement le bouton cumulé allumé ou non » (2026-09-13).
+
+    La barre a porté quatre modes, puis deux. Deux boutons dont l'un est toujours
+    actif sont un interrupteur qui s'ignore — `st.toggle` dit la même chose en une
+    case, et son état se lit sans comparer deux libellés.
+
+    Ce garde vérifie les DEUX propriétés, parce qu'elles se perdent séparément : que
+    ce soit bien un interrupteur, et qu'il soit ALLUMÉ par défaut. Le cumulé est le
+    seul mode où toutes les plateformes sont visibles — éteint, YouTube pèse 0,18 %
+    de la pile sur l'historique complet (mesuré en production le 2026-09-13) et
+    disparaît sous le pixel.
+    """
     tree = ast.parse(_HOME.read_text(encoding="utf-8"))
-    node = next((n for n in ast.walk(tree) if isinstance(n, ast.Assign)
-                 and any(getattr(t, "id", "") == "_MODES_HOME" for t in n.targets)),
-                None)
-    assert node is not None, "`_MODES_HOME` a disparu — le filtre est construit ailleurs"
-    kept = {c.value for c in ast.walk(node.value)
-            if isinstance(c, ast.Constant) and isinstance(c.value, str)}
-    assert kept == {"cumulative", "absolute"}, (
-        f"les modes retenus sont {sorted(kept)} au lieu de cumulative + absolute. "
-        "« Part » et « Chacune à son échelle » répondaient à des questions que les "
-        "boîtes de droite répondent déjà, en valeur absolue et côte à côte.")
+    toggles = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+               and getattr(n.func, "attr", "") == "toggle"]
+    assert len(toggles) == 1, (
+        f"{len(toggles)} `st.toggle` dans home.py — il en faut exactement un, celui "
+        "du cumulé. Zéro : le mode est redevenu une barre ou a disparu. Plus d'un : "
+        "un second réglage s'est glissé là où l'artiste en demandait un seul.")
+    default = next((kw.value for kw in toggles[0].keywords if kw.arg == "value"), None)
+    assert isinstance(default, ast.Constant) and default.value is True, (
+        "l'interrupteur du cumulé n'est plus allumé par défaut. Éteint, la figure "
+        "montre les gains PAR PAS : sur l'historique complet, la croissance observée "
+        "de YouTube vaut 304 vues contre 165 065 pour Spotify — sa bande passe sous "
+        "le pixel et l'artiste lit « pas de données ».")
+
+    # ET LES QUATRE MODES NE DOIVENT PLUS ÊTRE OFFERTS NULLE PART dans cette vue.
+    bars = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+            and getattr(n.func, "attr", "") == "segmented_control"]
+    assert not bars, (
+        f"une barre `segmented_control` subsiste dans home.py (lignes "
+        f"{[n.lineno for n in bars]}) : le réglage du mode est redevenu un menu.")
 
 
 def test_the_legend_is_the_only_source_filter():

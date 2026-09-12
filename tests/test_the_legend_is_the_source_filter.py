@@ -164,14 +164,18 @@ def test_home_has_no_source_widget_at_all() -> None:
     # ET LE MODE QUI JUSTIFIAIT L'EXCEPTION DOIT AVOIR DISPARU AVEC LUI. Sans cette
     # moitié, remettre « Part » sans son widget passerait — et la pile afficherait
     # des pourcentages faux dès qu'on clique une légende.
-    modes = next((n for n in ast.walk(tree) if isinstance(n, ast.Assign)
-                  and any(getattr(t, "id", "") == "_MODES_HOME" for t in n.targets)),
-                 None)
-    assert modes is not None, "`_MODES_HOME` a disparu — les modes sont construits ailleurs"
-    kept = {c.value for c in ast.walk(modes.value)
-            if isinstance(c, ast.Constant) and isinstance(c.value, str)}
-    assert "share" not in kept, (
-        "le mode « Part de chaque plateforme » est revenu sans son `multiselect` : "
-        "un clic de légende y masque une trace sans recalculer les pourcentages, "
-        "donc la pile ne fait plus 100 %. Si ce mode revient, son widget doit "
-        "revenir avec lui.")
+    #
+    # Depuis le 2026-09-13 le mode n'est plus un dict mais un INTERRUPTEUR : le seul
+    # littéral de mode que la vue produit est « cumulative » / « absolute ». On
+    # vérifie donc que « share » n'apparaît dans AUCUN littéral de `_render_trend`
+    # — c'est plus large que l'ancienne lecture d'un dict, et ça survit au prochain
+    # changement de widget.
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "_render_trend")
+    literals = {c.value for c in ast.walk(fn)
+                if isinstance(c, ast.Constant) and isinstance(c.value, str)}
+    assert "share" not in literals, (
+        "le mode « Part de chaque plateforme » est revenu dans `_render_trend` sans "
+        "son `multiselect` : un clic de légende y masque une trace sans recalculer "
+        "les pourcentages, donc la pile ne fait plus 100 %. Si ce mode revient, son "
+        "widget doit revenir avec lui.")

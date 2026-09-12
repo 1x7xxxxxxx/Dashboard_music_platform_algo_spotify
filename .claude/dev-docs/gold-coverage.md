@@ -196,10 +196,10 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/billing.py:340` | `_show_admin_view` | billing.paying_artists | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_artists` |
 | `views/billing.py:341` | `_show_admin_view` | ARPU | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_artists` |
 | `views/data_wrapped.py:247` | `_recap_spotify` | data_wrapped.recap_followers | à l'écran | `s4a_audience` | brut | plusieurs amonts | — | ?`v_s4a_song_daily` |
-| `views/home.py:300` | `_render_tiles` | — | autre onglet | `apple_yearly_series()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
-| `views/home.py:319` | `_box` | — | autre onglet | `apple_yearly_series()` · `combined_total()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
-| `views/home.py:341` | `_render_tiles` | 📸 Instagram | autre onglet | `apple_yearly_series()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
-| `views/home.py:358` | `_render_tiles` | home.tile_meta | autre onglet | `apple_yearly_series()` · `combined_total()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:293` | `_box` | — | autre onglet | `apple_yearly_series()` · `combined_total()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:315` | `_render_tiles` | 📸 Instagram | autre onglet | `apple_yearly_series()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:352` | `_render_tiles` | home.tile_meta | autre onglet | `apple_yearly_series()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:401` | `_render_tiles` | — | autre onglet | `apple_yearly_series()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
 | `views/meta_ads_overview.py:141` | `_show_meta_ads` | meta_ads_overview.spend | à l'écran | `v_meta_campaign_daily` | or | plusieurs amonts | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_daily` |
 | `views/meta_ads_overview.py:142` | `_show_meta_ads` | meta_ads_overview.impressions | à l'écran | `v_meta_campaign_daily` | or | plusieurs amonts | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_daily` |
 | `views/meta_ads_overview.py:143` | `_show_meta_ads` | meta_ads_overview.link_clicks | à l'écran | `v_meta_campaign_daily` | or | plusieurs amonts | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_daily` |
@@ -622,4 +622,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=12 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=f99f4a9884a0ba54785417c661af53c05aafb39bd9cc82b40b8447557b16dcaa -->
+<!-- gold-coverage: sha256=3dc5e77638ce2a6bc34b7e28b2a2ec643f7f0d967a92d1104e1f55d0e0ed0e77 -->
