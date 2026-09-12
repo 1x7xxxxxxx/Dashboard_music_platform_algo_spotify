@@ -4184,3 +4184,221 @@ rend `AmbiguousFunction`, et l'`except` qui protège la page transforme l'erreur
 affichait 1 770. Trouvé en REGARDANT la page ; le premier correctif a échoué aussi
 (`view v_platform_totals depends on function…`), donc l'ordre est contraint et écrit
 dans la migration.
+
+## ✅ R94 — Les plafonds du cliquet des agrégats sont à zéro (close le 2026-09-12)
+
+- [x] **R94 — Faire descendre les plafonds Spotify S4A (31) et Meta Ads (22)** (P4) —
+  close. Les huit plateformes sont à **zéro agrégat hors de la couche or**, sur une
+  portée élargie le même jour : `_SURFACES` ne nommait pas `src/dashboard/utils`, donc
+  `kpi_helpers.py` (onze agrégats) et `pdf_charts.py` (un) n'étaient jamais balayés. Le
+  « huit plateformes à zéro » d'avant était vrai des répertoires scannés et faux du
+  dépôt — la classe `a-ratchet-at-zero-over-a-scope-that-excludes-the-defect`.
+
+  Son préalable est tranché par **ADR-022** : la couche or gagne le GRAIN (en SQL,
+  lisible par l'API, Airflow et `psql`), la porte garde la FORME (`None` ≠ `0`, ne lève
+  jamais, résolution du locataire). Ce n'étaient pas deux options concurrentes.
+
+  Livré avec : migrations **107** (`v_soundcloud_track_latest`, `v_platform_totals`
+  réécrite pour ne plus redéclarer la règle), **108** (`v_meta_creative_daily` gagne
+  `ad_account_id`, `optimization_goal` et les ingrédients d'une moyenne ré-agrégeable ;
+  `v_meta_adset_daily`), **109** (`v_meta_campaign_daily`). Vingt et un sites repointés,
+  chaque chiffre comparé avant/après — KPI et PDF identiques champ par champ, sauf les
+  deux qui étaient FAUX et dont la correction est mesurée ci-dessous.
+
+  Deux défauts vivants trouvés par `tools/dev/gold_coverage.py` à sa première
+  exécution : la page Créatives qui tombait pour tout locataire multi-comptes, et la
+  tuile « Dépenses » de Meta Ads qui affichait 6 165,65 € pour 3 087,82 € réels. Trois
+  gardes neufs, chacun vu rouge sur le défaut qu'il vise ; sept classes d'erreur ; suite
+  complète verte à **5 272 tests**.
+
+## Historique daté, roté depuis `checklist.md` le 2026-09-12
+
+### Ce que le 2026-09-08 a changé (rien n'ouvre de tâche)
+
+**Deux défauts remontés par le parcours artiste, corrigés et DÉPLOYÉS le jour même**
+(`2840423`, api + dashboard sains, `make sync-check` vert : prod == canonique, 972
+colonnes / 95 tables, code déployé == `origin/main`).
+
+- **Le bouton qui terminait la mise en route était mort, aux DEUX sorties** — « 🔗
+  Confirmer le nom des titres » après un import de CSV, et « 🏠 Aller au dashboard → »
+  après la dernière plateforme connectée. Le compte rendu qui les porte était consommé
+  (`session_state.pop`) à l'affichage ; au rerun du clic le bloc n'existait plus, le
+  widget n'était pas ré-instancié, le geste était jeté. `utils/pending_notice.py`
+  remplace la consommation par une borne de page. Classe
+  `consumed-state-hides-its-own-widget`.
+- **« Aucune suggestion de campagne Meta » était NORMAL, et rien ne le disait.** Le bac
+  à sable est exempté du garde d'unicité d'identité — sa raison d'être — donc il
+  déclare le compte publicitaire du profil principal ; `meta_campaigns` ayant
+  `campaign_id` pour seule clé de conflit, il n'obtiendra jamais une campagne. Mesuré :
+  224 insights, 12 titres, **0 campagne**. Cause distincte `SANDBOX_SHARES_ACCOUNT` et
+  un texte qui nomme l'exemption. Classe
+  `an-exemption-on-one-surface-reads-as-a-failure-on-another`.
+
+- **« Cumulé · par année · cette année » ne montrait AUCUNE plateforme** : un pas annuel
+  sur une période d'un an ne produit qu'un seul seau, et une aire d'un point ne dessine
+  rien. La contrainte `_MIN_POINTS = 2` existait déjà, appliquée aux séries et jamais à
+  l'axe. Un pas qui ne tient pas **descend** au pas plus fin et le dit. Classe
+  `a-form-constraint-checked-on-the-series-not-on-the-axis`.
+- **La déduplication `SUM(streams)` par `(date, song)` n'a PAS lieu d'être** — mesuré,
+  pas supposé : `UNIQUE(artist_id, song, date)` existe en local et en prod, 0 doublon,
+  `SUM` brut = `SUM` dédoublonné = 163 088. Les 6 `DISTINCT ON (date, song)` sont
+  redondants. Les 5 sommes sans `artist_id` sont les branches flotte de l'admin, hors
+  d'atteinte d'un locataire (`view_session` / `tenant_scope`). Vérifier a évité un
+  refactor de dix sites sur une prémisse fausse.
+- **Le « gros trou dans les données de S4A » n'existait pas** : S4A a 365 / 366 / 365 /
+  248 jours consécutifs depuis le 2023-01-01. Le trou était dans la FIGURE — les
+  tranches de la bande étaient communes, donc un jour sans collecte YouTube coupait
+  aussi Spotify : **19 semaines** effacées, dont **13** dont YouTube était seul
+  responsable. Les tranches sont désormais **par plateforme** ; Spotify est tracé
+  181/181 en une seule tranche. Classe `a-gap-in-one-series-erases-every-other`.
+- **Une semaine mesurée un jour sur sept était tracée comme une semaine pleine** —
+  38 % des semaines YouTube, 31 % SoundCloud. Sous la moitié des jours qu'il contient,
+  un seau devient **inconnu** ; le plancher est calibré sur les distributions réelles,
+  épinglées dans le test. Classe `a-partial-bucket-drawn-as-a-full-one`.
+- **Le sous-titre annonçait 16 568 594 écoutes pour 163 102** — facteur 89 — parce
+  qu'il sommait la série APRÈS transformation, donc des cumuls. Aucun test ne le
+  voyait ; c'est d'avoir **rendu la figure et regardé l'image** qui l'a trouvé. Classe
+  `a-total-that-sums-the-display-instead-of-the-data`.
+- **« Je ne vois que Spotify » a enfin sa réponse** : le mode « part » n'en était pas
+  une (0,26 % occupe 0,26 % de la hauteur). Quatrième mode, **« Chacune à son
+  échelle »** — des petits multiples, une facette par plateforme. La règle de couverture
+  qui excluait YouTube (24 j sur 195) et SoundCloud (12 sur 74) de toutes les vues a
+  disparu : elle compensait le défaut des tranches communes, retiré ci-dessus.
+- **Rien d'écrasé n'est perdu** (ADR-018, migration **096**) : un déclencheur générique
+  journalise dans `data_revisions` toute mise à jour qui CHANGE une valeur surveillée.
+  Motif : Spotify retire rétroactivement des écoutes (leur page *Artificial Streaming*),
+  et nos upserts écrasaient sans trace. Côté base, parce qu'un déclencheur ne s'oublie
+  pas.
+- **Un pilier de contrôle manquait — les VALEURS.** Le 2026-06-01, SoundCloud a écrit
+  **19 compteurs cumulés sur 19 à zéro** ; fraîcheur, pics et collecte partielle avaient
+  tous raison de ne rien voir. `check_zero_resets` le signale (jamais ne le réécrit). Le
+  patron du livre a été mesuré puis **écarté** : 93 alertes sur 1 254 jours contre 1
+  pour le prédicat retenu. Classe `a-failed-collection-writes-zeros`.
+- **Un seul calcul de total** pour l'accueil, le PDF (qui ignorait sa propre période),
+  la page Apple et l'API — quatre versions qui ne s'accordaient pas. `welcome_figures`
+  perd son SQL en double, celui qui additionnait un cumul et un quotidien.
+
+- **La matrice Meta du bac à sable criait une panne inexistante** (🟡 « la collecte
+  s'est arrêtée, on regarde ») sur le compte où le profil principal lisait 🟢 « rien à
+  faire », le même jour. `_silence_reason` comptait les campagnes du LOCATAIRE ; il lit
+  maintenant celles du compte **déclaré**. Troisième surface de la même exemption.
+
+- **Quatre modes d'affichage sur la courbe** : Cumulé (défaut, l'allure de
+  l'illustration), Par période, Part de chaque plateforme, et **Chacune à son échelle**
+  — ce dernier est le seul qui rende visibles YouTube (0,22 %) et SoundCloud (0,04 %)
+  à côté de Spotify (99,74 %).
+- **Migration 095** : la clé d'unicité Apple était sur des EXPRESSIONS, donc
+  inappariable par un `ON CONFLICT (col, …)` — cinq imports échouaient. `NULLS NOT
+  DISTINCT` (PostgreSQL 15+) rend la cible appariable sans perdre la déduplication.
+- **Apple figure sur la courbe, au pas ANNUEL uniquement** — ses exports sont des
+  totaux de période ; les étaler sur des jours inventerait une valeur. Sélecteur de pas
+  (Automatique / semaine / année) sur l'accueil, et le guide demande un export par
+  période.
+- **La période d'un export Apple se lit dans le NOM du fichier**
+  (`songs_…_2015-06-30_2026-09-04.csv`) : rien à saisir, la question n'est qu'un repli
+  pour un fichier renommé. Les périodes imbriquées ne sont jamais sommées à l'aveugle
+  (`non_overlapping_cover`).
+- **Apple gagne une précision par ANNÉE** (migration 094) : l'export n'ayant aucune
+  colonne de date, la période est **demandée** au dépôt. Périodes bornées → sommées ;
+  cumuls → soustraits ; total → le dernier cumul, sinon la somme des années. Le guide
+  invite désormais à déposer un export par année.
+- **YouTube lisait le compteur de CHAÎNE**, mis à jour par paliers : +360 attribués à
+  une seule journée contre 64 vues chez YouTube Studio. Il lit désormais les compteurs
+  **par vidéo** (44 sur 28 j — le bon ordre de grandeur), écart pris par vidéo.
+- **Apple ne pouvait pas avoir d'historique** : `UNIQUE(artist_id, song_name)` sans
+  date faisait écraser chaque dépôt de CSV par le suivant. Migration **093** —
+  `snapshot_date` entre dans la clé, et la tuile compare deux relevés.
+- **Le bouton « Lancer TOUTES les collectes » a été RETIRÉ de la barre latérale** : les
+  cinq collectes ont leur cron quotidien (Meta 5 h · Spotify 7 h · YouTube 8 h ·
+  SoundCloud 9 h · Instagram 10 h) et une collecte repart dès qu'un identifiant est
+  enregistré. Les 5 textes qui l'envoyaient « dans la barre latérale » ont été réécrits.
+- **L'accueil est en deux colonnes** — courbe à gauche, chiffres à droite, filtre au
+  centre en haut — avec une période « 📅 Sur mesure », un écart d'abonnés Instagram sur
+  la période, et « — » plutôt que « 0 » pour une plateforme non mesurée.
+- **L'accueil porte un sélecteur de période** (« Depuis le début » par défaut, Cette
+  année / 12 mois / 90 / 30 jours) qui vaut pour les tuiles ET la courbe, un seul
+  propriétaire du réglage. La bande s'agrège **par semaine** au-delà de 92 jours : nos
+  sources n'ont pas la même cadence (Spotify 100 %, SoundCloud 56 %, YouTube 39 % de
+  jours mesurés), et au pas quotidien deux périodes perdaient une plateforme entière.
+- **Le bandeau de mise en route se replie quand la configuration est terminée**, et la
+  figure de l'accueil redevient celle de l'illustration : des **aires empilées** aux
+  couleurs du générateur d'exemples, une par plateforme. Une source trop clairsemée
+  (2 jours sur 90) est nommée sous la figure au lieu d'empêcher toute la pile — la
+  régression trouvée en **vérifiant** le déploiement, pas en attendant un signalement.
+- **Cinq points du parcours artiste, quatre défauts et une mesure** (suite 2) : la
+  colonne « Format » lisait une seule des deux copies de l'identité Spotify ; l'étape 2
+  de l'assistant n'était atteignable par **aucun** chemin sur un compte configuré ; la
+  courbe « tes chiffres » additionnait un cumul et un quotidien (23 560 → 1 748 par
+  jour) ; l'accueil porte désormais l'**évolution par plateforme** sous les totaux. Le
+  cinquième — « le bac à sable n'a pas la même app » — est **faux, mesuré** : les deux
+  rendus diffèrent d'une ligne, celle du plan.
+
+**Le mapping des campagnes n'est pas rejouable dans le bac à sable, par construction** —
+c'est le seul geste du parcours qui demande le profil principal. Mesuré : le bac à sable
+a les insights Meta (224 lignes, 21 campagnes, ventilations à 87–99 % du principal) mais
+aucune ligne de configuration (`meta_campaigns` 0/34, `meta_adsets` 0/69, `meta_ads`
+0/144, `campaign_track_mapping` 0/19). Les onglets qui lisent les insights tracent ; ceux
+qui joignent la configuration restent vides.
+
+Ce qui suit décrivait l'état au 2026-09-07.
+
+### Ce que le 2026-09-06 et le 2026-09-07 ont changé (rien n'ouvre de tâche)
+
+**Ce qui reste ouvert est inchangé : R1, et rien d'autre.** Ces deux journées n'ont
+inscrit aucune tâche — elles ont fermé une série de CI rouge et corrigé des défauts
+trouvés en s'appuyant sur les données, pas en les auditant.
+
+- **La CI est verte** (run `34034904194`). La série de **27 exécutions rouges** est
+  close : `Run tests` n'avait plus tourné depuis le 2026-09-04, et il a rendu 5 échecs
+  réels dès qu'on l'a débloqué — aucun n'était visible en local. Réparer l'étape
+  bloquante n'était pas la fin de la séance, c'était ce qui rendait le reste
+  observable.
+- **Le rapprochement des titres était faux au-dessus du seuil d'auto-acceptation**
+  (2026-09-07) : « remix » était le seul marqueur de version reconnu, donc un radio
+  edit, un live ou un instrumental valait 0,90 contre son titre de base et ses écoutes
+  s'ajoutaient à l'original. Corrigé et **mesuré sur les 21 rapprochements réels de
+  production, figés en filet AVANT de toucher à l'algorithme** : 21/21 conservés, zéro
+  régression.
+- **17 % du catalogue était invisible** : `imusician_sales_detail` porte `isrc`,
+  `track_title` et `track_version` que rien ne lisait, et l'export S4A « 12 mois » ne
+  montre que ce qui a été écouté. Deux vraies sorties passaient pour des intrus.
+- **2 533 lignes portaient la chaîne littérale `nan`** — un NaN pandas est vrai en
+  booléen. Sur une clé comme l'ISRC, ça regroupe sous une même valeur tout ce qui n'a
+  pas d'identifiant. Corrigé + **migration 092**.
+- **Un garde textuel a été refusé par le cliquet et réécrit sur l'AST** : il a trouvé
+  du premier coup un site frère (`csv_dialect.py:50`) que la recherche de chaîne
+  ratait. Registre : **230 classes, propre.**
+
+Ce qui suit décrivait l'état au 2026-09-05.
+
+
+**▶️ Aucune tâche de développement ouverte.** Les quatre inscrites dans la journée
+(R59-R62) ont été closes le soir même — DEVLOG « suite 14 ». Ce qui reste est **R1**,
+inviter la bêta : un geste humain qu'aucune ligne de code ne débloque.
+
+Deux d'entre elles ont été closes **sans correctif, et c'est le point** : R59 parce que
+sa prémisse était fausse (ADR-016), R62 parce que la mesure a montré une porte fermée
+côté Meta (ADR-017). Vérifier avant de coder a évité deux chantiers.
+
+Ce qui suit décrivait l'état au 2026-09-04.
+
+**▶️ Aucune tâche de développement ouverte.** R58 — la dernière — a été livrée le
+2026-09-04 et rotée dans `archive.md` : les figures de l'écran de bienvenue viennent
+des données du locataire dès qu'il en a sept jours. Elle disait attendre R1 ; vérifié
+avant de la parquer une seconde fois, deux tiers l'attendaient (le mot de bienvenue
+part AVANT toute collecte, et `kaleido` manque pour l'export PNG), un tiers non.
+
+**Ne reste que R1**, dans « 🙋 En attente de toi » plus bas : inviter la bêta. Aucune
+ligne de code ne la débloque.
+
+**Le reste : zéro `- [ ]` dans ce fichier.** Les 19 derniers ont été **rotés dans
+`archive.md` le 2026-09-03 au soir**, marqués `[CLOS — décision, non livré]` : aucun
+n'était un travail qu'on pouvait commencer. Huit étaient des décisions de performance
+conditionnées par ADR-007 — dont les quatre déclencheurs ont été lus contre la
+production et ne sont pas tirés — et trois d'entre elles étaient **dupliquées** entre
+deux blocs. Cinq étaient bloquées par l'accumulation de temps (des paires étiquetées
+qu'aucune saisie ne fabrique d'avance). Les deux derniers, E1 et E2, étaient la
+redite de **R1**, le geste humain porté par la table « En attente de toi » ci-dessous.
+
+Ce qui rouvre chacun est écrit dans son bloc, dans l'archive. Ne reste donc qu'**un**
+geste, et lui seul : **R1** — inviter la bêta.

@@ -110,11 +110,15 @@ def get_global_stats(start_date, end_date, db):
     connection per view); when None, opens and closes its own.
     """
     artist_id = _resolve_artist_id()
+    # `v_hypeddit_daily` (migration 106) porte le grain (locataire, campagne, jour).
+    # La table brute peut porter deux lignes pour le même jour — un ré-import — et
+    # la vue les additionne une fois pour toutes. Le PDF la lisait déjà ; cette page,
+    # non : deux surfaces répondaient au même « combien de visites » par deux chemins.
     query = """
-        SELECT campaign_name, date, visits, clicks
-        FROM hypeddit_daily_stats
-        WHERE date >= %s AND date <= %s AND artist_id = %s
-        ORDER BY date
+        SELECT campaign_name, day AS date, visits, clicks
+        FROM v_hypeddit_daily
+        WHERE day >= %s AND day <= %s AND artist_id = %s
+        ORDER BY day
     """
     return db.fetch_df(query, (start_date, end_date, artist_id))
 
@@ -190,10 +194,10 @@ def _render_history(db):
     st.header(t("hypeddit.history_header", "📋 Historique"))
     artist_id = _resolve_artist_id()
     df_hist = db.fetch_df("""
-        SELECT campaign_name, date, visits, clicks
-        FROM hypeddit_daily_stats
+        SELECT campaign_name, day AS date, visits, clicks
+        FROM v_hypeddit_daily
         WHERE artist_id = %s
-        ORDER BY date DESC LIMIT 50
+        ORDER BY day DESC LIMIT 50
     """, (artist_id,))
     # No `db.close()` here: this helper did not open the connection, `show()` did and
     # closes it in its own `finally`. Closing it mid-page left `_render_entry_form`

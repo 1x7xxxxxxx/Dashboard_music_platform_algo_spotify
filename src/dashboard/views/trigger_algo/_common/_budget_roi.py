@@ -197,7 +197,7 @@ LEFT JOIN (
     SELECT campaign_name, SUM(spend) AS spend, SUM(results) AS results,
            CASE WHEN SUM(results) > 0 THEN SUM(spend)::numeric / SUM(results) END AS cpr,
            AVG(NULLIF(ctr, 0)) AS ctr, SUM(link_clicks) AS link_clicks
-    FROM meta_insights_performance WHERE artist_id = %s GROUP BY campaign_name
+    FROM v_meta_campaign_daily WHERE artist_id = %s GROUP BY campaign_name
 ) perf ON LOWER(perf.campaign_name) = LOWER(ctm.campaign_name)
 LEFT JOIN (
     SELECT mc.campaign_name, string_agg(DISTINCT a.call_to_action, ', ') AS ctas

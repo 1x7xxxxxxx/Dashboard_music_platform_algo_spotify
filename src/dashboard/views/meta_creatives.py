@@ -52,29 +52,36 @@ _TIMELINE_METRICS = [
 # would imply a conversion that didn't happen — see collector _CONVERSION_GOALS).
 _CONVERSION_GOALS_SQL = "('OFFSITE_CONVERSIONS','ONSITE_CONVERSIONS','LEAD_GENERATION','QUALITY_LEAD')"
 
+# La quadruple jointure a disparu dans `v_meta_creative_daily` (migrations 106 et
+# 108). Elle ne nommait le locataire que sur `ma`, et son filtre de compte
+# publicitaire était AMBIGU — `meta_ads`, `meta_adsets` et `meta_campaigns`
+# portent toutes `ad_account_id`, donc choisir un compte faisait tomber la page
+# avec `column reference "ad_account_id" is ambiguous`. Une vue n'a qu'une colonne
+# de ce nom : le défaut ne peut plus se poser.
+#
+# `SUM(ctr_sum) / SUM(ctr_n)` et pas `AVG(ctr)` : la vue porte la moyenne du JOUR,
+# et un nom de créative couvre plusieurs `ad_id` en nombre variable. Re-moyenner
+# des moyennes donnait 163,41 % là où les lignes brutes donnent 168,68 %.
 _QUERY_CREATIVES = f"""
 SELECT
-    ma.ad_name                                                          AS creative_name,
-    mc.campaign_name,
-    SUM(mi.spend)                                                       AS total_spend,
-    SUM(mi.conversions)                                                 AS total_results,
-    CASE WHEN BOOL_OR(ads.optimization_goal IN {_CONVERSION_GOALS_SQL})
-              AND SUM(mi.conversions) > 0
-         THEN ROUND(SUM(mi.spend)::numeric / SUM(mi.conversions), 2)
+    creative_name,
+    campaign_name,
+    SUM(spend)                                                          AS total_spend,
+    SUM(conversions)                                                    AS total_results,
+    CASE WHEN BOOL_OR(optimization_goal IN {_CONVERSION_GOALS_SQL})
+              AND SUM(conversions) > 0
+         THEN ROUND(SUM(spend)::numeric / SUM(conversions), 2)
          ELSE NULL END                                                  AS cpr,
-    ROUND(AVG(mi.ctr) * 100, 2)                                        AS avg_ctr,
-    SUM(mi.reach)                                                       AS total_reach,
-    SUM(mi.impressions)                                                 AS total_impressions,
-    SUM(mi.clicks)                                                      AS total_clicks,
-    MAX(mc.start_time)                                                  AS campaign_start,
-    MAX(ma.created_time)                                                AS creative_created
-FROM meta_ads ma
-JOIN meta_insights mi ON mi.ad_id = ma.ad_id
-JOIN meta_campaigns mc ON mc.campaign_id = ma.campaign_id
-LEFT JOIN meta_adsets ads ON ads.adset_id = ma.adset_id
-WHERE ma.artist_id = %s{{acct}}
-GROUP BY ma.ad_name, mc.campaign_name
-HAVING SUM(mi.spend) > 0
+    ROUND((SUM(ctr_sum) / NULLIF(SUM(ctr_n), 0)) * 100, 2)              AS avg_ctr,
+    SUM(reach)                                                          AS total_reach,
+    SUM(impressions)                                                    AS total_impressions,
+    SUM(clicks)                                                         AS total_clicks,
+    MAX(campaign_start)                                                 AS campaign_start,
+    MAX(creative_created)                                               AS creative_created
+FROM v_meta_creative_daily
+WHERE artist_id = %s{{acct}} AND campaign_name IS NOT NULL
+GROUP BY creative_name, campaign_name
+HAVING SUM(spend) > 0
 ORDER BY cpr ASC NULLS LAST, total_results DESC
 """
 
@@ -252,13 +259,14 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
     name_params = ((artist_id, *acct_params) if selected_campaign == "Toutes"
                    else (artist_id, *acct_params, selected_campaign))
     names = db.fetch_df(
-        f"""SELECT ma.ad_name, MAX(ma.created_time) AS last_created
-            FROM meta_ads ma
-            JOIN meta_insights mi ON mi.ad_id = ma.ad_id
-            JOIN meta_campaigns mc ON mc.campaign_id = ma.campaign_id
-            WHERE ma.artist_id = %s{acct} AND ma.ad_name IS NOT NULL{campaign_clause}
-            GROUP BY ma.ad_name
-            ORDER BY last_created DESC NULLS LAST, ma.ad_name""",
+        # Même vue or, pour la même raison : la triple jointure portait un
+        # `ad_account_id` ambigu entre `meta_ads` et `meta_campaigns`.
+        f"""SELECT creative_name AS ad_name, MAX(creative_created) AS last_created
+            FROM v_meta_creative_daily
+            WHERE artist_id = %s{acct} AND creative_name IS NOT NULL
+              AND campaign_name IS NOT NULL{campaign_clause}
+            GROUP BY creative_name
+            ORDER BY last_created DESC NULLS LAST, creative_name""",
         name_params,
     )
     if names.empty:
@@ -472,10 +480,10 @@ def _render_fatigue(db, artist_id: int, acct: str = "",
                     acct_params: tuple = ()) -> None:
     """#2 — frequency (↗) vs CTR (↘) over time: ad-fatigue detector."""
     names = db.fetch_df(
-        f"""SELECT ma.ad_name, MAX(ma.created_time) AS last_created
-           FROM meta_ads ma JOIN meta_insights mi ON mi.ad_id = ma.ad_id
-           WHERE ma.artist_id = %s{acct} AND ma.ad_name IS NOT NULL
-           GROUP BY ma.ad_name ORDER BY last_created DESC NULLS LAST, ma.ad_name""",
+        f"""SELECT creative_name AS ad_name, MAX(creative_created) AS last_created
+           FROM v_meta_creative_daily
+           WHERE artist_id = %s{acct} AND creative_name IS NOT NULL
+           GROUP BY creative_name ORDER BY last_created DESC NULLS LAST, creative_name""",
         (artist_id, *acct_params),
     )
     if names.empty:

@@ -17,14 +17,19 @@ def show():
         # 1. KPIs GLOBAUX (Dernière date connue)
         # =========================================================================
         try:
+            # Les quatre tuiles ci-dessous somment ces lignes EN PANDAS. Aucun garde
+            # SQL ne peut les voir — il n'y a pas de `SUM(` dans la requête — et le
+            # `DISTINCT ON (track_id)` qui vivait ici oubliait le locataire : deux
+            # artistes qui repostent le même titre n'en gardaient qu'un.
+            # `v_soundcloud_track_latest` (migration 107) porte la règle, locataire
+            # compris, et c'est la même que celle des totaux de l'accueil.
             df_latest = db.fetch_df("""
-                SELECT DISTINCT ON (track_id)
-                    track_id, title, permalink_url, playback_count,
-                    likes_count, reposts_count, comment_count,
-                    track_created_at, collected_at
-                FROM soundcloud_tracks_daily
+                SELECT track_id, title, permalink_url, playback_count,
+                       likes_count, reposts_count, comment_count,
+                       track_created_at, collected_at
+                FROM v_soundcloud_track_latest
                 WHERE artist_id = %s
-                ORDER BY track_id, collected_at DESC
+                ORDER BY track_id
             """, (artist_id,))
 
             if not df_latest.empty:

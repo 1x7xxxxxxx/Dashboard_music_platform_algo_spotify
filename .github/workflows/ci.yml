@@ -107,6 +107,8 @@ jobs:
           uv run python .claude/scripts/audit_runner.py --prose
           uv run python .claude/scripts/check_config_refs.py
           uv run python .claude/scripts/check_ci_waste.py
+          uv run python tools/dev/gold_coverage.py --check
+          uv run python tools/dev/error_class_families.py --check
 
       # ── Pourquoi les quatre étapes qui suivent portent `if: ${{ !cancelled() }}` ──
       # Mesuré le 2026-09-06. Les gardes de classes d'erreur sont l'étape 10 sur 15 ;

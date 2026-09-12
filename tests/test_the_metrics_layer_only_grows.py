@@ -50,11 +50,31 @@ import re
 from collections import defaultdict
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
-_SURFACES = ("src/dashboard/views", "src/dashboard/utils/pdf_exporter", "src/api/routers")
+# ⚠️ LE PÉRIMÈTRE ÉTAIT L'ANGLE MORT, et il a certifié « huit plateformes à zéro »
+# le 2026-09-12 alors que DOUZE agrégats vivaient hors de lui.
+#
+# Il ne nommait que `views/`, `pdf_exporter/` et `api/routers/`. Or `kpi_helpers.py`
+# alimente CHAQUE tuile du produit et `pdf_charts.py` DESSINE les figures : ce sont
+# des surfaces d'affichage au même titre qu'une vue, et elles agrégeaient onze et une
+# fois respectivement. Un cliquet à zéro sur un périmètre trop étroit affirme une
+# propriété fausse — c'est la forme de défaut que ce fichier existe pour interdire,
+# retournée contre lui-même.
+#
+# `src/dashboard/utils` entre donc en entier, moins la PORTE.
+_SURFACES = ("src/dashboard/views", "src/dashboard/utils", "src/api/routers")
+
+# `platform_timeseries` est LA PORTE, pas une surface : son travail est précisément de
+# lire les faits et d'en faire la règle. L'exempter n'est pas une faveur, c'est la
+# définition — et si un jour elle affiche quelque chose, c'est elle qu'il faut couper
+# en deux, pas cette liste qu'il faut allonger.
+_DOORS = ("src/dashboard/utils/platform_timeseries.py",)
 
 # La couche or : les vues SQL, et les fonctions qui sont la porte unique d'une règle.
 _GOLD_VIEWS = frozenset({
     "v_platform_totals", "v_artist_monthly_revenue", "v_meta_spend_totals",
+    "v_platform_levels", "v_s4a_song_daily", "v_meta_daily",
+    "v_meta_creative_daily", "v_instagram_media_monthly", "v_hypeddit_daily",
+    "v_soundcloud_track_latest",
 })
 
 # Les tables de FAIT, par plateforme. Une surface qui les agrège elle-même recopie
@@ -65,7 +85,12 @@ _FACTS: dict[str, tuple[str, ...]] = {
     "SoundCloud":  ("soundcloud_tracks_daily",),
     "Apple":       ("apple_songs_performance", "apple_songs_history"),
     "Instagram":   ("instagram_daily_stats", "instagram_media"),
-    "Meta Ads":    ("meta_insights", "meta_insights_performance_day"),
+    # `meta_insights_performance` est entrée le 2026-09-12, et son absence était le
+    # défaut : la tuile « Dépenses » y sommait 6 165,65 € pour 3 087,82 € réels, et
+    # `\b` fait que `meta_insights\b` ne matche PAS `meta_insights_performance`.
+    # Une liste de faits incomplète rend le cliquet vert sur le défaut qu'il vise.
+    "Meta Ads":    ("meta_insights", "meta_insights_performance_day",
+                    "meta_insights_performance"),
     "Hypeddit":    ("hypeddit_daily_stats",),
     "Revenu":      ("imusician_monthly_revenue", "distrokid_monthly_revenue",
                     "sacem_statement"),
@@ -95,6 +120,8 @@ def _sites() -> dict[str, list[str]]:
     out: dict[str, list[str]] = defaultdict(list)
     for root in _SURFACES:
         for path in sorted((_ROOT / root).rglob("*.py")):
+            if path.relative_to(_ROOT).as_posix() in _DOORS:
+                continue
             try:
                 tree = ast.parse(path.read_text(encoding="utf-8"))
             except (SyntaxError, UnicodeDecodeError):
@@ -136,8 +163,10 @@ def test_no_platform_gains_a_metric_computed_outside_the_gold_layer() -> None:
         "invente une deuxième définition. Aujourd'hui les deux s'accordent ; rien ne "
         "le garantit demain — c'est ainsi que trois totaux YouTube incompatibles ont "
         "coexisté avant la migration 097.\n\n"
-        "Passe par `platform_timeseries` / `kpi_helpers` / une vue `v_*`, ou baisse "
-        "le plafond si tu viens d'en retirer un.\n\n" + "\n".join(grown))
+        "Lis une vue `v_*` de la couche or, ou passe par `platform_timeseries` — la "
+        "PORTE, le seul module exempté ici. `kpi_helpers` n'en est pas une : il est "
+        "scanné depuis le 2026-09-12, et il portait onze de ces agrégats.\n\n"
+        + "\n".join(grown))
 
 
 def test_the_clean_platforms_stay_clean() -> None:
