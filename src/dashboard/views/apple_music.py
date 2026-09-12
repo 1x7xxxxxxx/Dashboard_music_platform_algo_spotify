@@ -49,8 +49,15 @@ def show():
             total_plays = apple_lifetime_plays(db, artist_id)
             total_shazams = apple_lifetime_shazams(db, artist_id)
 
-            col2.metric(t("apple_music.kpi_streams", "▶️ Total Streams (Cumul)"), f"{total_plays:,}")
-            col3.metric(t("apple_music.kpi_shazams", "⚡ Total Shazams (Cumul)"), f"{total_shazams:,}")
+            # `None` = pas de mesure, et une tuile doit le DIRE plutôt que d'écrire
+            # « 0 ». Depuis le 2026-09-12 les portes distinguent les trois cas —
+            # aucune ligne, mesuré à zéro, lecture échouée — et `f"{None:,}"` lève.
+            # Un artiste sans import Apple lit « — », pas « 0 écoute ».
+            _tile = lambda v: "—" if v is None else f"{v:,}"      # noqa: E731
+            col2.metric(t("apple_music.kpi_streams", "▶️ Total Streams (Cumul)"),
+                        _tile(total_plays))
+            col3.metric(t("apple_music.kpi_shazams", "⚡ Total Shazams (Cumul)"),
+                        _tile(total_shazams))
 
             st.markdown("---")
 

@@ -1247,9 +1247,19 @@ def platform_guard_matrix(gold, families_module) -> tuple[list[list[str]], list[
                     mod = node.names[0].name
                 if not mod or not mod.startswith("src."):
                     continue
-                candidate = ROOT / (mod.replace(".", "/") + ".py")
-                if candidate.exists():
-                    scanned.add(candidate)
+                # DEUX formes, et la seconde est celle qui manquait :
+                # `from src.utils.gold_invariants import run` donne le module dans
+                # `mod`, mais `from src.utils import gold_invariants` le met dans
+                # `names` — et c'est cette forme-là qu'emploie le garde des
+                # invariants. Ne suivre que la première laissait Hypeddit compté
+                # comme non gardé alors que la paire existait.
+                candidates = [ROOT / (mod.replace(".", "/") + ".py")]
+                if isinstance(node, ast.ImportFrom):
+                    candidates += [ROOT / (mod.replace(".", "/")) / f"{a.name}.py"
+                                   for a in node.names]
+                for candidate in candidates:
+                    if candidate.exists():
+                        scanned.add(candidate)
 
         read: dict[str, set[str]] = {}
         for path in sorted(scanned):

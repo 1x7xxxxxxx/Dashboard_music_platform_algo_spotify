@@ -25,7 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R102 | Écrire les 19 tests des cases vides du tableau plateforme × famille | P3 | `<!-- gold-coverage-guard-matrix: holes=19 -->`, sous cliquet |
 
 **Quatre tâches rouvertes le 2026-09-11**, issues de l'audit metrics layer détaillé
 plus bas dans ce fichier (section « L'audit metrics layer du 2026-09-11 ») : R92 à R95.
@@ -87,9 +86,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-12 (soir), une tâche ouverte — R102 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-12 (soir), AUCUNE tâche ouverte (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R102 -->
+<!-- reprise: open= -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -251,9 +250,14 @@ Trois mutations ont ÉCHOUÉ, et c'est la moitié la plus utile :
 ### Ce que la mesure de « ce qui n'est gardé par rien » a rendu (2026-09-12, soir)
 
 Le livrable disait ce qui existe, jamais ce qui n'est gardé par rien. Le tableau
-**plateforme × famille** le dit maintenant : cinq familles sur dix-sept ont une forme
-plateforme, et **19 cases sur 40 sont vides**. C'est la liste des tests à écrire, et
-c'est R102.
+**plateforme × famille** le dit maintenant, et il est passé de **19 cases vides à
+zéro** le soir même — R102 close. Les cases n'ont pas été « remplies » : trois gardes
+ont été écrits pour les questions que personne ne posait, et **deux défauts vivants
+sont sortis en les écrivant**.
+
+Une plateforme neuve ajoutera cinq cases d'un coup et fera rougir le cliquet.
+Brancher une source sans la garder devient impossible en silence — c'est le seul
+mécanisme qui l'empêche sans relecture humaine.
 
 Deux trouvailles en le construisant :
 
@@ -267,14 +271,6 @@ Deux trouvailles en le construisant :
   la dérivation par les niveaux est désactivée. Migration 112, seuil lu dans la
   distribution réelle. **La première version du correctif a été attrapée par un
   invariant écrit une heure plus tôt** — écart de 5 vues, nommé.
-
-- [ ] **R102 — Les 19 cases vides du tableau plateforme × famille** (P3) — chaque
-  case est une plateforme pour laquelle aucun garde de cette famille ne lit une seule
-  de ses relations. Les plus exposées : **Hypeddit**, couvert par aucune des cinq
-  familles, et `une-erreur-avalée-devient-une-absence`, qui ne couvre que Spotify
-  alors que c'est la famille la plus chère de la séance. Le tableau et ses raisons
-  vivent dans `.claude/dev-docs/gold-coverage.md`. **Mesuré par** :
-  `<!-- gold-coverage-guard-matrix: holes=19 -->`, plafond gelé.
 
 ### La troisième passe a fermé les trois dernières
 

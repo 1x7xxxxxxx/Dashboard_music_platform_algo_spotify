@@ -4497,3 +4497,37 @@ geste, et lui seul : **R1** — inviter la bêta.
   ADR-023 remplace le déclencheur par le bon : **profondeur ≥ 4**, ou ≥ 3 objets
   dont la reconstruction demande un ordre qui n'est pas celui des migrations. Il se
   recompte en une requête, écrite dans l'ADR.
+
+## ✅ R102 — Les 19 cases vides, closes le soir de leur mesure (2026-09-12)
+
+- [x] **R102 — Les cases vides du tableau plateforme × famille** (P3) — close,
+  **19 → 0**. Cinq d'entre elles étaient des artefacts de mesure : le tableau lisait
+  le fichier de test et pas le module que le test EXERCE, et ne suivait qu'une des
+  deux formes d'import. Il voyait la liaison, pas l'application — la classe écrite
+  le matin même, dans l'outil qui la mesure.
+
+  Les quatorze vraies ont été fermées par **trois gardes**, et deux défauts vivants
+  sont sortis en les écrivant :
+
+  * **`platform_totals` affirmait quatre zéros** pour un locataire jamais mesuré,
+    pendant que les vues or rendaient correctement « aucune ligne ». Trois
+    `COALESCE(…, 0)` empilés — dans le SQL de la porte, dans son Python, et dans
+    `gold_apple_lifetime`. Un artiste lisait « 0 écoute » le jour de son
+    inscription. ADR-022 promettait l'inverse mot pour mot depuis le début.
+    Migration **113**, et la tuile Apple affiche « — ».
+  * **Deux fonctions Apple rendaient un nombre sur une lecture ÉCHOUÉE** —
+    `apple_lifetime_shazams`, le jumeau de celle corrigée une heure plus tôt, et
+    `apple_snapshot_count`. Deux fonctions qui portent la même règle se corrigent
+    ensemble, sinon la seconde est la prochaine occurrence.
+
+  Les trois gardes : `test_an_unmeasured_platform_says_so.py` (les 8 plateformes,
+  absence ≠ zéro, ET l'assertion inverse pour ne pas détruire le zéro mesuré),
+  `test_a_failed_read_is_not_an_absence.py` (un `except` qui enjambe une lecture ne
+  rend pas un nombre ; la porte à zéro, cinq sites de tuiles sous cliquet), et
+  `test_a_quantity_is_summed_and_names_its_tenant.py` (Hypeddit et le revenu sont
+  des QUANTITÉS — prouvé sur la donnée, minimum ≤ 0 — et chaque lecture nomme son
+  locataire).
+
+  Deux plafonds ont été posés d'instinct puis mesurés : 24 → **5** pour les `except`
+  numériques. Écrire un plafond avant de compter est la classe
+  `un-seuil-écrit-d-instinct`, dans le garde qui la dénonce.

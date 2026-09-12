@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**292 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**296 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -11,13 +11,13 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | famille | classes | la question |
 |---|---|---|
 | [le-locataire](#le-locataire) | 37 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
-| [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 13 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
+| [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 14 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 10 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
-| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 12 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
-| [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 21 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
+| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 13 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
+| [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 18 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
-| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 20 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
-| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 16 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
+| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 21 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
+| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 17 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 33 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 34 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 6 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
@@ -26,14 +26,14 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 3 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 17 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 20 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
-| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 17 | Ce que le dépôt déclare est-il ce que la production exécute ? |
+| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 18 | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | _sans famille_ | 3 | — |
 
 ## le-locataire
 
 **Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ?**
 
-Règle de rattachement : `tenant|locataire|artist[_-]id|multitenant|fleet|canary|sandbox` sur l'identifiant et le symptôme. 37 classe(s).
+Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|canary|sandbox|deux locataires|par locataire|du locataire|son locataire|le locataire|d'un locataire|leur locataire|chaque locataire|un locataire|locataires? multi|aux locataires` sur l'identifiant et le symptôme. 37 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -67,19 +67,19 @@ Règle de rattachement : `tenant|locataire|artist[_-]id|multitenant|fleet|canary
 | [`stopped-collecting-is-not-a-status-anyone-reads`](error-classes.md#stopped-collecting-is-not-a-status-anyone-reads) | a tenant whose collection worked and then stopped produces no signal anywhere. The credential is valid, rows exist from before, the DAG reports SUCCES |
 | [`partial-collection-invisible`](error-classes.md#partial-collection-invisible) | la collecte d'un locataire s'effondre sans que rien ne le dise. Des données arrivent — donc la fraîcheur est verte — mais bien moins que d'habitude :  |
 | [`validation-bound-invented-not-read-from-the-schema`](error-classes.md#validation-bound-invented-not-read-from-the-schema) | un validateur qui **lève** refuse une donnée parfaitement légitime, parce qu'une de ses bornes a été tapée à la main au lieu d'être lue dans le schéma |
+| [`mirror-visible-to-one-reader-only`](error-classes.md#mirror-visible-to-one-reader-only) | une identité stockée à DEUX endroits (une ligne de credentials et une colonne miroir sur `saas_artists`) n'est vue que par l'un des lecteurs. Le lecte |
 | [`an-exemption-on-one-surface-reads-as-a-failure-on-another`](error-classes.md#an-exemption-on-one-surface-reads-as-a-failure-on-another) | une fonctionnalité reste vide pour un locataire, et le message d'explication — pourtant mesuré et exact — se termine par « rien à faire de ton côté ». |
-| [`a-rule-copied-is-a-rule-that-will-diverge`](error-classes.md#a-rule-copied-is-a-rule-that-will-diverge) | le même locataire lit trois nombres différents pour la même métrique, au même instant, sur trois surfaces du même produit. Mesuré le 2026-09-10 : le t |
 | [`an-alert-that-never-changes-stops-being-read`](error-classes.md#an-alert-that-never-changes-stops-being-read) | une alerte quotidienne signale correctement un problème réel, à l'identique, pendant des mois. Le lecteur cesse de l'ouvrir, et le soir où une VRAIE p |
 | [`a-truncated-read-recorded-as-a-complete-one`](error-classes.md#a-truncated-read-recorded-as-a-complete-one) | la collecte d'un locataire s'enregistre `success`, et une partie de ses données n'a pas été lue. L'artiste voit un historique amputé sans que rien ne  |
 | [`write-path-without-cache-invalidation`](error-classes.md#write-path-without-cache-invalidation) | le locataire enregistre, l'écran confirme (« ✅ Importé »), et le chiffre affiché reste l'ancien pendant jusqu'à 600 s, sans que rien n'explique pourqu |
 | [`an-account-filter-that-names-no-single-column`](error-classes.md#an-account-filter-that-names-no-single-column) | une page tombe — pas un chiffre faux, une exception — et **seulement chez les locataires multi-comptes**. `column "ad_account_id" does not exist` ou ` |
-| [`two-definitions-that-must-coincide-are-never-compared`](error-classes.md#two-definitions-that-must-coincide-are-never-compared) | deux chemins qui répondent à la même question rendent deux nombres différents, chacun cohérent avec lui-même, pendant des semaines. Mesuré en PRODUCTI |
+| [`a-late-platform-has-no-tenant-guard`](error-classes.md#a-late-platform-has-no-tenant-guard) | une plateforme arrivée tard dans le produit n'est couverte par AUCUN garde de tenance. Aucun symptôme visible — jusqu'au jour où une lecture sans `art |
 
 ## un-cumul-pris-pour-un-quotidien
 
 **Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ?**
 
-Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generations|snapshot` sur l'identifiant et le symptôme. 13 classe(s).
+Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generations|snapshot` sur l'identifiant et le symptôme. 14 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -96,6 +96,7 @@ Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generat
 | [`a-bucket-sums-deltas-instead-of-deriving-the-counter`](error-classes.md#a-bucket-sums-deltas-instead-of-deriving-the-counter) | un agrégat de période sur une plateforme à COMPTEUR vaut une fraction de la réalité, et la bande devient invisible. Mesuré en production le 2026-09-11 |
 | [`two-generations-of-rows-in-one-fact-table`](error-classes.md#two-generations-of-rows-in-one-fact-table) | un total affiché vaut **le double** du même total lu ailleurs, sans qu'aucune requête soit fausse. Mesuré le 2026-09-12 : la tuile « Dépenses » de la  |
 | [`a-partial-collection-becomes-a-baseline-level`](error-classes.md#a-partial-collection-becomes-a-baseline-level) | une figure sous-déclare d'un facteur **3 049**. Mesuré le 2026-09-12 sur l'artiste 471 : « par semaine » totalisait 11 053 écoutes là où le compteur Y |
+| [`a-quantity-mistaken-for-a-counter`](error-classes.md#a-quantity-mistaken-for-a-counter) | l'erreur SYMÉTRIQUE de celle qui a coûté un facteur 151 — traiter une quantité du jour comme un compteur cumulé. Le report en avant inventerait des vi |
 
 ## un-travail-qui-n-arrive-nulle-part
 
@@ -120,7 +121,7 @@ Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|noth
 
 **Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ?**
 
-Règle de rattachement : `unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|rendered-as-health|sums-the-display|discarded-in-silence|erases-every-other|past-the-end-of-its-evidence|renders-nothing|named-like-a-final-one|imput|estimat` sur l'identifiant et le symptôme. 12 classe(s).
+Règle de rattachement : `unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|rendered-as-health|sums-the-display|discarded-in-silence|erases-every-other|past-the-end-of-its-evidence|renders-nothing|named-like-a-final-one|imput|estimat` sur l'identifiant et le symptôme. 13 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -136,12 +137,13 @@ Règle de rattachement : `unmeasured|claimed-not-measured|outranks-the-measureme
 | [`a-total-that-sums-the-display-instead-of-the-data`](error-classes.md#a-total-that-sums-the-display-instead-of-the-data) | un total affiché est faux d'un ou deux ordres de grandeur, sans erreur ni trou. Vu au rendu le 2026-09-08 : **16 568 594 écoutes** en sous-titre de la |
 | [`a-discarded-measurement-is-discarded-in-silence`](error-classes.md#a-discarded-measurement-is-discarded-in-silence) | une figure montre une fraction du volume réel d'une plateforme, sans le dire, ce qui se lit comme une plateforme morte. Mesuré le 2026-09-10 : l'accue |
 | [`a-verdict-computed-past-the-end-of-its-evidence`](error-classes.md#a-verdict-computed-past-the-end-of-its-evidence) | une page affiche un verdict en vert — « breakeven atteint le … » — sur un croisement de courbes garanti par construction. Mesuré le 2026-09-10 pour l' |
+| [`an-unmeasured-platform-is-rendered-as-zero`](error-classes.md#an-unmeasured-platform-is-rendered-as-zero) | un artiste qui vient de s'inscrire lit **« 0 écoute »** sur les quatre plateformes. Ça ne se lit pas comme « la collecte n'a pas encore tourné », ça s |
 
 ## le-message-parle-au-mauvais-lecteur
 
 **Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ?**
 
-Règle de rattachement : `assumes-a-shell|assumes-visibility|by-direction-not-by-name|wrong-advice|blames-the-most-common|names-an-action|flattened-for-the-narrowest|without-naming-the-reason|leaves-no-trace|announces-a-field|instruction-|-instruction|speaks-its-own-plumbing|addressed-to|reader` sur l'identifiant et le symptôme. 21 classe(s).
+Règle de rattachement : `assumes-a-shell|assumes-visibility|by-direction-not-by-name|wrong-advice|blames-the-most-common|names-an-action|flattened-for-the-narrowest|without-naming-the-reason|leaves-no-trace|announces-a-field|instruction-|-instruction|speaks-its-own-plumbing|addressed-to|reader` sur l'identifiant et le symptôme. 20 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -154,7 +156,6 @@ Règle de rattachement : `assumes-a-shell|assumes-visibility|by-direction-not-by
 | [`detect-then-reject-with-the-wrong-advice`](error-classes.md#detect-then-reject-with-the-wrong-advice) | un fichier est accepté par la détection puis refusé plus bas, avec un conseil qui ne corrige rien. L'utilisateur applique le conseil, réessaie, échoue |
 | [`message-flattened-for-the-narrowest-renderer`](error-classes.md#message-flattened-for-the-narrowest-renderer) | un diagnostic en deux moitiés — le symptôme, puis le geste qui le répare — arrive sur ses surfaces automatiques amputé de la seconde. L'alerte nomme l |
 | [`alert-names-an-action-its-source-cannot-take`](error-classes.md#alert-names-an-action-its-source-cannot-take) | une alerte vraie nomme une action qui ne peut pas changer l'état qu'elle signale. Le lecteur l'exécute, rien ne bouge, et le même message repart la nu |
-| [`mirror-visible-to-one-reader-only`](error-classes.md#mirror-visible-to-one-reader-only) | une identité stockée à DEUX endroits (une ligne de credentials et une colonne miroir sur `saas_artists`) n'est vue que par l'un des lecteurs. Le lecte |
 | [`import-refused-without-naming-the-reason`](error-classes.md#import-refused-without-naming-the-reason) | un fichier déposé par un artiste n'importe rien, et le refus ne nomme rien. « Mon CSV ne marche pas » est alors tout le diagnostic disponible — pour l |
 | [`guide-addresses-the-wrong-reader`](error-classes.md#guide-addresses-the-wrong-reader) | un guide montre à l'utilisateur du travail qu'il ne peut pas faire, ou étiquette « admin » une action qui n'appartient qu'à lui. Dans les deux cas il  |
 | [`printed-command-assumes-a-shell-the-reader-does-not-have`](error-classes.md#printed-command-assumes-a-shell-the-reader-does-not-have) | une page donne au lecteur une commande à coller, il la colle, elle échoue — et rien dans le message ne dit laquelle des deux hypothèses tacites a lâch |
@@ -198,7 +199,7 @@ Règle de rattachement : `outlives-the-visit|written-after-instantiation|per-wor
 
 **Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ?**
 
-Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced` sur l'identifiant et le symptôme. 20 classe(s).
+Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced` sur l'identifiant et le symptôme. 21 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -222,12 +223,13 @@ Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|diver
 | [`two-clocks-subtracted-from-each-other`](error-classes.md#two-clocks-subtracted-from-each-other) | un âge, une durée ou une borne de période est faux d'une à deux heures, et le décalage change avec la saison. Mesuré le 2026-09-10 : une source collec |
 | [`a-metric-computed-outside-the-metrics-layer`](error-classes.md#a-metric-computed-outside-the-metrics-layer) | deux surfaces du même produit répondent deux nombres à la même question, sans qu'aucune soit « en panne ». Instances mesurées : trois définitions inco |
 | [`an-aggregate-computed-in-pandas-escapes-every-sql-guard`](error-classes.md#an-aggregate-computed-in-pandas-escapes-every-sql-guard) | un cliquet certifie « zéro agrégat hors de la couche or » pendant qu'une tuile affiche un total faux. Les deux affirmations sont vraies : le total n'e |
+| [`two-definitions-that-must-coincide-are-never-compared`](error-classes.md#two-definitions-that-must-coincide-are-never-compared) | deux chemins qui répondent à la même question rendent deux nombres différents, chacun cohérent avec lui-même, pendant des semaines. Mesuré en PRODUCTI |
 
 ## une-erreur-avalée-devient-une-absence
 
 **Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ?**
 
-Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|outside-its-condition` sur l'identifiant et le symptôme. 16 classe(s).
+Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|outside-its-condition|read-that-failed|failed-read|except.*number` sur l'identifiant et le symptôme. 17 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -247,6 +249,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 | [`page-window-answers-a-per-entity-question`](error-classes.md#page-window-answers-a-per-entity-question) | une vue de supervision affiche une fraction des entités et présente l'absence comme une donnée — « aucun run » au lieu de « je n'ai pas regardé ». Tou |
 | [`verified-locally-observed-in-prod`](error-classes.md#verified-locally-observed-in-prod) | un utilisateur signale plusieurs fois la même absence ; chaque vérification confirme que la chose est là ; les corrections successives portent sur le  |
 | [`a-partial-bucket-drawn-as-a-full-one`](error-classes.md#a-partial-bucket-drawn-as-a-full-one) | une agrégation sous-estime silencieusement, d'un facteur qui dépend de la collecte. Mesuré le 2026-09-08 : **38 %** des semaines YouTube et **31 %** d |
+| [`a-read-that-failed-is-rendered-as-a-number`](error-classes.md#a-read-that-failed-is-rendered-as-a-number) | une tuile affiche un chiffre alors que la requête a LEVÉ. Quatre occurrences en deux jours, aucune n'a produit d'erreur visible : « Total Streams : ** |
 
 ## un-garde-qui-ne-garde-pas
 
@@ -449,7 +452,7 @@ Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhoo
 
 **Ce que le dépôt déclare est-il ce que la production exécute ?**
 
-Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version` sur l'identifiant et le symptôme. 17 classe(s).
+Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version` sur l'identifiant et le symptôme. 18 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -467,6 +470,7 @@ Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compos
 | [`message-written-before-a-rerun`](error-classes.md#message-written-before-a-rerun) | une action réussit, son message est écrit, et l'écran est vide. Le code est correct, la fonction appelée a fait son travail, et aucun test de rendu ne |
 | [`a-key-that-forbids-history`](error-classes.md#a-key-that-forbids-history) | on conclut qu'une source « ne fournit pas d'historique », et on l'écrit dans le produit. Signalé le 2026-09-08 : « pour Apple je ne comprends pas, je  |
 | [`overlapping-readings-summed-as-one`](error-classes.md#overlapping-readings-summed-as-one) | un total gonfle sans raison visible, d'autant plus que l'utilisateur a fourni PLUS de données. Aucune erreur : chaque relevé est juste, c'est leur add |
+| [`a-rule-copied-is-a-rule-that-will-diverge`](error-classes.md#a-rule-copied-is-a-rule-that-will-diverge) | le même locataire lit trois nombres différents pour la même métrique, au même instant, sur trois surfaces du même produit. Mesuré le 2026-09-10 : le t |
 | [`a-zero-that-was-never-measured-passes-for-a-measurement`](error-classes.md#a-zero-that-was-never-measured-passes-for-a-measurement) | une colonne de mesure est remplie sur toutes les lignes, donc elle a l'air mesurée, et toute moyenne calculée dessus est fausse — pas approximative, f |
 | [`the-application-connects-as-a-superuser`](error-classes.md#the-application-connects-as-a-superuser) | aucun. Tout fonctionne — c'est le propre de cette classe : elle ne se manifeste que le jour où autre chose échoue. |
 | [`a-procedural-rule-in-the-database`](error-classes.md#a-procedural-rule-in-the-database) | une règle métier vit en PL/pgSQL. Elle n'est ni testable par pytest, ni lisible dans une revue de diff Python, ni déplaçable — et le jour où elle est  |
@@ -483,6 +487,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=292 families=17 orphans=3 -->
+<!-- error-class-families: total=296 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=5d9dd3e775ed436657d0711bf8a368c3524668a407783d8910df06544e356488 -->
+<!-- error-class-families: sha256=d8f24bcc3a5a5559e6ba4939c31bb6c0ad940b97c2326877d35fb070e2f707a3 -->

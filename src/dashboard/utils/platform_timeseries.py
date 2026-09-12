@@ -583,17 +583,21 @@ def apple_lifetime_plays(db, artist_id):
     n'avait aucune définition SQL, et cinq fichiers lisaient sa table directement.
     C'est ainsi que YouTube a eu trois définitions avant la migration 097.
 
-    Ne lève jamais : une tuile absente ne fait pas tomber une page.
+    Ne lève jamais : une tuile absente ne fait pas tomber une page. Mais elle rend
+    `None`, jamais `0` — un locataire sans aucun import Apple n'a pas « zéro
+    écoute », il n'a pas de mesure, et le `COALESCE(…, 0)` qui vivait dans cette
+    requête effaçait la différence. Même correctif que `_lifetime`, le 2026-09-12.
     """
     if db is None or artist_id is None:
-        return 0
+        return None
     try:
-        row = _q(db, "SELECT COALESCE(gold_apple_lifetime(%s), 0)::bigint",
-                 (artist_id,))
-        return int(row[0][0] or 0) if row else 0
+        row = _q(db, "SELECT gold_apple_lifetime(%s)::bigint", (artist_id,))
     except Exception as exc:      # noqa: BLE001
         logger.warning("apple lifetime unavailable: %s", type(exc).__name__)
-        return 0
+        return None
+    if not row or row[0][0] is None:
+        return None
+    return int(row[0][0])
 
 
 def apple_lifetime_shazams(db, artist_id):
@@ -603,16 +607,24 @@ def apple_lifetime_shazams(db, artist_id):
     `if/else` : deux implémentations d'un même algorithme, dont une seule était
     testée. La métrique est désormais un PARAMÈTRE de `gold_apple_lifetime`
     (migration 103), validé contre une allowlist côté SQL.
+
+    Même correctif que son jumeau `apple_lifetime_plays` le 2026-09-12 : `None`
+    quand rien n'a été mesuré, `None` quand la lecture échoue, un nombre seulement
+    quand il y a une mesure. Le jumeau avait été corrigé et pas celle-ci — deux
+    fonctions qui portent la même règle se corrigent ensemble, sinon la seconde est
+    la prochaine occurrence.
     """
     if db is None or artist_id is None:
-        return 0
+        return None
     try:
-        row = _q(db, "SELECT COALESCE(gold_apple_lifetime(%s, 'shazam_count'), 0)::bigint",
+        row = _q(db, "SELECT gold_apple_lifetime(%s, 'shazam_count')::bigint",
                  (artist_id,))
-        return int(row[0][0] or 0) if row else 0
     except Exception as exc:      # noqa: BLE001
         logger.warning("apple shazams unavailable: %s", type(exc).__name__)
-        return 0
+        return None
+    if not row or row[0][0] is None:
+        return None
+    return int(row[0][0])
 
 
 def apple_snapshot_count(db, artist_id) -> int:
@@ -620,17 +632,23 @@ def apple_snapshot_count(db, artist_id) -> int:
 
     Un relevé = un couple (jour de dépôt, période couverte). Deux exports annuels
     déposés le même jour font bien deux relevés.
+
+    ⚠️ Un COMPTE de relevés, donc zéro est une réponse valide — « aucun import » est
+    un fait, et c'est même celui que cette fonction sert à dire. Mais zéro sur une
+    lecture ÉCHOUÉE dirait « aucun import » alors qu'on ne sait pas, et la page
+    conseillerait à l'artiste d'importer un fichier qu'il a peut-être déjà déposé.
+    L'exception rend donc `None`, le compte réel rend un nombre.
     """
     if db is None or artist_id is None:
-        return 0
+        return None
     try:
         row = _q(db,
             "SELECT COUNT(*) FROM (SELECT DISTINCT snapshot_date, period_start, "
             "period_end FROM apple_songs_performance WHERE artist_id = %s) r",
             (artist_id,))
-        return int(row[0][0] or 0) if row else 0
     except Exception:      # noqa: BLE001
-        return 0
+        return None
+    return int(row[0][0] or 0) if row else 0
 
 
 def apple_yearly_series(db, artist_id) -> list:
@@ -741,8 +759,12 @@ def combined_total(totals: dict) -> int:
 # elle-même n'a pas changé — la vue porte exactement ce que ces constantes portaient —
 # mais elle n'existe plus qu'à UN endroit, et l'API comme le PDF peuvent la lire sans
 # recopier le `DISTINCT ON`.
+# PAS de `COALESCE(total, 0)` : il ferait d'une absence de ligne un zéro, et c'est
+# précisément la distinction que cette porte existe pour tenir. La vue rend déjà
+# `COALESCE(SUM(...), 0)` à l'intérieur de chaque branche — un locataire MESURÉ à zéro
+# a donc bien une ligne à 0, et un locataire jamais mesuré n'a pas de ligne du tout.
 _SQL_LIFETIME = """
-    SELECT COALESCE(total, 0)::bigint FROM v_platform_totals
+    SELECT total::bigint FROM v_platform_totals
      WHERE artist_id = %s AND platform = %s
 """
 
@@ -751,10 +773,35 @@ _SQL_LIFETIME_YOUTUBE = _SQL_LIFETIME
 _SQL_LIFETIME_SOUNDCLOUD = _SQL_LIFETIME
 
 
-def _lifetime(db, sql: str, artist_id, platform: str = "spotify") -> int:
+def _lifetime(db, sql: str, artist_id, platform: str = "spotify") -> int | None:
+    """Le total depuis le début, ou `None` — jamais un zéro inventé.
+
+    ⚠️ TROIS CAS QUE CETTE FONCTION CONFONDAIT, et le docstring de `platform_totals`
+    promettait pourtant de les distinguer depuis le début :
+
+      * **aucune ligne** — cette plateforme n'a jamais été mesurée pour ce locataire.
+        `None`. Un artiste qui vient de s'inscrire voyait « 0 écoute », ce qui se lit
+        comme un échec du produit et non comme une absence de mesure.
+      * **une ligne à 0** — mesurée, et à zéro. `0`, et c'est vrai.
+      * **une exception** — la lecture a échoué. `None`. Rendre `0` ici est la classe
+        `une-erreur-avalée-devient-une-absence`, celle qui a fait afficher **zéro** à
+        la tuile « Total Streams » d'Apple le 2026-09-12 quand une surcharge SQL
+        rendait `AmbiguousFunction`.
+
+    Mesuré le 2026-09-12 : `platform_totals(db, <locataire sans données>)` rendait
+    `{'spotify': 0, 'youtube': 0, 'soundcloud': 0, 'apple': 0}` — quatre zéros
+    affirmés — pendant que les vues or rendaient correctement « aucune ligne ».
+
+    Les deux appelants de production étaient DÉJÀ écrits pour l'absence : `home.py`
+    passe par `combined_total`, qui saute les valeurs fausses, et le collecteur PDF
+    lit la branche bornée, qui rend `None` depuis toujours. C'est la porte qui leur
+    cachait la différence.
+    """
     try:
         row = _q(db, sql, (artist_id, platform))
-        return int(row[0][0] or 0) if row else 0
     except Exception as exc:      # noqa: BLE001 — une tuile ne fait pas tomber la page
         logger.warning("lifetime total unavailable: %s", type(exc).__name__)
-        return 0
+        return None
+    if not row or row[0][0] is None:
+        return None
+    return int(row[0][0])
