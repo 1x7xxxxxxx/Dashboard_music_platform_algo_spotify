@@ -1067,7 +1067,11 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     # bande est plate à zéro avant ça — `stackgroup` infère zéro pour un point
     # absent — et rien à l'écran ne disait pourquoi.
     render_collection_start_note(
-        _late_starts(aligned, order, span, PLATFORM_LABELS), step)
+        # `cumulative` EST PASSÉ : sans lui, la date de première mesure change
+        # avec le mode et le grain — SoundCloud disait « 31/03/2026 » au pas du
+        # jour et « décembre 2025 » au pas du mois, pour le même fait.
+        _late_starts(aligned, order, span, PLATFORM_LABELS,
+                     levels=cumulative), step)
     return True
 
 
