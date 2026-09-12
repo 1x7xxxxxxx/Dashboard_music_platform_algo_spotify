@@ -171,7 +171,7 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 
 `st.metric` n'est que 17 des 207 tuiles du produit ; les 190 autres passent par une poignée de colonne (`c1.metric`). Un inventaire qui n'aurait compté que le receveur `st` décrirait 8 % du produit.
 
-**93 sur 211** portent une source établie ; **11** sont déclarées indéterminées et listées en tête ; 107 sont hors base par nature — la tranche a fini proprement sans lire la base — et 51 des attribuées ont plusieurs amonts.
+**94 sur 212** portent une source établie ; **11** sont déclarées indéterminées et listées en tête ; 107 sont hors base par nature — la tranche a fini proprement sans lire la base — et 52 des attribuées ont plusieurs amonts.
 
 | fichier:ligne | fonction | surface | visible | source établie | couche | confiance | motif | lu dans la même fonction (aucun lien prouvé) |
 |---|---|---|---|---|---|---|---|---|
@@ -196,9 +196,10 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/billing.py:340` | `_show_admin_view` | billing.paying_artists | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_artists` |
 | `views/billing.py:341` | `_show_admin_view` | ARPU | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_artists` |
 | `views/data_wrapped.py:247` | `_recap_spotify` | data_wrapped.recap_followers | à l'écran | `s4a_audience` | brut | plusieurs amonts | — | ?`v_s4a_song_daily` |
-| `views/home.py:298` | `_box` | — | autre onglet | `apple_yearly_series()` · `combined_total()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
-| `views/home.py:325` | `_render_tiles` | 📸 Instagram | autre onglet | `apple_yearly_series()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
-| `views/home.py:343` | `_render_tiles` | home.tile_meta | autre onglet | `apple_yearly_series()` · `combined_total()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:300` | `_render_tiles` | — | autre onglet | `apple_yearly_series()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:319` | `_box` | — | autre onglet | `apple_yearly_series()` · `combined_total()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:341` | `_render_tiles` | 📸 Instagram | autre onglet | `apple_yearly_series()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
+| `views/home.py:358` | `_render_tiles` | home.tile_meta | autre onglet | `apple_yearly_series()` · `combined_total()` · `daily_streams_by_platform()` · `period_side_metrics()` · `platform_totals()` | or | plusieurs amonts | — | — |
 | `views/meta_ads_overview.py:141` | `_show_meta_ads` | meta_ads_overview.spend | à l'écran | `v_meta_campaign_daily` | or | plusieurs amonts | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_daily` |
 | `views/meta_ads_overview.py:142` | `_show_meta_ads` | meta_ads_overview.impressions | à l'écran | `v_meta_campaign_daily` | or | plusieurs amonts | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_daily` |
 | `views/meta_ads_overview.py:143` | `_show_meta_ads` | meta_ads_overview.link_clicks | à l'écran | `v_meta_campaign_daily` | or | plusieurs amonts | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_daily` |
@@ -611,7 +612,7 @@ Chaque déclaration est vérifiée : le site doit encore exister et encore agré
 Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_coverage_only_improves.py` les compare à un plafond posé **à** la mesure, jamais au-dessus.
 
 <!-- gold-coverage-figures: total=89 unknown=7 -->
-<!-- gold-coverage-tiles: total=211 unknown=11 -->
+<!-- gold-coverage-tiles: total=212 unknown=11 -->
 <!-- gold-coverage-pdf: total=29 unknown=5 -->
 <!-- gold-coverage-gold-objects: total=15 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
@@ -621,4 +622,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=12 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=bb07da5cdd7bb9f6916930ced868d8b7b30871263e2ffbf4316a121b9105d4e2 -->
+<!-- gold-coverage: sha256=281ecb4600f72258d68782dfeab02cd2a871c792d870ca8365390e1690eb30db -->

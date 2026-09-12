@@ -5,6 +5,87 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-12 (nuit, suite) — Le pic YouTube était un changement de définition
+
+### Le signalement, et ce qu'il a trouvé
+
+« filtre par période, j'ai un pic à 18000 pour youtube alors que c'est faux ». Mesuré
+en production, artiste 1 :
+
+| | valeur |
+|---|---|
+| Niveau YouTube au 2026-06-10 | 99 778 |
+| Niveau YouTube au 2026-06-11 | **118 216** |
+| Croissance en une nuit | **+18 438** |
+| Plus gros écart QUOTIDIEN de la série (116 points) | **7** |
+| Médiane des écarts quotidiens | **1** |
+
+Le pic est **réel dans les données et faux comme information**. Le 11 juin, la collecte
+a changé de DÉFINITION : du compteur de CHAÎNE — qui plafonnait à 99 xxx et compte des
+vidéos qui ne sont pas les siennes, prouvé ~10× faux le 2026-09-08 — à la somme des
+compteurs PAR VIDÉO. **Une rupture de méthode ne devient pas une quantité parce qu'on
+la soustrait à la veille.**
+
+Le mode « Par période » était le seul à transformer cette marche en un bâton de 18 438
+attribué à un jour. Il est retiré de l'accueil, comme proposé. ⚠️ **C'est un correctif
+d'affichage : il cesse de déguiser la rupture, il ne la corrige pas.** La corriger
+demande de décider ce que vaut l'historique d'avant le changement — une question de
+définition, pas d'affichage. C'est **R104**, avec ses trois options et leur coût, plutôt
+qu'un arbitrage pris en silence.
+
+### L'écran
+
+**Une seule rangée : la figure à gauche (3/5), les KPI à droite (2/5).** Les boîtes
+occupaient toute la largeur au-dessus : il fallait faire défiler pour voir l'une après
+l'autre, alors que le chiffre et la courbe répondent à la même question. Les boîtes ont
+été rétrécies — bandeau à 1,8em au lieu de 2,6, deux par rangée — plutôt que de rogner
+la figure.
+
+**Trois KPI de plus, juste sous le total : les portes de la DERNIÈRE SORTIE** —
+Discover Weekly, Radio, Release Radar. Trois portes, trois chiffres : leur maximum
+répondait à « quel titre du catalogue est le mieux placé », pas à « comment se présente
+ma dernière sortie ». Le titre est nommé une fois au-dessus des trois, avec son âge.
+
+La dernière sortie est trouvée **sans date de sortie** : `release_date` est NULL pour
+deux titres sur trois de l'artiste 1, donc s'y fier écarterait justement les plus
+récents. C'est le plus petit `days_since_release` sur la prédiction la plus récente.
+
+**Trois KPI retirés** — meilleur mois, coût par écoute, plateforme dominante. Justes,
+mais trois nombres de plus sur un écran qui devait devenir simple, et aucun n'est ce
+qu'on regarde en premier. Leurs trois gardes sont partis avec eux, ce qui est nommé
+dans le fichier : un garde dont la population est vide passe au vert sur n'importe quoi.
+
+**Le CPR Meta est celui de la dernière campagne, plus le record de tous les temps.** Un
+record est irréfutable — on ne peut pas faire mieux, donc il ne bouge jamais — et il
+vient d'une audience qui n'existe peut-être plus : la campagne la moins chère de
+l'artiste 1 datait de 2023. Le classement est `ORDER BY last_day DESC`.
+
+⚠️ **Et surtout pas un rapprochement de nom.** La dernière sortie s'appelle « Ô Chiotte
+l'arbitre Tucome Back - Original », sa campagne « O chiotte l'arbitre Tucome Back » :
+accent, casse et suffixe diffèrent tous les trois. Un rapprochement flou qui se trompe
+en silence est pire qu'une règle simple que l'artiste vérifie d'un coup d'œil — le nom
+de la campagne retenue est affiché avec le chiffre.
+
+### Le garde qui vérifie du SQL a dû apprendre à ignorer les commentaires
+
+`test_a_guard_reads_structure_not_text` a refusé ma première version du garde du CPR :
+elle cherchait des sous-chaînes dans le littéral SQL. Deux protections valent mieux
+qu'une, et il fallait les deux :
+
+1. le littéral est extrait par `ast`, jamais cherché dans le texte du fichier — un
+   commentaire PYTHON ne peut donc pas le satisfaire ;
+2. les commentaires **SQL** (`--`) sont retirés, parce que le littéral en porte
+   beaucoup et qu'ils nomment les clauses qu'ils expliquent.
+
+Et la vérification porte sur une CLAUSE EXTRAITE comparée par `==`, jamais sur « ce
+texte apparaît quelque part » : une requête classant par récence PUIS par coût ne passe
+pas, là où un `in` la laisserait passer. Mutation décisive : mettre `ORDER BY last_day
+DESC` en commentaire et classer réellement par coût — **le garde rougit**.
+
+Onze mutations sur ce lot, onze rouges. Suite complète : **5479 passed**, 0 échec.
+
+---
+
 ## 2026-09-12 (nuit) — Des boîtes, un grain qu'on ne choisit plus, et deux mutations vertes
 
 ### Ce qui a changé à l'écran
