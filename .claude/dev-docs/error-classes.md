@@ -377,6 +377,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-method-change-counted-as-growth](#a-method-change-counted-as-growth) | P2 | deterministic | guarded | none |
 | [a-stack-that-mixes-two-baselines](#a-stack-that-mixes-two-baselines) | P2 | deterministic | guarded | none |
 | [one-fact-two-answers-by-display-mode](#one-fact-two-answers-by-display-mode) | P2 | deterministic | guarded | none |
+| [a-percent-sign-in-a-parameterised-query](#a-percent-sign-in-a-parameterised-query) | P2 | deterministic | guarded | none |
+| [an-empty-group-wins-a-desc-ranking](#an-empty-group-wins-a-desc-ranking) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -4868,13 +4870,15 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - root_cause: la migration 103 a ajouté `gold_apple_lifetime(integer, text DEFAULT 'plays')` à côté de `gold_apple_lifetime(integer)` créée par la 102. Un appel à UN argument matche alors les deux, et Postgres rend `AmbiguousFunction` — pas « fonction absente », pas un résultat faux : une erreur. Elle tombe dans l'`except` qui protège la page (« une tuile absente ne fait pas tomber la page ») et ressort en **zéro affirmé**. Ajouter un paramètre à défaut n'est donc PAS rétrocompatible en SQL, contrairement à Python.
 - long_term_fix: une migration qui ajoute une surcharge retire l'ancienne dans le même fichier, et dans cet ordre — créer la nouvelle, repointer les objets qui dépendent de l'ancienne (une vue refuse un `DROP FUNCTION` dont elle dépend), retirer l'ancienne. Règle générale, et c'est la moitié la plus utile : **un `except` qui protège l'affichage transforme toute erreur de schéma en valeur nulle affirmée.** Une fonction de la couche or doit donc être unique par nom, ce qu'un contrôle sur `pg_proc` vérifie en une requête.
 - autofix: none
-- signature: `python3 -c "import os,sys,psycopg2${IFS}try:${IFS} c=psycopg2.connect(host='127.0.0.1',port=5433,dbname='spotify_etl',user='postgres',password=os.environ.get('DB_PASSWORD',''))${IFS}except Exception:${IFS} sys.exit(0)${IFS}cur=c.cursor();cur.execute(\"SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname LIKE 'gold_%' GROUP BY 1 HAVING count(*)>1\");bad=cur.fetchall();c.close();sys.exit(1 if bad else 0)"`
+- signature: `python3 -c "import os,sys,psycopg2${IFS}try:${IFS} c=psycopg2.connect(host='127.0.0.1',port=5433,dbname='spotify_etl',user='postgres',password=os.environ.get('DB_PASSWORD',''))${IFS}except Exception:${IFS} sys.exit(0)${IFS}cur=c.cursor();cur.execute(\"SELECT a.proname FROM pg_proc a JOIN pg_proc b ON a.proname=b.proname AND a.oid<b.oid JOIN pg_namespace n ON n.oid=a.pronamespace AND b.pronamespace=n.oid WHERE n.nspname='public' AND a.proname LIKE 'gold_%' AND (a.pronargs-a.pronargdefaults)<=b.pronargs AND (b.pronargs-b.pronargdefaults)<=a.pronargs\");bad=cur.fetchall();c.close();sys.exit(1 if bad else 0)"`
 - guard: tests/test_the_gold_layer_defines_every_platform.py — les trois branches de la règle Apple sont épinglées sur données synthétiques dans une transaction annulée, et la page Apple Music est rendue au complet dans le render-smoke. Signature vue exit=1 en recréant la surcharge, 0 après l'avoir retirée.
 - rex_ref: migrations/103_gold_apple_metric.sql
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: **trouvé en REGARDANT la page, pas en lisant le SQL.** La migration s'appliquait sans erreur, les tests passaient, et `gold_apple_lifetime(1, 'shazam_count')` rendait la bonne valeur en psql — c'est l'appel à un seul argument qui échouait, et seul le rendu le montrait. Cinquième fois que ce dépôt l'apprend.
   - 2026-09-12: le premier correctif — un `DROP FUNCTION` placé avant le `CREATE` — a échoué : `view v_platform_totals depends on function gold_apple_lifetime(integer)`. L'ordre est donc contraint et il est écrit dans la migration, parce qu'un lecteur pressé le remettrait en tête.
+  - 2026-09-13: **la signature comptait les surcharges, pas les ambiguïtés** — `count(*) > 1` par nom. Elle a rougi sur `gold_apple_lifetime`, qui porte depuis la migration 114 une surcharge à trois arguments **sans défaut**, écrite précisément pour ne PAS être ambiguë : portées d'arité [1,2] et [3,3], disjointes, les trois formes d'appel existantes vérifiées une à une. Un prédicat `deterministic` a par contrat zéro faux positif ; celui-ci en avait un, et il aurait bloqué la CI sur la parade à sa propre classe.
+  - 2026-09-13: signature remplacée par le vrai critère — **deux surcharges dont les portées d'arité se CHEVAUCHENT** (`pronargs - pronargdefaults <= pronargs` de l'autre, dans les deux sens). Vue rouge par mutation sur un couple fabriqué (`gold_zz_ambig(int)` + `gold_zz_ambig(int, text DEFAULT)`), et le verdict a été confronté à celui de Postgres lui-même : `function gold_zz_ambig(integer) is not unique`. Verte sur l'arbre réel. Le couple de mutation a été supprimé après mesure.
 
 ## an-account-filter-that-names-no-single-column
 - status: guarded
@@ -5451,3 +5455,36 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-13
 - History:
   - 2026-09-13: trouvée en VÉRIFIANT une autre correction, pas en la cherchant — la note qui explique la falaise du cumulé donnait deux dates. Signature vue ≠ 0 sur le défaut (`levels` ignoré) et 0 après. Ce n'est pas un détail d'affichage : cette phrase est celle qui explique pourquoi la courbe part d'une falaise, et une mauvaise date envoie chercher la panne au mauvais endroit.
+
+
+## a-percent-sign-in-a-parameterised-query
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une requête paramétrée échoue en bloc sur `IndexError: tuple index out of range`, alors que le nombre d'emplacements `%s` et le nombre de valeurs passées sont EXACTEMENT égaux. Le message accuse les paramètres ; le compte des paramètres est juste. Rien dans la trace ne nomme le vrai coupable, et on relit dix fois le tuple.
+- root_cause: `psycopg2` interpole le signe pour cent dans TOUTE la chaîne, **commentaires SQL compris** — un `--` n'est pas un échappement pour lui. Mesuré le 2026-09-13, `src/dashboard/utils/period_side_metrics.py` : « afficherait 33 % » écrit dans le commentaire d'une CTE a fait tomber une requête de 35 emplacements et 35 valeurs. Le dépôt avait déjà la parade sous les yeux — le filtre S4A s'écrit `'%%1x7xxxxxxx%%'` depuis toujours — mais elle était comprise comme une règle sur les VALEURS, pas sur la prose.
+- long_term_fix: — (le garde EST le fix). Il n'existe pas de changement de code qui rende la classe impossible : tant qu'un littéral Python porte à la fois du SQL et de la prose, le signe peut y entrer. Ce qui est réparable, c'est le DÉLAI de détection : le défaut ne se voit qu'à l'exécution de la requête, sous un message qui désigne autre chose. Le garde le déplace à l'écriture.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_a_parameterised_query_says_what_it_means.py }
+- signature: `python3 -m pytest tests/test_a_parameterised_query_says_what_it_means.py::test_no_stray_percent_sign_in_a_parameterised_query -q`
+- rex_ref: —
+- first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
+- History:
+  - 2026-09-13: `guarded`. Écrite le jour où le défaut a été commis **deux fois de suite** : la première dans le commentaire expliquant un ratio, la seconde dans le paragraphe rédigé pour mettre en garde contre la première. C'est ce doublon qui a décidé de la classe — un piège où l'on retombe en écrivant la note qui l'évite n'est pas une inattention, c'est une propriété du support.
+  - 2026-09-13: signature **vue rouge par mutation** (le signe remis dans le commentaire → `1 failed`), verte sur l'arbre corrigé. Les docstrings sont exclues du balayage par `ast` : sans cela, ce catalogue et le garde lui-même — qui décrivent le défaut — l'auraient déclenché, et ce dépôt a déjà appris trois fois qu'un garde rouge sur la prose de son fix enseigne que le rouge est du bruit.
+
+## an-empty-group-wins-a-desc-ranking
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une surface qui affiche « le meilleur X » montre `—` alors qu'un vrai chiffre existe en base. Aucune erreur, aucune trace : la requête a bien rendu une ligne, et cette ligne est vide.
+- root_cause: dans PostgreSQL, `ORDER BY <expr> DESC` place les `NULL` **EN PREMIER** (`NULLS FIRST` est le défaut de `DESC`). Un classement dont l'expression peut valoir `NULL` — typiquement un ratio bâti sur `NULLIF(dénominateur, 0)` — élit donc le groupe VIDE avant tous ceux qui ont une valeur. Vérifié en base le 2026-09-13 sur `period_side_metrics` : une campagne Hypeddit à zéro visite passait devant une campagne à 46 pour cent.
+- long_term_fix: un classement décroissant sur une expression nullable doit porter sa PORTE dans la requête — un `HAVING` qui écarte les groupes sans mesure, ou un `NULLS LAST` explicite. La forme `HAVING` est préférable quand le groupe vide n'a aucun sens métier : elle dit « ce groupe n'existe pas », là où `NULLS LAST` dit seulement « classe-le en dernier » et le laisse gagner quand il est seul.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_a_parameterised_query_says_what_it_means.py }
+- signature: `python3 -m pytest tests/test_a_parameterised_query_says_what_it_means.py::test_a_desc_ranking_cannot_be_won_by_an_empty_group -q`
+- rex_ref: —
+- first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
+- History:
+  - 2026-09-13: `guarded`. **Trouvée par mutation, pas par lecture.** La porte (`HAVING`) était écrite du premier coup et paraissait redondante ; c'est en la retirant pour éprouver le garde que la conséquence est apparue, puis a été confirmée par une requête directe sur la base. Le défaut n'a donc jamais atteint un écran — mais il aurait attendu le premier locataire dont une campagne liée n'a aucune visite.
+  - 2026-09-13: la première version du prédicat jugeait le LITTÉRAL entier et ne rougissait pas : le `HAVING` d'une CTE voisine (`best_cpr`) exemptait toute la requête. Corrigé en découpant le littéral à ses frontières de CTE. Un littéral n'est pas une unité de raisonnement SQL — c'est la même erreur de PORTÉE que `a-ratchet-at-zero-over-a-scope-that-excludes-the-defect`, à une autre échelle.

@@ -37,7 +37,11 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-_SRC = Path(__file__).resolve().parents[1] / "src/dashboard/utils/platform_timeseries.py"
+# `period_side_metrics` a quitté `platform_timeseries.py` le 2026-09-13 (cliquet des
+# 1 200 lignes). Ce garde lit l'AST du fichier qui porte RÉELLEMENT la requête : le
+# laisser pointer l'ancien l'aurait rendu vert sur un fichier où la CTE n'est plus.
+_SRC = (Path(__file__).resolve().parents[1]
+        / "src/dashboard/utils/period_side_metrics.py")
 
 
 def _executable_sql() -> str:

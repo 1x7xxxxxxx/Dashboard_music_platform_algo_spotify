@@ -149,30 +149,25 @@ def test_the_step_bar_is_really_gone():
         "la figure ignore — pire qu'avant, parce que le contrôle a l'air de marcher.")
 
 
-def test_the_applied_grain_is_written_on_screen():
-    """Un pas appliqué en silence se lit comme une panne."""
-    tree = _tree()
-    # Par `ast` : une clé d'i18n `home.grain_*` passée à un appel, et non une
-    # chaîne trouvée dans un commentaire. Trois gardes de ce dépôt ont été pris au
-    # vert sur la prose de leur propre correctif le 2026-09-04.
-    grains = {n.value for n in ast.walk(tree)
-              if isinstance(n, ast.Constant) and isinstance(n.value, str)
-              and n.value.startswith("home.grain_")}
-    assert {"home.grain_day", "home.grain_month", "home.grain_year"} <= grains, (
-        f"le grain n'est plus annoncé pour les trois pas : {sorted(grains)}. "
-        "« Chaque point est un mois » n'est pas lisible sur l'axe d'une courbe de "
-        "44 points, et l'artiste n'a plus de barre pour le déduire.")
-    # ET LA CLÉ DOIT ATTERRIR DANS UN RENDU, pas dans un dict mort. Par `ast` :
-    # un appel à `st.caption` existe-t-il dans la fonction ? La version d'avant
-    # écrivait `assert "st.caption(" in src`, satisfait par n'importe quel
-    # commentaire citant l'appel — `test_a_guard_reads_structure_not_text` l'a
-    # attrapée, pour la deuxième fois dans la même séance.
-    rendered = any(
-        isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "caption"
-        for f in ast.walk(tree)
-        if isinstance(f, ast.FunctionDef) and f.name == "_render_trend"
-        for n in ast.walk(f))
-    assert rendered, (
-        "`_render_trend` n'appelle plus `st.caption` : les clés `home.grain_*` "
-        "existent mais rien ne les affiche — du texte correct que rien n'atteint, "
-        "la forme que ce dépôt paie le plus souvent.")
+# ── `test_the_applied_grain_is_written_on_screen` A ÉTÉ RETIRÉ LE 2026-09-13 ──
+#
+# Il exigeait les trois clés `home.grain_*` et un `st.caption` dans `_render_trend`,
+# au nom d'une règle écrite le 2026-09-08 : « un réglage appliqué en silence se lit
+# comme une panne ».
+#
+# Les trois légendes ont été retirées sur demande explicite — « supprime la mention
+# "Chaque point est un mois — la fenêtre dépasse un an, le pas du jour la rendrait
+# illisible." », puis, la question posée sur les trois variantes, « supprimer les
+# trois légendes de pas ». Le garde part AVEC ce qu'il gardait : le neutraliser en
+# laissant son nom aurait produit un test vert sur une règle morte, ce que ce dépôt
+# appelle un prédicat sans site.
+#
+# CE QUI TIENT ENCORE LE FAIT : les étiquettes d'axe de Plotly portent le pas
+# (« janv. 2026 » au mois, « 13 sept. » au jour), et
+# `render_collection_start_note` formate sa date par `_bucket_label(since, step)`.
+# Le pas est donc lisible à l'écran ; c'est la phrase qui l'expliquait qui est
+# partie.
+#
+# Les deux autres gardes de ce fichier sont intacts : `_step_for` vérifie la règle
+# elle-même, `test_the_step_bar_is_really_gone` qu'aucun widget ne prétend encore
+# choisir le pas. Ce sont eux qui empêchent la règle de dériver.

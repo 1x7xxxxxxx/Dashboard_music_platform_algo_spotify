@@ -138,7 +138,7 @@ def _section_streams(db, artist_id):
     # pas (`test_a_page_asks_the_same_question_once`). `period_side_metrics` REMPLACE
     # `get_instagram_followers` — son `ig_followers` porte le même effectif courant —
     # donc la page gagne la dépense Meta et l'écart d'abonnés sans gagner une requête.
-    from src.dashboard.utils.platform_timeseries import period_side_metrics
+    from src.dashboard.utils.period_side_metrics import period_side_metrics
     _side = period_side_metrics(db, artist_id, since, until)
     ig_count = _side.get("ig_followers") or 0
 
@@ -234,219 +234,20 @@ def _section_streams(db, artist_id):
         _render_trend(db, series, since, until, range_key, artist_id,
                       totals=totals, side=_side)
     with col_kpi:
-        _render_tiles(totals, grand_total, ig_count,
-                      prev=_prev, side=_side, prev_grand=_prev_grand)
+        from src.dashboard.views.home_tiles import render_tiles
+        render_tiles(totals, grand_total, ig_count,
+                     prev=_prev, side=_side, prev_grand=_prev_grand)
 
 
-def _render_tiles(totals: dict, grand_total: int, ig_count: int,
-                  prev: dict | None = None, side: dict | None = None,
-                  prev_grand: int | None = None) -> None:
-    """La COLONNE de KPI, à droite de la figure — compacte, trois blocs.
-
-    ── L'ORDRE, ET POURQUOI CELUI-LÀ ────────────────────────────────────────────
-
-    1. le total toutes plateformes, avec son écart ;
-    2. **les trois portes algorithmiques de la DERNIÈRE SORTIE** — Discover Weekly,
-       Radio, Release Radar. « rajoute dans les kpi juste en dessous de streams
-       totaux, la meilleure probabilité pour la dernière release de trigger : DW
-       Radio et RR : 3 kpi » (2026-09-12). Trois portes distinctes, trois chiffres :
-       leur maximum répondait à une autre question, « quel titre du catalogue est le
-       mieux placé », qui n'est pas celle qu'on se pose devant une sortie ;
-    3. une boîte par plateforme, plus Meta Ads.
-
-    ⚠️ **CE SONT DES PROBABILITÉS PRÉDITES, jamais des taux observés.** Le taux
-    observé demanderait `s4a_song_algo_outcomes`, à **0 ligne** tous locataires
-    confondus (mesuré le 2026-09-12) : personne n'a jamais saisi l'issue d'une
-    prédiction. Le libellé porte le mot, et il doit le porter.
-
-    ── L'ÉCART, ET POURQUOI LA PÉRIODE PRÉCÉDENTE DE MÊME LONGUEUR ──────────────
-
-    C'est le seul repère défini pour TOUT filtre, indépendant du calendrier, à
-    durées égales. Il ne coûte aucune requête : `platform_totals` relit des séries
-    dont les requêtes ne portent qu'`artist_id`, donc déjà en cache.
-
-    **AUCUN ÉCART CONTRE UNE PÉRIODE NON MESURÉE.** Un « +100 % » contre une fenêtre
-    où l'on n'avait pas encore collecté transforme le début de NOTRE observation en
-    croissance de l'artiste — rendu impossible par construction : `None` ne produit
-    pas de flèche.
-
-    ── CE QUE DIT UNE BOÎTE VIDE ────────────────────────────────────────────────
-
-    Mesuré en production le 2026-09-12 : la série Spotify s'arrête au 5 septembre,
-    sept jours en arrière. Sur une fenêtre courte il n'y a donc réellement rien — et
-    c'était lu comme une incohérence, parce que les autres plateformes avaient des
-    points. La boîte nomme sa dernière date plutôt que de laisser « — » se lire comme
-    un zéro.
-    """
-    _t, _p, _s = totals or {}, prev or {}, side or {}
-
-    def _n(v) -> str:
-        # `—` ET JAMAIS `0`. Un zéro affirme « personne n'a écouté » ; l'absence dit
-        # « nous n'avons rien mesuré ».
-        return f"{int(v):,}".replace(",", "\u202f") if v else "—"
-
-    def _delta(now, before):
-        """L'écart relatif, ou `None` — jamais un pourcentage contre du vide."""
-        if not now or not before:
-            return None
-        return f"{(now - before) / before * 100:+.1f}".replace(".", ",") + " %"
-
-    # LE BANDEAU EST COMPACT : il partage la largeur avec la figure désormais.
-    # « diminues la taille des box pour que tout rentre ». 1,8em et non 2,6 — à
-    # 2,6 le nombre débordait de sa colonne dès six chiffres.
-    st.markdown(
-        f"""<div style="text-align:center; padding:8px 6px; background:#f0f2f6;
-            border-radius:8px; margin-bottom:8px;">
-            <div style="color:#555; font-size:0.78em; font-weight:600;">{
-                t("home.total_all_platforms", "🎧 Total streams")}</div>
-            <div style="font-size:1.8em; line-height:1.1; color:#1DB954;
-                 font-weight:800;">{grand_total:,}</div>
-            <div style="color:#666; font-size:0.78em;">{
-                _delta(grand_total, prev_grand) or ""}</div>
-        </div>""".replace(",", "\u202f"),
-        unsafe_allow_html=True)
-
-    _last = _s.get("last_measured") or {}
-
-    def _box(col, key: str, label: str, help_text: str | None = None) -> None:
-        # ⚠️ `_t.get(...)` EST LU SUR LE SITE D'APPEL, pas dans un helper qui
-        # lirait `totals` lui-même : `make gold-coverage` ne peut suivre une
-        # tranche qu'à travers un nombre limité d'appelants, et les quatre tuiles
-        # de l'accueil sont sorties de la carte de la couche or pour cette raison
-        # exacte le 2026-09-12.
-        value, before = _t.get(key), _p.get(key)
-        # LE COMPTEUR À VIE PORTE CE QU'ON N'A PAS VU. Pour YouTube et SoundCloud,
-        # le total est le compteur de la plateforme : il inclut tout ce qui précède
-        # notre première collecte. L'infobulle nomme les deux nombres — celui de la
-        # boîte et celui que la figure peut dessiner — parce que leur écart est ce
-        # qui fait dire « ces chiffres disent n'importe quoi ».
-        _obs = (_s.get("observed_growth") or {}).get(key)
-        if _obs and value and _obs[1] < value:
-            help_text = (help_text + " " if help_text else "") + t(
-                "home.tile_counter_history",
-                "Compteur à vie. Nous relevons cette plateforme depuis le {since} : "
-                "**{seen}** depuis cette date, le reste précède notre première "
-                "mesure et aucune date ne peut le porter — c'est pourquoi la courbe "
-                "« par période » en montre moins.").format(
-                    since=_obs[0].strftime("%d/%m/%y"),
-                    seen=f"{int(_obs[1]):,}".replace(",", "\u202f"))
-        with col.container(border=True):
-            st.metric(label, _n(value), delta=_delta(value, before), help=help_text)
-            if not value and _last.get(key):
-                st.caption(t("home.tile_last_seen", "Dernier relevé : {d}").format(
-                    d=_last[key].strftime("%d/%m/%y")))
-
-    # DEUX PAR RANGÉE, pas trois : la colonne fait 2/5 de la page et un libellé
-    # comme « ☁️ SoundCloud » se coupe en deux à trois colonnes.
-    a1, a2 = st.columns(2)
-    _box(a1, "spotify", "🎵 Spotify")
-    _box(a2, "youtube", "🎬 YouTube")
-    b1, b2 = st.columns(2)
-    _box(b1, "soundcloud", "☁️ SoundCloud")
-    _box(b2, "apple", "🎎 Apple Music",
-         t("home.apple_no_window",
-           "Apple Music ne fournit qu'un relevé par dépôt de CSV : impossible de le "
-           "découper par période. Choisis « Depuis le début » pour son total."))
-
-    # INSTAGRAM PORTE UN EFFECTIF, ET SON ÉCART EST DÉJÀ UN ÉCART — `ig_delta` est
-    # le gain d'abonnés SUR LA FENÊTRE, pas un cumul.
-    c1, c2 = st.columns(2)
-    _ig_d = _s.get("ig_delta")
-    with c1.container(border=True):
-        st.metric("📸 Instagram", _n(ig_count),
-                  delta=(f"{_ig_d:+d}" if _ig_d else None),
-                  help=t("home.ig_is_a_headcount",
-                         "Un EFFECTIF d'abonnés, pas un cumul d'écoutes : il ne se "
-                         "découpe pas par période et n'entre pas dans le total "
-                         "ci-dessus. L'écart est celui de la période affichée."))
-
-    # META ADS — LE CPR DE LA DERNIÈRE CAMPAGNE, PAS LE RECORD HISTORIQUE.
-    # « met en automatique la dernière release et pas forcément les meilleurs
-    # résultats qu'on a obtenu toute campagne confondue » (2026-09-12). Un record
-    # est irréfutable : on ne peut pas faire mieux, donc il ne bouge jamais et ne
-    # dit rien de ce qui marche aujourd'hui. Le nom de la campagne retenue est
-    # affiché AVEC le chiffre — c'est ce qui rend la règle vérifiable d'un coup
-    # d'œil, là où un rapprochement flou sur le titre se tromperait en silence.
-    _spend, _cpr = _s.get("meta_spend"), _s.get("best_cpr")
-    _cpr_spend, _cpr_name = _s.get("best_cpr_spend"), _s.get("best_cpr_name")
-    # LE CPR EST DANS LA LIGNE `delta`, PAS DANS UN `st.caption` SOUS LA BOÎTE.
-    #
-    # « il faut ramener la taille de la box meta de la même dimension que les
-    # autres » (2026-09-13). La légende sous la métrique ajoutait une ligne à cette
-    # boîte seule : dans une grille de six, une case plus haute que ses voisines
-    # casse l'alignement de toute la rangée, et l'œil lit ce décalage comme une
-    # hiérarchie qui n'existe pas.
-    #
-    # `delta_color="off"` parce que ce n'est PAS une variation : c'est un second
-    # chiffre de nature différente. Le teinter en vert ou en rouge lui ferait dire
-    # « ça monte » ou « ça baisse », ce qui n'a aucun sens pour un coût par résultat
-    # affiché seul. L'écart de dépense cède sa place — entre « la dépense a varié de
-    # x % » et « voici le CPR de la dernière campagne », c'est le second qui a été
-    # demandé, et une boîte ne porte qu'un chiffre secondaire.
-    _cpr_line = None
-    if _cpr:
-        _cpr_line = t("home.tile_best_cpr", "🎯 CPR {cpr}{budget}").format(
-            cpr=f"{_cpr:,.4f}".replace(",", "\u202f").replace(".", ",") + "\u00a0€",
-            budget=(" · " + f"{_cpr_spend:,.2f}".replace(",", "\u202f")
-                    .replace(".", ",") + "\u00a0€") if _cpr_spend else "")
-    with c2.container(border=True):
-        st.metric(t("home.tile_meta", "📊 Meta Ads"),
-                  (f"{_spend:,.2f}".replace(",", "\u202f").replace(".", ",")
-                   + "\u00a0€") if _spend else "—",
-                  delta=_cpr_line, delta_color="off",
-                  help=t("home.tile_meta_help",
-                         "Dépense publicitaire de la période affichée, et le coût "
-                         "par résultat de la campagne la plus RÉCENTE — celle de la "
-                         "dernière sortie, pas le record de toutes les campagnes.")
-                  + (f" Campagne : {_cpr_name}." if _cpr_name else ""))
-
-
-# `_recap_extra` A ÉTÉ SUPPRIMÉE LE 2026-09-12, pas mise de côté. Elle fabriquait
-# les lignes « Apple Music / Instagram / Meta Ads » de la table de droite, avec leur
-# unité entre parenthèses. Les trois ont désormais leur BOÎTE dans la rangée du haut,
-# où elles portent en plus l'écart contre la période précédente. Garder la fonction
-# « au cas où » aurait produit ce que ce dépôt paie le plus souvent : du code correct
-# que rien n'atteint, et qui pourrit jusqu'à ce qu'on le rebranche sur un écran qui a
-# changé sous lui.
-
-
-    # ── LES TROIS PORTES DE LA DERNIÈRE SORTIE, SOUS LES PLATEFORMES ────────
-    #
-    # « place les 3 box en dessous de insta & meta ads » (2026-09-13). Elles étaient
-    # juste sous le total, en tête de colonne. Elles y coupaient la lecture : les six
-    # boîtes de plateformes racontent ce qui S'EST PASSÉ, ces trois-là ce qui POURRAIT
-    # se passer. Mélanger du mesuré et du prédit dans le même coup d'œil est le
-    # meilleur moyen de faire lire une prédiction comme un relevé.
-    #
-    # Le libellé le dit désormais en toutes lettres — « Probabilités prédites maximum
-    # atteintes pour » : ce sont les maximums que le modèle a attribués à ce titre,
-    # pas des taux constatés. Le taux constaté demanderait `s4a_song_algo_outcomes`,
-    # à **0 ligne** tous locataires confondus (mesuré le 2026-09-12).
-    _song, _age = _s.get("release_song"), _s.get("release_age")
-    _gates = (("release_dw", t("home.gate_dw", "🎯 Discover Weekly")),
-              ("release_radio", t("home.gate_radio", "📻 Radio")),
-              ("release_rr", t("home.gate_rr", "🆕 Release Radar")))
-    if any(_s.get(k) for k, _lab in _gates):
-        # LE TITRE EST NOMMÉ AU-DESSUS, UNE FOIS. Trois pourcentages sans le titre
-        # auquel ils se rapportent seraient trois nombres orphelins ; le répéter
-        # dans chaque boîte volerait la place du chiffre.
-        st.caption(t("home.gates_for",
-                     "🔮 Probabilités **prédites maximum atteintes** pour **{song}**")
-                   .format(song=_song or "—")
-                   + (t("home.gates_age", " · sortie il y a {n} j").format(n=_age)
-                      if _age is not None else ""))
-        g1, g2, g3 = st.columns(3)
-        for col, (key, label) in zip((g1, g2, g3), _gates):
-            val = _s.get(key)
-            with col.container(border=True):
-                st.metric(label,
-                          (f"{val * 100:.1f}".replace(".", ",") + " %")
-                          if val else "—",
-                          help=t("home.gate_help",
-                                 "Probabilité PRÉDITE par le modèle que ce titre "
-                                 "entre dans cette playlist algorithmique. Ce n'est "
-                                 "pas un taux observé : aucune issue n'a encore été "
-                                 "saisie."))
+# `_render_tiles` EST PARTIE DANS `views/home_tiles.py` le 2026-09-13, sous le nom
+# `render_tiles`.
+#
+# Ce fichier avait franchi 1 200 lignes (1 235) en gagnant les tuiles Shazam puis
+# Hypeddit, et le cliquet a refusé la dette au lieu d'être relevé.
+#
+# La couture est réelle : la colonne de KPI ne prend que des dictionnaires déjà
+# calculés et rend du Streamlit — aucune connexion, aucune série, ni le pas ni le mode
+# de la figure. Elle devient donc testable seule, ce qu'elle n'était pas ici.
 
 def _recap_metrics(side: dict, totals: dict, aligned: dict, span: list,
                    step: str, mode: str, prev_total=None) -> list:
@@ -510,9 +311,7 @@ def _render_trend(db, series, since, until, range_key, artist_id,
     cumulatifs (SoundCloud, YouTube) à leur écart quotidien, sans quoi la courbe
     additionnerait des totaux-depuis-toujours à des streams quotidiens.
     """
-    from src.dashboard.utils.platform_chart import (
-        render_missing_history_note, render_platform_chart,
-    )
+    from src.dashboard.utils.platform_chart import render_platform_chart
 
     # QUELLES SOURCES TRACER. Toutes par défaut : le filtre sert à ISOLER une
     # plateforme, pas à en cacher. Les cases ne proposent que ce que la période
@@ -617,19 +416,28 @@ def _render_trend(db, series, since, until, range_key, artist_id,
                "années où une plateforme écrase les autres."),
     ) else "absolute")
 
-    # LE GRAIN EST AFFICHÉ, MÊME S'IL N'EST PLUS CHOISI — et c'est la contrepartie
-    # de l'avoir automatisé. Un axe dont le pas change sous le curseur sans un mot
-    # est exactement le défaut que ce module garde depuis le 2026-09-08 : un réglage
-    # appliqué en silence se lit comme une panne. Ici il n'y a pas de réglage repris,
-    # mais il y a un fait que le lecteur ne peut pas deviner en regardant l'axe —
-    # « chaque point est un mois » n'est pas lisible sur une courbe de 44 points.
-    st.caption({
-        'day': t("home.grain_day", "Chaque point est un **jour**."),
-        'month': t("home.grain_month", "Chaque point est un **mois** — la fenêtre "
-                                       "dépasse un an, le pas du jour la rendrait "
-                                       "illisible."),
-        'year': t("home.grain_year", "Chaque point est une **année**."),
-    }.get(step, ""))
+    # ── LA LÉGENDE DU PAS A ÉTÉ RETIRÉE LE 2026-09-13, ET C'EST UN ARBITRAGE ────
+    #
+    # « supprime la mention "Chaque point est un mois — la fenêtre dépasse un an, le
+    # pas du jour la rendrait illisible." », puis, la question posée sur les trois
+    # variantes : « supprimer les trois légendes de pas ».
+    #
+    # ⚠️ CE QUE ÇA COÛTE, ET IL FAUT L'ÉCRIRE ICI. Ces trois lignes étaient
+    # l'application d'une règle de ce module — « un réglage appliqué en silence se
+    # lit comme une panne », écrite le 2026-09-08 après un défaut mesuré — et le
+    # garde `test_the_applied_grain_is_written_on_screen` les exigeait. Le garde part
+    # avec elles : un test qu'on neutralise sans retirer ce qu'il gardait est pire
+    # que pas de test.
+    #
+    # CE QUI RESTE POUR LIRE LE GRAIN, et c'est l'argument qui rend le retrait
+    # tenable : les étiquettes d'axe de Plotly le disent déjà (« janv. 2026 » au pas
+    # du mois, « 13 sept. » au pas du jour), et `render_collection_start_note`
+    # formate sa date par `_bucket_label(since, step)`. Le fait est à l'écran ; ce
+    # qui part est la PHRASE qui l'expliquait, et sa justification de plomberie.
+    #
+    # Le raisonnement du 2026-09-08 n'est pas désavoué : il tenait quand une barre de
+    # pas venait d'être retirée et que le lecteur pouvait chercher son réglage
+    # disparu. Cette barre n'existe plus depuis longtemps.
 
     available = [k for k in PLATFORM_LABELS
                  # Une source qui n'existe qu'à un pas donné n'est proposée qu'à ce
@@ -762,17 +570,18 @@ def _render_trend(db, series, since, until, range_key, artist_id,
     # texte vit désormais à côté du comportement dont il parle (`t_trend_caption`),
     # rendu par `_render_notes` avec les autres explications.
 
-    # CE QUE LA FIGURE NE TRACE PAS, DIT PLUTÔT QUE TU.
+    # ── L'APPEL QUI VIVAIT ICI A ÉTÉ RETIRÉ LE 2026-09-13 ───────────────────
     #
-    # Pour un compteur cumulé, l'écart n'est calculé qu'entre deux jours CONSÉCUTIFS :
-    # entre deux relevés distants de neuf jours on sait ce qui s'est passé EN TOUT,
-    # jamais quel jour, et l'attribuer au dernier inventerait un pic. Ces écoutes-là
-    # sont donc écartées — et elles l'étaient EN SILENCE.
+    # `render_missing_history_note()` bouclait sur un dict VIDE : appelée à chaque
+    # rendu, elle n'affichait jamais rien. Le commentaire au-dessus d'elle décrivait
+    # d'ailleurs un AUTRE mécanisme — les écoutes écartées par la règle des jours
+    # consécutifs — qui est rendu par `_render_notes` dans le module de la figure,
+    # là où le pas réellement retenu est connu.
     #
-    # Mesuré le 2026-09-10 sur l'artiste 1 : la figure trace 21 écoutes YouTube et en
-    # écarte 167. Une figure qui montre un neuvième du volume sans le dire se lit comme
-    # une plateforme morte.
-    render_missing_history_note()
+    # Ce que l'accueil voulait dire ici est désormais dit par
+    # `render_counter_history_note`, appelée par la figure elle-même : elle seule a
+    # les niveaux en main, donc le nombre d'écoutes qui précèdent notre première
+    # mesure.
 
 
 _DAG_LABELS = {

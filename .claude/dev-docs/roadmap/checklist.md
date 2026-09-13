@@ -25,11 +25,16 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R106 | Shazam n'est pas sur la page d'accueil alors qu'il est dans le cœur du produit (ADR-025) | P3 | une boîte Shazam existe dans `_render_tiles` et affiche un chiffre pour l'artiste 1 |
 | R107 | Trois décisions produit à prendre avant le prochain lot — détail plus bas | P3 | les trois blocs de R107 portent une ligne « tranché le … » |
+| R108 | L'exemption de la PORTE masque ses propres lectures de bronze — mesuré en la découpant | P4 | le compte du cliquet du bronze ne change pas quand on retire `period_side_metrics.py` de `_NOT_A_SURFACE` |
 | R103 | `artist_first_look` importe `views.<nom>` au lieu de suivre la table de routage d'`app.py` — il rapporte 2 pages en ERREUR que le produit sert correctement | P3 | `make artist-firstlook-prod PROD_SSH=… ARTIST=1` ne rapporte plus `process_guide` ni `upload_csv` en ❌ |
 
-**Trois tâches ouvertes**, R103, R106 et R107. R105 a été ABANDONNÉE le
+**Trois tâches ouvertes**, R103, R107 et R108 — cette dernière ouverte le 2026-09-13 par un
+découpage qui a révélé un angle mort du cliquet du bronze. **R106 a été livrée le 2026-09-13** — la
+tuile Shazam est sur l'accueil (1 770 au catalogue, 637 pour la dernière sortie), et
+avec elle la mention que l'historique journalier de YouTube et SoundCloud est
+définitivement hors de portée. R107 §1 est tranchée le même jour ; ses §2 et §3 restent
+ouvertes, donc la tâche ne se ferme pas. Détail dans `archive.md`. R105 a été ABANDONNÉE le
 2026-09-13 par ADR-025 : le produit est Spotify + Meta + ML, et YouTube pèse
 0,2 % du signal. Le code écrit pour elle a été retiré, pas désactivé. R104 a été close le soir même — la rupture de
 méthode YouTube est détectée sur un seuil mesuré et retirée des deux surfaces
@@ -97,9 +102,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-13, TROIS tâches ouvertes : R103, R106, R107 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-13, TROIS tâches ouvertes : R103, R107 et R108 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R103,R106,R107 -->
+<!-- reprise: open=R103,R107,R108 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -674,26 +679,31 @@ routage. Un garde doit alors rougir si une page listée n'est atteignable par au
 branche d'`app.py`.
 
 
-## R106 — Shazam n'est pas sur la page d'accueil
+## R108 — L'exemption de la porte masque ce qu'elle laisse entrer
 
-- [ ] **R106 — une boîte Shazam figure dans la rangée de KPI de l'accueil.**
+- [ ] **R108 — décider si les jointures de DIMENSION comptent dans la frontière du
+      bronze, et le cas échéant les faire entrer dans le compte.**
 
-ADR-025 énonce le cœur du produit : Instagram, Meta Ads, Spotify, Hypeddit, **Shazam**,
-et le ML qui les relie. Shazam y est, et il n'est nulle part sur l'écran le plus lu.
-L'accueil porte Spotify, YouTube, SoundCloud, Apple, Instagram et Meta Ads — dont deux
-plateformes que le même ADR classe en périphérie.
+**Trouvé par accident le 2026-09-13**, en découpant `platform_timeseries.py` sous la
+pression du cliquet des 1 200 lignes. `period_side_metrics` partie dans son fichier, le
+cliquet du bronze est passé de 108 à **111** : trois couples sont devenus visibles —
+`instagram_daily_stats`, `track_platform_link`, `track_release_reference`.
 
-**Ce qu'il faut trancher avant d'écrire une ligne** : ce qu'une boîte Shazam affiche.
-La donnée existe (`apple_music` porte 1 772 shazams pour l'artiste 1, mesuré le
-2026-09-12), mais elle arrive par dépôt de CSV, comme Apple — donc c'est un RELEVÉ, pas
-une quantité datée. Trois formes possibles, et elles ne disent pas la même chose :
+**Aucun n'est neuf dans le code.** Tous vivaient dans la porte, que `_NOT_A_SURFACE`
+exempte depuis l'origine (ADR-022). Les deux derniers ont été ajoutés le jour même pour
+Shazam et Hypeddit, et **le cliquet ne les aurait jamais comptés** sans ce dépassement.
+C'est un angle mort de l'exemption, pas du découpage : tout ce qui entre dans la porte
+est invisible au compteur, quel qu'en soit le volume.
 
-1. le compteur à vie, comme Apple — honnête, mais insensible au filtre de période ;
-2. l'écart entre deux dépôts — daté, mais dépendant du rythme de dépôt de l'artiste ;
-3. les deux, la seconde en ligne d'écart.
+**La question**, et elle n'est pas évidente : une jointure sur `track_platform_link` est
+un rapprochement de DIMENSION, pas une métrique — ADR-019 vise les règles métier
+recopiées qui divergent. Trois issues : laisser l'exemption (le volume entrant n'est
+jamais mesuré) ; compter les dimensions et exempter les métriques (il faut alors tenir
+un registre des tables de dimension) ; monter le rapprochement canonique en fonction or
+(`views/meta_mapping/_tracks.py` lit déjà ces tables, le chantier dépasse l'accueil).
 
-C'est la même question que celle qui a occupé le 2026-09-13 sur les compteurs. La
-trancher AVANT évite de la redécouvrir à l'écran.
+**P4** : aucune divergence constatée, et les deux lectures passent par un lien
+`confirmed` — la seule règle qu'elles portent. Dette de mesure, pas défaut vivant.
 
 ## R107 — Trois décisions produit à prendre
 
@@ -714,6 +724,47 @@ le cœur, n'en a aucune.
 | les garder telles quelles | rien à faire | deux boîtes sur six pour 0,2 %, et Shazam sans place |
 | les regrouper en une boîte « Autres plateformes » | une place pour Shazam, la donnée reste visible | un clic de plus pour voir le détail |
 | les sortir de l'accueil, garder leurs pages | l'accueil ne montre que le cœur | un artiste qui compte sur YouTube ne le voit plus au premier écran |
+
+**Tranché le 2026-09-13 : on les garde telles quelles, et on NOMME ce qui manque.**
+
+« au final je pense qu'on va laisser tel quel mais rajoute la mention quelque part
+qu'on n'a pas accès aux datas journalières historiques pour youtube et soundcloud en
+légende ». Les deux tuiles et les deux courbes restent ; Shazam a trouvé sa place sans
+que rien ne parte (rangée de 2 avec Apple, R106).
+
+Ce qui a changé est ce que l'écran DIT. L'accueil déployait quatre surfaces d'absence
+pour ces deux plateformes — bande hachurée, survol « pas encore collectée », note des
+écoutes non traçables, note de démarrage tardif — et aucune ne disait que l'historique
+est **définitivement** hors de portée (ADR-024). `render_counter_history_note` le dit
+désormais en une ligne, avec les nombres dérivés des niveaux : « **118 032 et 23 241**
+écoutes précèdent notre première mesure ». Garde :
+`tests/test_the_figure_says_the_history_is_out_of_reach.py`, deux mutations vues rouges.
+
+Deux retraits ont accompagné la décision :
+
+* **les trois légendes de pas** (« Chaque point est un jour / mois / année »), à la
+  demande explicite. Le garde qui les exigeait,
+  `test_the_applied_grain_is_written_on_screen`, a été supprimé AVEC elles plutôt que
+  neutralisé, sa raison écrite à sa place. Ce qui porte encore le fait : les étiquettes
+  d'axe de Plotly, et `_bucket_label` dans la note de démarrage ;
+* `MISSING_HISTORY` et `render_missing_history_note`, un dict vide et la fonction qui en
+  faisait le tour à chaque rendu sans rien afficher.
+
+**Hypeddit a rejoint l'accueil le même jour**, et c'était la DERNIÈRE divergence entre
+ADR-025 et l'écran : la plateforme est dans le cœur du produit et n'y avait aucune
+occurrence. Le meilleur taux de clic de la dernière sortie — **45,7 pour cent, sur
+7 828 visites et 3 581 clics** — comble la colonne restée vide sous Meta et rend la
+grille 4×2. Le ratio est celui des SOMMES, jamais la moyenne des ratios, et surtout pas
+la colonne `ctr` de la table dont le déclencheur écrit `0` quand `visits = 0`. Garde :
+`tests/test_the_hypeddit_ratio_is_the_ratio_of_sums.py`, **trois mutations vues rouges**
+— dont deux qui ont d'abord passé au VERT et ont obligé à mettre en scène le cas que le
+garde prétendait tenir.
+
+Et le chiffre-titre a gagné son infobulle : sur « Depuis le début », **41 %** du
+`🎧 Total streams` vient de compteurs à vie (YouTube 118 219, SoundCloud 23 486). Le
+nombre est conservé — le rogner retirerait une vérité pour en servir une autre — mais sa
+composition est désormais nommée. Vérifié au rendu : l'infobulle est vide sur une
+fenêtre bornée, où aucun compteur à vie n'entre dans la somme.
 
 ### 2. La vue revenu compte-t-elle le BRUT ou le VERSÉ ?
 

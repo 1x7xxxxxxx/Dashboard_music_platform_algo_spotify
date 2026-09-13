@@ -45,7 +45,7 @@ Apple Music     apple_songs_performance.plays  cumul, UN    **exclu** — voir p
 **Apple Music est exclu, et c'est dit plutôt que caché.** Sa table ne porte qu'un
 instantané par dépôt de CSV (11 lignes, toutes du même jour, pour l'artiste 1) : il n'y
 a aucune série à tracer. Le mettre à zéro dessinerait une plateforme muette là où il n'y
-a pas de mesure — `MISSING_HISTORY` le nomme pour que l'appelant l'écrive.
+a pas de mesure — la figure le nomme par `render_counter_history_note`.
 
 Deux règles, et chacune vient d'un artefact MESURÉ le 2026-09-08
 ----------------------------------------------------------------
@@ -97,10 +97,6 @@ PLATFORM_LABELS = {
 # Les plateformes qui n'ont de série qu'à un pas donné. Lu par l'accueil pour ne pas
 # proposer une source qui ne pourrait rien tracer.
 STEP_ONLY = {"apple": "year"}
-
-# Ce dont on ne PEUT pas tracer l'évolution, et pourquoi. L'appelant l'affiche ; il ne
-# le devine pas, et il ne dessine surtout pas une ligne à zéro à la place.
-MISSING_HISTORY = {}
 
 # Le minimum pour qu'une courbe dise quelque chose — le même esprit que `MIN_POINTS`
 # de `welcome_figures`, mais compté sur ce qui est RÉELLEMENT traçable après
@@ -863,193 +859,19 @@ def platform_totals(db, artist_id, since=None, until=None) -> dict:
     }
 
 
-def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
-    """Les métriques de période qui ne sont PAS des écoutes, en UN aller-retour.
-
-    Instagram compte des abonnés, Meta Ads des euros : ni l'un ni l'autre n'entre
-    dans `platform_totals`, qui ne parle que d'écoutes et refuse par contrat
-    d'additionner deux formes. Ils ont pourtant leur place dans le récapitulatif de
-    l'accueil — demandé le 2026-09-12 — à condition d'y porter leur unité.
-
-    **BORNÉES À LA PÉRIODE, comme tout ce tableau.** C'est la leçon du 2026-09-10 :
-    les tuiles avaient été retirées parce qu'elles affichaient des compteurs DEPUIS
-    LE DÉBUT à côté d'une courbe bornée, et qu'aucune prose ne rattrape deux nombres
-    qui ne répondent pas à la même question. Instagram rend donc un ÉCART d'abonnés
-    (`dernier − premier` sur la fenêtre), pas un effectif ; Meta rend la dépense de
-    la fenêtre, pas celle du compte.
-
-    **UNE SEULE REQUÊTE, et c'est une contrainte, pas une élégance.** L'accueil est
-    à 13 allers-retours pour un plafond de 13 (`test_a_page_asks_the_same_question_once`),
-    et ce plafond ne monte pas. Cette fonction REMPLACE l'appel à
-    `get_instagram_followers` : son `last` porte le même effectif courant, donc la
-    page gagne deux métriques sans gagner une requête.
-
-    **DEUX MÉTRIQUES DE PLUS le 2026-09-12, et toujours UN aller-retour.** Le
-    meilleur CPR de la période et la plus haute probabilité de déclenchement sont
-    demandés pour le récapitulatif ; le plafond de la page est atteint, donc elles
-    entrent comme des CTE de CETTE requête et non comme deux appels. C'est la
-    contrainte qui a dicté la forme, pas l'inverse.
-
-    ⚠️ `best_algo_p` est une **probabilité PRÉDITE**, jamais un taux observé. Le taux
-    observé demanderait `s4a_song_algo_outcomes`, qui porte **0 ligne** (mesuré le
-    2026-09-12, tous locataires confondus) : personne n'a jamais saisi l'issue d'une
-    prédiction. Rendre une prédiction sous le nom « taux de déclenchement » serait
-    l'inventer — la surface qui l'affiche DOIT dire qu'elle prédit.
-
-    Rend `None` par métrique quand rien n'a été mesuré — jamais `0`, qui affirmerait
-    qu'il ne s'est rien passé.
-    """
-    if db is None or artist_id is None:
-        return {}
-    try:
-        rows = _q(db, """
-            WITH best_cpr AS (
-                -- ── LA CAMPAGNE DE LA DERNIÈRE SORTIE, PAS LA MEILLEURE DE TOUS
-                --    LES TEMPS ──────────────────────────────────────────────────
-                --
-                -- « met en automatique la dernière release et pas forcément les
-                -- meilleurs résultats qu'on a obtenu toute campagne confondue »
-                -- (2026-09-12). Le `ORDER BY cpr ASC` d'avant rendait le RECORD
-                -- historique : un excellent coût obtenu il y a deux ans sur une
-                -- audience qui n'existe plus ne dit rien de ce qui marche
-                -- aujourd'hui, et il est irréfutable — on ne peut pas faire mieux
-                -- qu'un record, donc la métrique ne bouge jamais.
-                --
-                -- ⚠️ LA CAMPAGNE LA PLUS RÉCENTE, ET NON UNE CORRESPONDANCE DE NOM
-                -- avec le titre de la sortie. Mesuré le 2026-09-12 sur l'artiste 1 :
-                -- la dernière sortie est « Ô Chiotte l'arbitre Tucome Back -
-                -- Original » et sa campagne « O chiotte l'arbitre Tucome Back » —
-                -- accent, casse et suffixe diffèrent tous les trois. Un
-                -- rapprochement flou qui se trompe de campagne en SILENCE est pire
-                -- qu'une règle simple que l'artiste peut vérifier d'un coup d'œil :
-                -- le nom de la campagne retenue est affiché avec le chiffre.
-                SELECT campaign_name, spend, spend / results AS cpr
-                  FROM (SELECT campaign_name, SUM(spend) AS spend,
-                               SUM(results) AS results, MAX(day) AS last_day
-                          FROM v_meta_campaign_daily
-                         WHERE artist_id = %s
-                           AND (%s::date IS NULL OR day >= %s)
-                           AND (%s::date IS NULL OR day <= %s)
-                         GROUP BY campaign_name
-                        HAVING SUM(results) > 0 AND SUM(spend) > 0) q
-                 ORDER BY last_day DESC
-                 LIMIT 1
-            ), last_release AS (
-                -- ── LA DERNIÈRE SORTIE, SANS JOINTURE ET SANS DATE ──────────────
-                --
-                -- `track_release_reference.release_date` est NULL pour deux titres
-                -- sur trois de l'artiste 1 (mesuré le 2026-09-12) : s'y fier
-                -- écarterait justement les sorties les plus récentes, celles que
-                -- personne n'a encore rapprochées d'une référence. `days_since_release`
-                -- vit dans la prédiction elle-même et est renseigné partout.
-                --
-                -- La dernière sortie est donc le titre au plus PETIT âge, sur la
-                -- prédiction la plus RÉCENTE. Les deux critères comptent : sans le
-                -- second on lirait un classement figé d'une ancienne exécution du
-                -- modèle.
-                SELECT song, days_since_release,
-                       COALESCE(dw_probability, 0)    AS dw,
-                       COALESCE(rr_probability, 0)    AS rr,
-                       COALESCE(radio_probability, 0) AS radio
-                  FROM ml_song_predictions
-                 WHERE artist_id = %s
-                   AND prediction_date = (
-                        SELECT MAX(prediction_date) FROM ml_song_predictions
-                         WHERE artist_id = %s)
-                   AND days_since_release IS NOT NULL
-                 ORDER BY days_since_release ASC
-                 LIMIT 1
-            ), best_algo AS (
-                -- PROBABILITÉ PRÉDITE, pas taux observé : voir le docstring.
-                SELECT song, prediction_date,
-                       GREATEST(COALESCE(dw_probability, 0),
-                                COALESCE(rr_probability, 0),
-                                COALESCE(radio_probability, 0))  AS p,
-                       CASE WHEN COALESCE(radio_probability, 0)
-                                 >= GREATEST(COALESCE(dw_probability, 0),
-                                             COALESCE(rr_probability, 0))
-                            THEN 'Radio'
-                            WHEN COALESCE(dw_probability, 0)
-                                 >= COALESCE(rr_probability, 0)
-                            THEN 'Discover Weekly'
-                            ELSE 'Release Radar' END              AS algo
-                  FROM ml_song_predictions
-                 WHERE artist_id = %s
-                   AND (%s::date IS NULL OR prediction_date >= %s)
-                   AND (%s::date IS NULL OR prediction_date <= %s)
-                   AND GREATEST(COALESCE(dw_probability, 0),
-                                COALESCE(rr_probability, 0),
-                                COALESCE(radio_probability, 0)) > 0
-                 ORDER BY p DESC
-                 LIMIT 1
-            )
-            SELECT
-              (SELECT MAX(followers_count) FROM instagram_daily_stats
-                 WHERE artist_id = %s AND (%s::date IS NULL OR collected_at::date >= %s)
-                   AND (%s::date IS NULL OR collected_at::date <= %s)
-                   AND collected_at::date = (
-                     SELECT MIN(collected_at::date) FROM instagram_daily_stats
-                      WHERE artist_id = %s
-                        AND (%s::date IS NULL OR collected_at::date >= %s))) AS ig_first,
-              (SELECT MAX(followers_count) FROM instagram_daily_stats
-                 WHERE artist_id = %s AND (%s::date IS NULL OR collected_at::date <= %s)
-                   AND collected_at::date = (
-                     SELECT MAX(collected_at::date) FROM instagram_daily_stats
-                      WHERE artist_id = %s
-                        AND (%s::date IS NULL OR collected_at::date <= %s))) AS ig_last,
-              (SELECT SUM(spend) FROM v_meta_daily
-                 WHERE artist_id = %s AND (%s::date IS NULL OR day >= %s)
-                   AND (%s::date IS NULL OR day <= %s))                       AS spend,
-              (SELECT cpr FROM best_cpr)                            AS best_cpr,
-              (SELECT campaign_name FROM best_cpr)                  AS best_cpr_name,
-              (SELECT spend FROM best_cpr)                          AS best_cpr_spend,
-              (SELECT p FROM best_algo)                             AS best_algo_p,
-              (SELECT algo FROM best_algo)                          AS best_algo_name,
-              (SELECT song FROM best_algo)                          AS best_algo_song,
-              (SELECT song FROM last_release)                       AS release_song,
-              (SELECT days_since_release FROM last_release)         AS release_age,
-              (SELECT dw FROM last_release)                         AS release_dw,
-              (SELECT rr FROM last_release)                         AS release_rr,
-              (SELECT radio FROM last_release)                      AS release_radio
-        """, (artist_id, since, since, until, until,
-              artist_id, artist_id,
-              artist_id, since, since, until, until,
-              artist_id, since, since, until, until, artist_id, since, since,
-              artist_id, until, until, artist_id, until, until,
-              artist_id, since, since, until, until))
-    except Exception as e:      # noqa: BLE001 — le récapitulatif se rend sans ces lignes
-        logger.warning("side metrics unreadable: %s", type(e).__name__)
-        return {}
-    if not rows:
-        return {}
-    (ig_first, ig_last, spend, best_cpr, best_cpr_name, best_cpr_spend,
-     best_algo_p, best_algo_name, best_algo_song,
-     release_song, release_age, release_dw, release_rr, release_radio) = rows[0]
-    return {
-        "ig_followers": ig_last,
-        "ig_delta": (None if ig_first is None or ig_last is None
-                     else int(ig_last) - int(ig_first)),
-        "meta_spend": float(spend) if spend is not None else None,
-        "best_cpr": float(best_cpr) if best_cpr is not None else None,
-        "best_cpr_name": best_cpr_name,
-        "best_cpr_spend": (float(best_cpr_spend)
-                           if best_cpr_spend is not None else None),
-        # `best_algo_p` est une PRÉDICTION. Le nom de la clé le dit, et la surface
-        # qui l'affiche doit le dire aussi — voir le docstring.
-        "best_algo_p": float(best_algo_p) if best_algo_p is not None else None,
-        "best_algo_name": best_algo_name,
-        "best_algo_song": best_algo_song,
-        # LA DERNIÈRE SORTIE ET SES TROIS PROBABILITÉS — chacune séparément, jamais
-        # leur maximum. « la meilleure probabilité pour la dernière release de
-        # trigger : DW Radio et RR : 3 kpi » (2026-09-12) : trois portes distinctes,
-        # trois chiffres. Le `GREATEST` d'`best_algo` répond à une autre question —
-        # quel titre du catalogue est le mieux placé — et il la garde.
-        "release_song": release_song,
-        "release_age": int(release_age) if release_age is not None else None,
-        "release_dw": float(release_dw) if release_dw else None,
-        "release_rr": float(release_rr) if release_rr else None,
-        "release_radio": float(release_radio) if release_radio else None,
-    }
+# `period_side_metrics` EST PARTIE DANS `utils/period_side_metrics.py` le 2026-09-13.
+#
+# Ce fichier avait franchi 1 200 lignes (1 252) en gagnant Shazam puis Hypeddit, et le
+# cliquet a refusé la dette au lieu d'être relevé — ce pour quoi il existe.
+#
+# La couture n'est pas arbitraire : le docstring de ce module parle d'ÉCOUTES et de la
+# distinction quantité/compteur, quand cette fonction disait d'elle-même porter « les
+# métriques de période qui ne SONT PAS des écoutes ». Elle emporte avec elle Instagram,
+# Meta, Hypeddit, Shazam et les portes du ML.
+#
+# ⚠️ LE SENS DE L'IMPORT COMPTE : le nouveau module importe `_q` d'ici, jamais
+# l'inverse. Il n'y a donc pas de ré-export de `period_side_metrics` ici — il créerait
+# un cycle. Les appelants importent depuis le nouveau module.
 
 
 def combined_total(totals: dict) -> int:

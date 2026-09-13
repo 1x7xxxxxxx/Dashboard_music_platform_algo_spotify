@@ -88,13 +88,36 @@ EN = {
     "home.gate_help": ("Probability PREDICTED by the model that this track enters "
                        "this algorithmic playlist. It is not an observed rate: no "
                        "outcome has been recorded yet."),
-    # Le grain appliqué, depuis que la barre de pas a été supprimée (2026-09-12).
-    "home.grain_day": "Each point is a **day**.",
-    "home.grain_month": ("Each point is a **month** — the window is longer than a "
-                         "year, a daily step would be unreadable."),
-    "home.grain_year": "Each point is a **year**.",
     # Tuiles + métriques dérivées du récapitulatif (2026-09-12)
+    # Shazam sur l'accueil (R106, 2026-09-13) — ADR-025 le met dans le cœur du
+    # produit ; il n'était sur aucun écran.
+    "home.tile_shazam": "🎧 Shazam",
+    # Hypeddit sur l'accueil (2026-09-13) — le maillon « on clique » de la chaîne.
+    "home.tile_hypeddit": "📱 Hypeddit",
+    "home.tile_hypeddit_volume": "👁️ {v} · 🖱️ {c}",
+    "home.tile_hypeddit_help": (
+        "Best click-through rate obtained by a Hypeddit link for the latest release: "
+        "clicks divided by visits. It covers the whole campaign, not the displayed "
+        "period — this figure does not move with the filter."),
+    "home.tile_hypeddit_campaign": "Campaign: \u201c{name}\u201d.",
+    "home.tile_hypeddit_unlinked": (
+        "\u201c{song}\u201d is not attached to any confirmed Hypeddit campaign. The "
+        "**🔗 Track mapping** page creates the link."),
+    "home.tile_shazam_release": "🆕 Latest release · {n}",
+    "home.tile_shazam_help": (
+        "Shazams **since the beginning**, read from the Apple Music export. It is a "
+        "deposit reading, not a daily quantity: it cannot be split by period, so "
+        "this figure does not move with the filter."),
+    "home.tile_shazam_release_help": "The second line is the latest release, \u201c{song}\u201d.",
+    "home.tile_shazam_unlinked": (
+        "\u201c{song}\u201d is not yet matched to an Apple track, so its Shazam count "
+        "cannot be isolated. The **🔗 Track mapping** page creates the link."),
     "home.total_all_platforms": "🎧 Total streams, all platforms",
+    # Ce que le chiffre-titre additionne réellement (2026-09-13).
+    "home.total_composition": (
+        "Sum of every measured platform. {parts} are LIFETIME COUNTERS: they carry "
+        "everything that precedes our first collection, and that part has no date. "
+        "Spotify plays, by contrast, are counted day by day."),
     "home.apple_no_window": (
         "Apple Music only reports a total per CSV upload: it cannot be split by "
         "period. Pick « Since the beginning » for its total."),
@@ -103,6 +126,11 @@ EN = {
         "is not part of the total above. The change over the period is in the table."),
     "platform_chart.not_yet_collected": "not collected yet — from {since}",
     "platform_chart.collected_since": "{label} measured since {since}",
+    # Pourquoi ces courbes ne peuvent pas commencer plus tôt (2026-09-13, ADR-024).
+    "platform_chart.counter_has_no_prior_history": (
+        "{names} — **{counts}** plays precede our first measurement. These platforms "
+        "only return a **lifetime counter**: we know how many, never on which day. No "
+        "API and no export gives that detail back, so the curve cannot start earlier."),
     "platform_chart.week_of": "the week of {d}",
     "platform_chart.day_of": "{d}",
     "home.trend_discarded": (

@@ -87,7 +87,11 @@ FAMILIES: list[tuple[str, str, str]] = [
      r"unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|"
      r"rendered-as-health|sums-the-display|discarded-in-silence|"
      r"erases-every-other|past-the-end-of-its-evidence|renders-nothing|"
-     r"named-like-a-final-one|imput|estimat"),
+     # `wins-a-desc-ranking`, ajouté le 2026-09-13. La famille portait déjà
+     # `outranks-the-measurement` et `renders-nothing` : un groupe VIDE qui
+     # devance la mesure dans un classement décroissant est littéralement les
+     # deux à la fois — la surface affiche « — » alors que le chiffre existe.
+     r"named-like-a-final-one|imput|estimat|wins-a-desc-ranking"),
 
     ("le-message-parle-au-mauvais-lecteur",
      "Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que "
