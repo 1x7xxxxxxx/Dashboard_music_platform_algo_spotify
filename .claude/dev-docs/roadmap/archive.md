@@ -4792,3 +4792,67 @@ en rend **1 770**.
   devenue un appel de la 3-arguments : une seule définition de la règle (ADR-019) ;
 * les deux chiffres entrent comme sous-requêtes de `period_side_metrics` : le cliquet
   des **13 allers-retours** de l'accueil est resté vert.
+
+---
+
+## Descendu du fichier actif le 2026-09-13 (plafond de 50 Ko franchi)
+
+### Ce que le 2026-09-10 a changé (l'audit transverse, huit tâches livrées)
+
+**R75 à R82 sont livrées et rotées dans `archive.md`.** Elles portaient l'audit
+transverse commandé ce jour-là : résilience API, vitesse Streamlit et ingestion,
+robustesse des données, couche or/argent/bronze, cybersécurité, refactor, filtres,
+méthode de tracé. Chacune avec son correctif, son garde dédié, et ses mutations vues
+ROUGES avant écriture.
+
+Trois d'entre elles ont rectifié leur propre énoncé, et c'est le résultat le plus
+utile de la séance — une roadmap se périme comme un commentaire :
+
+- les « 144 échecs Spotify » de R76 sont des `skipped` : quatre locataires n'ont pas
+  déclaré d'identifiant. Le troisième état délibéré du journal, pas une panne ;
+- les « 6 requêtes en double de l'accueil » de R79 avaient déjà été retirées par
+  R64–R69. Le vrai compte du jour était 14 exécutions pour 13 questions, un seul
+  doublon ;
+- le « repère de progression manquant » de R81 aurait été une **régression** : ces API
+  rendent des compteurs cumulés par entité, et relire chaque entité chaque nuit est la
+  mesure elle-même.
+
+Et R77 a été trouvée fausse-verte : son cliquet lisait 0 pendant que trois figures
+portaient encore un axe secondaire, sous une forme Plotly que le prédicat ne voyait
+pas. Septième instance de « la portée d'un garde est le défaut », la première sur un
+cliquet écrit le jour même.
+
+### R83 — la septième cause, trouvée en LISANT le PDF
+
+Le dossier d'architecture annonçait « quatre horloges » comme la seule des sept causes
+de l'audit restée entière. Elle n'était **dans aucune roadmap** : elle vivait dans une
+ligne d'historique d'une classe d'erreur, là où personne ne la relit. Ouverte et close
+le même jour — voir `archive.md`.
+
+Deux choses en sortent, plus utiles que le correctif :
+
+- **le chiffre que j'avais écrit était faux.** « 200 lignes sur 2 535 (7,9 %) changent
+  de jour selon le fuseau » mélangeait deux ères sur une base locale. En production, sur
+  l'ère actuelle : **0 sur 5 807** pour YouTube, **29** toutes plateformes confondues ;
+- **le risque était à l'envers.** Le danger n'est pas de laisser ces dates tranquilles,
+  c'est de les « corriger » : une harmonisation des fuseaux déplacerait 267 jours
+  calendaires déjà justes d'une journée entière. Ce qui manquait n'était pas un
+  correctif mais la DÉCLARATION — `src/utils/clocks.py`, ADR-021.
+
+Le PDF, lui, annonçait « cause ouverte » sur trois suggestions dont **deux étaient déjà
+livrées**. Un document généré se périme comme un commentaire.
+
+**Un seul geste humain en sort** (il ne rouvre pas de tâche, il attend une main) :
+basculer la production sur le rôle applicatif non-superutilisateur créé par R80 —
+`APP_DB_PASSWORD='…' make db-app-role`, puis `DATABASE_USER=streamlytics_app` dans
+l'environnement de prod et redémarrer. `make db-role-check` dit à tout moment sous
+quel rôle l'application tourne.
+
+### Ce que le 2026-09-10 a changé plus tôt (sept tâches livrées)
+
+R64, R65, R66, R67, R68, R69 et R71 sont **livrées et rotées dans `archive.md`** —
+correctif, garde dédié, mutations rouges avant écriture, suite complète verte à 4 804
+tests. Détail dans l'archive ; ne reste ouvert de ce lot que **R70** (couches bronze /
+argent / or, P4, ADR à écrire — voir la table ci-dessus).
+
+Ce qui suit décrivait l'état au 2026-09-08.

@@ -381,6 +381,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [an-empty-group-wins-a-desc-ranking](#an-empty-group-wins-a-desc-ranking) | P2 | deterministic | guarded | none |
 | [a-merged-branch-outlives-its-pull-request](#a-merged-branch-outlives-its-pull-request) | P4 | deterministic | guarded | none |
 | [a-verification-read-through-a-filtering-wrapper](#a-verification-read-through-a-filtering-wrapper) | P2 | manual | reported | none |
+| [a-document-slice-bounded-by-the-wrong-heading-level](#a-document-slice-bounded-by-the-wrong-heading-level) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -4804,6 +4805,25 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-11
 - History:
   - 2026-09-11: livré sans signature, délibérément. La commande du défaut (`pytest -k …`) est légitime en soi ; ce qui ne l'est pas est la conclusion qu'on en tire, et aucune commande shell ne voit une conclusion. Une signature inventée ici aurait été une fausse garantie — le catalogue préfère `manual` sans signature à `deterministic` non vérifiée.
+  - 2026-09-13: **deuxième occurrence, sans `-k` cette fois** — et c'est ce qui l'élargit. Après avoir écrit un garde neuf, j'ai lancé **quatre** fichiers de test NOMMÉS à la main (le garde lui-même, le cliquet gold-coverage, les deux gardes roadmap) : 23 verts, annoncés comme une validation. Le sélecteur officiel en rend **674**, dont `test_a_guard_reads_structure_not_text` — le méta-garde qui refuse un garde textuel neuf, et qui a rougi en CI sur le fichier que je venais d'écrire. Le premier run rouge de la même séance venait déjà d'un fichier hors de ma sélection (`gold-coverage.md` périmé). **Deux allers-retours de CI de quatre minutes, tous deux évitables par une commande.** Nommer les fichiers à la main est la même erreur que `-k` : la sélection sort de ce qu'on croit avoir touché, et les gardes transverses — méta-gardes, cliquets de documents générés — n'en font jamais partie par construction.
+
+
+## a-document-slice-bounded-by-the-wrong-heading-level
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un découpage de document Markdown emporte **plus que ce qu'il visait**, et rien dans le résultat ne le dit. Le 2026-09-13 : la rotation de trois sections `###` datées de `checklist.md` vers `archive.md` a aussi emporté `## 🙋 En attente de toi`, `## 🔍 Ce que le graphe de code a sorti` et `## 🎨 Notes des tests artistes`. **7 gardes rouges d'un coup.** Les deux fichiers restaient du Markdown valide, et `test_roadmap_two_files` restait vert puisque la SOMME n'avait pas rétréci — seuls les gardes qui nomment une section précise l'ont vu.
+- root_cause: les bornes du découpage étaient deux titres de niveau `###` (`c.index(debut_###)` → `c.index(fin_###)`), choisis dans une liste obtenue par `grep -n "^### "`. Cette liste **ne montre pas les titres `##`**, donc rien n'indiquait qu'un titre de niveau supérieur vivait entre les deux bornes. Un intervalle borné par un niveau N traverse silencieusement tout titre de niveau < N qu'il contient : la hiérarchie du document dit que la section `##` se termine au `##` suivant, pas au `###` suivant.
+- long_term_fix: **borner un découpage sur le niveau de titre le PLUS HAUT que la coupe peut rencontrer**, jamais sur celui des sections visées. Concrètement : pour extraire des `###`, la borne de fin est le prochain `##` OU le prochain `###`, le premier des deux. Et l'inventaire qui sert à choisir les bornes se fait sur `^##+ ` (tous niveaux), pas sur `^### ` seul — c'est l'inventaire filtré qui a caché la frontière, pas le découpage.
+- autofix: none
+- signature: `for s in "## 🔖 REPRISE" "## 📋 Tâches ouvertes" "## 🙋 En attente de toi"; do grep -qF "$s" .claude/dev-docs/roadmap/checklist.md || exit 1; done`
+- guard: { type: pytest, ref: tests/test_roadmap_index_is_honest.py }
+- rex_ref: —
+- first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
+- History:
+  - 2026-09-13: signature **vue rouge puis verte** avant livraison — `exit 1` en remettant le défaut (section `## 🙋 En attente de toi` retirée), `0` sur l'arbre corrigé, `0` après restauration, le fichier étant identique à l'avant-test. Elle vérifie la PRÉSENCE des trois sections structurelles dont dépendent `/resume` et les gardes, et non l'absence d'un motif : une signature de présence ne peut pas rougir sur la prose qui décrit le défaut — y compris cette entrée.
+  - 2026-09-13: le garde nommé (`test_roadmap_index_is_honest`) **existait déjà et a trouvé le défaut tout seul**, sans qu'on l'ait écrit pour lui. La classe est donc livrée `guarded` d'emblée. Ce qui manquait n'était pas un garde, c'était le NOM : sans classe, la prochaine rotation aurait rejoué la même erreur de bornes et on aurait simplement recorrigé sans comprendre que c'était deux fois la même.
+  - 2026-09-13: le déclencheur était légitime — `test_the_active_file_stays_readable_in_one_sitting` refusait `checklist.md` à 53 532 octets contre 51 200, et son message disait quoi faire : faire descendre les vieilles sections, pas relever le plafond. **Le correctif d'un garde mérite le même examen que le code qu'il corrige** ; celui-ci a été écrit vite parce qu'il « ne faisait que déplacer du texte ».
 
 
 ## a-note-outlives-the-figure-it-explains

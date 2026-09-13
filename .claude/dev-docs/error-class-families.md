@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**321 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**322 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -19,7 +19,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 24 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 20 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 37 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 38 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 6 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 7 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
@@ -314,7 +314,7 @@ Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuou
 
 **Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?**
 
-Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list` sur l'identifiant et le symptôme. 38 classe(s).
+Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list` sur l'identifiant et le symptôme. 39 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -351,6 +351,7 @@ Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|cap
 | [`a-diagram-is-verified-by-looking-at-it`](error-classes.md#a-diagram-is-verified-by-looking-at-it) | un schéma généré est syntaxiquement valide, son SVG contient tout le texte attendu, et il est faux à l'œil. Mesuré le 2026-09-10 sur sept schémas neuf |
 | [`a-caption-written-beside-the-behaviour-instead-of-derived-from-it`](error-classes.md#a-caption-written-beside-the-behaviour-instead-of-derived-from-it) | la légende sous une figure affirme trois choses fausses en même temps, sans qu'aucune ne soit un bug de calcul. Vu au rendu le 2026-09-10 en « Chacune |
 | [`on-conflict-target-without-index`](error-classes.md#on-conflict-target-without-index) | l'import ne se dégrade pas, il LÈVE — `ERROR: there is no unique or exclusion constraint matching the ON CONFLICT specification`. Prouvé en production |
+| [`a-document-slice-bounded-by-the-wrong-heading-level`](error-classes.md#a-document-slice-bounded-by-the-wrong-heading-level) | un découpage de document Markdown emporte **plus que ce qu'il visait**, et rien dans le résultat ne le dit. Le 2026-09-13 : la rotation de trois secti |
 | [`a-note-outlives-the-figure-it-explains`](error-classes.md#a-note-outlives-the-figure-it-explains) | la figure est juste et le lecteur croit qu'elle est vide, parce que la légende sous elle décrit l'ancienne figure. Signalé le 2026-09-11 **après** le  |
 | [`a-verdict-whose-validator-lives-outside-the-repo`](error-classes.md#a-verdict-whose-validator-lives-outside-the-repo) | une règle est écrite dans un commentaire avec son chiffre, et personne ne peut la rejouer. La palette portait « refusé : ΔE 4.5 (deutan) » depuis le 2 |
 | [`a-bash-hook-that-blocks-the-prose-about-the-gesture`](error-classes.md#a-bash-hook-that-blocks-the-prose-about-the-gesture) | **écrire sur un défaut devient impossible.** Trois commandes bloquées d'affilée le 2026-09-12, toutes en train d'écrire la classe d'erreur du geste co |
@@ -512,6 +513,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=321 families=17 orphans=3 -->
+<!-- error-class-families: total=322 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=e0af6361abc323607da9260667ced12007651b0121c10de6a3b44d6966893105 -->
+<!-- error-class-families: sha256=b14178a23fccc094bd7fae3a065132497623e5140cded8e20a677b7d1466d6a3 -->

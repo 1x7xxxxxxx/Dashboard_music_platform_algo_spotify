@@ -5,6 +5,67 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-13 (soir) — Une coupure de courant, et un garde repris parce qu'il lisait du texte
+
+### Ce qui a changé
+
+- **PR #159 mergée** (`0533b1a`). Deux commits récupérés après la coupure : `8bc0a7d`
+  (le garde anti-`git commit -F -`, `gold-coverage.md` régénéré à **321 classes /
+  293 gardées**, la référence de garde de `a-merged-branch-that-survives-its-merge`
+  repointée sur `.github/workflows/ci.yml`) et `f8257de` (le même garde réécrit pour
+  **parser** au lieu de chercher une chaîne).
+- `tests/test_a_commit_message_is_not_fed_through_stdin.py` : 5 tests, dont 4 de
+  non-vacuité.
+
+### Le défaut qui a ouvert la séance
+
+Le PC s'est éteint à 16:09, batterie à plat, pendant que l'écran affichait « secteur
+branché ». Le travail de la matinée était écrit mais **pas commité** : le
+`git commit -F -` censé le sauver n'a jamais reçu son message — la couche qui exécute
+les commandes du shell a mangé l'entrée standard — puis `git push` a rendu `ok` en
+poussant une branche inchangée. Le rapport annonçait un succès sur 24 fichiers non
+commités.
+
+C'est la moitié **mécanisable** de `a-verification-read-through-a-filtering-wrapper`.
+L'autre moitié — une commande de vérification dont la sortie est reformatée — n'a pas de
+site dans le dépôt et reste `kind: manual`. Un garde partiel présenté comme total serait
+pire que pas de garde.
+
+### Le dépôt m'a pris en faute, et c'est le plus utile
+
+La première version du garde cherchait `git\s+commit.*-F\s+-` **par expression
+régulière**. `test_a_guard_reads_structure_not_text::test_no_new_textual_guard_is_added`
+l'a refusée le jour même de son écriture, et elle avait raison deux fois : le prédicat
+voyait le geste dans un commentaire ou un docstring qui le *décrit* — ce que le fichier
+fait dans sa propre en-tête — et ratait `--file=-`, `GIT_AUTHOR_NAME=x git commit -F -`,
+et `cd /tmp && git commit -F -`.
+
+La version livrée découpe la ligne en segments par `shlex` et demande : `git` est-il la
+**commande** de son segment, et `-F -` est-il parmi ses arguments ? Le Python est lu par
+`ast`, docstrings retirés explicitement. Deux assertions vérifient qu'il n'attrape ni
+`echo "git commit -F -"` ni `grep "git commit -F -"` — le geste y est une chaîne ou un
+argument. Mutation : rouge en nommant `.claude/scripts/_mutation_tmp.py`, vert après
+retrait.
+
+### La cause de l'aller-retour : une règle non suivie
+
+Après le premier commit, j'ai choisi **quatre** tests à la main au lieu de lancer
+`python3 .claude/scripts/select_tests.py` (règle transverse #16). Le méta-garde n'était
+pas dans mes quatre ; il était dans les **674** que le sélecteur rend. La CI l'a trouvé à
+ma place — deux runs rouges, quatre minutes chacun. Le sélecteur existe précisément pour
+que le choix ne dépende pas de ce que je crois avoir touché.
+
+Premier run rouge : `gold-coverage.md` périmé (`319/11` dans le fichier, `321/12` au
+recalcul). Second : le méta-garde. Aucun des deux n'était visible dans les tests que
+j'avais choisis.
+
+### Ce qui n'a pas bougé
+
+R103, R107 et R108 restent les trois tâches ouvertes. Rien de cette séance ne les touche :
+ce qui a grandi est le catalogue de classes, pas la roadmap.
+
+---
+
 ## 2026-09-13 (suite) — L'accueil nomme ce qu'il ne peut pas mesurer, et Shazam prend sa place
 
 ### Le défaut, et il était dans ce que l'écran MONTRAIT
