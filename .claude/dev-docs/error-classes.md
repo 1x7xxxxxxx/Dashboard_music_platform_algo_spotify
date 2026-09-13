@@ -4804,6 +4804,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-11
 - History:
   - 2026-09-11: livré sans signature, délibérément. La commande du défaut (`pytest -k …`) est légitime en soi ; ce qui ne l'est pas est la conclusion qu'on en tire, et aucune commande shell ne voit une conclusion. Une signature inventée ici aurait été une fausse garantie — le catalogue préfère `manual` sans signature à `deterministic` non vérifiée.
+  - 2026-09-13: **deuxième occurrence, sans `-k` cette fois** — et c'est ce qui l'élargit. Après avoir écrit un garde neuf, j'ai lancé **quatre** fichiers de test NOMMÉS à la main (le garde lui-même, le cliquet gold-coverage, les deux gardes roadmap) : 23 verts, annoncés comme une validation. Le sélecteur officiel en rend **674**, dont `test_a_guard_reads_structure_not_text` — le méta-garde qui refuse un garde textuel neuf, et qui a rougi en CI sur le fichier que je venais d'écrire. Le premier run rouge de la même séance venait déjà d'un fichier hors de ma sélection (`gold-coverage.md` périmé). **Deux allers-retours de CI de quatre minutes, tous deux évitables par une commande.** Nommer les fichiers à la main est la même erreur que `-k` : la sélection sort de ce qu'on croit avoir touché, et les gardes transverses — méta-gardes, cliquets de documents générés — n'en font jamais partie par construction.
 
 
 ## a-note-outlives-the-figure-it-explains

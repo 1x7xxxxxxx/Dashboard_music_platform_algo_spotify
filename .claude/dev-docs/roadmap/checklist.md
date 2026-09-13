@@ -106,6 +106,46 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 <!-- reprise: open=R103,R107,R108 -->
 
+### La séance du 2026-09-13 (soir) — une coupure de courant, et ce qu'elle a révélé
+
+Le PC s'est éteint à **16:09**, batterie à plat, alors que l'écran affichait « secteur
+branché ». Le travail de la matinée était **écrit mais pas commité** : le `git commit -F -`
+qui devait le sauver n'avait jamais reçu son message, et le `git push` qui suivait avait
+rendu `ok` en poussant une branche inchangée.
+
+**Ce qui a été récupéré et livré** (PR #159, mergée — `0533b1a`) :
+
+| Commit | Contenu |
+|---|---|
+| `8bc0a7d` | le garde `tests/test_a_commit_message_is_not_fed_through_stdin.py`, la moitié MÉCANISABLE de `a-verification-read-through-a-filtering-wrapper` ; `gold-coverage.md` régénéré (319 → **321 classes**, 293 gardées) ; la référence de garde de `a-merged-branch-that-survives-its-merge` repointée sur `.github/workflows/ci.yml` au lieu de `error-classes.md` lui-même |
+| `f8257de` | le même garde **réécrit pour parser au lieu de chercher une chaîne** |
+
+**Le dépôt m'a pris en faute, et c'est le fait le plus utile de la séance.** La première
+version du garde cherchait `git\s+commit.*-F\s+-` par expression régulière sur des
+lignes de texte. `test_a_guard_reads_structure_not_text::test_no_new_textual_guard_is_added`
+l'a refusée **le jour même de son écriture**. Elle avait raison deux fois : le prédicat
+voyait le geste dans un COMMENTAIRE ou un docstring qui le *décrit* — ce que le fichier
+fait lui-même dans sa propre en-tête — et ratait `--file=-`, un `git` préfixé d'une
+affectation d'environnement, et `cd x && git commit -F -`.
+
+La version livrée pose la question structurelle : dans un segment de shell découpé par
+`shlex`, `git` est-il la **commande** (jamais un mot dans un argument), et `-F -` /
+`--file -` / `--file=-` sont-ils parmi ses arguments ? Le Python est lu par `ast`,
+docstrings exclus explicitement. Quatre assertions de non-vacuité l'accompagnent, dont
+deux qui vérifient qu'il **n'attrape pas** `echo "git commit -F -"` ni
+`grep "git commit -F -"` — le geste y est une chaîne ou un argument, pas une commande.
+Mutation : rouge en nommant le fichier injecté, vert après retrait.
+
+**Et la cause de cet aller-retour est une règle que je n'ai pas suivie.** Après le
+premier commit j'ai choisi **quatre** tests à la main au lieu de lancer
+`python3 .claude/scripts/select_tests.py` (règle transverse #16). Le méta-garde n'était
+pas dans mes quatre ; il l'était dans les **674** que le sélecteur rend. La CI l'a donc
+trouvé à ma place, deux fois, et chaque aller-retour coûte quatre minutes. Le sélecteur
+existe précisément pour que le choix ne dépende pas de ce que je crois avoir touché.
+
+**Aucune tâche ouverte n'a bougé** : R103, R107 et R108 restent les trois, et rien de ce
+qui précède ne les touche. Ce qui a changé est le catalogue de classes, pas la roadmap.
+
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
 Question posée : combien d'utilisateurs simultanés, quel palier suivant, et que penser
@@ -388,65 +428,9 @@ Motif d'ADR-007 : un travail dont le bénéfice mesuré est nul n'entre pas dans
   courbe de concurrence et `--self-check` montre pourquoi : `AppTest` sature de lui-même
   sous threads, un `st.write('hello')` passant de 352 ms à 2 144 ms.
 
-### Ce que le 2026-09-10 a changé (l'audit transverse, huit tâches livrées)
-
-**R75 à R82 sont livrées et rotées dans `archive.md`.** Elles portaient l'audit
-transverse commandé ce jour-là : résilience API, vitesse Streamlit et ingestion,
-robustesse des données, couche or/argent/bronze, cybersécurité, refactor, filtres,
-méthode de tracé. Chacune avec son correctif, son garde dédié, et ses mutations vues
-ROUGES avant écriture.
-
-Trois d'entre elles ont rectifié leur propre énoncé, et c'est le résultat le plus
-utile de la séance — une roadmap se périme comme un commentaire :
-
-- les « 144 échecs Spotify » de R76 sont des `skipped` : quatre locataires n'ont pas
-  déclaré d'identifiant. Le troisième état délibéré du journal, pas une panne ;
-- les « 6 requêtes en double de l'accueil » de R79 avaient déjà été retirées par
-  R64–R69. Le vrai compte du jour était 14 exécutions pour 13 questions, un seul
-  doublon ;
-- le « repère de progression manquant » de R81 aurait été une **régression** : ces API
-  rendent des compteurs cumulés par entité, et relire chaque entité chaque nuit est la
-  mesure elle-même.
-
-Et R77 a été trouvée fausse-verte : son cliquet lisait 0 pendant que trois figures
-portaient encore un axe secondaire, sous une forme Plotly que le prédicat ne voyait
-pas. Septième instance de « la portée d'un garde est le défaut », la première sur un
-cliquet écrit le jour même.
-
-### R83 — la septième cause, trouvée en LISANT le PDF
-
-Le dossier d'architecture annonçait « quatre horloges » comme la seule des sept causes
-de l'audit restée entière. Elle n'était **dans aucune roadmap** : elle vivait dans une
-ligne d'historique d'une classe d'erreur, là où personne ne la relit. Ouverte et close
-le même jour — voir `archive.md`.
-
-Deux choses en sortent, plus utiles que le correctif :
-
-- **le chiffre que j'avais écrit était faux.** « 200 lignes sur 2 535 (7,9 %) changent
-  de jour selon le fuseau » mélangeait deux ères sur une base locale. En production, sur
-  l'ère actuelle : **0 sur 5 807** pour YouTube, **29** toutes plateformes confondues ;
-- **le risque était à l'envers.** Le danger n'est pas de laisser ces dates tranquilles,
-  c'est de les « corriger » : une harmonisation des fuseaux déplacerait 267 jours
-  calendaires déjà justes d'une journée entière. Ce qui manquait n'était pas un
-  correctif mais la DÉCLARATION — `src/utils/clocks.py`, ADR-021.
-
-Le PDF, lui, annonçait « cause ouverte » sur trois suggestions dont **deux étaient déjà
-livrées**. Un document généré se périme comme un commentaire.
-
-**Un seul geste humain en sort** (il ne rouvre pas de tâche, il attend une main) :
-basculer la production sur le rôle applicatif non-superutilisateur créé par R80 —
-`APP_DB_PASSWORD='…' make db-app-role`, puis `DATABASE_USER=streamlytics_app` dans
-l'environnement de prod et redémarrer. `make db-role-check` dit à tout moment sous
-quel rôle l'application tourne.
-
-### Ce que le 2026-09-10 a changé plus tôt (sept tâches livrées)
-
-R64, R65, R66, R67, R68, R69 et R71 sont **livrées et rotées dans `archive.md`** —
-correctif, garde dédié, mutations rouges avant écriture, suite complète verte à 4 804
-tests. Détail dans l'archive ; ne reste ouvert de ce lot que **R70** (couches bronze /
-argent / or, P4, ADR à écrire — voir la table ci-dessus).
-
-Ce qui suit décrivait l'état au 2026-09-08.
+> Les trois sections du 2026-09-10 (audit transverse, R83, les sept tâches livrées
+> plus tôt) ont été **déplacées** dans `archive.md` le 2026-09-13 : ce fichier avait
+> franchi le plafond de 50 Ko que `/resume` lit à chaque session.
 
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 
