@@ -4742,3 +4742,53 @@ Ce que la séance a gardé de ce détour, et qui vaut plus que l'étape abandonn
 rupture de méthode du 2026-06-11 détectée et recalée, la falaise du cumulé bornée, une
 seule date de première mesure au lieu de deux, et ADR-024 qui ferme définitivement la
 question SoundCloud.
+
+---
+
+## R106 — Shazam n'est pas sur la page d'accueil
+
+- [x] **R106 — une boîte Shazam figure dans la rangée de KPI de l'accueil.**
+
+ADR-025 énonce le cœur du produit : Instagram, Meta Ads, Spotify, Hypeddit, **Shazam**,
+et le ML qui les relie. Shazam y est, et il n'est nulle part sur l'écran le plus lu.
+L'accueil porte Spotify, YouTube, SoundCloud, Apple, Instagram et Meta Ads — dont deux
+plateformes que le même ADR classe en périphérie.
+
+**Ce qu'il faut trancher avant d'écrire une ligne** : ce qu'une boîte Shazam affiche.
+La donnée existe (`apple_music` porte 1 772 shazams pour l'artiste 1, mesuré le
+2026-09-12), mais elle arrive par dépôt de CSV, comme Apple — donc c'est un RELEVÉ, pas
+une quantité datée. Trois formes possibles, et elles ne disent pas la même chose :
+
+1. le compteur à vie, comme Apple — honnête, mais insensible au filtre de période ;
+2. l'écart entre deux dépôts — daté, mais dépendant du rythme de dépôt de l'artiste ;
+3. les deux, la seconde en ligne d'écart.
+
+C'est la même question que celle qui a occupé le 2026-09-13 sur les compteurs. La
+trancher AVANT évite de la redécouvrir à l'écran.
+
+---
+
+**LIVRÉ le 2026-09-13.** Forme retenue : **le compteur à vie, plus la dernière
+sortie** — l'option 1 du choix ci-dessus, augmentée du chiffre par titre qui n'y
+figurait pas. Mesuré en base : **1 770** Shazams au catalogue, **637** pour
+« Ô Chiotte l'arbitre Tucome Back ». La tuile est en rangée de 2 avec Apple Music, dont
+elle partage la nature — un relevé de dépôt, pas une quantité datée, et l'infobulle le
+dit.
+
+Le chiffre de 1 772 écrit ci-dessus le 2026-09-12 était approximatif : la fonction or
+en rend **1 770**.
+
+**Ce que la mesure a corrigé dans le plan**, et c'est le plus utile à retenir :
+
+* le repli « égalité exacte du titre » ne trouve **rien**. La dernière sortie est
+  `Ô Chiotte l'arbitre Tucome Back - Original` côté S4A et `Ô Chiotte l'arbitre Tucome
+  Back` côté Apple — 0 ligne en égalité stricte. Seul le rapprochement **confirmé** de
+  `track_platform_link` fonctionne (11 lignes `apple`/`confirmed` pour ce locataire).
+  Sans lien, la tuile dit pourquoi elle est vide plutôt que d'afficher un homonyme ;
+* la migration **114** n'a pas droppé `gold_apple_lifetime` comme prévu : `pg_depend`
+  montre que `v_platform_totals` en dépend. Une surcharge à **trois arguments sans
+  défaut** évite l'ambiguïté — celle qui avait fait afficher zéro à la tuile Apple le
+  2026-09-12 — sans reconstruire une vue que 15 surfaces lisent. La 2-arguments est
+  devenue un appel de la 3-arguments : une seule définition de la règle (ADR-019) ;
+* les deux chiffres entrent comme sous-requêtes de `period_side_metrics` : le cliquet
+  des **13 allers-retours** de l'accueil est resté vert.

@@ -75,6 +75,22 @@ _SURFACES = ("src/dashboard/views", "src/dashboard/utils", "src/api/routers")
 # (ADR-022), et `i18n_catalog/` ne contient que des chaînes traduites — un nom de
 # table y apparaît dans une phrase, jamais dans une requête.
 _NOT_A_SURFACE = ("src/dashboard/utils/platform_timeseries.py",
+                  # LA MÊME PORTE, DÉCOUPÉE EN DEUX le 2026-09-13 : le cliquet des
+                  # 1 200 lignes a fait sortir `period_side_metrics` de son fichier.
+                  # L'exemption suit le RÔLE (ADR-022 — lire le bronze et en faire la
+                  # règle), pas le nom de fichier ; sinon découper la porte
+                  # fabriquerait trois « surfaces » d'un coup sans qu'aucun écran ne
+                  # change.
+                  #
+                  # ⚠️ CE QUE CETTE EXEMPTION MASQUE, ET IL FAUT L'ÉCRIRE. Le
+                  # découpage a rendu VISIBLES trois couples qui existaient déjà à
+                  # l'intérieur de la porte : `instagram_daily_stats` (ancien) et
+                  # `track_platform_link` + `track_release_reference` (ajoutés le
+                  # 2026-09-13 pour Shazam et Hypeddit). Les ré-exempter les
+                  # re-cache — et c'est bien une propriété de l'exemption de la
+                  # porte, pas un effet du découpage : sans lui, personne ne les
+                  # aurait jamais comptés. Tracé en roadmap, pas enterré ici.
+                  "src/dashboard/utils/period_side_metrics.py",
                   "src/dashboard/utils/i18n_catalog/")
 
 # Les surfaces DÉCLARÉES : elles lisent le bronze, et c'est leur travail.

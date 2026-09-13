@@ -1,7 +1,7 @@
 """La figure « par période » donne le MÊME total à tous les pas, et nomme son écart.
 
 Type: Test
-Uses: pytest, platform_chart.render_platform_chart, home._render_tiles
+Uses: pytest, platform_chart.render_platform_chart, home_tiles.render_tiles
 Depends on: src/dashboard/utils/platform_chart.py, src/dashboard/views/home.py
 Persists in: nothing
 
@@ -45,7 +45,8 @@ from unittest.mock import patch
 import pytest
 
 from src.dashboard.utils import platform_chart as pc
-from src.dashboard.views.home import _render_tiles
+# La colonne de KPI a quitté `home.py` le 2026-09-13 (cliquet des 1 200 lignes).
+from src.dashboard.views.home_tiles import render_tiles
 
 _CHART = Path(__file__).resolve().parents[1] / "src/dashboard/utils/platform_chart.py"
 
@@ -128,7 +129,7 @@ def test_a_lifetime_counter_says_what_the_curve_cannot_draw():
          patch("streamlit.columns", lambda n, **k: [_Col() for _ in range(
              n if isinstance(n, int) else len(n))]), \
          patch("streamlit.metric", _rec):
-        _render_tiles({"youtube": 118_336}, 118_336, 0, side=side)
+        render_tiles({"youtube": 118_336}, 118_336, 0, side=side)
 
     box = next((r for r in seen if "YouTube" in r[0]), None)
     assert box, f"la boîte YouTube a disparu : {[r[0] for r in seen]}"

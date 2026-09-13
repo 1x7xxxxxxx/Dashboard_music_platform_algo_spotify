@@ -59,8 +59,8 @@ from src.dashboard.utils.platform_absence import (          # noqa: F401
 )
 from src.dashboard.utils.platform_chart_notes import (      # noqa: F401
     _STEP_UNITS, _render_notes, _render_recap,
-    render_collection_start_note,
-    render_missing_history_note, t_coarsened, t_too_coarse, t_too_thin,
+    render_collection_start_note, render_counter_history_note,
+    t_coarsened, t_too_coarse, t_too_thin,
 )
 from src.dashboard.utils.platform_chart_labels import annotate_series
 from src.dashboard.utils.platform_timeseries import (
@@ -1068,6 +1068,10 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         # jour et « décembre 2025 » au pas du mois, pour le même fait.
         _late_starts(aligned, order, span, PLATFORM_LABELS,
                      levels=cumulative), step)
+    # ET POURQUOI ELLE NE COMMENCERA JAMAIS PLUS TÔT. La note ci-dessus dit depuis
+    # quand ; celle-ci dit ce qui précède et que c'est définitif (ADR-024). Elle lit
+    # `cumulative`, déjà en main — aucune requête, aucun paramètre neuf.
+    render_counter_history_note(cumulative, PLATFORM_LABELS)
     return True
 
 

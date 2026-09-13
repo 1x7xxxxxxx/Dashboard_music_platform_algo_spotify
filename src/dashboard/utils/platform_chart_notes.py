@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from src.dashboard.utils.platform_timeseries import MISSING_HISTORY, PLATFORM_LABELS
+from src.dashboard.utils.platform_timeseries import PLATFORM_LABELS
 
 
 # Le mot qui suit le nombre, dans le sous-titre. Il compte des SEAUX, pas des unités
@@ -311,11 +311,65 @@ def render_collection_start_note(starts: list, step: str = "day") -> None:
         for label, since in starts))
 
 
-def render_missing_history_note() -> None:
-    """Nomme ce qui n'a PAS de série, plutôt que de le dessiner à zéro.
+def render_counter_history_note(levels: dict, labels: dict) -> None:
+    """Pourquoi ces courbes commencent tard, et pourquoi elles ne peuvent pas commencer plus tôt.
 
-    Une plateforme absente sans explication se lit comme une panne — c'est la leçon
-    de `_silence_reason` et de la matrice d'état, appliquée à une figure.
+    ── LE DÉFAUT QU'ELLE FERME ──────────────────────────────────────────────────
+
+    « qu'on ne montre pas qu'on n'a pas accès aux datas historiques » (2026-09-13).
+    L'accueil déployait QUATRE surfaces d'absence pour YouTube et SoundCloud — la
+    bande hachurée, le survol « pas encore collectée », la note des écoutes non
+    traçables, la note de démarrage tardif — et aucune ne disait la seule chose
+    utile : que cet historique est **définitivement** hors de portée. L'écran
+    exhibait une impuissance au lieu de la nommer, pour 0,4 % du signal (ADR-025).
+
+    `render_collection_start_note`, juste avant, dit DEPUIS QUAND. Celle-ci dit
+    COMBIEN précède, et POURQUOI ce sera toujours le cas (ADR-024 : ces plateformes
+    ne rendent qu'un compteur à vie ; aucune API, aucun export CSV ne redonne le
+    détail par jour).
+
+    ── LE NOMBRE EST DÉRIVÉ, JAMAIS ÉCRIT ───────────────────────────────────────
+
+    `levels[k][0][1]` est le compteur au jour de NOTRE première mesure : c'est
+    exactement ce qui a eu lieu avant nous. Le lire évite la classe que ce dépôt
+    paie le plus cher — un chiffre d'instinct posé dans une phrase, que personne ne
+    rejoue.
+
+    ⚠️ **Rien n'est dit quand il n'y a rien à dire.** Une plateforme dont le premier
+    niveau vaut 0 a été prise depuis son origine : lui inventer une antériorité
+    serait l'exact symétrique du défaut qu'on corrige. Elle est donc écartée, et si
+    aucune ne reste, la note ne s'affiche pas du tout.
     """
-    for label, why in MISSING_HISTORY.values():
-        st.caption(f"{label} — {why}.")
+    from src.dashboard.utils.i18n import t
+
+    prior = []
+    for key, rows in (levels or {}).items():
+        rows = sorted(rows or [])
+        if not rows:
+            continue
+        before = rows[0][1]
+        if before and before > 0:
+            prior.append((labels.get(key, key), int(before)))
+    if not prior:
+        return
+
+    st.caption(t(
+        "platform_chart.counter_has_no_prior_history",
+        "{names} — **{counts}** écoutes précèdent notre première mesure. Ces "
+        "plateformes ne rendent qu'un **compteur à vie** : on sait combien, jamais "
+        "quel jour. Aucune API ni aucun export ne redonne ce détail, la courbe ne "
+        "peut donc pas commencer plus tôt."
+    ).format(
+        names=" · ".join(label for label, _n in prior),
+        counts=" et ".join(f"{n:,}".replace(",", "\u202f") for _l, n in prior)))
+
+
+# `MISSING_HISTORY` ET `render_missing_history_note` ONT ÉTÉ RETIRÉS LE 2026-09-13.
+#
+# La fonction bouclait sur un dict VIDE depuis qu'il avait été vidé : elle était
+# appelée à chaque rendu de l'accueil et n'affichait jamais rien. Du code correct que
+# rien n'atteint — la forme que ce dépôt paie le plus souvent.
+#
+# Elle n'a pas été RECYCLÉE pour porter la note ci-dessus, et c'est délibéré : son
+# contrat était « nomme ce qui n'a PAS de série ». YouTube et SoundCloud en ont une.
+# La remplir aurait produit une phrase qui dit le contraire du code juste à côté.

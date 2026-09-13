@@ -1,7 +1,8 @@
 """Une boîte, une question, un chiffre stable — et jamais un écart contre du vide.
 
 Type: Test
-Uses: pytest, platform_chart.render_platform_chart, home._recap_metrics, home._render_tiles
+Uses: pytest, platform_chart.render_platform_chart, home._recap_metrics,
+      home_tiles.render_tiles
 Depends on: src/dashboard/utils/platform_chart_notes.py, src/dashboard/views/home.py
 Persists in: nothing
 
@@ -49,7 +50,10 @@ from contextlib import nullcontext
 from unittest.mock import patch
 
 from src.dashboard.utils import platform_chart as pc
-from src.dashboard.views.home import _recap_metrics, _render_tiles
+# La colonne de KPI a quitté `home.py` le 2026-09-13 (cliquet des 1 200 lignes) :
+# elle ne prend que des dictionnaires déjà calculés, donc elle se teste seule.
+from src.dashboard.views.home import _recap_metrics
+from src.dashboard.views.home_tiles import render_tiles
 
 _DAYS = [_d.date(2025, 1, 1) + _d.timedelta(days=i) for i in range(200)]
 
@@ -126,7 +130,7 @@ def _tiles(totals: dict, prev=None, side=None, last=None) -> list[tuple]:
          patch("streamlit.columns", lambda n, **k: [_Col() for _ in range(
              n if isinstance(n, int) else len(n))]), \
          patch("streamlit.metric", _rec):
-        _render_tiles(totals, sum(v for v in totals.values() if v), 1_525,
+        render_tiles(totals, sum(v for v in totals.values() if v), 1_525,
                       prev=prev, side=side, prev_grand=None)
     return seen
 

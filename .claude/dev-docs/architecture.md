@@ -202,6 +202,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | View file | Page name | Data sources | Role |
 |---|---|---|---|
 | `home.py` | Home | All tables (KPI + freshness) | all |
+| `home_tiles.py` | — (sous-module de Home, pas une page) | aucune — reçoit des dictionnaires déjà calculés | all |
 | `spotify_s4a_combined.py` | Spotify + S4A | tracks, track_popularity_history, s4a_* | all |
 | `meta_ads_overview.py` | Meta Ads | meta_insights_performance (+ custom_conversions, lp_views), meta_insights_performance_day/age/country/placement, meta_insights_engagement, meta_adsets (targeting × CPR — "🎯 Ciblage vs Performance") | all |
 | `meta_creatives.py` | Créatives Meta — 6 tabs (Classement/Comparaison/Funnel/Évolution/Fatigue/Activité) + per-creative multi-metric timeline since 2026-05-29 | meta_insights (ad grain), meta_ads | all |

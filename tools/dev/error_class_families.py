@@ -87,7 +87,11 @@ FAMILIES: list[tuple[str, str, str]] = [
      r"unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|"
      r"rendered-as-health|sums-the-display|discarded-in-silence|"
      r"erases-every-other|past-the-end-of-its-evidence|renders-nothing|"
-     r"named-like-a-final-one|imput|estimat"),
+     # `wins-a-desc-ranking`, ajouté le 2026-09-13. La famille portait déjà
+     # `outranks-the-measurement` et `renders-nothing` : un groupe VIDE qui
+     # devance la mesure dans un classement décroissant est littéralement les
+     # deux à la fois — la surface affiche « — » alors que le chiffre existe.
+     r"named-like-a-final-one|imput|estimat|wins-a-desc-ranking"),
 
     ("le-message-parle-au-mauvais-lecteur",
      "Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que "
@@ -106,7 +110,12 @@ FAMILIES: list[tuple[str, str, str]] = [
     ("un-état-qui-déborde-de-sa-portée",
      "Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour "
      "quelqu'un d'autre ?",
-     r"outlives-the-visit|written-after-instantiation|per-worker|"
+     # `outlives-its-pull-request`, ajouté le 2026-09-13 : une branche qui
+     # survit à la PR qui l'a créée est le cas d'école de cette question — un
+     # état qui ne vit pas le temps de ce qui l'a produit. 26 d'un coup, et le
+     # propriétaire a fini par demander s'il allait perdre du travail.
+     r"outlives-the-visit|outlives-its-pull-request|"
+     r"written-after-instantiation|per-worker|"
      r"namespaced-by-another|connection|closes-a-connection|"
      r"only-inside-a-session|loses-the-race|first-row|session|cache|"
      r"state-file|leak"),
@@ -124,7 +133,13 @@ FAMILIES: list[tuple[str, str, str]] = [
      # `read-that-failed`, ajouté le 2026-09-12 : la classe atterrissait dans
      # « une configuration qui diverge de la prod » à cause du mot `prod` dans son
      # symptôme. Un motif qui ne nomme pas la forme la laisse au premier venu.
-     r"outside-its-condition|read-that-failed|failed-read|except.*number"),
+     # `read-through-a-filtering`, ajouté le 2026-09-13. La forme est la même à
+     # un étage au-dessus : un `git commit` avorté, son message d'abandon avalé,
+     # et le `git push` suivant qui rend `ok`. La question de la famille s'y
+     # applique mot pour mot — ce « ok » veut-il dire « ça a marché » ou « il ne
+     # s'est rien passé » ?
+     r"outside-its-condition|read-that-failed|failed-read|except.*number|"
+     r"read-through-a-filtering"),
 
     ("un-garde-qui-ne-garde-pas",
      "Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée "

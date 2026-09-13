@@ -5,6 +5,196 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-13 (suite) — L'accueil nomme ce qu'il ne peut pas mesurer, et Shazam prend sa place
+
+### Le défaut, et il était dans ce que l'écran MONTRAIT
+
+« qu'on ne montre pas qu'on n'a pas accès aux datas historiques de soundcloud et
+spotify ». L'accueil déployait **quatre** surfaces d'absence pour YouTube et
+SoundCloud — bande hachurée « ▨ Aucune mesure », survol « pas encore collectée », note
+des écoutes non traçables, note de démarrage tardif — et **aucune** ne disait la seule
+chose utile : que cet historique est définitivement hors de portée (ADR-024). Quatre
+mécanismes au service de 0,4 % du signal, sur l'écran le plus lu. L'impuissance était
+le sujet visuel.
+
+Et l'arbitrage d'ADR-025 n'avait pas atteint la page. Compté dans `home.py` :
+
+| plateforme | ADR-025 | occurrences |
+|---|---|---|
+| Meta Ads | cœur | 19 |
+| **YouTube** | **périphérie** | **12** |
+| Spotify | cœur | 10 |
+| **SoundCloud** | **périphérie** | **9** |
+| **Hypeddit** · **Shazam** | **cœur** | **0** |
+
+Deux plateformes du cœur absentes, les deux de la périphérie plus présentes que Spotify.
+
+### Ce qui a changé
+
+**Une note dit ce qui précède, et que c'est définitif.**
+`render_counter_history_note` écrit « 🎬 YouTube · ☁️ SoundCloud — **118 032 et
+23 241** écoutes précèdent notre première mesure ». Les nombres sont **dérivés des
+niveaux** (`levels[k][0][1]` est le compteur au jour de notre première mesure), jamais
+écrits. Elle se tait pour une plateforme prise depuis son origine — l'inverse du défaut
+qu'elle corrige.
+
+**Shazam est sur l'accueil** (R106), en rangée de 2 avec Apple Music dont il partage la
+nature. 1 770 au catalogue, **637 pour la dernière sortie**. Les deux chiffres entrent
+comme sous-requêtes de `period_side_metrics` : le cliquet des **13 allers-retours** de
+l'accueil est resté vert.
+
+**Le chiffre-titre nomme sa composition.** `🎧 Total streams` additionne les 163 088 de
+Spotify — mesurées jour par jour — aux compteurs à vie YouTube (118 219) et SoundCloud
+(23 486) : **41 % du plus gros nombre de la page** n'a aucune date. Le total est
+conservé, son infobulle le dit, et elle est **vide sur une fenêtre bornée** où aucun
+compteur à vie n'entre dans la somme. Vérifié au rendu, les deux cas.
+
+**Trois légendes de pas retirées**, à la demande. Le garde qui les exigeait,
+`test_the_applied_grain_is_written_on_screen`, a été supprimé AVEC elles et sa raison
+écrite à sa place — un test neutralisé en gardant son nom est pire que pas de test. Ce
+qui porte encore le grain : les étiquettes d'axe de Plotly et `_bucket_label`.
+
+**Un no-op de plus en moins.** `MISSING_HISTORY` était un dict vide et
+`render_missing_history_note` en faisait le tour à chaque rendu sans rien afficher. Elle
+n'a **pas** été recyclée pour porter la note neuve : son contrat était « nomme ce qui
+n'a PAS de série », et ces deux plateformes en ont une.
+
+### Trois fois où la mesure a démenti le plan
+
+1. **Le repli par égalité de titre ne trouve rien.** La dernière sortie est
+   `Ô Chiotte l'arbitre Tucome Back - Original` côté S4A et `Ô Chiotte l'arbitre Tucome
+   Back` côté Apple : **0 ligne** en égalité stricte. Seul le rapprochement confirmé de
+   `track_platform_link` fonctionne. Le repli est conservé mais ne porte rien ici, et la
+   tuile dit pourquoi elle est vide plutôt que d'afficher un homonyme.
+2. **La migration ne devait pas dropper la fonction or.** `pg_depend` montre que
+   `v_platform_totals` dépend de `gold_apple_lifetime`. La migration **114** ajoute donc
+   une surcharge à **trois arguments sans défaut** — jamais candidate pour un appel à
+   deux, donc aucune ambiguïté, et aucune vue à reconstruire. La 2-arguments est devenue
+   un appel de la 3-arguments : une seule définition de la règle (ADR-019). L'ambiguïté
+   évitée est celle qui avait fait afficher **zéro** à la tuile Apple le 2026-09-12.
+3. **`setsid cmd > log` rend la main avant la commande**, donc le `EXIT=0` que j'ai
+   annoncé ne disait rien de pytest — la suite tournait encore. J'ai rapporté un verdict
+   qui n'existait pas. La forme juste est d'attendre le PID.
+
+### Un défaut introduit puis retiré avant livraison
+
+Le bandeau applique `.replace(",", " ")` à **tout** son gabarit pour le séparateur de
+milliers. L'infobulle qu'on venait d'y poser contient des virgules de TEXTE : elles
+auraient été mangées. Le séparateur se pose désormais sur le nombre seul. Le défaut
+n'existait pas tant que le gabarit n'était que du HTML.
+
+### Hypeddit ferme la chaîne (ajouté dans la même séance)
+
+« intègre le meilleur rapport visits/click dans la page d'accueil pour hypeddit obtenue
+pour la dernière release ». C'était la dernière divergence entre ADR-025 et l'écran.
+
+**45,7 pour cent · 👁️ 7 828 · 🖱️ 3 581**, campagne « Ô Chiotte l'arbitre tucome back ».
+La grille passe à 4×2 et la colonne restée vide sous Meta est comblée. La chaîne que le
+produit raconte est désormais entière à l'écran : on dépense (Meta), on clique
+(Hypeddit), on écoute (Spotify), l'algorithme reprend (les trois portes).
+
+**Trois pièges, trois choix écrits :**
+
+* **la colonne `ctr` de la table existe et n'est PAS lue.** Son déclencheur écrit `0`
+  quand `visits = 0` : un jour non mesuré y est indiscernable d'un jour sans clic. Le
+  taux est recalculé sur `v_hypeddit_daily` avec `NULLIF` ;
+* **ratio des sommes, pas moyenne des ratios.** La seconde donne le même poids à un jour
+  de 10 visites et à un jour de 7 828 ;
+* **le rapprochement passe par le lien confirmé.** La sortie est « … Tucome Back -
+  Original », la campagne « … tucome back » : casse ET suffixe diffèrent, l'égalité
+  exacte rend **0 ligne**.
+
+**Non borné par le filtre**, et l'infobulle le dit : la question est « qu'a obtenu CETTE
+sortie ». Borné, la tuile serait vide presque toujours — la campagne date du 2024-08-30.
+
+### Un défaut latent trouvé par la mutation, pas par la lecture
+
+`ORDER BY ctr DESC` place les **NULL en PREMIER** dans Postgres (vérifié sur la base).
+Sans le `HAVING SUM(visits) > 0`, une campagne liée à zéro visite serait donc choisie
+**devant** une campagne à 46 pour cent, et la tuile afficherait « — » alors qu'un vrai
+chiffre existe. La porte était là ; c'est le garde qui ne la gardait pas.
+
+### Le garde a été réécrit deux fois, et c'est le plus instructif
+
+Écrit, il passait au vert sur **deux** mutations sur trois :
+
+* **moyenne des ratios au lieu du ratio des sommes** — vert, parce qu'**aucune campagne
+  du parc n'a deux jours à visites non nulles** : les deux formules y rendent le même
+  nombre. Il a fallu mettre en scène un second jour (10 visites, 9 clics) pour les
+  écarter — 45,8 contre 67,9 ;
+* **`HAVING` retiré** — vert, parce que la seule campagne liée a des visites, donc la
+  porte ne changeait rien pour elle. Il a fallu mettre en scène une campagne rivale
+  entièrement à zéro, liée à la même sortie ;
+* **lien confirmé remplacé par une égalité de noms** — « vert » par **esquive** : la
+  valeur devenait `None` et cinq tests se sautaient. Un saut n'est pas une preuve. La
+  prémisse est désormais mesurée d'abord (le lien existe-t-il ?), et l'assertion qui suit
+  est inconditionnelle.
+
+Les trois lignes de mise en scène sont retirées dans un `finally`, et leur absence a été
+vérifiée en base après coup : une suite a un rayon de souffle, et celle-ci écrit.
+
+### Et le même piège du signe pour cent, deux fois de suite
+
+`psycopg2` interpole `%` dans TOUTE la chaîne, **commentaires SQL compris**. Un « 33 % »
+écrit dans le commentaire du ratio a fait échouer la requête entière sur `IndexError:
+tuple index out of range` — 35 emplacements pour 35 paramètres, le compte était juste,
+le signe de trop était dans la prose. Je l'ai réécrit une seconde fois **dans le
+commentaire qui met en garde contre lui**.
+
+### Le cliquet des 1 200 lignes a rougi sur ce travail, et il avait raison
+
+Deux fichiers ont franchi le seuil en gagnant Shazam puis Hypeddit. Découpés, pas gelés
+— « les ajouter à FROZEN fige la dette ; les découper la retire » :
+
+| fichier | avant | après | ce qui est sorti |
+|---|---|---|---|
+| `utils/platform_timeseries.py` | 1 252 | **932** | `utils/period_side_metrics.py` |
+| `views/home.py` | 1 235 | **882** | `views/home_tiles.py` |
+
+**Les deux coutures étaient déjà écrites dans le code.** Le docstring de
+`platform_timeseries` parle d'ÉCOUTES et de la distinction quantité/compteur, quand
+`period_side_metrics` disait d'elle-même porter « les métriques de période qui ne SONT
+PAS des écoutes ». Et la colonne de KPI ne prend que des dictionnaires déjà calculés :
+aucune connexion, aucune série, ni le pas ni le mode de la figure — elle devient
+testable seule, ce qu'elle n'était pas.
+
+Sens des imports vérifié : le nouveau module importe `_q` de l'ancien, **jamais
+l'inverse**. Pas de ré-export, donc pas de cycle. Et `_q` est importée, pas recopiée :
+elle lit `platform_timeseries._FETCH`, le crochet de cache du processus, qu'une copie
+locale aurait cessé de voir en silence.
+
+### Ce que j'ai raté, et ce qui l'a rattrapé
+
+J'ai balayé les appelants de `period_side_metrics` et **pas ceux de `_render_tiles`** :
+deux tests l'importaient (`test_a_recap_row_answers_the_question_it_names`,
+`test_one_number_per_question_across_grains`). Le lot ciblé que j'avais lancé — cinq
+fichiers, 76 verts — ne les contenait pas, et m'a donné une confiance que je n'avais
+pas. C'est la **suite complète** qui a arrêté la collecte sur deux `ImportError`.
+
+La leçon n'est pas « lancer la suite » : c'est que **déplacer un symbole est un balayage
+par symbole**, pas par fichier. J'en avais déplacé deux et n'en ai balayé qu'un.
+
+Un garde textuel a aussi dû suivre : `test_the_cpr_shown_is_the_latest_campaigns` lit
+l'AST du fichier porteur de la requête **par un chemin en dur**. Le laisser pointer
+l'ancien l'aurait rendu VERT sur un fichier où la CTE n'existe plus.
+
+### Tests
+
+Suite complète : **5 521 passés, 108 skippés, 2 échecs** — les deux attendus et traités
+(clés EN manquantes, carte de la couche or périmée). Après correction : i18n 11/11,
+`make gold-coverage-check` exit 0, cliquet des 13 requêtes 4/4, rendu des 53 vues sans
+exception, gardes figure/pas 20/20.
+
+Garde neuf : `tests/test_the_figure_says_the_history_is_out_of_reach.py`, **8 tests**.
+**Deux mutations vues rouges** avant de l'écrire — le prédicat d'antériorité neutralisé
+(la note annonce alors « 0 écoutes précèdent notre première mesure ») et le nombre mis en
+dur (la note cesse de suivre ses données).
+
+⚠️ La base locale s'arrête au **2026-06-07** pour S4A et au **2024-09-30** pour Meta :
+les tuiles vides sur 30 jours sont l'état réel de cette base, pas une régression.
+
+---
+
 ## 2026-09-13 (clôture) — Un arbitrage produit, et du code écrit puis retiré le même jour
 
 ### La décision
