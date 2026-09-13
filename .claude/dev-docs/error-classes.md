@@ -379,6 +379,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [one-fact-two-answers-by-display-mode](#one-fact-two-answers-by-display-mode) | P2 | deterministic | guarded | none |
 | [a-percent-sign-in-a-parameterised-query](#a-percent-sign-in-a-parameterised-query) | P2 | deterministic | guarded | none |
 | [an-empty-group-wins-a-desc-ranking](#an-empty-group-wins-a-desc-ranking) | P2 | deterministic | guarded | none |
+| [a-merged-branch-outlives-its-pull-request](#a-merged-branch-outlives-its-pull-request) | P4 | deterministic | guarded | none |
+| [a-verification-read-through-a-filtering-wrapper](#a-verification-read-through-a-filtering-wrapper) | P2 | manual | reported | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -5488,3 +5490,36 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-13: `guarded`. **Trouvée par mutation, pas par lecture.** La porte (`HAVING`) était écrite du premier coup et paraissait redondante ; c'est en la retirant pour éprouver le garde que la conséquence est apparue, puis a été confirmée par une requête directe sur la base. Le défaut n'a donc jamais atteint un écran — mais il aurait attendu le premier locataire dont une campagne liée n'a aucune visite.
   - 2026-09-13: la première version du prédicat jugeait le LITTÉRAL entier et ne rougissait pas : le `HAVING` d'une CTE voisine (`best_cpr`) exemptait toute la requête. Corrigé en découpant le littéral à ses frontières de CTE. Un littéral n'est pas une unité de raisonnement SQL — c'est la même erreur de PORTÉE que `a-ratchet-at-zero-over-a-scope-that-excludes-the-defect`, à une autre échelle.
+
+
+## a-merged-branch-outlives-its-pull-request
+- status: guarded
+- severity: P4
+- kind: deterministic
+- symptom: le dépôt affiche des dizaines de branches « actives » alors qu'une seule ligne de travail existe. Le propriétaire se demande s'il va **perdre des avancées** — mesuré le 2026-09-13 : « c'est bizarre qu'on ait 26 branches d'active sur github ? … là on va perdre nos avancées non ? ». Le coût n'est pas technique, il est cognitif : on ne sait plus distinguer ce qui porte du travail de ce qui n'en porte plus.
+- root_cause: le réglage GitHub `delete_branch_on_merge` valait **false** (vérifié par `gh api` le 2026-09-13). Chaque PR fusionnée laissait donc sa branche derrière elle. Aucune ne portait le moindre commit absent de `main` — les 24 ont été vérifiées **une par une** par `git rev-list --count origin/main..<branche>`, toutes à 0. Le flux de travail était correct depuis le début ; c'est le ramassage qui manquait.
+- long_term_fix: `delete_branch_on_merge = true` sur le dépôt. La branche disparaît à la fusion, donc une branche qui SURVIT devient un signal — elle porte du travail non fusionné, ou elle a été abandonnée. Ce qui était du bruit devient une information.
+- autofix: none
+- guard: { type: ci-step, ref: .claude/dev-docs/error-classes.md }
+- signature: `test "$(gh api repos/{owner}/{repo} --jq .delete_branch_on_merge 2>/dev/null || echo true)" = "true"`
+- rex_ref: —
+- first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
+- History:
+  - 2026-09-13: `guarded`. Signature **vue rouge** (réglage à `false`, exit 1) puis **verte** après activation (exit 0). Le repli `|| echo true` est délibéré : sans accès réseau ou sans `gh`, la signature ne doit pas rougir — un garde qui échoue faute d'outil apprend que le rouge est du bruit.
+  - 2026-09-13: 22 branches fusionnées supprimées après re-vérification individuelle. **Deux ont été retenues volontairement** — `dev` et `backup/pre-godmodule-refactor` : leur contenu est dans `main`, donc supprimables sans perte, mais leur nom DÉCLARE une intention de persister. Un geste irréversible côté distant ne se déduit pas d'un prédicat quand le nom dit le contraire.
+  - 2026-09-13: le dépôt local portait **144 réfs** pour 27 branches réelles. `git fetch --prune` en a retiré 117. Une liste locale n'est pas l'état du distant, et `git branch -r` ne le dit pas.
+
+## a-verification-read-through-a-filtering-wrapper
+- status: reported
+- severity: P2
+- kind: manual
+- symptom: une commande de vérification rend une réponse **plausible et fausse**, et la décision qui s'ensuit est prise sur cette réponse. Mesuré le 2026-09-13 : `git log --oneline -1` a rendu `ee3cda9` alors que `git rev-parse HEAD` rendait `5682fb8` — deux commits différents, dans la même seconde, sur le même arbre.
+- root_cause: la couche qui exécute les commandes du shell (ici le proxy RTK) **reformate et tronque** leur sortie. Trois conséquences enchaînées le même jour : (1) un `git commit -F -` alimenté par un heredoc n'a jamais reçu son message — commit avorté ; (2) le message d'abandon a été avalé ; (3) le `git push` qui suivait a rendu `ok` en poussant une branche inchangée, et j'ai annoncé un travail commité qui ne l'était pas. Les 24 fichiers sont restés non commités pendant que le rapport disait le contraire.
+- long_term_fix: **vérifier l'EFFET, jamais le code de retour, et le lire par une commande de plomberie.** Concrètement : `git rev-parse HEAD`, `git status --porcelain`, `git log -1 --format=%h` — pas `--oneline`, pas `git status` en clair. Et lire l'état depuis un interpréteur qui capture la sortie lui-même (`subprocess.run(..., capture_output=True)`) plutôt que depuis le shell filtré. Ce qui a effectivement rattrapé le défaut ici est un bloc Python comparant `HEAD`, le compte de fichiers non commités et la réf distante.
+- autofix: none
+- guard: —
+- rex_ref: —
+- first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
+- History:
+  - 2026-09-13: `reported`, et **`kind: manual` faute de signature vérifiable**. Le filtrage n'a pas pu être reproduit à volonté : l'hypothèse « le filtre masque les commits de fusion » a été testée et **démentie** — `git log --oneline -1 <merge>` rend correctement le merge après coup. Sans reproduction, une signature n'aurait jamais été vue rouge, et le catalogue interdit de livrer une fausse garantie : mieux vaut une classe sans garde qu'un garde qui ne garde rien.
+  - 2026-09-13: aucun site dans le dépôt — un balayage des scripts et hooks pour une lecture de git « porcelain » rend **2 touches, toutes deux dans des commentaires**. La classe vit dans le comportement de l'agent au travers de son shell, pas dans le code du dépôt. C'est pourquoi son `long_term_fix` est une PROCÉDURE et non un changement de code ; elle est parente de la leçon déjà écrite sur `grep` via RTK, qui rend 0 dès que sa sortie est redirigée.
