@@ -5500,7 +5500,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - root_cause: le réglage GitHub `delete_branch_on_merge` valait **false** (vérifié par `gh api` le 2026-09-13). Chaque PR fusionnée laissait donc sa branche derrière elle. Aucune ne portait le moindre commit absent de `main` — les 24 ont été vérifiées **une par une** par `git rev-list --count origin/main..<branche>`, toutes à 0. Le flux de travail était correct depuis le début ; c'est le ramassage qui manquait.
 - long_term_fix: `delete_branch_on_merge = true` sur le dépôt. La branche disparaît à la fusion, donc une branche qui SURVIT devient un signal — elle porte du travail non fusionné, ou elle a été abandonnée. Ce qui était du bruit devient une information.
 - autofix: none
-- guard: { type: ci-step, ref: .claude/dev-docs/error-classes.md }
+- guard: { type: ci-step, ref: .github/workflows/ci.yml }
 - signature: `test "$(gh api repos/{owner}/{repo} --jq .delete_branch_on_merge 2>/dev/null || echo true)" = "true"`
 - rex_ref: —
 - first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
@@ -5517,9 +5517,10 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - root_cause: la couche qui exécute les commandes du shell (ici le proxy RTK) **reformate et tronque** leur sortie. Trois conséquences enchaînées le même jour : (1) un `git commit -F -` alimenté par un heredoc n'a jamais reçu son message — commit avorté ; (2) le message d'abandon a été avalé ; (3) le `git push` qui suivait a rendu `ok` en poussant une branche inchangée, et j'ai annoncé un travail commité qui ne l'était pas. Les 24 fichiers sont restés non commités pendant que le rapport disait le contraire.
 - long_term_fix: **vérifier l'EFFET, jamais le code de retour, et le lire par une commande de plomberie.** Concrètement : `git rev-parse HEAD`, `git status --porcelain`, `git log -1 --format=%h` — pas `--oneline`, pas `git status` en clair. Et lire l'état depuis un interpréteur qui capture la sortie lui-même (`subprocess.run(..., capture_output=True)`) plutôt que depuis le shell filtré. Ce qui a effectivement rattrapé le défaut ici est un bloc Python comparant `HEAD`, le compte de fichiers non commités et la réf distante.
 - autofix: none
-- guard: —
+- guard: { type: ci-step, ref: tests/test_a_commit_message_is_not_fed_through_stdin.py }
 - rex_ref: —
 - first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
 - History:
   - 2026-09-13: `reported`, et **`kind: manual` faute de signature vérifiable**. Le filtrage n'a pas pu être reproduit à volonté : l'hypothèse « le filtre masque les commits de fusion » a été testée et **démentie** — `git log --oneline -1 <merge>` rend correctement le merge après coup. Sans reproduction, une signature n'aurait jamais été vue rouge, et le catalogue interdit de livrer une fausse garantie : mieux vaut une classe sans garde qu'un garde qui ne garde rien.
+  - 2026-09-13: **la moitié MÉCANISABLE a reçu son garde** — `tests/test_a_commit_message_is_not_fed_through_stdin.py` interdit la forme `git commit -F -` dans l'automatisation du dépôt, vue rouge par mutation. Elle ne couvre PAS la classe entière, et le `kind: manual` reste : une commande de vérification dont la sortie est reformatée n'a pas de site ici. Un garde partiel présenté comme total est pire que pas de garde.
   - 2026-09-13: aucun site dans le dépôt — un balayage des scripts et hooks pour une lecture de git « porcelain » rend **2 touches, toutes deux dans des commentaires**. La classe vit dans le comportement de l'agent au travers de son shell, pas dans le code du dépôt. C'est pourquoi son `long_term_fix` est une PROCÉDURE et non un changement de code ; elle est parente de la leçon déjà écrite sur `grep` via RTK, qui rend 0 dès que sa sortie est redirigée.
