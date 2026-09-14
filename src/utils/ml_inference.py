@@ -315,7 +315,8 @@ def build_features(db, artist_id: int, song: str) -> dict:
 
     # --- Followers (last known) ---
     aud = db.fetch_query(
-        "SELECT followers FROM s4a_audience WHERE artist_id = %s ORDER BY date DESC LIMIT 1",
+        "SELECT followers_level FROM v_s4a_audience_daily "
+        "WHERE artist_id = %s ORDER BY day DESC LIMIT 1",
         (artist_id,)
     )
     followers = int(aud[0][0]) if aud and aud[0][0] else 0

@@ -120,6 +120,10 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-shared-module-drags-a-view-behind-it](#a-shared-module-drags-a-view-behind-it) | P3 | deterministic | guarded | none |
 | [a-deduction-subtracted-from-the-wrong-base](#a-deduction-subtracted-from-the-wrong-base) | P2 | deterministic | guarded | none |
 | [a-diagnostic-that-reads-a-name-not-a-route](#a-diagnostic-that-reads-a-name-not-a-route) | P3 | deterministic | guarded | none |
+| [a-join-on-a-display-name-loses-what-the-name-normalises](#a-join-on-a-display-name-loses-what-the-name-normalises) | P2 | deterministic | guarded | none |
+| [a-span-read-from-a-table-that-carries-a-mandatory-filter](#a-span-read-from-a-table-that-carries-a-mandatory-filter) | P3 | deterministic | guarded | none |
+| [a-zero-that-predates-the-thing-it-measures](#a-zero-that-predates-the-thing-it-measures) | P3 | deterministic | guarded | none |
+| [a-subplan-re-executed-by-a-misestimated-row-count](#a-subplan-re-executed-by-a-misestimated-row-count) | P3 | deterministic | guarded | none |
 | [two-silences-one-message](#two-silences-one-message) | P3 | deterministic | guarded | none |
 | [a-marker-shared-by-several-sites-guards-none](#a-marker-shared-by-several-sites-guards-none) | P3 | deterministic | guarded | none |
 | [a-removed-title-becomes-the-word-undefined](#a-removed-title-becomes-the-word-undefined) | P3 | deterministic | guarded | none |
@@ -5580,3 +5584,69 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-14: `guarded`. Signature **vue rouge** — 3 tests sur 6 en échec en remettant l'import par nom (`module = f"views.{view}"`), **verte** (6 passés) après restauration. Le garde couvre aussi le piège du résolveur lui-même : `ast.walk(node)` descend dans `orelse`, donc les 42 branches hériteraient de l'import de la première et l'outil rendrait vert partout — une assertion compte les modules DISTINCTS.
   - 2026-09-14: pourquoi cette classe est P3 et non P4. Un diagnostic qui crie sur deux pages saines apprend à lire ses ❌ en diagonale, et le jour où l'un est vrai il passe avec les autres. Le dépôt a déjà payé cette forme sur le garde `/kpis`, dont les 28 assertions « pas de 500 » étaient toutes satisfaites par des 401 pendant trois semaines.
+
+## a-join-on-a-display-name-loses-what-the-name-normalises
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une figure ou un total ne montre qu'une partie du catalogue, sans erreur ni ligne manquante visible. Mesuré le 2026-09-14 : joindre `track_release_reference.title` à `s4a_song_timeline.song` rendait **6 titres sur 11 et 67 402 écoutes sur 163 088 — 41 %**. Le titre perdu le plus gros, « Ca te dérange pas si je joue avec ton tapis? », vaut **59 926 écoutes**, plus du double du suivant.
+- root_cause: les deux colonnes portent le MÊME titre dans deux orthographes. Le nom du morceau ne figure pas dans le CSV S4A — Spotify ne le met que dans le NOM DU FICHIER — et un système de fichiers ne peut pas porter « ? », qui devient « _ ». Une jointure par égalité stricte sur un nom d'AFFICHAGE échoue donc dès qu'un caractère est normalisé quelque part dans la chaîne, et elle échoue en silence : une jointure qui ne matche pas ne lève pas, elle rend moins de lignes.
+- long_term_fix: le rattachement passe par la table de LIENS (`track_platform_link`, `platform=…`, `status='confirmed'`), dont `platform_ref_id`/`platform_title` portent l'identifiant de la plateforme tel qu'elle l'écrit, et dont `match_key` porte la clé canonique. Un nom d'affichage sert à AFFICHER ; il ne sert jamais de clé. C'est la règle que le dépôt s'était déjà donnée pour les campagnes Meta (migration 116) et pour Shazam — elle manquait ici.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_the_spotify_page_reads_only_the_gold_layer.py }
+- signature: `python3 -m pytest tests/test_the_spotify_page_reads_only_the_gold_layer.py -q`
+- rex_ref: —
+- first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
+- History:
+  - 2026-09-14: `guarded`. Signature **vue rouge** en réintroduisant un `REPLACE(tk.track_name, …) = song` dans la page, **verte** après retrait. L'invariant or `s4a_release_cohort_loses_nothing` double le garde côté DONNÉES : il rougit si un rattachement casse, même sans changement de code.
+  - 2026-09-14: la forme est **silencieuse par nature**, et c'est ce qui la rend chère. Rien ne lève, rien ne manque à l'écran — il y a simplement moins de barres, et personne ne sait combien il devrait y en avoir. Le seul signal fiable est une ÉGALITÉ de totaux entre le chemin joint et le chemin direct, d'où l'invariant plutôt qu'un test de présence.
+
+## a-span-read-from-a-table-that-carries-a-mandatory-filter
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un sélecteur de période propose une fenêtre plus large que ce que la figure d'à côté peut tracer. L'utilisateur choisit dans un intervalle qui existe, et obtient une figure vide sur ses bords. Mesuré le 2026-09-14 : un titre mesuré sur 646 jours se voyait offrir l'étendue de 1 254.
+- root_cause: `src/dashboard/utils/period_filter._data_span` interpole un nom de table dans un `SELECT MIN(...), MAX(...) FROM {table} WHERE 1=1` **sans aucun prédicat métier**. Tant qu'une table à filtre obligatoire figure dans `_ALLOWED_TABLES`, l'étendue rendue viole la règle par construction — ici `s4a_song_timeline`, dont toute lecture doit porter `AND song NOT ILIKE '%1x7xxxxxxx%'` (règle transverse #8) — et ne se restreint pas non plus à l'entité tracée.
+- long_term_fix: **seules des vues or entrent dans l'allowlist.** Elles portent leurs prédicats en elles, donc la question ne se pose plus. Plus `entity_column`/`entity_value` pour que l'étendue soit celle de ce qui est tracé. Ajouter le filtre dans la f-string n'aurait rien gardé : voir History.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_a_period_span_is_the_span_of_what_is_drawn.py }
+- signature: `python3 -m pytest tests/test_a_period_span_is_the_span_of_what_is_drawn.py -q`
+- rex_ref: —
+- first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
+- History:
+  - 2026-09-14: `guarded`. Signature **vue rouge** en remettant `s4a_song_timeline` dans `_ALLOWED_TABLES`, **verte** après retrait.
+  - 2026-09-14: **le garde textuel du dépôt est prouvé AVEUGLE à ce site, et le test le vérifie plutôt que de l'affirmer.** Le SQL recousu par `ast.JoinedStr` vaut littéralement « SELECT MIN( )::date, MAX( )::date FROM  WHERE 1=1 » : le nom de la table n'y apparaît pas, donc aucun détecteur de « lecture de s4a_song_timeline » ne peut le voir. `test_the_textual_guard_really_cannot_see_this_sql` rejoue ce recousu — s'il devient visible un jour, ce test rougit et dit que le garde structurel n'est plus le seul recours.
+  - 2026-09-14: impact live **nul** au moment de la correction (0 ligne « Total » chez ce locataire, et toutes les séries partageaient le même intervalle). Corrigé quand même : une bombe amorcée se désamorce quand on la trouve, pas quand elle explose.
+
+## a-zero-that-predates-the-thing-it-measures
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une courbe dessine des mois de plat à zéro avant que l'objet mesuré n'existe. Mesuré le 2026-09-14 : « Ô Chiotte l'arbitre Tucome Back », sorti le 30/08/2024, portait **20 mois** de `streams = 0` remontant au 01/01/2023. **6 365 lignes** de cette forme dans la table.
+- root_cause: la source exporte la timeline du COMPTE, pas celle du titre : Spotify inscrit 0 pour un morceau qui n'était pas publié. **Le parseur n'invente rien** — vérifié dans `src/transformers/s4a_csv_parser.py`, il écrit exactement ce que le CSV porte. Le zéro est donc réel dans le fichier et FAUX à l'écran : « la chose n'existait pas » n'est pas « la chose a fait zéro ». Parente de `an-unmeasured-platform-is-rendered-as-zero`, mais à l'envers — là-bas l'absence devient un zéro, ici un zéro réel affirme une existence.
+- long_term_fix: la couche or expose `first_streamed` (`MIN(day) FILTER (WHERE streams > 0)`), NULL quand rien n'a jamais été mesuré, et toute série part de là. La distinction vit une fois, en SQL, au lieu d'être re-décidée par chaque figure.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_the_spotify_page_reads_only_the_gold_layer.py }
+- signature: `python3 -m pytest tests/test_the_spotify_page_reads_only_the_gold_layer.py -q`
+- rex_ref: —
+- first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
+- History:
+  - 2026-09-14: `guarded`. Signature **vue rouge** en retirant la borne de départ de la requête de détail, **verte** après remise.
+  - 2026-09-14: `NULL` et non `0` quand un titre n'a jamais rien fait. « Aucune écoute jamais » est un fait ; « zéro ce jour-là » en est un autre. Les confondre aurait recréé la classe dans la vue censée la fermer.
+
+## a-subplan-re-executed-by-a-misestimated-row-count
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une vue SQL passe de quelques dizaines de millisecondes à plusieurs minutes sans qu'aucune donnée n'ait changé, et la page qui la lit rend `canceling statement due to statement timeout`. Mesuré le 2026-09-14 : `v_s4a_release_reach` dépassait **2 minutes** quand la cohorte qu'elle résume tourne en **51 ms**.
+- root_cause: deux causes qui se composent. (1) Le planificateur estime **1 ligne** là où la relation en rend **9 335** — le filtre de jointure (`match_key` + une inégalité de date) lui est opaque —, choisit donc une boucle imbriquée et **réexécute tout le sous-plan une fois par ligne**. (2) Une CTE référencée deux fois, ou un `LATERAL`, offre précisément la prise pour que cette réexécution se produise. Le coût n'est pas dans la donnée : elle tient en 13 794 lignes.
+- long_term_fix: (a) répondre à la question en **une seule passe de fenêtre** (`LAG`) plutôt qu'en auto-jointure — plus de double référence, donc plus de prise ; (b) `WITH … AS MATERIALIZED` sur la CTE de correspondance, pour que le filtre s'applique AVANT la jointure au fait et non après (142 399 lignes produites puis jetées, mesuré par `EXPLAIN ANALYZE`). Résultat : 2 min → **75 ms**, mêmes valeurs.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_the_spotify_page_reads_only_the_gold_layer.py }
+- signature: `python3 -m pytest tests/test_the_spotify_page_reads_only_the_gold_layer.py -q`
+- rex_ref: —
+- first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
+- History:
+  - 2026-09-14: `guarded`. Signature **vue rouge** en ajoutant une seconde référence à la cohorte dans la vue d'horizon, **verte** après retrait.
+  - 2026-09-14: le garde est **structurel et non chronométré**, délibérément. Une assertion de temps est instable — elle rougit sur une machine chargée et verdit sur un cache chaud — alors qu'une double référence est un fait du texte SQL. On garde la CAUSE, pas le symptôme.
+  - 2026-09-14: trouvé par le RENDU, pas par une lecture. La vue avait été vérifiée à la main (`SELECT … LIMIT 5`) et répondait ; c'est la page entière qui a rendu le timeout. Une relation lue seule ne dit rien de son coût dans le plan qui l'englobe.

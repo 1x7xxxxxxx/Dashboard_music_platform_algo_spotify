@@ -59,7 +59,12 @@ REPO = Path(__file__).resolve().parent.parent
 #        rien n'y calcule de quantité.
 #
 # À partir d'ici, il ne peut que descendre.
-_CEILING = 108
+# 2026-09-14 : 108 → 104. La refonte de la page Spotify a retiré quatre
+# lectures brutes (la liste des titres, le MAX(collected_at), la jointure
+# vers `tracks`, l'étendue de période) au profit des vues or 117-120. Un
+# plafond qui reste au-dessus du réel autorise autant de régressions
+# silencieuses qu'il a de marge.
+_CEILING = 104
 
 # Les surfaces qui montrent des chiffres à quelqu'un.
 # ⚠️ LA PORTÉE ÉTAIT L'ANGLE MORT. Elle ne nommait que `pdf_exporter` sous

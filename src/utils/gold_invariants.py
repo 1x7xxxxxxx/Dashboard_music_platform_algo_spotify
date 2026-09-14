@@ -173,6 +173,73 @@ INVARIANTS: tuple[Invariant, ...] = (
             "vaut zéro sur tout le parc, et ne pourra être réconcilié que le jour "
             "où une campagne sera étiquetée.",
     ),
+    # ── Les six vues Spotify de la refonte du 2026-09-14 ────────────────────────
+    Invariant(
+        name="s4a_audience_day_vs_month",
+        left_sql="SELECT artist_id, SUM(streams) FROM v_s4a_audience_daily GROUP BY 1",
+        right_sql="SELECT artist_id, SUM(streams) FROM v_s4a_audience_monthly GROUP BY 1",
+        left_label="v_s4a_audience_daily",
+        right_label="v_s4a_audience_monthly",
+        why="Le grain mois n''est qu''un regroupement du grain jour. L''égalité est "
+            "vraie par construction — et c''est pour ça qu''elle est ici : le jour où "
+            "quelqu''un ajoute un prédicat au mois sans le mettre au jour, les deux "
+            "surfaces qui les lisent annonceront deux nombres.".replace("''", "'"),
+    ),
+    Invariant(
+        name="s4a_span_vs_song_grain",
+        left_sql="SELECT artist_id, SUM(streams_total) FROM v_s4a_song_measured_span "
+                 "GROUP BY 1",
+        right_sql="SELECT artist_id, SUM(streams) FROM v_s4a_song_daily GROUP BY 1",
+        left_label="v_s4a_song_measured_span",
+        right_label="v_s4a_song_daily",
+        why="L'horloge par titre porte aussi le total du titre : il doit être celui "
+            "du grain dont elle dérive. Sans cette égalité, le bandeau de la page "
+            "pourrait classer les titres autrement que la figure d'à côté.",
+    ),
+    Invariant(
+        name="s4a_release_cohort_loses_nothing",
+        left_sql="SELECT artist_id, SUM(streams) FROM v_s4a_release_cohort GROUP BY 1",
+        right_sql="SELECT s.artist_id, SUM(s.streams_total) - COALESCE(MAX(p.pre), 0) "
+                  "FROM v_s4a_song_measured_span s "
+                  "LEFT JOIN (SELECT artist_id, SUM(pre_release_streams) AS pre "
+                  "             FROM v_s4a_release_reach GROUP BY 1) p "
+                  "       ON p.artist_id = s.artist_id "
+                  "WHERE EXISTS (SELECT 1 FROM track_platform_link l "
+                  "               WHERE l.artist_id = s.artist_id AND l.platform = 's4a' "
+                  "                 AND l.status = 'confirmed' AND l.platform_title = s.song) "
+                  "GROUP BY s.artist_id",
+        left_label="v_s4a_release_cohort",
+        right_label="span[titres liés] − pre_release",
+        why="LE plus utile des six. La cohorte ancre sur J+0, donc elle ÉCARTE ce qui "
+            "précède la sortie — 4 écoutes de veille chez le locataire 1, artefact de "
+            "fuseau de publication. Cette égalité dit que rien d'autre ne tombe : "
+            "163 084 tracés + 4 comptés = 163 088. Le jour où un rattachement casse, "
+            "elle rougit avant l'écran — et c'est exactement le défaut qui perdait "
+            "59 % des écoutes avant le 2026-09-14.",
+    ),
+    Invariant(
+        name="s4a_reach_vs_cohort_days",
+        left_sql="SELECT artist_id, SUM(days_measured) FROM v_s4a_release_reach GROUP BY 1",
+        right_sql="SELECT artist_id, COUNT(*) FROM v_s4a_release_cohort GROUP BY 1",
+        left_label="v_s4a_release_reach[days_measured]",
+        right_label="v_s4a_release_cohort",
+        why="L'horizon de comparaison compte les jours de la cohorte qu'il résume. "
+            "Une divergence signifierait que la figure compare sur une longueur que "
+            "la donnée ne porte pas — la comparaison sans objet de Few p.142 §7.1.5.",
+    ),
+    Invariant(
+        name="spotify_followers_csv_branch",
+        left_sql="SELECT artist_id, COUNT(*) FROM v_spotify_followers_daily "
+                 "WHERE source = 's4a_csv' GROUP BY 1",
+        right_sql="SELECT artist_id, COUNT(*) FROM v_s4a_audience_daily "
+                  "WHERE followers_level IS NOT NULL AND followers_level > 0 GROUP BY 1",
+        left_label="v_spotify_followers_daily[s4a_csv]",
+        right_label="v_s4a_audience_daily",
+        why="La branche CSV de la vue des abonnés EST la colonne followers du grain "
+            "jour. Les deux prédicats sont écrits deux fois ; cet invariant garde "
+            "qu'ils restent le même. La branche API n'a pas de sœur à confronter — "
+            "c'est la seule source de son propre chiffre.",
+    ),
     Invariant(
         name="apple_total_vs_function",
         left_sql="SELECT artist_id, SUM(total) FROM v_platform_totals "
