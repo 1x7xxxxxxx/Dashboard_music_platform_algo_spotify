@@ -3,7 +3,8 @@
 EN = {
     "sacem.title": "🎼 SACEM royalties",
     "sacem.caption": "SACEM account statement: gross royalties (REPARTITION), social "
-                     "charges and net. Gross royalties also feed the ROI Breakeven.",
+                     "charges, the net actually paid and the bank transfers to "
+                     "date. Gross royalties also feed the ROI Breakeven.",
     "sacem.no_data": "No SACEM data. Import your account statement (.xlsx) from "
                      "**📂 Add my Spotify for Artists & Apple figures**.",
     "sacem.howto_header": "📥 How to get your SACEM statement",
@@ -15,7 +16,16 @@ EN = {
                         "(the SACEM type is auto-detected).",
     "sacem.kpi_gross": "💰 Gross royalties",
     "sacem.kpi_charges": "🧾 Social charges",
-    "sacem.kpi_net": "✅ Estimated net",
+    "sacem.kpi_net": "✅ Net paid",
+    "sacem.gross_net_caption": "Gross {gross:,.2f} € − deductions {deductions:,.2f} € = "
+                               "**net {net:,.2f} €**. Deductions are the social charges "
+                               "(CSG, CRDS, URSSAF, training levy) and the flat-rate VAT "
+                               "withheld on each distribution. Membership fees are not: "
+                               "they are not deducted from any royalty.",
+    "sacem.payout_caption": "🏦 Already transferred to your account: **{payout:,.2f} €**"
+                            "{pending}.",
+    "sacem.payout_pending": " — {p:,.2f} € distributed and awaiting the next quarterly "
+                            "transfer",
     "sacem.chart_header": "📈 Gross royalties over time",
     "sacem.chart_title": "REPARTITION per quarter",
     "sacem.cumul": "Cumulative (€)",

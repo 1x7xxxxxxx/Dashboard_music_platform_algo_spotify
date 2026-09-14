@@ -25,11 +25,76 @@ _TARGETING_DIMS = {
     "Tranche d'âge": "age_band",
 }
 
+def _render_scope_notice(db, artist_id) -> None:
+    """Ce que CE compte permet de répondre, et ce qu'il ne permet pas. Mesuré.
+
+    Arbitrage R107 §3, tranché le 2026-09-14. La question posée était « faut-il faire
+    apparaître les 24 % de dépense que Meta n'attribue à aucune dimension ». La mesure
+    a déplacé la question : la couverture des breakdowns est DÉJÀ recalculée et
+    expliquée à chaque rendu (`meta_breakdowns._render_coverage`), alors qu'un trou
+    plus grand n'était dit nulle part.
+
+    Mesuré sur l'artiste 1 le 2026-09-14 : **zéro** campagne rattachée à un titre,
+    quand six plateformes sur sept portent leurs onze titres liés. La section ne peut
+    donc pas répondre à « combien ce titre m'a coûté » — et rien ne le disait. Un
+    lecteur qui voit des campagnes nommées comme ses morceaux suppose l'inverse.
+
+    Le compte vient de `v_meta_track_attribution` (migration 116) : le prédicat qui
+    décide qu'un lien compte est une règle métier, pas une requête d'affichage.
+
+    Le constat est CALCULÉ par locataire, jamais écrit en dur : un artiste dont les
+    campagnes sont rattachées doit lire l'autre phrase, pas celle-ci. C'est la même
+    règle que la couverture des breakdowns — une constante deviendrait fausse à la
+    première campagne étiquetée.
+    """
+    row = db.fetch_query(
+        "SELECT COALESCE(SUM(spend), 0), MIN(first_day), MAX(last_day) "
+        "FROM v_meta_spend_totals WHERE artist_id = %s", (artist_id,))
+    if not row or not row[0] or not row[0][2]:
+        return                     # aucune dépense connue : rien à cadrer
+    spend, first_day, last_day = float(row[0][0] or 0), row[0][1], row[0][2]
+
+    # `v_meta_track_attribution` (migration 116), pas deux COUNT(*) ici. La première
+    # version lisait `track_platform_link` en brut et le cliquet du bronze l'a
+    # refusée dans l'heure — à raison : « rattachable » est une définition métier
+    # (quel statut de lien compte, comment on rapproche une campagne d'un lien), et
+    # une définition écrite dans une page diverge de celle écrite dans la suivante.
+    attrib = db.fetch_query(
+        "SELECT campaigns, linked_campaigns FROM v_meta_track_attribution "
+        "WHERE artist_id = %s", (artist_id,))
+    campaigns, linked = (attrib[0][0], attrib[0][1]) if attrib else (0, 0)
+
+    # L'espace fine sur le SEUL nombre. Appliquée à la phrase entière, elle mangeait
+    # aussi la virgule de « campagne(s), du … » — un remplacement de séparateur qui
+    # déborde sur la ponctuation est la version typographique du garde textuel.
+    period = t("meta_ads_overview.scope_period",
+               "**{spend} €** sur **{campaigns}** campagne(s), du {start} au {end}."
+               ).format(spend=f"{spend:,.0f}".replace(",", "\u202f"),
+                        campaigns=campaigns,
+                        start=first_day.strftime("%d/%m/%Y") if first_day else "?",
+                        end=last_day.strftime("%d/%m/%Y"))
+
+    if linked:
+        answer = t("meta_ads_overview.scope_linked",
+                   " **{linked}** campagne(s) sont rattachées à un titre : le coût par "
+                   "titre est lisible pour celles-là, et pour elles seules.")\
+            .format(linked=linked)
+    else:
+        answer = t("meta_ads_overview.scope_unlinked",
+                   " Aucune campagne n'est rattachée à un titre — cette section répond "
+                   "donc à « combien ai-je dépensé, et qui cela a-t-il touché », pas à "
+                   "« combien ce titre m'a coûté ». Un nom de campagne qui ressemble à "
+                   "un morceau n'est pas un rattachement.")
+
+    st.caption(f"ⓘ {period}{answer}")
+
+
 def show():
     st.title(t("meta_ads_overview.title", "📱 Méta Ads - Analyse Stratégique"))
 
     # --- 1. CONNEXION & FILTRES ---
     with view_session() as (db, artist_id):
+        _render_scope_notice(db, artist_id)
         _show_meta_ads(db, artist_id)
         # Les comptes d'agence se déclarent ICI depuis le 2026-09-05, plus dans
         # Credentials : cette page répond à « que veux-tu suivre », l'autre à

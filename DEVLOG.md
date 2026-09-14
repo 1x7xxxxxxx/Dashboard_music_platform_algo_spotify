@@ -5,6 +5,100 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-14 — Le net affiché valait 21,49 € quand la banque avait viré 36,49 €
+
+### Ce qui a changé
+
+- **R103 close.** `tools/artist_first_look.py` résout chaque page par la table de
+  routage d'`app.py`, parsée avec `ast` (`_render_page`, **42 pages**), et non plus
+  par `from src.dashboard.views.<nom> import show`. Les deux ❌ qu'il criait depuis
+  le 2026-09-12 — `process_guide` et `upload_csv` — étaient des pages saines que
+  `app.py` route ailleurs depuis la fusion du 2026-09-04. Une page qu'aucune branche
+  ne route est désormais « ⛔ NON ROUTÉE », distincte d'un plantage.
+- **R107 close** : ses trois décisions produit sont tranchées et écrites.
+- Migrations **115** (`v_artist_monthly_revenue_net`) et **116**
+  (`v_meta_track_attribution`), deux invariants or, deux classes d'erreur, deux
+  fichiers de garde.
+
+### Le défaut trouvé en descendant une définition
+
+L'arbitrage R107 §2 demandait de choisir entre le brut et le net. La réponse — les
+deux — a fait descendre le net dans la couche or, et c'est en l'écrivant qu'on a vu
+qu'il était **faux à l'écran**. La page SACEM calculait en Python :
+
+    net = gross + charges + tva     →  43,06 − 6,90 − 14,67 = 21,49 €
+
+L'artiste avait reçu **36,49 €**, la somme de ses quatre virements Caisse d'Épargne.
+**41 % d'écart**, sur le seul chiffre qu'il peut vérifier lui-même sur son relevé.
+
+Les 9 lignes `tva` du relevé ne sont pas une population homogène : 8 `FORFAIT TVA`
+**positifs** (+0,33 € en tout), reversés avec chaque répartition, et une TVA de frais
+d'adhésion de 2023 à **−15,00 €**, qui appartient à un bloc se soldant à zéro
+(+100,00 versés, −75,00 de frais, −10,00 de part sociale, −15,00 de TVA) et ne
+concerne aucune royaltie. Le calcul retranchait d'un revenu un frais payé un an avant
+la première répartition. Classe `a-deduction-subtracted-from-the-wrong-base` : **le
+type d'une ligne dit ce qu'elle EST, jamais de quoi elle se retranche.**
+
+La règle retenue est structurelle, pas textuelle — **une retenue ne compte que dans un
+mois qui porte une répartition**. Distinguer par le libellé (`FORFAIT TVA` contre
+`Tva /frais d'admission`) aurait marché ce jour-là et cassé à la première
+reformulation de la SACEM ; le dépôt a déjà pris quatre gardes textuels verts sur leur
+propre défaut. La règle du mois tient à une raison de fond, lisible dans le relevé :
+les charges sont un POURCENTAGE de la répartition (« CSG DEDUCTIBLE 6.80% (BASE
+98.25%) »), donc sans base il n'y a rien à retrancher.
+
+Le net ainsi défini vaut **36,49 €** — exactement la somme des virements, au centime.
+C'est cette réconciliation qui a fait choisir cette règle plutôt qu'une autre, et elle
+n'est **pas** devenue un invariant : elle est fausse entre deux trimestres, une
+répartition de janvier attendant son virement d'avril. Un contrôle rouge en régime
+normal est `a-check-that-can-never-pass`.
+
+`v_artist_monthly_revenue` reste le BRUT, inchangée : ses **huit** consommateurs (ROI
+breakeven, prévision, PDF, imusician, trigger_algo, invariants) veulent le brut, et en
+changer la définition aurait déplacé huit chiffres pour en corriger un.
+
+### Meta : la question posée n'était pas la bonne
+
+R107 §3 demandait s'il fallait faire apparaître les 24 % de dépense que Meta
+n'attribue à aucune dimension. La mesure a répondu autrement : cette couverture est
+**déjà** recalculée et expliquée à chaque rendu (`meta_breakdowns._render_coverage`),
+sans constante en dur. Un trou plus grand, lui, n'était dit nulle part — **zéro
+campagne rattachée à un titre**, quand six plateformes sur sept portent leurs onze
+titres liés. La page Meta porte maintenant un encart mesuré par locataire : 3 088 €,
+21 campagnes, du 25/08/2023 au 30/09/2024, **aucune rattachée** — donc la section
+répond à « combien ai-je dépensé et qui cela a-t-il touché », pas à « combien ce titre
+m'a coûté ». Un nom de campagne qui ressemble à un morceau n'est pas un rattachement.
+
+### Ce que le dépôt m'a repris, deux fois
+
+**Le cliquet du bronze, dans l'heure.** La première version de l'encart comptait les
+liens en lisant `track_platform_link` directement : 109 couples contre un plafond de
+108. Il avait raison sur le fond — « rattachable » EST une définition métier (quel
+statut compte, comment on rapproche une campagne d'un lien). D'où la migration 116.
+
+**Et la migration 116 a produit l'effet de R108 à l'envers** : en donnant une vue or à
+`track_platform_link`, elle a fait entrer dans le compte **deux lectures qui
+existaient depuis des semaines** (`period_side_metrics.py`, `setup_completion.py`).
+Ce qu'aucune vue or ne couvre n'est jamais compté. Les deux sont une jointure de
+dimension et un `EXISTS` — déclarées avec leur motif. R108 reste ouverte : une
+instance est tranchée, pas la question.
+
+**Une mutation crue concluante à tort.** Le premier `CREATE OR REPLACE VIEW` mutant
+omettait les alias de colonnes, que Postgres exige identiques. Avec `stderr` vers
+`/dev/null`, les 5 tests restés verts ressemblaient exactement à un garde aveugle. Une
+mutation dont on ne lit pas le code de retour ne prouve rien.
+
+### Tests
+
+`python3 -m pytest tests/ -q` → **5 588 passés, 110 ignorés, 0 échec** (4 min 24),
+Postgres 5433 en service. `audit_runner.py --deterministic` → **audit clean** (les 3
+touches intermédiaires étaient deux documents générés périmés par mes deux classes
+neuves ; `make error-families` + `make gold-coverage`). Mutations jouées sur les deux
+gardes neufs : 3 rouges sur 6 puis 6 verts pour la route, 3 rouges sur 5 puis 5 verts
+pour le netting. `ruff check` propre.
+
+---
+
 ## 2026-09-13 (soir) — Une coupure de courant, et un garde repris parce qu'il lisait du texte
 
 ### Ce qui a changé

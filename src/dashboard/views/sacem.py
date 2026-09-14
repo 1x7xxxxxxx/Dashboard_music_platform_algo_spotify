@@ -5,8 +5,14 @@ Uses: view_session, i18n
 Persists in: — (reads sacem_statement, written by the SACEM xlsx import)
 
 Free-tier. Shows the SACEM account statement: gross royalties (REPARTITION lines),
-social charges (CSG/CRDS/URSSAF), TVA and the net, plus a chart of royalty income
-over time. The gross royalties also feed the ROI Breakeven (kpi_helpers.get_roi_data).
+social charges (CSG/CRDS/URSSAF), the net actually paid and the bank transfers to
+date, plus a chart of royalty income over time. The gross royalties also feed the
+ROI Breakeven (kpi_helpers.get_roi_data).
+
+Neither total is computed here: gross comes from `v_sacem_monthly` (migration 111),
+net from `v_artist_monthly_revenue_net` (migration 115). The netting rule — which
+line kinds are subtracted, and from what base — is a business rule, and it lived in
+this file until 2026-09-14 while being wrong by 41 %.
 """
 import pandas as pd
 import streamlit as st
@@ -43,11 +49,31 @@ def _load_totals(db, artist_id) -> dict[str, float]:
     return {line_type: float(amount or 0) for line_type, amount in (rows or [])}
 
 
+def _load_net(db, artist_id) -> tuple[float, float]:
+    """`(retenues, net)` — `v_artist_monthly_revenue_net` (migration 115).
+
+    Le net NE se calcule pas ici. Il valait `gross + charges + tva` jusqu'au
+    2026-09-14, et cette ligne — une règle métier écrite dans une surface — affichait
+    **21,49 €** à un artiste qui avait reçu **36,49 €** sur son compte : elle
+    retranchait des royalties la TVA d'un frais d'adhésion payé en 2023, un an avant
+    la première répartition. La règle vit en SQL, avec sa justification.
+    """
+    row = db.fetch_query(
+        "SELECT COALESCE(SUM(deductions_eur), 0), COALESCE(SUM(net_eur), 0) "
+        "FROM v_artist_monthly_revenue_net "
+        "WHERE artist_id = %s AND source = 'sacem'",
+        (artist_id,))
+    if not row:
+        return 0.0, 0.0
+    return float(row[0][0] or 0), float(row[0][1] or 0)
+
+
 def show():
     st.title(t("sacem.title", "🎼 Royalties SACEM"))
     st.caption(t("sacem.caption",
                  "Relevé de compte SACEM : royalties brutes (REPARTITION), charges "
-                 "sociales et net. Les royalties brutes alimentent le ROI Breakheaven."))
+                 "sociales, net réellement versé et virements reçus à ce jour. "
+                 "Les royalties brutes alimentent le ROI Breakheaven."))
 
     with st.expander(t("sacem.howto_header", "📥 Comment obtenir votre relevé SACEM")):
         st.markdown(t("sacem.howto_body",
@@ -72,13 +98,39 @@ def show():
         totals = _load_totals(db, artist_id)
         gross = totals.get('repartition', 0.0)
         charges = totals.get('charge', 0.0)     # ≤ 0
-        tva = totals.get('tva', 0.0)
-        net = gross + charges + tva
+        deductions, net = _load_net(db, artist_id)
 
         k1, k2, k3 = st.columns(3)
         k1.metric(t("sacem.kpi_gross", "💰 Royalties brutes"), f"{gross:,.2f} €")
         k2.metric(t("sacem.kpi_charges", "🧾 Charges sociales"), f"{charges:,.2f} €")
-        k3.metric(t("sacem.kpi_net", "✅ Net estimé"), f"{net:,.2f} €")
+        k3.metric(t("sacem.kpi_net", "✅ Net versé"), f"{net:,.2f} €")
+
+        # Les DEUX chiffres, et ce qui les sépare (R107 §2, tranché le 2026-09-14).
+        # Un artiste qui ne lit que le brut découvre l'écart à son relevé bancaire ;
+        # qui ne lit que le net ne peut plus se comparer au brut distributeur.
+        st.caption(t("sacem.gross_net_caption",
+                     "Brut {gross:,.2f} € − retenues {deductions:,.2f} € = "
+                     "**net {net:,.2f} €**. Les retenues sont les charges sociales "
+                     "(CSG, CRDS, URSSAF, formation) et la TVA forfaitaire prélevées "
+                     "sur chaque répartition. Les frais d'adhésion, eux, n'en sont "
+                     "pas : ils ne se retranchent d'aucune royaltie.")
+                   .format(gross=gross, deductions=abs(deductions), net=net))
+
+        payout = -totals.get('payout', 0.0)
+        if payout:
+            # Le seul chiffre qu'un artiste peut vérifier sur son relevé bancaire.
+            # L'écart avec le net est la part distribuée pas encore virée — un fait
+            # du calendrier SACEM, jamais une erreur, donc il se DIT.
+            pending = net - payout
+            st.caption(t("sacem.payout_caption",
+                         "🏦 Déjà viré sur votre compte : **{payout:,.2f} €**"
+                         "{pending}.")
+                       .format(payout=payout,
+                               pending=(
+                                   t("sacem.payout_pending",
+                                     " — reste {p:,.2f} € distribués, en attente du "
+                                     "prochain virement trimestriel").format(p=pending)
+                                   if round(pending, 2) > 0 else "")))
 
         # ── Royalty income over time (REPARTITION) ──
         rep = df[df.line_type == 'repartition'].sort_values('line_date')

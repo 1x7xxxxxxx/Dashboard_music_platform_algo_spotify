@@ -61,6 +61,96 @@ from src.utils.env_files import load_project_env  # noqa: E402
 
 load_project_env()
 
+# The routing table is the SOURCE OF TRUTH — never the page name
+# ---------------------------------------------------------------
+# Measured 2026-09-12 with `make artist-firstlook-prod ARTIST=1`: the report claimed
+# 2 pages out of 6 in ERROR — `process_guide` (ModuleNotFoundError) and `upload_csv`
+# (ImportError: cannot import name 'show'). **Both pages work.** `app.py` routes them
+# elsewhere since the 2026-09-04 merge: `upload_csv` → `views.credentials`, and
+# `process_guide` → `views.onboarding_health`. This tool was importing the module
+# that CARRIES THE PAGE'S NAME, at a time when a page name and the module serving it
+# had stopped being the same thing.
+#
+# A diagnostic that cries on two healthy pages teaches its reader to skim its ❌ —
+# and the day one is true, it passes with the others. This repo already paid that
+# shape: a `/kpis` guard whose 28 "no 500" assertions were all satisfied by 401s.
+#
+# Class: `a-diagnostic-that-reads-a-name-not-a-route`. The durable fix is not to
+# update two lines of a hand-kept list — it would go stale at the next view merge —
+# but to READ the routing dispatch of `app.py`. Parsed with `ast`, never by regex:
+# a comment that mentions `from views.x import show` is not a route.
+def _route_map() -> dict[str, str]:
+    """`{page key: dotted module}` — every branch of `_render_page` in `app.py`."""
+    import ast
+    import pathlib
+
+    src = pathlib.Path(ROOT) / "src" / "dashboard" / "app.py"
+    tree = ast.parse(src.read_text(encoding="utf-8"))
+
+    dispatch = next(
+        (n for n in ast.walk(tree)
+         if isinstance(n, ast.FunctionDef) and n.name == "_render_page"), None)
+    if dispatch is None:
+        raise RuntimeError(
+            f"{src}: aucune fonction `_render_page` — la table de routage a été "
+            f"renommée ou déplacée. Cet outil ne peut plus résoudre les pages.")
+
+    routes: dict[str, str] = {}
+    for node in ast.walk(dispatch):
+        if not isinstance(node, ast.If):
+            continue
+        keys = _compared_keys(node.test)
+        if not keys:
+            continue
+        # `node.body` only — never `ast.walk(node)`, whose `orelse` carries the whole
+        # elif chain: every branch would inherit the first branch's import.
+        modules = [
+            sub.module
+            for stmt in node.body
+            for sub in ast.walk(stmt)
+            if isinstance(sub, ast.ImportFrom) and sub.module
+            and any(a.name == "show" for a in sub.names)
+        ]
+        for key in keys:
+            if modules:
+                routes[key] = modules[0]
+    return routes
+
+
+def _compared_keys(test: "object") -> list[str]:
+    """The page keys a branch test matches: `page == "x"`, `page in ("x", "y")`."""
+    import ast
+
+    if not isinstance(test, ast.Compare) or len(test.ops) != 1:
+        return []
+    left = test.left
+    if not (isinstance(left, ast.Name) and left.id == "page"):
+        return []
+    right = test.comparators[0]
+    if isinstance(test.ops[0], ast.Eq) and isinstance(right, ast.Constant):
+        return [right.value] if isinstance(right.value, str) else []
+    if isinstance(test.ops[0], ast.In) and isinstance(right, (ast.Tuple, ast.List, ast.Set)):
+        return [e.value for e in right.elts
+                if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+    return []
+
+
+def _module_of(view: str) -> str:
+    """Dotted import path serving this page, resolved through `app.py`'s dispatch.
+
+    `app.py` runs with `src/dashboard` on the path, so its imports read `views.x`;
+    this tool imports from the repo root, so they become `src.dashboard.views.x`.
+    """
+    routes = _route_map()
+    module = routes.get(view)
+    if module is None:
+        raise KeyError(
+            f"la page « {view} » n'est routée par aucune branche de `_render_page` "
+            f"dans `app.py` — elle est INATTEIGNABLE pour un artiste, ou ce nom de "
+            f"page n'existe plus. {len(routes)} pages routées.")
+    return module if module.startswith("src.") else f"src.dashboard.{module}"
+
+
 # The journey, in the order an artist meets it. Kept explicit rather than derived
 # from _NAV_SECTIONS: the point is to walk what a NEW artist walks, which is a
 # deliberate subset, not every page that exists.
@@ -98,7 +188,7 @@ st.session_state["email"]     = "firstlook@test"
 st.session_state["user_id"]   = {user_id}
 st.session_state["artist_id"] = {artist_id}
 st.session_state["role"]      = "artist"
-from src.dashboard.views.{view} import show
+from {module} import show
 show()
 """
 
@@ -157,7 +247,7 @@ def _texts(items) -> list[str]:
     return out
 
 
-def _offers_a_download(view: str) -> bool:
+def _offers_a_download(module: str) -> bool:
     """Does this view hand the artist a file? Read from the source, not the render.
 
     `AppTest` exposes no `download_button` accessor, so a page whose only action is
@@ -169,8 +259,13 @@ def _offers_a_download(view: str) -> bool:
     # relative walk lands on `/` and every page reads as offering no download —
     # `process_guide` was flagged a dead end for exactly that reason. Same defect as
     # the import path above; fixing one and not the other is how a tool half-works.
-    root = pathlib.Path(ROOT) / "src" / "dashboard" / "views"
-    for candidate in (root / f"{view}.py", root / view / "__init__.py"):
+    #
+    # Takes the ROUTED module, not the page name: reading `views/upload_csv.py` for a
+    # page that `app.py` serves from `views/credentials.py` describes a file nobody
+    # renders — the same name-vs-route confusion, one layer down.
+    rel = pathlib.Path(*module.split("."))
+    for candidate in (pathlib.Path(ROOT) / f"{rel}.py",
+                      pathlib.Path(ROOT) / rel / "__init__.py"):
         if candidate.exists():
             body = candidate.read_text(encoding="utf-8")
             return "download_button" in body or "link_button" in body
@@ -214,8 +309,15 @@ def look(view: str, artist_id: int, user_id: int, username: str) -> dict:
     """Render one page as this tenant and describe what is on it."""
     from streamlit.testing.v1 import AppTest
 
-    at = AppTest.from_string(_SCRIPT.format(root=os.getcwd(), view=view, artist_id=artist_id,
-                       user_id=user_id, username=username))
+    try:
+        module = _module_of(view)
+    except (KeyError, RuntimeError) as e:
+        # Unroutable is a finding about the PRODUCT (a page an artist cannot reach),
+        # and it must not read like a crash of the page itself.
+        return {"view": view, "unroutable": str(e)[:300]}
+
+    at = AppTest.from_string(_SCRIPT.format(root=os.getcwd(), module=module,
+                       artist_id=artist_id, user_id=user_id, username=username))
     try:
         at.run(timeout=180)
     except Exception as e:  # noqa: BLE001 — a crash is a finding, not a stop
@@ -229,6 +331,7 @@ def look(view: str, artist_id: int, user_id: int, username: str) -> dict:
              "checkbox", "text_area", "number_input"))
     return {
         "view": view,
+        "module": module,
         "exception": exc,
         "titles": _texts(at.title) + _texts(at.subheader),
         "buttons": buttons,
@@ -242,7 +345,7 @@ def look(view: str, artist_id: int, user_id: int, username: str) -> dict:
         # A verdict of "dead end" is only honest when every accessor was READABLE.
         # With one unreadable, the right answer is "unknown" — see `_has_any`.
         "dead_end": (not buttons and not _interactive
-                     and not _offers_a_download(view) and not _unreadable),
+                     and not _offers_a_download(module) and not _unreadable),
         "unreadable": _unreadable,
     }
 
@@ -299,9 +402,18 @@ def main() -> int:
             results.append(r)
             if args.json:
                 continue
-            head = "❌" if (r.get("crash") or r.get("exception")) else (
-                "🚧" if r.get("dead_end") else "✅")
+            head = "⛔" if r.get("unroutable") else (
+                "❌" if (r.get("crash") or r.get("exception")) else (
+                    "🚧" if r.get("dead_end") else "✅"))
             print(f"{head} {view:20} {why}")
+            if r.get("unroutable"):
+                print(f"     NON ROUTÉE : {r['unroutable']}")
+            served_by = (r.get("module") or "").rsplit(".", 1)[-1]
+            if served_by and served_by != view:
+                # Say it out loud: a page served by another module is a normal
+                # product decision here (merged views keep their route), and a
+                # silent redirection is what made the old report unreadable.
+                print(f"     servie par │ {r['module']}")
             if r.get("crash"):
                 print(f"     PLANTE : {r['crash']}")
             for e in r.get("exception", []):
@@ -333,14 +445,18 @@ def main() -> int:
     if args.json:
         print(json.dumps(results, ensure_ascii=False, indent=2))
 
+    unroutable = [r["view"] for r in results if r.get("unroutable")]
     broken = [r["view"] for r in results if r.get("crash") or r.get("exception")]
     dead = [r["view"] for r in results if r.get("dead_end")]
-    print(f"\n{len(results)} pages · {len(broken)} en erreur · {len(dead)} cul-de-sac")
+    print(f"\n{len(results)} pages · {len(unroutable)} non routée(s) · "
+          f"{len(broken)} en erreur · {len(dead)} cul-de-sac")
+    if unroutable:
+        print(f"  ⛔ {unroutable}")
     if broken:
         print(f"  ❌ {broken}")
     if dead:
         print(f"  🚧 {dead}")
-    return 1 if broken else 0
+    return 1 if (broken or unroutable) else 0
 
 
 if __name__ == "__main__":
