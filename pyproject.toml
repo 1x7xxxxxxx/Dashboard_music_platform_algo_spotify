@@ -25,10 +25,10 @@ dependencies = [
     # API clients
     "facebook-business==18.0.5",
     "spotipy==2.26.0",
-    "google-api-python-client==2.199.0",
+    "google-api-python-client==2.200.0",
 
     # Dashboard (Streamlit + plotly + PDF rendering)
-    "streamlit==1.62.0",
+    "streamlit==1.63.0",
     "plotly==5.24.1",
     "watchdog==3.0.0",
     "weasyprint>=62.0",
@@ -62,7 +62,7 @@ dependencies = [
     "qrcode[pil]>=7.4.2",
 
     # Database driver
-    "psycopg2-binary==2.9.12",
+    "psycopg2-binary==2.9.13",
 
     # Airflow. The CORE is pinned to the version production runs, and that is not
     # cosmetic: the providers below carry no version, so the resolver is free to
@@ -98,7 +98,7 @@ dev = [
     # (`active_sessions`), il ne peut donc pas se courir après lui-même.
     "pytest-xdist>=3.5.0",
     "httpx>=0.27.0",
-    "ruff==0.16.5",
+    "ruff==0.16.7",
     # Pre-commit framework + secret scanner (.pre-commit-config.yaml)
     "pre-commit>=4.6.0",
     "detect-secrets>=1.5.0",
