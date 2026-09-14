@@ -609,15 +609,20 @@ Le second tableau liste les **tables brutes encore lues hors des portes**, alors
 
 ### Les tables de DIMENSION
 
-**3 tables** ne portent aucune quantité additive : que des identifiants, des libellés, des dates ou un score par ligne. Une lecture de l'une d'elles ne peut pas être une règle métier recopiée — il n'y a rien à sommer — donc elle n'a jamais besoin d'être déclarée site par site.
+**8 tables** ne portent aucune quantité additive : que des identifiants, des libellés, des dates ou un score par ligne. Une lecture de l'une d'elles ne peut pas être une règle métier recopiée — il n'y a rien à sommer — donc elle n'a jamais besoin d'être déclarée site par site.
 
 Le critère se vérifie contre le schéma réel : `tests/test_a_dimension_table_carries_no_quantity.py` fait rougir la CI si l'une d'elles gagne une colonne additive. C'est une assertion, pas une liste de confiance. R108, tranché le 2026-09-14 — le registre a remplacé **7 déclarations de site** qui se multipliaient à chaque vue or neuve.
 
 | table | pourquoi elle ne porte aucune quantité |
 |---|---|
+| `artist_subscriptions` | qui est abonné à quel plan. Ses trois entiers sont des identifiants — `id`, `artist_id`, `plan_id`. Le PRIX vit dans la table des plans, pas ici. |
+| `campaign_track_mapping` | le rapprochement campagne ↔ titre, exactement la forme de `track_platform_link` : des identifiants et un `confidence` par ligne. |
+| `hypeddit_campaigns` | le CATALOGUE des campagnes Hypeddit — un nom, un identifiant. Les visites et les clics vivent dans `hypeddit_daily_stats`, couverte par v_hypeddit_daily. |
 | `saas_artists` | le REGISTRE des locataires. Ses seuls entiers sont un identifiant et deux paramètres de facturation par compte — rien à sommer entre deux lignes. |
 | `track_platform_link` | la table de LIENS entre un titre et son identité sur une plateforme. `confidence` est un score par ligne, pas une quantité qui s'additionne. |
 | `track_release_reference` | la table des SORTIES : une clé canonique, un titre, une date. Aucun nombre mesuré. |
+| `tracks` | le CATALOGUE Spotify. `popularity` est un score par ligne ; `duration_ms` est une propriété INTRINSÈQUE d'un titre — sommer des durées répond à une question que ce produit ne pose jamais, et rien ne les somme aujourd'hui (vérifié : aucun SUM/AVG sur ces deux colonnes dans src/). Chaque lecture de cette table cherche un nom, un track_id ou une date de sortie. |
+| `youtube_videos` | le CATALOGUE des vidéos — un titre, un identifiant, une date. Les vues et les likes vivent dans `youtube_video_stats`, qui n'est PAS une dimension. |
 
 ### Les agrégats DÉCLARÉS
 
@@ -655,4 +660,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=19 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=8172adf342a468c79febc53be792934f7887048140bf319389042f4d81318a94 -->
+<!-- gold-coverage: sha256=db8b9f33630a755114590ac9c4c8de631276cabd5e6d1c77c7e46e653df320b7 -->
