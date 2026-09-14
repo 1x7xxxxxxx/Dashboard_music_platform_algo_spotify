@@ -121,6 +121,26 @@ _RATCHET_FACTS = frozenset({
 # répond « qu'y a-t-il », pas « combien ». Une somme d'argent, d'écoutes, de vues ou
 # de clics répond « combien » et appartient à la couche or, sans exception.
 _DECLARED_RAW_AGGREGATES: dict[tuple[str, str], str] = {
+    # ── Les deux jointures de DIMENSION sur `track_platform_link` ──────────────
+    #
+    # Rendues visibles le 2026-09-14 par la migration 116 : en donnant une vue or à
+    # `track_platform_link`, elle a fait entrer dans le compte deux lectures qui
+    # existaient depuis des semaines. C'est le phénomène de R108 — ce qu'aucune vue
+    # or ne couvre n'est jamais compté — et sa première instance résolue : le
+    # compteur ne montre pas du code neuf, il montre un angle mort qui se ferme.
+    #
+    # Aucune des deux n'agrège la table de LIENS. Elles s'y joignent pour résoudre
+    # « quel titre », puis somment une vue or. C'est la frontière que R108 pose :
+    # un rapprochement de dimension n'est pas une règle métier recopiée.
+    ("src/dashboard/utils/period_side_metrics.py", "track_platform_link"):
+        "jointure de DIMENSION : elle résout « quel titre Apple / quelle campagne "
+        "Hypeddit correspond à la dernière sortie », sur un lien `confirmed`. Les "
+        "SUM portent sur `v_hypeddit_daily`, qui EST la couche or ; la table de "
+        "liens n'apporte que le rapprochement, et aucun rapprochement flou.",
+    ("src/dashboard/utils/setup_completion.py", "track_platform_link"):
+        "`EXISTS (SELECT 1 …)` : « cet artiste a-t-il déjà rattaché un titre ? ». "
+        "Une étape de mise en route rend un BOOLÉEN — la requête s'arrête à la "
+        "première ligne et ne compte rien.",
     ("src/dashboard/views/meta_mapping/_campaigns.py", "meta_campaigns"):
         "catalogue de campagnes à associer : MAX(start_time), string_agg de noms, "
         "bool_or d'un marqueur de rejet. Aucun montant, aucune performance.",

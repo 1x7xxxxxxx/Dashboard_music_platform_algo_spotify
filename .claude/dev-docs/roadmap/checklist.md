@@ -25,16 +25,15 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R107 | Trois décisions produit à prendre avant le prochain lot — détail plus bas | P3 | les trois blocs de R107 portent une ligne « tranché le … » |
 | R108 | L'exemption de la PORTE masque ses propres lectures de bronze — mesuré en la découpant | P4 | le compte du cliquet du bronze ne change pas quand on retire `period_side_metrics.py` de `_NOT_A_SURFACE` |
-| R103 | `artist_first_look` importe `views.<nom>` au lieu de suivre la table de routage d'`app.py` — il rapporte 2 pages en ERREUR que le produit sert correctement | P3 | `make artist-firstlook-prod PROD_SSH=… ARTIST=1` ne rapporte plus `process_guide` ni `upload_csv` en ❌ |
 
-**Trois tâches ouvertes**, R103, R107 et R108 — cette dernière ouverte le 2026-09-13 par un
-découpage qui a révélé un angle mort du cliquet du bronze. **R106 a été livrée le 2026-09-13** — la
+**Une tâche ouverte**, R108, ouverte le 2026-09-13 par un
+découpage qui a révélé un angle mort du cliquet du bronze. **R103 et R107 ont été
+livrées le 2026-09-14** — le diagnostic lit une route et non un nom, et les trois
+décisions produit de R107 sont toutes tranchées. Détail dans `archive.md`. **R106 a été livrée le 2026-09-13** — la
 tuile Shazam est sur l'accueil (1 770 au catalogue, 637 pour la dernière sortie), et
 avec elle la mention que l'historique journalier de YouTube et SoundCloud est
-définitivement hors de portée. R107 §1 est tranchée le même jour ; ses §2 et §3 restent
-ouvertes, donc la tâche ne se ferme pas. Détail dans `archive.md`. R105 a été ABANDONNÉE le
+définitivement hors de portée. R105 a été ABANDONNÉE le
 2026-09-13 par ADR-025 : le produit est Spotify + Meta + ML, et YouTube pèse
 0,2 % du signal. Le code écrit pour elle a été retiré, pas désactivé. R104 a été close le soir même — la rupture de
 méthode YouTube est détectée sur un seuil mesuré et retirée des deux surfaces
@@ -102,9 +101,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-13, TROIS tâches ouvertes : R103, R107 et R108 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-14, UNE tâche ouverte : R108 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R103,R107,R108 -->
+<!-- reprise: open=R108 -->
 
 ### La séance du 2026-09-13 (soir) — une coupure de courant, et ce qu'elle a révélé
 
@@ -635,34 +634,6 @@ natural (or need redoing) under a React/Next.js front-end. Parked here per user 
   first-class under React; revisit UX patterns that were simplified to fit Streamlit.
 
 
-## R103 — un diagnostic qui rapporte des pannes que le produit n'a pas
-
-- [ ] `tools/artist_first_look.py` résout chaque page par la table de routage
-      d'`app.py`, et non par `from src.dashboard.views.<nom> import show`.
-
-**Mesuré le 2026-09-12**, en vérifiant un déploiement avec
-`make artist-firstlook-prod PROD_SSH=root@… ARTIST=1` : le rapport annonce **2 pages
-sur 6 en ERREUR** — `process_guide` (`ModuleNotFoundError`) et `upload_csv`
-(`ImportError: cannot import name 'show'`). **Les deux pages fonctionnent.** `app.py`
-les route ailleurs depuis la fusion du 2026-09-04 : `upload_csv` → `views.credentials`,
-et `process_guide` a sa propre branche. C'est l'outil qui importe le module portant le
-nom de la page, alors que le nom d'une page et le module qui la sert ont cessé d'être
-la même chose.
-
-**Pourquoi ça compte plus qu'un faux positif.** Cet outil existe pour répondre à « que
-voit un artiste », et c'est le dernier contrôle avant de déclarer un déploiement sain.
-Un diagnostic qui crie sur deux pages saines apprend à lire ses ❌ en diagonale — et le
-jour où l'une est vraie, elle passe avec les deux autres. Le dépôt a déjà payé cette
-forme : un garde `/kpis` dont les 28 assertions « pas de 500 » étaient toutes
-satisfaites par des 401.
-
-**La classe est nommée** : `a-diagnostic-that-reads-a-name-not-a-route`. Le correctif
-durable n'est pas de mettre à jour deux lignes de la liste — elle se périmera encore au
-prochain regroupement de vues — mais de faire lire à l'outil la SOURCE de vérité du
-routage. Un garde doit alors rougir si une page listée n'est atteignable par aucune
-branche d'`app.py`.
-
-
 ## R108 — L'exemption de la porte masque ce qu'elle laisse entrer
 
 - [ ] **R108 — décider si les jointures de DIMENSION comptent dans la frontière du
@@ -688,79 +659,3 @@ un registre des tables de dimension) ; monter le rapprochement canonique en fonc
 
 **P4** : aucune divergence constatée, et les deux lectures passent par un lien
 `confirmed` — la seule règle qu'elles portent. Dette de mesure, pas défaut vivant.
-
-## R107 — Trois décisions produit à prendre
-
-- [ ] **R107 — les trois décisions ci-dessous sont tranchées et écrites.**
-
-Aucune ne demande de code pour être prise, et chacune décide de ce qui sera écrit
-ensuite. Les laisser implicites ferait trancher par défaut, à l'écriture, sans que
-personne ne le voie.
-
-### 1. Que devient la périphérie sur l'accueil ?
-
-ADR-025 laisse YouTube et SoundCloud collectées « comme aujourd'hui ». L'accueil leur
-donne pourtant deux boîtes sur six, pour **0,2 % du signal** — et Shazam, qui est dans
-le cœur, n'en a aucune.
-
-| option | ce qu'on gagne | ce qu'on perd |
-|---|---|---|
-| les garder telles quelles | rien à faire | deux boîtes sur six pour 0,2 %, et Shazam sans place |
-| les regrouper en une boîte « Autres plateformes » | une place pour Shazam, la donnée reste visible | un clic de plus pour voir le détail |
-| les sortir de l'accueil, garder leurs pages | l'accueil ne montre que le cœur | un artiste qui compte sur YouTube ne le voit plus au premier écran |
-
-**Tranché le 2026-09-13 : on les garde telles quelles, et on NOMME ce qui manque.**
-
-« au final je pense qu'on va laisser tel quel mais rajoute la mention quelque part
-qu'on n'a pas accès aux datas journalières historiques pour youtube et soundcloud en
-légende ». Les deux tuiles et les deux courbes restent ; Shazam a trouvé sa place sans
-que rien ne parte (rangée de 2 avec Apple, R106).
-
-Ce qui a changé est ce que l'écran DIT. L'accueil déployait quatre surfaces d'absence
-pour ces deux plateformes — bande hachurée, survol « pas encore collectée », note des
-écoutes non traçables, note de démarrage tardif — et aucune ne disait que l'historique
-est **définitivement** hors de portée (ADR-024). `render_counter_history_note` le dit
-désormais en une ligne, avec les nombres dérivés des niveaux : « **118 032 et 23 241**
-écoutes précèdent notre première mesure ». Garde :
-`tests/test_the_figure_says_the_history_is_out_of_reach.py`, deux mutations vues rouges.
-
-Deux retraits ont accompagné la décision :
-
-* **les trois légendes de pas** (« Chaque point est un jour / mois / année »), à la
-  demande explicite. Le garde qui les exigeait,
-  `test_the_applied_grain_is_written_on_screen`, a été supprimé AVEC elles plutôt que
-  neutralisé, sa raison écrite à sa place. Ce qui porte encore le fait : les étiquettes
-  d'axe de Plotly, et `_bucket_label` dans la note de démarrage ;
-* `MISSING_HISTORY` et `render_missing_history_note`, un dict vide et la fonction qui en
-  faisait le tour à chaque rendu sans rien afficher.
-
-**Hypeddit a rejoint l'accueil le même jour**, et c'était la DERNIÈRE divergence entre
-ADR-025 et l'écran : la plateforme est dans le cœur du produit et n'y avait aucune
-occurrence. Le meilleur taux de clic de la dernière sortie — **45,7 pour cent, sur
-7 828 visites et 3 581 clics** — comble la colonne restée vide sous Meta et rend la
-grille 4×2. Le ratio est celui des SOMMES, jamais la moyenne des ratios, et surtout pas
-la colonne `ctr` de la table dont le déclencheur écrit `0` quand `visits = 0`. Garde :
-`tests/test_the_hypeddit_ratio_is_the_ratio_of_sums.py`, **trois mutations vues rouges**
-— dont deux qui ont d'abord passé au VERT et ont obligé à mettre en scène le cas que le
-garde prétendait tenir.
-
-Et le chiffre-titre a gagné son infobulle : sur « Depuis le début », **41 %** du
-`🎧 Total streams` vient de compteurs à vie (YouTube 118 219, SoundCloud 23 486). Le
-nombre est conservé — le rogner retirerait une vérité pour en servir une autre — mais sa
-composition est désormais nommée. Vérifié au rendu : l'infobulle est vide sur une
-fenêtre bornée, où aucun compteur à vie n'entre dans la somme.
-
-### 2. La vue revenu compte-t-elle le BRUT ou le VERSÉ ?
-
-Mesuré le 2026-09-12 et laissé en l'état depuis : la vue compte la répartition SACEM
-**brute** (43,06 €) et non le versement (`payout` 36,49 €, après TVA −14,67 et charges
-−6,90). Les deux sont défendables — le brut est cohérent avec le brut distributeur, le
-versé est ce qui arrive sur le compte. **C'est un choix de définition, pas un défaut**,
-et il attend depuis le 2026-09-12.
-
-### 3. Jusqu'où va la couverture Meta ?
-
-Les breakdowns Meta ne couvrent que **76 %** de la dépense (2 348 € sur 3 088). C'est
-Meta qui n'attribue pas tout à une dimension ; la page le mesure et le dit. Faut-il
-s'en contenter, ou faire apparaître les 24 % non attribués comme une catégorie à part
-entière dans les graphiques ?

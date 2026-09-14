@@ -140,6 +140,40 @@ INVARIANTS: tuple[Invariant, ...] = (
             "reste.",
     ),
     Invariant(
+        name="revenue_net_gross_vs_revenue_view",
+        left_sql="SELECT artist_id, SUM(gross_eur) FROM v_artist_monthly_revenue_net "
+                 "GROUP BY 1",
+        right_sql="SELECT artist_id, SUM(revenue_eur) FROM v_artist_monthly_revenue "
+                  "GROUP BY 1",
+        left_label="v_artist_monthly_revenue_net[gross]",
+        right_label="v_artist_monthly_revenue",
+        why="Le BRUT est désormais lisible par deux vues or : l'ancienne, que huit "
+            "surfaces lisent, et la colonne `gross_eur` de la vue brut+net (migration "
+            "115). Les deux doivent rendre le même nombre — sinon un artiste lit un "
+            "brut sur la page revenu et un autre sur la page SACEM, ce qu'ADR-019 "
+            "interdit. Le NET n'a pas d'invariant ici, et c'est délibéré : il n'égale "
+            "la somme des virements qu'une fois tout distribué, donc l'égalité est "
+            "FAUSSE entre deux trimestres. Un contrôle rouge en régime normal est la "
+            "classe `a-check-that-can-never-pass`.",
+    ),
+    Invariant(
+        name="meta_attribution_campaign_count_vs_campaign_grain",
+        left_sql="SELECT artist_id, SUM(campaigns) FROM v_meta_track_attribution "
+                 "GROUP BY 1",
+        right_sql="SELECT artist_id, COUNT(DISTINCT campaign_name) "
+                  "FROM v_meta_campaign_daily WHERE artist_id IS NOT NULL GROUP BY 1",
+        left_label="v_meta_track_attribution[campaigns]",
+        right_label="v_meta_campaign_daily",
+        why="La vue d'attribution (migration 116) dit combien de campagnes ce "
+            "locataire porte, et combien sont rattachées à un titre. Le premier des "
+            "deux nombres est le MÊME que le compte de la vue au grain campagne : "
+            "s'ils divergent, l'encart de la page Meta annonce une population que "
+            "les graphes d'à côté ne dessinent pas. Le second nombre — les "
+            "rattachées — n'a pas de sœur à confronter, et c'est le point : il "
+            "vaut zéro sur tout le parc, et ne pourra être réconcilié que le jour "
+            "où une campagne sera étiquetée.",
+    ),
+    Invariant(
         name="apple_total_vs_function",
         left_sql="SELECT artist_id, SUM(total) FROM v_platform_totals "
                  "WHERE platform = 'apple' GROUP BY 1",

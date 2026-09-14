@@ -1,6 +1,15 @@
 """EN strings for the Meta Ads overview view."""
 
 EN = {
+    "meta_ads_overview.scope_period": "**{spend} €** across **{campaigns}** "
+                                      "campaign(s), from {start} to {end}.",
+    "meta_ads_overview.scope_linked": " **{linked}** campaign(s) are linked to a track: "
+                                      "cost per track is readable for those, and only "
+                                      "those.",
+    "meta_ads_overview.scope_unlinked": " No campaign is linked to a track — so this "
+                                        "section answers \"how much did I spend, and who "
+                                        "did it reach\", not \"what did this track cost "
+                                        "me\". A campaign named like a song is not a link.",
     # Comptes d'agence — déplacés de Credentials vers cette page le 2026-09-05.
     "meta.extra_accounts_title": "➕ Extra ad accounts - for agencies (optional)",
     "meta.extra_accounts_help": (

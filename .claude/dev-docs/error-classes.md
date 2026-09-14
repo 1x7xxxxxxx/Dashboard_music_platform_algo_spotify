@@ -118,6 +118,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-gap-rendered-as-a-zero-by-the-stack](#a-gap-rendered-as-a-zero-by-the-stack) | P2 | deterministic | guarded | none |
 | [a-first-bucket-declared-unknown-when-it-was-observed](#a-first-bucket-declared-unknown-when-it-was-observed) | P2 | deterministic | guarded | none |
 | [a-shared-module-drags-a-view-behind-it](#a-shared-module-drags-a-view-behind-it) | P3 | deterministic | guarded | none |
+| [a-deduction-subtracted-from-the-wrong-base](#a-deduction-subtracted-from-the-wrong-base) | P2 | deterministic | guarded | none |
+| [a-diagnostic-that-reads-a-name-not-a-route](#a-diagnostic-that-reads-a-name-not-a-route) | P3 | deterministic | guarded | none |
 | [two-silences-one-message](#two-silences-one-message) | P3 | deterministic | guarded | none |
 | [a-marker-shared-by-several-sites-guards-none](#a-marker-shared-by-several-sites-guards-none) | P3 | deterministic | guarded | none |
 | [a-removed-title-becomes-the-word-undefined](#a-removed-title-becomes-the-word-undefined) | P3 | deterministic | guarded | none |
@@ -5544,3 +5546,37 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-13: `reported`, et **`kind: manual` faute de signature vérifiable**. Le filtrage n'a pas pu être reproduit à volonté : l'hypothèse « le filtre masque les commits de fusion » a été testée et **démentie** — `git log --oneline -1 <merge>` rend correctement le merge après coup. Sans reproduction, une signature n'aurait jamais été vue rouge, et le catalogue interdit de livrer une fausse garantie : mieux vaut une classe sans garde qu'un garde qui ne garde rien.
   - 2026-09-13: **la moitié MÉCANISABLE a reçu son garde** — `tests/test_a_commit_message_is_not_fed_through_stdin.py` interdit la forme `git commit -F -` dans l'automatisation du dépôt, vue rouge par mutation. Elle ne couvre PAS la classe entière, et le `kind: manual` reste : une commande de vérification dont la sortie est reformatée n'a pas de site ici. Un garde partiel présenté comme total est pire que pas de garde.
   - 2026-09-13: aucun site dans le dépôt — un balayage des scripts et hooks pour une lecture de git « porcelain » rend **2 touches, toutes deux dans des commentaires**. La classe vit dans le comportement de l'agent au travers de son shell, pas dans le code du dépôt. C'est pourquoi son `long_term_fix` est une PROCÉDURE et non un changement de code ; elle est parente de la leçon déjà écrite sur `grep` via RTK, qui rend 0 dès que sa sortie est redirigée.
+
+## a-deduction-subtracted-from-the-wrong-base
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une surface affiche un montant NET manifestement faux, sans erreur ni trace. Mesuré le 2026-09-14 : la page Royalties SACEM annonçait « ✅ Net estimé **21,49 €** » à un artiste dont le compte en banque avait reçu **36,49 €** — 15,00 € d'écart, 41 %, sur le seul chiffre qu'il pouvait vérifier lui-même sur son relevé.
+- root_cause: `src/dashboard/views/sacem.py` calculait `net = gross + charges + tva` en Python, en sommant TOUTES les lignes d'un type. Or un type de ligne dit ce qu'une ligne EST, jamais **de quoi elle se retranche** : les 9 lignes `tva` du relevé mêlent 8 `FORFAIT TVA` positifs reversés avec chaque répartition (+0,33 € au total) et une TVA de frais d'adhésion de 2023 (−15,00 €), qui appartient à un bloc se soldant à zéro et ne concerne aucune royaltie. Le calcul retranchait donc d'un revenu un frais payé un an avant la première répartition.
+- long_term_fix: la règle de netting descend en SQL avec la BASE qu'elle vise (migration 115, `v_artist_monthly_revenue_net`) : une retenue ne compte que dans un mois qui porte une répartition. Le critère est STRUCTUREL et non textuel — les charges sont un pourcentage de la répartition (« CSG DEDUCTIBLE 6.80% (BASE 98.25%) »), donc sans base il n'y a rien à retrancher. Distinguer par le libellé aurait marché ce jour-là et cassé à la première reformulation de la source.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_a_deduction_is_subtracted_from_the_right_base.py }
+- signature: `python3 -m pytest tests/test_a_deduction_is_subtracted_from_the_right_base.py -q`
+- rex_ref: —
+- first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
+- History:
+  - 2026-09-14: `guarded`. Signature **vue rouge** — 3 tests sur 5 en échec après avoir remis la règle naïve dans la vue par `CREATE OR REPLACE`, puis **verte** (5 passés) après réapplication de la migration. Le garde construit son propre relevé — bloc d'adhésion + deux trimestres — dans une transaction ANNULÉE : adossé au relevé d'un locataire réel il serait vert sur une base vide et muet chez quiconque n'a pas importé de SACEM.
+  - 2026-09-14: **la première tentative de mutation a été crue concluante à tort.** Le `CREATE OR REPLACE VIEW` mutant omettait les alias de colonnes, que Postgres exige identiques ; la vue n'a jamais changé, et les 5 tests sont restés verts. Avec `stderr` redirigé vers `/dev/null`, cela ressemblait exactement à un garde aveugle. Une mutation dont on ne lit pas le code de retour ne prouve rien — parente de `a-verification-read-through-a-filtering-wrapper`.
+  - 2026-09-14: l'égalité « net cumulé == somme des virements » (36,49 € des deux côtés, au centime) a servi à CHOISIR la règle, mais n'est délibérément pas devenue un invariant : elle est fausse entre deux trimestres, une répartition de janvier attendant son virement d'avril. Un contrôle rouge en régime normal est `a-check-that-can-never-pass`.
+  - 2026-09-14: la signature rend **0 sans Postgres** (les tests se sautent). C'est assumé et borné : `test_suite_runs_against_two_tenants` provisionne la base en CI, où la signature est donc réellement exercée. Hors CI, un vert sans base ne prouve rien — le même avertissement que porte déjà l'en-tête « DÉPENDANCES ABSENTES » de la suite.
+
+## a-diagnostic-that-reads-a-name-not-a-route
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un outil de diagnostic rapporte des pannes que le produit n'a pas. Mesuré le 2026-09-12 par `make artist-firstlook-prod ARTIST=1` : **2 pages sur 6 en ERREUR** — `process_guide` (`ModuleNotFoundError`) et `upload_csv` (`ImportError: cannot import name 'show'`). Les deux pages fonctionnent en production.
+- root_cause: `tools/artist_first_look.py` importait `src.dashboard.views.<nom de page>`, alors que le nom d'une page et le module qui la sert ont cessé d'être la même chose à la fusion du 2026-09-04 : `app.py` route `upload_csv` → `views.credentials` et `process_guide` → `views.onboarding_health`, délibérément, pour que les anciens pointeurs ne deviennent pas des culs-de-sac.
+- long_term_fix: l'outil lit la table de ROUTAGE comme source de vérité — la fonction `_render_page` d'`app.py`, parsée avec `ast` (42 pages résolues), jamais par expression régulière : une route citée dans un commentaire ou un docstring n'est pas une route. Mettre à jour deux lignes d'une liste tenue à la main aurait péri au prochain regroupement de vues. Une page qu'aucune branche ne route est désormais rapportée « NON ROUTÉE » — un constat sur le PRODUIT, distinct d'un plantage.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_a_diagnostic_reads_a_route_not_a_name.py }
+- signature: `python3 -m pytest tests/test_a_diagnostic_reads_a_route_not_a_name.py -q`
+- rex_ref: —
+- first_seen: 2026-09-12 (ref: DEVLOG#2026-09-14)
+- History:
+  - 2026-09-14: `guarded`. Signature **vue rouge** — 3 tests sur 6 en échec en remettant l'import par nom (`module = f"views.{view}"`), **verte** (6 passés) après restauration. Le garde couvre aussi le piège du résolveur lui-même : `ast.walk(node)` descend dans `orelse`, donc les 42 branches hériteraient de l'import de la première et l'outil rendrait vert partout — une assertion compte les modules DISTINCTS.
+  - 2026-09-14: pourquoi cette classe est P3 et non P4. Un diagnostic qui crie sur deux pages saines apprend à lire ses ❌ en diagonale, et le jour où l'un est vrai il passe avec les autres. Le dépôt a déjà payé cette forme sur le garde `/kpis`, dont les 28 assertions « pas de 500 » étaient toutes satisfaites par des 401 pendant trois semaines.

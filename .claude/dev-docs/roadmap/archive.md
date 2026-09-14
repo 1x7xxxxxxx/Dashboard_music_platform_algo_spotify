@@ -9,6 +9,177 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+### R107 — Trois décisions produit tranchées (livrée 2026-09-14)
+
+- [x] **R107 — les trois décisions ci-dessous sont tranchées et écrites.**
+
+Aucune ne demandait de code pour être prise, et chacune décidait de ce qui serait écrit
+ensuite. Les laisser implicites aurait fait trancher par défaut, à l'écriture, sans que
+personne ne le voie. §1 est tranchée le 2026-09-13 ; §2 et §3 le 2026-09-14.
+
+#### 1. Que devient la périphérie sur l'accueil ? — tranché le 2026-09-13
+
+ADR-025 laisse YouTube et SoundCloud collectées « comme aujourd'hui ». L'accueil leur
+donne pourtant deux boîtes sur six, pour **0,2 % du signal** — et Shazam, qui est dans
+le cœur, n'en a aucune.
+
+| option | ce qu'on gagne | ce qu'on perd |
+|---|---|---|
+| les garder telles quelles | rien à faire | deux boîtes sur six pour 0,2 %, et Shazam sans place |
+| les regrouper en une boîte « Autres plateformes » | une place pour Shazam, la donnée reste visible | un clic de plus pour voir le détail |
+| les sortir de l'accueil, garder leurs pages | l'accueil ne montre que le cœur | un artiste qui compte sur YouTube ne le voit plus au premier écran |
+
+**Tranché le 2026-09-13 : on les garde telles quelles, et on NOMME ce qui manque.**
+
+« au final je pense qu'on va laisser tel quel mais rajoute la mention quelque part
+qu'on n'a pas accès aux datas journalières historiques pour youtube et soundcloud en
+légende ». Les deux tuiles et les deux courbes restent ; Shazam a trouvé sa place sans
+que rien ne parte (rangée de 2 avec Apple, R106).
+
+Ce qui a changé est ce que l'écran DIT. L'accueil déployait quatre surfaces d'absence
+pour ces deux plateformes — bande hachurée, survol « pas encore collectée », note des
+écoutes non traçables, note de démarrage tardif — et aucune ne disait que l'historique
+est **définitivement** hors de portée (ADR-024). `render_counter_history_note` le dit
+désormais en une ligne, avec les nombres dérivés des niveaux : « **118 032 et 23 241**
+écoutes précèdent notre première mesure ». Garde :
+`tests/test_the_figure_says_the_history_is_out_of_reach.py`, deux mutations vues rouges.
+
+Deux retraits ont accompagné la décision :
+
+* **les trois légendes de pas** (« Chaque point est un jour / mois / année »), à la
+  demande explicite. Le garde qui les exigeait,
+  `test_the_applied_grain_is_written_on_screen`, a été supprimé AVEC elles plutôt que
+  neutralisé, sa raison écrite à sa place. Ce qui porte encore le fait : les étiquettes
+  d'axe de Plotly, et `_bucket_label` dans la note de démarrage ;
+* `MISSING_HISTORY` et `render_missing_history_note`, un dict vide et la fonction qui en
+  faisait le tour à chaque rendu sans rien afficher.
+
+**Hypeddit a rejoint l'accueil le même jour**, et c'était la DERNIÈRE divergence entre
+ADR-025 et l'écran : la plateforme est dans le cœur du produit et n'y avait aucune
+occurrence. Le meilleur taux de clic de la dernière sortie — **45,7 pour cent, sur
+7 828 visites et 3 581 clics** — comble la colonne restée vide sous Meta et rend la
+grille 4×2. Le ratio est celui des SOMMES, jamais la moyenne des ratios, et surtout pas
+la colonne `ctr` de la table dont le déclencheur écrit `0` quand `visits = 0`. Garde :
+`tests/test_the_hypeddit_ratio_is_the_ratio_of_sums.py`, **trois mutations vues rouges**
+— dont deux qui ont d'abord passé au VERT et ont obligé à mettre en scène le cas que le
+garde prétendait tenir.
+
+Et le chiffre-titre a gagné son infobulle : sur « Depuis le début », **41 %** du
+`🎧 Total streams` vient de compteurs à vie (YouTube 118 219, SoundCloud 23 486). Le
+nombre est conservé — le rogner retirerait une vérité pour en servir une autre — mais sa
+composition est désormais nommée. Vérifié au rendu : l'infobulle est vide sur une
+fenêtre bornée, où aucun compteur à vie n'entre dans la somme.
+
+#### 2. La vue revenu compte-t-elle le BRUT ou le VERSÉ ? — tranché le 2026-09-14
+
+Mesuré le 2026-09-12 : la vue comptait la répartition SACEM **brute** (43,06 €) et non
+le versement (`payout` 36,49 €, après TVA −14,67 et charges −6,90). Les deux étaient
+défendables — le brut cohérent avec le brut distributeur, le versé étant ce qui arrive
+sur le compte.
+
+**Tranché le 2026-09-14 : la vue revenu affiche le BRUT et le NET, au lieu de
+choisir.** En descendant le net dans la couche or (migration 115,
+`v_artist_monthly_revenue_net`, colonnes gross_eur / deductions_eur / net_eur au grain
+locataire-année-mois-source), on a découvert que le net affiché était **FAUX** : la
+page SACEM calculait `gross + charges + tva` en Python et rendait **21,49 €** à un
+artiste qui avait reçu **36,49 €** sur son compte — 15,00 € d'écart, 41 %.
+
+Cause : les 9 lignes `tva` du relevé ne sont pas une population homogène — 8 `FORFAIT
+TVA` positifs reversés avec chaque répartition (+0,33 € au total), et une TVA de frais
+d'adhésion de 2023 (−15,00 €) qui appartient à un bloc se soldant à zéro et ne concerne
+aucune royaltie. Règle retenue, structurelle et non textuelle : **une retenue ne compte
+que dans un mois qui porte une répartition** (les charges sont un pourcentage de la
+répartition — sans base, pas de charge). Le net ainsi défini vaut 36,49 €, soit
+exactement la somme des quatre virements, au centime.
+
+`v_artist_monthly_revenue` reste le BRUT, inchangée, parce que ses huit consommateurs
+(ROI breakeven, prévision, PDF, imusician, trigger_algo, invariants) veulent le brut. La
+page SACEM affiche désormais brut / charges / « Net versé », une légende qui explique ce
+qui sépare les deux, et le montant déjà viré (avec le reste en attente du prochain
+virement trimestriel quand il y en a un).
+
+Garde : `tests/test_a_deduction_is_subtracted_from_the_right_base.py`, 5 tests sur un
+relevé de synthèse construit dans une transaction annulée, dont 2 de non-vacuité ;
+mutation jouée en SQL — 3 rouges sur la règle naïve, 5 verts après. Invariant or
+ajouté : `revenue_net_gross_vs_revenue_view`. L'égalité net == virements n'est
+délibérément PAS un invariant permanent : elle est fausse entre deux trimestres (une
+répartition de janvier attend son virement d'avril), et un contrôle rouge en régime
+normal est la classe `a-check-that-can-never-pass`.
+
+#### 3. Jusqu'où va la couverture Meta ? — tranché le 2026-09-14
+
+Les breakdowns Meta ne couvraient que **76 %** de la dépense (2 348 € sur 3 088 €) —
+c'est Meta qui n'attribue pas tout à une dimension, la page le mesurait et le disait
+déjà.
+
+**Tranché le 2026-09-14 : la couverture reste telle quelle.**
+`meta_breakdowns._render_coverage` la recalcule et l'explique déjà à chaque rendu, sans
+constante en dur. Ajouter une catégorie « Non attribué » aurait mis un bloc de 24 %
+devant chaque dimension pour une analyse que ce compte ne permet pas.
+
+La mesure a déplacé la question vers un trou plus grand, que rien ne disait : **zéro
+campagne Meta rattachée à un titre**, quand six plateformes sur sept portent leurs onze
+titres liés dans `track_platform_link`. La page Meta porte désormais un encart mesuré
+par locataire (`_render_scope_notice`) qui dit la dépense, la période, le nombre de
+campagnes et combien sont rattachées — et, quand c'est zéro, que la section répond à
+« combien ai-je dépensé et qui cela a-t-il touché », pas à « combien ce titre m'a
+coûté ». Migration 116 (`v_meta_track_attribution`) : le prédicat qui décide qu'un lien
+compte est une règle métier, écrite une fois. Invariant
+`meta_attribution_campaign_count_vs_campaign_grain` ajouté.
+
+**Effet de bord notable, consigné** : la migration 116, en donnant une vue or à
+`track_platform_link`, a fait entrer dans le cliquet du bronze deux lectures qui
+existaient depuis des semaines (`period_side_metrics.py`, `setup_completion.py`). C'est
+la **première instance résolue** du phénomène de R108 — ce qu'aucune vue or ne couvre
+n'est jamais compté. Les deux sont des jointures de dimension et un `EXISTS`, déclarées
+dans `_DECLARED_RAW_AGGREGATES` de `tools/dev/gold_coverage.py` avec leur motif. **R108
+reste ouverte** : la question de fond (les jointures de dimension comptent-elles dans la
+frontière ?) n'est pas tranchée, seule une instance l'est.
+
+**État de la suite à la livraison** : `python3 -m pytest tests/ -q` → **5 586 passés,
+110 ignorés, 0 échec** (4 min 08), Postgres 5433 en service. `make gold-coverage`
+régénéré.
+
+---
+
+### R103 — un diagnostic qui rapporte des pannes que le produit n'a pas (livrée 2026-09-14)
+
+- [x] **R103 —** `tools/artist_first_look.py` résout chaque page par la table de
+      routage d'`app.py`, et non par `from src.dashboard.views.<nom> import show`.
+
+**Mesuré le 2026-09-12**, en vérifiant un déploiement avec
+`make artist-firstlook-prod PROD_SSH=root@… ARTIST=1` : le rapport annonçait **2 pages
+sur 6 en ERREUR** — `process_guide` (`ModuleNotFoundError`) et `upload_csv`
+(`ImportError: cannot import name 'show'`). **Les deux pages fonctionnaient**, alors
+qu'`app.py` les route ailleurs depuis la fusion du 2026-09-04 : `upload_csv` →
+`views.credentials`, et `process_guide` a sa propre branche. L'outil importait le
+module portant le nom de la page, alors que le nom d'une page et le module qui la sert
+avaient cessé d'être la même chose.
+
+**Pourquoi ça compte plus qu'un faux positif.** Cet outil existe pour répondre à « que
+voit un artiste », et c'est le dernier contrôle avant de déclarer un déploiement sain.
+Un diagnostic qui crie sur deux pages saines apprend à lire ses ❌ en diagonale — et le
+jour où l'une est vraie, elle passe avec les deux autres. Le dépôt avait déjà payé cette
+forme : un garde `/kpis` dont les 28 assertions « pas de 500 » étaient toutes
+satisfaites par des 401.
+
+**Livré le 2026-09-14.** `tools/artist_first_look.py` résout désormais chaque page par
+la table de routage d'`app.py`, parsée avec `ast` (fonction `_render_page`, 42 pages
+routées), et non plus par `from src.dashboard.views.<nom> import show`. `process_guide`
+→ `views.onboarding_health` et `upload_csv` → `views.credentials` sont maintenant
+résolues correctement ; le rapport ne les annonce plus en ❌. Une page qu'aucune branche
+ne route est signalée « ⛔ NON ROUTÉE » (un constat sur le PRODUIT — une page
+inatteignable), distincte d'un plantage, et le code de sortie en tient compte.
+`_offers_a_download()` lit le module routé et non le fichier portant le nom de la page.
+
+**Classe** : `a-diagnostic-that-reads-a-name-not-a-route`. Garde :
+`tests/test_a_diagnostic_reads_a_route_not_a_name.py`, 6 tests dont 3 de non-vacuité
+(une route citée dans un commentaire ou un docstring n'est pas une route ; une branche
+`elif` n'hérite pas de l'import de la précédente). Mutation jouée : en remettant
+l'import par nom, 3 tests rouges ; 6 verts après retrait.
+
+---
+
 ### R97 — Sept remarques d'ergonomie, et une palette mesurable (livrée 2026-09-12)
 
 - [x] **R97 — Le second lot du même écran.** Demandé le 2026-09-12, après la livraison
