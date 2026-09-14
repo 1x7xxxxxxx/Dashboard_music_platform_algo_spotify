@@ -241,6 +241,21 @@ INVARIANTS: tuple[Invariant, ...] = (
             "c'est la seule source de son propre chiffre.",
     ),
     Invariant(
+        name="instagram_followers_level_vs_raw",
+        left_sql="SELECT artist_id, MAX(followers) FROM v_instagram_followers_daily "
+                 "GROUP BY 1",
+        right_sql="SELECT artist_id, MAX(followers_count) FROM instagram_daily_stats "
+                  "WHERE artist_id IS NOT NULL GROUP BY 1",
+        left_label="v_instagram_followers_daily",
+        right_label="instagram_daily_stats",
+        why="La vue (migration 121) ne fait que poser une règle — le niveau d'un JOUR "
+            "est le MAX de ce jour — sans rien perdre ni inventer. Le maximum sur "
+            "toute l'histoire doit donc être identique des deux côtés. Elle a retiré "
+            "de la porte quatre sous-requêtes imbriquées qui portaient cette règle "
+            "sans la nommer, et c'est la dernière lecture de bronze que R108 laissait "
+            "derrière elle.",
+    ),
+    Invariant(
         name="apple_total_vs_function",
         left_sql="SELECT artist_id, SUM(total) FROM v_platform_totals "
                  "WHERE platform = 'apple' GROUP BY 1",

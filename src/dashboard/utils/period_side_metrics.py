@@ -252,19 +252,27 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
                  LIMIT 1
             )
             SELECT
-              (SELECT MAX(followers_count) FROM instagram_daily_stats
-                 WHERE artist_id = %s AND (%s::date IS NULL OR collected_at::date >= %s)
-                   AND (%s::date IS NULL OR collected_at::date <= %s)
-                   AND collected_at::date = (
-                     SELECT MIN(collected_at::date) FROM instagram_daily_stats
-                      WHERE artist_id = %s
-                        AND (%s::date IS NULL OR collected_at::date >= %s))) AS ig_first,
-              (SELECT MAX(followers_count) FROM instagram_daily_stats
-                 WHERE artist_id = %s AND (%s::date IS NULL OR collected_at::date <= %s)
-                   AND collected_at::date = (
-                     SELECT MAX(collected_at::date) FROM instagram_daily_stats
-                      WHERE artist_id = %s
-                        AND (%s::date IS NULL OR collected_at::date <= %s))) AS ig_last,
+              -- ── LE NIVEAU D'ABONNÉS, DEPUIS LA COUCHE OR (migration 121) ──
+              --
+              -- Ces deux valeurs venaient de QUATRE sous-requêtes imbriquées sur
+              -- `instagram_daily_stats`, et elles portaient deux règles que rien ne
+              -- nommait : le niveau d'un JOUR est le MAX de ce jour (le collecteur
+              -- peut relever plusieurs fois, et un niveau ne s'additionne pas), et
+              -- le GAIN d'une période est le dernier jour MESURÉ moins le premier —
+              -- jamais « aujourd'hui moins il y a 30 jours », qui suppose une mesure
+              -- ces jours-là. Écrites dans une sous-requête, elles étaient invisibles
+              -- à tout garde et se seraient recopiées à la surface suivante.
+              --
+              -- `DISTINCT ON` plutôt que le MIN/MAX imbriqué : une seule passe, et
+              -- le premier/dernier JOUR MESURÉ de la fenêtre se lit directement.
+              (SELECT followers FROM v_instagram_followers_daily
+                 WHERE artist_id = %s AND (%s::date IS NULL OR day >= %s)
+                   AND (%s::date IS NULL OR day <= %s)
+                 ORDER BY day ASC LIMIT 1)                                    AS ig_first,
+              (SELECT followers FROM v_instagram_followers_daily
+                 WHERE artist_id = %s AND (%s::date IS NULL OR day >= %s)
+                   AND (%s::date IS NULL OR day <= %s)
+                 ORDER BY day DESC LIMIT 1)                                   AS ig_last,
               (SELECT SUM(spend) FROM v_meta_daily
                  WHERE artist_id = %s AND (%s::date IS NULL OR day >= %s)
                    AND (%s::date IS NULL OR day <= %s))                       AS spend,
@@ -308,14 +316,16 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
               (SELECT visits FROM hypeddit_release)        AS hypeddit_visits,
               (SELECT clicks FROM hypeddit_release)        AS hypeddit_clicks,
               (SELECT campaign_name FROM hypeddit_release) AS hypeddit_campaign
-        """, (artist_id, since, since, until, until,
-              artist_id, artist_id,
-              artist_id, since, since, until, until,
-              artist_id, artist_id,
-              artist_id, since, since, until, until, artist_id, since, since,
-              artist_id, until, until, artist_id, until, until,
-              artist_id, since, since, until, until,
-              artist_id, artist_id))
+        """, (artist_id, since, since, until, until,     # best_cpr
+              artist_id, artist_id,                       # apple_song, last_release
+              artist_id, since, since, until, until,      # hypeddit_release
+              artist_id, artist_id,                       # best_algo
+              # ig_first / ig_last : 5 paramètres chacun depuis la migration 121
+              # (ils en demandaient 8 et 6 quand la règle vivait en sous-requêtes).
+              artist_id, since, since, until, until,      # ig_first
+              artist_id, since, since, until, until,      # ig_last
+              artist_id, since, since, until, until,      # spend
+              artist_id, artist_id))                      # shazam
     except Exception as e:      # noqa: BLE001 — le récapitulatif se rend sans ces lignes
         logger.warning("side metrics unreadable: %s", type(e).__name__)
         return {}

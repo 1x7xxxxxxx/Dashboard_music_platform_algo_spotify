@@ -9,6 +9,73 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+### R108 — L'exemption de la porte masque ce qu'elle laisse entrer (livrée 2026-09-14)
+
+- [x] **R108 — décider si les jointures de DIMENSION comptent dans la frontière du
+      bronze, et le cas échéant les faire entrer dans le compte.**
+
+**Trouvé par accident le 2026-09-13**, en découpant `platform_timeseries.py` sous la
+pression du cliquet des 1 200 lignes. `period_side_metrics` partie dans son fichier, le
+cliquet du bronze est passé de 108 à **111** : trois couples sont devenus visibles —
+`instagram_daily_stats`, `track_platform_link`, `track_release_reference`.
+
+**Aucun n'est neuf dans le code.** Tous vivaient dans la porte, que `_NOT_A_SURFACE`
+exempte depuis l'origine (ADR-022). Les deux derniers ont été ajoutés le jour même pour
+Shazam et Hypeddit, et **le cliquet ne les aurait jamais comptés** sans ce dépassement.
+C'est un angle mort de l'exemption, pas du découpage : tout ce qui entre dans la porte
+est invisible au compteur, quel qu'en soit le volume.
+
+**La question**, et elle n'est pas évidente : une jointure sur `track_platform_link` est
+un rapprochement de DIMENSION, pas une métrique — ADR-019 vise les règles métier
+recopiées qui divergent. Trois issues : laisser l'exemption (le volume entrant n'est
+jamais mesuré) ; compter les dimensions et exempter les métriques (il faut alors tenir
+un registre des tables de dimension) ; monter le rapprochement canonique en fonction or
+(`views/meta_mapping/_tracks.py` lit déjà ces tables, le chantier dépasse l'accueil).
+
+**Le critère de clôture était mesurable et il a été JOUÉ, pas déclaré.** R108 disait :
+« le compte du cliquet du bronze ne change pas quand on retire `period_side_metrics.py`
+de `_NOT_A_SURFACE` ». Mesuré : delta **3** avant, **1** après le registre des
+dimensions, **0** après la migration 121. Le critère est tenu.
+
+**La question de R108 était mal posée, et trois migrations l'ont montré.** Elle
+demandait si les jointures de dimension comptent dans la frontière du bronze. Les
+migrations 116, 120 et la sonde de fraîcheur ont chacune rendu VISIBLES des lectures
+anciennes, simplement en donnant une vue or à une table qu'elles joignaient —
+`saas_artists` est passée de 0 à 4 déclarations en UNE migration. Le geste se
+répétait : déclarer site par site, indéfiniment.
+
+**Le critère retenu n'est pas « dimension ou métrique » mais « cette table porte-t-elle
+une quantité ADDITIVE ? »**, et il se vérifie contre le schéma réel. Un registre de
+**8 tables** (`saas_artists`, `track_platform_link`, `track_release_reference`,
+`artist_subscriptions`, `campaign_track_mapping`, `hypeddit_campaigns`,
+`youtube_videos`, `tracks`) remplace 7 déclarations de site et arrête leur croissance.
+`tracks` était le seul cas à trancher — `duration_ms` est techniquement sommable — et
+il l'a été par la mesure : aucun `SUM` ni `AVG` sur `duration_ms` ni `popularity` dans
+tout `src/`, et chaque lecture cherche un nom, un track_id ou une date.
+
+**Le registre est une ASSERTION, pas une liste de confiance** :
+`tests/test_a_dimension_table_carries_no_quantity.py` (12 tests) rejoue le critère
+contre la base ; une table inscrite qui gagne une colonne additive fait rougir la CI.
+Son test de non-vacuité vérifie que le critère REFUSE bien une table de fait.
+
+**Le cliquet du bronze passe de 104 à 81**, et ce n'est PAS de la dette retirée — c'est
+la POPULATION qui change. Les 23 lectures de dimensions existent toujours et vont bien.
+Le nombre restant veut désormais dire une seule chose : des lectures de tables de FAIT
+hors de la couche or. Le fichier le dit explicitement pour qu'on ne lise pas un progrès
+là où il n'y en a pas.
+
+**Migration 121 (`v_instagram_followers_daily`)** ferme la dernière lecture de bronze
+dans la porte. Elle a retiré quatre sous-requêtes imbriquées qui portaient deux règles
+métier que rien ne nommait : le niveau d'un JOUR est le MAX de ce jour, et le gain d'une
+période est le dernier jour MESURÉ moins le premier. Valeurs vérifiées identiques
+avant/après (1606 → 1525, delta −81). Invariant `instagram_followers_level_vs_raw`
+ajouté.
+
+État à la clôture : `python3 -m pytest tests/ -q` → **5 647 passés, 110 ignorés,
+0 échec**. `audit_runner --deterministic` → **audit clean** (code retour 0).
+
+---
+
 ### R107 — Trois décisions produit tranchées (livrée 2026-09-14)
 
 - [x] **R107 — les trois décisions ci-dessous sont tranchées et écrites.**

@@ -5,6 +5,86 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-14 (soir) — R108 clos par sa propre mesure, et l'index tombe à zéro
+
+### Ce qui a changé
+
+- **R108 close**, et son critère a été **joué, pas déclaré** : « le compte du cliquet
+  du bronze ne change pas quand on retire `period_side_metrics.py` de
+  `_NOT_A_SURFACE` ». Delta mesuré : **3** au départ, **1** après le registre des
+  dimensions, **0** après la migration 121.
+- **L'index des tâches ouvertes est vide.** R1 reste en attente — inviter la bêta est
+  un geste humain qu'aucune ligne de code ne débloque.
+- Migration **121** (`v_instagram_followers_daily`), un invariant or, deux classes
+  d'erreur, le cliquet du bronze de **104 à 81**.
+
+### La question de R108 était mal posée
+
+Elle demandait si les jointures de dimension comptent dans la frontière du bronze.
+Trois migrations d'affilée — 116, 120, la sonde de fraîcheur — ont chacune rendu
+VISIBLES des lectures anciennes, simplement en donnant une vue or à une table
+qu'elles joignaient. `saas_artists` est passée de **0 à 4 déclarations en UNE
+migration**. Rien n'était faux ; le geste se répétait, et rien n'annonçait qu'il
+s'arrêterait.
+
+Le critère retenu n'est pas « dimension ou métrique » — ce jugement se refait à chaque
+site et se discute — mais **« cette table porte-t-elle une quantité ADDITIVE ? »**,
+vérifiable contre le schéma. Un registre de **8 tables** remplace 7 déclarations de
+site et arrête leur croissance.
+
+`tracks` était le seul cas à trancher, et il l'a été par la mesure : `duration_ms` est
+techniquement sommable, mais aucun `SUM` ni `AVG` ne porte dessus ni sur `popularity`
+dans tout `src/`, et chaque lecture cherche un nom, un `track_id` ou une date. La porte
+de sortie est écrite dans le code — le jour où une figure sommerait des durées, ce
+n'est pas la liste des exemptions qu'il faudra élargir, c'est `tracks` qui cessera
+d'être une dimension.
+
+### Le cliquet passe de 104 à 81, et ce n'est PAS de la dette retirée
+
+La POPULATION mesurée a changé. Les 23 lectures de dimensions existent toujours et
+vont bien. Le nombre restant veut désormais dire une seule chose : des lectures de
+tables de FAIT hors de la couche or. La docstring du cliquet le dit en majuscules,
+parce que confondre les deux ferait lire un progrès là où il n'y a qu'une définition
+plus juste de ce qu'on compte.
+
+### L'alerte qui criait 85 nuits
+
+`csv_upload_log` ne porte que **deux** imports S4A réussis — 2026-06-08 et 2026-09-08,
+**92 jours d'écart** — contre un seuil de 7 jours. Aucun seuil ne répare ça : à 7 jours
+elle crie 85 fois, à 90 jours elle ne dit plus rien. Ce n'est pas le seuil qui est
+mauvais, c'est la question. La sonde garde l'alerte dès qu'une sortie n'est pas
+couverte, et se tait le reste du temps ; l'âge, lui, s'affiche titre par titre sur la
+page.
+
+**Et je dois corriger un chiffre que j'ai annoncé plus tôt dans la journée** : « les
+données s'arrêtent au 07/06, trois mois » venait de la base LOCALE. La prod était
+importée le 08/09. La question posée au propriétaire reposait donc sur une prémisse
+fausse — sa réponse sur la cadence reste juste, la prémisse ne l'était pas.
+
+### Deux fois le dépôt a refusé mon changement, et deux fois il avait raison
+
+`test_expected_silence` épinglait « seul Meta déclare un silence attendu » —
+*« each one needs the measurement that justifies it »*. L'épingle est devenue une TABLE
+portant, pour chaque source, la mesure qui la justifie.
+
+Et le méta-garde a refusé une assertion qui comparait du texte source, satisfiable par
+un commentaire. Réécrite en AST.
+
+### Une instabilité de mesure, pas un défaut
+
+L'audit déterministe a rendu **deux verdicts rouges différents** sur des tests qui
+passaient tous isolément. Cause : je l'avais lancé EN PARALLÈLE de la suite complète —
+deux pytest en concurrence. Relancé seul, code retour 0, zéro touche. C'est la leçon
+déjà écrite sur le gel de l'arbre pendant une suite, à une autre échelle.
+
+### Tests
+
+`python3 -m pytest tests/ -q` → **5 647 passés, 110 ignorés, 0 échec**.
+`audit_runner --deterministic` → **audit clean**, code retour 0. Valeurs Instagram
+vérifiées identiques avant/après le repointage (1606 → 1525, delta −81).
+
+---
+
 ## 2026-09-14 — Le net affiché valait 21,49 € quand la banque avait viré 36,49 €
 
 ### Ce qui a changé

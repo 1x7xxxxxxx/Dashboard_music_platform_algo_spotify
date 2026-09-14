@@ -25,10 +25,13 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R108 | L'exemption de la PORTE masque ses propres lectures de bronze — mesuré en la découpant | P4 | le compte du cliquet du bronze ne change pas quand on retire `period_side_metrics.py` de `_NOT_A_SURFACE` |
 
-**Une tâche ouverte**, R108, ouverte le 2026-09-13 par un
-découpage qui a révélé un angle mort du cliquet du bronze. **R103 et R107 ont été
+**L'index est vide.** **R108 a été livrée le 2026-09-14** — la dernière tâche qui
+y figurait, et avec elle l'index n'a plus de ligne. Elle tranchait entre exempter ou
+compter les jointures de dimension dans le cliquet du bronze ; le critère retenu
+(« cette table porte-t-elle une quantité ADDITIVE ? ») a fait descendre le cliquet
+de 104 à 81 via un registre de 8 tables de dimension et la migration 121. Détail dans
+`archive.md`. **R103 et R107 ont été
 livrées le 2026-09-14** — le diagnostic lit une route et non un nom, et les trois
 décisions produit de R107 sont toutes tranchées. Détail dans `archive.md`. **R106 a été livrée le 2026-09-13** — la
 tuile Shazam est sur l'accueil (1 770 au catalogue, 637 pour la dernière sortie), et
@@ -41,6 +44,11 @@ qui la comptaient (figure et totaux). Détail dans `archive.md`. R92 à R95, les
 closes et rotées dans `archive.md`, comme R89, R90 et R91 avant elles (critère du
 double axe écrit et six figures triées, légende devenue le filtre de sources, PDF doté
 de la figure d'évolution multi-plateformes). Détail complet dans l'archive.
+
+**Aucune tâche ouverte ne reste dans cet index.** Seule R1 demeure, hors de l'index
+par construction — voir « 🙋 En attente de toi » plus bas : elle attend un geste
+humain (inviter la bêta), pas une ligne de code, et ne doit jamais être lue comme
+close.
 
 ⚠️ Ce paragraphe annonçait encore « quatre tâches rouvertes » le 2026-09-12, alors que
 les quatre étaient closes et l'index vide. Aucun garde ne pouvait le voir : l'ancre et
@@ -101,9 +109,14 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-14, UNE tâche ouverte : R108 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-14, ZÉRO tâche ouverte dans l'index (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R108 -->
+<!-- reprise: open= -->
+
+**L'index `## 📋 Tâches ouvertes` est vide** : R108, sa dernière ligne, a été livrée
+le 2026-09-14. **R1 reste en attente**, dans « 🙋 En attente de toi » plus bas, hors
+de l'index par construction — elle attend le geste de son propriétaire (inviter la
+bêta), pas du travail d'ingénierie, et n'est PAS close.
 
 ### La séance du 2026-09-13 (soir) — une coupure de courant, et ce qu'elle a révélé
 
@@ -632,30 +645,3 @@ natural (or need redoing) under a React/Next.js front-end. Parked here per user 
 - **Rich client interactions** — anything that fought the rerun model (live event hooks,
   drag/drop, fine-grained widget state, real-time updates without full reruns) becomes
   first-class under React; revisit UX patterns that were simplified to fit Streamlit.
-
-
-## R108 — L'exemption de la porte masque ce qu'elle laisse entrer
-
-- [ ] **R108 — décider si les jointures de DIMENSION comptent dans la frontière du
-      bronze, et le cas échéant les faire entrer dans le compte.**
-
-**Trouvé par accident le 2026-09-13**, en découpant `platform_timeseries.py` sous la
-pression du cliquet des 1 200 lignes. `period_side_metrics` partie dans son fichier, le
-cliquet du bronze est passé de 108 à **111** : trois couples sont devenus visibles —
-`instagram_daily_stats`, `track_platform_link`, `track_release_reference`.
-
-**Aucun n'est neuf dans le code.** Tous vivaient dans la porte, que `_NOT_A_SURFACE`
-exempte depuis l'origine (ADR-022). Les deux derniers ont été ajoutés le jour même pour
-Shazam et Hypeddit, et **le cliquet ne les aurait jamais comptés** sans ce dépassement.
-C'est un angle mort de l'exemption, pas du découpage : tout ce qui entre dans la porte
-est invisible au compteur, quel qu'en soit le volume.
-
-**La question**, et elle n'est pas évidente : une jointure sur `track_platform_link` est
-un rapprochement de DIMENSION, pas une métrique — ADR-019 vise les règles métier
-recopiées qui divergent. Trois issues : laisser l'exemption (le volume entrant n'est
-jamais mesuré) ; compter les dimensions et exempter les métriques (il faut alors tenir
-un registre des tables de dimension) ; monter le rapprochement canonique en fonction or
-(`views/meta_mapping/_tracks.py` lit déjà ces tables, le chantier dépasse l'accueil).
-
-**P4** : aucune divergence constatée, et les deux lectures passent par un lien
-`confirmed` — la seule règle qu'elles portent. Dette de mesure, pas défaut vivant.

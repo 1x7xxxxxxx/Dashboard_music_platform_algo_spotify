@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**328 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**330 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -10,7 +10,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 
 | famille | classes | la question |
 |---|---|---|
-| [le-locataire](#le-locataire) | 39 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
+| [le-locataire](#le-locataire) | 41 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 16 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 10 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 15 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
@@ -33,7 +33,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 
 **Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ?**
 
-Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|canary|sandbox|deux locataires|par locataire|du locataire|son locataire|le locataire|d'un locataire|leur locataire|chaque locataire|un locataire|locataires? multi|aux locataires` sur l'identifiant et le symptôme. 39 classe(s).
+Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|canary|sandbox|deux locataires|par locataire|du locataire|son locataire|le locataire|d'un locataire|leur locataire|chaque locataire|un locataire|locataires? multi|aux locataires` sur l'identifiant et le symptôme. 41 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -76,6 +76,8 @@ Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|cana
 | [`a-late-platform-has-no-tenant-guard`](error-classes.md#a-late-platform-has-no-tenant-guard) | une plateforme arrivée tard dans le produit n'est couverte par AUCUN garde de tenance. Aucun symptôme visible — jusqu'au jour où une lecture sans `art |
 | [`a-first-bucket-declared-unknown-when-it-was-observed`](error-classes.md#a-first-bucket-declared-unknown-when-it-was-observed) | la figure totalise MOINS que ce que le compteur a gagné, sans qu'aucun message ne le dise. Mesuré sur un locataire réel le 2026-09-12 : **182 432 dess |
 | [`two-silences-one-message`](error-classes.md#two-silences-one-message) | l'écran dit « Pas encore assez d'historique pour tracer une évolution » à un locataire qui en a **quatre ans**. Vu au navigateur le 2026-09-12 sur « 9 |
+| [`an-exemption-declared-per-site-never-stops-growing`](error-classes.md#an-exemption-declared-per-site-never-stops-growing) | une liste d'exemptions grossit à chaque changement sans rapport avec elle. Mesuré le 2026-09-14 : `saas_artists` est passée de **0 à 4 déclarations en |
+| [`an-alert-judged-on-time-for-a-manual-source`](error-classes.md#an-alert-judged-on-time-for-a-manual-source) | une alerte de fraîcheur est rouge presque en permanence pour un pipeline correct. Mesuré le 2026-09-14 : le CSV Spotify for Artists a déclenché **85 n |
 
 ## un-cumul-pris-pour-un-quotidien
 
@@ -519,6 +521,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=328 families=17 orphans=3 -->
+<!-- error-class-families: total=330 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=c6c6c37a37fc30147ec901310de11c33ccf7fd4a1644c296d83530087888f666 -->
+<!-- error-class-families: sha256=96d6737177e2d04f945a627215f67e4754166eea399d110cda5aee89cbb56978 -->
