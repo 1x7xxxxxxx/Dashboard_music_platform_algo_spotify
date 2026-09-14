@@ -141,6 +141,19 @@ _DECLARED_RAW_AGGREGATES: dict[tuple[str, str], str] = {
         "`EXISTS (SELECT 1 …)` : « cet artiste a-t-il déjà rattaché un titre ? ». "
         "Une étape de mise en route rend un BOOLÉEN — la requête s'arrête à la "
         "première ligne et ne compte rien.",
+    # ── La sonde de silence attendu : deux MAX de DATE, aucune quantité ─────────
+    #
+    # `_s4a_silence` (2026-09-14) compare la dernière SORTIE à la dernière MESURE
+    # pour décider si l'artiste a un geste à faire. Deux bornes temporelles, pas un
+    # volume : c'est exactement la frontière que ce fichier pose — une DATE répond
+    # « qu'y a-t-il », une somme répond « combien ». La sonde n'affiche d'ailleurs
+    # aucun nombre, elle rend une phrase ou `None`.
+    ("src/utils/freshness_monitor.py", "s4a_song_timeline"):
+        "MAX(date) : jusqu'où la mesure va, pour décider si une sortie attend d'être "
+        "importée. Une borne, jamais un volume — et rien de ce nombre n'est affiché.",
+    ("src/utils/freshness_monitor.py", "track_release_reference"):
+        "MAX(release_date) : la date de la dernière sortie, comparée à la borne "
+        "ci-dessus. Une table de dimension interrogée pour une date.",
     # ── `saas_artists` : le REGISTRE des locataires, pas une table de fait ──────
     #
     # Rendu visible le 2026-09-14 par la migration 120, qui joint `saas_artists` pour
