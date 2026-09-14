@@ -34,6 +34,12 @@ _DYNAMIC_PREFIXES = (
     "meta_breakdowns.family.", "meta_breakdowns.grain.", "meta_cpr_optimizer.rec.",
     "meta_creatives.metric.", "nav.item.", "nav.section.",
     "onboarding.caveat.", "onboarding.value.",
+    # `t(f"spotify_s4a_combined.source.{src}")` — une clé par SOURCE d'abonnés, et
+    # les sources sont énumérées par `v_spotify_followers_daily` (migration 120) :
+    # 's4a_csv' et 'spotify_api'. `test_every_follower_source_is_named` (dans
+    # test_the_spotify_page_reads_only_the_gold_layer) vérifie qu'aucune n'est sans
+    # libellé — le préfixe n'ouvre donc pas une porte sans contrôle.
+    "spotify_s4a_combined.source.",
     # `for key, default, image in (…)` : les trois promesses du bloc 1 passent
     # leur clé en VARIABLE, une par figure d'exemple (2026-09-04).
     #

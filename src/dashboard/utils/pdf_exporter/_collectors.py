@@ -698,8 +698,8 @@ def _collect_s4a_audience(db, artist_id):
         return []
     try:
         rows = db.fetch_query(
-            "SELECT date, listeners, followers FROM s4a_audience "
-            "WHERE artist_id = %s ORDER BY date", (artist_id,))
+            "SELECT day, listeners, followers_level FROM v_s4a_audience_daily "
+            "WHERE artist_id = %s ORDER BY day", (artist_id,))
         return [(r[0], r[1], r[2]) for r in rows] if rows else []
     except Exception as exc:  # noqa: BLE001
         logger.warning("PDF: _collect_s4a_audience unreadable: %s", type(exc).__name__)

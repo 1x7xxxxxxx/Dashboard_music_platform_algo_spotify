@@ -232,8 +232,8 @@ def _recap_spotify(db, aid):
     pop = get_spotify_popularity(db, aid)
     try:
         arow = db.fetch_query(
-            "SELECT listeners, followers FROM s4a_audience WHERE artist_id = %s "
-            "ORDER BY date DESC LIMIT 1", (aid,))
+            "SELECT listeners, followers_level FROM v_s4a_audience_daily "
+            "WHERE artist_id = %s ORDER BY day DESC LIMIT 1", (aid,))
         followers = int(arow[0][1]) if arow and arow[0][1] is not None else None
     except Exception:
         followers = None

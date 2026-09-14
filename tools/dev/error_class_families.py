@@ -122,8 +122,14 @@ FAMILIES: list[tuple[str, str, str]] = [
 
     ("deux-surfaces-deux-nombres",
      "Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ?",
+     # `span-read-from|étendue|sélecteur de période` : la même question — « de quoi
+     # dispose-t-on ? » — posée à DEUX relations différentes. Le sélecteur lit la
+     # table, la figure lit la vue, et ils ne s'accordent pas. C'est la même forme
+     # qu'un total recalculé deux fois, au niveau d'une ÉTENDUE plutôt que d'une
+     # somme ; élargi le 2026-09-14 plutôt que d'ajouter un motif par cas.
      r"metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|"
-     r"duplicat|escapes-every-sql-guard|drift|desync|hand-synced"),
+     r"duplicat|escapes-every-sql-guard|drift|desync|hand-synced|"
+     r"span-read-from|étendue|sélecteur de période"),
 
     ("une-erreur-avalée-devient-une-absence",
      "Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et "

@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**324 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**328 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -13,10 +13,10 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [le-locataire](#le-locataire) | 39 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 16 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 10 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
-| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 14 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
+| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 15 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 21 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 19 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
-| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 24 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
+| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 25 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 20 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 37 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 40 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
@@ -24,7 +24,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 7 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 3 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
-| [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 18 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
+| [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 20 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 20 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
 | [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 20 | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | _sans famille_ | 3 | — |
@@ -125,7 +125,7 @@ Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|noth
 
 **Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ?**
 
-Règle de rattachement : `unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|rendered-as-health|sums-the-display|discarded-in-silence|erases-every-other|past-the-end-of-its-evidence|renders-nothing|named-like-a-final-one|imput|estimat|wins-a-desc-ranking` sur l'identifiant et le symptôme. 14 classe(s).
+Règle de rattachement : `unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|rendered-as-health|sums-the-display|discarded-in-silence|erases-every-other|past-the-end-of-its-evidence|renders-nothing|named-like-a-final-one|imput|estimat|wins-a-desc-ranking` sur l'identifiant et le symptôme. 15 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -143,6 +143,7 @@ Règle de rattachement : `unmeasured|claimed-not-measured|outranks-the-measureme
 | [`a-verdict-computed-past-the-end-of-its-evidence`](error-classes.md#a-verdict-computed-past-the-end-of-its-evidence) | une page affiche un verdict en vert — « breakeven atteint le … » — sur un croisement de courbes garanti par construction. Mesuré le 2026-09-10 pour l' |
 | [`an-unmeasured-platform-is-rendered-as-zero`](error-classes.md#an-unmeasured-platform-is-rendered-as-zero) | un artiste qui vient de s'inscrire lit **« 0 écoute »** sur les quatre plateformes. Ça ne se lit pas comme « la collecte n'a pas encore tourné », ça s |
 | [`an-empty-group-wins-a-desc-ranking`](error-classes.md#an-empty-group-wins-a-desc-ranking) | une surface qui affiche « le meilleur X » montre `—` alors qu'un vrai chiffre existe en base. Aucune erreur, aucune trace : la requête a bien rendu un |
+| [`a-subplan-re-executed-by-a-misestimated-row-count`](error-classes.md#a-subplan-re-executed-by-a-misestimated-row-count) | une vue SQL passe de quelques dizaines de millisecondes à plusieurs minutes sans qu'aucune donnée n'ait changé, et la page qui la lit rend `canceling  |
 
 ## le-message-parle-au-mauvais-lecteur
 
@@ -206,7 +207,7 @@ Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-a
 
 **Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ?**
 
-Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced` sur l'identifiant et le symptôme. 24 classe(s).
+Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 25 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -234,6 +235,7 @@ Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|diver
 | [`one-scale-for-two-contracts`](error-classes.md#one-scale-for-two-contracts) | une tuile de fraîcheur passe au **rouge** pour un comportement parfaitement normal. Signalé le 2026-09-12 : « c'est en rouge alors qu'on a que 3 jours |
 | [`a-stack-that-mixes-two-baselines`](error-classes.md#a-stack-that-mixes-two-baselines) | une série disparaît d'un graphique empilé alors qu'elle y est bien tracée. Elle n'est ni absente ni à zéro — elle est ÉCRASÉE, parce qu'une série vois |
 | [`one-fact-two-answers-by-display-mode`](error-classes.md#one-fact-two-answers-by-display-mode) | la même phrase de l'interface affiche deux valeurs différentes selon un réglage d'affichage que l'utilisateur vient de changer. Aucune des deux n'est  |
+| [`a-span-read-from-a-table-that-carries-a-mandatory-filter`](error-classes.md#a-span-read-from-a-table-that-carries-a-mandatory-filter) | un sélecteur de période propose une fenêtre plus large que ce que la figure d'à côté peut tracer. L'utilisateur choisit dans un intervalle qui existe, |
 
 ## une-erreur-avalée-devient-une-absence
 
@@ -422,7 +424,7 @@ Règle de rattachement : `overwrit|écrase|clobber|upsert|conflict|restore|delet
 
 **Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ?**
 
-Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|window-applied|day|month|period` sur l'identifiant et le symptôme. 18 classe(s).
+Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|window-applied|day|month|period` sur l'identifiant et le symptôme. 20 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -444,6 +446,8 @@ Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|wi
 | [`a-date-that-does-not-say-which-clock-produced-it`](error-classes.md#a-date-that-does-not-say-which-clock-produced-it) | aucun, tant qu'on ne compare pas deux périodes — et alors l'écart est de quelques heures, change avec la saison, et personne ne peut dire s'il est rée |
 | [`a-figure-under-a-period-selector-that-ignores-it`](error-classes.md#a-figure-under-a-period-selector-that-ignores-it) | l'artiste choisit « 30 jours » et la figure lui montre autre chose, sans que rien ne le dise. Aucune erreur, aucun trou : des barres pleines, sur une  |
 | [`a-method-change-counted-as-growth`](error-classes.md#a-method-change-counted-as-growth) | une figure ou un total affiche un pic énorme et parfaitement faux, à une date où rien n'est arrivé. Le chiffre est DÉRIVÉ correctement d'une série cor |
+| [`a-join-on-a-display-name-loses-what-the-name-normalises`](error-classes.md#a-join-on-a-display-name-loses-what-the-name-normalises) | une figure ou un total ne montre qu'une partie du catalogue, sans erreur ni ligne manquante visible. Mesuré le 2026-09-14 : joindre `track_release_ref |
+| [`a-zero-that-predates-the-thing-it-measures`](error-classes.md#a-zero-that-predates-the-thing-it-measures) | une courbe dessine des mois de plat à zéro avant que l'objet mesuré n'existe. Mesuré le 2026-09-14 : « Ô Chiotte l'arbitre Tucome Back », sorti le 30/ |
 
 ## la-frontière-avec-le-dehors
 
@@ -515,6 +519,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=324 families=17 orphans=3 -->
+<!-- error-class-families: total=328 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=9d389d380454eb464d2a6083aacd5d2e5efeb9cd44972ddbb0a0d48b80932a2e -->
+<!-- error-class-families: sha256=c6c6c37a37fc30147ec901310de11c33ccf7fd4a1644c296d83530087888f666 -->

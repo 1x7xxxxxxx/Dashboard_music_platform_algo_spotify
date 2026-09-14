@@ -141,6 +141,32 @@ _DECLARED_RAW_AGGREGATES: dict[tuple[str, str], str] = {
         "`EXISTS (SELECT 1 …)` : « cet artiste a-t-il déjà rattaché un titre ? ». "
         "Une étape de mise en route rend un BOOLÉEN — la requête s'arrête à la "
         "première ligne et ne compte rien.",
+    # ── `saas_artists` : le REGISTRE des locataires, pas une table de fait ──────
+    #
+    # Rendu visible le 2026-09-14 par la migration 120, qui joint `saas_artists` pour
+    # le pont de locataire (`spotify_artist_id`) — la carte en conclut que la vue
+    # « couvre » la table. Elle ne la couvre pas : elle s'y appuie. Les six lectures
+    # ci-dessous comptent des LOCATAIRES ou des parrainages, jamais une performance.
+    # Deuxième instance du phénomène de R108, et elle confirme la forme : ce qu'aucune
+    # vue or ne touche n'est jamais compté.
+    ("src/dashboard/utils/live_pulse.py", "saas_artists"):
+        "COUNT(*) des locataires humains — le pouls d'activité de l'instance. Un "
+        "décompte de comptes, aucune mesure de performance.",
+    ("src/dashboard/views/admin.py", "saas_artists"):
+        "COUNT(*) des locataires humains sur la page admin : « combien de comptes ». "
+        "Le registre se compte, il ne s'agrège pas.",
+    ("src/dashboard/views/meta_mapping/_campaigns.py", "saas_artists"):
+        "jointure d'identité pour retrouver le compte publicitaire d'un locataire. "
+        "Aucun montant, aucune écoute.",
+    ("src/dashboard/views/referral_admin.py", "saas_artists"):
+        "COUNT(*) des parrainages et des comptes créés — un suivi d'acquisition au "
+        "grain compte, pas une métrique de plateforme.",
+    # ── La dimension des sorties ────────────────────────────────────────────────
+    ("src/dashboard/utils/period_side_metrics.py", "track_release_reference"):
+        "jointure de DIMENSION : elle résout « quelle sortie » pour rapprocher un "
+        "titre de sa date. Les agrégats de cette fonction portent sur des vues or ; "
+        "la table de sorties n'apporte que le rapprochement. Même cas que la "
+        "jointure `track_platform_link` déclarée ci-dessus.",
     ("src/dashboard/views/meta_mapping/_campaigns.py", "meta_campaigns"):
         "catalogue de campagnes à associer : MAX(start_time), string_agg de noms, "
         "bool_or d'un marqueur de rejet. Aucun montant, aucune performance.",

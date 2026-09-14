@@ -28,6 +28,23 @@ import streamlit as st
 
 from src.database.postgres_handler import PostgresHandler
 
+# ⚠️ UNE TABLE À FILTRE OBLIGATOIRE N'ENTRE PAS ICI.
+#
+# `_data_span` interpole ce nom dans un `SELECT MIN(...), MAX(...) FROM {table}` SANS
+# aucun prédicat métier. Tant que `s4a_song_timeline` y figurait, l'étendue proposée
+# par le sélecteur de période était celle de TOUTE la table — ligne « Total » des CSV
+# comprise, et tous titres confondus, alors que la figure d'à côté ne trace qu'un
+# titre. La règle transverse #8 du dépôt impose `AND song NOT ILIKE '%1x7xxxxxxx%'`
+# sur toute lecture de cette table ; une f-string qui ne porte aucun prédicat ne peut
+# structurellement pas la respecter.
+#
+# Le correctif n'est PAS d'ajouter le filtre ici — un garde textuel ne verrait jamais
+# le défaut, parce que le SQL recousu par `ast.JoinedStr` vaut littéralement
+# « SELECT MIN( )::date, MAX( )::date FROM  WHERE 1=1 » : le nom de la table n'y
+# apparaît pas. Le correctif est que seules des VUES OR entrent dans cette liste.
+# Elles portent leurs prédicats en elles, donc la question ne se pose plus.
+#
+# Classe : `a-span-read-from-a-table-that-carries-a-mandatory-filter`.
 _ALLOWED_TABLES = frozenset({
     "meta_insights_performance_day",
     "apple_songs_history",
@@ -35,9 +52,20 @@ _ALLOWED_TABLES = frozenset({
     "soundcloud_tracks_daily",
     "instagram_daily_stats",
     "instagram_media",
-    "s4a_song_timeline",
     "hypeddit_daily_stats",
+    # Couche or — ces relations portent leurs règles (retrait de la ligne « Total »,
+    # déduplication par (date, titre), locataire non nul) et sont donc sûres à borner.
+    "v_s4a_song_daily",
+    "v_s4a_audience_daily",
+    "v_s4a_release_cohort",
 })
+
+# Les tables retirées de l'allowlist, avec la vue qui les remplace. Nommer le
+# remplacement évite qu'on remette la table « parce que ça marchait avant ».
+_REPLACED_BY_GOLD = {
+    "s4a_song_timeline": "v_s4a_song_daily",
+    "s4a_audience": "v_s4a_audience_daily",
+}
 _ALLOWED_DATE_COLUMNS = frozenset({
     # `day` est la colonne de date des VUES de la couche or (`v_s4a_song_daily`,
     # `v_platform_levels`). Une surface qui lit la couche or plutôt que le fait doit
@@ -49,7 +77,10 @@ _ALLOWED_DATE_COLUMNS = frozenset({
 })
 _ALLOWED_ARTIST_COLUMNS = frozenset({"artist_id"})
 # Entity (track/song) label columns the entity_period_filter may select on.
-_ALLOWED_ENTITY_COLUMNS = frozenset({"title", "song_name", "song"})
+# Les colonnes sur lesquelles une étendue peut être RESTREINTE à ce qui est tracé.
+# `match_key` sert la couche or des sorties (migration 119), où l'entité n'est plus
+# un nom d'affichage mais la clé canonique.
+_ALLOWED_ENTITY_COLUMNS = frozenset({"title", "song_name", "song", "match_key"})
 
 _PRESETS = {
     "current": "📅 En cours",
@@ -78,6 +109,11 @@ class PeriodWindow:
 
 
 def _validate(table: str, date_column: str, artist_column: str) -> None:
+    if table in _REPLACED_BY_GOLD:
+        raise ValueError(
+            f"smart_period_filter: '{table}' porte un filtre obligatoire et ne peut "
+            f"pas être bornée directement — son étendue inclurait la ligne « Total » "
+            f"et tous les titres. Utilise '{_REPLACED_BY_GOLD[table]}'.")
     if table not in _ALLOWED_TABLES:
         raise ValueError(f"smart_period_filter: table '{table}' not in allowlist")
     if date_column not in _ALLOWED_DATE_COLUMNS:
@@ -89,12 +125,24 @@ def _validate(table: str, date_column: str, artist_column: str) -> None:
 def _data_span(
     db: PostgresHandler, table: str, date_column: str,
     artist_column: str, artist_id: Optional[int],
+    entity_column: Optional[str] = None, entity_value: Optional[str] = None,
 ) -> tuple[Optional[_dt.date], Optional[_dt.date]]:
+    """L'étendue de CE QUI EST TRACÉ, pas celle de la table.
+
+    Sans `entity_column`, le sélecteur proposait à un titre mesuré sur 646 jours
+    l'étendue de tous les titres réunis. L'utilisateur croit alors choisir dans une
+    fenêtre qui existe, et obtient une figure vide sur ses bords.
+    """
+    if entity_column is not None and entity_column not in _ALLOWED_ENTITY_COLUMNS:
+        raise ValueError(f"_data_span: entity_column '{entity_column}' not in allowlist")
     sql = f"SELECT MIN({date_column})::date, MAX({date_column})::date FROM {table} WHERE 1=1"
     params: tuple = ()
     if artist_id is not None:
         sql += f" AND {artist_column} = %s"
         params = (artist_id,)
+    if entity_column is not None and entity_value is not None:
+        sql += f" AND {entity_column} = %s"
+        params = (*params, entity_value)
     rows = db.fetch_query(sql, params or None)
     if rows and rows[0][0] is not None:
         return rows[0][0], rows[0][1]
