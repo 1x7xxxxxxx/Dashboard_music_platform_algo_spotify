@@ -120,66 +120,75 @@ _RATCHET_FACTS = frozenset({
 # La frontière, et elle est nette : un COMPTE, une DATE ou une CONCATÉNATION de noms
 # répond « qu'y a-t-il », pas « combien ». Une somme d'argent, d'écoutes, de vues ou
 # de clics répond « combien » et appartient à la couche or, sans exception.
+# ═══════════════════════════════════════════════════════════════════════════
+# LE REGISTRE DES TABLES DE DIMENSION (R108, tranché le 2026-09-14)
+# ═══════════════════════════════════════════════════════════════════════════
+# La question de R108 était « les jointures de dimension comptent-elles dans la
+# frontière du bronze ? ». Elle était mal posée, et trois migrations d'affilée l'ont
+# montré : 116, 120 et la sonde de fraîcheur ont chacune rendu VISIBLES des lectures
+# anciennes, simplement en donnant une vue or à une table qu'elles joignaient. À
+# chaque fois, le geste était le même — déclarer site par site. `saas_artists` est
+# ainsi passée de 0 à 4 déclarations en UNE migration, et rien n'arrêtait la série.
+#
+# LE CRITÈRE, ET IL SE VÉRIFIE CONTRE LE SCHÉMA
+# ----------------------------------------------
+# Ce n'est pas « dimension ou métrique » — ce jugement se refait à chaque site et se
+# discute. C'est : **cette table porte-t-elle une quantité ADDITIVE ?** Mesuré le
+# 2026-09-14 sur les trois premières :
+#
+#   saas_artists            → id, referral_free_months, first_month_discount_pct
+#   track_platform_link     → id, artist_id, confidence
+#   track_release_reference → id, artist_id
+#
+# Que des identifiants, un score par ligne et deux paramètres de facturation. Aucune
+# somme d'argent, d'écoutes, de vues ni de clics. Une lecture d'une telle table ne
+# PEUT PAS être une règle métier recopiée qui diverge — il n'y a rien à sommer.
+#
+# `tests/test_a_dimension_table_carries_no_quantity.py` rejoue ce critère contre la
+# base réelle : une table inscrite ici qui gagne une colonne additive fait rougir la
+# CI. Le registre n'est donc pas une liste de confiance, c'est une assertion.
+#
+# CE QUE CE REGISTRE NE COUVRE PAS, ET POURQUOI
+# ---------------------------------------------
+# `meta_campaigns`, `meta_ads`, `meta_adsets` portent À LA FOIS des attributs de
+# dimension (noms, dates, call_to_action) ET du spend. Les exempter en bloc ouvrirait
+# la porte au défaut que le cliquet existe pour attraper. Elles restent déclarées
+# site par site, à raison.
+_DIMENSION_TABLES: dict[str, str] = {
+    "saas_artists":
+        "le REGISTRE des locataires. Ses seuls entiers sont un identifiant et deux "
+        "paramètres de facturation par compte — rien à sommer entre deux lignes.",
+    "track_platform_link":
+        "la table de LIENS entre un titre et son identité sur une plateforme. "
+        "`confidence` est un score par ligne, pas une quantité qui s'additionne.",
+    "track_release_reference":
+        "la table des SORTIES : une clé canonique, un titre, une date. Aucun nombre "
+        "mesuré.",
+}
+
+
+def _is_dimension(table: str) -> bool:
+    """Une lecture d'une table sans quantité additive n'est jamais une métrique."""
+    return table in _DIMENSION_TABLES
+
+
+def _is_exempt(rel: str, table: str) -> bool:
+    """Déclaré par sa TABLE (dimension) ou par son SITE (cas particulier)."""
+    return _is_dimension(table) or (rel, table) in _DECLARED_RAW_AGGREGATES
+
+
 _DECLARED_RAW_AGGREGATES: dict[tuple[str, str], str] = {
-    # ── Les deux jointures de DIMENSION sur `track_platform_link` ──────────────
-    #
-    # Rendues visibles le 2026-09-14 par la migration 116 : en donnant une vue or à
-    # `track_platform_link`, elle a fait entrer dans le compte deux lectures qui
-    # existaient depuis des semaines. C'est le phénomène de R108 — ce qu'aucune vue
-    # or ne couvre n'est jamais compté — et sa première instance résolue : le
-    # compteur ne montre pas du code neuf, il montre un angle mort qui se ferme.
-    #
-    # Aucune des deux n'agrège la table de LIENS. Elles s'y joignent pour résoudre
-    # « quel titre », puis somment une vue or. C'est la frontière que R108 pose :
-    # un rapprochement de dimension n'est pas une règle métier recopiée.
-    ("src/dashboard/utils/period_side_metrics.py", "track_platform_link"):
-        "jointure de DIMENSION : elle résout « quel titre Apple / quelle campagne "
-        "Hypeddit correspond à la dernière sortie », sur un lien `confirmed`. Les "
-        "SUM portent sur `v_hypeddit_daily`, qui EST la couche or ; la table de "
-        "liens n'apporte que le rapprochement, et aucun rapprochement flou.",
-    ("src/dashboard/utils/setup_completion.py", "track_platform_link"):
-        "`EXISTS (SELECT 1 …)` : « cet artiste a-t-il déjà rattaché un titre ? ». "
-        "Une étape de mise en route rend un BOOLÉEN — la requête s'arrête à la "
-        "première ligne et ne compte rien.",
-    # ── La sonde de silence attendu : deux MAX de DATE, aucune quantité ─────────
+    # ── La sonde de silence attendu : un MAX de DATE, pas une quantité ───────────
     #
     # `_s4a_silence` (2026-09-14) compare la dernière SORTIE à la dernière MESURE
-    # pour décider si l'artiste a un geste à faire. Deux bornes temporelles, pas un
-    # volume : c'est exactement la frontière que ce fichier pose — une DATE répond
-    # « qu'y a-t-il », une somme répond « combien ». La sonde n'affiche d'ailleurs
-    # aucun nombre, elle rend une phrase ou `None`.
+    # pour décider si l'artiste a un geste à faire. C'est une borne temporelle, pas
+    # un volume : une DATE répond « qu'y a-t-il », une somme répond « combien ». La
+    # sonde n'affiche d'ailleurs aucun nombre, elle rend une phrase ou `None`.
+    # (Son autre lecture, `track_release_reference`, est couverte par le registre
+    # des dimensions ci-dessus et n'a donc pas d'entrée ici.)
     ("src/utils/freshness_monitor.py", "s4a_song_timeline"):
         "MAX(date) : jusqu'où la mesure va, pour décider si une sortie attend d'être "
         "importée. Une borne, jamais un volume — et rien de ce nombre n'est affiché.",
-    ("src/utils/freshness_monitor.py", "track_release_reference"):
-        "MAX(release_date) : la date de la dernière sortie, comparée à la borne "
-        "ci-dessus. Une table de dimension interrogée pour une date.",
-    # ── `saas_artists` : le REGISTRE des locataires, pas une table de fait ──────
-    #
-    # Rendu visible le 2026-09-14 par la migration 120, qui joint `saas_artists` pour
-    # le pont de locataire (`spotify_artist_id`) — la carte en conclut que la vue
-    # « couvre » la table. Elle ne la couvre pas : elle s'y appuie. Les six lectures
-    # ci-dessous comptent des LOCATAIRES ou des parrainages, jamais une performance.
-    # Deuxième instance du phénomène de R108, et elle confirme la forme : ce qu'aucune
-    # vue or ne touche n'est jamais compté.
-    ("src/dashboard/utils/live_pulse.py", "saas_artists"):
-        "COUNT(*) des locataires humains — le pouls d'activité de l'instance. Un "
-        "décompte de comptes, aucune mesure de performance.",
-    ("src/dashboard/views/admin.py", "saas_artists"):
-        "COUNT(*) des locataires humains sur la page admin : « combien de comptes ». "
-        "Le registre se compte, il ne s'agrège pas.",
-    ("src/dashboard/views/meta_mapping/_campaigns.py", "saas_artists"):
-        "jointure d'identité pour retrouver le compte publicitaire d'un locataire. "
-        "Aucun montant, aucune écoute.",
-    ("src/dashboard/views/referral_admin.py", "saas_artists"):
-        "COUNT(*) des parrainages et des comptes créés — un suivi d'acquisition au "
-        "grain compte, pas une métrique de plateforme.",
-    # ── La dimension des sorties ────────────────────────────────────────────────
-    ("src/dashboard/utils/period_side_metrics.py", "track_release_reference"):
-        "jointure de DIMENSION : elle résout « quelle sortie » pour rapprocher un "
-        "titre de sa date. Les agrégats de cette fonction portent sur des vues or ; "
-        "la table de sorties n'apporte que le rapprochement. Même cas que la "
-        "jointure `track_platform_link` déclarée ci-dessus.",
     ("src/dashboard/views/meta_mapping/_campaigns.py", "meta_campaigns"):
         "catalogue de campagnes à associer : MAX(start_time), string_agg de noms, "
         "bool_or d'un marqueur de rejet. Aucun montant, aucune performance.",
@@ -1821,14 +1830,14 @@ def render(gold, surfaces, files, reads) -> str:
     for table, rs in covered.items():
         for r in rs:
             if (r.aggregates and not _watched_by_ratchet(r.rel, table)
-                    and (r.rel, table) not in _DECLARED_RAW_AGGREGATES):
+                    and not _is_exempt(r.rel, table)):
                 unguarded += 1
     if covered:
         rows = []
         for t, rs in sorted(covered.items()):
             agg = [r for r in rs if r.aggregates]
             blind = [r for r in agg if not _watched_by_ratchet(r.rel, t)
-                     and (r.rel, t) not in _DECLARED_RAW_AGGREGATES]
+                     and not _is_exempt(r.rel, t)]
             rows.append([
                 f"`{t}`", f"`{gold_reads[t]}`", str(len(rs)),
                 str(len(agg)) if agg else "—",
@@ -1842,6 +1851,21 @@ def render(gold, surfaces, files, reads) -> str:
                            "où (les hors-cliquet d'abord)"])
     else:
         L += ["Aucune table brute couverte par une vue or n'est lue ailleurs.", ""]
+
+    L += ["", "### Les tables de DIMENSION", "",
+          f"**{len(_DIMENSION_TABLES)} tables** ne portent aucune quantité additive : "
+          "que des identifiants, des libellés, des dates ou un score par ligne. Une "
+          "lecture de l'une d'elles ne peut pas être une règle métier recopiée — il "
+          "n'y a rien à sommer — donc elle n'a jamais besoin d'être déclarée site par "
+          "site.", "",
+          "Le critère se vérifie contre le schéma réel : "
+          "`tests/test_a_dimension_table_carries_no_quantity.py` fait rougir la CI si "
+          "l'une d'elles gagne une colonne additive. C'est une assertion, pas une "
+          "liste de confiance. R108, tranché le 2026-09-14 — le registre a remplacé "
+          "**7 déclarations de site** qui se multipliaient à chaque vue or neuve.", ""]
+    L += _table(
+        [[f"`{t}`", why] for t, why in sorted(_DIMENSION_TABLES.items())],
+        ["table", "pourquoi elle ne porte aucune quantité"])
 
     L += ["", "### Les agrégats DÉCLARÉS", "",
           f"**{len(_DECLARED_RAW_AGGREGATES)} couples (fichier, table)** agrègent une "

@@ -607,33 +607,37 @@ Le second tableau liste les **tables brutes encore lues hors des portes**, alors
 | `track_release_reference` | `v_s4a_release_reach` | 6 | 2 | 0 | dashboard/utils/period_side_metrics.py:84 · utils/freshness_monitor.py:175 |
 | `youtube_video_stats` | `v_platform_levels` | 6 | 3 | 0 | dashboard/utils/pdf_exporter/_collectors.py:249 · dashboard/views/youtube.py:183 · dashboard/views/youtube.py:201 |
 
+### Les tables de DIMENSION
+
+**3 tables** ne portent aucune quantité additive : que des identifiants, des libellés, des dates ou un score par ligne. Une lecture de l'une d'elles ne peut pas être une règle métier recopiée — il n'y a rien à sommer — donc elle n'a jamais besoin d'être déclarée site par site.
+
+Le critère se vérifie contre le schéma réel : `tests/test_a_dimension_table_carries_no_quantity.py` fait rougir la CI si l'une d'elles gagne une colonne additive. C'est une assertion, pas une liste de confiance. R108, tranché le 2026-09-14 — le registre a remplacé **7 déclarations de site** qui se multipliaient à chaque vue or neuve.
+
+| table | pourquoi elle ne porte aucune quantité |
+|---|---|
+| `saas_artists` | le REGISTRE des locataires. Ses seuls entiers sont un identifiant et deux paramètres de facturation par compte — rien à sommer entre deux lignes. |
+| `track_platform_link` | la table de LIENS entre un titre et son identité sur une plateforme. `confidence` est un score par ligne, pas une quantité qui s'additionne. |
+| `track_release_reference` | la table des SORTIES : une clé canonique, un titre, une date. Aucun nombre mesuré. |
+
 ### Les agrégats DÉCLARÉS
 
-**20 couples (fichier, table)** agrègent une table de fait hors de tout cliquet, délibérément. La frontière est nette : un COMPTE, une DATE ou une CONCATÉNATION de noms répond « qu'y a-t-il » ; une somme d'argent, d'écoutes, de vues ou de clics répond « combien » et appartient à la couche or, sans exception.
+**12 couples (fichier, table)** agrègent une table de fait hors de tout cliquet, délibérément. La frontière est nette : un COMPTE, une DATE ou une CONCATÉNATION de noms répond « qu'y a-t-il » ; une somme d'argent, d'écoutes, de vues ou de clics répond « combien » et appartient à la couche or, sans exception.
 
 Chaque déclaration est vérifiée : le site doit encore exister et encore agréger cette table. Une déclaration qui survit à ce qu'elle déclarait est du budget pour la prochaine occurrence.
 
 | fichier | table | pourquoi ce n'est pas une métrique |
 |---|---|---|
 | `collectors/_meta_insight_fetch.py` | `meta_insights_performance_day` | MAX(day_date) : le point de reprise de la collecte incrémentale. Un collecteur n'est pas une surface, et cette date n'est affichée nulle part. |
-| `dashboard/utils/live_pulse.py` | `saas_artists` | COUNT(*) des locataires humains — le pouls d'activité de l'instance. Un décompte de comptes, aucune mesure de performance. |
-| `dashboard/utils/period_side_metrics.py` | `track_platform_link` | jointure de DIMENSION : elle résout « quel titre Apple / quelle campagne Hypeddit correspond à la dernière sortie », sur un lien `confirmed`. Les SUM portent sur `v_hypeddit_daily`, qui EST la couche or ; la table de liens n'apporte que le rapprochement, et aucun rapprochement flou. |
-| `dashboard/utils/period_side_metrics.py` | `track_release_reference` | jointure de DIMENSION : elle résout « quelle sortie » pour rapprocher un titre de sa date. Les agrégats de cette fonction portent sur des vues or ; la table de sorties n'apporte que le rapprochement. Même cas que la jointure `track_platform_link` déclarée ci-dessus. |
-| `dashboard/utils/setup_completion.py` | `track_platform_link` | `EXISTS (SELECT 1 …)` : « cet artiste a-t-il déjà rattaché un titre ? ». Une étape de mise en route rend un BOOLÉEN — la requête s'arrête à la première ligne et ne compte rien. |
-| `dashboard/views/admin.py` | `saas_artists` | COUNT(*) des locataires humains sur la page admin : « combien de comptes ». Le registre se compte, il ne s'agrège pas. |
 | `dashboard/views/meta_creatives.py` | `meta_ads` | même requête : le COUNT des créatives d'une campagne dont les insights manquent. Un décompte de diagnostic, jamais affiché comme une mesure. |
 | `dashboard/views/meta_creatives.py` | `meta_campaigns` | `_QUERY_UNCOLLECTED` : COUNT(DISTINCT ad_id) et un `HAVING SUM(spend) = 0` qui SÉLECTIONNE les campagnes sans détail par créative. Le montant affiché à côté vient de `v_meta_daily` ; ici la somme est un prédicat, pas un nombre — et elle doit porter sur la table de fait, puisque la question est précisément « cette table est-elle vide pour cette campagne ». |
 | `dashboard/views/meta_mapping/_campaigns.py` | `meta_ads` | string_agg des noms de créatives, pour reconnaître de quelle sortie parle une campagne. Un nom n'est pas une mesure. |
 | `dashboard/views/meta_mapping/_campaigns.py` | `meta_adsets` | MIN/MAX des dates d'activité d'un ad set, pour comparer à la date de sortie du titre. Une fenêtre, pas un chiffre affiché. |
 | `dashboard/views/meta_mapping/_campaigns.py` | `meta_campaigns` | catalogue de campagnes à associer : MAX(start_time), string_agg de noms, bool_or d'un marqueur de rejet. Aucun montant, aucune performance. |
-| `dashboard/views/meta_mapping/_campaigns.py` | `saas_artists` | jointure d'identité pour retrouver le compte publicitaire d'un locataire. Aucun montant, aucune écoute. |
-| `dashboard/views/referral_admin.py` | `saas_artists` | COUNT(*) des parrainages et des comptes créés — un suivi d'acquisition au grain compte, pas une métrique de plateforme. |
 | `dashboard/views/trigger_algo/_common/_budget_roi.py` | `meta_ads` | même requête que ci-dessus : la jointure vers les créatives sert à lire leur call_to_action, jamais à sommer. |
 | `dashboard/views/trigger_algo/_common/_budget_roi.py` | `meta_campaigns` | string_agg(DISTINCT call_to_action) — l'inventaire des appels à l'action d'une campagne, à côté de sa performance qui, elle, vient de la couche or. |
 | `utils/distrokid_rollup.py` | `distrokid_monthly_revenue` | COUNT(*) des mois issus d'un import, renvoyé par le rollup qui vient de les écrire. C'est un accusé de réception, pas un revenu. |
 | `utils/freshness_monitor.py` | `meta_campaigns` | count(*) FILTER (status = 'ACTIVE') — une sonde de santé. Elle demande « ce locataire a-t-il des campagnes », pas « combien ont-elles coûté ». |
 | `utils/freshness_monitor.py` | `s4a_song_timeline` | MAX(date) : jusqu'où la mesure va, pour décider si une sortie attend d'être importée. Une borne, jamais un volume — et rien de ce nombre n'est affiché. |
-| `utils/freshness_monitor.py` | `track_release_reference` | MAX(release_date) : la date de la dernière sortie, comparée à la borne ci-dessus. Une table de dimension interrogée pour une date. |
 | `utils/imusician_rollup.py` | `imusician_monthly_revenue` | idem : le compte des mois que le rollup vient d'écrire. |
 
 ## Les chiffres gelés
@@ -651,4 +655,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=19 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=fabf3253e0112d9052df1a4d060ab6bcd7bdf013ebb2472a044b09b7c290e34c -->
+<!-- gold-coverage: sha256=8172adf342a468c79febc53be792934f7887048140bf319389042f4d81318a94 -->
