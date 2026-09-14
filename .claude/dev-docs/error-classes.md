@@ -124,6 +124,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-span-read-from-a-table-that-carries-a-mandatory-filter](#a-span-read-from-a-table-that-carries-a-mandatory-filter) | P3 | deterministic | guarded | none |
 | [a-zero-that-predates-the-thing-it-measures](#a-zero-that-predates-the-thing-it-measures) | P3 | deterministic | guarded | none |
 | [a-subplan-re-executed-by-a-misestimated-row-count](#a-subplan-re-executed-by-a-misestimated-row-count) | P3 | deterministic | guarded | none |
+| [an-exemption-declared-per-site-never-stops-growing](#an-exemption-declared-per-site-never-stops-growing) | P4 | deterministic | guarded | none |
+| [an-alert-judged-on-time-for-a-manual-source](#an-alert-judged-on-time-for-a-manual-source) | P3 | deterministic | guarded | none |
 | [two-silences-one-message](#two-silences-one-message) | P3 | deterministic | guarded | none |
 | [a-marker-shared-by-several-sites-guards-none](#a-marker-shared-by-several-sites-guards-none) | P3 | deterministic | guarded | none |
 | [a-removed-title-becomes-the-word-undefined](#a-removed-title-becomes-the-word-undefined) | P3 | deterministic | guarded | none |
@@ -5650,3 +5652,37 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-14: `guarded`. Signature **vue rouge** en ajoutant une seconde référence à la cohorte dans la vue d'horizon, **verte** après retrait.
   - 2026-09-14: le garde est **structurel et non chronométré**, délibérément. Une assertion de temps est instable — elle rougit sur une machine chargée et verdit sur un cache chaud — alors qu'une double référence est un fait du texte SQL. On garde la CAUSE, pas le symptôme.
   - 2026-09-14: trouvé par le RENDU, pas par une lecture. La vue avait été vérifiée à la main (`SELECT … LIMIT 5`) et répondait ; c'est la page entière qui a rendu le timeout. Une relation lue seule ne dit rien de son coût dans le plan qui l'englobe.
+
+## an-exemption-declared-per-site-never-stops-growing
+- status: guarded
+- severity: P4
+- kind: deterministic
+- symptom: une liste d'exemptions grossit à chaque changement sans rapport avec elle. Mesuré le 2026-09-14 : `saas_artists` est passée de **0 à 4 déclarations en UNE migration**, et trois migrations d'affilée — 116, 120, la sonde de fraîcheur — ont produit le même geste. Rien n'était faux ; le geste se répétait, et rien n'annonçait qu'il s'arrêterait.
+- root_cause: l'exemption était déclarée par SITE (fichier, table) alors que la raison de l'exempter appartient à la TABLE. Donner une vue or à une table rend visibles toutes ses lectures d'un coup — et chacune redemande la même décision, qu'on reprend à la main. Le nombre d'exemptions suit alors le nombre de LECTEURS, qui n'a aucune raison de se stabiliser.
+- long_term_fix: déclarer la TABLE, sur un critère qui ne se rejuge pas — ici « porte-t-elle une quantité ADDITIVE ? », vérifiable contre le schéma. Une table sans quantité additive ne peut pas héberger une règle métier recopiée : il n'y a rien à sommer. 8 tables remplacent 7 déclarations de site ET arrêtent leur croissance. Le critère doit être une ASSERTION rejouée contre le réel, jamais une liste de confiance — sinon on retombe sur `an-exemption-that-outlives-what-it-exempted`.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_a_dimension_table_carries_no_quantity.py }
+- signature: `python3 -m pytest tests/test_a_dimension_table_carries_no_quantity.py -q`
+- rex_ref: —
+- first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
+- History:
+  - 2026-09-14: `guarded`. Signature **vue rouge** en inscrivant `s4a_song_timeline` puis `youtube_video_stats` — des tables de FAIT — au registre, **verte** après retrait. Un test de non-vacuité vérifie que le critère REFUSE bien une table de fait : s'il ne la refuse pas, il ne refuse rien.
+  - 2026-09-14: **le seul cas à trancher a été tranché par la MESURE.** `tracks` porte `duration_ms`, techniquement sommable. Vérifié : aucun `SUM` ni `AVG` sur cette colonne ni sur `popularity` dans tout `src/`, et chaque lecture de la table cherche un nom, un `track_id` ou une date. La porte de sortie est écrite dans le code — le jour où une figure sommerait des durées, ce n'est pas la liste des exemptions qu'il faudra élargir, c'est `tracks` qui cessera d'être une dimension.
+  - 2026-09-14: appliquer le registre au cliquet du bronze l'a fait passer de **104 à 81**. Ce n'est PAS de la dette retirée : la POPULATION mesurée a changé, les 23 lectures existent toujours et vont bien. La docstring du cliquet le dit en majuscules, parce que confondre les deux ferait lire un progrès là où il n'y a qu'une définition plus juste de ce qu'on compte.
+
+## an-alert-judged-on-time-for-a-manual-source
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une alerte de fraîcheur est rouge presque en permanence pour un pipeline correct. Mesuré le 2026-09-14 : le CSV Spotify for Artists a déclenché **85 nuits d'affilée**. `csv_upload_log` ne porte que DEUX imports réussis pour le locataire 1 — 2026-06-08 et 2026-09-08, **92 jours d'écart** — contre un seuil de 7 jours.
+- root_cause: le seuil de fraîcheur suppose une CADENCE. Un DAG en a une ; un humain qui dépose un fichier n'en a pas — il importe quand quelque chose le justifie. Juger une source manuelle au temps écoulé la déclare donc fautive presque tout le temps, et un lecteur qui voit la même ligne rouge 85 fois apprend à sauter l'alerte entière, y compris le soir où elle dit vrai.
+- long_term_fix: **changer la QUESTION, pas le seuil.** Aucun nombre ne marche — à 7 jours l'alerte crie 85 fois, à 90 jours elle ne dit plus rien d'utile. « Est-ce vieux ? » n'appelle aucun geste ; « une sortie est parue et tu n'as pas importé depuis » en appelle un, une seule fois, au seul moment où un fichier neuf apporte de l'indéductible. L'ÂGE reste utile mais comme un ÉTAT affiché là où il sert (ici : titre par titre sur la page), jamais comme une alerte nocturne.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_a_manual_source_is_judged_by_the_gesture_it_needs.py }
+- signature: `python3 -m pytest tests/test_a_manual_source_is_judged_by_the_gesture_it_needs.py -q`
+- rex_ref: —
+- first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
+- History:
+  - 2026-09-14: `guarded`. Signature **vue rouge dans LES DEUX SENS** — sonde toujours muette : 2 rouges ; sonde jamais muette : 2 rouges ; 6 verts après restauration. Une suppression d'alerte doit être éprouvée dans les deux directions : taire à tort retire le signal, garder à tort le noie.
+  - 2026-09-14: la sonde est **conservatrice par construction** — requête en échec, aucune sortie connue, aucune mesure connue : tout doute GARDE l'alerte. Taire sur une supposition est strictement pire qu'une ligne bruyante, parce que ça retire le seul signal qu'une vraie panne produirait.
+  - 2026-09-14: le dépôt a **exigé que la suppression soit délibérée**. `test_expected_silence` épinglait « seul Meta déclare un silence attendu ». L'épingle est devenue une TABLE portant, pour chaque source, la mesure qui la justifie : ajouter une ligne sans mesure échoue désormais. C'est le garde qui s'est amélioré en refusant le changement.

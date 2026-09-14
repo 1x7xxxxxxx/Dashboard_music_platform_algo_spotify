@@ -32,6 +32,18 @@ Ce que le prédicat ne juge PAS
 Les tables opérationnelles — authentification, facturation, journaux, métadonnées,
 credentials, artefacts ML. Elles ne portent pas de métrique métier : les lire depuis une
 vue est normal, et les compter ici ferait du bruit qui masquerait le signal.
+
+**Et les tables de DIMENSION, depuis le 2026-09-14** — pour exactement la même raison,
+appliquée à une catégorie que ce fichier n'avait pas nommée. Une table sans quantité
+additive ne peut pas héberger une règle métier recopiée : il n'y a rien à sommer. La
+différence avec l'exclusion ci-dessus, et elle compte : les opérationnelles sont une
+liste de PRÉFIXES tenue à la main, les dimensions sont une liste dont le critère est
+**vérifié contre le schéma réel** par `test_a_dimension_table_carries_no_quantity`.
+
+⚠️ CE N'EST PAS DE LA DETTE RETIRÉE. Le plafond passe de 104 à 81 parce que la
+POPULATION mesurée a changé, pas parce que 23 lectures ont été corrigées. Elles sont
+toujours là et elles vont toujours bien. Confondre les deux ferait lire un progrès là
+où il n'y a qu'une définition plus juste de ce qu'on compte.
 """
 from __future__ import annotations
 
@@ -64,7 +76,14 @@ REPO = Path(__file__).resolve().parent.parent
 # vers `tracks`, l'étendue de période) au profit des vues or 117-120. Un
 # plafond qui reste au-dessus du réel autorise autant de régressions
 # silencieuses qu'il a de marge.
-_CEILING = 104
+#
+# 2026-09-14 (suite) : 104 → 81, et ce n'est PAS de la dette retirée — c'est la
+# POPULATION qui change. Les 8 tables du registre des dimensions sortent du
+# décompte (R108) : sans quantité additive, elles ne peuvent pas héberger une
+# règle recopiée. Les 23 lectures concernées existent toujours et vont toujours
+# bien. Le nombre qui reste veut désormais dire une seule chose : des lectures
+# de tables de FAIT hors de la couche or.
+_CEILING = 81
 
 # Les surfaces qui montrent des chiffres à quelqu'un.
 # ⚠️ LA PORTÉE ÉTAIT L'ANGLE MORT. Elle ne nommait que `pdf_exporter` sous
@@ -132,12 +151,26 @@ _CREATE_TABLE = re.compile(
 _FROM = re.compile(r"\b(?:FROM|JOIN)\s+([a-z_][a-z0-9_]*)", re.I)
 
 
+def _dimension_tables() -> set[str]:
+    """Le registre, IMPORTÉ et jamais recopié.
+
+    Ce fichier met en garde contre les règles recopiées ; en recopier une ici serait
+    l'ironie coûteuse — le registre grandirait d'un côté et pas de l'autre, et le
+    compte deviendrait faux sans que rien ne le dise.
+    """
+    import sys
+    sys.path.insert(0, str(REPO / "tools" / "dev"))
+    import gold_coverage
+    return set(gold_coverage._DIMENSION_TABLES)
+
+
 def _bronze_tables() -> set[str]:
     sql = (REPO / "init_db.sql").read_text(encoding="utf-8", errors="ignore")
     for f in sorted((REPO / "migrations").glob("*.sql")):
         sql += "\n" + f.read_text(encoding="utf-8", errors="ignore")
+    dims = _dimension_tables()
     return {t.lower() for t in _CREATE_TABLE.findall(sql)
-            if not _OPERATIONAL.match(t.lower())}
+            if not _OPERATIONAL.match(t.lower()) and t.lower() not in dims}
 
 
 def _direct_reads() -> dict[str, set[str]]:
