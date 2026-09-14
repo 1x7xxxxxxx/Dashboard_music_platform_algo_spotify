@@ -448,7 +448,7 @@ Une ligne par plateforme. « Lectures brutes » compte les lectures de ses table
 | Meta Ads | `meta_ads` · `meta_adsets` · `meta_campaigns` · `meta_insights` · `meta_insights_performance` · `meta_insights_performance_day` | `v_meta_active_budget` · `v_meta_adset_daily` · `v_meta_campaign_daily` · `v_meta_creative_daily` · `v_meta_daily` · `v_meta_spend_totals` · `v_meta_track_attribution` | 37 | 21 |
 | Revenu | `distrokid_monthly_revenue` · `imusician_monthly_revenue` · `sacem_statement` | `v_artist_monthly_revenue` · `v_artist_monthly_revenue_net` · `v_sacem_monthly` | 12 | 4 |
 | SoundCloud | `soundcloud_tracks_daily` | `v_platform_levels` · `v_platform_totals` · `v_soundcloud_track_latest` | 20 | 6 |
-| Spotify S4A | `s4a_audience` · `s4a_song_timeline` · `s4a_songs_global` | `v_platform_levels` · `v_platform_totals` · `v_s4a_audience_daily` · `v_s4a_audience_monthly` · `v_s4a_release_cohort` · `v_s4a_release_reach` · `v_s4a_song_daily` · `v_s4a_song_measured_span` · `v_spotify_followers_daily` | 53 | 27 |
+| Spotify S4A | `s4a_audience` · `s4a_song_timeline` · `s4a_songs_global` | `v_platform_levels` · `v_platform_totals` · `v_s4a_audience_daily` · `v_s4a_audience_monthly` · `v_s4a_release_cohort` · `v_s4a_release_reach` · `v_s4a_song_daily` · `v_s4a_song_measured_span` · `v_spotify_followers_daily` | 53 | 28 |
 | YouTube | `youtube_channel_history` · `youtube_video_stats` | `v_platform_levels` · `v_platform_totals` | 17 | 9 |
 
 ## Les cliquets
@@ -504,9 +504,9 @@ Le chiffre d'une case est le nombre de fichiers de garde qui NOMMENT une relatio
 
 | famille | Apple Music | Hypeddit | Instagram | Meta Ads | Revenu | SoundCloud | Spotify S4A | YouTube |
 |---|---|---|---|---|---|---|---|---|
-| [le-locataire](error-class-families.md#le-locataire) | 2 | 1 | 2 | 2 | 2 | 3 | 4 | 3 |
+| [le-locataire](error-class-families.md#le-locataire) | 2 | 1 | 2 | 2 | 2 | 3 | 5 | 3 |
 | [un-cumul-pris-pour-un-quotidien](error-class-families.md#un-cumul-pris-pour-un-quotidien) | 2 | 1 | 1 | 1 | 1 | 4 | 3 | 3 |
-| [deux-surfaces-deux-nombres](error-class-families.md#deux-surfaces-deux-nombres) | 3 | 1 | 2 | 3 | 2 | 3 | 3 | 3 |
+| [deux-surfaces-deux-nombres](error-class-families.md#deux-surfaces-deux-nombres) | 3 | 1 | 2 | 3 | 2 | 3 | 4 | 3 |
 | [une-erreur-avalée-devient-une-absence](error-class-families.md#une-erreur-avalée-devient-une-absence) | 2 | 1 | 2 | 1 | 1 | 2 | 4 | 2 |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](error-class-families.md#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 2 | 1 | 2 | 1 | 1 | 2 | 3 | 2 |
 
@@ -595,21 +595,21 @@ Le second tableau liste les **tables brutes encore lues hors des portes**, alors
 | `instagram_media` | `v_instagram_media_monthly` | 1 | — | 0 | dashboard/views/instagram.py:282 |
 | `meta_ads` | `v_meta_adset_daily` | 5 | 3 | 0 | dashboard/views/meta_creatives.py:593 · dashboard/views/meta_mapping/_campaigns.py:41 · dashboard/views/trigger_algo/_common/_budget_roi.py:227 |
 | `meta_adsets` | `v_meta_adset_daily` | 3 | 1 | 0 | dashboard/views/meta_mapping/_campaigns.py:41 |
-| `meta_campaigns` | `v_meta_active_budget` | 10 | 7 | 0 | dashboard/views/meta_creatives.py:593 · dashboard/views/meta_mapping/_campaigns.py:140 · dashboard/views/meta_mapping/_campaigns.py:155 · dashboard/views/meta_mapping/_campaigns.py:24 · dashboard/views/meta_mapping/_campaigns.py:41 · dashboard/views/trigger_algo/_common/_budget_roi.py:227 · utils/freshness_monitor.py:180 |
+| `meta_campaigns` | `v_meta_active_budget` | 10 | 7 | 0 | dashboard/views/meta_creatives.py:593 · dashboard/views/meta_mapping/_campaigns.py:140 · dashboard/views/meta_mapping/_campaigns.py:155 · dashboard/views/meta_mapping/_campaigns.py:24 · dashboard/views/meta_mapping/_campaigns.py:41 · dashboard/views/trigger_algo/_common/_budget_roi.py:227 · utils/freshness_monitor.py:232 |
 | `meta_insights` | `v_meta_adset_daily` | 1 | 1 | 0 | dashboard/views/meta_creatives.py:593 |
 | `meta_insights_performance` | `v_meta_campaign_daily` | 1 | 1 | 0 | dashboard/views/meta_mapping/_campaigns.py:190 |
 | `meta_insights_performance_day` | `v_meta_campaign_daily` | 6 | 5 | 0 | collectors/_meta_insight_fetch.py:59 · dashboard/views/imusician.py:36 · dashboard/views/imusician.py:45 · dashboard/views/meta_x_spotify.py:57 · dashboard/views/meta_x_spotify.py:80 |
-| `s4a_song_timeline` | `v_s4a_song_daily` | 18 | 3 | 0 | api/routers/streams.py:87 · dashboard/utils/pdf_exporter/_report.py:75 · dashboard/utils/setup_completion.py:281 |
+| `s4a_song_timeline` | `v_s4a_song_daily` | 19 | 4 | 0 | api/routers/streams.py:87 · dashboard/utils/pdf_exporter/_report.py:75 · dashboard/utils/setup_completion.py:281 · utils/freshness_monitor.py:175 |
 | `saas_artists` | `v_spotify_followers_daily` | 52 | 6 | 0 | dashboard/utils/live_pulse.py:113 · dashboard/utils/live_pulse.py:68 · dashboard/views/admin.py:501 · dashboard/views/meta_mapping/_campaigns.py:190 · dashboard/views/referral_admin.py:35 · dashboard/views/referral_admin.py:62 |
 | `sacem_statement` | `v_sacem_monthly` | 1 | — | 0 | dashboard/views/sacem.py:32 |
 | `soundcloud_tracks_daily` | `v_soundcloud_track_latest` | 6 | 1 | 0 | dashboard/views/soundcloud.py:38 |
 | `track_platform_link` | `v_s4a_release_reach` | 6 | 2 | 0 | dashboard/utils/period_side_metrics.py:84 · dashboard/utils/setup_completion.py:281 |
-| `track_release_reference` | `v_s4a_release_reach` | 5 | 1 | 0 | dashboard/utils/period_side_metrics.py:84 |
+| `track_release_reference` | `v_s4a_release_reach` | 6 | 2 | 0 | dashboard/utils/period_side_metrics.py:84 · utils/freshness_monitor.py:175 |
 | `youtube_video_stats` | `v_platform_levels` | 6 | 3 | 0 | dashboard/utils/pdf_exporter/_collectors.py:249 · dashboard/views/youtube.py:183 · dashboard/views/youtube.py:201 |
 
 ### Les agrégats DÉCLARÉS
 
-**18 couples (fichier, table)** agrègent une table de fait hors de tout cliquet, délibérément. La frontière est nette : un COMPTE, une DATE ou une CONCATÉNATION de noms répond « qu'y a-t-il » ; une somme d'argent, d'écoutes, de vues ou de clics répond « combien » et appartient à la couche or, sans exception.
+**20 couples (fichier, table)** agrègent une table de fait hors de tout cliquet, délibérément. La frontière est nette : un COMPTE, une DATE ou une CONCATÉNATION de noms répond « qu'y a-t-il » ; une somme d'argent, d'écoutes, de vues ou de clics répond « combien » et appartient à la couche or, sans exception.
 
 Chaque déclaration est vérifiée : le site doit encore exister et encore agréger cette table. Une déclaration qui survit à ce qu'elle déclarait est du budget pour la prochaine occurrence.
 
@@ -632,6 +632,8 @@ Chaque déclaration est vérifiée : le site doit encore exister et encore agré
 | `dashboard/views/trigger_algo/_common/_budget_roi.py` | `meta_campaigns` | string_agg(DISTINCT call_to_action) — l'inventaire des appels à l'action d'une campagne, à côté de sa performance qui, elle, vient de la couche or. |
 | `utils/distrokid_rollup.py` | `distrokid_monthly_revenue` | COUNT(*) des mois issus d'un import, renvoyé par le rollup qui vient de les écrire. C'est un accusé de réception, pas un revenu. |
 | `utils/freshness_monitor.py` | `meta_campaigns` | count(*) FILTER (status = 'ACTIVE') — une sonde de santé. Elle demande « ce locataire a-t-il des campagnes », pas « combien ont-elles coûté ». |
+| `utils/freshness_monitor.py` | `s4a_song_timeline` | MAX(date) : jusqu'où la mesure va, pour décider si une sortie attend d'être importée. Une borne, jamais un volume — et rien de ce nombre n'est affiché. |
+| `utils/freshness_monitor.py` | `track_release_reference` | MAX(release_date) : la date de la dernière sortie, comparée à la borne ci-dessus. Une table de dimension interrogée pour une date. |
 | `utils/imusician_rollup.py` | `imusician_monthly_revenue` | idem : le compte des mois que le rollup vient d'écrire. |
 
 ## Les chiffres gelés
@@ -649,4 +651,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=19 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=ed64f57c008b58483c427706777938b8b8fc945d24188885a218ce0127844b93 -->
+<!-- gold-coverage: sha256=fabf3253e0112d9052df1a4d060ab6bcd7bdf013ebb2472a044b09b7c290e34c -->

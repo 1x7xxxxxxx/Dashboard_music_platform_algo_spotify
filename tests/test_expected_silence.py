@@ -102,15 +102,37 @@ def test_freshness_exposes_why_it_stayed_quiet() -> None:
     )
 
 
-def test_only_meta_declares_an_expected_silence_today() -> None:
+# Chaque entrée retire une alerte, et chacune porte ICI la mesure qui la justifie.
+# Ajouter une ligne sans mesure, c'est rendre le parc muet un cran de plus.
+_SILENCE_IS_JUSTIFIED_BY = {
+    # Les insights publicitaires n'existent QUE pendant qu'une campagne tourne.
+    # Mesuré le 2026-08-21 : 19 campagnes ARCHIVED + 15 PAUSED, zéro ACTIVE, et
+    # l'API confirme amount_spent=0 sans une seule ligne d'insight en 90 jours.
+    "Meta Ads": "aucune campagne active — l'alerte crierait pour un pipeline correct",
+    # Mesuré le 2026-09-14 : `csv_upload_log` ne porte que DEUX imports S4A réussis
+    # pour le locataire 1 — 2026-06-08 et 2026-09-08, **92 jours d'écart** — contre
+    # un seuil de 7 jours. L'alerte a donc crié **85 nuits d'affilée**. Aucun seuil
+    # ne répare ça : à 7 jours elle crie 85 fois, à 90 jours elle ne dit plus rien.
+    # La suppression ne masque pas le problème, elle change la QUESTION — la sonde
+    # `_s4a_silence` garde l'alerte dès qu'une sortie n'est pas couverte, c'est-à-dire
+    # au seul moment où un CSV neuf apporte quelque chose d'indéductible.
+    "Spotify S4A": "aucune sortie depuis le dernier import — l'âge, lui, est affiché "
+                   "titre par titre sur la page Spotify",
+}
+
+
+def test_every_expected_silence_carries_its_measurement() -> None:
     """Pins the blast radius: a new suppression must be a deliberate edit."""
     from src.utils.freshness_monitor import MONITOR_TARGETS
 
     declared = {t["source"] for t in MONITOR_TARGETS if t.get("silence_expected")}
-    assert declared == {"Meta Ads"}, (
-        f"expected silence now declared for {declared}. Every entry here removes an "
-        "alert — each one needs the measurement that justifies it."
+    assert declared == set(_SILENCE_IS_JUSTIFIED_BY), (
+        f"expected silence now declared for {declared}, justified here for "
+        f"{set(_SILENCE_IS_JUSTIFIED_BY)}. Every entry removes an alert — each one "
+        f"needs the measurement that justifies it, written next to it."
     )
+    for source, why in _SILENCE_IS_JUSTIFIED_BY.items():
+        assert len(why) > 30, f"{source}: la justification est trop courte pour être une mesure"
 
 
 # ── The readers ──────────────────────────────────────────────────────────────

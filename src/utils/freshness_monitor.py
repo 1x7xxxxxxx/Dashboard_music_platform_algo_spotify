@@ -33,6 +33,21 @@ MONITOR_TARGETS = [
      # stale source — an action that cannot move a CSV watcher whose dropbox is
      # empty, and the only two stale sources of 2026-08-26 were both this kind.
      "fed_by": "csv",
+     # ⚠️ MESURÉ LE 2026-09-14 : cette alerte a crié 85 NUITS D'AFFILÉE.
+     # `csv_upload_log` ne porte que DEUX imports S4A réussis pour le locataire 1 —
+     # le 2026-06-08 et le 2026-09-08, **92 jours d'écart** — alors que le seuil
+     # vaut 7 jours. Une source nourrie à la main n'a pas la cadence d'un DAG, et
+     # un seuil de temps la juge donc fautive presque tout le temps.
+     #
+     # Aucun seuil ne répare ça : à 7 jours elle crie 85 fois, à 90 jours elle ne
+     # dit plus rien d'utile. Ce n'est pas le seuil qui est mauvais, c'est la
+     # QUESTION — « est-ce vieux ? » n'appelle aucun geste, alors que « une sortie
+     # est parue et tu n'as pas importé depuis » en appelle un, une seule fois.
+     #
+     # L'âge, lui, reste visible là où il sert : la page Spotify l'affiche titre
+     # par titre depuis la refonte du 2026-09-14. Un état se montre, il ne se crie
+     # pas toutes les nuits — c'est ainsi qu'on apprend à sauter une alerte.
+     "silence_expected": "s4a_no_release_since_last_import",
      "metric_col": "date"},
     {"source": "YouTube",      "table": "youtube_channel_history",  "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
     {"source": "SoundCloud",   "table": "soundcloud_tracks_daily",  "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
@@ -142,6 +157,41 @@ def _declared_ad_accounts(db, artist_id: int) -> list:
     return sorted(set(a for a in out if a))
 
 
+def _s4a_silence(db, artist_id=None) -> str | None:
+    """Le CSV S4A est-il légitimement silencieux, ou l'artiste a-t-il un geste à faire ?
+
+    Il a un geste à faire quand une SORTIE est parue et que l'import ne la couvre
+    pas : c'est le seul moment où un CSV neuf apporte quelque chose qu'on ne peut
+    pas déduire. Le reste du temps, l'âge de la donnée est un ÉTAT que la page
+    Spotify montre titre par titre — pas une faute à signaler chaque nuit.
+
+    Aussi conservateur que la sonde Meta : tout doute — requête en échec, aucune
+    sortie connue, aucune mesure connue — garde l'alerte. Taire une alerte sur une
+    supposition retire le seul signal qu'une vraie panne produirait.
+    """
+    if artist_id is None:
+        return None
+    try:
+        rows = db.fetch_query(
+            "SELECT (SELECT MAX(release_date) FROM track_release_reference "
+            "          WHERE artist_id = %s), "
+            "       (SELECT MAX(date) FROM s4a_song_timeline WHERE artist_id = %s)",
+            (artist_id, artist_id))
+    except Exception as e:  # noqa: BLE001 — une sonde en échec ne tait rien
+        logger.warning("silence probe failed (s4a); keeping the alert: %s", e)
+        return None
+    if not rows:
+        return None
+    last_release, measured_to = rows[0]
+    if last_release is None or measured_to is None:
+        return None          # rien de connu → on garde l'alerte
+    if last_release > measured_to:
+        return None          # une sortie n'est pas couverte → il Y A un geste à faire
+    return ("aucune sortie depuis le dernier import "
+            f"(dernière sortie le {last_release:%d/%m/%Y}, mesuré jusqu'au "
+            f"{measured_to:%d/%m/%Y})")
+
+
 def _silence_reason(db, rule: str, artist_id=None) -> str | None:
     """Return why a source is legitimately silent, or None if its silence is a fault.
 
@@ -164,6 +214,8 @@ def _silence_reason(db, rule: str, artist_id=None) -> str | None:
     déclaré**. Il reste conservateur : sans compte déclaré, ou si ce compte n'a
     aucune campagne connue, l'alerte est gardée.
     """
+    if rule == "s4a_no_release_since_last_import":
+        return _s4a_silence(db, artist_id)
     if rule != "meta_no_active_campaign":
         return None
     try:
