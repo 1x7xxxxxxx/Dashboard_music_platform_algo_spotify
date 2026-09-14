@@ -164,6 +164,25 @@ _DIMENSION_TABLES: dict[str, str] = {
     "track_release_reference":
         "la table des SORTIES : une clé canonique, un titre, une date. Aucun nombre "
         "mesuré.",
+    # ── Revue du 2026-09-14 : les cinq candidates restantes ─────────────────────
+    "artist_subscriptions":
+        "qui est abonné à quel plan. Ses trois entiers sont des identifiants — "
+        "`id`, `artist_id`, `plan_id`. Le PRIX vit dans la table des plans, pas ici.",
+    "campaign_track_mapping":
+        "le rapprochement campagne ↔ titre, exactement la forme de "
+        "`track_platform_link` : des identifiants et un `confidence` par ligne.",
+    "hypeddit_campaigns":
+        "le CATALOGUE des campagnes Hypeddit — un nom, un identifiant. Les visites "
+        "et les clics vivent dans `hypeddit_daily_stats`, couverte par v_hypeddit_daily.",
+    "youtube_videos":
+        "le CATALOGUE des vidéos — un titre, un identifiant, une date. Les vues et "
+        "les likes vivent dans `youtube_video_stats`, qui n'est PAS une dimension.",
+    "tracks":
+        "le CATALOGUE Spotify. `popularity` est un score par ligne ; `duration_ms` "
+        "est une propriété INTRINSÈQUE d'un titre — sommer des durées répond à une "
+        "question que ce produit ne pose jamais, et rien ne les somme aujourd'hui "
+        "(vérifié : aucun SUM/AVG sur ces deux colonnes dans src/). Chaque lecture "
+        "de cette table cherche un nom, un track_id ou une date de sortie.",
 }
 
 

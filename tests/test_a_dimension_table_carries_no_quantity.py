@@ -47,6 +47,14 @@ _NOT_A_QUANTITY = {
     "adset_id", "ad_id", "account_id", "parent_id",
     # Un score par ligne : il qualifie CETTE ligne, il ne s'additionne pas.
     "confidence", "popularity",
+    # Une propriété INTRINSÈQUE d'un titre, pas une mesure d'activité. Sommer des
+    # durées répond à une question que ce produit ne pose pas — vérifié le
+    # 2026-09-14 : aucun SUM ni AVG sur cette colonne dans `src/`. Le jour où une
+    # figure sommerait des durées, ce n'est pas cette liste qu'il faut élargir,
+    # c'est `tracks` qui cesse d'être une dimension.
+    "duration_ms",
+    # `plan_id` désigne un plan ; le PRIX de ce plan vit dans la table des plans.
+    "plan_id",
     # Des paramètres de facturation par compte, pas des mesures.
     "referral_free_months", "first_month_discount_pct",
 }
