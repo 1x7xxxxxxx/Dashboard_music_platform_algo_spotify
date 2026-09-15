@@ -25,9 +25,19 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R109 | Découper `Run tests` en 4 shards (`pytest-split` + matrice) ; le mur du run doit passer de ~423 s à ~115 s | P3 | `gh run list --workflow=ci.yml` — **177 runs/semaine**, médiane **402 s**, soit **≈18,5 h d'attente par semaine** |
+| R110 | Répartir le long pôle : `--dist loadgroup` + `xdist_group` sur les 9 fichiers à état partagé | P3 | `pytest tests/test_views_render_smoke.py -q` → **152,5 s pour un seul fichier**, tenu par un seul worker sous `loadfile` |
 
-**L'index est vide.** **R108 a été livrée le 2026-09-14** — la dernière tâche qui
-y figurait, et avec elle l'index n'a plus de ligne. Elle tranchait entre exempter ou
+**Le dépôt est public**, donc les minutes Actions sont gratuites : R109 achète du temps
+de mur avec des minutes qu'on ne paie pas. C'est le seul levier qui attaque vraiment les
+18 h d'attente hebdomadaires — le ménage de R111 vaut ~25 s par run, pas davantage.
+
+⚠️ R110 **avant** R109 dans l'ordre de livraison : une distribution par test transforme
+une course latente en échec intermittent, et il faut l'avoir éprouvée (trois passages
+verts d'affilée, `git status` vide après chacun) avant d'en dépendre dans quatre shards.
+
+**R108 a été livrée le 2026-09-14** — la dernière tâche qui
+y figurait, et avec elle l'index n'a plus eu de ligne jusqu'au 2026-09-15. Elle tranchait entre exempter ou
 compter les jointures de dimension dans le cliquet du bronze ; le critère retenu
 (« cette table porte-t-elle une quantité ADDITIVE ? ») a fait descendre le cliquet
 de 104 à 81 via un registre de 8 tables de dimension et la migration 121. Détail dans
@@ -124,15 +134,24 @@ l'effacer serait la faute.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-14, ZÉRO tâche ouverte dans l'index (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-15, DEUX tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R109,R110 -->
 
-**L'index `## 📋 Tâches ouvertes` est vide** : R108, sa dernière ligne, a été livrée
-le 2026-09-14. **La table « 🙋 En attente de toi » est vide elle aussi** depuis le
-2026-09-10, R1 y ayant été rotée vers `archive.md`. Le dépôt n'a donc plus AUCUNE
-tâche ouverte, et c'est l'état à annoncer au `/resume` — pas « il reste R1 », que ce
-fichier a affirmé cinq jours durant contre ses propres tableaux.
+**Deux tâches sont ouvertes dans `## 📋 Tâches ouvertes`** : **R109** (découper la CI
+en 4 shards) et **R110** (répartir le long pôle par `--dist loadgroup`). L'index avait
+été vide du 2026-09-14 au 2026-09-15 ; c'est la séance d'optimisation de la CI qui l'a
+rouvert, avec la mesure de chaque ligne.
+
+**La table « 🙋 En attente de toi » reste vide** depuis le 2026-09-10, R1 y ayant été
+rotée vers `archive.md`. Aucune tâche n'attend un geste humain.
+
+**Livrées le 2026-09-15, déjà dans `archive.md`** : **R111** (le ménage de la CI —
+apt mort, trois exécutions du même `--check`, l'étape `--fields` qui écrivait dans un
+fichier suivi, l'artefact de couverture que personne ne télécharge, `-v` qui faisait
+87 % du log) et **R112** (la sonde de production n'avait **rien exécuté pendant neuf
+jours** — `pytest-xdist` manquant à une liste tenue à la main ; la production allait
+bien, c'est l'instrument qui était cassé).
 
 ### La séance du 2026-09-13 (soir) — une coupure de courant, et ce qu'elle a révélé
 

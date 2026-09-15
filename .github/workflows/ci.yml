@@ -59,15 +59,20 @@ jobs:
       - name: Set up Python 3.11
         run: uv python install 3.11
 
-      - name: Install system dependencies (build tools for any wheel-less package)
-        # Historical: libcairo2-dev was needed for pycairo (xhtml2pdf transitive).
-        # Removed when PDF stack migrated to WeasyPrint (dashboard-only, not CI).
-        # build-essential + pkg-config kept as a safety net for source builds.
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            pkg-config
+      # ── `Install system dependencies` retiré le 2026-09-15 ──
+      # Il coûtait 10 s par run (médiane sur 15 runs) et n'achetait rien, mesuré dans
+      # le log : `pkg-config is already the newest version` (no-op) et `build-essential`
+      # est un méta-paquet de **4 928 octets / 17,4 kB sur disque** — gcc, g++, make,
+      # dpkg-dev, libc6-dev sont déjà sur l'image `ubuntu-latest`. Les 10 s étaient
+      # l'`apt-get update` (12 MB) et le `Reading database ... 201818 files` de dpkg.
+      #
+      # Il ne compilait rien : `uv sync` rapporte `Prepared 245 packages in 4.42s`,
+      # sans une seule ligne `Building` — tout vient de wheels. Sa raison d'origine
+      # (`libcairo2-dev` pour pycairo) a disparu avec la migration vers WeasyPrint ;
+      # il ne restait qu'un « filet de sécurité » qui n'a jamais rien rattrapé.
+      #
+      # Le jour où `uv.lock` portera un sdist sans wheel, l'échec sera un `uv sync`
+      # rouge et lisible — pas un mystère. C'est un meilleur signal qu'un apt préventif.
 
       - name: Install dependencies from lockfile
         # --frozen: refuse to update uv.lock; CI must match what devs have locally.
@@ -126,8 +131,18 @@ jobs:
           uv run python .claude/scripts/audit_runner.py --prose
           uv run python .claude/scripts/check_config_refs.py
           uv run python .claude/scripts/check_ci_waste.py
-          uv run python tools/dev/gold_coverage.py --check
-          uv run python tools/dev/error_class_families.py --check
+          # `gold_coverage.py --check` et `error_class_families.py --check` NE SONT PLUS
+          # appelés ici (2026-09-15). Ils tournaient TROIS fois par run :
+          #   1. ici, en direct ;
+          #   2. via `audit_runner --static` — la classe
+          #      `a-generated-document-asserts-a-stale-state` a exactement cette
+          #      signature (`error-classes.md`) ;
+          #   3. dans la suite — `test_the_gold_coverage_only_improves.py` et
+          #      `test_the_error_class_families_only_improve.py` refont
+          #      `assert current == build()`, octet pour octet.
+          # Le premier calcul coûte 11 à 20 s à lui seul. Deux passages suffisent : la
+          # signature (qui nomme la classe en cas d'échec) et le test (qui nomme le
+          # document). Le troisième ne disait rien que les deux autres ne disent.
 
       # ── Pourquoi les quatre étapes qui suivent portent `if: ${{ !cancelled() }}` ──
       # Mesuré le 2026-09-06. Les gardes de classes d'erreur sont l'étape 10 sur 15 ;
@@ -141,18 +156,21 @@ jobs:
       # produit à chaque poussée rapprochée) ne doit pas provisionner un Postgres pour
       # rien. Le job échoue toujours si un garde échoue — la porte est intacte ; ce
       # qui change est qu'elle ne rend plus le reste invisible.
-      - name: Error-class schema completeness
-        if: ${{ !cancelled() }}
-        # `audit_runner.py --fields --strict` fails when a class carries no
-        # root_cause or no long_term_fix — a class nobody decided how to end.
-        #
-        # BLOCKING since 2026-08-22 (R28), which is the date this comment was asked
-        # to record. The step shipped advisory because 29/29 classes predated the
-        # two fields and closing CI on legacy content would only have taught people
-        # to lower the guard. The backlog was 25 this morning and is 0 now, so the
-        # ratchet in `error-classes.md` reads `fields-ratchet: 0` and `--strict`
-        # states the same requirement without depending on that number staying put.
-        run: uv run python .claude/scripts/audit_runner.py --fields --strict
+      # ── `Error-class schema completeness` retiré le 2026-09-15 ──
+      # `audit_runner.py --fields --strict` demandait : « toute classe porte-t-elle un
+      # `root_cause` ET un `long_term_fix` ? ». La suite pose désormais exactement la
+      # même question, mais PAR CLASSE et non en bloc :
+      # `tests/test_every_error_class_is_complete.py::test_a_class_names_its_cause_and_its_end`
+      # — 665 tests en 3,1 s, avec en plus un plancher de longueur que le CLI n'avait
+      # pas. Un échec y nomme la classe fautive ; l'étape rendait un compte global.
+      #
+      # Et surtout : `--fields` appelle `_write_ratchet()`, donc cette étape ÉCRIVAIT
+      # dans `.claude/dev-docs/error-classes.md` **depuis la CI**. Une barrière qui
+      # modifie le fichier qu'elle juge ne peut pas être rejouée avec le même sens, et
+      # son verdict dépend de l'ordre dans lequel on la lance.
+      #
+      # Le CLI reste disponible — `make config-check` l'appelle — pour le passage
+      # hebdomadaire où l'on VEUT que le cliquet soit réécrit.
 
       - name: Provision Postgres (schema + migrations)
         if: ${{ !cancelled() }}
@@ -246,13 +264,25 @@ jobs:
         # `loadfile` (et non le défaut `load`) parce que tests/test_live_pulse.py
         # écrit `active_sessions` : garder les tests d'un fichier sur un worker
         # empêche ce fichier d'entrer en collision avec lui-même.
-        run: uv run pytest tests/ -v --tb=short -n auto --dist loadfile --cov=src --cov-report=xml --cov-report=term-missing
+        # `-q` et non `-v` depuis le 2026-09-15. Mesuré sur le run 35003047396 :
+        # `Run tests` produisait **13 238 lignes / 2 349 KB** de log, dont **6 445**
+        # portant `PASSED`/`SKIPPED` — `-v` faisait **87 % du volume de log du job
+        # entier**, pour 6 356 tests qui passent et qu'on ne lit jamais un par un.
+        # `--tb=short` reste : un ÉCHEC dit toujours son node-id et sa trace.
+        # Le coût en TEMPS de `-v` n'a jamais été mesuré ici et ne le sera pas : il
+        # serait sous les ±40 % de variance que ce dépôt s'est donnés comme seuil.
+        # Ce qu'on gagne est la lisibilité du log, et l'alignement avec `Makefile`,
+        # qui lance `-q` depuis toujours.
+        # `--cov-report=xml` part avec l'artefact que personne ne téléchargeait.
+        run: uv run pytest tests/ -q --tb=short -n auto --dist loadfile --cov=src --cov-report=term-missing
 
-      - name: Upload coverage artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-xml
-          path: coverage.xml
-          retention-days: 7
-          if-no-files-found: ignore
+      # ── `Upload coverage artifact` retiré le 2026-09-15 ──
+      # Balayage exhaustif des fichiers suivis : AUCUN `download-artifact`, AUCUNE
+      # `codecov-action` dans un workflow actif. La seule occurrence de codecov est
+      # dans un skill RETIRÉ (`.claude/.retired/`). Le commentaire promettait « for
+      # codecov-style downstream tooling » — l'outillage aval n'a jamais existé.
+      # `if: always()` le faisait même tourner sur un run annulé.
+      #
+      # `--cov=src --cov-report=term-missing` RESTE sur `Run tests` : la couverture se
+      # lit dans le log, et son coût est mesuré **sur le runner** à +8 % (13 s),
+      # `ci.yml` le documentant déjà. Seul l'artefact que personne n'ouvre part.

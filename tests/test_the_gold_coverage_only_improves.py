@@ -158,8 +158,23 @@ _FLOOR: dict[str, int] = {
     "gold-objects.total": 15,
     "ratchets.total": 18,
     "error-classes.total": 296,
-    "ci.steps": 12,
-    "ci.blocking": 12,
+    # ── Plancher baissé de 12 à 9 le 2026-09-15, avec la raison ──
+    # Trois étapes de `ci.yml` ont été retirées le même jour, chacune mesurée :
+    #   * `Install system dependencies` — 10 s/run pour RIEN : `pkg-config` déjà
+    #     installé, `build-essential` un méta-paquet de 4,9 kB, et `uv sync` prépare
+    #     245 paquets sans une seule ligne `Building` (tout vient de wheels) ;
+    #   * `Error-class schema completeness` (`--fields --strict`) — doublon exact de
+    #     `tests/test_every_error_class_is_complete.py`, qui pose la même question PAR
+    #     CLASSE en 3,1 s — et qui, lui, n'ÉCRIT pas dans `error-classes.md` ;
+    #   * `Upload coverage artifact` — `download-artifact` a **zéro** occurrence dans
+    #     tout l'arbre de travail, fichiers ignorés compris. Personne ne l'a jamais
+    #     téléchargé.
+    #
+    # Le cliquet a fait exactement son travail : il a refusé la baisse tant que la
+    # raison n'était pas écrite à côté. Ce n'est pas de la couverture perdue — c'est
+    # la même couverture, payée une fois au lieu de deux ou trois.
+    "ci.steps": 9,
+    "ci.blocking": 9,
     "invariants.pairs": 12,
     "guard-matrix.cells": 40,
 }

@@ -559,7 +559,7 @@ Le défaut qui a fait naître cette section : `meta_insights_performance` et `me
 
 ## Les étapes de la CI
 
-**12 étapes**, dont **12 bloquantes**. Lu dans `.github/workflows/ci.yml`, jamais récité — une liste d'étapes écrite à la main décrit la CI qu'on croit avoir.
+**9 étapes**, dont **9 bloquantes**. Lu dans `.github/workflows/ci.yml`, jamais récité — une liste d'étapes écrite à la main décrit la CI qu'on croit avoir.
 
 ⚠️ Une CI rouge cache tout ce qui la suit : ce dépôt l'a mesuré deux fois (8 exécutions bloquées à l'étape 3/8, puis 27 à l'étape 10/15). C'est `if: !cancelled()` qui l'a arrêté, pas la leçon écrite entre les deux.
 
@@ -567,16 +567,13 @@ Le défaut qui a fait naître cette section : `meta_insights_performance` et `me
 |---|---|---|---|
 | 1 | Install uv | — | bloquante |
 | 2 | Set up Python 3.11 | — | bloquante |
-| 3 | Install system dependencies (build tools for any wheel-less package) | — | bloquante |
-| 4 | Install dependencies from lockfile | sync | bloquante |
-| 5 | Manifest consistency (blocking) | check_manifest_consistency.py | bloquante |
-| 6 | Lint (ruff) — full project (blocking) | ruff check | bloquante |
-| 7 | REX integrity + static error-class guards (blocking) | validate_rex.py, audit_runner.py, check_config_refs.py, check_ci_waste.py, gold_coverage.py, error_class_famil | bloquante |
-| 8 | Error-class schema completeness | audit_runner.py | bloquante |
-| 9 | Provision Postgres (schema + migrations) | test_suite_runs_against_two_tenants.py | bloquante |
-| 10 | Mint a throwaway Fernet key for this run | — | bloquante |
-| 11 | Run tests | pytest | bloquante |
-| 12 | Upload coverage artifact | — | bloquante |
+| 3 | Install dependencies from lockfile | sync | bloquante |
+| 4 | Manifest consistency (blocking) | check_manifest_consistency.py | bloquante |
+| 5 | Lint (ruff) — full project (blocking) | ruff check | bloquante |
+| 6 | REX integrity + static error-class guards (blocking) | validate_rex.py, audit_runner.py, check_config_refs.py, check_ci_waste.py, gold_coverage.py, error_class_famil | bloquante |
+| 7 | Provision Postgres (schema + migrations) | test_suite_runs_against_two_tenants.py | bloquante |
+| 8 | Mint a throwaway Fernet key for this run | — | bloquante |
+| 9 | Run tests | pytest | bloquante |
 
 ## Ce qui n'est atteint par rien
 
@@ -661,6 +658,6 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-error-classes: total=332 guard_missing=0 guard_unnamed=11 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
-<!-- gold-coverage-ci: steps=12 blocking=12 -->
+<!-- gold-coverage-ci: steps=9 blocking=9 -->
 
-<!-- gold-coverage: sha256=268e3bbc342b29cba2b1a7b29a7bdddd67df7e210d3c0d565091f3d022875829 -->
+<!-- gold-coverage: sha256=5e547838f98160198932d9b938882f56976117ef01d95e80715c54b5061bf153 -->
