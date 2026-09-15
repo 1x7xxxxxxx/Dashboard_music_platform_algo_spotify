@@ -27,6 +27,12 @@ import pytest
 from src.collectors.meta_ads_api_collector import MetaAdsApiCollector
 from tests.fakes.meta_sdk import FakeAdAccount
 
+# Ce fichier mute un état de PROCESSUS partagé (sys.modules, un attribut de
+# classe, un fichier du dépôt). Sous `--dist loadgroup` ses tests restent donc
+# sur UN worker, comme le faisait `--dist loadfile` pour tout le monde.
+# Voir `.claude/dev-docs/test-suite-performance.md` et R110.
+pytestmark = pytest.mark.xdist_group("meta-ads-run")
+
 
 # ---------------------------------------------------------------------------
 # Fakes

@@ -44,8 +44,19 @@ def test_the_block_speaks_only_when_the_share_is_still_owed(monkeypatch, state, 
     src = f"""
 import sys; sys.path.insert(0, {str(_ROOT)!r}); sys.path.insert(0, {str(_ROOT / 'src/dashboard')!r})
 import src.dashboard.views.credentials._platform_meta as m
+# LA DOUBLURE EST RENDUE. `AppTest.from_string` exécute ce script DANS le processus
+# des tests et partage donc `sys.modules` avec lui : une affectation nue survit au
+# test et tous les suivants du même worker voient un état de partage inventé.
+# Même mécanisme, même remède qu'en `test_a_page_asks_the_same_question_once.py` et
+# `test_a_printed_command_is_runnable_as_printed.py` — classe « une suite de tests a
+# un rayon de souffle ». Sous `--dist loadgroup`, « les suivants » cesse même d'être
+# prévisible.
+_original = m._share_state_cached
 m._share_state_cached = lambda account_id: {state!r}
-m.render_partner_share_block("567214713853881")
+try:
+    m.render_partner_share_block("567214713853881")
+finally:
+    m._share_state_cached = _original
 """
     at = AppTest.from_string(src)
     at.run(timeout=60)

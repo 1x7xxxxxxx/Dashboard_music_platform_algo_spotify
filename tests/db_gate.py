@@ -4,6 +4,12 @@ The same 25-line probe was copy-pasted into five test modules, each with its own
 comment explaining the same two subtleties. A test that needs the live schema now
 writes one line:
 
+    (Recompté le 2026-09-15 : **29** modules passent désormais par cette porte, et
+    **50** importent encore `get_db_connection` — la porte LOURDE, qui tire Streamlit.
+    Les deux ensembles se recouvrent largement : importer les deux ne fait économiser
+    aucun des 5,30 s. Le « cinq » ci-dessus est l'état du jour où ce fichier a été
+    écrit, gardé parce qu'il dit d'où l'on vient ; il ne décrit plus le dépôt.)
+
     pytestmark = requires_live_db()
 
 Both subtleties stay in force, in one place:

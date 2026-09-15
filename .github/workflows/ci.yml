@@ -258,7 +258,7 @@ jobs:
         # 13 s. Pour 13 s on garde le seul rapport de couverture du dépôt. La
         # supposition était fausse et c'est la mesure qui a décidé.
         #
-        # -n auto --dist loadfile : une seule chose change réellement le temps
+        # -n auto --dist loadgroup : une seule chose change réellement le temps
         # ici. Mesuré contre un Postgres provisionné comme celui-ci —
         # 147,2 s → 101,1 s, 655 passés / 14 sautés à l'identique.
         # `loadfile` (et non le défaut `load`) parce que tests/test_live_pulse.py
@@ -274,7 +274,7 @@ jobs:
         # Ce qu'on gagne est la lisibilité du log, et l'alignement avec `Makefile`,
         # qui lance `-q` depuis toujours.
         # `--cov-report=xml` part avec l'artefact que personne ne téléchargeait.
-        run: uv run pytest tests/ -q --tb=short -n auto --dist loadfile --cov=src --cov-report=term-missing
+        run: uv run pytest tests/ -q --tb=short -n auto --dist loadgroup --cov=src --cov-report=term-missing
 
       # ── `Upload coverage artifact` retiré le 2026-09-15 ──
       # Balayage exhaustif des fichiers suivis : AUCUN `download-artifact`, AUCUNE

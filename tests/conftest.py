@@ -76,8 +76,24 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
             tw.write_line(f"    {name} → {GATED[name][1]}")
         tw.write_line(f"    (interpréteur utilisé : {__import__('sys').executable})")
 
+    # ── ET LA MOITIÉ BASE, qui n'a JAMAIS été appelée (corrigé le 2026-09-15) ──
+    # `_db_terminal_summary` porte la signature d'un hook et le préfixe `_`
+    # d'une fonction privée. pytest ne collecte que les noms EXACTS de ses hooks :
+    # cette bannière-là n'a donc pas crié une seule fois depuis qu'elle existe.
+    #
+    # Ce qu'elle devait crier est exactement ce que le bloc de commentaire ci-dessus
+    # documente : quatre vagues de correctifs d'isolation locataire écrites, gardées
+    # et COMMITÉES contre un vert obtenu sans base, puis démenties dès Postgres
+    # démarré (« 1065 passed » → « 1217 passed, 1 FAILED »). Le garde écrit contre ce
+    # défaut était lui-même débranché — « du code correct que rien n'atteint ».
+    #
+    # Deux fonctions ne peuvent pas porter le même nom dans un module : la moitié
+    # base est donc APPELÉE d'ici, et non renommée.
+    # Garde : tests/test_a_pytest_run_carries_what_the_conftest_needs.py
+    _db_terminal_summary(terminalreporter, exitstatus, config)
 
-def _pytest_terminal_summary_db(terminalreporter, exitstatus, config):
+
+def _db_terminal_summary(terminalreporter, exitstatus, config):
     from tests.db_gate import DB_HOST, DB_PORT, db_ready
 
     if db_ready():

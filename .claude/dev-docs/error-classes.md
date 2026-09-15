@@ -392,6 +392,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-document-slice-bounded-by-the-wrong-heading-level](#a-document-slice-bounded-by-the-wrong-heading-level) | P2 | deterministic | guarded | none |
 | [a-prose-claim-that-cannot-be-verified](#a-prose-claim-that-cannot-be-verified) | P3 | deterministic | guarded | none |
 | [a-timeout-reported-as-a-missing-thing](#a-timeout-reported-as-a-missing-thing) | P3 | deterministic | guarded | none |
+| [a-measurement-taken-under-self-inflicted-load](#a-measurement-taken-under-self-inflicted-load) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -5722,3 +5723,21 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-15: `guarded`. Signature **vue rouge par mutation** — l'ancien message remis, `test_a_git_timeout_is_not_reported_as_a_missing_repository` échoue ; restauré, les deux passent. Le garde porte **deux moitiés opposées** : le délai dépassé ne doit PAS accuser le dépôt, et un dossier réellement sans `.git` doit toujours le dire. Sans la seconde, on satisfait la première en supprimant tout diagnostic — et on perd le message juste le jour où il est juste.
   - 2026-09-15: **même famille que `two-silences-one-message`**, dont la leçon était déjà payée sur une surface utilisateur : deux causes qui appellent des gestes OPPOSÉS ne peuvent pas partager un texte. La classe est séparée parce que le site et le garde le sont — un outil de développement, pas une vue — mais la question à poser devant du code est la même : **ce repli unique répond-il à plusieurs pannes qui ne se corrigent pas pareil ?**
   - 2026-09-15: le défaut ne se reproduit que **sous charge**, ce qui est la raison pour laquelle il a survécu. Il a été observé en vrai parce qu'un audit tournait en arrière-plan au même moment ; 30 s sont atteignables sur /mnt/c dès qu'une suite complète travaille à côté (cf. « ne jamais mesurer la perf depuis WSL »). Un garde qui n'existe que sous charge doit donc simuler la panne, jamais l'attendre : le test remplace `subprocess.run` par un `TimeoutExpired`.
+
+## a-measurement-taken-under-self-inflicted-load
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un chiffre de performance est mesuré pendant que d'autres processus LANCÉS PAR MOI occupent la machine, puis lu comme une propriété du système. **Trois occurrences le 2026-09-15, toutes le même jour** : (1) `pytest --collect-only` annoncé à **386,9 s** avec trois sous-agents Explore et un `audit_runner` en fond — **30,1 s** machine au repos, facteur **12,8** ; (2) un micro-banc donnant « `/mnt/c` est **3 568×** plus lent qu'ext4 », rapport ordinaire une fois seul ; (3) une suite `--dist loadgroup` annoncée **7× plus lente**, alors que **DEUX suites tournaient en même temps** — 16 workers xdist sur 8 cœurs logiques.
+- root_cause: le profil d'une machine SURCHARGÉE est indiscernable de celui d'une machine LENTE. `user 0m37s / sys 0m24s` pour 387 s de chronomètre ressemble exactement à un goulot d'entrées-sorties légitime — c'en est un, mais la file d'attente est la mienne. Et le déclencheur de la troisième occurrence est un piège en deux temps : **le log de pytest ne montre rien pendant les ~30 s de collecte**, ce qui ressemble à un processus mort, ce qui pousse à en relancer un second. Les deux tournent alors ensemble et se mesurent l'un l'autre.
+- long_term_fix: rendre la mesure **incapable** de démarrer sur une machine occupée, au lieu de compter sur la discipline. Un `.claude/scripts/measure.py` qui refuse de chronométrer tant qu'un `pytest`/`audit_runner`/agent tourne, et par lequel passent les commandes de référence. Tant qu'il n'existe pas, la parade est la ligne de contrôle inscrite dans la référence — et c'est elle que la signature garde. **La prudence seule ne suffit pas : les deux premières occurrences ont produit une mémoire disant « compter les processus lourds avant de chronométrer », et la troisième est arrivée quand même**, parce que le processus concurrent était le mien, lancé une minute plus tôt, donc invisible à l'attention.
+- autofix: none
+- guard: { type: ci-step, ref: .claude/dev-docs/test-suite-performance.md }
+- signature: `grep -q "processus lourds" .claude/dev-docs/test-suite-performance.md`
+- rex_ref: —
+- first_seen: 2026-09-15 (ref: DEVLOG#2026-09-15)
+- History:
+  - 2026-09-15: `guarded`. Signature **vue dans les deux sens** : `exit 0` sur l'arbre sain, `exit 1` après avoir retiré la ligne de contrôle de la référence, `exit 0` après restauration.
+  - 2026-09-15: **ce que cette signature garde, et ce qu'elle ne garde PAS.** Elle garde que la procédure de référence porte encore sa ligne de contrôle d'inactivité. Elle **ne peut pas** savoir si je l'ai réellement exécutée avant un chronomètre — aucune commande shell ne le peut, puisque le défaut est un geste et non un état du dépôt. C'est donc un garde de PROCÉDURE, délibérément modeste ; le garde d'EFFET est le `long_term_fix`, et il reste à écrire.
+  - 2026-09-15: **le coût réel de la troisième occurrence.** Elle allait faire fermer R110 (`--dist loadgroup`) comme « mesurée inutile » et revenir à `loadfile`, sur un chiffre entièrement produit par ma propre contention. Une mesure fausse ne coûte pas le temps de la refaire : elle coûte la DÉCISION qu'on prend dessus, et celle-ci était l'abandon d'un chantier.
+  - 2026-09-15: voisine de `a-timeout-reported-as-a-missing-thing`, née le même jour de la même charge — là, `git diff` dépassait 30 s sous la même contention et `select_tests.py` accusait le dépôt. Les deux se lisent ensemble : **la charge de fond ne ralentit pas seulement les mesures, elle fait mentir les diagnostics.**

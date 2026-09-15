@@ -63,6 +63,15 @@ def _repo_root() -> Path:
 
 REPO = _repo_root()
 VIEW = REPO / "src" / "dashboard" / "views" / "upload_csv.py"
+# Ce fichier partage un ÉTAT MUTABLE entre ses propres tests : le dossier `data/uploads/999999/` du dépôt, et un nom de fichier horodaté À LA SECONDE. Sous
+# `--dist loadgroup` les tests d'un fichier se distribuent test par test, donc deux
+# d'entre eux tournent en parallèle sur des workers différents. Mesuré le 2026-09-15,
+# suite complète : `test_a_file_can_be_read_back_after_archiving` a lu un fichier que
+# `test_an_expired_file_is_purged_and_a_recent_one_is_kept` venait de purger sous lui.
+# Le marqueur les remet sur UN worker — c'est exactement ce à quoi il sert, et la
+# liste des exceptions se justifie fichier par fichier (`pyproject.toml`).
+pytestmark = pytest.mark.xdist_group("an-imported-file-survives-its-import")
+
 _TEST_TENANT = 999_999
 
 

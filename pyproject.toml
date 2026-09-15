@@ -97,6 +97,20 @@ dev = [
     # `tests/test_live_pulse.py` est le seul à écrire une table réelle
     # (`active_sessions`), il ne peut donc pas se courir après lui-même.
     "pytest-xdist>=3.5.0",
+    # L'INSTRUMENT de `--dist loadgroup`, pas un agrément. Okken, *Python Testing
+    # with pytest* p.211 : `pytest-xdist` et `pytest-randomly` sont les deux
+    # greffons qui accélèrent ET « trouvent les dépendances accidentelles entre
+    # tests ». C'est exactement la garantie que `loadgroup` retire : sous
+    # `loadfile`, les tests d'un fichier s'exécutaient dans l'ordre du fichier,
+    # sur un seul worker ; sous `loadgroup` ils partent test par test. Un test
+    # qui dépendait de son voisin devient un échec intermittent.
+    #
+    # Il est DÉSACTIVÉ par défaut (`-p no:randomly` dans `addopts`) et se rallume
+    # à la demande : `pytest tests/ -p randomly`. Deux raisons, pas une préférence :
+    # `pytest-split` répartit sur des durées indexées par node-id et suppose un
+    # ordre stable, et une suite qui change d'ordre à chaque exécution ne peut plus
+    # servir de référence chiffrée (la suite varie déjà de ±40 % ici).
+    "pytest-randomly>=3.15.0",
     "httpx>=0.27.0",
     "ruff==0.16.5",
     # Pre-commit framework + secret scanner (.pre-commit-config.yaml)
@@ -116,6 +130,17 @@ where = ["src"]
 extend = "ruff.toml"
 
 [tool.pytest.ini_options]
+# ── `addopts`, posé le 2026-09-15 ──
+# `--strict-markers` : le commentaire ci-dessous affirmait depuis des semaines qu'un
+# marqueur mal orthographié « ne passe pas en silence ». C'était faux — rien ne
+# l'activait. Une faute de frappe sur `real_http` produisait un test qui subit la
+# frontière HTTP au lieu d'en sortir, et échoue en parlant d'autre chose.
+#
+# `-p no:randomly` : voir le commentaire de `pytest-randomly` dans les extras dev.
+# L'ordre aléatoire est un INSTRUMENT qu'on rallume (`-p randomly`), pas le régime
+# par défaut d'une suite dont on lit les temps.
+addopts = "--strict-markers -p no:randomly"
+
 # Le seul marqueur du dépôt, et il est délibérément unique.
 #
 # `real_http` est l'unique sortie de la frontière HTTP de `tests/conftest.py`. Déclaré
@@ -123,6 +148,7 @@ extend = "ruff.toml"
 # silence : un marqueur mal orthographié ne sort pas de la frontière, il la subit — et
 # le test échoue avec un message qui parle d'autre chose.
 markers = [
+    "xdist_group: les tests de ce fichier restent sur UN worker xdist. Posé sur les fichiers qui mutent un état de PROCESSUS partagé — sys.modules, un attribut de classe non restauré, ou un fichier du dépôt. Sous `--dist loadgroup` tout le reste se distribue test par test ; ce marqueur est la liste des exceptions, et elle se justifie fichier par fichier. Deux fichiers écrivant le MÊME README.md partagent le groupe `writes-readme`.",
     "docs: le test ne lit QUE des documents (.md) — aucun fichier de src/, airflow/ ou migrations/. Sauté par `make test-fast`, lancé seul par `make test-docs`, et TOUJOURS lancé par `make test` et la CI. La roadmap en est exclue A DESSEIN : ses gardes tiennent l'état que /resume lit en premier. Liste et cohérence gardées par tests/test_the_doc_marker_matches_what_make_skips.py",
     "real_http: le test sort VRAIMENT sur le réseau (sonde de production). Seule sortie de la frontière HTTP de tests/conftest.py ; sa portée est gardée par tests/test_the_http_escape_hatch_stays_narrow.py",
 ]

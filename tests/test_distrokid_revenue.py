@@ -3,6 +3,13 @@ from datetime import date
 
 from src.dashboard.views.imusician import DISTRIBUTOR_TABLES, _default_period
 from src.utils.distrokid_rollup import _ROLLUP_SQL, default_fx_rate, rollup_sales_to_monthly
+import pytest
+
+# Ce fichier mute un état de PROCESSUS partagé (sys.modules, un attribut de
+# classe, un fichier du dépôt). Sous `--dist loadgroup` ses tests restent donc
+# sur UN worker, comme le faisait `--dist loadfile` pour tout le monde.
+# Voir `.claude/dev-docs/test-suite-performance.md` et R110.
+pytestmark = pytest.mark.xdist_group("distrokid-revenue")
 
 
 class _FakeDB:

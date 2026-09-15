@@ -26,6 +26,12 @@ import pytest
 from src.dashboard.utils.shell_block import windows_path as _windows_path
 from src.dashboard.views.credentials._core import fernet_key_command_block
 
+# Ce fichier mute un état de PROCESSUS partagé (sys.modules, un attribut de
+# classe, un fichier du dépôt). Sous `--dist loadgroup` ses tests restent donc
+# sur UN worker, comme le faisait `--dist loadfile` pour tout le monde.
+# Voir `.claude/dev-docs/test-suite-performance.md` et R110.
+pytestmark = pytest.mark.xdist_group("a-printed-command-is-runnable-as-printed")
+
 _CREDENTIALS = Path(__file__).resolve().parents[1] / "src/dashboard/views/credentials"
 _ROUTER = _CREDENTIALS / "router.py"
 

@@ -28,6 +28,12 @@ from src.utils.artist_readiness import (
     _PLATFORMS, BROKEN, NO_DATA, OK, TODO, next_action,
 )
 
+# Ce fichier mute un état de PROCESSUS partagé (sys.modules, un attribut de
+# classe, un fichier du dépôt). Sous `--dist loadgroup` ses tests restent donc
+# sur UN worker, comme le faisait `--dist loadfile` pour tout le monde.
+# Voir `.claude/dev-docs/test-suite-performance.md` et R110.
+pytestmark = pytest.mark.xdist_group("readiness-carries-the-live-diagnosis")
+
 # LA vraie ligne, pas une copie. Elle a été recopiée à la main jusqu'au 2026-09-04, et
 # elle a dérivé le jour où `id_hint` a cessé de réclamer un « User ID numérique » —
 # une reformulation qui ne change aucun comportement a rendu le test rouge, ce qui est

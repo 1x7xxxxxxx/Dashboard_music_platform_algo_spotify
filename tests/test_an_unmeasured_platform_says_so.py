@@ -98,10 +98,10 @@ def _dsn() -> dict | None:
 
 _CONN = _dsn()
 
-pytestmark = pytest.mark.skipif(
+pytestmark = [pytest.mark.xdist_group("an-unmeasured-platform-says-so"), pytest.mark.skipif(
     _CONN is None,
     reason=f"No Postgres on {_DB_HOST}:{_DB_PORT} — l'absence ne se lit que dans la base",
-)
+)]
 
 
 @pytest.fixture(scope="module")

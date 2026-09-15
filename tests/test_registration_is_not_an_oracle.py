@@ -25,7 +25,18 @@ import pytest
 
 from tests.db_gate import requires_live_db
 
-pytestmark = requires_live_db()
+# Ce fichier partage un ÉTAT MUTABLE entre ses propres tests : tous ses envois passent
+# par `_submit`, dont le nom d'artiste par défaut est le MÊME (« Oracle Probe »). Le
+# slug en est dérivé et dédupliqué en `oracle-probe-N` — deux inscriptions simultanées
+# se disputent donc le même N. Sous `--dist loadgroup` les tests d'un fichier se
+# distribuent test par test ; mesuré le 2026-09-15, suite complète :
+# `duplicate key value violates unique constraint "saas_artists_slug_key"`,
+# `Key (slug)=(oracle-probe-12) already exists` — et le test a lu l'échec comme
+# « un code invalide a annulé l'inscription », ce qui est faux.
+#
+# Le nom fixe est DÉLIBÉRÉ (c'est la déduplication de nom que ces tests exercent) :
+# c'est donc le regroupement qui corrige, pas un nom rendu unique.
+pytestmark = [pytest.mark.xdist_group("registration-is-not-an-oracle"), requires_live_db()]
 
 _SCRIPT = """
 import sys

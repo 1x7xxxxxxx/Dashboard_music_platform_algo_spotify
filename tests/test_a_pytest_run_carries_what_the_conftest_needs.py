@@ -136,3 +136,70 @@ def test_the_extraction_sees_the_real_workflows_and_the_real_hooks():
         "`prod-health.yml` n'est plus vu comme lançant pytest — c'est précisément le "
         f"fichier qui a coûté neuf jours. Vus : {sorted({w for w, _, _ in steps})}"
     )
+
+
+# ── Un hook que pytest n'appellera jamais (2026-09-15) ───────────────────────────
+#
+# `tests/conftest.py` portait `_pytest_terminal_summary_db` : la signature exacte
+# d'un hook, le corps d'un hook, et un préfixe `_` qui le rend INVISIBLE à pytest —
+# la collecte se fait sur le nom exact. Cette bannière devait crier « des gardes
+# n'ont pas tourné, cette exécution ne prouve rien sur l'isolation locataire ».
+# Elle n'a pas crié une seule fois depuis qu'elle existe.
+#
+# Le dépôt connaît le prix de ce silence, et il est écrit vingt lignes au-dessus
+# d'elle : quatre vagues de correctifs écrits, gardés et COMMITÉS contre un vert
+# obtenu sans base. C'est la classe « du code correct que rien n'atteint », dans sa
+# forme la plus coûteuse — le code débranché était le garde.
+#
+# Le prédicat ne devine aucune liste : il lit les noms de hooks déclarés par pytest
+# lui-même (`_pytest.hookspec`), donc il suit les versions.
+
+def _pytest_hook_names() -> set[str]:
+    """Les noms de hooks que pytest collecte, lus chez pytest."""
+    import _pytest.hookspec as spec
+    names = {n for n in dir(spec) if n.startswith("pytest_")}
+    try:
+        import xdist.newhooks as xhooks
+        names |= {n for n in dir(xhooks) if n.startswith("pytest_")}
+    except ImportError:      # xdist absent : on garde ce qu'on a
+        pass
+    return names
+
+
+def _mimics_a_hook(name: str, hooks: set[str]) -> bool:
+    """`_pytest_terminal_summary_db` compte, et c'est tout l'objet du SUFFIXE.
+
+    La première version de ce prédicat exigeait l'égalité exacte après retrait des
+    `_`. Elle est restée VERTE sur la mutation qui remettait le vrai défaut en place,
+    parce que le défaut portait un suffixe (`…_db`) : un nom qui commence par celui
+    d'un hook a exactement la même conséquence — pytest ne l'appelle pas — et c'est
+    la forme sous laquelle il s'est présenté.
+
+    Un suffixe ne rend pas le nom moins trompeur ; il le rend plus crédible.
+    """
+    stripped = name.lstrip("_")
+    return any(stripped == h or stripped.startswith(h + "_") for h in hooks)
+
+
+def test_no_function_wears_a_hook_name_pytest_will_never_call():
+    """Une fonction `_pytest_<hook>` ne sera jamais appelée — et elle en a l'air."""
+    hooks = _pytest_hook_names()
+    assert len(hooks) > 50, f"seulement {len(hooks)} hooks lus — l'extraction est cassée"
+
+    unreachable = []
+    for path in sorted(Path(__file__).resolve().parent.rglob("*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) \
+                    and node.name.startswith("_") and _mimics_a_hook(node.name, hooks):
+                unreachable.append(f"{path.name}:{node.lineno} → {node.name}")
+
+    assert not unreachable, (
+        "ces fonctions portent le nom d'un hook pytest précédé d'un `_` : pytest "
+        "collecte sur le nom EXACT, elles ne seront donc jamais appelées, tout en "
+        "ayant l'air de l'être.\n"
+        "Remède : soit le nom exact du hook, soit un nom qui ne le mime pas et un "
+        "appel depuis le vrai hook.\n" + "\n".join(f"  {u}" for u in unreachable))

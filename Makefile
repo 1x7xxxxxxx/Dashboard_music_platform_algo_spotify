@@ -44,10 +44,22 @@ logs:        ## Tail Airflow scheduler logs
 # Mêmes drapeaux de distribution que `.github/workflows/ci.yml`. Mesuré le
 # 2026-08-30 sur ce dépôt : 238 s en sériel, 151 s ici (1,57x). Le gain n'est pas
 # la raison principale — c'est que « vert en local » et « vert en CI » cessent
-# d'être deux affirmations différentes. `--dist loadfile` garde les tests d'un
-# même fichier sur le même worker, ce dont dépendent ceux qui portent un état de
-# module.
-PYTEST_DIST := -n auto --dist loadfile
+# d'être deux affirmations différentes.
+#
+# `--dist loadgroup` depuis le 2026-09-15, et le mot compte. `loadfile` gardait
+# TOUS les tests d'un même fichier sur un même worker — une garantie donnée aux
+# 367 fichiers pour les quelques-uns qui en ont besoin, et le prix était un long
+# pôle : `tests/test_views_render_smoke.py` tenait 152,5 s à lui seul sur un
+# worker pendant que les autres finissaient. Sous `loadgroup`, la distribution se
+# fait test par test SAUF pour les fichiers portant `pytest.mark.xdist_group` —
+# la liste explicite des exceptions, justifiée fichier par fichier (voir le
+# marqueur dans `pyproject.toml`).
+#
+# Ce que ce changement retire : l'ordre intra-fichier n'est plus garanti. Un test
+# qui dépendait de son voisin devient un échec INTERMITTENT, la pire forme.
+# L'instrument qui le prouve est `pytest-randomly`, désactivé par défaut et
+# rallumé à la demande : `.venv/bin/python -m pytest tests/ -q -p randomly`.
+PYTEST_DIST := -n auto --dist loadgroup
 
 # ── Les tests qui ne lisent QUE des documents (2026-09-15) ──
 # Portés par `pytestmark = pytest.mark.docs`. La liste est ici en clair parce que
