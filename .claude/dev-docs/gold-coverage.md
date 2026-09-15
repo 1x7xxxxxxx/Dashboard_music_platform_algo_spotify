@@ -559,7 +559,7 @@ Le défaut qui a fait naître cette section : `meta_insights_performance` et `me
 
 ## Les étapes de la CI
 
-**9 étapes**, dont **9 bloquantes**. Lu dans `.github/workflows/ci.yml`, jamais récité — une liste d'étapes écrite à la main décrit la CI qu'on croit avoir.
+**12 étapes**, dont **12 bloquantes**. Lu dans `.github/workflows/ci.yml`, jamais récité — une liste d'étapes écrite à la main décrit la CI qu'on croit avoir.
 
 ⚠️ Une CI rouge cache tout ce qui la suit : ce dépôt l'a mesuré deux fois (8 exécutions bloquées à l'étape 3/8, puis 27 à l'étape 10/15). C'est `if: !cancelled()` qui l'a arrêté, pas la leçon écrite entre les deux.
 
@@ -571,9 +571,12 @@ Le défaut qui a fait naître cette section : `meta_insights_performance` et `me
 | 4 | Manifest consistency (blocking) | check_manifest_consistency.py | bloquante |
 | 5 | Lint (ruff) — full project (blocking) | ruff check | bloquante |
 | 6 | REX integrity + static error-class guards (blocking) | validate_rex.py, audit_runner.py, check_config_refs.py, check_ci_waste.py, gold_coverage.py, error_class_famil | bloquante |
-| 7 | Provision Postgres (schema + migrations) | test_suite_runs_against_two_tenants.py | bloquante |
-| 8 | Mint a throwaway Fernet key for this run | — | bloquante |
-| 9 | Run tests | pytest | bloquante |
+| 7 | Install uv | — | bloquante |
+| 8 | Set up Python 3.11 | — | bloquante |
+| 9 | Install dependencies from lockfile | sync | bloquante |
+| 10 | Provision Postgres (schema + migrations) | — | bloquante |
+| 11 | Mint a throwaway Fernet key for this run | — | bloquante |
+| 12 | Run tests | — | bloquante |
 
 ## Ce qui n'est atteint par rien
 
@@ -658,6 +661,6 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-error-classes: total=333 guard_missing=0 guard_unnamed=11 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
-<!-- gold-coverage-ci: steps=9 blocking=9 -->
+<!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=e53478826ff57c5d77300ecf66ed80b2195232a03abf39e259e10531113da8ee -->
+<!-- gold-coverage: sha256=bc7b4d97cab5dbaeb74c1ad5e9aabd2b9f4ac8c00992533ae0592268ab2a5365 -->

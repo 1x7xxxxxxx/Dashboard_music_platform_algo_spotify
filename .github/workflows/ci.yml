@@ -25,15 +25,122 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# ── Pourquoi DEUX jobs indépendants, et quatre shards (R109, 2026-09-16) ────────
+#
+# Avant : un seul job `lint-and-test` de quinze étapes en file. Médiane **402 s**
+# sur 177 exécutions par semaine — soit **≈18,5 h d'attente hebdomadaire**. Humble
+# & Farley, *Continuous Delivery* p.155 et p.170 : un commit stage vise cinq
+# minutes, dix au plafond, et **au-delà de cinq minutes on le scinde en suites
+# parallèles**. Le seuil du livre était franchi.
+#
+# Deux gestes, et seulement deux :
+#
+# 1. les portes STATIQUES (manifeste, ruff, REX, signatures de classes d'erreur)
+#    n'ont besoin ni de Postgres ni de la suite. Dans leur propre job, elles
+#    rendent leur verdict en ~2 min au lieu de 7, et sortent du chemin critique ;
+# 2. la suite se découpe en **quatre shards de durée égale** (`pytest-split`, sur
+#    `.test_durations` versionné). Le dépôt est PUBLIC : les minutes Actions sont
+#    gratuites, donc R109 achète du temps de mur avec des minutes qu'on ne paie pas.
+#
+# **AUCUN `needs:` entre les deux jobs, et c'est la partie non négociable.** Le
+# chaîner recréerait exactement la panne de septembre : les gardes étaient l'étape
+# 10 sur 15, un échec là sautait les cinq suivantes, et la suite n'a PAS tourné
+# pendant **27 exécutions consécutives** (2026-09-04 → 06) sur une cause sans
+# rapport — deux gardes lisaient le `.env` du poste. Vingt-sept commits sont partis
+# sur main avec un seul signal rouge, toujours le même, et rien derrière.
+# Garde : tests/test_a_red_gate_does_not_hide_the_suite.py
+#
+# Effet de bord GAGNÉ par les shards : chaque job a son propre conteneur Postgres
+# et son propre disque. Deux tests d'un même fichier séparés par la découpe ne
+# peuvent donc pas se courir après — ce qui est arrivé QUATRE fois en local le
+# 2026-09-15 quand `--dist loadgroup` a remplacé `--dist loadfile`.
+
 jobs:
-  lint-and-test:
+  # ════════════════════════════════════════════════════════════════════════════
+  gates:
+    name: Portes statiques
     runs-on: ubuntu-latest
 
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      # ── `Install system dependencies` retiré le 2026-09-15 ──
+      # Il coûtait 10 s par run (médiane sur 15 runs) et n'achetait rien, mesuré dans
+      # le log : `pkg-config is already the newest version` (no-op) et `build-essential`
+      # est un méta-paquet de **4 928 octets / 17,4 kB sur disque** — gcc, g++, make,
+      # dpkg-dev, libc6-dev sont déjà sur l'image `ubuntu-latest`. Les 10 s étaient
+      # l'`apt-get update` (12 MB) et le `Reading database ... 201818 files` de dpkg.
+      #
+      # Il ne compilait rien : `uv sync` rapporte `Prepared 245 packages in 4.42s`,
+      # sans une seule ligne `Building` — tout vient de wheels. Sa raison d'origine
+      # (`libcairo2-dev` pour pycairo) a disparu avec la migration vers WeasyPrint ;
+      # il ne restait qu'un « filet de sécurité » qui n'a jamais rien rattrapé.
+
+      - name: Install dependencies from lockfile
+        # --frozen: refuse to update uv.lock; CI must match what devs have locally.
+        run: uv sync --frozen --extra dev
+
+      - name: Manifest consistency (blocking)
+        # Deterministic, sub-second, zero-network. Catches pin drift across
+        # pyproject.toml / requirements.txt / uv.lock (error class
+        # streamlit-pin-drift) before it ships a prod≠dev image.
+        run: uv run python tools/dev/check_manifest_consistency.py
+
+      - name: Lint (ruff) — full project (blocking)
+        # Promoted from advisory to blocking on 2026-05-14 after baseline cleanup
+        # (44 → 0 errors). Widened from `src/ tests/` to the whole tree on
+        # 2026-08-21: the step was named "full project" and was not one. `airflow/`
+        # — DAG code live-mounted into production containers — was outside it, and
+        # carried 25 of the 40 findings that cleanup removed.
+        run: uv run ruff check .
+
+      - name: REX integrity + static error-class guards (blocking)
+        # validate_rex.py enforces the rex: schema across every .claude/ tool;
+        # audit_runner.py runs the error-class signatures catalogued in
+        # .claude/dev-docs/error-classes.md (single source of truth).
+        #
+        # `--static` et non `--deterministic` (2026-09-15) : `--deterministic`
+        # regroupait 261 signatures en UNE invocation pytest visant **219 des 362
+        # fichiers de tests**, sans `-n`, donc en séquentiel, juste avant que la suite
+        # relance la même chose. Le batch **expirait à son `timeout=1800`**.
+        # `--static` garde exactement ce que la suite ne couvre pas : les 35 classes
+        # déterministes dont la signature n'est PAS un pytest.
+        run: |
+          uv run python .claude/scripts/validate_rex.py --strict
+          uv run python .claude/scripts/audit_runner.py --static
+          uv run python .claude/scripts/audit_runner.py --prose
+          uv run python .claude/scripts/check_config_refs.py
+          uv run python .claude/scripts/check_ci_waste.py
+          # `gold_coverage.py --check` et `error_class_families.py --check` NE SONT PLUS
+          # appelés ici (2026-09-15). Ils tournaient TROIS fois par run : ici, via
+          # `audit_runner --static` (la classe `a-generated-document-asserts-a-stale-state`
+          # a exactement cette signature), et dans la suite. Le premier calcul coûte 11
+          # à 20 s. Deux passages suffisent.
+
+  # ════════════════════════════════════════════════════════════════════════════
+  suite:
+    name: Suite ${{ matrix.shard }}/4
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Un shard rouge ne doit pas annuler les trois autres : on veut le rapport
+      # COMPLET, pas le premier échec. Même raison que `!cancelled()` ci-dessous.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+
     # Postgres service re-added 2026-06-13 — this time ACTUALLY PROVISIONED (init_db.sql
-    # + migrations/*.sql, see "Provision Postgres" step), so the 39-view render-smoke and
-    # the ML DB tests run in CI instead of skipping. The 2026-06-11 removal note was right
-    # that an *unprovisioned* service added zero value; provisioning is the fix. The
-    # provision step fails loudly if the core schema is absent (no silent test SKIP).
+    # + migrations/*.sql, see the composite action), so the render-smoke and the ML DB
+    # tests run in CI instead of skipping. The 2026-06-11 removal note was right that an
+    # *unprovisioned* service added zero value; provisioning is the fix.
     services:
       postgres:
         image: postgres:17
@@ -59,167 +166,22 @@ jobs:
       - name: Set up Python 3.11
         run: uv python install 3.11
 
-      # ── `Install system dependencies` retiré le 2026-09-15 ──
-      # Il coûtait 10 s par run (médiane sur 15 runs) et n'achetait rien, mesuré dans
-      # le log : `pkg-config is already the newest version` (no-op) et `build-essential`
-      # est un méta-paquet de **4 928 octets / 17,4 kB sur disque** — gcc, g++, make,
-      # dpkg-dev, libc6-dev sont déjà sur l'image `ubuntu-latest`. Les 10 s étaient
-      # l'`apt-get update` (12 MB) et le `Reading database ... 201818 files` de dpkg.
-      #
-      # Il ne compilait rien : `uv sync` rapporte `Prepared 245 packages in 4.42s`,
-      # sans une seule ligne `Building` — tout vient de wheels. Sa raison d'origine
-      # (`libcairo2-dev` pour pycairo) a disparu avec la migration vers WeasyPrint ;
-      # il ne restait qu'un « filet de sécurité » qui n'a jamais rien rattrapé.
-      #
-      # Le jour où `uv.lock` portera un sdist sans wheel, l'échec sera un `uv sync`
-      # rouge et lisible — pas un mystère. C'est un meilleur signal qu'un apt préventif.
-
       - name: Install dependencies from lockfile
-        # --frozen: refuse to update uv.lock; CI must match what devs have locally.
-        # --extra dev: include pytest, ruff, httpx, pytest-mock, pytest-cov.
         run: uv sync --frozen --extra dev
-
-      - name: Manifest consistency (blocking)
-        # Deterministic, sub-second, zero-network. Catches pin drift across
-        # pyproject.toml / requirements.txt / uv.lock (error class
-        # streamlit-pin-drift) before it ships a prod≠dev image.
-        run: uv run python tools/dev/check_manifest_consistency.py
-
-      - name: Lint (ruff) — full project (blocking)
-        # Promoted from advisory to blocking on 2026-05-14 after baseline cleanup
-        # (44 → 0 errors). Any regression now fails CI; revert to --exit-zero only
-        # after explicit ADR.
-        #
-        # Widened from `src/ tests/` to the whole tree on 2026-08-21: the step was
-        # named "full project" and was not one. `airflow/` — DAG code live-mounted
-        # into production containers — was outside it, and carried 25 of the 40
-        # findings that cleanup removed. `ruff.toml` carries the per-directory
-        # exemptions (E402 for the mandatory sys.path insert in DAGs and debug
-        # scripts, F401 in tests), so widening enforces the same rules everywhere
-        # rather than inventing stricter ones.
-        run: uv run ruff check .
-
-      - name: REX integrity + static error-class guards (blocking)
-        # Deterministic, no-DB, sub-second. validate_rex.py enforces the rex: schema
-        # across every .claude/ tool; audit_runner.py runs the error-class signatures
-        # catalogued in .claude/dev-docs/error-classes.md (single source of truth —
-        # no hand-synced Makefile drift). Heuristic classes run in
-        # security-nightly.yml (non-blocking, manual triage).
-        # `uv run` puts the venv on PATH so the signatures' python3/pytest resolve.
-        #
-        # ── Pourquoi `--static` et non `--deterministic` (2026-09-15) ──
-        # `--deterministic` regroupait 261 signatures en UNE invocation pytest
-        # (audit_runner.py:279-282) visant **219 des 362 fichiers de tests** — 60,5 %
-        # des fichiers, 55 % des fonctions — **sans `-n`, sans `--dist`**, donc en
-        # séquentiel, juste avant que l'étape `Run tests` relance la même suite à
-        # `-n auto`. Le même job payait deux fois, dont une fois en série. Mesuré
-        # deux fois en local, la seconde sans aucune contention : le batch **expire
-        # à son `timeout=1800`**.
-        #
-        # `--static` garde exactement ce que la suite ne couvre pas : les 35 classes
-        # déterministes dont la signature n'est PAS un pytest (scripts d'audit,
-        # famille grep, AST inline). Les 262 signatures pytest restent gardées — par
-        # `Run tests`, qui les exécute déjà et bloque déjà.
-        #
-        # Ce qu'on perd sciemment : le rapport PAR CLASSE sur une PR (la traduction
-        # node-id → identifiant de classe). Il reste disponible la nuit, dans
-        # security-nightly.yml (`make audit`, non bloquant), et à la demande par
-        # `python3 .claude/scripts/audit_runner.py --deterministic`.
-        run: |
-          uv run python .claude/scripts/validate_rex.py --strict
-          uv run python .claude/scripts/audit_runner.py --static
-          uv run python .claude/scripts/audit_runner.py --prose
-          uv run python .claude/scripts/check_config_refs.py
-          uv run python .claude/scripts/check_ci_waste.py
-          # `gold_coverage.py --check` et `error_class_families.py --check` NE SONT PLUS
-          # appelés ici (2026-09-15). Ils tournaient TROIS fois par run :
-          #   1. ici, en direct ;
-          #   2. via `audit_runner --static` — la classe
-          #      `a-generated-document-asserts-a-stale-state` a exactement cette
-          #      signature (`error-classes.md`) ;
-          #   3. dans la suite — `test_the_gold_coverage_only_improves.py` et
-          #      `test_the_error_class_families_only_improve.py` refont
-          #      `assert current == build()`, octet pour octet.
-          # Le premier calcul coûte 11 à 20 s à lui seul. Deux passages suffisent : la
-          # signature (qui nomme la classe en cas d'échec) et le test (qui nomme le
-          # document). Le troisième ne disait rien que les deux autres ne disent.
-
-      # ── Pourquoi les quatre étapes qui suivent portent `if: ${{ !cancelled() }}` ──
-      # Mesuré le 2026-09-06. Les gardes de classes d'erreur sont l'étape 10 sur 15 ;
-      # un échec là saute les cinq suivantes, dont `Run tests`. La suite n'a donc PAS
-      # tourné pendant **27 exécutions consécutives** (2026-09-04 → 2026-09-06), sur
-      # une cause qui n'avait aucun rapport avec elle : deux gardes lisaient le `.env`
-      # du poste. Vingt-sept commits sont partis sur main avec un seul signal rouge,
-      # toujours le même, et rien derrière.
-      #
-      # `!cancelled()` et non `always()` : une annulation (le groupe de concurrence en
-      # produit à chaque poussée rapprochée) ne doit pas provisionner un Postgres pour
-      # rien. Le job échoue toujours si un garde échoue — la porte est intacte ; ce
-      # qui change est qu'elle ne rend plus le reste invisible.
-      # ── `Error-class schema completeness` retiré le 2026-09-15 ──
-      # `audit_runner.py --fields --strict` demandait : « toute classe porte-t-elle un
-      # `root_cause` ET un `long_term_fix` ? ». La suite pose désormais exactement la
-      # même question, mais PAR CLASSE et non en bloc :
-      # `tests/test_every_error_class_is_complete.py::test_a_class_names_its_cause_and_its_end`
-      # — 665 tests en 3,1 s, avec en plus un plancher de longueur que le CLI n'avait
-      # pas. Un échec y nomme la classe fautive ; l'étape rendait un compte global.
-      #
-      # Et surtout : `--fields` appelle `_write_ratchet()`, donc cette étape ÉCRIVAIT
-      # dans `.claude/dev-docs/error-classes.md` **depuis la CI**. Une barrière qui
-      # modifie le fichier qu'elle juge ne peut pas être rejouée avec le même sens, et
-      # son verdict dépend de l'ordre dans lequel on la lance.
-      #
-      # Le CLI reste disponible — `make config-check` l'appelle — pour le passage
-      # hebdomadaire où l'on VEUT que le cliquet soit réécrit.
 
       - name: Provision Postgres (schema + migrations)
         if: ${{ !cancelled() }}
-        env:
-          PGPASSWORD: postgres  # pragma: allowlist secret — throwaway CI DB
-        run: |
-          sudo apt-get install -y --no-install-recommends postgresql-client
-          # The postgres image runs a temp init server then restarts, so poll a real
-          # query (twice) before applying DDL rather than trusting the first hit.
-          for i in $(seq 1 30); do
-            if psql -h localhost -U postgres -d spotify_etl -tAc "SELECT 1" >/dev/null 2>&1; then
-              sleep 2
-              psql -h localhost -U postgres -d spotify_etl -tAc "SELECT 1" >/dev/null 2>&1 && break
-            fi
-            sleep 2
-          done
-          psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -f init_db.sql
-          for f in $(ls migrations/*.sql | sort); do
-            psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -f "$f"
-          done
-          # Fail loudly if provisioning did not produce the core schema — otherwise the
-          # DB-backed tests would silently SKIP and we'd lose the coverage we just added.
-          psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=1 \
-            -c "SELECT 1 FROM saas_artists LIMIT 1"
-          # A SECOND tenant. A fresh canonical database holds exactly one
-          # ("Artist Default"), and one tenant cannot expose a multi-tenant defect:
-          # "collect for this tenant" and "collect for the whole fleet" return the
-          # same rows, so every isolation bug reads as correct behaviour. Three were
-          # found on 2026-08-21, none of them visible before a second tenant existed.
-          # Identities are real PUBLIC ids (no ownership needed on these endpoints)
-          # and deliberately different from tenant 1's, because a tenant borrowing
-          # another's identity proves nothing. Guard: tests/test_suite_runs_against_two_tenants.py
-          psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=1 -c "
-            INSERT INTO saas_artists (name, slug, tier, active, is_canary, spotify_artist_id)
-            VALUES ('CI Canary', 'ci-canary', 'free', TRUE, TRUE, '4tZwfgrHOc3mvqYlEYSvVi')
-            ON CONFLICT (slug) DO UPDATE SET spotify_artist_id = EXCLUDED.spotify_artist_id;
-            INSERT INTO artist_credentials (artist_id, platform, extra_config)
-            SELECT id, 'youtube', '{\"channel_id\": \"UC_x5XG1OV2P6uZZ5FSM9Ttw\"}'::jsonb
-              FROM saas_artists WHERE slug = 'ci-canary'
-            ON CONFLICT (artist_id, platform) DO NOTHING;"
-          psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=1 \
-            -c "SELECT count(*) >= 2 OR (SELECT false) FROM saas_artists WHERE active" \
-            -tA | grep -qx t || { echo "::error::CI database has fewer than 2 tenants"; exit 1; }
+        uses: ./.github/actions/provision-postgres
 
       - name: Mint a throwaway Fernet key for this run
         if: ${{ !cancelled() }}
         id: ci_fernet
         # Base64-urlsafe of 32 random bytes is exactly what Fernet.generate_key()
         # produces, without needing the package installed at this point in the job.
+        #
+        # GENERATED per run, not committed (R30, 2026-08-22). The literal that used
+        # to sit here was a VALID Fernet key in a public file: nothing decrypts with
+        # it today, but "CI only" is a property of how it is used, not of the key.
         run: |
           echo "key=$(python3 -c 'import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')" >> "$GITHUB_OUTPUT"
 
@@ -227,62 +189,41 @@ jobs:
         if: ${{ !cancelled() }}
         env:
           # DATABASE_URL points the DB layer at the provisioned CI Postgres so the
-          # 39-view render-smoke + ML DB tests run (they skip when it is absent).
+          # render-smoke + ML DB tests run (they skip when it is absent).
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/spotify_etl  # pragma: allowlist secret
           # Dummy Airflow creds: src/dashboard/app.py raises at IMPORT when
           # AIRFLOW_PASSWORD is unset (anti unauthenticated-DAG-trigger guard).
           AIRFLOW_USERNAME: ci
           AIRFLOW_PASSWORD: ci-not-a-real-secret  # pragma: allowlist secret
-          # FERNET_KEY: src/dashboard/app.py raises at import if it's absent
-          # (credential-decryption boot guard), so the import-time tests need one.
-          #
-          # GENERATED per run, not committed (R30, 2026-08-22). The literal that used
-          # to sit here was a VALID Fernet key in a public file: nothing decrypts with
-          # it today, but "CI only" is a property of how it is used, not of the key,
-          # and the next person needing a key locally copies the one they can see.
-          # A fresh key per run is the same one line and cannot be reused anywhere.
+          # FERNET_KEY: src/dashboard/app.py raises at import if it's absent.
           FERNET_KEY: ${{ steps.ci_fernet.outputs.key }}
-          # Le jeton fourni d'office par Actions — aucun secret à créer, aucune
-          # permission ajoutée (lecture des runs du dépôt courant). Il n'active
+          # Le jeton fourni d'office par Actions — aucun secret à créer. Il n'active
           # qu'une chose : tests/test_the_monitor_itself_still_runs.py, qui vérifie
-          # que `prod-health.yml` a réellement tourné. Ce garde vit ICI et pas dans
-          # un second cron, parce qu'un cron qui en surveille un autre partage le
-          # mode de panne surveillé ; la CI, elle, se déclenche à chaque push.
+          # que `prod-health.yml` a réellement tourné.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # --cov-report=xml: for codecov-style downstream tooling.
-        # --cov-report=term-missing: visible in CI logs (line numbers of uncovered code).
-        # No --cov-fail-under: measure first, gate later.
+        # `-n auto --dist loadgroup` : les MÊMES drapeaux que `make test`, et le
+        # garde tests/test_local_and_ci_run_the_same_suite.py l'exige — « vert en
+        # local » et « vert en CI » doivent être la même affirmation.
         #
-        # La couverture a failli sauter d'ici, sur l'idée qu'elle coûtait ~30 %.
-        # Mesuré avant de trancher : 160,6 s sans, 174,0 s avec — **+8 %**, soit
-        # 13 s. Pour 13 s on garde le seul rapport de couverture du dépôt. La
-        # supposition était fausse et c'est la mesure qui a décidé.
+        # `--splits 4 --group N` (R109, 2026-09-16) : la découpe lit `.test_durations`,
+        # versionné, et rend quatre groupes de durée équivalente. SANS ce fichier la
+        # découpe se fait sur le NOMBRE de tests, ce qui déséquilibre gravement ici —
+        # un rendu `AppTest` coûte mille fois un garde AST.
+        # Régénérer : `.venv/bin/python -m pytest tests/ --store-durations`.
         #
-        # -n auto --dist loadgroup : une seule chose change réellement le temps
-        # ici. Mesuré contre un Postgres provisionné comme celui-ci —
-        # 147,2 s → 101,1 s, 655 passés / 14 sautés à l'identique.
-        # `loadfile` (et non le défaut `load`) parce que tests/test_live_pulse.py
-        # écrit `active_sessions` : garder les tests d'un fichier sur un worker
-        # empêche ce fichier d'entrer en collision avec lui-même.
         # `-q` et non `-v` depuis le 2026-09-15. Mesuré sur le run 35003047396 :
         # `Run tests` produisait **13 238 lignes / 2 349 KB** de log, dont **6 445**
         # portant `PASSED`/`SKIPPED` — `-v` faisait **87 % du volume de log du job
-        # entier**, pour 6 356 tests qui passent et qu'on ne lit jamais un par un.
-        # `--tb=short` reste : un ÉCHEC dit toujours son node-id et sa trace.
-        # Le coût en TEMPS de `-v` n'a jamais été mesuré ici et ne le sera pas : il
-        # serait sous les ±40 % de variance que ce dépôt s'est donnés comme seuil.
-        # Ce qu'on gagne est la lisibilité du log, et l'alignement avec `Makefile`,
-        # qui lance `-q` depuis toujours.
-        # `--cov-report=xml` part avec l'artefact que personne ne téléchargeait.
-        run: uv run pytest tests/ -q --tb=short -n auto --dist loadgroup --cov=src --cov-report=term-missing
-
-      # ── `Upload coverage artifact` retiré le 2026-09-15 ──
-      # Balayage exhaustif des fichiers suivis : AUCUN `download-artifact`, AUCUNE
-      # `codecov-action` dans un workflow actif. La seule occurrence de codecov est
-      # dans un skill RETIRÉ (`.claude/.retired/`). Le commentaire promettait « for
-      # codecov-style downstream tooling » — l'outillage aval n'a jamais existé.
-      # `if: always()` le faisait même tourner sur un run annulé.
-      #
-      # `--cov=src --cov-report=term-missing` RESTE sur `Run tests` : la couverture se
-      # lit dans le log, et son coût est mesuré **sur le runner** à +8 % (13 s),
-      # `ci.yml` le documentant déjà. Seul l'artefact que personne n'ouvre part.
+        # entier**. `--tb=short` reste : un ÉCHEC dit toujours son node-id et sa trace.
+        #
+        # ⛔ LA COUVERTURE N'EST PLUS ICI, et ce n'est PAS le retrait qui avait été
+        # refusé deux fois. Mesurée sur le runner, elle coûte +8 % (13 s) — ce n'est
+        # pas son coût qui la déplace, c'est que **la couverture d'un quart de la
+        # suite ne veut rien dire**, et que recombiner quatre rapports demanderait
+        # quatre artefacts et un cinquième job sur le chemin critique. Elle vit
+        # désormais dans `security-nightly.yml`, où la suite tourne ENTIÈRE, une fois
+        # par nuit, hors du chemin critique — et où elle tourne en plus en ordre
+        # aléatoire. Le dépôt n'a jamais eu de `--cov-fail-under` : rien ne gatait.
+        run: >-
+          uv run pytest tests/ -q --tb=short -n auto --dist loadgroup
+          --splits 4 --group ${{ matrix.shard }}

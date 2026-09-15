@@ -1,0 +1,61 @@
+name: Provision the CI Postgres
+description: >
+  Applique init_db.sql puis chaque migrations/*.sql à la base jetable du runner, et
+  PROUVE que le schéma a atterri et qu'un SECOND locataire existe.
+
+# Pourquoi une action composite et pas un bloc recopié (2026-09-16)
+# ----------------------------------------------------------------
+# Ce bloc a désormais DEUX appelants : les quatre shards de `ci.yml` (R109) et la
+# passe nocturne en ordre aléatoire de `security-nightly.yml`. Recopié, il aurait
+# dérivé — c'est la forme de dérive que ce dépôt attrape le plus souvent, et la
+# seule que personne ne voit avant qu'un des deux mente.
+#
+# Ce qu'il garantit, et pourquoi chaque ligne y est :
+#   * l'image postgres démarre un serveur d'init temporaire PUIS redémarre, donc on
+#     sonde une VRAIE requête deux fois avant d'appliquer le DDL ;
+#   * `ON_ERROR_STOP=0` sur les migrations : elles sont idempotentes et certaines
+#     rejouent des objets existants. L'échec se constate sur le RÉSULTAT, pas sur le
+#     code de retour de chaque fichier ;
+#   * la vérification finale est bruyante à dessein. Sans elle, une base non
+#     provisionnée fait SAUTER les tests qui en dépendent, et un saut ne se lit pas
+#     comme une panne — quatre vagues de correctifs d'isolation locataire ont été
+#     commitées contre un vert obtenu ainsi ;
+#   * le SECOND locataire n'est pas un détail. Une base canonique neuve n'en porte
+#     qu'un, et un seul locataire ne peut exposer aucun défaut multi-locataire :
+#     « collecte pour ce locataire » et « collecte pour la flotte » rendent les mêmes
+#     lignes, donc tout défaut d'isolation se lit comme un comportement correct.
+#     Trois ont été trouvés le 2026-08-21, aucun visible avant qu'un second existe.
+#     Garde : tests/test_suite_runs_against_two_tenants.py
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PGPASSWORD: postgres  # pragma: allowlist secret — throwaway CI DB
+      run: |
+        sudo apt-get install -y --no-install-recommends postgresql-client
+        for i in $(seq 1 30); do
+          if psql -h localhost -U postgres -d spotify_etl -tAc "SELECT 1" >/dev/null 2>&1; then
+            sleep 2
+            psql -h localhost -U postgres -d spotify_etl -tAc "SELECT 1" >/dev/null 2>&1 && break
+          fi
+          sleep 2
+        done
+        psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -f init_db.sql
+        for f in $(ls migrations/*.sql | sort); do
+          psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -f "$f"
+        done
+        psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=1 \
+          -c "SELECT 1 FROM saas_artists LIMIT 1"
+        psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=1 -c "
+          INSERT INTO saas_artists (name, slug, tier, active, is_canary, spotify_artist_id)
+          VALUES ('CI Canary', 'ci-canary', 'free', TRUE, TRUE, '4tZwfgrHOc3mvqYlEYSvVi')
+          ON CONFLICT (slug) DO UPDATE SET spotify_artist_id = EXCLUDED.spotify_artist_id;
+          INSERT INTO artist_credentials (artist_id, platform, extra_config)
+          SELECT id, 'youtube', '{\"channel_id\": \"UC_x5XG1OV2P6uZZ5FSM9Ttw\"}'::jsonb
+            FROM saas_artists WHERE slug = 'ci-canary'
+          ON CONFLICT (artist_id, platform) DO NOTHING;"
+        psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=1 \
+          -c "SELECT count(*) >= 2 OR (SELECT false) FROM saas_artists WHERE active" \
+          -tA | grep -qx t || { echo "::error::CI database has fewer than 2 tenants"; exit 1; }

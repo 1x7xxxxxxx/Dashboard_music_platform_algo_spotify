@@ -111,6 +111,17 @@ dev = [
     # ordre stable, et une suite qui change d'ordre à chaque exécution ne peut plus
     # servir de référence chiffrée (la suite varie déjà de ±40 % ici).
     "pytest-randomly>=3.15.0",
+    # Découpe la suite en N groupes de DURÉE égale, à partir d'un fichier de durées
+    # versionné (`.test_durations`). C'est ce qui permet à la CI de lancer quatre
+    # jobs en parallèle au lieu d'un seul long.
+    #
+    # Mesuré avant de l'adopter : le dépôt est PUBLIC, donc les minutes Actions sont
+    # gratuites — R109 achète du temps de mur avec des minutes qu'on ne paie pas. Et
+    # les shards sont plus SÛRS que le parallélisme en processus : chaque job a son
+    # propre conteneur Postgres et son propre disque, donc deux tests d'un même
+    # fichier séparés par la découpe ne peuvent pas se courir après (ce qui est
+    # arrivé quatre fois en local sous `--dist loadgroup`).
+    "pytest-split>=0.9.0",
     "httpx>=0.27.0",
     "ruff==0.16.5",
     # Pre-commit framework + secret scanner (.pre-commit-config.yaml)

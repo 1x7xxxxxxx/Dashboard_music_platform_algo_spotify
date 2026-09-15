@@ -24,25 +24,13 @@ pytest.importorskip("fastapi", reason="dev extras not installed — run `make sy
 _DB_HOST, _DB_PORT = "127.0.0.1", 5433
 
 
-def _db_ready() -> bool:
-    if not os.environ.get("DATABASE_URL"):
-        try:
-            with socket.create_connection((_DB_HOST, _DB_PORT), timeout=1.5):
-                pass
-        except OSError:
-            return False
-    try:
-        from src.dashboard.utils import get_db_connection
-        db = get_db_connection()
-        if db is None:
-            return False
-        try:
-            db.fetch_query("SELECT 1 FROM saas_artists LIMIT 1")
-            return True
-        finally:
-            db.close()
-    except Exception:
-        return False
+# La porte LÉGÈRE. Le corps recopié ici importait `get_db_connection`
+# (**5,30 s**, dont 5,19 s de Streamlit) et ouvrait une connexion À L'IMPORT du
+# module, donc à la collecte, une fois par fichier et par worker.
+# `tests.db_gate.db_ready` répond en 0,19 s, derrière un `lru_cache` partagé, et
+# sonde en plus `DATABASE_URL` et le schéma réel. Le nom est conservé : seuls le
+# coût et le nombre de connexions changent.
+from tests.db_gate import db_ready as _db_ready  # noqa: E402
 
 
 pytestmark = pytest.mark.skipif(

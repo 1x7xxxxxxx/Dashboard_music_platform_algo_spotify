@@ -20,10 +20,18 @@
 #
 # What must stay, and why it looks odd
 # ------------------------------------
-# `streamlit` is here on purpose. `src/api` reaches `get_db_connection()` in
-# `src.dashboard.utils`, which imports streamlit at module scope. Removing it means
-# untangling that dependency first — a separate change, with its own risk. Naming
-# the reason is what stops the next reader from "cleaning it up" and breaking prod.
+# `streamlit` N'EST PLUS UNE CONTRAINTE ICI (2026-09-16). Ce paragraphe disait :
+# « streamlit is here on purpose … removing it means untangling that dependency
+# first — a separate change, with its own risk ». Ce changement-là a eu lieu :
+# `src.dashboard.utils` n'importe plus Streamlit au niveau module (le seul usage
+# évalué à l'import, un `@st.cache_data`, vit désormais dans `utils/branding.py`).
+# Garde : `tests/test_the_db_door_does_not_pull_a_framework.py`.
+#
+# Il reste dans ce fichier tant qu'une autre dépendance de `src/api` le tire — et
+# c'est à MESURER, pas à supposer. La question se pose avec
+# `tests/test_the_api_image_carries_only_what_the_api_imports.py`, qui est le seul
+# juge : un paquet retiré ici et encore importé fait tomber l'image de l'API.
+# Le retirer est donc un changement à part entière, avec sa propre mesure.
 
 # --- Data ---
 pandas==2.3.3

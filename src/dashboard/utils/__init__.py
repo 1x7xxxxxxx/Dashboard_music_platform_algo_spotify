@@ -1,4 +1,3 @@
-import streamlit as st
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -12,30 +11,22 @@ from src.database.postgres_handler import PostgresHandler
 # into `PostgresHandler.from_env_or_config()`, which is the single place that
 # knows the DATABASE_URL → DATABASE_* → config.yaml precedence.
 
-_ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+# ── `logo_html` a DÉMÉNAGÉ dans `branding.py` (2026-09-16) ────────────────────
+# Elle portait un `@st.cache_data`, et un décorateur s'évalue À L'IMPORT : cette
+# seule ligne imposait `import streamlit` en tête de ce module, donc **5,30 s** à
+# quiconque ne voulait qu'une connexion Postgres — 50 fichiers de tests, l'API, tout
+# script de base. Rien d'autre ici n'a besoin de Streamlit AVANT d'être appelé.
+#
+# `from src.dashboard.utils import logo_html` continue de fonctionner : le nom est
+# réexporté ci-dessous, en import PARESSEUX, pour ne pas ramener ce qu'on vient de
+# sortir. Les deux appelants (`app.py`, `auth.py`) l'importent déjà dans une fonction.
+# Garde : tests/test_the_db_door_does_not_pull_a_framework.py
 
 
-@st.cache_data
 def logo_html(variant: str = "dark", max_width: int = 220, center: bool = False) -> str:
-    """streaMLytics wordmark as a base64 data-URI <img> (SVG renders reliably).
-
-    variant: 'dark' (dark text, light bg) | 'light' (white text, dark bg).
-    """
-    import base64
-    name = {
-        "light": "logo_horizontal_light.svg",
-        "dark": "logo_horizontal_dark.svg",
-        "adaptive": "logo_horizontal_adaptive.svg",
-    }.get(variant, "logo_horizontal_adaptive.svg")
-    try:
-        b64 = base64.b64encode((_ASSETS_DIR / name).read_bytes()).decode("ascii")
-    except Exception:
-        return ""
-    img = (f'<img src="data:image/svg+xml;base64,{b64}" '
-           f'style="width:100%;max-width:{max_width}px;" alt="streaMLytics"/>')
-    if center:
-        return f'<div style="text-align:center;margin:8px 0 18px 0;">{img}</div>'
-    return img
+    """Réexport paresseux de `branding.logo_html` — voir le commentaire ci-dessus."""
+    from src.dashboard.utils.branding import logo_html as _impl
+    return _impl(variant=variant, max_width=max_width, center=center)
 
 
 def get_db_connection() -> Optional[PostgresHandler]:
@@ -85,6 +76,10 @@ def get_db_connection() -> Optional[PostgresHandler]:
     try:
         return PostgresHandler.from_env_or_config()
     except Exception as e:
+        # Import LOCAL : ce module est la porte de la base, pas une surface d'UI.
+        # Le chemin d'échec est le seul qui parle à un humain, et il n'est pris que
+        # dans un processus Streamlit, où le module est déjà chargé.
+        import streamlit as st
         st.error(f"❌ Erreur de connexion BDD : {e}")
         return None
 
@@ -101,6 +96,8 @@ def project_db() -> Iterator[PostgresHandler]:
             df = db.fetch_df("SELECT ...", params)
             # render
     """
+    import streamlit as st
+
     from src.dashboard.utils.i18n import t
     db = get_db_connection()
     if db is None:
@@ -128,6 +125,8 @@ def view_session() -> Iterator[tuple[PostgresHandler, int]]:
             with view_session() as (db, artist_id):
                 ...  # body; connection closed automatically
     """
+    import streamlit as st
+
     from src.dashboard.auth import get_artist_id, is_admin
     from src.dashboard.utils.i18n import t
     # The tenant is resolved BEFORE the connection is opened, and the order is
