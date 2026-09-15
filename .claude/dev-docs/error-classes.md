@@ -108,6 +108,11 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-signature-anchored-on-a-location](#a-signature-anchored-on-a-location) | P3 | deterministic | guarded | none |
 | [a-ratchet-with-no-floor-under-its-population](#a-ratchet-with-no-floor-under-its-population) | P2 | deterministic | guarded | none |
 | [a-guard-that-sees-the-binding-not-the-application](#a-guard-that-sees-the-binding-not-the-application) | P3 | manual | reported | none |
+| [a-unit-test-that-borrows-a-real-connection-from-the-pool](#a-unit-test-that-borrows-a-real-connection-from-the-pool) | P2 | deterministic | guarded | none |
+| [a-cold-measurement-that-clears-caches-by-name](#a-cold-measurement-that-clears-caches-by-name) | P2 | deterministic | guarded | none |
+| [a-hook-shaped-function-pytest-never-calls](#a-hook-shaped-function-pytest-never-calls) | P2 | deterministic | guarded | none |
+| [a-blocking-hook-that-writes-its-reason-to-stdout](#a-blocking-hook-that-writes-its-reason-to-stdout) | P3 | manual | guarded | none |
+| [a-file-whose-tests-share-a-namespace](#a-file-whose-tests-share-a-namespace) | P3 | deterministic | guarded | none |
 | [an-exemption-that-outlives-what-it-exempted](#an-exemption-that-outlives-what-it-exempted) | P3 | deterministic | guarded | none |
 | [two-definitions-that-must-coincide-are-never-compared](#two-definitions-that-must-coincide-are-never-compared) | P2 | deterministic | guarded | none |
 | [a-partial-collection-becomes-a-baseline-level](#a-partial-collection-becomes-a-baseline-level) | P2 | deterministic | guarded | none |
@@ -5741,3 +5746,68 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-15: **ce que cette signature garde, et ce qu'elle ne garde PAS.** Elle garde que la procédure de référence porte encore sa ligne de contrôle d'inactivité. Elle **ne peut pas** savoir si je l'ai réellement exécutée avant un chronomètre — aucune commande shell ne le peut, puisque le défaut est un geste et non un état du dépôt. C'est donc un garde de PROCÉDURE, délibérément modeste ; le garde d'EFFET est le `long_term_fix`, et il reste à écrire.
   - 2026-09-15: **le coût réel de la troisième occurrence.** Elle allait faire fermer R110 (`--dist loadgroup`) comme « mesurée inutile » et revenir à `loadfile`, sur un chiffre entièrement produit par ma propre contention. Une mesure fausse ne coûte pas le temps de la refaire : elle coûte la DÉCISION qu'on prend dessus, et celle-ci était l'abandon d'un chantier.
   - 2026-09-15: voisine de `a-timeout-reported-as-a-missing-thing`, née le même jour de la même charge — là, `git diff` dépassait 30 s sous la même contention et `select_tests.py` accusait le dépôt. Les deux se lisent ensemble : **la charge de fond ne ralentit pas seulement les mesures, elle fait mentir les diagnostics.**
+
+## a-unit-test-that-borrows-a-real-connection-from-the-pool
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un fichier de tests UNITAIRES, qui patche `psycopg2.connect` et se croit entièrement simulé, parle en réalité à la base de production locale. Il passe quand même — jusqu'au jour où un test pose un `.return_value` sur une méthode réelle : `AttributeError: 'builtin_function_or_method' object has no attribute 'return_value'`.
+- root_cause: `PostgresHandler._connect()` demande d'abord `_borrow_from_pool()`. Le pool existe dès qu'un test ANTÉRIEUR du même worker a appelé `get_db_connection()` — ce que font des dizaines de fichiers — et ses sockets ont été ouverts par `ThreadedConnectionPool` AVANT que le patch existe. Le patch est donc contourné sans rien dire. Mesuré dans pytest le 2026-09-16 : `POOL= True  CURSOR= cursor`. 23 des 24 tests du fichier passaient quand même, un vrai curseur répondant à `execute` et à `fetchall` : ils affirmaient sur la BASE ce qu'ils croyaient affirmer sur un mock.
+- long_term_fix: deux gestes, et il en faut deux. Une fixture autouse qui ÉCARTE le pool du processus le temps de chaque test (`_POOL`/`_POOL_LIMITS` mis de côté puis remis — jamais `disable_pool()`, qui couperait les connexions que d'autres tests tiennent), et une assertion dans le constructeur de mock qui rend tout contournement futur BRUYANT : `assert isinstance(handler.cursor, MagicMock)`. La forme générale : **un test qui monte une doublure doit VÉRIFIER que la doublure a pris**, parce qu'une doublure contournée ne se signale jamais.
+- autofix: none
+- signature: `python3 -m pytest tests/test_postgres_handler.py -q`
+- guard: { type: pytest, ref: tests/test_postgres_handler.py }
+- rex_ref: tests/test_postgres_handler.py
+- first_seen: 2026-09-16
+
+## a-cold-measurement-that-clears-caches-by-name
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un cliquet qui affirme mesurer « à froid » rend un nombre DIFFÉRENT selon ce qui a tourné avant lui dans le même processus. Il passe en ordre de fichier et tombe en ordre aléatoire — ou l'inverse.
+- root_cause: sa purge énumère les caches PAR LEUR NOM. L'énumération se périme dès qu'un cache est ajouté au chemin chaud, et le cliquet se remet alors à mesurer son voisinage. Mesuré le 2026-09-16, trois rendus successifs dans un processus neuf : l'accueil `artist` rend **14, 13, 13** — `_cached_plan_row` (`auth.py`, `@st.cache_data`, écrit le 2026-09-03 avec `plan_resolver`) n'était dans aucune liste. Le plafond de 13 avait donc été gelé sur un cache CHAUD. `admin` rend 13, 13, 13 : `get_artist_plan()` répond `premium` sans toucher la base pour un admin, et cette asymétrie EST la preuve de la cause. Troisième fois pour ce fichier — les deux précédentes avaient été corrigées en AJOUTANT un nom à la liste.
+- long_term_fix: ne pas énumérer : `st.cache_data.clear()` ne peut pas se périmer. Et surtout, garder la PROPRIÉTÉ et non sa valeur — un test qui compare un processus déjà chaud (réchauffé délibérément, quel que soit l'ordre) à un processus NEUF ouvert en sous-processus. La première version de ce garde comparait deux rendus en mémoire et est restée VERTE sur la mutation, ses voisins ayant déjà réchauffé le cache.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_page_asks_the_same_question_once.py::test_the_count_does_not_depend_on_its_neighbourhood -q`
+- guard: { type: pytest, ref: tests/test_a_page_asks_the_same_question_once.py::test_the_count_does_not_depend_on_its_neighbourhood }
+- rex_ref: tests/test_a_page_asks_the_same_question_once.py
+- first_seen: 2026-09-16
+
+## a-hook-shaped-function-pytest-never-calls
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une fonction porte la signature exacte d'un hook pytest, son corps fait le travail d'un hook, et elle n'est JAMAIS appelée. Rien ne le signale : il n'y a ni erreur, ni avertissement, ni test rouge — seulement un comportement qui n'arrive pas.
+- root_cause: pytest collecte ses hooks sur le nom EXACT. `_pytest_terminal_summary_db` porte un préfixe `_` et un suffixe `_db` : les deux suffisent à le rendre invisible. Ce qu'il devait crier est documenté vingt lignes au-dessus de lui : « 163 skipped défile et vert ne défile pas », après quatre vagues de correctifs d'isolation locataire écrites, gardées et COMMITÉES contre un vert obtenu sans base, puis démenties dès Postgres démarré (« 1065 passed » → « 1217 passed, 1 FAILED »). Le garde écrit contre ce défaut était lui-même débranché.
+- long_term_fix: un prédicat qui lit les noms de hooks chez pytest (`_pytest.hookspec`, plus `xdist.newhooks`) au lieu d'une liste tenue à la main, et qui refuse toute fonction dont le nom, privé de ses `_`, ÉGALE un hook **ou commence par lui**. Le préfixe compte : la première version exigeait l'égalité et est restée verte sur le défaut réel, dont le nom portait un suffixe. Deux fonctions ne pouvant pas partager un nom dans un module, le remède est d'APPELER la moitié orpheline depuis le vrai hook, pas de la renommer.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_pytest_run_carries_what_the_conftest_needs.py::test_no_function_wears_a_hook_name_pytest_will_never_call -q`
+- guard: { type: pytest, ref: tests/test_a_pytest_run_carries_what_the_conftest_needs.py::test_no_function_wears_a_hook_name_pytest_will_never_call }
+- rex_ref: tests/conftest.py
+- first_seen: 2026-09-16
+
+## a-blocking-hook-that-writes-its-reason-to-stdout
+- status: guarded
+- severity: P3
+- kind: manual
+- symptom: un hook PreToolUse bloque une commande et l'appelant ne voit AUCUN motif : l'outil rapporte « No stderr output ». La porte est fermée, la raison est invisible, et il faut relancer le hook à la main — avec une ligne de commande construite pour ne pas se redéclencher elle-même — juste pour lire le message.
+- root_cause: le contrat PreToolUse de Claude Code est : `exit 2` bloque, et c'est **stderr** qui remonte le motif au modèle. `pre_commit_scan.py` écrivait son bloc « 🚫 BLOCKED » avec un `print()` nu, donc sur stdout, où il est avalé. Le défaut est resté invisible tant qu'aucun fichier ne déclenchait le scanner ; il est apparu le 2026-09-16 sur un faux positif — un mot de passe littéral, argument d'un mock passé à un `psycopg2.connect` patché.
+- long_term_fix: tout chemin de BLOCAGE d'un hook écrit sur `sys.stderr`, et son message nomme l'échappatoire. Ici : `# pragma: allowlist secret`, la convention que `detect-secrets` et `.secrets.baseline` utilisent déjà — deux scanneurs, UNE convention, faute de quoi la seconde se fait ignorer.
+- autofix: none
+- signature: `python3 -c "import ast,sys; t=ast.parse(open('.claude/hooks/pre_commit_scan.py').read()); sys.exit(0 if any(isinstance(n,ast.Call) and getattr(n.func,'id','')=='print' and any(k.arg=='file' for k in n.keywords) for n in ast.walk(t)) else 1)"`
+- guard: { type: script, ref: .claude/hooks/pre_commit_scan.py }
+- rex_ref: .claude/hooks/pre_commit_scan.py
+- first_seen: 2026-09-16
+
+## a-file-whose-tests-share-a-namespace
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: sous une distribution test-par-test (`--dist loadgroup`, ou des shards), deux tests d'un MÊME fichier tournent en parallèle et se disputent un nom qu'ils croyaient à eux. L'échec est intermittent et, pire, il se déguise : l'assertion rouge parle d'autre chose que de la course.
+- root_cause: le fichier partage un espace de noms entre ses propres tests — un dossier du dépôt, un préfixe de slug, un identifiant de locataire, un nom de fichier horodaté à la seconde. Sous `--dist loadfile` l'ordre du fichier le masquait. Quatre occurrences mesurées le 2026-09-15, et la plus instructive est `test_registration_is_not_an_oracle` : le nom d'artiste par défaut de son helper est fixe, le slug en dérive et se déduplique en `oracle-probe-N`, Postgres rend `duplicate key … (slug)=(oracle-probe-12)`, l'inscription échoue — et le test lit cet échec comme « un code invalide a annulé l'inscription », **le contraire de la vérité**.
+- long_term_fix: `pytest.mark.xdist_group` sur le fichier, posé à partir d'une MESURE et jamais d'une intuition : 27 fichiers en portaient un avant, choisis à l'instinct, et aucune des quatre courses n'y était. La liste des exceptions se justifie fichier par fichier, et le seul moyen honnête de l'établir est de lancer la suite jusqu'à trois exécutions vertes d'affilée, en fermant ce qui rougit. `pytest-randomly` (`-p randomly`) répond à la moitié ORDRE de la question sans parallélisme, ce qui la rend diagnosticable.
+- autofix: none
+- signature: `python3 -m pytest tests/test_registration_is_not_an_oracle.py tests/test_canary_onboarding_walk.py tests/test_an_imported_file_survives_its_import.py -q -n auto --dist loadgroup`
+- guard: { type: pytest, ref: .github/workflows/ci.yml }
+- rex_ref: tests/test_registration_is_not_an_oracle.py
+- first_seen: 2026-09-16

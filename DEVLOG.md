@@ -5,6 +5,65 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-16 — La CI passe de 7 min à 1 min 49, et deux énoncés de la roadmap tombent
+
+### Ce qui a changé
+
+- **La CI est découpée** : un job de quinze étapes en file devient `gates` (statique,
+  ni Postgres ni suite) et `suite` (matrice de 4 shards `pytest-split`), **sans aucun
+  `needs:` entre eux**. Mur mesuré : médiane **427 s** sur 18 runs verts → **109 s**.
+  Shards équilibrés à 64 / 92 / 100 / 106 s grâce à `.test_durations` versionné.
+- **La porte de la base ne tire plus Streamlit** : `import src.dashboard.utils` passe
+  de **5,30 s à 0,21 s**, soit la référence brute de `postgres_handler`. `logo_html` et
+  son `@st.cache_data` déménagent dans `utils/branding.py` — un décorateur s'évalue à
+  l'import, et c'était la seule raison.
+- **La couverture quitte le chemin critique** pour la passe nocturne, où la suite tourne
+  entière ET en ordre aléatoire (`pytest-randomly`). Motif : la couverture d'un quart de
+  la suite ne veut rien dire ; ce n'est pas le retrait refusé deux fois (+8 %, 13 s).
+- **Cinq défauts trouvés en mesurant**, chacun avec son garde muté rouge.
+- **16 fichiers** ont vu leur `_db_ready()` recopié (19 lignes, une connexion Postgres à
+  l'IMPORT) remplacé par un alias sur `tests/db_gate.py`.
+
+### Les deux énoncés démentis
+
+1. **R110 était justifiée par un chemin critique qui n'en est pas un.** « 152,5 s pour
+   un seul fichier tenu par un seul worker sous `loadfile` » est vrai du fichier, faux
+   du mur : mesuré en alternance, `loadfile` rend **340,2 s** et `loadgroup` **349,6 s**
+   — 2,8 %, sous le seuil de ±40 %. À 8 workers, les autres absorbent le pôle. La brique
+   se justifie autrement : elle a révélé **quatre courses latentes**, et elle est la
+   condition pour que le sharding rende (à 4 shards le pôle DEVIENT dominant).
+2. **`tests/test_postgres_handler.py` n'était pas un test unitaire.** Il patche
+   `psycopg2.connect`, mais `_connect()` emprunte d'abord au pool du processus, dont les
+   sockets précèdent le patch. Mesuré dans pytest : `POOL= True  CURSOR= cursor`. 23 de
+   ses 24 tests passaient quand même — un vrai curseur répond à `execute` et `fetchall`
+   — en affirmant sur la base ce qu'ils croyaient affirmer sur un mock.
+
+### Les défauts, et ce qu'ils coûtaient
+
+| Défaut | Ce qu'il coûtait |
+|---|---|
+| `_cached_plan_row` absent de toute purge | le cliquet des allers-retours SQL mesurait son VOISINAGE, 3ᵉ fois pour ce fichier. 14 à froid, 13 à chaud ; le plafond avait été gelé sur le second |
+| `_pytest_terminal_summary_db`, préfixe `_` | la bannière « GARDES NON EXÉCUTÉS » n'a jamais crié. C'est le garde écrit contre 4 vagues de correctifs commitées sur un vert obtenu sans base |
+| doublure de module jamais rendue dans un script `AppTest` | 3ᵉ occurrence du mécanisme ; les deux premières corrigées à la main, sans garde |
+| `pre_commit_scan.py` écrivait son blocage sur stdout | le contrat PreToolUse remonte stderr : porte fermée **sans motif visible** |
+| 4 courses sous `loadgroup` | dont une où le test lisait `duplicate key … (slug)=(oracle-probe-12)` comme « un code invalide a annulé l'inscription » — le contraire de la vérité |
+
+### Ce que la nuit a appris sur les gardes
+
+**Deux gardes neufs sont restés VERTS sur leur première mutation**, et c'est la moitié
+utile de la séance. Le premier comparait deux rendus en mémoire — ses voisins avaient
+déjà réchauffé le cache ; il compare désormais un processus chaud à un processus NEUF
+ouvert en sous-processus. Le second exigeait l'égalité exacte d'un nom de hook alors
+que le défaut portait un SUFFIXE (`_pytest_terminal_summary_db`) ; élargi au préfixe.
+
+Et **trois fois dans la nuit, écrire SUR un défaut a déclenché le garde du défaut** :
+un garde qui lisait la première ligne de `ci.yml` contenant « pytest tests/ » a rougi
+sur un commentaire ; `detect-secrets` a bloqué un commentaire qui citait le littéral
+qu'il expliquait. La réponse est de reformuler ou de lire la STRUCTURE, jamais de
+marquer de la prose comme une exception.
+
+---
+
 ## 2026-09-15 — La prose du fichier que `/resume` lit en premier
 
 ### Ce qui a changé

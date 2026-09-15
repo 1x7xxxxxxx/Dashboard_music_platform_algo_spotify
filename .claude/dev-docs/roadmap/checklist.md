@@ -25,16 +25,15 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R109 | Découper `Run tests` en 4 shards (`pytest-split` + matrice) ; le mur du run doit passer de ~423 s à ~115 s | P3 | `gh run list --workflow=ci.yml` — **177 runs/semaine**, médiane **402 s**, soit **≈18,5 h d'attente par semaine** |
-| R110 | Répartir le long pôle : `--dist loadgroup` + `xdist_group` sur les 9 fichiers à état partagé | P3 | `pytest tests/test_views_render_smoke.py -q` → **152,5 s pour un seul fichier**, tenu par un seul worker sous `loadfile` |
 
-**Le dépôt est public**, donc les minutes Actions sont gratuites : R109 achète du temps
-de mur avec des minutes qu'on ne paie pas. C'est le seul levier qui attaque vraiment les
-18 h d'attente hebdomadaires — le ménage de R111 vaut ~25 s par run, pas davantage.
-
-⚠️ R110 **avant** R109 dans l'ordre de livraison : une distribution par test transforme
-une course latente en échec intermittent, et il faut l'avoir éprouvée (trois passages
-verts d'affilée, `git status` vide après chacun) avant d'en dépendre dans quatre shards.
+**R109 et R110 ont été livrées et déployées le 2026-09-16** — voir `archive.md`.
+Résultat mesuré : le mur du run `ci.yml` est passé d'une médiane de **427 s à 109 s**
+(run 35035830958, ×3,9), en séparant les portes statiques de la suite en 4 shards
+`pytest-split`. La prémisse de R110 — que le fichier le plus long dominait le temps de
+mur — s'est révélée **fausse** à la mesure : `loadgroup` (349,6 s) n'a pas battu
+`loadfile` (340,2 s), écart de 2,8 % dans le bruit. R110 a quand même livré quatre
+courses latentes fermées, condition nécessaire pour que R109 tienne sa promesse à
+quatre shards. Détail dans `archive.md`.
 
 **R108 a été livrée le 2026-09-14** — la dernière tâche qui
 y figurait, et avec elle l'index n'a plus eu de ligne jusqu'au 2026-09-15. Elle tranchait entre exempter ou
@@ -134,14 +133,14 @@ l'effacer serait la faute.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-15, DEUX tâches ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-16, aucune tâche ouverte (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R109,R110 -->
+<!-- reprise: open= -->
 
-**Deux tâches sont ouvertes dans `## 📋 Tâches ouvertes`** : **R109** (découper la CI
-en 4 shards) et **R110** (répartir le long pôle par `--dist loadgroup`). L'index avait
-été vide du 2026-09-14 au 2026-09-15 ; c'est la séance d'optimisation de la CI qui l'a
-rouvert, avec la mesure de chaque ligne.
+**L'index `## 📋 Tâches ouvertes` est vide.** R109 (découper la CI en 4 shards) et R110
+(répartir le long pôle par `--dist loadgroup`) — les deux tâches qui l'avaient rouvert
+du 2026-09-15 au 2026-09-16 — sont livrées et déployées ; leur détail est dans
+`archive.md`.
 
 **La table « 🙋 En attente de toi » reste vide** depuis le 2026-09-10, R1 y ayant été
 rotée vers `archive.md`. Aucune tâche n'attend un geste humain.

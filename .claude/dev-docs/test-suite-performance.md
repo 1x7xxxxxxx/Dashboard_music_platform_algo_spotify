@@ -173,8 +173,9 @@ est un **greffon**, pas un framework :
 
 | Greffon | Ce qu'il résout | État |
 |---|---|---|
-| `pytest-split` | découpe la suite en N shards de durée égale (matrice CI) | **absent** — c'est R109 |
-| `pytest-xdist` | parallélisme par processus | **présent**, sous-exploité : `loadfile` groupe tous les fichiers alors que **9 seulement** en ont besoin — c'est R110 |
+| `pytest-split` | découpe la suite en N shards de durée égale (matrice CI) | **présent** depuis le 2026-09-16 (R109) — 4 shards, `.test_durations` versionné |
+| `pytest-xdist` | parallélisme par processus | **présent**, `--dist loadgroup` depuis le 2026-09-16 (R110) |
+| `pytest-randomly` | trouve les dépendances accidentelles entre tests | **présent** depuis le 2026-09-16, **désactivé par défaut** (`-p no:randomly`) et lancé chaque nuit |
 | `pytest-testmon` | ne rejoue que les tests touchés, via la couverture | **absent**, et redondant avec `select_tests.py` |
 
 Écarté : `pytest-run-parallel` (threads) partagerait les imports — séduisant vu les
@@ -187,3 +188,84 @@ i7-11370H (4 cœurs / 8 threads), 8 Go alloués à WSL, dépôt sur `/mnt/c`.
 mono-thread, aucun chemin GPU n'existe. Une exclusion Windows Defender a été posée sur
 le dossier le 2026-09-15 ; **son effet n'a pas pu être isolé**, le dossier non exclu
 allant aussi vite dans le même banc.
+
+
+---
+
+# La séance du 2026-09-16 — ce qu'elle a mesuré, et ce qu'elle a démenti
+
+> Écrite comme la précédente : les chiffres d'abord, et surtout **ce qui s'est révélé
+> faux**. Deux énoncés de la roadmap ont été démentis par la mesure.
+
+## Les chiffres, avant et après
+
+| Mesure | Avant | Après |
+|---|---|---|
+| **CI, mur du run** (médiane) | **427 s** sur 18 runs verts (279–504) | **109 s** (run 35035830958) |
+| CI, forme | 1 job, 15 étapes en file | `gates` + 4 shards, en parallèle, sans `needs:` |
+| Suite locale, `-n auto --dist loadfile` | **340,2 s** | — |
+| Suite locale, `-n auto --dist loadgroup` | — | **349,6 s** puis 352,0 s |
+| Suite locale, série, ordre aléatoire | — | 751,9 s (référence froide) |
+| `import src.dashboard.utils` (la porte de la base) | **5,30 s** | **0,21 s** |
+| `import src.database.postgres_handler` (référence) | 0,19 s | 0,19 s |
+| Un test trivial dans `tests/` | 9,24 s | 7,7 / 8,4 / 8,9 s |
+| Collecte de la suite entière | 30,1 s (5 764 tests) | 27,3 s (6 477 tests) |
+| Durées par test (`--store-durations`) | — | 6 469 tests, **907 s en série** |
+
+## Le démenti qui compte : `loadgroup` ne gagne RIEN sur la suite complète
+
+R110 était justifiée par « `pytest tests/test_views_render_smoke.py -q` → **152,5 s**
+pour un seul fichier, tenu par un seul worker sous `loadfile` ». Le fichier coûte bien
+cela (172,6 s dans `.test_durations`), mais **ce n'est pas le chemin critique à
+8 workers** : les autres workers l'absorbent.
+
+Mesuré en ALTERNANCE — et l'alternance est le point, mesurer deux configurations
+d'affilée sur une machine dont la charge dérive ne prouve rien :
+
+| distribution | mesures (s) | médiane |
+|---|---|---|
+| `--dist loadfile` | 339,1 / 341,3 | **340,2** |
+| `--dist loadgroup` | 337,5 / 359,4 / 344,1 / 355,2 | **349,6** |
+
+2,8 % en faveur de `loadfile`. Sous le seuil de ±40 %. **Aucun résultat.**
+
+Ce que `loadgroup` a acheté est ailleurs, et le vaut : **quatre courses latentes**
+qu'aucune exécution sous `loadfile` ne pouvait montrer, plus la condition pour que le
+sharding rende (à 4 shards, un fichier de 172 s DEVIENT dominant dans le sien).
+
+## Où va vraiment le temps — mesuré par test, plus par intuition
+
+| Fichier | Coût | Part des 907 s |
+|---|---|---|
+| `test_views_render_smoke.py` | 172,6 s | 19 % |
+| `test_a_render_opens_one_connection.py` | 82,6 s | 9 % |
+| `test_stray_session_reads_nothing.py` | 72,8 s | 8 % |
+| **les trois premiers** | **328 s** | **36 %** |
+
+Aucun test isolé ne dépasse **31,5 s**, ce qui est la condition pour que quatre shards
+s'équilibrent. Ils l'ont fait : 64 / 92 / 100 / 106 s en CI.
+
+## Le seam, et pourquoi son gain n'est PAS celui qu'on croit
+
+La porte de la base est passée de 5,30 s à 0,21 s — elle rejoint la référence brute.
+Mais **le mur de la suite complète n'a pas bougé** : les 27 fichiers de rendu importent
+`src.dashboard.views.*`, donc Streamlit entre dans le processus de toute façon à la
+collecte. Le gain est sur la boucle LOCALE (un fichier seul, `make test-changed`) et
+sur l'image de l'API. Ne pas l'annoncer plus grand qu'il n'est.
+
+## Ce qui reste, et qui n'a pas été fait
+
+- **Réduire le NOMBRE de rendus.** Les deux fichiers de rendu font 94 rendus pour 41
+  vues, avec des listes qui ont divergé (41 contre 40) et un `_SCRIPT` dupliqué à
+  l'octet près. Fusionner les mesures en rendant UNE fois économiserait ~40 rendus.
+  **Écarté sciemment** : `test_a_render_opens_one_connection.py` est nommé comme garde
+  par une signature de `error-classes.md`, et déplacer sa propriété ailleurs affaiblit
+  ce que la signature détecte. Ce dépôt attaque le temps d'ATTENTE, jamais la
+  couverture de la porte — et le sharding parallélise ces rendus au lieu de les couper.
+- **Les deux signatures `--static` vides en CI** (port 5433 contre 5432 ; `gh api … ||
+  echo true` sans jeton). Toujours ouvertes. La première demande que l'étape des gardes
+  vive dans un job qui a Postgres — ce que la nouvelle forme rend possible, mais qui
+  n'a pas été fait cette nuit.
+- **Le cliquet des allers-retours coûte maintenant 21,9 s** (son nouveau garde ouvre un
+  sous-processus). C'est cher pour un fichier, et c'est assumé : il garde une classe
+  qui a mordu trois fois.

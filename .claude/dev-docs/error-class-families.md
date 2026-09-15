@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**333 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**338 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -15,10 +15,10 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 10 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 15 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 21 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
-| [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 19 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
+| [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 21 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 25 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 20 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 39 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 41 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 41 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 6 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
@@ -26,7 +26,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 3 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 20 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 20 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
-| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 20 | Ce que le dépôt déclare est-il ce que la production exécute ? |
+| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 21 | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | _sans famille_ | 3 | — |
 
 ## le-locataire
@@ -181,7 +181,7 @@ Règle de rattachement : `assumes-a-shell|assumes-visibility|by-direction-not-by
 
 **Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ?**
 
-Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-after-instantiation|per-worker|namespaced-by-another|connection|closes-a-connection|only-inside-a-session|loses-the-race|first-row|session|cache|state-file|leak` sur l'identifiant et le symptôme. 19 classe(s).
+Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-after-instantiation|per-worker|namespaced-by-another|connection|closes-a-connection|only-inside-a-session|loses-the-race|first-row|session|cache|state-file|leak` sur l'identifiant et le symptôme. 21 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -204,6 +204,8 @@ Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-a
 | [`a-cache-key-that-can-never-be-hit-twice`](error-classes.md#a-cache-key-that-can-never-be-hit-twice) | un cache est posé, le code a l'air correct, et la requête part quand même à chaque rendu. Aucun signal : un cache sans succès se comporte exactement c |
 | [`connection-escapes-unclosed`](error-classes.md#connection-escapes-unclosed) | sans charge, rien. Au palier suivant, des connexions s'accumulent contre `max_connections` (100 par défaut, partagé avec Airflow et une API qui peut e |
 | [`a-merged-branch-outlives-its-pull-request`](error-classes.md#a-merged-branch-outlives-its-pull-request) | le dépôt affiche des dizaines de branches « actives » alors qu'une seule ligne de travail existe. Le propriétaire se demande s'il va **perdre des avan |
+| [`a-unit-test-that-borrows-a-real-connection-from-the-pool`](error-classes.md#a-unit-test-that-borrows-a-real-connection-from-the-pool) | un fichier de tests UNITAIRES, qui patche `psycopg2.connect` et se croit entièrement simulé, parle en réalité à la base de production locale. Il passe |
+| [`a-cold-measurement-that-clears-caches-by-name`](error-classes.md#a-cold-measurement-that-clears-caches-by-name) | un cliquet qui affirme mesurer « à froid » rend un nombre DIFFÉRENT selon ce qui a tourné avant lui dans le même processus. Il passe en ordre de fichi |
 
 ## deux-surfaces-deux-nombres
 
@@ -272,7 +274,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 39 classe(s).
+Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 41 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -315,6 +317,8 @@ Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuou
 | [`a-test-whose-input-derives-from-its-subject`](error-classes.md#a-test-whose-input-derives-from-its-subject) | un garde reste VERT quand on mute la constante qu'il prétend garder. Il n'échoue sur aucune valeur, si extrême soit-elle, parce que l'entrée qu'il con |
 | [`a-timeout-reported-as-a-missing-thing`](error-classes.md#a-timeout-reported-as-a-missing-thing) | un outil annonce qu'une chose N'EXISTE PAS alors qu'il a seulement cessé de l'attendre. Mesuré le 2026-09-15 : `.claude/scripts/select_tests.py --dry` |
 | [`a-measurement-taken-under-self-inflicted-load`](error-classes.md#a-measurement-taken-under-self-inflicted-load) | un chiffre de performance est mesuré pendant que d'autres processus LANCÉS PAR MOI occupent la machine, puis lu comme une propriété du système. **Troi |
+| [`a-hook-shaped-function-pytest-never-calls`](error-classes.md#a-hook-shaped-function-pytest-never-calls) | une fonction porte la signature exacte d'un hook pytest, son corps fait le travail d'un hook, et elle n'est JAMAIS appelée. Rien ne le signale : il n' |
+| [`a-file-whose-tests-share-a-namespace`](error-classes.md#a-file-whose-tests-share-a-namespace) | sous une distribution test-par-test (`--dist loadgroup`, ou des shards), deux tests d'un MÊME fichier tournent en parallèle et se disputent un nom qu' |
 
 ## un-document-qui-affirme-un-état-périmé
 
@@ -487,7 +491,7 @@ Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhoo
 
 **Ce que le dépôt déclare est-il ce que la production exécute ?**
 
-Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version` sur l'identifiant et le symptôme. 20 classe(s).
+Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version` sur l'identifiant et le symptôme. 21 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -511,6 +515,7 @@ Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compos
 | [`a-procedural-rule-in-the-database`](error-classes.md#a-procedural-rule-in-the-database) | une règle métier vit en PL/pgSQL. Elle n'est ni testable par pytest, ni lisible dans une revue de diff Python, ni déplaçable — et le jour où elle est  |
 | [`a-visual-constant-copied-into-a-second-renderer`](error-classes.md#a-visual-constant-copied-into-a-second-renderer) | la même plateforme porte **deux couleurs** dans le même produit — Spotify en vert à l'écran, en bleu dans le PDF du même artiste, le même jour. |
 | [`a-deduction-subtracted-from-the-wrong-base`](error-classes.md#a-deduction-subtracted-from-the-wrong-base) | une surface affiche un montant NET manifestement faux, sans erreur ni trace. Mesuré le 2026-09-14 : la page Royalties SACEM annonçait « ✅ Net estimé * |
+| [`a-blocking-hook-that-writes-its-reason-to-stdout`](error-classes.md#a-blocking-hook-that-writes-its-reason-to-stdout) | un hook PreToolUse bloque une commande et l'appelant ne voit AUCUN motif : l'outil rapporte « No stderr output ». La porte est fermée, la raison est i |
 
 ## Sans famille
 
@@ -524,6 +529,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=333 families=17 orphans=3 -->
+<!-- error-class-families: total=338 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=a2c953bbc2d763bc770385ab5413b84b832f0c13c1197c70f734f43133bbd645 -->
+<!-- error-class-families: sha256=05b30588c6cf4f112297d13d7857cfc6d53fe5292c977137c51710b0c7658080 -->

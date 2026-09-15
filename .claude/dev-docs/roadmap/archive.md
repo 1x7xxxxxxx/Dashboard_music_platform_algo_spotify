@@ -9,6 +9,71 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## ⚡ R109 — La CI en 4 shards indépendants, ×3,9 (livrée 2026-09-16)
+
+- [x] **R109 — découper `Run tests` en 4 shards (`pytest-split` + matrice) ; le mur
+      du run doit passer de ~423 s à ~115 s.**
+
+  **Forme livrée** : deux jobs INDÉPENDANTS (aucun `needs:`) — `gates` (statique, ni
+  Postgres ni suite) et `suite` (matrice de 4 shards `pytest-split` sur
+  `.test_durations` versionné). Action composite `.github/actions/provision-postgres`
+  partagée avec la passe nocturne. La couverture s'exécute désormais dans
+  `security-nightly.yml`, où la suite tourne ENTIÈRE et en ordre aléatoire.
+
+  **Mesuré** :
+  - AVANT — médiane **427 s** sur les 18 dernières exécutions vertes (étendue
+    279–504 s), `gh run list --workflow=ci.yml` ;
+  - APRÈS — **109 s** (run 35035830958, 23:28:43 → 23:30:32, vert). Détail par job :
+    Portes statiques 87 s, Suite 1/4 106 s, 2/4 100 s, 3/4 92 s, 4/4 64 s.
+
+  **×3,9**, de 7 min 07 à 1 min 49 — la cible de l'énoncé (~115 s) est atteinte. Un
+  seul run mesuré pour l'instant.
+
+  Le dépôt étant public, les minutes Actions sont gratuites : R109 achète du temps de
+  mur avec des minutes qu'on ne paie pas.
+
+## ⚡ R110 — Répartir le long pôle, et une prémisse fausse trouvée en la vérifiant (livrée 2026-09-16)
+
+- [x] **R110 — répartir le long pôle : `--dist loadgroup` + `xdist_group` sur les 9
+      fichiers à état partagé.**
+
+  Énoncé d'origine, mesuré par `pytest tests/test_views_render_smoke.py -q` →
+  **152,5 s pour un seul fichier**, tenu par un seul worker sous `loadfile`.
+
+  **La prémisse était fausse.** Mesurée en alternance (pour contrôler la dérive de
+  charge de la machine), au repos, base vivante :
+
+  | distribution | mesures (s) | médiane |
+  |---|---|---|
+  | `--dist loadfile` | 339,1 / 341,3 | **340,2 s** |
+  | `--dist loadgroup` | 337,5 / 359,4 / 344,1 / 355,2 | **349,6 s** |
+
+  **2,8 % en faveur de `loadfile`**, très en dessous des ±40 % de variance que le
+  dépôt se donne comme seuil de bruit. Le long pôle n'est pas le chemin critique à
+  8 workers — les autres workers l'absorbent.
+
+  **Ce que la brique a réellement acheté, et qui la justifie quand même** :
+  1. **quatre courses latentes** invisibles sous `loadfile`, trouvées et fermées :
+     `test_an_imported_file_survives_its_import` (un dossier du dépôt + un nom
+     horodaté à la seconde), `test_canary_onboarding_walk` (lignes
+     `walk-canary-%`), `test_registration_is_not_an_oracle` (slug `oracle-probe-N`
+     dédupliqué — et le test lisait l'échec comme « un code invalide a annulé
+     l'inscription », le contraire de la vérité), `test_a_page_asks_the_same_question_once`
+     (cache de plan non purgé) ;
+  2. la **condition** pour que R109 rende ce qu'elle promet : à quatre shards, un
+     fichier de 172,6 s devient dominant DANS son shard ;
+  3. 27 fichiers portaient déjà `xdist_group` avant ce passage, posés à l'instinct ;
+     **aucune des quatre courses n'y était**.
+
+  ⚠️ R110 livrée **avant** R109 : une distribution par test transforme une course
+  latente en échec intermittent, et il fallait l'avoir éprouvée (trois passages
+  verts d'affilée, `git status` vide après chacun) avant d'en dépendre dans quatre
+  shards.
+
+  Suite locale après tout : **6 435 passés, 42 sautés, 352,0 s**, arbre propre.
+
+---
+
 ## 🩺 R112 — La sonde de production n'a rien exécuté pendant neuf jours (clos 2026-09-15)
 
 - [x] **R112 — `prod-health.yml` rouge 9 jours d'affilée, silencieusement.**
