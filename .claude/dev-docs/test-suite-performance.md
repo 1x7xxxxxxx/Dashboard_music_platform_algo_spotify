@@ -104,6 +104,36 @@ dans les deux sens, plus l'entrée de la roadmap dans la liste.
   déjà : `tests/test_every_named_guard_exists.py` (252 chemins + 32 node-ids, par AST,
   sans lancer pytest).
 
+## Mesuré en CI, et ce que le local ne peut pas dire
+
+Runs réels de `ci.yml` (médiane **428 s** sur 8 runs verts, étendue 366–496 s) :
+
+| Étape | Avant (34900702613) | Après (35001871244) |
+|---|---|---|
+| Gardes de classes d'erreur | 145 s (`--deterministic`) | **96 s** (`--static`) |
+| `Run tests` | 183 s | **261 s** |
+| **Total** | 393 s | **423 s** |
+
+**La CI n'est pas devenue plus rapide, et il faut savoir pourquoi.** L'étape retirée
+servait aussi de **préchauffage** : elle lisait 219 des 362 fichiers juste avant que
+`Run tests` ne les relise. Le gain de 49 s sur la porte est mangé par 78 s sur la
+suite. Avec une variance de ±40 % et un seul run de chaque côté, la lecture honnête
+est « pas de changement mesurable en CI » — le bénéfice de ce changement est
+ailleurs : la porte ne peut plus expirer, et le rapport par classe reste la nuit.
+
+### ⛔ Ne pas retirer `--cov` de la CI — c'est la deuxième fois
+
+Mesuré en local le 2026-09-15 : **+92 %** (61,8 → 118,7 s sur un échantillon mixte).
+Conclusion tentante, et fausse. `ci.yml` porte déjà la mesure faite **sur le
+runner** : *« 160,6 s sans, 174,0 s avec — +8 %, soit 13 s »*, et la note dit
+explicitement que la suppression avait déjà été envisagée sur une supposition à
+~30 %.
+
+Les chiffres `/mnt/c` ne valent qu'en **rapport**, jamais en absolu, et ici même le
+rapport est faux : l'instrumentation de couverture écrit et lit beaucoup, ce que ce
+montage amplifie. Pour 13 s sur le runner, on garde le seul rapport de couverture du
+dépôt.
+
 ## Le matériel
 
 i7-11370H (4 cœurs / 8 threads), 8 Go alloués à WSL, dépôt sur `/mnt/c`.
