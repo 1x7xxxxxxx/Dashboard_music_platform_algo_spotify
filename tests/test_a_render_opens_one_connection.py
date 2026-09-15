@@ -78,12 +78,22 @@ VIEWS = [
     "credentials", "data_wrapped", "db_health", "etl_logs", "export_csv",
     "export_pdf", "home", "hypeddit", "imusician", "instagram", "meta_ads_overview",
     "meta_breakdowns", "meta_cpr_optimizer", "meta_creatives", "meta_mapping",
-    "meta_x_spotify", "ml_performance", "perf_monitor", "process_guide",
+    "meta_x_spotify", "ml_performance", "perf_monitor",
     "promo_admin", "referral", "referral_admin", "revenue_forecast", "sacem",
     "saisie_s4a", "soundcloud", "spotify_s4a_combined", "trigger_algo", "upgrade",
-    "upload_csv", "usage_analytics", "useful_links", "youtube", "onboarding",
+    "usage_analytics", "useful_links", "youtube", "onboarding",
     "onboarding_health", "register",
 ]
+# `process_guide` et `upload_csv` ont quitté cette liste le 2026-09-15, NEUF JOURS
+# après avoir quitté celle de `test_views_render_smoke.py:130-143` — qui explique
+# déjà pourquoi : `src/dashboard/views/process_guide.py` a été SUPPRIMÉ, et
+# `upload_csv.py` n'a plus de `show()` depuis la fusion du 2026-09-04.
+#
+# Le frère a été corrigé, celui-ci ne l'a pas été, et rien ne l'a vu : le script
+# levait à l'import, ouvrait ZÉRO connexion, et `0 <= 1` passait. Deux `AppTest`
+# complets payés à chaque exécution pour ne rien prouver. C'est la moitié « on a
+# corrigé l'instance et laissé les frères vivants » ; l'autre moitié — la borne
+# basse manquante — est traitée dans `connections_opened_by` ci-dessous.
 
 _SCRIPT = """
 import sys
@@ -117,6 +127,21 @@ def connections_opened_by(view: str) -> int:
         at.run(timeout=180)
     finally:
         PostgresHandler._connect = original
+
+    # ── La borne BASSE, ajoutée le 2026-09-15 ──
+    # `opened <= plafond` est vrai pour ZÉRO connexion, et un rendu qui échoue à
+    # l'import en ouvre zéro. Le plafond était donc au vert sur deux vues qui
+    # n'existent plus — `process_guide` (module supprimé) et `upload_csv` (plus de
+    # `show()`), pendant neuf jours.
+    #
+    # `test_a_page_asks_the_same_question_once.py:166-174` a appris exactement cette
+    # leçon le 2026-09-12 et l'a nommée « un prédicat sans site ». Elle n'avait pas
+    # été propagée ici. Un plafond comparé à zéro ne garde rien.
+    if at.exception:
+        raise AssertionError(
+            f"le rendu de `{view}` a levé, donc il n'a ouvert aucune connexion et "
+            f"le plafond passerait sur du vide :\n{at.exception[0].value}"
+        )
     return count["n"]
 
 

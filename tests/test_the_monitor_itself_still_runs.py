@@ -117,6 +117,64 @@ def test_the_daily_production_probe_ran_recently():
     )
 
 
+@pytest.mark.skipif(not _TOKEN, reason="no GITHUB_TOKEN — this question only exists in CI")
+def test_the_daily_probe_is_not_failing_night_after_night():
+    """Qu'elle ait TOURNÉ ne dit pas qu'elle a PROUVÉ quelque chose.
+
+    Mesuré le 2026-09-15, et c'est la raison d'être de ce test : le workflow a
+    échoué **neuf jours d'affilée**, du 2026-09-07 au 2026-09-15, et rien ne l'a
+    signalé. Le garde d'à côté ne regarde que la FRAÎCHEUR — un workflow qui sort
+    en erreur à chaque exécution reste parfaitement « récent ».
+
+    La cause était muette de bout en bout : `prod-health.yml` installait sa liste de
+    dépendances à la main, sans `pytest-xdist`, alors que `tests/conftest.py` déclare
+    le hook `pytest_configure_node` depuis le 2026-09-06 (20fd305). `pluggy` levait
+    `PluginValidationError`, pytest rendait « no tests ran in 0.19s » et `exit 3`.
+    Les seize sondes qui atteignent la production à travers Cloudflare n'ont donc
+    RIEN exécuté pendant neuf jours, pendant que la CI restait verte.
+
+    **Deux nuits, pas une.** Un échec isolé arrive — une coupure réseau, un 502 de
+    l'hébergeur, un secret qui tourne. Deux exécutions consécutives en échec ne sont
+    plus du bruit : c'est une panne installée, et c'est le seuil à partir duquel on
+    veut qu'un humain regarde.
+    """
+    import requests
+
+    r = requests.get(
+        f"https://api.github.com/repos/{_REPO}/actions/workflows/{_WORKFLOW}/runs",
+        headers={"Authorization": f"Bearer {_TOKEN}",
+                 "Accept": "application/vnd.github+json"},
+        params={"per_page": 10}, timeout=20,
+    )
+    if r.status_code == 404:
+        pytest.skip(f"{_WORKFLOW} not found in {_REPO} (fork, or the file was renamed)")
+    assert r.status_code == 200, f"GitHub API returned {r.status_code}: {r.text[:200]}"
+
+    completed = [x for x in r.json().get("workflow_runs", [])
+                 if x.get("status") == "completed"]
+    completed.sort(key=lambda x: x["created_at"], reverse=True)
+    if len(completed) < 2:
+        pytest.skip("moins de deux exécutions terminées — rien à comparer")
+
+    two = completed[:2]
+    if all(x.get("conclusion") == "failure" for x in two):
+        streak = 0
+        for x in completed:
+            if x.get("conclusion") != "failure":
+                break
+            streak += 1
+        raise AssertionError(
+            f"{_WORKFLOW} échoue depuis **{streak} exécution(s) consécutives**, la "
+            f"plus récente le {two[0]['created_at'][:10]}. Les seize sondes de "
+            "`tests/test_prod_health.py` ne tournent QUE là : tant qu'elles échouent, "
+            "la production n'est vue par rien — ni le certificat, ni le DNS, ni le "
+            "routage, ni Cloudflare.\n"
+            f"  → le journal : gh run view {two[0]['id']} --log-failed\n"
+            "  → une exécution isolée en échec est tolérée ; deux d'affilée ne le sont "
+            "pas, parce que c'est là que ça cesse d'être du bruit."
+        )
+
+
 def test_the_ceiling_sits_between_normal_drift_and_the_real_anomaly():
     """The calibration, checked against the measured distribution rather than restated.
 
