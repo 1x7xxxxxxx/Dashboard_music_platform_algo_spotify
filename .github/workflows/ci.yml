@@ -103,6 +103,13 @@ jobs:
         run: uv run ruff check .
 
       - name: REX integrity + static error-class guards (blocking)
+        env:
+          # Le jeton fourni d'office par Actions. Il n'active qu'une chose : la
+          # signature de `a-merged-branch-outlives-its-pull-request`, qui interroge
+          # `gh api`. Sans lui elle faisait `|| echo true` et passait TOUJOURS — un
+          # garde qui ne garde rien. Elle échoue désormais bruyamment si `gh` ne peut
+          # pas répondre, ce qui exige que le jeton soit là.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # validate_rex.py enforces the rex: schema across every .claude/ tool;
         # audit_runner.py runs the error-class signatures catalogued in
         # .claude/dev-docs/error-classes.md (single source of truth).
