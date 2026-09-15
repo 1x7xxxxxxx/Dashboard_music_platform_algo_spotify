@@ -122,3 +122,72 @@ def test_an_unimportable_path_yields_no_alias(st):
     roots = st.source_roots(REPO)
     aliases = st.module_aliases(REPO, REPO / ".claude" / "scripts" / "select_tests.py", roots)
     assert all("claude" not in a.split(".")[0] for a in aliases), sorted(aliases)
+
+
+# ---------------------------------------------------------------------------
+# La RAISON d'un repli, pas seulement le repli — ajouté le 2026-09-15.
+#
+# Mesuré ce jour-là : `select_tests.py --dry` annonçait « pas un dépôt git, ou diff
+# illisible » **dans ce dépôt**, pendant qu'un `audit_runner --deterministic` lançait
+# ses 296 pytest sur /mnt/c. `git diff --name-only HEAD` y dépassait les 30 s du
+# `timeout` de `_git`, et `except subprocess.SubprocessError` rendait exactement la
+# même valeur qu'un répertoire sans `.git`.
+#
+# Le verdict était juste — suite entière, la direction sûre, celle que la règle
+# transverse #16 demande quand le sélecteur ne peut pas conclure. C'est la RAISON qui
+# mentait, et c'est elle qu'on lit : on va vérifier son dépôt au lieu de regarder la
+# charge de la machine. Un diagnostic qui nomme la mauvaise cause coûte plus cher
+# qu'un diagnostic absent, parce qu'on le croit et qu'on cherche là où il pointe.
+#
+# Même famille que la classe `a-prose-claim-that-cannot-be-verified` inscrite le même
+# jour : une phrase affirme un état que rien n'a vérifié.
+class _FakeTimeout:
+    """Un `subprocess.run` qui expire, comme /mnt/c sous charge."""
+
+    def __init__(self, module):
+        self._module = module
+
+    def __call__(self, cmd, **kwargs):
+        raise self._module.subprocess.TimeoutExpired(cmd=cmd, timeout=30)
+
+
+def test_a_git_timeout_is_not_reported_as_a_missing_repository(st, monkeypatch, tmp_path):
+    """La machine chargée et le dossier sans `.git` ne doivent pas se dire pareil."""
+    monkeypatch.setattr(st.subprocess, "run", _FakeTimeout(st))
+    st._DERNIERE_PANNE_GIT = None
+
+    verdict = st.select(REPO)
+    raison = verdict["reason"]
+
+    assert verdict["all"] is True, (
+        "un diff illisible doit TOUJOURS rendre la suite entière — la raison change, "
+        "jamais la direction du repli."
+    )
+    assert "30 s" in raison and "chargée" in raison, (
+        f"la raison ne nomme pas le dépassement de délai : {raison!r}. C'est le "
+        "message que lit l'opérateur quand le sélecteur se replie."
+    )
+    assert "pas un dépôt git" not in raison, (
+        f"la raison accuse encore le dépôt alors que `git` a seulement expiré : {raison!r}"
+    )
+
+
+def test_a_directory_without_git_still_says_so(st, tmp_path):
+    """Non-vacuité : le message vrai doit rester disponible pour le cas vrai.
+
+    Sans cette moitié, on pourrait satisfaire le test précédent en supprimant toute
+    mention du dépôt — et perdre le diagnostic juste le jour où il est juste.
+    """
+    st._DERNIERE_PANNE_GIT = None
+    (tmp_path / "rien.py").write_text("x = 1\n", encoding="utf-8")
+
+    verdict = st.select(tmp_path)
+
+    assert verdict["all"] is True
+    assert "30 s" not in verdict["reason"], (
+        f"un dossier sans dépôt n'a pas expiré : {verdict['reason']!r}"
+    )
+    assert "git" in verdict["reason"], (
+        f"la raison doit toujours nommer `git` quand c'est lui qui refuse : "
+        f"{verdict['reason']!r}"
+    )

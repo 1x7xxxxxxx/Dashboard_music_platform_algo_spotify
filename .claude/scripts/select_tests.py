@@ -122,13 +122,41 @@ SUITE_CONFIG = {"pyproject.toml", "pytest.ini", "setup.cfg", "tox.ini"}
 DYNAMIC = {"importlib", "__import__"}
 
 
+# Pourquoi `git` a échoué, et pas seulement QU'il a échoué. Mesuré le 2026-09-15 :
+# `select_tests.py` annonçait « pas un dépôt git, ou diff illisible » **dans un dépôt
+# git parfaitement sain**, pendant qu'un `audit_runner --deterministic` lançait ses
+# 296 pytest sur /mnt/c. `git diff --name-only HEAD` y dépassait les 30 s ; le
+# `except subprocess.SubprocessError` avalait le `TimeoutExpired` et rendait la même
+# valeur qu'un répertoire sans `.git`.
+#
+# Le VERDICT était juste — suite entière, la direction sûre. C'est la RAISON qui
+# mentait, et elle envoie chercher au mauvais endroit : on vérifie son dépôt au lieu
+# de regarder la charge. Un diagnostic qui nomme la mauvaise cause coûte plus cher
+# qu'un diagnostic absent, parce qu'on le croit.
+_DERNIERE_PANNE_GIT: str | None = None
+
+
 def _git(root: Path, *args: str) -> str | None:
+    global _DERNIERE_PANNE_GIT
     try:
         r = subprocess.run(["git", "-C", str(root), *args],
                            capture_output=True, text=True, timeout=30)
-    except (OSError, subprocess.SubprocessError):
+    except subprocess.TimeoutExpired:
+        _DERNIERE_PANNE_GIT = (
+            f"`git {' '.join(args)}` a dépassé 30 s — la machine est chargée, ce "
+            "n'est PAS un problème de dépôt. Relancer au calme rendra la liste courte."
+        )
         return None
-    return r.stdout if r.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError) as e:
+        _DERNIERE_PANNE_GIT = f"`git {' '.join(args)}` injoignable : {type(e).__name__}"
+        return None
+    if r.returncode != 0:
+        _DERNIERE_PANNE_GIT = (
+            f"`git {' '.join(args)}` sort {r.returncode} : "
+            f"{(r.stderr or '').strip()[:120] or 'aucun message'}"
+        )
+        return None
+    return r.stdout
 
 
 def changed_files(root: Path, base: str | None) -> list[str] | None:
@@ -540,7 +568,9 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None) -
     """
     changed = changed_files(root, base)
     if changed is None:
-        return {"all": True, "tests": [], "reason": "pas un dépôt git, ou diff illisible"}
+        pourquoi = _DERNIERE_PANNE_GIT or "cause inconnue"
+        return {"all": True, "tests": [],
+                "reason": f"impossible de lire le diff — {pourquoi}"}
     if not changed:
         return {"all": False, "tests": [], "reason": "aucun fichier modifié"}
 

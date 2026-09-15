@@ -288,3 +288,108 @@ def test_the_live_heading_pattern_actually_distinguishes_the_two_forms():
         "fichier qui en contient : tant qu'il est casse, "
         "`test_no_runbook_section_outlives_its_task` passe sur du vide."
     )
+
+
+# ---------------------------------------------------------------------------
+# La prose qui PLACE une tâche dans une section nommée — ajoutée le 2026-09-15.
+#
+# Les trois tests ci-dessus lisent des TABLEAUX. Aucun ne lisait la prose, et
+# c'est exactement là que le fichier a dérivé : le 2026-09-15, trois phrases
+# affirmaient « R1 reste en attente, dans « 🙋 En attente de toi » plus bas »
+# alors que cette table était VIDE depuis le 2026-09-10 et le disait elle-même
+# quatre cents lignes plus bas — R1 ayant été rotée dans `archive.md`.
+#
+# L'ancre était juste, le tableau était juste ; seule la phrase à côté mentait.
+# C'est la classe `a-prose-claim-that-cannot-be-verified`, que ce fichier
+# nommait sans que rien ne la détecte. Le 2026-09-12 elle avait déjà frappé sur
+# « quatre tâches rouvertes » contre un index vide.
+#
+# Ce qui est mécanisable n'est pas « cette phrase est-elle vraie » mais sa forme
+# la plus fréquente et la plus coûteuse : une phrase qui LOCALISE un id dans une
+# section nommée. Le prédicat exige les trois marques ensemble, dans une même
+# phrase et dans cet ordre — l'id, puis une préposition de lieu, puis le nom de
+# la section — pour ne pas confondre avec une phrase de DÉPART, qui met le nom
+# de la section en sujet : « L'index `## 📋 Tâches ouvertes` est vide : R108, sa
+# dernière ligne, a été livrée ». Celle-là dit le contraire et doit passer.
+_SECTION_ALIAS = {_WAITING_H: "En attente de toi", _ACTIONABLE_H: "Tâches ouvertes"}
+_LOCATIVE = re.compile(r"\b(?:dans|voir|sous|figure|portée? par|porté par|vit)\b", re.I)
+_ANY_ID = re.compile(r"\bR(\d+)\b")
+
+
+def _prose(text: str) -> str:
+    """Le texte moins ce qui est déjà vérifié ailleurs : tableaux, titres, code."""
+    out, fenced = [], False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced or stripped.startswith("|") or stripped.startswith("#"):
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
+def _locating_claims(text: str) -> list[tuple[str, str, str]]:
+    """(id, nom de section, phrase) pour chaque phrase qui place un id quelque part."""
+    claims = []
+    for sentence in re.split(r"(?<=[.!?])\s+|\n\s*\n", _prose(text)):
+        flat = " ".join(sentence.split())
+        for head, alias in _SECTION_ALIAS.items():
+            for anchor in re.finditer(re.escape(alias), flat):
+                for ident in _ANY_ID.finditer(flat):
+                    if ident.end() >= anchor.start():
+                        continue  # phrase de départ : la section est le sujet
+                    between = flat[ident.end():anchor.start()]
+                    if len(between) > 120 or not _LOCATIVE.search(between):
+                        continue
+                    claims.append((f"R{ident.group(1)}", head, flat))
+    return claims
+
+
+def test_no_prose_sentence_places_a_task_in_a_section_that_has_no_such_row():
+    """Une phrase qui situe une tâche doit la situer là où elle est vraiment.
+
+    `/resume` lit ce fichier EN PREMIER et le résume à voix haute. Une phrase
+    fausse ici n'est pas cosmétique : c'est l'état d'où part la séance. Le
+    2026-09-15 elle a fait annoncer R1 comme la dernière tâche ouverte du dépôt,
+    cinq jours après sa rotation.
+    """
+    rows = {_WAITING_H: set(_ids(_WAITING_H)), _ACTIONABLE_H: set(_ids(_ACTIONABLE_H))}
+    wrong = [
+        (task, _SECTION_ALIAS[head], sentence)
+        for task, head, sentence in _locating_claims(ACTIVE.read_text(encoding="utf-8"))
+        if task not in rows[head]
+    ]
+    assert not wrong, "\n".join(
+        [
+            f"{len(wrong)} phrase(s) placent une tâche dans une section qui ne la "
+            "porte pas. Le tableau fait foi — c'est la prose qu'il faut corriger, "
+            "ou la ligne qu'il faut remettre :",
+        ]
+        + [f"  {task} annoncée dans « {alias} » — {sentence[:150]}" for task, alias, sentence in wrong]
+    )
+
+
+def test_the_locating_claim_predicate_tells_arrival_from_departure():
+    """Non-vacuité : un prédicat qui ne voit rien passe sur un fichier faux.
+
+    Les deux formes sont tirées du fichier réel — la phrase fautive du
+    2026-09-15 et la phrase juste sur R108 qu'elle ne doit pas confondre avec.
+    """
+    arrival = "**R1** reste le seul geste humain, dans la section « 🙋 En attente de toi » plus bas : inviter la bêta."
+    departure = "**L'index `## 📋 Tâches ouvertes` est vide** : R108, sa dernière ligne, a été livrée le 2026-09-14."
+
+    seen = [task for task, _, _ in _locating_claims(arrival)]
+    assert seen == ["R1"], (
+        f"le prédicat ne voit plus une phrase qui PLACE une tâche ({seen!r}) : tant "
+        "qu'il est cassé, le test ci-dessus passe sur du vide."
+    )
+    assert _locating_claims(departure) == [], (
+        "le prédicat prend une phrase de DÉPART pour une phrase de placement — il "
+        "rougirait sur chaque tâche correctement archivée."
+    )
+    # Une phrase de placement JUSTE ne doit rien déclencher non plus : le test
+    # porte sur l'accord prose ↔ tableau, pas sur l'existence de la phrase.
+    both = _locating_claims(arrival + "\n\n" + departure)
+    assert [t for t, _, _ in both] == ["R1"], f"extraction instable sur deux phrases : {both!r}"

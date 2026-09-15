@@ -45,10 +45,11 @@ closes et rotées dans `archive.md`, comme R89, R90 et R91 avant elles (critère
 double axe écrit et six figures triées, légende devenue le filtre de sources, PDF doté
 de la figure d'évolution multi-plateformes). Détail complet dans l'archive.
 
-**Aucune tâche ouverte ne reste dans cet index.** Seule R1 demeure, hors de l'index
-par construction — voir « 🙋 En attente de toi » plus bas : elle attend un geste
-humain (inviter la bêta), pas une ligne de code, et ne doit jamais être lue comme
-close.
+**Aucune tâche ouverte ne reste dans cet index, ni dans aucune autre section.** La
+table « 🙋 En attente de toi » plus bas est vide elle aussi depuis le 2026-09-10 :
+R1, sa dernière ligne, est rotée dans `archive.md`. Inviter la bêta est l'usage du
+produit, pas du travail d'ingénierie — une roadmap qui suit les gestes commerciaux de
+son propriétaire ne peut par construction jamais atteindre zéro.
 
 ⚠️ Ce paragraphe annonçait encore « quatre tâches rouvertes » le 2026-09-12, alors que
 les quatre étaient closes et l'index vide. Aucun garde ne pouvait le voir : l'ancre et
@@ -98,14 +99,28 @@ zéros de prédiction retirés. **ADR-020** clôt la question des deux vocabulai
 période : ils ne sont pas une duplication, ils répondent à deux questions — l'une
 calendaire, l'autre ancrée sur une sortie.
 
-Deux chantiers restent, et aucun n'est une tâche : la réconciliation des fuseaux de
-PUBLICATION (Spotify et Apple datent dans le leur ; 7,9 % des lignes YouTube changent de
-jour selon celui qu'on retient) demande une décision écrite avant d'être engagée, et la
-reprise des définitions encore recopiées se fait **au fil de l'eau** sous la règle de
-livraison d'ADR-019 — son avancement se lit dans le cliquet du bronze, pas ici.
+**Un seul chantier reste, et ce n'est pas une tâche** : la reprise des définitions
+encore recopiées, qui se fait **au fil de l'eau** sous la règle de livraison d'ADR-019
+— son avancement se lit dans le cliquet du bronze, pas ici.
 
-**R1** reste le seul geste humain, dans la section « 🙋 En attente de toi » plus bas :
-inviter la bêta. Aucune ligne de code ne la débloque.
+**La réconciliation des fuseaux de PUBLICATION a été retirée d'ici le 2026-09-15, et
+il faut lire pourquoi avant de la rouvrir.** Ce paragraphe la justifiait par « 7,9 %
+des lignes YouTube changent de jour selon le fuseau qu'on retient ». **Ce chiffre a
+été retiré comme faux le 2026-09-10 même** — il mélangeait deux ères sur une base
+locale — et la rétractation est écrite dans `error-classes.md`, dans `archive.md` et
+dans ADR-021 ; ce fichier-ci est le seul à l'avoir gardé cinq jours de plus. Recompté
+en production : **0 ligne sur 5 807** pour `collected_at` post-migration-019, les
+collectes nocturnes atterrissant à 10 h UTC, à plus de quatre heures de toute
+frontière de jour. ADR-021 tranche la question — chaque date déclare l'horloge qui l'a
+produite — et **désigne nommément cette tâche comme la forme dangereuse** : une
+harmonisation appliquée sans distinction déplacerait 267 jours calendaires déjà justes
+d'une journée entière. L'écart résiduel aux bords des journées de reporting de Spotify
+et d'Apple n'est pas corrigeable ; il est nommé par `UNRECONCILABLE_NOTE`, et
+l'effacer serait la faute.
+
+**Plus aucune tâche n'est ouverte**, ni dans l'index ci-dessus ni dans
+« 🙋 En attente de toi » plus bas : R1, le dernier geste humain, y a été rotée vers
+`archive.md` le 2026-09-10.
 
 ---
 
@@ -114,9 +129,10 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 <!-- reprise: open= -->
 
 **L'index `## 📋 Tâches ouvertes` est vide** : R108, sa dernière ligne, a été livrée
-le 2026-09-14. **R1 reste en attente**, dans « 🙋 En attente de toi » plus bas, hors
-de l'index par construction — elle attend le geste de son propriétaire (inviter la
-bêta), pas du travail d'ingénierie, et n'est PAS close.
+le 2026-09-14. **La table « 🙋 En attente de toi » est vide elle aussi** depuis le
+2026-09-10, R1 y ayant été rotée vers `archive.md`. Le dépôt n'a donc plus AUCUNE
+tâche ouverte, et c'est l'état à annoncer au `/resume` — pas « il reste R1 », que ce
+fichier a affirmé cinq jours durant contre ses propres tableaux.
 
 ### La séance du 2026-09-13 (soir) — une coupure de courant, et ce qu'elle a révélé
 
