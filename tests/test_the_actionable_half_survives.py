@@ -28,6 +28,12 @@ import pytest
 
 from src.utils.diagnosis_text import as_console, as_html, as_markdown, clamp
 
+# Ce fichier mute un état de PROCESSUS partagé (sys.modules, un attribut de
+# classe, un fichier du dépôt). Sous `--dist loadgroup` ses tests restent donc
+# sur UN worker, comme le faisait `--dist loadfile` pour tout le monde.
+# Voir `.claude/dev-docs/test-suite-performance.md` et R110.
+pytestmark = pytest.mark.xdist_group("the-actionable-half-survives")
+
 REPO = pathlib.Path(__file__).resolve().parents[1]
 
 

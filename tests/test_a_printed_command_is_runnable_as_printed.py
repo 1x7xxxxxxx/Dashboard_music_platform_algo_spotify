@@ -26,6 +26,12 @@ import pytest
 from src.dashboard.utils.shell_block import windows_path as _windows_path
 from src.dashboard.views.credentials._core import fernet_key_command_block
 
+# Ce fichier mute un état de PROCESSUS partagé (sys.modules, un attribut de
+# classe, un fichier du dépôt). Sous `--dist loadgroup` ses tests restent donc
+# sur UN worker, comme le faisait `--dist loadfile` pour tout le monde.
+# Voir `.claude/dev-docs/test-suite-performance.md` et R110.
+pytestmark = pytest.mark.xdist_group("a-printed-command-is-runnable-as-printed")
+
 _CREDENTIALS = Path(__file__).resolve().parents[1] / "src/dashboard/views/credentials"
 _ROUTER = _CREDENTIALS / "router.py"
 
@@ -134,19 +140,13 @@ def test_the_banner_renders_the_block_instead_of_inlining_a_command():
 # valide, et la retirer de `config/config.yaml` pour voir la bannière rendrait
 # indéchiffrables les credentials déjà enregistrés.
 
-def _db_ready() -> bool:
-    try:
-        from src.dashboard.utils import get_db_connection
-        db = get_db_connection()
-        if db is None:
-            return False
-        try:
-            db.fetch_query("SELECT 1 FROM saas_artists LIMIT 1")
-            return True
-        finally:
-            db.close()
-    except Exception:  # noqa: BLE001
-        return False
+# La porte LÉGÈRE. Le corps recopié ici importait `get_db_connection`
+# (**5,30 s**, dont 5,19 s de Streamlit) et ouvrait une connexion À L'IMPORT du
+# module, donc à la collecte, une fois par fichier et par worker.
+# `tests.db_gate.db_ready` répond en 0,19 s, derrière un `lru_cache` partagé, et
+# sonde en plus `DATABASE_URL` et le schéma réel. Le nom est conservé : seuls le
+# coût et le nombre de connexions changent.
+from tests.db_gate import db_ready as _db_ready  # noqa: E402
 
 
 _RENDER_SCRIPT = """

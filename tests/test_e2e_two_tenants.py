@@ -99,7 +99,7 @@ from tests.db_gate import requires_live_db  # noqa: E402
 # `pytestmark` et la seconde ÉCRASAIT la première sans bruit — une porte qui a
 # l'air posée et ne l'est pas. Ce parcours charge des modules de DAG, donc il
 # lui faut `apache-airflow` autant que la base.
-pytestmark = [requires("airflow"), requires_live_db()]
+pytestmark = [pytest.mark.xdist_group("e2e-two-tenants"), requires("airflow"), requires_live_db()]
 
 # Identities. ADMIN_* are what the environment variables hold in production; the
 # whole class of bugs is a tenant silently ending up with these.

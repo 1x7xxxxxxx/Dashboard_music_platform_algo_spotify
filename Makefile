@@ -2,7 +2,19 @@
 # Run from the repo root. Most targets assume Docker is up and the Windows venv
 # at venv/Scripts/python.exe is in place (we are WSL-side calling Windows binaries).
 
-PYTHON  := venv/Scripts/python.exe
+# ── Pourquoi cette résolution et pas `venv/Scripts/python.exe` en dur (2026-09-15) ──
+# Mesuré ce jour-là : `make test` ne lançait **aucun test**. Le venv Windows ne porte
+# pas `pytest-xdist`, donc le hook `pytest_configure_node` déclaré dans
+# `tests/conftest.py` y est un hook INCONNU — `pluggy` lève `PluginValidationError`,
+# pytest sort en INTERNALERROR avec `rc=3` et « no tests ran in 0.05s ».
+#
+# Un rc non nul, donc pas un silence — mais un rc qui ne ressemble pas à un échec de
+# test, sur une cible qu'on lance justement pour NE PAS lire la sortie en détail.
+#
+# Même forme que `GUIDE_PY` ci-dessous, qui avait déjà résolu le problème pour son
+# propre besoin : préférer le venv Linux quand il est là, retomber sur le Windows
+# sinon. Garde : `tests/test_the_make_target_uses_a_working_interpreter.py`.
+PYTHON  := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo venv/Scripts/python.exe)
 PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
 # The guide PDF needs WeasyPrint's NATIVE stack (cairo/pango). The Windows venv in
 # $(PYTHON) does not carry it; the Linux one does. Resolved here rather than in the
@@ -32,13 +44,54 @@ logs:        ## Tail Airflow scheduler logs
 # Mêmes drapeaux de distribution que `.github/workflows/ci.yml`. Mesuré le
 # 2026-08-30 sur ce dépôt : 238 s en sériel, 151 s ici (1,57x). Le gain n'est pas
 # la raison principale — c'est que « vert en local » et « vert en CI » cessent
-# d'être deux affirmations différentes. `--dist loadfile` garde les tests d'un
-# même fichier sur le même worker, ce dont dépendent ceux qui portent un état de
-# module.
-PYTEST_DIST := -n auto --dist loadfile
+# d'être deux affirmations différentes.
+#
+# `--dist loadgroup` depuis le 2026-09-15, et le mot compte. `loadfile` gardait
+# TOUS les tests d'un même fichier sur un même worker — une garantie donnée aux
+# 367 fichiers pour les quelques-uns qui en ont besoin, et le prix était un long
+# pôle : `tests/test_views_render_smoke.py` tenait 152,5 s à lui seul sur un
+# worker pendant que les autres finissaient. Sous `loadgroup`, la distribution se
+# fait test par test SAUF pour les fichiers portant `pytest.mark.xdist_group` —
+# la liste explicite des exceptions, justifiée fichier par fichier (voir le
+# marqueur dans `pyproject.toml`).
+#
+# Ce que ce changement retire : l'ordre intra-fichier n'est plus garanti. Un test
+# qui dépendait de son voisin devient un échec INTERMITTENT, la pire forme.
+# L'instrument qui le prouve est `pytest-randomly`, désactivé par défaut et
+# rallumé à la demande : `.venv/bin/python -m pytest tests/ -q -p randomly`.
+PYTEST_DIST := -n auto --dist loadgroup
 
-test:        ## Pytest suite (mêmes drapeaux que la CI) — test_api.py auto-skips if dev extras absent
+# ── Les tests qui ne lisent QUE des documents (2026-09-15) ──
+# Portés par `pytestmark = pytest.mark.docs`. La liste est ici en clair parce que
+# `--ignore` doit l'avoir AVANT la collecte : `-m "not docs"` collecte d'abord et
+# désélectionne ensuite, donc il ne fait pas économiser le coût dominant.
+#
+# Ce que ça retire, mesuré : 38,2 s, dont **32 s pour le seul
+# `test_the_gold_coverage_only_improves.py`**, qui recalcule toute la carte de la
+# couche or.
+#
+# La ROADMAP n'y est PAS, à dessein : `test_roadmap_index_is_honest.py`,
+# `test_roadmap_two_files.py` et `test_the_resume_header_is_checked.py` tiennent
+# l'état que `/resume` lit en premier — et le 2026-09-15 au matin, ce fichier
+# annonçait une tâche ouverte close depuis cinq jours. Ils tournent toujours.
+#
+# Garde de cohérence : `tests/test_the_doc_marker_matches_what_make_skips.py`
+# échoue si un fichier marqué `docs` manque à cette liste, ou l'inverse.
+DOC_TESTS := tests/test_error_class_index_is_complete.py \
+             tests/test_the_error_class_families_only_improve.py \
+             tests/test_the_gold_coverage_only_improves.py \
+             tests/test_the_views_map_lists_every_view.py
+DOC_IGNORE := $(foreach f,$(DOC_TESTS),--ignore=$(f))
+
+test:        ## Pytest suite COMPLÈTE (mêmes drapeaux que la CI) — la barrière avant de livrer
 	$(PYTHON) -m pytest tests/ -q $(PYTEST_DIST)
+
+test-fast:   ## La suite SANS les tests de documents (-38 s) — pour la boucle de code
+	@echo '⏩ sans les tests de documents — make test-docs les lance, make test lance tout.'
+	$(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) $(DOC_IGNORE)
+
+test-docs:   ## Seulement les tests de documents — à lancer après avoir mis les docs à jour
+	$(PYTHON) -m pytest $(DOC_TESTS) -q
 
 test-changed: ## Seulement les tests atteignables depuis ce qui a changé (règle 16)
 	@$(PYTHON) .claude/scripts/select_tests.py | grep -v '^#' | xargs $(PYTHON) -m pytest -q $(PYTEST_DIST)

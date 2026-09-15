@@ -26,8 +26,17 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 
-**L'index est vide.** **R108 a été livrée le 2026-09-14** — la dernière tâche qui
-y figurait, et avec elle l'index n'a plus de ligne. Elle tranchait entre exempter ou
+**R109 et R110 ont été livrées et déployées le 2026-09-16** — voir `archive.md`.
+Résultat mesuré : le mur du run `ci.yml` est passé d'une médiane de **427 s à 109 s**
+(run 35035830958, ×3,9), en séparant les portes statiques de la suite en 4 shards
+`pytest-split`. La prémisse de R110 — que le fichier le plus long dominait le temps de
+mur — s'est révélée **fausse** à la mesure : `loadgroup` (349,6 s) n'a pas battu
+`loadfile` (340,2 s), écart de 2,8 % dans le bruit. R110 a quand même livré quatre
+courses latentes fermées, condition nécessaire pour que R109 tienne sa promesse à
+quatre shards. Détail dans `archive.md`.
+
+**R108 a été livrée le 2026-09-14** — la dernière tâche qui
+y figurait, et avec elle l'index n'a plus eu de ligne jusqu'au 2026-09-15. Elle tranchait entre exempter ou
 compter les jointures de dimension dans le cliquet du bronze ; le critère retenu
 (« cette table porte-t-elle une quantité ADDITIVE ? ») a fait descendre le cliquet
 de 104 à 81 via un registre de 8 tables de dimension et la migration 121. Détail dans
@@ -45,10 +54,11 @@ closes et rotées dans `archive.md`, comme R89, R90 et R91 avant elles (critère
 double axe écrit et six figures triées, légende devenue le filtre de sources, PDF doté
 de la figure d'évolution multi-plateformes). Détail complet dans l'archive.
 
-**Aucune tâche ouverte ne reste dans cet index.** Seule R1 demeure, hors de l'index
-par construction — voir « 🙋 En attente de toi » plus bas : elle attend un geste
-humain (inviter la bêta), pas une ligne de code, et ne doit jamais être lue comme
-close.
+**Aucune tâche ouverte ne reste dans cet index, ni dans aucune autre section.** La
+table « 🙋 En attente de toi » plus bas est vide elle aussi depuis le 2026-09-10 :
+R1, sa dernière ligne, est rotée dans `archive.md`. Inviter la bêta est l'usage du
+produit, pas du travail d'ingénierie — une roadmap qui suit les gestes commerciaux de
+son propriétaire ne peut par construction jamais atteindre zéro.
 
 ⚠️ Ce paragraphe annonçait encore « quatre tâches rouvertes » le 2026-09-12, alors que
 les quatre étaient closes et l'index vide. Aucun garde ne pouvait le voir : l'ancre et
@@ -98,25 +108,49 @@ zéros de prédiction retirés. **ADR-020** clôt la question des deux vocabulai
 période : ils ne sont pas une duplication, ils répondent à deux questions — l'une
 calendaire, l'autre ancrée sur une sortie.
 
-Deux chantiers restent, et aucun n'est une tâche : la réconciliation des fuseaux de
-PUBLICATION (Spotify et Apple datent dans le leur ; 7,9 % des lignes YouTube changent de
-jour selon celui qu'on retient) demande une décision écrite avant d'être engagée, et la
-reprise des définitions encore recopiées se fait **au fil de l'eau** sous la règle de
-livraison d'ADR-019 — son avancement se lit dans le cliquet du bronze, pas ici.
+**Un seul chantier reste, et ce n'est pas une tâche** : la reprise des définitions
+encore recopiées, qui se fait **au fil de l'eau** sous la règle de livraison d'ADR-019
+— son avancement se lit dans le cliquet du bronze, pas ici.
 
-**R1** reste le seul geste humain, dans la section « 🙋 En attente de toi » plus bas :
-inviter la bêta. Aucune ligne de code ne la débloque.
+**La réconciliation des fuseaux de PUBLICATION a été retirée d'ici le 2026-09-15, et
+il faut lire pourquoi avant de la rouvrir.** Ce paragraphe la justifiait par « 7,9 %
+des lignes YouTube changent de jour selon le fuseau qu'on retient ». **Ce chiffre a
+été retiré comme faux le 2026-09-10 même** — il mélangeait deux ères sur une base
+locale — et la rétractation est écrite dans `error-classes.md`, dans `archive.md` et
+dans ADR-021 ; ce fichier-ci est le seul à l'avoir gardé cinq jours de plus. Recompté
+en production : **0 ligne sur 5 807** pour `collected_at` post-migration-019, les
+collectes nocturnes atterrissant à 10 h UTC, à plus de quatre heures de toute
+frontière de jour. ADR-021 tranche la question — chaque date déclare l'horloge qui l'a
+produite — et **désigne nommément cette tâche comme la forme dangereuse** : une
+harmonisation appliquée sans distinction déplacerait 267 jours calendaires déjà justes
+d'une journée entière. L'écart résiduel aux bords des journées de reporting de Spotify
+et d'Apple n'est pas corrigeable ; il est nommé par `UNRECONCILABLE_NOTE`, et
+l'effacer serait la faute.
+
+**Plus aucune tâche n'est ouverte**, ni dans l'index ci-dessus ni dans
+« 🙋 En attente de toi » plus bas : R1, le dernier geste humain, y a été rotée vers
+`archive.md` le 2026-09-10.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-14, ZÉRO tâche ouverte dans l'index (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-16, aucune tâche ouverte (à lire EN PREMIER au `/resume`)
 
 <!-- reprise: open= -->
 
-**L'index `## 📋 Tâches ouvertes` est vide** : R108, sa dernière ligne, a été livrée
-le 2026-09-14. **R1 reste en attente**, dans « 🙋 En attente de toi » plus bas, hors
-de l'index par construction — elle attend le geste de son propriétaire (inviter la
-bêta), pas du travail d'ingénierie, et n'est PAS close.
+**L'index `## 📋 Tâches ouvertes` est vide.** R109 (découper la CI en 4 shards) et R110
+(répartir le long pôle par `--dist loadgroup`) — les deux tâches qui l'avaient rouvert
+du 2026-09-15 au 2026-09-16 — sont livrées et déployées ; leur détail est dans
+`archive.md`.
+
+**La table « 🙋 En attente de toi » reste vide** depuis le 2026-09-10, R1 y ayant été
+rotée vers `archive.md`. Aucune tâche n'attend un geste humain.
+
+**Livrées le 2026-09-15, déjà dans `archive.md`** : **R111** (le ménage de la CI —
+apt mort, trois exécutions du même `--check`, l'étape `--fields` qui écrivait dans un
+fichier suivi, l'artefact de couverture que personne ne télécharge, `-v` qui faisait
+87 % du log) et **R112** (la sonde de production n'avait **rien exécuté pendant neuf
+jours** — `pytest-xdist` manquant à une liste tenue à la main ; la production allait
+bien, c'est l'instrument qui était cassé).
 
 ### La séance du 2026-09-13 (soir) — une coupure de courant, et ce qu'elle a révélé
 

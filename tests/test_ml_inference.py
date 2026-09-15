@@ -32,6 +32,12 @@ from src.utils.ml_inference import (
     score_song,
 )
 
+# Ce fichier mute un état de PROCESSUS partagé (sys.modules, un attribut de
+# classe, un fichier du dépôt). Sous `--dist loadgroup` ses tests restent donc
+# sur UN worker, comme le faisait `--dist loadfile` pour tout le monde.
+# Voir `.claude/dev-docs/test-suite-performance.md` et R110.
+pytestmark = pytest.mark.xdist_group("ml-inference")
+
 
 class _StubDB:
     """Minimal db whose fetch_query returns a fixed row set (no real Postgres)."""

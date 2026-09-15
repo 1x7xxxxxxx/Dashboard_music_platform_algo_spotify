@@ -24,7 +24,7 @@ import pytest
 
 from tests.db_gate import requires_live_db
 
-pytestmark = requires_live_db()
+pytestmark = [pytest.mark.xdist_group("tracks-hosted-elsewhere-are-collected"), requires_live_db()]
 
 
 @pytest.fixture

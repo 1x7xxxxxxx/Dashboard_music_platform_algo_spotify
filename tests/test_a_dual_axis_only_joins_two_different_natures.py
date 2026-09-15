@@ -37,6 +37,13 @@ from __future__ import annotations
 
 import ast
 import pathlib
+import pytest
+
+# Ce fichier mute un état de PROCESSUS partagé (sys.modules, un attribut de
+# classe, un fichier du dépôt). Sous `--dist loadgroup` ses tests restent donc
+# sur UN worker, comme le faisait `--dist loadfile` pour tout le monde.
+# Voir `.claude/dev-docs/test-suite-performance.md` et R110.
+pytestmark = pytest.mark.xdist_group("a-dual-axis-only-joins-two-different-natures")
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 _CHARTS = _ROOT / "src" / "dashboard" / "utils" / "pdf_charts.py"

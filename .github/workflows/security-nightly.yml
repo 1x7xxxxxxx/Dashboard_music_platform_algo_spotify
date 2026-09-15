@@ -95,3 +95,82 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # gitleaks-action writes its own Job Summary + SARIF artifact.
+
+  # ── La suite ENTIÈRE, en ordre aléatoire, avec la couverture (2026-09-16) ──────
+  #
+  # Deux choses vivent ici et nulle part ailleurs, et chacune a sa raison de ne pas
+  # être sur le chemin critique d'une PR.
+  #
+  # **L'ordre aléatoire.** `pytest-randomly` est l'instrument qui a trouvé, le
+  # 2026-09-15, que le cliquet des allers-retours SQL mesurait son VOISINAGE : son
+  # script vidait les caches en les NOMMANT, et `_cached_plan_row` n'était dans
+  # aucune liste. Le plafond de 13 ne tenait qu'en ordre de fichier. Il est
+  # désactivé par défaut (`addopts = "-p no:randomly"`) pour deux raisons mesurées :
+  # `pytest-split` répartit sur des durées indexées par node-id et suppose un ordre
+  # stable, et une suite qui change d'ordre à chaque exécution ne peut plus servir de
+  # référence chiffrée. Mais un détecteur qu'il faut penser à lancer à la main n'est
+  # pas un détecteur : il tourne donc ici, chaque nuit, non bloquant.
+  #
+  # **La couverture.** Elle était sur `Run tests` jusqu'à R109. Ce n'est pas son coût
+  # qui l'a déplacée — mesurée SUR LE RUNNER elle vaut +8 % (13 s), pas les ~30 %
+  # supposés deux fois — c'est que la couverture d'un quart de la suite ne veut rien
+  # dire, et que recombiner quatre rapports demanderait quatre artefacts et un
+  # cinquième job. Ici la suite tourne entière, une fois, et le rapport est complet.
+  # Le dépôt n'a jamais eu de `--cov-fail-under` : rien ne gatait, rien ne gate.
+  full-suite-random-order:
+    runs-on: ubuntu-latest
+    continue-on-error: true   # observational — never fail the workflow
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres  # pragma: allowlist secret — throwaway CI DB
+          POSTGRES_DB: spotify_etl
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d spotify_etl"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies from lockfile
+        run: uv sync --frozen --extra dev
+
+      - name: Provision Postgres (schema + migrations)
+        uses: ./.github/actions/provision-postgres
+
+      - name: Mint a throwaway Fernet key for this run
+        id: nightly_fernet
+        run: |
+          echo "key=$(python3 -c 'import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')" >> "$GITHUB_OUTPUT"
+
+      - name: Full suite, random order, with coverage (report to summary)
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/spotify_etl  # pragma: allowlist secret
+          AIRFLOW_USERNAME: ci
+          AIRFLOW_PASSWORD: ci-not-a-real-secret  # pragma: allowlist secret
+          FERNET_KEY: ${{ steps.nightly_fernet.outputs.key }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          {
+            echo "## Suite complète — ordre aléatoire + couverture (non bloquant)"
+            echo
+            echo '```'
+            uv run pytest tests/ -q --tb=short -n auto --dist loadgroup \
+              -p randomly --cov=src --cov-report=term-missing 2>&1 | tail -60 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

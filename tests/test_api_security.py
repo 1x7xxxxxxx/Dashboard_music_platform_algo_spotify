@@ -21,6 +21,12 @@ from src.api.main import app  # noqa: E402
 from src.api import security  # noqa: E402
 from src.api.deps import get_db  # noqa: E402
 
+# Ce fichier mute un état de PROCESSUS partagé (sys.modules, un attribut de
+# classe, un fichier du dépôt). Sous `--dist loadgroup` ses tests restent donc
+# sur UN worker, comme le faisait `--dist loadfile` pour tout le monde.
+# Voir `.claude/dev-docs/test-suite-performance.md` et R110.
+pytestmark = pytest.mark.xdist_group("api-security")
+
 
 @pytest.fixture()
 def client():

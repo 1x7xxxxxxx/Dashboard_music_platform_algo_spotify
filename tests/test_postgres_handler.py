@@ -1,8 +1,54 @@
-"""Unit tests — PostgresHandler (mocked psycopg2)."""
+"""Unit tests — PostgresHandler (mocked psycopg2).
+
+Ce que ces tests ont VRAIMENT fait pendant un temps (mesuré le 2026-09-16)
+-------------------------------------------------------------------------
+`_make_handler()` patche `src.database.postgres_handler.psycopg2.connect` et croit
+donc rendre un handler entièrement simulé. **Ce n'est vrai que si le pool de
+connexions du processus est désarmé.**
+
+`_connect()` demande d'abord `_borrow_from_pool()`. Quand le pool existe — et il
+existe dès qu'un test ANTÉRIEUR du même worker a appelé `get_db_connection()`, ce
+que font des dizaines de fichiers — la connexion vient du `ThreadedConnectionPool`,
+dont les sockets ont été ouverts AVANT que le patch existe. Le patch est donc
+contourné, et le handler tient un **vrai curseur Postgres**.
+
+Mesuré, sur le même interpréteur :
+
+    pool désarmé  -> type(handler.cursor) == MagicMock
+    pool armé     -> type(handler.cursor) == cursor        (le vrai)
+
+Ce fichier devenait alors un test d'INTÉGRATION qui se présente comme unitaire, et
+c'est la partie coûteuse : un vrai curseur répond à `execute` et à `fetchall`, donc
+23 de ses 24 tests passaient quand même — en affirmant sur la base ce qu'ils
+croyaient affirmer sur un mock. Un seul a rougi, `test_returns_rows`, parce qu'il
+pose un `.return_value` sur une méthode réelle :
+`AttributeError: 'builtin_function_or_method' object has no attribute 'return_value'`.
+
+Deux remèdes, et il en faut deux
+--------------------------------
+* la fixture ci-dessous rend ce fichier INDÉPENDANT de ses voisins : le pool est mis
+  de côté le temps de chaque test, puis remis. On ne le FERME pas (`disable_pool()`
+  couperait les connexions que d'autres tests tiennent) — on l'écarte ;
+* `_make_handler()` VÉRIFIE que le mock a pris. Sans cette assertion, la prochaine
+  façon de contourner le patch redeviendrait silencieuse, et le silence est le
+  défaut. Un test qui ment sur ce qu'il mesure est pire qu'un test absent.
+"""
 import pytest
 from unittest.mock import MagicMock, patch, PropertyMock
 
 from src.database.postgres_handler import PostgresHandler
+
+
+@pytest.fixture(autouse=True)
+def _no_pool_behind_the_mock():
+    """Le pool du processus est écarté : un mock ne doit pas tomber sur une vraie base."""
+    from src.database import postgres_handler as _ph
+    saved, saved_limits = _ph._POOL, _ph._POOL_LIMITS
+    _ph._POOL, _ph._POOL_LIMITS = None, None
+    try:
+        yield
+    finally:
+        _ph._POOL, _ph._POOL_LIMITS = saved, saved_limits
 
 
 # =============================================================================
@@ -18,8 +64,15 @@ def _make_handler():
         mock_connect.return_value = mock_conn
         handler = PostgresHandler(
             host="localhost", port=5433, database="test_db",
-            user="user", password="pass"
+            user="user", password="pass"  # pragma: allowlist secret
         )
+    assert isinstance(handler.cursor, MagicMock), (
+        f"le patch de psycopg2.connect a été CONTOURNÉ : `handler.cursor` est un "
+        f"{type(handler.cursor).__name__}, donc ce « test unitaire » parle à une VRAIE "
+        "base. Cause connue : le pool de connexions du processus était armé, et "
+        "`_connect()` emprunte au pool avant de regarder `psycopg2.connect`. "
+        "La fixture `_no_pool_behind_the_mock` existe pour ça — a-t-elle été retirée ?"
+    )
     return handler
 
 
@@ -61,7 +114,7 @@ class TestConnect:
             mock_conn = MagicMock()
             mock_conn.closed = False
             mock_connect.return_value = mock_conn
-            PostgresHandler(host="h", port=5432, database="db", user="u", password="p")
+            PostgresHandler(host="h", port=5432, database="db", user="u", password="p")  # pragma: allowlist secret
         assert mock_conn.autocommit is True
 
     def test_connect_failure_raises(self):
@@ -69,7 +122,7 @@ class TestConnect:
         with patch("src.database.postgres_handler.psycopg2.connect",
                    side_effect=psycopg2.OperationalError("refused")):
             with pytest.raises(psycopg2.OperationalError):
-                PostgresHandler(host="h", port=5432, database="db", user="u", password="p")
+                PostgresHandler(host="h", port=5432, database="db", user="u", password="p")  # pragma: allowlist secret
 
 
 # =============================================================================

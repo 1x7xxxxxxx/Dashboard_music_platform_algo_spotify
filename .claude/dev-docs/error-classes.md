@@ -108,6 +108,11 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-signature-anchored-on-a-location](#a-signature-anchored-on-a-location) | P3 | deterministic | guarded | none |
 | [a-ratchet-with-no-floor-under-its-population](#a-ratchet-with-no-floor-under-its-population) | P2 | deterministic | guarded | none |
 | [a-guard-that-sees-the-binding-not-the-application](#a-guard-that-sees-the-binding-not-the-application) | P3 | manual | reported | none |
+| [a-unit-test-that-borrows-a-real-connection-from-the-pool](#a-unit-test-that-borrows-a-real-connection-from-the-pool) | P2 | deterministic | guarded | none |
+| [a-cold-measurement-that-clears-caches-by-name](#a-cold-measurement-that-clears-caches-by-name) | P2 | deterministic | guarded | none |
+| [a-hook-shaped-function-pytest-never-calls](#a-hook-shaped-function-pytest-never-calls) | P2 | deterministic | guarded | none |
+| [a-blocking-hook-that-writes-its-reason-to-stdout](#a-blocking-hook-that-writes-its-reason-to-stdout) | P3 | manual | guarded | none |
+| [a-file-whose-tests-share-a-namespace](#a-file-whose-tests-share-a-namespace) | P3 | deterministic | guarded | none |
 | [an-exemption-that-outlives-what-it-exempted](#an-exemption-that-outlives-what-it-exempted) | P3 | deterministic | guarded | none |
 | [two-definitions-that-must-coincide-are-never-compared](#two-definitions-that-must-coincide-are-never-compared) | P2 | deterministic | guarded | none |
 | [a-partial-collection-becomes-a-baseline-level](#a-partial-collection-becomes-a-baseline-level) | P2 | deterministic | guarded | none |
@@ -390,6 +395,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-merged-branch-outlives-its-pull-request](#a-merged-branch-outlives-its-pull-request) | P4 | deterministic | guarded | none |
 | [a-verification-read-through-a-filtering-wrapper](#a-verification-read-through-a-filtering-wrapper) | P2 | manual | reported | none |
 | [a-document-slice-bounded-by-the-wrong-heading-level](#a-document-slice-bounded-by-the-wrong-heading-level) | P2 | deterministic | guarded | none |
+| [a-prose-claim-that-cannot-be-verified](#a-prose-claim-that-cannot-be-verified) | P3 | deterministic | guarded | none |
+| [a-timeout-reported-as-a-missing-thing](#a-timeout-reported-as-a-missing-thing) | P3 | deterministic | guarded | none |
+| [a-measurement-taken-under-self-inflicted-load](#a-measurement-taken-under-self-inflicted-load) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -5686,3 +5694,120 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-14: `guarded`. Signature **vue rouge dans LES DEUX SENS** — sonde toujours muette : 2 rouges ; sonde jamais muette : 2 rouges ; 6 verts après restauration. Une suppression d'alerte doit être éprouvée dans les deux directions : taire à tort retire le signal, garder à tort le noie.
   - 2026-09-14: la sonde est **conservatrice par construction** — requête en échec, aucune sortie connue, aucune mesure connue : tout doute GARDE l'alerte. Taire sur une supposition est strictement pire qu'une ligne bruyante, parce que ça retire le seul signal qu'une vraie panne produirait.
   - 2026-09-14: le dépôt a **exigé que la suppression soit délibérée**. `test_expected_silence` épinglait « seul Meta déclare un silence attendu ». L'épingle est devenue une TABLE portant, pour chaque source, la mesure qui la justifie : ajouter une ligne sans mesure échoue désormais. C'est le garde qui s'est amélioré en refusant le changement.
+
+## a-prose-claim-that-cannot-be-verified
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un document dont les TABLEAUX sont justes affirme le contraire dans la prose posée à côté, et rien ne le voit. Mesuré le 2026-09-15 sur `.claude/dev-docs/roadmap/checklist.md` : **trois phrases** annonçaient « R1 reste en attente, dans « 🙋 En attente de toi » plus bas » alors que cette table était vide depuis le 2026-09-10 et le disait elle-même quatre cents lignes plus bas, R1 ayant été rotée dans `archive.md`. Le même fichier portait aussi « 7,9 % des lignes YouTube changent de jour selon le fuseau », un chiffre **retiré comme faux le 2026-09-10 même** dans trois autres fichiers. C'est le premier fichier que lit `/resume` : la séance part donc d'un état faux, énoncé à voix haute.
+- root_cause: les gardes de ce dépôt lisent des STRUCTURES — tableaux, ancres, cases à cocher, AST. La prose n'est structurée par rien, donc elle n'est lue par rien, et elle est pourtant ce qu'un humain croit en premier. Quand une ligne est rotée d'une table, la table devient juste immédiatement et la phrase qui la commentait devient fausse au même instant, sans qu'aucune des deux ne change de forme. Le 2026-09-12 le même fichier annonçait « quatre tâches rouvertes » contre un index vide ; il nommait déjà cette classe dans son propre texte, **sans qu'elle existe dans ce catalogue** — nommer n'est pas garder.
+- long_term_fix: ne pas chercher à vérifier « cette phrase est-elle vraie » — indécidable — mais isoler la FORME de phrase qui est mécaniquement réfutable et n'en tolérer aucune fausse : une phrase qui **localise** un identifiant dans une section nommée. Le prédicat exige les trois marques dans une même phrase ET dans cet ordre — l'id, une préposition de lieu, le nom de la section — ce qui le distingue d'une phrase de DÉPART, où le nom de la section est sujet (« L'index `## 📋 Tâches ouvertes` est vide : R108, sa dernière ligne, a été livrée »). Toute prose qui compte ou situe doit compter ce que la structure compte ; à défaut, elle doit renvoyer à la structure au lieu de la paraphraser.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_roadmap_index_is_honest.py }
+- signature: `python3 -m pytest tests/test_roadmap_index_is_honest.py::test_no_prose_sentence_places_a_task_in_a_section_that_has_no_such_row -q`
+- rex_ref: —
+- first_seen: 2026-09-12 (ref: DEVLOG#2026-09-15)
+- History:
+  - 2026-09-12: première occurrence observée — « quatre tâches rouvertes » contre un index vide. Notée dans `checklist.md` avec son nom de classe, **jamais inscrite ici** : aucun garde n'en est sorti, et la classe a récidivé trois jours plus tard.
+  - 2026-09-15: `guarded`. Signature **vue rouge sur le défaut réel** — 3 phrases nommées, une par site, avant correction — et **verte** après réécriture des quatre paragraphes fautifs — les **10** tests du fichier au vert, recomptés par AST après qu'un balayage a pris ce chiffre en faute : j'avais écrit 16, qui était la somme de DEUX fichiers lancés dans la même commande. Une occurrence de la classe dans la description de la classe, trouvée le jour même de son écriture. Le prédicat est accompagné de `test_the_locating_claim_predicate_tells_arrival_from_departure`, qui l'épingle sur les deux formes tirées du fichier réel : il doit VOIR la phrase de placement et IGNORER la phrase de départ. Sans cette seconde assertion, un prédicat qui ne voit rien passerait sur un fichier entièrement faux.
+  - 2026-09-15: la portée est délibérément `checklist.md` seul. `archive.md` porte les mêmes tournures — « Ne reste que R1, dans « En attente de toi » plus bas » — mais au PASSÉ et par construction : c'est un journal de ce qui était vrai à sa date, que personne ne lit en routine. Étendre le garde à l'archive rendrait rouge un fichier correct, et un garde qui rougit sur du juste est un garde qu'on apprend à ignorer.
+
+## a-timeout-reported-as-a-missing-thing
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un outil annonce qu'une chose N'EXISTE PAS alors qu'il a seulement cessé de l'attendre. Mesuré le 2026-09-15 : `.claude/scripts/select_tests.py --dry` a répondu « **pas un dépôt git**, ou diff illisible » **dans ce dépôt git**, pendant qu'un `audit_runner --deterministic` lançait sur /mnt/c son lot de signatures déterministes — **297**, dont 287 sont des pytest. `git diff --name-only HEAD` y dépassait les 30 s du `timeout`, et la même valeur de repli qu'un répertoire sans `.git` remontait jusqu'au message.
+- root_cause: `_git()` attrapait `subprocess.SubprocessError` — dont `TimeoutExpired` est une sous-classe — et rendait `None`, la valeur qui signifiait déjà « pas de dépôt ». Deux pannes de natures opposées écrasées sur un seul repli : l'une est PERMANENTE et se corrige en changeant de répertoire, l'autre est TRANSITOIRE et se corrige en relançant au calme. Le VERDICT restait juste (suite entière, la direction sûre exigée par la règle transverse #16) ; c'est la RAISON qui mentait, et c'est elle qu'on lit.
+- long_term_fix: séparer les `except` et faire porter à chaque panne son propre message, au lieu de laisser une valeur de repli unique parler pour toutes. La règle générale : **une valeur de repli peut être partagée, un diagnostic jamais.** Un diagnostic qui nomme la mauvaise cause coûte plus cher qu'un diagnostic absent, parce qu'on le croit et qu'on cherche là où il pointe — ici, vérifier son dépôt au lieu de regarder la charge de la machine.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_the_selector_selects_what_changed.py }
+- signature: `python3 -m pytest tests/test_the_selector_selects_what_changed.py -k "timeout or without_git" -q`
+- rex_ref: —
+- first_seen: 2026-09-15 (ref: DEVLOG#2026-09-15)
+- History:
+  - 2026-09-15: `guarded`. Signature **vue rouge par mutation** — l'ancien message remis, `test_a_git_timeout_is_not_reported_as_a_missing_repository` échoue ; restauré, les deux passent. Le garde porte **deux moitiés opposées** : le délai dépassé ne doit PAS accuser le dépôt, et un dossier réellement sans `.git` doit toujours le dire. Sans la seconde, on satisfait la première en supprimant tout diagnostic — et on perd le message juste le jour où il est juste.
+  - 2026-09-15: **même famille que `two-silences-one-message`**, dont la leçon était déjà payée sur une surface utilisateur : deux causes qui appellent des gestes OPPOSÉS ne peuvent pas partager un texte. La classe est séparée parce que le site et le garde le sont — un outil de développement, pas une vue — mais la question à poser devant du code est la même : **ce repli unique répond-il à plusieurs pannes qui ne se corrigent pas pareil ?**
+  - 2026-09-15: le défaut ne se reproduit que **sous charge**, ce qui est la raison pour laquelle il a survécu. Il a été observé en vrai parce qu'un audit tournait en arrière-plan au même moment ; 30 s sont atteignables sur /mnt/c dès qu'une suite complète travaille à côté (cf. « ne jamais mesurer la perf depuis WSL »). Un garde qui n'existe que sous charge doit donc simuler la panne, jamais l'attendre : le test remplace `subprocess.run` par un `TimeoutExpired`.
+
+## a-measurement-taken-under-self-inflicted-load
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un chiffre de performance est mesuré pendant que d'autres processus LANCÉS PAR MOI occupent la machine, puis lu comme une propriété du système. **Trois occurrences le 2026-09-15, toutes le même jour** : (1) `pytest --collect-only` annoncé à **386,9 s** avec trois sous-agents Explore et un `audit_runner` en fond — **30,1 s** machine au repos, facteur **12,8** ; (2) un micro-banc donnant « `/mnt/c` est **3 568×** plus lent qu'ext4 », rapport ordinaire une fois seul ; (3) une suite `--dist loadgroup` annoncée **7× plus lente**, alors que **DEUX suites tournaient en même temps** — 16 workers xdist sur 8 cœurs logiques.
+- root_cause: le profil d'une machine SURCHARGÉE est indiscernable de celui d'une machine LENTE. `user 0m37s / sys 0m24s` pour 387 s de chronomètre ressemble exactement à un goulot d'entrées-sorties légitime — c'en est un, mais la file d'attente est la mienne. Et le déclencheur de la troisième occurrence est un piège en deux temps : **le log de pytest ne montre rien pendant les ~30 s de collecte**, ce qui ressemble à un processus mort, ce qui pousse à en relancer un second. Les deux tournent alors ensemble et se mesurent l'un l'autre.
+- long_term_fix: rendre la mesure **incapable** de démarrer sur une machine occupée, au lieu de compter sur la discipline. Un `.claude/scripts/measure.py` qui refuse de chronométrer tant qu'un `pytest`/`audit_runner`/agent tourne, et par lequel passent les commandes de référence. Tant qu'il n'existe pas, la parade est la ligne de contrôle inscrite dans la référence — et c'est elle que la signature garde. **La prudence seule ne suffit pas : les deux premières occurrences ont produit une mémoire disant « compter les processus lourds avant de chronométrer », et la troisième est arrivée quand même**, parce que le processus concurrent était le mien, lancé une minute plus tôt, donc invisible à l'attention.
+- autofix: none
+- guard: { type: ci-step, ref: .claude/dev-docs/test-suite-performance.md }
+- signature: `grep -q "processus lourds" .claude/dev-docs/test-suite-performance.md`
+- rex_ref: —
+- first_seen: 2026-09-15 (ref: DEVLOG#2026-09-15)
+- History:
+  - 2026-09-15: `guarded`. Signature **vue dans les deux sens** : `exit 0` sur l'arbre sain, `exit 1` après avoir retiré la ligne de contrôle de la référence, `exit 0` après restauration.
+  - 2026-09-15: **ce que cette signature garde, et ce qu'elle ne garde PAS.** Elle garde que la procédure de référence porte encore sa ligne de contrôle d'inactivité. Elle **ne peut pas** savoir si je l'ai réellement exécutée avant un chronomètre — aucune commande shell ne le peut, puisque le défaut est un geste et non un état du dépôt. C'est donc un garde de PROCÉDURE, délibérément modeste ; le garde d'EFFET est le `long_term_fix`, et il reste à écrire.
+  - 2026-09-15: **le coût réel de la troisième occurrence.** Elle allait faire fermer R110 (`--dist loadgroup`) comme « mesurée inutile » et revenir à `loadfile`, sur un chiffre entièrement produit par ma propre contention. Une mesure fausse ne coûte pas le temps de la refaire : elle coûte la DÉCISION qu'on prend dessus, et celle-ci était l'abandon d'un chantier.
+  - 2026-09-15: voisine de `a-timeout-reported-as-a-missing-thing`, née le même jour de la même charge — là, `git diff` dépassait 30 s sous la même contention et `select_tests.py` accusait le dépôt. Les deux se lisent ensemble : **la charge de fond ne ralentit pas seulement les mesures, elle fait mentir les diagnostics.**
+
+## a-unit-test-that-borrows-a-real-connection-from-the-pool
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un fichier de tests UNITAIRES, qui patche `psycopg2.connect` et se croit entièrement simulé, parle en réalité à la base de production locale. Il passe quand même — jusqu'au jour où un test pose un `.return_value` sur une méthode réelle : `AttributeError: 'builtin_function_or_method' object has no attribute 'return_value'`.
+- root_cause: `PostgresHandler._connect()` demande d'abord `_borrow_from_pool()`. Le pool existe dès qu'un test ANTÉRIEUR du même worker a appelé `get_db_connection()` — ce que font des dizaines de fichiers — et ses sockets ont été ouverts par `ThreadedConnectionPool` AVANT que le patch existe. Le patch est donc contourné sans rien dire. Mesuré dans pytest le 2026-09-16 : `POOL= True  CURSOR= cursor`. 23 des 24 tests du fichier passaient quand même, un vrai curseur répondant à `execute` et à `fetchall` : ils affirmaient sur la BASE ce qu'ils croyaient affirmer sur un mock.
+- long_term_fix: deux gestes, et il en faut deux. Une fixture autouse qui ÉCARTE le pool du processus le temps de chaque test (`_POOL`/`_POOL_LIMITS` mis de côté puis remis — jamais `disable_pool()`, qui couperait les connexions que d'autres tests tiennent), et une assertion dans le constructeur de mock qui rend tout contournement futur BRUYANT : `assert isinstance(handler.cursor, MagicMock)`. La forme générale : **un test qui monte une doublure doit VÉRIFIER que la doublure a pris**, parce qu'une doublure contournée ne se signale jamais.
+- autofix: none
+- signature: `python3 -m pytest tests/test_postgres_handler.py -q`
+- guard: { type: pytest, ref: tests/test_postgres_handler.py }
+- rex_ref: tests/test_postgres_handler.py
+- first_seen: 2026-09-16
+
+## a-cold-measurement-that-clears-caches-by-name
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un cliquet qui affirme mesurer « à froid » rend un nombre DIFFÉRENT selon ce qui a tourné avant lui dans le même processus. Il passe en ordre de fichier et tombe en ordre aléatoire — ou l'inverse.
+- root_cause: sa purge énumère les caches PAR LEUR NOM. L'énumération se périme dès qu'un cache est ajouté au chemin chaud, et le cliquet se remet alors à mesurer son voisinage. Mesuré le 2026-09-16, trois rendus successifs dans un processus neuf : l'accueil `artist` rend **14, 13, 13** — `_cached_plan_row` (`auth.py`, `@st.cache_data`, écrit le 2026-09-03 avec `plan_resolver`) n'était dans aucune liste. Le plafond de 13 avait donc été gelé sur un cache CHAUD. `admin` rend 13, 13, 13 : `get_artist_plan()` répond `premium` sans toucher la base pour un admin, et cette asymétrie EST la preuve de la cause. Troisième fois pour ce fichier — les deux précédentes avaient été corrigées en AJOUTANT un nom à la liste.
+- long_term_fix: ne pas énumérer : `st.cache_data.clear()` ne peut pas se périmer. Et surtout, garder la PROPRIÉTÉ et non sa valeur — un test qui compare un processus déjà chaud (réchauffé délibérément, quel que soit l'ordre) à un processus NEUF ouvert en sous-processus. La première version de ce garde comparait deux rendus en mémoire et est restée VERTE sur la mutation, ses voisins ayant déjà réchauffé le cache.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_page_asks_the_same_question_once.py::test_the_count_does_not_depend_on_its_neighbourhood -q`
+- guard: { type: pytest, ref: tests/test_a_page_asks_the_same_question_once.py::test_the_count_does_not_depend_on_its_neighbourhood }
+- rex_ref: tests/test_a_page_asks_the_same_question_once.py
+- first_seen: 2026-09-16
+
+## a-hook-shaped-function-pytest-never-calls
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une fonction porte la signature exacte d'un hook pytest, son corps fait le travail d'un hook, et elle n'est JAMAIS appelée. Rien ne le signale : il n'y a ni erreur, ni avertissement, ni test rouge — seulement un comportement qui n'arrive pas.
+- root_cause: pytest collecte ses hooks sur le nom EXACT. `_pytest_terminal_summary_db` porte un préfixe `_` et un suffixe `_db` : les deux suffisent à le rendre invisible. Ce qu'il devait crier est documenté vingt lignes au-dessus de lui : « 163 skipped défile et vert ne défile pas », après quatre vagues de correctifs d'isolation locataire écrites, gardées et COMMITÉES contre un vert obtenu sans base, puis démenties dès Postgres démarré (« 1065 passed » → « 1217 passed, 1 FAILED »). Le garde écrit contre ce défaut était lui-même débranché.
+- long_term_fix: un prédicat qui lit les noms de hooks chez pytest (`_pytest.hookspec`, plus `xdist.newhooks`) au lieu d'une liste tenue à la main, et qui refuse toute fonction dont le nom, privé de ses `_`, ÉGALE un hook **ou commence par lui**. Le préfixe compte : la première version exigeait l'égalité et est restée verte sur le défaut réel, dont le nom portait un suffixe. Deux fonctions ne pouvant pas partager un nom dans un module, le remède est d'APPELER la moitié orpheline depuis le vrai hook, pas de la renommer.
+- autofix: none
+- signature: `python3 -m pytest tests/test_a_pytest_run_carries_what_the_conftest_needs.py::test_no_function_wears_a_hook_name_pytest_will_never_call -q`
+- guard: { type: pytest, ref: tests/test_a_pytest_run_carries_what_the_conftest_needs.py::test_no_function_wears_a_hook_name_pytest_will_never_call }
+- rex_ref: tests/conftest.py
+- first_seen: 2026-09-16
+
+## a-blocking-hook-that-writes-its-reason-to-stdout
+- status: guarded
+- severity: P3
+- kind: manual
+- symptom: un hook PreToolUse bloque une commande et l'appelant ne voit AUCUN motif : l'outil rapporte « No stderr output ». La porte est fermée, la raison est invisible, et il faut relancer le hook à la main — avec une ligne de commande construite pour ne pas se redéclencher elle-même — juste pour lire le message.
+- root_cause: le contrat PreToolUse de Claude Code est : `exit 2` bloque, et c'est **stderr** qui remonte le motif au modèle. `pre_commit_scan.py` écrivait son bloc « 🚫 BLOCKED » avec un `print()` nu, donc sur stdout, où il est avalé. Le défaut est resté invisible tant qu'aucun fichier ne déclenchait le scanner ; il est apparu le 2026-09-16 sur un faux positif — un mot de passe littéral, argument d'un mock passé à un `psycopg2.connect` patché.
+- long_term_fix: tout chemin de BLOCAGE d'un hook écrit sur `sys.stderr`, et son message nomme l'échappatoire. Ici : `# pragma: allowlist secret`, la convention que `detect-secrets` et `.secrets.baseline` utilisent déjà — deux scanneurs, UNE convention, faute de quoi la seconde se fait ignorer.
+- autofix: none
+- signature: `python3 -c "import ast,sys; t=ast.parse(open('.claude/hooks/pre_commit_scan.py').read()); sys.exit(0 if any(isinstance(n,ast.Call) and getattr(n.func,'id','')=='print' and any(k.arg=='file' for k in n.keywords) for n in ast.walk(t)) else 1)"`
+- guard: { type: script, ref: .claude/hooks/pre_commit_scan.py }
+- rex_ref: .claude/hooks/pre_commit_scan.py
+- first_seen: 2026-09-16
+
+## a-file-whose-tests-share-a-namespace
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: sous une distribution test-par-test (`--dist loadgroup`, ou des shards), deux tests d'un MÊME fichier tournent en parallèle et se disputent un nom qu'ils croyaient à eux. L'échec est intermittent et, pire, il se déguise : l'assertion rouge parle d'autre chose que de la course.
+- root_cause: le fichier partage un espace de noms entre ses propres tests — un dossier du dépôt, un préfixe de slug, un identifiant de locataire, un nom de fichier horodaté à la seconde. Sous `--dist loadfile` l'ordre du fichier le masquait. Quatre occurrences mesurées le 2026-09-15, et la plus instructive est `test_registration_is_not_an_oracle` : le nom d'artiste par défaut de son helper est fixe, le slug en dérive et se déduplique en `oracle-probe-N`, Postgres rend `duplicate key … (slug)=(oracle-probe-12)`, l'inscription échoue — et le test lit cet échec comme « un code invalide a annulé l'inscription », **le contraire de la vérité**.
+- long_term_fix: `pytest.mark.xdist_group` sur le fichier, posé à partir d'une MESURE et jamais d'une intuition : 27 fichiers en portaient un avant, choisis à l'instinct, et aucune des quatre courses n'y était. La liste des exceptions se justifie fichier par fichier, et le seul moyen honnête de l'établir est de lancer la suite jusqu'à trois exécutions vertes d'affilée, en fermant ce qui rougit. `pytest-randomly` (`-p randomly`) répond à la moitié ORDRE de la question sans parallélisme, ce qui la rend diagnosticable.
+- autofix: none
+- signature: `python3 -m pytest tests/test_registration_is_not_an_oracle.py tests/test_canary_onboarding_walk.py tests/test_an_imported_file_survives_its_import.py -q -n auto --dist loadgroup`
+- guard: { type: pytest, ref: .github/workflows/ci.yml }
+- rex_ref: tests/test_registration_is_not_an_oracle.py
+- first_seen: 2026-09-16

@@ -5,6 +5,182 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-16 — La CI passe de 7 min à 1 min 49, et deux énoncés de la roadmap tombent
+
+### Ce qui a changé
+
+- **La CI est découpée** : un job de quinze étapes en file devient `gates` (statique,
+  ni Postgres ni suite) et `suite` (matrice de 4 shards `pytest-split`), **sans aucun
+  `needs:` entre eux**. Mur mesuré : médiane **427 s** sur 18 runs verts → **109 s**.
+  Shards équilibrés à 64 / 92 / 100 / 106 s grâce à `.test_durations` versionné.
+- **La porte de la base ne tire plus Streamlit** : `import src.dashboard.utils` passe
+  de **5,30 s à 0,21 s**, soit la référence brute de `postgres_handler`. `logo_html` et
+  son `@st.cache_data` déménagent dans `utils/branding.py` — un décorateur s'évalue à
+  l'import, et c'était la seule raison.
+- **La couverture quitte le chemin critique** pour la passe nocturne, où la suite tourne
+  entière ET en ordre aléatoire (`pytest-randomly`). Motif : la couverture d'un quart de
+  la suite ne veut rien dire ; ce n'est pas le retrait refusé deux fois (+8 %, 13 s).
+- **Cinq défauts trouvés en mesurant**, chacun avec son garde muté rouge.
+- **16 fichiers** ont vu leur `_db_ready()` recopié (19 lignes, une connexion Postgres à
+  l'IMPORT) remplacé par un alias sur `tests/db_gate.py`.
+
+### Les deux énoncés démentis
+
+1. **R110 était justifiée par un chemin critique qui n'en est pas un.** « 152,5 s pour
+   un seul fichier tenu par un seul worker sous `loadfile` » est vrai du fichier, faux
+   du mur : mesuré en alternance, `loadfile` rend **340,2 s** et `loadgroup` **349,6 s**
+   — 2,8 %, sous le seuil de ±40 %. À 8 workers, les autres absorbent le pôle. La brique
+   se justifie autrement : elle a révélé **quatre courses latentes**, et elle est la
+   condition pour que le sharding rende (à 4 shards le pôle DEVIENT dominant).
+2. **`tests/test_postgres_handler.py` n'était pas un test unitaire.** Il patche
+   `psycopg2.connect`, mais `_connect()` emprunte d'abord au pool du processus, dont les
+   sockets précèdent le patch. Mesuré dans pytest : `POOL= True  CURSOR= cursor`. 23 de
+   ses 24 tests passaient quand même — un vrai curseur répond à `execute` et `fetchall`
+   — en affirmant sur la base ce qu'ils croyaient affirmer sur un mock.
+
+### Les défauts, et ce qu'ils coûtaient
+
+| Défaut | Ce qu'il coûtait |
+|---|---|
+| `_cached_plan_row` absent de toute purge | le cliquet des allers-retours SQL mesurait son VOISINAGE, 3ᵉ fois pour ce fichier. 14 à froid, 13 à chaud ; le plafond avait été gelé sur le second |
+| `_pytest_terminal_summary_db`, préfixe `_` | la bannière « GARDES NON EXÉCUTÉS » n'a jamais crié. C'est le garde écrit contre 4 vagues de correctifs commitées sur un vert obtenu sans base |
+| doublure de module jamais rendue dans un script `AppTest` | 3ᵉ occurrence du mécanisme ; les deux premières corrigées à la main, sans garde |
+| `pre_commit_scan.py` écrivait son blocage sur stdout | le contrat PreToolUse remonte stderr : porte fermée **sans motif visible** |
+| 4 courses sous `loadgroup` | dont une où le test lisait `duplicate key … (slug)=(oracle-probe-12)` comme « un code invalide a annulé l'inscription » — le contraire de la vérité |
+
+### Ce que la nuit a appris sur les gardes
+
+**Deux gardes neufs sont restés VERTS sur leur première mutation**, et c'est la moitié
+utile de la séance. Le premier comparait deux rendus en mémoire — ses voisins avaient
+déjà réchauffé le cache ; il compare désormais un processus chaud à un processus NEUF
+ouvert en sous-processus. Le second exigeait l'égalité exacte d'un nom de hook alors
+que le défaut portait un SUFFIXE (`_pytest_terminal_summary_db`) ; élargi au préfixe.
+
+Et **trois fois dans la nuit, écrire SUR un défaut a déclenché le garde du défaut** :
+un garde qui lisait la première ligne de `ci.yml` contenant « pytest tests/ » a rougi
+sur un commentaire ; `detect-secrets` a bloqué un commentaire qui citait le littéral
+qu'il expliquait. La réponse est de reformuler ou de lire la STRUCTURE, jamais de
+marquer de la prose comme une exception.
+
+---
+
+## 2026-09-15 — La prose du fichier que `/resume` lit en premier
+
+### Ce qui a changé
+
+- **Quatre paragraphes de `.claude/dev-docs/roadmap/checklist.md` réécrits.** Trois
+  affirmaient « R1 reste en attente, dans « 🙋 En attente de toi » plus bas » ; cette
+  table était **vide depuis le 2026-09-10** et le disait elle-même quatre cents lignes
+  plus bas, R1 y ayant été rotée vers `archive.md`. Le quatrième justifiait un chantier
+  par un chiffre retiré comme faux cinq jours plus tôt.
+- **Un garde neuf**, `test_no_prose_sentence_places_a_task_in_a_section_that_has_no_such_row`,
+  dans `tests/test_roadmap_index_is_honest.py`, avec sa non-vacuité.
+- **La classe `a-prose-claim-that-cannot-be-verified` inscrite au catalogue** — elle y
+  manquait, alors que `checklist.md` la nommait depuis le 2026-09-12.
+- **Une deuxième classe, trouvée en chemin** : `a-timeout-reported-as-a-missing-thing`.
+  `select_tests.py` annonçait « pas un dépôt git » **dans ce dépôt**, parce que son
+  `except subprocess.SubprocessError` avalait le `TimeoutExpired`.
+- Les deux vérifications périmées relancées : `payload` verte et horodatée, `fleet`
+  rouge sur un dépôt tiers (voir plus bas — elle ne peut pas se blanchir).
+
+### Le défaut n'était visible dans aucune structure
+
+Ce dépôt garde des structures : tableaux, ancres, cases à cocher, AST. Le tableau de
+l'index était juste — vide. La table « En attente de toi » était juste — vide, avec sa
+propre phrase disant pourquoi. `archive.md` portait bien `## 🎬 R1 — Ouvrir la bêta
+privée (rotée le 2026-09-10)`. **Les trois structures s'accordaient, et les trois
+phrases posées à côté disaient l'inverse.** Rien ne pouvait le voir, parce que rien ne
+lit la prose — et la prose est ce qu'un humain croit en premier. `/resume` a donc
+annoncé R1 comme la dernière tâche ouverte du dépôt, cinq jours après sa rotation.
+
+C'est la deuxième récidive : le 2026-09-12, le même fichier annonçait « quatre tâches
+rouvertes » contre un index vide. La leçon avait été écrite **dans le fichier lui-même,
+sous le nom de la classe** — et n'avait produit aucun garde. Nommer n'est pas garder.
+
+### Ce qui est mécanisable n'est pas « cette phrase est-elle vraie »
+
+Indécidable. Ce qui l'est, c'est une FORME de phrase réfutable : celle qui **localise**
+un identifiant dans une section nommée. Le prédicat exige les trois marques dans une
+même phrase et dans cet ordre — l'id, une préposition de lieu, le nom de la section.
+L'ordre est ce qui le sépare d'une phrase de DÉPART, où le nom de la section est sujet :
+« L'index `## 📋 Tâches ouvertes` est vide : R108, sa dernière ligne, a été livrée ».
+Celle-là dit le contraire et doit passer. Première version sans la contrainte d'ordre :
+4 correspondances dont 3 fausses. Avec : **3 correspondances, les 3 vraies, 0 fausse.**
+
+La non-vacuité épingle les deux formes tirées du fichier réel — voir l'arrivée, ignorer
+le départ. Sans elle, un prédicat qui ne voit rien passerait sur un fichier tout faux.
+
+### Le chantier des fuseaux ne devait pas être engagé — il devait être retiré
+
+C'était la suite que j'allais proposer. La prémisse écrite ici était « 7,9 % des lignes
+YouTube changent de jour selon le fuseau qu'on retient ». **Ce chiffre a été retiré
+comme faux le 2026-09-10 même**, et la rétractation est écrite dans trois fichiers :
+`error-classes.md`, `archive.md` et ADR-021. Il mélangeait deux ères sur une base
+locale. Recompté en production : **0 ligne sur 5 807** pour `collected_at`
+post-migration-019 — les collectes nocturnes atterrissent à 10 h UTC, à plus de quatre
+heures de toute frontière de jour, marge minimale mesurée 15 199 s.
+
+`checklist.md` était le seul fichier à l'avoir gardé. Et ADR-021 ne se contente pas de
+trancher la question : il **désigne nommément cette tâche comme la forme dangereuse** —
+une harmonisation appliquée sans distinction déplacerait 267 jours calendaires déjà
+justes d'une journée entière. Engager le chantier aurait été une régression, autorisée
+par une prémisse que le dépôt savait fausse depuis cinq jours.
+
+### Le balayage m'a pris en faute sur ma propre entrée de catalogue
+
+`sibling-sweeper`, lancé avant d'écrire le fix, a mesuré que ma ligne d'historique
+disait « 16 tests du fichier au vert » quand le fichier en porte **10** — mon 16 était
+la somme de deux fichiers lancés dans la même commande. Une occurrence de la classe
+`a-prose-claim-that-cannot-be-verified` **dans la description de cette classe**,
+trouvée le jour de son écriture. Corrigé, recompté par AST.
+
+Il a aussi confirmé ce qu'aucun des trois tests de roadmap ne faisait : `test_roadmap_two_files.py`
+ne lit que des cases à cocher, `test_the_roadmap_time_is_computed_not_typed.py` ne
+touche même pas la roadmap (c'est la durée d'onboarding — un faux ami), et
+`test_roadmap_index_is_honest.py` ne lisait de la prose que pour les comptes de tests.
+
+### L'outil de la règle #16 accusait le dépôt pour une machine chargée
+
+En voulant appliquer la règle transverse #16 — lancer `select_tests.py` plutôt que la
+suite entière — je l'ai vu répondre « **pas un dépôt git**, ou diff illisible » dans un
+dépôt git parfaitement sain. Vérifié : `git rev-parse` rend 0, `git diff` rend la liste.
+Le message n'était vrai à aucun moment.
+
+La cause est que `_git()` attrapait `subprocess.SubprocessError`, dont `TimeoutExpired`
+est une sous-classe, et rendait la même valeur qu'un répertoire sans `.git`. Le
+déclencheur était l'`audit_runner --deterministic` que j'avais lancé en arrière-plan :
+**297** signatures déterministes sur /mnt/c, dont 287 pytest — et `git diff --name-only
+HEAD` dépasse alors les 30 s du timeout.
+
+**Le verdict était juste** — suite entière, la direction sûre, celle que la règle exige
+quand le sélecteur ne peut pas conclure. C'est la RAISON qui mentait, et c'est elle
+qu'on lit : on va vérifier son dépôt au lieu de regarder la charge. Deux pannes de
+natures opposées — l'une permanente, l'autre transitoire — écrasées sur un repli unique.
+Même famille que `two-silences-one-message`, déjà payée sur une surface utilisateur : un
+repli peut être partagé, un diagnostic jamais.
+
+Les `except` sont séparés, chaque panne porte son message, et le garde a **deux moitiés
+opposées** : le délai dépassé ne doit pas accuser le dépôt, et un dossier réellement sans
+`.git` doit toujours le dire. Sans la seconde, on satisfait la première en supprimant
+tout diagnostic. Mutation : rouge en remettant l'ancien message, verte après restauration.
+
+Le défaut ne se reproduit que **sous charge** — c'est pourquoi il a survécu, et pourquoi
+le test simule le `TimeoutExpired` au lieu de l'attendre.
+
+### `fleet` est rouge, pas périmée — et la ligne de démarrage le dit mal
+
+`staleness.py` annonce « fleet 13 j, PÉRIMÉ, à relancer ». Relancé : il tourne, et
+`streamlytics` est verte sur ses 8 colonnes. Mais `verify_loop_wiring.py` n'horodate que
+si les **neuf** dépôts sont verts, et `optimisation_pc` est KO — vérifié, il n'a pas de
+`.claude/workflows/` du tout, donc « INJECTION MUETTE sur un prompt de bug » et « AUCUN
+playbook ». Conséquence : la ligne dira « PÉRIMÉ, relance-la » à chaque démarrage, la
+commande réussira sur son sujet, et l'âge continuera de croître. C'est la forme de
+`stamp-hostage-to-a-foreign-subject`, déjà corrigée une fois dans `validate_payload.py`
+— à ceci près qu'`optimisation_pc` n'est pas un sujet étranger : il est bien dans la
+flotte, et son rouge est mérité. Le correctif est donc dans l'autre dépôt (lui déposer
+les playbooks), pas dans le garde. Noté ici parce que la ligne de démarrage, elle,
+ment sur la NATURE du problème : elle dit « vieux » là où il faut lire « rouge ».
+
 ## 2026-09-14 (soir) — R108 clos par sa propre mesure, et l'index tombe à zéro
 
 ### Ce qui a changé

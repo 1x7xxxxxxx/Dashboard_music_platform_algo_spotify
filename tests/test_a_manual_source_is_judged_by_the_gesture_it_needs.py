@@ -51,8 +51,8 @@ def _dsn() -> dict | None:
 
 
 _CONN = _dsn()
-pytestmark = pytest.mark.skipif(
-    _CONN is None, reason=f"No Postgres on {_DB_HOST}:{_DB_PORT} — la sonde lit la base")
+pytestmark = [pytest.mark.xdist_group("a-manual-source-is-judged-by-the-gesture-it-needs"), pytest.mark.skipif(
+    _CONN is None, reason=f"No Postgres on {_DB_HOST}:{_DB_PORT} — la sonde lit la base")]
 
 
 class _Db:

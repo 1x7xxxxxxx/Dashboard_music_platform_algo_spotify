@@ -33,7 +33,15 @@ import pytest
 
 from tests.db_gate import requires_live_db
 
-pytestmark = requires_live_db()
+# Ce fichier partage un ÉTAT MUTABLE entre ses propres tests : des lignes `saas_artists` du préfixe `walk-canary-%`. Sous
+# `--dist loadgroup` les tests d'un fichier se distribuent test par test, donc deux
+# d'entre eux tournent en parallèle sur des workers différents. Mesuré le 2026-09-15,
+# suite complète : `test_the_walk_leaves_nothing_behind` a compté **1** locataire restant
+# alors que c'est `test_the_whole_chain_composes`, encore en cours sur un autre worker,
+# qui le tenait — l'assertion de propreté parlait d'un voisin, pas d'une fuite.
+# Le marqueur les remet sur UN worker — c'est exactement ce à quoi il sert, et la
+# liste des exceptions se justifie fichier par fichier (`pyproject.toml`).
+pytestmark = [pytest.mark.xdist_group("canary-onboarding-walk"), requires_live_db()]
 
 
 @pytest.fixture

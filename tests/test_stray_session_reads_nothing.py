@@ -24,7 +24,7 @@ import pytest
 
 from tests.db_gate import requires_live_db
 
-pytestmark = requires_live_db()
+pytestmark = [pytest.mark.xdist_group("stray-session-reads-nothing"), requires_live_db()]
 
 # Views that read tenant-scoped data. A view absent from this list is either
 # tenant-free by nature (useful_links, process_guide, upgrade) or admin-only, where

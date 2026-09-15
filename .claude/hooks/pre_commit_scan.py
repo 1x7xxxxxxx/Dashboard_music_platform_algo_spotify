@@ -17,6 +17,14 @@ rex:
     issue: "pre_commit_scan manquait de pattern PG_PASSWORD/POSTGRES_PASSWORD hardcodés depuis bascule PG-only"
     fix: "Ajouté 2 regex PG_PASSWORD= et POSTGRES_PASSWORD= dans SECRET_PATTERNS; INFLUX_TOKEN conservé défensif"
     severity: warn
+  - date: 2026-09-16
+    issue: "Le blocage écrivait son motif sur stdout. Le contrat PreToolUse remonte stderr : l'outil rapportait « No stderr output » et l'appelant voyait une porte fermée sans aucune raison."
+    fix: "print(..., file=sys.stderr) sur le chemin de blocage, et le message nomme désormais l'échappatoire."
+    severity: crit
+  - date: 2026-09-16
+    issue: "Aucune exemption possible : un littéral `password=` argument d'un mock, dans tests/test_postgres_handler.py, bloquait le commit comme un vrai secret."
+    fix: "Le scanner honore `# pragma: allowlist secret`, la convention déjà utilisée par detect-secrets et .secrets.baseline — une seule à retenir pour deux scanneurs."
+    severity: warn
 ---
 """
 
@@ -96,6 +104,21 @@ def scan_file(filepath: str, content: str) -> tuple[list[str], list[str]]:
         stripped = line.strip()
         if stripped.startswith("#") or "os.getenv" in line or "os.environ" in line:
             continue
+        # `# pragma: allowlist secret` — la convention de `detect-secrets`, déjà
+        # posée dans `.github/workflows/ci.yml` et reconnue par `.secrets.baseline`.
+        # Deux scanneurs, UNE convention : un dépôt qui en demanderait deux se
+        # ferait ignorer par la seconde. Le cas vivant est
+        # `tests/test_postgres_handler.py`, dont les mots de passe littéraux sont des
+        # arguments de mock passés à un `psycopg2.connect` patché.
+        #
+        # Ce commentaire a lui-même été bloqué par `detect-secrets` dans sa première
+        # rédaction : il CITAIT le littéral qu'il explique. C'est la classe
+        # « écrire sur un geste déclenche le garde du geste », que ce dépôt a déjà
+        # payée trois fois. La bonne réponse est de reformuler — marquer de la PROSE
+        # d'un `pragma` reviendrait à déclarer un secret toléré là où il n'y en a pas,
+        # et à user le marqueur jusqu'à ce que plus personne ne le lise.
+        if "pragma: allowlist secret" in line:
+            continue
         for pattern, label in SECRET_PATTERNS:
             if re.search(pattern, line, re.IGNORECASE):
                 secrets.append(f"  {filepath}:{i} — {label}\n    → {stripped[:80]}")
@@ -152,12 +175,24 @@ def main() -> None:
 
     # ── Block on secrets ──────────────────────────────────────────────────────
     if all_secrets:
+        # ── stderr, PAS stdout (corrigé le 2026-09-16) ──
+        # Le contrat PreToolUse de Claude Code est : `exit 2` bloque, et c'est
+        # **stderr** qui remonte le motif au modèle. Écrit sur stdout, ce bloc était
+        # avalé : l'outil rapportait « No stderr output » et l'appelant voyait une
+        # porte fermée SANS raison. Un garde qui arrête le travail sans le dire coûte
+        # plus qu'il ne protège — il a fallu relancer le hook à la main, avec une
+        # ligne de commande construite pour ne pas se redéclencher elle-même, juste
+        # pour LIRE le message.
         print(
             "🚫 BLOCKED — Hardcoded secrets detected in staged files:\n"
             + "\n".join(all_secrets)
             + "\n\nFix: Move secrets to environment variables (.env file).\n"
             "  Example: password = os.getenv('SMTP_PASSWORD')\n"
-            "  Ensure .env is in .gitignore."
+            "  Ensure .env is in .gitignore.\n"
+            "  Faux positif (argument d'un mock, littéral de test) : ajouter\n"
+            "  `# pragma: allowlist secret` en fin de ligne — la MÊME convention que\n"
+            "  `.secrets.baseline` / detect-secrets, pas une seconde à retenir.",
+            file=sys.stderr,
         )
         sys.exit(2)
 

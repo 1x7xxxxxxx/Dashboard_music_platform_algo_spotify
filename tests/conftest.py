@@ -1,4 +1,5 @@
 """Fixtures partagées pour tous les tests."""
+import importlib.util
 import io
 import sys
 import os
@@ -75,8 +76,24 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
             tw.write_line(f"    {name} → {GATED[name][1]}")
         tw.write_line(f"    (interpréteur utilisé : {__import__('sys').executable})")
 
+    # ── ET LA MOITIÉ BASE, qui n'a JAMAIS été appelée (corrigé le 2026-09-15) ──
+    # `_db_terminal_summary` porte la signature d'un hook et le préfixe `_`
+    # d'une fonction privée. pytest ne collecte que les noms EXACTS de ses hooks :
+    # cette bannière-là n'a donc pas crié une seule fois depuis qu'elle existe.
+    #
+    # Ce qu'elle devait crier est exactement ce que le bloc de commentaire ci-dessus
+    # documente : quatre vagues de correctifs d'isolation locataire écrites, gardées
+    # et COMMITÉES contre un vert obtenu sans base, puis démenties dès Postgres
+    # démarré (« 1065 passed » → « 1217 passed, 1 FAILED »). Le garde écrit contre ce
+    # défaut était lui-même débranché — « du code correct que rien n'atteint ».
+    #
+    # Deux fonctions ne peuvent pas porter le même nom dans un module : la moitié
+    # base est donc APPELÉE d'ici, et non renommée.
+    # Garde : tests/test_a_pytest_run_carries_what_the_conftest_needs.py
+    _db_terminal_summary(terminalreporter, exitstatus, config)
 
-def _pytest_terminal_summary_db(terminalreporter, exitstatus, config):
+
+def _db_terminal_summary(terminalreporter, exitstatus, config):
     from tests.db_gate import DB_HOST, DB_PORT, db_ready
 
     if db_ready():
@@ -165,7 +182,28 @@ def _no_series_cache_between_tests():
     derrière une clé, et les cinq gestes qui la changent en pleine journée
     purgent.
     """
+    # ── Pourquoi on regarde `sys.modules` avant d'importer (2026-09-15) ──
+    # Cet import était INCONDITIONNEL, donc payé par chaque test, y compris ceux
+    # qui ne touchent ni Streamlit ni une série. Mesuré : `src.dashboard.utils`
+    # coûte **5,35 s** à l'import (il tire `streamlit`, 5,19 s), et `conftest.py`
+    # facturait **10,5 s à CHAQUE processus pytest** — 14,85 s pour UN test trivial
+    # dans `tests/`, contre 4,39 s pour le même test hors de `tests/`. Sous
+    # `-n 8`, huit workers paient cette facture.
+    #
+    # Le raccourci est exact, pas approximatif : **le cache ne peut contenir quelque
+    # chose que si son module a été importé.** Si `series_cache` n'est pas dans
+    # `sys.modules`, il n'y a ni entrée à purger ni crochet à désinstaller — purger
+    # revient à importer 5 s de dépendances pour vider un objet qui n'existe pas.
+    #
+    # Ce n'est PAS un assouplissement de la frontière : dès qu'un test (ou un
+    # rendu `AppTest`) importe la chaîne, le module est dans `sys.modules` et la
+    # purge reprend, à l'installation comme au démontage. Le démontage rejoue le
+    # test : un test qui importe la chaîne EN COURS de route est purgé à sa sortie.
+    _CACHE_MOD = "src.dashboard.utils.series_cache"
+
     def _reset():
+        if _CACHE_MOD not in sys.modules:
+            return                     # rien d'importé ⇒ rien de caché ⇒ rien à faire
         try:
             from src.dashboard.utils import platform_timeseries as pt
             from src.dashboard.utils.series_cache import clear
@@ -178,18 +216,97 @@ def _no_series_cache_between_tests():
     _reset()
 
 
+_ERROR_ALERT_MOD = "src.dashboard.utils.error_alert"
+
+
+def _silence_registry(module, monkeypatch) -> None:
+    """Les deux seules portes d'écriture du registre."""
+    monkeypatch.setattr(module, "_record", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(module, "_mark_emailed", lambda *a, **k: None,
+                        raising=False)
+
+
+class _SilenceOnImport:
+    """Pose la rustine à l'instant où le module s'exécute, pas avant, pas après.
+
+    Ajouté le 2026-09-15. L'ancienne version importait `error_alert`
+    INCONDITIONNELLEMENT à chaque test, ce qui exécutait
+    `src/dashboard/utils/__init__.py` — **5,35 s**, dont 5,19 s de `streamlit` —
+    y compris pour des tests qui ne touchent jamais une vue. `conftest.py`
+    facturait ainsi **10,5 s à CHAQUE processus pytest** : 14,85 s pour UN test
+    trivial dans `tests/` contre 4,39 s pour le même test hors de `tests/`.
+
+    Un simple « si le module n'est pas dans `sys.modules`, ne rien faire » serait
+    FAUX, et c'est le piège : un rendu `AppTest` peut importer la chaîne EN COURS
+    de test — 286 tests rendent une page — et ce test-là se retrouverait sans
+    frontière, libre d'écrire dans `app_error_log`.
+
+    Le crochet enveloppe donc le LOADER, pas seulement le finder : `exec_module`
+    rend la main après avoir exécuté le module, et c'est là, avant que l'`import`
+    de l'appelant ne retourne, que la rustine est posée. La fenêtre sans
+    frontière est vide par construction.
+    """
+
+    def __init__(self, monkeypatch):
+        self._mp = monkeypatch
+        self._busy = False
+        self.fired = False
+
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname != _ERROR_ALERT_MOD or self._busy:
+            return None
+        self._busy = True                      # sinon find_spec se rappelle lui-même
+        try:
+            spec = importlib.util.find_spec(fullname)
+        except Exception:      # noqa: BLE001 — module introuvable : rien à border
+            return None
+        finally:
+            self._busy = False
+        if spec is None or spec.loader is None:
+            return None
+
+        original_exec = spec.loader.exec_module
+        watcher = self
+
+        def exec_module(module):
+            original_exec(module)
+            _silence_registry(module, watcher._mp)
+            watcher.fired = True
+
+        spec.loader.exec_module = exec_module
+        return spec
+
+
 @pytest.fixture(autouse=True)
 def _no_registry_writes(monkeypatch):
-    """`notify_app_error` ne persiste rien pendant la suite."""
-    try:
-        from src.dashboard.utils import error_alert
-    except Exception:      # noqa: BLE001 — dépendances absentes : rien à border
+    """`notify_app_error` ne persiste rien pendant la suite.
+
+    Deux régimes, une seule garantie :
+
+    - module **déjà importé** (le cas dès qu'une vue a été rendue une fois dans
+      ce processus) : la rustine est posée tout de suite, comme avant ;
+    - module **absent** : on n'importe rien, et `_SilenceOnImport` la pose depuis
+      le loader si le module arrive pendant le test.
+
+    Dans les deux cas, aucune ligne du test ne s'exécute avec un `error_alert`
+    importé et non borné. Gardé par
+    `tests/test_the_registry_boundary_survives_a_late_import.py`.
+    """
+    already = sys.modules.get(_ERROR_ALERT_MOD)
+    if already is not None:
+        _silence_registry(already, monkeypatch)
         yield
         return
-    monkeypatch.setattr(error_alert, "_record", lambda *a, **k: None, raising=False)
-    monkeypatch.setattr(error_alert, "_mark_emailed", lambda *a, **k: None,
-                        raising=False)
-    yield
+
+    watcher = _SilenceOnImport(monkeypatch)
+    sys.meta_path.insert(0, watcher)
+    try:
+        yield
+    finally:
+        try:
+            sys.meta_path.remove(watcher)
+        except ValueError:      # quelqu'un a nettoyé meta_path : rien à retirer
+            pass
 
 
 @pytest.fixture(autouse=True)
@@ -404,8 +521,20 @@ def _read_db_clock():
     ce que le défaut de la colonne écrit.
     """
     try:
-        from src.dashboard.utils import get_db_connection
-        db = get_db_connection()
+    # ── Pourquoi la porte PARTAGÉE et non `get_db_connection` (2026-09-15) ──
+    # `from src.dashboard.utils import get_db_connection` exécute
+    # `src/dashboard/utils/__init__.py`, dont la ligne 1 est `import streamlit`.
+    # Mesuré : **5,30 s**, contre **0,19 s** pour `src.database.postgres_handler`.
+    # Ce coût était payé par CHAQUE processus pytest — et par chacun des 8 workers.
+    #
+    # Ce n'est pas un contournement de la règle « une seule porte »
+    # (`tests/test_one_door_onto_the_database.py`) : la porte EST
+    # `PostgresHandler.from_env_or_config()`, qui connaît les trois sources
+    # (`DATABASE_URL` → `DATABASE_*` → `config.yaml`). `get_db_connection` ne fait
+    # que l'appeler et y ajouter une bannière rouge Streamlit — dont un test n'a
+    # aucun usage.
+        from src.database.postgres_handler import PostgresHandler
+        db = PostgresHandler.from_env_or_config()
         if db is None:
             return None
         try:
@@ -480,8 +609,20 @@ def _no_synthetic_rows_left_behind():
     """
     yield
     try:
-        from src.dashboard.utils import get_db_connection
-        db = get_db_connection()
+    # ── Pourquoi la porte PARTAGÉE et non `get_db_connection` (2026-09-15) ──
+    # `from src.dashboard.utils import get_db_connection` exécute
+    # `src/dashboard/utils/__init__.py`, dont la ligne 1 est `import streamlit`.
+    # Mesuré : **5,30 s**, contre **0,19 s** pour `src.database.postgres_handler`.
+    # Ce coût était payé par CHAQUE processus pytest — et par chacun des 8 workers.
+    #
+    # Ce n'est pas un contournement de la règle « une seule porte »
+    # (`tests/test_one_door_onto_the_database.py`) : la porte EST
+    # `PostgresHandler.from_env_or_config()`, qui connaît les trois sources
+    # (`DATABASE_URL` → `DATABASE_*` → `config.yaml`). `get_db_connection` ne fait
+    # que l'appeler et y ajouter une bannière rouge Streamlit — dont un test n'a
+    # aucun usage.
+        from src.database.postgres_handler import PostgresHandler
+        db = PostgresHandler.from_env_or_config()
         if db is None:
             return
         try:

@@ -26,6 +26,12 @@ import pytest
 from src.utils.api_errors import is_empty_uploads_playlist
 from src.utils.safe_error import safe_error
 
+# Ce fichier mute un état de PROCESSUS partagé (sys.modules, un attribut de
+# classe, un fichier du dépôt). Sous `--dist loadgroup` ses tests restent donc
+# sur UN worker, comme le faisait `--dist loadfile` pour tout le monde.
+# Voir `.claude/dev-docs/test-suite-performance.md` et R110.
+pytestmark = pytest.mark.xdist_group("empty-youtube-channel-is-not-an-error")
+
 # The exact SHAPE googleapiclient produces, transcribed from the production log —
 # with the key replaced by a fake one. The real key was in this fixture for about
 # twenty minutes: writing a guard against secrets in logs, I pasted a log line
