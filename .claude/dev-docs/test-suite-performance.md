@@ -121,6 +121,19 @@ suite. Avec une variance de ±40 % et un seul run de chaque côté, la lecture h
 est « pas de changement mesurable en CI » — le bénéfice de ce changement est
 ailleurs : la porte ne peut plus expirer, et le rapport par classe reste la nuit.
 
+### Les pistes mesurées et NON exploitées, avec leur taille
+
+À reprendre dans cet ordre ; chaque ligne porte la commande qui l'a établie.
+
+| Piste | Mesure | Pourquoi pas encore |
+|---|---|---|
+| **48 fichiers** de tests passent par la porte DB lourde (`from src.dashboard.utils import get_db_connection`, **5,30 s**) ; **5** par la porte légère `db_gate` (`lru_cache`, **0,19 s**) | balayage AST sur `tests/` | le correctif est prouvé sur 3 sites (−38 % en ciblé) mais 48 sites demandent un passage dédié, pas une fin de séance |
+| **40 rendus sont des doublons STRICTS** entre `test_views_render_smoke.py` et `test_a_render_opens_one_connection.py` — même `_SCRIPT` à la ligne près, seule la mesure diffère | 192 rendus au total pour 44 vues | fusionner les deux fichiers change ce que chacun prouve : l'un lit `at.exception`, l'autre compte les connexions |
+| Le cache `setup-uv` a un hit-rate de **0 %** | `Failed to restore: 400` sur tous les runs vérifiés ; **zéro** entrée `setup-uv` dans l'API des caches | gain plafond **~5 s** (le lock s'installe en 5–11 s à froid) |
+| **Deux signatures `--static` sont vides en CI** : `an-overload-makes-the-old-call-ambiguous` vise le port **5433** quand la CI écoute sur **5432** ; `a-merged-branch-outlives-its-pull-request` fait `gh api … \|\| echo true` sans jeton | lecture des signatures | elles passent **toujours** — des gardes qui ne gardent rien, à retriager ou à retirer |
+| **24 % des runs CI** sont déclenchés par des `.md` seuls | 6 SHA doc-only sur les 25 analysables des 40 derniers runs | un filtre `paths:` naïf tuerait les tests `docs`, qui lisent vraiment ces `.md` |
+| `.audit-venv/` (**3 258 entrées**, Python 3.12) et `.archive/` traînent dans l'arbre | ignorés par git, donc invisibles en CI | mais parcourus par tout `rglob` non scopé — c'est un piège de MESURE locale, pas un coût de CI |
+
 ### ⛔ Ne pas retirer `--cov` de la CI — c'est la deuxième fois
 
 Mesuré en local le 2026-09-15 : **+92 %** (61,8 → 118,7 s sur un échantillon mixte).
@@ -133,6 +146,39 @@ Les chiffres `/mnt/c` ne valent qu'en **rapport**, jamais en absolu, et ici mêm
 rapport est faux : l'instrumentation de couverture écrit et lit beaucoup, ce que ce
 montage amplifie. Pour 13 s sur le runner, on garde le seul rapport de couverture du
 dépôt.
+
+## La cadence — non, la suite complète n'est pas obligatoire après chaque feature
+
+| Moment | Ce qui tourne | Coût |
+|---|---|---|
+| pendant le code | `make test-changed` (règle transverse #16) | secondes à dizaines de secondes |
+| avant de pousser | `make test-fast` | **375 s** |
+| après avoir touché aux documents | `make test-docs` | **45,7 s** |
+| sur la PR | la CI complète | **~390–423 s** |
+| une fois par semaine | `make audit`, `audit_runner --deterministic`, la revue des lents | le ménage |
+
+**Ce qui ne doit PAS bouger : la barrière de la PR.** Ce dépôt a déjà payé pour
+l'apprendre deux fois — `tests/test_a_red_gate_does_not_hide_the_suite.py` documente
+**27 exécutions consécutives** (2026-09-04 → 06) où la suite n'a pas tourné du tout
+derrière un signal rouge sans rapport, et le 2026-09-15 la sonde de production a
+passé **neuf jours** à ne rien exécuter. Dans les deux cas, le coût n'a pas été le
+temps : il a été l'ignorance. C'est le temps d'ATTENTE qu'on attaque, jamais la
+couverture du gate.
+
+## Le framework : pytest reste le bon choix
+
+Aucun remplaçant n'améliorerait ce dépôt — `unittest` et `nose2` perdent `parametrize`
+et les fixtures, dont 146 fichiers dépendent (213 sites de décorateur). Ce qui manque
+est un **greffon**, pas un framework :
+
+| Greffon | Ce qu'il résout | État |
+|---|---|---|
+| `pytest-split` | découpe la suite en N shards de durée égale (matrice CI) | **absent** — c'est R109 |
+| `pytest-xdist` | parallélisme par processus | **présent**, sous-exploité : `loadfile` groupe tous les fichiers alors que **9 seulement** en ont besoin — c'est R110 |
+| `pytest-testmon` | ne rejoue que les tests touchés, via la couverture | **absent**, et redondant avec `select_tests.py` |
+
+Écarté : `pytest-run-parallel` (threads) partagerait les imports — séduisant vu les
+5,30 s de Streamlit — mais `AppTest` et psycopg2 ne sont pas sûrs en threads.
 
 ## Le matériel
 
