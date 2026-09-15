@@ -94,16 +94,35 @@ jobs:
         # rather than inventing stricter ones.
         run: uv run ruff check .
 
-      - name: REX integrity + deterministic error-class guards (blocking)
+      - name: REX integrity + static error-class guards (blocking)
         # Deterministic, no-DB, sub-second. validate_rex.py enforces the rex: schema
-        # across every .claude/ tool; audit_runner.py runs each kind:deterministic
-        # error-class signature catalogued in .claude/dev-docs/error-classes.md
-        # (single source of truth — no hand-synced Makefile drift). Heuristic
-        # classes run in security-nightly.yml (non-blocking, manual triage).
+        # across every .claude/ tool; audit_runner.py runs the error-class signatures
+        # catalogued in .claude/dev-docs/error-classes.md (single source of truth —
+        # no hand-synced Makefile drift). Heuristic classes run in
+        # security-nightly.yml (non-blocking, manual triage).
         # `uv run` puts the venv on PATH so the signatures' python3/pytest resolve.
+        #
+        # ── Pourquoi `--static` et non `--deterministic` (2026-09-15) ──
+        # `--deterministic` regroupait 261 signatures en UNE invocation pytest
+        # (audit_runner.py:279-282) visant **219 des 362 fichiers de tests** — 60,5 %
+        # des fichiers, 55 % des fonctions — **sans `-n`, sans `--dist`**, donc en
+        # séquentiel, juste avant que l'étape `Run tests` relance la même suite à
+        # `-n auto`. Le même job payait deux fois, dont une fois en série. Mesuré
+        # deux fois en local, la seconde sans aucune contention : le batch **expire
+        # à son `timeout=1800`**.
+        #
+        # `--static` garde exactement ce que la suite ne couvre pas : les 35 classes
+        # déterministes dont la signature n'est PAS un pytest (scripts d'audit,
+        # famille grep, AST inline). Les 262 signatures pytest restent gardées — par
+        # `Run tests`, qui les exécute déjà et bloque déjà.
+        #
+        # Ce qu'on perd sciemment : le rapport PAR CLASSE sur une PR (la traduction
+        # node-id → identifiant de classe). Il reste disponible la nuit, dans
+        # security-nightly.yml (`make audit`, non bloquant), et à la demande par
+        # `python3 .claude/scripts/audit_runner.py --deterministic`.
         run: |
           uv run python .claude/scripts/validate_rex.py --strict
-          uv run python .claude/scripts/audit_runner.py --deterministic
+          uv run python .claude/scripts/audit_runner.py --static
           uv run python .claude/scripts/audit_runner.py --prose
           uv run python .claude/scripts/check_config_refs.py
           uv run python .claude/scripts/check_ci_waste.py

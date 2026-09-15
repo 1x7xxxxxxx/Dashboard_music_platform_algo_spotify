@@ -123,6 +123,7 @@ extend = "ruff.toml"
 # silence : un marqueur mal orthographié ne sort pas de la frontière, il la subit — et
 # le test échoue avec un message qui parle d'autre chose.
 markers = [
+    "docs: le test ne lit QUE des documents (.md) — aucun fichier de src/, airflow/ ou migrations/. Sauté par `make test-fast`, lancé seul par `make test-docs`, et TOUJOURS lancé par `make test` et la CI. La roadmap en est exclue A DESSEIN : ses gardes tiennent l'état que /resume lit en premier. Liste et cohérence gardées par tests/test_the_doc_marker_matches_what_make_skips.py",
     "real_http: le test sort VRAIMENT sur le réseau (sonde de production). Seule sortie de la frontière HTTP de tests/conftest.py ; sa portée est gardée par tests/test_the_http_escape_hatch_stays_narrow.py",
 ]
 

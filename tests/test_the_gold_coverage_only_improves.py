@@ -45,6 +45,12 @@ import sys
 
 import pytest
 
+# Ce fichier ne lit QUE des documents : rien sous src/, airflow/ ni migrations/.
+# `make test-fast` le saute, `make test-docs` ne lance que lui et ses pairs,
+# `make test` et la CI le lancent toujours.
+# Voir `.claude/dev-docs/test-suite-performance.md`.
+pytestmark = pytest.mark.docs
+
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 _DOC = _ROOT / ".claude" / "dev-docs" / "gold-coverage.md"
 

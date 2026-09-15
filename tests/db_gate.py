@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 import socket
+from functools import lru_cache
 
 import pytest
 
@@ -30,8 +31,25 @@ _SKIP_REASON = (
 )
 
 
+@lru_cache(maxsize=1)
 def db_ready() -> bool:
-    """True when a Postgres carrying THIS app's schema is reachable."""
+    """True when a Postgres carrying THIS app's schema is reachable.
+
+    ── Pourquoi un cache (2026-09-15) ──
+    `requires_live_db()` est évalué au moment de l'IMPORT de chaque module qui le
+    porte, et **22 modules** le portent. Sans cache, la seule collecte ouvrait donc
+    22 connexions Postgres — et, quand la base est absente, payait 22 fois le
+    `timeout=1.5 s` du pré-test de socket, soit **33 s de collecte pour apprendre
+    22 fois la même chose**. Sous `-n 8`, chaque worker recommençait.
+
+    La réponse ne peut pas changer à l'intérieur d'un processus pytest : la base est
+    là ou elle ne l'est pas quand la session démarre, et aucun test ne provisionne un
+    Postgres en cours de route. Mettre le résultat en cache ne perd donc aucune
+    information — c'est la même question, posée une fois.
+
+    `maxsize=1` : la fonction ne prend pas d'argument, il n'y a qu'une réponse.
+    `db_ready.cache_clear()` reste disponible pour un test qui voudrait la reposer.
+    """
     if not os.environ.get("DATABASE_URL"):
         try:
             with socket.create_connection((DB_HOST, DB_PORT), timeout=1.5):
@@ -39,8 +57,20 @@ def db_ready() -> bool:
         except OSError:
             return False
     try:
-        from src.dashboard.utils import get_db_connection
-        db = get_db_connection()
+    # ── Pourquoi la porte PARTAGÉE et non `get_db_connection` (2026-09-15) ──
+    # `from src.dashboard.utils import get_db_connection` exécute
+    # `src/dashboard/utils/__init__.py`, dont la ligne 1 est `import streamlit`.
+    # Mesuré : **5,30 s**, contre **0,19 s** pour `src.database.postgres_handler`.
+    # Ce coût était payé par CHAQUE processus pytest — et par chacun des 8 workers.
+    #
+    # Ce n'est pas un contournement de la règle « une seule porte »
+    # (`tests/test_one_door_onto_the_database.py`) : la porte EST
+    # `PostgresHandler.from_env_or_config()`, qui connaît les trois sources
+    # (`DATABASE_URL` → `DATABASE_*` → `config.yaml`). `get_db_connection` ne fait
+    # que l'appeler et y ajouter une bannière rouge Streamlit — dont un test n'a
+    # aucun usage.
+        from src.database.postgres_handler import PostgresHandler
+        db = PostgresHandler.from_env_or_config()
         if db is None:
             return False
         try:

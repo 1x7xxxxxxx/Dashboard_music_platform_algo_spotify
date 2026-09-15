@@ -483,9 +483,9 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 ## Les classes d'erreur
 
-**330 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
+**332 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
 
-**fixed** : 10· **guarded** : 302· **open** : 4· **reported** : 14
+**fixed** : 10· **guarded** : 304· **open** : 4· **reported** : 14
 
 **0 classe(s) nomment un fichier de garde qui n'existe plus** et **11** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
@@ -571,7 +571,7 @@ Le défaut qui a fait naître cette section : `meta_insights_performance` et `me
 | 4 | Install dependencies from lockfile | sync | bloquante |
 | 5 | Manifest consistency (blocking) | check_manifest_consistency.py | bloquante |
 | 6 | Lint (ruff) — full project (blocking) | ruff check | bloquante |
-| 7 | REX integrity + deterministic error-class guards (blocking) | validate_rex.py, audit_runner.py, check_config_refs.py, check_ci_waste.py, gold_coverage.py, error_class_famil | bloquante |
+| 7 | REX integrity + static error-class guards (blocking) | validate_rex.py, audit_runner.py, check_config_refs.py, check_ci_waste.py, gold_coverage.py, error_class_famil | bloquante |
 | 8 | Error-class schema completeness | audit_runner.py | bloquante |
 | 9 | Provision Postgres (schema + migrations) | test_suite_runs_against_two_tenants.py | bloquante |
 | 10 | Mint a throwaway Fernet key for this run | — | bloquante |
@@ -658,9 +658,9 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-gold-objects: total=24 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=18 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=330 guard_missing=0 guard_unnamed=11 -->
+<!-- gold-coverage-error-classes: total=332 guard_missing=0 guard_unnamed=11 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=b5dca173a0d443223ed350111956a9531281c2cfbdcd2fa5da84a768d2221a14 -->
+<!-- gold-coverage: sha256=268e3bbc342b29cba2b1a7b29a7bdddd67df7e210d3c0d565091f3d022875829 -->
