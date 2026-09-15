@@ -35,8 +35,25 @@ jobs:
           cache: pip
 
       - name: Install probe deps
-        # pandas is imported by tests/conftest.py (auto-loaded for any pytest run).
-        run: pip install pytest requests pandas
+        # ── Cette liste est tenue À LA MAIN, et c'est sa faiblesse ──
+        # `tests/conftest.py` est chargé pour TOUTE exécution de pytest, y compris
+        # celle-ci qui ne vise qu'un fichier. Il apporte donc ses dépendances :
+        #   * pandas    — importé au niveau module ;
+        #   * pytest-xdist — il déclare le hook `pytest_configure_node`.
+        #
+        # `pytest-xdist` manquait, et le coût a été de NEUF JOURS. Le hook est arrivé
+        # dans `conftest.py` le 2026-09-06 (20fd305) ; la sonde a réussi ce jour-là
+        # pour la dernière fois et échoue tous les jours depuis le 2026-09-07 :
+        #   PluginValidationError: unknown hook 'pytest_configure_node'
+        #   no tests ran in 0.19s → exit code 3
+        # La sonde de santé de la PRODUCTION n'a donc exécuté aucun test pendant
+        # neuf jours, et rien ne l'a signalé : `tests/test_the_monitor_itself_still_runs.py`
+        # vérifie que ce workflow A TOURNÉ, pas qu'il est VERT.
+        #
+        # Même défaut, même semaine, troisième endroit : `make test` était cassé par
+        # la même cause (venv Windows sans xdist). Corriger une instance sans balayer
+        # ses frères laisse la classe vivante — c'est la règle transverse 14.
+        run: pip install pytest pytest-xdist requests pandas
 
       - name: Probe production endpoints (through Cloudflare)
         env:

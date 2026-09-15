@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**330 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**332 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -18,8 +18,8 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 19 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 25 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 20 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 37 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 40 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 38 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 41 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 6 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 7 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
@@ -272,7 +272,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 37 classe(s).
+Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 38 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -313,12 +313,13 @@ Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuou
 | [`a-kill-pattern-that-matches-its-own-shell`](error-classes.md#a-kill-pattern-that-matches-its-own-shell) | une commande composée s'arrête au milieu, sans message, et rend le code **144**. Ce qui suit n'a jamais tourné — relancer la suite, écrire le script,  |
 | [`a-verdict-from-a-tree-that-moved-under-it`](error-classes.md#a-verdict-from-a-tree-that-moved-under-it) | la suite complète rend des échecs qui **n'existent pas** — verts dès qu'on les rejoue. Mesuré le 2026-09-12 : quatre signalés sur deux exécutions, **t |
 | [`a-test-whose-input-derives-from-its-subject`](error-classes.md#a-test-whose-input-derives-from-its-subject) | un garde reste VERT quand on mute la constante qu'il prétend garder. Il n'échoue sur aucune valeur, si extrême soit-elle, parce que l'entrée qu'il con |
+| [`a-timeout-reported-as-a-missing-thing`](error-classes.md#a-timeout-reported-as-a-missing-thing) | un outil annonce qu'une chose N'EXISTE PAS alors qu'il a seulement cessé de l'attendre. Mesuré le 2026-09-15 : `.claude/scripts/select_tests.py --dry` |
 
 ## un-document-qui-affirme-un-état-périmé
 
 **Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?**
 
-Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list` sur l'identifiant et le symptôme. 40 classe(s).
+Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list` sur l'identifiant et le symptôme. 41 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -362,6 +363,7 @@ Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|cap
 | [`a-dependency-that-does-not-come-back`](error-classes.md#a-dependency-that-does-not-come-back) | après un redémarrage de l'hôte (WSL, Docker Desktop, la machine), les services qui DÉPENDENT d'un autre remontent et celui dont ils dépendent reste à  |
 | [`a-percent-sign-in-a-parameterised-query`](error-classes.md#a-percent-sign-in-a-parameterised-query) | une requête paramétrée échoue en bloc sur `IndexError: tuple index out of range`, alors que le nombre d'emplacements `%s` et le nombre de valeurs pass |
 | [`a-diagnostic-that-reads-a-name-not-a-route`](error-classes.md#a-diagnostic-that-reads-a-name-not-a-route) | un outil de diagnostic rapporte des pannes que le produit n'a pas. Mesuré le 2026-09-12 par `make artist-firstlook-prod ARTIST=1` : **2 pages sur 6 en |
+| [`a-prose-claim-that-cannot-be-verified`](error-classes.md#a-prose-claim-that-cannot-be-verified) | un document dont les TABLEAUX sont justes affirme le contraire dans la prose posée à côté, et rien ne le voit. Mesuré le 2026-09-15 sur `.claude/dev-d |
 
 ## un-contrôle-qui-ne-peut-jamais-passer
 
@@ -521,6 +523,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=330 families=17 orphans=3 -->
+<!-- error-class-families: total=332 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=96d6737177e2d04f945a627215f67e4754166eea399d110cda5aee89cbb56978 -->
+<!-- error-class-families: sha256=d7db5d4695e2aa0cc99ca135c34bb63063c05e470a5d1ab4c6c8d78ba578a37b -->

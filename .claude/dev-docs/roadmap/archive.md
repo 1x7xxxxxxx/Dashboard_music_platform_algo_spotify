@@ -9,6 +9,65 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🩺 R112 — La sonde de production n'a rien exécuté pendant neuf jours (clos 2026-09-15)
+
+- [x] **R112 — `prod-health.yml` rouge 9 jours d'affilée, silencieusement.**
+  Dernier succès le 2026-09-06, échec **tous les jours** du 2026-09-07 au 2026-09-15.
+  Mesuré par `gh run list --workflow=prod-health.yml`.
+
+  **Cause** : `pip install pytest requests pandas` — sans `pytest-xdist`. Or
+  `tests/conftest.py` est chargé pour toute exécution de pytest et déclare le hook
+  `pytest_configure_node` depuis le 2026-09-06 (`20fd305`). `pluggy` levait
+  `PluginValidationError`, pytest rendait « no tests ran in 0.19s » et `exit 3`. Les
+  **16 sondes** qui atteignent la production à travers Cloudflare — certificat, DNS,
+  routage, edge — n'ont rien exécuté pendant neuf jours.
+
+  **Pourquoi rien ne l'a vu** : `test_the_monitor_itself_still_runs.py` vérifiait que
+  le workflow **a tourné**, jamais qu'il est **vert**. Un workflow qui sort en erreur
+  à chaque exécution reste parfaitement « récent ». Le garde mesurait l'artefact et
+  non l'effet.
+
+  **Livré** : le greffon ajouté ; `test_the_daily_probe_is_not_failing_night_after_night`
+  (deux exécutions consécutives en échec, pas une — un échec isolé est du bruit) ;
+  `test_a_pytest_run_carries_what_the_conftest_needs.py`, qui lit par AST les hooks que
+  `conftest.py` déclare et vérifie que chaque workflow lançant pytest installe leurs
+  greffons. Mutation rouge/verte sur les trois.
+
+  **Vérifié** : sonde relancée le 2026-09-15 → `success`, **14 sondes passées**. La
+  production allait bien ; c'est l'instrument qui était cassé.
+
+  **La leçon, et elle est à charge** : `make test` était cassé par la MÊME cause le
+  matin même, corrigé **sans balayer les frères**. La règle transverse 14 dit exactement
+  de ne pas faire ça. La classe commune est « une liste de dépendances tenue à la main
+  à côté d'un conftest qui apporte les siennes ».
+
+## 🧹 R111 — Le ménage de la CI, mesuré poste par poste (clos 2026-09-15)
+
+- [x] **R111 — retirer de `ci.yml` ce qui ne prouve rien.** Mesuré sur 15 runs récents.
+
+  | Retiré | Coût mesuré | Pourquoi ça ne prouvait rien |
+  |---|---|---|
+  | `Install system dependencies` | **10 s/run** | `pkg-config` déjà installé (no-op) ; `build-essential` est un méta-paquet de **4,9 kB** ; `uv sync` rapporte 245 paquets préparés **sans une seule ligne `Building`** — tout vient de wheels |
+  | `gold_coverage.py --check` + `error_class_families.py --check` en direct | **11–20 s** par passage surnuméraire | ils tournaient **3 fois par run** : en direct, via la signature `--static`, et dans la suite. Deux passages suffisent |
+  | `Error-class schema completeness` (`--fields --strict`) | 0 s | doublon exact de `test_every_error_class_is_complete.py` (665 tests en 3,1 s, **par classe**) — et il **écrivait** dans `error-classes.md` depuis la CI |
+  | `Upload coverage artifact` + `--cov-report=xml` | 1 s | **aucun** `download-artifact`, **aucune** `codecov-action` dans un workflow actif ; la seule occurrence vit dans un skill retiré |
+  | `-v` sur `Run tests` | temps **non mesuré** | produisait **12 890 des 13 238 lignes** de log du job, soit **87 % du volume**. `--tb=short` reste : un échec dit toujours son node-id |
+
+  **Gardé délibérément** : `--cov=src --cov-report=term-missing` — mesure **sur le
+  runner** à +8 % (13 s), et `ci.yml` documente que sa suppression avait déjà été
+  envisagée sur une supposition à ~30 %. Une mesure locale contraire (+92 %) est
+  fausse : les chiffres `/mnt/c` ne valent qu'en rapport. Gardé aussi : `ruff check .`
+  (0 s, et **aucun test ne lance ruff**), le `concurrency`, le cache `uv`.
+
+  **Trouvé sans être corrigé** — matière à une tâche future : le cache `setup-uv` a un
+  hit-rate de **0 %** (`Failed to restore: 400` sur tous les runs vérifiés, zéro entrée
+  dans l'API des caches) ; deux signatures `--static` sont **structurellement vides en
+  CI** (`an-overload-makes-the-old-call-ambiguous` vise le port 5433 quand la CI écoute
+  sur 5432 ; `a-merged-branch-outlives-its-pull-request` fait `gh api … || echo true`
+  sans jeton) ; et **24 % des runs CI sont déclenchés par des changements de `.md`
+  seuls**, sans filtre `paths:`.
+
+
 ### R108 — L'exemption de la porte masque ce qu'elle laisse entrer (livrée 2026-09-14)
 
 - [x] **R108 — décider si les jointures de DIMENSION comptent dans la frontière du

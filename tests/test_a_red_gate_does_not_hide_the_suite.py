@@ -75,6 +75,24 @@ def test_the_suite_step_still_runs_when_an_earlier_gate_fails():
     )
 
 
+# Le marqueur qui dit « cette étape a le droit d'arrêter la construction ».
+#
+# Ces trois étapes étaient listées ICI, par leur nom littéral, jusqu'au 2026-09-15 —
+# et renommer l'une d'elles (`deterministic` → `static`, quand son audit a cessé de
+# rejouer 60 % de la suite) a fait rougir ce garde sur un fichier PARFAITEMENT juste.
+# Le garde avait raison de parler, mais il parlait de la mauvaise chose : il lisait un
+# NOM là où la question est un RÔLE.
+#
+# Le suffixe est la déclaration du rôle, vérifiée sur le fichier réel : il porte
+# exactement les trois portes et rien d'autre. Une porte neuve s'exempte donc en se
+# nommant, et un renommage ne casse plus rien.
+_GATE_SUFFIX = "(blocking)"
+
+
+def _is_a_declared_gate(step: dict) -> bool:
+    return str(step.get("name", "")).strip().endswith(_GATE_SUFFIX)
+
+
 def test_every_step_after_setup_reports_rather_than_disappears():
     """One skipped step is a gap in the report, not just a saved minute."""
     steps = _steps()
@@ -83,13 +101,34 @@ def test_every_step_after_setup_reports_rather_than_disappears():
     hidden = [
         s.get("name") for s in steps[last_setup + 1:]
         if not any(tok in str(s.get("if", "")) for tok in _SURVIVES)
-        and s.get("name") not in ("Manifest consistency (blocking)",
-                                  "Lint (ruff) — full project (blocking)",
-                                  "REX integrity + deterministic error-class guards "
-                                  "(blocking)")
+        and not _is_a_declared_gate(s)
     ]
     assert not hidden, (
         f"{hidden} vanish from the report as soon as anything before them fails. "
-        "The three blocking gates are exempt — they are what may legitimately stop "
-        "the build — but nothing after them should go unreported."
+        f"A step whose name ends with '{_GATE_SUFFIX}' is exempt — it is what may "
+        "legitimately stop the build — but nothing after them should go unreported."
+    )
+
+
+def test_the_gate_marker_names_the_gates_and_nothing_else():
+    """Non-vacuité : un suffixe qui n'attrape rien exempterait tout, ou rien.
+
+    Sans cette assertion, remplacer `_GATE_SUFFIX` par une chaîne absente rendrait
+    le test ci-dessus rouge sur les trois portes, et le remplacer par `""` le rendrait
+    vert sur n'importe quel fichier. Les deux directions sont épinglées.
+    """
+    steps = _steps()
+    gates = [s.get("name") for s in steps if _is_a_declared_gate(s)]
+
+    assert len(gates) >= 3, (
+        f"le marqueur '{_GATE_SUFFIX}' ne trouve plus que {len(gates)} porte(s) : "
+        f"{gates}. Soit les portes ont été renommées sans lui, soit le marqueur est "
+        "cassé — dans les deux cas le test d'à côté ne garde plus rien."
+    )
+    assert len(gates) < len(steps), (
+        "le marqueur exempte TOUTES les étapes : il ne distingue plus rien."
+    )
+    assert all(_is_a_declared_gate({"name": f"X {_GATE_SUFFIX}"}) for _ in (0,))
+    assert not _is_a_declared_gate({"name": "Run tests"}), (
+        "une étape ordinaire est prise pour une porte"
     )

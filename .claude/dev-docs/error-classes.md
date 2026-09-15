@@ -390,6 +390,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-merged-branch-outlives-its-pull-request](#a-merged-branch-outlives-its-pull-request) | P4 | deterministic | guarded | none |
 | [a-verification-read-through-a-filtering-wrapper](#a-verification-read-through-a-filtering-wrapper) | P2 | manual | reported | none |
 | [a-document-slice-bounded-by-the-wrong-heading-level](#a-document-slice-bounded-by-the-wrong-heading-level) | P2 | deterministic | guarded | none |
+| [a-prose-claim-that-cannot-be-verified](#a-prose-claim-that-cannot-be-verified) | P3 | deterministic | guarded | none |
+| [a-timeout-reported-as-a-missing-thing](#a-timeout-reported-as-a-missing-thing) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -5686,3 +5688,37 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-14: `guarded`. Signature **vue rouge dans LES DEUX SENS** — sonde toujours muette : 2 rouges ; sonde jamais muette : 2 rouges ; 6 verts après restauration. Une suppression d'alerte doit être éprouvée dans les deux directions : taire à tort retire le signal, garder à tort le noie.
   - 2026-09-14: la sonde est **conservatrice par construction** — requête en échec, aucune sortie connue, aucune mesure connue : tout doute GARDE l'alerte. Taire sur une supposition est strictement pire qu'une ligne bruyante, parce que ça retire le seul signal qu'une vraie panne produirait.
   - 2026-09-14: le dépôt a **exigé que la suppression soit délibérée**. `test_expected_silence` épinglait « seul Meta déclare un silence attendu ». L'épingle est devenue une TABLE portant, pour chaque source, la mesure qui la justifie : ajouter une ligne sans mesure échoue désormais. C'est le garde qui s'est amélioré en refusant le changement.
+
+## a-prose-claim-that-cannot-be-verified
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un document dont les TABLEAUX sont justes affirme le contraire dans la prose posée à côté, et rien ne le voit. Mesuré le 2026-09-15 sur `.claude/dev-docs/roadmap/checklist.md` : **trois phrases** annonçaient « R1 reste en attente, dans « 🙋 En attente de toi » plus bas » alors que cette table était vide depuis le 2026-09-10 et le disait elle-même quatre cents lignes plus bas, R1 ayant été rotée dans `archive.md`. Le même fichier portait aussi « 7,9 % des lignes YouTube changent de jour selon le fuseau », un chiffre **retiré comme faux le 2026-09-10 même** dans trois autres fichiers. C'est le premier fichier que lit `/resume` : la séance part donc d'un état faux, énoncé à voix haute.
+- root_cause: les gardes de ce dépôt lisent des STRUCTURES — tableaux, ancres, cases à cocher, AST. La prose n'est structurée par rien, donc elle n'est lue par rien, et elle est pourtant ce qu'un humain croit en premier. Quand une ligne est rotée d'une table, la table devient juste immédiatement et la phrase qui la commentait devient fausse au même instant, sans qu'aucune des deux ne change de forme. Le 2026-09-12 le même fichier annonçait « quatre tâches rouvertes » contre un index vide ; il nommait déjà cette classe dans son propre texte, **sans qu'elle existe dans ce catalogue** — nommer n'est pas garder.
+- long_term_fix: ne pas chercher à vérifier « cette phrase est-elle vraie » — indécidable — mais isoler la FORME de phrase qui est mécaniquement réfutable et n'en tolérer aucune fausse : une phrase qui **localise** un identifiant dans une section nommée. Le prédicat exige les trois marques dans une même phrase ET dans cet ordre — l'id, une préposition de lieu, le nom de la section — ce qui le distingue d'une phrase de DÉPART, où le nom de la section est sujet (« L'index `## 📋 Tâches ouvertes` est vide : R108, sa dernière ligne, a été livrée »). Toute prose qui compte ou situe doit compter ce que la structure compte ; à défaut, elle doit renvoyer à la structure au lieu de la paraphraser.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_roadmap_index_is_honest.py }
+- signature: `python3 -m pytest tests/test_roadmap_index_is_honest.py::test_no_prose_sentence_places_a_task_in_a_section_that_has_no_such_row -q`
+- rex_ref: —
+- first_seen: 2026-09-12 (ref: DEVLOG#2026-09-15)
+- History:
+  - 2026-09-12: première occurrence observée — « quatre tâches rouvertes » contre un index vide. Notée dans `checklist.md` avec son nom de classe, **jamais inscrite ici** : aucun garde n'en est sorti, et la classe a récidivé trois jours plus tard.
+  - 2026-09-15: `guarded`. Signature **vue rouge sur le défaut réel** — 3 phrases nommées, une par site, avant correction — et **verte** après réécriture des quatre paragraphes fautifs — les **10** tests du fichier au vert, recomptés par AST après qu'un balayage a pris ce chiffre en faute : j'avais écrit 16, qui était la somme de DEUX fichiers lancés dans la même commande. Une occurrence de la classe dans la description de la classe, trouvée le jour même de son écriture. Le prédicat est accompagné de `test_the_locating_claim_predicate_tells_arrival_from_departure`, qui l'épingle sur les deux formes tirées du fichier réel : il doit VOIR la phrase de placement et IGNORER la phrase de départ. Sans cette seconde assertion, un prédicat qui ne voit rien passerait sur un fichier entièrement faux.
+  - 2026-09-15: la portée est délibérément `checklist.md` seul. `archive.md` porte les mêmes tournures — « Ne reste que R1, dans « En attente de toi » plus bas » — mais au PASSÉ et par construction : c'est un journal de ce qui était vrai à sa date, que personne ne lit en routine. Étendre le garde à l'archive rendrait rouge un fichier correct, et un garde qui rougit sur du juste est un garde qu'on apprend à ignorer.
+
+## a-timeout-reported-as-a-missing-thing
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un outil annonce qu'une chose N'EXISTE PAS alors qu'il a seulement cessé de l'attendre. Mesuré le 2026-09-15 : `.claude/scripts/select_tests.py --dry` a répondu « **pas un dépôt git**, ou diff illisible » **dans ce dépôt git**, pendant qu'un `audit_runner --deterministic` lançait sur /mnt/c son lot de signatures déterministes — **297**, dont 287 sont des pytest. `git diff --name-only HEAD` y dépassait les 30 s du `timeout`, et la même valeur de repli qu'un répertoire sans `.git` remontait jusqu'au message.
+- root_cause: `_git()` attrapait `subprocess.SubprocessError` — dont `TimeoutExpired` est une sous-classe — et rendait `None`, la valeur qui signifiait déjà « pas de dépôt ». Deux pannes de natures opposées écrasées sur un seul repli : l'une est PERMANENTE et se corrige en changeant de répertoire, l'autre est TRANSITOIRE et se corrige en relançant au calme. Le VERDICT restait juste (suite entière, la direction sûre exigée par la règle transverse #16) ; c'est la RAISON qui mentait, et c'est elle qu'on lit.
+- long_term_fix: séparer les `except` et faire porter à chaque panne son propre message, au lieu de laisser une valeur de repli unique parler pour toutes. La règle générale : **une valeur de repli peut être partagée, un diagnostic jamais.** Un diagnostic qui nomme la mauvaise cause coûte plus cher qu'un diagnostic absent, parce qu'on le croit et qu'on cherche là où il pointe — ici, vérifier son dépôt au lieu de regarder la charge de la machine.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_the_selector_selects_what_changed.py }
+- signature: `python3 -m pytest tests/test_the_selector_selects_what_changed.py -k "timeout or without_git" -q`
+- rex_ref: —
+- first_seen: 2026-09-15 (ref: DEVLOG#2026-09-15)
+- History:
+  - 2026-09-15: `guarded`. Signature **vue rouge par mutation** — l'ancien message remis, `test_a_git_timeout_is_not_reported_as_a_missing_repository` échoue ; restauré, les deux passent. Le garde porte **deux moitiés opposées** : le délai dépassé ne doit PAS accuser le dépôt, et un dossier réellement sans `.git` doit toujours le dire. Sans la seconde, on satisfait la première en supprimant tout diagnostic — et on perd le message juste le jour où il est juste.
+  - 2026-09-15: **même famille que `two-silences-one-message`**, dont la leçon était déjà payée sur une surface utilisateur : deux causes qui appellent des gestes OPPOSÉS ne peuvent pas partager un texte. La classe est séparée parce que le site et le garde le sont — un outil de développement, pas une vue — mais la question à poser devant du code est la même : **ce repli unique répond-il à plusieurs pannes qui ne se corrigent pas pareil ?**
+  - 2026-09-15: le défaut ne se reproduit que **sous charge**, ce qui est la raison pour laquelle il a survécu. Il a été observé en vrai parce qu'un audit tournait en arrière-plan au même moment ; 30 s sont atteignables sur /mnt/c dès qu'une suite complète travaille à côté (cf. « ne jamais mesurer la perf depuis WSL »). Un garde qui n'existe que sous charge doit donc simuler la panne, jamais l'attendre : le test remplace `subprocess.run` par un `TimeoutExpired`.
