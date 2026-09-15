@@ -164,13 +164,30 @@ jobs:
           AIRFLOW_PASSWORD: ci-not-a-real-secret  # pragma: allowlist secret
           FERNET_KEY: ${{ steps.nightly_fernet.outputs.key }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # ── `tee` et pas seulement le résumé, et AUCUN `|| true` (2026-09-16) ──
+        # Première rédaction : tout partait dans `$GITHUB_STEP_SUMMARY` et la commande
+        # se terminait par `|| true`. Deux conséquences, mesurées sur le premier run
+        # réel : le LOG du job ne contenait pas le verdict de pytest (seulement le
+        # bruit de Postgres sur stderr), et l'étape ne pouvait pas échouer. Le job
+        # porte `continue-on-error` — une suite rouge la nuit aurait donc été
+        # strictement invisible, ce qui est le défaut que ce dépôt combat partout
+        # ailleurs.
+        #
+        # Désormais : `tee` met le verdict dans le log ET dans le résumé, et le code
+        # de retour de pytest remonte (`set -o pipefail`). Le job apparaîtra alors en
+        # `failure` dans `gh run list --json jobs` pendant que le workflow reste vert
+        # — exactement le comportement de `gitleaks` juste au-dessus, qui est le
+        # précédent établi ici pour « observationnel mais VISIBLE ».
         run: |
           set -o pipefail
           {
             echo "## Suite complète — ordre aléatoire + couverture (non bloquant)"
             echo
             echo '```'
-            uv run pytest tests/ -q --tb=short -n auto --dist loadgroup \
-              -p randomly --cov=src --cov-report=term-missing 2>&1 | tail -60 || true
-            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          rc=0
+          uv run pytest tests/ -q --tb=short -n auto --dist loadgroup \
+            -p randomly --cov=src --cov-report=term-missing 2>&1 \
+            | tail -60 | tee -a "$GITHUB_STEP_SUMMARY" || rc=$?
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
