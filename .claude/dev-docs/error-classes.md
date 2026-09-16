@@ -5845,3 +5845,16 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - guard: { type: script, ref: tools/dev/check_action_drift.py }
 - rex_ref: .github/dependabot.yml
 - first_seen: 2026-09-16
+- History:
+  - 2026-09-16: **le correctif de cette classe a produit la panne suivante, et c'est
+    la moitié utile.** Le rapport disait « v10 » et j'ai écrit `@v10` : les CINQ jobs
+    ont échoué en **neuf secondes**, à « Prepare all required actions », sur
+    `Unable to resolve action astral-sh/setup-uv@v10, unable to find version v10`.
+    `astral-sh/setup-uv` publie `v10.1.0` et **PAS** de tag majeur flottant, alors que
+    `@v4` en avait un. Déduire un épinglage d'un numéro de version est donc faux, et
+    rien dans le dépôt ne pouvait le dire avant de pousser — un épinglage irrésolvable
+    ne fait échouer aucun test, il tue le workflow AVANT sa mise en route.
+    Le rapporteur vérifie désormais que chaque `uses:` RÉSOUT vraiment (une colonne
+    « résout ? ») et n'imprime que des tags écrivables tels quels — la classe
+    `a-printed-command-is-runnable-as-printed`, appliquée à un rapport.
+    Mutation : `@v10` remis → `🚫 INTROUVABLE` nommé ; retiré → zéro.

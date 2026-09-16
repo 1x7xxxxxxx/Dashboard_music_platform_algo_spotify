@@ -39,7 +39,7 @@ import sys
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
-_USES = re.compile(r"^\s*(?:-\s*)?uses:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@(v?\d+)[^\s]*\s*$")
+_USES = re.compile(r"^\s*(?:-\s*)?uses:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@([^\s#]+)\s*(?:#.*)?$")
 
 
 def pinned_actions() -> dict[str, set[str]]:
@@ -57,42 +57,94 @@ def pinned_actions() -> dict[str, set[str]]:
     return found
 
 
-def latest_major(repo: str) -> int | None:
-    """La majeure de la dernière release, ou None si l'API ne répond pas."""
+def _gh(*args: str) -> str | None:
     try:
-        out = subprocess.run(
-            ["gh", "api", f"repos/{repo}/releases/latest", "--jq", ".tag_name"],
-            capture_output=True, text=True, timeout=30)
+        out = subprocess.run(["gh", *args], capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    if out.returncode != 0:
+    return out.stdout if out.returncode == 0 else None
+
+
+def latest(repo: str) -> tuple[int, str] | None:
+    """(majeure, TAG ÉCRIVABLE) de la dernière release, ou None si l'API se tait.
+
+    Le tag compte autant que la majeure, et pour une raison payée le 2026-09-16 :
+    `astral-sh/setup-uv` publie `v10.1.0` et **PAS** de tag majeur flottant `v10`.
+    Un rapport qui aurait dit « v10 » aurait suggéré un épinglage irrésolvable — les
+    cinq jobs de la CI ont échoué en NEUF SECONDES sur
+    `Unable to resolve action … unable to find version v10`, avant même la mise en
+    route. C'est la classe `a-printed-command-is-runnable-as-printed` : ce qu'un
+    rapport imprime doit pouvoir être écrit tel quel.
+
+    On préfère donc le tag majeur flottant QUAND IL EXISTE, et on retombe sur le tag
+    exact sinon — ce qui est vérifié contre la liste des tags, pas supposé.
+    """
+    raw = _gh("api", f"repos/{repo}/releases/latest", "--jq", ".tag_name")
+    if raw is None:
         return None
-    m = re.search(r"v?(\d+)", out.stdout.strip())
-    return int(m.group(1)) if m else None
+    tag = raw.strip()
+    m = re.search(r"v?(\d+)", tag)
+    if not m:
+        return None
+    major = int(m.group(1))
+    tags = _gh("api", f"repos/{repo}/tags", "--jq", ".[].name") or ""
+    floating = f"v{major}"
+    return (major, floating if floating in tags.split() else tag)
+
+
+def resolves(repo: str, ref: str) -> bool | None:
+    """Ce `owner/repo@ref` existe-t-il vraiment ? None si l'API se tait.
+
+    LA question, et elle a coûté un run entier. Un épinglage irrésolvable ne fait pas
+    échouer un test : il fait échouer **tous les jobs en neuf secondes**, à
+    « Prepare all required actions », avant la mise en route, avec
+    `Unable to resolve action … unable to find version`. Le 2026-09-16,
+    `astral-sh/setup-uv@v10` a fait exactement ça — la dernière release est `v10.1.0`
+    et ce dépôt ne publie PAS de tag majeur flottant, contrairement à `@v4` qui, lui,
+    en avait un. Déduire le tag du numéro de version est donc faux, et rien dans le
+    dépôt ne pouvait le dire avant de pousser.
+    """
+    out = _gh("api", f"repos/{repo}/git/ref/tags/{ref}", "--jq", ".ref")
+    return None if out is None and _gh("api", f"repos/{repo}") is None else bool(out)
 
 
 def main() -> int:
     rows = []
     unknown = []
     for repo, versions in sorted(pinned_actions().items()):
-        latest = latest_major(repo)
-        if latest is None:
+        got = latest(repo)
+        if got is None:
             unknown.append(repo)
             continue
+        major, tag = got
         for v in sorted(versions):
-            cur = int(re.search(r"(\d+)", v).group(1))
-            rows.append((latest - cur, repo, v, latest))
+            m = re.search(r"(\d+)", v)
+            if not m:
+                continue
+            rows.append((major - int(m.group(1)), repo, v, tag, resolves(repo, v)))
 
-    rows.sort(reverse=True)
-    print("| retard (majeures) | action | épinglée | dernière |")
-    print("|---|---|---|---|")
-    for behind, repo, v, latest in rows:
+    rows.sort(key=lambda r: (-r[0], r[1]))
+    print("| retard | action | épinglée | résout ? | à écrire pour monter |")
+    print("|---|---|---|---|---|")
+    broken = []
+    for behind, repo, v, tag, ok in rows:
         mark = "🔴" if behind >= 2 else ("🟠" if behind == 1 else "✅")
-        print(f"| {mark} {behind} | `{repo}` | `{v}` | `v{latest}` |")
+        res = "✅" if ok else ("❓" if ok is None else "🚫 INTROUVABLE")
+        if ok is False:
+            broken.append(f"{repo}@{v}")
+        suggestion = f"`{repo}@{tag}`" if behind else "—"
+        print(f"| {mark} {behind} | `{repo}` | `{v}` | {res} | {suggestion} |")
     if unknown:
         print()
         print("Sans réponse de l'API (jeton ou dépôt sans release) : "
               + ", ".join(f"`{r}`" for r in unknown))
+
+    if broken:
+        print()
+        print("🚫 **ÉPINGLAGE IRRÉSOLVABLE** — ces `uses:` n'existent pas en amont. "
+              "Tous les jobs qui les portent échoueront en **neuf secondes**, avant la "
+              "mise en route, sur `Unable to resolve action` : "
+              + ", ".join(f"`{b}`" for b in broken))
 
     late = [r for r in rows if r[0] >= 2]
     if late:
