@@ -110,6 +110,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-guard-that-sees-the-binding-not-the-application](#a-guard-that-sees-the-binding-not-the-application) | P3 | manual | reported | none |
 | [a-unit-test-that-borrows-a-real-connection-from-the-pool](#a-unit-test-that-borrows-a-real-connection-from-the-pool) | P2 | deterministic | guarded | none |
 | [a-prudence-rule-with-no-expiry-becomes-a-freeze](#a-prudence-rule-with-no-expiry-becomes-a-freeze) | P3 | manual | guarded | none |
+| [an-action-pin-derived-from-a-version-number](#an-action-pin-derived-from-a-version-number) | P2 | manual | guarded | none |
+| [a-major-upgrade-that-moves-a-default](#a-major-upgrade-that-moves-a-default) | P2 | deterministic | guarded | none |
 | [a-cold-measurement-that-clears-caches-by-name](#a-cold-measurement-that-clears-caches-by-name) | P2 | deterministic | guarded | none |
 | [a-hook-shaped-function-pytest-never-calls](#a-hook-shaped-function-pytest-never-calls) | P2 | deterministic | guarded | none |
 | [a-blocking-hook-that-writes-its-reason-to-stdout](#a-blocking-hook-that-writes-its-reason-to-stdout) | P3 | manual | guarded | none |
@@ -5858,3 +5860,33 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
     « résout ? ») et n'imprime que des tags écrivables tels quels — la classe
     `a-printed-command-is-runnable-as-printed`, appliquée à un rapport.
     Mutation : `@v10` remis → `🚫 INTROUVABLE` nommé ; retiré → zéro.
+
+## an-action-pin-derived-from-a-version-number
+- status: guarded
+- severity: P2
+- kind: manual
+- symptom: les CINQ jobs d'un workflow échouent en **neuf secondes**, à « Prepare all required actions », avant la moindre mise en route : `Unable to resolve action owner/repo@vN, unable to find version vN`. Aucun test du dépôt ne peut le voir — il n'y a pas d'exécution où le voir.
+- root_cause: un épinglage DÉDUIT d'un numéro de version au lieu d'être vérifié contre les tags amont. Mesuré le 2026-09-16 : un rapport annonçait « setup-uv est en retard, dernière version v10.1.0 », j'ai écrit `@v10`, et ce tag n'existe pas — `astral-sh/setup-uv` publie des versions exactes et PAS de tag majeur flottant, alors que `@v4`, lui, en avait un. La convention « les actions publient un tag majeur » est vraie de `actions/checkout` et fausse ici, et rien ne distingue les deux sans interroger le dépôt amont. Le rapport qui a induit l'erreur est le correctif d'une AUTRE classe, écrit deux heures plus tôt : `a-prudence-rule-with-no-expiry-becomes-a-freeze`.
+- long_term_fix: un rapport qui suggère un épinglage doit imprimer un tag **écrivable tel quel**, vérifié contre `repos/<repo>/tags`, et non un numéro de majeure déduit d'une release. C'est la classe `a-printed-command-is-runnable-as-printed` appliquée à un rapport : ce qu'il imprime doit pouvoir être copié sans réfléchir, sinon il fabrique la panne suivante. `tools/dev/check_action_drift.py` porte désormais une colonne « résout ? » qui interroge `git/ref/tags/<ref>` pour CHAQUE `uses:` du dépôt, et nomme ce qui va se passer si on pousse.
+- autofix: none
+- signature: `python3 tools/dev/check_action_drift.py | grep -q INTROUVABLE && exit 1 || exit 0`
+- guard: { type: script, ref: tools/dev/check_action_drift.py, wired: .github/workflows/security-nightly.yml }
+- rex_ref: .github/workflows/ci.yml
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: `kind: manual` et non `deterministic`, à dessein : la signature a besoin du RÉSEAU et d'un `gh` authentifié. Elle ne peut donc pas vivre dans la porte de PR — la même séance a mesuré que le jeton par défaut d'Actions est en lecture seule et ne répond pas à tout. Elle tourne dans la passe nocturne, où le réseau est disponible et où rien ne bloque. Mutation vue dans les deux sens : `@v10` remis → `🚫 INTROUVABLE` nommé, rc=1 ; retiré → rc=0.
+
+## a-major-upgrade-that-moves-a-default
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une montée de MAJEURE laisse le build vert et rend une de ses garanties fausse. Rien n'échoue, rien n'avertit : le seul endroit où le changement existe est le log de l'outil, dans une ligne que personne ne lit quand tout est vert.
+- root_cause: la majeure change une valeur PAR DÉFAUT dont on dépendait sans l'avoir écrite. Mesuré le 2026-09-16 sur `astral-sh/setup-uv` : la v4 clé le cache sur `**/uv.lock`, la v10 sur `**/*requirements*.txt`. Or ce dépôt installe par `uv sync --frozen`, qui n'installe QUE ce que dit `uv.lock` — après la montée, le cache s'invalidait quand `requirements.txt` bougeait (donc pas quand les dépendances installées changeaient) et survivait quand `uv.lock` changeait. Vert dans les deux cas, faux dans les deux cas.
+- long_term_fix: **écrire ce dont on dépend, plutôt que d'en hériter.** Toute option d'une action tierce sur laquelle une garantie repose est déclarée explicitement, même quand le défaut la donne — c'est le seul état qu'une montée de majeure ne peut pas déplacer sous nos pieds. Corollaire pour la relecture : une majeure se lit dans le CHANGELOG des défauts, pas seulement dans sa liste de ruptures d'API ; un défaut déplacé n'est pas une rupture et n'y figure donc pas.
+- autofix: none
+- signature: `python3 -c "import sys,yaml,pathlib; bad=[str(p) for p in pathlib.Path('.github').rglob('*.y*ml') for job in ((yaml.safe_load(p.read_text(encoding='utf-8')) or {}).get('jobs') or {}).values() for st in (job.get('steps') or []) if 'setup-uv' in str(st.get('uses','')) and (st.get('with') or {}).get('enable-cache') and 'cache-dependency-glob' not in (st.get('with') or {})]; sys.exit(1 if bad else 0)"`
+- guard: { type: script, ref: .github/workflows/ci.yml (cache-dependency-glob explicite sur les 3 sites) }
+- rex_ref: .github/workflows/ci.yml
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: la classe est née DU correctif d'une autre — la montée v4 → v10 faite pour réparer un cache à 0 % de succès. La clause « majeures manuelles » de `.github/dependabot.yml` visait exactement ce risque et avait raison ; ce qui lui manquait, et qui existe maintenant, est de DIRE ce qu'elle refuse (`tools/dev/check_action_drift.py`). Signature structurelle (YAML analysé, pas de texte) donc `deterministic` : elle ne peut pas matcher un commentaire. Mutation vue dans les deux sens : glob retiré → rc=1 ; remis → rc=0.
