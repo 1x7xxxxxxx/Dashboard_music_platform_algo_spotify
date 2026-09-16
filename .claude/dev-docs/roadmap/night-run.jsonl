@@ -1,1 +1,4 @@
 {"at": "2026-09-16T22:07:30+00:00", "head": "573a2fe", "kind": "start", "task": "R122", "what": "cabler error-health-check dans config-check + src/api dans CLAUDE.md"}
+{"at": "2026-09-16T22:08:24+00:00", "head": "9a8ea3f", "kind": "done", "task": "R122", "what": "config-check cable, src/api documente"}
+{"at": "2026-09-16T22:08:40+00:00", "head": "9a8ea3f", "kind": "start", "task": "R122", "what": "night-check ne peut jamais tenir : le journal le salit lui-meme"}
+{"at": "2026-09-16T22:08:56+00:00", "head": "9a8ea3f", "kind": "done", "task": "R122", "what": "journal exclu du controle d'arbre sale"}

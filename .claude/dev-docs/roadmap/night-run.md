@@ -95,3 +95,10 @@ make night-check     # sort ≠ 0 si : arbre sale, commits non poussés, unité 
 
 Un `night-check` rouge en fin d'unité veut dire qu'on a commencé la suivante sans fermer
 la précédente. C'est la seule façon dont ce protocole peut se périmer en silence.
+
+⚠️ Le **journal** est exclu du contrôle d'arbre sale, et c'est un correctif trouvé à la
+première unité de la première nuit : `night-done` écrit sa ligne APRÈS le commit — il ne
+peut pas faire autrement, il enregistre le sha — donc l'arbre était sale à chaque fin
+d'unité et `night-check` rouge à coup sûr. **Un invariant qui ne peut jamais tenir est un
+invariant qu'on apprend à ignorer**, ce qui est pire que pas d'invariant. Le journal part
+avec le commit de l'unité suivante.

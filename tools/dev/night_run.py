@@ -257,8 +257,17 @@ def cmd_check(_args) -> int:
     unit = _current_unit(entries)
     if unit and _age_minutes(unit.get("at", "")) > 180:
         problems.append(f"unité [{unit.get('task')}] ouverte depuis plus de 3 h")
-    if [ln for ln in _git("status", "--short").splitlines() if ln.strip()]:
-        problems.append("arbre sale — une unité finie se commite avant la suivante")
+    # ⚠️ Le JOURNAL lui-même est exclu, et c'est un correctif, pas une commodité.
+    # `night-done` écrit une ligne APRÈS le commit de l'unité — il ne peut pas faire
+    # autrement, il enregistre le sha. L'arbre était donc sale à chaque fin d'unité et
+    # `night-check` rouge à coup sûr : un invariant qui ne peut jamais tenir est un
+    # invariant qu'on apprend à ignorer, ce qui est pire que pas d'invariant du tout.
+    # Le journal est de la comptabilité ; il part avec le commit de l'unité SUIVANTE.
+    dirty = [ln for ln in _git("status", "--short").splitlines()
+             if ln.strip() and JOURNAL.name not in ln]
+    if dirty:
+        problems.append(f"arbre sale ({len(dirty)}) — une unité finie se commite "
+                        "avant la suivante")
     if _git("rev-parse", "--abbrev-ref", "@{u}") and _git("log", "--oneline",
                                                           "@{u}..HEAD"):
         problems.append("commits non poussés — un arrêt les perdrait de vue")
