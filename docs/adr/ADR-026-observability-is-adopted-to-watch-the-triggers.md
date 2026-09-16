@@ -54,6 +54,12 @@ chronomètre applicatif (`src/dashboard/app.py:975`) mesure `_render_page` **hor
 latérale** — or le rendu par vue est de 61 ms contre 468-538 ms pour la page complète,
 un facteur 8 que personne ne voit. Et il n'est ni persisté ni exposé.
 
+> ⚠️ **Ce « facteur 8 » était faux, et l'instrument que cette ADR décide de construire
+> l'a montré dès sa première journée de données.** Le paragraphe reste tel qu'il a été
+> écrit — c'est le raisonnement qui a mené à la décision, et le réécrire effacerait la
+> raison pour laquelle la décision était BONNE. Voir l'addendum du 2026-09-16 en fin de
+> document. La décision n'est pas affectée : elle l'est plutôt confirmée.
+
 **4. Le précédent du §7 de la même ADR.** ADR-002 avait rejeté l'automatisation de la
 reprise après sinistre. La ré-évaluation du 2026-08-21 a constaté : *« **dépassé par les
 faits** : cron `pg_dump` actif en production, 17 sauvegardes sur disque, plus
@@ -76,7 +82,7 @@ des seuils écrits en seuils surveillés**.
 | Objection d'ADR-002 | Réponse, vérifiable |
 |---|---|
 | « ~5 services » | **3**. Pas d'OpenTelemetry, pas de collecteur, pas de `cadvisor`, pas de `postgres_exporter` — le pool de connexions est instrumenté par notre propre code, qui le connaît mieux qu'un exportateur générique |
-| « two dashboards **nobody watches** » | Faux depuis : le produit porte **quatre** vues de surveillance (`perf_monitor`, `db_health`, `airflow_kpi`, le bloc santé d'`admin`). Elles seront **retirées** au profit de Grafana — le solde net de code est **négatif** |
+| « two dashboards **nobody watches** » | Faux depuis : le produit porte **quatre** vues de surveillance (`perf_monitor`, `db_health`, `airflow_kpi`, le bloc santé d'`admin`). Elles seront **retirées** au profit de Grafana — le solde net de code est **négatif** ⚠️ *Une seule l'a été. Voir l'addendum : les trois autres ne faisaient pas doublon, et le solde reste négatif quand même.* |
 | « Defer until there is an actual **operator role** » | Le rôle existe et c'est le propriétaire : il lit déjà ces quatre vues, et il a demandé cette pile. Ce qui manquait n'était pas le lecteur, c'était le chiffre |
 
 ### Périmètre, arrêté
@@ -99,8 +105,9 @@ des seuils écrits en seuils surveillés**.
 - Les déclencheurs d'ADR-007 (rendu > 1,5 s sur `trigger_algo`, > 1 s sur
   `onboarding_health`) et d'ADR-014 (agrégat > 1 s) deviennent **surveillés** au lieu
   d'être seulement écrits.
-- Le facteur 8 entre le rendu d'une vue et celui d'une page complète devient visible,
-  donc attaquable. Il ne l'était pas.
+- Le rapport entre les deux phases d'un rendu devient visible, donc attaquable. Il ne
+  l'était pas. (Il s'est avéré INVERSE de ce qui est écrit plus haut — addendum du
+  2026-09-16.)
 - R119 (réparer la mesure client) obtient sa référence : croiser l'histogramme serveur
   avec le compte client est **le seul moyen** de dire si un « rerun perdu » est un
   défaut du serveur ou de l'instrument.
@@ -158,3 +165,87 @@ Cet ADR se relit si **l'une** de ces trois conditions tient :
 
 La condition 2 est la plus importante, et c'est celle qu'on oublie : **une pile
 d'observabilité que personne ne regarde est exactement ce qu'ADR-002 refusait.**
+
+---
+
+## Addendum — 2026-09-16 : ce que l'instrument a trouvé en premier
+
+Douze rendus authentifiés sur huit pages, le jour même de la mise en service. Le premier
+résultat de l'instrument est la **réfutation d'une affirmation de ce dépôt**, y compris
+du §3 ci-dessus.
+
+| page | chrome | vue | vue / chrome |
+|---|---|---|---|
+| `meta_mapping` | 12,3 ms | **776,8 ms** | **63×** |
+| `soundcloud` | 75,5 ms | 515,0 ms | 6,8× |
+| `data_wrapped` | 13,4 ms | 357,7 ms | 26,6× |
+| `home` | 11,2 ms | 315,9 ms | 28,2× |
+| `meta_cpr_optimizer` | 11,3 ms | 98,7 ms | 8,7× |
+| `instagram` | 12,3 ms | 96,3 ms | 7,8× |
+| `apple_music` | 12,3 ms | 87,3 ms | 7,1× |
+| `saisie_s4a` | 10,9 ms | 49,8 ms | 4,6× |
+
+**La chrome est plate à 11-13 ms** sur sept pages sur huit ; le 75 ms de `soundcloud` est
+son premier rendu, imports compris. C'est la **vue** qui varie, de 50 à 777 ms.
+
+### D'où venait le « facteur 8 »
+
+D'une soustraction qui n'a pas été faite. `468-538 ms` est mesuré **sous `AppTest`**,
+et `tools/loadtest_dashboard.py` documente vingt lignes plus haut le plancher de ce
+harnais, pris dans le MÊME conteneur le MÊME jour : **352 ms pour `st.write('hello')`** —
+deux lignes, pas d'app, pas de base, pas de plotly. Le coût réel de l'application
+au-dessus du harnais était donc de ~116-186 ms, et non de 468-538. C'est ce reste-là
+qu'il fallait comparer aux 61 ms d'une vue.
+
+Les chiffres se recollent : `instagram` mesuré côté serveur vaut 12 ms de chrome + 96 ms
+de vue = **108 ms**, au milieu de la bande 116-186. Ce qu'on attribuait à « la barre
+latérale » était presque entièrement `AppTest` lui-même.
+
+⚠️ **Ma première explication de cette erreur était elle-même fausse**, et mérite d'être
+écrite : j'ai d'abord attribué l'écart à une mesure « côté client, réseau et navigateur
+compris ». `tools/loadtest_dashboard.py` dit noir sur blanc que la mesure est prise
+**dans le conteneur de production**. J'expliquais un chiffre faux par une cause
+plausible sans lire la source — exactement le geste qui avait produit le chiffre faux.
+
+### Ce que ça change, et ce que ça ne change pas
+
+**Ça ne change pas la décision.** Elle est au contraire confirmée dans sa forme la plus
+forte : l'instrument a payé son coût en une journée, et pas en confirmant ce qu'on
+croyait — en le corrigeant. Une observabilité qui ne fait que valider les hypothèses
+existantes n'aurait pas mérité trois conteneurs.
+
+**Ça change l'ordre du travail de performance.** R118 (`st.fragment` sur les vues à
+filtres) passe **devant** R120, et R120 perd les deux postes qui visaient la chrome. Cet
+ordre avait déjà été inversé une fois, sur le chiffre faux.
+
+### La deuxième chose que la vérification a corrigée
+
+Le tableau des objections, plus haut, promet de retirer **quatre** vues de surveillance
+et annonce un solde de code négatif. La vérification ligne à ligne
+(`.claude/dev-docs/grafana-correspondence.md`, condition bloquante de l'étape 6) en a
+retiré **une**.
+
+Les trois autres ne font pas doublon, et les avoir rangées ensemble était une
+ressemblance d'ASPECT — toutes admin, toutes pleines de voyants — pas de sujet :
+`db_health` répond « les jeux de données de CE locataire sont-ils frais », `airflow_kpi`
+« quel DAG a tourné et avec quel taux de succès », le bloc technique d'`admin` « la
+fraîcheur par plateforme et par locataire ». Ce sont des données **métier et par
+locataire**, lues dans Postgres. Les faire entrer dans Prometheus demanderait une
+étiquette par locataire sur des métriques d'infrastructure, donc une cardinalité qui
+croît avec le nombre de clients.
+
+**Le solde reste négatif** — -249 lignes contre +3 panneaux versionnés — mais pour une
+autre raison que celle annoncée : `record_session_render()` est morte avec
+`perf_monitor`, étant la seule à écrire un journal que seule cette vue lisait.
+
+Ce que ça dit de l'ADR : une objection à laquelle on répond par une PROMESSE doit être
+revérifiée quand la promesse arrive à échéance. Celle-ci l'a été, et elle était à moitié
+fausse.
+
+### La limite, dite franchement
+
+**12 rendus, 8 pages, une session.** Le multiplicateur exact n'est pas établi et ne doit
+pas être cité comme tel. Ce qui l'est : le plus petit rapport observé vaut 4,6×, et la
+chrome ne bouge pas d'une page à l'autre — aucune accumulation de données ne fera passer
+un plancher de 11 ms devant une vue à 777 ms. La grandeur à surveiller quand les données
+s'accumuleront est le p95 par page, pas la moyenne.

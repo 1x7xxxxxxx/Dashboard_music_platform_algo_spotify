@@ -54,9 +54,18 @@ def end_chrome(page: str) -> None:
     """Clôt la phase CHROME et publie l'état du pool. Ne lève jamais.
 
     ⚠️ C'est la correction d'un angle mort, pas une métrique de plus : le chronomètre
-    historique d'`app.py` ne mesure que `_render_page` et EXCLUT tout ce qui précède —
-    mesuré, 61 ms par vue contre 468-538 ms pour la page complète, un facteur 8 que rien
-    n'affichait.
+    historique d'`app.py` ne mesure que `_render_page` et EXCLUT tout ce qui précède.
+
+    Ce docstring a longtemps affirmé que la partie exclue pesait « un facteur 8 » de
+    plus que la vue. C'était faux, et c'est cette couture qui l'a montré : côté SERVEUR
+    le 2026-09-16, sur 8 pages, la chrome est plate à 11-13 ms et la vue va de 50 à
+    777 ms. Le chiffre venait d'une soustraction jamais faite — `468-538 ms` est mesuré
+    sous `AppTest`, dont le plancher pour `st.write('hello')` vaut 352 ms dans le même
+    conteneur (`tools/loadtest_dashboard.py:30-33`). Ce qu'on prenait pour la barre
+    latérale était le harnais.
+
+    L'angle mort reste réel : une seule des deux phases était mesurée. Ce qui a changé,
+    c'est laquelle pèse — et donc où va le travail de performance (R118 avant R120).
 
     L'état du pool est publié ICI parce que c'est le seul instant où le nombre de
     connexions empruntées veut dire quelque chose : la chrome vient d'en ouvrir et de
@@ -84,28 +93,15 @@ def view_timer(page: str):
         return nullcontext()
 
 
-def record_session_render(page: str, seconds: float) -> None:
-    """Le journal de rendu de la SESSION, lu par la vue `perf_monitor`. Ne lève jamais.
-
-    Il double l'histogramme Prometheus, et c'est temporaire et assumé : ADR-026 prévoit
-    de retirer `perf_monitor` une fois Grafana en place, après un tableau de
-    correspondance vérifié ligne à ligne. Tant que la vue existe, elle doit continuer
-    d'afficher quelque chose — retirer la source avant la surface ferait un panneau vide
-    qui se lit « tout va bien ».
-
-    ⚠️ Il ne mesure QUE la vue, pas la chrome. C'est précisément l'angle mort que
-    `end_chrome()` corrige ; les deux chiffres ne sont donc pas comparables, et celui-ci
-    est le plus petit des deux d'un facteur ~8.
-    """
-    try:
-        from datetime import datetime
-
-        import streamlit as st
-
-        log = st.session_state.setdefault("_perf_log", [])
-        log.append({"page": page, "ms": int(seconds * 1000),
-                    "ts": datetime.now().strftime("%H:%M:%S")})
-        if len(log) > 100:
-            st.session_state["_perf_log"] = log[-100:]
-    except Exception:  # noqa: BLE001
-        pass
+# ⚠️ `record_session_render()` a ete RETIREE le 2026-09-16, en meme temps que la vue
+# `perf_monitor` (R115 etape 6). Elle remplissait `st.session_state["_perf_log"]`, que
+# cette vue etait la SEULE a lire — son propre docstring disait qu'elle ne survivrait pas
+# a la suppression, et le dire ne suffit pas a l'enlever.
+#
+# Ce depot a une classe pour ce qui restait sinon : `du-code-mort-qui-cache-une-
+# consequence-vivante`. `purge_expired()` a vecu des mois dans une `show()` que rien
+# n'atteignait, et plus rien ne purgeait pendant ce temps. Une fonction sans lecteur
+# n'est pas neutre : elle se fait lire comme une garantie.
+#
+# Ce qu'elle mesurait vit dans l'histogramme Prometheus, qui le fait mieux : toutes les
+# sessions, les DEUX phases, et interrogeable apres coup.

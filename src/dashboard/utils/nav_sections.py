@@ -106,9 +106,13 @@ NAV_SECTIONS: list = [
       ("💳 Billing", "billing"),
       ("⬇️ Export CSV", "export_csv"),
       ("🎁 Parrainage", "referral")]),
+    # ⚡ « Perf. Dashboard » (`perf_monitor`) a ete RETIRE le 2026-09-16, R115 etape 6.
+    # Grafana le couvre entierement, et mieux : la vue ne montrait que la session de
+    # l'admin qui la regardait, et seulement la phase `view`. Correspondance ligne a
+    # ligne verifiee AVANT la suppression : `.claude/dev-docs/grafana-correspondence.md`.
+    # Un seul chiffre est abandonne, le « DB ping », avec son declencheur de reouverture.
     ("admin",     "🛠️ Admin / Ops",
-     [("⚡ Perf. Dashboard", "perf_monitor"),
-      ("📈 Usage Analytics", "usage_analytics"),
+     [("📈 Usage Analytics", "usage_analytics"),
       ("🏗️ Monitoring ETL", "airflow_kpi"),
       ("🗂️ Historique ETL", "etl_logs"),
       ("🤖 Perf. Modèles ML", "ml_performance"),

@@ -26,8 +26,8 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R119 | L'instrument de mesure dit POURQUOI il échoue, et cesse de censurer | P1 | une passe interrompue laisse un JSON par palier |
-| R120 | La chrome, pas la vue — onglets et expanders paresseux, barre latérale | P2 | histogramme de rendu avant/après, même charge |
-| R118 | `st.fragment` sur les 11 vues à filtres | P2 | histogramme de rendu, admin d'abord |
+| R118 | `st.fragment` sur les 11 vues à filtres — **remonté avant R120** | P2 | histogramme de rendu, admin d'abord |
+| R120 | La vue, pas la chrome — onglets et expanders paresseux (chrome démesurée : 11-13 ms) | P2 | histogramme de rendu avant/après, même charge |
 | R121 | Les agrégations Python passent en SQL (couche or) | P3 | `make gold-coverage`, cliquet |
 | R115 | Prometheus + Grafana — **en service** ; reste 1 geste humain avant de retirer `perf_monitor` | P3 | l'histogramme de rendu porte au moins une page, après une connexion |
 | R116 | **ADR-027** — répliques et Redis, tranché APRÈS les courbes (026 est pris) | P4 | `ls docs/adr/ADR-027-*.md` |
@@ -210,7 +210,7 @@ le supposer.
   **Classes à écrire** : `a-measurement-that-cannot-say-why-it-failed`,
   `a-percentile-computed-on-survivors`.
 
-- [ ] **R120 — la chrome, pas la vue.**
+- [ ] **R120 — la VUE, pas la chrome.** (titre corrigé le 2026-09-16 : il disait l'inverse)
 
   ⚠️ **Ma première hypothèse était fausse et le dépôt le savait déjà.** `docs/adr/ADR-007`
   porte un profil cProfile pris **dans le conteneur de production** (2026-08-30,
@@ -218,8 +218,52 @@ le supposer.
   `copy.deepcopy` 0,141 s sur 82 462 appels, SQL 0,067 s. **pandas n'apparaît ni en temps
   propre ni dans les 20 premiers.** C'est **plotly** et la construction des figures.
 
-  Et le coût n'est pas dans la vue : rendu **par vue** p50 = **61 ms**, page **complète**
-  = **468-538 ms**, soit ~8× (`tools/loadtest_dashboard.py:17-21`).
+  ⚠️⚠️ **ET LA SECONDE PHRASE DE CE BLOC ÉTAIT FAUSSE AUSSI.** Elle disait : « le coût
+  n'est pas dans la vue — rendu par vue p50 = 61 ms, page complète = 468-538 ms, soit
+  ~8× ». **Mesuré côté SERVEUR le 2026-09-16, c'est l'inverse**, sur les 8 pages
+  visitées, sans une exception :
+
+  | page | chrome | vue | vue / chrome |
+  |---|---|---|---|
+  | `meta_mapping` | 12,3 ms | **776,8 ms** | **63×** |
+  | `soundcloud` | 75,5 ms | 515,0 ms | 6,8× |
+  | `data_wrapped` | 13,4 ms | 357,7 ms | 26,6× |
+  | `home` | 11,2 ms | 315,9 ms | 28,2× |
+  | `meta_cpr_optimizer` | 11,3 ms | 98,7 ms | 8,7× |
+  | `instagram` | 12,3 ms | 96,3 ms | 7,8× |
+  | `apple_music` | 12,3 ms | 87,3 ms | 7,1× |
+  | `saisie_s4a` | 10,9 ms | 49,8 ms | 4,6× |
+
+  **La chrome est PLATE** — 11 à 13 ms sur sept pages sur huit. Le 75 ms de `soundcloud`
+  est son premier rendu, imports compris. C'est la vue qui varie, de 50 ms à 777 ms.
+
+  **D'où venait le « facteur 8 » ? D'une soustraction jamais faite.** `468-538 ms` est
+  mesuré **sous `AppTest`**, et `tools/loadtest_dashboard.py:30-33` documente vingt
+  lignes plus haut le plancher de ce harnais, pris dans le MÊME conteneur le MÊME jour :
+  **352 ms pour `st.write('hello')`** — deux lignes, pas d'app, pas de base, pas de
+  plotly. Le coût réel de l'application au-dessus du harnais valait donc ~116-186 ms.
+  C'est ce reste-là qu'il fallait comparer aux 61 ms d'une vue, pas le total.
+
+  Les chiffres se recollent : `instagram` vaut 12 ms de chrome + 96 ms de vue = **108 ms**
+  côté serveur, au milieu de la bande 116-186. Ce qu'on attribuait à « la barre latérale »
+  était presque entièrement `AppTest`.
+
+  ⚠️ **Et ma première explication de l'erreur était fausse aussi** : j'ai attribué l'écart
+  à une mesure « côté client », alors que le fichier dit qu'elle est prise dans le
+  conteneur de production. J'expliquais un chiffre faux par une cause plausible sans lire
+  la source — le geste même qui avait produit le chiffre faux.
+
+  ⚠️ Portée : **12 rendus, 8 pages, une session**. Le multiplicateur exact n'est pas
+  établi. Ce qui l'est : le plus PETIT rapport observé est 4,6×, et la chrome ne bouge
+  pas d'une page à l'autre. Aucune accumulation de données ne fera passer un plancher de
+  11 ms devant une vue à 777 ms.
+
+  **Conséquence sur ce bloc** : les quatre premiers postes ci-dessous (`st.tabs`,
+  `st.expander`, `platform_chart`) sont **dans la vue** et restent valables — ce sont eux
+  que la mesure incrimine. Les deux qui visaient la chrome (la barre latérale à ~39 `t()`
+  par rerun, `track_page_view` hors du pool) **pèsent ensemble moins de 13 ms** : ils
+  descendent en P4, et `track_page_view` ne reste que parce qu'une connexion hors du pool
+  est un défaut de forme, pas de vitesse.
 
   Les postes, tous vérifiés :
   * **`st.tabs` exécute tous les corps** — `views/trigger_algo/router.py:202-225` ouvre
@@ -239,8 +283,19 @@ le supposer.
   Streamlit 1.63 le supporte ; il n'existe que dans **1 vue sur ~40**
   (`views/airflow_kpi.py:344`). Changer un filtre rejoue aujourd'hui tout le script.
 
-  ⚠️ **Après R120, pas avant** : si la chrome pèse 8× la vue, un fragment sur la vue
-  n'attaque pas le poste principal. L'ordre a été corrigé sur cette mesure.
+  ⚠️ **AVANT R120 — l'ordre est réinversé le 2026-09-16, sur une mesure serveur.** Il
+  disait : « après R120, pas avant : si la chrome pèse 8× la vue, un fragment sur la vue
+  n'attaque pas le poste principal ». La prémisse est fausse (détail chiffré dans le bloc
+  R120) : **la vue pèse de 4,6× à 63× la chrome**, sur les 8 pages mesurées.
+
+  Un fragment sur la vue attaque donc **le poste principal**, et c'est le seul levier qui
+  évite de rejouer une vue à 777 ms pour un changement de filtre. R120 garde ce qui vise
+  la VUE (`st.tabs`, `st.expander`, les agrégations Python) ; ce qui visait la chrome
+  descend en P4.
+
+  C'est la deuxième fois que cet ordre change, et les deux fois sur une mesure. Le noter
+  est le point : **la première inversion reposait sur un chiffre jamais mesuré côté
+  serveur**, et il a fallu construire l'instrument pour s'en apercevoir.
 
   Population (≥ 2 widgets de filtre ET ≥ 2 figures) : `data_wrapped` (5/13),
   `meta_creatives` (4/12), `spotify_s4a_combined` (2/12), `revenue_forecast` (4/11),
@@ -436,7 +491,7 @@ travail quotidien existe déjà et n'enlève aucune couverture** :
 
 ## 🔖 REPRISE — état au 2026-09-16, sept tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R115,R119,R120,R118,R121,R116,R117 -->
+<!-- reprise: open=R115,R119,R118,R120,R121,R116,R117 -->
 
 **Sept tâches sont ouvertes.** R114 est livrée et déployée (`e859ae3`), et **son
 résultat est AMBIGU** — c'est ce constat qui a ouvert R118 à R121. Détail dans
@@ -444,7 +499,7 @@ résultat est AMBIGU** — c'est ce constat qui a ouvert R118 à R121. Détail d
 
 **L'ordre est contraint et non négociable** : R115 (l'instrument) puis R119 (le réparer)
 AVANT toute optimisation, parce qu'aucune des deux colonnes mesurées aujourd'hui ne peut
-trancher. Puis R120, R118, R121 (les causes), puis R116 (l'ADR), puis R117 (l'outillage).
+trancher. Puis **R118, R120**, R121 (les causes) — R118 est passée DEVANT R120 le 2026-09-16, la mesure serveur ayant inversé la prémisse — puis R116 (l'ADR), puis R117 (l'outillage).
 
 ⚠️ **Mode de travail : une étape à la fois, validée avant la suivante.**
 

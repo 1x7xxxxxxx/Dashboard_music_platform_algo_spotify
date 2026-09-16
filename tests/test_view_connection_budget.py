@@ -22,7 +22,7 @@ one is touched.
 Three of them, though, cannot use `view_session()` as it stands, and that is worth
 knowing before anyone attempts the sweep R9 implied:
 
-  * `admin.py`, `airflow_kpi.py`, `perf_monitor.py` never call `get_artist_id()` —
+  * `admin.py` and `airflow_kpi.py` never call `get_artist_id()` —
     they are cross-tenant admin surfaces, and `view_session()` insists on a tenant.
     Both `admin` and `airflow_kpi` are down to ONE connection anyway (2026-08-21):
     the rule-#9 breach was the count, and it is fixed without `view_session()`;
@@ -81,7 +81,6 @@ _KNOWN_MULTI: dict[str, int] = {}
 _CANNOT_MIGRATE_AS_IS = {
     "admin.py": "cross-tenant admin surface — never resolves a tenant",
     "airflow_kpi.py": "cross-tenant admin surface — never resolves a tenant",
-    "perf_monitor.py": "cross-tenant admin surface — never resolves a tenant",
     "referral.py": "refuses admins; view_session gives them artist_id = 1",
 }
 

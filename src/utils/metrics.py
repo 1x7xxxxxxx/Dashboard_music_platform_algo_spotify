@@ -18,9 +18,22 @@ Ce que ce module mesure, et pourquoi chaque ligne
 --------------------------------------------------
 **`streamlit_rerun_duration_seconds{page,phase}`** — l'histogramme qui manquait. Le seul
 chronomètre existant (`app.py:975`) mesure `_render_page` et **exclut la barre
-latérale** : mesuré, 61 ms par vue contre 468-538 ms pour la page complète, un facteur 8
-que personne ne voyait. Le label `phase` sépare `chrome` (auth, navigation, barre
-latérale) de `view`. **C'est la correction d'un angle mort, pas un ajout.**
+latérale**. Le label `phase` sépare `chrome` (auth, navigation, barre latérale) de
+`view`. **C'est la correction d'un angle mort, pas un ajout.**
+
+⚠️ On a longtemps écrit ici que la chrome pesait « un facteur 8 » de plus que la vue.
+C'était FAUX, et la mesure qui le dit est celle que ce module a rendue possible : côté
+SERVEUR le 2026-09-16, sur 8 pages, la chrome est PLATE à 11-13 ms et c'est la VUE qui
+domine — de 4,6× (`saisie_s4a`) à 63× (`meta_mapping`, 777 ms).
+
+Le chiffre venait d'une soustraction jamais faite : `468-538 ms` est mesuré sous
+`AppTest`, dont le plancher pour `st.write('hello')` vaut **352 ms** dans le même
+conteneur (`tools/loadtest_dashboard.py:30-33`). Le reste réel valait ~116-186 ms — et
+`instagram`, mesuré ici, vaut 12 + 96 = 108 ms. Ce qu'on prenait pour la barre latérale
+était le harnais.
+
+L'angle mort reste réel : une seule des deux phases était mesurée. Ce qui a changé, c'est
+laquelle pèse.
 
 **`streamlit_reruns_in_flight`** — la file d'attente rendue visible. Streamlit sérialise
 les reruns dans un processus ; cette jauge dit si les « reruns perdus » mesurés côté
@@ -89,7 +102,8 @@ def _build():
 
     # Bornes choisies sur les mesures existantes, pas par défaut : 61 ms (vue seule),
     # 317-329 ms (p50 à un onglet), 468-538 ms (page complète), 1,5 s (le seuil
-    # d'ADR-007 sur `trigger_algo`), 3 s (le rouge de `perf_monitor`).
+    # d'ADR-007 sur `trigger_algo`), 3 s (le seuil de `RenderLatencyDegraded`, qui a herite du rouge de
+    # `perf_monitor` quand cette vue a ete retiree).
     buckets = (0.05, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0)
 
     def _once(factory, name, *args, **kwargs):

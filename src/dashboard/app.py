@@ -9,7 +9,6 @@ import html as _html
 import streamlit as st
 from pathlib import Path
 import sys
-import time
 import os
 
 # ✅ IMPORTANT : Ajouter le chemin AVANT les imports src.*
@@ -101,7 +100,7 @@ from src.database.stripe_schema import page_is_locked
 # qui répondent à une même question dans deux langues, c'est
 # `one-set-answers-two-questions`, et ici la version artiste est la bonne.
 _ADMIN_ONLY = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links',
-               'etl_logs', 'referral_kpi', 'promo_admin', 'perf_monitor',
+               'etl_logs', 'referral_kpi', 'promo_admin',
                'usage_analytics', 'alerts', 'db_health'}
 
 
@@ -670,7 +669,6 @@ def _render_page(page):
     elif page == "referral_kpi": from views.referral_admin import show; show()
     elif page == "promo_admin": from views.promo_admin import show; show()
     elif page == "upgrade": from views.upgrade import show; show()
-    elif page == "perf_monitor": from views.perf_monitor import show; show()
     elif page == "usage_analytics": from views.usage_analytics import show; show()
     elif page == "alerts": from views.alerts import show; show()
 
@@ -709,8 +707,7 @@ def main():
 def _main_body():
     # Métriques (ADR-026) — corps dans `utils/metrics_seam.py`, pas ici : ce fichier
     # porte un cliquet de longueur qui ne monte jamais.
-    from src.dashboard.utils.metrics_seam import (end_chrome, record_session_render,
-                                              start_rerun, view_timer)
+    from src.dashboard.utils.metrics_seam import end_chrome, start_rerun, view_timer
     start_rerun()
     # Public routes — accessible without authentication
     _page_param = st.query_params.get("page")
@@ -977,7 +974,6 @@ def _main_body():
     track_page_view(page)
 
     end_chrome(page)          # clôt la phase CHROME, publie l'état du pool
-    _t0 = time.perf_counter()
 
     try:
         with view_timer(page):
@@ -991,7 +987,6 @@ def _main_body():
                    "❌ Une erreur est survenue sur cette page. Réessayez ; "
                    "l'administrateur a été notifié si le problème persiste."))
 
-    record_session_render(page, time.perf_counter() - _t0)
 
 if __name__ == "__main__":
     main()

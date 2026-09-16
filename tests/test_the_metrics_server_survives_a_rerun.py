@@ -18,9 +18,15 @@ montrer est exactement celui qu'un test doit attraper.
 Et l'angle mort qu'il corrige
 ------------------------------
 Le chronomètre historique (`app.py`) mesure `_render_page` et **exclut la barre
-latérale** : 61 ms par vue contre 468-538 ms pour la page complète, un facteur 8 que
-rien n'affichait. La phase `chrome` est cette correction. Un test qui vérifierait
-seulement « une métrique existe » laisserait repasser l'angle mort — il faut vérifier
+latérale**. La phase `chrome` est cette correction.
+
+Le « facteur 8 » longtemps écrit ici était faux, et dans le mauvais sens : côté SERVEUR
+le 2026-09-16, sur 8 pages, la chrome est plate à 11-13 ms et la vue va de 50 à 777 ms.
+Il venait d'une soustraction jamais faite — le plancher de 352 ms d'`AppTest`
+(`tools/loadtest_dashboard.py:30-33`), jamais retranché de la page complète.
+
+C'est la raison d'être du test ci-dessous : un test qui vérifierait seulement « une
+métrique existe » laisserait repasser l'angle mort — il faut vérifier
 que les DEUX phases sont émises.
 """
 from __future__ import annotations
@@ -120,7 +126,13 @@ def test_a_port_already_taken_is_survived(monkeypatch) -> None:
 
 
 def test_both_phases_are_emitted() -> None:
-    """`chrome` ET `view`. Sans les deux, l'angle mort du facteur 8 revient."""
+    """`chrome` ET `view`. Sans les deux, on ne peut pas savoir laquelle pèse.
+
+    Et ce n'est pas théorique : le dépôt a affirmé pendant des semaines que la chrome
+    dominait d'un facteur 8, et la première mesure des deux phases a montré l'inverse
+    sur les 8 pages visitées. Une seule des deux phases instrumentée, et l'erreur
+    serait encore là.
+    """
     import src.utils.metrics as m
 
     m.observe_chrome("home", 0.46)

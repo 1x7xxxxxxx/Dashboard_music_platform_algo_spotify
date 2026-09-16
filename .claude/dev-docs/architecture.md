@@ -207,7 +207,6 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `meta_ads_overview.py` | Meta Ads | meta_insights_performance (+ custom_conversions, lp_views), meta_insights_performance_day/age/country/placement, meta_insights_engagement, meta_adsets (targeting × CPR — "🎯 Ciblage vs Performance") | all |
 | `meta_creatives.py` | Créatives Meta — 6 tabs (Classement/Comparaison/Funnel/Évolution/Fatigue/Activité) + per-creative multi-metric timeline since 2026-05-29 | meta_insights (ad grain), meta_ads | all |
 | `meta_breakdowns.py` | 🌍 Breakdowns Meta (since 2026-05-29) — campaign→adset→creative cascade, dimension (country/placement/age) × metric-family (perf/engagement); choropleth (utils/geo.py) + Pareto (utils/charts.py::pareto_spend_cpr) | all |
-| `perf_monitor.py` | Perf. Dashboard | st.session_state._perf_log, psutil, DB ping | admin |
 | `meta_x_spotify.py` | Meta × Spotify | meta_insights, tracks, track_popularity_history, campaign_track_mapping (read-only) | all |
 | `meta_mapping.py` | Mapping Spotify × Meta Ads (nom de campagne) — under "Données" section since 2026-05-28 | campaign_track_mapping (read+write, artist_id NOT NULL) | all |
 | `youtube.py` | YouTube | youtube_* | all |

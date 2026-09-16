@@ -41,7 +41,7 @@ VIEWS = [
     "credentials", "data_wrapped", "db_health", "etl_logs", "export_csv",
     "export_pdf", "home", "hypeddit", "imusician", "instagram", "meta_ads_overview",
     "meta_breakdowns", "meta_cpr_optimizer", "meta_creatives", "meta_mapping",
-    "meta_x_spotify", "ml_performance", "perf_monitor",
+    "meta_x_spotify", "ml_performance",
     "promo_admin", "referral", "referral_admin",
     "revenue_forecast", "sacem", "saisie_s4a", "soundcloud",
     "spotify_s4a_combined", "trigger_algo", "upgrade", "usage_analytics",
