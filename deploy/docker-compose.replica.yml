@@ -1,0 +1,43 @@
+# Seconde replique du dashboard — SURCHARGE, jamais une edition de la cible
+#
+# Pourquoi un fichier separe (2026-09-16)
+# ---------------------------------------
+# Le `docker-compose.yml` de production est gitignore par construction : c'est deja la
+# source de derive que l'audit de parite d'environnement existe pour attraper. L'editer
+# pour monter une EXPERIENCE ferait exactement ce que le playbook de changement
+# d'architecture interdit — une modification manuelle sur une cible deployee, que rien
+# ne reconcilie ensuite.
+#
+# Une surcharge se compose et se retire :
+#     docker compose -f docker-compose.yml -f deploy/docker-compose.replica.yml \
+#            --profile replica up -d dashboard2
+#     docker compose -f docker-compose.yml -f deploy/docker-compose.replica.yml \
+#            --profile replica down dashboard2
+#
+# `extends` reprend l'image, l'environnement et les volumes du service d'origine : une
+# seconde liste de quarante variables aurait derive des la premiere qu'on oublie. Seuls
+# le nom du conteneur et le port changent. MEME image, MEME bind `./data` — les archives
+# d'upload restent coherentes, c'est le meme hote.
+#
+# `profiles` la tient a l'ARRET : un `docker compose up -d` ordinaire ne la leve pas,
+# meme avec ce fichier present. Il faut la demander.
+#
+# Prealables, tous deux deployes et prouves :
+#   * les seaux d'authentification comptent dans Postgres (etape 1) — sinon le budget
+#     anti-force-brute vaudrait `budget x N` ;
+#   * l'invalidation de cache traverse les instances (R113) — sinon celle-ci servirait
+#     des chiffres perimes pendant dix minutes.
+#
+# Sa sonde de sante vit dans `tools/deploy.sh:service_probe()` (port 8511), et
+# `tests/test_a_deploy_covers_every_service_it_starts.py` refuse qu'un amont Caddy
+# existe sans elle.
+
+services:
+  dashboard2:
+    extends:
+      file: ../docker-compose.yml
+      service: dashboard
+    container_name: streamlytics_dashboard2
+    profiles: ['replica']
+    ports:
+      - '127.0.0.1:8511:8501'

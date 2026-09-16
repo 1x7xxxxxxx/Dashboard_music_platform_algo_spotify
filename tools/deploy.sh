@@ -12,7 +12,36 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+# ── Le REGISTRE des services deployables, et sa sonde (2026-09-16) ──────────
+# Une seule liste, lue par la porte de sante ET par le rollback. Avant, la porte
+# portait un `case` dont la branche par defaut etait `*) continue` : un service
+# demande mais inconnu du `case` traversait le deploiement SANS AUCUNE
+# VERIFICATION et sortait en 0. Le jour ou une seconde replique `dashboard2`
+# arrive (R114), c'est exactement ce qui se serait passe — deployee, jamais
+# sondee, jamais couverte par un retour arriere, en silence.
+#
+# Ajouter une replique = ajouter UNE ligne ici. Demander un service absent de ce
+# registre est desormais une ERREUR, pas un silence.
+service_probe() {
+    case "$1" in
+        api)        echo "http://127.0.0.1:8502/health" ;;
+        dashboard)  echo "http://127.0.0.1:8501/_stcore/health" ;;
+        dashboard2) echo "http://127.0.0.1:8511/_stcore/health" ;;
+        *)          echo "" ;;
+    esac
+}
+
 SERVICES="${*:-api dashboard}"
+
+for s in $SERVICES; do
+    if [ -z "$(service_probe "$s")" ]; then
+        echo "STOP : le service '$s' n'a pas de sonde de sante dans ce script."
+        echo "   Le deployer serait le mettre en service SANS verification et SANS"
+        echo "   retour arriere. Ajouter sa sonde dans service_probe(), ou corriger"
+        echo "   le nom. Services connus : api dashboard dashboard2"
+        exit 1
+    fi
+done
 
 echo "▶ git pull --ff-only origin main"
 git fetch -q origin main
@@ -106,7 +135,12 @@ rollback() {
     _svc="$1"; _url="$2"
     echo "RETOUR ARRIERE : $after -> $before (la porte de $_svc est rouge)"
     git reset --hard -q "$before" || { echo "   reset impossible — intervention manuelle"; return; }
-    docker compose up -d --build $SERVICES >/dev/null 2>&1 \
+    # Le service EN CAUSE, pas tout `$SERVICES` — corrige le 2026-09-16. La version
+    # d'avant recevait `_svc` en argument et reconstruisait quand meme la liste
+    # entiere : a deux repliques, l'echec de l'une aurait reconstruit les DEUX sous
+    # trafic, donc coupe le site pour reparer une moitie. Reconstruire une seule
+    # instance laisse l'autre servir pendant le retour.
+    docker compose up -d --build "$_svc" >/dev/null 2>&1 \
         || { echo "   rebuild impossible — intervention manuelle"; return; }
     for _i in $(seq 1 30); do
         if curl -fsS -o /dev/null --max-time 5 "$_url" 2>/dev/null; then
@@ -122,11 +156,7 @@ rollback() {
 
 # Health gates: api on 8502/health, dashboard on 8501 Streamlit /_stcore/health.
 for s in $SERVICES; do
-    case "$s" in
-        api)       url="http://127.0.0.1:8502/health" ;;
-        dashboard) url="http://127.0.0.1:8501/_stcore/health" ;;
-        *)         continue ;;
-    esac
+    url="$(service_probe "$s")"
     printf "▶ waiting for %s health… " "$s"
     ok=""
     for i in $(seq 1 30); do

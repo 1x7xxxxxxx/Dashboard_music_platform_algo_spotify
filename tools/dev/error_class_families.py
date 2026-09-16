@@ -98,7 +98,11 @@ FAMILIES: list[tuple[str, str, str]] = [
      # AVANT l'évènement qu'il prétend décrire. « La suite écrit-elle dans cette
      # table ? → 0 » était une vraie mesure, et une fausse réponse.
      r"named-like-a-final-one|imput|estimat|wins-a-desc-ranking|"
-     r"taken-before-the-writer-ran"),
+     r"taken-before-the-writer-ran|"
+     # `carried-across-instruments`, ajouté le 2026-09-16 à côté du précédent : l'un
+     # dit qu'une mesure peut être prise au mauvais INSTANT, l'autre avec le mauvais
+     # INSTRUMENT. Les deux produisent un chiffre juste et une réponse fausse.
+     r"carried-across-instruments"),
 
     ("le-message-parle-au-mauvais-lecteur",
      "Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que "
@@ -161,8 +165,21 @@ FAMILIES: list[tuple[str, str, str]] = [
      # classe `a-gate-that-repairs-what-it-judges` — une barrière bloquante qui
      # corrige la dérive avant de la regarder — pose exactement la question de cette
      # famille. Le motif ne parlait que de `guard`, pas de la forme « porte ».
+     # `skips-instead-of-refusing` et `rollback-wider-than-the-failure`, ajoutés le
+     # 2026-09-16. Les deux sont les DEUX MOITIÉS d'une même porte de déploiement :
+     # celle qui décide si une vérification a lieu, et celle qui répare quand elle
+     # est rouge. La première passait son tour en silence sur un service inconnu ; la
+     # seconde réparait plus large que la panne. Une porte dont le remède déborde est
+     # aussi peu gardée qu'une porte qui ne regarde pas — la question de la famille
+     # (« sa portée contient-elle ce défaut ? ») est la bonne dans les deux cas, à
+     # ceci près qu'ici la portée est trop LARGE, pas trop étroite.
      r"guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|"
-     r"test-|suite|assert|blind"),
+     # `correct-because-there-is-only-one-of-it`, ajoutee le 2026-09-16 : c'est la
+     # classe GENERIQUE dont trois autres du jour sont des instances. Son garde est un
+     # registre qui MET EN QUESTION plutot qu'il ne refuse — la forme de garde que
+     # cette famille reconnait.
+     r"test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|"
+     r"rollback-wider-than-the-failure"),
 
     ("un-document-qui-affirme-un-état-périmé",
      "Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?",

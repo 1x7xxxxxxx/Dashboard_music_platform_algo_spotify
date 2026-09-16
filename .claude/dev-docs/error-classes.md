@@ -60,6 +60,10 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
+| [correct-because-there-is-only-one-of-it](#correct-because-there-is-only-one-of-it) | P1 | deterministic | guarded | none |
+| [a-default-branch-that-skips-instead-of-refusing](#a-default-branch-that-skips-instead-of-refusing) | P1 | deterministic | guarded | none |
+| [a-rollback-wider-than-the-failure](#a-rollback-wider-than-the-failure) | P1 | deterministic | guarded | none |
+| [a-threshold-carried-across-instruments](#a-threshold-carried-across-instruments) | P2 | manual | guarded | none |
 | [a-count-taken-before-the-writer-ran](#a-count-taken-before-the-writer-ran) | P2 | manual | reported | none |
 | [a-limiter-consumed-in-two-steps](#a-limiter-consumed-in-two-steps) | P1 | deterministic | guarded | none |
 | [a-gate-that-counts-instead-of-comparing-sets](#a-gate-that-counts-instead-of-comparing-sets) | P2 | deterministic | guarded | none |
@@ -5972,3 +5976,63 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: `kind: manual` et **sans signature**, à dessein. Aucune commande ne peut distinguer « ce compteur vaut zéro parce qu'il n'y a rien » de « il vaut zéro parce que l'écrivain n'a pas encore tourné » — c'est l'ORDRE de deux évènements, pas un état du dépôt. Une signature inventée ici serait une fausse garantie, et la règle du catalogue est de livrer la classe sans plutôt qu'avec une signature jamais vue rouge. Ce qui a réellement fermé l'instance 1 est une frontière dans `conftest.py`, mutée : 12 lignes pré-insérées, frontière retirée → 6 rouges ; remise → 27 verts.
+
+## a-threshold-carried-across-instruments
+- status: guarded
+- severity: P2
+- kind: manual
+- symptom: un déclencheur chiffré se déclenche — ou ne se déclenche pas — et la décision qui en découle repose sur une comparaison qui n'a jamais eu de sens. Rien n'échoue : les deux nombres existent, sont justes, et ne mesurent pas la même chose.
+- root_cause: le SEUIL a été défini avec un instrument, et LU avec un autre. Mesuré le 2026-09-16 par `code-critic` sur R87/R114 : le déclencheur disait « `loadtest_dashboard.py -n 12` rend un p50 > 200 ms ». Cet outil sature lui-même la mesure (352 ms à un fil, 2 144 ms à six, sous `AppTest`) — c'est précisément pourquoi il a été remplacé par `tools/loadtest_concurrency.py`, qui passe par un vrai navigateur. Le nouvel outil rend **329 ms à N=1**, donc sans aucune concurrence, déjà au-dessus d'un seuil écrit pour l'ancien. Le remplacement de l'instrument était un progrès ; ce qui a été oublié est que **le seuil appartenait à l'instrument**, pas au phénomène.
+- long_term_fix: **un seuil chiffré nomme l'instrument qui l'a produit, et un changement d'instrument périme le seuil** — il se recalibre, il ne se transporte pas. Quand c'est possible, préférer un signal SANS UNITÉ à transporter : ici la colonne « reruns perdus » (un COMPTE de clics qui n'ont jamais rendu de page) vaut zéro sur n'importe quel instrument, n'importe quelle machine, n'importe quelle heure — là où une milliseconde n'a de sens que relativement à la ligne de base de l'outil qui l'a produite. Le protocole qui en découle est écrit AVANT la mesure (`.claude/dev-docs/measurement-protocol-R114.md`), parce qu'un protocole rédigé après choisit celui qui donne le résultat espéré.
+- autofix: none
+- signature: none
+- guard: { type: doc, ref: .claude/dev-docs/measurement-protocol-R114.md }
+- rex_ref: tools/loadtest_concurrency.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: `kind: manual` et SANS signature. Aucune commande ne peut savoir quel instrument a produit un nombre écrit dans une roadmap il y a trois semaines — c'est une propriété de l'HISTOIRE du chiffre, pas du dépôt. La classe voisine `a-count-taken-before-the-writer-ran` dit la même chose sur l'INSTANT d'une mesure ; celle-ci la dit sur son INSTRUMENT. Trouvée par `code-critic` sur le DESIGN, avant qu'une ligne de R114 soit écrite — c'est-à-dire au seul moment où la correction coûte zéro.
+
+## a-default-branch-that-skips-instead-of-refusing
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: un script de déploiement met un service EN SERVICE sans l'avoir vérifié une seule fois, et sort en 0. Rien n'échoue, rien n'avertit : le service demandé n'a simplement croisé aucune branche qui le connaisse.
+- root_cause: la branche par DÉFAUT d'un aiguillage passe son tour au lieu de refuser. Mesuré le 2026-09-16 par `code-critic` sur le design de R114, avant qu'une ligne soit écrite : `tools/deploy.sh` choisissait la sonde de santé par un `case` se terminant par `*) continue`. Tant que `$SERVICES` ne contenait que `api` et `dashboard`, les deux branches existaient et le trou était invisible. Une seconde réplique `dashboard2` y serait tombée : reconstruite, remise en service, **jamais sondée, jamais couverte par le retour arrière** — et Caddy lui envoyant du trafic par cookie. Le défaut n'est pas le `case` incomplet, c'est que l'incomplétude était SILENCIEUSE.
+- long_term_fix: **la branche par défaut d'un aiguillage de déploiement refuse et nomme ce qui manque ; elle ne passe jamais son tour.** `service_probe()` est devenu un registre qui rend la chaîne vide sur l'inconnu, et l'appelant sort en 1 avec la liste des services connus. Règle générale, transportable : quand un aiguillage décide si une VÉRIFICATION a lieu, `default` doit être une erreur — l'absence de branche y signifie « on ne sait pas vérifier », jamais « rien à vérifier ». La signature, elle, relie les deux fichiers que rien ne comparait : tout amont de `deploy/Caddyfile` doit avoir sa sonde dans `tools/deploy.sh`.
+- autofix: none
+- signature: `python3 -c "import re,sys,pathlib; U=re.compile(r'\\b127[.]0[.]0[.]1:(\\d{2,5})\\b'); s=pathlib.Path('tools/deploy.sh').read_text(encoding='utf-8'); i=s.index('service_probe()'); probed=set(U.findall(s[i:s.index(chr(10)+chr(125),i)])); served={m for l in pathlib.Path('deploy/Caddyfile').read_text(encoding='utf-8').splitlines() if l.strip().startswith('reverse_proxy') for m in U.findall(l)}; bad=sorted(served-probed); print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
+- guard: { type: pytest, ref: tests/test_a_deploy_covers_every_service_it_starts.py }
+- rex_ref: tools/deploy.sh
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: trouvée sur le DESIGN et non sur un incident — c'est-à-dire au seul moment où elle coûtait zéro. La signature lit la STRUCTURE (le corps de `service_probe()`, les directives `reverse_proxy` non commentées), donc écrire sur le défaut ne la fait pas rougir. Mutation vue dans les deux sens : un amont `127.0.0.1:8599` ajouté au Caddyfile → rc=1 en nommant `8599` ; retiré → rc=0.
+
+## a-rollback-wider-than-the-failure
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: un retour arrière déclenché par la panne d'UNE instance reconstruit tout ce qui tourne. Le remède coupe ce qui marchait encore, et la coupure est plus large que l'incident qu'elle répare.
+- root_cause: la fonction reçoit l'objet en cause en argument et ne s'en sert pas pour agir. Mesuré le 2026-09-16 : `rollback()` prenait `_svc` (`tools/deploy.sh:106`) pour l'afficher dans son message, puis reconstruisait la variable globale `$SERVICES`. À une instance par surface, les deux sont identiques et le défaut n'existe pas. À deux répliques, l'échec de la santé sur l'une aurait reconstruit **les deux sous trafic** — c'est-à-dire coupé le site pour réparer une moitié. Même forme que la classe précédente : un code correct tant qu'il n'y a qu'un exemplaire de chaque chose.
+- long_term_fix: **un remède se borne à ce qui est en panne, et l'argument reçu pour LE NOMMER doit être celui qui sert à AGIR.** Repère de relecture, transportable : quand une fonction reçoit un identifiant et n'en fait qu'un `echo`, demander pourquoi l'action, elle, porte sur un ensemble. La signature lit le corps de `rollback()` et refuse toute commande `docker compose` y mentionnant `$SERVICES`.
+- autofix: none
+- signature: `python3 -c "import sys,pathlib; s=pathlib.Path('tools/deploy.sh').read_text(encoding='utf-8'); i=s.index('rollback() {'); b=s[i:s.index(chr(10)+chr(125),i)]; bad=[l.strip() for l in b.splitlines() if 'docker compose' in l and 'SERVICES' in l and not l.strip().startswith('#')]; print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
+- guard: { type: pytest, ref: tests/test_a_deploy_covers_every_service_it_starts.py }
+- rex_ref: tools/deploy.sh
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: le rollback datait de la veille (étape 0 du chantier d'architecture), écrit dans une passe de robustesse et jamais exercé à deux instances — il n'y en avait qu'une. C'est le motif récurrent de cette séance : du code exact **parce qu'il n'existe qu'un exemplaire**, et faux le jour où il y en a deux, sans qu'une ligne change. Signature structurelle (corps de fonction, lignes non commentées) donc `deterministic`. Mutation vue dans les deux sens : `--build "$_svc"` remplacé par `--build $SERVICES` → rc=1 en citant la ligne ; remis → rc=0.
+
+## correct-because-there-is-only-one-of-it
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: du code exact aujourd'hui devient faux le jour où une seconde instance existe — **sans qu'une seule ligne change**. Rien n'échoue au moment du changement : c'est une phrase de commentaire qui cesse d'être vraie, et personne ne relit les commentaires en ajoutant un conteneur.
+- root_cause: un état vit dans la mémoire du PROCESSUS, et son exactitude repose sur le fait qu'il n'y a qu'un processus par surface. Mesuré le 2026-09-16, **quatre fois dans la même séance**, chacune trouvée par un chemin différent : (1) les seaux anti-force-brute — `budget × N` sur un chemin d'authentification, trouvé en écrivant le garde des répliques ; (2) `clear_kpi_caches()` — purge son propre interpréteur, donc dix minutes de chiffres périmés sur l'autre instance, trouvé en lisant le code ; (3) la sonde de santé du déploiement — `*) continue` sur un service inconnu, trouvé par `code-critic` ; (4) le retour arrière — reconstruit `$SERVICES` au lieu du service en panne, trouvé par `code-critic`. Les quatre ont été ÉCRITS CORRECTS. Le dénominateur commun n'est pas la négligence, c'est qu'à un exemplaire les deux comportements sont indiscernables.
+- long_term_fix: **la question se pose à l'écriture, pas au déploiement : « cet état est-il encore juste s'il en existe deux exemplaires ? »** — et la réponse s'écrit à côté du code. Trois réponses, et la troisième est un chantier : per-instance VOULU (chaque instance doit avoir le sien) ; INOFFENSIF (donnée immuable, au pire de la mémoire en double) ; IL FAUT LE PARTAGER. `tests/test_process_state_is_declared_for_a_second_instance.py` tient le registre : tout conteneur de niveau module que son module MUTE doit y être déclaré avec sa raison, sur le modèle de `_NOT_A_QUANTITY`. Un site neuf n'est pas refusé, il est mis en question.
+- autofix: none
+- signature: `.venv/bin/python -m pytest tests/test_process_state_is_declared_for_a_second_instance.py -q -p no:cacheprovider >/dev/null 2>&1`
+- guard: { type: pytest, ref: tests/test_process_state_is_declared_for_a_second_instance.py }
+- rex_ref: src/dashboard/utils/cache_epoch.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: **la classe la plus générique de la séance**, et celle qui sert aux développements futurs — les six autres classes du jour en sont des instances ou des voisines. Deux formes de détecteur ont été MESURÉES avant de retenir celle-ci : « tout littéral mutable au niveau module » rend **209 sites**, presque tous des registres constants jamais mutés. Un détecteur qui crie 209 fois est un détecteur que personne ne lit, et la leçon « le rouge est du bruit » se propage aux autres classes. Le signal n'est pas le TYPE mais la **MUTATION** — le conteneur doit être muté dans son propre module : **8 sites**, tous réels. Aucun n'était un défaut neuf (un est per-instance voulu, un est un chemin rapide devant un verrou en base, six sont des caches d'artefacts immuables), et c'est le résultat attendu : le cliquet ne sert pas à trouver le passé, il sert à poser la question sur le prochain. Mutations vues rouges : un état non déclaré ajouté → rouge en le nommant ; une déclaration sans site → rouge ; une déclaration de moins de 80 caractères → rouge (elle a attrapé trois des miennes).

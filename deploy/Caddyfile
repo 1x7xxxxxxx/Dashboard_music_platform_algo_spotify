@@ -90,7 +90,33 @@ streamlytics.fr, www.streamlytics.fr, app.streamlytics.fr {
 		try_files {path} /index.html
 		file_server
 	}
-	reverse_proxy 127.0.0.1:8501 {
+	# DEUX AMONTS — l'experience R114, posee le 2026-09-16.
+	#
+	# `lb_policy cookie` : l'affinite de session est OBLIGATOIRE ici, et ce n'est pas
+	# une optimisation. `st.session_state` vit dans le PROCESSUS, pas dans un cookie :
+	# une requete routee vers l'autre instance perd la session de l'utilisateur.
+	#
+	# Ce que l'affinite ne fait PAS, et qu'il faut savoir : elle ne borne RIEN cote
+	# securite. Un forceur de mots de passe scripte n'a pas de bocal a cookies, donc il
+	# est reparti en tourniquet et verrait `budget x N` — c'est pourquoi les seaux
+	# anti-force-brute ont du passer en base AVANT cette ligne (etape 1), et pourquoi
+	# `tests/test_in_memory_limits_forbid_replicas.py` interdisait mecaniquement
+	# d'ecrire ce second amont tant que ce n'etait pas fait.
+	#
+	# Conséquence assumee : au redemarrage de l'instance epinglee, `lb_try_duration`
+	# reachemine vers l'autre amont, qui n'a pas le `st.session_state` de
+	# l'utilisateur — deconnexion silencieuse en pleine session. Aujourd'hui un
+	# deploiement fait subir cela a TOUT LE MONDE en meme temps ; a deux repliques
+	# l'effet est etale mais reste reel.
+	#
+	# Retrait : supprimer `127.0.0.1:8511` et la ligne `lb_policy`, `caddy validate`,
+	# puis `systemctl reload caddy` — jamais `restart`.
+	#
+	# La sonde de sante du port 8511 vit dans `tools/deploy.sh:service_probe()`, et
+	# `tests/test_a_deploy_covers_every_service_it_starts.py` refuse qu'un amont
+	# existe ici sans elle.
+	reverse_proxy 127.0.0.1:8501 127.0.0.1:8511 {
+		lb_policy cookie streamlytics_lb
 		import proxy_opts
 	}
 }

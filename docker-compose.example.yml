@@ -246,7 +246,7 @@ services:
   # ============================================================================
   # STREAMLIT DASHBOARD (containerised for prod — runs on the host in local dev)
   # ============================================================================
-  dashboard:
+  dashboard: &dashboard
     build:
       context: .
       dockerfile: Dockerfile
@@ -311,6 +311,42 @@ services:
     restart: unless-stopped
     networks:
       - airflow_network
+
+  # ============================================================================
+  # SECONDE REPLIQUE DU DASHBOARD — experience R114, ARRETEE par defaut
+  # ============================================================================
+  # Pourquoi elle est VERSIONNEE ici alors qu'elle ne tourne pas (2026-09-16)
+  # ------------------------------------------------------------------------
+  # `code-critic` l'a demandee avant qu'une ligne soit ecrite : sans definition
+  # versionnee, la seconde instance devient un geste MANUEL sur le VPS, invisible a
+  # quiconque relit le depot et invisible a `make sync-check`. Le vrai
+  # `docker-compose.yml` de prod est gitignore par construction — c'est deja la source
+  # de derive que l'audit de parite d'environnement existe pour attraper.
+  #
+  # `profiles` la tient a l'ARRET : `docker compose up -d` ne la demarre pas, ni ici ni
+  # en production. Elle ne se leve que sur demande explicite :
+  #     docker compose --profile replica up -d dashboard2
+  # et se retire par `docker compose --profile replica down dashboard2`.
+  #
+  # L'ancre YAML `*dashboard` copie build, environnement et volumes — une seconde liste
+  # de quarante variables aurait derive des la premiere qu'on oublie. Seuls le nom du
+  # conteneur et le port changent : MEME image, MEME bind `./data` (les archives
+  # d'upload restent coherentes, c'est le meme hote).
+  #
+  # Ce que sa presence SUPPOSE, et qui est deja fait : les seaux d'authentification
+  # comptent dans Postgres (etape 1) et l'invalidation de cache traverse les instances
+  # (R113). Sans ces deux la, la lever multiplierait les budgets anti-force-brute par N
+  # et servirait des chiffres perimes.
+  #
+  # Sa sonde de sante vit dans `tools/deploy.sh:service_probe()`, et
+  # `tests/test_a_deploy_covers_every_service_it_starts.py` refuse qu'un amont Caddy
+  # existe sans elle.
+  dashboard2:
+    <<: *dashboard
+    container_name: streamlytics_dashboard2
+    profiles: ['replica']
+    ports:
+      - '127.0.0.1:8511:8501'
 
   # ============================================================================
   # FASTAPI BACKEND (hosts the Stripe webhook — api.<domain>)
