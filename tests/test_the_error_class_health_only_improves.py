@@ -81,20 +81,14 @@ _CEILINGS = {
     "cause_unknown": 242,             # 363 → 242 : 121 causes nomment un chemin qui existe
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
-    "scope_without_not_covered": 351,  # phase C : 6 récidivistes du haut, puis 6 de plus
+    "scope_without_not_covered": 345,  # phase C : trois lots de 6 récidivistes
     # Liste de RELECTURE, pas une faute à corriger dans une direction imposée : un
     # désaccord peut venir du garde comme de l'expression de la famille.
-    # 2 → 3 le 2026-09-16, et c'est un RELÈVEMENT assumé, le seul de ce fichier. Les
-    # trois désaccords viennent tous d'une expression de FAMILLE qui matche un mot pour
-    # une mauvaise raison, jamais d'un garde mal visé :
-    #   `central-app-missing`      → dérivée `le-locataire` sur un mot du symptôme
-    #   `an-overload-…-ambiguous`  → dérivée `un-coût-payé-sans-contrepartie`
-    #   `a-population-…-headers`   → dérivée `un-cumul-pris-pour-un-quotidien`
-    # Le +1 vient d'une classe AJOUTÉE, pas d'une régression : aligner sa déclaration sur
-    # une dérivation fausse ferait écrire une fausseté pour faire baisser un compteur,
-    # ce que ce compteur interdit explicitement. La vraie correction est dans
-    # `tools/dev/error_class_families.py::FAMILIES` et elle est inscrite dans R122.
-    "scope_family_disagreements": 3,
+    # `scope_family_disagreements` RETIRÉ le 2026-09-16 : 10 désaccords sur 18 portées,
+    # presque tous du côté de la dérivation (une regex de mots-clés sur un symptôme).
+    # 55 % de faux positifs — un compteur bruyant fait ignorer les vrais. Remplacé par
+    # une vérification sans faux positif : la famille déclarée EXISTE-t-elle ?
+    "scope_family_invalid": 0,
     "guards_ref_missing": 0,
 }
 _FLOORS = {

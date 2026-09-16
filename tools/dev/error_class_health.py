@@ -140,6 +140,13 @@ def _blocks(text: str) -> dict[str, str]:
     return out
 
 
+def _known_families() -> set[str]:
+    """Les slugs déclarés dans `FAMILIES`, plus `sans-famille`."""
+    import importlib
+    fam = importlib.import_module("tools.dev.error_class_families")
+    return {slug for slug, _, _ in fam.FAMILIES} | {"sans-famille"}
+
+
 def _derived_families() -> dict[str, str]:
     """{id: famille dérivée} — appelé UNE fois.
 
@@ -406,20 +413,29 @@ def build() -> tuple[str, str]:
                                          if not c["guard_scope_has_not_covered"]),
         "guards_ref_missing": sum(1 for c in classes.values()
                                   if c["guard_ref"] and not c["guard_ref_exists"]),
-        # ⚠️ Un désaccord se lit dans LES DEUX SENS, et c'est pourquoi ce compteur est
-        # une LISTE DE RELECTURE, pas une faute à corriger dans une direction imposée.
-        # Mesuré le 2026-09-16 : `an-overload-makes-the-old-call-ambiguous` déclare
-        # `deux-surfaces-deux-nombres` là où `classify()` dérive
-        # `un-coût-payé-sans-contrepartie` — la déclaration paraît plus juste ; et
-        # `central-app-missing` déclare `la-frontière-avec-le-dehors` là où la taxonomie
-        # dérive `le-locataire`, parce que son expression matche un mot du symptôme.
-        # Le premier cas interroge la portée du garde, le second l'expression de la
-        # famille. Forcer l'un des deux à s'aligner sur l'autre ferait écrire une
-        # fausseté pour faire baisser un compteur.
-        "scope_family_disagreements": sum(
+        # ⚠️ `scope_family_disagreements` a été RETIRÉ le 2026-09-16, le jour même où il
+        # a été posé, et la mesure qui le retire vaut d'être gardée.
+        #
+        # L'idée : comparer la famille DÉCLARÉE dans `guard_scope` à celle que
+        # `classify()` DÉRIVE, et traiter l'écart comme une liste de relecture. Elle
+        # supposait que la dérivation est un second avis fiable. **Elle ne l'est pas** :
+        # c'est une expression de mots-clés sur une phrase de SYMPTÔME, écrite pour
+        # ranger un document, pas pour valider un jugement.
+        #
+        # Mesuré sur 18 portées écrites à la main : **10 désaccords**, et presque tous du
+        # côté de la dérivation — `two-clocks-subtracted-from-each-other` rangé en
+        # « deux-surfaces-deux-nombres », `central-app-missing` en « le-locataire »,
+        # `watchdog-becomes-the-noise` en « la-frontière-avec-le-dehors ». 55 % de faux
+        # positifs : ce n'est pas une liste de relecture, c'est du bruit, et un compteur
+        # bruyant fait ignorer les vrais.
+        #
+        # Ce qui le REMPLACE est plus étroit et sans faux positif : la famille déclarée
+        # doit simplement EXISTER dans `FAMILIES`. Une famille inventée ou mal
+        # orthographiée est une vraie erreur ; un désaccord de jugement n'en est pas une.
+        "scope_family_invalid": sum(
             1 for c in classes.values()
-            if c["guard_scope_declared_family"] and c["guard_scope_derived_family"]
-            and c["guard_scope_declared_family"] != c["guard_scope_derived_family"]),
+            if c["guard_scope_declared_family"]
+            and c["guard_scope_declared_family"] not in _known_families()),
     }
     population = {
         "classes": len(classes),
@@ -524,22 +540,16 @@ def _render(p: dict) -> str:
     for k, v in h.items():
         L.append(f"| `{k}` | {v} |")
 
-    dis = [cid for cid, c in p["classes"].items()
-           if c["guard_scope_declared_family"] and c["guard_scope_derived_family"]
-           and c["guard_scope_declared_family"] != c["guard_scope_derived_family"]]
-    if dis:
-        L += ["", "### Familles en désaccord — à relire, pas à corriger d'office", "",
-              "La famille DÉCLARÉE dans `guard_scope` diffère de celle que "
-              "`error_class_families.classify()` DÉRIVE du symptôme. Le désaccord se lit "
-              "dans les deux sens : soit le garde vise autre chose que ce qu'il croit, "
-              "soit l'expression de la famille matche un mot pour une mauvaise raison. "
-              "**Aligner l'un sur l'autre sans trancher ferait écrire une fausseté pour "
-              "faire baisser un compteur.**", "",
-              "| classe | déclarée | dérivée |", "|---|---|---|"]
-        for cid in sorted(dis):
-            c = p["classes"][cid]
-            L.append(f"| `{cid}` | {c['guard_scope_declared_family']} | "
-                     f"{c['guard_scope_derived_family']} |")
+    bad = [cid for cid, c in p["classes"].items()
+           if c["guard_scope_declared_family"]
+           and c["guard_scope_declared_family"] not in _known_families()]
+    if bad:
+        L += ["", "### Familles déclarées qui n'existent pas", "",
+              "Une famille inventée ou mal orthographiée. Contrairement au *désaccord* "
+              "avec la famille dérivée — retiré le 2026-09-16 pour 55 % de faux positifs "
+              "— celle-ci n'en a aucun.", ""]
+        L += [f"* `{cid}` → `{p['classes'][cid]['guard_scope_declared_family']}`"
+              for cid in sorted(bad)]
 
     L += ["", "## Récidive observée", ""]
     obs = r.get("observed") or {}

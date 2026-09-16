@@ -5113,7 +5113,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `check_zero_resets` dans `alert_monitor`, prédicat dans `src/utils/value_monitor.py` — un compteur CUMULÉ revenu à zéro après avoir été positif, comparé au maximum ANTÉRIEUR de la même entité et non à la veille. On signale, on ne réécrit jamais : les valeurs écrasées sont conservées par `data_revisions` (ADR-018).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_zeroed_collection_is_seen.py }
-- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-erreur-avalée-devient-une-absence — écrire une ligne à l'heure dite avec des valeurs fausses ; couvre: le cas épinglé par `test_a_zeroed_collection_is_seen.py` ; ne couvre pas: **les autres valeurs fausses plausibles** — écrire celle de la VEILLE, figer un cumul, ou écrire `NULL` là où le lecteur affiche 0. Le garde épingle une valeur, pas le geste « écrire sans avoir lu ».
 - rex_ref: src/utils/value_monitor.py
 - first_seen: 2026-09-08
 - History:
@@ -5742,7 +5742,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `python3 .claude/scripts/select_tests.py` rend les tests atteignables depuis le diff — c'est déjà la règle transverse #16, et elle existe pour cette raison. Un `-k` reste légitime pour itérer vite pendant qu'on écrit ; il ne l'est pas pour ANNONCER un état. La règle est donc sur la phrase, pas sur la commande : ne jamais rapporter un verdict de suite à partir d'une exécution filtrée.
 - autofix: none
 - guard: —
-- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — annoncer un compte de tests après une exécution FILTRÉE ; couvre: **rien de mécanique — cette classe n'a pas de garde**, et c'est assumé : le défaut est dans la PHRASE qu'on écrit, pas dans le dépôt ; ne couvre pas: par construction, tout. La seule prévention est la règle de `/capitalise` — un nombre s'annonce avec la commande qui l'a produit, filtres compris. ⚠️ Reproduit le 2026-09-16 : « 824 verts » puis « 898 verts » annoncés après des exécutions filtrées, sans dire que ~5 900 tests étaient désélectionnés.
 - rex_ref: —
 - first_seen: 2026-09-11
 - History:
@@ -6170,7 +6170,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py }
-- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — empiler des séries dont l'une n'est pas mesurée ; couvre: les répertoires balayés par `rglob`, en lecture AST des figures ; ne couvre pas: (a) le même trou dans un **PDF**, dont les figures sont rebâties en matplotlib par un autre chemin ; (b) un total calculé en SQL qui somme des jours absents comme des zéros — le garde lit du Python, pas des vues or ; (c) un export CSV, où la colonne vide et la colonne à zéro deviennent le même caractère.
 - rex_ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py
 - first_seen: 2026-09-12
 - History:
@@ -6364,7 +6364,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_a_bash_guard_reads_the_command_not_the_prose.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pretooluse-hook, ref: .claude/hooks/guard_destructive.py }
-- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-garde-qui-ne-garde-pas — passer un motif à un outil qui compare des LIGNES DE COMMANDE, donc à un outil qui se trouve lui-même ; couvre: `pkill -f <motif>` suivi d'autre chose sur la même ligne, et `pgrep -f <motif>` (ajouté le 2026-09-16 après trois récidives) ; ne couvre pas: (a) **`pkill -f` SEUL en fin de ligne**, exempté à dessein — s'y suicider après avoir tué ne coûte rien ; (b) `killall`, `ps | xargs kill`, `kill $(pgrep …)` : trois verbes du même geste que le hook ignore ; (c) un motif construit dans une VARIABLE puis déréférencé, la lecture étant textuelle sur le segment ; (d) le même piège **hors du shell** — filtrer `psutil.process_iter()` sur `cmdline` en Python a exactement la même cause et aucun garde.
 - rex_ref: .claude/hooks/guard_destructive.py
 - first_seen: 2026-09-12
 - History:
@@ -6609,7 +6609,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `delete_branch_on_merge = true` sur le dépôt. La branche disparaît à la fusion, donc une branche qui SURVIT devient un signal — elle porte du travail non fusionné, ou elle a été abandonnée. Ce qui était du bruit devient une information.
 - autofix: none
 - guard: { type: ci-step, ref: .github/workflows/ci.yml }
-- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — laisser vivre une branche dont le travail est fusionné ; couvre: une étape de CI qui interroge l'API GitHub ; ne couvre pas: (a) une branche LOCALE jamais poussée, invisible à l'API ; (b) un tag ou une worktree orpheline, mêmes résidus ; (c) le cas symétrique — une PR ouverte dont la branche a été supprimée, qu'on ne peut plus fusionner.
 - signature: `R="$GITHUB_REPOSITORY"; [ -n "$R" ] || R=1x7xxxxxxx/Dashboard_music_platform_algo_spotify; v=$(gh api "repos/$R" --jq .delete_branch_on_merge) || { echo "::error::gh na pas pu repondre (son erreur est au-dessus) — ce controle na RIEN verifie"; exit 1; }; test "$v" = "true" || { echo "::error::delete_branch_on_merge=$v — une branche mergee survit a sa PR"; exit 1; }`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
@@ -7027,7 +7027,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -c "import sys,yaml,pathlib; bad=[l for p in pathlib.Path('.github/workflows').glob('*.y*ml') for job in ((yaml.safe_load(p.read_text(encoding='utf-8')) or {}).get('jobs') or {}).values() for st in (job.get('steps') or []) for l in str(st.get('run','')).splitlines() if 'uv run' in l and not l.strip().startswith('#') and '--frozen' not in l]; sys.exit(1 if bad else 0)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_gate_does_not_repair_what_it_judges.py }
-- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-garde-qui-ne-garde-pas — une porte qui MODIFIE l'artefact qu'elle juge ; couvre: `.github/workflows/*.y*ml` seulement ; ne couvre pas: **le même geste hors de la CI** — un `make`, un hook pre-commit, un script d'audit. La seconde instance du 2026-09-16 était précisément là : `make config-check` lançait `audit_runner --fields`, qui écrit dans `error-classes.md`. Le garde ne l'a pas vue ; une lecture humaine si.
 - rex_ref: .github/workflows/ci.yml
 - first_seen: 2026-09-16
 - History:

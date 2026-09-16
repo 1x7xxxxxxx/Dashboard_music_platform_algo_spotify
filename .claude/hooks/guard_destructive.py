@@ -274,7 +274,14 @@ def _pkill_would_kill_its_own_shell(command: str) -> str | None:
     tout le travail au lieu d'un seul geste.
     """
     try:
-        segments = re.split(r"&&|\|\||;|\n", command)
+        # ⚠️ `_sans_heredocs` MANQUAIT ICI, et seulement ici : les deux autres
+        # détecteurs l'appliquaient déjà. Mesuré le 2026-09-16 — ce garde a bloqué la
+        # commande qui ÉCRIVAIT la portée de sa propre classe, la prose citant `pkill -f`
+        # dans un corps de heredoc. CLAUDE.md décrit exactement ce cas (« écrire SUR un
+        # défaut déclenche le garde du défaut », trois commandes bloquées le
+        # 2026-09-12) et le correctif n'avait été appliqué qu'à DEUX des trois lecteurs.
+        # Un correctif qui ne balaie pas laisse la classe vivante à côté.
+        segments = re.split(r"&&|\|\||;|\n", _sans_heredocs(command))
         for i, segment in enumerate(segments):
             m = _PKILL_RE.search(segment)
             if not m:

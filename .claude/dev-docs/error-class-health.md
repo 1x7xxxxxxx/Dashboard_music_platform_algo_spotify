@@ -42,24 +42,11 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `cause_inferred` | 0 |
 | `cause_unknown` | 242 |
 | `guards_ref_missing` | 0 |
-| `scope_family_disagreements` | 6 |
+| `scope_family_invalid` | 0 |
 | `scope_unknown` | 0 |
-| `scope_without_not_covered` | 351 |
+| `scope_without_not_covered` | 345 |
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 332 |
-
-### Familles en désaccord — à relire, pas à corriger d'office
-
-La famille DÉCLARÉE dans `guard_scope` diffère de celle que `error_class_families.classify()` DÉRIVE du symptôme. Le désaccord se lit dans les deux sens : soit le garde vise autre chose que ce qu'il croit, soit l'expression de la famille matche un mot pour une mauvaise raison. **Aligner l'un sur l'autre sans trancher ferait écrire une fausseté pour faire baisser un compteur.**
-
-| classe | déclarée | dérivée |
-|---|---|---|
-| `a-population-that-counts-its-own-headers` | un-nombre-affirmé-qui-n-a-pas-été-mesuré | un-cumul-pris-pour-un-quotidien |
-| `an-overload-makes-the-old-call-ambiguous` | deux-surfaces-deux-nombres | un-coût-payé-sans-contrepartie |
-| `central-app-missing` | la-frontière-avec-le-dehors | le-locataire |
-| `two-clocks-subtracted-from-each-other` | le-temps-et-l-horloge | deux-surfaces-deux-nombres |
-| `unregistered-write-table` | un-travail-qui-n-arrive-nulle-part | une-erreur-avalée-devient-une-absence |
-| `watchdog-becomes-the-noise` | le-message-parle-au-mauvais-lecteur | la-frontière-avec-le-dehors |
 
 ## Récidive observée
 
@@ -73,8 +60,8 @@ La famille DÉCLARÉE dans `guard_scope` diffère de celle que `error_class_fami
 | by_guard · prose | 8 | 1.005 | 0.4327 – 1.9803 | **séparent** |
 | by_seen_red · daté | 0 | 0.0 | 0.0 – 0.7853 | insuffisant pour conclure (n=56) |
 | by_seen_red · jamais-ou-inconnu | 56 | 0.2274 | 0.1718 – 0.2953 | insuffisant pour conclure (n=56) |
-| by_scope · ne-couvre-pas renseigné | 22 | 0.8166 | 0.5116 – 1.2364 | **séparent** |
-| by_scope · non renseigné | 34 | 0.1518 | 0.1051 – 0.2121 | **séparent** |
+| by_scope · ne-couvre-pas renseigné | 28 | 1.0097 | 0.6708 – 1.4594 | **séparent** |
+| by_scope · non renseigné | 28 | 0.1255 | 0.0833 – 0.1813 | **séparent** |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 

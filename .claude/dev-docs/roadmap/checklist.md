@@ -25,7 +25,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R122 | Finir la revue des classes d'erreur — outillage fait, reste 39 récidivistes + 357 portées | P3 | les trous de `make error-health` ne font que baisser |
+| R122 | Finir la revue des classes d'erreur — outillage fait, reste 27 récidivistes + 345 portées | P3 | les trous de `make error-health` ne font que baisser |
 | R120 | La vue, pas la chrome — onglets et expanders paresseux (chrome démesurée : 11-13 ms) | P2 | histogramme de rendu avant/après, même charge |
 | R118 | `st.fragment` — **6/11 faites** ; le reste attend une mesure de coût | P3 | l'histogramme montre la page avant de la refactorer |
 | R121 | Les agrégations Python passent en SQL (couche or) | P3 | `make gold-coverage`, cliquet |
@@ -190,11 +190,10 @@ le supposer.
 
   | trou | reste | ce qu'il faut écrire |
   |---|---|---|
-  | `scope_without_not_covered` | **357** | le `ne couvre pas:` — un geste voisin qui partage la cause |
+  | `scope_without_not_covered` | **345** | le `ne couvre pas:` — un geste voisin qui partage la cause |
   | `seen_red_unknown` | **332** | une date OBSERVÉE, ou `never` ; jamais une date inventée |
   | `cause_unknown` | **242** | `read` / `measured` / `inferred` — `inferred` est une réponse valable |
-  | récidivistes non traitées | **39** / 45 | la portée d'abord : ce sont elles qui ont échoué |
-  | `scope_family_disagreements` | **3** | ⚠️ à corriger dans la **TAXONOMIE**, pas dans les classes |
+  | récidivistes non traitées | **27** / 45 | la portée d'abord : ce sont elles qui ont échoué |
 
   **L'ordre est celui du gain mesuré**, jamais alphabétique : (1) les 39 récidivistes —
   elles ont démontrablement échoué et `ne couvre pas:` est le champ qui les aurait
@@ -209,12 +208,15 @@ le supposer.
   qu'il faut les retirer. La date de revue est dans le docstring du cliquet : **+30 et
   +90 jours**. Sans cette règle, la brique devient `un-coût-payé-sans-contrepartie`.
 
-  ⚠️ **Les 3 désaccords de famille se corrigent dans
-  `tools/dev/error_class_families.py::FAMILIES`, pas dans les classes.** Les trois
-  viennent d'une expression qui matche un mot pour une mauvaise raison —
-  `central-app-missing` dérivée en `le-locataire`, `a-population-that-counts-its-own-headers`
-  en `un-cumul-pris-pour-un-quotidien`. Aligner la déclaration sur une dérivation fausse
-  ferait écrire une fausseté pour faire baisser un compteur.
+  ⚠️ **Le contrôle croisé des familles a été RETIRÉ le jour où il a été posé**, et c'est
+  la mesure qui l'a retiré : sur 18 portées écrites à la main, **10 désaccords**, presque
+  tous du côté de la *dérivation* — `two-clocks-subtracted-from-each-other` rangé en
+  « deux-surfaces-deux-nombres », `central-app-missing` en « le-locataire ». 55 % de faux
+  positifs : ce n'est pas une liste de relecture, c'est du bruit, et un compteur bruyant
+  fait ignorer les vrais. Il supposait qu'une regex de mots-clés sur un symptôme est un
+  second avis fiable ; elle est faite pour RANGER un document, pas pour valider un
+  jugement. Remplacé par une vérification sans faux positif : la famille déclarée
+  existe-t-elle dans `FAMILIES` ?
 
   ⚠️ **Une relecture `code-critic` est OBLIGATOIRE sur chaque lot de revue**, et ce n'est
   pas une précaution de style : passée sur les six premières portées écrites avec soin,
