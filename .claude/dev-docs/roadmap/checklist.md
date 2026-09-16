@@ -25,7 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R119 | L'instrument de mesure dit POURQUOI il échoue, et cesse de censurer | P1 | une passe interrompue laisse un JSON par palier |
 | R118 | `st.fragment` sur les 11 vues à filtres — **remonté avant R120** | P2 | histogramme de rendu, admin d'abord |
 | R120 | La vue, pas la chrome — onglets et expanders paresseux (chrome démesurée : 11-13 ms) | P2 | histogramme de rendu avant/après, même charge |
 | R121 | Les agrégations Python passent en SQL (couche or) | P3 | `make gold-coverage`, cliquet |
@@ -175,40 +174,44 @@ Ces quatre tâches construisent la forme scalable **même si le seuil n'est pas 
 décision assumée : découvrir par la mesure que ce n'était pas nécessaire vaut mieux que
 le supposer.
 
-- [ ] **R119 — l'instrument de mesure dit POURQUOI il échoue, et cesse de censurer.**
+- [x] **R119 — l'instrument de mesure dit POURQUOI il échoue, et cesse de censurer.**
+      **LIVRÉ le 2026-09-16.** Les quatre défauts sont corrigés dans
+      `tools/loadtest_concurrency.py`, et `tests/test_a_measurement_says_why_it_failed.py`
+      les tient chacun :
 
-  **P1, et c'est le préalable de toute optimisation.** Le signal de décision de R114 —
-  « reruns perdus » — a été audité et il ne tient pas. Quatre défauts cumulables dans
-  `tools/loadtest_concurrency.py` :
+      1. **Marqueur spécifique.** `stStatusWidget` est remplacé par
+         `data-test-script-state` sur `[data-testid="stApp"]`. Vérifié dans le frontend
+         livré (1.63) : le même élément porte `data-test-connection-state`
+         **séparément** — les deux causes que l'ancien marqueur mélangeait sont deux
+         attributs distincts. Énumération complète relevée : `initial`, `notRunning`,
+         `running`, `rerunRequested`, `stopRequested`, `compilationError`.
+      2. **Quatre issues au lieu d'une.** `click_failed` (client), `never_started`
+         (transport, avec l'état de connexion relevé pour trancher), `never_finished`
+         (**le seul signal serveur**), `app_error`. `_OUTCOMES` déclare la liste, et le
+         garde refuse qu'une issue rendue n'y soit pas — sinon le compteur la perdrait
+         en silence.
+      3. **Censure publiée.** Le taux sort dans le tableau ; au-delà de 20 % le rapport
+         ×N est annoncé comme une **BORNE INFÉRIEURE**. À 24 onglets l'ancienne mesure
+         censurait 68-82 % et publiait quand même un p50.
+      4. **Client mesuré à CHAQUE palier.** RAM du navigateur et mémoire disponible ; la
+         rampe s'arrête plutôt que de publier un chiffre qui décrit le client. Et
+         `_heavy_local_processes()` peut désormais s'exclure elle-même — elle comptait
+         `chromium`, c'est-à-dire ce que l'outil lance.
 
-  1. `_MARKER = '[data-testid="stStatusWidget"]'` (`:63`) n'est **pas spécifique aux
-     reruns** : Streamlit monte le même `data-testid` pour l'invite « File change » et
-     pour **`stConnectionStatus`**. Un websocket dégradé laisse le nœud attaché →
-     `wait_for_selector(detached)` expire → **compté « perdu » alors que le rerun a pu
-     être servi**. La colonne mélange rendu et transport.
-  2. `except Exception` nu (`:104`) fusionne trois causes : `click()` sans
-     actionnabilité (défaut client/DOM), marqueur jamais attaché, marqueur jamais
-     détaché. Une seule parle du serveur.
-  3. **Le p50 est calculé sur les SURVIVANTS** (`:129-132`, `:195`). À 24 onglets,
-     **68 à 82 % des échantillons sont censurés** — le chiffre publié décrit le quart
-     qui a réussi et **sous-estime** la dégradation.
-  4. **Le compte n'est pas monotone** : 9 (N=8) → 33 (N=12) → **24** (N=16) → 98 (N=24).
-     Aucune saturation serveur ne produit cette inversion.
+      Plus : un JSON **par palier, écrit au fil de l'eau** (deux passes sur quatre sont
+      mortes en emportant la série), et le tableau renvoie vers la requête serveur
+      équivalente — croiser les deux est le seul moyen de dire si un rerun perdu est un
+      défaut du serveur ou de l'instrument.
 
-  Et le client peut se saturer : 175-217 Mo par `chrome-headless-shell`, donc 24 onglets
-  ≈ **4,2 Go** contre ~4,0 Go disponibles ; toute la chaîne passe par **un tube et un
-  processus Node mono-thread**, donc `asyncio.gather` ne crée aucune simultanéité
-  physique. Le garde `_heavy_local_processes()` (`:67-80`) compte des sous-chaînes de
-  `ps` une seule fois **avant** le lancement, ignore N, le CPU et la RAM, ne se rejoue
-  jamais, et compte `chromium` parmi ses clés — ce qu'il crée lui-même.
+      ⚠️ **Un item de ce bloc était déjà fait** : « publier la colonne `max` ». Elle
+      l'était depuis le début (`rows.append(..., max(durations), ...)`). La roadmap
+      décrivait un défaut qui n'existait pas — vérifier une prémisse avant d'agir dessus.
 
-  **À faire** : séparer les trois causes en trois compteurs ; un marqueur spécifique au
-  rerun ; publier la colonne `max` (elle dirait si la censure à 60 s a joué) ; écrire un
-  JSON **par palier au fil de l'eau** (deux passes sur quatre sont mortes en emportant
-  la série) ; compter le côté client (contextes vivants, RSS).
-
-  **Classes à écrire** : `a-measurement-that-cannot-say-why-it-failed`,
-  `a-percentile-computed-on-survivors`.
+      Classes écrites : `a-measurement-that-cannot-say-why-it-failed`,
+      `a-percentile-computed-on-survivors`. Sept mutations vues rouges, dont une qui a
+      révélé que **le garde de la censure était lui-même faux** : il cherchait un nom au
+      lieu d'un chemin, et la mutation « renommer la clé produite » restait verte parce
+      que le nom survivait chez ses lecteurs.
 
 - [ ] **R120 — la VUE, pas la chrome.** (titre corrigé le 2026-09-16 : il disait l'inverse)
 
@@ -491,15 +494,17 @@ travail quotidien existe déjà et n'enlève aucune couverture** :
 
 ## 🔖 REPRISE — état au 2026-09-16, sept tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R115,R119,R118,R120,R121,R116,R117 -->
+<!-- reprise: open=R118,R120,R121,R116,R117 -->
 
-**Sept tâches sont ouvertes.** R114 est livrée et déployée (`e859ae3`), et **son
+**Cinq tâches sont ouvertes.** R115 (l'instrument serveur) et R119 (réparer l'instrument client) sont livrées le 2026-09-16 ; leur détail est dans `archive.md`.
+
+~~**Sept tâches sont ouvertes.**~~ R114 est livrée et déployée (`e859ae3`), et **son
 résultat est AMBIGU** — c'est ce constat qui a ouvert R118 à R121. Détail dans
 `archive.md`.
 
-**L'ordre est contraint et non négociable** : R115 (l'instrument) puis R119 (le réparer)
-AVANT toute optimisation, parce qu'aucune des deux colonnes mesurées aujourd'hui ne peut
-trancher. Puis **R118, R120**, R121 (les causes) — R118 est passée DEVANT R120 le 2026-09-16, la mesure serveur ayant inversé la prémisse — puis R116 (l'ADR), puis R117 (l'outillage).
+**L'ordre était contraint** : R115 (l'instrument) puis R119 (le réparer) AVANT toute
+optimisation. **Les deux sont faites**, et la première mesure du nouvel instrument a
+immédiatement inversé la suite (voir R120). Puis **R118, R120**, R121 (les causes) — R118 est passée DEVANT R120 le 2026-09-16, la mesure serveur ayant inversé la prémisse — puis R116 (l'ADR), puis R117 (l'outillage).
 
 ⚠️ **Mode de travail : une étape à la fois, validée avant la suivante.**
 

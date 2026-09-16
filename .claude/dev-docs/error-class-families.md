@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**358 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**360 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -24,7 +24,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 7 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 2 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
-| [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 18 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
+| [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 20 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 17 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
 | [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 22 | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | _sans famille_ | 3 | — |
@@ -457,7 +457,7 @@ Règle de rattachement : `overwrit|écrase|clobber|upsert|conflict|restore|delet
 
 **Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ?**
 
-Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|window-applied|day|month|period` sur l'identifiant et le symptôme. 18 classe(s).
+Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|window-applied|day|month|period` sur l'identifiant et le symptôme. 20 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -479,6 +479,8 @@ Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|wi
 | [`a-method-change-counted-as-growth`](error-classes.md#a-method-change-counted-as-growth) | une figure ou un total affiche un pic énorme et parfaitement faux, à une date où rien n'est arrivé. Le chiffre est DÉRIVÉ correctement d'une série cor |
 | [`a-join-on-a-display-name-loses-what-the-name-normalises`](error-classes.md#a-join-on-a-display-name-loses-what-the-name-normalises) | une figure ou un total ne montre qu'une partie du catalogue, sans erreur ni ligne manquante visible. Mesuré le 2026-09-14 : joindre `track_release_ref |
 | [`a-zero-that-predates-the-thing-it-measures`](error-classes.md#a-zero-that-predates-the-thing-it-measures) | une courbe dessine des mois de plat à zéro avant que l'objet mesuré n'existe. Mesuré le 2026-09-14 : « Ô Chiotte l'arbitre Tucome Back », sorti le 30/ |
+| [`a-measurement-that-cannot-say-why-it-failed`](error-classes.md#a-measurement-that-cannot-say-why-it-failed) | un instrument rend une colonne d'échecs — « perdus », « timeouts », « erreurs » — et **on ne peut pas savoir ce qu'elle décrit**. Le chiffre a l'air d |
+| [`a-percentile-computed-on-survivors`](error-classes.md#a-percentile-computed-on-survivors) | un quantile publié **sous-estime** ce qu'il décrit, et toujours dans le sens rassurant. Plus le système se dégrade, plus le chiffre paraît bon — parce |
 
 ## la-frontière-avec-le-dehors
 
@@ -549,6 +551,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=358 families=17 orphans=3 -->
+<!-- error-class-families: total=360 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=c591955ea5862e7429e4f8764c44625c7d5c8f471db7c2d86017e2d9978414f8 -->
+<!-- error-class-families: sha256=51691dc0329ded310cef831c83894b9e6ffaa2d15e16bbe5a8639d597f9cfdef -->

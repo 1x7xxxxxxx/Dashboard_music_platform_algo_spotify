@@ -60,6 +60,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
+| [a-measurement-that-cannot-say-why-it-failed](#a-measurement-that-cannot-say-why-it-failed) | P1 | deterministic | guarded | none |
+| [a-percentile-computed-on-survivors](#a-percentile-computed-on-survivors) | P1 | deterministic | guarded | none |
 | [a-gate-that-can-never-be-green](#a-gate-that-can-never-be-green) | P2 | deterministic | guarded | none |
 | [a-ratchet-that-only-watches-the-direction-it-was-burned-in](#a-ratchet-that-only-watches-the-direction-it-was-burned-in) | P2 | deterministic | guarded | none |
 | [a-docstring-exclusion-that-compares-dedented-text](#a-docstring-exclusion-that-compares-dedented-text) | P3 | deterministic | guarded | none |
@@ -6166,3 +6168,33 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: trouvé par **l'utilisateur en ouvrant l'interface**, pas par un test, pas par une porte de déploiement, pas par les cinq cibles `up`. Et ma première explication était fausse par excès de plausibilité : j'ai attribué les panneaux vides à l'absence de rendu AUTHENTIFIÉ — vrai pour deux panneaux sur neuf, faux pour les sept autres, qui avaient des données et ne pouvaient pas les atteindre. **Une explication qui couvre une partie des faits est ce qui empêche de chercher la vraie.** Vérifié après correction en rejouant les treize requêtes des panneaux contre Prometheus : 5 panneaux sur 9 rendent des séries, les 4 restants sont vides pour la vraie raison. Muté deux fois : `uid` retiré du provisionnement, puis `uid` différent de celui des panneaux.
+
+## a-measurement-that-cannot-say-why-it-failed
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: un instrument rend une colonne d'échecs — « perdus », « timeouts », « erreurs » — et **on ne peut pas savoir ce qu'elle décrit**. Le chiffre a l'air d'un fait, il sert de signal de décision, et il n'est pas réfutable : on ne peut ni le confirmer ni l'infirmer sans refaire la mesure avec un autre outil.
+- root_cause: **un `except Exception` nu autour de plusieurs attentes successives**, plus un marqueur que le sujet ne possède pas en propre. Mesuré le 2026-09-16 sur `tools/loadtest_concurrency.py`, dont la colonne « reruns perdus » a servi de signal de décision à R114 : elle fusionnait *(a)* un clic jamais devenu actionnable — défaut CLIENT, *(b)* un rerun jamais démarré — transport, *(c)* un rerun jamais terminé — **la seule cause qui parle du serveur**. Et le marqueur guetté (`stStatusWidget`) est monté par Streamlit pour `stConnectionStatus` aussi : un websocket dégradé faisait compter « perdu » un rerun qui avait pu être servi. Le symptôme qui aurait dû alerter était l'absence de MONOTONIE — 9 → 33 → **24** → 98 : aucune saturation serveur ne produit cette inversion, et la vraie cause était la RAM du navigateur (175-217 Mo par onglet, 24 onglets ≈ 4,2 Go contre 4,0 disponibles).
+- long_term_fix: **une issue d'échec par CAUSE, jamais une catégorie fourre-tout**, et chaque attente dans son propre `try`. Le marqueur doit être un attribut que le sujet possède en propre — ici `data-test-script-state` sur `[data-testid="stApp"]`, distinct de `data-test-connection-state` sur le même élément : les deux causes que l'ancien marqueur mélangeait sont **deux attributs différents**. La question de relecture : devant un compteur d'échecs, demander **combien de chemins distincts y arrivent** ; s'il y en a plus d'un, il en faut autant de compteurs.
+- autofix: none
+- signature: `.venv/bin/python -m pytest tests/test_a_measurement_says_why_it_failed.py -q -p no:cacheprovider >/dev/null 2>&1`
+- guard: { type: pytest, ref: tests/test_a_measurement_says_why_it_failed.py }
+- rex_ref: tools/loadtest_concurrency.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: la colonne a orienté une décision d'architecture (garder ou non une seconde réplique) avant d'être auditée. C'est l'ordre qui coûte : **un instrument s'audite avant de lui faire trancher quelque chose**, pas après. Six mutations vues rouges, une par défaut réparé.
+
+## a-percentile-computed-on-survivors
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: un quantile publié **sous-estime** ce qu'il décrit, et toujours dans le sens rassurant. Plus le système se dégrade, plus le chiffre paraît bon — parce que les cas les pires sortent de l'échantillon au lieu d'y entrer.
+- root_cause: les échecs sont écartés de la liste avant le calcul, au lieu d'être comptés comme **censurés à droite**. Mesuré le 2026-09-16 : `tools/loadtest_concurrency.py` calculait son p50 sur les seuls reruns aboutis, et à 24 onglets **68 à 82 % des échantillons étaient censurés** — le chiffre publié décrivait le quart qui avait réussi. La dégradation réelle était donc pire que la courbe, exactement là où la courbe servait à décider. Le rapprochement avec [`a-measurement-that-cannot-say-why-it-failed`](#a-measurement-that-cannot-say-why-it-failed) est direct : on ne peut pas censurer honnêtement ce qu'on ne sait pas classer.
+- long_term_fix: **publier le taux de censure à côté du quantile**, et au-delà d'un seuil (20 % ici) annoncer le résultat comme une **BORNE INFÉRIEURE**, jamais comme une mesure. Ne pas inventer de valeur pour les censurés — leur vraie durée est « au moins le délai d'attente », et l'écrire ainsi. La règle qui transporte : un quantile sans son taux de complétude n'est pas un chiffre, c'est une impression.
+- autofix: none
+- signature: `.venv/bin/python -m pytest tests/test_a_measurement_says_why_it_failed.py::test_the_censoring_rate_is_published -q -p no:cacheprovider >/dev/null 2>&1`
+- guard: { type: pytest, ref: tests/test_a_measurement_says_why_it_failed.py::test_the_censoring_rate_is_published }
+- rex_ref: tools/loadtest_concurrency.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: le garde de cette classe a d'abord été écrit FAUX — il cherchait le nom `censored_pct` n'importe où dans le fichier, et la mutation « renommer la clé produite » est restée VERTE parce que le nom survivait chez ses lecteurs. Réécrit pour vérifier le CHEMIN : la clé est produite par `_level()`, puis lue par `_run()`. Les deux mutations mordent maintenant.
