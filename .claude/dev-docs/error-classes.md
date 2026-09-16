@@ -392,7 +392,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [one-fact-two-answers-by-display-mode](#one-fact-two-answers-by-display-mode) | P2 | deterministic | guarded | none |
 | [a-percent-sign-in-a-parameterised-query](#a-percent-sign-in-a-parameterised-query) | P2 | deterministic | guarded | none |
 | [an-empty-group-wins-a-desc-ranking](#an-empty-group-wins-a-desc-ranking) | P2 | deterministic | guarded | none |
-| [a-merged-branch-outlives-its-pull-request](#a-merged-branch-outlives-its-pull-request) | P4 | deterministic | guarded | none |
+| [a-merged-branch-outlives-its-pull-request](#a-merged-branch-outlives-its-pull-request) | P4 | manual | guarded | none |
 | [a-verification-read-through-a-filtering-wrapper](#a-verification-read-through-a-filtering-wrapper) | P2 | manual | reported | none |
 | [a-document-slice-bounded-by-the-wrong-heading-level](#a-document-slice-bounded-by-the-wrong-heading-level) | P2 | deterministic | guarded | none |
 | [a-prose-claim-that-cannot-be-verified](#a-prose-claim-that-cannot-be-verified) | P3 | deterministic | guarded | none |
@@ -5538,7 +5538,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 ## a-merged-branch-outlives-its-pull-request
 - status: guarded
 - severity: P4
-- kind: deterministic
+- kind: manual
 - symptom: le dépôt affiche des dizaines de branches « actives » alors qu'une seule ligne de travail existe. Le propriétaire se demande s'il va **perdre des avancées** — mesuré le 2026-09-13 : « c'est bizarre qu'on ait 26 branches d'active sur github ? … là on va perdre nos avancées non ? ». Le coût n'est pas technique, il est cognitif : on ne sait plus distinguer ce qui porte du travail de ce qui n'en porte plus.
 - root_cause: le réglage GitHub `delete_branch_on_merge` valait **false** (vérifié par `gh api` le 2026-09-13). Chaque PR fusionnée laissait donc sa branche derrière elle. Aucune ne portait le moindre commit absent de `main` — les 24 ont été vérifiées **une par une** par `git rev-list --count origin/main..<branche>`, toutes à 0. Le flux de travail était correct depuis le début ; c'est le ramassage qui manquait.
 - long_term_fix: `delete_branch_on_merge = true` sur le dépôt. La branche disparaît à la fusion, donc une branche qui SURVIT devient un signal — elle porte du travail non fusionné, ou elle a été abandonnée. Ce qui était du bruit devient une information.
@@ -5551,6 +5551,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-13: `guarded`. Signature **vue rouge** (réglage à `false`, exit 1) puis **verte** après activation (exit 0). Le repli `|| echo true` est délibéré : sans accès réseau ou sans `gh`, la signature ne doit pas rougir — un garde qui échoue faute d'outil apprend que le rouge est du bruit.
   - 2026-09-13: 22 branches fusionnées supprimées après re-vérification individuelle. **Deux ont été retenues volontairement** — `dev` et `backup/pre-godmodule-refactor` : leur contenu est dans `main`, donc supprimables sans perte, mais leur nom DÉCLARE une intention de persister. Un geste irréversible côté distant ne se déduit pas d'un prédicat quand le nom dit le contraire.
   - 2026-09-13: le dépôt local portait **144 réfs** pour 27 branches réelles. `git fetch --prune` en a retiré 117. Une liste locale n'est pas l'état du distant, et `git branch -r` ne le dit pas.
+- History:
+  - 2026-09-16: **la signature ne peut PAS tourner sur le runner, et il a fallu deux
+    allers-retours pour l'etablir.** Elle faisait `gh api ... 2>/dev/null || echo true` :
+    sans jeton elle rendait `true` et passait TOUJOURS — un garde qui ne garde rien,
+    deja nomme comme tel dans `test-suite-performance.md`. Rendue stricte et dotee de
+    `GITHUB_TOKEN`, elle a rougi ; mais son premier message accusait un jeton absent,
+    parce que `2>/dev/null` avait avale l'erreur de `gh`. Le baillon retire, la cause
+    reelle apparait : `gh` REPOND, et `delete_branch_on_merge` est **vide**. Le jeton
+    d'Actions est en lecture seule et l'API n'expose ce champ qu'a une permission
+    d'administration. Aucun quoting ne corrige cela.
+    Elle passe donc en `kind: manual` : elle tourne la ou `gh` est authentifie comme
+    proprietaire (poste, `make audit`), et elle y rend `true`. Ce qui change par
+    rapport a avant n'est pas qu'elle garde plus — c'est qu'elle ne fait plus semblant.
 
 ## a-verification-read-through-a-filtering-wrapper
 - status: reported
