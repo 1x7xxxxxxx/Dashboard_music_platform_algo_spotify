@@ -910,7 +910,7 @@
       "seen_red": "2026-09-16",
       "severity": "P2",
       "status": "guarded",
-      "introduced_date": null,
+      "introduced_date": "2026-09-16",
       "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
@@ -3382,8 +3382,8 @@
       "severity": "P3",
       "status": "guarded",
       "introduced_date": "2026-08-30",
-      "revisions": 3,
-      "history_additions": 1,
+      "revisions": 4,
+      "history_additions": 2,
       "renamed_from": null
     },
     "canary-tenant-unwatched": {
@@ -3406,7 +3406,7 @@
       "severity": "P2",
       "status": "fixed",
       "introduced_date": "2026-08-21",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -4498,7 +4498,7 @@
       "severity": "P1",
       "status": "guarded",
       "introduced_date": "2026-06-20",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -4684,7 +4684,7 @@
       "severity": "P1",
       "status": "fixed",
       "introduced_date": "2026-08-21",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -4869,7 +4869,7 @@
       "severity": "P2",
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -4915,7 +4915,7 @@
       "severity": "P2",
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -5194,7 +5194,7 @@
       "severity": "P1",
       "status": "fixed",
       "introduced_date": "2026-08-21",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -8458,7 +8458,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 201,
+      "catalogue_revisions": 202,
       "head_date": "2026-09-16"
     },
     "holes": {
@@ -8482,23 +8482,23 @@
       "window_start": "2026-05-15",
       "as_of": "2026-09-16",
       "observed": {
-        "events": 56,
+        "events": 57,
         "class_days": 7628,
-        "per_class_month": 0.2232,
+        "per_class_month": 0.2272,
         "ci95": [
-          0.1686,
-          0.2898
+          0.172,
+          0.2943
         ]
       },
       "class_days_exposed": 7628,
       "by_guard": {
         "automatique": {
-          "events": 48,
+          "events": 49,
           "class_days": 7386,
-          "per_class_month": 0.1976,
+          "per_class_month": 0.2017,
           "ci95": [
-            0.1457,
-            0.2619
+            0.1492,
+            0.2666
           ]
         },
         "prose": {
@@ -8522,23 +8522,23 @@
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 56,
+          "events": 57,
           "class_days": 7486,
-          "per_class_month": 0.2274,
+          "per_class_month": 0.2315,
           "ci95": [
-            0.1718,
-            0.2953
+            0.1753,
+            0.2999
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 41,
+          "events": 42,
           "class_days": 1109,
-          "per_class_month": 1.1239,
+          "per_class_month": 1.1513,
           "ci95": [
-            0.8064,
-            1.5247
+            0.8297,
+            1.5563
           ]
         },
         "non renseigné": {
