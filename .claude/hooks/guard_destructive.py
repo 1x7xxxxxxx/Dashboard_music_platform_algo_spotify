@@ -264,11 +264,95 @@ def _pkill_would_kill_its_own_shell(command: str) -> str | None:
 
 # ── Detection ─────────────────────────────────────────────────────────────────
 
+def _serial_full_suite(command: str) -> str | None:
+    """Une suite COMPLÈTE lancée sans parallélisme. Rend le segment fautif, ou None.
+
+    Ce n'est pas un geste destructeur — c'est un geste qui coûte QUINZE MINUTES, et que
+    rien n'empêchait. Mesuré le 2026-09-16 : `pytest tests/ -q` en série rend 888, 921 et
+    963 s sur ce poste ; `make test` pose `-n auto --dist loadgroup`. La forme nue a été
+    lancée SIX FOIS dans une seule séance, parce que `CLAUDE.md` la documentait ainsi.
+
+    Pourquoi un hook et pas la doc corrigée : la doc EST corrigée, et ce dépôt a mesuré
+    trois fois qu'une note ne retient pas un geste réflexe — `checkout` deux fois le
+    2026-09-10, `kill` trois fois le 2026-09-12, et l'édition-pendant-la-suite trois fois
+    le 2026-09-16, la leçon étant écrite entre chaque.
+
+    Ce qu'elle NE bloque PAS, et c'est ce qui la rend tenable :
+      * un fichier ou une liste de fichiers (`pytest tests/test_x.py`) — le geste courant ;
+      * tout ce qui porte déjà `-n` ;
+      * `--store-durations`, qui doit tourner en SÉRIE à dessein (`make test-durations`).
+    """
+    for segment in re.split(r"(?:&&|\|\||\||;|\n)", _sans_heredocs(command)):
+        segment = segment.strip()
+        if not segment or segment.startswith("#"):
+            continue
+        try:
+            argv = shlex.split(segment)
+        except ValueError:
+            continue
+        # ⚠️ `timeout` et `nice` PRENNENT UN ARGUMENT, contrairement aux préfixes de
+        # `_PREFIXES_A_SAUTER`. Sans ce traitement, `timeout 1700 … pytest tests/`
+        # échappait au garde — et c'est exactement la forme que j'ai lancée six fois le
+        # 2026-09-16. Un garde qui rate la forme réellement employée ne garde rien : la
+        # liste de préfixes décrivait les gestes d'un AUTRE garde, pas ceux-ci.
+        i = 0
+        while i < len(argv):
+            tete = argv[i].lower()
+            if tete in _PREFIXES_A_SAUTER or "=" in argv[i]:
+                i += 1
+            elif tete in {"timeout", "nice", "ionice", "stdbuf", "taskset"}:
+                i += 1
+                while i < len(argv) and (argv[i].startswith("-")
+                                         or argv[i].replace(".", "").rstrip("smhd").isdigit()):
+                    i += 1
+            else:
+                break
+        argv = argv[i:]
+        if not argv:
+            continue
+        head = argv[0].lower()
+        is_pytest = head.endswith("pytest") or (
+            ("python" in head or head.endswith(".exe")) and "pytest" in argv[:4])
+        if not is_pytest:
+            continue
+        rest = argv[1:]
+        # L'ARBRE ENTIER, pas un fichier : l'argument est `tests` ou `tests/` tel quel.
+        whole_tree = any(a.rstrip("/") == "tests" for a in rest if not a.startswith("-"))
+        if not whole_tree:
+            continue
+        if any(a == "-n" or a.startswith("-n") or a.startswith("--numprocesses")
+               for a in rest):
+            continue
+        # `--store-durations` doit tourner en SERIE a dessein (`make test-durations`).
+        # `--collect-only` ne lance aucun test : quelques secondes, et c'est le geste
+        # normal pour compter ou lister. Exempte apres que ce garde m'a bloque dessus —
+        # un garde qui attrape un geste bon marche apprend a etre contourne.
+        if "--store-durations" in rest or "--collect-only" in rest or "--co" in rest:
+            continue
+        return segment
+    return None
+
+
 def check_command(cmd: str) -> tuple[str, str] | None:
     """
     Returns (level, message) if the command matches a dangerous pattern.
     level is 'block' or 'warn'. Returns None if safe.
     """
+    # La suite en SÉRIE d'abord : elle ne détruit rien, elle vole quinze minutes, et
+    # c'est le seul de ces gardes dont la forme sûre est plus COURTE à taper.
+    serial = _serial_full_suite(cmd)
+    if serial:
+        return ("block",
+                "cette commande lance la suite COMPLÈTE en SÉRIE — elle perd "
+                "`-n auto --dist loadgroup`, que les cibles du Makefile posent. Mesuré "
+                "le 2026-09-16 sur ce poste : 888, 921 et 963 s, soit ~15 min.\n"
+                "Ce que tu veux est presque toujours l'une de ces trois :\n"
+                "  make test-changed   # les tests atteignables depuis le diff — SECONDES\n"
+                "  make test-fast      # tout sauf les documents\n"
+                "  make test           # la barrière avant de livrer, drapeaux de la CI\n"
+                "Un fichier précis n'est PAS bloqué : "
+                "`.venv/bin/python -m pytest tests/test_x.py -q`.")
+
     # Le suicide de shell d'abord : il ne détruit pas de fichier, mais il fait
     # DISPARAÎTRE en silence tout ce qui suit, ce qui est plus dur à voir.
     suicidal = _pkill_would_kill_its_own_shell(cmd)

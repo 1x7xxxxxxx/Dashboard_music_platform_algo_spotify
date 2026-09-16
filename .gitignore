@@ -72,6 +72,9 @@ machine_learning/data_analysis_ml_perso.ipynb
 
 # Tests et coverage
 .pytest_cache/
+# Le journal de `make test` — ecrit au fil de l'eau pour qu'une suite qui MEURT
+# laisse quand meme sa progression (trois morts silencieuses le 2026-09-16).
+.pytest-last.log
 .coverage
 htmlcov/
 *.cover

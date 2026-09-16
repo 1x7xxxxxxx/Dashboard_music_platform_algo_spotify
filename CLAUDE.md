@@ -84,17 +84,26 @@ CHOISISSE, pas pour décorer :
 | `make test-changed` | les tests atteignables depuis le diff | **secondes à ~1 min** |
 | `make test-fast` | tout sauf les documents | `make test` − ~38 s |
 | `make test` | la suite, `-n auto --dist loadgroup` | le mur de référence |
-| `python3 -m pytest tests/` **(à éviter)** | la même suite **en SÉRIE** | **~15 min**, mesuré 888 / 921 / 963 s |
+| `python3 -m pytest tests/` **(à éviter)** | la même suite **en SÉRIE** | **1 146 s** (19 min 06) |
 
 ⚠️ **La forme nue n'est pas « la même en plus simple » : elle perd `-n auto`.** Elle a été
 lancée six fois en une séance le 2026-09-16 parce que ce fichier la documentait, et elle
 seule explique l'essentiel du temps d'attente de cette séance.
 
-⚠️ **Ne rien éditer pendant qu'une suite complète tourne.** Trois exécutions sont mortes
-en route le même soir — à 11 %, à 89 %, et une sans rien écrire. Classe
-`a-verdict-from-a-tree-that-moved-under-it`. Et faire écrire la sortie dans un FICHIER
-(`> f` ou `| tee f`) : à travers `| tail`, une suite qui meurt ne laisse aucune ligne, pas
-même sa progression.
+Les deux mesures sont du **même soir, même arbre, même verdict** (6 717 verts, 1 rouge) :
+`make test` **418 s**, la forme nue **1 146 s**. **×2,74**, et c'est le seul gain
+disponible aujourd'hui sans changer de machine.
+
+⚠️ **Savoir si une suite tourne demande un outil qui ne ment pas.** Le 2026-09-16 j'ai
+conclu QUATRE FOIS qu'une suite était « morte en route » ; les quatre fois elle tournait
+encore. Deux causes, cumulées : `| tail` ne rend rien avant la fin du tube — donc aucune
+progression visible — et `ps … | grep` est intercepté par le wrapper RTK, qui rend une
+sortie vide. Les commandes qui disent la vérité :
+```bash
+rtk proxy sh -c 'ps -eo pid,etimes,args | grep "[p]ytest tests/"'   # qui tourne
+tail -3 .pytest-last.log                                            # où elle en est
+```
+`make test` écrit ce journal au fil de l'eau exactement pour ça.
 
 **Le levier structurel restant est R117** — le dépôt quitte `/mnt/c` pour ext4 : collecte
 ×5,6 (27,1 s → 4,8 s) et suite ×3,4 (372 s → 109 s), mesurés en alternance à périmètre

@@ -60,16 +60,17 @@ logs:        ## Tail Airflow scheduler logs
 # L'instrument qui le prouve est `pytest-randomly`, désactivé par défaut et
 # rallumé à la demande : `.venv/bin/python -m pytest tests/ -q -p randomly`.
 # ⚠️ CES DRAPEAUX SONT LA RAISON D'ETRE DES CIBLES `test*`. Un `pytest tests/` lance a la
-# main les PERD et tourne en SERIE : mesure sur ce poste le 2026-09-16, 888 / 921 / 963 s,
-# soit ~15 min. Il a ete lance six fois en une seance parce que `CLAUDE.md` le documentait
+# main les PERD et tourne en SERIE. Mesure le 2026-09-16, meme arbre et meme verdict des
+# deux cotes (6 717 verts, 1 rouge) : **418 s avec, 1 146 s sans — ×2,74**. Il a ete lance six fois en une seance parce que `CLAUDE.md` le documentait
 # ainsi — la doc est corrigee, et ce commentaire est ici pour que le prochain qui ouvre le
 # Makefile voie le cout avant d'improviser.
 #
 # `--dist loadgroup` et pas `loadfile` : les tests marques `xdist_group` doivent tomber
 # dans le meme worker (base partagee, port unique), sinon ils se marchent dessus.
 #
-# ⚠️ Et NE RIEN EDITER pendant qu'une suite complete tourne : trois executions sont mortes
-# en route le meme soir. Classe `a-verdict-from-a-tree-that-moved-under-it`.
+# ⚠️ Et NE RIEN EDITER pendant qu'une suite complete tourne : son verdict decrira un arbre
+# qui n'existe plus. Classe `a-verdict-from-a-tree-that-moved-under-it`, mesuree le
+# 2026-09-12 — 3 « echecs » sur 4 n'existaient pas.
 PYTEST_DIST := -n auto --dist loadgroup
 
 # ── Les tests qui ne lisent QUE des documents (2026-09-15) ──
@@ -94,8 +95,18 @@ DOC_TESTS := tests/test_error_class_index_is_complete.py \
              tests/test_the_views_map_lists_every_view.py
 DOC_IGNORE := $(foreach f,$(DOC_TESTS),--ignore=$(f))
 
-test:        ## [~15 min en série, bien moins ici] Suite COMPLÈTE, drapeaux de la CI — la barrière avant de livrer
-	$(PYTHON) -m pytest tests/ -q $(PYTEST_DIST)
+test:        ## [418 s — contre 1146 s en série] Suite COMPLÈTE, drapeaux de la CI — la barrière avant de livrer
+	@# La sortie va DANS UN FICHIER, et ce n'est pas du confort. Le 2026-09-16, j'ai
+	@# conclu QUATRE FOIS qu'une suite etait « morte en route » ; les quatre fois elle
+	@# tournait encore. Les executions passaient par `| tail -6`, qui ne rend rien avant
+	@# la fin du tube : aucune progression, donc rien pour distinguer « avance » de
+	@# « morte ». Avec ce journal, `tail -3 .pytest-last.log` tranche en une seconde.
+	@#
+	@# ⚠️ `$${PIPESTATUS[0]}` et bash EXPLICITE : `cmd | tee f` rend le code de `tee`,
+	@# c'est-a-dire 0 quoi qu'il arrive. Une barriere avant de livrer qui rend toujours
+	@# vert serait infiniment pire que lente.
+	@bash -c 'set -o pipefail; $(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
+	  rc=$$?; echo "   journal complet : .pytest-last.log"; exit $$rc
 
 test-fast:   ## [= test −38 s] La suite SANS les tests de documents — avant de commiter
 	@echo '⏩ sans les tests de documents — make test-docs les lance, make test lance tout.'
