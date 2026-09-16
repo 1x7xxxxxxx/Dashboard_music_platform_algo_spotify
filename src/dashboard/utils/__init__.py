@@ -143,6 +143,16 @@ def view_session() -> Iterator[tuple[PostgresHandler, int]]:
             st.stop()
         artist_id = 1  # admin fallback — full cross-tenant view (Admin panel)
     db = get_db_connection()
+    # Une écriture faite par une AUTRE instance rend nos compteurs faux sans que rien
+    # ici ne le sache : `clear_kpi_caches()` ne purge que son propre processus. Cette
+    # ligne est l'unique endroit où ce dépôt le découvre — au seuil du rendu, avant que
+    # la vue ne lise quoi que ce soit de caché. Coût : une requête par processus toutes
+    # les 30 s, pas une par rendu. Détail et compromis dans `cache_epoch.py`.
+    try:
+        from src.dashboard.utils.cache_epoch import honour_remote_invalidation
+        honour_remote_invalidation(artist_id, db)
+    except Exception:  # noqa: BLE001 — jamais au prix du rendu
+        pass
     try:
         yield db, artist_id
     finally:

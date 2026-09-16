@@ -57,6 +57,14 @@ _NOT_A_QUANTITY = {
     "plan_id",
     # Des paramètres de facturation par compte, pas des mesures.
     "referral_free_months", "first_month_discount_pct",
+    # Un COMPTEUR D'INVALIDATION (migration 123), pas une mesure d'activité. Sa seule
+    # opération est `+ 1` et sa seule lecture est une COMPARAISON à la valeur qu'une
+    # instance avait vue. Le sommer sur deux locataires répondrait à la question
+    # « combien de collectes en tout ? », à laquelle il ne sait pas répondre : une
+    # écriture qui n'invalide rien ne l'incrémente pas, et une purge locale non plus.
+    # Le jour où une figure voudrait compter les collectes, la source est
+    # `etl_run_log`, pas ce compteur.
+    "cache_epoch",
 }
 
 
