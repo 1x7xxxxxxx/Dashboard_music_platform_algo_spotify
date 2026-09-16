@@ -81,7 +81,7 @@ _CEILINGS = {
     "cause_unknown": 242,             # 363 → 242 : 121 causes nomment un chemin qui existe
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
-    "scope_without_not_covered": 357,  # 363 → 357 : phase C, les 6 récidivistes du haut
+    "scope_without_not_covered": 351,  # phase C : 6 récidivistes du haut, puis 6 de plus
     # Liste de RELECTURE, pas une faute à corriger dans une direction imposée : un
     # désaccord peut venir du garde comme de l'expression de la famille.
     # 2 → 3 le 2026-09-16, et c'est un RELÈVEMENT assumé, le seul de ce fichier. Les

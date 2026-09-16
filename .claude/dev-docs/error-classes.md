@@ -613,7 +613,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: every dynamic identifier resolves through a `frozenset` allowlist before interpolation (rule #8); the allowlist is the fix, the grep only finds the ones that skipped it.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_sql_identifier_comes_from_a_closed_set.py }
-- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: la-frontière-avec-le-dehors — interpoler un NOM de table ou de colonne dans du SQL ; couvre: `src/**.py` entier (`rglob`, plafond à 0), un identifiant en position SQL non précédé de `validate_table` / `validate_columns` / `validate_identifier` ; ne couvre pas: (a) le SQL hors de `src/` — `migrations/*.sql`, `tools/`, `airflow/dags/` ne sont pas parcourus ; (b) un identifiant assemblé **en plusieurs morceaux** (`f"{schema}.{table}"` construit deux lignes plus haut), que la détection par position ne relie pas à sa source ; (c) un identifiant qui transite par un `dict` de configuration avant d'atteindre la requête.
 - rex_ref: CLAUDE.md
 - first_seen: 2026-03-28 (ref: DEVLOG#2026-03-28)
 - History:
@@ -694,7 +694,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `tests/test_allowed_tables_coverage.py` derives one from the other and fails on divergence, so adding a table to a collector fails CI until it is registered.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_allowed_tables_coverage.py }
-- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-travail-qui-n-arrive-nulle-part — écrire dans une table dont le nom n'est pas déclaré ; couvre: `src/**.py`, les appels `upsert_many(` / `insert_many(` dont le premier argument est un LITTÉRAL, plus les `{'table': '…'}` de configuration ; ne couvre pas: (a) un nom de table passé par une VARIABLE — le motif exige des guillemets collés à la parenthèse ; (b) un `execute_query` avec un `INSERT` écrit à la main, qui ne passe par aucune des deux fonctions ; (c) les écritures hors de `src/`, notamment celles d'un DAG.
 - rex_ref: .claude/skills/db-schema.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -1292,7 +1292,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: identity has no default. Absent (including `""`) ⇒ skip the tenant with a message naming the next action. Store failure ⇒ `CredentialLoadError`; unknown artist ⇒ `UnknownArtistError`; "no active tenant" is the only `[]`. The legacy single-tenant path is opt-in behind `LEGACY_SINGLE_TENANT=1`. The credentials form no longer persists an empty identity. `docker-compose*.yml` no longer carries the admin's ids as defaults.
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — résoudre l'identité d'un locataire auprès d'une plateforme ; couvre: un parcours à DEUX locataires réels, exécuté contre `airflow/dags/*.py` ; ne couvre pas: (a) un troisième locataire aux réglages différents — le parcours en fixe deux ; (b) le même repli dans une VUE ou dans l'API, que ce parcours ne traverse pas ; (c) une identité lue depuis un cache déjà rempli par l'admin, où le repli a eu lieu avant et ne se rejoue pas.
 - rex_ref: src/utils/credential_loader.py
 - first_seen: 2026-06-15 (Benken), recurred 2026-08-12 (Grinch)
 - History:
@@ -1711,7 +1711,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `get_active_artists(exclude_canaries=True)` in the two onboarding-oriented checks only. The flag defaults to **False** deliberately: excluding by default would silently stop the collectors from running for the canary, and a canary nobody collects for is dead weight. The canary's health has its own dedicated check, which asks the single relevant question — is it still collecting what it declared?
 - autofix: none
 - guard: { type: pytest, ref: tests/test_alert_monitor_sends_what_it_finds.py }
-- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — envoyer une alerte que personne ne lira ; couvre: que chaque constat remonté au mail participe à la DÉCISION d'envoyer — un constat rendu mais non décisif produit un silence ; ne couvre pas: **la fatigue elle-même**. Rien ne mesure qu'un constat revient à l'identique chaque nuit sans qu'on agisse : c'est exactement ce qu'ADR-011 nomme, et le garde vérifie la structure du mail, pas sa répétition. Un détecteur de récurrence lirait `monitoring_run`.
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-08-21
 - History:
@@ -2634,7 +2634,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: le PDF LIT `artist_readiness`, la source de l'écran, au lieu de recalculer. Le garde est structurel — il interdit à la fonction d'appeler `app_level_configured` et de requêter `artist_credentials` — parce qu'un test de valeur exigerait une base et skipperait en CI. Une quatrième assertion épingle le prédicat de l'écran (`status != "todo"`) pour que le garde tombe plutôt que de mentir si l'écran change.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_pdf_says_what_the_screen_says.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — deux surfaces répondent à la MÊME question ; couvre: **exactement deux fichiers** — `pdf_exporter/_collectors.py` et `status_matrix.py` — dont le garde compare les règles ; ne couvre pas: **toute autre paire de surfaces du produit**, et elles sont nombreuses : une vue et son export CSV, un e-mail de rapport et la page qu'il résume, une tuile et la figure sous elle. Le garde tient UNE paire, pas la famille — c'est un épinglage, pas un balayage.
 - rex_ref: src/dashboard/utils/pdf_exporter/_collectors.py
 - first_seen: 2026-08-23
 - History:
@@ -5267,7 +5267,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: comparer deux instants du même référentiel — l'heure courante en UTC contre un horodatage déclaré UTC — et faire suivre à la « journée du produit » le fuseau d'affichage déclaré une fois (`DISPLAY_TZ`), jamais l'horloge de la machine qui affiche. Règle générale : une date qui entre dans une comparaison porte son fuseau, ou la comparaison est fausse d'une quantité qui change avec la saison.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_one_clock_decides_a_date.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — soustraire deux instants qui ne viennent pas de la même horloge ; couvre: les cas épinglés dans `test_one_clock_decides_a_date.py` ; ne couvre pas: **le geste général** — aucun balayage AST ne cherche un `-` entre un `datetime.now()` et un horodatage venu de la base, ni une comparaison entre un `date` local et un `timestamptz`. Le garde prouve des cas connus ; il ne trouve pas les prochains.
 - rex_ref: src/dashboard/utils/tz.py
 - first_seen: 2026-09-10
 - History:

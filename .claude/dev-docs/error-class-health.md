@@ -42,9 +42,9 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `cause_inferred` | 0 |
 | `cause_unknown` | 242 |
 | `guards_ref_missing` | 0 |
-| `scope_family_disagreements` | 3 |
+| `scope_family_disagreements` | 6 |
 | `scope_unknown` | 0 |
-| `scope_without_not_covered` | 357 |
+| `scope_without_not_covered` | 351 |
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 332 |
 
@@ -57,6 +57,9 @@ La famille DÉCLARÉE dans `guard_scope` diffère de celle que `error_class_fami
 | `a-population-that-counts-its-own-headers` | un-nombre-affirmé-qui-n-a-pas-été-mesuré | un-cumul-pris-pour-un-quotidien |
 | `an-overload-makes-the-old-call-ambiguous` | deux-surfaces-deux-nombres | un-coût-payé-sans-contrepartie |
 | `central-app-missing` | la-frontière-avec-le-dehors | le-locataire |
+| `two-clocks-subtracted-from-each-other` | le-temps-et-l-horloge | deux-surfaces-deux-nombres |
+| `unregistered-write-table` | un-travail-qui-n-arrive-nulle-part | une-erreur-avalée-devient-une-absence |
+| `watchdog-becomes-the-noise` | le-message-parle-au-mauvais-lecteur | la-frontière-avec-le-dehors |
 
 ## Récidive observée
 
@@ -70,8 +73,8 @@ La famille DÉCLARÉE dans `guard_scope` diffère de celle que `error_class_fami
 | by_guard · prose | 8 | 1.005 | 0.4327 – 1.9803 | **séparent** |
 | by_seen_red · daté | 0 | 0.0 | 0.0 – 0.7853 | insuffisant pour conclure (n=56) |
 | by_seen_red · jamais-ou-inconnu | 56 | 0.2274 | 0.1718 – 0.2953 | insuffisant pour conclure (n=56) |
-| by_scope · ne-couvre-pas renseigné | 16 | 0.9947 | 0.5682 – 1.6154 | **séparent** |
-| by_scope · non renseigné | 40 | 0.1703 | 0.1217 – 0.2319 | **séparent** |
+| by_scope · ne-couvre-pas renseigné | 22 | 0.8166 | 0.5116 – 1.2364 | **séparent** |
+| by_scope · non renseigné | 34 | 0.1518 | 0.1051 – 0.2121 | **séparent** |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 

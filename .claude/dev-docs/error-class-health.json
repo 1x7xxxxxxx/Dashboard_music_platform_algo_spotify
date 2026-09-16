@@ -7119,7 +7119,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7325,7 +7325,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -7807,9 +7807,9 @@
       "guard_automatic": true,
       "guard_ref": "tests/test_one_clock_decides_a_date.py",
       "guard_ref_exists": true,
-      "guard_scope_declared_family": "deux-surfaces-deux-nombres",
+      "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7924,7 +7924,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8084,9 +8084,9 @@
       "guard_automatic": true,
       "guard_ref": "tests/test_allowed_tables_coverage.py",
       "guard_ref_exists": true,
-      "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
+      "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -8316,9 +8316,9 @@
       "guard_automatic": true,
       "guard_ref": "tests/test_alert_monitor_sends_what_it_finds.py",
       "guard_ref_exists": true,
-      "guard_scope_declared_family": "la-frontière-avec-le-dehors",
+      "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8442,9 +8442,9 @@
       "cause_inferred": 0,
       "cause_unknown": 242,
       "guards_ref_missing": 0,
-      "scope_family_disagreements": 3,
+      "scope_family_disagreements": 6,
       "scope_unknown": 0,
-      "scope_without_not_covered": 357,
+      "scope_without_not_covered": 351,
       "seen_red_never": 0,
       "seen_red_unknown": 332
     },
@@ -8510,21 +8510,21 @@
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 16,
-          "class_days": 489,
-          "per_class_month": 0.9947,
+          "events": 22,
+          "class_days": 819,
+          "per_class_month": 0.8166,
           "ci95": [
-            0.5682,
-            1.6154
+            0.5116,
+            1.2364
           ]
         },
         "non renseigné": {
-          "events": 40,
-          "class_days": 7139,
-          "per_class_month": 0.1703,
+          "events": 34,
+          "class_days": 6809,
+          "per_class_month": 0.1518,
           "ci95": [
-            0.1217,
-            0.2319
+            0.1051,
+            0.2121
           ]
         }
       },
