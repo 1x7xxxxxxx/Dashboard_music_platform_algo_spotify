@@ -403,9 +403,14 @@ sync-check: schema-check ## Full repo↔prod sync: schema-drift + migration-ledg
 	@# log-redaction block. Nobody knew, because nothing compared them: this target
 	@# checked the SCHEMA and the git HEAD, and a reverse proxy is neither. A patch was
 	@# written into the repo copy believing it was the live one.
-	@# Compared from the first `{` so the repo file may carry a comment header.
+	@# Compare des DEUX cotes a partir du premier `{`. Le depliage etait asymetrique
+	@# jusqu'au 2026-09-16 : il retirait l'en-tete du depot et pas celui de la cible.
+	@# Or la procedure de deploiement ecrite en tete de `deploy/Caddyfile` fait un `scp`
+	@# du fichier ENTIER : des que la prod a recu l'en-tete, la porte a vu 89 lignes de
+	@# divergence pour ZERO ligne fonctionnelle. Une porte qui ne peut plus passer est
+	@# une porte qu'on apprend a ignorer — classe `a-gate-that-can-never-be-green`.
 	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cat /etc/caddy/Caddyfile' > /tmp/_caddy_live 2>/dev/null || 	  { echo "  ⚠ no /etc/caddy/Caddyfile on the target — skipped"; true; }
-	@if [ -s /tmp/_caddy_live ]; then 	  sed -n '/^{/,$$p' deploy/Caddyfile > /tmp/_caddy_repo; 	  if diff -q /tmp/_caddy_repo /tmp/_caddy_live >/dev/null; then 	    echo "  ✅ deploy/Caddyfile == what Caddy is serving"; 	  else 	    echo "  ⚠ CADDY DRIFT — the repo copy is not what runs:"; 	    diff /tmp/_caddy_repo /tmp/_caddy_live | head -20; 	    echo "  Reconcile before editing either one (see deploy/Caddyfile header)."; 	    exit 1; 	  fi; 	fi
+	@if [ -s /tmp/_caddy_live ]; then 	  sed -n '/^{/,$$p' deploy/Caddyfile > /tmp/_caddy_repo; 	  sed -n '/^{/,$$p' /tmp/_caddy_live > /tmp/_caddy_live_body; 	  if diff -q /tmp/_caddy_repo /tmp/_caddy_live_body >/dev/null; then 	    echo "  ✅ deploy/Caddyfile == what Caddy is serving"; 	  else 	    echo "  ⚠ CADDY DRIFT — the repo copy is not what runs:"; 	    diff /tmp/_caddy_repo /tmp/_caddy_live_body | head -20; 	    echo "  Reconcile before editing either one (see deploy/Caddyfile header)."; 	    exit 1; 	  fi; 	fi
 	@echo "▶ host-config drift: deploy/host/ vs la cible…"
 	@# Ajouté le 2026-09-16, même raison que la comparaison du Caddyfile juste au-dessus :
 	@# un fichier d'HÔTE modifié directement sur la cible n'est comparé à rien. Le

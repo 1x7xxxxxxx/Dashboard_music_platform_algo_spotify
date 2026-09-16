@@ -24,6 +24,22 @@
 
 {
 	email 1x7xxxxxxx@gmail.com
+	# L'endpoint d'administration, sur la PASSERELLE du reseau des conteneurs.
+	#
+	# Par defaut il ecoute sur 127.0.0.1:2019 — la loopback de l'HOTE, qu'un conteneur
+	# ne peut pas atteindre. Prometheus tourne dans un conteneur : sa cible `caddy`
+	# restait `down` avec `connection refused`, et les 66 series `caddy_http_*` etaient
+	# exposees pour personne. C'est la classe `a-bind-address-that-hides-the-service`,
+	# rencontree deux fois le meme jour et dans les deux sens.
+	#
+	# 172.18.0.1 est la passerelle du reseau `airflow_network` : joignable par les
+	# conteneurs, et PAS depuis Internet (adresse privee, et le pare-feu ne l'expose
+	# pas). ⚠️ L'API d'administration de Caddy peut RECONFIGURER le serveur — la lier a
+	# 0.0.0.0 serait une porte ouverte, jamais un raccourci.
+	#
+	# Consequence a connaitre : les outils de l'hote qui interrogeaient
+	# `127.0.0.1:2019` doivent viser `172.18.0.1:2019`.
+	admin 172.18.0.1:2019
 	# Les metriques HTTP par amont — posees le 2026-09-16 (ADR-026).
 	#
 	# Sans cette directive, `curl 127.0.0.1:2019/metrics` ne rend QUE les metriques Go
@@ -111,33 +127,48 @@ streamlytics.fr, www.streamlytics.fr, app.streamlytics.fr {
 		try_files {path} /index.html
 		file_server
 	}
-	# DEUX AMONTS — l'experience R114, posee le 2026-09-16.
+	# UN SEUL AMONT — et le second est ARRETE, pas oublie (R114, 2026-09-16).
 	#
-	# `lb_policy cookie` : l'affinite de session est OBLIGATOIRE ici, et ce n'est pas
-	# une optimisation. `st.session_state` vit dans le PROCESSUS, pas dans un cookie :
-	# une requete routee vers l'autre instance perd la session de l'utilisateur.
+	# L'experience a tourne : deux repliques derriere `lb_policy cookie`, mesurees a
+	# 1/4/8/12/24 onglets. Le p50 s'effondre (x2,25 a 24 onglets : 3088 ms -> 1374 ms)
+	# et les reruns PERDUS ne suivent pas (37 -> 35). Les deux chiffres ne racontent pas
+	# la meme histoire, et l'audit de l'instrument a montre pourquoi : la colonne
+	# « perdus » melange trois causes dont une seule parle du serveur, et le p50 est
+	# calcule sur les seuls survivants (68-82 % de censure a N=24).
 	#
-	# Ce que l'affinite ne fait PAS, et qu'il faut savoir : elle ne borne RIEN cote
-	# securite. Un forceur de mots de passe scripte n'a pas de bocal a cookies, donc il
-	# est reparti en tourniquet et verrait `budget x N` — c'est pourquoi les seaux
-	# anti-force-brute ont du passer en base AVANT cette ligne (etape 1), et pourquoi
-	# `tests/test_in_memory_limits_forbid_replicas.py` interdisait mecaniquement
-	# d'ecrire ce second amont tant que ce n'etait pas fait.
+	# On ne garde donc PAS la seconde replique sur la foi d'une mesure ambigue. Elle
+	# reste arretee jusqu'a ce que l'instrumentation serveur (ADR-026 : Prometheus,
+	# `streamlit_rerun_duration_seconds`) rende un chiffre qui ne depende pas de la
+	# saturation du client. La decision definitive ira dans un ADR, avec la courbe.
 	#
-	# Conséquence assumee : au redemarrage de l'instance epinglee, `lb_try_duration`
-	# reachemine vers l'autre amont, qui n'a pas le `st.session_state` de
-	# l'utilisateur — deconnexion silencieuse en pleine session. Aujourd'hui un
-	# deploiement fait subir cela a TOUT LE MONDE en meme temps ; a deux repliques
-	# l'effet est etale mais reste reel.
+	# Ce qui reste EN PLACE pendant l'arret, et qu'il ne faut pas defaire :
+	#   - les seaux anti-force-brute sont en BASE (migration 122). C'est ce qui rend un
+	#     second amont possible ; en memoire, chaque instance aurait son propre budget et
+	#     un forceur scripte — sans bocal a cookies, donc reparti en tourniquet — verrait
+	#     `budget x N`. `tests/test_in_memory_limits_forbid_replicas.py` l'interdit
+	#     mecaniquement : remettre l'amont ci-dessous avec des seaux en memoire fait
+	#     rougir la suite AVANT la prod.
+	#   - l'invalidation de cache inter-instances (migration 123) ;
+	#   - la sonde de sante du port 8511 dans `tools/deploy.sh:service_probe()`, que
+	#     `tests/test_a_deploy_covers_every_service_it_starts.py` exige.
 	#
-	# Retrait : supprimer `127.0.0.1:8511` et la ligne `lb_policy`, `caddy validate`,
-	# puis `systemctl reload caddy` — jamais `restart`.
+	# REMISE EN SERVICE, quand la courbe l'aura dit — les deux gestes, dans cet ordre :
+	#   1. demarrer la replique :
+	#        docker compose -f docker-compose.yml -f deploy/docker-compose.replica.yml \\
+	#          --profile replica up -d dashboard2
+	#   2. remplacer la ligne `reverse_proxy` ci-dessous par :
+	#        reverse_proxy 127.0.0.1:8501 127.0.0.1:8511 {
+	#            lb_policy cookie streamlytics_lb
+	#      puis `caddy validate` sur la machine, puis `systemctl reload caddy` — jamais
+	#      `restart`.
 	#
-	# La sonde de sante du port 8511 vit dans `tools/deploy.sh:service_probe()`, et
-	# `tests/test_a_deploy_covers_every_service_it_starts.py` refuse qu'un amont
-	# existe ici sans elle.
-	reverse_proxy 127.0.0.1:8501 127.0.0.1:8511 {
-		lb_policy cookie streamlytics_lb
+	# ⚠️ `lb_policy cookie` n'est PAS une optimisation : `st.session_state` vit dans le
+	# PROCESSUS. Une requete routee vers l'autre instance perd la session. Et meme avec
+	# l'affinite, le redemarrage de l'instance epinglee fait rebasculer l'utilisateur via
+	# `lb_try_duration` vers un amont qui n'a pas son etat — deconnexion silencieuse en
+	# pleine session. Aujourd'hui, a un amont, un deploiement fait subir cela a tout le
+	# monde en meme temps ; a deux, l'effet est etale mais reste reel.
+	reverse_proxy 127.0.0.1:8501 {
 		import proxy_opts
 	}
 }

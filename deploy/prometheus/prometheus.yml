@@ -27,13 +27,26 @@ scrape_configs:
     static_configs:
       - targets: ['streamlytics_api:8502']
 
-  # Caddy tourne sur l'HOTE (service systemd), pas dans un conteneur : on l'atteint par
-  # la passerelle Docker. Son endpoint d'administration ecoute sur 127.0.0.1:2019 et
-  # n'est pas expose — `host.docker.internal` est resolu par `extra_hosts` dans le
-  # compose.
+  # Caddy tourne sur l'HOTE (service systemd), pas dans un conteneur.
+  #
+  # ⚠️ PAS `host.docker.internal`, et c'est MESURE : dans ce conteneur il resout vers
+  # 172.17.0.1 — la passerelle du bridge PAR DEFAUT — alors que Prometheus vit sur
+  # `airflow_network`, dont la passerelle est 172.18.0.1. La cible restait `down` avec
+  # `connection refused`, et les 66 series `caddy_http_*` etaient exposees pour
+  # personne.
+  #
+  # `admin` de Caddy ne prend qu'UNE adresse, et elle vaut 172.18.0.1:2019 : joignable
+  # par les conteneurs de ce reseau, pas depuis Internet (adresse privee). L'API
+  # d'administration peut RECONFIGURER le serveur — la lier a 0.0.0.0 serait une porte
+  # ouverte, jamais un raccourci.
+  #
+  # L'adresse est ecrite en dur parce qu'il n'y a pas d'alternative : un conteneur ne
+  # peut pas decouvrir la passerelle de son propre reseau par un nom. Si le reseau est
+  # recree avec un autre sous-reseau, cette ligne et `admin` du Caddyfile changent
+  # ENSEMBLE — et la cible passera `down`, ce qui est le signal.
   - job_name: caddy
     static_configs:
-      - targets: ['host.docker.internal:2019']
+      - targets: ['172.18.0.1:2019']
 
   - job_name: node
     static_configs:
