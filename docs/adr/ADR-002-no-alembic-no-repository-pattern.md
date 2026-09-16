@@ -1,7 +1,15 @@
 # ADR-002 — No Alembic, no repository pattern, no observability stack
 
-- **Status:** Accepted — **§Migrations ré-examiné le 2026-08-21, conclusion maintenue,
-  prémisse corrigée** (voir « Ré-évaluation » en fin de document)
+- **Status:** Accepted, **partiellement superseded**
+  - §Migrations — ré-examiné le 2026-08-21, conclusion maintenue, prémisse corrigée
+    (voir « Ré-évaluation » en fin de document)
+  - **§4 Observability — SUPERSEDED par ADR-026 le 2026-09-16.** Aucun des trois
+    déclencheurs de réouverture n'a été tiré ; l'adoption repose sur un motif que cet
+    ADR n'avait pas prévu — trois ADR reposent sur des déclencheurs que rien n'observe,
+    ce qu'ADR-007 nomme lui-même comme sa faiblesse. Lire ADR-026 avant de citer §4.
+  - §7 DR — **dépassé par les faits** dès le 2026-08-21 (voir le tableau en fin de
+    document), sans que l'ADR ait été mise à jour à l'époque. C'est le précédent qui a
+    fait écrire ADR-026 plutôt que de contredire §4 en silence.
 - **Date:** 2026-05-14
 - **Deciders:** @1x7xxxxxxx
 
