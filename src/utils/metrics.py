@@ -101,9 +101,10 @@ def _build():
         return None
 
     # Bornes choisies sur les mesures existantes, pas par défaut : 61 ms (vue seule),
-    # 317-329 ms (p50 à un onglet), 468-538 ms (page complète), 1,5 s (le seuil
-    # d'ADR-007 sur `trigger_algo`), 3 s (le seuil de `RenderLatencyDegraded`, qui a herite du rouge de
-    # `perf_monitor` quand cette vue a ete retiree).
+    # 317-329 ms (p50 à un onglet), 468-538 ms (page complète SOUS `AppTest`, donc
+    # plancher de 352 ms compris — voir la docstring de ce module), 1,5 s (le seuil
+    # d'ADR-007 sur `trigger_algo`), 3 s (le seuil de `RenderLatencyDegraded`, qui a
+    # hérité du rouge de `perf_monitor` quand cette vue a été retirée).
     buckets = (0.05, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0)
 
     def _once(factory, name, *args, **kwargs):

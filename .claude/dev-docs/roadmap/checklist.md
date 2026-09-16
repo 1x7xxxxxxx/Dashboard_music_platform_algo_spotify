@@ -183,7 +183,8 @@ le supposer.
 
   ⚠️⚠️ **ET LA SECONDE PHRASE DE CE BLOC ÉTAIT FAUSSE AUSSI.** Elle disait : « le coût
   n'est pas dans la vue — rendu par vue p50 = 61 ms, page complète = 468-538 ms, soit
-  ~8× ». **Mesuré côté SERVEUR le 2026-09-16, c'est l'inverse**, sur les 8 pages
+  ~8× ». Ces 468-538 ms sont mesurés sous `AppTest`, dont le plancher vaut 352 ms (détail
+  plus bas). **Mesuré côté SERVEUR le 2026-09-16, c'est l'inverse**, sur les 8 pages
   visitées, sans une exception :
 
   | page | chrome | vue | vue / chrome |

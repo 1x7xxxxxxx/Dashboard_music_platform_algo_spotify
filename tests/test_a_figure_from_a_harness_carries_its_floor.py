@@ -39,7 +39,10 @@ Classe : `a-ratio-between-two-instruments-that-ignores-the-floor-of-one`.
 """
 from __future__ import annotations
 
+import ast
+import io
 import subprocess
+import tokenize
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
@@ -50,32 +53,112 @@ _FLOOR = "352"
 # Un renvoi explicite vaut le plancher : il mène au raisonnement complet.
 _POINTERS = ("ADR-026", "addendum", "plancher", "AppTest")
 
+_TEXT_SUFFIXES = (".md", ".yml", ".yaml", ".sql", ".sh")
 
-def _tracked_text_files() -> list[Path]:
+
+def _tracked(suffixes: tuple[str, ...]) -> list[Path]:
     out = subprocess.run(["git", "ls-files"], cwd=_ROOT,
                          capture_output=True, text=True, timeout=60)
-    keep = (".py", ".md", ".yml", ".yaml", ".sql", ".sh")
     return [_ROOT / line for line in out.stdout.splitlines()
-            if line.endswith(keep) and (_ROOT / line).is_file()]
+            if line.endswith(suffixes) and (_ROOT / line).is_file()]
+
+
+def _python_prose(path: Path) -> str:
+    """Les COMMENTAIRES et DOCSTRINGS d'un fichier Python, **aux bonnes lignes**.
+
+    Rend un texte de même hauteur que le fichier, où chaque ligne porte sa prose et où
+    les lignes de pur code sont vides. Les numéros de ligne restent donc ceux du fichier.
+
+    ⚠️ La première version CONCATÉNAIT les docstrings puis les commentaires. Elle lisait
+    bien la prose, et elle détruisait la LOCALITÉ : le voisinage de ±15 lignes calculé
+    sur ce collage ne correspondait à rien dans le fichier réel, si bien qu'une citation
+    ajoutée en fin de fichier se trouvait « expliquée » par un commentaire situé cent
+    lignes plus haut. Mutation jouée trois fois avant que le garde ne morde — deux
+    placements étaient les miens qui étaient mauvais, le troisième a révélé celui-ci.
+
+    ⚠️ Et c'est de la lecture STRUCTURELLE, pas textuelle : `ast` pour les docstrings,
+    `tokenize` pour les commentaires. Un `468-538` dans un littéral ou un nom de variable
+    n'affirme rien et ne doit pas déclencher — `tests/test_a_guard_reads_structure_not_text.py`
+    a refusé la version qui les confondait.
+    """
+    raw = path.read_text(encoding="utf-8")
+    try:
+        tree = ast.parse(raw)
+    except SyntaxError:
+        return ""
+
+    out = [""] * (raw.count("\n") + 2)
+
+    def place(start: int, text: str) -> None:
+        for offset, piece in enumerate(text.splitlines()):
+            k = start + offset
+            if 0 <= k < len(out):
+                out[k] = piece
+
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef,
+                             ast.ClassDef)) and node.body:
+            first = node.body[0]
+            if (isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
+                    and isinstance(first.value.value, str)):
+                place(first.lineno - 1, first.value.value)
+
+    try:
+        for tok in tokenize.generate_tokens(io.StringIO(raw).readline):
+            if tok.type == tokenize.COMMENT:
+                place(tok.start[0] - 1, tok.string)
+    except (tokenize.TokenError, IndentationError):
+        pass
+    return "\n".join(out)
+
+
+# Combien de lignes autour d'une citation comptent comme « à côté ». Quinze : de quoi
+# couvrir un paragraphe de commentaire ou une entrée de tableau, pas un fichier entier.
+_WINDOW = 15
+
+
+def _unexplained_citations(text: str) -> list[int]:
+    """Les lignes qui citent le chiffre SANS explication à proximité.
+
+    ⚠️ La première version vérifiait par FICHIER : dès qu'un fichier mentionnait
+    `AppTest` ou le plancher une seule fois, toutes ses citations étaient blanchies.
+    Mutation jouée — ajouter une citation nue dans un commentaire de `src/utils/metrics.py`,
+    qui explique déjà la classe ailleurs — le garde est resté VERT. Une vérification
+    par fichier bénit ce qui est loin d'elle ; c'est la PROXIMITÉ qui décide si un
+    lecteur tombera sur l'explication en lisant la citation.
+    """
+    a, b = _FIGURE
+    lines = text.splitlines()
+    out = []
+    for i, line in enumerate(lines):
+        if f"{a}-{b}" not in line and f"{a} à {b}" not in line:
+            continue
+        near = "\n".join(lines[max(0, i - _WINDOW):i + _WINDOW + 1])
+        if _FLOOR in near or any(pointer in near for pointer in _POINTERS):
+            continue
+        out.append(i + 1)
+    return out
 
 
 def test_the_page_figure_never_travels_without_its_floor() -> None:
     offenders = []
-    for path in _tracked_text_files():
-        # Ce fichier-ci EXPLIQUE la classe : il cite les deux par construction.
-        if path.name == Path(__file__).name:
-            continue
+    me = Path(__file__).name
+
+    for path in _tracked((".py",)):
+        if path.name == me:
+            continue                      # ce fichier EXPLIQUE la classe
+        bad = _unexplained_citations(_python_prose(path))
+        if bad:
+            offenders.append(f"{path.relative_to(_ROOT)} (prose, ligne(s) {bad})")
+
+    for path in _tracked(_TEXT_SUFFIXES):
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        # On ne cherche la paire que là où elle est utilisée comme un temps de rendu.
-        if not any(f"{a}-{b}" in text or f"{a} à {b}" in text
-                   for a, b in [(_FIGURE[0], _FIGURE[1])]):
-            continue
-        if _FLOOR in text or any(p in text for p in _POINTERS):
-            continue
-        offenders.append(str(path.relative_to(_ROOT)))
+        bad = _unexplained_citations(text)
+        if bad:
+            offenders.append(f"{path.relative_to(_ROOT)} (ligne(s) {bad})")
 
     assert not offenders, (
         "fichier(s) citant « 468-538 ms » sans son plancher :\n  " + "\n  ".join(offenders)
@@ -93,12 +176,18 @@ def test_the_harness_still_documents_its_own_floor() -> None:
     Le test ci-dessus ne vaut que si le plancher est écrit QUELQUE PART. S'il disparaît
     de `loadtest_dashboard.py`, la règle devient inapplicable et le garde vert à vide —
     exactement la situation d'avant, où le chiffre circulait sans son contexte.
+
+    Lu dans la PROSE du fichier (docstrings + commentaires), pas dans son texte brut :
+    un `352` qui apparaîtrait dans un calcul ou une adresse ne documenterait rien, et
+    `tests/test_a_guard_reads_structure_not_text.py` a refusé la version qui les
+    confondait.
     """
-    tool = (_ROOT / "tools" / "loadtest_dashboard.py").read_text(encoding="utf-8")
-    assert _FLOOR in tool, (
-        f"`tools/loadtest_dashboard.py` ne documente plus son plancher de {_FLOOR} ms. "
-        "C'est le seul endroit qui permet de lire ses autres chiffres — sans lui, "
-        "`468-538 ms` redevient un temps de rendu qu'on peut comparer à n'importe quoi.")
-    assert "hello" in tool, (
+    prose = _python_prose(_ROOT / "tools" / "loadtest_dashboard.py")
+    assert _FLOOR in prose, (
+        f"`tools/loadtest_dashboard.py` ne documente plus son plancher de {_FLOOR} ms "
+        "dans sa prose. C'est le seul endroit qui permet de lire ses autres chiffres — "
+        "sans lui, « 468-538 ms » redevient un temps de rendu qu'on peut comparer à "
+        "n'importe quoi.")
+    assert "hello" in prose, (
         "le plancher n'est plus rattaché à ce qui l'a produit (`st.write('hello')`) : "
         "un nombre sans son protocole n'est pas un plancher, c'est une anecdote.")
