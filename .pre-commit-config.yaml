@@ -59,6 +59,17 @@ repos:
       - id: end-of-file-fixer
         exclude: ^tests/fixtures/   # byte-exact golden snapshots must not be reflowed
       - id: check-yaml
+        # `deploy/docker-compose.replica.yml` porte `ports: !override`, un tag que
+        # DOCKER COMPOSE comprend (>= 2.24) et que PyYAML refuse : « could not
+        # determine a constructor for the tag '!override' ». Le tag n'est pas
+        # decoratif — sans lui `extends` FUSIONNE les listes et la replique herite le
+        # port de l'originale, donc refuse de demarrer.
+        #
+        # Exclu ici, mais PAS non garde : `tests/test_a_deploy_covers_every_service_it_starts.py`
+        # le lit avec un loader qui tolere le tag et verifie que la replique publie
+        # 8511 et SEULEMENT lui. Une exemption qui ne deplace pas la verification
+        # ailleurs est un trou.
+        exclude: ^deploy/docker-compose\.replica\.yml$
       - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files

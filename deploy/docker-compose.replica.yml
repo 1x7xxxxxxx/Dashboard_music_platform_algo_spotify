@@ -44,5 +44,10 @@ services:
       service: dashboard
     container_name: streamlytics_dashboard2
     profiles: ['replica']
-    ports:
+    # `!override` et non une simple liste : `extends` FUSIONNE les listes. Sans ce tag,
+    # la replique heritait `127.0.0.1:8501:8501` du service d'origine EN PLUS du 8511,
+    # et Docker refusait de la demarrer — « port is already allocated ». Le symptome
+    # nommait le bon port et la mauvaise cause : ce n'etait pas un conflit, c'etait un
+    # heritage. (Compose >= 2.24 ; la prod est en v5.1.4.)
+    ports: !override
       - '127.0.0.1:8511:8501'

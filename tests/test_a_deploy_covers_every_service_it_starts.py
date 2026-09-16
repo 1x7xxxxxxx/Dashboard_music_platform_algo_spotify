@@ -193,3 +193,88 @@ def test_the_replica_shares_the_image_and_the_data_bind() -> None:
         "les montages diffèrent — les archives d'upload cesseraient d'être cohérentes "
         "entre les deux instances."
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# La surcharge de production — ce que `check-yaml` ne peut plus vérifier
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# `deploy/docker-compose.replica.yml` est exclu de `check-yaml` : il porte
+# `ports: !override`, que Docker Compose comprend et que PyYAML refuse. L'exemption
+# déplace la vérification ici plutôt que de la supprimer — une exemption qui ne
+# déplace rien est un trou.
+
+_REPLICA_OVERRIDE = _ROOT / "deploy" / "docker-compose.replica.yml"
+
+
+def _load_with_compose_tags() -> tuple[dict, set[str]]:
+    """Le fichier, et l'ensemble des CHEMINS portant un tag `!override` / `!reset`.
+
+    Le loader retient les tags qu'il a vus, et c'est la seule façon de les tester :
+    PyYAML les consomme, donc le document chargé est IDENTIQUE avec ou sans eux. Une
+    première version de ce test lisait la liste des ports et restait verte quand on
+    retirait `!override` — elle vérifiait la valeur, jamais le tag, alors que c'est le
+    tag qui décide si `extends` fusionne ou remplace.
+    """
+    import pytest
+
+    yaml = pytest.importorskip("yaml")
+    seen: set[str] = set()
+
+    class _Tolerant(yaml.SafeLoader):
+        pass
+
+    def _override(loader, node):
+        seen.add("override")
+        return loader.construct_sequence(node, deep=True)
+
+    def _reset(loader, node):  # noqa: ARG001
+        seen.add("reset")
+        return None
+
+    _Tolerant.add_constructor("!override", _override)
+    _Tolerant.add_constructor("!reset", _reset)
+    doc = yaml.load(_REPLICA_OVERRIDE.read_text(encoding="utf-8"), Loader=_Tolerant)
+    return doc or {}, seen
+
+
+def test_the_production_override_publishes_only_the_replica_port() -> None:
+    """La réplique publie 8511, et SURTOUT pas 8501.
+
+    Mesuré le 2026-09-16 : sans `!override`, `extends` FUSIONNE les listes, donc la
+    réplique héritait `127.0.0.1:8501:8501` de l'originale EN PLUS du sien. Docker a
+    refusé de la démarrer — « port is already allocated ». Le symptôme nommait le bon
+    port et la mauvaise cause : ce n'était pas un conflit entre deux services, c'était
+    un héritage.
+    """
+    doc, tags = _load_with_compose_tags()
+    svc = (doc.get("services") or {}).get("dashboard2") or {}
+    ports = [str(x) for x in (svc.get("ports") or [])]
+    assert ports, "la surcharge ne publie plus aucun port — Caddy ne l'atteindra pas"
+    assert "override" in tags, (
+        "`ports:` n'est plus marqué `!override`. Sans ce tag, `extends` FUSIONNE les "
+        "listes : la réplique hérite `127.0.0.1:8501:8501` de l'originale EN PLUS du "
+        "sien, et Docker refuse de la démarrer (« port is already allocated »). Le "
+        "fichier chargé est identique dans les deux cas — seul le tag fait la "
+        "différence, donc c'est le tag qu'il faut vérifier."
+    )
+    assert any("8511" in p for p in ports), f"8511 absent : {ports}"
+    assert not any(":8501:" in p or p.startswith("127.0.0.1:8501") for p in ports), (
+        f"la réplique publie le port de l'originale : {ports}. `extends` fusionne les "
+        "listes — il faut `ports: !override`, sinon le conteneur refuse de démarrer."
+    )
+
+
+def test_the_override_extends_from_the_project_root() -> None:
+    """`extends.file` se résout depuis le RÉPERTOIRE DU PROJET, pas depuis ce fichier.
+
+    Écrit `../docker-compose.yml`, il a cherché `/opt/docker-compose.yml` en production
+    et rendu `no such file or directory`.
+    """
+    doc, _ = _load_with_compose_tags()
+    svc = (doc.get("services") or {}).get("dashboard2") or {}
+    ref = (svc.get("extends") or {}).get("file", "")
+    assert ref == "docker-compose.yml", (
+        f"`extends.file` vaut {ref!r}. Il se résout depuis le répertoire du projet — "
+        "celui du PREMIER `-f` — donc un `../` le fait sortir du dépôt."
+    )
