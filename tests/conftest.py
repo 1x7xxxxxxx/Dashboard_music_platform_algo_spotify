@@ -596,6 +596,51 @@ def db_session_start():
     return _DB_SESSION_START[0] if _DB_SESSION_START else None
 
 
+# ── Le budget de limitation est PARTAGÉ, donc la suite le consomme (2026-09-16) ──
+#
+# Depuis que les seaux d'authentification comptent dans Postgres, `tests/test_api.py`
+# épuise un vrai budget : dix `POST /auth/token` sous la clé `testclient:True`, sur un
+# budget de dix par cinq minutes. Le premier lancement passe, **le second dans la
+# fenêtre échoue en 429** — mesuré, deux tests rouges (`assert 429 == 200`).
+#
+# C'est un rayon de souffle, la même famille que les frontières SMTP et HTTP de ce
+# fichier : une suite ne doit pas laisser derrière elle un état qui décide du verdict
+# du prochain lancement. Et l'ordre compte — j'ai d'abord mesuré « 0 ligne » en
+# comptant AVANT que `test_api.py` ne tourne, ce qui m'a fait conclure qu'il n'y avait
+# rien à faire.
+#
+# On efface au DÉMARRAGE et non à la fin : un test qui plante laisse sinon la suite
+# suivante avec un budget entamé, et c'est exactement le cas qu'on veut couvrir. Les
+# clés visées sont celles que seul un client de test produit.
+_TEST_RATE_LIMIT_KEYS = ("testclient:%", "unknown:%", "%:unknown", "test:%")
+
+
+def _clear_test_rate_limit_budget() -> None:
+    """Rend leur budget aux clés de test. Ne lève jamais."""
+    try:
+        from src.database.postgres_handler import PostgresHandler
+
+        db = PostgresHandler.from_env_or_config()
+        if db is None:
+            return
+        try:
+            for pattern in _TEST_RATE_LIMIT_KEYS:
+                db.execute_query(
+                    "DELETE FROM rate_limit_hits WHERE bucket LIKE %s", (pattern,))
+        finally:
+            db.close()
+    except Exception:  # noqa: BLE001 — sans base, ni table, il n'y a rien à rendre
+        pass
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _rate_limit_budget_starts_full():
+    """Aucun lancement n'hérite du budget consommé par le précédent."""
+    _clear_test_rate_limit_budget()
+    yield
+    _clear_test_rate_limit_budget()
+
+
 @pytest.fixture(autouse=True, scope="session")
 def _no_synthetic_rows_left_behind():
     """Efface, en fin de session, les lignes que la suite a fabriquées.
