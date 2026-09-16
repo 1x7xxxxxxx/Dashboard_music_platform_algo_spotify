@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**345 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**346 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -13,7 +13,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [le-locataire](#le-locataire) | 41 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 16 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 10 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
-| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 15 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
+| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 16 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 21 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 21 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 26 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
@@ -127,7 +127,7 @@ Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|noth
 
 **Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ?**
 
-Règle de rattachement : `unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|rendered-as-health|sums-the-display|discarded-in-silence|erases-every-other|past-the-end-of-its-evidence|renders-nothing|named-like-a-final-one|imput|estimat|wins-a-desc-ranking` sur l'identifiant et le symptôme. 15 classe(s).
+Règle de rattachement : `unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|rendered-as-health|sums-the-display|discarded-in-silence|erases-every-other|past-the-end-of-its-evidence|renders-nothing|named-like-a-final-one|imput|estimat|wins-a-desc-ranking|taken-before-the-writer-ran` sur l'identifiant et le symptôme. 16 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -146,6 +146,7 @@ Règle de rattachement : `unmeasured|claimed-not-measured|outranks-the-measureme
 | [`an-unmeasured-platform-is-rendered-as-zero`](error-classes.md#an-unmeasured-platform-is-rendered-as-zero) | un artiste qui vient de s'inscrire lit **« 0 écoute »** sur les quatre plateformes. Ça ne se lit pas comme « la collecte n'a pas encore tourné », ça s |
 | [`an-empty-group-wins-a-desc-ranking`](error-classes.md#an-empty-group-wins-a-desc-ranking) | une surface qui affiche « le meilleur X » montre `—` alors qu'un vrai chiffre existe en base. Aucune erreur, aucune trace : la requête a bien rendu un |
 | [`a-subplan-re-executed-by-a-misestimated-row-count`](error-classes.md#a-subplan-re-executed-by-a-misestimated-row-count) | une vue SQL passe de quelques dizaines de millisecondes à plusieurs minutes sans qu'aucune donnée n'ait changé, et la page qui la lit rend `canceling  |
+| [`a-count-taken-before-the-writer-ran`](error-classes.md#a-count-taken-before-the-writer-ran) | une mesure rend zéro, on en conclut qu'il n'y a rien à faire, et le travail correspondant n'est pas fait. Rien n'échoue — le chiffre était juste **à l |
 
 ## le-message-parle-au-mauvais-lecteur
 
@@ -536,6 +537,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=345 families=17 orphans=3 -->
+<!-- error-class-families: total=346 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=c570b5ab4cc4357f77ad10fb342314745f7e11370bf45cdbf7669e3e8b2adb93 -->
+<!-- error-class-families: sha256=0c402296cd208ab414964b1bf44753d0a513fa8aec0fe92031aea62988d36f68 -->
