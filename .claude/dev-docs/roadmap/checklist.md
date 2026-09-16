@@ -25,7 +25,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R122 | Finir la revue des classes d'erreur — outillage fait, reste 27 récidivistes + 345 portées | P3 | les trous de `make error-health` ne font que baisser |
+| R122 | Finir la revue des classes d'erreur — outillage fait, reste 21 récidivistes + 339 portées | P3 | les trous de `make error-health` ne font que baisser |
 | R120 | La vue, pas la chrome — onglets et expanders paresseux (chrome démesurée : 11-13 ms) | P2 | histogramme de rendu avant/après, même charge |
 | R118 | `st.fragment` — **6/11 faites** ; le reste attend une mesure de coût | P3 | l'histogramme montre la page avant de la refactorer |
 | R121 | Les agrégations Python passent en SQL (couche or) | P3 | `make gold-coverage`, cliquet |
@@ -190,10 +190,10 @@ le supposer.
 
   | trou | reste | ce qu'il faut écrire |
   |---|---|---|
-  | `scope_without_not_covered` | **345** | le `ne couvre pas:` — un geste voisin qui partage la cause |
+  | `scope_without_not_covered` | **339** | le `ne couvre pas:` — un geste voisin qui partage la cause |
   | `seen_red_unknown` | **332** | une date OBSERVÉE, ou `never` ; jamais une date inventée |
   | `cause_unknown` | **242** | `read` / `measured` / `inferred` — `inferred` est une réponse valable |
-  | récidivistes non traitées | **27** / 45 | la portée d'abord : ce sont elles qui ont échoué |
+  | récidivistes non traitées | **21** / 45 | la portée d'abord : ce sont elles qui ont échoué |
 
   **L'ordre est celui du gain mesuré**, jamais alphabétique : (1) les 39 récidivistes —
   elles ont démontrablement échoué et `ne couvre pas:` est le champ qui les aurait

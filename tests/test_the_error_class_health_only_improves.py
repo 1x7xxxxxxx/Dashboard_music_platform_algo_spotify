@@ -81,7 +81,7 @@ _CEILINGS = {
     "cause_unknown": 242,             # 363 → 242 : 121 causes nomment un chemin qui existe
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
-    "scope_without_not_covered": 345,  # phase C : trois lots de 6 récidivistes
+    "scope_without_not_covered": 339,  # phase C : quatre lots de 6 récidivistes
     # Liste de RELECTURE, pas une faute à corriger dans une direction imposée : un
     # désaccord peut venir du garde comme de l'expression de la famille.
     # `scope_family_disagreements` RETIRÉ le 2026-09-16 : 10 désaccords sur 18 portées,

@@ -1595,7 +1595,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `src/utils/api_dates.py::coerce_api_date()` accepts all three precisions and pads to the FIRST day of the declared period (never to today, which would read as "released this month" in recency features). An unusable value returns `None` — one column lost instead of the artist's batch. The CSV path already behaved this way implicitly via `pandas.to_datetime`; the two paths now agree.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_api_partial_dates.py }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: la-frontière-avec-le-dehors — écrire dans une colonne `DATE` une valeur partielle venue d'une API ; couvre: les formes épinglées par `test_api_partial_dates.py` (`2013`, `2013-07`) ; ne couvre pas: (a) les autres types que l'extérieur peut casser — un `INTEGER` recevant `"1.2k"`, un `NUMERIC` recevant une virgule décimale, un `TIMESTAMPTZ` recevant une heure sans fuseau ; (b) une API **autre** que celles couvertes : chaque plateforme a sa propre façon d'abréger une date, et le garde énumère celles qu'on a déjà rencontrées.
 - rex_ref: src/collectors/spotify_api.py
 - first_seen: 2026-08-21
 - History:
@@ -4998,7 +4998,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: lire les compteurs de l'entité la plus FINE que la source expose, et prendre l'écart par entité avant d'additionner. Le garde épingle la source elle-même : `youtube_video_stats` présent, `youtube_channel_history` absent, `PARTITION BY video_id` présent. La règle générale : un compteur agrégé fourni par une plateforme n'est pas la somme de ses parties, et seule une source EXTÉRIEURE — ici YouTube Studio — permet de savoir lequel des deux ment.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_cumulative_counter_is_not_a_daily_figure.py }
-- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-cumul-pris-pour-un-quotidien — additionner des séries dont l'une est un cumul ; couvre: le cas épinglé par `test_a_cumulative_counter_is_not_a_daily_figure.py` ; ne couvre pas: (a) le même mélange en **SQL**, dans une vue or qui somme un cumul et un quotidien — le garde lit du Python ; (b) une plateforme AJOUTÉE dont la nature (cumul ou quotidien) n'entre dans aucune liste ; (c) un export CSV ou un PDF, où la somme est refaite par un autre chemin.
 - rex_ref: src/dashboard/utils/platform_timeseries.py
 - first_seen: 2026-09-08
 - History:
@@ -5723,7 +5723,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -c "import ast,sys;t=ast.parse(open('src/dashboard/utils/platform_timeseries.py').read());bad=[n for n in t.body if isinstance(n,ast.Assign) and any(getattr(x,'id','').startswith('_SQL') for x in n.targets) and any(getattr(c.func,'attr','')=='replace' for c in ast.walk(n.value) if isinstance(c,ast.Call))];sys.exit(1 if bad else 0)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: tests/test_a_curve_ends_where_its_tile_says.py::test_the_merged_query_says_exactly_what_the_single_ones_say — compare la requête fusionnée aux deux requêtes simples, pour chaque locataire, et refuse de passer sur deux listes vides égales (le défaut exact qu'elle vise). Mutation vue rouge le 2026-09-11 : `WHERE vc IS NOT NULL` → `IS NULL` sur la branche SoundCloud, « la requête fusionnée rend 6 points, la simple 19 ».
-- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: la-frontière-avec-le-dehors — fabriquer une requête en appliquant `.replace()` à une autre ; couvre: la requête fusionnée épinglée par `test_a_curve_ends_where_its_tile_says.py` ; ne couvre pas: **le geste lui-même**, nulle part balayé — aucun garde ne cherche un `.replace(` appliqué à une chaîne qui contient `SELECT`. Une seconde requête assemblée ainsi demain ne serait vue par rien. C'est un épinglage d'instance, et la classe le dit désormais au lieu de laisser croire à une couverture.
 - rex_ref: src/dashboard/utils/platform_timeseries.py
 - first_seen: 2026-09-11
 - History:
@@ -5783,7 +5783,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -c "import ast,pathlib,sys;mods=[ast.parse(q.read_text(encoding='utf-8')) for q in pathlib.Path('src/dashboard/utils').glob('platform_chart*.py')];f=next((n for t in mods for n in ast.walk(t) if isinstance(n,ast.FunctionDef) and n.name=='_render_notes'),None);args=[a.arg for a in (f.args.args+f.args.kwonlyargs)] if f else [];gated=f is not None and any(isinstance(n,ast.Compare) and getattr(n.left,'id','')=='step' and any(isinstance(c,ast.Constant) and c.value=='day' for c in n.comparators) for node in ast.walk(f) if isinstance(node,ast.If) for n in ast.walk(node.test));calls=[n for t in mods for n in ast.walk(t) if isinstance(n,ast.Call) and getattr(n.func,'id','')=='unmeasured_spans' and n.args];h=ast.parse(pathlib.Path('src/dashboard/views/home.py').read_text(encoding='utf-8'));ok=bool(f) and 'discarded' in args and gated and bool(calls) and all('aligned_raw' not in ast.unparse(c.args[0]) for c in calls) and any(k.arg=='discarded' for n in ast.walk(h) if isinstance(n,ast.Call) for k in n.keywords);sys.exit(0 if ok else 1)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: tests/test_a_note_describes_the_figure_that_is_shown.py — quatre tests, dont un qui tient l'exemption DANS L'AUTRE SENS (le mode « Par période » trace bien la série trouée et doit garder sa note). Mutations vues rouges le 2026-09-11 : la note qui ignore le mode, la note retirée PARTOUT (la sur-correction, verte sans ce deuxième test), et « non traçables » rendue en mode cumulé.
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — une légende qui décrit une figure d'avant ; couvre: **`views/home.py` seulement** — le garde lit ce fichier et rien d'autre ; ne couvre pas: (a) les ~40 autres vues, qui portent toutes des légendes ; (b) le PDF, dont les commentaires sont écrits ailleurs ; (c) un `help=` de tuile, un `caption` sous un tableau, un texte d'e-mail décrivant un graphique — trois porteurs du même défaut. C'est un épinglage sur une page, pas un balayage.
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-11
 - History:
@@ -6385,7 +6385,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -c "import sys;sys.path.insert(0,'.claude/hooks');import check_python_syntax as m;sys.exit(0 if callable(getattr(m,'warn_if_a_full_suite_is_running',None)) else 1)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: posttooluse-hook, ref: .claude/hooks/check_python_syntax.py }
-- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-garde-qui-ne-garde-pas — éditer l'arbre pendant qu'une suite le lit ; couvre: un AVERTISSEMENT au moment d'un `Write`/`Edit` de `.py`, quand un `pytest tests/` tourne ; ne couvre pas: (a) l'édition d'un **fichier non-Python** que des tests lisent — un `.md` généré, une migration, le `Makefile` — le hook ne se déclenche que sur `.py` ; (b) une régénération par `make`, qui n'est pas un `Write` d'outil ; (c) et il n'empêche RIEN : c'est un avertissement, ignoré quatre fois le 2026-09-16 par son propre auteur.
 - rex_ref: .claude/hooks/check_python_syntax.py
 - first_seen: 2026-09-12
 - History:
@@ -6962,7 +6962,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 tools/dev/check_action_drift.py | grep -q "🔴" && exit 1 || exit 0`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: script, ref: tools/dev/check_action_drift.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-coût-payé-sans-contrepartie — geler une version « par prudence » sans date de revue ; couvre: `.github/workflows/**` et `.github/actions/**`, les épingles d'actions ; ne couvre pas: **les gels hors de la CI**, qui sont la majorité — une borne `<` dans `pyproject.toml`, une version figée dans un `Dockerfile`, un `apt` épinglé, et surtout un gel qui ne vit que dans un COMMENTAIRE (« on reste en 1.x tant que … ») sans expression machine pour le porter.
 - rex_ref: .github/dependabot.yml
 - first_seen: 2026-09-16
 - History:

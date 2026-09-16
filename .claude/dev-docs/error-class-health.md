@@ -44,7 +44,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_unknown` | 0 |
-| `scope_without_not_covered` | 345 |
+| `scope_without_not_covered` | 339 |
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 332 |
 
@@ -60,8 +60,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | by_guard · prose | 8 | 1.005 | 0.4327 – 1.9803 | **séparent** |
 | by_seen_red · daté | 0 | 0.0 | 0.0 – 0.7853 | insuffisant pour conclure (n=56) |
 | by_seen_red · jamais-ou-inconnu | 56 | 0.2274 | 0.1718 – 0.2953 | insuffisant pour conclure (n=56) |
-| by_scope · ne-couvre-pas renseigné | 28 | 1.0097 | 0.6708 – 1.4594 | **séparent** |
-| by_scope · non renseigné | 28 | 0.1255 | 0.0833 – 0.1813 | **séparent** |
+| by_scope · ne-couvre-pas renseigné | 34 | 1.16 | 0.8032 – 1.6211 | **séparent** |
+| by_scope · non renseigné | 22 | 0.0993 | 0.0622 – 0.1503 | **séparent** |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
