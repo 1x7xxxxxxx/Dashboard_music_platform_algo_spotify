@@ -170,6 +170,14 @@ jobs:
         uses: astral-sh/setup-uv@v10.1.0
         with:
           enable-cache: true
+          # EXPLICITE, parce que la v10 a changé le défaut sous nos pieds : elle clé
+          # le cache sur `**/*requirements*.txt` là où la v4 utilisait `**/uv.lock`.
+          # Or `uv sync --frozen` n'installe QUE ce que dit `uv.lock` — un cache clé
+          # sur `requirements.txt` ne s'invalide donc pas quand les dépendances
+          # réellement installées changent, et s'invalide quand elles ne changent pas.
+          # Une montée de majeure qui déplace un défaut est exactement ce que la
+          # clause « majeures manuelles » de dependabot.yml veut faire relire.
+          cache-dependency-glob: "**/uv.lock"
 
       - name: Set up Python 3.11
         run: uv python install 3.11
