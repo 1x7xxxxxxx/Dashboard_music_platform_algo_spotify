@@ -144,6 +144,43 @@ def pool_is_enabled() -> bool:
     return _POOL is not None
 
 
+# Combien de fois ce processus est retombé sur une connexion DIRECTE faute de pool.
+#
+# Ce compteur manquait, et son absence était le vrai défaut : un pool saturé se dégrade
+# en connexions directes avec un simple `logger.warning`, donc **en silence**, et rien
+# ne distingue ce régime d'un fonctionnement normal. On perd le bénéfice du pool (~8,5 ms
+# de poignée de main SCRAM par connexion, ×4 par rendu) sans que personne ne le sache.
+_DIRECT_FALLBACKS = [0]
+
+
+def _pool_state() -> tuple[int, int]:
+    """(empruntées, disponibles). (0, 0) si le pool n'existe pas.
+
+    Lit les attributs internes de `ThreadedConnectionPool` : psycopg2 ne publie rien
+    lui-même, et la seule alternative serait de compter à la main chaque emprunt et
+    chaque rendu — deux compteurs de plus à tenir d'accord avec la réalité. On lit donc
+    la réalité, en acceptant que ces attributs soient privés, et sous `try` pour que la
+    métrique ne casse jamais si psycopg2 les renomme.
+    """
+    if _POOL is None:
+        return (0, 0)
+    try:
+        return (len(_POOL._used), len(_POOL._pool))
+    except Exception:             # noqa: BLE001 — une métrique ne casse rien
+        return (0, 0)
+
+
+def publish_pool_metrics() -> None:
+    """Publie l'état du pool vers Prometheus. Ne lève jamais."""
+    try:
+        from src.utils.metrics import observe_pool
+
+        borrowed, available = _pool_state()
+        observe_pool(borrowed, available, _DIRECT_FALLBACKS[0])
+    except Exception:             # noqa: BLE001
+        pass
+
+
 def _borrow_from_pool():
     """Une connexion du pool, ou None s'il n'y en a pas.
 
@@ -155,7 +192,9 @@ def _borrow_from_pool():
     try:
         return _POOL.getconn()
     except Exception as exc:      # noqa: BLE001 — le repli direct est correct
-        logger.warning("pool indisponible (%s) — connexion directe", type(exc).__name__)
+        _DIRECT_FALLBACKS[0] += 1
+        logger.warning("pool indisponible (%s) — connexion directe [%d repli(s) dans "
+                       "ce processus]", type(exc).__name__, _DIRECT_FALLBACKS[0])
         return None
 
 

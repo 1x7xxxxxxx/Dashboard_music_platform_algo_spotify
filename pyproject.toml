@@ -21,19 +21,16 @@ dependencies = [
     "scikit-learn>=1.3.0",
     "shap>=0.44.0",
     "lime>=0.2.0",
-
     # API clients
     "facebook-business==18.0.5",
     "spotipy==2.26.0",
     "google-api-python-client==2.200.0",
-
     # Dashboard (Streamlit + plotly + PDF rendering)
     "streamlit==1.63.0",
     "plotly==5.24.1",
     "watchdog==3.0.0",
     "weasyprint>=62.0",
     "openpyxl",                 # meta_insight xlsx watcher
-
     # Utilities
     "python-dateutil>=2.8.2",
     "PyYAML==6.0.3",
@@ -41,7 +38,6 @@ dependencies = [
     "python-dotenv==1.2.3",
     "cryptography>=42.0.0",
     "isodate==0.7.2",
-
     # REST API (Brick 14)
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.27.0",
@@ -53,17 +49,21 @@ dependencies = [
     # Re-evaluate when passlib >1.7.4 ships (project dormant since 2020).
     "bcrypt>=4.0,<5.1",
     "python-multipart>=0.0.9",
-
     # Stripe billing (Brick 21)
     "stripe>=8.0.0",
-
     # TOTP 2FA (Brick 28)
     "pyotp>=2.9.0",
     "qrcode[pil]>=7.4.2",
-
+    # Observabilite (ADR-026). Pur Python, sans dependance transitive, ~60 Ko : c'est
+    # ce qui rend l'objection « ~5 services » d'ADR-002 repondue cote application — on
+    # instrumente notre propre code plutot que d'ajouter un exportateur par surface.
+    #
+    # Dans les DEUX images : le dashboard et l'API exposent chacun leurs metriques, et
+    # Prometheus les scrute separement. Une image qui l'aurait sans l'autre rendrait la
+    # moitie du tableau vide sans que rien ne le dise.
+    "prometheus-client>=0.20.0",
     # Database driver
     "psycopg2-binary==2.9.13",
-
     # Airflow. The CORE is pinned to the version production runs, and that is not
     # cosmetic: the providers below carry no version, so the resolver is free to
     # bring a core along with them — and it did. Measured 2026-08-30, uv.lock held

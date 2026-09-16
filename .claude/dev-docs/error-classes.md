@@ -6063,7 +6063,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - root_cause: une table de télémétrie est ajoutée pour répondre à un besoin de traçabilité, et **la question « qui l'efface ? » n'est jamais posée** parce qu'elle n'a pas de propriétaire naturel. Mesuré le 2026-09-16 sur ce dépôt : **13 tables de télémétrie, UNE SEULE purgée** (`rate_limit_hits`, et seulement parce que `code-critic` l'avait exigé en condition bloquante). `usage_events` (une ligne par interaction), `etl_run_log` (2 196 lignes), `app_error_log` et `monitoring_run` croissent indéfiniment. Aucune n'a de rétention déclarée.
 - long_term_fix: **toute table de télémétrie déclare sa rétention au moment où elle naît**, dans le `COMMENT ON TABLE` de sa migration, et la purge correspondante entre dans le DAG d'entretien qui existe déjà (`alert_monitor`). Le distinguo qui compte : une table **métier** garde tout (ADR-018, « rien de ce qui est écrasé n'est perdu ») ; une table de **télémétrie** est un journal, et un journal se rogne. Confondre les deux fait soit perdre de la donnée, soit garder des traces pour toujours.
 - autofix: none
-- signature: none
+- signature: `.venv/bin/python -m pytest tests/test_a_telemetry_table_declares_its_retention.py -q -p no:cacheprovider >/dev/null 2>&1`
 - guard: { type: pytest, ref: tests/test_a_telemetry_table_declares_its_retention.py }
 - rex_ref: migrations/122_rate_limit_hits.sql
 - first_seen: 2026-09-16

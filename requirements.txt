@@ -60,3 +60,6 @@ isodate==0.7.2
 
 #Reading xlsx for meta_insight watcher
 openpyxl
+
+# Observabilite (ADR-026) — expose /metrics ; voir src/utils/metrics.py
+prometheus-client>=0.20.0

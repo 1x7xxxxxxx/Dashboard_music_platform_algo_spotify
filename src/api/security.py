@@ -38,7 +38,11 @@ AUTH_RATE_LIMIT_MAX = int(os.getenv("API_AUTH_RATE_LIMIT_MAX", "10"))
 AUTH_RATE_LIMIT_WINDOW_SECS = int(os.getenv("API_AUTH_RATE_LIMIT_WINDOW_SECS", "300"))
 
 _AUTH_PATH = "/auth/token"
-_EXEMPT_PATHS = frozenset({"/health"})  # infra probes must never 429
+# `/metrics` rejoint `/health` le 2026-09-16 : Prometheus scrute toutes les 15 s,
+# soit 240 requetes par heure. Compte dans le budget global (120/min), le
+# collecteur serait 429 au bout de quelques minutes — et la metrique dispara-
+# itrait exactement quand la charge monte, c'est-a-dire quand on la regarde.
+_EXEMPT_PATHS = frozenset({"/health", "/metrics"})  # infra probes must never 429
 # Swagger UI / ReDoc load JS from a CDN — a strict CSP would blank the docs.
 _DOCS_PATHS = frozenset({"/docs", "/redoc", "/openapi.json"})
 

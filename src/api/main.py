@@ -93,6 +93,23 @@ from src.database.postgres_handler import enable_pool  # noqa: E402
 
 enable_pool(minconn=1, maxconn=8)
 
+# `/metrics` — ADR-026. Pas de serveur lateral ici, contrairement au dashboard :
+# l'API a deja un serveur HTTP, lui en ajouter un second n'acheterait rien.
+#
+# La route est EXEMPTEE du limiteur global ci-dessous par `_EXEMPT_PATHS` : Prometheus
+# scrute toutes les 15 s depuis le reseau Docker, et le faire compter dans un budget
+# anti-abus ferait 429 le collecteur au bout de quelques minutes — la metrique
+# disparaitrait exactement quand la charge monte, c'est-a-dire quand on la lit.
+@app.get("/metrics", include_in_schema=False)
+def metrics():
+    from fastapi.responses import Response
+
+    from src.utils.metrics import metrics_payload
+
+    body, content_type = metrics_payload()
+    return Response(content=body, media_type=content_type)
+
+
 # C3 hardening: sliding-window rate limit + security response headers
 install_security(app)
 

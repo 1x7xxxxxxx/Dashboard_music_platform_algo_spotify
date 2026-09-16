@@ -43,6 +43,15 @@ def notify_app_error(page: str, exc: BaseException) -> None:
     """Log + record + (rate-limited) email an unhandled view exception. Never raises."""
     if is_control_flow(exc):
         return
+    # Le compteur Prometheus, AVANT tout le reste : c'est le seul des quatre gestes qui
+    # ne peut ni écrire en base ni sortir sur le réseau, donc le seul qui reste vrai
+    # quand la base est en panne — c'est-à-dire pendant l'incident qu'on veut compter.
+    try:
+        from src.utils.metrics import count_error
+
+        count_error(page, type(exc).__name__)
+    except Exception:  # noqa: BLE001 — une métrique ne casse pas une notification
+        pass
     try:
         logger.error("App error on page '%s': %s", page, exc, exc_info=exc)
     except Exception:
