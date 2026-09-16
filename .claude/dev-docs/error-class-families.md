@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**354 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**358 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -12,13 +12,13 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 |---|---|---|
 | [le-locataire](#le-locataire) | 41 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 16 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
-| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 11 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
+| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 13 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 17 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
-| [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 21 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
+| [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 21 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
-| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 26 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
+| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 27 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 20 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 64 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 66 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 37 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
@@ -108,10 +108,11 @@ Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generat
 
 **Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ?**
 
-Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|nothing-routes|nobody-call|never-hit|not-when-it-is-needed|nobody-writes|rebuilt-per-rerun|unwired|debranch|not-reached|orphan|registered-twice-kills-the-import` sur l'identifiant et le symptôme. 11 classe(s).
+Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|nothing-routes|nobody-call|never-hit|not-when-it-is-needed|nobody-writes|rebuilt-per-rerun|unwired|debranch|not-reached|orphan|registered-twice-kills-the-import|referenced-but-never-declared|dangling` sur l'identifiant et le symptôme. 13 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`config-path-dangling`](error-classes.md#config-path-dangling) | a rule, skill or command names a `.claude/` file that is not there. Nothing errors — the instruction is simply unfollowable, and the reader cannot tel |
 | [`finding-rendered-but-not-alerted`](error-classes.md#finding-rendered-but-not-alerted) | a monitoring check runs, finds a real problem, writes it to xcom — and no alert is ever sent. The dashboard of checks looks complete; the inbox stays  |
 | [`revocation-written-but-never-read`](error-classes.md#revocation-written-but-never-read) | an administrative gesture that is supposed to cut access writes a column nothing reads on the live path. The UI confirms, the row changes, and the hol |
 | [`the-feature-is-wired-to-the-function-nobody-calls`](error-classes.md#the-feature-is-wired-to-the-function-nobody-calls) | une fonctionnalité est écrite, traduite, complète — et ne s'affiche nulle part. Aucun test ne tombe : la fonction qui la rend existe et fonctionne, el |
@@ -123,6 +124,7 @@ Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|noth
 | [`a-step-that-nothing-routes-to`](error-classes.md#a-step-that-nothing-routes-to) | une étape d'un parcours existe, se rend correctement, et aucun chemin n'y mène. Signalé le 2026-09-08 : « quand je clique sur mise en route (assistant |
 | [`a-surface-reads-a-table-nobody-writes`](error-classes.md#a-surface-reads-a-table-nobody-writes) | un panneau de tableau de bord reste vide sans rien dire. La table qu'il lit existe, le SQL est valide, et personne ne l'écrit. |
 | [`a-metric-registered-twice-kills-the-import`](error-classes.md#a-metric-registered-twice-kills-the-import) | l'application **ne démarre plus du tout** — `Duplicated timeseries in CollectorRegistry` à l'import, avant qu'une ligne ne s'affiche. Rien de progress |
+| [`an-identifier-that-is-referenced-but-never-declared`](error-classes.md#an-identifier-that-is-referenced-but-never-declared) | **une interface entière rend « No data », et rien n'est en erreur.** Aucun journal ne se plaint, la source de données répond, les requêtes sont justes |
 
 ## un-nombre-affirmé-qui-n-a-pas-été-mesuré
 
@@ -154,11 +156,10 @@ Règle de rattachement : `unmeasured|claimed-not-measured|outranks-the-measureme
 
 **Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ?**
 
-Règle de rattachement : `assumes-a-shell|assumes-visibility|by-direction-not-by-name|wrong-advice|blames-the-most-common|names-an-action|flattened-for-the-narrowest|without-naming-the-reason|leaves-no-trace|announces-a-field|instruction-|-instruction|speaks-its-own-plumbing|addressed-to|reader|becomes-the-word-|undefined` sur l'identifiant et le symptôme. 21 classe(s).
+Règle de rattachement : `assumes-a-shell|assumes-visibility|by-direction-not-by-name|wrong-advice|blames-the-most-common|names-an-action|flattened-for-the-narrowest|without-naming-the-reason|leaves-no-trace|announces-a-field|instruction-|-instruction|speaks-its-own-plumbing|addressed-to|reader|becomes-the-word-|undefined` sur l'identifiant et le symptôme. 20 classe(s).
 
 | classe | symptôme |
 |---|---|
-| [`config-path-dangling`](error-classes.md#config-path-dangling) | a rule, skill or command names a `.claude/` file that is not there. Nothing errors — the instruction is simply unfollowable, and the reader cannot tel |
 | [`config-status-file-unrendered`](error-classes.md#config-status-file-unrendered) | a file the tooling treats as the status source is an un-expanded bootstrap template — literal `$(date +%Y-%m-%d)`, `TODO: fill in` — so every reader o |
 | [`rex-delimiter-unanchored`](error-classes.md#rex-delimiter-unanchored) | a validator reports a tool as carrying no `rex:` block when the block is present and correct — it could not parse, and said "absent". The reader is se |
 | [`state-path-namespaced-by-another-project`](error-classes.md#state-path-namespaced-by-another-project) | a writer and its readers disagree on where shared state lives, because one of them hardcodes a project name in the path. Nothing errors — the reader s |
@@ -214,7 +215,7 @@ Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-a
 
 **Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ?**
 
-Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 26 classe(s).
+Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 27 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -244,6 +245,7 @@ Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|diver
 | [`one-fact-two-answers-by-display-mode`](error-classes.md#one-fact-two-answers-by-display-mode) | la même phrase de l'interface affiche deux valeurs différentes selon un réglage d'affichage que l'utilisateur vient de changer. Aucune des deux n'est  |
 | [`a-span-read-from-a-table-that-carries-a-mandatory-filter`](error-classes.md#a-span-read-from-a-table-that-carries-a-mandatory-filter) | un sélecteur de période propose une fenêtre plus large que ce que la figure d'à côté peut tracer. L'utilisateur choisit dans un intervalle qui existe, |
 | [`a-limiter-consumed-in-two-steps`](error-classes.md#a-limiter-consumed-in-two-steps) | un limiteur ATOMIQUE ne borne que les tentatives séquentielles. N requêtes simultanées obtiennent toutes l'autorisation, le budget affiché est respect |
+| [`a-gate-that-can-never-be-green`](error-classes.md#a-gate-that-can-never-be-green) | une porte de comparaison rapporte une divergence **à chaque exécution**, quoi qu'on fasse. On la lit deux fois, on la contourne la troisième, et le jo |
 
 ## une-erreur-avalée-devient-une-absence
 
@@ -278,7 +280,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure` sur l'identifiant et le symptôme. 64 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure` sur l'identifiant et le symptôme. 66 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -346,6 +348,8 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 | [`a-default-branch-that-skips-instead-of-refusing`](error-classes.md#a-default-branch-that-skips-instead-of-refusing) | un script de déploiement met un service EN SERVICE sans l'avoir vérifié une seule fois, et sort en 0. Rien n'échoue, rien n'avertit : le service deman |
 | [`a-rollback-wider-than-the-failure`](error-classes.md#a-rollback-wider-than-the-failure) | un retour arrière déclenché par la panne d'UNE instance reconstruit tout ce qui tourne. Le remède coupe ce qui marchait encore, et la coupure est plus |
 | [`correct-because-there-is-only-one-of-it`](error-classes.md#correct-because-there-is-only-one-of-it) | du code exact aujourd'hui devient faux le jour où une seconde instance existe — **sans qu'une seule ligne change**. Rien n'échoue au moment du changem |
+| [`a-ratchet-that-only-watches-the-direction-it-was-burned-in`](error-classes.md#a-ratchet-that-only-watches-the-direction-it-was-burned-in) | un garde passe VERT sur un défaut qui appartient pourtant très exactement à son sujet. En le relisant on ne trouve rien à redire : il fait ce qu'il di |
+| [`a-docstring-exclusion-that-compares-dedented-text`](error-classes.md#a-docstring-exclusion-that-compares-dedented-text) | un garde qui lit l'AST — donc écrit précisément pour ne PAS être textuel — reste malgré tout vert sur sa propre mutation. Il a l'air rigoureux et il n |
 
 ## un-document-qui-affirme-un-état-périmé
 
@@ -545,6 +549,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=354 families=17 orphans=3 -->
+<!-- error-class-families: total=358 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=6c5b6cfc52d357af594c3b5c9d463a05ee8c9a9f5ca29e21162ef82eb8955a38 -->
+<!-- error-class-families: sha256=c591955ea5862e7429e4f8764c44625c7d5c8f471db7c2d86017e2d9978414f8 -->

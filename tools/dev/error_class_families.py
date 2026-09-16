@@ -83,7 +83,14 @@ FAMILIES: list[tuple[str, str, str]] = [
      # limite de cette famille — le travail n'arrive nulle part parce que le module
      # n'a jamais fini de se charger. Rien ne s'affiche du tout.
      r"rebuilt-per-rerun|unwired|debranch|not-reached|orphan|"
-     r"registered-twice-kills-the-import"),
+     r"registered-twice-kills-the-import|"
+     # `an-identifier-that-is-referenced-but-never-declared`, ajoutee le 2026-09-16 :
+     # meme famille vue depuis la REFERENCE plutot que depuis le code. Un panneau
+     # Grafana qui cite un `uid` que personne ne declare n'atteint jamais sa source ;
+     # `config-path-dangling` est le meme motif sur un chemin de fichier. Le motif est
+     # ecrit sur le LIEN (« referenced-but-never-declared », « dangling ») et non sur
+     # le mot « identifier », qui aurait ramasse des classes sans rapport.
+     r"referenced-but-never-declared|dangling"),
 
     ("un-nombre-affirmé-qui-n-a-pas-été-mesuré",
      "Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer "
