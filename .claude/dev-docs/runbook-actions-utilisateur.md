@@ -575,3 +575,54 @@ actuelle » (CSV, 500 vidéos max) reste le seul chemin pour un artiste qui refu
 consentement. Ne pas le retirer une fois R105 livrée.
 
 </details>
+
+## 12. R117 — Sortir le dépôt de `/mnt/c` et passer VS Code en Remote-WSL
+
+**Pourquoi c'est ici et pas fait en séance** : ce geste déplace le dépôt. Il tue le
+répertoire de travail de la session qui l'exécute, et **la mémoire de Claude Code est
+indexée par CHEMIN** (`~/.claude/projects/-mnt-c-Users-timot-Desktop-…`) : sans
+renommage du dossier, l'historique et les mémoires du projet sont perdus. Une session ne
+peut pas se déplacer elle-même — c'est la seule tâche de la roadmap dont l'exécutant est
+aussi la victime.
+
+**Ce que ça rapporte, mesuré le 2026-09-16 en ALTERNANCE et à périmètre égal** (6 572
+tests collectés des deux côtés, arbre git propre des deux côtés) :
+
+| | `/mnt/c` | ext4 (`~`) | rapport |
+|---|---|---|---|
+| collecte pytest | 27,1 s | **4,8 s** | **×5,6** |
+| suite complète `-n auto` | 372 s | **109 s** | ×3,4 |
+| 2 000 petits fichiers écrits | 4,12 s | **0,06 s** | ×69 |
+
+La cause est structurelle, pas un réglage : `/mnt/*` est monté par `drvfs`, qui parle
+**9P** — un protocole réseau. Chaque `open()` et chaque `stat()` devient un message
+sérialisé à travers la frontière VM/hôte, et pytest parcourant 375 fichiers de test plus
+un `.venv` de 2,2 Go est du travail entièrement métadonnées.
+
+### Les quatre étapes
+
+1. **Copier le dépôt sur ext4** — `git clone` depuis GitHub vers `~/streamlytics`, puis
+   recopier à la main ce que `git clone` ne suit pas : `.mcp.json`, `.env.local`,
+   `config/config.yaml`, `data/`, et `.venv` (ou `make sync` pour le refabriquer).
+   ⚠️ Il a fallu **trois allers-retours** pour compléter la copie de mesure, dont quatre
+   fichiers `assets/` à nom accentué. Vérifier par un `git status` des deux côtés.
+2. **Renommer le dossier de mémoire de Claude**, sans quoi l'historique du projet
+   disparaît :
+   `mv ~/.claude/projects/-mnt-c-Users-timot-Desktop-Dashboard-music-platform-algo-spotify ~/.claude/projects/-home-timothe-streamlytics`
+3. **Recréer les conteneurs une fois** — `docker-compose down && docker-compose up -d`.
+   `deploy.sh` et `migrate.sh` détectent le conteneur par NOM : eux suivent sans
+   changement.
+4. **Basculer l'éditeur** — `code .` depuis un shell WSL, jamais depuis Windows.
+
+### La vérification
+
+```bash
+echo $VSCODE_IPC_HOOK_CLI          # doit rendre une valeur — aujourd'hui : VIDE
+which code                         # doit pointer dans ~/.vscode-server, pas /mnt/d
+time .venv/bin/python -m pytest tests/ --collect-only -q   # doit tomber sous 10 s
+```
+
+Tant que `which code` rend `/mnt/d/1_Logiciels/VS Code/bin/code`, VS Code tourne côté
+Windows et ouvre le dossier par `/mnt/c` : exactement la combinaison lente. `~/.vscode-server`
+existe déjà — Remote-WSL a servi par le passé — donc la bascule ne demande aucune
+installation.

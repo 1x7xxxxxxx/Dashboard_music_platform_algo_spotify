@@ -30,7 +30,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | R121 | Les agrégations Python passent en SQL (couche or) | P3 | `make gold-coverage`, cliquet |
 | R116 | **ADR-027** — répliques et Redis, tranché APRÈS les courbes (026 est pris) | P4 | `ls docs/adr/ADR-027-*.md` |
 | R122 | Finir la revue des classes d'erreur — reste 14 récidivistes + 332 portées + **5 classes jamais écrites** | P3 | les trous de `make error-health` ne font que baisser |
-| R117 | Le dépôt quitte `/mnt/c` pour ext4, et VS Code passe en Remote-WSL | P3 | suite complète chronométrée des deux côtés, en alternance |
 
 **R109 et R110 ont été livrées et déployées le 2026-09-16** — voir `archive.md`.
 Résultat mesuré : le mur du run `ci.yml` est passé d'une médiane de **427 s à 109 s**
@@ -521,9 +520,9 @@ travail quotidien existe déjà et n'enlève aucune couverture** :
 
 ## 🔖 REPRISE — état au 2026-09-16, six tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R122,R120,R118,R121,R116,R117 -->
+<!-- reprise: open=R120,R118,R121,R116,R122,R117 -->
 
-**Six tâches sont ouvertes** : R122, R120, R118, R121, R116, R117.
+**Six tâches sont ouvertes, dont CINQ actionnables** : R120, R118, R121, R116, R122 — dans cet ordre, qui est celui du gain. **R117 est ouverte aussi** mais a quitté l'index actionnable le 2026-09-17 pour « 🙋 En attente de toi » : elle déplace le dépôt, donc aucune séance ne peut l'exécuter sans se tuer. Elle reste comptée — l'ancre ci-dessus la porte, et `test_roadmap_index_is_honest` refuse qu'une tâche ouverte disparaisse de la première chose qu'on lit au `/resume`.
 
 R115 (l'instrument serveur) et R119 (réparer l'instrument client) sont livrées le
 2026-09-16 ; leur détail est dans `archive.md`. R114 est livrée et déployée (`e859ae3`),
@@ -629,8 +628,11 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
+| R117 | Sortir le dépôt de `/mnt/c` vers ext4, et VS Code en Remote-WSL | P3 | ~20 min ensemble. Le geste déplace le dépôt, donc il tue la session qui l'exécute — et la mémoire de Claude est **indexée par chemin**. Procédure en 4 étapes + 3 vérifications : `runbook-actions-utilisateur.md` §12. Gain mesuré en alternance : collecte ×5,6, suite ×3,4 |
 
-**Vide depuis le 2026-09-10.** La dernière — R1, ouvrir la bêta privée — est rotée dans
+⚠️ **Déplacée ici le 2026-09-17**, au premier réveil de la séance longue. R117 était dans l'index actionnable, où elle ne pouvait par construction jamais être prise : c'est la seule tâche dont l'exécutant est aussi la victime. Une tâche qu'aucune séance ne peut exécuter n'est pas une tâche en retard, c'est une tâche qui attend un humain — et c'est ici qu'on la lit.
+
+**Vide du 2026-09-10 au 2026-09-17.** La dernière — R1, ouvrir la bêta privée — est rotée dans
 `archive.md` : le produit est prêt et revérifié en production ce jour-là, et ce qui reste
 n'est pas de l'ingénierie mais l'usage du produit. Une roadmap mesure le travail à faire
 sur le dépôt ; elle ne suit pas les gestes commerciaux de son propriétaire, sans quoi
