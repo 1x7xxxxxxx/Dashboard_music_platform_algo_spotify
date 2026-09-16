@@ -20,8 +20,14 @@
 
 CREATE TABLE IF NOT EXISTS daily_ops_metrics (
     day               DATE PRIMARY KEY,
-    -- Rendu, vu du SERVEUR. La séparation chrome/vue est le fond du sujet : le rendu
-    -- par vue est de 61 ms quand la page complète est à 468-538 ms.
+    -- Rendu, vu du SERVEUR. La séparation chrome/vue est le fond du sujet — et le
+    -- premier jour de mesure a montré que ce dépôt se trompait de SENS : la chrome est
+    -- plate à 11-13 ms et c'est la VUE qui domine, de 50 à 777 ms selon la page.
+    --
+    -- Le « 61 ms par vue contre 468-538 ms pour la page complète » écrit ici au départ
+    -- comparait deux instruments : le second est mesuré sous `AppTest`, dont le plancher
+    -- vaut 352 ms pour `st.write('hello')` dans le même conteneur
+    -- (`tools/loadtest_dashboard.py:30-33`), jamais retranché. Addendum d'ADR-026.
     p50_render_ms     INTEGER,
     p95_render_ms     INTEGER,
     p95_chrome_ms     INTEGER,

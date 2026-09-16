@@ -60,6 +60,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
+| [a-ratio-between-two-instruments-that-ignores-the-floor-of-one](#a-ratio-between-two-instruments-that-ignores-the-floor-of-one) | P1 | deterministic | guarded | none |
+| [a-fragment-that-outlives-the-connection-it-captured](#a-fragment-that-outlives-the-connection-it-captured) | P2 | deterministic | guarded | none |
+| [a-population-chosen-by-a-proxy-for-the-cost](#a-population-chosen-by-a-proxy-for-the-cost) | P2 | manual | resolved | none |
 | [a-measurement-that-cannot-say-why-it-failed](#a-measurement-that-cannot-say-why-it-failed) | P1 | deterministic | guarded | none |
 | [a-percentile-computed-on-survivors](#a-percentile-computed-on-survivors) | P1 | deterministic | guarded | none |
 | [a-gate-that-can-never-be-green](#a-gate-that-can-never-be-green) | P2 | deterministic | guarded | none |
@@ -5361,8 +5364,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - severity: P3
 - kind: deterministic
 - symptom: une commande composée s'arrête au milieu, sans message, et rend le code **144**. Ce qui suit n'a jamais tourné — relancer la suite, écrire le script, lister ce qui reste. Le code ressemble à un échec de la cible ; la cible a très bien été tuée.
+  **Et une seconde forme, ajoutée le 2026-09-16** : le motif n'a pas besoin de TUER pour nuire. `until ! pgrep -f "pytest tests/ -q"; do sleep 10; done` **ne sort jamais** — la ligne du shell qui porte la boucle contient le motif, donc `pgrep` se trouve toujours lui-même. Et `grep -c '[p]ytest tests/'` rend **1** sur un système où plus rien ne tourne, parce qu'il compte sa propre ligne : le crochet protège du motif LITTÉRAL, pas de la chaîne réécrite dans la ligne de commande. Trois boucles bloquées à vie et un comptage faux le même jour.
 - root_cause: `pkill -f <motif>` compare le motif à la ligne de commande de CHAQUE processus, **y compris celle du shell qui l'exécute**, laquelle contient le motif par construction. Le shell se suicide donc systématiquement. Arrivé trois fois le 2026-09-12 ; deux fois j'ai cru que le kill avait échoué.
-- long_term_fix: hook `PreToolUse` sur Bash. Il BLOQUE la forme suivie d'autre chose sur la même ligne et propose celle où le motif ne peut plus se contenir lui-même — un crochet à la grep, `"[p]attern"`, suffit. Un appel seul en fin de ligne n'est pas bloqué : s'y suicider après avoir tué ne coûte rien.
+- long_term_fix: hook `PreToolUse` sur Bash. Il BLOQUE la forme suivie d'autre chose sur la même ligne et propose celle où le motif ne peut plus se contenir lui-même — un crochet à la grep, `"[p]attern"`, suffit. Un appel seul en fin de ligne n'est pas bloqué : s'y suicider après avoir tué ne coûte rien. ⚠️ **Le crochet ne suffit PAS pour une sonde en LECTURE** (`pgrep`, `grep -c`, `ps | grep`) : le shell écrit la ligne en clair, crochet compris, donc le motif s'y retrouve tel quel. Pour une sonde, la forme sûre est de ne pas interroger `ps` du tout — attendre un PID connu (`wait`), un fichier témoin, ou la notification de la tâche de fond. La règle qui transporte : **avant d'écrire un motif de processus, se demander si la ligne qui le porte le contient**.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_bash_guard_reads_the_command_not_the_prose.py -q`
 - guard: { type: pretooluse-hook, ref: .claude/hooks/guard_destructive.py }
@@ -6198,3 +6202,48 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: le garde de cette classe a d'abord été écrit FAUX — il cherchait le nom `censored_pct` n'importe où dans le fichier, et la mutation « renommer la clé produite » est restée VERTE parce que le nom survivait chez ses lecteurs. Réécrit pour vérifier le CHEMIN : la clé est produite par `_level()`, puis lue par `_run()`. Les deux mutations mordent maintenant.
+
+## a-ratio-between-two-instruments-that-ignores-the-floor-of-one
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: un RAPPORT entre deux grandeurs oriente des semaines de travail, et il est faux **dans le mauvais sens**. Les deux nombres sont justes, aucun calcul n'est erroné, et personne ne peut pointer l'erreur — parce qu'elle n'est pas dans les nombres mais dans le droit de les diviser.
+- root_cause: les deux mesures viennent d'INSTRUMENTS différents, et l'un a un plancher qu'on n'a pas retranché. Mesuré le 2026-09-16 : ce dépôt affirmait dans **dix fichiers** que la barre latérale pesait « un facteur 8 » de plus que le rendu d'une vue, à partir de `61 ms` (une vue, mesurée en Python) et `468-538 ms` (une page complète, mesurée **sous `AppTest`**). Or `tools/loadtest_dashboard.py` documente **vingt lignes au-dessus du second chiffre** le plancher de ce harnais, pris dans le même conteneur le même jour : **352 ms pour `st.write('hello')`**, deux lignes, sans app ni base ni plotly. Le coût réel de l'application valait ~116-186 ms. La mesure serveur a fini par montrer l'INVERSE : chrome 11-13 ms, vue 50 à 777 ms. Cousine de [`a-threshold-carried-across-instruments`](#a-threshold-carried-across-instruments) : là un seuil voyageait d'un instrument à l'autre, ici c'est un rapport qui enjambe les deux.
+- long_term_fix: **un chiffre produit par un harnais ne circule jamais sans le plancher de ce harnais**, et un rapport entre deux mesures n'est licite que si elles viennent du même instrument — sinon on soustrait d'abord, explicitement, et on écrit la soustraction. La question de relecture, devant tout rapport : **« ces deux nombres ont-ils été pris avec le même appareil ? »** Si non, le rapport ne veut rien dire tant que les offsets ne sont pas nommés. Le garde empêche la re-dérivation : le nombre ne peut plus être cité sans son plancher.
+- autofix: none
+- signature: `.venv/bin/python -m pytest tests/test_a_figure_from_a_harness_carries_its_floor.py -q -p no:cacheprovider >/dev/null 2>&1`
+- guard: { type: pytest, ref: tests/test_a_figure_from_a_harness_carries_its_floor.py }
+- rex_ref: docs/adr/ADR-026-observability-is-adopted-to-watch-the-triggers.md
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: l'affirmation a tenu des semaines et a servi à ORDONNER le travail (R118 après R120). Il a fallu construire un instrument serveur — tout R115 — pour s'en apercevoir, et c'est la première chose que cet instrument a produite : la réfutation d'une affirmation du dépôt, pas une confirmation. ⚠️ **Ma première explication de l'erreur était fausse elle aussi** : j'ai attribué l'écart à une mesure « côté client, réseau compris », alors que le fichier dit qu'elle est prise dans le conteneur de production. J'expliquais un chiffre faux par une cause plausible sans lire la source — le geste même qui avait produit le chiffre faux. ⚠️ Et mon balayage des sites a manqué le dixième : j'avais limité `grep` à `--include=*.py --include=*.md`, sans les `.sql`. C'est le garde, pas le balayage, qui a trouvé `migrations/125`.
+
+## a-fragment-that-outlives-the-connection-it-captured
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: **rien ne plante**, et c'est ce qui coûte. Une page admin se met à consommer une connexion de plus par session, sans message qui relie la fuite au geste qui la cause. Le journal affiche « Connexion PostgreSQL perdue — reconnexion automatique », ce qui est faux : rien n'a été perdu, on l'avait fermée exprès.
+- root_cause: `@st.fragment` change **QUAND** une fonction s'exécute, pas ce qu'elle fait. Le corps décoré est rejoué SEUL, des minutes après que la vue est rentrée et que son `finally` a fermé la connexion. Une fonction qui prend `db` en argument est donc correcte au premier rendu et fausse au second. Mesuré le 2026-09-16 sur `airflow_kpi._section_insertion_test`, **le seul `@st.fragment` que le dépôt avait** : `PostgresHandler._ensure_connection()` voit `conn.closed` et **ré-emprunte au pool**, sans que personne ne rende. Une connexion par session admin, sur `maxconn=10`. Le commentaire du fichier disait « no outer try/finally here any more: it existed only to close a connection this function no longer owns » — il décrivait l'état d'AVANT le décorateur, et les deux changements sont incompatibles.
+- long_term_fix: **une fonction décorée `@st.fragment` ne reçoit ni connexion ni curseur.** Elle reçoit des données déjà chargées ; si elle doit relire la base — parce que c'est précisément son filtre qui pilote la requête — elle ouvre et ferme la sienne, par un gestionnaire de contexte (`view_session()`, `project_db()`). Et le cliquet de connexions doit compter **par unité de rendu** : un fragment en est une, donc lui passer celle de la vue EST le défaut, et les compter ensemble pousse à corriger dans le mauvais sens. ⚠️ Deuxième limite de la même famille : **un fragment DESSINE, il ne RETOURNE pas** — rejoué seul, il rendrait une valeur à un appelant qui, lui, ne se rejoue pas.
+- autofix: none
+- signature: `.venv/bin/python -m pytest tests/test_a_fragment_never_captures_a_connection.py -q -p no:cacheprovider >/dev/null 2>&1`
+- guard: { type: pytest, ref: tests/test_a_fragment_never_captures_a_connection.py }
+- rex_ref: src/dashboard/views/airflow_kpi.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: trouvé **en écrivant le garde pour la brique suivante** — R118 pose des fragments sur onze vues, et le garde écrit avant la deuxième a mordu sur la première, qui était là depuis des semaines. C'est le seul moment où un garde coûte zéro. ⚠️ J'ai d'abord annoncé que ça PLANTAIT ; c'était faux, et la vérité est pire. Vérifié en LISANT `_ensure_connection()` et `_connect()`, pas en supposant : la reconnexion silencieuse est ce qui rend la fuite invisible.
+
+## a-population-chosen-by-a-proxy-for-the-cost
+- status: resolved
+- severity: P2
+- kind: manual
+- symptom: une brique d'optimisation énumère précisément **les mauvaises cibles**. La liste est juste selon son propre critère, le travail est réel, et le gain est nul — parce que le critère n'était pas la grandeur qu'on voulait réduire.
+- root_cause: on ne sait pas mesurer ce qui coûte, alors on énumère ce qui se COMPTE. Mesuré le 2026-09-16 : R118 (« `st.fragment` sur les 11 vues à filtres ») avait choisi sa population par **nombre de widgets**, faute d'instrument. La première session mesurée a montré que les trois pages les plus chères — `meta_mapping` 777 ms, `soundcloud` 515 ms, `home` 316 ms — **n'ont presque aucun filtre**, et qu'un fragment ne borne que le travail refait quand un filtre bouge. Une seule des huit pages mesurées justifiait la brique. Le proxy n'était pas absurde, il était simplement décorrélé.
+- long_term_fix: **une brique d'optimisation nomme la mesure qui a choisi sa population, ou dit qu'elle n'en a pas.** Une liste sans mesure est une hypothèse, et elle s'écrit comme telle — R118 disait « les 11 vues à filtres » comme un fait. Et quand l'instrument arrive, **la population se redérive** au lieu d'être exécutée par inertie : ici cinq vues sortent de la brique, non pas parce qu'elles sont bonnes, mais parce que leur coût est **inconnu** et qu'on ne paie pas un refactor sur une page dont on ignore si elle coûte quelque chose. C'est le motif d'ADR-007 — différer derrière un déclencheur observable — appliqué à notre propre travail.
+- autofix: none
+- signature: none
+- guard: { type: doc, ref: .claude/dev-docs/roadmap/checklist.md }
+- rex_ref: .claude/dev-docs/roadmap/checklist.md
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: six vues sur onze faites avant que la mesure n'arrive ; le travail n'est pas perdu (`data_wrapped`, 357,7 ms, était bien une bonne cible) mais l'ordre l'était. L'ordre R118/R120 a changé **deux fois le même jour**, chaque fois sur une mesure : d'abord R118 devant, la vue dominant la chrome ; puis R120 devant, les pages chères n'ayant pas de filtres. Aucune signature : la classe se prévient en écrivant, pas en détectant — et une signature jamais vue rouge ne garderait rien.

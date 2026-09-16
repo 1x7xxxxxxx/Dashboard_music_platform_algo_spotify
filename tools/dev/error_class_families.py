@@ -113,7 +113,15 @@ FAMILIES: list[tuple[str, str, str]] = [
      # `carried-across-instruments`, ajouté le 2026-09-16 à côté du précédent : l'un
      # dit qu'une mesure peut être prise au mauvais INSTANT, l'autre avec le mauvais
      # INSTRUMENT. Les deux produisent un chiffre juste et une réponse fausse.
-     r"carried-across-instruments"),
+     r"carried-across-instruments|"
+     # `chosen-by-a-proxy-for-the-cost`, ajouté le 2026-09-16, troisième de la même
+     # série. Les deux précédents disent qu'une mesure peut être prise au mauvais
+     # INSTANT ou avec le mauvais INSTRUMENT. Celui-ci dit qu'on peut ne pas mesurer
+     # du tout et énumérer ce qui se COMPTE à la place — R118 a choisi sa population
+     # par nombre de widgets faute d'instrument, et les trois pages les plus chères
+     # n'avaient aucun widget. Le motif est écrit sur le SUBSTITUT (`proxy`), pas sur
+     # « population », qui ramasserait des classes sans rapport.
+     r"chosen-by-a-proxy|ignores-the-floor"),
 
     ("le-message-parle-au-mauvais-lecteur",
      "Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que "
