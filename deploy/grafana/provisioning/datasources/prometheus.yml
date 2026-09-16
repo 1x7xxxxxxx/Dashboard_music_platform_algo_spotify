@@ -2,6 +2,17 @@
 apiVersion: 1
 datasources:
   - name: Prometheus
+    # ⚠️ Le `uid` est DECLARE, il ne se devine pas. Sans cette ligne Grafana en genere un
+    # aleatoire au premier demarrage, et les panneaux — qui referencent `uid: PROM` dans
+    # `dashboards/streamlytics-ops.json` — visent une source qui n'existe pas. Le symptome
+    # est « No data » sur TOUS les panneaux, sans aucune erreur : Grafana ne dit pas que la
+    # source est introuvable, il rend un graphe vide.
+    #
+    # C'est la classe `du-code-correct-que-rien-n-atteint` : les requetes etaient justes,
+    # Prometheus repondait, les cibles etaient `up`. Rien ne reliait les deux.
+    # Trouve le 2026-09-16 par l'utilisateur, en regardant l'interface — pas par un test.
+    # Le garde est desormais `tests/test_a_grafana_panel_points_at_a_real_datasource.py`.
+    uid: PROM
     type: prometheus
     access: proxy
     url: http://streamlytics_prometheus:9090
