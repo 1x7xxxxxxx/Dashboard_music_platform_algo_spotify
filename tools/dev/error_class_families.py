@@ -207,7 +207,13 @@ FAMILIES: list[tuple[str, str, str]] = [
     ("une-configuration-qui-diverge-de-la-prod",
      "Ce que le dépôt déclare est-il ce que la production exécute ?",
      r"prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|"
-     r"requirements|manifest|ddl|init_db|version"),
+     # `majeure` et `valeur par défaut` ajoutés le 2026-09-16 : la famille demande
+     # « ce que le dépôt DÉCLARE est-il ce qui s'exécute ? », et une option héritée
+     # d'un défaut amont n'est déclarée nulle part — c'est la forme la plus discrète
+     # de la divergence, celle qui ne casse rien et rend une garantie fausse.
+     # Motif ÉTROIT à dessein : `default` seul balaierait la moitié du catalogue.
+     r"requirements|manifest|ddl|init_db|version|montée de majeure|"
+     r"valeur par défaut|majeure"),
 ]
 
 _ID = re.compile(r"^## ([a-z0-9][a-z0-9-]+)$", re.M)
