@@ -39,10 +39,11 @@ Il tourne sous `AppTest`, dont le rendu porte ~1,8 s de harnais ici (1 007 lectu
 le DELTA entre deux variantes du meme processus en veut. Pour l'absolu, l'instrument est
 `streamlytics_rerun_duration_seconds`, cote serveur, en conteneur.
 """
+import pathlib
 import statistics
 import sys
 import time
-ROOT = "/mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify"
+ROOT = str(pathlib.Path(__file__).resolve().parents[2])
 sys.path.insert(0, ROOT)
 from streamlit.testing.v1 import AppTest
 

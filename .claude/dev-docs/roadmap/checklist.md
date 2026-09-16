@@ -310,12 +310,65 @@ le supposer.
   rien. Leur coût est le CORPS de la vue — c'est-à-dire R120 (onglets et expanders
   paresseux) et R121 (agrégations Python → SQL), pas celle-ci.
 
-  **Ce qui reste ici, et ce que ça vaut** : `imusician`, `meta_ads_overview`, `hypeddit`,
-  `youtube`, `admin`. Aucune n'est apparue dans la session mesurée, donc **leur coût est
-  inconnu** — les fragmenter serait payer un refactor sur une page dont on ignore si elle
-  coûte quelque chose. Le geste correct est d'attendre qu'elles apparaissent dans
-  l'histogramme : `sum by (page) (streamlytics_rerun_duration_seconds_count)`. C'est
-  exactement le motif d'ADR-007, appliqué à nous-mêmes.
+  **Ce qui restait** : `imusician`, `meta_ads_overview`, `hypeddit`, `youtube`, `admin`.
+  Le bloc disait : « leur coût est inconnu — les fragmenter serait payer un refactor sur
+  une page dont on ignore si elle coûte quelque chose », et renvoyait à l'histogramme.
+
+  ### Mesuré le 2026-09-17, et les cinq sont REFUSÉES sur ce chiffre
+
+  Coût différentiel d'un rerun À CHAUD — rendu complet moins rendu vide, même processus,
+  alterné, médiane de 4 :
+
+  | vue | filtres | coût d'un rerun chaud |
+  |---|---|---|
+  | `imusician` | 13 | **114,4 ms** |
+  | `meta_ads_overview` | 2 | 101,8 ms |
+  | `youtube` | 3 | 75,3 ms |
+  | `admin` | 20 | 60,1 ms |
+  | `hypeddit` | 6 | **29,0 ms** |
+
+  **C'est exactement la grandeur qu'un fragment borne** — un fragment ne limite que le
+  travail refait *quand un filtre bouge*, c'est-à-dire un rerun à chaud.
+
+  ⚠️⚠️ **J'ai failli conclure l'inverse, sur une comparaison invalide.** Premier jet :
+  « la plus chère des cinq coûte 114 ms contre 357,7 ms pour `data_wrapped`, donc 3 à 12×
+  sous le seuil ». Ces 357,7 ms sont une mesure **SERVEUR**, à froid ; les 114 sont un
+  rerun **à chaud**. Comparer les deux, c'est la classe
+  `a-threshold-carried-across-instruments`, appliquée à un chiffre que j'allais utiliser
+  pour refuser cinq refactors.
+
+  Mesurées **avec le même instrument et dans le même régime**, les six déjà fragmentées
+  donnent : `meta_creatives` 172,1 ms · `db_health` 128,2 ms · `revenue_forecast`
+  105,9 ms · `data_wrapped` **77,7 ms**.
+
+  **Les cinq restantes sont dans la MÊME bande que les six déjà faites.** `imusician`
+  (~130 ms) tombe entre `revenue_forecast` et `db_health`. Il n'y a jamais eu de seuil :
+  la population a été choisie par nombre de widgets, ce que ce bloc dit déjà lui-même.
+
+  ⚠️ Et le bruit interdit de trancher : quatre tirages sur `imusician` donnent
+  111 · 114 · 145 · 196 ms, sur `meta_ads_overview` 92 · 102 · 148 · 249 ms — **±60 à
+  100 %**, plus large que les écarts entre pages. Aucun instrument local ne peut séparer
+  ces dix vues.
+
+  ⚠️ **Et la méthode a été CALIBRÉE avant d'être crue — elle n'a concordé qu'une fois
+  sur quatre.** Confrontée aux pages dont le coût serveur est connu :
+
+  | page | serveur | méthode différentielle |
+  |---|---|---|
+  | `instagram` | 96,3 ms | **104,9 ms** ✅ |
+  | `meta_cpr_optimizer` | 98,7 ms | 10,8 ms ❌ |
+  | `apple_music` | 87,3 ms | 1,6 ms ❌ |
+  | `saisie_s4a` | 49,8 ms | 12,0 ms ❌ |
+
+  L'explication est `@st.cache_data` : après la chauffe, les pages dont le travail est
+  mémoïsé ne repaient plus rien, et la mesure serveur portait, elle, des visites à froid.
+  **La méthode mesure donc le rerun À CHAUD, pas le coût d'une visite** — et les trois
+  désaccords disent que ces pages sont entièrement mémoïsées, ce qui est une information
+  en soi.
+
+  Le dire plutôt que d'annoncer « calibrée » : une page sur quatre qui concorde n'est pas
+  une calibration. Mais pour la question de R118 — que borne un fragment ? — c'est la
+  bonne grandeur, et elle est mesurée sur le bon régime.
 
   ⚠️ **La limite d'éligibilité, trouvée en le faisant** : un fragment DESSINE, il ne
   RETOURNE pas. `_song_detail()` de `spotify_s4a_combined` porte un `st.selectbox` et
@@ -515,6 +568,7 @@ Motif d'ADR-007 : un travail dont le bénéfice mesuré est nul n'entre pas dans
 | Sortir **Airflow** de la boîte (il prend 2,3 Go des 7,7) | la RAM des conteneurs dashboard dépasse **2 Go** — ce que R87 rapproche. `docker stats --no-stream` |
 | Construire la **couche or** (table de faits agrégée) | un locataire dépasse **100 000 lignes** sur une table de faits, ou un agrégat d'accueil dépasse **200 ms**. Aujourd'hui : 14 694 lignes, 46 ms |
 | ClickHouse / Parquet / dbt / Dagster | déclencheurs d'**ADR-014**, relus le 2026-09-11 : aucun n'est tiré (62 Mo contre 50 Go, 34 k lignes contre 10 M) |
+| Fragmenter les **5 vues restantes** de R118 — `imusician`, `meta_ads_overview`, `hypeddit`, `youtube`, `admin` | l'une d'elles dépasse **300 ms de vue** dans l'histogramme SERVEUR : `histogram_quantile(0.5, sum by (page,le) (rate(streamlytics_rerun_duration_seconds_bucket{phase="view"}[1h])))`. Mesuré localement le 2026-09-17 : 20 à 130 ms de rerun à chaud, **dans la même bande que les six déjà fragmentées** (78 à 172 ms) — donc rien ne les distingue, et le bruit local (±60 à 100 %) est plus large que les écarts. Seul le serveur peut trancher, et il lui faut du trafic sur ces pages |
 
 ### La méthode, pour R85 à R87
 
