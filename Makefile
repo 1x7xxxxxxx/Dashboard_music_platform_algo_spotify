@@ -59,6 +59,17 @@ logs:        ## Tail Airflow scheduler logs
 # qui dépendait de son voisin devient un échec INTERMITTENT, la pire forme.
 # L'instrument qui le prouve est `pytest-randomly`, désactivé par défaut et
 # rallumé à la demande : `.venv/bin/python -m pytest tests/ -q -p randomly`.
+# ⚠️ CES DRAPEAUX SONT LA RAISON D'ETRE DES CIBLES `test*`. Un `pytest tests/` lance a la
+# main les PERD et tourne en SERIE : mesure sur ce poste le 2026-09-16, 888 / 921 / 963 s,
+# soit ~15 min. Il a ete lance six fois en une seance parce que `CLAUDE.md` le documentait
+# ainsi — la doc est corrigee, et ce commentaire est ici pour que le prochain qui ouvre le
+# Makefile voie le cout avant d'improviser.
+#
+# `--dist loadgroup` et pas `loadfile` : les tests marques `xdist_group` doivent tomber
+# dans le meme worker (base partagee, port unique), sinon ils se marchent dessus.
+#
+# ⚠️ Et NE RIEN EDITER pendant qu'une suite complete tourne : trois executions sont mortes
+# en route le meme soir. Classe `a-verdict-from-a-tree-that-moved-under-it`.
 PYTEST_DIST := -n auto --dist loadgroup
 
 # ── Les tests qui ne lisent QUE des documents (2026-09-15) ──
@@ -83,14 +94,14 @@ DOC_TESTS := tests/test_error_class_index_is_complete.py \
              tests/test_the_views_map_lists_every_view.py
 DOC_IGNORE := $(foreach f,$(DOC_TESTS),--ignore=$(f))
 
-test:        ## Pytest suite COMPLÈTE (mêmes drapeaux que la CI) — la barrière avant de livrer
+test:        ## [~15 min en série, bien moins ici] Suite COMPLÈTE, drapeaux de la CI — la barrière avant de livrer
 	$(PYTHON) -m pytest tests/ -q $(PYTEST_DIST)
 
-test-fast:   ## La suite SANS les tests de documents (-38 s) — pour la boucle de code
+test-fast:   ## [= test −38 s] La suite SANS les tests de documents — avant de commiter
 	@echo '⏩ sans les tests de documents — make test-docs les lance, make test lance tout.'
 	$(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) $(DOC_IGNORE)
 
-test-docs:   ## Seulement les tests de documents — à lancer après avoir mis les docs à jour
+test-docs:   ## [~38 s] Seulement les tests de documents — après avoir touché un document généré
 	$(PYTHON) -m pytest $(DOC_TESTS) -q
 
 loadtest-concurrency: ## La concurrence RÉELLE, par navigateurs. URL=… [USER=… PASSWORD=…]
@@ -119,7 +130,7 @@ test-durations: ## Régénère .test_durations (équilibre les 4 shards de la CI
 	@# Puis commiter `.test_durations`.
 	$(PYTHON) -m pytest tests/ -q --store-durations
 
-test-changed: ## Seulement les tests atteignables depuis ce qui a changé (règle 16)
+test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — LA cible de la boucle de code (règle 16)
 	@$(PYTHON) .claude/scripts/select_tests.py | grep -v '^#' | xargs $(PYTHON) -m pytest -q $(PYTEST_DIST)
 
 check-guide-deps: ## (internal) fail fast if WeasyPrint is unavailable, rule #10

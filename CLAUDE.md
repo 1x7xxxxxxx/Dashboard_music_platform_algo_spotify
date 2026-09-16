@@ -63,9 +63,48 @@ docker-compose logs -f airflow-scheduler          # Tail scheduler logs
 ### Dashboard / Tests / Debug
 ```bash
 cd src/dashboard && streamlit run app.py          # Run dashboard (local, port 8501)
-python3 -m pytest tests/ -v                       # Run unit tests
+# ⚠️ JAMAIS `pytest tests/` à la main — les drapeaux de parallélisme vivent dans le
+# Makefile, et la forme nue les perd. Trois cibles, par ordre de fréquence d'usage :
+make test-changed   # Boucle de code : SEULS les tests atteignables depuis le diff (règle 16)
+make test-fast      # Avant de commiter : tout sauf les tests de documents
+make test           # La barrière avant de livrer — mêmes drapeaux que la CI
+make test-docs      # Après avoir touché un document généré
+
+# Un fichier précis reste direct : .venv/bin/python -m pytest tests/test_x.py -q
 python airflow/debug_dag/debug_<name>.py          # Run a DAG locally without Airflow
 ```
+
+### Le temps de la suite — ce que chaque cible coûte
+
+**Mesuré sur ce poste (`/mnt/c`, WSL2) le 2026-09-16.** Les chiffres sont là pour qu'on
+CHOISISSE, pas pour décorer :
+
+| geste | ce qu'il lance | coût |
+|---|---|---|
+| `make test-changed` | les tests atteignables depuis le diff | **secondes à ~1 min** |
+| `make test-fast` | tout sauf les documents | `make test` − ~38 s |
+| `make test` | la suite, `-n auto --dist loadgroup` | le mur de référence |
+| `python3 -m pytest tests/` **(à éviter)** | la même suite **en SÉRIE** | **~15 min**, mesuré 888 / 921 / 963 s |
+
+⚠️ **La forme nue n'est pas « la même en plus simple » : elle perd `-n auto`.** Elle a été
+lancée six fois en une séance le 2026-09-16 parce que ce fichier la documentait, et elle
+seule explique l'essentiel du temps d'attente de cette séance.
+
+⚠️ **Ne rien éditer pendant qu'une suite complète tourne.** Trois exécutions sont mortes
+en route le même soir — à 11 %, à 89 %, et une sans rien écrire. Classe
+`a-verdict-from-a-tree-that-moved-under-it`. Et faire écrire la sortie dans un FICHIER
+(`> f` ou `| tee f`) : à travers `| tail`, une suite qui meurt ne laisse aucune ligne, pas
+même sa progression.
+
+**Le levier structurel restant est R117** — le dépôt quitte `/mnt/c` pour ext4 : collecte
+×5,6 (27,1 s → 4,8 s) et suite ×3,4 (372 s → 109 s), mesurés en alternance à périmètre
+égal. C'est la seule tâche ouverte qui réduise ce temps ; R118/R120/R121 visent la
+latence de l'APP pour un artiste, pas la suite.
+
+**Ce qui a été refusé, avec sa mesure** : alléger les rendus `AppTest` (62 % du temps,
+`test_views_render_smoke.py` 193,5 s à lui seul). Le remède canonique existe — Humble
+Object — et il est écarté parce que ces rendus attrapent des défauts que 4 737 tests
+unitaires verts ne voyaient pas. Détail : `.claude/dev-docs/test-suite-performance.md`.
 
 ### Running Migrations
 
