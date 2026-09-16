@@ -42,6 +42,13 @@ services:
       - '127.0.0.1:9090:9090'
     volumes:
       - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # Les regles d'alerte, montees SEPAREMENT — ajoute le 2026-09-16 en meme temps
+      # que `rule_files`. Le commentaire de `prometheus.yml` affirmait d'abord que tout
+      # `deploy/prometheus/` etait monte : c'etait faux, seul le fichier de config
+      # l'etait, et le glob `rules/*.yml` n'aurait matche AUCUN fichier. Prometheus ne
+      # tombe pas dans ce cas — il note et demarre — donc les quatre regles auraient
+      # ete versionnees, relues, et jamais evaluees.
+      - ./deploy/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     extra_hosts:
       # Caddy tourne sur l'HOTE (systemd), pas dans un conteneur.

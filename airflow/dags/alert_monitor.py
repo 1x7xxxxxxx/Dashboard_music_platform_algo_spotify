@@ -1365,6 +1365,44 @@ def check_app_errors(**context):
     context['task_instance'].xcom_push(key='app_errors', value=problems)
 
 
+def check_ops_alerts(**context):
+    """Ce qui a alerté côté infrastructure dans les 24 h — VPS, latence, pool.
+
+    Le seul détecteur du DAG qui ne lit pas la base : sa source est Prometheus, qui
+    évalue `deploy/prometheus/rules/streamlytics.yml` toutes les 30 s. La raison est
+    dans la forme même des règles — « p95 au-dessus de 3 s pendant 15 min » ne se
+    constate pas une fois par nuit ; une pointe de 14 h à 15 h serait invisible à une
+    requête instantanée de 23 h.
+
+    ADR-011 est tenu ici par CONSTRUCTION, pas par intention : chaque règle porte des
+    annotations `symptom` et `action`, elles voyagent jusqu'au mail, et une règle qui
+    n'en aurait pas est rapportée comme hors contrat plutôt que tue.
+
+    ⚠️ Prometheus muet rend UNE ligne `UNAVAILABLE`, pas une liste vide. Une liste vide
+    se lit « rien à signaler » — c'est-à-dire exactement le contraire de la vérité quand
+    l'instrument est mort.
+    """
+    import sys
+    sys.path.insert(0, '/opt/airflow')
+
+    problems = []
+    try:
+        from src.utils.ops_alerts import fired_since
+        problems = fired_since("24h")
+    except Exception as e:      # noqa: BLE001 — même contrat que les autres contrôles
+        logger.error(f"lecture des alertes d'infrastructure impossible: {safe_error(e)}")
+        problems = [{
+            'alertname': 'UNAVAILABLE', 'severity': 'high', 'still_firing': True,
+            'symptom': f"Le lecteur d'alertes a levé : {safe_error(e)}. La santé du VPS, "
+                       "la latence de rendu et le pool n'ont pas été vérifiés cette nuit.",
+            'action': "Lire la trace de la tâche `check_ops_alerts` dans Airflow.",
+            'panel': '—',
+        }]
+
+    logger.info("alertes d'infrastructure : %d sur 24 h", len(problems))
+    context['task_instance'].xcom_push(key='ops_alerts', value=problems)
+
+
 def check_tenant_contamination(**context):
     """Rows sitting under a tenant they cannot belong to, across the whole fleet.
 
@@ -1759,6 +1797,7 @@ def send_consolidated_alert(**context):
         task_ids='check_offsite_backup', key='offsite_backup') or []
 
     app_errors = ti.xcom_pull(task_ids='check_app_errors', key='app_errors') or []
+    ops_alerts = ti.xcom_pull(task_ids='check_ops_alerts', key='ops_alerts') or []
 
     # Both checks ask the SAME question — `readiness_stalled_flags` returns the
     # platforms at TODO, `check_credentials_all` the ones absent from
@@ -1805,7 +1844,8 @@ def send_consolidated_alert(**context):
             or tenant_gaps or readiness_flags
                   or central_broken or canary or stalled_tenants
                   or canary_preflight or collection_failures or contamination
-                  or offsite or app_errors or csv_rejections)
+                  or offsite or app_errors or csv_rejections
+                  or ops_alerts)
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -2264,6 +2304,38 @@ def send_consolidated_alert(**context):
           {rows}
         </table>""")
 
+    # L'infrastructure vient EN TETE du corps, avant les detecteurs de donnees.
+    # Raison : si le VPS manque de RAM ou si le pool est vide, la moitie des constats
+    # qui suivent sont des CONSEQUENCES, et les lire d'abord envoie reparer au mauvais
+    # endroit. Ce depot a paye exactement cela — une alerte qui accusait une plateforme
+    # qui marchait (`an-alert-can-be-wrong-about-a-working-platform`).
+    if ops_alerts:
+        rows = ''
+        for o in ops_alerts:
+            etat = ('🔴 en cours' if o.get('still_firing') else '🟠 resolue depuis')
+            rows += f"""
+            <tr>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee;vertical-align:top">
+                <b>{o['alertname']}</b><br><span style="color:#777">{o['severity']} · {etat}</span>
+              </td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee">{o['symptom']}</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee">{o['action']}
+                <br><span style="color:#777;font-size:0.85em">{o.get('panel', '—')}</span></td>
+            </tr>"""
+        sections.append(f"""
+        <h3 style="color:#b00">🖥️ Infrastructure — ce qui a alerté sur 24 h</h3>
+        <table style="border-collapse:collapse;font-size:0.9em">
+          <tr><th style="text-align:left;padding:6px 12px">Règle</th>
+              <th style="text-align:left;padding:6px 12px">Ce que l'artiste voit</th>
+              <th style="text-align:left;padding:6px 12px">Le geste de ce soir</th></tr>
+          {rows}
+        </table>
+        <p style="color:#555;font-size:0.85em">
+          Les courbes : <code>ssh -N -L 3000:127.0.0.1:3000 root@167.233.92.1</code>
+          puis <code>http://localhost:3000</code>. Les seuils vivent dans
+          <code>deploy/prometheus/rules/streamlytics.yml</code>.
+        </p>""")
+
     if app_errors:
         rows = ''
         for a in app_errors:
@@ -2695,6 +2767,11 @@ with DAG(
         python_callable=check_gold_invariants,
     )
 
+    t_ops_alerts = PythonOperator(
+        task_id='check_ops_alerts',
+        python_callable=check_ops_alerts,
+    )
+
     # Entretien, pas contrôle : ne remonte rien au mail. Amont de `t_alert` quand même,
     # que `test_every_operator_is_upstream_of_the_sender` l'exige — un opérateur hors du
     # graphe a déjà existé ici et ne s'est jamais exécuté. `t_alert` porte
@@ -2714,4 +2791,4 @@ with DAG(
      t_billing, t_anomalies, t_readiness, t_central, t_canary,
      t_preflight, t_outcomes, t_contamination, t_dips, t_offsite,
      t_app_errors, t_csv_rejects, t_zero_resets, t_metric_bounds,
-     t_gold_invariants, t_maintenance] >> t_alert
+     t_gold_invariants, t_ops_alerts, t_maintenance] >> t_alert

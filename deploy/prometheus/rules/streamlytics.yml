@@ -1,0 +1,123 @@
+# Les regles d'alerte — R115 etape 5, sous contrainte d'ADR-011.
+#
+# ADR-011 : « une alerte n'est envoyee que si elle nomme un SYMPTOME qu'un artiste
+# pourrait observer dans le produit, ET une ACTION qu'un humain peut faire ce soir. »
+# Chaque regle ci-dessous porte donc DEUX annotations obligatoires, `symptom` et
+# `action`, et `tests/test_an_alert_rule_names_a_symptom_and_an_action.py` refuse d'en
+# laisser passer une qui n'aurait que l'une des deux. L'ADR devient mecanique au lieu
+# de rester une intention.
+#
+# ⚠️ CE FICHIER N'ENVOIE RIEN. Il n'y a pas d'Alertmanager ici, deliberement (ADR-026 :
+# son declencheur est « plus de ~10 regles, ou un besoin d'astreinte »). Prometheus
+# EVALUE ces regles toutes les 15 s et expose leur etat dans la serie `ALERTS` ; c'est
+# la tache `check_ops_alerts` du DAG `alert_monitor` qui la lit a 23 h et la joint au
+# mail unique du soir.
+#
+# La consequence a connaitre : une alerte qui part a 14 h et se resout a 15 h N'EST PLUS
+# `firing` a 23 h. Le lecteur interroge donc `max_over_time(ALERTS[24h])`, pas l'etat
+# instantane — sans quoi on ne verrait que les pannes qui durent encore au moment de la
+# lecture, c'est-a-dire les moins interessantes.
+#
+# Pourquoi des regles Prometheus plutot que quatre requetes dans le DAG : « p95 > 3 s
+# pendant 15 min » ne se constate PAS une fois par nuit. Une pointe de 40 minutes a
+# 15 h est invisible a une requete instantanee de 23 h. Le seuil et sa duree vivent ici,
+# versionnes, et Grafana les affiche a cote des courbes.
+
+groups:
+  - name: streamlytics-infra
+    interval: 30s
+    rules:
+      # ── DISQUE ────────────────────────────────────────────────────────────
+      - alert: DiskFillingUp
+        expr: >-
+          (1 - node_filesystem_avail_bytes{mountpoint="/"}
+             / node_filesystem_size_bytes{mountpoint="/"}) * 100 > 85
+        for: 30m
+        labels:
+          severity: high
+        annotations:
+          symptom: >-
+            Les chiffres de l'artiste cessent d'avancer. Un disque plein arrete les
+            ECRITURES de Postgres et fait echouer les taches Airflow : la collecte de la
+            nuit ne rentre pas, et le tableau de bord affiche la veille sans rien dire.
+          action: >-
+            Sur la machine — `docker system prune -af --volumes` (images et volumes
+            orphelins), puis `du -xh / | sort -rh | head -20` pour nommer le vrai poste.
+            `/var/log/caddy` et `/var/lib/docker/containers` sont les deux qui grossissent
+            ici ; la rotation de `daemon.json` les borne a 30 Mo par conteneur depuis le
+            2026-09-16, donc un depassement pointe ailleurs.
+          panel: Grafana → VPS → Disque
+
+      # ── MEMOIRE ───────────────────────────────────────────────────────────
+      - alert: MemoryNearlyExhausted
+        expr: node_memory_MemAvailable_bytes < 500 * 1024 * 1024
+        for: 10m
+        labels:
+          severity: high
+        annotations:
+          symptom: >-
+            Le tableau de bord repond 502, ou se deconnecte en pleine session. Sous ce
+            seuil le tueur OOM prend un conteneur — et il prend le plus gros, qui est
+            `airflow-scheduler` (1,9 Go) ou le dashboard lui-meme.
+          action: >-
+            `docker stats --no-stream` pour voir qui a grossi. Les deux leviers
+            reversibles ce soir, dans cet ordre : arreter le profil d'observabilite
+            (`docker compose --profile observability down`, ~500 Mo) puis la replique
+            `streamlytics_dashboard2` si elle tourne. Aucun des deux ne coupe le produit.
+          panel: Grafana → VPS → RAM
+
+  - name: streamlytics-app
+    interval: 30s
+    rules:
+      # ── LATENCE DE RENDU ──────────────────────────────────────────────────
+      - alert: RenderLatencyDegraded
+        expr: >-
+          histogram_quantile(0.95, sum by (le)
+            (rate(streamlytics_rerun_duration_seconds_bucket[5m]))) > 3
+        for: 15m
+        labels:
+          severity: medium
+        annotations:
+          symptom: >-
+            Un artiste sur vingt attend plus de trois secondes a chaque clic, pendant au
+            moins un quart d'heure. C'est le symptome le plus directement observable de
+            tous : il N'EST QUE l'experience de l'utilisateur, sans intermediaire.
+          action: >-
+            Regarder d'abord `streamlytics_rerun_duration_seconds{phase}` : `chrome`
+            (barre laterale, navigation, authentification) et `view` se reparent a des
+            endroits differents, et le rapport mesure entre les deux est d'environ 8x.
+            Si `phase="view"` domine sur UNE page, c'est une requete — la page est dans
+            le label. Si `chrome` domine, c'est la barre laterale, et le levier de ce
+            soir est de demarrer la replique (voir l'en-tete de `deploy/Caddyfile`, deux
+            gestes). Redemarrer le dashboard ne rend la main que si la cause est une
+            fuite, ce que la courbe dit : une degradation en marche d'escalier, pas une
+            pente.
+          honesty: >-
+            ⚠️ C'est la regle la plus faible des quatre au regard d'ADR-011, et il faut
+            le dire : « actionnable ce soir » y signifie diagnostiquer et appliquer un
+            palliatif reversible, pas corriger. Le correctif est un chantier (R118/R120/
+            R121). Elle est envoyee quand meme parce que le symptome, lui, est deja chez
+            l'artiste — et qu'une lenteur non mesuree est precisement ce que le premier
+            parcours artiste n'a PAS su nommer : ~20 remarques, aucune sur la lenteur.
+          panel: Grafana → Application → p95 par phase
+
+      # ── POOL DE CONNEXIONS ────────────────────────────────────────────────
+      - alert: ConnectionPoolExhausted
+        expr: streamlytics_postgres_pool_connections{state="direct_fallback"} > 0
+        for: 5m
+        labels:
+          severity: high
+        annotations:
+          symptom: >-
+            Des pages rendent une erreur de connexion, de facon intermittente et sans
+            motif lisible pour l'artiste — deux clics identiques, l'un passe, l'autre
+            non.
+          action: >-
+            Ce compteur n'est pas un ratio : il compte les fois ou le pool etait VIDE et
+            ou le code a ouvert une connexion directe pour ne pas echouer. Une seule
+            suffit a signaler. Comparer
+            `streamlytics_postgres_pool_connections{state="borrowed"}` a la taille du
+            pool (`enable_pool(maxconn=10)`, `src/database/postgres_handler.py:92`) :
+            colle au plafond => monter `maxconn` ; loin du plafond => une connexion fuit,
+            et c'est une vue qui ne passe pas par `view_session()`.
+          panel: Grafana → Application → Pool

@@ -12,6 +12,20 @@ global:
   external_labels:
     product: streamlytics
 
+# Les regles d'alerte (R115 etape 5). Prometheus les EVALUE ; il n'envoie rien —
+# pas d'Alertmanager ici (ADR-026). Leur etat sort dans la serie `ALERTS`, que la tache
+# `check_ops_alerts` du DAG `alert_monitor` lit a 23 h pour le mail unique du soir.
+#
+# Le chemin est celui du CONTENEUR. `deploy/docker-compose.observability.yml` monte
+# `deploy/prometheus/rules` sur `/etc/prometheus/rules` — un montage A PART du fichier
+# de config, qu'il faut ajouter en meme temps que ce bloc. Un glob qui ne matche rien
+# ne fait PAS
+# echouer Prometheus au demarrage — il le note et continue. Le controle qui le voit est
+# `curl -s localhost:9090/api/v1/rules`, et `tests/test_the_alert_rules_are_loadable.py`
+# le rejoue hors ligne.
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
 scrape_configs:
   # Les DEUX repliques du dashboard, separement. Les agreger ferait disparaitre
   # l'information que R114 cherche : laquelle des deux sert, et a quel prix.
