@@ -62,4 +62,30 @@ ENV STREAMLIT_SERVER_HEADLESS=true
 # PORT is injected by Railway at runtime; default to 8501 locally
 EXPOSE 8501
 
+
+# ── HEALTHCHECK, et la distinction qui le rend utile (2026-09-16) ─────────────
+# `restart: unless-stopped` relance un processus MORT. Il ne relance jamais un
+# processus FIGÉ — et c'est précisément le mode de panne mesuré contre la production
+# le 2026-09-16 : à vingt-quatre onglets simultanés, **98 reruns se perdent** sans que
+# le processus meure. Un conteneur qui ne répond plus reste alors « Up » pour Docker,
+# et resterait dans le pool d'un répartiteur de charge.
+#
+# La sonde tape l'endpoint qui existe déjà et que `tools/deploy.sh:56-71` interroge
+# déjà après un déploiement. Ce qui change : elle est désormais interrogée EN CONTINU,
+# pas seulement à la minute du déploiement.
+#
+# `start-period` est large à dessein : l'import de Streamlit + pandas coûte plusieurs
+# secondes, et une sonde qui échoue au démarrage ferait boucler le redémarrage.
+#
+# ── Pourquoi Python et pas `curl` ──
+# `curl` est ABSENT des deux images — vérifié dans les conteneurs QUI TOURNENT :
+# `docker exec streamlytics_dashboard command -v curl` ne rend rien. Une sonde
+# `CMD curl …` aurait donc marqué le conteneur **malade à vie**, c'est-à-dire
+# exactement la classe `un-contrôle-qui-ne-peut-jamais-passer` — et elle aurait été
+# posée une minute après que le commentaire ci-dessus l'ait nommée.
+# Python est le runtime : sa présence n'est pas une hypothèse. `urllib` suffit, et
+# évite une couche apt de plus.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD python3 -c "import os,sys,urllib.request as u; p=os.environ.get('PORT','8501'); sys.exit(0 if u.urlopen(f'http://localhost:{p}/_stcore/health', timeout=3).status==200 else 1)"
+
 CMD sh -c "streamlit run src/dashboard/app.py --server.port ${PORT:-8501} --server.address 0.0.0.0"

@@ -60,6 +60,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
+| [a-limiter-consumed-in-two-steps](#a-limiter-consumed-in-two-steps) | P1 | deterministic | guarded | none |
+| [a-gate-that-counts-instead-of-comparing-sets](#a-gate-that-counts-instead-of-comparing-sets) | P2 | deterministic | guarded | none |
+| [a-repair-that-reverts-what-a-successor-widened](#a-repair-that-reverts-what-a-successor-widened) | P1 | manual | guarded | none |
 | [make-fail-late](#make-fail-late) | P3 | heuristic | reported | none |
 | [collector-silent-success](#collector-silent-success) | P2 | heuristic | guarded | none |
 | [artist-id-or-1](#artist-id-or-1) | P1 | deterministic | guarded | none |
@@ -5906,3 +5909,48 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: **P1 et non P3.** Une porte qui ne peut pas échouer ne coûte pas du temps, elle coûte la confiance : tout ce qu'elle a laissé passer depuis qu'elle existe est inconnu. C'est la même gravité que les 27 exécutions où la suite n'a pas tourné derrière un signal rouge sans rapport — sauf qu'ici il n'y avait même pas de rouge à voir. Mutation : `--frozen` retiré d'une seule étape → le garde la nomme, avec sa ligne ; remis → vert.
+
+## a-limiter-consumed-in-two-steps
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: un limiteur ATOMIQUE ne borne que les tentatives séquentielles. N requêtes simultanées obtiennent toutes l'autorisation, le budget affiché est respecté à la lecture et dépassé dans les faits. Aucun test ne le voit : chaque tentative, prise seule, est correcte.
+- root_cause: l'atomicité est construite dans le magasin et **contournée au site d'appel**. Mesuré le 2026-09-16 : `src/utils/request_throttle.py` sérialise `DELETE / count / INSERT` sous `pg_advisory_xact_lock`, mais `src/dashboard/auth.py` appelait `throttle_check()` (qui ne consomme PAS), vérifiait le code TOTP, puis `throttle_record()` seulement en cas d'échec. Entre la lecture et l'écriture tient tout le travail. Streamlit sert des sessions distinctes en parallèle : ouvrir N onglets suffisait. Le seau de 10 codes par 15 min ne bornait donc rien de simultané. Même forme sur `login` et `register`. Le découpage `check`/`record` existait pour une bonne raison — ne pas facturer deux fois — et c'est cette raison qui a rendu le défaut invisible.
+- long_term_fix: **une décision et sa consommation sont la MÊME opération, ou ce n'est pas une décision.** `throttle_consume()` appelle `hit()`, qui décide et consomme indivisiblement ; `throttle_check()` reste, réservé à l'AFFICHAGE, et son docstring dit désormais qu'il ne doit pas décider. Le corollaire général : quand on ajoute de l'atomicité à une couche basse, **balayer les appelants** — une primitive indivisible appelée en deux temps n'est pas indivisible.
+- autofix: none
+- signature: `python3 -c "import pathlib,sys; bad=[f'{p}:{i}' for p in pathlib.Path('src').rglob('*.py') if p.name!='throttle.py' for i,l in enumerate(p.read_text(encoding='utf-8').splitlines(),1) if 'throttle_record(' in l and not l.strip().startswith('#')]; print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
+- guard: { type: script, ref: la signature ci-dessus ; comportement couvert par tests/test_the_login_budget_holds_across_instances.py }
+- rex_ref: src/dashboard/utils/throttle.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: trouvée par `security-specialist` sur un changement dont le message de commit affirmait avoir supprimé le check-then-act. Il l'avait supprimé CÔTÉ BASE et laissé vivant côté appelant. La signature interdit tout appel à `throttle_record(` hors de son module, ce qui force le passage par `throttle_consume()`. Mutation vue dans les deux sens : `throttle_record("totp")` remis dans `auth.py` → rc=1 avec `src/dashboard/auth.py:426` ; retiré → rc=0.
+
+## a-gate-that-counts-instead-of-comparing-sets
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une porte compare deux NOMBRES là où la question porte sur deux ENSEMBLES. Elle est verte, les deux totaux sont justes, et l'élément qui manque d'un côté est compensé par un intrus de l'autre. Elle ne peut pas nommer ce qui manque, puisqu'elle ne le regarde pas.
+- root_cause: mesuré le 2026-09-16 sur la porte de migrations de `tools/deploy.sh` (écrite la veille). Elle lisait `SELECT count(*) FROM schema_migrations` et le comparait à `ls migrations/*.sql | wc -l`. Le dépôt portait 119 fichiers, la base 119 lignes : verte. Or `106_gold_remaining_grains.sql` n'était PAS enregistrée — elle échouait à chaque rejeu — et sa ligne au compte était occupée par `create_missing_tables.sql`, qui n'est pas une migration numérotée. Deux erreurs qui s'annulent donnent un total juste et un verdict faux.
+- long_term_fix: une porte d'inventaire compare des **ensembles** et NOMME la différence (`comm -23`). Un compte ne peut jamais dire ce qui manque, donc il ne peut jamais produire une action ; c'est le même critère que « un message d'erreur nomme la commande qui répare ». Le contrôle d'état correspondant vit dans un test adossé à la base, seul endroit d'où la question se pose vraiment.
+- autofix: none
+- signature: `! grep -q "count(\*) FROM schema_migrations" tools/deploy.sh`
+- guard: { type: pytest, ref: tests/test_migrations_are_replay_safe.py::test_every_migration_on_disk_is_recorded_in_the_ledger }
+- rex_ref: tools/deploy.sh
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: la porte avait un jour. Ce n'est pas un hasard — elle a été écrite en même temps que le HEALTHCHECK et le rollback, dans une passe de robustesse, et une porte écrite vite compte au lieu de comparer parce que compter tient en une ligne. Mutation vue dans les deux sens : `count(*)` remis → rc=1 ; `filename` → rc=0. Le garde adossé à la base a lui aussi été muté : un fichier `999_*.sql` posé sur le disque → rouge en le nommant ; retiré → vert.
+
+## a-repair-that-reverts-what-a-successor-widened
+- status: guarded
+- severity: P1
+- kind: manual
+- symptom: un correctif de rejouabilité fait DISPARAÎTRE une colonne, une contrainte ou un index qu'une migration ultérieure avait ajoutés. Le fichier corrigé passe enfin, le registre se complète, et le schéma recule — sans erreur, puisque tout a « réussi ».
+- root_cause: le correctif remplace `CREATE OR REPLACE` par `DROP` + `CREATE` pour contourner « cannot drop columns from view ». Mais l'erreur ne disait pas que le fichier était mal écrit : elle disait qu'**un successeur avait élargi l'objet**. Mesuré le 2026-09-16 : `106_gold_remaining_grains.sql` recrée `v_meta_creative_daily`, que `108_*` élargit de `ad_account_id` et `adset_name` ; 108 étant DÉJÀ au registre, elle ne repasse pas, donc le DROP+CREATE de 106 rendait la vue à sa forme étroite. Deux tests sont tombés dans la minute. C'est la classe `unguarded-drop-replayed-alone` reproduite en croyant la refermer.
+- long_term_fix: **un fichier qui a un successeur ne se réécrit pas, il se retire.** La forme correcte est celle de `024_*` : le fichier CONSTATE la marque du successeur (`IF EXISTS (SELECT 1 FROM information_schema.columns WHERE …) THEN RETURN;`) et ne fait rien. Pas de DROP, donc rien à détruire ; et sur une base neuve, où l'ordre est respecté, l'objet est bien créé. Avant de rendre une migration rejouable, la question est « qui a touché cet objet APRÈS moi ? », jamais « comment faire passer cette instruction ? ».
+- autofix: none
+- signature: none
+- guard: { type: pytest, ref: tests/test_migrations_are_replay_safe.py (test_no_unguarded_drop + test_every_migration_on_disk_is_recorded_in_the_ledger) }
+- rex_ref: migrations/106_gold_remaining_grains.sql
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: `kind: manual` **et sans signature**, à dessein. Le détecteur statique évident — une migration qui recrée une vue qu'une migration ultérieure recrée aussi, hors bloc `DO` — a été écrit et MESURÉ : il rend 5 sites (056, 097, 102, 103, 104) dont aucun n'est un défaut, parce qu'un `CREATE OR REPLACE` antérieur n'échoue QUE si le successeur change l'ensemble des colonnes, ce que le texte ne dit pas. Une signature bruyante apprend que le rouge est du bruit, et cette leçon se propage aux autres classes ; on livre donc la classe sans signature plutôt qu'avec celle-là. Le fait est vérifié empiriquement par le registre : les 5 sites y figurent, donc ils se rejouent sans erreur.

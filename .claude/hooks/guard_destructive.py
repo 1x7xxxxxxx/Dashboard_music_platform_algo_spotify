@@ -269,7 +269,6 @@ def check_command(cmd: str) -> tuple[str, str] | None:
     Returns (level, message) if the command matches a dangerous pattern.
     level is 'block' or 'warn'. Returns None if safe.
     """
-    cmd_lower = cmd.lower()
     # Le suicide de shell d'abord : il ne détruit pas de fichier, mais il fait
     # DISPARAÎTRE en silence tout ce qui suit, ce qui est plus dur à voir.
     suicidal = _pkill_would_kill_its_own_shell(cmd)
@@ -299,12 +298,81 @@ def check_command(cmd: str) -> tuple[str, str] | None:
         if re.search(pattern, cmd, re.IGNORECASE):
             return ("block", message)
     for pattern, message in _BLOCK_PATTERNS:
-        if pattern.lower() in cmd_lower:
+        if _is_the_command_of_a_segment(cmd, pattern):
             return ("block", message)
     for pattern, message in _WARN_PATTERNS:
-        if pattern.lower() in cmd_lower:
+        if _is_the_command_of_a_segment(cmd, pattern):
             return ("warn", message)
     return None
+
+
+
+# ── Le geste doit etre la COMMANDE de son segment, jamais un mot dans un argument ──
+#
+# Ce niveau comparait une SOUS-CHAINE sur la commande entiere :
+# `if pattern.lower() in cmd_lower`. Il bloquait donc tout ce qui MENTIONNE le geste —
+# un heredoc qui ecrit un script, un message de commit qui explique un correctif, une
+# chaine Python entre guillemets.
+#
+# Mesure le 2026-09-16 : trois commandes bloquees d'affilee dans la meme seance, toutes
+# en train d'ECRIRE ou de DOCUMENTER un retour arriere, aucune en train d'en faire un.
+# Le depot avait deja nomme la classe (`a-bash-hook-that-blocks-the-prose-about-the-gesture`)
+# et l'avait corrigee pour ses gardes A ETAT (`shlex.split` par segment, lignes 168 et
+# 244) — mais pas pour le niveau litteral, qui est celui qu'on lit en premier.
+#
+# La question posee ici est structurelle : dans un segment de shell, les PREMIERS mots
+# sont-ils exactement ceux du motif ? Le corps d'un heredoc appartient au segment du
+# `cat`, dont l'argv commence par `cat` — il ne peut donc plus declencher.
+_PREFIXES_A_SAUTER = {"sudo", "env", "nohup", "time", "command", "exec", "rtk", "proxy"}
+
+
+def _sans_heredocs(command: str) -> str:
+    """Retire le CORPS des heredocs — c'est de la donnee, jamais une commande.
+
+    Sans ca, decouper sur les retours a la ligne transforme chaque ligne du corps en
+    segment : `cat > x.sh <<EOF` suivi de `git reset --hard $before` faisait croire au
+    garde qu'on lancait un retour arriere, alors qu'on ECRIVAIT un script qui en
+    contient un. Mesure le 2026-09-16 : c'est le dernier des trois blocages de la
+    seance, et le plus tenace.
+    """
+    lignes = command.split("\n")
+    sortie, i = [], 0
+    while i < len(lignes):
+        ligne = lignes[i]
+        sortie.append(ligne)
+        m = re.search(r"<<-?\s*[\"\']?([A-Za-z_][A-Za-z0-9_]*)[\"\']?", ligne)
+        i += 1
+        if not m:
+            continue
+        delim = m.group(1)
+        while i < len(lignes) and lignes[i].strip() != delim:
+            i += 1                      # le corps est saute, pas analyse
+        if i < len(lignes):
+            i += 1                      # et le delimiteur de fin aussi
+    return "\n".join(sortie)
+
+
+def _is_the_command_of_a_segment(command: str, pattern: str) -> bool:
+    """Le motif est-il la commande d'un segment, et non un mot dans un argument ?"""
+    besoin = pattern.lower().split()
+    if not besoin:
+        return False
+    for segment in re.split(r"(?:&&|\|\||\||;|\n)", _sans_heredocs(command)):
+        segment = segment.strip()
+        if not segment or segment.startswith("#"):
+            continue
+        try:
+            argv = shlex.split(segment)
+        except ValueError:          # guillemets non fermes : on retombe sur le texte,
+            argv = segment.split()  # prudemment — mieux vaut un faux positif qu'un trou
+        # `sudo git …`, `VAR=1 git …` : on saute ce qui precede la vraie commande
+        i = 0
+        while i < len(argv) and (argv[i].lower() in _PREFIXES_A_SAUTER or "=" in argv[i]):
+            i += 1
+        tete = [a.lower() for a in argv[i:i + len(besoin)]]
+        if tete == besoin:
+            return True
+    return False
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -329,11 +397,16 @@ def main() -> None:
     level, message = result
 
     if level == "block":
+        # stderr, PAS stdout : le contrat PreToolUse remonte stderr. Ecrit sur stdout,
+        # ce bloc etait avale — l'outil rapportait « No stderr output » et l'appelant
+        # voyait une porte fermee SANS raison. Meme defaut, meme correctif que
+        # `pre_commit_scan.py` le 2026-09-16.
         print(
             f"🚫 BLOCKED — Destructive command detected:\n"
             f"   Command : {command[:120]}\n"
             f"   Reason  : {message}\n"
-            f"   Action  : Explain the intent and request explicit user confirmation before retrying."
+            f"   Action  : Explain the intent and request explicit user confirmation before retrying.",
+            file=sys.stderr,
         )
         sys.exit(2)
     else:

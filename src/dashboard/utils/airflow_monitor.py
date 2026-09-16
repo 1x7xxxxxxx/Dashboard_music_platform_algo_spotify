@@ -9,6 +9,22 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
+
+# ── Le délai d'attente de CHAQUE appel, et pourquoi il est vital ici ──────────
+# `render_progress(AirflowMonitor(), …)` est dans la barre latérale (`app.py:513`) :
+# ces requêtes partent à **chaque rerun**, dans le thread qui rend la page.
+#
+# Un appel sans borne n'y coûte pas « une requête lente », il coûte le PROCESSUS.
+# Mesuré contre la production le 2026-09-16 : un seul processus sérialise déjà les
+# rendus dès **quatre** onglets simultanés (p50 ×2,29), et à vingt-quatre, **98
+# reruns se perdent**. Dans ce régime, un rendu qui ne rend jamais la main ne
+# ralentit pas la file — il la gèle, et le webserver Airflow devient un point de
+# panne du DASHBOARD.
+#
+# Cinq des six appels de ce fichier n'en avaient pas ; seul `_runs_per_dag` (qui a
+# été profilé) portait `timeout=15`. Garde : tests/test_every_outbound_call_is_bounded.py
+_TIMEOUT_S = 15
+
 class AirflowMonitor:
     def __init__(self):
         config = config_loader.load()
@@ -33,6 +49,7 @@ class AirflowMonitor:
         # On utilise une session pour garder les cookies/auth
         self.session = requests.Session()
         self.session.auth = (self.username, self.password)
+
 
     def _runs_per_dag(self, dag_ids: list[str], limit: int) -> dict:
         """`{dag_id: [raw dag_run, ...]}` — one request per DAG, run concurrently.
@@ -81,7 +98,8 @@ class AirflowMonitor:
         de Python.
         """
         try:
-            dags_resp = self.session.get(f"{self.base_url}/dags", params={'limit': 100})
+            dags_resp = self.session.get(f"{self.base_url}/dags", params={'limit': 100},
+                                         timeout=_TIMEOUT_S)
             if dags_resp.status_code != 200:
                 print(f"⚠️ Erreur API Liste DAGs: {dags_resp.status_code}")
                 return pd.DataFrame()
@@ -124,7 +142,8 @@ class AirflowMonitor:
     def get_dag_list(self):
         """Retourne la liste de tous les DAGs (paused ou non)."""
         try:
-            resp = self.session.get(f"{self.base_url}/dags", params={'limit': 100})
+            resp = self.session.get(f"{self.base_url}/dags", params={'limit': 100},
+                                    timeout=_TIMEOUT_S)
             if resp.status_code != 200:
                 return []
             return sorted([d['dag_id'] for d in resp.json().get('dags', [])])
@@ -136,7 +155,8 @@ class AirflowMonitor:
         try:
             resp = self.session.get(
                 f"{self.base_url}/dags/{dag_id}/dagRuns",
-                params={'limit': limit, 'order_by': '-execution_date'}
+                params={'limit': limit, 'order_by': '-execution_date'},
+                timeout=_TIMEOUT_S,
             )
             if resp.status_code != 200:
                 return []
@@ -214,7 +234,8 @@ class AirflowMonitor:
         """Retourne les task instances d'un dag run."""
         try:
             resp = self.session.get(
-                f"{self.base_url}/dags/{dag_id}/dagRuns/{run_id}/taskInstances"
+                f"{self.base_url}/dags/{dag_id}/dagRuns/{run_id}/taskInstances",
+                timeout=_TIMEOUT_S,
             )
             if resp.status_code != 200:
                 return []
@@ -238,7 +259,8 @@ class AirflowMonitor:
         try:
             resp = self.session.get(
                 f"{self.base_url}/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/logs/{attempt}",
-                headers={'Accept': 'text/plain'}
+                headers={'Accept': 'text/plain'},
+                timeout=_TIMEOUT_S,
             )
             if resp.status_code == 200:
                 return resp.text

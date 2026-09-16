@@ -38,6 +38,36 @@ COMMENT ON VIEW v_meta_daily IS
 -- La jointure `meta_insights` × `meta_ads` était recopiée dans trois requêtes
 -- de `meta_creatives.py`. Une jointure recopiée est une règle recopiée : il
 -- suffit qu'une seule oublie `ma.artist_id` pour mélanger deux locataires.
+-- CE BLOC NE SE REJOUE PAS quand 108 est déjà passée — corrigé le 2026-09-16, et la
+-- première correction du jour était FAUSSE. Il faut lire les deux.
+--
+-- Le symptôme : `CREATE OR REPLACE VIEW` ne sait pas RETIRER une colonne, et 108
+-- ÉLARGIT cette vue (`ad_account_id`, `adset_name`). Rejouer ce fichier rendait donc
+-- `ERROR: cannot drop columns from view` à chaque exécution de `tools/migrate.sh`, le
+-- fichier n'entrait jamais au registre `schema_migrations`, et la porte de déploiement
+-- — qui comparait des CARDINALITÉS — restait verte par coïncidence.
+--
+-- La première correction remplaçait `CREATE OR REPLACE` par `DROP` + `CREATE`. Elle
+-- faisait passer la migration, et elle RÉTRÉCISSAIT la vue : 108 étant déjà
+-- enregistrée, elle ne repasse pas, donc `ad_account_id` et `adset_name` disparaissaient
+-- de la base. Mesuré immédiatement — `test_the_gold_views_still_carry_the_column` et le
+-- rendu de `meta_creatives` sont tombés. C'est très exactement la classe
+-- `unguarded-drop-replayed-alone` que `tests/test_migrations_are_replay_safe.py` existe
+-- pour tenir, reproduite en croyant la refermer.
+--
+-- La forme correcte est celle de 024 : le fichier CONSTATE que sa suite est déjà passée
+-- et se retire. Pas de DROP, donc rien à détruire ; et sur une base neuve, où 106
+-- s'exécute avant 108, la vue est bien créée.
+DO $do$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'v_meta_creative_daily'
+                  AND column_name = 'ad_account_id') THEN
+        RAISE NOTICE 'v_meta_creative_daily porte deja la forme de 108 — bloc ignore';
+        RETURN;
+    END IF;
+
+    EXECUTE $v$
 CREATE OR REPLACE VIEW v_meta_creative_daily AS
     SELECT mi.artist_id,
            ma.ad_name                        AS creative_name,
@@ -59,6 +89,9 @@ CREATE OR REPLACE VIEW v_meta_creative_daily AS
                                  AND mc.artist_id = ma.artist_id
      WHERE mi.artist_id IS NOT NULL
      GROUP BY mi.artist_id, ma.ad_name, mc.campaign_name, mi.date::date;
+$v$;
+END
+$do$;
 
 COMMENT ON VIEW v_meta_creative_daily IS
     'Couche OR (ADR-019) : la performance Meta au grain (locataire, créative, '

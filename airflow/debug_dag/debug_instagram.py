@@ -133,7 +133,7 @@ def step_3_test_api():
     logger.info(f"📡 Appel vers : {url}")
 
     try:
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params, timeout=15)
 
         logger.info(f"   Code HTTP : {response.status_code}")
 
@@ -205,7 +205,7 @@ def step_5_test_media():
     }
     logger.info(f"📡 Appel vers : {url}")
     try:
-        r = requests.get(url, params=params)
+        r = requests.get(url, params=params, timeout=15)
         logger.info(f"   Code HTTP : {r.status_code}")
         if r.status_code == 200:
             items = r.json().get('data', [])
@@ -235,7 +235,7 @@ def step_6_test_media_insights(media_ids):
               'access_token': token}
     logger.info(f"📡 Appel vers : {url}")
     try:
-        r = requests.get(url, params=params)
+        r = requests.get(url, params=params, timeout=15)
         logger.info(f"   Code HTTP : {r.status_code}")
         if r.status_code == 200:
             for it in r.json().get('data', []):

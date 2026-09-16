@@ -25,6 +25,10 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R113 | L'invalidation de cache traverse les instances (époque par locataire) | P2 | une collecte sur :8501 change le chiffre lu sur :8511 |
+| R114 | Seconde réplique du dashboard + Caddy en affinité, et la même rampe rejouée | P3 | `make loadtest-concurrency LEVELS=1,2,4,8,12,16,24 REPS=6`, deux courbes |
+| R115 | Prometheus + Grafana, quatre métriques pour commencer | P3 | `curl -s localhost:9090/api/v1/query?query=…` rend une latence |
+| R116 | ADR-026 — répliques et Redis, tranché APRÈS les courbes | P4 | `ls docs/adr/ADR-026-*.md` |
 
 **R109 et R110 ont été livrées et déployées le 2026-09-16** — voir `archive.md`.
 Résultat mesuré : le mur du run `ci.yml` est passé d'une médiane de **427 s à 109 s**
@@ -133,14 +137,111 @@ l'effacer serait la faute.
 
 ---
 
+## 🏗 R113–R116 — Monter l'architecture scalable, pour mesurer si elle est nécessaire
+
+Le contexte, en une phrase : la concurrence a enfin été MESURÉE le 2026-09-16 contre la
+production, et elle dément le plafond que ce dépôt citait depuis trois mois.
+
+| onglets | p50 | reruns perdus | p50 / p50(1) |
+|---|---|---|---|
+| 1 | 329 ms | 0 | ×1,00 |
+| 4 | 754 ms | 0 | ×2,29 |
+| 8 | 1 088 ms | **9** | ×3,31 |
+| 24 | 3 488 ms | **98** | ×10,60 |
+
+Débit plafonné à ~7 rendus/s contre 11,1 « soutenables » dérivés. La dérivation était
+optimiste de 1,2× à 1,6× **et aveugle à l'échec** : elle ne connaît que la latence,
+jamais les 98 reruns perdus. **Le point unique est un processus Python — Redis n'est pas
+le levier, la seconde instance l'est.** C'est l'inverse de l'ordre qu'on suppose.
+
+Ces quatre tâches construisent la forme scalable **même si le seuil n'est pas atteint**
+(R87 est close sur un pic de 12 sessions/minute contre un seuil de 20). C'est une
+décision assumée : découvrir par la mesure que ce n'était pas nécessaire vaut mieux que
+le supposer.
+
+- [ ] **R113 — l'invalidation de cache traverse les instances.**
+
+  Onze `@st.cache_data(ttl=600)` dont la purge (`kpi_helpers.py`) ne touche que le
+  processus appelant. À deux instances : un artiste déclenche une collecte sur A, voit
+  ses nouveaux chiffres, recharge, tombe sur B, et revoit les anciens **pendant dix
+  minutes**. C'est un ticket de support avant d'être un incident.
+
+  **Remède sans service supplémentaire** : un compteur d'ÉPOQUE par locataire en base,
+  incrémenté par les cinq sites qui appellent déjà `clear_kpi_caches()`, et **inclus
+  dans la clé de cache**. Une écriture bumpe l'époque, toutes les instances manquent
+  leur cache au rendu suivant.
+
+  **Mesuré par** : une collecte déclenchée sur `:8501`, puis une lecture sur `:8511`
+  qui rend le NOUVEAU chiffre. Prérequis de R114 — sans lui, la seconde réplique sert
+  des chiffres périmés.
+
+- [ ] **R114 — seconde réplique + Caddy en affinité, et la même rampe rejouée.**
+
+  Second conteneur `dashboard` sur `127.0.0.1:8511`, même image, même bind `./data`.
+  `deploy/Caddyfile` ET `/etc/caddy/Caddyfile` :
+  `reverse_proxy 127.0.0.1:8501 127.0.0.1:8511 { lb_policy cookie … }` (Caddy v2.11.4),
+  `caddy validate` puis `systemctl reload`, jamais `restart`.
+
+  **L'affinité est obligatoire** : `st.session_state` vit dans le processus, pas dans
+  un cookie. ⚠️ Et elle ne borne RIEN côté sécurité — un forceur scripté n'a pas de
+  bocal à cookies, `lb_policy cookie` le répartit en tourniquet. C'est pourquoi
+  l'étape 1 (seaux partagés) devait précéder, et elle l'a fait.
+
+  **Mesuré par** : `make loadtest-concurrency URL=… LEVELS=1,2,4,8,12,16,24 REPS=6`,
+  une courbe à une instance, une à deux. Les trois résultats possibles sont tous utiles :
+  p50 à 8 onglets ÷ ~2 (le levier est prouvé) ; p50 inchangé (**le goulot n'est pas le
+  GIL — on aurait acheté Redis pour rien**, et c'est la découverte visée) ; gain < 2×
+  (on a le rendement réel d'une instance).
+
+  Réversible : `docker rm -f` + le Caddyfile d'avant + `reload`. Coût mesuré : 118 MiB
+  sur 4,49 Gi libres.
+
+- [ ] **R115 — Prometheus + Grafana, quatre métriques pour commencer.**
+
+  Mesuré le 2026-09-16 : `prometheus`, `grafana`, `loki`, `opentelemetry`, `sentry`,
+  `structlog` → **0 occurrence** dans le code suivi, aucune route `/metrics`, aucun log
+  structuré. **Il n'existe aucun chiffre de latence dans ce dépôt** hors de ceux qu'on
+  produit à la main.
+
+  `prometheus_client` dans les deux processus applicatifs — `/metrics` ordinaire côté
+  FastAPI, `start_http_server()` sur un port latéral côté Streamlit **gardé par un
+  drapeau de module** (Streamlit ré-exécute le script à chaque rerun). Caddy expose
+  déjà `/metrics` nativement : c'est ce qui rend R114 lisible **en continu** au lieu
+  d'une photo. Quatre métriques, pas quarante : latence de rendu (histogramme), reruns
+  en cours, connexions Postgres empruntées, erreurs par page.
+
+  **Ce que ça ne donne PAS**, et qu'il faut dire : ni traces distribuées, ni corrélation
+  inter-services, ni logs structurés. Couches suivantes, déclencheurs propres.
+
+- [ ] **R116 — ADR-026, écrit APRÈS les courbes.**
+
+  La décision sur les répliques et sur Redis, avec les DEUX courbes mesurées, les
+  alternatives refusées et le déclencheur de relecture. Un ADR écrit avant la mesure
+  serait une rationalisation — c'est pourquoi il est une tâche à part et qu'il vient en
+  dernier.
+
+**Ce qui reste écarté, avec sa raison** : Redis (R113 supprime son besoin pour les
+caches, l'étape 1 l'a fait pour les limiteurs — s'il reste un besoin après R114, il sera
+NOMMÉ, pas supposé) ; Celery/RQ (Airflow tient l'asynchrone, 13 DAGs) ; Loki et les
+traces (après Prometheus, et seulement si un incident les réclame) ; Terraform (0 fichier
+IaC, vrai manque — déclencheur : une SECONDE machine, ou une reconstruction subie) ;
+S3/MinIO (les deux répliques partagent le même bind-mount sur le même hôte — déclencheur :
+une seconde MACHINE) ; MLflow (déclencheur : la première décision de réentraîner) ;
+dbt, Kafka, OpenSearch, pgvector, K8s, sharding (déclencheurs calculables d'ADR-014 et
+ADR-023, relus le 2026-09-11, aucun tiré).
+
+---
+
 ## 🔖 REPRISE — état au 2026-09-16, aucune tâche ouverte (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R113,R114,R115,R116 -->
 
-**L'index `## 📋 Tâches ouvertes` est vide.** R109 (découper la CI en 4 shards) et R110
-(répartir le long pôle par `--dist loadgroup`) — les deux tâches qui l'avaient rouvert
-du 2026-09-15 au 2026-09-16 — sont livrées et déployées ; leur détail est dans
-`archive.md`.
+**Quatre tâches sont ouvertes — R113 à R116** : ce sont les étapes 2 à 5 du chantier
+d'architecture scalable ouvert le 2026-09-16. L'étape 0 (robustesse) et l'étape 1 (les
+seaux d'authentification en base) sont livrées et commitées ; leur détail est plus bas.
+
+R109 (découper la CI en 4 shards) et R110 (répartir le long pôle par `--dist loadgroup`)
+sont livrées et déployées ; leur détail est dans `archive.md`.
 
 **La table « 🙋 En attente de toi » reste vide** depuis le 2026-09-10, R1 y ayant été
 rotée vers `archive.md`. Aucune tâche n'attend un geste humain.

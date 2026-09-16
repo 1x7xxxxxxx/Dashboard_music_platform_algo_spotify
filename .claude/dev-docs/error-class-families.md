@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**342 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**345 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -16,10 +16,10 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 15 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 21 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 21 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
-| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 25 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
+| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 26 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 20 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 60 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 35 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 61 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 36 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 7 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
@@ -211,7 +211,7 @@ Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-a
 
 **Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ?**
 
-Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 25 classe(s).
+Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 26 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -240,6 +240,7 @@ Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|diver
 | [`a-stack-that-mixes-two-baselines`](error-classes.md#a-stack-that-mixes-two-baselines) | une série disparaît d'un graphique empilé alors qu'elle y est bien tracée. Elle n'est ni absente ni à zéro — elle est ÉCRASÉE, parce qu'une série vois |
 | [`one-fact-two-answers-by-display-mode`](error-classes.md#one-fact-two-answers-by-display-mode) | la même phrase de l'interface affiche deux valeurs différentes selon un réglage d'affichage que l'utilisateur vient de changer. Aucune des deux n'est  |
 | [`a-span-read-from-a-table-that-carries-a-mandatory-filter`](error-classes.md#a-span-read-from-a-table-that-carries-a-mandatory-filter) | un sélecteur de période propose une fenêtre plus large que ce que la figure d'à côté peut tracer. L'utilisateur choisit dans un intervalle qui existe, |
+| [`a-limiter-consumed-in-two-steps`](error-classes.md#a-limiter-consumed-in-two-steps) | un limiteur ATOMIQUE ne borne que les tentatives séquentielles. N requêtes simultanées obtiennent toutes l'autorisation, le budget affiché est respect |
 
 ## une-erreur-avalée-devient-une-absence
 
@@ -274,7 +275,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 60 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 61 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -338,12 +339,13 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 | [`a-blocking-hook-that-writes-its-reason-to-stdout`](error-classes.md#a-blocking-hook-that-writes-its-reason-to-stdout) | un hook PreToolUse bloque une commande et l'appelant ne voit AUCUN motif : l'outil rapporte « No stderr output ». La porte est fermée, la raison est i |
 | [`a-file-whose-tests-share-a-namespace`](error-classes.md#a-file-whose-tests-share-a-namespace) | sous une distribution test-par-test (`--dist loadgroup`, ou des shards), deux tests d'un MÊME fichier tournent en parallèle et se disputent un nom qu' |
 | [`a-gate-that-repairs-what-it-judges`](error-classes.md#a-gate-that-repairs-what-it-judges) | une porte BLOQUANTE de la CI passe au vert sur un arbre qui porte exactement le défaut qu'elle cherche. Elle n'a jamais pu échouer, et rien dans son t |
+| [`a-gate-that-counts-instead-of-comparing-sets`](error-classes.md#a-gate-that-counts-instead-of-comparing-sets) | une porte compare deux NOMBRES là où la question porte sur deux ENSEMBLES. Elle est verte, les deux totaux sont justes, et l'élément qui manque d'un c |
 
 ## un-document-qui-affirme-un-état-périmé
 
 **Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?**
 
-Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list` sur l'identifiant et le symptôme. 35 classe(s).
+Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list` sur l'identifiant et le symptôme. 36 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -382,6 +384,7 @@ Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|cap
 | [`a-dependency-that-does-not-come-back`](error-classes.md#a-dependency-that-does-not-come-back) | après un redémarrage de l'hôte (WSL, Docker Desktop, la machine), les services qui DÉPENDENT d'un autre remontent et celui dont ils dépendent reste à  |
 | [`a-percent-sign-in-a-parameterised-query`](error-classes.md#a-percent-sign-in-a-parameterised-query) | une requête paramétrée échoue en bloc sur `IndexError: tuple index out of range`, alors que le nombre d'emplacements `%s` et le nombre de valeurs pass |
 | [`a-prose-claim-that-cannot-be-verified`](error-classes.md#a-prose-claim-that-cannot-be-verified) | un document dont les TABLEAUX sont justes affirme le contraire dans la prose posée à côté, et rien ne le voit. Mesuré le 2026-09-15 sur `.claude/dev-d |
+| [`a-repair-that-reverts-what-a-successor-widened`](error-classes.md#a-repair-that-reverts-what-a-successor-widened) | un correctif de rejouabilité fait DISPARAÎTRE une colonne, une contrainte ou un index qu'une migration ultérieure avait ajoutés. Le fichier corrigé pa |
 
 ## un-contrôle-qui-ne-peut-jamais-passer
 
@@ -533,6 +536,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=342 families=17 orphans=3 -->
+<!-- error-class-families: total=345 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=9c1e0ebfe3e1672238f5e24fc6fbad058d65f0714ad7fac42f2ea81ec8c3f475 -->
+<!-- error-class-families: sha256=c570b5ab4cc4357f77ad10fb342314745f7e11370bf45cdbf7669e3e8b2adb93 -->

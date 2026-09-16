@@ -140,9 +140,14 @@ def test_the_totp_budget_survives_a_brand_new_session():
     import streamlit as st
 
     from src.dashboard.utils import throttle
+    from src.utils.request_throttle import InMemoryHitStore
 
+    # Doublure en mémoire : la fenêtre glissante qu'on exerce ici est la même quel
+    # que soit le magasin, et écrire dans `rate_limit_hits` prêterait à la suite
+    # entière le budget que ce test consomme.
+    original = {name: lim.store for name, lim in throttle._LIMITERS.items()}
     for lim in throttle._LIMITERS.values():
-        lim._hits.clear()
+        lim.store = InMemoryHitStore()
     try:
         for _ in range(throttle.TOTP_MAX):
             st.session_state.clear() if hasattr(st, "session_state") else None
@@ -154,8 +159,8 @@ def test_the_totp_budget_survives_a_brand_new_session():
             "between each one — the budget is still per-tab, which is no budget"
         )
     finally:
-        for lim in throttle._LIMITERS.values():
-            lim._hits.clear()
+        for name, lim in throttle._LIMITERS.items():
+            lim.store = original[name]
 
 
 def test_the_budget_is_a_sliding_window_not_a_permanent_ban():

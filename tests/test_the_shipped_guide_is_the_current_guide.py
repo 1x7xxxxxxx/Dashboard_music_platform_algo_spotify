@@ -243,3 +243,42 @@ def test_the_caddy_route_precedes_the_streamlit_proxy():
         "the /guide handler is declared AFTER the dashboard proxy — Caddy matches the "
         "proxy first and the guide URL renders the Streamlit app instead."
     )
+
+
+# ── Chaque langue offerte a son PDF DANS L'IMAGE (2026-09-16) ────────────────
+#
+# `credentials_guide_pdf()` (`utils/guide_assets.py:54-62`) prefere le PDF deja rendu
+# sous `docs/guides/`, et ne le CONSTRUIT que s'il est absent. Or en production ce
+# repertoire est monte **en lecture seule** — verifie dans le conteneur qui tourne :
+# `touch /app/docs/guides/_probe` rend `Read-only file system`.
+#
+# Aujourd'hui les deux PDF sont dans l'image et le repli n'est jamais pris : ce n'est
+# donc PAS un defaut vivant, contrairement a ce qu'un audit a rapporte, et je l'ai
+# verifie plutot que de le supposer.
+#
+# Le risque est LATENT et il a une forme precise : le jour ou une troisieme langue
+# arrive, `output_pdf_path("es")` pointera sur un fichier absent, la construction
+# echouera sur le montage en lecture seule, l'`except` avalera l'`OSError`, et le
+# bouton du guide disparaitra — pour cette langue seulement, sans que personne ne
+# l'apprenne autrement que par un artiste.
+#
+# Ce test lie les deux endroits qui doivent s'accorder et que rien ne comparait :
+# la liste des langues offertes, et les fichiers qui partent dans l'image.
+
+def test_every_offered_language_has_its_guide_in_the_image():
+    from src.dashboard.guides.guide_pdf import output_pdf_path
+    from src.dashboard.utils.i18n import _LANGS
+
+    manquants = [lang for lang in _LANGS if not output_pdf_path(lang).exists()]
+    assert not manquants, (
+        f"ces langues sont offertes dans l'interface mais n'ont pas de guide rendu : "
+        f"{manquants}.\n"
+        "En production `docs/` est monte en LECTURE SEULE : le repli qui construit le "
+        "PDF a la volee echouera, l'exception sera avalee, et le bouton disparaitra "
+        "silencieusement pour ces langues.\n"
+        "Remede : `make guide` (qui rend les PDF et leur empreinte), puis rebuild."
+    )
+    assert len(_LANGS) >= 2, (
+        f"seulement {len(_LANGS)} langue(s) lue(s) — si l'extraction est cassee, le "
+        "test ci-dessus ne garde rien."
+    )

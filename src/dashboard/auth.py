@@ -388,10 +388,14 @@ def _show_totp_challenge(db) -> None:
         # browser tab resets; and since the attacker knows the password, reforging a
         # `_totp_pending` in a fresh tab costs one request. That made a 6-digit code
         # with valid_window=1 reachable, not merely theoretically weak.
-        from src.dashboard.utils.throttle import (
-            throttle_check, throttle_record, throttle_reset,
-        )
-        retry_after = throttle_check("totp")
+        from src.dashboard.utils.throttle import throttle_consume, throttle_reset
+
+        # CONSOMMER, puis vérifier — jamais l'inverse. `throttle_check()` ne consomme
+        # pas, et la vérification du code tenait entre la lecture et l'enregistrement :
+        # N onglets soumettant ensemble lisaient tous « il reste du budget » et
+        # obtenaient tous une vérification. Le budget de 10 par 15 min ne bornait alors
+        # que les tentatives SÉQUENTIELLES.
+        retry_after = throttle_consume("totp")
         if retry_after is not None:
             st.error(_t("auth.rate_limited",
                         "Trop de tentatives échouées. Réessayez dans {s} secondes."
@@ -405,6 +409,9 @@ def _show_totp_challenge(db) -> None:
                 st.session_state.pop('_totp_pending', None)
                 _rate_reset()
                 throttle_reset("totp")
+                # Les deux facteurs sont passés : c'est ICI que le budget de connexion
+                # par IP est rendu, pas après le seul mot de passe.
+                throttle_reset("login")
                 st.session_state.clear()
                 _hydrate_session(user)
                 # Both factors are now in: this is where the account-level lockout
@@ -416,7 +423,7 @@ def _show_totp_challenge(db) -> None:
                 )
                 st.rerun()
             else:
-                throttle_record("totp")
+                # Le budget a déjà été consommé plus haut, avant la vérification.
                 _rate_record_failure()
                 # A wrong code is a failed login for the ACCOUNT too, so it walks
                 # toward the same 5-attempt lockout a wrong password does. Without
@@ -607,8 +614,10 @@ def require_login() -> bool:
             # sitting IN FRONT of the per-account lockout. Password spraying — one
             # password across many accounts — never trips a per-account counter.
             from src.dashboard.utils.throttle import (
-                throttle_check as _tc, throttle_record as _tr, throttle_reset as _trs,
+                throttle_consume as _tc, throttle_reset as _trs,
             )
+            # Consommer AVANT d'authentifier : voir `throttle_consume()`. Lire puis
+            # enregistrer laissait N soumissions simultanées franchir le même budget.
             _wait = _tc("login")
             if _wait is not None:
                 st.error(_t("auth.rate_limited",
@@ -619,12 +628,19 @@ def require_login() -> bool:
             user, error = _authenticate_user(username, password, db)
             if user:
                 _rate_reset()
-                _trs("login")
                 if user.get('totp_enabled'):
-                    # Brick 28: password OK but TOTP required — defer full hydration
+                    # Brick 28: password OK but TOTP required — defer full hydration.
+                    #
+                    # Le budget par IP n'est PAS rendu ici, et ce détail compte : il
+                    # l'était jusqu'au 2026-09-16, sur le seul mot de passe. Qui détient
+                    # UN mot de passe valide pouvait donc remettre le compteur à zéro à
+                    # chaque soumission, ce qui retirait précisément le garde-fou contre
+                    # la pulvérisation de mots de passe que ce seau existe pour tenir.
+                    # Le budget se rend quand l'authentification est COMPLÈTE.
                     st.session_state['_totp_pending'] = user
                     st.rerun()
                     return False
+                _trs("login")
                 # MEDIUM-01: clear pre-auth session state before hydrating
                 st.session_state.clear()
                 _hydrate_session(user)
@@ -635,7 +651,7 @@ def require_login() -> bool:
                 st.rerun()
                 return True
             _rate_record_failure()
-            _tr("login")
+            # Le budget a déjà été consommé avant `_authenticate_user` — voir plus haut.
             if error and error == "__unverified__":
                 # HIGH-02: do not disclose the email address
                 st.warning(_t(
