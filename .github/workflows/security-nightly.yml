@@ -82,6 +82,34 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # ── De combien de majeures les actions sont-elles en retard ? (2026-09-16) ──
+  #
+  # `.github/dependabot.yml` ignore les MAJEURES pour `github-actions`, et la raison
+  # est bonne : une majeure change le runner sous la CI. Le prix n'avait jamais été
+  # mesuré — `astral-sh/setup-uv` est resté en **v4 pendant six majeures**, et la v4
+  # parle à l'API de cache que GitHub a retirée : `Failed to restore: 400` sur chaque
+  # exécution, **20 s perdues par job**, un taux de succès de cache de 0 %.
+  #
+  # Rien ne pouvait le signaler : une action qui ne publie QUE des majeures ne produit
+  # aucune PR Dependabot, et le silence est indiscernable d'« à jour ». Ce job rend ce
+  # silence lisible. Il RAPPORTE, il ne bloque pas — la montée reste un geste humain,
+  # ce que la clause veut précisément protéger.
+  action-drift:
+    runs-on: ubuntu-latest
+    continue-on-error: true   # observational — never fail the workflow
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Combien de majeures de retard (report to summary)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "## Retard des actions GitHub (non bloquant)"
+            echo
+            python3 tools/dev/check_action_drift.py
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
   gitleaks:
     runs-on: ubuntu-latest
     continue-on-error: true   # historical leaks triaged pre-prod, not here
@@ -139,7 +167,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v10
         with:
           enable-cache: true
 

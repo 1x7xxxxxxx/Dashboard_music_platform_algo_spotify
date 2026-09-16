@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**338 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**339 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -26,7 +26,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 3 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 20 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 20 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
-| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 21 | Ce que le dépôt déclare est-il ce que la production exécute ? |
+| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 22 | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | _sans famille_ | 3 | — |
 
 ## le-locataire
@@ -491,7 +491,7 @@ Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhoo
 
 **Ce que le dépôt déclare est-il ce que la production exécute ?**
 
-Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version` sur l'identifiant et le symptôme. 21 classe(s).
+Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version` sur l'identifiant et le symptôme. 22 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -516,6 +516,7 @@ Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compos
 | [`a-visual-constant-copied-into-a-second-renderer`](error-classes.md#a-visual-constant-copied-into-a-second-renderer) | la même plateforme porte **deux couleurs** dans le même produit — Spotify en vert à l'écran, en bleu dans le PDF du même artiste, le même jour. |
 | [`a-deduction-subtracted-from-the-wrong-base`](error-classes.md#a-deduction-subtracted-from-the-wrong-base) | une surface affiche un montant NET manifestement faux, sans erreur ni trace. Mesuré le 2026-09-14 : la page Royalties SACEM annonçait « ✅ Net estimé * |
 | [`a-blocking-hook-that-writes-its-reason-to-stdout`](error-classes.md#a-blocking-hook-that-writes-its-reason-to-stdout) | un hook PreToolUse bloque une commande et l'appelant ne voit AUCUN motif : l'outil rapporte « No stderr output ». La porte est fermée, la raison est i |
+| [`a-prudence-rule-with-no-expiry-becomes-a-freeze`](error-classes.md#a-prudence-rule-with-no-expiry-becomes-a-freeze) | une dépendance reste gelée des ANNÉES sur une version que personne n'a choisie, et rien ne le signale. Le symptôme visible est ailleurs et ne ressembl |
 
 ## Sans famille
 
@@ -529,6 +530,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=338 families=17 orphans=3 -->
+<!-- error-class-families: total=339 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=05b30588c6cf4f112297d13d7857cfc6d53fe5292c977137c51710b0c7658080 -->
+<!-- error-class-families: sha256=a76ce2c6b60951d4be4a7d3cad9a1462ce0f610b9458d1824e42ff462dfe7034 -->

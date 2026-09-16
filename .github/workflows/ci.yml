@@ -64,8 +64,24 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # ── v4 → v10 le 2026-09-16, et le retard était INVISIBLE ──
+      # `Install uv` coûtait **20 s** par job, soit le plus gros poste fixe des cinq
+      # jobs une fois la suite shardée. Cause mesurée dans le log : le cache du
+      # greffon avait un taux de succès de **0 %** — `Failed to restore: Cache service
+      # responded with 400`. La v4 parle à l'API de cache que GitHub a retirée.
+      #
+      # Pourquoi personne ne l'a vu : `.github/dependabot.yml` ignore les MAJEURES
+      # pour `github-actions`, et la raison est bonne (une majeure change le runner
+      # sous la CI, et la CI est la seule chose qui parle avant un déploiement). Mais
+      # `setup-uv` n'a publié que des majeures : la clause a donc gelé l'action à v4
+      # pendant six majeures, sans qu'aucun signal n'existe. Une règle de prudence
+      # sans ÉCHÉANCE ni VISIBILITÉ devient un gel silencieux.
+      #
+      # Le contrôle qui manquait tourne désormais la nuit, dans
+      # `security-nightly.yml` : il dit, pour chaque action épinglée, de combien de
+      # majeures elle est en retard. Non bloquant — c'est un signal, pas une porte.
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v10
         with:
           enable-cache: true
 
@@ -166,7 +182,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v10
         with:
           enable-cache: true
 
