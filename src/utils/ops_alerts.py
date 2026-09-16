@@ -133,7 +133,32 @@ def fired_since(window: str = "24h") -> list[dict]:
     live = _still_firing()
     out: list[dict] = []
     for name, labels in sorted(fired.items()):
-        ann = annotations.get(name, {})
+        ann = annotations.get(name)
+        # DEUX absences distinctes, et les confondre accuse a tort. Une regle PRESENTE
+        # sans `action` est un defaut de REDACTION, a corriger dans le fichier. Une
+        # regle ABSENTE de Prometheus a simplement ete retiree ou renommee depuis
+        # qu'elle a sonne — la serie `ALERTS` la garde pourtant 24 h de plus.
+        #
+        # Le cas est reel, pas theorique : la verification de bout en bout du
+        # 2026-09-16 a pose une regle `SelfTestAlwaysFiring`, l'a vue sonner, puis l'a
+        # retiree — et elle est restee dans la fenetre jusqu'au lendemain. La premiere
+        # redaction l'aurait accusee d'etre « hors contrat ADR-011 », c'est-a-dire
+        # envoye corriger un fichier ou il n'y a rien a corriger.
+        if ann is None:
+            out.append({
+                "alertname": name,
+                "severity": labels.get("severity", "?"),
+                "still_firing": name in live,
+                "symptom": "A sonne dans les dernieres 24 h, puis sa regle a disparu de "
+                           f"Prometheus. `{name}` a ete retiree, renommee, ou le fichier "
+                           "de regles a ete recharge entre-temps.",
+                "action": "Rien a corriger dans les regles actuelles. Si ce nom ne dit "
+                          "rien, regarder l'historique de `deploy/prometheus/rules/` : "
+                          "la ligne disparaitra d'elle-meme en sortant de la fenetre de "
+                          "24 h.",
+                "panel": "—",
+            })
+            continue
         missing = [k for k in _REQUIRED_ANNOTATIONS if not ann.get(k)]
         if missing:
             # On ne tait pas la regle : on dit qu'elle est hors contrat. La taire

@@ -141,3 +141,56 @@ def test_the_mail_carries_the_annotations_to_the_reader() -> None:
         "le lecteur interroge l'état INSTANTANÉ : une alerte partie à 14 h et résolue à "
         "15 h serait invisible à 23 h, c'est-à-dire précisément celles pour lesquelles "
         "on a posé des règles à fenêtre.")
+
+
+def _fired(monkeypatch, annotations: dict, fired: dict, live: set):
+    from src.utils import ops_alerts
+
+    monkeypatch.setattr(ops_alerts, "_rule_annotations", lambda: annotations)
+    monkeypatch.setattr(ops_alerts, "_fired_names", lambda window="24h": fired)
+    monkeypatch.setattr(ops_alerts, "_still_firing", lambda: live)
+    return {r["alertname"]: r for r in ops_alerts.fired_since()}
+
+
+def test_a_rule_that_vanished_is_not_accused_of_bad_writing(monkeypatch) -> None:
+    """Deux absences distinctes : une annotation manquante, et une règle disparue.
+
+    Les confondre envoie corriger un fichier où il n'y a rien à corriger. Le cas est
+    réel : la vérification de bout en bout du 2026-09-16 a posé une règle temporaire,
+    l'a vue sonner, puis l'a retirée — la série `ALERTS` l'a gardée 24 h de plus.
+    """
+    out = _fired(monkeypatch,
+                 annotations={"Kept": {"symptom": "s", "action": "a", "panel": "p"}},
+                 fired={"Kept": {"severity": "high"}, "Gone": {"severity": "info"}},
+                 live={"Kept"})
+
+    assert set(out) == {"Kept", "Gone"}, "une alerte a été perdue en route"
+    assert "ADR-011" not in out["Gone"]["action"], (
+        "une règle DISPARUE est accusée d'être hors contrat ADR-011 — le lecteur "
+        "confond « annotation absente » et « règle absente »")
+    assert "disparu" in out["Gone"]["symptom"]
+    assert out["Gone"]["still_firing"] is False
+    assert out["Kept"]["still_firing"] is True
+
+
+def test_a_rule_present_but_unannotated_IS_accused(monkeypatch) -> None:
+    """Non-vacuité du test précédent : le cas « hors contrat » doit rester détecté."""
+    out = _fired(monkeypatch,
+                 annotations={"Sloppy": {"symptom": "s"}},   # pas d'`action`
+                 fired={"Sloppy": {"severity": "high"}},
+                 live=set())
+    assert "ADR-011" in out["Sloppy"]["action"], (
+        "une règle présente SANS `action` passe sans reproche — le garde du lecteur "
+        "ne garde rien")
+
+
+def test_prometheus_silent_is_not_read_as_healthy(monkeypatch) -> None:
+    """Une liste vide se lit « rien à signaler ». Un instrument mort ne doit pas."""
+    from src.utils import ops_alerts
+
+    monkeypatch.setattr(ops_alerts, "_rule_annotations", dict)
+    out = ops_alerts.fired_since()
+    assert len(out) == 1 and out[0]["alertname"] == "UNAVAILABLE", (
+        f"Prometheus muet a rendu {out!r} — une liste vide serait lue comme une nuit "
+        "calme, c'est-à-dire l'inverse de la vérité")
+    assert out[0]["action"], "la ligne UNAVAILABLE ne nomme aucun geste"
