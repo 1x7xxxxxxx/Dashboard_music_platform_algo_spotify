@@ -5544,7 +5544,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - long_term_fix: `delete_branch_on_merge = true` sur le dépôt. La branche disparaît à la fusion, donc une branche qui SURVIT devient un signal — elle porte du travail non fusionné, ou elle a été abandonnée. Ce qui était du bruit devient une information.
 - autofix: none
 - guard: { type: ci-step, ref: .github/workflows/ci.yml }
-- signature: `v=$(gh api repos/{owner}/{repo} --jq .delete_branch_on_merge 2>/dev/null) && test "$v" = "true" || { echo "::error::gh n'a pas pu repondre (jeton absent ?) — ce controle n'a RIEN verifie"; exit 1; }`
+- signature: `R="$GITHUB_REPOSITORY"; [ -n "$R" ] || R=1x7xxxxxxx/Dashboard_music_platform_algo_spotify; v=$(gh api "repos/$R" --jq .delete_branch_on_merge) || { echo "::error::gh na pas pu repondre (son erreur est au-dessus) — ce controle na RIEN verifie"; exit 1; }; test "$v" = "true" || { echo "::error::delete_branch_on_merge=$v — une branche mergee survit a sa PR"; exit 1; }`
 - rex_ref: —
 - first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
 - History:
