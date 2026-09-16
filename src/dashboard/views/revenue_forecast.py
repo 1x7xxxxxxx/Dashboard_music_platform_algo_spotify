@@ -111,6 +111,30 @@ def _tab_mrr(db) -> None:
 # Tab 2 — Projection MRR
 # ─────────────────────────────────────────────
 
+@st.fragment
+def _frag_projection() -> None:
+    """La projection de MRR — rejoué SEUL quand ses curseurs bougent.
+
+    @st.fragment (R118, 2026-09-16). Ses widgets sont des CURSEURS : on les traîne, donc
+    ils déclenchent une rafale de reruns. Avant, chacun rejouait tout le script — les
+    quatre onglets, dont `st.tabs` exécute tous les corps, plus la barre latérale. C'est
+    le pire profil d'usage pour un rerun complet, et le meilleur cas pour un fragment.
+
+    ⚠️ Il ouvre sa PROPRE connexion : ses curseurs pilotent des requêtes, et celle de
+    `show()` est refermée dès la fin du rendu complet. Un fragment qui la capturerait la
+    ré-emprunterait au pool sans jamais la rendre. Garde :
+    `tests/test_a_fragment_never_captures_a_connection.py`.
+    """
+    db = get_db_connection()
+    if db is None:
+        st.error(t("revenue_forecast.db_unreachable", "❌ Base de données inaccessible."))
+        return
+    try:
+        _tab_projection(db)
+    finally:
+        db.close()
+
+
 def _tab_projection(db) -> None:
     st.subheader(t("revenue_forecast.growth_header", "Simulation de croissance MRR"))
 
@@ -207,6 +231,30 @@ def _tab_projection(db) -> None:
 # Tab 3 — LTV & Churn
 # ─────────────────────────────────────────────
 
+@st.fragment
+def _frag_ltv() -> None:
+    """La valeur vie client — rejoué SEUL quand ses curseurs bougent.
+
+    @st.fragment (R118, 2026-09-16). Ses widgets sont des CURSEURS : on les traîne, donc
+    ils déclenchent une rafale de reruns. Avant, chacun rejouait tout le script — les
+    quatre onglets, dont `st.tabs` exécute tous les corps, plus la barre latérale. C'est
+    le pire profil d'usage pour un rerun complet, et le meilleur cas pour un fragment.
+
+    ⚠️ Il ouvre sa PROPRE connexion : ses curseurs pilotent des requêtes, et celle de
+    `show()` est refermée dès la fin du rendu complet. Un fragment qui la capturerait la
+    ré-emprunterait au pool sans jamais la rendre. Garde :
+    `tests/test_a_fragment_never_captures_a_connection.py`.
+    """
+    db = get_db_connection()
+    if db is None:
+        st.error(t("revenue_forecast.db_unreachable", "❌ Base de données inaccessible."))
+        return
+    try:
+        _tab_ltv(db)
+    finally:
+        db.close()
+
+
 def _tab_ltv(db) -> None:
     st.subheader(t("revenue_forecast.ltv_header", "LTV & Churn"))
 
@@ -291,6 +339,30 @@ def _tab_ltv(db) -> None:
 # ─────────────────────────────────────────────
 # Tab 4 — Projection Artistique
 # ─────────────────────────────────────────────
+
+@st.fragment
+def _frag_artist_forecast(artist_id: int | None, show_infra: bool = False) -> None:
+    """La prévision par artiste — rejoué SEUL quand ses curseurs bougent.
+
+    @st.fragment (R118, 2026-09-16). Ses widgets sont des CURSEURS : on les traîne, donc
+    ils déclenchent une rafale de reruns. Avant, chacun rejouait tout le script — les
+    quatre onglets, dont `st.tabs` exécute tous les corps, plus la barre latérale. C'est
+    le pire profil d'usage pour un rerun complet, et le meilleur cas pour un fragment.
+
+    ⚠️ Il ouvre sa PROPRE connexion : ses curseurs pilotent des requêtes, et celle de
+    `show()` est refermée dès la fin du rendu complet. Un fragment qui la capturerait la
+    ré-emprunterait au pool sans jamais la rendre. Garde :
+    `tests/test_a_fragment_never_captures_a_connection.py`.
+    """
+    db = get_db_connection()
+    if db is None:
+        st.error(t("revenue_forecast.db_unreachable", "❌ Base de données inaccessible."))
+        return
+    try:
+        _tab_artist_forecast(db, artist_id, show_infra)
+    finally:
+        db.close()
+
 
 def _tab_artist_forecast(db, artist_id: int | None, show_infra: bool = False) -> None:
     # show_infra=True only for admin: the VPS/server cost is the platform operator's,
@@ -675,14 +747,14 @@ def show() -> None:
             with tab_mrr:
                 _tab_mrr(db)
             with tab_proj:
-                _tab_projection(db)
+                _frag_projection()
             with tab_ltv:
-                _tab_ltv(db)
+                _frag_ltv()
             with tab_artist:
-                _tab_artist_forecast(db, artist_id=None, show_infra=True)
+                _frag_artist_forecast(artist_id=None, show_infra=True)
         else:
             st.caption(t("revenue_forecast.artist_caption",
                          "Projection de vos revenus musicaux (iMusician + DistroKid + SACEM)."))
-            _tab_artist_forecast(db, artist_id=get_artist_id(), show_infra=False)
+            _frag_artist_forecast(artist_id=get_artist_id(), show_infra=False)
     finally:
         db.close()
