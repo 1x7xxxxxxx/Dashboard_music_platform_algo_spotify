@@ -24,6 +24,27 @@
 
 {
 	email 1x7xxxxxxx@gmail.com
+	# Les metriques HTTP par amont — posees le 2026-09-16 (ADR-026).
+	#
+	# Sans cette directive, `curl 127.0.0.1:2019/metrics` ne rend QUE les metriques Go
+	# du processus et `caddy_reverse_proxy_upstreams_healthy` : verifie, `caddy_http_*`
+	# y comptait ZERO ligne. On croyait donc avoir la latence vue du reverse proxy, et
+	# on ne l'avait pas.
+	#
+	# Ce qu'elle ajoute : `caddy_http_request_duration_seconds` et
+	# `caddy_http_requests_total` avec un label par serveur et par code. C'est le seul
+	# endroit d'ou l'on peut comparer les DEUX amonts du dashboard (8501 et 8511) sans
+	# instrumenter l'application.
+	#
+	# ⚠️ Ce qu'elle ne donne PAS : la duree d'un RERUN. Les reruns voyagent dans le
+	# websocket `/_stcore/stream`, dont la duree p50 de session est de 252 SECONDES —
+	# Caddy voit une requete par ONGLET, pas une par rerun. C'est mesure, et c'est la
+	# raison pour laquelle l'instrumentation applicative existe quand meme.
+	#
+	# L'endpoint d'administration reste sur son defaut 127.0.0.1:2019 : jamais expose.
+	servers {
+		metrics
+	}
 }
 (security_headers) {
 	header {

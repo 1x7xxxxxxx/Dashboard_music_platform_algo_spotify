@@ -1259,7 +1259,13 @@ def scan_error_classes() -> list[ErrClass]:
             return m.group(1).strip() if m else ""
 
         guard = field("guard")
-        paths = re.findall(r"((?:tests|\.claude|tools|src|\.github)/[\w./-]+\.\w+)", guard)
+        # `deploy/` ajouté le 2026-09-16 : le dossier porte le Caddyfile, les surcharges
+        # compose et la configuration d'hôte — des gardes aussi réels que ceux de
+        # `tools/`. Son absence faisait compter « ne nomme aucun chemin » une classe qui
+        # en nommait un parfaitement valide, et le cliquet des trous montait pour une
+        # lacune du DÉTECTEUR, pas du catalogue.
+        paths = re.findall(
+            r"((?:tests|\.claude|tools|src|\.github|deploy)/[\w./-]+\.\w+)", guard)
         exists = None if not paths else all((ROOT / p).exists() for p in paths)
         out.append(ErrClass(cid, field("severity"), field("kind"),
                             field("status"), guard[:90], exists))
