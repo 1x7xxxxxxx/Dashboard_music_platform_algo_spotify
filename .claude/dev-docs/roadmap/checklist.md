@@ -216,6 +216,24 @@ le supposer.
   en `un-cumul-pris-pour-un-quotidien`. Aligner la déclaration sur une dérivation fausse
   ferait écrire une fausseté pour faire baisser un compteur.
 
+  ⚠️ **Une relecture `code-critic` est OBLIGATOIRE sur chaque lot de revue**, et ce n'est
+  pas une précaution de style : passée sur les six premières portées écrites avec soin,
+  elle en a trouvé **quatre inexactes**. Toutes pour la même raison — la portée avait été
+  écrite en lisant le garde NOMMÉ dans `guard:`, sans ouvrir les fichiers cités par
+  `signature:` et `History:`. Deux sur-déclaraient une couverture (« les vues ET les
+  DAG » : aucun garde ne lit `airflow/dags/`), une comptait faux (cinq applications pour
+  quatre), une annonçait un trou déjà gardé par une classe sœur.
+
+  ⚠️ **Un déclencheur mécanique a été cherché et rejeté** : « ≥ 2 fichiers cités » ne
+  sépare pas (les 4 fausses citent 1/1/2/3, les 2 justes 1/3). Faute de sélecteur, le
+  critique passe sur les LOTS, pas sur chaque classe — six spawns par jour pour un
+  artefact de cinq minutes ne se justifient pas. Si un sélecteur apparaît, il remplace
+  cette règle.
+
+  ⚠️ Et le critique s'est trompé une fois sur six : il signalait un traceback persisté
+  **sans rédaction** dans `app_error_log`. Vérifié — `src/utils/error_registry.py:37`
+  appelle bien `redact(...)`. Un constat d'agent se vérifie comme un autre.
+
   Contrôle : `make error-health` · évolution : `make error-health-history`.
 
 - [ ] **R120 — la VUE, pas la chrome.** (titre corrigé le 2026-09-16 : il disait l'inverse)

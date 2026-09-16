@@ -77,6 +77,37 @@ contraire.
 `pkill` et `pgrep` sont deux verbes d'un même geste : « chercher un processus par un
 motif ». Un garde écrit sur le verbe laisse la classe vivante sous l'autre nom.
 
+## Je lis le CODE du garde, pas son nom
+
+Mesuré le 2026-09-16, et le chiffre est brutal : sur six `guard_scope` que j'avais écrites
+avec soin, **quatre étaient inexactes**. Une seule cause, la même quatre fois — j'avais lu
+le garde NOMMÉ dans le champ `guard:`, sans ouvrir les autres fichiers cités par
+`signature:` et `History:`.
+
+Ce que ça a produit :
+
+* `artist-id-or-1` — j'affirmais couvrir « les vues et les DAG ». **Aucun des deux gardes
+  ne parcourt `airflow/dags/`** : tous deux fixent `views/`. Une affirmation de couverture
+  fausse est pire qu'un trou déclaré, parce qu'elle fait cesser de chercher.
+* `central-app-missing` — j'écrivais « les cinq applications » ; le tuple en définit
+  **quatre**.
+* `an-overload-…` — j'écrivais « ne couvre pas les autres plateformes » ; la signature SQL
+  bloquante filtre `proname LIKE 'gold_%'`, donc elle couvre **tout le parc**.
+* `db-connection-per-show` — j'annonçais un trou sur `@st.fragment` qui **n'en est pas
+  un** : une classe sœur le garde déjà. Sous-déclarer envoie écrire un garde redondant.
+
+La règle qui en sort, et elle coûte deux minutes : **ouvrir l'implémentation de CHAQUE
+fichier cité par la classe**, et chercher dans le catalogue toute AUTRE entrée qui
+référence le même fichier de test. Un `couvre:` se vérifie en lisant, jamais en se
+souvenant.
+
+⚠️ **Un déclencheur mécanique a été cherché et REJETÉ.** L'hypothèse — « les classes
+citant ≥ 2 fichiers distincts sont celles qui se trompent » — a été testée sur ces six :
+les quatre fausses citent 1, 1, 2 et 3 fichiers, les deux justes 1 et 3. **Aucune
+séparation.** Faute de sélecteur, la relecture adversariale est demandée sur les lots de
+revue de R122, pas sur chaque classe — six spawns par jour pour un artefact de cinq
+minutes ne se justifient pas.
+
 ## Ce que je ne fais pas
 
 - Je ne recopie pas un narratif dans un champ structuré : la prose contient des

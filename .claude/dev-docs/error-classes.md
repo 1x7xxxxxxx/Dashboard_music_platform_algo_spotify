@@ -590,7 +590,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `view_session()` and `tenant_scope()` (R25) encapsulate the guard, so a view cannot express the fallback without going out of its way.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_tenant_scoped_action_names_its_tenant.py::test_a_missing_tenant_never_falls_back_to_a_hardcoded_one }
-- guard_scope: le-locataire — résoudre l'identité d'un locataire avant de lire ou d'écrire pour lui ; couvre: le repli littéral `get_artist_id() or 1` et ses variantes AST dans les vues et les DAG ; ne couvre pas: **toute autre façon d'obtenir un locataire par défaut** — `artist_id = artist_id if artist_id else 1`, un `COALESCE(artist_id, 1)` en SQL, une valeur par défaut d'argument, ou un `.get('artist_id', 1)` sur un `conf` de DAG. Ce sont quatre gestes de la même famille « je continue sans savoir pour qui », et le garde n'en voit qu'un.
+- guard_scope: le-locataire — résoudre l'identité d'un locataire avant de lire ou d'écrire pour lui ; couvre: le repli littéral `get_artist_id() or 1` — une forme `BoolOp(Or)` lue par AST — et UNIQUEMENT sous `src/dashboard/views/` ; ne couvre pas: (a) **`airflow/dags/`, que ni `test_a_tenant_scoped_action_names_its_tenant.py:39` ni `test_the_tenant_guard_is_written_once.py:39` ne parcourent** — ils fixent tous deux `views/` ; (b) toute forme qui n'est pas un `or` : `COALESCE(artist_id, 1)` en SQL, un défaut d'argument, et surtout `st.session_state.get('artist_id', 1)` — cette dernière tomberait DANS le périmètre parcouru et resterait invisible, le garde ne lisant que `BoolOp`. Sites où l'édition atterrirait : `views/ml_performance.py:53`, `views/onboarding.py:334`, qui appellent `.get("artist_id")` sans défaut aujourd'hui.
 - rex_ref: CLAUDE.md
 - first_seen: 2026-03-27 (ref: DEVLOG#2026-03-27)
 - History:
@@ -635,7 +635,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `view_session()` yields the one connection, and helpers take `db` as a parameter instead of resolving it.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: CLAUDE.md#9 }
-- guard_scope: un-état-qui-déborde-de-sa-portée — ouvrir une connexion pour la durée d'un rendu ; couvre: les appels `get_db_connection()` comptés dans un fichier de vue ; ne couvre pas: une connexion ouverte par un HELPER que la vue appelle (c'est ce que `test_a_render_opens_one_connection.py` mesure au rendu et que le compte par fichier ne peut pas voir), ni une connexion ouverte dans un `@st.fragment`, qui s'exécute quand celle de la vue n'existe plus.
+- guard_scope: un-état-qui-déborde-de-sa-portée — ouvrir une connexion pour la durée d'un rendu ; couvre: les appels `get_db_connection()` comptés dans un fichier de vue ; ne couvre pas: une connexion ouverte par un HELPER que la vue appelle — mesuré au rendu par `tests/test_a_render_opens_one_connection.py`, que le compte par fichier ne peut pas voir. ⚠️ **Le cas du `@st.fragment` n'est PAS un trou** : il a sa propre classe gardée, `a-fragment-that-outlives-the-connection-it-captured`, avec un garde déterministe dédié. L'écrire ici comme non couvert enverrait écrire un garde redondant.
 - rex_ref: CLAUDE.md
 - first_seen: 2026-03-27 (ref: DEVLOG#2026-03-27)
 - History:
@@ -1078,7 +1078,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: ops-probe, ref: tools/check_central_apps.py (authenticates each shared app; exit 1 if a configured app fails) }
-- guard_scope: la-frontière-avec-le-dehors — vérifier qu'un identifiant d'application partagée répond ; couvre: les cinq applications nommées dans `check_central_apps.py`, sondées à la demande ; ne couvre pas: une SIXIÈME application ajoutée sans entrer dans cette liste — la sonde est une énumération à la main, donc elle est muette sur ce qu'elle ignore. C'est la même forme que `_TELEMETRY` dans le garde de rétention.
+- guard_scope: la-frontière-avec-le-dehors — vérifier qu'un identifiant d'application partagée répond ; couvre: les **quatre** applications énumérées dans `tools/check_central_apps.py:54` (`spotify`, `youtube`, `soundcloud`, `meta`), sondées à la demande ; ne couvre pas: une **cinquième** application ajoutée sans entrer dans ce tuple — la sonde est une énumération à la main, donc muette sur ce qu'elle ignore. Même forme que `_TELEMETRY` dans le garde de rétention.
 - rex_ref: docs/adr/ADR-006-central-credential-model.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
@@ -5850,7 +5850,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -c "import os,sys,psycopg2${IFS}try:${IFS} c=psycopg2.connect(host='127.0.0.1',port=int(os.environ.get('PGPORT','5433')),dbname='spotify_etl',user='postgres',password=os.environ.get('DB_PASSWORD',''))${IFS}except Exception:${IFS} sys.exit(0)${IFS}cur=c.cursor();cur.execute(\"SELECT a.proname FROM pg_proc a JOIN pg_proc b ON a.proname=b.proname AND a.oid<b.oid JOIN pg_namespace n ON n.oid=a.pronamespace AND b.pronamespace=n.oid WHERE n.nspname='public' AND a.proname LIKE 'gold_%' AND (a.pronargs-a.pronargdefaults)<=b.pronargs AND (b.pronargs-b.pronargdefaults)<=a.pronargs\");bad=cur.fetchall();c.close();sys.exit(1 if bad else 0)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: tests/test_the_gold_layer_defines_every_platform.py — les trois branches de la règle Apple sont épinglées sur données synthétiques dans une transaction annulée, et la page Apple Music est rendue au complet dans le render-smoke. Signature vue exit=1 en recréant la surcharge, 0 après l'avoir retirée.
-- guard_scope: deux-surfaces-deux-nombres — élargir le sens d'un appel existant sans relire ses appelants ; couvre: les trois branches de la règle Apple, épinglées dans `test_the_gold_layer_defines_every_platform.py` ; ne couvre pas: **le même geste sur une autre plateforme** — toute vue or dont on ajoute une maille hérite du risque, et rien n'épingle les branches ailleurs. Une tuile passe à 0 sans qu'on ait rien retiré.
+- guard_scope: deux-surfaces-deux-nombres — élargir le sens d'un appel existant sans relire ses appelants ; couvre: **toute plateforme** — la signature SQL bloquante filtre `proname LIKE 'gold_%'` sans restriction, donc elle détecte partout une surcharge dont les portées d'arité se chevauchent ; ne couvre pas: le **pin comportemental** — une donnée synthétique, une assertion de valeur et un rendu de page qui prouveraient que l'`except` d'affichage ne retransforme pas l'erreur en zéro silencieux. `test_the_gold_layer_defines_every_platform.py` ne l'épingle que pour Apple. C'est ce manque-là qu'il faut combler, pas le garde SQL qui existe déjà.
 - rex_ref: migrations/103_gold_apple_metric.sql
 - first_seen: 2026-09-12
 - History:
