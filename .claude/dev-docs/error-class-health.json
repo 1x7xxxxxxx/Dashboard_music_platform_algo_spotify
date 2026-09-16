@@ -594,6 +594,29 @@
       "history_additions": 1,
       "renamed_from": null
     },
+    "a-fallback-that-runs-when-the-first-branch-succeeded": {
+      "cause_evidence": "read",
+      "first_seen_declared": "2026-09-16",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_no_versioned_command_falls_back_onto_a_commit.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
+      "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
+      "guard_scope_has_not_covered": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-16"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-16",
+      "severity": "P3",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-figure-under-a-period-selector-that-ignores-it": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-10",
@@ -1925,7 +1948,7 @@
       "seen_red": "2026-09-16",
       "severity": "P3",
       "status": "guarded",
-      "introduced_date": null,
+      "introduced_date": "2026-09-16",
       "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
@@ -1948,7 +1971,7 @@
       "seen_red": "2026-09-16",
       "severity": "P2",
       "status": "guarded",
-      "introduced_date": null,
+      "introduced_date": "2026-09-16",
       "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
@@ -8504,7 +8527,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 202,
+      "catalogue_revisions": 203,
       "head_date": "2026-09-16"
     },
     "holes": {
@@ -8518,11 +8541,11 @@
       "seen_red_unknown": 332
     },
     "population": {
-      "automatic_guard": 350,
-      "classes": 368,
+      "automatic_guard": 351,
+      "classes": 369,
       "ever_recurred_observed": 46,
       "prose_only": 18,
-      "with_signature": 357
+      "with_signature": 358
     },
     "recurrence": {
       "window_start": "2026-05-15",

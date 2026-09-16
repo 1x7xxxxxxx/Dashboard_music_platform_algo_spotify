@@ -101,9 +101,16 @@ _FLOORS = {
     # existe. Première fois que la chaîne se referme sans qu'on y pense.
     # +1 encore : `a-shared-database-read-while-another-test-writes-it`, écrite sur
     # DEUX rouges de suite complète le même soir, chacun vert en isolation.
-    "classes": 368,
-    "with_signature": 357,
-    "automatic_guard": 350,
+    # +1 : `a-fallback-that-runs-when-the-first-branch-succeeded`, écrite sur MON
+    # erreur du soir — un `|| git commit` dont la première branche a réussi, avec le
+    # message d'un vieux commit. Livrée `guarded` et non `reported` parce qu'une classe
+    # sans garde fait monter DEUX plafonds (`prose_only`, `seen_red_unknown`) : les
+    # relever pour sa propre erreur serait la leçon inverse. Elle a une surface réelle,
+    # les fichiers versionnés, et son garde y a trouvé un faux positif dès la première
+    # exécution.
+    "classes": 369,
+    "with_signature": 358,
+    "automatic_guard": 351,
 }
 # Le plancher qui n'a pas d'équivalent dans `gold-coverage`, et le plus important ici :
 # un taux s'améliore aussi en RÉTRÉCISSANT la fenêtre d'observation.

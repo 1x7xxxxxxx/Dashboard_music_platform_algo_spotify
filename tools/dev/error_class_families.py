@@ -198,7 +198,13 @@ FAMILIES: list[tuple[str, str, str]] = [
      # registre qui MET EN QUESTION plutot qu'il ne refuse — la forme de garde que
      # cette famille reconnait.
      r"test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|"
-     r"rollback-wider-than-the-failure"),
+     # `fallback-that-runs` ajouté le 2026-09-16. Un `A || B` est un GARDE : B est la
+     # protection qu'on croit avoir posée. Elle ne se déclenche pas sur « ai-je obtenu
+     # ce que je voulais » mais sur le code de sortie de A — donc une première branche
+     # qui réussit MAL la neutralise, et une qui échoue la fait agir quand on ne le
+     # voulait pas. La question de la famille — « sa portée contient-elle ce défaut ? »
+     # — est exactement celle qu'on aurait dû poser au repli.
+     r"rollback-wider-than-the-failure|fallback-that-runs"),
 
     ("un-document-qui-affirme-un-état-périmé",
      "Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?",

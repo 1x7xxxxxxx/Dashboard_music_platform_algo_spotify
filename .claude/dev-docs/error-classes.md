@@ -131,6 +131,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [a-guard-names-a-class-nobody-wrote](#a-guard-names-a-class-nobody-wrote) | P2 | deterministic | guarded | none |
 | [a-runbook-that-names-a-command-nobody-can-run](#a-runbook-that-names-a-command-nobody-can-run) | P3 | deterministic | guarded | none |
 | [a-shared-database-read-while-another-test-writes-it](#a-shared-database-read-while-another-test-writes-it) | P2 | deterministic | guarded | none |
+| [a-fallback-that-runs-when-the-first-branch-succeeded](#a-fallback-that-runs-when-the-first-branch-succeeded) | P3 | deterministic | guarded | none |
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
 | [a-document-that-cannot-be-current-in-its-own-commit](#a-document-that-cannot-be-current-in-its-own-commit) | P2 | deterministic | guarded | none |
 | [a-population-that-counts-its-own-headers](#a-population-that-counts-its-own-headers) | P3 | deterministic | guarded | none |
@@ -560,6 +561,25 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-16: la première version du garde a dénoncé **trois fichiers à tort** — ils écrivent bien `artist_credentials`, mais sur un locataire créé par eux-mêmes et supprimé ensuite. Sa propre docstring promettait déjà cette exemption ; elle n'était pas implémentée. Une promesse écrite et non tenue se lit comme une couverture, et c'est le reproche que ce dépôt fait à ses gardes depuis le 2026-09-05.
   - 2026-09-16: **et il se déclenchait sur lui-même** — les aiguilles de `_SHARED_WRITES` sont des chaînes de ce module. Troisième instance de `a-kill-pattern-that-matches-its-own-shell` dans la même journée, après le `pgrep` et après la sonde « une suite tourne-t-elle ? » de `night_run.py`. Une aiguille NUE n'est pas une requête — ni colonnes ni `VALUES` — donc l'égalité exacte la distingue de son usage. Trois fois le même jour, trois fichiers différents : ce n'est plus une inattention, c'est la forme par défaut de toute sonde qui cherche son motif dans un texte qui la contient.
+
+## a-fallback-that-runs-when-the-first-branch-succeeded
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un `A || B` livre le résultat de A alors qu'on attendait B — ou l'inverse. Rien n'échoue, rien ne s'affiche : la commande sort 0 et le mauvais effet est en place. On ne s'en aperçoit qu'en relisant le résultat, souvent bien plus tard.
+- root_cause: `||` ne branche pas sur « ai-je obtenu ce que je voulais », il branche sur le **code de sortie**. Une commande qui réussit *mal* n'active jamais le repli. Mesuré deux fois le 2026-09-16, dans les deux sens : (1) un `git commit … || git commit -m "…"` où le premier ÉCHOUAIT, si bien que le repli a remplacé le message en silence ; (2) le symétrique quelques heures plus tard — `git commit -C ORIG_HEAD 2>/dev/null || git commit -F -` écrit pour retomber sur le message préparé, sauf que `-C ORIG_HEAD` a RÉUSSI et a copié le message *et la date d'auteur* d'un vieux commit de fusion. Le contenu du commit était juste ; son message décrivait une autre livraison. Le `2>/dev/null` a en plus masqué la seule trace.
+- cause_evidence: read (les deux commandes sont dans l'historique de la séance du 2026-09-16)
+- long_term_fix: **ne pas écrire de repli sur un geste qui a un seul résultat acceptable.** Un commit se fait en une commande, avec son message ; s'il échoue, on lit l'échec. Quand un repli est vraiment nécessaire, il se branche sur ce qu'on VEUT (`test -f …`, une comparaison de sortie), jamais sur le code de retour d'une commande qui peut réussir autrement. Corollaire mesuré ici : `2>/dev/null` sur la première branche supprime précisément l'information qui aurait permis de voir laquelle a servi.
+- signature: `python3 -m pytest tests/test_no_versioned_command_falls_back_onto_a_commit.py -q`
+- seen_red: 2026-09-16 sur `Makefile` (`|| git commit -m "retry"` ajoute a la recette `hooks-install`) → exit 1 en nommant fichier et ligne ; 0 apres retrait
+- autofix: none
+- guard: { type: pytest, ref: tests/test_no_versioned_command_falls_back_onto_a_commit.py }
+- guard_scope: un-garde-qui-ne-garde-pas — mettre un `git commit` en position de repli derriere un `||` ; couvre: les fichiers VERSIONNES ou une commande est rejouee — `Makefile`, `tools/**`, `.claude/**/*.sh`, `.github/**/*.yml`, `deploy/**/*.sh` — lignes de CODE seulement, les commentaires etant retires avant l'examen ; ne couvre pas: (1) **les deux instances qui ont coute** — elles etaient des commandes tapees a la main, que rien ne peut relire apres coup ; ce garde tient la surface ou la forme deviendrait DURABLE, pas celle ou elle est nee ; (2) les autres gestes a resultat unique places en repli — un `push`, un `tag`, une migration, un envoi de mail : seul `commit` est cherche ; (3) un repli sur plusieurs lignes (`\` de continuation) ou passant par une variable (`$(GIT) commit`) ; (4) la construction inverse et tout aussi trompeuse, `A && B`, ou B ne part pas quand A reussit mal ; (5) `2>/dev/null` sur la premiere branche, qui supprime la seule trace de laquelle a servi — c'est ce qui a masque la seconde instance, et rien ne le cherche.
+- rex_ref: .claude/dev-docs/roadmap/night-run.md
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: deux instances le même jour, en sens opposés, ce qui est la preuve que le défaut n'est pas « j'ai mal tapé » mais la construction elle-même. La seconde a produit un commit dont le message annonçait R115 et le contenu livrait l'outillage de séance longue. Non corrigé par réécriture : un `--amend` suivi d'un `push --force` sur `main` détruirait la trace de ce qui s'est passé pour un gain cosmétique. Un commit vide portant le vrai message suit le fautif, et le protocole de séance longue interdit explicitement le `push --force` sans humain — s'en exempter le jour où ça m'arrange serait la leçon inverse.
+  - 2026-09-16: le garde a trouve un faux positif **dans sa premiere execution** — `Makefile:546`, `pip install --user pre-commit >/dev/null || pip install pre-commit`. `\b` traite le tiret comme une frontiere de mot, donc **`pre-commit` contient `commit`**. Il aurait fait renommer une ligne parfaitement saine, et c'est ainsi qu'un garde perd sa credibilite : un faux positif coute plus cher qu'un trou, parce qu'il apprend que son rouge est du bruit. Motif resserre sur `git commit` / `commit -m|-C|-F`, avec une frontiere qui compte le tiret comme un caractere de mot ; la ligne fautive est gardee comme cas NEGATIF dans le test.
 
 ## exempt-row-hides-others-conflict
 - status: guarded
