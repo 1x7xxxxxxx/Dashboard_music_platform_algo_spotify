@@ -1,9 +1,9 @@
 """Per-IP throttling for the dashboard's unauthenticated and pre-authenticated forms.
 
 Type: Utility
-Uses: src.utils.request_throttle (shared with the FastAPI middleware)
+Uses: src.utils.request_throttle (shared with the FastAPI middleware) → Postgres
 Triggers: registration submit (R23), TOTP challenge submit (R26), login submit
-Persists in: nothing (in-process counters, reset on restart)
+Persists in: rate_limit_hits (via src.utils.request_throttle.PostgresHitStore)
 
 Why not `st.session_state` — measured 2026-08-22.
 
@@ -13,9 +13,11 @@ clearing the cookie, produces a fresh counter. That made it a UX guard against
 fat-fingering, never a security control — which is precisely how the TOTP challenge
 stayed brute-forceable (R26) even though it *looked* rate-limited.
 
-These buckets are keyed by client IP instead, in module state, so they survive a new
-tab and a new session. They are per-process, which for Streamlit means per container:
-the same reasoning (and the same limitation) as the API's, see ADR-002.
+These buckets are keyed by client IP instead, so they survive a new tab and a new
+session. Depuis le 2026-09-16 ils ne vivent plus dans le processus : leur compteur est
+dans Postgres (`rate_limit_hits`), donc le budget reste le même quel que soit le nombre
+d'instances du dashboard. La contrainte que ce choix lève est écrite dans
+`tests/test_in_memory_limits_forbid_replicas.py`.
 
 An IP is not an identity. A NAT'd office shares one bucket and a botnet defeats it.
 The budgets below are therefore sized to stop *scripted enumeration from one host*,
@@ -26,7 +28,11 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from src.utils.request_throttle import SlidingWindowLimiter, client_ip_from_headers
+from src.utils.request_throttle import (
+    SlidingWindowLimiter,
+    client_ip_from_headers,
+    shared_hit_store,
+)
 
 # Registration submits per IP. Sized for "a family signs up on the same wifi", not for
 # "a script probes 24 bits of promo code": at 8 per 10 min, exhausting `token_hex(3)`
@@ -44,10 +50,17 @@ TOTP_WINDOW_SECS = int(os.getenv("DASHBOARD_TOTP_WINDOW_SECS", "900"))
 LOGIN_MAX = int(os.getenv("DASHBOARD_LOGIN_MAX", "30"))
 LOGIN_WINDOW_SECS = int(os.getenv("DASHBOARD_LOGIN_WINDOW_SECS", "900"))
 
+# Les trois seaux PARTAGENT leur compteur entre instances (Postgres, table
+# `rate_limit_hits`). Ce ne sont pas des seaux de confort : chacun est la seule
+# borne devant une énumération ou une force brute, et un budget qui se multiplie
+# par le nombre de conteneurs n'est plus une borne. Le magasin est construit une
+# fois par processus et n'ouvre aucune connexion avant le premier coup.
+_STORE = shared_hit_store()
+
 _LIMITERS: dict[str, SlidingWindowLimiter] = {
-    "register": SlidingWindowLimiter(REGISTER_MAX, REGISTER_WINDOW_SECS),
-    "totp": SlidingWindowLimiter(TOTP_MAX, TOTP_WINDOW_SECS),
-    "login": SlidingWindowLimiter(LOGIN_MAX, LOGIN_WINDOW_SECS),
+    "register": SlidingWindowLimiter(REGISTER_MAX, REGISTER_WINDOW_SECS, store=_STORE),
+    "totp": SlidingWindowLimiter(TOTP_MAX, TOTP_WINDOW_SECS, store=_STORE),
+    "login": SlidingWindowLimiter(LOGIN_MAX, LOGIN_WINDOW_SECS, store=_STORE),
 }
 
 
@@ -70,12 +83,35 @@ def dashboard_client_ip() -> str:
         return "unknown"
 
 
+def throttle_consume(bucket: str, key: Optional[str] = None) -> Optional[int]:
+    """Consomme une unité du budget et rend le délai d'attente s'il est épuisé.
+
+    **C'est la forme à utiliser sur un chemin d'authentification**, et la raison est
+    une course mesurable, pas une préférence.
+
+    `throttle_check()` ne consomme pas ; `throttle_record()` consomme. Entre les deux,
+    le site d'appel fait son travail — vérifier un code TOTP, un mot de passe. N
+    requêtes simultanées lisent donc toutes « il reste du budget » avant qu'aucune
+    n'ait enregistré, et toutes passent. Streamlit sert des sessions distinctes en
+    parallèle : ouvrir N onglets suffit. C'est exactement le « compter puis agir » que
+    le verrou consultatif supprime CÔTÉ BASE, laissé vivant côté appelant — un limiteur
+    atomique appelé en deux temps n'est pas un limiteur atomique.
+
+    `hit()` décide et consomme en une opération indivisible. La contrepartie est
+    qu'une tentative refusée pour une autre raison est facturée ; sur un formulaire
+    d'authentification c'est le bon sens du compromis, et `throttle_reset()` rend le
+    budget dès que l'authentification RÉUSSIT.
+    """
+    return _LIMITERS[bucket].hit(_key(bucket, key))
+
+
 def throttle_check(bucket: str, key: Optional[str] = None) -> Optional[int]:
     """Seconds to wait if `bucket` is over budget for this client, else None.
 
-    Does NOT consume budget — pair it with `throttle_record()` on the path that
-    actually did the work, so a request rejected for another reason (an empty form,
-    a mistyped password already counted elsewhere) is not billed twice.
+    Does NOT consume budget. ⚠️ Ne l'utilise PAS pour décider d'autoriser une
+    tentative d'authentification : lire puis enregistrer en deux temps rouvre la
+    course que `throttle_consume()` ferme. Réservé à l'AFFICHAGE — dire à un visiteur
+    qu'il est déjà bloqué, sans lui facturer la lecture de cette phrase.
     """
     return _LIMITERS[bucket].peek(_key(bucket, key))
 

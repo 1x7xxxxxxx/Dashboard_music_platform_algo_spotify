@@ -42,19 +42,30 @@ fi
 # `ON_ERROR_STOP` parce que le jeu n'est idempotent qu'en execution complete, et un
 # deploiement n'est pas le bon endroit pour decider de ce compromis. On REFUSE, et on
 # nomme la commande.
+# On compare des ENSEMBLES, pas des cardinalites — corrige le 2026-09-16, le jour
+# ou la version comptante a ete prise en flagrant delit de silence. Le depot portait
+# 119 fichiers et la base 119 lignes, donc la porte etait verte ; et pourtant
+# `106_gold_remaining_grains.sql` n'etait PAS enregistree (elle echouait a chaque
+# rejeu sur `cannot drop columns from view`), sa ligne etant occupee au compte par
+# `create_missing_tables.sql`. Deux erreurs qui s'annulent donnent un total juste et
+# un verdict faux. Une porte qui compte ne peut pas nommer ce qui manque.
 PG_CONT="${PG_CONT:-postgres_spotify_airflow}"
 if docker ps --format '{{.Names}}' | grep -qx "$PG_CONT"; then
-    applied="$(docker exec -i "$PG_CONT" psql -U postgres -d spotify_etl -tA \
-                 -c "SELECT count(*) FROM schema_migrations;" 2>/dev/null || echo "")"
-    onrepo="$(ls migrations/*.sql 2>/dev/null | wc -l)"
-    if [ -n "$applied" ] && [ "$applied" -lt "$onrepo" ]; then
-        echo "STOP : $onrepo migration(s) dans le depot, $applied enregistrees en base."
-        echo "   Deployer maintenant demarrerait une application qui repond 200 sur"
-        echo "   /health et 500 sur les donnees. Lancer d'abord :"
-        echo "      bash tools/migrate.sh"
-        exit 1
+    ledger="$(docker exec -i "$PG_CONT" psql -U postgres -d spotify_etl -tA \
+                -c "SELECT filename FROM schema_migrations;" 2>/dev/null || echo "")"
+    if [ -n "$ledger" ]; then
+        onrepo="$(ls migrations/*.sql 2>/dev/null | xargs -n1 basename | sort)"
+        pending="$(comm -23 <(echo "$onrepo") <(echo "$ledger" | sort))"
+        if [ -n "$pending" ]; then
+            echo "STOP : migration(s) presente(s) dans le depot et absente(s) du registre :"
+            echo "$pending" | sed 's/^/      /'
+            echo "   Deployer maintenant demarrerait une application qui repond 200 sur"
+            echo "   /health et 500 sur les donnees. Lancer d'abord :"
+            echo "      bash tools/migrate.sh"
+            exit 1
+        fi
+        echo "  migrations : $(echo "$onrepo" | wc -l) au depot, toutes enregistrees"
     fi
-    echo "  migrations : $applied/$onrepo appliquees"
 fi
 
 echo "▶ rebuild + restart: $SERVICES"

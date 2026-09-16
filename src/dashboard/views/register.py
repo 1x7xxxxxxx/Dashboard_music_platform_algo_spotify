@@ -28,7 +28,7 @@ import streamlit as st
 
 from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t, get_lang
-from src.dashboard.utils.throttle import throttle_check, throttle_record
+from src.dashboard.utils.throttle import throttle_consume
 from src.dashboard.auth import hash_password, _validate_password_strength
 from src.utils.safe_error import public_error_ref
 from src.utils.verification_email import (
@@ -623,13 +623,12 @@ def show():
     # Per-IP budget, checked before any DB work and before any email leaves the box.
     # Anything past this point either writes a row or sends a mail to an address the
     # visitor typed, so this is the only place the cost of a submit is bounded.
-    retry_after = throttle_check("register")
+    retry_after = throttle_consume("register")
     if retry_after is not None:
         st.error(t("register.throttled",
                    "Trop de tentatives d'inscription depuis cette connexion. "
                    "Réessayez dans {s} seconde(s).").format(s=retry_after))
         return
-    throttle_record("register")
 
     with project_db() as db:
         try:

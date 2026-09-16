@@ -74,6 +74,25 @@ app = FastAPI(
     openapi_url="/openapi.json" if _docs_enabled else None,
 )
 
+# Un POOL de connexions, comme le dashboard en a un depuis le 2026-09-11 — posé ici le
+# 2026-09-16, et pas par symétrie.
+#
+# Le seau de `/auth/token` compte désormais dans Postgres, donc CHAQUE tentative
+# d'authentification, y compris celles qui seront refusées, ouvre une connexion. Sans
+# pool, c'est une poignée de main SCRAM (~8,5 ms, mesurée en production) et un créneau
+# de `max_connections` consommé par requête NON AUTHENTIFIÉE — soit un levier offert
+# pour épuiser la base, donc pour provoquer le mode dégradé du limiteur et retrouver le
+# budget × N. Un commentaire de `request_throttle.py` a affirmé une journée que l'API
+# appelait déjà `enable_pool()` ; `grep -rn "enable_pool(" src/` ne rendait que le
+# dashboard.
+#
+# `enable_pool()` ne se connecte à rien : il enregistre les bornes, le pool est
+# construit à la première connexion. L'import de ce module reste donc sans effet de
+# bord réseau.
+from src.database.postgres_handler import enable_pool  # noqa: E402
+
+enable_pool(minconn=1, maxconn=8)
+
 # C3 hardening: sliding-window rate limit + security response headers
 install_security(app)
 

@@ -4,9 +4,10 @@ Type: Sub
 Uses: starlette middleware hooks (via src.api.main)
 Triggers: every API request (sliding-window rate limit + response headers)
 
-In-memory sliding-window rate limiter — deliberate minimalism (no Redis /
-slowapi dependency, ADR-002 spirit): adequate for the single-process uvicorn
-deployment. Counters reset on process restart.
+Sliding-window rate limiter — deliberate minimalism (no Redis / slowapi dependency,
+ADR-002 spirit). Depuis le 2026-09-16 les deux seaux ne partagent plus leur magasin :
+`/auth/token` compte dans Postgres (son budget est une borne de force brute), le seau
+global reste en mémoire avec son plafond `× N` documenté à sa construction.
 
 The limiter and the X-Forwarded-For parser both live in
 `src/utils/request_throttle.py` since 2026-08-22, because the dashboard needs the
@@ -26,6 +27,7 @@ from src.utils.request_throttle import (  # noqa: F401 — re-exported
     TRUSTED_PROXY_HOPS,
     SlidingWindowLimiter,
     client_ip_from_headers,
+    shared_hit_store,
 )
 
 # Global budget per client IP (all endpoints).
@@ -40,8 +42,23 @@ _EXEMPT_PATHS = frozenset({"/health"})  # infra probes must never 429
 # Swagger UI / ReDoc load JS from a CDN — a strict CSP would blank the docs.
 _DOCS_PATHS = frozenset({"/docs", "/redoc", "/openapi.json"})
 
+# Les DEUX seaux ne sont pas de la même famille, et les traiter pareil serait une
+# erreur dans les deux sens.
+#
+# `_GLOBAL_LIMITER` compte 120 requêtes par minute sur TOUTES les routes. Il protège
+# contre l'abus et le coût, jamais contre la découverte d'un mot de passe : aucune
+# décision de sécurité n'en dépend. Il reste donc EN MÉMOIRE, et son plafond effectif
+# est `RATE_LIMIT_MAX × nombre d'instances de l'API`, soit 120 × N par minute et par IP.
+# C'est écrit ici parce que c'est le genre de fait qu'on redécouvre autrement en lisant
+# un graphe : à deux répliques le plafond est 240/min, et c'est acceptable.
 _GLOBAL_LIMITER = SlidingWindowLimiter(RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_SECS)
-_AUTH_LIMITER = SlidingWindowLimiter(AUTH_RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW_SECS)
+
+# `_AUTH_LIMITER` garde `/auth/token`. Son budget EST la borne de force brute : 10
+# tentatives par 5 min. Multiplié par le nombre d'instances il ne borne plus rien, donc
+# son compteur est partagé (Postgres, `rate_limit_hits`).
+_AUTH_LIMITER = SlidingWindowLimiter(
+    AUTH_RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW_SECS, store=shared_hit_store()
+)
 
 
 def client_ip(request: Request) -> str:

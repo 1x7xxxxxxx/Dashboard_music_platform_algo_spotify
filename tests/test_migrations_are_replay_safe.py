@@ -74,3 +74,59 @@ def test_024_is_neutralised_once_044_has_run() -> None:
         "024 drops the primary key unguarded again — the exact statement that left "
         "the table keyless on 2026-08-21."
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Le fichier qui n'entre JAMAIS au registre — 2026-09-16
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Les gardes ci-dessus lisent le TEXTE des migrations. Ils ne peuvent pas voir la
+# forme suivante, qui est la même famille vue de l'autre bout : une migration qui
+# échoue à chaque rejeu, n'est donc jamais enregistrée, et se re-tente seule pour
+# toujours.
+#
+# `106_gold_remaining_grains.sql` était dans cet état depuis le jour où 108 a élargi
+# `v_meta_creative_daily` : `CREATE OR REPLACE VIEW` ne sait pas retirer une colonne,
+# donc le rejeu rendait `cannot drop columns from view`, à chaque exécution de
+# `tools/migrate.sh`, sans que rien ne s'arrête — le script continue après erreur À
+# DESSEIN (le jeu n'est idempotent qu'en run complet).
+#
+# Ce qui l'a rendu invisible n'est pas l'erreur, c'est la porte de déploiement : elle
+# comparait 119 fichiers à 119 lignes de registre et concluait que tout était appliqué.
+# Le 119ᵉ enregistrement était `create_missing_tables.sql`, pas 106. Deux erreurs qui
+# s'annulent donnent un total juste et un verdict faux.
+#
+# Ce test compare des ENSEMBLES, contre la base vivante. Il est le seul contrôle qui
+# puisse voir un fichier absent du registre.
+
+def test_every_migration_on_disk_is_recorded_in_the_ledger() -> None:
+    """Chaque `migrations/*.sql` a une ligne dans `schema_migrations`.
+
+    Sauté sans base : c'est un contrôle d'ÉTAT, il n'a pas d'équivalent statique.
+    """
+    from tests.db_gate import db_ready
+
+    if not db_ready():
+        pytest.skip("pas de Postgres joignable — ce contrôle lit l'état réel")
+
+    from src.database.postgres_handler import PostgresHandler
+
+    db = PostgresHandler.from_env_or_config()
+    try:
+        rows = db.fetch_query("SELECT filename FROM schema_migrations")
+    finally:
+        db.close()
+
+    ledger = {r[0] for r in rows}
+    on_disk = {p.name for p in MIGRATIONS}
+    missing = sorted(on_disk - ledger)
+
+    assert not missing, (
+        "migration(s) présente(s) sur le disque et absente(s) du registre :\n  "
+        + "\n  ".join(missing)
+        + "\n\nUne migration absente du registre est re-tentée SEULE à chaque run de "
+        "`tools/migrate.sh`, et elle n'y entre que le jour où elle réussit. Si elle "
+        "échoue toujours, la base ne porte pas ce que le fichier décrit — et rien ne "
+        "le dit, parce que le script continue après erreur à dessein.\n"
+        "Diagnostic : `bash tools/migrate.sh` et lire l'erreur nommée pour ce fichier."
+    )

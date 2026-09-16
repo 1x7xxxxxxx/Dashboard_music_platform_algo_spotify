@@ -159,14 +159,24 @@ def _fresh_budget():
     The limiter is module state shared by the whole process, and AppTest has no
     request headers, so every test in this file lands in the same "unknown" bucket.
     Without this, test order would decide which assertions run.
+
+    Depuis le 2026-09-16 le magasin de ces seaux est PARTAGÉ (Postgres). On y
+    substitue la doublure en mémoire le temps du test, pour deux raisons : la
+    fenêtre glissante qu'on exerce ici est la même quel que soit le magasin, et un
+    test qui écrirait dans `rate_limit_hits` prêterait à toute la suite le budget
+    qu'il consomme. Le magasin d'origine est remis en place à la sortie.
     """
     from src.dashboard.utils import throttle
+    from src.utils.request_throttle import InMemoryHitStore
 
+    original = {name: lim.store for name, lim in throttle._LIMITERS.items()}
     for lim in throttle._LIMITERS.values():
-        lim._hits.clear()
-    yield
-    for lim in throttle._LIMITERS.values():
-        lim._hits.clear()
+        lim.store = InMemoryHitStore()
+    try:
+        yield
+    finally:
+        for name, lim in throttle._LIMITERS.items():
+            lim.store = original[name]
 
 
 @pytest.fixture
