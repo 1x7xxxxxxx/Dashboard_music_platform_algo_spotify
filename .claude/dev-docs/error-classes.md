@@ -60,6 +60,10 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
+| [a-gate-that-can-never-be-green](#a-gate-that-can-never-be-green) | P2 | deterministic | guarded | none |
+| [a-ratchet-that-only-watches-the-direction-it-was-burned-in](#a-ratchet-that-only-watches-the-direction-it-was-burned-in) | P2 | deterministic | guarded | none |
+| [a-docstring-exclusion-that-compares-dedented-text](#a-docstring-exclusion-that-compares-dedented-text) | P3 | deterministic | guarded | none |
+| [an-identifier-that-is-referenced-but-never-declared](#an-identifier-that-is-referenced-but-never-declared) | P2 | deterministic | guarded | none |
 | [a-bind-address-that-hides-the-service](#a-bind-address-that-hides-the-service) | P2 | deterministic | guarded | none |
 | [a-metric-registered-twice-kills-the-import](#a-metric-registered-twice-kills-the-import) | P1 | deterministic | guarded | none |
 | [a-reload-that-does-not-reload-what-you-changed](#a-reload-that-does-not-reload-what-you-changed) | P2 | manual | resolved | none |
@@ -6101,3 +6105,64 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: apparu en TEST d'abord — le rechargement du module pour remettre un drapeau à zéro a levé, et j'ai d'abord voulu corriger le test. C'était le mauvais réflexe : le test reproduisait un chemin d'import qui existe VRAIMENT dans ce dépôt, et le corriger aurait masqué un défaut de production. La signature rejoue exactement ce double import.
+
+## a-gate-that-can-never-be-green
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une porte de comparaison rapporte une divergence **à chaque exécution**, quoi qu'on fasse. On la lit deux fois, on la contourne la troisième, et le jour où elle décrit une vraie dérive personne ne la croit. Le coût n'est pas la fausse alerte : c'est l'attention qu'elle consomme puis qu'elle perd.
+- root_cause: la comparaison prépare ses deux côtés DIFFÉREMMENT, et rapporte donc sa propre asymétrie. Mesuré le 2026-09-16 : `make sync-check` dépliait le Caddyfile du dépôt à partir du premier `{` (`sed -n '/^{/,$p'`) et comparait au fichier de la cible **entier**. Tant que la prod n'avait pas d'en-tête, ça marchait par coïncidence ; la procédure de déploiement écrite en tête du fichier fait un `scp` du fichier COMPLET, donc dès le premier déploiement conforme la porte a vu **89 lignes de divergence pour ZÉRO ligne fonctionnelle**. La variante voisine : une cible de scrutation Prometheus laissée sur un service volontairement arrêté — `down` pour toujours, parce que Prometheus n'a pas de notion de « arrêté volontairement ».
+- long_term_fix: **une comparaison normalise ses deux côtés avec la même transformation**, et un contrôle dont un état est impossible à atteindre n'est pas un contrôle. La question de relecture qui transporte, devant toute porte rouge : « **peut-elle être verte ?** » — avant de chercher ce qui a dérivé, vérifier que le vert existe. Si un écart est permanent et voulu, il se retire du contrôle et son rétablissement s'écrit en UN endroit, jamais en note dispersée.
+- autofix: none
+- signature: `grep -q "sed -n '/\^{/,\$\$p' /tmp/_caddy_live" Makefile`
+- guard: { type: pytest, ref: tests/test_the_metrics_server_survives_a_rerun.py::test_the_scrape_targets_agree_with_the_caddy_upstreams }
+- rex_ref: Makefile
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: trouvée deux fois le même jour, dans deux surfaces sans rapport — la comparaison du Caddyfile, et une cible Prometheus sur une réplique éteinte. C'est ce qui l'a fait reconnaître comme une CLASSE et non comme deux étourderies. Le garde livré ne vérifie pas la symétrie du `sed` (trop spécifique) mais l'ACCORD des deux surfaces qui comptent : ce que Caddy sert et ce que Prometheus scrute. Il mord dans les deux sens, mesuré.
+
+## a-ratchet-that-only-watches-the-direction-it-was-burned-in
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un garde passe VERT sur un défaut qui appartient pourtant très exactement à son sujet. En le relisant on ne trouve rien à redire : il fait ce qu'il dit. Il ne dit simplement qu'une moitié.
+- root_cause: un cliquet est écrit le jour où l'on s'est trompé, donc il surveille **la direction de cette erreur-là**. Mesuré le 2026-09-16 : `test_roadmap_two_files.py` échoue quand la somme des deux fichiers de ROADMAP **diminue** — écrit après une rotation qui perdait un item. Une réécriture a recopié toute la fin du fichier actif (664 → 1 104 lignes, R117 et le bloc de reprise en double) : la somme AUGMENTE, donc les six gardes du fichier sont passés verts. `/resume` aurait lu le premier bloc de reprise et ignoré tout ce qui suit.
+- long_term_fix: **après avoir écrit un cliquet, énoncer la dérive SYMÉTRIQUE et décider explicitement si elle compte.** Ici : un identifiant de brique, un titre de section et un marqueur de reprise n'apparaissent qu'une fois. La question de relecture : « et si la grandeur bougeait dans l'autre sens ? ». Elle se pose en trente secondes et elle a attrapé un défaut réel dès sa première formulation.
+- autofix: none
+- signature: `.venv/bin/python -m pytest tests/test_roadmap_two_files.py::test_the_active_file_does_not_carry_a_section_twice -q -p no:cacheprovider >/dev/null 2>&1`
+- guard: { type: pytest, ref: tests/test_roadmap_two_files.py::test_the_active_file_does_not_carry_a_section_twice }
+- rex_ref: tests/test_roadmap_two_files.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: le défaut est le mien, commis et commité dans la même heure, par un `s[j:].split("\n", 0)[0]` qui rend la chaîne entière et non sa première ligne. Ce qui compte n'est pas la faute de frappe — c'est que le fichier porte SIX gardes et qu'aucun ne regardait de ce côté. Muté pour de vrai : le fichier actif concaténé avec lui-même sur le disque rend le garde rouge, vert après restauration.
+
+## a-docstring-exclusion-that-compares-dedented-text
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un garde qui lit l'AST — donc écrit précisément pour ne PAS être textuel — reste malgré tout vert sur sa propre mutation. Il a l'air rigoureux et il ne garde rien.
+- root_cause: pour ignorer les docstrings, on compare la valeur d'un `ast.Constant` à `ast.get_docstring(node)` **en laissant `clean` à son défaut**. Or `clean=True` nettoie et DÉSINDENTE, alors que le `Constant` porte le texte brut, indentation comprise : les deux ne sont jamais égaux, l'exclusion ne retire rien, et la docstring du module suffit à satisfaire n'importe quelle recherche de littéral. Mesuré le 2026-09-16 : la mutation « `_get("/api/v1/rules")` → `_get("/api/v1/alerts")` » est passée inaperçue parce que la docstring du module cite `/api/v1/rules`.
+  ⚠️ Le balayage des frères a rendu DEUX faux positifs qu'il ne faut pas corriger : `test_no_surface_reads_a_table_nobody_writes.py` et `test_the_setup_page_is_reachable_and_on_top.py` comparent aussi par valeur, mais passent `clean=False` EXPLICITEMENT. Ils sont justes. C'est ce qui a resserré la classe : le défaut n'est pas « comparer par valeur », c'est « comparer par valeur à un texte nettoyé ».
+- long_term_fix: **écarter les docstrings par IDENTITÉ DE NŒUD, jamais par valeur** — `id(node.body[0].value)` pour un `Module`, `FunctionDef`, `AsyncFunctionDef` ou `ClassDef`. Plus généralement : dès qu'un garde compare deux représentations d'une même chose, vérifier que la comparaison peut être VRAIE ; sinon c'est la classe `a-gate-that-can-never-be-green` vue par l'autre bout. Et la règle qui rattrape tout : muter le garde qu'on vient d'écrire.
+- autofix: none
+- signature: `.venv/bin/python -m pytest tests/test_a_docstring_exclusion_is_not_vacuous.py -q -p no:cacheprovider >/dev/null 2>&1`
+- guard: { type: pytest, ref: tests/test_a_docstring_exclusion_is_not_vacuous.py }
+- rex_ref: tests/test_a_docstring_exclusion_is_not_vacuous.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: trouvée en rejouant les mutations APRÈS avoir converti un garde textuel en garde AST. La conversion avait été faite pour satisfaire `test_a_guard_reads_structure_not_text`, et sans la remutation elle aurait été livrée comme un progrès alors qu'elle ne gardait plus rien. Lire l'AST ne suffit pas : il faut poser la bonne question à l'AST.
+
+## an-identifier-that-is-referenced-but-never-declared
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: **une interface entière rend « No data », et rien n'est en erreur.** Aucun journal ne se plaint, la source de données répond, les requêtes sont justes, les cibles sont vertes. Le lecteur conclut « il n'y a rien à montrer » — la lecture exactement inverse de la vérité.
+- root_cause: une moitié du système **référence** un identifiant fixe pendant que l'autre le **laisse générer**. Mesuré le 2026-09-16 : les neuf panneaux de `deploy/grafana/dashboards/streamlytics-ops.json` portent `datasource: {type: prometheus, uid: PROM}`, et `deploy/grafana/provisioning/datasources/prometheus.yml` ne déclarait aucun `uid` — Grafana en génère alors un aléatoire au premier démarrage. Les panneaux visaient une source inexistante. Parent de la classe [`config-path-dangling`](#config-path-dangling) : là c'était un chemin absent, ici c'est un identifiant qui existe sous un autre nom. Le résultat est le même — une référence que rien ne résout, et aucun outil pour le dire.
+- long_term_fix: **tout identifiant référencé quelque part est DÉCLARÉ à sa source, jamais généré.** Et le contrôle porte sur le CHEMIN, pas sur chaque moitié : pour chaque `uid` cité par un panneau, il existe un fichier de provisionnement qui le déclare. La question de relecture qui transporte : devant une constante qui sert de lien entre deux fichiers, demander **qui la pose** — si la réponse est « le logiciel, au démarrage », le lien est déjà cassé.
+- autofix: none
+- signature: `.venv/bin/python -m pytest tests/test_a_grafana_panel_points_at_a_real_datasource.py -q -p no:cacheprovider >/dev/null 2>&1`
+- guard: { type: pytest, ref: tests/test_a_grafana_panel_points_at_a_real_datasource.py }
+- rex_ref: deploy/grafana/provisioning/datasources/prometheus.yml
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: trouvé par **l'utilisateur en ouvrant l'interface**, pas par un test, pas par une porte de déploiement, pas par les cinq cibles `up`. Et ma première explication était fausse par excès de plausibilité : j'ai attribué les panneaux vides à l'absence de rendu AUTHENTIFIÉ — vrai pour deux panneaux sur neuf, faux pour les sept autres, qui avaient des données et ne pouvaient pas les atteindre. **Une explication qui couvre une partie des faits est ce qui empêche de chercher la vraie.** Vérifié après correction en rejouant les treize requêtes des panneaux contre Prometheus : 5 panneaux sur 9 rendent des séries, les 4 restants sont vides pour la vraie raison. Muté deux fois : `uid` retiré du provisionnement, puis `uid` différent de celui des panneaux.
