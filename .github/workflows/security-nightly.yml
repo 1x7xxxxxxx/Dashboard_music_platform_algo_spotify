@@ -82,6 +82,34 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # ── De combien de majeures les actions sont-elles en retard ? (2026-09-16) ──
+  #
+  # `.github/dependabot.yml` ignore les MAJEURES pour `github-actions`, et la raison
+  # est bonne : une majeure change le runner sous la CI. Le prix n'avait jamais été
+  # mesuré — `astral-sh/setup-uv` est resté en **v4 pendant six majeures**, et la v4
+  # parle à l'API de cache que GitHub a retirée : `Failed to restore: 400` sur chaque
+  # exécution, **20 s perdues par job**, un taux de succès de cache de 0 %.
+  #
+  # Rien ne pouvait le signaler : une action qui ne publie QUE des majeures ne produit
+  # aucune PR Dependabot, et le silence est indiscernable d'« à jour ». Ce job rend ce
+  # silence lisible. Il RAPPORTE, il ne bloque pas — la montée reste un geste humain,
+  # ce que la clause veut précisément protéger.
+  action-drift:
+    runs-on: ubuntu-latest
+    continue-on-error: true   # observational — never fail the workflow
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Combien de majeures de retard (report to summary)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "## Retard des actions GitHub (non bloquant)"
+            echo
+            python3 tools/dev/check_action_drift.py
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
   gitleaks:
     runs-on: ubuntu-latest
     continue-on-error: true   # historical leaks triaged pre-prod, not here
@@ -139,9 +167,17 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v10.1.0
         with:
           enable-cache: true
+          # EXPLICITE, parce que la v10 a changé le défaut sous nos pieds : elle clé
+          # le cache sur `**/*requirements*.txt` là où la v4 utilisait `**/uv.lock`.
+          # Or `uv sync --frozen` n'installe QUE ce que dit `uv.lock` — un cache clé
+          # sur `requirements.txt` ne s'invalide donc pas quand les dépendances
+          # réellement installées changent, et s'invalide quand elles ne changent pas.
+          # Une montée de majeure qui déplace un défaut est exactement ce que la
+          # clause « majeures manuelles » de dependabot.yml veut faire relire.
+          cache-dependency-glob: "**/uv.lock"
 
       - name: Set up Python 3.11
         run: uv python install 3.11
@@ -164,13 +200,30 @@ jobs:
           AIRFLOW_PASSWORD: ci-not-a-real-secret  # pragma: allowlist secret
           FERNET_KEY: ${{ steps.nightly_fernet.outputs.key }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # ── `tee` et pas seulement le résumé, et AUCUN `|| true` (2026-09-16) ──
+        # Première rédaction : tout partait dans `$GITHUB_STEP_SUMMARY` et la commande
+        # se terminait par `|| true`. Deux conséquences, mesurées sur le premier run
+        # réel : le LOG du job ne contenait pas le verdict de pytest (seulement le
+        # bruit de Postgres sur stderr), et l'étape ne pouvait pas échouer. Le job
+        # porte `continue-on-error` — une suite rouge la nuit aurait donc été
+        # strictement invisible, ce qui est le défaut que ce dépôt combat partout
+        # ailleurs.
+        #
+        # Désormais : `tee` met le verdict dans le log ET dans le résumé, et le code
+        # de retour de pytest remonte (`set -o pipefail`). Le job apparaîtra alors en
+        # `failure` dans `gh run list --json jobs` pendant que le workflow reste vert
+        # — exactement le comportement de `gitleaks` juste au-dessus, qui est le
+        # précédent établi ici pour « observationnel mais VISIBLE ».
         run: |
           set -o pipefail
           {
             echo "## Suite complète — ordre aléatoire + couverture (non bloquant)"
             echo
             echo '```'
-            uv run pytest tests/ -q --tb=short -n auto --dist loadgroup \
-              -p randomly --cov=src --cov-report=term-missing 2>&1 | tail -60 || true
-            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          rc=0
+          uv run pytest tests/ -q --tb=short -n auto --dist loadgroup \
+            -p randomly --cov=src --cov-report=term-missing 2>&1 \
+            | tail -60 | tee -a "$GITHUB_STEP_SUMMARY" || rc=$?
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit $rc

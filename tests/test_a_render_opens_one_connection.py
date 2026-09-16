@@ -61,17 +61,10 @@ pytestmark = pytest.mark.skipif(
            "counting connections needs the real render path",
 )
 
-VIEWS = [
-    "admin", "account", "airflow_kpi", "alerts", "apple_music", "billing",
-    "credentials", "data_wrapped", "db_health", "etl_logs", "export_csv",
-    "export_pdf", "home", "hypeddit", "imusician", "instagram", "meta_ads_overview",
-    "meta_breakdowns", "meta_cpr_optimizer", "meta_creatives", "meta_mapping",
-    "meta_x_spotify", "ml_performance", "perf_monitor",
-    "promo_admin", "referral", "referral_admin", "revenue_forecast", "sacem",
-    "saisie_s4a", "soundcloud", "spotify_s4a_combined", "trigger_algo", "upgrade",
-    "usage_analytics", "useful_links", "youtube", "onboarding",
-    "onboarding_health", "register",
-]
+# Source UNIQUE — `tests/render_harness.py`. Ces constantes vivaient en double
+# dans les deux fichiers de rendu et ont divergé NEUF JOURS (voir le module).
+from tests.render_harness import SCRIPT as _SCRIPT_SRC  # noqa: E402
+from tests.render_harness import VIEWS  # noqa: E402
 # `process_guide` et `upload_csv` ont quitté cette liste le 2026-09-15, NEUF JOURS
 # après avoir quitté celle de `test_views_render_smoke.py:130-143` — qui explique
 # déjà pourquoi : `src/dashboard/views/process_guide.py` a été SUPPRIMÉ, et
@@ -83,17 +76,7 @@ VIEWS = [
 # corrigé l'instance et laissé les frères vivants » ; l'autre moitié — la borne
 # basse manquante — est traitée dans `connections_opened_by` ci-dessous.
 
-_SCRIPT = """
-import sys
-sys.path.insert(0, {root!r})
-import streamlit as st
-st.session_state["role"] = "admin"
-st.session_state["artist_id"] = 1
-st.session_state["email"] = "admin@test"
-st.session_state["authenticated"] = True
-from src.dashboard.views.{view} import show
-show()
-"""
+_SCRIPT = _SCRIPT_SRC
 
 
 def connections_opened_by(view: str) -> int:
