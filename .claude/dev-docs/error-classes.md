@@ -60,6 +60,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
+| [a-threshold-carried-across-instruments](#a-threshold-carried-across-instruments) | P2 | manual | guarded | none |
 | [a-count-taken-before-the-writer-ran](#a-count-taken-before-the-writer-ran) | P2 | manual | reported | none |
 | [a-limiter-consumed-in-two-steps](#a-limiter-consumed-in-two-steps) | P1 | deterministic | guarded | none |
 | [a-gate-that-counts-instead-of-comparing-sets](#a-gate-that-counts-instead-of-comparing-sets) | P2 | deterministic | guarded | none |
@@ -5972,3 +5973,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: `kind: manual` et **sans signature**, à dessein. Aucune commande ne peut distinguer « ce compteur vaut zéro parce qu'il n'y a rien » de « il vaut zéro parce que l'écrivain n'a pas encore tourné » — c'est l'ORDRE de deux évènements, pas un état du dépôt. Une signature inventée ici serait une fausse garantie, et la règle du catalogue est de livrer la classe sans plutôt qu'avec une signature jamais vue rouge. Ce qui a réellement fermé l'instance 1 est une frontière dans `conftest.py`, mutée : 12 lignes pré-insérées, frontière retirée → 6 rouges ; remise → 27 verts.
+
+## a-threshold-carried-across-instruments
+- status: guarded
+- severity: P2
+- kind: manual
+- symptom: un déclencheur chiffré se déclenche — ou ne se déclenche pas — et la décision qui en découle repose sur une comparaison qui n'a jamais eu de sens. Rien n'échoue : les deux nombres existent, sont justes, et ne mesurent pas la même chose.
+- root_cause: le SEUIL a été défini avec un instrument, et LU avec un autre. Mesuré le 2026-09-16 par `code-critic` sur R87/R114 : le déclencheur disait « `loadtest_dashboard.py -n 12` rend un p50 > 200 ms ». Cet outil sature lui-même la mesure (352 ms à un fil, 2 144 ms à six, sous `AppTest`) — c'est précisément pourquoi il a été remplacé par `tools/loadtest_concurrency.py`, qui passe par un vrai navigateur. Le nouvel outil rend **329 ms à N=1**, donc sans aucune concurrence, déjà au-dessus d'un seuil écrit pour l'ancien. Le remplacement de l'instrument était un progrès ; ce qui a été oublié est que **le seuil appartenait à l'instrument**, pas au phénomène.
+- long_term_fix: **un seuil chiffré nomme l'instrument qui l'a produit, et un changement d'instrument périme le seuil** — il se recalibre, il ne se transporte pas. Quand c'est possible, préférer un signal SANS UNITÉ à transporter : ici la colonne « reruns perdus » (un COMPTE de clics qui n'ont jamais rendu de page) vaut zéro sur n'importe quel instrument, n'importe quelle machine, n'importe quelle heure — là où une milliseconde n'a de sens que relativement à la ligne de base de l'outil qui l'a produite. Le protocole qui en découle est écrit AVANT la mesure (`.claude/dev-docs/measurement-protocol-R114.md`), parce qu'un protocole rédigé après choisit celui qui donne le résultat espéré.
+- autofix: none
+- signature: none
+- guard: { type: doc, ref: .claude/dev-docs/measurement-protocol-R114.md }
+- rex_ref: tools/loadtest_concurrency.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: `kind: manual` et SANS signature. Aucune commande ne peut savoir quel instrument a produit un nombre écrit dans une roadmap il y a trois semaines — c'est une propriété de l'HISTOIRE du chiffre, pas du dépôt. La classe voisine `a-count-taken-before-the-writer-ran` dit la même chose sur l'INSTANT d'une mesure ; celle-ci la dit sur son INSTRUMENT. Trouvée par `code-critic` sur le DESIGN, avant qu'une ligne de R114 soit écrite — c'est-à-dire au seul moment où la correction coûte zéro.

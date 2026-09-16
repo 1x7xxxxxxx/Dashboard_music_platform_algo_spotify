@@ -98,7 +98,11 @@ FAMILIES: list[tuple[str, str, str]] = [
      # AVANT l'évènement qu'il prétend décrire. « La suite écrit-elle dans cette
      # table ? → 0 » était une vraie mesure, et une fausse réponse.
      r"named-like-a-final-one|imput|estimat|wins-a-desc-ranking|"
-     r"taken-before-the-writer-ran"),
+     r"taken-before-the-writer-ran|"
+     # `carried-across-instruments`, ajouté le 2026-09-16 à côté du précédent : l'un
+     # dit qu'une mesure peut être prise au mauvais INSTANT, l'autre avec le mauvais
+     # INSTRUMENT. Les deux produisent un chiffre juste et une réponse fausse.
+     r"carried-across-instruments"),
 
     ("le-message-parle-au-mauvais-lecteur",
      "Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que "

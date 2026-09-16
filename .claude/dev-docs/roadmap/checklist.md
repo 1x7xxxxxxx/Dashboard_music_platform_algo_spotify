@@ -154,6 +154,19 @@ optimiste de 1,2× à 1,6× **et aveugle à l'échec** : elle ne connaît que la
 jamais les 98 reruns perdus. **Le point unique est un processus Python — Redis n'est pas
 le levier, la seconde instance l'est.** C'est l'inverse de l'ordre qu'on suppose.
 
+⚠️ **Le p50 de ce tableau ne se compare PAS au déclencheur qui a rouvert R87**, et je
+l'avais fait. Trouvé par `code-critic` le 2026-09-16 : le déclencheur disait
+« `loadtest_dashboard.py -n 12` rend un p50 > 200 ms », or cet outil **se sature
+lui-même** (352 ms à un fil, 2 144 ms à six, sous `AppTest`) — c'est la raison pour
+laquelle il a été remplacé. Le nouvel outil rend **329 ms à N=1**, donc déjà au-dessus
+d'un seuil défini pour l'autre instrument. Deux échelles, un seuil transporté de l'une à
+l'autre.
+
+**Le signal de décision est donc la colonne « reruns perdus »** — un COMPTE, sans unité
+à transporter et sans ligne de base à soustraire. Un rerun perdu est un clic qui n'a
+jamais rendu de page ; zéro est zéro quel que soit l'instrument. Protocole complet,
+écrit AVANT la première courbe : `.claude/dev-docs/measurement-protocol-R114.md`.
+
 Ces quatre tâches construisent la forme scalable **même si le seuil n'est pas atteint**
 (R87 est close sur un pic de 12 sessions/minute contre un seuil de 20). C'est une
 décision assumée : découvrir par la mesure que ce n'était pas nécessaire vaut mieux que
@@ -171,11 +184,32 @@ le supposer.
   bocal à cookies, `lb_policy cookie` le répartit en tourniquet. C'est pourquoi
   l'étape 1 (seaux partagés) devait précéder, et elle l'a fait.
 
-  **Mesuré par** : `make loadtest-concurrency URL=… LEVELS=1,2,4,8,12,16,24 REPS=6`,
-  une courbe à une instance, une à deux. Les trois résultats possibles sont tous utiles :
-  p50 à 8 onglets ÷ ~2 (le levier est prouvé) ; p50 inchangé (**le goulot n'est pas le
-  GIL — on aurait acheté Redis pour rien**, et c'est la découverte visée) ; gain < 2×
-  (on a le rendement réel d'une instance).
+  **Mesuré par** : `.claude/dev-docs/measurement-protocol-R114.md`, écrit AVANT la première courbe
+  sur condition bloquante de `code-critic`. Quatre passes **alternées** A-B-A-B (une
+  instance / deux instances), mêmes paliers, mêmes reps, en heures creuses. Le signal de
+  décision est **les reruns perdus**, pas le p50. Seuil fixé d'avance : B doit rendre
+  zéro rerun perdu là où A en perd ≥ 9, **sur les deux passes** ; un écart de p50 sous
+  40 % est déclaré dans le bruit et ne soutient rien.
+
+  Les trois issues sont toutes utiles, et **la troisième est un résultat** : le levier
+  est prouvé ; ou B perd autant que A — **le goulot n'est pas le GIL, on aurait acheté
+  Redis et des workers pour rien**, la découverte visée ; ou l'écart est sous le seuil et
+  on écrit que la mesure n'a pas tranché.
+
+  **Conditions bloquantes de `code-critic`, fermées avant d'écrire une ligne** :
+  `tools/deploy.sh` porte désormais un REGISTRE de services (`service_probe()`) — un
+  service sans sonde est REFUSÉ, là où la branche `*) continue` le laissait traverser le
+  déploiement sans vérification et sans retour arrière ; et `rollback()` reconstruit le
+  service EN CAUSE, non plus toute la liste (à deux répliques, l'échec de l'une aurait
+  coupé les deux). Garde :
+  `tests/test_a_deploy_covers_every_service_it_starts.py`, qui relie l'amont Caddy à sa
+  sonde — les deux vivaient dans deux fichiers que rien ne comparait.
+
+  **Conséquence à assumer, nommée par la critique** : au redémarrage de l'instance
+  épinglée, Caddy réachemine vers l'autre amont, qui n'a pas le `st.session_state` de
+  l'utilisateur — déconnexion silencieuse en pleine session. Aujourd'hui un déploiement
+  fait subir cela à TOUT LE MONDE en même temps ; à deux répliques l'effet est étalé
+  mais reste réel.
 
   Réversible : `docker rm -f` + le Caddyfile d'avant + `reload`. Coût mesuré : 118 MiB
   sur 4,49 Gi libres.
