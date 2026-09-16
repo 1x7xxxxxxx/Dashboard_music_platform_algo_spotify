@@ -276,7 +276,21 @@ def _show_heatmap(df_weekly: pd.DataFrame):
     st.plotly_chart(fig, width='stretch')
 
 
+@st.fragment
 def _show_cumulative(df_cumul: pd.DataFrame):
+    """La croissance cumulative — rejouée SEULE quand son filtre change.
+
+    @st.fragment (R118, 2026-09-16) : bouger le multiselect ne rejoue que ce corps.
+    Avant, il rejouait tout le script — les trois requêtes de `show()`, les quatre autres
+    sections, et toute la barre latérale.
+
+    ⚠️ La condition de sûreté, et elle n'est pas négociable : cette fonction ne reçoit
+    qu'un **DataFrame**, jamais la connexion. `show()` ferme `db` dans son `finally` dès
+    que le rendu complet est fini ; un fragment qui aurait capturé `db` s'exécuterait
+    plus tard sur une connexion FERMÉE, et échouerait sans que rien ne relie la panne au
+    filtre qu'on vient de bouger. Garde :
+    `tests/test_a_fragment_never_captures_a_connection.py`.
+    """
     st.subheader(t("db_health.cumul_header", "📈 Croissance cumulative des datasets"))
     st.caption(t("db_health.cumul_caption", "Un plateau = plus aucun import sur ce dataset."))
 
@@ -321,7 +335,21 @@ def _show_cumulative(df_cumul: pd.DataFrame):
     st.plotly_chart(fig, width='stretch')
 
 
+@st.fragment
 def _show_batch_sizes(df_weekly: pd.DataFrame):
+    """La taille des imports par semaine — rejouée SEULE quand son filtre change.
+
+    @st.fragment (R118, 2026-09-16) : bouger le multiselect ne rejoue que ce corps.
+    Avant, il rejouait tout le script — les trois requêtes de `show()`, les quatre autres
+    sections, et toute la barre latérale.
+
+    ⚠️ La condition de sûreté, et elle n'est pas négociable : cette fonction ne reçoit
+    qu'un **DataFrame**, jamais la connexion. `show()` ferme `db` dans son `finally` dès
+    que le rendu complet est fini ; un fragment qui aurait capturé `db` s'exécuterait
+    plus tard sur une connexion FERMÉE, et échouerait sans que rien ne relie la panne au
+    filtre qu'on vient de bouger. Garde :
+    `tests/test_a_fragment_never_captures_a_connection.py`.
+    """
     st.subheader(t("db_health.batch_header", "📦 Taille des imports par semaine"))
     st.caption(t("db_health.batch_caption",
                  "Lots très petits ou très grands peuvent indiquer une anomalie de collecte."))

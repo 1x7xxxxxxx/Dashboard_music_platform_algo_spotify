@@ -132,6 +132,107 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
   sans jeton) ; et **24 % des runs CI sont déclenchés par des changements de `.md`
   seuls**, sans filtre `paths:`.
 
+## 📈 R115 — Prometheus + Grafana, livrée et déployée (2026-09-16)
+
+- [x] **R115 — Prometheus + Grafana. Livrée et déployée (2026-09-16) ; étapes 0 à 6 closes.**
+
+  **En service sur la cible depuis le 2026-09-16** : `prometheus` (rétention 30 j),
+  `grafana` (127.0.0.1 seulement, par tunnel SSH) et `node_exporter`, derrière
+  `profiles: ['observability']`. **5/5 cibles `up`.** ADR-026 supersede ADR-002 §4 et
+  porte le raisonnement — l'observabilité n'est pas adoptée parce qu'un utilisateur
+  s'est plaint, mais parce que trois ADR reposent sur des déclencheurs que personne
+  n'observait.
+
+  Livré, étape par étape :
+
+  - **0** — ADR-026 ; rotation des journaux Docker (`deploy/host/docker-daemon.json`,
+    prouvée PAR EFFET : `.log` + `.log.1` + `.log.2` à exactement 10 000 000 octets) ;
+    `servers { metrics }` dans le Caddyfile — sans quoi `caddy_http_*` comptait ZÉRO
+    ligne et on croyait avoir la latence du reverse proxy.
+  - **1** — `src/utils/metrics.py`, quatre familles, drapeau de module pour le port
+    Streamlit. La phase `chrome` est la correction d'un angle mort, pas une métrique de
+    plus : le chronomètre historique excluait la barre latérale. ⚠️ Le « facteur ~8 »
+    écrit ici était FAUX, et c'est l'instrument de cette étape qui l'a montré le soir
+    même : la chrome est plate à 11-13 ms et la vue va de 50 à 777 ms. Cause — une
+    soustraction jamais faite, le plancher de 352 ms d'`AppTest`. Addendum d'ADR-026.
+  - **2/3** — node_exporter, Prometheus, Grafana ; tableaux **versionnés** dans
+    `deploy/grafana/dashboards/` (9 panneaux), jamais cliqués dans l'interface.
+  - **4** — `daily_ops_metrics` (migration 125) : Prometheus garde 30 j à haute
+    fréquence, Postgres garde un résumé QUOTIDIEN interrogeable en SQL à côté des
+    données métier. Une ligne incomplète est écrite plutôt qu'aucune — l'absence se lit
+    « la surveillance n'a pas tourné ».
+  - **5** — quatre règles d'alerte, **ADR-011 rendu mécanique** : chaque règle porte
+    `symptom` et `action` en annotations, et un test refuse une règle qui n'aurait que
+    l'une des deux. Elles passent par le canal existant (`alert_monitor` → mail), pas
+    par un Alertmanager. Le lecteur interroge `max_over_time(ALERTS[24h])` et non l'état
+    courant : une pointe de 14 h serait invisible à 23 h. Chaîne prouvée de bout en bout
+    avec une règle temporaire vue sonner puis retirée.
+  - **6** — la vérification est faite, et elle **contredit la moitié du plan** :
+    `.claude/dev-docs/grafana-correspondence.md`. Trois des quatre vues ne font pas
+    doublon (données métier, par locataire, illisibles depuis Prometheus sans une
+    cardinalité qui croît avec le nombre de clients). Seul `perf_monitor.py` l'est.
+
+  **✅ La condition qui restait a été levée le soir même (2026-09-16).** L'utilisateur
+  s'est connecté une fois au tableau de bord et a navigué sur 8 pages ; l'histogramme a
+  reçu des observations :
+  - [x] Connexion + navigation faites, `sum by (page, phase)
+        (streamlytics_rerun_duration_seconds_count)` non vide, au moins une page et les
+        deux phases présentes. En conséquence, `src/dashboard/views/perf_monitor.py` a
+        été **supprimé** (-181 lignes) et sa route retirée.
+
+  **Un chiffre est délibérément abandonné** : le « DB ping » de `perf_monitor`. C'est un
+  échantillon unique pris par l'admin qui ouvre la page ; il décrit SON chemin réseau à
+  cet instant. Les deux meilleures réponses existent déjà (latence de rendu toutes
+  sessions, et `direct_fallback` qui compte les fois où le pool était vide). Déclencheur
+  de réouverture : un incident où la latence de rendu est normale et Postgres en cause.
+
+  **Ce que ça ne donne toujours PAS** : ni traces distribuées, ni corrélation
+  inter-services, ni logs structurés. Déclencheurs écrits dans ADR-026.
+
+  **Accès** : `ssh -N -L 3000:127.0.0.1:3000 root@167.233.92.1` puis
+  `http://localhost:3000`. Zéro surface publique.
+
+## 🔬 R119 — L'instrument de mesure dit POURQUOI il échoue (livrée 2026-09-16)
+
+- [x] **R119 — l'instrument de mesure dit POURQUOI il échoue, et cesse de censurer.**
+      **LIVRÉ le 2026-09-16.** Les quatre défauts sont corrigés dans
+      `tools/loadtest_concurrency.py`, et `tests/test_a_measurement_says_why_it_failed.py`
+      les tient chacun :
+
+      1. **Marqueur spécifique.** `stStatusWidget` est remplacé par
+         `data-test-script-state` sur `[data-testid="stApp"]`. Vérifié dans le frontend
+         livré (1.63) : le même élément porte `data-test-connection-state`
+         **séparément** — les deux causes que l'ancien marqueur mélangeait sont deux
+         attributs distincts. Énumération complète relevée : `initial`, `notRunning`,
+         `running`, `rerunRequested`, `stopRequested`, `compilationError`.
+      2. **Quatre issues au lieu d'une.** `click_failed` (client), `never_started`
+         (transport, avec l'état de connexion relevé pour trancher), `never_finished`
+         (**le seul signal serveur**), `app_error`. `_OUTCOMES` déclare la liste, et le
+         garde refuse qu'une issue rendue n'y soit pas — sinon le compteur la perdrait
+         en silence.
+      3. **Censure publiée.** Le taux sort dans le tableau ; au-delà de 20 % le rapport
+         ×N est annoncé comme une **BORNE INFÉRIEURE**. À 24 onglets l'ancienne mesure
+         censurait 68-82 % et publiait quand même un p50.
+      4. **Client mesuré à CHAQUE palier.** RAM du navigateur et mémoire disponible ; la
+         rampe s'arrête plutôt que de publier un chiffre qui décrit le client. Et
+         `_heavy_local_processes()` peut désormais s'exclure elle-même — elle comptait
+         `chromium`, c'est-à-dire ce que l'outil lance.
+
+      Plus : un JSON **par palier, écrit au fil de l'eau** (deux passes sur quatre sont
+      mortes en emportant la série), et le tableau renvoie vers la requête serveur
+      équivalente — croiser les deux est le seul moyen de dire si un rerun perdu est un
+      défaut du serveur ou de l'instrument.
+
+      ⚠️ **Un item de ce bloc était déjà fait** : « publier la colonne `max` ». Elle
+      l'était depuis le début (`rows.append(..., max(durations), ...)`). La roadmap
+      décrivait un défaut qui n'existait pas — vérifier une prémisse avant d'agir dessus.
+
+      Classes écrites : `a-measurement-that-cannot-say-why-it-failed`,
+      `a-percentile-computed-on-survivors`. Sept mutations vues rouges, dont une qui a
+      révélé que **le garde de la censure était lui-même faux** : il cherchait un nom au
+      lieu d'un chemin, et la mutation « renommer la clé produite » restait verte parce
+      que le nom survivait chez ses lecteurs.
+
 
 ### R108 — L'exemption de la porte masque ce qu'elle laisse entrer (livrée 2026-09-14)
 

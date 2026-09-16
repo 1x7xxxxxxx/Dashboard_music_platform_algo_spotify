@@ -342,12 +342,41 @@ _INSERTION_TARGETS = [
 
 
 @st.fragment
-def _section_insertion_test(db):
+def _section_insertion_test():
     """Vérifie directement en DB combien de lignes ont été insérées par chaque DAG.
 
-    @st.fragment: the window selectbox only re-runs this section, not the whole
-    Monitoring page (which re-fetches all DAG states + KPIs on every rerun).
+    @st.fragment : le sélecteur de fenêtre ne rejoue QUE cette section, pas toute la
+    page de monitoring (qui refait tous les états de DAG et les KPI à chaque rerun).
+
+    ⚠️ ELLE OUVRE SA PROPRE CONNEXION, et c'est la correction d'un défaut vivant trouvé
+    le 2026-09-16. Elle recevait `db` en argument — celui de `show()`, fermé dans son
+    `finally` dès la fin du rendu complet. Un fragment étant rejoué SEUL, des minutes
+    plus tard, chaque mouvement du sélecteur travaillait sur une connexion déjà rendue.
+
+    Ça ne PLANTAIT pas, et c'est pire : `PostgresHandler._ensure_connection()` voit
+    `conn.closed`, journalise « Connexion PostgreSQL perdue — reconnexion automatique »
+    (alors que rien n'a été perdu : on l'avait fermée exprès) et **ré-emprunte au pool**.
+    Cette connexion-là n'est jamais rendue, le `finally` de `show()` étant passé. Une
+    fuite d'une connexion par session admin, sur un pool à `maxconn=10`, qu'aucun
+    message n'attribue au geste qui la cause.
+
+    Le commentaire qui disait « no outer try/finally here any more: it existed only to
+    close a connection this function no longer owns » décrivait l'état d'AVANT le
+    décorateur. Les deux changements sont incompatibles et personne ne l'a vu — c'est
+    pourquoi `tests/test_a_fragment_never_captures_a_connection.py` existe maintenant.
     """
+    db = get_db_connection()
+    if db is None:
+        st.error(t("airflow_kpi.db_unreachable", "❌ Base de données inaccessible."))
+        return
+    try:
+        _render_insertion_test(db)
+    finally:
+        db.close()
+
+
+def _render_insertion_test(db):
+    """Le corps, séparé pour que la propriété de la connexion se lise en six lignes."""
     st.subheader(t("airflow_kpi.insertion_header", "🗄️ Test d'insertion PostgreSQL par DAG"))
     st.caption(
         t("airflow_kpi.insertion_caption",
@@ -373,8 +402,9 @@ def _section_insertion_test(db):
     interval = interval_map[window]
 
     results = []
-    # No outer try/finally here any more: it existed only to close a connection
-    # this function no longer owns. Each target keeps its own try/except below.
+    # Le `try/finally` qui possède la connexion est remonté dans
+    # `_section_insertion_test()`, six lignes plus haut. Chaque cible garde son propre
+    # `try/except` ci-dessous, pour qu'une table absente n'emporte pas les autres.
     for label, dag_id, table, col_date, description in _INSERTION_TARGETS:
         # CLAUDE.md rule #8 — explicit allowlist + identifier check before f-string SQL.
         # interval comes from a static interval_map dict (no user input).
@@ -492,7 +522,7 @@ def show():
             _section_run_logs()
 
         with tab_insert:
-            _section_insertion_test(db)
+            _section_insertion_test()
 
         with tab_etl:
             # 1. Récupération des Données (Airflow + DB)

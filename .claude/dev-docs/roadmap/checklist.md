@@ -28,7 +28,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | R118 | `st.fragment` sur les 11 vues à filtres — **remonté avant R120** | P2 | histogramme de rendu, admin d'abord |
 | R120 | La vue, pas la chrome — onglets et expanders paresseux (chrome démesurée : 11-13 ms) | P2 | histogramme de rendu avant/après, même charge |
 | R121 | Les agrégations Python passent en SQL (couche or) | P3 | `make gold-coverage`, cliquet |
-| R115 | Prometheus + Grafana — **en service** ; reste 1 geste humain avant de retirer `perf_monitor` | P3 | l'histogramme de rendu porte au moins une page, après une connexion |
 | R116 | **ADR-027** — répliques et Redis, tranché APRÈS les courbes (026 est pris) | P4 | `ls docs/adr/ADR-027-*.md` |
 | R117 | Le dépôt quitte `/mnt/c` pour ext4, et VS Code passe en Remote-WSL | P3 | suite complète chronométrée des deux côtés, en alternance |
 
@@ -174,45 +173,6 @@ Ces quatre tâches construisent la forme scalable **même si le seuil n'est pas 
 décision assumée : découvrir par la mesure que ce n'était pas nécessaire vaut mieux que
 le supposer.
 
-- [x] **R119 — l'instrument de mesure dit POURQUOI il échoue, et cesse de censurer.**
-      **LIVRÉ le 2026-09-16.** Les quatre défauts sont corrigés dans
-      `tools/loadtest_concurrency.py`, et `tests/test_a_measurement_says_why_it_failed.py`
-      les tient chacun :
-
-      1. **Marqueur spécifique.** `stStatusWidget` est remplacé par
-         `data-test-script-state` sur `[data-testid="stApp"]`. Vérifié dans le frontend
-         livré (1.63) : le même élément porte `data-test-connection-state`
-         **séparément** — les deux causes que l'ancien marqueur mélangeait sont deux
-         attributs distincts. Énumération complète relevée : `initial`, `notRunning`,
-         `running`, `rerunRequested`, `stopRequested`, `compilationError`.
-      2. **Quatre issues au lieu d'une.** `click_failed` (client), `never_started`
-         (transport, avec l'état de connexion relevé pour trancher), `never_finished`
-         (**le seul signal serveur**), `app_error`. `_OUTCOMES` déclare la liste, et le
-         garde refuse qu'une issue rendue n'y soit pas — sinon le compteur la perdrait
-         en silence.
-      3. **Censure publiée.** Le taux sort dans le tableau ; au-delà de 20 % le rapport
-         ×N est annoncé comme une **BORNE INFÉRIEURE**. À 24 onglets l'ancienne mesure
-         censurait 68-82 % et publiait quand même un p50.
-      4. **Client mesuré à CHAQUE palier.** RAM du navigateur et mémoire disponible ; la
-         rampe s'arrête plutôt que de publier un chiffre qui décrit le client. Et
-         `_heavy_local_processes()` peut désormais s'exclure elle-même — elle comptait
-         `chromium`, c'est-à-dire ce que l'outil lance.
-
-      Plus : un JSON **par palier, écrit au fil de l'eau** (deux passes sur quatre sont
-      mortes en emportant la série), et le tableau renvoie vers la requête serveur
-      équivalente — croiser les deux est le seul moyen de dire si un rerun perdu est un
-      défaut du serveur ou de l'instrument.
-
-      ⚠️ **Un item de ce bloc était déjà fait** : « publier la colonne `max` ». Elle
-      l'était depuis le début (`rows.append(..., max(durations), ...)`). La roadmap
-      décrivait un défaut qui n'existait pas — vérifier une prémisse avant d'agir dessus.
-
-      Classes écrites : `a-measurement-that-cannot-say-why-it-failed`,
-      `a-percentile-computed-on-survivors`. Sept mutations vues rouges, dont une qui a
-      révélé que **le garde de la censure était lui-même faux** : il cherchait un nom au
-      lieu d'un chemin, et la mutation « renommer la clé produite » restait verte parce
-      que le nom survivait chez ses lecteurs.
-
 - [ ] **R120 — la VUE, pas la chrome.** (titre corrigé le 2026-09-16 : il disait l'inverse)
 
   ⚠️ **Ma première hypothèse était fausse et le dépôt le savait déjà.** `docs/adr/ADR-007`
@@ -321,71 +281,6 @@ le supposer.
 
   **Garde existant à réutiliser** : `make gold-coverage` et son cliquet.
 
-- [ ] **R115 — Prometheus + Grafana. Étapes 0 à 6 livrées ; une condition reste.**
-
-  **En service sur la cible depuis le 2026-09-16** : `prometheus` (rétention 30 j),
-  `grafana` (127.0.0.1 seulement, par tunnel SSH) et `node_exporter`, derrière
-  `profiles: ['observability']`. **5/5 cibles `up`.** ADR-026 supersede ADR-002 §4 et
-  porte le raisonnement — l'observabilité n'est pas adoptée parce qu'un utilisateur
-  s'est plaint, mais parce que trois ADR reposent sur des déclencheurs que personne
-  n'observait.
-
-  Livré, étape par étape :
-
-  - **0** — ADR-026 ; rotation des journaux Docker (`deploy/host/docker-daemon.json`,
-    prouvée PAR EFFET : `.log` + `.log.1` + `.log.2` à exactement 10 000 000 octets) ;
-    `servers { metrics }` dans le Caddyfile — sans quoi `caddy_http_*` comptait ZÉRO
-    ligne et on croyait avoir la latence du reverse proxy.
-  - **1** — `src/utils/metrics.py`, quatre familles, drapeau de module pour le port
-    Streamlit. La phase `chrome` est la correction d'un angle mort, pas une métrique de
-    plus : le chronomètre historique excluait la barre latérale, soit un facteur ~8.
-  - **2/3** — node_exporter, Prometheus, Grafana ; tableaux **versionnés** dans
-    `deploy/grafana/dashboards/` (9 panneaux), jamais cliqués dans l'interface.
-  - **4** — `daily_ops_metrics` (migration 125) : Prometheus garde 30 j à haute
-    fréquence, Postgres garde un résumé QUOTIDIEN interrogeable en SQL à côté des
-    données métier. Une ligne incomplète est écrite plutôt qu'aucune — l'absence se lit
-    « la surveillance n'a pas tourné ».
-  - **5** — quatre règles d'alerte, **ADR-011 rendu mécanique** : chaque règle porte
-    `symptom` et `action` en annotations, et un test refuse une règle qui n'aurait que
-    l'une des deux. Elles passent par le canal existant (`alert_monitor` → mail), pas
-    par un Alertmanager. Le lecteur interroge `max_over_time(ALERTS[24h])` et non l'état
-    courant : une pointe de 14 h serait invisible à 23 h. Chaîne prouvée de bout en bout
-    avec une règle temporaire vue sonner puis retirée.
-  - **6** — la vérification est faite, et elle **contredit la moitié du plan** :
-    `.claude/dev-docs/grafana-correspondence.md`. Trois des quatre vues ne font pas
-    doublon (données métier, par locataire, illisibles depuis Prometheus sans une
-    cardinalité qui croît avec le nombre de clients). Seul `perf_monitor.py` l'est.
-
-  **⛔ CE QUI RESTE — une seule chose, et elle demande un geste humain :**
-
-  - [ ] Se connecter **une fois** au tableau de bord et naviguer sur deux ou trois
-        pages, puis vérifier que l'histogramme a reçu des observations :
-        ```bash
-        ssh root@167.233.92.1 'curl -s --get localhost:9090/api/v1/query \
-          --data-urlencode "query=sum by (page, phase) (streamlytics_rerun_duration_seconds_count)"'
-        ```
-        Une réponse non vide, avec au moins une page et les deux phases, **autorise la
-        suppression de `src/dashboard/views/perf_monitor.py`** (-181 lignes) et le
-        retrait de sa route.
-
-        Pourquoi c'est bloquant : les panneaux de latence sont **vides** aujourd'hui.
-        L'histogramme ne reçoit d'observation qu'au premier rendu AUTHENTIFIÉ — les
-        routes publiques font `st.stop()` avant la couture, délibérément. Retirer la vue
-        maintenant remplacerait une surface qui marche par une surface vide, et **une
-        figure vide se lit « tout va bien »**.
-
-  **Un chiffre est délibérément abandonné** : le « DB ping » de `perf_monitor`. C'est un
-  échantillon unique pris par l'admin qui ouvre la page ; il décrit SON chemin réseau à
-  cet instant. Les deux meilleures réponses existent déjà (latence de rendu toutes
-  sessions, et `direct_fallback` qui compte les fois où le pool était vide). Déclencheur
-  de réouverture : un incident où la latence de rendu est normale et Postgres en cause.
-
-  **Ce que ça ne donne toujours PAS** : ni traces distribuées, ni corrélation
-  inter-services, ni logs structurés. Déclencheurs écrits dans ADR-026.
-
-  **Accès** : `ssh -N -L 3000:127.0.0.1:3000 root@167.233.92.1` puis
-  `http://localhost:3000`. Zéro surface publique.
-
 - [ ] **R116 — ADR-027, écrit APRÈS les courbes.**
 
   ⚠️ **Le numéro a changé** : ce bloc annonçait ADR-026, qui est pris depuis le
@@ -492,15 +387,17 @@ travail quotidien existe déjà et n'enlève aucune couverture** :
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-16, sept tâches ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-16, cinq tâches ouvertes (à lire EN PREMIER au `/resume`)
 
 <!-- reprise: open=R118,R120,R121,R116,R117 -->
 
-**Cinq tâches sont ouvertes.** R115 (l'instrument serveur) et R119 (réparer l'instrument client) sont livrées le 2026-09-16 ; leur détail est dans `archive.md`.
+**Cinq tâches sont ouvertes** : R118, R120, R121, R116, R117.
 
-~~**Sept tâches sont ouvertes.**~~ R114 est livrée et déployée (`e859ae3`), et **son
-résultat est AMBIGU** — c'est ce constat qui a ouvert R118 à R121. Détail dans
-`archive.md`.
+R115 (l'instrument serveur) et R119 (réparer l'instrument client) sont livrées le
+2026-09-16 ; leur détail est dans `archive.md`. R114 est livrée et déployée (`e859ae3`),
+et **son résultat était AMBIGU** — c'est ce constat qui a ouvert R118 à R121. La
+première mesure de l'instrument serveur a tranché : c'est la VUE qui domine, pas la
+chrome, ce qui a réordonné R118 devant R120.
 
 **L'ordre était contraint** : R115 (l'instrument) puis R119 (le réparer) AVANT toute
 optimisation. **Les deux sont faites**, et la première mesure du nouvel instrument a
