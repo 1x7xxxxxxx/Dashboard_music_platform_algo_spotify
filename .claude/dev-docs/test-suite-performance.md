@@ -269,3 +269,52 @@ sur l'image de l'API. Ne pas l'annoncer plus grand qu'il n'est.
 - **Le cliquet des allers-retours coûte maintenant 21,9 s** (son nouveau garde ouvre un
   sous-processus). C'est cher pour un fichier, et c'est assumé : il garde une classe
   qui a mordu trois fois.
+
+---
+
+# Le 2026-09-16 au matin — le goulot a changé de nature
+
+Une fois la suite shardée, **la mise en route domine les tests**. Décomposition d'un
+shard, mesurée :
+
+| Poste | Coût |
+|---|---|
+| `Initialize containers` | 14 s |
+| `Install uv` — **v4** | **20 s** |
+| `Install uv` — **v10.1.0** | **1 s** |
+| `Install dependencies from lockfile` | 6 s |
+| `Provision Postgres` | 12 s |
+| **`Run tests`** | **37–47 s** |
+
+## `setup-uv` : v4 → v10.1.0, et les trois choses qu'il a fallu apprendre
+
+1. **Le retard était invisible.** `.github/dependabot.yml` ignore les MAJEURES pour
+   `github-actions` — bonne règle, une majeure change le runner sous la CI. Mais une
+   action qui ne publie QUE des majeures ne produit alors aucune PR : le silence est
+   indiscernable d'« à jour ». Six majeures de retard, et la v4 parlait à l'API de
+   cache retirée par GitHub (`Failed to restore: 400`, 0 % de succès).
+   Le rapporteur `tools/dev/check_action_drift.py` tourne désormais chaque nuit.
+2. **`@v10` n'existe pas.** `astral-sh/setup-uv` publie `v10.1.0` et PAS de tag majeur
+   flottant, alors que `@v4` en avait un. Les cinq jobs ont échoué en **9 secondes**
+   sur `Unable to resolve action`, avant la mise en route. Le rapporteur vérifie
+   maintenant que chaque `uses:` RÉSOUT, et n'imprime que des tags écrivables.
+3. **La majeure a déplacé un défaut.** `cache-dependency-glob` passe de `**/uv.lock`
+   (v4) à `**/*requirements*.txt` (v10). Or `uv sync --frozen` n'installe que ce que
+   dit `uv.lock` : le cache se serait invalidé quand rien ne change, et pas quand tout
+   change — vert dans les deux cas, faux dans les deux cas. Le glob est explicite sur
+   les trois sites.
+
+## Une observation à SURVEILLER, pas à corriger
+
+Un run sur `main` (35071279926) a passé **133 s** dans `Set up Python 3.11`
+(`uv python install 3.11`), pour un mur de 218 s. Le run frère en v10 (35071014744) a
+fait la même étape en **moins de 3 s**, pour un mur de 162 s.
+
+Un point ne conclut pas, et 40× d'écart sur une étape est exactement ce que le seuil de
+±40 % interdit d'interpréter. Cause probable : `uv python install` télécharge un CPython
+quand le cache d'outils du runner ne l'a pas — variable, pas systématique.
+
+**Ce qui déclencherait une action** : `Set up Python 3.11` au-dessus de 30 s sur trois
+runs. Le remède serait alors de replier l'installation de Python dans `setup-uv`
+lui-même (`python-version:`), pour qu'elle passe par le même cache. À mesurer avant,
+pas à supposer.
