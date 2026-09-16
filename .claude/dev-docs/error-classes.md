@@ -60,6 +60,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
+| [correct-because-there-is-only-one-of-it](#correct-because-there-is-only-one-of-it) | P1 | deterministic | guarded | none |
 | [a-default-branch-that-skips-instead-of-refusing](#a-default-branch-that-skips-instead-of-refusing) | P1 | deterministic | guarded | none |
 | [a-rollback-wider-than-the-failure](#a-rollback-wider-than-the-failure) | P1 | deterministic | guarded | none |
 | [a-threshold-carried-across-instruments](#a-threshold-carried-across-instruments) | P2 | manual | guarded | none |
@@ -6020,3 +6021,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: le rollback datait de la veille (étape 0 du chantier d'architecture), écrit dans une passe de robustesse et jamais exercé à deux instances — il n'y en avait qu'une. C'est le motif récurrent de cette séance : du code exact **parce qu'il n'existe qu'un exemplaire**, et faux le jour où il y en a deux, sans qu'une ligne change. Signature structurelle (corps de fonction, lignes non commentées) donc `deterministic`. Mutation vue dans les deux sens : `--build "$_svc"` remplacé par `--build $SERVICES` → rc=1 en citant la ligne ; remis → rc=0.
+
+## correct-because-there-is-only-one-of-it
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: du code exact aujourd'hui devient faux le jour où une seconde instance existe — **sans qu'une seule ligne change**. Rien n'échoue au moment du changement : c'est une phrase de commentaire qui cesse d'être vraie, et personne ne relit les commentaires en ajoutant un conteneur.
+- root_cause: un état vit dans la mémoire du PROCESSUS, et son exactitude repose sur le fait qu'il n'y a qu'un processus par surface. Mesuré le 2026-09-16, **quatre fois dans la même séance**, chacune trouvée par un chemin différent : (1) les seaux anti-force-brute — `budget × N` sur un chemin d'authentification, trouvé en écrivant le garde des répliques ; (2) `clear_kpi_caches()` — purge son propre interpréteur, donc dix minutes de chiffres périmés sur l'autre instance, trouvé en lisant le code ; (3) la sonde de santé du déploiement — `*) continue` sur un service inconnu, trouvé par `code-critic` ; (4) le retour arrière — reconstruit `$SERVICES` au lieu du service en panne, trouvé par `code-critic`. Les quatre ont été ÉCRITS CORRECTS. Le dénominateur commun n'est pas la négligence, c'est qu'à un exemplaire les deux comportements sont indiscernables.
+- long_term_fix: **la question se pose à l'écriture, pas au déploiement : « cet état est-il encore juste s'il en existe deux exemplaires ? »** — et la réponse s'écrit à côté du code. Trois réponses, et la troisième est un chantier : per-instance VOULU (chaque instance doit avoir le sien) ; INOFFENSIF (donnée immuable, au pire de la mémoire en double) ; IL FAUT LE PARTAGER. `tests/test_process_state_is_declared_for_a_second_instance.py` tient le registre : tout conteneur de niveau module que son module MUTE doit y être déclaré avec sa raison, sur le modèle de `_NOT_A_QUANTITY`. Un site neuf n'est pas refusé, il est mis en question.
+- autofix: none
+- signature: `.venv/bin/python -m pytest tests/test_process_state_is_declared_for_a_second_instance.py -q -p no:cacheprovider >/dev/null 2>&1`
+- guard: { type: pytest, ref: tests/test_process_state_is_declared_for_a_second_instance.py }
+- rex_ref: src/dashboard/utils/cache_epoch.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: **la classe la plus générique de la séance**, et celle qui sert aux développements futurs — les six autres classes du jour en sont des instances ou des voisines. Deux formes de détecteur ont été MESURÉES avant de retenir celle-ci : « tout littéral mutable au niveau module » rend **209 sites**, presque tous des registres constants jamais mutés. Un détecteur qui crie 209 fois est un détecteur que personne ne lit, et la leçon « le rouge est du bruit » se propage aux autres classes. Le signal n'est pas le TYPE mais la **MUTATION** — le conteneur doit être muté dans son propre module : **8 sites**, tous réels. Aucun n'était un défaut neuf (un est per-instance voulu, un est un chemin rapide devant un verrou en base, six sont des caches d'artefacts immuables), et c'est le résultat attendu : le cliquet ne sert pas à trouver le passé, il sert à poser la question sur le prochain. Mutations vues rouges : un état non déclaré ajouté → rouge en le nommant ; une déclaration sans site → rouge ; une déclaration de moins de 80 caractères → rouge (elle a attrapé trois des miennes).

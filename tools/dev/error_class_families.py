@@ -174,7 +174,11 @@ FAMILIES: list[tuple[str, str, str]] = [
      # (« sa portée contient-elle ce défaut ? ») est la bonne dans les deux cas, à
      # ceci près qu'ici la portée est trop LARGE, pas trop étroite.
      r"guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|"
-     r"test-|suite|assert|blind|skips-instead-of-refusing|"
+     # `correct-because-there-is-only-one-of-it`, ajoutee le 2026-09-16 : c'est la
+     # classe GENERIQUE dont trois autres du jour sont des instances. Son garde est un
+     # registre qui MET EN QUESTION plutot qu'il ne refuse — la forme de garde que
+     # cette famille reconnait.
+     r"test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|"
      r"rollback-wider-than-the-failure"),
 
     ("un-document-qui-affirme-un-état-périmé",
