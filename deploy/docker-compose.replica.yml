@@ -19,6 +19,11 @@
 # le nom du conteneur et le port changent. MEME image, MEME bind `./data` — les archives
 # d'upload restent coherentes, c'est le meme hote.
 #
+# ⚠️ `extends.file` se resout depuis le REPERTOIRE DU PROJET — celui du PREMIER `-f` —
+# et non depuis le fichier qui porte la directive. Ecrit `../docker-compose.yml`, il a
+# cherche `/opt/docker-compose.yml` et rendu `no such file or directory`. Le chemin est
+# donc relatif a la racine du depot, meme si ce fichier vit dans `deploy/`.
+#
 # `profiles` la tient a l'ARRET : un `docker compose up -d` ordinaire ne la leve pas,
 # meme avec ce fichier present. Il faut la demander.
 #
@@ -35,7 +40,7 @@
 services:
   dashboard2:
     extends:
-      file: ../docker-compose.yml
+      file: docker-compose.yml
       service: dashboard
     container_name: streamlytics_dashboard2
     profiles: ['replica']
