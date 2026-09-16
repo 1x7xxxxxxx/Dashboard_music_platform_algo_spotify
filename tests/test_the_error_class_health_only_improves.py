@@ -81,7 +81,7 @@ _CEILINGS = {
     "cause_unknown": 242,             # 363 → 242 : 121 causes nomment un chemin qui existe
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
-    "scope_without_not_covered": 339,  # phase C : quatre lots de 6 récidivistes
+    "scope_without_not_covered": 332,  # phase C : cinq lots (lot 5 = 7 portées, dont 3 P1)
     # Liste de RELECTURE, pas une faute à corriger dans une direction imposée : un
     # désaccord peut venir du garde comme de l'expression de la famille.
     # `scope_family_disagreements` RETIRÉ le 2026-09-16 : 10 désaccords sur 18 portées,
@@ -94,9 +94,11 @@ _CEILINGS = {
 _FLOORS = {
     # Relevés le 2026-09-16 : deux classes écrites AVEC la nouvelle méthode. Un plancher
     # monte quand la population grandit — c'est son sens.
-    "classes": 365,
-    "with_signature": 354,
-    "automatic_guard": 347,
+    # +1 au lot 5 : `a-guard-names-a-class-nobody-wrote`, **la première classe du
+    # catalogue dont `seen_red` porte une DATE OBSERVÉE** et non un rétro-portage.
+    "classes": 366,
+    "with_signature": 355,
+    "automatic_guard": 348,
 }
 # Le plancher qui n'a pas d'équivalent dans `gold-coverage`, et le plus important ici :
 # un taux s'améliore aussi en RÉTRÉCISSANT la fenêtre d'observation.

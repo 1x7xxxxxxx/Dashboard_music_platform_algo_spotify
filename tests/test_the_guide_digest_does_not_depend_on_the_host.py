@@ -5,7 +5,7 @@ Uses: ast, src.dashboard.guides.guide_pdf
 Triggers: pytest
 Persists in: nothing
 
-Error class `guard-reads-the-host-env-not-the-code`.
+Error class `guard-predicate-depends-on-the-host-env`.
 
 Measured 2026-09-06. `credential_guides.META_BUSINESS_ID` is resolved at import —
 from `os.environ`, and failing that from the project `.env`, which the module loads

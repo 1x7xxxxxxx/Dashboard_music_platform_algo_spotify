@@ -42,17 +42,67 @@ _DASH = _ROOT / "src" / "dashboard"
 CACHE_NAME = "cached_last_run_per_dag"
 
 
-def _enclosing_success_branch(tree: ast.Module, call: ast.Call) -> ast.If | None:
-    """The `if result.get('success'):` that guards `call`, if any."""
-    best = None
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.If):
-            continue
-        if any(n is call for n in ast.walk(node)):
-            # innermost wins
-            if best is None or node.lineno > best.lineno:
-                best = node
-    return best
+def _success_scope(tree: ast.Module, call: ast.Call) -> list[ast.AST]:
+    """Les instructions où un `clear()` compte pour CE déclenchement.
+
+    ⚠️ Réécrit le 2026-09-16 après une critique qui a mesuré ce que la version
+    précédente faisait vraiment. Elle cherchait le `ast.If` ENGLOBANT l'appel :
+
+        best = innermost If such that `call` in ast.walk(If)
+
+    Or le seul site de production écrit la forme la plus naturelle — l'appel
+    d'abord, le test ensuite :
+
+        result = trigger.trigger_dag(dag_id, conf={'artist_id': artist_id})
+        if result.get('success'):
+            cached_last_run_per_dag.clear()
+
+    L'appel n'est donc PAS un descendant du `If`, aucun englobant n'existait, et la
+    portée retombait sur `tree` — **le fichier entier**. Mutation exécutée : un
+    `clear()` posé dans une fonction sans aucun rapport du même fichier contentait le
+    garde. Le `long_term_fix` de la classe annonçait « remonte du `trigger_dag(...)` à
+    son `if` » ; le code ne remontait nulle part et se rabattait sur un fichier.
+
+    Le garde ne mentait pas sur un cas tordu : il mentait sur le SEUL cas réel, et sa
+    propre mutation ne pouvait pas le voir parce qu'elle n'écrit aucun `clear()` du
+    tout — un fichier sans `clear()` échoue même avec une portée large. C'est la forme
+    `un-garde-qui-ne-garde-pas` : verte sur son mutant, aveugle sur sa cible.
+
+    On lit désormais la SUITE : l'instruction qui porte l'appel, puis celles qui la
+    suivent dans le même bloc. Un `clear()` placé avant le déclenchement, ou dans une
+    autre fonction, ne compte plus.
+    """
+    best: tuple[int, list[ast.AST]] | None = None
+    for parent in ast.walk(tree):
+        for field in ("body", "orelse", "finalbody"):
+            block = getattr(parent, field, None)
+            if not isinstance(block, list):
+                continue
+            for index, stmt in enumerate(block):
+                if not isinstance(stmt, ast.stmt):
+                    continue
+                if not any(n is call for n in ast.walk(stmt)):
+                    continue
+                # ⚠️ Le bloc le plus PROFOND, jamais le premier rencontré. `ast.walk`
+                # visite le module avant la fonction : prendre le premier ferait
+                # commencer la portée à la `def`, et un `clear()` écrit AVANT le
+                # déclenchement — qui ne sert à rien, le cache se repeuplant ensuite —
+                # contenterait le garde. Mesuré en écrivant ce correctif, sur le
+                # deuxième mutant.
+                depth = getattr(stmt, "lineno", 0)
+                if best is None or depth > best[0]:
+                    best = (depth, list(block[index:]))
+    return best[1] if best else []
+
+
+def _clears_the_cache(scope: list[ast.AST]) -> bool:
+    return any(
+        isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "clear"
+        and getattr(n.func.value, "id", "") == CACHE_NAME
+        for stmt in scope for n in ast.walk(stmt)
+    )
 
 
 def trigger_sites_without_invalidation(paths: list[Path]) -> list[str]:
@@ -68,16 +118,7 @@ def trigger_sites_without_invalidation(paths: list[Path]) -> list[str]:
                     and isinstance(call.func, ast.Attribute)
                     and call.func.attr == "trigger_dag"):
                 continue
-            branch = _enclosing_success_branch(tree, call)
-            scope = branch if branch is not None else tree
-            clears = any(
-                isinstance(n, ast.Call)
-                and isinstance(n.func, ast.Attribute)
-                and n.func.attr == "clear"
-                and getattr(n.func.value, "id", "") == CACHE_NAME
-                for n in ast.walk(scope)
-            )
-            if not clears:
+            if not _clears_the_cache(_success_scope(tree, call)):
                 try:
                     rel = path.relative_to(_ROOT)
                 except ValueError:
@@ -124,6 +165,47 @@ def test_the_guard_goes_red_on_a_trigger_that_forgets(tmp_path):
         "        cached_last_run_per_dag.clear()\n"
         "        st.toast('lancé')\n", encoding="utf-8")
     assert trigger_sites_without_invalidation([ok]) == []
+
+
+def test_a_clear_somewhere_else_in_the_file_does_not_count(tmp_path):
+    """La mutation que la version précédente ne voyait pas — sur le SEUL cas réel.
+
+    Jusqu'au 2026-09-16 la portée était le `ast.If` ENGLOBANT l'appel. Le site de
+    production écrit `result = trigger.trigger_dag(...)` PUIS `if result.get(...)` :
+    l'appel n'est pas un descendant du `if`, aucun englobant n'existait, et la portée
+    retombait sur le fichier entier. Un `clear()` dans une fonction sans rapport
+    suffisait donc — vérifié, puis corrigé.
+    """
+    mutant = tmp_path / "elsewhere.py"
+    mutant.write_text(
+        "import streamlit as st\n"
+        "from src.dashboard.utils.airflow_monitor import cached_last_run_per_dag\n"
+        "def unrelated_cleanup():\n"
+        "    cached_last_run_per_dag.clear()\n"
+        "def save(trigger, dag_id, artist_id):\n"
+        "    result = trigger.trigger_dag(dag_id, conf={'artist_id': artist_id})\n"
+        "    if result.get('success'):\n"
+        "        st.toast('lancé')\n", encoding="utf-8")
+    assert trigger_sites_without_invalidation([mutant]), (
+        "un `clear()` d'une fonction sans rapport contente le garde — la portée est "
+        "retombée sur le fichier"
+    )
+
+
+def test_a_clear_before_the_trigger_does_not_count(tmp_path):
+    """Vider AVANT de déclencher ne sert à rien : le cache se repeuple juste après."""
+    mutant = tmp_path / "too_early.py"
+    mutant.write_text(
+        "import streamlit as st\n"
+        "from src.dashboard.utils.airflow_monitor import cached_last_run_per_dag\n"
+        "def save(trigger, dag_id, artist_id):\n"
+        "    cached_last_run_per_dag.clear()\n"
+        "    result = trigger.trigger_dag(dag_id, conf={'artist_id': artist_id})\n"
+        "    if result.get('success'):\n"
+        "        st.toast('lancé')\n", encoding="utf-8")
+    assert trigger_sites_without_invalidation([mutant]), (
+        "un `clear()` posé avant le déclenchement contente le garde"
+    )
 
 
 def test_the_cache_still_exposes_clear_and_a_reader_sized_ttl():

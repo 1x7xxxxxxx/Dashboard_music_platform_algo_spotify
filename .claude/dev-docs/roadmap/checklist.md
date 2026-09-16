@@ -25,7 +25,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R122 | Finir la revue des classes d'erreur — outillage fait, reste 21 récidivistes + 339 portées | P3 | les trous de `make error-health` ne font que baisser |
+| R122 | Finir la revue des classes d'erreur — reste 14 récidivistes + 332 portées + **5 classes jamais écrites** | P3 | les trous de `make error-health` ne font que baisser |
 | R120 | La vue, pas la chrome — onglets et expanders paresseux (chrome démesurée : 11-13 ms) | P2 | histogramme de rendu avant/après, même charge |
 | R118 | `st.fragment` — **6/11 faites** ; le reste attend une mesure de coût | P3 | l'histogramme montre la page avant de la refactorer |
 | R121 | Les agrégations Python passent en SQL (couche or) | P3 | `make gold-coverage`, cliquet |
@@ -177,7 +177,7 @@ le supposer.
 - [ ] **R122 — finir la revue des classes d'erreur. L'outillage est posé, reste le volume.**
 
   **Ce qui est FAIT et automatique** (2026-09-16) : `make error-health` mesure la récidive
-  depuis l'historique git (194 révisions rejouées), `tests/test_the_error_class_health_only_improves.py`
+  depuis l'historique git (201 révisions rejouées), `tests/test_the_error_class_health_only_improves.py`
   refuse la régression, `/capitalise` exige les trois preuves et « nomme le GESTE, pas le
   verbe », un hook PostToolUse avertit à l'écriture, la CI lance la suite entière en
   4 shards. **La chaîne ne demande plus aucun geste.**
@@ -190,21 +190,49 @@ le supposer.
 
   | trou | reste | ce qu'il faut écrire |
   |---|---|---|
-  | `scope_without_not_covered` | **339** | le `ne couvre pas:` — un geste voisin qui partage la cause |
+  | `scope_without_not_covered` | **332** | le `ne couvre pas:` — un geste voisin qui partage la cause |
   | `seen_red_unknown` | **332** | une date OBSERVÉE, ou `never` ; jamais une date inventée |
   | `cause_unknown` | **242** | `read` / `measured` / `inferred` — `inferred` est une réponse valable |
-  | récidivistes non traitées | **21** / 45 | la portée d'abord : ce sont elles qui ont échoué |
+  | récidivistes non traitées | **14** / 46 | la portée d'abord : ce sont elles qui ont échoué |
+  | **classes jamais écrites** | **5** | un garde les décrit et les nomme ; le catalogue ne les connaît pas |
 
-  **L'ordre est celui du gain mesuré**, jamais alphabétique : (1) les 39 récidivistes —
+  **L'ordre est celui du gain mesuré**, jamais alphabétique : (1) les 14 récidivistes restantes —
   elles ont démontrablement échoué et `ne couvre pas:` est le champ qui les aurait
   arrêtées ; (2) les `P1` + `guarded`, où une fausse impression de protection coûte le
   plus ; (3) les `cause_unknown` dont le `root_cause` ne nomme aucun fichier ; (4) le
   reste, **opportunistement** — quand une classe est touchée pour une autre raison, le
   hook le rappelle.
 
+
+  ⚠️ **Cinq classes existent dans une docstring et nulle part ailleurs** — trouvées le
+  2026-09-16 *en écrivant les portées du lot 5*, pas par un test. La cohérence
+  catalogue↔gardes n'était vérifiée que dans un sens : `test_every_named_guard_exists.py`
+  garde **classe → garde** depuis le 2026-08-26, et personne n'avait gardé la réciproque.
+  Sur **81 déclarations** `Error class \`<id>\`` dans `tests/`, `.claude/hooks`,
+  `.claude/scripts` et `tools/`, **7 nommaient un identifiant absent du catalogue** : deux
+  renommages restés en arrière (corrigés), et cinq classes que personne n'a écrites. Le
+  garde est vert, sa docstring porte le symptôme, la cause, la date et le coût — et
+  `make error-health` ne les compte pas, donc la prochaine occurrence passera pour neuve.
+
+  Réciproque posée : `tests/test_a_guard_names_a_class_that_exists.py`, plafond
+  d'orphelins **égal à la mesure**, et un rouge si le GARDE d'un orphelin disparaît —
+  sinon supprimer le test serait la façon la moins chère de faire baisser le compteur.
+  Classe : `a-guard-names-a-class-nobody-wrote`, **première du catalogue dont `seen_red`
+  porte une date observée** et non un rétro-portage.
+
+  Les cinq à écrire, chacune depuis la docstring de son garde (la matière y est déjà) :
+
+  | classe à écrire | le garde qui la décrit |
+  |---|---|
+  | `setup-step-asks-for-a-developer-gesture` | `tests/test_a_link_is_enough_to_identify_a_tenant.py` |
+  | `image-sized-for-a-layout-it-no-longer-has` | `tests/test_a_screenshot_never_exceeds_its_column.py` |
+  | `two-shapes-summed-as-one` | `tests/test_apple_periods_are_asked_not_guessed.py` |
+  | `a-scoring-call-that-omits-its-context` | `tests/test_every_ranking_call_names_the_artist.py` |
+  | `an-optimisation-that-degrades-what-worked` | `tests/test_the_matcher_keeps_its_known_pairs.py` |
+
   ⚠️ **Règle d'arrêt, écrite d'avance** : si après cette revue les strates `by_seen_red`
   et `by_scope` ne se séparent toujours pas (aujourd'hui `insuffisant pour conclure`,
-  n=55), la conclusion honnête est que **ces champs coûtent plus qu'ils ne rapportent** et
+  n=56), la conclusion honnête est que **ces champs coûtent plus qu'ils ne rapportent** et
   qu'il faut les retirer. La date de revue est dans le docstring du cliquet : **+30 et
   +90 jours**. Sans cette règle, la brique devient `un-coût-payé-sans-contrepartie`.
 
@@ -220,7 +248,16 @@ le supposer.
 
   ⚠️ **Une relecture `code-critic` est OBLIGATOIRE sur chaque lot de revue**, et ce n'est
   pas une précaution de style : passée sur les six premières portées écrites avec soin,
-  elle en a trouvé **quatre inexactes**. Toutes pour la même raison — la portée avait été
+  elle en a trouvé **quatre inexactes**. Repassée sur le lot 5 (sept portées) : **trois
+  inexactes sur sept** — une qui sur-déclarait un risque chez quatre DAG frères (aucun ne
+  porte de booléen décidant s'il envoie), un chiffre faux d'un facteur ~3 (le motif
+  comptait les constantes locales au test, hors sujet), et une qui SOUS-déclarait un trou.
+  Cette dernière a fait trouver un défaut dans un garde vivant, pas une imprécision de
+  rédaction : `test_a_trigger_invalidates_what_it_makes_stale.py` cherchait le `if`
+  ENGLOBANT l'appel, or le seul site de production écrit l'appel PUIS le `if` — aucun
+  englobant, portée retombée sur le fichier entier, et sa propre mutation incapable de le
+  voir. **Deux lots, deux fois environ la moitié des portées inexactes : la relecture
+  n'est pas une précaution, c'est le contrôle qui fait tenir le champ.** Toutes pour la même raison — la portée avait été
   écrite en lisant le garde NOMMÉ dans `guard:`, sans ouvrir les fichiers cités par
   `signature:` et `History:`. Deux sur-déclaraient une couverture (« les vues ET les
   DAG » : aucun garde ne lit `airflow/dags/`), une comptait faux (cinq applications pour
@@ -590,23 +627,6 @@ n'est pas de l'ingénierie mais l'usage du produit. Une roadmap mesure le travai
 sur le dépôt ; elle ne suit pas les gestes commerciaux de son propriétaire, sans quoi
 elle ne peut par construction jamais atteindre zéro.
 
-## 🔍 Ce que le graphe de code a sorti (2026-08-23)
-
-Graphe régénéré après 71 jours de péremption (**5468 nœuds / 10691 arêtes / 689
-communautés**, contre « 1500+ / 94 » annoncés). Trois constats l'ont justifié ; le
-premier concerne l'outil lui-même.
-
-**Le graphe référence 15 fichiers qui n'existent plus** (135 nœuds, 2 %) — `graphify
-update` ajoute et ne retire pas. Parmi eux d'anciens modules devenus des paquets
-(`views/trigger_algo.py`, `utils/pdf_exporter.py`) et un dossier `archive/` supprimé.
-Comme `CLAUDE.md` désigne `GRAPH_REPORT.md` comme la première lecture « avant de
-grepper », la mise en garde y est désormais écrite : le graphe **oriente**, il ne prouve
-pas. Mon propre inventaire d'orphelins en a été contaminé avant vérification.
-
-**`.claude/dev-docs/architecture.md` annonçait une dépendance inexistante** —
-`error_handler.py | Utility | email_alerts`. `error_handler.py` n'est importé par rien
-en production. Corrigé sur place.
-
 ## 🎨 Notes des tests artistes — ce qui reste (2026-08-23)
 
 ~30 notes de terrain (Benken 19/06, GRiNCH 12/08). Plan approuvé :
@@ -625,60 +645,6 @@ jamais, le PDF des identifiants livré seulement par e-mail.
 
 **Un test de rendu ne dit jamais si une page est atteignable**, et un DAG qui saute un
 locataire le journalise proprement. C'est pourquoi rien ne le signalait.
-
-### Les questions, tranchées (2026-08-24)
-
-Les quatre questions qui bloquaient du travail réel ont leur réponse. Deux ont
-produit du code ; deux se règlent hors du dépôt, et le dire est la réponse.
-
-**1. Meta multi-comptes : SÉPARÉS.** Chaque compte a son budget, son CPR, ses
-campagnes ; un total les mélange sans le dire. C'est ce qui a décidé la forme des
-clés d'unicité — voir **ADR-013**, qui traite dans la foulée la question née de
-celle-ci : *faut-il faire pareil pour Spotify ?* **Non**, et la raison n'est pas le
-volume de travail : ce qui est pluriel chez Meta, c'est l'identité du **payeur**
-sous une credential unique ; chez Spotify, ce serait l'identité **artistique**, et
-additionner les streams de deux alias ne décrit personne. Un deuxième projet est
-déjà un deuxième locataire ; ce qui manquerait le jour où le besoin se présente,
-c'est qu'une même connexion en possède plusieurs et bascule entre eux — brique de
-comptes, aucune table métier touchée.
-
-**2. Le sélecteur avant l'export PDF : livré**, avec la portée qui a un sens — le
-**compte publicitaire**, dès qu'il y en a deux. Le PDF part à un tiers : un CPR qui
-mélange deux annonceurs n'est le CPR d'aucun des deux, et le lecteur n'a aucun
-moyen de s'en apercevoir. Côté profil d'artiste, il n'y a rien à choisir : le
-rapport porte sur le locataire connecté (le sélecteur d'artiste reste admin).
-
-**3. Le « taux de trigger » : trois taux, un par algorithme** — la part OBSERVÉE
-des titres de la cohorte d'entraînement, dans ce panier de Popularity Index, qui
-ont déclenché Discover Weekly / Release Radar / Radio (`threshold_tables.json`).
-Aucun ne « fait foi » sur les autres. **Et le graphique mentait** : un panier dont
-`prob` vaut `null` et `n` vaut 0 — aucun titre observé — était dessiné comme une
-barre à **0 %**, que le lecteur lit « aucune chance de déclencher ». Cas réel :
-Release Radar, panier « 50+ ». De même, 66,7 % mesuré sur **3** titres s'affichait
-aussi net que 99,4 % sur 172. Corrigé : effectif écrit sous chaque barre, paniers
-peu peuplés atténués, paniers jamais observés non dessinés.
-Garde : `tests/test_an_empty_bracket_is_not_a_zero.py`.
-
-**4. La « valeur de démo » : deux candidats trouvés et corrigés, la note d'origine
-reste non confirmée.** Aucun KPI codé en dur n'existe dans le dépôt — vérifié.
-Mais deux valeurs fausses étaient bien affichées : le compteur public « **N**
-artistes utilisent streaMLytics », sur la page d'inscription, comptait **les
-canaris que nous créons nous-mêmes** pour surveiller la collecte ; et le nom
-d'artiste du **propriétaire de la plateforme** servait d'exemple dans le champ
-« Nom d'artiste » de chaque inscription. Les deux sont corrigés parce qu'ils sont
-faux, pas parce qu'on est sûr que c'était ça. Si la note visait autre chose, une
-capture suffira. Garde : `tests/test_public_counters_count_humans.py`.
-
-**5. Le GIF animé dans les messageries : il ne vient pas de l'application.**
-Vérifié : **aucune** balise `<img>`, aucun `MIMEImage`, aucune URL d'image dans le
-moindre corps de mail — les trois expéditeurs (`email_alerts`,
-`verification_email`, `onboarding_report`) n'envoient que du texte et du HTML sans
-ressource distante, pied de désinscription compris. C'est donc le relais (Brevo)
-ou l'avatar du compte expéditeur affiché par la messagerie du destinataire —
-exactement le même cas que le nom d'expéditeur « Music Cross Platform Dashboard »
-tranché le 2026-08-23, qui venait du compte Brevo et écrasait celui du code. Geste
-dans Brevo, § « En attente de toi ».
-
 
 ### Ce qui attend un fichier, pas une décision
 

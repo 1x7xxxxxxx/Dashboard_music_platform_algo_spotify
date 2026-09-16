@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**365 classes.** Fenêtre observée : `2026-05-15` → `2026-09-16` (201 révisions du catalogue rejouées).
+**366 classes.** Fenêtre observée : `2026-05-15` → `2026-09-16` (201 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
@@ -11,7 +11,7 @@ Cinq chiffres avancés le 2026-09-16 avant vérification, et ce qu'ils valent :
 
 | avancé | mesuré |
 |---|---|
-| 367 classes | **365** — les 4 en trop étaient `Contract`, `Index`, `Per-class schema`, `CLASS-ID` |
+| 367 classes | **366** — les 4 en trop étaient `Contract`, `Index`, `Per-class schema`, `CLASS-ID` |
 | « 57 récidives » | **non reproductible** : cinq définitions défendables donnent 39 / 49 / 55 / 67 / 167. Ce document n'en retient qu'une, écrite ci-dessous, et c'est celle que le cliquet utilise |
 | gardes 15,1 % contre prose 22,7 % | voir les intervalles : les sous-groupes portent trop peu d'évènements pour trancher |
 | le taux s'améliore (38 → 18 → 9 %) | **il empire** une fois normalisé par l'exposition. L'ancien chiffre comptait comme « n'a pas récidivé » des classes trop jeunes pour avoir pu le faire |
@@ -27,11 +27,11 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 
 | grandeur | valeur |
 |---|---|
-| `automatic_guard` | 347 |
-| `classes` | 365 |
+| `automatic_guard` | 348 |
+| `classes` | 366 |
 | `ever_recurred_observed` | 46 |
 | `prose_only` | 18 |
-| `with_signature` | 354 |
+| `with_signature` | 355 |
 
 ## Les trous — ce que le cliquet fait baisser
 
@@ -44,7 +44,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_unknown` | 0 |
-| `scope_without_not_covered` | 339 |
+| `scope_without_not_covered` | 332 |
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 332 |
 
@@ -60,8 +60,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | by_guard · prose | 8 | 1.005 | 0.4327 – 1.9803 | **séparent** |
 | by_seen_red · daté | 0 | 0.0 | 0.0 – 0.7853 | insuffisant pour conclure (n=56) |
 | by_seen_red · jamais-ou-inconnu | 56 | 0.2274 | 0.1718 – 0.2953 | insuffisant pour conclure (n=56) |
-| by_scope · ne-couvre-pas renseigné | 34 | 1.16 | 0.8032 – 1.6211 | **séparent** |
-| by_scope · non renseigné | 22 | 0.0993 | 0.0622 – 0.1503 | **séparent** |
+| by_scope · ne-couvre-pas renseigné | 41 | 1.1239 | 0.8064 – 1.5247 | **séparent** |
+| by_scope · non renseigné | 15 | 0.0699 | 0.0391 – 0.1154 | **séparent** |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 

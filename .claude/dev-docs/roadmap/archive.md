@@ -5723,3 +5723,80 @@ SoundCloud, Apple.
   **Et un défaut dans mon propre garde** : le premier test du tag ne prouvait rien —
   PyYAML consomme les tags, donc le document chargé est identique avec ou sans. Le
   chargeur retient désormais les tags vus.
+
+## 🔄 Rotaté de l'actif le 2026-09-16 — historique daté, aucune tâche ouverte
+
+> `checklist.md` est le fichier que `/resume` lit AVANT tout, à chaque séance : son
+> poids se paie à chaque démarrage. Il a dépassé son plafond de 50 Ko. Les deux blocs
+> ci-dessous sont de l'historique daté et fermé — ils sont DÉPLACÉS, jamais supprimés
+> (`tests/test_roadmap_two_files.py` échoue si la somme des deux fichiers rétrécit).
+
+## 🔍 Ce que le graphe de code a sorti (2026-08-23)
+
+Graphe régénéré après 71 jours de péremption (**5468 nœuds / 10691 arêtes / 689
+communautés**, contre « 1500+ / 94 » annoncés). Trois constats l'ont justifié ; le
+premier concerne l'outil lui-même.
+
+**Le graphe référence 15 fichiers qui n'existent plus** (135 nœuds, 2 %) — `graphify
+update` ajoute et ne retire pas. Parmi eux d'anciens modules devenus des paquets
+(`views/trigger_algo.py`, `utils/pdf_exporter.py`) et un dossier `archive/` supprimé.
+Comme `CLAUDE.md` désigne `GRAPH_REPORT.md` comme la première lecture « avant de
+grepper », la mise en garde y est désormais écrite : le graphe **oriente**, il ne prouve
+pas. Mon propre inventaire d'orphelins en a été contaminé avant vérification.
+
+**`.claude/dev-docs/architecture.md` annonçait une dépendance inexistante** —
+`error_handler.py | Utility | email_alerts`. `error_handler.py` n'est importé par rien
+en production. Corrigé sur place.
+
+### Les questions, tranchées (2026-08-24)
+
+Les quatre questions qui bloquaient du travail réel ont leur réponse. Deux ont
+produit du code ; deux se règlent hors du dépôt, et le dire est la réponse.
+
+**1. Meta multi-comptes : SÉPARÉS.** Chaque compte a son budget, son CPR, ses
+campagnes ; un total les mélange sans le dire. C'est ce qui a décidé la forme des
+clés d'unicité — voir **ADR-013**, qui traite dans la foulée la question née de
+celle-ci : *faut-il faire pareil pour Spotify ?* **Non**, et la raison n'est pas le
+volume de travail : ce qui est pluriel chez Meta, c'est l'identité du **payeur**
+sous une credential unique ; chez Spotify, ce serait l'identité **artistique**, et
+additionner les streams de deux alias ne décrit personne. Un deuxième projet est
+déjà un deuxième locataire ; ce qui manquerait le jour où le besoin se présente,
+c'est qu'une même connexion en possède plusieurs et bascule entre eux — brique de
+comptes, aucune table métier touchée.
+
+**2. Le sélecteur avant l'export PDF : livré**, avec la portée qui a un sens — le
+**compte publicitaire**, dès qu'il y en a deux. Le PDF part à un tiers : un CPR qui
+mélange deux annonceurs n'est le CPR d'aucun des deux, et le lecteur n'a aucun
+moyen de s'en apercevoir. Côté profil d'artiste, il n'y a rien à choisir : le
+rapport porte sur le locataire connecté (le sélecteur d'artiste reste admin).
+
+**3. Le « taux de trigger » : trois taux, un par algorithme** — la part OBSERVÉE
+des titres de la cohorte d'entraînement, dans ce panier de Popularity Index, qui
+ont déclenché Discover Weekly / Release Radar / Radio (`threshold_tables.json`).
+Aucun ne « fait foi » sur les autres. **Et le graphique mentait** : un panier dont
+`prob` vaut `null` et `n` vaut 0 — aucun titre observé — était dessiné comme une
+barre à **0 %**, que le lecteur lit « aucune chance de déclencher ». Cas réel :
+Release Radar, panier « 50+ ». De même, 66,7 % mesuré sur **3** titres s'affichait
+aussi net que 99,4 % sur 172. Corrigé : effectif écrit sous chaque barre, paniers
+peu peuplés atténués, paniers jamais observés non dessinés.
+Garde : `tests/test_an_empty_bracket_is_not_a_zero.py`.
+
+**4. La « valeur de démo » : deux candidats trouvés et corrigés, la note d'origine
+reste non confirmée.** Aucun KPI codé en dur n'existe dans le dépôt — vérifié.
+Mais deux valeurs fausses étaient bien affichées : le compteur public « **N**
+artistes utilisent streaMLytics », sur la page d'inscription, comptait **les
+canaris que nous créons nous-mêmes** pour surveiller la collecte ; et le nom
+d'artiste du **propriétaire de la plateforme** servait d'exemple dans le champ
+« Nom d'artiste » de chaque inscription. Les deux sont corrigés parce qu'ils sont
+faux, pas parce qu'on est sûr que c'était ça. Si la note visait autre chose, une
+capture suffira. Garde : `tests/test_public_counters_count_humans.py`.
+
+**5. Le GIF animé dans les messageries : il ne vient pas de l'application.**
+Vérifié : **aucune** balise `<img>`, aucun `MIMEImage`, aucune URL d'image dans le
+moindre corps de mail — les trois expéditeurs (`email_alerts`,
+`verification_email`, `onboarding_report`) n'envoient que du texte et du HTML sans
+ressource distante, pied de désinscription compris. C'est donc le relais (Brevo)
+ou l'avatar du compte expéditeur affiché par la messagerie du destinataire —
+exactement le même cas que le nom d'expéditeur « Music Cross Platform Dashboard »
+tranché le 2026-08-23, qui venait du compte Brevo et écrasait celui du code. Geste
+dans Brevo, § « En attente de toi ».

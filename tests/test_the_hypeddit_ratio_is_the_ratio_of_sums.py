@@ -47,9 +47,26 @@ _DB_HOST, _DB_PORT = "127.0.0.1", 5433
 from tests.db_gate import db_ready as _db_ready  # noqa: E402
 
 
-pytestmark = pytest.mark.skipif(
-    not _db_ready(),
-    reason=f"No provisioned Postgres on {_DB_HOST}:{_DB_PORT} — needs a live DB")
+# ⚠️ DEUX marques, et la seconde a été ajoutée le 2026-09-16 sur un rouge observé.
+#
+# `test_the_rate_does_not_follow_the_period_filter` est tombé une fois dans la suite
+# complète (`-n auto --dist loadgroup`) et passe seul, cinq fois de suite. La structure
+# explique le rouge : `staged_empty_rival` ÉCRIT une campagne rivale sur l'artiste **1**
+# de la base partagée, et trois tests de ce même fichier LISENT l'artiste 1. Sans groupe
+# xdist, rien n'oblige ces tests à tenir sur le même worker : le lecteur peut donc
+# mesurer entre l'insertion de la rivale et son `finally`.
+#
+# ⚠️ Honnêteté sur la preuve : **la course n'a PAS été reproduite** — le fichier seul en
+# `-n 2` est trop court pour collisionner. Ce qui est établi est la STRUCTURE (un
+# écrivain et des lecteurs du même locataire, distribuables sur deux workers), pas
+# l'enchaînement exact. Le groupe est le remède que `--dist loadgroup` existe pour
+# rendre possible, il ne coûte que de la sérialisation, et il n'invente aucune cause.
+pytestmark = [
+    pytest.mark.skipif(
+        not _db_ready(),
+        reason=f"No provisioned Postgres on {_DB_HOST}:{_DB_PORT} — needs a live DB"),
+    pytest.mark.xdist_group("hypeddit_tenant_1"),
+]
 
 
 @pytest.fixture()

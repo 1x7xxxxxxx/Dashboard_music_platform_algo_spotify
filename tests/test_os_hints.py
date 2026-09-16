@@ -1,6 +1,6 @@
 """Guard — setup guides must not hardcode one operating system's shortcuts.
 
-Error class `guide-windows-only-shortcut`: guide prose spelled `Ctrl+U`, `Ctrl+F`
+Error class `guide-single-os-shortcut`: guide prose spelled `Ctrl+U`, `Ctrl+F`
 and `F12` literally. On macOS those keys do nothing, so a Mac artist following
 the SoundCloud guide cannot find their User ID at all (beta session Grinch,
 2026-08-12 — the tester was on a Mac).

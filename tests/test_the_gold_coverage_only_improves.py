@@ -128,7 +128,14 @@ _CEILING: dict[str, int] = {
     # `kind: manual` SANS signature, délibérément — le défaut existe et le garde
     # reste vert dessus, donc aucune commande ne sort ≠ 0 aujourd'hui. Une
     # signature non vérifiée coûte plus cher qu'une absence de signature.
-    "error-classes.guard_unnamed": 11,
+    # 11 → 12 le 2026-09-16, seconde hausse légitime et de la même nature :
+    # `a-document-that-cannot-be-current-in-its-own-commit` est gardée par une
+    # PRÉCONDITION du `Makefile` (`ref: Makefile`), pas par un fichier de test. Le
+    # compteur demande un chemin portant un `/` — `Makefile` vit à la racine et n'en
+    # a pas. Écrire `./Makefile` le ferait taire sans rien changer au monde : ce
+    # serait contenter le compteur, pas fermer le trou. Le garde EXISTE et sa
+    # signature (`grep -q "DEUX COMMITS" Makefile`) a été vue rouge.
+    "error-classes.guard_unnamed": 12,
     # Un objet or que rien ne confronte est le premier à dériver en silence : le
     # spend Meta l'a fait pendant des semaines. Zéro, et ça ne remonte pas.
     "invariants.unreconciled": 0,
