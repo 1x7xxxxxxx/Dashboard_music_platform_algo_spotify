@@ -66,7 +66,7 @@ def _is_automatic(kind: str) -> bool:
         return False
     return any(m in k for m in _AUTOMATIC_MARKS)
 
-# Gelé le 2026-09-16 : **21 classes sur 366 (6 %)** sans garde automatique. Ce nombre ne
+# Gelé le 2026-09-16 : **18 classes sur 363 (5 %)** sans garde automatique. Ce nombre ne
 # peut que BAISSER — écrire un garde pour l'une d'elles, ou retirer une classe devenue
 # fausse ; les deux sont des progrès.
 #
@@ -75,16 +75,31 @@ def _is_automatic(kind: str) -> bool:
 # étaient comptés comme de la prose. Dix faux positifs. Un cliquet qui se trompe sur la
 # moitié de sa population fait corriger les mauvaises entrées — et j'ai annoncé le
 # chiffre faux avant de le vérifier.
-_PROSE_CEILING = 21
+_PROSE_CEILING = 18
+
+
+# Les en-têtes qui ne sont PAS des classes. Ils ressemblent à des classes à un
+# découpage sur `## `, et les compter gonflait la population de trois.
+_NOT_A_CLASS = re.compile(r"^[a-z0-9][a-z0-9-]+$")
 
 
 def _classes() -> list[tuple[str, str]]:
-    """(nom, type de garde) pour chaque classe du catalogue."""
+    """(nom, type de garde) pour chaque classe du catalogue.
+
+    ⚠️ Le filtre kebab-case n'est pas cosmétique. La première version prenait tout
+    en-tête `## …`, donc `Contract`, `Per-class schema` et `CLASS-ID` — qui n'ont pas de
+    ligne `guard:` et étaient donc comptés comme de la **prose**. Le plafond gelé le
+    2026-09-16 valait 21 pour cette raison ; la vraie mesure est 18.
+
+    Découvert par `tests/test_the_error_class_health_only_improves.py`, dont le rôle est
+    précisément de refuser que deux lecteurs d'un même fichier divergent. Il a mordu sur
+    le cliquet écrit six heures plus tôt, et c'est exactement ce qu'on lui demande.
+    """
     text = _CATALOGUE.read_text(encoding="utf-8")
     out = []
     for block in re.split(r"\n## ", text)[1:]:
-        name = block.split("\n", 1)[0].strip()
-        if not name or name.lower().startswith(("index", "sans famille")):
+        name = (block.split("\n", 1)[0].strip().split() or [""])[0]
+        if not _NOT_A_CLASS.match(name) or name == "class-id":
             continue
         m = re.search(r"^- guard: \{ type: ([\w-]+)", block, re.M)
         out.append((name, m.group(1) if m else "aucun"))

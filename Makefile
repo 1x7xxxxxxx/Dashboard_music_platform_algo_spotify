@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: loadtest-concurrency scale-check test-durations example-charts error-inbox error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: error-health error-health-check error-health-history loadtest-concurrency scale-check test-durations example-charts error-inbox error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -91,6 +91,7 @@ PYTEST_DIST := -n auto --dist loadgroup
 # échoue si un fichier marqué `docs` manque à cette liste, ou l'inverse.
 DOC_TESTS := tests/test_error_class_index_is_complete.py \
              tests/test_the_error_class_families_only_improve.py \
+             tests/test_the_error_class_health_only_improves.py \
              tests/test_the_gold_coverage_only_improves.py \
              tests/test_the_views_map_lists_every_view.py
 DOC_IGNORE := $(foreach f,$(DOC_TESTS),--ignore=$(f))
@@ -211,6 +212,22 @@ error-families: ## Familles de classes d'erreur → .claude/dev-docs/error-class
 
 error-families-check: ## Échoue si la taxonomie ne décrit plus le catalogue (CI)
 	@python3 tools/dev/error_class_families.py --check
+
+error-health: ## Santé du catalogue de classes → .claude/dev-docs/error-class-health.{json,md}
+	@# L'historique GIT de ce JSON EST la série temporelle — rien de temporel n'est
+	@# stocké dedans. Il rejoue les révisions du catalogue et compte les commits qui
+	@# AJOUTENT une ligne d'historique à une classe : une récidive mesurée, qu'aucun
+	@# champ tenu à la main ne peut contredire.
+	@$(PYTHON) tools/dev/error_class_health.py
+
+error-health-check: ## Échoue si l'instantané de santé ne décrit plus le catalogue (CI)
+	@$(PYTHON) tools/dev/error_class_health.py --check
+
+error-health-history: ## L'évolution d'une métrique, lue dans l'historique git du JSON
+	@# Ne stocke RIEN : stocker la série créerait une seconde définition de la même
+	@# grandeur, et ce dépôt sait ce que ça coûte.
+	@git log -L '/"recurrence": {/','/^    }/':.claude/dev-docs/error-class-health.json \
+	  --format='%C(yellow)%h %ad%Creset' --date=short | head -200
 
 error-resolve: check-db ## Ferme une entrée du registre. FP=<12 car.> NOTE="..."
 	@test -n "$(FP)" || { echo "❌ FP manquant. Ex: make error-resolve FP=a1b2c3d4e5f6 NOTE=\"corrigé par …\""; exit 1; }

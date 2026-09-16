@@ -1,0 +1,79 @@
+<!-- GÉNÉRÉ par `tools/dev/error_class_health.py` — toute édition à la main est
+     perdue à la prochaine exécution de `make error-health`. -->
+
+# La santé du catalogue de classes d'erreur
+
+**363 classes.** Fenêtre observée : `2026-05-15` → `2026-09-16` (194 révisions du catalogue rejouées).
+
+## Ce que ce document corrige
+
+Cinq chiffres avancés le 2026-09-16 avant vérification, et ce qu'ils valent :
+
+| avancé | mesuré |
+|---|---|
+| 367 classes | **363** — les 4 en trop étaient `Contract`, `Index`, `Per-class schema`, `CLASS-ID` |
+| « 57 récidives » | **non reproductible** : cinq définitions défendables donnent 39 / 49 / 55 / 67 / 167. Ce document n'en retient qu'une, écrite ci-dessous, et c'est celle que le cliquet utilise |
+| gardes 15,1 % contre prose 22,7 % | voir les intervalles : les sous-groupes portent trop peu d'évènements pour trancher |
+| le taux s'améliore (38 → 18 → 9 %) | **il empire** une fois normalisé par l'exposition. L'ancien chiffre comptait comme « n'a pas récidivé » des classes trop jeunes pour avoir pu le faire |
+| `--fields` rouge sur 29 classes | **vert** — le commentaire du Makefile était périmé |
+
+## La définition, une seule
+
+> **Une récidive est un commit qui AJOUTE une ligne d'historique à une classe**, dans la fenêtre où le catalogue est versionné.
+
+Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un compteur écrit à côté serait une seconde définition de la même grandeur, et elles ne se comparent jamais.
+
+## Population
+
+| grandeur | valeur |
+|---|---|
+| `automatic_guard` | 345 |
+| `classes` | 363 |
+| `ever_recurred_observed` | 45 |
+| `prose_only` | 18 |
+| `with_signature` | 352 |
+
+## Les trous — ce que le cliquet fait baisser
+
+Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalisé par l'exposition, il monte, et l'y cranter serait rouge à l'écriture.
+
+| trou | classes |
+|---|---|
+| `cause_inferred` | 0 |
+| `cause_unknown` | 363 |
+| `guards_ref_missing` | 0 |
+| `scope_unknown` | 363 |
+| `scope_without_not_covered` | 363 |
+| `seen_red_never` | 0 |
+| `seen_red_unknown` | 363 |
+
+## Récidive observée
+
+**55 évènements** sur 7628 classe-jours d'exposition — **0.2192** par classe-mois (IC 95 % : 0.1651 – 0.2853)
+
+### Par strate
+
+| strate | évènements | par classe-mois | IC 95 % |
+|---|---|---|---|
+| by_guard · automatique | 47 | 0.1934 | 0.1421 – 0.2572 |
+| by_guard · prose | 8 | 1.005 | 0.4327 – 1.9803 |
+| by_seen_red · jamais-ou-inconnu | 55 | 0.2192 | 0.1651 – 0.2853 |
+| by_scope · non renseigné | 55 | 0.2192 | 0.1651 – 0.2853 |
+
+⚠️ **Quand deux intervalles se recouvrent, il n'y a pas de résultat.** C'est le cas aujourd'hui sur toutes les strates : la fenêtre observée est courte et les sous-groupes portent peu d'évènements.
+
+## Cohortes à horizon fixe
+
+Une classe **plus jeune que l'horizon est exclue de la colonne**, jamais comptée « n'a pas récidivé ». Une colonne sans population affiche `—`, jamais `0`.
+
+| horizon | à risque | récidivées | taux |
+|---|---|---|---|
+| 7 j | 245 | 34 | 14 % |
+| 14 j | 167 | 30 | 18 % |
+| 30 j | 35 | 13 | 37 % |
+
+## Avant la fenêtre git — DÉCLARATIF
+
+5 classes introduites avant `2026-05-15`, 5 portant une date postérieure à leur `first_seen`.
+
+⚠️ DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé. Le catalogue n'entre dans git qu'à cette date : tout ce qui précède a été écrit de mémoire, après coup. Comparer les deux serait `a-threshold-carried-across-instruments` appliqué à notre propre métrique.
