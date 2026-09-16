@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**352 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**354 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -12,7 +12,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 |---|---|---|
 | [le-locataire](#le-locataire) | 41 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 16 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
-| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 10 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
+| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 11 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 17 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 21 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 21 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
@@ -26,7 +26,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 2 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 18 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 17 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
-| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 21 | Ce que le dépôt déclare est-il ce que la production exécute ? |
+| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 22 | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | _sans famille_ | 3 | — |
 
 ## le-locataire
@@ -108,7 +108,7 @@ Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generat
 
 **Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ?**
 
-Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|nothing-routes|nobody-call|never-hit|not-when-it-is-needed|nobody-writes|rebuilt-per-rerun|unwired|debranch|not-reached|orphan` sur l'identifiant et le symptôme. 10 classe(s).
+Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|nothing-routes|nobody-call|never-hit|not-when-it-is-needed|nobody-writes|rebuilt-per-rerun|unwired|debranch|not-reached|orphan|registered-twice-kills-the-import` sur l'identifiant et le symptôme. 11 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -122,6 +122,7 @@ Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|noth
 | [`finding-computed-but-never-sent`](error-classes.md#finding-computed-but-never-sent) | une tâche de surveillance tourne, calcule un constat juste, et reste verte. Personne n'est prévenu. Le contrôle a l'apparence exacte d'un contrôle qui |
 | [`a-step-that-nothing-routes-to`](error-classes.md#a-step-that-nothing-routes-to) | une étape d'un parcours existe, se rend correctement, et aucun chemin n'y mène. Signalé le 2026-09-08 : « quand je clique sur mise en route (assistant |
 | [`a-surface-reads-a-table-nobody-writes`](error-classes.md#a-surface-reads-a-table-nobody-writes) | un panneau de tableau de bord reste vide sans rien dire. La table qu'il lit existe, le SQL est valide, et personne ne l'écrit. |
+| [`a-metric-registered-twice-kills-the-import`](error-classes.md#a-metric-registered-twice-kills-the-import) | l'application **ne démarre plus du tout** — `Duplicated timeseries in CollectorRegistry` à l'import, avant qu'une ligne ne s'affiche. Rien de progress |
 
 ## un-nombre-affirmé-qui-n-a-pas-été-mesuré
 
@@ -505,7 +506,7 @@ Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhoo
 
 **Ce que le dépôt déclare est-il ce que la production exécute ?**
 
-Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version|montée de majeure|valeur par défaut|majeure|reload-that-does-not-reload` sur l'identifiant et le symptôme. 21 classe(s).
+Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version|montée de majeure|valeur par défaut|majeure|reload-that-does-not-reload|bind-address-that-hides-the-service` sur l'identifiant et le symptôme. 22 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -530,6 +531,7 @@ Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compos
 | [`an-action-pin-derived-from-a-version-number`](error-classes.md#an-action-pin-derived-from-a-version-number) | les CINQ jobs d'un workflow échouent en **neuf secondes**, à « Prepare all required actions », avant la moindre mise en route : `Unable to resolve act |
 | [`a-major-upgrade-that-moves-a-default`](error-classes.md#a-major-upgrade-that-moves-a-default) | une montée de MAJEURE laisse le build vert et rend une de ses garanties fausse. Rien n'échoue, rien n'avertit : le seul endroit où le changement exist |
 | [`a-reload-that-does-not-reload-what-you-changed`](error-classes.md#a-reload-that-does-not-reload-what-you-changed) | on pose un fichier de configuration, on recharge le service, la commande sort en 0, le fichier est bien là — et **le réglage n'est pas appliqué**. Rie |
+| [`a-bind-address-that-hides-the-service`](error-classes.md#a-bind-address-that-hides-the-service) | un service démarre, son conteneur est `healthy`, aucun journal ne se plaint — et **rien ne peut l'atteindre**. Le symptôme arrive à l'autre bout de la |
 
 ## Sans famille
 
@@ -543,6 +545,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=352 families=17 orphans=3 -->
+<!-- error-class-families: total=354 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=7219c41d1fcaee21d0385c9c738f0531d806e1ff0bba3819a765e9fb6cd3025a -->
+<!-- error-class-families: sha256=6c5b6cfc52d357af594c3b5c9d463a05ee8c9a9f5ca29e21162ef82eb8955a38 -->

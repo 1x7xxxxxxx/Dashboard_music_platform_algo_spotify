@@ -79,7 +79,11 @@ FAMILIES: list[tuple[str, str, str]] = [
      "qu'un humain peut déclencher ?",
      r"never-sent|not-alerted|never-read|nothing-happens|nothing-routes|"
      r"nobody-call|never-hit|not-when-it-is-needed|nobody-writes|"
-     r"rebuilt-per-rerun|unwired|debranch|not-reached|orphan"),
+     # `metric-registered-twice-kills-the-import`, ajoutée le 2026-09-16 : le cas
+     # limite de cette famille — le travail n'arrive nulle part parce que le module
+     # n'a jamais fini de se charger. Rien ne s'affiche du tout.
+     r"rebuilt-per-rerun|unwired|debranch|not-reached|orphan|"
+     r"registered-twice-kills-the-import"),
 
     ("un-nombre-affirmé-qui-n-a-pas-été-mesuré",
      "Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer "
@@ -249,7 +253,12 @@ FAMILIES: list[tuple[str, str, str]] = [
      # la cible et le service l'a « rechargé » — mais le réglage n'est pas appliqué.
      # C'est une divergence entre ce que le dépôt déclare et ce que la production
      # exécute, sauf qu'ici les deux côtés semblent d'accord.
-     r"valeur par défaut|majeure|reload-that-does-not-reload"),
+     # `bind-address-that-hides-the-service`, ajoutée le 2026-09-16 : le service
+     # tourne, le conteneur est sain, et pourtant rien ne peut l'atteindre. Ce que
+     # le dépôt DÉCLARE (« joignable sur ce port ») n'est pas ce que la production
+     # exécute — la famille pose exactement cette question.
+     r"valeur par défaut|majeure|reload-that-does-not-reload|"
+     r"bind-address-that-hides-the-service"),
 ]
 
 _ID = re.compile(r"^## ([a-z0-9][a-z0-9-]+)$", re.M)

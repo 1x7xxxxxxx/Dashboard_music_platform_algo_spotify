@@ -60,6 +60,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
+| [a-bind-address-that-hides-the-service](#a-bind-address-that-hides-the-service) | P2 | deterministic | guarded | none |
+| [a-metric-registered-twice-kills-the-import](#a-metric-registered-twice-kills-the-import) | P1 | deterministic | guarded | none |
 | [a-reload-that-does-not-reload-what-you-changed](#a-reload-that-does-not-reload-what-you-changed) | P2 | manual | resolved | none |
 | [a-telemetry-table-that-nothing-ever-purges](#a-telemetry-table-that-nothing-ever-purges) | P2 | deterministic | reported | none |
 | [correct-because-there-is-only-one-of-it](#correct-because-there-is-only-one-of-it) | P1 | deterministic | guarded | none |
@@ -6069,3 +6071,33 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: trouvée en inventoriant les surfaces de surveillance avant d'adopter Prometheus (ADR-026). La demande initiale était « des métriques stockées en base pour traçabilité » — et l'inventaire a montré que le dépôt en stockait **déjà beaucoup**, sans jamais rien effacer. Ajouter une table de résumé quotidien sans régler ce point aurait été une quatorzième. `rate_limit_hits` est le seul précédent correct, et il n'existe que parce qu'une critique l'a imposé : la purge n'est pas un réflexe, elle se garde.
+
+## a-bind-address-that-hides-the-service
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un service démarre, son conteneur est `healthy`, aucun journal ne se plaint — et **rien ne peut l'atteindre**. Le symptôme arrive à l'autre bout de la chaîne : un tableau de bord vide, qu'on lit comme « il n'y a rien à montrer » plutôt que « la source est injoignable ».
+- root_cause: on confond la restriction d'accès posée par le MAPPAGE DE PORT avec celle posée par le BINAIRE. Mesuré le 2026-09-16, en écrivant la pile d'observabilité : `--web.listen-address=127.0.0.1:9090` avait été mis dans la commande de Prometheus pour « ne pas l'exposer ». Mais c'est la loopback **du conteneur** : ni `ports: ['127.0.0.1:9090:9090']` ni Grafana, qui l'atteint par `streamlytics_prometheus:9090` sur le réseau Docker, n'auraient pu s'y connecter. La restriction voulue venait déjà du mappage ; celle du binaire coupait tout le monde, y compris nous.
+- long_term_fix: **dans un conteneur, un service écoute sur `0.0.0.0` et c'est le MAPPAGE qui restreint.** Les deux réglages portent le même mot — « écouter sur 127.0.0.1 » — et n'ont pas le même référentiel : l'un parle du réseau de l'hôte, l'autre de celui du conteneur. La règle de relecture qui transporte : devant une adresse d'écoute, demander **de quel réseau** parle ce `127.0.0.1`. Et vérifier par un appel depuis le consommateur réel, jamais depuis l'hôte.
+- autofix: none
+- signature: `python3 tools/dev/check_container_bind_address.py`
+- guard: { type: pytest, ref: tests/test_the_metrics_server_survives_a_rerun.py::test_prometheus_listens_on_the_container_network }
+- rex_ref: deploy/docker-compose.observability.yml
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: trouvé **en écrivant le fichier**, pas en production — le seul moment où la correction coûte zéro. Ce qui rend cette classe méchante est la DISTANCE entre la cause et le symptôme : le conteneur est sain, Prometheus tourne, ses journaux sont propres, et c'est un panneau Grafana vide qu'on regarde trois jours plus tard en se demandant pourquoi la métrique « n'existe pas ». Mutation vue dans les deux sens : directive remise → rouge en citant la commande ; retirée → vert.
+
+## a-metric-registered-twice-kills-the-import
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: l'application **ne démarre plus du tout** — `Duplicated timeseries in CollectorRegistry` à l'import, avant qu'une ligne ne s'affiche. Rien de progressif, rien de dégradé : une page blanche.
+- root_cause: `prometheus_client` LÈVE si un nom de métrique est enregistré deux fois dans le registre par défaut, et un module d'instrumentation est exactement le genre de module qu'on importe depuis partout. Mesuré le 2026-09-16 : ce dépôt met `src/dashboard` sur `sys.path` et importe ses vues comme `views.x`, donc **un même fichier peut être chargé sous deux noms** (`src.utils.metrics` et `utils.metrics`) — Python le considère alors comme deux modules distincts, exécute son corps deux fois, et la seconde déclaration lève. La classe voisine `selector-blind-to-the-import-prefix` décrit le même double chemin, vu d'un autre angle.
+- long_term_fix: **une déclaration de métrique récupère celle qui existe déjà au lieu d'échouer** — `try: Histogram(...) except ValueError: REGISTRY._names_to_collectors[name]`. Créer un second collecteur du même nom serait pire encore : deux séries qui ne se somment pas, sans erreur. La règle générale : tout module à effet de bord GLOBAL À L'IMPORT (registre, port, verrou nommé) doit être idempotent, parce qu'on ne contrôle pas combien de fois il sera chargé.
+- autofix: none
+- signature: `.venv/bin/python -c "import importlib,sys; sys.path.insert(0,'.'); m=importlib.import_module('src.utils.metrics'); sys.modules.pop('src.utils.metrics'); importlib.import_module('src.utils.metrics')"`
+- guard: { type: pytest, ref: tests/test_the_metrics_server_survives_a_rerun.py }
+- rex_ref: src/utils/metrics.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: apparu en TEST d'abord — le rechargement du module pour remettre un drapeau à zéro a levé, et j'ai d'abord voulu corriger le test. C'était le mauvais réflexe : le test reproduisait un chemin d'import qui existe VRAIMENT dans ce dépôt, et le corriger aurait masqué un défaut de production. La signature rejoue exactement ce double import.
