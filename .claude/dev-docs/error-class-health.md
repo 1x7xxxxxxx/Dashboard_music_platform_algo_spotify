@@ -40,13 +40,13 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | trou | classes |
 |---|---|
 | `cause_inferred` | 0 |
-| `cause_unknown` | 242 |
+| `cause_unknown` | 241 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_unknown` | 0 |
-| `scope_without_not_covered` | 332 |
+| `scope_without_not_covered` | 331 |
 | `seen_red_never` | 0 |
-| `seen_red_unknown` | 332 |
+| `seen_red_unknown` | 331 |
 
 ## Récidive observée
 
@@ -58,10 +58,10 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|---|---|---|
 | by_guard · automatique | 49 | 0.2017 | 0.1492 – 0.2666 | **séparent** |
 | by_guard · prose | 8 | 1.005 | 0.4327 – 1.9803 | **séparent** |
-| by_seen_red · daté | 0 | 0.0 | 0.0 – 0.7853 | insuffisant pour conclure (n=57) |
-| by_seen_red · jamais-ou-inconnu | 57 | 0.2315 | 0.1753 – 0.2999 | insuffisant pour conclure (n=57) |
-| by_scope · ne-couvre-pas renseigné | 42 | 1.1513 | 0.8297 – 1.5563 | **séparent** |
-| by_scope · non renseigné | 15 | 0.0699 | 0.0391 – 0.1154 | **séparent** |
+| by_seen_red · daté | 0 | 0.0 | 0.0 – 0.6677 | insuffisant pour conclure (n=57) |
+| by_seen_red · jamais-ou-inconnu | 57 | 0.2322 | 0.1759 – 0.3009 | insuffisant pour conclure (n=57) |
+| by_scope · ne-couvre-pas renseigné | 42 | 1.1259 | 0.8114 – 1.522 | **séparent** |
+| by_scope · non renseigné | 15 | 0.0702 | 0.0393 – 0.1158 | **séparent** |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 

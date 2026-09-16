@@ -76,12 +76,16 @@ _CEILINGS = {
     # Resserrés le 2026-09-16 dans le commit de la passe mécanique, comme
     # `test_the_ceiling_is_not_slack` l'exige : un plafond laissé au-dessus de la mesure
     # est du budget pour régresser en silence.
-    "seen_red_unknown": 332,          # 363 → 352 (n-a) → 332 (phase B : traces de mutation)
+    "seen_red_unknown": 331,          # 363 → 352 (n-a) → 332 (phase B : traces de mutation)
     "seen_red_never": 0,
-    "cause_unknown": 242,             # 363 → 242 : 121 causes nomment un chemin qui existe
+    "cause_unknown": 241,             # 363 → 241 : les causes qui nomment un chemin vérifiable
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
-    "scope_without_not_covered": 332,  # phase C : cinq lots (lot 5 = 7 portées, dont 3 P1)
+    "scope_without_not_covered": 331,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
+                                      # est la PREMIERE classe dont les trois preuves sont
+                                      # observées le même jour — date vue rouge, cause mesurée,
+                                      # portée écrite en lisant le garde. Les trois compteurs
+                                      # baissent ensemble, ce qui est le signe recherché.
     # Liste de RELECTURE, pas une faute à corriger dans une direction imposée : un
     # désaccord peut venir du garde comme de l'expression de la famille.
     # `scope_family_disagreements` RETIRÉ le 2026-09-16 : 10 désaccords sur 18 portées,

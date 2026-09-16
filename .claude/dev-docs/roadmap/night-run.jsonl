@@ -9,3 +9,5 @@
 {"at": "2026-09-16T22:20:12+00:00", "head": "021338c", "kind": "done", "task": "R120", "what": "poste 1 REFUTE : onglets caches = 0,1 ms a chaud (memoises)"}
 {"at": "2026-09-16T22:21:14+00:00", "head": "059c8c5", "kind": "start", "task": "R120", "what": "track_page_view hors du pool"}
 {"at": "2026-09-16T22:39:44+00:00", "head": "059c8c5", "kind": "done", "task": "R120", "what": "25 sites ramenes a from_env_or_config ; cliquet 14 → 1"}
+{"at": "2026-09-16T22:40:10+00:00", "head": "0d30171", "kind": "start", "task": "R120", "what": "historique de two-doors-onto-one-database + portee"}
+{"at": "2026-09-16T22:42:12+00:00", "head": "0d30171", "kind": "done", "task": "R120", "what": "two-doors : 3 preuves observees, 3 plafonds resserres"}
