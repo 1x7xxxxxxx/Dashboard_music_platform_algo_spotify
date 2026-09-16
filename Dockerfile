@@ -88,4 +88,16 @@ EXPOSE 8501
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD python3 -c "import os,sys,urllib.request as u; p=os.environ.get('PORT','8501'); sys.exit(0 if u.urlopen(f'http://localhost:{p}/_stcore/health', timeout=3).status==200 else 1)"
 
-CMD sh -c "streamlit run src/dashboard/app.py --server.port ${PORT:-8501} --server.address 0.0.0.0"
+# ── L'exportateur de metriques demarre AVANT Streamlit, dans le MEME processus ──
+# Mesure le 2026-09-16, juste apres un deploiement : le port 9102 n'existait pas, la
+# cible Prometheus etait `down` et l'histogramme ne portait aucune page — parce que
+# `start_metrics_server()` n'etait appele qu'au PREMIER RENDU. La duree de vie de
+# l'instrument etait accrochee a la visite d'un utilisateur ; entre un redemarrage et
+# le premier visiteur, la surveillance etait absente et son absence ressemblait a une
+# panne.
+#
+# ⚠️ MEME processus, pas un `&` : `prometheus_client` tient son registre en memoire de
+# processus, et Streamlit execute chaque rendu dans un THREAD du serveur. Un
+# `python -c "…" &` exposerait un registre VIDE et la cible serait `up` en ne mesurant
+# rien — pire que `down`, un instrument muet qui se declare sain.
+CMD sh -c "python3 -m src.dashboard.serve"
