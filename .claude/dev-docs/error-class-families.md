@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**341 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**342 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -18,15 +18,15 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 21 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 25 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 20 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 41 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 41 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
-| [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 6 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 60 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 35 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 7 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
-| [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 3 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
-| [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 20 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
-| [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 20 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
-| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 24 | Ce que le dépôt déclare est-il ce que la production exécute ? |
+| [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 2 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
+| [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 18 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
+| [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 17 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
+| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 20 | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | _sans famille_ | 3 | — |
 
 ## le-locataire
@@ -274,24 +274,34 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 41 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind` sur l'identifiant et le symptôme. 60 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`check-calls-a-binary-its-image-lacks`](error-classes.md#check-calls-a-binary-its-image-lacks) | a check running INSIDE a container shells out to a host binary (`rclone`, `git`, `docker`, `psql`) that is not in that image. It never crashes — it ta |
 | [`probe-scoped-to-the-machine-not-the-repo`](error-classes.md#probe-scoped-to-the-machine-not-the-repo) | a health probe enumerates every container or process on the HOST instead of the ones this repo declares. It reports on neighbouring projects — and can |
+| [`freshness-measured-on-write-time`](error-classes.md#freshness-measured-on-write-time) | a source is reported FRESH while its data is months or years old. The collector still runs and still writes, so the write timestamp advances nightly — |
+| [`config-corrected-in-the-file-that-loses`](error-classes.md#config-corrected-in-the-file-that-loses) | a credential is investigated, found wrong, and corrected — and nothing changes. Every later look at the corrected file confirms the fix, so the invest |
 | [`guard-derived-from-the-thing-it-guards`](error-classes.md#guard-derived-from-the-thing-it-guards) | a test is GREEN while the thing it guards is wrong, because it derives its own scope or its own expectation from that thing. Two shapes, both measured |
 | [`gate-with-no-test-of-its-own`](error-classes.md#gate-with-no-test-of-its-own) | a tool whose entire job is to answer go/no-go has no test and no schedule. Its greenness is trusted by a runbook, its logic is verified by nobody, and |
 | [`guard-scope-is-a-hand-written-list`](error-classes.md#guard-scope-is-a-hand-written-list) | a check is correct on everything it looks at, and what it looks at is a list somebody typed. It never reports the things it does not cover, so its sil |
 | [`test-leaves-a-hole-in-sys-modules`](error-classes.md#test-leaves-a-hole-in-sys-modules) | tests are green file by file and red in a full run, on assertions unrelated to whatever changed. The failing test's own monkeypatch appears not to tak |
 | [`test-sends-real-mail-to-real-people`](error-classes.md#test-sends-real-mail-to-real-people) | real email arrives in a real inbox after a test run, from the project's own SMTP account, carrying a `http://localhost:8501` link that no recipient ca |
+| [`traceback-rendered-to-the-visitor`](error-classes.md#traceback-rendered-to-the-visitor) | une exception non rattrapée affiche sa **traceback complète dans le navigateur** du visiteur — chemins de fichiers, lignes de code, et le message de l |
+| [`prune-scoped-wider-than-what-it-refreshed`](error-classes.md#prune-scoped-wider-than-what-it-refreshed) | des données de production disparaissent, sans erreur, sans trace. Le nettoyage qui suit une collecte supprime plus large que ce que cette collecte vie |
+| [`layer-written-but-never-wired`](error-classes.md#layer-written-but-never-wired) | une couche que l'architecture décrit comme porteuse — validation, gestion d'erreur — existe, a des tests verts, et **aucun code de production ne l'app |
+| [`audit-reads-the-constraints-not-the-installed-set`](error-classes.md#audit-reads-the-constraints-not-the-installed-set) | l'audit de vulnérabilités rend un rapport propre pendant que le parc réellement installé porte des dizaines d'avis. Il lit un fichier de **contraintes |
 | [`guard-seeded-by-prose-not-by-code`](error-classes.md#guard-seeded-by-prose-not-by-code) | un garde marque en faute un module qui vient d'appliquer son propre correctif. Le module ne fait rien de risqué : il a seulement **importé le remède** |
 | [`boundary-with-no-named-exit-kills-what-must-pass`](error-classes.md#boundary-with-no-named-exit-kills-what-must-pass) | une frontière posée pour borner le rayon de souffle de la suite éteint aussi **ce qui doit sortir**. Le composant tué est un moniteur : son rouge quot |
+| [`a-fail-fast-gate-cannot-diagnose`](error-classes.md#a-fail-fast-gate-cannot-diagnose) | l'outil que le runbook fait lancer pour comprendre pourquoi une plateforme ne collecte pas s'arrête AVANT de la tester, et rend un verdict qui ne parl |
 | [`named-guard-deleted-while-the-class-reads-guarded`](error-classes.md#named-guard-deleted-while-the-class-reads-guarded) | une classe d'erreur affiche `status: guarded` et nomme un test qui n'existe plus. La classe est rouverte, le catalogue dit le contraire, et rien n'éch |
 | [`environment-failure-worn-as-a-code-failure`](error-classes.md#environment-failure-worn-as-a-code-failure) | la suite rend des dizaines de rouges qui disent « mauvais interpréteur », pas « code cassé ». On apprend à ne plus lire le récapitulatif, et un vrai é |
 | [`selector-blind-to-the-import-prefix`](error-classes.md#selector-blind-to-the-import-prefix) | un sélecteur de tests rend un ensemble qui a l'air restreint — 19 sur 169, 11 % — et qui est en réalité CONSTANT : le même, octet pour octet, pour un  |
 | [`boundary-wider-than-its-docstring`](error-classes.md#boundary-wider-than-its-docstring) | une frontière de test annonce une portée étroite dans son docstring et l'applique à tout le processus. Symptôme observable : des tests deviennent ROUG |
+| [`image-ships-what-it-never-imports`](error-classes.md#image-ships-what-it-never-imports) | une image Docker embarque des centaines de mégaoctets qu'aucun de ses processus n'importera jamais. Rien ne casse : le build est plus long, le déploie |
 | [`tests-run-a-different-core-than-prod`](error-classes.md#tests-run-a-different-core-than-prod) | la suite valide le code contre une version majeure d'un socle que la production n'exécute pas, et rend vert. Rien ne signale l'écart : les deux moitié |
 | [`assertion-wider-than-the-question-it-asks`](error-classes.md#assertion-wider-than-the-question-it-asks) | un test accuse une régression de destruction de données qui n'a jamais eu lieu, et bloque une PR sans rapport. |
+| [`alert-names-the-class-and-drops-the-reason`](error-classes.md#alert-names-the-class-and-drops-the-reason) | une panne de collecte est correctement détectée, correctement isolée, correctement alertée — et le message reçu ne dit pas quoi faire, parce que la ph |
 | [`retry-blind-to-the-exception-its-client-raises`](error-classes.md#retry-blind-to-the-exception-its-client-raises) | un décorateur `@retry` est en place, visible, jamais retiré — et **aucune tentative n'a jamais été rejouée**. Un blip réseau fait échouer la tâche du  |
 | [`probe-reads-unreadable-as-absent`](error-classes.md#probe-reads-unreadable-as-absent) | un outil de diagnostic accuse le produit d'un défaut qu'il n'a pas — et il vise précisément la page où un vrai défaut coûterait le plus cher. |
 | [`guard-matches-its-own-comment`](error-classes.md#guard-matches-its-own-comment) | un test de garde est VERT sur le défaut qu'il existe pour attraper, ou ROUGE sur le commentaire qui explique le correctif. Les deux erreurs viennent d |
@@ -301,37 +311,45 @@ Règle de rattachement : `guard|cliquet|ratchet|signature|probe|predicate|vacuou
 | [`probe-does-not-ask-the-collectors-question`](error-classes.md#probe-does-not-ask-the-collectors-question) | une sonde de configuration annonce à l'utilisateur que sa source est vide, pendant que le collecteur en ramène le contenu tous les jours. Les deux int |
 | [`guard-asserts-presence-not-reachability`](error-classes.md#guard-asserts-presence-not-reachability) | un garde structurel passe au vert sur le défaut qu'il devait attraper. Il demande « cet appel est-il là ? » et l'appel EST là — sous une branche morte |
 | [`guard-predicate-depends-on-the-host-env`](error-classes.md#guard-predicate-depends-on-the-host-env) | un garde est vert sur le poste où on l'écrit et rouge partout ailleurs, sur un code identique. Il n'interroge pas le code : il interroge l'environneme |
+| [`red-gate-hides-every-step-behind-it`](error-classes.md#red-gate-hides-every-step-behind-it) | la CI est rouge et le reste des jours. Chaque exécution rapporte le même échec, à la même étape, et **rien de ce qui vient après n'a tourné** — donc r |
+| [`layout-keyed-by-a-hand-written-list`](error-classes.md#layout-keyed-by-a-hand-written-list) | une mise en page range correctement ce que son auteur avait en tête, et range tout le reste dans un groupe par défaut — qui porte un titre. L'élément  |
 | [`test-pinned-to-a-row-of-the-authors-database`](error-classes.md#test-pinned-to-a-row-of-the-authors-database) | un test est vert chez son auteur et rouge partout ailleurs, sur une erreur de base de données qui ne parle pas du sujet gardé — une clé étrangère, une |
 | [`guard-branch-only-reached-when-it-fails`](error-classes.md#guard-branch-only-reached-when-it-fails) | un garde est vert sur une base propre et rouge dans la grande exécution, et le rouge ne parle pas du sujet gardé — un `TypeError`, un `KeyError`, une  |
+| [`menu-filter-mistaken-for-an-access-gate`](error-classes.md#menu-filter-mistaken-for-an-access-gate) | une page réservée n'apparaît pas dans le menu et s'affiche quand même — il suffit d'en connaître l'adresse. La liste qui devait la protéger existe, el |
+| [`filename-dependency-survives-below-detection`](error-classes.md#filename-dependency-survives-below-detection) | un fichier est reconnu à l'écran puis n'importe rien, sous un message qui accuse son CONTENU (« Aucune ligne valide détectée après parsing ») ou qui d |
 | [`a-ratchet-frozen-on-a-partial-predicate`](error-classes.md#a-ratchet-frozen-on-a-partial-predicate) | un cliquet gelé à zéro passe au vert, et la chose qu'il interdit est toujours là. Mesuré le 2026-09-10 : `_MAX_SECONDARY_AXES = 0` était vert alors qu |
 | [`a-surgical-restore-erases-work-nothing-will-give-back`](error-classes.md#a-surgical-restore-erases-work-nothing-will-give-back) | du travail non commité disparaît sans trace ni message. Aucune erreur, aucun avertissement : la commande réussit, et ce qu'elle a écrasé n'est ni dans |
 | [`a-filtered-test-run-proves-nothing`](error-classes.md#a-filtered-test-run-proves-nothing) | annoncer « N tests verts » après une exécution filtrée par `-k`. Le 2026-09-11 : **931 verts** annoncés, puis la sélection officielle en a trouvé **4  |
+| [`a-document-slice-bounded-by-the-wrong-heading-level`](error-classes.md#a-document-slice-bounded-by-the-wrong-heading-level) | un découpage de document Markdown emporte **plus que ce qu'il visait**, et rien dans le résultat ne le dit. Le 2026-09-13 : la rotation de trois secti |
 | [`a-generated-document-asserts-a-stale-state`](error-classes.md#a-generated-document-asserts-a-stale-state) | un document généré décrit un dépôt qui n'existe plus. Il ne porte aucune marque de péremption — il se lit exactement comme une mesure fraîche, et c'es |
 | [`a-ratchet-at-zero-over-a-scope-that-excludes-the-defect`](error-classes.md#a-ratchet-at-zero-over-a-scope-that-excludes-the-defect) | un cliquet affiche zéro et la propriété qu'il annonce est fausse. Le prédicat est juste, la portée ne l'est pas — et rien dans le message ne distingue |
 | [`a-signature-anchored-on-a-location`](error-classes.md#a-signature-anchored-on-a-location) | une signature de classe d'erreur rougit sur un arbre sain, deux fois en deux jours, parce que le correctif a déplacé ou renommé ce qu'elle nommait. On |
 | [`a-ratchet-with-no-floor-under-its-population`](error-classes.md#a-ratchet-with-no-floor-under-its-population) | un cliquet à zéro reste vert alors que la propriété qu'il annonce n'est plus vérifiée — parce qu'il ne mesure plus rien. Mesuré le 2026-09-12 : **5 de |
 | [`a-guard-that-sees-the-binding-not-the-application`](error-classes.md#a-guard-that-sees-the-binding-not-the-application) | un garde reste vert sur le défaut exact qu'il décrit, parce qu'il vérifie qu'une valeur est CALCULÉE et non qu'elle est UTILISÉE. |
 | [`a-marker-shared-by-several-sites-guards-none`](error-classes.md#a-marker-shared-by-several-sites-guards-none) | un test de non-régression qui cherche la PRÉSENCE d'un marqueur dans un fichier reste vert quand un seul des sites qui l'utilisent perd son correctif. |
+| [`a-visual-constant-copied-into-a-second-renderer`](error-classes.md#a-visual-constant-copied-into-a-second-renderer) | la même plateforme porte **deux couleurs** dans le même produit — Spotify en vert à l'écran, en bleu dans le PDF du même artiste, le même jour. |
 | [`a-kill-pattern-that-matches-its-own-shell`](error-classes.md#a-kill-pattern-that-matches-its-own-shell) | une commande composée s'arrête au milieu, sans message, et rend le code **144**. Ce qui suit n'a jamais tourné — relancer la suite, écrire le script,  |
 | [`a-verdict-from-a-tree-that-moved-under-it`](error-classes.md#a-verdict-from-a-tree-that-moved-under-it) | la suite complète rend des échecs qui **n'existent pas** — verts dès qu'on les rejoue. Mesuré le 2026-09-12 : quatre signalés sur deux exécutions, **t |
 | [`a-test-whose-input-derives-from-its-subject`](error-classes.md#a-test-whose-input-derives-from-its-subject) | un garde reste VERT quand on mute la constante qu'il prétend garder. Il n'échoue sur aucune valeur, si extrême soit-elle, parce que l'entrée qu'il con |
+| [`a-diagnostic-that-reads-a-name-not-a-route`](error-classes.md#a-diagnostic-that-reads-a-name-not-a-route) | un outil de diagnostic rapporte des pannes que le produit n'a pas. Mesuré le 2026-09-12 par `make artist-firstlook-prod ARTIST=1` : **2 pages sur 6 en |
 | [`a-timeout-reported-as-a-missing-thing`](error-classes.md#a-timeout-reported-as-a-missing-thing) | un outil annonce qu'une chose N'EXISTE PAS alors qu'il a seulement cessé de l'attendre. Mesuré le 2026-09-15 : `.claude/scripts/select_tests.py --dry` |
 | [`a-measurement-taken-under-self-inflicted-load`](error-classes.md#a-measurement-taken-under-self-inflicted-load) | un chiffre de performance est mesuré pendant que d'autres processus LANCÉS PAR MOI occupent la machine, puis lu comme une propriété du système. **Troi |
 | [`a-hook-shaped-function-pytest-never-calls`](error-classes.md#a-hook-shaped-function-pytest-never-calls) | une fonction porte la signature exacte d'un hook pytest, son corps fait le travail d'un hook, et elle n'est JAMAIS appelée. Rien ne le signale : il n' |
+| [`a-blocking-hook-that-writes-its-reason-to-stdout`](error-classes.md#a-blocking-hook-that-writes-its-reason-to-stdout) | un hook PreToolUse bloque une commande et l'appelant ne voit AUCUN motif : l'outil rapporte « No stderr output ». La porte est fermée, la raison est i |
 | [`a-file-whose-tests-share-a-namespace`](error-classes.md#a-file-whose-tests-share-a-namespace) | sous une distribution test-par-test (`--dist loadgroup`, ou des shards), deux tests d'un MÊME fichier tournent en parallèle et se disputent un nom qu' |
+| [`a-gate-that-repairs-what-it-judges`](error-classes.md#a-gate-that-repairs-what-it-judges) | une porte BLOQUANTE de la CI passe au vert sur un arbre qui porte exactement le défaut qu'elle cherche. Elle n'a jamais pu échouer, et rien dans son t |
 
 ## un-document-qui-affirme-un-état-périmé
 
 **Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?**
 
-Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list` sur l'identifiant et le symptôme. 41 classe(s).
+Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list` sur l'identifiant et le symptôme. 35 classe(s).
 
 | classe | symptôme |
 |---|---|
 | [`make-fail-late`](error-classes.md#make-fail-late) | a Makefile target invokes a runtime dependency (Docker / venv / Postgres / `uv` / `streamlit`) and crashes mid-execution instead of failing fast with  |
 | [`collector-shipped-dag-not-rerun`](error-classes.md#collector-shipped-dag-not-rerun) | a new collector method + table ship (migration applied, code volume-mounted) but the owning DAG hasn't re-run since, so the table stays empty and the  |
 | [`operator-guidance-phantom-or-wrong-auth`](error-classes.md#operator-guidance-phantom-or-wrong-auth) | operator-facing text (failure-alert root-cause map, Credentials help UI, setup guides) instructs running a script that does not exist, or describes an |
-| [`check-calls-a-binary-its-image-lacks`](error-classes.md#check-calls-a-binary-its-image-lacks) | a check running INSIDE a container shells out to a host binary (`rclone`, `git`, `docker`, `psql`) that is not in that image. It never crashes — it ta |
 | [`guide-single-os-shortcut`](error-classes.md#guide-single-os-shortcut) | setup-guide prose spells a keyboard shortcut for one OS family (`Ctrl+U`, `Ctrl+F`, `F12`). A macOS artist following the guide literally is blocked at |
 | [`script-unreachable-from-its-dependencies`](error-classes.md#script-unreachable-from-its-dependencies) | a runbook step that reads perfectly cannot be executed anywhere. `can't open file '/app/tools/<script>.py'` from a container, `ModuleNotFoundError: ps |
 | [`map-key-unreachable-by-construction`](error-classes.md#map-key-unreachable-by-construction) | a config dict carries an entry no caller can ever select. The behaviour it declares never runs, and the file reads as though the feature exists. Measu |
@@ -339,18 +357,15 @@ Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|cap
 | [`age-computed-against-another-clock`](error-classes.md#age-computed-against-another-clock) | a staleness check compares a stored timestamp against a clock that is not the one that wrote it. The verdict is wrong by the offset between the two, i |
 | [`detector-with-no-scheduler`](error-classes.md#detector-with-no-scheduler) | a detector is written, tested, documented — and nothing ever runs it. It reports on the day a human happens to type its command, which is never the da |
 | [`the-feature-exists-and-the-path-never-reaches-it`](error-classes.md#the-feature-exists-and-the-path-never-reaches-it) | un utilisateur ne peut pas faire une chose que le produit sait faire. La fonctionnalité est écrite, testée, documentée — et le chemin qui y mène s'arr |
-| [`a-fail-fast-gate-cannot-diagnose`](error-classes.md#a-fail-fast-gate-cannot-diagnose) | l'outil que le runbook fait lancer pour comprendre pourquoi une plateforme ne collecte pas s'arrête AVANT de la tester, et rend un verdict qui ne parl |
 | [`procedure-outlives-its-task`](error-classes.md#procedure-outlives-its-task) | un document de procédure présente comme À FAIRE, priorité comprise, une tâche close depuis des jours ou des semaines. Le lecteur ouvre une séance en c |
 | [`resume-header-claims-what-the-index-denies`](error-classes.md#resume-header-claims-what-the-index-denies) | l'en-tête d'un fichier d'état énumère des tâches comme restant à faire alors que le corps du même fichier les dit closes. Le lecteur ouvre sa séance a |
 | [`dev-doc-nothing-points-at`](error-classes.md#dev-doc-nothing-points-at) | un document utile existe et reste introuvable, parce qu'aucun index ne le nomme. Symétriquement, des gabarits vides survivent des mois sans que person |
 | [`code-ships-without-a-trace`](error-classes.md#code-ships-without-a-trace) | une séance modifie du code de production et se termine sans entrée de journal ni mise à jour de roadmap. Le code part ; le raisonnement qui l'a produi |
-| [`image-ships-what-it-never-imports`](error-classes.md#image-ships-what-it-never-imports) | une image Docker embarque des centaines de mégaoctets qu'aucun de ses processus n'importera jamais. Rien ne casse : le build est plus long, le déploie |
 | [`shipped-artifact-lags-its-source`](error-classes.md#shipped-artifact-lags-its-source) | tous les gardes sont verts, la source est juste, et l'utilisateur reçoit quand même les instructions d'il y a trois mois. |
 | [`exec-bit-lost-outside-the-index`](error-classes.md#exec-bit-lost-outside-the-index) | un script du dépôt refuse de s'exécuter depuis un clone frais — et son propre mode d'emploi dit de le lancer ainsi. |
 | [`mermaid-block-does-not-render`](error-classes.md#mermaid-block-does-not-render) | un diagramme s'affiche en boîte d'erreur, ou pas du tout, chez le lecteur — et rien ne rougit, parce que rien dans le dépôt ne rend du markdown. |
 | [`one-guide-three-sources`](error-classes.md#one-guide-three-sources) | un lecteur anglophone reçoit une procédure abandonnée côté français ; le PDF d'une langue décrit plus d'étapes que l'autre. Personne ne le voit : ces  |
 | [`extracted-rule-with-one-caller-rewired`](error-classes.md#extracted-rule-with-one-caller-rewired) | une règle est factorisée pour être partagée, la factorisation est annoncée dans les commentaires — et les deux copies coexistent, parce qu'un seul app |
-| [`layout-keyed-by-a-hand-written-list`](error-classes.md#layout-keyed-by-a-hand-written-list) | une mise en page range correctement ce que son auteur avait en tête, et range tout le reste dans un groupe par défaut — qui porte un titre. L'élément  |
 | [`page-that-restates-what-the-app-already-shows`](error-classes.md#page-that-restates-what-the-app-already-shows) | une page « guide » explique en prose ce que l'application montre déjà en agissant. Elle vieillit plus vite que ce qu'elle décrit, et deux surfaces fin |
 | [`detection-keyed-on-the-filename`](error-classes.md#detection-keyed-on-the-filename) | un fichier valide est refusé, ou pire, un fichier invalide est accepté — selon comment il s'appelle. Renommer corrige ou casse, ce qui apprend à l'uti |
 | [`consumed-state-hides-its-own-widget`](error-classes.md#consumed-state-hides-its-own-widget) | un bouton s'affiche, on clique, et il ne se passe rien. Aucune erreur, aucune trace : le bloc qui portait le bouton disparaît simplement de l'écran. S |
@@ -361,29 +376,25 @@ Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|cap
 | [`a-diagram-is-verified-by-looking-at-it`](error-classes.md#a-diagram-is-verified-by-looking-at-it) | un schéma généré est syntaxiquement valide, son SVG contient tout le texte attendu, et il est faux à l'œil. Mesuré le 2026-09-10 sur sept schémas neuf |
 | [`a-caption-written-beside-the-behaviour-instead-of-derived-from-it`](error-classes.md#a-caption-written-beside-the-behaviour-instead-of-derived-from-it) | la légende sous une figure affirme trois choses fausses en même temps, sans qu'aucune ne soit un bug de calcul. Vu au rendu le 2026-09-10 en « Chacune |
 | [`on-conflict-target-without-index`](error-classes.md#on-conflict-target-without-index) | l'import ne se dégrade pas, il LÈVE — `ERROR: there is no unique or exclusion constraint matching the ON CONFLICT specification`. Prouvé en production |
-| [`a-document-slice-bounded-by-the-wrong-heading-level`](error-classes.md#a-document-slice-bounded-by-the-wrong-heading-level) | un découpage de document Markdown emporte **plus que ce qu'il visait**, et rien dans le résultat ne le dit. Le 2026-09-13 : la rotation de trois secti |
 | [`a-note-outlives-the-figure-it-explains`](error-classes.md#a-note-outlives-the-figure-it-explains) | la figure est juste et le lecteur croit qu'elle est vide, parce que la légende sous elle décrit l'ancienne figure. Signalé le 2026-09-11 **après** le  |
 | [`a-verdict-whose-validator-lives-outside-the-repo`](error-classes.md#a-verdict-whose-validator-lives-outside-the-repo) | une règle est écrite dans un commentaire avec son chiffre, et personne ne peut la rejouer. La palette portait « refusé : ΔE 4.5 (deutan) » depuis le 2 |
 | [`a-bash-hook-that-blocks-the-prose-about-the-gesture`](error-classes.md#a-bash-hook-that-blocks-the-prose-about-the-gesture) | **écrire sur un défaut devient impossible.** Trois commandes bloquées d'affilée le 2026-09-12, toutes en train d'écrire la classe d'erreur du geste co |
 | [`a-dependency-that-does-not-come-back`](error-classes.md#a-dependency-that-does-not-come-back) | après un redémarrage de l'hôte (WSL, Docker Desktop, la machine), les services qui DÉPENDENT d'un autre remontent et celui dont ils dépendent reste à  |
 | [`a-percent-sign-in-a-parameterised-query`](error-classes.md#a-percent-sign-in-a-parameterised-query) | une requête paramétrée échoue en bloc sur `IndexError: tuple index out of range`, alors que le nombre d'emplacements `%s` et le nombre de valeurs pass |
-| [`a-diagnostic-that-reads-a-name-not-a-route`](error-classes.md#a-diagnostic-that-reads-a-name-not-a-route) | un outil de diagnostic rapporte des pannes que le produit n'a pas. Mesuré le 2026-09-12 par `make artist-firstlook-prod ARTIST=1` : **2 pages sur 6 en |
 | [`a-prose-claim-that-cannot-be-verified`](error-classes.md#a-prose-claim-that-cannot-be-verified) | un document dont les TABLEAUX sont justes affirme le contraire dans la prose posée à côté, et rien ne le voit. Mesuré le 2026-09-15 sur `.claude/dev-d |
 
 ## un-contrôle-qui-ne-peut-jamais-passer
 
 **Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ?**
 
-Règle de rattachement : `never-pass|env-independent|host-env|container|reachab|unreachable|not-wired|orphan|dead-code|no-caller|unrun|install|shares-the-fate|unstated-import-path|below-detection` sur l'identifiant et le symptôme. 6 classe(s).
+Règle de rattachement : `never-pass|env-independent|host-env|container|reachab|unreachable|not-wired|orphan|dead-code|no-caller|unrun|install|shares-the-fate|unstated-import-path|below-detection` sur l'identifiant et le symptôme. 4 classe(s).
 
 | classe | symptôme |
 |---|---|
 | [`anonymous-surface-answers-a-private-question`](error-classes.md#anonymous-surface-answers-a-private-question) | a page reachable without authentication behaves differently depending on private state, so a visitor reads that state one request at a time. The page  |
-| [`audit-reads-the-constraints-not-the-installed-set`](error-classes.md#audit-reads-the-constraints-not-the-installed-set) | l'audit de vulnérabilités rend un rapport propre pendant que le parc réellement installé porte des dizaines d'avis. Il lit un fichier de **contraintes |
 | [`content-rendered-outside-its-container`](error-classes.md#content-rendered-outside-its-container) | le contenu d'un onglet (ou de tout conteneur Streamlit) se rend **à côté** au lieu de dedans. Aucune exception, tous les éléments présents, tous les t |
 | [`route-depends-on-an-unstated-import-path`](error-classes.md#route-depends-on-an-unstated-import-path) | l'application démarre proprement puis meurt au **premier clic**, sur un `ModuleNotFoundError` qui nomme un paquet présent sur le disque. |
 | [`backup-shares-the-fate-of-what-it-protects`](error-classes.md#backup-shares-the-fate-of-what-it-protects) | les sauvegardes tournent chaque nuit, réussissent, et ne survivraient pas à l'incident contre lequel elles existent. |
-| [`filename-dependency-survives-below-detection`](error-classes.md#filename-dependency-survives-below-detection) | un fichier est reconnu à l'écran puis n'importe rien, sous un message qui accuse son CONTENU (« Aucune ligne valide détectée après parsing ») ou qui d |
 
 ## un-coût-payé-sans-contrepartie
 
@@ -421,19 +432,18 @@ Règle de rattachement : `threshold|seuil|min[_-]|floor|ceiling|limit|budget|quo
 
 **Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ?**
 
-Règle de rattachement : `overwrit|écrase|clobber|upsert|conflict|restore|delete|drop|purge|lost|data-loss|resurrect|rotation` sur l'identifiant et le symptôme. 3 classe(s).
+Règle de rattachement : `overwrit|écrase|clobber|upsert|conflict|restore|delete|drop|purge|lost|data-loss|resurrect|rotation` sur l'identifiant et le symptôme. 2 classe(s).
 
 | classe | symptôme |
 |---|---|
 | [`migration-ahead-of-its-code`](error-classes.md#migration-ahead-of-its-code) | a migration that changes a **key** (primary key, unique constraint, conflict target) is applied to production while the code that uses the new key is  |
-| [`alert-names-the-class-and-drops-the-reason`](error-classes.md#alert-names-the-class-and-drops-the-reason) | une panne de collecte est correctement détectée, correctement isolée, correctement alertée — et le message reçu ne dit pas quoi faire, parce que la ph |
 | [`ddl-resurrects-a-migrated-fix`](error-classes.md#ddl-resurrects-a-migrated-fix) | la production est correcte, et toute base NEUVE renaît avec le défaut — CI, poste de développeur, reconstruction après sinistre — jusqu'à ce que quelq |
 
 ## le-temps-et-l-horloge
 
 **Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ?**
 
-Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|window-applied|day|month|period` sur l'identifiant et le symptôme. 20 classe(s).
+Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|window-applied|day|month|period` sur l'identifiant et le symptôme. 18 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -441,11 +451,9 @@ Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|wi
 | [`mixed-date-timestamp`](error-classes.md#mixed-date-timestamp) | a collection mixes psycopg2 `datetime.date` (raw DATE column) and `pd.Timestamp` (a `pd.to_datetime`'d Series); `sorted()` / `pd.merge` on `date` / an |
 | [`ingest-time-as-release-date`](error-classes.md#ingest-time-as-release-date) | an `entity_period_filter`/`EntitySpec` orders "latest release" by `MIN(date_column)` where `date_column` is the ingest timestamp (`collected_at`) → de |
 | [`tz-aware-naive-mix`](error-classes.md#tz-aware-naive-mix) | a column of ISO timestamp strings where some carry a tz offset (`+00:00`) and some are naive → `pd.to_datetime(series)` or a Plotly datetime coercion  |
-| [`freshness-measured-on-write-time`](error-classes.md#freshness-measured-on-write-time) | a source is reported FRESH while its data is months or years old. The collector still runs and still writes, so the write timestamp advances nightly — |
 | [`repo-copy-of-a-config-is-not-what-runs`](error-classes.md#repo-copy-of-a-config-is-not-what-runs) | a config file lives in the repo, looks authoritative, and is not the one the service loads. Editing it changes nothing, reading it describes a deploym |
 | [`decision-made-on-a-string-truncated-for-display`](error-classes.md#decision-made-on-a-string-truncated-for-display) | a branch written to handle a known, valid edge case never executes. The code reads correctly, the condition names the right thing, and reviewers confi |
 | [`script-replaced-while-it-runs`](error-classes.md#script-replaced-while-it-runs) | a deploy script is updated, pushed, and the very deploy that pulls the update does not run it. The run reports success, so the change looks deployed — |
-| [`prune-scoped-wider-than-what-it-refreshed`](error-classes.md#prune-scoped-wider-than-what-it-refreshed) | des données de production disparaissent, sans erreur, sans trace. Le nettoyage qui suit une collecte supprime plus large que ce que cette collecte vie |
 | [`dag-without-dagrun-timeout`](error-classes.md#dag-without-dagrun-timeout) | un DAG qui se bloque ne se termine jamais, garde son créneau, et peut être enregistré **success**. Aucune alerte : Airflow n'a rien à signaler tant qu |
 | [`timestamptz-parsed-across-a-dst-change`](error-classes.md#timestamptz-parsed-across-a-dst-change) | une page plante avec `ValueError: Tz-aware datetime.datetime cannot be converted to datetime64 unless utc=True, at position N`. Elle marchait la veill |
 | [`bom-survives-the-encoding-fallback`](error-classes.md#bom-survives-the-encoding-fallback) | un export parfaitement valide est refusé, et le message d'erreur affiche la BONNE colonne. « Type non reconnu — colonnes vues : date, streams » alors  |
@@ -462,28 +470,25 @@ Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|wi
 
 **Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ?**
 
-Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhook|stripe|payment|url|cors|redact|external|api-|fstring-identifier|string-substitution|untrusted|privileged|access-gate|is-not-an-identity|rendered-to-the-visitor|bare-except|containment` sur l'identifiant et le symptôme. 20 classe(s).
+Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhook|stripe|payment|url|cors|redact|external|api-|fstring-identifier|string-substitution|untrusted|privileged|access-gate|is-not-an-identity|rendered-to-the-visitor|bare-except|containment` sur l'identifiant et le symptôme. 17 classe(s).
 
 | classe | symptôme |
 |---|---|
 | [`sql-fstring-identifier`](error-classes.md#sql-fstring-identifier) | a table/column name interpolated into SQL via f-string without `frozenset` allowlist validation (CLAUDE.md rule #8) → SQL injection. |
 | [`watchdog-becomes-the-noise`](error-classes.md#watchdog-becomes-the-noise) | a daily alert email that always contains the same findings, calls for no action, and is therefore skimmed and then ignored — taking the real findings  |
 | [`app-id-confused-with-ad-account-id`](error-classes.md#app-id-confused-with-ad-account-id) | `Error validating application. Cannot get application info due to a system error.` on every Meta call, which reads as "the token expired" — so the inv |
-| [`config-corrected-in-the-file-that-loses`](error-classes.md#config-corrected-in-the-file-that-loses) | a credential is investigated, found wrong, and corrected — and nothing changes. Every later look at the corrected file confirms the fix, so the invest |
 | [`secret-in-an-exception-message`](error-classes.md#secret-in-an-exception-message) | a credential is passed as a QUERY PARAMETER, so a `requests` exception message embeds the full prepared URL. Surfacing the exception — to a user, or i |
 | [`trusted-value-read-from-an-untrusted-header`](error-classes.md#trusted-value-read-from-an-untrusted-header) | a security control keys on a value taken from a request header the caller controls, so the caller varies the key and the control never fires. It looks |
 | [`sentinel-means-privileged-and-missing`](error-classes.md#sentinel-means-privileged-and-missing) | one sentinel value carries two unrelated meanings — "this caller may see everything" and "this caller has no scope" — so the branch written for the fi |
 | [`resave-erases-a-secret-the-form-cannot-show`](error-classes.md#resave-erases-a-secret-the-form-cannot-show) | pressing "save" on a form destroys a stored secret the form has no field for. The UI reports success, nothing logs a warning, and the loss only surfac |
 | [`unattributable-payment-link`](error-classes.md#unattributable-payment-link) | un client paie et n'est jamais provisionné. Le paiement réussit côté Stripe, le webhook renvoie 200, et le compte reste sur son ancien plan. Rien n'éc |
 | [`sender-identity-composed-twice`](error-classes.md#sender-identity-composed-twice) | les e-mails du produit arrivent sous un nom d'expéditeur qui n'est pas le sien — ici « Music Cross Platform Dashboard & Trigger Spotify » au lieu de « |
-| [`traceback-rendered-to-the-visitor`](error-classes.md#traceback-rendered-to-the-visitor) | une exception non rattrapée affiche sa **traceback complète dans le navigateur** du visiteur — chemins de fichiers, lignes de code, et le message de l |
 | [`a-dev-instance-sends-production-shaped-mail`](error-classes.md#a-dev-instance-sends-production-shaped-mail) | une alerte arrive dans une vraie boîte mail, annonce une panne, et **la production va très bien**. Elle vient d'une instance de développement. Rien da |
 | [`nonprod-instance-puts-mail-on-the-wire`](error-classes.md#nonprod-instance-puts-mail-on-the-wire) | une instance hors production expédie de vrais e-mails à de vraies boîtes. Ils ressemblent à une panne, il faut les ouvrir, les lire et les écarter — e |
 | [`handler-built-without-its-arguments`](error-classes.md#handler-built-without-its-arguments) | une tâche planifiée lève `TypeError: X.__init__() missing N required positional arguments` à sa première exécution réelle, des heures après le commit. |
 | [`alert-repeats-an-unactionable-verdict`](error-classes.md#alert-repeats-an-unactionable-verdict) | la même alerte arrive chaque nuit avec le même contenu, sur un problème dont le geste correctif est une action humaine dans une interface tierce. Le l |
 | [`bare-except`](error-classes.md#bare-except) | un `except:` nu avale aussi `KeyboardInterrupt` et `SystemExit` — donc une interruption volontaire et l'arrêt du processus — et il ne dit jamais QUELL |
 | [`a-handle-is-not-an-identity`](error-classes.md#a-handle-is-not-an-identity) | un artiste colle l'adresse de son profil, l'app résout un identifiant, l'enregistre, et collecte les chiffres de quelqu'un d'autre. Rien n'échoue : la |
-| [`menu-filter-mistaken-for-an-access-gate`](error-classes.md#menu-filter-mistaken-for-an-access-gate) | une page réservée n'apparaît pas dans le menu et s'affiche quand même — il suffit d'en connaître l'adresse. La liste qui devait la protéger existe, el |
 | [`containment-ignores-what-it-leaves-out`](error-classes.md#containment-ignores-what-it-leaves-out) | un titre court s'associe tout seul à un libellé long qui le contient — un mix DJ, un set, un morceau d'un autre artiste. Le score est le même que pour |
 | [`a-query-assembled-by-string-substitution`](error-classes.md#a-query-assembled-by-string-substitution) | une requête SQL fabriquée en appliquant `.replace()` à une autre requête. Elle se compile, s'exécute, et rend **zéro ligne**. Comme la lecture est env |
 
@@ -491,7 +496,7 @@ Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhoo
 
 **Ce que le dépôt déclare est-il ce que la production exécute ?**
 
-Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version|montée de majeure|valeur par défaut|majeure` sur l'identifiant et le symptôme. 24 classe(s).
+Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version|montée de majeure|valeur par défaut|majeure` sur l'identifiant et le symptôme. 20 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -499,13 +504,11 @@ Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compos
 | [`migrate-heals-only-if-run-to-completion`](error-classes.md#migrate-heals-only-if-run-to-completion) | `make migrate` prints success while `psql` errors scroll past. The full run is self-consistent, so nothing looks wrong — but a run interrupted at the  |
 | [`input-nobody-would-type-reaches-the-driver`](error-classes.md#input-nobody-would-type-reaches-the-driver) | a caller-supplied string reaches the database driver in a shape the driver refuses, and the refusal is an unhandled exception rather than a rejected r |
 | [`dead-content-that-still-ships`](error-classes.md#dead-content-that-still-ships) | un utilisateur suit une consigne que le produit ne demande plus, et échoue. La consigne vient d'un contenu maintenu, traduit, et que plus rien n'affic |
-| [`layer-written-but-never-wired`](error-classes.md#layer-written-but-never-wired) | une couche que l'architecture décrit comme porteuse — validation, gestion d'erreur — existe, a des tests verts, et **aucun code de production ne l'app |
 | [`dead-argument-from-a-major-version-ago`](error-classes.md#dead-argument-from-a-major-version-ago) | un paramètre d'une version majeure précédente traîne dans le code. Il ne fait **rien** sur la version qui tourne, donc rien ne le signale — et il rend |
 | [`compose-omits-a-package-the-dags-import`](error-classes.md#compose-omits-a-package-the-dags-import) | un contrôle répond honnêtement « je n'ai pas pu tourner » (`ModuleNotFoundError`), et cette honnêteté remonte en ligne de sujet comme une alarme métie |
 | [`websocket-dies-behind-the-proxy`](error-classes.md#websocket-dies-behind-the-proxy) | « je clique sur un bouton et il ne se passe rien, je dois recliquer ». Pas UN bouton — **tous**, par intermittence, et avec **aucune réaction** : ni s |
 | [`the-only-copy-is-consumed-on-read`](error-classes.md#the-only-copy-is-consumed-on-read) | un import réussit, produit des chiffres douteux une semaine plus tard, et **il n'existe plus aucune copie de ce qui a été envoyé** pour trancher. |
 | [`ui-state-not-addressable`](error-classes.md#ui-state-not-addressable) | chaque demande de « rediriger vers X » produit un bug de mise en page — la barre bouge sous l'utilisateur, un message s'affiche dans un panneau fermé, |
-| [`red-gate-hides-every-step-behind-it`](error-classes.md#red-gate-hides-every-step-behind-it) | la CI est rouge et le reste des jours. Chaque exécution rapporte le même échec, à la même étape, et **rien de ce qui vient après n'a tourné** — donc r |
 | [`message-written-before-a-rerun`](error-classes.md#message-written-before-a-rerun) | une action réussit, son message est écrit, et l'écran est vide. Le code est correct, la fonction appelée a fait son travail, et aucun test de rendu ne |
 | [`a-key-that-forbids-history`](error-classes.md#a-key-that-forbids-history) | on conclut qu'une source « ne fournit pas d'historique », et on l'écrit dans le produit. Signalé le 2026-09-08 : « pour Apple je ne comprends pas, je  |
 | [`overlapping-readings-summed-as-one`](error-classes.md#overlapping-readings-summed-as-one) | un total gonfle sans raison visible, d'autant plus que l'utilisateur a fourni PLUS de données. Aucune erreur : chaque relevé est juste, c'est leur add |
@@ -513,9 +516,7 @@ Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compos
 | [`a-zero-that-was-never-measured-passes-for-a-measurement`](error-classes.md#a-zero-that-was-never-measured-passes-for-a-measurement) | une colonne de mesure est remplie sur toutes les lignes, donc elle a l'air mesurée, et toute moyenne calculée dessus est fausse — pas approximative, f |
 | [`the-application-connects-as-a-superuser`](error-classes.md#the-application-connects-as-a-superuser) | aucun. Tout fonctionne — c'est le propre de cette classe : elle ne se manifeste que le jour où autre chose échoue. |
 | [`a-procedural-rule-in-the-database`](error-classes.md#a-procedural-rule-in-the-database) | une règle métier vit en PL/pgSQL. Elle n'est ni testable par pytest, ni lisible dans une revue de diff Python, ni déplaçable — et le jour où elle est  |
-| [`a-visual-constant-copied-into-a-second-renderer`](error-classes.md#a-visual-constant-copied-into-a-second-renderer) | la même plateforme porte **deux couleurs** dans le même produit — Spotify en vert à l'écran, en bleu dans le PDF du même artiste, le même jour. |
 | [`a-deduction-subtracted-from-the-wrong-base`](error-classes.md#a-deduction-subtracted-from-the-wrong-base) | une surface affiche un montant NET manifestement faux, sans erreur ni trace. Mesuré le 2026-09-14 : la page Royalties SACEM annonçait « ✅ Net estimé * |
-| [`a-blocking-hook-that-writes-its-reason-to-stdout`](error-classes.md#a-blocking-hook-that-writes-its-reason-to-stdout) | un hook PreToolUse bloque une commande et l'appelant ne voit AUCUN motif : l'outil rapporte « No stderr output ». La porte est fermée, la raison est i |
 | [`a-prudence-rule-with-no-expiry-becomes-a-freeze`](error-classes.md#a-prudence-rule-with-no-expiry-becomes-a-freeze) | une dépendance reste gelée des ANNÉES sur une version que personne n'a choisie, et rien ne le signale. Le symptôme visible est ailleurs et ne ressembl |
 | [`an-action-pin-derived-from-a-version-number`](error-classes.md#an-action-pin-derived-from-a-version-number) | les CINQ jobs d'un workflow échouent en **neuf secondes**, à « Prepare all required actions », avant la moindre mise en route : `Unable to resolve act |
 | [`a-major-upgrade-that-moves-a-default`](error-classes.md#a-major-upgrade-that-moves-a-default) | une montée de MAJEURE laisse le build vert et rend une de ses garanties fausse. Rien n'échoue, rien n'avertit : le seul endroit où le changement exist |
@@ -532,6 +533,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=341 families=17 orphans=3 -->
+<!-- error-class-families: total=342 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=b45e63d9e4c4894400350f9574ac0b3e6cb07fd7e37c61671175eeab3d378e0e -->
+<!-- error-class-families: sha256=9c1e0ebfe3e1672238f5e24fc6fbad058d65f0714ad7fac42f2ea81ec8c3f475 -->

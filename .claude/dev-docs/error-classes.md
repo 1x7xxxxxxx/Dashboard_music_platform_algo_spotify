@@ -112,6 +112,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-prudence-rule-with-no-expiry-becomes-a-freeze](#a-prudence-rule-with-no-expiry-becomes-a-freeze) | P3 | manual | guarded | none |
 | [an-action-pin-derived-from-a-version-number](#an-action-pin-derived-from-a-version-number) | P2 | manual | guarded | none |
 | [a-major-upgrade-that-moves-a-default](#a-major-upgrade-that-moves-a-default) | P2 | deterministic | guarded | none |
+| [a-gate-that-repairs-what-it-judges](#a-gate-that-repairs-what-it-judges) | P1 | deterministic | guarded | none |
 | [a-cold-measurement-that-clears-caches-by-name](#a-cold-measurement-that-clears-caches-by-name) | P2 | deterministic | guarded | none |
 | [a-hook-shaped-function-pytest-never-calls](#a-hook-shaped-function-pytest-never-calls) | P2 | deterministic | guarded | none |
 | [a-blocking-hook-that-writes-its-reason-to-stdout](#a-blocking-hook-that-writes-its-reason-to-stdout) | P3 | manual | guarded | none |
@@ -5890,3 +5891,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: la classe est née DU correctif d'une autre — la montée v4 → v10 faite pour réparer un cache à 0 % de succès. La clause « majeures manuelles » de `.github/dependabot.yml` visait exactement ce risque et avait raison ; ce qui lui manquait, et qui existe maintenant, est de DIRE ce qu'elle refuse (`tools/dev/check_action_drift.py`). Signature structurelle (YAML analysé, pas de texte) donc `deterministic` : elle ne peut pas matcher un commentaire. Mutation vue dans les deux sens : glob retiré → rc=1 ; remis → rc=0.
+
+## a-gate-that-repairs-what-it-judges
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: une porte BLOQUANTE de la CI passe au vert sur un arbre qui porte exactement le défaut qu'elle cherche. Elle n'a jamais pu échouer, et rien dans son texte ne le laisse voir — elle a un nom juste, une commande juste, et un verdict sans valeur.
+- root_cause: la commande de la porte MODIFIE l'arbre avant de le juger. Mesuré le 2026-09-16 : `Manifest consistency (blocking)` lance `uv run python tools/dev/check_manifest_consistency.py`, or **`uv run` re-verrouille et re-synchronise avant d'exécuter**. Le contrôle lisait donc un `uv.lock` que sa propre commande venait de réparer. Cas vivant : la PR #161 (Dependabot) bumpait `pyproject.toml` et `requirements.txt` sans toucher `uv.lock` — Dependabot ne connaît pas ce format. Au commit testé (`1efcab9`), `uv.lock` disait streamlit **1.62.0** et `pyproject.toml` **1.63.0** ; la porte est passée VERTE et la PR a été mergée. Rejoué à la main sur le même arbre : `.venv/bin/python …` sort **rc=1** avec trois lignes `MANIFEST-DRIFT`, `uv run …` sort **rc=0** et laisse `uv.lock` MODIFIÉ derrière lui.
+- long_term_fix: une porte s'exécute sur un arbre GELÉ — ici `uv run --frozen`, posé sur les neuf invocations du dépôt et pas seulement sur celle qui a saigné. La règle générale : **avant d'écrire une porte, demander ce que sa COMMANDE écrit**, pas seulement ce qu'elle lit. Le dépôt avait déjà retiré une étape pour cette forme exacte le 2026-09-15 (`audit_runner --fields` appelait `_write_ratchet()` et écrivait donc dans `error-classes.md` depuis la CI) — la leçon visait une commande, pas la FORME, et n'a donc pas empêché la suivante. C'est ce que ce garde généralise.
+- autofix: none
+- signature: `python3 -c "import sys,yaml,pathlib; bad=[l for p in pathlib.Path('.github/workflows').glob('*.y*ml') for job in ((yaml.safe_load(p.read_text(encoding='utf-8')) or {}).get('jobs') or {}).values() for st in (job.get('steps') or []) for l in str(st.get('run','')).splitlines() if 'uv run' in l and not l.strip().startswith('#') and '--frozen' not in l]; sys.exit(1 if bad else 0)"`
+- guard: { type: pytest, ref: tests/test_a_gate_does_not_repair_what_it_judges.py }
+- rex_ref: .github/workflows/ci.yml
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: **P1 et non P3.** Une porte qui ne peut pas échouer ne coûte pas du temps, elle coûte la confiance : tout ce qu'elle a laissé passer depuis qu'elle existe est inconnu. C'est la même gravité que les 27 exécutions où la suite n'a pas tourné derrière un signal rouge sans rapport — sauf qu'ici il n'y avait même pas de rouge à voir. Mutation : `--frozen` retiré d'une seule étape → le garde la nomme, avec sa ligne ; remis → vert.
