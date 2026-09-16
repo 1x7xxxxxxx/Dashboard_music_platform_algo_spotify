@@ -1,0 +1,44 @@
+# Prometheus — ADR-026. Retention 30 j, posee sur la ligne de commande du conteneur.
+#
+# ⚠️ AUCUNE decouverte automatique de cibles, et c'est deliberе. Cette machine porte
+# aussi les conteneurs d'un AUTRE projet (`msdr_*`), et ce depot a deja paye cette
+# confusion : la sonde Docker du hook Stop est passee au VERT parce que des conteneurs
+# msdr tournaient, pendant que `postgres_spotify_airflow` etait a terre. Chaque cible
+# est donc nommee ici, une par une.
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    product: streamlytics
+
+scrape_configs:
+  # Les DEUX repliques du dashboard, separement. Les agreger ferait disparaitre
+  # l'information que R114 cherche : laquelle des deux sert, et a quel prix.
+  - job_name: dashboard
+    static_configs:
+      - targets: ['streamlytics_dashboard:9102']
+        labels: {instance_role: primary}
+      - targets: ['streamlytics_dashboard2:9102']
+        labels: {instance_role: replica}
+
+  - job_name: api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['streamlytics_api:8502']
+
+  # Caddy tourne sur l'HOTE (service systemd), pas dans un conteneur : on l'atteint par
+  # la passerelle Docker. Son endpoint d'administration ecoute sur 127.0.0.1:2019 et
+  # n'est pas expose — `host.docker.internal` est resolu par `extra_hosts` dans le
+  # compose.
+  - job_name: caddy
+    static_configs:
+      - targets: ['host.docker.internal:2019']
+
+  - job_name: node
+    static_configs:
+      - targets: ['streamlytics_node_exporter:9100']
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']

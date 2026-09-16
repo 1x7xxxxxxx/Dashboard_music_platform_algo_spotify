@@ -203,3 +203,96 @@ def test_metrics_never_raise_when_the_backend_is_absent(monkeypatch) -> None:
     with m.timed_rerun("home"):
         pass
     assert m.start_metrics_server() is False
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# La pile d'observabilité — ce qu'elle expose, et à qui
+# ─────────────────────────────────────────────────────────────────────────────
+
+_OBS = _ROOT / "deploy" / "docker-compose.observability.yml"
+
+
+def _obs() -> dict:
+    yaml = pytest.importorskip("yaml")
+    return yaml.safe_load(_OBS.read_text(encoding="utf-8")) or {}
+
+
+def test_nothing_of_the_stack_is_published_beyond_loopback() -> None:
+    """Prometheus et Grafana n'ont AUCUNE authentification devant Internet.
+
+    L'arbitrage retenu est le tunnel SSH. Un `ports: ['3000:3000']` sans adresse
+    publierait sur 0.0.0.0 — Grafana joignable depuis Internet avec son mot de passe
+    par défaut, et Prometheus sans aucun mot de passe du tout.
+    """
+    offenders: list[str] = []
+    for name, svc in (_obs().get("services") or {}).items():
+        for spec in (svc.get("ports") or []):
+            if not str(spec).startswith("127.0.0.1:"):
+                offenders.append(f"{name} → {spec}")
+    assert not offenders, (
+        "port(s) publié(s) au-delà de la loopback :\n  " + "\n  ".join(offenders)
+        + "\n\nPrometheus n'a aucune authentification et Grafana démarre sur un mot de "
+        "passe par défaut. L'accès est un tunnel SSH, pas une surface publique."
+    )
+
+
+def test_prometheus_listens_on_the_container_network() -> None:
+    """Pas de `--web.listen-address=127.0.0.1` : ce serait la loopback DU CONTENEUR.
+
+    Défaut commis puis corrigé le 2026-09-16 : lié ainsi, ni le mappage de port ni
+    Grafana — qui l'atteint par `streamlytics_prometheus:9090` sur le réseau Docker —
+    ne pourraient l'atteindre. La restriction d'accès vient du MAPPAGE, jamais du
+    binaire.
+    """
+    cmd = " ".join((_obs().get("services") or {}).get("prometheus", {}).get("command", []))
+    assert "127.0.0.1:9090" not in cmd, (
+        f"Prometheus se lie à la loopback du conteneur : {cmd!r}. Grafana ne pourrait "
+        "plus l'interroger, et le tableau serait vide sans qu'aucune erreur ne le dise."
+    )
+
+
+def test_grafana_never_calls_home_at_boot() -> None:
+    """`GF_INSTALL_PLUGINS` vide — REX importé de msdr, où il a coûté une panne.
+
+    Grafana appelle grafana.com AU DÉMARRAGE quand cette variable est peuplée : le
+    conteneur ne boote alors pas hors ligne (classe `b-grafana-offline-boot`).
+    """
+    env = (_obs().get("services") or {}).get("grafana", {}).get("environment", {})
+    assert env.get("GF_INSTALL_PLUGINS", "") == "", (
+        f"GF_INSTALL_PLUGINS vaut {env.get('GF_INSTALL_PLUGINS')!r} — Grafana appellera "
+        "grafana.com au démarrage et ne bootera pas hors ligne."
+    )
+
+
+def test_every_scrape_target_is_named_not_discovered() -> None:
+    """Aucune découverte automatique : cette machine porte AUSSI des conteneurs msdr.
+
+    Le dépôt a déjà payé cette confusion — la sonde Docker du hook Stop est passée au
+    VERT parce que des conteneurs `msdr_*` tournaient, pendant que
+    `postgres_spotify_airflow` était à terre.
+    """
+    yaml = pytest.importorskip("yaml")
+    cfg = yaml.safe_load(
+        (_ROOT / "deploy" / "prometheus" / "prometheus.yml").read_text(encoding="utf-8"))
+    jobs = cfg.get("scrape_configs") or []
+    assert jobs, "aucun job de scrape — la configuration est vide"
+    for job in jobs:
+        assert "static_configs" in job, (
+            f"le job {job.get('job_name')!r} n'utilise pas `static_configs` : une "
+            "découverte automatique ramasserait les conteneurs d'un autre projet."
+        )
+        for key in ("docker_sd_configs", "dns_sd_configs", "file_sd_configs"):
+            assert key not in job, f"{job.get('job_name')!r} utilise {key}"
+
+
+def test_both_dashboard_replicas_are_scraped_separately() -> None:
+    """Les agréger ferait disparaître l'information que R114 cherche."""
+    yaml = pytest.importorskip("yaml")
+    cfg = yaml.safe_load(
+        (_ROOT / "deploy" / "prometheus" / "prometheus.yml").read_text(encoding="utf-8"))
+    job = next(j for j in cfg["scrape_configs"] if j["job_name"] == "dashboard")
+    roles = {sc.get("labels", {}).get("instance_role") for sc in job["static_configs"]}
+    assert roles == {"primary", "replica"}, (
+        f"les deux répliques ne sont pas distinguées : {roles}. Sans le label, on ne "
+        "peut pas savoir laquelle sert ni à quel prix — c'est toute la question de R114."
+    )
