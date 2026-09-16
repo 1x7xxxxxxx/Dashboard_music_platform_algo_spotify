@@ -60,6 +60,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
+| [a-default-branch-that-skips-instead-of-refusing](#a-default-branch-that-skips-instead-of-refusing) | P1 | deterministic | guarded | none |
+| [a-rollback-wider-than-the-failure](#a-rollback-wider-than-the-failure) | P1 | deterministic | guarded | none |
 | [a-threshold-carried-across-instruments](#a-threshold-carried-across-instruments) | P2 | manual | guarded | none |
 | [a-count-taken-before-the-writer-ran](#a-count-taken-before-the-writer-ran) | P2 | manual | reported | none |
 | [a-limiter-consumed-in-two-steps](#a-limiter-consumed-in-two-steps) | P1 | deterministic | guarded | none |
@@ -5988,3 +5990,33 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: `kind: manual` et SANS signature. Aucune commande ne peut savoir quel instrument a produit un nombre écrit dans une roadmap il y a trois semaines — c'est une propriété de l'HISTOIRE du chiffre, pas du dépôt. La classe voisine `a-count-taken-before-the-writer-ran` dit la même chose sur l'INSTANT d'une mesure ; celle-ci la dit sur son INSTRUMENT. Trouvée par `code-critic` sur le DESIGN, avant qu'une ligne de R114 soit écrite — c'est-à-dire au seul moment où la correction coûte zéro.
+
+## a-default-branch-that-skips-instead-of-refusing
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: un script de déploiement met un service EN SERVICE sans l'avoir vérifié une seule fois, et sort en 0. Rien n'échoue, rien n'avertit : le service demandé n'a simplement croisé aucune branche qui le connaisse.
+- root_cause: la branche par DÉFAUT d'un aiguillage passe son tour au lieu de refuser. Mesuré le 2026-09-16 par `code-critic` sur le design de R114, avant qu'une ligne soit écrite : `tools/deploy.sh` choisissait la sonde de santé par un `case` se terminant par `*) continue`. Tant que `$SERVICES` ne contenait que `api` et `dashboard`, les deux branches existaient et le trou était invisible. Une seconde réplique `dashboard2` y serait tombée : reconstruite, remise en service, **jamais sondée, jamais couverte par le retour arrière** — et Caddy lui envoyant du trafic par cookie. Le défaut n'est pas le `case` incomplet, c'est que l'incomplétude était SILENCIEUSE.
+- long_term_fix: **la branche par défaut d'un aiguillage de déploiement refuse et nomme ce qui manque ; elle ne passe jamais son tour.** `service_probe()` est devenu un registre qui rend la chaîne vide sur l'inconnu, et l'appelant sort en 1 avec la liste des services connus. Règle générale, transportable : quand un aiguillage décide si une VÉRIFICATION a lieu, `default` doit être une erreur — l'absence de branche y signifie « on ne sait pas vérifier », jamais « rien à vérifier ». La signature, elle, relie les deux fichiers que rien ne comparait : tout amont de `deploy/Caddyfile` doit avoir sa sonde dans `tools/deploy.sh`.
+- autofix: none
+- signature: `python3 -c "import re,sys,pathlib; U=re.compile(r'\\b127[.]0[.]0[.]1:(\\d{2,5})\\b'); s=pathlib.Path('tools/deploy.sh').read_text(encoding='utf-8'); i=s.index('service_probe()'); probed=set(U.findall(s[i:s.index(chr(10)+chr(125),i)])); served={m for l in pathlib.Path('deploy/Caddyfile').read_text(encoding='utf-8').splitlines() if l.strip().startswith('reverse_proxy') for m in U.findall(l)}; bad=sorted(served-probed); print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
+- guard: { type: pytest, ref: tests/test_a_deploy_covers_every_service_it_starts.py }
+- rex_ref: tools/deploy.sh
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: trouvée sur le DESIGN et non sur un incident — c'est-à-dire au seul moment où elle coûtait zéro. La signature lit la STRUCTURE (le corps de `service_probe()`, les directives `reverse_proxy` non commentées), donc écrire sur le défaut ne la fait pas rougir. Mutation vue dans les deux sens : un amont `127.0.0.1:8599` ajouté au Caddyfile → rc=1 en nommant `8599` ; retiré → rc=0.
+
+## a-rollback-wider-than-the-failure
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: un retour arrière déclenché par la panne d'UNE instance reconstruit tout ce qui tourne. Le remède coupe ce qui marchait encore, et la coupure est plus large que l'incident qu'elle répare.
+- root_cause: la fonction reçoit l'objet en cause en argument et ne s'en sert pas pour agir. Mesuré le 2026-09-16 : `rollback()` prenait `_svc` (`tools/deploy.sh:106`) pour l'afficher dans son message, puis reconstruisait la variable globale `$SERVICES`. À une instance par surface, les deux sont identiques et le défaut n'existe pas. À deux répliques, l'échec de la santé sur l'une aurait reconstruit **les deux sous trafic** — c'est-à-dire coupé le site pour réparer une moitié. Même forme que la classe précédente : un code correct tant qu'il n'y a qu'un exemplaire de chaque chose.
+- long_term_fix: **un remède se borne à ce qui est en panne, et l'argument reçu pour LE NOMMER doit être celui qui sert à AGIR.** Repère de relecture, transportable : quand une fonction reçoit un identifiant et n'en fait qu'un `echo`, demander pourquoi l'action, elle, porte sur un ensemble. La signature lit le corps de `rollback()` et refuse toute commande `docker compose` y mentionnant `$SERVICES`.
+- autofix: none
+- signature: `python3 -c "import sys,pathlib; s=pathlib.Path('tools/deploy.sh').read_text(encoding='utf-8'); i=s.index('rollback() {'); b=s[i:s.index(chr(10)+chr(125),i)]; bad=[l.strip() for l in b.splitlines() if 'docker compose' in l and 'SERVICES' in l and not l.strip().startswith('#')]; print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
+- guard: { type: pytest, ref: tests/test_a_deploy_covers_every_service_it_starts.py }
+- rex_ref: tools/deploy.sh
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: le rollback datait de la veille (étape 0 du chantier d'architecture), écrit dans une passe de robustesse et jamais exercé à deux instances — il n'y en avait qu'une. C'est le motif récurrent de cette séance : du code exact **parce qu'il n'existe qu'un exemplaire**, et faux le jour où il y en a deux, sans qu'une ligne change. Signature structurelle (corps de fonction, lignes non commentées) donc `deterministic`. Mutation vue dans les deux sens : `--build "$_svc"` remplacé par `--build $SERVICES` → rc=1 en citant la ligne ; remis → rc=0.
