@@ -43,7 +43,10 @@ _CONNECTION_ARGS = {"db", "db2", "conn", "connection", "cur", "cursor", "handler
                     "pg", "postgres"}
 
 # Ce qu'on ne doit pas APPELER non plus depuis un fragment, même sans le recevoir.
-_CONNECTION_OPENERS = {"get_db_connection", "view_session", "tenant_scope"}
+# `project_db` ajouté le 2026-09-16 : c'est le gestionnaire de contexte de
+# `spotify_s4a_combined`, et l'omettre aurait laissé passer un fragment qui ouvre.
+_CONNECTION_OPENERS = {"get_db_connection", "view_session", "tenant_scope",
+                       "project_db"}
 
 
 def _is_fragment(node: ast.AST) -> bool:

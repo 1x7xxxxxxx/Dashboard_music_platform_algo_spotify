@@ -92,6 +92,30 @@ def _render_clocks(db, frag: str, params: tuple) -> pd.DataFrame:
 
 
 # ── §1 — décision D : comparer les sorties ─────────────────────────────────────
+@st.fragment
+def _frag_releases(frag: str, params: tuple) -> None:
+    """Le comparateur de sorties — rejoué SEUL quand on change la sélection.
+
+    @st.fragment (R118, 2026-09-16). Son multiselect rejouait tout le script.
+
+    ⚠️ Il ouvre sa PROPRE connexion : la sélection pilote une requête, et celle de
+    `show()` est refermée dès la fin du rendu complet.
+
+    ⚠️ Et `_song_detail()` de ce même fichier N'EST PAS éligible, alors qu'il porte lui
+    aussi un `st.selectbox` : il **rend une figure** (`fig, note = _song_detail(...)`) que
+    son appelant pose ensuite. Un fragment rejoué seul ne peut rien rendre à un appelant
+    qui, lui, ne se rejoue pas — la figure resterait celle du dernier rendu complet, et la
+    page afficherait un titre choisi avec les données d'un autre. **Un fragment DESSINE,
+    il ne RETOURNE pas.** Pour le rendre éligible il faudrait qu'il pose sa figure
+    lui-même, ce que le docstring de `_render_secondary` refuse explicitement pour une
+    autre raison — c'est donc un choix à trancher, pas un oubli.
+    """
+    # `project_db()` et pas `get_db_connection()` : c'est le seul ouvreur de ce fichier,
+    # et il ferme par construction — la seule forme qu'un fragment a le droit d'ouvrir.
+    with project_db() as db:
+        _render_releases(db, frag, params)
+
+
 def _render_releases(db, frag: str, params: tuple) -> None:
     """Les sorties recalées sur J+0, comparées à fenêtre ÉGALE.
 
@@ -453,7 +477,7 @@ def show():
 
         spans = _render_clocks(db, frag, params)
         st.markdown("---")
-        _render_releases(db, frag, params)
+        _frag_releases(frag, params)
         st.markdown("---")
         _render_audience(db, frag, params)
         st.markdown("---")
