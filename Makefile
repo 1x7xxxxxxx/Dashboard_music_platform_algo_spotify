@@ -394,6 +394,11 @@ config-check: ## Check the .claude/ config itself: dangling paths, class schema,
 	@python3 .claude/scripts/check_config_refs.py
 	@python3 .claude/scripts/audit_runner.py --prose
 	@python3 .claude/scripts/audit_runner.py --coverage
+	@# ⚠️ Ajoute le 2026-09-16 : le plan de R122 disait « `error-health-check`
+	@# entre dans `make config-check` pour la boucle locale », et il n'y etait pas.
+	@# Une etape annoncee et non cablee se lit comme une etape qui tourne — c'est
+	@# `a-runbook-that-names-a-command-nobody-can-run`, un cran plus haut.
+	@python3 tools/dev/error_class_health.py --check
 	@# ⚠️ `audit_runner --fields` a ete RETIRE d'ici le 2026-09-16, et pas rendu vert.
 	@# Le commentaire qui le justifiait (« RED on 29/29 legacy classes ») etait PERIME :
 	@# le catalogue porte `<!-- fields-ratchet: 0 -->` depuis longtemps, la dette est a

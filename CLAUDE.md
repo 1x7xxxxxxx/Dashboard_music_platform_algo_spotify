@@ -36,6 +36,11 @@ src/
                 # metrics.py (4 familles Prometheus), ops_alerts.py (lit les règles
                 # d'alerte pour le mail du soir), daily_ops_metrics.py (résumé
                 # quotidien en base — il survit aux redémarrages, pas Prometheus)
+  api/          # FastAPI REST (brique 14, JWT) — main.py, auth.py, deps.py,
+                # security.py, routers/. Il expose `/metrics` sur SON port HTTP, sans
+                # serveur latéral : il a déjà un serveur, lui en ajouter un second
+                # n'achèterait rien. C'est la SEULE différence de câblage avec le
+                # dashboard, et elle est intentionnelle (ADR-026).
   dashboard/
     serve.py    # ⚠️ L'ENTRÉE DU CONTENEUR (`CMD`) — démarre l'exportateur de métriques
                 #    PUIS passe la main à `streamlit run`, dans le MÊME processus.
