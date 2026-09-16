@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**369 classes.** Fenêtre observée : `2026-05-15` → `2026-09-16` (204 révisions du catalogue rejouées).
+**369 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (205 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
@@ -29,7 +29,7 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 |---|---|
 | `automatic_guard` | 351 |
 | `classes` | 369 |
-| `ever_recurred_observed` | 46 |
+| `ever_recurred_observed` | 47 |
 | `prose_only` | 18 |
 | `with_signature` | 358 |
 
@@ -50,18 +50,18 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 ## Récidive observée
 
-**57 évènements** sur 7628 classe-jours d'exposition — **0.2272** par classe-mois (IC 95 % : 0.172 – 0.2943)
+**58 évènements** sur 7997 classe-jours d'exposition — **0.2205** par classe-mois (IC 95 % : 0.1674 – 0.285)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 49 | 0.2017 | 0.1492 – 0.2666 | **séparent** |
-| by_guard · prose | 8 | 1.005 | 0.4327 – 1.9803 | **séparent** |
-| by_seen_red · daté | 0 | 0.0 | 0.0 – 0.6677 | insuffisant pour conclure (n=57) |
-| by_seen_red · jamais-ou-inconnu | 57 | 0.2322 | 0.1759 – 0.3009 | insuffisant pour conclure (n=57) |
-| by_scope · ne-couvre-pas renseigné | 42 | 1.1259 | 0.8114 – 1.522 | **séparent** |
-| by_scope · non renseigné | 15 | 0.0702 | 0.0393 – 0.1158 | **séparent** |
+| by_guard · automatique | 50 | 0.1965 | 0.1458 – 0.259 | **séparent** |
+| by_guard · prose | 8 | 0.9354 | 0.4028 – 1.8432 | **séparent** |
+| by_seen_red · daté | 1 | 0.1567 | 0.002 – 0.8718 | insuffisant pour conclure (n=58) |
+| by_seen_red · jamais-ou-inconnu | 57 | 0.2221 | 0.1682 – 0.2877 | insuffisant pour conclure (n=58) |
+| by_scope · ne-couvre-pas renseigné | 43 | 1.1154 | 0.8071 – 1.5024 | **séparent** |
+| by_scope · non renseigné | 15 | 0.0668 | 0.0374 – 0.1102 | **séparent** |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
@@ -71,8 +71,8 @@ Une classe **plus jeune que l'horizon est exclue de la colonne**, jamais compté
 
 | horizon | à risque | récidivées | taux |
 |---|---|---|---|
-| 7 j | 245 | 34 | 14 % |
-| 14 j | 167 | 30 | 18 % |
+| 7 j | 269 | 36 | 13 % |
+| 14 j | 175 | 31 | 18 % |
 | 30 j | 35 | 13 | 37 % |
 
 ## Avant la fenêtre git — DÉCLARATIF

@@ -233,6 +233,141 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
       lieu d'un chemin, et la mutation « renommer la clé produite » restait verte parce
       que le nom survivait chez ses lecteurs.
 
+## 🔍 R120 — la vue, pas la chrome : quatre affirmations fausses, une réfutée par la mesure (close 2026-09-17)
+
+- [x] **R120 — la VUE, pas la chrome.** (titre corrigé le 2026-09-16 : il disait l'inverse)
+
+  ⚠️ **Ma première hypothèse était fausse et le dépôt le savait déjà.** `docs/adr/ADR-007`
+  porte un profil cProfile pris **dans le conteneur de production** (2026-08-30,
+  `trigger_algo`, 662 ms) : `plotly.__setitem__` 0,327 s cumulé, `__getitem__` 0,199 s,
+  `copy.deepcopy` 0,141 s sur 82 462 appels, SQL 0,067 s. **pandas n'apparaît ni en temps
+  propre ni dans les 20 premiers.** C'est **plotly** et la construction des figures.
+
+  ⚠️⚠️ **ET LA SECONDE PHRASE DE CE BLOC ÉTAIT FAUSSE AUSSI.** Elle disait : « le coût
+  n'est pas dans la vue — rendu par vue p50 = 61 ms, page complète = 468-538 ms, soit
+  ~8× ». Ces 468-538 ms sont mesurés sous `AppTest`, dont le plancher vaut 352 ms (détail
+  plus bas). **Mesuré côté SERVEUR le 2026-09-16, c'est l'inverse**, sur les 8 pages
+  visitées, sans une exception :
+
+  | page | chrome | vue | vue / chrome |
+  |---|---|---|---|
+  | `meta_mapping` | 12,3 ms | **776,8 ms** | **63×** |
+  | `soundcloud` | 75,5 ms | 515,0 ms | 6,8× |
+  | `data_wrapped` | 13,4 ms | 357,7 ms | 26,6× |
+  | `home` | 11,2 ms | 315,9 ms | 28,2× |
+  | `meta_cpr_optimizer` | 11,3 ms | 98,7 ms | 8,7× |
+  | `instagram` | 12,3 ms | 96,3 ms | 7,8× |
+  | `apple_music` | 12,3 ms | 87,3 ms | 7,1× |
+  | `saisie_s4a` | 10,9 ms | 49,8 ms | 4,6× |
+
+  **La chrome est PLATE** — 11 à 13 ms sur sept pages sur huit. Le 75 ms de `soundcloud`
+  est son premier rendu, imports compris. C'est la vue qui varie, de 50 ms à 777 ms.
+
+  **D'où venait le « facteur 8 » ? D'une soustraction jamais faite.** `468-538 ms` est
+  mesuré **sous `AppTest`**, et `tools/loadtest_dashboard.py:30-33` documente vingt
+  lignes plus haut le plancher de ce harnais, pris dans le MÊME conteneur le MÊME jour :
+  **352 ms pour `st.write('hello')`** — deux lignes, pas d'app, pas de base, pas de
+  plotly. Le coût réel de l'application au-dessus du harnais valait donc ~116-186 ms.
+  C'est ce reste-là qu'il fallait comparer aux 61 ms d'une vue, pas le total.
+
+  Les chiffres se recollent : `instagram` vaut 12 ms de chrome + 96 ms de vue = **108 ms**
+  côté serveur, au milieu de la bande 116-186. Ce qu'on attribuait à « la barre latérale »
+  était presque entièrement `AppTest`.
+
+  ⚠️ **Et ma première explication de l'erreur était fausse aussi** : j'ai attribué l'écart
+  à une mesure « côté client », alors que le fichier dit qu'elle est prise dans le
+  conteneur de production. J'expliquais un chiffre faux par une cause plausible sans lire
+  la source — le geste même qui avait produit le chiffre faux.
+
+  ⚠️ Portée : **12 rendus, 8 pages, une session**. Le multiplicateur exact n'est pas
+  établi. Ce qui l'est : le plus PETIT rapport observé est 4,6×, et la chrome ne bouge
+  pas d'une page à l'autre. Aucune accumulation de données ne fera passer un plancher de
+  11 ms devant une vue à 777 ms.
+
+  **Conséquence sur ce bloc** : les quatre premiers postes ci-dessous (`st.tabs`,
+  `st.expander`, `platform_chart`) sont **dans la vue** et restent valables — ce sont eux
+  que la mesure incrimine. Les deux qui visaient la chrome (la barre latérale à ~39 `t()`
+  par rerun, `track_page_view` hors du pool) **pèsent ensemble moins de 13 ms** : ils
+  descendent en P4, et `track_page_view` ne reste que parce qu'une connexion hors du pool
+  est un défaut de forme, pas de vitesse.
+
+  ⚠️⚠️⚠️ **LE PREMIER POSTE EST RÉFUTÉ PAR LA MESURE — 2026-09-17.** C'est la
+  TROISIÈME affirmation fausse de ce bloc, et elle tombe de la même façon que les deux
+  précédentes : elle était vraie sur les faits et fausse sur la conséquence.
+
+  `st.tabs` exécute bien tous les corps. Mais mesuré sur `trigger_algo` — 7 onglets,
+  11 figures, la vue la plus chargée du produit — les **six onglets cachés coûtent
+  0,1 ms à chaud**. Leur travail passe par `@st.cache_data` : les ré-exécuter ne fait
+  que relire le cache. Rendre les onglets paresseux rapporterait **~16 ms sur un rendu
+  de ~1 850 ms**.
+
+  Le premier rendu, lui, paye **866 ms** — la paresse aide donc la visite FROIDE, une
+  fois par TTL de cache, pas les reruns, qui étaient la cible.
+
+  ⚠️ **Deux de mes mesures se sont contredites avant de trancher**, et le dire est le
+  point : le stub des six fonctions donnait 3,7 ms, le chronomètre par onglet 701 ms.
+  La seule façon de décider a été de les lancer **dans le même processus, alternées** —
+  le 701 était un rendu froid. Une comparaison entre deux processus compare aussi leurs
+  caches. Série brute : `[866, 0, 0, 0, 0]`.
+
+  ⚠️ Et une première rustine était fausse : elle remplaçait `st.expander` par un
+  `contextlib.nullcontext()` en croyant sauter le corps. `nullcontext` **exécute le
+  corps** ; je mesurais le coût du widget. `with` ne permet pas de sauter proprement —
+  on chronomètre, on ne saute pas.
+
+  L'outil est versionné : `tools/dev/lazy_body_cost.py`, avec ses trois pièges écrits.
+  Il tourne sous `AppTest`, dont le rendu porte ~1,8 s de harnais ici : **ses valeurs
+  absolues ne veulent rien dire**, seuls ses deltas en veulent.
+
+  **Ce que ça change pour cette brique** : le geste « onglets paresseux » ne se fait
+  pas sur `trigger_algo`. Il reste à mesurer sur les vues dont les corps ne sont PAS
+  mémoïsés — c'est la question, et elle n'a pas encore de réponse mesurée.
+
+  ⚠️⚠️⚠️ **LE SECOND POSTE EST RÉFUTÉ AUSSI — 2026-09-17.** Corps d'expander
+  chronométrés à la source, processus chaud, médiane de 5 (séries stables, aucune
+  contamination à froid) :
+
+  | page | corps d'expander | vue mesurée serveur | part |
+  |---|---|---|---|
+  | `home` | **0,8 ms** (1) | 315,9 ms | **0,3 %** |
+  | `soundcloud` | 22,5 ms (3) | 515,0 ms | 4,4 % |
+  | `data_wrapped` | 18,4 ms (2) | 357,7 ms | 5,1 % |
+  | `meta_ads_overview` | 32,5 ms (2) | non mesurée | — |
+  | `meta_creatives` | 95,8 ms (4) | non mesurée | — |
+
+  **Aucune page mesurée côté serveur ne passe 5 % de sa vue dans un expander.**
+  `home` — 316 ms — en passe 0,8. Son coût est ailleurs.
+
+  ### Bilan de R120 : mesurée de bout en bout, et refusée
+
+  | poste | verdict |
+  |---|---|
+  | `st.tabs` exécute tous les corps | **réfuté** — 0,1 ms à chaud, le travail est mémoïsé |
+  | `st.expander` exécute son corps | **réfuté** — ≤ 5 % sur toute page mesurée |
+  | la barre latérale (~39 `t()`) | **déjà rétrogradé P4** — < 13 ms, la chrome est plate |
+  | `track_page_view` hors du pool | **faux** — il passe par le pool ; le vrai défaut dessous est corrigé (25 sites) |
+  | `platform_chart` en boucles Python | **transféré à R121** — c'est une agrégation, pas un rendu |
+
+  **Cette brique est close le 2026-09-17, non pas livrée mais RÉFUTÉE par sa propre
+  mesure.** Elle a coûté quatre affirmations fausses — la chrome « 8× la vue », le
+  « facteur 8 » venu d'une soustraction jamais faite, les onglets, les expanders — et
+  elle a rendu, en échange, le seul chiffre qui compte : **le coût est dans le CORPS des
+  vues, pas dans leur structure**. C'est R121 qui l'attaque.
+
+  Une brique qui se termine sur « le geste proposé ne rapporte rien » est un résultat,
+  pas un échec. Ce qui aurait été un échec, c'est de faire le refactor d'abord.
+
+  Les postes restants, pour mémoire :
+  * **`st.expander(expanded=False)` exécute son corps aussi** — `utils/ui.py:83-98` ;
+    `tools/dev/chart_budget.py` compte les figures construites et jamais vues :
+    meta_creatives 4, data_wrapped 4, trigger_algo 4, meta_ads_overview 3 ;
+  * **la barre latérale** — ~39 `t()` + ~39 `page_is_locked` + 6 `st.sidebar.radio` à
+    CHAQUE rerun pour un menu qui ne change pas ;
+  * **`track_page_view`** (`utils/usage_tracker.py:27-38`) ouvre un `PostgresHandler`
+    **hors du pool** ;
+  * **`utils/platform_chart.py:225-285`** refait un `GROUP BY date_trunc` en boucles
+    Python, sur la figure de l'accueil.
+
 
 ### R108 — L'exemption de la porte masque ce qu'elle laisse entrer (livrée 2026-09-14)
 

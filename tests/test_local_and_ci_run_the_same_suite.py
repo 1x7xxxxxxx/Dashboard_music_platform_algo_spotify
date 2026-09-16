@@ -92,16 +92,66 @@ def test_the_local_target_uses_the_pytest_dist_variable():
     )
 
 
+def _grouping(flags: set[str]) -> set[str]:
+    """Ce qui change CE QUI est teste, par opposition a COMBIEN de processus le testent.
+
+    ⚠️ Separe le 2026-09-17, et la distinction n'est pas un assouplissement.
+
+    `--dist` decide du GROUPEMENT : avec `loadgroup`, les tests marques `xdist_group`
+    tombent dans le meme worker. C'est une question de CORRECTION — deux fichiers qui
+    ecrivent le meme locataire de la base partagee se marchent dessus autrement, et ce
+    depot a eu deux rouges de cette forme le 2026-09-16. Un desaccord ici fait
+    reellement dire deux choses differentes a « vert ».
+
+    `-n N` ne decide que du DEBIT. Le meme ensemble de tests, les memes groupes, sur
+    plus ou moins de processus.
+
+    Ce qui a force la separation : `make test` a ete **tue par l'OOM deux fois** en une
+    heure, a `-n auto` puis a `-n 6`. Ce poste porte `n8n-ollama` (2,53 Go) et le serveur
+    MCP `knowledge-rag` (1,15 Go) en permanence ; un runner GitHub n'a ni l'un ni
+    l'autre. Exiger le MEME nombre de workers des deux cotes, c'est exiger qu'un des
+    deux se fasse tuer — et une suite tuee rend un journal VIDE, qui se lit comme
+    « rien ne tourne ».
+
+    Le garde continue donc d'exiger l'accord sur `--dist`, et n'exige plus rien sur
+    `-n`. Ce qu'on perd est reel et borne : un ecart de PARALLELISME ne sera plus
+    signale. Ce qu'on garde est ce qui rendait le garde utile.
+    """
+    return {f for f in flags if f.startswith("--dist")}
+
+
 def test_the_two_agree_on_how_the_suite_is_distributed():
     local = _makefile_pytest_flags()
     for invocation in _ci_pytest_invocations():
         ci = set(_FLAGS.findall(invocation))
-        assert ci == local, (
-            f"CI distributes the suite with {sorted(ci)} and `make test` with {sorted(local)}.\n"
+        assert _grouping(ci) == _grouping(local), (
+            f"CI groupe la suite avec {sorted(_grouping(ci))} et `make test` avec "
+            f"{sorted(_grouping(local))}.\n"
             f"  invocation : {invocation}\n"
-            "Green locally and green in CI then mean different things — this repo already "
-            "shipped a defect that only the runner could see.\n"
-            "Change both, or neither."
+            "`--dist` decide de CE QUI est teste ensemble : avec `loadgroup`, les tests "
+            "marques `xdist_group` tiennent sur le meme worker. Un desaccord ici fait "
+            "dire deux choses differentes a « vert », et ce depot a deja livre un defaut "
+            "que seul le runner voyait.\n"
+            "Changer les deux, ou aucun."
+        )
+
+
+def test_both_sides_still_declare_a_worker_count():
+    """`-n` n'a plus besoin d'etre EGAL, mais il doit exister des deux cotes.
+
+    Sans cette assertion, la separation ci-dessus laisserait passer une CI qui perd
+    `-n` entierement et retombe en serie — 1 146 s contre 418 s mesurees, et personne
+    ne le verrait puisque plus rien ne compare les deux.
+    """
+    local = _makefile_pytest_flags()
+    assert any(f.startswith("-n") for f in local), (
+        "le Makefile ne declare plus de nombre de workers — la suite locale retombe "
+        "en serie, mesuree a 2,74x le temps"
+    )
+    for invocation in _ci_pytest_invocations():
+        ci = set(_FLAGS.findall(invocation))
+        assert any(f.startswith("-n") for f in ci), (
+            f"cette invocation CI ne declare plus de workers : {invocation}"
         )
 
 

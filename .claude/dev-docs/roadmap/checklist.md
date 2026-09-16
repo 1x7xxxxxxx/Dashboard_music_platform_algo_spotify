@@ -25,7 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R120 | La vue, pas la chrome — onglets et expanders paresseux (chrome démesurée : 11-13 ms) | P2 | histogramme de rendu avant/après, même charge |
 | R118 | `st.fragment` — **6/11 faites** ; le reste attend une mesure de coût | P3 | l'histogramme montre la page avant de la refactorer |
 | R121 | Les agrégations Python passent en SQL (couche or) | P3 | `make gold-coverage`, cliquet |
 | R116 | **ADR-027** — répliques et Redis, tranché APRÈS les courbes (026 est pris) | P4 | `ls docs/adr/ADR-027-*.md` |
@@ -283,105 +282,6 @@ le supposer.
 
   Contrôle : `make error-health` · évolution : `make error-health-history`.
 
-- [ ] **R120 — la VUE, pas la chrome.** (titre corrigé le 2026-09-16 : il disait l'inverse)
-
-  ⚠️ **Ma première hypothèse était fausse et le dépôt le savait déjà.** `docs/adr/ADR-007`
-  porte un profil cProfile pris **dans le conteneur de production** (2026-08-30,
-  `trigger_algo`, 662 ms) : `plotly.__setitem__` 0,327 s cumulé, `__getitem__` 0,199 s,
-  `copy.deepcopy` 0,141 s sur 82 462 appels, SQL 0,067 s. **pandas n'apparaît ni en temps
-  propre ni dans les 20 premiers.** C'est **plotly** et la construction des figures.
-
-  ⚠️⚠️ **ET LA SECONDE PHRASE DE CE BLOC ÉTAIT FAUSSE AUSSI.** Elle disait : « le coût
-  n'est pas dans la vue — rendu par vue p50 = 61 ms, page complète = 468-538 ms, soit
-  ~8× ». Ces 468-538 ms sont mesurés sous `AppTest`, dont le plancher vaut 352 ms (détail
-  plus bas). **Mesuré côté SERVEUR le 2026-09-16, c'est l'inverse**, sur les 8 pages
-  visitées, sans une exception :
-
-  | page | chrome | vue | vue / chrome |
-  |---|---|---|---|
-  | `meta_mapping` | 12,3 ms | **776,8 ms** | **63×** |
-  | `soundcloud` | 75,5 ms | 515,0 ms | 6,8× |
-  | `data_wrapped` | 13,4 ms | 357,7 ms | 26,6× |
-  | `home` | 11,2 ms | 315,9 ms | 28,2× |
-  | `meta_cpr_optimizer` | 11,3 ms | 98,7 ms | 8,7× |
-  | `instagram` | 12,3 ms | 96,3 ms | 7,8× |
-  | `apple_music` | 12,3 ms | 87,3 ms | 7,1× |
-  | `saisie_s4a` | 10,9 ms | 49,8 ms | 4,6× |
-
-  **La chrome est PLATE** — 11 à 13 ms sur sept pages sur huit. Le 75 ms de `soundcloud`
-  est son premier rendu, imports compris. C'est la vue qui varie, de 50 ms à 777 ms.
-
-  **D'où venait le « facteur 8 » ? D'une soustraction jamais faite.** `468-538 ms` est
-  mesuré **sous `AppTest`**, et `tools/loadtest_dashboard.py:30-33` documente vingt
-  lignes plus haut le plancher de ce harnais, pris dans le MÊME conteneur le MÊME jour :
-  **352 ms pour `st.write('hello')`** — deux lignes, pas d'app, pas de base, pas de
-  plotly. Le coût réel de l'application au-dessus du harnais valait donc ~116-186 ms.
-  C'est ce reste-là qu'il fallait comparer aux 61 ms d'une vue, pas le total.
-
-  Les chiffres se recollent : `instagram` vaut 12 ms de chrome + 96 ms de vue = **108 ms**
-  côté serveur, au milieu de la bande 116-186. Ce qu'on attribuait à « la barre latérale »
-  était presque entièrement `AppTest`.
-
-  ⚠️ **Et ma première explication de l'erreur était fausse aussi** : j'ai attribué l'écart
-  à une mesure « côté client », alors que le fichier dit qu'elle est prise dans le
-  conteneur de production. J'expliquais un chiffre faux par une cause plausible sans lire
-  la source — le geste même qui avait produit le chiffre faux.
-
-  ⚠️ Portée : **12 rendus, 8 pages, une session**. Le multiplicateur exact n'est pas
-  établi. Ce qui l'est : le plus PETIT rapport observé est 4,6×, et la chrome ne bouge
-  pas d'une page à l'autre. Aucune accumulation de données ne fera passer un plancher de
-  11 ms devant une vue à 777 ms.
-
-  **Conséquence sur ce bloc** : les quatre premiers postes ci-dessous (`st.tabs`,
-  `st.expander`, `platform_chart`) sont **dans la vue** et restent valables — ce sont eux
-  que la mesure incrimine. Les deux qui visaient la chrome (la barre latérale à ~39 `t()`
-  par rerun, `track_page_view` hors du pool) **pèsent ensemble moins de 13 ms** : ils
-  descendent en P4, et `track_page_view` ne reste que parce qu'une connexion hors du pool
-  est un défaut de forme, pas de vitesse.
-
-  ⚠️⚠️⚠️ **LE PREMIER POSTE EST RÉFUTÉ PAR LA MESURE — 2026-09-17.** C'est la
-  TROISIÈME affirmation fausse de ce bloc, et elle tombe de la même façon que les deux
-  précédentes : elle était vraie sur les faits et fausse sur la conséquence.
-
-  `st.tabs` exécute bien tous les corps. Mais mesuré sur `trigger_algo` — 7 onglets,
-  11 figures, la vue la plus chargée du produit — les **six onglets cachés coûtent
-  0,1 ms à chaud**. Leur travail passe par `@st.cache_data` : les ré-exécuter ne fait
-  que relire le cache. Rendre les onglets paresseux rapporterait **~16 ms sur un rendu
-  de ~1 850 ms**.
-
-  Le premier rendu, lui, paye **866 ms** — la paresse aide donc la visite FROIDE, une
-  fois par TTL de cache, pas les reruns, qui étaient la cible.
-
-  ⚠️ **Deux de mes mesures se sont contredites avant de trancher**, et le dire est le
-  point : le stub des six fonctions donnait 3,7 ms, le chronomètre par onglet 701 ms.
-  La seule façon de décider a été de les lancer **dans le même processus, alternées** —
-  le 701 était un rendu froid. Une comparaison entre deux processus compare aussi leurs
-  caches. Série brute : `[866, 0, 0, 0, 0]`.
-
-  ⚠️ Et une première rustine était fausse : elle remplaçait `st.expander` par un
-  `contextlib.nullcontext()` en croyant sauter le corps. `nullcontext` **exécute le
-  corps** ; je mesurais le coût du widget. `with` ne permet pas de sauter proprement —
-  on chronomètre, on ne saute pas.
-
-  L'outil est versionné : `tools/dev/lazy_body_cost.py`, avec ses trois pièges écrits.
-  Il tourne sous `AppTest`, dont le rendu porte ~1,8 s de harnais ici : **ses valeurs
-  absolues ne veulent rien dire**, seuls ses deltas en veulent.
-
-  **Ce que ça change pour cette brique** : le geste « onglets paresseux » ne se fait
-  pas sur `trigger_algo`. Il reste à mesurer sur les vues dont les corps ne sont PAS
-  mémoïsés — c'est la question, et elle n'a pas encore de réponse mesurée.
-
-  Les postes restants, à re-mesurer avant d'y toucher :
-  * **`st.expander(expanded=False)` exécute son corps aussi** — `utils/ui.py:83-98` ;
-    `tools/dev/chart_budget.py` compte les figures construites et jamais vues :
-    meta_creatives 4, data_wrapped 4, trigger_algo 4, meta_ads_overview 3 ;
-  * **la barre latérale** — ~39 `t()` + ~39 `page_is_locked` + 6 `st.sidebar.radio` à
-    CHAQUE rerun pour un menu qui ne change pas ;
-  * **`track_page_view`** (`utils/usage_tracker.py:27-38`) ouvre un `PostgresHandler`
-    **hors du pool** ;
-  * **`utils/platform_chart.py:225-285`** refait un `GROUP BY date_trunc` en boucles
-    Python, sur la figure de l'accueil.
-
 - [ ] **R118 — `st.fragment` sur les vues à filtres. AVANCÉE 6/11, et sa population est
       à redériver.**
 
@@ -439,6 +339,13 @@ le supposer.
   `views/meta_x_spotify.py:168-201` (3 `merge` + `concat` pour un axe de dates),
   `views/db_health.py:129-145` (`concat` en boucle + `pivot_table`),
   `views/hypeddit.py:181`, `views/soundcloud.py:183`, `views/meta_ads_overview.py:696`.
+
+  **+ `utils/platform_chart.py:225-285`**, transféré de R120 le 2026-09-17 : il refait un
+  `GROUP BY date_trunc` en boucles Python, sur la figure de l'ACCUEIL. C'est le site le
+  mieux placé de la liste — `home` est mesurée à **315,9 ms côté serveur** et ses
+  expanders n'en portent que **0,8 ms**, donc son coût est ailleurs, et c'est le
+  candidat. Il était dans R120 par erreur de rangement : ce n'est pas un problème de
+  rendu paresseux, c'est une agrégation Python.
 
   **Garde existant à réutiliser** : `make gold-coverage` et son cliquet.
 
@@ -548,11 +455,14 @@ travail quotidien existe déjà et n'enlève aucune couverture** :
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-16, six tâches ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-17, cinq tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R120,R118,R121,R116,R122,R117 -->
+<!-- reprise: open=R118,R121,R116,R122,R117 -->
 
-**Six tâches sont ouvertes, dont CINQ actionnables** : R120, R118, R121, R116, R122 — dans cet ordre, qui est celui du gain. **R117 est ouverte aussi** mais a quitté l'index actionnable le 2026-09-17 pour « 🙋 En attente de toi » : elle déplace le dépôt, donc aucune séance ne peut l'exécuter sans se tuer. Elle reste comptée — l'ancre ci-dessus la porte, et `test_roadmap_index_is_honest` refuse qu'une tâche ouverte disparaisse de la première chose qu'on lit au `/resume`.
+**Cinq tâches sont ouvertes, dont QUATRE actionnables** : R118, R121, R116, R122 — dans cet ordre, qui est celui du gain. **R117 est ouverte aussi** mais a quitté l'index actionnable le 2026-09-17 pour « 🙋 En attente de toi » : elle déplace le dépôt, donc aucune séance ne peut l'exécuter sans se tuer. Elle reste comptée — l'ancre ci-dessus la porte, et `test_roadmap_index_is_honest` refuse qu'une tâche ouverte disparaisse de la première chose qu'on lit au `/resume`.
+
+**R120 est close le 2026-09-17, réfutée par sa propre mesure** (non pas livrée) : le
+détail des quatre affirmations fausses et de leur correction est dans `archive.md`.
 
 R115 (l'instrument serveur) et R119 (réparer l'instrument client) sont livrées le
 2026-09-16 ; leur détail est dans `archive.md`. R114 est livrée et déployée (`e859ae3`),

@@ -71,7 +71,47 @@ logs:        ## Tail Airflow scheduler logs
 # ⚠️ Et NE RIEN EDITER pendant qu'une suite complete tourne : son verdict decrira un arbre
 # qui n'existe plus. Classe `a-verdict-from-a-tree-that-moved-under-it`, mesuree le
 # 2026-09-12 — 3 « echecs » sur 4 n'existaient pas.
-PYTEST_DIST := -n auto --dist loadgroup
+# ⚠️ `-n auto` A ETE REMPLACE le 2026-09-17, sur une suite TUEE PAR L'OOM en pleine
+# seance longue — le noyau a choisi pytest. `auto` vaut `nproc` (8 ici), et chaque worker
+# charge streamlit, plotly et pandas pour rendre des vues.
+#
+# ⚠️ Et la premiere mesure du cout etait FAUSSE, deux fois, de la meme facon : elle
+# ECHANTILLONNAIT le RSS au lieu de lire le PIC. Ce depot a une lecon ecrite pour ca —
+# « le plafond memoire se mesure en VmHWM, jamais en echantillonnant » — et je l'ai
+# refaite. Pire, chercher « pytest » dans les lignes de commande ne voit AUCUN worker :
+# xdist les lance par `execnet`, leur argv est un `python -c` anonyme. Deux essais ont
+# rendu « 1 processus » puis « 2 » avant qu'on suive la FILIATION, qui ne ment pas.
+#
+# Les vrais chiffres, `tests/test_views_render_smoke.py` en `-n 2`, pics VmHWM :
+#     508 Mo · 265 Mo (workers) + 126 Mo (controleur) = 899 Mo
+# Un worker peut donc piquer a **508 Mo**, pas 300. Huit demandent ~4 Go avant de
+# compter Postgres, Airflow, n8n et Ollama qui tournent a cote.
+#
+# Le compte se fait donc sur la memoire DISPONIBLE — la ressource qui manquait, pas les
+# coeurs — moins une RESERVE, divisee par 700 Mo (le pic mesure, arrondi au-dessus),
+# bornee entre 2 et `nproc`.
+#
+# ⚠️ **La reserve est passee de 2 a 4 Go apres une SECONDE mort par OOM, a `-n 6`.**
+# Deux raisons mesurees, et aucune ne se devinait :
+#
+#   * `MemAvailable` SUR-PROMET en WSL2. Il compte le cache de pages comme disponible
+#     (4,6 Go ici), mais le reclamer sous une rafale d'allocations est lent — le noyau
+#     tue avant d'avoir fini. Le chiffre est vrai et inutilisable tel quel.
+#   * Deux services legitimes tiennent **3,7 Go en permanence** sur ce poste :
+#     `n8n-ollama` **2,53 Go** (un modele resident) et le serveur MCP `knowledge-rag`
+#     **1,15 Go**. Ni l'un ni l'autre ne se tue pour lancer des tests.
+#
+# Sur une machine libre le compte reste proche de l'ancien ; ici il donne 4 workers, et
+# la suite FINIT au lieu d'etre tuee. Une suite tuee rend un journal VIDE, et un journal
+# vide se lit comme « rien ne tourne » — c'est le pire mode de panne pour une seance
+# sans surveillance.
+#
+# `nproc` seul serait revenu au defaut ; la memoire seule pourrait demander 14 workers
+# sur 8 coeurs. Les deux bornes comptent.
+PYTEST_WORKERS := $(shell a=$$(awk '/MemAvailable/{print int($$2/1024)}' /proc/meminfo 2>/dev/null || echo 4096); \
+  n=$$(( (a - 4096) / 700 )); c=$$(nproc 2>/dev/null || echo 4); \
+  [ $$n -gt $$c ] && n=$$c; [ $$n -lt 2 ] && n=2; echo $$n)
+PYTEST_DIST := -n $(PYTEST_WORKERS) --dist loadgroup
 
 # ── Les tests qui ne lisent QUE des documents (2026-09-15) ──
 # Portés par `pytestmark = pytest.mark.docs`. La liste est ici en clair parce que

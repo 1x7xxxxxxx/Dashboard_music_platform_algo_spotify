@@ -11,3 +11,6 @@
 {"at": "2026-09-16T22:39:44+00:00", "head": "059c8c5", "kind": "done", "task": "R120", "what": "25 sites ramenes a from_env_or_config ; cliquet 14 → 1"}
 {"at": "2026-09-16T22:40:10+00:00", "head": "0d30171", "kind": "start", "task": "R120", "what": "historique de two-doors-onto-one-database + portee"}
 {"at": "2026-09-16T22:42:12+00:00", "head": "0d30171", "kind": "done", "task": "R120", "what": "two-doors : 3 preuves observees, 3 plafonds resserres"}
+{"at": "2026-09-16T22:42:43+00:00", "head": "50bfb34", "kind": "start", "task": "R120", "what": "cout reel des corps d'expander"}
+{"at": "2026-09-16T22:49:09+00:00", "head": "50bfb34", "kind": "start", "task": "R118", "what": "make test tue par OOM : -n auto ouvre 8 workers"}
+{"at": "2026-09-16T23:11:50+00:00", "head": "50bfb34", "kind": "done", "task": "R118", "what": "OOM : -n auto → calcul memoire, -n 4 ; garde CI/local separe groupement et debit"}
