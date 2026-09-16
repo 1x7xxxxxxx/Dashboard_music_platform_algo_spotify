@@ -161,6 +161,14 @@ streamlytics.fr, www.streamlytics.fr, app.streamlytics.fr {
 	#            lb_policy cookie streamlytics_lb
 	#      puis `caddy validate` sur la machine, puis `systemctl reload caddy` — jamais
 	#      `restart`.
+	#   3. remettre la cible de scrutation dans `deploy/prometheus/prometheus.yml` :
+	#        - targets: ['streamlytics_dashboard2:9102']
+	#          labels: {instance_role: replica}
+	#      puis recreer le conteneur Prometheus. Elle en a ete RETIREE avec l'amont, parce
+	#      qu'une replique eteinte reste `down` pour toujours et qu'un rouge permanent
+	#      apprend a lire le rouge comme du bruit. Sans ce geste la replique sert du
+	#      trafic sans etre mesuree — c'est-a-dire qu'on refait l'experience R114 en
+	#      aveugle.
 	#
 	# ⚠️ `lb_policy cookie` n'est PAS une optimisation : `st.session_state` vit dans le
 	# PROCESSUS. Une requete routee vers l'autre instance perd la session. Et meme avec

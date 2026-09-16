@@ -27,14 +27,24 @@ rule_files:
   - /etc/prometheus/rules/*.yml
 
 scrape_configs:
-  # Les DEUX repliques du dashboard, separement. Les agreger ferait disparaitre
-  # l'information que R114 cherche : laquelle des deux sert, et a quel prix.
+  # Le dashboard. Le label `instance_role` est garde bien qu'il n'y ait qu'une valeur :
+  # c'est lui qui rend les requetes de Grafana valables quand la replique revient, sans
+  # qu'aucun panneau ne soit a reecrire.
+  #
+  # ⚠️ La cible `streamlytics_dashboard2:9102` a ete RETIREE le 2026-09-16, en meme temps
+  # que le second amont du Caddyfile. Ce n'est pas un oubli : Prometheus n'a pas de
+  # notion de « arrete volontairement », donc une replique eteinte reste `down` pour
+  # toujours. Un rouge permanent est pire qu'une absence — il apprend a lire le rouge
+  # comme du bruit, et le prochain vrai `down` passera avec lui. Meme classe que la
+  # porte de comparaison du Caddyfile qui ne pouvait plus etre verte.
+  #
+  # La remettre fait partie des gestes de remise en service de la replique, ecrits en
+  # UN seul endroit : le bloc de commentaire au-dessus de `reverse_proxy` dans
+  # `deploy/Caddyfile`.
   - job_name: dashboard
     static_configs:
       - targets: ['streamlytics_dashboard:9102']
         labels: {instance_role: primary}
-      - targets: ['streamlytics_dashboard2:9102']
-        labels: {instance_role: replica}
 
   - job_name: api
     metrics_path: /metrics

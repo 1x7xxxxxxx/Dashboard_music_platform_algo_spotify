@@ -200,6 +200,105 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "id": 7,
+      "title": "Latence de rendu — PAR PAGE (p95)",
+      "type": "timeseries",
+      "description": "Le panneau qui remplace le tableau « Historique session » de la vue perf_monitor. La vue ne montrait que LA session de l'admin qui la regardait, et seulement la phase `view` — soit environ un huitieme du temps reel. Ici : toutes les sessions, chrome comprise, et le quantile plutot qu'une moyenne qu'une seule page lente deplace. VIDE tant qu'aucun rendu AUTHENTIFIE n'a eu lieu : les routes publiques (connexion, inscription, verification) font `st.stop()` avant la couture, et c'est delibere — elles ne rendent aucune vue.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, page) (rate(streamlytics_rerun_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{page}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Processus — RAM residente",
+      "type": "timeseries",
+      "description": "Remplace la tuile « RAM process » de perf_monitor, qui lisait psutil sur le processus qui rendait la page. Cette serie vient du collecteur de processus que `prometheus_client` enregistre PAR DEFAUT : aucune instrumentation a ecrire, et aucun cadvisor a ajouter — le declencheur d'ADR-026 pour cadvisor (« une question par conteneur que node_exporter ne sait pas repondre ») n'a donc PAS ete tire. Le seuil historique de la vue etait 800 Mo, declencheur de migration d'ADR-007.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "process_resident_memory_bytes{job=~\"dashboard|api\"}",
+          "legendFormat": "{{job}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Processus — CPU",
+      "type": "timeseries",
+      "description": "Remplace la tuile « CPU process » de perf_monitor. SEPARE de la RAM a dessein : des octets et des pourcents sur un meme axe font une figure qui ment — le petit des deux est ecrase a zero et se lit « rien ne se passe ». Ce depot a une classe pour ca. A lire a cote du CPU de la MACHINE (panneau VPS) : c'est l'ecart entre les deux qui dit si la lenteur vient de nous ou du voisin.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 24,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "rate(process_cpu_seconds_total{job=~\"dashboard|api\"}[5m]) * 100",
+          "legendFormat": "{{job}}"
+        }
+      ]
     }
   ],
   "templating": {
