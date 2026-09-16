@@ -5835,3 +5835,37 @@ sélecteur d'OS sont couverts par des gardes AST, pas par un clic réel. À fair
 prochaine session artiste.
 
 ---
+
+> Roté de l'actif le 2026-09-17 : ce bloc ne se rouvre que si ADR-003 est
+> renversée (migration vers React), ce qu'aucun déclencheur ne réclame. Il pesait
+> 2,2 Ko sur le fichier que `/resume` lit AVANT tout, à chaque séance.
+
+## Deferred — revisit ONLY if migrating to React (ADR-003 reversal)
+
+Items that are currently irrelevant / worked-around **because of Streamlit** and would become
+natural (or need redoing) under a React/Next.js front-end. Parked here per user request
+(2026-06-09) so a future migration picks them up. ADR-003 currently keeps Streamlit.
+
+> **PARKED — not open backlog.** Listed as plain bullets (no `[ ]`) **on purpose** so `/resume`
+> does not recount them as actionable items. They re-activate only on an ADR-003 reversal
+> (migration to React/Next.js). Do not treat them as a to-do until then.
+
+- **PostHog full client-side analytics** — autocapture, **session replay**, heatmaps,
+  client funnels/retention. Blocked today: Streamlit strips `<script>` and sandboxes
+  `components.html` iframes, and re-runs the whole script (no stable DOM / client event model).
+  Under React the standard JS snippet drops in → reconsider PostHog (cloud-w/-consent or
+  self-host) and likely retire the homegrown event log's *capture* layer (the `usage_events`
+  table can remain as a server-side sink). Needs RGPD consent banner for a 3rd-party processor.
+- **Interactive / exact-parity report charts (PDF & in-app)** — the PDF export rebuilds
+  every chart in **matplotlib→PNG** (`pdf_charts.py`) because `kaleido` (Plotly→image) is absent
+  and Streamlit can't headless-render its Plotly figures. Under React, reports could share the
+  *same* chart components (client-side render / a proper reporting service), giving interactive
+  + pixel-parity charts and removing the matplotlib duplication. ref: export-pdf overhaul
+  2026-06-09.
+- **Cold-start bundle / perf** — already audited (line ~295): the #1 cold-start bottleneck
+  is the **Streamlit JS bundle** (~532 KiB), not Python. React+Next (code-splitting → ~100–150
+  KiB initial) is the structural fix. Python-side caching/lazy-import work stays valid for
+  subsequent renders only.
+- **Rich client interactions** — anything that fought the rerun model (live event hooks,
+  drag/drop, fine-grained widget state, real-time updates without full reruns) becomes
+  first-class under React; revisit UX patterns that were simplified to fit Streamlit.

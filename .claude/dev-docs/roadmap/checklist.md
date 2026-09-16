@@ -339,9 +339,39 @@ le supposer.
   descendent en P4, et `track_page_view` ne reste que parce qu'une connexion hors du pool
   est un défaut de forme, pas de vitesse.
 
-  Les postes, tous vérifiés :
-  * **`st.tabs` exécute tous les corps** — `views/trigger_algo/router.py:202-225` ouvre
-    7 onglets et les appelle tous ; 15 vues ont un `st.tabs` ;
+  ⚠️⚠️⚠️ **LE PREMIER POSTE EST RÉFUTÉ PAR LA MESURE — 2026-09-17.** C'est la
+  TROISIÈME affirmation fausse de ce bloc, et elle tombe de la même façon que les deux
+  précédentes : elle était vraie sur les faits et fausse sur la conséquence.
+
+  `st.tabs` exécute bien tous les corps. Mais mesuré sur `trigger_algo` — 7 onglets,
+  11 figures, la vue la plus chargée du produit — les **six onglets cachés coûtent
+  0,1 ms à chaud**. Leur travail passe par `@st.cache_data` : les ré-exécuter ne fait
+  que relire le cache. Rendre les onglets paresseux rapporterait **~16 ms sur un rendu
+  de ~1 850 ms**.
+
+  Le premier rendu, lui, paye **866 ms** — la paresse aide donc la visite FROIDE, une
+  fois par TTL de cache, pas les reruns, qui étaient la cible.
+
+  ⚠️ **Deux de mes mesures se sont contredites avant de trancher**, et le dire est le
+  point : le stub des six fonctions donnait 3,7 ms, le chronomètre par onglet 701 ms.
+  La seule façon de décider a été de les lancer **dans le même processus, alternées** —
+  le 701 était un rendu froid. Une comparaison entre deux processus compare aussi leurs
+  caches. Série brute : `[866, 0, 0, 0, 0]`.
+
+  ⚠️ Et une première rustine était fausse : elle remplaçait `st.expander` par un
+  `contextlib.nullcontext()` en croyant sauter le corps. `nullcontext` **exécute le
+  corps** ; je mesurais le coût du widget. `with` ne permet pas de sauter proprement —
+  on chronomètre, on ne saute pas.
+
+  L'outil est versionné : `tools/dev/lazy_body_cost.py`, avec ses trois pièges écrits.
+  Il tourne sous `AppTest`, dont le rendu porte ~1,8 s de harnais ici : **ses valeurs
+  absolues ne veulent rien dire**, seuls ses deltas en veulent.
+
+  **Ce que ça change pour cette brique** : le geste « onglets paresseux » ne se fait
+  pas sur `trigger_algo`. Il reste à mesurer sur les vues dont les corps ne sont PAS
+  mémoïsés — c'est la question, et elle n'a pas encore de réponse mesurée.
+
+  Les postes restants, à re-mesurer avant d'y toucher :
   * **`st.expander(expanded=False)` exécute son corps aussi** — `utils/ui.py:83-98` ;
     `tools/dev/chart_budget.py` compte les figures construites et jamais vues :
     meta_creatives 4, data_wrapped 4, trigger_algo 4, meta_ads_overview 3 ;
@@ -682,34 +712,3 @@ These are not roadmap bricks; they are operational standing instructions kept he
 ## Pré-déploiement program (2026-06-09)
 
 > Blocs livrés déplacés vers `archive.md`. Ce qui reste ouvert est ci-dessous.
-
-
-## Deferred — revisit ONLY if migrating to React (ADR-003 reversal)
-
-Items that are currently irrelevant / worked-around **because of Streamlit** and would become
-natural (or need redoing) under a React/Next.js front-end. Parked here per user request
-(2026-06-09) so a future migration picks them up. ADR-003 currently keeps Streamlit.
-
-> **PARKED — not open backlog.** Listed as plain bullets (no `[ ]`) **on purpose** so `/resume`
-> does not recount them as actionable items. They re-activate only on an ADR-003 reversal
-> (migration to React/Next.js). Do not treat them as a to-do until then.
-
-- **PostHog full client-side analytics** — autocapture, **session replay**, heatmaps,
-  client funnels/retention. Blocked today: Streamlit strips `<script>` and sandboxes
-  `components.html` iframes, and re-runs the whole script (no stable DOM / client event model).
-  Under React the standard JS snippet drops in → reconsider PostHog (cloud-w/-consent or
-  self-host) and likely retire the homegrown event log's *capture* layer (the `usage_events`
-  table can remain as a server-side sink). Needs RGPD consent banner for a 3rd-party processor.
-- **Interactive / exact-parity report charts (PDF & in-app)** — the PDF export rebuilds
-  every chart in **matplotlib→PNG** (`pdf_charts.py`) because `kaleido` (Plotly→image) is absent
-  and Streamlit can't headless-render its Plotly figures. Under React, reports could share the
-  *same* chart components (client-side render / a proper reporting service), giving interactive
-  + pixel-parity charts and removing the matplotlib duplication. ref: export-pdf overhaul
-  2026-06-09.
-- **Cold-start bundle / perf** — already audited (line ~295): the #1 cold-start bottleneck
-  is the **Streamlit JS bundle** (~532 KiB), not Python. React+Next (code-splitting → ~100–150
-  KiB initial) is the structural fix. Python-side caching/lazy-import work stays valid for
-  subsequent renders only.
-- **Rich client interactions** — anything that fought the rerun model (live event hooks,
-  drag/drop, fine-grained widget state, real-time updates without full reruns) becomes
-  first-class under React; revisit UX patterns that were simplified to fit Streamlit.
