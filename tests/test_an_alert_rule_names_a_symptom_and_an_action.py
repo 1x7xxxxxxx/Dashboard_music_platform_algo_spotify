@@ -15,7 +15,7 @@ une séance.
 """
 from __future__ import annotations
 
-import re
+import ast
 from pathlib import Path
 
 import pytest
@@ -119,28 +119,104 @@ def test_the_rules_are_actually_loaded_by_prometheus() -> None:
         f"(sources : {sorted(sources)})")
 
 
+def _subscript_keys(node, var: str) -> set[str]:
+    """Les clés littérales lues sur `var[...]` sous ce nœud — par l'AST, pas par le texte.
+
+    Les f-strings sont parsées : leurs expressions sont de vrais nœuds, donc
+    `f"{o['action']}"` donne bien un `Subscript`. Un nom cité dans un COMMENTAIRE ou une
+    docstring n'en donne aucun, et c'est tout l'intérêt — quatre gardes de ce dépôt ont
+    été verts sur leur propre défaut parce qu'un nom survivait dans un commentaire.
+    """
+    keys = set()
+    for n in ast.walk(node):
+        if (isinstance(n, ast.Subscript) and isinstance(n.value, ast.Name)
+                and n.value.id == var and isinstance(n.slice, ast.Constant)
+                and isinstance(n.slice.value, str)):
+            keys.add(n.slice.value)
+    return keys
+
+
+def _func(tree, name: str):
+    for n in ast.walk(tree):
+        if isinstance(n, ast.FunctionDef) and n.name == name:
+            return n
+    return None
+
+
 def test_the_mail_carries_the_annotations_to_the_reader() -> None:
     """Une annotation qui n'arrive pas dans le mail ne tient pas ADR-011.
 
     Le symptôme et le geste vivent dans les `annotations`, qui ne sont PAS dans la série
-    `ALERTS` : elles ne se lisent que par `/api/v1/rules`. Si le rendu du mail cessait de
-    les porter, l'alerte dirait « ça a sonné » sans dire quoi faire — l'alerte exacte
+    `ALERTS` : elles ne se lisent que par `/api/v1/rules`. Si le rendu cessait de les
+    porter, l'alerte dirait « ça a sonné » sans dire quoi faire — l'alerte exacte
     qu'ADR-011 interdit.
+
+    Deux moitiés, parce que le rendu et la décision d'envoi vivent à deux endroits :
+    `render_html()` fabrique la section, et le DAG décide de l'appeler. Vérifier l'une
+    sans l'autre laisse passer une section parfaite que personne n'ajoute au corps.
+
+    Lu par l'AST. Un `grep` aurait été vert sur le commentaire qui explique la règle.
     """
-    dag = (_ROOT / "airflow" / "dags" / "alert_monitor.py").read_text(encoding="utf-8")
-    body = dag[dag.index("if ops_alerts:"):]
-    body = body[:body.index("if app_errors:")]
+    mod = ast.parse((_ROOT / "src" / "utils" / "ops_alerts.py")
+                    .read_text(encoding="utf-8"))
+    render = _func(mod, "render_html")
+    assert render is not None, "`render_html()` a disparu de `ops_alerts.py`"
+    rendered = _subscript_keys(render, "o")
     for key in _REQUIRED:
-        assert re.search(rf"o\[['\"]{key}['\"]\]", body), (
-            f"la section infrastructure du mail ne rend pas `{key}`")
-    reader = (_ROOT / "src" / "utils" / "ops_alerts.py").read_text(encoding="utf-8")
-    assert "/api/v1/rules" in reader, (
-        "`ops_alerts.py` ne lit pas /api/v1/rules : les annotations ne peuvent pas "
-        "atteindre le mail, `ALERTS` ne porte que des labels.")
-    assert "max_over_time" in reader, (
+        assert key in rendered, (
+            f"`render_html()` ne rend pas `{key}` (clés rendues : {sorted(rendered)})")
+
+    dag = ast.parse((_ROOT / "airflow" / "dags" / "alert_monitor.py")
+                    .read_text(encoding="utf-8"))
+    branch = next((n for n in ast.walk(dag)
+                   if isinstance(n, ast.If) and isinstance(n.test, ast.Name)
+                   and n.test.id == "ops_alerts"), None)
+    assert branch is not None, (
+        "aucun bloc `if ops_alerts:` dans le rendu du mail — la section infrastructure "
+        "est fabriquée mais jamais ajoutée au corps")
+    called = {n.func.id for n in ast.walk(branch)
+              if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    assert any("ops_html" in c or c == "render_html" for c in called), (
+        f"le bloc `if ops_alerts:` n'appelle aucun rendu (appels : {sorted(called)})")
+
+
+def test_the_reader_asks_prometheus_the_two_questions_it_must() -> None:
+    """Les deux appels, et la FENÊTRE. Lus comme littéraux de l'AST, pas par `grep`.
+
+    `/api/v1/rules` : sans lui, les annotations n'atteignent jamais le mail, parce que
+    `ALERTS` ne porte que des labels.
+
+    `max_over_time` : sans lui on interroge l'état INSTANTANÉ, et une alerte partie à
+    14 h puis résolue à 15 h serait invisible à 23 h — c'est-à-dire précisément celles
+    pour lesquelles on a posé des règles à fenêtre.
+    """
+    tree = ast.parse((_ROOT / "src" / "utils" / "ops_alerts.py")
+                     .read_text(encoding="utf-8"))
+    # Les littéraux de chaîne qui vivent dans du CODE. Les docstrings sont écartées par
+    # IDENTITÉ DE NŒUD, pas par valeur — et la distinction n'est pas théorique : la
+    # première version comparait à `ast.get_docstring()`, qui DÉDENTE, donc le littéral
+    # brut ne correspondait jamais et la docstring du module suffisait à rendre le test
+    # vert. Mesuré : la mutation « remplacer /api/v1/rules par /api/v1/alerts » est
+    # passée inaperçue. Un garde aveugle à sa propre mutation ne garde rien.
+    docstring_nodes = set()
+    for n in ast.walk(tree):
+        body = getattr(n, "body", None)
+        if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef,
+                          ast.ClassDef)) and body:
+            first = body[0]
+            if (isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
+                    and isinstance(first.value.value, str)):
+                docstring_nodes.add(id(first.value))
+    literals = {n.value for n in ast.walk(tree)
+                if isinstance(n, ast.Constant) and isinstance(n.value, str)
+                and id(n) not in docstring_nodes}
+
+    assert any("/api/v1/rules" in v for v in literals), (
+        "`ops_alerts.py` n'interroge pas /api/v1/rules dans son CODE : les annotations "
+        "ne peuvent pas atteindre le mail, `ALERTS` ne porte que des labels.")
+    assert any("max_over_time" in v for v in literals), (
         "le lecteur interroge l'état INSTANTANÉ : une alerte partie à 14 h et résolue à "
-        "15 h serait invisible à 23 h, c'est-à-dire précisément celles pour lesquelles "
-        "on a posé des règles à fenêtre.")
+        "15 h serait invisible à 23 h.")
 
 
 def _fired(monkeypatch, annotations: dict, fired: dict, live: set):

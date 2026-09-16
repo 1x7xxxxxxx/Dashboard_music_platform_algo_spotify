@@ -1307,60 +1307,19 @@ def check_offsite_backup(**context):
 
 
 def check_app_errors(**context):
-    """Unresolved application defects — the inbox turned into a nightly line.
+    """Les défauts applicatifs non triés — l'inbox devenue une ligne de nuit.
 
-    An e-mail per exception was the whole system until 2026-09-04, and an inbox cannot
-    be counted, cannot be closed, and forgets. `app_error_log` (migration 083) holds ONE
-    row per fingerprint; this reports the OPEN ones, once a night, next to everything
-    else that needs a decision.
-
-    Deliberately compact: exception class, where, how many times, how long it has been
-    open. No traceback — the traceback belongs in `make error-inbox`, and a nightly mail
-    that carries three of them stops being read, which is how the offsite-backup finding
-    nearly went unnoticed.
+    Un mail par exception était tout le système jusqu'au 2026-09-04, et une boîte de
+    réception ne se compte pas, ne se ferme pas, et oublie. `app_error_log` (migration
+    083) porte UNE ligne par empreinte. Le corps vit dans
+    `src/utils/error_registry.py:open_errors_for_alert()` — ce fichier porte un cliquet
+    de longueur qui ne monte jamais.
     """
     import sys
     sys.path.insert(0, '/opt/airflow')
+    from src.utils.error_registry import open_errors_for_alert
 
-    problems = []
-    db = None
-    try:
-        from src.database.postgres_handler import PostgresHandler
-        from src.utils.error_registry import open_errors
-        db = PostgresHandler.from_env_or_config()
-        for e in open_errors(db, limit=15):
-            age_h = None
-            try:
-                from datetime import datetime, timezone
-                age_h = (datetime.now(timezone.utc)
-                         - e['first_seen']).total_seconds() / 3600
-            except (TypeError, ValueError):
-                pass
-            problems.append({
-                'fingerprint': e['fingerprint'][:12],
-                'exc_type': e['exc_type'],
-                'origin': e['origin'] or '?',
-                'page': e['page'] or '—',
-                'environment': e['environment'],
-                'occurrences': e['occurrences'],
-                'age': f"{age_h:.0f} h" if age_h is not None and age_h < 48
-                       else (f"{age_h / 24:.0f} j" if age_h is not None else '?'),
-            })
-    except Exception as e:      # noqa: BLE001
-        # Same contract as the other checks: a check that could not run says so,
-        # instead of looking like a passing one.
-        logger.error(f"app error registry unavailable: {safe_error(e)}")
-        problems.append({'fingerprint': '—', 'exc_type': 'UNAVAILABLE',
-                         'origin': f'registry unreadable: {safe_error(e)}',
-                         'page': '—', 'environment': '—', 'occurrences': 0,
-                         'age': '?'})
-    finally:
-        if db is not None:
-            try:
-                db.close()
-            except Exception:      # noqa: BLE001
-                pass
-
+    problems = open_errors_for_alert(limit=15)
     logger.info("app errors: %d open defect(s)", len(problems))
     context['task_instance'].xcom_push(key='app_errors', value=problems)
 
@@ -1368,37 +1327,15 @@ def check_app_errors(**context):
 def check_ops_alerts(**context):
     """Ce qui a alerté côté infrastructure dans les 24 h — VPS, latence, pool.
 
-    Le seul détecteur du DAG qui ne lit pas la base : sa source est Prometheus, qui
-    évalue `deploy/prometheus/rules/streamlytics.yml` toutes les 30 s. La raison est
-    dans la forme même des règles — « p95 au-dessus de 3 s pendant 15 min » ne se
-    constate pas une fois par nuit ; une pointe de 14 h à 15 h serait invisible à une
-    requête instantanée de 23 h.
-
-    ADR-011 est tenu ici par CONSTRUCTION, pas par intention : chaque règle porte des
-    annotations `symptom` et `action`, elles voyagent jusqu'au mail, et une règle qui
-    n'en aurait pas est rapportée comme hors contrat plutôt que tue.
-
-    ⚠️ Prometheus muet rend UNE ligne `UNAVAILABLE`, pas une liste vide. Une liste vide
-    se lit « rien à signaler » — c'est-à-dire exactement le contraire de la vérité quand
-    l'instrument est mort.
+    Le seul détecteur qui ne lit pas la base : sa source est Prometheus. Le corps, le
+    rendu et le POURQUOI vivent dans `src/utils/ops_alerts.py` — ce fichier porte un
+    cliquet de longueur qui ne monte jamais.
     """
     import sys
     sys.path.insert(0, '/opt/airflow')
+    from src.utils.ops_alerts import collect
 
-    problems = []
-    try:
-        from src.utils.ops_alerts import fired_since
-        problems = fired_since("24h")
-    except Exception as e:      # noqa: BLE001 — même contrat que les autres contrôles
-        logger.error(f"lecture des alertes d'infrastructure impossible: {safe_error(e)}")
-        problems = [{
-            'alertname': 'UNAVAILABLE', 'severity': 'high', 'still_firing': True,
-            'symptom': f"Le lecteur d'alertes a levé : {safe_error(e)}. La santé du VPS, "
-                       "la latence de rendu et le pool n'ont pas été vérifiés cette nuit.",
-            'action': "Lire la trace de la tâche `check_ops_alerts` dans Airflow.",
-            'panel': '—',
-        }]
-
+    problems = collect()
     logger.info("alertes d'infrastructure : %d sur 24 h", len(problems))
     context['task_instance'].xcom_push(key='ops_alerts', value=problems)
 
@@ -2304,37 +2241,11 @@ def send_consolidated_alert(**context):
           {rows}
         </table>""")
 
-    # L'infrastructure vient EN TETE du corps, avant les detecteurs de donnees.
-    # Raison : si le VPS manque de RAM ou si le pool est vide, la moitie des constats
-    # qui suivent sont des CONSEQUENCES, et les lire d'abord envoie reparer au mauvais
-    # endroit. Ce depot a paye exactement cela — une alerte qui accusait une plateforme
-    # qui marchait (`an-alert-can-be-wrong-about-a-working-platform`).
+    # L'infrastructure EN TÊTE : quand le VPS manque de RAM, la moitié des constats
+    # qui suivent sont des CONSÉQUENCES. Rendu : `src/utils/ops_alerts.py:render_html`.
     if ops_alerts:
-        rows = ''
-        for o in ops_alerts:
-            etat = ('🔴 en cours' if o.get('still_firing') else '🟠 resolue depuis')
-            rows += f"""
-            <tr>
-              <td style="padding:6px 12px;border-bottom:1px solid #eee;vertical-align:top">
-                <b>{o['alertname']}</b><br><span style="color:#777">{o['severity']} · {etat}</span>
-              </td>
-              <td style="padding:6px 12px;border-bottom:1px solid #eee">{o['symptom']}</td>
-              <td style="padding:6px 12px;border-bottom:1px solid #eee">{o['action']}
-                <br><span style="color:#777;font-size:0.85em">{o.get('panel', '—')}</span></td>
-            </tr>"""
-        sections.append(f"""
-        <h3 style="color:#b00">🖥️ Infrastructure — ce qui a alerté sur 24 h</h3>
-        <table style="border-collapse:collapse;font-size:0.9em">
-          <tr><th style="text-align:left;padding:6px 12px">Règle</th>
-              <th style="text-align:left;padding:6px 12px">Ce que l'artiste voit</th>
-              <th style="text-align:left;padding:6px 12px">Le geste de ce soir</th></tr>
-          {rows}
-        </table>
-        <p style="color:#555;font-size:0.85em">
-          Les courbes : <code>ssh -N -L 3000:127.0.0.1:3000 root@167.233.92.1</code>
-          puis <code>http://localhost:3000</code>. Les seuils vivent dans
-          <code>deploy/prometheus/rules/streamlytics.yml</code>.
-        </p>""")
+        from src.utils.ops_alerts import render_html as _ops_html
+        sections.append(_ops_html(ops_alerts))
 
     if app_errors:
         rows = ''

@@ -76,3 +76,62 @@ def open_errors(db, limit: int = 20) -> list[dict[str, Any]]:
          'last_seen': r[7]}
         for r in rows or []
     ]
+
+
+def open_errors_for_alert(limit: int = 15) -> list[dict[str, Any]]:
+    """Les défauts ouverts, mis en forme pour le mail du soir. Ne lève jamais.
+
+    Vit ici et non dans `alert_monitor.py` pour deux raisons. La première est mécanique :
+    le DAG porte un cliquet de longueur qui ne monte jamais
+    (`tests/test_a_file_only_gets_shorter.py`), et ajouter un sujet à un fichier de
+    2 700 lignes oblige à en alléger — c'est précisément ce que le cliquet existe pour
+    forcer. La seconde est de fond : cette fonction ne fait aucun ordonnancement, elle
+    lit le registre et calcule un âge. Elle appartient au registre.
+
+    Délibérément compact : classe d'exception, où, combien de fois, depuis quand. **Pas
+    de traceback** — celui-ci vit dans `make error-inbox`, et un mail de nuit qui en
+    porte trois cesse d'être lu, ce qui est comment le constat de sauvegarde hors-site
+    est passé près de l'oubli.
+
+    ⚠️ Rend UNE ligne `UNAVAILABLE` quand le registre est illisible, jamais une liste
+    vide : une liste vide se lit « aucun défaut ouvert », soit l'inverse de la vérité.
+    """
+    import logging
+    from datetime import datetime, timezone
+
+    logger = logging.getLogger(__name__)
+    db = None
+    try:
+        from src.database.postgres_handler import PostgresHandler
+
+        db = PostgresHandler.from_env_or_config()
+        out: list[dict[str, Any]] = []
+        for e in open_errors(db, limit=limit):
+            age_h = None
+            try:
+                age_h = (datetime.now(timezone.utc)
+                         - e['first_seen']).total_seconds() / 3600
+            except (TypeError, ValueError):
+                pass
+            out.append({
+                'fingerprint': e['fingerprint'][:12],
+                'exc_type': e['exc_type'],
+                'origin': e['origin'] or '?',
+                'page': e['page'] or '—',
+                'environment': e['environment'],
+                'occurrences': e['occurrences'],
+                'age': f"{age_h:.0f} h" if age_h is not None and age_h < 48
+                       else (f"{age_h / 24:.0f} j" if age_h is not None else '?'),
+            })
+        return out
+    except Exception as exc:  # noqa: BLE001 — même contrat que les autres contrôles
+        logger.error("registre des erreurs illisible : %s", type(exc).__name__)
+        return [{'fingerprint': '—', 'exc_type': 'UNAVAILABLE',
+                 'origin': f'registre illisible : {type(exc).__name__}',
+                 'page': '—', 'environment': '—', 'occurrences': 0, 'age': '?'}]
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:  # noqa: BLE001
+                pass

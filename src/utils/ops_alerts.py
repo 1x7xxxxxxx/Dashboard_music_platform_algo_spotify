@@ -177,3 +177,64 @@ def fired_since(window: str = "24h") -> list[dict]:
             "panel": ann.get("panel", "—"),
         })
     return out
+
+
+def collect() -> list[dict]:
+    """Ce que la tache du DAG appelle. Ne leve jamais, et ne rend jamais [] en panne.
+
+    Le corps vit ICI et pas dans `alert_monitor.py` pour la meme raison que
+    `metrics_seam` ne vit pas dans `app.py` : le DAG porte un cliquet de longueur qui ne
+    monte jamais (`tests/test_a_file_only_gets_shorter.py`), et il fait deja 2 700
+    lignes. Ce qui releve des metriques appartient a ce module ; ce qui releve de
+    l'ordonnancement reste la-bas.
+    """
+    try:
+        return fired_since("24h")
+    except Exception as exc:  # noqa: BLE001 — meme contrat que les autres controles
+        logger.error("lecture des alertes d'infrastructure impossible : %s",
+                     type(exc).__name__)
+        return [{
+            "alertname": "UNAVAILABLE", "severity": "high", "still_firing": True,
+            "symptom": f"Le lecteur d'alertes a leve ({type(exc).__name__}). La sante du "
+                       "VPS, la latence de rendu et le pool n'ont PAS ete verifies cette "
+                       "nuit.",
+            "action": "Lire la trace de la tache `check_ops_alerts` dans Airflow.",
+            "panel": "—",
+        }]
+
+
+_TD = 'style="padding:6px 12px;border-bottom:1px solid #eee"'
+
+
+def render_html(rows: list[dict]) -> str:
+    """La section « Infrastructure » du mail du soir.
+
+    Elle vient EN TETE du corps, avant les detecteurs de donnees : quand le VPS manque de
+    RAM ou que le pool est vide, la moitie des constats qui suivent sont des
+    CONSEQUENCES, et les lire d'abord envoie reparer au mauvais endroit. Ce depot a paye
+    exactement cela — une alerte qui accusait une plateforme qui marchait.
+
+    Les trois colonnes sont l'exigence d'ADR-011 rendue visible : la regle, ce que
+    l'artiste voit, et le geste de ce soir.
+    """
+    body = ""
+    for o in rows:
+        etat = "🔴 en cours" if o.get("still_firing") else "🟠 resolue depuis"
+        body += (
+            f'<tr><td {_TD} style="vertical-align:top"><b>{o["alertname"]}</b><br>'
+            f'<span style="color:#777">{o["severity"]} · {etat}</span></td>'
+            f'<td {_TD}>{o["symptom"]}</td>'
+            f'<td {_TD}>{o["action"]}<br>'
+            f'<span style="color:#777;font-size:0.85em">{o.get("panel", "—")}</span>'
+            f'</td></tr>')
+    return (
+        '<h3 style="color:#b00">🖥️ Infrastructure — ce qui a alerté sur 24 h</h3>'
+        '<table style="border-collapse:collapse;font-size:0.9em">'
+        '<tr><th style="text-align:left;padding:6px 12px">Règle</th>'
+        '<th style="text-align:left;padding:6px 12px">Ce que l\'artiste voit</th>'
+        '<th style="text-align:left;padding:6px 12px">Le geste de ce soir</th></tr>'
+        f'{body}</table>'
+        '<p style="color:#555;font-size:0.85em">Les courbes : '
+        '<code>ssh -N -L 3000:127.0.0.1:3000 root@167.233.92.1</code> puis '
+        '<code>http://localhost:3000</code>. Les seuils vivent dans '
+        '<code>deploy/prometheus/rules/streamlytics.yml</code>.</p>')

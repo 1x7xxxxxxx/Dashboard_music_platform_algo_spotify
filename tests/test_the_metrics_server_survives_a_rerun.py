@@ -285,14 +285,63 @@ def test_every_scrape_target_is_named_not_discovered() -> None:
             assert key not in job, f"{job.get('job_name')!r} utilise {key}"
 
 
-def test_both_dashboard_replicas_are_scraped_separately() -> None:
-    """Les agréger ferait disparaître l'information que R114 cherche."""
+def test_the_scrape_targets_agree_with_the_caddy_upstreams() -> None:
+    """Ce que Caddy sert et ce que Prometheus scrute doivent dire la MÊME chose.
+
+    Réécrit le 2026-09-16. La version d'avant exigeait DEUX répliques scrutées ; la
+    seconde est arrêtée depuis (mesure de R114 ambiguë, décision reportée à ADR-027), et
+    sa cible a été retirée parce que Prometheus n'a pas de notion de « arrêté
+    volontairement » : une réplique éteinte reste `down` pour toujours, et un rouge
+    permanent apprend à lire le rouge comme du bruit.
+
+    Le garde change donc de question, et la nouvelle est plus forte que l'ancienne : il
+    ne demande plus « y a-t-il deux répliques », il demande **l'accord des deux
+    surfaces**. Les deux dérives qu'il attrape sont réelles, dans les deux sens :
+
+    * un amont servi que rien ne scrute — on refait l'expérience R114 en aveugle ;
+    * une cible scrutée qu'aucun amont ne sert — un `down` permanent, pour rien.
+
+    Le label `instance_role` reste exigé quoi qu'il arrive : sans lui, les requêtes de
+    Grafana seraient à réécrire le jour où la réplique revient.
+    """
+    import re
+
     yaml = pytest.importorskip("yaml")
     cfg = yaml.safe_load(
         (_ROOT / "deploy" / "prometheus" / "prometheus.yml").read_text(encoding="utf-8"))
     job = next(j for j in cfg["scrape_configs"] if j["job_name"] == "dashboard")
-    roles = {sc.get("labels", {}).get("instance_role") for sc in job["static_configs"]}
-    assert roles == {"primary", "replica"}, (
-        f"les deux répliques ne sont pas distinguées : {roles}. Sans le label, on ne "
-        "peut pas savoir laquelle sert ni à quel prix — c'est toute la question de R114."
+
+    scraped = set()
+    for sc in job["static_configs"]:
+        assert sc.get("labels", {}).get("instance_role"), (
+            f"cible sans `instance_role` : {sc}. Sans le label, on ne peut pas savoir "
+            "laquelle sert ni à quel prix — c'est toute la question de R114.")
+        scraped.update(t.split(":")[0] for t in sc["targets"])
+
+    caddy = (_ROOT / "deploy" / "Caddyfile").read_text(encoding="utf-8")
+    # La ligne `reverse_proxy` du dashboard, hors commentaire : un bloc qui DÉCRIT la
+    # remise en service n'est pas de la mise en service.
+    upstream_ports = set()
+    for line in caddy.splitlines():
+        bare = line.strip()
+        if bare.startswith("#") or not bare.startswith("reverse_proxy "):
+            continue
+        upstream_ports.update(re.findall(r"127\.0\.0\.1:(\d+)", bare))
+    assert upstream_ports, (
+        "aucune ligne `reverse_proxy` lue dans `deploy/Caddyfile` — la lecture est "
+        "cassée, et le garde serait vert à vide")
+
+    replica_served = "8511" in upstream_ports
+    replica_scraped = "streamlytics_dashboard2" in scraped
+    assert replica_served == replica_scraped, (
+        f"désaccord : Caddy sert la réplique = {replica_served}, Prometheus la scrute = "
+        f"{replica_scraped}.\n"
+        "  • servie sans être scrutée => elle prend du trafic sans être mesurée, "
+        "c'est-à-dire qu'on refait l'expérience R114 en aveugle ;\n"
+        "  • scrutée sans être servie => une cible `down` pour toujours, et un rouge "
+        "permanent apprend à lire le rouge comme du bruit.\n"
+        "  Les trois gestes de remise en service sont écrits en UN endroit : le bloc "
+        "au-dessus de `reverse_proxy` dans `deploy/Caddyfile`."
     )
+    assert "streamlytics_dashboard" in scraped, (
+        f"l'instance principale n'est plus scrutée du tout : {scraped}")
