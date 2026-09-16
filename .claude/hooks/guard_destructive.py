@@ -219,6 +219,53 @@ def _paths_that_would_lose_work(command: str) -> list[str]:
 
 _PKILL_RE = re.compile(r"\bpkill\s+(?:-\w+\s+)*-\w*f\w*\s+(?P<pat>\S+)")
 
+# ── La SONDE en lecture, ajoutee le 2026-09-16 ───────────────────────────────
+#
+# Le garde du dessous ne connaissait que `pkill`. La CAUSE n'est pourtant pas le verbe :
+# c'est qu'un motif passe a un outil qui compare des lignes de commande se trouve
+# LUI-MEME, parce que la ligne du shell qui le porte le contient par construction.
+# `pgrep -f` a exactement la meme cause, et j'ai reproduit la classe TROIS FOIS le
+# 2026-09-16 — sur une classe que ce depot avait deja ecrite le 2026-09-12, avec son
+# hook. La portee du garde etait le defaut, pas la connaissance.
+#
+# La consequence differe et c'est ce qui l'a rendue invisible : `pkill` tue le shell
+# (code 144, bruyant) ; `pgrep` dans un `until` rend toujours VRAI, donc la boucle ne
+# sort jamais. Silencieuse, elle passe pour une attente normale — trois ont tourne des
+# heures en surveillant des suites deja finies, et m'ont fait conclure quatre fois
+# qu'une suite etait morte alors qu'elle tournait.
+_PGREP_RE = re.compile(r"\bpgrep\s+(?:-\w+\s+)*-\w*f\w*\s+(?P<pat>\S+)")
+
+
+def _probe_would_find_its_own_shell(command: str) -> str | None:
+    """Le motif d'un `pgrep -f` qui se contient lui-meme, ou None.
+
+    Meme cause que `_pkill_would_kill_its_own_shell`, autre consequence : ici rien ne
+    meurt, la boucle ne sort simplement jamais. C'est PIRE a diagnostiquer, parce qu'une
+    attente qui dure ressemble a une attente normale.
+
+    Un motif deja crante (`"[p]ytest"`) est la forme sure : verifie par execution le
+    2026-09-16, `grep -c "[x]marker"` rend 0 alors que sa propre ligne porte le motif
+    entre crochets.
+    """
+    try:
+        for segment in re.split(r"&&|\|\||;|\n", _sans_heredocs(command)):
+            m = _PGREP_RE.search(segment)
+            if not m:
+                continue
+            try:
+                head = shlex.split(segment)
+            except ValueError:
+                head = segment.split()
+            if not any(t.rsplit("/", 1)[-1] == "pgrep" for t in head[:3]):
+                continue
+            pattern = m.group("pat").strip("\"'")
+            if "[" in pattern:          # deja crante : c'est la forme sure
+                continue
+            return pattern
+    except Exception:  # noqa: BLE001 — un garde qui leve bloquerait chaque commande
+        return None
+    return None
+
 
 def _pkill_would_kill_its_own_shell(command: str) -> str | None:
     """Le motif d'un `pkill -f` suivi d'autre chose sur la même ligne, ou `None`.
@@ -355,6 +402,20 @@ def check_command(cmd: str) -> tuple[str, str] | None:
 
     # Le suicide de shell d'abord : il ne détruit pas de fichier, mais il fait
     # DISPARAÎTRE en silence tout ce qui suit, ce qui est plus dur à voir.
+    probing = _probe_would_find_its_own_shell(cmd)
+    if probing:
+        return ("block",
+                f"`pgrep -f {probing}` va se trouver LUI-MEME : la ligne de commande du "
+                "shell qui l'execute contient ce motif, par construction.\n"
+                "   Dans une boucle d'attente, il rend donc toujours vrai et la boucle "
+                "NE SORT JAMAIS — silencieusement. Trois ont tourne des heures le "
+                "2026-09-16 en surveillant des suites deja finies, et m'ont fait "
+                "conclure QUATRE FOIS qu'une suite etait morte alors qu'elle tournait.\n"
+                "   Formes sures :\n"
+                "     • attendre une tache de fond : la notification arrive toute seule ;\n"
+                f"     • sonder sans se contenir : ps -eo pid,args | grep \"[{probing[:1]}]{probing[1:]}\"\n"
+                "     • ou lire l'etat ailleurs : tail -3 .pytest-last.log")
+
     suicidal = _pkill_would_kill_its_own_shell(cmd)
     if suicidal:
         return ("block",
