@@ -60,6 +60,10 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
+| [a-bind-address-that-hides-the-service](#a-bind-address-that-hides-the-service) | P2 | deterministic | guarded | none |
+| [a-metric-registered-twice-kills-the-import](#a-metric-registered-twice-kills-the-import) | P1 | deterministic | guarded | none |
+| [a-reload-that-does-not-reload-what-you-changed](#a-reload-that-does-not-reload-what-you-changed) | P2 | manual | resolved | none |
+| [a-telemetry-table-that-nothing-ever-purges](#a-telemetry-table-that-nothing-ever-purges) | P2 | deterministic | reported | none |
 | [correct-because-there-is-only-one-of-it](#correct-because-there-is-only-one-of-it) | P1 | deterministic | guarded | none |
 | [a-default-branch-that-skips-instead-of-refusing](#a-default-branch-that-skips-instead-of-refusing) | P1 | deterministic | guarded | none |
 | [a-rollback-wider-than-the-failure](#a-rollback-wider-than-the-failure) | P1 | deterministic | guarded | none |
@@ -6036,3 +6040,64 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: **la classe la plus générique de la séance**, et celle qui sert aux développements futurs — les six autres classes du jour en sont des instances ou des voisines. Deux formes de détecteur ont été MESURÉES avant de retenir celle-ci : « tout littéral mutable au niveau module » rend **209 sites**, presque tous des registres constants jamais mutés. Un détecteur qui crie 209 fois est un détecteur que personne ne lit, et la leçon « le rouge est du bruit » se propage aux autres classes. Le signal n'est pas le TYPE mais la **MUTATION** — le conteneur doit être muté dans son propre module : **8 sites**, tous réels. Aucun n'était un défaut neuf (un est per-instance voulu, un est un chemin rapide devant un verrou en base, six sont des caches d'artefacts immuables), et c'est le résultat attendu : le cliquet ne sert pas à trouver le passé, il sert à poser la question sur le prochain. Mutations vues rouges : un état non déclaré ajouté → rouge en le nommant ; une déclaration sans site → rouge ; une déclaration de moins de 80 caractères → rouge (elle a attrapé trois des miennes).
+
+## a-reload-that-does-not-reload-what-you-changed
+- status: resolved
+- severity: P2
+- kind: manual
+- symptom: on pose un fichier de configuration, on recharge le service, la commande sort en 0, le fichier est bien là — et **le réglage n'est pas appliqué**. Rien n'échoue. La seule façon de s'en apercevoir est de mesurer l'EFFET, ce qu'on ne fait pas quand tout indique le succès.
+- root_cause: **`reload` et `restart` ne reprennent pas le même sous-ensemble de la configuration**, et la documentation d'un démon le dit rarement. Mesuré le 2026-09-16 : `/etc/docker/daemon.json` posé avec `log-opts.max-size`, `systemctl reload docker` exécuté sans erreur, `docker info` rendant bien `json-file`. Un conteneur témoin écrivant 400 000 lignes a produit **un seul fichier de 65 Mo**, sans aucun `…-json.log.1` : la rotation n'était pas active. Les options de journalisation demandent un `restart`.
+- long_term_fix: **vérifier l'EFFET, jamais l'artefact** — et écrire la commande qui le prouve à côté de celle qui applique. Ici : faire écrire un conteneur jetable au-delà du seuil et compter les fichiers de rotation, plutôt que lire le fichier de configuration. Corollaire général, qui est le vrai enseignement : quand on écrit « `reload` suffit », c'est une hypothèse sur un démon tiers ; tant qu'elle n'est pas mesurée, elle vaut « peut-être ».
+- autofix: none
+- signature: `ssh -o ConnectTimeout=10 root@167.233.92.1 'test -s /etc/docker/daemon.json' && ! ssh -o ConnectTimeout=10 root@167.233.92.1 'ls /var/lib/docker/containers/*/*-json.log.1 >/dev/null 2>&1'`
+- guard: { type: doc, ref: deploy/host/README.md (protocole de vérification par conteneur témoin) }
+- rex_ref: deploy/host/README.md
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: **la commande de vérification que j'avais d'abord écrite ne pouvait pas répondre.** `docker inspect <conteneur> --format '{{json .HostConfig.LogConfig}}'` rend `{"Type":"json-file","Config":{}}` — la surcharge PROPRE au conteneur, vide, et jamais le défaut effectif du démon. Elle rend la même chose avec ou sans rotation active. C'est la classe voisine `guard-asserts-presence-not-reachability`, appliquée à une configuration d'infrastructure. La signature ci-dessus est `manual` parce qu'elle a besoin d'un accès SSH à la production ; elle a été vue **rouge sur la cible réelle** (0 fichier de rotation) et passera au vert au redémarrage du démon — un redémarrage qui coupe le service ~30 s et qui appartient au propriétaire.
+  - 2026-09-16 (même jour) : **fermée**. `systemctl restart docker` autorisé et exécuté à 14:31 UTC, hors collecte, aucun DAG en cours. Coupure réelle **22 s**, six conteneurs revenus `healthy`, site à 200. La rotation est prouvée par l'EFFET : le conteneur témoin produit désormais `.log` + `.log.1` + `.log.2`, plafonnés à **exactement 10 000 000 octets** — contre **65 Mo d'un seul bloc** avant le redémarrage. La signature est passée de rc=1 à rc=0 sur la cible.
+
+## a-telemetry-table-that-nothing-ever-purges
+- status: reported
+- severity: P2
+- kind: deterministic
+- symptom: une table écrite à chaque événement grossit sans borne. Rien n'échoue jamais — jusqu'au jour où une requête de tableau de bord ralentit, ou où le disque se remplit, et la cause a alors des mois d'avance sur le symptôme.
+- root_cause: une table de télémétrie est ajoutée pour répondre à un besoin de traçabilité, et **la question « qui l'efface ? » n'est jamais posée** parce qu'elle n'a pas de propriétaire naturel. Mesuré le 2026-09-16 sur ce dépôt : **13 tables de télémétrie, UNE SEULE purgée** (`rate_limit_hits`, et seulement parce que `code-critic` l'avait exigé en condition bloquante). `usage_events` (une ligne par interaction), `etl_run_log` (2 196 lignes), `app_error_log` et `monitoring_run` croissent indéfiniment. Aucune n'a de rétention déclarée.
+- long_term_fix: **toute table de télémétrie déclare sa rétention au moment où elle naît**, dans le `COMMENT ON TABLE` de sa migration, et la purge correspondante entre dans le DAG d'entretien qui existe déjà (`alert_monitor`). Le distinguo qui compte : une table **métier** garde tout (ADR-018, « rien de ce qui est écrasé n'est perdu ») ; une table de **télémétrie** est un journal, et un journal se rogne. Confondre les deux fait soit perdre de la donnée, soit garder des traces pour toujours.
+- autofix: none
+- signature: `.venv/bin/python -m pytest tests/test_a_telemetry_table_declares_its_retention.py -q -p no:cacheprovider >/dev/null 2>&1`
+- guard: { type: pytest, ref: tests/test_a_telemetry_table_declares_its_retention.py }
+- rex_ref: migrations/122_rate_limit_hits.sql
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: trouvée en inventoriant les surfaces de surveillance avant d'adopter Prometheus (ADR-026). La demande initiale était « des métriques stockées en base pour traçabilité » — et l'inventaire a montré que le dépôt en stockait **déjà beaucoup**, sans jamais rien effacer. Ajouter une table de résumé quotidien sans régler ce point aurait été une quatorzième. `rate_limit_hits` est le seul précédent correct, et il n'existe que parce qu'une critique l'a imposé : la purge n'est pas un réflexe, elle se garde.
+
+## a-bind-address-that-hides-the-service
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un service démarre, son conteneur est `healthy`, aucun journal ne se plaint — et **rien ne peut l'atteindre**. Le symptôme arrive à l'autre bout de la chaîne : un tableau de bord vide, qu'on lit comme « il n'y a rien à montrer » plutôt que « la source est injoignable ».
+- root_cause: on confond la restriction d'accès posée par le MAPPAGE DE PORT avec celle posée par le BINAIRE. Mesuré le 2026-09-16, en écrivant la pile d'observabilité : `--web.listen-address=127.0.0.1:9090` avait été mis dans la commande de Prometheus pour « ne pas l'exposer ». Mais c'est la loopback **du conteneur** : ni `ports: ['127.0.0.1:9090:9090']` ni Grafana, qui l'atteint par `streamlytics_prometheus:9090` sur le réseau Docker, n'auraient pu s'y connecter. La restriction voulue venait déjà du mappage ; celle du binaire coupait tout le monde, y compris nous.
+- long_term_fix: **dans un conteneur, un service écoute sur `0.0.0.0` et c'est le MAPPAGE qui restreint.** Les deux réglages portent le même mot — « écouter sur 127.0.0.1 » — et n'ont pas le même référentiel : l'un parle du réseau de l'hôte, l'autre de celui du conteneur. La règle de relecture qui transporte : devant une adresse d'écoute, demander **de quel réseau** parle ce `127.0.0.1`. Et vérifier par un appel depuis le consommateur réel, jamais depuis l'hôte.
+- autofix: none
+- signature: `python3 tools/dev/check_container_bind_address.py`
+- guard: { type: pytest, ref: tests/test_the_metrics_server_survives_a_rerun.py::test_prometheus_listens_on_the_container_network }
+- rex_ref: deploy/docker-compose.observability.yml
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: trouvé **en écrivant le fichier**, pas en production — le seul moment où la correction coûte zéro. Ce qui rend cette classe méchante est la DISTANCE entre la cause et le symptôme : le conteneur est sain, Prometheus tourne, ses journaux sont propres, et c'est un panneau Grafana vide qu'on regarde trois jours plus tard en se demandant pourquoi la métrique « n'existe pas ». Mutation vue dans les deux sens : directive remise → rouge en citant la commande ; retirée → vert.
+
+## a-metric-registered-twice-kills-the-import
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: l'application **ne démarre plus du tout** — `Duplicated timeseries in CollectorRegistry` à l'import, avant qu'une ligne ne s'affiche. Rien de progressif, rien de dégradé : une page blanche.
+- root_cause: `prometheus_client` LÈVE si un nom de métrique est enregistré deux fois dans le registre par défaut, et un module d'instrumentation est exactement le genre de module qu'on importe depuis partout. Mesuré le 2026-09-16 : ce dépôt met `src/dashboard` sur `sys.path` et importe ses vues comme `views.x`, donc **un même fichier peut être chargé sous deux noms** (`src.utils.metrics` et `utils.metrics`) — Python le considère alors comme deux modules distincts, exécute son corps deux fois, et la seconde déclaration lève. La classe voisine `selector-blind-to-the-import-prefix` décrit le même double chemin, vu d'un autre angle.
+- long_term_fix: **une déclaration de métrique récupère celle qui existe déjà au lieu d'échouer** — `try: Histogram(...) except ValueError: REGISTRY._names_to_collectors[name]`. Créer un second collecteur du même nom serait pire encore : deux séries qui ne se somment pas, sans erreur. La règle générale : tout module à effet de bord GLOBAL À L'IMPORT (registre, port, verrou nommé) doit être idempotent, parce qu'on ne contrôle pas combien de fois il sera chargé.
+- autofix: none
+- signature: `.venv/bin/python -c "import importlib,sys; sys.path.insert(0,'.'); m=importlib.import_module('src.utils.metrics'); sys.modules.pop('src.utils.metrics'); importlib.import_module('src.utils.metrics')"`
+- guard: { type: pytest, ref: tests/test_the_metrics_server_survives_a_rerun.py }
+- rex_ref: src/utils/metrics.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: apparu en TEST d'abord — le rechargement du module pour remettre un drapeau à zéro a levé, et j'ai d'abord voulu corriger le test. C'était le mauvais réflexe : le test reproduisait un chemin d'import qui existe VRAIMENT dans ce dépôt, et le corriger aurait masqué un défaut de production. La signature rejoue exactement ce double import.

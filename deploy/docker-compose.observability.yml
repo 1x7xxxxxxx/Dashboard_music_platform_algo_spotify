@@ -1,0 +1,102 @@
+# Observabilite — ADR-026. SURCHARGE, arretee par defaut.
+#
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.observability.yml \
+#          --profile observability up -d
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.observability.yml \
+#          --profile observability down
+#
+# Meme forme que `deploy/docker-compose.replica.yml`, et pour la meme raison : le
+# `docker-compose.yml` de production est gitignore par construction, l'editer serait la
+# modification manuelle sur cible deployee que le playbook interdit.
+#
+# TROIS conteneurs, pas cinq. C'est la reponse chiffree a l'objection d'ADR-002
+# (« ~5 services … for two dashboards nobody watches ») : pas d'OpenTelemetry, pas de
+# collecteur, pas de cadvisor, pas de postgres_exporter — le pool est instrumente par
+# notre propre code, qui le connait mieux qu'un exportateur generique.
+#
+# Budget mesure sur la machine le 2026-09-16 : 4,48 Go disponibles, 75 Go de disque
+# libre, 4 coeurs, charge 0,48. Les trois pesent ~500-700 Mo ; Airflow en consomme
+# 1,9 Go a lui seul.
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: streamlytics_prometheus
+    profiles: ['observability']
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      # 30 jours : la haute frequence vit ici, la tracabilite LONGUE va dans Postgres
+      # (`daily_ops_metrics`). Garder un an de points a 15 s serait payer un stockage
+      # de series temporelles pour une question qu'un resume quotidien repond.
+      - '--storage.tsdb.retention.time=30d'
+    ports:
+      # 127.0.0.1 EXPLICITE cote HOTE. Sans lui Docker publie sur 0.0.0.0 et l'endpoint
+      # devient joignable depuis Internet — Prometheus n'a aucune authentification.
+      #
+      # ⚠️ Et SURTOUT PAS `--web.listen-address=127.0.0.1:9090` dans la commande : ce
+      # serait la loopback DU CONTENEUR. Ni le mappage de port ni Grafana (qui l'atteint
+      # par `streamlytics_prometheus:9090` sur le reseau Docker) ne pourraient alors
+      # l'atteindre. La restriction d'acces vient du MAPPAGE, jamais du binaire.
+      - '127.0.0.1:9090:9090'
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    extra_hosts:
+      # Caddy tourne sur l'HOTE (systemd), pas dans un conteneur.
+      - 'host.docker.internal:host-gateway'
+    networks:
+      - airflow_network
+
+  grafana:
+    image: grafana/grafana-oss:11.1.0
+    container_name: streamlytics_grafana
+    profiles: ['observability']
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      # ⚠️ REX importe de msdr, et il a coute une panne la-bas : `GF_INSTALL_PLUGINS`
+      # fait appeler grafana.com AU DEMARRAGE, donc Grafana ne boote pas hors ligne
+      # (classe `b-grafana-offline-boot`). La variable reste VIDE.
+      GF_INSTALL_PLUGINS: ''
+      # Pas de telemetrie sortante, pas de verification de version : cette instance
+      # n'est joignable que par tunnel SSH, elle n'a rien a dire a l'exterieur.
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_NEWS_NEWS_FEED_ENABLED: 'false'
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    ports:
+      # Tunnel SSH UNIQUEMENT : `ssh -L 3000:127.0.0.1:3000 root@<hote>`.
+      # C'est l'arbitrage retenu — zero surface publique, zero identifiant de plus a
+      # durcir, zero sous-domaine.
+      - '127.0.0.1:3000:3000'
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - airflow_network
+
+  node_exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: streamlytics_node_exporter
+    profiles: ['observability']
+    restart: unless-stopped
+    # Il lit l'HOTE, pas le conteneur : sans `pid: host` et les montages ci-dessous, il
+    # rapporterait le CPU et la memoire de son propre bac a sable — des chiffres justes
+    # et sans rapport avec la question posee.
+    pid: host
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - '/:/host:ro,rslave'
+    networks:
+      - airflow_network
+
+volumes:
+  prometheus_data:
+  grafana_data:

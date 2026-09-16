@@ -40,7 +40,12 @@ import ast
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
-_SURFACES = ("src/dashboard", "src/api", "src/utils")
+# `src/database` ajouté le 2026-09-16 : c'est là que vit le POOL de connexions —
+# `_POOL`, `_POOL_LIMITS`, `_DIRECT_FALLBACKS` — c'est-à-dire l'état de processus
+# le plus directement concerné par « et s'il en existe deux ? ». L'omettre était un
+# trou du détecteur, pas une exemption : la déclaration que j'y avais écrite n'avait
+# aucun site correspondant, et c'est le test de péremption qui l'a dit.
+_SURFACES = ("src/dashboard", "src/api", "src/utils", "src/database")
 
 _MUT_LITERAL = (ast.Dict, ast.List, ast.Set)
 _MUT_CALL = {"dict", "list", "set", "deque", "defaultdict", "OrderedDict", "Counter"}
@@ -77,6 +82,15 @@ _DECLARED: dict[str, str] = {
         "INOFFENSIF. Des tables auxiliaires du modèle, lues une fois et jamais "
         "réécrites. Rien ne circule entre deux instances qui aurait besoin de "
         "s'accorder — chacune relit le même fichier.",
+    "src/database/postgres_handler.py::_DIRECT_FALLBACKS":
+        "PER-INSTANCE VOULU. Combien de fois CE processus est retombé sur une connexion "
+        "directe faute de pool. Chaque instance a son propre pool, donc son propre "
+        "compteur ; l'agréger fondrait deux saturations distinctes en une seule courbe "
+        "illisible. Prometheus le somme au besoin, avec le label d'instance.",
+    "src/dashboard/utils/metrics_seam.py::_CHROME_T0":
+        "PER-INSTANCE VOULU, et même per-RERUN : c'est l'instant d'entrée dans le rendu "
+        "courant, écrasé à chaque fois. Une seconde instance a ses propres rendus ; "
+        "partager cette case n'aurait aucun sens.",
     "src/utils/ml_inference.py::_model_cache":
         "INOFFENSIF. Le modèle lui-même, chargé depuis un artefact versionné. Deux "
         "instances qui le chargent chacune répondent la même chose ; c'est le "
@@ -120,6 +134,16 @@ def _module_state_sites() -> dict[str, list[int]]:
                         if (isinstance(t, ast.Subscript) and isinstance(t.value, ast.Name)
                                 and t.value.id in names):
                             hit = t.value.id
+                # `X[k] += 1` est une AugAssign, pas une Assign — et c'est la façon la
+                # plus idiomatique de muter un compteur de module. Le détecteur la
+                # ratait, donc `_DIRECT_FALLBACKS` était invisible : la déclaration que
+                # j'avais écrite pour lui n'avait « aucun site correspondant », et c'est
+                # le test de PÉREMPTION qui a signalé l'aveuglement du test de DÉTECTION.
+                elif (isinstance(node, ast.AugAssign)
+                      and isinstance(node.target, ast.Subscript)
+                      and isinstance(node.target.value, ast.Name)
+                      and node.target.value.id in names):
+                    hit = node.target.value.id
                 if hit:
                     out.setdefault(f"{rel}::{hit}", []).append(node.lineno)
     return out

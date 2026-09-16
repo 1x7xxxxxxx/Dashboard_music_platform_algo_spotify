@@ -134,7 +134,8 @@ When you need depth beyond `CLAUDE.md`, load these on demand :
 | `.claude/dev-docs/roadmap/checklist.md` | Live brick tracker — **open work only** |
 | `.claude/dev-docs/roadmap/archive.md` | Delivered bricks + closed bugs (passive) |
 | `docs/adr/ADR-001-*.md` | Roadmap-multi-files-conserved decision |
-| `docs/adr/ADR-002-*.md` | Rejected msdr patterns (Alembic, repo pattern, observability) |
+| `docs/adr/ADR-002-*.md` | Rejected msdr patterns (Alembic, repo pattern). ⚠️ Son §4 (observability) est **superseded par ADR-026** depuis le 2026-09-16 |
+| `docs/adr/ADR-026-*.md` | Pourquoi Prometheus + Grafana sont adoptés — pour SURVEILLER les déclencheurs d'ADR-002/007/014, pas sur une plainte de latence |
 | `docs/checklists_ml/RELEVANT_FOR_STREAMLYTICS.md` | ML checklist sections applicable here |
 | `.claude/dev-docs/refactor-audit-dashboard.md` | Prioritized dashboard refactor pain points |
 | `.claude/dev-docs/refactor-audit-mlops.md` | MLOps audit + scope decisions |

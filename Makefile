@@ -406,6 +406,27 @@ sync-check: schema-check ## Full repo↔prod sync: schema-drift + migration-ledg
 	@# Compared from the first `{` so the repo file may carry a comment header.
 	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cat /etc/caddy/Caddyfile' > /tmp/_caddy_live 2>/dev/null || 	  { echo "  ⚠ no /etc/caddy/Caddyfile on the target — skipped"; true; }
 	@if [ -s /tmp/_caddy_live ]; then 	  sed -n '/^{/,$$p' deploy/Caddyfile > /tmp/_caddy_repo; 	  if diff -q /tmp/_caddy_repo /tmp/_caddy_live >/dev/null; then 	    echo "  ✅ deploy/Caddyfile == what Caddy is serving"; 	  else 	    echo "  ⚠ CADDY DRIFT — the repo copy is not what runs:"; 	    diff /tmp/_caddy_repo /tmp/_caddy_live | head -20; 	    echo "  Reconcile before editing either one (see deploy/Caddyfile header)."; 	    exit 1; 	  fi; 	fi
+	@echo "▶ host-config drift: deploy/host/ vs la cible…"
+	@# Ajouté le 2026-09-16, même raison que la comparaison du Caddyfile juste au-dessus :
+	@# un fichier d'HÔTE modifié directement sur la cible n'est comparé à rien. Le
+	@# Caddyfile du dépôt était resté périmé depuis juin sans que personne le sache, et
+	@# un correctif y avait été écrit en croyant toucher le fichier vivant.
+	@# `daemon.json` est plus discret encore : son absence ne casse rien, elle laisse
+	@# seulement les journaux grossir sans borne.
+	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cat /etc/docker/daemon.json 2>/dev/null' > /tmp/_daemon_live || true
+	@if [ -s /tmp/_daemon_live ]; then \
+	  if diff -q deploy/host/docker-daemon.json /tmp/_daemon_live >/dev/null; then \
+	    echo "  ✅ deploy/host/docker-daemon.json == /etc/docker/daemon.json"; \
+	  else \
+	    echo "  ⚠ HOST-CONFIG DRIFT — /etc/docker/daemon.json diffère du dépôt:"; \
+	    diff deploy/host/docker-daemon.json /tmp/_daemon_live | head -20; \
+	    exit 1; \
+	  fi; \
+	else \
+	  echo "  ⚠ /etc/docker/daemon.json ABSENT sur la cible — les journaux de conteneurs"; \
+	  echo "     grossissent SANS LIMITE. Voir deploy/host/README.md pour l'appliquer."; \
+	  exit 1; \
+	fi
 	@echo "▶ deploy-drift: $(PROD_REPO) HEAD vs origin/main…"
 	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cd $(PROD_REPO) && git fetch -q origin main && if [ "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" ]; then echo "  ✅ deployed code == origin/main"; else echo "  ⚠ DEPLOY DRIFT: server HEAD != origin/main — run on prod: git pull --ff-only origin main && docker compose up -d --build api dashboard"; git -C $(PROD_REPO) log --oneline HEAD..origin/main | head -5; exit 1; fi'
 

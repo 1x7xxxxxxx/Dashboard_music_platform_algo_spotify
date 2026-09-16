@@ -1,0 +1,11 @@
+apiVersion: 1
+providers:
+  - name: streamlytics
+    orgId: 1
+    folder: streaMLytics
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false     # les tableaux vivent dans le depot, pas dans le volume
+    options:
+      path: /var/lib/grafana/dashboards

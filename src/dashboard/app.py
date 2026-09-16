@@ -10,7 +10,6 @@ import streamlit as st
 from pathlib import Path
 import sys
 import time
-from datetime import datetime
 import os
 
 # ✅ IMPORTANT : Ajouter le chemin AVANT les imports src.*
@@ -708,6 +707,11 @@ def main():
 
 
 def _main_body():
+    # Métriques (ADR-026) — corps dans `utils/metrics_seam.py`, pas ici : ce fichier
+    # porte un cliquet de longueur qui ne monte jamais.
+    from src.dashboard.utils.metrics_seam import (end_chrome, record_session_render,
+                                              start_rerun, view_timer)
+    start_rerun()
     # Public routes — accessible without authentication
     _page_param = st.query_params.get("page")
 
@@ -972,10 +976,12 @@ def _main_body():
     from src.dashboard.utils.usage_tracker import track_page_view
     track_page_view(page)
 
+    end_chrome(page)          # clôt la phase CHROME, publie l'état du pool
     _t0 = time.perf_counter()
 
     try:
-        _render_page(page)
+        with view_timer(page):
+            _render_page(page)
     except Exception as _exc:                       # noqa: BLE001 — central view guard
         from src.dashboard.utils.error_alert import is_control_flow, notify_app_error
         if is_control_flow(_exc):
@@ -985,12 +991,7 @@ def _main_body():
                    "❌ Une erreur est survenue sur cette page. Réessayez ; "
                    "l'administrateur a été notifié si le problème persiste."))
 
-    # Record render time (rolling 100-entry log, stored in session state)
-    _render_ms = int((time.perf_counter() - _t0) * 1000)
-    log = st.session_state.setdefault('_perf_log', [])
-    log.append({'page': page, 'ms': _render_ms, 'ts': datetime.now().strftime('%H:%M:%S')})
-    if len(log) > 100:
-        st.session_state['_perf_log'] = log[-100:]
+    record_session_render(page, time.perf_counter() - _t0)
 
 if __name__ == "__main__":
     main()

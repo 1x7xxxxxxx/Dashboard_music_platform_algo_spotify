@@ -1,0 +1,208 @@
+{
+  "uid": "streamlytics-ops",
+  "title": "streaMLytics — sante et rendu",
+  "tags": [
+    "streamlytics",
+    "adr-026"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "description": "Tableau versionne dans `deploy/grafana/dashboards/` — un tableau clique dans l'interface meurt avec le volume. ADR-026.",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Latence de rendu — CHROME vs VUE (p95)",
+      "type": "timeseries",
+      "description": "LE chiffre qui manquait. `chrome` = auth, navigation, barre laterale ; `view` = le corps de la page. Mesure avant Prometheus : 61 ms par vue contre 468-538 ms pour la page complete, un facteur 8 que rien n'affichait. Si `chrome` domine, optimiser une vue n'attaque pas le poste principal — c'est la raison pour laquelle R120 passe avant R118.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le,phase) (rate(streamlytics_rerun_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{phase}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "File d'attente — rendus en cours",
+      "type": "timeseries",
+      "description": "Streamlit serialise les reruns dans un processus. Cette jauge dit si les « reruns perdus » mesures cote client sont une file SERVEUR ou un client sature — aucune mesure client ne peut trancher seule (R119).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (instance_role) (streamlytics_reruns_in_flight)",
+          "legendFormat": "{{instance_role}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Pool Postgres — et le repli SILENCIEUX",
+      "type": "timeseries",
+      "description": "`direct_fallback` est le compteur qui manquait : un pool sature retombe sur une connexion DIRECTE avec un simple warning, donc en silence, et rien ne le distingue du fonctionnement normal. Toute valeur > 0 est un signal. maxconn = 8.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "streamlytics_postgres_pool_connections{state=\"borrowed\"}",
+          "legendFormat": "empruntees",
+          "refId": "A"
+        },
+        {
+          "expr": "streamlytics_postgres_pool_connections{state=\"available\"}",
+          "legendFormat": "disponibles",
+          "refId": "B"
+        },
+        {
+          "expr": "streamlytics_postgres_pool_connections{state=\"direct_fallback\"}",
+          "legendFormat": "REPLIS directs",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Erreurs applicatives par page",
+      "type": "timeseries",
+      "description": "Adosse au registre `app_error_log` — une ligne par defaut, pas par occurrence.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (page,error_class) (increase(streamlytics_app_errors_total[1h]))",
+          "legendFormat": "{{page}} · {{error_class}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "VPS — CPU, RAM, disque",
+      "type": "timeseries",
+      "description": "Le seul controle de disque qui existait etait un BOOLEEN quotidien a 85 % (`infra_health_cron.sh`) : il aurait dit « plein » sans dire pourquoi ni depuis quand.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "CPU %",
+          "refId": "A"
+        },
+        {
+          "expr": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100",
+          "legendFormat": "RAM %",
+          "refId": "B"
+        },
+        {
+          "expr": "(1 - node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"}) * 100",
+          "legendFormat": "disque / %",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Caddy — requetes par amont",
+      "type": "timeseries",
+      "description": "Ne compte PAS les reruns : ils voyagent dans le websocket `/_stcore/stream`, dont la duree p50 de session est de 252 secondes. Caddy voit une requete par ONGLET. C'est la vue du transport.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (handler) (rate(caddy_http_requests_total[5m]))",
+          "legendFormat": "{{handler}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": []
+  }
+}

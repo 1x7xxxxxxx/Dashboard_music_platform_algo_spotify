@@ -1,0 +1,9 @@
+# Provisionne au demarrage — un tableau cliqué dans l'interface meurt avec le volume.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://streamlytics_prometheus:9090
+    isDefault: true
+    editable: false

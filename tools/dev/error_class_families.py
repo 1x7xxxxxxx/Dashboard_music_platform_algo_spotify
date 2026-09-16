@@ -79,7 +79,11 @@ FAMILIES: list[tuple[str, str, str]] = [
      "qu'un humain peut déclencher ?",
      r"never-sent|not-alerted|never-read|nothing-happens|nothing-routes|"
      r"nobody-call|never-hit|not-when-it-is-needed|nobody-writes|"
-     r"rebuilt-per-rerun|unwired|debranch|not-reached|orphan"),
+     # `metric-registered-twice-kills-the-import`, ajoutée le 2026-09-16 : le cas
+     # limite de cette famille — le travail n'arrive nulle part parce que le module
+     # n'a jamais fini de se charger. Rien ne s'affiche du tout.
+     r"rebuilt-per-rerun|unwired|debranch|not-reached|orphan|"
+     r"registered-twice-kills-the-import"),
 
     ("un-nombre-affirmé-qui-n-a-pas-été-mesuré",
      "Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer "
@@ -185,7 +189,11 @@ FAMILIES: list[tuple[str, str, str]] = [
      "Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?",
      r"stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|"
      r"generated|index|diagram|map|guide|runbook|lags-its-source|"
-     r"hand-written-list"),
+     # `telemetry-table-that-nothing-ever-purges`, ajoutée le 2026-09-16. La famille
+     # demande « est-ce régénéré, ou écrit une fois puis oublié ? » — une table de
+     # journal sans rétention est exactement cela : un document qui s'accumule
+     # parce que personne n'a tranché ce qu'il advient de ses vieilles lignes.
+     r"hand-written-list|telemetry-table-that-nothing-ever-purges"),
 
     ("un-contrôle-qui-ne-peut-jamais-passer",
      "Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il "
@@ -241,7 +249,16 @@ FAMILIES: list[tuple[str, str, str]] = [
      # de la divergence, celle qui ne casse rien et rend une garantie fausse.
      # Motif ÉTROIT à dessein : `default` seul balaierait la moitié du catalogue.
      r"requirements|manifest|ddl|init_db|version|montée de majeure|"
-     r"valeur par défaut|majeure"),
+     # `reload-that-does-not-reload`, ajoutée le 2026-09-16 : le fichier EST posé sur
+     # la cible et le service l'a « rechargé » — mais le réglage n'est pas appliqué.
+     # C'est une divergence entre ce que le dépôt déclare et ce que la production
+     # exécute, sauf qu'ici les deux côtés semblent d'accord.
+     # `bind-address-that-hides-the-service`, ajoutée le 2026-09-16 : le service
+     # tourne, le conteneur est sain, et pourtant rien ne peut l'atteindre. Ce que
+     # le dépôt DÉCLARE (« joignable sur ce port ») n'est pas ce que la production
+     # exécute — la famille pose exactement cette question.
+     r"valeur par défaut|majeure|reload-that-does-not-reload|"
+     r"bind-address-that-hides-the-service"),
 ]
 
 _ID = re.compile(r"^## ([a-z0-9][a-z0-9-]+)$", re.M)
