@@ -81,7 +81,10 @@ _CEILINGS = {
     "cause_unknown": 242,             # 363 → 242 : 121 causes nomment un chemin qui existe
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
-    "scope_without_not_covered": 363,  # intact — `ne couvre pas:` ne se DÉRIVE pas
+    "scope_without_not_covered": 357,  # 363 → 357 : phase C, les 6 récidivistes du haut
+    # Liste de RELECTURE, pas une faute à corriger dans une direction imposée : un
+    # désaccord peut venir du garde comme de l'expression de la famille.
+    "scope_family_disagreements": 2,
     "guards_ref_missing": 0,
 }
 _FLOORS = {

@@ -406,6 +406,20 @@ def build() -> tuple[str, str]:
                                          if not c["guard_scope_has_not_covered"]),
         "guards_ref_missing": sum(1 for c in classes.values()
                                   if c["guard_ref"] and not c["guard_ref_exists"]),
+        # ⚠️ Un désaccord se lit dans LES DEUX SENS, et c'est pourquoi ce compteur est
+        # une LISTE DE RELECTURE, pas une faute à corriger dans une direction imposée.
+        # Mesuré le 2026-09-16 : `an-overload-makes-the-old-call-ambiguous` déclare
+        # `deux-surfaces-deux-nombres` là où `classify()` dérive
+        # `un-coût-payé-sans-contrepartie` — la déclaration paraît plus juste ; et
+        # `central-app-missing` déclare `la-frontière-avec-le-dehors` là où la taxonomie
+        # dérive `le-locataire`, parce que son expression matche un mot du symptôme.
+        # Le premier cas interroge la portée du garde, le second l'expression de la
+        # famille. Forcer l'un des deux à s'aligner sur l'autre ferait écrire une
+        # fausseté pour faire baisser un compteur.
+        "scope_family_disagreements": sum(
+            1 for c in classes.values()
+            if c["guard_scope_declared_family"] and c["guard_scope_derived_family"]
+            and c["guard_scope_declared_family"] != c["guard_scope_derived_family"]),
     }
     population = {
         "classes": len(classes),
@@ -509,6 +523,23 @@ def _render(p: dict) -> str:
           "| trou | classes |", "|---|---|"]
     for k, v in h.items():
         L.append(f"| `{k}` | {v} |")
+
+    dis = [cid for cid, c in p["classes"].items()
+           if c["guard_scope_declared_family"] and c["guard_scope_derived_family"]
+           and c["guard_scope_declared_family"] != c["guard_scope_derived_family"]]
+    if dis:
+        L += ["", "### Familles en désaccord — à relire, pas à corriger d'office", "",
+              "La famille DÉCLARÉE dans `guard_scope` diffère de celle que "
+              "`error_class_families.classify()` DÉRIVE du symptôme. Le désaccord se lit "
+              "dans les deux sens : soit le garde vise autre chose que ce qu'il croit, "
+              "soit l'expression de la famille matche un mot pour une mauvaise raison. "
+              "**Aligner l'un sur l'autre sans trancher ferait écrire une fausseté pour "
+              "faire baisser un compteur.**", "",
+              "| classe | déclarée | dérivée |", "|---|---|---|"]
+        for cid in sorted(dis):
+            c = p["classes"][cid]
+            L.append(f"| `{cid}` | {c['guard_scope_declared_family']} | "
+                     f"{c['guard_scope_derived_family']} |")
 
     L += ["", "## Récidive observée", ""]
     obs = r.get("observed") or {}

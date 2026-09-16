@@ -566,7 +566,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: collectors raise (CLAUDE.md rule #6) and the AST audit blocks in CI, so 'no rows' can only mean the API said so.
 - autofix: none
 - guard: { type: ci-step, ref: .claude/scripts/audit_collectors_ast.py via audit_runner.py --deterministic (ci.yml) }
-- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-erreur-avalée-devient-une-absence — un `except` qui rend une valeur au lieu de lever ; couvre: `return None`/`[]`/`{}` et `break` dans un `except` sous `src/collectors/` ; ne couvre pas: le même geste **hors de `src/collectors/`** — un transformer, un utilitaire, une tâche de DAG — ni un `except` qui LÈVE mais dont l'appelant avale, ni un `continue` dans une boucle par locataire, qui saute un artiste en le journalisant proprement.
 - rex_ref: .claude/skills/audit-collectors.md
 - first_seen: 2026-03-25 (ref: DEVLOG#2026-03-25)
 - History:
@@ -588,7 +588,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `view_session()` and `tenant_scope()` (R25) encapsulate the guard, so a view cannot express the fallback without going out of its way.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_tenant_scoped_action_names_its_tenant.py::test_a_missing_tenant_never_falls_back_to_a_hardcoded_one }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — résoudre l'identité d'un locataire avant de lire ou d'écrire pour lui ; couvre: le repli littéral `get_artist_id() or 1` et ses variantes AST dans les vues et les DAG ; ne couvre pas: **toute autre façon d'obtenir un locataire par défaut** — `artist_id = artist_id if artist_id else 1`, un `COALESCE(artist_id, 1)` en SQL, une valeur par défaut d'argument, ou un `.get('artist_id', 1)` sur un `conf` de DAG. Ce sont quatre gestes de la même famille « je continue sans savoir pour qui », et le garde n'en voit qu'un.
 - rex_ref: CLAUDE.md
 - first_seen: 2026-03-27 (ref: DEVLOG#2026-03-27)
 - History:
@@ -633,7 +633,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `view_session()` yields the one connection, and helpers take `db` as a parameter instead of resolving it.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: CLAUDE.md#9 }
-- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-état-qui-déborde-de-sa-portée — ouvrir une connexion pour la durée d'un rendu ; couvre: les appels `get_db_connection()` comptés dans un fichier de vue ; ne couvre pas: une connexion ouverte par un HELPER que la vue appelle (c'est ce que `test_a_render_opens_one_connection.py` mesure au rendu et que le compte par fichier ne peut pas voir), ni une connexion ouverte dans un `@st.fragment`, qui s'exécute quand celle de la vue n'existe plus.
 - rex_ref: CLAUDE.md
 - first_seen: 2026-03-27 (ref: DEVLOG#2026-03-27)
 - History:
@@ -1076,7 +1076,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: ops-probe, ref: tools/check_central_apps.py (authenticates each shared app; exit 1 if a configured app fails) }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: la-frontière-avec-le-dehors — vérifier qu'un identifiant d'application partagée répond ; couvre: les cinq applications nommées dans `check_central_apps.py`, sondées à la demande ; ne couvre pas: une SIXIÈME application ajoutée sans entrer dans cette liste — la sonde est une énumération à la main, donc elle est muette sur ce qu'elle ignore. C'est la même forme que `_TELEMETRY` dans le garde de rétention.
 - rex_ref: docs/adr/ADR-006-central-credential-model.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
@@ -1979,7 +1979,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: no probe surfaces a caught exception; they return `type(e).__name__` plus a static message. Applied uniformly to all four platforms even though Spotify (header auth) and SoundCloud (POST body) are clean today — so nobody has to re-derive which one is safe. The guard walks the AST of every except-handler in those modules and fails on `str(e)` or `f"{e}"`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_credentials_security.py }
-- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: la-frontière-avec-le-dehors — faire voyager un secret dans un message d'erreur ; couvre: un identifiant passé en PARAMÈTRE DE REQUÊTE, que `requests` recopie dans l'exception ; ne couvre pas: un secret dans un EN-TÊTE que la bibliothèque journalise, dans un corps de requête repris par un traceback, dans un message SQL de psycopg2, ni dans une variable locale qu'un rapporteur d'exception sérialise.
 - rex_ref: src/utils/central_apps.py
 - first_seen: 2026-08-22
 - History:
@@ -5848,7 +5848,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -c "import os,sys,psycopg2${IFS}try:${IFS} c=psycopg2.connect(host='127.0.0.1',port=int(os.environ.get('PGPORT','5433')),dbname='spotify_etl',user='postgres',password=os.environ.get('DB_PASSWORD',''))${IFS}except Exception:${IFS} sys.exit(0)${IFS}cur=c.cursor();cur.execute(\"SELECT a.proname FROM pg_proc a JOIN pg_proc b ON a.proname=b.proname AND a.oid<b.oid JOIN pg_namespace n ON n.oid=a.pronamespace AND b.pronamespace=n.oid WHERE n.nspname='public' AND a.proname LIKE 'gold_%' AND (a.pronargs-a.pronargdefaults)<=b.pronargs AND (b.pronargs-b.pronargdefaults)<=a.pronargs\");bad=cur.fetchall();c.close();sys.exit(1 if bad else 0)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: tests/test_the_gold_layer_defines_every_platform.py — les trois branches de la règle Apple sont épinglées sur données synthétiques dans une transaction annulée, et la page Apple Music est rendue au complet dans le render-smoke. Signature vue exit=1 en recréant la surcharge, 0 après l'avoir retirée.
-- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — élargir le sens d'un appel existant sans relire ses appelants ; couvre: les trois branches de la règle Apple, épinglées dans `test_the_gold_layer_defines_every_platform.py` ; ne couvre pas: **le même geste sur une autre plateforme** — toute vue or dont on ajoute une maille hérite du risque, et rien n'épingle les branches ailleurs. Une tuile passe à 0 sans qu'on ait rien retiré.
 - rex_ref: migrations/103_gold_apple_metric.sql
 - first_seen: 2026-09-12
 - History:

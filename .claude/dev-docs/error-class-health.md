@@ -42,10 +42,20 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `cause_inferred` | 0 |
 | `cause_unknown` | 242 |
 | `guards_ref_missing` | 0 |
+| `scope_family_disagreements` | 2 |
 | `scope_unknown` | 0 |
-| `scope_without_not_covered` | 363 |
+| `scope_without_not_covered` | 357 |
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 332 |
+
+### Familles en désaccord — à relire, pas à corriger d'office
+
+La famille DÉCLARÉE dans `guard_scope` diffère de celle que `error_class_families.classify()` DÉRIVE du symptôme. Le désaccord se lit dans les deux sens : soit le garde vise autre chose que ce qu'il croit, soit l'expression de la famille matche un mot pour une mauvaise raison. **Aligner l'un sur l'autre sans trancher ferait écrire une fausseté pour faire baisser un compteur.**
+
+| classe | déclarée | dérivée |
+|---|---|---|
+| `an-overload-makes-the-old-call-ambiguous` | deux-surfaces-deux-nombres | un-coût-payé-sans-contrepartie |
+| `central-app-missing` | la-frontière-avec-le-dehors | le-locataire |
 
 ## Récidive observée
 
@@ -59,7 +69,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | by_guard · prose | 8 | 1.005 | 0.4327 – 1.9803 | **séparent** |
 | by_seen_red · daté | 0 | 0.0 | 0.0 – 0.7853 | insuffisant pour conclure (n=55) |
 | by_seen_red · jamais-ou-inconnu | 55 | 0.2234 | 0.1682 – 0.2907 | insuffisant pour conclure (n=55) |
-| by_scope · non renseigné | 55 | 0.2192 | 0.1651 – 0.2853 | une seule strate peuplée (n=55) |
+| by_scope · ne-couvre-pas renseigné | 16 | 0.9947 | 0.5682 – 1.6154 | **séparent** |
+| by_scope · non renseigné | 39 | 0.1661 | 0.1181 – 0.227 | **séparent** |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
