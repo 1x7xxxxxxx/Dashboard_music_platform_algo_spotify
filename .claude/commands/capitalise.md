@@ -18,9 +18,12 @@ exécution** avant de la livrer :
 | `status` | `open` → `reported` → `guarded` → `resolved` |
 | `kind` | `deterministic` si la signature n'a pas de faux positif, sinon `heuristic` |
 | `signature` | une commande shell, **sortie ≠ 0 quand la classe est touchée** |
+| `seen_red` | **la date où je l'ai vue sortir ≠ 0**, et sur quoi. `never` si je ne l'ai pas fait, `n-a` s'il n'y a pas de signature. **Jamais une date non observée** |
 | `root_cause` | une ligne, `fichier:ligne` quand ça se lit dans le code |
+| `cause_evidence` | `read` (j'ai lu le code) · `measured` (j'ai exécuté) · `inferred` (**plausible, non vérifié — et je le dis**) · `retracted` |
 | `long_term_fix` | le changement qui rend la classe *impossible*, ou `— (le garde EST le fix)` |
 | `guard` | le test ou le hook qui bloque, ou `—` |
+| `guard_scope` | `<famille> — <le geste> ; couvre: … ; **ne couvre pas: …**` |
 | `history` | daté, ce qui s'est passé |
 
 **Et j'ajoute la ligne dans la table `## Index` en tête du catalogue** — l'entrée
@@ -53,9 +56,39 @@ verte était d'arrêter de documenter. Une deterministic bloque la CI par contra
 une qui bloque sur un commentaire apprend que le rouge peut être du bruit, et la
 leçon est appliquée aux autres. Contrôle : `audit_runner.py --prose`.
 
+## La seconde étape non négociable — je nomme le GESTE, pas le verbe
+
+**Avant de choisir le garde**, je nomme la famille de geste qui partage la cause, et **au
+moins un geste voisin que le garde n'atteint PAS.**
+
+Mesuré, et c'est pour ça que cette étape existe :
+`a-kill-pattern-that-matches-its-own-shell` a été écrite le 2026-09-12 **avec son hook**.
+Elle s'est reproduite **trois fois** le 2026-09-16. Le hook gardait le verbe `pkill` ; la
+cause était un motif qui se contient lui-même, et `pgrep` la partageait — même cause,
+conséquence différente (le shell ne meurt pas, la boucle ne sort jamais), donc invisible.
+**La portée du garde était le défaut, pas la connaissance.**
+
+Si je ne peux nommer aucun geste voisin, j'écris `ne couvre pas: (non explorée)`. C'est
+**compté comme un trou** par `make error-health` — ce qui est le bon résultat : j'ai
+gardé le défaut, pas la classe, et le document le dit au lieu de me laisser croire le
+contraire.
+
+⚠️ Le garde couvre-t-il le geste tel qu'un humain le FAIT, ou tel qu'une API le nomme ?
+`pkill` et `pgrep` sont deux verbes d'un même geste : « chercher un processus par un
+motif ». Un garde écrit sur le verbe laisse la classe vivante sous l'autre nom.
+
 ## Ce que je ne fais pas
 
 - Je ne recopie pas un narratif dans un champ structuré : la prose contient des
   causes **rétractées trois lignes plus bas**, et la structure les blanchirait en
   faits. Je lis, je tranche, et je dis quand je ne suis pas sûr.
+- **Je n'écris pas une cause plausible dans la voix d'un fait.** Quand rien n'a été lu ni
+  exécuté, la bonne sortie est `cause_evidence: inferred` — pas une phrase affirmative.
+  Le 2026-09-16 j'ai livré une cause plausible (« `grep -c` compte sa propre ligne
+  malgré le crochet »), testée ensuite, **fausse**, et il a fallu la rétracter
+  publiquement. Étiquetée `inferred`, elle n'aurait rien coûté.
+- Je ne fais pas baisser un compteur en **supprimant** une classe. Les planchers de
+  population de `tests/test_the_error_class_health_only_improves.py` refusent ce
+  raccourci, et c'est délibéré : un taux s'améliore aussi bien en corrigeant qu'en
+  effaçant.
 - Je ne touche ni à la ROADMAP, ni au code.

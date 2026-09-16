@@ -214,6 +214,15 @@ error-families-check: ## Échoue si la taxonomie ne décrit plus le catalogue (C
 	@python3 tools/dev/error_class_families.py --check
 
 error-health: ## Santé du catalogue de classes → .claude/dev-docs/error-class-health.{json,md}
+	@# ⚠️ DEUX COMMITS, et ce n'est pas un defaut : ce document tire ses faits de
+	@# l'historique GIT du catalogue, donc committer le catalogue les change. L'ordre
+	@# qui converge :
+	@#   1. commiter `error-classes.md` ;
+	@#   2. `make error-health` puis commiter les deux artefacts SEULS.
+	@# Le second commit ne touche pas le catalogue, donc le compte de revisions ne bouge
+	@# plus et `--check` reste vert. Un seul commit serait perime a l'instant meme ou il
+	@# est ecrit — un document qui ne peut jamais etre a jour est une porte qui ne peut
+	@# jamais etre verte, et ce depot a la classe.
 	@# L'historique GIT de ce JSON EST la série temporelle — rien de temporel n'est
 	@# stocké dedans. Il rejoue les révisions du catalogue et compte les commits qui
 	@# AJOUTENT une ligne d'historique à une classe : une récidive mesurée, qu'aucun
@@ -358,9 +367,19 @@ config-check: ## Check the .claude/ config itself: dangling paths, class schema,
 	@python3 .claude/scripts/check_config_refs.py
 	@python3 .claude/scripts/audit_runner.py --prose
 	@python3 .claude/scripts/audit_runner.py --coverage
-	@# --fields is advisory: RED on 29/29 legacy classes. `|| true` keeps this target
-	@# usable while still printing what is missing. Drop the `|| true` when it reaches 0.
-	@python3 .claude/scripts/audit_runner.py --fields || true
+	@# ⚠️ `audit_runner --fields` a ete RETIRE d'ici le 2026-09-16, et pas rendu vert.
+	@# Le commentaire qui le justifiait (« RED on 29/29 legacy classes ») etait PERIME :
+	@# le catalogue porte `<!-- fields-ratchet: 0 -->` depuis longtemps, la dette est a
+	@# zero. J'ai repete ce commentaire comme un fait sans lire le marqueur deux lignes
+	@# plus loin.
+	@#
+	@# Le vrai defaut etait ailleurs et le `|| true` le cachait : `_fields()` appelle
+	@# `_write_ratchet()`, donc cette cible ECRIVAIT dans `error-classes.md` — un gate
+	@# qui modifie l'artefact qu'il juge. La meme question est posee par classe, SANS
+	@# ecrire, par `tests/test_every_error_class_is_complete.py`.
+	@#
+	@# `--fields --strict` reste disponible a la main.
+	@$(PYTHON) tools/dev/error_class_health.py --check
 
 # Prod connection for schema-check (override on the CLI; not committed to keep the
 # host out of version control): make schema-check PROD_SSH=root@HOST PROD_PG=container

@@ -255,6 +255,16 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     `root_cause`, un `long_term_fix` — le changement qui rend la classe
     impossible — et une `signature` shell **qu'elle a vue sortir ≠ 0 sur le
     défaut** et 0 après le fix. Une signature jamais vue rouge ne garde rien.
+    L'entrée porte **trois preuves**, chacune née d'un échec mesuré : `seen_red:` (la
+    date où la signature est sortie ≠ 0, ou `never`/`n-a` — **jamais une date non
+    observée**), `cause_evidence:` (`read`/`measured`/`inferred`/`retracted` — une cause
+    plausible s'écrit `inferred`, pas dans la voix d'un fait), et `guard_scope:` (la
+    **famille de geste** couverte, et au moins un geste voisin **non couvert**).
+    Mesuré le 2026-09-16 : une classe gardée sur le VERBE `pkill` a récidivé trois fois
+    par `pgrep`, qui partageait la cause. Et mesuré aussi, sur 194 révisions du
+    catalogue : une classe **sans garde automatique récidive 5,2× plus** — 1,005
+    évènement par classe-mois contre 0,193, intervalles à 95 % disjoints.
+    Contrôle : `make error-health-check`. Évolution : `make error-health-history`.
 
 16. **Avant de lancer la suite après un changement de code → lancer
     `python3 .claude/scripts/select_tests.py`.** Il rend les tests atteignables

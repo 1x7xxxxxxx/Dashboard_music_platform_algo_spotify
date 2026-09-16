@@ -32,13 +32,11 @@
       "Write",
       "Glob",
       "Grep",
-
       "Bash(python3*)",
       "Bash(pytest*)",
       "Bash(pip*)",
       "Bash(ruff check *)",
       "Bash(/home/timothe/.local/bin/ruff check *)",
-
       "Bash(git status*)",
       "Bash(git diff*)",
       "Bash(git log*)",
@@ -60,7 +58,6 @@
       "Bash(git mv*)",
       "Bash(git check-ignore *)",
       "Bash(git init *)",
-
       "Bash(make*)",
       "Bash(/usr/bin/make*)",
       "Bash(gh*)",
@@ -68,7 +65,6 @@
       "Bash(scp*)",
       "Bash(docker*)",
       "Bash(rtk*)",
-
       "Bash(ls*)",
       "Bash(cat*)",
       "Bash(head*)",
@@ -100,7 +96,6 @@
       "Bash(rsync*)",
       "Bash(curl -s*)",
       "Bash(xargs*)",
-
       "Bash(timeout*)",
       "Bash(sleep*)",
       "Bash(for *)",
@@ -116,7 +111,6 @@
       "Bash(set *)",
       "Bash(shopt*)",
       "Bash(command *)",
-
       "Edit(**/.claude/**)",
       "Write(**/.claude/**)",
       "Edit(DEVLOG.md)",
@@ -195,6 +189,10 @@
           {
             "type": "command",
             "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/check_prod_sync.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/check_error_class_evidence.py"
           }
         ]
       }
