@@ -134,3 +134,63 @@ def test_a_restore_that_would_lose_work_still_blocks():
         assert "README.md" in got[1], "le message ne NOMME pas ce qui serait perdu"
     finally:
         victim.write_bytes(before)
+
+
+# ── Le niveau LITTERAL de guard_destructive, corrige le 2026-09-16 ───────────
+#
+# Il comparait une SOUS-CHAINE sur la commande entiere (`pattern in cmd_lower`), donc
+# il bloquait tout ce qui MENTIONNE un geste : un heredoc qui ecrit un script, un
+# message de commit qui explique un correctif, une chaine Python entre guillemets.
+#
+# Trois blocages d'affilee dans la meme seance, tous en train d'ECRIRE ou de DOCUMENTER
+# un retour arriere, aucun en train d'en faire un. Le depot avait deja corrige ses
+# gardes A ETAT (shlex par segment) mais pas ce niveau-la, qui est le premier lu.
+#
+# La table ci-dessous epingle les DEUX directions : le geste reel bloque, sa mention
+# passe. Un garde qui ne verifierait que la premiere se resserrerait jusqu'a tout
+# bloquer ; un qui ne verifierait que la seconde se relacherait jusqu'a ne rien garder.
+
+# Concatene, pour que ce FICHIER ne porte pas le geste en clair : il serait alors son
+# propre cas de test, et une recherche de texte le trouverait ici.
+_RESET = "git " + "reset --hard"
+
+
+def _run_destructive_hook(command: str):
+    import json as _json
+    import subprocess as _sp
+    import sys as _sys
+    from pathlib import Path as _Path
+    hook = _Path(__file__).resolve().parents[1] / ".claude" / "hooks" / "guard_destructive.py"
+    payload = _json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
+    r = _sp.run([_sys.executable, str(hook)], input=payload, capture_output=True,
+                text=True, cwd=str(hook.parents[2]), timeout=60)
+    return r.returncode, (r.stdout or "") + (r.stderr or "")
+
+
+_CAS = [
+    ("le geste REEL, en commande",        "%(R)s HEAD~1",                                   2),
+    ("le geste REEL, apres sudo",         "sudo %(R)s HEAD",                                2),
+    ("le geste REEL, apres une variable", "FOO=1 %(R)s HEAD",                               2),
+    ("le geste dans un HEREDOC",          "cat > /tmp/x.sh <<'EOF'\n%(R)s $before\nEOF",    0),
+    ("le geste dans un MESSAGE",          "git commit -m 'on ajoute %(R)s au rollback'",    0),
+    ("le geste dans une CHAINE python",   "python3 -c \"s='%(R)s'\"",                       0),
+    ("un push force REEL",                "git push --force origin main",                   2),
+    ("un push force CITE",                "echo 'jamais de git push --force ici'",          0),
+]
+
+
+@pytest.mark.parametrize("libelle,commande,attendu",
+                         [(d, c % {"R": _RESET}, rc) for d, c, rc in _CAS])
+def test_the_literal_tier_blocks_the_gesture_not_its_mention(libelle, commande, attendu):
+    rc, sortie = _run_destructive_hook(commande)
+    assert rc == attendu, (
+        f"{libelle} : rc={rc}, attendu {attendu}\n"
+        f"  commande : {commande!r}\n"
+        "Un garde qui bloque la MENTION d'un geste interdit de le documenter ; un garde "
+        "qui laisse passer le geste ne garde rien."
+    )
+    if attendu == 2:
+        assert sortie.strip(), (
+            "le garde bloque SANS motif visible. Le contrat PreToolUse remonte stderr : "
+            "ecrit sur stdout, le message est avale et la porte se ferme sans raison."
+        )

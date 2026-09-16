@@ -62,7 +62,13 @@ def _hook(command: str) -> tuple[int, str]:
     payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
     r = subprocess.run([sys.executable, str(HOOK)], input=payload,
                        capture_output=True, text=True, cwd=str(ROOT), timeout=60)
-    return r.returncode, (r.stdout or "")
+    # Les DEUX flux, depuis le 2026-09-16. Le contrat PreToolUse remonte **stderr** au
+    # modele ; le hook ecrivait son blocage sur stdout, ou il etait avale — l'outil
+    # rapportait « No stderr output » et la porte se fermait sans motif visible.
+    # Le correctif a deplace le message, et ce test regardait alors le mauvais flux :
+    # il verifiait que le refus NOMME ce qui serait perdu, sur un flux desormais vide.
+    # Lire les deux garde la propriete vraie quel que soit le flux choisi.
+    return r.returncode, (r.stdout or "") + (r.stderr or "")
 
 
 @pytest.fixture

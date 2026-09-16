@@ -32,6 +32,31 @@ if [ -z "${DEPLOY_REEXECED:-}" ] && [ "$before" != "$after" ]; then
     DEPLOY_REEXECED=1 exec bash "$0" "$@"
 fi
 
+# ── Les migrations en attente, verifiees AVANT de construire (2026-09-16) ────
+# L'ordre `migrate.sh` puis `deploy.sh` n'etait ecrit que dans une archive de roadmap.
+# Quand il est inverse, rien n'echoue bruyamment : l'application DEMARRE, repond 200
+# sur `/health`, et rend 500 sur les donnees. La porte de sante ne teste que la
+# vivacite — la classe a deja coute un `/kpis` casse en production, vu le lendemain.
+#
+# On ne LANCE pas les migrations ici, a dessein : `tools/migrate.sh` ne pose pas
+# `ON_ERROR_STOP` parce que le jeu n'est idempotent qu'en execution complete, et un
+# deploiement n'est pas le bon endroit pour decider de ce compromis. On REFUSE, et on
+# nomme la commande.
+PG_CONT="${PG_CONT:-postgres_spotify_airflow}"
+if docker ps --format '{{.Names}}' | grep -qx "$PG_CONT"; then
+    applied="$(docker exec -i "$PG_CONT" psql -U postgres -d spotify_etl -tA \
+                 -c "SELECT count(*) FROM schema_migrations;" 2>/dev/null || echo "")"
+    onrepo="$(ls migrations/*.sql 2>/dev/null | wc -l)"
+    if [ -n "$applied" ] && [ "$applied" -lt "$onrepo" ]; then
+        echo "STOP : $onrepo migration(s) dans le depot, $applied enregistrees en base."
+        echo "   Deployer maintenant demarrerait une application qui repond 200 sur"
+        echo "   /health et 500 sur les donnees. Lancer d'abord :"
+        echo "      bash tools/migrate.sh"
+        exit 1
+    fi
+    echo "  migrations : $applied/$onrepo appliquees"
+fi
+
 echo "▶ rebuild + restart: $SERVICES"
 docker compose up -d --build $SERVICES
 
@@ -53,6 +78,37 @@ case " $SERVICES " in
        echo "    docker compose up -d --force-recreate airflow-scheduler airflow-webserver" ;;
 esac
 
+# ── Le retour arriere, ajoute le 2026-09-16 ──────────────────────────────────
+# Jusqu'ici, une porte de sante rouge sortait en `exit 1` **en laissant le conteneur
+# casse EN SERVICE**. `$before` etait capture ligne 19 et ne servait qu'a l'affichage
+# ligne 22 : le script savait ou revenir, et n'y revenait pas.
+#
+# La seule manoeuvre de secours etait alors un revert et un second build de plusieurs
+# minutes, a la main, sous trafic — c'est-a-dire au pire moment.
+#
+# Ce que ce retour arriere ne fait PAS, et qu'il faut savoir : il rend le CODE, jamais
+# le SCHEMA. Une migration deja appliquee le reste. C'est pourquoi les migrations sont
+# retro-compatibles par construction dans ce depot (ajout de colonne, jamais de
+# suppression en vol) — et pourquoi `tools/migrate.sh` reste un geste separe, a lancer
+# AVANT le deploiement.
+rollback() {
+    _svc="$1"; _url="$2"
+    echo "RETOUR ARRIERE : $after -> $before (la porte de $_svc est rouge)"
+    git reset --hard -q "$before" || { echo "   reset impossible — intervention manuelle"; return; }
+    docker compose up -d --build $SERVICES >/dev/null 2>&1 \
+        || { echo "   rebuild impossible — intervention manuelle"; return; }
+    for _i in $(seq 1 30); do
+        if curl -fsS -o /dev/null --max-time 5 "$_url" 2>/dev/null; then
+            echo "   OK revenu sur $before, $_svc repond de nouveau"
+            return
+        fi
+        sleep 1
+    done
+    echo "   $_svc ne repond TOUJOURS PAS apres le retour arriere."
+    echo "      La panne ne vient donc pas du code deploye : regarder la base, le"
+    echo "      reseau, ou l'hote. C'est une information, pas un echec du retour."
+}
+
 # Health gates: api on 8502/health, dashboard on 8501 Streamlit /_stcore/health.
 for s in $SERVICES; do
     case "$s" in
@@ -66,7 +122,11 @@ for s in $SERVICES; do
         if curl -fsS -o /dev/null --max-time 5 "$url" 2>/dev/null; then ok="${i}s"; break; fi
         sleep 1
     done
-    [ -n "$ok" ] || { echo "FAILED ($url did not return 200)"; exit 1; }
+    if [ -z "$ok" ]; then
+        echo "FAILED ($url did not return 200)"
+        rollback "$s" "$url"
+        exit 1
+    fi
     echo "ok ($ok)"
 done
 

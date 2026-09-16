@@ -46,6 +46,19 @@ import os
 import subprocess
 import sys
 import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+# Le même environnement que le dashboard et les DAGs, pas celui du shell qui lance.
+# Exigé par `tests/test_a_tool_that_reads_the_env_loads_it.py`, et la raison vaut ici :
+# `--user` / `--password` peuvent venir de `.env.local`, et un outil qui ne charge pas
+# l'environnement du projet ne les verrait pas — il annoncerait « pas d'identifiants »
+# alors qu'ils sont posés. C'est la forme « je n'ai pas pu demander » déguisée en
+# « j'ai demandé », que cette séance a déjà payée deux fois.
+from src.utils.env_files import load_project_env  # noqa: E402
+
+load_project_env()
 
 _MARKER = '[data-testid="stStatusWidget"]'
 _APP = '[data-testid="stApp"]'
