@@ -370,6 +370,160 @@ def _show_recap_tab(db, aid):
 # Main view
 # ---------------------------------------------------------------------------
 
+@st.fragment
+def _tab_charts(artist_options: dict) -> None:
+    """L'onglet Évolution — rejoué SEUL quand on change d'artiste.
+
+    @st.fragment (R118, 2026-09-16). C'est la deuxième vue la plus chère de la
+    session mesurée le 2026-09-16 : **357,7 ms de phase `view`** contre 13,4 ms de
+    chrome. Changer le sélecteur rejouait tout le script — les quatre onglets, dont
+    `st.tabs` exécute TOUS les corps, plus la barre latérale.
+
+    ⚠️ Elle ouvre sa PROPRE connexion, et c'est obligatoire, pas un style : son
+    sélecteur pilote `_load_wrapped(db, …)`, donc elle relit la base à chaque
+    changement — alors que la connexion de `show()` est fermée par son `finally` dès
+    la fin du rendu complet. Un fragment qui capturerait celle-là la ré-emprunterait
+    au pool sans jamais la rendre : une fuite par session, sur un pool à 10. Garde :
+    `tests/test_a_fragment_never_captures_a_connection.py`.
+    """
+    db = get_db_connection()
+    if db is None:
+        st.error(t("data_wrapped.db_unreachable",
+                   "❌ Base de données inaccessible."))
+        return
+    try:
+        # Artist selector (separate from form tab)
+        chart_name = st.selectbox(
+            t("data_wrapped.artist_label", "Artiste"),
+            list(artist_options.keys()), key="chart_artist"
+        )
+        chart_artist_id = artist_options[chart_name]
+        df = _load_wrapped(db, chart_artist_id)
+
+        if df.empty:
+            st.info(t("data_wrapped.charts_no_data",
+                      "Aucune donnée. Renseignez au moins deux années via l'onglet Saisie."))
+        else:
+            # KPI row — latest year
+            latest = df.iloc[0]
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric(t("data_wrapped.field_listeners", "Listeners"),
+                      _fmt_big(latest.get('listeners')),
+                      delta=_fmt_pct(latest.get('listener_gain_pct')))
+            k2.metric(t("data_wrapped.col_streams", "Streams"),
+                      _fmt_big(latest.get('streams')),
+                      delta=_fmt_pct(latest.get('stream_gain_pct')))
+            k3.metric(t("data_wrapped.field_saves", "Saves"),
+                      _fmt_big(latest.get('saves')),
+                      delta=_fmt_pct(latest.get('save_gain_pct')))
+            k4.metric(t("data_wrapped.kpi_countries", "Pays"),
+                      _fmt_big(latest.get('countries')))
+
+            st.markdown("---")
+
+            # Combined evolution — listeners / streams / saves / playlist adds
+            st.markdown(t("data_wrapped.combined_header", "#### Évolution combinée"))
+            log_scale = st.toggle(
+                t("data_wrapped.log_scale", "Échelle logarithmique"),
+                value=False, key="wrapped_log_scale",
+                help=t("data_wrapped.log_scale_help",
+                       "Recommandé si les volumes diffèrent fortement "
+                       "(ex: streams ≫ saves), pour voir toutes les courbes."),
+            )
+            fig = _multi_line_chart(
+                df,
+                [
+                    ('listeners', 'Listeners', '#1DB954'),
+                    ('streams', 'Streams', '#457b9d'),
+                    ('saves', 'Saves', '#e9c46a'),
+                    ('playlist_adds', 'Playlist adds', '#f4a261'),
+                ],
+                t("data_wrapped.chart_combined_title",
+                  "Listeners · Streams · Saves · Playlist adds"),
+                log_scale=log_scale,
+            )
+            if fig:
+                st.plotly_chart(fig, width="stretch")
+
+            # Secondary volumes — countries & hours
+            st.markdown(t("data_wrapped.countries_listening_header", "#### Pays & écoute"))
+            col_c, col_h = st.columns(2)
+            with col_c:
+                fig = _line_chart(df, 'countries',
+                                  t("data_wrapped.chart_countries_reached", "Pays touchés"),
+                                  color="#457b9d", fmt_fn=_fmt_big)
+                if fig:
+                    st.plotly_chart(fig, width="stretch")
+            with col_h:
+                fig = _line_chart(df, 'hours_listened',
+                                  t("data_wrapped.chart_hours_listened", "Heures d'écoute"),
+                                  color="#e9c46a", fmt_fn=_fmt_big)
+                if fig:
+                    st.plotly_chart(fig, width="stretch")
+
+            # Quatre graphiques de GAIN : ils raffinent la lecture des volumes
+            # ci-dessus, aucun ne fait décider seul. Repliés — rien n'est
+            # supprimé, tout reste à un clic. `secondary_analyses()` a été
+            # écrit le 2026-08-12 pour la remarque « réduire le nombre de
+            # graphs » et n'était appliqué sur aucune des cinq vues denses.
+            with secondary_analyses(t("data_wrapped.gains_expander",
+                                      "📊 Gains annuels (%) — détail")):
+                # Annual gains (%)
+                st.markdown(t("data_wrapped.annual_gains_header", "#### Gains annuels (%)"))
+                col_lg, col_stg = st.columns(2)
+                with col_lg:
+                    fig = _bar_gain_chart(df, 'listener_gain_pct',
+                                          t("data_wrapped.chart_listener_gain",
+                                            "Gain listeners / an (%)"), fmt_fn=_fmt_pct)
+                    if fig:
+                        st.plotly_chart(fig, width="stretch")
+                with col_stg:
+                    fig = _bar_gain_chart(df, 'stream_gain_pct',
+                                          t("data_wrapped.chart_stream_gain",
+                                            "Gain streams / an (%)"), fmt_fn=_fmt_pct)
+                    if fig:
+                        st.plotly_chart(fig, width="stretch")
+
+                col_sg, col_pg = st.columns(2)
+                with col_sg:
+                    fig = _bar_gain_chart(df, 'save_gain_pct',
+                                          t("data_wrapped.chart_save_gain",
+                                            "Gain saves / an (%)"), fmt_fn=_fmt_pct)
+                    if fig:
+                        st.plotly_chart(fig, width="stretch")
+                with col_pg:
+                    fig = _bar_gain_chart(df, 'playlist_add_gain_pct',
+                                          t("data_wrapped.chart_playlist_gain",
+                                            "Gain playlist adds / an (%)"), fmt_fn=_fmt_pct)
+                    if fig:
+                        st.plotly_chart(fig, width="stretch")
+
+            # Super-fans — fans who ranked the artist in their top N
+            top_rows = df[df['top_fans_count'].notna()][
+                ['year', 'top_fans_count', 'top_fans_rank']
+            ].sort_values('year')
+            if not top_rows.empty:
+                st.markdown(t("data_wrapped.superfans_header",
+                              "#### Super-fans (vous dans leur top artistes)"))
+                fig = _line_chart(df, 'top_fans_count',
+                                  t("data_wrapped.chart_superfans",
+                                    "Fans vous ayant en top artiste"),
+                                  color="#9d4edd", fmt_fn=_fmt_big)
+                if fig:
+                    st.plotly_chart(fig, width="stretch")
+                st.dataframe(
+                    top_rows.rename(columns={
+                        'year': t("data_wrapped.col_year", "Année"),
+                        'top_fans_count': t("data_wrapped.col_fans_count", "Nb fans"),
+                        'top_fans_rank': t("data_wrapped.col_fans_rank", "Rang (top N)"),
+                    }),
+                    hide_index=True,
+                    width="stretch",
+                )
+    finally:
+        db.close()
+
+
 def show():
     st.title(t("data_wrapped.title", "🎁 Data Wrapped — Bilan"))
     st.markdown(t(
@@ -574,134 +728,7 @@ def show():
 
         # ── Onglet 2 : Évolution ────────────────────────────────────────────
         with tab_charts:
-            # Artist selector (separate from form tab)
-            chart_name = st.selectbox(
-                t("data_wrapped.artist_label", "Artiste"),
-                list(artist_options.keys()), key="chart_artist"
-            )
-            chart_artist_id = artist_options[chart_name]
-            df = _load_wrapped(db, chart_artist_id)
-
-            if df.empty:
-                st.info(t("data_wrapped.charts_no_data",
-                          "Aucune donnée. Renseignez au moins deux années via l'onglet Saisie."))
-            else:
-                # KPI row — latest year
-                latest = df.iloc[0]
-                k1, k2, k3, k4 = st.columns(4)
-                k1.metric(t("data_wrapped.field_listeners", "Listeners"),
-                          _fmt_big(latest.get('listeners')),
-                          delta=_fmt_pct(latest.get('listener_gain_pct')))
-                k2.metric(t("data_wrapped.col_streams", "Streams"),
-                          _fmt_big(latest.get('streams')),
-                          delta=_fmt_pct(latest.get('stream_gain_pct')))
-                k3.metric(t("data_wrapped.field_saves", "Saves"),
-                          _fmt_big(latest.get('saves')),
-                          delta=_fmt_pct(latest.get('save_gain_pct')))
-                k4.metric(t("data_wrapped.kpi_countries", "Pays"),
-                          _fmt_big(latest.get('countries')))
-
-                st.markdown("---")
-
-                # Combined evolution — listeners / streams / saves / playlist adds
-                st.markdown(t("data_wrapped.combined_header", "#### Évolution combinée"))
-                log_scale = st.toggle(
-                    t("data_wrapped.log_scale", "Échelle logarithmique"),
-                    value=False, key="wrapped_log_scale",
-                    help=t("data_wrapped.log_scale_help",
-                           "Recommandé si les volumes diffèrent fortement "
-                           "(ex: streams ≫ saves), pour voir toutes les courbes."),
-                )
-                fig = _multi_line_chart(
-                    df,
-                    [
-                        ('listeners', 'Listeners', '#1DB954'),
-                        ('streams', 'Streams', '#457b9d'),
-                        ('saves', 'Saves', '#e9c46a'),
-                        ('playlist_adds', 'Playlist adds', '#f4a261'),
-                    ],
-                    t("data_wrapped.chart_combined_title",
-                      "Listeners · Streams · Saves · Playlist adds"),
-                    log_scale=log_scale,
-                )
-                if fig:
-                    st.plotly_chart(fig, width="stretch")
-
-                # Secondary volumes — countries & hours
-                st.markdown(t("data_wrapped.countries_listening_header", "#### Pays & écoute"))
-                col_c, col_h = st.columns(2)
-                with col_c:
-                    fig = _line_chart(df, 'countries',
-                                      t("data_wrapped.chart_countries_reached", "Pays touchés"),
-                                      color="#457b9d", fmt_fn=_fmt_big)
-                    if fig:
-                        st.plotly_chart(fig, width="stretch")
-                with col_h:
-                    fig = _line_chart(df, 'hours_listened',
-                                      t("data_wrapped.chart_hours_listened", "Heures d'écoute"),
-                                      color="#e9c46a", fmt_fn=_fmt_big)
-                    if fig:
-                        st.plotly_chart(fig, width="stretch")
-
-                # Quatre graphiques de GAIN : ils raffinent la lecture des volumes
-                # ci-dessus, aucun ne fait décider seul. Repliés — rien n'est
-                # supprimé, tout reste à un clic. `secondary_analyses()` a été
-                # écrit le 2026-08-12 pour la remarque « réduire le nombre de
-                # graphs » et n'était appliqué sur aucune des cinq vues denses.
-                with secondary_analyses(t("data_wrapped.gains_expander",
-                                          "📊 Gains annuels (%) — détail")):
-                    # Annual gains (%)
-                    st.markdown(t("data_wrapped.annual_gains_header", "#### Gains annuels (%)"))
-                    col_lg, col_stg = st.columns(2)
-                    with col_lg:
-                        fig = _bar_gain_chart(df, 'listener_gain_pct',
-                                              t("data_wrapped.chart_listener_gain",
-                                                "Gain listeners / an (%)"), fmt_fn=_fmt_pct)
-                        if fig:
-                            st.plotly_chart(fig, width="stretch")
-                    with col_stg:
-                        fig = _bar_gain_chart(df, 'stream_gain_pct',
-                                              t("data_wrapped.chart_stream_gain",
-                                                "Gain streams / an (%)"), fmt_fn=_fmt_pct)
-                        if fig:
-                            st.plotly_chart(fig, width="stretch")
-
-                    col_sg, col_pg = st.columns(2)
-                    with col_sg:
-                        fig = _bar_gain_chart(df, 'save_gain_pct',
-                                              t("data_wrapped.chart_save_gain",
-                                                "Gain saves / an (%)"), fmt_fn=_fmt_pct)
-                        if fig:
-                            st.plotly_chart(fig, width="stretch")
-                    with col_pg:
-                        fig = _bar_gain_chart(df, 'playlist_add_gain_pct',
-                                              t("data_wrapped.chart_playlist_gain",
-                                                "Gain playlist adds / an (%)"), fmt_fn=_fmt_pct)
-                        if fig:
-                            st.plotly_chart(fig, width="stretch")
-
-                # Super-fans — fans who ranked the artist in their top N
-                top_rows = df[df['top_fans_count'].notna()][
-                    ['year', 'top_fans_count', 'top_fans_rank']
-                ].sort_values('year')
-                if not top_rows.empty:
-                    st.markdown(t("data_wrapped.superfans_header",
-                                  "#### Super-fans (vous dans leur top artistes)"))
-                    fig = _line_chart(df, 'top_fans_count',
-                                      t("data_wrapped.chart_superfans",
-                                        "Fans vous ayant en top artiste"),
-                                      color="#9d4edd", fmt_fn=_fmt_big)
-                    if fig:
-                        st.plotly_chart(fig, width="stretch")
-                    st.dataframe(
-                        top_rows.rename(columns={
-                            'year': t("data_wrapped.col_year", "Année"),
-                            'top_fans_count': t("data_wrapped.col_fans_count", "Nb fans"),
-                            'top_fans_rank': t("data_wrapped.col_fans_rank", "Rang (top N)"),
-                        }),
-                        hide_index=True,
-                        width="stretch",
-                    )
+            _tab_charts(artist_options)
 
         # ── Onglet 3 : Données brutes ────────────────────────────────────────
         with tab_data:
