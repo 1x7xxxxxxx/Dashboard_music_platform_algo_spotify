@@ -392,7 +392,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [one-fact-two-answers-by-display-mode](#one-fact-two-answers-by-display-mode) | P2 | deterministic | guarded | none |
 | [a-percent-sign-in-a-parameterised-query](#a-percent-sign-in-a-parameterised-query) | P2 | deterministic | guarded | none |
 | [an-empty-group-wins-a-desc-ranking](#an-empty-group-wins-a-desc-ranking) | P2 | deterministic | guarded | none |
-| [a-merged-branch-outlives-its-pull-request](#a-merged-branch-outlives-its-pull-request) | P4 | deterministic | guarded | none |
+| [a-merged-branch-outlives-its-pull-request](#a-merged-branch-outlives-its-pull-request) | P4 | manual | guarded | none |
 | [a-verification-read-through-a-filtering-wrapper](#a-verification-read-through-a-filtering-wrapper) | P2 | manual | reported | none |
 | [a-document-slice-bounded-by-the-wrong-heading-level](#a-document-slice-bounded-by-the-wrong-heading-level) | P2 | deterministic | guarded | none |
 | [a-prose-claim-that-cannot-be-verified](#a-prose-claim-that-cannot-be-verified) | P3 | deterministic | guarded | none |
@@ -4908,7 +4908,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - root_cause: la migration 103 a ajouté `gold_apple_lifetime(integer, text DEFAULT 'plays')` à côté de `gold_apple_lifetime(integer)` créée par la 102. Un appel à UN argument matche alors les deux, et Postgres rend `AmbiguousFunction` — pas « fonction absente », pas un résultat faux : une erreur. Elle tombe dans l'`except` qui protège la page (« une tuile absente ne fait pas tomber la page ») et ressort en **zéro affirmé**. Ajouter un paramètre à défaut n'est donc PAS rétrocompatible en SQL, contrairement à Python.
 - long_term_fix: une migration qui ajoute une surcharge retire l'ancienne dans le même fichier, et dans cet ordre — créer la nouvelle, repointer les objets qui dépendent de l'ancienne (une vue refuse un `DROP FUNCTION` dont elle dépend), retirer l'ancienne. Règle générale, et c'est la moitié la plus utile : **un `except` qui protège l'affichage transforme toute erreur de schéma en valeur nulle affirmée.** Une fonction de la couche or doit donc être unique par nom, ce qu'un contrôle sur `pg_proc` vérifie en une requête.
 - autofix: none
-- signature: `python3 -c "import os,sys,psycopg2${IFS}try:${IFS} c=psycopg2.connect(host='127.0.0.1',port=5433,dbname='spotify_etl',user='postgres',password=os.environ.get('DB_PASSWORD',''))${IFS}except Exception:${IFS} sys.exit(0)${IFS}cur=c.cursor();cur.execute(\"SELECT a.proname FROM pg_proc a JOIN pg_proc b ON a.proname=b.proname AND a.oid<b.oid JOIN pg_namespace n ON n.oid=a.pronamespace AND b.pronamespace=n.oid WHERE n.nspname='public' AND a.proname LIKE 'gold_%' AND (a.pronargs-a.pronargdefaults)<=b.pronargs AND (b.pronargs-b.pronargdefaults)<=a.pronargs\");bad=cur.fetchall();c.close();sys.exit(1 if bad else 0)"`
+- signature: `python3 -c "import os,sys,psycopg2${IFS}try:${IFS} c=psycopg2.connect(host='127.0.0.1',port=int(os.environ.get('PGPORT','5433')),dbname='spotify_etl',user='postgres',password=os.environ.get('DB_PASSWORD',''))${IFS}except Exception:${IFS} sys.exit(0)${IFS}cur=c.cursor();cur.execute(\"SELECT a.proname FROM pg_proc a JOIN pg_proc b ON a.proname=b.proname AND a.oid<b.oid JOIN pg_namespace n ON n.oid=a.pronamespace AND b.pronamespace=n.oid WHERE n.nspname='public' AND a.proname LIKE 'gold_%' AND (a.pronargs-a.pronargdefaults)<=b.pronargs AND (b.pronargs-b.pronargdefaults)<=a.pronargs\");bad=cur.fetchall();c.close();sys.exit(1 if bad else 0)"`
 - guard: tests/test_the_gold_layer_defines_every_platform.py — les trois branches de la règle Apple sont épinglées sur données synthétiques dans une transaction annulée, et la page Apple Music est rendue au complet dans le render-smoke. Signature vue exit=1 en recréant la surcharge, 0 après l'avoir retirée.
 - rex_ref: migrations/103_gold_apple_metric.sql
 - first_seen: 2026-09-12
@@ -4917,6 +4917,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-12: le premier correctif — un `DROP FUNCTION` placé avant le `CREATE` — a échoué : `view v_platform_totals depends on function gold_apple_lifetime(integer)`. L'ordre est donc contraint et il est écrit dans la migration, parce qu'un lecteur pressé le remettrait en tête.
   - 2026-09-13: **la signature comptait les surcharges, pas les ambiguïtés** — `count(*) > 1` par nom. Elle a rougi sur `gold_apple_lifetime`, qui porte depuis la migration 114 une surcharge à trois arguments **sans défaut**, écrite précisément pour ne PAS être ambiguë : portées d'arité [1,2] et [3,3], disjointes, les trois formes d'appel existantes vérifiées une à une. Un prédicat `deterministic` a par contrat zéro faux positif ; celui-ci en avait un, et il aurait bloqué la CI sur la parade à sa propre classe.
   - 2026-09-13: signature remplacée par le vrai critère — **deux surcharges dont les portées d'arité se CHEVAUCHENT** (`pronargs - pronargdefaults <= pronargs` de l'autre, dans les deux sens). Vue rouge par mutation sur un couple fabriqué (`gold_zz_ambig(int)` + `gold_zz_ambig(int, text DEFAULT)`), et le verdict a été confronté à celui de Postgres lui-même : `function gold_zz_ambig(integer) is not unique`. Verte sur l'arbre réel. Le couple de mutation a été supprimé après mesure.
+- History:
+  - 2026-09-16: la signature visait le port **5433 en dur**, celui du poste. Dans le job
+    `gates` de la CI il n'y a AUCUN Postgres, et dans les shards il écoute sur 5432 :
+    la connexion échouait, l'`except` rendait `sys.exit(0)`, et le contrôle passait
+    TOUJOURS. Elle lit désormais `PGPORT`. Elle reste inerte dans `gates`, qui n'a pas
+    de base — et c'est écrit ici plutôt que subi : ce qui l'exerce vraiment est une
+    exécution locale et la passe nocturne (`make audit`), pas la porte de PR.
 
 ## an-account-filter-that-names-no-single-column
 - status: guarded
@@ -5531,19 +5538,32 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 ## a-merged-branch-outlives-its-pull-request
 - status: guarded
 - severity: P4
-- kind: deterministic
+- kind: manual
 - symptom: le dépôt affiche des dizaines de branches « actives » alors qu'une seule ligne de travail existe. Le propriétaire se demande s'il va **perdre des avancées** — mesuré le 2026-09-13 : « c'est bizarre qu'on ait 26 branches d'active sur github ? … là on va perdre nos avancées non ? ». Le coût n'est pas technique, il est cognitif : on ne sait plus distinguer ce qui porte du travail de ce qui n'en porte plus.
 - root_cause: le réglage GitHub `delete_branch_on_merge` valait **false** (vérifié par `gh api` le 2026-09-13). Chaque PR fusionnée laissait donc sa branche derrière elle. Aucune ne portait le moindre commit absent de `main` — les 24 ont été vérifiées **une par une** par `git rev-list --count origin/main..<branche>`, toutes à 0. Le flux de travail était correct depuis le début ; c'est le ramassage qui manquait.
 - long_term_fix: `delete_branch_on_merge = true` sur le dépôt. La branche disparaît à la fusion, donc une branche qui SURVIT devient un signal — elle porte du travail non fusionné, ou elle a été abandonnée. Ce qui était du bruit devient une information.
 - autofix: none
 - guard: { type: ci-step, ref: .github/workflows/ci.yml }
-- signature: `test "$(gh api repos/{owner}/{repo} --jq .delete_branch_on_merge 2>/dev/null || echo true)" = "true"`
+- signature: `R="$GITHUB_REPOSITORY"; [ -n "$R" ] || R=1x7xxxxxxx/Dashboard_music_platform_algo_spotify; v=$(gh api "repos/$R" --jq .delete_branch_on_merge) || { echo "::error::gh na pas pu repondre (son erreur est au-dessus) — ce controle na RIEN verifie"; exit 1; }; test "$v" = "true" || { echo "::error::delete_branch_on_merge=$v — une branche mergee survit a sa PR"; exit 1; }`
 - rex_ref: —
 - first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
 - History:
   - 2026-09-13: `guarded`. Signature **vue rouge** (réglage à `false`, exit 1) puis **verte** après activation (exit 0). Le repli `|| echo true` est délibéré : sans accès réseau ou sans `gh`, la signature ne doit pas rougir — un garde qui échoue faute d'outil apprend que le rouge est du bruit.
   - 2026-09-13: 22 branches fusionnées supprimées après re-vérification individuelle. **Deux ont été retenues volontairement** — `dev` et `backup/pre-godmodule-refactor` : leur contenu est dans `main`, donc supprimables sans perte, mais leur nom DÉCLARE une intention de persister. Un geste irréversible côté distant ne se déduit pas d'un prédicat quand le nom dit le contraire.
   - 2026-09-13: le dépôt local portait **144 réfs** pour 27 branches réelles. `git fetch --prune` en a retiré 117. Une liste locale n'est pas l'état du distant, et `git branch -r` ne le dit pas.
+- History:
+  - 2026-09-16: **la signature ne peut PAS tourner sur le runner, et il a fallu deux
+    allers-retours pour l'etablir.** Elle faisait `gh api ... 2>/dev/null || echo true` :
+    sans jeton elle rendait `true` et passait TOUJOURS — un garde qui ne garde rien,
+    deja nomme comme tel dans `test-suite-performance.md`. Rendue stricte et dotee de
+    `GITHUB_TOKEN`, elle a rougi ; mais son premier message accusait un jeton absent,
+    parce que `2>/dev/null` avait avale l'erreur de `gh`. Le baillon retire, la cause
+    reelle apparait : `gh` REPOND, et `delete_branch_on_merge` est **vide**. Le jeton
+    d'Actions est en lecture seule et l'API n'expose ce champ qu'a une permission
+    d'administration. Aucun quoting ne corrige cela.
+    Elle passe donc en `kind: manual` : elle tourne la ou `gh` est authentifie comme
+    proprietaire (poste, `make audit`), et elle y rend `true`. Ce qui change par
+    rapport a avant n'est pas qu'elle garde plus — c'est qu'elle ne fait plus semblant.
 
 ## a-verification-read-through-a-filtering-wrapper
 - status: reported
