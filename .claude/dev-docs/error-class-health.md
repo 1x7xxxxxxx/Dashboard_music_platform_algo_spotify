@@ -40,12 +40,12 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | trou | classes |
 |---|---|
 | `cause_inferred` | 0 |
-| `cause_unknown` | 363 |
+| `cause_unknown` | 242 |
 | `guards_ref_missing` | 0 |
-| `scope_unknown` | 363 |
+| `scope_unknown` | 0 |
 | `scope_without_not_covered` | 363 |
 | `seen_red_never` | 0 |
-| `seen_red_unknown` | 363 |
+| `seen_red_unknown` | 332 |
 
 ## Récidive observée
 
@@ -53,14 +53,15 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 ### Par strate
 
-| strate | évènements | par classe-mois | IC 95 % |
-|---|---|---|---|
-| by_guard · automatique | 47 | 0.1934 | 0.1421 – 0.2572 |
-| by_guard · prose | 8 | 1.005 | 0.4327 – 1.9803 |
-| by_seen_red · jamais-ou-inconnu | 55 | 0.2192 | 0.1651 – 0.2853 |
-| by_scope · non renseigné | 55 | 0.2192 | 0.1651 – 0.2853 |
+| strate | évènements | par classe-mois | IC 95 % | verdict |
+|---|---|---|---|---|
+| by_guard · automatique | 47 | 0.1934 | 0.1421 – 0.2572 | **séparent** |
+| by_guard · prose | 8 | 1.005 | 0.4327 – 1.9803 | **séparent** |
+| by_seen_red · daté | 0 | 0.0 | 0.0 – 0.7853 | insuffisant pour conclure (n=55) |
+| by_seen_red · jamais-ou-inconnu | 55 | 0.2234 | 0.1682 – 0.2907 | insuffisant pour conclure (n=55) |
+| by_scope · non renseigné | 55 | 0.2192 | 0.1651 – 0.2853 | une seule strate peuplée (n=55) |
 
-⚠️ **Quand deux intervalles se recouvrent, il n'y a pas de résultat.** C'est le cas aujourd'hui sur toutes les strates : la fenêtre observée est courte et les sous-groupes portent peu d'évènements.
+⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
 ## Cohortes à horizon fixe
 

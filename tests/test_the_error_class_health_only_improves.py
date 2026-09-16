@@ -73,12 +73,15 @@ _DOC = _ROOT / ".claude" / "dev-docs" / "error-class-health.md"
 # champ sur une classe, soit de retirer une classe devenue fausse — les deux sont des
 # progrès. Les planchers plus bas interdisent la seconde de devenir un raccourci.
 _CEILINGS = {
-    "seen_red_unknown": 363,
+    # Resserrés le 2026-09-16 dans le commit de la passe mécanique, comme
+    # `test_the_ceiling_is_not_slack` l'exige : un plafond laissé au-dessus de la mesure
+    # est du budget pour régresser en silence.
+    "seen_red_unknown": 332,          # 363 → 352 (n-a) → 332 (phase B : traces de mutation)
     "seen_red_never": 0,
-    "cause_unknown": 363,
+    "cause_unknown": 242,             # 363 → 242 : 121 causes nomment un chemin qui existe
     "cause_inferred": 0,
-    "scope_unknown": 363,
-    "scope_without_not_covered": 363,
+    "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
+    "scope_without_not_covered": 363,  # intact — `ne couvre pas:` ne se DÉRIVE pas
     "guards_ref_missing": 0,
 }
 _FLOORS = {

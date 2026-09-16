@@ -436,6 +436,25 @@ def build() -> tuple[str, str]:
     return js, _render(payload)
 
 
+def _verdict(groups: dict) -> str:
+    """« séparent » ou « insuffisant pour conclure (n=…) », jamais un écart brut.
+
+    Une strate à deux groupes dont les intervalles se recouvrent ne dit RIEN, même si
+    les points sont éloignés d'un facteur 5. Laisser le lecteur comparer les deux
+    nombres, c'est publier une conclusion qu'on n'a pas.
+    """
+    vals = [v for v in groups.values() if v.get("ci95")]
+    if len(vals) < 2:
+        n = sum(v["events"] for v in groups.values())
+        return f"une seule strate peuplée (n={n})"
+    a, b = sorted(vals, key=lambda v: v["per_class_month"] or 0)[0], \
+        sorted(vals, key=lambda v: v["per_class_month"] or 0)[-1]
+    if a["ci95"][1] < b["ci95"][0]:
+        return "**séparent**"
+    n = sum(v["events"] for v in groups.values())
+    return f"insuffisant pour conclure (n={n})"
+
+
 def _render(p: dict) -> str:
     a = p["aggregate"]
     r, h, pop = a["recurrence"], a["holes"], a["population"]
@@ -498,14 +517,18 @@ def _render(p: dict) -> str:
              f"**{obs.get('per_class_month')}** par classe-mois"
              + (f" (IC 95 % : {obs['ci95'][0]} – {obs['ci95'][1]})" if obs.get("ci95") else ""))
     L += ["", "### Par strate", "",
-          "| strate | évènements | par classe-mois | IC 95 % |", "|---|---|---|---|"]
+          "| strate | évènements | par classe-mois | IC 95 % | verdict |",
+          "|---|---|---|---|---|"]
     for key in ("by_guard", "by_seen_red", "by_scope"):
-        for label, v in (r.get(key) or {}).items():
+        groups = r.get(key) or {}
+        verdict = _verdict(groups)
+        for label, v in groups.items():
             ci = f"{v['ci95'][0]} – {v['ci95'][1]}" if v.get("ci95") else "—"
-            L.append(f"| {key} · {label} | {v['events']} | {v['per_class_month']} | {ci} |")
-    L += ["", "⚠️ **Quand deux intervalles se recouvrent, il n'y a pas de résultat.** "
-          "C'est le cas aujourd'hui sur toutes les strates : la fenêtre observée est "
-          "courte et les sous-groupes portent peu d'évènements.", ""]
+            L.append(f"| {key} · {label} | {v['events']} | {v['per_class_month']} | "
+                     f"{ci} | {verdict} |")
+    L += ["", "⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel "
+          "que soit l'écart des points. Le verdict ci-dessus le dit strate par strate "
+          "plutôt que de laisser le lecteur comparer deux nombres et conclure.", ""]
 
     L += ["## Cohortes à horizon fixe", "",
           "Une classe **plus jeune que l'horizon est exclue de la colonne**, jamais "

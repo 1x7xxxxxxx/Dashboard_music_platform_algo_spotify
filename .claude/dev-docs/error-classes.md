@@ -40,20 +40,89 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 
 ```
 ## CLASS-ID
-- status:    guarded | reported | open
+- status:    guarded | reported | open | fixed | resolved
 - severity:  P1 | P2 | P3 | P4        (CLAUDE.md Cross-Cutting Rule #4)
-- kind:      deterministic | heuristic
+- kind:      deterministic | heuristic | manual | runtime-manual
 - symptom:   one line — the observed failure
 - signature: `<exact shell command, exit!=0 on hit>`
+- seen_red:  YYYY-MM-DD sur <ce qui portait le défaut> → exit N ; 0 après fix
+             | never | n-a | unknown
 - root_cause: <une ligne, fichier:ligne quand c'est lisible>
+- cause_evidence: read | measured | inferred | retracted | unknown
 - long_term_fix: <le changement qui rend la classe impossible, ou "— (le garde EST le fix)">
 - autofix:   safe | none
 - guard:     { type: <ci-step|pre-commit|posttooluse-hook|ruff-rule|make-precondition|cross-cutting-rule>, ref: <path> }
+- guard_scope: <famille> — <le geste, tel qu'on le fait> ; couvre: … ; ne couvre pas: …
 - rex_ref:   <path to the tool whose rex: block records the durable lesson>
 - first_seen: YYYY-MM-DD  (ref: DEVLOG#YYYY-MM-DD)
 - History:
   - YYYY-MM-DD: <status transition / note>
 ```
+
+## Les trois preuves — `seen_red`, `cause_evidence`, `guard_scope`
+
+Ajoutés le 2026-09-16, chacun **juste après l'affirmation qu'il qualifie**, pour que la
+relecture soit locale. Ils portent ce qui manquait quand une classe échouait, et **ce que
+git ne peut pas savoir** — la récidive, elle, se mesure depuis l'historique
+(`make error-health`), jamais depuis un champ.
+
+### `seen_red:` — la signature a-t-elle été vue ROUGE ?
+
+`/capitalise` exige depuis toujours deux exécutions : ≠ 0 sur le défaut, 0 après le fix.
+**43 % des entrées le racontent en prose libre, 0 % dans un champ** — donc rien ne pouvait
+le compter, ni distinguer « vérifiée » de « écrite avec soin ».
+
+| valeur | quand |
+|---|---|
+| `YYYY-MM-DD sur <ce qui portait le défaut> → exit N ; 0 après fix` | **la seule qui compte comme preuve** |
+| `never` | signature écrite, jamais observée rouge. Honnête, et déclassé dans le document de santé |
+| `n-a` | pas de signature (`kind: manual`) — mécaniquement connu |
+| `unknown` | rétro-portage uniquement. **Interdit sur une classe introduite après la bascule** |
+
+C'est une affirmation comme les autres. Trois choses la rendent plus solide qu'une prose :
+elle tient en un jeton donc elle se compte ; `/capitalise` ne l'écrit qu'après les deux
+exécutions ; et pour une signature `pytest tests/<f>`, le générateur vérifie que `<f>`
+porte une ligne `Mutation record`.
+
+### `cause_evidence:` — sur quoi repose la cause racine ?
+
+Le 2026-09-16, une classe a été livrée avec une cause **plausible, dans la voix d'un
+fait** — testée ensuite, fausse, rétractée publiquement. La rétractation n'est bon marché
+que si l'affirmation était étiquetée.
+
+`read` (chemin:ligne, vérifié) · `measured` (la commande nommée) · `inferred`
+(**plausible, non vérifié — c'est le but du champ, pas un aveu d'échec**) · `retracted`
+(une cause précédente testée fausse ; la ligne dit ce qui l'a remplacée) · `unknown`
+(rétro-portage).
+
+### `guard_scope:` — quel GESTE le garde couvre, pas quel verbe
+
+`a-kill-pattern-that-matches-its-own-shell` a été écrite le 2026-09-12 **avec son hook**,
+et reproduite **trois fois** le 2026-09-16 : le hook gardait le verbe `pkill`, la cause
+était un motif qui se contient lui-même, et `pgrep` la partageait.
+
+```
+guard_scope: <famille> — <le geste> ; couvre: … ; ne couvre pas: …
+```
+
+La famille est l'un des slugs de `tools/dev/error_class_families.py::FAMILIES`, et le
+générateur **compare la famille déclarée à celle que `classify()` dérive** : un désaccord
+signale un garde qui vise la liaison plutôt que l'usage.
+
+**`ne couvre pas:` porte tout le poids.** C'est le champ qui aurait écrit `pgrep` le
+12/09. Qui ne peut nommer un geste voisin partageant la cause a gardé le **défaut**, pas
+la classe : il écrit `ne couvre pas: (non explorée)`, **compté comme un trou** plutôt que
+de passer en silence.
+
+### `unknown` est une mesure, pas un défaut
+
+Les trois champs valent `unknown` sur les classes antérieures à la bascule, et **on
+n'invente jamais une date**. Ce n'est pas seulement de l'honnêteté : le document de santé
+calcule la récidive **par strate sur ces champs**. Une valeur fabriquée calculerait la
+réponse sur des strates fausses, ce qui est la seule chose qui rendrait tout l'exercice
+inutile.
+
+Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 ## Index
 
@@ -436,10 +505,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une recherche d'unicité trouve une ligne EXEMPTÉE, s'arrête donc là, puis retire l'exemptée du résultat — et répond « aucun conflit » alors que deux locataires non exemptés se disputent bien la valeur.
 - signature: `python3 -m pytest tests/test_a_sandbox_tenant_may_hold_its_owners_identity.py::test_a_sandbox_row_does_not_hide_a_conflict_between_two_real_tenants -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `src/dashboard/views/credentials/_core.py::find_identity_conflict` — le filtre `rows = [r for r in rows if r[0] not in sandboxes]` s'appliquait APRÈS le repli `if not rows and platform == 'spotify'`, qui décide s'il faut consulter le miroir `saas_artists`. Le prédicat était juste, sa PLACE ne l'était pas.
+- cause_evidence: read (src/dashboard/views/credentials/_core.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: tout filtre d'exemption s'applique immédiatement après la requête qui le produit, jamais après une décision prise sur le résultat non filtré. Une source de repli filtre son propre résultat.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_sandbox_tenant_may_hold_its_owners_identity.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/rules/python.md
 - first_seen: 2026-09-04 (ref: DEVLOG#2026-09-04)
 - History:
@@ -452,10 +524,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a package pinned `==X` in one manifest while another manifest / the lockfile / the installed env pins `==Y` → prod≠dev, "works locally breaks in Docker".
 - signature: `python3 tools/dev/check_manifest_consistency.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: three manifests (`pyproject.toml`, `requirements.txt`, `uv.lock`) each state the same pin, and nothing compared them — the Dockerfile installs from one, the dev venv from another.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: one manifest is canonical (`pyproject.toml`) and the others are DERIVED from it; until they are, `check_manifest_consistency.py` blocking in CI is the fix.
 - autofix: safe
 - guard: { type: ci-step, ref: .github/workflows/ci.yml }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/dev/check_manifest_consistency.py
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -467,10 +542,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a Makefile target invokes a runtime dependency (Docker / venv / Postgres / `uv` / `streamlit`) and crashes mid-execution instead of failing fast with an actionable message.
 - signature: `! grep -nE "^\t.*(docker|streamlit|psql|uv )" Makefile | grep -vE "check-env|check-manifest"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: a Make recipe is a list of commands with no declared preconditions, so the first line that needs Docker discovers it is absent halfway through the target.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: every runtime target declares a prerequisite target that probes its dependency and exits 1 naming the fix command — the `dashboard: check-env` shape (rule #10).
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/rules/makefile-fail-fast.md }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/rules/makefile-fail-fast.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -482,10 +560,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a collector `except` block logs then returns empty (`None`/`[]`/`{}`) → DAG upserts 0 rows, exits SUCCESS, no alert, dashboard silently stale.
 - signature: `python3 .claude/scripts/audit_collectors_ast.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `except Exception: return []` reads as defensive programming and is indistinguishable, from the DAG's point of view, from a real empty result — an upstream 401 and a genuinely empty account produce the same SUCCESS.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: collectors raise (CLAUDE.md rule #6) and the AST audit blocks in CI, so 'no rows' can only mean the API said so.
 - autofix: none
 - guard: { type: ci-step, ref: .claude/scripts/audit_collectors_ast.py via audit_runner.py --deterministic (ci.yml) }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/audit-collectors.md
 - first_seen: 2026-03-25 (ref: DEVLOG#2026-03-25)
 - History:
@@ -501,10 +582,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: `get_artist_id() or 1` coerces an unhydrated session onto artist 1 → cross-tenant data leak (CLAUDE.md rule #7).
 - signature: `python3 -m pytest tests/test_a_tenant_scoped_action_names_its_tenant.py::test_a_missing_tenant_never_falls_back_to_a_hardcoded_one -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `get_artist_id()` returns None for two unrelated states (admin, and no tenant), and `or 1` was the shortest way to make a view render during development.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `view_session()` and `tenant_scope()` (R25) encapsulate the guard, so a view cannot express the fallback without going out of its way.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_tenant_scoped_action_names_its_tenant.py::test_a_missing_tenant_never_falls_back_to_a_hardcoded_one }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: CLAUDE.md
 - first_seen: 2026-03-27 (ref: DEVLOG#2026-03-27)
 - History:
@@ -521,10 +605,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a table/column name interpolated into SQL via f-string without `frozenset` allowlist validation (CLAUDE.md rule #8) → SQL injection.
 - signature: `python3 -m pytest tests/test_a_sql_identifier_comes_from_a_closed_set.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: psycopg2 parameterises VALUES but not identifiers, so a dynamic table or column name has no `%s` form and the f-string is the only thing that works.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: every dynamic identifier resolves through a `frozenset` allowlist before interpolation (rule #8); the allowlist is the fix, the grep only finds the ones that skipped it.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_sql_identifier_comes_from_a_closed_set.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: CLAUDE.md
 - first_seen: 2026-03-28 (ref: DEVLOG#2026-03-28)
 - History:
@@ -540,10 +627,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a Streamlit view opens >1 DB connection per `show()` instead of one opened-then-closed-in-finally (CLAUDE.md rule #9).
 - signature: `python3 .claude/scripts/audit_python_signatures.py --class db-connection-per-show`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: a helper called from a view opens its own connection because it cannot see the caller's — the cost is invisible in dev where the pool is idle.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `view_session()` yields the one connection, and helpers take `db` as a parameter instead of resolving it.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: CLAUDE.md#9 }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: CLAUDE.md
 - first_seen: 2026-03-27 (ref: DEVLOG#2026-03-27)
 - History:
@@ -558,10 +648,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: bare `datetime.now()` persisted to DB / returned from API → host-TZ-naïve, mis-orders vs aware `+00:00` siblings (`.claude/rules/python.md`).
 - signature: `! grep -rnE "[^.a-z]datetime\.now\(\)" src/ --include=*.py | grep -viE "strftime|filename|pdf|email"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `datetime.now()` is the obvious spelling and is correct for cosmetic use, so the same call is right in an email body and wrong two lines later in an upsert payload.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `.claude/rules/python.md` splits the two by destination: anything persisted or returned by the API uses `datetime.now(timezone.utc)`. A repo-wide ban would break the legitimate cosmetic uses.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/rules/python.md }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/rules/python.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -573,10 +666,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: `df.style.format({...})` without `na_rep=` → `TypeError` when a formatted column is NULL (LEFT JOIN / empty window).
 - signature: `! grep -rnE "\.style\.format\(" src/dashboard/views/ | grep -v "na_rep"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `Styler.format` raises on None rather than rendering an empty cell, and the NULL only appears when a LEFT JOIN misses — which dev data usually does not.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: the PostToolUse hook rejects a `.style.format(` with no `na_rep=` at edit time, before the view is ever rendered.
 - autofix: none
 - guard: { type: posttooluse-hook, ref: .claude/hooks/lint_dashboard_view.py }
+- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-14 (ref: DEVLOG#2026-05-14)
 - History:
@@ -590,10 +686,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a table passed as a literal to `upsert_many`/`insert_many` is absent from `_ALLOWED_TABLES` (postgres_handler) → the SQL-injection allowlist raises a cryptic `ValueError` at write time, the DAG fails or silently leaves a data gap.
 - signature: `python3 -c "import re,pathlib,sys; ph=pathlib.Path('src/database/postgres_handler.py').read_text(); a=set(re.findall(r\"'([a-z0-9_]+)'\", re.search(r'_ALLOWED_TABLES = frozenset\(\{(.*?)\}\)', ph, re.S).group(1))); bad={m.group(1) for p in pathlib.Path('src').rglob('*.py') for m in re.finditer(r'(?:upsert_many|insert_many)\(\s*[\\'\\\"]([a-z0-9_]+)', p.read_text(errors='ignore'))}-a; sys.exit(1 if bad else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: the write allowlist in `postgres_handler.py` and the tables a collector writes are two lists maintained by different people at different times.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `tests/test_allowed_tables_coverage.py` derives one from the other and fails on divergence, so adding a table to a collector fails CI until it is registered.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_allowed_tables_coverage.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/db-schema.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -606,10 +705,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a view uses raw `get_db_connection()` + the manual `get_artist_id()` guard instead of the `view_session()` context manager. The manual form is correct but not structurally enforced — every copy is a fresh chance to reintroduce `db-connection-per-show` / `artist-id-or-1`. Adoption backlog tracker.
 - signature: `python3 .claude/scripts/audit_python_signatures.py --class view-session-adoption`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: the manual four-line guard predates `view_session()` and is still correct, so nothing forces a rewrite — and every copy of it is a fresh chance to drop the `is_admin()` line. R25 found nine views that had.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: migrate the remaining views to `view_session()`; the class closes when no view holds its own copy of the guard.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: CLAUDE.md#9 }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -622,10 +724,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a collection mixes psycopg2 `datetime.date` (raw DATE column) and `pd.Timestamp` (a `pd.to_datetime`'d Series); `sorted()` / `pd.merge` on `date` / any `<`/`==` then raises `TypeError: Cannot compare Timestamp with datetime.date`. Data-dependent — only fires when ≥2 sources contribute and only one was converted.
 - signature: `! grep -rnE "sorted\(" src/dashboard/views/ | grep -iE "date|_dates" | grep -v "pd\.to_datetime"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: psycopg2 returns `datetime.date` for a DATE column while `pd.to_datetime` produces `pd.Timestamp`, and the two compare fine until a sort or a merge puts them side by side.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: normalise at the boundary — every date leaving a query goes through `pd.to_datetime` before it reaches view code.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view/SKILL.md (Pitfall #5) }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -637,10 +742,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a new collector method + table ship (migration applied, code volume-mounted) but the owning DAG hasn't re-run since, so the table stays empty and the view shows "no data" — looks like a bug, is actually a stale-schedule. (Instagram `instagram_media`: collector committed 13:52 UTC, DAG last ran 10:00 UTC → 0 rows.)
 - signature: `docker exec <pg> psql -U postgres -d spotify_etl -tc "SELECT 'instagram_media' WHERE (SELECT COUNT(*) FROM instagram_media)=0 AND to_regclass('instagram_media') IS NOT NULL;"` (per-table; generalise: table exists + 0 rows while a sibling stats table has recent `MAX(collected_at)`)
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: shipping code and running it are separate events here: `src/` is volume-mounted so the code is live instantly, while the table only fills on the DAG's next schedule.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: the freshness monitor reports a table that exists with zero rows as a collection gap rather than as no data — an empty table with a live DAG is a state the dashboard must name, not render as a blank chart.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/dev-docs/error-classes.md (operational runbook) }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/airflow-dag.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -652,10 +760,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: an `entity_period_filter`/`EntitySpec` orders "latest release" by `MIN(date_column)` where `date_column` is the ingest timestamp (`collected_at`) → default entity = first one WE collected, not the most recently released; "Depuis dernière release" anchors wrong. SoundCloud default track was visibly the wrong one.
 - signature: `! grep -rn -A2 "EntitySpec(" src/dashboard/views/ | grep -B2 "collected_at" | grep -L "release_column"` (narrow: EntitySpec with date_column=collected_at lacking release_column — ~0 false positives; broad `collected_at DESC` greps are NOT this class — that's legit "latest snapshot")
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `collected_at` is present on every table and a release date is not, so it is the column at hand when a default entity has to be picked.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `EntitySpec` carries an explicit `release_column`; ordering by ingest time is then a choice someone had to write, not the default.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view/SKILL.md (Pitfall #6) }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -667,10 +778,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: operator-facing text (failure-alert root-cause map, Credentials help UI, setup guides) instructs running a script that does not exist, or describes an auth model the collector does not use (e.g. "renew the Spotify refresh_token" / "YouTube OAuth refresh" when Spotify = client_credentials and YouTube = static API key) → at incident time the operator follows a dead end, the real fix (re-paste a rotated secret / regenerate an API key) is never surfaced, MTTR balloons.
 - signature: `! grep -rnE "spotify_auth\.py|youtube_auth\.py|test_youtube_auth|check_api_keys_meta|create_missing_tables|Refresh Token (Spotify|YouTube)|YouTube — OAuth" src/utils/alert_root_cause.py src/dashboard/views/useful_links.py src/dashboard/views/credentials.py .claude/dev-docs/*guide*.md`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: operator-facing prose is not executed by anything, so a script rename or an auth-model change leaves it behind with no test going red.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: every command named in operator text is either a real path this signature checks, or the text names the surface instead of the script.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/dev-docs/error-classes.md (operator-doc-vs-collector-auth invariant) }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/dev-docs/token-management-bilan.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -682,10 +796,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a numeric DB column that contains a NULL loads as pandas `object` dtype; subsequent arithmetic + `Series.round(n)` then raises `TypeError: Expected numeric dtype, got object instead.` at render → the view crashes. Data-dependent — only fires once a row is NULL (LEFT JOIN, empty window, a model that failed to score).
 - signature: `! grep -rnE "\)\.round\(" src/dashboard/views/ | grep -v "to_numeric"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: a numeric column with one NULL loads as pandas `object`, and `.round()` on object dtype raises rather than coercing — so the crash needs both a NULL and that specific call.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `pd.to_numeric(..., errors='coerce')` at the query boundary; the render-smoke suite against the live DB is what makes the NULL show up before a user does.
 - autofix: none
 - guard: { type: posttooluse-hook, ref: tests/test_views_render_smoke.py (AppTest renders every view against the live DB → catches it when a NULL is present) }
+- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-29 (ref: DEVLOG#2026-05-29)
 - History:
@@ -698,10 +815,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a column of ISO timestamp strings where some carry a tz offset (`+00:00`) and some are naive → `pd.to_datetime(series)` or a Plotly datetime coercion (`px.timeline`, scatter x-axis) raises `ValueError: Cannot mix tz-aware with tz-naive values, at position N`. Data-dependent (only fires when old naive rows and new tz-aware rows coexist). Sibling of `mixed-date-timestamp` (that one mixes `datetime.date` vs `pd.Timestamp`; this one mixes tz-aware vs naive inside one `to_datetime`).
 - signature: `! grep -rnE "pd\.to_datetime\(" src/dashboard/views/ | grep -vE "utc=True|errors="`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: the same column holds rows written before and after the UTC-aware convention landed, so the mix is in the DATA and no amount of new code removes it.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `pd.to_datetime(..., utc=True)` everywhere, plus the aware-timestamp rule in `.claude/rules/python.md` so the data stops growing new naive rows.
 - autofix: none
 - guard: { type: posttooluse-hook, ref: tests/test_views_render_smoke.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-06-01 (ref: DEVLOG#2026-06-01)
 - History:
@@ -713,10 +833,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a byte-exact golden/snapshot fixture under `tests/fixtures/` is silently reflowed by the `trailing-whitespace` / `end-of-file-fixer` pre-commit hooks → the committed golden no longer matches the producer's real output, so the snapshot test that compares against it fails (or, worse, the golden gets regenerated to match the mangled bytes and the test then passes against wrong data).
 - signature: `! { test -d tests/fixtures && ! grep -q "tests/fixtures" .pre-commit-config.yaml; }`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: the hygiene hooks are correct for source files and wrong for byte-exact fixtures, and they run on everything staged.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `^tests/fixtures/` is excluded from the reflowing hooks in `.pre-commit-config.yaml`.
 - autofix: none
 - guard: { type: pre-commit, ref: .pre-commit-config.yaml (exclude `^tests/fixtures/` on trailing-whitespace + end-of-file-fixer) }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .pre-commit-config.yaml
 - first_seen: 2026-06-01 (ref: DEVLOG#2026-06-01)
 - History:
@@ -728,10 +851,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: an exact-match join on a song/track title between a FILENAME-derived table (`s4a_song_timeline`, `ml_song_predictions`, manual-entry tables — they carry `_` because S4A replaces `< > : " / \ | ? *` with `_` in export filenames) and a CSV/API-derived table (`s4a_songs_global`, `tracks`, `track_popularity_history`, `campaign_track_mapping` — they keep the real chars) silently returns 0 rows / empty for every title containing one of those chars. The dashboard shows "—" or imputes a 0 ML feature; no error is raised.
 - signature: `! { grep -rnE "track_name *=|track_name\)" src/dashboard --include=*.py | grep -iE "%s|LOWER\(" | grep -viE "translate|canonical_song_sql|REPLACE"; }`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: S4A replaces `< > : " / \ | ? *` with `_` in export FILENAMES, so the same song arrives spelled two ways depending on whether it came from a file or an API.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `canonical_song()` / `canonical_song_sql()` in `src/utils/track_matching.py` — one normalisation both sides call, rather than each join inventing its own.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: src/utils/track_matching.py — canonical_song()/canonical_song_sql() single-source helper; regression test tests/test_song_canonical.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-06-08 (ref: DEVLOG#2026-06-08)
 - History:
@@ -743,10 +869,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a `t("ns.key", "FR …")` / `_t("ns.key", "FR …")` call has no EN entry in `i18n_catalog/` → EN mode silently renders the French default (untranslated surface), no error.
 - signature: `python3 -m pytest tests/test_i18n.py::test_every_static_t_key_has_en_entry -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `t(key, french_default)` renders the French default when EN is missing, so an untranslated key is a working page — nothing fails.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: the CI test enumerates every `t()`/`_t()` call site and requires an EN entry, turning a silent fallback into a red build.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_i18n.py::test_every_static_t_key_has_en_entry }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_i18n.py
 - first_seen: 2026-06-10 (ref: DEVLOG#2026-06-10)
 - History:
@@ -758,10 +887,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a FastAPI data router (Brick-14) SELECTs a column renamed/dropped by a later migration → the endpoint 500s for every tenant (no client stack-trace leak, but fully broken). The mocked `test_api.py` cannot see it because the DB is a MagicMock.
 - signature: `python3 -m pytest tests/test_api_db_smoke.py -q` (DB-gated: runs every data endpoint against the real schema with a forged admin+tenant token, asserts no 500; skips cleanly with no provisioned Postgres)
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `test_api.py` mocks the database, so a router can SELECT a column that no longer exists and still pass every test it has.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `tests/test_api_db_smoke.py` hits every data endpoint against the real schema; a mocked suite alone cannot see this class.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_api_db_smoke.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/commands/review-db-schema.md
 - first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite18)
 - History:
@@ -773,10 +905,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: user-controlled values (song/campaign names, usernames) exported via `to_csv`/`to_excel` without defang → a cell like `=cmd|'/c calc'!A1` executes when the victim opens the file in Excel/Sheets (CWE-1236); worst case the admin multi-tenant export.
 - signature: `python3 .claude/scripts/audit_python_signatures.py --class csv-formula-injection`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: a spreadsheet treats a leading `=`, `+`, `-` or `@` as a formula, and our exports pass through names the tenant typed.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: every export goes through `defang_formulas()` in `csv_exporter.py`; the export helper is the only writer, so a new export inherits it.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: src/dashboard/utils/csv_exporter.py (defang_formulas) }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: —
 - first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite20)
 - History:
@@ -789,10 +924,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a bootstrap/runtime path subscripts `config['…']` directly (config.yaml-only) instead of reading env first → `KeyError` in prod where there is no `config.yaml` (SMTP, DATABASE_URL, FERNET_KEY, Airflow URL, DB schema bootstraps). 4 REX recurrences; this session fixed 11 `*_schema.py` bootstraps.
 - signature: `! grep -rnE "config(_loader\.load\(\))?\[" src/database/*_schema.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `config.yaml` exists in dev and not in prod, so `config['x']` is correct on the machine where the code is written and a `KeyError` on the machine where it runs.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: env-first resolution with config.yaml as the local fallback (the `_smtp_config()` shape), so the dev path is the exceptional one.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view/SKILL.md (pitfall: config env-fallback) }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite15)
 - History:
@@ -804,10 +942,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: the live prod DB has a table/column the version-controlled schema (`init_db.sql` + `migrations/*.sql`) lacks, or vice-versa. Code reading/writing the drifted column works in prod but 500s on a fresh install / in CI (e.g. `youtube_videos.view_count`). Cause: a manual `ALTER` on prod, an old schema version never migrated, or a migration never applied to prod.
 - signature: `make schema-check PROD_SSH=user@host`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: a hotfix applied straight to the production database has no file to review, and nothing compared the two schemas until someone tried a fresh install.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `make sync-check` in the deploy path plus the `schema_migrations` ledger (migration 071), so prod can only reach a state the repo can rebuild.
 - autofix: none
 - guard: { type: make-precondition, ref: tools/dev/schema_drift_check.py via `make schema-check` }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/dev/schema_drift_check.py
 - first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite23)
 - History:
@@ -819,10 +960,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a collector/processing DAG iterates `get_active_artists()` and a per-tenant `raise` (or a precheck that raises on ANY incomplete artist) is NOT caught per-iteration → ONE bad tenant fails the whole DAG for ALL tenants. Benken's empty YouTube channel (404) failed `youtube_daily` for everyone; soundcloud/instagram prechecks raised on his missing creds.
 - signature: `python3 -m pytest tests/test_dag_fleet_isolation.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: a DAG written when there was one tenant reads correctly as a loop; the missing per-iteration try only becomes a fleet outage once a second tenant exists.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `tests/test_dag_fleet_isolation.py` requires every artist loop touching `db` to be try-wrapped, and the CI seeds two tenants so single-tenant reasoning cannot pass.
 - autofix: none
 - guard: { type: test, ref: tests/test_dag_fleet_isolation.py (every artist loop touching `db` must be try-wrapped) }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/airflow-dag.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
@@ -835,10 +979,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a module-level `load_dotenv()` in a collector (not wrapped in try/except) raises `PermissionError` at import when the mounted `/opt/airflow/.env` is root-owned 600 (unreadable by the airflow uid 50000) → the collector crashes the moment a DAG imports it. The env is already injected by compose, so reading `.env` is redundant but fatal.
 - signature: `python3 -m pytest tests/test_collectors_dotenv_guarded.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `load_dotenv()` at module scope runs at IMPORT, so a file-permission problem becomes an unimportable module rather than a handled error.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: the guarded-import test forbids an unwrapped module-level `load_dotenv` in `src/collectors/`; the env is loaded from a helper that tolerates an unreadable file.
 - autofix: none
 - guard: { type: test, ref: tests/test_collectors_dotenv_guarded.py (no unguarded module-level load_dotenv in src/collectors) }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/audit-collectors.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
@@ -850,10 +997,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a helper called from a VIEW writes `st.session_state[<key>]` for a key that is a sidebar widget's, and Streamlit raises `StreamlitAPIException: st.session_state.<key> cannot be modified after the widget with key <key> is instantiated`. The page renders the central error banner instead of navigating. Found 2026-09-04 in a browser: `utils.navigation.goto()` set every `_nav_<section>` radio to None, so EVERY programmatic navigation from a view raised — the home page's four setup steps included. It was masked on the assistant by an early `?page=onboarding` route that rendered no sidebar at all; deleting that route is what exposed it.
 - root_cause: Streamlit has two phases in one script run — the sidebar is built first, the view second — and the repo's navigation rule ("point the menu at the new page") was written where the navigation happens (the view) rather than where the widgets are created (before them). The helper's own docstring asserted the write was legal "because show_navigation_menu repairs state BEFORE creating them", which is true of the menu's own callback and false of every view.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: menu/page agreement belongs to ONE place that runs before the widgets exist — `app.resolve_nav_page`, which re-asserts it on every run, not only when repairing. `goto()` now writes `_nav_page` (plain state, not a widget) and nothing else. Guard walks `goto`'s AST and fails on any other `session_state[...]` assignment.
 - signature: `python3 -m pytest tests/test_the_setup_page_is_reachable_and_on_top.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: test, ref: tests/test_the_setup_page_is_reachable_and_on_top.py (AST: goto writes only _nav_page) }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: DEVLOG 2026-09-04
 - first_seen: 2026-09-04 (ref: second sandbox login)
 - History:
@@ -865,10 +1015,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a check running INSIDE a container shells out to a host binary (`rclone`, `git`, `docker`, `psql`) that is not in that image. It never crashes — it takes its own `except OSError` branch and reports the neutral-sounding state (`unreadable`, `unavailable`, `skipped`) every single run, so the check looks like it is working and can never go green. Found 2026-09-04: `alert_monitor.check_offsite_backup` ran `subprocess.run(['rclone', 'lsjson', …])` from an Airflow task; `command -v rclone` and `command -v git` both return nothing in that image, so it would have reported `unreadable` every night INCLUDING once R2 was correctly configured on the host.
 - root_cause: the code was written against the host's environment (where the operator tested it by hand) and deployed into a container's. Nothing joins "what this code invokes" to "what this image contains" — the Dockerfile and the check live in different files, and a missing binary raises the same exception class as a genuinely unreachable remote, so the two are indistinguishable at the call site.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: the probe moves to the only place that holds both the binary and the credentials (the host script), and the in-container check reads a RECEIPT that probe leaves behind — written only after the script read the remote back (`rclone lsf`, or a local/remote SHA comparison). The check then asserts freshness of a proof rather than re-doing the probe. `tests/test_a_backup_survives_its_disk.py` walks the check's AST and fails if it names any host binary.
 - signature: `python3 -m pytest tests/test_a_backup_survives_its_disk.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: test, ref: tests/test_a_backup_survives_its_disk.py (AST: no host-binary literal inside check_offsite_backup) }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: docs/adr/ADR-015-offsite-backup-is-an-encrypted-private-git-repo.md
 - first_seen: 2026-09-04 (ref: R57)
 - History:
@@ -880,10 +1033,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a service's CODE reads a central-app env var (`os.getenv('SOUNDCLOUD_CLIENT_ID')` …) that the service's `docker-compose` block does NOT declare → empty in that container. A silent `''` default hides it. The dashboard ran the credential connection tests but was deployed WITHOUT the central-app env, so EVERY test failed (the Benken incident); SoundCloud was wired to no service at all.
 - root_cause: `os.getenv('X')` returns `None`/`''` when the variable is absent, so a container missing an env var behaves like one holding an empty value — no exception, no log, no difference at the call site. The declaration lives in a different file (`docker-compose`) from the read (`src/…`), and nothing joined the two.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `tests/test_env_contract.py` joins them — for each service group, every CRITICAL env var read in that group's code must appear in that service's `environment:` block. Two extensions after it missed real cases: the CRITICAL set now includes the ALERTING vars (`SMTP_USER`, `SMTP_PASSWORD`, `ALERT_EMAIL`), and the scan follows TRANSITIVE reads — `src/utils` is scanned for both groups, because a DAG that imports `email_alerts` reads env there and the guard was only looking at `airflow/dags` + `src/collectors`.
 - signature: `python3 -m pytest tests/test_env_contract.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: test, ref: tests/test_env_contract.py (code-reads ⊆ service-declares, per service group, transitive) }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: docs/adr/ADR-006-central-credential-model.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
@@ -896,10 +1052,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: the live prod `docker-compose.yml` is UNTRACKED (gitignored) and hand-derived, so it silently diverges from the canonical `docker-compose.example.yml` — a service or env var present in the template is missing on prod (or vice-versa). No test sees it; surfaces only when a user hits the gap. Root structural cause of `env-not-wired-to-service`.
 - root_cause: the file that actually runs production is gitignored — it holds secrets, so it cannot be tracked — and the tracked `docker-compose.example.yml` is only a template someone copies once. Nothing compares the two afterwards, and the divergence is invisible from either side: CI reads the example, prod reads its own copy, and no test can reach both at the same time.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: parity is asserted on the two things a test CAN see — `tests/test_compose_parity.py` (every `${VAR}` of the example is documented in `.env.example`, all services present) and `tests/test_env_contract.py` (code reading an env var ⊆ the service block that declares it, transitive reads included since 2026-08-20). What no local test can see — prod's own copy — is read by `tools/prod_introspect.sh` (SET/MISSING per container) and must be run when a variable is added.
 - signature: `python3 -m pytest tests/test_compose_parity.py tests/test_env_contract.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: test, ref: tests/test_compose_parity.py + tests/test_env_contract.py + prod-side parity check in tools/prod_introspect.sh }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: docs/adr/ADR-006-central-credential-model.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
@@ -911,10 +1070,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: a shared central-app credential (SPOTIFY_CLIENT_ID/SECRET, YOUTUBE_API_KEY, SOUNDCLOUD_CLIENT_ID/SECRET, META_ACCESS_TOKEN) is absent or expired in prod → every tenant's connection test + collection for that platform fails at once, but nothing detects it until a user hits it.
 - root_cause: the central-app model (ADR-006) concentrates one credential per platform for the whole fleet, so a single absent variable is a fleet-wide outage — and it is read with `os.getenv(name, '')`, whose empty default makes absence indistinguishable from a wrong value at the call site. Nothing probed the apps themselves; the first detector was a human failing to connect.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: probe every central app BEFORE a tenant does — `tools/check_central_apps.py`, now step 1 of `make artist-preflight`. Its `--require` flag (2026-08-20) makes an ABSENT app red: the default mode skipped an unconfigured platform and still exited 0, which is exactly how "all the credentials failed" reached a beta artist. The env→service wiring itself is guarded by `tests/test_env_contract.py`.
 - signature: `python3 tools/check_central_apps.py --require`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: ops-probe, ref: tools/check_central_apps.py (authenticates each shared app; exit 1 if a configured app fails) }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: docs/adr/ADR-006-central-credential-model.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
@@ -927,10 +1089,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - severity: P2
 - kind: manual
 - symptom: every smoke/integration test runs with `artist_id=1` only → a bug that appears only for tenant #2 (per-tenant SQL scoping, NULL handling, missing identity, fleet-poisoning) ships green. The whole Benken incident class was invisible because nothing exercised a second/new tenant.
+- seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - root_cause: artist 1 is the admin — the tenant with years of data, every identity declared, and (as admin) no SQL scoping applied at all. It is the single configuration in which a tenant bug CANNOT appear, and it was the only one under test. Worse, the suite only ever exercised the READ path: `test_tenant_isolation.py` tests the SQL filter, nothing tested which tenant a row is written under.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: two tenants, and the write path. `tests/test_e2e_two_tenants.py` runs the real DAG collection functions with the platform HTTP layer stubbed so the response DEPENDS on the identity requested — a row of A under B's `artist_id` is then directly observable. `test_views_render_smoke.py` gained a non-admin pass over an empty tenant (the day-one state), and `test_signup_funnel_db.py` covers account creation. Proven: 7 red on the pre-fix tree, 9 green after.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: extend tests/test_api_db_smoke.py + tests/test_views_render_smoke.py to ≥2 tenants }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: docs/adr/ADR-006-central-credential-model.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
@@ -943,10 +1108,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a rule, skill or command names a `.claude/` file that is not there. Nothing errors — the instruction is simply unfollowable, and the reader cannot tell an absent file from an unimportant one.
 - signature: `python3 .claude/scripts/check_config_refs.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: a path in configuration is prose to every tool that reads it; only the model resolves it, at read time, and it has no way to report the miss. `.claude/scripts/check_config_refs.py`
+- cause_evidence: read (.claude/scripts/check_config_refs.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: resolve every `.claude/` path against the disk in CI — `tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves`. A path that stops resolving now fails a build instead of degrading a session silently.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves + ci.yml }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/commands/resume.md
 - first_seen: 2026-07-28 (ref: five dead references found in the deployment channel itself)
 - History:
@@ -959,10 +1127,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a file the tooling treats as the status source is an un-expanded bootstrap template — literal `$(date +%Y-%m-%d)`, `TODO: fill in` — so every reader of it reports a clean state that was never measured.
 - root_cause: the path resolves, so a path-existence guard passes. Existence was checked; content was not. `.claude/dev-docs/ROADMAP.md` (deleted 2026-08-03)
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: the status files carry a measured item floor — `tests/test_roadmap_two_files.py`. A template state has zero items and fails it, so "resolves" can no longer be mistaken for "carries anything".
 - signature: `python3 -m pytest tests/test_roadmap_two_files.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_roadmap_two_files.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/agents/roadmap-keeper.md
 - first_seen: 2026-08-03 (ref: roadmap-two-files-2026-08-03)
 - secondary_signature (heuristic, nightly): `! grep -rlE "TODO: (Run|run|fill)" .claude/dev-docs/ .claude/commands/ .claude/agents/`
@@ -976,10 +1147,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a rule, the agent it spawns, and the hook that signals it state different thresholds. The agent's `description` wins, because it is the only one the router reads — so the effective trigger is the one no other surface agrees with.
 - root_cause: the threshold was written three times in three files with nothing comparing them; the agent description also cited "CLAUDE.md rule 1", which resolves to an unrelated rule. `.claude/agents/build-error-resolver.md`
+- cause_evidence: read (.claude/agents/build-error-resolver.md, rétro-portage mécanique 2026-09-16)
 - long_term_fix: a test parses the number out of all three surfaces and fails unless they are equal — `tests/test_claude_config_floor.py::test_the_build_error_threshold_agrees_across_its_three_surfaces`. Changing the threshold stays easy; changing it in one place stops being possible.
 - signature: `python3 -m pytest tests/test_claude_config_floor.py::test_the_build_error_threshold_agrees_across_its_three_surfaces -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_claude_config_floor.py }
+- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/agents/build-error-resolver.md
 - first_seen: 2026-08-03 (ref: roadmap-two-files-2026-08-03)
 - History:
@@ -991,10 +1165,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a validator reports a tool as carrying no `rex:` block when the block is present and correct — it could not parse, and said "absent". The reader is sent to add something that is already there.
 - root_cause: `_DOCSTRING_FM_RE` matched an unanchored `---\n`, so an RST section underline (a line of dashes) opened a false frontmatter block and the prose after it went to `yaml.safe_load`. `.claude/scripts/validate_rex.py:66`
+- cause_evidence: read (.claude/scripts/validate_rex.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: the delimiter is anchored to a line that is exactly `---` (`^...$`, MULTILINE), and a unit test feeds the parser a docstring with RST underlines — `tests/test_claude_config_floor.py::test_the_rex_parser_survives_rst_underlines`. The wider lesson is in the message: a parser must not report absence when it means "I could not read".
 - signature: `python3 -m pytest tests/test_claude_config_floor.py::test_the_rex_parser_survives_rst_underlines -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_claude_config_floor.py + validate_rex.py --strict in ci.yml }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/scripts/validate_rex.py
 - first_seen: 2026-08-03 (ref: roadmap-two-files-2026-08-03)
 - History:
@@ -1004,18 +1181,24 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - status:    guarded
 - kind:      deterministic
 - signature: `bash -c '! python3 .claude/scripts/check_ci_waste.py 2>/dev/null | grep -q "ci-runs-twice-for-one-commit"'`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `.github/workflows/ci.yml` déclarait `push: branches: ["**"]` ET `pull_request:`. Les deux événements se déclenchent sur le même commit dès qu'une PR est ouverte, et le workflow tourne intégralement deux fois — même arbre, même SHA, même résultat. Le second run ne peut, par construction, rien apprendre que le premier n'ait déjà dit. Mesuré le 2026-08-17 sur les 20 derniers runs de `ci.yml` : **15 SHA distincts pour 20 runs**, dont 5 commits portant à la fois un run `push` et un run `pull_request`, à ~2 min 40 pièce. Le défaut était invisible parce que les deux runs étaient VERTS : un test qui échoue se voit, un run qui coûte le double ne se voit pas.
+- cause_evidence: read (.github/workflows/ci.yml, rétro-portage mécanique 2026-09-16)
 - long_term_fix: `push` restreint à `[main, dev]`, `pull_request` conservé, `workflow_dispatch` ajouté pour relancer une branche sans PR à la main. Conséquence assumée : une branche SANS PR ouverte ne déclenche plus la CI sur push — ouvrir la PR (même en brouillon) rétablit la porte.
 - guard:     `.claude/scripts/check_ci_waste.py` (règle 1), appelé en CI à l'étape des gardes déterministes.
+- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - history:   2026-08-17 — signature vue **rouge** sur `HEAD` (worktree détaché) et **verte** après restriction du déclencheur.
 
 ## ci-has-no-concurrency-group
 - status:    guarded
 - kind:      deterministic
 - signature: `bash -c '! python3 .claude/scripts/check_ci_waste.py 2>/dev/null | grep -q "ci-has-no-concurrency-group"'`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: aucun bloc `concurrency:` sur un workflow d'itération. Trois poussées rapprochées mettaient trois runs complets en file et les laissaient tous aller au bout, alors qu'un seul peut encore être vrai — les deux premiers valident un arbre que l'auteur a déjà remplacé. `msdr` portait ce groupe depuis son premier jour ; ce dépôt non. La flotte partage une configuration Claude, elle ne partage pas ses workflows : ce qui est appris d'un côté ne traverse pas tout seul.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `concurrency: {group: ci-${{ github.ref }}, cancel-in-progress: true}`. Le garde ne l'exige que des workflows d'ITÉRATION — ceux qui portent un `pull_request` ou un `push` à joker. Un workflow de release déclenché par `push: [main]` n'est pas concerné : l'annuler à mi-chemin est une perte, pas une économie, et un garde qui prescrit une régression n'est pas un garde.
 - guard:     `.claude/scripts/check_ci_waste.py` (règle 2).
+- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - history:   2026-08-17 — vue rouge sur `HEAD`, verte après ajout du groupe. Le premier jet du garde signalait aussi `cd-release.yml` ; la règle a été resserrée et la cellule qui l'aurait attrapé est au `--self-test`.
 
 ## connection-test-proves-app-not-tenant
@@ -1024,10 +1207,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a "Test the connection" button validates the **platform's shared admin app** (Spotify client_credentials, YouTube API key, Meta `/me`, SoundCloud OAuth token) and returns ✅ without ever exercising the tenant's own identifier — or returns ✅ on an empty result set. The artist reads "Connecté", the DAG upserts 0 rows and exits SUCCESS, the view stays empty for a day. It is `collector-silent-success` moved one layer up, into the form, where it is worse: the artist has been told it works.
 - root_cause: the shared-app (central credential) model made the app credentials env-owned, so the tests were written against the only thing that was always present — the app — and the per-artist identifier stayed optional in the test path even though the collector cannot run without it.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_connection_test_proves_tenant.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: every `CONNECTION_TESTS[platform]` must probe the artist's own asset (`/act_<id>`, `channels?id=`, `/users/<id>/tracks`, `/artists/<id>`) and treat an empty result as a failure with the next action named. A missing tenant identifier is `False`, never `True`.
 - autofix: none
 - guard: { type: test, ref: tests/test_connection_test_proves_tenant.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/credentials/_registry.py
 - first_seen: 2026-06-15 (Benken — Meta ad account never shared, YouTube channel empty)
 - History:
@@ -1042,10 +1228,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a consumer (DAG tenant filter, readiness matrix, collector) reads an identity key from `artist_credentials.extra_config` that **no credential form field ever writes**. The platform is permanently ⚪ "À connecter" with no path to connect it, and the error message may even point at the non-existent field.
 - root_cause: consumer and form evolved separately — `instagram_daily` was written to select tenants on `creds['meta']['ig_user_id']` while the Meta form only ever exposed `account_id`. Nothing tied the two ends together, so the gap was invisible to every test.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_identity_fields_collectable.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: pin consumers and form together — every platform in `artist_readiness._PLATFORMS` maps to a `(tab, field)` present in `_registry.PLATFORMS`. A new platform must be added to the map, so the omission fails loudly rather than shipping unconnectable.
 - autofix: none
 - guard: { type: test, ref: tests/test_identity_fields_collectable.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/credentials/_registry.py
 - first_seen: 2026-08-20 (Instagram unconnectable since the central-app migration)
 - History:
@@ -1057,10 +1246,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: setup-guide prose spells a keyboard shortcut for one OS family (`Ctrl+U`, `Ctrl+F`, `F12`). A macOS artist following the guide literally is blocked at that step — those keys do nothing there — and the guide gives no alternative.
 - root_cause: guides were written on the machine the author had. Nothing in the content model could express "this differs per platform", so the first spelling written became the only one.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 .claude/scripts/audit_python_signatures.py --class guide-single-os-shortcut`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: guide prose carries `{{TOKEN}}` placeholders (`src/dashboard/utils/os_hints.py`) resolved at render time — per-session OS for the dashboard (auto-detected from User-Agent, switchable), both spellings for the emailed PDF, which cannot know the reader's machine.
 - autofix: none
 - guard: { type: test, ref: tests/test_os_hints.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/os_hints.py
 - first_seen: 2026-08-12 (beta session Grinch — tester on macOS)
 - History:
@@ -1074,10 +1266,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a view opens on several charts that all bear on the same decision. Nothing is wrong with any single chart; together they leave the artist unable to say what to do next, and the view reads as a report rather than a tool.
 - root_cause: charts accumulate additively — each is defensible when added, and no surface ever states a budget, so nobody is the one who removes.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_chart_budget.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_chart_budget.py`, consignée par l'auteur du garde)
 - long_term_fix: a chart is PRIMARY only if, alone, it can change what the artist does next; everything that refines goes inside `secondary_analyses()` (`src/dashboard/utils/ui.py`), collapsed — relocation, never deletion. `tests/test_chart_budget.py` holds a per-view first-paint budget that ratchets down: lowering is free, raising requires a deliberate edit.
 - autofix: none
 - guard: { type: test, ref: tests/test_chart_budget.py }
+- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/ui.py
 - first_seen: 2026-08-12 (beta session Grinch — "réduire le nombre de graphs qui permettent de prendre décision")
 - History:
@@ -1089,10 +1284,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a per-tenant IDENTITY (`user_id`, `channel_id`, `account_id`, `ig_user_id`, `spotify_artist_id`) resolves to an environment variable, a hardcoded default or another tenant's value when the tenant's own is missing. The env vars hold the ADMIN's identity, so the tenant receives the admin's data — written under the tenant's own `artist_id`, where their dashboard renders it as theirs.
 - root_cause: the central-app model (ADR-006) legitimately falls back to env for the shared APP credentials (`client_id`, `api_key`, `access_token`). The same `x or os.getenv(...)` shape was then applied to the tenant identity, where it means something entirely different. Amplified by three reads that returned an empty value on failure — `load_platform_credentials` returned `{}` on any DB error, `get_active_artists` returned `[]` on a DB error *and* on an unknown/inactive `artist_id`, and an empty-string identity is falsy — so an outage, a typo, or an artist saving a blank form all landed on the same fallback.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_e2e_two_tenants.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: identity has no default. Absent (including `""`) ⇒ skip the tenant with a message naming the next action. Store failure ⇒ `CredentialLoadError`; unknown artist ⇒ `UnknownArtistError`; "no active tenant" is the only `[]`. The legacy single-tenant path is opt-in behind `LEGACY_SINGLE_TENANT=1`. The credentials form no longer persists an empty identity. `docker-compose*.yml` no longer carries the admin's ids as defaults.
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/credential_loader.py
 - first_seen: 2026-06-15 (Benken), recurred 2026-08-12 (Grinch)
 - History:
@@ -1106,10 +1304,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: an upsert payload omits the `artist_id` key on a tenant-scoped table. `upsert_many` derives the INSERT column list from the payload keys (`postgres_handler.py:332`), so the column is absent from the statement and Postgres applies `DEFAULT 1` — every tenant's rows silently accumulate under the admin. No error, no warning, no alert.
 - root_cause: ~80 tables declare `artist_id INTEGER DEFAULT 1`, a single-tenant leftover. The default turns "the developer forgot the tenant" into "the admin owns it" instead of into a constraint violation.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 .claude/scripts/audit_tenant_writes.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: every write names its tenant. The guard walks the payload of each `upsert_many` call made during a real collection run and fails when a tenant-scoped table receives a payload without an `artist_id` key. Removing the `DEFAULT 1` from the schema is the durable follow-up (a dedicated migration, after the write paths are correct).
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: airflow/dags/spotify_api_daily.py
 - first_seen: 2026-08-20
 - History:
@@ -1122,10 +1323,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: an upsert whose `conflict_columns` is a global PLATFORM id carries `artist_id` in its `update_columns`. Two tenants touching the same object do not get a row each — the second collection re-assigns the existing row, and the first tenant's data vanishes from their (artist-scoped) views. `youtube_videos` even declared `UNIQUE(video_id)`, making single ownership structural.
 - root_cause: the tables were designed single-tenant, where the platform id *is* the natural key. `artist_id` was later added to `update_columns` so it could be backfilled — which turned every conflict into a transfer of ownership.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_e2e_two_tenants.py -q -k ownership`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: migration 064 makes uniqueness `(artist_id, video_id)` / `(artist_id, channel_id)`; `artist_id` is removed from every `update_columns`, so a row keeps its first owner. `meta_campaigns/adsets/ads` keep their platform-id primary keys (15 FKs reference them) but lose the reassignment — a shared ad account can no longer steal a row.
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/064_tenant_scoped_uniqueness.sql
 - first_seen: 2026-08-20
 - History:
@@ -1137,10 +1341,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a dashboard action triggers a DAG without `conf={'artist_id': …}`. The API collectors then run fleet-wide, and the CSV watchers — which defaulted to `artist_id = 1` — parse the SHARED drop directory into the admin's tenant. Reachable by any logged-in artist.
 - root_cause: the sidebar "🚀 Lancer TOUTES les collectes" button predates multi-tenancy and was never revisited; it was also rendered before any role gate. The verification e-mail sent at sign-up tells every new artist to press it.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 .claude/scripts/check_dag_trigger_scope.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: every trigger carries the tenant; a non-admin without a resolved `artist_id` triggers nothing; the CSV watchers have no default tenant — a manual trigger without `artist_id` raises, and a *scheduled* run (which legitimately has no conf) reports the unattributable files and writes nothing.
 - autofix: none
 - guard: { type: error-class-signature, ref: audit_runner --deterministic }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/app.py
 - first_seen: 2026-08-20
 - History:
@@ -1155,10 +1362,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a source file starts with a UTF-8 BOM (`\xef\xbb\xbf`). `ast.parse` on text read with plain `encoding="utf-8"` raises `SyntaxError: invalid non-printable character U+FEFF`, so every AST-based guard **silently scans nothing** in that file. The file looks covered; it is not.
 - root_cause: files edited on Windows acquire a BOM; Python tolerates it at runtime (the interpreter strips it) but `ast.parse` on an already-decoded string does not. A guard that catches `SyntaxError` and moves on turns the blind spot into a pass.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -c "import sys;from pathlib import Path;bad=[str(p) for d in ('src','airflow','tests','.claude/scripts') for p in Path(d).rglob('*.py') if p.read_bytes()[:3]==b'\xef\xbb\xbf'];print(chr(10).join(bad));sys.exit(1 if bad else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: no BOM in the repo (3 removed), AST tools read with `encoding="utf-8-sig"`, and an unparsable file is REPORTED as a failure rather than skipped — a file the scanner could not read is not a file that passed.
 - autofix: safe
 - guard: { type: error-class-signature, ref: audit_runner --deterministic }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/scripts/audit_tenant_writes.py
 - first_seen: 2026-08-20
 - History:
@@ -1171,10 +1381,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: a migration that changes a **key** (primary key, unique constraint, conflict target) is applied to production while the code that uses the new key is not yet deployed. Every `ON CONFLICT` upsert against the old target then fails with `there is no unique or exclusion constraint matching the ON CONFLICT specification`, and collection stops.
 - root_cause: migrations are treated as independently deployable because most of them are — adding a column, an index, a table is forward-compatible in both directions. A key change is not: it is a contract between the schema and the writer, and applying half a contract breaks the half that is live.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: manual — a migration touching PRIMARY KEY / UNIQUE / a conflict target must carry an explicit deployment-order note and be applied AFTER the deploy.
+- seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - long_term_fix: two classes of migration, stated at the top of the file. **Additive** (column, index, table, default) → may precede the code. **Key-changing** (PK, UNIQUE, conflict target) → the file must open with an ORDER OF DEPLOYMENT banner and be applied only after `make deploy`. `migrations/065_youtube_surrogate_pk.sql` carries the first such banner.
 - autofix: none
 - guard: { type: doc-convention, ref: migrations/065_youtube_surrogate_pk.sql }
+- guard_scope: une-écriture-qui-écrase — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/065_youtube_surrogate_pk.sql
 - first_seen: 2026-08-20
 - History:
@@ -1186,10 +1399,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a sweep, a migration or a guard treats every column sharing a NAME as sharing a MEANING. In this schema `artist_id` is the tenant (INTEGER) on ~55 tables and the **Spotify artist id** (VARCHAR) on three legacy ones — `artists`, `artist_history`, `tracks`, where the tenant is `saas_artist_id`.
 - root_cause: the multi-tenant migration reused the `artist_id` name for the new tenant column while the old single-tenant tables kept it for the platform id. Two meanings, one name, and nothing in the schema says which is which except the type.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 .claude/scripts/audit_tenant_writes.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: reason on the TYPE, never on the name — a tenant column is `INTEGER`. The write auditor and migration 068 both filter on `data_type = 'integer'`, and 068 carries the note so the next migration does not relearn it.
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/068_drop_artist_id_defaults.sql
 - first_seen: 2026-08-20
 - History:
@@ -1202,10 +1418,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: two artists declare the same platform identity (SoundCloud user_id, YouTube channel, Meta ad account, Spotify artist). Nothing refuses it. Both accounts then collect the same upstream data, and any consumer that resolves a tenant FROM the identity has to guess.
 - root_cause: the identity is stored per-artist in `artist_credentials.extra_config` (JSONB) with no cross-tenant constraint, and the form validated the value's shape but never its exclusivity.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_identity_uniqueness.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `find_identity_conflict()` (`credentials/_core.py`) is called at SAVE time — the only moment a human is present to fix it — and refuses with the field and value named. `spotify_api_daily` additionally refuses to collect an ambiguous id instead of taking the lowest artist_id. A test pins that every platform in the credentials registry has a uniqueness rule, so a new platform cannot be added without one.
 - autofix: none
 - guard: { type: test, ref: tests/test_identity_uniqueness.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/credentials/_core.py
 - first_seen: 2026-08-20
 - History:
@@ -1218,10 +1437,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a health probe enumerates every container or process on the HOST instead of the ones this repo declares. It reports on neighbouring projects — and can read **green** because a neighbour is running while this repo is down.
 - root_cause: `.claude/hooks/session_summary.py` carried `_MSDR_CONTAINERS = ("msdr_api", "msdr_dashboard", "msdr_receiver")`, a literal list from the repo the baseline payload was cut from; `.claude/scripts/check_env.py::check_docker_tz_utc` iterated `docker ps` with no filter at all.
+- cause_evidence: read (.claude/hooks/session_summary.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_probes_scoped_to_repo.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: both probes derive their expected set from the `container_name:` entries **this repo's own compose file** declares (`_expected_containers` / `_declared_container_names`). A payload copied to another repo then adapts instead of lying, and an empty set degrades to silence rather than to a false positive.
 - autofix: none
 - guard: { type: test, ref: tests/test_probes_scoped_to_repo.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/commands/check-env.md
 - first_seen: 2026-08-21 (ref: roadmap R36)
 - History:
@@ -1234,10 +1456,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a writer and its readers disagree on where shared state lives, because one of them hardcodes a project name in the path. Nothing errors — the reader simply reads a file that stopped growing, and the feature built on it goes quietly inert.
 - root_cause: `.claude/hooks/observe.py` wrote to `.claude/homunculus/msdr/observations.jsonl` while `.claude/hooks/draft_devlog.py` read `.claude/homunculus/<repo name>/observations.jsonl`. Both are correct in isolation; only together are they a bug.
+- cause_evidence: read (.claude/hooks/observe.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_probes_scoped_to_repo.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: every homunculus path is derived from `repo_root.name`, never written as a literal (`observe.py`, `draft_rex.py`, `session_summary.py` aligned on the form `sensor.py` and `draft_devlog.py` already used). A test rejects a literal directory segment under `.claude/homunculus/`, so writer and readers cannot diverge again.
 - autofix: none
 - guard: { type: test, ref: tests/test_probes_scoped_to_repo.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/skills/verification/SKILL.md
 - first_seen: 2026-08-21 (ref: roadmap R36)
 - History:
@@ -1249,10 +1474,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: `make migrate` prints success while `psql` errors scroll past. The full run is self-consistent, so nothing looks wrong — but a run interrupted at the wrong file leaves production without a constraint, and nobody is told.
 - root_cause: `psql` without `ON_ERROR_STOP` exits 0 even when statements failed, and the `migrate` recipe discarded that output. The individual files are not idempotent: `migrations/024` drops `s4a_song_playlist_adds_pkey` unconditionally and fails to recreate it (the key became window-aware in `044`, which restores it). 001..N is correct; 001..024 is a table with no primary key.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_migrate_reports_errors.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: the migrate logic lives in `tools/migrate.sh` (so it runs where `make` is absent — R37), keeps going after an error (that is what lets 044 heal 024), and **classifies** what it saw: re-run artefacts counted, unexpected errors named with their message plus the command that proves the schema landed (`make schema-check`). Silence and noise are both impossible outcomes. `tests/test_migrate_reports_errors.py` pins capture, inspection, naming, the classification, and that migrations stay runnable without `make`.
 - autofix: none
 - guard: { type: test, ref: tests/test_migrate_reports_errors.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/rules/makefile-fail-fast.md
 - first_seen: 2026-08-21 (ref: roadmap R25/R26 production deploy)
 - History:
@@ -1265,10 +1493,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a source is reported FRESH while its data is months or years old. The collector still runs and still writes, so the write timestamp advances nightly — it simply writes the same old rows.
 - root_cause: `freshness_monitor.MONITOR_TARGETS` measured `MAX(collected_at)` for all seven sources, including the three tables that record the day their data is ABOUT separately from the day it landed (`meta_insights_performance_day.day_date`, `s4a_song_timeline.date`, `track_popularity_history.date`). "Written recently" was being read as "describes a recent day"; they are different claims.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_freshness_measures_the_right_column.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: a target may declare `metric_col` (and `tenant_metric_col`), and freshness prefers it over the write column. Each result carries `measured_on` — `metric` or `write` — so a reader knows which of the two claims is being made. The guard checks BOTH directions against the live schema: a monitored table that has a metric-date column must declare it, and a snapshot table must not declare one it lacks (that would render as a permanent red light on a healthy source — the other way to make a monitor unreadable).
 - autofix: none
 - guard: { type: test, ref: tests/test_freshness_measures_the_right_column.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/freshness_monitor.py
 - first_seen: 2026-08-21 (ref: roadmap R13)
 - History:
@@ -1280,10 +1511,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a per-tenant trigger from the dashboard (`conf={'artist_id': …}`) scopes the first task of a DAG and runs the next one over the whole fleet. Nothing fails, nothing is misfiled — the work is simply done for everyone, on every click.
 - root_cause: `spotify_api_daily.collect_spotify_artists` reads `dag_run.conf['artist_id']`; `collect_spotify_top_tracks`, in the same DAG, never looked at the context and selected its work with `SELECT artist_id FROM artists` — the entire Spotify catalogue.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_e2e_two_tenants.py::test_spotify_popularity_history_carries_its_tenant -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: the task reads the conf and, when present, resolves the tenant's own `spotify_artist_id`; an active tenant with no Spotify id logs which tenant and returns 0 instead of falling through to the fleet query. The guard drives the DAG the way the dashboard does — scoped — so a task that ignores the scope produces a payload for more than one tenant and fails.
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: airflow/dags/spotify_api_daily.py
 - first_seen: 2026-08-21
 - History:
@@ -1295,10 +1529,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: tests pass in CI and against a throwaway database, and fail on the developer's own machine — with type errors, not logic errors.
 - root_cause: `make schema-check` compares PRODUCTION against canonical (`init_db.sql` + `migrations/*.sql`). Nothing compares the LOCAL development database, which predates several migrations and drifted silently. Measured 2026-08-21: `soundcloud_tracks_daily.track_id` was `bigint` locally against `VARCHAR(50)` canonical, breaking 7 tests with `invalid input syntax for type bigint`.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `make schema-check PROD_SSH=<user@host>` — compares prod only; the local comparison is the gap this class names
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: — (reported, not guarded). The full diff was: 0 missing columns, 0 extra columns, 26 type differences of which 24 are `text` vs `character varying` (equivalent in Postgres — a `VARCHAR` with no length IS `text`) and 2 are widenings that do not bite. Only `track_id` had behaviour. A `make schema-check LOCAL=1` would close it; the measurement above is what would justify writing it.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/dev-docs/runbook-actions-utilisateur.md }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/scripts/check_env.py
 - first_seen: 2026-08-21
 - History:
@@ -1310,10 +1547,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a tool reports "credential NOT configured" for a credential that is configured, or a process silently runs with no configuration at all. The red names the wrong cause, so the fix is attempted on the wrong thing.
 - root_cause: the `.env` file is resolved against the **caller's current working directory** rather than the repository root. `load_dotenv('.env')` returns `False` when the file is not there and raises nothing — the absence is indistinguishable from success. Measured 2026-08-21 on two sites: `make artist-preflight` printed "❌ Spotify central app NOT configured" from a shell where the credentials were merely unloaded, and `src/dashboard/app.py` tested `os.path.exists('.env.local')` from a cwd of `src/dashboard/` — which is exactly the launch documented in CLAUDE.md — loading nothing.
+- cause_evidence: read (src/dashboard/app.py, rétro-portage mécanique 2026-09-16)
 - signature: `! grep -rlE "(exists|load_dotenv)\(['\"]\.env" src/ tools/ --include=*.py | grep -v env_files.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/utils/env_files.py` resolves `.env.local` then `.env` against `Path(__file__).parent.parent.parent`, so the result does not depend on the caller's cwd. Every shell entrypoint calls `load_project_env()`. An already-injected variable always wins, so a stale file inside a container cannot override the real environment.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_env_is_root_anchored.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - secondary_signature: `python3 -m pytest tests/test_operator_tools_read_the_apps_env.py -q`
 - rex_ref: tools/artist_preflight.py
 - first_seen: 2026-08-21
@@ -1327,10 +1567,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a tenant shows as connected on every screen, passes its connection test, and collects nothing. The DAG succeeds in under a second.
 - root_cause: one tenant identity is stored in TWO places — `artist_credentials.extra_config` (read by every screen and every readiness check) and `saas_artists.spotify_artist_id` (read by `spotify_api_daily` to decide whose catalogue to collect). The credentials form wrote both; `tools/create_canary.py` wrote only the first. Measured 2026-08-21: canary tenant 471 reported "Connecté — artiste « Daft Punk » ✅" everywhere while its DAG logged "aucun spotify_artist_id déclaré" and wrote 0 rows. The tenant whose entire purpose is to catch a false green WAS the false green.
+- cause_evidence: read (tools/create_canary.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_tenant_identity_mirrors.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/utils/tenant_identity.py` holds `IDENTITY_MIRRORS` and `write_platform_identity()` — the single path that writes the credentials row AND every mirror the platform declares. Both writers call it; no third writer can get it half right.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_tenant_identity_mirrors.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/create_canary.py
 - first_seen: 2026-08-21
 - History:
@@ -1344,10 +1587,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a collector fails with `invalid input syntax for type date: "2013"` and the artist loses EVERY row of that run, not just the offending one. Latent for years, then fires the first time a second tenant is collected.
 - root_cause: Spotify returns `album.release_date` at a precision it declares separately in `album.release_date_precision` — `"2013"`, `"2013-05"` or `"2013-05-21"`. `tracks.release_date` is `DATE`, and the value was passed through raw. Because `upsert_many` writes one batch per artist, a single year-precision album aborts the artist's whole batch, after which the DAG raises "collected 0 tracks". A comment sat directly above the line reading *"Gestion sécurisée de la date de sortie (parfois YYYY seulement)"* — describing a handling that did not exist. Measured 2026-08-21.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 .claude/scripts/audit_python_signatures.py --class api-partial-date-into-date-column`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/utils/api_dates.py::coerce_api_date()` accepts all three precisions and pads to the FIRST day of the declared period (never to today, which would read as "released this month" in recency features). An unusable value returns `None` — one column lost instead of the artist's batch. The CSV path already behaved this way implicitly via `pandas.to_datetime`; the two paths now agree.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_api_partial_dates.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/collectors/spotify_api.py
 - first_seen: 2026-08-21
 - History:
@@ -1361,11 +1607,14 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a table silently loses its primary key. Nothing errors visibly at the application level; duplicate rows become possible and `ON CONFLICT` upserts start failing or silently inserting.
 - root_cause: a migration whose first statement is an unguarded `DROP CONSTRAINT`, replayed on its own. Measured 2026-08-21 while introducing the `schema_migrations` ledger: `024` drops `s4a_song_playlist_adds_pkey` then fails to create its three-column replacement (impossible since `044` made the key window-aware, so the same song legitimately holds several rows per `recorded_at`). That failure was survivable ONLY while the whole set was replayed in order, because `044` ran afterwards and restored the right key. The ledger changed the premise: a file that never succeeds is never recorded, so it is retried ALONE on every run — and each retry destroyed `044`'s key. **The ledger's own introduction is what left the table keyless.** A safety mechanism whose first act is to break the thing it protects.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_migrations_are_replay_safe.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - signature_note: a line-oriented grep CANNOT judge this class — whether a `DROP` is safe depends on an enclosing `DO $$ … END $$` that sits on other lines. The first version accused `061`, which has the correct shape, and `024`'s own explanatory comment. The parser in the test is the only honest detector, so the signature delegates to it instead of approximating it.
 - long_term_fix: `024` now opens with a `DO $$` block that returns immediately when `044`'s marker column (`time_window`) is present — it can no longer touch a schema it does not own. `019`'s two unguarded drops were hardened in the same sweep. `tests/test_migrations_are_replay_safe.py` parses every migration and rejects a `DROP` that carries neither `IF EXISTS` nor an enclosing guarded `DO` block, so the class cannot re-enter through a new file.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_migrations_are_replay_safe.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/migrate.sh
 - first_seen: 2026-08-21
 - History:
@@ -1378,10 +1627,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: the whole suite is green, CI is green, and multi-tenant defects ship anyway. They surface later, in front of a real artist, as "connected but no data".
 - root_cause: a fresh canonical database (`init_db.sql` + every migration) contains exactly ONE tenant — `Artist Default` — and that is what CI has always tested against. With one tenant, "collect for this tenant" and "collect for the whole fleet" return the same rows, so every isolation defect reads as correct behaviour. Measured 2026-08-21: three real defects were found within an hour of a second tenant existing (`identity-mirrored-but-written-once`, `api-partial-date-into-date-column`, `dag-conf-honoured-by-one-task-only`), and NONE of them was reachable before that.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_suite_runs_against_two_tenants.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: CI seeds a second tenant (`ci-canary`) right after provisioning, with real PUBLIC platform identities deliberately different from tenant 1's — a tenant borrowing another's identity passes every isolation check while proving nothing. Locally the same role is filled by `make canary`. The guard fails when fewer than two active tenants exist and names both fixes.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_suite_runs_against_two_tenants.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/create_canary.py
 - first_seen: 2026-08-21
 - History:
@@ -1394,10 +1646,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a runbook step that reads perfectly cannot be executed anywhere. `can't open file '/app/tools/<script>.py'` from a container, `ModuleNotFoundError: psycopg2` from the host.
 - root_cause: the script and its runtime dependency live in different places. `tools/` is on the HOST and is not mounted into any container; `psycopg2` is installed IN the containers and not on the host. Measured 2026-08-21 on the live server while running the documented production procedure for the canary tenant. This is the same split that had already been diagnosed once — `src/utils/central_apps.py` was moved out of `tools/` precisely because `tools/` is not importable inside Airflow — but the lesson was applied to one script and not to its neighbours, which is how a class survives its own fix.
+- cause_evidence: read (src/utils/central_apps.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_operational_scripts_are_reachable_in_containers.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: every service that mounts `./src` also mounts `./tools:/opt/airflow/tools:ro`. The guard reads `docker-compose.example.yml` and requires the pairing wherever `./src` is mounted, so a new service cannot be added half-equipped. Read-only on purpose: a container that can rewrite the repo's operational scripts is a surprise nobody wants.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_operational_scripts_are_reachable_in_containers.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/create_canary.py
 - first_seen: 2026-08-21
 - History:
@@ -1409,10 +1664,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a monitoring check runs, finds a real problem, writes it to xcom — and no alert is ever sent. The dashboard of checks looks complete; the inbox stays empty.
 - root_cause: the finding takes part in the email BODY and even the SUBJECT line, but not in the boolean that decides whether to send an email at all. Measured 2026-08-21 in `airflow/dags/alert_monitor.py`: `central_apps_broken` was rendered at line ~794 and placed FIRST in the subject at ~829, while `has_issues` at ~533 listed eight other sources and not it. A shared app that stopped authenticating, as the only problem, produced nothing — the function returned early. It was masked purely by coincidence: Meta happened to be broken *and* stale at once, and staleness was in the decision. The check written specifically to end a months-long silence was itself silent under exactly the condition it targeted.
+- cause_evidence: read (airflow/dags/alert_monitor.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_alert_monitor_sends_what_it_finds.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: the guard parses the DAG, collects every local name assigned from an `xcom_pull` inside `send_consolidated_alert`, and requires each to appear in the `has_issues` expression. It sweeps the class rather than the instance, so a check added later gets the same treatment for free.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_alert_monitor_sends_what_it_finds.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-08-21
 - History:
@@ -1426,10 +1684,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: every global freshness light is green while every real artist collects nothing.
 - root_cause: freshness is measured per SOURCE across the fleet, and a source stays fresh as long as ONE tenant collects — which is almost always the admin, whose data path differs from a tenant's. A break in the per-tenant path (a lost identity mirror, a DAG that stops honouring `dag_run.conf`, an isolation regression) is therefore invisible to every existing check. The canary tenant exists precisely to be that second data point, and until 2026-08-21 nothing read it: a watchdog with no reader.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_alert_monitor_sends_what_it_finds.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `check_canary_health` in `alert_monitor` reports, per platform the canary actually declared, whether rows are still landing under it (36 h threshold — one nightly cycle plus margin, so a single missed run is not noise). Absence of a canary is itself reported: with none, the detector is simply off, and that must not read as health. The finding reaches the body AND the subject (`🐤 CANARI MUET`) AND `has_issues`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_alert_monitor_sends_what_it_finds.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-08-21
 - History:
@@ -1442,10 +1703,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a daily alert email that always contains the same findings, calls for no action, and is therefore skimmed and then ignored — taking the real findings down with it.
 - root_cause: a tenant added FOR monitoring is then counted by the tenant-oriented checks as if it were a customer. Measured 2026-08-21, hours after creating the production canary: `check_credentials_all` and `check_onboarding_readiness` both enumerate `get_active_artists()`, so the canary would have emitted "3 missing credentials" (SoundCloud, Meta, Instagram — which it can never declare; Meta demands real ad-account ownership) plus a permanent "connected but no data" for Spotify, whose readiness signal measures an S4A CSV a canary will never have. `missing_creds` is part of the send decision, so this would have forced an email EVERY night, forever, for a tenant in its correct state.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_alert_monitor_sends_what_it_finds.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `get_active_artists(exclude_canaries=True)` in the two onboarding-oriented checks only. The flag defaults to **False** deliberately: excluding by default would silently stop the collectors from running for the canary, and a canary nobody collects for is dead weight. The canary's health has its own dedicated check, which asks the single relevant question — is it still collecting what it declared?
 - autofix: none
 - guard: { type: pytest, ref: tests/test_alert_monitor_sends_what_it_finds.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-08-21
 - History:
@@ -1458,10 +1722,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: `Error validating application. Cannot get application info due to a system error.` on every Meta call, which reads as "the token expired" — so the investigation goes to the token and never to the app.
 - root_cause: `META_APP_ID` held the admin tenant's **ad account** id (`567214713853881`) instead of the **application** id (`2200684950508458`). Both are plain numbers of similar length, they live in adjacent menus of the same Business Settings page (Accounts → Ad accounts vs Accounts → Apps), and no API payload distinguishes them. Measured 2026-08-21, after three separate investigations had blamed the token. The stored token was ALSO wrong in two independent ways — a stray leading `E` from a paste, and `type=USER` where a `SYSTEM_USER` token was required — so each investigation found a real defect and stopped there, without the app credentials ever being tested against the right app.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_central_apps_are_monitored.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `check_meta()` probes `GET /{app_id}` with `{app_id}|{secret}` BEFORE anything else and is fatal on failure, printing which of the two failures Graph reported: "no app under that id — an APP id is NOT an AD ACCOUNT id, check Accounts → Apps" versus "app recognised, secret does not match". `.claude/dev-docs/meta-ads-credential-guide.md` documents the three admin variables, where each is read, and its shape.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_central_apps_are_monitored.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/central_apps.py
 - first_seen: 2026-08-21
 - History:
@@ -1474,10 +1741,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: an alert correctly suppressed for a source that has nothing to send is then rendered as 🟢 / ✅ by every surface that reads the same flag. "Quiet because there is nothing to collect" and "quiet because everything is fine" become the same green — beside a two-year-old date.
 - root_cause: `check_freshness` answers one question with one flag. `stale=False` means "do not fire", and four readers rendered it as health: `airflow_kpi._section_source_status` (🟢 OK), `artist_readiness.platform_status` (which also feeds `readiness_red_flags`, the onboarding view and `tools/artist_preflight.py`), the `✅ Sources OK` footer of `alert_monitor.send_consolidated_alert`, and `airflow/debug_dag/debug_alert_monitor.py` (`✅ OK (16577h)`). The suppression written on 2026-08-21 for Meta Ads — no ACTIVE campaign, so no insight row can exist — therefore converted a nightly false RED into a permanent false GREEN. The second failure is worse: a red that fires every night is eventually read as noise, a green is never questioned at all.
+- cause_evidence: read (tools/artist_preflight.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_expected_silence.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: the suppression carries its measured reason (`expected_silence`) next to the flag, and every surface that renders freshness gained a distinct third state — ⏸️ — that prints that reason. `platform_status` gained a `QUIET` status that outranks the row count but never the missing identity. The guard follows the reason at each hop: the pure status function, the wired readiness matrix, the view's actually-rendered table, the xcom payload, the email footer and the debug script. `stale` alone can no longer be read as "healthy" anywhere.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_expected_silence.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/freshness_monitor.py
 - first_seen: 2026-08-21
 - History:
@@ -1489,10 +1759,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: the Index table at the top of a catalogue stops listing the entries below it. Every reader who scans the index concludes a class does not exist — and catalogues the same defect a second time under a new name.
 - root_cause: `.claude/dev-docs/error-classes.md` keeps a hand-maintained Index table while `/capitalise` appends entries at the end of the file. Nothing tied the two together, and nothing failed when they diverged. Measured 2026-08-21: **63** entries, **51** index rows. The twelve missing were the twelve most recent, four of them written the same day.
+- cause_evidence: read (.claude/dev-docs/error-classes.md, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_error_class_index_is_complete.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: the guard checks BOTH directions — an entry with no row, and a row whose anchor no longer resolves to an entry (a rename leaves a dead link that reads as catalogued). The twelve missing rows were regenerated from the entries themselves rather than retyped, and `/capitalise` now states the index row as part of what it writes.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_error_class_index_is_complete.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/commands/capitalise.md
 - first_seen: 2026-08-21
 - History:
@@ -1504,10 +1777,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: a credential is investigated, found wrong, and corrected — and nothing changes. Every later look at the corrected file confirms the fix, so the investigation closes and the integration stays broken.
 - root_cause: the value lives in two env files and the fix went into the one that does NOT win. `src/utils/env_files.ENV_FILES` loads `.env.local` first with `override=False`, so **the local file wins**; the correction of 2026-08-21 went into `.env`. Measured 2026-08-22: `.env` held the correct app (`2200684950508458`, ETL_DASHBOARD_SPOTIFY) and a valid System User token — 43 scopes, `expires_at=0` — while `.env.local` still held the **ad account** id in `META_APP_ID` and a token carrying one stray pasted `E`. Locally every Meta call had been failing on the fixed configuration for a day, and the roadmap still described R13 as blocked on a human regenerating a token that was already valid.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 tools/check_central_apps.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: the probe resolves the environment through `load_project_env()` — the same root-anchored, `.env.local`-first order the dashboard and the DAGs use — so it reports on the configuration that actually runs. Run against the live defect it exits 1 and names the cause (`1 extra character ('E') before the 'EAA' prefix`); after removing the stale mirror it exits 0. The duplicate Meta keys were deleted from `.env.local` rather than corrected, so one file owns them.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_operator_tools_read_the_apps_env.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/check_central_apps.py
 - first_seen: 2026-08-22
 - History:
@@ -1520,10 +1796,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: several surfaces each decide whether a platform is "collecting" by reading a different table, so the same tenant is 🟢 on one screen and 🔴 on another — both truthfully. Measured 2026-08-22: Spotify was judged on FOUR tables. An artist who entered their Spotify artist id, passed a connection test that named the artist back to them, and whose `spotify_api_daily` was filling rows normally, still read 🔴 "Connecté — aucune donnée" until they uploaded a CSV. Spotify is the platform onboarding recommends first, so this was most artists' first impression of the product.
 - signature: `python3 -m pytest tests/test_platform_sources_agree.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `src/utils/artist_readiness.py:33` bound the `spotify` key to the single freshness source `"Spotify S4A"` → `s4a_song_timeline`, the CSV **upload** table. `src/utils/freshness_monitor.py` already declared `"Spotify API"` with `tenant_table: track_popularity_history` — the table the DAG actually fills — and no reader consumed it. Meanwhile `alert_monitor.check_canary_health` restated its own pair of tables in a literal list, and `src/dashboard/utils/kpi_helpers.py` restated a third. Four hand-written table lists, one platform.
+- cause_evidence: read (src/utils/artist_readiness.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: `freshness_monitor.SOURCES_FOR_PLATFORM` is the single registry of which sources can prove a platform, with `tables_for_platform()` derived from it. `artist_readiness` scores every source for a platform and keeps the BEST (an artist who only uploads CSVs and one who only connects the API must both reach 🟢, and neither should be told to do the other's work). The canary watchdog derives its targets and its identifier allowlist from the same registry instead of restating them.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_platform_sources_agree.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/freshness_monitor.py
 - first_seen: 2026-06-19 (Benken) — surfaced 2026-08-22
 - History:
@@ -1546,10 +1825,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a config dict carries an entry no caller can ever select. The behaviour it declares never runs, and the file reads as though the feature exists. Measured 2026-08-22: saving an Instagram Business Account ID triggered `meta_ads_api_daily` and never `instagram_daily`, so the artist connected Instagram, saw the toast promising data "in ~2 min", and no first collection ever ran.
 - signature: `python3 -m pytest tests/test_credentials_save_triggers_the_right_dag.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `src/dashboard/views/credentials/_core.py` keyed `_PLATFORM_DAG_MAP` on the form TAB and included an `'instagram'` entry. `_handle_save` is only ever called with a key from `_registry.PLATFORMS`, which has four tabs — `ig_user_id` is a FIELD of the meta tab, not a tab of its own. The lookup `_PLATFORM_DAG_MAP.get(platform_key)` could therefore never return `instagram_daily`.
+- cause_evidence: read (src/dashboard/views/credentials/_core.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: the map is keyed on the LOGICAL platform, and a pure `dags_for_save(tab_key, extra)` returns every DAG whose identity was actually written by this save — so one tab can start several collections, and a blank field starts none. `PLATFORM_TO_DAGS` (the KPI badge map, a third copy) is derived from the same dict.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_credentials_save_triggers_the_right_dag.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/credentials/_core.py
 - first_seen: 2026-08-12 (Grinch) — surfaced 2026-08-22
 - History:
@@ -1567,10 +1849,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a test is GREEN while the thing it guards is wrong, because it derives its own scope or its own expectation from that thing. Two shapes, both measured 2026-08-22: (a) an assertion that two copies are EQUAL, passing while both are wrong; (b) a parametrised suite whose cases come from the registry under test, so a missing entry removes test cases instead of failing one — the run goes from "N passed" to "N-3 passed", both green.
 - signature: `python3 -m pytest tests/test_identity_registry_ratchet.py tests/test_canary_identity_map_is_derived.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `tests/test_create_canary.py` asserted `create_canary._IDENTITY_FIELD == _core.UNIQUE_IDENTITY_FIELDS`. Both had four entries, both omitted `instagram`, and the assertion therefore **held the gap in place**: adding Instagram to either side alone would have failed the suite. Meanwhile `tests/test_identity_uniqueness.py` parametrised over `UNIQUE_IDENTITY_FIELDS`, so Instagram was never a case. The concrete cost: `find_identity_conflict` returned None for `instagram`, two tenants could claim the same Instagram Business Account with no refusal, and the canary could not exercise the platform that broke in the most recent artist test.
+- cause_evidence: read (tests/test_create_canary.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: `src/utils/tenant_identity.PLATFORM_IDENTITIES` is the single registry; six former copies now derive from it (`_core.UNIQUE_IDENTITY_FIELDS`, `create_canary._IDENTITY_FIELD`, `artist_readiness._identity`, `_core.PLATFORM_TO_DAGS`, `tests/test_identity_fields_collectable`, and the `IDENTITY_KEYS`/`IDENTITY_MIRRORS` views). Against the derivation itself, two things a derived guard cannot do: a **literal ratchet** naming the five platforms in a file of its own, and an **AST assertion that a consumer holds no map literal at all** — which fails on a pasted copy even when the copy happens to be correct.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_identity_registry_ratchet.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/tenant_identity.py
 - first_seen: 2026-08-12 (Grinch) — named 2026-08-22
 - History:
@@ -1593,10 +1878,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a check that FAILED (missing table, bad identifier, dead connection) renders identically to "connected, no data", so the user is told to fix something that is not theirs. They change a working setting and the screen still says red.
 - signature: `python3 -m pytest tests/test_broken_probe_is_not_the_artists_fault.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `src/utils/freshness_monitor.py` sets an `error` field on every failed probe, and its own comment says why: "`stale=True` alone made a BROKEN check look exactly like 'connected but no data'". `src/utils/artist_readiness.py` never read it — it passed `last_dt=None, stale=True` and the status collapsed to `NO_DATA` 🔴 "Connecté — aucune donnée", with a `next_action` telling the artist to check an id that was never the problem. `tools/artist_preflight.py` step 4 inherited the same blindness, so the gate run before an artist session also blamed the tenant.
+- cause_evidence: read (src/utils/freshness_monitor.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: a sixth status `BROKEN` (⚠️), ranked between `TODO` and `NO_DATA` so a failed probe never outranks a source that actually answered and never outranks the tenant's own missing identity. `next_action(BROKEN)` deliberately asks the artist for **nothing**. `readiness_red_flags` returns `NO_DATA` **and** `BROKEN` — both need someone to look, and the action text is what says whose move it is.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_broken_probe_is_not_the_artists_fault.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/artist_readiness.py
 - first_seen: 2026-06-19 (Benken) — named 2026-08-22
 - History:
@@ -1614,10 +1902,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a surface decides "connected" from the presence of a credentials row rather than from the identity value, so a tab opened and saved blank reads as ✅ — beside a readiness matrix showing ⚪ for the same tenant on the same data.
 - signature: `python3 -m pytest tests/test_connected_means_declared.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: four surfaces, four variants of the same shortcut. `credentials/_render.py::_render_global_kpi` used `platform_key in existing`; `views/onboarding.py::_get_configured_platforms` used `{r[0] for r in rows}`; `utils/setup_focus.py::connected_platforms` used `set(rows or {})`; `views/home.py::_section_onboarding` ticked the WHOLE credentials step on `COUNT(*) FROM artist_credentials` — one row, any platform. The Meta row makes it sharper: it carries two identities, so a row holding only `ig_user_id` counted as Meta-connected. And Spotify could manufacture exactly such a row — `_render.py` re-wrote `extra['spotify_artist_id']` after the empty-value pop, making it the one platform able to persist `{"spotify_artist_id": ""}`.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `tenant_identity.declared_identities()` — pure, no DB, no Streamlit — is the single answer to "what has this tenant declared", and all four surfaces call it. `home.py` keeps its single round-trip but counts rows carrying a non-empty identity, with the field names bound as a parameter array derived from the registry (never interpolated).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_connected_means_declared.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/tenant_identity.py
 - first_seen: 2026-08-12 (Grinch) — named 2026-08-22
 - History:
@@ -1635,10 +1926,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a tool whose entire job is to answer go/no-go has no test and no schedule. Its greenness is trusted by a runbook, its logic is verified by nobody, and it only runs when a human remembers — so it reports on the days you did not need it.
 - signature: `python3 -m pytest tests/test_artist_preflight.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `tools/artist_preflight.py` is what stands between a broken tenant and a real artist ("on n'invite personne tant que `make artist-preflight` n'est pas vert"). `grep artist_preflight` found only `Makefile:71`, two test allowlists and prose: no CI job, no cron, no test. Its scope logic was unverified — including the branch that made `--platforms` **skip** the central-app absence check entirely, while the documented production invocation is `--platforms youtube`. The standing production verification therefore proved one platform out of five and never ran the check aimed at the beta failure.
+- cause_evidence: read (tools/artist_preflight.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: `tests/test_artist_preflight.py` pins the behaviours the docstrings claim (typo → exit 2, empty scope → exit 2, QUIET counts as good, BROKEN reds the gate, out-of-scope never gates but is always printed, a raising probe is a red verdict not a traceback). Absence is **narrowed** to the scope instead of skipped. And `alert_monitor.check_canary_preflight` runs steps 2-4 against the canary every night, scoped to the platforms the canary actually declares — computed, not hardcoded.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_artist_preflight.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/artist_preflight.py
 - first_seen: 2026-08-22
 - History:
@@ -1654,10 +1948,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a free-text field a tenant controls is interpolated into a REST path, and the raw response is echoed back to them. `requests` does not percent-encode `/` in a path you build yourself, so the tenant chooses the endpoint — while the call carries the PLATFORM's shared credential.
 - signature: `python3 -m pytest tests/test_credentials_security.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `ig_user_id` is a plain `st.text_input` (`_registry.py`) saved with no format check, and `_probe_instagram` built `f'{META_GRAPH_BASE_URL}/{ig_user_id}'` with `params={'access_token': <SYSTEM USER TOKEN>}`. Setting it to `me/accounts` produced `https://graph.facebook.com/v24.0/me/accounts?access_token=…`; the 200-with-no-`username` branch then returned `ri.text[:150]` — and `/me/accounts` answers with Page access tokens minted from that System User token, rendered to a non-admin by `st.error`. Verified 2026-08-22 that `requests` leaves the `/` unencoded.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: the identity registry gained a `pattern` per platform and `identity_is_well_formed()` / `malformed_identities()`; the save path refuses a malformed value before writing, and every probe refuses before the network. `re.fullmatch`, never `match` — `match` accepts `123/me/accounts`, which is the whole attack. No probe echoes a raw response body any more.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_credentials_security.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/tenant_identity.py
 - first_seen: 2026-08-22
 - History:
@@ -1676,10 +1973,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a credential is passed as a QUERY PARAMETER, so a `requests` exception message embeds the full prepared URL. Surfacing the exception — to a user, or into a log — surfaces the credential. No attacker action required: a DNS blip is enough.
 - signature: `python3 -m pytest tests/test_credentials_security.py -q -k exception`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: two shapes. (a) `src/utils/central_apps.py::check_meta` printed `f"probe error ({exc})"` for a call carrying `META_ACCESS_TOKEN` and `META_APP_ID|META_APP_SECRET` in the query string — executed **nightly** by `alert_monitor.check_central_apps`, whose stdout is persisted in the Airflow task log. (b) the Meta, YouTube, Spotify and SoundCloud connection tests each ended in `except Exception as e: return False, str(e)`, rendered untruncated to the tenant by `st.error`. Meta and YouTube put their credential in the URL, so a non-admin could be shown the platform-wide System User token or the billable API key.
+- cause_evidence: read (src/utils/central_apps.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: no probe surfaces a caught exception; they return `type(e).__name__` plus a static message. Applied uniformly to all four platforms even though Spotify (header auth) and SoundCloud (POST body) are clean today — so nobody has to re-derive which one is safe. The guard walks the AST of every except-handler in those modules and fails on `str(e)` or `f"{e}"`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_credentials_security.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/central_apps.py
 - first_seen: 2026-08-22
 - History:
@@ -1697,10 +1997,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a renderer that runs on the SERVER builds a document from tenant data and then resolves the resources it references. Any markup surviving into that document becomes a request made by the server, from inside the network, with the server's own reachability.
 - signature: `python3 -m pytest tests/test_pdf_export_cannot_fetch.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `src/dashboard/utils/pdf_exporter/_report.py` called `HTML(string=html_str).write_pdf()` with no `url_fetcher`. WeasyPrint's default fetcher registers http/https/ftp/**file** with `allowed_protocols=None` and follows redirects. `_renderers.py` escaped nothing (zero occurrences of `escape`), and two tenant-controlled values reach it: a song name — taken from the STEM OF AN UPLOADED CSV FILENAME, and `parse_timeline` does not run it through `canonical_song()` unlike `parse_songs_global` — and a Meta campaign name. Both are free-plan reachable (`export_pdf` and `upload_csv` are in `_FREE_FEATURES`).
+- cause_evidence: read (src/dashboard/utils/pdf_exporter/_report.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: two independent controls, because either alone is one mistake from failing. `_no_remote_resources` serves `data:` URIs only, so the class is closed whatever future value slips through unescaped; and `_esc()` escapes the three tenant-controlled interpolations the audit named. Deliberately NOT a blanket escape of the file — it also interpolates markup it builds itself (badges, probability bars, row blocks), and escaping those breaks the render. That was tried; the golden-snapshot test caught it.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_pdf_export_cannot_fetch.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/pdf_exporter/_report.py
 - first_seen: 2026-08-22
 - History:
@@ -1717,10 +2020,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a security control keys on a value taken from a request header the caller controls, so the caller varies the key and the control never fires. It looks present in code review and in the logs.
 - signature: `python3 -m pytest tests/test_rate_limit_client_ip.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `src/api/security.py::client_ip` returned `X-Forwarded-For.split(",")[0]` — the FIRST hop, i.e. whatever the client sent. Cloudflare and Caddy both APPEND the peer they saw, so an attacker-supplied entry survives at position 0. Every rate-limit bucket was therefore caller-chosen.
+- cause_evidence: read (src/api/security.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: read from the RIGHT (`hops[len(hops) - TRUSTED_PROXY_HOPS]`), prefer Cloudflare's own `CF-Connecting-IP`, and — the part that is easy to get wrong — fall back to the socket peer when there are FEWER hops than expected, because that means the header did not come through our proxies at all. Taking `hops[0]` in that branch restores the bypass in any environment with one proxy instead of two.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_rate_limit_client_ip.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/api/security.py
 - first_seen: 2026-08-22
 - History:
@@ -1737,10 +2043,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a page reachable without authentication behaves differently depending on private state, so a visitor reads that state one request at a time. The page looks correct: every individual message is true and helpful.
 - signature: `python3 -m pytest tests/test_registration_is_not_an_oracle.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `src/dashboard/views/register.py` was written for the honest user and every branch was helpful to them — "L'email 'x' est déjà enregistré" (`:332`), "Le code n'est pas valide" returned BEFORE the account was created (`:344-351`), and `st.error(...{e})` on the psycopg2 message (`:408`). Each is the right thing to tell someone who owns the address. None of them asks whether the person reading owns it.
+- cause_evidence: read (src/dashboard/views/register.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: one `_render_success()` for both outcomes, so the two branches cannot drift apart by editing only one; code validation moved AFTER account creation, so a probe costs a full registration instead of a request; a per-IP budget (`src/dashboard/utils/throttle.py`) in front of everything that writes a row or sends a mail; and `public_error_ref()`, which logs the exception under a random 8-hex reference and shows only the reference.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_registration_is_not_an_oracle.py }
+- guard_scope: un-contrôle-qui-ne-peut-jamais-passer — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/register.py
 - first_seen: 2026-08-22
 - History:
@@ -1752,10 +2061,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: an administrative gesture that is supposed to cut access writes a column nothing reads on the live path. The UI confirms, the row changes, and the holder keeps working until their session expires on its own.
 - signature: `python3 -m pytest tests/test_revocation_actually_revokes.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `active` appeared in exactly one query — the login one. `require_login()` (`src/dashboard/auth.py`) returned True from `st.session_state` alone, and the API's `get_current_user` asked only whether the JWT verified. So `admin.py:_toggle_user_active` stopped the NEXT login and nothing else, and changing a password after a compromise left the intruder's 24 h token valid.
+- cause_evidence: read (src/dashboard/auth.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: authorisation is re-read from the row on every request — `active`, `role` and `artist_id`, throttled to 30 s on the dashboard and per-request on the API — plus `saas_users.token_version` (migration 072) carried as a `tv` claim and bumped by deactivation and by a password change. A missing claim reads as 0, so deploying it signs nobody out. The two surfaces fail in OPPOSITE directions on a database outage, deliberately: the dashboard open (a blip must not evict every artist, and it shows a banner), the API closed (its tokens travel further and it has no banner).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_revocation_actually_revokes.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/api/deps.py
 - first_seen: 2026-08-22
 - History:
@@ -1767,10 +2079,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: one sentinel value carries two unrelated meanings — "this caller may see everything" and "this caller has no scope" — so the branch written for the first is taken by the second. Every call site is asked to remember the disambiguation, and the ones that forget read as ordinary code.
 - signature: `python3 -m pytest tests/test_stray_session_reads_nothing.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `get_artist_id()` returns None for an admin and None for a session with no tenant, and has said in its own docstring since it was written that callers must separate the two with `is_admin()`. Nine views and `artist_id_sql_filter()` did not — and that last one is how ~30 views reach the database, so its empty filter fragment meant "read every tenant".
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `tenant_scope()` in `src/dashboard/auth.py` is the disambiguation, once: it returns the tenant, returns None only for a proven admin, and stops the session otherwise. Call sites ask it instead of remembering a two-line guard. The distinct-but-adjacent `artist-id-or-1` class covers the `or 1` spelling; this one covers `is None` read as "admin".
 - autofix: none
 - guard: { type: pytest, ref: tests/test_stray_session_reads_nothing.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/auth.py
 - first_seen: 2026-08-22
 - History:
@@ -1782,10 +2097,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a multi-factor flow rate-limits each step, and the earlier step's success resets the later step's budget. The attacker holds the earlier factor by assumption, so the later one has no budget at all.
 - signature: `python3 -m pytest tests/test_second_factor_is_not_brute_forceable.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: two independent causes had to be fixed together. `_authenticate_user` cleared `failed_login_attempts` as soon as the password verified — correct for a password-only login, and the whole exploit when a code was still owed. And the only counter the TOTP challenge touched, `_rate_record_failure()`, lives in `st.session_state`, which a new browser tab resets; since the attacker knows the password, reforging `_totp_pending` in a fresh tab cost one request.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: the account-level reset moves to AFTER the last factor; a wrong code increments `failed_login_attempts` like a wrong password; and the challenge's budget is keyed by client IP in module state (`src/dashboard/utils/throttle.py`), which a new session does not reset. The per-IP budget also covers the login form, where a per-account lockout never fires at all — password spraying tries one password across many accounts.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_second_factor_is_not_brute_forceable.py }
+- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/throttle.py
 - first_seen: 2026-08-22
 - History:
@@ -1797,10 +2115,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a check is correct on everything it looks at, and what it looks at is a list somebody typed. It never reports the things it does not cover, so its silence reads as coverage and its scope shrinks every time the codebase grows.
 - signature: `python3 -m pytest tests/test_contamination_scope_is_derived.py tests/test_roadmap_index_is_honest.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: two instances, hours apart, both on 2026-08-22. `tools/tenant_contamination_check.py` — step 5 of `make artist-preflight`, whose claim is "no row under this tenant belongs to someone else" — named eight tables out of the seventy the schema carries, with no Spotify entry at all while the schema held some thirty `meta_*` tables. And `test_every_waiting_row_names_the_gesture_it_waits_on` matched roadmap rows against ten hand-written French verbs, so it FAILED R22, a row naming three gestures including a literal shell command, for using none of those ten words.
+- cause_evidence: read (tools/tenant_contamination_check.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: derive the scope and assert the derivation covers everything. The contamination tool groups tables by platform PREFIX read from `information_schema`, and a companion test fails when a tenant-scoped table is neither claimed by a prefix nor listed in `_OUT_OF_SCOPE` with a reason. The roadmap guard asks a structural question instead of a lexical one — every waiting row must have a section in the runbook — which cannot be satisfied by rewording the row.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_contamination_scope_is_derived.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/tenant_contamination_check.py
 - first_seen: 2026-08-22
 - History:
@@ -1812,10 +2133,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a caller-supplied string reaches the database driver in a shape the driver refuses, and the refusal is an unhandled exception rather than a rejected request. The endpoint answers 500 to anyone who asks that way, and no test in the repo produces it — every existing test passes a plausible value.
 - signature: `python3 -m pytest tests/test_api_survives_hostile_input.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `src/api/routers/streams.py::get_timeline` passes `song` into `fetch_df` as a parameter, which is correct — the value IS parameterised, so this is not injection. A NUL byte cannot exist in a Postgres text value at all, so psycopg2 raises `ValueError: A string literal cannot contain NUL (0x00) characters` (`postgres_handler.py:242`) before any SQL is sent, and nothing above it catches a ValueError. Found by fuzzing (`schemathesis`, R22): 596 generated cases, exactly one crashed.
+- cause_evidence: read (src/api/routers/streams.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: the check is at the EDGE, on the raw query string, in `security.reject_nul_bytes_middleware` — so every string parameter the API grows later inherits it without its author remembering, which is what a per-endpoint validator cannot promise. Deliberately not on the body: reading it would break `/webhooks/stripe`, whose signature covers the exact bytes.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_api_survives_hostile_input.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/api/security.py
 - first_seen: 2026-08-22
 - History:
@@ -1827,10 +2151,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a config file lives in the repo, looks authoritative, and is not the one the service loads. Editing it changes nothing, reading it describes a deployment that no longer exists, and applying it would undo months of production changes nobody wrote down.
 - signature: `grep -q 'caddy-drift' Makefile`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `deploy/Caddyfile` was written in June and never re-read. Production moved to Cloudflare ORIGIN CERTIFICATES, gained an access-log block that deletes `Cookie`/`Authorization`/`Set-Cookie` (2026-06-14), gained `lb_try_duration`, and merged the apex into the dashboard site block — none of it reflected back. `make sync-check` compared the SCHEMA and the git HEAD, and a reverse proxy is neither, so the divergence was invisible to the one command whose job is "is the repo what runs".
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `make sync-check` now diffs `deploy/Caddyfile` against `/etc/caddy/Caddyfile` on the target and fails on any difference, comparing from the first `{` so the repo copy may carry a comment header explaining how to deploy it. The repo copy was re-synced from the live file rather than the other way round — the running config is the truth, the file was the stale one.
 - autofix: none
 - guard: { type: make-precondition, ref: Makefile (sync-check, caddy-drift step) }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: deploy/Caddyfile
 - first_seen: 2026-08-22
 - History:
@@ -1843,10 +2170,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: pressing "save" on a form destroys a stored secret the form has no field for. The UI reports success, nothing logs a warning, and the loss only surfaces one collection cycle later as a credential that "stopped working".
 - signature: `python3 -m pytest tests/test_saving_a_tab_never_destroys_a_secret.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `credentials/_core.py::_save_credentials` upserted `token_encrypted = EXCLUDED.token_encrypted` — an overwrite — while `_render.py::_handle_save` computes `encrypted_blob = ''` whenever no SECRET field on the tab holds a value. Two of the four tabs declare no secret field at all (`soundcloud`: only `user_id`; `meta`: only `account_id` + `ig_user_id`), so they could ONLY ever save an empty blob. Both rows nevertheless hold one in production, written by something else: the rotated OAuth refresh_token (`soundcloud_api_collector.py:132`, 228 B) and the System User token (`tools/dev/inject_meta_token.py`, 804 B) that every tenant's Meta AND Instagram collection depends on.
+- cause_evidence: read (tools/dev/inject_meta_token.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: `COALESCE(NULLIF(EXCLUDED.token_encrypted, ''), artist_credentials.token_encrypted)` — an empty blob now means "leave it alone". Erasing a secret must be a gesture someone asks for, never a side effect of saving something else. The general shape: a surface that cannot DISPLAY a value must not be able to DELETE it.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_saving_a_tab_never_destroys_a_secret.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/credentials/_core.py
 - first_seen: 2026-08-22
 - History:
@@ -1858,10 +2188,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: the code path that sends a notification returns a "did not send" value, the very next line logs that it was sent, and the task ends green. The findings inside the message were computed correctly and rendered correctly; nobody received them.
 - signature: `python3 -m pytest tests/test_alert_delivery_is_proven.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `airflow/dags/alert_monitor.py` ended with `EmailAlert().send_alert(subject, body)` followed by an unconditional `logger.info("Consolidated alert sent")`. `send_alert` returns False — never raises — when `SMTP_USER`/`SMTP_PASSWORD`/`ALERT_EMAIL` are absent from the container. Production logs show three consecutive nights (16, 17, 18 August 2026) writing that success line immediately after the module warned "Email alerts non configurées". The existing guard `test_alert_monitor_sends_what_it_finds.py` covers the hop before this one — that every finding takes part in the send DECISION — and structurally cannot see whether the send SUCCEEDED.
+- cause_evidence: read (airflow/dags/alert_monitor.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: `email_alerts.deliver_or_raise()` for the one path whose silence is the incident — it raises, naming which of the two failures occurred (env absent vs send refused), so the task goes red and `on_failure_callback` fires. `send_alert` keeps its non-raising contract for its six other callers. Persistent proof in `monitoring_run` (migration 073) written BEFORE the attempt and updated after, so an external reader on another mail path sees the failure. And an AST sweep that fails on any `send_alert`/`send_email` call whose result is a bare expression — the generalisation, which caught two more sites the day it was written.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_alert_delivery_is_proven.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-08-22
 - History:
@@ -1873,10 +2206,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: two layers answer the same question about a tenant. One reads the database and guesses at the cause from a fixed string; the other calls the platform API and knows. The guess is the one that runs automatically, so the operator and the artist are told something that is not true.
 - signature: `python3 -m pytest tests/test_readiness_carries_the_live_diagnosis.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `artist_readiness` derives status from (declared identity × row recency) and attaches a static `nodata_hint` per platform. `CONNECTION_TESTS` calls the real API and returns the actual reason, but only ran on a human's click or `make artist-preflight`. Measured on GRiNCH (tenant 13) the same night: the probe said "User ID 72854583 joignable, mais aucun titre public n'y est rattaché"; the nightly alert said "vérifie le User ID ; l'app SoundCloud partagée doit être configurée (admin)" — wrong, and blaming the artist and the admin for an account that simply has no public tracks.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `src/utils/platform_probes.py` is the headless seam onto the same probes, and `artist_readiness(db, artist_id, probe=…)` takes an optional prober whose answer REPLACES the static hint. Three rules keep the cure from becoming the disease: the probe defaults to None so no existing caller changes behaviour; it runs ONLY where the database already says red (freshness is the proof, the probe is the explainer — 2 API calls a night, not 35); and it never changes a status, only the wording, so a network blip cannot turn a collecting tenant red. `probe_ran` distinguishes "not measured" from "measured and fine".
 - autofix: none
 - guard: { type: pytest, ref: tests/test_readiness_carries_the_live_diagnosis.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/platform_probes.py
 - first_seen: 2026-08-22
 - History:
@@ -1888,10 +2224,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a function exists whose docstring names an error class, it has unit tests, and nothing in production calls it. The catalogue and the module both read as though the class is covered.
 - signature: `python3 -m pytest tests/test_no_detector_is_written_and_never_called.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `src/utils/monitoring_checks.silent_zero_findings` — "configured tenant × platform with ZERO recent rows, the silent-success class" — was imported only by `tests/test_monitoring_checks.py`. No caller in `src/`, `airflow/` or `tools/`. Worse than a missing guard: a reader auditing coverage found it and moved on.
+- cause_evidence: read (tests/test_monitoring_checks.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: the function was DELETED, not wired, because its predicate is exactly what `artist_readiness.platform_status` already computes as NO_DATA and `readiness_red_flags` already reports nightly — waking it would have produced two voices for one finding (`watchdog-becomes-the-noise`). A note in the module says so, so the decision does not become a cycle. The guard asserts every public function in `monitoring_checks.py` has a caller outside its own module, and separately that this one stays deleted WITH its explanation.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_no_detector_is_written_and_never_called.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/monitoring_checks.py
 - first_seen: 2026-08-22
 - History:
@@ -1903,10 +2242,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a staleness check compares a stored timestamp against a clock that is not the one that wrote it. The verdict is wrong by the offset between the two, in the OPTIMISTIC direction — a genuinely stale source keeps reading fresh — and in the extreme it reports a row in the future.
 - signature: `python3 -m pytest tests/test_freshness_uses_one_clock.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `src/utils/freshness_monitor.py` computed `datetime.now() - val`. `datetime.now()` is NAIVE, so it is the CONTAINER's local time, while psycopg2 converts an aware timestamp to the SESSION timezone when writing into a `timestamp without time zone` column — Europe/Paris in production. Measured 2026-08-22 from a container with no `TZ`: SoundCloud reported an age of **-1h**. It agreed at all only because the Airflow scheduler happens to run in Paris.
+- cause_evidence: read (src/utils/freshness_monitor.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: the age is computed by Postgres in the same statement that reads the value (`EXTRACT(EPOCH FROM (now() - MAX(col)))/3600`). One clock, and it is the clock of the database that holds the rows. The guard asserts both the shape (no argless `now()`/`utcnow()` anywhere in the module) and the behaviour (the reported age does not move when the process timezone changes).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_freshness_uses_one_clock.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/freshness_monitor.py
 - first_seen: 2026-08-22
 - History:
@@ -1918,10 +2260,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a check iterates a hand-typed list of the things it audits while a registry of those things already exists. The list is a subset, and the difference is invisible — the audit reports cleanly on what it never looked at.
 - signature: `python3 -m pytest tests/test_audit_scope_is_derived.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `alert_monitor.MONITORED_PLATFORMS = ['spotify','youtube','soundcloud','meta']` — four names, while `tenant_identity.PLATFORM_IDENTITIES` has five. **Instagram was never audited.** Compounded by `if not creds`, which tested the credentials dict for EMPTINESS rather than for a declared identity: Benken's `meta` row holds an `account_id` and nothing else, so it counted as "credentials present" for a platform that has never produced a row — and would have counted as proof for Instagram too, since the two share one storage row.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: the scope is `sorted(PLATFORM_IDENTITIES)`, and presence is judged by `declared_identities()` — the helper written for exactly this question. The guard fails if a literal list returns, if the audited set differs from the registry, or if a `not creds` truthiness test reappears (checked on the AST, because a text search matched the comment explaining why it is wrong).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_audit_scope_is_derived.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-08-22
 - History:
@@ -1933,10 +2278,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: an upsert refreshes a row's data and leaves its `collected_at` at the value of the first insert. The rows are current; every reader of `MAX(collected_at)` reports the date of the first collection, forever.
 - signature: `python3 -m pytest tests/test_upsert_refreshes_its_timestamp.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `src/collectors/_meta_upsert.py` omitted `collected_at` from `update_columns` on the three config tables and on all but one insight table. Measured 2026-08-22: `pg_stat_user_tables` showed **17 545 UPDATE and 0 INSERT on `meta_insights`** that morning while `MAX(collected_at)` said 29 May. The payloads carried the key all along — it was discarded on conflict.
+- cause_evidence: read (src/collectors/_meta_upsert.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: `collected_at` is appended to every insight table's update list by a loop rather than typed 25 times, and added explicitly to the three config literals. The guard checks the SHAPE across every table plus a live round-trip (upsert twice, the clock must move) and its inverse (omit the column, the clock must freeze) so the assertion is not true of any upsert at all.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_upsert_refreshes_its_timestamp.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/collectors/_meta_upsert.py
 - first_seen: 2026-08-22
 - History:
@@ -1948,10 +2296,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: two halves of one application resolve the same database by two different precedences, and neither works in the other's configuration. Moving a variable that looks standard breaks one half in silence.
 - signature: `python3 -m pytest tests/test_one_door_onto_the_database.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `dashboard/utils/get_db_connection` read `DATABASE_URL` → `config.yaml` and never `DATABASE_HOST`; `pg_connect.resolve_kwargs` reads `DATABASE_HOST` → `config.yaml` and never `DATABASE_URL`. Measured in production 2026-08-22: the dashboard and api containers carry ONLY `DATABASE_URL`, the Airflow scheduler carries ONLY `DATABASE_HOST/NAME/USER`, and no container has a `config.yaml`. So each half depended on the one mechanism the other ignored.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `get_db_connection` delegates to `PostgresHandler.from_env_or_config()`, which already knew all three sources — it was written on 2026-08-21 for this reason and its docstring already described the asymmetry. The guard is a RATCHET over the 14 pre-existing direct readers: the list may shrink, never grow, and a companion test fails when an entry goes stale.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_one_door_onto_the_database.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/__init__.py
 - first_seen: 2026-08-22
 - History:
@@ -1963,10 +2314,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a status display shows a green indicator for something nobody has checked. The viewer cannot tell "verified and fine" from "never asked", and acts on the first reading.
 - signature: `python3 -m pytest tests/test_status_matrix.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: the setup matrix must not call a platform API while rendering — Streamlit reruns the page on every widget interaction, so probing on render is five API calls per click per tenant. That constraint makes "we have not measured this" a common state, and the tempting shortcut is to render it like a pass.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: three rules in `src/dashboard/utils/status_matrix.py`, each with a test: arriving data counts as proof without any probe (freshness IS the proof); a platform with no remembered verdict renders `?` in grey, never a tick; and a remembered verdict always carries its age, so a nine-day-old measurement cannot read as today's. The verdicts are persisted by the nightly run (`tenant_platform_probe`, migration 075) so the artist reads the same sentence the alert email carries.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_status_matrix.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/status_matrix.py
 - first_seen: 2026-08-22
 - History:
@@ -1978,10 +2332,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: an automated capture → validate → publish loop runs, reports success, and produces nothing anyone sees. Each stage is individually correct; the output lands in a duplicate of the target file that stopped being read months earlier. The loop cannot report the problem, because from where it stands it wrote the file it was told to write.
 - root_cause: two files carry the same name and the same role. `DEVLOG.md` at the repo root is the living journal — `/resume` step 3 reads it, `pre_compact.py` and `session_summary.py` (4 sites) point at it. `.claude/dev-docs/DEVLOG.md` is a copy frozen at 2026-06-11. `draft_devlog.py:27` (`_DEVLOG_PATH`) tested the frozen copy for "does today already have an entry?", and `/devlog-promote` inserted promoted entries into it. Measured 2026-08-23: two entire sessions (2026-08-21 afternoon→night, 45 commits; and the night of 2026-08-21→22) had no DEVLOG page anywhere, and the 2026-08-21 draft sat in `pending-devlog.md` with its `issue`/`fix` slots unfilled for two days with nothing signalling it.
+- cause_evidence: read (.claude/dev-docs/DEVLOG.md, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_devlog_is_written_where_it_is_read.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: both writers repointed at the live file; the frozen copy now announces itself as an ARCHIVE in its first line. The guard reads the **AST** of every `.claude/hooks/*.py` and `.claude/scripts/*.py` for DEVLOG *path* literals (a text search passes on the explanatory comment that names the wrong path — the lesson of the four hollow guards of 2026-08-22), and excludes prose strings that merely mention `DEVLOG.md`. The slash command has no AST, so it is guarded by its **consequence** instead of its wording: `test_the_archive_stays_behind` fails the moment the archive's newest entry reaches or passes the live file's, which is exactly what a promotion into the wrong file does.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_devlog_is_written_where_it_is_read.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/commands/devlog-promote.md
 - first_seen: 2026-08-23
 - History:
@@ -1993,10 +2350,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a branch written to handle a known, valid edge case never executes. The code reads correctly, the condition names the right thing, and reviewers confirm the case is handled — but in production the exception is raised anyway, every time.
 - root_cause: control flow was decided by searching a string that had been shortened for DISPLAY. `src/collectors/youtube_collector.py` tested `'playlistNotFound' in safe_error(he)`; `src/utils/safe_error.py::safe_error` truncates at 300 characters for LOG HYGIENE, and in a real googleapiclient repr the URL alone is ~170 characters, putting the token at index **455 of 531**. Measured 2026-08-23: `youtube_daily` retried 3x and raised nightly for tenant 12, whose channel simply has no videos, and the channel snapshot already fetched was lost with the exception. The DAG stayed SUCCESS, the tenant went `stale`, and `readiness_red_flags` excludes `stale` — so nobody was told for two nights.
+- cause_evidence: read (src/collectors/youtube_collector.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_empty_youtube_channel_is_not_an_error.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: decide on the STRUCTURE the API already provides — `HttpError.error_details` is a list of dicts carrying a machine-readable `reason`. The helper moved to `src/utils/api_errors.py`, which imports no vendor SDK, because keeping it beside `from googleapiclient.discovery import build` made its own test uncollectable on any machine without the Google SDK (a guard that silently does not run is the defect this repo keeps rediscovering). The first assertion pins the PROPERTY that killed the old test — `'playlistNotFound' not in safe_error(err)` — so a substring test cannot be reintroduced and start passing by luck if the truncation limit ever changes.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_empty_youtube_channel_is_not_an_error.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/rules/python.md
 - first_seen: 2026-08-23
 - History:
@@ -2008,10 +2368,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a multi-tenant job reports SUCCESS while one tenant collected nothing. The per-tenant `try/except/continue` that keeps one bad tenant from aborting the fleet is correct — but its only witness is a WARNING line in a task log, and the task's return value lists the tenants that WORKED, so the failing one is absent rather than named. No surface can then answer "did collection run for this tenant?".
 - root_cause: the run ledger existed and was wired to one DAG. Measured 2026-08-23: over its entire history `etl_run_log` held rows for exactly two dag_ids — `meta_ads_api_daily` (195) and `meta_insights_watcher` (13, stopped in May). Spotify, YouTube, SoundCloud and Instagram had **never written a row**, and `src/utils/dag_run_logger.py::DagRunLogger` had exactly one caller. Three dashboard surfaces that read the ledger (`views/etl_logs.py`, `views/alerts.py`, the `has_runs` KPI in `views/home.py`) were blind on four platforms out of five. Concretely: `youtube_daily` was SUCCESS every night while tenant 12 failed inside the loop; freshness eventually turned that tenant `stale`, and `readiness_red_flags` excludes `stale`, so nobody was ever told.
+- cause_evidence: read (src/utils/dag_run_logger.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_every_collection_dag_records_its_tenants.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: a one-call API (`record_tenant_success` / `_failure` / `_skip`) that fits the per-tenant isolation shape without re-indenting the loop or swallowing the exception the loop deliberately catches. `skipped` is not optional: a tenant who declared no identity is in a CORRECT state but must still leave a row — absence of a row is indistinguishable from "the DAG never looked". The guard derives its scope from the AST (a DAG that imports from `src.collectors`) and asserts **branch coverage**: every `continue` inside a per-tenant loop must be preceded by a recorder call.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_collection_dag_records_its_tenants.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/dag_run_logger.py
 - first_seen: 2026-08-23
 - History:
@@ -2023,10 +2386,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a tenant whose collection worked and then stopped produces no signal anywhere. The credential is valid, rows exist from before, the DAG reports SUCCESS, and every screen is green except the artist's own, which quietly stops moving.
 - root_cause: three independent doors, all shut. (a) The per-tenant `try/except/continue` that stops one bad tenant aborting the fleet leaves the task SUCCESS, so `check_dag_failures` sees no FAILED run. (b) `artist_readiness` computes STALE correctly, and `readiness_red_flags` returned only `NO_DATA + BROKEN` — dropping 🟡 on the floor, although "collected, then stopped" is the ONLY shape a working credential can take when it breaks. (c) `alert_monitor.check_data_freshness` did not serialise `error` into its xcom, so a probe that FAILED rendered in the nightly email as "🟡 stale · Airflow UI → relancer le DAG". Measured on Benken (tenant 12) 2026-08-23: two nights, zero signal.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_tenant_that_stopped_collecting_is_reported.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: STALE joins the flags that alert; the freshness xcom carries `error` and `measured_on`, and the email renders a failed probe as "la sonde elle-même a échoué" instead of an action. The STALE `next_action` was rewritten at the same time and that half matters as much: it said "vérifie le DAG youtube" to an ARTIST, who has no Airflow login — the message Cooper condemns in *About Face* p.311 ("demands that he fix a situation that the application can and should usually fix just as well"). Same contract as BROKEN now; the operator gets the DAG name and the literal cause through `etl_run_log` and the nightly mail.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_tenant_that_stopped_collecting_is_reported.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/artist_readiness.py
 - first_seen: 2026-08-23
 - History:
@@ -2038,10 +2404,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a rule stated in bold in `CLAUDE.md` is enforced by memory alone. It holds for months, then one query forgets it and the number shown to a user is silently wrong by a factor of ~2.
 - root_cause: Spotify for Artists CSVs carry a summary row whose `song` is the artist's own name, so every read of `s4a_song_timeline` must add `AND song NOT ILIKE '%1x7xxxxxxx%'`. The 2026-06-11 audit found two unfiltered queries in `trigger_algo/_tab_budget_roi.py` and the displayed cost per stream had been halved. **The two sites were fixed and no guard was written.** Measured 2026-08-23: the table is named 109 times across `src/` and `airflow/`, the filter appears 30 times, and `data_quality_check.py` queries it five times with the filter zero times.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_total_row_is_always_filtered_out.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: an AST walk over every SQL literal, flagging only reads that can DOUBLE A TOTAL. Four exemptions, each measured rather than assumed: the parameterised form `song NOT ILIKE %s` (the repo's preferred style), a read pinned to one song (`song =` / `TRIM(song) =`), an existence probe (`COUNT(*) … LIMIT 1`), and a shell command rendered on a help page. The detector is pinned against synthetic modules so it cannot rot into a no-op.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_total_row_is_always_filtered_out.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/rules/python.md
 - first_seen: 2026-08-23
 - History:
@@ -2053,10 +2422,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a detector is written, tested, documented — and nothing ever runs it. It reports on the day a human happens to type its command, which is never the day the defect appears.
 - root_cause: `tools/tenant_contamination_check.py::scan()` was reachable only from `make tenant-check` and from step 5 of `artist_preflight`, and `alert_monitor.check_canary_preflight` runs steps 2-4 only. So the ONE class this repository has actually been bitten by — every tenant's Spotify popularity history filed under `artist_id = 1` for months in production — was the one class with no watchdog. The other checks cannot see it by construction: rows ARE arriving, so freshness, readiness and the canary are all green; they just belong to somebody else.
+- cause_evidence: read (tools/tenant_contamination_check.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_every_nightly_check_is_scheduled_and_heard.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: the scan runs nightly inside `alert_monitor`, importing `tools.` as a namespace package after `sys.path.insert(0, '/opt/airflow')` — with the ImportError branch that pushes "check could not run" as a FINDING, never a pass. The guard asserts the three separate links of the chain, because breaking any one of them produces the same silence: a `check_*` function has an operator, the operator is upstream of the sender, and the finding is named in `has_issues` (that third link is the 2026-08-21 defect, where `central_apps_broken` was in the body and the subject but not in the send decision).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_nightly_check_is_scheduled_and_heard.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-08-23
 - History:
@@ -2068,7 +2440,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: a deploy script is updated, pushed, and the very deploy that pulls the update does not run it. The run reports success, so the change looks deployed — and it is, on disk, for NEXT time. Nothing says the new step was skipped.
 - root_cause: `tools/deploy.sh` begins with `git pull --ff-only origin main` and therefore rewrites ITSELF mid-execution. bash reads a script incrementally rather than into memory, so the running process keeps executing the bytes it already read while the file underneath has been replaced. Measured 2026-08-23: the env-parity gate was added in the same commit that was being deployed, `deploy.sh` on the box contained it afterwards (`grep -c` = 1), and the gate produced no output during that run. The deployment succeeded and the new guard silently did not fire.
+- cause_evidence: read (tools/deploy.sh, rétro-portage mécanique 2026-09-16)
 - signature: `grep -qE 'DEPLOY_REEXECED' tools/deploy.sh`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
   <!-- NO leading `!`: here the pattern searched for is the FIX, not the defect.
        The catalogue contract is "exit non-zero when the ANTI-PATTERN is present",
        and the anti-pattern is the re-exec being ABSENT — so a bare grep is right.
@@ -2078,6 +2452,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - long_term_fix: re-exec after the pull when HEAD moved — `DEPLOY_REEXECED=1 exec bash "$0" "$@"`, guarded by the variable so it cannot loop. The general shape: a script that updates its own source must restart from the new source, or it is running one version while claiming to have deployed another. `kind: manual` because the only conclusive proof is a real deploy that changes the script — a signature can check the re-exec is present, not that it works.
 - autofix: none
 - guard: { type: signature, ref: tools/deploy.sh }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/deploy.sh
 - first_seen: 2026-08-23
 - History:
@@ -2089,10 +2464,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: tests are green file by file and red in a full run, on assertions unrelated to whatever changed. The failing test's own monkeypatch appears not to take effect — the real implementation runs instead of the fake one — and the failure moves between runs as the order changes.
 - root_cause: a test replaced `sys.modules["…"]` with a stub and, in its `finally`, called `del` instead of restoring the previous value. Deleting the key EVICTS the real module for the rest of the session: the next import re-executes it from disk and hands out a SECOND module object, while every module that already did `from … import NAME` still holds the first. A later `monkeypatch.setattr("pkg.mod.NAME", …)` then patches one object while the code under test reads the other. Measured 2026-08-23 in `tests/test_readiness_carries_the_live_diagnosis.py:192` on `src.dashboard.views.credentials._registry`; CI failed on `test_a_raising_probe_becomes_a_red_not_a_traceback`, whose output showed the five REAL probes running despite a monkeypatch to a single fake one.
+- cause_evidence: read (tests/test_readiness_carries_the_live_diagnosis.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_no_test_deletes_a_module.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: borrow, never evict — `previous = sys.modules.get(key)` before, and restore it (or `pop` only when there was nothing) after. The guard walks the AST of every test for `del sys.modules[…]` and for `sys.modules.pop` without a saved previous value, because the trap is invisible in a single-file run: the test that causes it always passes.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_no_test_deletes_a_module.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_readiness_carries_the_live_diagnosis.py
 - first_seen: 2026-08-23
 - History:
@@ -2104,10 +2482,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a standalone script under `tools/` dies at startup with `ModuleNotFoundError: No module named 'src'`, however it is invoked — including from the repo root. Downstream, the crash is read as the script's own verdict: `audit_runner` saw `check_manifest_consistency.py` exit 1 and reported a `streamlit-pin-drift` hit that did not exist, and the 04h production drift cron `notify_schema_drift.py` was silenced by the very import meant to harden it.
 - root_cause: Python seeds `sys.path` with the SCRIPT's own directory, never the caller's cwd, so a file under `tools/` (or `tools/dev/`) cannot import the app package unless it puts the repo root on the path itself. Measured 2026-08-23: widening the credential-redaction guard to `tools/` added `from src.utils.safe_error import safe_error` to six scripts; five already had the path line and two did not. The defect was the SCOPE of the widening — the newly covered files had a different runtime contract than the files the guard was written against — for the fourth time in three days.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_tool_script_can_actually_start.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: the guard walks the AST of every file under `tools/` and requires a `sys.path` mutation strictly BEFORE the first `import src…`; a script with no app import is skipped, so the rule costs nothing to the tools that stay standalone. For a script that is itself the last link of an alert, the app import is additionally wrapped in `try/except ImportError` with a fallback that cannot leak (type name only, no message) — a broken import path must never be able to silence the alert it was added to protect.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_tool_script_can_actually_start.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/notify_schema_drift.py
 - first_seen: 2026-08-23
 - History:
@@ -2119,10 +2500,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: real email arrives in a real inbox after a test run, from the project's own SMTP account, carrying a `http://localhost:8501` link that no recipient can use. The suite reports all-green: nothing failed, because nothing was asserting about the send.
 - root_cause: `tests/conftest.py` had no network boundary of any kind, so a test that presses a UI button reaches the real relay with the credentials in `.env` and a recipient read from whatever database the run points at — locally, the migrated copy of production. Measured 2026-08-23: `test_admin_hypeddit_buttons.py::test_every_button_survives_a_click[admin]` presses every button on the admin view, one of which is `📧 Renvoyer vérification` (`admin.py:685` → `send_verification_email(sel_user['email'], …)`). Three suite runs that day delivered three verification emails to `timothe.baudry137@gmail.com`; had the selected row been a beta tester, it would have been theirs. The `localhost` link is the same default that `env-not-wired-to-service` covers — no local process sets `APP_BASE_URL` — but here the defect is that the mail left at all.
+- cause_evidence: read (tests/conftest.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_suite_cannot_send_mail.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: an autouse fixture in `conftest.py` replaces `smtplib.SMTP`/`SMTP_SSL` for every test; a test that means to exercise the send path patches them itself and is never seen by the boundary. It RECORDS the attempt and asserts at teardown rather than only raising, because `send_verification_email` wraps its send in `except Exception` — an exception alone is swallowed and the offending test stays green. The signature trips the boundary on purpose and needs no database, so it is deterministic in CI.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_suite_cannot_send_mail.py + tests/conftest.py::_no_real_smtp }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_admin_hypeddit_buttons.py
 - first_seen: 2026-08-23
 - History:
@@ -2134,10 +2518,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un client paie et n'est jamais provisionné. Le paiement réussit côté Stripe, le webhook renvoie 200, et le compte reste sur son ancien plan. Rien n'échoue nulle part : ni la vue, ni le webhook, ni un test.
 - root_cause: les deux surfaces de paiement construisaient l'URL du Payment Link en `f"{checkout_url}?client_reference_id={_aid}" if _aid else checkout_url`, donc une session ayant perdu son identifiant de locataire rendait quand même un bouton **payable**, sans le paramètre qui nomme le bénéficiaire. En face, `stripe_webhook.py:140` exécute `if artist_id and customer_id:` — sans `client_reference_id`, il ne fait RIEN et sort en 200. Mesuré 2026-08-23 (R40) sur `views/upgrade.py:125` et `views/billing.py:244`, trouvés ensemble par balayage de la classe.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_tenant_scoped_action_names_its_tenant.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un lien de paiement non attribuable est pire qu'aucun lien — on ne le rend pas. Bouton désactivé plus un message qui nomme le geste (« reconnecte-toi »). Le garde lit l'AST de chaque `st.link_button` et exige que **toutes** les branches de l'URL portent `client_reference_id`, en résolvant les `Name` à travers les affectations locales.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_tenant_scoped_action_names_its_tenant.py::test_no_payment_link_can_render_without_its_tenant }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/api/routers/stripe_webhook.py
 - first_seen: 2026-08-23
 - History:
@@ -2149,10 +2536,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la collecte d'un locataire s'effondre sans que rien ne le dise. Des données arrivent — donc la fraîcheur est verte — mais bien moins que d'habitude : 3 titres là où 40 atterrissent. Le DAG est vert, l'e-mail nocturne est muet, et c'est un humain qui finit par le remarquer.
 - root_cause: le pilier **Volume** (Moses/Gavish/Vorwerck, *Data Quality Fundamentals* p.144 — « Has all the data arrived? ») n'était surveillé que dans un sens. `check_row_anomalies` ne détecte que le PIC et son docstring délègue explicitement l'autre sens à la fraîcheur : « freshness already covers the opposite (no recent data) ». Vrai de ZÉRO ligne, faux de TROP PEU. Entre les deux il y a un trou, et streaMLytics y est tombé deux fois — SoundCloud « ✅ sur 0 titre » au test GRiNCH, chaîne YouTube vide chez Benken.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_partial_collection_is_seen.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `check_row_dips` compare, **par locataire**, le dernier jour COMPLET à la moyenne des 7 précédents. Par locataire, parce qu'un total de flotte cache exactement le cas qui compte ; sur le dernier jour complet, parce que comparer une journée en cours à des journées entières ferait rougir chaque matin — un détecteur qui crie tous les jours n'est plus lu. Le seuil vit dans `src/utils/volume_monitor.py`, pas dans le DAG : aucun DAG de ce dépôt n'est importable hors conteneur (l'Airflow installé refuse `schedule_interval`), donc un test qui passe par l'import **skippe en silence** et ne prouve rien.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_partial_collection_is_seen.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/volume_monitor.py
 - first_seen: 2026-08-23
 - History:
@@ -2164,10 +2554,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la suite consomme du quota d'API réel et échoue en CI dès qu'il n'y a pas de réseau, sans qu'aucun test ne le dise. Contrairement à son jumeau `test-sends-real-mail-to-real-people`, ce défaut ne laisse **aucune trace** côté opérateur : pas de mail dans une boîte, juste des appels sortants silencieux avec les credentials de `.env`, susceptibles d'écrire sur un vrai compte.
 - root_cause: `tests/conftest.py` ne portait aucune frontière réseau. Mesuré 2026-08-23 avec un mouchard sur `socket.connect` pendant une exécution complète : `test_artist_preflight.py::test_a_scoped_run_still_requires_its_own_platform` ouvrait quatre connexions réelles (Meta 157.240.196.17, Google 35.186.224.24, SoundCloud 3.164.85.105) parce que `step_central_apps` sonde les QUATRE plateformes, hors périmètre comprises. Khorikov (*Unit Testing Principles* p.213/221) nomme la ligne : les dépendances *unmanaged* font partie du comportement observable et se mockent ; les *managed* (la base) non.
+- cause_evidence: read (tests/conftest.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_suite_cannot_call_an_api.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: fixture autouse posée sur la SOCKET, pas sur `requests` — les collecteurs sortent par `requests`, `googleapiclient` ou `urllib` selon la plateforme, et n'en patcher qu'un aurait laissé les deux autres passer. Seuls les ports 80/443 sont refusés : Postgres (5433) est une dépendance *managed* et doit continuer de passer, sinon ~160 tests d'isolation locataire redeviennent des skips silencieux. Comme pour SMTP, la tentative est ENREGISTRÉE et asservie au teardown, hors de portée du `except` des collecteurs.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_suite_cannot_call_an_api.py + tests/conftest.py::_no_real_http }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_artist_preflight.py
 - first_seen: 2026-08-23
 - History:
@@ -2179,10 +2572,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: les e-mails du produit arrivent sous un nom d'expéditeur qui n'est pas le sien — ici « Music Cross Platform Dashboard & Trigger Spotify » au lieu de « streaMLytics ». Rien n'échoue : les mails partent, sont délivrés, et personne dans le code ne peut dire d'où vient ce nom.
 - root_cause: deux chemins d'envoi composaient leur propre en-tête `From`. `verification_email.py` faisait `f"{from_name} <{from_email}>"` — correct ; `email_alerts.py` posait **`self.smtp_user`**, l'identifiant de connexion au relais, sans nom d'affichage et sur le mauvais domaine (`ae8df8001@smtp-brevo.com` en prod, quand `SMTP_FROM` vaut `noreply@streamlytics.fr`). Brevo, qui exige un expéditeur validé, y substitue l'expéditeur par défaut du compte. Et la valeur affichée par l'autre chemin venait de la clé `smtp.from_name` de `config/config.yaml` — le repli que le code lit AVANT son défaut.
+- cause_evidence: read (config/config.yaml, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_every_mail_says_who_it_is_from.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: une seule fonction compose l'en-tête (`src/utils/email_identity.from_header()`), et un garde AST interdit tout `msg['From'] = …` qui ne soit pas son appel. L'adresse d'expédition est explicitement distincte du login SMTP : chez un relais, le login est un compte technique, et retomber dessus est un pis-aller, pas le cas nominal.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_mail_says_who_it_is_from.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/email_identity.py
 - first_seen: 2026-08-23
 - History:
@@ -2194,10 +2590,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une exception non rattrapée affiche sa **traceback complète dans le navigateur** du visiteur — chemins de fichiers, lignes de code, et le message de l'exception. Aucun log ne le signale : de la machine, tout va bien.
 - root_cause: `client.showErrorDetails` n'était pas configuré dans `.streamlit/config.toml`, et le défaut de Streamlit est `full`. Ne pas régler l'option n'est pas neutre. Mesuré en production le 2026-08-23 (`streamlit 1.58.0`, valeur effective `full`). Ce dépôt sait ce que ce message peut contenir : Meta et YouTube passent leur credential en QUERY STRING, ce qui est toute la raison d'être de `secret-in-an-exception-message` et de `safe_error()`. Le travail fait pour empêcher un credential d'atteindre un LOG était donc contourné par la surface la plus exposée de toutes.
+- cause_evidence: read (.streamlit/config.toml, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_a_traceback_never_reaches_the_visitor.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `showErrorDetails = "none"` dans la config embarquée ; le visiteur voit un message générique, la traceback reste côté serveur où `public_error_ref()` lui donne déjà une référence à citer. Le débogage local se fait par `STREAMLIT_CLIENT_SHOW_ERROR_DETAILS=full`. Le garde refuse aussi l'ABSENCE de réglage, pas seulement `full` — c'est l'absence qui était le défaut.
 - autofix: safe
 - guard: { type: pytest, ref: tests/test_a_traceback_never_reaches_the_visitor.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .streamlit/config.toml
 - first_seen: 2026-08-23
 - History:
@@ -2209,10 +2608,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une frontière d'exception EXISTE, elle est documentée, elle fonctionne — et le défaut passe quand même, parce qu'elle n'entoure qu'une partie du code. Le symptôme est indiscernable d'une absence de frontière, sauf sur les chemins couverts.
 - root_cause: `app.py` portait un « central view guard » autour de `_render_page` seulement, soit **10 des 90 lignes** de `main()`. Les 80 restantes portaient huit appels de vue, dont les surfaces **non authentifiées** : page vie privée, onboarding, barres latérales. Mesuré end-to-end dans un navigateur le 2026-08-23 avec `showErrorDetails=full` (la valeur EFFECTIVE en production ce jour-là, faute d'avoir été réglée) : une exception sur ces chemins rendait dans la page la clé API YouTube en clair — elle voyage dans la query string, donc dans le message de l'exception — plus les chemins de fichiers et le code.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_error_boundary_covers_everything.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `main()` n'est plus QUE la frontière : docstring, imports, un `try` autour de `_main_body()`. Le garde lit l'AST et refuse toute instruction de `main()` hors du `try`, ainsi que tout appel `show*` hors frontière ; un troisième test exige le `raise` nu qui laisse passer `st.stop()` / `st.rerun()`, sans quoi la navigation casserait. Le réglage `showErrorDetails=none` devient la SECONDE ligne : un réglage unique dont l'absence est le défaut ne peut pas être la seule.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_error_boundary_covers_everything.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/app.py
 - first_seen: 2026-08-23
 - History:
@@ -2224,10 +2626,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: deux surfaces du produit répondent différemment à la MÊME question, et l'utilisateur croit celle qui a tort. Ici : le PDF exporté annonçait « Spotify ✅ configuré » pendant que la matrice à l'écran disait « ⚪ À connecter », pour le même artiste au même instant.
 - root_cause: `_collect_credentials_status` (`src/dashboard/utils/pdf_exporter/_collectors.py`) recalculait son propre verdict au lieu de lire celui de l'écran — `(key in have) or app_level_configured(key)`. Deux faux verts indépendants : `key in have` teste l'existence d'une LIGNE dans `artist_credentials` (un onglet ouvert puis enregistré vide la crée, ce que `declared_identities` existe pour empêcher), et `app_level_configured` rend la plateforme verte **à partir du `.env` de l'administrateur**, pour un locataire qui n'a rien déclaré. Son docstring promettait pourtant de refléter « the green status shown in the app ». Remonté par un artiste en test le 2026-08-23 (« Configuré api alors qu'on avait fait que youtube »).
+- cause_evidence: read (src/dashboard/utils/pdf_exporter/_collectors.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_pdf_says_what_the_screen_says.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le PDF LIT `artist_readiness`, la source de l'écran, au lieu de recalculer. Le garde est structurel — il interdit à la fonction d'appeler `app_level_configured` et de requêter `artist_credentials` — parce qu'un test de valeur exigerait une base et skipperait en CI. Une quatrième assertion épingle le prédicat de l'écran (`status != "todo"`) pour que le garde tombe plutôt que de mentir si l'écran change.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_pdf_says_what_the_screen_says.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/pdf_exporter/_collectors.py
 - first_seen: 2026-08-23
 - History:
@@ -2240,10 +2645,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'utilisateur voit défiler des erreurs, puis un message de succès. Il retient le dernier. Ici : sept déclenchements de collecte en échec affichaient sept ❌ **puis** « Lancé ! », et l'artiste repartait attendre des données qui ne viendraient jamais.
 - root_cause: dans `show_data_collection_panel` (`src/dashboard/app.py`), chaque déclenchement était correctement testé (`if result.get('success')`), mais le `st.sidebar.success("Lancé !")` final vivait **après la boucle, hors de toute condition de résultat**. Le soin mis sur chaque itération masquait l'absence de conclusion. Même famille que la croix verte de collecte qui atteste un état SUCCESS d'Airflow plutôt que l'arrivée de lignes.
+- cause_evidence: read (src/dashboard/app.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_a_success_message_tests_success.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: « Lancé ! » n'apparaît que si `launched` est non vide, et une branche d'échec explicite le dit sinon — conditionner le succès sans ajouter l'échec remplacerait un faux vert par un silence, ce qu'une assertion dédiée interdit. Le garde exige que l'appel soit sous un `if` **dont le test porte sur le résultat**, et non sous n'importe quel `if`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_success_message_tests_success.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/app.py
 - first_seen: 2026-08-23
 - History:
@@ -2255,10 +2663,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'utilisateur ne sait pas quoi faire, et la page qui le lui dirait existe — mais aucun chemin de l'application n'y mène. Rien ne casse, rien ne lève : une page injoignable est silencieuse.
 - root_cause: `views/onboarding.py`, seule surface portant la sélection par plateforme et la matrice, n'était dans **aucune section de `_NAV_SECTIONS`** et n'était pas une clé de page valide. Il n'était joignable que par le lien profond `?page=onboarding`, produit à deux endroits : l'écran post-inscription et l'e-mail de vérification. **Mail fermé, onglet fermé : la page n'existait plus.** Et sur l'accueil, les quatre étapes de mise en route nommaient leur destination sans y mener — `for done, label, _page in steps:`, la clé liée puis jetée, rendue en `st.markdown`. Enfin l'atterrissage était inconditionnel sur `home`, qui pour un artiste neuf est un tableau d'état vide.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_setup_guide_is_reachable.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: entrée de navigation permanente, routage, `ALWAYS_ACCESSIBLE` (faire payer le droit de brancher ses comptes n'a pas de sens), aiguillage de première connexion qui rend `onboarding` tant que rien n'est déclaré et `home` ensuite, et étapes d'accueil devenues des boutons. La règle de navigation vit dans `utils/navigation.py` — `onboarding.py` portait déjà sa copie, et une deuxième aurait divergé.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_setup_guide_is_reachable.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/navigation.py
 - first_seen: 2026-08-23
 - History:
@@ -2270,10 +2681,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un utilisateur suit une consigne que le produit ne demande plus, et échoue. La consigne vient d'un contenu maintenu, traduit, et que plus rien n'affiche — sauf sur une surface qu'on avait oubliée.
 - root_cause: deux corpus de guides d'identifiants coexistaient. Les quatre `_guide_*` des modules plateforme et leur dispatcher `_render_platform_guide` n'avaient **aucun appelant** depuis le passage au modèle central (ADR-006) — 180 lignes et 36 traductions. Ils **contredisaient** le corpus vivant : sur Spotify le vivant dit « tu n'as rien à créer, colle le lien de ta page artiste », le mort disait « crée une app, coche Web API, saisis une Redirect URI ». Et le guide **anglais**, lui, n'était pas mort : miroir périmé du même modèle, il est **expédié dans le PDF d'onboarding** pour `lang == "en"`, avec `http://127.0.0.1:8888/callback` — un `8888` hérité du défaut de `spotipy`, décliné en trois orthographes dans le dépôt, dont la forme `localhost` que le tableau de bord Spotify **refuse désormais**.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_guide_never_asks_for_a_dead_uri.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le corpus mort est supprimé (code, dispatcher, traductions — `test_i18n_orphans.py` a listé les 36 clés), le guide anglais est aligné sur le modèle central, et un garde interdit qu'un guide artiste demande une Redirect URI ou la case Web API : sous le modèle central l'artiste ne crée aucune app, ces étapes n'existent pas pour lui.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_guide_never_asks_for_a_dead_uri.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/content/credential_guides_en.py
 - first_seen: 2026-08-23
 - History:
@@ -2285,10 +2699,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une fonctionnalité est écrite, traduite, complète — et ne s'affiche nulle part. Aucun test ne tombe : la fonction qui la rend existe et fonctionne, elle n'a simplement pas d'appelant.
 - root_cause: `utils/os_hints.os_selector()` (bascule Mac/Windows des notices) n'était appelé que depuis `render_credential_guides()`, **sans appelant**. Le chemin réellement emprunté par les onglets, `render_credential_guide_for()`, se contentait de résoudre les jetons par **reniflage du User-Agent avec WINDOWS par défaut**, sans laisser corriger. Un artiste Mac lisait des raccourcis Windows (GRiNCH, 12/08).
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_os_switch_is_visible.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: appeler `os_selector()` depuis le rendu vivant, une clé par plateforme (les onglets coexistent dans la même session). Le garde ne teste pas que la fonction existe — il teste qu'elle est appelée **depuis la fonction que les onglets utilisent**, et une assertion séparée épingle quelle fonction c'est, pour tomber plutôt que mentir si le chemin change.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_os_switch_is_visible.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/content/credential_guides_st.py
 - first_seen: 2026-08-23
 - History:
@@ -2300,10 +2717,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un utilisateur ne peut pas faire une chose que le produit sait faire. La fonctionnalité est écrite, testée, documentée — et le chemin qui y mène s'arrête avant. Rien n'échoue : le journal dit « sauté », avec une raison exacte.
 - root_cause: `soundcloud_daily.py` sautait le locataire dès que `user_id` était vide, **avant** d'avoir lu ses titres déclarés, et le constructeur du collecteur levait sur le même critère. Or pour un artiste signé sur un label, le profil personnel n'existe pas et n'existera jamais : l'unité collectable est le TITRE, et `GET /tracks/{id}` rend ses écoutes quel que soit le compte hôte. La fonctionnalité « Mes titres hébergés sur d'autres comptes » existait pourtant en entier — widget, résolution d'URL, `track_platform_link`, `migrations/074`, `fetch_claimed_tracks`. Mesuré sur le cas GRiNCH, 2026-08-23.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_label_signed_artist_is_collectable.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `has_claimed_tracks()` dans `claimed_tracks.py`, appelée par les DEUX verrous — le DAG avant de sauter, le collecteur avant de lever. Une seule lecture pour deux appelants ; l'écrire deux fois l'aurait laissée diverger. La raison journalisée nomme désormais les deux conditions manquantes, pas une seule.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_label_signed_artist_is_collectable.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/claimed_tracks.py
 - first_seen: 2026-08-23
 - History:
@@ -2315,10 +2735,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un fichier est accepté par la détection puis refusé plus bas, avec un conseil qui ne corrige rien. L'utilisateur applique le conseil, réessaie, échoue à l'identique.
 - root_cause: l'export « Depuis le début » de S4A (`…-songs-all.csv`) était détecté par son propre nom de fichier, puis rejeté trois couches plus bas par `_detect_window` avec un message conseillant de **renommer le fichier**. Renommer ne corrige rien : Spotify renvoie auditeurs et sauvegardes à ZÉRO sur cet export — c'est la donnée qui est inutilisable, pas son nom. Deuxième cause du même symptôme : le séparateur `;`, celui que produit Excel en configuration française, n'était pas testé — la ligne d'en-tête se lisait comme une colonne géante et le message disait « type non reconnu » sans nommer le séparateur.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_refused_csv_says_the_real_reason.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: refuser au bon endroit, à la détection, avec la vraie raison ET le vrai remède — plus un test qui vérifie que le remède proposé est effectivement accepté, sinon le message enverrait dans un mur. La détection teste tabulation, point-virgule et virgule, et la RELECTURE hérite du même choix : sans ça un fichier correctement détecté explosait ensuite dans un `pd.read_csv` nu.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_refused_csv_says_the_real_reason.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-08-23
 - History:
@@ -2330,10 +2753,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une vue s'ouvre sur un mur de graphiques. Aucun n'est faux, aucun n'est de trop pris isolément, et l'utilisateur ne sait pas où regarder.
 - root_cause: le motif de correction — `ui.secondary_analyses()`, un dépliant appliquant « une décision par écran » — a été écrit le 2026-08-12, le jour même où un artiste en test a dit « réduire le nombre de graphs qui permettent de prendre décision », avec la remarque citée dans son propre commentaire de module. Onze jours plus tard il était appliqué sur quatre sites et sur **aucune** des cinq vues les plus denses : Road to Algo (~35 figures), Data Wrapped (9), Créatives (8), Meta Ads (8), Prévisions (6). Le correctif existait, le diagnostic était juste, et la distance entre les deux n'était mesurée nulle part.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_view_opens_on_one_decision.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_a_view_opens_on_one_decision.py`, consignée par l'auteur du garde)
 - long_term_fix: un garde compte les graphiques rendus au PREMIER ÉCRAN — hors `secondary_analyses` et hors `st.expander` — et plafonne à 5 par fichier (Few : un tableau de bord tient dans un coup d'œil). Rien n'interdit d'en avoir beaucoup ; il faut seulement qu'ils ne soient pas tous dépliés d'emblée. Le repli vit DANS la fonction qui dessine, pas chez son appelant : un second appelant la rendrait sinon dépliée — et c'est ce que la première version faisait, jusqu'à ce que le garde refuse.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_view_opens_on_one_decision.py }
+- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/ui.py
 - first_seen: 2026-08-23
 - History:
@@ -2345,10 +2771,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: des données de production disparaissent, sans erreur, sans trace. Le nettoyage qui suit une collecte supprime plus large que ce que cette collecte vient d'écrire, donc il emporte le travail d'une autre.
 - root_cause: `_prune_renamed_campaigns` (`src/collectors/_meta_upsert.py`) exécute `DELETE FROM <table> WHERE artist_id = %s AND campaign_name <> ALL(%s)` — le `DELETE` est scopé au LOCATAIRE, la liste de campagnes ne couvre qu'un COMPTE PUBLICITAIRE. Tant qu'un artiste n'a qu'un compte, les deux portées coïncident et le défaut est invisible. Le jour où la boucle passe sur deux comptes — le cas d'une agence, demandé par un vrai utilisateur — la passe du second efface tout ce que le premier vient d'écrire. Ce n'est pas une collision d'upsert, c'est une suppression de masse.
+- cause_evidence: read (src/collectors/_meta_upsert.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_meta_ads_collector.py::TestPruneRenamedCampaigns -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le `DELETE` porte le même discriminant que ce qu'il vient de rafraîchir — `AND ad_account_id IS NOT DISTINCT FROM %s`. La colonne est ajoutée par `migrations/076` sur les 10 tables à la maille campagne plus les 3 tables de provenance ; elle est nullable, et `IS NOT DISTINCT FROM NULL` reproduit exactement l'ancien comportement tant que la flotte est mono-compte. **Le correctif est posé AVANT que le multi-comptes existe** : une fois la boucle livrée, le défaut n'aurait été visible qu'en constatant des données manquantes.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_meta_ads_collector.py::TestPruneRenamedCampaigns::test_the_delete_is_scoped_to_one_ad_account }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/076_meta_ad_account_id.sql
 - first_seen: 2026-08-23
 - History:
@@ -2361,10 +2790,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une couche que l'architecture décrit comme porteuse — validation, gestion d'erreur — existe, a des tests verts, et **aucun code de production ne l'appelle**. Le jour où on la branche, elle casse la production : ce qu'elle supposait du reste du code n'est plus vrai depuis des mois, et rien ne pouvait le signaler tant que personne ne l'appelait.
 - root_cause: `src/models/meta_ads_validators.py` définissait quatre modèles Pydantic décrits par `CLAUDE.md` comme la couche de validation du projet ; seul `tests/test_validators.py` les importait. Quatre divergences avec les payloads réels s'étaient accumulées : aucun modèle ne déclarait `artist_id` (le champ du locataire, le seul dont ce dépôt ait souffert), `status` était obligatoire alors que le collecteur écrit `.get('status')`, `targeting` était typé `dict` alors que `_fetch_adsets` écrit `json.dumps(...)`, et `MetaInsight` exigeait dix métriques que Meta ne rend pas sur un objectif d'engagement. Le test passait **parce que** rien n'exécutait les modèles : il les confrontait à des payloads inventés par le test.
+- cause_evidence: read (src/models/meta_ads_validators.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_validators.py::test_the_collector_actually_calls_the_validators -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le garde vérifie par AST que le collecteur **importe** les quatre modèles ET appelle `_validate`. Un import mentionné dans un commentaire ne suffit pas ; débrancher la couche redevient un rouge. Corollaire de méthode : les fixtures d'un test de validation se construisent à partir de la sortie du vrai producteur, jamais à la main — sinon le test garde une forme que personne n'écrit.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_validators.py::test_the_collector_actually_calls_the_validators }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/models/meta_ads_validators.py
 - first_seen: 2026-08-24
 - History:
@@ -2376,10 +2808,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un graphique ou un tableau affiche `0` là où la donnée dit « aucune observation ». Le lecteur y lit une mesure — « 0 % de chance » — c'est-à-dire l'inverse de « on ne sait pas ». Aucune erreur, aucune trace : le rendu est parfaitement réussi.
 - root_cause: `pdf_charts.pi_gate` (`src/dashboard/utils/pdf_charts.py`) calculait `float((data.get(b) or {}).get("prob") or 0)`. L'idiome `or 0` confond `None` (jamais mesuré) et `0` (mesuré à zéro). Cas réel dans `machine_learning/models/v3/threshold_tables.json` : Release Radar, panier « 50+ », `prob: null`, `n: 0` — dessiné comme une barre à 0 % dans un PDF envoyé à des tiers. Volet jumeau : le graphique n'affichait pas l'effectif, si bien que 66,7 % mesuré sur **3** titres s'affichait aussi haut et aussi net que 99,4 % sur 172.
+- cause_evidence: read (src/dashboard/utils/pdf_charts.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_an_empty_bracket_is_not_a_zero.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un panier sans observation n'est pas dessiné (alpha 0), un panier peu peuplé est atténué, et l'effectif `n` est écrit sous chaque barre. Le garde lit **les barres réellement produites** (hauteur et alpha), pas le code qui les produit : c'est le seul niveau où « la barre est-elle dessinée ? » a une réponse. Un `0` mesuré sur un effectif réel reste affiché en pleine intensité — l'effacer perdrait une information.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_empty_bracket_is_not_a_zero.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/pdf_charts.py
 - first_seen: 2026-08-24
 - History:
@@ -2391,10 +2826,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un compteur affiché à des visiteurs — « N artistes utilisent le produit » — inclut les comptes de service que nous créons nous-mêmes. Le nombre est faux, et le lecteur n'a aucun moyen de le recouper.
 - root_cause: `live_pulse.get_registered_count_public` et `get_live_pulse` (`src/dashboard/utils/live_pulse.py`) et le KPI admin (`src/dashboard/views/admin.py`) comptaient `SELECT COUNT(*) FROM saas_artists WHERE active = TRUE`. Le canari de surveillance porte `is_canary = TRUE` depuis la migration 064 et `credential_loader.load_all_artists(exclude_canaries=True)` faisait déjà la distinction — les compteurs, non. Le plus exposé des trois est sur la **page d'inscription publique**.
+- cause_evidence: read (src/dashboard/utils/live_pulse.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_public_counters_count_humans.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le prédicat « ce qui compte comme un locataire humain » est une constante unique (`live_pulse._HUMAN_TENANTS`), et le garde inspecte par AST le SQL réellement exécuté — en **résolvant les constantes de module interpolées**, sans quoi il déclarerait absent un prédicat qui est là.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_public_counters_count_humans.py }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/live_pulse.py
 - first_seen: 2026-08-24
 - History:
@@ -2406,10 +2844,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un credential part dans un journal, un mail ou une base, depuis un module que le garde anti-fuite ne surveille pas — et il a raison de ne pas le surveiller selon sa propre question.
 - root_cause: `test_credentials_security.py::test_no_probe_surfaces_a_whole_exception` demande « une exception née d'un appel HTTP peut-elle atteindre ce module ? » et répond en suivant le **graphe d'imports**. C'est juste pour une exception capturée sur place, et aveugle à celle qu'on reçoit en ARGUMENT : `error_alert._maybe_email(page, exc)` (`src/dashboard/utils/error_alert.py`) n'importe aucun client HTTP et n'en est importé par aucun, et envoyait la traceback complète **par Brevo**, un tiers, dans une boîte mail. Le message d'une exception `requests` embarque l'URL préparée — donc `access_token=`, `key=`.
+- cause_evidence: read (src/dashboard/utils/error_alert.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_an_exception_passed_as_an_argument_is_redacted.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un second garde, avec un prédicat qui épouse la vraie question — *cette fonction met-elle dans une chaîne une exception qu'elle n'a pas attrapée ?* Il repère les paramètres portant une exception (nom conventionnel ou annotation) et les variables issues d'un `traceback.format_*`, et exige un emballage (`redact` / `safe_error`). Sur `src/`, `airflow/` et `tools/`, il ne trouvait que deux sites — la précision du prédicat est ce qui rend le garde utilisable.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_exception_passed_as_an_argument_is_redacted.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/error_alert.py
 - first_seen: 2026-08-24
 - History:
@@ -2421,10 +2862,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un marqueur `{...}` destiné à une f-string se retrouve dans une chaîne ordinaire et part **tel quel** dans le SQL. Postgres reçoit huit caractères littéraux au lieu d'un prédicat — soit une erreur de syntaxe, soit, quand le marqueur est optionnel, un filtre qui ne filtre rien.
 - root_cause: en ajoutant le filtre de compte publicitaire aux vues Meta, une requête de `src/dashboard/views/meta_creatives.py` a reçu `{acct}` sans que le `f` soit ajouté au littéral. `ruff` ne le voit pas (une chaîne avec des accolades est valide), un test de rendu non plus (la vue ne s'affiche qu'avec deux comptes déclarés, et la flotte est mono-compte).
+- cause_evidence: read (src/dashboard/views/meta_creatives.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_meta_multi_account.py::test_no_account_marker_survives_in_a_plain_string -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: garde AST restreint aux arguments passés **directement** à `fetch_df` / `fetch_query` / `execute_query` — une constante de module marquée puis `.format()`-ée plus loin est légitime, et un garde qui la signalerait serait désactivé dans la semaine.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_meta_multi_account.py::test_no_account_marker_survives_in_a_plain_string }
+- guard_scope: sans-famille — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/meta_accounts.py
 - first_seen: 2026-08-24
 - History:
@@ -2436,10 +2880,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'audit de vulnérabilités rend un rapport propre pendant que le parc réellement installé porte des dizaines d'avis. Il lit un fichier de **contraintes** (des planchers `>=`) que rien n'installe tel quel.
 - root_cause: `.github/workflows/security-nightly.yml` exécutait `pip-audit -r requirements.txt`. Ce fichier porte des planchers (`weasyprint>=62.0`, `cryptography>=42.0.0`), donc pip-audit résolvait des versions récentes — pendant que la CI installait `uv.lock` via `uv sync --frozen`, qui épinglait `pyjwt 2.12.1` (notre authentification), `starlette 1.0.0`, `python-multipart 0.0.28` : **127 avis sur 18 paquets**.
+- cause_evidence: read (.github/workflows/security-nightly.yml, rétro-portage mécanique 2026-09-16)
 - signature: `! grep -nE 'pip-audit -r requirements.txt' .github/workflows/security-nightly.yml`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: l'audit résout le lock avant de le lire — `uv export --frozen --no-dev --no-hashes` — donc il regarde exactement ce que `uv sync --frozen` installe. Règle générale : **on n'audite jamais un fichier de contraintes, on audite l'ensemble résolu**.
 - autofix: none
 - guard: { type: ci-step, ref: .github/workflows/security-nightly.yml }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .github/workflows/security-nightly.yml
 - first_seen: 2026-08-24
 - History:
@@ -2452,10 +2899,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un validateur qui **lève** refuse une donnée parfaitement légitime, parce qu'une de ses bornes a été tapée à la main au lieu d'être lue dans le schéma. La collecte du locataire s'arrête, et le message parle d'une limite qui n'existe nulle part.
 - root_cause: `src/models/meta_ads_validators.py` déclarait `max_length=255` sur `campaign_name`, `adset_name` et `ad_name`. Les colonnes correspondantes sont des `text`, sans limite, et la production contient une campagne de **313 caractères** (nom généré, avec emoji). Le modèle venait d'être branché (R47) et **lève** : la première collecte Meta de ce locataire se serait arrêtée. Second cas dans le même fichier : `targeting` typé `str` alors que la colonne est `jsonb` — le collecteur y écrit `json.dumps(...)` et psycopg2 le relit en `dict`, donc 69 lignes sur 69 étaient refusées à la relecture.
+- cause_evidence: read (src/models/meta_ads_validators.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_validators_accept_what_production_holds.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le garde confronte les modèles aux **lignes réelles déjà en base** — un modèle qui refuse ce que la production contient déjà refusera le même payload la nuit suivante — et un second test, sans base, interdit toute borne de longueur qu'aucune colonne ne porte. Règle générale : **une borne de validation se lit dans le schéma, elle ne s'invente pas** ; si une vraie limite apparaît, la lire dans `information_schema`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_validators_accept_what_production_holds.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/models/meta_ads_validators.py
 - first_seen: 2026-08-24
 - History:
@@ -2467,10 +2917,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un panneau affiche « ✅ tout va bien » à partir d'une requête qui ne rend rien — alors que « rien » a deux causes opposées : il n'y a effectivement aucun problème, ou **personne n'écrit jamais dans cette table**.
 - root_cause: `views/alerts.py::_section_circuit_breakers` et `views/etl_logs.py` interrogent `etl_circuit_breaker` avec `WHERE state != 'closed'` et affichaient `st.success("✅ … fonctionnement normal")` sur zéro ligne. Or `CircuitBreaker` (`src/utils/circuit_breaker.py`) n'a **aucun appelant de production** — il n'est instancié que dans son propre exemple de docstring et dans son helper `reset_circuit` — et la table est vide. Les deux panneaux affirmaient une bonne santé qu'aucune mesure ne soutenait, dont un sur la page d'alertes.
+- cause_evidence: read (src/utils/circuit_breaker.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_an_empty_table_is_not_a_clean_bill_of_health.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `circuit_mechanism_is_recording(db)` répond à « cette table est-elle écrite ? », et le ✅ y est conditionné ; sinon le panneau dit explicitement qu'il ne prouve rien et renvoie vers la mesure qui fait foi (la fraîcheur). Le garde repère par AST un `st.success` dans la branche « aucune ligne » d'une fonction qui interroge cette table.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_empty_table_is_not_a_clean_bill_of_health.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/circuit_breaker.py
 - first_seen: 2026-08-24
 - History:
@@ -2484,10 +2937,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un garde marque en faute un module qui vient d'appliquer son propre correctif. Le module ne fait rien de risqué : il a seulement **importé le remède**, et le remède est marqué dangereux parce que sa documentation nomme le danger.
 - root_cause: `tests/test_credentials_security.py::_modules_that_call_http` amorçait sa portée en cherchant `"requests."`, `"googleapiclient"`, `"urlopen"` **en sous-chaîne dans le texte du fichier**, docstrings comprises. `src/utils/safe_error.py` — dont le rôle est précisément de rédiger ces messages — nomme les deux APIs dans sa prose pour expliquer pourquoi il existe. Il était donc « touche un client HTTP », et **tout module l'important héritait de la marque**. Mesuré le 2026-08-24 : ajouter `from src.utils.safe_error import redact` à `circuit_breaker.py` l'a fait entrer dans la portée et échouer sur trois lignes sans rapport.
+- cause_evidence: read (tests/test_credentials_security.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_credentials_security.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: la graine est lue par **AST** (`_calls_http`) — import du client, accès à un de ses attributs, appel à `urlopen` — jamais en texte. Une mention en commentaire n'est pas un appel. Et parce que corriger un faux positif ne doit pas coûter de la vraie couverture, une **seconde graine** a été ajoutée : importer `src.utils.safe_error` est un aveu (ce module formate des exceptions porteuses de credentials, sinon il n'irait pas y chercher `redact`). Sans elle, la correction faisait tomber 19 modules hors de portée — 40 → 21. Un `_SCOPE_FLOOR` garde désormais la taille de la portée.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_credentials_security.py::test_the_http_scope_does_not_silently_shrink }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_credentials_security.py
 - first_seen: 2026-08-24
 - History:
@@ -2500,10 +2956,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une frontière posée pour borner le rayon de souffle de la suite éteint aussi **ce qui doit sortir**. Le composant tué est un moniteur : son rouge quotidien se lit comme du bruit, et personne ne remarque qu'il ne mesure plus rien.
 - root_cause: `tests/conftest.py::_no_real_http` est `autouse` et refuse toute connexion sortante sur 80/443, sans exception nommée. `tests/test_prod_health.py` — dont le rôle est de sonder l'application LIVE **à travers Cloudflare**, l'une des trois épaisseurs du filet de surveillance, celle qui voit ce que les contrôles internes ne voient pas (le 403 Bot Fight Mode du webhook Stripe, 2026-06-14) — rendait **14 failed, 14 errors** chaque matin depuis le 2026-08-23. La suite se gardait pourtant déjà elle-même (`RUN_PROD_HEALTH=1`, sinon skip, « so a push never hammers prod ») : la frontière l'écrasait au niveau SOCKET, sous son propre garde.
+- cause_evidence: read (tests/conftest.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_http_escape_hatch_stays_narrow.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: une sortie **nommée et unique** — `@pytest.mark.real_http`, consultée par la frontière, déclarée dans `pyproject.toml`. Deux gardes l'encadrent : la liste des fichiers autorisés est explicite (une échappatoire qui se propage redevient l'absence de frontière), et la frontière doit continuer de consulter le marqueur. Règle générale : **une frontière `autouse` sans exception nommée n'est pas une frontière, c'est un interrupteur** — poser la sortie en même temps que la frontière, pas après.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_http_escape_hatch_stays_narrow.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/conftest.py
 - first_seen: 2026-08-24
 - History:
@@ -2517,10 +2976,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un paramètre d'une version majeure précédente traîne dans le code. Il ne fait **rien** sur la version qui tourne, donc rien ne le signale — et il rend la montée de version impossible, ce qu'on découvre le jour où on la tente.
 - root_cause: les 16 DAGs portaient `schedule_interval=` (l'orthographe d'Airflow 1/2.3, remplacée par `schedule=` en 2.4) et 7 d'entre eux `provide_context=True` (un argument d'Airflow **1.x**, sans effet depuis la 2.0 où le contexte est passé automatiquement). Airflow 2.8.1 — la version de production — les accepte en silence ; Airflow 3 les **rejette**. Conséquence directe : la PR Dependabot #100 (`apache/airflow` 2.8.1 → 3.3.0), ouverte depuis le 2026-08-01 et qui ressemble exactement au correctif de sécurité attendu, aurait fait échouer l'import des **16** DAGs, donc arrêté toute la collecte.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_every_dag_imports.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: les deux vestiges sont retirés (aucun changement de comportement en 2.8.1), et un garde importe **réellement les 16 DAGs** à chaque exécution de la suite. Ce garde n'était pas possible avant : ces mêmes vestiges rendaient l'import impossible hors conteneur, et ce dépôt le documentait comme une fatalité — « aucun DAG n'est importable hors conteneur », donc les seuils de collecte avaient dû être déplacés dans `src/utils/` pour être testables du tout.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_dag_imports.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: airflow/dags/meta_ads_api_daily.py
 - first_seen: 2026-08-24
 - History:
@@ -2533,10 +2995,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: des tests passent ou échouent selon l'ORDRE d'exécution. Isolés ils sont verts ; groupés, quatre d'entre eux tombent sur « n'est pas un paquet ». Et, plus discrètement, des tests qui croient exercer un vrai client travaillent contre un mock.
 - root_cause: `tests/test_e2e_two_tenants.py` et `tests/test_collectors_errors.py` posaient `sys.modules["spotipy"] = MagicMock()`, idem pour `googleapiclient`, `airflow`, `airflow.operators` — **à l'import du fichier, donc dès la COLLECTE**, et sans jamais restaurer. La justification écrite (« ils vivent dans l'image Airflow, pas dans le venv de dev ou de CI ») a cessé d'être vraie sans que personne le remarque : les quatre paquets sont des dépendances déclarées et installées. `airflow.operators` devenu MagicMock, tout `from airflow.operators.empty import EmptyOperator` ultérieur échouait.
+- cause_evidence: read (tests/test_e2e_two_tenants.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_no_test_stubs_an_installed_package.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: les stubs obsolètes sont retirés (les paquets existent, les imports résolvent), et un garde vérifie par AST qu'aucun fichier de test ne remplace un paquet **installé** par un mock. Le prédicat porte bien sur la question — le stub reste légitime pour un paquet réellement absent, et un garde qui l'interdirait partout serait contourné.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_no_test_stubs_an_installed_package.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_e2e_two_tenants.py
 - first_seen: 2026-08-24
 - History:
@@ -2550,10 +3015,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une alerte arrive dans une vraie boîte mail, annonce une panne, et **la production va très bien**. Elle vient d'une instance de développement. Rien dans le message ne le dit ; seuls l'adresse d'expéditeur et un lien `localhost` la distinguent — et personne ne les regarde à 1 h du matin.
 - root_cause: aucun mécanisme ne nommait l'instance émettrice, et **quatre** chemins d'envoi existent (`email_alerts.send_alert`, `email_alerts.send_email`, deux dans `verification_email`). Mesuré le 2026-08-24 : un scheduler Airflow local a rejoué un run planifié, échoué sur le credential SoundCloud partagé — que la production venait de faire tourner 28 minutes plus tôt, SoundCloud faisant tourner ses `refresh_token` — et envoyé deux alertes. Trois sites écrivaient de surcroît `http://localhost:8080` **littéralement** dans un corps d'e-mail, sans lire aucune variable. Nuance mesurée, contre un premier diagnostic trop rapide : ces trois mails vont à l'ADMINISTRATEUR et l'UI Airflow est liée à `127.0.0.1` seulement, donc `localhost` y est l'adresse juste — ce n'était PAS le défaut de `APP_BASE_URL`, où le lien partait à un artiste. Ce qui restait faux, c'est qu'elle n'était pas configurable.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_an_instance_names_itself_in_what_it_sends.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/utils/instance_identity.py` — `instance_label()`, lu **à l'appel**, préfixe le sujet des QUATRE chemins d'envoi ; vide en production À DESSEIN, parce que c'est l'absence de préfixe qui doit vouloir dire « ceci est réel ». `airflow_base_url()` remplace les URL codées en dur. Le garde énumère les sites par AST : ce dépôt a déjà payé une fois d'avoir corrigé le chemin qui marchait en laissant l'autre (R38, le nom d'expéditeur).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_instance_names_itself_in_what_it_sends.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/instance_identity.py
 - first_seen: 2026-08-24
 - History:
@@ -2565,10 +3033,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'outil que le runbook fait lancer pour comprendre pourquoi une plateforme ne collecte pas s'arrête AVANT de la tester, et rend un verdict qui ne parle pas du problème.
 - root_cause: `tools/artist_preflight.py` s'arrête à la première étape rouge — délibérément, deux sessions de test artiste ayant brûlé une heure chacune à découvrir en direct des apps mal configurées. Mais pour un artiste **déjà inscrit et à moitié configuré**, l'arrêt tombe sur « identités manquantes » et le test de connexion n'est jamais joué. Mesuré le 2026-08-24 sur GRiNCH (artist_id=13), dont l'alerte nocturne dit « NE COLLECTE PAS : SoundCloud » : quatre identités absentes → arrêt à l'étape 2 → SoundCloud, la seule plateforme déclarée et justement celle en panne, non testée.
+- cause_evidence: read (tools/artist_preflight.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_preflight_can_diagnose_not_only_gate.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `--diagnose` joue toutes les étapes et récapitule les rouges, sans relâcher la porte (l'arrêt reste le DÉFAUT). Et le message d'arrêt **nomme le drapeau** : une option que personne ne découvre au moment utile n'existe pas. Règle générale : une porte fail-fast et une lampe de diagnostic sont deux besoins ; leur donner la même commande sans mode les fait se manger l'un l'autre.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_preflight_can_diagnose_not_only_gate.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/artist_preflight.py
 - first_seen: 2026-08-24
 - History:
@@ -2581,10 +3052,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une règle de sécurité existe, elle est écrite, elle est commentée — et elle ne couvre qu'un des écosystèmes auxquels elle s'applique. La proposition dangereuse arrive donc par celui qui n'est pas gardé, et elle ressemble exactement à ce qu'on attendait.
 - root_cause: `.github/dependabot.yml` portait « Manual review for majors — high blast radius » sur l'écosystème **pip** seulement. `docker` et `github-actions` n'avaient rien. C'est par là qu'est passée la PR #100 — `apache/airflow` 2.8.1 → 3.3.0, puis rebasée en 2.11.2 → 3.3.1 — qui ressemble au correctif de sécurité attendu et qui aurait fait échouer l'import des **16** DAGs (`schedule_interval` et `provide_context`, supprimés en 3.x), donc arrêté toute la collecte. Une majeure d'image de base est le plus large rayon de souffle du fichier : elle change le runtime SOUS l'application, et aucun test du dépôt ne s'exécute dedans avant le déploiement.
+- cause_evidence: read (.github/dependabot.yml, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_no_ecosystem_auto_merges_a_major.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le garde ne demande pas « docker a-t-il la clause ? » mais « **un** écosystème en est-il dépourvu ? ». Poser la question du jour aurait fermé un trou ; poser la question générale en a trouvé un **troisième** que personne ne cherchait (`github-actions`), et couvre par construction tout écosystème ajouté demain.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_no_ecosystem_auto_merges_a_major.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .github/dependabot.yml
 - first_seen: 2026-08-24
 - History:
@@ -2597,10 +3071,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un diagnostic en deux moitiés — le symptôme, puis le geste qui le répare — arrive sur ses surfaces automatiques amputé de la seconde. L'alerte nomme le problème et retient la solution ; pire, la phrase conservée annonce une énumération (« Deux cas : ») et n'énumère rien.
 - root_cause: `src/utils/platform_probes.py` renvoyait `str(message).splitlines()[0][:300]`. Les sondes rédigent leur diagnostic pour `st.error` (markdown) ; la couture réconciliait TROIS lecteurs — un formulaire markdown, un `<td>` HTML, un terminal — en aplatissant pour le plus étroit. Or les sondes placent le SYMPTÔME en ligne 1 et le GESTE après une ligne vide : la coupe tombait systématiquement sur la moitié actionnable. Mesuré le 2026-08-26 sur l'alerte de production de 01h00 : **les 2 lignes rouges sur 2** de la section « À regarder » avaient perdu leur geste, dont l'instruction de partage Business Manager qui débloque `act_65390907` — le blocage opérationnel ouvert depuis juin.
+- cause_evidence: read (src/utils/platform_probes.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 .claude/scripts/check_diagnosis_rendering.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/utils/diagnosis_text.py` — un rendu par surface (`as_html` / `as_markdown` / `as_console`), le message reste ENTIER dans le magasin et chaque lecteur s'adapte à lui. La règle : **le rendu s'adapte au message, jamais le message au rendu** — il y a un auteur et trois lecteurs, et seul l'auteur sait laquelle des deux moitiés est le geste.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_actionable_half_survives.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/scripts/check_diagnosis_rendering.py
 - first_seen: 2026-08-26
 - History:
@@ -2614,10 +3091,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une alerte vraie nomme une action qui ne peut pas changer l'état qu'elle signale. Le lecteur l'exécute, rien ne bouge, et le même message repart la nuit suivante.
 - root_cause: `airflow/dags/alert_monitor.py` composait **une seule phrase pour toute source stale** — « Airflow UI → relancer le DAG correspondant » — sans distinguer les sources alimentées par une collecte planifiée de celles alimentées par un dépôt humain. Relancer `s4a_csv_watcher` sur une boîte vide n'upserte rien et sort SUCCESS. Le 2026-08-26 les **2 sources stale sur 2** (Spotify S4A 1921h, Apple Music 1709h) étaient de ce type : le geste nommé était impossible deux fois sur deux. La péremption, elle, est VRAIE (R46 : S4A muette depuis ~80 j, seul l'admin a jamais déposé) — donc taire la ligne serait le mauvais correctif ; c'est l'action qui était fausse.
+- cause_evidence: read (airflow/dags/alert_monitor.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_alert_names_a_workable_action.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `fed_by` déclaré dans `MONITOR_TARGETS` — le registre le savait déjà implicitement, `_CSV_STALE_H` ne s'appliquant qu'à ces deux sources — et porté jusqu'à l'e-mail. Le garde vérifie l'accord entre les deux (`fed_by == csv` ⟺ seuil CSV), donc une source CSV ajoutée sans le champ sort ici et non dans un mail nocturne.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_alert_names_a_workable_action.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/freshness_monitor.py
 - first_seen: 2026-08-26
 - History:
@@ -2630,10 +3110,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: deux contrôles portant des noms différents évaluent le MÊME prédicat, et le rapport imprime chaque fait deux fois, sous deux formulations du même geste — puis le recompte dans le sujet. La ligne unique qui méritait une question se noie dans ses propres doublons.
 - root_cause: `readiness_stalled_flags` (`src/utils/artist_readiness.py`) renvoie les plateformes au statut `TODO` ; `check_credentials_all` (`airflow/dags/alert_monitor.py`) renvoie celles absentes de `declared_identities()`. Or `TODO` **est** « aucune identité déclarée » : `stalled` est donc `missing_creds` restreint aux comptes de plus de 7 jours — un sous-ensemble strict par construction, pas par coïncidence. Mesuré le 2026-08-26 : section « Inscrits sans rien connecter » = 11 lignes, section « Credentials manquants » = 12, dont **les mêmes 11**. Une seule ligne (l'identité Spotify de l'admin) n'était pas déjà dite au-dessus, et c'était la seule intéressante.
+- cause_evidence: read (src/utils/artist_readiness.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_two_checks_one_question.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: soustraction plutôt que déduplication — la section la plus précise (celle qui nomme le champ à remplir) est conservée, l'autre ne montre que ce qu'elle n'a pas dit, et le sujet compte APRÈS. Surtout, le garde porte sur la RELATION (« ces deux contrôles lisent-ils toujours le même prédicat ? ») et non sur les nombres du jour : si l'un cesse d'être un sous-ensemble de l'autre, soustraire se mettrait à **cacher** des lignes, défaut bien pire que la redondance qu'on corrigeait.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_two_checks_one_question.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/artist_readiness.py
 - first_seen: 2026-08-26
 - History:
@@ -2646,10 +3129,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une identité stockée à DEUX endroits (une ligne de credentials et une colonne miroir sur `saas_artists`) n'est vue que par l'un des lecteurs. Le lecteur aveugle annonce « manquant » ce qui est présent — et il se trouve que c'est celui qui tourne sans personne devant.
 - root_cause: `declared_identities()` (`src/utils/tenant_identity.py`) ne lisait que `extra_by_platform`, alors que `PLATFORM_IDENTITIES['spotify']` déclare `mirror='spotify_artist_id'` et que `artist_readiness._identity()` honore ce miroir explicitement. Mesuré sur la PROD le 2026-08-26 : le propriétaire (id=1) n'a **aucune** ligne `spotify` dans `artist_credentials` et porte `saas_artists.spotify_artist_id = 7sbfafbLjNZGZJZjZ3xoPB` — le mail nocturne réclamait donc chaque nuit un credential déjà renseigné.
+- cause_evidence: read (src/utils/tenant_identity.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_a_mirrored_identity_is_seen_by_every_reader.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `declared_identities(extra, mirrors)` — repli sur le miroir, **jamais** override (sinon le repli devient un moyen de falsifier une identité), et les colonnes miroir dérivées de `IDENTITY_MIRRORS` plutôt que réécrites à la main. Le garde porte sur l'ACCORD des deux lecteurs pour **toute** plateforme déclarant un `mirror`, donc un second miroir ajouté plus tard ne peut pas rouvrir la scission.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_mirrored_identity_is_seen_by_every_reader.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/tenant_identity.py
 - first_seen: 2026-08-26
 - History:
@@ -2663,10 +3149,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une instance hors production expédie de vrais e-mails à de vraies boîtes. Ils ressemblent à une panne, il faut les ouvrir, les lire et les écarter — et à force, on écarte aussi les vrais.
 - root_cause: `EmailAlert.send_alert` et `EmailAlert.send_email` n'ont jamais consulté l'identité de l'instance avant de composer avec le serveur SMTP. **Troisième occurrence en trois jours**, et les deux correctifs précédents avaient chacun une portée trop étroite : le 2026-08-23, une frontière SMTP posée dans `conftest` (donc la SUITE bornée, jamais le scheduler) ; le 2026-08-24, le préfixe `[LOCAL]` sur le sujet (un correctif d'AFFICHAGE pour un problème d'ENVOI). Le 2026-08-26 à 19h48, une session a redémarré le Postgres local pour faire tourner les tests sur une vraie base ; le scheduler local, inactif faute de base, l'a retrouvée et a rejoué ses runs planifiés. Le préfixe `[LOCAL]` a parfaitement fonctionné — et les deux mails sont arrivés quand même.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_only_production_puts_mail_on_the_wire.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le silence est le DÉFAUT hors production, sur les **deux** chemins d'envoi, avec un opt-in explicite par run (`STREAMLYTICS_ALLOW_NONPROD_EMAIL=1`) et un refus qui nomme son propre échappatoire. Le coût d'une alerte non désirée se paie à la RÉCEPTION, pas à l'inspection : nommer l'instance est nécessaire et jamais suffisant.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_only_production_puts_mail_on_the_wire.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/email_alerts.py
 - first_seen: 2026-08-26
 - History:
@@ -2680,10 +3169,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un contrôle répond honnêtement « je n'ai pas pu tourner » (`ModuleNotFoundError`), et cette honnêteté remonte en ligne de sujet comme une alarme métier. On enquête sur la donnée ; le défaut est dans le montage.
 - root_cause: le `docker-compose.yml` **local et non suivi** (gitignoré) montait `./airflow/dags` et `./src` dans les trois services Airflow, mais pas `./tools`. Le gabarit SUIVI `docker-compose.example.yml` le montait déjà, et la production aussi. `check_canary_preflight` et `check_tenant_contamination` shellent tous deux vers `tools/`, donc tous deux renvoyaient UNAVAILABLE, et le sujet portait `🐤 PRÉFLIGHT ROUGE` et `🧬 CONTAMINATION : 1` sur une instance dont la seule anomalie était son propre compose. C'était donc une **copie de travail** en retard sur le gabarit, ni la prod ni le dépôt — la variante la plus discrète, car aucun garde ne peut lire un fichier gitignoré en CI, et l'alarme ne se déclenche QUE hors production, précisément là où personne ne la poursuit.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_compose_mounts_what_the_dags_import.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le garde lit l'AST des DAGs, relève les paquets de premier niveau qu'ils importent, et exige un montage dans les trois services — **sur le gabarit suivi**, donc vérifiable en CI, et sur la copie locale seulement quand elle existe (skip explicite sinon). Il porte sur la relation « ce qu'un DAG importe doit être monté », pas sur `tools`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_compose_mounts_what_the_dags_import.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: docker-compose.yml
 - first_seen: 2026-08-26
 - History:
@@ -2697,10 +3189,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un fichier déposé par un artiste n'importe rien, et le refus ne nomme rien. « Mon CSV ne marche pas » est alors tout le diagnostic disponible — pour lui comme pour nous.
 - root_cause: `s4a_csv_parser.parse_csv_file` lisait `pd.read_csv(file_path)`, virgule seule. Un export téléchargé sur une machine en locale française est séparé par `;` (Excel écrit le séparateur de liste du système), donc la trame revenait en UNE colonne, aucun en-tête attendu n'était trouvé, et un **`except:` nu** rendait `{'type': None, 'data': []}` — indiscernable d'un fichier vide. `distrokid_parser._sniff_sep` avait l'angle mort symétrique : il tranchait entre tabulation et virgule et n'a jamais envisagé `;`. Deux lecteurs d'une même question, la forme cataloguée en `two-checks-one-question-reported-twice`.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_csv_refusal_names_its_reason.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/transformers/csv_dialect.sniff_separator` — le séparateur est MESURÉ sur la ligne d'en-tête (jamais sur le fichier entier : un titre contenant une virgule est ordinaire), un ex aequo est REFUSÉ plutôt que deviné, et les deux parseurs le partagent. Le refus nomme le séparateur réellement tenté, qui est la phrase manquante neuf fois sur dix.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_csv_refusal_names_its_reason.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/transformers/csv_dialect.py
 - first_seen: 2026-08-26
 - History:
@@ -2714,10 +3209,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une classe d'erreur affiche `status: guarded` et nomme un test qui n'existe plus. La classe est rouverte, le catalogue dit le contraire, et rien n'échoue.
 - root_cause: `error-classes.md` est de la PROSE : elle pointe des chemins et des identifiants de nœuds pytest, et rien ne vérifiait qu'ils résolvent. Mesuré le 2026-08-26 : l'arbre de travail portait un changement non commité retirant **4 tests** de `tests/test_claude_config_floor.py`, dont **trois sont le `guard:` ou la `signature:`** de classes cataloguées (`trigger-threshold-split`, `rex-delimiter-unanchored`, `config-path-dangling`). Seul `audit_runner`, lancé à la main, l'a vu. C'est `config-path-dangling` d'un cran au-dessus : une référence qui rate sans se plaindre.
+- cause_evidence: read (tests/test_claude_config_floor.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_every_named_guard_exists.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le catalogue est PARSÉ par la suite — chaque identifiant de nœud pytest qu'il nomme doit résoudre dans l'AST, chaque chemin de `guard:` doit exister sur le disque. Ça tourne en une seconde et ça appartient à la suite, pas à un rapport nocturne : un garde supprimé rouvre sa classe **maintenant**.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_named_guard_exists.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/dev-docs/error-classes.md
 - first_seen: 2026-08-26
 - History:
@@ -2731,10 +3229,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la suite rend des dizaines de rouges qui disent « mauvais interpréteur », pas « code cassé ». On apprend à ne plus lire le récapitulatif, et un vrai échec arrive habillé pareil.
 - root_cause: `python3 -m pytest tests/` rendait **32 échecs sur arbre propre** : 28 en `ImportError: cannot import name 'DAG' from 'airflow'` et `ModuleNotFoundError` sur `googleapiclient` / `spotipy`, parce que `/usr/bin/python3` n'a pas les dépendances du projet. **Quatre classes bloquantes en CI** remontaient HIT pour cette seule raison. Piège aggravant : le dépôt porte un dossier `airflow/` à la racine, capté comme paquet-espace-de-noms depuis la racine — donc l'erreur ressemble à une installation CORROMPUE et non ABSENTE.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_dependency_gate_cannot_hide_a_break.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `tests/dep_gate.py`, jumeau de `db_gate` — la sonde exige `spec.origin` non nul (un espace de noms n'est pas un paquet), le récapitulatif CRIE la dépendance absente et la commande qui l'installe, et **`CI` présent ⇒ aucune porte ne peut sauter**. C'est cet appariement qui rend le skip acceptable : sauter est une courtoisie pour le shell d'un développeur, jamais un comportement du pipeline.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_dependency_gate_cannot_hide_a_break.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/dep_gate.py
 - first_seen: 2026-08-26
 - History:
@@ -2746,10 +3247,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une tâche planifiée lève `TypeError: X.__init__() missing N required positional arguments` à sa première exécution réelle, des heures après le commit. Le mail d'échec est le symptôme visible ; le vrai coût est en dessous — la tâche ne produit plus rien, `xcom_pull` renvoie `None`, et **la section qu'elle alimentait disparaît en silence** du rapport en aval, qui continue de paraître complet.
 - root_cause: `airflow/dags/alert_monitor.py:111` a reçu `db = PostgresHandler()` le 2026-08-26 (`350ed8d`), dans `_mirrored_identities` — le lecteur ajouté justement pour éteindre un faux positif. Le constructeur demande cinq arguments positionnels. Rien entre l'écriture et 01 h 00 ne pouvait le dire : le fichier n'est ni importé par la suite au point d'exécuter cette ligne, ni couvert par un test qui appelle la fonction, et `ruff` ne vérifie pas l'arité d'un appel. Deux nuits d'audit de credentials aveugle, sous une alerte qui avait l'air complète, et le dé-bruitage par le miroir jamais exécuté.
+- cause_evidence: read (airflow/dags/alert_monitor.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_a_handler_is_built_with_its_arguments.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `tests/test_a_handler_is_built_with_its_arguments.py` parcourt `src/`, `airflow/` et `tools/` par AST et tente de **lier** chaque appel `PostgresHandler(...)` à `inspect.signature(PostgresHandler.__init__)`. Deux refus délibérés : pas de `grep` — le fichier fautif porte neuf appels corrects et la chaîne cherchée apparaît dans les commentaires, y compris ceux écrits pour ce correctif (`guard-seeded-by-prose-not-by-code`) ; et pas de liste de cinq noms codés en dur — elle mentirait le jour où la signature change. Les appels portant `*args`/`**kwargs` sont ignorés explicitement plutôt que devinés.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_handler_is_built_with_its_arguments.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-08-28
 - History:
@@ -2761,10 +3265,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la même alerte arrive chaque nuit avec le même contenu, sur un problème dont le geste correctif est une action humaine dans une interface tierce. Le lecteur ne peut rien en faire le soir même ; au bout de quelques nuits il cesse de l'ouvrir, et c'est le mail SUIVANT — celui qui aurait changé — qu'il ne lira pas.
 - root_cause: `alert_monitor.send_consolidated_alert` envoyait à chaque exécution, sans jamais comparer aux constats précédents. Mesuré le 2026-08-28 sur les XCom de production des runs du 25 et du 26 août : **identiques à deux champs près**, `age_h` (1945.0 → 1969.0, une source qui vieillit) et `when` (l'horodatage du dernier échec Meta). Le registre `monitoring_run` montre **cinq** nuits consécutives au même sujet. Une comparaison naïve sur le corps ou le sujet ne pouvait pas marcher : le sujet tronque à trois noms et un « +2 », et le corps porte les mesures qui bougent seules.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_same_night_twice_is_not_two_alerts.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/utils/alert_repetition.py` empreinte les constats en retirant les champs de MESURE et en gardant ceux d'IDENTITÉ ; `monitoring_run.findings_digest` (migration 078) porte l'empreinte du dernier envoi **réellement délivré**. Trois bornes rendent la classe non réouvrable dans l'autre sens : un constat nouveau, disparu ou de raison changée part la nuit même ; au-delà de `ALERT_REPEAT_SILENCE_DAYS` (7) le même constat repart, parce qu'un silence permanent est indiscernable d'un moniteur mort ; et la nuit supprimée s'écrit `delivery_expected = FALSE`, comme une nuit calme, pour que `tools/infra_health_cron.sh` n'y lise pas une panne du canal.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_same_night_twice_is_not_two_alerts.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/alert_repetition.py
 - first_seen: 2026-08-28
 - History:
@@ -2779,10 +3286,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un document de procédure présente comme À FAIRE, priorité comprise, une tâche close depuis des jours ou des semaines. Le lecteur ouvre une séance en croyant avoir cinq gestes en attente alors qu'il en a un.
 - root_cause: la cohérence entre l'index de la roadmap et le runbook n'était vérifiée QUE dans un sens. `test_every_waiting_row_names_the_gesture_it_waits_on` demandait « chaque tâche ouverte a-t-elle sa procédure ? » ; personne ne demandait « chaque procédure a-t-elle encore une tâche ouverte ? ». Une ligne qui quitte l'index emporte sa preuve et laisse la procédure intacte, avec son `· P2`. Mesuré le 2026-08-28 : `## 1. R13 · P2`, `## 4. R17 · P3` et `## 9. R55 · P3` étaient vivantes pour des tâches closes les 22, 21 et 26 août. Même journée, même classe, un cran plus haut : l'en-tête `## 🔖 REPRISE` de la checklist nommait les trois mêmes ids.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_roadmap_index_is_honest.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `test_no_runbook_section_outlives_its_task` marche dans l'autre sens : toute section `## <n>. R<id> — …` non barrée doit avoir sa ligne dans un des deux index. La convention imposée existait déjà et n'était simplement pas contrôlée (`~~R20 — …~~ · ✅ FAIT le 2026-08-21`) — elle garde les étapes lisibles pour le jour où la tâche revient. Le prédicat est ancré sur la forme NUMÉROTÉE de section, pas sur « un titre qui mentionne un id » : la version large a signalé R42 dès sa première exécution, alors que `### Ce qui a changé le 2026-08-23 (R42)` est un sous-titre narratif à l'intérieur d'une section déjà barrée. La portée du garde doit épouser la question, pas le symptôme.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_roadmap_index_is_honest.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/dev-docs/runbook-actions-utilisateur.md
 - first_seen: 2026-08-28
 - History:
@@ -2794,10 +3304,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la carte d'architecture décrit un sous-ensemble du produit et rien ne le dit. Le lecteur la consulte AU LIEU de lister le répertoire — c'est sa fonction — donc une vue absente est une vue que personne ne sait aller voir.
 - root_cause: aucun contrôle mécanique ne comparait `## Dashboard Views Map` à `src/dashboard/views/`. `CLAUDE.md` portait depuis le 2026-08-21 la phrase « La Views Map a déjà divergé deux fois sans que rien ne le signale », et la règle 18 demande un `code-architecture-reviewer` au-delà de cinq modules changés — une REVUE, donc quelque chose qu'il faut penser à demander. Trois dérives se sont produites pendant qu'elle existait. Mesuré le 2026-08-28 : **15 vues sur 44 absentes**, dont `onboarding` et `onboarding_health`, deux des premières surfaces qu'un artiste rencontre. La même carte annonçait par ailleurs « Billing — 3-column Free/Basic/Premium » et un rôle `basic+` alors que `basic` est retiré depuis la migration 048.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_views_map_lists_every_view.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `tests/test_the_views_map_lists_every_view.py` paramétrise sur les vues réelles et vérifie les deux sens — chaque vue est nommée, aucune ligne ne survit à sa vue. Il contrôle la PRÉSENCE, jamais la qualité de la description : un garde qui jugerait la prose serait infalsifiable ou échouerait à chaque édition honnête, et serait supprimé dans la semaine. La présence est ce qui a réellement pourri. L'extraction est bornée à la section, parce que plusieurs de ces noms apparaissent ailleurs dans le fichier — un `in text` global aurait passé sur des vues que la carte ne liste pas, exactement la vacuité qui a laissé passer trois dérives.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_views_map_lists_every_view.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/dev-docs/architecture.md
 - first_seen: 2026-08-28
 - History:
@@ -2809,10 +3322,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un sélecteur de tests rend un ensemble qui a l'air restreint — 19 sur 169, 11 % — et qui est en réalité CONSTANT : le même, octet pour octet, pour un collecteur, une vue et un util. Il exclut le test du module qu'on vient de modifier. Suivre la règle qui prescrit de lancer cette liste revient donc à sauter exactement les tests qui couvrent le changement.
 - root_cause: `source_roots()` retient `src/` comme racine d'imports (elle contient des paquets), donc `module_name()` indexe `src/utils/x.py` sous `utils.x` — alors que ce dépôt écrit `from src.utils.x import …`, la forme relative à la racine git. Les deux noms ne se rencontrent jamais : **59 arêtes résolues sur 979**, 94 % du graphe perdu, tous les tests avec zéro dépendance. Les 19 fichiers venaient uniquement de `dynamic` et des mentions littérales ; l'atteignabilité ne contribuait à rien. C'est le MÊME défaut que `source_roots()` avait été écrite pour corriger le 2026-07-30, dans l'autre sens : ce jour-là un dépôt écrivait `from app import repo` et `src/` fut ajoutée pour lui. Choisir UN nom casse l'autre style.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_selector_selects_what_changed.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `module_aliases()` indexe chaque fichier sous TOUS ses noms relatifs aux racines ; `build_graph` résout les imports via cet index d'alias vers le nom canonique. Aucun style de préfixe n'est privilégié, donc aucun n'est cassé. Le garde vérifie l'EFFET — l'arête test → module existe, le graphe dépasse 400 arêtes — et non l'artefact (le script existe, il sort 0), distinction que le docstring du script nomme lui-même comme sa raison d'être.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_selector_selects_what_changed.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/scripts/select_tests.py
 - first_seen: 2026-08-28
 - History:
@@ -2824,10 +3340,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une frontière de test annonce une portée étroite dans son docstring et l'applique à tout le processus. Symptôme observable : des tests deviennent ROUGES sans que le code testé ait changé, et la suite RALENTIT au lieu d'accélérer.
 - root_cause: `conftest._retry_backoff_costs_no_wall_clock` faisait `monkeypatch.setattr(_retry.time, "sleep", …)` pour éviter le backoff de `src.utils.retry`. Or `retry.py` fait `import time` : `_retry.time` **EST** le module `time` global, donc la fixture neutralisait tous les `sleep` du processus. Mesuré : suite de 275 s → **608 s**, et les deux tests les plus lents rouges — les attentes de rendu Streamlit `AppTest` et WeasyPrint retournaient instantanément et lisaient une page pas encore prête. Le docstring affirmait l'inverse dans le même paragraphe.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_no_wait_boundary_stays_narrow.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: substituer la RÉFÉRENCE dans l'espace de noms du consommateur (`setattr(_retry, "time", shim)`), jamais un attribut d'un module partagé. Le garde épingle les DEUX moitiés — le raccourci fonctionne (trois tentatives en moins d'une seconde) **et** le reste du processus peut encore attendre (`time.sleep(0.05)` avance vraiment l'horloge) — parce qu'une seule des deux avait été cassée, et qu'un garde sur la seule moitié qui marchait n'aurait rien vu.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_no_wait_boundary_stays_narrow.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/conftest.py
 - first_seen: 2026-08-28
 - History:
@@ -2839,10 +3358,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'en-tête d'un fichier d'état énumère des tâches comme restant à faire alors que le corps du même fichier les dit closes. Le lecteur ouvre sa séance avec cinq gestes en attente au lieu d'un.
 - root_cause: l'affirmation vivait en PROSE et rien ne pouvait la comparer à l'index. Mesuré le 2026-08-28 : `## 🔖 REPRISE` ouvrait sur « ne restent que des gestes humains : R1, R13, R17, R54, R55 » — R13 close le 22, R17 le 21, R55 le 26. Le tableau `🙋` du même fichier listait deux lignes. Seul l'en-tête n'avait pas suivi, et c'est la partie que `/resume` recopie sans la relire.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_resume_header_is_checked.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: donner à la prose un ANCRAGE lisible par machine — une ligne `<!-- reprise: open=R1 -->` qui porte la même affirmation sous une forme comparable aux deux tableaux d'index. Chercher des ids dans la prose ne marche pas : « ne restent que R13 » et « R13 est close » sont les mêmes jetons dans deux affirmations opposées, donc le prédicat déclencherait sur chaque phrase rétrospective honnête ou ne verrait rien — le piège `a-guards-scope-is-the-defect`, déjà payé six fois ici. **Une prose ne se vérifie pas ; une prose ancrée se vérifie.**
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_resume_header_is_checked.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/dev-docs/roadmap/checklist.md
 - first_seen: 2026-08-28
 - History:
@@ -2854,10 +3376,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: le fichier lu en PREMIER à chaque séance grossit sans fin parce qu'on empile les états successifs au lieu de les faire tourner. Le coût est payé à chaque ouverture, pour du contenu qui n'est plus vrai.
 - root_cause: rien ne bornait `checklist.md`. Mesuré le 2026-08-28 : **88 Ko, ~22 600 tokens, dont 72 % d'historique** — sept blocs REPRISE/Historique remontant au 21 août, **deux portant tous les deux « à lire EN PREMIER au `/resume` »** (ce qui ne peut pas être vrai des deux), plus deux sections dupliquées mot pour mot. Après rotation vers `archive.md` : 34 Ko.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_resume_header_is_checked.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: trois bornes structurelles — **un seul** bloc `## 🔖 REPRISE`, **zéro** bloc `## 🔖 Historique` dans le fichier actif, et un plafond d'octets (50 Ko). Le plafond est un filet grossier et c'est voulu : il ne juge pas le contenu, il rend le prochain empilement bruyant. La rotation se fait vers `archive.md`, jamais par suppression — `test_roadmap_two_files.py` échoue si la somme rétrécit.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_resume_header_is_checked.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/dev-docs/roadmap/checklist.md
 - first_seen: 2026-08-28
 
@@ -2867,10 +3392,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un document utile existe et reste introuvable, parce qu'aucun index ne le nomme. Symétriquement, des gabarits vides survivent des mois sans que personne s'en aperçoive.
 - root_cause: aucun contrôle d'atteignabilité. Mesuré le 2026-08-28 : **huit** fichiers de `.claude/dev-docs/` n'étaient nommés par rien hors de ce dossier. Quatre étaient des gabarits vides — `system-invariants.md` s'annonçait « Source of truth for thresholds, anti-patterns, and deployment rules » et ne contenait que des `TODO`, donc pire qu'absent : il aurait été cru. Deux décrivaient l'amorçage d'un AUTRE dépôt (`tools/setup-claude-code.sh` absent ici, `.claude/skills/domain_{1,2,3}.md` inexistants, trois agents cités qui ne sont aucun des huit). Et deux étaient utiles : `runbook-artist-test-session.md` est la procédure de **R1, la seule tâche ouverte**.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_every_dev_doc_is_reachable.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: chaque `.md` de `dev-docs/` doit être nommé par un fichier suivi hors de `dev-docs/roadmap/`. L'exclusion de la roadmap est ce qui rend le garde non vacuant : elle est réécrite chaque séance et mentionne tout au passage, donc la compter ferait passer des documents que nul index n'atteint. Le garde vérifie l'EXISTENCE d'un pointeur, jamais sa qualité — juger une description est infalsifiable et le test finirait supprimé.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_dev_doc_is_reachable.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: CLAUDE.md
 - first_seen: 2026-08-28
 
@@ -2880,10 +3408,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une séance modifie du code de production et se termine sans entrée de journal ni mise à jour de roadmap. Le code part ; le raisonnement qui l'a produit ne reste nulle part.
 - root_cause: le rappel de fin de séance (`session_summary.check_config_devlog_sync`) ne surveillait que la CONFIGURATION Claude Code — `.claude/rules`, `tools`, `CLAUDE.md`, `.claude/hooks`, `.claude/skills`. **`src/` et `airflow/` en étaient absents**, donc la séance dont l'oubli coûte le plus cher ne déclenchait rien. Il comparait de surcroît des `mtime`, qui mentent dans les deux sens : un `git checkout` remet une date à zéro sans rien changer, et toucher `DEVLOG.md` pour une virgule éteignait l'alerte sans rien journaliser.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_code_without_a_trace_is_flagged.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `check_code_without_a_trace` lit `git status` et exige les DEUX traces (journal et roadmap), en nommant celle qui manque quand une seule est là. Elle ne lève jamais — un rappel qui casse la fin de séance n'est pas corrigé, il est désactivé. Le garde monte un dépôt git jetable par cas plutôt que d'observer l'arbre courant : sinon il testerait l'état où l'arbre se trouve ce jour-là et serait vert par hasard.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_code_without_a_trace_is_flagged.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/hooks/session_summary.py
 - first_seen: 2026-08-28
 - History:
@@ -2895,10 +3426,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un contrôle planifié cesse de tourner et tout reste vert, parce que rien ne surveille le surveillant. L'absence d'échec est lue comme une absence de problème, alors qu'elle est l'absence de la question.
 - root_cause: `.github/workflows/prod-health.yml` est planifié à 06:00 UTC et rien ne vérifiait qu'il tournait. Mesuré le 2026-08-28 sur 38 exécutions depuis le 21 juillet : les écarts tenaient 22,7–25,4 h, sauf **un à 34,6 h** — un créneau entier abandonné, puis un run à 17:07 au lieu de 06:00. Le cron de GitHub Actions est best-effort. Ce workflow porte les 16 sondes de `test_prod_health.py`, qui tournent **là et nulle part ailleurs** : c'est la seule surface qui regarde la production comme un vrai client, À TRAVERS Cloudflare. Tout le reste tourne sur la machine et est structurellement aveugle aux régressions d'edge, de certificat, de DNS et de routage — le 403 Bot Fight Mode du 2026-06-14 sur le webhook Stripe l'a prouvé.
+- cause_evidence: read (.github/workflows/prod-health.yml, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_monitor_itself_still_runs.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `tests/test_the_monitor_itself_still_runs.py` interroge l'API Actions et échoue au-delà de 30 h. Il vit dans la SUITE et non dans un second cron : un cron qui en surveille un autre partage le mode de panne surveillé, tandis que la CI se déclenche à chaque push. `GITHUB_TOKEN` est injecté d'office par Actions — aucun secret créé, aucune surface ouverte. Hors CI, il saute bruyamment : sans jeton la question n'existe pas, et inventer une réponse serait pire que rien. La planification est par ailleurs décalée à 06:17 : les minutes rondes sont les plus demandées, donc les premières lâchées — ça ne garantit rien, c'est le garde qui garantit qu'on le saura.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_monitor_itself_still_runs.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .github/workflows/prod-health.yml
 - first_seen: 2026-08-28
 - History:
@@ -2911,10 +3445,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une page Streamlit reconstruit à chaque rerun le fichier qu'elle propose au téléchargement. Déplier un accordéon suffit à repayer le rendu complet d'un PDF que personne n'a demandé. Rien ne casse — la page est simplement lente, et le coût est invisible dans les logs.
 - root_cause: `show()` est ré-exécuté à CHAQUE interaction, et `st.download_button` exige son payload présent au rendu. `src/dashboard/views/process_guide.py` appelait donc `HTML(...).write_pdf()` deux fois par rerun. Mesuré dans le conteneur de prod le 2026-08-30 : **573 ms** (guide des identifiants, avec captures) + **148 ms** (guide de démarrage) = 721 ms des 1034 ms de la vue — sur la première page qu'un artiste neuf ouvre.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -c "import sys; sys.path.insert(0,'tests'); from test_a_download_is_built_on_click_not_on_rerun import offending_downloads, _iter_view_modules; sys.exit(1 if offending_downloads(_iter_view_modules()) else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/dashboard/utils/guide_assets.py` détient les deux constructeurs, décorés `@st.cache_data`, et `onboarding.py` comme `process_guide.py` y délèguent — une leçon tenue à UN endroit est la seule forme qui empêche le deuxième appelant de la re-dériver. Le garde lit l'AST : il remonte l'expression passée à `data=` jusqu'à son assignation et n'accepte que trois formes, celles déjà présentes dans le dépôt — lecture de `st.session_state` (construit au clic : `export_pdf`, `export_csv`), producteur décoré `cache_data`, ou pas de construction coûteuse du tout.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_download_is_built_on_click_not_on_rerun.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/guide_assets.py
 - first_seen: 2026-08-30
 - History:
@@ -2930,10 +3467,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un DAG qui se bloque ne se termine jamais, garde son créneau, et peut être enregistré **success**. Aucune alerte : Airflow n'a rien à signaler tant que la tâche n'a pas échoué.
 - root_cause: `dagrun_timeout` vaut `None` par défaut et aucun des 16 DAGs ne le déclarait. Lu sur tout l'historique de `dag_run` en production le 2026-08-30 : `alert_monitor` (p50 **3,4 s**) porte un run de **47 287 s — 13,1 h — en état success**, et `data_quality_check` un de **63 655 s (17,7 h)**. Le premier EST le canal d'alerte nocturne : pendant treize heures rien ne pouvait dire qu'il était bloqué, parce qu'un moniteur muet et une nuit calme se ressemblent trait pour trait.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -c "import sys; sys.path.insert(0,'tests'); from test_every_dag_can_be_called_dead import dags_without_timeout, _dag_files; sys.exit(1 if dags_without_timeout(_dag_files()) else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/utils/dag_timeouts.py` porte un plancher de 30 min et deux dérogations mesurées ; les 16 DAGs passent par `dagrun_timeout_for(dag_id)`. Le seuil est `max(4 × p95, plancher)` — **jamais le maximum observé**, qui sur les deux DAGs concernés EST la pathologie qu'on cherche à attraper. Le test épingle la distribution de production, pas la constante : asserter `FLOOR == 30 min` suivrait n'importe quelle édition.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_dag_can_be_called_dead.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/dag_timeouts.py
 - first_seen: 2026-08-30
 - History:
@@ -2946,10 +3486,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une image Docker embarque des centaines de mégaoctets qu'aucun de ses processus n'importera jamais. Rien ne casse : le build est plus long, le déploiement plus lourd, le disque se remplit.
 - root_cause: un seul `requirements.txt` installé dans TOUTES les images. Mesuré en production le 2026-08-30, l'image FastAPI — qui sert du JSON — portait 454 MB de `nvidia-nccl-cu12` (bibliothèque de communication collective multi-GPU, sur un VPS sans GPU, tirée par `xgboost`), plus `xgboost` 228 MB, `plotly` 188 MB, `llvmlite` 173 MB, `googleapiclient` 97 MB, `sklearn`, `skimage`, `matplotlib`, `weasyprint`.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_api_image_carries_only_what_the_api_imports.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `requirements-api.txt` — manifeste propre à `Dockerfile.api`, contraint d'être un sous-ensemble strict du manifeste projet pour que les deux ne dérivent pas en deux résolutions de la même application. Image mesurée après build réel sur le VPS : **3,87 GB → 280 MB**. Le garde ne compare pas deux fichiers (un diff ne voit pas un `import shap` paresseux dans un handler) : il importe `src.api.main` dans un sous-processus avec chaque paquet exclu bloqué par `sys.meta_path`, ET relit l'arbre de `src/api` pour l'import à portée de fonction que la preuve d'exécution ne peut pas voir.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_api_image_carries_only_what_the_api_imports.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: requirements-api.txt
 - first_seen: 2026-08-30
 - History:
@@ -2962,10 +3505,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la suite valide le code contre une version majeure d'un socle que la production n'exécute pas, et rend vert. Rien ne signale l'écart : les deux moitiés fonctionnent, chacune dans son monde.
 - root_cause: aucun fichier n'épinglait le CŒUR Airflow pour l'environnement de dev. `requirements.txt` et `pyproject.toml` listaient `apache-airflow-providers-*` sans version, et le résolveur est libre d'emmener un cœur avec eux — il l'a fait. Mesuré le 2026-08-30 : `uv.lock` résolvait **apache-airflow 3.2.2** quand la production tourne en **2.11.2**. `Dockerfile.airflow` défend l'IMAGE par un `--constraint` d'une ligne et son commentaire explique pourquoi ; il ne peut rien pour l'interpréteur de la suite. La PR Dependabot #100 (3.3.0) aurait cassé l'import des 16 DAGs — le garde de l'image l'aurait attrapée au build, APRÈS que la suite soit passée au vert.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_tests_run_the_airflow_production_runs.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `apache-airflow==2.11.2` épinglé dans `pyproject.toml`, tenu en phase avec `ARG AIRFLOW_VERSION` par le test. Trois assertions : le tag de l'image et l'ARG s'accordent, `uv.lock` porte le même MAJEUR que la prod, et l'interpréteur qui exécute la suite aussi. La comparaison porte sur le majeur — une dérive de patch entre un lock et un tag est ordinaire ; c'est le majeur qui a déplacé `schedule_interval` et `provide_context` sous les DAGs.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_tests_run_the_airflow_production_runs.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: pyproject.toml
 - first_seen: 2026-08-30
 - History:
@@ -2978,10 +3524,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une page plante avec `ValueError: Tz-aware datetime.datetime cannot be converted to datetime64 unless utc=True, at position N`. Elle marchait la veille : le déclencheur n'est pas un chemin de code, c'est **une date au calendrier**.
 - root_cause: toute colonne `timestamptz` relue par psycopg2 rend des datetimes portant le décalage **en vigueur à cet instant-là**. Une table qui contient des lignes de mars et de juin contient donc `+01:00` et `+02:00` côte à côte, et `pd.to_datetime` sur cette Series refuse. Mesuré en production le 2026-08-30 sur `saas_users.created_at` : ids 1-2 en `+01`, id 10 et suivants en `+02` — « position 2 » exactement. `views/admin.py:652` plantait **en production** sur la liste des utilisateurs ; quatre autres sites avaient la forme identique et n'avaient simplement jamais reçu une fenêtre franchissant un changement d'heure.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -c "import sys; sys.path.insert(0,'tests'); from test_a_timestamptz_column_survives_daylight_saving import unsafe_timestamptz_parses, _sources; sys.exit(1 if unsafe_timestamptz_parses(_sources()) else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/dashboard/utils/tz.py` — `to_local_datetime` / `to_local_naive` normalisent en UTC **puis reconvertissent** vers `Europe/Paris`. Les deux étapes comptent : `utc=True` seul décale l'heure affichée, et près de minuit la DATE affichée. Vérifié sur les données réelles de prod : les chaînes rendues sont identiques à l'ancien code, sur les dates, les heures et `.dt.date`. Le garde intersecte la liste des colonnes `timestamptz` lue au schéma avec les appels de l'arbre : les colonnes `DATE` (`date`, `week`, `day`, `prediction_date`) ne peuvent pas porter deux décalages et ne sont pas signalées.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_timestamptz_column_survives_daylight_saving.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/tz.py
 - first_seen: 2026-08-30
 - History:
@@ -2995,10 +3544,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une vue de supervision affiche une fraction des entités et présente l'absence comme une donnée — « aucun run » au lieu de « je n'ai pas regardé ». Tout répond 200, aucune erreur nulle part.
 - root_cause: `airflow_monitor.get_all_dags_last_state()` répondait « le dernier run de chaque DAG » par **une fenêtre globale** (`POST /dags/~/dagRuns/list`, `page_limit=200`) et prenait ce qui revenait. Son propre docstring énonçait l'hypothèse : « with daily schedules each DAG's latest run sits well within 200 ». La production l'a démentie — mesuré le 2026-08-30 : **392 runs en 24 h, dont 384 pour les 4 watchers CSV** (96 chacun, toutes les 15 min). La fenêtre couvrait donc ~12 h et 98 % de quatre DAGs. `views/home.py` en tire la santé des DAGs : **12 DAGs sur 16 s'affichaient « sans run »** sur la page d'accueil.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_dag_monitor_sees_every_dag.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `_runs_per_dag()` — une requête par DAG, émises en parallèle (8 workers), factorisée en un seul endroit dont `get_dag_runs` et `get_all_dags_last_state` dépendent. Correct par construction : la fenêtre disparaît. Mesuré en prod : batch 254 ms / **4 DAGs sur 16** → parallèle **440 ms / 16 sur 16**, et `get_dag_runs` passe de 1541 ms à 499 ms. Le garde assied son assertion sur la **complétude** (« combien de DAGs sont revenus ») et non sur le nombre d'appels HTTP — ce dernier aurait félicité la version cassée, qui n'en faisait qu'un.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_dag_monitor_sees_every_dag.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/airflow_monitor.py
 - first_seen: 2026-08-30
 - History:
@@ -3012,10 +3564,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une vue ouvre deux connexions par rendu au lieu d'une, sans qu'aucun deuxième `get_db_connection()` n'existe dans son fichier. Rien ne casse : la page s'affiche.
 - root_cause: `views/hypeddit.py:190`, `_render_history()` appelait `db.close()` sur la connexion que `show()` possède et ferme déjà dans son propre `finally`. `_render_entry_form()`, appelé juste après, continuait d'interroger un handle fermé, et `PostgresHandler._ensure_connection()` **reconnectait en silence**. Vestige d'avant le 2026-08-21, quand chaque helper possédait sa connexion : la migration a retiré les ouvertures et laissé une fermeture.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_render_opens_one_connection.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: la fermeture parasite retirée, et surtout le comptage déplacé **au rendu** : `tests/test_a_render_opens_one_connection.py` patche `PostgresHandler._connect` et rend les 42 vues. Le garde existant, `test_view_connection_budget.py`, comptait `get_db_connection()` par une **regex sur le texte source** — aveugle à `project_db()`, à `view_session()` et aux appelés. Son en-tête affirmait « chaque vue ouvre exactement une connexion par rendu » ; c'était faux, et faux à cause de sa façon de mesurer. L'affirmation est corrigée sur place, le ratchet textuel reste, honnête sur son statut d'approximation.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_render_opens_one_connection.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_view_connection_budget.py
 - first_seen: 2026-08-30
 - History:
@@ -3028,10 +3583,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: le contenu d'un onglet (ou de tout conteneur Streamlit) se rend **à côté** au lieu de dedans. Aucune exception, tous les éléments présents, tous les tests verts — seul l'œil sur la page voit que l'onglet est vide.
 - root_cause: extraire le corps d'un `with tab_x:` dans une fonction et appeler cette fonction **sans le `with`**. Commis le 2026-08-30 en découpant `admin.show()` (401 lignes) : `with tab_gdpr:` + 85 lignes remplacé par `_tab_gdpr(db)` nu. Streamlit n'a rien à signaler — le contexte de conteneur est implicite, son absence est un placement, pas une erreur.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_tab_renders_inside_its_tab.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `tests/test_a_tab_renders_inside_its_tab.py` compte les widgets **par onglet** via `at.tabs` et échoue si un onglet en rend zéro. Cru volontairement : aucune attente par vue à maintenir, et il échoue sur exactement l'erreur facile à commettre et invisible au reste.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_tab_renders_inside_its_tab.py }
+- guard_scope: un-contrôle-qui-ne-peut-jamais-passer — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/admin.py
 - first_seen: 2026-08-30
 - History:
@@ -3045,10 +3603,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'utilisateur déclenche une action, l'interface lui confirme qu'elle est lancée, puis affiche l'état d'AVANT son clic — jusqu'à l'expiration du TTL. La page semble dire que rien ne s'est passé.
 - root_cause: `cached_last_run_per_dag()` a été ajouté le 2026-08-30 pour éviter 16 allers-retours HTTP par interaction, **sans invalidation**. Or `views/credentials/_render.py:404` enregistre les credentials, déclenche le DAG et affiche « 🚀 Collecte lancée » ; l'artiste regarde le statut juste après. `app.py:422` fait pareil depuis la barre latérale. Les deux servaient une vue cachée des runs antérieurs au clic de l'artiste.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -c "import sys; sys.path.insert(0,'tests'); from test_a_trigger_invalidates_what_it_makes_stale import trigger_sites_without_invalidation, _dashboard_sources; sys.exit(1 if trigger_sites_without_invalidation(_dashboard_sources()) else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `cached_last_run_per_dag.clear()` sur le chemin de succès des deux déclencheurs, et un garde AST qui remonte du `trigger_dag(...)` à son `if result.get('success'):` pour exiger l'appel. **Raccourcir le TTL n'était pas la réponse** : mesuré sur 7 jours de `dag_run`, 16,3 runs se terminent par heure sans une seule heure creuse — aucun TTL raisonnable ne rend la page courante. La fraîcheur qui compte est ÉVÉNEMENTIELLE. Une fois l'événement traité, le TTL ne gouverne plus que la dérive de fond et se règle pour le lecteur : 60 → 300 s, soit un blocage d'~1 s par visite de cinq minutes au lieu de cinq.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_trigger_invalidates_what_it_makes_stale.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/airflow_monitor.py
 - first_seen: 2026-08-30
 - History:
@@ -3062,10 +3623,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: le contrôle qui répondrait à la question de l'utilisateur existe, tourne, et donne la bonne réponse — mais à un moment où plus personne ne la lit. L'utilisateur agit, l'interface confirme l'action, et il apprend huit heures plus tard que ça n'a pas marché. Ou jamais.
 - root_cause: deux mécanismes répondaient déjà à « ce locataire fonctionne-t-il ? » — `make artist-preflight` (cinq contrôles, **commande d'opérateur sur la machine**, qu'un artiste ne peut pas lancer) et le DAG nocturne `alert_monitor` à **23 h**. Un artiste qui connecte une plateforme à 15 h n'avait donc aucune réponse pendant huit heures, alors que l'app venait de lui afficher « 🚀 Collecte lancée ». Le moment de la vérification d'e-mail, lui, est **trop tôt** : sans credentials ni identité ni données, les cinq contrôles sont rouges et aucun rouge ne signifie quoi que ce soit.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -c "import sys; sys.path.insert(0,'tests'); from test_saving_credentials_yields_a_verdict_now import save_paths_without_a_probe, _RENDER; sys.exit(1 if save_paths_without_a_probe(_RENDER) else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `_handle_save()` appelle `run_probes_now(db, artist_id, [platform_key])` juste après le déclenchement — la même sonde que le bouton « 🔌 Vérifier maintenant », qui **écrit** son verdict dans `tenant_platform_probe`, d'où la matrice de l'accueil, de l'onboarding et de la page Credentials le lit sans que personne n'appuie. Le garde remonte de `trigger_dag(...)` à la fonction qui le contient et exige la sonde : un second chemin d'enregistrement ne pourra pas revenir en silence à « connecté, et personne ne sait si ça marche ».
 - autofix: none
 - guard: { type: pytest, ref: tests/test_saving_credentials_yields_a_verdict_now.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/credentials/_render.py
 - first_seen: 2026-08-30
 - History:
@@ -3078,10 +3642,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: « je clique sur un bouton et il ne se passe rien, je dois recliquer ». Pas UN bouton — **tous**, par intermittence, et avec **aucune réaction** : ni spinner, ni « Running… ». Rapporté par un artiste en test le 2026-08-30.
 - root_cause: Streamlit parle au navigateur par un **websocket**, et `server.websocketPingInterval` valait `None` — **aucun keepalive**. Le dashboard est servi à travers Cloudflare (`server: cloudflare`, `cf-ray` présents sur `app.streamlytics.fr`), qui ferme un websocket resté inactif. Un artiste qui lit une page deux minutes perd la connexion en silence ; le clic suivant ne part nulle part, celui d'après fonctionne parce que le navigateur s'est reconnecté entre-temps. L'aide de Streamlit pour cette option nomme la situation : *« if you're experiencing frequent disconnections in certain proxy setups »*.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_websocket_survives_the_proxy.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_the_websocket_survives_the_proxy.py`, consignée par l'auteur du garde)
 - long_term_fix: `websocketPingInterval = 20` dans `.streamlit/config.toml`, largement sous la fenêtre d'inactivité de Cloudflare, pour une trame minuscule par client toutes les 20 s. Le garde vérifie aussi que `.streamlit/` est toujours copié par le `Dockerfile` — une configuration que l'image ne lit pas est une configuration inerte.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_websocket_survives_the_proxy.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .streamlit/config.toml
 - first_seen: 2026-08-30
 - History:
@@ -3094,10 +3661,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un guide montre à l'utilisateur du travail qu'il ne peut pas faire, ou étiquette « admin » une action qui n'appartient qu'à lui. Dans les deux cas il ne fait pas ce qu'il devrait, et l'échec qui suit ne dit pas pourquoi.
 - root_cause: `PlatformCred.note` ne distinguait pas le destinataire, et le rendu l'affichait sans condition — sur l'écran ET dans le PDF joint à l'e-mail de bienvenue. Deux conséquences opposées, trouvées le 2026-08-30 par `make artist-firstlook` : **(1)** la note Spotify disait « **Admin (une seule fois)** : créer une app sur developer.spotify.com… renseigner `SPOTIFY_CLIENT_ID` en variables d'environnement » — sa dernière phrase (« Les artistes n'ont alors qu'à coller le lien ») prouve qu'elle est écrite pour l'exploitant, et elle s'affichait à l'artiste sur la page où il doit justement coller un lien ; **(2)** le partage du compte publicitaire Meta, qui est l'action de l'artiste sur SON compte dans SON Business Manager, était en note de bas de page sous l'étiquette « **Prérequis admin** ». Il ne le faisait donc pas, le test de connexion échouait, et rien ne disait pourquoi — la séance du 2026-06-19.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_guide_tells_the_artist_only_what_is_theirs.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un champ `admin_note`, distinct de `note`, qui **dit à qui le texte s'adresse** au lieu de laisser le rendu deviner. Réservé à l'admin dans `credential_guides_st.py`, et **jamais** rendu par `guide_pdf.py` — ce PDF part à l'artiste. Le partage Meta est passé de note de bas de page à **étape numérotée, avant le test de connexion**, formulée comme son action, dans les deux langues. Le garde interdit un vocabulaire d'exploitant (`variables d'environnement`, `SPOTIFY_CLIENT_ID`, `System User`…) dans `note` et `steps`, et vérifie que l'étape de partage précède le test.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_guide_tells_the_artist_only_what_is_theirs.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/content/credential_guides.py
 - first_seen: 2026-08-30
 - History:
@@ -3110,10 +3680,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un agrégat sur « le dernier relevé » ne somme qu'**une** ligne du lot, et le delta qui en découle part à l'utilisateur comme un effondrement.
 - root_cause: `airflow/dags/weekly_digest.py:158` identifiait le relevé SoundCloud par `collected_at = (SELECT MAX(collected_at) …)`. Le collecteur horodate **chaque ligne** du même lot : mesuré en prod le 2026-08-31, un run de 19 titres portait 19 timestamps distincts (`11:00:04.101372`, `.101370`, `.101367`…). L'égalité ne retenait donc que la **dernière ligne insérée**. L'artiste a reçu `Plays delta (7d) -21,324` sur `2,229 total` quand les vrais totaux étaient 23 557 aujourd'hui et 23 553 sept jours plus tôt — un delta réel de **+4**. La table déclarait pourtant le grain elle-même : `UNIQUE (artist_id, track_id, (collected_at::date))`. Les deux moitiés d'un même delta étaient calculées à deux grains différents : la moitié « semaine passée » clavait sur `collected_at::date` et était juste.
+- cause_evidence: read (airflow/dags/weekly_digest.py, rétro-portage mécanique 2026-09-16)
 - signature: `.venv/bin/python -m pytest tests/test_a_snapshot_is_keyed_by_the_day.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: la requête vit dans `src/utils/digest_queries.py`, un module **sans dépendance Airflow** — un garde posé à côté du DAG skippe en silence sur les interpréteurs sans `airflow`, ce qui est exactement comment ce défaut a survécu. Le relevé est clavé sur `collected_at::date`, dédupliqué par `DISTINCT ON (track_id)`, et le `COALESCE(…,0)` est retiré : un relevé absent doit s'afficher `N/A`, jamais un 0 qui se lit comme une mesure.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_snapshot_is_keyed_by_the_day.py }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/digest_queries.py
 - first_seen: 2026-08-31
 - History:
@@ -3126,10 +3699,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'application démarre proprement puis meurt au **premier clic**, sur un `ModuleNotFoundError` qui nomme un paquet présent sur le disque.
 - root_cause: `src/dashboard/app.py` insérait la racine du dépôt dans `sys.path` (pour `src.*`) mais **jamais son propre répertoire**, dont dépendent ses 44 routes `from views.<page> import show`. Cette entrée n'arrivait que par effet de bord du bootstrap Streamlit (`sys.path.insert(0, dirname(abspath(main_script_path)))`) : chaque route reposait donc sur un détail d'implémentation tiers que le fichier n'affirmait nulle part. Les routes étant importées **paresseusement**, l'absence ne se voit pas au démarrage. Une instance locale a produit `ModuleNotFoundError: No module named 'views'` sur la page `credentials` le 2026-08-30 à 22:34.
+- cause_evidence: read (src/dashboard/app.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_route_table_can_import_its_views.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `app.py` insère explicitement son propre répertoire, symétriquement à la racine qu'il garantissait déjà — trois lignes qui énoncent la garantie au lieu de l'emprunter. Le garde lit l'**AST** (profondeur des chaînes `Path(__file__).resolve().parent…` réellement passées à `sys.path.insert`) : un commentaire ou un docstring qui nomme `views` ne peut pas le satisfaire.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_route_table_can_import_its_views.py }
+- guard_scope: un-contrôle-qui-ne-peut-jamais-passer — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/app.py
 - first_seen: 2026-08-31
 - History:
@@ -3142,10 +3718,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un test accuse une régression de destruction de données qui n'a jamais eu lieu, et bloque une PR sans rapport.
 - root_cause: `tests/test_admin_hypeddit_buttons.py::test_gdpr_erasure_refuses_without_a_reason` lisait `SELECT count(*) FROM saas_artists` avant et après le clic. La question posée est « **ce** clic a-t-il effacé **cet** artiste ? » ; le prédicat demandait « la table a-t-elle rétréci ? ». **Douze** modules de test suppriment des `saas_artists` en teardown de fixture : sous `pytest-xdist`, n'importe lequel peut atterrir entre les deux lectures. Sur la CI 33356700452 (PR #103, bump de dépendances), après 14 exécutions vertes consécutives, le test a rapporté « went from 3 to 2 rows … The two-step guard is gone » alors que la porte RGPD est prouvée close par lecture : `_confirm_gdpr` n'est posé que si le motif est non vide, et `_erase_artist_gdpr` n'est atteignable que derrière un second bouton.
+- cause_evidence: read (tests/test_admin_hypeddit_buttons.py, rétro-portage mécanique 2026-09-16)
 - signature: `.venv/bin/python -m pytest tests/test_admin_hypeddit_buttons.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: l'assertion porte sur l'artiste que le formulaire vise réellement — lu dans le `selectbox` `gdpr_sel` — et sur `gdpr_erasure_log` pour **ce** locataire. Un prédicat plus large que sa question ne se contente pas de rater son défaut : il en invente un, et le coût est une matinée passée sur une porte qui n'a jamais cédé.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_admin_hypeddit_buttons.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_admin_hypeddit_buttons.py
 - first_seen: 2026-08-31
 - History:
@@ -3158,10 +3737,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une panne de collecte est correctement détectée, correctement isolée, correctement alertée — et le message reçu ne dit pas quoi faire, parce que la phrase de l'API qui porte le geste est restée dans le conteneur.
 - root_cause: `src/collectors/meta_ads_api_collector.py:182` agrégeait ses échecs par compte publicitaire en `failures.append((account, type(exc).__name__))`. Ce couple part dans le `RuntimeError` du collecteur, donc dans `etl_run_log.error_message` **et** dans le mail nocturne consolidé. Mesuré en prod le 2026-09-03 : cinq nuits d'affilée, le locataire 12 (Benken) recevait `act_65390907 (FacebookRequestError)`. La cause réelle — `(#200) Ad account owner has NOT grant ads_management or ads_read permission` — n'existait que dans le log de la tâche Airflow. Le nom de classe est identique pour un token expiré, un throttle et un partage d'asset manquant : trois gestes différents sous une seule étiquette. L'exclusion de `str(exc)` était, elle, **délibérée et juste** — la SDK Meta stringifie la requête préparée, donc le token System User partagé — mais la contrainte de sécurité avait emporté l'information d'exploitation avec elle.
+- cause_evidence: read (src/collectors/meta_ads_api_collector.py, rétro-portage mécanique 2026-09-16)
 - signature: `.venv/bin/python -m pytest tests/test_meta_multi_account.py::TestFailureReasonReachesTheOperator -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `_account_failure_reason()` lit les **accesseurs structurés** de l'erreur Meta (`api_error_code`, `api_error_subcode`, `api_error_message`), qui ne rendent que ce que l'API a répondu — la requête n'y figure pas, la contrainte de sécurité est donc tenue par construction et non par omission. Le message est en plus passé par `redact()` : une prose qu'on n'écrit pas est une prose dont on ne présume rien. Le repli sur le nom de classe est conservé pour tout ce qui n'est pas une erreur d'API, y compris un accesseur qui lève — une SDK malformée ne doit pas remplacer une panne par une autre.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_meta_multi_account.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/collectors/meta_ads_api_collector.py
 - first_seen: 2026-09-03
 - History:
@@ -3175,10 +3757,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: tous les gardes sont verts, la source est juste, et l'utilisateur reçoit quand même les instructions d'il y a trois mois.
 - root_cause: `docs/guides/onboarding_guide.pdf` est construit **à la main** (`python -m src.dashboard.guides.guide_pdf`) puis commité. Rien ne le reconstruit : ni le `Makefile`, ni la CI, ni un Dockerfile. Et rien ne le **lit** : les six gardes du guide (`test_a_guide_never_asks_for_a_dead_uri`, `test_the_guide_tells_the_artist_only_what_is_theirs`, `test_guides_render_per_os`, `test_the_guide_is_fetchable_not_only_mailed`, `test_the_setup_guide_is_reachable`, `test_guide_pdf`) inspectent tous les modules **source**, aucun n'ouvre le PDF. Or c'est le PDF que `verification_email._guide_pdf_paths()` attache à l'e-mail de bienvenue et que les deux boutons de téléchargement servent, depuis un montage `./docs:/app/docs:ro`. Mesuré le 2026-09-03 : le fichier commité datait du 2026-06-13 (`1141d02`), ses sources avaient changé le 2026-08-30 — **82 jours** — et `/opt/streamlytics/docs/guides/` en production portait toujours la date `Jun 13 00:00`. `pdftotext` sur le fichier livré : `127.0.0.1:8888` ×2, `Client Secret` ×2, `Web API` ×1, **zéro** dans la source. Ces trois chaînes sont exactement les remarques d'artiste « uri non bonne », « rajout de s sur uri », « web api pas cochée », corrigées dans le code en juin et **toujours livrées** en septembre. La chaîne complète est la classe : *construit à la main → commité → reconstruit par aucune automatisation → rendu par aucun test → monté dans le conteneur → servi.*
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `.venv/bin/python -m pytest tests/test_the_shipped_guide_is_the_current_guide.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `guide_pdf.write_fingerprint()` écrit `docs/guides/.guide_fingerprint` **dans le même souffle que les PDF**, avec DEUX empreintes : `source=` (digest du HTML rendu, `APP_BASE_URL` normalisée) et `rendered=` (digest des fichiers PDF présents). Le garde compare les deux. Ni l'un ni l'autre ne suffit seul, et c'est le cœur du correctif — voir l'Historique. Ne pas hasher le PDF entre deux reconstructions (WeasyPrint n'est pas reproductible d'une version à l'autre) et ne pas reconstruire en CI (`ci.yml:62-70` retire délibérément `libcairo2-dev` : « dashboard-only, not CI »), ce qui rend le digest de HTML — du Python pur — le seul garde possible dans cet environnement. `make guide` est le remède, avec sa précondition `check-guide-deps` (règle #10).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_shipped_guide_is_the_current_guide.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/guides/guide_pdf.py
 - first_seen: 2026-09-03
 - History:
@@ -3192,10 +3777,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un script du dépôt refuse de s'exécuter depuis un clone frais — et son propre mode d'emploi dit de le lancer ainsi.
 - root_cause: **7 des 12 `.sh` suivis étaient stockés en `100644` dans l'index git** — dont `tools/migrate.sh` (appelé par `Makefile:46`, et par SSH contre la PRODUCTION à `Makefile:52`), `tools/dev/check_prod_ledger.sh` (`Makefile:228`, dans `sync-check`), `scripts/backup_db.sh`, et `tools/prod_introspect.sh` dont le bloc d'usage ligne 22 écrit `./tools/prod_introspect.sh` — invocation **impossible depuis un clone frais**. Le dépôt vit sur `/mnt/c`, un montage DrvFs : les bits de mode de l'arbre de travail sont synthétisés par le pilote et ne remontent jamais à git. **Sur cette machine le disque ment, l'index non.** Le défaut ne s'était jamais manifesté parce que chaque appelant écrit `bash tools/…`, immunisé aux permissions — la forme inversée du défaut d'origine : le garde passe parce que l'appelant contourne ce qu'il devait vérifier. Et le dépôt avait déjà payé une fois : `tools/infra_health_cron.sh:7` le dit lui-même — *« would have caught the 2026-06-14 incident: db_backup.sh lost its exec bit → no pg_dump since 06-12 »*. L'incident a eu lieu, un détecteur voisin a été écrit, la classe n'a jamais été enregistrée : `exec bit`, `chmod`, `100644` renvoyaient **0 occurrence** sur les 2909 lignes du catalogue.
+- cause_evidence: read (tools/migrate.sh, rétro-portage mécanique 2026-09-16)
 - signature: `python3 .claude/scripts/check_exec_bit.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `check_exec_bit.py` interroge `git ls-files -s`, c'est-à-dire le mode **stocké**, jamais le disque — un contrôle par le système de fichiers serait vert pour toujours ici. Câblé dans `make audit` (nocturne), pas dans la porte de PR. Correction par `git update-index --chmod=+x`, jamais `chmod` seul. Classe portée de `msdr_predictive_maintenance` (`md5-audit-blind-to-file-mode`) après vérification qu'elle est vivante ici.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_shipped_script_can_actually_run.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/scripts/check_exec_bit.py
 - first_seen: 2026-09-03
 - History:
@@ -3208,10 +3796,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: un diagramme s'affiche en boîte d'erreur, ou pas du tout, chez le lecteur — et rien ne rougit, parce que rien dans le dépôt ne rend du markdown.
 - root_cause: `.claude/scripts/check_mermaid.py` **existait dans le dépôt sans aucun appelant** : sa seule occurrence était son propre docstring, ligne 21. Aucun `Makefile`, aucun workflow, aucun hook. Premier passage le 2026-09-03 : **1 bloc sur 4 ne rendait pas**. Le coupable est `.claude/dev-docs/GANTT.md`, un **template généré par `tools/generate-dev-docs.py`** dont les lignes de tâches portent des `YYYY-MM-DD` littéraux — parsables comme déclaration de `dateFormat`, pas comme dates. Un template livré cassé se propage à chaque dépôt que le baseline déploie. Le commit `2e36105` (2026-08-03) avait déjà nommé ce fichier « un template jamais rendu » sans que son diagramme soit corrigé.
+- cause_evidence: read (.claude/scripts/check_mermaid.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 .claude/scripts/check_mermaid.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le linter est appelé depuis `make audit` — **nocturne, et non la porte de PR** : `mmdc` est une dépendance de dev que la CI n'installe pas, donc en faire une signature bloquante rendrait le garde rouge sur toute machine sans elle (`permanently-red-guard-reports-nothing`, la façon dont un contrôle finit supprimé). Les lignes de tâches du template portent des dates de remplissage évidentes (`2026-01-01`) qui parsent, la déclaration `dateFormat YYYY-MM-DD` restant intacte.
 - autofix: none
 - guard: { type: manual, ref: make audit }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/scripts/check_mermaid.py
 - first_seen: 2026-09-03
 - History:
@@ -3223,10 +3814,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un `except:` nu avale aussi `KeyboardInterrupt` et `SystemExit` — donc une interruption volontaire et l'arrêt du processus — et il ne dit jamais QUELLE classe il a mangée, ce qui rend le défaut suivant indiagnosticable.
 - root_cause: 4 sites vivants au 2026-09-03 : `scripts/manage_mapping.py:76,92,131` — un outil d'exploitation interactif qui écrit la table de mapping Meta, où avaler `Ctrl-C` signifie qu'on ne peut pas abandonner une invite — et `airflow/debug_dag/debug_s4a.py:70`, qui journalisait « Impossible de créer le dossier » **sans jamais dire pourquoi**. Ce n'est pas une question de style ici : c'est le mécanisme qui a produit la classe phare du dépôt. Deux commentaires le disent encore, dans l'arbre : `src/transformers/s4a_csv_parser.py:184` (« le `except:` nu ci-dessous renvoyait `{'type': None}` ») et `src/transformers/csv_dialect.py:20` (« the S4A path answered `{'type': None, 'data': []}` out of a bare `except:` »). Autrement dit `collector-silent-success` — une famille entière de gardes, une règle transverse (#6) et un auditeur AST dédié — **a été produite par un `except:` nu**, corrigé deux fois au site d'appel et jamais enregistré comme classe.
+- cause_evidence: read (scripts/manage_mapping.py, rétro-portage mécanique 2026-09-16)
 - signature: `.venv/bin/python -m pytest tests/test_no_except_swallows_the_interrupt.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: chaque site nomme sa classe d'exception (`(ValueError, IndexError)` pour un `int(input())`, `OSError` pour une création de dossier, avec la raison journalisée). Le garde lit `ast.ExceptHandler.type is None` : les deux commentaires ci-dessus contiennent la chaîne exacte qu'un `grep` chercherait, donc un garde textuel serait rouge sur du code correct — et le réflexe suivant serait d'affaiblir la documentation pour faire taire le test. Portée déclarée en positif (`_ROOTS`), archives exclues **par nom** et l'exclusion prouvée honnête par `test_the_archives_are_really_dead`, qui vérifie en AST qu'aucun module vivant ne les importe.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_no_except_swallows_the_interrupt.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: scripts/manage_mapping.py
 - first_seen: 2026-09-03
 - History:
@@ -3239,10 +3833,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un décorateur `@retry` est en place, visible, jamais retiré — et **aucune tentative n'a jamais été rejouée**. Un blip réseau fait échouer la tâche du premier coup, là où le collecteur voisin en rejoue trois.
 - root_cause: `src/utils/retry.py` ne listait que `psycopg2.OperationalError`, `requests.exceptions.Timeout` et `ConnectionError`. Or `src/collectors/youtube_collector.py` n'utilise pas `requests` : il passe par `googleapiclient`, donc `httplib2`, qui lève **`socket.timeout`** — aucune des trois. Les cinq méthodes du collecteur portent `@retry(max_attempts=3)` depuis toujours (`:27,77,156,207,261`) et le décorateur ne pouvait attraper aucune de leurs pannes réseau. Le défaut est invisible parce que le symptôme — un run YouTube rouge — se lit comme une panne d'API, pas comme un retry qui n'a pas eu lieu.
+- cause_evidence: read (src/utils/retry.py, rétro-portage mécanique 2026-09-16)
 - signature: `.venv/bin/python -m pytest tests/test_every_network_call_has_a_deadline.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `TimeoutError` (alias de `socket.timeout` depuis Python 3.10) ajouté à `RETRIABLE_EXCEPTIONS`. **Pas `OSError`** : il couvrirait `FileNotFoundError` et `PermissionError`, qui ne deviennent pas vraies en attendant. Vérifié dans les deux sens — `socket.timeout` rejoué, `FileNotFoundError` non. Le client YouTube reçoit en plus un `http=httplib2.Http(timeout=30)` explicite, pour s'aligner sur le plafond des collecteurs voisins plutôt que d'hériter du défaut de la bibliothèque.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_network_call_has_a_deadline.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/retry.py
 - first_seen: 2026-09-03
 - History:
@@ -3255,10 +3852,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une fonctionnalité facturée ne peut pas être livrée par un travail de fond, parce que la seule façon de savoir qui y a droit exige une session de navigateur.
 - root_cause: **aucun DAG n'avait jamais lu les tables de plan pour un droit d'accès.** La précédence complète — promo → abonnement Stripe actif → `saas_artists.tier` hérité → `free` — n'existait qu'une fois, dans `src/dashboard/auth.py:711-787`, derrière `@st.cache_data` et `st.session_state`. `alert_monitor.check_billing_sync` touche bien `artist_subscriptions`, mais seulement pour signaler une dérive Stripe à l'exploitant : il ne demande jamais si un locataire a droit à une fonctionnalité. Conséquence directe : le digest hebdomadaire, devenu payant le 2026-09-03, n'avait aucun moyen de poser la question. Et le contrat de `PLAN_FEATURES` (`stripe_schema.py` : *« Keys must match page route keys defined in app.py »*) interdit d'y glisser une fonctionnalité qui n'est pas une page — `tests/test_plan_gating.py` itère l'ensemble gratuit **comme des pages**.
+- cause_evidence: read (src/dashboard/auth.py, rétro-portage mécanique 2026-09-16)
 - signature: `.venv/bin/python -m pytest tests/test_the_digest_is_a_paid_feature.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/utils/plan_resolver.py` porte la SQL de précédence et n'importe **pas** streamlit — c'est la condition pour qu'un DAG puisse l'importer. `auth.py` garde sa couche `@st.cache_data` et délègue : une seule règle, jamais deux copies qui divergent dans la direction qui ne se voit sur aucune des deux surfaces (un client facturé premium qui cesse de recevoir, ou un gratuit qui reçoit). Le raccourci admin `_view_as` est délibérément **absent** du résolveur : c'est un aperçu de session, jamais un fait de facturation. `PLAN_CAPABILITIES` est l'ensemble frère pour tout ce qui n'est pas une page, et un test affirme l'inverse du contrat existant — aucune capacité n'est une route.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_digest_is_a_paid_feature.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/plan_resolver.py
 - first_seen: 2026-09-03
 - History:
@@ -3272,10 +3872,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un outil de diagnostic accuse le produit d'un défaut qu'il n'a pas — et il vise précisément la page où un vrai défaut coûterait le plus cher.
 - root_cause: `make artist-firstlook` a rapporté `upload_csv` en **CUL-DE-SAC** — « rien à cliquer, saisir ou télécharger » — alors que la page porte un `st.file_uploader` et détient un taux de complétion de **0 sur 4** chez les artistes invités. La chaîne : le `Makefile` lançait l'outil sous le `python3` **système**, qui porte Streamlit **1.54**, quand le venv de la suite porte **1.62** ; sur 1.54, `AppTest` n'a **aucun** attribut `file_uploader`, donc `getattr` lève ; `_has_any` attrapait ça par un `except: continue` et rendait `False` ; ce `False` alimentait directement `dead_end`. **« Je ne sais pas lire » était devenu « il n'y en a pas ».** Deux défauts distincts en un : l'interpréteur (`tests-run-a-different-core-than-prod`) et l'effondrement de *inconnu* sur *non*. Second constat de la même séance : `--artist 17` contre la base LOCALE rendait chaque page sous `user_id=0` et sortait « Utilisateur introuvable » — l'artiste 17 a une ligne utilisateur en production et aucune en local, donc l'outil décrivait la base, pas le produit.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `.venv/bin/python -m pytest tests/test_a_probe_says_when_it_cannot_see.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `_has_any` rend `(trouvé, illisibles)` et un verdict de cul-de-sac exige que **tout** ait été lisible ; les accesseurs illisibles sont imprimés, jamais comptés comme absents. Le `Makefile` appelle les outils de parcours avec `$(GUIDE_PY)`, le même interpréteur que la suite. L'outil **refuse** un locataire sans ligne `saas_users` en nommant la commande qui marcherait (`artist-firstlook-prod`) — un refus qui ne dit pas quoi faire ensuite est un demi-refus. Et `artist-preflight` refuse désormais un `PROD_SSH` qu'il ignorait silencieusement : la cible lit la base locale, et le croire a coûté un diagnostic entier sur le mauvais locataire.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_probe_says_when_it_cannot_see.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/artist_first_look.py
 - first_seen: 2026-09-03
 - History:
@@ -3288,10 +3891,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: les sauvegardes tournent chaque nuit, réussissent, et ne survivraient pas à l'incident contre lequel elles existent.
 - root_cause: mesuré sur l'hôte de production le 2026-09-03 — **21 archives quotidiennes, toutes sous `/opt/streamlytics/backups` sur `/dev/sda1`, c'est-à-dire le disque de la base qu'elles sauvegardent**. `crontab -l` ne contenait ni `rsync`, ni `s3`, ni `rclone` : aucune copie hors-site. L'en-tête de `tools/db_backup.sh` annonçait pourtant *« Phase D wires it to a Storage Box »* — une intention écrite en juin et jamais câblée. Second volet : **`tools/db_restore_test.sh` existait sans aucun appelant planifié** (3 crons : sauvegarde 03:00, dérive de schéma 04:00, santé infra 05:00 — aucun ne restaure), et sa seule assertion était `TABLES >= 1`. Il **affichait** un compte de lignes sans jamais le comparer : un dump tronqué à sa première table, ou un `pg_dump --schema-only`, passait au vert. C'était un contrôle de `gunzip` portant le nom d'un contrôle de sauvegarde.
+- cause_evidence: read (tools/db_backup.sh, rétro-portage mécanique 2026-09-16)
 - signature: `.venv/bin/python -m pytest tests/test_a_backup_survives_its_disk.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `db_backup.sh` pousse l'archive vers R2 (`rclone`), avec une rétention distante indépendante de la locale. Il **n'échoue pas** quand `R2_REMOTE` est absent — la sauvegarde locale a réussi, et la faire rougir la rendrait indiscernable d'un `pg_dump` cassé ; le refus du silence vit dans `alert_monitor.check_offsite_backup`, qui distingue quatre états (`absent`, `empty`, `stale`, `unreadable`) et les rend dans le mail consolidé. Le drill **compare** la base restaurée à la vivante, avec un compte EXACT via `query_to_xml`, et une tolérance de 10 % calibrée sur la croissance mesurée (2 736 lignes/jour pour ~49 000 en base ≈ 5,6 %/jour).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_backup_survives_its_disk.py }
+- guard_scope: un-contrôle-qui-ne-peut-jamais-passer — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/db_backup.sh
 - first_seen: 2026-09-03
 - History:
@@ -3305,10 +3911,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'outil qui coordonne le travail consomme plus que le travail lui-même, et personne ne le remarque parce que tout est vert.
 - root_cause: mesuré le 2026-09-04. **La base de métadonnées Airflow pesait 246 Mo — six fois la base applicative (43 Mo)** — avec 83 jours d'historique depuis le 2026-06-13 et **`airflow db clean` jamais lancé** (`task_instance` 115 160 lignes / 106 Mo, `log` 320 765 / 80 Mo). Et la répartition était sans appel : les 4 `*_csv_watcher` produisaient **97,2 % des `dag_run` et 98,4 % des `task_instance`** — 113 296 lignes sur 115 160 — pour **1 536 exécutions par jour, toutes `skipped`**, contre quatre répertoires **vides** où `find` n'a jamais trouvé un fichier. Cause plus profonde et plus coûteuse : `min_file_process_interval` était au **défaut de 30 s**, donc les 16 fichiers de DAG étaient reparsés deux fois par minute — **scheduler à 28,9 % de CPU en continu** quand le webserver était à 0,33 %.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `.venv/bin/python -m pytest tests/test_the_scheduler_is_not_the_biggest_cost.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: trois corrections, par ordre d'effet **mesuré** : (1) `MIN_FILE_PROCESS_INTERVAL` 30 → 300 s, qui rend **CPU au repos ~2 %, avec une pointe à ~100 % pendant la relecture — toutes les 5 minutes au lieu de toutes les 30 secondes**, soit un rapport cyclique divisé par 10. RAM scheduler 878 → 622 Mo ; (2) cadence des watchers `*/15` → horaire, 1 536 → 384 exécutions/jour ; (3) `tools/airflow_db_clean.sh` hebdomadaire, rétention 30 j, plus un `VACUUM FULL` initial — **246 → 91 Mo** (le `DELETE` seul ne rend rien à l'OS). Le garde épingle la cadence et l'intervalle de parsing, et vérifie que le script de purge est non interactif : `airflow db clean` demande confirmation par défaut, et sous cron une invite bloque indéfiniment sans que rien ne le signale.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_scheduler_is_not_the_biggest_cost.py }
+- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/airflow_db_clean.sh
 - first_seen: 2026-09-04
 - History:
@@ -3322,10 +3931,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un import réussit, produit des chiffres douteux une semaine plus tard, et **il n'existe plus aucune copie de ce qui a été envoyé** pour trancher.
 - root_cause: `src/dashboard/views/upload_csv.py` lisait le fichier téléversé en mémoire (`raw = file.read()`), le parsait, faisait l'upsert, et laissait les octets partir. `csv_upload_log` enregistrait qu'un fichier nommé X avait produit N lignes ; il ne pouvait pas répondre **« qu'y avait-il dans X »**. Toute la classe des défauts d'import — une colonne renommée en amont, un séparateur mal lu, une fenêtre d'export erronée — devenait indiagnosticable après coup. C'est précisément ce manque qui faisait paraître les quatre `*_csv_watcher` nécessaires : ils surveillaient un répertoire, donc un fichier déposé y **restait**. Mais ils sondaient des répertoires où `find` n'a jamais trouvé un seul fichier, coûtaient **97,2 % des `dag_run` et 98,4 % des `task_instance`** de toute l'instance Airflow, et couvraient **moins** que la page — `parse_csv_file` ne construit aucune ligne `songs_global`, `parse_songs_global` si. La moitié utile d'un watcher de répertoire n'a jamais été le sondage : c'était la survie du fichier.
+- cause_evidence: read (src/dashboard/views/upload_csv.py, rétro-portage mécanique 2026-09-16)
 - signature: `.venv/bin/python -m pytest tests/test_an_imported_file_survives_its_import.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/utils/upload_archive.py` conserve les octets **14 jours**, uniquement dans la branche de succès — là où `count` prouve que les lignes ont atteint la base. Quatre règles, chacune avec son mode d'échec : archiver **seulement après succès** (sinon le répertoire se remplit du cas inintéressant, alors que celui qui compte est un import propre aux chiffres faux) ; **ne jamais lever** (les lignes sont déjà commitées, faire échouer un import pour une copie de confort serait un mauvais échange) ; **un répertoire par locataire** (un répertoire plat rend le fichier d'un locataire atteignable en devinant un chemin, et l'effacement RGPD d'un locataire devient un `grep`) ; **le nom de fichier est reconstruit** (il vient d'un navigateur). Purge opportuniste depuis la page, pas depuis un cron : le répertoire ne grossit que quand quelqu'un dépose. Les 4 watchers et 2 scripts de debug ont été supprimés dans la même passe.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_imported_file_survives_its_import.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/upload_archive.py
 - first_seen: 2026-09-04
 - History:
@@ -3339,10 +3951,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un test de garde est VERT sur le défaut qu'il existe pour attraper, ou ROUGE sur le commentaire qui explique le correctif. Les deux erreurs viennent de la même cause et se ressemblent si peu qu'on les traite séparément.
 - root_cause: le garde inspecte du code Python en cherchant une sous-chaîne dans le TEXTE du fichier (`assert "<nom>" in source`). Un nom présent dans un fichier ne dit rien de ce que le code en fait : un commentaire, une docstring ou une autre fonction suffisent à satisfaire la comparaison. Trois occurrences le 2026-09-04, toutes sur des gardes NEUFS : `test_navigation_inside_the_app_opens_no_tab` a accusé `auth.py` sur le commentaire expliquant pourquoi le lien avait été retiré ; `test_the_soundcloud_ask_is_one_thing` a accusé `guide_pdf.py` sur un commentaire disant « `cred.admin_note` n'est délibérément PAS rendu » ; `test_the_setup_landing_beats_a_stale_url` cherchait `"_SETUP_PAGES"` dans le source du bloc d'URL et se satisfaisait du commentaire disant que le test valait `_SETUP_PAGES` AVANT le correctif. Le cliquet `test_a_guard_reads_structure_not_text` existait déjà et n'en a vu aucune : son prédicat est au niveau du FICHIER — dès qu'un `ast.parse` y apparaît, tout le fichier est exempté, assertions textuelles comprises.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_guard_reads_structure_not_text.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le cliquet descend au niveau de l'ASSERTION (`_text_assertions_on_source`) : il compte, par fichier, les `assert "<litt>" in <nom>` où `<nom>` est assigné depuis `read_text` d'un chemin Python ou `ast.get_source_segment`. L'inventaire est gelé et ne peut que diminuer. Restreint au source **Python** : la moitié des tests lisent du SQL, du shell ou du Markdown, où il n'y a pas d'arbre à interroger et où la comparaison de chaînes est le seul outil possible.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_guard_reads_structure_not_text.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_a_guard_reads_structure_not_text.py
 - first_seen: 2026-09-04
 - History:
@@ -3355,10 +3970,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un utilisateur signale plusieurs fois la même absence ; chaque vérification confirme que la chose est là ; les corrections successives portent sur le texte et la mise en page et ne changent rien.
 - root_cause: l'observation est faite en PRODUCTION, la vérification en LOCAL. Ce sont deux questions différentes, et la seconde ressemble assez à une preuve pour clore la première. Cas mesuré le 2026-09-04, cinq signalements de « il n'y a pas le screen » : le `Dockerfile` copiait `src/`, `config/` et `.streamlit/`, pas `assets/` — 240 Ko. `docker exec … ls /app/assets/credential_guide/spotify/` → `No such file or directory`. Les **huit** captures des guides manquaient, pas une : celles de YouTube et de Meta n'avaient jamais été affichées en production non plus. La classe est silencieuse parce que les deux surfaces qui rendent ces images traitent l'absence comme « rien à montrer » (`screenshot_path()` rend un chemin inexistant, l'étape se dessine sans image) — comportement correct pour un artiste, et qui transforme un fichier manquant en page simplement plus courte.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_image_ships_with_the_app.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `COPY assets/ ./assets/` dans le Dockerfile, et un garde qui compare les `COPY` aux répertoires que le CODE résout (`assets_dir()` est LU, pas recopié), vérifie que `.dockerignore` n'exclut pas ce qu'on copie — l'autre moitié du même défaut, un COPY qui copie du vide sans avoir l'air faux — et que chaque capture nommée par un guide existe sur le disque.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_image_ships_with_the_app.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_the_image_ships_with_the_app.py
 - first_seen: 2026-09-04
 - History:
@@ -3371,10 +3989,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: un correctif juste en produit un autre dans l'heure, à l'endroit exact qu'il venait de toucher.
 - root_cause: une constante ou un prédicat sert d'entrée à deux décisions qui ne posent pas la même question. Tant que les deux réponses coïncident, rien ne le montre. `src/dashboard/app.py` : `_SETUP_PAGES` répondait à « le mode première connexion survit-il à cette page ? » **et** à « ce paramètre d'URL peut-il battre l'atterrissage ? ». Un `?page=credentials` resté d'une session précédente était donc honoré — signalé le 2026-09-04. Le correctif a introduit `_LANDING_LINKS = {onboarding}`, et **a produit une régression dans l'heure** : un clic dans le menu écrivait `?page=upload_csv`, que l'atterrissage jetait à son tour. La garde qui répond exactement à ça (`_page_mirrored`, « c'est nous qui avons écrit ce paramètre ») n'était consultée que dans la branche qui HONORE le paramètre, pas dans celle qui le jette — une garde posée sur une seule des deux branches qui décident du même fait.
+- cause_evidence: read (src/dashboard/app.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_setup_landing_beats_a_stale_url.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: — (le garde EST le fix : la règle d'arbitrage est figée sur des états lisibles, avec les DEUX cas côte à côte — vestige d'URL sans miroir vs navigation interne avec miroir — pour qu'ils ne puissent plus se confondre).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_setup_landing_beats_a_stale_url.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/app.py
 - first_seen: 2026-09-04
 - History:
@@ -3389,10 +4010,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un lecteur anglophone reçoit une procédure abandonnée côté français ; le PDF d'une langue décrit plus d'étapes que l'autre. Personne ne le voit : ces surfaces ne sont jamais rouges.
 - root_cause: un guide de credentials vit dans TROIS fichiers — `credential_guides.py` (FR), `credential_guides_en.py` (EN), et `i18n_catalog/credentials.py` que le rendu PRÉFÈRE aux deux (`t(f"credentials.guide.{k}.step_{n}", step.text)`). Rien ne les compare. Réécrire l'une laisse les autres en place. Deux occurrences le 2026-09-04 : le catalogue EN de SoundCloud décrivait encore « affiche le code source de /discover et cherche `soundcloud:users:` », abandonné la veille ; et la source EN de Spotify portait TROIS étapes quand le français en avait UNE — restée à l'ancienne version tout un lot parce qu'un `str.replace` de mon script d'édition n'avait pas mordu et n'avait rien dit. Le catalogue masquait l'écart à l'écran ; le PDF anglais est rendu depuis la source et livrait l'écart.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_two_language_guides_stay_in_step.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le garde compare la FORME des trois surfaces — même nombre d'étapes, mêmes captures aux mêmes rangs, intro présente des deux côtés ou d'aucun, et aucune clé `step_N` du catalogue au-delà du nombre d'étapes réel. Il ne compare pas les mots : c'est une traduction, elle doit différer. Corollaire de méthode, hors dépôt : un `str.replace` d'édition sans `assert old in s` est un no-op silencieux.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_two_language_guides_stay_in_step.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_the_two_language_guides_stay_in_step.py
 - first_seen: 2026-09-04
 - History:
@@ -3404,10 +4028,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: chaque demande de « rediriger vers X » produit un bug de mise en page — la barre bouge sous l'utilisateur, un message s'affiche dans un panneau fermé, un rechargement perd la position. Les rapports arrivent séparés et se corrigent séparément ; aucun ne guérit.
 - root_cause: le widget de navigation n'expose PAS son état actif, donc « ouvrir X » ne peut être obtenu qu'en simulant — ici, en RÉORDONNANT la liste pour que X tombe en première position. `st.tabs` (Streamlit 1.54) rend tous ses panneaux et n'a pas d'index actif ; son paramètre `default` n'agit qu'au premier MONTAGE du widget, et un enregistrement passe par un rerun. Trois symptômes mesurés le 2026-09-05, tous du même mécanisme : la barre réordonnée au rerun d'un enregistrement puis revenue à sa place au suivant (« ça nous ramène sur Spotify au lieu de Meta ») ; le verdict rendu par un panneau que le réordonnancement venait de fermer, d'où une rustine `verdict_owner` qui a fini par **masquer le verdict entièrement** quand l'appelant a cessé de la passer ; et rien d'adressable — ni lien profond, ni bouton Précédent.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_active_tab_is_addressable.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: l'onglet devient un état comme la page — `?page=credentials&tab=soundcloud` — rendu par un widget PILOTABLE (`st.segmented_control` avec `key`), avec un seul panneau affiché. Rediriger n'est plus qu'écrire l'état, avant l'instanciation du widget (même contrainte et même motif que `_select_nav_radio` pour le menu). La rustine disparaît par construction : le panneau rendu EST celui qu'on regarde. La résolution lit la SESSION d'abord, l'URL ensuite — l'inverse ferait gagner un paramètre périmé sur un clic frais, défaut déjà corrigé un cran plus haut le 2026-09-04.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_active_tab_is_addressable.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/credentials/router.py
 - first_seen: 2026-09-05
 - History:
@@ -3419,10 +4046,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: un garde vire au rouge sur un changement qui n'altère AUCUN comportement — un renommage de variable, une branche inversée, une factorisation. Le réflexe est de revenir en arrière, donc le garde argumente pour l'ancienne écriture.
 - root_cause: l'assertion est ancrée sur la FORME du code plutôt que sur la question qu'elle protège. Sept occurrences en deux jours, quatre formes distinctes : le NOM d'une variable (`_focus` renommé `_bare` → deux gardes rouges sur un comportement inchangé) ; la POLARITÉ d'une branche (`if _focus: … else:` devenu `if not _bare:`) ; le CHEMIN d'appel (`_responds_cell` appelée directement puis via `row_cells` — le garde exigeait l'appel direct et rougissait sur la factorisation qu'il aurait dû encourager) ; et l'ENDROIT (« aucun `st.image` dans l'onglet », vrai tant que le guide les rendait — la meilleure disposition l'aurait rendu rouge). S'y ajoutent les gardes qui lisent une FENÊTRE DE TEXTE autour d'un appel (200 caractères), donc les commentaires.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: — (aucune vérifiée : un prédicat « ce test lit-il une forme ou une question ? » n'est pas mécanisable sans faux positifs massifs, et une signature jamais vue rouge vaut moins qu'une absence de signature)
+- seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - long_term_fix: — (question de revue, pas de détecteur. Avant d'écrire une assertion : « si quelqu'un renomme, inverse ou factorise sans changer le comportement, ce test rougit-il ? » Si oui, viser la propriété — lire l'ARBRE et interroger l'effet, accepter plusieurs formes équivalentes, et nommer dans le message ce que le test protège et non ce qu'il a trouvé.)
 - autofix: none
 - guard: —
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_the_setup_page_is_reachable_and_on_top.py
 - first_seen: 2026-09-04
 - History:
@@ -3435,10 +4065,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une règle est factorisée pour être partagée, la factorisation est annoncée dans les commentaires — et les deux copies coexistent, parce qu'un seul appelant a été rebranché.
 - root_cause: extraire une fonction et l'utiliser sont deux gestes, et le premier donne le sentiment d'avoir fait le second. `status_matrix.row_cells` a été extraite le 2026-09-05 pour que l'onglet de saisie et la matrice calculent les quatre états au MÊME endroit ; seul l'onglet a été rebranché, la matrice a continué de les calculer dans sa boucle d'affichage. Une heure de coexistence silencieuse — les deux copies étaient d'accord, donc rien ne pouvait le montrer à l'écran.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_tab_state_is_the_matrix_state.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le garde vérifie que la fonction partagée a bien **tous** ses appelants attendus, nommément, et pas seulement qu'elle existe. C'est la seule formulation qui distingue « extraite » de « partagée ». Corollaire de méthode : partager la MISE EN FORME (`_box`) sans partager le CALCUL des états ne protège rien — deux verdicts peuvent diverger tout en s'affichant dans la même palette.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_tab_state_is_the_matrix_state.py::test_the_matrix_row_is_computed_in_one_place }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/status_matrix.py
 - first_seen: 2026-09-05
 - History:
@@ -3450,10 +4083,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un artiste voit un ❌ et un 🟢 sur le même écran, pour la même plateforme, et conclut que l'application se contredit. Il n'a pas tort ; ce qui est faux, c'est le rang qu'on donne aux deux.
 - root_cause: une SONDE affirme une conséquence qu'elle ne peut pas connaître, et l'écran la traite à égalité avec une COLLECTE qui a réellement eu lieu. Mesuré en production le 2026-09-05 : la sonde SoundCloud lit `/users/{id}/tracks` avec le jeton d'application, ne voit aucun titre, et conclut « il n'y aura donc rien à collecter » — alors que `soundcloud_tracks_daily` portait **17 titres collectés le matin même** pour ce locataire. Les deux chemins lisent le même compte et se contredisent ; la sonde est une prédiction, la collecte est un fait. Rapporté comme « j'ai les barres vertes alors que ça ne marche pas » : les barres avaient raison, et c'est le message d'erreur qui mentait sur la conséquence.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_tab_state_is_the_matrix_state.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: quand la sonde échoue, l'écran demande à `artist_readiness` — la MÊME source que les pastilles, pas une seconde requête — si des lignes sont arrivées. Si oui, le fait passe devant et le message de sonde devient un avertissement en dessous. Il n'est pas effacé : il peut nommer un vrai problème (un compte mal réglé qui collecte encore par un autre chemin). La règle générale tient au-delà de ce cas : **une mesure qui a eu lieu bat une prédiction sur ce qui aurait lieu**, et une sonde ne doit jamais affirmer de conséquence — seulement ce qu'elle a vu.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_tab_state_is_the_matrix_state.py::test_a_failing_probe_yields_to_data_that_actually_landed }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/credentials/_render.py
 - first_seen: 2026-09-05
 - History:
@@ -3465,10 +4101,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: `main` est rouge et personne ne le sait avant le mail de GitHub. Le commit est passé sur le poste — `pre-commit` était installé et vert — parce que le garde qui refuse le défaut ne tourne QUE sur le runner.
 - root_cause: le garde était correct et il a trouvé le défaut ; ce qui manquait est **l'endroit où il tourne**. `.github/workflows/ci.yml` lance `validate_rex.py --strict` en étape bloquante ; `.pre-commit-config.yaml` ne lançait que `ruff` et `check_manifest_consistency.py`. Le 2026-09-04, le commit `8176e97` a ajouté deux blocs `rex:` dont le champ `issue` faisait 376 et 399 caractères pour un plafond de 350 (`.claude/scripts/audit_python_signatures.py`, `.claude/scripts/check_dag_trigger_scope.py`) — **huit** runs CI consécutifs rouges sur `main`, du commit fautif (`8176e97b`) à `a0cd505a`, découverts treize heures plus tard par notification, sept commits ayant été poussés par-dessus une CI déjà rouge. Le plafond n'est écrit nulle part que l'auteur d'une entrée REX lise au moment où il l'écrit : le seul rappel est le refus du validateur.
+- cause_evidence: read (.github/workflows/ci.yml, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_rex_gate_runs_before_the_push.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le garde bloquant en CI a un exemplaire local dans `.pre-commit-config.yaml` (hook `validate-rex`, `files: ^\.claude/.*\.(md|py)$`, `pass_filenames: false`), et `tests/test_the_rex_gate_runs_before_the_push.py` garde la PAIRE des deux côtés. Le critère d'admission dans `pre-commit` est mesuré, pas d'humeur : sous la seconde, sans réseau, portée à un répertoire. `validate_rex.py` fait **0,6 s** et ne lit que `.claude/` ; `audit_runner.py --deterministic` lance des `pytest` et prend plusieurs minutes sur ce poste — il reste en CI seulement, et c'est écrit dans le docstring du test.
 - autofix: none
 - guard: { type: pre-commit, ref: .pre-commit-config.yaml (hook `validate-rex`) + tests/test_the_rex_gate_runs_before_the_push.py }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/scripts/validate_rex.py
 - first_seen: 2026-09-05
 - History:
@@ -3480,10 +4119,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un garde est vert sur le poste où il a été écrit et rouge — ou vide — partout ailleurs. Il n'a jamais mesuré son sujet : son verdict vient de la configuration de la machine, un `.env` sur le disque, un service qui tourne, une variable héritée du shell.
 - root_cause: `tests/test_a_tool_that_reads_the_env_loads_it.py::test_the_sandbox_default_address_is_deliverable` chargeait `tools/create_sandbox.py`, dont l'import appelle `load_project_env()`, puis affirmait que `_default_email()` rend un alias `+` et non `@sandbox.local`. L'adresse de l'opérateur n'était **posée nulle part** : elle venait du `.env` du dépôt. Sur ce poste le fichier existe et le test passait ; sur un runner GitHub il n'existe pas, `SANDBOX_EMAIL`/`ALERT_EMAIL`/`SMTP_USER` sont absentes, le repli sort et le test échoue. Son propre docstring énonçait la condition — « quand l'environnement est chargé » — sans jamais l'établir. Découvert le 2026-09-05 : la CI n'atteignait plus l'étape « Run tests » depuis huit runs (classe `ci-gate-with-no-local-counterpart`), et le défaut est apparu à la seconde où elle l'a atteinte.
+- cause_evidence: read (tests/test_a_tool_that_reads_the_env_loads_it.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 .claude/scripts/check_guards_are_env_independent.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le garde **pose ce qu'il lit** (`monkeypatch.setenv`) au lieu de le lire sur la machine, et `check_guards_are_env_independent.py` rejoue les 39 fichiers de test qui chargent un module de `tools/` — donc ceux dont l'import déclenche `load_project_env()` — avec le chargeur neutralisé, en exigeant le même verdict. Le détecteur remplace la FONCTION `load_project_env`, jamais la constante `ENV_FILES` : la vider faisait rougir `test_the_standalone_mailer_honours_the_same_env_precedence`, dont c'est le sujet — un détecteur ne mute pas ce qu'il mesure. Le nom du script ne contient pas `pytest`, sans quoi `audit_runner.pytest_targets` le regrouperait en ne gardant que les node-ids : le `PYTHONPATH` et le `-p` du plugin seraient jetés et la signature ne pourrait plus jamais tirer.
 - autofix: none
 - guard: { type: script, ref: .claude/scripts/check_guards_are_env_independent.py + .claude/scripts/pytest_without_dotenv.py, wired: .github/workflows/ci.yml }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_a_tool_that_reads_the_env_loads_it.py
 - first_seen: 2026-09-05
 - History:
@@ -3495,10 +4137,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une page donne au lecteur une commande à coller, il la colle, elle échoue — et rien dans le message ne dit laquelle des deux hypothèses tacites a lâché. La commande est juste ; le shell dans lequel elle est lue n'a ni l'interpréteur ni le droit d'exécution qu'elle suppose.
 - root_cause: la bannière `credentials.fernet_missing` (`src/dashboard/views/credentials/router.py`, page « 🔑 Credentials API ») affichait `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` en code Markdown inline, dans le corps du `st.warning`. Deux hypothèses non écrites : que `python` soit celui du `venv/` — seul à porter `cryptography` — et que le shell puisse l'activer. Sur ce poste le venv est un venv Windows (`venv/Scripts/`, aucun `venv/bin/`) et PowerShell refuse `Activate.ps1` sous sa politique par défaut. La commande était donc **non exécutable telle qu'affichée**, et le Markdown inline faisait en plus repartir le lecteur avec les backticks collés à la commande.
+- cause_evidence: read (src/dashboard/views/credentials/router.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_a_printed_command_is_runnable_as_printed.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `fernet_key_command_block()` (`_core.py`) rend `(langage, bloc)` — les lignes complètes, dans l'ordre, y compris `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` puis `& <racine>\venv\Scripts\Activate.ps1`, la politique portée par le **processus** et jamais par la machine. Le venv est **lu sur le disque**, jamais déduit de `sys.platform` : le dépôt est partagé entre WSL et Windows et ne porte qu'un `venv/`. Pas de sélecteur d'OS — il en avait été retiré un de ces onglets le 2026-09-04 parce qu'il posait au lecteur une question que le système de fichiers tranche. Le rendu passe par `st.code`, pas par du Markdown. `_windows_path()` réécrit `/mnt/c/...` en `C:\...` : la page est lue depuis PowerShell même quand le processus tourne sous WSL.
 - autofix: none
 - guard: { type: test, ref: tests/test_a_printed_command_is_runnable_as_printed.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/credentials/router.py
 - first_seen: 2026-09-05
 - History:
@@ -3511,10 +4156,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un écran affiche, l'un sous l'autre, un verdict et le détail qui le contredit — et des indicateurs verts qui contredisent les deux. Le titre est un rendu de booléen : il nomme une cause qu'aucune mesure n'a établie, pendant que le corps juste en dessous, lui, dit ce qui s'est réellement passé.
 - root_cause: `render_save_verdict` (`src/dashboard/views/credentials/_render.py`) traduisait `ok is False` par UNE phrase — « ❌ {plateforme} : enregistré, mais la plateforme ne répond pas encore ». Or `ok` recouvre **huit situations réparties sur cinq sondes**, et aucune ne signifie « ne répond pas » : SoundCloud et YouTube rendent `False` **à l'intérieur** d'une branche `status_code == 200` (profil joignable sans titre public, chaîne trouvée mais vide), YouTube rend `False` sur un handle **résolu avec succès**, Spotify/Meta/Instagram sur une app qui fonctionne et une identité non saisie. Second défaut, indépendant : la règle « une mesure qui a eu lieu bat une prédiction » était implémentée dans `_responds_cell` (`status_matrix.py`, qui rend sur `status` AVANT de lire `probes`) et sous le bouton « Tester » (`_data_already_landed`, un seul appelant), et **absente des deux autres surfaces** — le verdict d'enregistrement et la colonne « Prochaine étape » (`status_matrix.py`, qui écrasait `next_action` par la raison d'une sonde sans regarder le statut). Mesuré le 2026-09-05 : le locataire concerné portait **358 lignes** dans `soundcloud_tracks_daily` ; les pastilles avaient raison, le titre avait tort.
+- cause_evidence: read (src/dashboard/views/credentials/_render.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_verdict_does_not_assert_an_unmeasured_cause.py tests/test_status_matrix.py tests/test_the_tab_state_is_the_matrix_state.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: une sonde nomme sa **situation** (`unreachable` / `refused` / `not_found` / `identity_missing` / `nothing_to_collect` / `resolved`, `src/utils/platform_probes.py`). Elle voyage **sur le message** (`tagged()` / `category_of()`, un `str` porteur d'attribut) et non en troisième élément du tuple : `(ok, message)` est un contrat public, dépaqueté en deux à **dix-neuf** endroits — la première tentative, un 3-uplet, a fait rougir 30 tests d'un coup. Attention : toute opération de chaîne rend un `str` nu et PERD la situation, donc on étiquette en dernier, après `.format()` et après `clamp()`. Elle est ensuite transportée jusqu'à `tenant_platform_probe.category` (migration 086, colonne NULLABLE : un verdict antérieur retombe sur un titre qui n'affirme AUCUNE cause). `_VERDICT_HEADINGS` donne un titre **et** dit si « corrige ci-dessous » a un sens — il n'en a pas quand il n'y a rien à corriger dans ce formulaire. Les quatre surfaces appliquent la même précédence : quand `artist_readiness` dit qu'des lignes sont arrivées, la mesure passe devant et le message de sonde devient un avertissement en dessous, jamais effacé. `read_probes` lit la colonne et **retombe sur les quatre anciennes** si elle manque : son `except` transforme une mémoire illisible en « jamais mesuré », ce qui aurait vidé la colonne « Répond » sur une cible non migrée.
 - autofix: none
 - guard: { type: test, ref: tests/test_the_verdict_does_not_assert_an_unmeasured_cause.py + tests/test_status_matrix.py + tests/test_the_tab_state_is_the_matrix_state.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/credentials/_render.py
 - first_seen: 2026-09-05
 - History:
@@ -3526,10 +4174,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une sonde de configuration annonce à l'utilisateur que sa source est vide, pendant que le collecteur en ramène le contenu tous les jours. Les deux interrogent la même API et le même compte, et se contredisent — parce qu'ils ne lui posent pas la même question.
 - root_cause: `_test_soundcloud` (`src/dashboard/views/credentials/_platform_soundcloud.py`) demandait `GET /users/{id}/tracks?limit=1&linked_partitioning=1` et concluait « aucun titre public » sur `len(collection) == 0`. Le collecteur (`src/collectors/soundcloud_api_collector.py`) demande `limit: 50`. Mesuré le 2026-09-05 contre le profil réel `377065610` avec le jeton d'application : `limit=1 → 0` titre, `limit=2 → 1`, `limit=5 → 4`, `limit=10 → 8`, `limit=50 → **17**`. SoundCloud écarte certains titres APRÈS avoir appliqué la limite : une page de 1 revient vide dès que le premier élément est filtré. La sonde envoyait donc un artiste ayant dix-sept titres publics « déclarer ses sorties hébergées sur d'autres comptes » — lui faire réparer la seule chose qui était juste. Le `next_href` renvoyé avec la page vide disait déjà que la collection ne l'était pas ; il n'était pas lu.
+- cause_evidence: read (src/dashboard/views/credentials/_platform_soundcloud.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_connection_test_proves_tenant.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: la sonde demande **la même page que le collecteur**, et `test_the_probe_asks_for_the_same_page_as_the_collector` compare les deux valeurs **par AST** dans les deux fichiers — c'est la PAIRE qui est épinglée, jamais la constante d'un seul côté, sinon changer le collecteur rouvre la classe en silence. Le test refuse en plus explicitement `limit=1`. Seconde moitié : une page vide accompagnée d'un `next_href` n'est plus annoncée comme un profil vide — c'est une réponse dont on ne peut rien conclure, et on le dit. Un profil réellement vide (aucun `next_href`) reste un échec, gardé par son propre test pour que le correctif ne rende pas la sonde complaisante.
 - autofix: none
 - guard: { type: test, ref: tests/test_connection_test_proves_tenant.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/credentials/_platform_soundcloud.py
 - first_seen: 2026-09-05
 - History:
@@ -3541,10 +4192,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une consigne nomme un objet que son lecteur ne peut pas voir depuis sa place. Il ouvre l'écran indiqué, n'y trouve rien, et s'arrête. Rien n'échoue : ni erreur, ni test rouge, ni alerte — l'utilisateur abandonne en silence, et le support reçoit « je ne trouve pas ».
 - root_cause: le guide Meta disait « Business Manager → Applications → cherche `ETL_DASHBOARD_SPOTIFY` » (`src/dashboard/content/credential_guides.py`), et le message d'échec de la sonde nommait le même chemin (`_platform_meta.py`, « Apps → ETL_DASHBOARD_SPOTIFY → Business Assets »). Or **chez Meta une application n'apparaît que dans le Business Manager qui la POSSÈDE** : la nôtre appartient au nôtre, donc cette liste est vide chez tout artiste. La consigne était infaisable pour son seul lecteur possible. Elle a survécu des mois parce que l'auteur, lui, la voyait — il regardait depuis le Business Manager propriétaire. C'est l'étape qui a bloqué la session Benken du 2026-06-19 ; le geste qui marche est l'inverse et se fait avec un numéro (`META_BUSINESS_ID` → « Attribuer un partenaire »).
+- cause_evidence: read (src/dashboard/content/credential_guides.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_guide_tells_the_artist_only_what_is_theirs.py tests/test_the_actionable_half_survives.py tests/test_the_meta_tab_asks_before_it_explains.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: la consigne nomme une valeur que le lecteur peut **coller**, pas un objet qu'il devrait **trouver** — un numéro qu'on lui donne bat un nom qu'il doit reconnaître. Les gardes cherchent le vocabulaire du geste faisable (« Attribuer un partenaire » / « Assign partner ») et **interdisent explicitement le retour de l'ancien** (`assert "Business Assets" not in …`, `assert "ETL_DASHBOARD_SPOTIFY" not in …`) sur les deux surfaces qui le portaient : le guide et le message d'échec de la sonde — elles se contredisaient, et c'est ce désaccord qui aurait dû alerter.
 - autofix: none
 - guard: { type: test, ref: tests/test_the_guide_tells_the_artist_only_what_is_theirs.py + tests/test_the_actionable_half_survives.py + tests/test_the_meta_tab_asks_before_it_explains.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/content/credential_guides.py
 - first_seen: 2026-09-05
 - History:
@@ -3557,10 +4211,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un garde structurel passe au vert sur le défaut qu'il devait attraper. Il demande « cet appel est-il là ? » et l'appel EST là — sous une branche morte, dans la mauvaise boucle, ou après une sortie anticipée qui l'empêche d'être atteint. Le code est présent et ne s'exécute jamais ; le test le déclare bon.
 - root_cause: trois occurrences en une soirée, le 2026-09-05, toutes sur des gardes écrits le jour même. **(a)** `test_both_calls_can_reach_the_fallback` cherchait un appel à `_discover` dans `fetch_media` ; remplacer la condition par `if False:` laisse l'appel dans l'AST — vert. **(b)** `test_the_dag_collects_both_channels` exigeait « il existe un `for` qui contient l'appel » ; remplacer la boucle des CHAÎNES par `if True:` laisse la boucle des ARTISTES, qui contient l'appel elle aussi — vert. **(c)** `test_an_unreadable_state_never_claims_the_share_is_done` appelait `share_state` sans `META_BUSINESS_ID` dans l'environnement : la fonction sort AVANT le moindre appel Graph et rend `unknown` pour une tout autre raison — vert sur la mutation de la branche d'erreur. Une quatrième, le 2026-09-06 : « il existe un `st.columns` dans la fonction » était satisfait par la rangée des distributeurs, pas par celle qu'on gardait.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_instagram_collects_without_business_manager.py tests/test_the_topic_channel_is_found_and_collected.py tests/test_the_share_step_is_hidden_when_there_is_nothing_to_share.py tests/test_the_import_page_shows_the_gesture_before_its_notice.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un garde structurel pose la question de l'EXÉCUTION, pas de la présence. Trois formes, selon ce qui est en jeu : (1) remonter les `ast.If` englobants et refuser un test constamment faux (`_unreachable_parents`) ; (2) viser le nœud le PLUS PROCHE — la boucle de plus grand `lineno` qui contient l'appel — et lire sur quoi elle itère (`ast.unparse(node.iter)`), au lieu de se contenter qu'il en existe une ; (3) quand le chemin dépend de l'environnement, POSER cet environnement et compter les passages (`assert calls, "la branche n'a jamais été atteinte"`), sans quoi le test mesure une sortie anticipée. La règle opératoire qui les découvre toutes : **muter, et vérifier que la mutation s'est appliquée** — un script qui compte les occurrences avant de remplacer, puis relance le seul test concerné.
 - autofix: none
 - guard: { type: test, ref: tests/test_instagram_collects_without_business_manager.py + tests/test_the_topic_channel_is_found_and_collected.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_the_topic_channel_is_found_and_collected.py
 - first_seen: 2026-09-05
 - History:
@@ -3572,10 +4229,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un artiste colle l'adresse de son profil, l'app résout un identifiant, l'enregistre, et collecte les chiffres de quelqu'un d'autre. Rien n'échoue : la résolution a réussi, le compte existe, les chiffres arrivent. Ils ne sont pas les siens.
 - root_cause: le pseudo qu'un artiste porte sur une plateforme n'est pas garanti être le sien. Mesuré le 2026-09-05 : `youtube.com/@fjaak` résout vers `UCC0p-CFOPuJeRWzk3nVSU3A`, une chaîne **vide** (0 vidéo, 0 vue) titrée « fJAAK » ; la chaîne de l'artiste FJAAK est `UCiMOvinn6mbmAwbXTS_nHPg`, sous `@fjaakberlin`. Le même dépôt avait déjà mesuré, sans en tirer la règle, que la recherche par nom est non fiable : pour Benken, quatre homonymes SoundCloud précédaient le bon compte et la bonne chaîne YouTube n'était pas dans les cinq premiers résultats. Une identité de locataire devinée fait écrire le catalogue d'un autre sous son `artist_id` — la famille `identity-claimed-by-two-tenants` / `tenant-identity-falls-back-to-admin`, atteinte cette fois par la porte d'entrée plutôt que par un repli.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_topic_channel_is_found_and_collected.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: deux règles, selon qui choisit. **Quand c'est l'app qui cherche** (la chaîne « … - Topic » d'un artiste), n'accepter qu'une contrainte VÉRIFIABLE : `pick_topic_channel` exige une ÉGALITÉ de titre `"<titre> - Topic"`, dérivée du titre de la chaîne que l'artiste vient de donner — jamais une ressemblance, jamais un premier résultat. **Quand c'est l'artiste qui colle**, résoudre mais MONTRER : `resolve_channel_id` rend une description — « FJAAK — 53 vidéo(s) » — affichée sous le champ. Un identifiant ne se vérifie pas d'un coup d'œil ; « 0 vidéo » si. Et la consigne du guide reste celle de `youtube.com/account_advanced`, qui se lit connecté à SON compte, donc sans ambiguïté possible. Le caveat de `platform_value` nomme le piège au lieu de le taire — un garde a d'ailleurs refusé qu'il retombe à `None` quand le mode d'échec a changé de forme.
 - autofix: none
 - guard: { type: test, ref: tests/test_the_topic_channel_is_found_and_collected.py + tests/test_setup_focus.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/youtube_channel.py
 - first_seen: 2026-09-05
 - History:
@@ -3587,10 +4247,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'app prescrit un geste que l'utilisateur ne peut pas accomplir parce qu'il est **déjà fait**, ou sans objet dans sa situation. Il suit la consigne à la lettre, l'écran ne réagit pas comme annoncé, et il conclut que l'installation est cassée — alors qu'elle marche. Rien n'échoue : ni erreur, ni test rouge. Le support reçoit « ça ne marche pas, je ne trouve pas ».
 - root_cause: `render_partner_share_block` (`src/dashboard/views/credentials/_platform_meta.py`) affichait « colle notre numéro dans Attribuer un partenaire » à **tout locataire**, sans jamais lire l'état du partage. Le compte publicitaire `567214713853881` du locataire 1 est **possédé par notre propre Business** (`GET 212173878482503/owned_ad_accounts` le liste) ; or Meta exclut du sélecteur de partenaires le business qui possède déjà le compte, donc `212173878482503` ne pouvait pas y apparaître. La consigne était infaisable par construction. Les trois arêtes qui répondent à la question — `owned_ad_accounts`, `client_ad_accounts`, `pending_client_ad_accounts` — étaient lisibles depuis toujours et servaient déjà, dans `ADR-017` rédigé le matin même, à prouver autre chose. Cet ADR concluait « le guide garde le geste manuel — **qui, lui, fonctionne** » : une affirmation qu'aucune mesure ne soutenait, contredite dans l'heure.
+- cause_evidence: read (src/dashboard/views/credentials/_platform_meta.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_share_step_is_hidden_when_there_is_nothing_to_share.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/utils/meta_partner.share_state()` lit les trois arêtes et rend `owned` / `accepted` / `pending` / `absent` / `unknown`. Le bloc ne prescrit que sur les deux derniers ; sur les trois premiers il **constate** au lieu de demander. `unknown` n'est PAS `absent` : un quota, une panne réseau ou un jeton mort ne prouvent aucune absence de partage, et tomber dans la branche muette sur une lecture ratée dirait à l'artiste que son partage est en place alors qu'il attendrait des chiffres qui ne viendraient jamais (`probe-reads-unreadable-as-absent`). Le garde paramètre les cinq états et vérifie au RENDU que le numéro n'apparaît que sur `absent` et `unknown`.
 - autofix: none
 - guard: { type: test, ref: tests/test_the_share_step_is_hidden_when_there_is_nothing_to_share.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/credentials/_platform_meta.py
 - first_seen: 2026-09-05
 - History:
@@ -3602,10 +4265,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un garde est vert sur le poste où on l'écrit et rouge partout ailleurs, sur un code identique. Il n'interroge pas le code : il interroge l'environnement de la machine qui l'exécute, et la réponse dit d'abord si cette machine a un `.env`.
 - root_cause: `src/dashboard/content/credential_guides.py:56` résout `META_BUSINESS_ID` **à l'import** — depuis `os.environ`, et à défaut depuis le `.env` du projet, que le module charge lui-même. Deux surfaces le lisaient. **(1)** L'étape de partage Meta disait une phrase quand la valeur était là et une AUTRE quand elle ne l'était pas : `tests/test_the_guide_tells_the_artist_only_what_is_theirs.py:96` cherchait donc la valeur, et ses deux replis textuels (« Attribuer un partenaire », « Assign partner ») n'étaient plus dans aucune des deux langues depuis la réécriture du 2026-09-05 — le garde ne tenait plus que par la variable d'environnement. **(2)** `guide_pdf.source_fingerprint` normalisait `APP_BASE_URL` et rien d'autre, par une liste écrite à la main : le digest « des sources actuelles du guide » valait une chose sur la machine qui a un `.env` et une autre sur celle qui n'en a pas. Coût mesuré avec `gh run list` : **27 exécutions CI consécutives rouges** du 2026-09-04T22:36 au 2026-09-06T07:19, et la CI s'arrêtant à l'étape des gardes (10 sur 15), `Run tests` n'a pas tourné une seule fois de ces deux jours.
+- cause_evidence: read (src/dashboard/content/credential_guides.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_guide_digest_does_not_depend_on_the_host.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: la phrase du guide a **une** forme — `BUSINESS_ID_SHOWN = META_BUSINESS_ID or BUSINESS_ID_FALLBACK` — et seul le jeton intérieur varie, parce qu'un `if` change les MOTS et qu'aucune substitution ne rattrape ça. Le digest normalise ce jeton, dans les deux langues, avec un plancher de 8 caractères : mesuré, une valeur d'essai de 4 caractères était remplacée AU MILIEU d'un PNG encodé en base64 dans les ~1,6 Mo de HTML. Et la liste `ENV_SUBSTITUTIONS` n'est plus tenue à la main : le garde balaie en **AST** les variables d'environnement que les trois modules du guide lisent réellement, et échoue sur toute variable absente de la liste — c'est `guard-scope-is-a-hand-written-list` appliqué à sa propre normalisation.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_guide_digest_does_not_depend_on_the_host.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/guides/guide_pdf.py
 - first_seen: 2026-09-06
 - History:
@@ -3619,10 +4285,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un garde tombe pour une raison qui n'est pas la sienne. Le rapport nomme sa classe d'erreur, et la trace dessous dit `psycopg2.OperationalError` — on cherche le défaut gardé, il n'y en a pas.
 - root_cause: `tests/test_instagram_collects_without_business_manager.py:93` interroge une branche **pure** de `InstagramCollector._discover` (pas de pseudo ⇒ on lève avec le geste). Mais `src/collectors/instagram_api_collector.py:87` ouvre une connexion Postgres dans le constructeur (`self.db = PostgresHandler.from_env_or_config()`), qu'aucune de ces assertions n'utilise. Or `.github/workflows/ci.yml` exécute les signatures de classes à l'étape 10, **avant** `Provision Postgres` (étape 12) et sans le `DATABASE_URL` qui n'est posé que sur `Run tests`. Le garde échouait donc là sur l'absence de base, et remontait au rapport sous l'étiquette `guard-asserts-presence-not-reachability` — une classe qui n'avait rien à voir.
+- cause_evidence: read (tests/test_instagram_collects_without_business_manager.py, rétro-portage mécanique 2026-09-16)
 - signature: `DATABASE_URL=postgresql://127.0.0.1:9/spotify_etl python3 -m pytest tests/test_instagram_collects_without_business_manager.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: **le constructeur accepte `db=`**, comme `MetaAdsCollector` depuis toujours — le motif était dans le dépôt, deux collecteurs sur trois ne l'avaient jamais adopté. Le premier correctif débranchait `PostgresHandler.from_env_or_config` par monkeypatch : ça marchait, et ça laissait vivre le vrai problème — le collecteur n'offrait aucun moyen de dire « je n'ai rien à écrire ». **Injection et non connexion PARESSEUSE** : la seconde déplacerait l'échec d'une base injoignable APRÈS les appels d'API, donc après avoir dépensé du quota pour des lignes qu'on ne pourra pas écrire ; `db=None` reste le chemin de production et garde l'échec immédiat. Le garde `tests/test_a_collector_can_be_asked_a_question_without_a_database.py` balaie `src/collectors/` en AST, exige `db=` sur tout `__init__` qui ouvre une connexion, exige que le paramètre soit RÉELLEMENT posé sur `self.db` (un paramètre accepté puis jeté ment à son appelant), et vérifie que le défaut reste `None`. La signature porte un `DATABASE_URL` mort — port 9, **sans identifiants** : un DSN d'essai portant `user:password` fait mordre `detect-secrets` à chaque commit, et une classe qui oblige à poser un `pragma: allowlist secret` apprend à en poser ailleurs.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_collector_can_be_asked_a_question_without_a_database.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/collectors/instagram_api_collector.py
 - first_seen: 2026-09-06
 - History:
@@ -3635,10 +4304,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la CI est rouge et le reste des jours. Chaque exécution rapporte le même échec, à la même étape, et **rien de ce qui vient après n'a tourné** — donc rien ne dit si le produit marche encore. Le rouge devient une constante de fond, et on pousse au travers.
 - root_cause: `.github/workflows/ci.yml` place les gardes de classes d'erreur à l'étape 10 sur 15. GitHub Actions saute par défaut toute étape suivant un échec : `Provision Postgres`, `Run tests` et le reste étaient donc `skipped`. Mesuré avec `gh run list` le 2026-09-06 : **27 exécutions consécutives** entre le 2026-09-04T22:36 et le 2026-09-06T07:19, une seule verte au milieu, et la suite (3700+ tests) n'a pas tourné une fois. Les 27 commits sont partis sur `main` sur un unique signal, toujours le même, et sans rien derrière. La cause du rouge — deux gardes lisant le `.env` du poste, `guard-predicate-depends-on-the-host-env` — n'avait aucun rapport avec ce que la suite aurait dit.
+- cause_evidence: read (.github/workflows/ci.yml, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_a_red_gate_does_not_hide_the_suite.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: les quatre étapes qui suivent les gardes portent `if: ${{ !cancelled() }}`. La porte est intacte — un garde rouge fait toujours échouer le job — mais elle ne rend plus invisible ce qui la suit. `!cancelled()` et non `always()` : le groupe de concurrence annule des exécutions à chaque poussée rapprochée, et provisionner un Postgres pour une annulation n'achète rien. Le garde exempte explicitement les trois portes bloquantes et exige la condition sur tout le reste, de sorte qu'une étape ajoutée demain hérite de la règle.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_red_gate_does_not_hide_the_suite.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .github/workflows/ci.yml
 - first_seen: 2026-09-06
 - History:
@@ -3651,10 +4323,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'utilisateur fait une chose à un endroit, la retrouve absente à l'autre, et rien n'est en panne. Le produit a deux surfaces pour un seul geste, chacune avec son état, et aucune ne mentionne l'autre.
 - root_cause: `st.file_uploader` était instancié par `views/upload_csv.py::show()` **et**, via le même `render_uploader`, par l'onglet « 📂 Mes fichiers » de la page Credentials. Streamlit garde un état par widget : un fichier déposé d'un côté n'existait pas de l'autre. La page `upload_csv` avait quitté le menu le 2026-09-04 mais restait routée, et `platform_value.CSV` y envoyait encore l'artiste depuis le sélecteur de mise en route — le doublon était donc la route **recommandée**, pas un vestige.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_there_is_one_place_to_drop_a_file.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: une seule zone de dépôt, dans l'onglet, et `_PAGE_FOR_PLATFORM` vidé — plus aucune plateforme ne se configure hors de la page Credentials. Le garde compte les `st.file_uploader` **par AST** dans tout `views/` hors admin et exige exactement un ; il vérifie en plus que chaque plateforme `where=CSV` pointe sur l'onglet qui le contient. Compter les widgets et non les fichiers est le point : c'est ce que l'utilisateur voit.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_there_is_one_place_to_drop_a_file.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -3667,10 +4342,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une vue rend parfaitement, son test de rendu est vert, elle figure dans une liste intitulée « ce qu'un artiste peut atteindre » — et aucun artiste ne peut l'atteindre. On la compte, on la maintient, on la corrige.
 - root_cause: `app.py` route `?page=upload_csv` vers `views.credentials` depuis la fusion du 2026-09-04, et n'importe `views.upload_csv` nulle part. `views/upload_csv.py::show()` — 54 lignes, un titre, une légende et une `st.file_uploader` — n'était donc appelée que par `tests/test_views_render_smoke.py`, qui l'importe **directement** (`from src.dashboard.views.{view} import show`). Le test prouvait qu'elle rend ; personne ne demandait si on y arrive. Elle était de surcroît listée dans `_TENANT_VIEWS`, dont le commentaire dit « views an artist can actually reach ». J'ai commencé par la CORRIGER — en y écrivant un renvoi vers l'onglet — avant de mesurer qu'elle était morte.
+- cause_evidence: read (tests/test_views_render_smoke.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_there_is_one_place_to_drop_a_file.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `show()` retirée ; le module est déclaré pour ce qu'il est, le composant de dépôt que l'onglet rend. Le garde interdit qu'un `show()` y réapparaisse et vérifie qu'`app.py` ne route pas vers ce module — deux questions d'atteignabilité, qu'un test de rendu ne pose jamais. La leçon générale est plus large que ce fichier : **une liste de vues « atteignables » écrite à la main ne mesure pas l'atteignabilité** ; ici la contradiction était visible en lisant `app.py` et la liste ensemble, ce que personne ne faisait.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_there_is_one_place_to_drop_a_file.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/app.py
 - first_seen: 2026-09-06
 - History:
@@ -3683,10 +4361,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une mise en page range correctement ce que son auteur avait en tête, et range tout le reste dans un groupe par défaut — qui porte un titre. L'élément suivant hérite donc d'un intitulé faux, en silence.
 - root_cause: `csv_guides_st.py` portait `_SIDE_BY_SIDE = ("s4a", "apple")` et rendait `rest = [tout le reste]` en dessous. Tant que ce bas de page n'avait pas d'intitulé, l'erreur était bénigne. Le 2026-09-06 il en reçoit un — « 💿 Mon distributeur (revenus) » — et un guide de plateforme d'écoute ajouté demain y serait rangé sous un titre qui ment sur son contenu, sans que rien ne le signale : la constante est dans le RENDU, où l'auteur du nouveau guide ne va pas.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_csv_types_are_laid_out_by_family.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `PlatformGuide.family` — un champ de la DONNÉE, avec deux valeurs nommées. Ajouter un guide oblige à répondre à la question, là où on l'écrit. Le garde interdit à toute constante de `csv_guides_st` d'énumérer des clés de guides (c'est la forme exacte qui revient), exige que le rendu lise les deux familles, et vérifie qu'un seul expander est ouvert au premier niveau — le bloc distributeurs, en bas.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_csv_types_are_laid_out_by_family.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/content/csv_guides.py
 - first_seen: 2026-09-06
 - History:
@@ -3698,10 +4379,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une page qui « récupère ou crée » plante sur une contrainte d'unicité — pas toujours, pas pour tout le monde, et jamais quand on la regarde. Le message parle de doublon alors qu'il n'y a qu'un utilisateur.
 - root_cause: `src/dashboard/views/referral.py::_get_or_create_code` faisait un `SELECT code FROM referral_codes WHERE artist_id = %s`, puis, si le résultat était vide, un `INSERT`. Deux exécutions qui se croisent lisent toutes les deux « aucun code », insèrent toutes les deux, et la seconde viole `referral_codes_artist_id_key`. Ce n'est pas une condition de test : **Streamlit ré-exécute le script entier à chaque interaction**, donc un double-clic, un second onglet ou un `st.rerun` qui chevauche suffisent. Mesuré le 2026-09-06 sur six appels concurrents pour un locataire neuf : l'ancienne forme rend **3 codes et lève 3 `UniqueViolation`**, la nouvelle rend 6 codes identiques et ne lève rien. Trouvé par la CI (`referral.show()` en erreur dans le render-smoke) après 27 exécutions où la suite n'avait pas tourné.
+- cause_evidence: read (src/dashboard/views/referral.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_a_get_or_create_survives_two_renders.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: une seule instruction — `INSERT … ON CONFLICT (artist_id) DO UPDATE SET code = referral_codes.code RETURNING code`. `DO UPDATE` et non `DO NOTHING` : ce dernier ne rend AUCUNE ligne sur conflit, ce qui oblige à re-lire et ramène la course sous une autre forme. Le garde a deux moitiés, et il faut les deux : l'AST interdit un `if` dans la fonction et exige `ON CONFLICT` sur tout `INSERT`, et une mesure lance six fils concurrents sur un locataire jetable. La moitié AST seule serait satisfaite par une forme correcte-en-apparence ; la moitié concurrente seule passerait par chance.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_get_or_create_survives_two_renders.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/referral.py
 - first_seen: 2026-09-06
 - History:
@@ -3713,10 +4397,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un test est vert chez son auteur et rouge partout ailleurs, sur une erreur de base de données qui ne parle pas du sujet gardé — une clé étrangère, une ligne absente. On lit le rouge comme un problème d'infrastructure.
 - root_cause: `tests/test_the_verdict_does_not_assert_an_unmeasured_cause.py:101` déclarait `_TENANT_WITHOUT_DATA = 23702`, l'identifiant d'un locataire de la base de développement de son auteur. Les usages en LECTURE s'en accommodent — sur une base où la ligne n'existe pas, lire rend « rien », ce qui est justement la situation décrite. Mais `test_the_category_survives_the_round_trip_through_the_database` ÉCRIVAIT dessus, et la CI provisionne une base neuve à deux locataires : `insert or update on table "tenant_platform_probe" violates foreign key constraint`. Le garde de la migration 086 ne prouvait donc rien là où il comptait le plus, et son rouge ne parlait pas de la migration.
+- cause_evidence: read (tests/test_the_verdict_does_not_assert_an_unmeasured_cause.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_verdict_does_not_assert_an_unmeasured_cause.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le test FABRIQUE son locataire (`INSERT … RETURNING id`) et l'efface en `finally`, comme `test_the_tab_bar_skips_what_is_done` le fait déjà. La constante survit pour les lectures, avec la consigne écrite à côté d'elle : ne jamais écrire dessus. La distinction lecture/écriture est le point — la remplacer partout aurait changé le sens des tests de rendu, qui décrivent bien « un locataire sans données ».
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_verdict_does_not_assert_an_unmeasured_cause.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_the_verdict_does_not_assert_an_unmeasured_cause.py
 - first_seen: 2026-09-06
 - History:
@@ -3728,10 +4415,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un garde est vert sur une base propre et rouge dans la grande exécution, et le rouge ne parle pas du sujet gardé — un `TypeError`, un `KeyError`, une comparaison impossible. On le lit comme de l'instabilité de la suite.
 - root_cause: `tests/conftest.py::pytest_sessionstart` enregistrait `SELECT CURRENT_TIMESTAMP`, un `timestamptz` **averti**, et `test_no_synthetic_track_survives_into_the_freshness_computation` le comparait à `saas_artists.created_at`, un `timestamp without time zone` **naïf** — `TypeError: can't compare offset-naive and offset-aware datetimes`. La comparaison vit dans le `if` d'une compréhension de liste qui n'est évaluée que pour les lignes DÉJÀ suspectes : sur une base sans coupable, la branche n'est jamais exécutée. Le garde était donc vert sur son propre défaut partout sauf dans l'exécution parallèle complète, la seule où un locataire vivant fabrique une ligne candidate.
+- cause_evidence: read (tests/conftest.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_session_clock_is_comparable_to_the_column.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `LOCALTIMESTAMP`, qui rend exactement ce que le défaut de la colonne écrit. Et surtout un garde qui **rend la branche atteignable à chaque exécution** sans base à salir ni coupable à fabriquer : il lit le type de la colonne dans `information_schema`, le compare à la nature du repère enregistré (naïf/averti), puis exécute une comparaison réelle — une assertion sur les types seuls resterait vraie sur deux types comparables séparément mais pas entre eux. La liste `_COMPARED_TO` déclare les colonnes visées, pour qu'une comparaison ajoutée ailleurs vienne s'y inscrire au lieu de se découvrir en production de la suite.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_session_clock_is_comparable_to_the_column.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/conftest.py
 - first_seen: 2026-09-06
 - History:
@@ -3744,10 +4434,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une consigne dit « colle-la au-dessus » et le champ est à gauche — ou l'inverse. Deux lecteurs de bonne foi se contredisent sur la même phrase, et chacun a raison sur son écran.
 - root_cause: `src/dashboard/content/credential_guides.py` désignait le champ de saisie par sa POSITION dans quatre étapes (spotify, youtube, meta, instagram) et dans les deux langues, soit huit occurrences. Or `views/credentials/_render.py:650` rend `st.columns([3, 2])` : le formulaire est à GAUCHE du guide sur un écran large et AU-DESSUS de lui dès que Streamlit empile les colonnes sur un écran étroit. Une direction est une propriété du VIEWPORT, pas du guide. Et ce même texte part en PDF à l'inscription, où il n'y a aucun formulaire : ni « au-dessus » ni « à gauche » n'y désigne quoi que ce soit. Signalé le 2026-09-06 (« c'est à gauche, pas au-dessus ») ; le commentaire qui défendait la formulation en place affirmait le contraire du commentaire qu'il avait lui-même remplacé (« au-dessus » et non « ⬅ ») — quatrième formulation de la même étape, quatrième péremption.
+- cause_evidence: read (src/dashboard/content/credential_guides.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_a_guide_step_names_a_field_not_a_direction.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: l'étape nomme le CHAMP (`**Lien de ton compte publicitaire**`), qui est le même sur tous les écrans et dans le PDF. La direction reste autorisée en complément — « à gauche » aide là où c'est vrai — mais jamais À LA PLACE du nom. Le garde balaie le catalogue (pas une liste de clés : la cinquième étape écrite demain est couverte par construction), repère les étapes de collage, et exige qu'une étape employant un mot de position nomme aussi un champ **qui existe sur ce guide** — sans quoi la correction s'achèterait en inventant un libellé.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_guide_step_names_a_field_not_a_direction.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/content/credential_guides.py
 - first_seen: 2026-09-06
 - History:
@@ -3760,10 +4453,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un en-tête de formulaire décrit des champs qui n'y sont pas. Le lecteur cherche ce qu'on lui annonce, ne le trouve pas, et doute du reste de la page.
 - root_cause: `views/credentials/_render.py` rendait « 🔒 Champs secrets chiffrés • Laissez vide pour conserver la valeur actuelle » sous le titre de TOUT formulaire en mise à jour. Mesuré sur le registre le 2026-09-06 : `meta`, `soundcloud` et `instagram` déclarent **zéro** champ secret — leur formulaire porte un seul champ, un lien public. Trois onglets sur cinq annonçaient donc une propriété fausse et une consigne sans objet. Signalé sur Meta Ads comme « inutile » ; la mesure dit plus que ça — c'était faux.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_form_only_claims_what_it_has.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: une CONDITION dérivée du registre (`any(f.get('secret') for f in fields_def)`), pas une suppression : sur `spotify` et `youtube` la phrase est vraie et utile, laisser vide y conserve un secret qu'on ne peut pas relire. Le garde lit l'AST et exige qu'au moins un `if` de la chaîne interroge les champs secrets **de ce formulaire** — il refuse aussi bien un `if True` qu'une liste de plateformes tapée à la main, qui ramènerait le défaut sous une autre forme. Il vérifie d'abord qu'il existe des plateformes des deux sortes, sans quoi la condition ne se distinguerait pas d'une constante.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_form_only_claims_what_it_has.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/credentials/_render.py
 - first_seen: 2026-09-06
 - History:
@@ -3776,10 +4472,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un garde qui lit un état partagé est vert seul et rouge en exécution parallèle, sur des données que rien n'a changé. Le rouge se déplace d'un fichier à l'autre selon la répartition des workers.
 - root_cause: `tests/conftest.py::pytest_sessionstart` lisait l'horloge de la base **dans chaque worker xdist**. Les workers ne démarrent pas ensemble : un locataire créé par le worker A à T est ANTÉRIEUR au `sessionstart` du worker B démarré à T+2 s. Le filtre « créé pendant la session », qui devait exclure les locataires appartenant à un test en cours, ne les excluait donc pas chez B — qui les dénonçait pendant qu'un test voisin s'en servait. Le décalage se compte en secondes et n'existe QUE dans l'exécution parallèle.
+- cause_evidence: read (tests/conftest.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_session_clock_is_comparable_to_the_column.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le CONTRÔLEUR fixe l'instant une fois (`pytest_configure_node`, qui ne s'exécute que là) et le passe à chaque worker via `workerinput` ; le worker le préfère au sien, et ne lit l'horloge lui-même que hors parallèle, où il n'y a qu'une session. Le garde est **structurel et non chronométré** : reproduire le décalage par le temps donnerait une signature instable, donc on vérifie le mécanisme — le hook existe, il pose la valeur, le worker la lit, et il la lit AVANT de fabriquer la sienne (sans quoi la préférence serait inverse).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_session_clock_is_comparable_to_the_column.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/conftest.py
 - first_seen: 2026-09-06
 - History:
@@ -3792,10 +4491,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: on rouvre un écran et il s'ouvre là où on l'avait laissé, alors qu'on y revient pour le reprendre depuis le début. Rien n'est en panne, et la page semble ignorer qu'on vient de cliquer sur son entrée de menu.
 - root_cause: `views/onboarding.py` gardait l'étape courante dans `st.session_state['_onboarding_step']`, qui survit à la navigation. Un artiste passé une fois à l'étape 2 rouvrait l'assistant sur « Où tu en es » pour le reste de sa session, y compris au premier clic d'une visite ultérieure — c'est-à-dire exactement quand il voulait revoir « Bienvenue & choix ». Signalé le 2026-09-06 : « quand je me balade sur l'app et que je reclique sur mise en route, je n'ai pas automatiquement redirection vers le bienvenu ». La cause profonde est que **Streamlit ré-exécute le script entier à chaque interaction** : une vue ne peut pas distinguer « il vient de cliquer sur mon entrée de menu » de « il est déjà dessus et a cliqué sur un bouton » — les deux produisent des runs identiques.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_assistant_reopens_on_its_first_step.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `app.py` publie la page rendue au run PRÉCÉDENT (`session_state['_page_arrived_from']`), le seul signal qui sépare les deux cas, et la vue remet son étape à 1 quand elle vient d'ailleurs. Deux subtilités que le garde épingle parce qu'elles rendraient le correctif faux : **(1)** le marqueur est posé AVANT le rendu de la barre latérale, qui dessine les étapes au-dessus du corps — posé après, la barre lirait l'étape d'avant et le corps celle d'après, deux moitiés du même écran en désaccord pendant un run ; **(2)** un marqueur ABSENT n'est pas une arrivée — sans cette distinction, chaque rerun remettrait l'étape à 1, y compris le clic qui fait passer à l'étape 2, et l'assistant deviendrait intraversable.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_assistant_reopens_on_its_first_step.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/app.py
 - first_seen: 2026-09-06
 - History:
@@ -3808,10 +4510,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une page réservée n'apparaît pas dans le menu et s'affiche quand même — il suffit d'en connaître l'adresse. La liste qui devait la protéger existe, elle est correcte, et personne ne la lit au bon endroit.
 - root_cause: `src/dashboard/app.py::_ADMIN_ONLY` était consultée dans UN seul endroit, le constructeur de la barre latérale. `_render_page` aiguillait sans demander qui demandait, donc `?page=<clé>` — un signet, un lien dans un vieux mail, une URL tapée — atteignait la vue. Les dix pages concernées se gardent chacune elles-mêmes, vérifié une par une le 2026-09-06 ; le défaut n'est donc pas une fuite constatée mais une garantie qui repose sur dix copies au lieu d'une, avec trois orthographes différentes (`is_admin()`, `not is_admin()`, `session_state['role'] != 'admin'`). `db_health`, ajoutée à la liste le même jour, n'avait AUCUN garde interne.
+- cause_evidence: read (src/dashboard/app.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_an_admin_page_is_gated_by_its_route_not_its_menu.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `_render_page` refuse la page avant tout aiguillage quand la clé est dans `_ADMIN_ONLY` et que la session n'est pas admin. La liste devient le garde au lieu d'un filtre d'affichage : ajouter une clé suffit désormais, et les gardes internes restent en défense de profondeur — les retirer ferait de ce point unique un point de défaillance unique. Le garde vérifie aussi que le refus PRÉCÈDE le premier `page == …` (sinon la page se rend, puis on dit non) et qu'il fait bien un `return` (un `st.error` sans sortie afficherait le message AU-DESSUS de la page qu'il refuse).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_admin_page_is_gated_by_its_route_not_its_menu.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/app.py
 - first_seen: 2026-09-06
 - History:
@@ -3824,10 +4529,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'utilisateur finit tout ce qu'on lui a demandé et l'écran ne bouge pas. La dernière étape reste ⬜, et l'action qui la coche est ailleurs — derrière un bouton qu'il n'a aucune raison de chercher.
 - root_cause: la mise en route de streaMLytics a quatre étapes ; les trois premières sont des gestes de l'artiste (identifiants, CSV S4A, CSV Apple) et la quatrième — « une collecte a réussi » — est un geste de la MACHINE. Rien ne la déclenchait : l'artiste devait trouver, dans la barre latérale, un panneau « lancer la collecte » qui ne se présentait jamais comme la suite de ce qu'il venait de faire. Deux séances de test artiste se sont terminées sur une configuration complète et zéro donnée.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_journey_starts_the_collection_itself.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `collection_trigger.autostart_if_journey_complete` démarre les DAGs du locataire aux DEUX moments qui peuvent boucler le parcours — l'enregistrement d'identifiants et l'import CSV. **L'idempotence est DÉRIVÉE, pas stockée** : on ne démarre que si `etl_run_log` ne porte aucun run réussi pour ce locataire, c'est-à-dire le compteur `has_runs` que le parcours utilise déjà pour sa quatrième étape. Conséquences voulues : aucune migration, aucune SECONDE source de vérité qui pourrait diverger des runs réels, impossibilité de relancer en boucle, et un artiste qui purge ses données repart d'un parcours neuf. Un drapeau de session complète la condition sans la remplacer — deux reruns rapprochés pourraient tous deux lire `has_runs = 0` avant que le premier run ne soit journalisé. `apple` est volontairement HORS de la condition : beaucoup d'artistes n'ont pas de compte Apple for Artists, et l'exiger laisserait leur collecte à l'arrêt indéfiniment.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_journey_starts_the_collection_itself.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/collection_trigger.py
 - first_seen: 2026-09-06
 - History:
@@ -3839,10 +4547,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une page « guide » explique en prose ce que l'application montre déjà en agissant. Elle vieillit plus vite que ce qu'elle décrit, et deux surfaces finissent par se contredire sans que rien ne le signale.
 - root_cause: « 📋 Guide de démarrage » (`views/process_guide.py`, 300 lignes) rendait quatre listes à puces décrivant les étapes que l'assistant fait parcourir, les identifiants que les onglets de Credentials déplient avec leurs captures, et l'état des plateformes que la matrice mesure. Trois surfaces pour la même information, dont une seule est calculée sur les données réelles. Signalé le 2026-09-06 : « l'app est bien mieux faite et ça rajoute de l'inutile ». Elle coûtait en plus 1034 ms par rerun, dont 721 ms de génération de PDF, sur la première page qu'un nouvel artiste lisait.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_views_map_lists_every_view.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: la page est supprimée ; ses DEUX sections qui n'existaient nulle part ailleurs — le PDF des identifiants et la définition des CSV attendus — déménagent dans « 🚦 Santé onboarding », c'est-à-dire là où l'artiste est quand il constate qu'il lui manque quelque chose. La ROUTE `?page=process_guide` survit et mène à cette page : un ancien lien y trouve ce qu'il venait chercher plutôt qu'une page d'accueil générique, et supprimer la route ferait des culs-de-sac que ce dépôt a déjà payés. `ALWAYS_ACCESSIBLE` la garde aussi, sinon un artiste dont l'abonnement a expiré tomberait sur un mur de paiement en suivant un lien vers son propre guide.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_views_map_lists_every_view.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/onboarding_health.py
 - first_seen: 2026-09-06
 - History:
@@ -3854,10 +4565,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: on supprime un fichier et le rapport de tests annonce « N errors » au lieu de « N failed ». Les propriétés que ces tests défendaient disparaissent de l'exécution sans qu'aucune ne soit nommée — et avec elles TOUS les autres tests du même module.
 - root_cause: `tests/test_the_guide_is_fetchable_not_only_mailed.py:33` faisait `SRC = GUIDE_PAGE.read_text(...)` au niveau MODULE, sur `views/process_guide.py`. Cette vue supprimée le 2026-09-06, pytest a levé `FileNotFoundError` pendant l'IMPORT du module de test — donc avant la moindre assertion. Quatre tests ont cessé d'être collectés. Un échec aurait dit « la page qui porte le PDF du guide a quitté la navigation » et désigné la surface à réancrer ; une erreur de collecte dit un chemin et un type d'exception.
+- cause_evidence: read (tests/test_the_guide_is_fetchable_not_only_mailed.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_a_test_file_is_collectable_without_what_it_watches.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un CLIQUET plutôt qu'une réécriture. Mesuré : cinq affectations de module lisent un fichier, toutes sur des fichiers qui existent aujourd'hui — c'est justement ce qui les rend invisibles jusqu'au jour où l'un d'eux disparaît. Les réécrire toutes serait un changement que personne n'a demandé ; ce que le cliquet achète est que la SIXIÈME ne puisse pas être ajoutée, exactement comme le dépôt traite déjà les assertions chaîne-contre-source. Le détecteur ne compte QUE les affectations de module : un `def` ou une `class` au niveau module n'est pas exécuté à l'import, donc un fichier manquant y produit un échec — ce qu'on veut — et non une erreur de collecte. Le cliquet a deux moitiés : la liste ne peut pas s'allonger, et elle ne peut pas garder un nom périmé (sans quoi elle autoriserait un site de plus qu'il n'en existe).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_test_file_is_collectable_without_what_it_watches.py }
+- guard_scope: sans-famille — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_the_guide_is_fetchable_not_only_mailed.py
 - first_seen: 2026-09-06
 - History:
@@ -3870,10 +4584,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un export parfaitement valide est refusé, et le message d'erreur affiche la BONNE colonne. « Type non reconnu — colonnes vues : date, streams » alors que `date` est exactement ce qu'on attend. Rien à l'écran ne distingue l'en-tête qu'on a de celui qu'on veut.
 - root_cause: `views/upload_csv.py::_read_headers` essayait les encodages dans l'ordre `('utf-8', 'utf-8-sig', …)`. Un fichier UTF-8 portant un BOM **décode sans erreur** en `utf-8` : la boucle s'arrêtait au premier essai et le BOM survivait, collé au premier en-tête (`\ufeffdate`). Seconde condition, nécessaire pour que ça casse : `_detect_platform` normalisait par `c.lower().strip()`, et `\ufeff` n'est PAS un blanc — `strip()` ne le retire pas. Mesuré le 2026-09-06 sur un import réel : **12 fichiers Spotify for Artists sur 14 refusés**. Spotify exporte avec BOM ; Excel en ajoute un en réenregistrant, ce qui touche aussi les artistes qui ouvrent leur CSV avant de le déposer.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_csv_is_recognised_whatever_its_encoding.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `utf-8-sig` passe AVANT `utf-8` dans les deux lecteurs (`_read_headers` et `_sniff_sep`) — il lit les deux cas à l'identique et retire le BOM quand il est là, donc le placer en tête ne coûte rien. Seconde couche, celle qui rend la classe impossible plutôt qu'improbable : `_normalise_header` retire les DEUX formes du marqueur — `\ufeff` (décodé en UTF-8) et `ï»¿` (les mêmes octets lus en latin-1) — avant toute comparaison, pour qu'un en-tête arrivé par un autre chemin ne rouvre pas le défaut. Le garde rejoue les CINQ fichiers réellement refusés, avec ET sans BOM : la question est « le préfixe invisible change-t-il la réponse ? ».
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_csv_is_recognised_whatever_its_encoding.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -3887,10 +4604,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un fichier valide est refusé, ou pire, un fichier invalide est accepté — selon comment il s'appelle. Renommer corrige ou casse, ce qui apprend à l'utilisateur que le nom compte alors qu'il ne devrait rien décider.
 - root_cause: `views/upload_csv.py::_detect_platform` portait trois conditions sur le NOM de fichier. **(1)** La timeline S4A exigeait `'audience' not in name` : un titre contenant le mot (« … - Audience-timeline.csv ») était refusé, et un export d'audience renommé serait passé pour une timeline. La condition était inutile — la branche audience passe avant et retient déjà tout ce qui porte `listeners`. **(2)** L'audience pouvait être reconnue par le seul jeton `audience` du nom. **(3)** L'export « Depuis le début », inexploitable parce que Spotify y renvoie auditeurs et sauvegardes à ZÉRO, était refusé sur `'songs-all' in name` — donc un renommage, ou le suffixe `(1)` qu'ajoute un navigateur, le faisait accepter comme un catalogue valide.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_csv_is_recognised_whatever_its_encoding.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: la détection se fait sur les COLONNES, qui sont une propriété du fichier ; le nom ne sert plus que de départage quand les colonnes ne tranchent pas. Le cas (3) ne pouvait pas se résoudre à la détection — un export « Depuis le début » a exactement les mêmes en-têtes qu'un export sur 12 mois — donc son refus est descendu dans `_parse_file`, où les VALEURS sont lisibles : `listeners` et `saves` entièrement à zéro. Un contrôle descend au niveau où l'information existe, plutôt que de s'appuyer sur un indice corrélé.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_csv_is_recognised_whatever_its_encoding.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -3902,10 +4622,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'utilisateur croit l'opération faite et s'en va. Rien n'est écrit, rien n'est en panne, et le rapport qu'il a sous les yeux dit « ✅ ».
 - root_cause: l'écran d'import affichait « ✅ Prêt » dans la colonne « Statut » à l'issue de la DÉTECTION, puis attendait un clic sur « ✅ Importer N fichier(s) » plus bas. Les deux portent une coche verte. Mesuré le 2026-09-06 : l'artiste a déposé quinze fichiers, lu « ✅ Prêt » sur trois d'entre eux, et le journal de production ne portait aucune ligne du jour — l'import n'avait jamais eu lieu. Le tableau ne mentait pas ; il nommait un état intermédiaire comme un état final.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_import_page_shows_the_gesture_before_its_notice.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: quand TOUS les fichiers sont reconnus, l'import part **tout seul** : s'il n'y a rien à trier, il n'y a rien à décider, et un bouton qui n'offre qu'un seul choix est une étape, pas une décision. Dès qu'un fichier est refusé le bouton revient — là il y a un arbitrage réel (importer les autres, ou repartir chercher le manquant). L'idempotence tient à la SIGNATURE du lot (noms + nombre de lignes) et non à un drapeau : Streamlit ré-exécute le script à chaque interaction, donc sans elle le même dépôt se réimporterait à chaque clic ailleurs sur la page ; un nouveau dépôt change la signature et redéclenche, ce qui est voulu.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_import_page_shows_the_gesture_before_its_notice.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -3917,10 +4640,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'utilisateur voit un refus à l'écran, nous ne le voyons jamais. Le journal n'enregistre que ce qui a réussi, donc un défaut qui bloque tout un parcours peut vivre des mois sans qu'une alerte parte.
 - root_cause: `csv_upload_log` recevait une ligne à l'IMPORT — `success` ou `error` d'écriture. Un fichier écarté plus tôt, à la détection (« type non reconnu »), n'atteignait jamais ce code et ne laissait donc aucune trace. Mesuré le 2026-09-06 : douze exports Spotify for Artists refusés depuis juin à cause d'un BOM, zéro alerte. L'artiste l'avait vu quinze fois ; l'exploitant zéro. Le déséquilibre est structurel — on journalise ce qu'on réussit, jamais ce qu'on refuse.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_every_alert_check_reaches_the_email.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le refus s'écrit AU MOMENT du refus, avec un statut `rejected` distinct de `error` (les deux appellent des gestes opposés : `error` est une écriture ratée, notre faute dans le code ; `rejected` est un fichier qu'on n'a pas su lire, visible seulement en agrégeant) et avec les COLONNES VUES, sans quoi le refus ne se diagnostique pas a posteriori. La tâche `check_csv_rejections` alerte à partir de DEUX refus par semaine et par locataire : un refus isolé est souvent un vrai mauvais export, la répétition accuse le code — alerter à l'unité rendrait la tâche bruyante, donc ignorée, donc inutile le jour où elle compte.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_alert_check_reaches_the_email.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -3932,10 +4658,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une tâche de surveillance tourne, calcule un constat juste, et reste verte. Personne n'est prévenu. Le contrôle a l'apparence exacte d'un contrôle qui fonctionne.
 - root_cause: dans `alert_monitor.py`, un constat doit franchir CINQ maillons pour valoir quelque chose — déclaré comme tâche, câblé dans la chaîne `>> t_alert`, relu par `xcom_pull`, rendu dans une section, et compté dans `has_issues` (le prédicat qui décide s'il y a un e-mail à envoyer). Chaque maillon rompu laisse la tâche verte. En écrivant `check_csv_rejections` le 2026-09-06, le quatrième manquait — `ruff` l'a signalé comme variable inutilisée, ce qui est un coup de chance : un nom réutilisé ailleurs serait passé. Puis le cinquième manquait aussi, et c'est un garde VOISIN qui l'a rattrapé.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_every_alert_check_reaches_the_email.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un garde qui balaie les 18 tâches et vérifie les quatre premiers maillons ; le cinquième est tenu par `test_alert_monitor_sends_what_it_finds`, qui existait déjà. Deux gardes posant la même question à des profondeurs différentes valent mieux qu'un seul. Le garde suit les DÉRIVATIONS (`freshness` n'apparaît dans aucun `if` : il est filtré en `stale_sources`, qui conditionne la section) et refuse les branches statiquement mortes — `if False and x:` mentionne `x` et ne s'exécute jamais.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_alert_check_reaches_the_email.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-09-06
 - History:
@@ -3947,10 +4676,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une page s'affiche, ne lève pas, et ne montre rien. L'utilisateur ne sait pas s'il doit attendre, configurer, ou signaler — et aucune alerte ne se déclenche, parce qu'il n'y a rien à déclencher.
 - root_cause: une fonctionnalité cesse de servir de trois façons, et une seule alerte toute seule. Elle plante (exception → frontière centrale → e-mail : couvert). Elle refuse en silence (couvert depuis `refusal-leaves-no-trace`). Ou elle rend VIDE : une requête qui ne remonte plus rien, une table renommée, un graphique dont la donnée est partie. Le render-smoke du dépôt demandait « la vue lève-t-elle ? », jamais « la vue montre-t-elle quelque chose ? ».
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_view_says_something_or_says_why.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: onze vues du parcours artiste doivent émettre soit un élément SUBSTANTIEL (graphique, tableau, métrique, carte…), soit un message qui NOMME l'absence (`st.info`, `st.warning`). La seconde branche est la convention du dépôt — dire l'absence plutôt que la laisser deviner — et elle est ce qui rend la règle tenable : une vue légitimement vide reste conforme en le disant. Ce qui est interdit est le troisième cas, un titre et rien.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_view_says_something_or_says_why.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/apple_music.py
 - first_seen: 2026-09-06
 - History:
@@ -3962,10 +4694,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un fichier est reconnu à l'écran puis n'importe rien, sous un message qui accuse son CONTENU (« Aucune ligne valide détectée après parsing ») ou qui demande de le RENOMMER. Le correctif de la couche visible fait croire le problème réglé.
 - root_cause: le 2026-09-06, « tous les fichiers, peu importe leur nom, doivent être reconnus » a été tenu dans `_detect_platform`, qui ne lit plus que les colonnes — et le garde écrit ce jour-là s'arrête à la détection. Deux couches plus bas, `s4a_csv_parser.parse_timeline` prenait toujours le titre du morceau dans le nom de fichier (et rendait `[]` sinon) et `_detect_window` levait toujours si le nom ne portait ni `28d` ni `12m`. Le sibling le plus coûteux était `admin._upload_s4a`, qui n'a JAMAIS passé le nom : il affichait « ✅ 0 ligne(s) importée(s) », un succès vert pour un geste sans effet.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_renamed_export_still_reaches_the_database.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: ce que le fichier ne porte pas ne se devine pas et ne se fait pas fabriquer par l'utilisateur — **il se demande**. Une exception nommée (`MissingFromFilenameError`, avec un champ `field`) remplace le `[]` muet et le conseil de renommage ; la vue la transforme en un champ (titre) ou un choix (28 j / 12 mois), pré-rempli quand le nom est lisible, affiché uniquement sur les fichiers concernés. Le titre déduit est en outre AFFICHÉ dans le tableau de détection : `export (1).csv` s'importait sans erreur sous un morceau nommé « export (1) », et rien ne le montrait avant la base.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_renamed_export_still_reaches_the_database.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/transformers/s4a_csv_parser.py
 - first_seen: 2026-09-06
 - History:
@@ -3977,10 +4712,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: aucun. La requête est valide, la transaction réussit, le compte renvoyé est juste — et une colonne n'a jamais été écrite. Le défaut ne se voit qu'en relisant la base des semaines plus tard.
 - root_cause: `insert_many` et `upsert_many` (`src/database/postgres_handler.py`) construisaient la liste des colonnes avec `list(data[0].keys())`. Toute colonne absente de la PREMIÈRE ligne était donc omise pour TOUT le lot, sans erreur ni journal. Un lot hétérogène est la norme dès qu'un parseur n'émet un champ que lorsqu'il le trouve.
+- cause_evidence: read (src/database/postgres_handler.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_a_bulk_write_sees_every_column.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `_union_columns(data)` — l'union des clés dans l'ordre de rencontre, partagée par les deux méthodes. Le garde n'inspecte pas le texte du fichier : il exécute les deux écritures avec un curseur factice et lit les colonnes réellement mises dans le SQL composé.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_bulk_write_sees_every_column.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/database/postgres_handler.py
 - first_seen: 2026-09-06
 - History:
@@ -3992,10 +4730,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un fichier est refusé, ou pire, importé avec des chiffres faux — et rien nulle part ne dit comment il a été LU. Le diagnostic après coup est impossible, y compris quand le message d'erreur portait déjà la réponse.
 - root_cause: l'ingestion CSV devine trois choses (encodage, séparateur, type) et n'en enregistrait aucune. Reis & Housley, *Fundamentals of Data Engineering* p. 374 : « Autodetection […] is **inappropriate for production ingestion**. As a best practice, engineers should **record CSV encoding and schema details** in file metadata. » On ne peut pas cesser de deviner — les fichiers viennent de Spotify, d'Apple, parfois d'un Excel français, et rien ne nous laisse configurer la source ; mais la seconde phrase, elle, était applicable et ne l'était pas. Le 2026-09-06, douze exports refusés à cause d'un BOM : l'écran disait « Colonnes vues : ﻿date, streams » et le BOM ne se rend pas, donc personne ne pouvait voir la différence entre l'en-tête qu'on avait et celui qu'on voulait.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_an_import_records_what_it_guessed.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: une résolution UNIQUE (`_resolve_serialization`) qui RENVOIE l'encodage et le séparateur retenus au lieu de les garder pour elle, et une colonne `serialization` écrite sur les deux issues — refus ET succès. Le succès est le cas où la trace vaut le plus et c'est celui qui n'était pas journalisé : un fichier lu avec le mauvais séparateur ne lève pas, il importe des chiffres faux qu'on relira des semaines plus tard. La résolution vivait en DOUBLE, à l'identique, dans `_read_headers` et `_sniff_sep` — deux copies d'une règle est une copie qui divergera.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_import_records_what_it_guessed.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/091_csv_upload_log_records_its_serialization.sql
 - first_seen: 2026-09-06
 - History:
@@ -4008,10 +4749,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'écran annonce « ✅ N ligne(s) importée(s) » et le journal enregistre N. Personne ne sait si la base en a reçu N. Le chiffre a exactement l'apparence d'une mesure.
 - root_cause: `upsert_many` renvoie `len(data)` — le nombre de lignes ENVOYÉES, après déduplication — et son propre commentaire dit pourquoi : le `rowcount` d'`execute_batch` ne reflète que le dernier lot. Ce chiffre remonte jusqu'à l'écran et jusqu'à `csv_upload_log.row_count` sans que rien, nulle part, n'interroge la destination. Densmore (*Data Pipelines Pocket Reference* p. 218) prescrit de « check row count growth in the data model » en fin de pipeline ; Petrella (*Fundamentals of Data Observability* p. 180) nomme les deux chiffres à confronter — « emitted record count » et « committed record count ». Nous n'avions que le premier.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_committed_count_is_measured.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un `COUNT(*)` scopé au locataire AVANT et APRÈS l'écriture, dans la vue — la mesure se prend à la destination, sans toucher au chemin d'écriture qu'empruntent les seize DAGs. Le delta est affiché : un écart n'est pas une anomalie (un ré-import met à jour sans ajouter, et « 0 nouvelle » sur 400 lignes traitées est alors la bonne réponse), ce qui manquait n'était pas une alerte mais le chiffre. Le garde vérifie les DEUX moitiés — que la mesure est prise des deux côtés de l'écriture, et qu'elle atteint le tableau : mesurer sans afficher est la classe `finding-computed-but-never-sent` déplacée d'un cran.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_committed_count_is_measured.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -4023,10 +4767,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une action réussit, son message est écrit, et l'écran est vide. Le code est correct, la fonction appelée a fait son travail, et aucun test de rendu ne voit rien — le rendu EST produit, puis jeté.
 - root_cause: Streamlit ré-exécute le script de zéro sur `st.rerun()`. Tout `st.success` / `st.warning` / `st.caption` / `st.dataframe` posé avant lui dans le même passage n'est jamais vu. Ce dépôt l'a payé trois fois : le verdict de sauvegarde des credentials, le démarrage automatique de la collecte, puis le 2026-09-06 six messages du bloc d'import CSV (collecte démarrée, référentiel de sorties, agrégations iMusician et DistroKid) — au moment précis où vider la zone de dépôt a imposé un rerun à la fin du même bloc. Les deux premières occurrences avaient été corrigées une par une, sans garde : la troisième était donc inévitable.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_nothing_is_written_before_a_rerun.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: accumuler, poser en session, rendre après le rerun. Le garde lit l'AST de la vue, trouve les blocs dont le corps se termine par `st.rerun()` et refuse tout appel d'écriture dans les instructions qui le précèdent. Les widgets (`st.button`, `st.text_input`, `st.selectbox`) sont explicitement hors du jeu : leur valeur est relue au passage suivant, ils ne perdent rien.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_nothing_is_written_before_a_rerun.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -4038,10 +4785,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une liste vide affiche un message écrit d'avance qui demande à l'utilisateur des gestes qu'il vient de faire. Il ne peut ni corriger ce qu'on lui reproche, ni comprendre ce qui manque, et il conclut que la fonctionnalité est cassée.
 - root_cause: « Aucune campagne. Connecte Meta Ads dans 🔑 Credentials API, puis lance 🚀 Lancer TOUTES les collectes » était affiché quelle que soit la cause. Mesuré le 2026-09-06 sur un artiste dont Meta était branché (pastille verte, sonde OK, 224 lignes d'insights, collecte réussie vingt minutes plus tôt avec 879 lignes) : les deux gestes demandés étaient faits. La vraie cause était la cinquième — `meta_campaigns` a pour clé de conflit `campaign_id` SEUL, délibérément (sa clé primaire porte quinze clés étrangères, et un upsert ne transfère jamais la propriété d'une ligne), donc deux profils déclarant le MÊME compte publicitaire se partagent les identifiants et le second n'en reçoit aucun. Aggravants trouvés au même endroit : la clé i18n `meta_mapping.no_campaigns` portait DEUX phrases françaises différentes selon le site d'appel (l'anglais n'en traduisait qu'une), et « ✅ Toutes les campagnes Meta sont déjà traitées » s'affichait sur ZÉRO campagne, juste au-dessus du message qui demandait de connecter Meta.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_an_empty_list_names_its_real_cause.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: une fonction PURE (`src/utils/meta_campaign_diagnosis.py`) qui rend la cause à partir de trois faits déjà en base — identité déclarée, statut du dernier run du locataire, présence de lignes de performance — et cinq messages, dont deux qui ne demandent aucun geste. Les trois surfaces qui annonçaient une liste vide appellent toutes le même diagnostic ; le garde compte ces appels, parce que corriger une surface sur trois est la forme que prend ce défaut quand on le corrige de mémoire.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_empty_list_names_its_real_cause.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/meta_mapping/_campaigns.py
 - first_seen: 2026-09-06
 - History:
@@ -4054,10 +4804,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: les écoutes d'un radio edit, d'un live ou d'un instrumental s'ajoutent à celles du titre original, sous la mauvaise date de sortie. Aucune erreur, aucun compte qui change : juste des chiffres faux en aval.
 - root_cause: `normalize_track_title` traitait `remix` comme un marqueur de version, et RIEN d'autre. Tous les autres marqueurs devenaient des mots ordinaires du titre, puis étaient absorbés par la règle d'inclusion de `title_similarity`, qui rendait 0,90 — au-dessus du seuil d'auto-acceptation de 0,80, donc appliqué sans qu'un humain le voie. Mesuré le 2026-09-06, chacun à 0,90 contre son propre titre de base : `(Radio Edit)`, `(Extended Mix)`, `(Sped Up)`, `(Live)`, `(Instrumental)`, `- VIP`. Défaut jumeau : la forme à tiret exigeait `remix\b`, donc « - Remixed by Bob » n'était pas reconnu du tout — le titre restait « base » face à un « remix », les statuts divergeaient et le score tombait à 0,0, sans aucun candidat.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_track_mapping_suggest.py tests/test_the_matcher_keeps_its_known_pairs.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `split_version()` rend `(base, marqueurs)` et remplace la chaîne unique. Les marqueurs sont cherchés là où les distributeurs les écrivent — dans un groupe entre parenthèses, et dans un suffixe COURT après tiret dont le marqueur occupe la fin — et nulle part ailleurs : chercher partout ferait de « Live Your Life » une version live de « Your Life ». Le modèle est celui du secteur : DDEX sépare Title et Version Title, et chaque version porte son propre ISRC. `normalize_track_title` reste une façade rendant la chaîne, sans quoi les `match_key` déjà écrits dans `track_release_reference` cesseraient de joindre.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_matcher_keeps_its_known_pairs.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/track_matching.py
 - first_seen: 2026-09-06
 - History:
@@ -4069,10 +4822,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un titre court s'associe tout seul à un libellé long qui le contient — un mix DJ, un set, un morceau d'un autre artiste. Le score est le même que pour un vrai rapprochement.
 - root_cause: `title_similarity` rendait `CONTAINMENT_SCORE` (0,90) dès qu'un jeu de jetons était inclus dans l'autre, SANS regarder ce qui restait. Mesuré le 2026-09-06 : « Mix » ⊆ « house music mix 3 back to old school » valait 0,90, « Feet » ⊆ « 1x7xxxxxxx feet first free download » aussi, et « Kimono à semelle de fer » ⊆ « Kimono à semelle de fer II » également. Inoffensif tant que les titres sont longs et distinctifs ; un artiste dont un morceau s'appelle « Solo » ou « Nuit » verrait un mix DJ auto-associé.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_track_mapping_suggest.py tests/test_every_ranking_call_names_the_artist.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le score devient `0,9 × couverture`, la couverture étant la part des jetons de CONTENU du plus long expliqués par le plus court, une fois retirés le bruit connu (`free download`, `feat`, `official`…) et le NOM DE L'ARTISTE. SoundCloud et YouTube le préfixent au titre, donc sans lui la couverture chute et un vrai rapprochement passe sous le seuil : la fonction est délibérément moins sûre quand on ne le lui donne pas, et `test_every_ranking_call_names_the_artist.py` vérifie que chaque site d'appel de production le donne. Effet mesuré : les dix titres SoundCloud passent de 0,90 à 1,00, et les faux positifs à 0,13.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_ranking_call_names_the_artist.py }
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/track_mapping_suggest.py
 - first_seen: 2026-09-06
 - History:
@@ -4084,10 +4840,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une colonne censée être vide contient la chaîne `'nan'`. Les requêtes `IS NULL` ne la voient pas, les regroupements la comptent comme une valeur, et une clé absente devient une clé partagée.
 - root_cause: `str(row[col] or '').strip() or None` — le motif employé dans tout `imusician_csv_parser`. Il paraît sûr et ne l'est pas : **un NaN pandas est VRAI** en contexte booléen, donc `nan or ''` rend `nan` et `str(nan)` rend `'nan'`. Mesuré en production le 2026-09-06 : 2 533 lignes de `track_version`, deux `isrc` et deux `track_title`.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_nan_is_never_written_as_a_value.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un helper `_text()` qui teste `pd.isna` AVANT toute évaluation booléenne, plus une migration qui remet à NULL les lignes déjà écrites. Le coût n'est pas cosmétique : l'ISRC est la clé exacte du secteur — chaque version d'un morceau en porte une propre — et une absence écrite `'nan'` regroupe sous UNE MÊME valeur tout ce qui n'a pas d'identifiant, soit le pire regroupement possible pour une colonne dont le rôle est de distinguer.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_nan_is_never_written_as_a_value.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/092_nan_is_not_a_value.sql
 - first_seen: 2026-09-06
 - History:
@@ -4100,10 +4859,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un bouton s'affiche, on clique, et il ne se passe rien. Aucune erreur, aucune trace : le bloc qui portait le bouton disparaît simplement de l'écran. Signalé le 2026-09-08 en fin de mise en route — « quand je clique sur configurer le mapping, ça me renvoie nulle part ».
 - root_cause: `st.rerun()` efface tout ce qui a été écrit avant lui, donc un compte rendu d'action voyage par `st.session_state`, et on le CONSOMME au rendu (`session_state.pop`) pour qu'il ne réapparaisse pas indéfiniment en contredisant l'état. Ce motif est juste pour un message et faux dès que le bloc porte un widget : un clic ne se lit pas au moment du clic, il déclenche un rerun, et `st.button(...)` ne rend `True` que si le widget est **ré-instancié pendant ce rerun**. La valeur ayant été consommée au rendu précédent, `pop` rend `None`, le bloc est sauté, le widget n'existe pas, et le geste est jeté. Deux sites en production, tous deux au bout d'un parcours de mise en route : `upload_csv._render_after_import` → `_render_mapping_cta` (« 🔗 Confirmer le nom des titres », après un import réussi) et `credentials/_render.render_save_verdict` → `_render_next_step` (« 🏠 Aller au dashboard → », après la dernière plateforme connectée).
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_consumed_message_carries_no_widget.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/dashboard/utils/pending_notice.py` — la valeur est LUE (`pending_notice`) et non consommée, bornée à la page qui l'a vue naître : elle disparaît dès que l'artiste est ailleurs, ce qui était la seule raison d'être du `pop`, et le widget est ré-instancié à chaque rendu tant qu'on est là. La consommation (`clear_notice`) est déplacée sur le GESTE — le bouton qui emmène ailleurs — et non sur l'affichage. Conséquence à tenir en même temps : un lecteur qui SE SERVAIT de la consommation comme borne doit se borner lui-même — `credentials/router.py` ouvrait l'onglet suivant à partir de ce même verdict, et sans mémo il aurait refermé à chaque rerun l'onglet que l'artiste venait d'ouvrir.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_consumed_message_carries_no_widget.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/pending_notice.py
 - first_seen: 2026-09-08
 - History:
@@ -4116,10 +4878,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une fonctionnalité reste vide pour un locataire, et le message d'explication — pourtant mesuré et exact — se termine par « rien à faire de ton côté ». L'utilisateur conclut à une panne. Signalé le 2026-09-08 : « j'ai aucune suggestion automatique de campagnes meta, c'est pas normal ». C'était normal.
 - root_cause: le bac à sable (`saas_artists.is_sandbox`, migration 080) est **exempté du garde d'unicité d'identité** — c'est sa raison d'être : rejouer la mise en route avec les identifiants de l'opérateur. L'exemption a été accordée sur une surface (la saisie) sans que sa CONSÉQUENCE sur une autre soit nommée : `meta_campaigns` a pour clé de conflit `campaign_id` seul et un upsert ne transfère jamais la propriété d'une ligne, donc le bac à sable, qui déclare toujours le compte publicitaire du profil principal, n'obtient jamais une seule campagne. Mesuré en production : locataire 18, 224 lignes d'insights, 12 titres de référence, **0 campagne**, les 34 étant sur le locataire 1 sous le même `ad_account_id`. Le diagnostic existant rendait `CAMPAIGNS_ELSEWHERE`, une phrase écrite pour deux VRAIS locataires — cas que le garde d'identité rend désormais impossible.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_an_empty_list_names_its_real_cause.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: une cause distincte, `SANDBOX_SHARES_ACCOUNT`, et le quatrième fait qu'elle demande (`is_sandbox`) lu dans la même requête que les trois autres. Le message nomme l'exemption, sa conséquence, et le geste qui reste possible — se connecter avec le profil principal pour mapper. La règle générale : quand une exemption est accordée à un locataire, écrire ce qu'elle lui RETIRE ailleurs, sinon l'absence se lit comme une panne.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_empty_list_names_its_real_cause.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/meta_campaign_diagnosis.py
 - first_seen: 2026-09-08
 - History:
@@ -4132,10 +4897,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: deux colonnes de la MÊME ligne se contredisent — « Saisi ✅ » à côté de « Format ? — forme non vérifiable pour cette plateforme ». Signalé le 2026-09-08 sur Santé onboarding, pour Spotify.
 - root_cause: l'identité Spotify vit à DEUX endroits — `artist_credentials.extra_config.spotify_artist_id` et le miroir `saas_artists.spotify_artist_id`. `artist_readiness._identity` accepte l'un OU l'autre pour dire « Saisi » ; `status_matrix.read_identities`, écrite le 2026-09-04 pour la colonne « Format », ne lisait que le premier. L'état est atteignable : `clear_platform_identities` — le `--reset` du bac à sable — efface les lignes de credentials, et un ré-onboarding réécrit le miroir avant la ligne. **Troisième lecture à faire l'erreur** : `declared_identities` l'avait faite, corrigée le 2026-08-26, sa docstring dit déjà « two readers, one question, two answers ».
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_two_columns_never_disagree_on_one_identity.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `read_identities` lit le miroir (`IDENTITY_MIRRORS`) quand `extra_config` est vide, exactement comme `declared_identities`. Le garde ne vérifie pas un appel : il fait tourner les DEUX lecteurs sur les mêmes données et exige le même ensemble — il rougit donc quel que soit celui des deux qui dérive, ce qu'un garde ancré sur un seul n'aurait pas fait.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_two_columns_never_disagree_on_one_identity.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/status_matrix.py
 - first_seen: 2026-09-08
 - History:
@@ -4147,10 +4915,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une courbe « par jour » affiche des valeurs absurdes et plates, ou un pic vertical isolé. Aucune erreur : le graphique a l'air d'un graphique. Signalé le 2026-09-08 — « les datas sont incohérentes ».
 - root_cause: toutes les sources ne mesurent pas la même chose. `s4a_song_timeline.streams` est une quantité du JOUR ; `soundcloud_tracks_daily.playback_count` et `youtube_channel_history.view_count` sont des cumuls depuis toujours. La figure de bienvenue les additionnait dans un `UNION ALL` : **23 560 « écoutes » le 8 septembre** pour l'artiste 1, chaque jour, contre un maximum réel de 1 605 streams/jour. Convertir naïvement le cumul en écart (`LAG`) déplace le défaut sans le retirer, et trois artefacts réels le prouvent : une collecte ratée qui écrit 0 (2026-06-01, 19 titres) rend 23 480 le lendemain ; un trou de 104 jours pose 104 jours de gain sur un seul ; et un locataire portant plusieurs `channel_id` (le bac à sable en a trois, dont une à 155 vues) saute de 155 à 120 627 en une nuit.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_cumulative_counter_is_not_a_daily_figure.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `src/dashboard/utils/platform_timeseries.py` — un seul endroit qui nomme la NATURE de chaque colonne, et trois règles : l'écart se prend sur le maximum déjà vu (pas sur la veille), il n'existe qu'entre deux jours **consécutifs** (sinon aucun point, un trou étant la forme honnête de « on ne sait pas »), et il se calcule par entité (titre, chaîne) avant toute somme. Ce qui n'a pas d'historique — Apple Music, un instantané par CSV — est **nommé** plutôt que dessiné à zéro.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_cumulative_counter_is_not_a_daily_figure.py }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_timeseries.py
 - first_seen: 2026-09-08
 - History:
@@ -4163,10 +4934,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une étape d'un parcours existe, se rend correctement, et aucun chemin n'y mène. Signalé le 2026-09-08 : « quand je clique sur mise en route (assistant), je n'arrive pas sur la page d'onboarding, j'ai uniquement les 2 onglets bienvenue / offre ».
 - root_cause: les deux boutons d'étape de la barre latérale n'étaient rendus que sous `_bare`, c'est-à-dire uniquement en mode première connexion. Sur un compte configuré, `FIRST_RUN_FOCUS` n'est jamais armé, donc les boutons n'existaient pas — et les deux autres chemins ne mènent nulle part non plus : `sync_step_on_arrival()` remet à l'étape 1 dès qu'on arrive d'ailleurs, et le seul bouton qui pose l'étape 2 quitte l'assistant dans la même action. Le commentaire du site disait pourtant l'intention — « les étapes restent, MÊME en barre nue » — mais le code écrivait « seulement si ».
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_every_step_of_the_assistant_is_reachable.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: la condition devient « sommes-nous sur l'assistant ? » et non « est-ce une première connexion ? ». `_bare` continue de décider ce que la barre montre d'AUTRE ; il ne décide plus si les étapes existent. Le garde rend l'application entière, clique le bouton, et vérifie que l'étape a changé — un rendu ne dit jamais si une étape est atteignable.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_step_of_the_assistant_is_reachable.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/app.py
 - first_seen: 2026-09-08
 - History:
@@ -4178,10 +4952,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'artiste voit une figure d'exemple, puis « la sienne », et ce n'est pas la même chose — autre forme, autres couleurs. La seconde se lit comme une régression. Signalé le 2026-09-08 : « ce n'est plus le même graphique, tu m'avais fait un plot qui montre des courbes superposées des différentes plateformes avec différentes couleurs ».
 - root_cause: l'illustration committée (`assets/examples/dashboard-global.png`, générée par `tools/dev/make_example_charts.py`) est un `stackplot` aux couleurs `BLUE/ORANGE/AQUA` — déjà passées par le validateur `dataviz`. La figure live, écrite plus tard et sans la regarder, était faite de lignes qui se croisent aux couleurs de MARQUE — lesquelles ont d'ailleurs été refusées par le même validateur. Deux formes, deux palettes, une seule promesse. L'empilement n'est pas cosmétique : il répond à « combien au total, et qui y contribue », là où des lignes superposées répondent « laquelle est la plus haute » — qui n'est pas la question de l'accueil.
+- cause_evidence: read (tools/dev/make_example_charts.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le garde LIT la palette dans le générateur de l'illustration au lieu de la recopier — deux copies divergent au premier changement — et vérifie la forme sur la structure (`stackgroup`, `fillcolor`), pas sur le texte. Le mode sombre ne déplace que le pas refusé par la bande de clarté (l'orange), les deux autres restant identiques : décaler les trois « pour l'harmonie » ferait de la figure sombre une autre figure.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-08
 - History:
@@ -4194,10 +4971,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: on conclut qu'une source « ne fournit pas d'historique », et on l'écrit dans le produit. Signalé le 2026-09-08 : « pour Apple je ne comprends pas, je viens de refaire le process avec le CSV d'aujourd'hui et rien ne s'est actualisé ».
 - root_cause: `apple_songs_performance` portait `UNIQUE(artist_id, song_name)` — sans date. Chaque dépôt de CSV écrasait donc le précédent, et la table n'a JAMAIS porté plus d'un relevé : 11 lignes pour l'artiste 1, toutes au même horodatage. Aucune période n'était découpable, et re-déposer le même export ne pouvait rien changer. La source fournissait bien une donnée par période ; c'est la clé qui interdisait de la garder. La conclusion « Apple n'a pas de série » a ensuite été écrite dans un message affiché à l'artiste, transformant notre contrainte en propriété de la plateforme.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_apple_periods_are_asked_not_guessed.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: migrations 093 (`snapshot_date` dans la clé) et 094 (`period_start`/`period_end`, remplis en lisant les deux dates que Apple écrit dans le nom du fichier). Le garde lit la clé de conflit de la PAGE D'IMPORT et non le DDL : c'est elle qu'`upsert_many` envoie à Postgres, donc c'est elle qui décide. La règle générale : avant d'écrire dans le produit qu'une source n'a pas d'historique, vérifier si c'est la source, la CLÉ, ou une question qu'on n'a jamais posée.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/093_apple_keeps_every_snapshot.sql
 - first_seen: 2026-09-08
 - History:
@@ -4210,10 +4990,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un chiffre affiché est faux d'un facteur cinq à dix, sans erreur ni trou. Signalé le 2026-09-08 : « les données de YouTube sont fausses, voici celles que j'obtiens via YouTube Studio » — 64 vues sur la période, contre 360 attribuées à une seule journée par l'app.
 - root_cause: `youtube_channel_history.view_count` est le compteur de la CHAÎNE. Mesuré : figé à 120 627 du 2026-08-28 au 2026-09-07, puis 120 987 d'un coup. Il est mis à jour par paliers et porte autre chose que la somme des vidéos — vidéos privées ou supprimées, agrégats internes. La série lui prenait son écart quotidien, donc un palier de +360 devenait « 360 vues le 8 septembre ». La somme des compteurs PAR VIDÉO (`youtube_video_stats`) donne +3, 0, +3, 0, +1… soit 44 sur 28 jours — le même ordre de grandeur que Studio.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_cumulative_counter_is_not_a_daily_figure.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: lire les compteurs de l'entité la plus FINE que la source expose, et prendre l'écart par entité avant d'additionner. Le garde épingle la source elle-même : `youtube_video_stats` présent, `youtube_channel_history` absent, `PARTITION BY video_id` présent. La règle générale : un compteur agrégé fourni par une plateforme n'est pas la somme de ses parties, et seule une source EXTÉRIEURE — ici YouTube Studio — permet de savoir lequel des deux ment.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_cumulative_counter_is_not_a_daily_figure.py }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_timeseries.py
 - first_seen: 2026-09-08
 - History:
@@ -4227,10 +5010,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un total gonfle sans raison visible, d'autant plus que l'utilisateur a fourni PLUS de données. Aucune erreur : chaque relevé est juste, c'est leur addition qui ment.
 - root_cause: des relevés de période qui se RECOUVRENT sont additionnés comme s'ils étaient disjoints. Apparu le 2026-09-08 en conséquence directe d'un correctif : dès que la période d'un export Apple se lit dans le nom du fichier, un artiste a naturellement l'export « depuis le début » (2015-06-30 → 2026-09-04) ET celui de 2024. Les sommer compte 2024 deux fois — une fois seul, une fois dans le cumul qui le contient. C'est la même faute que `a-cumulative-counter-charted-as-a-daily-figure`, sur des périodes au lieu de grandeurs : additionner deux mesures qui se recouvrent.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_apple_periods_are_asked_not_guessed.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `non_overlapping_cover` — on garde le découpage le plus FIN qui ne se chevauche pas (les plus courts d'abord, et un relevé n'est retenu que s'il ne chevauche aucun des gardés), et le total prend le relevé le plus LARGE, qui porte déjà tout. La règle générale : avant de sommer des mesures de période, vérifier qu'aucune n'en contient une autre — un correctif qui donne accès à plus de données crée souvent cette forme.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_timeseries.py
 - first_seen: 2026-09-08
 - History:
@@ -4243,10 +5029,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: tout upsert sur la table échoue, en bloc, avec un message qui parle d'une contrainte ABSENTE alors qu'elle est là. Signalé le 2026-09-08 sur cinq fichiers à la fois : « there is no unique or exclusion constraint matching the ON CONFLICT specification » — 11 titres détectés, 0 ligne écrite, cinq fois.
 - root_cause: la migration 094 a créé l'index unique sur des EXPRESSIONS — `(artist_id, song_name, snapshot_date, COALESCE(period_start, DATE '0001-01-01'), COALESCE(period_end, DATE '0001-01-01'))` — pendant que l'upsert désignait des COLONNES : `ON CONFLICT (artist_id, song_name, snapshot_date, period_start, period_end)`. Postgres n'apparie une cible `ON CONFLICT` à un index que si les expressions coïncident, donc la contrainte existait et l'upsert ne pouvait pas la voir. Le `COALESCE` avait une vraie raison : un index unique ordinaire tient deux NULL pour différents, et deux relevés « depuis le début » n'auraient plus été dédupliqués — l'idempotence acquise en 093 aurait été perdue.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_apple_periods_are_asked_not_guessed.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: migration 095 — `NULLS NOT DISTINCT` (PostgreSQL 15+, la production tourne en 17.10) rend deux NULL égaux DANS l'index, sans expression : la cible redevient une liste de colonnes, l'upsert l'apparie, et l'idempotence tient. Le garde compare les DEUX listes — celle du schéma canonique et celle que la page d'import envoie — et refuse toute expression dans la contrainte, parce qu'une expression rend la cible inappariable par construction.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/095_apple_conflict_target_matches_its_index.sql
 - first_seen: 2026-09-08
 - History:
@@ -4260,10 +5049,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un artiste voit un trou dans une plateforme qui n'en a AUCUN. Signalé le 2026-09-08 : « il y a un gros trou dans les données de S4A ». Mesuré le même jour : S4A a 365 / 366 / 365 / 248 jours consécutifs depuis le 2023-01-01, pas un seul manquant. Le trou était dans la figure.
 - root_cause: `platform_chart._segments` calculait des tranches COMMUNES — un pas n'était tracé que si TOUTES les plateformes empilées y avaient une mesure. Une aire empilée n'a pas de trou, donc couper la bande entière semblait la seule réponse honnête à un jour non mesuré. Conséquence chiffrée sur l'artiste 1, au pas hebdomadaire : **19 semaines** de Spotify effacées, dont **13** dont YouTube était le seul responsable, et **0** où Spotify manquait. La règle `stackable` qui écartait les plateformes clairsemées était le correctif de ce même défaut, et elle excluait YouTube (24 jours mesurés sur 195) et SoundCloud (12 sur 74) de TOUTES les vues — c'est la plainte « je ne vois que Spotify ».
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: les tranches sont **par plateforme**. Une source inconnue ne dessine rien ce jour-là et les autres continuent ; Plotly empile en un seul `stackgroup`, donc le total d'un pas incomplet est celui des plateformes présentes, et `t_missing` le dit avec le compte PAR plateforme. La règle de couverture disparaît : elle ne protégeait plus rien, il ne reste que la contrainte de forme — deux points, sinon il n'y a pas d'aire.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-08
 - History:
@@ -4276,10 +5068,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un total affiché est faux d'un ou deux ordres de grandeur, sans erreur ni trou. Vu au rendu le 2026-09-08 : **16 568 594 écoutes** en sous-titre de la vue par défaut, pour un artiste qui en a 163 102 — un facteur 89.
 - root_cause: le sous-titre lisait `aligned`, c'est-à-dire la série APRÈS `_as_mode`. En mode cumulé chaque point porte le total depuis le début, donc les additionner somme des cumuls. Le correctif précédent du même jour avait déplacé le calcul de `series` (la série brute, qui ignorait le filtre de sources et comparait des dates du jour à des clés de seau) vers `aligned` — plus près, toujours faux, et sur une variable dont le nom ne dit pas qu'elle a été transformée.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py::test_no_indicator_ever_sums_cumulative_values -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `aligned_raw` conserve les quantités par pas avant `_as_mode`, et c'est la seule forme qu'on somme. Le garde lit le sous-titre RENDU — il rend la figure, extrait le nombre du titre et le compare à la somme connue — au lieu de vérifier quelle variable la fonction utilise : c'est le nombre affiché qui était faux.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-08
 - History:
@@ -4292,10 +5087,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une agrégation sous-estime silencieusement, d'un facteur qui dépend de la collecte. Mesuré le 2026-09-08 : **38 %** des semaines YouTube et **31 %** des semaines SoundCloud n'étaient mesurées que sur une partie de leurs jours, et étaient tracées comme des semaines pleines — jusqu'à un facteur 7.
 - root_cause: `_aggregate` sommait ce qu'il trouvait dans chaque seau sans jamais compter combien de jours ce seau CONTENAIT. Une semaine à un jour mesuré et une semaine à sept produisaient un point de même nature. La conversion cumul → quotidien ne rattrape rien : un delta n'est calculé qu'entre deux jours CONSÉCUTIFS, donc les jours sautés ne sont pas reportés sur le suivant, ils manquent. Le verdict d'empilement était en outre pris APRÈS agrégation, où un seau partiel comptait pour un seau mesuré : la couverture paraissait meilleure au pas hebdomadaire qu'au pas quotidien, sur les mêmes données.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py -q -k bucket`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un seau doit être mesuré sur au moins la moitié des jours qu'il contient DANS la plage utile — les bords comptent pour ce qu'ils peuvent, sinon on perdrait un seau juste à chaque extrémité. En dessous il est rendu INCONNU. Une série déjà au grain du seau (`STEP_ONLY`, Apple par année) y échappe : sa mesure est entière, c'est l'unité qui diffère. Le verdict d'empilement se prend sur la série QUOTIDIENNE. Le test épingle les distributions réelles (1,1,1,1,2,2,2,3,5,6 jours par semaine pour YouTube ; 1,1,2,3,5 pour SoundCloud ; 7 partout pour Spotify), pas la constante.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-08
 - History:
@@ -4307,10 +5105,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: des lignes arrivent, à l'heure, en nombre normal — et leurs valeurs sont fausses. Mesuré le 2026-09-08 : le 2026-06-01, `soundcloud_tracks_daily` a reçu 19 titres dont **19 compteurs cumulés à zéro**, pour des titres qui portaient plusieurs milliers la veille.
 - root_cause: aucun pilier ne regardait les VALEURS. La fraîcheur compte des lignes ; `check_row_anomalies` ne surveille que le sens du pic ; `is_partial_collection` (pilier Volume, R39) exclut explicitement zéro **en nombre de lignes** — il y en avait dix-neuf, toutes fausses. La figure absorbe déjà le cas en refusant les deltas négatifs, ce qui rendait l'incident invisible à celui qui regardait le plus.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_zeroed_collection_is_seen.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `check_zero_resets` dans `alert_monitor`, prédicat dans `src/utils/value_monitor.py` — un compteur CUMULÉ revenu à zéro après avoir été positif, comparé au maximum ANTÉRIEUR de la même entité et non à la veille. On signale, on ne réécrit jamais : les valeurs écrasées sont conservées par `data_revisions` (ADR-018).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_zeroed_collection_is_seen.py }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/value_monitor.py
 - first_seen: 2026-09-08
 - History:
@@ -4324,10 +5125,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une combinaison de réglages rend une figure entièrement VIDE, sans message, alors que les données sont là. Signalé au rendu le 2026-09-08 : « je vois aucune data dans cumulé par année cette année, Spotify YouTube SoundCloud ».
 - root_cause: le pas annuel appliqué à une période d'un an ne produit qu'UN seul seau, donc un seul point par plateforme — et sous un point isolé il n'y a pas de surface. La contrainte de forme était pourtant déjà écrite dans le module (`_MIN_POINTS = 2`, « une aire a besoin de deux points »), mais appliquée aux SÉRIES uniquement, jamais à l'AXE. La figure se rendait donc « avec succès », traces comprises, et ne dessinait rien. C'est mon propre changement de la même séance qui l'a rendu atteignable, en resserrant `stackable` sur cette contrainte sans la propager au `span`.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py -q -k step`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `_FINER_STEPS` — quand le pas demandé ne produit pas au moins `_MIN_POINTS` seaux, on descend au pas immédiatement plus fin (année → semaine → jour) et `t_coarsened` le dit, en nommant ce que le pas plus fin coûte (Apple n'existe qu'au pas annuel). Un réglage ignoré en silence se lit comme une panne. La règle générale : une contrainte de forme s'applique à TOUT ce qui compose la forme — les séries et l'axe —, sinon elle est vraie d'un côté et fausse de l'autre.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
+- guard_scope: sans-famille — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-08
 - History:
@@ -4340,10 +5144,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une figure ou un total bornés par une période affichent PLUS que ce que la période contient. Mesuré le 2026-09-10 sur l'accueil : « 12 mois · Par année » dessinait **23 251** écoutes pour **8 490** mesurées dans la fenêtre — ×2,7 — et « Cette année · semaine » +2,5 %.
 - root_cause: deux gestes qui se composent. (1) `platform_chart._aggregate` sommait TOUTE la série dans ses seaux ; `since`/`until` ne servaient qu'au calcul du plancher, jamais à la somme. (2) `_bucket_key(since, step)` ramène la borne basse EN ARRIÈRE, au lundi ou au 1ᵉʳ janvier — geste ajouté pour une vraie raison (sans lui les fenêtres ne tombaient sur aucune clé de seau et deux périodes n'empilaient plus rien), qui a réglé l'alignement et ouvert le débordement. Le seau de bord était donc rempli de jours hors fenêtre au lieu d'être découpé. Même forme dans `kpi_helpers.get_roi_data`, où le revenu était comparé sur `make_date(year, month, 1)` — une fenêtre 15 janvier → 10 septembre excluait janvier en entier et comptait tout septembre.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_figure_never_draws_more_than_it_measured.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: la fenêtre découpe les LIGNES avant l'agrégation (`_in_window` dans `_aggregate`, appliqué à tous les pas), et le seau de bord ne porte que ses jours utiles — ce qui rend aussi le plancher juste, puisqu'il comptait des jours hors fenêtre. Règle générale : quand un grain est plus grossier que la fenêtre demandée, on découpe le SEAU, jamais on n'élargit la fenêtre ; et si le grain natif interdit la découpe (`v_artist_monthly_revenue` n'a pas de jour), on élargit **et on rend la période effective à l'appelant** pour qu'il la dise.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_figure_never_draws_more_than_it_measured.py }
+- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-10
 - History:
@@ -4356,10 +5163,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: en mode « Cumulé » — l'affichage par défaut de l'accueil — la bande d'une plateforme dont la collecte s'arrête MONTE puis **retombe à zéro** et y reste, ce qui se lit « cette plateforme a perdu toutes ses écoutes ». En mode « Par période », les mêmes jours sont tracés `0` avec l'infobulle « compteur inchangé », qui affirme une mesure que personne n'a faite.
 - root_cause: `platform_chart.known()` rendait `True` **avant la première mesure ET après la dernière**, avec un seul et même argument dans sa docstring (« la plateforme n'était pas encore collectée, 0 est la bonne valeur »). Les deux extrémités ne sont pas symétriques : avant la première mesure, zéro est vrai — la plateforme n'existait pas dans nos données ; après la dernière, la plateforme existe toujours, c'est NOUS qui avons cessé de mesurer. Les index concernés entraient donc dans une tranche continue, et le rendu écrit `y=[aligned[k][i] or 0 …]`. Corollaire : `gap_counts` ne les comptait pas non plus, donc la note `t_missing` promettait « un blanc, jamais un zéro » à propos de jours qu'elle ne voyait pas.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_figure_never_draws_more_than_it_measured.py -q -k plateau`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `known()` distingue les deux bords — avant la première mesure : connu (0) ; après la dernière : inconnu. La règle générale : quand un prédicat traite deux cas du même argument, vérifier que l'argument vaut pour les deux. Ici la docstring elle-même les avait mis entre parenthèses (« avant sa première mesure (ou après la dernière) ») — la parenthèse était le défaut.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_figure_never_draws_more_than_it_measured.py }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-10
 - History:
@@ -4372,10 +5182,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un document PAYANT affirme « ✅ Rentable » à un artiste alors que la base était injoignable. Le chiffre affiché est `0,00 €` des deux côtés, le net vaut 0, et `net >= 0` imprime le verdict.
 - root_cause: trois couches qui se couvrent. `kpi_helpers.get_roi_data` initialisait `revenue_eur: 0.0` et `profitable: False`, et avalait toute exception par `except Exception: pass` — une panne rendait donc « rien gagné, non rentable ». Puis `pdf_exporter/_renderers._render_roi` faisait `float(roi.get('revenue_eur') or 0)` et **recalculait son propre statut**, donc corriger le helper seul ne l'aurait pas protégé. Enfin `imusician.py` affichait, pour une panne, le texte prévu pour une absence légitime (« Aucune dépense promo sur la période — élargissez le filtre ») : il n'existait aucun troisième état.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_roi_never_states_a_verdict_it_did_not_measure.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: trois états explicites — mesuré / rien mesuré / **pas lisible** (`unreadable`), ce dernier porté par le retour du helper. Aucun verdict n'est calculé sans les deux côtés connus, et chaque surface d'affichage a sa phrase pour la panne, distincte de celle de l'absence. `COALESCE(SUM(x), 0)` retiré des deux requêtes : une absence rend NULL. Règle générale : un affichage qui recalcule son propre verdict doit être corrigé DANS LE MÊME CHANGEMENT que le helper qui le nourrit — sinon le garde du helper ne le protège pas.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_roi_never_states_a_verdict_it_did_not_measure.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/kpi_helpers.py
 - first_seen: 2026-09-10
 - History:
@@ -4389,10 +5202,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un artiste premium sans dépôt S4A reçoit par e-mail « Streams (last 7 days) : 0 · +0 vs prev week », « Spend : 0.00 € » et « CTR : 0.00 % ». Trois affirmations qu'on n'a pas mesurées, dont une arithmétiquement fausse : sans impression, le taux de clic n'est pas nul, il est indéfini (0/0).
 - root_cause: `COALESCE(SUM(…), 0)` sur les streams et la dépense, `ELSE 0` sur le CTR, dans `weekly_digest.py`. Le même fichier écrivait vingt lignes plus bas, à propos de SoundCloud : « No COALESCE: an absent snapshot must read "N/A", not a fabricated 0. » La règle était connue, écrite, appliquée à trois sources sur cinq, et contredite sur les deux autres — parce que rien ne la vérifiait.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_digest_never_mails_a_fabricated_zero.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: les deux requêtes rendent NULL sur zéro ligne, et un formateur (`digest_queries.fmt_value`) rend « N/A ». Le formateur n'est pas cosmétique : `f"{None:,}"` lève, donc sans lui le correctif honnête se serait payé d'un e-mail non envoyé. SQL et formateurs sont sortis du DAG vers `src/utils/digest_queries.py`, parce qu'un garde posé à côté d'un DAG skippe en silence sur tout interpréteur sans Airflow — ce module existe déjà pour cette raison.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_digest_never_mails_a_fabricated_zero.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/digest_queries.py
 - first_seen: 2026-09-10
 - History:
@@ -4404,10 +5220,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un panneau de tableau de bord reste vide sans rien dire. La table qu'il lit existe, le SQL est valide, et personne ne l'écrit.
 - root_cause: `views/airflow_kpi.py` lisait `etl_daily_metrics` — **2 lignes** — pendant que `etl_run_log`, écrit à chaque collecte par `dag_run_logger.py`, en portait **2 196** juste à côté. La table avait été créée en prod hors de toute migration, puis rétro-inscrite dans `migrations/062_reconcile_schema_drift.sql` dans le seul but de faire taire `make schema-check`. Elle est classée « USED-but-undeclared » dans `.claude/dev-docs/schema-drift-2026-06-13.md:22` **depuis le 2026-06-13** : le défaut n'était pas ignoré, il était documenté et laissé en l'état, et la seule trace visible avait été de faire taire le détecteur qui le signalait.
+- cause_evidence: read (migrations/062_reconcile_schema_drift.sql, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_no_surface_reads_a_table_nobody_writes.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: la page lit le registre réellement écrit. Le garde couvre les deux moitiés de la classe : aucune surface ne lit la table orpheline, et **aucune table citée par `.claude/dev-docs/architecture.md` n'est absente du schéma canonique** — un diagramme qui envoie vers une table fantôme oriente vers du vide. Règle générale : rendre un détecteur muet n'est pas fermer ce qu'il signalait.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_no_surface_reads_a_table_nobody_writes.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/dev-docs/architecture.md
 - first_seen: 2026-09-10
 - History:
@@ -4420,10 +5239,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: le même locataire lit trois nombres différents pour la même métrique, au même instant, sur trois surfaces du même produit. Mesuré le 2026-09-10 : le total de vues YouTube de l'artiste 1 valait **120 627** sur « Data Wrapped » et dans le PDF client, **118 219** sur l'accueil et dans l'API.
 - root_cause: la règle « le total d'une plateforme est la somme des compteurs PAR ENTITÉ, jamais le compteur agrégé » était correcte et **recopiée** à quatre endroits. Deux copies ont dérivé vers `youtube_channel_history.view_count`, le compteur de chaîne prouvé ~10× faux le 2026-09-08 ; une troisième avait porté un défaut distinct (`ORDER BY collected_at DESC LIMIT 1` rendait le cumul d'UNE vidéo comme total d'un catalogue de 67) avant d'être corrigée sur place. Le garde existant, `test_no_surface_reads_the_channel_counter_as_streams`, ne regardait que `platform_timeseries` et `src/api/routers/kpis.py` — **sa portée était le défaut**, et c'est pourquoi les deux copies fausses ont survécu à sa création.
+- cause_evidence: read (src/api/routers/kpis.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_every_surface_gives_the_same_total.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: une **vue Postgres ordinaire** porte la définition (`v_platform_totals`, migration 097, ADR-019) et les cinq surfaces la lisent. Pas de table matérialisée : ces duplications vivent dans des requêtes exécutées à la lecture, donc matérialiser n'en retirerait aucune (ADR-014). Le garde balaie désormais toutes les surfaces qui affichent un total, et n'accepte le compteur de chaîne que là où il est légitime — les ABONNÉS, qui n'ont pas d'autre source. Règle générale, écrite dans ADR-019 : une vue n'existe que si elle retire au moins **deux** sites d'appel divergents.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_surface_gives_the_same_total.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: docs/adr/ADR-019-bronze-silver-gold-as-a-boundary-not-a-storage.md
 - first_seen: 2026-09-10
 - History:
@@ -4437,10 +5259,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un âge, une durée ou une borne de période est faux d'une à deux heures, et le décalage change avec la saison. Mesuré le 2026-09-10 : une source collectée il y a **23 h** s'affichait « il y a 1j », faisant basculer son voyant de vert à orange sans que rien n'ait vieilli.
 - root_cause: `freshness_status` faisait `datetime.now() - last_dt` — `datetime.now()` nu rend l'heure LOCALE de l'hôte, tandis que `last_dt` sort d'une colonne sans fuseau où les collecteurs écrivent `datetime.now(timezone.utc)`. Deux référentiels soustraits l'un de l'autre. Même forme sur les bornes de période, qui suivaient `date.today()` — une TROISIÈME horloge, après celle des données et celle du lecteur. Les deux classes tz déjà au catalogue (`tz-aware-naive-mix`, `mixed-date-timestamp`) ne pouvaient pas le voir : leurs signatures visent `pd.to_datetime` et `sorted()` dans `views/`, pas l'arithmétique de `datetime` dans `utils/`.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_one_clock_decides_a_date.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: comparer deux instants du même référentiel — l'heure courante en UTC contre un horodatage déclaré UTC — et faire suivre à la « journée du produit » le fuseau d'affichage déclaré une fois (`DISPLAY_TZ`), jamais l'horloge de la machine qui affiche. Règle générale : une date qui entre dans une comparaison porte son fuseau, ou la comparaison est fausse d'une quantité qui change avec la saison.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_one_clock_decides_a_date.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/tz.py
 - first_seen: 2026-09-10
 - History:
@@ -4454,10 +5279,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un document généré perd des caractères — sans erreur, sans avertissement, sans carré de substitution. Reproduit le 2026-09-10 : rendu le golden HTML du rapport, un seul émoji sur vingt-neuf s'imprimait.
 - root_cause: l'image de production (`python:3.11-slim`) n'embarque **aucune police** — vérifié, zéro entrée — et le `Dockerfile` installe la pile de rendu de WeasyPrint sans une seule fonte. **Correction du constat initial :** le chemin de PRODUCTION retire déjà tous les émojis du HTML avant d'appeler WeasyPrint. J'avais mesuré sur le golden, un artefact d'AMONT dont le rendu direct contourne ce filtre — le rapport livré n'a donc jamais porté d'émoji invisible. Ce qui restait vrai et fragile : la source COMPTAIT sur ce filtre d'aval, au point que `_badge` indexait un dictionnaire par le glyphe de fraîcheur, c'est-à-dire par un caractère que le filtre effaçait de la sortie. Un émoji portait une décision.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_pdf_prints_every_glyph_it_carries.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: deux moitiés. Le filtre reste sur le chemin de rendu, et un garde structurel vérifie qu'il y est appliqué — pas que son nom apparaisse. Et la source cesse d'en dépendre : plus aucun glyphe indessinable dans une chaîne, donc plus aucune décision portée par un caractère qui disparaîtra. `_badge` se choisit sur la couleur, rendue par la même fonction et dessinable.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_pdf_prints_every_glyph_it_carries.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/pdf_exporter/_config.py
 - first_seen: 2026-09-10
 - History:
@@ -4470,10 +5298,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: une figure montre une fraction du volume réel d'une plateforme, sans le dire, ce qui se lit comme une plateforme morte. Mesuré le 2026-09-10 : l'accueil traçait **21** écoutes YouTube et en écartait **167** — un neuvième affiché.
 - root_cause: la conversion cumul → quotidien n'émet un écart que si le relevé précédent date de la VEILLE (`jour - veille = 1`). La règle est juste : entre deux relevés distants de neuf jours on sait ce qui s'est passé en tout, jamais quel jour, et l'attribuer au dernier inventerait un pic. Ce qui manquait n'était pas la donnée, c'était l'aveu — YouTube n'est mesurée que 39 % des jours, donc la majorité de ses écoutes n'entrait ni dans la courbe ni dans les totaux de période, et rien ne le signalait.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_figure_never_draws_more_than_it_measured.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un compteur des écarts écartés, rendu à l'appelant et NOMMÉ sous la figure. Règle générale : quand une règle de calcul jette de la donnée pour une raison valable, le volume jeté se compte et se dit — sinon la rigueur du calcul se lit comme une panne de la source.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_figure_never_draws_more_than_it_measured.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_timeseries.py
 - first_seen: 2026-09-10
 - History:
@@ -4485,10 +5316,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une colonne de mesure est remplie sur toutes les lignes, donc elle a l'air mesurée, et toute moyenne calculée dessus est fausse — pas approximative, fausse. Mesuré en production le 2026-09-10 : **515 lignes d'`etl_run_log` sur 587** (30 j) portaient une durée de zéro ; seule la plateforme Meta était réellement chronométrée.
 - root_cause: `record_tenant_run` écrivait `started_at = ended_at = now()`. Quatre des cinq DAGs de collecte passent par elle. Un zéro écrit par construction est indiscernable d'un zéro observé : il n'y a ni valeur manquante, ni exception, ni journal — la colonne est simplement pleine de nombres qui ne viennent d'aucune horloge.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_duration_is_read_where_it_is_written.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: l'appelant mesure et transmet `duration_ms` ; l'inconnu se dit dans cette colonne, qui est NULLABLE, et jamais dans `started_at`, qui est NOT NULL. Le piège inverse a failli être posé au correctif : y écrire NULL pour dire « je ne sais pas » fait lever l'INSERT, que le `except` de la fonction avale — **la ligne disparaît**, ce qui est l'infirmité même que ce journal existe pour retirer. Règle générale : une durée absente est un fait, une ligne absente est un trou ; on ne troque pas le second contre le premier. Et une colonne de mesure qui ne peut pas valoir NULL ne peut pas dire « non mesuré » : c'est une propriété du schéma, à vérifier avant d'y écrire un repli.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_duration_is_read_where_it_is_written.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/dag_run_logger.py
 - first_seen: 2026-09-10
 - History:
@@ -4500,10 +5334,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: une alerte quotidienne signale correctement un problème réel, à l'identique, pendant des mois. Le lecteur cesse de l'ouvrir, et le soir où une VRAIE panne s'y ajoute, personne ne la voit. Mesuré en production le 2026-09-10 : le locataire 12 tenait la ligne d'objet du mail nocturne **depuis le 2026-06-19 — 93 nuits consécutives**, toujours `(#200) Ad account owner has NOT grant ads_management or ads_read permission`.
 - root_cause: la tâche ne lisait que le DERNIER état par (locataire, plateforme) et le rendait sans son ancienneté. Une panne de cette nuit et un blocage de trois mois produisaient donc exactement la même ligne, la même couleur et la même place dans le sujet. Or les deux appellent des gestes opposés : l'une peut être corrigée par une exécution, l'autre attend une main chez un tiers et aucune relance ne la retirera.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_block_of_ninety_three_nights_does_not_read_like_tonight.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: mesurer les nuits d'échec depuis le dernier succès, et s'en servir pour ORDONNER, COLORER et composer le sujet — le récent nommé, l'installé compté. Rien n'est tu : un blocage garde sa ligne complète dans le corps, avec son ancienneté et sa cause. Règle générale : quand un détecteur peut répéter le même constat, il doit rendre **depuis quand**, sinon sa répétition devient sa propre panne. Corollaire de forme : la décision d'ancienneté vit dans `src/utils/`, pas dans le DAG — un module de DAG ne s'importe pas hors de son conteneur, donc un seuil écrit dedans est un seuil qu'aucun test n'exerce.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_block_of_ninety_three_nights_does_not_read_like_tonight.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/collection_outcomes.py
 - first_seen: 2026-09-10
 - History:
@@ -4516,10 +5353,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un cliquet gelé à zéro passe au vert, et la chose qu'il interdit est toujours là. Mesuré le 2026-09-10 : `_MAX_SECONDARY_AXES = 0` était vert alors que **trois figures** portaient encore un axe secondaire.
 - root_cause: le prédicat ne cherchait que `yaxis2…yaxis9`, la forme produite par `update_layout`. Plotly en a une seconde — `make_subplots(specs=[[{"secondary_y": True}]])` puis `add_trace(..., secondary_y=True)` — qui ne fait apparaître ce nom nulle part. Le cliquet ne disait donc pas « il n'y en a plus », il disait « je n'en vois plus », et les deux phrases se ressemblent au point d'être confondues dans un rapport de test vert.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_visual_rules_only_tighten.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_the_visual_rules_only_tighten.py`, consignée par l'auteur du garde)
 - long_term_fix: un cliquet à ZÉRO doit prouver sa non-vacuité sur **chaque forme** qu'il prétend couvrir, et le prédicat du cliquet et celui de sa sonde doivent être **le même objet** — sinon la sonde valide une copie. Règle générale : un cliquet gelé au-dessus de la mesure du jour est du mou (il autorise en silence la croissance qu'il prétend interdire) ; un cliquet gelé à zéro sur un prédicat partiel est pire, il certifie une propriété fausse. Avant de figer à zéro, énumérer les formes que la chose peut prendre dans la bibliothèque employée.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_visual_rules_only_tighten.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_a_file_only_gets_shorter.py
 - first_seen: 2026-09-10
 - History:
@@ -4532,10 +5372,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un cache est posé, le code a l'air correct, et la requête part quand même à chaque rendu. Aucun signal : un cache sans succès se comporte exactement comme pas de cache.
 - root_cause: la clé contient une valeur qui change à chaque appel. Ici `get_live_pulse` calculait `cutoff = now() - 5 min` et le passait au helper caché : deux rendus séparés d'une milliseconde produisent deux clés distinctes, donc zéro succès de cache pour toujours.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_page_asks_the_same_question_once.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: arrondir toute borne temporelle à la fenêtre de cache avant de la faire entrer dans la clé. Règle générale : avant de déclarer un cache posé, se demander quelle est sa clé et si deux appels consécutifs peuvent la partager — un horodatage nu ne le peut jamais. Le garde ne vérifie pas la présence du cache (invérifiable de l'extérieur) mais son EFFET : le nombre d'allers-retours SQL d'un rendu réel, gelé en cliquet.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_page_asks_the_same_question_once.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/live_pulse.py
 - first_seen: 2026-09-10
 - History:
@@ -4548,10 +5391,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: aucun. Tout fonctionne — c'est le propre de cette classe : elle ne se manifeste que le jour où autre chose échoue.
 - root_cause: le dashboard, l'API et les DAGs se connectaient en `postgres`. Ce que cela donne à une injection ou à une fuite de DSN n'est pas « la lecture des tables » : c'est `COPY … TO PROGRAM`, donc l'exécution de commandes sur l'hôte de la base, plus `pg_authid` (les empreintes de mots de passe de tous les rôles), plus la désactivation de n'importe quel garde en base. Entre une erreur applicative et la machine, il n'y avait aucune couche.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_application_is_not_a_superuser.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un rôle applicatif `NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS`, propriétaire de rien, avec SELECT/INSERT/UPDATE/DELETE sur les données et **aucun DDL** — les migrations gardent le superutilisateur, ce qui est exactement la séparation cherchée. `ALTER DEFAULT PRIVILEGES` couvre les tables futures, sans quoi la panne arriverait des semaines plus tard sur une surface sans rapport. La migration REDESCEND le rôle à chaque passage : `make migrate` est rejoué à chaque déploiement, c'est la ceinture contre une promotion faite à la main. Règle générale : le rôle qui exécute les requêtes de l'application n'est jamais celui qui a créé les tables.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_application_is_not_a_superuser.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/098_the_app_is_not_a_superuser.sql
 - first_seen: 2026-09-10
 - History:
@@ -4565,10 +5411,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une écriture de lot est lente, et — le vrai défaut — un échec en cours de route laisse la première moitié en base. Mesuré le 2026-09-10 : sur 1 001 lignes dont la 501ᵉ viole une contrainte, **500 lignes restaient committées**.
 - root_cause: la connexion est en `autocommit = True`, bon défaut pour une écriture isolée. `insert_many` appelait `executemany`, donc une instruction ET une transaction par ligne. La lenteur est le symptôme visible ; ce qui compte est qu'une collecte à moitié appliquée soit **indiscernable d'une collecte complète** — pas d'erreur en base, pas de marqueur, juste moins de lignes.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_batch_is_all_or_nothing.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un contexte `_atomic()` qui suspend l'autocommit le temps du lot, valide en bloc, annule sur exception et RESTAURE l'état dans un `finally` — sans ce `finally`, une exception laisserait la connexion en transaction ouverte pour toute la session, et chaque écriture suivante attendrait un commit que personne n'écrit. Règle générale : `autocommit` et « lot » ne vont pas ensemble ; la question à poser d'une écriture multiple n'est pas « combien de temps » mais « que reste-t-il en base si elle échoue au milieu ».
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_batch_is_all_or_nothing.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/database/postgres_handler.py
 - first_seen: 2026-09-10
 - History:
@@ -4581,10 +5430,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la collecte d'un locataire s'enregistre `success`, et une partie de ses données n'a pas été lue. L'artiste voit un historique amputé sans que rien ne le lui dise.
 - root_cause: `fetch_media` plafonne à 10 pages ; au-delà, les publications les plus anciennes ne sont pas relues, et le seul signal était un `logger.warning` dans le journal d'un conteneur. Ce plafond n'est pas une erreur — c'est une lecture bornée, et le collecteur a raison de ne pas lever — mais son résultat est un fait sur les DONNÉES, et un fait sur les données ne se dit pas dans un log.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_truncated_read_is_not_a_full_one.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: le collecteur porte la troncature sur l'objet (remise à faux à chaque appel, sinon un locataire tronqué marque tous les suivants du même processus), et le DAG l'enregistre `partial` — le statut que la tâche d'alerte remonte déjà. Règle générale : entre `success` et `failed` il existe un troisième cas, « ça a marché mais pas en entier », et l'écrire `success` rend l'incomplet indiscernable du complet sur toutes les surfaces qui lisent le journal.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_truncated_read_is_not_a_full_one.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/collectors/instagram_api_collector.py
 - first_seen: 2026-09-10
 - History:
@@ -4596,10 +5448,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: aucun, tant qu'on ne compare pas deux périodes — et alors l'écart est de quelques heures, change avec la saison, et personne ne peut dire s'il est réel. Quatre horloges cohabitaient sur le même axe de la figure d'accueil et rien, nulle part, ne déclarait laquelle avait produit une date donnée.
 - root_cause: une date entre dans le produit par quatre chemins — un instant écrit par nos collecteurs (UTC), un jour calendaire lu dans une colonne de CSV (fuseau de publication de Spotify), un jour calendaire lu dans un NOM de fichier (fuseau d'Apple), un jour choisi par le lecteur (fuseau d'affichage) — et circulait ensuite sans distinction. Une même colonne en portait deux selon l'âge de la ligne : `DATE` avant la migration 019, instant après.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_naive_timestamp_is_not_reinterpreted.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: déclarer l'horloge de chaque colonne (`src/utils/clocks.py`), séparer l'horloge de MESURE de celle d'AFFICHAGE, et n'autoriser la conversion de fuseau que sur les dates qui sont des instants. Règle générale, et elle est contre-intuitive : **le danger n'est pas la date non convertie, c'est la conversion appliquée à ce qui n'est pas un instant.** Un jour calendaire lu chez un éditeur n'a rien à convertir ; le convertir le déplace d'une journée entière en croyant le réparer. Et l'écart qu'on ne peut pas fermer — les journées de reporting de Spotify et d'Apple, arrêtées dans leur fuseau qu'aucun ne publie — se NOMME au lieu de s'effacer.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_naive_timestamp_is_not_reinterpreted.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: docs/adr/ADR-021-a-date-declares-the-clock-that-produced-it.md
 - first_seen: 2026-09-10
 - History:
@@ -4613,10 +5468,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: le jour où le travail est réellement terminé, **trois gardes tombent ensemble** — et ils tombent sur la seule chose qu'ils n'avaient pas prévue : le succès. Mesuré le 2026-09-10, à la rotation de la dernière tâche de la roadmap : `test_the_sections_are_not_empty`, `test_the_live_heading_pattern_actually_distinguishes_the_two_forms` et `test_the_index_is_not_empty_of_both_sections`, dans trois fichiers différents.
 - root_cause: chacun protégeait, à raison, contre une extraction qui vise à côté — un titre markdown qui apparaît aussi dans la prose, un renommage, une réorganisation rendent une liste vide plutôt qu'une erreur, et une liste vide satisfait `assert not offenders` parfaitement. Mais tous les trois ont ancré cette preuve sur le CONTENU du fichier de production (« la roadmap a au moins une ligne ») au lieu du PARSEUR. Une assertion de non-vacuité assise sur des données réelles confond deux propositions : « mon prédicat fonctionne » et « il y a du travail en cours ». Les deux sont vraies pendant deux ans, et se séparent le jour où l'on finit.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_roadmap_index_is_honest.py tests/test_the_resume_header_is_checked.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: prouver la non-vacuité sur un **échantillon fabriqué dans le test** — trois lignes de markdown écrites sur place, dont une qui doit matcher et deux qui ne doivent pas. Le prédicat reste gardé, et il l'est indépendamment de l'état du dépôt. Règle générale : une assertion de non-vacuité porte sur l'OUTIL, jamais sur la matière. Corollaire de forme, et c'est celui qui a failli faire perdre les trois gardes : leurs messages disaient « soit tout est fait, auquel cas supprimer ce test ». C'est la mauvaise moitié de l'alternative — supprimer retire la protection exactement au moment où les assertions voisines portent toutes sur du vide.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_roadmap_index_is_honest.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_the_resume_header_is_checked.py
 - first_seen: 2026-09-10
 - History:
@@ -4629,10 +5487,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: du travail non commité disparaît sans trace ni message. Aucune erreur, aucun avertissement : la commande réussit, et ce qu'elle a écrasé n'est ni dans un commit, ni dans un stash, ni dans le reflog. Mesuré **deux fois dans la même séance** le 2026-09-10, à quelques heures d'intervalle — un correctif de rendu et deux clés i18n la première fois, la conversion de deux figures et l'élargissement d'un cliquet la seconde.
 - root_cause: `git checkout -- <un fichier>` pour défaire une mutation de test. Le garde du dépôt bloquait déjà `git checkout -- .` et `git restore .` par correspondance de chaîne, c'est-à-dire les formes qui ont l'air dangereuses. La forme qui coûte est la forme **chirurgicale** : elle nomme un seul fichier, elle a l'air maîtrisée, et elle écrase exactement le même travail. Aggravant, mesuré le même jour : l'un des fichiers visés était **gitignoré**, donc pas même restaurable par cette voie.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_restore_does_not_erase_unsaved_work.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: un hook PreToolUse **à état**. Interdire la forme serait faux — sur un fichier propre ce geste est un no-op légitime et d'usage courant, et un garde qui interdit l'usage courant est un garde qu'on apprend à esquiver. Le garde lit donc `git status --porcelain` sur les chemins visés et ne bloque **que s'il y a réellement quelque chose à perdre**, en le NOMMANT et en proposant le geste de remplacement (`git stash && git stash drop`). Règle générale : quand un geste n'est dangereux que selon l'ÉTAT, le garde doit lire l'état — un prédicat purement syntaxique doit choisir entre laisser passer le défaut et interdire le travail légitime, et il choisit toujours mal.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_restore_does_not_erase_unsaved_work.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/hooks/guard_destructive.py
 - first_seen: 2026-09-10
 - History:
@@ -4647,10 +5508,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une page affiche un verdict en vert — « breakeven atteint le … » — sur un croisement de courbes garanti par construction. Mesuré le 2026-09-10 pour l'artiste 1 : la dépense Meta s'arrête au 2024-09-30, le revenu du distributeur continue **458 jours** de plus.
 - root_cause: la frise court du premier au dernier jour des DEUX séries réunies, et les trous sont comblés par des zéros. Ces zéros sont JUSTES au milieu d'une série — un jour sans dépense publicitaire a bien dépensé zéro — et FAUX après sa fin : celle qui s'arrête la première continue en ligne plate, non parce qu'elle vaut zéro sur cette période, mais parce que personne ne l'a encore rapportée. Sur ces 458 jours un cumul monte pendant que l'autre est figé : les deux courbes se croisent nécessairement, et le verdict lit ce croisement.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_verdict_stops_where_its_evidence_stops.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: borner le verdict au RECOUVREMENT — la fenêtre où les deux séries existent — et NOMMER la période au-delà, à l'écrit comme sur la figure (zone ombrée). Règle générale : un `fillna(0)` sur une série temporelle est légitime à l'intérieur de sa couverture et faux au-delà ; avant de combler, se demander si le trou est « rien ne s'est passé » ou « personne n'a encore rapporté ». Et recadrer en SILENCE ne suffit pas — un « non atteint » qui ne dit pas jusqu'où il regarde se lit comme un constat définitif.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_verdict_stops_where_its_evidence_stops.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/trigger_algo/_tab_budget_roi.py
 - first_seen: 2026-09-10
 - History:
@@ -4663,10 +5527,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: un schéma généré est syntaxiquement valide, son SVG contient tout le texte attendu, et il est faux à l'œil. Mesuré le 2026-09-10 sur sept schémas neufs : **six défauts**, aucun visible dans le code ni dans le HTML rendu.
 - root_cause: deux causes distinctes, et c'est ce qui rend la vérification par lecture insuffisante. (1) **Le placement est calculé, pas écrit.** Une arête directe bronze → or fait remonter la boîte OR au rang 1, donc à GAUCHE de l'argent : le schéma censé montrer trois couches dans l'ordre les montrait à l'envers, alors que chaque nœud et chaque arête étaient corrects. (2) **La mise en forme du texte est calculée aussi** : mermaid casse un mot plus long que sa boîte, et un identifiant SQL n'a pas d'espace où casser — `youtube_channel_histor/y`, `apple_songs_performanc/e`, `meta_insights_performa/nce_day`, `v_artist_monthly_revenu/e`. Plus un schéma de sept nœuds en ligne illisible à l'échelle de la colonne, et un nœud orphelin relié à rien.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: — **aucune, et c'est délibéré.** La commande qui figurait ici (`main.py … && pdftoppm …`) rend le document et le convertit en images : elle sort **0 que le schéma soit juste ou faux**. Une signature qui ne peut pas rougir est une fausse garantie, et une fausse garantie coûte plus cher qu'une absence de garantie — c'est la règle de `/capitalise`, et je l'ai enfreinte en écrivant cette entrée. La procédure de vérification reste, dans le README du générateur ; ce qu'elle produit est un JUGEMENT humain, pas un code de sortie.
+- seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - long_term_fix: rendre, convertir en images et REGARDER, à chaque ajout de schéma — la procédure tient en trois commandes et vit dans le README du générateur. Les coupures se corrigent en posant soi-même un `<br/>` sur un `_` ; l'ordre des couches, en faisant passer chaque chemin par la couche intermédiaire, ce qui se trouve être plus juste aussi. Règle générale : quand un outil CALCULE le rendu, la seule vérification qui porte sur le résultat est de le regarder. Compter les `<text>` d'un SVG prouve qu'il y a du texte, pas qu'il est lisible ni bien placé.
 - autofix: none
 - guard: — (procédure humaine, `tools/dev/architecture_dossier/README.md`)
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/dev/architecture_dossier/README.md
 - first_seen: 2026-09-10
 - History:
@@ -4679,10 +5546,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la légende sous une figure affirme trois choses fausses en même temps, sans qu'aucune ne soit un bug de calcul. Vu au rendu le 2026-09-10 en « Chacune à son échelle · Par année · 12 mois » : « Écoutes **du jour**, plateforme par plateforme. Un blanc dans la bande veut dire qu'on n'a pas de mesure ce jour-là. » Or les points portaient des totaux ANNUELS, il n'y avait pas de bande mais des facettes, et un blanc ne parlait pas d'un jour.
 - root_cause: la légende était une constante dans `views/home.py`, écrite quand la figure n'avait qu'un mode et qu'un pas. Chaque menu ajouté depuis l'a rendue fausse dans un cas de plus, sans jamais la casser — un texte fixe ne lève pas. Et elle ne POUVAIT pas être juste depuis là : la vue connaît le pas DEMANDÉ, et « Automatique » n'en est pas un ; seul le module de la figure sait lequel a été retenu. C'est la cause (E) de l'audit de cette figure, nommée et restée ouverte.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_legend_says_what_the_figure_shows.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: une fonction pure dans le module de la figure, qui prend le pas EFFECTIF et le mode et rend la phrase ; le rendu des notes l'appelle avec les autres explications. Règle générale : un texte qui décrit un état variable se dérive de cet état, et vit là où l'état est connu. Le garde couvre le PRODUIT CARTÉSIEN des menus — trois pas × quatre modes — parce qu'un texte juste dans onze cas sur douze passe inaperçu.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_legend_says_what_the_figure_shows.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-10
 - History:
@@ -4697,10 +5567,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'artiste choisit « 30 jours » et la figure lui montre autre chose, sans que rien ne le dise. Aucune erreur, aucun trou : des barres pleines, sur une période qui n'est pas celle qu'il a demandée.
 - root_cause: une vue Streamlit est un seul `show()` de plusieurs centaines de lignes. Le sélecteur de période y ouvre une fenêtre, et chaque requête écrite ensuite doit la reprendre — en SQL par un fragment, ou en pandas par un masque. Rien ne l'imposait : 29 vues dessinent des figures, 12 portent un sélecteur, et une seule — l'accueil — avait un garde sur leur cohérence.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_chart_is_bounded_by_the_period_it_announces.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_a_chart_is_bounded_by_the_period_it_announces.py`, consignée par l'auteur du garde)
 - long_term_fix: un prédicat AST qui, pour chaque requête placée SOUS une ouverture de fenêtre, exige que la borne apparaisse — en SQL ou dans une COMPARAISON pandas. Cliquet à zéro. Règle générale : dans une vue mono-fonction, la portée d'un réglage se lit par la POSITION, pas par la fonction englobante.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_chart_is_bounded_by_the_period_it_announces.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/soundcloud.py
 - first_seen: 2026-09-10
 - History:
@@ -4715,10 +5588,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: le filtre de période EST appliqué, et la figure répond quand même à une autre question. Aucun garde ne peut le voir : tous demandent *que* la fenêtre soit appliquée, jamais *sur quoi*. Mesuré le 2026-09-10 : « Engagement par mois » d'Instagram bornait sur `timestamp`, la date de PUBLICATION du post, alors que `like_count` est un compteur cumulé lu aujourd'hui — la barre de janvier portait les likes donnés en juin à un post de janvier.
 - root_cause: une colonne de date porte DEUX informations que le code ne distinguait pas : quelle horloge l'a produite, et de quoi elle est la date. La seconde décide si une figure bornée sur elle répond à ce qu'elle annonce — un jour d'événement, un jour de mesure, ou un jour de SORTIE. Borner sur une date de sortie construit une cohorte, ce qui est légitime et souvent la seule lecture possible ; ne pas le dire ne l'est pas.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_period_bound_is_on_the_right_column.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: `COLUMN_SUBJECT` dans `src/utils/clocks.py` déclare, pour chaque colonne de date, de quoi elle est la date — à côté de `COLUMN_CLOCK`, qui dit qui l'a produite. Le garde exige alors qu'une figure bornée sur une date de publication l'ANNONCE, dans un texte vu par l'artiste et proche de la figure. Règle générale : « la fenêtre est appliquée » et « la fenêtre porte sur la bonne chose » sont deux propriétés distinctes, et la seconde ne se vérifie qu'en déclarant le sujet de chaque date.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_period_bound_is_on_the_right_column.py }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/clocks.py
 - first_seen: 2026-09-10
 - History:
@@ -4732,10 +5608,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: sans charge, rien. Au palier suivant, des connexions s'accumulent contre `max_connections` (100 par défaut, partagé avec Airflow et une API qui peut en tenir 40), et le symptôme n'est pas une lenteur : c'est un refus de connexion, donc une page en erreur.
 - root_cause: `st.stop()` lève `StopException`, et il était levé ENTRE l'ouverture de la connexion et le `try` qui la referme — donc le `finally` ne s'exécutait jamais. Quatre sites : `src/dashboard/utils/__init__.py:110` (`view_session`), `views/alerts.py:329`, `views/db_health.py:384`, plus `views/spotify_s4a_combined.py:23` dont le `close()` vivait à l'indentation du corps, ~290 lignes après l'ouverture, hors de tout `finally`.
+- cause_evidence: read (src/dashboard/utils/__init__.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_a_connection_is_closed_on_every_path.py -q`
+- seen_red: 2026-09-11 (via la trace de mutation de `tests/test_a_connection_is_closed_on_every_path.py`, consignée par l'auteur du garde)
 - long_term_fix: résoudre le locataire AVANT d'ouvrir la connexion — il n'y a alors rien à fuir sur le chemin qui sort. Pour un corps long, le gestionnaire de contexte maison `project_db()`. Règle générale : entre l'acquisition d'une ressource et le `try` qui la libère, il ne doit exister AUCUNE instruction qui puisse sortir.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_connection_is_closed_on_every_path.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/__init__.py
 - first_seen: 2026-09-11
 - History:
@@ -4749,10 +5628,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la production est correcte, et toute base NEUVE renaît avec le défaut — CI, poste de développeur, reconstruction après sinistre — jusqu'à ce que quelqu'un rejoue les migrations. Un correctif qui ne vit que dans une migration est un correctif que la prochaine base annule.
 - root_cause: `init_db.sql` est monté en `docker-entrypoint-initdb.d` et le même DDL est déclaré une seconde fois dans `src/database/*_schema.py`. La migration 064 avait remplacé `UNIQUE(video_id)` / `UNIQUE(channel_id)` par des uniques par locataire — parce que deux artistes partageant une vidéo se volaient la ligne — et ces deux déclarations sont restées à la forme globale (4 sites, 2 fichiers).
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `h=0; for n in $(grep -rhoE "DROP CONSTRAINT IF EXISTS +[a-z_][a-z0-9_]*" migrations/*.sql | awk "{print \$NF}" | sort -u); do grep -rnE "^[^-#]*CONSTRAINT +$n\b" init_db.sql src/database/*.py 2>/dev/null && h=1; done; exit $h`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: toute contrainte qu'une migration RETIRE ne doit plus être DÉCLARÉE par le DDL de base — c'est ce que la signature vérifie, sans base de données. Le complément est `tests/test_uniqueness_names_its_tenant.py`, qui construit le schéma depuis `init_db.sql` dans un espace de noms jetable et interroge `pg_index` : l'effet, pas l'artefact.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_uniqueness_names_its_tenant.py }
+- guard_scope: une-écriture-qui-écrase — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: init_db.sql
 - first_seen: 2026-09-11
 - History:
@@ -4766,10 +5648,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'import ne se dégrade pas, il LÈVE — `ERROR: there is no unique or exclusion constraint matching the ON CONFLICT specification`. Prouvé en production le 2026-09-11 par un INSERT réel dans une transaction annulée, sur le chemin d'import Apple de `views/admin.py`.
 - root_cause: PostgreSQL exige que `ON CONFLICT (cols)` corresponde EXACTEMENT à un index unique existant. Les migrations 093-095 ont déplacé la clé d'`apple_songs_performance` vers `(artist_id, song_name, snapshot_date, period_start, period_end)` ; `views/upload_csv.py:53` a suivi, `views/admin.py` non — un même geste déclaré à deux endroits, dont un seul corrigé.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_an_upsert_targets_an_index_that_exists.py -q`
+- seen_red: 2026-09-11 (via la trace de mutation de `tests/test_an_upsert_targets_an_index_that_exists.py`, consignée par l'auteur du garde)
 - long_term_fix: confronter chaque `conflict_columns` littéral au CATALOGUE de la base où le code tournera, pas aux fichiers de migration — seul le catalogue répond à « cet index existe-t-il ici ». Corollaire d'ordonnancement, écrit dans le message du garde : **la migration part AVANT le code qui en dépend.**
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_upsert_targets_an_index_that_exists.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/admin.py
 - first_seen: 2026-09-11
 - History:
@@ -4783,10 +5668,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: le locataire enregistre, l'écran confirme (« ✅ Importé »), et le chiffre affiché reste l'ancien pendant jusqu'à 600 s, sans que rien n'explique pourquoi. Aucune erreur, aucun journal.
 - root_cause: `kpi_helpers` garde ses lectures 600 s, et cette durée longue n'est sûre que parce que les gestes qui changent la donnée en pleine journée purgent explicitement (`collection_trigger.py:46`, `credentials/_render.py:1135`). Trois chemins d'écriture n'étaient pas câblés : `views/upload_csv.py` (le seul point de purge qu'il pouvait atteindre, `autostart_if_journey_complete`, ne s'exécute qu'une fois dans la vie du locataire), `views/admin.py` (import pour le compte d'un artiste ; le cache Streamlit étant global au processus, c'est la seule purge qui puisse l'atteindre) et `views/imusician.py` (saisie manuelle, upsert et suppression).
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_write_path_purges_the_cache_it_invalidates.py -q`
+- seen_red: 2026-09-11 (via la trace de mutation de `tests/test_a_write_path_purges_the_cache_it_invalidates.py`, consignée par l'auteur du garde)
 - long_term_fix: un prédicat AST qui exige, de tout module du dashboard appelant `upsert_many` sur une table que `kpi_helpers` cache, un APPEL à `clear_kpi_caches()`. Une cible de table dynamique compte comme un défaut : un lecteur statique ne peut pas prouver qu'elle ne nomme jamais une table cachée, et le défaut honnête pour « je ne peux pas prouver que c'est sûr » est d'exiger la purge. Dans `imusician`, la purge vit DANS les deux helpers, pas à leurs appels — un troisième appelant en hérite.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_write_path_purges_the_cache_it_invalidates.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/kpi_helpers.py
 - first_seen: 2026-09-11
 - History:
@@ -4800,10 +5688,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la courbe « Cumulé » et la tuile de la même plateforme, sur le MÊME écran, donnent deux totaux. Mesuré en production le 2026-09-11 pour l'artiste 1 : YouTube **136** tracés contre **118 334** annoncés (×870), SoundCloud **77** contre **23 563** (×306). Spotify, lui, tombe juste au point près (165 065 = 165 065).
 - root_cause: le mode « Cumulé » fait un `cumsum` de la série QUOTIDIENNE (`platform_chart._as_mode`). Pour Spotify c'est la vérité — le CSV S4A porte l'historique jour par jour. Pour YouTube et SoundCloud, cette série est un ÉCART entre deux relevés d'un compteur, calculé uniquement entre jours consécutifs : elle ne contient rien d'avant notre première collecte, et rien des trous. Son cumul répond donc à « ce que nous avons vu croître depuis qu'on regarde », jamais à « combien au total ». La même racine explique les autres symptômes : YouTube n'est mesuré que 115 jours et SoundCloud 95, contre 1 344 pour Spotify, donc le plancher de seau (`_BUCKET_FLOOR = 0.5`, posé à raison) élimine presque tous les seaux dès qu'on agrège — au pas ANNUEL, YouTube en garde **0**.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: pour une plateforme dont la source est un COMPTEUR, le mode cumulé doit tracer le compteur lui-même (dernier relevé par entité, la définition que porte déjà `v_platform_totals`), pas la somme de nos écarts. Règle générale : une série dérivée par différence ne peut pas être ré-intégrée pour reconstituer son total — il manque la constante d'intégration, qui est précisément ce que le compteur donne gratuitement. Tant que ce n'est pas fait, ne pas proposer « Cumulé » comme défaut pour ces plateformes.
 - autofix: none
 - signature: `python3 -c "import ast,sys;f=next((n for n in ast.walk(ast.parse(open('src/dashboard/utils/platform_chart.py').read())) if isinstance(n,ast.FunctionDef) and n.name=='_as_mode'),None);ok=f is not None and 'cumulative' in [a.arg for a in f.args.args];ok=ok and all(any(k.arg=='cumulative' for n in ast.walk(ast.parse(open(v).read())) if isinstance(n,ast.Call) for k in n.keywords) for v in ('src/dashboard/views/home.py','src/dashboard/views/onboarding.py'));sys.exit(0 if ok else 1)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: tests/test_a_curve_ends_where_its_tile_says.py — le dernier point de la série égale `v_platform_totals` pour CHAQUE locataire (sur base vivante), le cumul ne recule jamais, et cinq tests purs tiennent la lecture de la couche or, le report en avant, le seau grossier qui prend le DERNIER niveau, et le niveau de départ hérité d'avant la fenêtre. Mutations vues rouges le 2026-09-11 : `gold = None` (4 échecs), le seau qui somme (3), le trou qui casse la courbe (3).
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-11
 - History:
@@ -4824,10 +5715,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une requête SQL fabriquée en appliquant `.replace()` à une autre requête. Elle se compile, s'exécute, et rend **zéro ligne**. Comme la lecture est enveloppée d'un `except` qui dégrade (« une courbe absente vaut mieux qu'une page morte »), rien n'apparaît : ni erreur, ni log, ni test rouge — les deux courbes disparaissent de la figure et la page reste verte.
 - root_cause: `_SQL_CUMULATIVE_ALL` (`src/dashboard/utils/platform_timeseries.py`) a d'abord été construite par substitutions en chaîne sur `_SQL_YT_CUMULATIVE` et `_SQL_SC_CUMULATIVE` pour les fusionner en un `UNION ALL` — remplacer les noms de CTE, la projection, le `WITH`. Les CTE des deux branches se sont mélangées : `per_day` renommé dans une branche et pas dans l'autre, `grid`/`filled`/`carried` idem. Le SQL produit était syntaxiquement valide et sémantiquement vide. Aucun humain ne pouvait le relire, puisqu'il n'existait nulle part sous forme lisible.
+- cause_evidence: read (src/dashboard/utils/platform_timeseries.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: une requête partagée s'ÉCRIT, éventuellement via un générateur de fragments paramétré (ici une fonction `branch(name, table, entity, metric)` qui rend le bloc de CTE d'une plateforme) — jamais par `.replace()` sur le texte d'une autre requête. La différence tient en une question : peut-on lire le SQL final dans le fichier ? Corollaire, valable partout où un `except` dégrade : un chemin de lecture qui avale ses erreurs doit être comparé à une référence, sinon son échec est indistinguable d'une absence de données.
 - autofix: none
 - signature: `python3 -c "import ast,sys;t=ast.parse(open('src/dashboard/utils/platform_timeseries.py').read());bad=[n for n in t.body if isinstance(n,ast.Assign) and any(getattr(x,'id','').startswith('_SQL') for x in n.targets) and any(getattr(c.func,'attr','')=='replace' for c in ast.walk(n.value) if isinstance(c,ast.Call))];sys.exit(1 if bad else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: tests/test_a_curve_ends_where_its_tile_says.py::test_the_merged_query_says_exactly_what_the_single_ones_say — compare la requête fusionnée aux deux requêtes simples, pour chaque locataire, et refuse de passer sur deux listes vides égales (le défaut exact qu'elle vise). Mutation vue rouge le 2026-09-11 : `WHERE vc IS NOT NULL` → `IS NULL` sur la branche SoundCloud, « la requête fusionnée rend 6 points, la simple 19 ».
+- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_timeseries.py
 - first_seen: 2026-09-11
 - History:
@@ -4840,10 +5734,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - severity: P3
 - kind: manual
 - symptom: annoncer « N tests verts » après une exécution filtrée par `-k`. Le 2026-09-11 : **931 verts** annoncés, puis la sélection officielle en a trouvé **4 rouges** que le filtre ne couvrait pas — deux catalogues i18n incomplets et le cliquet d'allers-retours de l'accueil, tous causés par les changements de la même séance.
+- seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - root_cause: le filtre `-k` est écrit à partir des mots qu'on a EN TÊTE (`chart`, `pdf`, `youtube`…), c'est-à-dire du périmètre qu'on croit avoir touché. Les tests transverses ne portent aucun de ces mots : `test_i18n.py` garde les clés de traduction de toute l'application, `test_a_page_asks_the_same_question_once.py` garde le budget de requêtes d'une page. Ce sont précisément les gardes qu'un changement local déclenche sans qu'on y pense, et un filtre par mots-clés les exclut par construction.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `python3 .claude/scripts/select_tests.py` rend les tests atteignables depuis le diff — c'est déjà la règle transverse #16, et elle existe pour cette raison. Un `-k` reste légitime pour itérer vite pendant qu'on écrit ; il ne l'est pas pour ANNONCER un état. La règle est donc sur la phrase, pas sur la commande : ne jamais rapporter un verdict de suite à partir d'une exécution filtrée.
 - autofix: none
 - guard: —
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: —
 - first_seen: 2026-09-11
 - History:
@@ -4857,10 +5754,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un découpage de document Markdown emporte **plus que ce qu'il visait**, et rien dans le résultat ne le dit. Le 2026-09-13 : la rotation de trois sections `###` datées de `checklist.md` vers `archive.md` a aussi emporté `## 🙋 En attente de toi`, `## 🔍 Ce que le graphe de code a sorti` et `## 🎨 Notes des tests artistes`. **7 gardes rouges d'un coup.** Les deux fichiers restaient du Markdown valide, et `test_roadmap_two_files` restait vert puisque la SOMME n'avait pas rétréci — seuls les gardes qui nomment une section précise l'ont vu.
 - root_cause: les bornes du découpage étaient deux titres de niveau `###` (`c.index(debut_###)` → `c.index(fin_###)`), choisis dans une liste obtenue par `grep -n "^### "`. Cette liste **ne montre pas les titres `##`**, donc rien n'indiquait qu'un titre de niveau supérieur vivait entre les deux bornes. Un intervalle borné par un niveau N traverse silencieusement tout titre de niveau < N qu'il contient : la hiérarchie du document dit que la section `##` se termine au `##` suivant, pas au `###` suivant.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **borner un découpage sur le niveau de titre le PLUS HAUT que la coupe peut rencontrer**, jamais sur celui des sections visées. Concrètement : pour extraire des `###`, la borne de fin est le prochain `##` OU le prochain `###`, le premier des deux. Et l'inventaire qui sert à choisir les bornes se fait sur `^##+ ` (tous niveaux), pas sur `^### ` seul — c'est l'inventaire filtré qui a caché la frontière, pas le découpage.
 - autofix: none
 - signature: `for s in "## 🔖 REPRISE" "## 📋 Tâches ouvertes" "## 🙋 En attente de toi"; do grep -qF "$s" .claude/dev-docs/roadmap/checklist.md || exit 1; done`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_roadmap_index_is_honest.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: —
 - first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
 - History:
@@ -4875,10 +5775,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la figure est juste et le lecteur croit qu'elle est vide, parce que la légende sous elle décrit l'ancienne figure. Signalé le 2026-09-11 **après** le déploiement du correctif : « je n'ai aucune data sur youtube depuis le début ». Mesuré dans le conteneur de production le même soir, filtre « Depuis le début », à tous les pas : la courbe traçait YouTube à **118 334**, SoundCloud à 23 563, Spotify à 165 065. Les trois bandes étaient là. Ce qui disait le contraire : « 🎬 YouTube 26 [semaines non mesurées], **leur aire s'interrompt là** » et « ⏸️ Écoutes mesurées mais **non traçables** : 🎬 YouTube 167 ».
 - root_cause: les deux notes sont calculées sur `aligned_raw`, la série QUOTIDIENNE, et elles étaient exactes tant que la courbe en venait. Le correctif de `cumulative-counter-drawn-as-its-own-history` a fait lire la couche or au mode cumulé : une plateforme à compteur n'a alors plus de trou — entre deux relevés son niveau est connu — et les 167 vues « non traçables » sont DANS la courbe, puisque le compteur les porte. Le correctif a donc rendu sa propre explication fausse, et personne ne relit une note quand on corrige une figure.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: une note qui explique une figure prend en entrée CE QUI A ÉTÉ TRACÉ, pas la série d'origine. `_render_notes` reçoit désormais `served` — les plateformes servies par la couche or — et l'exemption suit la SOURCE et non le mode : sans série or, le cumul reste reconstruit à partir d'une série trouée et la note demeure. Règle générale : quand un correctif change ce qu'une figure SIGNIFIE, la prose autour d'elle fait partie du correctif, au même titre que les axes et les couleurs.
 - autofix: none
 - signature: `python3 -c "import ast,pathlib,sys;mods=[ast.parse(q.read_text(encoding='utf-8')) for q in pathlib.Path('src/dashboard/utils').glob('platform_chart*.py')];f=next((n for t in mods for n in ast.walk(t) if isinstance(n,ast.FunctionDef) and n.name=='_render_notes'),None);args=[a.arg for a in (f.args.args+f.args.kwonlyargs)] if f else [];gated=f is not None and any(isinstance(n,ast.Compare) and getattr(n.left,'id','')=='step' and any(isinstance(c,ast.Constant) and c.value=='day' for c in n.comparators) for node in ast.walk(f) if isinstance(node,ast.If) for n in ast.walk(node.test));calls=[n for t in mods for n in ast.walk(t) if isinstance(n,ast.Call) and getattr(n.func,'id','')=='unmeasured_spans' and n.args];h=ast.parse(pathlib.Path('src/dashboard/views/home.py').read_text(encoding='utf-8'));ok=bool(f) and 'discarded' in args and gated and bool(calls) and all('aligned_raw' not in ast.unparse(c.args[0]) for c in calls) and any(k.arg=='discarded' for n in ast.walk(h) if isinstance(n,ast.Call) for k in n.keywords);sys.exit(0 if ok else 1)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: tests/test_a_note_describes_the_figure_that_is_shown.py — quatre tests, dont un qui tient l'exemption DANS L'AUTRE SENS (le mode « Par période » trace bien la série trouée et doit garder sa note). Mutations vues rouges le 2026-09-11 : la note qui ignore le mode, la note retirée PARTOUT (la sur-correction, verte sans ce deuxième test), et « non traçables » rendue en mode cumulé.
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-11
 - History:
@@ -4898,10 +5801,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un agrégat de période sur une plateforme à COMPTEUR vaut une fraction de la réalité, et la bande devient invisible. Mesuré en production le 2026-09-11, artiste 1, « Depuis le début » au pas hebdomadaire : la somme des seaux YouTube valait **124** quand le compteur avait gagné **18 740** — facteur **151**, et 0,14 % de la hauteur de Spotify, c'est-à-dire sous le pixel. Rapporté comme « je n'ai aucune data sur YouTube ».
 - root_cause: la série quotidienne d'un compteur est une DIFFÉRENCE, et elle n'existe qu'entre deux jours consécutifs (`_SQL_YOUTUBE`, `jour - veille = 1`) — c'est la seule attribution honnête au pas du jour. YouTube n'étant relevée que 39 % des jours, additionner ce qui reste par semaine ne totalise presque rien. L'erreur est d'avoir traité un agrégat de SEAU comme un agrégat de JOURS : à l'échelle du seau, aucune attribution n'est nécessaire, la croissance est la différence des niveaux aux deux bornes.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: un seau plus large qu'un jour porte `niveau(fin du seau) − niveau(fin du seau précédent)`, dérivé de la série cumulée de la couche or. La règle générale : **une quantité de période sur une source à compteur se DÉRIVE des niveaux, elle ne s'additionne pas depuis les écarts** — c'est déjà ce que fait `platform_totals` borné, et les deux surfaces devaient s'accorder. La limite est explicite et testée : au pas du JOUR on garde les écarts, parce qu'attribuer à une journée l'écart observé entre deux relevés distants de neuf jours inventerait un pic.
 - autofix: none
 - signature: `python3 -c "import ast,sys;src=open('src/dashboard/utils/platform_chart.py').read();f=next((n for n in ast.walk(ast.parse(src)) if isinstance(n,ast.FunctionDef) and n.name=='render_platform_chart'),None);body=ast.unparse(f) if f else '';sys.exit(0 if \"step != 'day'\" in body and '_carry_forward' in body else 1)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: tests/test_a_curve_ends_where_its_tile_says.py — `test_a_coarse_bucket_carries_the_counter_growth_not_the_measured_deltas` (les seaux totalisent la croissance du compteur) et `test_the_daily_step_keeps_the_honest_deltas` (la limite, dans l'autre sens). Mutations vues rouges le 2026-09-11 : la dérivation retirée (« 1 au lieu de 20 000 »), et la dérivation appliquée AUSSI au pas du jour (« 20 000 attribués à des journées précises »).
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-11
 - History:
@@ -4915,10 +5821,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: deux surfaces du même produit répondent deux nombres à la même question, sans qu'aucune soit « en panne ». Instances mesurées : trois définitions incompatibles du total YouTube avant la migration 097 (120 627 sur deux surfaces, 118 219 sur trois, au même instant) ; le mode Cumulé à 21 contre 118 219 ; le total borné à 21 contre 18 625, imprimé sur la MÊME page de PDF que la courbe qui le contredisait ; « Par période » à 124 contre 18 740. Aucun de ces nombres n'était rouge dans son propre test.
 - root_cause: la logique métier — « combien d'écoutes », « combien dépensé », « quelle croissance » — est recalculée par chaque surface au lieu d'être maintenue à un seul endroit. Reis & Housley appellent cet endroit une **metrics layer** (*Fundamentals of Data Engineering*, p. 482) : « a tool for maintaining and computing business logic ». ADR-019 en est la version locale. Inventaire du 2026-09-11 : **62 agrégats** posés sur une table de fait depuis une surface d'affichage, répartis en Spotify S4A 33, Meta Ads 22, Instagram 3, Apple 2, Hypeddit 1, Revenu 1 — et YouTube 0, SoundCloud 0, les deux repointées le jour même.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: une métrique se définit une fois, dans une vue `v_*` ou une fonction qui en est la porte unique, et toute surface la LIT. Le geste complet coûterait une réécriture de 62 sites contre un bénéfice nul aujourd'hui (mesuré : les surfaces s'accordent — S4A rend 165 065 par quatre chemins, Instagram 1 525 par deux), ce qu'ADR-007 interdit. Le fix durable est donc un CLIQUET par plateforme : le compte ne remonte jamais, et les plateformes à zéro ne peuvent plus régresser. Chaque repointage baisse le plafond, et le plafond doit rester serré — un plafond au-dessus du réel autorise autant de régressions silencieuses.
 - autofix: none
 - signature: `python3 -m pytest tests/test_the_metrics_layer_only_grows.py -q >/dev/null 2>&1`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: tests/test_the_metrics_layer_only_grows.py — quatre tests : le plafond par plateforme, les deux plateformes propres nommées explicitement (« YouTube n'est plus à zéro » ne se discute pas, « Spotify passe de 33 à 34 » se discute), toute plateforme de fait doit avoir un plafond, et le plafond doit être SERRÉ. Mutations vues rouges le 2026-09-11 : un agrégat rogue ajouté à la page YouTube, un plafond desserré de 10, une plateforme ajoutée sans plafond.
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: docs/adr/ADR-019-*.md
 - first_seen: 2026-09-10
 - History:
@@ -4933,10 +5842,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une tuile passe à **0** après une migration qui n'a rien retiré. Mesuré le 2026-09-12 : « Total Streams (Cumul) » affichait **0** sur la page Apple Music pendant que « Total Shazams » affichait 1 770, et la page ne signalait rien.
 - root_cause: la migration 103 a ajouté `gold_apple_lifetime(integer, text DEFAULT 'plays')` à côté de `gold_apple_lifetime(integer)` créée par la 102. Un appel à UN argument matche alors les deux, et Postgres rend `AmbiguousFunction` — pas « fonction absente », pas un résultat faux : une erreur. Elle tombe dans l'`except` qui protège la page (« une tuile absente ne fait pas tomber la page ») et ressort en **zéro affirmé**. Ajouter un paramètre à défaut n'est donc PAS rétrocompatible en SQL, contrairement à Python.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: une migration qui ajoute une surcharge retire l'ancienne dans le même fichier, et dans cet ordre — créer la nouvelle, repointer les objets qui dépendent de l'ancienne (une vue refuse un `DROP FUNCTION` dont elle dépend), retirer l'ancienne. Règle générale, et c'est la moitié la plus utile : **un `except` qui protège l'affichage transforme toute erreur de schéma en valeur nulle affirmée.** Une fonction de la couche or doit donc être unique par nom, ce qu'un contrôle sur `pg_proc` vérifie en une requête.
 - autofix: none
 - signature: `python3 -c "import os,sys,psycopg2${IFS}try:${IFS} c=psycopg2.connect(host='127.0.0.1',port=int(os.environ.get('PGPORT','5433')),dbname='spotify_etl',user='postgres',password=os.environ.get('DB_PASSWORD',''))${IFS}except Exception:${IFS} sys.exit(0)${IFS}cur=c.cursor();cur.execute(\"SELECT a.proname FROM pg_proc a JOIN pg_proc b ON a.proname=b.proname AND a.oid<b.oid JOIN pg_namespace n ON n.oid=a.pronamespace AND b.pronamespace=n.oid WHERE n.nspname='public' AND a.proname LIKE 'gold_%' AND (a.pronargs-a.pronargdefaults)<=b.pronargs AND (b.pronargs-b.pronargdefaults)<=a.pronargs\");bad=cur.fetchall();c.close();sys.exit(1 if bad else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: tests/test_the_gold_layer_defines_every_platform.py — les trois branches de la règle Apple sont épinglées sur données synthétiques dans une transaction annulée, et la page Apple Music est rendue au complet dans le render-smoke. Signature vue exit=1 en recréant la surcharge, 0 après l'avoir retirée.
+- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/103_gold_apple_metric.sql
 - first_seen: 2026-09-12
 - History:
@@ -4958,10 +5870,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une page tombe — pas un chiffre faux, une exception — et **seulement chez les locataires multi-comptes**. `column "ad_account_id" does not exist` ou `column reference "ad_account_id" is ambiguous`. Mesuré le 2026-09-12 : cinq requêtes de `meta_creatives.py` et `meta_ads_overview.py`, toutes rendues par la page Créatives.
 - root_cause: `account_clause()` (`src/dashboard/utils/meta_accounts.py:115`) rend ` AND ad_account_id = %s` — **et rend la chaîne vide quand aucun compte n'est choisi**. Un développeur mono-compte ne l'atteint jamais. Deux façons de casser : (1) la migration 106 a fait descendre la jointure créative dans `v_meta_creative_daily` et le repointage a été fait colonne par colonne sur la liste du SELECT, sans regarder le WHERE — la vue ne portait pas `ad_account_id` ; (2) `meta_ads`, `meta_adsets` et `meta_campaigns` portent toutes les trois cette colonne, donc un filtre non qualifié sur leur jointure ne désigne rien.
+- cause_evidence: read (src/dashboard/utils/meta_accounts.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: lire une vue or. Une vue n'a qu'une colonne de ce nom, donc ni absence ni ambiguïté ne sont exprimables — le défaut cesse d'avoir une forme. Et la règle générale, qui vaut au-delà de Meta : **un repointage vers une vue vérifie le WHERE autant que le SELECT.** Une colonne qu'on filtre est une colonne dont on dépend.
 - autofix: none
 - signature: `python3 -m pytest tests/test_an_account_filter_names_one_column.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_an_account_filter_names_one_column.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_an_account_filter_names_one_column.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/108_gold_meta_creative_account_and_adset.sql
 - first_seen: 2026-09-12
 - History:
@@ -4973,10 +5888,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un total affiché vaut **le double** du même total lu ailleurs, sans qu'aucune requête soit fausse. Mesuré le 2026-09-12 : la tuile « Dépenses » de la page Meta Ads affichait 6 165,65 € quand la couche or en comptait 3 087,82.
 - root_cause: `meta_insights_performance` porte 231 lignes QUOTIDIENNES (une par campagne et par jour, écrites par la boucle `time_increment=1` de `_meta_insight_fetch.py`) **et** 21 lignes de CUMUL À VIE d'un collecteur antérieur, `date_start` valant le jour de la collecte. Les sommer ensemble compte chaque euro deux fois. La contrainte d'unicité ne l'empêche pas : les deux générations ont des clés distinctes. C'est la forme Apple (`period_start IS NULL` vs périodes bornées) sur une autre plateforme.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: une vue or qui écarte la génération obsolète par un prédicat STRUCTUREL, jamais par un seuil de date : `v_meta_campaign_daily` (migration 109) ne garde que les lignes qui ont une jumelle dans `meta_insights_performance_day`, parce que la boucle du collecteur écrit les deux dans la même itération. Un seuil de date se périme et une ligne quotidienne du jour même porterait la même date que sa collecte. Règle générale : **avant de sommer une table de fait, demander combien de générations de lignes elle porte** — une contrainte d'unicité ne répond pas à cette question.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_total_is_computed_where_a_guard_can_see_it.py tests/test_the_metrics_layer_only_grows.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_a_total_is_computed_where_a_guard_can_see_it.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_a_total_is_computed_where_a_guard_can_see_it.py }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/109_gold_meta_campaign_daily.sql
 - first_seen: 2026-09-12
 - History:
@@ -4989,10 +5907,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un cliquet certifie « zéro agrégat hors de la couche or » pendant qu'une tuile affiche un total faux. Les deux affirmations sont vraies : le total n'est pas dans le SQL.
 - root_cause: `df = db.fetch_df("SELECT campaign_name, spend, … FROM <fait>")` puis `df['spend'].sum()`. Aucun `SUM(` n'apparaît dans la requête, donc aucun garde qui lit le SQL ne peut voir cet agrégat — ni `test_the_metrics_layer_only_grows.py`, ni `gold_coverage.py`, ni une signature grep. Deux sites mesurés le 2026-09-12 : la page Meta Ads (6 165,65 € au lieu de 3 087,82) et les quatre tuiles de la page SoundCloud (justes, mais sur un `DISTINCT ON (track_id)` sans locataire).
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: le garde descend d'un cran — il ne cherche plus un `SUM(` dans le texte, il cherche une **frame issue d'une table de fait non agrégée, réduite ensuite par pandas**. `tests/test_a_total_is_computed_where_a_guard_can_see_it.py` fait exactement ça, en important la liste des faits au lieu de la recopier. Règle générale : **un garde qui lit le SQL ne couvre que les totaux écrits en SQL ; le périmètre d'un garde est sa portée, pas son prédicat.**
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_total_is_computed_where_a_guard_can_see_it.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_a_total_is_computed_where_a_guard_can_see_it.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_a_total_is_computed_where_a_guard_can_see_it.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_a_total_is_computed_where_a_guard_can_see_it.py
 - first_seen: 2026-09-12
 - History:
@@ -5004,10 +5925,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un document généré décrit un dépôt qui n'existe plus. Il ne porte aucune marque de péremption — il se lit exactement comme une mesure fraîche, et c'est ce qui le rend plus cher qu'un document absent.
 - root_cause: un générateur sans mode `--check` câblé. `error-inbox.md` n'a aucun test de fraîcheur et `.claude/scripts/check_stale_deliverables.py` n'était appelé de nulle part. Aggravant : un document horodaté ne PEUT pas être comparé octet pour octet, donc l'horodatage lui-même interdit le seul contrôle qui marche.
+- cause_evidence: read (.claude/scripts/check_stale_deliverables.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: un livrable généré (1) ne porte aucun horodatage, pour que deux exécutions sur le même arbre rendent les mêmes octets ; (2) expose `--check` qui régénère en mémoire et compare ; (3) est câblé dans l'étape déterministe sans base de la CI. `tools/dev/gold_coverage.py` respecte les trois, et `tests/test_the_gold_coverage_only_improves.py` refait la comparaison en important le générateur.
 - autofix: none
 - signature: `python3 tools/dev/gold_coverage.py --check`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: ci-step, ref: .github/workflows/ci.yml }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/dev/gold_coverage.py
 - first_seen: 2026-09-12
 - History:
@@ -5019,10 +5943,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un cliquet affiche zéro et la propriété qu'il annonce est fausse. Le prédicat est juste, la portée ne l'est pas — et rien dans le message ne distingue « zéro trouvé » de « zéro cherché ».
 - root_cause: `tests/test_the_metrics_layer_only_grows.py` a certifié « huit plateformes à zéro agrégat hors de la couche or » le 2026-09-12 avec un `_SURFACES` qui ne nommait pas `src/dashboard/utils`. `kpi_helpers.py` (onze agrégats) et `pdf_charts.py` (un) étaient dehors. Deuxième forme le même jour : `_FACTS` ne listait pas `meta_insights_performance`, et `\b` fait que `meta_insights\b` ne le matche pas.
+- cause_evidence: read (tests/test_the_metrics_layer_only_grows.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: la portée cesse d'être une opinion et devient une donnée comparable. `tools/dev/gold_coverage.py` publie une colonne « dont hors cliquet » — le nombre d'agrégats qu'AUCUN cliquet ne regarde — et ce nombre est lui-même sous cliquet. Les deux déclarations de la portée (celle du cliquet, celle du générateur) sont comparées par un test : une règle recopiée diverge, deux règles comparées ne le peuvent pas.
 - autofix: none
 - signature: `python3 -m pytest tests/test_the_gold_coverage_only_improves.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_the_gold_coverage_only_improves.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_the_gold_coverage_only_improves.py::test_the_two_declarations_of_the_ratchet_scope_agree }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_the_gold_coverage_only_improves.py
 - first_seen: 2026-09-12
 - History:
@@ -5034,10 +5961,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une règle métier vit en PL/pgSQL. Elle n'est ni testable par pytest, ni lisible dans une revue de diff Python, ni déplaçable — et le jour où elle est fausse, le correctif est une migration.
 - root_cause: la tentation est réelle et légitime une fois : `gold_apple_lifetime()` fait une sélection gloutonne d'intervalles non chevauchants, qu'aucun `GROUP BY` n'exprime. Le risque n'est pas cette fonction, c'est la SUIVANTE — celle qu'on écrira « comme la précédente » pour une règle qu'une vue déclarative exprimerait très bien.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: Kleppmann, *DDIA* p. 527 : procédures stockées et UDF « ont été un peu une arrière-pensée dans la conception des bases », et la séparation du code applicatif et de l'état est la position par défaut. La règle écrite ici : **une VUE déclarative, toujours. Une fonction PL/pgSQL, seulement quand un `GROUP BY` ne l'exprime pas** — et le compte de fonctions `gold_*` est gelé à 1. Le franchir demande une décision, pas une inadvertance. Voir `docs/adr/ADR-022`.
 - autofix: none
 - signature: `test "$(grep -hoE 'CREATE (OR REPLACE )?FUNCTION gold_[a-z_]+' migrations/*.sql | awk '{print $NF}' | sort -u | wc -l)" -le 1`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: ci-step, ref: .claude/scripts/audit_runner.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: docs/adr/ADR-022-the-grain-lives-in-sql-the-door-shapes-it.md
 - first_seen: 2026-09-12
 - History:
@@ -5049,10 +5979,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une signature de classe d'erreur rougit sur un arbre sain, deux fois en deux jours, parce que le correctif a déplacé ou renommé ce qu'elle nommait. On finit par la desserrer — donc par retirer la garde — pour faire taire la CI.
 - root_cause: une signature qui nomme un EMPLACEMENT (`fichier:ligne`, une constante, un nom de fonction précis) est couplée à la forme du code, pas à la propriété. Vu le 2026-09-12 : une signature ancrée sur `_SQL_CUMULATIVE_ALL`, constante retirée par un correctif ultérieur.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: une signature interroge une PROPRIÉTÉ — un test qui lit l'AST, une requête au catalogue Postgres, un compte. Contrôle mécanique : aucune signature du catalogue ne contient de numéro de ligne. Mesuré le 2026-09-12 : 0 sur 284.
 - autofix: none
 - signature: `! grep -nE '^- signature: .*[a-zA-Z_/]+\.(py|sql|md):[0-9]+' .claude/dev-docs/error-classes.md`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: ci-step, ref: .claude/scripts/audit_runner.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/dev-docs/error-classes.md
 - first_seen: 2026-09-12
 - History:
@@ -5064,10 +5997,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un cliquet à zéro reste vert alors que la propriété qu'il annonce n'est plus vérifiée — parce qu'il ne mesure plus rien. Mesuré le 2026-09-12 : **5 des 17 valeurs gelées du dépôt** n'avaient aucun plancher sous leur population.
 - root_cause: `total <= plafond` est vrai pour `total = 0`, et zéro arrive de trois façons qui n'ont rien d'exceptionnel — le prédicat cesse de matcher (un nom de fonction renommé), la population disparaît (un fichier budgété supprimé), ou le rendu échoue en silence (une page qui ne s'affiche plus émet zéro requête). Dans les trois cas le cliquet passe au vert en ne vérifiant plus rien, et rien dans son message ne distingue « zéro trouvé » de « zéro cherché ».
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: tout cliquet porte DEUX assertions — un plafond sur les offenseurs ET un plancher sur la population balayée, gelé à la mesure du jour avec sa date. Le plancher est la moitié qu'on oublie. Contrôle mécanique : `tools/dev/gold_coverage.py` compte les valeurs gelées sans test de non-vacuité, et ce compte est lui-même sous cliquet à **0**.
 - autofix: none
 - signature: `python3 -m pytest tests/test_the_gold_coverage_only_improves.py::test_no_counter_of_holes_ever_grows -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_the_gold_coverage_only_improves.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_the_gold_coverage_only_improves.py::test_no_counter_of_holes_ever_grows }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/dev/gold_coverage.py
 - first_seen: 2026-09-12
 - History:
@@ -5078,10 +6014,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - severity: P3
 - kind: manual
 - symptom: un garde reste vert sur le défaut exact qu'il décrit, parce qu'il vérifie qu'une valeur est CALCULÉE et non qu'elle est UTILISÉE.
+- seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - root_cause: `tests/test_a_chart_is_bounded_by_the_period_it_announces.py` cherche un nom de fenêtre dans une comparaison, à l'intérieur d'un fragment de 45 lignes autour de la requête. Mesuré le 2026-09-12 : retirer `{frag}` de la requête bornée d'`apple_music.py:165` — le défaut réel, celui où l'artiste choisit « 30 jours » et voit tout l'historique — le laisse VERT, même en neutralisant aussi `window.sql_between("date")`. Le garde voit la fenêtre LIÉE dans le voisinage, jamais la fenêtre APPLIQUÉE au littéral SQL.
+- cause_evidence: read (tests/test_a_chart_is_bounded_by_the_period_it_announces.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: suivre le fragment jusqu'au littéral SQL par une tranche arrière — le même mécanisme que `tools/dev/gold_coverage.py`, qui résout déjà `Name → définition` et recolle les f-strings avec une sentinelle. Le garde cesserait alors de demander « une fenêtre existe-t-elle près d'ici » pour demander « cette requête porte-t-elle la fenêtre ».
 - autofix: none
 - guard: — (le trou est DÉCLARÉ dans le docstring du test, pas comblé ; l'autre moitié de sa mutation, elle, est rouge)
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_a_chart_is_bounded_by_the_period_it_announces.py
 - first_seen: 2026-09-12
 - History:
@@ -5093,10 +6032,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une exemption reste dans une liste après la disparition de ce qu'elle exemptait. Elle ne casse rien le jour où ça arrive — elle devient du **budget** pour la prochaine occurrence, que plus personne n'a décidé d'autoriser.
 - root_cause: une exemption est écrite avec une raison, puis la raison disparaît sans que la ligne bouge. Deux formes, symétriques et toutes deux vues ici : un axe secondaire déclaré dans `utils/charts.py` qui serait converti en petits multiples (l'exemption couvrirait alors gratuitement le prochain), et un SECOND axe ajouté dans ce même fichier que l'exemption couvrirait sans qu'on l'ait voulu.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: une exemption est NOMINATIVE et **quantifiée**, et un test vérifie l'égalité dans les deux sens — ni plus, ni moins que ce qui est déclaré. Le précédent est `test_uniqueness_names_its_tenant.py::test_the_exemption_still_names_a_table_that_exists` ; la version quantifiée est `test_the_visual_rules_only_tighten.py::test_the_declared_axis_still_exists_and_still_has_its_axis`.
 - autofix: none
 - signature: `python3 -m pytest tests/test_the_visual_rules_only_tighten.py::test_the_declared_axis_still_exists_and_still_has_its_axis tests/test_uniqueness_names_its_tenant.py::test_the_exemption_still_names_a_table_that_exists -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_the_visual_rules_only_tighten.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_the_visual_rules_only_tighten.py::test_the_declared_axis_still_exists_and_still_has_its_axis }
+- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_the_visual_rules_only_tighten.py
 - first_seen: 2026-09-12
 - History:
@@ -5108,10 +6050,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: deux chemins qui répondent à la même question rendent deux nombres différents, chacun cohérent avec lui-même, pendant des semaines. Mesuré en PRODUCTION le 2026-09-12 : 6 165,65 € contre 3 087,82 € pour le même locataire et la même dépense Meta.
 - root_cause: une couche sémantique garantit qu'une métrique a **une seule définition** (ADR-019). C'est une propriété du CODE, et elle ne dit rien de la donnée : deux définitions *censées* coïncider peuvent diverger parce que la SOURCE porte deux générations de lignes, parce qu'une jointure en perd, ou parce qu'un prédicat a été recopié d'un seul côté. Aucune revue de diff ne le voit — les deux côtés sont justes séparément. Moses/Gavish/Vorwerck (*Data Quality Fundamentals* p. 107) distinguent explicitement le suivi d'une DISTRIBUTION (un seuil) de l'ASSERTION (une égalité) ; c'est une assertion, et elle manquait.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: déclarer les paires dont l'égalité est une **propriété** et non une coïncidence, et les vérifier sur les données réelles — à chaque exécution de la suite ET chaque nuit. `src/utils/gold_invariants.py` en porte douze, chacune avec le défaut qu'elle aurait attrapé ; le compte d'objets or qu'AUCUNE paire ne touche est publié dans `.claude/dev-docs/gold-coverage.md` et gelé à **zéro**. Un objet que rien ne confronte est le premier à dériver en silence. Corollaire : la tolérance est celle du flottant, jamais un écart relatif — sur un locataire à 3 €, un facteur deux fait 3 € et passerait sous n'importe quel seuil « raisonnable ».
 - autofix: none
 - signature: `python3 -m pytest tests/test_the_gold_layer_agrees_with_itself.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_the_gold_layer_agrees_with_itself.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_the_gold_layer_agrees_with_itself.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/gold_invariants.py
 - first_seen: 2026-09-12
 - History:
@@ -5124,10 +6069,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une figure sous-déclare d'un facteur **3 049**. Mesuré le 2026-09-12 sur l'artiste 471 : « par semaine » totalisait 11 053 écoutes là où le compteur YouTube avait gagné 33 697 394.
 - root_cause: le 2026-08-20, la collecte a écrit **1 vidéo sur 200**. Le niveau de ce jour vaut 5 vues, contre 33 490 844 le lendemain. Ce 5 n'est pas une donnée fausse — cette vidéo avait bien 5 vues — il est faux **en tant que niveau du locataire**, et il devient la ligne de base de tout ce qui se dérive ensuite. `is_partial_collection` (pilier Volume, R39) connaît cette forme et compte les LIGNES d'une collecte ; la couche or, elle, voyait un jour avec des lignes valides et en faisait un point de courbe. Aggravant : la série quotidienne n'ayant que 2 jours consécutifs, le pas demandé DÉGRADAIT vers le jour, où la dérivation par les niveaux est désactivée par construction — le correctif du facteur 151 était donc annulé pour ce locataire.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: deux changements, et les deux sont des questions de PORTÉE. (1) `v_platform_levels` écarte de l'AXE un jour dont le nombre d'entités tombe sous 10 % de la médiane du locataire — seuil lu dans la distribution réelle (1 jour sur 60 en dessous, 6 entre 50 et 90 %, 53 au-dessus), médiane et non moyenne parce qu'un jour à 1/200 tire une moyenne vers le bas et se protège lui-même. (2) Le report en avant court sur TOUS les jours, y compris les partiels : seul l'affichage est restreint. Et dans la figure, les dates des NIVEAUX entrent dans le calcul du span, sans quoi une plateforme dense par construction perd le pas demandé parce que sa série quotidienne est clairsemée.
 - autofix: none
 - signature: `python3 -m pytest tests/test_every_way_of_asking_gives_one_answer.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_every_way_of_asking_gives_one_answer.py::test_the_period_mode_totals_what_the_lifetime_total_says }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/112_gold_partial_collection_is_not_a_level.sql
 - first_seen: 2026-09-12
 - History:
@@ -5140,10 +6088,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un artiste qui vient de s'inscrire lit **« 0 écoute »** sur les quatre plateformes. Ça ne se lit pas comme « la collecte n'a pas encore tourné », ça se lit comme un produit qui ne marche pas.
 - root_cause: `platform_totals(db, <locataire sans données>)` rendait `{'spotify': 0, 'youtube': 0, 'soundcloud': 0, 'apple': 0}` pendant que les vues or rendaient correctement « aucune ligne ». Trois `COALESCE(..., 0)` empilés effaçaient la distinction : un dans `_SQL_LIFETIME`, un dans le `or 0` de `_lifetime`, un troisième dans `gold_apple_lifetime`. Chacun était défendable seul — ensemble ils transformaient une absence en mesure. Et le même `return 0` couvrait l'EXCEPTION, donc une lecture échouée s'affichait aussi en zéro.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: la porte distingue TROIS cas et le dit dans son code : aucune ligne → `None` ; une ligne à 0 → `0`, mesuré ; une exception → `None`. La vue or n'a pas à changer — elle rendait déjà la bonne chose, c'est la porte qui la masquait. ADR-022 le promettait mot pour mot depuis le début (« elle rend `None` quand rien n'a été mesuré, jamais `0` ») ; le test est la phrase exécutable de cette ADR, et il balaie les HUIT plateformes parce que la question se repose pour chacune.
 - autofix: none
 - signature: `python3 -m pytest tests/test_an_unmeasured_platform_says_so.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_an_unmeasured_platform_says_so.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_an_unmeasured_platform_says_so.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/113_gold_apple_absence_is_not_zero.sql
 - first_seen: 2026-09-12
 - History:
@@ -5156,10 +6107,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une tuile affiche un chiffre alors que la requête a LEVÉ. Quatre occurrences en deux jours, aucune n'a produit d'erreur visible : « Total Streams : **0** » pendant que Shazams affichait 1 770 · `platform_totals` rendant 0 sur une exception · un top 5 du PDF passé de 11 lignes à 0 · une figure Data Wrapped disparue.
 - root_cause: un `except` qui enjambe une lecture de base et rend un NOMBRE. Le motif est partout défendable localement — « une tuile absente ne fait pas tomber la page » — et faux globalement : un chiffre faux se lit comme un chiffre, alors qu'un `None` se lit comme une absence. Le cas le plus cher était `_lifetime` dans la porte des plateformes : un seul `return 0` couvrait à la fois « jamais mesuré », « mesuré à zéro » et « lecture échouée », pour les QUATRE plateformes de streaming à la fois.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: un `except` qui enjambe une lecture rend `None`, une collection vide, ou lève — jamais un nombre. Le garde lit l'AST (`ExceptHandler` contenant un `Return` d'une constante numérique, dans une fonction qui appelle un lecteur), donc un commentaire qui explique le correctif ne peut pas le satisfaire. La PORTE est à zéro et le restera ; les cinq sites de `kpi_helpers` sont sous cliquet descendant — les descendre demande de reprendre chaque appelant, parce que `f"{None:,}"` lève. C'est exactement ce qui a été fait pour la page Apple Music : la tuile affiche « — ».
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_failed_read_is_not_an_absence.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_a_failed_read_is_not_an_absence.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_a_failed_read_is_not_an_absence.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_timeseries.py
 - first_seen: 2026-09-12
 - History:
@@ -5172,10 +6126,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'erreur SYMÉTRIQUE de celle qui a coûté un facteur 151 — traiter une quantité du jour comme un compteur cumulé. Le report en avant inventerait des visites qui n'ont pas eu lieu, et un retour à zéro déclencherait une alerte sur un jour normal : 93 alertes sur 1 254 jours, mesuré.
 - root_cause: le dépôt a un garde solide pour « un cumul tracé comme un quotidien » et aucun pour l'inverse. Mesuré le 2026-09-12 via le tableau `plateforme × famille` : **Hypeddit n'était couvert par aucune famille de forme plateforme**, et le revenu par aucune des deux concernées. Ce sont les deux sources les plus récentes de la couche or, et les moins gardées — la page Hypeddit n'a été repointée que ce jour-là.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: la forme se prouve sur la DONNÉE, pas sur l'intention : un compteur ne redescend jamais, donc une source dont le minimum est ≤ 0 est une quantité. Vérifié `hypeddit_daily_stats.visits` (min 0) et `v_artist_monthly_revenue` (montants négatifs — les charges SACEM). Le test refuse en plus qu'une de ces tables entre dans `ZERO_RESET_TARGETS`, et vérifie que toute lecture des relations Hypeddit et revenu nomme son locataire.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_quantity_is_summed_and_names_its_tenant.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_a_quantity_is_summed_and_names_its_tenant.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_a_quantity_is_summed_and_names_its_tenant.py }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_a_quantity_is_summed_and_names_its_tenant.py
 - first_seen: 2026-09-12
 - History:
@@ -5187,10 +6144,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une plateforme arrivée tard dans le produit n'est couverte par AUCUN garde de tenance. Aucun symptôme visible — jusqu'au jour où une lecture sans `artist_id` rend les chiffres d'un autre artiste, ce que la migration 064 a payé sur YouTube avec deux artistes bêta.
 - root_cause: les gardes de tenance ont été écrits plateforme par plateforme, au fil des incidents. Hypeddit est arrivé après, sa page n'a été repointée sur `v_hypeddit_daily` que le 2026-09-12, et personne n'a repassé la liste. Le trou n'était pas visible parce que rien ne mesurait la COUVERTURE — c'est le tableau `plateforme × famille` qui l'a nommé, pas une relecture.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: le tableau `plateforme × famille` de `.claude/dev-docs/gold-coverage.md` croise les cinq familles de forme plateforme avec les huit plateformes, et son compte de cases vides est sous cliquet à **zéro**. Une plateforme neuve ajoute cinq cases d'un coup et fait rougir le cliquet : brancher une source sans la garder devient impossible en silence. C'est le seul mécanisme qui empêche la reconstitution du trou, parce qu'il ne dépend d'aucune relecture humaine.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_quantity_is_summed_and_names_its_tenant.py::test_every_read_of_these_relations_names_its_tenant -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_a_quantity_is_summed_and_names_its_tenant.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_a_quantity_is_summed_and_names_its_tenant.py::test_every_read_of_these_relations_names_its_tenant }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/dev-docs/gold-coverage.md
 - first_seen: 2026-09-12
 - History:
@@ -5202,10 +6162,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la bande d'une plateforme est correctement COUPÉE sur un jour non mesuré, et le total empilé la compte quand même pour zéro — la pile redescend, et ça se lit comme une chute d'audience. Le rattrapage était une phrase sous la figure, pas un pixel dedans. Signalé le 2026-09-12 : « ne pas visualiser 0 mais genre (absence de data) quand on a pas importé le csv de spotify des derniers jours ».
 - root_cause: `stackgroup` de Plotly infère **zéro** pour une trace qui n'a pas de point à un index (`stackgaps` vaut « infer zero » par défaut). Couper la série par `known()` — réglé le 2026-09-10 — ne suffit donc pas : la coupure est invisible dans une pile, seul le total bouge. Même famille côté pandas : `df.reindex(pd.date_range(...)).fillna(0)` fabrique des jours puis les remplit de zéros, sur cinq figures (`meta_x_spotify:207`, `meta_ads_overview:416`, `hypeddit:149`, `pdf_charts:171,216,322`).
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: l'absence devient un OBJET DESSINÉ et non une phrase — `unmeasured_spans()` rend les intervalles non mesurés, `_hatch_traces()` en fait une bande hachurée posée SOUS les aires, avec une entrée de légende « ▨ Aucune mesure ». La prose qui la paraphrasait (`t_missing`, `t_trend_caption`) est supprimée, et le COMBIEN par plateforme passe dans le récapitulatif chiffré à droite de la figure, dérivé des mêmes listes que la courbe. Côté pandas, le zéro devient `NaN` + `connectgaps=False` ; côté PDF, un `ax.fill_between(..., hatch="///")`, `stackplot` ne sachant pas couper.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py
 - first_seen: 2026-09-12
 - History:
@@ -5222,10 +6185,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la figure totalise MOINS que ce que le compteur a gagné, sans qu'aucun message ne le dise. Mesuré sur un locataire réel le 2026-09-12 : **182 432 dessinés contre 206 555 gagnés**, soit 12 % perdus, sur une plateforme servie par la couche or en mode « Par période ».
 - root_cause: `platform_chart.py` calculait la croissance d'un seau comme « niveau de fin moins niveau de fin du seau précédent », et rendait le PREMIER seau `None` — « pas de seau avant, donc croissance inconnue ». C'est faux dès que la série cumulée COMMENCE dans ce seau : entre son premier relevé et la fin du seau, la croissance est **observée**, pas inconnue. Le raisonnement confondait « pas de prédécesseur » et « pas de baseline ».
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: le niveau d'entrée du premier seau est désormais le dernier relevé à ou avant le début de la fenêtre, à défaut le premier relevé de la série — et il reste `None` quand la série commence réellement après le premier seau, où l'ignorance est vraie. La somme de la figure égale alors la croissance du compteur par construction, ce que le garde vérifie sur tous les locataires de la base.
 - autofix: none
 - signature: `python3 -m pytest tests/test_every_way_of_asking_gives_one_answer.py::test_the_period_mode_totals_what_the_lifetime_total_says -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_every_way_of_asking_gives_one_answer.py::test_the_period_mode_totals_what_the_lifetime_total_says }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-12
 - History:
@@ -5238,10 +6204,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: le premier rendu d'une page quadruple, et rien dans le code ne le montre. Mesuré le 2026-09-12 : `setup_completion` — lu dans le chemin de la barre latérale, donc à chaque page — mettait **1 073 ms au premier appel et 2 ms au second**. L'écart est l'IMPORT, pas la requête.
 - root_cause: `setup_completion._csv_detail` avait besoin des huit LIBELLÉS de `views/upload_csv._PLATFORMS` et les lisait par un import paresseux de la vue, qui tire pandas, les transformateurs CSV et Streamlit — pour huit chaînes, contre un budget de page de 287 ms. Le balayage a trouvé un frère VIVANT sur l'accueil : `status_matrix._requires_sharing` importait `views.credentials._registry` (1 950 ms) pour un booléen, et `render_status_matrix` est rendu pour tout artiste dont la mise en route n'est pas finie.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: la DONNÉE descend dans un module partagé et la vue la relit — `utils/csv_platforms.py` puis `utils/platform_sharing.py`. Jamais une seconde copie (ce serait la divergence que ce dépôt paie à chaque fois), jamais l'utilitaire qui monte vers la vue : une vue est une feuille du graphe. Le garde interdit tout import de `views.*` depuis `utils/`, **y compris écrit dans un corps de fonction** — c'est la forme du défaut, et un prédicat aveugle aux imports paresseux aurait été vert le jour où l'accueil a quadruplé.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_shared_path_does_not_drag_a_view_behind_it.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_shared_path_does_not_drag_a_view_behind_it.py }
+- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_a_shared_path_does_not_drag_a_view_behind_it.py
 - first_seen: 2026-09-12
 - History:
@@ -5254,10 +6223,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'écran dit « Pas encore assez d'historique pour tracer une évolution » à un locataire qui en a **quatre ans**. Vu au navigateur le 2026-09-12 sur « 90 jours · Jour · Par période ».
 - root_cause: `views/home.py` n'avait qu'un message pour l'absence de figure, et la figure ne dessine rien dans deux cas très différents — un compte NEUF (rien n'a encore été collecté) et une FENÊTRE VIDE (tout a été collecté, mais rien dans la période demandée). Ici le CSV Spotify n'avait pas été déposé depuis 92 jours, ce qui est exactement le sujet de la séance, et le message envoyait chercher le mauvais geste.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: le message se DÉRIVE de l'état au lieu d'être écrit à côté : la dernière mesure est comparée à la borne basse de la fenêtre, et les deux textes existent. Les deux silences demandent des gestes OPPOSÉS — le premier fait attendre, le second demande un import — donc les confondre ne coûte pas un mot, il coûte une action.
 - autofix: none
 - signature: `python3 -m pytest tests/test_the_legend_says_what_the_figure_shows.py::test_an_empty_window_is_not_called_a_missing_history -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_the_legend_says_what_the_figure_shows.py::test_an_empty_window_is_not_called_a_missing_history }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/home.py
 - first_seen: 2026-09-12
 - History:
@@ -5270,10 +6242,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un test de non-régression qui cherche la PRÉSENCE d'un marqueur dans un fichier reste vert quand un seul des sites qui l'utilisent perd son correctif. Il ressemble à un garde et ne garde rien.
 - root_cause: `tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py` vérifiait que la chaîne `_measured(` apparaissait dans `pdf_charts.py`. Quatre courbes l'utilisent : casser l'une d'elles laisse les trois autres, donc le marqueur, donc le vert. Mutation exécutée le 2026-09-12 — le correctif de la courbe S4A retiré, le test est resté vert.
+- cause_evidence: read (tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: un garde de non-régression COMPTE ses sites au lieu de constater une présence, et le compte est mesuré, jamais estimé — quatre appels à `_measured`, deux `connectgaps` par figure corrigée. Règle générale : dès qu'un marqueur est partagé par N sites, `marqueur in fichier` répond à « au moins un », jamais à « tous », et c'est « tous » qu'on voulait.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py::test_the_fixed_sites_did_not_come_back -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py::test_the_fixed_sites_did_not_come_back }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py
 - first_seen: 2026-09-12
 - History:
@@ -5286,10 +6261,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la figure affiche le mot **« undefined »** en gras là où son titre a été retiré. Vu au navigateur le 2026-09-12, immédiatement après avoir supprimé le titre et le sous-titre de la pile.
 - root_cause: `fig.update_layout(title=None)` ne retire pas le titre — Plotly sérialise l'absence vers son moteur JS, qui rend la chaîne `undefined`. Le titre de la pile venait d'être supprimé parce qu'il répétait le filtre de période et le récapitulatif ; le geste était juste, sa forme non.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: un titre qu'on retire est une chaîne **vide** (`title=dict(text="")`), jamais une absence. Le garde rend la figure dans les quatre modes et refuse un `layout.title.text` à `None`.
 - autofix: none
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py::test_a_removed_title_is_empty_not_none -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py::test_a_removed_title_is_empty_not_none }
+- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-12
 - History:
@@ -5302,10 +6280,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la même plateforme porte **deux couleurs** dans le même produit — Spotify en vert à l'écran, en bleu dans le PDF du même artiste, le même jour.
 - root_cause: `pdf_charts._PLATFORM_COLORS` était une COPIE littérale de `platform_chart._PALETTE_LIGHT`, écrite quand un seul rendu en avait besoin. Le 2026-09-12 l'écran est passé aux familles de marque ; la copie n'a pas suivi, et rien dans le PDF ne pouvait le signaler — il était cohérent avec lui-même. C'est la forme visuelle de `two-definitions-that-must-coincide-are-never-compared`.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: le PDF LIT la palette de l'écran au lieu de la recopier (`_platform_colors()` dérive la liste de `_PALETTE_LIGHT`). L'ordre reste positionnel pour ses appelants, mais la source est unique : une couleur changée à l'écran change dans le document, par construction.
 - autofix: none
 - signature: `python3 -m pytest tests/test_the_pdf_and_the_screen_read_the_same_functions.py::test_a_platform_has_one_colour_in_the_whole_product -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_the_pdf_and_the_screen_read_the_same_functions.py::test_a_platform_has_one_colour_in_the_whole_product }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/pdf_charts.py
 - first_seen: 2026-09-12
 - History:
@@ -5317,10 +6298,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une tuile de fraîcheur passe au **rouge** pour un comportement parfaitement normal. Signalé le 2026-09-12 : « c'est en rouge alors qu'on a que 3 jours de retard », sur un CSV que personne ne dépose quotidiennement.
 - root_cause: `freshness_status` appliquait un seul barème — 24 h vert, 72 h orange, au-delà rouge — à deux contrats opposés. Une API tourne chaque matin (deux nuits manquées = panne) ; un CSV est déposé à la main et Spotify for Artists publie par semaine. Le `kind` existait déjà dans `SOURCES_CONFIG` depuis le 2026-09-11 et rien ne le lisait pour décider de la couleur.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: le barème est DÉRIVÉ du contrat déclaré, jamais écrit à côté : `freshness_status(last_dt, kind)` choisit 24 h/72 h pour une API et 7 j/30 j pour un CSV, et le défaut reste le barème STRICT — une source dont on ignore la nature est surveillée comme la plus exigeante, jamais l'inverse.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_scale_matches_the_contract_it_judges.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_scale_matches_the_contract_it_judges.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/kpi_helpers.py
 - first_seen: 2026-09-12
 - History:
@@ -5333,10 +6317,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une règle est écrite dans un commentaire avec son chiffre, et personne ne peut la rejouer. La palette portait « refusé : ΔE 4.5 (deutan) » depuis le 2026-09-08 ; le verdict venait de `node scripts/validate_palette.js`, un script de la skill `dataviz` **absent de ce dépôt**.
 - root_cause: la mesure vivait dans un outil externe et son RÉSULTAT dans un commentaire. Conséquence mesurée : la palette a changé deux fois (2026-09-08, 2026-09-12) sans qu'aucune exécution ne puisse dire si elle passait encore, et le second changement — demandé, « youtube rouge… » — a d'abord produit un quatuor à ΔE 10,5 en vision normale, invisible.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: la mesure elle-même entre dans le dépôt. `tests/test_the_palette_can_be_attributed.py` porte CIEDE2000 et la simulation dichromate de Viénot/Brettel en stdlib — il ne remplace pas la skill, il rend son verdict reproductible ici. Règle générale : quand un chiffre d'un outil externe devient une règle du dépôt, c'est la MESURE qu'il faut importer, pas le chiffre.
 - autofix: none
 - signature: `python3 -m pytest tests/test_the_palette_can_be_attributed.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_the_palette_can_be_attributed.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_the_palette_can_be_attributed.py
 - first_seen: 2026-09-12
 - History:
@@ -5350,10 +6337,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un garde rougit alors que rien n'est cassé, uniquement parce que la figure a changé de PAS. Le sien exigeait « au moins 30 pas non mesurés couverts » ; au pas semaine, les 40 jours de la mise en scène font 5 seaux, et il accusait un code correct.
 - root_cause: le seuil avait été écrit en regardant le pas JOUR, où la mise en scène détermine 40 trous — un nombre vrai, mais vrai d'UN grain. Le même garde tournait sur quatre modes × deux pas sans que le nombre suive le pas. C'est `un-seuil-écrit-d-instinct` retourné contre son auteur, et il a été commis en écrivant le garde d'une AUTRE classe le même jour.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: un invariant indépendant du grain — aucun point du porteur de survol ne tombe hors d'une bande hachurée — plus une assertion EXACTE au seul pas où le compte est déterminé (40 jours au pas jour). Règle générale : un garde qui tourne sur plusieurs grains n'épingle un NOMBRE qu'au grain qui le détermine ; partout ailleurs il épingle une RELATION.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py }
+- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py
 - first_seen: 2026-09-12
 - History:
@@ -5366,10 +6356,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - symptom: une commande composée s'arrête au milieu, sans message, et rend le code **144**. Ce qui suit n'a jamais tourné — relancer la suite, écrire le script, lister ce qui reste. Le code ressemble à un échec de la cible ; la cible a très bien été tuée.
   **Et une seconde forme, ajoutée le 2026-09-16** : le motif n'a pas besoin de TUER pour nuire. `until ! pgrep -f "pytest tests/ -q"; do sleep 10; done` **ne sort jamais** — la ligne du shell qui porte la boucle contient le motif, donc `pgrep` se trouve toujours lui-même. Le crochet à la grep (`"[p]attern"`) **protège** cette forme — vérifié par exécution le 2026-09-16 : `ps -eo cmd | grep -c "[x]marker"` rend 0 alors que sa propre ligne porte le motif entre crochets. `pgrep -f` n'a pas d'équivalent : il reçoit le motif SANS crochets et sa ligne d'appel le contient tel quel. Trois boucles bloquées à vie le même jour, par moi, sur une classe que ce dépôt avait déjà écrite. ⚠️ Et la conséquence VÉRITABLE de ces boucles n'est pas celle que j'ai d'abord écrite : elles n'ont tué aucune suite, elles m'ont fait croire qu'elles en surveillaient une. Le coût est d'avoir conclu QUATRE FOIS « la suite est morte » sur du silence — elle tournait à chaque fois.
 - root_cause: `pkill -f <motif>` compare le motif à la ligne de commande de CHAQUE processus, **y compris celle du shell qui l'exécute**, laquelle contient le motif par construction. Le shell se suicide donc systématiquement. Arrivé trois fois le 2026-09-12 ; deux fois j'ai cru que le kill avait échoué.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: hook `PreToolUse` sur Bash. Il BLOQUE la forme suivie d'autre chose sur la même ligne et propose celle où le motif ne peut plus se contenir lui-même — un crochet à la grep, `"[p]attern"`, suffit. Un appel seul en fin de ligne n'est pas bloqué : s'y suicider après avoir tué ne coûte rien. ⚠️ **Le crochet suffit pour `grep`, jamais pour `pgrep`** : `grep "[p]attern"` ne matche pas sa propre ligne, qui porte les crochets littéraux (vérifié par exécution) ; `pgrep -f pattern` reçoit le motif sans crochets et se trouve donc toujours lui-même. Pour une sonde, la forme sûre reste de ne pas interroger `ps` du tout — attendre un PID connu (`wait`), un fichier témoin, ou la notification de la tâche de fond. La règle qui transporte : **avant d'écrire un motif de processus, se demander si la ligne qui le porte le contient**.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_bash_guard_reads_the_command_not_the_prose.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pretooluse-hook, ref: .claude/hooks/guard_destructive.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/hooks/guard_destructive.py
 - first_seen: 2026-09-12
 - History:
@@ -5384,10 +6377,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: la suite complète rend des échecs qui **n'existent pas** — verts dès qu'on les rejoue. Mesuré le 2026-09-12 : quatre signalés sur deux exécutions, **trois faux**.
 - root_cause: la suite met 6 min 35, et j'ai édité des modules, régénéré des documents et ajouté des fichiers de test pendant qu'elle tournait. pytest lit les fichiers au fil de la collecte et de l'exécution : un arbre qui bouge sous elle produit un verdict qui ne décrit aucun état réel du dépôt.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: hook `PostToolUse` sur Write|Edit. Il dit, AU MOMENT de l'écriture, qu'une suite complète tourne et depuis combien de temps. Ce constat ne peut pas être une note : il dépend d'un fait invisible au moment du geste. Avertissement et jamais blocage — éditer pendant une exécution ciblée (`-k`) est normal, et même sous une suite complète c'est parfois le bon choix, à condition de savoir que le verdict ne vaudra rien.
 - autofix: none
 - signature: `python3 -c "import sys;sys.path.insert(0,'.claude/hooks');import check_python_syntax as m;sys.exit(0 if callable(getattr(m,'warn_if_a_full_suite_is_running',None)) else 1)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: posttooluse-hook, ref: .claude/hooks/check_python_syntax.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/hooks/check_python_syntax.py
 - first_seen: 2026-09-12
 - History:
@@ -5404,10 +6400,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: **écrire sur un défaut devient impossible.** Trois commandes bloquées d'affilée le 2026-09-12, toutes en train d'écrire la classe d'erreur du geste concerné. Le hook comparait des sous-chaînes : nommer le geste suffisait à déclencher le garde du geste.
 - root_cause: `guard_destructive.py` cherchait `pkill -f` et `git checkout -- ` n'importe où dans la commande, sans vérifier que le geste en soit la COMMANDE. Un `echo` d'une phrase, un heredoc de documentation ou l'édition du hook lui-même suffisaient. **Le mode d'échec du volet rétablissement est pire qu'un faux positif** : les jetons de la phrase deviennent des chemins passés à `git status`, et l'un d'eux peut être `:` — en syntaxe de pathspec git cela désigne TOUS les fichiers, donc une phrase en prose faisait croire au garde que le dépôt entier allait être écrasé. Vérifié par mutation : la phrase de documentation faisait lister de vrais fichiers modifiés.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: les deux volets exigent désormais que le geste soit la commande de son segment — premiers jetons après `shlex.split`, `sudo`/`time`/`nohup` admis. C'est le minimum structurel : lire ce que le shell EXÉCUTERAIT, pas ce que la ligne contient.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_bash_guard_reads_the_command_not_the_prose.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_bash_guard_reads_the_command_not_the_prose.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/hooks/guard_destructive.py
 - first_seen: 2026-09-12
 - History:
@@ -5421,10 +6420,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une bande de plateforme est **plate à zéro pendant des années**, puis saute d'un coup au niveau du compteur. Mesuré le 2026-09-12 sur « depuis le début · cumulé · par mois », artiste 1 : YouTube et SoundCloud tracées depuis 2023-01-01 alors que leur collecte démarre les 2025-11-29 et 2025-12-16, et un saut de **0 à 99 594 vues** d'un mois sur l'autre. La figure affirme deux choses fausses — que le compteur valait zéro, et qu'il a gagné 99 594 en un mois.
 - root_cause: `known(values, i)` rend délibérément `True` avant la première mesure d'une série — « zéro est vrai, la plateforme n'était pas collectée ». C'était juste, et c'est ce qui empêche SoundCloud de couper les 1 142 jours de Spotify. Mais ce raisonnement vaut pour une QUANTITÉ du jour, pas pour un niveau de COMPTEUR : le premier niveau d'un cumul n'est pas « zéro plus la croissance », c'est un stock hérité d'années qu'on n'a jamais regardées. `stackgroup` complète alors les index sans point à zéro (`stackgaps` par défaut), et la bande descend au sol.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **deux surfaces PAR PLATEFORME**, et surtout pas la hachure. `_not_yet_collected_hover` pose une trace invisible au nom de la plateforme sur sa seule préhistoire, donc l'infobulle groupée affiche « pas encore collectée — depuis le … » là où elle n'affichait rien ; `render_collection_start_note` écrit la même date sous la figure, parce qu'un fait qui ne se lit qu'au survol ne se lit pas — la remarque d'origine a été écrite en REGARDANT. `known()` n'est PAS touchée, délibérément : elle décide des bandes, et la changer supprimerait l'aire de YouTube avant 2025-11 au lieu d'expliquer pourquoi elle est plate.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-12
 - History:
@@ -5439,10 +6441,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: la famille. Une règle écrite pour une quantité du jour — « la somme du seau », « zéro avant la première mesure », « le total de la période » — est appliquée à un niveau de compteur, où elle rend un chiffre faux d'un ordre de grandeur, jamais un plantage. **Quatre instances en deux jours** : le ×151 des seaux (`a-bucket-sums-deltas-instead-of-deriving-the-counter`), le ×887 des totaux bornés, le premier seau d'un compteur rendu `None` (×0,88 sur douze mois, invisible au pas jour), et la préhistoire à zéro ci-dessus.
 - root_cause: rien dans le code ne dit de quelle ESPÈCE est une série. `s4a_song_timeline.streams` est une quantité, `youtube_channel_history.view_count` et `soundcloud_tracks_daily.playback_count` sont des cumuls, `apple_music` n'a qu'un instantané — et toutes arrivent dans la même liste de `(date, valeur)`. Une règle qui traverse cette frontière sans la nommer est correcte sur la moitié des plateformes et fausse sur l'autre, pour toujours.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **aucune signature ne tient les quatre instances** — c'est la raison du `kind: manual`, et l'énoncer est plus honnête que d'en inventer une qui n'en tiendrait qu'une. Ce qui EST mécanisé : `platform_timeseries.py` est le seul chemin autorisé (`a-cumulative-counter-charted-as-a-daily-figure`), les deux sens sont gardés (`a-quantity-mistaken-for-a-counter` tient l'inverse), et `.claude/dev-docs/gold-coverage.md` croise plateforme × famille avec un cliquet à zéro case vide. Ce que cette entrée ajoute est **la question à poser devant le code** : *cette règle a-t-elle été écrite pour une quantité du jour ou pour un niveau de compteur ?* — c'est le rôle d'une famille dans `make error-families`, pas celui d'un test.
 - autofix: none
 - signature: `python3 -m pytest tests/test_the_gold_coverage_only_improves.py -q`
+- seen_red: 2026-09-12 (via la trace de mutation de `tests/test_the_gold_coverage_only_improves.py`, consignée par l'auteur du garde)
 - guard: { type: ratchet, ref: tests/test_the_gold_coverage_only_improves.py }
+- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/platform_timeseries.py
 - first_seen: 2026-09-11 (nommée 2026-09-12)
 - History:
@@ -5456,10 +6461,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: après un redémarrage de l'hôte (WSL, Docker Desktop, la machine), les services qui DÉPENDENT d'un autre remontent et celui dont ils dépendent reste à terre. Le symptôme visible n'est donc pas « la base est tombée » mais « le scheduler tourne et ne voit rien » — ce qui envoie chercher la panne du côté de l'applicatif, pas de l'infrastructure.
 - root_cause: dans `docker-compose.yml`, le service `postgres` ne déclarait AUCUNE ligne `restart:` — le seul des quatre dans ce cas — alors que `airflow-webserver` et `airflow-scheduler`, qui en dépendent en `condition: service_healthy`, portaient tous deux `unless-stopped`. La valeur par défaut de Compose est `no`. `docker-compose.example.yml`, le fichier de PRODUCTION, portait la ligne depuis toujours : c'est une divergence entre les deux composes, et `tests/test_compose_parity.py` ne la voyait pas parce qu'il compare les services et les montages, pas les politiques de reprise.
+- cause_evidence: read (tests/test_compose_parity.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: l'invariant n'est pas « postgres doit avoir un restart » (ça ne garde qu'une instance) mais **« un service requis TOURNANT par un autre déclare une politique de reprise au moins aussi durable que celle de son dépendant »**. Un lanceur à un coup (`service_completed_successfully`, ici `airflow-init`) est exempté par construction : il a vocation à sortir. Le garde parcourt le graphe `depends_on` des DEUX composes et compare les durabilités, donc un service neuf entre dans la population sans qu'on y pense.
 - signature: `python3 -m pytest tests/test_a_dependency_comes_back_with_its_host.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_dependency_comes_back_with_its_host.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: WSL redémarre. Treize conteneurs remontent seuls, un seul reste à terre — `postgres_spotify_airflow`, `Exited (255)`, `RestartPolicy: no`. Signature vue ≠ 0 sur le défaut, 0 après ajout de `restart: unless-stopped`. Deux mutations vues ROUGES avant écriture du fix : ligne retirée (le garde nomme le service, ses 3 dépendants et la ligne à ajouter), et `restart: "no"` posé (durabilité plus faible que le dépendant). Parenté avec `a-guards-scope-is-the-defect` : la parité entre les deux composes existait déjà, sa PORTÉE n'incluait pas la reprise.
@@ -5470,10 +6478,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un garde qui affirme une ABSENCE (« cette ligne ne doit pas s'afficher », « ce champ ne doit pas apparaître ») reste vert sur le défaut, parce que le défaut fait tomber le bloc ENTIER et qu'une surface effondrée est vide — donc conforme. Le garde est mutation-testé, il rougit sur d'autres mutations, et il ne verra jamais celle-là.
 - root_cause: la surface testée vit sous un `try/except` qui dégrade en silence — ici `render_platform_chart`, qui journalise « recap metrics unavailable » et rend la figure sans ses métriques. Mesuré le 2026-09-12 : la mutation `if prev_total and now_total` → `if prev_total is not None and now_total` lève une `ZeroDivisionError` sur `prev_total=0`, l'exception est avalée, les CINQ métriques disparaissent, et l'assertion « la ligne de variation est absente » passe. Le harnais mentait, pas le prédicat.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **une assertion d'absence n'est valide qu'accompagnée d'une assertion de PRÉSENCE sur un voisin du même bloc.** La présence prouve que le bloc s'est exécuté jusqu'au bout ; l'absence ne prouve alors plus que ce qu'on veut lui faire dire. La règle se généralise à tout garde posé sur une surface avalée : rendu Streamlit, collecteur, export PDF, section d'un rapport construite dans un `except` tolérant. Écrire la mutation ET vérifier qu'elle rougit POUR LA BONNE RAISON — un `FAILED` sur le bon test peut encore venir du mauvais mécanisme.
 - signature: `python3 -m pytest tests/test_a_recap_row_answers_the_question_it_names.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_recap_row_answers_the_question_it_names.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: trouvée en MUTANT un garde écrit dix minutes plus tôt — la mutation est restée verte là où les deux autres du même lot rougissaient. Parenté directe avec `a-verdict-from-a-tree-that-moved-under-it` et avec la leçon « le harnais peut mentir, pas seulement le prédicat » : dans les deux cas le test mesure autre chose que son sujet. Différence utile : ici le harnais est le CODE DE PRODUCTION, pas l'outillage de test — c'est le `except` tolérant de la vraie surface qui produit le faux vert.
@@ -5484,10 +6495,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un garde reste VERT quand on mute la constante qu'il prétend garder. Il n'échoue sur aucune valeur, si extrême soit-elle, parce que l'entrée qu'il construit grandit avec la constante — le test suit son sujet au lieu de le contredire.
 - root_cause: l'entrée du test est CALCULÉE à partir de la valeur testée. Mesuré le 2026-09-12 : `huge = (_MAX_BUCKETS + 1) * 30 + 1` puis `assert _step_for(huge) == "year"`. Porter `_MAX_BUCKETS` de 60 à 99 999 laisse le test vert — `huge` devient 3 000 031 jours, et la règle bascule toujours. La constante n'est gardée sur AUCUNE valeur. C'est la parenté directe de `a-guard-satisfied-by-the-collapse-it-should-catch`, trouvée la même journée : dans les deux cas, le mécanisme qui devait produire l'échec produit le succès.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **la borne d'un test est un fait EXTÉRIEUR à la règle testée** — une fenêtre de vingt ans, un volume réel mesuré en production, une date fixe. Quand un seuil doit être comparé à quelque chose, comparer à ce fait extérieur, et ajouter l'assertion qui dit que le seuil est ATTEIGNABLE (« une borne qui ne peut pas être atteinte n'est pas une borne »). Le contrôle de la méthode est le même que pour toute la famille : muter la constante et EXIGER le rouge — un garde jamais vu échouer sur son propre sujet n'est pas un garde.
 - signature: `python3 -m pytest tests/test_a_step_is_offered_only_where_it_draws.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_step_is_offered_only_where_it_draws.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: deuxième mutation restée verte de la même séance, et deuxième fois que c'est le mutant — pas le test initial — qui révèle le défaut. Les deux classes cousines disent la même chose sous deux angles : vérifier que la mutation rougit NE SUFFIT PAS, il faut vérifier qu'elle rougit POUR LA BONNE RAISON.
@@ -5498,10 +6512,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une figure ou un total affiche un pic énorme et parfaitement faux, à une date où rien n'est arrivé. Le chiffre est DÉRIVÉ correctement d'une série correcte — c'est la série qui a changé de sens ce jour-là. Aucun test ne le voit : les données sont cohérentes avec elles-mêmes.
 - root_cause: la croissance d'un compteur est calculée comme une différence de niveaux, ce qui suppose que les deux niveaux mesurent la MÊME chose. Quand la collecte change de définition entre les deux, la différence est une marche, pas une quantité. Mesuré le 2026-09-12, artiste 1 : le niveau YouTube passe de 99 778 à 118 216 dans la nuit du 2026-06-11 — le jour où la collecte est passée du compteur de CHAÎNE (plafonné, comptant des vidéos tierces, prouvé ~10× faux le 2026-09-08) à la somme des compteurs PAR VIDÉO. +18 438 quand le plus gros écart quotidien de la série vaut 7 et sa médiane 1.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **détecter la discontinuité dans la série de niveaux, sur un seuil MESURÉ sur la plateforme elle-même**, et la retirer des deux surfaces qui la comptent — jamais d'une seule, sinon la figure est juste et la tuile fausse. Le traitement diffère selon ce que la surface doit rendre : un SEAU de figure rend `None` (bande hachurée — « il s'est passé quelque chose, on ne sait pas combien »), un TOTAL de fenêtre SOUSTRAIT le saut sans vider la fenêtre (un total doit être rendu, une case peut rester vide). Le seuil : rapport au 95ᵉ centile des croissances positives de la série, plancher de points sous lequel on ne juge pas — une série courte ferait passer la première vraie poussée d'un artiste pour une rupture.
 - signature: `python3 -m pytest tests/test_a_method_change_is_not_a_quantity.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_method_change_is_not_a_quantity.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: seuil calibré sur les CINQ séries de compteur de la production — a1/youtube 1 676, a1/soundcloud 20,4, a12/soundcloud 3,0, a14/youtube 1,5, a14/soundcloud 1,4. Une seule sort. Rapport retenu 100, dans le creux : 5× au-dessus de la plus forte croissance légitime, 16× sous la rupture. Passé sur tout le parc : une détection, zéro faux positif. Effet mesuré sur une fenêtre mai→juillet : 18 558 → 120 vues (99,4 % du chiffre était la rupture) ; fenêtre sans rupture inchangée, 75 → 75. Parenté avec la migration 112 (`un relevé PARTIEL n'est pas un niveau`), qui est la forme MIROIR — un niveau trop BAS au lieu d'un saut trop haut — et dont le seuil était déjà lu dans la distribution réelle.
@@ -5512,10 +6529,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une série disparaît d'un graphique empilé alors qu'elle y est bien tracée. Elle n'est ni absente ni à zéro — elle est ÉCRASÉE, parce qu'une série voisine porte des valeurs d'un autre ordre de grandeur. Le lecteur signale « je n'ai pas X », et une lecture du code conclut que tout va bien : la trace existe, ses valeurs sont justes.
 - root_cause: deux séries de la même pile sont exprimées dans deux RÉFÉRENCES différentes. Mesuré le 2026-09-13, artiste 1, fenêtre de 30 jours : Spotify portait 545 — sa somme courante DANS la fenêtre — pendant que YouTube portait 118 300 et SoundCloud 23 500, leurs compteurs À VIE. Une source quotidienne repart de zéro au début d'une fenêtre bornée ; un compteur non. Les empiler revient à additionner un écart et un total, et la part de la série bornée tombe à 0,4 % de la pile, sous le pixel.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **sur une fenêtre bornée, toute série de la pile repart de la même origine** — on retranche le niveau d'entrée des compteurs, c'est-à-dire le dernier relevé à ou avant le début de la fenêtre. La propriété qui rend le résultat vérifiable, et qui est ce qu'on garde : le DERNIER POINT de chaque courbe vaut ce que sa tuile annonce pour la même période. Un lecteur peut poser le doigt sur la fin d'une courbe et retrouver le chiffre. ⚠️ La règle ne s'applique QUE si la fenêtre est bornée : sur « depuis le début », la question est « où j'en suis » et la réponse est le compteur à vie — y retrancher le premier relevé recrée le même défaut dans l'autre sens.
 - signature: `python3 -m pytest tests/test_a_bounded_cumulative_starts_at_zero.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_bounded_cumulative_starts_at_zero.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - first_seen: 2026-09-13
 - History:
   - 2026-09-13: signalé comme « bug sur la vue cumulé 30 jours je n'ai pas spotify alors que c'est ma première source de revenue ». Signature vue ≠ 0 sur le défaut (`bounded=False`) et 0 après. Deux mutations gardées, une par sens : jamais rebaser (Spotify reste écrasée) et rebaser toujours (la courbe dirait 304 quand la tuile dit 118 336). Parenté avec `a-metric-computed-outside-the-metrics-layer` : deux surfaces répondent à la même question, sauf qu'ici les deux nombres sont JUSTES et c'est leur mise en commun qui ment.
@@ -5526,10 +6546,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: la même phrase de l'interface affiche deux valeurs différentes selon un réglage d'affichage que l'utilisateur vient de changer. Aucune des deux n'est absurde, donc rien ne signale l'erreur — c'est en comparant deux captures d'écran qu'on la voit.
 - root_cause: le texte est dérivé d'une variable dont la NATURE change avec le mode, et non de la source du fait. Mesuré le 2026-09-13 : « SoundCloud mesurée depuis le 31/03/2026 » au pas du jour contre « depuis décembre 2025 » au pas du mois — trois mois et demi d'écart. `_late_starts` lisait `aligned`, qui porte la série quotidienne en mode « par période » au pas du jour et les niveaux partout ailleurs. Or la série quotidienne d'un compteur est une DIFFÉRENCE entre deux relevés CONSÉCUTIFS : elle ne peut pas commencer avant le deuxième jour où deux relevés se suivent.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **un fait se lit dans la source qui le porte, jamais dans la variable qui se trouve sous la main.** Quand une fonction d'affichage reçoit un tableau dont la forme dépend du mode, elle doit recevoir EN PLUS la source de vérité du fait qu'elle énonce, et la préférer. Le contrôle qui rend la classe visible est le même partout : rendre la surface sous tous les réglages et exiger que la phrase soit identique. C'est plus large qu'une date — toute prose dérivée (« depuis », « sur », « parmi ») est concernée.
 - signature: `python3 -m pytest tests/test_the_first_reading_date_is_one_date.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_first_reading_date_is_one_date.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - first_seen: 2026-09-13
 - History:
   - 2026-09-13: trouvée en VÉRIFIANT une autre correction, pas en la cherchant — la note qui explique la falaise du cumulé donnait deux dates. Signature vue ≠ 0 sur le défaut (`levels` ignoré) et 0 après. Ce n'est pas un détail d'affichage : cette phrase est celle qui explique pourquoi la courbe part d'une falaise, et une mauvaise date envoie chercher la panne au mauvais endroit.
@@ -5541,10 +6564,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une requête paramétrée échoue en bloc sur `IndexError: tuple index out of range`, alors que le nombre d'emplacements `%s` et le nombre de valeurs passées sont EXACTEMENT égaux. Le message accuse les paramètres ; le compte des paramètres est juste. Rien dans la trace ne nomme le vrai coupable, et on relit dix fois le tuple.
 - root_cause: `psycopg2` interpole le signe pour cent dans TOUTE la chaîne, **commentaires SQL compris** — un `--` n'est pas un échappement pour lui. Mesuré le 2026-09-13, `src/dashboard/utils/period_side_metrics.py` : « afficherait 33 % » écrit dans le commentaire d'une CTE a fait tomber une requête de 35 emplacements et 35 valeurs. Le dépôt avait déjà la parade sous les yeux — le filtre S4A s'écrit `'%%1x7xxxxxxx%%'` depuis toujours — mais elle était comprise comme une règle sur les VALEURS, pas sur la prose.
+- cause_evidence: read (src/dashboard/utils/period_side_metrics.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: — (le garde EST le fix). Il n'existe pas de changement de code qui rende la classe impossible : tant qu'un littéral Python porte à la fois du SQL et de la prose, le signe peut y entrer. Ce qui est réparable, c'est le DÉLAI de détection : le défaut ne se voit qu'à l'exécution de la requête, sous un message qui désigne autre chose. Le garde le déplace à l'écriture.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_parameterised_query_says_what_it_means.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `python3 -m pytest tests/test_a_parameterised_query_says_what_it_means.py::test_no_stray_percent_sign_in_a_parameterised_query -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
 - History:
@@ -5557,10 +6583,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une surface qui affiche « le meilleur X » montre `—` alors qu'un vrai chiffre existe en base. Aucune erreur, aucune trace : la requête a bien rendu une ligne, et cette ligne est vide.
 - root_cause: dans PostgreSQL, `ORDER BY <expr> DESC` place les `NULL` **EN PREMIER** (`NULLS FIRST` est le défaut de `DESC`). Un classement dont l'expression peut valoir `NULL` — typiquement un ratio bâti sur `NULLIF(dénominateur, 0)` — élit donc le groupe VIDE avant tous ceux qui ont une valeur. Vérifié en base le 2026-09-13 sur `period_side_metrics` : une campagne Hypeddit à zéro visite passait devant une campagne à 46 pour cent.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: un classement décroissant sur une expression nullable doit porter sa PORTE dans la requête — un `HAVING` qui écarte les groupes sans mesure, ou un `NULLS LAST` explicite. La forme `HAVING` est préférable quand le groupe vide n'a aucun sens métier : elle dit « ce groupe n'existe pas », là où `NULLS LAST` dit seulement « classe-le en dernier » et le laisse gagner quand il est seul.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_parameterised_query_says_what_it_means.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `python3 -m pytest tests/test_a_parameterised_query_says_what_it_means.py::test_a_desc_ranking_cannot_be_won_by_an_empty_group -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
 - History:
@@ -5574,10 +6603,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: le dépôt affiche des dizaines de branches « actives » alors qu'une seule ligne de travail existe. Le propriétaire se demande s'il va **perdre des avancées** — mesuré le 2026-09-13 : « c'est bizarre qu'on ait 26 branches d'active sur github ? … là on va perdre nos avancées non ? ». Le coût n'est pas technique, il est cognitif : on ne sait plus distinguer ce qui porte du travail de ce qui n'en porte plus.
 - root_cause: le réglage GitHub `delete_branch_on_merge` valait **false** (vérifié par `gh api` le 2026-09-13). Chaque PR fusionnée laissait donc sa branche derrière elle. Aucune ne portait le moindre commit absent de `main` — les 24 ont été vérifiées **une par une** par `git rev-list --count origin/main..<branche>`, toutes à 0. Le flux de travail était correct depuis le début ; c'est le ramassage qui manquait.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `delete_branch_on_merge = true` sur le dépôt. La branche disparaît à la fusion, donc une branche qui SURVIT devient un signal — elle porte du travail non fusionné, ou elle a été abandonnée. Ce qui était du bruit devient une information.
 - autofix: none
 - guard: { type: ci-step, ref: .github/workflows/ci.yml }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `R="$GITHUB_REPOSITORY"; [ -n "$R" ] || R=1x7xxxxxxx/Dashboard_music_platform_algo_spotify; v=$(gh api "repos/$R" --jq .delete_branch_on_merge) || { echo "::error::gh na pas pu repondre (son erreur est au-dessus) — ce controle na RIEN verifie"; exit 1; }; test "$v" = "true" || { echo "::error::delete_branch_on_merge=$v — une branche mergee survit a sa PR"; exit 1; }`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
 - History:
@@ -5603,10 +6635,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - severity: P2
 - kind: manual
 - symptom: une commande de vérification rend une réponse **plausible et fausse**, et la décision qui s'ensuit est prise sur cette réponse. Mesuré le 2026-09-13 : `git log --oneline -1` a rendu `ee3cda9` alors que `git rev-parse HEAD` rendait `5682fb8` — deux commits différents, dans la même seconde, sur le même arbre.
+- seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - root_cause: la couche qui exécute les commandes du shell (ici le proxy RTK) **reformate et tronque** leur sortie. Trois conséquences enchaînées le même jour : (1) un `git commit -F -` alimenté par un heredoc n'a jamais reçu son message — commit avorté ; (2) le message d'abandon a été avalé ; (3) le `git push` qui suivait a rendu `ok` en poussant une branche inchangée, et j'ai annoncé un travail commité qui ne l'était pas. Les 24 fichiers sont restés non commités pendant que le rapport disait le contraire.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **vérifier l'EFFET, jamais le code de retour, et le lire par une commande de plomberie.** Concrètement : `git rev-parse HEAD`, `git status --porcelain`, `git log -1 --format=%h` — pas `--oneline`, pas `git status` en clair. Et lire l'état depuis un interpréteur qui capture la sortie lui-même (`subprocess.run(..., capture_output=True)`) plutôt que depuis le shell filtré. Ce qui a effectivement rattrapé le défaut ici est un bloc Python comparant `HEAD`, le compte de fichiers non commités et la réf distante.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_commit_message_is_not_fed_through_stdin.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: —
 - first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
 - History:
@@ -5620,10 +6655,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une surface affiche un montant NET manifestement faux, sans erreur ni trace. Mesuré le 2026-09-14 : la page Royalties SACEM annonçait « ✅ Net estimé **21,49 €** » à un artiste dont le compte en banque avait reçu **36,49 €** — 15,00 € d'écart, 41 %, sur le seul chiffre qu'il pouvait vérifier lui-même sur son relevé.
 - root_cause: `src/dashboard/views/sacem.py` calculait `net = gross + charges + tva` en Python, en sommant TOUTES les lignes d'un type. Or un type de ligne dit ce qu'une ligne EST, jamais **de quoi elle se retranche** : les 9 lignes `tva` du relevé mêlent 8 `FORFAIT TVA` positifs reversés avec chaque répartition (+0,33 € au total) et une TVA de frais d'adhésion de 2023 (−15,00 €), qui appartient à un bloc se soldant à zéro et ne concerne aucune royaltie. Le calcul retranchait donc d'un revenu un frais payé un an avant la première répartition.
+- cause_evidence: read (src/dashboard/views/sacem.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: la règle de netting descend en SQL avec la BASE qu'elle vise (migration 115, `v_artist_monthly_revenue_net`) : une retenue ne compte que dans un mois qui porte une répartition. Le critère est STRUCTUREL et non textuel — les charges sont un pourcentage de la répartition (« CSG DEDUCTIBLE 6.80% (BASE 98.25%) »), donc sans base il n'y a rien à retrancher. Distinguer par le libellé aurait marché ce jour-là et cassé à la première reformulation de la source.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_deduction_is_subtracted_from_the_right_base.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `python3 -m pytest tests/test_a_deduction_is_subtracted_from_the_right_base.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
 - History:
@@ -5638,10 +6676,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un outil de diagnostic rapporte des pannes que le produit n'a pas. Mesuré le 2026-09-12 par `make artist-firstlook-prod ARTIST=1` : **2 pages sur 6 en ERREUR** — `process_guide` (`ModuleNotFoundError`) et `upload_csv` (`ImportError: cannot import name 'show'`). Les deux pages fonctionnent en production.
 - root_cause: `tools/artist_first_look.py` importait `src.dashboard.views.<nom de page>`, alors que le nom d'une page et le module qui la sert ont cessé d'être la même chose à la fusion du 2026-09-04 : `app.py` route `upload_csv` → `views.credentials` et `process_guide` → `views.onboarding_health`, délibérément, pour que les anciens pointeurs ne deviennent pas des culs-de-sac.
+- cause_evidence: read (tools/artist_first_look.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: l'outil lit la table de ROUTAGE comme source de vérité — la fonction `_render_page` d'`app.py`, parsée avec `ast` (42 pages résolues), jamais par expression régulière : une route citée dans un commentaire ou un docstring n'est pas une route. Mettre à jour deux lignes d'une liste tenue à la main aurait péri au prochain regroupement de vues. Une page qu'aucune branche ne route est désormais rapportée « NON ROUTÉE » — un constat sur le PRODUIT, distinct d'un plantage.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_diagnostic_reads_a_route_not_a_name.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `python3 -m pytest tests/test_a_diagnostic_reads_a_route_not_a_name.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-12 (ref: DEVLOG#2026-09-14)
 - History:
@@ -5654,10 +6695,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une figure ou un total ne montre qu'une partie du catalogue, sans erreur ni ligne manquante visible. Mesuré le 2026-09-14 : joindre `track_release_reference.title` à `s4a_song_timeline.song` rendait **6 titres sur 11 et 67 402 écoutes sur 163 088 — 41 %**. Le titre perdu le plus gros, « Ca te dérange pas si je joue avec ton tapis? », vaut **59 926 écoutes**, plus du double du suivant.
 - root_cause: les deux colonnes portent le MÊME titre dans deux orthographes. Le nom du morceau ne figure pas dans le CSV S4A — Spotify ne le met que dans le NOM DU FICHIER — et un système de fichiers ne peut pas porter « ? », qui devient « _ ». Une jointure par égalité stricte sur un nom d'AFFICHAGE échoue donc dès qu'un caractère est normalisé quelque part dans la chaîne, et elle échoue en silence : une jointure qui ne matche pas ne lève pas, elle rend moins de lignes.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: le rattachement passe par la table de LIENS (`track_platform_link`, `platform=…`, `status='confirmed'`), dont `platform_ref_id`/`platform_title` portent l'identifiant de la plateforme tel qu'elle l'écrit, et dont `match_key` porte la clé canonique. Un nom d'affichage sert à AFFICHER ; il ne sert jamais de clé. C'est la règle que le dépôt s'était déjà donnée pour les campagnes Meta (migration 116) et pour Shazam — elle manquait ici.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_the_spotify_page_reads_only_the_gold_layer.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `python3 -m pytest tests/test_the_spotify_page_reads_only_the_gold_layer.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
 - History:
@@ -5670,10 +6714,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un sélecteur de période propose une fenêtre plus large que ce que la figure d'à côté peut tracer. L'utilisateur choisit dans un intervalle qui existe, et obtient une figure vide sur ses bords. Mesuré le 2026-09-14 : un titre mesuré sur 646 jours se voyait offrir l'étendue de 1 254.
 - root_cause: `src/dashboard/utils/period_filter._data_span` interpole un nom de table dans un `SELECT MIN(...), MAX(...) FROM {table} WHERE 1=1` **sans aucun prédicat métier**. Tant qu'une table à filtre obligatoire figure dans `_ALLOWED_TABLES`, l'étendue rendue viole la règle par construction — ici `s4a_song_timeline`, dont toute lecture doit porter `AND song NOT ILIKE '%1x7xxxxxxx%'` (règle transverse #8) — et ne se restreint pas non plus à l'entité tracée.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **seules des vues or entrent dans l'allowlist.** Elles portent leurs prédicats en elles, donc la question ne se pose plus. Plus `entity_column`/`entity_value` pour que l'étendue soit celle de ce qui est tracé. Ajouter le filtre dans la f-string n'aurait rien gardé : voir History.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_period_span_is_the_span_of_what_is_drawn.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `python3 -m pytest tests/test_a_period_span_is_the_span_of_what_is_drawn.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
 - History:
@@ -5687,10 +6734,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une courbe dessine des mois de plat à zéro avant que l'objet mesuré n'existe. Mesuré le 2026-09-14 : « Ô Chiotte l'arbitre Tucome Back », sorti le 30/08/2024, portait **20 mois** de `streams = 0` remontant au 01/01/2023. **6 365 lignes** de cette forme dans la table.
 - root_cause: la source exporte la timeline du COMPTE, pas celle du titre : Spotify inscrit 0 pour un morceau qui n'était pas publié. **Le parseur n'invente rien** — vérifié dans `src/transformers/s4a_csv_parser.py`, il écrit exactement ce que le CSV porte. Le zéro est donc réel dans le fichier et FAUX à l'écran : « la chose n'existait pas » n'est pas « la chose a fait zéro ». Parente de `an-unmeasured-platform-is-rendered-as-zero`, mais à l'envers — là-bas l'absence devient un zéro, ici un zéro réel affirme une existence.
+- cause_evidence: read (src/transformers/s4a_csv_parser.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: la couche or expose `first_streamed` (`MIN(day) FILTER (WHERE streams > 0)`), NULL quand rien n'a jamais été mesuré, et toute série part de là. La distinction vit une fois, en SQL, au lieu d'être re-décidée par chaque figure.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_the_spotify_page_reads_only_the_gold_layer.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `python3 -m pytest tests/test_the_spotify_page_reads_only_the_gold_layer.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
 - History:
@@ -5703,10 +6753,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une vue SQL passe de quelques dizaines de millisecondes à plusieurs minutes sans qu'aucune donnée n'ait changé, et la page qui la lit rend `canceling statement due to statement timeout`. Mesuré le 2026-09-14 : `v_s4a_release_reach` dépassait **2 minutes** quand la cohorte qu'elle résume tourne en **51 ms**.
 - root_cause: deux causes qui se composent. (1) Le planificateur estime **1 ligne** là où la relation en rend **9 335** — le filtre de jointure (`match_key` + une inégalité de date) lui est opaque —, choisit donc une boucle imbriquée et **réexécute tout le sous-plan une fois par ligne**. (2) Une CTE référencée deux fois, ou un `LATERAL`, offre précisément la prise pour que cette réexécution se produise. Le coût n'est pas dans la donnée : elle tient en 13 794 lignes.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: (a) répondre à la question en **une seule passe de fenêtre** (`LAG`) plutôt qu'en auto-jointure — plus de double référence, donc plus de prise ; (b) `WITH … AS MATERIALIZED` sur la CTE de correspondance, pour que le filtre s'applique AVANT la jointure au fait et non après (142 399 lignes produites puis jetées, mesuré par `EXPLAIN ANALYZE`). Résultat : 2 min → **75 ms**, mêmes valeurs.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_the_spotify_page_reads_only_the_gold_layer.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `python3 -m pytest tests/test_the_spotify_page_reads_only_the_gold_layer.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
 - History:
@@ -5720,10 +6773,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une liste d'exemptions grossit à chaque changement sans rapport avec elle. Mesuré le 2026-09-14 : `saas_artists` est passée de **0 à 4 déclarations en UNE migration**, et trois migrations d'affilée — 116, 120, la sonde de fraîcheur — ont produit le même geste. Rien n'était faux ; le geste se répétait, et rien n'annonçait qu'il s'arrêterait.
 - root_cause: l'exemption était déclarée par SITE (fichier, table) alors que la raison de l'exempter appartient à la TABLE. Donner une vue or à une table rend visibles toutes ses lectures d'un coup — et chacune redemande la même décision, qu'on reprend à la main. Le nombre d'exemptions suit alors le nombre de LECTEURS, qui n'a aucune raison de se stabiliser.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: déclarer la TABLE, sur un critère qui ne se rejuge pas — ici « porte-t-elle une quantité ADDITIVE ? », vérifiable contre le schéma. Une table sans quantité additive ne peut pas héberger une règle métier recopiée : il n'y a rien à sommer. 8 tables remplacent 7 déclarations de site ET arrêtent leur croissance. Le critère doit être une ASSERTION rejouée contre le réel, jamais une liste de confiance — sinon on retombe sur `an-exemption-that-outlives-what-it-exempted`.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_dimension_table_carries_no_quantity.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `python3 -m pytest tests/test_a_dimension_table_carries_no_quantity.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
 - History:
@@ -5737,10 +6793,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une alerte de fraîcheur est rouge presque en permanence pour un pipeline correct. Mesuré le 2026-09-14 : le CSV Spotify for Artists a déclenché **85 nuits d'affilée**. `csv_upload_log` ne porte que DEUX imports réussis pour le locataire 1 — 2026-06-08 et 2026-09-08, **92 jours d'écart** — contre un seuil de 7 jours.
 - root_cause: le seuil de fraîcheur suppose une CADENCE. Un DAG en a une ; un humain qui dépose un fichier n'en a pas — il importe quand quelque chose le justifie. Juger une source manuelle au temps écoulé la déclare donc fautive presque tout le temps, et un lecteur qui voit la même ligne rouge 85 fois apprend à sauter l'alerte entière, y compris le soir où elle dit vrai.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **changer la QUESTION, pas le seuil.** Aucun nombre ne marche — à 7 jours l'alerte crie 85 fois, à 90 jours elle ne dit plus rien d'utile. « Est-ce vieux ? » n'appelle aucun geste ; « une sortie est parue et tu n'as pas importé depuis » en appelle un, une seule fois, au seul moment où un fichier neuf apporte de l'indéductible. L'ÂGE reste utile mais comme un ÉTAT affiché là où il sert (ici : titre par titre sur la page), jamais comme une alerte nocturne.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_manual_source_is_judged_by_the_gesture_it_needs.py }
+- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `python3 -m pytest tests/test_a_manual_source_is_judged_by_the_gesture_it_needs.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-14 (ref: DEVLOG#2026-09-14)
 - History:
@@ -5754,10 +6813,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un document dont les TABLEAUX sont justes affirme le contraire dans la prose posée à côté, et rien ne le voit. Mesuré le 2026-09-15 sur `.claude/dev-docs/roadmap/checklist.md` : **trois phrases** annonçaient « R1 reste en attente, dans « 🙋 En attente de toi » plus bas » alors que cette table était vide depuis le 2026-09-10 et le disait elle-même quatre cents lignes plus bas, R1 ayant été rotée dans `archive.md`. Le même fichier portait aussi « 7,9 % des lignes YouTube changent de jour selon le fuseau », un chiffre **retiré comme faux le 2026-09-10 même** dans trois autres fichiers. C'est le premier fichier que lit `/resume` : la séance part donc d'un état faux, énoncé à voix haute.
 - root_cause: les gardes de ce dépôt lisent des STRUCTURES — tableaux, ancres, cases à cocher, AST. La prose n'est structurée par rien, donc elle n'est lue par rien, et elle est pourtant ce qu'un humain croit en premier. Quand une ligne est rotée d'une table, la table devient juste immédiatement et la phrase qui la commentait devient fausse au même instant, sans qu'aucune des deux ne change de forme. Le 2026-09-12 le même fichier annonçait « quatre tâches rouvertes » contre un index vide ; il nommait déjà cette classe dans son propre texte, **sans qu'elle existe dans ce catalogue** — nommer n'est pas garder.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: ne pas chercher à vérifier « cette phrase est-elle vraie » — indécidable — mais isoler la FORME de phrase qui est mécaniquement réfutable et n'en tolérer aucune fausse : une phrase qui **localise** un identifiant dans une section nommée. Le prédicat exige les trois marques dans une même phrase ET dans cet ordre — l'id, une préposition de lieu, le nom de la section — ce qui le distingue d'une phrase de DÉPART, où le nom de la section est sujet (« L'index `## 📋 Tâches ouvertes` est vide : R108, sa dernière ligne, a été livrée »). Toute prose qui compte ou situe doit compter ce que la structure compte ; à défaut, elle doit renvoyer à la structure au lieu de la paraphraser.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_roadmap_index_is_honest.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `python3 -m pytest tests/test_roadmap_index_is_honest.py::test_no_prose_sentence_places_a_task_in_a_section_that_has_no_such_row -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-12 (ref: DEVLOG#2026-09-15)
 - History:
@@ -5771,10 +6833,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un outil annonce qu'une chose N'EXISTE PAS alors qu'il a seulement cessé de l'attendre. Mesuré le 2026-09-15 : `.claude/scripts/select_tests.py --dry` a répondu « **pas un dépôt git**, ou diff illisible » **dans ce dépôt git**, pendant qu'un `audit_runner --deterministic` lançait sur /mnt/c son lot de signatures déterministes — **297**, dont 287 sont des pytest. `git diff --name-only HEAD` y dépassait les 30 s du `timeout`, et la même valeur de repli qu'un répertoire sans `.git` remontait jusqu'au message.
 - root_cause: `_git()` attrapait `subprocess.SubprocessError` — dont `TimeoutExpired` est une sous-classe — et rendait `None`, la valeur qui signifiait déjà « pas de dépôt ». Deux pannes de natures opposées écrasées sur un seul repli : l'une est PERMANENTE et se corrige en changeant de répertoire, l'autre est TRANSITOIRE et se corrige en relançant au calme. Le VERDICT restait juste (suite entière, la direction sûre exigée par la règle transverse #16) ; c'est la RAISON qui mentait, et c'est elle qu'on lit.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: séparer les `except` et faire porter à chaque panne son propre message, au lieu de laisser une valeur de repli unique parler pour toutes. La règle générale : **une valeur de repli peut être partagée, un diagnostic jamais.** Un diagnostic qui nomme la mauvaise cause coûte plus cher qu'un diagnostic absent, parce qu'on le croit et qu'on cherche là où il pointe — ici, vérifier son dépôt au lieu de regarder la charge de la machine.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_the_selector_selects_what_changed.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `python3 -m pytest tests/test_the_selector_selects_what_changed.py -k "timeout or without_git" -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-15 (ref: DEVLOG#2026-09-15)
 - History:
@@ -5788,10 +6853,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un chiffre de performance est mesuré pendant que d'autres processus LANCÉS PAR MOI occupent la machine, puis lu comme une propriété du système. **Trois occurrences le 2026-09-15, toutes le même jour** : (1) `pytest --collect-only` annoncé à **386,9 s** avec trois sous-agents Explore et un `audit_runner` en fond — **30,1 s** machine au repos, facteur **12,8** ; (2) un micro-banc donnant « `/mnt/c` est **3 568×** plus lent qu'ext4 », rapport ordinaire une fois seul ; (3) une suite `--dist loadgroup` annoncée **7× plus lente**, alors que **DEUX suites tournaient en même temps** — 16 workers xdist sur 8 cœurs logiques.
 - root_cause: le profil d'une machine SURCHARGÉE est indiscernable de celui d'une machine LENTE. `user 0m37s / sys 0m24s` pour 387 s de chronomètre ressemble exactement à un goulot d'entrées-sorties légitime — c'en est un, mais la file d'attente est la mienne. Et le déclencheur de la troisième occurrence est un piège en deux temps : **le log de pytest ne montre rien pendant les ~30 s de collecte**, ce qui ressemble à un processus mort, ce qui pousse à en relancer un second. Les deux tournent alors ensemble et se mesurent l'un l'autre.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: rendre la mesure **incapable** de démarrer sur une machine occupée, au lieu de compter sur la discipline. Un `.claude/scripts/measure.py` qui refuse de chronométrer tant qu'un `pytest`/`audit_runner`/agent tourne, et par lequel passent les commandes de référence. Tant qu'il n'existe pas, la parade est la ligne de contrôle inscrite dans la référence — et c'est elle que la signature garde. **La prudence seule ne suffit pas : les deux premières occurrences ont produit une mémoire disant « compter les processus lourds avant de chronométrer », et la troisième est arrivée quand même**, parce que le processus concurrent était le mien, lancé une minute plus tôt, donc invisible à l'attention.
 - autofix: none
 - guard: { type: ci-step, ref: .claude/dev-docs/test-suite-performance.md }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - signature: `grep -q "processus lourds" .claude/dev-docs/test-suite-performance.md`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
 - first_seen: 2026-09-15 (ref: DEVLOG#2026-09-15)
 - History:
@@ -5806,10 +6874,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un fichier de tests UNITAIRES, qui patche `psycopg2.connect` et se croit entièrement simulé, parle en réalité à la base de production locale. Il passe quand même — jusqu'au jour où un test pose un `.return_value` sur une méthode réelle : `AttributeError: 'builtin_function_or_method' object has no attribute 'return_value'`.
 - root_cause: `PostgresHandler._connect()` demande d'abord `_borrow_from_pool()`. Le pool existe dès qu'un test ANTÉRIEUR du même worker a appelé `get_db_connection()` — ce que font des dizaines de fichiers — et ses sockets ont été ouverts par `ThreadedConnectionPool` AVANT que le patch existe. Le patch est donc contourné sans rien dire. Mesuré dans pytest le 2026-09-16 : `POOL= True  CURSOR= cursor`. 23 des 24 tests du fichier passaient quand même, un vrai curseur répondant à `execute` et à `fetchall` : ils affirmaient sur la BASE ce qu'ils croyaient affirmer sur un mock.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: deux gestes, et il en faut deux. Une fixture autouse qui ÉCARTE le pool du processus le temps de chaque test (`_POOL`/`_POOL_LIMITS` mis de côté puis remis — jamais `disable_pool()`, qui couperait les connexions que d'autres tests tiennent), et une assertion dans le constructeur de mock qui rend tout contournement futur BRUYANT : `assert isinstance(handler.cursor, MagicMock)`. La forme générale : **un test qui monte une doublure doit VÉRIFIER que la doublure a pris**, parce qu'une doublure contournée ne se signale jamais.
 - autofix: none
 - signature: `python3 -m pytest tests/test_postgres_handler.py -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_postgres_handler.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_postgres_handler.py
 - first_seen: 2026-09-16
 
@@ -5819,10 +6890,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un cliquet qui affirme mesurer « à froid » rend un nombre DIFFÉRENT selon ce qui a tourné avant lui dans le même processus. Il passe en ordre de fichier et tombe en ordre aléatoire — ou l'inverse.
 - root_cause: sa purge énumère les caches PAR LEUR NOM. L'énumération se périme dès qu'un cache est ajouté au chemin chaud, et le cliquet se remet alors à mesurer son voisinage. Mesuré le 2026-09-16, trois rendus successifs dans un processus neuf : l'accueil `artist` rend **14, 13, 13** — `_cached_plan_row` (`auth.py`, `@st.cache_data`, écrit le 2026-09-03 avec `plan_resolver`) n'était dans aucune liste. Le plafond de 13 avait donc été gelé sur un cache CHAUD. `admin` rend 13, 13, 13 : `get_artist_plan()` répond `premium` sans toucher la base pour un admin, et cette asymétrie EST la preuve de la cause. Troisième fois pour ce fichier — les deux précédentes avaient été corrigées en AJOUTANT un nom à la liste.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: ne pas énumérer : `st.cache_data.clear()` ne peut pas se périmer. Et surtout, garder la PROPRIÉTÉ et non sa valeur — un test qui compare un processus déjà chaud (réchauffé délibérément, quel que soit l'ordre) à un processus NEUF ouvert en sous-processus. La première version de ce garde comparait deux rendus en mémoire et est restée VERTE sur la mutation, ses voisins ayant déjà réchauffé le cache.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_page_asks_the_same_question_once.py::test_the_count_does_not_depend_on_its_neighbourhood -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_page_asks_the_same_question_once.py::test_the_count_does_not_depend_on_its_neighbourhood }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_a_page_asks_the_same_question_once.py
 - first_seen: 2026-09-16
 
@@ -5832,10 +6906,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une fonction porte la signature exacte d'un hook pytest, son corps fait le travail d'un hook, et elle n'est JAMAIS appelée. Rien ne le signale : il n'y a ni erreur, ni avertissement, ni test rouge — seulement un comportement qui n'arrive pas.
 - root_cause: pytest collecte ses hooks sur le nom EXACT. `_pytest_terminal_summary_db` porte un préfixe `_` et un suffixe `_db` : les deux suffisent à le rendre invisible. Ce qu'il devait crier est documenté vingt lignes au-dessus de lui : « 163 skipped défile et vert ne défile pas », après quatre vagues de correctifs d'isolation locataire écrites, gardées et COMMITÉES contre un vert obtenu sans base, puis démenties dès Postgres démarré (« 1065 passed » → « 1217 passed, 1 FAILED »). Le garde écrit contre ce défaut était lui-même débranché.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: un prédicat qui lit les noms de hooks chez pytest (`_pytest.hookspec`, plus `xdist.newhooks`) au lieu d'une liste tenue à la main, et qui refuse toute fonction dont le nom, privé de ses `_`, ÉGALE un hook **ou commence par lui**. Le préfixe compte : la première version exigeait l'égalité et est restée verte sur le défaut réel, dont le nom portait un suffixe. Deux fonctions ne pouvant pas partager un nom dans un module, le remède est d'APPELER la moitié orpheline depuis le vrai hook, pas de la renommer.
 - autofix: none
 - signature: `python3 -m pytest tests/test_a_pytest_run_carries_what_the_conftest_needs.py::test_no_function_wears_a_hook_name_pytest_will_never_call -q`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_pytest_run_carries_what_the_conftest_needs.py::test_no_function_wears_a_hook_name_pytest_will_never_call }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/conftest.py
 - first_seen: 2026-09-16
 
@@ -5845,10 +6922,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: un hook PreToolUse bloque une commande et l'appelant ne voit AUCUN motif : l'outil rapporte « No stderr output ». La porte est fermée, la raison est invisible, et il faut relancer le hook à la main — avec une ligne de commande construite pour ne pas se redéclencher elle-même — juste pour lire le message.
 - root_cause: le contrat PreToolUse de Claude Code est : `exit 2` bloque, et c'est **stderr** qui remonte le motif au modèle. `pre_commit_scan.py` écrivait son bloc « 🚫 BLOCKED » avec un `print()` nu, donc sur stdout, où il est avalé. Le défaut est resté invisible tant qu'aucun fichier ne déclenchait le scanner ; il est apparu le 2026-09-16 sur un faux positif — un mot de passe littéral, argument d'un mock passé à un `psycopg2.connect` patché.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: tout chemin de BLOCAGE d'un hook écrit sur `sys.stderr`, et son message nomme l'échappatoire. Ici : `# pragma: allowlist secret`, la convention que `detect-secrets` et `.secrets.baseline` utilisent déjà — deux scanneurs, UNE convention, faute de quoi la seconde se fait ignorer.
 - autofix: none
 - signature: `python3 -c "import ast,sys; t=ast.parse(open('.claude/hooks/pre_commit_scan.py').read()); sys.exit(0 if any(isinstance(n,ast.Call) and getattr(n.func,'id','')=='print' and any(k.arg=='file' for k in n.keywords) for n in ast.walk(t)) else 1)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: script, ref: .claude/hooks/pre_commit_scan.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/hooks/pre_commit_scan.py
 - first_seen: 2026-09-16
 
@@ -5858,10 +6938,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: sous une distribution test-par-test (`--dist loadgroup`, ou des shards), deux tests d'un MÊME fichier tournent en parallèle et se disputent un nom qu'ils croyaient à eux. L'échec est intermittent et, pire, il se déguise : l'assertion rouge parle d'autre chose que de la course.
 - root_cause: le fichier partage un espace de noms entre ses propres tests — un dossier du dépôt, un préfixe de slug, un identifiant de locataire, un nom de fichier horodaté à la seconde. Sous `--dist loadfile` l'ordre du fichier le masquait. Quatre occurrences mesurées le 2026-09-15, et la plus instructive est `test_registration_is_not_an_oracle` : le nom d'artiste par défaut de son helper est fixe, le slug en dérive et se déduplique en `oracle-probe-N`, Postgres rend `duplicate key … (slug)=(oracle-probe-12)`, l'inscription échoue — et le test lit cet échec comme « un code invalide a annulé l'inscription », **le contraire de la vérité**.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `pytest.mark.xdist_group` sur le fichier, posé à partir d'une MESURE et jamais d'une intuition : 27 fichiers en portaient un avant, choisis à l'instinct, et aucune des quatre courses n'y était. La liste des exceptions se justifie fichier par fichier, et le seul moyen honnête de l'établir est de lancer la suite jusqu'à trois exécutions vertes d'affilée, en fermant ce qui rougit. `pytest-randomly` (`-p randomly`) répond à la moitié ORDRE de la question sans parallélisme, ce qui la rend diagnosticable.
 - autofix: none
 - signature: `python3 -m pytest tests/test_registration_is_not_an_oracle.py tests/test_canary_onboarding_walk.py tests/test_an_imported_file_survives_its_import.py -q -n auto --dist loadgroup`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: .github/workflows/ci.yml }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_registration_is_not_an_oracle.py
 - first_seen: 2026-09-16
 
@@ -5871,10 +6954,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: une dépendance reste gelée des ANNÉES sur une version que personne n'a choisie, et rien ne le signale. Le symptôme visible est ailleurs et ne ressemble pas à une dépendance : ici, 20 s perdues par job de CI.
 - root_cause: une clause de prudence sans ÉCHÉANCE ni VISIBILITÉ. `.github/dependabot.yml` ignore les mises à jour MAJEURES pour `github-actions`, et la raison est bonne — une majeure change le runner sous la CI, la seule chose qui parle avant un déploiement. Mais une action qui ne publie QUE des majeures ne produit alors AUCUNE PR, et le silence est indiscernable d'« à jour ». Mesuré le 2026-09-16 : `astral-sh/setup-uv` était épinglé en **v4** quand la **v10** était publiée — six majeures. La v4 parle à l'API de cache que GitHub a retirée, d'où `Failed to restore: Cache service responded with 400` sur chaque exécution, un taux de succès de cache de **0 %**, et `Install uv` à 20 s par job — le plus gros poste fixe une fois la suite shardée. Le même jour, le rapport a trouvé trois autres actions à une majeure de retard, dont personne ne savait rien non plus.
+- cause_evidence: read (.github/dependabot.yml, rétro-portage mécanique 2026-09-16)
 - long_term_fix: la clause reste — c'est la MESURE qui manquait. `tools/dev/check_action_drift.py` dit, pour chaque action épinglée, de combien de majeures elle est en retard, et tourne chaque nuit dans `security-nightly.yml`, non bloquant. Le principe se généralise : **toute règle qui refuse une classe de mises à jour doit publier ce qu'elle refuse**, sans quoi elle cesse d'être une décision et devient un gel. Le rapport ne bloque pas : la montée reste un geste humain, ce que la clause veut précisément protéger.
 - autofix: none
 - signature: `python3 tools/dev/check_action_drift.py | grep -q "🔴" && exit 1 || exit 0`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: script, ref: tools/dev/check_action_drift.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .github/dependabot.yml
 - first_seen: 2026-09-16
 - History:
@@ -5897,10 +6983,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: les CINQ jobs d'un workflow échouent en **neuf secondes**, à « Prepare all required actions », avant la moindre mise en route : `Unable to resolve action owner/repo@vN, unable to find version vN`. Aucun test du dépôt ne peut le voir — il n'y a pas d'exécution où le voir.
 - root_cause: un épinglage DÉDUIT d'un numéro de version au lieu d'être vérifié contre les tags amont. Mesuré le 2026-09-16 : un rapport annonçait « setup-uv est en retard, dernière version v10.1.0 », j'ai écrit `@v10`, et ce tag n'existe pas — `astral-sh/setup-uv` publie des versions exactes et PAS de tag majeur flottant, alors que `@v4`, lui, en avait un. La convention « les actions publient un tag majeur » est vraie de `actions/checkout` et fausse ici, et rien ne distingue les deux sans interroger le dépôt amont. Le rapport qui a induit l'erreur est le correctif d'une AUTRE classe, écrit deux heures plus tôt : `a-prudence-rule-with-no-expiry-becomes-a-freeze`.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: un rapport qui suggère un épinglage doit imprimer un tag **écrivable tel quel**, vérifié contre `repos/<repo>/tags`, et non un numéro de majeure déduit d'une release. C'est la classe `a-printed-command-is-runnable-as-printed` appliquée à un rapport : ce qu'il imprime doit pouvoir être copié sans réfléchir, sinon il fabrique la panne suivante. `tools/dev/check_action_drift.py` porte désormais une colonne « résout ? » qui interroge `git/ref/tags/<ref>` pour CHAQUE `uses:` du dépôt, et nomme ce qui va se passer si on pousse.
 - autofix: none
 - signature: `python3 tools/dev/check_action_drift.py | grep -q INTROUVABLE && exit 1 || exit 0`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: script, ref: tools/dev/check_action_drift.py, wired: .github/workflows/security-nightly.yml }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .github/workflows/ci.yml
 - first_seen: 2026-09-16
 - History:
@@ -5912,10 +7001,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une montée de MAJEURE laisse le build vert et rend une de ses garanties fausse. Rien n'échoue, rien n'avertit : le seul endroit où le changement existe est le log de l'outil, dans une ligne que personne ne lit quand tout est vert.
 - root_cause: la majeure change une valeur PAR DÉFAUT dont on dépendait sans l'avoir écrite. Mesuré le 2026-09-16 sur `astral-sh/setup-uv` : la v4 clé le cache sur `**/uv.lock`, la v10 sur `**/*requirements*.txt`. Or ce dépôt installe par `uv sync --frozen`, qui n'installe QUE ce que dit `uv.lock` — après la montée, le cache s'invalidait quand `requirements.txt` bougeait (donc pas quand les dépendances installées changeaient) et survivait quand `uv.lock` changeait. Vert dans les deux cas, faux dans les deux cas.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **écrire ce dont on dépend, plutôt que d'en hériter.** Toute option d'une action tierce sur laquelle une garantie repose est déclarée explicitement, même quand le défaut la donne — c'est le seul état qu'une montée de majeure ne peut pas déplacer sous nos pieds. Corollaire pour la relecture : une majeure se lit dans le CHANGELOG des défauts, pas seulement dans sa liste de ruptures d'API ; un défaut déplacé n'est pas une rupture et n'y figure donc pas.
 - autofix: none
 - signature: `python3 -c "import sys,yaml,pathlib; bad=[str(p) for p in pathlib.Path('.github').rglob('*.y*ml') for job in ((yaml.safe_load(p.read_text(encoding='utf-8')) or {}).get('jobs') or {}).values() for st in (job.get('steps') or []) if 'setup-uv' in str(st.get('uses','')) and (st.get('with') or {}).get('enable-cache') and 'cache-dependency-glob' not in (st.get('with') or {})]; sys.exit(1 if bad else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: script, ref: .github/workflows/ci.yml (cache-dependency-glob explicite sur les 3 sites) }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .github/workflows/ci.yml
 - first_seen: 2026-09-16
 - History:
@@ -5927,10 +7019,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une porte BLOQUANTE de la CI passe au vert sur un arbre qui porte exactement le défaut qu'elle cherche. Elle n'a jamais pu échouer, et rien dans son texte ne le laisse voir — elle a un nom juste, une commande juste, et un verdict sans valeur.
 - root_cause: la commande de la porte MODIFIE l'arbre avant de le juger. Mesuré le 2026-09-16 : `Manifest consistency (blocking)` lance `uv run python tools/dev/check_manifest_consistency.py`, or **`uv run` re-verrouille et re-synchronise avant d'exécuter**. Le contrôle lisait donc un `uv.lock` que sa propre commande venait de réparer. Cas vivant : la PR #161 (Dependabot) bumpait `pyproject.toml` et `requirements.txt` sans toucher `uv.lock` — Dependabot ne connaît pas ce format. Au commit testé (`1efcab9`), `uv.lock` disait streamlit **1.62.0** et `pyproject.toml` **1.63.0** ; la porte est passée VERTE et la PR a été mergée. Rejoué à la main sur le même arbre : `.venv/bin/python …` sort **rc=1** avec trois lignes `MANIFEST-DRIFT`, `uv run …` sort **rc=0** et laisse `uv.lock` MODIFIÉ derrière lui.
+- cause_evidence: read (tools/dev/check_manifest_consistency.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: une porte s'exécute sur un arbre GELÉ — ici `uv run --frozen`, posé sur les neuf invocations du dépôt et pas seulement sur celle qui a saigné. La règle générale : **avant d'écrire une porte, demander ce que sa COMMANDE écrit**, pas seulement ce qu'elle lit. Le dépôt avait déjà retiré une étape pour cette forme exacte le 2026-09-15 (`audit_runner --fields` appelait `_write_ratchet()` et écrivait donc dans `error-classes.md` depuis la CI) — la leçon visait une commande, pas la FORME, et n'a donc pas empêché la suivante. C'est ce que ce garde généralise.
 - autofix: none
 - signature: `python3 -c "import sys,yaml,pathlib; bad=[l for p in pathlib.Path('.github/workflows').glob('*.y*ml') for job in ((yaml.safe_load(p.read_text(encoding='utf-8')) or {}).get('jobs') or {}).values() for st in (job.get('steps') or []) for l in str(st.get('run','')).splitlines() if 'uv run' in l and not l.strip().startswith('#') and '--frozen' not in l]; sys.exit(1 if bad else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_gate_does_not_repair_what_it_judges.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .github/workflows/ci.yml
 - first_seen: 2026-09-16
 - History:
@@ -5942,10 +7037,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un limiteur ATOMIQUE ne borne que les tentatives séquentielles. N requêtes simultanées obtiennent toutes l'autorisation, le budget affiché est respecté à la lecture et dépassé dans les faits. Aucun test ne le voit : chaque tentative, prise seule, est correcte.
 - root_cause: l'atomicité est construite dans le magasin et **contournée au site d'appel**. Mesuré le 2026-09-16 : `src/utils/request_throttle.py` sérialise `DELETE / count / INSERT` sous `pg_advisory_xact_lock`, mais `src/dashboard/auth.py` appelait `throttle_check()` (qui ne consomme PAS), vérifiait le code TOTP, puis `throttle_record()` seulement en cas d'échec. Entre la lecture et l'écriture tient tout le travail. Streamlit sert des sessions distinctes en parallèle : ouvrir N onglets suffisait. Le seau de 10 codes par 15 min ne bornait donc rien de simultané. Même forme sur `login` et `register`. Le découpage `check`/`record` existait pour une bonne raison — ne pas facturer deux fois — et c'est cette raison qui a rendu le défaut invisible.
+- cause_evidence: read (src/utils/request_throttle.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: **une décision et sa consommation sont la MÊME opération, ou ce n'est pas une décision.** `throttle_consume()` appelle `hit()`, qui décide et consomme indivisiblement ; `throttle_check()` reste, réservé à l'AFFICHAGE, et son docstring dit désormais qu'il ne doit pas décider. Le corollaire général : quand on ajoute de l'atomicité à une couche basse, **balayer les appelants** — une primitive indivisible appelée en deux temps n'est pas indivisible.
 - autofix: none
 - signature: `python3 -c "import pathlib,sys; bad=[f'{p}:{i}' for p in pathlib.Path('src').rglob('*.py') if p.name!='throttle.py' for i,l in enumerate(p.read_text(encoding='utf-8').splitlines(),1) if 'throttle_record(' in l and not l.strip().startswith('#')]; print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: script, ref: la signature ci-dessus ; comportement couvert par tests/test_the_login_budget_holds_across_instances.py }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/throttle.py
 - first_seen: 2026-09-16
 - History:
@@ -5957,10 +7055,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une porte compare deux NOMBRES là où la question porte sur deux ENSEMBLES. Elle est verte, les deux totaux sont justes, et l'élément qui manque d'un côté est compensé par un intrus de l'autre. Elle ne peut pas nommer ce qui manque, puisqu'elle ne le regarde pas.
 - root_cause: mesuré le 2026-09-16 sur la porte de migrations de `tools/deploy.sh` (écrite la veille). Elle lisait `SELECT count(*) FROM schema_migrations` et le comparait à `ls migrations/*.sql | wc -l`. Le dépôt portait 119 fichiers, la base 119 lignes : verte. Or `106_gold_remaining_grains.sql` n'était PAS enregistrée — elle échouait à chaque rejeu — et sa ligne au compte était occupée par `create_missing_tables.sql`, qui n'est pas une migration numérotée. Deux erreurs qui s'annulent donnent un total juste et un verdict faux.
+- cause_evidence: read (tools/deploy.sh, rétro-portage mécanique 2026-09-16)
 - long_term_fix: une porte d'inventaire compare des **ensembles** et NOMME la différence (`comm -23`). Un compte ne peut jamais dire ce qui manque, donc il ne peut jamais produire une action ; c'est le même critère que « un message d'erreur nomme la commande qui répare ». Le contrôle d'état correspondant vit dans un test adossé à la base, seul endroit d'où la question se pose vraiment.
 - autofix: none
 - signature: `! grep -q "count(\*) FROM schema_migrations" tools/deploy.sh`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_migrations_are_replay_safe.py::test_every_migration_on_disk_is_recorded_in_the_ledger }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/deploy.sh
 - first_seen: 2026-09-16
 - History:
@@ -5972,10 +7073,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: un correctif de rejouabilité fait DISPARAÎTRE une colonne, une contrainte ou un index qu'une migration ultérieure avait ajoutés. Le fichier corrigé passe enfin, le registre se complète, et le schéma recule — sans erreur, puisque tout a « réussi ».
 - root_cause: le correctif remplace `CREATE OR REPLACE` par `DROP` + `CREATE` pour contourner « cannot drop columns from view ». Mais l'erreur ne disait pas que le fichier était mal écrit : elle disait qu'**un successeur avait élargi l'objet**. Mesuré le 2026-09-16 : `106_gold_remaining_grains.sql` recrée `v_meta_creative_daily`, que `108_*` élargit de `ad_account_id` et `adset_name` ; 108 étant DÉJÀ au registre, elle ne repasse pas, donc le DROP+CREATE de 106 rendait la vue à sa forme étroite. Deux tests sont tombés dans la minute. C'est la classe `unguarded-drop-replayed-alone` reproduite en croyant la refermer.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **un fichier qui a un successeur ne se réécrit pas, il se retire.** La forme correcte est celle de `024_*` : le fichier CONSTATE la marque du successeur (`IF EXISTS (SELECT 1 FROM information_schema.columns WHERE …) THEN RETURN;`) et ne fait rien. Pas de DROP, donc rien à détruire ; et sur une base neuve, où l'ordre est respecté, l'objet est bien créé. Avant de rendre une migration rejouable, la question est « qui a touché cet objet APRÈS moi ? », jamais « comment faire passer cette instruction ? ».
 - autofix: none
 - signature: none
+- seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - guard: { type: pytest, ref: tests/test_migrations_are_replay_safe.py (test_no_unguarded_drop + test_every_migration_on_disk_is_recorded_in_the_ledger) }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/106_gold_remaining_grains.sql
 - first_seen: 2026-09-16
 - History:
@@ -5987,10 +7091,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: une mesure rend zéro, on en conclut qu'il n'y a rien à faire, et le travail correspondant n'est pas fait. Rien n'échoue — le chiffre était juste **à l'instant où il a été pris**, et faux dès la minute suivante.
 - root_cause: la mesure a été prise AVANT que l'écrivain n'ait tourné. Mesuré le 2026-09-16, deux fois dans la même séance : (1) « la suite écrit-elle dans `rate_limit_hits` ? » — compté **en cours de suite**, réponse 0, conclusion « pas de rayon de souffle, rien à faire ». `tests/test_api.py` n'avait simplement pas encore tourné ; il consomme dix `POST /auth/token` sur un budget de dix par cinq minutes, et le lancement suivant tombait en `assert 429 == 200`. (2) « quel est le gain d'ext4 ? » — chronométré sur un arbre où la copie ext4 collectait 11 erreurs de plus, donc faisait MOINS de travail : le rapport annoncé comparait deux populations.
+- cause_evidence: read (tests/test_api.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: **une mesure déclare sa population et l'instant où elle a été prise, et une mesure d'effet se prend APRÈS le processus complet qui la produit.** Concrètement, trois questions avant d'annoncer un chiffre : qu'est-ce qui l'écrit ? est-ce que ça a déjà tourné ? les deux côtés comparés ont-ils fait le même travail ? La forme qui ne trompe pas est la mesure de FIN de session (le précédent du dépôt est `_no_synthetic_rows_left_behind`, en portée session et non fonction, pour la même raison).
 - autofix: none
 - signature: none
+- seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - guard: { type: pytest, ref: tests/conftest.py::_rate_limit_budget_starts_full (le correctif de l'instance 1) }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/conftest.py
 - first_seen: 2026-09-16
 - History:
@@ -6002,10 +7109,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: un déclencheur chiffré se déclenche — ou ne se déclenche pas — et la décision qui en découle repose sur une comparaison qui n'a jamais eu de sens. Rien n'échoue : les deux nombres existent, sont justes, et ne mesurent pas la même chose.
 - root_cause: le SEUIL a été défini avec un instrument, et LU avec un autre. Mesuré le 2026-09-16 par `code-critic` sur R87/R114 : le déclencheur disait « `loadtest_dashboard.py -n 12` rend un p50 > 200 ms ». Cet outil sature lui-même la mesure (352 ms à un fil, 2 144 ms à six, sous `AppTest`) — c'est précisément pourquoi il a été remplacé par `tools/loadtest_concurrency.py`, qui passe par un vrai navigateur. Le nouvel outil rend **329 ms à N=1**, donc sans aucune concurrence, déjà au-dessus d'un seuil écrit pour l'ancien. Le remplacement de l'instrument était un progrès ; ce qui a été oublié est que **le seuil appartenait à l'instrument**, pas au phénomène.
+- cause_evidence: read (tools/loadtest_concurrency.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: **un seuil chiffré nomme l'instrument qui l'a produit, et un changement d'instrument périme le seuil** — il se recalibre, il ne se transporte pas. Quand c'est possible, préférer un signal SANS UNITÉ à transporter : ici la colonne « reruns perdus » (un COMPTE de clics qui n'ont jamais rendu de page) vaut zéro sur n'importe quel instrument, n'importe quelle machine, n'importe quelle heure — là où une milliseconde n'a de sens que relativement à la ligne de base de l'outil qui l'a produite. Le protocole qui en découle est écrit AVANT la mesure (`.claude/dev-docs/measurement-protocol-R114.md`), parce qu'un protocole rédigé après choisit celui qui donne le résultat espéré.
 - autofix: none
 - signature: none
+- seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - guard: { type: doc, ref: .claude/dev-docs/measurement-protocol-R114.md }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/loadtest_concurrency.py
 - first_seen: 2026-09-16
 - History:
@@ -6017,10 +7127,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un script de déploiement met un service EN SERVICE sans l'avoir vérifié une seule fois, et sort en 0. Rien n'échoue, rien n'avertit : le service demandé n'a simplement croisé aucune branche qui le connaisse.
 - root_cause: la branche par DÉFAUT d'un aiguillage passe son tour au lieu de refuser. Mesuré le 2026-09-16 par `code-critic` sur le design de R114, avant qu'une ligne soit écrite : `tools/deploy.sh` choisissait la sonde de santé par un `case` se terminant par `*) continue`. Tant que `$SERVICES` ne contenait que `api` et `dashboard`, les deux branches existaient et le trou était invisible. Une seconde réplique `dashboard2` y serait tombée : reconstruite, remise en service, **jamais sondée, jamais couverte par le retour arrière** — et Caddy lui envoyant du trafic par cookie. Le défaut n'est pas le `case` incomplet, c'est que l'incomplétude était SILENCIEUSE.
+- cause_evidence: read (tools/deploy.sh, rétro-portage mécanique 2026-09-16)
 - long_term_fix: **la branche par défaut d'un aiguillage de déploiement refuse et nomme ce qui manque ; elle ne passe jamais son tour.** `service_probe()` est devenu un registre qui rend la chaîne vide sur l'inconnu, et l'appelant sort en 1 avec la liste des services connus. Règle générale, transportable : quand un aiguillage décide si une VÉRIFICATION a lieu, `default` doit être une erreur — l'absence de branche y signifie « on ne sait pas vérifier », jamais « rien à vérifier ». La signature, elle, relie les deux fichiers que rien ne comparait : tout amont de `deploy/Caddyfile` doit avoir sa sonde dans `tools/deploy.sh`.
 - autofix: none
 - signature: `python3 -c "import re,sys,pathlib; U=re.compile(r'\\b127[.]0[.]0[.]1:(\\d{2,5})\\b'); s=pathlib.Path('tools/deploy.sh').read_text(encoding='utf-8'); i=s.index('service_probe()'); probed=set(U.findall(s[i:s.index(chr(10)+chr(125),i)])); served={m for l in pathlib.Path('deploy/Caddyfile').read_text(encoding='utf-8').splitlines() if l.strip().startswith('reverse_proxy') for m in U.findall(l)}; bad=sorted(served-probed); print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_deploy_covers_every_service_it_starts.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/deploy.sh
 - first_seen: 2026-09-16
 - History:
@@ -6032,10 +7145,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un retour arrière déclenché par la panne d'UNE instance reconstruit tout ce qui tourne. Le remède coupe ce qui marchait encore, et la coupure est plus large que l'incident qu'elle répare.
 - root_cause: la fonction reçoit l'objet en cause en argument et ne s'en sert pas pour agir. Mesuré le 2026-09-16 : `rollback()` prenait `_svc` (`tools/deploy.sh:106`) pour l'afficher dans son message, puis reconstruisait la variable globale `$SERVICES`. À une instance par surface, les deux sont identiques et le défaut n'existe pas. À deux répliques, l'échec de la santé sur l'une aurait reconstruit **les deux sous trafic** — c'est-à-dire coupé le site pour réparer une moitié. Même forme que la classe précédente : un code correct tant qu'il n'y a qu'un exemplaire de chaque chose.
+- cause_evidence: read (tools/deploy.sh, rétro-portage mécanique 2026-09-16)
 - long_term_fix: **un remède se borne à ce qui est en panne, et l'argument reçu pour LE NOMMER doit être celui qui sert à AGIR.** Repère de relecture, transportable : quand une fonction reçoit un identifiant et n'en fait qu'un `echo`, demander pourquoi l'action, elle, porte sur un ensemble. La signature lit le corps de `rollback()` et refuse toute commande `docker compose` y mentionnant `$SERVICES`.
 - autofix: none
 - signature: `python3 -c "import sys,pathlib; s=pathlib.Path('tools/deploy.sh').read_text(encoding='utf-8'); i=s.index('rollback() {'); b=s[i:s.index(chr(10)+chr(125),i)]; bad=[l.strip() for l in b.splitlines() if 'docker compose' in l and 'SERVICES' in l and not l.strip().startswith('#')]; print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_deploy_covers_every_service_it_starts.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/deploy.sh
 - first_seen: 2026-09-16
 - History:
@@ -6047,10 +7163,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: du code exact aujourd'hui devient faux le jour où une seconde instance existe — **sans qu'une seule ligne change**. Rien n'échoue au moment du changement : c'est une phrase de commentaire qui cesse d'être vraie, et personne ne relit les commentaires en ajoutant un conteneur.
 - root_cause: un état vit dans la mémoire du PROCESSUS, et son exactitude repose sur le fait qu'il n'y a qu'un processus par surface. Mesuré le 2026-09-16, **quatre fois dans la même séance**, chacune trouvée par un chemin différent : (1) les seaux anti-force-brute — `budget × N` sur un chemin d'authentification, trouvé en écrivant le garde des répliques ; (2) `clear_kpi_caches()` — purge son propre interpréteur, donc dix minutes de chiffres périmés sur l'autre instance, trouvé en lisant le code ; (3) la sonde de santé du déploiement — `*) continue` sur un service inconnu, trouvé par `code-critic` ; (4) le retour arrière — reconstruit `$SERVICES` au lieu du service en panne, trouvé par `code-critic`. Les quatre ont été ÉCRITS CORRECTS. Le dénominateur commun n'est pas la négligence, c'est qu'à un exemplaire les deux comportements sont indiscernables.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **la question se pose à l'écriture, pas au déploiement : « cet état est-il encore juste s'il en existe deux exemplaires ? »** — et la réponse s'écrit à côté du code. Trois réponses, et la troisième est un chantier : per-instance VOULU (chaque instance doit avoir le sien) ; INOFFENSIF (donnée immuable, au pire de la mémoire en double) ; IL FAUT LE PARTAGER. `tests/test_process_state_is_declared_for_a_second_instance.py` tient le registre : tout conteneur de niveau module que son module MUTE doit y être déclaré avec sa raison, sur le modèle de `_NOT_A_QUANTITY`. Un site neuf n'est pas refusé, il est mis en question.
 - autofix: none
 - signature: `.venv/bin/python -m pytest tests/test_process_state_is_declared_for_a_second_instance.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_process_state_is_declared_for_a_second_instance.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/utils/cache_epoch.py
 - first_seen: 2026-09-16
 - History:
@@ -6062,10 +7181,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: on pose un fichier de configuration, on recharge le service, la commande sort en 0, le fichier est bien là — et **le réglage n'est pas appliqué**. Rien n'échoue. La seule façon de s'en apercevoir est de mesurer l'EFFET, ce qu'on ne fait pas quand tout indique le succès.
 - root_cause: **`reload` et `restart` ne reprennent pas le même sous-ensemble de la configuration**, et la documentation d'un démon le dit rarement. Mesuré le 2026-09-16 : `/etc/docker/daemon.json` posé avec `log-opts.max-size`, `systemctl reload docker` exécuté sans erreur, `docker info` rendant bien `json-file`. Un conteneur témoin écrivant 400 000 lignes a produit **un seul fichier de 65 Mo**, sans aucun `…-json.log.1` : la rotation n'était pas active. Les options de journalisation demandent un `restart`.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **vérifier l'EFFET, jamais l'artefact** — et écrire la commande qui le prouve à côté de celle qui applique. Ici : faire écrire un conteneur jetable au-delà du seuil et compter les fichiers de rotation, plutôt que lire le fichier de configuration. Corollaire général, qui est le vrai enseignement : quand on écrit « `reload` suffit », c'est une hypothèse sur un démon tiers ; tant qu'elle n'est pas mesurée, elle vaut « peut-être ».
 - autofix: none
 - signature: `ssh -o ConnectTimeout=10 root@167.233.92.1 'test -s /etc/docker/daemon.json' && ! ssh -o ConnectTimeout=10 root@167.233.92.1 'ls /var/lib/docker/containers/*/*-json.log.1 >/dev/null 2>&1'`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: doc, ref: deploy/host/README.md (protocole de vérification par conteneur témoin) }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: deploy/host/README.md
 - first_seen: 2026-09-16
 - History:
@@ -6078,10 +7200,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une table écrite à chaque événement grossit sans borne. Rien n'échoue jamais — jusqu'au jour où une requête de tableau de bord ralentit, ou où le disque se remplit, et la cause a alors des mois d'avance sur le symptôme.
 - root_cause: une table de télémétrie est ajoutée pour répondre à un besoin de traçabilité, et **la question « qui l'efface ? » n'est jamais posée** parce qu'elle n'a pas de propriétaire naturel. Mesuré le 2026-09-16 sur ce dépôt : **13 tables de télémétrie, UNE SEULE purgée** (`rate_limit_hits`, et seulement parce que `code-critic` l'avait exigé en condition bloquante). `usage_events` (une ligne par interaction), `etl_run_log` (2 196 lignes), `app_error_log` et `monitoring_run` croissent indéfiniment. Aucune n'a de rétention déclarée.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **toute table de télémétrie déclare sa rétention au moment où elle naît**, dans le `COMMENT ON TABLE` de sa migration, et la purge correspondante entre dans le DAG d'entretien qui existe déjà (`alert_monitor`). Le distinguo qui compte : une table **métier** garde tout (ADR-018, « rien de ce qui est écrasé n'est perdu ») ; une table de **télémétrie** est un journal, et un journal se rogne. Confondre les deux fait soit perdre de la donnée, soit garder des traces pour toujours.
 - autofix: none
 - signature: `.venv/bin/python -m pytest tests/test_a_telemetry_table_declares_its_retention.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_telemetry_table_declares_its_retention.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: migrations/122_rate_limit_hits.sql
 - first_seen: 2026-09-16
 - History:
@@ -6093,10 +7218,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un service démarre, son conteneur est `healthy`, aucun journal ne se plaint — et **rien ne peut l'atteindre**. Le symptôme arrive à l'autre bout de la chaîne : un tableau de bord vide, qu'on lit comme « il n'y a rien à montrer » plutôt que « la source est injoignable ».
 - root_cause: on confond la restriction d'accès posée par le MAPPAGE DE PORT avec celle posée par le BINAIRE. Mesuré le 2026-09-16, en écrivant la pile d'observabilité : `--web.listen-address=127.0.0.1:9090` avait été mis dans la commande de Prometheus pour « ne pas l'exposer ». Mais c'est la loopback **du conteneur** : ni `ports: ['127.0.0.1:9090:9090']` ni Grafana, qui l'atteint par `streamlytics_prometheus:9090` sur le réseau Docker, n'auraient pu s'y connecter. La restriction voulue venait déjà du mappage ; celle du binaire coupait tout le monde, y compris nous.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **dans un conteneur, un service écoute sur `0.0.0.0` et c'est le MAPPAGE qui restreint.** Les deux réglages portent le même mot — « écouter sur 127.0.0.1 » — et n'ont pas le même référentiel : l'un parle du réseau de l'hôte, l'autre de celui du conteneur. La règle de relecture qui transporte : devant une adresse d'écoute, demander **de quel réseau** parle ce `127.0.0.1`. Et vérifier par un appel depuis le consommateur réel, jamais depuis l'hôte.
 - autofix: none
 - signature: `python3 tools/dev/check_container_bind_address.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_the_metrics_server_survives_a_rerun.py::test_prometheus_listens_on_the_container_network }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: deploy/docker-compose.observability.yml
 - first_seen: 2026-09-16
 - History:
@@ -6108,10 +7236,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: l'application **ne démarre plus du tout** — `Duplicated timeseries in CollectorRegistry` à l'import, avant qu'une ligne ne s'affiche. Rien de progressif, rien de dégradé : une page blanche.
 - root_cause: `prometheus_client` LÈVE si un nom de métrique est enregistré deux fois dans le registre par défaut, et un module d'instrumentation est exactement le genre de module qu'on importe depuis partout. Mesuré le 2026-09-16 : ce dépôt met `src/dashboard` sur `sys.path` et importe ses vues comme `views.x`, donc **un même fichier peut être chargé sous deux noms** (`src.utils.metrics` et `utils.metrics`) — Python le considère alors comme deux modules distincts, exécute son corps deux fois, et la seconde déclaration lève. La classe voisine `selector-blind-to-the-import-prefix` décrit le même double chemin, vu d'un autre angle.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **une déclaration de métrique récupère celle qui existe déjà au lieu d'échouer** — `try: Histogram(...) except ValueError: REGISTRY._names_to_collectors[name]`. Créer un second collecteur du même nom serait pire encore : deux séries qui ne se somment pas, sans erreur. La règle générale : tout module à effet de bord GLOBAL À L'IMPORT (registre, port, verrou nommé) doit être idempotent, parce qu'on ne contrôle pas combien de fois il sera chargé.
 - autofix: none
 - signature: `.venv/bin/python -c "import importlib,sys; sys.path.insert(0,'.'); m=importlib.import_module('src.utils.metrics'); sys.modules.pop('src.utils.metrics'); importlib.import_module('src.utils.metrics')"`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_the_metrics_server_survives_a_rerun.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/utils/metrics.py
 - first_seen: 2026-09-16
 - History:
@@ -6123,10 +7254,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une porte de comparaison rapporte une divergence **à chaque exécution**, quoi qu'on fasse. On la lit deux fois, on la contourne la troisième, et le jour où elle décrit une vraie dérive personne ne la croit. Le coût n'est pas la fausse alerte : c'est l'attention qu'elle consomme puis qu'elle perd.
 - root_cause: la comparaison prépare ses deux côtés DIFFÉREMMENT, et rapporte donc sa propre asymétrie. Mesuré le 2026-09-16 : `make sync-check` dépliait le Caddyfile du dépôt à partir du premier `{` (`sed -n '/^{/,$p'`) et comparait au fichier de la cible **entier**. Tant que la prod n'avait pas d'en-tête, ça marchait par coïncidence ; la procédure de déploiement écrite en tête du fichier fait un `scp` du fichier COMPLET, donc dès le premier déploiement conforme la porte a vu **89 lignes de divergence pour ZÉRO ligne fonctionnelle**. La variante voisine : une cible de scrutation Prometheus laissée sur un service volontairement arrêté — `down` pour toujours, parce que Prometheus n'a pas de notion de « arrêté volontairement ».
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **une comparaison normalise ses deux côtés avec la même transformation**, et un contrôle dont un état est impossible à atteindre n'est pas un contrôle. La question de relecture qui transporte, devant toute porte rouge : « **peut-elle être verte ?** » — avant de chercher ce qui a dérivé, vérifier que le vert existe. Si un écart est permanent et voulu, il se retire du contrôle et son rétablissement s'écrit en UN endroit, jamais en note dispersée.
 - autofix: none
 - signature: `grep -q "sed -n '/\^{/,\$\$p' /tmp/_caddy_live" Makefile`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_the_metrics_server_survives_a_rerun.py::test_the_scrape_targets_agree_with_the_caddy_upstreams }
+- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: Makefile
 - first_seen: 2026-09-16
 - History:
@@ -6138,10 +7272,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un garde passe VERT sur un défaut qui appartient pourtant très exactement à son sujet. En le relisant on ne trouve rien à redire : il fait ce qu'il dit. Il ne dit simplement qu'une moitié.
 - root_cause: un cliquet est écrit le jour où l'on s'est trompé, donc il surveille **la direction de cette erreur-là**. Mesuré le 2026-09-16 : `test_roadmap_two_files.py` échoue quand la somme des deux fichiers de ROADMAP **diminue** — écrit après une rotation qui perdait un item. Une réécriture a recopié toute la fin du fichier actif (664 → 1 104 lignes, R117 et le bloc de reprise en double) : la somme AUGMENTE, donc les six gardes du fichier sont passés verts. `/resume` aurait lu le premier bloc de reprise et ignoré tout ce qui suit.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **après avoir écrit un cliquet, énoncer la dérive SYMÉTRIQUE et décider explicitement si elle compte.** Ici : un identifiant de brique, un titre de section et un marqueur de reprise n'apparaissent qu'une fois. La question de relecture : « et si la grandeur bougeait dans l'autre sens ? ». Elle se pose en trente secondes et elle a attrapé un défaut réel dès sa première formulation.
 - autofix: none
 - signature: `.venv/bin/python -m pytest tests/test_roadmap_two_files.py::test_the_active_file_does_not_carry_a_section_twice -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_roadmap_two_files.py::test_the_active_file_does_not_carry_a_section_twice }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_roadmap_two_files.py
 - first_seen: 2026-09-16
 - History:
@@ -6153,11 +7290,14 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un garde qui lit l'AST — donc écrit précisément pour ne PAS être textuel — reste malgré tout vert sur sa propre mutation. Il a l'air rigoureux et il ne garde rien.
 - root_cause: pour ignorer les docstrings, on compare la valeur d'un `ast.Constant` à `ast.get_docstring(node)` **en laissant `clean` à son défaut**. Or `clean=True` nettoie et DÉSINDENTE, alors que le `Constant` porte le texte brut, indentation comprise : les deux ne sont jamais égaux, l'exclusion ne retire rien, et la docstring du module suffit à satisfaire n'importe quelle recherche de littéral. Mesuré le 2026-09-16 : la mutation « `_get("/api/v1/rules")` → `_get("/api/v1/alerts")` » est passée inaperçue parce que la docstring du module cite `/api/v1/rules`.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
   ⚠️ Le balayage des frères a rendu DEUX faux positifs qu'il ne faut pas corriger : `test_no_surface_reads_a_table_nobody_writes.py` et `test_the_setup_page_is_reachable_and_on_top.py` comparent aussi par valeur, mais passent `clean=False` EXPLICITEMENT. Ils sont justes. C'est ce qui a resserré la classe : le défaut n'est pas « comparer par valeur », c'est « comparer par valeur à un texte nettoyé ».
 - long_term_fix: **écarter les docstrings par IDENTITÉ DE NŒUD, jamais par valeur** — `id(node.body[0].value)` pour un `Module`, `FunctionDef`, `AsyncFunctionDef` ou `ClassDef`. Plus généralement : dès qu'un garde compare deux représentations d'une même chose, vérifier que la comparaison peut être VRAIE ; sinon c'est la classe `a-gate-that-can-never-be-green` vue par l'autre bout. Et la règle qui rattrape tout : muter le garde qu'on vient d'écrire.
 - autofix: none
 - signature: `.venv/bin/python -m pytest tests/test_a_docstring_exclusion_is_not_vacuous.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_docstring_exclusion_is_not_vacuous.py }
+- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/test_a_docstring_exclusion_is_not_vacuous.py
 - first_seen: 2026-09-16
 - History:
@@ -6169,10 +7309,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: **une interface entière rend « No data », et rien n'est en erreur.** Aucun journal ne se plaint, la source de données répond, les requêtes sont justes, les cibles sont vertes. Le lecteur conclut « il n'y a rien à montrer » — la lecture exactement inverse de la vérité.
 - root_cause: une moitié du système **référence** un identifiant fixe pendant que l'autre le **laisse générer**. Mesuré le 2026-09-16 : les neuf panneaux de `deploy/grafana/dashboards/streamlytics-ops.json` portent `datasource: {type: prometheus, uid: PROM}`, et `deploy/grafana/provisioning/datasources/prometheus.yml` ne déclarait aucun `uid` — Grafana en génère alors un aléatoire au premier démarrage. Les panneaux visaient une source inexistante. Parent de la classe [`config-path-dangling`](#config-path-dangling) : là c'était un chemin absent, ici c'est un identifiant qui existe sous un autre nom. Le résultat est le même — une référence que rien ne résout, et aucun outil pour le dire.
+- cause_evidence: read (deploy/grafana/dashboards/streamlytics-ops.json, rétro-portage mécanique 2026-09-16)
 - long_term_fix: **tout identifiant référencé quelque part est DÉCLARÉ à sa source, jamais généré.** Et le contrôle porte sur le CHEMIN, pas sur chaque moitié : pour chaque `uid` cité par un panneau, il existe un fichier de provisionnement qui le déclare. La question de relecture qui transporte : devant une constante qui sert de lien entre deux fichiers, demander **qui la pose** — si la réponse est « le logiciel, au démarrage », le lien est déjà cassé.
 - autofix: none
 - signature: `.venv/bin/python -m pytest tests/test_a_grafana_panel_points_at_a_real_datasource.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_grafana_panel_points_at_a_real_datasource.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: deploy/grafana/provisioning/datasources/prometheus.yml
 - first_seen: 2026-09-16
 - History:
@@ -6184,10 +7327,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un instrument rend une colonne d'échecs — « perdus », « timeouts », « erreurs » — et **on ne peut pas savoir ce qu'elle décrit**. Le chiffre a l'air d'un fait, il sert de signal de décision, et il n'est pas réfutable : on ne peut ni le confirmer ni l'infirmer sans refaire la mesure avec un autre outil.
 - root_cause: **un `except Exception` nu autour de plusieurs attentes successives**, plus un marqueur que le sujet ne possède pas en propre. Mesuré le 2026-09-16 sur `tools/loadtest_concurrency.py`, dont la colonne « reruns perdus » a servi de signal de décision à R114 : elle fusionnait *(a)* un clic jamais devenu actionnable — défaut CLIENT, *(b)* un rerun jamais démarré — transport, *(c)* un rerun jamais terminé — **la seule cause qui parle du serveur**. Et le marqueur guetté (`stStatusWidget`) est monté par Streamlit pour `stConnectionStatus` aussi : un websocket dégradé faisait compter « perdu » un rerun qui avait pu être servi. Le symptôme qui aurait dû alerter était l'absence de MONOTONIE — 9 → 33 → **24** → 98 : aucune saturation serveur ne produit cette inversion, et la vraie cause était la RAM du navigateur (175-217 Mo par onglet, 24 onglets ≈ 4,2 Go contre 4,0 disponibles).
+- cause_evidence: read (tools/loadtest_concurrency.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: **une issue d'échec par CAUSE, jamais une catégorie fourre-tout**, et chaque attente dans son propre `try`. Le marqueur doit être un attribut que le sujet possède en propre — ici `data-test-script-state` sur `[data-testid="stApp"]`, distinct de `data-test-connection-state` sur le même élément : les deux causes que l'ancien marqueur mélangeait sont **deux attributs différents**. La question de relecture : devant un compteur d'échecs, demander **combien de chemins distincts y arrivent** ; s'il y en a plus d'un, il en faut autant de compteurs.
 - autofix: none
 - signature: `.venv/bin/python -m pytest tests/test_a_measurement_says_why_it_failed.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_measurement_says_why_it_failed.py }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/loadtest_concurrency.py
 - first_seen: 2026-09-16
 - History:
@@ -6199,10 +7345,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un quantile publié **sous-estime** ce qu'il décrit, et toujours dans le sens rassurant. Plus le système se dégrade, plus le chiffre paraît bon — parce que les cas les pires sortent de l'échantillon au lieu d'y entrer.
 - root_cause: les échecs sont écartés de la liste avant le calcul, au lieu d'être comptés comme **censurés à droite**. Mesuré le 2026-09-16 : `tools/loadtest_concurrency.py` calculait son p50 sur les seuls reruns aboutis, et à 24 onglets **68 à 82 % des échantillons étaient censurés** — le chiffre publié décrivait le quart qui avait réussi. La dégradation réelle était donc pire que la courbe, exactement là où la courbe servait à décider. Le rapprochement avec [`a-measurement-that-cannot-say-why-it-failed`](#a-measurement-that-cannot-say-why-it-failed) est direct : on ne peut pas censurer honnêtement ce qu'on ne sait pas classer.
+- cause_evidence: read (tools/loadtest_concurrency.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: **publier le taux de censure à côté du quantile**, et au-delà d'un seuil (20 % ici) annoncer le résultat comme une **BORNE INFÉRIEURE**, jamais comme une mesure. Ne pas inventer de valeur pour les censurés — leur vraie durée est « au moins le délai d'attente », et l'écrire ainsi. La règle qui transporte : un quantile sans son taux de complétude n'est pas un chiffre, c'est une impression.
 - autofix: none
 - signature: `.venv/bin/python -m pytest tests/test_a_measurement_says_why_it_failed.py::test_the_censoring_rate_is_published -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_measurement_says_why_it_failed.py::test_the_censoring_rate_is_published }
+- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tools/loadtest_concurrency.py
 - first_seen: 2026-09-16
 - History:
@@ -6214,10 +7363,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: un RAPPORT entre deux grandeurs oriente des semaines de travail, et il est faux **dans le mauvais sens**. Les deux nombres sont justes, aucun calcul n'est erroné, et personne ne peut pointer l'erreur — parce qu'elle n'est pas dans les nombres mais dans le droit de les diviser.
 - root_cause: les deux mesures viennent d'INSTRUMENTS différents, et l'un a un plancher qu'on n'a pas retranché. Mesuré le 2026-09-16 : ce dépôt affirmait dans **dix fichiers** que la barre latérale pesait « un facteur 8 » de plus que le rendu d'une vue, à partir de `61 ms` (une vue, mesurée en Python) et `468-538 ms` (une page complète, mesurée **sous `AppTest`**). Or `tools/loadtest_dashboard.py` documente **vingt lignes au-dessus du second chiffre** le plancher de ce harnais, pris dans le même conteneur le même jour : **352 ms pour `st.write('hello')`**, deux lignes, sans app ni base ni plotly. Le coût réel de l'application valait ~116-186 ms. La mesure serveur a fini par montrer l'INVERSE : chrome 11-13 ms, vue 50 à 777 ms. Cousine de [`a-threshold-carried-across-instruments`](#a-threshold-carried-across-instruments) : là un seuil voyageait d'un instrument à l'autre, ici c'est un rapport qui enjambe les deux.
+- cause_evidence: read (tools/loadtest_dashboard.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: **un chiffre produit par un harnais ne circule jamais sans le plancher de ce harnais**, et un rapport entre deux mesures n'est licite que si elles viennent du même instrument — sinon on soustrait d'abord, explicitement, et on écrit la soustraction. La question de relecture, devant tout rapport : **« ces deux nombres ont-ils été pris avec le même appareil ? »** Si non, le rapport ne veut rien dire tant que les offsets ne sont pas nommés. Le garde empêche la re-dérivation : le nombre ne peut plus être cité sans son plancher.
 - autofix: none
 - signature: `.venv/bin/python -m pytest tests/test_a_figure_from_a_harness_carries_its_floor.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_figure_from_a_harness_carries_its_floor.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: docs/adr/ADR-026-observability-is-adopted-to-watch-the-triggers.md
 - first_seen: 2026-09-16
 - History:
@@ -6230,10 +7382,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: **rien ne plante**, et c'est ce qui coûte. Une page admin se met à consommer une connexion de plus par session, sans message qui relie la fuite au geste qui la cause. Le journal affiche « Connexion PostgreSQL perdue — reconnexion automatique », ce qui est faux : rien n'a été perdu, on l'avait fermée exprès.
 - root_cause: `@st.fragment` change **QUAND** une fonction s'exécute, pas ce qu'elle fait. Le corps décoré est rejoué SEUL, des minutes après que la vue est rentrée et que son `finally` a fermé la connexion. Une fonction qui prend `db` en argument est donc correcte au premier rendu et fausse au second. Mesuré le 2026-09-16 sur `airflow_kpi._section_insertion_test`, **le seul `@st.fragment` que le dépôt avait** : `PostgresHandler._ensure_connection()` voit `conn.closed` et **ré-emprunte au pool**, sans que personne ne rende. Une connexion par session admin, sur `maxconn=10`. Le commentaire du fichier disait « no outer try/finally here any more: it existed only to close a connection this function no longer owns » — il décrivait l'état d'AVANT le décorateur, et les deux changements sont incompatibles.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **une fonction décorée `@st.fragment` ne reçoit ni connexion ni curseur.** Elle reçoit des données déjà chargées ; si elle doit relire la base — parce que c'est précisément son filtre qui pilote la requête — elle ouvre et ferme la sienne, par un gestionnaire de contexte (`view_session()`, `project_db()`). Et le cliquet de connexions doit compter **par unité de rendu** : un fragment en est une, donc lui passer celle de la vue EST le défaut, et les compter ensemble pousse à corriger dans le mauvais sens. ⚠️ Deuxième limite de la même famille : **un fragment DESSINE, il ne RETOURNE pas** — rejoué seul, il rendrait une valeur à un appelant qui, lui, ne se rejoue pas.
 - autofix: none
 - signature: `.venv/bin/python -m pytest tests/test_a_fragment_never_captures_a_connection.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_fragment_never_captures_a_connection.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: src/dashboard/views/airflow_kpi.py
 - first_seen: 2026-09-16
 - History:
@@ -6245,10 +7400,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: une brique d'optimisation énumère précisément **les mauvaises cibles**. La liste est juste selon son propre critère, le travail est réel, et le gain est nul — parce que le critère n'était pas la grandeur qu'on voulait réduire.
 - root_cause: on ne sait pas mesurer ce qui coûte, alors on énumère ce qui se COMPTE. Mesuré le 2026-09-16 : R118 (« `st.fragment` sur les 11 vues à filtres ») avait choisi sa population par **nombre de widgets**, faute d'instrument. La première session mesurée a montré que les trois pages les plus chères — `meta_mapping` 777 ms, `soundcloud` 515 ms, `home` 316 ms — **n'ont presque aucun filtre**, et qu'un fragment ne borne que le travail refait quand un filtre bouge. Une seule des huit pages mesurées justifiait la brique. Le proxy n'était pas absurde, il était simplement décorrélé.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **une brique d'optimisation nomme la mesure qui a choisi sa population, ou dit qu'elle n'en a pas.** Une liste sans mesure est une hypothèse, et elle s'écrit comme telle — R118 disait « les 11 vues à filtres » comme un fait. Et quand l'instrument arrive, **la population se redérive** au lieu d'être exécutée par inertie : ici cinq vues sortent de la brique, non pas parce qu'elles sont bonnes, mais parce que leur coût est **inconnu** et qu'on ne paie pas un refactor sur une page dont on ignore si elle coûte quelque chose. C'est le motif d'ADR-007 — différer derrière un déclencheur observable — appliqué à notre propre travail.
 - autofix: none
 - signature: none
+- seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - guard: { type: doc, ref: .claude/dev-docs/roadmap/checklist.md }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: .claude/dev-docs/roadmap/checklist.md
 - first_seen: 2026-09-16
 - History:
