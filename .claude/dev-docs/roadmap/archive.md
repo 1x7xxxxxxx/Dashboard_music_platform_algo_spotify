@@ -5499,3 +5499,52 @@ SoundCloud, Apple.
   (`payout` 36,49 €, après TVA −14,67 et charges −6,90) — choix de définition, cohérent
   avec le brut distributeur. À trancher avec l'utilisateur, pas à « corriger » ;
 - iMusician : 217,90 (rollup mensuel) contre 217,8895 (détail) — un centime d'arrondi.
+
+
+## ⚡ R113 — L'invalidation de cache traverse les instances (livrée 2026-09-16)
+
+- [x] **R113 — l'invalidation de cache traverse les instances.**
+
+  Onze `@st.cache_data(ttl=600)` dont la purge (`kpi_helpers.py`) ne touche que le
+  processus appelant. À deux instances : un artiste déclenche une collecte sur A, voit
+  ses nouveaux chiffres, recharge, tombe sur B, et revoit les anciens **pendant dix
+  minutes**. C'est un ticket de support avant d'être un incident.
+
+  **Remède sans service supplémentaire** : un compteur d'ÉPOQUE par locataire en base,
+  incrémenté par les cinq sites qui appellent déjà `clear_kpi_caches()`, et **inclus
+  dans la clé de cache**. Une écriture bumpe l'époque, toutes les instances manquent
+  leur cache au rendu suivant.
+
+  **Mesuré par** : une collecte déclenchée sur `:8501`, puis une lecture sur `:8511`
+  qui rend le NOUVEAU chiffre. Prérequis de R114 — sans lui, la seconde réplique sert
+  des chiffres périmés.
+
+  **Livrée et déployée le 2026-09-16** (`aefde32`, migration 123 appliquée, les deux
+  conteneurs `healthy`, `cache_epoch` présent pour les quatre locataires actifs).
+
+  **Forme livrée** : `saas_artists.cache_epoch`, compteur par locataire, monotone,
+  incrémenté en une instruction. UNE couture — `view_session()` — le relit au seuil du
+  rendu et purge localement quand il a bougé. **Zéro site d'appel modifié.**
+
+  **Écarté après lecture du code** : faire entrer l'époque dans la CLÉ de chaque
+  fonction cachée aurait changé 10 signatures et ~40 sites d'appel pour un gain
+  identique ; greffer la lecture sur `plan_row` aurait couplé l'invalidation de cache à
+  un chemin de FACTURATION (et `plan_from_row` dépaquette exactement 4 colonnes, lues
+  aussi par les DAGs).
+
+  **Ce que la suite a trouvé, et que je n'avais pas vu** — c'est la partie utile :
+  ma première version ouvrait une **seconde connexion par rendu** (règle transverse #9),
+  attrapée par TROIS gardes indépendants le même jour (4 vues sur
+  `test_a_render_opens_one_connection`, 3 assertions de `test_view_session`).
+  `cache_epoch` devait aussi être déclarée « pas une quantité » sur une table de
+  dimension, et mes doublures, posées dans une CHAÎNE de sous-processus, ont été
+  refusées par le garde des doublures — à raison sur la forme : ces trois tests
+  n'avaient aucun besoin de sous-processus, ils sont en `monkeypatch` désormais.
+
+  **Mutations** : purge désactivée → rouge ; seconde connexion réintroduite → rouge ;
+  couture retirée de `view_session()` → rouge (sans ce dernier test, tout le fichier
+  serait vert sur un module que RIEN n'exécute).
+
+  **Classes** : `db-connection-per-show` et
+  `cache-not-invalidated-by-the-event-that-stales-it` reçoivent une ligne d'histoire ;
+  `a-count-taken-before-the-writer-ran` est neuve, livrée SANS signature.

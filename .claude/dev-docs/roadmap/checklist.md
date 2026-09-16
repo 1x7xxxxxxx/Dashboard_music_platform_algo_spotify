@@ -25,7 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R113 | L'invalidation de cache traverse les instances (époque par locataire) | P2 | une collecte sur :8501 change le chiffre lu sur :8511 |
 | R114 | Seconde réplique du dashboard + Caddy en affinité, et la même rampe rejouée | P3 | `make loadtest-concurrency LEVELS=1,2,4,8,12,16,24 REPS=6`, deux courbes |
 | R115 | Prometheus + Grafana, quatre métriques pour commencer | P3 | `curl -s localhost:9090/api/v1/query?query=…` rend une latence |
 | R116 | ADR-026 — répliques et Redis, tranché APRÈS les courbes | P4 | `ls docs/adr/ADR-026-*.md` |
@@ -159,22 +158,6 @@ Ces quatre tâches construisent la forme scalable **même si le seuil n'est pas 
 (R87 est close sur un pic de 12 sessions/minute contre un seuil de 20). C'est une
 décision assumée : découvrir par la mesure que ce n'était pas nécessaire vaut mieux que
 le supposer.
-
-- [ ] **R113 — l'invalidation de cache traverse les instances.**
-
-  Onze `@st.cache_data(ttl=600)` dont la purge (`kpi_helpers.py`) ne touche que le
-  processus appelant. À deux instances : un artiste déclenche une collecte sur A, voit
-  ses nouveaux chiffres, recharge, tombe sur B, et revoit les anciens **pendant dix
-  minutes**. C'est un ticket de support avant d'être un incident.
-
-  **Remède sans service supplémentaire** : un compteur d'ÉPOQUE par locataire en base,
-  incrémenté par les cinq sites qui appellent déjà `clear_kpi_caches()`, et **inclus
-  dans la clé de cache**. Une écriture bumpe l'époque, toutes les instances manquent
-  leur cache au rendu suivant.
-
-  **Mesuré par** : une collecte déclenchée sur `:8501`, puis une lecture sur `:8511`
-  qui rend le NOUVEAU chiffre. Prérequis de R114 — sans lui, la seconde réplique sert
-  des chiffres périmés.
 
 - [ ] **R114 — seconde réplique + Caddy en affinité, et la même rampe rejouée.**
 
@@ -310,13 +293,14 @@ travail quotidien existe déjà et n'enlève aucune couverture** :
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-16, cinq tâches ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-16, quatre tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R113,R114,R115,R116,R117 -->
+<!-- reprise: open=R114,R115,R116,R117 -->
 
-**Cinq tâches sont ouvertes — R113 à R117.** R113 à R116 sont les étapes 2 à 5 du
+**Quatre tâches sont ouvertes — R114 à R117.** R114 à R116 sont les étapes 3 à 5 du
 chantier d'architecture scalable ouvert le 2026-09-16 ; R117 est un chantier d'outillage
-indépendant, à faire APRÈS elles.
+indépendant, à faire APRÈS elles. **R113 est livrée et déployée** (`aefde32`) — détail
+dans `archive.md`.
 
 ⚠️ **Mode de travail convenu le 2026-09-16 : une étape à la fois, validée par le
 propriétaire avant la suivante.** Ce n'est pas une précaution de style — R114 modifie le
