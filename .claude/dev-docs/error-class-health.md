@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**365 classes.** Fenêtre observée : `2026-05-15` → `2026-09-16` (196 révisions du catalogue rejouées).
+**365 classes.** Fenêtre observée : `2026-05-15` → `2026-09-16` (197 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
@@ -29,7 +29,7 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 |---|---|
 | `automatic_guard` | 347 |
 | `classes` | 365 |
-| `ever_recurred_observed` | 45 |
+| `ever_recurred_observed` | 46 |
 | `prose_only` | 18 |
 | `with_signature` | 354 |
 
@@ -60,18 +60,18 @@ La famille DÉCLARÉE dans `guard_scope` diffère de celle que `error_class_fami
 
 ## Récidive observée
 
-**55 évènements** sur 7628 classe-jours d'exposition — **0.2192** par classe-mois (IC 95 % : 0.1651 – 0.2853)
+**56 évènements** sur 7628 classe-jours d'exposition — **0.2232** par classe-mois (IC 95 % : 0.1686 – 0.2898)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 47 | 0.1934 | 0.1421 – 0.2572 | **séparent** |
+| by_guard · automatique | 48 | 0.1976 | 0.1457 – 0.2619 | **séparent** |
 | by_guard · prose | 8 | 1.005 | 0.4327 – 1.9803 | **séparent** |
-| by_seen_red · daté | 0 | 0.0 | 0.0 – 0.7853 | insuffisant pour conclure (n=55) |
-| by_seen_red · jamais-ou-inconnu | 55 | 0.2234 | 0.1682 – 0.2907 | insuffisant pour conclure (n=55) |
+| by_seen_red · daté | 0 | 0.0 | 0.0 – 0.7853 | insuffisant pour conclure (n=56) |
+| by_seen_red · jamais-ou-inconnu | 56 | 0.2274 | 0.1718 – 0.2953 | insuffisant pour conclure (n=56) |
 | by_scope · ne-couvre-pas renseigné | 16 | 0.9947 | 0.5682 – 1.6154 | **séparent** |
-| by_scope · non renseigné | 39 | 0.1661 | 0.1181 – 0.227 | **séparent** |
+| by_scope · non renseigné | 40 | 0.1703 | 0.1217 – 0.2319 | **séparent** |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
