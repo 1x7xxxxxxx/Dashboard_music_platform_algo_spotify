@@ -112,9 +112,12 @@ _FLOORS = {
     # relever pour sa propre erreur serait la leçon inverse. Elle a une surface réelle,
     # les fichiers versionnés, et son garde y a trouvé un faux positif dès la première
     # exécution.
-    "classes": 369,
-    "with_signature": 358,
-    "automatic_guard": 351,
+    # +1 : `a-memo-field-written-and-never-consulted`, trouvee en cherchant AUTRE chose —
+    # R121 annoncait `platform_chart` comme meilleur candidat ; le profil dit 1,4 ms
+    # pour lui et 12,5 ms pour `config_loader.load()`.
+    "classes": 370,
+    "with_signature": 359,
+    "automatic_guard": 352,
 }
 # Le plancher qui n'a pas d'équivalent dans `gold-coverage`, et le plus important ici :
 # un taux s'améliore aussi en RÉTRÉCISSANT la fenêtre d'observation.

@@ -16,3 +16,5 @@
 {"at": "2026-09-16T23:11:50+00:00", "head": "50bfb34", "kind": "done", "task": "R118", "what": "OOM : -n auto → calcul memoire, -n 4 ; garde CI/local separe groupement et debit"}
 {"at": "2026-09-16T23:12:16+00:00", "head": "3660b55", "kind": "start", "task": "R118", "what": "mesurer les 5 vues restantes : cout ET nombre de filtres"}
 {"at": "2026-09-16T23:28:51+00:00", "head": "3660b55", "kind": "done", "task": "R118", "what": "5 vues restantes mesurees ; passees en condition d'attente calculable"}
+{"at": "2026-09-16T23:32:34+00:00", "head": "7dd9b89", "kind": "start", "task": "R121", "what": "platform_chart : GROUP BY date_trunc en boucles Python"}
+{"at": "2026-09-16T23:48:09+00:00", "head": "7dd9b89", "kind": "done", "task": "R121", "what": "config_loader memoise : -25% sur l'accueil ; platform_chart refute a 1,4 ms"}

@@ -292,12 +292,35 @@ le supposer.
   `views/db_health.py:129-145` (`concat` en boucle + `pivot_table`),
   `views/hypeddit.py:181`, `views/soundcloud.py:183`, `views/meta_ads_overview.py:696`.
 
-  **+ `utils/platform_chart.py:225-285`**, transféré de R120 le 2026-09-17 : il refait un
-  `GROUP BY date_trunc` en boucles Python, sur la figure de l'ACCUEIL. C'est le site le
-  mieux placé de la liste — `home` est mesurée à **315,9 ms côté serveur** et ses
-  expanders n'en portent que **0,8 ms**, donc son coût est ailleurs, et c'est le
-  candidat. Il était dans R120 par erreur de rangement : ce n'est pas un problème de
-  rendu paresseux, c'est une agrégation Python.
+  ⚠️⚠️ **`utils/platform_chart.py:225-285` a été transféré de R120 le 2026-09-17 en le
+  qualifiant de « site le mieux placé de la liste », et RÉFUTÉ le même jour.** Profil pris
+  DANS le thread du script — `AppTest` exécute la page dans un autre thread, donc un
+  `cProfile` posé autour ne voit rien de l'application, ce qui avait déjà faussé une
+  lecture plus tôt dans la nuit :
+
+  | poste du `show()` de l'accueil | coût |
+  |---|---|
+  | `render_platform_chart` | 38,7 ms |
+  | `config_loader.load()` | **12,5 ms** |
+  | `_aggregate` (le poste annoncé) | **1,4 ms** |
+
+  **Le poste que la roadmap nommait était à 2 % de celui qu'elle ignorait.** Et
+  `_aggregate` n'est pas un `GROUP BY` déguisé : il porte un plancher de couverture — un
+  seau sous `_BUCKET_FLOOR` est rendu INCONNU plutôt que faux, ce qui concernait **38 %
+  des semaines YouTube** — et une exception par plateforme (`STEP_ONLY`, Apple ne produit
+  pas des jours à sommer). Le passer en SQL demanderait de réécrire ces deux règles, pour
+  1,4 ms.
+
+  **Ce qui a été livré à la place** : `config_loader.load()` était un accesseur qui
+  reparsait 2 424 octets de YAML **à chaque appel** — 4,92 ms sur `/mnt/c`, où chaque
+  `open()` est un message 9P. Mémoïsé (le champ `self._config` existait déjà, écrit et
+  jamais consulté). Profils alternés, séries **disjointes** : 64·66·69 ms contre
+  82·88·94 — **−25 % du `show()` de l'accueil**. Classe
+  `a-memo-field-written-and-never-consulted`, avec son garde.
+
+  **Les sept sites listés ci-dessus n'ont PAS été mesurés** — ils restent des candidats,
+  pas des faits. La leçon de `platform_chart` s'applique à eux : profiler dans le thread
+  du script avant d'en réécrire un seul.
 
   **Garde existant à réutiliser** : `make gold-coverage` et son cliquet.
 

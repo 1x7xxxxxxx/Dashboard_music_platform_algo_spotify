@@ -132,6 +132,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [a-runbook-that-names-a-command-nobody-can-run](#a-runbook-that-names-a-command-nobody-can-run) | P3 | deterministic | guarded | none |
 | [a-shared-database-read-while-another-test-writes-it](#a-shared-database-read-while-another-test-writes-it) | P2 | deterministic | guarded | none |
 | [a-fallback-that-runs-when-the-first-branch-succeeded](#a-fallback-that-runs-when-the-first-branch-succeeded) | P3 | deterministic | guarded | none |
+| [a-memo-field-written-and-never-consulted](#a-memo-field-written-and-never-consulted) | P3 | deterministic | guarded | none |
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
 | [a-document-that-cannot-be-current-in-its-own-commit](#a-document-that-cannot-be-current-in-its-own-commit) | P2 | deterministic | guarded | none |
 | [a-population-that-counts-its-own-headers](#a-population-that-counts-its-own-headers) | P3 | deterministic | guarded | none |
@@ -580,6 +581,26 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-16: deux instances le même jour, en sens opposés, ce qui est la preuve que le défaut n'est pas « j'ai mal tapé » mais la construction elle-même. La seconde a produit un commit dont le message annonçait R115 et le contenu livrait l'outillage de séance longue. Non corrigé par réécriture : un `--amend` suivi d'un `push --force` sur `main` détruirait la trace de ce qui s'est passé pour un gain cosmétique. Un commit vide portant le vrai message suit le fautif, et le protocole de séance longue interdit explicitement le `push --force` sans humain — s'en exempter le jour où ça m'arrange serait la leçon inverse.
   - 2026-09-16: le garde a trouve un faux positif **dans sa premiere execution** — `Makefile:546`, `pip install --user pre-commit >/dev/null || pip install pre-commit`. `\b` traite le tiret comme une frontiere de mot, donc **`pre-commit` contient `commit`**. Il aurait fait renommer une ligne parfaitement saine, et c'est ainsi qu'un garde perd sa credibilite : un faux positif coute plus cher qu'un trou, parce qu'il apprend que son rouge est du bruit. Motif resserre sur `git commit` / `commit -m|-C|-F`, avec une frontiere qui compte le tiret comme un caractere de mot ; la ligne fautive est gardee comme cas NEGATIF dans le test.
+
+## a-memo-field-written-and-never-consulted
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un attribut de mémoïsation existe, il est rempli à chaque appel, et le travail est refait quand même. Aucun signal : **un cache sans succès se comporte exactement comme pas de cache**. Le code se relit comme s'il gardait quelque chose, et c'est précisément pour ça que personne ne le rouvre.
+- root_cause: la méthode qui REND la valeur est aussi celle qui la calcule, et elle ne teste jamais si le mémo est déjà rempli avant de refaire le travail. `src/utils/config_loader.py:22` — `ConfigLoader.load()` écrivait `self._config` puis le retournait, sans aucun court-circuit ; seuls les trois `get_*_config()` consultaient le champ. Mesuré le 2026-09-17 : **4,92 ms par appel** (médiane de 30, min 4,42, max 8,34) pour reparser **2 424 octets** de YAML. Le fichier est minuscule — le coût est l'OUVERTURE : ce dépôt vit sur `/mnt/c`, monté par `drvfs`, où chaque `open()` est un message 9P à travers la frontière VM/hôte. C'est le même fait que R117 mesure à ×69 sur l'écriture de petits fichiers.
+- cause_evidence: measured (profils alternés du `show()` de l'accueil, séries DISJOINTES — avec mémo 64·66·69 ms, sans 82·88·94 ms, soit **−25 %** ; et 4,92 ms → 0,2 µs sur l'appel isolé)
+- signature: `python3 -m pytest tests/test_a_memo_is_read_by_the_method_that_fills_it.py -q`
+- seen_red: 2026-09-17 sur `src/utils/config_loader.py` (le court-circuit `if self._config is not None` retiré) → exit 1 en nommant `ConfigLoader.load` ; 0 après remise en état
+- long_term_fix: `load(*, force: bool = False)` rend le mémo quand il est rempli. `force=True` reste la porte pour qui aurait besoin de relire — personne n'édite `config.yaml` sous un processus vivant, les conteneurs n'en embarquent même pas, mais un appelant légitime ne doit pas avoir à toucher un attribut privé.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_memo_is_read_by_the_method_that_fills_it.py }
+- guard_scope: un-coût-payé-sans-contrepartie — rendre une valeur mémoïsée en la recalculant à chaque appel ; couvre: les classes de `src/`, par la question structurelle « cette méthode écrit `self._x`, le RETOURNE, et ne teste jamais s'il est déjà rempli » ; ne couvre pas: (1) les mémos **hors classe** — variable de module, `functools.lru_cache` mal posé, `st.cache_data` sur une clé volatile (celui-là a sa propre classe, `a-cache-key-that-can-never-be-hit-twice`) ; (2) un court-circuit PRÉSENT mais faux — tester `if self._x:` au lieu de `is not None` rend le garde vert alors qu'un dict vide relance le calcul à chaque fois ; (3) `airflow/`, `tools/` et `tests/`, hors du balayage ; (4) le coût lui-même : le garde exige la forme, il ne mesure jamais si le recalcul est cher — sur un poste ext4 le même défaut coûterait une fraction de ces 4,92 ms.
+- rex_ref: src/utils/config_loader.py
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: **le prédicat du garde a été écrit TROIS fois, et les deux premiers ne voyaient pas ce défaut-ci.** Le premier demandait « le remplisseur lit-il le mémo ? » — or `load()` finissait par `return self._config`, donc il le lit, et le cas passait vert. Le second, plus large, a dénoncé **cinq sites sains** de `src/collectors/` : `_get_access_token` ÉCRIT le jeton et `_ensure_token` le LIT pour décider d'appeler, ce qui est la bonne division du travail — un rafraîchisseur n'est pas un accesseur. La signature exacte n'est ni « écrit », ni « ne lit pas » : c'est **rend le mémo sans jamais tester s'il est déjà rempli**.
+  - 2026-09-17: le test porte donc deux non-vacuités qui épinglent les deux erreurs — la forme d'AVANT le correctif doit être vue rouge, et la forme rafraîchisseur/accesseur doit rester verte. Sans elles, une quatrième reformulation redeviendrait aveugle sans que rien ne le dise. **Un garde qui ne rougit pas sur son propre cas ne garde rien.**
+  - 2026-09-17: trouvé en cherchant autre chose. R121 annonçait `platform_chart` comme « le site le mieux placé » pour passer une agrégation Python en SQL ; le profil pris DANS le thread du script dit que `_aggregate` coûte **1,4 ms** sur un `show()` de 80 ms, et que `config_loader.load()` en pesait **12,5**. Le poste que la roadmap nommait était à 2 % de celui qu'elle ignorait.
 
 ## exempt-row-hides-others-conflict
 - status: guarded

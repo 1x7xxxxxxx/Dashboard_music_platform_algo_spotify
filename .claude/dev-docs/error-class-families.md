@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**369 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**370 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -15,7 +15,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 13 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 19 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
-| [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 22 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
+| [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 23 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 27 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 20 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 69 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
@@ -188,10 +188,11 @@ Règle de rattachement : `assumes-a-shell|assumes-visibility|by-direction-not-by
 
 **Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ?**
 
-Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-after-instantiation|per-worker|namespaced-by-another|connection|closes-a-connection|only-inside-a-session|loses-the-race|first-row|session|cache|state-file|leak` sur l'identifiant et le symptôme. 22 classe(s).
+Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-after-instantiation|per-worker|namespaced-by-another|connection|closes-a-connection|only-inside-a-session|loses-the-race|first-row|session|cache|state-file|leak` sur l'identifiant et le symptôme. 23 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`a-memo-field-written-and-never-consulted`](error-classes.md#a-memo-field-written-and-never-consulted) | un attribut de mémoïsation existe, il est rempli à chaque appel, et le travail est refait quand même. Aucun signal : **un cache sans succès se comport |
 | [`db-connection-per-show`](error-classes.md#db-connection-per-show) | a Streamlit view opens >1 DB connection per `show()` instead of one opened-then-closed-in-finally (CLAUDE.md rule #9). |
 | [`config-not-env`](error-classes.md#config-not-env) | a bootstrap/runtime path subscripts `config['…']` directly (config.yaml-only) instead of reading env first → `KeyError` in prod where there is no `con |
 | [`widget-key-written-after-instantiation`](error-classes.md#widget-key-written-after-instantiation) | a helper called from a VIEW writes `st.session_state[<key>]` for a key that is a sidebar widget's, and Streamlit raises `StreamlitAPIException: st.ses |
@@ -560,6 +561,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=369 families=17 orphans=3 -->
+<!-- error-class-families: total=370 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=b648e2a71c51a42621a7510f8e89fc70c5284e8bc142f3b51b0698dd1f67b355 -->
+<!-- error-class-families: sha256=0c307cab6c316f7ec5fe0554c1cb378bc1026be58dd27518ed77948593738bc0 -->

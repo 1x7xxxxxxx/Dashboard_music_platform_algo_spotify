@@ -1259,6 +1259,29 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "a-memo-field-written-and-never-consulted": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-17",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_memo_is_read_by_the_method_that_fills_it.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
+      "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
+      "guard_scope_has_not_covered": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P3",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-merged-branch-outlives-its-pull-request": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-13",
@@ -8542,11 +8565,11 @@
       "seen_red_unknown": 331
     },
     "population": {
-      "automatic_guard": 351,
-      "classes": 369,
+      "automatic_guard": 352,
+      "classes": 370,
       "ever_recurred_observed": 47,
       "prose_only": 18,
-      "with_signature": 358
+      "with_signature": 359
     },
     "recurrence": {
       "window_start": "2026-05-15",
