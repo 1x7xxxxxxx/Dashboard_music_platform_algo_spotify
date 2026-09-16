@@ -60,6 +60,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
+| [a-count-taken-before-the-writer-ran](#a-count-taken-before-the-writer-ran) | P2 | manual | reported | none |
 | [a-limiter-consumed-in-two-steps](#a-limiter-consumed-in-two-steps) | P1 | deterministic | guarded | none |
 | [a-gate-that-counts-instead-of-comparing-sets](#a-gate-that-counts-instead-of-comparing-sets) | P2 | deterministic | guarded | none |
 | [a-repair-that-reverts-what-a-successor-widened](#a-repair-that-reverts-what-a-successor-widened) | P1 | manual | guarded | none |
@@ -532,6 +533,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-05-15: catalogued. Heuristic — a view legitimately may call the helper twice in branches; manual triage.
   - 2026-05-15: structural guard added — `view_session()` context manager (`src/dashboard/utils/__init__.py`) opens exactly 1 conn + auto-closes; CLAUDE.md #9 now mandates it for new views. Migrated views (instagram, soundcloud) can't regress. Existing un-migrated views keep the legacy manual guard (correct, not the bug) — class stays `open` until coverage is broad.
   - 2026-09-04: la signature était `grep -c "get_db_connection("` — **le même compteur textuel** que `tests/test_view_connection_budget.py`, dont le docstring documente qu'il a été pris en défaut sur ses propres commentaires le 2026-08-22. Le second site n'avait jamais été corrigé, et il tourne dans `audit_runner`/`make audit`, hors de portée du cliquet des tests. Remplacée par `audit_python_signatures.py --class db-connection-per-show` (AST). Mutation : deux `get_db_connection()` réels dans `hypeddit.py` → détecté.
+  - 2026-09-16: instance NEUVE, et elle n'est pas venue d'une vue. En posant l'invalidation de cache inter-instances (R113), la lecture d'époque appelait `get_db_connection()` **depuis `view_session()` lui-même** — donc une seconde connexion sur CHAQUE rendu de CHAQUE vue, la forme la plus large possible de cette classe. Trois gardes indépendants l'ont nommée le même jour : quatre vues sur `test_a_render_opens_one_connection.py`, trois assertions de `test_view_session.py` (`close` appelé 2 fois au lieu d'1). La leçon à ajouter : **la couture du rendu est le pire endroit où ouvrir une connexion**, et c'est aussi celui où on n'y pense pas, parce qu'on croit écrire un utilitaire. Correctif : la fonction REÇOIT la connexion déjà ouverte, préfixée `_db` pour sortir du hachage de `st.cache_data`. Mutation : seconde connexion réintroduite → rouge sur `[instagram]` ; retirée → vert.
 
 ## naive-datetime-now
 - status: open
@@ -3035,6 +3037,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-30: le cache a été introduit pour corriger une régression de performance, et a immédiatement créé un défaut de la MÊME FAMILLE que celui qu'il servait — `home` affichant 12 DAGs sur 16 comme « sans run ». Une page rapide qui affirme quelque chose de faux reste une page qui ment.
   - 2026-08-30: 384 des 392 runs quotidiens appartiennent aux 4 watchers CSV, qu'aucun artiste ne regarde. Calibrer un TTL sur la fréquence BRUTE des changements aurait donné une réponse absurde ; ce qui compte est la fréquence des changements que le lecteur attend.
+  - 2026-09-16: la classe avait une SECONDE moitié que personne n'avait écrite — l'événement invalide bien le cache, mais **seulement celui de son propre processus**. `clear_kpi_caches()` purge onze `@st.cache_data(ttl=600)` dans l'interpréteur qui l'appelle. Tant qu'il y a une instance, la purge EST immédiate ; à deux instances, un artiste déclenche une collecte sur A, recharge, tombe sur B et revoit les anciens chiffres pendant dix minutes — sans qu'une ligne de cache ait changé. Même forme que les limiteurs de l'étape 1 : un état de processus dont l'exactitude reposait sur le fait qu'il n'y avait qu'un processus. Correctif R113 : `saas_artists.cache_epoch` (migration 123), relu au seuil du rendu, purge locale quand il a bougé — 600 s d'écart ramenés à 30 s. Garde : `tests/test_a_write_on_one_instance_invalidates_the_other.py`, dont le dernier test vérifie que le rendu ATTEINT vraiment la couture.
 
 ## verdict-exists-but-not-when-it-is-needed
 - status: guarded
@@ -5954,3 +5957,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: `kind: manual` **et sans signature**, à dessein. Le détecteur statique évident — une migration qui recrée une vue qu'une migration ultérieure recrée aussi, hors bloc `DO` — a été écrit et MESURÉ : il rend 5 sites (056, 097, 102, 103, 104) dont aucun n'est un défaut, parce qu'un `CREATE OR REPLACE` antérieur n'échoue QUE si le successeur change l'ensemble des colonnes, ce que le texte ne dit pas. Une signature bruyante apprend que le rouge est du bruit, et cette leçon se propage aux autres classes ; on livre donc la classe sans signature plutôt qu'avec celle-là. Le fait est vérifié empiriquement par le registre : les 5 sites y figurent, donc ils se rejouent sans erreur.
+
+## a-count-taken-before-the-writer-ran
+- status: reported
+- severity: P2
+- kind: manual
+- symptom: une mesure rend zéro, on en conclut qu'il n'y a rien à faire, et le travail correspondant n'est pas fait. Rien n'échoue — le chiffre était juste **à l'instant où il a été pris**, et faux dès la minute suivante.
+- root_cause: la mesure a été prise AVANT que l'écrivain n'ait tourné. Mesuré le 2026-09-16, deux fois dans la même séance : (1) « la suite écrit-elle dans `rate_limit_hits` ? » — compté **en cours de suite**, réponse 0, conclusion « pas de rayon de souffle, rien à faire ». `tests/test_api.py` n'avait simplement pas encore tourné ; il consomme dix `POST /auth/token` sur un budget de dix par cinq minutes, et le lancement suivant tombait en `assert 429 == 200`. (2) « quel est le gain d'ext4 ? » — chronométré sur un arbre où la copie ext4 collectait 11 erreurs de plus, donc faisait MOINS de travail : le rapport annoncé comparait deux populations.
+- long_term_fix: **une mesure déclare sa population et l'instant où elle a été prise, et une mesure d'effet se prend APRÈS le processus complet qui la produit.** Concrètement, trois questions avant d'annoncer un chiffre : qu'est-ce qui l'écrit ? est-ce que ça a déjà tourné ? les deux côtés comparés ont-ils fait le même travail ? La forme qui ne trompe pas est la mesure de FIN de session (le précédent du dépôt est `_no_synthetic_rows_left_behind`, en portée session et non fonction, pour la même raison).
+- autofix: none
+- signature: none
+- guard: { type: pytest, ref: tests/conftest.py::_rate_limit_budget_starts_full (le correctif de l'instance 1) }
+- rex_ref: tests/conftest.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: `kind: manual` et **sans signature**, à dessein. Aucune commande ne peut distinguer « ce compteur vaut zéro parce qu'il n'y a rien » de « il vaut zéro parce que l'écrivain n'a pas encore tourné » — c'est l'ORDRE de deux évènements, pas un état du dépôt. Une signature inventée ici serait une fausse garantie, et la règle du catalogue est de livrer la classe sans plutôt qu'avec une signature jamais vue rouge. Ce qui a réellement fermé l'instance 1 est une frontière dans `conftest.py`, mutée : 12 lignes pré-insérées, frontière retirée → 6 rouges ; remise → 27 verts.

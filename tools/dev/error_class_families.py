@@ -91,7 +91,14 @@ FAMILIES: list[tuple[str, str, str]] = [
      # `outranks-the-measurement` et `renders-nothing` : un groupe VIDE qui
      # devance la mesure dans un classement décroissant est littéralement les
      # deux à la fois — la surface affiche « — » alors que le chiffre existe.
-     r"named-like-a-final-one|imput|estimat|wins-a-desc-ranking"),
+     # `taken-before-the-writer-ran`, ajouté le 2026-09-16. La famille demandait
+     # « ce chiffre a-t-il été MESURÉ ? » et supposait que la réponse oui suffit.
+     # Elle ne suffit pas : un chiffre peut être mesuré, exact à la seconde où il
+     # est pris, et faux comme réponse à la question posée — parce qu'il a été pris
+     # AVANT l'évènement qu'il prétend décrire. « La suite écrit-elle dans cette
+     # table ? → 0 » était une vraie mesure, et une fausse réponse.
+     r"named-like-a-final-one|imput|estimat|wins-a-desc-ranking|"
+     r"taken-before-the-writer-ran"),
 
     ("le-message-parle-au-mauvais-lecteur",
      "Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que "

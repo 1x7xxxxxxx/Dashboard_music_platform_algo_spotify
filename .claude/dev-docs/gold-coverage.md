@@ -484,9 +484,9 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 ## Les classes d'erreur
 
-**345 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
+**346 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
 
-**fixed** : 10· **guarded** : 317· **open** : 4· **reported** : 14
+**fixed** : 10· **guarded** : 317· **open** : 4· **reported** : 15
 
 **0 classe(s) nomment un fichier de garde qui n'existe plus** et **11** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
@@ -604,7 +604,7 @@ Le second tableau liste les **tables brutes encore lues hors des portes**, alors
 | `meta_insights_performance` | `v_meta_campaign_daily` | 1 | 1 | 0 | dashboard/views/meta_mapping/_campaigns.py:190 |
 | `meta_insights_performance_day` | `v_meta_campaign_daily` | 6 | 5 | 0 | collectors/_meta_insight_fetch.py:59 · dashboard/views/imusician.py:36 · dashboard/views/imusician.py:45 · dashboard/views/meta_x_spotify.py:57 · dashboard/views/meta_x_spotify.py:80 |
 | `s4a_song_timeline` | `v_s4a_song_daily` | 19 | 4 | 0 | api/routers/streams.py:87 · dashboard/utils/pdf_exporter/_report.py:75 · dashboard/utils/setup_completion.py:281 · utils/freshness_monitor.py:175 |
-| `saas_artists` | `v_spotify_followers_daily` | 52 | 6 | 0 | dashboard/utils/live_pulse.py:113 · dashboard/utils/live_pulse.py:68 · dashboard/views/admin.py:501 · dashboard/views/meta_mapping/_campaigns.py:190 · dashboard/views/referral_admin.py:35 · dashboard/views/referral_admin.py:62 |
+| `saas_artists` | `v_spotify_followers_daily` | 53 | 6 | 0 | dashboard/utils/live_pulse.py:113 · dashboard/utils/live_pulse.py:68 · dashboard/views/admin.py:501 · dashboard/views/meta_mapping/_campaigns.py:190 · dashboard/views/referral_admin.py:35 · dashboard/views/referral_admin.py:62 |
 | `sacem_statement` | `v_sacem_monthly` | 1 | — | 0 | dashboard/views/sacem.py:32 |
 | `soundcloud_tracks_daily` | `v_soundcloud_track_latest` | 6 | 1 | 0 | dashboard/views/soundcloud.py:38 |
 | `track_platform_link` | `v_s4a_release_reach` | 6 | 2 | 0 | dashboard/utils/period_side_metrics.py:84 · dashboard/utils/setup_completion.py:281 |
@@ -659,9 +659,9 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-gold-objects: total=24 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=19 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=345 guard_missing=0 guard_unnamed=11 -->
+<!-- gold-coverage-error-classes: total=346 guard_missing=0 guard_unnamed=11 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=c4ce976a799eb8e7d3ef1382f6e73577993cbad0848d2b6a5fc7a6eb2de9e55e -->
+<!-- gold-coverage: sha256=85d455f6fc7ba650c407dc60ef0c71503f46904b325a2a268237ae8775d2505b -->
