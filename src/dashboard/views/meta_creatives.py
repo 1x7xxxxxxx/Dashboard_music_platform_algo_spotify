@@ -243,6 +243,23 @@ def _render_bar_chart(df: pd.DataFrame) -> None:
     st.bar_chart(chart_df, color="#ff6b35")
 
 
+@st.fragment
+def _tab_creative_timeline(selected_campaign: str, acct: str = "", acct_params: tuple = ()) -> None:
+    """La chronologie d'une créative — rejoué SEUL quand son sélecteur change.
+
+    @st.fragment (R118, 2026-09-16). Bouger le sélecteur rejouait tout le script : les
+    SIX onglets, dont `st.tabs` exécute tous les corps, plus la barre latérale.
+
+    ⚠️ Il rouvre une session avec `view_session()`, et ce n'est pas un style : son
+    sélecteur pilote une REQUÊTE, donc il doit relire la base — alors que la session de
+    `show()` est refermée dès la fin du rendu complet. `view_session()` ferme par
+    construction, ce qui est la seule forme acceptée par
+    `tests/test_a_fragment_never_captures_a_connection.py` pour un fragment qui ouvre.
+    """
+    with view_session() as (db, artist_id):
+        _render_creative_timeline(db, artist_id, selected_campaign, acct, acct_params)
+
+
 def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
                               acct: str = "", acct_params: tuple = ()) -> None:
     """Per-creative multi-metric timeline (one Y-axis per metric, legend toggle).
@@ -434,8 +451,21 @@ def _render_scatter(df: pd.DataFrame) -> None:
                      "Les créatives sans résultat (CPR absent) ne sont pas tracées."))
 
 
+@st.fragment
 def _render_efficiency(df: pd.DataFrame) -> None:
-    """#4 — CTR / CPM / CPC per creative (top 15 by spend)."""
+    """Le comparateur d'indicateurs — rejoué SEUL quand on change de métrique.
+
+    @st.fragment (R118, 2026-09-16) : bouger ce filtre ne rejoue QUE ce corps. Avant, il
+    rejouait tout le script — les SIX onglets, dont `st.tabs` exécute tous les corps, plus
+    la barre latérale. La mesure serveur du 2026-09-16 a montré que c'est la VUE qui pèse
+    (11-13 ms de chrome contre 50 à 777 ms de vue), donc c'est bien ici que le levier agit.
+
+    ⚠️ Cette fonction ne reçoit qu'un **DataFrame**, jamais la connexion : `show()` ferme
+    la sienne dès la fin du rendu complet, et un fragment se rejoue après. Garde :
+    `tests/test_a_fragment_never_captures_a_connection.py`.
+
+    (Docstring d'origine : #4 — CTR / CPM / CPC per creative (top 15 by spend).)
+    """
     with secondary_analyses(t("meta_creatives.efficiency_expander",
                               "🔬 Efficacité par créative — détail")):
         d = df.copy()
@@ -453,8 +483,21 @@ def _render_efficiency(df: pd.DataFrame) -> None:
         st.plotly_chart(fig, width="stretch")
 
 
+@st.fragment
 def _render_funnel(df: pd.DataFrame) -> None:
-    """#3 — Impressions → Clics → Résultats funnel for one creative."""
+    """L'entonnoir d'une créative — rejoué SEUL quand on en choisit une autre.
+
+    @st.fragment (R118, 2026-09-16) : bouger ce filtre ne rejoue QUE ce corps. Avant, il
+    rejouait tout le script — les SIX onglets, dont `st.tabs` exécute tous les corps, plus
+    la barre latérale. La mesure serveur du 2026-09-16 a montré que c'est la VUE qui pèse
+    (11-13 ms de chrome contre 50 à 777 ms de vue), donc c'est bien ici que le levier agit.
+
+    ⚠️ Cette fonction ne reçoit qu'un **DataFrame**, jamais la connexion : `show()` ferme
+    la sienne dès la fin du rendu complet, et un fragment se rejoue après. Garde :
+    `tests/test_a_fragment_never_captures_a_connection.py`.
+
+    (Docstring d'origine : #3 — Impressions → Clics → Résultats funnel for one creative.)
+    """
     names = (df.dropna(subset=['creative_name'])
                .sort_values('creative_created', ascending=False, na_position='last')
                ['creative_name'].drop_duplicates().tolist())
@@ -474,6 +517,23 @@ def _render_funnel(df: pd.DataFrame) -> None:
     ))
     fig.update_layout(height=400)
     st.plotly_chart(fig, width="stretch")
+
+
+@st.fragment
+def _tab_fatigue(acct: str = "", acct_params: tuple = ()) -> None:
+    """Le détecteur de fatigue publicitaire — rejoué SEUL quand son sélecteur change.
+
+    @st.fragment (R118, 2026-09-16). Bouger le sélecteur rejouait tout le script : les
+    SIX onglets, dont `st.tabs` exécute tous les corps, plus la barre latérale.
+
+    ⚠️ Il rouvre une session avec `view_session()`, et ce n'est pas un style : son
+    sélecteur pilote une REQUÊTE, donc il doit relire la base — alors que la session de
+    `show()` est refermée dès la fin du rendu complet. `view_session()` ferme par
+    construction, ce qui est la seule forme acceptée par
+    `tests/test_a_fragment_never_captures_a_connection.py` pour un fragment qui ouvre.
+    """
+    with view_session() as (db, artist_id):
+        _render_fatigue(db, artist_id, acct, acct_params)
 
 
 def _render_fatigue(db, artist_id: int, acct: str = "",
@@ -663,11 +723,10 @@ def show() -> None:
             _render_funnel(df)
 
         with t_evo:
-            _render_creative_timeline(db, artist_id, selected_campaign,
-                                      _acct_ma, _acct_params)
+            _tab_creative_timeline(selected_campaign, _acct_ma, _acct_params)
 
         with t_fatigue:
-            _render_fatigue(db, artist_id, _acct_ma, _acct_params)
+            _tab_fatigue(_acct_ma, _acct_params)
 
         with t_act:
             ts_all = db.fetch_df(_QUERY_TS_ALL.format(acct=_acct_ma),
