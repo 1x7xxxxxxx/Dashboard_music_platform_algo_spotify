@@ -2572,11 +2572,11 @@ def send_consolidated_alert(**context):
     logger.info(f"Consolidated alert delivered: {subject}")
 
 
-def purge_rate_limit_hits(**context):
-    """Entretien de `rate_limit_hits`. Corps dans src/utils/rate_limit_maintenance.py."""
-    from src.utils.rate_limit_maintenance import purge_rate_limit_hits as _purge
+def nightly_maintenance(**context):
+    """Entretien de la nuit. Corps dans `src/utils/nightly_maintenance.py`."""
+    from src.utils.nightly_maintenance import run
 
-    _purge()
+    run()
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -2695,13 +2695,13 @@ with DAG(
         python_callable=check_gold_invariants,
     )
 
-    # Entretien, pas contrôle : il ne remonte rien au mail. Il est quand même amont
-    # de `t_alert`, que `test_every_operator_is_upstream_of_the_sender` l'exige —
-    # un opérateur hors du graphe a déjà existé ici et ne s'est jamais exécuté.
-    # `t_alert` porte `trigger_rule='all_done'`, donc son échec n'empêche pas l'envoi.
-    t_purge_rate_limits = PythonOperator(
-        task_id='purge_rate_limit_hits',
-        python_callable=purge_rate_limit_hits,
+    # Entretien, pas contrôle : ne remonte rien au mail. Amont de `t_alert` quand même,
+    # que `test_every_operator_is_upstream_of_the_sender` l'exige — un opérateur hors du
+    # graphe a déjà existé ici et ne s'est jamais exécuté. `t_alert` porte
+    # `trigger_rule='all_done'`, donc son échec n'empêche pas l'envoi.
+    t_maintenance = PythonOperator(
+        task_id='nightly_maintenance',
+        python_callable=nightly_maintenance,
     )
 
     t_alert = PythonOperator(
@@ -2714,4 +2714,4 @@ with DAG(
      t_billing, t_anomalies, t_readiness, t_central, t_canary,
      t_preflight, t_outcomes, t_contamination, t_dips, t_offsite,
      t_app_errors, t_csv_rejects, t_zero_resets, t_metric_bounds,
-     t_gold_invariants, t_purge_rate_limits] >> t_alert
+     t_gold_invariants, t_maintenance] >> t_alert
