@@ -149,3 +149,60 @@ def test_no_brick_id_vanishes_from_both_files() -> None:
         f"identifiant(s) présents au commit précédent et désormais dans AUCUN des "
         f"deux fichiers : {vanished}. Une brique se DÉPLACE de l'actif vers "
         "l'archive ; la retirer des deux efface le travail et l'explication avec.")
+
+
+def test_the_active_file_does_not_carry_a_section_twice() -> None:
+    """La rotation ne peut que RÉTRÉCIR le fichier — la duplication, elle, le grossit.
+
+    Ajouté le 2026-09-16, après un défaut vrai : une réécriture des blocs R115/R116 a
+    recopié **toute la fin du fichier** (664 → 1104 lignes, R117 et le bloc de reprise en
+    double). Les six gardes de ce fichier sont passés VERTS, parce qu'ils regardent tous
+    dans l'autre sens : `test_the_rotation_does_not_shrink_the_denominator` échoue si la
+    somme diminue, et une duplication l'augmente.
+
+    C'est la forme « un garde qui ne regarde que la direction dans laquelle on s'est
+    déjà trompé ». Le contrôle qui manquait est trivial : un identifiant de brique, un
+    marqueur de reprise et un titre de section n'apparaissent qu'une fois.
+    """
+    import collections
+    import re
+
+    text = ACTIVE.read_text(encoding="utf-8")
+
+    marks = re.findall(r"<!--\s*reprise:\s*open=", text)
+    assert len(marks) <= 1, (
+        f"{len(marks)} blocs de reprise dans {ACTIVE.name} — le fichier a été recopié "
+        "sur lui-même. `/resume` lirait le premier et ignorerait tout ce qui suit.")
+
+    headings = [h.strip() for h in re.findall(r"^#{2,3} (.+)$", text, re.M)]
+    dup_h = [h for h, n in collections.Counter(headings).items() if n > 1]
+    assert not dup_h, f"titre(s) de section en double dans {ACTIVE.name} : {dup_h}"
+
+    tasks = re.findall(r"^- \[[ x]\] \*\*(R\d+)\b", text, re.M)
+    dup_t = [t for t, n in collections.Counter(tasks).items() if n > 1]
+    assert not dup_t, (
+        f"brique(s) déclarée(s) deux fois dans {ACTIVE.name} : {dup_t}. Deux blocs pour "
+        "une même brique divergent, et on corrige celui que la recherche trouve en "
+        "premier.")
+
+
+def test_the_duplication_detector_is_not_vacuous() -> None:
+    """Non-vacuité : sur un fichier VOLONTAIREMENT doublé, le détecteur doit mordre.
+
+    Sans elle, une expression régulière qui ne matche plus rien rendrait le garde
+    ci-dessus vert à vide — c'est exactement ainsi qu'il a manqué le défaut du
+    2026-09-16.
+    """
+    import collections
+    import re
+
+    text = ACTIVE.read_text(encoding="utf-8")
+    assert re.search(r"^- \[[ x]\] \*\*R\d+\b", text, re.M), (
+        "l'expression des briques ne matche RIEN dans le fichier actif — le détecteur "
+        "de duplication ne peut plus rien voir")
+
+    doubled = text + text
+    assert len(re.findall(r"<!--\s*reprise:\s*open=", doubled)) > 1
+    tasks = re.findall(r"^- \[[ x]\] \*\*(R\d+)\b", doubled, re.M)
+    assert [t for t, n in collections.Counter(tasks).items() if n > 1], (
+        "un fichier concaténé avec lui-même ne produit aucun doublon détecté")
