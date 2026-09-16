@@ -222,7 +222,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           rc=0
-          uv run pytest tests/ -q --tb=short -n auto --dist loadgroup \
+          uv run --frozen pytest tests/ -q --tb=short -n auto --dist loadgroup \
             -p randomly --cov=src --cov-report=term-missing 2>&1 \
             | tail -60 | tee -a "$GITHUB_STEP_SUMMARY" || rc=$?
           echo '```' >> "$GITHUB_STEP_SUMMARY"

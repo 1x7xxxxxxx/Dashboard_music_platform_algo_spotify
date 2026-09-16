@@ -123,7 +123,26 @@ jobs:
         # Deterministic, sub-second, zero-network. Catches pin drift across
         # pyproject.toml / requirements.txt / uv.lock (error class
         # streamlit-pin-drift) before it ships a prod≠dev image.
-        run: uv run python tools/dev/check_manifest_consistency.py
+        #
+        # ── `--frozen`, et sans lui cette porte N'A JAMAIS PU ÉCHOUER (2026-09-16) ──
+        # `uv run` re-verrouille et re-synchronise AVANT d'exécuter. Ce contrôle
+        # lisait donc un `uv.lock` que la commande venait de réparer, et répondait
+        # « aucune dérive » sur un arbre qui en portait trois.
+        #
+        # Mesuré : la PR #161 (Dependabot) bumpait `pyproject.toml` et
+        # `requirements.txt` sans toucher `uv.lock` — Dependabot ne connaît pas ce
+        # format. Au commit testé, `uv.lock` disait streamlit **1.62.0** et
+        # `pyproject.toml` **1.63.0**. La porte est passée VERTE. Rejoué à la main :
+        # `.venv/bin/python …` sort **rc=1** avec trois lignes `MANIFEST-DRIFT` ;
+        # `uv run …` sort **rc=0** et laisse `uv.lock` MODIFIÉ derrière lui.
+        #
+        # C'est la forme que ce fichier a déjà retirée une fois — l'étape `--fields`
+        # qui écrivait le cliquet qu'elle jugeait. Une barrière qui modifie ce qu'elle
+        # évalue ne peut pas être rejouée avec le même sens.
+        # `--frozen` est posé sur TOUTES les invocations `uv run` du dépôt, pas
+        # seulement ici : chacune pouvait re-verrouiller.
+        # Garde : tests/test_a_gate_does_not_repair_what_it_judges.py
+        run: uv run --frozen python tools/dev/check_manifest_consistency.py
 
       - name: Lint (ruff) — full project (blocking)
         # Promoted from advisory to blocking on 2026-05-14 after baseline cleanup
@@ -131,7 +150,7 @@ jobs:
         # 2026-08-21: the step was named "full project" and was not one. `airflow/`
         # — DAG code live-mounted into production containers — was outside it, and
         # carried 25 of the 40 findings that cleanup removed.
-        run: uv run ruff check .
+        run: uv run --frozen ruff check .
 
       - name: REX integrity + static error-class guards (blocking)
         env:
@@ -152,11 +171,11 @@ jobs:
         # `--static` garde exactement ce que la suite ne couvre pas : les 35 classes
         # déterministes dont la signature n'est PAS un pytest.
         run: |
-          uv run python .claude/scripts/validate_rex.py --strict
-          uv run python .claude/scripts/audit_runner.py --static
-          uv run python .claude/scripts/audit_runner.py --prose
-          uv run python .claude/scripts/check_config_refs.py
-          uv run python .claude/scripts/check_ci_waste.py
+          uv run --frozen python .claude/scripts/validate_rex.py --strict
+          uv run --frozen python .claude/scripts/audit_runner.py --static
+          uv run --frozen python .claude/scripts/audit_runner.py --prose
+          uv run --frozen python .claude/scripts/check_config_refs.py
+          uv run --frozen python .claude/scripts/check_ci_waste.py
           # `gold_coverage.py --check` et `error_class_families.py --check` NE SONT PLUS
           # appelés ici (2026-09-15). Ils tournaient TROIS fois par run : ici, via
           # `audit_runner --static` (la classe `a-generated-document-asserts-a-stale-state`
@@ -271,5 +290,5 @@ jobs:
         # par nuit, hors du chemin critique — et où elle tourne en plus en ordre
         # aléatoire. Le dépôt n'a jamais eu de `--cov-fail-under` : rien ne gatait.
         run: >-
-          uv run pytest tests/ -q --tb=short -n auto --dist loadgroup
+          uv run --frozen pytest tests/ -q --tb=short -n auto --dist loadgroup
           --splits 4 --group ${{ matrix.shard }}

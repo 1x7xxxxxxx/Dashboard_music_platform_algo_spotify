@@ -150,7 +150,11 @@ FAMILIES: list[tuple[str, str, str]] = [
     ("un-garde-qui-ne-garde-pas",
      "Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée "
      "contient-elle ce défaut ?",
-     r"guard|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|"
+     # `gate|porte` ajoutés le 2026-09-16 : une PORTE de CI est un garde, et la
+     # classe `a-gate-that-repairs-what-it-judges` — une barrière bloquante qui
+     # corrige la dérive avant de la regarder — pose exactement la question de cette
+     # famille. Le motif ne parlait que de `guard`, pas de la forme « porte ».
+     r"guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|"
      r"test-|suite|assert|blind"),
 
     ("un-document-qui-affirme-un-état-périmé",
