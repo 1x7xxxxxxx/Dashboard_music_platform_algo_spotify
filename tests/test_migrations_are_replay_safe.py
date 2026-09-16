@@ -103,6 +103,18 @@ def test_every_migration_on_disk_is_recorded_in_the_ledger() -> None:
     """Chaque `migrations/*.sql` a une ligne dans `schema_migrations`.
 
     Sauté sans base : c'est un contrôle d'ÉTAT, il n'a pas d'équivalent statique.
+
+    Sauté AUSSI quand le registre est vide, et il faut dire pourquoi. Toutes les bases
+    de ce projet ne sont pas tenues par `tools/migrate.sh` : celle de la CI est
+    provisionnée par `.github/actions/provision-postgres`, qui applique chaque fichier
+    avec `psql` et ne touche jamais `schema_migrations` — délibérément, le runner n'a
+    pas de conteneur Postgres à `docker exec`. Contre une telle base, « tous les
+    fichiers manquent au registre » est l'état NORMAL, pas un défaut. Mesuré le
+    2026-09-16 : la première version de ce test était verte en local et rouge sur le
+    shard 2/4, en listant les 120 migrations.
+
+    Le registre VIDE est donc le signal « cette base n'est pas de ce type ». Un registre
+    peuplé mais incomplet reste un défaut, et c'est le cas qui compte.
     """
     from tests.db_gate import db_ready
 
@@ -118,6 +130,12 @@ def test_every_migration_on_disk_is_recorded_in_the_ledger() -> None:
         db.close()
 
     ledger = {r[0] for r in rows}
+    if not ledger:
+        pytest.skip(
+            "`schema_migrations` est VIDE : cette base n'est pas tenue par "
+            "`tools/migrate.sh` (c'est le cas de la base jetable de la CI). Le "
+            "contrôle de parité n'a de sens que contre une base à registre."
+        )
     on_disk = {p.name for p in MIGRATIONS}
     missing = sorted(on_disk - ledger)
 
