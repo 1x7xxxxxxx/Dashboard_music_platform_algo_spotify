@@ -102,33 +102,24 @@ def _connections(path: Path) -> int:
     """
     tree = ast.parse(path.read_text(encoding="utf-8"))
 
-    # ── Les corps de `@st.fragment` sont comptés À PART (2026-09-16, R118) ──────
-    # Rule #9 vise « une seconde connexion en REPLI dans la même fonction ». Un
-    # `@st.fragment` n'est pas ça : c'est une UNITÉ DE RENDU distincte, rejouée seule
-    # des minutes après que `show()` a fermé la sienne dans son `finally`. Il doit
-    # donc ouvrir la sienne — lui passer celle de `show()` est le défaut, pas
-    # l'inverse, et le dépôt en portait un exemplaire vivant dans `airflow_kpi.py`.
+    # ⚠️ Les corps de `@st.fragment` ont été EXEMPTÉS de ce compte le 2026-09-16, puis
+    # l'exemption a été RETIRÉE le même jour. Les deux moitiés valent d'être écrites.
     #
-    # Ce que ça ne desserre PAS : un fragment reste tenu à UNE connexion qu'il FERME,
-    # et `tests/test_a_fragment_never_captures_a_connection.py` le vérifie dans les
-    # deux sens. Compter le fragment avec `show()` ferait lire « 2 connexions par
-    # rendu » là où il y en a une par unité — et pousserait à « corriger » en rendant
-    # le fragment dépendant d'une connexion morte.
-    fragment_nodes = set()
-    for node in ast.walk(tree):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            continue
-        for dec in node.decorator_list:
-            target = dec.func if isinstance(dec, ast.Call) else dec
-            name = (target.attr if isinstance(target, ast.Attribute)
-                    else target.id if isinstance(target, ast.Name) else None)
-            if name in {"fragment", "experimental_fragment"}:
-                fragment_nodes |= {id(n) for n in ast.walk(node)}
-                break
-
+    # Le raisonnement de l'exemption n'était pas faux : un fragment est une UNITÉ DE
+    # RENDU distincte, qui s'exécute quand la connexion de `show()` n'existe plus, donc
+    # il doit posséder la sienne. Ce qui était faux, c'est d'en conclure qu'il doit
+    # TOUJOURS l'ouvrir. `tests/test_a_render_opens_one_connection.py` — qui compte les
+    # connexions d'un rendu RÉEL au lieu des appels écrits — l'a chiffré : cinq vues
+    # au-dessus de leur plafond, `revenue_forecast` à QUATRE connexions au lieu d'une.
+    #
+    # La leçon est sur les gardes, pas sur les connexions : **j'avais desserré celui
+    # qu'il était facile de contenter**, et le garde qui mesure la réalité a refusé.
+    # `src/dashboard/utils/fragment_db.py` rend la distinction au bon endroit — réutiliser
+    # pendant un rendu complet, rouvrir seulement lors d'un rerun de fragment — et ce
+    # compte-ci redevient exact sans exception.
     return sum(
         1 for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and id(node) not in fragment_nodes
+        if isinstance(node, ast.Call)
         and (getattr(node.func, "id", "") == "get_db_connection"
              or getattr(node.func, "attr", "") == "get_db_connection")
     )

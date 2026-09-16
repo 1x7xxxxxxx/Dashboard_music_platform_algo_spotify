@@ -153,7 +153,14 @@ _CEILING: dict[str, int] = {
 # surface. « Zéro indéterminée » sur zéro figure est vrai et ne dit rien.
 _FLOOR: dict[str, int] = {
     "figures.total": 89,
-    "tiles.total": 207,
+    # 207 → 204 le 2026-09-16, et la baisse est LEGITIME : `views/perf_monitor.py` a
+    # ete supprime (R115 etape 6), avec ses tuiles « Dernier rendu », « DB ping »,
+    # « RAM process » et « CPU process ». Grafana les porte desormais, apres une
+    # correspondance ligne a ligne verifiee AVANT la suppression
+    # (`.claude/dev-docs/grafana-correspondence.md`). Le plancher baisse dans le
+    # MEME commit que la suppression, comme ce test l'exige — sinon une surface
+    # retiree ferait baisser un compteur sans que personne ne relise pourquoi.
+    "tiles.total": 204,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

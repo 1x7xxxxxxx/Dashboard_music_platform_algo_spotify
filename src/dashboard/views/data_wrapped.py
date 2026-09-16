@@ -386,12 +386,9 @@ def _tab_charts(artist_options: dict) -> None:
     au pool sans jamais la rendre : une fuite par session, sur un pool à 10. Garde :
     `tests/test_a_fragment_never_captures_a_connection.py`.
     """
-    db = get_db_connection()
-    if db is None:
-        st.error(t("data_wrapped.db_unreachable",
-                   "❌ Base de données inaccessible."))
-        return
-    try:
+    from src.dashboard.utils.fragment_db import fragment_db
+
+    with fragment_db() as (db, _artist_id):
         # Artist selector (separate from form tab)
         chart_name = st.selectbox(
             t("data_wrapped.artist_label", "Artiste"),
@@ -520,8 +517,6 @@ def _tab_charts(artist_options: dict) -> None:
                     hide_index=True,
                     width="stretch",
                 )
-    finally:
-        db.close()
 
 
 def show():
@@ -544,6 +539,13 @@ def show():
         st.error(t("data_wrapped.db_unreachable", "Base de données inaccessible."))
         return
 
+    # Les fragments de cette page REUTILISENT cette connexion pendant un rendu
+    # complet (~13 ms de poignee SCRAM economises chacun) et n'en ouvrent une que
+    # lors d'un rerun de fragment. Libere AVANT `close()` : entre les deux, un
+    # fragment verrait une connexion fermee dans la fente.
+    from src.dashboard.utils.fragment_db import declare_page_db, release_page_db
+
+    declare_page_db(db)
     try:
         # Resolve artist context — include inactive artists (historical data entry)
         if is_admin():
@@ -771,4 +773,5 @@ def show():
                 )
 
     finally:
+        release_page_db()
         db.close()

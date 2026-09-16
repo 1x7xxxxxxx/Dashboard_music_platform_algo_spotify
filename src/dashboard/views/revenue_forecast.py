@@ -125,14 +125,10 @@ def _frag_projection() -> None:
     ré-emprunterait au pool sans jamais la rendre. Garde :
     `tests/test_a_fragment_never_captures_a_connection.py`.
     """
-    db = get_db_connection()
-    if db is None:
-        st.error(t("revenue_forecast.db_unreachable", "❌ Base de données inaccessible."))
-        return
-    try:
+    from src.dashboard.utils.fragment_db import fragment_db
+
+    with fragment_db() as (db, _artist_id):
         _tab_projection(db)
-    finally:
-        db.close()
 
 
 def _tab_projection(db) -> None:
@@ -245,14 +241,10 @@ def _frag_ltv() -> None:
     ré-emprunterait au pool sans jamais la rendre. Garde :
     `tests/test_a_fragment_never_captures_a_connection.py`.
     """
-    db = get_db_connection()
-    if db is None:
-        st.error(t("revenue_forecast.db_unreachable", "❌ Base de données inaccessible."))
-        return
-    try:
+    from src.dashboard.utils.fragment_db import fragment_db
+
+    with fragment_db() as (db, _artist_id):
         _tab_ltv(db)
-    finally:
-        db.close()
 
 
 def _tab_ltv(db) -> None:
@@ -354,14 +346,10 @@ def _frag_artist_forecast(artist_id: int | None, show_infra: bool = False) -> No
     ré-emprunterait au pool sans jamais la rendre. Garde :
     `tests/test_a_fragment_never_captures_a_connection.py`.
     """
-    db = get_db_connection()
-    if db is None:
-        st.error(t("revenue_forecast.db_unreachable", "❌ Base de données inaccessible."))
-        return
-    try:
+    from src.dashboard.utils.fragment_db import fragment_db
+
+    with fragment_db() as (db, _artist_id):
         _tab_artist_forecast(db, artist_id, show_infra)
-    finally:
-        db.close()
 
 
 def _tab_artist_forecast(db, artist_id: int | None, show_infra: bool = False) -> None:
@@ -736,6 +724,13 @@ def show() -> None:
     st.title(t("revenue_forecast.title", "📈 Prévisions revenus"))
 
     db = get_db_connection()
+    # Les fragments de cette page REUTILISENT cette connexion pendant un rendu
+    # complet (~13 ms de poignee SCRAM economises chacun) et n'en ouvrent une que
+    # lors d'un rerun de fragment. Libere AVANT `close()` : entre les deux, un
+    # fragment verrait une connexion fermee dans la fente.
+    from src.dashboard.utils.fragment_db import declare_page_db, release_page_db
+
+    declare_page_db(db)
     try:
         if is_admin():
             tab_mrr, tab_proj, tab_ltv, tab_artist = st.tabs([
@@ -757,4 +752,5 @@ def show() -> None:
                          "Projection de vos revenus musicaux (iMusician + DistroKid + SACEM)."))
             _frag_artist_forecast(artist_id=get_artist_id(), show_infra=False)
     finally:
+        release_page_db()
         db.close()

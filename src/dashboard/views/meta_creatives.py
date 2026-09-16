@@ -256,7 +256,9 @@ def _tab_creative_timeline(selected_campaign: str, acct: str = "", acct_params: 
     construction, ce qui est la seule forme acceptée par
     `tests/test_a_fragment_never_captures_a_connection.py` pour un fragment qui ouvre.
     """
-    with view_session() as (db, artist_id):
+    from src.dashboard.utils.fragment_db import fragment_db
+
+    with fragment_db() as (db, artist_id):
         _render_creative_timeline(db, artist_id, selected_campaign, acct, acct_params)
 
 
@@ -532,7 +534,9 @@ def _tab_fatigue(acct: str = "", acct_params: tuple = ()) -> None:
     construction, ce qui est la seule forme acceptée par
     `tests/test_a_fragment_never_captures_a_connection.py` pour un fragment qui ouvre.
     """
-    with view_session() as (db, artist_id):
+    from src.dashboard.utils.fragment_db import fragment_db
+
+    with fragment_db() as (db, artist_id):
         _render_fatigue(db, artist_id, acct, acct_params)
 
 
@@ -634,7 +638,13 @@ def show() -> None:
     st.caption(t("meta_creatives.subtitle",
                  "Classement de vos créatives par CPR — basé sur les données Meta Ads API (meta_ads × meta_insights)."))
 
-    with view_session() as (db, artist_id):
+    # La connexion vivante est DECLAREE pour les fragments de cette page : dans un
+    # rendu complet ils la reutilisent au lieu d'en ouvrir une (~13 ms la poignee
+    # SCRAM, mesure) ; lors d'un rerun de fragment la fente est vide et ils rouvrent
+    # proprement. Voir `src/dashboard/utils/fragment_db.py`.
+    from src.dashboard.utils.fragment_db import page_db_scope
+
+    with view_session() as (db, artist_id), page_db_scope(db, artist_id):
         # Toutes les requêtes de cette page s'ancrent sur `meta_ads` ou
         # `meta_campaigns`, qui portent `ad_account_id` — `meta_insights` est à la
         # maille ad_id, globalement unique, donc filtrer l'ancre suffit.

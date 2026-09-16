@@ -365,14 +365,14 @@ def _section_insertion_test():
     décorateur. Les deux changements sont incompatibles et personne ne l'a vu — c'est
     pourquoi `tests/test_a_fragment_never_captures_a_connection.py` existe maintenant.
     """
-    db = get_db_connection()
-    if db is None:
-        st.error(t("airflow_kpi.db_unreachable", "❌ Base de données inaccessible."))
-        return
-    try:
+    # `fragment_db()` : réutilise la connexion de la page pendant un rendu
+    # COMPLET, n'en ouvre une que lors d'un rerun de fragment. La règle simple
+    # — toujours ouvrir — coûtait ~13 ms par fragment et par rendu complet, et
+    # `tests/test_a_render_opens_one_connection.py` l'a chiffré.
+    from src.dashboard.utils.fragment_db import fragment_db
+
+    with fragment_db() as (db, _artist_id):
         _render_insertion_test(db)
-    finally:
-        db.close()
 
 
 def _render_insertion_test(db):
@@ -511,6 +511,13 @@ def show():
         st.error(t("airflow_kpi.db_unreachable", "❌ Base de données inaccessible."))
         return
 
+    # La connexion vivante est DECLAREE pour les fragments de cette page : dans un
+    # rendu complet ils la reutilisent au lieu d'en ouvrir une (~13 ms la poignee
+    # SCRAM, mesure) ; lors d'un rerun de fragment la fente est vide et ils rouvrent
+    # proprement. Voir `src/dashboard/utils/fragment_db.py`.
+    from src.dashboard.utils.fragment_db import declare_page_db, release_page_db
+
+    declare_page_db(db)
     try:
         with tab_sources:
             _section_source_status(db)
@@ -661,6 +668,7 @@ def show():
             else:
                 st.info(t("airflow_kpi.no_exec_data", "Aucune donnée d'exécution trouvée dans Airflow."))
     finally:
+        release_page_db()
         db.close()
 
 if __name__ == "__main__":

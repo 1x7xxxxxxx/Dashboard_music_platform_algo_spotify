@@ -110,9 +110,9 @@ def _frag_releases(frag: str, params: tuple) -> None:
     lui-même, ce que le docstring de `_render_secondary` refuse explicitement pour une
     autre raison — c'est donc un choix à trancher, pas un oubli.
     """
-    # `project_db()` et pas `get_db_connection()` : c'est le seul ouvreur de ce fichier,
-    # et il ferme par construction — la seule forme qu'un fragment a le droit d'ouvrir.
-    with project_db() as db:
+    from src.dashboard.utils.fragment_db import fragment_db
+
+    with fragment_db() as (db, _artist_id):
         _render_releases(db, frag, params)
 
 
@@ -471,7 +471,13 @@ def _followers(db, frag: str, params: tuple):
 def show():
     st.title(t("spotify_s4a_combined.title", "🎵 Spotify & Spotify for Artists"))
 
-    with project_db() as db:
+    # La connexion vivante est DECLAREE pour les fragments de cette page : dans un
+    # rendu complet ils la reutilisent au lieu d'en ouvrir une (~13 ms la poignee
+    # SCRAM, mesure) ; lors d'un rerun de fragment la fente est vide et ils rouvrent
+    # proprement. Voir `src/dashboard/utils/fragment_db.py`.
+    from src.dashboard.utils.fragment_db import page_db_scope
+
+    with project_db() as db, page_db_scope(db):
         frag, params = artist_id_sql_filter()
         params = tuple(params)
 
