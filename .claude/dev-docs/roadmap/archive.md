@@ -5218,3 +5218,284 @@ tests. Détail dans l'archive ; ne reste ouvert de ce lot que **R70** (couches b
 argent / or, P4, ADR à écrire — voir la table ci-dessus).
 
 Ce qui suit décrivait l'état au 2026-09-08.
+
+
+## 📚 Rétrospectives du 2026-09-11 au 2026-09-13 (rotées depuis `checklist.md` le 2026-09-16)
+
+Déplacées telles quelles, sans rien retirer : la checklist active avait atteint 55 Ko contre un plafond de 50, et c'est le fichier que `/resume` lit en premier à chaque session. Le remède imposé par le garde est la rotation, jamais le relèvement du plafond.
+
+### La séance du 2026-09-13 (soir) — une coupure de courant, et ce qu'elle a révélé
+
+Le PC s'est éteint à **16:09**, batterie à plat, alors que l'écran affichait « secteur
+branché ». Le travail de la matinée était **écrit mais pas commité** : le `git commit -F -`
+qui devait le sauver n'avait jamais reçu son message, et le `git push` qui suivait avait
+rendu `ok` en poussant une branche inchangée.
+
+**Ce qui a été récupéré et livré** (PR #159, mergée — `0533b1a`) :
+
+| Commit | Contenu |
+|---|---|
+| `8bc0a7d` | le garde `tests/test_a_commit_message_is_not_fed_through_stdin.py`, la moitié MÉCANISABLE de `a-verification-read-through-a-filtering-wrapper` ; `gold-coverage.md` régénéré (319 → **321 classes**, 293 gardées) ; la référence de garde de `a-merged-branch-that-survives-its-merge` repointée sur `.github/workflows/ci.yml` au lieu de `error-classes.md` lui-même |
+| `f8257de` | le même garde **réécrit pour parser au lieu de chercher une chaîne** |
+
+**Le dépôt m'a pris en faute, et c'est le fait le plus utile de la séance.** La première
+version du garde cherchait `git\s+commit.*-F\s+-` par expression régulière sur des
+lignes de texte. `test_a_guard_reads_structure_not_text::test_no_new_textual_guard_is_added`
+l'a refusée **le jour même de son écriture**. Elle avait raison deux fois : le prédicat
+voyait le geste dans un COMMENTAIRE ou un docstring qui le *décrit* — ce que le fichier
+fait lui-même dans sa propre en-tête — et ratait `--file=-`, un `git` préfixé d'une
+affectation d'environnement, et `cd x && git commit -F -`.
+
+La version livrée pose la question structurelle : dans un segment de shell découpé par
+`shlex`, `git` est-il la **commande** (jamais un mot dans un argument), et `-F -` /
+`--file -` / `--file=-` sont-ils parmi ses arguments ? Le Python est lu par `ast`,
+docstrings exclus explicitement. Quatre assertions de non-vacuité l'accompagnent, dont
+deux qui vérifient qu'il **n'attrape pas** `echo "git commit -F -"` ni
+`grep "git commit -F -"` — le geste y est une chaîne ou un argument, pas une commande.
+Mutation : rouge en nommant le fichier injecté, vert après retrait.
+
+**Et la cause de cet aller-retour est une règle que je n'ai pas suivie.** Après le
+premier commit j'ai choisi **quatre** tests à la main au lieu de lancer
+`python3 .claude/scripts/select_tests.py` (règle transverse #16). Le méta-garde n'était
+pas dans mes quatre ; il l'était dans les **674** que le sélecteur rend. La CI l'a donc
+trouvé à ma place, deux fois, et chaque aller-retour coûte quatre minutes. Le sélecteur
+existe précisément pour que le choix ne dépende pas de ce que je crois avoir touché.
+
+**Aucune tâche ouverte n'a bougé** : R103, R107 et R108 restent les trois, et rien de ce
+qui précède ne les touche. Ce qui a changé est le catalogue de classes, pas la roadmap.
+
+### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
+
+Question posée : combien d'utilisateurs simultanés, quel palier suivant, et que penser
+du conseil « regarde star schema / Data Vault mais ne les mets pas en place ». Tout ce
+qui suit est **mesuré dans le conteneur de production**, pas estimé.
+
+| Mesure | Valeur |
+|---|---|
+| Rendu de page complète, caches chauds (12 rendus, 0 échec) | **p50 287 ms**, p95 345 ms |
+| dont SQL (12 requêtes) | **103 ms — 39,5 %** |
+| dont connexions (4 poignées de main × 13 ms) | **40 ms — 15,4 %** |
+| dont plotly | **0,9 ms** |
+| Part de tout le SQL venant de `platform_timeseries.py` | **88 %** |
+| Base : taille / lignes / plus grosse table / locataires | 62 Mo / 111 008 / 34 078 / 8 |
+| `EXPLAIN (ANALYZE, BUFFERS)` de l'agrégat le plus lourd | `shared hit=626`, **`read=0`** |
+
+**Le mur est le GIL de Streamlit, pas la donnée.** Un seul processus, un seul upstream
+Caddy, aucun pool. Plafond dérivé de p50 : **~12 utilisateurs actifs** à un clic toutes
+les 5 s, ~24 à 10 s, ~49 à 20 s. `read=0` dit qu'il n'y a aucune entrée-sortie disque à
+optimiser : la base tient entière dans `shared_buffers`.
+
+**Le mentor a raison, et ADR-012 + ADR-018 disent pourquoi** : les deux choses que vend
+le Data Vault — traçabilité des sources, historisation de ce qui change — sont déjà
+achetées ici, moins cher. Le seul motif de Kimball dont ce dépôt aura besoin est la
+**table de faits agrégée**, et son déclencheur est écrit plus bas.
+
+**Trois chiffres démentis par la mesure** (le détail vit dans le DEVLOG) : « ~25-50
+utilisateurs » venait d'un rendu de *vue* (61 ms) et non de *page* ; « plotly, 36
+figures, le pire cas » vaut pour `trigger_algo` et pas pour l'accueil (0,9 ms) ; et
+replier les trois appels à `v_platform_totals` en un seul rapporte **1,0 ms**, pas 20 —
+le prédicat `platform = %s` élague déjà les autres branches. Mesurer a évité ce refactor.
+
+### Le graphique de l'accueil — six symptômes, UNE cause (2026-09-11)
+
+Signalés par l'artiste : cumulé incohérent pour YouTube et SoundCloud, mesures
+« uniquement journalières » sur cette année / 12 mois / 90 j / 30 j, aucune donnée en
+« Par période », idem par année et par semaine. Mesuré en production, artiste 1 :
+
+| | Somme des points tracés | Total annoncé | Écart |
+|---|---|---|---|
+| Spotify | 165 065 | 165 065 | ×1,0 |
+| YouTube | **136** | 118 334 | **×870** |
+| SoundCloud | **77** | 23 563 | **×306** |
+
+**Le mode « Cumulé » fait un `cumsum` de la série quotidienne.** Pour Spotify c'est
+juste — le CSV S4A porte l'historique. Pour les deux autres, cette série est un ÉCART
+de compteur : elle ne contient rien d'avant notre première collecte ni les trous. On
+ne peut pas ré-intégrer une dérivée sans sa constante, et le compteur la donne.
+
+La conséquence explique tout le reste : YouTube est mesuré **115 jours**, SoundCloud
+**95**, contre **1 344** pour Spotify. Le plancher de seau (50 %, posé à raison) vide
+alors les agrégats — au pas **annuel, YouTube garde 0 seau**.
+
+Classe `cumulative-counter-drawn-as-its-own-history`. Le balayage a trouvé deux frères
+dans le PDF (R89), déjà corrigés côté app et jamais reportés.
+
+**Ce que ce défaut dit de l'architecture, et c'est le plus utile.** La couche or existe
+et elle est juste : `v_platform_totals` (migration 097) donne 118 334, et la tuile le
+lit. Le graphique la CONTOURNE — il prend une série de la couche argent, les écarts
+quotidiens, et la ré-additionne pour fabriquer son propre total. Deux définitions du
+même nombre sur un écran, ce qu'ADR-019 interdit.
+
+**ADR-019 a couvert les totaux SCALAIRES, pas les séries.** La migration 097 avait
+repointé les cinq surfaces qui calculaient *un nombre*. Une courbe cumulée fait la même
+affirmation — son dernier point EST un total — et n'a jamais été comptée parmi elles.
+Une couche or qui définit un total sans définir la série qui y aboutit laisse la
+contradiction visible. R88 est donc énoncée comme une extension de la frontière, pas
+comme la correction d'un mode : le premier énoncé empêche la classe de revenir, le
+second ne corrige qu'une instance.
+
+### L'audit metrics layer du 2026-09-11
+
+Critère : Reis & Housley, *Fundamentals of Data Engineering* p. 482 — une **metrics
+layer** est l'endroit, et le seul, où la logique métier est maintenue et calculée.
+ADR-019 en est la version locale.
+
+Inventaire mesuré — agrégats (`SUM`/`AVG`) posés sur une table de fait depuis une
+surface d'affichage, hors couche or :
+
+| plateforme | agrégats hors couche or |
+|---|---|
+| Spotify S4A | 33 |
+| Meta Ads | 22 |
+| Instagram | 3 |
+| Apple | 2 |
+| Hypeddit | 1 |
+| Revenu | 1 |
+| **YouTube** | **0** |
+| **SoundCloud** | **0** |
+
+**Ce ne sont pas 62 défauts.** Mesuré en production le même jour, ces surfaces
+s'accordent : S4A rend 165 065 par quatre chemins, Instagram 1 525 par deux, la vue
+revenu égale exactement ses trois sources. Ce sont 62 **risques** — rien ne garantit
+qu'elles s'accordent demain, et le dépôt connaît le prix : trois totaux YouTube
+incompatibles avant la migration 097, puis trois contradictions le 2026-09-11 (×5 630,
+×887, ×151).
+
+La couche or couvre aujourd'hui **3 métriques** : les écoutes (`v_platform_totals`,
+migration 097), le revenu (`v_artist_monthly_revenue`), la dépense Meta
+(`v_meta_spend_totals`, migration 101, déployée le 2026-09-11).
+
+Le cliquet `tests/test_the_metrics_layer_only_grows.py` gèle ces huit plafonds : ils ne
+remontent jamais, ils doivent rester SERRÉS (un plafond au-dessus du réel autorise
+autant de régressions silencieuses), et les deux plateformes à zéro sont nommées
+explicitement. Classe d'erreur `a-metric-computed-outside-the-metrics-layer`.
+
+### La soirée du 2026-09-12 — la carte, et les deux défauts qu'elle a trouvés
+
+R94 est close : les plafonds du cliquet des agrégats sont à **zéro sur les huit
+plateformes**, et son préalable — « la couche or gagne-t-elle un grain temporel, ou
+`platform_totals()` reste-t-il la porte unique ? » — est tranché par **ADR-022** : les
+deux, en couches. Le grain descend en SQL (lisible par l'API, Airflow, `psql`), la porte
+ne porte que la forme. Détail dans `archive.md`.
+
+Ce qui a rendu la clôture possible n'est pas un correctif de plus, c'est **une carte** :
+`.claude/dev-docs/gold-coverage.md`, générée par `make gold-coverage`, sans base et sans
+horodatage. À sa PREMIÈRE exécution elle a trouvé deux défauts vivants que 5 200 tests
+verts ne voyaient pas :
+
+- **la page Créatives tombait** pour tout locataire multi-comptes (`column
+  "ad_account_id" does not exist` × 3, `is ambiguous` × 2) — la migration 106 avait fait
+  descendre une jointure dans une vue sans y emporter une colonne que trois `WHERE`
+  filtraient. Prouvé contre la base, corrigé par les migrations 108/109, gardé par
+  `tests/test_an_account_filter_names_one_column.py` (23 sites surveillés) ;
+- **la tuile « Dépenses » de la page Meta Ads affichait le double** : 6 165,65 € pour
+  3 087,82 € réels. `meta_insights_performance` porte deux générations de lignes —
+  231 quotidiennes et 21 cumuls à vie d'un collecteur antérieur — et la page les sommait
+  **en pandas**, donc aucun garde SQL du dépôt ne pouvait le voir. La leçon était écrite
+  depuis des semaines dans un commentaire de `pdf_exporter/_collectors.py:329`. Un
+  commentaire ne garde rien : le garde s'appelle
+  `tests/test_a_total_is_computed_where_a_guard_can_see_it.py`.
+
+### Ce que la seconde passe a fermé, et comment
+
+Énumérer des trous n'est pas les fermer. Trois des six l'ont été le soir même, et
+**aucun par une phrase** :
+
+| compteur | avant | après | ce qui a fermé le trou |
+|---|---|---|---|
+| cliquets sans non-vacuité | 5 | **0** | un plancher sous la population de chacun |
+| cliquets sans trace de mutation | 10 | **0** | dix mutations faites, dix messages lus |
+| agrégats hors cliquet | 21 | **0** | 9 repointés, 12 DÉCLARÉS avec leur raison |
+| classes d'erreur sans famille | 68 | **3** | cinq familles qui manquaient |
+
+Trois mutations ont ÉCHOUÉ, et c'est la moitié la plus utile :
+
+* retirer `{frag}` d'une requête bornée laisse
+  `test_a_chart_is_bounded_by_the_period_it_announces` **vert** — il voit la fenêtre
+  LIÉE, jamais la fenêtre APPLIQUÉE. Classe
+  `a-guard-that-sees-the-binding-not-the-application`, livrée en `kind: manual`
+  SANS signature : le défaut existe, donc aucune commande ne sort ≠ 0 dessus ;
+* un second axe ajouté dans `utils/` laissait `test_the_visual_rules_only_tighten`
+  vert — sa portée s'arrêtait à `views/`, et `utils/charts.py` portait un axe
+  secondaire VIVANT, rendu par deux vues. Portée élargie, axe déclaré avec sa raison ;
+* et un `git checkout` réflexe a détruit le travail non commité de
+  `tools/dev/gold_coverage.py`. Troisième fois que ce dépôt l'enregistre.
+
+### Ce que la mesure de « ce qui n'est gardé par rien » a rendu (2026-09-12, soir)
+
+Le livrable disait ce qui existe, jamais ce qui n'est gardé par rien. Le tableau
+**plateforme × famille** le dit maintenant, et il est passé de **19 cases vides à
+zéro** le soir même — R102 close. Les cases n'ont pas été « remplies » : trois gardes
+ont été écrits pour les questions que personne ne posait, et **deux défauts vivants
+sont sortis en les écrivant**.
+
+Une plateforme neuve ajoutera cinq cases d'un coup et fera rougir le cliquet.
+Brancher une source sans la garder devient impossible en silence — c'est le seul
+mécanisme qui l'empêche sans relecture humaine.
+
+Deux trouvailles en le construisant :
+
+* **Instagram** — `followers_count` est un NIVEAU (1 525 → 1 606) qu'aucun garde ne
+  traitait comme un compteur. L'ajouter tel quel aurait produit un détecteur MUET :
+  `MIN_ENTITIES = 3` est calibré sur des catalogues et Instagram a 1,0 entité par
+  locataire et par jour. Le plancher est devenu un attribut de la cible.
+* **Un facteur 3 049**, trouvé par un garde existant qui a rougi tout seul quand une
+  collecte fraîche a fait qualifier l'artiste 471. Une collecte à 1 vidéo sur 200
+  devenait la ligne de base des niveaux, et le pas demandé dégradait vers le jour où
+  la dérivation par les niveaux est désactivée. Migration 112, seuil lu dans la
+  distribution réelle. **La première version du correctif a été attrapée par un
+  invariant écrit une heure plus tôt** — écart de 5 vues, nommé.
+
+### La troisième passe a fermé les trois dernières
+
+| compteur | départ | fin | ce qui l'a fermé |
+|---|---|---|---|
+| figures sans source établie | 15 | **7** | deux corrections du LECTEUR, pas du code |
+| tuiles sans source établie | 18 | **11** | idem |
+| couples bronze | 132 | **110** | `csv_exporter.py` déclaré : un export de lignes brutes n'est pas une dette |
+| dbt | question ouverte | **tranchée** | ADR-023 |
+
+Les deux corrections du lecteur valent d'être nommées, parce qu'elles disaient le
+contraire de la vérité : `_QUERY.format(acct=…)` est un **littéral avec des trous**,
+pas une requête dynamique — vingt-huit surfaces étaient déclarées `sql-dynamique`
+alors que leur table se lit. Et le plafond de sauts est passé de 2 à 3 sur une
+MESURE (2 → 27 indéterminées, 3 → 23, 4 → 23 : le quatrième cran n'apporte rien).
+Un livrable qui déclare « je ne sais pas » là où il sait est aussi trompeur qu'un
+livrable qui invente.
+
+**Et le repointage a introduit un défaut, corrigé le même soir** : `_QUERY_CREATIVES`
+reçoit désormais un fragment de compte `ma.`-aliasé alors qu'il lit une VUE, donc
+`missing FROM-clause entry for table "ma"`. La troisième forme du même défaut, dans
+le correctif des deux premières. Le garde la couvre maintenant, et il a fallu
+suivre `TEMPLATE.format(acct=X)` pour la voir — le gabarit et l'alias vivent dans
+deux fichiers qui ne savent rien l'un de l'autre.
+
+**La roadmap n'a plus de tâche ouverte sur ce sujet.** Ce qui reste vit dans les
+compteurs de `.claude/dev-docs/gold-coverage.md`, tous sous cliquet : sept figures,
+onze tuiles et cinq figures PDF dont la source n'est pas attribuable — et le
+document dit, pour chacune, POURQUOI.
+
+### Vérification finale mesurée en production le 2026-09-12
+
+| KPI | couche or | porte Python | courbe |
+|---|---|---|---|
+| Spotify — écoutes | 165 065 | 165 065 | — |
+| YouTube — vues | 118 334 | 118 334 | 118 334 |
+| SoundCloud — écoutes | 23 563 | 23 563 | 23 563 |
+| Apple — plays | 3 718 | 3 718 | — |
+| Apple — shazams | 1 772 | 1 772 | — |
+| Revenu — total | 260,96 € | 260,96 € | — |
+| Meta — dépense | 3 087,82 € | 3 087,82 € | — |
+| Instagram — abonnés | 1 525 | 1 525 | — |
+
+**Aucune divergence.** Trois plateformes à zéro agrégat hors couche or : YouTube,
+SoundCloud, Apple.
+
+**Deux écarts mesurés à NE PAS corriger, consignés pour qu'on ne les reprenne pas :**
+
+- les breakdowns Meta ne couvrent que **76 %** de la dépense (2 348 € sur 3 088) — c'est
+  Meta qui n'attribue pas tout à une dimension, la page le mesure et le dit désormais ;
+- la vue revenu compte la **répartition SACEM brute** (43,06 €) et non le versement
+  (`payout` 36,49 €, après TVA −14,67 et charges −6,90) — choix de définition, cohérent
+  avec le brut distributeur. À trancher avec l'utilisateur, pas à « corriger » ;
+- iMusician : 217,90 (rollup mensuel) contre 217,8895 (détail) — un centime d'arrondi.
