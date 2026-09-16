@@ -39,6 +39,17 @@ import sys
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_ROOT))
+
+# Le même environnement que le dashboard et les DAGs, pas celui du shell qui lance.
+# Exigé par `tests/test_operator_tools_read_the_apps_env.py`, et il a raison ici : si
+# `GITHUB_TOKEN` vit dans `.env.local`, un outil qui ne charge pas l'environnement du
+# projet ne le voit pas, `gh` se tait, et le rapport annonce « je n'ai pas pu
+# demander » comme s'il avait demandé. C'est exactement la panne que ce fichier vient
+# de documenter, une couche plus bas.
+from src.utils.env_files import load_project_env  # noqa: E402
+
+load_project_env()
 _USES = re.compile(r"^\s*(?:-\s*)?uses:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@([^\s#]+)\s*(?:#.*)?$")
 
 
