@@ -211,6 +211,7 @@ When you need depth beyond `CLAUDE.md`, load these on demand :
 | `.claude/dev-docs/coverage-themes.md` | Couverture thématique de l'app adossée au corpus `knowledge-rag`, chaque ligne avec livre + page |
 | `.claude/dev-docs/prod-health-monitoring.md` | Les 3 surfaces du contrôle de santé quotidien et pourquoi chacune vit où elle vit |
 | `.claude/dev-docs/gold-coverage.md` | **Généré** par `make gold-coverage`. La carte de la couche or : pour chaque figure, chaque tuile et chaque figure du PDF, quelle donnée elle dessine et si elle passe par une vue or. Sa dernière section — les tables brutes encore agrégées **hors de tout cliquet** — est la liste des prochaines divergences. `make gold-coverage-check` bloque la CI quand il est périmé |
+| `.claude/dev-docs/roadmap/night-run.md` | **Le protocole d'une séance longue** — à lire EN PREMIER à chaque réveil, AVANT la roadmap. Une séance de plusieurs heures est compactée plusieurs fois : la roadmap dit *quoi*, elle ne dit pas *où j'en étais*. `make night-status` répond à ça en un écran. Porte la règle qui compte — **bloqué ⇒ on PARQUE et on passe**, jamais on ne s'arrête — et la liste de ce qu'on ne fait pas sans un humain |
 | `.claude/dev-docs/error-class-health.md` | **Généré** par `make error-health`. La santé du catalogue : combien de classes ont une connaissance VÉRIFIABLE, et combien récidivent — mesuré depuis git, pas depuis un champ. Il porte une section « Ce que ce document corrige » qui liste les chiffres avancés avant vérification. Le JSON à côté est la donnée ; **son historique git EST la série temporelle**, lisible par `make error-health-history`. `make error-health-check` bloque quand il est périmé |
 | `.claude/dev-docs/error-class-families.md` | **Généré** par `make error-families`. Les 287 classes d'erreur regroupées en 12 familles, chacune avec **la question** qu'elle fait poser devant du code. À lire AVANT d'écrire une classe neuve : c'est là qu'on voit si la forme a déjà été payée |
 | `.claude/dev-docs/test-suite-performance.md` | **La référence chiffrée de la suite** : ce que coûte chaque poste, les trois chiffres que j'ai eus faux et pourquoi, et ce qui a été écarté avec sa mesure. À lire AVANT toute séance d'optimisation de tests ou de CI — et avant d'annoncer un gain. La suite varie de ±40 % : un écart plus petit n'est pas un résultat |
@@ -280,6 +281,21 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     catalogue : une classe **sans garde automatique récidive 5,2× plus** — 1,005
     évènement par classe-mois contre 0,193, intervalles à 95 % disjoints.
     Contrôle : `make error-health-check`. Évolution : `make error-health-history`.
+
+15bis. **Séance longue sans interlocuteur — `/loop`, une consigne de nuit, ou plus de
+    deux heures sans retour humain → lire `.claude/dev-docs/roadmap/night-run.md` et
+    lancer `make night-status` AVANT toute autre chose.** Puis une unité à la fois :
+    `night-start` → le travail → `make test-changed` → commit poussé → `night-done`.
+    Bloqué ⇒ `make night-park` et la tâche suivante ; **on ne s'arrête jamais sur un
+    blocage**, il consommerait toutes les heures restantes.
+    La raison est mesurée, pas prudentielle : le contexte est COMPACTÉ plusieurs fois
+    sur une nuit, et après chaque compaction je sais *quoi* faire sans savoir *où j'en
+    étais*. La roadmap ne comble pas ce trou — elle bouge quand une brique est livrée,
+    pas quand un lot de six est à mi-chemin, et c'est exactement la granularité d'un
+    réveil. Le journal est `night-run.jsonl`, **append-only** : un tour qui meurt au
+    milieu ne peut pas corrompre ce qui précède.
+    Contrôle : `make night-check` — arbre sale, commits non poussés, unité ouverte
+    depuis plus de 3 h.
 
 16. **Avant de lancer la suite après un changement de code → lancer
     `python3 .claude/scripts/select_tests.py`.** Il rend les tests atteignables

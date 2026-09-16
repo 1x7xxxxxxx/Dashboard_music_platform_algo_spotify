@@ -49,7 +49,22 @@ def _db():
         return None
 
 
-pytestmark = pytest.mark.skipif(_db() is None, reason="needs the provisioned DB")
+# ⚠️ GROUPE XDIST — ajouté le 2026-09-16 sur un rouge observé, pas par précaution.
+#
+# Ce fichier lit ou écrit l'identité plateforme d'un locataire dans la base PARTAGÉE.
+# Plusieurs fichiers le font, et sous `-n auto` rien ne les tenait sur le même worker :
+# l'un écrit une identité sonde et la restaure dans un `finally`, l'autre cherche « un
+# autre locataire qui déclare une identité Spotify » et vérifie qu'un doublon est refusé.
+# Entre les deux instants, la valeur a bougé.
+#
+# Deux rouges de cette forme le même soir, dans deux fichiers sans rapport
+# (`test_the_hypeddit_ratio_is_the_ratio_of_sums`, puis celui-ci) : ce n'est pas un
+# aléa, c'est une CLASSE — `a-shared-database-read-while-another-test-writes-it`.
+# `--dist loadgroup` existe pour ça ; il ne coûte que de la sérialisation.
+pytestmark = [
+    pytest.mark.skipif(_db() is None, reason="needs the provisioned DB"),
+    pytest.mark.xdist_group("shared_db_tenant_identity"),
+]
 
 
 @pytest.fixture()

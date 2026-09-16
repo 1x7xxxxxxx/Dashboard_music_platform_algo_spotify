@@ -5800,3 +5800,38 @@ ou l'avatar du compte expéditeur affiché par la messagerie du destinataire —
 exactement le même cas que le nom d'expéditeur « Music Cross Platform Dashboard »
 tranché le 2026-08-23, qui venait du compte Brevo et écrasait celui du code. Geste
 dans Brevo, § « En attente de toi ».
+
+## 🎨 Notes des tests artistes — ce qui reste (2026-08-23)
+
+~30 notes de terrain (Benken 19/06, GRiNCH 12/08). Plan approuvé :
+`~/.claude/plans/unified-mapping-teapot.md`. **Quatre tracks sur cinq sont livrés,
+déployés et archivés** sous « R50 · R51 · R52 » et « R53 (1/3) ». Ne restent ici que la
+suite de R53 et les questions auxquelles je ne peux pas répondre seul.
+
+### Le fil commun, à relire avant de reprendre
+
+La plupart des notes ne décrivaient **pas du code faux, mais du code correct que rien
+n'atteignait** — six occurrences en une séance : la page d'onboarding hors navigation, les
+étapes de l'accueil dont la clé de page était jetée, le sélecteur Mac/Windows branché sur
+une fonction sans appelant, `secondary_analyses()` écrit le jour de la remarque et
+appliqué sur aucune vue dense, les titres SoundCloud déclarés que le DAG n'atteignait
+jamais, le PDF des identifiants livré seulement par e-mail.
+
+**Un test de rendu ne dit jamais si une page est atteignable**, et un DAG qui saute un
+locataire le journalise proprement. C'est pourquoi rien ne le signalait.
+
+### Ce qui attend un fichier, pas une décision
+
+- **Le CSV de Benj.** Les deux causes probables sont fermées — séparateur `;` (celui
+  d'Excel FR) désormais supporté de bout en bout, et l'export « Depuis le début » refusé à
+  la détection avec la vraie raison. **Sa cause à lui n'est pas confirmée** : quand le
+  fichier arrive, le passer dans `_detect_platform` et corriger la règle qui l'a manqué.
+
+### Une vérification que je n'ai pas pu faire
+
+Le parcours **post-connexion** n'a pas été joué dans un navigateur, faute de compte de test
+local : l'atterrissage première connexion sur l'assistant, les étapes cliquables et le
+sélecteur d'OS sont couverts par des gardes AST, pas par un clic réel. À faire à la
+prochaine session artiste.
+
+---

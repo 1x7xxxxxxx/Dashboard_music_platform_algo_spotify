@@ -96,9 +96,14 @@ _FLOORS = {
     # monte quand la population grandit — c'est son sens.
     # +1 au lot 5 : `a-guard-names-a-class-nobody-wrote`, **la première classe du
     # catalogue dont `seen_red` porte une DATE OBSERVÉE** et non un rétro-portage.
-    "classes": 366,
-    "with_signature": 355,
-    "automatic_guard": 348,
+    # +1 encore : `a-runbook-that-names-a-command-nobody-can-run`, écrite parce que le
+    # garde précédent l'a EXIGÉE — sa docstring annonçait l'identifiant avant qu'il
+    # existe. Première fois que la chaîne se referme sans qu'on y pense.
+    # +1 encore : `a-shared-database-read-while-another-test-writes-it`, écrite sur
+    # DEUX rouges de suite complète le même soir, chacun vert en isolation.
+    "classes": 368,
+    "with_signature": 357,
+    "automatic_guard": 350,
 }
 # Le plancher qui n'a pas d'équivalent dans `gold-coverage`, et le plus important ici :
 # un taux s'améliore aussi en RÉTRÉCISSANT la fenêtre d'observation.

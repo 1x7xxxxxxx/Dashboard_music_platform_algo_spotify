@@ -121,9 +121,13 @@ def _reads_source_textually(path: Path) -> bool:
     # Quatrieme terme, 2026-09-05 : ce `.py` est-il un fichier LU, ou une chaine
     # CHERCHEE ? Voir `_a_py_literal_is_used_as_a_path`.
     try:
-        return _a_py_literal_is_used_as_a_path(_ast.parse(body))
+        tree = _ast.parse(body)
     except SyntaxError:
         return True
+    if not _a_py_literal_is_used_as_a_path(tree):
+        return False
+    # Cinquieme terme, 2026-09-16 : le `.py` est un chemin — mais est-il LU, ou LANCE ?
+    return not _the_py_path_is_only_executed(tree)
 
 
 def _a_py_literal_is_used_as_a_path(tree) -> bool:
@@ -170,6 +174,61 @@ def _a_py_literal_is_used_as_a_path(tree) -> bool:
             if isinstance(fn, _ast.Name) and fn.id in {"Path", "open"}:
                 return True
     return False
+
+
+def _the_py_path_is_only_executed(tree) -> bool:
+    """Le seul `.py` du fichier est-il passe a `subprocess`, et jamais ouvert ?
+
+    Ajoute le 2026-09-16, meme motif que le quatrieme terme et meme cause : le predicat
+    exigeait un `read_text(` ET un chemin `.py` sans demander si les deux se
+    RENCONTRENT. `tests/test_the_night_protocol_is_runnable.py` a ete refuse pour ca —
+    il lit un Markdown et un Makefile, et son unique litteral `.py` est le script qu'il
+    EXECUTE, jamais ouvert. Le message du cliquet promet cette exemption mot pour mot
+    (« it inspects Markdown, a Makefile, a workflow ») ; elle n'etait pas implementee
+    pour ce cas, exactement comme pour le YAML le 2026-09-05.
+
+    ⚠️ Une premiere version, plus large, demandait « un `read_text` a-t-il pour receveur
+    un nom portant un `.py` ? ». Elle faisait SORTIR **huit** gardes geles — et ils
+    lisent bel et bien du Python : `(ROOT / rel).read_text()` ou `rel` parcourt une
+    liste de `.py`, une propagation que l'analyse ne suivait pas. `test_the_frozen_list_
+    does_not_rot` l'a refusee, ce qui est tout l'interet de l'avoir. Le terme retenu est
+    donc le plus etroit qui couvre le cas reel : il faut un appel `subprocess` PORTANT
+    le `.py`, et aucune lecture de ce meme `.py`. Les huit ne lancent aucun subprocess,
+    donc rien ne bouge pour eux — remesure : les 27 geles restent detectes.
+    """
+    _RUNNERS = {"run", "check_output", "check_call", "call", "Popen"}
+
+    def _carries_py(node) -> bool:
+        return any(isinstance(sub, _ast.Constant) and isinstance(sub.value, str)
+                   and sub.value.endswith(".py") for sub in _ast.walk(node))
+
+    tainted = {
+        target.id
+        for node in _ast.walk(tree) if isinstance(node, _ast.Assign)
+        for target in node.targets
+        if isinstance(target, _ast.Name) and _carries_py(node.value)
+    }
+
+    def _mentions_py(node) -> bool:
+        if _carries_py(node):
+            return True
+        return any(isinstance(sub, _ast.Name) and sub.id in tainted
+                   for sub in _ast.walk(node))
+
+    executed = False
+    for node in _ast.walk(tree):
+        if not isinstance(node, _ast.Call):
+            continue
+        fn = node.func
+        name = fn.attr if isinstance(fn, _ast.Attribute) else getattr(fn, "id", "")
+        if name in _RUNNERS and any(_mentions_py(a) for a in node.args):
+            executed = True
+        if name in {"read_text", "read_bytes", "getsource"}:
+            subject = node.args[0] if name == "getsource" and node.args else (
+                fn.value if isinstance(fn, _ast.Attribute) else None)
+            if subject is not None and _mentions_py(subject):
+                return False
+    return executed
 
 
 def test_no_new_textual_guard_is_added():

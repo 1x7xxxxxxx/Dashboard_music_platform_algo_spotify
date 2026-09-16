@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: error-health error-health-check error-health-history loadtest-concurrency scale-check test-durations example-charts error-inbox error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: error-health error-health-check error-health-history night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -209,6 +209,33 @@ gold-coverage-check: ## Échoue si la carte ne décrit plus le dépôt (CI)
 
 error-families: ## Familles de classes d'erreur → .claude/dev-docs/error-class-families.md
 	@python3 tools/dev/error_class_families.py
+
+# ── Séance longue ─────────────────────────────────────────────────────────────
+# Le protocole : .claude/dev-docs/roadmap/night-run.md — à lire à CHAQUE réveil.
+# `night_run.py` n'utilise que la stdlib et `git` ; pas de dépendance d'exécution,
+# donc pas de précondition (règle transverse #10, cibles « fichier seul »).
+
+night-status: ## Où j'en suis : unité en cours, arbre, roadmap, parkings, journal (~1 s)
+	@python3 tools/dev/night_run.py status
+
+night-check: ## Les invariants d'une séance longue ; ≠ 0 s'il y a à redire (~1 s)
+	@python3 tools/dev/night_run.py check
+
+night-start: ## J'ouvre une unité — make night-start TASK=R122 W="lot 6"
+	@test -n "$(TASK)" || { echo "❌ TASK= manquant. Ex: make night-start TASK=R122 W=\"lot 6\""; exit 1; }
+	@python3 tools/dev/night_run.py start "$(TASK)" "$(W)"
+
+night-done: ## Je la ferme — make night-done TASK=R122 W="plafond 332 → 326"
+	@test -n "$(TASK)" || { echo "❌ TASK= manquant."; exit 1; }
+	@python3 tools/dev/night_run.py done "$(TASK)" "$(W)"
+
+night-park: ## Bloqué : j'écris la question et je passe — make night-park TASK=R116 W="…"
+	@test -n "$(TASK)" || { echo "❌ TASK= manquant."; exit 1; }
+	@python3 tools/dev/night_run.py park "$(TASK)" "$(W)"
+
+night-note: ## Un fait à ne pas perdre — make night-note TASK=R122 W="…"
+	@test -n "$(TASK)" || { echo "❌ TASK= manquant."; exit 1; }
+	@python3 tools/dev/night_run.py note "$(TASK)" "$(W)"
 
 error-families-check: ## Échoue si la taxonomie ne décrit plus le catalogue (CI)
 	@python3 tools/dev/error_class_families.py --check

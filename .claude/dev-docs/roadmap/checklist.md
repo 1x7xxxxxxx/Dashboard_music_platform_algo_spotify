@@ -25,11 +25,11 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R122 | Finir la revue des classes d'erreur — reste 14 récidivistes + 332 portées + **5 classes jamais écrites** | P3 | les trous de `make error-health` ne font que baisser |
 | R120 | La vue, pas la chrome — onglets et expanders paresseux (chrome démesurée : 11-13 ms) | P2 | histogramme de rendu avant/après, même charge |
 | R118 | `st.fragment` — **6/11 faites** ; le reste attend une mesure de coût | P3 | l'histogramme montre la page avant de la refactorer |
 | R121 | Les agrégations Python passent en SQL (couche or) | P3 | `make gold-coverage`, cliquet |
 | R116 | **ADR-027** — répliques et Redis, tranché APRÈS les courbes (026 est pris) | P4 | `ls docs/adr/ADR-027-*.md` |
+| R122 | Finir la revue des classes d'erreur — reste 14 récidivistes + 332 portées + **5 classes jamais écrites** | P3 | les trous de `make error-health` ne font que baisser |
 | R117 | Le dépôt quitte `/mnt/c` pour ext4, et VS Code passe en Remote-WSL | P3 | suite complète chronométrée des deux côtés, en alternance |
 
 **R109 et R110 ont été livrées et déployées le 2026-09-16** — voir `archive.md`.
@@ -138,6 +138,15 @@ l'effacer serait la faute.
 `archive.md` le 2026-09-10.
 
 ---
+
+> **Ordre de travail arrêté le 2026-09-16** : R122 passe en DERNIER, délibérément et
+> sans être bornée. Elle est du volume mesurable — **363 → 332 portées en 89 minutes**,
+> soit ~16 h pour la colonne `guard_scope` seule, et deux autres colonnes derrière. Mise
+> en tête, elle consommerait une séance entière sans qu'aucune autre tâche avance. Les
+> quatre tâches au-dessus ont un critère de fin net ; elles passent d'abord.
+> R117 ferme la marche parce qu'elle **ne peut pas être faite par la séance qui la
+> ferait** : elle déplace le dépôt hors de `/mnt/c`, donc elle tue le `cwd` et la
+> mémoire de Claude, indexée par chemin. Elle se parque au premier réveil.
 
 ## 🏗 R113–R116 — Monter l'architecture scalable, pour mesurer si elle est nécessaire
 
@@ -626,41 +635,6 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 n'est pas de l'ingénierie mais l'usage du produit. Une roadmap mesure le travail à faire
 sur le dépôt ; elle ne suit pas les gestes commerciaux de son propriétaire, sans quoi
 elle ne peut par construction jamais atteindre zéro.
-
-## 🎨 Notes des tests artistes — ce qui reste (2026-08-23)
-
-~30 notes de terrain (Benken 19/06, GRiNCH 12/08). Plan approuvé :
-`~/.claude/plans/unified-mapping-teapot.md`. **Quatre tracks sur cinq sont livrés,
-déployés et archivés** sous « R50 · R51 · R52 » et « R53 (1/3) ». Ne restent ici que la
-suite de R53 et les questions auxquelles je ne peux pas répondre seul.
-
-### Le fil commun, à relire avant de reprendre
-
-La plupart des notes ne décrivaient **pas du code faux, mais du code correct que rien
-n'atteignait** — six occurrences en une séance : la page d'onboarding hors navigation, les
-étapes de l'accueil dont la clé de page était jetée, le sélecteur Mac/Windows branché sur
-une fonction sans appelant, `secondary_analyses()` écrit le jour de la remarque et
-appliqué sur aucune vue dense, les titres SoundCloud déclarés que le DAG n'atteignait
-jamais, le PDF des identifiants livré seulement par e-mail.
-
-**Un test de rendu ne dit jamais si une page est atteignable**, et un DAG qui saute un
-locataire le journalise proprement. C'est pourquoi rien ne le signalait.
-
-### Ce qui attend un fichier, pas une décision
-
-- **Le CSV de Benj.** Les deux causes probables sont fermées — séparateur `;` (celui
-  d'Excel FR) désormais supporté de bout en bout, et l'export « Depuis le début » refusé à
-  la détection avec la vraie raison. **Sa cause à lui n'est pas confirmée** : quand le
-  fichier arrive, le passer dans `_detect_platform` et corriger la règle qui l'a manqué.
-
-### Une vérification que je n'ai pas pu faire
-
-Le parcours **post-connexion** n'a pas été joué dans un navigateur, faute de compte de test
-local : l'atterrissage première connexion sur l'assistant, les étapes cliquables et le
-sélecteur d'OS sont couverts par des gardes AST, pas par un clic réel. À faire à la
-prochaine session artiste.
-
----
 
 ## Open Bugs
 

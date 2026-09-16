@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**366 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**368 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -18,8 +18,8 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 22 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 27 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 20 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 67 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 38 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 68 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 7 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
@@ -284,11 +284,12 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure` sur l'identifiant et le symptôme. 67 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure` sur l'identifiant et le symptôme. 68 classe(s).
 
 | classe | symptôme |
 |---|---|
 | [`a-guard-names-a-class-nobody-wrote`](error-classes.md#a-guard-names-a-class-nobody-wrote) | un défaut est parfaitement décrit — symptôme, cause, mesure, date, coût — **dans la docstring d'un test, et nulle part ailleurs**. Le catalogue ne le  |
+| [`a-shared-database-read-while-another-test-writes-it`](error-classes.md#a-shared-database-read-while-another-test-writes-it) | un test est **rouge dans la suite complète et vert quand on le relance seul**. Le rapport ne montre rien d'anormal, la valeur attendue est simplement  |
 | [`check-calls-a-binary-its-image-lacks`](error-classes.md#check-calls-a-binary-its-image-lacks) | a check running INSIDE a container shells out to a host binary (`rclone`, `git`, `docker`, `psql`) that is not in that image. It never crashes — it ta |
 | [`probe-scoped-to-the-machine-not-the-repo`](error-classes.md#probe-scoped-to-the-machine-not-the-repo) | a health probe enumerates every container or process on the HOST instead of the ones this repo declares. It reports on neighbouring projects — and can |
 | [`freshness-measured-on-write-time`](error-classes.md#freshness-measured-on-write-time) | a source is reported FRESH while its data is months or years old. The collector still runs and still writes, so the write timestamp advances nightly — |
@@ -360,10 +361,11 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 
 **Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?**
 
-Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list|telemetry-table-that-nothing-ever-purges` sur l'identifiant et le symptôme. 38 classe(s).
+Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list|telemetry-table-that-nothing-ever-purges` sur l'identifiant et le symptôme. 39 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`a-runbook-that-names-a-command-nobody-can-run`](error-classes.md#a-runbook-that-names-a-command-nobody-can-run) | une procédure dit de lancer une commande ; la commande n'existe pas, ou plus. Rien ne le signale, parce qu'une procédure est de la prose. Le coût n'es |
 | [`make-fail-late`](error-classes.md#make-fail-late) | a Makefile target invokes a runtime dependency (Docker / venv / Postgres / `uv` / `streamlit`) and crashes mid-execution instead of failing fast with  |
 | [`collector-shipped-dag-not-rerun`](error-classes.md#collector-shipped-dag-not-rerun) | a new collector method + table ship (migration applied, code volume-mounted) but the owning DAG hasn't re-run since, so the table stays empty and the  |
 | [`operator-guidance-phantom-or-wrong-auth`](error-classes.md#operator-guidance-phantom-or-wrong-auth) | operator-facing text (failure-alert root-cause map, Credentials help UI, setup guides) instructs running a script that does not exist, or describes an |
@@ -557,6 +559,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=366 families=17 orphans=3 -->
+<!-- error-class-families: total=368 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=0ce2d34a76867f7d437b23d6ca6ed50c15f14788ae358dcd56c40e1852a43160 -->
+<!-- error-class-families: sha256=644bd907a5325d15e92bce6aa5ecc9c442a0f445263db3bb72b238b66224f8e1 -->

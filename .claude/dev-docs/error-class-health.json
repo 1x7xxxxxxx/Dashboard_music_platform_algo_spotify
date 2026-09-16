@@ -1907,6 +1907,52 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "a-runbook-that-names-a-command-nobody-can-run": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-16",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_the_night_protocol_is_runnable.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_has_not_covered": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-16"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-16",
+      "severity": "P3",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
+    "a-shared-database-read-while-another-test-writes-it": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-16",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_shared_db_test_declares_its_group.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "le-locataire",
+      "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
+      "guard_scope_has_not_covered": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-16"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-16",
+      "severity": "P2",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-shared-module-drags-a-view-behind-it": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-12",
@@ -8472,11 +8518,11 @@
       "seen_red_unknown": 332
     },
     "population": {
-      "automatic_guard": 348,
-      "classes": 366,
+      "automatic_guard": 350,
+      "classes": 368,
       "ever_recurred_observed": 46,
       "prose_only": 18,
-      "with_signature": 355
+      "with_signature": 357
     },
     "recurrence": {
       "window_start": "2026-05-15",
