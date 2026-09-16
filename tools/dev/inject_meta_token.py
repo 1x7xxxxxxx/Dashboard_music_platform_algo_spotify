@@ -29,7 +29,6 @@ sys.path.insert(0, os.getcwd())
 
 from src.dashboard.views.credentials._core import _get_fernet  # noqa: E402
 from src.database.postgres_handler import PostgresHandler  # noqa: E402
-from src.utils.config_loader import config_loader  # noqa: E402
 
 
 def main() -> int:
@@ -48,12 +47,7 @@ def main() -> int:
         print("❌ FERNET_KEY not configured (env or config.yaml) — aborting.", file=sys.stderr)
         return 1
 
-    c = config_loader.load().get("database", {})
-    db = PostgresHandler(
-        host=c.get("host", "localhost"), port=c.get("port", 5433),
-        database=c.get("dbname") or c.get("database", "spotify_etl"),
-        user=c.get("user", "postgres"), password=c.get("password"),
-    )
+    db = PostgresHandler.from_env_or_config()
 
     row = db.fetch_query(
         "SELECT token_encrypted FROM artist_credentials WHERE artist_id=%s AND platform='meta'",

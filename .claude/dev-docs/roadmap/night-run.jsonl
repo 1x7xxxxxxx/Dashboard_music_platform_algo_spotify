@@ -7,3 +7,5 @@
 {"at": "2026-09-16T22:13:24+00:00", "head": "021338c", "kind": "note", "task": "R120", "what": "MESURE: stub des 6 onglets caches de trigger_algo = 3,7 ms sur 1880 (0%). Le poste n1 de R120 est faux ; stubs prouves appeles."}
 {"at": "2026-09-16T22:18:04+00:00", "head": "021338c", "kind": "note", "task": "R120", "what": "CONTRADICTION: stub des 6 onglets caches = delta 3,7 ms ; chronometre par onglet = 701 ms caches. Une des deux mesures est fausse, instrument AppTest suspect (1007 lectures METADATA, 0,8 s sleep)."}
 {"at": "2026-09-16T22:20:12+00:00", "head": "021338c", "kind": "done", "task": "R120", "what": "poste 1 REFUTE : onglets caches = 0,1 ms a chaud (memoises)"}
+{"at": "2026-09-16T22:21:14+00:00", "head": "059c8c5", "kind": "start", "task": "R120", "what": "track_page_view hors du pool"}
+{"at": "2026-09-16T22:39:44+00:00", "head": "059c8c5", "kind": "done", "task": "R120", "what": "25 sites ramenes a from_env_or_config ; cliquet 14 → 1"}

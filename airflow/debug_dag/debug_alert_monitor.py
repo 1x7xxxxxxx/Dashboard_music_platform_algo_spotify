@@ -33,13 +33,7 @@ print("=" * 70)
 print("DEBUG alert_monitor")
 print("=" * 70)
 
-db = PostgresHandler(
-    host=os.environ['DATABASE_HOST'],
-    port=int(os.environ['DATABASE_PORT']),
-    database=os.environ['DATABASE_NAME'],
-    user=os.environ['DATABASE_USER'],
-    password=os.environ['DATABASE_PASSWORD'],
-)
+db = PostgresHandler.from_env_or_config()
 
 # ── 1. Credential audit ───────────────────────────────────────────
 print("\n🔑 Credential audit")

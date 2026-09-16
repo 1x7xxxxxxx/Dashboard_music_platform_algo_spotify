@@ -67,13 +67,7 @@ section("ÉTAPE 2 : CONNEXION POSTGRESQL")
 
 try:
     from src.database.postgres_handler import PostgresHandler
-    db = PostgresHandler(
-        host=os.getenv('DATABASE_HOST'),
-        port=os.getenv('DATABASE_PORT', '5433'),
-        database=os.getenv('DATABASE_NAME'),
-        user=os.getenv('DATABASE_USER'),
-        password=os.getenv('DATABASE_PASSWORD'),
-    )
+    db = PostgresHandler.from_env_or_config()
     logger.info(f"✅ Connecté à PostgreSQL: {os.getenv('DATABASE_NAME')}")
     row = db.fetch_query("SELECT count(*) FROM soundcloud_tracks_daily")
     logger.info(f"   ℹ️ Table 'soundcloud_tracks_daily' existe ({row[0][0]} lignes).")

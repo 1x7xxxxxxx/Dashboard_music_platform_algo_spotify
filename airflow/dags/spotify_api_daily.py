@@ -94,14 +94,7 @@ def collect_spotify_artists(**context):
         )
 
         # ✅ Connexion à la base spotify_etl
-        db = PostgresHandler(
-            host=os.getenv('DATABASE_HOST', 'postgres'),
-            port=int(os.getenv('DATABASE_PORT', 5432)),
-            #database='spotify_etl',  # ✅ Base correcte, mais on vient la récupérer dynamiquement via .env
-            database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-            user=os.getenv('DATABASE_USER', 'postgres'),
-            password=os.getenv('DATABASE_PASSWORD')
-        )
+        db = PostgresHandler.from_env_or_config()
 
         # ── Liste des artistes Spotify à suivre (par tenant) ───────────────
         # Central model: each tenant supplies their Spotify artist identity, stored in
@@ -255,13 +248,7 @@ def collect_spotify_top_tracks(**context):
         )
 
         # ✅ Connexion à la base spotify_etl
-        db = PostgresHandler(
-            host=os.getenv('DATABASE_HOST', 'postgres'),
-            port=int(os.getenv('DATABASE_PORT', 5432)),
-            database='spotify_etl',  # ✅ Base correcte
-            user=os.getenv('DATABASE_USER', 'postgres'),
-            password=os.getenv('DATABASE_PASSWORD')
-        )
+        db = PostgresHandler.from_env_or_config()
 
         # Honour the requested scope. `collect_spotify_artists` reads
         # `dag_run.conf['artist_id']`; this task did not, so a dashboard trigger

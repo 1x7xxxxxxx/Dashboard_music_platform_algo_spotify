@@ -13,7 +13,6 @@ from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 from html import escape
 import sys
-import os
 import logging
 
 sys.path.insert(0, '/opt/airflow')
@@ -93,13 +92,7 @@ def send_weekly_digest(**context):
     from src.utils.credential_loader import get_active_artists
     from src.utils.email_alerts import EmailAlert
 
-    db = PostgresHandler(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD'),
-    )
+    db = PostgresHandler.from_env_or_config()
 
     artists = get_active_artists()
     if not artists:

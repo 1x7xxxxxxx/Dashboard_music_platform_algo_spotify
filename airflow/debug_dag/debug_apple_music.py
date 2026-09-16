@@ -145,13 +145,7 @@ def step_4_database_dry_run(parsed_results):
 
     # Connexion BDD
     try:
-        db = PostgresHandler(
-            host=os.getenv('DATABASE_HOST', 'localhost'), # Fallback localhost pour test hors docker
-            port=int(os.getenv('DATABASE_PORT', 5432)),
-            database=os.getenv('DATABASE_NAME'),
-            user=os.getenv('DATABASE_USER'),
-            password=os.getenv('DATABASE_PASSWORD')
-        )
+        db = PostgresHandler.from_env_or_config()
         logger.info("✅ Connexion BDD établie.")
     except Exception as e:
         logger.error(f"❌ Échec connexion BDD : {e}")

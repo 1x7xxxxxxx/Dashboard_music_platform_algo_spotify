@@ -147,13 +147,7 @@ def step_4_dry_run_db(parsed_results):
 
     # Connexion
     try:
-        db = PostgresHandler(
-            host=os.getenv('DATABASE_HOST'),
-            port=int(os.getenv('DATABASE_PORT', 5432)),
-            database=os.getenv('DATABASE_NAME'),
-            user=os.getenv('DATABASE_USER'),
-            password=os.getenv('DATABASE_PASSWORD')
-        )
+        db = PostgresHandler.from_env_or_config()
         logger.info("✅ Connexion BDD établie.")
     except Exception as e:
         logger.error(f"❌ Échec connexion BDD : {e}")

@@ -74,13 +74,7 @@ def collect_youtube_data(**context):
                 logger.info("No active artist in DB — nothing to collect.")
                 return
 
-        db = PostgresHandler(
-            host=os.getenv('DATABASE_HOST', 'postgres'),
-            port=int(os.getenv('DATABASE_PORT', 5432)),
-            database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-            user=os.getenv('DATABASE_USER', 'postgres'),
-            password=os.getenv('DATABASE_PASSWORD')
-        )
+        db = PostgresHandler.from_env_or_config()
 
         results = []
         artists_with_creds = 0

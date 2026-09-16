@@ -290,13 +290,7 @@ def check_data_freshness(**context):
     from src.database.postgres_handler import PostgresHandler
     from src.utils.freshness_monitor import check_freshness
 
-    db = PostgresHandler(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD'),
-    )
+    db = PostgresHandler.from_env_or_config()
 
     try:
         results = check_freshness(db)
@@ -392,13 +386,7 @@ def check_resurrection_sparks(**context):
     from src.database.postgres_handler import PostgresHandler
     from src.utils.saves_history import detect_saves_resurrection
 
-    db = PostgresHandler(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD'),
-    )
+    db = PostgresHandler.from_env_or_config()
     sparks = []
     try:
         artists = db.fetch_query(
@@ -436,13 +424,7 @@ def check_drift_anomalies(**context):
     from src.database.postgres_handler import PostgresHandler
     from src.utils.ml_inference import check_drift
 
-    db = PostgresHandler(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD'),
-    )
+    db = PostgresHandler.from_env_or_config()
     counter, total = Counter(), 0
     try:
         rows = db.fetch_query(
@@ -486,13 +468,7 @@ def check_billing_sync(**context):
     """
     from src.database.postgres_handler import PostgresHandler
 
-    db = PostgresHandler(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD'),
-    )
+    db = PostgresHandler.from_env_or_config()
     issues = []
     try:
         rows = db.fetch_query(
@@ -529,13 +505,7 @@ def check_row_anomalies(**context):
     """
     from src.database.postgres_handler import PostgresHandler
 
-    db = PostgresHandler(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD'),
-    )
+    db = PostgresHandler.from_env_or_config()
     anomalies = []
     try:
         for table, col in ANOMALY_TABLES:
@@ -819,13 +789,7 @@ def check_row_dips(**context):
     from src.database.postgres_handler import PostgresHandler
     from src.utils.volume_monitor import dip_finding, is_partial_collection
 
-    db = PostgresHandler(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD'),
-    )
+    db = PostgresHandler.from_env_or_config()
     dips = []
     try:
         for table, date_col in ANOMALY_TABLES:
@@ -902,13 +866,7 @@ def check_zero_resets(**context):
     from src.database.postgres_handler import PostgresHandler
     from src.utils.value_monitor import run
 
-    db = PostgresHandler(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD'),
-    )
+    db = PostgresHandler.from_env_or_config()
     try:
         resets = run(db, logger)
     finally:
@@ -1007,13 +965,7 @@ def check_onboarding_readiness(**context):
     # the cap means what it says at 100 tenants. Exhaustion is logged, never silent.
     budget = [int(os.getenv('READINESS_PROBE_BUDGET', '25'))]
 
-    db = PostgresHandler(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD'),
-    )
+    db = PostgresHandler.from_env_or_config()
     flags = []
     stalled = []
     try:
@@ -1430,13 +1382,7 @@ def check_canary_preflight(**context):
             value=[{'step': 'ALL', 'reason': f'check could not run: {safe_error(e)}'}])
         return
 
-    db = PostgresHandler(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD'),
-    )
+    db = PostgresHandler.from_env_or_config()
     try:
         rows = db.fetch_query(
             "SELECT id, name FROM saas_artists WHERE is_canary = TRUE AND active = TRUE "
@@ -1626,13 +1572,7 @@ def check_metric_bounds(**context):
     from src.database.postgres_handler import PostgresHandler
     from src.utils.metric_bounds import run
 
-    db = PostgresHandler(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD'),
-    )
+    db = PostgresHandler.from_env_or_config()
     findings, tenants = [], 0
     try:
         findings, tenants = run(db)
@@ -1670,13 +1610,7 @@ def check_gold_invariants(**context):
     from src.database.postgres_handler import PostgresHandler
     from src.utils.gold_invariants import run
 
-    db = PostgresHandler(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD'),
-    )
+    db = PostgresHandler.from_env_or_config()
     findings, compared = [], 0
     try:
         findings, compared = run(db)

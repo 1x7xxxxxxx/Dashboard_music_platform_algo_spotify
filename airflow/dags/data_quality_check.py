@@ -8,7 +8,6 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 import sys
-import os
 import logging
 
 # Ajouter le projet au path Python
@@ -74,13 +73,7 @@ def check_spotify_data_consistency(**context):
         logger.info('🔍 VÉRIFICATION COHÉRENCE DONNÉES SPOTIFY')
         logger.info('='*70)
 
-        db = PostgresHandler(
-            host=os.getenv('DATABASE_HOST', 'postgres'),
-            port=int(os.getenv('DATABASE_PORT', 5432)),
-            database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-            user=os.getenv('DATABASE_USER', 'postgres'),
-            password=os.getenv('DATABASE_PASSWORD')
-        )
+        db = PostgresHandler.from_env_or_config()
 
         issues = []
         warnings = []
@@ -288,13 +281,7 @@ def generate_daily_stats(**context):
         logger.info('📊 GÉNÉRATION STATISTIQUES QUOTIDIENNES')
         logger.info('='*70)
 
-        db = PostgresHandler(
-            host=os.getenv('DATABASE_HOST', 'postgres'),
-            port=int(os.getenv('DATABASE_PORT', 5432)),
-            database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-            user=os.getenv('DATABASE_USER', 'postgres'),
-            password=os.getenv('DATABASE_PASSWORD')
-        )
+        db = PostgresHandler.from_env_or_config()
 
         stats = {}
 

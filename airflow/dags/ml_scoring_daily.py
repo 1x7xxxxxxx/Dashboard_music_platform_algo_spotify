@@ -46,17 +46,7 @@ def run_ml_scoring(**context):
     from src.utils.credential_loader import get_active_artists
     from src.utils.ml_inference import score_all_songs
     from src.utils.saves_history import snapshot_saves
-    import os
-
-    db_cfg = {
-        'host': os.environ.get('DATABASE_HOST', 'postgres'),
-        'port': int(os.environ.get('DATABASE_PORT', 5432)),
-        'database': os.environ.get('DATABASE_NAME', 'spotify_etl'),
-        'user': os.environ.get('DATABASE_USER', 'postgres'),
-        'password': os.environ.get('DATABASE_PASSWORD', ''),
-    }
-
-    db = PostgresHandler(**db_cfg)
+    db = PostgresHandler.from_env_or_config()
     total_inserted = 0
 
     try:

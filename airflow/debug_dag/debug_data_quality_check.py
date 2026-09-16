@@ -43,13 +43,7 @@ except Exception as e:
 
 def _get_db():
     from src.database.postgres_handler import PostgresHandler
-    return PostgresHandler(
-        host=os.environ['DATABASE_HOST'],
-        port=int(os.environ['DATABASE_PORT']),
-        database=os.environ['DATABASE_NAME'],
-        user=os.environ['DATABASE_USER'],
-        password=os.environ['DATABASE_PASSWORD'],
-    )
+    return PostgresHandler.from_env_or_config()
 
 
 def _section(title):

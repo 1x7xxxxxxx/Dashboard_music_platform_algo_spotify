@@ -13,7 +13,6 @@ Weekly (Monday 06:00 UTC, after the daily scoring has long settled). The pairs
 accumulate the live training set for the future champion/challenger retraining loop.
 """
 import logging
-import os
 import sys
 from datetime import datetime, timedelta
 
@@ -56,13 +55,7 @@ def run_outcome_labeling(**context):
     from src.utils.credential_loader import get_active_artists
     from src.utils.ml_outcome_labeling import label_predictions
 
-    db = PostgresHandler(
-        host=os.environ.get('DATABASE_HOST', 'postgres'),
-        port=int(os.environ.get('DATABASE_PORT', 5432)),
-        database=os.environ.get('DATABASE_NAME', 'spotify_etl'),
-        user=os.environ.get('DATABASE_USER', 'postgres'),
-        password=os.environ.get('DATABASE_PASSWORD', ''),
-    )
+    db = PostgresHandler.from_env_or_config()
     total = 0
     try:
         artists = get_active_artists()

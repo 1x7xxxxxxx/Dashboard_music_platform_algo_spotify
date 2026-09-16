@@ -80,13 +80,7 @@ def step_2_check_database():
     port = os.getenv('DATABASE_PORT', '5432')
 
     try:
-        db = PostgresHandler(
-            host=host,
-            port=port,
-            database=os.getenv('DATABASE_NAME'),
-            user=os.getenv('DATABASE_USER'),
-            password=os.getenv('DATABASE_PASSWORD')
-        )
+        db = PostgresHandler.from_env_or_config()
         logger.info(f"✅ Connexion réussie vers {host}:{port}")
 
         # Test existence table

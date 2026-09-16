@@ -9,7 +9,6 @@ Telemetry MUST NEVER raise or slow a page → every path is wrapped and swallowe
 lost event, never a broken page.
 """
 import json
-import os
 import uuid
 
 import streamlit as st
@@ -24,18 +23,29 @@ def _session_id() -> str:
 
 
 def _connect():
-    """Short-lived connection WITHOUT the st.error side effect of get_db_connection."""
-    from src.database.postgres_handler import PostgresHandler
-    from src.utils.config_loader import config_loader
+    """Connexion courte, SANS l'effet de bord `st.error` de `get_db_connection`.
 
-    url = os.environ.get("DATABASE_URL")
-    if url:
-        return PostgresHandler.from_url(url)
-    cfg = config_loader.load()["database"]
-    return PostgresHandler(
-        host=cfg["host"], port=cfg["port"], database=cfg["database"],
-        user=cfg["user"], password=cfg["password"],
-    )
+    ⚠️ Elle résolvait ses identifiants à la main jusqu'au 2026-09-17 —
+    `DATABASE_URL`, sinon `config.yaml` — en sautant l'étape du milieu, les variables
+    `DATABASE_*`. C'est **exactement** le défaut que la docstring de
+    `from_env_or_config` raconte : *« trois collecteurs refaisaient chacun les mêmes
+    cinq `os.getenv`, tous avec `localhost` par défaut, faux à l'endroit même où ils
+    tournent »*. Celui-ci était le quatrième, écrit après la correction des trois.
+
+    Ce que ça coûtait concrètement : dans un environnement qui donne `DATABASE_HOST`
+    sans `DATABASE_URL` — c'est le cas d'Airflow — on retombait sur `config.yaml`, que
+    les conteneurs n'embarquent pas ; `config_loader.load()["database"]` lève, le
+    `except Exception: return` de `track()` avale, et **tous les évènements d'usage
+    sont perdus en silence**. La télémétrie qui ne doit jamais casser la page ne doit
+    pas non plus disparaître sans le dire.
+
+    ⚠️ Et ce n'était PAS un contournement du pool, contrairement à ce que R120
+    affirmait : `PostgresHandler.__init__` appelle `_connect()`, qui emprunte au pool
+    quand il existe. Cette fonction y passait déjà.
+    """
+    from src.database.postgres_handler import PostgresHandler
+
+    return PostgresHandler.from_env_or_config()
 
 
 def track(event: str, page: str | None = None, meta: dict | None = None) -> None:

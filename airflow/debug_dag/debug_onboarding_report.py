@@ -20,7 +20,6 @@ project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.database.postgres_handler import PostgresHandler
-from src.utils.config_loader import config_loader
 from src.dashboard.utils.pdf_exporter import generate_pdf, ALL_SECTIONS
 
 
@@ -30,9 +29,7 @@ def _slug(s: str) -> str:
 
 
 def main(send: bool = False):
-    cfg = config_loader.load()['database']
-    db = PostgresHandler(host=cfg['host'], port=cfg['port'], database=cfg['database'],
-                         user=cfg['user'], password=cfg['password'])
+    db = PostgresHandler.from_env_or_config()
     pending = db.fetch_query(
         """
         SELECT u.id, u.email, u.username, u.artist_id, a.name

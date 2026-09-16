@@ -32,6 +32,15 @@ _ALLOWED_TO_RESOLVE = {
     REPO / "src" / "database" / "postgres_handler.py",
     REPO / "src" / "utils" / "pg_connect.py",
 }
+# ⚠️ `airflow/debug_dag/` a ete AJOUTE ici le 2026-09-17, puis RETIRE le meme jour.
+# Les douze scripts y construisaient bien un `PostgresHandler` a la main — c'est
+# corrige, ils passent tous par la porte. Mais ce qu'ils LISENT encore n'est pas une
+# resolution : `debug_alert_monitor` fait `os.environ.setdefault('DATABASE_HOST', …)`
+# depuis `config.yaml` pour ALIMENTER le resolveur partage quand on lance un DAG hors
+# Docker, et `debug_s4a` liste les noms de variables pour dire lesquelles manquent.
+# Nourrir la porte et diagnostiquer son absence ne sont pas inventer une precedence.
+# Les garder dans le balayage aurait rendu neuf faux positifs permanents — et un garde
+# bruyant se fait desactiver, ce qui coute plus cher que le trou qu'il couvrait.
 _SCANNED_TREES = [REPO / "src", REPO / "airflow" / "dags", REPO / "tools"]
 _DSN_VARS = {"DATABASE_URL", "DATABASE_HOST", "DATABASE_PORT",
              "DATABASE_NAME", "DATABASE_USER", "DATABASE_PASSWORD"}
@@ -117,15 +126,7 @@ def test_the_known_list_has_not_rotted():
     stale exemption is an exemption nobody re-examines.
     """
     reading = set(_modules_reading_dsn_env())
-    known = {
-        "src/api/main.py", "src/dashboard/utils/usage_tracker.py",
-        "airflow/dags/alert_monitor.py",
-        "airflow/dags/data_quality_check.py",
-        "airflow/dags/ml_outcome_labeling.py",
-        "airflow/dags/ml_scoring_daily.py", "airflow/dags/onboarding_report.py",
-        "airflow/dags/spotify_api_daily.py",
-        "airflow/dags/weekly_digest.py", "airflow/dags/youtube_daily.py",
-    }
+    known = {"src/api/main.py"}
     stale = sorted(known - reading)
     assert not stale, (
         f"{stale} no longer read a DSN variable — remove them from the ratchet so it "
