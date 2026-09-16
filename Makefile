@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: test-durations example-charts error-inbox error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: loadtest-concurrency scale-check test-durations example-charts error-inbox error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -92,6 +92,24 @@ test-fast:   ## La suite SANS les tests de documents (-38 s) — pour la boucle 
 
 test-docs:   ## Seulement les tests de documents — à lancer après avoir mis les docs à jour
 	$(PYTHON) -m pytest $(DOC_TESTS) -q
+
+loadtest-concurrency: ## La concurrence RÉELLE, par navigateurs. URL=… [USER=… PASSWORD=…]
+	@# Le seul chiffre que `loadtest_dashboard.py` ne peut pas produire : il rend en
+	@# SÉRIE puis divise, et il le dit lui-même (lignes 27-40). Ici N onglets cliquent
+	@# ENSEMBLE, ce qui est la définition de la concurrence.
+	@[ -n "$(URL)" ] || { echo "❌ set URL=https://…"; exit 1; }
+	$(PYTHON) tools/loadtest_concurrency.py --url "$(URL)" \
+	  $(if $(LEVELS),--levels $(LEVELS),) $(if $(REPS),--reps $(REPS),) \
+	  $(if $(USER),--user $(USER),) $(if $(PASSWORD),--password $(PASSWORD),)
+
+scale-check: ## Les 2 déclencheurs de R87 (répliques), rejoués. PROD_SSH=user@host
+	@# Une décision qu'on ne sait pas relire se périme en silence. ADR-014 § « Comment
+	@# relire cette décision » liste ses commandes sans les avoir outillées ; ici elles
+	@# s'exécutent. La requête exclut canaris et bac à sable depuis le 2026-09-16 —
+	@# l'ancienne comptait notre propre locataire d'essai comme un utilisateur, et le
+	@# pic passait de 6 à 12 pour cette seule raison.
+	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host"; exit 1; }
+	@PROD_SSH=$(PROD_SSH) bash tools/scale_check.sh
 
 test-durations: ## Régénère .test_durations (équilibre les 4 shards de la CI) — ~15 min
 	@# EN SÉRIE, à dessein : `--store-durations` sous xdist n'agrège pas proprement,
