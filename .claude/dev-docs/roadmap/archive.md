@@ -5548,3 +5548,77 @@ SoundCloud, Apple.
   **Classes** : `db-connection-per-show` et
   `cache-not-invalidated-by-the-event-that-stales-it` reçoivent une ligne d'histoire ;
   `a-count-taken-before-the-writer-ran` est neuve, livrée SANS signature.
+
+
+## ⚡ R114 — Seconde réplique + affinité Caddy : livrée, et le résultat est AMBIGU (2026-09-16)
+
+- [x] **R114 — seconde réplique + Caddy en affinité, et la même rampe rejouée.**
+
+  Second conteneur `dashboard` sur `127.0.0.1:8511`, même image, même bind `./data`.
+  `deploy/Caddyfile` ET `/etc/caddy/Caddyfile` :
+  `reverse_proxy 127.0.0.1:8501 127.0.0.1:8511 { lb_policy cookie … }` (Caddy v2.11.4),
+  `caddy validate` puis `systemctl reload`, jamais `restart`.
+
+  **L'affinité est obligatoire** : `st.session_state` vit dans le processus, pas dans
+  un cookie. ⚠️ Et elle ne borne RIEN côté sécurité — un forceur scripté n'a pas de
+  bocal à cookies, `lb_policy cookie` le répartit en tourniquet. C'est pourquoi
+  l'étape 1 (seaux partagés) devait précéder, et elle l'a fait.
+
+  **Mesuré par** : `.claude/dev-docs/measurement-protocol-R114.md`, écrit AVANT la première courbe
+  sur condition bloquante de `code-critic`. Quatre passes **alternées** A-B-A-B (une
+  instance / deux instances), mêmes paliers, mêmes reps, en heures creuses. Le signal de
+  décision est **les reruns perdus**, pas le p50. Seuil fixé d'avance : B doit rendre
+  zéro rerun perdu là où A en perd ≥ 9, **sur les deux passes** ; un écart de p50 sous
+  40 % est déclaré dans le bruit et ne soutient rien.
+
+  Les trois issues sont toutes utiles, et **la troisième est un résultat** : le levier
+  est prouvé ; ou B perd autant que A — **le goulot n'est pas le GIL, on aurait acheté
+  Redis et des workers pour rien**, la découverte visée ; ou l'écart est sous le seuil et
+  on écrit que la mesure n'a pas tranché.
+
+  **Conditions bloquantes de `code-critic`, fermées avant d'écrire une ligne** :
+  `tools/deploy.sh` porte désormais un REGISTRE de services (`service_probe()`) — un
+  service sans sonde est REFUSÉ, là où la branche `*) continue` le laissait traverser le
+  déploiement sans vérification et sans retour arrière ; et `rollback()` reconstruit le
+  service EN CAUSE, non plus toute la liste (à deux répliques, l'échec de l'une aurait
+  coupé les deux). Garde :
+  `tests/test_a_deploy_covers_every_service_it_starts.py`, qui relie l'amont Caddy à sa
+  sonde — les deux vivaient dans deux fichiers que rien ne comparait.
+
+  **Conséquence à assumer, nommée par la critique** : au redémarrage de l'instance
+  épinglée, Caddy réachemine vers l'autre amont, qui n'a pas le `st.session_state` de
+  l'utilisateur — déconnexion silencieuse en pleine session. Aujourd'hui un déploiement
+  fait subir cela à TOUT LE MONDE en même temps ; à deux répliques l'effet est étalé
+  mais reste réel.
+
+  Réversible : `docker rm -f` + le Caddyfile d'avant + `reload`. Coût mesuré : 118 MiB
+  sur 4,49 Gi libres.
+
+  **Livrée et déployée** (`e859ae3`). Deux instances derrière Caddy avec
+  `lb_policy cookie`, répartition prouvée (12 requêtes sans cookie → **6 sur chaque
+  amont**), Caddyfile de prod **identique** au dépôt.
+
+  **Le résultat, et c'est lui qui compte** :
+
+  | onglets | 1 | 2 | 4 | 8 | 12 | 16 | 24 |
+  |---|---|---|---|---|---|---|---|
+  | A1 (1 instance) p50 | 317 | 454 | 589 | 1067 | 1511 | 1693 | 3088 |
+  | A2 (rejeu) p50 | 323 | 413 | 649 | 1083 | — | — | — |
+  | B1 (2 instances) p50 | 335 | 330 | 422 | **762** | **985** | **1126** | **1374** |
+  | A1 perdus | 0 | 0 | 4 | 11 | 33 | 13 | 37 |
+  | B1 perdus | 0 | 1 | 0 | 3 | **31** | **29** | **35** |
+
+  Le p50 s'effondre (**×2,25** à 24 onglets, A2 reproduit A1 à ±6 %) ; **les reruns
+  perdus ne suivent pas**. Le signal de décision, fixé d'avance sur les reruns perdus,
+  ne tranche donc pas — et l'audit de l'instrument a montré ensuite que **cette colonne
+  elle-même est cassée** (voir R119). **C'est un constat, pas un échec** : c'est
+  exactement pourquoi le protocole a été écrit avant la mesure.
+
+  **Trois défauts trouvés en montant la réplique**, tous corrigés et gardés :
+  `extends.file` se résout depuis le répertoire du PROJET ; `extends` **fusionne** les
+  listes (la réplique héritait le port 8501 — le message nommait le bon port et la
+  mauvaise cause) ; `check-yaml` refuse `!override` que Docker Compose comprend.
+
+  **Et un défaut dans mon propre garde** : le premier test du tag ne prouvait rien —
+  PyYAML consomme les tags, donc le document chargé est identique avec ou sans. Le
+  chargeur retient désormais les tags vus.

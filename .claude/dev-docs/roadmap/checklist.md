@@ -25,7 +25,10 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R114 | Seconde réplique du dashboard + Caddy en affinité, et la même rampe rejouée | P3 | `make loadtest-concurrency LEVELS=1,2,4,8,12,16,24 REPS=6`, deux courbes |
+| R119 | L'instrument de mesure dit POURQUOI il échoue, et cesse de censurer | P1 | une passe interrompue laisse un JSON par palier |
+| R120 | La chrome, pas la vue — onglets et expanders paresseux, barre latérale | P2 | histogramme de rendu avant/après, même charge |
+| R118 | `st.fragment` sur les 11 vues à filtres | P2 | histogramme de rendu, admin d'abord |
+| R121 | Les agrégations Python passent en SQL (couche or) | P3 | `make gold-coverage`, cliquet |
 | R115 | Prometheus + Grafana, quatre métriques pour commencer | P3 | `curl -s localhost:9090/api/v1/query?query=…` rend une latence |
 | R116 | ADR-026 — répliques et Redis, tranché APRÈS les courbes | P4 | `ls docs/adr/ADR-026-*.md` |
 | R117 | Le dépôt quitte `/mnt/c` pour ext4, et VS Code passe en Remote-WSL | P3 | suite complète chronométrée des deux côtés, en alternance |
@@ -172,47 +175,93 @@ Ces quatre tâches construisent la forme scalable **même si le seuil n'est pas 
 décision assumée : découvrir par la mesure que ce n'était pas nécessaire vaut mieux que
 le supposer.
 
-- [ ] **R114 — seconde réplique + Caddy en affinité, et la même rampe rejouée.**
+- [ ] **R119 — l'instrument de mesure dit POURQUOI il échoue, et cesse de censurer.**
 
-  Second conteneur `dashboard` sur `127.0.0.1:8511`, même image, même bind `./data`.
-  `deploy/Caddyfile` ET `/etc/caddy/Caddyfile` :
-  `reverse_proxy 127.0.0.1:8501 127.0.0.1:8511 { lb_policy cookie … }` (Caddy v2.11.4),
-  `caddy validate` puis `systemctl reload`, jamais `restart`.
+  **P1, et c'est le préalable de toute optimisation.** Le signal de décision de R114 —
+  « reruns perdus » — a été audité et il ne tient pas. Quatre défauts cumulables dans
+  `tools/loadtest_concurrency.py` :
 
-  **L'affinité est obligatoire** : `st.session_state` vit dans le processus, pas dans
-  un cookie. ⚠️ Et elle ne borne RIEN côté sécurité — un forceur scripté n'a pas de
-  bocal à cookies, `lb_policy cookie` le répartit en tourniquet. C'est pourquoi
-  l'étape 1 (seaux partagés) devait précéder, et elle l'a fait.
+  1. `_MARKER = '[data-testid="stStatusWidget"]'` (`:63`) n'est **pas spécifique aux
+     reruns** : Streamlit monte le même `data-testid` pour l'invite « File change » et
+     pour **`stConnectionStatus`**. Un websocket dégradé laisse le nœud attaché →
+     `wait_for_selector(detached)` expire → **compté « perdu » alors que le rerun a pu
+     être servi**. La colonne mélange rendu et transport.
+  2. `except Exception` nu (`:104`) fusionne trois causes : `click()` sans
+     actionnabilité (défaut client/DOM), marqueur jamais attaché, marqueur jamais
+     détaché. Une seule parle du serveur.
+  3. **Le p50 est calculé sur les SURVIVANTS** (`:129-132`, `:195`). À 24 onglets,
+     **68 à 82 % des échantillons sont censurés** — le chiffre publié décrit le quart
+     qui a réussi et **sous-estime** la dégradation.
+  4. **Le compte n'est pas monotone** : 9 (N=8) → 33 (N=12) → **24** (N=16) → 98 (N=24).
+     Aucune saturation serveur ne produit cette inversion.
 
-  **Mesuré par** : `.claude/dev-docs/measurement-protocol-R114.md`, écrit AVANT la première courbe
-  sur condition bloquante de `code-critic`. Quatre passes **alternées** A-B-A-B (une
-  instance / deux instances), mêmes paliers, mêmes reps, en heures creuses. Le signal de
-  décision est **les reruns perdus**, pas le p50. Seuil fixé d'avance : B doit rendre
-  zéro rerun perdu là où A en perd ≥ 9, **sur les deux passes** ; un écart de p50 sous
-  40 % est déclaré dans le bruit et ne soutient rien.
+  Et le client peut se saturer : 175-217 Mo par `chrome-headless-shell`, donc 24 onglets
+  ≈ **4,2 Go** contre ~4,0 Go disponibles ; toute la chaîne passe par **un tube et un
+  processus Node mono-thread**, donc `asyncio.gather` ne crée aucune simultanéité
+  physique. Le garde `_heavy_local_processes()` (`:67-80`) compte des sous-chaînes de
+  `ps` une seule fois **avant** le lancement, ignore N, le CPU et la RAM, ne se rejoue
+  jamais, et compte `chromium` parmi ses clés — ce qu'il crée lui-même.
 
-  Les trois issues sont toutes utiles, et **la troisième est un résultat** : le levier
-  est prouvé ; ou B perd autant que A — **le goulot n'est pas le GIL, on aurait acheté
-  Redis et des workers pour rien**, la découverte visée ; ou l'écart est sous le seuil et
-  on écrit que la mesure n'a pas tranché.
+  **À faire** : séparer les trois causes en trois compteurs ; un marqueur spécifique au
+  rerun ; publier la colonne `max` (elle dirait si la censure à 60 s a joué) ; écrire un
+  JSON **par palier au fil de l'eau** (deux passes sur quatre sont mortes en emportant
+  la série) ; compter le côté client (contextes vivants, RSS).
 
-  **Conditions bloquantes de `code-critic`, fermées avant d'écrire une ligne** :
-  `tools/deploy.sh` porte désormais un REGISTRE de services (`service_probe()`) — un
-  service sans sonde est REFUSÉ, là où la branche `*) continue` le laissait traverser le
-  déploiement sans vérification et sans retour arrière ; et `rollback()` reconstruit le
-  service EN CAUSE, non plus toute la liste (à deux répliques, l'échec de l'une aurait
-  coupé les deux). Garde :
-  `tests/test_a_deploy_covers_every_service_it_starts.py`, qui relie l'amont Caddy à sa
-  sonde — les deux vivaient dans deux fichiers que rien ne comparait.
+  **Classes à écrire** : `a-measurement-that-cannot-say-why-it-failed`,
+  `a-percentile-computed-on-survivors`.
 
-  **Conséquence à assumer, nommée par la critique** : au redémarrage de l'instance
-  épinglée, Caddy réachemine vers l'autre amont, qui n'a pas le `st.session_state` de
-  l'utilisateur — déconnexion silencieuse en pleine session. Aujourd'hui un déploiement
-  fait subir cela à TOUT LE MONDE en même temps ; à deux répliques l'effet est étalé
-  mais reste réel.
+- [ ] **R120 — la chrome, pas la vue.**
 
-  Réversible : `docker rm -f` + le Caddyfile d'avant + `reload`. Coût mesuré : 118 MiB
-  sur 4,49 Gi libres.
+  ⚠️ **Ma première hypothèse était fausse et le dépôt le savait déjà.** `docs/adr/ADR-007`
+  porte un profil cProfile pris **dans le conteneur de production** (2026-08-30,
+  `trigger_algo`, 662 ms) : `plotly.__setitem__` 0,327 s cumulé, `__getitem__` 0,199 s,
+  `copy.deepcopy` 0,141 s sur 82 462 appels, SQL 0,067 s. **pandas n'apparaît ni en temps
+  propre ni dans les 20 premiers.** C'est **plotly** et la construction des figures.
+
+  Et le coût n'est pas dans la vue : rendu **par vue** p50 = **61 ms**, page **complète**
+  = **468-538 ms**, soit ~8× (`tools/loadtest_dashboard.py:17-21`).
+
+  Les postes, tous vérifiés :
+  * **`st.tabs` exécute tous les corps** — `views/trigger_algo/router.py:202-225` ouvre
+    7 onglets et les appelle tous ; 15 vues ont un `st.tabs` ;
+  * **`st.expander(expanded=False)` exécute son corps aussi** — `utils/ui.py:83-98` ;
+    `tools/dev/chart_budget.py` compte les figures construites et jamais vues :
+    meta_creatives 4, data_wrapped 4, trigger_algo 4, meta_ads_overview 3 ;
+  * **la barre latérale** — ~39 `t()` + ~39 `page_is_locked` + 6 `st.sidebar.radio` à
+    CHAQUE rerun pour un menu qui ne change pas ;
+  * **`track_page_view`** (`utils/usage_tracker.py:27-38`) ouvre un `PostgresHandler`
+    **hors du pool** ;
+  * **`utils/platform_chart.py:225-285`** refait un `GROUP BY date_trunc` en boucles
+    Python, sur la figure de l'accueil.
+
+- [ ] **R118 — `st.fragment` sur les 11 vues à filtres.**
+
+  Streamlit 1.63 le supporte ; il n'existe que dans **1 vue sur ~40**
+  (`views/airflow_kpi.py:344`). Changer un filtre rejoue aujourd'hui tout le script.
+
+  ⚠️ **Après R120, pas avant** : si la chrome pèse 8× la vue, un fragment sur la vue
+  n'attaque pas le poste principal. L'ordre a été corrigé sur cette mesure.
+
+  Population (≥ 2 widgets de filtre ET ≥ 2 figures) : `data_wrapped` (5/13),
+  `meta_creatives` (4/12), `spotify_s4a_combined` (2/12), `revenue_forecast` (4/11),
+  `meta_ads_overview` (2/10), `db_health` (2/10), `imusician` (9/4), `admin`,
+  `hypeddit`, `youtube`, `airflow_kpi`.
+
+  **Ordre imposé par le risque** : `db_health` et `admin` d'abord — vues ADMIN, un
+  défaut n'atteint aucun artiste — puis les vues artiste.
+
+- [ ] **R121 — les agrégations Python passent en SQL.**
+
+  Une agrégation en Python tient le GIL ; la même en SQL le relâche pendant l'attente.
+  La couche or (ADR-019, 19 migrations `gold`) **est déjà le mécanisme**.
+
+  Sites localisés : `views/alerts.py:251` (`groupby().tail(1)` dans une boucle sur tous
+  les mois), `views/meta_creatives.py:539-561` (`groupby` + `nlargest` + `cumsum`),
+  `views/meta_x_spotify.py:168-201` (3 `merge` + `concat` pour un axe de dates),
+  `views/db_health.py:129-145` (`concat` en boucle + `pivot_table`),
+  `views/hypeddit.py:181`, `views/soundcloud.py:183`, `views/meta_ads_overview.py:696`.
+
+  **Garde existant à réutiliser** : `make gold-coverage` et son cliquet.
 
 - [ ] **R115 — Prometheus + Grafana, quatre métriques pour commencer.**
 
@@ -327,14 +376,19 @@ travail quotidien existe déjà et n'enlève aucune couverture** :
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-16, quatre tâches ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-16, sept tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R114,R115,R116,R117 -->
+<!-- reprise: open=R115,R119,R120,R118,R121,R116,R117 -->
 
-**Quatre tâches sont ouvertes — R114 à R117.** R114 à R116 sont les étapes 3 à 5 du
-chantier d'architecture scalable ouvert le 2026-09-16 ; R117 est un chantier d'outillage
-indépendant, à faire APRÈS elles. **R113 est livrée et déployée** (`aefde32`) — détail
-dans `archive.md`.
+**Sept tâches sont ouvertes.** R114 est livrée et déployée (`e859ae3`), et **son
+résultat est AMBIGU** — c'est ce constat qui a ouvert R118 à R121. Détail dans
+`archive.md`.
+
+**L'ordre est contraint et non négociable** : R115 (l'instrument) puis R119 (le réparer)
+AVANT toute optimisation, parce qu'aucune des deux colonnes mesurées aujourd'hui ne peut
+trancher. Puis R120, R118, R121 (les causes), puis R116 (l'ADR), puis R117 (l'outillage).
+
+⚠️ **Mode de travail : une étape à la fois, validée avant la suivante.**
 
 ⚠️ **Mode de travail convenu le 2026-09-16 : une étape à la fois, validée par le
 propriétaire avant la suivante.** Ce n'est pas une précaution de style — R114 modifie le
