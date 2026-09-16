@@ -25,8 +25,8 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R118 | `st.fragment` sur les 11 vues à filtres — **remonté avant R120** | P2 | histogramme de rendu, admin d'abord |
 | R120 | La vue, pas la chrome — onglets et expanders paresseux (chrome démesurée : 11-13 ms) | P2 | histogramme de rendu avant/après, même charge |
+| R118 | `st.fragment` — **6/11 faites** ; le reste attend une mesure de coût | P3 | l'histogramme montre la page avant de la refactorer |
 | R121 | Les agrégations Python passent en SQL (couche or) | P3 | `make gold-coverage`, cliquet |
 | R116 | **ADR-027** — répliques et Redis, tranché APRÈS les courbes (026 est pris) | P4 | `ls docs/adr/ADR-027-*.md` |
 | R117 | Le dépôt quitte `/mnt/c` pour ext4, et VS Code passe en Remote-WSL | P3 | suite complète chronométrée des deux côtés, en alternance |
@@ -241,32 +241,52 @@ le supposer.
   * **`utils/platform_chart.py:225-285`** refait un `GROUP BY date_trunc` en boucles
     Python, sur la figure de l'accueil.
 
-- [ ] **R118 — `st.fragment` sur les 11 vues à filtres.**
+- [ ] **R118 — `st.fragment` sur les vues à filtres. AVANCÉE 6/11, et sa population est
+      à redériver.**
 
-  Streamlit 1.63 le supporte ; il n'existe que dans **1 vue sur ~40**
-  (`views/airflow_kpi.py:344`). Changer un filtre rejoue aujourd'hui tout le script.
+  **Fait le 2026-09-16, et déployé** : `db_health` (2 sections), `airflow_kpi` (le seul
+  fragment préexistant, RÉPARÉ — il capturait une connexion fermée), `data_wrapped`
+  (l'onglet Évolution, 357,7 ms mesurés), `meta_creatives` (4 sections),
+  `revenue_forecast` (3 onglets à curseurs), `spotify_s4a_combined` (1 section).
 
-  ⚠️ **AVANT R120 — l'ordre est réinversé le 2026-09-16, sur une mesure serveur.** Il
-  disait : « après R120, pas avant : si la chrome pèse 8× la vue, un fragment sur la vue
-  n'attaque pas le poste principal ». La prémisse est fausse (détail chiffré dans le bloc
-  R120) : **la vue pèse de 4,6× à 63× la chrome**, sur les 8 pages mesurées.
+  ⚠️⚠️ **LA POPULATION DE CETTE BRIQUE A ÉTÉ CHOISIE PAR NOMBRE DE WIDGETS, PAS PAR
+  COÛT.** Les mesures serveur du 2026-09-16 le montrent, et elles changent ce qui reste
+  à faire :
 
-  Un fragment sur la vue attaque donc **le poste principal**, et c'est le seul levier qui
-  évite de rejouer une vue à 777 ms pour un changement de filtre. R120 garde ce qui vise
-  la VUE (`st.tabs`, `st.expander`, les agrégations Python) ; ce qui visait la chrome
-  descend en P4.
+  | page | vue mesurée | filtres | R118 peut-elle aider ? |
+  |---|---|---|---|
+  | `meta_mapping` | **776,8 ms** | 3 (dans `_campaigns`) | partiellement |
+  | `soundcloud` | **515,0 ms** | **0** | **non** |
+  | `data_wrapped` | 357,7 ms | 5 | oui — **fait** |
+  | `home` | **315,9 ms** | **0** | **non** |
+  | `meta_cpr_optimizer` | 98,7 ms | 0 | non |
+  | `instagram` | 96,3 ms | 0 | non |
+  | `apple_music` | 87,3 ms | 0 | non |
+  | `saisie_s4a` | 49,8 ms | 0 | non |
 
-  C'est la deuxième fois que cet ordre change, et les deux fois sur une mesure. Le noter
-  est le point : **la première inversion reposait sur un chiffre jamais mesuré côté
-  serveur**, et il a fallu construire l'instrument pour s'en apercevoir.
+  **Les trois pages les plus chères n'ont presque aucun filtre.** Un fragment ne borne
+  que le travail refait *quand un filtre bouge* ; sur une page sans filtre il ne borne
+  rien. Leur coût est le CORPS de la vue — c'est-à-dire R120 (onglets et expanders
+  paresseux) et R121 (agrégations Python → SQL), pas celle-ci.
 
-  Population (≥ 2 widgets de filtre ET ≥ 2 figures) : `data_wrapped` (5/13),
-  `meta_creatives` (4/12), `spotify_s4a_combined` (2/12), `revenue_forecast` (4/11),
-  `meta_ads_overview` (2/10), `db_health` (2/10), `imusician` (9/4), `admin`,
-  `hypeddit`, `youtube`, `airflow_kpi`.
+  **Ce qui reste ici, et ce que ça vaut** : `imusician`, `meta_ads_overview`, `hypeddit`,
+  `youtube`, `admin`. Aucune n'est apparue dans la session mesurée, donc **leur coût est
+  inconnu** — les fragmenter serait payer un refactor sur une page dont on ignore si elle
+  coûte quelque chose. Le geste correct est d'attendre qu'elles apparaissent dans
+  l'histogramme : `sum by (page) (streamlytics_rerun_duration_seconds_count)`. C'est
+  exactement le motif d'ADR-007, appliqué à nous-mêmes.
 
-  **Ordre imposé par le risque** : `db_health` et `admin` d'abord — vues ADMIN, un
-  défaut n'atteint aucun artiste — puis les vues artiste.
+  ⚠️ **La limite d'éligibilité, trouvée en le faisant** : un fragment DESSINE, il ne
+  RETOURNE pas. `_song_detail()` de `spotify_s4a_combined` porte un `st.selectbox` et
+  rend une figure que son appelant pose — rejoué seul, il rendrait à un appelant qui ne
+  se rejoue pas, et la page afficherait un titre choisi avec les données d'un autre.
+
+  ⚠️ **Et un défaut vivant trouvé en écrivant le garde** : `airflow_kpi` portait le seul
+  `@st.fragment` du dépôt, et il recevait la connexion de `show()`, fermée avant qu'il ne
+  se rejoue. Ça ne plantait pas — `_ensure_connection()` ré-empruntait au pool, sans
+  jamais rendre. Une fuite d'une connexion par session admin sur un pool à 10.
+  `tests/test_a_fragment_never_captures_a_connection.py` le tient maintenant dans les
+  deux sens.
 
 - [ ] **R121 — les agrégations Python passent en SQL.**
 
@@ -389,7 +409,7 @@ travail quotidien existe déjà et n'enlève aucune couverture** :
 
 ## 🔖 REPRISE — état au 2026-09-16, cinq tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R118,R120,R121,R116,R117 -->
+<!-- reprise: open=R120,R118,R121,R116,R117 -->
 
 **Cinq tâches sont ouvertes** : R118, R120, R121, R116, R117.
 
@@ -401,7 +421,15 @@ chrome, ce qui a réordonné R118 devant R120.
 
 **L'ordre était contraint** : R115 (l'instrument) puis R119 (le réparer) AVANT toute
 optimisation. **Les deux sont faites**, et la première mesure du nouvel instrument a
-immédiatement inversé la suite (voir R120). Puis **R118, R120**, R121 (les causes) — R118 est passée DEVANT R120 le 2026-09-16, la mesure serveur ayant inversé la prémisse — puis R116 (l'ADR), puis R117 (l'outillage).
+immédiatement inversé la suite (voir R120). Puis **R120, R118**, R121 (les causes), puis R116 (l'ADR), puis R117 (l'outillage).
+
+⚠️ **L'ordre R118/R120 a changé DEUX FOIS le 2026-09-16, chaque fois sur une mesure**, et
+les deux mouvements comptent. R118 est d'abord passée devant R120 : la mesure serveur
+avait montré que la VUE domine la chrome (4,6× à 63×), ce qui invalidait la prémisse de
+R120. Puis R120 est repassée devant : les trois pages les plus chères — `meta_mapping`
+777 ms, `soundcloud` 515 ms, `home` 316 ms — **n'ont presque aucun filtre**, et un
+fragment ne borne que le travail refait quand un filtre bouge. R118 garde donc ce qui
+était mesurément cher (fait), et le reste attend d'apparaître dans l'histogramme.
 
 ⚠️ **Mode de travail : une étape à la fois, validée avant la suivante.**
 
