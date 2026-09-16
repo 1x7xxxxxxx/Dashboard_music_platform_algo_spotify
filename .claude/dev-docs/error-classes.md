@@ -129,6 +129,8 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
+| [a-document-that-cannot-be-current-in-its-own-commit](#a-document-that-cannot-be-current-in-its-own-commit) | P2 | deterministic | guarded | none |
+| [a-population-that-counts-its-own-headers](#a-population-that-counts-its-own-headers) | P3 | deterministic | guarded | none |
 | [a-ratio-between-two-instruments-that-ignores-the-floor-of-one](#a-ratio-between-two-instruments-that-ignores-the-floor-of-one) | P1 | deterministic | guarded | none |
 | [a-fragment-that-outlives-the-connection-it-captured](#a-fragment-that-outlives-the-connection-it-captured) | P2 | deterministic | guarded | none |
 | [a-population-chosen-by-a-proxy-for-the-cost](#a-population-chosen-by-a-proxy-for-the-cost) | P2 | manual | resolved | none |
@@ -7029,6 +7031,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - rex_ref: .github/workflows/ci.yml
 - first_seen: 2026-09-16
 - History:
+  - 2026-09-16: **une deuxième instance, trouvée en la cherchant ailleurs.** `make config-check` lançait `audit_runner --fields || true` : `_fields()` appelle `_write_ratchet()`, donc la cible ÉCRIVAIT dans `error-classes.md`, l'artefact qu'elle juge. Le `|| true` la rendait invisible, et le commentaire qui le justifiait (« RED on 29/29 legacy classes ») était PÉRIMÉ — le catalogue portait `<!-- fields-ratchet: 0 -->` depuis longtemps. J'ai répété ce commentaire comme un fait sans lire le marqueur deux lignes plus loin. La ligne est remplacée par `error-health --check`, qui ne réécrit rien ; `--fields --strict` reste disponible à la main.
   - 2026-09-16: **P1 et non P3.** Une porte qui ne peut pas échouer ne coûte pas du temps, elle coûte la confiance : tout ce qu'elle a laissé passer depuis qu'elle existe est inconnu. C'est la même gravité que les 27 exécutions où la suite n'a pas tourné derrière un signal rouge sans rapport — sauf qu'ici il n'y avait même pas de rouge à voir. Mutation : `--frozen` retiré d'une seule étape → le garde la nomme, avec sa ligne ; remis → vert.
 
 ## a-limiter-consumed-in-two-steps
@@ -7411,3 +7414,38 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: six vues sur onze faites avant que la mesure n'arrive ; le travail n'est pas perdu (`data_wrapped`, 357,7 ms, était bien une bonne cible) mais l'ordre l'était. L'ordre R118/R120 a changé **deux fois le même jour**, chaque fois sur une mesure : d'abord R118 devant, la vue dominant la chrome ; puis R120 devant, les pages chères n'ayant pas de filtres. Aucune signature : la classe se prévient en écrivant, pas en détectant — et une signature jamais vue rouge ne garderait rien.
+## a-document-that-cannot-be-current-in-its-own-commit
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un document généré est **périmé à l'instant même où on le commite**. Son contrôle de fraîcheur est rouge juste après un `make` qui vient de le produire, et relancer le `make` ne le rend pas vert. On conclut que le générateur est cassé ; il ne l'est pas.
+- signature: `grep -q "DEUX COMMITS" Makefile`
+- seen_red: 2026-09-16 sur la cible `error-health` du Makefile, avant que l'ordre y soit écrit → exit 1 ; 0 après.
+- root_cause: le document tire ses faits de l'**historique git d'un fichier du même dépôt**. Committer ce fichier change donc les faits, et l'instantané committé à côté décrit l'état d'avant. Mesuré le 2026-09-16 sur `.claude/dev-docs/error-class-health.json`, qui compte les révisions de `error-classes.md` : `make config-check` est passé rouge sur `"revisions": 3 → 4` immédiatement après le commit du catalogue.
+- cause_evidence: measured (la sortie de `make config-check` nommait le champ et l'écart, et le second commit a fait converger)
+- long_term_fix: **deux commits, et le second ne touche pas la source.** (1) commiter le fichier observé ; (2) régénérer et commiter les artefacts SEULS. Le compte de révisions ne bouge plus, donc le contrôle reste vert. L'ordre est écrit dans la cible `make` elle-même, là où on le lit au moment de s'en servir. Un seul commit serait une porte qui ne peut jamais être verte — et ce dépôt sait ce que ça coûte : on apprend à la contourner.
+- autofix: none
+- guard: { type: make-precondition, ref: Makefile }
+- guard_scope: un-document-qui-affirme-un-état-périmé — générer un document dont les faits viennent du dépôt qui le contient ; couvre: la cible `error-health` et son ordre écrit ; ne couvre pas: **tout autre générateur qui lirait `git log`** — aujourd'hui il n'y en a qu'un, mais `gold-coverage` ou `error-families` hériteraient du défaut le jour où ils regarderaient l'historique plutôt que l'arbre de travail.
+- rex_ref: tools/dev/error_class_health.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: trouvé **par la porte elle-même**, dans le commit qui la posait. C'est le meilleur moment : le coût était une minute de perplexité, pas une semaine de contrôle rouge qu'on finit par ignorer.
+
+## a-population-that-counts-its-own-headers
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un compteur sur un document porte un dénominateur trop grand, et tous les pourcentages qui en découlent sont faux **dans le sens rassurant** — une part de défauts paraît plus petite qu'elle n'est. Rien n'échoue : le nombre existe, il est stable, et il compte des choses qui ne sont pas des membres.
+- signature: `.venv/bin/python -m pytest tests/test_the_error_class_health_only_improves.py::test_the_two_readers_of_the_catalogue_agree -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: 2026-09-16 sur `test_a_class_binds_or_it_is_only_prose.py` dont le découpage prenait tout `## …` → exit 1 ; 0 après le filtre kebab-case.
+- root_cause: un document est découpé sur un séparateur de titre (`^## `) et **tous** les titres sont comptés, y compris ceux de structure. Mesuré le 2026-09-16 sur `.claude/dev-docs/error-classes.md` : `Contract`, `Index`, `Per-class schema` et `CLASS-ID` étaient comptés comme des classes — **367 au lieu de 363** — et comme ils n'ont pas de ligne `guard:`, ils étaient comptés comme des classes de PROSE, gonflant ce plafond de 18 à 21.
+- cause_evidence: read (.claude/dev-docs/error-classes.md:39-56 — le gabarit du schéma est dans un bloc `## CLASS-ID` que le découpage ne distingue pas d'une classe)
+- long_term_fix: **le découpage nomme ce qu'il compte** — ici un identifiant kebab-case, comme `audit_runner.parse_all_headers` le faisait déjà. Et surtout : quand deux lecteurs comptent la même population, **un test compare leurs ensembles**. C'est ce test qui a trouvé le défaut, pas une relecture ; deux dénominateurs qui divergent silencieusement sont une grandeur à deux définitions.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_error_class_health_only_improves.py::test_the_two_readers_of_the_catalogue_agree }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — compter les membres d'un document découpé par titres ; couvre: le catalogue de classes, dont deux lecteurs sont comparés ; ne couvre pas: **tout autre document compté par découpage de titres** — `gold-coverage.md`, `error-class-families.md`, la ROADMAP — dont aucun n'a de second lecteur à confronter. Le garde tient un cas, pas la famille.
+- rex_ref: tests/test_the_error_class_health_only_improves.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: commis **deux fois dans la même journée**, par moi. La première a produit « 367 classes » dans toutes mes analyses ; la seconde a gelé un plafond à 21 au lieu de 18 — un budget de trois régressions, ouvert sans que personne le décide. Aucune relecture ne l'a vu : c'est la confrontation de deux lecteurs qui l'a sorti, six heures plus tard.

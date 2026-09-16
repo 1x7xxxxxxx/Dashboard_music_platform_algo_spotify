@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**363 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**365 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -11,7 +11,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | famille | classes | la question |
 |---|---|---|
 | [le-locataire](#le-locataire) | 41 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
-| [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 16 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
+| [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 17 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 13 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 19 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
@@ -19,7 +19,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 27 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 20 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 66 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 37 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 38 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 7 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
@@ -83,7 +83,7 @@ Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|cana
 
 **Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ?**
 
-Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generations|snapshot` sur l'identifiant et le symptôme. 16 classe(s).
+Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generations|snapshot` sur l'identifiant et le symptôme. 17 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -103,6 +103,7 @@ Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generat
 | [`a-quantity-mistaken-for-a-counter`](error-classes.md#a-quantity-mistaken-for-a-counter) | l'erreur SYMÉTRIQUE de celle qui a coûté un facteur 151 — traiter une quantité du jour comme un compteur cumulé. Le report en avant inventerait des vi |
 | [`a-counter-drawn-from-zero-before-anyone-was-looking`](error-classes.md#a-counter-drawn-from-zero-before-anyone-was-looking) | une bande de plateforme est **plate à zéro pendant des années**, puis saute d'un coup au niveau du compteur. Mesuré le 2026-09-12 sur « depuis le débu |
 | [`a-rule-that-was-right-for-quantities-applied-to-counters`](error-classes.md#a-rule-that-was-right-for-quantities-applied-to-counters) | la famille. Une règle écrite pour une quantité du jour — « la somme du seau », « zéro avant la première mesure », « le total de la période » — est app |
+| [`a-population-that-counts-its-own-headers`](error-classes.md#a-population-that-counts-its-own-headers) | un compteur sur un document porte un dénominateur trop grand, et tous les pourcentages qui en découlent sont faux **dans le sens rassurant** — une par |
 
 ## un-travail-qui-n-arrive-nulle-part
 
@@ -358,7 +359,7 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 
 **Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?**
 
-Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list|telemetry-table-that-nothing-ever-purges` sur l'identifiant et le symptôme. 37 classe(s).
+Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list|telemetry-table-that-nothing-ever-purges` sur l'identifiant et le symptôme. 38 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -399,6 +400,7 @@ Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|cap
 | [`a-prose-claim-that-cannot-be-verified`](error-classes.md#a-prose-claim-that-cannot-be-verified) | un document dont les TABLEAUX sont justes affirme le contraire dans la prose posée à côté, et rien ne le voit. Mesuré le 2026-09-15 sur `.claude/dev-d |
 | [`a-repair-that-reverts-what-a-successor-widened`](error-classes.md#a-repair-that-reverts-what-a-successor-widened) | un correctif de rejouabilité fait DISPARAÎTRE une colonne, une contrainte ou un index qu'une migration ultérieure avait ajoutés. Le fichier corrigé pa |
 | [`a-telemetry-table-that-nothing-ever-purges`](error-classes.md#a-telemetry-table-that-nothing-ever-purges) | une table écrite à chaque événement grossit sans borne. Rien n'échoue jamais — jusqu'au jour où une requête de tableau de bord ralentit, ou où le disq |
+| [`a-document-that-cannot-be-current-in-its-own-commit`](error-classes.md#a-document-that-cannot-be-current-in-its-own-commit) | un document généré est **périmé à l'instant même où on le commite**. Son contrôle de fraîcheur est rouge juste après un `make` qui vient de le produir |
 
 ## un-contrôle-qui-ne-peut-jamais-passer
 
@@ -554,6 +556,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=363 families=17 orphans=3 -->
+<!-- error-class-families: total=365 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=c7896f6dc48d9364bc7191ba1bdb4e3a75125dd5bd745fefd85312ddb2b7c8b8 -->
+<!-- error-class-families: sha256=0ad0bf7e636a3e386d3142112c6b97e120fc5f3feb4faab122a90dfc3ea3f21f -->

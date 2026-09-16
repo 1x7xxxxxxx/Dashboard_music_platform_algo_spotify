@@ -362,7 +362,14 @@ def _serial_full_suite(command: str) -> str | None:
             ("python" in head or head.endswith(".exe")) and "pytest" in argv[:4])
         if not is_pytest:
             continue
-        rest = argv[1:]
+        # ⚠️ `rest` commence APRES le jeton `pytest`, jamais apres argv[0]. Sinon le
+        # `-m` de `python -m pytest` est pris pour le `-m` de pytest (un filtre par
+        # MARQUEUR) et toute la suite s'exempte elle-meme. Meme drapeau, deux sens,
+        # deux programmes — et le garde a passe au vert sur son propre cas de test.
+        try:
+            rest = argv[argv.index("pytest") + 1:]
+        except ValueError:
+            rest = argv[1:]
         # L'ARBRE ENTIER, pas un fichier : l'argument est `tests` ou `tests/` tel quel.
         whole_tree = any(a.rstrip("/") == "tests" for a in rest if not a.startswith("-"))
         if not whole_tree:
@@ -375,6 +382,17 @@ def _serial_full_suite(command: str) -> str | None:
         # normal pour compter ou lister. Exempte apres que ce garde m'a bloque dessus —
         # un garde qui attrape un geste bon marche apprend a etre contourne.
         if "--store-durations" in rest or "--collect-only" in rest or "--co" in rest:
+            continue
+        # ⚠️ Une execution FILTREE n'est pas la suite complete. Ce garde m'a bloque le
+        # 2026-09-16 sur `pytest tests/ -k "error_class or roadmap"` — une trentaine de
+        # fichiers, pas 6 700 tests. C'est un defaut de PORTEE dans le garde lui-meme,
+        # de la meme famille que celui qu'il documente : j'avais ecrit la regle sur la
+        # CIBLE (`tests/`) au lieu de l'ecrire sur le GESTE (« lancer toute la suite »).
+        # Trouve par le garde en me bloquant, ce qui est le seul moment ou ca ne coute
+        # rien.
+        if any(a in ("-k", "-m", "--lf", "--last-failed", "--ff", "--failed-first",
+                     "--deselect") or a.startswith(("-k=", "-m=", "--deselect="))
+               for a in rest):
             continue
         return segment
     return None

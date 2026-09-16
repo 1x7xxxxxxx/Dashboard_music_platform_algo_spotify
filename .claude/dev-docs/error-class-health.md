@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**363 classes.** Fenêtre observée : `2026-05-15` → `2026-09-16` (196 révisions du catalogue rejouées).
+**365 classes.** Fenêtre observée : `2026-05-15` → `2026-09-16` (196 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
@@ -11,7 +11,7 @@ Cinq chiffres avancés le 2026-09-16 avant vérification, et ce qu'ils valent :
 
 | avancé | mesuré |
 |---|---|
-| 367 classes | **363** — les 4 en trop étaient `Contract`, `Index`, `Per-class schema`, `CLASS-ID` |
+| 367 classes | **365** — les 4 en trop étaient `Contract`, `Index`, `Per-class schema`, `CLASS-ID` |
 | « 57 récidives » | **non reproductible** : cinq définitions défendables donnent 39 / 49 / 55 / 67 / 167. Ce document n'en retient qu'une, écrite ci-dessous, et c'est celle que le cliquet utilise |
 | gardes 15,1 % contre prose 22,7 % | voir les intervalles : les sous-groupes portent trop peu d'évènements pour trancher |
 | le taux s'améliore (38 → 18 → 9 %) | **il empire** une fois normalisé par l'exposition. L'ancien chiffre comptait comme « n'a pas récidivé » des classes trop jeunes pour avoir pu le faire |
@@ -27,11 +27,11 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 
 | grandeur | valeur |
 |---|---|
-| `automatic_guard` | 345 |
-| `classes` | 363 |
+| `automatic_guard` | 347 |
+| `classes` | 365 |
 | `ever_recurred_observed` | 45 |
 | `prose_only` | 18 |
-| `with_signature` | 352 |
+| `with_signature` | 354 |
 
 ## Les trous — ce que le cliquet fait baisser
 
@@ -42,7 +42,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `cause_inferred` | 0 |
 | `cause_unknown` | 242 |
 | `guards_ref_missing` | 0 |
-| `scope_family_disagreements` | 2 |
+| `scope_family_disagreements` | 3 |
 | `scope_unknown` | 0 |
 | `scope_without_not_covered` | 357 |
 | `seen_red_never` | 0 |
@@ -54,6 +54,7 @@ La famille DÉCLARÉE dans `guard_scope` diffère de celle que `error_class_fami
 
 | classe | déclarée | dérivée |
 |---|---|---|
+| `a-population-that-counts-its-own-headers` | un-nombre-affirmé-qui-n-a-pas-été-mesuré | un-cumul-pris-pour-un-quotidien |
 | `an-overload-makes-the-old-call-ambiguous` | deux-surfaces-deux-nombres | un-coût-payé-sans-contrepartie |
 | `central-app-missing` | la-frontière-avec-le-dehors | le-locataire |
 

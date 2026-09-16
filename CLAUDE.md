@@ -33,10 +33,22 @@ src/
   database/     # PostgresHandler + per-platform schema definitions
   models/       # Pydantic validators (meta_ads_validators)
   utils/        # config_loader, airflow_trigger, email_alerts, error_handler, retry
+                # metrics.py (4 familles Prometheus), ops_alerts.py (lit les règles
+                # d'alerte pour le mail du soir), daily_ops_metrics.py (résumé
+                # quotidien en base — il survit aux redémarrages, pas Prometheus)
   dashboard/
-    app.py      # Streamlit entry point + routing
+    serve.py    # ⚠️ L'ENTRÉE DU CONTENEUR (`CMD`) — démarre l'exportateur de métriques
+                #    PUIS passe la main à `streamlit run`, dans le MÊME processus.
+                #    Un `&` exposerait un registre vide : la cible serait `up` en ne
+                #    mesurant rien, pire que `down`.
+    app.py      # Streamlit entry point + routing (lancé PAR serve.py en conteneur)
     views/      # One file per page
     utils/      # get_db_connection, airflow_monitor
+      fragment_db.py   # la connexion d'un `@st.fragment` : RÉUTILISE celle de la page
+                       # pendant un rendu complet, n'ouvre la sienne qu'au rerun de
+                       # fragment. Un fragment qui capture celle de `show()` la
+                       # ré-emprunte au pool sans jamais la rendre.
+      metrics_seam.py  # la couture entre un rerun et les métriques (phases chrome/view)
 
 airflow/
   dags/         # Production DAGs (live-mounted)
@@ -62,7 +74,10 @@ docker-compose logs -f airflow-scheduler          # Tail scheduler logs
 
 ### Dashboard / Tests / Debug
 ```bash
-cd src/dashboard && streamlit run app.py          # Run dashboard (local, port 8501)
+cd src/dashboard && streamlit run app.py          # Dashboard en LOCAL (port 8501)
+# ⚠️ En conteneur c'est `python3 -m src.dashboard.serve` : il démarre l'exportateur
+# de métriques AVANT Streamlit. Lancé à la main comme ci-dessus, seule la couture
+# de rendu l'ouvre — donc au premier rendu, pas au démarrage.
 # ⚠️ JAMAIS `pytest tests/` à la main — les drapeaux de parallélisme vivent dans le
 # Makefile, et la forme nue les perd. Trois cibles, par ordre de fréquence d'usage :
 make test-changed   # Boucle de code : SEULS les tests atteignables depuis le diff (règle 16)

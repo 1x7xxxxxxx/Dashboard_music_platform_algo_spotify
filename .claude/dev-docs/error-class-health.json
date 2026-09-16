@@ -502,6 +502,29 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "a-document-that-cannot-be-current-in-its-own-commit": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-16",
+      "guard_automatic": true,
+      "guard_ref": null,
+      "guard_ref_exists": false,
+      "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_has_not_covered": true,
+      "guard_type": "make-precondition",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-16"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-16",
+      "severity": "P2",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-fabricated-zero-mailed-as-a-measurement": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-10",
@@ -1442,6 +1465,29 @@
       "status": "resolved",
       "introduced_date": "2026-09-16",
       "revisions": 1,
+      "history_additions": 0,
+      "renamed_from": null
+    },
+    "a-population-that-counts-its-own-headers": {
+      "cause_evidence": "read",
+      "first_seen_declared": "2026-09-16",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_the_error_class_health_only_improves.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
+      "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
+      "guard_scope_has_not_covered": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-16"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-16",
+      "severity": "P3",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8396,18 +8442,18 @@
       "cause_inferred": 0,
       "cause_unknown": 242,
       "guards_ref_missing": 0,
-      "scope_family_disagreements": 2,
+      "scope_family_disagreements": 3,
       "scope_unknown": 0,
       "scope_without_not_covered": 357,
       "seen_red_never": 0,
       "seen_red_unknown": 332
     },
     "population": {
-      "automatic_guard": 345,
-      "classes": 363,
+      "automatic_guard": 347,
+      "classes": 365,
       "ever_recurred_observed": 45,
       "prose_only": 18,
-      "with_signature": 352
+      "with_signature": 354
     },
     "recurrence": {
       "window_start": "2026-05-15",

@@ -25,6 +25,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R122 | Finir la revue des classes d'erreur — outillage fait, reste 39 récidivistes + 357 portées | P3 | les trous de `make error-health` ne font que baisser |
 | R120 | La vue, pas la chrome — onglets et expanders paresseux (chrome démesurée : 11-13 ms) | P2 | histogramme de rendu avant/après, même charge |
 | R118 | `st.fragment` — **6/11 faites** ; le reste attend une mesure de coût | P3 | l'histogramme montre la page avant de la refactorer |
 | R121 | Les agrégations Python passent en SQL (couche or) | P3 | `make gold-coverage`, cliquet |
@@ -172,6 +173,50 @@ Ces quatre tâches construisent la forme scalable **même si le seuil n'est pas 
 (R87 est close sur un pic de 12 sessions/minute contre un seuil de 20). C'est une
 décision assumée : découvrir par la mesure que ce n'était pas nécessaire vaut mieux que
 le supposer.
+
+- [ ] **R122 — finir la revue des classes d'erreur. L'outillage est posé, reste le volume.**
+
+  **Ce qui est FAIT et automatique** (2026-09-16) : `make error-health` mesure la récidive
+  depuis l'historique git (194 révisions rejouées), `tests/test_the_error_class_health_only_improves.py`
+  refuse la régression, `/capitalise` exige les trois preuves et « nomme le GESTE, pas le
+  verbe », un hook PostToolUse avertit à l'écriture, la CI lance la suite entière en
+  4 shards. **La chaîne ne demande plus aucun geste.**
+
+  **Le résultat qui justifie la suite** : une classe **sans garde automatique récidive
+  5,2× plus** — 1,005 évènement par classe-mois contre 0,193, **intervalles à 95 %
+  disjoints**. Premier chiffre séparant les strates depuis que le catalogue existe.
+
+  **Ce qui reste — du volume de revue, pas un manque d'outil :**
+
+  | trou | reste | ce qu'il faut écrire |
+  |---|---|---|
+  | `scope_without_not_covered` | **357** | le `ne couvre pas:` — un geste voisin qui partage la cause |
+  | `seen_red_unknown` | **332** | une date OBSERVÉE, ou `never` ; jamais une date inventée |
+  | `cause_unknown` | **242** | `read` / `measured` / `inferred` — `inferred` est une réponse valable |
+  | récidivistes non traitées | **39** / 45 | la portée d'abord : ce sont elles qui ont échoué |
+  | `scope_family_disagreements` | **3** | ⚠️ à corriger dans la **TAXONOMIE**, pas dans les classes |
+
+  **L'ordre est celui du gain mesuré**, jamais alphabétique : (1) les 39 récidivistes —
+  elles ont démontrablement échoué et `ne couvre pas:` est le champ qui les aurait
+  arrêtées ; (2) les `P1` + `guarded`, où une fausse impression de protection coûte le
+  plus ; (3) les `cause_unknown` dont le `root_cause` ne nomme aucun fichier ; (4) le
+  reste, **opportunistement** — quand une classe est touchée pour une autre raison, le
+  hook le rappelle.
+
+  ⚠️ **Règle d'arrêt, écrite d'avance** : si après cette revue les strates `by_seen_red`
+  et `by_scope` ne se séparent toujours pas (aujourd'hui `insuffisant pour conclure`,
+  n=55), la conclusion honnête est que **ces champs coûtent plus qu'ils ne rapportent** et
+  qu'il faut les retirer. La date de revue est dans le docstring du cliquet : **+30 et
+  +90 jours**. Sans cette règle, la brique devient `un-coût-payé-sans-contrepartie`.
+
+  ⚠️ **Les 3 désaccords de famille se corrigent dans
+  `tools/dev/error_class_families.py::FAMILIES`, pas dans les classes.** Les trois
+  viennent d'une expression qui matche un mot pour une mauvaise raison —
+  `central-app-missing` dérivée en `le-locataire`, `a-population-that-counts-its-own-headers`
+  en `un-cumul-pris-pour-un-quotidien`. Aligner la déclaration sur une dérivation fausse
+  ferait écrire une fausseté pour faire baisser un compteur.
+
+  Contrôle : `make error-health` · évolution : `make error-health-history`.
 
 - [ ] **R120 — la VUE, pas la chrome.** (titre corrigé le 2026-09-16 : il disait l'inverse)
 
@@ -408,11 +453,11 @@ travail quotidien existe déjà et n'enlève aucune couverture** :
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-16, cinq tâches ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-16, six tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R120,R118,R121,R116,R117 -->
+<!-- reprise: open=R122,R120,R118,R121,R116,R117 -->
 
-**Cinq tâches sont ouvertes** : R118, R120, R121, R116, R117.
+**Six tâches sont ouvertes** : R122, R120, R118, R121, R116, R117.
 
 R115 (l'instrument serveur) et R119 (réparer l'instrument client) sont livrées le
 2026-09-16 ; leur détail est dans `archive.md`. R114 est livrée et déployée (`e859ae3`),

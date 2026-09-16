@@ -84,13 +84,25 @@ _CEILINGS = {
     "scope_without_not_covered": 357,  # 363 → 357 : phase C, les 6 récidivistes du haut
     # Liste de RELECTURE, pas une faute à corriger dans une direction imposée : un
     # désaccord peut venir du garde comme de l'expression de la famille.
-    "scope_family_disagreements": 2,
+    # 2 → 3 le 2026-09-16, et c'est un RELÈVEMENT assumé, le seul de ce fichier. Les
+    # trois désaccords viennent tous d'une expression de FAMILLE qui matche un mot pour
+    # une mauvaise raison, jamais d'un garde mal visé :
+    #   `central-app-missing`      → dérivée `le-locataire` sur un mot du symptôme
+    #   `an-overload-…-ambiguous`  → dérivée `un-coût-payé-sans-contrepartie`
+    #   `a-population-…-headers`   → dérivée `un-cumul-pris-pour-un-quotidien`
+    # Le +1 vient d'une classe AJOUTÉE, pas d'une régression : aligner sa déclaration sur
+    # une dérivation fausse ferait écrire une fausseté pour faire baisser un compteur,
+    # ce que ce compteur interdit explicitement. La vraie correction est dans
+    # `tools/dev/error_class_families.py::FAMILIES` et elle est inscrite dans R122.
+    "scope_family_disagreements": 3,
     "guards_ref_missing": 0,
 }
 _FLOORS = {
-    "classes": 363,
-    "with_signature": 352,
-    "automatic_guard": 345,
+    # Relevés le 2026-09-16 : deux classes écrites AVEC la nouvelle méthode. Un plancher
+    # monte quand la population grandit — c'est son sens.
+    "classes": 365,
+    "with_signature": 354,
+    "automatic_guard": 347,
 }
 # Le plancher qui n'a pas d'équivalent dans `gold-coverage`, et le plus important ici :
 # un taux s'améliore aussi en RÉTRÉCISSANT la fenêtre d'observation.
