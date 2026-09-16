@@ -153,6 +153,15 @@ def main() -> None:
     all_debugs: list[str] = []
 
     for filepath in staged_files:
+        # ── Le fichier qui DÉFINIT les motifs n'est pas un site fautif ──
+        # Il contient `import pdb`, `breakpoint()` et `print(` parce que ce sont ses
+        # MOTIFS, écrits en clair dans `DEBUG_PATTERNS` et dans son propre docstring.
+        # Il se signalait donc lui-même à chaque commit : sept avertissements, tous
+        # faux, sur toutes les lignes qui DÉCRIVENT le geste au lieu de le commettre.
+        # C'est la classe « écrire sur un geste déclenche le garde du geste », que ce
+        # dépôt a payée trois fois le 2026-09-16.
+        if filepath.endswith("pre_commit_scan.py"):
+            continue
         # Skip test files for debug artifact check (print in tests is ok)
         content = get_file_staged_content(filepath)
         if not content:

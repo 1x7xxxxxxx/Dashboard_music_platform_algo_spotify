@@ -454,7 +454,7 @@ Une ligne par plateforme. « Lectures brutes » compte les lectures de ses table
 
 ## Les cliquets
 
-**18 valeurs gelées** dans 13 fichiers. Un cliquet pose deux questions, et la seconde est celle qu'on oublie : le plafond est-il **serré** (égal à la mesure — un plafond au-dessus est du mou qui autorise en silence ce qu'il interdit), et la population est-elle **plancherée** ? « Zéro indéterminée » sur zéro figure est vrai et ne dit rien.
+**19 valeurs gelées** dans 14 fichiers. Un cliquet pose deux questions, et la seconde est celle qu'on oublie : le plafond est-il **serré** (égal à la mesure — un plafond au-dessus est du mou qui autorise en silence ce qu'il interdit), et la population est-elle **plancherée** ? « Zéro indéterminée » sur zéro figure est vrai et ne dit rien.
 
 **0 sans test de non-vacuité** et **0 sans trace de mutation** dans leur fichier. Une trace de mutation est une phrase qui dit que le garde a été VU rouge sur le défaut qu'il vise ; sans elle, rien ne distingue un garde d'un test qui ne peut pas échouer.
 
@@ -475,6 +475,7 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 | `test_the_gold_coverage_only_improves.py` | `_CEILING` | 11 entrées | — | — |
 | `test_the_gold_coverage_only_improves.py` | `_FLOOR` | 10 entrées | — | — |
 | `test_the_metrics_layer_only_grows.py` | `_CEILING` | 8 entrées | — | — |
+| `test_the_shards_are_balanced_by_real_durations.py` | `_MAX_FILES_WITHOUT_DURATION` | 6 | — | — |
 | `test_the_tenant_guard_is_written_once.py` | `_MAX_OPEN_CODED` | 0 | — | — |
 | `test_the_visual_rules_only_tighten.py` | `_MAX_SECONDARY_AXES` | 0 | — | — |
 | `test_the_visual_rules_only_tighten.py` | `_MAX_LITERAL_KEYS` | 119 | — | — |
@@ -483,9 +484,9 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 ## Les classes d'erreur
 
-**338 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
+**339 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
 
-**fixed** : 10· **guarded** : 310· **open** : 4· **reported** : 14
+**fixed** : 10· **guarded** : 311· **open** : 4· **reported** : 14
 
 **0 classe(s) nomment un fichier de garde qui n'existe plus** et **11** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
@@ -657,10 +658,10 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-pdf: total=29 unknown=5 -->
 <!-- gold-coverage-gold-objects: total=24 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
-<!-- gold-coverage-ratchets: total=18 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=338 guard_missing=0 guard_unnamed=11 -->
+<!-- gold-coverage-ratchets: total=19 without_nonvacuity=0 without_mutation=0 -->
+<!-- gold-coverage-error-classes: total=339 guard_missing=0 guard_unnamed=11 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=5416c57d6de0b3014e76f5063577fafdde025922b0bb7292f8730338efbd74cc -->
+<!-- gold-coverage: sha256=6cfa79b84744d53853307704c640dbeb75c72739f82702fd725683d7bcd4f7d5 -->

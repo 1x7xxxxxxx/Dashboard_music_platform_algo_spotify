@@ -48,34 +48,16 @@ pytestmark = pytest.mark.skipif(
 
 # Every view wired into app.py's dispatch (src/dashboard/app.py). Keep in sync when
 # adding a view (the same step that adds it to _NAV_SECTIONS).
-VIEWS = [
-    "admin", "account", "airflow_kpi", "alerts", "apple_music", "billing",
-    "credentials", "data_wrapped", "db_health", "etl_logs", "export_csv",
-    "export_pdf", "home", "hypeddit", "imusician", "instagram", "meta_ads_overview",
-    "meta_breakdowns", "meta_cpr_optimizer", "meta_creatives", "meta_mapping",
-    "meta_x_spotify", "ml_performance", "perf_monitor",
-    "promo_admin", "referral", "referral_admin",
-    "revenue_forecast", "sacem", "saisie_s4a", "soundcloud",
-    "spotify_s4a_combined", "trigger_algo", "upgrade", "usage_analytics",
-    "useful_links", "youtube",
-    # The three views a brand-new artist meets FIRST were absent from this list
-    # until 2026-08-20 — the onboarding path was rendered by nobody.
-    "onboarding", "onboarding_health", "register",
-]
+# Source UNIQUE — `tests/render_harness.py`. Ces constantes vivaient en double
+# dans les deux fichiers de rendu et ont divergé NEUF JOURS (voir le module).
+from tests.render_harness import SCRIPT as _SCRIPT_SRC  # noqa: E402
+from tests.render_harness import TENANT_SCRIPT as _TENANT_SCRIPT_SRC  # noqa: E402
+from tests.render_harness import EMPTY_TENANT_VIEWS as _TENANT_VIEWS  # noqa: E402
+from tests.render_harness import VIEWS  # noqa: E402
 
 # AppTest re-execs a script string in a fresh interpreter path, so the script must
 # re-inject the repo root and seed an admin session before importing the view.
-_SCRIPT = """
-import sys
-sys.path.insert(0, {root!r})
-import streamlit as st
-st.session_state["role"] = "admin"
-st.session_state["artist_id"] = 1
-st.session_state["email"] = "admin@test"
-st.session_state["authenticated"] = True
-from src.dashboard.views.{view} import show
-show()
-"""
+_SCRIPT = _SCRIPT_SRC
 
 
 @pytest.mark.parametrize("view", VIEWS)
@@ -97,17 +79,7 @@ def test_view_renders_without_exception(view):
 # empty dataframes, no credentials row, no collection yet. Both beta testers were
 # in exactly this state, and no test ever rendered it.
 
-_TENANT_SCRIPT = """
-import sys
-sys.path.insert(0, {root!r})
-import streamlit as st
-st.session_state["role"] = "artist"
-st.session_state["artist_id"] = {artist_id}
-st.session_state["email"] = "artist@test"
-st.session_state["authenticated"] = True
-from src.dashboard.views.{view} import show
-show()
-"""
+_TENANT_SCRIPT = _TENANT_SCRIPT_SRC
 
 # Views an artist can actually reach (admin-only pages excluded), kept small
 # enough to stay fast while covering every data-shape an empty tenant produces.
@@ -123,11 +95,6 @@ show()
 # vivent dans `onboarding_health`, qui est dans les deux listes et les rend donc.
 # La ROUTE `?page=process_guide` survit et mène là-bas ; c'est `app.py` qui la
 # porte, pas une vue, donc rien à rendre ici.
-_TENANT_VIEWS = [
-    "home", "onboarding", "onboarding_health", "credentials", "account",
-    "soundcloud", "youtube", "instagram", "spotify_s4a_combined", "apple_music",
-    "export_csv", "export_pdf", "useful_links",
-]
 
 
 @pytest.fixture(scope="module")

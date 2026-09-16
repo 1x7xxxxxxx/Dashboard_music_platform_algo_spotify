@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: example-charts error-inbox error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: test-durations example-charts error-inbox error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -92,6 +92,14 @@ test-fast:   ## La suite SANS les tests de documents (-38 s) — pour la boucle 
 
 test-docs:   ## Seulement les tests de documents — à lancer après avoir mis les docs à jour
 	$(PYTHON) -m pytest $(DOC_TESTS) -q
+
+test-durations: ## Régénère .test_durations (équilibre les 4 shards de la CI) — ~15 min
+	@# EN SÉRIE, à dessein : `--store-durations` sous xdist n'agrège pas proprement,
+	@# et ce fichier sert à RÉPARTIR — une durée fausse déséquilibre un shard entier.
+	@# Quand le lancer : quand `test_the_shards_are_balanced_by_real_durations.py`
+	@# rougit, c'est-à-dire quand trop de fichiers neufs n'ont aucune durée connue.
+	@# Puis commiter `.test_durations`.
+	$(PYTHON) -m pytest tests/ -q --store-durations
 
 test-changed: ## Seulement les tests atteignables depuis ce qui a changé (règle 16)
 	@$(PYTHON) .claude/scripts/select_tests.py | grep -v '^#' | xargs $(PYTHON) -m pytest -q $(PYTEST_DIST)

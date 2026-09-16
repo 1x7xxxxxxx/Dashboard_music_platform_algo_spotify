@@ -109,6 +109,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-ratchet-with-no-floor-under-its-population](#a-ratchet-with-no-floor-under-its-population) | P2 | deterministic | guarded | none |
 | [a-guard-that-sees-the-binding-not-the-application](#a-guard-that-sees-the-binding-not-the-application) | P3 | manual | reported | none |
 | [a-unit-test-that-borrows-a-real-connection-from-the-pool](#a-unit-test-that-borrows-a-real-connection-from-the-pool) | P2 | deterministic | guarded | none |
+| [a-prudence-rule-with-no-expiry-becomes-a-freeze](#a-prudence-rule-with-no-expiry-becomes-a-freeze) | P3 | manual | guarded | none |
 | [a-cold-measurement-that-clears-caches-by-name](#a-cold-measurement-that-clears-caches-by-name) | P2 | deterministic | guarded | none |
 | [a-hook-shaped-function-pytest-never-calls](#a-hook-shaped-function-pytest-never-calls) | P2 | deterministic | guarded | none |
 | [a-blocking-hook-that-writes-its-reason-to-stdout](#a-blocking-hook-that-writes-its-reason-to-stdout) | P3 | manual | guarded | none |
@@ -5831,3 +5832,29 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - guard: { type: pytest, ref: .github/workflows/ci.yml }
 - rex_ref: tests/test_registration_is_not_an_oracle.py
 - first_seen: 2026-09-16
+
+## a-prudence-rule-with-no-expiry-becomes-a-freeze
+- status: guarded
+- severity: P3
+- kind: manual
+- symptom: une dépendance reste gelée des ANNÉES sur une version que personne n'a choisie, et rien ne le signale. Le symptôme visible est ailleurs et ne ressemble pas à une dépendance : ici, 20 s perdues par job de CI.
+- root_cause: une clause de prudence sans ÉCHÉANCE ni VISIBILITÉ. `.github/dependabot.yml` ignore les mises à jour MAJEURES pour `github-actions`, et la raison est bonne — une majeure change le runner sous la CI, la seule chose qui parle avant un déploiement. Mais une action qui ne publie QUE des majeures ne produit alors AUCUNE PR, et le silence est indiscernable d'« à jour ». Mesuré le 2026-09-16 : `astral-sh/setup-uv` était épinglé en **v4** quand la **v10** était publiée — six majeures. La v4 parle à l'API de cache que GitHub a retirée, d'où `Failed to restore: Cache service responded with 400` sur chaque exécution, un taux de succès de cache de **0 %**, et `Install uv` à 20 s par job — le plus gros poste fixe une fois la suite shardée. Le même jour, le rapport a trouvé trois autres actions à une majeure de retard, dont personne ne savait rien non plus.
+- long_term_fix: la clause reste — c'est la MESURE qui manquait. `tools/dev/check_action_drift.py` dit, pour chaque action épinglée, de combien de majeures elle est en retard, et tourne chaque nuit dans `security-nightly.yml`, non bloquant. Le principe se généralise : **toute règle qui refuse une classe de mises à jour doit publier ce qu'elle refuse**, sans quoi elle cesse d'être une décision et devient un gel. Le rapport ne bloque pas : la montée reste un geste humain, ce que la clause veut précisément protéger.
+- autofix: none
+- signature: `python3 tools/dev/check_action_drift.py | grep -q "🔴" && exit 1 || exit 0`
+- guard: { type: script, ref: tools/dev/check_action_drift.py }
+- rex_ref: .github/dependabot.yml
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: **le correctif de cette classe a produit la panne suivante, et c'est
+    la moitié utile.** Le rapport disait « v10 » et j'ai écrit `@v10` : les CINQ jobs
+    ont échoué en **neuf secondes**, à « Prepare all required actions », sur
+    `Unable to resolve action astral-sh/setup-uv@v10, unable to find version v10`.
+    `astral-sh/setup-uv` publie `v10.1.0` et **PAS** de tag majeur flottant, alors que
+    `@v4` en avait un. Déduire un épinglage d'un numéro de version est donc faux, et
+    rien dans le dépôt ne pouvait le dire avant de pousser — un épinglage irrésolvable
+    ne fait échouer aucun test, il tue le workflow AVANT sa mise en route.
+    Le rapporteur vérifie désormais que chaque `uses:` RÉSOUT vraiment (une colonne
+    « résout ? ») et n'imprime que des tags écrivables tels quels — la classe
+    `a-printed-command-is-runnable-as-printed`, appliquée à un rapport.
+    Mutation : `@v10` remis → `🚫 INTROUVABLE` nommé ; retiré → zéro.
