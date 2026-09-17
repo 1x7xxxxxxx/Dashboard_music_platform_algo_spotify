@@ -672,7 +672,7 @@ Windows et ouvre le dossier par `/mnt/c` : exactement la combinaison lente. `~/.
 existe déjà — Remote-WSL a servi par le passé — donc la bascule ne demande aucune
 installation.
 
-## 13. R124 — Une session authentifiée en production, pour savoir si l'instrument enregistre
+## 13. ~~R124 — Une session authentifiée en production, pour savoir si l'instrument enregistre~~ · ✅ FAIT le 2026-09-17 — l'instrument enregistre (28 séries, p50 = 40 ms) ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 **Pourquoi c'est ici et pas fait en séance** : la couture de métriques ne s'exécute
 qu'**après** la porte d'authentification — `require_login()` est à

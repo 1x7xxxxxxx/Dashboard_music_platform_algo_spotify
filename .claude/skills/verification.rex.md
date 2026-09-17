@@ -1,15 +1,37 @@
 ---
-name: verification
-description: "Iron law + 4-phase gate. Use before any completion claim and after any non-trivial code change."
-origin: superpowers + ECC (generic)
-date_added: "2026-04-18"
 rex:
-  - date: 2026-05-31
-    issue: "Verification trigger referenced moving a brick to Completed in ROADMAP.md, a nonexistent\
-  \ file here"
-    fix: "Repointed to checking off a brick as completed in .claude/dev-docs/roadmap/checklist.md"
-    severity: "info"
-    ref: "DEVLOG#2026-05-31"
+- date: 2026-05-31
+  issue: Verification trigger referenced moving a brick to Completed in ROADMAP.md, a nonexistent file
+    here
+  fix: Repointed to checking off a brick as completed in .claude/dev-docs/roadmap/checklist.md
+  severity: info
+  ref: DEVLOG#2026-05-31
+- date: 2026-08-21
+  issue: 'Toutes les commandes de cette skill appartenaient à un AUTRE dépôt : `cd src/Application`, py_compile
+    sur api.py/acquisition.py, curl sur /hmi/status, des seuils BINARY_FRAME_SIZE=3076 et « 27 features
+    ». Aucun de ces chemins n''existe ici, et `cd src/Application` échoue assez discrètement pour ressembler
+    à une phase sautée.'
+  fix: Rewrote the four phases against this repo's real surfaces (ruff on the CI scope, pytest with the
+    DB gate made explicit, the two DB-gated smokes, artist-preflight for tenant work). Kept the Iron Law
+    and the forbidden-phrase table, which were portable. Also fixed the '## this project-Specific Checks'
+    heading, a botched find/replace of 'MSDR-Specific'.
+  ref: R36
+  severity: warn
+---
+
+# Archive REX — skill `verification`
+
+Historique migré depuis un sous-répertoire `.migrated/` (supprimé depuis) le 2026-09-17.
+Il y vivait **hors du périmètre** de `validate_rex.py` : `_SCAN_DIRS` porte
+`("skills", "*.md")`, un glob à UN niveau qui n'atteint pas `.migrated/`.
+Ces 1 leçons n'étaient ni validées, ni comptées, ni lisibles par
+aucun outil — et le mécanisme de remplacement annoncé par
+`validate_rex.py:160-172` (« a colocated `<name>.rex.md` archive ») n'avait
+jamais été créé : `find .claude -name '*.rex.md'` rendait vide.
+
+⚠️ `keywords:` a été RETIRÉ du frontmatter : une archive n'est pas un outil
+injectable, et `_iter_tools` l'exclut explicitement du dénominateur.
+
 ---
 
 # Verification
@@ -119,7 +141,7 @@ Overall: [READY / NOT READY]
 
 ## Project-specific checks
 
-(Populate this section in your project's own `.claude/skills/verification.md` after bootstrap. Examples:)
+(Populate this section in your project's own l'ancien fichier plat `verification` after bootstrap. Examples:)
 
 - `<critical-file>.<ext>` modified: verify <invariant> still holds (e.g. constant value, test count, schema version)
 - Schema migration added: verify forward roundtrip on a scratch DB

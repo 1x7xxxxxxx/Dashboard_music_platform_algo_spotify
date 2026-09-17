@@ -1,11 +1,27 @@
 ---
-keywords: dag, airflow, pythonoperator, sensor, collecte, pipeline, orchestr, watcher, scheduler, schedule, cron, catchup, backfill, daily, tâche, task, trigger, retry, retries
 rex:
-  - date: 2026-05-31
-    issue: "Collector DAGs lacked max_active_runs → concurrent runs (per-save auto-trigger) hit Meta throttle 80004"
-    fix: "Set max_active_runs=1 on all 8 external-API DAGs (meta/ig/soundcloud/spotify/youtube + token_refresh/ml_scoring/digest); added it to this skill's template + checklist"
-    severity: warn
-    ref: "DEVLOG#2026-05-31"
+- date: 2026-05-31
+  issue: Collector DAGs lacked max_active_runs → concurrent runs (per-save auto-trigger) hit Meta throttle
+    80004
+  fix: Set max_active_runs=1 on all 8 external-API DAGs (meta/ig/soundcloud/spotify/youtube + token_refresh/ml_scoring/digest);
+    added it to this skill's template + checklist
+  severity: warn
+  ref: DEVLOG#2026-05-31
+---
+
+# Archive REX — skill `airflow-dag`
+
+Historique migré depuis un sous-répertoire `.migrated/` (supprimé depuis) le 2026-09-17.
+Il y vivait **hors du périmètre** de `validate_rex.py` : `_SCAN_DIRS` porte
+`("skills", "*.md")`, un glob à UN niveau qui n'atteint pas `.migrated/`.
+Ces 1 leçons n'étaient ni validées, ni comptées, ni lisibles par
+aucun outil — et le mécanisme de remplacement annoncé par
+`validate_rex.py:160-172` (« a colocated `<name>.rex.md` archive ») n'avait
+jamais été créé : `find .claude -name '*.rex.md'` rendait vide.
+
+⚠️ `keywords:` a été RETIRÉ du frontmatter : une archive n'est pas un outil
+injectable, et `_iter_tools` l'exclut explicitement du dénominateur.
+
 ---
 
 # Skill: Airflow DAG

@@ -9,6 +9,50 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## ✅ R124 — Réfutée : l'instrument serveur enregistre bien, close le 2026-09-17
+
+- [x] **R124 — expliquer pourquoi `streamlytics_rerun_duration_seconds` n'avait aucune
+      série en production, et pourquoi `daily_ops_metrics` écrivait des percentiles
+      quand même.**
+
+  **Close par RÉFUTATION, pas par correctif : il n'y avait aucun défaut de
+  production.** Le propriétaire s'est connecté à `https://app.streamlytics.fr/` en
+  production — le geste que la tâche attendait, décrit au §13 du runbook — et a cliqué
+  sur quelques pages. Mesure immédiate :
+
+  | requête | résultat |
+  |---|---|
+  | `streamlytics_rerun_duration_seconds_count` | **28 séries** |
+  | `count(streamlytics_rerun_duration_seconds_bucket)` | **336** |
+  | `count({__name__=~"streamlytics_.*"})` | **425 séries** |
+  | `histogram_quantile(0.50, …)` | **40 ms** |
+
+  **L'instrument fonctionne.** L'absence constatée avant ce geste venait de ce que la
+  couture ne s'exécute qu'après `require_login()` (`src/dashboard/app.py:742`,
+  `end_chrome` 976, `view_timer` 979) — donc aucun rendu authentifié n'avait eu lieu sur
+  une prod à deux artistes tant que personne ne s'était connecté.
+
+  **L'énigme du `p50 = 50 ms` est expliquée, et c'était une erreur de mesure, pas un
+  défaut.** 16 séries existaient le 2026-09-16 entre 17:10 et 17:20 UTC (pendant la
+  livraison de R115), avant le redémarrage du conteneur dashboard à 18:51. Le job de
+  23:00 utilise `rate(...[24h])` (`src/utils/daily_ops_metrics.py:50-60`), dont la
+  fenêtre couvre 17:10 : il a donc légitimement calculé `p50 = 50 ms`, et
+  `complete = TRUE` était honnête. Les vérifications de la brique ouvrante utilisaient
+  des requêtes instantanées et une plage 22:00–24:00 UTC — elles ne voyaient que la fin
+  de la fenêtre. **C'est la quatrième erreur de mesure de la journée du 2026-09-17,
+  la seconde à avoir été écrite et poussée** (commits `3d7baae` puis `f49554e`) : une
+  première session non authentifiée avait déjà produit la conclusion « défaut de
+  production confirmé », réfutée dix minutes plus tard par la lecture du code
+  (`require_login()` précède la couture). C'est la leçon la plus utile de la fiche :
+  l'absence de série était deux fois le comportement attendu d'un instrument qui
+  marche, pas la preuve d'un instrument cassé.
+
+  **Conséquence : la condition bloquante du scaling est LEVÉE.** `deploy/Caddyfile`
+  conditionnait la remise en service de la seconde réplique à « un chiffre qui ne
+  dépende pas de la saturation du client ». Ce chiffre existe désormais. La re-mesure
+  R114 (protocole dans `.claude/dev-docs/measurement-protocol-R114.md`) devient
+  possible.
+
 ## 🧵 R123 — Le nettoyage de portée session passe au contrôleur, plus au worker (livrée 2026-09-17)
 
 - [x] **R123 — les deux nettoyages de `tests/conftest.py` en `scope="session", autouse=True`

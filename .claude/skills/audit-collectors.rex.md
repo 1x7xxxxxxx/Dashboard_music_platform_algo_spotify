@@ -1,61 +1,97 @@
 ---
-keywords: collector, src/collectors, spotify, youtube, meta ads, instagram, soundcloud, apple music, facebook, oauth, access_token, api_key, rate limit, endpoint, credential, s4a, spotify for artists, hypeddit
 rex:
-  - date: 2026-05-15
-    issue: "Skill listed only empty returns (None/[]/{}); missed the return-partial-in-except variant YouTube collector used"
-    fix: "Treat ANY non-raising return inside a collector except block as silent-success, including partial/truncated data. youtube_collector get_video_comments/get_playlists now raise"
-    ref: "DEVLOG#2026-05-15"
-    severity: warn
-  - date: 2026-05-28
-    issue: "Audit caught only silent RETURNS; meta collector raised nothing but hardcoded results to one action_type, zeroing data"
-    fix: "Added Rule 5 (silent correctness): a metric pinned to a fixed action_type/column regardless of objective is corruption. meta collector now maps objective via _OBJECTIVE_RESULT_ACTION"
-    ref: "DEVLOG#2026-05-28"
-    severity: warn
-  - date: 2026-05-29
-    issue: "Paused/archived ads' insights silently lost: status filter excluded the ads, FK 'continue' guard discarded them"
-    fix: "Audit skip guards too, not only except-returns: a 'continue' fed by an over-narrow API scope loses data. Broadened effective_status per level + clamped backfill to 36mo (Meta #3018)"
-    ref: "DEVLOG#2026-05-29"
-    severity: warn
-  - date: 2026-05-29
-    issue: "Broadening collector scope (archived ads) exploded API calls → Meta 80004 account throttle; retry covered only code 17"
-    fix: "Retry all throttle codes {4,17,32,80004} w/ exp backoff + fetch_creatives flag to cut per-creative calls. BUC 80004 needs cooldown — re-running harder pins the score, not retry"
-    ref: "DEVLOG#2026-05-29"
-    severity: warn
-  - date: 2026-05-29
-    issue: "Derived table went stale: roll-up hook lived in only 1 of 3 write paths (Streamlit), not the DAG/debug batch importers"
-    fix: "A post-write refresh hook must be wired into EVERY write path. Added rollup_sales_to_monthly to the iMusician DAG + debug importer (was Streamlit-only); backfilled artist 1"
-    ref: "DEVLOG#2026-05-29"
-    severity: warn
-  - date: 2026-05-29
-    issue: "Dual writers (legacy CSV + API) on same Meta tables, incompatible keys → silent 2x inflation ('All' buckets, fr labels)"
-    fix: "Rule 8: one canonical writer per table. Archived legacy Meta CSV stack (8 files) + cleaned 'All'/fr rows. Two writers need identical keys or a source col, else silent duplication"
-    ref: "DEVLOG#2026-05-29"
-    severity: warn
-  - date: 2026-05-31
-    issue: "ML train/serve skew: scaler + _adj cols inference can't reproduce; probabilities wrong yet scoring exits SUCCESS"
-    fix: "Rule 9: train on EXACTLY what inference recomputes. Dropped scaler (XGB-invariant), used raw counts + streams/listeners ratio, fixed ReleasePhaseEarly<35"
-    ref: "DEVLOG#2026-05-31"
-    severity: crit
-  - date: 2026-05-31
-    issue: "Model extrapolated outside its N=508 training envelope with no monitoring — silent out-of-distribution outputs"
-    fix: "Rule 10: export training feature_stats; check_drift flags |z|>4 inputs, logged per song in the scoring DAG. OOD input = unreliable prediction"
-    ref: "DEVLOG#2026-05-31"
-    severity: warn
-  - date: 2026-05-31
-    issue: "Drift detector flagged the imputed-to-0 features (NonAlgoStreams) on 100% of predictions — permanent false alarm"
-    fix: "check_drift excludes _IMPUTED_FEATURES (permanently OOD by design, already covered by the imputation caveat); drift now flags only genuine live-feature OOD"
-    ref: "DEVLOG#2026-05-31"
-    severity: info
-  - date: 2026-06-08
-    issue: "iMusician parser checked required columns INSIDE the row loop; missing col → per-row KeyError caught → 0 rows + SUCCESS"
-    fix: "Hoist required-column validation out of the loop (_require_cols fail-fast before iterating); the per-row try/except must never be able to swallow a structural-schema error into a zero-row success"
-    ref: "DEVLOG#2026-06-08"
-    severity: warn
-  - date: 2026-06-08
-    issue: "Watcher check_for_new_csv wrapped the dir scan in try/except → 'skip_processing'; a scan failure became a 0-row SUCCESS"
-    fix: "Removed the try/except in s4a + apple watchers so a scan failure FAILS the task (retry + callback fire); a directory scan must never route its own error to the skip branch"
-    ref: "DEVLOG#2026-06-08"
-    severity: warn
+- date: 2026-05-15
+  issue: Skill listed only empty returns (None/[]/{}); missed the return-partial-in-except variant YouTube
+    collector used
+  fix: Treat ANY non-raising return inside a collector except block as silent-success, including partial/truncated
+    data. youtube_collector get_video_comments/get_playlists now raise
+  ref: DEVLOG#2026-05-15
+  severity: warn
+- date: 2026-05-28
+  issue: Audit caught only silent RETURNS; meta collector raised nothing but hardcoded results to one
+    action_type, zeroing data
+  fix: 'Added Rule 5 (silent correctness): a metric pinned to a fixed action_type/column regardless of
+    objective is corruption. meta collector now maps objective via _OBJECTIVE_RESULT_ACTION'
+  ref: DEVLOG#2026-05-28
+  severity: warn
+- date: 2026-05-29
+  issue: 'Paused/archived ads'' insights silently lost: status filter excluded the ads, FK ''continue''
+    guard discarded them'
+  fix: 'Audit skip guards too, not only except-returns: a ''continue'' fed by an over-narrow API scope
+    loses data. Broadened effective_status per level + clamped backfill to 36mo (Meta #3018)'
+  ref: DEVLOG#2026-05-29
+  severity: warn
+- date: 2026-05-29
+  issue: Broadening collector scope (archived ads) exploded API calls → Meta 80004 account throttle; retry
+    covered only code 17
+  fix: Retry all throttle codes {4,17,32,80004} w/ exp backoff + fetch_creatives flag to cut per-creative
+    calls. BUC 80004 needs cooldown — re-running harder pins the score, not retry
+  ref: DEVLOG#2026-05-29
+  severity: warn
+- date: 2026-05-29
+  issue: 'Derived table went stale: roll-up hook lived in only 1 of 3 write paths (Streamlit), not the
+    DAG/debug batch importers'
+  fix: A post-write refresh hook must be wired into EVERY write path. Added rollup_sales_to_monthly to
+    the iMusician DAG + debug importer (was Streamlit-only); backfilled artist 1
+  ref: DEVLOG#2026-05-29
+  severity: warn
+- date: 2026-05-29
+  issue: Dual writers (legacy CSV + API) on same Meta tables, incompatible keys → silent 2x inflation
+    ('All' buckets, fr labels)
+  fix: 'Rule 8: one canonical writer per table. Archived legacy Meta CSV stack (8 files) + cleaned ''All''/fr
+    rows. Two writers need identical keys or a source col, else silent duplication'
+  ref: DEVLOG#2026-05-29
+  severity: warn
+- date: 2026-05-31
+  issue: 'ML train/serve skew: scaler + _adj cols inference can''t reproduce; probabilities wrong yet
+    scoring exits SUCCESS'
+  fix: 'Rule 9: train on EXACTLY what inference recomputes. Dropped scaler (XGB-invariant), used raw counts
+    + streams/listeners ratio, fixed ReleasePhaseEarly<35'
+  ref: DEVLOG#2026-05-31
+  severity: crit
+- date: 2026-05-31
+  issue: Model extrapolated outside its N=508 training envelope with no monitoring — silent out-of-distribution
+    outputs
+  fix: 'Rule 10: export training feature_stats; check_drift flags |z|>4 inputs, logged per song in the
+    scoring DAG. OOD input = unreliable prediction'
+  ref: DEVLOG#2026-05-31
+  severity: warn
+- date: 2026-05-31
+  issue: Drift detector flagged the imputed-to-0 features (NonAlgoStreams) on 100% of predictions — permanent
+    false alarm
+  fix: check_drift excludes _IMPUTED_FEATURES (permanently OOD by design, already covered by the imputation
+    caveat); drift now flags only genuine live-feature OOD
+  ref: DEVLOG#2026-05-31
+  severity: info
+- date: 2026-06-08
+  issue: iMusician parser checked required columns INSIDE the row loop; missing col → per-row KeyError
+    caught → 0 rows + SUCCESS
+  fix: Hoist required-column validation out of the loop (_require_cols fail-fast before iterating); the
+    per-row try/except must never be able to swallow a structural-schema error into a zero-row success
+  ref: DEVLOG#2026-06-08
+  severity: warn
+- date: 2026-06-08
+  issue: Watcher check_for_new_csv wrapped the dir scan in try/except → 'skip_processing'; a scan failure
+    became a 0-row SUCCESS
+  fix: Removed the try/except in s4a + apple watchers so a scan failure FAILS the task (retry + callback
+    fire); a directory scan must never route its own error to the skip branch
+  ref: DEVLOG#2026-06-08
+  severity: warn
+---
+
+# Archive REX — skill `audit-collectors`
+
+Historique migré depuis un sous-répertoire `.migrated/` (supprimé depuis) le 2026-09-17.
+Il y vivait **hors du périmètre** de `validate_rex.py` : `_SCAN_DIRS` porte
+`("skills", "*.md")`, un glob à UN niveau qui n'atteint pas `.migrated/`.
+Ces 11 leçons n'étaient ni validées, ni comptées, ni lisibles par
+aucun outil — et le mécanisme de remplacement annoncé par
+`validate_rex.py:160-172` (« a colocated `<name>.rex.md` archive ») n'avait
+jamais été créé : `find .claude -name '*.rex.md'` rendait vide.
+
+⚠️ `keywords:` a été RETIRÉ du frontmatter : une archive n'est pas un outil
+injectable, et `_iter_tools` l'exclut explicitement du dénominateur.
+
 ---
 
 # Audit: Silent Success Anti-Pattern in Collectors

@@ -186,68 +186,6 @@ le supposer.
 
 ---
 
-## 🔬 R124 — L'instrument serveur ne mesure rien, et le résumé quotidien dit qu'il est complet
-
-- [ ] **R124 — expliquer pourquoi `streamlytics_rerun_duration_seconds` n'a aucune série en
-  production, et pourquoi `daily_ops_metrics` a écrit des percentiles quand même.**
-
-  Trouvé le 2026-09-17 en préparant la re-mesure de R114 — c'est-à-dire **avant** de
-  mesurer quoi que ce soit, et c'est le bon moment.
-
-  | ce qui a été vérifié en prod | résultat |
-  |---|---|
-  | cible Prometheus `dashboard` | `up`, scrape 3,8 ms, **aucune erreur** |
-  | séries stockées pour `job="dashboard"` | 22 — dont **15 par défaut** (`process_*`, `python_*`, `scrape_*`, `up`) |
-  | séries applicatives `streamlytics_*` | **2**, pour **4** familles déclarées |
-  | `streamlytics_rerun_duration_seconds_*` | **0 série**, maintenant, il y a 6 h, et en `query_range` sur 22:00–24:00 UTC |
-  | `daily_ops_metrics` du 2026-09-17 | `p50 = 50 ms`, `p95 = 220 ms`, `reruns_total = 4`, `source = prometheus`, **`complete = t`** |
-  | `written_at` | 2026-09-17 01:00:06+02, soit 23:00:06 UTC — dans la fenêtre interrogée |
-
-  **La contradiction est le sujet.** `_query()` (`src/utils/daily_ops_metrics.py:75`) est
-  honnête : il rend `None` sur résultat vide comme sur `NaN`, et `complete` vaut
-  `not missing`. Donc à 23:00 le quantile a rendu un nombre. Or l'histogramme n'a pas de
-  série à cet instant. **Une des deux mesures décrit autre chose que ce que je crois.**
-
-  ⚠️ **Explication écartée** : « la métrique est absente parce qu'elle est labellisée et
-  jamais observée ». Elle est vraie pour l'ABSENCE de série — `["page", "phase"]`
-  n'expose rien tant qu'aucune combinaison n'est vue — mais elle n'explique PAS que
-  `histogram_quantile` ait rendu 50. Sur un histogramme vide il rend `NaN`, et `_query`
-  le convertit en `None`.
-
-  **Ce que ça bloque** : la re-mesure de R114 avec l'instrument serveur, décidée le
-  2026-09-17. Le `Caddyfile` conditionne la remise en service de la seconde réplique à
-  « un chiffre qui ne dépende pas de la saturation du client ». Ce chiffre n'existe pas
-  encore. Mesurer deux topologies avec un instrument dont on ne sait pas s'il enregistre
-  reproduirait l'ambiguïté de R114, plus cher.
-
-  **Et ça déplace R116** : son blocage n'est pas « pas assez de jours », c'est que la
-  seule ligne existante n'est pas étayée par la source qu'elle nomme.
-
-  **Ce geste a été fait le 2026-09-17, et il a RÉFUTÉ ma propre conclusion.** J'ai
-  ouvert une session réelle sur `https://app.streamlytics.fr/` (page de connexion rendue
-  entièrement : i18n, logo, formulaire), attendu 45 s, et relu : `reruns_in_flight`
-  toujours à 0, histogramme toujours vide. J'ai écrit « défaut de production confirmé ».
-
-  ⚠️ **C'était faux, et la lecture du code l'a montré dix minutes plus tard** :
-  `require_login()` est à `src/dashboard/app.py:742`, `end_chrome()` à 976 et
-  `view_timer()` à 979 — **après** la porte d'authentification. Une page de connexion
-  n'est PAS instrumentée, par construction. Ma sonde ne pouvait rien produire, et
-  l'absence de métrique qu'elle a constatée était le comportement attendu.
-
-  **Ce qui reste donc vrai, et c'est plus étroit** : aucun rendu AUTHENTIFIÉ n'a été
-  instrumenté depuis 24 h (`max_over_time(streamlytics_reruns_in_flight[24h]) = 0`), ce
-  qui est plausible sur une prod à deux artistes. Et la question qui n'a **aucune**
-  explication reste entière : d'où venait `p50_render_ms = 50` à 23:00:06 UTC, avec
-  `complete = TRUE` et `source = prometheus`, alors que l'histogramme n'a jamais eu de
-  série sur cette fenêtre ?
-
-  **Le geste suivant demande un humain** : une session AUTHENTIFIÉE en production, puis
-  relire `streamlytics_rerun_duration_seconds_count`. Je n'ai pas d'identifiants, et je
-  n'en veux pas — c'est un geste de propriétaire. Il tranche pour de bon entre « la
-  couture enregistre, et le résumé quotidien a une autre source » et « la couture
-  n'enregistre pas non plus en authentifié ».
-
-
 ## ⏸️ R116 — ADR-027, en attente de ses courbes (sortie de l'index 2026-09-17)
 
 **Ni livrée ni abandonnée — parquée sur une mesure, pas archivée.** `archive.md` est
@@ -297,7 +235,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-17, aucune tâche actionnable (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R124 -->
+<!-- reprise: open= -->
 
 **R122 et R123 sont closes le 2026-09-17, toutes deux rotées dans `archive.md`.** R123
 a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans
@@ -312,6 +250,14 @@ mesure (voir `archive.md`) — les cinq vues restantes vivent maintenant dans
 deux moitiés (déplacement du dépôt sur ext4, bascule de VS Code en Remote-WSL) sont
 faites et vérifiées, par cette même séance ; détail dans `archive.md`. Elle ne va plus
 dans l'ancre ci-dessus, qui ne porte que ce qui reste ouvert.
+
+**R124 est close le 2026-09-17, par RÉFUTATION et non par correctif** : le propriétaire
+s'est connecté en production (le geste que la tâche attendait) et l'instrument
+enregistre — 28 séries, 336 buckets, p50 mesuré à 40 ms. Il n'y avait aucun défaut ;
+l'absence constatée venait de ce que la couture ne s'exécute qu'après
+`require_login()`, et aucune session authentifiée n'avait encore eu lieu. Détail,
+y compris l'erreur de mesure qui l'avait fait croire close plus tôt, dans `archive.md`.
+La condition bloquante de la re-mesure R114 est donc levée.
 
 **R116 a quitté l'index le 2026-09-17**, pas ce fichier : `daily_ops_metrics` ne porte qu'une ligne (`complete = FALSE`, percentiles de rendu tous `NULL`), donc la courbe qui doit trancher l'ADR-027 n'existe pas encore. Son bloc de détail — non coché, pas livré — reste **ici**, dans une nouvelle section `## ⏸️ R116` hors des deux tables d'index : `archive.md` est strictement passif (aucun item non coché n'y est admis — `test_the_archive_holds_nothing_actionable`), et R116 n'est ni livrée ni abandonnée. Son déclencheur de réouverture est la ligne `daily_ops_metrics` de `### Conditions d'attente` ci-dessous. Elle n'a donc plus de ligne dans l'index actionnable ni dans « 🙋 En attente de toi » — elle n'attend aucun geste humain, seulement du trafic — et pour cette même raison elle **sort de l'ancre**, qui ne porte que ce que les deux tables de ce fichier listent encore.
 
@@ -465,15 +411,17 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R124 | L'instrument serveur d'ADR-026 n'a aucune série en prod, et `daily_ops_metrics` affirme `complete = TRUE` avec `p50 = 50 ms` | P2 | **une session AUTHENTIFIÉE sur https://app.streamlytics.fr/** — la couture ne s'exécute qu'après `require_login()` (`app.py:742` vs `end_chrome` 976), donc seule une vraie connexion peut produire la série. Voir §13 du runbook |
 
-**Une ligne depuis le 2026-09-17** — R124, ci-dessus. Avant elle la table était vide : R117 y a vécu du 2026-09-17 au 2026-09-17 même — le
-temps d'une séance longue — puis a été livrée (les deux moitiés, déplacement sur ext4
-et bascule VS Code en Remote-WSL) et rotée dans `archive.md`. Avant elle, R1, ouvrir la
-bêta privée, y était rotée le 2026-09-10 : le produit est prêt et revérifié en
-production, et ce qui reste n'est pas de l'ingénierie mais l'usage du produit. Une
-roadmap mesure le travail à faire sur le dépôt ; elle ne suit pas les gestes commerciaux
-de son propriétaire, sans quoi elle ne peut par construction jamais atteindre zéro.
+**La table est de nouveau vide depuis le 2026-09-17.** R124 y a vécu du 2026-09-17 au
+2026-09-17 même : le geste demandé a été fait (session authentifiée en production), et
+il a **réfuté** la tâche elle-même — l'instrument enregistre, 28 séries mesurées — plutôt
+que de la livrer ; rotée close dans `archive.md`. Avant elle, R117 y a vécu la même
+journée, livrée (les deux moitiés, déplacement sur ext4 et bascule VS Code en
+Remote-WSL) et rotée dans `archive.md`. Avant elle, R1, ouvrir la bêta privée, y était
+rotée le 2026-09-10 : le produit est prêt et revérifié en production, et ce qui reste
+n'est pas de l'ingénierie mais l'usage du produit. Une roadmap mesure le travail à faire
+sur le dépôt ; elle ne suit pas les gestes commerciaux de son propriétaire, sans quoi
+elle ne peut par construction jamais atteindre zéro.
 
 ## Open Bugs
 

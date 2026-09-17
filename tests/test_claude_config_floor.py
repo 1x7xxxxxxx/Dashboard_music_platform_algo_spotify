@@ -49,7 +49,20 @@ def test_every_skill_stays_loadable():
     harness's own.
     """
     loadable = list((CLAUDE / "skills").glob("*/SKILL.md"))
-    flat = list((CLAUDE / "skills").glob("*.md"))
+    # ⚠️ `*.rex.md` EXEMPTÉS le 2026-09-17, et l'exemption règle une CONTRADICTION
+    # entre deux gardes, pas une gêne. `.claude/scripts/validate_rex.py:174-180`
+    # définit une archive REX comme `<subdir>/*.rex.md` — donc À PLAT — et
+    # `_iter_files` l'exclut déjà explicitement du dénominateur des outils. Ce test
+    # interdisait tout fichier plat sous `skills/`. Les deux ne pouvaient pas être
+    # satisfaits en même temps, et le conflit n'est apparu qu'en sortant 62 leçons
+    # de `.migrated/`, où elles étaient invisibles.
+    #
+    # Une archive n'est pas un skill : elle ne porte pas de `keywords:`, n'est
+    # jamais injectée, et `tests/test_no_rex_lives_outside_the_validator.py` le
+    # garde. Ce qui reste interdit ici — un `<nom>.md` plat qui RESSEMBLE à un
+    # skill — n'a pas bougé d'un pouce.
+    flat = [f for f in (CLAUDE / "skills").glob("*.md")
+            if not f.name.endswith(".rex.md")]
     incompletes = [d.name for d in (CLAUDE / "skills").iterdir()
                    if d.is_dir() and not d.name.startswith(".")
                    and not (d / "SKILL.md").exists()]

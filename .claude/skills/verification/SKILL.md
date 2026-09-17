@@ -1,12 +1,6 @@
 ---
 name: verification
 description: Blocks completion claims that have no fresh command output behind them. Use before saying tests pass, it works, fixed, done, or ready, and after any non-trivial change. It checks that evidence exists — it does not write tests and does not judge whether the evidence is sufficient design-wise. Assumes commands can actually be executed in this environment.
-rex:
-  - date: 2026-08-21
-    issue: "Every command in this skill belonged to another repo: `cd src/Application`, py_compile on api.py/database.py/acquisition.py/features.py/background_ml.py, curl on /hmi/status, a `cd` into /mnt/c/.../msdr_predictive_maintenance, and checks on BINARY_FRAME_SIZE=3076 and '27 features'. None of those paths exist here. A skill that is loadable by the model taught a verification procedure that cannot run — and 'cd src/Application' fails silently enough to look like a skipped phase."
-    fix: "Rewrote the four phases against this repo's real surfaces (ruff on the CI scope, pytest with the DB gate made explicit, the two DB-gated smokes, artist-preflight for tenant work). Kept the Iron Law and the forbidden-phrase table, which were portable. Also fixed the '## this project-Specific Checks' heading, a botched find/replace of 'MSDR-Specific'."
-    ref: "R36"
-    severity: warn
 ---
 
 # Verification
