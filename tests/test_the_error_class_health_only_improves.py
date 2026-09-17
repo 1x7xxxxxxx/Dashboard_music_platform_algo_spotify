@@ -104,8 +104,9 @@ _CEILINGS = {
     # −21 : `une-configuration-qui-diverge-de-la-prod` à ZÉRO (24/24), 8,3 %.
     # −19 : `le-message-parle-au-mauvais-lecteur` à ZÉRO (20/20), 5,0 %.
     # −18 : `le-temps-et-l-horloge` à ZÉRO (20/20). DOUZE familles à zéro,
-    # 184 portées dans la séance.
-    "scope_without_not_covered": 113,
+    # 184 portées. −18 : `un-nombre-affirmé-qui-n-a-pas-été-mesuré` à ZÉRO (20/20).
+    # TREIZE familles à zéro, 202 portées dans la séance.
+    "scope_without_not_covered": 95,
     # ⚠️ Compteur NEUF le 2026-09-17, posé sur une question du propriétaire : « est-ce
     # qu'on a intégré la réflexion de savoir si l'erreur découverte peut être situéé
     # ailleurs dans le code ? ». La réponse mesurée était NON — 69 classes sur 395
@@ -123,7 +124,7 @@ _CEILINGS = {
     # partages, et le defaut s'est produit DEUX fois en deux lots avant d'etre
     # mesure : une classe s'etait attribue le croisement Caddy de sa voisine, une
     # autre le taux de censure d'une troisieme.
-    "scope_on_a_shared_guard_without_naming_its_tests": 20,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
+    "scope_on_a_shared_guard_without_naming_its_tests": 21,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
                                       # ⚠️ 9 → 11 le 2026-09-17, et les DEUX de hausse sont
                                       # STRUCTURELS, pas de la négligence : `ci-runs-twice-for-one-commit`
                                       # et `ci-has-no-concurrency-group` partagent

@@ -1168,7 +1168,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `canonical_song()` / `canonical_song_sql()` in `src/utils/track_matching.py` — one normalisation both sides call, rather than each join inventing its own.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: src/utils/track_matching.py — canonical_song()/canonical_song_sql() single-source helper; regression test tests/test_song_canonical.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — S4A remplace `< > : " / \ | ? *` par `_` dans les NOMS DE FICHIERS d'export, donc le même morceau arrive sous deux orthographes selon le chemin ; couvre: une signature shell qui cherche les affectations de `track_name` dans le dashboard sans passer par la normalisation ; ne couvre pas: (1) **le geste voisin le plus proche — les autres conventions de nommage d'une source** : accents, casse, espaces insécables, guillemets typographiques diffèrent aussi entre le contenu et le nom de fichier, et seule la substitution des caractères interdits est connue ; (2) le code hors `src/dashboard` ; (3) les orthographes DÉJÀ écrites en base ; (4) la normalisation elle-même, dont la qualité est `one-version-marker-out-of-many`.
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-06-08 (ref: DEVLOG#2026-06-08)
 - History:
@@ -2635,7 +2635,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: three rules in `src/dashboard/utils/status_matrix.py`, each with a test: arriving data counts as proof without any probe (freshness IS the proof); a platform with no remembered verdict renders `?` in grey, never a tick; and a remembered verdict always carries its age, so a nine-day-old measurement cannot read as today's. The verdicts are persisted by the nightly run (`tenant_platform_probe`, migration 075) so the artist reads the same sentence the alert email carries.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_status_matrix.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — la matrice ne peut PAS appeler une API pendant le rendu (Streamlit rejoue la page), donc elle affiche un état qu'elle n'a pas mesuré ; couvre: quatre propriétés — le rendu n'ouvre aucune connexion propre, il n'appelle JAMAIS de sonde, **une donnée qui arrive l'emporte sur une sonde qui dit le contraire**, et la colonne du geste suivant se tait quand la donnée le prouve ; les deux dernières établissent une préséance : la mesure bat la prédiction ; ne couvre pas: (1) **le geste voisin le plus proche — les autres surfaces qui affichent un état sans l'avoir mesuré** : bandeaux, tuiles de préparation, PDF et e-mails montrent des statuts calculés ailleurs, et seule la matrice est vérifiée ; (2) la FRAÎCHEUR de la donnée qui l'emporte ; (3) le cas où ni donnée ni sonde ne disent rien ; (4) ce que l'artiste comprend de la distinction.
 - rex_ref: src/dashboard/utils/status_matrix.py
 - first_seen: 2026-08-22
 - History:
@@ -3238,7 +3238,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `circuit_mechanism_is_recording(db)` répond à « cette table est-elle écrite ? », et le ✅ y est conditionné ; sinon le panneau dit explicitement qu'il ne prouve rien et renvoie vers la mesure qui fait foi (la fraîcheur). Le garde repère par AST un `st.success` dans la branche « aucune ligne » d'une fonction qui interroge cette table.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_empty_table_is_not_a_clean_bill_of_health.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — une table VIDE est rendue comme une bonne santé, alors qu'elle signifie que personne n'écrit ; couvre: trois propriétés — toute affirmation de santé est GARDÉE par une preuve (paramétré par fichier), l'enregistreur rapporte une table non écrite comme « n'enregistre pas » (et non comme « rien à signaler »), et un échec enregistré ne persiste JAMAIS un identifiant brut ; ne couvre pas: (1) **le geste voisin le plus proche — les autres tables lues sans preuve d'écriture** : le dépôt en porte une morte (`etl_daily_metrics`) et deux bornées par construction, et rien ne cherche systématiquement « cette table est-elle encore écrite ? » ; (2) une table écrite mais par un chemin mort ; (3) les affirmations de santé hors des fichiers balayés ; (4) la JUSTESSE de la preuve exigée.
 - rex_ref: src/utils/circuit_breaker.py
 - first_seen: 2026-08-24
 - History:
@@ -4405,7 +4405,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: quand la sonde échoue, l'écran demande à `artist_readiness` — la MÊME source que les pastilles, pas une seconde requête — si des lignes sont arrivées. Si oui, le fait passe devant et le message de sonde devient un avertissement en dessous. Il n'est pas effacé : il peut nommer un vrai problème (un compte mal réglé qui collecte encore par un autre chemin). La règle générale tient au-delà de ce cas : **une mesure qui a eu lieu bat une prédiction sur ce qui aurait lieu**, et une sonde ne doit jamais affirmer de conséquence — seulement ce qu'elle a vu.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_tab_state_is_the_matrix_state.py::test_a_failing_probe_yields_to_data_that_actually_landed }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — une SONDE affirme une conséquence qu'elle ne peut pas connaître, et l'écran la traite à égalité avec une mesure ; couvre: quatre propriétés — l'état de l'onglet RÉUTILISE les cellules de la matrice (une seule source), les couleurs sont définies une fois, l'onglet montre l'ÉTAT et non la phrase, et il ne montre que les plateformes de cet onglet ; ne couvre pas: (1) **le geste voisin le plus proche — les autres endroits où une prédiction côtoie une mesure** : le résumé hebdomadaire, les alertes et le PDF mélangent des sondes et des relevés, et seule la matrice a une règle de préséance ; (2) la JUSTESSE de la sonde quand elle est le seul signal ; (3) les plateformes ajoutées ; (4) le cas où la mesure est PÉRIMÉE et la prédiction fraîche.
 - rex_ref: src/dashboard/views/credentials/_render.py
 - first_seen: 2026-09-05
 - History:
@@ -4944,7 +4944,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: quand TOUS les fichiers sont reconnus, l'import part **tout seul** : s'il n'y a rien à trier, il n'y a rien à décider, et un bouton qui n'offre qu'un seul choix est une étape, pas une décision. Dès qu'un fichier est refusé le bouton revient — là il y a un arbitrage réel (importer les autres, ou repartir chercher le manquant). L'idempotence tient à la SIGNATURE du lot (noms + nombre de lignes) et non à un drapeau : Streamlit ré-exécute le script à chaque interaction, donc sans elle le même dépôt se réimporterait à chaque clic ailleurs sur la page ; un nouveau dépôt change la signature et redéclenche, ce qui est voulu.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_import_page_shows_the_gesture_before_its_notice.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — un état INTERMÉDIAIRE porte le nom d'un état final (« ✅ Prêt » après la simple détection), donc l'artiste croit l'import fait ; couvre: quatre propriétés d'ORDRE et de place — le mode d'emploi SACEM vit dans exactement une vue, les guides viennent APRÈS la zone de dépôt et après le résultat, Spotify est à gauche et Apple à droite (l'ordre que l'artiste attend), et les guides appariés portent des captures qui EXISTENT ; ne couvre pas: (1) **le geste voisin le plus proche — les autres états intermédiaires nommés comme finaux** : « connecté » avant la première collecte, « configuré » avant la première donnée, « envoyé » avant la livraison ; seul l'import est traité ; (2) le VOCABULAIRE lui-même, que le garde ne juge pas ; (3) les autres pages d'import ; (4) le CONTENU des captures, seulement leur existence.
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -4998,7 +4998,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: onze vues du parcours artiste doivent émettre soit un élément SUBSTANTIEL (graphique, tableau, métrique, carte…), soit un message qui NOMME l'absence (`st.info`, `st.warning`). La seconde branche est la convention du dépôt — dire l'absence plutôt que la laisser deviner — et elle est ce qui rend la règle tenable : une vue légitimement vide reste conforme en le disant. Ce qui est interdit est le troisième cas, un titre et rien.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_view_says_something_or_says_why.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — une fonctionnalité cesse de servir de trois façons et une seule alerte, donc une vue peut rendre le vide en silence ; couvre: **chaque** vue, paramétrée — elle montre une donnée ou NOMME son absence ; c'est l'un des rares gardes du catalogue dont le périmètre est dérivé et couvre tout le répertoire ; ne couvre pas: (1) **le geste voisin le plus proche — la QUALITÉ de ce qu'elle dit** : nommer une absence ne dit pas que la cause annoncée est la bonne, ce qui est `empty-list-blames-the-most-common-cause` ; (2) les vides PARTIELS — une vue qui rend trois tuiles sur dix sans le signaler ; (3) les sous-parties d'une vue (onglets, sections, expanders), qui peuvent se taire sous une vue qui parle ; (4) le rendu pour un locataire NEUF, couvert par un autre test du répertoire.
 - rex_ref: src/dashboard/views/apple_music.py
 - first_seen: 2026-09-06
 - History:
@@ -5071,7 +5071,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: un `COUNT(*)` scopé au locataire AVANT et APRÈS l'écriture, dans la vue — la mesure se prend à la destination, sans toucher au chemin d'écriture qu'empruntent les seize DAGs. Le delta est affiché : un écart n'est pas une anomalie (un ré-import met à jour sans ajouter, et « 0 nouvelle » sur 400 lignes traitées est alors la bonne réponse), ce qui manquait n'était pas une alerte mais le chiffre. Le garde vérifie les DEUX moitiés — que la mesure est prise des deux côtés de l'écriture, et qu'elle atteint le tableau : mesurer sans afficher est la classe `finding-computed-but-never-sent` déplacée d'un cran.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_committed_count_is_measured.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — `upsert_many` rend `len(data)`, le nombre de lignes ENVOYÉES après déduplication, et on l'affiche comme le nombre de lignes ÉCRITES ; couvre: trois propriétés — la destination est comptée DES DEUX CÔTÉS de l'écriture, l'écart mesuré atteint l'écran, et l'aide de comptage VALIDE sa table (règle transverse 8, un nom de table interpolé) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres nombres affirmés par la couche d'écriture** : `insert_many`, les suppressions, les mises à jour rendent aussi des comptes que personne ne confronte à la base ; (2) le coût du double comptage sur un gros lot ; (3) les écritures faites hors de `PostgresHandler` ; (4) la RAISON de l'écart — le garde le rend visible, il ne dit pas si c'est une déduplication ou un rejet.
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -5162,7 +5162,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: un helper `_text()` qui teste `pd.isna` AVANT toute évaluation booléenne, plus une migration qui remet à NULL les lignes déjà écrites. Le coût n'est pas cosmétique : l'ISRC est la clé exacte du secteur — chaque version d'un morceau en porte une propre — et une absence écrite `'nan'` regroupe sous UNE MÊME valeur tout ce qui n'a pas d'identifiant, soit le pire regroupement possible pour une colonne dont le rôle est de distinguer.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_nan_is_never_written_as_a_value.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — `str(row[col] or '')` transforme un `NaN` pandas en chaîne `'nan'`, écrite ensuite comme une VALEUR ; couvre: quatre propriétés — le convertisseur transforme un `NaN` en `None`, **aucun parseur ne construit une valeur avec ce motif** (paramétré par fichier), le garde rougirait sur le défaut qu'il garde, et la migration de nettoyage est toujours là (sans quoi les lignes déjà écrites resteraient) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres sentinelles écrites comme des valeurs** : `'None'`, `'null'`, `'NaT'`, la chaîne vide et `'-'` arrivent en base par le même chemin et seul `nan` est cherché ; (2) les parseurs hors du balayage ; (3) les `NaN` NUMÉRIQUES, qui ne passent pas par `str()` ; (4) les lignes déjà écrites au-delà de ce que la migration a nettoyé.
 - rex_ref: migrations/092_nan_is_not_a_value.sql
 - first_seen: 2026-09-06
 - History:
@@ -5371,7 +5371,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: les tranches sont **par plateforme**. Une source inconnue ne dessine rien ce jour-là et les autres continuent ; Plotly empile en un seul `stackgroup`, donc le total d'un pas incomplet est celui des plateformes présentes, et `t_missing` le dit avec le compte PAR plateforme. La règle de couverture disparaît : elle ne protégeait plus rien, il ne reste que la contrainte de forme — deux points, sinon il n'y a pas d'aire.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — les tranches sont calculées en COMMUN, donc un trou dans une seule série efface le pas pour toutes ; couvre: par `test_a_missing_day_cuts_ONLY_the_platform_that_is_missing`, le test nommé de ce fichier partagé — c'est la classe elle-même ; ne couvre pas: (1) **le geste voisin le plus proche — les autres calculs communs à plusieurs séries** : une échelle d'axe, une fenêtre, une normalisation partagées peuvent être dictées par la série la plus pauvre ; (2) les tuiles et le PDF ; (3) le trou lui-même, que le garde rend visible sans le combler ; (4) le cas où le trou est COMMUN à toutes les séries, où la coupure collective est correcte.
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-08
 - History:
@@ -5390,7 +5390,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `aligned_raw` conserve les quantités par pas avant `_as_mode`, et c'est la seule forme qu'on somme. Le garde lit le sous-titre RENDU — il rend la figure, extrait le nombre du titre et le compare à la somme connue — au lieu de vérifier quelle variable la fonction utilise : c'est le nombre affiché qui était faux.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — le sous-titre somme la série APRÈS mise en forme, donc en mode cumulé il additionne des cumuls et rend un nombre qui n'existe nulle part ; couvre: par `test_the_live_palette_is_the_illustration_palette` et `test_the_form_is_a_stack_not_overlapping_lines`, les tests nommés de ce fichier partagé qui épinglent la forme depuis laquelle le total est lu ; ne couvre pas: (1) **le geste voisin le plus proche — les autres totaux lus sur l'affichage** : légendes, infobulles, tuiles et exports peuvent sommer une série transformée, et c'est la même cause que `an-aggregate-computed-in-pandas-escapes-every-sql-guard` vue depuis la figure ; (2) les modes d'affichage ajoutés ; (3) le PDF ; (4) la JUSTESSE du total quand il est lu au bon endroit.
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-08
 - History:
@@ -5620,7 +5620,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: un compteur des écarts écartés, rendu à l'appelant et NOMMÉ sous la figure. Règle générale : quand une règle de calcul jette de la donnée pour une raison valable, le volume jeté se compte et se dit — sinon la rigueur du calcul se lit comme une panne de la source.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_figure_never_draws_more_than_it_measured.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — la conversion cumul → quotidien n'émet un écart que si le relevé précédent date de la VEILLE, donc tout relevé plus espacé est jeté sans un mot ; couvre: par `test_the_note_counts_the_days_after_the_last_measurement` et `test_the_aggregation_honours_the_window_at_every_step`, les tests nommés de ce fichier partagé — la note COMPTE les jours depuis la dernière mesure, ce qui rend le rejet visible ; ne couvre pas: (1) **le geste voisin le plus proche — les autres mesures jetées par une condition de forme** : une ligne sans locataire, une date hors fenêtre, une valeur hors bornes sont écartées ailleurs sans compteur ; (2) le NOMBRE de relevés jetés, que la note approxime par une durée ; (3) les autres plateformes ; (4) la reprise — rien ne récupère un relevé écarté.
 - rex_ref: src/dashboard/utils/platform_timeseries.py
 - first_seen: 2026-09-10
 - History:
@@ -5830,7 +5830,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: borner le verdict au RECOUVREMENT — la fenêtre où les deux séries existent — et NOMMER la période au-delà, à l'écrit comme sur la figure (zone ombrée). Règle générale : un `fillna(0)` sur une série temporelle est légitime à l'intérieur de sa couverture et faux au-delà ; avant de combler, se demander si le trou est « rien ne s'est passé » ou « personne n'a encore rapporté ». Et recadrer en SILENCE ne suffit pas — un « non atteint » qui ne dit pas jusqu'où il regarde se lit comme un constat définitif.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_verdict_stops_where_its_evidence_stops.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — la frise court sur l'union des deux séries et les trous sont comblés, donc le verdict est calculé au-delà de ce que la preuve couvre ; couvre: quatre propriétés — le recouvrement est calculé À PARTIR DES DEUX séries, la recherche du point d'équilibre est RESTREINTE à ce recouvrement, la fenêtre non couverte est NOMMÉE et pas seulement rognée, et la note est traduite ; la troisième est ce qui distingue « je m'arrête ici » de « il n'y a rien après » ; ne couvre pas: (1) **le geste voisin le plus proche — les autres verdicts calculés sur une union de séries** : comparaisons de plateformes, écarts entre périodes, corrélations souffrent du même comblement ; (2) la JUSTESSE du verdict à l'intérieur du recouvrement ; (3) un recouvrement VIDE, cas limite non instancié ; (4) ce que l'artiste conclut de la note.
 - rex_ref: src/dashboard/views/trigger_algo/_tab_budget_roi.py
 - first_seen: 2026-09-10
 - History:
@@ -6410,7 +6410,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_an_unmeasured_platform_says_so.py -q`
 - seen_red: 2026-09-12 (via la trace de mutation de `tests/test_an_unmeasured_platform_says_so.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_an_unmeasured_platform_says_so.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — une plateforme jamais mesurée rend 0 au lieu de « inconnu », donc l'artiste lit un échec là où il n'y a pas de donnée ; couvre: trois propriétés à DEUX niveaux — une vue or ne rend AUCUNE ligne plutôt qu'un zéro (paramétré par plateforme et par requête), la porte Python rend `None` pour chaque plateforme qu'elle sert, et **un zéro MESURÉ reste un zéro** — ce dernier empêchant de « corriger » en masquant les vrais zéros ; ne couvre pas: (1) **le geste voisin le plus proche — les surfaces qui reçoivent ce `None`** : chacune décide comment l'afficher, et une seule qui écrit `or 0` réintroduit le défaut ; c'est `absence-rendered-as-a-measurement` ; (2) les plateformes hors couche or ; (3) la distinction entre « jamais mesuré » et « plus mesuré depuis » ; (4) sans Postgres, les cas paramétrés ne s'exécutent pas.
 - rex_ref: migrations/113_gold_apple_absence_is_not_zero.sql
 - first_seen: 2026-09-12
 - History:
@@ -6903,7 +6903,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: un classement décroissant sur une expression nullable doit porter sa PORTE dans la requête — un `HAVING` qui écarte les groupes sans mesure, ou un `NULLS LAST` explicite. La forme `HAVING` est préférable quand le groupe vide n'a aucun sens métier : elle dit « ce groupe n'existe pas », là où `NULLS LAST` dit seulement « classe-le en dernier » et le laisse gagner quand il est seul.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_parameterised_query_says_what_it_means.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — PostgreSQL place les `NULL` EN PREMIER sur un `ORDER BY … DESC`, donc le groupe VIDE gagne le classement et la surface affiche « — » alors qu'un vrai chiffre existe ; couvre: par `test_a_desc_ranking_cannot_be_won_by_an_empty_group` et `test_the_two_predicates_are_not_vacuous`, les tests nommés de ce fichier partagé — le second prouvant que les prédicats ne sont pas vides ; ⚠️ ce garde m'a attrapé le 2026-09-17 sur `telemetry_retention.py`, où le `ORDER BY 3 DESC` portait un `COUNT(*)` qui ne peut pas être NULL : faux positif, corrigé par un `NULLS LAST` explicite plutôt que par une exemption ; ne couvre pas: (1) **le geste voisin le plus proche — les classements faits en pandas** : `sort_values(ascending=False)` place les `NaN` en DERNIER, convention inverse, et personne ne vérifie qu'on le sait ; (2) les `ORDER BY` construits à l'exécution ; (3) les classements ASC, où la convention s'inverse aussi ; (4) le cas où le groupe vide DOIT gagner.
 - signature: `python3 -m pytest tests/test_a_parameterised_query_says_what_it_means.py::test_a_desc_ranking_cannot_be_won_by_an_empty_group -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
@@ -7073,7 +7073,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: (a) répondre à la question en **une seule passe de fenêtre** (`LAG`) plutôt qu'en auto-jointure — plus de double référence, donc plus de prise ; (b) `WITH … AS MATERIALIZED` sur la CTE de correspondance, pour que le filtre s'applique AVANT la jointure au fait et non après (142 399 lignes produites puis jetées, mesuré par `EXPLAIN ANALYZE`). Résultat : 2 min → **75 ms**, mêmes valeurs.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_the_spotify_page_reads_only_the_gold_layer.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — le planificateur estime UNE ligne là où la relation en porte beaucoup, donc il choisit un sous-plan ré-exécuté et la requête s'effondre ; couvre: par `test_the_page_reads_no_bronze_table` et `test_the_page_actually_reads_the_gold_views`, les tests nommés de ce fichier partagé — la page passe par des vues or, dont la forme évite le sous-plan ; ne couvre pas: (1) **le geste voisin le plus proche — les autres requêtes à estimation fausse** : rien ne vérifie les PLANS d'exécution du dépôt, et une estimation peut se dégrader avec le volume sans qu'aucune ligne de code ne change ; (2) les statistiques de la base, dont dépend l'estimation et que personne ne rafraîchit explicitement ; (3) le TEMPS d'exécution, qu'aucun seuil ne juge ici ; (4) les requêtes hors de cette page.
 - signature: `python3 -m pytest tests/test_the_spotify_page_reads_only_the_gold_layer.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
@@ -7414,7 +7414,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: none
 - seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - guard: { type: pytest, ref: tests/conftest.py::pytest_sessionstart (le correctif de l'instance 1 ; c'était la fixture `_rate_limit_budget_starts_full` jusqu'au 2026-09-17, devenue un hook du contrôleur par R123 — une fixture de portée session tourne une fois PAR WORKER) }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — la mesure est prise AVANT que l'écrivain n'ait tourné, donc elle décrit un état que le test s'apprête à changer ; couvre: ⚠️ **rien d'automatique — `guard: tests/conftest.py` désigne le point de référence partagé de séance, pas un test qui vérifierait cette classe** ; ce qui existe est une discipline écrite, arrivée DEUX fois le 2026-09-16 ; ne couvre pas: (1) **le geste voisin le plus proche, et c'est la classe entière — l'ORDRE entre une mesure et son écrivain**, qu'aucun outil ne vérifie ; le point de référence de séance aide à distinguer l'avant de l'après, il n'empêche pas de mesurer trop tôt ; (2) les mesures prises hors des tests — un chiffre lu en production avant qu'un DAG ne tourne partage exactement la cause, et c'est ce qui a produit deux conclusions fausses sur R124 ; (3) l'ordre sous `xdist`, où deux workers n'ont pas le même avant ; (4) les mesures prises trop TARD, symétriques et tout aussi silencieuses.
 - rex_ref: tests/conftest.py
 - first_seen: 2026-09-16
 - History:
@@ -7432,7 +7432,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: none
 - seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - guard: { type: doc, ref: .claude/dev-docs/measurement-protocol-R114.md }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — un SEUIL est défini avec un instrument et LU avec un autre, donc il ne veut plus dire la même chose ; couvre: ⚠️ **rien d'automatique — le garde est un DOCUMENT**, `measurement-protocol-R114.md`, qui impose de nommer l'instrument avec le seuil ; ne couvre pas: (1) **le geste voisin le plus proche, et il s'est produit le 2026-09-17 — tous les autres seuils du dépôt**, dont aucun ne nomme son instrument : disque 85 %, RAM 500 Mo, fraîcheur 36 h, sessions 20, p50 200 ms sont écrits sans dire avec quoi ils ont été obtenus, donc chacun peut être relu avec un autre ; (2) le protocole ne s'applique qu'à R114 et n'est cité par aucun autre ; (3) un document n'empêche rien à l'exécution ; (4) le cas où l'instrument CHANGE entre deux lectures du même seuil, qui est la forme la plus difficile à voir.
 - rex_ref: tools/loadtest_concurrency.py
 - first_seen: 2026-09-16
 - History:
@@ -7723,7 +7723,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: none
 - seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - guard: { type: doc, ref: .claude/dev-docs/roadmap/checklist.md }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — on ne sait pas mesurer ce qui COÛTE, alors on énumère ce qui se COMPTE, et le classement décrit le proxy et non la douleur ; couvre: ⚠️ **rien d'automatique — le garde est la roadmap elle-même**, où l'ordre de travail est écrit avec sa justification ; ne couvre pas: (1) **le geste voisin le plus proche, et j'en ai fait l'expérience le 2026-09-17 — le proxy qui se PÉRIME** : les taux de récidive par famille, qui décident de cet ordre, vivaient en prose et s'étaient périmés ; ils sont désormais recalculés par `make error-families`, mais rien n'empêche un autre classement de figer un chiffre ; (2) le choix du proxy lui-même — la récidive est-elle la bonne mesure de la douleur ? rien ne le vérifie ; (3) les populations choisies hors roadmap ; (4) les classes qui ne récidivent pas ENCORE, invisibles à ce classement par construction.
 - rex_ref: .claude/dev-docs/roadmap/checklist.md
 - first_seen: 2026-09-16
 - History:
