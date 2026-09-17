@@ -90,7 +90,7 @@ FAMILIES: list[tuple[str, str, str]] = [
      # `config-path-dangling` est le meme motif sur un chemin de fichier. Le motif est
      # ecrit sur le LIEN (« referenced-but-never-declared », « dangling ») et non sur
      # le mot « identifier », qui aurait ramasse des classes sans rapport.
-     r"referenced-but-never-declared|dangling"),
+     r"referenced-but-never-declared|dangling|nothing-ever|never-evaluat|jamais évalué"),
 
     ("un-nombre-affirmé-qui-n-a-pas-été-mesuré",
      "Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer "

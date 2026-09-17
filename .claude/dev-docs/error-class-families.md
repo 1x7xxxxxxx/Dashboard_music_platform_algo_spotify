@@ -12,14 +12,14 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 |---|---|---|
 | [le-locataire](#le-locataire) | 42 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 19 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
-| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 13 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
+| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 15 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 24 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 21 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 74 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 42 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 41 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 8 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
@@ -28,7 +28,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 18 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
 | [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 24 | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | [l-instrument-ment-sur-ce-qu-il-mesure](#l-instrument-ment-sur-ce-qu-il-mesure) | 2 | Ce que cet instrument AFFICHE est-il ce qu'il a mesuré ? |
-| _sans famille_ | 4 | — |
+| _sans famille_ | 3 | — |
 
 ## le-locataire
 
@@ -113,7 +113,7 @@ Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generat
 
 **Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ?**
 
-Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|nothing-routes|nobody-call|never-hit|not-when-it-is-needed|nobody-writes|rebuilt-per-rerun|unwired|debranch|not-reached|orphan|registered-twice-kills-the-import|referenced-but-never-declared|dangling` sur l'identifiant et le symptôme. 13 classe(s).
+Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|nothing-routes|nobody-call|never-hit|not-when-it-is-needed|nobody-writes|rebuilt-per-rerun|unwired|debranch|not-reached|orphan|registered-twice-kills-the-import|referenced-but-never-declared|dangling|nothing-ever|never-evaluat|jamais évalué` sur l'identifiant et le symptôme. 15 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -128,8 +128,10 @@ Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|noth
 | [`finding-computed-but-never-sent`](error-classes.md#finding-computed-but-never-sent) | une tâche de surveillance tourne, calcule un constat juste, et reste verte. Personne n'est prévenu. Le contrôle a l'apparence exacte d'un contrôle qui |
 | [`a-step-that-nothing-routes-to`](error-classes.md#a-step-that-nothing-routes-to) | une étape d'un parcours existe, se rend correctement, et aucun chemin n'y mène. Signalé le 2026-09-08 : « quand je clique sur mise en route (assistant |
 | [`a-surface-reads-a-table-nobody-writes`](error-classes.md#a-surface-reads-a-table-nobody-writes) | un panneau de tableau de bord reste vide sans rien dire. La table qu'il lit existe, le SQL est valide, et personne ne l'écrit. |
+| [`a-telemetry-table-that-nothing-ever-purges`](error-classes.md#a-telemetry-table-that-nothing-ever-purges) | une table écrite à chaque événement grossit sans borne. Rien n'échoue jamais — jusqu'au jour où une requête de tableau de bord ralentit, ou où le disq |
 | [`a-metric-registered-twice-kills-the-import`](error-classes.md#a-metric-registered-twice-kills-the-import) | l'application **ne démarre plus du tout** — `Duplicated timeseries in CollectorRegistry` à l'import, avant qu'une ligne ne s'affiche. Rien de progress |
 | [`an-identifier-that-is-referenced-but-never-declared`](error-classes.md#an-identifier-that-is-referenced-but-never-declared) | **une interface entière rend « No data », et rien n'est en erreur.** Aucun journal ne se plaint, la source de données répond, les requêtes sont justes |
+| [`a-reopening-condition-nothing-ever-evaluates`](error-classes.md#a-reopening-condition-nothing-ever-evaluates) | une tâche close se donne une **condition de réouverture calculable**, écrite noir sur blanc — et rien ne l'évalue jamais. La condition se remplit, la  |
 
 ## un-nombre-affirmé-qui-n-a-pas-été-mesuré
 
@@ -377,7 +379,7 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 
 **Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?**
 
-Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list|telemetry-table-that-nothing-ever-purges|proc[ée]dure|playbook|runbook|instruction` sur l'identifiant et le symptôme. 42 classe(s).
+Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list|telemetry-table-that-nothing-ever-purges|proc[ée]dure|playbook|runbook|instruction` sur l'identifiant et le symptôme. 41 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -418,7 +420,6 @@ Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|cap
 | [`a-percent-sign-in-a-parameterised-query`](error-classes.md#a-percent-sign-in-a-parameterised-query) | une requête paramétrée échoue en bloc sur `IndexError: tuple index out of range`, alors que le nombre d'emplacements `%s` et le nombre de valeurs pass |
 | [`a-prose-claim-that-cannot-be-verified`](error-classes.md#a-prose-claim-that-cannot-be-verified) | un document dont les TABLEAUX sont justes affirme le contraire dans la prose posée à côté, et rien ne le voit. Mesuré le 2026-09-15 sur `.claude/dev-d |
 | [`a-repair-that-reverts-what-a-successor-widened`](error-classes.md#a-repair-that-reverts-what-a-successor-widened) | un correctif de rejouabilité fait DISPARAÎTRE une colonne, une contrainte ou un index qu'une migration ultérieure avait ajoutés. Le fichier corrigé pa |
-| [`a-telemetry-table-that-nothing-ever-purges`](error-classes.md#a-telemetry-table-that-nothing-ever-purges) | une table écrite à chaque événement grossit sans borne. Rien n'échoue jamais — jusqu'au jour où une requête de tableau de bord ralentit, ou où le disq |
 | [`a-document-that-cannot-be-current-in-its-own-commit`](error-classes.md#a-document-that-cannot-be-current-in-its-own-commit) | un document généré est **périmé à l'instant même où on le commite**. Son contrôle de fraîcheur est rouge juste après un `make` qui vient de le produir |
 | [`a-make-target-that-claims-a-barrier-it-does-not-hold`](error-classes.md#a-make-target-that-claims-a-barrier-it-does-not-hold) | une cible `make` annonce dans son aide qu'elle est la barrière — « (CI) » — alors qu'aucun workflow ne la lance. Le document EST gardé, mais par un au |
 | [`a-retention-declared-in-a-comment-and-applied-by-nobody`](error-classes.md#a-retention-declared-in-a-comment-and-applied-by-nobody) | une politique de conservation est écrite quelque part — commentaire SQL, ADR, migration — et **rien ne l'exécute**. Rien n'échoue jamais ; la table gr |
@@ -591,10 +592,9 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 | [`format-marker-in-a-plain-string`](error-classes.md#format-marker-in-a-plain-string) | un marqueur `{...}` destiné à une f-string se retrouve dans une chaîne ordinaire et part **tel quel** dans le SQL. Postgres reçoit huit caractères lit |
 | [`module-level-read-turns-a-deletion-into-a-collection-error`](error-classes.md#module-level-read-turns-a-deletion-into-a-collection-error) | on supprime un fichier et le rapport de tests annonce « N errors » au lieu de « N failed ». Les propriétés que ces tests défendaient disparaissent de  |
 | [`a-form-constraint-checked-on-the-series-not-on-the-axis`](error-classes.md#a-form-constraint-checked-on-the-series-not-on-the-axis) | une combinaison de réglages rend une figure entièrement VIDE, sans message, alors que les données sont là. Signalé au rendu le 2026-09-08 : « je vois  |
-| [`a-reopening-condition-nothing-ever-evaluates`](error-classes.md#a-reopening-condition-nothing-ever-evaluates) | une tâche close se donne une **condition de réouverture calculable**, écrite noir sur blanc — et rien ne l'évalue jamais. La condition se remplit, la  |
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=394 families=18 orphans=4 -->
+<!-- error-class-families: total=394 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=b2eb7938c6020e5f3c87ce60cbf1c16931b502d2f5a7fd2ab65e07c95785d4a2 -->
+<!-- error-class-families: sha256=5f25fa0cfbd2400f3ecc6d03cd9f889db1d310e933ed7547d81cc36524ac5290 -->
