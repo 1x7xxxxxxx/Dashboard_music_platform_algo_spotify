@@ -125,3 +125,119 @@ def test_partial_is_a_status_the_alert_actually_reports() -> None:
         "la tâche d'alerte ne compare plus un statut à un ensemble contenant "
         "`failed` ET `partial` : enregistrer `partial` ne produirait plus aucun "
         f"signal, et la troncature redeviendrait invisible. Vu : {sorted(reported)}")
+
+
+# ── La population, DÉRIVÉE — ajoutée le 2026-09-17 ───────────────────────────
+#
+# Tout ce qui précède nomme Instagram. C'est le site où la classe a été trouvée, et
+# c'était le seul gardé — alors que la cause (« une lecture bornée dont la troncature
+# ne sort pas du log ») n'a rien d'instagrammien.
+#
+# Balayé le 2026-09-17 sur `src/collectors/` : **deux** boucles de pagination portent
+# un plafond `max_pages`. `instagram_api_collector.fetch_media` (gardée ci-dessus) et
+# `soundcloud_api_collector.fetch_tracks`, qui plafonnait à 200 pages en ne le disant
+# qu'à `logger.warning` — exactement le défaut du 2026-09-10, vivant depuis, dans un
+# collecteur que personne n'avait relu parce que la classe portait le nom de l'autre.
+#
+# Ce qui suit ne nomme donc plus un fichier : il DÉRIVE sa population de la présence
+# d'un plafond de pagination, et un collecteur neuf qui en pose un y entre sans qu'on
+# y pense. C'est la règle que ce dépôt a payée cinq fois : la portée d'un garde est le
+# défaut, pas la connaissance.
+_COLLECTORS = ROOT / "src" / "collectors"
+_DAGS = ROOT / "airflow" / "dags"
+
+# Le drapeau porté par l'objet, et le DAG qui le lit. Dérivé du NOM du collecteur pour
+# les DAG, ce que la convention du dépôt garantit (`<plateforme>_daily.py`).
+_KNOWN_FLAGS = {
+    "instagram_api_collector.py": ("media_truncated", "instagram_daily.py"),
+    "soundcloud_api_collector.py": ("tracks_truncated", "soundcloud_daily.py"),
+}
+
+
+def _capped_readers() -> list[tuple[str, str]]:
+    """(fichier, fonction) de chaque lecture bornée par un plafond de PAGES."""
+    out = []
+    for path in sorted(_COLLECTORS.rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        src = path.read_text(encoding="utf-8")
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:                              # pragma: no cover
+            continue
+        for fn in (n for n in ast.walk(tree)
+                   if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))):
+            seg = ast.get_source_segment(src, fn) or ""
+            # `max_pages` est la convention du dépôt pour un plafond de pagination.
+            # Une borne de tranche (`[:200]`) n'en est pas une : elle tronque un
+            # message de log, pas une lecture.
+            if "max_pages" in seg:
+                out.append((path.name, fn.name))
+    return out
+
+
+def test_the_population_of_capped_readers_is_not_empty() -> None:
+    """Anti-vacuité : sans lecture bornée à surveiller, tout ce bloc est vert à vide."""
+    readers = _capped_readers()
+    assert len(readers) >= 2, (
+        f"seulement {len(readers)} lecture(s) bornée(s) trouvée(s) dans "
+        "`src/collectors/` — il y en avait 2 le 2026-09-17. Soit la convention "
+        "`max_pages` a changé de nom, soit le lecteur AST est cassé ; dans les deux "
+        "cas le test d'à côté ne garde plus rien.")
+
+
+def test_every_capped_reader_carries_its_truncation() -> None:
+    """Chaque lecture bornée porte sa troncature sur l'objet, et son DAG la lit."""
+    manquants = []
+    for fichier, fonction in _capped_readers():
+        connu = _KNOWN_FLAGS.get(fichier)
+        if connu is None:
+            manquants.append(
+                f"{fichier}::{fonction} pose un plafond `max_pages` et n'est déclaré "
+                "nulle part ici — ajouter son drapeau et son DAG à `_KNOWN_FLAGS`, "
+                "après avoir vérifié que les deux existent.")
+            continue
+        drapeau, dag = connu
+        src = (_COLLECTORS / fichier).read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        cible = next((n for n in ast.walk(tree)
+                      if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                      and n.name == fonction), None)
+        if cible is None:                                # pragma: no cover
+            continue
+        pose = [n for n in ast.walk(cible)
+                if isinstance(n, ast.Assign)
+                and any(isinstance(t, ast.Attribute) and t.attr == drapeau
+                        for t in n.targets)]
+        vrai = [n for n in pose
+                if isinstance(n.value, ast.Constant) and n.value.value is True]
+        faux = [n for n in pose
+                if isinstance(n.value, ast.Constant) and n.value.value is False]
+        if not vrai:
+            manquants.append(
+                f"{fichier}::{fonction} ne pose jamais `self.{drapeau} = True` : le "
+                "plafond ne sort pas du journal du conteneur.")
+        if not faux:
+            manquants.append(
+                f"{fichier}::{fonction} ne remet pas `self.{drapeau}` à faux en tête : "
+                "un locataire tronqué marquerait tous les suivants du même processus.")
+        # `and url` : sans lui, une collecte finissant PILE au plafond est annoncée
+        # tronquée alors qu'elle est complète.
+        garde = [n for n in ast.walk(cible)
+                 if isinstance(n, ast.If) and isinstance(n.test, ast.BoolOp)
+                 and isinstance(n.test.op, ast.And)
+                 and any(drapeau in ast.dump(s) for s in n.body)]
+        if not garde:
+            manquants.append(
+                f"{fichier}::{fonction} pose `{drapeau}` sans condition composée : "
+                "`page >= max_pages` SEUL annonce tronquée une lecture qui s'est "
+                "terminée pile au plafond.")
+        dag_src = (_DAGS / dag).read_text(encoding="utf-8")
+        if drapeau not in dag_src or "'partial'" not in dag_src:
+            manquants.append(
+                f"{dag} ne lit pas `{drapeau}` pour enregistrer `partial` : la "
+                "troncature est portée par l'objet et personne ne la ramasse.")
+    assert not manquants, (
+        f"{len(manquants)} maillon(s) manquant(s) dans la chaîne de la troncature.\n"
+        "Une lecture bornée est légitime ; l'enregistrer `success` ne l'est pas.\n  "
+        + "\n  ".join(manquants))

@@ -178,6 +178,11 @@ class SoundCloudCollector:
         self._ensure_token()
         logger.info("Fetching SoundCloud tracks for user %s...", self.user_id)
 
+        # Remis à faux À CHAQUE APPEL. Sans cette ligne, un locataire tronqué
+        # marquerait `partial` tous les suivants du même processus — la moitié du
+        # défaut que la classe `a-truncated-read-recorded-as-a-complete-one` décrit,
+        # et celle qu'on n'aurait pas vue, le drapeau étant collant dans le bon sens.
+        self.tracks_truncated = False
         tracks_data = []
         # Sans user_id, il n'y a pas de profil à parcourir : on va directement aux
         # titres déclarés. Le constructeur a déjà garanti qu'il y en a.
@@ -235,8 +240,25 @@ class SoundCloudCollector:
             url = data.get('next_href') if collection else None
             page += 1
 
-        if page >= max_pages:
-            logger.warning("fetch_tracks: reached max_pages=%d safety cap.", max_pages)
+        if page >= max_pages and url:
+            # UNE TRONCATURE EST UN FAIT SUR LES DONNÉES, PAS UNE LIGNE DE LOG.
+            #
+            # Même forme que `instagram_api_collector.fetch_media`, et pour la même
+            # raison : un `logger.warning` part dans le journal d'un conteneur que
+            # personne ne lit, tandis que l'artiste voit un catalogue amputé sans
+            # qu'aucune surface ne le dise. Le DAG lit ce drapeau et enregistre
+            # `partial` — le statut que la tâche d'alerte remonte déjà.
+            #
+            # ⚠️ `and url` n'est pas cosmétique : sans lui, une collecte qui se
+            # termine PILE au plafond (la dernière page rendant `next_href` vide à
+            # l'itération 200) serait annoncée tronquée alors qu'elle est complète.
+            # Une fausse alerte sur la complétude coûte la confiance qu'on demande
+            # au drapeau.
+            self.tracks_truncated = True
+            logger.warning(
+                "fetch_tracks: plafond de pagination atteint (%d pages) — les titres "
+                "les plus anciens n'ont pas été relus pour ce locataire cette nuit.",
+                max_pages)
 
         logger.info("Fetched %d tracks from the profile.", len(tracks_data))
         tracks_data.extend(self.fetch_claimed_tracks(

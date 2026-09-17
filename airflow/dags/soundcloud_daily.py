@@ -119,7 +119,8 @@ def run_soundcloud_collector(**context):
             return
 
     from src.utils.dag_run_logger import (
-        record_tenant_failure, record_tenant_skip, record_tenant_success,
+        record_tenant_failure, record_tenant_run, record_tenant_skip,
+        record_tenant_success,
     )
     run_id = context.get('run_id', '') if context else ''
 
@@ -205,8 +206,22 @@ def run_soundcloud_collector(**context):
                 refresh_token=refresh_token,
             )
             rows = collector.run() or 0
-            record_tenant_success('soundcloud_daily', artist_id, 'soundcloud', rows, run_id,
-                                  duration_ms=int((_time.monotonic() - _t0) * 1000))
+            # PARTIEL N'EST PAS SUCCÈS — même contrat que `instagram_daily`. Le
+            # plafond de pagination de SoundCloud laisse les titres les plus anciens
+            # hors de la base : la collecte a marché, mais pas en entier, et l'écrire
+            # `success` rendrait un catalogue amputé indiscernable d'un catalogue
+            # complet.
+            if getattr(collector, 'tracks_truncated', False):
+                record_tenant_run(
+                    'soundcloud_daily', artist_id, 'soundcloud', run_id,
+                    status='partial', rows=rows,
+                    reason='pagination SoundCloud plafonnée — les titres les plus '
+                           'anciens n ont pas été relus cette nuit',
+                    duration_ms=int((_time.monotonic() - _t0) * 1000))
+            else:
+                record_tenant_success(
+                    'soundcloud_daily', artist_id, 'soundcloud', rows, run_id,
+                    duration_ms=int((_time.monotonic() - _t0) * 1000))
             succeeded += 1
             logger.info(f"  ✅ Collecte terminée pour {artist_name}")
         except Exception as e:
