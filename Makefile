@@ -668,6 +668,14 @@ sync:        ## uv sync --frozen --extra dev + pre-commit hooks (one-shot dev se
 	# ruff ni pre-commit — et enchaînait ensuite sur `hooks-install`, qui a besoin
 	# de pre-commit. Constaté le 2026-08-24 en réinstallant le lock : la suite ne
 	# démarrait plus (`unrecognized arguments: -n auto`).
+	@# ⚠️ Règle transverse #10 : une cible d'exécution NOMME sa commande de réparation.
+	@# `sync` était la SEULE cible de ce fichier sans prérequis NI garde en ligne à
+	@# l'ajouter (mesuré le 2026-09-17 : 34 lignes brutes → 16 cibles → 12 sans
+	@# prérequis → 4 sans aucun garde, dont 3 déjà triées P3 en mai). Sans ça, un
+	@# poste neuf reçoit `uv: command not found` et doit deviner.
+	@command -v uv >/dev/null 2>&1 || { \
+		echo "❌ uv absent — c'est lui qui installe l'environnement de ce dépôt."; \
+		echo "   Réparer : pip install uv"; exit 1; }
 	uv sync --frozen --extra dev
 	@$(MAKE) --no-print-directory hooks-install
 

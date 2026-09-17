@@ -194,7 +194,17 @@ _CEILINGS = {
     # `declared_identities` ; les 3 consommateurs de statut dérivent tous de
     # `SOURCES_FOR_PLATFORM` ; les seules écritures de credentials hors des 3 chemins
     # humains sont des rafraîchissements de JETON, qui ne touchent aucune identité.
-    "siblings_never_swept": 240,
+    # 240 → 234 le 2026-09-17 : la famille `un-document-qui-affirme-un-état-périmé`.
+    # DEUX sites vivants trouvés, tous deux invisibles à leur garde :
+    #  · `make sync` lançait `uv sync` sans vérifier `uv` — seule cible du Makefile
+    #    sans prérequis NI garde en ligne à l'ajouter depuis le tri de mai ;
+    #  · `make caddy-drift`, nommé dans un `guard_scope` de ce catalogue, N'EXISTE
+    #    PAS (la cible est `caddy-validate`) — et il était dans mon écriture du jour.
+    #
+    # ⚠️ Et le balayage a corrigé un CHIFFRE : la signature brute de `make-fail-late`
+    # rend 34 lignes, soit **8,5× la réalité** — 16 cibles, 12 sans prérequis,
+    # 4 sans aucun garde. Lire le nombre brut aurait ouvert un chantier fantôme.
+    "siblings_never_swept": 234,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
