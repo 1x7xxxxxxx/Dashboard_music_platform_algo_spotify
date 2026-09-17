@@ -103,9 +103,10 @@ pas obtenu.
 Celui de l'index `## 📋 Tâches ouvertes` de `checklist.md`, que `make night-status`
 affiche. **R122 est volontairement en dernier** : elle est du volume (363 → 332 portées
 en 89 min mesurées, ~16 h pour une seule de ses trois colonnes), donc mise en tête elle
-mangerait la séance sans qu'aucune autre tâche avance. **R117 ne se fait pas ici** — elle
-déplace le dépôt hors de `/mnt/c` et tuerait la session qui la fait : on la parque au
-premier réveil. À l'intérieur d'une tâche, l'ordre est écrit dans son bloc de détail.
+mangerait la séance sans qu'aucune autre tâche avance. ⚠️ **R117 a été faite le 2026-09-17, AVEC un humain** — c'était la bonne façon : une
+session ne peut pas se déplacer elle-même. Le dépôt vit sur `~/streamlytics`, la suite
+passe de 418 s à **193,5 s**. Il reste la bascule VS Code, qui demande aussi une fenêtre,
+donc un humain. À l'intérieur d'une tâche, l'ordre est écrit dans son bloc de détail.
 
 Une tâche terminée : `Spawn roadmap-keeper` (règle 17) — jamais une suppression à la
 main.

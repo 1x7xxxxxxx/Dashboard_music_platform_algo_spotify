@@ -96,23 +96,29 @@ python airflow/debug_dag/debug_<name>.py          # Run a DAG locally without Ai
 
 ### Le temps de la suite — ce que chaque cible coûte
 
-**Mesuré sur ce poste (`/mnt/c`, WSL2) le 2026-09-16.** Les chiffres sont là pour qu'on
-CHOISISSE, pas pour décorer :
+**Mesuré sur ce poste le 2026-09-17, APRÈS R117 — le dépôt vit sur ext4
+(`~/streamlytics`), plus sur `/mnt/c`.** Les chiffres sont là pour qu'on CHOISISSE, pas
+pour décorer :
 
 | geste | ce qu'il lance | coût |
 |---|---|---|
 | `make test-changed` | les tests atteignables depuis le diff | **secondes à ~1 min** |
 | `make test-fast` | tout sauf les documents | `make test` − ~38 s |
-| `make test` | la suite, `-n auto --dist loadgroup` | le mur de référence |
-| `python3 -m pytest tests/` **(à éviter)** | la même suite **en SÉRIE** | **1 146 s** (19 min 06) |
+| `make test` | la suite, `-n auto --dist loadgroup` | **193,5 s** sur ext4 |
+| `python3 -m pytest tests/` **(à éviter)** | la même suite **en SÉRIE** | 1 146 s mesurés sur `/mnt/c` ; non remesuré ici |
 
 ⚠️ **La forme nue n'est pas « la même en plus simple » : elle perd `-n auto`.** Elle a été
 lancée six fois en une séance le 2026-09-16 parce que ce fichier la documentait, et elle
 seule explique l'essentiel du temps d'attente de cette séance.
 
-Les deux mesures sont du **même soir, même arbre, même verdict** (6 717 verts, 1 rouge) :
-`make test` **418 s**, la forme nue **1 146 s**. **×2,74**, et c'est le seul gain
-disponible aujourd'hui sans changer de machine.
+Les deux mesures du 2026-09-16 étaient du **même soir, même arbre, même verdict**
+(6 717 verts, 1 rouge) : `make test` **418 s** sur `/mnt/c`, la forme nue **1 146 s**.
+**×2,74** — c'était alors le seul gain disponible sans changer de machine.
+
+⚠️ **Le 2026-09-17, R117 a été livrée et le premier chiffre est tombé** : la même suite
+rend **193,5 s** sur ext4 (6 921 verts, 66 skippés), soit **×2,2** de moins, sans toucher
+à un seul test. Le ×2,74 de `-n auto` reste vrai et s'ajoute ; il n'a pas été remesuré
+ici, et la ligne du tableau le dit plutôt que de recopier un chiffre d'un autre disque.
 
 ⚠️ **Savoir si une suite tourne demande un outil qui ne ment pas.** Le 2026-09-16 j'ai
 conclu QUATRE FOIS qu'une suite était « morte en route » ; les quatre fois elle tournait
@@ -125,10 +131,23 @@ tail -3 .pytest-last.log                                            # où elle e
 ```
 `make test` écrit ce journal au fil de l'eau exactement pour ça.
 
-**Le levier structurel restant est R117** — le dépôt quitte `/mnt/c` pour ext4 : collecte
-×5,6 (27,1 s → 4,8 s) et suite ×3,4 (372 s → 109 s), mesurés en alternance à périmètre
-égal. C'est la seule tâche ouverte qui réduise ce temps ; R118/R120/R121 visent la
-latence de l'APP pour un artiste, pas la suite.
+**R117 est LIVRÉE le 2026-09-17** — le dépôt vit sur ext4 (`~/streamlytics`). Gain
+remesuré le jour même, en ALTERNANCE et à périmètre égal (6 988 tests collectés des deux
+côtés) :
+
+| | `/mnt/c` | ext4 | rapport |
+|---|---|---|---|
+| collecte pytest | 39,53 · 38,08 s | **8,15 · 8,47 s** | **×4,6** |
+| `make test` | 418 s | **193,5 s** | ×2,2 |
+
+⚠️ Le premier tirage ext4 de la collecte a rendu **13,75 s** et aurait donné ×2,5 : le
+cache de pages venait d'être rempli par `git clone` et `make sync`. En alternance il
+tombe à 8,2. **C'est exactement ce que la règle d'alternance existe pour attraper**, et
+sans elle le gain aurait été annoncé à la moitié de sa valeur.
+
+Il ne reste donc plus de levier structurel sur le temps de la suite : R118/R120/R121
+visaient la latence de l'APP pour un artiste, et les trois sont closes, réfutées par
+leur propre mesure.
 
 **Ce qui a été refusé, avec sa mesure** : alléger les rendus `AppTest` (62 % du temps,
 `test_views_render_smoke.py` 193,5 s à lui seul). Le remède canonique existe — Humble

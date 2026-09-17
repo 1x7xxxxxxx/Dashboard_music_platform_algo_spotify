@@ -349,8 +349,60 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 - [ ] **R117 — déplacer le dépôt sur ext4 et basculer l'éditeur en Remote-WSL.**
 
-  **Ce qui a été mesuré le 2026-09-16**, à périmètre égal (6572 tests collectés des deux
-  côtés, arbre git propre des deux côtés) et en ALTERNANCE :
+  ### ✅ Moitié 1 — le déplacement, FAIT le 2026-09-17
+
+  Le dépôt vit dans **`~/streamlytics`**, sur ext4. Cloné depuis le disque local (donc
+  parti exactement de `bfc0f9a`), `origin` remis sur GitHub, les cinq fichiers gitignorés
+  recopiés (`.mcp.json`, `.env`, `.env.local`, `config/config.yaml`, `data/`), `.venv`
+  refabriqué par `make sync` — **250 paquets installés en 676 ms** sur ext4.
+
+  Vérifié avant de toucher à quoi que ce soit d'irréversible : `diff` des deux
+  arborescences **vide**, arbre git propre, même commit, bon `origin`. Puis le dossier de
+  mémoire de Claude — **indexé par CHEMIN** — renommé en `-home-timothe-streamlytics` :
+  325 Mo, 86 fichiers de mémoire et `MEMORY.md` retrouvés de l'autre côté.
+
+  **Gain remesuré le jour même, en ALTERNANCE** (6 988 tests collectés des deux côtés) :
+
+  | | `/mnt/c` | ext4 | rapport |
+  |---|---|---|---|
+  | collecte pytest | 39,53 · 38,08 s | **8,15 · 8,47 s** | **×4,6** |
+  | `make test` | 418 s | **193,5 s** (6 921 verts) | ×2,2 |
+
+  ⚠️ Le premier tirage ext4 a rendu **13,75 s** et aurait donné ×2,5 : le cache de pages
+  venait d'être rempli par `git clone` et `make sync`. En alternance il tombe à 8,2.
+  **C'est exactement ce que la règle d'alternance existe pour attraper.**
+
+  ⚠️ **L'ancienne copie sur `/mnt/c` est conservée une semaine.** Elle ne gêne personne et
+  c'est la seule protection contre un fichier gitignoré que ni le diff ni nous n'avons vu.
+
+  ### ⬜ Moitié 2 — la bascule VS Code, PAS ENCORE FAITE
+
+  Diagnostic posé le 2026-09-17, et l'ordre de causalité est l'inverse de celui qu'on
+  suppose : **ce n'est pas « le PATH est mauvais donc la variable manque »**, c'est
+  *fenêtre VS Code absente → aucun `vscode-server` WSL → ni `VSCODE_IPC_HOOK_CLI` ni
+  injection de PATH*. Les deux symptômes ont **une** cause.
+
+  Mesuré : `VSCODE_IPC_HOOK_CLI`, `TERM_PROGRAM` et `VSCODE_GIT_IPC_HANDLE` **tous les
+  trois vides** (donc ce shell n'a jamais été un terminal intégré) ; aucun socket
+  `vscode-ipc-*.sock` ; aucun processus `vscode-server`. Le binaire du serveur existe
+  (`~/.vscode-server/bin/a5b50095…`) mais appelé en chemin ABSOLU il refuse :
+  *« Command is only available in WSL or inside a Visual Studio Code terminal »*.
+
+  **Donc ajouter `remote-cli` au PATH ne réparerait rien** — on aurait le bon binaire et
+  le même refus. Ce serait une garde sur le symptôme, le défaut vivant dessous.
+
+  Le geste : `cd ~/streamlytics && code .` **depuis un shell WSL**. Le wrapper Windows
+  détecte l'environnement et ouvre une fenêtre Remote-WSL, qui installe le serveur côté
+  Linux. Puis, dans cette fenêtre : l'indicateur en bas à gauche doit lire **`WSL: Ubuntu`**,
+  un terminal INTÉGRÉ doit rendre `echo $VSCODE_IPC_HOOK_CLI` non vide, et `which code`
+  doit alors pointer dans `~/.vscode-server/…/remote-cli/code` **de lui-même**. Relancer
+  `claude` depuis ce terminal-là : une session déjà ouverte n'hérite pas de la variable,
+  l'environnement est figé au démarrage du processus.
+
+  ### Ce qui avait été mesuré le 2026-09-16 (la prédiction)
+
+  À périmètre égal (6572 tests collectés des deux côtés, arbre git propre des deux côtés)
+  et en ALTERNANCE :
 
   | | `/mnt/c` | ext4 (`~`) | rapport |
   |---|---|---|---|
@@ -543,7 +595,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R117 | Sortir le dépôt de `/mnt/c` vers ext4, et VS Code en Remote-WSL | P3 | ~20 min ensemble. Le geste déplace le dépôt, donc il tue la session qui l'exécute — et la mémoire de Claude est **indexée par chemin**. Procédure en 4 étapes + 3 vérifications : `runbook-actions-utilisateur.md` §12. Gain mesuré en alternance : collecte ×5,6, suite ×3,4 |
+| R117 | ~~Sortir le dépôt de `/mnt/c`~~ ✅ **FAIT le 2026-09-17** — reste la **bascule VS Code en Remote-WSL** | P3 | Un geste : `cd ~/streamlytics && code .` depuis un shell WSL. Le déplacement est livré et mesuré (collecte **×4,6**, `make test` 418 → **193,5 s**). Ce qui reste n'est pas un déplacement mais une FENÊTRE : sans elle, aucun `vscode-server` WSL, donc ni `VSCODE_IPC_HOOK_CLI` ni injection de PATH — les deux symptômes ont une seule cause, et l'intégration IDE de Claude Code ne peut pas s'accrocher. Vérifications dans `runbook-actions-utilisateur.md` §12 |
 
 ⚠️ **Déplacée ici le 2026-09-17**, au premier réveil de la séance longue. R117 était dans l'index actionnable, où elle ne pouvait par construction jamais être prise : c'est la seule tâche dont l'exécutant est aussi la victime. Une tâche qu'aucune séance ne peut exécuter n'est pas une tâche en retard, c'est une tâche qui attend un humain — et c'est ici qu'on la lit.
 

@@ -606,6 +606,17 @@ un `.venv` de 2,2 Go est du travail entièrement métadonnées.
    `config/config.yaml`, `data/`, et `.venv` (ou `make sync` pour le refabriquer).
    ⚠️ Il a fallu **trois allers-retours** pour compléter la copie de mesure, dont quatre
    fichiers `assets/` à nom accentué. Vérifier par un `git status` des deux côtés.
+1bis. ⚠️ **Reposer l'identité git** — trouvé le 2026-09-17, au premier commit qui a
+   échoué : `git clone` ne suit PAS la configuration LOCALE du dépôt, et
+   `user.name`/`user.email` y étaient locaux, pas globaux. Le clone refuse alors de
+   commiter (« Author identity unknown »). À lire à la source, jamais à deviner :
+   ```bash
+   cd "$SRC" && git config --local --list | grep '^user\.'
+   cd ~/streamlytics && git config --local user.email "…" && git config --local user.name "…"
+   ```
+   C'est le **sixième** élément que `git clone` ne transporte pas, après les cinq
+   fichiers gitignorés — et le seul qui ne se voie pas par un `diff` d'arborescences.
+
 2. **Renommer le dossier de mémoire de Claude**, sans quoi l'historique du projet
    disparaît :
    `mv ~/.claude/projects/-mnt-c-Users-timot-Desktop-Dashboard-music-platform-algo-spotify ~/.claude/projects/-home-timothe-streamlytics`
