@@ -107,7 +107,21 @@ _CEILINGS = {
     # 184 portées. −18 : `un-nombre-affirmé-qui-n-a-pas-été-mesuré` à ZÉRO (20/20).
     # −32 : `un-document-qui-affirme-un-état-périmé` à ZÉRO (41/41).
     # QUATORZE familles à zéro, 234 portées dans la séance.
-    "scope_without_not_covered": 63,
+    # −63 : `un-garde-qui-ne-garde-pas` (47/47 restantes) et les 3 orphelines.
+    #
+    # ⚠️ **ZÉRO le 2026-09-17 — les 395 classes déclarent toutes un geste voisin NON
+    # couvert.** Ce que ce zéro veut dire, et surtout ce qu'il ne veut pas dire : chaque
+    # classe NOMME désormais au moins une chose que son garde laisse passer. Il ne dit
+    # rien de la JUSTESSE de ce qui est nommé — aucune de ces 395 affirmations n'est
+    # vérifiée mécaniquement, et le catalogue a déjà mesuré que 4 portées sur 6 écrites
+    # avec soin étaient inexactes (voir `/capitalise`, « Je lis le CODE du garde »).
+    # Le compteur qui reste honnête après celui-ci est `siblings_never_swept` : lui
+    # parle du PRÉSENT et se vérifie.
+    #
+    # ⚠️ **Le plancher de population est ce qui empêche ce zéro d'être gratuit.** Un
+    # `scope_without_not_covered` à 0 s'obtient aussi bien en écrivant 395 portées qu'en
+    # supprimant 395 classes ; `_FLOORS` refuse la seconde voie.
+    "scope_without_not_covered": 0,
     # ⚠️ Compteur NEUF le 2026-09-17, posé sur une question du propriétaire : « est-ce
     # qu'on a intégré la réflexion de savoir si l'erreur découverte peut être situéé
     # ailleurs dans le code ? ». La réponse mesurée était NON — 69 classes sur 395
@@ -125,7 +139,7 @@ _CEILINGS = {
     # partages, et le defaut s'est produit DEUX fois en deux lots avant d'etre
     # mesure : une classe s'etait attribue le croisement Caddy de sa voisine, une
     # autre le taux de censure d'une troisieme.
-    "scope_on_a_shared_guard_without_naming_its_tests": 23,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
+    "scope_on_a_shared_guard_without_naming_its_tests": 15,  # phase C ; 23 → 15 le 2026-09-17
                                       # ⚠️ 9 → 11 le 2026-09-17, et les DEUX de hausse sont
                                       # STRUCTURELS, pas de la négligence : `ci-runs-twice-for-one-commit`
                                       # et `ci-has-no-concurrency-group` partagent
@@ -167,6 +181,24 @@ _CEILINGS = {
                                       # observées le même jour — date vue rouge, cause mesurée,
                                       # portée écrite en lisant le garde. Les trois compteurs
                                       # baissent ensemble, ce qui est le signe recherché.
+                                      #
+                                      # ⚠️ **15 le 2026-09-17, et les 15 sont STRUCTURELLES** — la
+                                      # proportion est passée de 40 % à 100 %, donc ce compteur ne
+                                      # mesure plus AUCUNE négligence. Les 24 classes qui restaient
+                                      # évitables ont été nommées le même jour ; ce qui subsiste n'a
+                                      # aucun nœud pytest à nommer :
+                                      #   · `.claude/dev-docs/error-classes.md` (2) — un document
+                                      #   · `.claude/scripts/audit_runner.py` (2) — un script
+                                      #   · `.claude/scripts/check_ci_waste.py` (2) — un script
+                                      #   · `.claude/skills/dashboard-view/SKILL.md` (3) — une skill
+                                      #   · `.github/workflows/ci.yml` (4) — des étapes de workflow
+                                      #   · `tools/dev/check_action_drift.py` (2) — un outil
+                                      # Le crânter à 15 est donc un plancher, pas un objectif : il ne
+                                      # peut plus descendre sans ÉLARGIR `_names_a_test` pour accepter
+                                      # un nom d'étape, de constat ou de fonction à côté de `::test_x`.
+                                      # Tant que ce chantier n'est pas fait, une hausse reste le seul
+                                      # signal utile de ce compteur — elle signifie qu'une portée neuve
+                                      # sur un garde pytest partagé a oublié de nommer ses tests.
     # Liste de RELECTURE, pas une faute à corriger dans une direction imposée : un
     # désaccord peut venir du garde comme de l'expression de la famille.
     # `scope_family_disagreements` RETIRÉ le 2026-09-16 : 10 désaccords sur 18 portées,
