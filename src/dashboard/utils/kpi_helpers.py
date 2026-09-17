@@ -273,8 +273,18 @@ def get_total_streams_s4a(_db, artist_id):
                 "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals"
                 " WHERE platform = 'spotify'")
         return int(row[0][0] or 0)
-    except Exception:      # noqa: BLE001
-        return 0
+    except Exception as exc:      # noqa: BLE001
+        # ⚠️ `None`, PAS `0`. Un zéro est une MESURE — « cet artiste a zéro écoute » —
+        # et une lecture qui échoue n'a rien mesuré. Les deux surfaces qui lisent ces
+        # totaux rendent déjà `"—"` sur une valeur fausse, donc rien ne change à
+        # l'écran ; ce qui change, c'est qu'un échec LAISSE UNE TRACE au lieu de se
+        # déguiser en absence, et que le cache de 600 s ne fige plus un chiffre
+        # fabriqué. Classe `une-erreur-avalée-devient-une-absence`, balayée le
+        # 2026-09-17 : 46 `except` muets rendant une valeur vide dans le dépôt, 14
+        # au-dessus d'une lecture de données, ces 4 au-dessus d'un TOTAL de locataire.
+        logger.warning("kpi_helpers: total illisible (%s) — rendu ABSENT, pas zéro",
+                       type(exc).__name__)
+        return None
 
 
 @st.cache_data(ttl=_KPI_TTL)
@@ -302,8 +312,11 @@ def get_total_views_youtube(_db, artist_id):
                 "WHERE platform = 'youtube'")
         return int(row[0][0] or 0) if row else 0
     except Exception as exc:      # noqa: BLE001
+        # `None`, comme les quatre autres totaux : un zéro est une mesure, un échec de
+        # lecture n'en est pas une. Le seul appelant (`data_wrapped.py:273`) fait
+        # `_fmt_big(yt) if yt else "—"`, qui traite `None` exactement comme `0`.
         logger.warning("YouTube total unreadable: %s", type(exc).__name__)
-        return 0
+        return None
 
 
 @st.cache_data(ttl=_KPI_TTL)
@@ -326,8 +339,18 @@ def get_total_plays_soundcloud(_db, artist_id):
                 "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals"
                 " WHERE platform = 'soundcloud'")
         return int(row[0][0] or 0)
-    except Exception:
-        return 0
+    except Exception as exc:
+        # ⚠️ `None`, PAS `0`. Un zéro est une MESURE — « cet artiste a zéro écoute » —
+        # et une lecture qui échoue n'a rien mesuré. Les deux surfaces qui lisent ces
+        # totaux rendent déjà `"—"` sur une valeur fausse, donc rien ne change à
+        # l'écran ; ce qui change, c'est qu'un échec LAISSE UNE TRACE au lieu de se
+        # déguiser en absence, et que le cache de 600 s ne fige plus un chiffre
+        # fabriqué. Classe `une-erreur-avalée-devient-une-absence`, balayée le
+        # 2026-09-17 : 46 `except` muets rendant une valeur vide dans le dépôt, 14
+        # au-dessus d'une lecture de données, ces 4 au-dessus d'un TOTAL de locataire.
+        logger.warning("kpi_helpers: total illisible (%s) — rendu ABSENT, pas zéro",
+                       type(exc).__name__)
+        return None
 
 
 @st.cache_data(ttl=_KPI_TTL)
@@ -370,8 +393,18 @@ def get_total_plays_apple(_db, artist_id):
             "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals"
             " WHERE platform = 'apple'")
         return int(row[0][0] or 0)
-    except Exception:      # noqa: BLE001
-        return 0
+    except Exception as exc:      # noqa: BLE001
+        # ⚠️ `None`, PAS `0`. Un zéro est une MESURE — « cet artiste a zéro écoute » —
+        # et une lecture qui échoue n'a rien mesuré. Les deux surfaces qui lisent ces
+        # totaux rendent déjà `"—"` sur une valeur fausse, donc rien ne change à
+        # l'écran ; ce qui change, c'est qu'un échec LAISSE UNE TRACE au lieu de se
+        # déguiser en absence, et que le cache de 600 s ne fige plus un chiffre
+        # fabriqué. Classe `une-erreur-avalée-devient-une-absence`, balayée le
+        # 2026-09-17 : 46 `except` muets rendant une valeur vide dans le dépôt, 14
+        # au-dessus d'une lecture de données, ces 4 au-dessus d'un TOTAL de locataire.
+        logger.warning("kpi_helpers: total illisible (%s) — rendu ABSENT, pas zéro",
+                       type(exc).__name__)
+        return None
 
 
 # ─── KPI ML ─────────────────────────────────────────────────────────────────
@@ -437,8 +470,18 @@ def get_soundcloud_likes(_db, artist_id):
             row = db.fetch_query(
                 "SELECT COALESCE(SUM(likes_count), 0) FROM v_soundcloud_track_latest")
         return int(row[0][0] or 0)
-    except Exception:
-        return 0
+    except Exception as exc:
+        # ⚠️ `None`, PAS `0`. Un zéro est une MESURE — « cet artiste a zéro écoute » —
+        # et une lecture qui échoue n'a rien mesuré. Les deux surfaces qui lisent ces
+        # totaux rendent déjà `"—"` sur une valeur fausse, donc rien ne change à
+        # l'écran ; ce qui change, c'est qu'un échec LAISSE UNE TRACE au lieu de se
+        # déguiser en absence, et que le cache de 600 s ne fige plus un chiffre
+        # fabriqué. Classe `une-erreur-avalée-devient-une-absence`, balayée le
+        # 2026-09-17 : 46 `except` muets rendant une valeur vide dans le dépôt, 14
+        # au-dessus d'une lecture de données, ces 4 au-dessus d'un TOTAL de locataire.
+        logger.warning("kpi_helpers: total illisible (%s) — rendu ABSENT, pas zéro",
+                       type(exc).__name__)
+        return None
 
 
 # ─── ROI Breakheaven ─────────────────────────────────────────────────────────

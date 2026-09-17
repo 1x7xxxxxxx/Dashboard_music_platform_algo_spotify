@@ -454,7 +454,7 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 | fichier | constante | valeur gelée | non-vacuité | trace de mutation |
 |---|---|---|---|---|
 | `test_a_chart_is_bounded_by_the_period_it_announces.py` | `_MAX_UNBOUNDED_FIGURES` | 0 | — | — |
-| `test_a_failed_read_is_not_an_absence.py` | `_CEILING` | 5 | — | — |
+| `test_a_failed_read_is_not_an_absence.py` | `_CEILING` | 0 | — | — |
 | `test_a_page_asks_the_same_question_once.py` | `_MAX_QUERIES` | 2 entrées | — | — |
 | `test_a_sql_identifier_comes_from_a_closed_set.py` | `_MAX_UNSOURCED` | 0 | — | — |
 | `test_a_view_opens_on_one_decision.py` | `_MAX_FIRST_SCREEN` | 5 | — | — |
@@ -655,4 +655,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=08bda67e498ba3bc257bb770800537a67a176f371864211209a2a4adca7e4d48 -->
+<!-- gold-coverage: sha256=b84a4bc88ac9c22137e1892abb7b9cc751a10d5ae2a55ce8707185c5ec44b25a -->

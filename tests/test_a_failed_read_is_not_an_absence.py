@@ -69,10 +69,22 @@ _TOUCHES_EVERY_PLATFORM = (
 # Les sites gelés le 2026-09-12 : un `except` qui rend un nombre, dans une fonction
 # qui lit la base. CE NOMBRE NE PEUT QUE DESCENDRE.
 #
-# Les cinq restants sont les tuiles de `kpi_helpers`, qui rendent un `int` que la vue
-# formate par `f"{v:,}"`. Leur rendre `None` casse la page — et casser la page est
-# pire que le défaut qu'on corrige. Descendre demande de reprendre chaque appelant.
-_CEILING = 5
+# ⚠️ **ZÉRO le 2026-09-17, et la justification du plafond de 5 était FAUSSE.** Elle
+# disait : « les cinq restants sont les tuiles de `kpi_helpers`, qui rendent un `int`
+# que la vue formate par `f"{v:,}"`. Leur rendre `None` casse la page — et casser la
+# page est pire que le défaut qu'on corrige. »
+#
+# Vérifié en lisant CHAQUE appelant, ce que la note n'avait pas fait : les cinq totaux
+# ont en tout **six** sites d'appel, et les six font `_fmt_big(x) if x else "—"`, qui
+# traite `None` exactement comme `0`. Le sixième (`pdf_exporter/_report.py:199`) range
+# la valeur dans un dictionnaire qu'**aucun moteur de rendu ne lit**. Rien ne cassait.
+#
+# La leçon n'est pas « le plafond était trop haut » : c'est qu'un plafond justifié par
+# une CONSÉQUENCE SUPPOSÉE gèle exactement ce qu'il prétend surveiller. Cinq sites sont
+# restés cinq jours parce qu'une phrase plausible n'avait pas été vérifiée — c'est
+# `cause_evidence: inferred` écrit dans la voix d'un fait, la chose que `/capitalise`
+# interdit.
+_CEILING = 0
 
 
 def _numeric_returns_inside_except() -> list[str]:

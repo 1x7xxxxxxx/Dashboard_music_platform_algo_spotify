@@ -279,7 +279,20 @@ _CEILINGS = {
     # sur une table de quantités du jour, le prédicat sonnerait **93 fois sur
     # 1 254 jours**. Une exclusion chiffrée est une décision ; c'est l'exclusion
     # non chiffrée qui est un défaut.
-    "siblings_never_swept": 199,
+    # 199 → 194 le 2026-09-17 : `une-erreur-avalée-devient-une-absence`, 3ᵉ famille la
+    # plus récidiviste. Balayé à l'AST sur la CAUSE, en entonnoir :
+    #   123 `except` rendant une valeur vide → **46 MUETS** → **14** enjambant une
+    #   lecture de données → **4** rendant `0` pour un TOTAL DE LOCATAIRE.
+    # Les 4 rendent désormais `None` et journalisent.
+    #
+    # ⚠️ La conséquence était BORNÉE EN AVAL, et le dire change la sévérité : les
+    # surfaces font `_fmt_big(x) if x else "—"`, donc aucun faux chiffre n'atteignait
+    # l'artiste. Ce qui changeait : un échec de base indiscernable d'un catalogue
+    # vide, sans trace, figé 600 s par `@st.cache_data`.
+    #
+    # ⚠️ **32 `except` muets restent non triés.** C'est la population où le prochain
+    # site de cette classe vit, et elle n'existait nulle part avant ce balayage.
+    "siblings_never_swept": 194,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
