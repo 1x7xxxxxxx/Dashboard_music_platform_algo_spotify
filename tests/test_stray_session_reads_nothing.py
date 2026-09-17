@@ -29,6 +29,11 @@ pytestmark = [pytest.mark.xdist_group("stray-session-reads-nothing"), requires_l
 # Views that read tenant-scoped data. A view absent from this list is either
 # tenant-free by nature (useful_links, process_guide, upgrade) or admin-only, where
 # the role gate answers first.
+# ⚠️ **22 des 45 vues du produit** — la moitié. Ce sont les vues scopées par
+# locataire, donc un SOUS-ENSEMBLE légitime, mais une vue scopée NEUVE n'y entre pas
+# toute seule : elle échappe alors à ce garde en silence. C'est la plus grande des
+# quatre listes de ce type mesurées le 2026-09-17, et donc celle qui a le plus à
+# perdre d'un oubli.
 TENANT_VIEWS = [
     "home", "spotify_s4a_combined", "export_pdf", "export_csv", "imusician",
     "soundcloud", "youtube", "instagram", "apple_music", "data_wrapped",

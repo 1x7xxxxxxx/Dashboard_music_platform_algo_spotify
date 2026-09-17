@@ -29,6 +29,10 @@ def _load_const(name):
 
 
 # Pages that are NOT analytics reports → out of PDF scope by design.
+# ⚠️ **11 des 45 vues du produit** — un SOUS-ENSEMBLE assumé : les vues qui n'ont
+# rien à porter dans le PDF. Le complément (34 vues) est ce que ce garde exige de
+# couvrir ; si une vue neuve est non-analytique, elle doit être ajoutée ICI, sans
+# quoi le garde la réclame dans le rapport.
 _NON_ANALYTICS = {
     "home", "export_pdf", "export_csv",            # entry / exports
     "process_guide", "credentials", "upload_csv",  # data setup

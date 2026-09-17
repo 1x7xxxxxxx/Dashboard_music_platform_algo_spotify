@@ -21,6 +21,10 @@ from src.database.stripe_schema import (
 
 # Pages that MUST stay behind the paywall (Road to Algo + revenue forecast + advanced
 # Meta). meta_ads_overview is intentionally FREE — only the advanced Meta views are paid.
+# ⚠️ **6 des 45 vues du produit** — un SOUS-ENSEMBLE assumé : les pages facturées.
+# La note est là pour qu'on ne lise jamais cette liste comme « toutes les vues sont
+# contrôlées ». Une page premium NEUVE n'y entre pas toute seule ; c'est le prix de
+# l'énumération, et il se paie en la relisant quand on ajoute une page.
 KNOWN_PREMIUM_PAGES = {
     "revenue_forecast", "meta_x_spotify", "meta_breakdowns",
     "meta_cpr_optimizer", "meta_creatives", "trigger_algo",

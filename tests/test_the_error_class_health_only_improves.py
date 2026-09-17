@@ -292,7 +292,18 @@ _CEILINGS = {
     #
     # ⚠️ **32 `except` muets restent non triés.** C'est la population où le prochain
     # site de cette classe vit, et elle n'existait nulle part avant ce balayage.
-    "siblings_never_swept": 194,
+    # 194 → 191 le 2026-09-17 : `un-garde-qui-ne-garde-pas`, balayée sur la CAUSE
+    # PARTAGÉE par les cinq instances de la soirée — un garde qui ÉNUMÈRE une
+    # population au lieu de la DÉRIVER. Sur les **80** listes de noms écrites à la
+    # main dans les gardes, **4** énumèrent des vues réelles : 6/45, 11/45, 11/45,
+    # 22/45.
+    #
+    # ⚠️ **Le balayage a corrigé DEUX de mes propres affirmations du même jour** :
+    # j'avais écrit « sur les 36 vues » dans ce catalogue pour un garde qui en
+    # regarde **11**, et pour un balayage AST qui en parcourt **41**. Aucun des deux
+    # chiffres n'avait été mesuré. Un sous-ensemble n'est pas un défaut ; celui qui
+    # se laisse LIRE comme exhaustif en est un, et je l'ai lu ainsi deux fois.
+    "siblings_never_swept": 191,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

@@ -50,6 +50,11 @@ pytestmark = pytest.mark.skipif(not _db_ready(), reason="needs the provisioned D
 # Les vues qu'un artiste atteint et qui doivent MONTRER quelque chose. La liste est
 # volontairement celle du parcours — pas toutes les vues : les pages d'action
 # (formulaires) sont couvertes par leurs propres gardes.
+# ⚠️ **11 des 45 vues du produit**, et pas 36 : ce chiffre a été écrit faux dans le
+# catalogue le 2026-09-17, puis corrigé le même jour. **34 vues ne sont pas
+# regardées ici.** Chaque entrée coûte un sous-processus Streamlit complet, d'où
+# l'énumération ; ce qui n'est pas négociable, c'est que le lecteur sache que 11
+# n'est pas 45.
 _VIEWS = [
     "home", "spotify_s4a_combined", "apple_music", "youtube", "soundcloud",
     "instagram", "meta_ads_overview", "revenue_forecast", "imusician",
