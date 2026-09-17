@@ -39,14 +39,26 @@ _TESTS = _ROOT / "tests"
 _DURATIONS = _ROOT / ".test_durations"
 
 # Combien de fichiers de tests peuvent manquer au fichier de durées avant que la
-# découpe cesse d'être fiable. Gelé le 2026-09-16 à 6, sur 369 fichiers — un fichier
-# neuf par jour de travail, ce qui laisse une semaine avant de régénérer.
+# découpe cesse d'être fiable.
 # CE NOMBRE NE MONTE PAS : au-delà, la commande est `make test-durations`.
 #
 # Mutation vérifiée le 2026-09-16 : abaissé à -1, le test est VU ROUGE en nommant les
-# fichiers sans durée connue ; remis à 6, il repasse. Un cliquet jamais vu rouge ne
-# garde rien, et celui-ci garde un fichier qui se périme tout seul.
-_MAX_FILES_WITHOUT_DURATION = 6
+# fichiers sans durée connue ; remis à sa valeur, il repasse. Un cliquet jamais vu
+# rouge ne garde rien, et celui-ci garde un fichier qui se périme tout seul.
+#
+# ⚠️ **6 → 0 le 2026-09-17, et les six étaient du MOU pur.** Le plafond a été gelé à 6
+# le 2026-09-16 en raisonnant sur un DÉBIT — « un fichier neuf par jour, ce qui laisse
+# une semaine avant de régénérer ». Mesuré le 2026-09-17 après `make test-durations` :
+# **0 fichier sans durée**. Six fichiers de tests pouvaient donc partir sans durée sans
+# que rien ne le dise, et `pytest-split` leur aurait donné une durée MOYENNE — ce que le
+# fichier existe précisément pour empêcher.
+#
+# Un plafond justifié par un débit futur est du budget pour régresser : le débit ne se
+# vérifie jamais, et le jour où six fichiers manquent, le garde est vert par
+# construction. `test_the_ceiling_is_not_slack` ci-dessous rend l'écart IMPOSSIBLE à
+# rouvrir en silence — c'est la classe `a-ratchet-that-only-watches-the-direction-it-
+# was-burned-in`, qui surveillait la montée et pas le mou.
+_MAX_FILES_WITHOUT_DURATION = 0
 
 
 def _files_with_durations() -> set[str]:
@@ -73,6 +85,23 @@ def test_the_durations_file_still_describes_this_suite() -> None:
         "Remède : `make test-durations` (puis commiter `.test_durations`).\n  "
         + "\n  ".join(missing)
     )
+
+
+def test_the_ceiling_is_not_slack() -> None:
+    """Un plafond au-dessus de la mesure est du budget pour régresser en silence.
+
+    L'autre moitié du cliquet. `test_the_durations_file_still_describes_this_suite`
+    surveille la MONTÉE ; sans celui-ci, rien ne surveille l'écart, et un plafond posé
+    d'avance « pour laisser de la marge » autorise exactement ce qu'il prétend
+    interdire. Mesuré le 2026-09-17 : le plafond valait 6 pour une mesure de 0.
+    """
+    known = _files_with_durations()
+    present = {str(p.relative_to(_ROOT)).replace("\\", "/") for p in _TESTS.glob("test_*.py")}
+    measured = len(present - known)
+    assert measured >= _MAX_FILES_WITHOUT_DURATION, (
+        f"{measured} fichier(s) sans durée pour un plafond de "
+        f"{_MAX_FILES_WITHOUT_DURATION} : descendre le plafond dans le même commit que "
+        "le `make test-durations` qui vient de le rendre atteignable.")
 
 
 def test_the_ceiling_is_not_vacuous() -> None:

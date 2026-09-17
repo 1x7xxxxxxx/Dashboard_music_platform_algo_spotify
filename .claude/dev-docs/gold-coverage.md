@@ -466,7 +466,7 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 | `test_the_gold_coverage_only_improves.py` | `_CEILING` | 11 entrées | — | — |
 | `test_the_gold_coverage_only_improves.py` | `_FLOOR` | 10 entrées | — | — |
 | `test_the_metrics_layer_only_grows.py` | `_CEILING` | 8 entrées | — | — |
-| `test_the_shards_are_balanced_by_real_durations.py` | `_MAX_FILES_WITHOUT_DURATION` | 6 | — | — |
+| `test_the_shards_are_balanced_by_real_durations.py` | `_MAX_FILES_WITHOUT_DURATION` | 0 | — | — |
 | `test_the_tenant_guard_is_written_once.py` | `_MAX_OPEN_CODED` | 0 | — | — |
 | `test_the_visual_rules_only_tighten.py` | `_MAX_SECONDARY_AXES` | 0 | — | — |
 | `test_the_visual_rules_only_tighten.py` | `_MAX_LITERAL_KEYS` | 119 | — | — |
@@ -655,4 +655,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=234b454871e552df183c1c89527cbb4e36880056f2405299e86f3e7901b48c63 -->
+<!-- gold-coverage: sha256=8725a49482e09667154f72b40049f2a18146ad77632e2ba055b3b0605bad4dc5 -->

@@ -2216,7 +2216,7 @@
       "kind": "deterministic",
       "seen_red": "unknown",
       "severity": "P2",
-      "siblings_swept": false,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
       "revisions": 3,
@@ -9985,7 +9985,7 @@
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
       "seen_red_unknown": 330,
-      "siblings_never_swept": 131
+      "siblings_never_swept": 130
     },
     "population": {
       "automatic_guard": 387,

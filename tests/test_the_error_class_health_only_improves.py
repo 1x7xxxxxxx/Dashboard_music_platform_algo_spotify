@@ -440,7 +440,9 @@ _CEILINGS = {
     # le texte, et retirer l'import le laissait satisfait), puis le cliquet
     # anti-garde-textuel a refusé DEUX autres comparaisons de chaîne que j'y avais
     # mises. Trois corrections pour un seul garde, toutes mesurées.
-    "siblings_never_swept": 131,  # 133 → 131 le 2026-09-17 :
+    "siblings_never_swept": 130,  # 131 → 130 le 2026-09-17 : la famille des
+    # CLIQUETS balayee d'une seule mesure (16 fichiers a plafond gele), 1 site vivant
+    # corrige — `_MAX_FILES_WITHOUT_DURATION` valait 6 pour une mesure de 0.  # 133 → 131 le 2026-09-17 :
     # `guard-asserts-presence-not-reachability` (12 gardes verts sur une mutation
     # d'atteignabilite) et `a-visual-constant-copied-into-a-second-renderer`
     # (28 figures sous le plancher ΔE, entrees en roadmap sous R133).  # 136 → 133 le 2026-09-17 : `layer-written-but-never-wired`,
