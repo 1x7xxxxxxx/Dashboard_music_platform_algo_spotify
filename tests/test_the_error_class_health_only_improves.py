@@ -85,7 +85,10 @@ _CEILINGS = {
     # première non pour son volume — `un-garde-qui-ne-garde-pas` est plus grosse —
     # mais pour sa RÉCIDIVE : 33,3 %, soit 3,4× la plus grosse famille, et c'est elle
     # qui a coûté les deux sessions de test artiste ratées.
-    "scope_without_not_covered": 276,
+    # −12 de plus le même jour : `la-frontière-avec-le-dehors` est à ZÉRO aussi
+    # (18/18), récidive 23,5 %. Les DEUX familles les plus récidivistes du
+    # catalogue sont désormais intégralement couvertes.
+    "scope_without_not_covered": 264,
     # ⚠️ Compteur NEUF le 2026-09-17, posé sur une question du propriétaire : « est-ce
     # qu'on a intégré la réflexion de savoir si l'erreur découverte peut être situéé
     # ailleurs dans le code ? ». La réponse mesurée était NON — 69 classes sur 395
