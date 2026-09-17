@@ -1942,7 +1942,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3045,7 +3045,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-08",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9972,7 +9972,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 281,
+      "catalogue_revisions": 282,
       "head_date": "2026-09-18"
     },
     "holes": {
