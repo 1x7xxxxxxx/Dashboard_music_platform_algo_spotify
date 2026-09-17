@@ -267,7 +267,19 @@ _CEILINGS = {
     # tz-aware. Deux consommateurs, deux conventions sur la MÊME donnée ;
     # `airflow_kpi` est sûr parce qu'il coerce, pas parce que la convention est
     # partagée.
-    "siblings_never_swept": 204,
+    # 204 → 199 le 2026-09-17 : `un-cumul-pris-pour-un-quotidien`, 4ᵉ famille la plus
+    # récidiviste. Balayé sur le REGISTRE des natures : `metric_bounds.KINDS` en
+    # déclare **3** quand le produit en porte **5** — Instagram et Meta n'ont aucune
+    # nature, et la boucle itère `for k in KINDS`, donc **2 plateformes sur 5 ne sont
+    # jamais contrôlées en bornes**.
+    #
+    # ⚠️ Ce n'est PAS un trou silencieux, et c'est ce qui change le verdict :
+    # `gold_invariants.py:24` l'écrit, Instagram est couvert par le détecteur de
+    # collecte à zéro (rejoint le 2026-09-12), et Meta en est exclu avec SA MESURE —
+    # sur une table de quantités du jour, le prédicat sonnerait **93 fois sur
+    # 1 254 jours**. Une exclusion chiffrée est une décision ; c'est l'exclusion
+    # non chiffrée qui est un défaut.
+    "siblings_never_swept": 199,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
