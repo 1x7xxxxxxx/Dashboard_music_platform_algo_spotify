@@ -6408,3 +6408,76 @@ natural (or need redoing) under a React/Next.js front-end. Parked here per user 
 - **Rich client interactions** — anything that fought the rerun model (live event hooks,
   drag/drop, fine-grained widget state, real-time updates without full reruns) becomes
   first-class under React; revisit UX patterns that were simplified to fit Streamlit.
+
+---
+
+## R114 — La seconde réplique : mesurée, **non adoptée** · ✅ CLOSE le 2026-09-17
+
+R114 demandait si une seconde réplique du dashboard supprime les **reruns perdus** sous
+concurrence. Quatre passes **alternées A-B-A-B**, authentifiées sur le locataire bac à
+sable (18), en production, le 2026-09-17 :
+
+| passe | amonts | p50 @1 onglet | p50 @8 onglets | sérialisation @8 | reruns servis par la réplique |
+|---|---|---|---|---|---|
+| A  | 1 | 277 ms | 1 451 ms | ×5,24 | — |
+| B  | 2 | 288 ms | 804 ms | ×2,80 | 98 |
+| A2 | 1 | 290 ms | 1 498 ms | ×5,16 | **0** (contrôle) |
+| B2 | 2 | 292 ms | 778 ms | ×2,67 | 112 |
+
+**Le résultat principal est un non-résultat, et il est assumé.** Le signal de décision du
+protocole exigeait « B rend 0 rerun perdu là où A en perd ≥ 9 ». **A en perd 0** : il n'y
+avait rien à supprimer, donc la question posée reste sans réponse — non parce que la
+mesure a échoué, mais parce que le mode de défaillance ne s'est pas produit.
+
+⚠️ **Et il ne peut pas être produit depuis ce client.** À 8 onglets le navigateur occupe
+3 202 Mo pour 3 645 Mo disponibles ; 16 onglets satureraient la machine, et mesurer à
+travers un client saturé est précisément ce que le protocole interdit. C'est une limite
+de l'appareil, pas un verdict sur le service.
+
+**Ce qui est mesuré solidement** : la sérialisation est divisée par deux.
+A ∈ [5,16 ; 5,24] et B ∈ [2,67 ; 2,80] — **intervalles disjoints**, dispersion
+intra-condition de 1,5 % et 4,7 %, très sous le plancher de bruit de ±40 %. En absolu,
+p50 @8 passe de 1 475 ms à 791 ms, soit ×1,87.
+
+**Le contrôle interne** : p50 à **un** onglet vaut 277 / 288 / 290 / 292 ms sur les
+quatre passes. Les deux configurations y sont indistinguables — ni le réseau ni le client
+ne dérivent entre les passes, et le gain porte donc bien sur la CONCURRENCE, pas sur une
+accélération générale. La colonne « reruns servis par la réplique » est le second
+contrôle : 0 pendant A2 prouve que l'amont unique était bien seul en service.
+
+### La décision
+
+**La réplique n'est pas adoptée.** `tools/scale_check.sh`, lancé le même jour, rend ses
+**deux** déclencheurs verts — « sous le seuil, répliques toujours injustifiées », p50
+serveur **64 ms** contre un seuil de réouverture à 200 ms. Le critère que le dépôt s'était
+donné *avant* la mesure et la mesure elle-même convergent. Payer un second conteneur en
+permanence pour diviser par deux une contention qui ne fait perdre aucun rerun serait un
+coût sans contrepartie.
+
+Production remise à son état d'avant l'expérience, **vérifié et non supposé** : Caddyfile
+identique octet pour octet à `/root/Caddyfile.avant-R114` (`diff` vide), `dashboard2`
+supprimé, Prometheus à une seule cible, application 200.
+
+**Déclencheur de réouverture** : un des deux seuils de `tools/scale_check.sh`. Le montage
+reste prêt et prouvé (`deploy/docker-compose.replica.yml`, sonde 8511, cible Prometheus,
+`lb_policy cookie streamlytics_lb`) — rouvrir est affaire de trois gestes.
+
+### Le défaut P2 trouvé en chemin, qui survit à la décision
+
+En montant la réplique, sa cible Prometheus est sortie `connection refused`. Cause :
+`extends` reprend la clé `build:`, donc Compose tague le résultat d'après le nom du
+**service** et `up -d` ne reconstruit jamais un tag existant. Mesure : primaire construit
+le 2026-09-16 à 18:51, réplique à **12:02** le même jour — sept heures et un commit
+d'écart. Le service ne bind-monte pas `src/`, donc c'était du **code applicatif** d'un
+autre commit, pas seulement une commande de démarrage périmée.
+
+Classe `a-replica-that-builds-its-own-image`, corrigée sur ses **deux** vecteurs
+(`extends` et fusion YAML `<<: *ancre`, ce second site trouvé par le balayage des frères
+qui a pris le premier garde **vert** sur une instance vivante), garde
+`tests/test_a_replica_cannot_serve_a_different_artifact.py`. Le balayage a aussi épinglé
+les **trois services airflow**, qui partageaient un `Dockerfile.airflow` sans partager de
+tag. **Sans ce correctif, rouvrir le dossier remettrait en service un binaire d'un autre
+commit.**
+
+Détail humain, avec l'option écartée et ses trois motifs :
+`.claude/dev-docs/runbook-actions-utilisateur.md` §14.

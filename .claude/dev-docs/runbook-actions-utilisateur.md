@@ -788,7 +788,77 @@ La remise en service de la seconde réplique (R114) est conditionnée par `deplo
 instrument. Tant qu'on ignore s'il enregistre, mesurer deux topologies reproduirait
 l'ambiguïté de R114, plus cher.
 
-## 14. R114 — Les identifiants du bac à sable, pour croiser client et serveur
+## 14. ~~R114 — Les identifiants du bac à sable, pour croiser client et serveur~~ · ✅ FAIT le 2026-09-17 — les quatre passes ont tourné ; la réplique **n'est pas adoptée**, et le chiffre qui la rouvrirait est écrit
+
+### Le verdict, le 2026-09-17 — quatre passes ALTERNÉES, authentifiées
+
+| passe | amonts | p50 @1 | p50 @8 | sérialisation @8 | reruns servis par la réplique |
+|---|---|---|---|---|---|
+| A  | 1 | 277 ms | 1 451 ms | **×5,24** | — (pas de réplique) |
+| B  | 2 | 288 ms | 804 ms | **×2,80** | 98 |
+| A2 | 1 | 290 ms | 1 498 ms | **×5,16** | **0** — contrôle : la réplique n'a rien servi |
+| B2 | 2 | 292 ms | 778 ms | **×2,67** | 112 |
+
+**Le signal de décision du protocole n'a JAMAIS tiré, et c'est le résultat principal.**
+Il demandait « B rend 0 rerun perdu là où A en perd ≥ 9 ». **A en perd 0.** Il n'y avait
+rien à supprimer, donc la question posée par R114 reste sans réponse — pas parce que la
+mesure a échoué, mais parce que le mode de défaillance ne s'est pas produit.
+
+⚠️ **Et il ne peut pas être produit depuis ce client.** À 8 onglets le navigateur occupe
+3 202 Mo pour 3 645 Mo disponibles ; 16 onglets dépassent la mémoire de la machine. Or
+mesurer à travers un client saturé est exactement ce que le protocole interdit. Le palier
+qui ferait perdre des reruns à un amont unique est **hors de portée de cet instrument**,
+et c'est une limite de l'appareil, pas un résultat sur le service.
+
+**Ce qui EST mesuré, et solidement** : la sérialisation est divisée par deux.
+A ∈ [5,16 ; 5,24] et B ∈ [2,67 ; 2,80] — **deux intervalles disjoints**, avec une
+dispersion intra-condition de 1,5 % et 4,7 %, très en-dessous du plancher de bruit de
+±40 %. En absolu, p50 @8 passe de 1 475 ms à 791 ms, soit **×1,87**.
+
+**Le contrôle interne qui rend ces chiffres lisibles** : p50 @1 vaut 277, 288, 290, 292 ms
+sur les quatre passes. À un onglet, les deux configurations sont indistinguables — donc
+ni le réseau ni le client ne dérivent entre les passes, et le gain porte bien sur la
+CONCURRENCE, pas sur une accélération générale.
+
+### La décision : la réplique n'est pas adoptée
+
+`tools/scale_check.sh`, lancé le même jour, rend ses **deux** déclencheurs verts —
+« sous le seuil — répliques toujours injustifiées », p50 serveur **64 ms** contre un
+seuil de réouverture à 200 ms. Le critère que le dépôt s'était donné AVANT la mesure et
+la mesure elle-même convergent : il n'y a aucune perte à supprimer aujourd'hui.
+
+Payer un second conteneur en permanence pour diviser par deux une contention qui ne fait
+perdre aucun rerun serait un coût sans contrepartie. La production a donc été **remise
+telle qu'elle était avant l'expérience**, et c'est vérifié et non supposé : le Caddyfile
+est **identique octet pour octet** à `/root/Caddyfile.avant-R114` (`diff` vide),
+`dashboard2` n'existe plus, Prometheus n'a plus qu'une cible, l'application rend 200.
+
+**Ce qui rouvre le dossier**, et il n'y a rien d'autre à surveiller : `scale_check.sh`
+qui passe l'un de ses deux seuils. Le montage est prêt et prouvé — `deploy/docker-compose.replica.yml`,
+la sonde 8511, la cible Prometheus, `lb_policy cookie streamlytics_lb` — donc le rouvrir
+est une affaire de trois gestes, pas d'un chantier.
+
+⚠️ **Un défaut P2 a été trouvé en montant la réplique, et il survit à cette décision** :
+la réplique servait une image antérieure de **sept heures et un commit** à celle du
+primaire (`extends` reprend `build:`, donc Compose fabrique un tag par service, et
+`up -d` sert celui qui traîne). Classe `a-replica-that-builds-its-own-image`, corrigée
+sur les deux vecteurs — `extends` et fusion YAML — et gardée par
+`tests/test_a_replica_cannot_serve_a_different_artifact.py`. **Sans ce correctif, rouvrir
+le dossier remettrait en service un binaire d'un autre commit.**
+
+### L'option écartée, et pourquoi elle l'a été
+
+Instrumenter le chemin public pour mesurer sans identifiants : `code-critic` a rendu
+`DO-NOT-BUILD`, pour trois motifs qui tiennent toujours — c'était contourner la procédure
+de bac à sable écrite le matin même ; le branchement lisait `session_state['authenticated']`
+*avant* l'appel, donc manquait les reconnexions après expiration ; et la règle 13 impose
+`Spawn security-specialist` avant de toucher une route d'authentification.
+
+---
+
+<details>
+<summary>Historique — l'état de la tâche avant sa clôture</summary>
+
 
 **Pourquoi c'est ici** : `tools/loadtest_concurrency.py` en mode anonyme mesure la **page
 de connexion**. Elle est rendue **avant** `require_login()` (`src/dashboard/app.py:742`),
@@ -845,3 +915,5 @@ le 2026-09-17 ; `tests/test_a_make_variable_does_not_collide_with_the_environmen
 | B perd 0 rerun là où A en perd ≥ 9, **deux fois** | le levier est prouvé |
 | B perd autant que A | **le goulot n'est pas le GIL** — on aurait acheté Redis et des workers pour rien. C'est la découverte visée |
 | l'écart reste sous le seuil | on ne conclut pas, et on l'écrit. **C'est un résultat**, pas un échec |
+
+</details>

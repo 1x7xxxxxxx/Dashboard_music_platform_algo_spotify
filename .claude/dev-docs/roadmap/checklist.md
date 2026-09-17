@@ -240,7 +240,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-17, aucune tâche actionnable (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R114 -->
+<!-- reprise: open= -->
 
 **R122 et R123 sont closes le 2026-09-17, toutes deux rotées dans `archive.md`.** R123
 a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans
@@ -422,9 +422,10 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R114 | La re-mesure de la seconde réplique : la passe A est faite, le croisement client↔serveur ne l'est pas | P3 | **les identifiants d'un locataire `is_sandbox`** (tenant 18). Le mode anonyme tape la page de connexion, rendue AVANT `require_login()` — le serveur n'y voit rien. Voir §14 du runbook |
 
-**La table est de nouveau vide depuis le 2026-09-17.** R124 y a vécu du 2026-09-17 au
+**La table est de nouveau vide depuis le 2026-09-17.** R114 y a vécu jusqu'au 2026-09-17 : le geste demandé — les identifiants du bac à sable — a été fait, les quatre passes alternées ont tourné, et le **signal de décision n'a jamais tiré** (A ne perd aucun rerun, donc B n'a rien à supprimer). La réplique n'est pas adoptée, la production est remise à son état d'avant l'expérience, et le déclencheur de réouverture est un des deux seuils de `tools/scale_check.sh`. Rotée close dans `archive.md` ; détail humain au §14 du runbook.
+
+Avant elle, R124 y a vécu du 2026-09-17 au
 2026-09-17 même : le geste demandé a été fait (session authentifiée en production), et
 il a **réfuté** la tâche elle-même — l'instrument enregistre, 28 séries mesurées — plutôt
 que de la livrer ; rotée close dans `archive.md`. Avant elle, R117 y a vécu la même
