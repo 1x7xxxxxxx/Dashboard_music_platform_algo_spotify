@@ -439,8 +439,45 @@ bien, c'est l'instrument qui était cassé).
 
 Motif d'ADR-007 : un travail dont le bénéfice mesuré est nul n'entre pas dans l'index.
 
+
+#### Mesuré le 2026-09-17 — pourquoi `PYTEST_WORKERS` restera à 2, et ce qui le débloquerait
+
+`PYTEST_DIST` vaut `-n $(PYTEST_WORKERS)`, avec
+`workers = (MemAvailable_Mo − 5120) / 700`, borné à `[2, nproc]`. La constante de
+réserve avait été écrite le matin même après **deux morts par OOM en une heure**,
+sans être confrontée au pic réel. Elle l'a été :
+
+| ce qui a été mesuré | valeur |
+|---|---|
+| suite complète à `-n 2`, creux de `MemAvailable` | **991 Mo consommés** (3 918 → 2 927) |
+| donc par worker | **~495 Mo** — la formule en budgète 700, soit ×1,4 de marge |
+| résidents au repos | RAG **1 548** · Airflow+PG **1 686** · serveur VS Code **1 089** · `claude` **449** = **4 772 Mo** |
+| RAM totale de la WSL | 9 945 Mo (plafond `.wslconfig`, hôte 15,7 Gio) |
+
+**La réserve de 5 120 Mo n'est donc pas arbitraire : elle vaut à peu près ce que les
+résidents pèsent (4 772 Mo mesurés).** Et elle explique l'OOM : à 8 workers,
+8 × 495 = 3 960 Mo de suite + 4 772 de résidents = 8 732 Mo sur 9 945. La baisser
+rendrait l'OOM, elle ne rendrait pas des workers.
+
+**Le levier est donc les RÉSIDENTS, et il manque 68 Mo.** Le troisième worker demande
+`MemAvailable ≥ 7 220`. En libérant le RAG (1 548) et Airflow (1 686) :
+3 918 + 3 234 = **7 152 Mo** — à **68 Mo** du seuil. Arrêter en plus un serveur MCP
+inutilisé (`chrome-devtools` 89 Mo, `graphify` 90 Mo) ferait basculer.
+
+**Ce qu'on ne fait pas** : courir après ce troisième worker. Le gain attendu est
+178 s → ~145 s, soit ~33 s sur une suite qu'on lance quelques fois par jour, contre
+l'obligation d'éteindre Airflow — dont on a justement besoin pour que ~160 tests ne
+skippent pas. Motif d'ADR-007.
+
+⚠️ Deux mesures de cette séance sont **invalides et ne doivent pas être recitées** :
+la somme des `VmHWM` des processus pytest (**194 Mo**, le motif `pgrep` ratait les
+workers `execnet`) et les trois bancs mémoire du serveur RAG, dont le dernier rendait
+*moins* de mémoire avec préchargement que sans. Seul le creux de `MemAvailable` est
+fiable ici.
+
 | Ce qu'on ne fait pas | Ce qui le rouvrirait, calculable |
 |---|---|
+| Chercher un 3ᵉ worker pytest en baissant la réserve mémoire | `MemAvailable` au repos dépasse durablement **7 220 Mo** SANS éteindre Airflow — c'est-à-dire si le RAG paresseux tient sa promesse (`ps -eo rss` sur `knowledge-rag` après un redémarrage de session) |
 | Retirer les **110 index jamais scannés** (5,7 Mo) | une table de faits dépasse **1 M lignes** — l'amplification d'écriture devient réelle. Aujourd'hui : 34 078. `SELECT max(n_live_tup) FROM pg_stat_user_tables` |
 | Sortir **Airflow** de la boîte (il prend 2,3 Go des 7,7) | la RAM des conteneurs dashboard dépasse **2 Go** — ce que R87 rapproche. `docker stats --no-stream` |
 | Construire la **couche or** (table de faits agrégée) | un locataire dépasse **100 000 lignes** sur une table de faits, ou un agrégat d'accueil dépasse **200 ms**. Aujourd'hui : 14 694 lignes, 46 ms |
