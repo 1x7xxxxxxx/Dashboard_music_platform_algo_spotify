@@ -43,6 +43,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.airflow
+    image: streamlytics-airflow
     depends_on:
       postgres:
         condition: service_healthy
@@ -172,6 +173,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.airflow
+    image: streamlytics-airflow
     container_name: airflow_webserver
     depends_on:
       airflow-init:
@@ -216,6 +218,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.airflow
+    image: streamlytics-airflow
     container_name: airflow_scheduler
     depends_on:
       airflow-init:
@@ -250,6 +253,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: streamlytics-dashboard
     container_name: streamlytics_dashboard
     depends_on:
       postgres:
@@ -343,6 +347,23 @@ services:
   # existe sans elle.
   dashboard2:
     <<: *dashboard
+    # La fusion `<<: *dashboard` reprend le bloc `build:`. Sans `image:` NULLE PART,
+    # Compose tague alors le resultat d'apres le nom du SERVICE — `…-dashboard2`, un
+    # artefact DISTINCT de `…-dashboard` — et `up -d` ne reconstruit jamais un tag qui
+    # existe deja : il sert celui qui traine.
+    #
+    # Mesure du 2026-09-17 en production, par l'AUTRE vecteur de la meme classe
+    # (`extends`, dans `deploy/docker-compose.replica.yml`) : primaire construit a
+    # 18:51, replique a 12:02 le meme jour — sept heures et un commit d'ecart, servis
+    # cote a cote derriere Caddy. Le service ne bind-monte pas `src/`, donc c'etait du
+    # CODE APPLICATIF d'un autre commit, pas seulement une commande de demarrage.
+    #
+    # ⚠️ C'est l'`image:` de l'ANCRE qui corrige la classe : la fusion la propage ici.
+    # Cette ligne est donc redondante aujourd'hui — elle est gardee parce qu'elle rend
+    # la replique lisible seule, et parce qu'elle survit a un futur `dashboard2` qui
+    # cesserait de fusionner l'ancre. Mesure : la retirer laisse le garde VERT, retirer
+    # celle de l'ancre le fait rougir.
+    image: streamlytics-dashboard
     container_name: streamlytics_dashboard2
     profiles: ['replica']
     ports:

@@ -39,21 +39,53 @@ Mutation record — 2026-09-17, deux mutations EXECUTEES et vues rouges :
     en reintroduisant exactement le tag que compose aurait fabrique seul → exit 1 sur
     `test_a_pinned_image_is_not_named_after_the_derived_service` ; 0 apres.
 
+  * l'`image:` retiree de l'ANCRE `dashboard: &dashboard` de
+    `docker-compose.example.yml` — l'etat exact du fichier avant ce commit, ou ni
+    l'ancre ni `dashboard2` n'en portaient → exit 1 sur
+    `test_services_sharing_a_build_share_the_image_they_produce` ; 0 apres.
+  * `image: streamlytics-airflow-init` sur un seul des trois services airflow, qui
+    satisfait « une image existe » tout en rouvrant la divergence → exit 1 sur le meme
+    test. Idem en retirant la ligne d'un seul des trois.
+
+⚠️ Une mutation a passe au VERT et c'etait JUSTE : retirer l'`image:` de `dashboard2`
+seul ne casse rien, parce que la fusion `<<: *dashboard` propage celle de l'ancre. C'est
+l'ancre qui porte le correctif. La ligne de `dashboard2` est gardee pour la lisibilite,
+pas pour la garde — et le commentaire du fichier le dit desormais, au lieu de laisser
+croire l'inverse.
+
 ⚠️ La seconde mutation a d'abord passe au VERT. La version initiale du second test
 comparait l'image a celle du service PARENT, et `docker-compose.yml` est gitignore par
 construction : la comparaison sortait par `continue`, donc le test etait vide tout en
 etant vert. C'est la mutation qui l'a montre — la relecture ne l'avait pas vu. Voir la
 classe `un-controle-qui-ne-peut-jamais-passer`.
 
+⚠️ Le garde d'origine ne couvrait que `extends`, et un balayage des freres l'a pris
+VERT sur une seconde instance vivante : `docker-compose.example.yml` — le fichier
+copie tel quel en production — derive `dashboard2` par une fusion YAML
+(`<<: *dashboard`), pas par `extends`. Meme classe, autre vecteur, garde aveugle.
+C'est la portee du garde qui etait le defaut, pas la connaissance.
+
 Ce que ce garde exige
 ---------------------
-Tout service defini par `extends` epingle une `image:` EXPLICITE. C'est la seule forme
-qui rende la divergence structurellement impossible : deux services qui nomment le meme
-tag ne peuvent pas servir deux artefacts. Reconstruire ne suffit pas — c'est un geste
-qu'il faut penser a refaire, et ce defaut est ne d'un geste qu'on a oublie.
+DEUX proprietes, parce qu'un seul vecteur ne couvre pas la classe :
+
+1. **Meme `build:` ⇒ meme `image:`.** Deux services qui construisent depuis le meme
+   contexte et le meme Dockerfile sont le meme artefact ; s'ils ne nomment pas le meme
+   tag, Compose en fabrique deux, et rien ne les rapproche jamais. Cette propriete est
+   AGNOSTIQUE du vecteur — elle attrape `extends`, la fusion YAML, et le copier-coller.
+   Elle n'impose rien a un service dont le `build:` est unique : `api` n'a pas besoin
+   d'une `image:` pour etre correct.
+2. **Tout service defini par `extends` epingle une `image:` explicite** — la propriete 1
+   ne peut pas l'attraper, parce que le `build:` du parent vit dans un AUTRE fichier,
+   gitignore de surcroit.
+
+Epingler, et non reconstruire : reconstruire est un geste
+qu'il faut penser a refaire, et ce defaut est ne d'un geste qu'on a oublie. Deux services
+qui nomment le meme tag ne PEUVENT pas servir deux artefacts.
 """
 
 import pathlib
+import subprocess
 
 import yaml
 
@@ -91,15 +123,27 @@ def _load(path: pathlib.Path) -> dict:
 
 
 def _compose_files() -> list[pathlib.Path]:
-    """Tous les fichiers compose versionnes du depot.
+    """Les fichiers compose VERSIONNES du depot — pas ceux qui trainent sur le disque.
 
-    ⚠️ `docker-compose.yml` a la racine est gitignore par construction (c'est la source
-    de derive que l'audit de parite existe pour attraper), donc il n'est pas toujours la.
-    On balaie ce qui EST versionne, et on refuse de passer sur un ensemble vide.
+    ⚠️ La premiere version globait le disque, et son verdict dependait d'un fichier
+    NON SUIVI : `docker-compose.yml` a la racine, gitignore par construction, present
+    sur ce poste et absent en CI. Le garde etait donc rouge ici et vert la-bas sur le
+    meme commit — un garde dont la reponse depend de la machine n'est pas un garde.
+
+    Ce que ca deplace, et il faut le dire : le fichier reellement execute en production
+    est cette copie non suivie. Ce garde couvre son GABARIT — `docker-compose.example.yml`,
+    que `.claude/dev-docs/deployment.md` fait copier tel quel sur le VPS. La derive
+    entre le gabarit et la copie est un autre sujet, et elle a son propre outil
+    (`make sync-check`).
     """
-    found = sorted(_ROOT.glob("deploy/docker-compose*.yml")) + sorted(
-        _ROOT.glob("docker-compose*.yml")
-    )
+    tracked = subprocess.run(
+        ["git", "ls-files", "docker-compose*.yml", "deploy/docker-compose*.yml"],
+        cwd=_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+    found = [_ROOT / rel for rel in sorted(tracked)]
     assert found, (
         "No compose file found at all. This guard covers container artifact drift; if "
         "the compose layout moved, point it at the new location instead of deleting it."
@@ -167,4 +211,59 @@ def test_a_pinned_image_is_not_named_after_the_derived_service():
             f"Pinning that changes nothing: the derived service still owns a separate "
             f"artifact, and `up -d` still serves whatever already carries the tag. "
             f"Name the image of the service it extends."
+        )
+
+
+def _services_with_build() -> list[tuple[pathlib.Path, str, dict]]:
+    """Les services qui CONSTRUISENT, fusions YAML resolues.
+
+    PyYAML resout `<<: *ancre` a la lecture, donc un service qui herite `build:` par
+    fusion le porte dans le dict charge — exactement comme s'il l'avait ecrit. C'est ce
+    qui rend cette propriete agnostique du vecteur.
+    """
+    out: list[tuple[pathlib.Path, str, dict]] = []
+    for path in _compose_files():
+        doc = _load(path)
+        for name, body in (doc.get("services") or {}).items():
+            if isinstance(body, dict) and body.get("build"):
+                out.append((path, name, body))
+    return out
+
+
+def test_services_sharing_a_build_share_the_image_they_produce():
+    """Meme contexte de construction ⇒ meme tag, sinon deux artefacts divergent.
+
+    Trouve par un balayage des freres le 2026-09-17, APRES que le premier garde de ce
+    fichier soit passe vert sur une instance vivante. Deux sites :
+
+      * `dashboard` / `dashboard2` — la replique, derivee par fusion YAML ;
+      * les trois services airflow — meme `Dockerfile.airflow`, trois tags derives des
+        trois noms de service. `tools/deploy.sh` ne reconstruit que `api` et
+        `dashboard`, donc reconstruire l'un des trois laissait les deux autres sur une
+        image plus ancienne, sans que rien ne le dise.
+
+    Un `build:` UNIQUE n'est pas concerne : exiger une `image:` partout produirait du
+    bruit sans supprimer aucune divergence possible.
+    """
+    by_build: dict[tuple, list[tuple[pathlib.Path, str, object]]] = {}
+    for path, name, body in _services_with_build():
+        build = body["build"]
+        key = (
+            path.name,
+            build if isinstance(build, str) else tuple(sorted(build.items())),
+        )
+        by_build.setdefault(key, []).append((path, name, body.get("image")))
+
+    for (file_name, _build), members in sorted(by_build.items()):
+        if len(members) < 2:
+            continue  # un seul service construit ainsi : rien ne peut diverger
+        images = {img for _p, _n, img in members}
+        assert len(images) == 1 and None not in images and "" not in images, (
+            f"{file_name}: "
+            + ", ".join(f"`{n}` -> {img!r}" for _p, n, img in members)
+            + ". Ces services construisent depuis le MEME contexte, donc ils sont le "
+            "meme artefact — mais ils ne nomment pas le meme tag. Compose en fabrique "
+            "alors un par service, et `up -d` sert celui qui traine deja sous chaque "
+            "nom. Mesure du 2026-09-17 : sept heures et un commit d'ecart entre le "
+            "dashboard et sa replique, servis cote a cote derriere Caddy."
         )
