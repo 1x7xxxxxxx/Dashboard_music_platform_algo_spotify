@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**380 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (216 révisions du catalogue rejouées).
+**380 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (217 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
@@ -43,7 +43,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `cause_unknown` | 241 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
-| `scope_on_a_shared_guard_without_naming_its_tests` | 9 |
+| `scope_on_a_shared_guard_without_naming_its_tests` | 8 |
 | `scope_unknown` | 0 |
 | `scope_without_not_covered` | 300 |
 | `seen_red_never` | 0 |
