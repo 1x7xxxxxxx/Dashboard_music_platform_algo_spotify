@@ -2369,7 +2369,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-17",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3167,7 +3167,7 @@
       "severity": "P2",
       "siblings_swept": true,
       "status": "guarded",
-      "introduced_date": null,
+      "introduced_date": "2026-09-17",
       "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
@@ -9916,7 +9916,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 245,
+      "catalogue_revisions": 246,
       "head_date": "2026-09-17"
     },
     "holes": {
