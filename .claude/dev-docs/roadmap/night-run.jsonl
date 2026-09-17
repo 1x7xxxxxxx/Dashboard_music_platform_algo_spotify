@@ -41,3 +41,4 @@
 {"at": "2026-09-17T04:10:41+00:00", "head": "c64e638", "kind": "done", "task": "R122", "what": "lot 11 : classe des gardes partages + compteur gele a 20"}
 {"at": "2026-09-17T04:31:10+00:00", "head": "c64e638", "kind": "start", "task": "R122", "what": "lot 12 : nommer les tests des portees a garde partage"}
 {"at": "2026-09-17T08:11:03+00:00", "head": "066ed39", "kind": "done", "task": "R122", "what": "lot 12 : 16 portees nomment leurs tests, 20 -> 8 (commit bfc0f9a, pousse ; done logue apres coup au /resume du 2026-09-17)"}
+{"at": "2026-09-17T08:49:41+00:00", "head": "05d743d", "kind": "done", "task": "R117", "what": "deux moities livrees, 2 gardes resserres, R123 ouverte (05d743d, pousse)"}
