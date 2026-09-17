@@ -194,3 +194,77 @@ def test_the_literal_tier_blocks_the_gesture_not_its_mention(libelle, commande, 
             "le garde bloque SANS motif visible. Le contrat PreToolUse remonte stderr : "
             "ecrit sur stdout, le message est avale et la porte se ferme sans raison."
         )
+
+# ── LE SECOND crochet qui lit des commandes Bash, ajouté le 2026-09-17 ───────
+#
+# Ce fichier ne couvrait que `guard_destructive.py`. Mesuré : DEUX crochets de ce
+# dépôt inspectent une commande Bash, et `pre_commit_scan.py` testait
+# `"git commit" not in command` — une SOUS-CHAINE. Il se déclenchait donc sur
+# `grep -rn "git commit" .claude/dev-docs/` et sur un `echo` qui en parle : un
+# balayage en lecture seule lançait un scan complet des fichiers indexés et
+# pouvait BLOQUER dessus.
+#
+# La classe était déjà écrite, le garde déjà là — et il regardait un seul des deux
+# sites. C'est la portée du garde qui était le défaut, pour la Nième fois.
+_COMMIT_HOOK = _ROOT / ".claude" / "hooks" / "pre_commit_scan.py"
+
+_COMMIT = _GIT + " commit"
+
+_PROSE_ABOUT_COMMITTING = [
+    (f'echo "attention au {_COMMIT} sans --no-verify"', "un echo qui en parle"),
+    (f'grep -rn "{_COMMIT}" .claude/dev-docs/', "un balayage de la doc"),
+    (f'{_GIT} log --oneline | head -3', "une lecture d'historique"),
+]
+
+_REAL_COMMITS = [
+    (f'{_COMMIT} -m x', "la forme nue"),
+    (f'cd /tmp && {_COMMIT} -m y', "dans une chaîne"),
+]
+
+
+def _commit_hook():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("_pre_commit_scan", _COMMIT_HOOK)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize("command,label", _PROSE_ABOUT_COMMITTING,
+                         ids=[lbl for _c, lbl in _PROSE_ABOUT_COMMITTING])
+def test_writing_about_committing_is_not_committing(command: str, label: str) -> None:
+    assert not _commit_hook()._is_really_a_commit(command), (
+        f"{label} déclenche le scanner de secrets : `{command}`.\n"
+        "Un balayage en lecture seule lançait un scan complet des fichiers indexés et "
+        "pouvait BLOQUER dessus. Le geste doit être la COMMANDE de son segment.")
+
+
+@pytest.mark.parametrize("command,label", _REAL_COMMITS,
+                         ids=[lbl for _c, lbl in _REAL_COMMITS])
+def test_a_real_commit_is_still_seen(command: str, label: str) -> None:
+    assert _commit_hook()._is_really_a_commit(command), (
+        f"un vrai commit n'est plus vu ({label}) : `{command}`. Le scanner de secrets "
+        "ne tournerait plus — pire que le faux positif qu'on vient de retirer.")
+
+def test_the_commit_hook_actually_uses_its_own_predicate() -> None:
+    """La PRÉSENCE ne suffit pas : `main()` doit APPELER `_is_really_a_commit`.
+
+    ⚠️ Mesuré le 2026-09-17, sur ce fichier même. Les deux tests ci-dessus appellent
+    le prédicat DIRECTEMENT : remettre `"git commit" not in command` dans `main()` les
+    laissait tous les deux VERTS, parce qu'ils prouvent que la fonction est juste, pas
+    qu'elle est branchée. C'est `guard-asserts-presence-not-reachability`, écrite dans
+    le garde même qui venait fermer une autre classe.
+    """
+    import ast
+
+    tree = ast.parse(_COMMIT_HOOK.read_text(encoding="utf-8"))
+    main = next((n for n in ast.walk(tree)
+                 if isinstance(n, ast.FunctionDef) and n.name == "main"), None)
+    assert main is not None, "`main()` a disparu de pre_commit_scan.py"
+    appels = {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
+              for n in ast.walk(main) if isinstance(n, ast.Call)}
+    assert "_is_really_a_commit" in appels, (
+        "`main()` n'appelle PAS `_is_really_a_commit` — le prédicat structurel existe "
+        "et n'est pas branché. S'il est retombé sur une sous-chaîne, un `grep` sur la "
+        "documentation relance un scan complet des fichiers indexés.")

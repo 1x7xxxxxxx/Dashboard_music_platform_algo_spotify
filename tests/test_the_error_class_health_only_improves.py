@@ -392,7 +392,19 @@ _CEILINGS = {
     # comptait les VOLUMES et les RÉSEAUX comme des services, et ne voyait pas la
     # valeur héritée par ancre YAML. Un analyseur YAML tranche en une ligne ce qu'un
     # motif ne peut pas voir.
-    "siblings_never_swept": 154,
+    # 154 → 149 le 2026-09-17, et le balayage a trouvé un SITE VIVANT dans un crochet :
+    # **DEUX** crochets de ce dépôt inspectent une commande Bash, **UN SEUL** lisait
+    # la structure. `pre_commit_scan.py:140` testait `"git commit" not in command`,
+    # donc un `grep` sur la documentation lançait un scan complet des fichiers
+    # indexés et pouvait BLOQUER dessus. La classe était écrite, le garde était là —
+    # et il regardait un seul des deux sites.
+    #
+    # ⚠️ **Ma première version du garde élargi est passée VERTE sur la mutation** :
+    # elle appelait le prédicat DIRECTEMENT, donc elle prouvait qu'il est juste, pas
+    # qu'il est BRANCHÉ. `guard-asserts-presence-not-reachability`, écrite dans le
+    # garde qui venait fermer une autre classe. Fermé par un test AST exigeant que
+    # `main()` appelle le prédicat.
+    "siblings_never_swept": 149,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

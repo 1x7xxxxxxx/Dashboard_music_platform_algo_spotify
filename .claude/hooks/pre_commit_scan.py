@@ -30,6 +30,7 @@ rex:
 
 import json
 import re
+import shlex
 import subprocess
 import sys
 
@@ -128,6 +129,33 @@ def scan_file(filepath: str, content: str) -> tuple[list[str], list[str]]:
     return secrets, debugs
 
 
+def _is_really_a_commit(command: str) -> bool:
+    """Le geste est-il la COMMANDE de son segment, ou un mot dans un argument ?
+
+    ⚠️ Corrigé le 2026-09-17. Ce crochet testait `"git commit" not in command` — une
+    SOUS-CHAINE. Il se déclenchait donc sur `grep -rn "git commit" .claude/dev-docs/`
+    et sur `echo "attention au git commit"` : un balayage en lecture seule lançait un
+    scan complet des fichiers indexés et pouvait BLOQUER dessus.
+
+    C'est `a-bash-hook-that-blocks-the-prose-about-the-gesture`, que ce dépôt a payée
+    trois fois le 2026-09-12 — et dont le garde ne couvrait QUE `guard_destructive.py`.
+    Deux crochets lisent des commandes Bash ; un seul lisait la structure.
+    """
+    for segment in re.split(r"&&|\|\||;|\|", command):
+        try:
+            argv = shlex.split(segment, comments=True)
+        except ValueError:
+            continue
+        i = 0
+        while i < len(argv) and (argv[i] in ("sudo", "env", "time", "nohup", "rtk",
+                                             "proxy", "command") or "=" in argv[i]):
+            i += 1
+        argv = argv[i:]
+        if len(argv) >= 2 and argv[0].rsplit("/", 1)[-1] == "git" and argv[1] == "commit":
+            return True
+    return False
+
+
 def main() -> None:
     try:
         data = json.load(sys.stdin)
@@ -138,7 +166,7 @@ def main() -> None:
         sys.exit(0)
 
     command = data.get("tool_input", {}).get("command", "")
-    if not command or "git commit" not in command:
+    if not command or not _is_really_a_commit(command):
         sys.exit(0)
 
     # Skip if already using --no-verify (guard_destructive.py handles that)
