@@ -859,7 +859,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: every runtime target declares a prerequisite target that probes its dependency and exits 1 naming the fix command — the `dashboard: check-env` shape (rule #10).
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/rules/makefile-fail-fast.md }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — une cible `make` invoque une dépendance d'exécution sans précondition, donc elle plante au milieu au lieu de dire quoi lancer ; couvre: une signature heuristique (report-only) qui repère les recettes appelant `docker`, `streamlit`, `psql` ou `uv` sans passer par `check-env` ni `check-manifest` ; ne couvre pas: (1) **le geste voisin le plus proche, et la règle elle-même le dit — les cibles DÉJÀ signalées et non corrigées** : `up`, `down`, `logs` et `test` sont notés P3 dans le premier balayage de 2026-05-15 et laissés en l'état ; la signature les revoit à chaque exécution sans que rien ne bloque ; (2) la QUALITÉ du message d'erreur — la règle exige qu'il nomme la commande de réparation, la signature ne le vérifie pas ; (3) les dépendances d'exécution autres que les quatre cherchées (ssh, gh, rclone, node) ; (4) les cibles qui appellent un script qui, lui, appelle la dépendance.
 - rex_ref: .claude/rules/makefile-fail-fast.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -1059,7 +1059,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the freshness monitor reports a table that exists with zero rows as a collection gap rather than as no data — an empty table with a live DAG is a state the dashboard must name, not render as a blank chart.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/dev-docs/error-classes.md (operational runbook) }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — un collecteur est livré et le DAG n'est pas rejoué, donc la table reste vide alors que le code sait la remplir ; couvre: une signature qui interroge la BASE — la table attendue porte-t-elle des lignes ? C'est l'un des rares contrôles du catalogue qui regarde l'effet plutôt que le code ; ne couvre pas: (1) **le geste voisin le plus proche — les autres livraisons sans rejeu** : chaque correctif de collecteur, chaque nouvelle colonne, chaque migration de données a besoin d'un rejeu que rien ne déclenche ni ne vérifie ; (2) la signature nomme UNE table et doit être adaptée à chaque cas ; (3) elle ne peut rien conclure sans accès à la base, et n'est lancée par aucun automate ; (4) un rejeu qui a tourné et a échoué silencieusement.
 - rex_ref: .claude/skills/airflow-dag.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -1095,7 +1095,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: every command named in operator text is either a real path this signature checks, or the text names the surface instead of the script.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/dev-docs/error-classes.md (operator-doc-vs-collector-auth invariant) }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — une consigne d'exploitation nomme un script qui n'existe pas ou une authentification qui n'est plus celle du produit ; couvre: une signature shell qui refuse toute mention des scripts fantômes connus (`spotify_auth.py`, `youtube_auth.py`, `check_api_keys`…) ; ne couvre pas: (1) **le geste voisin le plus proche — les scripts fantômes PAS ENCORE connus** : la signature est une liste de noms morts, donc elle attrape les récidives et jamais la première occurrence ; c'est l'inverse de ce qu'on voudrait ; (2) les consignes qui nomment un script EXISTANT avec les mauvais arguments ; (3) les consignes hors du dépôt (e-mails, notes) ; (4) l'authentification réellement en service, que la signature ne vérifie pas — elle lit du texte.
 - rex_ref: .claude/dev-docs/token-management-bilan.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -1963,7 +1963,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: every service that mounts `./src` also mounts `./tools:/opt/airflow/tools:ro`. The guard reads `docker-compose.example.yml` and requires the pairing wherever `./src` is mounted, so a new service cannot be added half-equipped. Read-only on purpose: a container that can rewrite the repo's operational scripts is a surprise nobody wants.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_operational_scripts_are_reachable_in_containers.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — un script d'exploitation est documenté et le conteneur qui doit le lancer ne le MONTE pas, donc la procédure écrite est inexécutable ; couvre: trois propriétés — le script existe (paramétré), `tools/` est monté PARTOUT où `src/` l'est, et le montage est en lecture seule ; ne couvre pas: (1) **le geste voisin le plus proche — le compose RÉELLEMENT exécuté**, gitignoré, que ce garde ne lit pas ; c'est `prod-compose-drift`, et le défaut d'origine venait de cette copie ; (2) les DÉPENDANCES du script — un outil monté mais dont l'interpréteur ou une bibliothèque manque dans l'image ; le dépôt a mesuré un `rclone` appelé depuis un conteneur qui ne l'a pas ; (3) les scripts hors `tools/` ; (4) les DROITS d'exécution, qui sont `exec-bit-lost-outside-the-index`.
 - rex_ref: tools/create_canary.py
 - first_seen: 2026-08-21
 - History:
@@ -2142,7 +2142,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the map is keyed on the LOGICAL platform, and a pure `dags_for_save(tab_key, extra)` returns every DAG whose identity was actually written by this save — so one tab can start several collections, and a blank field starts none. `PLATFORM_TO_DAGS` (the KPI badge map, a third copy) is derived from the same dict.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_credentials_save_triggers_the_right_dag.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — une clé de table de correspondance ne peut JAMAIS être atteinte par construction, donc la branche qu'elle garde est morte ; couvre: quatre propriétés — un enregistrement Instagram seul démarre Instagram et non Meta, chaque onglet ne démarre QUE sa propre collecte, un onglet non touché ne démarre rien, et les onglets à identité unique sont inchangés ; ne couvre pas: (1) **le geste voisin le plus proche — les autres tables de correspondance du dépôt** : routage de pages, plateformes vers tables, statuts vers couleurs peuvent porter une clé morte, et rien ne cherche cette forme ; (2) l'INVERSE — une clé atteignable et absente de la table ; (3) les clés ajoutées ; (4) ce que la branche morte FERAIT si on l'atteignait.
 - rex_ref: src/dashboard/views/credentials/_core.py
 - first_seen: 2026-08-12 (Grinch) — surfaced 2026-08-22
 - History:
@@ -2541,7 +2541,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the function was DELETED, not wired, because its predicate is exactly what `artist_readiness.platform_status` already computes as NO_DATA and `readiness_red_flags` already reports nightly — waking it would have produced two voices for one finding (`watchdog-becomes-the-noise`). A note in the module says so, so the decision does not become a cycle. The guard asserts every public function in `monitoring_checks.py` has a caller outside its own module, and separately that this one stays deleted WITH its explanation.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_no_detector_is_written_and_never_called.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — un détecteur est écrit, testé, et personne ne l'APPELLE en production ; couvre: deux propriétés — chaque contrôle de surveillance a un appelant de production, et le détecteur SUPPRIMÉ reste supprimé (sans quoi on le réécrirait) ; ne couvre pas: (1) **le geste voisin le plus proche — les outils qui ont un appelant HUMAIN et aucun automate** : `make schema-check`, `make caddy-drift`, `make reopen-check` sont appelables et jamais appelés, ce qui est la même classe un cran plus haut ; (2) un appelant qui existe mais ne tourne jamais (DAG en pause, cron retiré) ; (3) ce que l'appelant FAIT du résultat ; (4) les détecteurs hors surveillance.
 - rex_ref: src/utils/monitoring_checks.py
 - first_seen: 2026-08-22
 - History:
@@ -2559,7 +2559,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the age is computed by Postgres in the same statement that reads the value (`EXTRACT(EPOCH FROM (now() - MAX(col)))/3600`). One clock, and it is the clock of the database that holds the rows. The guard asserts both the shape (no argless `now()`/`utcnow()` anywhere in the module) and the behaviour (the reported age does not move when the process timezone changes).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_freshness_uses_one_clock.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — l'âge est calculé contre une horloge qui n'est pas celle qui a écrit la donnée, donc la fraîcheur dérive du décalage entre les deux ; couvre: deux propriétés — le module ne lit AUCUNE seconde horloge, et l'âge est demandé à Postgres (celle qui a écrit) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres calculs d'âge du dépôt** : `infra_health_cron.sh`, `alert_monitor`, les vues et le PDF calculent aussi des anciennetés, et seul le moniteur de fraîcheur est contraint à une horloge ; (2) les dates écrites par un FOURNISSEUR, dont l'horloge n'est ni la nôtre ni celle de Postgres — c'est `a-date-that-does-not-say-which-clock-produced-it` ; (3) la dérive de l'horloge Postgres elle-même ; (4) les âges affichés, qui peuvent reconvertir.
 - rex_ref: src/utils/freshness_monitor.py
 - first_seen: 2026-08-22
 - History:
@@ -2743,7 +2743,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the scan runs nightly inside `alert_monitor`, importing `tools.` as a namespace package after `sys.path.insert(0, '/opt/airflow')` — with the ImportError branch that pushes "check could not run" as a FINDING, never a pass. The guard asserts the three separate links of the chain, because breaking any one of them produces the same silence: a `check_*` function has an operator, the operator is upstream of the sender, and the finding is named in `has_issues` (that third link is the 2026-08-21 defect, where `central_apps_broken` was in the body and the subject but not in the send decision).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_nightly_check_is_scheduled_and_heard.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — un contrôle nocturne existe et n'est planifié par rien, donc il ne tourne jamais et son silence se lit comme un calme ; couvre: trois propriétés — le balayage n'est pas vide, tout contrôle qui EXISTE a un opérateur (paramétré), et chaque opérateur est EN AMONT de l'envoyeur ; la dernière est ce qui distingue « planifié » de « planifié et entendu » ; ne couvre pas: (1) **le geste voisin le plus proche — que le DAG lui-même tourne** : un opérateur correctement câblé dans un DAG en pause ne produit rien, et c'est `the-watcher-is-not-watched` qui regarde ça, sur une seule sonde ; (2) les contrôles hors `alert_monitor` ; (3) la FRÉQUENCE — un contrôle planifié trop rarement passe ce garde ; (4) ce que l'opérateur rapporte.
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-08-23
 - History:
@@ -3038,7 +3038,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `has_claimed_tracks()` dans `claimed_tracks.py`, appelée par les DEUX verrous — le DAG avant de sauter, le collecteur avant de lever. Une seule lecture pour deux appelants ; l'écrire deux fois l'aurait laissée diverger. La raison journalisée nomme désormais les deux conditions manquantes, pas une seule.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_label_signed_artist_is_collectable.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — la fonctionnalité existe et le chemin réel ne l'atteint jamais, donc un artiste signé en label n'est pas collectable alors que le code sait le faire ; couvre: quatre propriétés — le lecteur partagé existe, le collecteur ne LÈVE PAS quand des titres sont déclarés, il saute l'appel de profil sans identifiant d'utilisateur, et **le DAG lit les déclarations AVANT de sauter** — cette dernière étant le chemin qui manquait ; ne couvre pas: (1) **le geste voisin le plus proche — les autres fonctionnalités qu'aucun chemin n'atteint** : le dépôt a mesuré six défauts de cette forme en une séance, tous remontés par des artistes, et seul le cas label est gardé ; (2) les autres plateformes ; (3) la JUSTESSE de ce qui est collecté une fois le chemin ouvert ; (4) les artistes dont la situation n'entre dans aucun des deux cas.
 - rex_ref: src/utils/claimed_tracks.py
 - first_seen: 2026-08-23
 - History:
@@ -3607,7 +3607,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `test_no_runbook_section_outlives_its_task` marche dans l'autre sens : toute section `## <n>. R<id> — …` non barrée doit avoir sa ligne dans un des deux index. La convention imposée existait déjà et n'était simplement pas contrôlée (`~~R20 — …~~ · ✅ FAIT le 2026-08-21`) — elle garde les étapes lisibles pour le jour où la tâche revient. Le prédicat est ancré sur la forme NUMÉROTÉE de section, pas sur « un titre qui mentionne un id » : la version large a signalé R42 dès sa première exécution, alors que `### Ce qui a changé le 2026-08-23 (R42)` est un sous-titre narratif à l'intérieur d'une section déjà barrée. La portée du garde doit épouser la question, pas le symptôme.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_roadmap_index_is_honest.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — une procédure survit à la tâche qu'elle servait, donc elle reste à lire alors qu'il n'y a plus rien à faire ; couvre: par `test_every_waiting_row_names_the_gesture_it_waits_on` et `test_both_sections_exist`, les tests nommés de ce fichier partagé — chaque ligne en attente nomme son geste, et les deux sections d'index existent ; ⚠️ ce garde a effectivement attrapé une section de runbook survivant à sa tâche le 2026-09-17 ; ne couvre pas: (1) **le geste voisin le plus proche — les procédures hors runbook** : `/capitalise`, `/adr`, `/retro` et les playbooks décrivent des gestes dont la tâche peut disparaître, et seules les sections du runbook sont appariées ; (2) une procédure qui survit en étant encore JUSTE mais plus utile ; (3) le CONTENU de la procédure ; (4) les tâches closes sans procédure.
 - rex_ref: .claude/dev-docs/runbook-actions-utilisateur.md
 - first_seen: 2026-08-28
 - History:
@@ -3679,7 +3679,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: donner à la prose un ANCRAGE lisible par machine — une ligne `<!-- reprise: open=R1 -->` qui porte la même affirmation sous une forme comparable aux deux tableaux d'index. Chercher des ids dans la prose ne marche pas : « ne restent que R13 » et « R13 est close » sont les mêmes jetons dans deux affirmations opposées, donc le prédicat déclencherait sur chaque phrase rétrospective honnête ou ne verrait rien — le piège `a-guards-scope-is-the-defect`, déjà payé six fois ici. **Une prose ne se vérifie pas ; une prose ancrée se vérifie.**
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_resume_header_is_checked.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — l'en-tête de reprise affirme ce que l'index dément, donc la première chose lue à chaque séance est fausse ; couvre: par `test_the_anchor_matches_the_open_index` et `test_the_anchor_exists`, les tests nommés de ce fichier partagé — l'ancre existe et s'accorde avec les DEUX tables d'index ; ⚠️ ce garde m'a repris deux fois le 2026-09-17, et c'est ce qui a fait écrire `make roadmap-close`, qui recale l'ancre au lieu de compter sur la mémoire ; ne couvre pas: (1) **le geste voisin le plus proche — les autres en-têtes d'état du dépôt** : `night-run.md`, les documents générés et les `dev-docs` portent des affirmations d'état qui ne sont confrontées à rien ; (2) la JUSTESSE de l'index lui-même — les deux peuvent s'accorder sur une erreur ; (3) le CONTENU du bloc de reprise au-delà de l'ancre ; (4) `archive.md`, hors périmètre par construction.
 - rex_ref: .claude/dev-docs/roadmap/checklist.md
 - first_seen: 2026-08-28
 - History:
@@ -3713,7 +3713,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: chaque `.md` de `dev-docs/` doit être nommé par un fichier suivi hors de `dev-docs/roadmap/`. L'exclusion de la roadmap est ce qui rend le garde non vacuant : elle est réécrite chaque séance et mentionne tout au passage, donc la compter ferait passer des documents que nul index n'atteint. Le garde vérifie l'EXISTENCE d'un pointeur, jamais sa qualité — juger une description est infalsifiable et le test finirait supprimé.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_dev_doc_is_reachable.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — un document existe et rien ne pointe vers lui, donc il se périme sans lecteur ; couvre: trois propriétés — quelque chose pointe vers CHAQUE document (paramétré), le corpus de référents n'est pas vide, et l'exclusion EXCLUT réellement quelque chose (une exclusion vide se lit comme une couverture totale) ; ne couvre pas: (1) **le geste voisin le plus proche — un renvoi qui EXISTE et ne mène plus au bon endroit** : c'est `config-path-dangling`, et le garde ici vérifie qu'on pointe, pas que la cible corresponde ; (2) la LECTURE réelle — pointer n'est pas lire, et le dépôt a mesuré qu'un playbook injecté 98 fois n'a jamais été exécuté ; (3) les documents hors `dev-docs/` ; (4) la FRAÎCHEUR du document pointé.
 - rex_ref: CLAUDE.md
 - first_seen: 2026-08-28
 
@@ -3729,7 +3729,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `check_code_without_a_trace` lit `git status` et exige les DEUX traces (journal et roadmap), en nommant celle qui manque quand une seule est là. Elle ne lève jamais — un rappel qui casse la fin de séance n'est pas corrigé, il est désactivé. Le garde monte un dépôt git jetable par cas plutôt que d'observer l'arbre courant : sinon il testerait l'état où l'arbre se trouve ce jour-là et serait vert par hasard.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_code_without_a_trace_is_flagged.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — du code part sans trace écrite, donc six mois plus tard personne ne sait pourquoi il existe ; couvre: quatre propriétés d'un hook — du code seul est SIGNALÉ, Airflow compte comme du code, du code avec ses deux traces est silencieux, et une trace PARTIELLE nomme ce qui manque (plutôt que de tout redemander) ; ne couvre pas: (1) **le geste voisin le plus proche — la QUALITÉ de la trace** : une ligne de DEVLOG vide ou une entrée de roadmap recopiée satisfait le hook et n'apprend rien ; (2) `git commit --no-verify`, qui contourne ; (3) le code écrit hors des chemins surveillés ; (4) la trace qui se PÉRIME — c'est la famille entière, et ce garde ne regarde que le moment de l'écriture.
 - rex_ref: .claude/hooks/session_summary.py
 - first_seen: 2026-08-28
 - History:
@@ -4079,7 +4079,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `guide_pdf.write_fingerprint()` écrit `docs/guides/.guide_fingerprint` **dans le même souffle que les PDF**, avec DEUX empreintes : `source=` (digest du HTML rendu, `APP_BASE_URL` normalisée) et `rendered=` (digest des fichiers PDF présents). Le garde compare les deux. Ni l'un ni l'autre ne suffit seul, et c'est le cœur du correctif — voir l'Historique. Ne pas hasher le PDF entre deux reconstructions (WeasyPrint n'est pas reproductible d'une version à l'autre) et ne pas reconstruire en CI (`ci.yml:62-70` retire délibérément `libcairo2-dev` : « dashboard-only, not CI »), ce qui rend le digest de HTML — du Python pur — le seul garde possible dans cet environnement. `make guide` est le remède, avec sa précondition `check-guide-deps` (règle #10).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_shipped_guide_is_the_current_guide.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — l'artefact livré (le PDF) retarde sur sa source, donc l'artiste reçoit un guide qui ne décrit plus l'application ; couvre: quatre propriétés — le fichier d'empreinte existe, les PDF livrés correspondent aux sources COURANTES, les PDF sur disque sont bien ceux que l'empreinte certifie (les deux ensemble : une empreinte juste sur un fichier absent ne prouve rien), et les deux langues sont présentes et non vides ; ne couvre pas: (1) **le geste voisin le plus proche — les autres artefacts dérivés livrés** : captures d'écran, illustrations, exemples de graphiques, documents générés retardent pareil et n'ont pas tous d'empreinte ; (2) la RÉGÉNÉRATION, qui reste un geste manuel ; (3) le contenu du PDF au-delà de son empreinte ; (4) les PDF déjà envoyés par mail, figés chez le destinataire.
 - rex_ref: src/dashboard/guides/guide_pdf.py
 - first_seen: 2026-09-03
 - History:
@@ -4099,7 +4099,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `check_exec_bit.py` interroge `git ls-files -s`, c'est-à-dire le mode **stocké**, jamais le disque — un contrôle par le système de fichiers serait vert pour toujours ici. Câblé dans `make audit` (nocturne), pas dans la porte de PR. Correction par `git update-index --chmod=+x`, jamais `chmod` seul. Classe portée de `msdr_predictive_maintenance` (`md5-audit-blind-to-file-mode`) après vérification qu'elle est vivante ici.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_shipped_script_can_actually_run.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — le bit d'exécution est perdu hors de l'index git, donc le script est livré non exécutable et échoue seulement à l'exécution ; couvre: deux propriétés — chaque script shell suivi est exécutable DANS L'INDEX, et le détecteur lit l'INDEX et non le disque (sur un système de fichiers qui ne porte pas le bit, lire le disque rendrait un verdict faux) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres attributs perdus à la copie** : fin de ligne, encodage, liens symboliques, horodatages traversent mal les frontières de système de fichiers, et seul le bit d'exécution est vérifié ; (2) les scripts Python appelés directement ; (3) le bit dans l'IMAGE Docker, que le Dockerfile peut modifier ; (4) les scripts non suivis par git.
 - rex_ref: .claude/scripts/check_exec_bit.py
 - first_seen: 2026-09-03
 - History:
@@ -4118,7 +4118,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: le linter est appelé depuis `make audit` — **nocturne, et non la porte de PR** : `mmdc` est une dépendance de dev que la CI n'installe pas, donc en faire une signature bloquante rendrait le garde rouge sur toute machine sans elle (`permanently-red-guard-reports-nothing`, la façon dont un contrôle finit supprimé). Les lignes de tâches du template portent des dates de remplissage évidentes (`2026-01-01`) qui parsent, la déclaration `dateFormat YYYY-MM-DD` restant intacte.
 - autofix: none
 - guard: { type: manual, ref: make audit }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — un bloc Mermaid ne rend pas, donc le diagramme est remplacé par un pavé de texte que personne ne lit ; couvre: `.claude/scripts/check_mermaid.py`, qui analyse chaque bloc et refuse ceux qui ne peuvent pas rendre ; ne couvre pas: (1) **le geste voisin le plus proche, et le catalogue en porte la classe jumelle — un diagramme qui REND et dit une chose fausse** : `a-diagram-is-verified-by-looking-at-it` existe précisément parce que la syntaxe valide ne garantit rien du contenu, et 6 défauts sur 7 schémas neufs n'étaient visibles ni dans le code ni dans le HTML ; (2) les diagrammes hors Mermaid (images, ASCII) ; (3) le rendu par le CLIENT — GitHub, VS Code et le navigateur ne rendent pas identiquement ; (4) les blocs dans des fichiers non balayés.
 - rex_ref: .claude/scripts/check_mermaid.py
 - first_seen: 2026-09-03
 - History:
@@ -4332,7 +4332,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: le garde compare la FORME des trois surfaces — même nombre d'étapes, mêmes captures aux mêmes rangs, intro présente des deux côtés ou d'aucun, et aucune clé `step_N` du catalogue au-delà du nombre d'étapes réel. Il ne compare pas les mots : c'est une traduction, elle doit différer. Corollaire de méthode, hors dépôt : un `str.replace` d'édition sans `assert old in s` est un no-op silencieux.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_two_language_guides_stay_in_step.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — le même guide est décrit par plusieurs sources, donc les langues divergent au premier changement fait dans une seule ; couvre: quatre propriétés d'APPARIEMENT — les deux langues couvrent les mêmes plateformes, décrivent le même NOMBRE d'étapes (paramétré), placent les captures aux mêmes RANGS, et une introduction existe dans les deux ou dans aucune ; ne couvre pas: (1) **le geste voisin le plus proche — le CONTENU de chaque étape** : deux guides peuvent avoir le même nombre d'étapes et dire des choses différentes ; l'appariement est structurel, jamais sémantique ; (2) une TROISIÈME langue ; (3) les autres corpus bilingues — catalogues i18n, PDF, e-mails ont leur propre appariement ou aucun ; (4) la JUSTESSE de la version de référence.
 - rex_ref: tests/test_the_two_language_guides_stay_in_step.py
 - first_seen: 2026-09-04
 - History:
@@ -4387,7 +4387,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: le garde vérifie que la fonction partagée a bien **tous** ses appelants attendus, nommément, et pas seulement qu'elle existe. C'est la seule formulation qui distingue « extraite » de « partagée ». Corollaire de méthode : partager la MISE EN FORME (`_box`) sans partager le CALCUL des états ne protège rien — deux verdicts peuvent diverger tout en s'affichant dans la même palette.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_tab_state_is_the_matrix_state.py::test_the_matrix_row_is_computed_in_one_place }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — une règle est EXTRAITE et un seul appelant est recâblé, donc l'autre garde l'ancienne copie et les deux divergent ; couvre: par `test_the_tab_state_reuses_the_matrix_cells` et `test_the_colours_are_defined_once`, les tests nommés de ce fichier partagé — l'onglet RÉUTILISE les cellules de la matrice, et les couleurs sont définies une seule fois ; ne couvre pas: (1) **le geste voisin le plus proche — les autres extractions à moitié recâblées** : c'est le motif exact de `a-rule-copied-is-a-rule-that-will-diverge`, et rien ne balaie le dépôt pour trouver une règle extraite dont un appelant subsiste ; (2) un TROISIÈME appelant ajouté après l'extraction ; (3) la JUSTESSE de la règle extraite ; (4) les extractions dans d'autres domaines que les couleurs et les cellules.
 - rex_ref: src/dashboard/utils/status_matrix.py
 - first_seen: 2026-09-05
 - History:
@@ -4869,7 +4869,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: la page est supprimée ; ses DEUX sections qui n'existaient nulle part ailleurs — le PDF des identifiants et la définition des CSV attendus — déménagent dans « 🚦 Santé onboarding », c'est-à-dire là où l'artiste est quand il constate qu'il lui manque quelque chose. La ROUTE `?page=process_guide` survit et mène à cette page : un ancien lien y trouve ce qu'il venait chercher plutôt qu'une page d'accueil générique, et supprimer la route ferait des culs-de-sac que ce dépôt a déjà payés. `ALWAYS_ACCESSIBLE` la garde aussi, sinon un artiste dont l'abonnement a expiré tomberait sur un mur de paiement en suivant un lien vers son propre guide.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_views_map_lists_every_view.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — une page redit ce que l'application montre déjà, donc elle se périme pendant que la source reste juste ; couvre: par `test_every_view_is_named_in_the_views_map` et `test_the_map_does_not_name_views_that_are_gone`, les tests nommés de ce fichier partagé — l'inventaire des vues est tenu dans les deux sens ; ne couvre pas: (1) **le geste voisin le plus proche — la REDITE elle-même** : le garde vérifie qu'on liste les bonnes vues, jamais qu'une page ne paraphrase pas ce qu'une autre affiche ; c'est un jugement, et aucun outil ne le rend ; (2) les documents qui redisent le code plutôt qu'une page ; (3) la FRAÎCHEUR de la redite quand elle est assumée ; (4) les pages hors de la carte.
 - rex_ref: src/dashboard/views/onboarding_health.py
 - first_seen: 2026-09-06
 - History:
@@ -4926,7 +4926,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: la détection se fait sur les COLONNES, qui sont une propriété du fichier ; le nom ne sert plus que de départage quand les colonnes ne tranchent pas. Le cas (3) ne pouvait pas se résoudre à la détection — un export « Depuis le début » a exactement les mêmes en-têtes qu'un export sur 12 mois — donc son refus est descendu dans `_parse_file`, où les VALEURS sont lisibles : `listeners` et `saves` entièrement à zéro. Un contrôle descend au niveau où l'information existe, plutôt que de s'appuyer sur un indice corrélé.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_csv_is_recognised_whatever_its_encoding.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — la détection est fondée sur le NOM du fichier, donc elle est fausse dès qu'un utilisateur renomme ou qu'un export change de convention ; couvre: par `test_the_filename_decides_nothing` (paramétré sur nom × en-tête × attendu) et `test_the_column_normaliser_is_the_second_layer`, les tests nommés de ce fichier partagé — le nom ne décide de rien, et la reconnaissance passe par le CONTENU en deux couches ; ne couvre pas: (1) **le geste voisin le plus proche — les autres décisions prises sur un nom** : plateforme déduite d'un répertoire, type déduit d'une extension, locataire déduit d'un préfixe ; (2) un contenu AMBIGU que deux plateformes produiraient à l'identique ; (3) les exports dont l'en-tête change ; (4) l'ORDRE d'essai des formats quand plusieurs correspondent.
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -5181,7 +5181,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `src/dashboard/utils/pending_notice.py` — la valeur est LUE (`pending_notice`) et non consommée, bornée à la page qui l'a vue naître : elle disparaît dès que l'artiste est ailleurs, ce qui était la seule raison d'être du `pop`, et le widget est ré-instancié à chaque rendu tant qu'on est là. La consommation (`clear_notice`) est déplacée sur le GESTE — le bouton qui emmène ailleurs — et non sur l'affichage. Conséquence à tenir en même temps : un lecteur qui SE SERVAIT de la consommation comme borne doit se borner lui-même — `credentials/router.py` ouvrait l'onglet suivant à partir de ce même verdict, et sans mémo il aurait refermé à chaque rerun l'onglet que l'artiste venait d'ouvrir.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_consumed_message_carries_no_widget.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — un bloc consommé (lu puis effacé) contient un widget interactif, donc le widget disparaît au rerun suivant et le geste est impossible ; couvre: deux propriétés — aucun widget interactif ne vit dans un bloc consommé, et **le garde voit la FORME et non les mots** (paramétré sur des sources et leur verdict attendu) — ce second point étant le mode d'aveuglement que ce dépôt a mesuré quatre fois ; ne couvre pas: (1) **le geste voisin le plus proche — les autres états consommés** : un message flash, un `st.session_state.pop()`, un jeton à usage unique peuvent emporter autre chose qu'un widget ; (2) les widgets qui disparaissent pour une AUTRE raison ; (3) les blocs consommés hors des surfaces balayées ; (4) ce que l'utilisateur perd — le garde empêche la disparition, il ne mesure pas le geste manqué.
 - rex_ref: src/dashboard/utils/pending_notice.py
 - first_seen: 2026-09-08
 - History:
@@ -5351,7 +5351,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: migration 095 — `NULLS NOT DISTINCT` (PostgreSQL 15+, la production tourne en 17.10) rend deux NULL égaux DANS l'index, sans expression : la cible redevient une liste de colonnes, l'upsert l'apparie, et l'idempotence tient. Le garde compare les DEUX listes — celle du schéma canonique et celle que la page d'import envoie — et refuse toute expression dans la contrainte, parce qu'une expression rend la cible inappariable par construction.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — la cible d'un `ON CONFLICT` ne peut structurellement pas correspondre à un index, donc l'upsert échoue ou dédoublonne mal ; couvre: par `test_the_period_is_asked_because_the_file_cannot_say_it`, le test nommé de ce fichier partagé — la période est demandée, ce qui donne à la clé la dimension qui lui manquait ; ne couvre pas: (1) **le geste voisin le plus proche — l'existence de l'index**, qui est `on-conflict-target-without-index` : ici la cible est mal FORMÉE, là elle est bien formée et absente ; les deux classes se complètent et aucune ne couvre l'autre ; (2) les autres tables à clé composite ; (3) les index partiels, dont un `ON CONFLICT` ne peut pas se servir sans répéter le prédicat ; (4) les cibles construites à l'exécution.
 - rex_ref: migrations/095_apple_conflict_target_matches_its_index.sql
 - first_seen: 2026-09-08
 - History:
@@ -5601,7 +5601,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: deux moitiés. Le filtre reste sur le chemin de rendu, et un garde structurel vérifie qu'il y est appliqué — pas que son nom apparaisse. Et la source cesse d'en dépendre : plus aucun glyphe indessinable dans une chaîne, donc plus aucune décision portée par un caractère qui disparaîtra. `_badge` se choisit sur la couleur, rendue par la même fonction et dessinable.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_pdf_prints_every_glyph_it_carries.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — un glyphe absent de la police disparaît silencieusement du PDF, donc le document livré dit moins que sa source ; couvre: trois propriétés — aucun glyphe indessinable n'atteint le rapport client, le chemin de rendu RETIRE toujours ce qu'il ne peut pas dessiner (sans quoi « corriger » la détection laisserait passer le rendu), et le prédicat attraperait le défaut d'origine ; ne couvre pas: (1) **le geste voisin le plus proche — les autres pertes silencieuses à la mise en forme** : texte tronqué par une largeur, ligne coupée, caractère remplacé par un substitut visuellement proche ; (2) les glyphes dans les IMAGES incorporées ; (3) les autres documents générés (e-mails HTML, exports CSV) ; (4) une police qui change entre la vérification et le rendu.
 - rex_ref: src/dashboard/utils/pdf_exporter/_config.py
 - first_seen: 2026-09-10
 - History:
@@ -5790,7 +5790,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: prouver la non-vacuité sur un **échantillon fabriqué dans le test** — trois lignes de markdown écrites sur place, dont une qui doit matcher et deux qui ne doivent pas. Le prédicat reste gardé, et il l'est indépendamment de l'état du dépôt. Règle générale : une assertion de non-vacuité porte sur l'OUTIL, jamais sur la matière. Corollaire de forme, et c'est celui qui a failli faire perdre les trois gardes : leurs messages disaient « soit tout est fait, auquel cas supprimer ce test ». C'est la mauvaise moitié de l'alternative — supprimer retire la protection exactement au moment où les assertions voisines portent toutes sur du vide.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_roadmap_index_is_honest.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — le contrôle de non-vacuité est ancré sur la DONNÉE et non sur l'analyseur, donc il devient vert quand la donnée disparaît au lieu de signaler que l'analyseur ne trouve plus rien ; couvre: par `test_the_extraction_still_finds_rows_when_there_are_rows`, le test nommé de ce fichier partagé — l'extraction trouve des lignes QUAND IL Y EN A, ce qui est l'ancrage correct ; ne couvre pas: (1) **le geste voisin le plus proche — les autres contrôles de non-vacuité du dépôt** : `test_the_scope_is_not_empty`, `test_the_scan_is_not_vacuous` et leurs frères sont nombreux, et rien ne vérifie qu'ils sont ancrés du bon côté ; (2) un analyseur qui trouve des lignes FAUSSES ; (3) le cas où la donnée est légitimement vide ; (4) les extractions hors roadmap.
 - rex_ref: tests/test_the_resume_header_is_checked.py
 - first_seen: 2026-09-10
 - History:
@@ -5849,7 +5849,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: rendre, convertir en images et REGARDER, à chaque ajout de schéma — la procédure tient en trois commandes et vit dans le README du générateur. Les coupures se corrigent en posant soi-même un `<br/>` sur un `_` ; l'ordre des couches, en faisant passer chaque chemin par la couche intermédiaire, ce qui se trouve être plus juste aussi. Règle générale : quand un outil CALCULE le rendu, la seule vérification qui porte sur le résultat est de le regarder. Compter les `<text>` d'un SVG prouve qu'il y a du texte, pas qu'il est lisible ni bien placé.
 - autofix: none
 - guard: — (procédure humaine, `tools/dev/architecture_dossier/README.md`)
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — un diagramme syntaxiquement valide peut dire n'importe quoi, et seule une paire d'yeux le voit ; couvre: ⚠️ **AUCUNE signature, et c'est délibéré — la commande qui figurait ici a été retirée parce qu'elle vérifiait que le fichier se GÉNÈRE, pas que le dessin soit juste** ; la connaissance est que 6 défauts sur 7 schémas neufs (couches dessinées à l'envers, flèches inversées) n'étaient visibles ni dans le code ni dans le HTML ; ne couvre pas: (1) **rien n'est couvert automatiquement, et le déclarer EST la classe** : c'est la seule entrée du catalogue dont la bonne réponse est « un humain regarde », et l'écrire empêche qu'on croie le contraire ; (2) le geste voisin le plus proche — toute affirmation visuelle (palette, mise en page, capture, PDF) partage cette limite, et une seule autre classe (`a-verdict-whose-validator-lives-outside-the-repo`) l'admet ; (3) la RÉGULARITÉ du regard, que rien ne planifie ; (4) les diagrammes que personne n'ouvre.
 - rex_ref: tools/dev/architecture_dossier/README.md
 - first_seen: 2026-09-10
 - History:
@@ -5868,7 +5868,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: une fonction pure dans le module de la figure, qui prend le pas EFFECTIF et le mode et rend la phrase ; le rendu des notes l'appelle avec les autres explications. Règle générale : un texte qui décrit un état variable se dérive de cet état, et vit là où l'état est connu. Le garde couvre le PRODUIT CARTÉSIEN des menus — trois pas × quatre modes — parce qu'un texte juste dans onze cas sur douze passe inaperçu.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_legend_says_what_the_figure_shows.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — une légende est écrite À CÔTÉ du comportement au lieu d'en être dérivée, donc elle décrit ce que la figure faisait ; couvre: par `test_no_caption_reformulates_what_the_hatch_already_draws` et `test_the_view_no_longer_carries_a_fixed_legend`, les tests nommés de ce fichier partagé — aucune légende ne reformule ce que le hachurage dessine déjà, et la vue ne porte plus de légende FIXE ; ne couvre pas: (1) **le geste voisin le plus proche — les autres textes écrits à côté d'un comportement** : titres de tuiles, infobulles, notes de PDF, messages d'aide sont tous rédigés à la main en regard d'un calcul ; (2) les légendes DÉRIVÉES mais d'une mauvaise source ; (3) la LANGUE ; (4) les figures hors de cette vue.
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-10
 - History:
@@ -5970,7 +5970,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: confronter chaque `conflict_columns` littéral au CATALOGUE de la base où le code tournera, pas aux fichiers de migration — seul le catalogue répond à « cet index existe-t-il ici ». Corollaire d'ordonnancement, écrit dans le message du garde : **la migration part AVANT le code qui en dépend.**
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_upsert_targets_an_index_that_exists.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — un `ON CONFLICT` vise une cible qu'aucun index unique ne porte, donc l'upsert échoue à l'exécution et pas avant ; couvre: deux propriétés — chaque cible d'upsert LITTÉRALE a un index unique correspondant, et **les sites d'appel non résolubles sont NOMMÉS et non cachés** — cette seconde propriété étant ce qui distingue une couverture partielle honnête d'une couverture prétendue ; ne couvre pas: (1) **le geste voisin le plus proche — les cibles construites à l'exécution**, précisément celles que le garde nomme comme non résolubles ; elles restent vérifiées par personne ; (2) l'index qui EXISTE en local et pas en production, qui est `prod-canonical-schema-drift` ; (3) les `ON CONFLICT DO NOTHING`, dont l'échec est plus discret ; (4) la JUSTESSE de la cible — un index existant mais sur les mauvaises colonnes.
 - rex_ref: src/dashboard/views/admin.py
 - first_seen: 2026-09-11
 - History:
@@ -6639,7 +6639,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_the_palette_can_be_attributed.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_the_palette_can_be_attributed.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — le verdict dépend d'un validateur qui vit HORS du dépôt, donc on ne peut ni le rejouer ni le contester ; couvre: trois propriétés — chaque paire de zones est DISTINGUABLE (paramétré par thème et palette, avec un plancher mesuré), chaque couleur est dans sa bande de luminosité, et **la mesure reproduit le refus qui a créé la règle** — cette dernière étant ce qui rend le verdict rejouable ici plutôt que chez un tiers ; ne couvre pas: (1) **le geste voisin le plus proche — les autres verdicts externes** : la conformité d'une capture, la lisibilité d'un PDF, l'acceptation d'un e-mail par un fournisseur sont jugées ailleurs et ne sont pas rejouables ; (2) les formes de daltonisme non paramétrées ; (3) le rendu RÉEL sur un écran, qui dépend du matériel ; (4) la limite mesurée du mode sombre (ΔE plafonné à 13,9), qui est une borne et non un échec.
 - rex_ref: tests/test_the_palette_can_be_attributed.py
 - first_seen: 2026-09-12
 - History:
@@ -6722,7 +6722,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_a_bash_guard_reads_the_command_not_the_prose.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_bash_guard_reads_the_command_not_the_prose.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — un garde de shell lit le TEXTE et bloque donc la prose qui décrit le geste, pas seulement le geste ; couvre: quatre propriétés — un vrai `kill` qui emporterait le shell est bloqué (paramétré), **nommer simplement le geste ne bloque JAMAIS** (paramétré), un rétablissement sur un fichier propre reste sans effet, et un rétablissement qui perdrait du travail bloque toujours ; les deux dernières sont l'état : le garde ne bloque que s'il y a à perdre ; ne couvre pas: (1) **le geste voisin le plus proche — les autres gardes textuels du dépôt** : `_TEXTUAL_GUARDS` en liste 23, et rien ne vérifie qu'ils ne mordent pas leur propre documentation ; trois commandes ont été bloquées d'affilée le 2026-09-12 en train de décrire le geste ; (2) les gestes destructeurs non couverts par les deux gardes ; (3) les commandes composées où le geste n'est pas la commande de son segment ; (4) `--no-verify` et les contournements.
 - rex_ref: .claude/hooks/guard_destructive.py
 - first_seen: 2026-09-12
 - History:
@@ -6783,7 +6783,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_dependency_comes_back_with_its_host.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — un service dont un autre dépend n'a pas de politique de redémarrage, donc après un redémarrage de l'hôte il ne revient pas et tout ce qui en dépend échoue ; couvre: trois propriétés — chaque service DÉPENDU déclare une politique (paramétré par compose), **les deux composes s'accordent** sur ces politiques, et la base du projet est couverte ; ne couvre pas: (1) **le geste voisin le plus proche — le compose de PRODUCTION**, gitignoré ; le garde compare le gabarit et le local, jamais le VPS, et c'est exactement `prod-compose-drift` ; (2) les services EXTERNES au compose (Caddy, cron, tâches planifiées) ; (3) l'ORDRE de redémarrage, qu'une politique ne garantit pas ; (4) un service qui redémarre et ne fonctionne pas.
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: WSL redémarre. Treize conteneurs remontent seuls, un seul reste à terre — `postgres_spotify_airflow`, `Exited (255)`, `RestartPolicy: no`. Signature vue ≠ 0 sur le défaut, 0 après ajout de `restart: unless-stopped`. Deux mutations vues ROUGES avant écriture du fix : ligne retirée (le garde nomme le service, ses 3 dépendants et la ligne à ajouter), et `restart: "no"` posé (durabilité plus faible que le dépendant). Parenté avec `a-guards-scope-is-the-defect` : la parité entre les deux composes existait déjà, sa PORTÉE n'incluait pas la reprise.
@@ -6884,7 +6884,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: — (le garde EST le fix). Il n'existe pas de changement de code qui rende la classe impossible : tant qu'un littéral Python porte à la fois du SQL et de la prose, le signe peut y entrer. Ce qui est réparable, c'est le DÉLAI de détection : le défaut ne se voit qu'à l'exécution de la requête, sous un message qui désigne autre chose. Le garde le déplace à l'écriture.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_parameterised_query_says_what_it_means.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — un `%` isolé dans une requête paramétrée est interprété par le pilote, donc la requête échoue ou change de sens ; couvre: par `test_no_stray_percent_sign_in_a_parameterised_query` et `test_the_two_predicates_are_not_vacuous`, les tests nommés de ce fichier partagé ; ne couvre pas: (1) **le geste voisin le plus proche — les autres caractères interprétés par le pilote ou par Python** : `{}` dans une chaîne destinée à `.format()`, `\\` dans une expression régulière, `$` dans un `Template` produisent la même surprise, et c'est `format-marker-in-a-plain-string` pour l'un d'eux ; (2) les requêtes construites à l'exécution ; (3) le SQL écrit hors Python (migrations, vues) ; (4) un `%` correctement échappé mais placé au mauvais endroit.
 - signature: `python3 -m pytest tests/test_a_parameterised_query_says_what_it_means.py::test_no_stray_percent_sign_in_a_parameterised_query -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
@@ -7133,7 +7133,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: ne pas chercher à vérifier « cette phrase est-elle vraie » — indécidable — mais isoler la FORME de phrase qui est mécaniquement réfutable et n'en tolérer aucune fausse : une phrase qui **localise** un identifiant dans une section nommée. Le prédicat exige les trois marques dans une même phrase ET dans cet ordre — l'id, une préposition de lieu, le nom de la section — ce qui le distingue d'une phrase de DÉPART, où le nom de la section est sujet (« L'index `## 📋 Tâches ouvertes` est vide : R108, sa dernière ligne, a été livrée »). Toute prose qui compte ou situe doit compter ce que la structure compte ; à défaut, elle doit renvoyer à la structure au lieu de la paraphraser.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_roadmap_index_is_honest.py }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — une affirmation en prose n'est rattachée à rien, donc elle ne peut être ni vérifiée ni démentie et survit à sa vérité ; couvre: par `test_every_waiting_row_names_the_gesture_it_waits_on` et `test_no_item_is_in_both_sections`, les tests nommés de ce fichier partagé — chaque ligne en attente nomme son geste, donc elle porte de quoi être contrôlée ; ⚠️ le dépôt a mesuré que l'ancrage seul ne suffit pas : l'ancre a tenu et la prose a menti quand même, et le prédicat qui marche contraint l'ORDRE des marques ; ne couvre pas: (1) **le geste voisin le plus proche — toute la prose du dépôt hors roadmap** : `CLAUDE.md`, les ADR, les `dev-docs` et les docstrings portent des centaines d'affirmations sans ancre, et cette séance en a démenti plusieurs (le facteur 8×, `maxconn=10`, un fichier de test inexistant) ; (2) une affirmation ancrée mais FAUSSE ; (3) les chiffres cités sans date ; (4) la prose générée.
 - signature: `python3 -m pytest tests/test_roadmap_index_is_honest.py::test_no_prose_sentence_places_a_task_in_a_section_that_has_no_such_row -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
