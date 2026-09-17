@@ -4589,7 +4589,7 @@
       "severity": "P3",
       "status": "guarded",
       "introduced_date": "2026-08-30",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -4683,7 +4683,7 @@
       "severity": "P2",
       "status": "fixed",
       "introduced_date": "2026-08-21",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -5192,7 +5192,7 @@
       "severity": "P3",
       "status": "guarded",
       "introduced_date": "2026-08-21",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -5331,7 +5331,7 @@
       "severity": "P2",
       "status": "guarded",
       "introduced_date": "2026-08-21",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -5792,7 +5792,7 @@
       "severity": "P2",
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -6000,7 +6000,7 @@
       "severity": "P2",
       "status": "guarded",
       "introduced_date": "2026-06-20",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -8689,7 +8689,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 208,
+      "catalogue_revisions": 209,
       "head_date": "2026-09-17"
     },
     "holes": {
