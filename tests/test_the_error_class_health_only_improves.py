@@ -183,7 +183,11 @@ _CEILINGS = {
     # Trois autres sont estampillées en NOMMANT ce qui a skippé chez elles — un DAG
     # exempté, 27 scripts hors périmètre, un jeu de paramètres vide (légitime : la
     # liste d'orphelins est vide parce que les classes ont été écrites).
-    "siblings_never_swept": 255,
+    # −1 le 2026-09-17 : `column-name-is-not-its-meaning`, et le site trouvé est
+    # l'outil que `.claude/rules/python.md` NOMME comme garde de cette règle —
+    # il matchait sur le NOM de la colonne là où la règle exige le TYPE.
+    # TROISIÈME garde de la séance vert sur ce qu'il prétend garder.
+    "siblings_never_swept": 254,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

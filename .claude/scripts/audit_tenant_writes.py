@@ -47,25 +47,67 @@ _SCAN_DIRS = ("src", "airflow/dags")
 _TENANT_KEYS = {"artist_id", "saas_artist_id"}
 
 
-def tenant_scoped_tables() -> set[str]:
-    """Tables declaring an artist_id / saas_artist_id column, from the SQL sources."""
-    tables: set[str] = set()
+# ── Le TYPE, jamais le nom ───────────────────────────────────────────────────
+#
+# ⚠️ Corrigé le 2026-09-17, et c'est cet outil-ci que `.claude/rules/python.md`
+# NOMME comme garde de la règle qu'il enfreignait :
+#
+#   « `artist_id` n'est pas toujours le locataire : sur `artists`,
+#     `artist_history` et `tracks`, c'est l'identifiant Spotify (VARCHAR) — le
+#     locataire y est `saas_artist_id` (INTEGER). On raisonne sur le TYPE,
+#     jamais sur le nom. Garde : audit_tenant_writes.py »
+#
+# Il faisait exactement l'inverse : `if keys & {"artist_id", "saas_artist_id"}`,
+# donc N'IMPORTE LAQUELLE des deux suffisait. Mesuré ce jour-là : `artists`,
+# `tracks` et `artist_history` étaient comptées parmi ses **83 tables
+# scopées-locataire** à cause du NOM de leur colonne, alors que deux d'entre
+# elles n'ont aucun locataire, et que sur `tracks` une écriture portant le seul
+# `artist_id` Spotify serait passée au vert **sans propriétaire**.
+#
+# Aucune écriture réelle n'en profitait — `spotify_api_daily.py:363` pose bien
+# `saas_artist_id` — donc c'était un trou de GARDE, pas un défaut de données.
+# C'est précisément la forme qui survit : rien ne rougit.
+_VARCHAR = re.compile(r"(?:VARCHAR|TEXT|CHAR)", re.I)
+
+
+def tenant_scoped_tables() -> dict[str, str]:
+    """{table: colonne QUI PORTE LE LOCATAIRE}, déduite du TYPE déclaré.
+
+    Une table dont le seul `artist_id` est un VARCHAR (identifiant de plateforme)
+    et qui n'a pas de `saas_artist_id` n'est PAS scopée-locataire : elle est une
+    table de référence globale, et l'exiger d'elle serait un faux positif.
+    """
+    tables: dict[str, str] = {}
     sources = [_ROOT / "init_db.sql"] + sorted((_ROOT / "migrations").glob("*.sql"))
     create_re = re.compile(
         r"CREATE TABLE(?:\s+IF NOT EXISTS)?\s+(\w+)\s*\((.*?)\n\s*\);",
         re.S | re.I)
     alter_re = re.compile(
-        r"ALTER TABLE\s+(\w+)\s+ADD COLUMN(?:\s+IF NOT EXISTS)?\s+(artist_id|saas_artist_id)\b",
+        r"ALTER TABLE\s+(\w+)\s+ADD COLUMN(?:\s+IF NOT EXISTS)?\s+(artist_id|saas_artist_id)"
+        r"([^,;\n]*)",
         re.I)
     for path in sources:
         if not path.exists():
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         for name, body in create_re.findall(text):
-            if re.search(r"^\s*(artist_id|saas_artist_id)\s", body, re.M | re.I):
-                tables.add(name.lower())
-        for name, _col in alter_re.findall(text):
-            tables.add(name.lower())
+            table = name.lower()
+            for col in ("saas_artist_id", "artist_id"):
+                m = re.search(rf"^\s*{col}\s+([^,\n]*)", body, re.M | re.I)
+                if not m:
+                    continue
+                # `saas_artist_id` est le locataire par construction ; `artist_id`
+                # ne l'est que s'il est ENTIER.
+                if col == "saas_artist_id" or not _VARCHAR.search(m.group(1)):
+                    tables[table] = col
+                    break
+        for name, col, decl in alter_re.findall(text):
+            table, col = name.lower(), col.lower()
+            if col == "saas_artist_id" or not _VARCHAR.search(decl):
+                # Une colonne ajoutée après coup NE DÉCLASSE PAS un locataire déjà
+                # trouvé : `saas_artist_id` l'emporte sur `artist_id`.
+                if tables.get(table) != "saas_artist_id":
+                    tables[table] = col
     return tables
 
 
@@ -150,7 +192,7 @@ _INSERT_RE = re.compile(
     r"INSERT\s+INTO\s+(\w+)\s*\(([^)]*)\)", re.I | re.S)
 
 
-def scan_file(path: Path, tenant_tables: set[str]) -> list[tuple[str, int, str]]:
+def scan_file(path: Path, tenant_tables: dict[str, str]) -> list[tuple[str, int, str]]:
     # utf-8-sig: a UTF-8 BOM made ast.parse fail on three DAGs, and every
     # AST guard that read them silently scanned nothing.
     text = path.read_text(encoding="utf-8-sig", errors="replace")
@@ -179,20 +221,26 @@ def scan_file(path: Path, tenant_tables: set[str]) -> list[tuple[str, int, str]]
         if resolved is None:
             findings.append(("UNKNOWN", node.lineno,
                              f"{path}: upsert_many('{table}') — payload not statically "
-                             "resolvable; confirm it carries artist_id"))
+                             f"resolvable; confirm it carries "
+                             f"`{tenant_tables[table]}`"))
             continue
         keys, complete = resolved
-        if keys & _TENANT_KEYS:
+        # ⚠️ LA colonne de CETTE table, pas « l'une des deux ». Sur `tracks`,
+        # `artist_id` est l'identifiant Spotify : l'accepter laissait passer une
+        # écriture SANS propriétaire.
+        tenant_col = tenant_tables[table]
+        if tenant_col in keys:
             continue  # proven: the tenant is named explicitly
         if complete:
             findings.append(("MISSING", node.lineno,
                              f"{path}: upsert_many('{table}') — payload keys "
-                             f"{sorted(keys)} carry no tenant id → the column DEFAULT "
-                             "decides the owner"))
+                             f"{sorted(keys)} carry no `{tenant_col}` → the column "
+                             "DEFAULT decides the owner"))
         else:
             findings.append(("UNKNOWN", node.lineno,
-                             f"{path}: upsert_many('{table}') — tenant id would have to "
-                             f"come from a spread; explicit keys are {sorted(keys)}"))
+                             f"{path}: upsert_many('{table}') — `{tenant_col}` would "
+                             f"have to come from a spread; explicit keys are "
+                             f"{sorted(keys)}"))
 
     # ── raw INSERT INTO <table> (columns…) ──────────────────────────────────
     for match in _INSERT_RE.finditer(text):
@@ -200,11 +248,12 @@ def scan_file(path: Path, tenant_tables: set[str]) -> list[tuple[str, int, str]]
         if table not in tenant_tables:
             continue
         columns = {c.strip().strip('"').lower() for c in match.group(2).split(",")}
-        if not (columns & _TENANT_KEYS):
+        tenant_col = tenant_tables[table]
+        if tenant_col not in columns:
             line = text[:match.start()].count("\n") + 1
             findings.append(("MISSING", line,
                              f"{path}: INSERT INTO {table} ({', '.join(sorted(columns))}) "
-                             "— no tenant column"))
+                             f"— no `{tenant_col}`"))
     return findings
 
 
