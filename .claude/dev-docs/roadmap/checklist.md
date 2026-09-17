@@ -198,7 +198,7 @@ le supposer.
   | `seen_red_unknown` | **332** | une date OBSERVÉE, ou `never` ; jamais une date inventée |
   | `cause_unknown` | **242** | `read` / `measured` / `inferred` — `inferred` est une réponse valable |
   | récidivistes non traitées | **14** / 46 | la portée d'abord : ce sont elles qui ont échoué |
-  | **classes jamais écrites** | **5** | un garde les décrit et les nomme ; le catalogue ne les connaît pas |
+  | ~~classes jamais écrites~~ | **0** ✅ | **les cinq écrites le 2026-09-17**, chacune avec un `seen_red` DATÉ (voir plus bas) |
 
   **L'ordre est celui du gain mesuré**, jamais alphabétique : (1) les 14 récidivistes restantes —
   elles ont démontrablement échoué et `ne couvre pas:` est le champ qui les aurait
@@ -224,7 +224,23 @@ le supposer.
   Classe : `a-guard-names-a-class-nobody-wrote`, **première du catalogue dont `seen_red`
   porte une date observée** et non un rétro-portage.
 
-  Les cinq à écrire, chacune depuis la docstring de son garde (la matière y est déjà) :
+  ✅ **FAIT le 2026-09-17.** Les cinq sont écrites depuis la docstring de leur garde, et
+  **les cinq portent une date `seen_red` observée** — pas un rétro-portage : chaque
+  signature a été vue rouge par mutation, dont deux avec la valeur fautive d'ORIGINE
+  (`_COLUMN_WIDTH_PX` remis à 720 ; `noise_tokens=noise` retiré de l'appel de production).
+
+  ⚠️ **Et la mutation a démenti une portée que je venais d'écrire.** Pour
+  `setup-step-asks-for-a-developer-gesture`, j'avais recopié la docstring du garde —
+  « deux points d'entrée, tous deux délèguent au résolveur unique ». Muter le premier
+  appelant trouvé (`_from_signup.py:54`) a laissé le test **VERT** : le garde ne lit
+  qu'`_platform_soundcloud.py`, et il y a **trois** appelants. La prose du garde était
+  périmée et je l'aurais propagée. La portée dit maintenant le trou : un locataire qui
+  arrive par le formulaire d'inscription n'est protégé par rien.
+
+  ⚠️ **Deux mutations sur cinq n'ont pas mordu du premier coup**, et c'est ce qui a de la
+  valeur : une mutation qui ne mord pas ressemble EXACTEMENT à un garde qui couvre.
+
+  Les cinq, avec ce que leur docstring portait et que le catalogue ignorait :
 
   | classe à écrire | le garde qui la décrit |
   |---|---|

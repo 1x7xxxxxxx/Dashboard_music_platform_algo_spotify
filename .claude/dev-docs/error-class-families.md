@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**371 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**376 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -10,33 +10,34 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 
 | famille | classes | la question |
 |---|---|---|
-| [le-locataire](#le-locataire) | 41 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
+| [le-locataire](#le-locataire) | 42 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 17 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 13 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 19 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 23 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
-| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 27 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
-| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 20 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
+| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 28 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
+| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 21 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 69 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
-| [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 7 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
+| [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 8 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 2 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 20 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 17 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
-| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 22 | Ce que le dépôt déclare est-il ce que la production exécute ? |
+| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 23 | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | _sans famille_ | 3 | — |
 
 ## le-locataire
 
 **Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ?**
 
-Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|canary|sandbox|deux locataires|par locataire|du locataire|son locataire|le locataire|d'un locataire|leur locataire|chaque locataire|un locataire|locataires? multi|aux locataires` sur l'identifiant et le symptôme. 41 classe(s).
+Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|canary|sandbox|deux locataires|par locataire|du locataire|son locataire|le locataire|d'un locataire|leur locataire|chaque locataire|un locataire|locataires? multi|aux locataires` sur l'identifiant et le symptôme. 42 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`setup-step-asks-for-a-developer-gesture`](error-classes.md#setup-step-asks-for-a-developer-gesture) | une étape de mise en route est écrite, testée, et **personne ne la franchit**. Aucune erreur, aucun signal : le locataire abandonne en silence, et on  |
 | [`exempt-row-hides-others-conflict`](error-classes.md#exempt-row-hides-others-conflict) | une recherche d'unicité trouve une ligne EXEMPTÉE, s'arrête donc là, puis retire l'exemptée du résultat — et répond « aucun conflit » alors que deux l |
 | [`artist-id-or-1`](error-classes.md#artist-id-or-1) | `get_artist_id() or 1` coerces an unhydrated session onto artist 1 → cross-tenant data leak (CLAUDE.md rule #7). |
 | [`view-session-adoption`](error-classes.md#view-session-adoption) | a view uses raw `get_db_connection()` + the manual `get_artist_id()` guard instead of the `view_session()` context manager. The manual form is correct |
@@ -220,10 +221,11 @@ Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-a
 
 **Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ?**
 
-Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 27 classe(s).
+Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 28 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`two-shapes-summed-as-one`](error-classes.md#two-shapes-summed-as-one) | un total est faux d'un facteur qui ressemble à un vrai chiffre. Aucune exception, aucune ligne perdue : deux grandeurs de NATURES différentes ont été  |
 | [`streamlit-pin-drift`](error-classes.md#streamlit-pin-drift) | a package pinned `==X` in one manifest while another manifest / the lockfile / the installed env pins `==Y` → prod≠dev, "works locally breaks in Docke |
 | [`prod-canonical-schema-drift`](error-classes.md#prod-canonical-schema-drift) | the live prod DB has a table/column the version-controlled schema (`init_db.sql` + `migrations/*.sql`) lacks, or vice-versa. Code reading/writing the  |
 | [`prod-compose-drift`](error-classes.md#prod-compose-drift) | the live prod `docker-compose.yml` is UNTRACKED (gitignored) and hand-derived, so it silently diverges from the canonical `docker-compose.example.yml` |
@@ -256,10 +258,11 @@ Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|diver
 
 **Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ?**
 
-Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|outside-its-condition|read-that-failed|failed-read|except.*number|read-through-a-filtering` sur l'identifiant et le symptôme. 20 classe(s).
+Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|outside-its-condition|read-that-failed|failed-read|except.*number|read-through-a-filtering` sur l'identifiant et le symptôme. 21 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`an-optimisation-that-degrades-what-worked`](error-classes.md#an-optimisation-that-degrades-what-worked) | un algorithme « amélioré » se trompe sur des cas qu'il réussissait. Il se trompe **en silence** : aucune exception, aucun compte qui change, juste des |
 | [`collector-silent-success`](error-classes.md#collector-silent-success) | a collector `except` block logs then returns empty (`None`/`[]`/`{}`) → DAG upserts 0 rows, exits SUCCESS, no alert, dashboard silently stale. |
 | [`unregistered-write-table`](error-classes.md#unregistered-write-table) | a table passed as a literal to `upsert_many`/`insert_many` is absent from `_ALLOWED_TABLES` (postgres_handler) → the SQL-injection allowlist raises a  |
 | [`i18n-untranslated-key`](error-classes.md#i18n-untranslated-key) | a `t("ns.key", "FR …")` / `_t("ns.key", "FR …")` call has no EN entry in `i18n_catalog/` → EN mode silently renders the French default (untranslated s |
@@ -441,10 +444,11 @@ Règle de rattachement : `runs-twice|concurrency-group|overload|competing-for-on
 
 **Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ?**
 
-Règle de rattachement : `threshold|seuil|min[_-]|floor|ceiling|limit|budget|quota|window|magic-number|hardcoded` sur l'identifiant et le symptôme. 7 classe(s).
+Règle de rattachement : `threshold|seuil|min[_-]|floor|ceiling|limit|budget|quota|window|magic-number|hardcoded` sur l'identifiant et le symptôme. 8 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`a-scoring-call-that-omits-its-context`](error-classes.md#a-scoring-call-that-omits-its-context) | un rapprochement correct cesse d'être proposé tout seul, et rien ne le signale. Pas d'exception, pas de compte qui change : le score passe simplement  |
 | [`df-na-rep`](error-classes.md#df-na-rep) | `df.style.format({...})` without `na_rep=` → `TypeError` when a formatted column is NULL (LEFT JOIN / empty window). |
 | [`object-dtype-numeric-op`](error-classes.md#object-dtype-numeric-op) | a numeric DB column that contains a NULL loads as pandas `object` dtype; subsequent arithmetic + `Series.round(n)` then raises `TypeError: Expected nu |
 | [`trigger-threshold-split`](error-classes.md#trigger-threshold-split) | a rule, the agent it spawns, and the hook that signals it state different thresholds. The agent's `description` wins, because it is the only one the r |
@@ -523,10 +527,11 @@ Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhoo
 
 **Ce que le dépôt déclare est-il ce que la production exécute ?**
 
-Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version|montée de majeure|valeur par défaut|majeure|reload-that-does-not-reload|bind-address-that-hides-the-service` sur l'identifiant et le symptôme. 22 classe(s).
+Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version|montée de majeure|valeur par défaut|majeure|reload-that-does-not-reload|bind-address-that-hides-the-service` sur l'identifiant et le symptôme. 23 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`image-sized-for-a-layout-it-no-longer-has`](error-classes.md#image-sized-for-a-layout-it-no-longer-has) | une image déborde de son cadre, ou devient floue. Rien ne casse ; c'est simplement laid, et personne ne le signale avant qu'un utilisateur le dise. |
 | [`collector-import-dotenv-crash`](error-classes.md#collector-import-dotenv-crash) | a module-level `load_dotenv()` in a collector (not wrapped in try/except) raises `PermissionError` at import when the mounted `/opt/airflow/.env` is r |
 | [`migrate-heals-only-if-run-to-completion`](error-classes.md#migrate-heals-only-if-run-to-completion) | `make migrate` prints success while `psql` errors scroll past. The full run is self-consistent, so nothing looks wrong — but a run interrupted at the  |
 | [`input-nobody-would-type-reaches-the-driver`](error-classes.md#input-nobody-would-type-reaches-the-driver) | a caller-supplied string reaches the database driver in a shape the driver refuses, and the refusal is an unhandled exception rather than a rejected r |
@@ -562,6 +567,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=371 families=17 orphans=3 -->
+<!-- error-class-families: total=376 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=2f83d18da7aa5601d6034eecd9e364bf329aceac55660fc7973a66f53dcf47f3 -->
+<!-- error-class-families: sha256=6e9fbdb6e5e598ef30d98489d604eded0113899ee6b14b4ce58070c71d2c9e78 -->

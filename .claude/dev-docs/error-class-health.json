@@ -1999,6 +1999,29 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "a-scoring-call-that-omits-its-context": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-06",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_every_ranking_call_names_the_artist.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
+      "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
+      "guard_scope_has_not_covered": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P2",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-shared-database-read-while-another-test-writes-it": {
       "cause_evidence": "measured",
       "first_seen_declared": "2026-09-16",
@@ -3007,6 +3030,29 @@
       "status": "guarded",
       "introduced_date": "2026-09-16",
       "revisions": 2,
+      "history_additions": 0,
+      "renamed_from": null
+    },
+    "an-optimisation-that-degrades-what-worked": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-06",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_the_matcher_keeps_its_known_pairs.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
+      "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
+      "guard_scope_has_not_covered": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P2",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5359,6 +5405,29 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "image-sized-for-a-layout-it-no-longer-has": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-06",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_screenshot_never_exceeds_its_column.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "deux-surfaces-deux-nombres",
+      "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
+      "guard_scope_has_not_covered": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P3",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "import-refused-without-naming-the-reason": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-08-26",
@@ -7157,6 +7226,29 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "setup-step-asks-for-a-developer-gesture": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-03",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_link_is_enough_to_identify_a_tenant.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
+      "guard_scope_derived_family": "le-locataire",
+      "guard_scope_has_not_covered": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "manual",
+      "seen_red": "2026-09-17",
+      "severity": "P2",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "shipped-artifact-lags-its-source": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-03",
@@ -8032,6 +8124,29 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "two-shapes-summed-as-one": {
+      "cause_evidence": "read",
+      "first_seen_declared": "2026-09-08",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_apple_periods_are_asked_not_guessed.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
+      "guard_scope_derived_family": "deux-surfaces-deux-nombres",
+      "guard_scope_has_not_covered": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P2",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "two-silences-one-message": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-12",
@@ -8588,11 +8703,11 @@
       "seen_red_unknown": 331
     },
     "population": {
-      "automatic_guard": 353,
-      "classes": 371,
+      "automatic_guard": 358,
+      "classes": 376,
       "ever_recurred_observed": 47,
       "prose_only": 18,
-      "with_signature": 360
+      "with_signature": 365
     },
     "recurrence": {
       "window_start": "2026-05-15",

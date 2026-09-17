@@ -72,18 +72,25 @@ _ENTRY = re.compile(r"^## ([a-z0-9][a-z0-9-]+)$", re.M)
 # Ce n'est pas une exemption : c'est la dette, nommée, et le plafond ne peut que baisser.
 # Chacune se ferme en écrivant la classe — la docstring du garde porte déjà le symptôme,
 # la cause et la mesure, c'est-à-dire la matière de `/capitalise`.
-_KNOWN_ORPHANS: dict[str, str] = {
-    "setup-step-asks-for-a-developer-gesture":
-        "tests/test_a_link_is_enough_to_identify_a_tenant.py",
-    "image-sized-for-a-layout-it-no-longer-has":
-        "tests/test_a_screenshot_never_exceeds_its_column.py",
-    "two-shapes-summed-as-one":
-        "tests/test_apple_periods_are_asked_not_guessed.py",
-    "a-scoring-call-that-omits-its-context":
-        "tests/test_every_ranking_call_names_the_artist.py",
-    "an-optimisation-that-degrades-what-worked":
-        "tests/test_the_matcher_keeps_its_known_pairs.py",
-}
+_KNOWN_ORPHANS: dict[str, str] = {}
+# ── VIDÉE le 2026-09-17, une nuit après avoir été posée ──────────────────────
+#
+# Les cinq classes y sont ÉCRITES, pas exemptées : `setup-step-asks-for-a-developer-
+# gesture`, `image-sized-for-a-layout-it-no-longer-has`, `two-shapes-summed-as-one`,
+# `a-scoring-call-that-omits-its-context`, `an-optimisation-that-degrades-what-worked`.
+#
+# Chacune depuis la docstring de son garde, qui portait déjà tout : le symptôme, la
+# cause, la mesure, la date, le coût. Rien n'a été inventé — et rien n'aurait été
+# retrouvé : ces chiffres n'existaient QUE dans un test.
+#
+#     6 locataires connectés, 3 ouvertures de la page, 0 ligne SoundCloud
+#     8 captures sur 16 entre 1257 et 1693 px, les 8 débordaient
+#     l'export Apple n'a AUCUNE colonne de date
+#     score 0,90 → 0,75 sans `noise_tokens`, sous le seuil d'auto-acceptation
+#     21 rapprochements corrects sur 21, intrus écartés sous 0,21
+#
+# Le plafond reste, vide : une SIXIÈME orpheline le ferait rougir. C'est le sens d'un
+# cliquet — il ne se retire pas quand la dette est payée, il garde qu'elle le reste.
 
 
 def _catalogue_ids() -> set[str]:

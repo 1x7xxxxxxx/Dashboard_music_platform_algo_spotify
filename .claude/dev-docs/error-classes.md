@@ -134,6 +134,11 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [a-fallback-that-runs-when-the-first-branch-succeeded](#a-fallback-that-runs-when-the-first-branch-succeeded) | P3 | deterministic | guarded | none |
 | [a-memo-field-written-and-never-consulted](#a-memo-field-written-and-never-consulted) | P3 | deterministic | guarded | none |
 | [a-renderer-that-recomputes-what-its-caller-already-has](#a-renderer-that-recomputes-what-its-caller-already-has) | P3 | deterministic | guarded | none |
+| [setup-step-asks-for-a-developer-gesture](#setup-step-asks-for-a-developer-gesture) | P2 | manual | guarded | none |
+| [image-sized-for-a-layout-it-no-longer-has](#image-sized-for-a-layout-it-no-longer-has) | P3 | deterministic | guarded | none |
+| [two-shapes-summed-as-one](#two-shapes-summed-as-one) | P2 | deterministic | guarded | none |
+| [a-scoring-call-that-omits-its-context](#a-scoring-call-that-omits-its-context) | P2 | deterministic | guarded | none |
+| [an-optimisation-that-degrades-what-worked](#an-optimisation-that-degrades-what-worked) | P2 | deterministic | guarded | none |
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
 | [a-document-that-cannot-be-current-in-its-own-commit](#a-document-that-cannot-be-current-in-its-own-commit) | P2 | deterministic | guarded | none |
 | [a-population-that-counts-its-own-headers](#a-population-that-counts-its-own-headers) | P3 | deterministic | guarded | none |
@@ -621,6 +626,98 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-17: **trouvée en cherchant autre chose, comme les deux autres de la nuit.** R121 cherchait des agrégations Python à passer en SQL ; le comptage des requêtes par vue a rendu `onboarding_health` à **324**, un ordre de grandeur au-dessus de tout le reste (le suivant est `trigger_algo` à 33). Aucune agrégation là-dedans : un calcul en double, douze fois.
   - 2026-09-17: **un premier garde a été écrit puis SUPPRIMÉ sans être livré.** Il cherchait la forme syntaxique — « deux appels où le second rappelle le premier avec les mêmes arguments » — et il était mauvais pour deux raisons mesurées : il dépendait du hasard des noms de paramètres (son propre test de non-vacuité l'a pris en défaut, `(db, artist_id)` contre `(db, aid)`), et il dénonçait deux sites sains dont un constructeur. Troisième fois de la journée que ce raisonnement tranche : **un garde bruyant se fait désactiver, ce qui coûte plus cher que le trou qu'il couvrait.** Le garde livré interroge l'EXÉCUTION, pas la syntaxe.
+
+## setup-step-asks-for-a-developer-gesture
+- status: guarded
+- severity: P2
+- kind: manual
+- symptom: une étape de mise en route est écrite, testée, et **personne ne la franchit**. Aucune erreur, aucun signal : le locataire abandonne en silence, et on lit ce silence comme « il n'a pas encore eu le temps ».
+- root_cause: l'étape demande un geste de DÉVELOPPEUR à quelqu'un qui n'en est pas un. Mesuré le 2026-09-03 sur SoundCloud : l'étape disait « affichez le CODE SOURCE de la page (Ctrl+U), cherchez `soundcloud:users:`, collez le nombre ». Confronté à la production : sur les **6 locataires jamais connectés, 3 ont ouvert la page d'identifiants et 0 n'a jamais produit une ligne SoundCloud**. Et `runbook-artist-test-session.md:127` le disait DÉJÀ par écrit — *« YouTube (créer une clé API Google Cloud) et SoundCloud (afficher le code source d'une page) ne sont pas des gestes d'artiste. Attends-toi à les faire AVEC lui, en partage d'écran »* — sans que personne en tire la conséquence : une étape qu'on doit faire À LA PLACE de l'artiste n'est pas une étape, c'est une panne.
+- cause_evidence: measured (6 locataires connectés, 3 ouvertures de la page, 0 ligne SoundCloud produite — 2026-09-03)
+- signature: `python3 -m pytest tests/test_a_link_is_enough_to_identify_a_tenant.py -q`
+- seen_red: 2026-09-17 sur `src/dashboard/views/credentials/_platform_soundcloud.py:92` (l'appel au résolveur remplacé par un découpage d'URL à la main) → exit 1 ; 0 après remise en état
+- long_term_fix: **la capacité était déjà dans le dépôt, à deux fonctions de là.** `_render.py::_resolve_soundcloud_track` appelle le `/resolve` officiel de SoundCloud, et son propre commentaire notait que *« `/resolve` rend volontiers un USER pour une URL de profil »*. L'artiste colle désormais un LIEN, et `soundcloud_user_id_from_url` en tire l'identifiant. Deux points d'entrée (`_handle_save`, `_test_soundcloud`) délèguent à cette seule fonction, donc la règle existe une fois.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_link_is_enough_to_identify_a_tenant.py }
+- guard_scope: le-message-parle-au-mauvais-lecteur — demander à un artiste un geste qui suppose des outils de développeur ; couvre: **UN fichier**, `views/credentials/_platform_soundcloud.py`, lu à l'AST : `_handle_save` normalise avant d'écrire, et un lien invalide interrompt la sauvegarde ; ne couvre pas: (1) ⚠️ **les DEUX autres appelants du résolveur** — `_from_signup.py:54` et `_render.py:890`. La docstring du garde annonce « two entry points » et il y en a **trois** ; muter `_from_signup` laisse le garde VERT, vérifié le 2026-09-17. Un locataire qui arrive par le formulaire d'inscription n'est donc protégé par rien ; (2) **YouTube, délibérément** — `_platform_youtube` résout un handle puis REPREND l'identifiant à l'artiste pour qu'il le colle, au motif écrit qu'*« une identité de locataire ne s'infère pas ici »* : une URL de profil déréférence exactement un compte, une recherche par nom non ; (3) les autres gestes de développeur du parcours — créer une clé API Google Cloud, un App Meta, un token système : aucun n'est mesuré ni gardé ; (4) le fait qu'un artiste PASSE l'étape — le garde vérifie la forme de la demande, jamais qu'elle aboutit.
+- rex_ref: src/utils/platform_identity_resolver.py
+- first_seen: 2026-09-03
+- History:
+  - 2026-09-17: classe écrite **quatorze jours après son correctif**, parce qu'un garde neuf (`a-guard-names-a-class-nobody-wrote`) a refusé que sa docstring nomme un identifiant absent du catalogue. Le défaut, sa mesure et son correctif vivaient dans un test et nulle part ailleurs — ni rangés en famille, ni comptés par `make error-health`. Une occurrence suivante serait passée pour neuve.
+  - 2026-09-17: **la mutation a démenti la portée que je venais d'écrire.** Je l'avais recopiée de la docstring du garde — « deux points d'entrée, tous deux délèguent au résolveur unique, donc la règle existe une fois ». Muter le premier appelant trouvé (`_from_signup.py`) a laissé le test VERT : le garde ne lit qu'`_platform_soundcloud.py`. Il y a **trois** appelants. La prose du garde était périmée, et je l'aurais propagée sans la mutation.
+
+## image-sized-for-a-layout-it-no-longer-has
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une image déborde de son cadre, ou devient floue. Rien ne casse ; c'est simplement laid, et personne ne le signale avant qu'un utilisateur le dise.
+- root_cause: une largeur a été choisie pour une mise en page qui n'existe plus. `csv_guides_st` plafonnait chaque capture à **720 px** — un chiffre de l'époque où un guide occupait toute la zone de contenu. Les deux surfaces de guides rendent maintenant dans des COLONNES : `csv_guides_st` en `st.columns(2)`, les guides d'identifiants dans `_col_guide` d'un `st.columns([3, 2])`, la moitié la plus étroite. Mesuré le 2026-09-06 sur les 16 captures CSV : **huit font entre 1257 et 1693 px de large, et les huit débordaient**. Signalé par l'utilisateur, pas par un test : « certaines captures dépassent du cadre, c'est pas beau ».
+- cause_evidence: measured (16 captures mesurées, 8 entre 1257 et 1693 px — 2026-09-06)
+- signature: `python3 -m pytest tests/test_a_screenshot_never_exceeds_its_column.py -q`
+- seen_red: 2026-09-17 sur `src/dashboard/content/csv_guides_st.py:31` — `_COLUMN_WIDTH_PX` remis à **720**, la valeur fautive d'origine → exit 1 ; 0 après remise à 300
+- long_term_fix: **les deux façons d'être laid sont opposées, et un réglage unique n'en corrige qu'une** : une capture de 1693 px dans une colonne de ~340 px déborde ; une vignette de 138 px étirée à la colonne devient floue. Python ne peut pas demander à Streamlit la largeur du conteneur — la règle est donc un SEUIL : étirer au-dessus (ce qui ne peut que rétrécir), taille native en dessous (ce qui ne peut pas déborder). Et les deux surfaces appellent UN seul renderer, ce qui est l'autre moitié du correctif : elles partageaient un helper de dimensionnement, et le renommer avait fait tomber toute la page d'identifiants sur un `ImportError` — un couplage que rien n'avait écrit.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_screenshot_never_exceeds_its_column.py }
+- guard_scope: deux-surfaces-deux-nombres — dimensionner une image pour une mise en page qu'elle n'a plus ; couvre: les captures des deux surfaces de guides, par la mesure des pixels RÉELS des fichiers et la vérification que le seuil reste sous la moitié d'une page ; ne couvre pas: (1) toutes les autres images du produit — le PDF, les avatars, les logos de plateforme, les figures exportées ; (2) le DÉBORDEMENT lui-même, qui n'est pas observable en Python : on garde le seuil, pas le rendu, et c'est un utilisateur qui a signalé le défaut ; (3) une mise en page qui rétrécirait encore — le seuil est écrit pour `st.columns([3, 2])` d'aujourd'hui et ne se recalcule pas ; (4) le cas inverse non plus : rien ne vérifie qu'une vignette trop petite n'est pas étirée ailleurs.
+- rex_ref: src/dashboard/content/csv_guides_st.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-17: classe écrite depuis la docstring de son garde, onze jours après. Le chiffre qui la rend utile — huit captures sur seize entre 1257 et 1693 px — n'existait que là.
+
+## two-shapes-summed-as-one
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un total est faux d'un facteur qui ressemble à un vrai chiffre. Aucune exception, aucune ligne perdue : deux grandeurs de NATURES différentes ont été additionnées, et le résultat a la bonne unité.
+- root_cause: **l'export Apple Music n'a aucune colonne de date.** C'est le sélecteur de leur interface qui choisit la période, et le fichier n'en garde pas la trace. Trois conséquences, toutes du même défaut — on ne sait pas ce que couvre le fichier qu'on somme : (1) sans le demander, trois exports annuels déposés le même jour s'écrasent, même clé ; (2) deux exports annuels sont des périodes **disjointes** — les soustraire l'un de l'autre comme deux photos d'un cumul n'a aucun sens ; (3) un cumul « depuis le début » CONTIENT déjà les années, donc les additionner compte les mêmes écoutes deux fois. Question posée le 2026-09-08 : *« y a-t-il un intérêt de demander à l'artiste d'importer les CSV de chaque année ? »* — oui, et c'est ce fait-là qui décide de tout.
+- cause_evidence: read (le format d'export Apple, vérifié : aucune colonne de date)
+- signature: `python3 -m pytest tests/test_apple_periods_are_asked_not_guessed.py -q`
+- seen_red: 2026-09-17 sur `src/dashboard/utils/csv_platforms.py:54` (`period_start`/`period_end` retirés de la clé de conflit) → exit 1, **deux tests rouges** ; 0 après remise en état
+- long_term_fix: **on DEMANDE la période au lieu de la deviner.** L'import Apple pose la question, la réponse entre dans la clé de conflit, et les deux formes — période bornée et cumul depuis le début — sont marquées comme telles. `STEP_ONLY` en est le corollaire dans l'agrégation : Apple ne produit pas des jours à sommer, il produit un total par période, et lui appliquer le plancher de couverture supprimerait chacun de ses points.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
+- guard_scope: un-cumul-pris-pour-un-quotidien — additionner deux grandeurs que rien ne déclare comparables ; couvre: le seul import Apple, par trois questions — la clé de conflit contient la période, la vue déclare la forme, et l'agrégation exempte Apple du plancher ; ne couvre pas: (1) les autres sources qui mélangent les formes, et il y en a — SoundCloud et YouTube sont des CUMULS, S4A est quotidien, et c'est une autre classe (`jamais-tracer-un-cumul-comme-un-quotidien`) qui garde ça ; (2) un artiste qui déclare la MAUVAISE période : rien ne peut le vérifier, le fichier ne la porte pas ; (3) l'addition elle-même, où qu'elle se produise — le garde tient l'import, pas les sommes en aval.
+- rex_ref: src/dashboard/utils/csv_platforms.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-17: classe écrite depuis la docstring de son garde. Elle nommait le fait décisif — l'export Apple n'a pas de colonne de date — qui n'était écrit nulle part ailleurs, et dont dépendent les trois règles d'import.
+
+## a-scoring-call-that-omits-its-context
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un rapprochement correct cesse d'être proposé tout seul, et rien ne le signale. Pas d'exception, pas de compte qui change : le score passe simplement sous le seuil d'auto-acceptation, et la suggestion disparaît de l'écran.
+- root_cause: SoundCloud et YouTube préfixent le nom de l'artiste au titre (« 1x7xxxxxxx - Kimono À Semelle De Fer »). Depuis que l'inclusion est pondérée par la COUVERTURE — elle rendait un 0,90 plat quel que soit le bruit, donc au-dessus du seuil de 0,80 — ce nom compte comme un mot du titre s'il n'est pas déclaré en `noise_tokens`. Mesuré le 2026-09-06 en écrivant le correctif : sans `noise_tokens`, la couverture tombe à **5/6 et le score à 0,75**, sous le seuil. Le moteur est délibérément moins sûr sans le contexte ; la production doit donc toujours le donner.
+- cause_evidence: measured (score 0,90 → 0,75 sans `noise_tokens`, couverture 6/6 → 5/6 — 2026-09-06)
+- signature: `python3 -m pytest tests/test_every_ranking_call_names_the_artist.py -q`
+- seen_red: 2026-09-17 sur `src/dashboard/views/meta_mapping/_tracks.py:88` (`noise_tokens=noise` retiré de l'appel de production) → exit 1 ; 0 après remise en état
+- long_term_fix: le garde balaie `src/` à l'AST et exige que **tout appel de production** aux deux moteurs (`rank_track_candidates`, `rank_campaign_candidates`) nomme l'artiste. C'est la contrepartie exacte d'un contrat posé ailleurs — `test_title_similarity_containment_artist_prefix` fige que la fonction est moins sûre sans le nom ; ce garde-ci rend le « toujours » vérifiable.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_ranking_call_names_the_artist.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — appeler un moteur de score sans lui donner le contexte qui le désambiguïse ; couvre: les appels aux DEUX moteurs nommés, sous `src/` seulement, lus à l'AST ; ne couvre pas: (1) `tools/`, `airflow/` et les notebooks — un script d'analyse qui appelle le moteur sans contexte rendra des scores plus bas sans que rien ne le dise ; (2) un appel qui passe `noise_tokens` VIDE ou faux : le garde vérifie que l'argument est là, jamais qu'il contient le bon nom ; (3) les autres contextes qui désambiguïsent un score et ne sont pas ce paramètre-là — la plateforme d'origine, la date de sortie ; (4) le seuil lui-même, écrit à 0,80 et non recalibré depuis.
+- rex_ref: src/utils/track_mapping_suggest.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-17: classe écrite depuis la docstring de son garde. Le chiffre qui la justifie — 0,90 → 0,75, sous le seuil — n'était écrit que là.
+
+## an-optimisation-that-degrades-what-worked
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un algorithme « amélioré » se trompe sur des cas qu'il réussissait. Il se trompe **en silence** : aucune exception, aucun compte qui change, juste des chiffres faux en aval — les écoutes d'un morceau attribuées à un autre.
+- root_cause: on modifie un algorithme de rapprochement sans filet sur ce qui MARCHE déjà. Le seuil d'auto-acceptation est à 0,80 : au-dessus, personne ne relit. Mesuré le 2026-09-06 sur les titres RÉELS du locataire 18 en production : **21 rapprochements corrects sur 21**, et les 6 intrus (edits DJ d'autres artistes, mix maison) écartés sous 0,21. Le risque d'une passe d'optimisation sur un algorithme à 21/21 n'est pas de rater un gain : c'est de DÉGRADER.
+- cause_evidence: measured (21/21 sur les titres réels du locataire 18, intrus sous 0,21 — 2026-09-06)
+- signature: `python3 -m pytest tests/test_the_matcher_keeps_its_known_pairs.py -q`
+- seen_red: 2026-09-17 sur `src/utils/track_mapping_suggest.py:126` — `artist_noise_tokens` rendu vide, c'est-à-dire la dégradation EXACTE que la classe décrit → exit 1, **2 des 31 paires du cliché tombent** ; 0 après remise en état
+- long_term_fix: un CLICHÉ de ce qui fonctionne, pris avant de toucher à l'algorithme — les 10 morceaux canoniques et leurs variantes de plateforme, recopiés **tels quels** de la production : accents, apostrophes, `_` de nom de fichier, `?` d'Apple, préfixe d'artiste, suffixes `(free download)` de SoundCloud. Ne pas les « nettoyer » est le point : c'est exactement ce bruit-là que l'algorithme doit absorber. Le filet appelle le moteur comme la production l'appelle — avec `artist_noise_tokens` — parce qu'un filet qui n'appelle pas comme la production ne garde pas la production.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_matcher_keeps_its_known_pairs.py }
+- guard_scope: un-garde-qui-ne-garde-pas — modifier un algorithme sans filet sur les cas qu'il réussissait ; couvre: les 21 paires mesurées d'UN locataire (le 18) et les 6 intrus écartés, avec le bruit de plateforme conservé ; ne couvre pas: (1) les autres locataires — leurs titres ont d'autres formes de bruit, et rien ne les échantillonne ; (2) les paires que l'algorithme rate DÉJÀ : le cliché fige ce qui marche, il ne mesure pas ce qui manque, donc une optimisation qui n'améliore rien passe verte ; (3) le seuil de 0,80, jamais recalibré ; (4) la même forme sur les autres algorithmes du produit — le score ML, le rapprochement de campagnes Meta — dont aucun n'a de cliché.
+- rex_ref: src/utils/track_mapping_suggest.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-17: classe écrite depuis la docstring de son garde. C'est la cinquième et dernière des classes qu'un garde nommait sans qu'elles existent, trouvées le 2026-09-16 en balayant 81 déclarations.
+  - 2026-09-17: ⚠️ **deux mutations avant celle-ci n'ont pas mordu**, et ce sont elles qui ont de la valeur. La première visait le moteur par un `sed` maladroit : le fichier compilait, le test restait vert — **une mutation qui ne mord pas ressemble exactement à un garde qui couvre**. La seconde a muté `_from_signup.py`, un appelant que ce garde-là ne lit pas. Seule la troisième — neutraliser `artist_noise_tokens`, la dégradation que la classe décrit — a fait tomber 2 des 31 paires du cliché.
 
 ## exempt-row-hides-others-conflict
 - status: guarded

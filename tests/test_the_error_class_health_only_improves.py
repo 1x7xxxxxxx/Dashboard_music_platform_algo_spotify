@@ -118,9 +118,14 @@ _FLOORS = {
     # +1 : `a-renderer-that-recomputes-what-its-caller-already-has`, DEUX instances
     # dans deux fichiers sans rapport le meme jour — `onboarding_health` (324 → 181
     # requetes) et `db_health` (22 → 11 `fetch_df`).
-    "classes": 371,
-    "with_signature": 360,
-    "automatic_guard": 353,
+    # +5 le 2026-09-17 : les cinq classes qu'un garde nommait sans qu'elles existent,
+    # ecrites depuis la docstring de leur garde. Les CINQ arrivent avec un `seen_red`
+    # DATE — chacune vue rouge par mutation, dont deux avec la valeur fautive d'origine
+    # (`_COLUMN_WIDTH_PX = 720`, `noise_tokens` retire de l'appel de production).
+    # `seen_red_unknown` ne bouge donc pas : +5 classes, +5 dates observees.
+    "classes": 376,
+    "with_signature": 365,
+    "automatic_guard": 358,
 }
 # Le plancher qui n'a pas d'équivalent dans `gold-coverage`, et le plus important ici :
 # un taux s'améliore aussi en RÉTRÉCISSANT la fenêtre d'observation.

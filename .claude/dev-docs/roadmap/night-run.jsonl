@@ -24,3 +24,5 @@
 {"at": "2026-09-17T00:20:57+00:00", "head": "8cdfd18", "kind": "done", "task": "R121", "what": "7 sites mesures, 7 refutes ; le cout est plotly (42%), pas l'agregation (0,4 ms)"}
 {"at": "2026-09-17T00:25:14+00:00", "head": "2cd2c13", "kind": "start", "task": "R116", "what": "ADR-027 : les courbes existent-elles ?"}
 {"at": "2026-09-17T00:25:43+00:00", "head": "2cd2c13", "kind": "park", "task": "R116", "what": "ADR-027 attend 14 jours complets dans daily_ops_metrics ; aujourd'hui 0, tous les percentiles NULL"}
+{"at": "2026-09-17T00:30:54+00:00", "head": "c6a0c6e", "kind": "start", "task": "R122", "what": "lot 6 : les 5 classes qu'un garde nomme sans qu'elles existent"}
+{"at": "2026-09-17T00:44:58+00:00", "head": "c6a0c6e", "kind": "done", "task": "R122", "what": "lot 6 : 5 classes ecrites, 5 seen_red dates, orphelines 5 → 0"}
