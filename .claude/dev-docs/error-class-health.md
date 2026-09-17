@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**377 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (210 révisions du catalogue rejouées).
+**377 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (211 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
@@ -44,7 +44,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_unknown` | 0 |
-| `scope_without_not_covered` | 310 |
+| `scope_without_not_covered` | 304 |
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 331 |
 
@@ -60,8 +60,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | by_guard · prose | 3 | 0.5595 | 0.1125 – 1.6348 | insuffisant pour conclure (n=58) |
 | by_seen_red · daté | 1 | 0.1567 | 0.002 – 0.8718 | insuffisant pour conclure (n=58) |
 | by_seen_red · jamais-ou-inconnu | 57 | 0.2221 | 0.1682 – 0.2877 | insuffisant pour conclure (n=58) |
-| by_scope · ne-couvre-pas renseigné | 58 | 0.907 | 0.6887 – 1.1725 | **séparent** |
-| by_scope · non renseigné | 0 | 0.0 | 0.0 – 0.0184 | **séparent** |
+| by_scope · ne-couvre-pas renseigné | 58 | 0.8737 | 0.6634 – 1.1295 | **séparent** |
+| by_scope · non renseigné | 0 | 0.0 | 0.0 – 0.0186 | **séparent** |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 

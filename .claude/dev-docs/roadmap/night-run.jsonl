@@ -34,3 +34,5 @@
 {"at": "2026-09-17T03:07:30+00:00", "head": "eb5f112", "kind": "start", "task": "R122", "what": "4 rouges de fin de nuit"}
 {"at": "2026-09-17T03:39:15+00:00", "head": "6a7eb63", "kind": "done", "task": "R122", "what": "4 rouges traites ; suite 6928 verts"}
 {"at": "2026-09-17T03:43:10+00:00", "head": "6a7eb63", "kind": "start", "task": "R122", "what": "lot 9 : portees des P1 guarded"}
+{"at": "2026-09-17T03:53:45+00:00", "head": "19f69f1", "kind": "done", "task": "R122", "what": "lot 9 : 6 portees P1, 310 ; critic 4/6"}
+{"at": "2026-09-17T03:55:08+00:00", "head": "19f69f1", "kind": "start", "task": "R122", "what": "lot 10 : P1 guarded, suite"}
