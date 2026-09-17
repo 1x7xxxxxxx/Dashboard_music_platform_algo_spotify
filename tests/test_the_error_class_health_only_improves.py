@@ -101,8 +101,9 @@ _CEILINGS = {
     # −12 : `un-seuil-écrit-d-instinct` (8/8) et `un-coût-payé-sans-contrepartie`
     # (8/8), 12,5 % chacune. HUIT familles à zéro, 102 portées dans la séance.
     # −24 : `deux-surfaces-deux-nombres` à ZÉRO (29/29), récidive 10,3 %.
-    # NEUF familles à zéro, 126 portées dans la séance.
-    "scope_without_not_covered": 171,
+    # −21 : `une-configuration-qui-diverge-de-la-prod` à ZÉRO (24/24), 8,3 %.
+    # DIX familles à zéro, 147 portées dans la séance.
+    "scope_without_not_covered": 150,
     # ⚠️ Compteur NEUF le 2026-09-17, posé sur une question du propriétaire : « est-ce
     # qu'on a intégré la réflexion de savoir si l'erreur découverte peut être situéé
     # ailleurs dans le code ? ». La réponse mesurée était NON — 69 classes sur 395
@@ -120,7 +121,7 @@ _CEILINGS = {
     # partages, et le defaut s'est produit DEUX fois en deux lots avant d'etre
     # mesure : une classe s'etait attribue le croisement Caddy de sa voisine, une
     # autre le taux de censure d'une troisieme.
-    "scope_on_a_shared_guard_without_naming_its_tests": 12,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
+    "scope_on_a_shared_guard_without_naming_its_tests": 15,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
                                       # ⚠️ 9 → 11 le 2026-09-17, et les DEUX de hausse sont
                                       # STRUCTURELS, pas de la négligence : `ci-runs-twice-for-one-commit`
                                       # et `ci-has-no-concurrency-group` partagent
@@ -131,6 +132,20 @@ _CEILINGS = {
                                       # `analyse()` étiquette chaque constat par son identifiant de
                                       # classe. C'est le prédicat qui ne sait pas le lire, pas la portée
                                       # qui ment. Écrit ici plutôt que contourné en déformant les portées.
+                                      #
+                                      # ⚠️ ÉTAT AU 2026-09-17, et il faut le lire avant de croire ce
+                                      # compteur : **6 des 15 sont structurelles**, soit 40 %. Ce sont
+                                      # les classes dont le garde N'EST PAS un fichier pytest —
+                                      # `ci-runs-twice-for-one-commit` et `ci-has-no-concurrency-group`
+                                      # (un script), `streamlit-pin-drift` et
+                                      # `a-major-upgrade-that-moves-a-default` (une étape de workflow),
+                                      # `a-procedural-rule-in-the-database` (`audit_runner`),
+                                      # `an-action-pin-derived-from-a-version-number` (un outil).
+                                      #
+                                      # Un compteur dont 40 % ne mesure plus ce qu'il prétend cesse de
+                                      # discriminer. Le corriger demande d'accepter un nom d'étape, de
+                                      # constat ou de fonction à côté de `::test_x` — chantier nommé.
+                                      # Le crânter tel quel est honnête ; s'y fier ne l'est pas.
                                       #
                                       # ⚠️ TROISIÈME cas de la même forme le 2026-09-17 :
                                       # `streamlit-pin-drift` a pour garde une ÉTAPE de

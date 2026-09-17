@@ -1296,7 +1296,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the guarded-import test forbids an unwrapped module-level `load_dotenv` in `src/collectors/`; the env is loaded from a helper that tolerates an unreadable file.
 - autofix: none
 - guard: { type: test, ref: tests/test_collectors_dotenv_guarded.py (no unguarded module-level load_dotenv in src/collectors) }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — `load_dotenv()` au niveau MODULE s'exécute à l'IMPORT, donc un problème de droits sur le fichier rend le collecteur inimportable et le DAG casse à l'analyse, pas à l'exécution ; couvre: chaque collecteur, paramétré, aucun `load_dotenv()` non gardé ; ne couvre pas: (1) **le geste voisin le plus proche — les autres effets de bord à l'import** : ouvrir un fichier, lire une variable d'environnement obligatoire, se connecter à une base, instancier un client se paient aussi à l'analyse du DAG, et seul `load_dotenv` est cherché ; (2) les modules hors `src/collectors/` ; (3) les transformateurs et les utilitaires que les collecteurs importent à leur tour ; (4) l'échec à l'EXÉCUTION, que ce garde ne prétend pas empêcher.
 - rex_ref: .claude/skills/audit-collectors.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
@@ -1791,7 +1791,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the migrate logic lives in `tools/migrate.sh` (so it runs where `make` is absent — R37), keeps going after an error (that is what lets 044 heal 024), and **classifies** what it saw: re-run artefacts counted, unexpected errors named with their message plus the command that proves the schema landed (`make schema-check`). Silence and noise are both impossible outcomes. `tests/test_migrate_reports_errors.py` pins capture, inspection, naming, the classification, and that migrations stay runnable without `make`.
 - autofix: none
 - guard: { type: test, ref: tests/test_migrate_reports_errors.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — `psql` sans `ON_ERROR_STOP` sort 0 même quand des énoncés ont échoué, et la recette jetait sa sortie : l'exécution se déclare réussie en ayant laissé des trous ; couvre: quatre propriétés — le point d'entrée existe, les migrations sont lançables SANS `make` (le chemin PowerShell, qui n'a pas `make`), la recette CAPTURE la sortie de `psql`, et elle l'INSPECTE pour y chercher des erreurs ; les deux derniers sont la classe : capturer sans inspecter ne sert à rien ; ne couvre pas: (1) **le geste voisin le plus proche — les autres commandes dont le code de sortie ment** : `docker compose up` sur un service en échec, un `curl` qui rend 200 sur une page d'erreur, un `rsync` partiel ; le dépôt a aussi mesuré que le proxy RTK rend des sorties fausses ; (2) une migration à moitié appliquée qui laisse la base dans un état intermédiaire ; (3) l'ORDRE d'application ; (4) le rejeu, qui est `unguarded-drop-replayed-alone`.
 - rex_ref: .claude/rules/makefile-fail-fast.md
 - first_seen: 2026-08-21 (ref: roadmap R25/R26 production deploy)
 - History:
@@ -2450,7 +2450,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the check is at the EDGE, on the raw query string, in `security.reject_nul_bytes_middleware` — so every string parameter the API grows later inherits it without its author remembering, which is what a per-endpoint validator cannot promise. Deliberately not on the body: reading it would break `/webhooks/stripe`, whose signature covers the exact bytes.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_api_survives_hostile_input.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — une chaîne fournie par l'appelant atteint le pilote dans une forme qu'il refuse, et le refus est une exception non gérée plutôt qu'une requête rejetée ; couvre: quatre propriétés — un filtre hostile ne rend jamais 500 (paramétré sur des valeurs), l'octet NUL est refusé AVANT d'atteindre la base, une requête propre fonctionne toujours (sans quoi « corriger » reviendrait à tout refuser), et la sonde de santé n'est JAMAIS bloquée par le contrôle de bordure ; ne couvre pas: (1) **le geste voisin le plus proche — les autres paramètres de l'API** : seul le filtre de titre est instancié, alors que chaque route prend des entrées ; (2) les entrées qui arrivent par le dashboard et non par l'API ; (3) les formes hostiles autres que celles paramétrées ; (4) ce que la base FAIT d'une entrée acceptée mais absurde.
 - rex_ref: src/api/security.py
 - first_seen: 2026-08-22
 - History:
@@ -3002,7 +3002,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: le corpus mort est supprimé (code, dispatcher, traductions — `test_i18n_orphans.py` a listé les 36 clés), le guide anglais est aligné sur le modèle central, et un garde interdit qu'un guide artiste demande une Redirect URI ou la case Web API : sous le modèle central l'artiste ne crée aucune app, ces étapes n'existent pas pour lui.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_guide_never_asks_for_a_dead_uri.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — deux corpus de guides coexistent et celui qui est livré demande une URI morte, donc l'artiste suit une instruction impossible ; couvre: quatre propriétés — les guides existent, aucun guide artiste ne demande d'URI de redirection, les DEUX langues racontent la même histoire (une correction dans une seule langue est un demi-correctif), et un lien de portail pré-rempli est un gabarit qui peut RÉSOUDRE ; ne couvre pas: (1) **le geste voisin le plus proche — les autres contenus livrés et morts** : captures d'écran périmées, libellés de plateformes renommées, liens de documentation externes qui ont bougé ; seule l'URI de redirection est cherchée ; (2) l'EXACTITUDE de ce que le guide demande par ailleurs ; (3) les corpus de guides ajoutés ; (4) le PDF et les e-mails, qui portent aussi des instructions.
 - rex_ref: src/dashboard/content/credential_guides_en.py
 - first_seen: 2026-08-23
 - History:
@@ -3297,7 +3297,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: les deux vestiges sont retirés (aucun changement de comportement en 2.8.1), et un garde importe **réellement les 16 DAGs** à chaque exécution de la suite. Ce garde n'était pas possible avant : ces mêmes vestiges rendaient l'import impossible hors conteneur, et ce dépôt le documentait comme une fatalité — « aucun DAG n'est importable hors conteneur », donc les seuils de collecte avaient dû être déplacés dans `src/utils/` pour être testables du tout.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_dag_imports.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — un argument valable sous la majeure précédente survit partout, et la montée casse les 16 DAGs d'un coup ; couvre: chaque DAG, paramétré, sur trois propriétés — il s'IMPORTE, il ne porte aucun argument mort d'Airflow 1, et la planification utilise l'orthographe qui SURVIT à la montée — plus `test_the_scope_is_not_empty` ; ne couvre pas: (1) **le geste voisin le plus proche — les autres arguments dépréciés** : le garde cherche les orthographes connues d'Airflow 1 et `schedule_interval`, pas ce que la prochaine majeure retirera ; (2) les autres écosystèmes — pandas, Streamlit, Pydantic déprécient aussi, et rien ne balaie leurs arguments morts ; (3) le COMPORTEMENT sous la nouvelle majeure, seulement l'importabilité ; (4) les valeurs par défaut qui BOUGENT sans que l'argument disparaisse, ce qui est `a-major-upgrade-that-moves-a-default`.
 - rex_ref: airflow/dags/meta_ads_api_daily.py
 - first_seen: 2026-08-24
 - History:
@@ -3490,7 +3490,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: le garde lit l'AST des DAGs, relève les paquets de premier niveau qu'ils importent, et exige un montage dans les trois services — **sur le gabarit suivi**, donc vérifiable en CI, et sur la copie locale seulement quand elle existe (skip explicite sinon). Il porte sur la relation « ce qu'un DAG importe doit être monté », pas sur `tools`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_compose_mounts_what_the_dags_import.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — le compose monte `src/` et `dags/` mais pas un paquet qu'un DAG importe, donc le DAG casse en production et nulle part ailleurs ; couvre: chaque paquet importé par un DAG, paramétré, devant être monté dans le GABARIT — plus deux gardes du garde : le balayage n'est pas vide, et la liste d'exclusion reste PETITE ET JUSTIFIÉE (une liste d'exclusion qui grossit est la façon la moins chère de faire taire ce test) ; ne couvre pas: (1) **le geste voisin le plus proche — le compose RÉELLEMENT exécuté**, gitignoré, que ce garde ne lit pas ; c'est exactement `prod-compose-drift`, et le défaut d'origine venait précisément de cette copie ; (2) les imports faits à l'intérieur d'une tâche, résolus à l'exécution ; (3) les fichiers de DONNÉES dont un DAG a besoin, qui ne sont pas des paquets ; (4) le mode de montage (lecture seule ou non) au-delà de `tools/`.
 - rex_ref: docker-compose.yml
 - first_seen: 2026-08-26
 - History:
@@ -3964,7 +3964,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `websocketPingInterval = 20` dans `.streamlit/config.toml`, largement sous la fenêtre d'inactivité de Cloudflare, pour une trame minuscule par client toutes les 20 s. Le garde vérifie aussi que `.streamlit/` est toujours copié par le `Dockerfile` — une configuration que l'image ne lit pas est une configuration inerte.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_websocket_survives_the_proxy.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — Streamlit parle au navigateur par un websocket, et un réglage par défaut le laisse mourir derrière le proxy : l'application « se fige » sans qu'aucune erreur n'apparaisse ; couvre: trois propriétés — le ping websocket est configuré, le réglage de détail d'erreur est toujours épinglé (le trou de sécurité mesuré le 2026-08-23 : un traceback rendu à l'artiste), et **la configuration lue est bien celle que le CONTENEUR lit** — cette dernière étant ce qui distingue un réglage écrit d'un réglage appliqué ; ne couvre pas: (1) **le geste voisin le plus proche — la configuration de CADDY** : le maintien du websocket dépend des deux bouts, et le proxy n'est pas regardé par ce garde ; (2) les autres réglages Streamlit non épinglés ; (3) le comportement réel sous coupure réseau, qu'aucune exécution ne reproduit ; (4) les navigateurs qui ferment un websocket inactif selon leurs propres règles.
 - rex_ref: .streamlit/config.toml
 - first_seen: 2026-08-30
 - History:
@@ -4253,7 +4253,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `src/utils/upload_archive.py` conserve les octets **14 jours**, uniquement dans la branche de succès — là où `count` prouve que les lignes ont atteint la base. Quatre règles, chacune avec son mode d'échec : archiver **seulement après succès** (sinon le répertoire se remplit du cas inintéressant, alors que celui qui compte est un import propre aux chiffres faux) ; **ne jamais lever** (les lignes sont déjà commitées, faire échouer un import pour une copie de confort serait un mauvais échange) ; **un répertoire par locataire** (un répertoire plat rend le fichier d'un locataire atteignable en devinant un chemin, et l'effacement RGPD d'un locataire devient un `grep`) ; **le nom de fichier est reconstruit** (il vient d'un navigateur). Purge opportuniste depuis la page, pas depuis un cron : le répertoire ne grossit que quand quelqu'un dépose. Les 4 watchers et 2 scripts de debug ont été supprimés dans la même passe.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_imported_file_survives_its_import.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — le fichier téléversé est lu EN MÉMOIRE puis perdu : la seule copie est consommée par sa propre lecture ; couvre: cinq propriétés — un nom hostile est RECONSTRUIT (paramétré), un nom vide produit quand même un fichier, le chemin d'archive reste sous le répertoire du LOCATAIRE, un fichier est relisible après archivage (la classe elle-même), et un dépôt VIDE n'est pas archivé ; ne couvre pas: (1) **le geste voisin le plus proche — les autres flux consommés à la lecture** : une réponse HTTP en streaming, un curseur de base, un générateur épuisé se perdent pareil, et seul le téléversement est traité ; (2) la RÉTENTION des archives, aucune purge n'étant déclarée pour elles ; (3) le contenu du fichier, seulement sa survie ; (4) l'espace disque, que rien ne borne.
 - rex_ref: src/utils/upload_archive.py
 - first_seen: 2026-09-04
 - History:
@@ -4350,7 +4350,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: l'onglet devient un état comme la page — `?page=credentials&tab=soundcloud` — rendu par un widget PILOTABLE (`st.segmented_control` avec `key`), avec un seul panneau affiché. Rediriger n'est plus qu'écrire l'état, avant l'instanciation du widget (même contrainte et même motif que `_select_nav_radio` pour le menu). La rustine disparaît par construction : le panneau rendu EST celui qu'on regarde. La résolution lit la SESSION d'abord, l'URL ensuite — l'inverse ferait gagner un paramètre périmé sur un clic frais, défaut déjà corrigé un cran plus haut le 2026-09-04.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_active_tab_is_addressable.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — l'état actif d'un widget de navigation n'est pas exposé, donc « ouvrir X » ne peut être obtenu qu'en simulant des clics ; couvre: cinq propriétés — une arrivée fraîche ouvre le premier onglet, un onglet INCONNU retombe au lieu de ne rien rendre, la session l'emporte sur l'URL, la barre d'onglets est un widget CONTRÔLABLE, et l'URL porte l'onglet actif ; ne couvre pas: (1) **le geste voisin le plus proche — les autres états d'interface non adressables** : filtres, période choisie, plateforme sélectionnée, section dépliée ne sont dans aucune URL, donc aucun lien ne peut les reproduire ; (2) le PARTAGE d'un lien entre deux locataires, où l'onglet est valide et la donnée non ; (3) l'historique du navigateur ; (4) ce qui arrive quand l'URL et la session se contredisent au-delà de la règle de préséance épinglée.
 - rex_ref: src/dashboard/views/credentials/router.py
 - first_seen: 2026-09-05
 - History:
@@ -5089,7 +5089,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: accumuler, poser en session, rendre après le rerun. Le garde lit l'AST de la vue, trouve les blocs dont le corps se termine par `st.rerun()` et refuse tout appel d'écriture dans les instructions qui le précèdent. Les widgets (`st.button`, `st.text_input`, `st.selectbox`) sont explicitement hors du jeu : leur valeur est relue au passage suivant, ils ne perdent rien.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_nothing_is_written_before_a_rerun.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — Streamlit ré-exécute le script de zéro, donc tout message écrit AVANT un `st.rerun()` disparaît sans jamais avoir été vu ; couvre: quatre propriétés — la vue relance bien quelque part (la prémisse), aucune sortie écran ne précède un rerun, le bouton de mise en correspondance vise une page RÉELLE, et la zone de dépôt peut être VIDÉE (paramétré) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres vues** : le balayage porte sur une surface, et chaque vue qui combine une action et un rerun peut perdre son message ; (2) les messages écrits dans un `@st.fragment`, dont le cycle est différent ; (3) `st.stop()`, qui n'efface pas mais interrompt ; (4) ce que l'artiste a le temps de LIRE avant un rerun automatique.
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -5293,7 +5293,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: migrations 093 (`snapshot_date` dans la clé) et 094 (`period_start`/`period_end`, remplis en lisant les deux dates que Apple écrit dans le nom du fichier). Le garde lit la clé de conflit de la PAGE D'IMPORT et non le DDL : c'est elle qu'`upsert_many` envoie à Postgres, donc c'est elle qui décide. La règle générale : avant d'écrire dans le produit qu'une source n'a pas d'historique, vérifier si c'est la source, la CLÉ, ou une question qu'on n'a jamais posée.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — une clé d'unicité SANS date interdit l'historique : chaque dépôt écrase le précédent, et on ne peut plus rien comparer ; couvre: par `test_the_period_is_asked_because_the_file_cannot_say_it` et `test_a_year_is_bounded_at_both_ends`, les tests nommés de ce fichier partagé — la période est DEMANDÉE parce que le fichier ne peut pas la dire, et une année est bornée aux deux bouts ; ne couvre pas: (1) **le geste voisin le plus proche — les autres clés d'unicité sans dimension temporelle** : toute table de faits dont la clé oublie la date écrase son historique, et seule Apple est traitée ; (2) les données DÉJÀ écrasées, définitivement perdues ; (3) la JUSTESSE de la période saisie, qui est une affirmation humaine ; (4) les recouvrements entre périodes, qui sont `overlapping-readings-summed-as-one`.
 - rex_ref: migrations/093_apple_keeps_every_snapshot.sql
 - first_seen: 2026-09-08
 - History:
@@ -5332,7 +5332,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `non_overlapping_cover` — on garde le découpage le plus FIN qui ne se chevauche pas (les plus courts d'abord, et un relevé n'est retenu que s'il ne chevauche aucun des gardés), et le total prend le relevé le plus LARGE, qui porte déjà tout. La règle générale : avant de sommer des mesures de période, vérifier qu'aucune n'en contient une autre — un correctif qui donne accès à plus de données crée souvent cette forme.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — des relevés de période qui se RECOUVRENT sont additionnés comme s'ils étaient disjoints ; couvre: par `test_bounded_periods_are_summed_and_never_subtracted`, `test_nested_periods_are_never_counted_twice` et `test_the_finest_slicing_wins_when_nothing_overlaps`, les trois tests nommés de ce fichier partagé — le dernier étant ce qui empêche de « corriger » en ne gardant qu'une seule période ; ne couvre pas: (1) **le geste voisin le plus proche — les recouvrements PARTIELS**, où deux périodes se chevauchent sans que l'une contienne l'autre ; le garde traite l'imbrication et la disjonction, pas le chevauchement ; (2) les autres sources à périodes saisies ; (3) les périodes déclarées à tort comme disjointes par l'utilisateur ; (4) la somme faite ailleurs que dans ce calcul.
 - rex_ref: src/dashboard/utils/platform_timeseries.py
 - first_seen: 2026-09-08
 - History:
@@ -5561,7 +5561,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: une **vue Postgres ordinaire** porte la définition (`v_platform_totals`, migration 097, ADR-019) et les cinq surfaces la lisent. Pas de table matérialisée : ces duplications vivent dans des requêtes exécutées à la lecture, donc matérialiser n'en retirerait aucune (ADR-014). Le garde balaie désormais toutes les surfaces qui affichent un total, et n'accepte le compteur de chaîne que là où il est légitime — les ABONNÉS, qui n'ont pas d'autre source. Règle générale, écrite dans ADR-019 : une vue n'existe que si elle retire au moins **deux** sites d'appel divergents.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_surface_gives_the_same_total.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — une règle métier est RECOPIÉE dans chaque surface au lieu d'être appelée, donc elle diverge dès qu'une seule copie bouge ; couvre: cinq propriétés contre une base vivante — l'accueil et le PDF lisent la MÊME aide, aucune surface ne lit le compteur de chaîne comme des écoutes, le balayage trouve toujours l'endroit où ce compteur vit LÉGITIMEMENT (sans quoi il serait vert sur une recherche cassée), une période bornée n'excède jamais le total « depuis toujours », et une plateforme non mesurée rend `None` et non zéro ; ne couvre pas: (1) **le geste voisin le plus proche — les autres règles recopiées** : le filtre `1x7xxxxxxx`, l'exclusion canari/bac à sable, la préséance des identités sont réécrites en plusieurs endroits et ne sont comparées par personne ; (2) les surfaces hors accueil/PDF ; (3) la JUSTESSE de l'aide partagée ; (4) sans Postgres, ces tests ne s'exécutent pas.
 - rex_ref: docs/adr/ADR-019-bronze-silver-gold-as-a-boundary-not-a-storage.md
 - first_seen: 2026-09-10
 - History:
@@ -5638,7 +5638,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: l'appelant mesure et transmet `duration_ms` ; l'inconnu se dit dans cette colonne, qui est NULLABLE, et jamais dans `started_at`, qui est NOT NULL. Le piège inverse a failli être posé au correctif : y écrire NULL pour dire « je ne sais pas » fait lever l'INSERT, que le `except` de la fonction avale — **la ligne disparaît**, ce qui est l'infirmité même que ce journal existe pour retirer. Règle générale : une durée absente est un fait, une ligne absente est un trou ; on ne troque pas le second contre le premier. Et une colonne de mesure qui ne peut pas valoir NULL ne peut pas dire « non mesuré » : c'est une propriété du schéma, à vérifier avant d'y écrire un repli.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_duration_is_read_where_it_is_written.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — `started_at = ended_at = now()` écrit une durée de zéro qui n'a jamais été mesurée, et quatre DAGs sur cinq passaient par là ; couvre: trois propriétés — tout succès enregistré porte une durée MESURÉE, un run sans durée mesurée laisse quand même une ligne (l'absence de mesure ne doit pas effacer la trace), et **aucune surface ne RECONSTRUIT une durée à partir de deux horodatages** — cette dernière étant ce qui empêche le défaut de réapparaître côté lecture ; ne couvre pas: (1) **le geste voisin le plus proche — les autres zéros jamais mesurés** : un compteur initialisé à 0, un `COALESCE(x, 0)`, un `or 0` produisent la même confusion, et c'est `absence-rendered-as-a-measurement` sur une autre surface ; (2) la JUSTESSE de la durée mesurée ; (3) les DAGs hors collecte ; (4) les durées mesurées mais aberrantes, qu'aucun seuil ne juge.
 - rex_ref: src/utils/dag_run_logger.py
 - first_seen: 2026-09-10
 - History:
@@ -5713,7 +5713,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: un rôle applicatif `NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS`, propriétaire de rien, avec SELECT/INSERT/UPDATE/DELETE sur les données et **aucun DDL** — les migrations gardent le superutilisateur, ce qui est exactement la séparation cherchée. `ALTER DEFAULT PRIVILEGES` couvre les tables futures, sans quoi la panne arriverait des semaines plus tard sur une surface sans rapport. La migration REDESCEND le rôle à chaque passage : `make migrate` est rejoué à chaque déploiement, c'est la ceinture contre une promotion faite à la main. Règle générale : le rôle qui exécute les requêtes de l'application n'est jamais celui qui a créé les tables.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_application_is_not_a_superuser.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — l'application se connecte en superutilisateur, donc une injection ou une erreur dispose de tout ; couvre: cinq propriétés — la migration n'accorde jamais ce qu'elle existe pour refuser, elle épingle le rôle à CHAQUE rejeu, aucun mot de passe n'y est commité, le gabarit de compose lit le rôle depuis l'environnement, et **le compose LOCAL n'a pas dérivé du gabarit** — ce dernier point étant rare et précieux : c'est le seul garde du dépôt qui compare la copie non suivie à sa source ; ne couvre pas: (1) **le geste voisin le plus proche — le compose de PRODUCTION**, que même ce garde ne lit pas ; il compare le local au gabarit, pas le VPS ; (2) les droits RÉELS du rôle en base, seulement ce que la migration déclare ; (3) les autres connexions (Airflow, outils d'exploitation, sauvegardes) ; (4) ce qu'un rôle non superutilisateur peut encore faire de nuisible.
 - rex_ref: migrations/098_the_app_is_not_a_superuser.sql
 - first_seen: 2026-09-10
 - History:
@@ -6283,7 +6283,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `test "$(grep -hoE 'CREATE (OR REPLACE )?FUNCTION gold_[a-z_]+' migrations/*.sql | awk '{print $NF}' | sort -u | wc -l)" -le 1`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: ci-step, ref: .claude/scripts/audit_runner.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — une règle PROCÉDURALE est écrite dans une fonction SQL, donc elle vit dans la base et non dans le dépôt, et personne ne la relit ; couvre: une signature shell qui compare les fonctions `gold_*` déclarées dans `migrations/*.sql` à ce qui est attendu — elle attrape l'AJOUT d'une fonction procédurale, ce qui est le geste ; ne couvre pas: (1) **le geste voisin le plus proche — les fonctions créées HORS migration**, à la main sur la base ; elles n'ont aucun fichier, donc la signature ne peut pas les voir, et c'est exactement `prod-canonical-schema-drift` ; (2) les vues, déclencheurs et contraintes, qui peuvent porter autant de logique ; (3) ce que la fonction FAIT, seulement son existence ; (4) la frontière elle-même — « une sélection gloutonne est-elle procédurale ? » reste un jugement, et la signature épingle une liste.
 - rex_ref: docs/adr/ADR-022-the-grain-lives-in-sql-the-door-shapes-it.md
 - first_seen: 2026-09-12
 - History:
@@ -6975,7 +6975,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: la règle de netting descend en SQL avec la BASE qu'elle vise (migration 115, `v_artist_monthly_revenue_net`) : une retenue ne compte que dans un mois qui porte une répartition. Le critère est STRUCTUREL et non textuel — les charges sont un pourcentage de la répartition (« CSG DEDUCTIBLE 6.80% (BASE 98.25%) »), donc sans base il n'y a rien à retrancher. Distinguer par le libellé aurait marché ce jour-là et cassé à la première reformulation de la source.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_deduction_is_subtracted_from_the_right_base.py }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — une déduction est retranchée de la mauvaise base, donc le net est faux d'un montant qui ressemble à un montant plausible ; couvre: cinq propriétés sur des données semées — le bloc d'adhésion ne réduit PAS les royalties, le brut ignore toute ligne qui n'est pas une distribution, un mois sans distribution ne contribue à rien, et surtout deux gardes du garde : la fixture contient RÉELLEMENT la forme défectueuse, et **la règle naïve échouerait à ce test** — sans quoi on ne saurait pas qu'il discrimine ; ne couvre pas: (1) **le geste voisin le plus proche — les autres calculs à base composite** : TVA, commissions, avances récupérables, conversions de devise se retranchent aussi d'une base qu'il faut choisir, et seule la SACEM est traitée ; (2) la JUSTESSE des taux ; (3) les périodes à cheval ; (4) le rapprochement avec le relevé réel, que rien ne fait.
 - signature: `python3 -m pytest tests/test_a_deduction_is_subtracted_from_the_right_base.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
@@ -7305,7 +7305,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 tools/dev/check_action_drift.py | grep -q INTROUVABLE && exit 1 || exit 0`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: script, ref: tools/dev/check_action_drift.py, wired: .github/workflows/security-nightly.yml }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — un épinglage est DÉDUIT d'un numéro de version au lieu d'être vérifié contre les tags amont, donc il pointe vers un commit qui n'existe pas ; couvre: `tools/dev/check_action_drift.py`, qui interroge l'amont (`latest`, `resolves`) au lieu de raisonner sur le numéro ; ne couvre pas: (1) **le geste voisin le plus proche — les autres épinglages déduits** : images Docker par `:latest` ou par convention de nom, versions de paquets recopiées d'une release note, commits cités de mémoire partagent la cause ; (2) le contrôle ne peut RIEN conclure sans accès réseau à l'amont, et le dépôt a déjà mesuré qu'un `gh api` en échec déclarait succès ; (3) la SÉCURITÉ d'un tag qui résout — un tag mobile peut être redirigé ; (4) les actions absentes du balayage.
 - rex_ref: .github/workflows/ci.yml
 - first_seen: 2026-09-16
 - History:
@@ -7323,7 +7323,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -c "import sys,yaml,pathlib; bad=[str(p) for p in pathlib.Path('.github').rglob('*.y*ml') for job in ((yaml.safe_load(p.read_text(encoding='utf-8')) or {}).get('jobs') or {}).values() for st in (job.get('steps') or []) if 'setup-uv' in str(st.get('uses','')) and (st.get('with') or {}).get('enable-cache') and 'cache-dependency-glob' not in (st.get('with') or {})]; sys.exit(1 if bad else 0)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: script, ref: .github/workflows/ci.yml (cache-dependency-glob explicite sur les 3 sites) }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — une montée de majeure change une valeur PAR DÉFAUT dont on dépendait sans l'avoir écrite, donc rien ne casse à l'installation et tout change au comportement ; couvre: une signature qui balaie les workflows `.github/**` à la recherche de la dépendance implicite mesurée le 2026-09-16 ; ne couvre pas: (1) **le geste voisin le plus proche — les défauts implicites hors CI** : Postgres (`max_connections = 100`, supposé et jamais vérifié), Streamlit, pandas, Airflow ont chacun des valeurs par défaut dont ce dépôt dépend sans les écrire ; (2) les défauts qui bougent sans montée de majeure ; (3) ce que le nouveau défaut PRODUIT, seulement la dépendance implicite ; (4) les dépendances implicites qu'on n'a pas encore identifiées — par définition, la signature ne cherche que celles qu'on connaît.
 - rex_ref: .github/workflows/ci.yml
 - first_seen: 2026-09-16
 - History:
@@ -7504,7 +7504,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `ssh -o ConnectTimeout=10 root@167.233.92.1 'test -s /etc/docker/daemon.json' && ! ssh -o ConnectTimeout=10 root@167.233.92.1 'ls /var/lib/docker/containers/*/*-json.log.1 >/dev/null 2>&1'`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: doc, ref: deploy/host/README.md (protocole de vérification par conteneur témoin) }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — `reload` et `restart` ne reprennent pas le même sous-ensemble de la configuration, et la documentation ne le disait pas : on recharge, rien ne change, et on cherche ailleurs ; couvre: une signature qui interroge la MACHINE — le fichier de configuration Docker existe et son effet est vérifié à distance ; c'est l'un des rares gardes du catalogue qui regarde la prod ; ne couvre pas: (1) **le geste voisin le plus proche — les autres services où les deux verbes diffèrent** : Caddy (où `reload` est le bon geste et `restart` interdit), Airflow, systemd en général ; la connaissance vit dans `deploy/host/README.md` et n'est vérifiée pour aucun autre ; (2) le contrôle ne peut rien conclure sans accès SSH, et n'est lancé par aucun automate ; (3) les réglages rechargés mais SANS effet pour une autre raison ; (4) le délai de prise d'effet.
 - rex_ref: deploy/host/README.md
 - first_seen: 2026-09-16
 - History:
@@ -7541,7 +7541,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 tools/dev/check_container_bind_address.py`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_the_metrics_server_survives_a_rerun.py::test_prometheus_listens_on_the_container_network }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-configuration-qui-diverge-de-la-prod — on confond la restriction posée par le MAPPAGE DE PORT avec celle posée par le BINAIRE, donc un service qu'on croit privé écoute sur toutes les interfaces ; couvre: par `test_nothing_of_the_stack_is_published_beyond_loopback` et `test_prometheus_listens_on_the_container_network`, les deux tests nommés de ce fichier partagé, plus `tools/dev/check_container_bind_address.py`, qui compare l'adresse d'écoute RÉELLE du processus à ce que le compose publie ; ne couvre pas: (1) **le geste voisin le plus proche — les services hors conteneur** : Caddy sur l'hôte, l'API d'administration de Caddy (port 2019, scrutée par Prometheus via l'IP de passerelle), un cron qui ouvrirait un port ne sont pas regardés ; (2) le PARE-FEU de l'hôte, qui peut rattraper ou aggraver ; (3) les sockets Unix ; (4) ce qui écoute dans un conteneur que le compose ne décrit pas.
 - rex_ref: deploy/docker-compose.observability.yml
 - first_seen: 2026-09-16
 - History:
