@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**395 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**396 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -19,14 +19,14 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **1/20** · 5.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 24 | **4/24** · 16.7 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | **3/29** · 10.3 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
-| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 22 | **4/22** · 18.2 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 74 | **8/74** · 10.8 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 25 | **4/25** · 16.0 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 73 | **8/73** · 11.0 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 41 | **2/41** · 4.9 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | **1/8** · 12.5 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 8 | **1/8** · 12.5 % | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 2 | **0/2** · 0.0 % | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
-| [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 20 | **0/20** · 0.0 % | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
+| [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 19 | **0/19** · 0.0 % | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 18 | **4/18** · 22.2 % | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
 | [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 24 | **2/24** · 8.3 % | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | [l-instrument-ment-sur-ce-qu-il-mesure](#l-instrument-ment-sur-ce-qu-il-mesure) | 2 | **0/2** · 0.0 % | Ce que cet instrument AFFICHE est-il ce qu'il a mesuré ? |
@@ -268,10 +268,11 @@ Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|diver
 
 **Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ?**
 
-Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|outside-its-condition|read-that-failed|failed-read|except.*number|read-through-a-filtering` sur l'identifiant et le symptôme. 22 classe(s).
+Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|outside-its-condition|read-that-failed|failed-read|except.*number|read-through-a-filtering|fallback` sur l'identifiant et le symptôme. 25 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`a-fallback-that-runs-when-the-first-branch-succeeded`](error-classes.md#a-fallback-that-runs-when-the-first-branch-succeeded) | un `A \|\| B` livre le résultat de A alors qu'on attendait B — ou l'inverse. Rien n'échoue, rien ne s'affiche : la commande sort 0 et le mauvais effet e |
 | [`an-optimisation-that-degrades-what-worked`](error-classes.md#an-optimisation-that-degrades-what-worked) | un algorithme « amélioré » se trompe sur des cas qu'il réussissait. Il se trompe **en silence** : aucune exception, aucun compte qui change, juste des |
 | [`collector-silent-success`](error-classes.md#collector-silent-success) | a collector `except` block logs then returns empty (`None`/`[]`/`{}`) → DAG upserts 0 rows, exits SUCCESS, no alert, dashboard silently stale. |
 | [`unregistered-write-table`](error-classes.md#unregistered-write-table) | a table passed as a literal to `upsert_many`/`insert_many` is absent from `_ALLOWED_TABLES` (postgres_handler) → the SQL-injection allowlist raises a  |
@@ -288,24 +289,25 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 | [`the-watcher-is-not-watched`](error-classes.md#the-watcher-is-not-watched) | un contrôle planifié cesse de tourner et tout reste vert, parce que rien ne surveille le surveillant. L'absence d'échec est lue comme une absence de p |
 | [`page-window-answers-a-per-entity-question`](error-classes.md#page-window-answers-a-per-entity-question) | une vue de supervision affiche une fraction des entités et présente l'absence comme une donnée — « aucun run » au lieu de « je n'ai pas regardé ». Tou |
 | [`verified-locally-observed-in-prod`](error-classes.md#verified-locally-observed-in-prod) | un utilisateur signale plusieurs fois la même absence ; chaque vérification confirme que la chose est là ; les corrections successives portent sur le  |
+| [`bom-survives-the-encoding-fallback`](error-classes.md#bom-survives-the-encoding-fallback) | un export parfaitement valide est refusé, et le message d'erreur affiche la BONNE colonne. « Type non reconnu — colonnes vues : date, streams » alors  |
 | [`a-partial-bucket-drawn-as-a-full-one`](error-classes.md#a-partial-bucket-drawn-as-a-full-one) | une agrégation sous-estime silencieusement, d'un facteur qui dépend de la collecte. Mesuré le 2026-09-08 : **38 %** des semaines YouTube et **31 %** d |
 | [`a-read-that-failed-is-rendered-as-a-number`](error-classes.md#a-read-that-failed-is-rendered-as-a-number) | une tuile affiche un chiffre alors que la requête a LEVÉ. Quatre occurrences en deux jours, aucune n'a produit d'erreur visible : « Total Streams : ** |
 | [`a-gap-rendered-as-a-zero-by-the-stack`](error-classes.md#a-gap-rendered-as-a-zero-by-the-stack) | la bande d'une plateforme est correctement COUPÉE sur un jour non mesuré, et le total empilé la compte quand même pour zéro — la pile redescend, et ça |
 | [`a-guard-satisfied-by-the-collapse-it-should-catch`](error-classes.md#a-guard-satisfied-by-the-collapse-it-should-catch) | un garde qui affirme une ABSENCE (« cette ligne ne doit pas s'afficher », « ce champ ne doit pas apparaître ») reste vert sur le défaut, parce que le  |
 | [`a-verification-read-through-a-filtering-wrapper`](error-classes.md#a-verification-read-through-a-filtering-wrapper) | une commande de vérification rend une réponse **plausible et fausse**, et la décision qui s'ensuit est prise sur cette réponse. Mesuré le 2026-09-13 : |
 | [`a-verdict-swallowed-by-the-pipe-that-abbreviated-it`](error-classes.md#a-verdict-swallowed-by-the-pipe-that-abbreviated-it) | une vérification est lancée, son verdict est ROUGE, il s'affiche à l'écran — et la livraison qui suit sur le même `&&` part quand même. Rien n'échoue, |
+| [`a-fallback-that-answers-the-whole-question`](error-classes.md#a-fallback-that-answers-the-whole-question) | une tuile annonce « N sur les dernières 24 h » et donne le total de TOUT l'historique. Aucune erreur, aucun trou : le chiffre est simplement celui d'u |
 
 ## un-garde-qui-ne-garde-pas
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 74 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 73 classe(s).
 
 | classe | symptôme |
 |---|---|
 | [`a-guard-names-a-class-nobody-wrote`](error-classes.md#a-guard-names-a-class-nobody-wrote) | un défaut est parfaitement décrit — symptôme, cause, mesure, date, coût — **dans la docstring d'un test, et nulle part ailleurs**. Le catalogue ne le  |
 | [`a-shared-database-read-while-another-test-writes-it`](error-classes.md#a-shared-database-read-while-another-test-writes-it) | un test est **rouge dans la suite complète et vert quand on le relance seul**. Le rapport ne montre rien d'anormal, la valeur attendue est simplement  |
-| [`a-fallback-that-runs-when-the-first-branch-succeeded`](error-classes.md#a-fallback-that-runs-when-the-first-branch-succeeded) | un `A \|\| B` livre le résultat de A alors qu'on attendait B — ou l'inverse. Rien n'échoue, rien ne s'affiche : la commande sort 0 et le mauvais effet e |
 | [`a-class-that-claims-its-neighbours-guard`](error-classes.md#a-class-that-claims-its-neighbours-guard) | une classe d'erreur annonce une protection plus large que celle qu'elle a. Le champ `guard:` nomme un fichier qui contient bel et bien les tests décri |
 | [`check-calls-a-binary-its-image-lacks`](error-classes.md#check-calls-a-binary-its-image-lacks) | a check running INSIDE a container shells out to a host binary (`rclone`, `git`, `docker`, `psql`) that is not in that image. It never crashes — it ta |
 | [`probe-scoped-to-the-machine-not-the-repo`](error-classes.md#probe-scoped-to-the-machine-not-the-repo) | a health probe enumerates every container or process on the HOST instead of the ones this repo declares. It reports on neighbouring projects — and can |
@@ -490,7 +492,7 @@ Règle de rattachement : `overwrit|écrase|clobber|upsert|conflict|restore|delet
 
 **Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ?**
 
-Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|window-applied|day|month|period` sur l'identifiant et le symptôme. 20 classe(s).
+Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|window-applied|day|month|period` sur l'identifiant et le symptôme. 19 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -503,7 +505,6 @@ Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|wi
 | [`script-replaced-while-it-runs`](error-classes.md#script-replaced-while-it-runs) | a deploy script is updated, pushed, and the very deploy that pulls the update does not run it. The run reports success, so the change looks deployed — |
 | [`dag-without-dagrun-timeout`](error-classes.md#dag-without-dagrun-timeout) | un DAG qui se bloque ne se termine jamais, garde son créneau, et peut être enregistré **success**. Aucune alerte : Airflow n'a rien à signaler tant qu |
 | [`timestamptz-parsed-across-a-dst-change`](error-classes.md#timestamptz-parsed-across-a-dst-change) | une page plante avec `ValueError: Tz-aware datetime.datetime cannot be converted to datetime64 unless utc=True, at position N`. Elle marchait la veill |
-| [`bom-survives-the-encoding-fallback`](error-classes.md#bom-survives-the-encoding-fallback) | un export parfaitement valide est refusé, et le message d'erreur affiche la BONNE colonne. « Type non reconnu — colonnes vues : date, streams » alors  |
 | [`one-version-marker-out-of-many`](error-classes.md#one-version-marker-out-of-many) | les écoutes d'un radio edit, d'un live ou d'un instrumental s'ajoutent à celles du titre original, sous la mauvaise date de sortie. Aucune erreur, auc |
 | [`a-fabricated-zero-mailed-as-a-measurement`](error-classes.md#a-fabricated-zero-mailed-as-a-measurement) | un artiste premium sans dépôt S4A reçoit par e-mail « Streams (last 7 days) : 0 · +0 vs prev week », « Spend : 0.00 € » et « CTR : 0.00 % ». Trois aff |
 | [`a-batch-that-commits-one-row-at-a-time`](error-classes.md#a-batch-that-commits-one-row-at-a-time) | une écriture de lot est lente, et — le vrai défaut — un échec en cours de route laisse la première moitié en base. Mesuré le 2026-09-10 : sur 1 001 li |
@@ -598,6 +599,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=395 families=18 orphans=3 -->
+<!-- error-class-families: total=396 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=8252a12c2d7d9cee9fc5fa5762cc4a4cb70f4148300886af7ea6278a4ae82925 -->
+<!-- error-class-families: sha256=0f8cadc781aa93d031cdcb329fdb5024c441b82389f806560e75cf903dd4e311 -->

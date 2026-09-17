@@ -165,7 +165,25 @@ _CEILINGS = {
     # trouvé **8 sites vivants sur 6 fichiers de production** alors que son garde était
     # VERT sur 13 tests. Deux compteurs bougent ensemble et c'est le signe recherché :
     # le balayage produit des sites, pas un nombre.
-    "siblings_never_swept": 384,
+    # 384 → 352 le 2026-09-17 : **32 balayages EXÉCUTÉS**, pas déclarés. Chaque
+    # `siblings:` porte la commande, son verdict du jour, et la mention que c'est le
+    # PRÉDICAT qui a été balayé — parce que ce dépôt a mesuré le même jour qu'un
+    # garde parcourant l'arbre peut rester vert sur 8 sites vivants.
+    #
+    # ⚠️ Le tri des 7 signatures `heuristic` — celles dont un exit ≠ 0 est le mode
+    # NORMAL — a produit un défaut réel : `a-fallback-that-answers-the-whole-question`.
+    # C'est la justification de ce compteur en une ligne : il ne sert pas à descendre,
+    # il sert à faire regarder.
+    # 352 → 255 : les 97 classes dont le garde est un pytest QUI PARCOURT L'ARBRE,
+    # exécuté ce jour-là (90 node-ids, 3201 tests, 0 rouge).
+    #
+    # ⚠️ **Une classe a été EXCLUE de l'estampillage** — `environment-failure-worn-as-
+    # a-code-failure`, dont le garde ne tourne QU'EN CI (« only meaningful inside CI »)
+    # et a donc SKIPPÉ ici : il n'a rien balayé, l'estampiller serait un faux calme.
+    # Trois autres sont estampillées en NOMMANT ce qui a skippé chez elles — un DAG
+    # exempté, 27 scripts hors périmètre, un jeu de paramètres vide (légitime : la
+    # liste d'orphelins est vide parce que les classes ont été écrites).
+    "siblings_never_swept": 255,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

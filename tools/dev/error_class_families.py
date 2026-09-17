@@ -185,8 +185,15 @@ FAMILIES: list[tuple[str, str, str]] = [
      # et le `git push` suivant qui rend `ok`. La question de la famille s'y
      # applique mot pour mot — ce « ok » veut-il dire « ça a marché » ou « il ne
      # s'est rien passé » ?
+     # `fallback-that-answers-the-whole-question`, ajoutée le 2026-09-17. La forme
+     # est la même avec une conséquence de plus : le `except` n'avale pas l'erreur
+     # pour rendre RIEN, il l'avale pour rendre l'ensemble NON FILTRÉ — la fenêtre
+     # « dernières 24 h » devenait tout l'historique. La question de la famille
+     # tient mot pour mot : ce chiffre veut-il dire « voici les 24 h » ou « je n'ai
+     # pas pu les calculer » ? Un repli qui fabrique un nombre est la version la
+     # plus coûteuse de cette famille, parce qu'il ne ressemble pas à une panne.
      r"outside-its-condition|read-that-failed|failed-read|except.*number|"
-     r"read-through-a-filtering"),
+     r"read-through-a-filtering|fallback"),
 
     ("un-garde-qui-ne-garde-pas",
      "Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée "

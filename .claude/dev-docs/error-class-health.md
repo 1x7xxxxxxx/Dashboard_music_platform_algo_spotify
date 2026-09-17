@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**396 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (249 révisions du catalogue rejouées).
+**396 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (250 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
@@ -48,7 +48,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `scope_without_not_covered` | 0 |
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 331 |
-| `siblings_never_swept` | 352 |
+| `siblings_never_swept` | 255 |
 
 ## Récidive observée
 
