@@ -1923,7 +1923,7 @@
       "guard_ref": "tests/test_the_roadmap_rotation_names_all_three_surfaces.py",
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
-      "guard_scope_derived_family": "sans-famille",
+      "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "pytest",

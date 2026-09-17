@@ -225,7 +225,7 @@ FAMILIES: list[tuple[str, str, str]] = [
      # demande « est-ce régénéré, ou écrit une fois puis oublié ? » — une table de
      # journal sans rétention est exactement cela : un document qui s'accumule
      # parce que personne n'a tranché ce qu'il advient de ses vieilles lignes.
-     r"hand-written-list|telemetry-table-that-nothing-ever-purges"),
+     r"hand-written-list|telemetry-table-that-nothing-ever-purges|proc[ée]dure|playbook|runbook|instruction"),
 
     ("un-contrôle-qui-ne-peut-jamais-passer",
      "Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il "
