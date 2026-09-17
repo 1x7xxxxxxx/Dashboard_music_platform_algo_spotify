@@ -25,8 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R130 | Les rétentions déclarées par la migration 124 ne sont appliquées par personne — `telemetry_retention.py` n'existe pas | P3 | `grep -rn 'telemetry_retention' src/` → ne rend que les mentions de la migration |
-| R131 | Calibrer les 3 seuils de charge différés (`SessionsHigh`, `ErrorRateHigh`, `LogErrorBurst`) sur 30 j de données | P4 | `SELECT max(peak_sessions), max(p95_render_ms) FROM daily_ops_metrics WHERE day > now()-interval '30 days'` |
 
 **R127 a été livrée le 2026-09-17** (commits `65ae525` puis `f368715`, poussés) :
 les trois défauts résiduels de `night_run.py` sont fermés (priorité facultative dans
@@ -242,7 +240,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-17 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R130, R131 -->
+<!-- reprise: open= -->
 
 **R122 et R123 sont closes le 2026-09-17, toutes deux rotées dans `archive.md`.** R123
 a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans
@@ -414,40 +412,41 @@ fiable ici.
 📥 **Erreurs applicatives non triées : 1** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.
 <!-- error-inbox: open=1 -->
 
-## R130 — Les rétentions déclarées ne sont appliquées par personne · P3
+## ⏸️ R131 — Calibrer les trois seuils de charge (sortie de l'index 2026-09-17)
 
-**Trouvé le 2026-09-17** en auditant l'observabilité. `migrations/124_every_telemetry_table_declares_its_retention.sql:21-22` affirme que les purges « vivent dans `src/utils/telemetry_retention.py`, appelé par le DAG `alert_monitor` ». **Ce fichier n'existe pas.** `src/utils/nightly_maintenance.py` n'appelle que `purge_rate_limit_hits`.
+**Ni livrée ni abandonnée — parquée sur une mesure, pas archivée.** `archive.md` est
+strictement passif (`tests/test_roadmap_two_files.py::test_the_archive_holds_nothing_actionable`
+refuse tout item non coché qui y atterrit), donc ce bloc reste ici, hors des deux index.
 
-Les rétentions de 180 j (`usage_events`, `etl_run_log`) et 365 j (`monitoring_run`, `csv_upload_log`) sont donc **déclarées en commentaire SQL et appliquées par personne** — exactement la situation que la migration prétend fermer.
+**Pourquoi elle sort de l'index actionnable** : elle demande de dériver trois seuils sur
+une distribution, et la distribution n'existe pas. Mesuré le 2026-09-17 :
+`daily_ops_metrics` porte **1 ligne en production** (2026-09-17) et 2 en local. Il en
+faut 30. Aucun geste ne la débloque — seulement du trafic et du temps —, donc elle ne va
+pas non plus dans « 🙋 En attente de toi ».
 
-⚠️ Conséquence directe sur le scaling : `usage_events` est « la table qui grossit le plus vite », et `tools/scale_check.sh:28-40` la balaie **entière**, sans clause `WHERE ts >`. Le déclencheur nº 1 du scaling coûte donc un balayage complet d'une table sans borne — et il empirera tout seul.
+Écrire les seuils maintenant serait exactement le défaut que la règle interdit : le dépôt
+porte déjà **cinq** seuils sans dérivation (disque 85 %, RAM 500 Mo, sauvegarde 25 h,
+watchdog 26 h / 48 h), plus le 20 de `scale_check.sh`, posé face à un pic observé de 12
+sans que le facteur 1,7 soit justifié.
 
-**Le geste** : écrire `src/utils/telemetry_retention.py` avec une purge par table déclarée, l'appeler depuis `nightly_maintenance`, et borner la requête de `scale_check.sh`. Un garde doit vérifier que **toute** table portant une rétention en commentaire a bien sa purge — sinon la prochaine migration rouvrira le même trou.
+**Déclencheur de réouverture, calculable** :
 
-**Mesuré par** : `grep -rn 'telemetry_retention' src/` — doit cesser de ne rendre que les mentions de la migration.
+```sql
+SELECT count(*) FROM daily_ops_metrics WHERE day > now() - interval '30 days';
+-- doit rendre 30 (aujourd'hui : 1)
+```
 
----
-
-## R131 — Calibrer les trois seuils de charge différés · P4
-
-**Ouvert le 2026-09-17 avec les alertes d'observabilité.** Quatre règles ont été livrées, toutes **sans seuil** (`absent()`, `up == 0`) parce qu'elles n'en demandent aucun. Trois autres ont été délibérément **différées** faute de données pour les dériver :
+- [ ] **R131 — les trois seuils de charge, dérivés d'une distribution et non d'un instinct.**
 
 | règle différée | ce qu'elle surveillerait | la grandeur qui existe déjà |
 |---|---|---|
 | `SessionsHigh` | la charge utilisateur | `streamlytics_sessions_1m`, `daily_ops_metrics.peak_sessions` |
-| `ErrorRateHigh` | une pointe d'erreurs | `streamlytics_app_errors_total`, `daily_ops_metrics.errors_by_page` |
+| `ErrorRateHigh` | une pointe d'erreurs | `streamlytics_app_errors_total`, `errors_by_page` |
 | `LogErrorBurst` | une pointe de journaux ERROR | `streamlytics_log_records_total{level="ERROR"}` |
 
-Le dépôt tient qu'un seuil écrit d'instinct est un défaut, et il en porte déjà **cinq sans dérivation** (disque 85 %, RAM 500 Mo, sauvegarde 25 h, watchdog 26 h / 48 h). En ajouter trois de plus par confort aggraverait précisément ce que la règle existe pour empêcher.
-
-⚠️ Le seuil de 20 sessions de `tools/scale_check.sh` est dans le même cas : il est posé face à un pic observé de **12**, sans que le facteur 1,7 soit justifié nulle part.
-
-**Mesuré par** :
-```sql
-SELECT max(peak_sessions), max(p95_render_ms), max(reruns_total)
-FROM daily_ops_metrics WHERE day > now() - interval '30 days';
-```
-Trente jours de données rendent une distribution ; avant, tout chiffre serait inventé.
+⚠️ Les quatre alertes livrées le 2026-09-17 ne portent **aucun** seuil — `absent()`,
+`up == 0`, `read_ok == 0`. Elles couvrent le silence des instruments, pas la charge. Les
+deux questions sont distinctes et la seconde attend ses données.
 
 ---
 
@@ -478,27 +477,18 @@ n'est pas de l'ingénierie mais l'usage du produit. Une roadmap mesure le travai
 sur le dépôt ; elle ne suit pas les gestes commerciaux de son propriétaire, sans quoi
 elle ne peut par construction jamais atteindre zéro.
 
-## Open Bugs
+## 🔁 Consignes permanentes — ce ne sont PAS des tâches
 
-- [x] **`/youtube/videos` API cassé (HTTP 500) — schema drift, MÊME CLASSE que `/kpis`** — sélectionnait `views/likes/comments/title` sur `youtube_video_stats` (vraies colonnes `view_count/like_count/comment_count`, pas de `title`). **FIXÉ** : requête sur `youtube_videos` (catalogue par-vidéo : title + view_count/like_count/comment_count). Mergé PR #62, déployé, `/youtube/videos` = **200** confirmé live. *(8 routers audités, youtube était le dernier cassé.)*
-- [x] **Gap de test systémique = cause racine `/kpis` + `/youtube`** — les 2 bugs avaient échappé aux tests (routers testés **DB mockée**). **FIXÉ** : `tests/test_api_db_smoke.py` — smoke-test **DB-gated** (comme `test_views_render_smoke`) qui exécute chaque endpoint data contre le vrai schéma (token admin+tenant forgé) et assert no-500 → attrape toute la classe en CI. Aurait fait échouer /kpis ET /youtube.
+Rien ici ne se coche, ne se livre ni ne s'archive : ce sont des gestes à faire le jour
+où un évènement les déclenche. Ils vivent dans le fichier actif pour être relus, pas
+pour être finis.
 
-**P3/P4 — correctness borderline :**
-- [x] **2 collectors `return None`** ✅ (2026-06-14) — `youtube_collector.py:45` (chaîne introuvable) **escaladé en `raise ValueError`** (vrai échec → plus de 0-rows-DAG-SUCCESS) + test de non-régression `test_get_channel_stats_raises_on_channel_not_found`. `instagram_api_collector.py:294` (insights code-100, 1 média) **confirmé skip par-item légitime** (l'appelant filtre `None` L322) + commenté explicitement. `_meta_config_fetch.py:168 return []` = 0-créative valide, hors-scope.
+⚠️ Titre corrigé le 2026-09-17. Il s'appelait « Brick Status » et annonçait « ce qui
+reste ouvert est ci-dessous » — deux affirmations fausses : aucune brique n'y figurait
+depuis des mois, et rien de ce qui suit n'est ouvert au sens de la roadmap. Un lecteur
+qui cherchait l'état des briques lisait une liste de secrets à faire tourner.
 
-**Mesuré & ÉCARTÉ (FP / non pertinent — ne pas re-auditer) :**
-- Index `s4a_song_timeline(artist_id, song, date)` → **prématuré** : EXPLAIN ANALYZE = **0.4ms** sur 13794 lignes via l'index `(artist_id,date)` existant. Revisiter à ~10× volume.
-- `API_SECRET_KEY` → **SET (64 chars) en prod** : JWT stables au restart, non-issue.
-- Sweep schema-drift : 132 candidats bruts → **tous FP sauf le router youtube** (alias `col AS x`, vars f-string `{filt}/{frag}`, fonctions SQL, littéraux, commentaires FR, ON CONFLICT/EXCLUDED).
-- Deps `uv.lock` **0 CVE** ; imports morts **0** (ruff F401) ; data-integrity (filtre 1x7 / scoping tenant / clés upsert) **clean** ; secrets git history **0**.
-
-## Brick Status
-
-> Blocs livrés déplacés vers `archive.md`. Ce qui reste ouvert est ci-dessous.
-
-### Standing ops — incident-driven (no code action)
-
-These are not roadmap bricks; they are operational standing instructions kept here for visibility.
+### Rotation des secrets — sur incident seulement (aucune action de code)
 
 - **Secret rotation (incident-driven only)** — rotate the following on suspected compromise or scheduled audit (no auto-rotation possible — secrets are external):
   - `DATABASE_PASSWORD` — PG superuser, used by all services
@@ -511,14 +501,3 @@ These are not roadmap bricks; they are operational standing instructions kept he
   Files: `.env`, Railway env vars. Auto-refreshed tokens (Meta personal 60-day, SoundCloud Client Credentials, Spotify Client Credentials regrant) are NOT in scope — see `.claude/dev-docs/meta-ads-credential-guide.md` § "What is automated vs manual".
 
 ---
-
-## Long-term ML hardening (roadmap)
-
-- [x] **Phase-2 data acquisition — CLOSED AS MANUAL (2026-06-10, ADR-004).** The 2 ex-imputed features are now sourced from manual entry: `NonAlgoStreams28Days` → `s4a_song_nonalgo_streams`, `HowManySongsDoYouHaveInRadioRightNow` → `s4a_artist_radio_count` (migration 052), captured in the Saisie S4A form, read by `ml_inference.build_features` (default 0 when no entry). **Automatic capture rejected:** the artist confirmed S4A shows the source split on-screen only (no CSV export → parser+watcher impossible), and scraping the authed S4A UI is ToS-violating + per-tenant-credential-heavy + fragile (see ADR-004). **Reopen only if** Spotify exposes the split via a CSV export or official API → then a cheap DistroKid-style parser+watcher. 416 tests pass.
-- [x] **Discovery Mode manual input** — DONE 2026-05-31. `migrations/040_s4a_song_discovery_mode.sql` (table mirrors `s4a_song_playlist_adds`: per-song dated opt-in, latest `recorded_at` wins) + `init_db.sql` + `_ALLOWED_TABLES`. `ml_inference.build_features` sources `IsThisSongOptedIntoSpotifyDiscoveryMode` from the latest manual entry (default 0.0). `trigger_algo` gains a "🔭 Discovery Mode" metric + manual opt-in form (after Ajouts playlist). Kept in `_IMPUTED_FEATURES` (drift-excluded) — bounded binary flag, z-score drift is meaningless. End-to-end verified (feature flips 0→1 on opt-in); render-smoke + 321 pytest green. Marginal SHAP weight (rank 13) but un-imputes one of the 3 sourceless features with zero external API.
-
----
-
-## Pré-déploiement program (2026-06-09)
-
-> Blocs livrés déplacés vers `archive.md`. Ce qui reste ouvert est ci-dessous.

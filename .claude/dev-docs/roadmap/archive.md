@@ -6553,3 +6553,99 @@ annoncé nulle part. C'est ce défaut réel, et non une mutation imaginée, qui 
 le garde rouge.
 
 Classe `a-generated-document-with-no-freshness-guard`.
+
+---
+
+## 🧹 Sections rapatriées de l'actif le 2026-09-17
+
+Ces deux sections vivaient dans `checklist.md` — le fichier ACTIF — alors que **tous
+leurs items étaient cochés**. Mesuré avant de bouger : 5 items clos, 0 ouvert. Une
+section entièrement close dans l'actif n'est pas neutre : elle allonge ce qu'on relit à
+chaque reprise et fait passer du travail fini pour du travail en cours.
+
+⚠️ Déplacement, jamais suppression — `tests/test_roadmap_two_files.py` refuse que la
+somme des deux fichiers rétrécisse, et c'est délibéré : une rotation qui perd un item
+améliore le pourcentage sans rien livrer.
+
+## Open Bugs
+
+- [x] **`/youtube/videos` API cassé (HTTP 500) — schema drift, MÊME CLASSE que `/kpis`** — sélectionnait `views/likes/comments/title` sur `youtube_video_stats` (vraies colonnes `view_count/like_count/comment_count`, pas de `title`). **FIXÉ** : requête sur `youtube_videos` (catalogue par-vidéo : title + view_count/like_count/comment_count). Mergé PR #62, déployé, `/youtube/videos` = **200** confirmé live. *(8 routers audités, youtube était le dernier cassé.)*
+- [x] **Gap de test systémique = cause racine `/kpis` + `/youtube`** — les 2 bugs avaient échappé aux tests (routers testés **DB mockée**). **FIXÉ** : `tests/test_api_db_smoke.py` — smoke-test **DB-gated** (comme `test_views_render_smoke`) qui exécute chaque endpoint data contre le vrai schéma (token admin+tenant forgé) et assert no-500 → attrape toute la classe en CI. Aurait fait échouer /kpis ET /youtube.
+
+**P3/P4 — correctness borderline :**
+- [x] **2 collectors `return None`** ✅ (2026-06-14) — `youtube_collector.py:45` (chaîne introuvable) **escaladé en `raise ValueError`** (vrai échec → plus de 0-rows-DAG-SUCCESS) + test de non-régression `test_get_channel_stats_raises_on_channel_not_found`. `instagram_api_collector.py:294` (insights code-100, 1 média) **confirmé skip par-item légitime** (l'appelant filtre `None` L322) + commenté explicitement. `_meta_config_fetch.py:168 return []` = 0-créative valide, hors-scope.
+
+**Mesuré & ÉCARTÉ (FP / non pertinent — ne pas re-auditer) :**
+- Index `s4a_song_timeline(artist_id, song, date)` → **prématuré** : EXPLAIN ANALYZE = **0.4ms** sur 13794 lignes via l'index `(artist_id,date)` existant. Revisiter à ~10× volume.
+- `API_SECRET_KEY` → **SET (64 chars) en prod** : JWT stables au restart, non-issue.
+- Sweep schema-drift : 132 candidats bruts → **tous FP sauf le router youtube** (alias `col AS x`, vars f-string `{filt}/{frag}`, fonctions SQL, littéraux, commentaires FR, ON CONFLICT/EXCLUDED).
+- Deps `uv.lock` **0 CVE** ; imports morts **0** (ruff F401) ; data-integrity (filtre 1x7 / scoping tenant / clés upsert) **clean** ; secrets git history **0**.
+
+## Long-term ML hardening (roadmap)
+
+- [x] **Phase-2 data acquisition — CLOSED AS MANUAL (2026-06-10, ADR-004).** The 2 ex-imputed features are now sourced from manual entry: `NonAlgoStreams28Days` → `s4a_song_nonalgo_streams`, `HowManySongsDoYouHaveInRadioRightNow` → `s4a_artist_radio_count` (migration 052), captured in the Saisie S4A form, read by `ml_inference.build_features` (default 0 when no entry). **Automatic capture rejected:** the artist confirmed S4A shows the source split on-screen only (no CSV export → parser+watcher impossible), and scraping the authed S4A UI is ToS-violating + per-tenant-credential-heavy + fragile (see ADR-004). **Reopen only if** Spotify exposes the split via a CSV export or official API → then a cheap DistroKid-style parser+watcher. 416 tests pass.
+- [x] **Discovery Mode manual input** — DONE 2026-05-31. `migrations/040_s4a_song_discovery_mode.sql` (table mirrors `s4a_song_playlist_adds`: per-song dated opt-in, latest `recorded_at` wins) + `init_db.sql` + `_ALLOWED_TABLES`. `ml_inference.build_features` sources `IsThisSongOptedIntoSpotifyDiscoveryMode` from the latest manual entry (default 0.0). `trigger_algo` gains a "🔭 Discovery Mode" metric + manual opt-in form (after Ajouts playlist). Kept in `_IMPUTED_FEATURES` (drift-excluded) — bounded binary flag, z-score drift is meaningless. End-to-end verified (feature flips 0→1 on opt-in); render-smoke + 321 pytest green. Marginal SHAP weight (rank 13) but un-imputes one of the 3 sourceless features with zero external API.
+
+---
+
+### Deux coquilles retirées de l'actif le 2026-09-17
+
+**`## Pré-déploiement program (2026-06-09)`** — retirée. Elle ne contenait qu'un entête
+et la phrase « Blocs livrés déplacés vers `archive.md`. Ce qui reste ouvert est
+ci-dessous », **suivie de rien**. Vérifié avant de la retirer : aucun item coché ni
+décoché en dessous. Une section qui promet du contenu et n'en a pas coûte une lecture à
+chaque reprise et ne rend jamais rien.
+
+**`## Brick Status`** — renommée en « Consignes permanentes », pas déplacée : son
+contenu (la rotation des secrets sur incident) est vivant et doit rester lisible. Ce qui
+était faux, c'était le titre et sa phrase d'introduction : aucune brique n'y figurait, et
+rien de ce qu'elle contient n'est « ouvert » au sens de la roadmap.
+
+---
+
+## R130 — Les rétentions déclarées n'étaient appliquées par personne · ✅ CLOSE le 2026-09-17
+
+- [x] **R130 — écrire `telemetry_retention.py` et l'appeler depuis la maintenance nocturne.**
+
+La migration 124 (2026-09-16) déclare les rétentions de 13 tables de télémétrie dans des
+`COMMENT ON TABLE`, et affirme que « les purges correspondantes vivent dans
+`src/utils/telemetry_retention.py` ». **Ce fichier n'existait pas.** Les rétentions
+étaient donc déclarées en commentaire SQL et appliquées par personne — exactement la
+situation que la migration prétendait fermer.
+
+**La décision de conception qui compte** : le module lit les `COMMENT ON TABLE` au lieu
+de redéclarer les rétentions. Une table de correspondance écrite dans le code serait une
+SECONDE déclaration, et deux déclarations divergent. Le module n'apporte que ce que le
+commentaire ne peut pas porter — **quelle colonne porte l'âge**, qui est un fait de
+schéma et non de politique.
+
+**Cinq formes de déclaration, trouvées en lançant le module à blanc sur la base réelle
+plutôt qu'en lisant la migration** — il a LEVÉ sur les trois dernières au lieu de les
+sauter, et c'est ce qui les a révélées :
+
+| forme | tables | traitement |
+|---|---|---|
+| `RÉTENTION : N jours` | `usage_events` 180, `etl_run_log` 180, `monitoring_run` 365, `csv_upload_log` 365 | purge par âge |
+| conditionnelle | `app_error_log` | **un défaut OUVERT n'est jamais purgé, quel que soit son âge** |
+| `garde tout` | `daily_ops_metrics` | rien |
+| bornée par construction | `etl_circuit_breaker`, `tenant_platform_probe` | rien — une clé unique écrase la ligne |
+| TABLE MORTE | `etl_daily_metrics` | rien |
+
+⚠️ **Une déclaration incomprise LÈVE, elle n'est jamais sautée.** Sauter rendrait « rien
+à purger » et « je n'ai pas compris » indistinguables — le défaut d'origine sous une
+autre forme.
+
+**Purge PROUVÉE, pas seulement écrite** : une purge jamais vue supprimer n'est pas une
+purge. Vérifié à la main contre la vraie base — une ligne de 200 jours supprimée, une de
+10 jours épargnée, dans le même appel.
+
+**La seconde moitié : `tools/scale_check.sh` balayait `usage_events` entière.** Bornée à
+180 jours, et il faut dire ce que ça change exactement : **rien aujourd'hui**. Mesuré en
+production — 1 224 lignes du 2026-06-09 au 2026-09-17, **0 au-delà de 180 jours**, 352 ko,
+et le pic est identique borné ou non (12). Ce n'est donc PAS un correctif de lenteur : il
+n'y avait pas de lenteur. C'est l'alignement de la requête sur la rétention désormais
+appliquée, après quoi « le pic de tous les temps » et « le pic de la fenêtre » deviennent
+la même chose.
+
+Garde : `tests/test_a_declared_retention_is_actually_applied.py`, trois mutations rouges.
+Classe `a-retention-declared-in-a-comment-and-applied-by-nobody`.

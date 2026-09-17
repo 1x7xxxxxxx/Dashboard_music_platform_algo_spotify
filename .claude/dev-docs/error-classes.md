@@ -128,6 +128,8 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
+| [a-retention-declared-in-a-comment-and-applied-by-nobody](#a-retention-declared-in-a-comment-and-applied-by-nobody) | P3 | deterministic | guarded | none |
+| [a-procedure-that-omits-a-surface-it-must-touch](#a-procedure-that-omits-a-surface-it-must-touch) | P3 | deterministic | guarded | none |
 | [a-scrape-target-that-is-up-measuring-nothing](#a-scrape-target-that-is-up-measuring-nothing) | P2 | deterministic | guarded | none |
 | [a-gauge-that-reports-zero-when-it-cannot-read](#a-gauge-that-reports-zero-when-it-cannot-read) | P2 | deterministic | guarded | none |
 | [a-metric-label-whose-cardinality-is-unbounded](#a-metric-label-whose-cardinality-is-unbounded) | P3 | deterministic | guarded | none |
@@ -7969,3 +7971,39 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-17: **vérifié en production après déploiement, et la vérification a trouvé une limite que les tests ne voyaient pas.** Le compteur était déclaré mais n'avait AUCUNE série : le logger racine du conteneur est à `WARNING`, donc un `info()` n'atteint jamais les handlers. Mesuré par exécution — un `error()` incrémente à 1.0, un `info()` rend `None`. La limite est acceptée (baisser le niveau changerait ce qui s'imprime, et ce n'est pas au compteur d'en décider), mais **une limite tue est un instrument qui ment sur sa portée** : `streamlytics_log_level_floor` est donc publiée à côté du compteur, et tracée dans le même panneau. Un « 0 INFO » s'y lit « hors de portée », pas « aucune ». Même discipline que `_read_ok` pour la jauge des défauts.
   - 2026-09-17: écrite en répondant à la demande « compter les logs et les stocker pour Grafana via Prometheus ». Compter par niveau est une métrique et non du stockage de logs, donc compatible avec ADR-026 qui rejette Loki — c'est la troncature du label qui fait la différence entre une métrique et une base de données déguisée.
+
+## a-retention-declared-in-a-comment-and-applied-by-nobody
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une politique de conservation est écrite quelque part — commentaire SQL, ADR, migration — et **rien ne l'exécute**. Rien n'échoue jamais ; la table grossit, et le jour où un tableau ralentit ou où le disque se remplit, la cause a des mois d'avance sur le symptôme.
+- root_cause: `migrations/124_every_telemetry_table_declares_its_retention.sql:21-22` déclare les rétentions de 13 tables dans des `COMMENT ON TABLE` et affirme que « les purges correspondantes vivent dans `src/utils/telemetry_retention.py`, appelé par le DAG `alert_monitor` ». **Ce fichier n'a jamais été écrit.** `src/utils/nightly_maintenance.py` n'appelait que `purge_rate_limit_hits`. La migration était donc la description d'une intention, présentée au présent — et une migration est exactement le genre de document qu'on relit en croyant qu'il décrit l'état du système.
+- cause_evidence: measured (`grep -rn "telemetry_retention" src/` le 2026-09-17 ne rendait que les deux mentions de la migration elle-même ; `usage_events` portait 1 224 lignes en production sans qu'aucune purge n'ait jamais tourné)
+- signature: `python3 -m pytest tests/test_a_declared_retention_is_actually_applied.py -q`
+- seen_red: 2026-09-17 sur `src/utils/telemetry_retention.py`, trois mutations → exit 1 chaque fois, 0 après remise en état : (a) la branche finale `raise UndeclaredRetention` remplacée par `continue` ; (b) la purge conditionnelle emportant aussi les défauts OUVERTS ; (c) le `DELETE` privé de sa clause d'âge.
+- long_term_fix: **la purge LIT la déclaration au lieu de la redéclarer.** Une table de correspondance écrite dans le code serait une seconde déclaration, et deux déclarations divergent ; en lisant `obj_description()`, la politique et son application ne peuvent pas se contredire. Le code n'apporte que ce que le commentaire ne peut pas porter — la colonne qui porte l'âge, fait de schéma et non de politique. Et surtout : **une déclaration incomprise LÈVE**. C'est ce qui a révélé trois des cinq formes existantes (conditionnelle, bornée par construction, table morte), en refusant de les sauter.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_declared_retention_is_actually_applied.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — écrire une politique que rien n'exécute ; couvre: les cinq formes de déclaration de rétention et leur routage, l'obligation de lever sur une forme inconnue, la clause d'âge du `DELETE` et la protection des défauts ouverts ; ne couvre pas: (1) **le geste voisin le plus proche — que la purge soit APPELÉE** : le garde vérifie que le module est correct, pas que `nightly_maintenance` continue de l'invoquer ; retirer l'appel laisserait tous ces tests verts ; (2) les autres politiques écrites et non exécutées — un ADR qui décrit un rituel, un commentaire qui promet un contrôle, un runbook qui décrit une rotation ; (3) la JUSTESSE des durées déclarées (180 j, 365 j), aucune n'ayant de dérivation écrite ; (4) les tables qui ne déclarent rien du tout, invisibles pour ce module comme pour ce garde.
+- rex_ref: migrations/124_every_telemetry_table_declares_its_retention.sql
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: trouvée par le balayage des frères de `a-replica-that-builds-its-own-image`, en cherchant la forme « un artefact dérivé qui diverge de sa source » hors du domaine Docker. Inscrite en roadmap (R130) plutôt que corrigée sur-le-champ, puis livrée le même jour. ⚠️ La purge a été **prouvée**, pas seulement écrite : une ligne de 200 jours supprimée et une de 10 jours épargnée dans le même appel, contre la vraie base — une purge jamais vue supprimer n'est pas une purge.
+
+## a-procedure-that-omits-a-surface-it-must-touch
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une procédure écrite est correcte, détaillée, et **omet une des surfaces que le geste doit toucher**. Celui qui la suit fait le travail et laisse une incohérence derrière lui. Le défaut ne se voit qu'au contrôle suivant, quand le lien avec le geste est déjà perdu.
+- root_cause: `.claude/commands/roadmap-done.md` décrit la rotation d'une tâche en huit étapes et ne nommait **ni** l'ancre `<!-- reprise: open=… -->` — une troisième surface à côté des deux tables d'index — **ni** le format que `tests/test_roadmap_two_files.py::test_no_brick_id_vanishes_from_both_files` exige d'une entrée d'archive (une ligne de tableau ou une case cochée ; un **titre** `## R128 — …` lui est invisible). Les deux omissions ont produit une erreur chacune le 2026-09-17, dans la même séance, sur des tâches différentes.
+- cause_evidence: measured (2026-09-17 : `test_the_anchor_matches_the_open_index` rouge après une rotation suivant la procédure ; puis `test_no_brick_id_vanishes_from_both_files` rouge sur R128 et R129, dont les entrées d'archive étaient écrites en titres)
+- signature: `python3 -m pytest tests/test_the_roadmap_rotation_names_all_three_surfaces.py -q`
+- seen_red: 2026-09-17 sur `tools/dev/roadmap.py`, trois mutations → exit 1 chaque fois, 0 après : (a) la vérification du format d'archive retirée ; (b) l'ancre non recalée après fermeture ; (c) `sync` ne lisant qu'une seule des deux tables d'index. Le quatrième test du fichier a par ailleurs été vu rouge **sur l'état réel** de la procédure en prose, avant qu'elle ne soit corrigée.
+- long_term_fix: **outiller le geste mécanique** — `make roadmap-close ID=…` retire la ligne d'index, recale l'ancre, et REFUSE de fermer une tâche dont l'entrée d'archive n'est pas dans une forme reconnue, en affichant la forme attendue. Le refus arrive AVANT la rotation, là où les tests arrivaient après. La prose est gardée pour ce qui demande un jugement (choisir la section, écrire le récit), et un test exige désormais qu'elle nomme les deux choses qu'elle omettait — sinon les deux surfaces redivergent.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_roadmap_rotation_names_all_three_surfaces.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — une procédure qui décrit un geste sans nommer toutes ses surfaces ; couvre: la rotation de roadmap uniquement, sur quatre propriétés — le refus d'un format d'archive non reconnu, le message qui MONTRE la forme attendue, le recalage de l'ancre, et la lecture des **deux** tables d'index — plus un test qui exige que la prose nomme l'ancre et renvoie vers la cible ; ne couvre pas: (1) **le geste voisin le plus proche — toute autre procédure du dépôt** : `/capitalise`, `/adr`, `/retro`, `runbook-actions-utilisateur.md` décrivent des gestes multi-surfaces et rien ne vérifie qu'ils les nomment tous ; (2) l'ajout d'une tâche (`open`), qui touche les mêmes trois surfaces et n'est pas outillé ; (3) le CONTENU écrit — l'outil ne juge ni la section d'archive choisie ni le récit ; (4) une quatrième surface qui apparaîtrait : le garde connaît les trois d'aujourd'hui, pas celle de demain.
+- rex_ref: .claude/commands/roadmap-done.md
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: les deux omissions se sont manifestées dans la même séance, sur deux tâches différentes, en suivant une procédure que j'avais sous les yeux. ⚠️ Une troisième friction mesurée le même jour n'est pas corrigée par cette classe et mérite d'être écrite : l'agent `roadmap-keeper` a tourné **31 minutes sans rien écrire** sur la rotation d'une seule tâche, qui a dû être faite à la main. L'outil retire la raison de le lancer pour ça ; il reste pertinent pour une brique entière, où il faut juger plutôt que compter.

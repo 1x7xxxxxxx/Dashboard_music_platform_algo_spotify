@@ -24,17 +24,32 @@ SEUIL_SESSIONS="${SEUIL_SESSIONS:-20}"
 echo "▶ Déclencheur 1/2 — sessions HUMAINES distinctes dans une même minute"
 echo "  (seuil de réouverture : > ${SEUIL_SESSIONS})"
 
+# ⚠️ Fenêtre de 180 jours, ajoutée le 2026-09-17, et il faut dire ce qu'elle change
+# exactement — ni plus, ni moins.
+#
+# Elle est aujourd'hui SÉMANTIQUEMENT NEUTRE, et c'est mesuré : `usage_events` porte
+# 1 224 lignes s'étalant du 2026-06-09 au 2026-09-17, **0 au-delà de 180 jours**, pour
+# 352 ko. Le pic rendu est le même borné ou non — 12 dans les deux cas.
+#
+# Elle n'est donc PAS un correctif de lenteur : il n'y a pas de lenteur à corriger. Elle
+# aligne la requête sur la rétention que `src/utils/telemetry_retention.py` applique
+# désormais (180 jours pour cette table). Au-delà de cette borne les lignes n'existeront
+# plus, donc « le pic de tous les temps » et « le pic de la fenêtre » deviennent la même
+# chose — et la requête cesse de dépendre d'une table dont la taille était, jusqu'au
+# 2026-09-17, bornée par personne.
 read -r -d '' SQL <<'SQLEOF' || true
 SELECT
   COALESCE(max(s), 0) AS pic_humain,
   (SELECT COALESCE(max(t), 0) FROM (
      SELECT count(DISTINCT session_id) t FROM usage_events
+     WHERE ts > now() - interval '180 days'
      GROUP BY date_trunc('minute', ts)) y) AS pic_brut_toutes_sessions
 FROM (
   SELECT count(DISTINCT u.session_id) s
   FROM usage_events u
   LEFT JOIN saas_artists a ON a.id = u.artist_id
-  WHERE COALESCE(a.is_canary,  FALSE) = FALSE
+  WHERE u.ts > now() - interval '180 days'
+    AND COALESCE(a.is_canary,  FALSE) = FALSE
     AND COALESCE(a.is_sandbox, FALSE) = FALSE
   GROUP BY date_trunc('minute', u.ts)) x;
 SQLEOF

@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: error-health error-health-check error-health-history night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: error-health error-health-check error-health-history roadmap-close roadmap-sync night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -305,6 +305,23 @@ error-families: ## Familles de classes d'erreur → .claude/dev-docs/error-class
 # Le protocole : .claude/dev-docs/roadmap/night-run.md — à lire à CHAQUE réveil.
 # `night_run.py` n'utilise que la stdlib et `git` ; pas de dépendance d'exécution,
 # donc pas de précondition (règle transverse #10, cibles « fichier seul »).
+
+# ⚠️ Ces deux cibles ne rédigent RIEN. Elles font le geste MÉCANIQUE d'une rotation —
+# retirer la ligne d'index, recaler l'ancre de reprise — et refusent de fermer une tâche
+# dont l'entrée d'archive n'est pas écrite dans une forme que le test de conservation
+# reconnaît. Le texte reste écrit à la main : une rotation qui rédigerait aussi la leçon
+# produirait des leçons de machine.
+#
+# Mesuré le 2026-09-17, et c'est la raison d'être de ces cibles : la procédure en prose
+# (`.claude/commands/roadmap-done.md`) est correcte et détaillée, et elle a laissé passer
+# DEUX erreurs dans une seule séance parce qu'elle ne nomme ni l'ancre ni le format
+# d'archive. Les tests les ont rattrapées — après coup. Ici, l'outil refuse avant.
+roadmap-close: ## Ferme une tâche : retire sa ligne d'index et recale l'ancre — make roadmap-close ID=R128
+	@test -n "$(ID)" || { echo "❌ ID= manquant. Ex : make roadmap-close ID=R128"; exit 1; }
+	@python3 tools/dev/roadmap.py close "$(ID)"
+
+roadmap-sync: ## Remet l'ancre de reprise d'accord avec les deux tables d'index
+	@python3 tools/dev/roadmap.py sync
 
 night-status: ## Où j'en suis : unité en cours, arbre, roadmap, parkings, journal (~1 s)
 	@python3 tools/dev/night_run.py status

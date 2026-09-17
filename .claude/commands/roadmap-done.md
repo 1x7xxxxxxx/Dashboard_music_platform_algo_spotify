@@ -27,6 +27,37 @@ contract, and it recounts aggregates when the file carries any.
 `/roadmap-done <id> [one-line note]` — `<id>` is the row id from the top table (e.g. `R3`),
 or, if the task has no top-table row, an unambiguous substring of the task text.
 
+## Le geste mécanique est OUTILLÉ — ne le refaites pas à la main
+
+```bash
+make roadmap-close ID=R128
+```
+
+Elle retire la ligne d'index **et** recale l'ancre de reprise, et elle **refuse** de
+fermer une tâche dont l'entrée d'archive n'est pas encore écrite dans une forme que le
+test de conservation reconnaît. Écrivez l'entrée d'archive (étape 4 ci-dessous), puis
+lancez-la.
+
+⚠️ **Pourquoi cette cible existe, et c'est mesuré.** Cette procédure est correcte et
+détaillée, et elle a laissé passer **deux erreurs dans une seule séance** le 2026-09-17,
+parce qu'elle ne nommait ni l'une ni l'autre :
+
+1. **L'ancre de reprise `<!-- reprise: open=… -->` est une TROISIÈME surface**, à côté
+   des deux tables d'index. Oubliée ⇒ `test_the_anchor_matches_the_open_index` rouge.
+2. **Le format d'archive.** `test_no_brick_id_vanishes_from_both_files` ne reconnaît un
+   identifiant que sous **deux** formes :
+   - une ligne de tableau `| R128 | … |`
+   - une case cochée `- [x] **R128 — …**`
+
+   Une entrée écrite en **titre** (`## R128 — …`) lui est **invisible**, et la tâche est
+   déclarée disparue des deux fichiers. Arrivé sur R128 et R129 le même jour.
+
+Les tests ont rattrapé les deux — *après coup*. La cible refuse *avant*.
+
+⚠️ **Et ne lancez pas `roadmap-keeper` pour une seule tâche** : mesuré le 2026-09-17, il
+a tourné **31 minutes sans rien écrire** sur une rotation d'un item, qui a dû être faite
+à la main. Il reste le bon outil pour une BRIQUE entière, où il faut juger — pas compter.
+
 ## What to do
 
 1. Read `.claude/dev-docs/roadmap/checklist.md`.
@@ -45,8 +76,12 @@ or, if the task has no top-table row, an unambiguous substring of the task text.
    paste, in that order, in one edit each: an item duplicated across both files is counted
    twice and reads as two deliveries.
 
-5. **Remove the index row:** delete the task's line from the `## 📋 Tâches ouvertes` table.
-   The active index must list ONLY open tasks.
+5. **Remove the index row and realign the anchor** — `make roadmap-close ID=<id>` fait
+   les deux. L'index actif ne liste QUE des tâches ouvertes, et l'ancre
+   `<!-- reprise: open=… -->` doit lister exactement ce que les **deux** tables d'index
+   listent (`## 📋 Tâches ouvertes` *et* `## 🙋 En attente de toi`).
+
+   Si l'ancre a dérivé pour une autre raison : `make roadmap-sync`.
 
 6. **Renumber? No.** Leave remaining `R*` ids as-is (ids are stable handles, not positions).
 
