@@ -135,6 +135,42 @@ def _heavy_local_processes(exclude_own_browser: bool = False) -> int:
     return sum(1 for line in out.stdout.splitlines() if any(k in line for k in keys))
 
 
+def _local_load() -> tuple[float, float]:
+    """(charge 1 min normalisée par cœur, %CPU cumulé des processus lourds).
+
+    ⚠️ Ajouté le 2026-09-17, et c'est un correctif de GARDE, pas un assouplissement.
+    `_heavy_local_processes` compte des NOMS. Sa clé `"node "` attrape les processus
+    du serveur VS Code — neuf ici — donc un développeur qui lance cette mesure depuis
+    le terminal de son éditeur est refusé **par construction**, machine au repos ou non.
+
+    Mesuré ce jour-là au moment du refus : charge **1,02 sur 8 cœurs (13 %)**, et les
+    douze « lourds » consommaient **5,1 % de CPU à eux tous**. Le garde a bloqué une
+    mesure sur une machine objectivement inactive. Famille
+    `un-contrôle-qui-ne-peut-jamais-passer`.
+
+    Ce qu'on garde de l'ancien : la LISTE, qui dit *quoi* regarder. Ce qu'on remplace :
+    le verdict, qui devient la charge réelle au lieu d'un compte de présences.
+    """
+    try:
+        with open("/proc/loadavg", encoding="utf-8") as fh:
+            one_min = float(fh.read().split()[0])
+        cores = os.cpu_count() or 1
+        out = subprocess.run(["ps", "-eo", "pcpu,cmd"], capture_output=True,
+                             text=True, timeout=10)
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return (0.0, 0.0)
+    keys = ("pytest", "audit_runner", "playwright", "chromium")
+    cpu = 0.0
+    for line in out.stdout.splitlines()[1:]:
+        pcpu, _, cmd = line.strip().partition(" ")
+        if any(k in cmd for k in keys):
+            try:
+                cpu += float(pcpu)
+            except ValueError:
+                continue
+    return (one_min / cores, cpu)
+
+
 def _browser_rss_mb() -> float:
     """La RAM résidente de NOS processus de navigateur, en Mo. 0 si illisible.
 
@@ -460,12 +496,21 @@ def main() -> int:
                         help="mesurer même si la machine est occupée (les temps y sont du bruit)")
     args = parser.parse_args()
 
+    # Le verdict porte sur la CHARGE, pas sur un compte de processus présents.
+    # Seuils : 50 % d'un cœur en moyenne sur 1 min, ou 80 % d'un cœur consommés par
+    # les processus qui ont déjà faussé une mesure ici (pytest, audit_runner,
+    # playwright, chromium). En dessous, la machine est inactive et la mesure vaut.
+    load_ratio, heavy_cpu = _local_load()
     heavy = _heavy_local_processes()
-    if heavy > 2 and not args.force_busy:
-        print(f"❌ {heavy} processus lourds tournent ici. Une mesure prise sous charge "
-              "auto-infligée a déjà coûté un facteur 12,8 à ce dépôt.\n"
+    if (load_ratio > 0.50 or heavy_cpu > 80.0) and not args.force_busy:
+        print(f"❌ machine occupée : charge {load_ratio:.2f}/cœur, "
+              f"{heavy_cpu:.0f} % de CPU sur {heavy} processus lourds. "
+              "Une mesure prise sous charge auto-infligée a déjà coûté un facteur "
+              "12,8 à ce dépôt.\n"
               "   Attendre, ou --force-busy en sachant ce qu'on lit.")
         return 1
+    print(f"▶ machine : charge {load_ratio:.2f}/cœur, {heavy_cpu:.0f} % de CPU lourd "
+          f"({heavy} processus repérés) — mesure autorisée")
     if args.user and not args.password:
         print("❌ --user sans --password")
         return 1

@@ -719,3 +719,61 @@ La remise en service de la seconde réplique (R114) est conditionnée par `deplo
 à « un chiffre qui ne dépende pas de la saturation du client ». Ce chiffre vient de cet
 instrument. Tant qu'on ignore s'il enregistre, mesurer deux topologies reproduirait
 l'ambiguïté de R114, plus cher.
+
+## 14. R114 — Les identifiants du bac à sable, pour croiser client et serveur
+
+**Pourquoi c'est ici** : `tools/loadtest_concurrency.py` en mode anonyme mesure la **page
+de connexion**. Elle est rendue **avant** `require_login()` (`src/dashboard/app.py:742`),
+alors que la couture de métriques s'exécute **après** (`end_chrome` 976, `view_timer` 979).
+Les deux instruments ne regardent donc pas le même chemin, et le croisement — la raison
+d'être de R115 — est impossible sans se connecter.
+
+### Ce que la passe A a établi SANS identifiants, le 2026-09-17
+
+| onglets | 1 | 2 | 4 | 8 | 12 | 16 | 24 |
+|---|---|---|---|---|---|---|---|
+| p50 (ms) | 229 | 329 | 552 | 1 088 | 1 864 | 2 474 | 3 657 |
+| p50 / p50(1) | ×1,00 | ×1,43 | ×2,40 | ×4,74 | ×8,13 | ×10,79 | **×15,94** |
+| reruns perdus (serveur) | 0 | 0 | 0 | 0 | 0 | 0 | **0** |
+| reruns perdus (client) | 0 | 0 | 0 | 0 | 0 | 0 | **0** |
+
+**Deux lectures, et il faut les tenir ensemble :**
+
+- **×15,94 à 24 onglets est une sérialisation quasi parfaite.** Un processus, un GIL :
+  la contention est réelle et mesurée.
+- **Zéro rerun perdu, partout.** Le seuil de décision du protocole — « B rend 0 là où A
+  en perd ≥ 9 au palier 8 » — n'a **plus d'amplitude** : A marque déjà 0. La ligne de
+  base historique (0/0/0/**9**/**33**/—/**98**) ne se reproduit pas.
+
+⚠️ **Ne pas en conclure que le serveur va bien.** Pendant toute la passe, l'histogramme
+serveur est resté `nan` et `reruns_in_flight` à 0 : **le serveur n'a rien vu du tout**,
+parce que le chemin mesuré n'est pas instrumenté. Le zéro est une absence d'observation,
+pas une absence de perte.
+
+### Le geste
+
+1. Récupère les identifiants du locataire **bac à sable** (`is_sandbox`, tenant 18) —
+   `tools/scale_check.sh` l'exclut déjà de ses comptes, c'est fait pour ça.
+2. Rejoue les quatre passes **alternées** A-B-A-B du protocole
+   (`.claude/dev-docs/measurement-protocol-R114.md`), en heures creuses :
+
+```bash
+make loadtest-concurrency URL=https://app.streamlytics.fr/ \
+  LEVELS=1,2,4,8,12,16,24 REPS=6 LOGIN=<bac-a-sable> PASSWORD=<...>
+```
+
+⚠️ **`LOGIN=` et non `USER=`** : `USER` est une variable d'environnement POSIX que `make`
+importe, et la cible partait en mode authentifié toute seule avec `--user $USER`. Corrigé
+le 2026-09-17 ; `tests/test_a_make_variable_does_not_collide_with_the_environment.py` le garde.
+
+3. Entre A et B, les trois gestes de remise en service de la réplique sont écrits dans
+   `deploy/Caddyfile` (démarrer `dashboard2`, repointer `reverse_proxy` en `lb_policy
+   cookie`, remettre la cible Prometheus).
+
+### Ce que chaque issue veut dire
+
+| résultat | conclusion |
+|---|---|
+| B perd 0 rerun là où A en perd ≥ 9, **deux fois** | le levier est prouvé |
+| B perd autant que A | **le goulot n'est pas le GIL** — on aurait acheté Redis et des workers pour rien. C'est la découverte visée |
+| l'écart reste sous le seuil | on ne conclut pas, et on l'écrit. **C'est un résultat**, pas un échec |

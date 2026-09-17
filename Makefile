@@ -163,14 +163,28 @@ test-fast:   ## [= test −38 s] La suite SANS les tests de documents — avant 
 test-docs:   ## [~38 s] Seulement les tests de documents — après avoir touché un document généré
 	$(PYTHON) -m pytest $(DOC_TESTS) -q
 
-loadtest-concurrency: ## La concurrence RÉELLE, par navigateurs. URL=… [USER=… PASSWORD=…]
+loadtest-concurrency: ## La concurrence RÉELLE, par navigateurs. URL=… [LOGIN=… PASSWORD=…]
 	@# Le seul chiffre que `loadtest_dashboard.py` ne peut pas produire : il rend en
 	@# SÉRIE puis divise, et il le dit lui-même (lignes 27-40). Ici N onglets cliquent
 	@# ENSEMBLE, ce qui est la définition de la concurrence.
 	@[ -n "$(URL)" ] || { echo "❌ set URL=https://…"; exit 1; }
 	$(PYTHON) tools/loadtest_concurrency.py --url "$(URL)" \
 	  $(if $(LEVELS),--levels $(LEVELS),) $(if $(REPS),--reps $(REPS),) \
-	  $(if $(USER),--user $(USER),) $(if $(PASSWORD),--password $(PASSWORD),)
+	  $(if $(LOGIN),--user $(LOGIN),) $(if $(PASSWORD),--password $(PASSWORD),)
+
+# ⚠️ `LOGIN=` et non `USER=` — trouvé le 2026-09-17 en lançant la mesure R114.
+# `USER` est une variable d'ENVIRONNEMENT standard du shell, et `make` importe
+# l'environnement dans ses variables. `make loadtest-concurrency URL=…` sans autre
+# argument partait donc avec `--user timothe`, silencieusement : la cible basculait
+# en mode AUTHENTIFIÉ sans qu'on le demande, avec un identifiant qui n'est pas un
+# compte de l'application et sans mot de passe.
+#
+# Ce n'est pas cosmétique sur CETTE cible : le mode authentifié « mesure une vraie
+# page et ÉCRIT dans `usage_events` » (docstring de l'outil). Une mesure de charge
+# qui se croit anonyme et qui écrit dans les données d'usage pollue précisément la
+# table que `scale_check.sh` interroge pour décider s'il faut des répliques.
+#
+# Garde : `tests/test_a_make_variable_does_not_collide_with_the_environment.py`.
 
 scale-check: ## Les 2 déclencheurs de R87 (répliques), rejoués. PROD_SSH=user@host
 	@# Une décision qu'on ne sait pas relire se périme en silence. ADR-014 § « Comment
@@ -181,12 +195,25 @@ scale-check: ## Les 2 déclencheurs de R87 (répliques), rejoués. PROD_SSH=user
 	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host"; exit 1; }
 	@PROD_SSH=$(PROD_SSH) bash tools/scale_check.sh
 
-test-durations: ## Régénère .test_durations (équilibre les 4 shards de la CI) — ~15 min
+test-durations: ## Régénère .test_durations — SORT EN ERREUR 1 QUAND ELLE RÉUSSIT, voir ci-dessous
 	@# EN SÉRIE, à dessein : `--store-durations` sous xdist n'agrège pas proprement,
 	@# et ce fichier sert à RÉPARTIR — une durée fausse déséquilibre un shard entier.
 	@# Quand le lancer : quand `test_the_shards_are_balanced_by_real_durations.py`
 	@# rougit, c'est-à-dire quand trop de fichiers neufs n'ont aucune durée connue.
 	@# Puis commiter `.test_durations`.
+	@#
+	@# ⚠️ ELLE SORT EN ERREUR 1 QUAND ELLE RÉUSSIT, et ce n'est pas un défaut :
+	@# `test_the_shards_are_balanced_by_real_durations` fait partie de la suite qu'on
+	@# lance ici. Il s'exécute AVANT que `--store-durations` n'écrive le fichier en fin
+	@# de session, il voit donc l'ANCIEN et rougit. Le fichier est écrit juste après, et
+	@# il passe au lancement suivant.
+	@#
+	@# Mesuré le 2026-09-17 : 1 rouge sur 6 987, et ce rouge-là est exactement le garde
+	@# qui a motivé la commande. Ne PAS le désélectionner pour « faire vert » : on
+	@# perdrait le seul signal qui dit que le fichier est périmé. Lire le rouge,
+	@# vérifier qu'il n'y en a qu'UN et que c'est celui-là, puis commiter.
+	@#
+	@# Coût sur ext4 : **297 s en série** pour 7 054 tests (1 146 s sur /mnt/c avant R117).
 	$(PYTHON) -m pytest tests/ -q --store-durations
 
 test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — LA cible de la boucle de code (règle 16)

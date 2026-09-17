@@ -235,7 +235,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-17, aucune tâche actionnable (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R114 -->
 
 **R122 et R123 sont closes le 2026-09-17, toutes deux rotées dans `archive.md`.** R123
 a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans
@@ -411,6 +411,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
+| R114 | La re-mesure de la seconde réplique : la passe A est faite, le croisement client↔serveur ne l'est pas | P3 | **les identifiants d'un locataire `is_sandbox`** (tenant 18). Le mode anonyme tape la page de connexion, rendue AVANT `require_login()` — le serveur n'y voit rien. Voir §14 du runbook |
 
 **La table est de nouveau vide depuis le 2026-09-17.** R124 y a vécu du 2026-09-17 au
 2026-09-17 même : le geste demandé a été fait (session authentifiée en production), et
