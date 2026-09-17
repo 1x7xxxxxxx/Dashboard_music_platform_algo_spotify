@@ -25,8 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R128 | La prod n'épingle aucune image : les 3 services airflow partagent `Dockerfile.airflow` et reçoivent 3 tags distincts | P3 | `ssh … "cd /opt/streamlytics && python3 -c \"import yaml; d=yaml.safe_load(open('docker-compose.yml')); print({n: b.get('image') for n,b in d['services'].items() if b.get('build')})\""` → doit cesser de rendre `None` |
-| R129 | `tools/error_inbox.py` n'a ni `--check` ni garde de fraîcheur, contrairement à ses 3 pairs | P4 | `grep -c 'check' tools/error_inbox.py` et l'absence de `tests/test_the_error_inbox_*` |
 
 **R127 a été livrée le 2026-09-17** (commits `65ae525` puis `f368715`, poussés) :
 les trois défauts résiduels de `night_run.py` sont fermés (priorité facultative dans
@@ -242,7 +240,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-17 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R128, R129 -->
+<!-- reprise: open= -->
 
 **R122 et R123 sont closes le 2026-09-17, toutes deux rotées dans `archive.md`.** R123
 a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans
@@ -411,68 +409,8 @@ fiable ici.
 > plus tôt) ont été **déplacées** dans `archive.md` le 2026-09-13 : ce fichier avait
 > franchi le plafond de 50 Ko que `/resume` lit à chaque session.
 
-## R128 — La production n'épingle aucune image · P3
-
-**Trouvé le 2026-09-17** par le balayage des frères de `a-replica-that-builds-its-own-image`.
-Le dépôt est corrigé (`docker-compose.example.yml` épingle désormais toutes ses images,
-gardé par `tests/test_a_replica_cannot_serve_a_different_artifact.py`), **mais le fichier
-réellement exécuté en production est une copie non suivie faite avant ce correctif** :
-
-```
-airflow-init       Dockerfile.airflow   image=None
-airflow-webserver  Dockerfile.airflow   image=None
-airflow-scheduler  Dockerfile.airflow   image=None
-dashboard          Dockerfile           image=None
-api                Dockerfile.api       image=None
-```
-
-Les trois services airflow partagent un `Dockerfile.airflow` et reçoivent donc **trois
-tags distincts**. Reconstruire l'un laisse les deux autres sur une image plus ancienne,
-sans un mot — la classe exacte mesurée ce jour-là sur la réplique du dashboard.
-
-⚠️ **Pourquoi ce n'est pas fait dans la foulée, et c'est délibéré** : pour `dashboard` et
-`api`, épingler est un **no-op** — `streamlytics-dashboard` et `streamlytics-api` sont
-déjà les noms dérivés, donc rien ne change. Pour airflow, collapser trois tags en un
-**déclenche une reconstruction au prochain `up -d`**, c'est-à-dire un redémarrage
-d'Airflow au milieu du déploiement de quelqu'un d'autre. Appliquer ce correctif demande
-une fenêtre choisie, pas un passage opportuniste.
-
-**Le geste** : reporter les `image:` de `docker-compose.example.yml` dans le
-`docker-compose.yml` de `/opt/streamlytics`, puis `docker compose up -d` pendant une
-fenêtre où un redémarrage d'Airflow est acceptable. Vérifier ensuite qu'une seule image
-`streamlytics-airflow` existe et que les trois conteneurs la partagent.
-
-**Mesuré par** :
-```bash
-ssh root@167.233.92.1 "cd /opt/streamlytics && python3 -c \"import yaml; d=yaml.safe_load(open('docker-compose.yml')); print({n: b.get('image') for n,b in d['services'].items() if b.get('build')})\""
-```
-Il doit cesser de rendre `None`.
-
----
-
-## R129 — `error_inbox.py` est le seul document généré sans garde de fraîcheur · P4
-
-**Trouvé le 2026-09-17** par le même balayage. Ses trois pairs ont chacun un `--check` et
-un test jumeau ; lui n'a ni l'un ni l'autre :
-
-| générateur | `--check` | garde pytest |
-|---|---|---|
-| `tools/dev/gold_coverage.py` | ✅ | `tests/test_the_gold_coverage_only_improves.py` |
-| `tools/dev/error_class_families.py` | ✅ | `tests/test_the_error_class_families_only_improve.py` |
-| `tools/dev/error_class_health.py` | ✅ | `tests/test_the_error_class_health_only_improves.py` |
-| `tools/error_inbox.py` | ❌ | ❌ |
-
-`.claude/dev-docs/error-inbox.md` peut donc diverger silencieusement de `app_error_log`,
-la table qu'il décrit. P4 et non P3 : ce document se lit à la main, et sa péremption ne
-bloque aucune décision automatique — mais c'est exactement ce qu'on disait des autres
-avant de les garder.
-
-⚠️ Une difficulté propre à celui-ci : ses trois pairs dérivent du dépôt, lui dérive de la
-**base**. Un `--check` qui exige une base vivante serait vert par abstention en CI —
-`un-contrôle-qui-ne-peut-jamais-passer`. Le garde doit donc distinguer « la base est
-absente » de « le document est à jour », et le dire.
-
----
+📥 **Erreurs applicatives non triées : 1** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.
+<!-- error-inbox: open=1 -->
 
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 

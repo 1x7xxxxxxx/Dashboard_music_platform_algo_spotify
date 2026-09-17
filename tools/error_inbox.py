@@ -37,6 +37,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from src.utils.env_files import load_project_env  # noqa: E402
+
+# ⚠️ Lancé d'un shell nu, cet outil lirait un environnement DIFFÉRENT de celui du
+# dashboard et des DAG — donc une autre base — et rapporterait sur une configuration
+# que personne n'exécute. Trouvé le 2026-09-17 par
+# `tests/test_operator_tools_read_the_apps_env.py`, au moment où `--check` a été
+# ajouté : c'est précisément un contrôle de FRAÎCHEUR qui ne doit pas se tromper de
+# base, sans quoi il rend un verdict sur un registre qui n'est pas celui qu'on lit.
+load_project_env()
+
 ROOT = Path(__file__).resolve().parents[1]
 DOC = ROOT / ".claude" / "dev-docs" / "error-inbox.md"
 CHECKLIST = ROOT / ".claude" / "dev-docs" / "roadmap" / "checklist.md"
@@ -187,13 +197,78 @@ def _update_checklist(n_open: int) -> bool:
     return True
 
 
+def _check() -> int:
+    """Le document décrit-il encore la base ? Trois issues, jamais deux.
+
+    ⚠️ Ce contrôle est le seul des quatre générateurs de documents qui dépende d'une
+    ressource EXTERNE. Ses trois pairs (`gold_coverage`, `error_class_families`,
+    `error_class_health`) dérivent du dépôt : ils peuvent comparer disque et rendu
+    n'importe où, y compris en CI. Celui-ci a besoin de `app_error_log`.
+
+    D'où le code de sortie **2**, et il est le point de cette fonction. Un contrôle qui
+    rendrait 0 parce qu'il n'a pas pu se connecter ressemblerait à un contrôle qui a
+    vérifié quelque chose — c'est la classe `a-check-that-can-never-pass`, et le dépôt
+    l'a déjà payée sur un `gh api … || echo true` qui déclarait succès sur une panne
+    réseau. Ici, « je n'ai rien pu vérifier » a son propre code et son propre message.
+    """
+    try:
+        db = _db()
+    except Exception as exc:                                   # noqa: BLE001
+        print(f"⚠️  base injoignable ({type(exc).__name__}) — ce contrôle n'a RIEN "
+              f"vérifié. Le document peut être à jour comme périmé ; il est impossible "
+              f"de le dire d'ici. Lancer sur une machine qui voit `app_error_log`.",
+              file=sys.stderr)
+        return 2
+    try:
+        rows = _fetch(db, include_resolved=True)
+    except Exception as exc:                                   # noqa: BLE001
+        print(f"⚠️  `app_error_log` illisible ({type(exc).__name__}) — RIEN vérifié.",
+              file=sys.stderr)
+        return 2
+    finally:
+        try:
+            db.close()
+        except Exception:                                      # noqa: BLE001
+            pass
+
+    fresh, n_open = render(rows, _known_classes())
+    try:
+        current = DOC.read_text(encoding="utf-8")
+    except OSError:
+        print(f"❌ {DOC.relative_to(ROOT)} est absent. Remède : make error-inbox",
+              file=sys.stderr)
+        return 1
+
+    # L'horodatage de régénération change à chaque exécution : le comparer ferait
+    # rougir un document parfaitement à jour. On compare tout le reste, ligne à ligne.
+    def _body(text: str) -> list[str]:
+        return [ln for ln in text.splitlines() if not ln.startswith("Régénéré le ")]
+
+    if _body(current) == _body(fresh):
+        print(f"✅ {DOC.relative_to(ROOT)} décrit la base — {n_open} ouverte(s) sur "
+              f"{len(rows)}")
+        return 0
+    print(f"❌ {DOC.relative_to(ROOT)} ne décrit plus `app_error_log` : la base porte "
+          f"{n_open} entrée(s) ouverte(s) sur {len(rows)}. Remède : make error-inbox\n"
+          f"\nUn document généré qui affirme un état périmé est pire qu'un document "
+          f"absent : il se lit comme une mesure.", file=sys.stderr)
+    return 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--resolve", metavar="FP",
                     help="ferme l'entrée dont l'empreinte commence par FP")
     ap.add_argument("--note", default="", help="pourquoi elle est fermée")
     ap.add_argument("--all", action="store_true", help="inclure les fermées")
+    ap.add_argument("--check", action="store_true",
+                    help="n'écrit rien : dit si le document décrit encore la base. "
+                         "0 = à jour · 1 = périmé · 2 = LA BASE EST INJOIGNABLE, "
+                         "donc RIEN n'a été vérifié")
     args = ap.parse_args()
+
+    if args.check:
+        return _check()
 
     db = _db()
     try:

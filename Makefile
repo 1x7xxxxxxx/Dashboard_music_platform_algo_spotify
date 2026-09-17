@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: error-health error-health-check error-health-history night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: error-health error-health-check error-health-history night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -274,6 +274,16 @@ example-charts: ## Régénère les 3 figures d'exemple de la mise en route (PNG 
 
 error-inbox: check-db ## Registre des erreurs applicatives → .claude/dev-docs/error-inbox.md
 	@python3 tools/error_inbox.py
+
+# ⚠️ SEULE cible `*-check` de document qui dépende d'une ressource EXTERNE : ses trois
+# sœurs dérivent du dépôt et peuvent donc comparer n'importe où, y compris en CI ;
+# celle-ci a besoin de `app_error_log`. D'où un troisième code de sortie, **2**, pour
+# « je n'ai RIEN pu vérifier » — un contrôle qui rendrait 0 sur une base injoignable
+# ressemblerait à un contrôle qui a vérifié quelque chose. Elle ne déclare donc PAS
+# `check-db` en prérequis : ce serait déléguer à `make` un échec que le script sait
+# nommer beaucoup mieux, et écraser le code 2 par un code 1 indistinct.
+error-inbox-check: ## Le registre décrit-il encore la base ? 0 à jour · 1 périmé · 2 RIEN vérifié (base injoignable) — le blocage hors-base vient de tests/test_the_error_inbox_and_its_pointer_agree.py
+	@python3 tools/error_inbox.py --check
 
 gold-coverage: ## Carte de la couche or → .claude/dev-docs/gold-coverage.md
 	@python3 tools/dev/gold_coverage.py

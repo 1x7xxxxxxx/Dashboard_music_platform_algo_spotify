@@ -6481,3 +6481,75 @@ commit.**
 
 Détail humain, avec l'option écartée et ses trois motifs :
 `.claude/dev-docs/runbook-actions-utilisateur.md` §14.
+
+---
+
+## R128 — La production n'épinglait aucune image · ✅ CLOSE le 2026-09-17
+
+- [x] **R128 — épingler l'image de chaque service qui construit, en production.**
+
+Ouverte et livrée le même jour, depuis le balayage des frères de
+`a-replica-that-builds-its-own-image`. Le dépôt était corrigé ; le fichier **réellement
+exécuté** en production, une copie non suivie, ne l'était pas.
+
+**La divergence était vivante, et mesurée** — les trois services airflow partagent
+`Dockerfile.airflow` et recevaient trois tags distincts :
+
+| image | construite |
+|---|---|
+| `streamlytics-airflow-init` | 2026-08-23 **21:17** |
+| `streamlytics-airflow-webserver` | 2026-08-24 16:25 |
+| `streamlytics-airflow-scheduler` | 2026-08-24 16:25 |
+
+`airflow-init` — qui initialise la base et crée l'utilisateur admin — tournait donc sur
+une image de **19 heures plus ancienne** que le scheduler.
+
+**Corrigé SANS reconstruire, et c'est délibéré** : reconstruire aurait amené Airflow au
+code courant, un changement bien plus large que ce que la tâche demande, et dans une
+fenêtre non choisie. Le geste retenu tague l'image la plus récente en
+`streamlytics-airflow`, épingle les cinq services qui construisent, puis recrée les
+conteneurs avec `--no-build`. Pour `dashboard` et `api`, épingler est un no-op — c'étaient
+déjà les noms dérivés.
+
+**Fenêtre** : 0 DAG en cours et 0 tâche en file au moment du geste, vérifié avant.
+
+**Vérifié après** : les quatre conteneurs portent les tags épinglés et sont `healthy` ;
+`app` et `api` rendent 200 ; le battement du scheduler est frais ; **0 erreur d'import**
+et 13 DAGs actifs. La commande d'acceptation de la tâche ne rend plus `None`.
+
+Sauvegarde : `/root/docker-compose.yml.avant-R128`. Les anciens tags subsistent sur
+l'hôte, inertes puisque plus rien ne les nomme — les supprimer est irréversible et n'était
+pas demandé.
+
+---
+
+## R129 — Le registre des erreurs n'avait aucune garde de fraîcheur · ✅ CLOSE le 2026-09-17
+
+- [x] **R129 — un `--check` et un garde jumeau pour `tools/error_inbox.py`.**
+
+Ouverte et livrée le même jour, même balayage. `tools/error_inbox.py` était le seul des
+quatre générateurs de documents sans `--check` ni test jumeau.
+
+**La divergence était réelle** : `.claude/dev-docs/error-inbox.md` affirmait
+« **0 ouverte(s)** sur 0 » et datait du 2026-09-04, quand `app_error_log` en portait 1.
+
+**La difficulté qui explique l'écart, et qui commandait la solution** : ses trois pairs
+dérivent du DÉPÔT et peuvent donc recalculer leur rendu n'importe où, CI comprise.
+Celui-ci dérive de la BASE. Un contrôle naïf aurait été **vert par abstention** partout
+où `app_error_log` est absente — c'est-à-dire vert en CI, là où il compte.
+
+D'où **deux gardes, parce que la question se coupe en deux** :
+
+- `tools/error_inbox.py --check` compare le document à la base et rend **trois** codes,
+  dont un **2** propre à « je n'ai RIEN pu vérifier ». Les trois issues ont été
+  exécutées : 1 sur le document périmé, 2 sur une base injoignable, 0 après régénération.
+- `tests/test_the_error_inbox_and_its_pointer_agree.py` couvre ce qui tient sans base :
+  le document et la ligne de renvoi ancrée de la roadmap sont écrits par la même
+  exécution, donc un désaccord prouve une édition manuelle ou une perte.
+
+**Un second défaut est apparu en implémentant**, que le balayage n'avait pas vu : la ligne
+de renvoi ancrée avait **disparu** de `checklist.md`, donc le registre n'était plus
+annoncé nulle part. C'est ce défaut réel, et non une mutation imaginée, qui a servi à voir
+le garde rouge.
+
+Classe `a-generated-document-with-no-freshness-guard`.

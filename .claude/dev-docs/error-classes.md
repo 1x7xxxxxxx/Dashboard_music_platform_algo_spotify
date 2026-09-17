@@ -128,6 +128,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
+| [a-generated-document-with-no-freshness-guard](#a-generated-document-with-no-freshness-guard) | P4 | deterministic | guarded | none |
 | [a-make-target-that-claims-a-barrier-it-does-not-hold](#a-make-target-that-claims-a-barrier-it-does-not-hold) | P3 | deterministic | guarded | none |
 | [a-replica-that-builds-its-own-image](#a-replica-that-builds-its-own-image) | P2 | deterministic | guarded | none |
 | [a-ci-checkout-too-shallow-for-the-guard-that-reads-git](#a-ci-checkout-too-shallow-for-the-guard-that-reads-git) | P2 | deterministic | guarded | none |
@@ -7873,3 +7874,21 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-17
 - History:
   - 2026-09-17: trouvée par le balayage des frères de `a-replica-that-builds-its-own-image`, en cherchant la forme « un artefact dérivé qui diverge de sa source » hors du domaine Docker. Le balayage l'a explicitement classée « à trancher, pas un trou vivant » — et c'est le bon classement : la couverture existe. Ce qui est corrigé est l'affirmation, pas la protection. Retenue comme classe parce que le mode d'échec est différé et silencieux : il ne se manifeste qu'au moment d'un nettoyage, quand quelqu'un fait confiance à la ligne.
+
+## a-generated-document-with-no-freshness-guard
+- status: guarded
+- severity: P4
+- kind: deterministic
+- symptom: un document **généré** n'a ni contrôle de fraîcheur ni test jumeau, là où tous ses pairs en ont. Il se périme en silence et continue d'être lu comme une mesure. Mesuré le 2026-09-17 : `.claude/dev-docs/error-inbox.md` affirmait « **0 ouverte(s)** sur 0 » et datait du 2026-09-04, alors que `app_error_log` en portait 1.
+- root_cause: `tools/error_inbox.py` n'exposait que `main()` — pas de `--check` — et aucun `tests/test_the_error_inbox_*` n'existait. Ses trois pairs en ont un de chaque (`gold_coverage`, `error_class_families`, `error_class_health`). La raison de l'écart n'est pas un oubli mais une difficulté réelle : **les trois pairs dérivent du DÉPÔT et peuvent donc recalculer leur rendu n'importe où, celui-ci dérive de la BASE**. Un contrôle naïf aurait été vert par abstention partout où `app_error_log` est absente — c'est-à-dire vert en CI, là où il compte.
+- cause_evidence: measured (`python3 tools/error_inbox.py --check` → exit 1, « la base porte 1 entrée(s) ouverte(s) sur 1 », sur un document affirmant 0 ; et `grep -c 'error-inbox: open=' .claude/dev-docs/roadmap/checklist.md` → 0 alors que `CLAUDE.md` dit que la roadmap en porte une)
+- signature: `python3 -m pytest tests/test_the_error_inbox_and_its_pointer_agree.py -q`
+- seen_red: 2026-09-17 sur `.claude/dev-docs/roadmap/checklist.md`, deux mutations → exit 1 chaque fois, 0 après remise en état. (a) le compte de l'ancre passé de 1 à 7 → 1 rouge ; (b) la ligne ancrée retirée — **le défaut réellement trouvé ce jour-là**, pas une mutation inventée → 2 rouges.
+- long_term_fix: **deux gardes, parce que la question se coupe en deux.** (1) `tools/error_inbox.py --check` compare le document à la base et rend **trois** codes, dont un **2** propre à « je n'ai RIEN pu vérifier » — un contrôle qui rendrait 0 sur une base injoignable ressemblerait à un contrôle qui a vérifié quelque chose. (2) `tests/test_the_error_inbox_and_its_pointer_agree.py` couvre ce qui tient SANS base : le document et la ligne de renvoi ancrée de la roadmap sont écrits par la même exécution, donc un désaccord entre leurs deux nombres prouve une édition manuelle ou une perte. Séparer les deux est ce qui évite le vert par abstention.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_error_inbox_and_its_pointer_agree.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — un artefact généré qui se périme sans que rien ne le dise ; couvre: `error-inbox.md` et la ligne ancrée de `checklist.md`, sur deux propriétés (l'ancre existe en un seul exemplaire ; les deux nombres s'accordent) ; ne couvre pas: (1) **le geste voisin le plus proche, et il est assumé — la FRAÎCHEUR elle-même** : les deux surfaces peuvent s'accorder sur un chiffre périmé, et seul `make error-inbox-check` voit la base ; il n'est lancé par aucun automate, donc la péremption reste détectable mais non détectée ; (2) le CONTENU du document — qu'il annonce le bon nombre ne dit rien des lignes qu'il décrit ; (3) les autres documents générés du dépôt, couverts chacun par son propre cliquet, et un cinquième générateur qui apparaîtrait sans garde ne serait signalé par rien ici ; (4) la forme hors document — une table de cache, un index, tout artefact dérivé d'une ressource externe partage la cause sans partager ce garde.
+- rex_ref: tools/error_inbox.py
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: trouvée par le balayage des frères de `a-replica-that-builds-its-own-image`, en cherchant la forme « un artefact dérivé qui diverge de sa source » hors du domaine Docker. Le balayage a rendu le tableau des quatre générateurs, dont un seul sans `--check` ni test. Inscrite à la roadmap comme R129 plutôt que corrigée sur-le-champ, puis livrée le même jour. En l'implémentant, un second défaut est apparu que le balayage n'avait pas vu : **la ligne de renvoi ancrée avait disparu de `checklist.md`**, donc le registre n'était plus annoncé nulle part. C'est ce défaut-là, et non une mutation imaginée, qui a servi à voir le garde rouge.
