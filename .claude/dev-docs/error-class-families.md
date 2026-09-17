@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**370 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**371 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -21,7 +21,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 69 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
-| [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 7 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
+| [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 7 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 2 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 20 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
@@ -424,10 +424,11 @@ Règle de rattachement : `never-pass|env-independent|host-env|container|reachab|
 
 **Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ?**
 
-Règle de rattachement : `runs-twice|concurrency-group|overload|competing-for-one-decision|costs-more-than|waste|duplicate-run|too-many|drags-a-.*-behind|paid-by|first-render` sur l'identifiant et le symptôme. 7 classe(s).
+Règle de rattachement : `runs-twice|concurrency-group|overload|competing-for-one-decision|costs-more-than|waste|duplicate-run|too-many|drags-a-.*-behind|paid-by|first-render|recomputes-what-its-caller|memo-field-written` sur l'identifiant et le symptôme. 8 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`a-renderer-that-recomputes-what-its-caller-already-has`](error-classes.md#a-renderer-that-recomputes-what-its-caller-already-has) | une page fait exactement deux fois le même travail, et rien ne le montre. Les deux appels sont à quelques lignes l'un de l'autre et se lisent comme de |
 | [`ci-runs-twice-for-one-commit`](error-classes.md#ci-runs-twice-for-one-commit) |  |
 | [`ci-has-no-concurrency-group`](error-classes.md#ci-has-no-concurrency-group) |  |
 | [`first-paint-chart-overload`](error-classes.md#first-paint-chart-overload) | a view opens on several charts that all bear on the same decision. Nothing is wrong with any single chart; together they leave the artist unable to sa |
@@ -561,6 +562,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=370 families=17 orphans=3 -->
+<!-- error-class-families: total=371 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=0c307cab6c316f7ec5fe0554c1cb378bc1026be58dd27518ed77948593738bc0 -->
+<!-- error-class-families: sha256=2f83d18da7aa5601d6034eecd9e364bf329aceac55660fc7973a66f53dcf47f3 -->

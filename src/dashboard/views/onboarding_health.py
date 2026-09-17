@@ -79,7 +79,8 @@ def show():
                 # The same renderer as the artist's own pages: an admin looking at a
                 # blocked tenant must see exactly what that tenant sees, or the two
                 # of them are talking about different screens.
-                render_status_matrix(db, aid, key_suffix=f"health{aid}")
+                render_status_matrix(db, aid, key_suffix=f"health{aid}",
+                                    rows=matrix)
 
         if is_admin():
             if total_red:

@@ -89,7 +89,7 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | ⚠️ `utils/ml_widgets.py:224` | `render_prerelease_rr_estimator` | plotly_chart | à l'écran | — | — | indéterminée | profondeur | — |
 | ⚠️ `utils/ml_widgets.py:294` | `render_lever_sensitivity` | plotly_chart | à l'écran | — | — | indéterminée | clé-à-l-exécution · profondeur | — |
 | ⚠️ `views/admin.py:466` | `_render_costs` | plotly_chart | à l'écran | — | — | indéterminée | profondeur | — |
-| ⚠️ `views/db_health.py:234` | `_show_freshness_bar` | plotly_chart | à l'écran | — | — | indéterminée | sql-dynamique | — |
+| ⚠️ `views/db_health.py:250` | `_show_freshness_bar` | plotly_chart | à l'écran | — | — | indéterminée | sql-dynamique | — |
 | ⚠️ `views/meta_ads_overview.py:702` | `_show_meta_ads` | plotly_chart | à l'écran | — | — | indéterminée | clé-à-l-exécution | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_campaign_daily` · ?`v_meta_daily` |
 | ⚠️ `views/meta_breakdowns.py:96` | `_render_performance` | plotly_chart | à l'écran | — | — | indéterminée | clé-à-l-exécution | — |
 | ⚠️ `views/trigger_algo/_common/_pi_gates.py:76` | `_show_pi_gate_section` | plotly_chart | à l'écran | — | — | indéterminée | profondeur | — |
@@ -154,9 +154,9 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/airflow_kpi.py:643` | `show` | plotly_chart | à l'écran | — | — | hors base | — | — |
 | `views/airflow_kpi.py:666` | `show` | plotly_chart | à l'écran | — | — | hors base | — | — |
 | `views/data_wrapped.py:264` | `_recap_spotify` | plotly_chart | à l'écran | `v_s4a_song_daily` | or | directe | — | ?`v_s4a_audience_daily` |
-| `views/db_health.py:276` | `_show_heatmap` | plotly_chart | à l'écran | — | — | hors base | — | — |
-| `views/db_health.py:335` | `_show_cumulative` | plotly_chart | à l'écran | — | — | hors base | — | — |
-| `views/db_health.py:403` | `_show_batch_sizes` | plotly_chart | à l'écran | — | — | hors base | — | — |
+| `views/db_health.py:292` | `_show_heatmap` | plotly_chart | à l'écran | — | — | hors base | — | — |
+| `views/db_health.py:351` | `_show_cumulative` | plotly_chart | à l'écran | — | — | hors base | — | — |
+| `views/db_health.py:419` | `_show_batch_sizes` | plotly_chart | à l'écran | — | — | hors base | — | — |
 | `views/instagram.py:123` | `show` | plotly_chart | à l'écran | — | — | hors base | — | ?`instagram_daily_stats` · ?`instagram_media` · ?`instagram_media_insights` · ?`v_instagram_media_monthly` |
 | `views/meta_ads_overview.py:601` | `_show_meta_ads` | plotly_chart | à l'écran | — | — | hors base | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_campaign_daily` · ?`v_meta_daily` |
 | `views/meta_ads_overview.py:603` | `_show_meta_ads` | plotly_chart | à l'écran | — | — | hors base | — | ?`meta_insights_engagement` · ?`meta_insights_performance_age` · ?`meta_insights_performance_country` · ?`meta_insights_performance_placement` · ?`v_meta_adset_daily` · ?`v_meta_campaign_daily` · ?`v_meta_daily` |
@@ -190,8 +190,8 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | ⚠️ `views/airflow_kpi.py:480` | `_render_insertion_test` | airflow_kpi.metric_rows | autre onglet | — | — | indéterminée | sql-dynamique | — |
 | ⚠️ `views/airflow_kpi.py:481` | `_render_insertion_test` | airflow_kpi.metric_days | autre onglet | — | — | indéterminée | sql-dynamique | — |
 | ⚠️ `views/alerts.py:286` | `_section_plan_evolution` | col.metric | à l'écran | — | — | indéterminée | receveur-inconnu | ?`subscription_plan_history` |
-| ⚠️ `views/db_health.py:159` | `_show_health_table` | db_health.kpi_total_rows | à l'écran | — | — | indéterminée | sql-dynamique | — |
-| ⚠️ `views/db_health.py:160` | `_show_health_table` | db_health.kpi_stale | à l'écran | — | — | indéterminée | sql-dynamique | — |
+| ⚠️ `views/db_health.py:175` | `_show_health_table` | db_health.kpi_total_rows | à l'écran | — | — | indéterminée | sql-dynamique | — |
+| ⚠️ `views/db_health.py:176` | `_show_health_table` | db_health.kpi_stale | à l'écran | — | — | indéterminée | sql-dynamique | — |
 | ⚠️ `views/imusician.py:303` | `show` | imusician.kpi_total | à l'écran | — | — | indéterminée | sql-dynamique | ?`saas_artists` |
 | ⚠️ `views/imusician.py:304` | `show` | imusician.kpi_avg | à l'écran | — | — | indéterminée | sql-dynamique | ?`saas_artists` |
 | ⚠️ `views/imusician.py:305` | `show` | imusician.kpi_months | à l'écran | — | — | indéterminée | sql-dynamique | ?`saas_artists` |
@@ -296,8 +296,8 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/data_wrapped.py:410` | `_tab_charts` | data_wrapped.col_streams | à l'écran | — | — | hors base | — | — |
 | `views/data_wrapped.py:413` | `_tab_charts` | data_wrapped.field_saves | à l'écran | — | — | hors base | — | — |
 | `views/data_wrapped.py:416` | `_tab_charts` | data_wrapped.kpi_countries | à l'écran | — | — | hors base | — | — |
-| `views/db_health.py:157` | `_show_health_table` | db_health.kpi_active | à l'écran | — | — | hors base | — | — |
-| `views/db_health.py:158` | `_show_health_table` | db_health.kpi_empty | à l'écran | — | — | hors base | — | — |
+| `views/db_health.py:173` | `_show_health_table` | db_health.kpi_active | à l'écran | — | — | hors base | — | — |
+| `views/db_health.py:174` | `_show_health_table` | db_health.kpi_empty | à l'écran | — | — | hors base | — | — |
 | `views/etl_logs.py:77` | `_section_kpis` | etl_logs.kpi_runs | à l'écran | `etl_run_log` | brut | directe | — | — |
 | `views/etl_logs.py:78` | `_section_kpis` | etl_logs.kpi_success_rate | à l'écran | `etl_run_log` | brut | directe | — | — |
 | `views/etl_logs.py:81` | `_section_kpis` | etl_logs.kpi_avg_duration | à l'écran | `etl_run_log` | brut | directe | — | — |
@@ -475,9 +475,9 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 ## Les classes d'erreur
 
-**370 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
+**371 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
 
-**fixed** : 10· **guarded** : 338· **open** : 4· **reported** : 16· **resolved** : 2
+**fixed** : 10· **guarded** : 339· **open** : 4· **reported** : 16· **resolved** : 2
 
 **0 classe(s) nomment un fichier de garde qui n'existe plus** et **12** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
@@ -650,9 +650,9 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-gold-objects: total=24 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=19 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=370 guard_missing=0 guard_unnamed=12 -->
+<!-- gold-coverage-error-classes: total=371 guard_missing=0 guard_unnamed=12 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=6612ff5c53a0208de268ab4737a8ca0c60b72fea99a6d7f4081cdfbba428fca2 -->
+<!-- gold-coverage: sha256=c818c0f8646b0b41d89515e5688547375e2218200187e4a51aa678da0af0ae6b -->

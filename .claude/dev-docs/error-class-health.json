@@ -1277,7 +1277,7 @@
       "seen_red": "2026-09-17",
       "severity": "P3",
       "status": "guarded",
-      "introduced_date": null,
+      "introduced_date": "2026-09-17",
       "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
@@ -1858,6 +1858,29 @@
       "status": "guarded",
       "introduced_date": "2026-09-12",
       "revisions": 1,
+      "history_additions": 0,
+      "renamed_from": null
+    },
+    "a-renderer-that-recomputes-what-its-caller-already-has": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-17",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_render_computes_readiness_once_per_tenant.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
+      "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
+      "guard_scope_has_not_covered": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P3",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8551,7 +8574,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 205,
+      "catalogue_revisions": 206,
       "head_date": "2026-09-17"
     },
     "holes": {
@@ -8565,11 +8588,11 @@
       "seen_red_unknown": 331
     },
     "population": {
-      "automatic_guard": 352,
-      "classes": 370,
+      "automatic_guard": 353,
+      "classes": 371,
       "ever_recurred_observed": 47,
       "prose_only": 18,
-      "with_signature": 359
+      "with_signature": 360
     },
     "recurrence": {
       "window_start": "2026-05-15",

@@ -133,6 +133,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [a-shared-database-read-while-another-test-writes-it](#a-shared-database-read-while-another-test-writes-it) | P2 | deterministic | guarded | none |
 | [a-fallback-that-runs-when-the-first-branch-succeeded](#a-fallback-that-runs-when-the-first-branch-succeeded) | P3 | deterministic | guarded | none |
 | [a-memo-field-written-and-never-consulted](#a-memo-field-written-and-never-consulted) | P3 | deterministic | guarded | none |
+| [a-renderer-that-recomputes-what-its-caller-already-has](#a-renderer-that-recomputes-what-its-caller-already-has) | P3 | deterministic | guarded | none |
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
 | [a-document-that-cannot-be-current-in-its-own-commit](#a-document-that-cannot-be-current-in-its-own-commit) | P2 | deterministic | guarded | none |
 | [a-population-that-counts-its-own-headers](#a-population-that-counts-its-own-headers) | P3 | deterministic | guarded | none |
@@ -601,6 +602,25 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-17: **le prédicat du garde a été écrit TROIS fois, et les deux premiers ne voyaient pas ce défaut-ci.** Le premier demandait « le remplisseur lit-il le mémo ? » — or `load()` finissait par `return self._config`, donc il le lit, et le cas passait vert. Le second, plus large, a dénoncé **cinq sites sains** de `src/collectors/` : `_get_access_token` ÉCRIT le jeton et `_ensure_token` le LIT pour décider d'appeler, ce qui est la bonne division du travail — un rafraîchisseur n'est pas un accesseur. La signature exacte n'est ni « écrit », ni « ne lit pas » : c'est **rend le mémo sans jamais tester s'il est déjà rempli**.
   - 2026-09-17: le test porte donc deux non-vacuités qui épinglent les deux erreurs — la forme d'AVANT le correctif doit être vue rouge, et la forme rafraîchisseur/accesseur doit rester verte. Sans elles, une quatrième reformulation redeviendrait aveugle sans que rien ne le dise. **Un garde qui ne rougit pas sur son propre cas ne garde rien.**
   - 2026-09-17: trouvé en cherchant autre chose. R121 annonçait `platform_chart` comme « le site le mieux placé » pour passer une agrégation Python en SQL ; le profil pris DANS le thread du script dit que `_aggregate` coûte **1,4 ms** sur un `show()` de 80 ms, et que `config_loader.load()` en pesait **12,5**. Le poste que la roadmap nommait était à 2 % de celui qu'elle ignorait.
+
+## a-renderer-that-recomputes-what-its-caller-already-has
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une page fait exactement deux fois le même travail, et rien ne le montre. Les deux appels sont à quelques lignes l'un de l'autre et se lisent comme deux étapes différentes — calculer, puis afficher. Il faut ouvrir la seconde fonction pour voir qu'elle refait la première.
+- root_cause: une fonction de rendu recharge ses propres données pour être autonome — ce qui est sa QUALITÉ, pas son défaut — et l'appelant qui a déjà la réponse n'a aucun moyen de la lui passer. Deux instances mesurées le 2026-09-17, dans deux fichiers sans rapport : `views/onboarding_health.py:82` calcule `artist_readiness(db, aid)` pour composer l'en-tête de chaque artiste puis appelle `render_status_matrix(db, aid)`, qui la recalcule — **24 calculs pour 12 locataires, 324 requêtes de rendu** ; et `views/db_health.py:427` appelait `_load_weekly_activity()` puis `_load_cumulative()`, qui la rechargeait — **22 `fetch_df` au lieu de 11**, une par dataset.
+- cause_evidence: measured (profileur posé DANS le thread du script — `artist_readiness` 24× → 12×, `check_freshness` 24× → 12×, `fetch_query` 299× → 168× ; total du rendu 324 → **181 requêtes**, −44 %)
+- signature: `python3 -m pytest tests/test_a_render_computes_readiness_once_per_tenant.py -q`
+- seen_red: 2026-09-17 sur `src/dashboard/views/onboarding_health.py` (`rows=matrix` retiré de l'appel) → exit 1 en disant « 24 calculs pour 12 locataires, recalculée 2,0× par artiste » ; 0 après remise
+- long_term_fix: le renderer accepte `rows=` — la matrice déjà calculée — et ne la recalcule que si l'appelant ne l'a pas. Le défaut reste `None`, donc les trois autres appelants (`home`, `onboarding`, `platform_status`) ne changent pas : ils ne l'ont pas sous la main. Même forme pour `_load_cumulative(df_weekly)`, qui prend désormais la table en argument au lieu de la recharger.
+- autofix: none
+- guard_scope: un-coût-payé-sans-contrepartie — recalculer dans le rendu ce que l'appelant vient de calculer ; couvre: UNE question, structurelle et invariante — combien de fois `artist_readiness` est-elle appelée pour UN locataire pendant UN rendu d'`onboarding_health` ; ne couvre pas: (1) les autres doublons de calcul d'un rendu, quels qu'ils soient — seul `artist_readiness` est compté, et l'instance jumelle de `db_health` n'a AUCUN garde ; (2) les trois autres appelants de `render_status_matrix`, qui ne rendent qu'un locataire : le défaut y existerait sans être observable par ce compte ; (3) une matrice calculée une seule fois mais par une requête elle-même redondante ; (4) ⚠️ **un plafond sur le NOMBRE de requêtes a été écarté délibérément** : `onboarding_health` boucle sur les artistes ACTIFS, donc un locataire de plus ferait rougir un tel seuil sans qu'une ligne de code ait changé — c'est `a-threshold-written-on-instinct`, et le compte par locataire est la seule forme invariante.
+- guard: { type: pytest, ref: tests/test_a_render_computes_readiness_once_per_tenant.py }
+- rex_ref: src/dashboard/utils/status_matrix.py
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: **trouvée en cherchant autre chose, comme les deux autres de la nuit.** R121 cherchait des agrégations Python à passer en SQL ; le comptage des requêtes par vue a rendu `onboarding_health` à **324**, un ordre de grandeur au-dessus de tout le reste (le suivant est `trigger_algo` à 33). Aucune agrégation là-dedans : un calcul en double, douze fois.
+  - 2026-09-17: **un premier garde a été écrit puis SUPPRIMÉ sans être livré.** Il cherchait la forme syntaxique — « deux appels où le second rappelle le premier avec les mêmes arguments » — et il était mauvais pour deux raisons mesurées : il dépendait du hasard des noms de paramètres (son propre test de non-vacuité l'a pris en défaut, `(db, artist_id)` contre `(db, aid)`), et il dénonçait deux sites sains dont un constructeur. Troisième fois de la journée que ce raisonnement tranche : **un garde bruyant se fait désactiver, ce qui coûte plus cher que le trou qu'il couvrait.** Le garde livré interroge l'EXÉCUTION, pas la syntaxe.
 
 ## exempt-row-hides-others-conflict
 - status: guarded

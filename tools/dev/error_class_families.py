@@ -233,7 +233,13 @@ FAMILIES: list[tuple[str, str, str]] = [
      # ne nommait que des coûts de CI. Un coût de PREMIER ÉCRAN est le même sujet.
      r"runs-twice|concurrency-group|overload|competing-for-one-decision|"
      r"costs-more-than|waste|duplicate-run|too-many|drags-a-.*-behind|"
-     r"paid-by|first-render"),
+     r"paid-by|first-render|"
+     # `recomputes-what-its-caller` et `memo-field-written` ajoutees le
+     # 2026-09-17 : deux formes du meme paiement sans contrepartie — refaire
+     # un travail dont le resultat est deja la. La question de la famille
+     # (« qu'est-ce qu'on paie, et qu'est-ce qu'on recoit ? ») est
+     # exactement celle qu'aucun des deux sites ne s'etait posee.
+     r"recomputes-what-its-caller|memo-field-written"),
 
     ("un-seuil-écrit-d-instinct",
      "Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test "

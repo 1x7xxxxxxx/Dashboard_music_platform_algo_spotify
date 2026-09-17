@@ -115,9 +115,12 @@ _FLOORS = {
     # +1 : `a-memo-field-written-and-never-consulted`, trouvee en cherchant AUTRE chose —
     # R121 annoncait `platform_chart` comme meilleur candidat ; le profil dit 1,4 ms
     # pour lui et 12,5 ms pour `config_loader.load()`.
-    "classes": 370,
-    "with_signature": 359,
-    "automatic_guard": 352,
+    # +1 : `a-renderer-that-recomputes-what-its-caller-already-has`, DEUX instances
+    # dans deux fichiers sans rapport le meme jour — `onboarding_health` (324 → 181
+    # requetes) et `db_health` (22 → 11 `fetch_df`).
+    "classes": 371,
+    "with_signature": 360,
+    "automatic_guard": 353,
 }
 # Le plancher qui n'a pas d'équivalent dans `gold-coverage`, et le plus important ici :
 # un taux s'améliore aussi en RÉTRÉCISSANT la fenêtre d'observation.

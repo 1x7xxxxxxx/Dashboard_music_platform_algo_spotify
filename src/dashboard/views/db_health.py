@@ -131,11 +131,27 @@ def _load_weekly_activity(db, artist_id) -> pd.DataFrame:
     )
 
 
-def _load_cumulative(db, artist_id) -> pd.DataFrame:
-    """Cumulative row count per week per dataset (for growth curve chart)."""
-    df_weekly = _load_weekly_activity(db, artist_id)
+def _load_cumulative(df_weekly: pd.DataFrame) -> pd.DataFrame:
+    """Cumulative row count per week per dataset (for growth curve chart).
+
+    ⚠️ Prend la table hebdomadaire EN ARGUMENT depuis le 2026-09-17. Elle la
+    rechargeait elle-même, et `show()` appelait les DEUX — donc
+    `_load_weekly_activity` tournait **deux fois par rendu**, et avec elle ses **douze
+    requêtes SQL**, une par dataset. Mesuré au profileur : `2x`, **52,0 ms cumulées**
+    sur un `show()` de 190 ms.
+
+    Rien ne le signalait : les deux appels sont à deux lignes l'un de l'autre dans
+    `show()` — `df_weekly = _load_weekly_activity(...)` puis
+    `df_cumul = _load_cumulative(...)` — et la seconde ligne se lit comme un second
+    CALCUL, pas comme une seconde COLLECTE.
+
+    Ce n'était donc pas « une agrégation Python à passer en SQL », le poste que R121
+    désignait dans ce fichier : c'était un appel en double. Le `cumsum` lui-même ne
+    pèse rien.
+    """
     if df_weekly.empty:
         return df_weekly
+    df_weekly = df_weekly.copy()
     df_weekly['week'] = pd.to_datetime(df_weekly['week'])
     frames = []
     for label, grp in df_weekly.groupby('dataset'):
@@ -424,7 +440,7 @@ def show():
         with st.spinner(t("db_health.spinner", "Chargement des métriques DB…")):
             df_health  = _load_health(db, artist_id)
             df_weekly  = _load_weekly_activity(db, artist_id)
-            df_cumul   = _load_cumulative(db, artist_id)
+            df_cumul   = _load_cumulative(df_weekly)
 
         _show_health_table(df_health)
         st.markdown("---")

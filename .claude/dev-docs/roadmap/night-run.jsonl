@@ -18,3 +18,5 @@
 {"at": "2026-09-16T23:28:51+00:00", "head": "3660b55", "kind": "done", "task": "R118", "what": "5 vues restantes mesurees ; passees en condition d'attente calculable"}
 {"at": "2026-09-16T23:32:34+00:00", "head": "7dd9b89", "kind": "start", "task": "R121", "what": "platform_chart : GROUP BY date_trunc en boucles Python"}
 {"at": "2026-09-16T23:48:09+00:00", "head": "7dd9b89", "kind": "done", "task": "R121", "what": "config_loader memoise : -25% sur l'accueil ; platform_chart refute a 1,4 ms"}
+{"at": "2026-09-16T23:49:14+00:00", "head": "ab9827b", "kind": "start", "task": "R121", "what": "profiler les 7 sites d'agregation Python restants"}
+{"at": "2026-09-17T00:09:02+00:00", "head": "ab9827b", "kind": "done", "task": "R121", "what": "onboarding_health 324 → 181 requetes ; db_health 22 → 11 fetch_df"}

@@ -464,7 +464,8 @@ def _sharing_line(row: dict, remembered) -> str:
 
 
 def render_status_matrix(db, artist_id: int, *, compact: bool = False,
-                         allow_probe: bool = True, key_suffix: str = "") -> list:
+                         allow_probe: bool = True, key_suffix: str = "",
+                         rows: list | None = None) -> list:
     """Draw the matrix and return the readiness rows.
 
     NEVER opens a database connection: `db` is handed in. Every view file in this
@@ -473,10 +474,25 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
     spend theirs.
 
     `compact=True` collapses to a single line of glyphs, for the home banner.
+
+    `rows=` — la matrice DÉJÀ calculée, quand l'appelant l'a. Ajouté le 2026-09-17 :
+    `onboarding_health` calculait `artist_readiness(db, aid)` pour composer l'en-tête
+    de chaque artiste, puis appelait ce renderer, qui la RECALCULAIT. Mesuré au
+    profileur sur douze locataires actifs : `artist_readiness` **24 fois**, 145,3 ms,
+    et `check_freshness` 24 fois derrière elle.
+
+    Le défaut ne se voit pas à la lecture : le calcul et le rendu sont à cinquante
+    lignes d'écart dans `show()`, et un renderer qui recharge ses propres données est
+    exactement ce qu'on attend d'un renderer autonome. C'est la même forme que
+    `db_health._load_cumulative`, corrigée le même jour.
+
+    Le défaut reste `None` : les trois autres appelants n'ont pas la matrice sous la
+    main et ne changent pas.
     """
     from src.utils.artist_readiness import artist_readiness
 
-    rows = artist_readiness(db, artist_id)      # no probe= : zero API calls on render
+    if rows is None:
+        rows = artist_readiness(db, artist_id)  # no probe= : zero API calls on render
     probes = read_probes(db, artist_id)
 
     if compact:
