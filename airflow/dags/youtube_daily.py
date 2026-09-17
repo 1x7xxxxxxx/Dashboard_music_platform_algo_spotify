@@ -79,12 +79,28 @@ def collect_youtube_data(**context):
         results = []
         artists_with_creds = 0
         successful_fetches = 0
+        unreadable: list[Exception] = []   # magasin illisible : ni « connecté » ni « pas connecté »
         per_artist_errors = []  # multi-tenant isolation: one bad tenant must not abort the fleet
 
         for saas_artist_id, artist_name in artists:
             logger.info(f'YouTube collect — artist_id={saas_artist_id} ({artist_name})')
 
-            creds = load_platform_credentials(saas_artist_id, 'youtube')
+            # DANS l'isolement : cette lecture LÈVE sur un magasin illisible, et
+            # elle était au-dessus du `try` qui commence 26 lignes plus bas — donc un
+            # seul locataire illisible avortait la collecte des suivants.
+            try:
+                creds = load_platform_credentials(saas_artist_id, 'youtube')
+            except Exception as e:                   # noqa: BLE001 — isolement par locataire
+                logger.error(f'  Credentials unreadable for artist_id={saas_artist_id} '
+                             f'({artist_name}): {safe_error(e)}')
+                per_artist_errors.append((saas_artist_id, artist_name,
+                                          safe_error(e, limit=200)))
+                # ⚠️ RETENU, pas seulement journalisé : `continue` arrive AVANT le
+                # compteur de locataires configurés, donc sans cette liste un magasin
+                # en panne pour TOUT le monde se lirait comme « aucun artiste
+                # connecté ». Classe `une-erreur-avalée-devient-une-absence`.
+                unreadable.append(e)
+                continue
             # App credential (admin-owned, shared): env fallback is the central-app
             # model (ADR-006) and stays.
             api_key = creds.get('api_key') or os.getenv('YOUTUBE_API_KEY')
@@ -265,6 +281,8 @@ def collect_youtube_data(**context):
 
         # Fail the task only if EVERY configured artist failed — a single healthy tenant
         # keeps the run green so one broken channel can't blank the whole fleet's data.
+        if successful_fetches == 0 and unreadable:
+            raise unreadable[0]
         if artists_with_creds > 0 and successful_fetches == 0:
             raise ValueError(
                 f"YouTube API returned no channel data for any of the {artists_with_creds} "

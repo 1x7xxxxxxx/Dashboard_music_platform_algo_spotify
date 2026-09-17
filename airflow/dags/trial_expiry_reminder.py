@@ -144,9 +144,21 @@ def send_trial_reminders(**context):
                 # demain si la porte s'ouvre, et J-2 vaut mieux que jamais.
                 logger.warning("trial reminder: not delivered for %s", artist_name)
                 continue
-            db.execute_query(
-                "UPDATE saas_users SET trial_reminder_sent_at = NOW() WHERE id = %s",
-                (user_id,))
+            # DANS l'isolement, comme le `_body` ci-dessus. Le `try` interne ne
+            # couvrait que la composition du message : une erreur DB sur CE marquage
+            # remontait au `try/finally` externe, qui n'a pas d'`except` — la boucle
+            # s'arrêtait donc là, et tous les locataires SUIVANTS ne recevaient rien.
+            # Le mail de celui-ci est déjà parti : ne pas marquer le fait repartir
+            # demain, ce que le commentaire ci-dessus assume déjà (« J-2 vaut mieux
+            # que jamais »).
+            try:
+                db.execute_query(
+                    "UPDATE saas_users SET trial_reminder_sent_at = NOW() WHERE id = %s",
+                    (user_id,))
+            except Exception as e:      # noqa: BLE001 — un locataire ne bloque pas les autres
+                logger.error("trial reminder: marking failed for %s: %s",
+                             artist_name, safe_error(e))
+                continue
             sent += 1
         logger.info("trial reminder: %d sent", sent)
     finally:

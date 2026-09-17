@@ -12,7 +12,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 
 | famille | classes | récidive | la question |
 |---|---|---|---|
-| [le-locataire](#le-locataire) | 42 | **14/42** · 33.3 % | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
+| [le-locataire](#le-locataire) | 42 | **15/42** · 35.7 % | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 19 | **4/19** · 21.1 % | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 15 | **2/15** · 13.3 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | **0/20** · 0.0 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
@@ -600,4 +600,4 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 <!-- error-class-families: total=395 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=c4c3b0a3e8642898c5c7b2a432b95f9e568533b912e2717db004ebe444c0cd69 -->
+<!-- error-class-families: sha256=8252a12c2d7d9cee9fc5fa5762cc4a4cb70f4148300886af7ea6278a4ae82925 -->

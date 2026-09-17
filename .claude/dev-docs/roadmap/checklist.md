@@ -26,6 +26,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R122 | **ROUVERTE** — la colonne `guard_scope` est LIVRÉE (0 classe sur 394 sans « ne couvre pas », le 2026-09-17), mais la récidive reste au-dessus du seuil que R122 s'était donné : il reste `cause_unknown` 241 et `seen_red_unknown` 331, qui se comblent en EXÉCUTANT, pas en écrivant | P3 | `make reopen-check` → la ligne R122 doit cesser de dire `ROUVRIR` |
+| R132 | **Isolement de flotte hors Airflow** — 6 sites mesurés que le garde AST ne peut pas voir : `metric_bounds.py:124` (aveuglement de flotte), `onboarding_health.py:65` (toute la page admin tombe), 4 scripts de `debug_dag/` | P3 | `python3 -m pytest tests/test_dag_fleet_isolation.py -q` reste vert — c'est le POINT : ces sites sont hors de son périmètre, la mesure est le balayage AST ci-dessous |
 
 **Aucune tâche ouverte ne reste dans cet index, ni dans aucune autre section.** La
 table « 🙋 En attente de toi » plus bas est vide elle aussi depuis le 2026-09-10 :
@@ -167,6 +168,47 @@ le 2026-09-16. Le dépôt refuse de convertir « je n'ai pas cherché » en prog
 
 ---
 
+---
+
+## R132 — L'isolement de flotte s'arrête aux frontières du garde · P3
+
+Ouverte le 2026-09-17, en balayant les frères de `multitenant-dag-fleet-poisoning`.
+**Le balayage a trouvé 8 sites vivants sur 6 fichiers de production alors que le garde
+était VERT sur 13 tests** ; les 8 sont corrigés et le garde élargi les rougit. Ce qui
+reste est ce que le garde **ne peut pas** voir, et il faut le dire avec sa raison.
+
+### Ce qui reste, et pourquoi le garde ne l'atteint pas
+
+| site | forme | pourquoi hors de portée |
+|---|---|---|
+| `src/utils/metric_bounds.py:124-129` | **aveuglement de flotte** | la boucle est ici, le `try` est dans `alert_monitor.py::check_metric_bounds` — **un autre module**. Une levée sur un locataire ne fait pas tomber le DAG : elle vide les constats de la nuit pour TOUS, silencieusement. Le détecter demande une analyse **inter-procédurale**, pas un prédicat plus large |
+| `src/dashboard/views/onboarding_health.py:65` | crash, variante Streamlit | `for aid, name in artists:` sous un `try … finally: db.close()` **sans `except`** — une levée fait tomber toute la page admin, pas la ligne de l'artiste. Hors du périmètre `airflow/dags/` du garde |
+| `airflow/dags/trial_expiry_reminder.py:147` | **corrigé à la main** | la source de flotte est `_due_accounts(db)`, pas `get_active_artists()` : `_artist_loops` ne reconnaît pas la boucle. Le site est fermé, **le garde ne le protège pas** |
+| `airflow/debug_dag/` ×4 | aveuglement | `debug_meta_token_refresh.py:58`, `debug_alert_monitor.py:45`, `debug_ml_scoring.py:58`, `debug_ml_outcome_labeling.py:48`. Scripts interactifs, hors production |
+
+⚠️ **Trois axes indépendants, et c'est pour ça que ce n'est pas un élargissement de
+plus.** Fermer ces sites demande de bouger en même temps la portée FICHIER (au-delà de
+`airflow/dags/`), la détection de SOURCE de flotte (au-delà de `get_active_artists`), et
+la portée du `try` (au-delà de la même fonction). Chacun élargi seul peut faire rougir
+des boucles d'agrégation légitimes — le mode d'échec que ce dépôt a déjà mesuré sur un
+garde élargi trop vite. C'est une refonte du modèle de « boucle de flotte », pas une
+correction.
+
+- [ ] **R132 — décider, pour chacun des 6 sites, entre le corriger à la main et étendre
+      le garde ; et si le garde est étendu, le faire UN AXE À LA FOIS avec la mesure du
+      bruit qu'il produit.**
+
+  Le premier axe utile est probablement la SOURCE de flotte : `_due_accounts(db)` et
+  `SELECT DISTINCT artist_id` sont des boucles par locataire aussi légitimes que
+  `get_active_artists()`, et rien ne les reconnaît.
+
+  ⚠️ **Ne pas viser un compteur.** `siblings_never_swept` a baissé de 1 en trouvant 8
+  sites : c'est le balayage qui vaut, pas le nombre.
+
+  **Mesuré par** : le balayage AST qui a produit cette liste —
+  `python3 - <<'PY'` … (boucles par locataire, appels risqués hors `try`) ; il doit
+  rendre 0 site hors `debug_dag/` pour que R132 se ferme.
+
 ## 🏗 R113–R116 — Monter l'architecture scalable, pour mesurer si elle est nécessaire
 
 Le contexte, en une phrase : la concurrence a enfin été MESURÉE le 2026-09-16 contre la
@@ -253,7 +295,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-17 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R122 -->
+<!-- reprise: open=R122,R132 -->
 
 **R116 a quitté l'index le 2026-09-17**, pas ce fichier : `daily_ops_metrics` ne porte qu'une ligne (`complete = FALSE`, percentiles de rendu tous `NULL`), donc la courbe qui doit trancher l'ADR-027 n'existe pas encore. Son bloc de détail — non coché, pas livré — reste **ici**, dans une nouvelle section `## ⏸️ R116` hors des deux tables d'index : `archive.md` est strictement passif (aucun item non coché n'y est admis — `test_the_archive_holds_nothing_actionable`), et R116 n'est ni livrée ni abandonnée. Son déclencheur de réouverture est la ligne `daily_ops_metrics` de `### Conditions d'attente` ci-dessous. Elle n'a donc plus de ligne dans l'index actionnable ni dans « 🙋 En attente de toi » — elle n'attend aucun geste humain, seulement du trafic — et pour cette même raison elle **sort de l'ancre**, qui ne porte que ce que les deux tables de ce fichier listent encore.
 

@@ -58,9 +58,17 @@ def precheck_soundcloud_credentials(**context):
         logger.info("No active artists — skipping credential pre-check.")
         return
 
-    configured, blocked = [], []
+    configured, blocked, unreadable = [], [], []
     for aid, name in artists:
-        creds = load_platform_credentials(aid, 'soundcloud')
+        # La docstring promet « never fails the fleet » ; sans ce `try` elle ne le
+        # tenait pas : `load_platform_credentials` LÈVE quand le magasin est illisible,
+        # et `precheck_task >> collect_task` est en `all_success` — un seul locataire
+        # illisible bloquait donc la collecte de tous les autres.
+        try:
+            creds = load_platform_credentials(aid, 'soundcloud')
+        except Exception as e:                       # noqa: BLE001 — isolement par locataire
+            unreadable.append(f"{name} (id={aid}): {type(e).__name__}")
+            continue
         user_id = creds.get('user_id')
         client_id = creds.get('client_id') or app_client_id
         client_secret = creds.get('client_secret') or app_client_secret
@@ -71,6 +79,11 @@ def precheck_soundcloud_credentials(**context):
         else:
             blocked.append(f"{name} (id={aid})")
 
+    if unreadable:
+        logger.warning(
+            f"SoundCloud precheck: credentials illisibles pour {len(unreadable)} "
+            f"artiste(s) — {'; '.join(unreadable)}. Le précontrôle continue."
+        )
     if blocked:
         logger.warning(
             "SoundCloud shared app not configured (SOUNDCLOUD_CLIENT_ID/SECRET) for "
@@ -112,11 +125,28 @@ def run_soundcloud_collector(**context):
 
     configured = 0
     succeeded = 0
+    unreadable: list[Exception] = []   # magasin illisible : ni « connecté » ni « pas connecté »
     per_artist_errors = []  # multi-tenant isolation — one bad tenant must not abort the fleet
 
     for artist_id, artist_name in artists:
         # ── Credentials depuis DB, fallback env vars (app partagée) ────
-        creds = load_platform_credentials(artist_id, 'soundcloud')
+        # DANS l'isolement : cette lecture lève sur un magasin illisible, et laissée
+        # au-dessus du `try` elle avortait la boucle pour les locataires suivants —
+        # alors que `per_artist_errors` juste au-dessus déclare l'inverse.
+        try:
+            creds = load_platform_credentials(artist_id, 'soundcloud')
+        except Exception as e:                       # noqa: BLE001 — isolement par locataire
+            # ⚠️ RETENU, pas seulement journalisé. `continue` arrive AVANT
+            # `configured += 1` : sans cette liste, un magasin en panne pour TOUT le
+            # monde donnerait `configured == 0`, la garde « échec si tous ont échoué »
+            # ne se déclencherait pas, et une panne totale se lirait comme « aucun
+            # artiste connecté ». C'est la classe `une-erreur-avalée-devient-une-absence`,
+            # et le test e2e `test_credential_store_failure_does_not_borrow_an_identity`
+            # l'a attrapée le 2026-09-17.
+            logger.error(f"  Credentials unreadable for {artist_name}: {safe_error(e)}")
+            per_artist_errors.append((artist_id, artist_name, safe_error(e)[:200]))
+            unreadable.append(e)
+            continue
         # App credentials (admin-owned, shared by every tenant): env fallback is the
         # central-app model (ADR-006) and stays.
         client_id     = creds.get('client_id')     or os.getenv('SOUNDCLOUD_CLIENT_ID')
@@ -193,6 +223,11 @@ def run_soundcloud_collector(**context):
 
     # Fail the task only if EVERY configured artist failed (admin-level signal),
     # never on a single bad tenant.
+    # Un magasin illisible pour TOUS et zéro collecte : on relève l'exception D'ORIGINE
+    # plutôt qu'un `ValueError` — son type dit à l'administrateur que c'est le magasin
+    # qui est en panne, pas les plateformes.
+    if succeeded == 0 and unreadable:
+        raise unreadable[0]
     if configured > 0 and succeeded == 0:
         raise ValueError(
             "SoundCloud collection failed for every configured artist: "

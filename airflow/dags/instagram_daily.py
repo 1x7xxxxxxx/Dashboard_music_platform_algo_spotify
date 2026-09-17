@@ -53,8 +53,22 @@ def precheck_instagram_credentials(**context):
         logger.warning("Shared Meta/Instagram token (META_ACCESS_TOKEN) not configured "
                        "— admin action required.")
 
-    connected = [name for aid, name in artists
-                 if load_platform_credentials(aid, 'meta').get('ig_user_id')]
+    # ⚠️ C'ÉTAIT UNE COMPRÉHENSION, et c'est pour ça qu'elle était dangereuse : Python
+    # n'a aucune syntaxe pour un `try` à l'intérieur, donc un locataire dont le magasin
+    # de credentials est illisible (`CredentialLoadError`) faisait échouer ce
+    # précontrôle — qui bloque `collect_task` par `all_success`, donc la collecte de
+    # TOUTE la flotte. Une boucle-instruction est la seule forme où l'isolement tient.
+    connected, unreadable = [], []
+    for aid, name in artists:
+        try:
+            if load_platform_credentials(aid, 'meta').get('ig_user_id'):
+                connected.append(name)
+        except Exception as e:                       # noqa: BLE001 — isolement par locataire
+            unreadable.append(f"{name} (id={aid}): {type(e).__name__}")
+    if unreadable:
+        logger.warning("Instagram precheck: credentials illisibles pour "
+                       f"{len(unreadable)} artiste(s) — {'; '.join(unreadable)}. "
+                       "Le précontrôle continue : il n'a jamais à faire tomber la flotte.")
     logger.info(f"✅ Instagram: {len(connected)}/{len(artists)} artist(s) connected "
                 "(have an ig_user_id).")
 
@@ -87,10 +101,26 @@ def run_insta_collector(**context):
 
     configured = 0
     succeeded = 0
+    unreadable: list[Exception] = []   # magasin illisible : ni « connecté » ni « pas connecté »
     per_artist_errors = []  # multi-tenant isolation — one bad tenant must not abort the fleet
 
     for artist_id, artist_name in artists:
-        creds = load_platform_credentials(artist_id, 'meta')
+        # La lecture des credentials est DANS l'isolement : elle lève
+        # `CredentialLoadError` quand le magasin est illisible (et c'est voulu — une
+        # panne n'est pas un artiste non connecté), donc laissée en tête de boucle
+        # hors `try`, elle avortait la boucle pour tous les locataires suivants.
+        try:
+            creds = load_platform_credentials(artist_id, 'meta')
+        except Exception as e:                       # noqa: BLE001 — isolement par locataire
+            logger.error(f"  Credentials unreadable for {artist_name}: {safe_error(e)}")
+            per_artist_errors.append((artist_id, artist_name, safe_error(e)[:200]))
+            record_tenant_failure('instagram_daily', artist_id, 'instagram', e, run_id)
+            # ⚠️ RETENU, pas seulement journalisé : `continue` arrive AVANT le
+            # compteur de locataires configurés, donc sans cette liste un magasin
+            # en panne pour TOUT le monde se lirait comme « aucun artiste
+            # connecté ». Classe `une-erreur-avalée-devient-une-absence`.
+            unreadable.append(e)
+            continue
         ig_user_id = creds.get('ig_user_id')
         token = creds.get('access_token') or os.getenv('META_ACCESS_TOKEN')
 
@@ -165,6 +195,8 @@ def run_insta_collector(**context):
         logger.warning(f"Instagram: {len(per_artist_errors)} artist(s) failed (isolated): {summary}")
 
     # Fail only if EVERY connected artist failed (admin-level signal), never on one tenant.
+    if succeeded == 0 and unreadable:
+        raise unreadable[0]
     if configured > 0 and succeeded == 0:
         raise ValueError(
             "Instagram collection failed for every connected artist: "

@@ -76,7 +76,14 @@ def refresh_meta_tokens(**context):
     db_conn = connect(autocommit=True)
 
     for artist_id, artist_name in artists:
-        creds = load_platform_credentials(artist_id, 'meta')
+        # DANS l'isolement : un magasin illisible pour UN locataire ne doit pas
+        # empêcher le rafraîchissement des jetons de tous les autres — un jeton non
+        # rafraîchi expire, et la collecte de ce locataire s'arrête en silence.
+        try:
+            creds = load_platform_credentials(artist_id, 'meta')
+        except Exception as e:                       # noqa: BLE001 — isolement par locataire
+            failed.append(f"{artist_name}: credentials unreadable — {safe_error(e)}")
+            continue
         access_token = creds.get('access_token', '')
         app_id = creds.get('app_id', '')
         app_secret = creds.get('app_secret', '')

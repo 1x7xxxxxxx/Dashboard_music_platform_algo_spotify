@@ -56,6 +56,7 @@ def run_meta_api_collector(**context):
     configured = 0
     succeeded = 0
     errors = []
+    unreadable: list[Exception] = []   # magasin illisible : ni « connecté » ni « pas connecté »
     # UN COMPTE PUBLICITAIRE N'EST COLLECTÉ QU'UNE FOIS PAR NUIT.
     #
     # Le bac à sable déclare le compte du profil principal — c'est sa raison d'être, il
@@ -72,7 +73,21 @@ def run_meta_api_collector(**context):
     # motif qui a coûté deux séances de test artiste.
     seen_accounts: dict = {}
     for artist_id, artist_name in artists:
-        creds = load_platform_credentials(artist_id, 'meta')
+        # DANS l'isolement : cette lecture LÈVE quand le magasin est illisible, et
+        # laissée en tête de boucle hors `try`, elle avortait la collecte pour tous
+        # les locataires suivants — alors que `errors` plus haut déclare l'inverse.
+        try:
+            creds = load_platform_credentials(artist_id, 'meta')
+        except Exception as e:                       # noqa: BLE001 — isolement par locataire
+            logger.error(f"  ❌ Credentials unreadable for {artist_name}: {safe_error(e)}")
+            errors.append(f"{artist_name} (id={artist_id}): credentials unreadable — "
+                          f"{safe_error(e)}")
+            # ⚠️ RETENU, pas seulement journalisé : `continue` arrive AVANT le
+            # compteur de locataires configurés, donc sans cette liste un magasin
+            # en panne pour TOUT le monde se lirait comme « aucun artiste
+            # connecté ». Classe `une-erreur-avalée-devient-une-absence`.
+            unreadable.append(e)
+            continue
         # Central model: the access_token is admin-owned (META_ACCESS_TOKEN env, shared
         # System User app). The artist supplies only their account_id. Mirror the
         # collector's env fallback here so an account-id-only artist is NOT skipped.
@@ -125,6 +140,8 @@ def run_meta_api_collector(**context):
                        + " | ".join(errors))
 
     # Fail only if EVERY configured artist failed (admin-level signal), never on one tenant.
+    if succeeded == 0 and unreadable:
+        raise unreadable[0]
     if configured > 0 and succeeded == 0:
         raise RuntimeError(
             f"Meta API collect failed for all {configured} configured artist(s):\n"

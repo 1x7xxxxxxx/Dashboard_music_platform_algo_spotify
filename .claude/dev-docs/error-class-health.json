@@ -6950,7 +6950,7 @@
       "renamed_from": null
     },
     "multitenant-dag-fleet-poisoning": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-06-19",
       "guard_automatic": true,
       "guard_ref": "tests/test_dag_fleet_isolation.py",
@@ -6958,17 +6958,18 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
         "2026-06-19",
-        "2026-08-20"
+        "2026-08-20",
+        "2026-09-17"
       ],
       "kind": "deterministic",
       "seen_red": "unknown",
       "severity": "P2",
-      "siblings_swept": false,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-06-20",
       "revisions": 4,
@@ -9923,7 +9924,7 @@
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 183,
+      "cause_unknown": 182,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
       "scope_on_a_shared_guard_without_naming_its_tests": 15,
@@ -9931,7 +9932,7 @@
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
       "seen_red_unknown": 331,
-      "siblings_never_swept": 385
+      "siblings_never_swept": 384
     },
     "population": {
       "automatic_guard": 385,

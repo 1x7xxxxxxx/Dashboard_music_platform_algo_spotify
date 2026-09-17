@@ -98,7 +98,9 @@ _CEILINGS = {
     # comble pas en écrivant, et pourquoi `cause_inferred` reste crânté à 0 — marquer en
     # masse « plausible, non vérifié » ferait baisser CE compteur en faisant monter
     # l'autre, et la mutation n° 3 de ce fichier refuse ce troc.
-    "cause_unknown": 183,
+    # −1 le 2026-09-17 : `multitenant-dag-fleet-poisoning` passe en `measured` — les
+    # trois prédicats fautifs de son garde ont été EXÉCUTÉS un par un, pas relus.
+    "cause_unknown": 182,
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
     # −21 le 2026-09-17 : la famille `le-locataire` est à ZÉRO (42/42). Choisie la
@@ -159,7 +161,11 @@ _CEILINGS = {
     # donnée de locataire, donc il n'y avait pas de défaut vivant : la clôture était la
     # propriété d'un SITE et non du GESTE, et rien ne pouvait le voir. C'est ce que ce
     # compteur existe pour produire — pas un nombre, des sites.
-    "siblings_never_swept": 385,
+    # −1 de plus le 2026-09-17 : `multitenant-dag-fleet-poisoning`, et ce balayage a
+    # trouvé **8 sites vivants sur 6 fichiers de production** alors que son garde était
+    # VERT sur 13 tests. Deux compteurs bougent ensemble et c'est le signe recherché :
+    # le balayage produit des sites, pas un nombre.
+    "siblings_never_swept": 384,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

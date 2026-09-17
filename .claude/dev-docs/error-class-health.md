@@ -40,7 +40,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | trou | classes |
 |---|---|
 | `cause_inferred` | 0 |
-| `cause_unknown` | 183 |
+| `cause_unknown` | 182 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_on_a_shared_guard_without_naming_its_tests` | 15 |
@@ -48,7 +48,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `scope_without_not_covered` | 0 |
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 331 |
-| `siblings_never_swept` | 385 |
+| `siblings_never_swept` | 384 |
 
 ## Récidive observée
 
