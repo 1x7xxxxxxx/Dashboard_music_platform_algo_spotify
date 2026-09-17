@@ -220,7 +220,18 @@ _CEILINGS = {
     # le mélange naïf/aware d'`airflow_monitor.py:124`, trouvé le même jour par une
     # autre recherche — le défaut y était une COMPARAISON. Deux motifs pour une
     # cause, et un seul aurait conclu « aucun site ».
-    "siblings_never_swept": 224,
+    # 224 → 218 le 2026-09-17 : `un-nombre-affirmé-qui-n-a-pas-été-mesuré`.
+    # Le balayage qui compte : `insert_many` rend TOUJOURS `len(data)` — le compte
+    # ENVOYÉ — et trois appelants gardent cette valeur. Le seul qui montre un chiffre
+    # à un ARTISTE mesure le delta (`_rows_in_table` avant/après) ; les deux autres
+    # ne l'écrivent que dans un journal. 0 site vivant, établi en suivant la valeur,
+    # pas en lisant le garde.
+    #
+    # ⚠️ **48 zéros fabriqués** (`COALESCE(…, 0)` / `fillna(0)`) dans les vues et les
+    # utilitaires. Plusieurs sont délibérés ET COMMENTÉS comme tels ; les autres n'ont
+    # été ni lus ni triés. C'est la liste où le prochain site de cette classe vit, et
+    # elle n'existait nulle part avant ce balayage.
+    "siblings_never_swept": 218,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
