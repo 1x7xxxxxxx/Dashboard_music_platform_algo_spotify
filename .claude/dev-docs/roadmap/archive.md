@@ -9,6 +9,81 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🧵 R123 — Le nettoyage de portée session passe au contrôleur, plus au worker (livrée 2026-09-17)
+
+- [x] **R123 — les deux nettoyages de `tests/conftest.py` en `scope="session", autouse=True`
+      s'exécutaient une fois PAR WORKER, sans coordination ; ils passent désormais par le
+      processus contrôleur.**
+
+  Livrée le 2026-09-17, commit `5662e33` (poussé). Les deux nettoyages de
+  `tests/conftest.py` étaient des fixtures `autouse, scope="session"`. Sous `-n`, chaque
+  worker ouvre sa propre session pytest : la fixture tournait **une fois par worker**,
+  au démarrage et à la fin de chacun, pendant que les autres travaillaient.
+
+  Remède : le processus **contrôleur** (`pytest_sessionstart` / `pytest_sessionfinish`,
+  gardés sur l'absence de `workerinput`). Son sessionstart précède tous les workers, son
+  sessionfinish les suit tous.
+
+  **Mesuré sur 4 workers, compteur d'appels instrumenté puis retiré** : avant
+  **8 appels depuis 4 processus**, après **2 appels depuis 1 processus**.
+
+  ⚠️ « seulement sur gw0 » a été écarté explicitement : gw0 termine sa session quand LUI
+  a fini, pas quand la suite a fini — son teardown retomberait en plein travail des
+  autres. Le défaut aurait changé de fréquence, pas de nature.
+
+  Deux gardes ont attrapé le renommage, comportement attendu :
+  `test_the_suite_leaves_no_false_data_behind` exigeait précisément la forme qui ÉTAIT
+  le défaut (une fixture `autouse, scope="session"`) — il vérifie désormais le hook
+  **et** qu'il filtre les workers ; `test_every_named_guard_exists` a signalé la
+  référence périmée dans `error-classes.md`.
+
+  **Non traité par cette brique** : `tests/test_freshness_and_readiness_db.py:153` écrit
+  le littéral `spotify-fleet-probe` dans la table globale `artists`, alors que tous les
+  autres tests du même fichier passent par une fixture suffixée en uuid. Aucune course
+  n'y est prouvée — aucun autre site n'utilise ce littéral aujourd'hui. Condition
+  d'attente, déclencheur calculable : **un second site utilise ce littéral**.
+
+## 🩺 R122 — Revue des classes d'erreur, close et convertie en chantier gouverné par un cliquet (2026-09-17)
+
+- [x] **R122 — finir la revue des classes d'erreur.** Close comme TÂCHE — pas livrée en
+      entier — parce que le reste du volume est désormais gouverné par un cliquet
+      automatique, pas par une case à cocher.
+
+  **Ce n'est pas un abandon et ce n'est pas une livraison complète : c'est un changement
+  de nature.** Travail fait le 2026-09-17 : quatre `guard_scope` écrites, chacune
+  nommant un geste voisin **vérifié dans le code** —
+  `trusted-value-read-from-an-untrusted-header`,
+  `server-side-render-fetches-tenant-chosen-urls`, `write-without-explicit-artist-id`,
+  `upsert-transfers-row-ownership`. Compteur `scope_without_not_covered` : **304 → 300**,
+  plafond du cliquet resserré dans le même commit.
+
+  **État exact à la clôture** (`make error-health`, 378 classes) :
+  `scope_without_not_covered` **300**, `seen_red_unknown` **331**, `cause_unknown`
+  **241**, `scope_on_a_shared_guard_without_naming_its_tests` **8**, récidivistes non
+  traitées **0**, classes jamais écrites **0**.
+
+  **Pourquoi elle cesse d'être une tâche.** Sa propre ligne d'index la disait déjà « en
+  queue opportuniste », et son estimation était de ~16 h pour la seule colonne
+  `guard_scope`. Une case qu'on ne cochera jamais n'est pas une tâche. Or son cliquet
+  est complet et automatique :
+  - `make error-health` mesure les trois trous depuis l'historique git ;
+  - `tests/test_the_error_class_health_only_improves.py` **refuse** toute régression et
+    exige que le plafond soit resserré dans le même commit que l'amélioration (il a
+    rougi le 2026-09-17, sur son auteur, pour cette raison exacte) ;
+  - `make error-health-check` bloque la CI quand l'instantané est périmé ;
+  - `/capitalise` exige les trois preuves à l'écriture ;
+  - un hook PostToolUse avertit au moment d'écrire une classe.
+
+  **Le précédent est dans `checklist.md`**, au paragraphe « Un seul chantier reste, et
+  ce n'est pas une tâche » : la reprise des définitions recopiées se fait au fil de
+  l'eau sous ADR-019, et son avancement se lit dans le cliquet du bronze, pas dans
+  l'index. R122 a exactement cette forme.
+
+  Condition d'attente, déclencheur calculable : **rouvrir R122 comme tâche si un
+  compteur de trou remonte** — ce que `test_the_error_class_health_only_improves.py`
+  transforme déjà en rouge — **ou si `ever_recurred_observed` repasse au-dessus de
+  47**.
+
 ## ⚡ R109 — La CI en 4 shards indépendants, ×3,9 (livrée 2026-09-16)
 
 - [x] **R109 — découper `Run tests` en 4 shards (`pytest-split` + matrice) ; le mur

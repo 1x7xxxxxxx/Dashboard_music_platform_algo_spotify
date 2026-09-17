@@ -25,8 +25,11 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R123 | Deux nettoyages de `conftest.py` en `scope="session", autouse=True` s'exécutent **une fois par worker** et effacent des lignes à clé fixe pendant qu'un autre worker les lit — `xdist_group` ne peut RIEN pour eux | P2 | `pytest tests/ -n 4 --dist load` sur les fichiers cités ; aujourd'hui non reproduit, la course est lue dans le code |
-| R122 | Revue des classes d'erreur — **récidivistes : 0** ✅, **classes manquantes : 0** ✅ ; reste 304 portées et 241 causes, en queue opportuniste | P3 | les trous de `make error-health` ne font que baisser |
+
+**R123 a été livrée le 2026-09-17** (commit `5662e33`) : le nettoyage de portée session
+passe au processus contrôleur plutôt qu'au worker. **R122 a été close le 2026-09-17**,
+convertie en chantier gouverné par un cliquet automatique — voir `archive.md` pour le
+détail des deux.
 
 **R109 et R110 ont été livrées et déployées le 2026-09-16** — voir `archive.md`.
 Résultat mesuré : le mur du run `ci.yml` est passé d'une médiane de **427 s à 109 s**
@@ -146,37 +149,6 @@ l'effacer serait la faute.
 > au premier réveil de la séance longue, puis a été livrée le 2026-09-17 — détail
 > dans `archive.md`.
 
-## 🧵 R123 — Un nettoyage de portée session s'exécute une fois PAR WORKER
-
-- [ ] **R123 — les deux fixtures `scope="session", autouse=True` de `tests/conftest.py`
-  nettoient des lignes à clé FIXE, une fois par worker, sans coordination.**
-
-  Trouvé le 2026-09-17 par le balayage des frères de la course corrigée dans
-  `test_nothing_overwritten_is_lost` (voir `archive.md`). **Ce n'est pas la même
-  classe au sens du remède** : `--dist loadgroup` affecte des TESTS à des workers, il
-  ne dit rien du moment où tourne une fixture de session. Chaque worker ouvre sa propre
-  session pytest, donc chaque worker exécute ces nettoyages à son démarrage et à sa fin —
-  pendant que les autres travaillent.
-
-  | fixture | ligne | ce qu'elle efface | qui peut être en vol |
-  |---|---|---|---|
-  | `_rate_limit_budget_starts_full` | ~636 | `DELETE FROM rate_limit_hits WHERE bucket LIKE` sur `testclient:%`, `unknown:%`, `%:unknown`, `test:%` | `tests/test_api.py` et ses `POST /auth/token` répétés — le compteur de quota repart à zéro en plein test de quota |
-  | `_no_synthetic_rows_left_behind` | ~644 | `DELETE FROM soundcloud_tracks_daily WHERE track_id LIKE 'track-of-%'` | `test_e2e_two_tenants.py`, `test_the_suite_leaves_no_false_data_behind.py` |
-
-  ⚠️ **Aucune de ces deux courses n'a été OBSERVÉE rouge.** Elle est lue dans le code,
-  pas mesurée — c'est pourquoi la colonne « Mesuré par » dit comment on la reproduirait
-  et non ce qu'elle a rendu. Ne pas l'écrire dans la voix d'un fait.
-
-  Remèdes possibles, aucun tranché : restreindre le nettoyage à un seul worker
-  (`PYTEST_XDIST_WORKER == "gw0"` ou le nœud maître), un verrou externe, ou sortir le
-  nettoyage de la portée session. Le premier est le moins cher et le plus lisible.
-
-  **Reste à trancher, même balayage** : `tests/test_freshness_and_readiness_db.py:153`
-  écrit `artist_id = "spotify-fleet-probe"`, un littéral, dans la table GLOBALE `artists`
-  — alors que tous les autres tests du même fichier passent par une fixture suffixée en
-  uuid. Aucun second site n'utilise ce littéral aujourd'hui, donc **pas de course
-  prouvée** ; le risque est qu'un futur second usage collisionne en silence.
-
 ## 🏗 R113–R116 — Monter l'architecture scalable, pour mesurer si elle est nécessaire
 
 Le contexte, en une phrase : la concurrence a enfin été MESURÉE le 2026-09-16 contre la
@@ -211,126 +183,6 @@ Ces quatre tâches construisent la forme scalable **même si le seuil n'est pas 
 (R87 est close sur un pic de 12 sessions/minute contre un seuil de 20). C'est une
 décision assumée : découvrir par la mesure que ce n'était pas nécessaire vaut mieux que
 le supposer.
-
-- [ ] **R122 — finir la revue des classes d'erreur. L'outillage est posé, reste le volume.**
-
-  **Ce qui est FAIT et automatique** (2026-09-16) : `make error-health` mesure la récidive
-  depuis l'historique git (201 révisions rejouées), `tests/test_the_error_class_health_only_improves.py`
-  refuse la régression, `/capitalise` exige les trois preuves et « nomme le GESTE, pas le
-  verbe », un hook PostToolUse avertit à l'écriture, la CI lance la suite entière en
-  4 shards. **La chaîne ne demande plus aucun geste.**
-
-  **Le résultat qui justifie la suite** : une classe **sans garde automatique récidive
-  5,2× plus** — 1,005 évènement par classe-mois contre 0,193, **intervalles à 95 %
-  disjoints**. Premier chiffre séparant les strates depuis que le catalogue existe.
-
-  **Ce qui reste — du volume de revue, pas un manque d'outil :**
-
-  | trou | reste | ce qu'il faut écrire |
-  |---|---|---|
-  | `scope_without_not_covered` | **304** | le `ne couvre pas:` — un geste voisin qui partage la cause |
-  | `seen_red_unknown` | **331** | une date OBSERVÉE, ou `never` ; jamais une date inventée |
-  | `cause_unknown` | **241** | `read` / `measured` / `inferred` — `inferred` est une réponse valable |
-  | **portées sur un garde PARTAGÉ sans nommer leurs tests** | **8** ✅ (20 → 8 le 2026-09-17) | 50 fichiers de garde sur 286 sont partagés ; sans nom de test, la portée se lit comme « je possède tout le fichier » |
-  | ~~récidivistes non traitées~~ | **0** / 47 ✅ | **toutes portées écrites le 2026-09-17** — c'était la priorité mesurée de la brique | la portée d'abord : ce sont elles qui ont échoué |
-  | ~~classes jamais écrites~~ | **0** ✅ | **les cinq écrites le 2026-09-17**, chacune avec un `seen_red` DATÉ (voir plus bas) |
-
-  **L'ordre est celui du gain mesuré**, jamais alphabétique : (1) ~~les récidivistes~~ —
-  **il n'en reste aucune**, les 47 ont été portées le 2026-09-17 ; ce point disait encore
-  « les 14 récidivistes restantes » le 2026-09-17, en contredisant la table juste
-  au-dessus qui affichait déjà `0 / 47 ✅`. Classe `a-prose-claim-that-cannot-be-verified` ;
-  (2) les `P1` + `guarded`, où une fausse impression de protection coûte le
-  plus ; (3) les `cause_unknown` dont le `root_cause` ne nomme aucun fichier ; (4) le
-  reste, **opportunistement** — quand une classe est touchée pour une autre raison, le
-  hook le rappelle.
-
-
-  ⚠️ **Cinq classes existent dans une docstring et nulle part ailleurs** — trouvées le
-  2026-09-16 *en écrivant les portées du lot 5*, pas par un test. La cohérence
-  catalogue↔gardes n'était vérifiée que dans un sens : `test_every_named_guard_exists.py`
-  garde **classe → garde** depuis le 2026-08-26, et personne n'avait gardé la réciproque.
-  Sur **81 déclarations** `Error class \`<id>\`` dans `tests/`, `.claude/hooks`,
-  `.claude/scripts` et `tools/`, **7 nommaient un identifiant absent du catalogue** : deux
-  renommages restés en arrière (corrigés), et cinq classes que personne n'a écrites. Le
-  garde est vert, sa docstring porte le symptôme, la cause, la date et le coût — et
-  `make error-health` ne les compte pas, donc la prochaine occurrence passera pour neuve.
-
-  Réciproque posée : `tests/test_a_guard_names_a_class_that_exists.py`, plafond
-  d'orphelins **égal à la mesure**, et un rouge si le GARDE d'un orphelin disparaît —
-  sinon supprimer le test serait la façon la moins chère de faire baisser le compteur.
-  Classe : `a-guard-names-a-class-nobody-wrote`, **première du catalogue dont `seen_red`
-  porte une date observée** et non un rétro-portage.
-
-  ✅ **FAIT le 2026-09-17.** Les cinq sont écrites depuis la docstring de leur garde, et
-  **les cinq portent une date `seen_red` observée** — pas un rétro-portage : chaque
-  signature a été vue rouge par mutation, dont deux avec la valeur fautive d'ORIGINE
-  (`_COLUMN_WIDTH_PX` remis à 720 ; `noise_tokens=noise` retiré de l'appel de production).
-
-  ⚠️ **Et la mutation a démenti une portée que je venais d'écrire.** Pour
-  `setup-step-asks-for-a-developer-gesture`, j'avais recopié la docstring du garde —
-  « deux points d'entrée, tous deux délèguent au résolveur unique ». Muter le premier
-  appelant trouvé (`_from_signup.py:54`) a laissé le test **VERT** : le garde ne lit
-  qu'`_platform_soundcloud.py`, et il y a **trois** appelants. La prose du garde était
-  périmée et je l'aurais propagée. La portée dit maintenant le trou : un locataire qui
-  arrive par le formulaire d'inscription n'est protégé par rien.
-
-  ⚠️ **Deux mutations sur cinq n'ont pas mordu du premier coup**, et c'est ce qui a de la
-  valeur : une mutation qui ne mord pas ressemble EXACTEMENT à un garde qui couvre.
-
-  Les cinq, avec ce que leur docstring portait et que le catalogue ignorait :
-
-  | classe à écrire | le garde qui la décrit |
-  |---|---|
-  | `setup-step-asks-for-a-developer-gesture` | `tests/test_a_link_is_enough_to_identify_a_tenant.py` |
-  | `image-sized-for-a-layout-it-no-longer-has` | `tests/test_a_screenshot_never_exceeds_its_column.py` |
-  | `two-shapes-summed-as-one` | `tests/test_apple_periods_are_asked_not_guessed.py` |
-  | `a-scoring-call-that-omits-its-context` | `tests/test_every_ranking_call_names_the_artist.py` |
-  | `an-optimisation-that-degrades-what-worked` | `tests/test_the_matcher_keeps_its_known_pairs.py` |
-
-  ⚠️ **Règle d'arrêt, écrite d'avance** : si après cette revue les strates `by_seen_red`
-  et `by_scope` ne se séparent toujours pas (aujourd'hui `insuffisant pour conclure`,
-  n=56), la conclusion honnête est que **ces champs coûtent plus qu'ils ne rapportent** et
-  qu'il faut les retirer. La date de revue est dans le docstring du cliquet : **+30 et
-  +90 jours**. Sans cette règle, la brique devient `un-coût-payé-sans-contrepartie`.
-
-  ⚠️ **Le contrôle croisé des familles a été RETIRÉ le jour où il a été posé**, et c'est
-  la mesure qui l'a retiré : sur 18 portées écrites à la main, **10 désaccords**, presque
-  tous du côté de la *dérivation* — `two-clocks-subtracted-from-each-other` rangé en
-  « deux-surfaces-deux-nombres », `central-app-missing` en « le-locataire ». 55 % de faux
-  positifs : ce n'est pas une liste de relecture, c'est du bruit, et un compteur bruyant
-  fait ignorer les vrais. Il supposait qu'une regex de mots-clés sur un symptôme est un
-  second avis fiable ; elle est faite pour RANGER un document, pas pour valider un
-  jugement. Remplacé par une vérification sans faux positif : la famille déclarée
-  existe-t-elle dans `FAMILIES` ?
-
-  ⚠️ **Une relecture `code-critic` est OBLIGATOIRE sur chaque lot de revue**, et ce n'est
-  pas une précaution de style : passée sur les six premières portées écrites avec soin,
-  elle en a trouvé **quatre inexactes**. Repassée sur le lot 5 (sept portées) : **trois
-  inexactes sur sept** — une qui sur-déclarait un risque chez quatre DAG frères (aucun ne
-  porte de booléen décidant s'il envoie), un chiffre faux d'un facteur ~3 (le motif
-  comptait les constantes locales au test, hors sujet), et une qui SOUS-déclarait un trou.
-  Cette dernière a fait trouver un défaut dans un garde vivant, pas une imprécision de
-  rédaction : `test_a_trigger_invalidates_what_it_makes_stale.py` cherchait le `if`
-  ENGLOBANT l'appel, or le seul site de production écrit l'appel PUIS le `if` — aucun
-  englobant, portée retombée sur le fichier entier, et sa propre mutation incapable de le
-  voir. **Deux lots, deux fois environ la moitié des portées inexactes : la relecture
-  n'est pas une précaution, c'est le contrôle qui fait tenir le champ.** Toutes pour la même raison — la portée avait été
-  écrite en lisant le garde NOMMÉ dans `guard:`, sans ouvrir les fichiers cités par
-  `signature:` et `History:`. Deux sur-déclaraient une couverture (« les vues ET les
-  DAG » : aucun garde ne lit `airflow/dags/`), une comptait faux (cinq applications pour
-  quatre), une annonçait un trou déjà gardé par une classe sœur.
-
-  ⚠️ **Un déclencheur mécanique a été cherché et rejeté** : « ≥ 2 fichiers cités » ne
-  sépare pas (les 4 fausses citent 1/1/2/3, les 2 justes 1/3). Faute de sélecteur, le
-  critique passe sur les LOTS, pas sur chaque classe — six spawns par jour pour un
-  artefact de cinq minutes ne se justifient pas. Si un sélecteur apparaît, il remplace
-  cette règle.
-
-  ⚠️ Et le critique s'est trompé une fois sur six : il signalait un traceback persisté
-  **sans rédaction** dans `app_error_log`. Vérifié — `src/utils/error_registry.py:37`
-  appelle bien `redact(...)`. Un constat d'agent se vérifie comme un autre.
-
-  Contrôle : `make error-health` · évolution : `make error-health-history`.
 
 ---
 
@@ -381,11 +233,23 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-17, une tâche actionnable (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-17, aucune tâche actionnable (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R122,R123 -->
+<!-- reprise: open= -->
 
-**R122 et R123 sont actionnables.** R123 a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans `test_nothing_overwritten_is_lost` : deux nettoyages de `conftest.py` en portée session s'exécutent une fois PAR WORKER et effacent des lignes à clé fixe — `xdist_group` ne les couvre pas. Course **lue dans le code, jamais observée rouge** ; le détail le dit dans cette voix-là. R118 est close le 2026-09-17, réfutée sur sa propre mesure (voir `archive.md`) — les cinq vues restantes vivent maintenant dans « Conditions d'attente », pas dans l'index. **R117 est livrée le 2026-09-17** — les deux moitiés (déplacement du dépôt sur ext4, bascule de VS Code en Remote-WSL) sont faites et vérifiées, par cette même séance ; détail dans `archive.md`. Elle ne va plus dans l'ancre ci-dessus, qui ne porte que ce qui reste ouvert.
+**R122 et R123 sont closes le 2026-09-17, toutes deux rotées dans `archive.md`.** R123
+a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans
+`test_nothing_overwritten_is_lost` — deux nettoyages de `conftest.py` en portée session
+s'exécutaient une fois PAR WORKER, `xdist_group` ne les couvrait pas — puis livrée le
+jour même (commit `5662e33`) : le nettoyage passe désormais par le processus
+contrôleur. R122 est close le même jour, convertie en chantier gouverné par un cliquet
+automatique (`make error-health`, `test_the_error_class_health_only_improves.py`) —
+détail des deux dans `archive.md`. R118 est close le 2026-09-17, réfutée sur sa propre
+mesure (voir `archive.md`) — les cinq vues restantes vivent maintenant dans
+« Conditions d'attente », pas dans l'index. **R117 est livrée le 2026-09-17** — les
+deux moitiés (déplacement du dépôt sur ext4, bascule de VS Code en Remote-WSL) sont
+faites et vérifiées, par cette même séance ; détail dans `archive.md`. Elle ne va plus
+dans l'ancre ci-dessus, qui ne porte que ce qui reste ouvert.
 
 **R116 a quitté l'index le 2026-09-17**, pas ce fichier : `daily_ops_metrics` ne porte qu'une ligne (`complete = FALSE`, percentiles de rendu tous `NULL`), donc la courbe qui doit trancher l'ADR-027 n'existe pas encore. Son bloc de détail — non coché, pas livré — reste **ici**, dans une nouvelle section `## ⏸️ R116` hors des deux tables d'index : `archive.md` est strictement passif (aucun item non coché n'y est admis — `test_the_archive_holds_nothing_actionable`), et R116 n'est ni livrée ni abandonnée. Son déclencheur de réouverture est la ligne `daily_ops_metrics` de `### Conditions d'attente` ci-dessous. Elle n'a donc plus de ligne dans l'index actionnable ni dans « 🙋 En attente de toi » — elle n'attend aucun geste humain, seulement du trafic — et pour cette même raison elle **sort de l'ancre**, qui ne porte que ce que les deux tables de ce fichier listent encore.
 
