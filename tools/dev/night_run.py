@@ -169,6 +169,30 @@ def _suite_running() -> bool:
     return False
 
 
+def open_questions(entries: list[dict]) -> list[dict]:
+    """Les `park` qu'aucun `done` POSTÉRIEUR n'a tranchés.
+
+    Extraite du corps de `cmd_status` le 2026-09-17, et pour une raison mesurée : la
+    règle y était en ligne, donc le test qui la vérifiait en rejouait une COPIE. Muter
+    le module laissait ses assertions de comportement VERTES — seul le contrôle textuel
+    rougissait. Un garde qui teste son propre double ne garde rien.
+
+    Le critère est l'ORDRE, pas la présence : un `done` postérieur referme la question,
+    un `park` postérieur à un `done` la rouvre (tâche reprise puis rebloquée).
+    """
+    answered: set[str] = set()
+    for e in entries:
+        task = e.get("task")
+        if not task:
+            continue
+        if e.get("kind") == "done":
+            answered.add(task)
+        elif e.get("kind") == "park":
+            answered.discard(task)
+    return [e for e in entries
+            if e.get("kind") == "park" and e.get("task") not in answered]
+
+
 def cmd_status(_args) -> int:
     entries = _entries()
     tasks = _open_tasks()
@@ -208,7 +232,16 @@ def cmd_status(_args) -> int:
     for tid, label, prio in tasks:
         print(f"              {tid:<5} {prio}  {label[:88]}")
 
-    parked = [e for e in entries if e.get("kind") == "park"]
+    # Une question parquée que sa PROPRE tâche a fini par trancher cesse d'être une
+    # question. Ceci listait tous les `park` du journal, sans jamais les retirer :
+    # R117 a été parquée le 2026-09-17 au matin (« déplacer le dépôt tue la session
+    # qui le fait ») puis LIVRÉE le même jour, et `night-status` a continué de la
+    # poser. Un écran de reprise qui affirme un blocage résolu envoie chercher une
+    # décision déjà prise — famille `un-document-qui-affirme-un-état-périmé`.
+    #
+    # Le critère est l'ORDRE, pas la simple présence : un `done` postérieur au `park`
+    # le referme ; un `park` postérieur à un `done` rouvre bel et bien la question.
+    parked = open_questions(entries)
     if parked:
         print(f"\n▶ PARQUÉ    {len(parked)} question(s) en attente d'un humain :")
         for entry in parked[-5:]:
