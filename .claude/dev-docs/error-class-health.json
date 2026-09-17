@@ -1936,7 +1936,7 @@
       "severity": "P3",
       "status": "guarded",
       "introduced_date": "2026-09-17",
-      "revisions": 0,
+      "revisions": 1,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2273,7 +2273,7 @@
       "seen_red": "2026-09-17",
       "severity": "P2",
       "status": "guarded",
-      "introduced_date": null,
+      "introduced_date": "2026-09-17",
       "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
@@ -9497,7 +9497,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 228,
+      "catalogue_revisions": 229,
       "head_date": "2026-09-17"
     },
     "holes": {
