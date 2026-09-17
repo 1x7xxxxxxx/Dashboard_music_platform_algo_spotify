@@ -278,7 +278,14 @@ error-inbox: check-db ## Registre des erreurs applicatives → .claude/dev-docs/
 gold-coverage: ## Carte de la couche or → .claude/dev-docs/gold-coverage.md
 	@python3 tools/dev/gold_coverage.py
 
-gold-coverage-check: ## Échoue si la carte ne décrit plus le dépôt (CI)
+# ⚠️ Les trois cibles `*-check` ci-dessous ne sont lancées par AUCUN workflow — vérifié le
+# 2026-09-17 par `grep` sur `.github/workflows/` et `.pre-commit-config.yaml` : zéro
+# occurrence. Elles portaient pourtant la mention « (CI) » dans leur aide, ce qui nommait
+# le mauvais mécanisme : un lecteur pouvait croire que la cible EST la barrière, et
+# supprimer le test pytest qui la tient réellement. Le blocage passe par les tests, qui
+# tournent sous `make test` et donc en CI. Les cibles restent utiles comme geste manuel —
+# elles disent en une ligne ce qu'un test rend en trace pytest.
+gold-coverage-check: ## Échoue si la carte ne décrit plus le dépôt — geste MANUEL ; le blocage vient de tests/test_the_gold_coverage_only_improves.py
 	@python3 tools/dev/gold_coverage.py --check
 
 error-families: ## Familles de classes d'erreur → .claude/dev-docs/error-class-families.md
@@ -311,7 +318,7 @@ night-note: ## Un fait à ne pas perdre — make night-note TASK=R122 W="…"
 	@test -n "$(TASK)" || { echo "❌ TASK= manquant."; exit 1; }
 	@python3 tools/dev/night_run.py note "$(TASK)" "$(W)"
 
-error-families-check: ## Échoue si la taxonomie ne décrit plus le catalogue (CI)
+error-families-check: ## Échoue si la taxonomie ne décrit plus le catalogue — geste MANUEL ; le blocage vient de tests/test_the_error_class_families_only_improve.py
 	@python3 tools/dev/error_class_families.py --check
 
 error-health: ## Santé du catalogue de classes → .claude/dev-docs/error-class-health.{json,md}
@@ -330,7 +337,7 @@ error-health: ## Santé du catalogue de classes → .claude/dev-docs/error-class
 	@# champ tenu à la main ne peut contredire.
 	@$(PYTHON) tools/dev/error_class_health.py
 
-error-health-check: ## Échoue si l'instantané de santé ne décrit plus le catalogue (CI)
+error-health-check: ## Échoue si l'instantané de santé ne décrit plus le catalogue — geste MANUEL ; le blocage vient de tests/test_the_error_class_health_only_improves.py
 	@$(PYTHON) tools/dev/error_class_health.py --check
 
 error-health-history: ## L'évolution d'une métrique, lue dans l'historique git du JSON

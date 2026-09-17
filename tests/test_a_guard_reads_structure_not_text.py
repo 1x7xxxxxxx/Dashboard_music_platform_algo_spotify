@@ -55,6 +55,36 @@ _TEXTUAL_GUARDS = {
     "test_allowed_tables_coverage.py",
     "test_an_artist_never_reads_our_plumbing.py",
     "test_api_partial_dates.py",
+    # `test_a_make_target_names_the_mechanism_that_blocks.py` — AJOUTE le 2026-09-17.
+    # Il ne lit AUCUN Python : son seul `read_text` porte sur le `Makefile`, et les
+    # chemins `tests/….py` qu'il cite ne servent qu'a un `.exists()`. C'est exactement
+    # l'exemption que le message de ce test promet (« it inspects Markdown, a Makefile,
+    # a workflow ») — quatrieme fois que la promesse existe sans etre implementee pour
+    # un cas de plus, apres le YAML (2026-09-05) et `importlib` (2026-09-16).
+    #
+    # Pourquoi une EXEMPTION et pas un correctif du predicat, alors que le depot tient
+    # qu'un garde limite a son instance recidive. Le correctif general a ete cherche et
+    # MESURE, trois variantes, toutes refutees — les chiffres sont la pour qu'on ne les
+    # rejoue pas :
+    #
+    #   * « aucune LECTURE d'un `.py` suffit » (remplacer `return executed` par True) :
+    #     **12 des 22 geles s'echappent**. C'est precisement la regression que la
+    #     docstring de `_the_py_path_is_only_executed` annonce. L'exigence `executed`
+    #     est porteuse, pas decorative.
+    #   * `exists`/`is_file` ajoutes a `_RUNNERS` : 22/22 conserves, mais ce fichier
+    #     reste detecte — `.exists()` porte son chemin dans le RECEVEUR, quand le
+    #     predicat ne regarde que `node.args`.
+    #   * la meme chose en lisant le receveur : **casse `test_the_views_map_lists_every_view.py`**
+    #     et ne corrige toujours pas ce fichier.
+    #
+    # Le declencheur reel, mesure et non suppose : le dictionnaire `expected` du second
+    # test porte de VRAIS litteraux `.py`, legitimement reconnus comme des chemins (4e
+    # terme). Le trou est au 5e : ces chemins sont SONDES, jamais ouverts, et la
+    # teinture ne se propage pas a travers une variable de boucle issue d'un `dict`.
+    # Le combler demande une analyse de teinture dans un predicat partage par 22
+    # entrees gelees — hors de proportion avec le gain. **C'est le reste connu de ce
+    # cliquet** ; quiconque touche `_the_py_path_is_only_executed` devrait commencer la.
+    "test_a_make_target_names_the_mechanism_that_blocks.py",
     "test_canary_onboarding_walk.py",
     "test_claude_config_floor.py",
     "test_env_is_root_anchored.py",
