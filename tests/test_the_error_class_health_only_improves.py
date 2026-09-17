@@ -76,7 +76,7 @@ _CEILINGS = {
     # Resserrés le 2026-09-16 dans le commit de la passe mécanique, comme
     # `test_the_ceiling_is_not_slack` l'exige : un plafond laissé au-dessus de la mesure
     # est du budget pour régresser en silence.
-    "seen_red_unknown": 331,          # 363 → 352 (n-a) → 332 (phase B : traces de mutation)
+    "seen_red_unknown": 330,  # 331 → 330 le 2026-09-17 : défaut remis et vu lever.          # 363 → 352 (n-a) → 332 (phase B : traces de mutation)
     "seen_red_never": 0,
     # 363 → 241 : les causes qui nomment un chemin vérifiable.
     # 241 → 183 le 2026-09-17 : les **58** classes dont le `root_cause` cite un fichier
@@ -100,7 +100,8 @@ _CEILINGS = {
     # l'autre, et la mutation n° 3 de ce fichier refuse ce troc.
     # −1 le 2026-09-17 : `multitenant-dag-fleet-poisoning` passe en `measured` — les
     # trois prédicats fautifs de son garde ont été EXÉCUTÉS un par un, pas relus.
-    "cause_unknown": 182,
+    "cause_unknown": 181,  # 182 → 181 le 2026-09-17 : `object-dtype-numeric-op` mesurée — `SUM(bigint)`
+    # rend `numeric` en PostgreSQL, donc dtype `object` SANS aucun NULL.
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
     # −21 le 2026-09-17 : la famille `le-locataire` est à ZÉRO (42/42). Choisie la
@@ -439,7 +440,8 @@ _CEILINGS = {
     # le texte, et retirer l'import le laissait satisfait), puis le cliquet
     # anti-garde-textuel a refusé DEUX autres comparaisons de chaîne que j'y avais
     # mises. Trois corrections pour un seul garde, toutes mesurées.
-    "siblings_never_swept": 138,
+    "siblings_never_swept": 136,  # 138 → 136 le 2026-09-17 : `df-na-rep` (3 candidats, 0 site) et
+    # `object-dtype-numeric-op` (4 candidats, 0 site — mais un GARDE aveugle).
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

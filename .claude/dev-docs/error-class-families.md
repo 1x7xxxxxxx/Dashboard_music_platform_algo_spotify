@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**396 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**397 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -15,12 +15,12 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [le-locataire](#le-locataire) | 42 | **15/42** · 35.7 % | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 19 | **4/19** · 21.1 % | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 15 | **2/15** · 13.3 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
-| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | **0/20** · 0.0 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
+| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | **1/20** · 5.0 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **1/20** · 5.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 24 | **4/24** · 16.7 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | **3/29** · 10.3 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 25 | **4/25** · 16.0 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 73 | **8/73** · 11.0 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 74 | **8/74** · 10.8 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 41 | **2/41** · 4.9 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | **1/8** · 12.5 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
@@ -302,7 +302,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 73 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 74 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -379,6 +379,7 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 | [`a-status-screen-that-reads-half-its-source`](error-classes.md#a-status-screen-that-reads-half-its-source) | un écran d'état annonce un TOTAL faux, sans erreur et sans trou visible. Il dit « 0 » là où la source en porte une, parce qu'il ne lit qu'une partie d |
 | [`a-load-guard-that-counts-names-instead-of-measuring-load`](error-classes.md#a-load-guard-that-counts-names-instead-of-measuring-load) | un garde de qualité de mesure refuse systématiquement, sur une machine objectivement inactive. On finit par lui passer `--force`, ce qui le retire pou |
 | [`a-generated-document-with-no-freshness-guard`](error-classes.md#a-generated-document-with-no-freshness-guard) | un document **généré** n'a ni contrôle de fraîcheur ni test jumeau, là où tous ses pairs en ont. Il se périme en silence et continue d'être lu comme u |
+| [`a-view-body-behind-a-non-default-filter`](error-classes.md#a-view-body-behind-a-non-default-filter) | une vue rend sans erreur dans la suite, et lève chez l'utilisateur dès qu'il élargit un filtre. Le bloc fautif vit derrière une condition de TAILLE de |
 
 ## un-document-qui-affirme-un-état-périmé
 
@@ -599,6 +600,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=396 families=18 orphans=3 -->
+<!-- error-class-families: total=397 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=0f8cadc781aa93d031cdcb329fdb5024c441b82389f806560e75cf903dd4e311 -->
+<!-- error-class-families: sha256=2f19987070741ba4ec32fd8a8824ac06ebd175ddd221b38ef9654b5b7c459639 -->
