@@ -187,7 +187,14 @@ _CEILINGS = {
     # l'outil que `.claude/rules/python.md` NOMME comme garde de cette règle —
     # il matchait sur le NOM de la colonne là où la règle exige le TYPE.
     # TROISIÈME garde de la séance vert sur ce qu'il prétend garder.
-    "siblings_never_swept": 254,
+    # 254 → 240 le 2026-09-17 : la famille `le-locataire`, classe par classe, avec une
+    # recherche CONÇUE pour chacune — ces gardes-là visent UN site, donc les exécuter
+    # n'est pas un balayage. Ce que les recherches ont établi, et qui ne se lit nulle
+    # part ailleurs : les 8 décideurs de « connecté » passent tous par
+    # `declared_identities` ; les 3 consommateurs de statut dérivent tous de
+    # `SOURCES_FOR_PLATFORM` ; les seules écritures de credentials hors des 3 chemins
+    # humains sont des rafraîchissements de JETON, qui ne touchent aucune identité.
+    "siblings_never_swept": 240,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
