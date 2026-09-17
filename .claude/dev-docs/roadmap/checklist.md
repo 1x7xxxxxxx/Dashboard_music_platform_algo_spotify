@@ -194,10 +194,10 @@ le supposer.
 
   | trou | reste | ce qu'il faut écrire |
   |---|---|---|
-  | `scope_without_not_covered` | **332** | le `ne couvre pas:` — un geste voisin qui partage la cause |
+  | `scope_without_not_covered` | **325** | le `ne couvre pas:` — un geste voisin qui partage la cause |
   | `seen_red_unknown` | **332** | une date OBSERVÉE, ou `never` ; jamais une date inventée |
   | `cause_unknown` | **242** | `read` / `measured` / `inferred` — `inferred` est une réponse valable |
-  | récidivistes non traitées | **14** / 46 | la portée d'abord : ce sont elles qui ont échoué |
+  | récidivistes non traitées | **9** / 47 | la portée d'abord : ce sont elles qui ont échoué |
   | ~~classes jamais écrites~~ | **0** ✅ | **les cinq écrites le 2026-09-17**, chacune avec un `seen_red` DATÉ (voir plus bas) |
 
   **L'ordre est celui du gain mesuré**, jamais alphabétique : (1) les 14 récidivistes restantes —
