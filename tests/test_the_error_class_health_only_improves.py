@@ -415,7 +415,17 @@ _CEILINGS = {
     # ferme pas : les trois harnais multi-locataires existent, mais **rien ne mesure
     # combien des ~7 250 tests tournent sur un seul locataire**. La classe reste
     # ouverte par sa portée, pas par son garde.
-    "siblings_never_swept": 144,
+    # 144 → 139 le 2026-09-17. Le balayage le plus instructif du lot :
+    # **30** `upsert_many` à `update_columns` littéral, **21** rafraîchissent un
+    # horodatage, **9** non. Un compte mécanique aurait rendu « 9 sites » ; ouvrir
+    # UN SEUL suffisait — la date qui compte est dans la CLÉ DE CONFLIT, donc c'est
+    # une dimension, et `saisie_s4a.py:176-180` documente que le « correctif »
+    # évident **ferait planter** : lister `collected_at` dans `update_columns` fait
+    # référencer un `EXCLUDED.collected_at` absent au second enregistrement du jour.
+    #
+    # ⚠️ **Huitième fois de la séance qu'un compte mécanique aurait induit en
+    # erreur**, et la première où le remède supposé est lui-même le défaut.
+    "siblings_never_swept": 139,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
