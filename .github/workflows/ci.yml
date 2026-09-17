@@ -62,7 +62,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ── `fetch-depth: 0` n'est PAS du confort (2026-09-17) ────────────────
+      # `actions/checkout` clone à PROFONDEUR 1 par défaut. Or
+      # `tools/dev/error_class_health.py` dérive l'instantané de santé de
+      # `git log` — récidive par classe, date de naissance de chaque entrée.
+      # Mesuré : 1 027 commits visibles en local, **1** dans un clone superficiel,
+      # donc un JSON différent et
+      # `test_the_snapshot_still_describes_the_catalogue` rouge par construction.
+      #
+      # Le défaut était INVISIBLE en local — le test y passe, puisque l'histoire
+      # y est. Sept runs rouges d'affilée sur `main` avant que quelqu'un regarde.
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       # ── v4 → v10 le 2026-09-16, et le retard était INVISIBLE ──
       # `Install uv` coûtait **20 s** par job, soit le plus gros poste fixe des cinq
@@ -213,7 +225,19 @@ jobs:
           --health-retries 12
 
     steps:
+      # ── `fetch-depth: 0` n'est PAS du confort (2026-09-17) ────────────────
+      # `actions/checkout` clone à PROFONDEUR 1 par défaut. Or
+      # `tools/dev/error_class_health.py` dérive l'instantané de santé de
+      # `git log` — récidive par classe, date de naissance de chaque entrée.
+      # Mesuré : 1 027 commits visibles en local, **1** dans un clone superficiel,
+      # donc un JSON différent et
+      # `test_the_snapshot_still_describes_the_catalogue` rouge par construction.
+      #
+      # Le défaut était INVISIBLE en local — le test y passe, puisque l'histoire
+      # y est. Sept runs rouges d'affilée sur `main` avant que quelqu'un regarde.
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v10.1.0

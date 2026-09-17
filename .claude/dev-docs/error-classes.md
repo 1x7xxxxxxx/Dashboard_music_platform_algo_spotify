@@ -128,6 +128,8 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
+| [a-ci-checkout-too-shallow-for-the-guard-that-reads-git](#a-ci-checkout-too-shallow-for-the-guard-that-reads-git) | P2 | deterministic | guarded | none |
+| [a-command-wrapper-that-returns-a-plausible-wrong-measurement](#a-command-wrapper-that-returns-a-plausible-wrong-measurement) | P2 | deterministic | guarded | none |
 | [a-guard-names-a-class-nobody-wrote](#a-guard-names-a-class-nobody-wrote) | P2 | deterministic | guarded | none |
 | [a-runbook-that-names-a-command-nobody-can-run](#a-runbook-that-names-a-command-nobody-can-run) | P3 | deterministic | guarded | none |
 | [a-shared-database-read-while-another-test-writes-it](#a-shared-database-read-while-another-test-writes-it) | P2 | deterministic | guarded | none |
@@ -7695,6 +7697,44 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: trouvé **par la porte elle-même**, dans le commit qui la posait. C'est le meilleur moment : le coût était une minute de perplexité, pas une semaine de contrôle rouge qu'on finit par ignorer.
+
+## a-ci-checkout-too-shallow-for-the-guard-that-reads-git
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un garde passe en local et échoue en CI, **toujours**, sans que rien dans son code ne diffère. On relance, on suspecte un aléa, on finit par lire le rouge comme du bruit. Sept exécutions rouges d'affilée sur `main` le 2026-09-17 avant que quelqu'un ouvre le log.
+- signature: `.venv/bin/python -m pytest tests/test_ci_checks_out_the_history_its_guards_read.py::test_only_the_jobs_that_read_history_are_required_to_fetch_it -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: 2026-09-17 sur `.github/workflows/ci.yml`, `fetch-depth: 0` retiré du job `suite` → exit 1 (le message nomme `ci.yml::suite`) ; 0 après remise.
+- root_cause: `actions/checkout` clone à **profondeur 1** par défaut, et `tools/dev/error_class_health.py:93` construit son instantané par `subprocess.run(["git", …])` sur l'historique du catalogue. Sans histoire, il produit un autre JSON, donc `test_the_snapshot_still_describes_the_catalogue` échoue **par construction**. Aucun checkout de `ci.yml` ne portait `fetch-depth`.
+- cause_evidence: measured (clone `--depth 1` réel du dépôt le 2026-09-17 : **1 027 commits en local, 1 dans le clone**, et le JSON reconstruit depuis le clone diffère de celui qui est committé)
+- long_term_fix: **un job déclare l'histoire qu'il lit.** `fetch-depth: 0` sur le checkout de tout job dont une étape lance la suite entière ou l'outillage de santé — et un garde qui le vérifie en lisant la STRUCTURE du YAML plutôt qu'en exigeant `fetch-depth` partout. L'exigence universelle a été écrite puis retirée le jour même : elle dénonçait `cd-release::deploy-railway` (aucun pytest) et `prod-health::prod-health` (un seul fichier de test) — deux faux positifs qui auraient appris à ignorer ce garde.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_ci_checks_out_the_history_its_guards_read.py }
+- guard_scope: un-garde-qui-ne-garde-pas — faire tourner en CI un contrôle qui LIT l'historique git ; couvre: les 4 workflows de `.github/workflows/`, jobs filtrés sur `pytest tests/` (suite entière) ou `error_class_health`/`error-health` dans une étape `run:` ; ne couvre pas: **un outil qui lirait git depuis un job dont l'étape `run:` ne nomme aucun de ces motifs** — un `make audit` qui appellerait le constructeur, ou un script maison invoqué par son chemin, passeraient sans être vus. Ne couvre pas non plus les actions tierces qui clonent elles-mêmes.
+- rex_ref: .github/workflows/ci.yml
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: aggravé par un second défaut de la même famille. `security-nightly.yml` portait **4 checkout superficiels**, dont celui du job qui lance la suite entière — et ce job porte `continue-on-error: true`, donc **son vert ne disait rien**. Il échouait sur le même test depuis le même jour, en silence. Un contrôle qui ne peut pas échouer et un contrôle qui échoue toujours produisent la même information : aucune.
+
+
+## a-command-wrapper-that-returns-a-plausible-wrong-measurement
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une commande de vérification rend un résultat **crédible et faux**. Rien n'échoue, aucun message, et le chiffre est du bon ordre de grandeur — donc on le cite. Les conclusions bâties dessus sont fausses sans que rien ne le signale.
+- signature: `python3 -c "import pathlib,sys;p=pathlib.Path.home()/'.config/rtk/config.toml';sys.exit(0) if not p.exists() else None;exec('try:\n import tomllib\nexcept ImportError:\n sys.exit(0)');d=tomllib.loads(p.read_text(encoding='utf-8'));sys.exit(1 if (d.get('tee',{}).get('enabled') is True or not {'grep','diff','ps'} <= set(d.get('hooks',{}).get('exclude_commands',[]))) else 0)"`
+- seen_red: 2026-09-17 sur `~/.config/rtk/config.toml`, `[tee] enabled` remis à `true` → exit 1 ; 0 après remise à `false`.
+- root_cause: un hook `PreToolUse` global réécrit **toutes** les commandes Bash (`rtk hook claude`, `~/.claude/settings.json:12`). Deux mécanismes distincts, et c'est la confusion entre les deux qui a coûté des semaines : (a) les wrappers de commande altèrent la sortie — `diff u v | wc -l` rend **5** au lieu de 4 ; (b) **`[tee] mode = "failures"` n'écrit le fichier de redirection QUE si la commande échoue** — donc tout `cmd > f` d'une commande qui RÉUSSIT produit un fichier **vide**.
+- cause_evidence: measured (les quatre gestes reproduits le 2026-09-17 avec leur valeur vraie obtenue par `rtk proxy` ; et surtout : exclure `grep` n'a **rien** changé au cas de la redirection, ce qui a écarté le wrapper et désigné `[tee]`)
+- long_term_fix: **désactiver le mécanisme, pas apprendre à le contourner.** `[tee] enabled = false` et `exclude_commands` étendu aux commandes dont la sortie est une DÉCISION (`grep`, `diff`, `git diff`, `ps`) dans `~/.config/rtk/config.toml`. L'arbitrage est mesuré, pas intuitif : `rtk gain` sur **45 258 commandes** montre que `rtk read` porte **1 178,1 M des 1 184,2 M** de tokens économisés (**99,5 %**) ; les quatre wrappers retirés pèsent **0,2 %**. On rend 0,2 % d'économie contre la fin d'une classe de mesures fausses. ⚠️ Ni un hook, ni une skill, ni un agent : l'outil a un mécanisme d'exclusion natif, et ajouter un hook pour corriger un hook aurait été une façade.
+- autofix: none
+- guard: { type: signature, ref: .claude/dev-docs/error-classes.md }
+- guard_scope: un-garde-qui-ne-garde-pas — interposer un réécriveur entre une commande de vérification et sa sortie ; couvre: la configuration RTK de CETTE machine (`[tee]` et les trois exclusions les plus coûteuses), vérifiée par lecture TOML et non par motif textuel ; ne couvre pas: **le cas où le fichier est absent** — la signature sort alors 0, donc en CI elle ne démontre rien, par construction. Ne couvre pas non plus les autres réécriveurs du même geste : un alias shell, une fonction dans `.bashrc`, ou un second hook `PreToolUse` sur Bash produiraient la même classe sans toucher ce fichier.
+- rex_ref: ~/.claude/RTK.md
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: la mémoire du dépôt rangeait ce défaut sous « un problème de `grep` » depuis des semaines. C'était le SYMPTÔME : `grep` est simplement la commande qu'on redirige le plus souvent. La cause était la redirection, et elle touchait toute commande qui réussit. Une classe nommée sur le symptôme envoie corriger le mauvais mécanisme — ici, exclure `grep` a semblé être le fix et n'a rien réparé.
+
 
 ## a-population-that-counts-its-own-headers
 - status: guarded
