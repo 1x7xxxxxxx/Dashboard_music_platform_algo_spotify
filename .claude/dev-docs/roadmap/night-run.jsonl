@@ -44,3 +44,5 @@
 {"at": "2026-09-17T08:49:41+00:00", "head": "05d743d", "kind": "done", "task": "R117", "what": "deux moities livrees, 2 gardes resserres, R123 ouverte (05d743d, pousse)"}
 {"at": "2026-09-17T09:09:22+00:00", "head": "ed85051", "kind": "start", "task": "R123", "what": "fixtures de portee session : nettoyage une fois par worker"}
 {"at": "2026-09-17T09:31:23+00:00", "head": "6f828cc", "kind": "done", "task": "R123", "what": "hooks du controleur + R122 convertie ; roadmap a zero"}
+{"at": "2026-09-17T10:02:45+00:00", "head": "bc780be", "kind": "start", "task": "R124", "what": "rejouer la mesure R114 avec l'instrument serveur"}
+{"at": "2026-09-17T10:04:58+00:00", "head": "bc780be", "kind": "park", "task": "R124", "what": "instrument serveur sans donnees + resume quotidien qui affirme complete=t : la re-mesure R114 est bloquee en amont"}

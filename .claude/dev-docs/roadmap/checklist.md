@@ -25,6 +25,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R124 | L'instrument serveur d'ADR-026 n'a **aucune donnée** en prod, et le résumé quotidien affirme le contraire (`complete = t`, `source = prometheus`, p50 = 50 ms) | P2 | `query_range` sur `streamlytics_rerun_duration_seconds_count` autour de l'écriture : **0 série** |
 
 **R123 a été livrée le 2026-09-17** (commit `5662e33`) : le nettoyage de portée session
 passe au processus contrôleur plutôt qu'au worker. **R122 a été close le 2026-09-17**,
@@ -186,6 +187,49 @@ le supposer.
 
 ---
 
+## 🔬 R124 — L'instrument serveur ne mesure rien, et le résumé quotidien dit qu'il est complet
+
+- [ ] **R124 — expliquer pourquoi `streamlytics_rerun_duration_seconds` n'a aucune série en
+  production, et pourquoi `daily_ops_metrics` a écrit des percentiles quand même.**
+
+  Trouvé le 2026-09-17 en préparant la re-mesure de R114 — c'est-à-dire **avant** de
+  mesurer quoi que ce soit, et c'est le bon moment.
+
+  | ce qui a été vérifié en prod | résultat |
+  |---|---|
+  | cible Prometheus `dashboard` | `up`, scrape 3,8 ms, **aucune erreur** |
+  | séries stockées pour `job="dashboard"` | 22 — dont **15 par défaut** (`process_*`, `python_*`, `scrape_*`, `up`) |
+  | séries applicatives `streamlytics_*` | **2**, pour **4** familles déclarées |
+  | `streamlytics_rerun_duration_seconds_*` | **0 série**, maintenant, il y a 6 h, et en `query_range` sur 22:00–24:00 UTC |
+  | `daily_ops_metrics` du 2026-09-17 | `p50 = 50 ms`, `p95 = 220 ms`, `reruns_total = 4`, `source = prometheus`, **`complete = t`** |
+  | `written_at` | 2026-09-17 01:00:06+02, soit 23:00:06 UTC — dans la fenêtre interrogée |
+
+  **La contradiction est le sujet.** `_query()` (`src/utils/daily_ops_metrics.py:75`) est
+  honnête : il rend `None` sur résultat vide comme sur `NaN`, et `complete` vaut
+  `not missing`. Donc à 23:00 le quantile a rendu un nombre. Or l'histogramme n'a pas de
+  série à cet instant. **Une des deux mesures décrit autre chose que ce que je crois.**
+
+  ⚠️ **Explication écartée** : « la métrique est absente parce qu'elle est labellisée et
+  jamais observée ». Elle est vraie pour l'ABSENCE de série — `["page", "phase"]`
+  n'expose rien tant qu'aucune combinaison n'est vue — mais elle n'explique PAS que
+  `histogram_quantile` ait rendu 50. Sur un histogramme vide il rend `NaN`, et `_query`
+  le convertit en `None`.
+
+  **Ce que ça bloque** : la re-mesure de R114 avec l'instrument serveur, décidée le
+  2026-09-17. Le `Caddyfile` conditionne la remise en service de la seconde réplique à
+  « un chiffre qui ne dépende pas de la saturation du client ». Ce chiffre n'existe pas
+  encore. Mesurer deux topologies avec un instrument dont on ne sait pas s'il enregistre
+  reproduirait l'ambiguïté de R114, plus cher.
+
+  **Et ça déplace R116** : son blocage n'est pas « pas assez de jours », c'est que la
+  seule ligne existante n'est pas étayée par la source qu'elle nomme.
+
+  Premier geste, le moins cher : provoquer un rendu réel en prod et regarder si une
+  série apparaît. Si oui, la couture enregistre et la question devient « pourquoi
+  l'histogramme ne survit pas » ; si non, `src/dashboard/serve.py` ou
+  `metrics_seam.py` n'est pas sur le chemin du rendu en conteneur.
+
+
 ## ⏸️ R116 — ADR-027, en attente de ses courbes (sortie de l'index 2026-09-17)
 
 **Ni livrée ni abandonnée — parquée sur une mesure, pas archivée.** `archive.md` est
@@ -235,7 +279,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-17, aucune tâche actionnable (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R124 -->
 
 **R122 et R123 sont closes le 2026-09-17, toutes deux rotées dans `archive.md`.** R123
 a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans
