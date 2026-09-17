@@ -965,7 +965,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `.claude/rules/python.md` splits the two by destination: anything persisted or returned by the API uses `datetime.now(timezone.utc)`. A repo-wide ban would break the legitimate cosmetic uses.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/rules/python.md }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — `datetime.now()` est l'orthographe évidente et correcte pour du cosmétique, donc le même appel est recopié là où il persiste ; couvre: une signature shell sur `src/`, qui exempte les usages d'affichage (`strftime`, nom de fichier) et signale les autres ; ne couvre pas: (1) **le geste voisin le plus proche — les arbres hors `src/`** : `airflow/`, `tools/`, `.claude/scripts/` écrivent aussi des horodatages et ne sont pas balayés ; (2) `date.today()`, `time.time()` et `datetime.utcnow()` (déprécié), qui portent la même ambiguïté sous une autre orthographe ; (3) les horodatages produits par la BASE (`now()`, `DEFAULT NOW()`), corrects mais dans le fuseau du serveur ; (4) la distinction cosmétique/persisté elle-même, que la signature approxime par des mots-clés.
 - rex_ref: .claude/rules/python.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -1041,7 +1041,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: normalise at the boundary — every date leaving a query goes through `pd.to_datetime` before it reaches view code.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view/SKILL.md (Pitfall #5) }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — psycopg2 rend un `date` pour une colonne DATE et pandas un `Timestamp`, donc trier les deux ensemble lève ou ordonne mal ; couvre: une signature shell qui cherche un `sorted(` sur des dates dans les vues sans conversion préalable ; ne couvre pas: (1) **le geste voisin le plus proche — les autres opérations mixant les deux types** : comparaison, soustraction, appartenance à un intervalle, indexation produisent la même erreur et seul le tri est cherché ; (2) le code hors `src/dashboard/views/` ; (3) le mélange qui arrive par une jointure pandas plutôt que par une lecture ; (4) les colonnes `timestamp` sans fuseau mêlées aux `timestamptz`, qui sont `tz-aware-naive-mix`.
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -1077,7 +1077,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `EntitySpec` carries an explicit `release_column`; ordering by ingest time is then a choice someone had to write, not the default.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view/SKILL.md (Pitfall #6) }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — `collected_at` est présent sur toutes les tables et une date de sortie ne l'est pas, donc on prend la colonne sous la main pour celle qu'on cherche ; couvre: une signature shell qui repère une `EntitySpec` dont la colonne de date est `collected_at` ; ne couvre pas: (1) **le geste voisin le plus proche — les autres substitutions de colonne par commodité** : `created_at` pour une date d'événement, `updated_at` pour une date de modification métier, `id` croissant pour un ordre chronologique ; (2) les lectures hors `EntitySpec` ; (3) le cas où `collected_at` EST la bonne réponse, que la signature signale à tort et qu'il faut alors justifier ; (4) l'absence pure — une table sans date de sortie ne peut pas en inventer une, et le garde ne dit pas quoi faire alors.
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -1132,7 +1132,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `pd.to_datetime(..., utc=True)` everywhere, plus the aware-timestamp rule in `.claude/rules/python.md` so the data stops growing new naive rows.
 - autofix: none
 - guard: { type: posttooluse-hook, ref: tests/test_views_render_smoke.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — la même colonne porte des lignes écrites avant et après la convention UTC, donc le mélange arrive par les DONNÉES et non par le code ; couvre: une signature shell qui exige `utc=True` ou `errors=` sur chaque `pd.to_datetime` des vues, plus le rendu réel de toutes les vues contre une base vivante — c'est cette seconde moitié qui fait apparaître le mélange, aucun test unitaire ne produisant des lignes des deux époques ; ne couvre pas: (1) **le geste voisin le plus proche — les conversions hors des vues** : DAG, API, PDF et exports lisent les mêmes colonnes ; (2) les lignes anciennes elles-mêmes, qui restent naïves en base — le garde protège la lecture, pas la donnée ; (3) les colonnes qui n'ont jamais été lues par une vue ; (4) une base locale qui ne contiendrait aucune ligne d'avant la convention, auquel cas le rendu ne révélerait rien.
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-06-01 (ref: DEVLOG#2026-06-01)
 - History:
@@ -2468,7 +2468,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `make sync-check` now diffs `deploy/Caddyfile` against `/etc/caddy/Caddyfile` on the target and fails on any difference, comparing from the first `{` so the repo copy may carry a comment header explaining how to deploy it. The repo copy was re-synced from the live file rather than the other way round — the running config is the truth, the file was the stale one.
 - autofix: none
 - guard: { type: make-precondition, ref: Makefile (sync-check, caddy-drift step) }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — la copie du dépôt a été écrite en juin et jamais relue ; la production a bougé, et les deux ne se ressemblent plus ; couvre: une signature qui vérifie l'existence d'une cible `caddy-drift` dans le `Makefile` — c'est-à-dire l'existence du MOYEN de comparer, pas la comparaison ; ne couvre pas: (1) **le geste voisin le plus proche, et c'est le fond — que la comparaison soit FAITE** : rien ne lance `caddy-drift`, comme rien ne lance `schema-check` ni `reopen-check` ; le dépôt a trois outils qui regardent la production et zéro automate qui les appelle ; (2) les autres configurations copiées — `docker-compose.yml`, `prometheus.yml`, `.env` ; (3) le CONTENU de la divergence quand elle existe ; (4) les changements faits sur la production entre deux exécutions du contrôle.
 - rex_ref: deploy/Caddyfile
 - first_seen: 2026-08-22
 - History:
@@ -2671,7 +2671,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: decide on the STRUCTURE the API already provides — `HttpError.error_details` is a list of dicts carrying a machine-readable `reason`. The helper moved to `src/utils/api_errors.py`, which imports no vendor SDK, because keeping it beside `from googleapiclient.discovery import build` made its own test uncollectable on any machine without the Google SDK (a guard that silently does not run is the defect this repo keeps rediscovering). The first assertion pins the PROPERTY that killed the old test — `'playlistNotFound' not in safe_error(err)` — so a substring test cannot be reintroduced and start passing by luck if the truncation limit ever changes.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_empty_youtube_channel_is_not_an_error.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — le flux de contrôle est décidé en cherchant dans une chaîne RACCOURCIE pour l'affichage, donc la raison réelle est au-delà de la troncature ; couvre: quatre propriétés — la raison est bien AU-DELÀ de la limite de troncature (la prémisse mesurée), la liste de lecture vide est reconnue, tout le reste lève toujours (paramétré, sans quoi « corriger » reviendrait à tout avaler), et un objet sans réponse n'est pas pris pour une chaîne vide ; ne couvre pas: (1) **le geste voisin le plus proche — les autres décisions prises sur une chaîne d'affichage** : un libellé d'erreur, un message tronqué pour un journal, un `str(exc)[:200]` servent ailleurs à brancher, et seul YouTube est traité ; (2) les autres codes d'erreur du même fournisseur ; (3) la STABILITÉ du texte amont — le fournisseur peut le reformuler ; (4) la troncature elle-même, qui reste en place pour l'affichage.
 - rex_ref: .claude/rules/python.md
 - first_seen: 2026-08-23
 - History:
@@ -2767,7 +2767,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: re-exec after the pull when HEAD moved — `DEPLOY_REEXECED=1 exec bash "$0" "$@"`, guarded by the variable so it cannot loop. The general shape: a script that updates its own source must restart from the new source, or it is running one version while claiming to have deployed another. `kind: manual` because the only conclusive proof is a real deploy that changes the script — a signature can check the re-exec is present, not that it works.
 - autofix: none
 - guard: { type: signature, ref: tools/deploy.sh }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — le script commence par `git pull` et se RÉÉCRIT donc lui-même en pleine exécution : bash relit le fichier au fil des lignes ; couvre: une signature qui vérifie la présence du garde de ré-exécution (`DEPLOY_REEXECED`) dans `tools/deploy.sh` — le motif qui fait repartir le script proprement après s'être remplacé ; ne couvre pas: (1) **le geste voisin le plus proche — les autres scripts qui se modifient ou modifient leurs dépendances en cours de route** : un script qui met à jour un outil qu'il appelle ensuite, un `make sync` qui change l'interpréteur ; seul `deploy.sh` est vérifié ; (2) les FICHIERS que le script lit après le `pull` — un compose ou un Dockerfile changé sous lui ; (3) la présence du garde ne dit pas qu'il FONCTIONNE ; (4) l'exécution interrompue entre le `pull` et la ré-exécution.
 - rex_ref: tools/deploy.sh
 - first_seen: 2026-08-23
 - History:
@@ -3788,7 +3788,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `src/utils/dag_timeouts.py` porte un plancher de 30 min et deux dérogations mesurées ; les 16 DAGs passent par `dagrun_timeout_for(dag_id)`. Le seuil est `max(4 × p95, plancher)` — **jamais le maximum observé**, qui sur les deux DAGs concernés EST la pathologie qu'on cherche à attraper. Le test épingle la distribution de production, pas la constante : asserter `FLOOR == 30 min` suivrait n'importe quelle édition.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_dag_can_be_called_dead.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — `dagrun_timeout` vaut `None` par défaut, donc un DAG bloqué reste en cours indéfiniment et le canal d'alerte se tait sans échouer ; couvre: quatre propriétés — chaque DAG déclare un délai, **le garde ROUGIT quand on en retire un** (la mutation intégrée), le délai dégage le p95 MESURÉ avec de la marge (paramétré par DAG), et il attrape encore les DEUX blocages réellement survenus — ces deux derniers empêchant un délai trop serré ou trop lâche ; ne couvre pas: (1) **le geste voisin le plus proche — le délai par TÂCHE** : `execution_timeout` reste absent, et une tâche peut pendre sous un DAG qui, lui, finira par expirer ; (2) les p95 qui DÉRIVENT — la table de mesures date du 2026-08-30 et rien ne la remesure ; (3) ce qui se passe APRÈS l'expiration ; (4) les DAG ajoutés, qui doivent entrer dans la table à la main.
 - rex_ref: src/utils/dag_timeouts.py
 - first_seen: 2026-08-30
 - History:
@@ -3845,7 +3845,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `src/dashboard/utils/tz.py` — `to_local_datetime` / `to_local_naive` normalisent en UTC **puis reconvertissent** vers `Europe/Paris`. Les deux étapes comptent : `utc=True` seul décale l'heure affichée, et près de minuit la DATE affichée. Vérifié sur les données réelles de prod : les chaînes rendues sont identiques à l'ancien code, sur les dates, les heures et `.dt.date`. Le garde intersecte la liste des colonnes `timestamptz` lue au schéma avec les appels de l'arbre : les colonnes `DATE` (`date`, `week`, `day`, `prediction_date`) ne peuvent pas porter deux décalages et ne sont pas signalées.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_timestamptz_column_survives_daylight_saving.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — une colonne `timestamptz` relue rend des datetimes portant le décalage EN VIGUEUR à leur date, donc une série qui traverse un changement d'heure mélange deux décalages ; couvre: quatre propriétés — aucune série `timestamptz` n'est analysée sans `utc=True`, **le garde rougit sur le défaut pour lequel il a été écrit**, il reste SILENCIEUX sur les formes qui ne peuvent pas casser (un garde qui crie sur tout est désactivé), et la liste de colonnes n'est pas vide ET correspond encore au code ; ne couvre pas: (1) **le geste voisin le plus proche — les colonnes `timestamp` SANS fuseau**, qui portent le problème inverse et relèvent de `a-date-that-does-not-say-which-clock-produced-it` ; (2) les dates lues hors pandas ; (3) les fuseaux autres que celui de la machine ; (4) l'AFFICHAGE, qui peut reconvertir après une lecture correcte.
 - rex_ref: src/dashboard/utils/tz.py
 - first_seen: 2026-08-30
 - History:
@@ -4906,7 +4906,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `utf-8-sig` passe AVANT `utf-8` dans les deux lecteurs (`_read_headers` et `_sniff_sep`) — il lit les deux cas à l'identique et retire le BOM quand il est là, donc le placer en tête ne coûte rien. Seconde couche, celle qui rend la classe impossible plutôt qu'improbable : `_normalise_header` retire les DEUX formes du marqueur — `\ufeff` (décodé en UTF-8) et `ï»¿` (les mêmes octets lus en latin-1) — avant toute comparaison, pour qu'un en-tête arrivé par un autre chemin ne rouvre pas le défaut. Le garde rejoue les CINQ fichiers réellement refusés, avec ET sans BOM : la question est « le préfixe invisible change-t-il la réponse ? ».
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_csv_is_recognised_whatever_its_encoding.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — l'ordre des encodages essayés fait réussir `utf-8` sur un fichier à BOM, donc la marque survit et colle à la première colonne ; couvre: quatre propriétés en DEUX couches — le même export est reconnu avec ou sans BOM (paramétré), le lecteur d'en-têtes retire la marque À LA SOURCE, le normaliseur de colonnes est la SECONDE couche (une seule ne suffit pas), et **le nom de fichier ne décide de rien** (paramétré) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres repli d'encodage** : tout `try utf-8 except latin-1` ailleurs dans le dépôt peut réussir pour la mauvaise raison ; (2) les BOM UTF-16 et UTF-32 ; (3) les fichiers non-CSV ; (4) `ast.parse` sur un fichier Python à BOM, qui est `ast-guard-blind-to-bom`, la même cause sur une autre surface.
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -5126,7 +5126,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `split_version()` rend `(base, marqueurs)` et remplace la chaîne unique. Les marqueurs sont cherchés là où les distributeurs les écrivent — dans un groupe entre parenthèses, et dans un suffixe COURT après tiret dont le marqueur occupe la fin — et nulle part ailleurs : chercher partout ferait de « Live Your Life » une version live de « Your Life ». Le modèle est celui du secteur : DDEX sépare Title et Version Title, et chaque version porte son propre ISRC. `normalize_track_title` reste une façade rendant la chaîne, sans quoi les `match_key` déjà écrits dans `track_release_reference` cesseraient de joindre.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_matcher_keeps_its_known_pairs.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — un seul marqueur de version est traité (`remix`) alors qu'il en existe beaucoup, donc deux titres du même morceau ne se rejoignent pas ; couvre: par `test_an_apple_title_finds_its_track`, `test_a_soundcloud_title_finds_its_track`, `test_an_intruder_never_reaches_the_threshold`, `test_a_remix_never_outranks_its_own_original` et `test_the_same_title_on_two_platforms_scores_one` — les tests nommés de ce fichier partagé, tous paramétrés sur des titres RÉELS de production ; les deux derniers sont ce qui empêche de « corriger » en normalisant tout jusqu'à confondre ; ne couvre pas: (1) **le geste voisin le plus proche — les marqueurs non listés** : `edit`, `bootleg`, `VIP`, `sped up`, `slowed`, les suffixes de plateforme et les mentions d'année s'ajoutent sans fin, et la liste est tenue à la main ; (2) les titres dans une écriture non latine ; (3) les faux POSITIFS entre deux morceaux réellement différents ; (4) l'appariement humain, qui reste le dernier recours.
 - rex_ref: src/utils/track_matching.py
 - first_seen: 2026-09-06
 - History:
@@ -5524,7 +5524,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: les deux requêtes rendent NULL sur zéro ligne, et un formateur (`digest_queries.fmt_value`) rend « N/A ». Le formateur n'est pas cosmétique : `f"{None:,}"` lève, donc sans lui le correctif honnête se serait payé d'un e-mail non envoyé. SQL et formateurs sont sortis du DAG vers `src/utils/digest_queries.py`, parce qu'un garde posé à côté d'un DAG skippe en silence sur tout interpréteur sans Airflow — ce module existe déjà pour cette raison.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_digest_never_mails_a_fabricated_zero.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — `COALESCE(SUM(…), 0)` transforme « aucune ligne » en « zéro », et ce zéro part par e-mail comme une mesure ; couvre: quatre propriétés — un locataire absent lit INCONNU et non zéro (paramétré par requête), le formateur DIT qu'il ne sait pas, il imprime toujours un vrai zéro (sans quoi on aurait effacé les zéros réels), et **chaque nombre montré à l'artiste passe par le formateur** — ce dernier étant ce qui empêche une cinquième valeur d'échapper ; ne couvre pas: (1) **le geste voisin le plus proche — les `COALESCE(…, 0)` ailleurs** : le dépôt en porte dans les vues, les tuiles et l'API, et seul le résumé hebdomadaire est traité ; (2) le PDF ; (3) un zéro fabriqué EN AMONT, dans une vue or ; (4) la JUSTESSE des nombres qui ne sont pas fabriqués.
 - rex_ref: src/utils/digest_queries.py
 - first_seen: 2026-09-10
 - History:
@@ -5733,7 +5733,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: un contexte `_atomic()` qui suspend l'autocommit le temps du lot, valide en bloc, annule sur exception et RESTAURE l'état dans un `finally` — sans ce `finally`, une exception laisserait la connexion en transaction ouverte pour toute la session, et chaque écriture suivante attendrait un commit que personne n'écrit. Règle générale : `autocommit` et « lot » ne vont pas ensemble ; la question à poser d'une écriture multiple n'est pas « combien de temps » mais « que reste-t-il en base si elle échoue au milieu ».
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_batch_is_all_or_nothing.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — la connexion est en `autocommit`, bon défaut pour une écriture isolée et faux pour un lot : une ligne en échec laisse les précédentes écrites ; couvre: quatre propriétés — le lot tourne dans UNE transaction (paramétré par méthode), l'insertion en lot n'envoie plus un énoncé par ligne, le contexte atomique RESTAURE ce qu'il a changé, et **une ligne fautive ne laisse rien de son lot derrière elle** ; ne couvre pas: (1) **le geste voisin le plus proche — les autres écritures multiples hors de ces deux méthodes** : une boucle de `execute_query` dans un DAG ou une vue commite ligne à ligne et n'est pas balayée ; (2) les transactions qui s'étendent sur PLUSIEURS appels, où l'atomicité est celle du métier et non du lot ; (3) les écritures concurrentes, qui sont `check-then-insert-loses-the-race` ; (4) le coût du rollback sur un très gros lot.
 - rex_ref: src/database/postgres_handler.py
 - first_seen: 2026-09-10
 - History:
@@ -5770,7 +5770,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: déclarer l'horloge de chaque colonne (`src/utils/clocks.py`), séparer l'horloge de MESURE de celle d'AFFICHAGE, et n'autoriser la conversion de fuseau que sur les dates qui sont des instants. Règle générale, et elle est contre-intuitive : **le danger n'est pas la date non convertie, c'est la conversion appliquée à ce qui n'est pas un instant.** Un jour calendaire lu chez un éditeur n'a rien à convertir ; le convertir le déplace d'une journée entière en croyant le réparer. Et l'écart qu'on ne peut pas fermer — les journées de reporting de Spotify et d'Apple, arrêtées dans leur fuseau qu'aucun ne publie — se NOMME au lieu de s'effacer.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_naive_timestamp_is_not_reinterpreted.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — une date entre par quatre chemins et la colonne ne dit pas lequel, donc on reconvertit une date d'éditeur comme si c'était notre horloge ; couvre: quatre propriétés — chaque colonne de date DÉCLARE son horloge (paramétré), seuls NOS horodatages sont convertibles, aucune surface ne convertit une date d'éditeur à travers un fuseau, et **le trou qu'on ne sait pas fermer est NOMMÉ plutôt qu'effacé** — cette dernière propriété étant rare et exemplaire ; ne couvre pas: (1) **le geste voisin le plus proche — les colonnes NON déclarées** : l'inventaire est tenu à la main, et une colonne de date ajoutée demain n'y entre pas toute seule ; (2) la JUSTESSE de l'horloge déclarée, qui est une affirmation humaine ; (3) les dates qui transitent par un JSON ou un XCom, hors colonnes ; (4) le trou nommé lui-même, qui reste ouvert par construction.
 - rex_ref: docs/adr/ADR-021-a-date-declares-the-clock-that-produced-it.md
 - first_seen: 2026-09-10
 - History:
@@ -5889,7 +5889,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: un prédicat AST qui, pour chaque requête placée SOUS une ouverture de fenêtre, exige que la borne apparaisse — en SQL ou dans une COMPARAISON pandas. Cliquet à zéro. Règle générale : dans une vue mono-fonction, la portée d'un réglage se lit par la POSITION, pas par la fonction englobante.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_chart_is_bounded_by_the_period_it_announces.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — une vue est un seul `show()` de plusieurs centaines de lignes, donc une figure peut vivre SOUS un sélecteur de période sans que sa requête le lise ; couvre: quatre propriétés par lecture structurelle — aucune figure sous un sélecteur ne l'ignore, le prédicat voit encore les requêtes sous une fenêtre, une fenêtre ouverte APRÈS une requête ne la lie pas (l'ordre compte), et une variable de fenêtre DÉRIVÉE compte quand même ; ne couvre pas: (1) **le geste voisin le plus proche — les tuiles et les tableaux** sous le même sélecteur, qui peuvent l'ignorer pareil sans être des figures ; (2) les sélecteurs autres que la période — plateforme, titre, compte ; (3) une requête qui LIT la fenêtre et l'applique mal, ce qui est `a-window-applied-to-the-wrong-date` ; (4) le PDF, qui n'a pas de sélecteur.
 - rex_ref: src/dashboard/views/soundcloud.py
 - first_seen: 2026-09-10
 - History:
@@ -6834,7 +6834,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_method_change_is_not_a_quantity.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — un changement de MÉTHODE de comptage chez le fournisseur produit un saut de niveau que la différence lit comme une croissance ; couvre: cinq propriétés — la rupture de production CONNUE est attrapée, une vraie flambée n'est jamais appelée rupture (les deux ensemble, sinon le détecteur serait trivial), le seuil se situe dans l'écart MESURÉ entre les deux, une série courte n'est jamais jugée, et les niveaux sont rebasés À LA SOURCE ; ne couvre pas: (1) **le geste voisin le plus proche — les changements de méthode SANS saut visible** : un fournisseur qui change progressivement sa définition ne produit aucune rupture détectable ; (2) les plateformes autres que celle instanciée ; (3) la CAUSE du saut — le garde le classe, il ne dit pas pourquoi ; (4) les ruptures dans les données MANUELLES, où la méthode est celle de l'artiste.
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: seuil calibré sur les CINQ séries de compteur de la production — a1/youtube 1 676, a1/soundcloud 20,4, a12/soundcloud 3,0, a14/youtube 1,5, a14/soundcloud 1,4. Une seule sort. Rapport retenu 100, dans le creux : 5× au-dessus de la plus forte croissance légitime, 16× sous la rupture. Passé sur tout le parc : une détection, zéro faux positif. Effet mesuré sur une fenêtre mai→juillet : 18 558 → 120 vues (99,4 % du chiffre était la rupture) ; fenêtre sans rupture inchangée, 75 → 75. Parenté avec la migration 112 (`un relevé PARTIEL n'est pas un niveau`), qui est la forme MIROIR — un niveau trop BAS au lieu d'un saut trop haut — et dont le seuil était déjà lu dans la distribution réelle.
@@ -7015,7 +7015,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: le rattachement passe par la table de LIENS (`track_platform_link`, `platform=…`, `status='confirmed'`), dont `platform_ref_id`/`platform_title` portent l'identifiant de la plateforme tel qu'elle l'écrit, et dont `match_key` porte la clé canonique. Un nom d'affichage sert à AFFICHER ; il ne sert jamais de clé. C'est la règle que le dépôt s'était déjà donnée pour les campagnes Meta (migration 116) et pour Shazam — elle manquait ici.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_the_spotify_page_reads_only_the_gold_layer.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — une jointure sur un nom D'AFFICHAGE perd tout ce que la normalisation absorbe, donc deux orthographes du même titre ne se rencontrent jamais ; couvre: par `test_the_page_does_not_join_a_display_name_to_a_song` et `test_the_detector_ignores_a_table_named_in_prose` — les tests nommés de ce fichier partagé ; le second empêche le détecteur de rougir sur un nom de table cité dans un commentaire, mode d'aveuglement que le dépôt a mesuré ailleurs ; ne couvre pas: (1) **le geste voisin le plus proche — les jointures sur un nom AILLEURS** : campagnes, créatives, playlists et comptes sont aussi appariés par libellé dans d'autres vues, et seule la page Spotify est balayée ; (2) la QUALITÉ de la normalisation, qui est `one-version-marker-out-of-many` ; (3) les jointures faites en pandas plutôt qu'en SQL ; (4) les identifiants stables absents de la source, qui est la raison de fond et qu'aucun garde ne peut créer.
 - signature: `python3 -m pytest tests/test_the_spotify_page_reads_only_the_gold_layer.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
@@ -7054,7 +7054,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: la couche or expose `first_streamed` (`MIN(day) FILTER (WHERE streams > 0)`), NULL quand rien n'a jamais été mesuré, et toute série part de là. La distinction vit une fois, en SQL, au lieu d'être re-décidée par chaque figure.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_the_spotify_page_reads_only_the_gold_layer.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-temps-et-l-horloge — la source exporte la timeline du COMPTE et non celle du titre, donc elle inscrit 0 pour un morceau qui n'existait pas encore ; couvre: par `test_the_page_reads_no_bronze_table`, `test_the_detector_sees_a_bronze_read_when_there_is_one` et `test_the_page_actually_reads_the_gold_views` — les tests nommés de ce fichier partagé ; la vue or est ce qui coupe ces zéros antérieurs, et les deux gardes du garde empêchent un détecteur vert sur une recherche cassée ; ne couvre pas: (1) **le geste voisin le plus proche — les autres sources qui exportent une grille complète** : toute source qui rend une ligne par jour et par entité, y compris avant l'existence de l'entité, produit les mêmes zéros ; seul S4A est traité ; (2) les zéros antérieurs DÉJÀ écrits en bronze, qui restent ; (3) les surfaces qui lisent le bronze en dehors de cette page ; (4) la DATE de création réelle d'un titre, que la source ne donne pas — c'est pourquoi la vue or approxime.
 - signature: `python3 -m pytest tests/test_the_spotify_page_reads_only_the_gold_layer.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
