@@ -107,18 +107,45 @@ lui qui a rendu ce verdict.
 
 ### L'état exact, mesuré
 
-| compteur | à la clôture de R122 | aujourd'hui | bougé |
-|---|---:|---:|---:|
-| classes au catalogue | 378 | **393** | +15 |
-| `scope_without_not_covered` | 300 | **297** | −3 |
-| `seen_red_unknown` | 331 | **331** | **0** |
-| `cause_unknown` | 241 | **241** | **0** |
-| `ever_recurred_observed` | ≤47 | **49** | +2 |
+| compteur | à la clôture de R122 | 2026-09-17 matin | 2026-09-17 soir | bougé |
+|---|---:|---:|---:|---:|
+| classes au catalogue | 378 | 393 | **394** | +17 |
+| `scope_without_not_covered` | 300 | 297 | **0** | **−300** |
+| `scope_on_a_shared_guard_…` | — | 24 | **15** | −9 |
+| `seen_red_unknown` | 331 | 331 | **331** | **0** |
+| `cause_unknown` | 241 | 241 | **241** | **0** |
+| `ever_recurred_observed` | ≤47 | 49 | **49** | +2 |
 
-Trois trous sur quatre n'ont pas bougé d'un iota, pendant que le catalogue grossissait
-de 15 classes. Le cliquet fait ce qu'on lui a demandé — empêcher que ça empire — et rien
-de plus. **Ce n'est pas un reproche au cliquet : c'est la démonstration qu'un cliquet ne
-remplace pas un chantier.**
+**La colonne `guard_scope` est LIVRÉE le 2026-09-17** : les 394 classes déclarent toutes
+au moins un geste voisin que leur garde ne couvre pas, chacune écrite en ouvrant
+l'implémentation du garde. C'était le chantier chiffré à ~16 h par R122 elle-même.
+
+⚠️ **Cela ne clôt pas R122, et il faut le dire avec le chiffre** : sa condition de
+réouverture porte sur `ever_recurred_observed` (49, seuil 47), une mesure de RÉCIDIVE —
+donc du passé observé, que rien d'écrit aujourd'hui ne fait baisser. `make reopen-check`
+continue à juste titre d'afficher `ROUVRIR`.
+
+⚠️ **Et `scope_without_not_covered` à 0 ne dit rien de la JUSTESSE des 394
+affirmations.** Aucune n'est vérifiée mécaniquement, et ce dépôt a mesuré que 4 portées
+sur 6 écrites avec soin étaient inexactes. Le compteur qui reste vérifiable est
+`siblings_never_swept` (386) : il parle du PRÉSENT — où le même défaut vit déjà — et se
+prouve en balayant.
+
+### Ce qui reste, avec ce que chaque chose coûte VRAIMENT
+
+Les deux trous restants ne se comblent pas en écrivant : ils se comblent en EXÉCUTANT.
+C'est la raison pour laquelle ils n'ont pas bougé d'un iota en deux sessions, et la
+nommer évite de les reprogrammer à l'aveugle une troisième fois.
+
+| trou | valeur | ce que combler UNE entrée demande | pourquoi ce n'est pas du texte |
+|---|---:|---|---|
+| `cause_unknown` | 241 | ouvrir le site cité, lire, et trancher `read` / `measured` / `inferred` | 58 seulement citent un fichier ; **183 n'ont aucune ancre**, donc il faut retrouver la cause avant de l'étiqueter |
+| `seen_red_unknown` | 331 | remettre le défaut, voir la signature sortir ≠ 0, la retirer, la voir sortir 0 | une date `seen_red` non observée est explicitement interdite par `/capitalise` — on ne peut pas l'écrire, seulement la mesurer |
+
+⚠️ **Le raccourci a été cherché et il est FERMÉ par construction** : marquer les 183 sans
+ancre en `cause_inferred` ferait monter un compteur crânté à 0, et la mutation nº 3 de
+`tests/test_the_error_class_health_only_improves.py` est exactement celle-là — vue rouge
+le 2026-09-16. Le dépôt refuse de convertir « je n'ai pas cherché » en progrès.
 
 - [ ] **R122 — reprendre la revue des `guard_scope`, par LOTS, jusqu'à repasser sous le seuil.**
 

@@ -109,18 +109,18 @@ _CEILINGS = {
     # QUATORZE familles à zéro, 234 portées dans la séance.
     # −63 : `un-garde-qui-ne-garde-pas` (47/47 restantes) et les 3 orphelines.
     #
-    # ⚠️ **ZÉRO le 2026-09-17 — les 395 classes déclarent toutes un geste voisin NON
+    # ⚠️ **ZÉRO le 2026-09-17 — les 394 classes déclarent toutes un geste voisin NON
     # couvert.** Ce que ce zéro veut dire, et surtout ce qu'il ne veut pas dire : chaque
     # classe NOMME désormais au moins une chose que son garde laisse passer. Il ne dit
-    # rien de la JUSTESSE de ce qui est nommé — aucune de ces 395 affirmations n'est
+    # rien de la JUSTESSE de ce qui est nommé — aucune de ces 394 affirmations n'est
     # vérifiée mécaniquement, et le catalogue a déjà mesuré que 4 portées sur 6 écrites
     # avec soin étaient inexactes (voir `/capitalise`, « Je lis le CODE du garde »).
     # Le compteur qui reste honnête après celui-ci est `siblings_never_swept` : lui
     # parle du PRÉSENT et se vérifie.
     #
     # ⚠️ **Le plancher de population est ce qui empêche ce zéro d'être gratuit.** Un
-    # `scope_without_not_covered` à 0 s'obtient aussi bien en écrivant 395 portées qu'en
-    # supprimant 395 classes ; `_FLOORS` refuse la seconde voie.
+    # `scope_without_not_covered` à 0 s'obtient aussi bien en écrivant 394 portées qu'en
+    # supprimant 394 classes ; `_FLOORS` refuse la seconde voie.
     "scope_without_not_covered": 0,
     # ⚠️ Compteur NEUF le 2026-09-17, posé sur une question du propriétaire : « est-ce
     # qu'on a intégré la réflexion de savoir si l'erreur découverte peut être situéé
