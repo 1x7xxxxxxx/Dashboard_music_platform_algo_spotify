@@ -8275,8 +8275,8 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 2,
-      "history_additions": 0,
+      "revisions": 3,
+      "history_additions": 1,
       "renamed_from": null
     },
     "session-wide-stub-of-an-installed-package": {
@@ -9918,7 +9918,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 247,
+      "catalogue_revisions": 248,
       "head_date": "2026-09-17"
     },
     "holes": {
@@ -9936,7 +9936,7 @@
     "population": {
       "automatic_guard": 385,
       "classes": 395,
-      "ever_recurred_observed": 50,
+      "ever_recurred_observed": 51,
       "prose_only": 10,
       "with_signature": 384
     },
@@ -9944,23 +9944,23 @@
       "window_start": "2026-05-15",
       "as_of": "2026-09-17",
       "observed": {
-        "events": 61,
+        "events": 62,
         "class_days": 7997,
-        "per_class_month": 0.2319,
+        "per_class_month": 0.2357,
         "ci95": [
-          0.1774,
-          0.2979
+          0.1807,
+          0.3021
         ]
       },
       "class_days_exposed": 7997,
       "by_guard": {
         "automatique": {
-          "events": 58,
+          "events": 59,
           "class_days": 7834,
-          "per_class_month": 0.2251,
+          "per_class_month": 0.229,
           "ci95": [
-            0.1709,
-            0.291
+            0.1743,
+            0.2953
           ]
         },
         "prose": {
@@ -9984,36 +9984,36 @@
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 58,
+          "events": 59,
           "class_days": 7803,
-          "per_class_month": 0.226,
+          "per_class_month": 0.2299,
           "ci95": [
-            0.1716,
-            0.2921
+            0.175,
+            0.2965
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 61,
+          "events": 62,
           "class_days": 7997,
-          "per_class_month": 0.2319,
+          "per_class_month": 0.2357,
           "ci95": [
-            0.1774,
-            0.2979
+            0.1807,
+            0.3021
           ]
         }
       },
       "fixed_horizon": {
         "h7": {
           "at_risk": 269,
-          "recurred": 36,
-          "rate": 0.1338
+          "recurred": 37,
+          "rate": 0.1375
         },
         "h14": {
           "at_risk": 175,
-          "recurred": 31,
-          "rate": 0.1771
+          "recurred": 32,
+          "rate": 0.1829
         },
         "h30": {
           "at_risk": 35,
