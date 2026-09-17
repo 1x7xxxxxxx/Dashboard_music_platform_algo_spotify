@@ -1,13 +1,17 @@
+import logging
+
 import requests
 import streamlit as st
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from src.utils.config_loader import config_loader
 import os
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
+
+logger = logging.getLogger(__name__)
 
 
 # ── Le délai d'attente de CHAQUE appel, et pourquoi il est vital ici ──────────
@@ -121,7 +125,12 @@ class AirflowMonitor:
                         end = pd.to_datetime(end_str) if end_str else datetime.now(start.tzinfo)
                         duration = (end - start).total_seconds()
                     else:
-                        start = datetime.now()
+                        # ⚠️ TZ-AWARE, comme la branche du dessus. Naïf, il rendait la
+                        # colonne `start_date` MIXTE — un run sans `start_date` (file
+                        # d'attente, run planifié) suffisait — et la comparaison 24 h
+                        # plus bas levait `TypeError: can't compare offset-naive and
+                        # offset-aware`. Reproduit le 2026-09-17.
+                        start = datetime.now(timezone.utc)
                         duration = 0
 
                     all_runs.append({
@@ -280,8 +289,17 @@ class AirflowMonitor:
             try:
                 last_24h = datetime.now(df['start_date'].iloc[0].tzinfo) - timedelta(hours=24)
                 df_24h = df[df['start_date'] >= last_24h]
-            except Exception:
-                df_24h = df # Fallback
+            except Exception as exc:      # noqa: BLE001 — le repli ne doit pas MENTIR
+                # ⚠️ Ce repli rendait `df` ENTIER, donc tout l'historique présenté comme
+                # « dernières 24 h » — un nombre qu'un humain lit comme un verdict.
+                # Il ne se déclenchait que sur une colonne mixte, ce que la branche
+                # naïve ci-dessus produisait. Cause corrigée ; le repli reste, mais il
+                # rend VIDE plutôt qu'un chiffre faux, et il le dit.
+                logger.warning(
+                    "airflow_monitor: fenêtre 24 h incalculable (%s) — la tuile "
+                    "n'affiche rien plutôt qu'un total qui se ferait passer pour 24 h",
+                    type(exc).__name__)
+                df_24h = df.iloc[0:0]
         else:
             df_24h = pd.DataFrame()
 

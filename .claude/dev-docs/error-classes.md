@@ -272,6 +272,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [a-hook-shaped-function-pytest-never-calls](#a-hook-shaped-function-pytest-never-calls) | P2 | deterministic | guarded | none |
 | [a-blocking-hook-that-writes-its-reason-to-stdout](#a-blocking-hook-that-writes-its-reason-to-stdout) | P3 | manual | guarded | none |
 | [a-verdict-swallowed-by-the-pipe-that-abbreviated-it](#a-verdict-swallowed-by-the-pipe-that-abbreviated-it) | P2 | deterministic | guarded | none |
+| [a-fallback-that-answers-the-whole-question](#a-fallback-that-answers-the-whole-question) | P3 | deterministic | guarded | none |
 | [a-file-whose-tests-share-a-namespace](#a-file-whose-tests-share-a-namespace) | P3 | deterministic | guarded | none |
 | [an-exemption-that-outlives-what-it-exempted](#an-exemption-that-outlives-what-it-exempted) | P3 | deterministic | guarded | none |
 | [two-definitions-that-must-coincide-are-never-compared](#two-definitions-that-must-coincide-are-never-compared) | P2 | deterministic | guarded | none |
@@ -805,6 +806,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_error_class_health_only_improves.py }
 - guard_scope: un-document-qui-affirme-un-état-périmé — décrire la couverture d'un garde partagé sans dire quelle part est la sienne ; couvre: le compteur agrégé et son plafond, dans `test_the_error_class_health_only_improves.py::test_no_counter_of_holes_ever_grows` — il refuse qu'une 21ᵉ portée ambiguë apparaisse ; ne couvre pas: (1) **les 20 déjà là** — le plafond les gèle, il ne les corrige pas, et chacune reste un emprunt possible ; (2) la JUSTESSE du nom : citer `test_x` qui n'existe pas, ou qui appartient à la voisine, satisfait le compteur — c'est `test_every_named_guard_exists` qui vérifie l'existence, et rien ne vérifie l'appartenance ; (3) les classes à garde NON partagé, où la même imprécision est sans conséquence aujourd'hui et le deviendrait si une seconde classe adoptait leur fichier ; (4) les gardes qui ne sont pas des fichiers de test — une règle transverse, un hook, une signature, où « partager » n'a pas le même sens.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import json,sys; h=json.load(open('.claude/dev-docs/error-class-health.json'))['aggregate']['holes']; sys.exit(1 if h['scope_on_a_shared_g`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: tools/dev/error_class_health.py
 - first_seen: 2026-09-17
 - History:
@@ -844,6 +846,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: safe
 - guard: { type: ci-step, ref: .github/workflows/ci.yml }
 - guard_scope: deux-surfaces-deux-nombres — trois manifestes énoncent la même version épinglée et rien ne les compare, donc l'installation dépend de celui qu'on lit ; couvre: l'étape `manifest consistency` de `.github/workflows/ci.yml` — `python3 tools/dev/check_manifest_consistency.py`, la seule de ce fichier partagé qui appartienne à cette classe — qui confronte `pyproject.toml`, `requirements.txt` et `uv.lock` — trois surfaces pour une seule vérité, exactement la forme que la famille décrit ; ne couvre pas: (1) **le geste voisin le plus proche — ce qui est RÉELLEMENT installé** : le contrôle compare trois fichiers entre eux, jamais un fichier à l'environnement ; une image construite avec un cache ancien peut porter une autre version sans qu'aucun manifeste ne bouge, ce que `a-replica-that-builds-its-own-image` a montré coûteux ; (2) les dépendances TRANSITIVES, dont seul le lock parle ; (3) les versions épinglées hors de ces trois fichiers — Dockerfile, actions GitHub, outils système ; (4) la JUSTESSE de la version choisie.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 tools/dev/check_manifest_consistency.py`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: tools/dev/check_manifest_consistency.py
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -880,6 +883,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: ci-step, ref: .claude/scripts/audit_collectors_ast.py via audit_runner.py --deterministic (ci.yml) }
 - guard_scope: une-erreur-avalée-devient-une-absence — un `except` qui rend une valeur au lieu de lever ; couvre: `return None`/`[]`/`{}` et `break` dans un `except` sous `src/collectors/` ; ne couvre pas: le même geste **hors de `src/collectors/`** — un transformer, un utilitaire, une tâche de DAG — ni un `except` qui LÈVE mais dont l'appelant avale, ni un `continue` dans une boucle par locataire, qui saute un artiste en le journalisant proprement.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 .claude/scripts/audit_collectors_ast.py`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: .claude/skills/audit-collectors.md
 - first_seen: 2026-03-25 (ref: DEVLOG#2026-03-25)
 - History:
@@ -1007,6 +1011,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_allowed_tables_coverage.py }
 - guard_scope: un-travail-qui-n-arrive-nulle-part — écrire dans une table dont le nom n'est pas déclaré ; couvre: `src/**.py`, les appels `upsert_many(` / `insert_many(` dont le premier argument est un LITTÉRAL, plus les `{'table': '…'}` de configuration ; ne couvre pas: (a) un nom de table passé par une VARIABLE — le motif exige des guillemets collés à la parenthèse ; (b) un `execute_query` avec un `INSERT` écrit à la main, qui ne passe par aucune des deux fonctions ; (c) les écritures hors de `src/`, notamment celles d'un DAG.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import re,pathlib,sys; ph=pathlib.Path('src/database/postgres_handler.py').read_text(); a=set(re.findall(r\"'([a-z0-9_]+)'\", re.search(r'`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: .claude/skills/db-schema.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -1099,6 +1104,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/dev-docs/error-classes.md (operator-doc-vs-collector-auth invariant) }
 - guard_scope: un-document-qui-affirme-un-état-périmé — une consigne d'exploitation nomme un script qui n'existe pas ou une authentification qui n'est plus celle du produit ; couvre: une signature shell qui refuse toute mention des scripts fantômes connus (`spotify_auth.py`, `youtube_auth.py`, `check_api_keys`…) ; ne couvre pas: (1) **le geste voisin le plus proche — les scripts fantômes PAS ENCORE connus** : la signature est une liste de noms morts, donc elle attrape les récidives et jamais la première occurrence ; c'est l'inverse de ce qu'on voudrait ; (2) les consignes qui nomment un script EXISTANT avec les mauvais arguments ; (3) les consignes hors du dépôt (e-mails, notes) ; (4) l'authentification réellement en service, que la signature ne vérifie pas — elle lit du texte.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `! grep -rnE "spotify_auth\.py|youtube_auth\.py|test_youtube_auth|check_api_keys_meta|create_missing_tables|Refresh Token (Spotify|YouTube)|YouTube — O`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: .claude/dev-docs/token-management-bilan.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -1247,6 +1253,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view/SKILL.md (pitfall: config env-fallback) }
 - guard_scope: un-état-qui-déborde-de-sa-portée — `config.yaml` existe en développement et pas en production, donc `config['x']` est correct sur la machine où le code est ÉCRIT et lève `KeyError` là où il TOURNE ; couvre: une signature shell restreinte à `src/database/*_schema.py`, qui refuse tout accès indexé à la configuration dans les définitions de schéma — l'endroit précis où le défaut s'est produit ; ne couvre pas: (1) **le geste voisin le plus proche, et c'est un trou large — tout le reste de `src/`** : vues, collecteurs, utilitaires et DAG lisent aussi la configuration, et la signature ne les regarde pas ; le périmètre a été choisi sur le site du défaut, pas sur la classe ; (2) les accès par `.get()` sans défaut utile, qui rendent `None` et échouent plus loin ; (3) la présence RÉELLE de la clé en production — la signature lit du code, elle n'interroge aucun environnement ; (4) les autres asymétries dev↔prod (variables d'environnement, fichiers montés, secrets), qui partagent exactement la cause.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `! grep -rnE "config(_loader\.load\(\))?\[" src/database/*_schema.py`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite15)
 - History:
@@ -1435,6 +1442,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves + ci.yml }
 - guard_scope: un-travail-qui-n-arrive-nulle-part — un chemin écrit dans la configuration est de la PROSE pour tout outil qui la lit ; seul le modèle le résout, à la lecture, et il n'a aucun moyen de signaler qu'il a manqué ; couvre: par **cinq tests nommés de ce fichier partagé** — `test_every_skill_stays_loadable`, `test_every_loadable_skill_can_actually_trigger`, `test_the_permission_deny_list_does_not_shrink`, `test_bypass_permissions_stays_off` et `test_the_dangerous_command_gates_still_block` — le plancher de la configuration `.claude/` : chaque skill reste chargeable, chaque skill chargeable peut réellement se déclencher (deux questions distinctes : exister et être atteignable), la liste de refus de permissions ne rétrécit pas, le mode permissif reste désactivé, et les portes sur les commandes dangereuses bloquent toujours ; ne couvre pas: (1) **le geste voisin le plus proche — les chemins cités dans la PROSE de `CLAUDE.md` et des `dev-docs`** : l'incident d'origine (des références pointant à côté du fichier pendant des semaines) portait sur des renvois en texte, que ce garde ne lit pas ; (2) les chemins dans les agents, les workflows et les commandes ; (3) un chemin qui EXISTE mais ne contient plus ce que le renvoi annonce ; (4) les chemins construits à l'exécution.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 .claude/scripts/check_config_refs.py`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: .claude/commands/resume.md
 - first_seen: 2026-07-28 (ref: five dead references found in the deployment channel itself)
 - History:
@@ -1690,6 +1698,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: safe
 - guard: { type: error-class-signature, ref: audit_runner --deterministic }
 - guard_scope: une-erreur-avalée-devient-une-absence — un fichier qu'un analyseur ne peut pas LIRE est compté comme un fichier qui PASSE ; couvre: la signature `audit_runner --deterministic` vérifie l'absence de BOM dans `src/`, `airflow/`, `tests/` et `.claude/scripts/`, c'est-à-dire la CAUSE (le marqueur d'octets) et non la conséquence ; ne couvre pas: (1) **le geste voisin le plus proche, et c'est le vrai trou — les autres façons dont un analyseur AST devient aveugle** : un fichier au `SyntaxError` franc, un encodage non-UTF-8, un fichier illisible faute de droits produisent exactement le même « rien à signaler », et aucune signature ne les cherche ; le long_term_fix demande qu'un fichier illisible soit RAPPORTÉ comme un échec, mais **rien ne vérifie que les ~30 gardes AST du dépôt le font** ; (2) les arbres hors des quatre balayés — `tools/`, `.claude/hooks/`, `migrations/` ; (3) les fichiers non-`.py` analysés par un autre parseur (YAML, JSON, Markdown), où l'équivalent existe ; (4) la RÉAPPARITION d'un BOM entre deux exécutions de la signature, qui n'est lancée par aucun automate.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import sys;from pathlib import Path;bad=[str(p) for d in ('src','airflow','tests','.claude/scripts') for p in Path(d).rglob('*.py') if p.r`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: .claude/scripts/audit_tenant_writes.py
 - first_seen: 2026-08-20
 - History:
@@ -1877,6 +1886,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - guard: { type: pytest, ref: tests/test_env_is_root_anchored.py }
 - guard_scope: une-configuration-qui-diverge-de-la-prod — résoudre un chemin de configuration contre le répertoire courant au lieu de la racine du dépôt ; couvre: **cinq fichiers écrits à la main** — quatre de `tools/` plus `src/dashboard/app.py` — et une seule question : le texte contient-il `load_project_env` ; ne couvre pas: (1) tout point d'entrée absent de cette liste de cinq, qu'aucun mécanisme n'alimente — c'est `guard-scope-is-a-hand-written-list` appliqué à lui-même ; (2) ce que le fichier FAIT de l'appel : l'importer sans l'appeler, ou l'appeler après avoir déjà lu une variable, satisfait le garde ; (3) les scripts lancés autrement qu'en ligne de commande — un DAG Airflow, un conteneur, un cron — pour lesquels l'environnement est injecté et la question ne se pose pas ; (4) les autres chemins résolus contre le `cwd` : un CSV, un dossier `data/`, un `config.yaml` relatif.
 - secondary_signature: `python3 -m pytest tests/test_operator_tools_read_the_apps_env.py -q`
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `! grep -rlE "(exists|load_dotenv)\(['\"]\.env" src/ tools/ --include=*.py | grep -v env_files.py`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: tools/artist_preflight.py
 - first_seen: 2026-08-21
 - History:
@@ -2107,6 +2117,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_operator_tools_read_the_apps_env.py }
 - guard_scope: un-garde-qui-ne-garde-pas — une configuration est corrigée dans le fichier qui PERD la précédence, donc le correctif n'a aucun effet et paraît appliqué ; couvre: trois propriétés — les outils documentés sont encore trouvés (anti-vacuité), **chaque outil d'exploitation résout l'environnement que l'APP résout** (paramétré sur la liste des outils), et l'envoyeur de mail autonome honore la même précédence ; ne couvre pas: (1) **le geste voisin le plus proche — les autres paires de fichiers à précédence** : `.env`/`.env.local`, `config.yaml`/`config.example.yaml`, `docker-compose.yml`/`docker-compose.override.yml`, les variables de `make` et l'environnement, les réglages Streamlit globaux et par projet — un seul couple est contraint ; (2) les outils non listés dans la constante scrutée ; (3) la précédence à l'intérieur d'un même fichier (dernière clé gagnante) ; (4) la prod, où la précédence peut différer de ce poste
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 tools/check_central_apps.py`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: tools/check_central_apps.py
 - first_seen: 2026-08-22
 - History:
@@ -2485,6 +2496,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: make-precondition, ref: Makefile (sync-check, caddy-drift step) }
 - guard_scope: le-temps-et-l-horloge — la copie du dépôt a été écrite en juin et jamais relue ; la production a bougé, et les deux ne se ressemblent plus ; couvre: une signature qui vérifie l'existence d'une cible `caddy-drift` dans le `Makefile` — c'est-à-dire l'existence du MOYEN de comparer, pas la comparaison ; ne couvre pas: (1) **le geste voisin le plus proche, et c'est le fond — que la comparaison soit FAITE** : rien ne lance `caddy-drift`, comme rien ne lance `schema-check` ni `reopen-check` ; le dépôt a trois outils qui regardent la production et zéro automate qui les appelle ; (2) les autres configurations copiées — `docker-compose.yml`, `prometheus.yml`, `.env` ; (3) le CONTENU de la divergence quand elle existe ; (4) les changements faits sur la production entre deux exécutions du contrôle.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `grep -q 'caddy-drift' Makefile`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: deploy/Caddyfile
 - first_seen: 2026-08-22
 - History:
@@ -2785,6 +2797,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: signature, ref: tools/deploy.sh }
 - guard_scope: le-temps-et-l-horloge — le script commence par `git pull` et se RÉÉCRIT donc lui-même en pleine exécution : bash relit le fichier au fil des lignes ; couvre: une signature qui vérifie la présence du garde de ré-exécution (`DEPLOY_REEXECED`) dans `tools/deploy.sh` — le motif qui fait repartir le script proprement après s'être remplacé ; ne couvre pas: (1) **le geste voisin le plus proche — les autres scripts qui se modifient ou modifient leurs dépendances en cours de route** : un script qui met à jour un outil qu'il appelle ensuite, un `make sync` qui change l'interpréteur ; seul `deploy.sh` est vérifié ; (2) les FICHIERS que le script lit après le `pull` — un compose ou un Dockerfile changé sous lui ; (3) la présence du garde ne dit pas qu'il FONCTIONNE ; (4) l'exécution interrompue entre le `pull` et la ré-exécution.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `grep -qE 'DEPLOY_REEXECED' tools/deploy.sh`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: tools/deploy.sh
 - first_seen: 2026-08-23
 - History:
@@ -3223,6 +3236,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: ci-step, ref: .github/workflows/security-nightly.yml }
 - guard_scope: un-garde-qui-ne-garde-pas — un audit lit le fichier de CONTRAINTES au lieu de l'ensemble RÉSOLU, donc il déclare sain ce qui n'est pas installé ; couvre: par la signature bloquante `! grep -nE 'pip-audit -r requirements.txt' security-nightly.yml` : l'audit de dépendances passe par `uv export --frozen --no-dev --no-hashes`, donc il regarde exactement ce que `uv sync --frozen` installe — le retour arrière est refusé par un grep, pas seulement documenté ; ne couvre pas: (1) **le geste voisin le plus proche — les autres lectures de contraintes du dépôt** : `check_manifest_consistency.py`, `gitleaks`, le compte de majeures de retard et la construction Docker (qui lit `requirements.txt`, pas le lock) raisonnent encore sur des planchers ; (2) l'ensemble résolu du conteneur de PROD, qui n'est pas celui du runner ; (3) les extras `--dev`, exclus de l'export ; (4) les dépendances système, hors de portée de pip-audit
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `! grep -nE 'pip-audit -r requirements.txt' .github/workflows/security-nightly.yml`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: .github/workflows/security-nightly.yml
 - first_seen: 2026-08-24
 - History:
@@ -3796,6 +3810,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_download_is_built_on_click_not_on_rerun.py }
 - guard_scope: un-coût-payé-sans-contrepartie — reconstruire à chaque rerun une charge que personne n'a demandée ; couvre: `src/dashboard/views/**/*.py`, à l'AST : un `st.download_button` dont la donnée est construite dans la même passe doit passer par une fonction décorée `cache_data`/`cache_resource` ; ne couvre pas: (0) ⚠️ **le déclencheur lui-même est une liste de SEPT noms écrits en dur** (`EXPENSIVE` : `write_pdf`, `build_guide_pdf`, `build_guide_html`, `ZipFile`, `export_all`, `export_excel`, `collect_report_data`). Un constructeur coûteux neuf ou RENOMMÉ, absent de cette liste, n'est jamais signalé — décorateur ou pas. C'est le trou principal, et il est du genre `guard-scope-is-a-hand-written-list` : le garde ne sait pas ce qu'il ne connaît pas ; (1) ce que le cache COÛTE — une clé volatile rend zéro succès et le garde reste vert (c'est `a-cache-key-that-can-never-be-hit-twice`, une classe sœur) ; (2) les charges construites hors des vues — `utils/`, l'API, un DAG qui prépare un export ; (3) les autres widgets qui paient avant qu'on clique : un `st.file_uploader` qui pré-calcule, un `st.dialog` dont le corps s'exécute à l'ouverture de la page ; (4) le PDF, dont le coût est réel mais qui a son propre chemin.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import sys; sys.path.insert(0,'tests'); from test_a_download_is_built_on_click_not_on_rerun import offending_downloads, _iter_view_modules`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: src/dashboard/utils/guide_assets.py
 - first_seen: 2026-08-30
 - History:
@@ -3818,6 +3833,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_dag_can_be_called_dead.py }
 - guard_scope: le-temps-et-l-horloge — `dagrun_timeout` vaut `None` par défaut, donc un DAG bloqué reste en cours indéfiniment et le canal d'alerte se tait sans échouer ; couvre: quatre propriétés — chaque DAG déclare un délai, **le garde ROUGIT quand on en retire un** (la mutation intégrée), le délai dégage le p95 MESURÉ avec de la marge (paramétré par DAG), et il attrape encore les DEUX blocages réellement survenus — ces deux derniers empêchant un délai trop serré ou trop lâche ; ne couvre pas: (1) **le geste voisin le plus proche — le délai par TÂCHE** : `execution_timeout` reste absent, et une tâche peut pendre sous un DAG qui, lui, finira par expirer ; (2) les p95 qui DÉRIVENT — la table de mesures date du 2026-08-30 et rien ne la remesure ; (3) ce qui se passe APRÈS l'expiration ; (4) les DAG ajoutés, qui doivent entrer dans la table à la main.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import sys; sys.path.insert(0,'tests'); from test_every_dag_can_be_called_dead import dags_without_timeout, _dag_files; sys.exit(1 if dags`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: src/utils/dag_timeouts.py
 - first_seen: 2026-08-30
 - History:
@@ -3877,6 +3893,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_timestamptz_column_survives_daylight_saving.py }
 - guard_scope: le-temps-et-l-horloge — une colonne `timestamptz` relue rend des datetimes portant le décalage EN VIGUEUR à leur date, donc une série qui traverse un changement d'heure mélange deux décalages ; couvre: quatre propriétés — aucune série `timestamptz` n'est analysée sans `utc=True`, **le garde rougit sur le défaut pour lequel il a été écrit**, il reste SILENCIEUX sur les formes qui ne peuvent pas casser (un garde qui crie sur tout est désactivé), et la liste de colonnes n'est pas vide ET correspond encore au code ; ne couvre pas: (1) **le geste voisin le plus proche — les colonnes `timestamp` SANS fuseau**, qui portent le problème inverse et relèvent de `a-date-that-does-not-say-which-clock-produced-it` ; (2) les dates lues hors pandas ; (3) les fuseaux autres que celui de la machine ; (4) l'AFFICHAGE, qui peut reconvertir après une lecture correcte.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import sys; sys.path.insert(0,'tests'); from test_a_timestamptz_column_survives_daylight_saving import unsafe_timestamptz_parses, _sources`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: src/dashboard/utils/tz.py
 - first_seen: 2026-08-30
 - History:
@@ -3960,6 +3977,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_trigger_invalidates_what_it_makes_stale.py }
 - guard_scope: un-document-qui-affirme-un-état-périmé — servir un cache que l'évènement qu'on vient de déclencher a rendu faux ; couvre: UN cache (`cached_last_run_per_dag`) et UN évènement (`….trigger_dag(…)`), balayés sur `src/dashboard/**` ; la portée est l'instruction qui porte l'appel **plus les suivantes du bloc le plus profond**, donc un `clear()` antérieur au déclenchement ou logé ailleurs dans le fichier ne compte pas ; plus les bornes du TTL (60–900 s) et la présence du décorateur ; ne couvre pas: (1) tous les AUTRES caches du dashboard — rien ne les énumère, et un cache sans invalidation y est le cas ordinaire ; (2) les autres évènements qui périment CE cache : un DAG lancé depuis l'UI Airflow, depuis `airflow_trigger` hors dashboard, ou un run qui se termine tout seul ; (3) un déclenchement hors de `src/dashboard/**` — `tools/`, `airflow/`, l'API ; (4) un `clear()` fait par un HELPER appelé (`_drop_caches()`) plutôt qu'écrit sur place : le garde cherche l'appel littéral `cached_last_run_per_dag.clear()` dans ces instructions et ne suit aucun appel.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import sys; sys.path.insert(0,'tests'); from test_a_trigger_invalidates_what_it_makes_stale import trigger_sites_without_invalidation, _da`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: src/dashboard/utils/airflow_monitor.py
 - first_seen: 2026-08-30
 - History:
@@ -4479,6 +4497,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: script, ref: .claude/scripts/check_guards_are_env_independent.py + .claude/scripts/pytest_without_dotenv.py, wired: .github/workflows/ci.yml }
 - guard_scope: un-garde-qui-ne-garde-pas — un garde lit la MACHINE au lieu de son sujet — il consulte le `.env` du poste pour décider d'un verdict, donc il passe ici et ne peut pas passer ailleurs ; couvre: `check_guards_are_env_independent.py` rejoue, avec `ENV_FILES` vidé, les **22 fichiers de test qui chargent un module de `tools/`** — donc ceux dont l'import déclenche `load_project_env()` — et exige le même verdict dans les deux conditions ; il tourne dans son propre sous-processus parce qu'une signature pytest perdrait son `PYTHONPATH` et son `-p` ; ne couvre pas: (1) **le geste voisin le plus proche — les autres états de la machine qu'un garde peut lire** : une base Postgres joignable, un conteneur Docker en marche, un fichier de configuration local, l'horloge, le nom d'utilisateur, le réseau — aucun n'est neutralisé, seul le `.env` l'est ; (2) les tests qui ne chargent PAS un module de `tools/`, hors du périmètre des 22 ; (3) une lecture d'environnement faite PARESSEUSEMENT, après l'import ; (4) les gardes non-pytest (crochets, scripts, étapes de CI)
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 .claude/scripts/check_guards_are_env_independent.py`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: tests/test_a_tool_that_reads_the_env_loads_it.py
 - first_seen: 2026-09-05
 - History:
@@ -6000,6 +6019,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_uniqueness_names_its_tenant.py }
 - guard_scope: une-écriture-qui-écrase — du DDL ressuscite un correctif déjà migré : la contrainte recréée à l'identique efface la migration qui l'avait corrigée ; couvre: trois propriétés — **chaque table scopée par locataire scope son unicité** (parcouru table par table depuis le schéma réel, donc une résurrection est vue), l'exemption nomme encore une table qui existe, et les tables YouTube sont bien celles qui ont été corrigées ; ne couvre pas: (1) **le geste voisin le plus proche — les autres objets recréés par du DDL** : index, vues, fonctions `gold_*`, déclencheurs, valeurs par défaut de colonne et commentaires de table peuvent tous ressusciter un état pré-migration, et seule l'unicité est contrainte ; (2) le DDL exécuté hors `migrations/` — `init_db.sql`, les scripts d'amorçage, les créations à la volée d'un DAG ; (3) une contrainte recréée DIFFÉREMMENT, donc ni identique ni corrigée ; (4) l'ORDRE de rejeu, couvert par un autre garde
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `h=0; for n in $(grep -rhoE "DROP CONSTRAINT IF EXISTS +[a-z_][a-z0-9_]*" migrations/*.sql | awk "{print \$NF}" | sort -u); do grep -rnE "^[^-#]*CONSTR`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: init_db.sql
 - first_seen: 2026-09-11
 - History:
@@ -6150,6 +6170,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: tests/test_a_note_describes_the_figure_that_is_shown.py — quatre tests, dont un qui tient l'exemption DANS L'AUTRE SENS (le mode « Par période » trace bien la série trouée et doit garder sa note). Mutations vues rouges le 2026-09-11 : la note qui ignore le mode, la note retirée PARTOUT (la sur-correction, verte sans ce deuxième test), et « non traçables » rendue en mode cumulé.
 - guard_scope: un-document-qui-affirme-un-état-périmé — une légende qui décrit une figure d'avant ; couvre: **`views/home.py` seulement** — le garde lit ce fichier et rien d'autre ; ne couvre pas: (a) les ~40 autres vues, qui portent toutes des légendes ; (b) le PDF, dont les commentaires sont écrits ailleurs ; (c) un `help=` de tuile, un `caption` sous un tableau, un texte d'e-mail décrivant un graphique — trois porteurs du même défaut. C'est un épinglage sur une page, pas un balayage.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import ast,pathlib,sys;mods=[ast.parse(q.read_text(encoding='utf-8')) for q in pathlib.Path('src/dashboard/utils').glob('platform_chart*.p`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-11
 - History:
@@ -6302,6 +6323,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: ci-step, ref: .github/workflows/ci.yml }
 - guard_scope: un-garde-qui-ne-garde-pas — un document GÉNÉRÉ affirme un état périmé, et sa fraîcheur n'est câblée nulle part ; couvre: la signature `gold_coverage.py --check` est exécutée en CI par `audit_runner --static` et rejouée par `tests/test_the_gold_coverage_only_improves.py`, qui importe le générateur ; le triplet est tenu — pas d'horodatage, un `--check` qui régénère en mémoire, un câblage dans l'étape déterministe ; ne couvre pas: (1) **le geste voisin le plus proche — les autres documents générés du dépôt** : `error-inbox.md` n'a TOUJOURS aucun contrôle de fraîcheur (il porte un horodatage, ce qui l'interdit), et `check_stale_deliverables.py` n'est appelé de nulle part ; `graphify-out/GRAPH_REPORT.md` n'est vérifié par rien non plus ; (2) les documents écrits à la MAIN qui affirment un état — la roadmap, `CLAUDE.md`, les ADR ; (3) un document frais dont le GÉNÉRATEUR est faux ; (4) les documents générés hors du dépôt (résumés de run, artefacts de CI)
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 tools/dev/gold_coverage.py --check`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: tools/dev/gold_coverage.py
 - first_seen: 2026-09-12
 - History:
@@ -6338,6 +6360,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: ci-step, ref: .claude/scripts/audit_runner.py }
 - guard_scope: une-configuration-qui-diverge-de-la-prod — une règle PROCÉDURALE est écrite dans une fonction SQL, donc elle vit dans la base et non dans le dépôt, et personne ne la relit ; couvre: une signature shell qui compare les fonctions `gold_*` déclarées dans `migrations/*.sql` à ce qui est attendu — elle attrape l'AJOUT d'une fonction procédurale, ce qui est le geste ; ne couvre pas: (1) **le geste voisin le plus proche — les fonctions créées HORS migration**, à la main sur la base ; elles n'ont aucun fichier, donc la signature ne peut pas les voir, et c'est exactement `prod-canonical-schema-drift` ; (2) les vues, déclencheurs et contraintes, qui peuvent porter autant de logique ; (3) ce que la fonction FAIT, seulement son existence ; (4) la frontière elle-même — « une sélection gloutonne est-elle procédurale ? » reste un jugement, et la signature épingle une liste.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `test "$(grep -hoE 'CREATE (OR REPLACE )?FUNCTION gold_[a-z_]+' migrations/*.sql | awk '{print $NF}' | sort -u | wc -l)" -le 1`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: docs/adr/ADR-022-the-grain-lives-in-sql-the-door-shapes-it.md
 - first_seen: 2026-09-12
 - History:
@@ -6356,6 +6379,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: ci-step, ref: .claude/scripts/audit_runner.py }
 - guard_scope: un-garde-qui-ne-garde-pas — une signature nomme un EMPLACEMENT (`fichier:ligne`, une constante, une fonction précise), donc elle meurt au premier correctif qui déplace le code ; couvre: par la signature bloquante `! grep -nE '^- signature: .*\.(py|sql|md):[0-9]+' …/error-classes.md`, exécutée par `audit_runner.py --static` en CI : **aucune signature du catalogue ne porte un numéro de ligne** — mesuré 0 sur 284 le 2026-09-12 ; ne couvre pas: (1) **le geste voisin le plus proche — les autres ancrages de lieu que le numéro de ligne** : une signature qui nomme une CONSTANTE, une FONCTION ou un CHEMIN de fichier est couplée de la même façon, et c'est exactement le cas observé (`_SQL_CUMULATIVE_ALL`), **que ce garde ne voit pas** ; (2) les ancrages de lieu ailleurs que dans le champ `signature:` — `guard:`, `root_cause:`, les documents de `dev-docs/`, les commentaires de code ; (3) une signature sans ancrage mais devenue vide ; (4) les node-ids pytest, qui nomment un lieu par contrat et sont légitimes
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `! grep -nE '^- signature: .*[a-zA-Z_/]+\.(py|sql|md):[0-9]+' .claude/dev-docs/error-classes.md`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: .claude/dev-docs/error-classes.md
 - first_seen: 2026-09-12
 - History:
@@ -6985,6 +7009,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - guard_scope: un-document-qui-affirme-un-état-périmé — laisser vivre une branche dont le travail est fusionné ; couvre: une étape de CI qui interroge l'API GitHub ; ne couvre pas: (a) une branche LOCALE jamais poussée, invisible à l'API ; (b) un tag ou une worktree orpheline, mêmes résidus ; (c) le cas symétrique — une PR ouverte dont la branche a été supprimée, qu'on ne peut plus fusionner.
 - signature: `R="$GITHUB_REPOSITORY"; [ -n "$R" ] || R=1x7xxxxxxx/Dashboard_music_platform_algo_spotify; v=$(gh api "repos/$R" --jq .delete_branch_on_merge) || { echo "::error::gh na pas pu repondre (son erreur est au-dessus) — ce controle na RIEN verifie"; exit 1; }; test "$v" = "true" || { echo "::error::delete_branch_on_merge=$v — une branche mergee survit a sa PR"; exit 1; }`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `R="$GITHUB_REPOSITORY"; [ -n "$R" ] || R=1x7xxxxxxx/Dashboard_music_platform_algo_spotify; v=$(gh api "repos/$R" --jq .delete_branch_on_merge) || { ec`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: —
 - first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
 - History:
@@ -7235,6 +7260,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - guard_scope: un-garde-qui-ne-garde-pas — une mesure est prise sous une charge que JE m'inflige, donc le profil d'une machine occupée se lit comme celui d'une machine lente ; couvre: par `grep -q "processus lourds" .claude/dev-docs/test-suite-performance.md`, une signature de document : la ligne de contrôle qui dit de compter les processus lourds avant de chronométrer doit rester dans la référence — le garde protège la PRÉSENCE de la consigne, pas son application ; ne couvre pas: (1) **le geste voisin le plus proche — toutes les autres mesures du dépôt** : `loadtest_concurrency.py`, `scale_check.sh`, les temps de collecte, les mesures de latence de rendu et les chronométrages de migration se prennent sur la même machine sans aucun contrôle de charge ; (2) **l'APPLICATION de la consigne** — les deux premières occurrences avaient déjà produit la mémoire, et la troisième est arrivée quand même ; (3) la charge INVISIBLE — un processus lancé une minute plus tôt par moi-même ; (4) la contention d'entrées-sorties venue de l'hôte Windows, hors de portée de tout compte de processus
 - signature: `grep -q "processus lourds" .claude/dev-docs/test-suite-performance.md`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `grep -q "processus lourds" .claude/dev-docs/test-suite-performance.md`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: —
 - first_seen: 2026-09-15 (ref: DEVLOG#2026-09-15)
 - History:
@@ -7338,6 +7364,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: script, ref: tools/dev/check_action_drift.py }
 - guard_scope: un-coût-payé-sans-contrepartie — geler une version « par prudence » sans date de revue ; couvre: `.github/workflows/**` et `.github/actions/**`, les épingles d'actions ; ne couvre pas: **les gels hors de la CI**, qui sont la majorité — une borne `<` dans `pyproject.toml`, une version figée dans un `Dockerfile`, un `apt` épinglé, et surtout un gel qui ne vit que dans un COMMENTAIRE (« on reste en 1.x tant que … ») sans expression machine pour le porter.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 tools/dev/check_action_drift.py | grep -q "🔴" && exit 1 || exit 0`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: .github/dependabot.yml
 - first_seen: 2026-09-16
 - History:
@@ -7367,6 +7394,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: script, ref: tools/dev/check_action_drift.py, wired: .github/workflows/security-nightly.yml }
 - guard_scope: une-configuration-qui-diverge-de-la-prod — un épinglage est DÉDUIT d'un numéro de version au lieu d'être vérifié contre les tags amont, donc il pointe vers un commit qui n'existe pas ; couvre: `tools/dev/check_action_drift.py`, qui interroge l'amont (`latest`, `resolves`) au lieu de raisonner sur le numéro ; ne couvre pas: (1) **le geste voisin le plus proche — les autres épinglages déduits** : images Docker par `:latest` ou par convention de nom, versions de paquets recopiées d'une release note, commits cités de mémoire partagent la cause ; (2) le contrôle ne peut RIEN conclure sans accès réseau à l'amont, et le dépôt a déjà mesuré qu'un `gh api` en échec déclarait succès ; (3) la SÉCURITÉ d'un tag qui résout — un tag mobile peut être redirigé ; (4) les actions absentes du balayage.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 tools/dev/check_action_drift.py | grep -q INTROUVABLE && exit 1 || exit 0`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: .github/workflows/ci.yml
 - first_seen: 2026-09-16
 - History:
@@ -7385,6 +7413,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: script, ref: .github/workflows/ci.yml (cache-dependency-glob explicite sur les 3 sites) }
 - guard_scope: une-configuration-qui-diverge-de-la-prod — une montée de majeure change une valeur PAR DÉFAUT dont on dépendait sans l'avoir écrite, donc rien ne casse à l'installation et tout change au comportement ; couvre: une signature qui balaie les workflows `.github/**` à la recherche de la dépendance implicite mesurée le 2026-09-16 ; ne couvre pas: (1) **le geste voisin le plus proche — les défauts implicites hors CI** : Postgres (`max_connections = 100`, supposé et jamais vérifié), Streamlit, pandas, Airflow ont chacun des valeurs par défaut dont ce dépôt dépend sans les écrire ; (2) les défauts qui bougent sans montée de majeure ; (3) ce que le nouveau défaut PRODUIT, seulement la dépendance implicite ; (4) les dépendances implicites qu'on n'a pas encore identifiées — par définition, la signature ne cherche que celles qu'on connaît.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import sys,yaml,pathlib; bad=[str(p) for p in pathlib.Path('.github').rglob('*.y*ml') for job in ((yaml.safe_load(p.read_text(encoding='ut`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: .github/workflows/ci.yml
 - first_seen: 2026-09-16
 - History:
@@ -7403,6 +7432,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_gate_does_not_repair_what_it_judges.py }
 - guard_scope: un-garde-qui-ne-garde-pas — une porte qui MODIFIE l'artefact qu'elle juge ; couvre: `.github/workflows/*.y*ml` seulement ; ne couvre pas: **le même geste hors de la CI** — un `make`, un hook pre-commit, un script d'audit. La seconde instance du 2026-09-16 était précisément là : `make config-check` lançait `audit_runner --fields`, qui écrit dans `error-classes.md`. Le garde ne l'a pas vue ; une lecture humaine si.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import sys,yaml,pathlib; bad=[l for p in pathlib.Path('.github/workflows').glob('*.y*ml') for job in ((yaml.safe_load(p.read_text(encoding`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: .github/workflows/ci.yml
 - first_seen: 2026-09-16
 - History:
@@ -7422,6 +7452,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: script, ref: la signature ci-dessus ; comportement couvert par tests/test_the_login_budget_holds_across_instances.py }
 - guard_scope: deux-surfaces-deux-nombres — l'atomicité est construite dans le MAGASIN et contournée au SITE D'APPEL, qui lit puis écrit en deux temps ; couvre: une signature shell qui balaie `src/` à la recherche de la consommation en deux étapes, plus le comportement du magasin lui-même vérifié ailleurs ; ne couvre pas: (1) **le geste voisin le plus proche — les autres atomicités contournées au site d'appel** : un compteur, un stock, un verrou peuvent être atomiques dans leur magasin et consommés en deux temps par l'appelant, et c'est la même cause que `check-then-insert-loses-the-race` vue depuis l'autre bout ; (2) les appels hors `src/` ; (3) la concurrence entre INSTANCES, où même un site correct dépend de l'atomicité du magasin ; (4) le comportement sous charge réelle, qu'aucune exécution ne reproduit ici.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import pathlib,sys; bad=[f'{p}:{i}' for p in pathlib.Path('src').rglob('*.py') if p.name!='throttle.py' for i,l in enumerate(p.read_text(e`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: src/dashboard/utils/throttle.py
 - first_seen: 2026-09-16
 - History:
@@ -7440,6 +7471,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_migrations_are_replay_safe.py::test_every_migration_on_disk_is_recorded_in_the_ledger }
 - guard_scope: un-garde-qui-ne-garde-pas — une porte COMPTE au lieu de comparer des ensembles, donc un ajout et un retrait simultanés se compensent et passent ; couvre: quatre propriétés sur les migrations — il y a des migrations à vérifier (anti-vacuité), aucun `DROP` non gardé, la 024 est neutralisée une fois la 044 passée, et **chaque migration sur le disque est dans le registre**, comparaison d'ENSEMBLES et non de cardinaux — c'est cette dernière qui est le correctif de forme — ses tests nommés dans ce fichier partagé sont `test_every_migration_on_disk_is_recorded_in_the_ledger` ; ne couvre pas: (1) **le geste voisin le plus proche — les autres portes qui comptent** : les plafonds de `test_the_error_class_health_only_improves.py`, de `test_the_gold_coverage_only_improves.py` et de `test_the_visual_rules_only_tighten.py` comparent tous des NOMBRES, et une compensation y passerait de la même façon ; (2) le sens INVERSE ici — une entrée de registre sans fichier sur le disque ; (3) les ensembles comparés sur une clé trop grossière (nom de fichier plutôt que contenu) ; (4) les portes en shell, hors de portée d'un test Python
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `! grep -q "count(\*) FROM schema_migrations" tools/deploy.sh`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: tools/deploy.sh
 - first_seen: 2026-09-16
 - History:
@@ -7805,6 +7837,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: make-precondition, ref: Makefile }
 - guard_scope: un-document-qui-affirme-un-état-périmé — générer un document dont les faits viennent du dépôt qui le contient ; couvre: la cible `error-health` et son ordre écrit ; ne couvre pas: **tout autre générateur qui lirait `git log`** — aujourd'hui il n'y en a qu'un, mais `gold-coverage` ou `error-families` hériteraient du défaut le jour où ils regarderaient l'historique plutôt que l'arbre de travail.
+- siblings: swept:2026-09-17 — sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `grep -q "DEUX COMMITS" Makefile`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: tools/dev/error_class_health.py
 - first_seen: 2026-09-16
 - History:
@@ -8151,3 +8184,22 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-17
 - History:
   - 2026-09-17: trouvée en me relisant après coup, pas par un garde. ⚠️ Deux des trois mutations du garde neuf sont d'abord passées VERTES, et les deux vertes ont appris plus que la rouge : l'une visait le mauvais organe (ce n'est pas `shlex` qui protège de la prose, c'est la lecture de la TÊTE de l'étage), l'autre a révélé que le garde passait **pour une mauvaise raison** — `shlex.split` rendait `pipefail;` en un seul jeton, donc `make test|tail -3&&git commit` sans espaces échappait entièrement au garde. Une mutation verte n'est pas un garde qui tient.
+
+## a-fallback-that-answers-the-whole-question
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une tuile annonce « N sur les dernières 24 h » et donne le total de TOUT l'historique. Aucune erreur, aucun trou : le chiffre est simplement celui d'une autre question. Le repli d'un calcul impossible rend l'ensemble NON FILTRÉ au lieu de rien.
+- signature: `.venv/bin/python -m pytest tests/test_a_window_that_cannot_be_computed_shows_nothing.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: 2026-09-17 sur `src/dashboard/utils/airflow_monitor.py`, deux mutations → 1 échec chacune ; 0 après. Et reproduit sur le DÉFAUT lui-même : une colonne `start_date` mixte rend 2 lignes pour une fenêtre qui en contient 1.
+- root_cause: deux défauts empilés, chacun inoffensif seul. `airflow_monitor.py` posait `start = datetime.now()` **naïf** dans la branche d'un run sans `start_date` (file d'attente, run planifié), alors que la branche voisine pose `datetime.now(start.tzinfo)` — **tz-aware**. La colonne devenait mixte dès qu'un run n'avait pas démarré. La comparaison `df['start_date'] >= last_24h` levait alors `TypeError: can't compare offset-naive and offset-aware datetimes`, et le repli était `except Exception: df_24h = df` — le DataFrame ENTIER.
+- cause_evidence: measured (2026-09-17 — reproduit en 10 lignes : colonne `[tz-aware, naive]`, la comparaison lève, et `df_24h = df` rend 2 lignes là où la fenêtre en contient 1. Les deux branches lues dans `airflow_monitor.py:120-125`.)
+- long_term_fix: **un repli ne répond jamais à une question plus large que celle posée.** Quand la fenêtre ne peut pas être calculée, le résultat est VIDE et journalisé, jamais le total : un repli qui fabrique un chiffre est pire que pas de repli. Et la cause est fermée en amont — la colonne est homogène, `datetime.now(timezone.utc)` des deux côtés.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_window_that_cannot_be_computed_shows_nothing.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — un repli qui rend l'ensemble non filtré au lieu de rien ; couvre: `src/dashboard/utils/airflow_monitor.py` sur trois propriétés, par `test_a_mixed_column_makes_the_comparison_raise` (la prémisse est EXÉCUTÉE, sinon le reste ne prouve rien), `test_the_module_never_builds_a_naive_start_date` (la cause, à l'AST) et `test_an_uncomputable_window_is_empty_not_the_whole_history` (la conséquence, à l'AST — la fonction fait des appels HTTP que la frontière réseau du conftest refuse à raison) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres replis de ce dépôt qui rendent l'ensemble d'origine** : tout `except: return df` / `return rows` / `return all_…` après un filtre a la même forme, et seul `df_24h` est contraint ; (2) les replis qui rendent une valeur PLAUSIBLE mais fausse plutôt que l'ensemble entier ; (3) les autres modules, `airflow_monitor.py` seul étant lu ; (4) le cas où la fenêtre est calculable mais MAL bornée.
+- siblings: swept:2026-09-17 — trouvé EN balayant les candidats de la signature heuristique de `naive-datetime-now` : 10 candidats, 3 de prose, 5 cosmétiques autorisés par la convention (`st.date_input`, `max_value=…year`), et **2 à lire**. `youtube.py:161` construit `published_since = datetime.now() - timedelta(…)` comparé à `youtube_videos.published_at`, déclaré `TIMESTAMP` **sans fuseau** — les deux côtés sont naïfs, donc cohérents : pas un site. `airflow_monitor.py:124` en était un. ⚠️ Balayage des replis qui rendent l'ensemble d'origine : `grep -rn "except" -A1 src/ | grep -E "= df$|return df$"` — **aucun autre site** ; celui-ci était le seul.
+- rex_ref: src/dashboard/utils/airflow_monitor.py
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: la classe n'existe QUE parce qu'un balayage de frères a été fait. Aucun garde ne la signalait, aucun test ne rougissait, et la tuile affichait un nombre — donc rien ne ressemblait à une panne. ⚠️ Le défaut demandait DEUX conditions simultanées, ce qui est exactement pourquoi il survivait : une colonne mixte (un run en file d'attente) **et** un repli trop large. Corriger l'une des deux aurait suffi à le masquer sans le fermer.
