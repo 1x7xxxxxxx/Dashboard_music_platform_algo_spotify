@@ -88,7 +88,10 @@ _CEILINGS = {
     # −12 de plus le même jour : `la-frontière-avec-le-dehors` est à ZÉRO aussi
     # (18/18), récidive 23,5 %. Les DEUX familles les plus récidivistes du
     # catalogue sont désormais intégralement couvertes.
-    "scope_without_not_covered": 264,
+    # −15 de plus : `une-erreur-avalée-devient-une-absence` aussi (21/21),
+    # récidive 19 %. Les TROIS familles les plus récidivistes sont à zéro ;
+    # 48 portées écrites dans la séance, chacune en ouvrant son garde.
+    "scope_without_not_covered": 249,
     # ⚠️ Compteur NEUF le 2026-09-17, posé sur une question du propriétaire : « est-ce
     # qu'on a intégré la réflexion de savoir si l'erreur découverte peut être situéé
     # ailleurs dans le code ? ». La réponse mesurée était NON — 69 classes sur 395
