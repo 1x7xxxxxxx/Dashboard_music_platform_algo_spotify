@@ -100,7 +100,8 @@ _CEILINGS = {
     # −11 : `un-travail-qui-n-arrive-nulle-part` aussi (15/15), récidive 13,3 %.
     # −12 : `un-seuil-écrit-d-instinct` (8/8) et `un-coût-payé-sans-contrepartie`
     # (8/8), 12,5 % chacune. HUIT familles à zéro, 102 portées dans la séance.
-    "scope_without_not_covered": 195,
+    # −12 : `deux-surfaces-deux-nombres` entamée (12 sur 24), récidive 10,3 %.
+    "scope_without_not_covered": 183,
     # ⚠️ Compteur NEUF le 2026-09-17, posé sur une question du propriétaire : « est-ce
     # qu'on a intégré la réflexion de savoir si l'erreur découverte peut être situéé
     # ailleurs dans le code ? ». La réponse mesurée était NON — 69 classes sur 395

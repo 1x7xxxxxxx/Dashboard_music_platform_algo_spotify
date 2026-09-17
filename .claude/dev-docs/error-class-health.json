@@ -1678,7 +1678,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
@@ -2644,7 +2644,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2969,7 +2969,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3268,7 +3268,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-10",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3693,7 +3693,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4012,7 +4012,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
@@ -4037,8 +4037,8 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
-      "guard_scope_names_a_test": false,
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4477,7 +4477,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-17",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4500,7 +4500,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-17",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5715,7 +5715,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-21",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7122,7 +7122,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-06-01",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7259,7 +7259,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
@@ -7347,7 +7347,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-04",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7534,7 +7534,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
@@ -7734,7 +7734,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
@@ -8122,7 +8122,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8609,7 +8609,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
@@ -9023,7 +9023,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-23",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9035,8 +9035,8 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
-      "guard_scope_names_a_test": false,
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -9098,7 +9098,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-03",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9135,7 +9135,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
@@ -9185,8 +9185,8 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
-      "guard_scope_names_a_test": false,
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -9462,8 +9462,8 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
-      "guard_scope_names_a_test": false,
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -9739,8 +9739,8 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
-      "guard_scope_has_not_covered": false,
-      "guard_scope_names_a_test": false,
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -9891,7 +9891,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 236,
+      "catalogue_revisions": 237,
       "head_date": "2026-09-17"
     },
     "holes": {
@@ -9901,7 +9901,7 @@
       "scope_family_invalid": 0,
       "scope_on_a_shared_guard_without_naming_its_tests": 11,
       "scope_unknown": 0,
-      "scope_without_not_covered": 195,
+      "scope_without_not_covered": 183,
       "seen_red_never": 0,
       "seen_red_unknown": 331,
       "siblings_never_swept": 386
@@ -9969,20 +9969,20 @@
       "by_scope": {
         "ne-couvre-pas renseigné": {
           "events": 60,
-          "class_days": 4207,
-          "per_class_month": 0.4336,
+          "class_days": 4516,
+          "per_class_month": 0.4039,
           "ci95": [
-            0.3308,
-            0.5581
+            0.3082,
+            0.5199
           ]
         },
         "non renseigné": {
           "events": 0,
-          "class_days": 3790,
+          "class_days": 3481,
           "per_class_month": 0.0,
           "ci95": [
             0.0,
-            0.0294
+            0.032
           ]
         }
       },

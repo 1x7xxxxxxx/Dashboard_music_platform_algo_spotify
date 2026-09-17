@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**394 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (236 révisions du catalogue rejouées).
+**394 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (237 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
@@ -45,7 +45,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `scope_family_invalid` | 0 |
 | `scope_on_a_shared_guard_without_naming_its_tests` | 11 |
 | `scope_unknown` | 0 |
-| `scope_without_not_covered` | 195 |
+| `scope_without_not_covered` | 183 |
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 331 |
 | `siblings_never_swept` | 386 |
@@ -62,12 +62,12 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | by_guard · prose | 3 | 0.5595 | 0.1125 – 1.6348 | insuffisant pour conclure (n=60) |
 | by_seen_red · daté | 3 | 0.4701 | 0.0945 – 1.3735 | insuffisant pour conclure (n=60) |
 | by_seen_red · jamais-ou-inconnu | 57 | 0.2221 | 0.1682 – 0.2877 | insuffisant pour conclure (n=60) |
-| by_scope · ne-couvre-pas renseigné | 60 | 0.4336 | 0.3308 – 0.5581 | **séparent** |
-| by_scope · non renseigné | 0 | 0.0 | 0.0 – 0.0294 | **séparent** |
+| by_scope · ne-couvre-pas renseigné | 60 | 0.4039 | 0.3082 – 0.5199 | **séparent** |
+| by_scope · non renseigné | 0 | 0.0 | 0.0 – 0.032 | **séparent** |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
-⚠️ **La strate `by_scope` porte sur 199 classes de 394, soit 51 % du catalogue.** Les 195 autres n'ont pas de `ne couvre pas:` écrit, et **zéro récidive y est observée** — mais une récidive se compte en lignes d'HISTOIRE ajoutées. Une classe qu'on n'a jamais rouverte n'en gagne aucune, qu'elle soit saine ou seulement ignorée.
+⚠️ **La strate `by_scope` porte sur 211 classes de 394, soit 54 % du catalogue.** Les 183 autres n'ont pas de `ne couvre pas:` écrit, et **zéro récidive y est observée** — mais une récidive se compte en lignes d'HISTOIRE ajoutées. Une classe qu'on n'a jamais rouverte n'en gagne aucune, qu'elle soit saine ou seulement ignorée.
 
 Autrement dit : ce taux ne peut pas distinguer « écrire la portée protège » de « on ne regarde que là ». Il ne se cite pas comme s'il décrivait les 394 classes.
 

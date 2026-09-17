@@ -1369,7 +1369,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: test, ref: tests/test_compose_parity.py + tests/test_env_contract.py + prod-side parity check in tools/prod_introspect.sh }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — le fichier qui fait TOURNER la production est gitignoré (il porte des secrets), donc le gabarit versionné et la copie réelle divergent sans que rien ne les compare ; couvre: deux propriétés sur le GABARIT — tous les services attendus y sont, et chaque variable qu'il exige est documentée dans `.env.example` ; ne couvre pas: (1) **le geste voisin le plus proche, et c'est la classe elle-même — la COPIE réelle** : le garde lit `docker-compose.example.yml`, jamais le `docker-compose.yml` du VPS ; vérifié le 2026-09-17, cette copie n'épinglait aucune image alors que le gabarit venait d'être corrigé, et rien ne l'a signalé ; (2) les VALEURS des variables, seulement leur présence ; (3) les fichiers de surcharge (`deploy/*.yml`), hors périmètre ; (4) l'image RÉELLEMENT en service, distincte du fichier qui la décrit.
 - rex_ref: docs/adr/ADR-006-central-credential-model.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
@@ -1925,7 +1925,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `024` now opens with a `DO $$` block that returns immediately when `044`'s marker column (`time_window`) is present — it can no longer touch a schema it does not own. `019`'s two unguarded drops were hardened in the same sweep. `tests/test_migrations_are_replay_safe.py` parses every migration and rejects a `DROP` that carries neither `IF EXISTS` nor an enclosing guarded `DO` block, so the class cannot re-enter through a new file.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_migrations_are_replay_safe.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — une migration dont le premier énoncé est un `DROP` non gardé, rejouée seule, échoue alors que la séquence complète réussit ; couvre: par **quatre tests nommés de ce fichier partagé** — `test_no_unguarded_drop` (paramétré sur chaque migration du disque), `test_there_are_migrations_to_check` (un paramétrage vide ne prouve rien), `test_024_is_neutralised_once_044_has_run` (le cas réel) et `test_every_migration_on_disk_is_recorded_in_the_ledger` ; ne couvre pas: (1) **le geste voisin le plus proche — les autres énoncés non idempotents** : `ALTER TABLE ADD COLUMN` sans `IF NOT EXISTS`, `CREATE INDEX` sans garde, un `INSERT` de données de référence rejoué produisent le même échec au rejeu, et seul `DROP` est cherché ; (2) l'ORDRE — une migration idempotente peut quand même échouer si sa voisine n'a pas tourné ; (3) le rejeu sur une base dont le SCHÉMA a divergé, qui est `prod-canonical-schema-drift` ; (4) les migrations appliquées à la main, sans fichier.
 - rex_ref: tools/migrate.sh
 - first_seen: 2026-08-21
 - History:
@@ -2058,7 +2058,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the suppression carries its measured reason (`expected_silence`) next to the flag, and every surface that renders freshness gained a distinct third state — ⏸️ — that prints that reason. `platform_status` gained a `QUIET` status that outranks the row count but never the missing identity. The guard follows the reason at each hop: the pure status function, the wired readiness matrix, the view's actually-rendered table, the xcom payload, the email footer and the debug script. `stale` alone can no longer be read as "healthy" anywhere.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_expected_silence.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — un drapeau répond à UNE question (`stale=False` = « ne pas sonner ») et quatre lecteurs y lisent « tout va bien » ; couvre: cinq situations qui séparent les deux sens — aucune campagne active est un silence LÉGITIME, une campagne active rend le silence problématique, ne RIEN savoir des campagnes ne supprime jamais, une sonde en échec garde l'alerte, et une règle inconnue ne supprime jamais ; les trois dernières sont la même discipline : l'ignorance ne supprime pas ; ne couvre pas: (1) **le geste voisin le plus proche — les QUATRE lecteurs** : le garde corrige ce que le drapeau signifie, il ne vérifie pas que chaque surface l'interprète bien ; un cinquième lecteur retomberait dans le défaut ; (2) les autres drapeaux booléens qui portent deux sens — le dépôt a mesuré qu'un BOOLEAN ne peut pas exprimer l'absence ; (3) la formulation rendue à l'artiste ; (4) les règles de suppression elles-mêmes.
 - rex_ref: src/utils/freshness_monitor.py
 - first_seen: 2026-08-21
 - History:
@@ -2577,7 +2577,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the scope is `sorted(PLATFORM_IDENTITIES)`, and presence is judged by `declared_identities()` — the helper written for exactly this question. The guard fails if a literal list returns, if the audited set differs from the registry, or if a `not creds` truthiness test reappears (checked on the AST, because a text search matched the comment explaining why it is wrong).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_audit_scope_is_derived.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — un périmètre d'audit est RÉÉCRIT à la main au lieu d'être dérivé du registre, donc il compte quatre plateformes quand le registre en connaît plus ; couvre: quatre propriétés — le périmètre n'est PAS une liste écrite à la main, il couvre chaque plateforme que le registre connaît, la présence est jugée sur l'IDENTITÉ et non sur la ligne, et une ligne portant seulement un identifiant Instagram ne compte pas comme Meta ; les deux dernières empêchent de dériver correctement puis de mal compter ; ne couvre pas: (1) **le geste voisin le plus proche — les autres listes réécrites à la main** : c'est le motif le plus fréquent du catalogue, et seul le périmètre d'audit est dérivé ; `MONITORED_PLATFORMS` avait une sœur dans presque chaque garde écrit ce jour-là ; (2) le REGISTRE lui-même, supposé complet ; (3) les plateformes ajoutées hors registre ; (4) ce que l'audit FAIT de son périmètre.
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-08-22
 - History:
@@ -2653,7 +2653,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: both writers repointed at the live file; the frozen copy now announces itself as an ARCHIVE in its first line. The guard reads the **AST** of every `.claude/hooks/*.py` and `.claude/scripts/*.py` for DEVLOG *path* literals (a text search passes on the explanatory comment that names the wrong path — the lesson of the four hollow guards of 2026-08-22), and excludes prose strings that merely mention `DEVLOG.md`. The slash command has no AST, so it is guarded by its **consequence** instead of its wording: `test_the_archive_stays_behind` fails the moment the archive's newest entry reaches or passes the live file's, which is exactly what a promotion into the wrong file does.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_devlog_is_written_where_it_is_read.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — deux fichiers portent le même nom et le même rôle, et l'automatisation écrit dans celui que personne ne lit ; couvre: quatre propriétés — chaque outil Python pointe vers le journal VIVANT, ce journal est bien celui que `/resume` lit, l'archive reste en arrière, et elle DIT qu'elle est une archive (sans quoi la prochaine confusion serait invisible) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres paires de fichiers homonymes** : le dépôt en porte (la roadmap en deux fichiers, les documents générés et leur source), et seul le DEVLOG est vérifié ; (2) les outils non-Python — un script shell, un hook, une commande `make` peuvent viser la copie ; (3) la LECTURE humaine, qui peut aller au mauvais fichier quoi qu'il arrive ; (4) le contenu écrit, seulement sa destination.
 - rex_ref: .claude/commands/devlog-promote.md
 - first_seen: 2026-08-23
 - History:
@@ -2803,7 +2803,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the guard walks the AST of every file under `tools/` and requires a `sys.path` mutation strictly BEFORE the first `import src…`; a script with no app import is skipped, so the rule costs nothing to the tools that stay standalone. For a script that is itself the last link of an alert, the app import is additionally wrapped in `try/except ImportError` with a fallback that cannot leak (type name only, no message) — a broken import path must never be able to silence the alert it was added to protect.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_tool_script_can_actually_start.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — Python amorce `sys.path` avec le répertoire du SCRIPT, jamais le répertoire courant de l'appelant, donc un outil de `tools/` importe l'application chez son auteur et pas ailleurs ; couvre: tous les outils balayés et paramétrés, chacun important l'application devant poser la racine sur le chemin — plus `test_the_scope_is_not_empty` ; ⚠️ ce garde a attrapé `tools/dev/reopen_check.py` le 2026-09-17, quelques minutes après son écriture : la racine n'y était posée que sous `if __name__ == "__main__"`, donc l'outil démarrait en ligne de commande et cassait dès qu'on l'IMPORTAIT ; ne couvre pas: (1) **le geste voisin le plus proche — les autres suppositions sur l'environnement d'exécution** : un chemin relatif au répertoire courant, une variable d'environnement attendue, un fichier de configuration supposé présent cassent pareil selon d'où on lance ; (2) les scripts shell ; (3) l'ORDRE du chemin — poser la racine ne dit pas qu'elle gagne sur un paquet installé homonyme ; (4) les imports faits dans une fonction, qui échouent plus tard.
 - rex_ref: tools/notify_schema_drift.py
 - first_seen: 2026-08-23
 - History:
@@ -3373,7 +3373,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: le garde ne demande pas « docker a-t-il la clause ? » mais « **un** écosystème en est-il dépourvu ? ». Poser la question du jour aurait fermé un trou ; poser la question générale en a trouvé un **troisième** que personne ne cherchait (`github-actions`), et couvre par construction tout écosystème ajouté demain.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_no_ecosystem_auto_merges_a_major.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — une règle prudente est écrite pour UN écosystème et pas pour l'autre, donc une montée de majeure passe en automatique d'un côté ; couvre: **chaque** écosystème déclaré dans `.github/dependabot.yml`, paramétré par index, devant différer les majeures à un humain — plus `test_the_config_exists_and_declares_ecosystems`, qui refuse qu'un fichier vidé rende le paramétrage vide ; la dérivation depuis le fichier est ce qui empêche la classe : un écosystème ajouté demain entre automatiquement dans le garde ; ne couvre pas: (1) **le geste voisin le plus proche — les autres règles écrites pour un seul écosystème** : groupes de mise à jour, fréquence, destinataires de revue peuvent diverger pareil et ne sont pas comparés ; (2) les montées MINEURES, qui peuvent casser autant ; (3) les dépendances hors Dependabot (images Docker épinglées à la main, outils système) ; (4) ce qu'un humain FAIT de la revue différée.
 - rex_ref: .github/dependabot.yml
 - first_seen: 2026-08-24
 - History:
@@ -3431,7 +3431,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: soustraction plutôt que déduplication — la section la plus précise (celle qui nomme le champ à remplir) est conservée, l'autre ne montre que ce qu'elle n'a pas dit, et le sujet compte APRÈS. Surtout, le garde porte sur la RELATION (« ces deux contrôles lisent-ils toujours le même prédicat ? ») et non sur les nombres du jour : si l'un cesse d'être un sous-ensemble de l'autre, soustraire se mettrait à **cacher** des lignes, défaut bien pire que la redondance qu'on corrigeait.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_two_checks_one_question.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — deux contrôles répondent à la MÊME question et le rapport l'énonce deux fois, donc le lecteur croit à deux problèmes ; couvre: cinq propriétés — les deux contrôles lisent vraiment le même prédicat (la prémisse, sans quoi la soustraction serait fausse), la section soustrait ce qui a déjà été dit, la soustraction s'appuie sur la plateforme LOGIQUE et non sur son libellé, le retrait est ANNONCÉ (sans quoi on croirait à une disparition), et le sujet compte ce que la section montre ; ne couvre pas: (1) **le geste voisin le plus proche — les autres paires de contrôles qui se recouvrent** : `alert_monitor` en porte une quinzaine, et rien ne cherche systématiquement deux prédicats qui répondent à une même question ; (2) le recouvrement PARTIEL, où deux contrôles se chevauchent sans être identiques ; (3) l'ORDRE des sections, qui décide qui soustrait à qui ; (4) la lisibilité du résultat.
 - rex_ref: src/utils/artist_readiness.py
 - first_seen: 2026-08-26
 - History:
@@ -3625,7 +3625,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `tests/test_the_views_map_lists_every_view.py` paramétrise sur les vues réelles et vérifie les deux sens — chaque vue est nommée, aucune ligne ne survit à sa vue. Il contrôle la PRÉSENCE, jamais la qualité de la description : un garde qui jugerait la prose serait infalsifiable ou échouerait à chaque édition honnête, et serait supprimé dans la semaine. La présence est ce qui a réellement pourri. L'extraction est bornée à la section, parce que plusieurs de ces noms apparaissent ailleurs dans le fichier — un `in text` global aurait passé sur des vues que la carte ne liste pas, exactement la vacuité qui a laissé passer trois dérives.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_views_map_lists_every_view.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — un document décrit la carte des vues et personne ne le compare au répertoire, donc il dérive dans les deux sens ; couvre: les deux sens, ce qui est le point — chaque vue est nommée dans la carte (paramétré), et la carte ne nomme pas de vue DISPARUE ; plus `test_the_extraction_is_not_vacuous`, qui refuse une extraction qui ne trouverait rien ; ⚠️ la Views Map avait déjà divergé DEUX fois sans que rien ne le signale ; ne couvre pas: (1) **le geste voisin le plus proche — les autres diagrammes et inventaires de `architecture.md`** : le flux de données, l'inventaire des tables, les schémas Mermaid décrivent aussi le code et ne sont comparés à rien ; c'est le déclencheur de la règle 18, pas ce test ; (2) le CONTENU de ce que la carte dit d'une vue, seulement son nom ; (3) les vues atteignables mais absentes de `_NAV_SECTIONS` ; (4) les autres documents qui listent des vues.
 - rex_ref: .claude/dev-docs/architecture.md
 - first_seen: 2026-08-28
 - History:
@@ -4311,7 +4311,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: — (le garde EST le fix : la règle d'arbitrage est figée sur des états lisibles, avec les DEUX cas côte à côte — vestige d'URL sans miroir vs navigation interne avec miroir — pour qu'ils ne puissent plus se confondre).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_setup_landing_beats_a_stale_url.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — une constante ou un prédicat sert d'entrée à deux décisions qui ne posent pas la même question, et tant qu'elles coïncident personne ne le voit ; couvre: cinq propriétés qui séparent les deux usages — les pages de mise en route sont celles qu'une première arrivée peut CONSERVER, chacune est réellement atteignable, la décision de premier lancement est prise AVANT que l'URL soit honorée (l'ordre est le fond du sujet), le bloc d'URL consulte le drapeau, et un paramétrage croise page × premier lancement × honoré ; ne couvre pas: (1) **le geste voisin le plus proche — les autres constantes à double emploi** : une liste de plateformes qui sert à afficher ET à collecter, un ensemble de rôles qui sert à router ET à autoriser, partagent la cause et ne sont pas cherchés ; (2) le jour où les deux questions DIVERGERONT — le garde fige la séparation actuelle ; (3) les décisions prises hors de ce chemin ; (4) la JUSTESSE de chacune des deux réponses.
 - rex_ref: src/dashboard/app.py
 - first_seen: 2026-09-04
 - History:
@@ -6143,7 +6143,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_the_metrics_layer_only_grows.py -q >/dev/null 2>&1`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: tests/test_the_metrics_layer_only_grows.py — quatre tests : le plafond par plateforme, les deux plateformes propres nommées explicitement (« YouTube n'est plus à zéro » ne se discute pas, « Spotify passe de 33 à 34 » se discute), toute plateforme de fait doit avoir un plafond, et le plafond doit être SERRÉ. Mutations vues rouges le 2026-09-11 : un agrégat rogue ajouté à la page YouTube, un plafond desserré de 10, une plateforme ajoutée sans plafond.
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — la logique métier (« combien d'écoutes », « combien dépensé ») est recalculée hors de la couche de métriques, donc deux surfaces répondent deux nombres ; couvre: un cliquet par plateforme — aucune ne GAGNE une métrique calculée hors couche or, les plateformes propres restent propres, le plafond nomme chaque plateforme qui a des faits (sans quoi une plateforme neuve échapperait au décompte), et le plafond n'est pas LÂCHE ; ne couvre pas: (1) **le geste voisin le plus proche — les métriques calculées dans le PDF, l'API ou un DAG** : le cliquet porte sur les vues, et le même chiffre recalculé ailleurs échappe ; (2) les plateformes sans faits, hors décompte par construction ; (3) la JUSTESSE de la définition or, que le cliquet impose d'utiliser sans la juger ; (4) une vue qui lirait la couche or puis retransformerait le résultat.
 - rex_ref: docs/adr/ADR-019-*.md
 - first_seen: 2026-09-10
 - History:
@@ -6372,7 +6372,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_the_gold_layer_agrees_with_itself.py -q`
 - seen_red: 2026-09-12 (via la trace de mutation de `tests/test_the_gold_layer_agrees_with_itself.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_the_gold_layer_agrees_with_itself.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — une couche sémantique garantit qu'une métrique a UNE seule définition, et cette garantie n'est vérifiée par rien ; couvre: chaque invariant de la couche or, paramétré, vérifié sur les données RÉELLES — avec deux gardes du garde qui sont le cœur : `test_the_reconciliation_actually_compared_something` (un rapprochement sur zéro ligne est vert et ne prouve rien) et `test_every_invariant_names_the_defect_it_would_have_caught` (un invariant qui ne nomme aucun défaut n'a pas été pensé) ; ne couvre pas: (1) **le geste voisin le plus proche — les définitions qui n'ont PAS d'invariant** : la liste est écrite à la main, et une métrique ajoutée à la couche or sans invariant n'est comparée à rien ; (2) les définitions hors couche or, qui sont `a-metric-computed-outside-the-metrics-layer` ; (3) la JUSTESSE de la définition commune — deux surfaces peuvent coïncider sur un chiffre faux ; (4) sans Postgres, les invariants ne s'exécutent pas.
 - rex_ref: src/utils/gold_invariants.py
 - first_seen: 2026-09-12
 - History:
