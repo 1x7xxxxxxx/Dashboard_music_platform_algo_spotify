@@ -357,7 +357,17 @@ _CEILINGS = {
     # lit dans l'environnement. Un déploiement à UN proxy qui oublierait de le poser
     # retomberait sur le pair socket — le côté SÛR — mais dégraderait la granularité
     # du limiteur sans le dire.
-    "siblings_never_swept": 169,
+    # 169 → 164 le 2026-09-17 : `une-configuration-qui-diverge-de-la-prod`.
+    # Méthode appliquée deux fois : poser les DEUX MOITIÉS de la question
+    # séparément. Pour les adresses d'écoute, l'outil dit exit 0 ET le motif
+    # inverse (`0.0.0.0:`) ne rend rien — les 8 publications de port du dépôt sont
+    # toutes sur `127.0.0.1`.
+    #
+    # ⚠️ Le garde du superutilisateur porte SIX propriétés, dont cinq lisent des
+    # FICHIERS et une seule interroge la BASE (« le rôle vivant tient ses bornes »).
+    # Cette dernière SKIPPE sans Postgres joignable : en CI sans base, le garde ne
+    # vérifie que des fichiers, ce qui ne dit rien de la prod.
+    "siblings_never_swept": 164,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
