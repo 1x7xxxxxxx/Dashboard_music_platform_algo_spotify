@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**395 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (246 révisions du catalogue rejouées).
+**395 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (247 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
@@ -29,7 +29,7 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 |---|---|
 | `automatic_guard` | 385 |
 | `classes` | 395 |
-| `ever_recurred_observed` | 49 |
+| `ever_recurred_observed` | 50 |
 | `prose_only` | 10 |
 | `with_signature` | 384 |
 
@@ -52,17 +52,17 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 ## Récidive observée
 
-**60 évènements** sur 7997 classe-jours d'exposition — **0.2281** par classe-mois (IC 95 % : 0.174 – 0.2936)
+**61 évènements** sur 7997 classe-jours d'exposition — **0.2319** par classe-mois (IC 95 % : 0.1774 – 0.2979)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 57 | 0.2212 | 0.1675 – 0.2866 | insuffisant pour conclure (n=60) |
-| by_guard · prose | 3 | 0.5595 | 0.1125 – 1.6348 | insuffisant pour conclure (n=60) |
-| by_seen_red · daté | 3 | 0.4701 | 0.0945 – 1.3735 | insuffisant pour conclure (n=60) |
-| by_seen_red · jamais-ou-inconnu | 57 | 0.2221 | 0.1682 – 0.2877 | insuffisant pour conclure (n=60) |
-| by_scope · ne-couvre-pas renseigné | 60 | 0.2281 | 0.174 – 0.2936 | une seule strate peuplée (n=60) |
+| by_guard · automatique | 58 | 0.2251 | 0.1709 – 0.291 | insuffisant pour conclure (n=61) |
+| by_guard · prose | 3 | 0.5595 | 0.1125 – 1.6348 | insuffisant pour conclure (n=61) |
+| by_seen_red · daté | 3 | 0.4701 | 0.0945 – 1.3735 | insuffisant pour conclure (n=61) |
+| by_seen_red · jamais-ou-inconnu | 58 | 0.226 | 0.1716 – 0.2921 | insuffisant pour conclure (n=61) |
+| by_scope · ne-couvre-pas renseigné | 61 | 0.2319 | 0.1774 – 0.2979 | une seule strate peuplée (n=61) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
