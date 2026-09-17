@@ -1,7 +1,7 @@
 {
   "classes": {
     "a-bash-hook-that-blocks-the-prose-about-the-gesture": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_bash_guard_reads_the_command_not_the_prose.py",
@@ -76,7 +76,7 @@
       "renamed_from": null
     },
     "a-blocking-hook-that-writes-its-reason-to-stdout": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-16",
       "guard_automatic": true,
       "guard_ref": ".claude/hooks/pre_commit_scan.py",
@@ -149,7 +149,7 @@
       "renamed_from": null
     },
     "a-caption-written-beside-the-behaviour-instead-of-derived-from-it": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_legend_says_what_the_figure_shows.py",
@@ -224,7 +224,7 @@
       "renamed_from": null
     },
     "a-cold-measurement-that-clears-caches-by-name": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-16",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_page_asks_the_same_question_once.py",
@@ -647,7 +647,7 @@
       "renamed_from": null
     },
     "a-fabricated-zero-mailed-as-a-measurement": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_digest_never_mails_a_fabricated_zero.py",
@@ -795,7 +795,7 @@
       "renamed_from": null
     },
     "a-filtered-test-run-proves-nothing": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-11",
       "guard_automatic": false,
       "guard_ref": null,
@@ -821,7 +821,7 @@
       "renamed_from": null
     },
     "a-first-bucket-declared-unknown-when-it-was-observed": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_every_way_of_asking_gives_one_answer.py",
@@ -2174,7 +2174,7 @@
       "renamed_from": null
     },
     "a-ratchet-that-only-watches-the-direction-it-was-burned-in": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-16",
       "guard_automatic": true,
       "guard_ref": "tests/test_roadmap_two_files.py",
@@ -2274,7 +2274,7 @@
       "renamed_from": null
     },
     "a-reload-that-does-not-reload-what-you-changed": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-09-16",
       "guard_automatic": false,
       "guard_ref": "deploy/host/README.md",
@@ -2374,7 +2374,7 @@
       "renamed_from": null
     },
     "a-repair-that-reverts-what-a-successor-widened": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-09-16",
       "guard_automatic": true,
       "guard_ref": "tests/test_migrations_are_replay_safe.py",
@@ -2661,7 +2661,8 @@
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-12"
+        "2026-09-12",
+        "2026-09-17"
       ],
       "kind": "deterministic",
       "seen_red": "unknown",
@@ -3072,7 +3073,7 @@
       "renamed_from": null
     },
     "a-verdict-computed-from-a-value-nobody-read": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_roi_never_states_a_verdict_it_did_not_measure.py",
@@ -3523,7 +3524,7 @@
       "renamed_from": null
     },
     "an-aggregate-computed-in-pandas-escapes-every-sql-guard": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_total_is_computed_where_a_guard_can_see_it.py",
@@ -3698,7 +3699,7 @@
       "renamed_from": null
     },
     "an-exemption-that-outlives-what-it-exempted": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_visual_rules_only_tighten.py",
@@ -3876,7 +3877,7 @@
       "renamed_from": null
     },
     "api-router-schema-drift": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-06-13",
       "guard_automatic": true,
       "guard_ref": "tests/test_api_db_smoke.py",
@@ -4130,7 +4131,7 @@
       "renamed_from": null
     },
     "bom-survives-the-encoding-fallback": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_csv_is_recognised_whatever_its_encoding.py",
@@ -4155,7 +4156,7 @@
       "renamed_from": null
     },
     "boundary-narrower-than-the-surface": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-23",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_error_boundary_covers_everything.py",
@@ -4180,7 +4181,7 @@
       "renamed_from": null
     },
     "boundary-wider-than-its-docstring": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-28",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_no_wait_boundary_stays_narrow.py",
@@ -4280,7 +4281,7 @@
       "renamed_from": null
     },
     "cache-not-invalidated-by-the-event-that-stales-it": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-30",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_trigger_invalidates_what_it_makes_stale.py",
@@ -4530,7 +4531,7 @@
       "renamed_from": null
     },
     "code-ships-without-a-trace": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-28",
       "guard_automatic": true,
       "guard_ref": "tests/test_code_without_a_trace_is_flagged.py",
@@ -4658,7 +4659,7 @@
       "renamed_from": null
     },
     "compose-omits-a-package-the-dags-import": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-26",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_compose_mounts_what_the_dags_import.py",
@@ -4708,7 +4709,7 @@
       "renamed_from": null
     },
     "config-not-env": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-06-13",
       "guard_automatic": true,
       "guard_ref": ".claude/skills/dashboard-view/SKILL.md",
@@ -4759,7 +4760,7 @@
       "renamed_from": null
     },
     "config-status-file-unrendered": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-03",
       "guard_automatic": true,
       "guard_ref": "tests/test_roadmap_two_files.py",
@@ -4913,7 +4914,7 @@
       "renamed_from": null
     },
     "content-rendered-outside-its-container": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-30",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_tab_renders_inside_its_tab.py",
@@ -5142,7 +5143,7 @@
       "renamed_from": null
     },
     "ddl-resurrects-a-migrated-fix": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-11",
       "guard_automatic": true,
       "guard_ref": "tests/test_uniqueness_names_its_tenant.py",
@@ -5292,7 +5293,7 @@
       "renamed_from": null
     },
     "detection-keyed-on-the-filename": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_csv_is_recognised_whatever_its_encoding.py",
@@ -5367,7 +5368,7 @@
       "renamed_from": null
     },
     "dev-doc-nothing-points-at": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-28",
       "guard_automatic": true,
       "guard_ref": "tests/test_every_dev_doc_is_reachable.py",
@@ -5417,7 +5418,7 @@
       "renamed_from": null
     },
     "download-payload-rebuilt-per-rerun": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-30",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_download_is_built_on_click_not_on_rerun.py",
@@ -5669,7 +5670,7 @@
       "renamed_from": null
     },
     "finding-computed-but-never-sent": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_every_alert_check_reaches_the_email.py",
@@ -5921,7 +5922,7 @@
       "renamed_from": null
     },
     "guard-matches-its-own-comment": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-04",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_guard_reads_structure_not_text.py",
@@ -6122,7 +6123,7 @@
       "renamed_from": null
     },
     "header-announces-a-field-the-form-does-not-have": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_form_only_claims_what_it_has.py",
@@ -6172,7 +6173,7 @@
       "renamed_from": null
     },
     "helper-closes-a-connection-it-did-not-open": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-30",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_render_opens_one_connection.py",
@@ -6574,7 +6575,7 @@
       "renamed_from": null
     },
     "layout-keyed-by-a-hand-written-list": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_csv_types_are_laid_out_by_family.py",
@@ -6624,7 +6625,7 @@
       "renamed_from": null
     },
     "local-db-drifts-from-canonical": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-21",
       "guard_automatic": true,
       "guard_ref": ".claude/dev-docs/runbook-actions-utilisateur.md",
@@ -6674,7 +6675,7 @@
       "renamed_from": null
     },
     "mandatory-filter-with-no-guard": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-23",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_total_row_is_always_filtered_out.py",
@@ -6975,7 +6976,7 @@
       "renamed_from": null
     },
     "multitenant-mono-test-blindspot": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-06-19",
       "guard_automatic": true,
       "guard_ref": null,
@@ -7152,7 +7153,7 @@
       "renamed_from": null
     },
     "on-conflict-target-without-index": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-11",
       "guard_automatic": true,
       "guard_ref": "tests/test_an_upsert_targets_an_index_that_exists.py",
@@ -7202,7 +7203,7 @@
       "renamed_from": null
     },
     "one-guide-three-sources": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-04",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_two_language_guides_stay_in_step.py",
@@ -7427,7 +7428,7 @@
       "renamed_from": null
     },
     "page-that-restates-what-the-app-already-shows": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_views_map_lists_every_view.py",
@@ -7452,7 +7453,7 @@
       "renamed_from": null
     },
     "page-window-answers-a-per-entity-question": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-30",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_dag_monitor_sees_every_dag.py",
@@ -7752,7 +7753,7 @@
       "renamed_from": null
     },
     "prod-compose-drift": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-06-19",
       "guard_automatic": true,
       "guard_ref": "tests/test_compose_parity.py",
@@ -8027,7 +8028,7 @@
       "renamed_from": null
     },
     "row-existence-read-as-connection": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_connected_means_declared.py",
@@ -8178,7 +8179,7 @@
       "renamed_from": null
     },
     "selector-blind-to-the-import-prefix": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-28",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_selector_selects_what_changed.py",
@@ -8454,7 +8455,7 @@
       "renamed_from": null
     },
     "state-file-accumulates-its-own-history": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-08-28",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_resume_header_is_checked.py",
@@ -8552,7 +8553,7 @@
       "renamed_from": null
     },
     "streamlit-pin-drift": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-05-15",
       "guard_automatic": true,
       "guard_ref": ".github/workflows/ci.yml",
@@ -8602,7 +8603,7 @@
       "renamed_from": null
     },
     "suite-runs-against-one-tenant": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-21",
       "guard_automatic": true,
       "guard_ref": "tests/test_suite_runs_against_two_tenants.py",
@@ -8678,7 +8679,7 @@
       "renamed_from": null
     },
     "tenant-identity-reaches-a-url-unvalidated": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-22",
       "guard_automatic": true,
       "guard_ref": "tests/test_credentials_security.py",
@@ -8803,7 +8804,7 @@
       "renamed_from": null
     },
     "tests-run-a-different-core-than-prod": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-30",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_tests_run_the_airflow_production_runs.py",
@@ -8853,7 +8854,7 @@
       "renamed_from": null
     },
     "the-feature-exists-and-the-path-never-reaches-it": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-23",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_label_signed_artist_is_collectable.py",
@@ -8953,7 +8954,7 @@
       "renamed_from": null
     },
     "the-page-that-tells-you-what-to-do-is-unreachable": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-23",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_setup_guide_is_reachable.py",
@@ -9003,7 +9004,7 @@
       "renamed_from": null
     },
     "timestamptz-parsed-across-a-dst-change": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-30",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_timestamptz_column_survives_daylight_saving.py",
@@ -9254,7 +9255,7 @@
       "renamed_from": null
     },
     "two-generations-of-rows-in-one-fact-table": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_total_is_computed_where_a_guard_can_see_it.py",
@@ -9329,7 +9330,7 @@
       "renamed_from": null
     },
     "two-silences-one-message": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_legend_says_what_the_figure_shows.py",
@@ -9380,7 +9381,7 @@
       "renamed_from": null
     },
     "two-widgets-for-one-gesture": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_there_is_one_place_to_drop_a_file.py",
@@ -9455,7 +9456,7 @@
       "renamed_from": null
     },
     "unattributable-payment-link": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-23",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_tenant_scoped_action_names_its_tenant.py",
@@ -9530,7 +9531,7 @@
       "renamed_from": null
     },
     "unregistered-write-table": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-05-15",
       "guard_automatic": true,
       "guard_ref": "tests/test_allowed_tables_coverage.py",
@@ -9732,7 +9733,7 @@
       "renamed_from": null
     },
     "view-state-outlives-the-visit": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_assistant_reopens_on_its_first_step.py",
@@ -9757,7 +9758,7 @@
       "renamed_from": null
     },
     "views-map-drifts-from-the-views": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-28",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_views_map_lists_every_view.py",
@@ -9858,7 +9859,7 @@
       "renamed_from": null
     },
     "write-path-without-cache-invalidation": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-11",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_write_path_purges_the_cache_it_invalidates.py",
@@ -9921,7 +9922,7 @@
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 241,
+      "cause_unknown": 183,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
       "scope_on_a_shared_guard_without_naming_its_tests": 15,

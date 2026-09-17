@@ -78,7 +78,27 @@ _CEILINGS = {
     # est du budget pour régresser en silence.
     "seen_red_unknown": 331,          # 363 → 352 (n-a) → 332 (phase B : traces de mutation)
     "seen_red_never": 0,
-    "cause_unknown": 241,             # 363 → 241 : les causes qui nomment un chemin vérifiable
+    # 363 → 241 : les causes qui nomment un chemin vérifiable.
+    # 241 → 183 le 2026-09-17 : les **58** classes dont le `root_cause` cite un fichier
+    # ont été vérifiées UNE PAR UNE, en ouvrant le site et en cherchant soit le mécanisme
+    # décrit, soit son correctif. 56 en `read`, 2 en `measured` (une mesure d'infra et un
+    # `wc -c`).
+    #
+    # ⚠️ **Deux des 58 adresses étaient PÉRIMÉES**, et c'est le résultat le plus utile de
+    # la passe : `bom-survives-the-encoding-fallback` nommait
+    # `views/upload_csv.py::_read_headers`, qui vit maintenant dans
+    # `utils/csv_serialization.py` ; `download-payload-rebuilt-per-rerun` nommait
+    # `views/process_guide.py`, SUPPRIMÉ. Dans les deux cas la cause est juste et son
+    # adresse ne l'est plus — c'est `a-signature-anchored-on-a-location` appliquée au
+    # champ `root_cause`, que sa signature ne couvre pas (elle ne cherche qu'un numéro de
+    # ligne). Le `cause_evidence` de ces deux classes le dit à l'endroit où on le lira.
+    #
+    # ⚠️ Les **183** qui restent n'ont AUCUNE ancre vers du code : les étiqueter demande
+    # de retrouver la cause d'abord, pas de la relire. C'est pourquoi ce compteur ne se
+    # comble pas en écrivant, et pourquoi `cause_inferred` reste crânté à 0 — marquer en
+    # masse « plausible, non vérifié » ferait baisser CE compteur en faisant monter
+    # l'autre, et la mutation n° 3 de ce fichier refuse ce troc.
+    "cause_unknown": 183,
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
     # −21 le 2026-09-17 : la famille `le-locataire` est à ZÉRO (42/42). Choisie la

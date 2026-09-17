@@ -838,6 +838,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 tools/dev/check_manifest_consistency.py`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: three manifests (`pyproject.toml`, `requirements.txt`, `uv.lock`) each state the same pin, and nothing compared them — the Dockerfile installs from one, the dev venv from another.
+- cause_evidence: read (`tools/dev/check_manifest_consistency.py` est appelé aux DEUX endroits qui comptent — `Makefile:505` et `.github/workflows/ci.yml:157`, en étape bloquante. Les trois manifestes sont donc comparés, ce qui est le correctif décrit. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: one manifest is canonical (`pyproject.toml`) and the others are DERIVED from it; until they are, `check_manifest_consistency.py` blocking in CI is the fix.
 - autofix: safe
@@ -1000,6 +1001,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -c "import re,pathlib,sys; ph=pathlib.Path('src/database/postgres_handler.py').read_text(); a=set(re.findall(r\"'([a-z0-9_]+)'\", re.search(r'_ALLOWED_TABLES = frozenset\(\{(.*?)\}\)', ph, re.S).group(1))); bad={m.group(1) for p in pathlib.Path('src').rglob('*.py') for m in re.finditer(r'(?:upsert_many|insert_many)\(\s*[\\'\\\"]([a-z0-9_]+)', p.read_text(errors='ignore'))}-a; sys.exit(1 if bad else 0)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: the write allowlist in `postgres_handler.py` and the tables a collector writes are two lists maintained by different people at different times.
+- cause_evidence: read (`src/database/postgres_handler.py:15-17` porte `_ALLOWED_TABLES` et la ligne 229 lève sur une table absente. La liste et les tables qu'un collecteur écrit restent bien DEUX listes distinctes — la cause décrite est encore la structure du code. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `tests/test_allowed_tables_coverage.py` derives one from the other and fails on divergence, so adding a table to a collector fails CI until it is registered.
 - autofix: none
@@ -1201,6 +1203,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_api_db_smoke.py -q` (DB-gated: runs every data endpoint against the real schema with a forged admin+tenant token, asserts no 500; skips cleanly with no provisioned Postgres)
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `test_api.py` mocks the database, so a router can SELECT a column that no longer exists and still pass every test it has.
+- cause_evidence: read (`tests/test_api.py:46` — `_mock_db` rend un `MagicMock`, et la docstring du fichier le dit : « The DB dependency is overridden with a mock PostgresHandler-like object ». Un routeur peut donc lire une colonne disparue et rester vert. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `tests/test_api_db_smoke.py` hits every data endpoint against the real schema; a mocked suite alone cannot see this class.
 - autofix: none
@@ -1238,6 +1241,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `! grep -rnE "config(_loader\.load\(\))?\[" src/database/*_schema.py`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `config.yaml` exists in dev and not in prod, so `config['x']` is correct on the machine where the code is written and a `KeyError` on the machine where it runs.
+- cause_evidence: read (`src/utils/config_loader.py:70-78` — tous les accès passent par `self._config.get('<section>', {})`, jamais par `config['x']` : le `KeyError` que la classe décrit ne peut plus se produire à ce niveau. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: env-first resolution with config.yaml as the local fallback (the `_smtp_config()` shape), so the dev path is the exceptional one.
 - autofix: none
@@ -1364,6 +1368,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: heuristic
 - symptom: the live prod `docker-compose.yml` is UNTRACKED (gitignored) and hand-derived, so it silently diverges from the canonical `docker-compose.example.yml` — a service or env var present in the template is missing on prod (or vice-versa). No test sees it; surfaces only when a user hits the gap. Root structural cause of `env-not-wired-to-service`.
 - root_cause: the file that actually runs production is gitignored — it holds secrets, so it cannot be tracked — and the tracked `docker-compose.example.yml` is only a template someone copies once. Nothing compares the two afterwards, and the divergence is invisible from either side: CI reads the example, prod reads its own copy, and no test can reach both at the same time.
+- cause_evidence: read (`Makefile:583-590` — `sync-check` existe et la note dit ce qu'il prouve et ce qu'il ne prouve pas : « `sync-check` proves the repo copy MATCHES what prod serves; nothing … ». Le fichier qui tourne reste gitignoré, donc la cause décrite est toujours la structure du dépôt. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: parity is asserted on the two things a test CAN see — `tests/test_compose_parity.py` (every `${VAR}` of the example is documented in `.env.example`, all services present) and `tests/test_env_contract.py` (code reading an env var ⊆ the service block that declares it, transitive reads included since 2026-08-20). What no local test can see — prod's own copy — is read by `tools/prod_introspect.sh` (SET/MISSING per container) and must be run when a variable is added.
 - signature: `python3 -m pytest tests/test_compose_parity.py tests/test_env_contract.py -q`
@@ -1403,6 +1408,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - symptom: every smoke/integration test runs with `artist_id=1` only → a bug that appears only for tenant #2 (per-tenant SQL scoping, NULL handling, missing identity, fleet-poisoning) ships green. The whole Benken incident class was invisible because nothing exercised a second/new tenant.
 - seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - root_cause: artist 1 is the admin — the tenant with years of data, every identity declared, and (as admin) no SQL scoping applied at all. It is the single configuration in which a tenant bug CANNOT appear, and it was the only one under test. Worse, the suite only ever exercised the READ path: `test_tenant_isolation.py` tests the SQL filter, nothing tested which tenant a row is written under.
+- cause_evidence: read (`tests/test_canary_onboarding_walk.py` parcourt l'onboarding d'un locataire SYNTHÉTIQUE (`walk-canary-%`), distinct de l'artiste 1 et du canari de production de R20 que le fichier mentionne lignes 16-22. La configuration unique sous test a donc cessé de l'être. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: two tenants, and the write path. `tests/test_e2e_two_tenants.py` runs the real DAG collection functions with the platform HTTP layer stubbed so the response DEPENDS on the identity requested — a row of A under B's `artist_id` is then directly observable. `test_views_render_smoke.py` gained a non-admin pass over an empty tenant (the day-one state), and `test_signup_funnel_db.py` covers account creation. Proven: 7 red on the pre-fix tree, 9 green after.
 - autofix: none
@@ -1439,6 +1445,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: a file the tooling treats as the status source is an un-expanded bootstrap template — literal `$(date +%Y-%m-%d)`, `TODO: fill in` — so every reader of it reports a clean state that was never measured.
 - root_cause: the path resolves, so a path-existence guard passes. Existence was checked; content was not. `.claude/dev-docs/ROADMAP.md` (deleted 2026-08-03)
+- cause_evidence: read (`.claude/dev-docs/ROADMAP.md` n'existe effectivement plus — le site cité a été supprimé, et la classe est désormais gardée par `tests/test_roadmap_two_files.py`, qui compare des CONTENUS et non des existences de chemin. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: the status files carry a measured item floor — `tests/test_roadmap_two_files.py`. A template state has zero items and fails it, so "resolves" can no longer be mistaken for "carries anything".
 - signature: `python3 -m pytest tests/test_roadmap_two_files.py -q`
@@ -1841,6 +1848,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: manual
 - symptom: tests pass in CI and against a throwaway database, and fail on the developer's own machine — with type errors, not logic errors.
 - root_cause: `make schema-check` compares PRODUCTION against canonical (`init_db.sql` + `migrations/*.sql`). Nothing compares the LOCAL development database, which predates several migrations and drifted silently. Measured 2026-08-21: `soundcloud_tracks_daily.track_id` was `bigint` locally against `VARCHAR(50)` canonical, breaking 7 tests with `invalid input syntax for type bigint`.
+- cause_evidence: read (`Makefile:554` et `:560` — `schema-check` vise la PROD et `schema-check-local` a été ajoutée pour la base locale, avec en aide « the drift no CI run can see ». Les deux cibles coexistent, ce qui est l'asymétrie décrite et son correctif. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `make schema-check PROD_SSH=<user@host>` — compares prod only; the local comparison is the gap this class names
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -1939,6 +1947,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: the whole suite is green, CI is green, and multi-tenant defects ship anyway. They surface later, in front of a real artist, as "connected but no data".
 - root_cause: a fresh canonical database (`init_db.sql` + every migration) contains exactly ONE tenant — `Artist Default` — and that is what CI has always tested against. With one tenant, "collect for this tenant" and "collect for the whole fleet" return the same rows, so every isolation defect reads as correct behaviour. Measured 2026-08-21: three real defects were found within an hour of a second tenant existing (`identity-mirrored-but-written-once`, `api-partial-date-into-date-column`, `dag-conf-honoured-by-one-task-only`), and NONE of them was reachable before that.
+- cause_evidence: read (`tests/test_suite_runs_against_two_tenants.py` existe et passe le 2026-09-17. La configuration à un seul locataire, où « collecter pour ce locataire » et « collecter pour la flotte » rendent la même chose, n'est donc plus la seule sous test)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_suite_runs_against_two_tenants.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -2216,6 +2225,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_connected_means_declared.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: four surfaces, four variants of the same shortcut. `credentials/_render.py::_render_global_kpi` used `platform_key in existing`; `views/onboarding.py::_get_configured_platforms` used `{r[0] for r in rows}`; `utils/setup_focus.py::connected_platforms` used `set(rows or {})`; `views/home.py::_section_onboarding` ticked the WHOLE credentials step on `COUNT(*) FROM artist_credentials` — one row, any platform. The Meta row makes it sharper: it carries two identities, so a row holding only `ig_user_id` counted as Meta-connected. And Spotify could manufacture exactly such a row — `_render.py` re-wrote `extra['spotify_artist_id']` after the empty-value pop, making it the one platform able to persist `{"spotify_artist_id": ""}`.
+- cause_evidence: read (`src/dashboard/utils/setup_focus.py:19-33` — `connected_platforms` passe désormais par `declared_identities` et sa docstring conserve le défaut mot pour mot : « "Connected" means an IDENTITY was declared, not that a row exists. `set(rows)` counted a tab the artist opened and saved blank ». Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `tenant_identity.declared_identities()` — pure, no DB, no Streamlit — is the single answer to "what has this tenant declared", and all four surfaces call it. `home.py` keeps its single round-trip but counts rows carrying a non-empty identity, with the field names bound as a parameter array derived from the registry (never interpolated).
 - autofix: none
@@ -2262,6 +2272,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_credentials_security.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - root_cause: `ig_user_id` is a plain `st.text_input` (`_registry.py`) saved with no format check, and `_probe_instagram` built `f'{META_GRAPH_BASE_URL}/{ig_user_id}'` with `params={'access_token': <SYSTEM USER TOKEN>}`. Setting it to `me/accounts` produced `https://graph.facebook.com/v24.0/me/accounts?access_token=…`; the 200-with-no-`username` branch then returned `ri.text[:150]` — and `/me/accounts` answers with Page access tokens minted from that System User token, rendered to a non-admin by `st.error`. Verified 2026-08-22 that `requests` leaves the `/` unencoded.
+- cause_evidence: read (`src/dashboard/views/credentials/_registry.py:173-182` — le champ `ig_user_id` attend désormais un LIEN de profil et c'est `_handle_save` qui résout par `business_discovery`, « la résolution porte sur la VALEUR, jamais sur l'onglet ». L'identité ne part plus telle quelle dans une URL. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: the identity registry gained a `pattern` per platform and `identity_is_well_formed()` / `malformed_identities()`; the save path refuses a malformed value before writing, and every probe refuses before the network. `re.fullmatch`, never `match` — `match` accepts `123/me/accounts`, which is the whole attack. No probe echoes a raw response body any more.
 - autofix: none
@@ -2720,6 +2731,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: a rule stated in bold in `CLAUDE.md` is enforced by memory alone. It holds for months, then one query forgets it and the number shown to a user is silently wrong by a factor of ~2.
 - root_cause: Spotify for Artists CSVs carry a summary row whose `song` is the artist's own name, so every read of `s4a_song_timeline` must add `AND song NOT ILIKE '%1x7xxxxxxx%'`. The 2026-06-11 audit found two unfiltered queries in `trigger_algo/_tab_budget_roi.py` and the displayed cost per stream had been halved. **The two sites were fixed and no guard was written.** Measured 2026-08-23: the table is named 109 times across `src/` and `airflow/`, the filter appears 30 times, and `data_quality_check.py` queries it five times with the filter zero times.
+- cause_evidence: read (`tests/test_the_total_row_is_always_filtered_out.py` existe et passe — 44 tests, dont `test_a_read_of_the_timeline_excludes_the_total_row` paramétré par fichier et `test_the_detector_recognises_the_defect_it_is_written_for`. Les deux lectures restantes de `_tab_global.py:248,253` filtrent par `song = %s`, une forme que le détecteur accepte. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_total_row_is_always_filtered_out.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -2834,6 +2846,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un client paie et n'est jamais provisionné. Le paiement réussit côté Stripe, le webhook renvoie 200, et le compte reste sur son ancien plan. Rien n'échoue nulle part : ni la vue, ni le webhook, ni un test.
 - root_cause: les deux surfaces de paiement construisaient l'URL du Payment Link en `f"{checkout_url}?client_reference_id={_aid}" if _aid else checkout_url`, donc une session ayant perdu son identifiant de locataire rendait quand même un bouton **payable**, sans le paramètre qui nomme le bénéficiaire. En face, `stripe_webhook.py:140` exécute `if artist_id and customer_id:` — sans `client_reference_id`, il ne fait RIEN et sort en 200. Mesuré 2026-08-23 (R40) sur `views/upgrade.py:125` et `views/billing.py:244`, trouvés ensemble par balayage de la classe.
+- cause_evidence: read (`src/dashboard/views/billing.py:250-256` — le bouton payable n'est rendu que `if _aid:`, et la branche `else` affiche un bouton DÉSACTIVÉ plus une erreur. Le commentaire 243-248 conserve la mesure du 2026-08-23 : les deux surfaces dégradaient vers `checkout_url` nu. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_tenant_scoped_action_names_its_tenant.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -2924,6 +2937,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: une frontière d'exception EXISTE, elle est documentée, elle fonctionne — et le défaut passe quand même, parce qu'elle n'entoure qu'une partie du code. Le symptôme est indiscernable d'une absence de frontière, sauf sur les chemins couverts.
 - root_cause: `app.py` portait un « central view guard » autour de `_render_page` seulement, soit **10 des 90 lignes** de `main()`. Les 80 restantes portaient huit appels de vue, dont les surfaces **non authentifiées** : page vie privée, onboarding, barres latérales. Mesuré end-to-end dans un navigateur le 2026-08-23 avec `showErrorDetails=full` (la valeur EFFECTIVE en production ce jour-là, faute d'avoir été réglée) : une exception sur ces chemins rendait dans la page la clé API YouTube en clair — elle voyage dans la query string, donc dans le message de l'exception — plus les chemins de fichiers et le code.
+- cause_evidence: read (`src/dashboard/app.py:679-698` — la frontière porte désormais sur tout `main()`, et le commentaire conserve le chiffre du défaut : « 10 des 90 lignes ». Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_error_boundary_covers_everything.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -2979,6 +2993,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: l'utilisateur ne sait pas quoi faire, et la page qui le lui dirait existe — mais aucun chemin de l'application n'y mène. Rien ne casse, rien ne lève : une page injoignable est silencieuse.
 - root_cause: `views/onboarding.py`, seule surface portant la sélection par plateforme et la matrice, n'était dans **aucune section de `_NAV_SECTIONS`** et n'était pas une clé de page valide. Il n'était joignable que par le lien profond `?page=onboarding`, produit à deux endroits : l'écran post-inscription et l'e-mail de vérification. **Mail fermé, onglet fermé : la page n'existait plus.** Et sur l'accueil, les quatre étapes de mise en route nommaient leur destination sans y mener — `for done, label, _page in steps:`, la clé liée puis jetée, rendue en `st.markdown`. Enfin l'atterrissage était inconditionnel sur `home`, qui pour un artiste neuf est un tableau d'état vide.
+- cause_evidence: read (`src/dashboard/app.py` — `onboarding` est désormais dans `_SETUP_PAGES` (221) et `_LANDING_LINKS` (238), routé ligne 927, et `_landing_page()` (215) peut y envoyer d'elle-même. Elle n'est plus joignable par le seul lien profond. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_setup_guide_is_reachable.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3033,6 +3048,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un utilisateur ne peut pas faire une chose que le produit sait faire. La fonctionnalité est écrite, testée, documentée — et le chemin qui y mène s'arrête avant. Rien n'échoue : le journal dit « sauté », avec une raison exacte.
 - root_cause: `soundcloud_daily.py` sautait le locataire dès que `user_id` était vide, **avant** d'avoir lu ses titres déclarés, et le constructeur du collecteur levait sur le même critère. Or pour un artiste signé sur un label, le profil personnel n'existe pas et n'existera jamais : l'unité collectable est le TITRE, et `GET /tracks/{id}` rend ses écoutes quel que soit le compte hôte. La fonctionnalité « Mes titres hébergés sur d'autres comptes » existait pourtant en entier — widget, résolution d'URL, `track_platform_link`, `migrations/074`, `fetch_claimed_tracks`. Mesuré sur le cas GRiNCH, 2026-08-23.
+- cause_evidence: read (`airflow/dags/soundcloud_daily.py:47,64-77,126-130` — le saut sur `user_id` vide existe toujours mais il NOMME le geste (« admin action required »), et la ligne 126 porte la raison du défaut : « profile, so falling back on it collected the admin's tracks ». Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_label_signed_artist_is_collectable.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3485,6 +3501,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un contrôle répond honnêtement « je n'ai pas pu tourner » (`ModuleNotFoundError`), et cette honnêteté remonte en ligne de sujet comme une alarme métier. On enquête sur la donnée ; le défaut est dans le montage.
 - root_cause: le `docker-compose.yml` **local et non suivi** (gitignoré) montait `./airflow/dags` et `./src` dans les trois services Airflow, mais pas `./tools`. Le gabarit SUIVI `docker-compose.example.yml` le montait déjà, et la production aussi. `check_canary_preflight` et `check_tenant_contamination` shellent tous deux vers `tools/`, donc tous deux renvoyaient UNAVAILABLE, et le sujet portait `🐤 PRÉFLIGHT ROUGE` et `🧬 CONTAMINATION : 1` sur une instance dont la seule anomalie était son propre compose. C'était donc une **copie de travail** en retard sur le gabarit, ni la prod ni le dépôt — la variante la plus discrète, car aucun garde ne peut lire un fichier gitignoré en CI, et l'alarme ne se déclenche QUE hors production, précisément là où personne ne la poursuit.
+- cause_evidence: read (`docker-compose.example.yml:161` et ses voisins — `./tools:/opt/airflow/tools:ro` apparaît 6 fois, avec en commentaire l'erreur exacte qu'il évite : « can't open file '/app/tools/create_canary.py' ». Le gabarit SUIVI monte bien `tools/`, ce qui confirme l'asymétrie décrite avec le compose local gitignoré. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_compose_mounts_what_the_dags_import.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3620,6 +3637,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: la carte d'architecture décrit un sous-ensemble du produit et rien ne le dit. Le lecteur la consulte AU LIEU de lister le répertoire — c'est sa fonction — donc une vue absente est une vue que personne ne sait aller voir.
 - root_cause: aucun contrôle mécanique ne comparait `## Dashboard Views Map` à `src/dashboard/views/`. `CLAUDE.md` portait depuis le 2026-08-21 la phrase « La Views Map a déjà divergé deux fois sans que rien ne le signale », et la règle 18 demande un `code-architecture-reviewer` au-delà de cinq modules changés — une REVUE, donc quelque chose qu'il faut penser à demander. Trois dérives se sont produites pendant qu'elle existait. Mesuré le 2026-08-28 : **15 vues sur 44 absentes**, dont `onboarding` et `onboarding_health`, deux des premières surfaces qu'un artiste rencontre. La même carte annonçait par ailleurs « Billing — 3-column Free/Basic/Premium » et un rôle `basic+` alors que `basic` est retiré depuis la migration 048.
+- cause_evidence: read (`tests/test_the_views_map_lists_every_view.py` existe et passe le 2026-09-17 — le contrôle mécanique qui manquait entre `## Dashboard Views Map` et `src/dashboard/views/` est en place)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_views_map_lists_every_view.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3638,6 +3656,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un sélecteur de tests rend un ensemble qui a l'air restreint — 19 sur 169, 11 % — et qui est en réalité CONSTANT : le même, octet pour octet, pour un collecteur, une vue et un util. Il exclut le test du module qu'on vient de modifier. Suivre la règle qui prescrit de lancer cette liste revient donc à sauter exactement les tests qui couvrent le changement.
 - root_cause: `source_roots()` retient `src/` comme racine d'imports (elle contient des paquets), donc `module_name()` indexe `src/utils/x.py` sous `utils.x` — alors que ce dépôt écrit `from src.utils.x import …`, la forme relative à la racine git. Les deux noms ne se rencontrent jamais : **59 arêtes résolues sur 979**, 94 % du graphe perdu, tous les tests avec zéro dépendance. Les 19 fichiers venaient uniquement de `dynamic` et des mentions littérales ; l'atteignabilité ne contribuait à rien. C'est le MÊME défaut que `source_roots()` avait été écrite pour corriger le 2026-07-30, dans l'autre sens : ce jour-là un dépôt écrivait `from app import repo` et `src/` fut ajoutée pour lui. Choisir UN nom casse l'autre style.
+- cause_evidence: read (`.claude/scripts/select_tests.py:184` et `:311` — `source_roots` et `module_name` coexistent, et les commentaires 336-347 décrivent le défaut restant : `module_name` ne rend qu'UN nom, celui de la racine la plus profonde. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_selector_selects_what_changed.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3656,6 +3675,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: une frontière de test annonce une portée étroite dans son docstring et l'applique à tout le processus. Symptôme observable : des tests deviennent ROUGES sans que le code testé ait changé, et la suite RALENTIT au lieu d'accélérer.
 - root_cause: `conftest._retry_backoff_costs_no_wall_clock` faisait `monkeypatch.setattr(_retry.time, "sleep", …)` pour éviter le backoff de `src.utils.retry`. Or `retry.py` fait `import time` : `_retry.time` **EST** le module `time` global, donc la fixture neutralisait tous les `sleep` du processus. Mesuré : suite de 275 s → **608 s**, et les deux tests les plus lents rouges — les attentes de rendu Streamlit `AppTest` et WeasyPrint retournaient instantanément et lisaient une page pas encore prête. Le docstring affirmait l'inverse dans le même paragraphe.
+- cause_evidence: read (`src/utils/retry.py:2` fait bien `import time` — donc `_retry.time` EST le module `time` global, et un `monkeypatch.setattr` dessus déborde de son intention. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_no_wait_boundary_stays_narrow.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3692,6 +3712,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: le fichier lu en PREMIER à chaque séance grossit sans fin parce qu'on empile les états successifs au lieu de les faire tourner. Le coût est payé à chaque ouverture, pour du contenu qui n'est plus vrai.
 - root_cause: rien ne bornait `checklist.md`. Mesuré le 2026-08-28 : **88 Ko, ~22 600 tokens, dont 72 % d'historique** — sept blocs REPRISE/Historique remontant au 21 août, **deux portant tous les deux « à lire EN PREMIER au `/resume` »** (ce qui ne peut pas être vrai des deux), plus deux sections dupliquées mot pour mot. Après rotation vers `archive.md` : 34 Ko.
+- cause_evidence: measured (`wc -c .claude/dev-docs/roadmap/checklist.md` rend **32 137 octets** le 2026-09-17, contre les 88 000 mesurés le 2026-08-28 — la borne a bien été posée et tient. La cause « rien ne bornait le fichier » se vérifie par sa taille, pas par sa prose)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_resume_header_is_checked.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3708,6 +3729,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un document utile existe et reste introuvable, parce qu'aucun index ne le nomme. Symétriquement, des gabarits vides survivent des mois sans que personne s'en aperçoive.
 - root_cause: aucun contrôle d'atteignabilité. Mesuré le 2026-08-28 : **huit** fichiers de `.claude/dev-docs/` n'étaient nommés par rien hors de ce dossier. Quatre étaient des gabarits vides — `system-invariants.md` s'annonçait « Source of truth for thresholds, anti-patterns, and deployment rules » et ne contenait que des `TODO`, donc pire qu'absent : il aurait été cru. Deux décrivaient l'amorçage d'un AUTRE dépôt (`tools/setup-claude-code.sh` absent ici, `.claude/skills/domain_{1,2,3}.md` inexistants, trois agents cités qui ne sont aucun des huit). Et deux étaient utiles : `runbook-artist-test-session.md` est la procédure de **R1, la seule tâche ouverte**.
+- cause_evidence: read (`tests/test_every_dev_doc_is_reachable.py` existe et porte le contrôle d'atteignabilité qui manquait ; `system-invariants.md`, le gabarit vide cité, n'est plus nommé que par le catalogue lui-même. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_every_dev_doc_is_reachable.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3724,6 +3746,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: une séance modifie du code de production et se termine sans entrée de journal ni mise à jour de roadmap. Le code part ; le raisonnement qui l'a produit ne reste nulle part.
 - root_cause: le rappel de fin de séance (`session_summary.check_config_devlog_sync`) ne surveillait que la CONFIGURATION Claude Code — `.claude/rules`, `tools`, `CLAUDE.md`, `.claude/hooks`, `.claude/skills`. **`src/` et `airflow/` en étaient absents**, donc la séance dont l'oubli coûte le plus cher ne déclenchait rien. Il comparait de surcroît des `mtime`, qui mentent dans les deux sens : un `git checkout` remet une date à zéro sans rien changer, et toucher `DEVLOG.md` pour une virgule éteignait l'alerte sans rien journaliser.
+- cause_evidence: read (`.claude/hooks/session_summary.py:164` — `_CODE_WATCH = ("src/", "airflow/")` existe désormais À CÔTÉ de `_CONFIG_WATCH` (ligne 267), qui ne surveillait que la configuration Claude Code. Les deux listes sont distinctes dans le fichier, ce qui est exactement le défaut décrit et son correctif. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_code_without_a_trace_is_flagged.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3761,6 +3784,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: une page Streamlit reconstruit à chaque rerun le fichier qu'elle propose au téléchargement. Déplier un accordéon suffit à repayer le rendu complet d'un PDF que personne n'a demandé. Rien ne casse — la page est simplement lente, et le coût est invisible dans les logs.
 - root_cause: `show()` est ré-exécuté à CHAQUE interaction, et `st.download_button` exige son payload présent au rendu. `src/dashboard/views/process_guide.py` appelait donc `HTML(...).write_pdf()` deux fois par rerun. Mesuré dans le conteneur de prod le 2026-08-30 : **573 ms** (guide des identifiants, avec captures) + **148 ms** (guide de démarrage) = 721 ms des 1034 ms de la vue — sur la première page qu'un artiste neuf ouvre.
+- cause_evidence: read (le site a DÉMÉNAGÉ : `views/process_guide.py` n'existe plus, et le PDF du guide passe par `src/dashboard/utils/guide_assets.py:45`, `@st.cache_data(show_spinner=False) def credentials_guide_pdf(lang)`. L'appelant `views/register.py:395` ne reconstruit donc plus rien par rerun. ⚠️ Le `root_cause` ci-dessus nomme un chemin PÉRIMÉ ; la cause est juste, son adresse ne l'est plus. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -c "import sys; sys.path.insert(0,'tests'); from test_a_download_is_built_on_click_not_on_rerun import offending_downloads, _iter_view_modules; sys.exit(1 if offending_downloads(_iter_view_modules()) else 0)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3821,6 +3845,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: la suite valide le code contre une version majeure d'un socle que la production n'exécute pas, et rend vert. Rien ne signale l'écart : les deux moitiés fonctionnent, chacune dans son monde.
 - root_cause: aucun fichier n'épinglait le CŒUR Airflow pour l'environnement de dev. `requirements.txt` et `pyproject.toml` listaient `apache-airflow-providers-*` sans version, et le résolveur est libre d'emmener un cœur avec eux — il l'a fait. Mesuré le 2026-08-30 : `uv.lock` résolvait **apache-airflow 3.2.2** quand la production tourne en **2.11.2**. `Dockerfile.airflow` défend l'IMAGE par un `--constraint` d'une ligne et son commentaire explique pourquoi ; il ne peut rien pour l'interpréteur de la suite. La PR Dependabot #100 (3.3.0) aurait cassé l'import des 16 DAGs — le garde de l'image l'aurait attrapée au build, APRÈS que la suite soit passée au vert.
+- cause_evidence: read (`pyproject.toml:78` porte `apache-airflow==2.11.2` — le CŒUR est épinglé, alors que `requirements.txt:56-58` liste encore les providers sans version. C'est exactement l'asymétrie décrite, corrigée du côté qui comptait. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_tests_run_the_airflow_production_runs.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3840,6 +3865,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: une page plante avec `ValueError: Tz-aware datetime.datetime cannot be converted to datetime64 unless utc=True, at position N`. Elle marchait la veille : le déclencheur n'est pas un chemin de code, c'est **une date au calendrier**.
 - root_cause: toute colonne `timestamptz` relue par psycopg2 rend des datetimes portant le décalage **en vigueur à cet instant-là**. Une table qui contient des lignes de mars et de juin contient donc `+01:00` et `+02:00` côte à côte, et `pd.to_datetime` sur cette Series refuse. Mesuré en production le 2026-08-30 sur `saas_users.created_at` : ids 1-2 en `+01`, id 10 et suivants en `+02` — « position 2 » exactement. `views/admin.py:652` plantait **en production** sur la liste des utilisateurs ; quatre autres sites avaient la forme identique et n'avaient simplement jamais reçu une fenêtre franchissant un changement d'heure.
+- cause_evidence: read (`src/dashboard/utils/tz.py` existe et centralise la conversion — la lecture brute de psycopg2, qui rend `+01:00` et `+02:00` côte à côte dans une même colonne, passe désormais par un seul point. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -c "import sys; sys.path.insert(0,'tests'); from test_a_timestamptz_column_survives_daylight_saving import unsafe_timestamptz_parses, _sources; sys.exit(1 if unsafe_timestamptz_parses(_sources()) else 0)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3860,6 +3886,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: une vue de supervision affiche une fraction des entités et présente l'absence comme une donnée — « aucun run » au lieu de « je n'ai pas regardé ». Tout répond 200, aucune erreur nulle part.
 - root_cause: `airflow_monitor.get_all_dags_last_state()` répondait « le dernier run de chaque DAG » par **une fenêtre globale** (`POST /dags/~/dagRuns/list`, `page_limit=200`) et prenait ce qui revenait. Son propre docstring énonçait l'hypothèse : « with daily schedules each DAG's latest run sits well within 200 ». La production l'a démentie — mesuré le 2026-08-30 : **392 runs en 24 h, dont 384 pour les 4 watchers CSV** (96 chacun, toutes les 15 min). La fenêtre couvrait donc ~12 h et 98 % de quatre DAGs. `views/home.py` en tire la santé des DAGs : **12 DAGs sur 16 s'affichaient « sans run »** sur la page d'accueil.
+- cause_evidence: read (`src/dashboard/utils/airflow_monitor.py:178-184` — la docstring conserve l'hypothèse fautive et son démenti : « used a `page_limit` window and took whatever came back. Its docstring stated the … ». La question par entité est désormais posée par entité. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_dag_monitor_sees_every_dag.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3880,6 +3907,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: une vue ouvre deux connexions par rendu au lieu d'une, sans qu'aucun deuxième `get_db_connection()` n'existe dans son fichier. Rien ne casse : la page s'affiche.
 - root_cause: `views/hypeddit.py:190`, `_render_history()` appelait `db.close()` sur la connexion que `show()` possède et ferme déjà dans son propre `finally`. `_render_entry_form()`, appelé juste après, continuait d'interroger un handle fermé, et `PostgresHandler._ensure_connection()` **reconnectait en silence**. Vestige d'avant le 2026-08-21, quand chaque helper possédait sa connexion : la migration a retiré les ouvertures et laissé une fermeture.
+- cause_evidence: read (`src/dashboard/views/hypeddit.py:225` — le `db.close()` a disparu de `_render_history` et la ligne porte la raison : « No `db.close()` here: this helper did not open the connection, `show()` did ». `show()` ferme bien en propre ligne 303. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_render_opens_one_connection.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3899,6 +3927,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: le contenu d'un onglet (ou de tout conteneur Streamlit) se rend **à côté** au lieu de dedans. Aucune exception, tous les éléments présents, tous les tests verts — seul l'œil sur la page voit que l'onglet est vide.
 - root_cause: extraire le corps d'un `with tab_x:` dans une fonction et appeler cette fonction **sans le `with`**. Commis le 2026-08-30 en découpant `admin.show()` (401 lignes) : `with tab_gdpr:` + 85 lignes remplacé par `_tab_gdpr(db)` nu. Streamlit n'a rien à signaler — le contexte de conteneur est implicite, son absence est un placement, pas une erreur.
+- cause_evidence: read (`src/dashboard/views/admin.py` — quatre fonctions d'onglet (`_tab_gdpr` ligne 843 et trois voisines) portent la MÊME phrase en docstring : « L'appelant garde son `with tab_…:`. Sans lui le contenu se rend HORS de … ». Le contrat est écrit au site, et la ligne 972 montre l'appelant qui l'honore. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_tab_renders_inside_its_tab.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -3919,6 +3948,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: l'utilisateur déclenche une action, l'interface lui confirme qu'elle est lancée, puis affiche l'état d'AVANT son clic — jusqu'à l'expiration du TTL. La page semble dire que rien ne s'est passé.
 - root_cause: `cached_last_run_per_dag()` a été ajouté le 2026-08-30 pour éviter 16 allers-retours HTTP par interaction, **sans invalidation**. Or `views/credentials/_render.py:404` enregistre les credentials, déclenche le DAG et affiche « 🚀 Collecte lancée » ; l'artiste regarde le statut juste après. `app.py:422` fait pareil depuis la barre latérale. Les deux servaient une vue cachée des runs antérieurs au clic de l'artiste.
+- cause_evidence: read (`src/dashboard/utils/airflow_monitor.py:305` porte `cached_last_run_per_dag()` et la ligne 344 documente le correctif : « Both call `cached_last_run_per_dag.clear()` on success ». L'invalidation manquante a été ajoutée à l'événement qui périme. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -c "import sys; sys.path.insert(0,'tests'); from test_a_trigger_invalidates_what_it_makes_stale import trigger_sites_without_invalidation, _dashboard_sources; sys.exit(1 if trigger_sites_without_invalidation(_dashboard_sources()) else 0)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -4268,6 +4298,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un test de garde est VERT sur le défaut qu'il existe pour attraper, ou ROUGE sur le commentaire qui explique le correctif. Les deux erreurs viennent de la même cause et se ressemblent si peu qu'on les traite séparément.
 - root_cause: le garde inspecte du code Python en cherchant une sous-chaîne dans le TEXTE du fichier (`assert "<nom>" in source`). Un nom présent dans un fichier ne dit rien de ce que le code en fait : un commentaire, une docstring ou une autre fonction suffisent à satisfaire la comparaison. Trois occurrences le 2026-09-04, toutes sur des gardes NEUFS : `test_navigation_inside_the_app_opens_no_tab` a accusé `auth.py` sur le commentaire expliquant pourquoi le lien avait été retiré ; `test_the_soundcloud_ask_is_one_thing` a accusé `guide_pdf.py` sur un commentaire disant « `cred.admin_note` n'est délibérément PAS rendu » ; `test_the_setup_landing_beats_a_stale_url` cherchait `"_SETUP_PAGES"` dans le source du bloc d'URL et se satisfaisait du commentaire disant que le test valait `_SETUP_PAGES` AVANT le correctif. Le cliquet `test_a_guard_reads_structure_not_text` existait déjà et n'en a vu aucune : son prédicat est au niveau du FICHIER — dès qu'un `ast.parse` y apparaît, tout le fichier est exempté, assertions textuelles comprises.
+- cause_evidence: read (`tests/test_a_guard_reads_structure_not_text.py:135-158` — le détecteur cherche `ast.parse`/`ast.walk` dans le corps d'un garde et se méfie explicitement d'un `ast.parse` DÉCORATIF ajouté pour le faire taire (ligne 143). Il lit donc la structure, et sait qu'on peut la simuler. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_guard_reads_structure_not_text.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -4327,6 +4358,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un lecteur anglophone reçoit une procédure abandonnée côté français ; le PDF d'une langue décrit plus d'étapes que l'autre. Personne ne le voit : ces surfaces ne sont jamais rouges.
 - root_cause: un guide de credentials vit dans TROIS fichiers — `credential_guides.py` (FR), `credential_guides_en.py` (EN), et `i18n_catalog/credentials.py` que le rendu PRÉFÈRE aux deux (`t(f"credentials.guide.{k}.step_{n}", step.text)`). Rien ne les compare. Réécrire l'une laisse les autres en place. Deux occurrences le 2026-09-04 : le catalogue EN de SoundCloud décrivait encore « affiche le code source de /discover et cherche `soundcloud:users:` », abandonné la veille ; et la source EN de Spotify portait TROIS étapes quand le français en avait UNE — restée à l'ancienne version tout un lot parce qu'un `str.replace` de mon script d'édition n'avait pas mordu et n'avait rien dit. Le catalogue masquait l'écart à l'écran ; le PDF anglais est rendu depuis la source et livrait l'écart.
+- cause_evidence: read (les TROIS fichiers existent toujours le 2026-09-17 — `src/dashboard/content/csv_guides.py` (12,8 K), `csv_guides_en.py` (8,7 K) et `src/dashboard/utils/i18n_catalog/credentials.py` (27,4 K). La triple source est donc encore la réalité du dépôt, pas un souvenir)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_two_language_guides_stay_in_step.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -4640,6 +4672,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: l'utilisateur fait une chose à un endroit, la retrouve absente à l'autre, et rien n'est en panne. Le produit a deux surfaces pour un seul geste, chacune avec son état, et aucune ne mentionne l'autre.
 - root_cause: `st.file_uploader` était instancié par `views/upload_csv.py::show()` **et**, via le même `render_uploader`, par l'onglet « 📂 Mes fichiers » de la page Credentials. Streamlit garde un état par widget : un fichier déposé d'un côté n'existait pas de l'autre. La page `upload_csv` avait quitté le menu le 2026-09-04 mais restait routée, et `platform_value.CSV` y envoyait encore l'artiste depuis le sélecteur de mise en route — le doublon était donc la route **recommandée**, pas un vestige.
+- cause_evidence: read (`src/dashboard/views/upload_csv.py:554` définit `render_uploader`, et `views/credentials/router.py:576-577` l'IMPORTE au lieu d'instancier un second `st.file_uploader` — un seul widget, donc un seul état Streamlit. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_there_is_one_place_to_drop_a_file.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -4678,6 +4711,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: une mise en page range correctement ce que son auteur avait en tête, et range tout le reste dans un groupe par défaut — qui porte un titre. L'élément suivant hérite donc d'un intitulé faux, en silence.
 - root_cause: `csv_guides_st.py` portait `_SIDE_BY_SIDE = ("s4a", "apple")` et rendait `rest = [tout le reste]` en dessous. Tant que ce bas de page n'avait pas d'intitulé, l'erreur était bénigne. Le 2026-09-06 il en reçoit un — « 💿 Mon distributeur (revenus) » — et un guide de plateforme d'écoute ajouté demain y serait rangé sous un titre qui ment sur son contenu, sans que rien ne le signale : la constante est dans le RENDU, où l'auteur du nouveau guide ne va pas.
+- cause_evidence: read (`src/dashboard/content/csv_guides_st.py:34-55` — la mise en page est dérivée de `PlatformGuide.family` (`g.family == FAMILY_PLATFORM` / `FAMILY_DISTRIBUTOR`), et le commentaire nomme la constante retirée : « `_SIDE_BY_SIDE = ("s4a", "apple")` qui tenait ce rôle ». Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_csv_types_are_laid_out_by_family.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -4770,6 +4804,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un en-tête de formulaire décrit des champs qui n'y sont pas. Le lecteur cherche ce qu'on lui annonce, ne le trouve pas, et doute du reste de la page.
 - root_cause: `views/credentials/_render.py` rendait « 🔒 Champs secrets chiffrés • Laissez vide pour conserver la valeur actuelle » sous le titre de TOUT formulaire en mise à jour. Mesuré sur le registre le 2026-09-06 : `meta`, `soundcloud` et `instagram` déclarent **zéro** champ secret — leur formulaire porte un seul champ, un lien public. Trois onglets sur cinq annonçaient donc une propriété fausse et une consigne sans objet. Signalé sur Meta Ads comme « inutile » ; la mesure dit plus que ça — c'était faux.
+- cause_evidence: read (`src/dashboard/views/credentials/_render.py:510-522` — la phrase « 🔒 Champs secrets chiffrés • … » est désormais CONDITIONNÉE, et le commentaire ligne 510 conserve le défaut : des formulaires « public — et lisaient pourtant … ». Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_form_only_claims_what_it_has.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -4808,6 +4843,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: on rouvre un écran et il s'ouvre là où on l'avait laissé, alors qu'on y revient pour le reprendre depuis le début. Rien n'est en panne, et la page semble ignorer qu'on vient de cliquer sur son entrée de menu.
 - root_cause: `views/onboarding.py` gardait l'étape courante dans `st.session_state['_onboarding_step']`, qui survit à la navigation. Un artiste passé une fois à l'étape 2 rouvrait l'assistant sur « Où tu en es » pour le reste de sa session, y compris au premier clic d'une visite ultérieure — c'est-à-dire exactement quand il voulait revoir « Bienvenue & choix ». Signalé le 2026-09-06 : « quand je me balade sur l'app et que je reclique sur mise en route, je n'ai pas automatiquement redirection vers le bienvenu ». La cause profonde est que **Streamlit ré-exécute le script entier à chaque interaction** : une vue ne peut pas distinguer « il vient de cliquer sur mon entrée de menu » de « il est déjà dessus et a cliqué sur un bouton » — les deux produisent des runs identiques.
+- cause_evidence: read (`src/dashboard/views/onboarding.py:610-618` — « UN SEUL endroit qui décide, appelé par les DEUX lecteurs de `_STEP_KEY` », et la remise à 1 est conditionnée par `_entering_from_elsewhere()`. L'état ne survit plus à la navigation. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_assistant_reopens_on_its_first_step.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -4864,6 +4900,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: une page « guide » explique en prose ce que l'application montre déjà en agissant. Elle vieillit plus vite que ce qu'elle décrit, et deux surfaces finissent par se contredire sans que rien ne le signale.
 - root_cause: « 📋 Guide de démarrage » (`views/process_guide.py`, 300 lignes) rendait quatre listes à puces décrivant les étapes que l'assistant fait parcourir, les identifiants que les onglets de Credentials déplient avec leurs captures, et l'état des plateformes que la matrice mesure. Trois surfaces pour la même information, dont une seule est calculée sur les données réelles. Signalé le 2026-09-06 : « l'app est bien mieux faite et ça rajoute de l'inutile ». Elle coûtait en plus 1034 ms par rerun, dont 721 ms de génération de PDF, sur la première page qu'un nouvel artiste lisait.
+- cause_evidence: read (`src/dashboard/views/process_guide.py` n'existe plus — la page de 300 lignes a bien été retirée, ce qui est le correctif que la classe décrit. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_views_map_lists_every_view.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -4901,6 +4938,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un export parfaitement valide est refusé, et le message d'erreur affiche la BONNE colonne. « Type non reconnu — colonnes vues : date, streams » alors que `date` est exactement ce qu'on attend. Rien à l'écran ne distingue l'en-tête qu'on a de celui qu'on veut.
 - root_cause: `views/upload_csv.py::_read_headers` essayait les encodages dans l'ordre `('utf-8', 'utf-8-sig', …)`. Un fichier UTF-8 portant un BOM **décode sans erreur** en `utf-8` : la boucle s'arrêtait au premier essai et le BOM survivait, collé au premier en-tête (`\ufeffdate`). Seconde condition, nécessaire pour que ça casse : `_detect_platform` normalisait par `c.lower().strip()`, et `\ufeff` n'est PAS un blanc — `strip()` ne le retire pas. Mesuré le 2026-09-06 sur un import réel : **12 fichiers Spotify for Artists sur 14 refusés**. Spotify exporte avec BOM ; Excel en ajoute un en réenregistrant, ce qui touche aussi les artistes qui ouvrent leur CSV avant de le déposer.
+- cause_evidence: read (la résolution a DÉMÉNAGÉ depuis `views/upload_csv.py` : elle vit une seule fois dans `src/dashboard/utils/csv_serialization.py::_resolve_serialization`, qui essaie `utf-8-sig` AVANT `utf-8` et documente exactement le mécanisme — un fichier UTF-8 avec BOM décode sans erreur en `utf-8`. ⚠️ Le `root_cause` ci-dessus nomme donc un chemin PÉRIMÉ ; la cause est juste, son adresse ne l'est plus. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_csv_is_recognised_whatever_its_encoding.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -4921,6 +4959,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un fichier valide est refusé, ou pire, un fichier invalide est accepté — selon comment il s'appelle. Renommer corrige ou casse, ce qui apprend à l'utilisateur que le nom compte alors qu'il ne devrait rien décider.
 - root_cause: `views/upload_csv.py::_detect_platform` portait trois conditions sur le NOM de fichier. **(1)** La timeline S4A exigeait `'audience' not in name` : un titre contenant le mot (« … - Audience-timeline.csv ») était refusé, et un export d'audience renommé serait passé pour une timeline. La condition était inutile — la branche audience passe avant et retient déjà tout ce qui porte `listeners`. **(2)** L'audience pouvait être reconnue par le seul jeton `audience` du nom. **(3)** L'export « Depuis le début », inexploitable parce que Spotify y renvoie auditeurs et sauvegardes à ZÉRO, était refusé sur `'songs-all' in name` — donc un renommage, ou le suffixe `(1)` qu'ajoute un navigateur, le faisait accepter comme un catalogue valide.
+- cause_evidence: read (`src/dashboard/views/upload_csv.py:68` — la signature est devenue `_detect_platform(filename: str, columns: list[str])` et le corps normalise les en-têtes (`cols = {_normalise_header(c) for c in columns}`) : la décision ne repose plus sur le seul nom. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_csv_is_recognised_whatever_its_encoding.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -4975,6 +5014,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: une tâche de surveillance tourne, calcule un constat juste, et reste verte. Personne n'est prévenu. Le contrôle a l'apparence exacte d'un contrôle qui fonctionne.
 - root_cause: dans `alert_monitor.py`, un constat doit franchir CINQ maillons pour valoir quelque chose — déclaré comme tâche, câblé dans la chaîne `>> t_alert`, relu par `xcom_pull`, rendu dans une section, et compté dans `has_issues` (le prédicat qui décide s'il y a un e-mail à envoyer). Chaque maillon rompu laisse la tâche verte. En écrivant `check_csv_rejections` le 2026-09-06, le quatrième manquait — `ruff` l'a signalé comme variable inutilisée, ce qui est un coup de chance : un nom réutilisé ailleurs serait passé. Puis le cinquième manquait aussi, et c'est un garde VOISIN qui l'a rattrapé.
+- cause_evidence: read (`airflow/dags/alert_monitor.py:1711` — `has_issues` est bien le prédicat qui décide de l'envoi (ligne 1723 : `if not has_issues:`), et la ligne 1697 conserve la trace du défaut : « were NOT part of has_issues — so a broken shared app, ALONE, produced no email ». Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_every_alert_check_reaches_the_email.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -5499,6 +5539,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un document PAYANT affirme « ✅ Rentable » à un artiste alors que la base était injoignable. Le chiffre affiché est `0,00 €` des deux côtés, le net vaut 0, et `net >= 0` imprime le verdict.
 - root_cause: trois couches qui se couvrent. `kpi_helpers.get_roi_data` initialisait `revenue_eur: 0.0` et `profitable: False`, et avalait toute exception par `except Exception: pass` — une panne rendait donc « rien gagné, non rentable ». Puis `pdf_exporter/_renderers._render_roi` faisait `float(roi.get('revenue_eur') or 0)` et **recalculait son propre statut**, donc corriger le helper seul ne l'aurait pas protégé. Enfin `imusician.py` affichait, pour une panne, le texte prévu pour une absence légitime (« Aucune dépense promo sur la période — élargissez le filtre ») : il n'existait aucun troisième état.
+- cause_evidence: read (`src/dashboard/utils/kpi_helpers.py:497` initialise désormais `'revenue_eur': None` et non `0.0` — le zéro fabriqué a disparu du site cité, et trois vues l'appellent encore (`sacem`, `imusician`, `data_wrapped`). Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_roi_never_states_a_verdict_it_did_not_measure.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -5519,6 +5560,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un artiste premium sans dépôt S4A reçoit par e-mail « Streams (last 7 days) : 0 · +0 vs prev week », « Spend : 0.00 € » et « CTR : 0.00 % ». Trois affirmations qu'on n'a pas mesurées, dont une arithmétiquement fausse : sans impression, le taux de clic n'est pas nul, il est indéfini (0/0).
 - root_cause: `COALESCE(SUM(…), 0)` sur les streams et la dépense, `ELSE 0` sur le CTR, dans `weekly_digest.py`. Le même fichier écrivait vingt lignes plus bas, à propos de SoundCloud : « No COALESCE: an absent snapshot must read "N/A", not a fabricated 0. » La règle était connue, écrite, appliquée à trois sources sur cinq, et contredite sur les deux autres — parce que rien ne la vérifiait.
+- cause_evidence: read (`airflow/dags/weekly_digest.py` — plus aucun `COALESCE(SUM` ni `ELSE 0` dans le fichier, et le commentaire « No COALESCE: an absent snapshot must read "N/A", not a fabricated 0 » y est resté, ligne 174. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_digest_never_mails_a_fabricated_zero.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -5863,6 +5905,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: la légende sous une figure affirme trois choses fausses en même temps, sans qu'aucune ne soit un bug de calcul. Vu au rendu le 2026-09-10 en « Chacune à son échelle · Par année · 12 mois » : « Écoutes **du jour**, plateforme par plateforme. Un blanc dans la bande veut dire qu'on n'a pas de mesure ce jour-là. » Or les points portaient des totaux ANNUELS, il n'y avait pas de bande mais des facettes, et un blanc ne parlait pas d'un jour.
 - root_cause: la légende était une constante dans `views/home.py`, écrite quand la figure n'avait qu'un mode et qu'un pas. Chaque menu ajouté depuis l'a rendue fausse dans un cas de plus, sans jamais la casser — un texte fixe ne lève pas. Et elle ne POUVAIT pas être juste depuis là : la vue connaît le pas DEMANDÉ, et « Automatique » n'en est pas un ; seul le module de la figure sait lequel a été retenu. C'est la cause (E) de l'audit de cette figure, nommée et restée ouverte.
+- cause_evidence: read (`src/dashboard/views/home.py:570` — le texte vit à côté du comportement (`t_trend_caption`), et `platform_chart.py:1078` porte la trace du retrait depuis la figure. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_legend_says_what_the_figure_shows.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -5945,6 +5988,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: la production est correcte, et toute base NEUVE renaît avec le défaut — CI, poste de développeur, reconstruction après sinistre — jusqu'à ce que quelqu'un rejoue les migrations. Un correctif qui ne vit que dans une migration est un correctif que la prochaine base annule.
 - root_cause: `init_db.sql` est monté en `docker-entrypoint-initdb.d` et le même DDL est déclaré une seconde fois dans `src/database/*_schema.py`. La migration 064 avait remplacé `UNIQUE(video_id)` / `UNIQUE(channel_id)` par des uniques par locataire — parce que deux artistes partageant une vidéo se volaient la ligne — et ces deux déclarations sont restées à la forme globale (4 sites, 2 fichiers).
+- cause_evidence: read (le DDL vit bien en double — `init_db.sql` monté en `docker-entrypoint-initdb.d` et `src/database/*_schema.py` — et `tests/test_uniqueness_names_its_tenant.py` parcourt désormais le schéma réel table par table pour exiger l'unicité par locataire. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `h=0; for n in $(grep -rhoE "DROP CONSTRAINT IF EXISTS +[a-z_][a-z0-9_]*" migrations/*.sql | awk "{print \$NF}" | sort -u); do grep -rnE "^[^-#]*CONSTRAINT +$n\b" init_db.sql src/database/*.py 2>/dev/null && h=1; done; exit $h`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
@@ -5965,6 +6009,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: l'import ne se dégrade pas, il LÈVE — `ERROR: there is no unique or exclusion constraint matching the ON CONFLICT specification`. Prouvé en production le 2026-09-11 par un INSERT réel dans une transaction annulée, sur le chemin d'import Apple de `views/admin.py`.
 - root_cause: PostgreSQL exige que `ON CONFLICT (cols)` corresponde EXACTEMENT à un index unique existant. Les migrations 093-095 ont déplacé la clé d'`apple_songs_performance` vers `(artist_id, song_name, snapshot_date, period_start, period_end)` ; `views/upload_csv.py:53` a suivi, `views/admin.py` non — un même geste déclaré à deux endroits, dont un seul corrigé.
+- cause_evidence: read (les migrations citées existent et se suivent — `093_apple_keeps_every_snapshot`, `094_apple_knows_which_period_it_covers`, et surtout `095_apple_conflict_target_matches_its_index.sql`, dont le NOM est le correctif de la classe. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_an_upsert_targets_an_index_that_exists.py -q`
 - seen_red: 2026-09-11 (via la trace de mutation de `tests/test_an_upsert_targets_an_index_that_exists.py`, consignée par l'auteur du garde)
@@ -5985,6 +6030,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: le locataire enregistre, l'écran confirme (« ✅ Importé »), et le chiffre affiché reste l'ancien pendant jusqu'à 600 s, sans que rien n'explique pourquoi. Aucune erreur, aucun journal.
 - root_cause: `kpi_helpers` garde ses lectures 600 s, et cette durée longue n'est sûre que parce que les gestes qui changent la donnée en pleine journée purgent explicitement (`collection_trigger.py:46`, `credentials/_render.py:1135`). Trois chemins d'écriture n'étaient pas câblés : `views/upload_csv.py` (le seul point de purge qu'il pouvait atteindre, `autostart_if_journey_complete`, ne s'exécute qu'une fois dans la vie du locataire), `views/admin.py` (import pour le compte d'un artiste ; le cache Streamlit étant global au processus, c'est la seule purge qui puisse l'atteindre) et `views/imusician.py` (saisie manuelle, upsert et suppression).
+- cause_evidence: read (`src/dashboard/utils/collection_trigger.py:46` importe bien `clear_kpi_caches` depuis `kpi_helpers` — le geste qui change la donnée purge explicitement, ce qui est la condition qui rend les 600 s de cache sûrs. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_write_path_purges_the_cache_it_invalidates.py -q`
 - seen_red: 2026-09-11 (via la trace de mutation de `tests/test_a_write_path_purges_the_cache_it_invalidates.py`, consignée par l'auteur du garde)
@@ -6053,6 +6099,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - symptom: annoncer « N tests verts » après une exécution filtrée par `-k`. Le 2026-09-11 : **931 verts** annoncés, puis la sélection officielle en a trouvé **4 rouges** que le filtre ne couvrait pas — deux catalogues i18n incomplets et le cliquet d'allers-retours de l'accueil, tous causés par les changements de la même séance.
 - seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - root_cause: le filtre `-k` est écrit à partir des mots qu'on a EN TÊTE (`chart`, `pdf`, `youtube`…), c'est-à-dire du périmètre qu'on croit avoir touché. Les tests transverses ne portent aucun de ces mots : `test_i18n.py` garde les clés de traduction de toute l'application, `test_a_page_asks_the_same_question_once.py` garde le budget de requêtes d'une page. Ce sont précisément les gardes qu'un changement local déclenche sans qu'on y pense, et un filtre par mots-clés les exclut par construction.
+- cause_evidence: read (les deux fichiers transverses cités existent — `tests/test_i18n.py` et `tests/test_a_page_asks_the_same_question_once.py` — et aucun de leurs noms ne porte un mot de domaine, donc aucun `-k` thématique ne les sélectionne. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `python3 .claude/scripts/select_tests.py` rend les tests atteignables depuis le diff — c'est déjà la règle transverse #16, et elle existe pour cette raison. Un `-k` reste légitime pour itérer vite pendant qu'on écrit ; il ne l'est pas pour ANNONCER un état. La règle est donc sur la phrase, pas sur la commande : ne jamais rapporter un verdict de suite à partir d'une exécution filtrée.
 - autofix: none
@@ -6205,6 +6252,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un total affiché vaut **le double** du même total lu ailleurs, sans qu'aucune requête soit fausse. Mesuré le 2026-09-12 : la tuile « Dépenses » de la page Meta Ads affichait 6 165,65 € quand la couche or en comptait 3 087,82.
 - root_cause: `meta_insights_performance` porte 231 lignes QUOTIDIENNES (une par campagne et par jour, écrites par la boucle `time_increment=1` de `_meta_insight_fetch.py`) **et** 21 lignes de CUMUL À VIE d'un collecteur antérieur, `date_start` valant le jour de la collecte. Les sommer ensemble compte chaque euro deux fois. La contrainte d'unicité ne l'empêche pas : les deux générations ont des clés distinctes. C'est la forme Apple (`period_start IS NULL` vs périodes bornées) sur une autre plateforme.
+- cause_evidence: read (`meta_insights_performance` est encore nommée par trois migrations de la couche or — 076, 106, 109 — donc la table vit toujours et le mélange de grains décrit reste la question que ces vues tranchent. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: une vue or qui écarte la génération obsolète par un prédicat STRUCTUREL, jamais par un seuil de date : `v_meta_campaign_daily` (migration 109) ne garde que les lignes qui ont une jumelle dans `meta_insights_performance_day`, parce que la boucle du collecteur écrit les deux dans la même itération. Un seuil de date se périme et une ligne quotidienne du jour même porterait la même date que sa collecte. Règle générale : **avant de sommer une table de fait, demander combien de générations de lignes elle porte** — une contrainte d'unicité ne répond pas à cette question.
 - autofix: none
@@ -6224,6 +6272,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un cliquet certifie « zéro agrégat hors de la couche or » pendant qu'une tuile affiche un total faux. Les deux affirmations sont vraies : le total n'est pas dans le SQL.
 - root_cause: `df = db.fetch_df("SELECT campaign_name, spend, … FROM <fait>")` puis `df['spend'].sum()`. Aucun `SUM(` n'apparaît dans la requête, donc aucun garde qui lit le SQL ne peut voir cet agrégat — ni `test_the_metrics_layer_only_grows.py`, ni `gold_coverage.py`, ni une signature grep. Deux sites mesurés le 2026-09-12 : la page Meta Ads (6 165,65 € au lieu de 3 087,82) et les quatre tuiles de la page SoundCloud (justes, mais sur un `DISTINCT ON (track_id)` sans locataire).
+- cause_evidence: read (`src/dashboard/views/meta_ads_overview.py:194-196` — `df_perf['spend'].sum()` et deux voisins, avec l'avertissement en tête ligne 164. L'agrégat est bien en pandas, donc hors de portée de tout garde qui lit du SQL. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: le garde descend d'un cran — il ne cherche plus un `SUM(` dans le texte, il cherche une **frame issue d'une table de fait non agrégée, réduite ensuite par pandas**. `tests/test_a_total_is_computed_where_a_guard_can_see_it.py` fait exactement ça, en important la liste des faits au lieu de la recopier. Règle générale : **un garde qui lit le SQL ne couvre que les totaux écrits en SQL ; le périmètre d'un garde est sa portée, pas son prédicat.**
 - autofix: none
@@ -6307,6 +6356,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-12
 - History:
   - 2026-09-12: 0 hit sur les 284 classes existantes. Signature vue exit 1 en ajoutant une entrée dont la signature nommait `src/dashboard/utils/platform_chart.py:851`, exit 0 après l'avoir retirée.
+  - 2026-09-17: la classe se GÉNÉRALISE, mesuré sur une passe complète. En étiquetant les `cause_evidence`, les **58** classes dont le `root_cause` cite un fichier ont été ouvertes une par une : **2 adresses sur 58 étaient périmées** — `bom-survives-the-encoding-fallback` nomme `views/upload_csv.py::_read_headers`, déménagé dans `utils/csv_serialization.py`, et `download-payload-rebuilt-per-rerun` nomme `views/process_guide.py`, SUPPRIMÉ. Dans les deux cas la cause est juste et son adresse ne l'est plus. ⚠️ **La signature de cette classe ne les voit pas** : elle ne cherche qu'un numéro de ligne dans le champ `signature:`, pas un chemin dans `root_cause:`. 3,4 % d'adresses mortes sur le champ qu'on lit pour comprendre une cause — le trou est nommé dans `guard_scope`, il n'est pas comblé.
 
 ## a-ratchet-with-no-floor-under-its-population
 - status: guarded
@@ -6349,6 +6399,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: une exemption reste dans une liste après la disparition de ce qu'elle exemptait. Elle ne casse rien le jour où ça arrive — elle devient du **budget** pour la prochaine occurrence, que plus personne n'a décidé d'autoriser.
 - root_cause: une exemption est écrite avec une raison, puis la raison disparaît sans que la ligne bouge. Deux formes, symétriques et toutes deux vues ici : un axe secondaire déclaré dans `utils/charts.py` qui serait converti en petits multiples (l'exemption couvrirait alors gratuitement le prochain), et un SECOND axe ajouté dans ce même fichier que l'exemption couvrirait sans qu'on l'ait voulu.
+- cause_evidence: read (`tests/test_the_visual_rules_only_tighten.py:99-119` — l'exemption d'axe secondaire est déclarée avec ses DEUX formes, et `test_the_declared_axis_still_exists_and_still_has_its_axis` passe encore le 2026-09-17 : l'exemption a toujours un sujet. C'est précisément ce que la classe demande de vérifier)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: une exemption est NOMINATIVE et **quantifiée**, et un test vérifie l'égalité dans les deux sens — ni plus, ni moins que ce qui est déclaré. Le précédent est `test_uniqueness_names_its_tenant.py::test_the_exemption_still_names_a_table_that_exists` ; la version quantifiée est `test_the_visual_rules_only_tighten.py::test_the_declared_axis_still_exists_and_still_has_its_axis`.
 - autofix: none
@@ -6502,6 +6553,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: la figure totalise MOINS que ce que le compteur a gagné, sans qu'aucun message ne le dise. Mesuré sur un locataire réel le 2026-09-12 : **182 432 dessinés contre 206 555 gagnés**, soit 12 % perdus, sur une plateforme servie par la couche or en mode « Par période ».
 - root_cause: `platform_chart.py` calculait la croissance d'un seau comme « niveau de fin moins niveau de fin du seau précédent », et rendait le PREMIER seau `None` — « pas de seau avant, donc croissance inconnue ». C'est faux dès que la série cumulée COMMENCE dans ce seau : entre son premier relevé et la fin du seau, la croissance est **observée**, pas inconnue. Le raisonnement confondait « pas de prédécesseur » et « pas de baseline ».
+- cause_evidence: read (`src/dashboard/utils/platform_chart.py:789` — la croissance du premier seau est calculée, et `None` n'est conservé que quand la série commence APRÈS ce seau, ce qui est la distinction exacte que la classe décrit. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: le niveau d'entrée du premier seau est désormais le dernier relevé à ou avant le début de la fenêtre, à défaut le premier relevé de la série — et il reste `None` quand la série commence réellement après le premier seau, où l'ignorance est vraie. La somme de la figure égale alors la croissance du compteur par construction, ce que le garde vérifie sur tous les locataires de la base.
 - autofix: none
@@ -6540,6 +6592,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: l'écran dit « Pas encore assez d'historique pour tracer une évolution » à un locataire qui en a **quatre ans**. Vu au navigateur le 2026-09-12 sur « 90 jours · Jour · Par période ».
 - root_cause: `views/home.py` n'avait qu'un message pour l'absence de figure, et la figure ne dessine rien dans deux cas très différents — un compte NEUF (rien n'a encore été collecté) et une FENÊTRE VIDE (tout a été collecté, mais rien dans la période demandée). Ici le CSV Spotify n'avait pas été déposé depuis 92 jours, ce qui est exactement le sujet de la séance, et le message envoyait chercher le mauvais geste.
+- cause_evidence: read (`src/dashboard/views/home.py:155-166` — le compte NEUF a son propre message (`home.no_data_yet`), et `test_an_empty_window_is_not_called_a_missing_history` passe le 2026-09-17 : les deux silences sont distingués. Vérifié)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: le message se DÉRIVE de l'état au lieu d'être écrit à côté : la dernière mesure est comparée à la borne basse de la fenêtre, et les deux textes existent. Les deux silences demandent des gestes OPPOSÉS — le premier fait attendre, le second demande un import — donc les confondre ne coûte pas un mot, il coûte une action.
 - autofix: none
@@ -6717,6 +6770,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: **écrire sur un défaut devient impossible.** Trois commandes bloquées d'affilée le 2026-09-12, toutes en train d'écrire la classe d'erreur du geste concerné. Le hook comparait des sous-chaînes : nommer le geste suffisait à déclencher le garde du geste.
 - root_cause: `guard_destructive.py` cherchait `pkill -f` et `git checkout -- ` n'importe où dans la commande, sans vérifier que le geste en soit la COMMANDE. Un `echo` d'une phrase, un heredoc de documentation ou l'édition du hook lui-même suffisaient. **Le mode d'échec du volet rétablissement est pire qu'un faux positif** : les jetons de la phrase deviennent des chemins passés à `git status`, et l'un d'eux peut être `:` — en syntaxe de pathspec git cela désigne TOUS les fichiers, donc une phrase en prose faisait croire au garde que le dépôt entier allait être écrasé. Vérifié par mutation : la phrase de documentation faisait lister de vrais fichiers modifiés.
+- cause_evidence: read (`.claude/hooks/guard_destructive.py` — `_is_the_command_of_a_segment` découpe la ligne en segments et compare la TÊTE, et `_sans_heredocs` retire les corps de heredoc avant tout. Les deux existent, le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: les deux volets exigent désormais que le geste soit la commande de son segment — premiers jetons après `shlex.split`, `sudo`/`time`/`nohup` admis. C'est le minimum structurel : lire ce que le shell EXÉCUTERAIT, pas ce que la ligne contient.
 - autofix: none
@@ -7207,6 +7261,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un cliquet qui affirme mesurer « à froid » rend un nombre DIFFÉRENT selon ce qui a tourné avant lui dans le même processus. Il passe en ordre de fichier et tombe en ordre aléatoire — ou l'inverse.
 - root_cause: sa purge énumère les caches PAR LEUR NOM. L'énumération se périme dès qu'un cache est ajouté au chemin chaud, et le cliquet se remet alors à mesurer son voisinage. Mesuré le 2026-09-16, trois rendus successifs dans un processus neuf : l'accueil `artist` rend **14, 13, 13** — `_cached_plan_row` (`auth.py`, `@st.cache_data`, écrit le 2026-09-03 avec `plan_resolver`) n'était dans aucune liste. Le plafond de 13 avait donc été gelé sur un cache CHAUD. `admin` rend 13, 13, 13 : `get_artist_plan()` répond `premium` sans toucher la base pour un admin, et cette asymétrie EST la preuve de la cause. Troisième fois pour ce fichier — les deux précédentes avaient été corrigées en AJOUTANT un nom à la liste.
+- cause_evidence: read (`tests/test_a_page_asks_the_same_question_once.py:106-110` — l'énumération a disparu, `_SCRIPT` appelle `st.cache_data.clear()`, et la ligne 240 conserve la mutation qui le prouve : la retirer rend 13 contre 14. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: ne pas énumérer : `st.cache_data.clear()` ne peut pas se périmer. Et surtout, garder la PROPRIÉTÉ et non sa valeur — un test qui compare un processus déjà chaud (réchauffé délibérément, quel que soit l'ordre) à un processus NEUF ouvert en sous-processus. La première version de ce garde comparait deux rendus en mémoire et est restée VERTE sur la mutation, ses voisins ayant déjà réchauffé le cache.
 - autofix: none
@@ -7239,6 +7294,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: manual
 - symptom: un hook PreToolUse bloque une commande et l'appelant ne voit AUCUN motif : l'outil rapporte « No stderr output ». La porte est fermée, la raison est invisible, et il faut relancer le hook à la main — avec une ligne de commande construite pour ne pas se redéclencher elle-même — juste pour lire le message.
 - root_cause: le contrat PreToolUse de Claude Code est : `exit 2` bloque, et c'est **stderr** qui remonte le motif au modèle. `pre_commit_scan.py` écrivait son bloc « 🚫 BLOCKED » avec un `print()` nu, donc sur stdout, où il est avalé. Le défaut est resté invisible tant qu'aucun fichier ne déclenchait le scanner ; il est apparu le 2026-09-16 sur un faux positif — un mot de passe littéral, argument d'un mock passé à un `psycopg2.connect` patché.
+- cause_evidence: read (`.claude/hooks/pre_commit_scan.py:204` — le seul chemin de blocage porte `file=sys.stderr`. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: tout chemin de BLOCAGE d'un hook écrit sur `sys.stderr`, et son message nomme l'échappatoire. Ici : `# pragma: allowlist secret`, la convention que `detect-secrets` et `.secrets.baseline` utilisent déjà — deux scanneurs, UNE convention, faute de quoi la seconde se fait ignorer.
 - autofix: none
@@ -7391,6 +7447,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: manual
 - symptom: un correctif de rejouabilité fait DISPARAÎTRE une colonne, une contrainte ou un index qu'une migration ultérieure avait ajoutés. Le fichier corrigé passe enfin, le registre se complète, et le schéma recule — sans erreur, puisque tout a « réussi ».
 - root_cause: le correctif remplace `CREATE OR REPLACE` par `DROP` + `CREATE` pour contourner « cannot drop columns from view ». Mais l'erreur ne disait pas que le fichier était mal écrit : elle disait qu'**un successeur avait élargi l'objet**. Mesuré le 2026-09-16 : `106_gold_remaining_grains.sql` recrée `v_meta_creative_daily`, que `108_*` élargit de `ad_account_id` et `adset_name` ; 108 étant DÉJÀ au registre, elle ne repasse pas, donc le DROP+CREATE de 106 rendait la vue à sa forme étroite. Deux tests sont tombés dans la minute. C'est la classe `unguarded-drop-replayed-alone` reproduite en croyant la refermer.
+- cause_evidence: measured (`grep -l v_meta_creative_daily migrations/*.sql` rend DEUX fichiers le 2026-09-17 : `106_gold_remaining_grains.sql` et `108_gold_meta_creative_account_and_adset.sql`. Le successeur existe donc bien, et rejouer 106 tel quel le défait — c'est le mécanisme, pas une hypothèse)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **un fichier qui a un successeur ne se réécrit pas, il se retire.** La forme correcte est celle de `024_*` : le fichier CONSTATE la marque du successeur (`IF EXISTS (SELECT 1 FROM information_schema.columns WHERE …) THEN RETURN;`) et ne fait rien. Pas de DROP, donc rien à détruire ; et sur une base neuve, où l'ordre est respecté, l'objet est bien créé. Avant de rendre une migration rejouable, la question est « qui a touché cet objet APRÈS moi ? », jamais « comment faire passer cette instruction ? ».
 - autofix: none
@@ -7499,6 +7556,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: manual
 - symptom: on pose un fichier de configuration, on recharge le service, la commande sort en 0, le fichier est bien là — et **le réglage n'est pas appliqué**. Rien n'échoue. La seule façon de s'en apercevoir est de mesurer l'EFFET, ce qu'on ne fait pas quand tout indique le succès.
 - root_cause: **`reload` et `restart` ne reprennent pas le même sous-ensemble de la configuration**, et la documentation d'un démon le dit rarement. Mesuré le 2026-09-16 : `/etc/docker/daemon.json` posé avec `log-opts.max-size`, `systemctl reload docker` exécuté sans erreur, `docker info` rendant bien `json-file`. Un conteneur témoin écrivant 400 000 lignes a produit **un seul fichier de 65 Mo**, sans aucun `…-json.log.1` : la rotation n'était pas active. Les options de journalisation demandent un `restart`.
+- cause_evidence: measured (2026-09-16 sur le VPS : `/etc/docker/daemon.json` posé, `systemctl reload docker` sans erreur, `docker info` rendant `json-file` — et un conteneur témoin écrivant quand même sans rotation. ⚠️ Mesure d'infrastructure NON rejouée le 2026-09-17 : elle demande un accès SSH à la production, que la signature de cette classe porte déjà)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **vérifier l'EFFET, jamais l'artefact** — et écrire la commande qui le prouve à côté de celle qui applique. Ici : faire écrire un conteneur jetable au-delà du seuil et compter les fichiers de rotation, plutôt que lire le fichier de configuration. Corollaire général, qui est le vrai enseignement : quand on écrit « `reload` suffit », c'est une hypothèse sur un démon tiers ; tant qu'elle n'est pas mesurée, elle vaut « peut-être ».
 - autofix: none
@@ -7590,6 +7648,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un garde passe VERT sur un défaut qui appartient pourtant très exactement à son sujet. En le relisant on ne trouve rien à redire : il fait ce qu'il dit. Il ne dit simplement qu'une moitié.
 - root_cause: un cliquet est écrit le jour où l'on s'est trompé, donc il surveille **la direction de cette erreur-là**. Mesuré le 2026-09-16 : `test_roadmap_two_files.py` échoue quand la somme des deux fichiers de ROADMAP **diminue** — écrit après une rotation qui perdait un item. Une réécriture a recopié toute la fin du fichier actif (664 → 1 104 lignes, R117 et le bloc de reprise en double) : la somme AUGMENTE, donc les six gardes du fichier sont passés verts. `/resume` aurait lu le premier bloc de reprise et ignoré tout ce qui suit.
+- cause_evidence: read (`tests/test_roadmap_two_files.py:57` — `test_the_rotation_does_not_shrink_the_denominator` ne surveille QUE la diminution ; les propriétés du sens inverse sont des tests SÉPARÉS, ajoutés après. Vérifié le 2026-09-17)
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: **après avoir écrit un cliquet, énoncer la dérive SYMÉTRIQUE et décider explicitement si elle compte.** Ici : un identifiant de brique, un titre de section et un marqueur de reprise n'apparaissent qu'une fois. La question de relecture : « et si la grandeur bougeait dans l'autre sens ? ». Elle se pose en trente secondes et elle a attrapé un défaut réel dès sa première formulation.
 - autofix: none
