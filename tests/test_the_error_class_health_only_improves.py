@@ -255,7 +255,19 @@ _CEILINGS = {
     # c'est exactement ce que `named-guard-deleted-while-the-class-reads-guarded`
     # demande, et la vraie fixture vit DANS `test_postgres_handler.py:42-51`, donc sa
     # portée est ce fichier et lui seul.
-    "siblings_never_swept": 209,
+    # 209 → 204 le 2026-09-17 : `le-temps-et-l-horloge`. Le TRI des signatures
+    # `heuristic` est tout le travail ici, et il change les chiffres d'un ordre de
+    # grandeur : 53 candidats `tz-aware-naive-mix` → **1** site réellement risqué,
+    # et ce site est LE REMÈDE (`airflow_kpi.py:554` normalise en naïf-UTC avec le
+    # commentaire qui nomme l'erreur qu'il évite). 10 candidats `naive-datetime-now`
+    # → 3 de prose, 5 cosmétiques autorisés, 1 faux site, **1 VRAI défaut**.
+    #
+    # ⚠️ Incohérence LATENTE nommée au passage : `airflow_kpi` normalise
+    # `start_date`/`end_date` en naïf-UTC quand `airflow_monitor` les produit
+    # tz-aware. Deux consommateurs, deux conventions sur la MÊME donnée ;
+    # `airflow_kpi` est sûr parce qu'il coerce, pas parce que la convention est
+    # partagée.
+    "siblings_never_swept": 204,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
