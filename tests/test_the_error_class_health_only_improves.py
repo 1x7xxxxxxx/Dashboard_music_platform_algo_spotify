@@ -323,7 +323,14 @@ _CEILINGS = {
     # ressemble à un 0 dans un diff. Le cas le plus net :
     # `test_the_ceilings_are_not_slack` est au PLURIEL et ne vérifiait qu'UN des deux
     # plafonds de son propre fichier. Trois corrigés, chacun re-muté rouge.
-    "siblings_never_swept": 184,
+    # 184 → 179 le 2026-09-17. **Ma TROISIÈME recherche fausse de la soirée**, et elle
+    # mérite d'être écrite : cherchant les pages admin gardées, j'ai d'abord conclu
+    # « 10 sur 10 sans contrôle ». Faux — `app.py:598` porte UN contrôle centralisé
+    # AVANT tout routage. Mon prédicat cherchait une garde À PROXIMITÉ de chaque
+    # `page == '<clé>'`, et une garde centralisée est invisible à une recherche de
+    # voisinage. Même leçon que sur les cliquets : le prédicat mécanique se trompe
+    # dans les deux sens, et seule la LECTURE tranche.
+    "siblings_never_swept": 179,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
