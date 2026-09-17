@@ -25,6 +25,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R127 | Durcir la machinerie de séance — les défauts résiduels de `night_run.py` trouvés par l'audit REX du 2026-09-17 | P3 | `make night-check` croise désormais le journal et l'index ; il a trouvé 2 divergences à sa première exécution |
 
 **R123 a été livrée le 2026-09-17** (commit `5662e33`) : le nettoyage de portée session
 passe au processus contrôleur plutôt qu'au worker. **R122 a été close le 2026-09-17**,
@@ -235,7 +236,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-17, aucune tâche actionnable (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R114 -->
+<!-- reprise: open=R114,R127 -->
 
 **R122 et R123 sont closes le 2026-09-17, toutes deux rotées dans `archive.md`.** R123
 a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans

@@ -50,7 +50,12 @@ ROADMAP = REPO / ".claude" / "dev-docs" / "roadmap" / "checklist.md"
 JOURNAL = REPO / ".claude" / "dev-docs" / "roadmap" / "night-run.jsonl"
 PROTOCOL = REPO / ".claude" / "dev-docs" / "roadmap" / "night-run.md"
 
-_INDEX_ROW = re.compile(r"^\|\s*(R\d+)\s*\|\s*(.+?)\s*\|\s*(P\d)\s*\|", re.M)
+# ⚠️ La priorité est FACULTATIVE dans ce motif, et c'est un correctif du 2026-09-17.
+# Il exigeait `(P\d)`, donc une ligne d'index dont la priorité vaut `—`, `?` ou rien
+# disparaissait de `night-status` SANS erreur : la tâche existait dans la roadmap et
+# n'existait pas à l'écran. Un écran de reprise qui perd une ligne sur un champ
+# accessoire est pire qu'un écran qui refuse de s'afficher.
+_INDEX_ROW = re.compile(r"^\|\s*(R\d+)\s*\|\s*(.+?)\s*\|\s*([^|]*?)\s*\|", re.M)
 
 
 class GitUnavailable(RuntimeError):
@@ -168,11 +173,20 @@ def _current_unit(entries: list[dict]) -> dict | None:
     return None
 
 
-def _age_minutes(iso: str) -> int:
+def _age_minutes(iso: str) -> int | None:
+    """L'âge en minutes, ou `None` si l'horodatage est illisible.
+
+    ⚠️ Ceci rendait **-1** sur `ValueError`. `-1 > 90` et `-1 > 180` sont faux, donc
+    l'avertissement de `status` ET l'invariant de `check` disparaissaient sans un mot :
+    un horodatage corrompu désarmait les deux seuils en se faisant passer pour une
+    unité toute jeune. `une-erreur-avalée-devient-une-absence`.
+
+    `None` force l'appelant à décider, et les deux appelants le disent maintenant.
+    """
     try:
         then = datetime.fromisoformat(iso)
-    except ValueError:
-        return -1
+    except (ValueError, TypeError):
+        return None
     return int((datetime.now(timezone.utc) - then).total_seconds() // 60)
 
 
@@ -269,10 +283,17 @@ def cmd_status(_args) -> int:
     if unit:
         age = _age_minutes(unit.get("at", ""))
         print(f"\n▶ EN COURS  [{unit.get('task', '?')}]  {unit.get('what', '')}")
-        print(f"  ouverte depuis {age} min (commencée à {unit.get('at')})")
-        if age > 90:
-            print("  ⚠️  Plus de 90 min : soit un tour est mort avant son `done`, soit "
-                  "l'unité est trop grosse. Relire le diff AVANT de repartir.")
+        if age is None:
+            # On le DIT. La version d'avant rendait -1, qui s'affichait « -1 min » et
+            # passait sous les deux seuils : un horodatage corrompu ressemblait à une
+            # unité toute neuve.
+            print(f"  ⚠️  horodatage ILLISIBLE ({unit.get('at')!r}) — l'âge de cette "
+                  "unité est inconnu, et le seuil des 90 min ne peut pas s'appliquer")
+        else:
+            print(f"  ouverte depuis {age} min (commencée à {unit.get('at')})")
+            if age > 90:
+                print("  ⚠️  Plus de 90 min : soit un tour est mort avant son `done`, "
+                      "soit l'unité est trop grosse. Relire le diff AVANT de repartir.")
     else:
         print("\n▶ EN COURS  aucune unité ouverte — prendre la suivante ci-dessous")
 
@@ -348,8 +369,15 @@ def cmd_check(_args) -> int:
     problems = []
     entries = _entries()
     unit = _current_unit(entries)
-    if unit and _age_minutes(unit.get("at", "")) > 180:
-        problems.append(f"unité [{unit.get('task')}] ouverte depuis plus de 3 h")
+    if unit:
+        age = _age_minutes(unit.get("at", ""))
+        if age is None:
+            problems.append(
+                f"unité [{unit.get('task')}] : horodatage illisible "
+                f"({unit.get('at')!r}) — son âge est INCONNU, l'invariant des 3 h n'a "
+                "rien pu vérifier")
+        elif age > 180:
+            problems.append(f"unité [{unit.get('task')}] ouverte depuis plus de 3 h")
     # ⚠️ Le JOURNAL lui-même est exclu, et c'est un correctif, pas une commodité.
     # `night-done` écrit une ligne APRÈS le commit de l'unité — il ne peut pas faire
     # autrement, il enregistre le sha. L'arbre était donc sale à chaque fin d'unité et
@@ -374,6 +402,38 @@ def cmd_check(_args) -> int:
                         "sur l'arbre ni sur les commits non poussés")
     if not PROTOCOL.exists():
         problems.append(f"{PROTOCOL.relative_to(REPO)} absent")
+
+    # ── Le journal et la roadmap doivent parler des MÊMES tâches ────────────────
+    #
+    # ⚠️ Deux défauts fermés ici, tous deux vérifiés le 2026-09-17 :
+    #
+    # 1. `make night-note TASK=R999` était accepté et journalisé, et `night-check`
+    #    ne le voyait pas. Un identifiant inventé — ou une faute de frappe sur un
+    #    vrai — produisait une unité que personne ne pouvait relier à du travail.
+    #
+    # 2. `cmd_park` IMPRIME « écrire la même question dans "🙋 En attente de toi" de
+    #    la roadmap », et `night-run.md` répète la consigne. **Rien ne le vérifiait.**
+    #    Une question parquée qui n'est jamais écrite dans `checklist.md` n'existe
+    #    pour aucun humain : elle vit dans un JSONL que seul cet écran lit.
+    #
+    # La portée est étroite à dessein : on ne vérifie que ce qui est ENCORE OUVERT —
+    # l'unité en cours et les questions non refermées. Les tâches livrées ont quitté
+    # l'index pour l'archive, et exiger qu'elles y soient encore ferait rougir le
+    # contrôle sur chaque brique close.
+    known = {tid for tid, _, _ in _open_tasks()}
+    if known:
+        pending = []
+        if unit and unit.get("task"):
+            pending.append(("unité en cours", unit["task"]))
+        pending += [("question parquée", e["task"]) for e in open_questions(entries)
+                    if e.get("task")]
+        for kind, task in pending:
+            if task not in known:
+                problems.append(
+                    f"{kind} [{task}] : aucune ligne d'index de la roadmap ne porte "
+                    "cet identifiant. Soit la tâche n'y a jamais été écrite, soit "
+                    "c'est une faute de frappe — dans les deux cas le journal et la "
+                    "roadmap racontent deux histoires différentes")
     for problem in problems:
         print(f"⚠️  {problem}")
     return 1 if problems else 0

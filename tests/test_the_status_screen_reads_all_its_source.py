@@ -138,3 +138,73 @@ def test_the_roadmap_hook_filters_on_a_path_that_exists() -> None:
         f"le hook filtre sur `{joined}` qui n'est pas un répertoire de ce dépôt — "
         f"il sortira 0 sur chaque édition, comme `src/Application` l'a fait "
         f"jusqu'au 2026-09-17")
+
+
+# ── Trois défauts de plus, fermés le 2026-09-17 après l'audit REX ─────────────
+
+
+def test_an_index_row_without_a_priority_is_still_seen() -> None:
+    """Un champ accessoire manquant ne fait pas disparaître une tâche de l'écran.
+
+    `_INDEX_ROW` exigeait `(P\\d)`. Une ligne dont la priorité vaut `—`, `?` ou rien
+    disparaissait de `night-status` SANS erreur : la tâche existait dans la roadmap et
+    n'existait pas à l'écran.
+    """
+    mod = _night_run()
+    piege = ("## 📋 Tâches ouvertes\n"
+             "| R1 | avec priorité | P2 | mesurée |\n"
+             "| R2 | sans priorité | — | mesurée |\n"
+             "| R3 | priorité vide |  | mesurée |\n"
+             "## suite\n")
+    ids = [r[0] for r in mod._INDEX_ROW.findall(
+        mod._section(piege, "## 📋 Tâches ouvertes"))]
+    assert ids == ["R1", "R2", "R3"], (
+        f"une ligne d'index sans priorité sort de l'écran sans un mot (vu {ids})")
+
+
+def test_an_unreadable_timestamp_does_not_disarm_the_thresholds() -> None:
+    """`_age_minutes` rend `None`, jamais un nombre qui passe sous les seuils.
+
+    Il rendait **-1** sur `ValueError`. `-1 > 90` et `-1 > 180` sont faux : un
+    horodatage corrompu désarmait l'avertissement de `status` ET l'invariant de `check`,
+    en se faisant passer pour une unité toute jeune.
+    `une-erreur-avalée-devient-une-absence`.
+    """
+    mod = _night_run()
+    assert mod._age_minutes("pas une date") is None, (
+        "`_age_minutes` rend de nouveau une valeur numérique sur un horodatage "
+        "illisible — si elle est négative, les deux seuils redeviennent inopérants "
+        "en silence")
+    assert mod._age_minutes("") is None
+    # Et un horodatage valide rend toujours un nombre.
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+    assert isinstance(mod._age_minutes(now), int)
+
+
+def test_the_check_crosses_the_journal_with_the_roadmap() -> None:
+    """Un `TASK=` inventé ne doit pas traverser le contrôle en silence.
+
+    `make night-note TASK=R999` était accepté et journalisé, et `night-check` ne le
+    voyait pas. Et `cmd_park` IMPRIME « écrire la même question dans la roadmap » sans
+    que rien ne le vérifie : une question parquée jamais écrite dans `checklist.md`
+    n'existe pour aucun humain.
+
+    Vérifié à la première exécution du croisement : il a trouvé DEUX divergences
+    réelles — une unité dont l'identifiant n'avait jamais eu de ligne, et une question
+    parquée dont la roadmap disait qu'elle attendait du trafic, pas un humain.
+    """
+    import ast
+
+    tree = ast.parse(_NIGHT.read_text(encoding="utf-8"))
+    fn = next((n for n in ast.walk(tree)
+               if isinstance(n, ast.FunctionDef) and n.name == "cmd_check"), None)
+    assert fn is not None, "`cmd_check` a disparu"
+    called = {n.func.id for n in ast.walk(fn)
+              if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    assert "_open_tasks" in called, (
+        "`cmd_check` ne lit plus l'index de la roadmap : un `TASK=` inventé, ou une "
+        "question parquée jamais écrite dans `checklist.md`, redeviennent invisibles")
+    assert "open_questions" in called, (
+        "`cmd_check` ne croise plus les questions PARQUÉES avec la roadmap — c'est la "
+        "moitié du défaut : `cmd_park` demande de les y écrire et rien ne le vérifiait")

@@ -53,3 +53,6 @@
 {"at": "2026-09-17T10:41:43+00:00", "head": "1059c36", "kind": "done", "task": "R126", "what": "biais de population ecrit dans le generateur + 3 portees le-locataire (300->297)"}
 {"at": "2026-09-17T10:42:11+00:00", "head": "1059c36", "kind": "start", "task": "R114", "what": "re-mesure alternee A-B-A-B avec l'instrument serveur"}
 {"at": "2026-09-17T10:46:58+00:00", "head": "1059c36", "kind": "park", "task": "R114", "what": "passe A faite (p50 x15,94 a 24 onglets, 0 rerun perdu) mais le SERVEUR n'a rien vu : le mode anonyme tape la page de connexion, non instrumentee. Croisement impossible sans identifiants d'un locataire bac a sable."}
+{"at": "2026-09-17T11:06:42+00:00", "head": "5b22896", "kind": "start", "task": "R127", "what": "finir les defauts residuels de night_run + capitaliser les defauts du jour"}
+{"at": "2026-09-17T11:06:58+00:00", "head": "5b22896", "kind": "note", "task": "R999", "what": "tache qui n existe pas"}
+{"at": "2026-09-17T11:07:18+00:00", "head": "5b22896", "kind": "done", "task": "R116", "what": "ne parque plus : elle n attend AUCUN geste humain, seulement du trafic dans daily_ops_metrics. Son declencheur vit dans 'Conditions d attente' de la roadmap, pas dans ce journal"}
