@@ -318,6 +318,111 @@ def _pkill_would_kill_its_own_shell(command: str) -> str | None:
 
 # ── Detection ─────────────────────────────────────────────────────────────────
 
+# ── Un verdict avale par un tube, puis commite quand meme ────────────────────
+#
+# Mesure le 2026-09-17, sur cette ligne exacte :
+#
+#     pytest … -q 2>&1 | tail -3 && git add -A && git commit … && git push
+#
+# La suite etait ROUGE. `tail` a rendu 0, donc le `&&` a laisse passer, et le rouge
+# est parti sur `main`. Le texte de l'echec etait a l'ecran, sous mes yeux, dans la
+# sortie de la meme commande — ce n'est pas une erreur de lecture, c'est le shell qui
+# a decide a ma place : **un tube rend le code du DERNIER etage**, jamais celui de
+# l'etage qui portait le verdict.
+#
+# Pourquoi un garde et pas une note : c'est un idiome de frappe, pas un raisonnement.
+# Il se retape par reflexe a chaque fois qu'on veut abreger une sortie longue, et ce
+# depot a mesure trois fois qu'une note ne retient pas un reflexe.
+# La TETE d'un etage, comparee a un ensemble : `python` et `python3` couvrent
+# `python -m pytest`, dont la tete n'est pas `pytest`.
+_VERIFIERS = frozenset({"pytest", "ruff", "mypy", "make", "python", "python3",
+                       "audit_runner.py", "validate_rex.py"})
+
+
+def _verdict_swallowed_by_a_pipe(command: str) -> str | None:
+    """Un verdict tube dans un filtre, PUIS une livraison dans la meme chaine `&&`.
+
+    Rend le segment de verification fautif, ou None.
+
+    Ce qu'il ne bloque PAS, et c'est ce qui le rend tenable :
+      * un verdict tube SANS livraison derriere — la forme de lecture normale ;
+      * une livraison SANS verdict devant — un commit ordinaire ;
+      * `set -o pipefail` ou `${PIPESTATUS`, qui reparent le code de sortie ;
+      * un `;` a la place du `&&` : la livraison ne PRETEND alors rien du verdict.
+    """
+    texte = _sans_heredocs(command)
+    if "pipefail" in texte or "PIPESTATUS" in texte:
+        return None
+    # ⚠️ **On decoupe des JETONS, jamais du texte.** La premiere version de ce garde
+    # coupait la chaine sur `|` et `&&` avec une expression reguliere : elle s'est
+    # bloquee elle-meme sur `echo "pytest | tail && git commit est un piege"`, ou les
+    # trois marques vivent DANS un argument. C'est la classe deja nommee de ce depot,
+    # `a-bash-hook-that-blocks-the-prose-about-the-gesture`, attrapee ici par son propre
+    # cas de test. `shlex` garde une chaine citee en UN jeton, donc un operateur n'est
+    # un operateur que s'il en est un.
+    #
+    # ⚠️ Et `shlex.split` NE SUFFIT PAS : il coupe sur les blancs, donc
+    # `make test|tail -3&&git commit` lui rend `['make','test|tail','-3&&git',…]` et le
+    # garde ne voyait AUCUN operateur — il passait au vert sur la forme sans espaces.
+    # Trouve le 2026-09-17 en mutant : deux mutations sur trois sont d'abord passees
+    # VERTES, et c'est ce vert-la qui a revele le trou. `punctuation_chars=True` fait de
+    # `|`, `&&` et `;` des jetons a part entiere, sans toucher a ce qui est cite.
+    try:
+        analyseur = shlex.shlex(texte, posix=True, punctuation_chars=True)
+        analyseur.whitespace_split = True
+        jetons = list(analyseur)
+    except ValueError:
+        return None
+    etapes: list[list[str]] = [[]]
+    ops: list[str] = []
+    for jeton in jetons:
+        if jeton in ("|", "&&", "||", ";", "&", "|&"):
+            ops.append(jeton)
+            etapes.append([])
+        else:
+            etapes[-1].append(jeton)
+    if "&&" not in ops:
+        return None
+
+    def _tete(argv: list[str]) -> str:
+        i = 0
+        while i < len(argv) and (argv[i].lower() in _PREFIXES_A_SAUTER or "=" in argv[i]):
+            i += 1
+        return argv[i].rsplit("/", 1)[-1].lower() if i < len(argv) else ""
+
+    for i, argv in enumerate(etapes):
+        if not argv or i >= len(ops) or ops[i] != "|":
+            continue
+        # L'etage qui porte le VERDICT est celui a GAUCHE du tube ; les suivants ne font
+        # que filtrer. Un `| tee` conserve la sortie mais rend quand meme le code de
+        # `tee` : aucun filtre n'est exempte, volontairement.
+        if _tete(argv) not in _VERIFIERS:
+            continue
+        # Une LIVRAISON apres le tube, atteinte par un `&&` — donc qui PRETEND dependre
+        # du verdict. Apres un `;` elle ne pretend rien, et n'est pas bloquee.
+        #
+        # ⚠️ On TRAVERSE les etages de filtrage. La premiere version s'arretait au
+        # premier `ops[j-1] != "&&"`, donc au tube lui-meme : elle rendait None sur les
+        # QUATRE cas qu'elle existe pour attraper. Un garde qui rate la forme reellement
+        # tapee ne garde rien — trouve en jouant les cas, pas en relisant.
+        vu_et = False
+        for j in range(i + 1, len(etapes)):
+            lien = ops[j - 1]
+            if lien == "|" and not vu_et:
+                continue          # encore un filtre du meme tube
+            if lien != "&&":
+                break             # `;` ou `||` : la livraison ne pretend plus rien
+            vu_et = True
+            tete = _tete(etapes[j])
+            reste = etapes[j][1:] if etapes[j] else []
+            if tete == "git" and reste and reste[0] in ("commit", "push", "tag"):
+                return " ".join(argv)
+            if tete == "gh" and reste[:2] in (["pr", "create"], ["release", "create"]):
+                return " ".join(argv)
+    return None
+
+
+
 def _serial_full_suite(command: str) -> str | None:
     """Une suite COMPLÈTE lancée sans parallélisme. Rend le segment fautif, ou None.
 
@@ -410,6 +515,23 @@ def check_command(cmd: str) -> tuple[str, str] | None:
     Returns (level, message) if the command matches a dangerous pattern.
     level is 'block' or 'warn'. Returns None if safe.
     """
+    # Le verdict avale par un tube d'abord : il ne detruit rien et il ne coute pas de
+    # temps — il fait LIVRER un rouge en croyant livrer un vert, ce qui est pire.
+    avale = _verdict_swallowed_by_a_pipe(cmd)
+    if avale:
+        return ("block",
+                f"`{avale}` est tube dans un filtre, et une LIVRAISON suit dans la meme "
+                "chaine `&&`. Un tube rend le code du DERNIER etage : le verdict de "
+                "cette verification est jete, et `&&` laissera passer meme si elle est "
+                "ROUGE.\n"
+                "   Arrive le 2026-09-17 sur ce depot : une suite rouge poussee sur "
+                "`main`, le texte de l'echec affiche a l'ecran dans la meme sortie.\n"
+                "   Formes sures :\n"
+                "     • separer : lancer la verification, LIRE, puis commiter dans un "
+                "second appel ;\n"
+                "     • ou reparer le code de sortie : set -o pipefail; <cmd> | tail -3\n"
+                "     • ou n'affirmer rien : remplacer `&&` par `;` devant la livraison.")
+
     # La suite en SÉRIE d'abord : elle ne détruit rien, elle vole quinze minutes, et
     # c'est le seul de ces gardes dont la forme sûre est plus COURTE à taper.
     serial = _serial_full_suite(cmd)

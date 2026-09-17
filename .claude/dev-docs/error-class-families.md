@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**394 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**395 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -19,7 +19,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **1/20** · 5.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 24 | **4/24** · 16.7 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | **3/29** · 10.3 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
-| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 21 | **4/21** · 19.0 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
+| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 22 | **4/22** · 18.2 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 74 | **7/74** · 9.5 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 41 | **2/41** · 4.9 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
@@ -268,7 +268,7 @@ Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|diver
 
 **Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ?**
 
-Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|outside-its-condition|read-that-failed|failed-read|except.*number|read-through-a-filtering` sur l'identifiant et le symptôme. 21 classe(s).
+Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|outside-its-condition|read-that-failed|failed-read|except.*number|read-through-a-filtering` sur l'identifiant et le symptôme. 22 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -293,6 +293,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 | [`a-gap-rendered-as-a-zero-by-the-stack`](error-classes.md#a-gap-rendered-as-a-zero-by-the-stack) | la bande d'une plateforme est correctement COUPÉE sur un jour non mesuré, et le total empilé la compte quand même pour zéro — la pile redescend, et ça |
 | [`a-guard-satisfied-by-the-collapse-it-should-catch`](error-classes.md#a-guard-satisfied-by-the-collapse-it-should-catch) | un garde qui affirme une ABSENCE (« cette ligne ne doit pas s'afficher », « ce champ ne doit pas apparaître ») reste vert sur le défaut, parce que le  |
 | [`a-verification-read-through-a-filtering-wrapper`](error-classes.md#a-verification-read-through-a-filtering-wrapper) | une commande de vérification rend une réponse **plausible et fausse**, et la décision qui s'ensuit est prise sur cette réponse. Mesuré le 2026-09-13 : |
+| [`a-verdict-swallowed-by-the-pipe-that-abbreviated-it`](error-classes.md#a-verdict-swallowed-by-the-pipe-that-abbreviated-it) | une vérification est lancée, son verdict est ROUGE, il s'affiche à l'écran — et la livraison qui suit sur le même `&&` part quand même. Rien n'échoue, |
 
 ## un-garde-qui-ne-garde-pas
 
@@ -597,6 +598,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=394 families=18 orphans=3 -->
+<!-- error-class-families: total=395 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=be0151d4f1e0aea71ae6f2393c1b55b637eac3a77e08cab86264972c6afdc1f6 -->
+<!-- error-class-families: sha256=ed642ec3ae90c851f3f74ba7df9326fbe33532faa5a83a8b80c3c9e4c0943296 -->
