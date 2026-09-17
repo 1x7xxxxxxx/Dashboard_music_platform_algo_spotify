@@ -1338,6 +1338,30 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "a-make-target-that-claims-a-barrier-it-does-not-hold": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-17",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_make_target_names_the_mechanism_that_blocks.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P3",
+      "status": "guarded",
+      "introduced_date": "2026-09-17",
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-make-variable-named-after-an-environment-variable": {
       "cause_evidence": "measured",
       "first_seen_declared": "2026-09-17",
@@ -2154,7 +2178,7 @@
       "severity": "P2",
       "status": "guarded",
       "introduced_date": "2026-09-17",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -9281,7 +9305,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 223,
+      "catalogue_revisions": 224,
       "head_date": "2026-09-17"
     },
     "holes": {
@@ -9296,11 +9320,11 @@
       "seen_red_unknown": 331
     },
     "population": {
-      "automatic_guard": 375,
-      "classes": 385,
+      "automatic_guard": 376,
+      "classes": 386,
       "ever_recurred_observed": 48,
       "prose_only": 10,
-      "with_signature": 374
+      "with_signature": 375
     },
     "recurrence": {
       "window_start": "2026-05-15",
