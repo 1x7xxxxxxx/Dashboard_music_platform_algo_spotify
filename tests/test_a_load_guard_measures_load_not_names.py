@@ -96,3 +96,38 @@ def test_the_instrumented_path_is_behind_the_login_gate() -> None:
         "que le mode anonyme du générateur de charge deviendrait observable côté "
         "serveur, ce que `.claude/dev-docs/runbook-actions-utilisateur.md` §14 "
         "affirme impossible. Mettre les deux d'accord.")
+
+
+def test_the_daily_summary_declares_what_it_does_not_observe() -> None:
+    """Le module qui écrit les chiffres dit ce qu'ils ne voient pas.
+
+    Troisième trou déclaré le 2026-09-17 dans le `ne couvre pas:` de
+    `two-instruments-that-do-not-observe-the-same-path` : « les autres couples
+    d'instruments du dépôt, dont aucun ne déclare son périmètre d'observation ».
+
+    `src/utils/daily_ops_metrics.py` écrit `p50_render_ms`, `reruns_total` et
+    `complete` depuis Prometheus. Son docstring expliquait très bien POURQUOI deux
+    stockages et ce qu'il fait quand Prometheus ne répond pas — et ne disait rien du
+    fait que la couture s'exécute **après `require_login()`**.
+
+    Les trois conséquences, aucune visible dans la ligne écrite : les pages non
+    authentifiées ne sont jamais comptées ; `reruns_total = 0` veut dire « personne ne
+    s'est connecté », pas « personne n'a utilisé l'app » ; et `complete = TRUE`
+    n'implique pas du trafic ce jour-là, la fenêtre étant un `rate(...[24h])`.
+
+    **Le coût de ne pas l'avoir écrit** : ce zéro a été lu comme « le serveur ne mesure
+    rien », conclusion publiée puis rétractée le même jour.
+
+    ⚠️ Ce garde lit une DOCSTRING. Il vérifie qu'elle nomme la porte, pas qu'un lecteur
+    en tire la bonne conclusion. C'est le maximum qu'un test puisse dire d'une
+    déclaration en prose — et c'est précisément ce qui manquait.
+    """
+    doc = (_REPO / "src" / "utils" / "daily_ops_metrics.py").read_text(encoding="utf-8")
+    head = doc.split('"""')[1] if '"""' in doc else ""
+    assert "require_login" in head, (
+        "le docstring de `daily_ops_metrics` ne nomme plus `require_login()`. Sans "
+        "cela, rien ne dit que `reruns_total = 0` signifie « personne ne s'est "
+        "CONNECTÉ » et non « personne n'a utilisé l'app » — la lecture qui a produit "
+        "une conclusion fausse le 2026-09-17.")
+    assert "n'observent pas" in head or "N'OBSERVENT PAS" in head, (
+        "la section qui déclare le périmètre non observé a disparu du docstring")

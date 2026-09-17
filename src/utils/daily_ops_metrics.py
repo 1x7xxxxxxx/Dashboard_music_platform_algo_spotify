@@ -28,6 +28,31 @@ Ce que ce module fait quand Prometheus ne répond pas
 Il écrit quand même la ligne, avec `complete = FALSE`. Une ligne incomplète vaut mieux
 qu'une absence : **l'absence se lit comme « la surveillance n'a pas tourné »**, ce qui
 est un autre problème et enverrait chercher au mauvais endroit.
+
+⚠️ CE QUE CES CHIFFRES N'OBSERVENT PAS — à lire avant de conclure sur un zéro
+------------------------------------------------------------------------------
+La couture qui alimente `streamlytics_rerun_duration_seconds` s'exécute **APRÈS**
+`require_login()` (`src/dashboard/app.py`: la porte ligne 742, `end_chrome` 976,
+`view_timer` 979). Trois conséquences, et aucune n'est visible dans la ligne écrite :
+
+1. **Les pages non authentifiées ne sont jamais comptées** — connexion, inscription,
+   politique de confidentialité. `p50_render_ms` décrit les pages d'un locataire
+   connecté, pas « l'application ».
+2. **`reruns_total = 0` ne veut pas dire « personne n'a utilisé l'app »**, mais
+   « personne ne s'est connecté ». Le 2026-09-17, une passe de charge de 7 paliers
+   jusqu'à 24 onglets a rendu **×15,94 de sérialisation côté client** pendant que ces
+   compteurs restaient à zéro : le générateur tapait la page de connexion.
+3. **`complete = TRUE` n'implique pas du trafic ce jour-là.** Les requêtes portent sur
+   `rate(...[24h])` : une fenêtre peut être alimentée par des échantillons d'une vie
+   ANTÉRIEURE du conteneur. Le 2026-09-16, seize séries vues entre 17:10 et 17:20 UTC
+   ont nourri le résumé de 23:00 — et l'histogramme était vide au moment où je l'ai
+   interrogé.
+
+**Le coût de ne pas l'avoir écrit** : ce zéro a été lu comme « le serveur ne mesure
+rien », conclusion publiée puis rétractée le même jour. Un zéro d'instrument est une
+absence d'OBSERVATION avant d'être une absence d'évènement.
+
+Classe : `two-instruments-that-do-not-observe-the-same-path`.
 """
 from __future__ import annotations
 
