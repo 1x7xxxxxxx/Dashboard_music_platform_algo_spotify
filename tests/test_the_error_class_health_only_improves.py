@@ -81,7 +81,18 @@ _CEILINGS = {
     "cause_unknown": 241,             # 363 → 241 : les causes qui nomment un chemin vérifiable
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
-    "scope_without_not_covered": 297,
+    "scope_without_not_covered": 294,   # −3 le 2026-09-17 (lot `le-locataire`)
+    # ⚠️ Compteur NEUF le 2026-09-17, posé sur une question du propriétaire : « est-ce
+    # qu'on a intégré la réflexion de savoir si l'erreur découverte peut être situéé
+    # ailleurs dans le code ? ». La réponse mesurée était NON — 69 classes sur 395
+    # portaient une trace de balayage, 326 aucune, et ni `/capitalise` ni le schéma ne
+    # posaient la question.
+    #
+    # ⚠️ Ne PAS le confondre avec `scope_without_not_covered` : `ne couvre pas` parle
+    # du FUTUR (ce que le garde laissera passer), `siblings` parle du PRÉSENT (où le
+    # même défaut vit déjà). Le balayage de `a-replica-that-builds-its-own-image` a
+    # trouvé DEUX sites vivants sur lesquels le garde était vert.
+    "siblings_never_swept": 386,   # −8 le 2026-09-17 : les balayages RÉELLEMENT faits ce jour-là
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

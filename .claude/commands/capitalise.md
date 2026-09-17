@@ -24,6 +24,7 @@ exécution** avant de la livrer :
 | `long_term_fix` | le changement qui rend la classe *impossible*, ou `— (le garde EST le fix)` |
 | `guard` | le test ou le hook qui bloque, ou `—` |
 | `guard_scope` | `<famille> — <le geste> ; couvre: … ; **ne couvre pas: …**` |
+| `siblings` | `swept:<date> — <fichier:ligne, …>` · `swept:<date> — aucun autre site` · `not-swept`. **Le défaut existe-t-il DÉJÀ ailleurs ?** |
 | `history` | daté, ce qui s'est passé |
 
 **Et j'ajoute la ligne dans la table `## Index` en tête du catalogue** — l'entrée
@@ -55,6 +56,28 @@ rouge sur les commentaires de son propre fix, donc la seule façon de garder la 
 verte était d'arrêter de documenter. Une deterministic bloque la CI par contrat ;
 une qui bloque sur un commentaire apprend que le rouge peut être du bruit, et la
 leçon est appliquée aux autres. Contrôle : `audit_runner.py --prose`.
+
+## La troisième étape non négociable — je cherche le défaut AILLEURS
+
+**Avant d'écrire l'entrée**, je pose la question que la règle transverse 14 impose déjà :
+ce défaut existe-t-il **déjà** ailleurs dans l'arbre ? Pour un défaut à cause nommable,
+c'est `Spawn sibling-sweeper` ; pour un cas évident, c'est un balayage que je fais et que
+je consigne. Le résultat va dans `siblings:`.
+
+⚠️ **Ce n'est pas la même question que `guard_scope`**, et les confondre est le piège.
+`ne couvre pas` parle du FUTUR — ce que le garde laissera passer. `siblings:` parle du
+PRÉSENT — où le même défaut se trouve aujourd'hui. Une classe peut avoir une portée
+impeccable et trois sites frères vivants.
+
+Mesuré le 2026-09-17 : **69 classes sur 395 (17 %)** portaient une trace de balayage ;
+326 n'en portaient aucune. Et le jour où la question a été posée pour de bon, sur
+`a-replica-that-builds-its-own-image`, le balayage a trouvé **deux sites** que le
+correctif laissait vivants — dont le fichier copié tel quel en production. **Le garde
+écrit avant ce balayage était vert sur les deux.**
+
+`swept:<date> — aucun autre site` est un RÉSULTAT et s'écrit. `not-swept` est compté
+comme un TROU, jamais comme un zéro. « Je n'ai rien trouvé » et « je n'ai pas cherché » se ressemblent dans un
+catalogue et pas du tout dans un dépôt.
 
 ## La seconde étape non négociable — je nomme le GESTE, pas le verbe
 

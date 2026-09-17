@@ -53,11 +53,45 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - autofix:   safe | none
 - guard:     { type: <ci-step|pre-commit|posttooluse-hook|ruff-rule|make-precondition|cross-cutting-rule>, ref: <path> }
 - guard_scope: <famille> — <le geste, tel qu'on le fait> ; couvre: … ; ne couvre pas: …
+- siblings:  swept:<YYYY-MM-DD> — <ce que le balayage a trouvé, en fichier:ligne>
+             | swept:<date> — aucun autre site
+             | not-swept   (la question n'a pas été posée — c'est un TROU, pas un zéro)
 - rex_ref:   <path to the tool whose rex: block records the durable lesson>
 - first_seen: YYYY-MM-DD  (ref: DEVLOG#YYYY-MM-DD)
 - History:
   - YYYY-MM-DD: <status transition / note>
 ```
+
+### `siblings:` — ce défaut existe-t-il DÉJÀ ailleurs ?
+
+**Ajouté le 2026-09-17, sur une question du propriétaire, et la mesure lui donne raison :
+69 classes sur 395 (17 %) portaient une trace de balayage. 326 n'en portaient aucune.**
+
+Le dépôt tient depuis longtemps qu'« un défaut est une instance d'une CLASSE » — la règle
+transverse 14 impose `Spawn sibling-sweeper` AVANT d'écrire le correctif. Mais rien de ce
+qui en sort n'atterrissait dans la classe : `/capitalise` ne posait pas la question, aucun
+champ ne la portait, et rien ne vérifiait qu'elle avait été posée.
+
+⚠️ **`guard_scope` ne répond PAS à cette question**, et les confondre est le piège. Son
+`ne couvre pas` parle du FUTUR — quels gestes le garde laissera passer. `siblings:` parle
+du PRÉSENT — où le même défaut se trouve déjà, aujourd'hui, dans l'arbre. Une classe peut
+avoir une portée impeccable et trois sites frères vivants.
+
+Ce que la mesure du 2026-09-17 a montré quand on pose la question pour de bon : le
+balayage de `a-replica-that-builds-its-own-image` a trouvé **deux sites** que le correctif
+d'origine laissait vivants — une fusion YAML dans le fichier copié en production, et trois
+services airflow partageant un Dockerfile sans partager de tag. Le garde écrit avant ce
+balayage était **vert sur les deux**.
+
+| valeur | quand |
+|---|---|
+| `swept:YYYY-MM-DD — <fichier:ligne, …>` | le balayage a eu lieu et a trouvé |
+| `swept:YYYY-MM-DD — aucun autre site` | il a eu lieu et n'a rien trouvé — **c'est un résultat** |
+| `not-swept` | la question n'a pas été posée. Compté comme un TROU, jamais comme un zéro |
+
+La distinction entre les deux dernières est tout l'intérêt du champ : « je n'ai rien
+trouvé » et « je n'ai pas cherché » se ressemblent dans un catalogue et ne se ressemblent
+pas du tout dans un dépôt.
 
 ## Les trois preuves — `seen_red`, `cause_evidence`, `guard_scope`
 
@@ -788,7 +822,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: tout filtre d'exemption s'applique immédiatement après la requête qui le produit, jamais après une décision prise sur le résultat non filtré. Une source de repli filtre son propre résultat.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_sandbox_tenant_may_hold_its_owners_identity.py }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — appliquer une exemption APRÈS un repli, de sorte que la ligne exemptée consomme le repli et masque le conflit qu'il aurait trouvé ; couvre: `find_identity_conflict` (`src/dashboard/views/credentials/_core.py`) par `test_a_sandbox_row_does_not_hide_a_conflict_between_two_real_tenants`, sur le chemin Spotify et son miroir `saas_artists`, les deux directions de l'exemption étant tenues par les quatre autres tests du fichier (un bac à sable n'est jamais bloqué, n'en bloque jamais un vrai, et un canari GARDE la règle) ; ne couvre pas: (1) **le geste voisin le plus proche — le même ORDRE fautif ailleurs** : la cause n'est pas le bac à sable, c'est « filtrer après un repli », et aucun balayage ne cherche cette forme dans les autres recherches d'unicité du dépôt ; (2) les plateformes autres que Spotify — le test en instancie une seule, alors que `find_identity_conflict` sert tous les connecteurs ; (3) un développeur SANS Postgres : `_db_available()` rend False et le fichier entier est skippé en silence. ⚠️ Vérifié plutôt que supposé — la CI PROVISIONNE un Postgres (`.github/workflows/ci.yml:213-222`), donc le garde n'y est PAS vide ; le trou est local, pas en intégration ; (4) les exemptions futures — un troisième drapeau posé à côté de `is_sandbox` et `is_canary` ne ferait rougir aucun de ces tests.
 - rex_ref: .claude/rules/python.md
 - first_seen: 2026-09-04 (ref: DEVLOG#2026-09-04)
 - History:
@@ -1170,7 +1204,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `tests/test_api_db_smoke.py` hits every data endpoint against the real schema; a mocked suite alone cannot see this class.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_api_db_smoke.py }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — une route qui SELECT une colonne disparue et que seul un test à base mockée regarde ; couvre: les **sept** chemins listés dans `_DATA_ENDPOINTS` de `tests/test_api_db_smoke.py`, exécutés contre le schéma VIVANT et vérifiés « aucun 500 », plus `test_at_least_one_endpoint_actually_returns_data` qui refuse qu'une suite verte ne lise jamais une ligne ; ne couvre pas: (1) **le geste voisin le plus proche — une route AJOUTÉE** : `_DATA_ENDPOINTS` est une liste tenue à la main, et rien ne la confronte aux routes réellement déclarées par les 8 modules de `src/api/routers/` ; une route neuve dérive donc en silence ; (2) les rôles autres qu'`admin` — `_ROLES` n'en porte qu'un, donc un 500 qui ne frappe qu'un locataire scopé passe ; (3) la JUSTESSE des réponses : le garde vérifie qu'on ne tombe pas, jamais que la donnée rendue est la bonne ni qu'elle appartient au bon locataire ; (4) un développeur sans Postgres provisionné — `pytestmark = skipif(not _db_ready())` saute le fichier entier. ⚠️ Vérifié : la CI en provisionne un (`.github/workflows/ci.yml:213-222`), le trou est local.
 - rex_ref: .claude/commands/review-db-schema.md
 - first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite18)
 - History:
@@ -2185,7 +2219,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `tenant_identity.declared_identities()` — pure, no DB, no Streamlit — is the single answer to "what has this tenant declared", and all four surfaces call it. `home.py` keeps its single round-trip but counts rows carrying a non-empty identity, with the field names bound as a parameter array derived from the registry (never interpolated).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_connected_means_declared.py }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — lire l'EXISTENCE d'une ligne de credentials comme une connexion, alors qu'une ligne peut exister avec une identité vide ; couvre: les quatre surfaces listées dans `_SURFACES`, sur trois propriétés distinctes — aucune ne compte des lignes (`test_no_surface_counts_credential_rows`), aucune ne construit une connexion depuis un simple ensemble de lignes (`test_no_surface_builds_connection_from_a_bare_row_set`), et chacune appelle EFFECTIVEMENT l'aide partagée (`test_every_surface_actually_calls_the_shared_helper`) — plus la sémantique elle-même, dont le cas Meta/Instagram où une seule des deux identités est déclarée ; ne couvre pas: (1) **le geste voisin le plus proche — une CINQUIÈME surface** : `_SURFACES` est une liste tenue à la main, et rien ne balaie `src/dashboard/` pour trouver une nouvelle lecture de `artist_credentials` qui reprendrait le raccourci ; (2) les lectures hors dashboard — un DAG, un script de `tools/` ou un routeur d'API qui déduirait une connexion d'une ligne n'est vu par personne ici ; (3) ce que l'aide partagée DÉCIDE : le garde impose qu'on l'appelle, pas qu'elle ait raison ; (4) les plateformes dont l'identité vit ailleurs que dans `artist_credentials` — le miroir `saas_artists.spotify_artist_id` relève d'une classe voisine.
 - rex_ref: src/utils/tenant_identity.py
 - first_seen: 2026-08-12 (Grinch) — named 2026-08-22
 - History:
@@ -7855,6 +7889,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_replica_cannot_serve_a_different_artifact.py }
 - guard_scope: une-configuration-qui-diverge-de-la-prod — dériver une unité de déploiement d'une autre et lui laisser fabriquer son propre artefact ; couvre: les fichiers compose **suivis par git** (racine + `deploy/`), sur TROIS propriétés — un service `extends` épingle une `image:` ; ce tag n'est pas dérivé de son propre nom de service ; et surtout **deux services partageant le même `build:` nomment le même tag**, propriété AGNOSTIQUE du vecteur qui attrape `extends`, la fusion YAML `<<: *ancre` et le copier-coller ; ne couvre pas: (1) **le geste voisin le plus proche — un `docker compose up -d` qui sert une image périmée sans aucune dérivation** : `tools/deploy.sh:101` lance `up -d --build $SERVICES` **sans `-f`**, donc `make deploy SERVICE=dashboard2` résout la réplique depuis le compose de base et non depuis la surcharge ; sa porte de santé ne teste que la vivacité HTTP, qu'un artefact périmé passe sans un mot ; (2) le `docker-compose.yml` RÉELLEMENT exécuté en prod, gitignoré par construction — ce garde couvre son gabarit `docker-compose.example.yml`, la dérive gabarit↔copie relevant de `make sync-check` ; (3) la MÊME forme hors Compose — un service Kubernetes, un `Dockerfile.replica`, toute copie d'unité de déploiement qui reconstruit au lieu de référencer ; (4) la FRAÎCHEUR du tag épinglé — le garde prouve que deux services nomment la même image, jamais que cette image correspond au commit courant ; (5) un `build:` unique, délibérément : exiger une `image:` partout produirait du bruit sans supprimer aucune divergence possible.
+- siblings: swept:2026-09-17 — **DEUX sites vivants trouvés**, sur lesquels le garde d'origine était VERT : `docker-compose.example.yml:344` (même classe, vecteur différent — fusion YAML `<<: *dashboard` au lieu d'`extends`), et les trois services airflow, qui partagent `Dockerfile.airflow` sans partager de tag. C'est ce balayage qui a fait refondre la propriété du garde en « même `build:` ⇒ même `image:` », agnostique du vecteur.
 - rex_ref: deploy/docker-compose.replica.yml
 - first_seen: 2026-09-17
 - History:
@@ -7877,6 +7912,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_make_target_names_the_mechanism_that_blocks.py }
 - guard_scope: un-document-qui-affirme-un-état-périmé — s'attribuer dans une ligne d'aide une barrière tenue par autre chose ; couvre: les lignes `cible: ## texte` du `Makefile` uniquement, sur deux propriétés (tout chemin `tests/….py` cité existe ; les trois cibles de fraîcheur nomment leur garde exact) ; ne couvre pas: (1) **le geste voisin le plus proche — la même affirmation ailleurs que dans une ligne d'aide** : un commentaire de recette, un `SKILL.md`, un `.md` de `dev-docs` ou une docstring peut annoncer « bloque en CI » sans que rien ne le vérifie, et c'est là que vit la majorité de cette prose ; (2) le SENS du renvoi — que le fichier existe ne prouve pas qu'il garde ce que la cible prétend, ni qu'il est collecté par la suite ; (3) l'inverse, non gardé : une cible RÉELLEMENT lancée par un workflow et qui ne le dit pas — le silence n'est pas vérifié, seulement l'affirmation ; (4) les autres formulations d'environnement (« pre-commit », « bloquant », « nightly ») qui porteraient la même erreur sans le mot `tests/`.
+- siblings: swept:2026-09-17 — les trois cibles `*-check` de documents vérifiées ensemble, toutes trois fautives de la même façon. ⚠️ Le balayage n'a PAS couvert les autres porteurs de la même affirmation : un commentaire de recette, un `SKILL.md`, une docstring peuvent annoncer « bloque en CI » sans que rien ne le vérifie, et c'est là que vit la majorité de cette prose.
 - rex_ref: tests/test_the_gold_coverage_only_improves.py
 - first_seen: 2026-09-17
 - History:
@@ -7895,6 +7931,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_error_inbox_and_its_pointer_agree.py }
 - guard_scope: un-document-qui-affirme-un-état-périmé — un artefact généré qui se périme sans que rien ne le dise ; couvre: `error-inbox.md` et la ligne ancrée de `checklist.md`, sur deux propriétés (l'ancre existe en un seul exemplaire ; les deux nombres s'accordent) ; ne couvre pas: (1) **le geste voisin le plus proche, et il est assumé — la FRAÎCHEUR elle-même** : les deux surfaces peuvent s'accorder sur un chiffre périmé, et seul `make error-inbox-check` voit la base ; il n'est lancé par aucun automate, donc la péremption reste détectable mais non détectée ; (2) le CONTENU du document — qu'il annonce le bon nombre ne dit rien des lignes qu'il décrit ; (3) les autres documents générés du dépôt, couverts chacun par son propre cliquet, et un cinquième générateur qui apparaîtrait sans garde ne serait signalé par rien ici ; (4) la forme hors document — une table de cache, un index, tout artefact dérivé d'une ressource externe partage la cause sans partager ce garde.
+- siblings: swept:2026-09-17 — les QUATRE générateurs de documents du dépôt comparés : `gold_coverage`, `error_class_families` et `error_class_health` ont chacun un `--check` et un test jumeau ; `tools/error_inbox.py` n'avait ni l'un ni l'autre. Un seul site, isolé par comparaison des pairs.
 - rex_ref: tools/error_inbox.py
 - first_seen: 2026-09-17
 - History:
@@ -7913,6 +7950,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_api_measures_itself_without_unbounded_labels.py }
 - guard_scope: un-document-qui-affirme-un-état-périmé — un instrument qui se déclare sain sans rien observer ; couvre: `src/api/main.py` uniquement, par **trois tests nommés de ce fichier partagé** — `test_the_api_installs_its_own_http_measurement`, `test_the_api_publishes_the_pool_it_enables` et `test_only_the_dashboard_installs_the_defect_gauge` — qui lisent les appels par AST, plus la règle Prometheus `ApiExportsNothing` qui attrape la panne à l'exécution ; ne couvre pas: (1) **le geste voisin le plus proche — un exportateur qui répond avec un registre VIDE**, décrit par `src/dashboard/serve.py` comme « pire que `down` » : un `&` mal placé produirait une cible `up` sans aucune famille, et seul `MetricsExporterSilent` le verrait, pas ce test ; (2) les autres processus — un DAG, un script de `tools/` ou un futur service qui exposerait `/metrics` sans rien alimenter n'est balayé par personne ; (3) la JUSTESSE des valeurs : que le middleware soit installé ne dit pas qu'il compte les bonnes requêtes ; (4) les cibles non applicatives (`caddy`, `node`, `prometheus`), dont le silence est couvert par `ScrapeTargetDown` et non ici.
+- siblings: swept:2026-09-17 — les cinq cibles de scrutation comparées : `dashboard` alimentée, `api` déclarée-mais-vide (le défaut), `caddy`/`node`/`prometheus` servies par des exportateurs tiers. Un seul site applicatif.
 - rex_ref: src/dashboard/serve.py
 - first_seen: 2026-09-17
 - History:
@@ -7931,6 +7969,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_mute_defect_gauge_does_not_read_as_zero.py }
 - guard_scope: une-erreur-avalée-devient-une-absence — rendre une valeur par défaut quand on ne sait pas ; couvre: `src/utils/defect_gauge.py` et ses cinq séries (défauts, `read_ok`, horodatage, artistes vivants, sessions/minute), **plus la surface d'affichage** via `tests/test_a_gauge_that_can_be_blind_is_never_shown_alone.py`, qui refuse qu'un panneau trace la jauge sans son `read_ok` — sans quoi le mensonge serait simplement remonté d'une couche ; ne couvre pas: (1) **le geste voisin le plus proche — la même forme dans une vue Streamlit** : un `st.metric` qui affiche `0` sur un `except` partage exactement la cause et n'est balayé par personne ici ; (2) les autres exportateurs adossés à une ressource externe qui pourraient naître (un futur collecteur Redis, un exportateur Airflow) ; (3) la FRAÎCHEUR au-delà du binaire : `read_ok` dit qu'on a lu, l'horodatage dit quand, mais aucune alerte ne se déclenche sur « lu il y a longtemps mais toujours lu » ; (4) `daily_ops_metrics`, qui écrit `complete = not missing` en base sur un principe voisin mais avec son propre code.
+- siblings: swept:2026-09-17 — les quatre familles Prometheus revues : les trois autres sont alimentées par des évènements en processus et n'ont aucune source externe qui puisse être injoignable. ⚠️ N'a PAS couvert les `st.metric` des vues, qui peuvent afficher `0` sur un `except` et partagent exactement la cause.
 - rex_ref: src/utils/ops_alerts.py
 - first_seen: 2026-09-17
 - History:
@@ -7986,6 +8025,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_declared_retention_is_actually_applied.py }
 - guard_scope: un-travail-qui-n-arrive-nulle-part — écrire une politique que rien n'exécute ; couvre: les cinq formes de déclaration de rétention et leur routage, l'obligation de lever sur une forme inconnue, la clause d'âge du `DELETE` et la protection des défauts ouverts ; ne couvre pas: (1) **le geste voisin le plus proche — que la purge soit APPELÉE** : le garde vérifie que le module est correct, pas que `nightly_maintenance` continue de l'invoquer ; retirer l'appel laisserait tous ces tests verts ; (2) les autres politiques écrites et non exécutées — un ADR qui décrit un rituel, un commentaire qui promet un contrôle, un runbook qui décrit une rotation ; (3) la JUSTESSE des durées déclarées (180 j, 365 j), aucune n'ayant de dérivation écrite ; (4) les tables qui ne déclarent rien du tout, invisibles pour ce module comme pour ce garde.
+- siblings: swept:2026-09-17 — trouvée PAR un balayage, celui de `a-replica-that-builds-its-own-image`, en cherchant la forme « un artefact dérivé qui diverge de sa source » hors du domaine Docker. Le même balayage a rendu `a-generated-document-with-no-freshness-guard` et `a-make-target-that-claims-a-barrier-it-does-not-hold`.
 - rex_ref: migrations/124_every_telemetry_table_declares_its_retention.sql
 - first_seen: 2026-09-17
 - History:
@@ -8004,6 +8044,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_roadmap_rotation_names_all_three_surfaces.py }
 - guard_scope: un-document-qui-affirme-un-état-périmé — une procédure qui décrit un geste sans nommer toutes ses surfaces ; couvre: la rotation de roadmap uniquement, sur quatre propriétés — le refus d'un format d'archive non reconnu, le message qui MONTRE la forme attendue, le recalage de l'ancre, et la lecture des **deux** tables d'index — plus un test qui exige que la prose nomme l'ancre et renvoie vers la cible ; ne couvre pas: (1) **le geste voisin le plus proche — toute autre procédure du dépôt** : `/capitalise`, `/adr`, `/retro`, `runbook-actions-utilisateur.md` décrivent des gestes multi-surfaces et rien ne vérifie qu'ils les nomment tous ; (2) l'ajout d'une tâche (`open`), qui touche les mêmes trois surfaces et n'est pas outillé ; (3) le CONTENU écrit — l'outil ne juge ni la section d'archive choisie ni le récit ; (4) une quatrième surface qui apparaîtrait : le garde connaît les trois d'aujourd'hui, pas celle de demain.
+- siblings: swept:2026-09-17 — une seule procédure balayée (`/roadmap-done`), et **c'est un trou assumé** : `/capitalise`, `/adr`, `/retro` et les runbooks décrivent tous des gestes multi-surfaces, et aucun n'a été confronté à ses surfaces réelles. Déclaré INCOMPLET plutôt que présenté comme exhaustif.
 - rex_ref: .claude/commands/roadmap-done.md
 - first_seen: 2026-09-17
 - History:
@@ -8022,6 +8063,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_reopening_condition_is_evaluated_not_only_written.py }
 - guard_scope: un-travail-qui-n-arrive-nulle-part — écrire une condition que rien ne relit ; couvre: le registre de `tools/dev/reopen_check.py` sur cinq propriétés — il n'est pas vide, une évaluation qui lève rend `INDÉCIDABLE`, une condition sans évaluateur aussi, le code de sortie porte le verdict, et l'écart entre ce que la roadmap ÉCRIT et ce que le registre CONNAÎT reste borné (les deux surfaces d'écriture sont comptées, la prose **et** la table) ; ne couvre pas: (1) **le geste voisin le plus proche — que `make reopen-check` soit LANCÉ** : rien ne l'appelle, ni la CI, ni le rapport nocturne, ni un hook ; une condition remplie reste invisible tant que personne ne tape la commande ; (2) la JUSTESSE d'une évaluation — que le seuil codé corresponde à celui écrit dans la prose n'est vérifié par personne ; (3) les conditions de réouverture écrites AILLEURS que dans `roadmap/*.md` — un ADR, un runbook, `grafana-correspondence.md` en portent, et seul le registre les connaît, pas le compteur ; (4) les quatre conditions `INDÉCIDABLE` du registre, qui restent à trancher à la main.
+- siblings: swept:2026-09-17 — **onze** conditions trouvées sur DEUX surfaces d'écriture distinctes : la prose (4 sites) et la table « Ce qu'on ne fait pas | Ce qui le rouvrirait » de `checklist.md` (7 lignes d'un coup). La seconde avait été manquée au premier balayage — ma regex ne la voyait pas — et c'est le garde qui l'a signalé, en comptant 11 conditions écrites pour 6 enregistrées.
 - rex_ref: tools/dev/reopen_check.py
 - first_seen: 2026-09-17
 - History:

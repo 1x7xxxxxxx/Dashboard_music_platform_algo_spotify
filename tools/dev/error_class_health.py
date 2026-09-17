@@ -275,6 +275,13 @@ def _declared(text: str) -> dict[str, dict]:
             "cause_evidence": (_field(body, "cause_evidence") or "unknown").split()[0].lower(),
             "guard_scope_declared_family": (scope.split("—")[0].strip() if scope else None),
             "guard_scope_has_not_covered": bool(scope and "ne couvre pas:" in scope),
+            # ⚠️ `siblings` répond à une question DIFFÉRENTE de `guard_scope`, et les
+            # confondre est le piège : `ne couvre pas` parle du FUTUR (ce que le garde
+            # laissera passer), `siblings` parle du PRÉSENT (où le même défaut se trouve
+            # déjà). Une classe peut avoir une portée impeccable et trois sites frères
+            # vivants. Ajouté le 2026-09-17 sur une question du propriétaire ; mesure du
+            # jour : 69 classes sur 395 portaient une trace de balayage, 326 aucune.
+            "siblings_swept": (_field(body, "siblings") or "").strip().startswith("swept:"),
             "guard_scope_names_a_test": _names_a_test(
                 scope or "", _field(body, "signature") or ""),
             "guard_scope_derived_family": derived.get(cid),
@@ -512,6 +519,11 @@ def build() -> tuple[str, str]:
             if c["guard_scope_has_not_covered"]
             and c["guard_ref"] and _shared.get(c["guard_ref"], 0) > 1
             and not c["guard_scope_names_a_test"]),
+        # ⚠️ `not-swept` et l'ABSENCE du champ comptent pareil, et c'est voulu : « je n'ai
+        # pas cherché » et « la question n'a jamais été posée » sont le même trou.
+        # « swept — aucun autre site » est un RÉSULTAT, et n'en est pas un.
+        "siblings_never_swept": sum(
+            1 for c in classes.values() if not c["siblings_swept"]),
         # ⚠️ `scope_family_disagreements` a été RETIRÉ le 2026-09-16, le jour même où il
         # a été posé, et la mesure qui le retire vaut d'être gardée.
         #
