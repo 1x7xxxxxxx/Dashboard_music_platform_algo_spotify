@@ -475,9 +475,9 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 ## Les classes d'erreur
 
-**384 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
+**385 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
 
-**fixed** : 10· **guarded** : 352· **open** : 4· **reported** : 16· **resolved** : 2
+**fixed** : 10· **guarded** : 353· **open** : 4· **reported** : 16· **resolved** : 2
 
 **0 classe(s) nomment un fichier de garde qui n'existe plus** et **12** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
@@ -650,9 +650,9 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-gold-objects: total=24 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=19 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=384 guard_missing=0 guard_unnamed=12 -->
+<!-- gold-coverage-error-classes: total=385 guard_missing=0 guard_unnamed=12 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=025688f9a087da9b4cf74505f29a4b9b07d8fe2e1d0eed3235d6565ed5c745e9 -->
+<!-- gold-coverage: sha256=36dcf403f6b32adb2bfe10e61c2c011895d4f288b66291ebcd93aedd78521f63 -->

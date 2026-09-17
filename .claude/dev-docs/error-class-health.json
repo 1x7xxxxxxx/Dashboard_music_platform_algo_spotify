@@ -2154,8 +2154,8 @@
       "severity": "P2",
       "status": "guarded",
       "introduced_date": "2026-09-17",
-      "revisions": 0,
-      "history_additions": 0,
+      "revisions": 1,
+      "history_additions": 1,
       "renamed_from": null
     },
     "a-rollback-wider-than-the-failure": {
@@ -9281,7 +9281,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 222,
+      "catalogue_revisions": 223,
       "head_date": "2026-09-17"
     },
     "holes": {
@@ -9298,7 +9298,7 @@
     "population": {
       "automatic_guard": 375,
       "classes": 385,
-      "ever_recurred_observed": 47,
+      "ever_recurred_observed": 48,
       "prose_only": 10,
       "with_signature": 374
     },
@@ -9306,23 +9306,23 @@
       "window_start": "2026-05-15",
       "as_of": "2026-09-17",
       "observed": {
-        "events": 58,
+        "events": 59,
         "class_days": 7997,
-        "per_class_month": 0.2205,
+        "per_class_month": 0.2243,
         "ci95": [
-          0.1674,
-          0.285
+          0.1707,
+          0.2893
         ]
       },
       "class_days_exposed": 7997,
       "by_guard": {
         "automatique": {
-          "events": 55,
+          "events": 56,
           "class_days": 7834,
-          "per_class_month": 0.2134,
+          "per_class_month": 0.2173,
           "ci95": [
-            0.1608,
-            0.2778
+            0.1641,
+            0.2822
           ]
         },
         "prose": {
@@ -9337,12 +9337,12 @@
       },
       "by_seen_red": {
         "daté": {
-          "events": 1,
+          "events": 2,
           "class_days": 194,
-          "per_class_month": 0.1567,
+          "per_class_month": 0.3134,
           "ci95": [
-            0.002,
-            0.8718
+            0.0352,
+            1.1315
           ]
         },
         "jamais-ou-inconnu": {
@@ -9357,12 +9357,12 @@
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 58,
+          "events": 59,
           "class_days": 2182,
-          "per_class_month": 0.8081,
+          "per_class_month": 0.822,
           "ci95": [
-            0.6136,
-            1.0446
+            0.6257,
+            1.0603
           ]
         },
         "non renseigné": {
