@@ -552,6 +552,60 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
   **Garde existant à réutiliser** : `make gold-coverage` et son cliquet.
 
+## 💻 R117 — Le dépôt quitte `/mnt/c`, et VS Code passe en Remote-WSL (livrée 2026-09-17)
+
+- [x] **R117 — déplacer le dépôt sur ext4 et basculer l'éditeur en Remote-WSL.**
+
+  **Moitié 1 — le déplacement** (commit `066ed39`). Le dépôt vit dans **`~/streamlytics`**,
+  sur ext4 — cloné depuis le disque local (parti exactement de `bfc0f9a`), `origin` remis
+  sur GitHub, `.venv` refabriqué par `make sync`. Gain remesuré le jour même, **en
+  ALTERNANCE et à périmètre égal** (6 988 tests collectés des deux côtés) : collecte
+  pytest **×4,6** (39,5 s → 8,2 s), `make test` **418 s → 193,5 s**.
+
+  **Moitié 2 — la bascule VS Code**, vérifiée par effet dans la session : la fenêtre est
+  attachée à la WSL. Les trois contrôles du runbook §12 passent — `VSCODE_IPC_HOOK_CLI`
+  non vide (`/run/user/1000/vscode-ipc-371b45bd-….sock`), `which code` renvoie
+  `~/.vscode-server/…/bin/remote-cli/code` (et non `/mnt/d`), `vscode-server` actif.
+  L'étape 1bis (identité git locale reposée) et l'étape 2 (dossier mémoire renommé
+  `-home-timothe-streamlytics`) sont faites aussi.
+
+  ⚠️ **Ce que la livraison a coûté, et qui appartient à l'archive avec elle** :
+  `git clone` ne transporte pas les fichiers gitignorés, et la liste du runbook §12 en
+  omettait DEUX sur huit. Conséquences mesurées le matin du 2026-09-17 : `docker-compose.yml`
+  absent ⇒ ni `make up` ni `make migrate`, port 5433 fermé ; `graphify-out/` absent +
+  `.mcp.json` pointant en dur sur `/mnt/c` ⇒ le serveur MCP servait le graphe de la copie
+  MORTE sans le dire. Les deux sont réparés ; le runbook §12 est corrigé (liste 5 → 8
+  éléments, le compte de 1bis recalé de « sixième » à « neuvième »). Le volume Postgres a
+  été préservé en figeant `COMPOSE_PROJECT_NAME` dans `.env` : sans ça Compose, dont le nom
+  de projet dérive du DOSSIER, aurait créé un volume neuf et vide.
+
+  ⚠️ **Deux dérives de documentation corrigées dans la foulée, avec un garde neuf** :
+  `CLAUDE.md` annonçait `make test` = `-n auto` alors que `PYTEST_DIST` vaut `-n
+  $(PYTEST_WORKERS)` (calculé depuis la mémoire disponible) ; `Makefile:146` affichait
+  encore les 418 s de `/mnt/c`. Garde posé et MUTÉ EN ROUGE sur le défaut d'origine :
+  `tests/test_local_and_ci_run_the_same_suite.py::test_claude_md_does_not_name_a_worker_count_the_makefile_refuses`.
+
+  ### Écarté dans la même séance, avec sa mesure
+
+  **Optimiser les rendus `AppTest`** — les dix fichiers les plus lourds font **62 %** du
+  temps (`test_views_render_smoke.py` 193,5 s à lui seul, 20,7 %), et le profil dit où va
+  le temps : `import streamlit.testing` **4,84 s** une fois par PROCESSUS, premier rendu
+  **12,54 s** (il importe toute l'application), rendus suivants **~2 s**. Ce n'est donc pas
+  « AppTest est lent », c'est un amorçage de ~17 s par worker.
+
+  Le remède canonique existe — **Humble Object** (Khorikov, *Unit Testing Principles*,
+  ch. 7 p. 155-180 ; SE@Google p. 308-311 sur les *fakes*) : rendre la vue une coquille
+  mince sur une fonction pure, tester la fonction vite, garder quelques rendus en fumée.
+
+  **Et il est refusé ici, sur la mesure inverse.** Les défauts que ces rendus ont attrapés
+  n'existent qu'AU RENDU, et 4 737 tests unitaires verts ne les voyaient pas : une vue vide
+  trouvée par l'artiste en une heure, deux causes racines de navigation passées à travers
+  3 755 tests verts, six défauts « du code correct que rien n'atteint ». `render_harness.py`
+  le dit déjà : *« ce dépôt attaque le temps d'ATTENTE, jamais la couverture de la porte »*.
+  Échanger 190 s contre cette classe de défauts serait un mauvais troc. **Le levier pour le
+  travail quotidien existe déjà et n'enlève aucune couverture** :
+  `python3 .claude/scripts/select_tests.py` (règle transverse #16).
+
 
 
 

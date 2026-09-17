@@ -53,6 +53,13 @@ _SHARED_WRITES = (
     "UPDATE saas_artists SET spotify_artist_id",
     "INSERT INTO hypeddit_campaigns",
     "INSERT INTO track_platform_link",
+    # Ajoutées le 2026-09-17, après un rouge intermittent que ce garde ne voyait pas.
+    # `test_nothing_overwritten_is_lost` mute une ligne à clé LITTÉRALE de
+    # `s4a_song_timeline` et purge `data_revisions` pour le même artiste, à l'entrée
+    # ET à la sortie de sa fixture — cinq tests sur la même ligne. Aucune des deux
+    # tables n'était listée ici : le garde regardait ailleurs.
+    "INSERT INTO s4a_song_timeline",
+    "DELETE FROM data_revisions",
 )
 # Écrire par le chemin partagé compte autant qu'un INSERT littéral.
 _SHARED_WRITERS = {"write_platform_identity"}
@@ -69,11 +76,25 @@ def _creates_its_own_tenant(tree: ast.AST) -> bool:
     construction. La docstring de ce fichier promettait déjà cette exemption ; elle
     n'était pas implémentée. C'est exactement le reproche qu'on fait aux gardes ici —
     une promesse écrite et non tenue se lit comme une couverture.
+
+    ⚠️ Resserré le 2026-09-17 : il exemptait sur la seule présence de la chaîne
+    `INSERT INTO saas_artists`, ce que la docstring ci-dessus ne promettait PAS — elle
+    parle d'un locataire créé « par `INSERT INTO saas_artists … RETURNING id` et
+    supprimé ensuite ». La différence est toute la sûreté : un id MINTÉ par test
+    n'est visé par personne d'autre, un id LITTÉRAL l'est par tout le monde.
+    `test_nothing_overwritten_is_lost` écrit `INSERT INTO saas_artists (id, …) VALUES
+    (999471, …) ON CONFLICT (id) DO NOTHING` — la chaîne y est, l'isolation non. Il a
+    été exempté pendant tout ce temps, et il a fini par rougir en parallèle.
+
+    Le prédicat exige donc les DEUX marques dans le même fichier : l'insertion et le
+    `RETURNING id` qui prouve que l'identifiant est frappé, pas choisi.
     """
-    return any(
-        isinstance(node, ast.Constant) and isinstance(node.value, str)
-        and "INSERT INTO saas_artists" in node.value
-        for node in ast.walk(tree))
+    src = ast.walk(tree)
+    consts = [n.value for n in src
+              if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+    inserts = any("INSERT INTO saas_artists" in c for c in consts)
+    minted = any("RETURNING id" in c for c in consts)
+    return inserts and minted
 
 
 def _writes_a_shared_tenant(tree: ast.AST) -> bool:

@@ -104,12 +104,23 @@ pour décorer :
 |---|---|---|
 | `make test-changed` | les tests atteignables depuis le diff | **secondes à ~1 min** |
 | `make test-fast` | tout sauf les documents | `make test` − ~38 s |
-| `make test` | la suite, `-n auto --dist loadgroup` | **193,5 s** sur ext4 |
+| `make test` | la suite, `-n $(PYTEST_WORKERS) --dist loadgroup` | **193,5 s** sur ext4 à vide ; **226 s** pile Docker up |
 | `python3 -m pytest tests/` **(à éviter)** | la même suite **en SÉRIE** | 1 146 s mesurés sur `/mnt/c` ; non remesuré ici |
 
 ⚠️ **La forme nue n'est pas « la même en plus simple » : elle perd `-n auto`.** Elle a été
 lancée six fois en une séance le 2026-09-16 parce que ce fichier la documentait, et elle
 seule explique l'essentiel du temps d'attente de cette séance.
+
+⚠️ **`-n auto` n'est plus le drapeau réel, et ce fichier l'a annoncé une demi-journée de
+trop.** Le 2026-09-17, `make test` s'étant fait **tuer par l'OOM deux fois en une heure**,
+`PYTEST_DIST` est passé à `-n $(PYTEST_WORKERS)` : un nombre CALCULÉ,
+`(MemAvailable_Mo − 5120) / 700`, borné à `[2, nproc]`. Ce poste porte `n8n-ollama` et le
+serveur MCP `knowledge-rag` en permanence, qu'un runner GitHub n'a pas. Conséquence
+contre-intuitive, mesurée : sur cette WSL plafonnée à 10 Go, **le calcul ne peut pas
+atteindre 8** — il faudrait 10 720 Mo disponibles — et il tombe à **2** dès que la pile
+Docker tourne. Un lecteur qui croyait la rangée du tableau annonçait à la fois un drapeau
+et un temps que rien ne produisait. Garde :
+`tests/test_local_and_ci_run_the_same_suite.py::test_claude_md_does_not_name_a_worker_count_the_makefile_refuses`.
 
 Les deux mesures du 2026-09-16 étaient du **même soir, même arbre, même verdict**
 (6 717 verts, 1 rouge) : `make test` **418 s** sur `/mnt/c`, la forme nue **1 146 s**.

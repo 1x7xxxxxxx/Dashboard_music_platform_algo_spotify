@@ -43,9 +43,25 @@ _PROBE_SONG = "__probe_revision__"
 from tests.db_gate import db_ready as _db_ready  # noqa: E402
 
 
-pytestmark = pytest.mark.skipif(
-    not _db_ready(),
-    reason=f"No provisioned Postgres on {_DB_HOST}:{_DB_PORT} (or migration 096 absent)")
+# Les CINQ tests de ce fichier visent LA MÊME ligne — artiste 999471, titre
+# `__probe_revision__`, date 2026-01-01 — et la fixture `db` purge `data_revisions`
+# pour cet artiste à l'entrée ET à la sortie. Éclatés sur deux workers, le `_clean`
+# de l'un efface l'état de l'autre en plein vol.
+#
+# Observé le 2026-09-17 sur `[gw1]`, dans une suite complète : `test_the_history_
+# accumulates` attendait trois maillons et n'en a reçu que deux — la PREMIÈRE révision
+# avait disparu entre deux écritures. Vert en isolation, donc invisible. Reproduit
+# ensuite à volonté : `-n 4 --dist load` échoue 3 fois sur 3, `--dist loadfile` passe
+# 3 fois sur 3. `pytest-randomly` rebat l'ordre, d'où le vert de la veille.
+#
+# Le groupe les sérialise entre eux, et rien d'autre : c'est le seul coût.
+pytestmark = [
+    pytest.mark.skipif(
+        not _db_ready(),
+        reason=f"No provisioned Postgres on {_DB_HOST}:{_DB_PORT} "
+               "(or migration 096 absent)"),
+    pytest.mark.xdist_group("shared_db_probe_revisions"),
+]
 
 
 @pytest.fixture()

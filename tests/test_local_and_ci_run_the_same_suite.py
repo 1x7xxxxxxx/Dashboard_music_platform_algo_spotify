@@ -176,3 +176,62 @@ def test_the_extraction_ignores_a_comment_that_mentions_the_command():
         "ci.yml ne contient plus de commentaire mentionnant `pytest tests/` : ce test "
         "de non-vacuité ne démontre plus rien. Le retirer, ou remettre le piège."
     )
+
+
+_CLAUDE_MD = _ROOT / "CLAUDE.md"
+
+
+def _claude_md_test_row() -> str:
+    """La LIGNE DE TABLEAU de CLAUDE.md qui décrit ce que `make test` lance.
+
+    On lit une STRUCTURE — une rangée de tableau markdown dont la première cellule
+    nomme la cible — et non le texte du fichier. La distinction est le point : la
+    prose autour de ce tableau discute légitimement de `-n auto`, parce qu'elle
+    raconte le gain ×2,74 mesuré à l'époque où c'était le drapeau réel. Un garde qui
+    chercherait la chaîne `-n auto` dans le fichier rougirait sur cette histoire,
+    qui est vraie. Seule la rangée qui AFFIRME la forme courante est en jeu.
+    """
+    for line in _CLAUDE_MD.read_text(encoding="utf-8").splitlines():
+        bare = line.strip()
+        if not (bare.startswith("|") and bare.endswith("|")):
+            continue
+        cells = [c.strip() for c in bare.strip("|").split("|")]
+        if cells and "make test" in cells[0] and "`make test`" in cells[0]:
+            return bare
+    raise AssertionError(
+        "CLAUDE.md no longer carries a table row describing `make test`. That row is "
+        "what a session reads before running the suite; if it went away, say so here."
+    )
+
+
+def test_claude_md_does_not_name_a_worker_count_the_makefile_refuses():
+    """CLAUDE.md ne peut pas annoncer un `-n` que le Makefile ne porte pas.
+
+    Le défaut, mesuré le 2026-09-17 : la ligne disait `-n auto --dist loadgroup`
+    alors que `PYTEST_DIST` valait `-n $(PYTEST_WORKERS)` depuis le matin même —
+    changé parce que `make test` avait été **tué par l'OOM deux fois en une heure**.
+    Sur ce poste le calcul rend 2 quand la pile Docker tourne, et ne peut
+    structurellement pas atteindre 8 : il faudrait 10 720 Mo disponibles pour une
+    WSL qui en a 9 945 au total. Un lecteur qui croyait la ligne annonçait `-n auto`
+    et un temps qui allait avec — les deux faux.
+
+    Ce garde n'exige pas une valeur : il exige que la ligne ne mente pas sur la
+    FORME. Nommer `$(PYTEST_WORKERS)`, ou ne rien affirmer sur `-n`, passe tous les
+    deux. Nommer `auto` ou un entier ne passe que si le Makefile le porte vraiment.
+    """
+    row = _claude_md_test_row()
+    claimed = re.findall(r"-n\s+([^\s`|]+)", row)
+    if not claimed:
+        return  # la ligne n'affirme rien sur le parallélisme : rien à démentir
+
+    real = {f.split(None, 1)[1] for f in _makefile_pytest_flags() if f.startswith("-n")}
+    assert real, "PYTEST_DIST no longer carries a -n flag at all — that is the finding."
+
+    for token in claimed:
+        assert token in real, (
+            f"CLAUDE.md announces `make test` runs with `-n {token}`, but the Makefile "
+            f"computes {sorted(real)}. Le 2026-09-17 la ligne disait `-n auto` alors "
+            f"que PYTEST_DIST était déjà `-n $(PYTEST_WORKERS)`, borné par la mémoire "
+            f"disponible. Changer l'un des deux sans l'autre fait annoncer un temps "
+            f"qui n'a jamais été mesuré."
+        )

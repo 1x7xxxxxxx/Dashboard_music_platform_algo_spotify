@@ -25,6 +25,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R123 | Deux nettoyages de `conftest.py` en `scope="session", autouse=True` s'exécutent **une fois par worker** et effacent des lignes à clé fixe pendant qu'un autre worker les lit — `xdist_group` ne peut RIEN pour eux | P2 | `pytest tests/ -n 4 --dist load` sur les fichiers cités ; aujourd'hui non reproduit, la course est lue dans le code |
 | R122 | Revue des classes d'erreur — **récidivistes : 0** ✅, **classes manquantes : 0** ✅ ; reste 316 portées et 241 causes, en queue opportuniste | P3 | les trous de `make error-health` ne font que baisser |
 
 **R109 et R110 ont été livrées et déployées le 2026-09-16** — voir `archive.md`.
@@ -139,9 +140,42 @@ l'effacer serait la faute.
 > soit ~16 h pour la colonne `guard_scope` seule, et deux autres colonnes derrière. Mise
 > en tête, elle consommerait une séance entière sans qu'aucune autre tâche avance. Les
 > quatre tâches au-dessus ont un critère de fin net ; elles passent d'abord.
-> R117 ferme la marche parce qu'elle **ne peut pas être faite par la séance qui la
-> ferait** : elle déplace le dépôt hors de `/mnt/c`, donc elle tue le `cwd` et la
-> mémoire de Claude, indexée par chemin. Elle se parque au premier réveil.
+> R117 devait fermer la marche, parquée pour la raison qu'elle **ne pouvait pas être
+> faite par la séance qui la ferait** : elle déplace le dépôt hors de `/mnt/c`, donc
+> elle tue le `cwd` et la mémoire de Claude, indexée par chemin. Elle s'est parquée
+> au premier réveil de la séance longue, puis a été livrée le 2026-09-17 — détail
+> dans `archive.md`.
+
+## 🧵 R123 — Un nettoyage de portée session s'exécute une fois PAR WORKER
+
+- [ ] **R123 — les deux fixtures `scope="session", autouse=True` de `tests/conftest.py`
+  nettoient des lignes à clé FIXE, une fois par worker, sans coordination.**
+
+  Trouvé le 2026-09-17 par le balayage des frères de la course corrigée dans
+  `test_nothing_overwritten_is_lost` (voir `archive.md`). **Ce n'est pas la même
+  classe au sens du remède** : `--dist loadgroup` affecte des TESTS à des workers, il
+  ne dit rien du moment où tourne une fixture de session. Chaque worker ouvre sa propre
+  session pytest, donc chaque worker exécute ces nettoyages à son démarrage et à sa fin —
+  pendant que les autres travaillent.
+
+  | fixture | ligne | ce qu'elle efface | qui peut être en vol |
+  |---|---|---|---|
+  | `_rate_limit_budget_starts_full` | ~636 | `DELETE FROM rate_limit_hits WHERE bucket LIKE` sur `testclient:%`, `unknown:%`, `%:unknown`, `test:%` | `tests/test_api.py` et ses `POST /auth/token` répétés — le compteur de quota repart à zéro en plein test de quota |
+  | `_no_synthetic_rows_left_behind` | ~644 | `DELETE FROM soundcloud_tracks_daily WHERE track_id LIKE 'track-of-%'` | `test_e2e_two_tenants.py`, `test_the_suite_leaves_no_false_data_behind.py` |
+
+  ⚠️ **Aucune de ces deux courses n'a été OBSERVÉE rouge.** Elle est lue dans le code,
+  pas mesurée — c'est pourquoi la colonne « Mesuré par » dit comment on la reproduirait
+  et non ce qu'elle a rendu. Ne pas l'écrire dans la voix d'un fait.
+
+  Remèdes possibles, aucun tranché : restreindre le nettoyage à un seul worker
+  (`PYTEST_XDIST_WORKER == "gw0"` ou le nœud maître), un verrou externe, ou sortir le
+  nettoyage de la portée session. Le premier est le moins cher et le plus lisible.
+
+  **Reste à trancher, même balayage** : `tests/test_freshness_and_readiness_db.py:153`
+  écrit `artist_id = "spotify-fleet-probe"`, un littéral, dans la table GLOBALE `artists`
+  — alors que tous les autres tests du même fichier passent par une fixture suffixée en
+  uuid. Aucun second site n'utilise ce littéral aujourd'hui, donc **pas de course
+  prouvée** ; le risque est qu'un futur second usage collisionne en silence.
 
 ## 🏗 R113–R116 — Monter l'architecture scalable, pour mesurer si elle est nécessaire
 
@@ -345,140 +379,11 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ---
 
-## 🧰 R117 — Le dépôt quitte `/mnt/c`, et VS Code passe en Remote-WSL
-
-- [ ] **R117 — déplacer le dépôt sur ext4 et basculer l'éditeur en Remote-WSL.**
-
-  ### ✅ Moitié 1 — le déplacement, FAIT le 2026-09-17
-
-  Le dépôt vit dans **`~/streamlytics`**, sur ext4. Cloné depuis le disque local (donc
-  parti exactement de `bfc0f9a`), `origin` remis sur GitHub, les cinq fichiers gitignorés
-  recopiés (`.mcp.json`, `.env`, `.env.local`, `config/config.yaml`, `data/`), `.venv`
-  refabriqué par `make sync` — **250 paquets installés en 676 ms** sur ext4.
-
-  Vérifié avant de toucher à quoi que ce soit d'irréversible : `diff` des deux
-  arborescences **vide**, arbre git propre, même commit, bon `origin`. Puis le dossier de
-  mémoire de Claude — **indexé par CHEMIN** — renommé en `-home-timothe-streamlytics` :
-  325 Mo, 86 fichiers de mémoire et `MEMORY.md` retrouvés de l'autre côté.
-
-  **Gain remesuré le jour même, en ALTERNANCE** (6 988 tests collectés des deux côtés) :
-
-  | | `/mnt/c` | ext4 | rapport |
-  |---|---|---|---|
-  | collecte pytest | 39,53 · 38,08 s | **8,15 · 8,47 s** | **×4,6** |
-  | `make test` | 418 s | **193,5 s** (6 921 verts) | ×2,2 |
-
-  ⚠️ Le premier tirage ext4 a rendu **13,75 s** et aurait donné ×2,5 : le cache de pages
-  venait d'être rempli par `git clone` et `make sync`. En alternance il tombe à 8,2.
-  **C'est exactement ce que la règle d'alternance existe pour attraper.**
-
-  ⚠️ **L'ancienne copie sur `/mnt/c` est conservée une semaine.** Elle ne gêne personne et
-  c'est la seule protection contre un fichier gitignoré que ni le diff ni nous n'avons vu.
-
-  ### ⬜ Moitié 2 — la bascule VS Code, PAS ENCORE FAITE
-
-  Diagnostic posé le 2026-09-17, et l'ordre de causalité est l'inverse de celui qu'on
-  suppose : **ce n'est pas « le PATH est mauvais donc la variable manque »**, c'est
-  *fenêtre VS Code absente → aucun `vscode-server` WSL → ni `VSCODE_IPC_HOOK_CLI` ni
-  injection de PATH*. Les deux symptômes ont **une** cause.
-
-  Mesuré : `VSCODE_IPC_HOOK_CLI`, `TERM_PROGRAM` et `VSCODE_GIT_IPC_HANDLE` **tous les
-  trois vides** (donc ce shell n'a jamais été un terminal intégré) ; aucun socket
-  `vscode-ipc-*.sock` ; aucun processus `vscode-server`. Le binaire du serveur existe
-  (`~/.vscode-server/bin/a5b50095…`) mais appelé en chemin ABSOLU il refuse :
-  *« Command is only available in WSL or inside a Visual Studio Code terminal »*.
-
-  **Donc ajouter `remote-cli` au PATH ne réparerait rien** — on aurait le bon binaire et
-  le même refus. Ce serait une garde sur le symptôme, le défaut vivant dessous.
-
-  Le geste : `cd ~/streamlytics && code .` **depuis un shell WSL**. Le wrapper Windows
-  détecte l'environnement et ouvre une fenêtre Remote-WSL, qui installe le serveur côté
-  Linux. Puis, dans cette fenêtre : l'indicateur en bas à gauche doit lire **`WSL: Ubuntu`**,
-  un terminal INTÉGRÉ doit rendre `echo $VSCODE_IPC_HOOK_CLI` non vide, et `which code`
-  doit alors pointer dans `~/.vscode-server/…/remote-cli/code` **de lui-même**. Relancer
-  `claude` depuis ce terminal-là : une session déjà ouverte n'hérite pas de la variable,
-  l'environnement est figé au démarrage du processus.
-
-  ### Ce qui avait été mesuré le 2026-09-16 (la prédiction)
-
-  À périmètre égal (6572 tests collectés des deux côtés, arbre git propre des deux côtés)
-  et en ALTERNANCE :
-
-  | | `/mnt/c` | ext4 (`~`) | rapport |
-  |---|---|---|---|
-  | collecte pytest (2 tours) | 27,1 s · 27,2 s | **4,8 s · 4,9 s** | **×5,6** |
-  | suite complète `-n auto` | 372 s | **109 s** | ×3,4 |
-  | écriture de 2 000 petits fichiers | 4,12 s | **0,06 s** | ×69 |
-
-  ⚠️ **Deux mesures ont été JETÉES avant celle-ci**, et c'est la partie utile :
-  la première comparait 6 571 tests à 6 572 (la copie ext4 n'avait pas `.git`, donc
-  51 tests rouges — et un test qui échoue fait moins de travail) ; la seconde a révélé
-  un vrai défaut au lieu d'un artefact (voir plus bas). Un rapport annoncé sur deux
-  périmètres différents n'est pas un rapport.
-
-  **La cause est structurelle, pas un réglage.** `/mnt/*` est monté par `drvfs`, qui
-  parle **9P** — un protocole réseau. Chaque `open()` et chaque `stat()` devient un
-  message sérialisé à travers la frontière VM/hôte. La littérature converge sur ~×7 en
-  écriture de flux et **~×60 sur les métadonnées** ; pytest parcourant 375 fichiers de
-  test et un `.venv` de 2,2 Go est du travail entièrement métadonnées.
-
-  **Ce qui s'y ajoute sans mesure nécessaire** : Docker est natif WSL ici
-  (`docker context` → `unix:///var/run/docker.sock`), donc les bind-mounts `src/` et
-  `airflow/dags/` des conteneurs traversent 9P aujourd'hui ; l'éditeur aussi ;
-  `git status`, `ruff` et pre-commit sont du pur métadonnées.
-
-  **La contrepartie annoncée n'existe pas dans ce poste de travail.** L'état mesuré :
-  `~/.vscode-server` existe (Remote-WSL a déjà servi), mais `VSCODE_IPC_HOOK_CLI` est
-  ABSENT du shell et `which code` rend `/mnt/d/1_Logiciels/VS Code/bin/code` — le
-  binaire Windows. VS Code tourne donc côté Windows et ouvre le dossier par `/mnt/c`,
-  ce qui est exactement la combinaison lente. En Remote-WSL le serveur s'exécute DANS
-  WSL : éditeur, terminal et Claude lisent ext4 en natif, et il n'y a plus aucun accès
-  Windows → ext4. Bascule : `code .` depuis un shell WSL. Contrôle :
-  `echo $VSCODE_IPC_HOOK_CLI` doit rendre une valeur.
-
-  **Les trois pièges, rencontrés en fabriquant la copie de mesure** :
-  1. **la mémoire de Claude est indexée par CHEMIN**
-     (`~/.claude/projects/-mnt-c-Users-timot-Desktop-…`) — sans renommage du dossier,
-     l'historique et les mémoires du projet sont perdus ;
-  2. **les fichiers gitignorés ne suivent pas un `git clone`** — `.mcp.json`,
-     `.env.local`, `config/config.yaml`, `data/`, `.venv` ; il a fallu trois
-     allers-retours pour compléter la copie de mesure, dont quatre fichiers `assets/`
-     à nom accentué ;
-  3. **les conteneurs doivent être recréés une fois** ; `deploy.sh` et `migrate.sh`
-     détectent le conteneur par NOM, donc eux suivent sans changement.
-
-  **Pourquoi APRÈS R113–R116** : ces tâches touchent Caddy, les répliques et la
-  production. Déplacer le dépôt au milieu mélangerait deux causes si quelque chose
-  casse. R117 est réversible et sans urgence.
-
-### Écarté dans la même séance, avec sa mesure
-
-**Optimiser les rendus `AppTest`** — les dix fichiers les plus lourds font **62 %** du
-temps (`test_views_render_smoke.py` 193,5 s à lui seul, 20,7 %), et le profil dit où va
-le temps : `import streamlit.testing` **4,84 s** une fois par PROCESSUS, premier rendu
-**12,54 s** (il importe toute l'application), rendus suivants **~2 s**. Ce n'est donc pas
-« AppTest est lent », c'est un amorçage de ~17 s par worker.
-
-Le remède canonique existe — **Humble Object** (Khorikov, *Unit Testing Principles*,
-ch. 7 p. 155-180 ; SE@Google p. 308-311 sur les *fakes*) : rendre la vue une coquille
-mince sur une fonction pure, tester la fonction vite, garder quelques rendus en fumée.
-
-**Et il est refusé ici, sur la mesure inverse.** Les défauts que ces rendus ont attrapés
-n'existent qu'AU RENDU, et 4 737 tests unitaires verts ne les voyaient pas : une vue vide
-trouvée par l'artiste en une heure, deux causes racines de navigation passées à travers
-3 755 tests verts, six défauts « du code correct que rien n'atteint ». `render_harness.py`
-le dit déjà : *« ce dépôt attaque le temps d'ATTENTE, jamais la couverture de la porte »*.
-Échanger 190 s contre cette classe de défauts serait un mauvais troc. **Le levier pour le
-travail quotidien existe déjà et n'enlève aucune couverture** :
-`python3 .claude/scripts/select_tests.py` (règle transverse #16).
-
----
-
 ## 🔖 REPRISE — état au 2026-09-17, une tâche actionnable (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R122,R117 -->
+<!-- reprise: open=R122,R123 -->
 
-**R122 est seule actionnable.** R118 est close le 2026-09-17, réfutée sur sa propre mesure (voir `archive.md`) — les cinq vues restantes vivent maintenant dans « Conditions d'attente », pas dans l'index. **R117 est ouverte aussi** mais a quitté l'index actionnable le 2026-09-17 pour « 🙋 En attente de toi » : elle déplace le dépôt, donc aucune séance ne peut l'exécuter sans se tuer. Elle reste comptée — l'ancre ci-dessus la porte, et `test_roadmap_index_is_honest` refuse qu'une tâche ouverte disparaisse de la première chose qu'on lit au `/resume`.
+**R122 et R123 sont actionnables.** R123 a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans `test_nothing_overwritten_is_lost` : deux nettoyages de `conftest.py` en portée session s'exécutent une fois PAR WORKER et effacent des lignes à clé fixe — `xdist_group` ne les couvre pas. Course **lue dans le code, jamais observée rouge** ; le détail le dit dans cette voix-là. R118 est close le 2026-09-17, réfutée sur sa propre mesure (voir `archive.md`) — les cinq vues restantes vivent maintenant dans « Conditions d'attente », pas dans l'index. **R117 est livrée le 2026-09-17** — les deux moitiés (déplacement du dépôt sur ext4, bascule de VS Code en Remote-WSL) sont faites et vérifiées, par cette même séance ; détail dans `archive.md`. Elle ne va plus dans l'ancre ci-dessus, qui ne porte que ce qui reste ouvert.
 
 **R116 a quitté l'index le 2026-09-17**, pas ce fichier : `daily_ops_metrics` ne porte qu'une ligne (`complete = FALSE`, percentiles de rendu tous `NULL`), donc la courbe qui doit trancher l'ADR-027 n'existe pas encore. Son bloc de détail — non coché, pas livré — reste **ici**, dans une nouvelle section `## ⏸️ R116` hors des deux tables d'index : `archive.md` est strictement passif (aucun item non coché n'y est admis — `test_the_archive_holds_nothing_actionable`), et R116 n'est ni livrée ni abandonnée. Son déclencheur de réouverture est la ligne `daily_ops_metrics` de `### Conditions d'attente` ci-dessous. Elle n'a donc plus de ligne dans l'index actionnable ni dans « 🙋 En attente de toi » — elle n'attend aucun geste humain, seulement du trafic — et pour cette même raison elle **sort de l'ancre**, qui ne porte que ce que les deux tables de ce fichier listent encore.
 
@@ -595,15 +500,14 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R117 | ~~Sortir le dépôt de `/mnt/c`~~ ✅ **FAIT le 2026-09-17** — reste la **bascule VS Code en Remote-WSL** | P3 | Un geste : `cd ~/streamlytics && code .` depuis un shell WSL. Le déplacement est livré et mesuré (collecte **×4,6**, `make test` 418 → **193,5 s**). Ce qui reste n'est pas un déplacement mais une FENÊTRE : sans elle, aucun `vscode-server` WSL, donc ni `VSCODE_IPC_HOOK_CLI` ni injection de PATH — les deux symptômes ont une seule cause, et l'intégration IDE de Claude Code ne peut pas s'accrocher. Vérifications dans `runbook-actions-utilisateur.md` §12 |
 
-⚠️ **Déplacée ici le 2026-09-17**, au premier réveil de la séance longue. R117 était dans l'index actionnable, où elle ne pouvait par construction jamais être prise : c'est la seule tâche dont l'exécutant est aussi la victime. Une tâche qu'aucune séance ne peut exécuter n'est pas une tâche en retard, c'est une tâche qui attend un humain — et c'est ici qu'on la lit.
-
-**Vide du 2026-09-10 au 2026-09-17.** La dernière — R1, ouvrir la bêta privée — est rotée dans
-`archive.md` : le produit est prêt et revérifié en production ce jour-là, et ce qui reste
-n'est pas de l'ingénierie mais l'usage du produit. Une roadmap mesure le travail à faire
-sur le dépôt ; elle ne suit pas les gestes commerciaux de son propriétaire, sans quoi
-elle ne peut par construction jamais atteindre zéro.
+**Vide depuis le 2026-09-17.** R117 y a vécu du 2026-09-17 au 2026-09-17 même — le
+temps d'une séance longue — puis a été livrée (les deux moitiés, déplacement sur ext4
+et bascule VS Code en Remote-WSL) et rotée dans `archive.md`. Avant elle, R1, ouvrir la
+bêta privée, y était rotée le 2026-09-10 : le produit est prêt et revérifié en
+production, et ce qui reste n'est pas de l'ingénierie mais l'usage du produit. Une
+roadmap mesure le travail à faire sur le dépôt ; elle ne suit pas les gestes commerciaux
+de son propriétaire, sans quoi elle ne peut par construction jamais atteindre zéro.
 
 ## Open Bugs
 

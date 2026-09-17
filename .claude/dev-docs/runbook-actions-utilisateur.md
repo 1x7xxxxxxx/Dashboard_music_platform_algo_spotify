@@ -576,7 +576,7 @@ consentement. Ne pas le retirer une fois R105 livrée.
 
 </details>
 
-## 12. R117 — Sortir le dépôt de `/mnt/c` et passer VS Code en Remote-WSL
+## 12. ~~R117 — Sortir le dépôt de `/mnt/c` et passer VS Code en Remote-WSL~~ · ✅ FAIT le 2026-09-17 — les deux moitiés sont faites et vérifiées ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 **Pourquoi c'est ici et pas fait en séance** : ce geste déplace le dépôt. Il tue le
 répertoire de travail de la session qui l'exécute, et **la mémoire de Claude Code est
@@ -602,8 +602,20 @@ un `.venv` de 2,2 Go est du travail entièrement métadonnées.
 ### Les quatre étapes
 
 1. **Copier le dépôt sur ext4** — `git clone` depuis GitHub vers `~/streamlytics`, puis
-   recopier à la main ce que `git clone` ne suit pas : `.mcp.json`, `.env.local`,
-   `config/config.yaml`, `data/`, et `.venv` (ou `make sync` pour le refabriquer).
+   recopier à la main ce que `git clone` ne suit pas. **Huit éléments**, et cette liste
+   en a compté cinq jusqu'au 2026-09-17 :
+   `.mcp.json`, `.env`, `.env.local`, `config/config.yaml`, **`docker-compose.yml`**,
+   **`graphify-out/`**, `data/`, et `.venv` (ou `make sync` pour le refabriquer).
+   ⚠️ **Les deux en gras manquaient à cette liste, et les deux ont manqué à l'arrivée** —
+   constaté le 2026-09-17 au matin, après le déplacement. Sans `docker-compose.yml` :
+   ni `make up` ni `make migrate`, le port 5433 fermé, et toute suite lancée sans base.
+   Sans `graphify-out/` : `.mcp.json` continuait de servir le graphe de la copie MORTE,
+   sans le dire — il répondait, simplement il décrivait un autre arbre.
+   La liste se re-dérive, elle ne se recopie pas :
+   `git status --porcelain --ignored | grep '^!!'` dans la copie source.
+   💡 `graphify-out/` se régénère plutôt qu'il ne se copie (`make graph`), et c'est
+   MIEUX : `graphify update` ajoute sans retirer, donc un graphe neuf part à zéro
+   fichier fantôme — l'ancien en traînait 24 (177 nœuds).
    ⚠️ Il a fallu **trois allers-retours** pour compléter la copie de mesure, dont quatre
    fichiers `assets/` à nom accentué. Vérifier par un `git status` des deux côtés.
 1bis. ⚠️ **Reposer l'identité git** — trouvé le 2026-09-17, au premier commit qui a
@@ -614,8 +626,11 @@ un `.venv` de 2,2 Go est du travail entièrement métadonnées.
    cd "$SRC" && git config --local --list | grep '^user\.'
    cd ~/streamlytics && git config --local user.email "…" && git config --local user.name "…"
    ```
-   C'est le **sixième** élément que `git clone` ne transporte pas, après les cinq
+   C'est le **neuvième** élément que `git clone` ne transporte pas, après les huit
    fichiers gitignorés — et le seul qui ne se voie pas par un `diff` d'arborescences.
+   ⚠️ Ce paragraphe disait « sixième … après les cinq » : le compte suivait la liste
+   de l'étape 1, qui était elle-même incomplète de deux entrées. Un compte dérivé d'une
+   liste fausse a l'air d'une vérification alors qu'il n'en est pas une.
 
 2. **Renommer le dossier de mémoire de Claude**, sans quoi l'historique du projet
    disparaît :

@@ -143,7 +143,7 @@ DOC_TESTS := tests/test_error_class_index_is_complete.py \
              tests/test_the_views_map_lists_every_view.py
 DOC_IGNORE := $(foreach f,$(DOC_TESTS),--ignore=$(f))
 
-test:        ## [418 s — contre 1146 s en série] Suite COMPLÈTE, drapeaux de la CI — la barrière avant de livrer
+test:        ## [226 s mesuré le 2026-09-17 — ext4, pile Docker up, donc -n 2] Suite COMPLÈTE, drapeaux de la CI — la barrière avant de livrer
 	@# La sortie va DANS UN FICHIER, et ce n'est pas du confort. Le 2026-09-16, j'ai
 	@# conclu QUATRE FOIS qu'une suite etait « morte en route » ; les quatre fois elle
 	@# tournait encore. Les executions passaient par `| tail -6`, qui ne rend rien avant
