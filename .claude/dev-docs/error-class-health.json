@@ -1382,7 +1382,7 @@
       "severity": "P3",
       "status": "guarded",
       "introduced_date": "2026-09-17",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -1916,6 +1916,30 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "a-procedure-that-omits-a-surface-it-must-touch": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-17",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_the_roadmap_rotation_names_all_three_surfaces.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_derived_family": "sans-famille",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P3",
+      "status": "guarded",
+      "introduced_date": "2026-09-17",
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-prose-claim-that-cannot-be-verified": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-12",
@@ -2276,6 +2300,30 @@
       "introduced_date": "2026-09-17",
       "revisions": 2,
       "history_additions": 1,
+      "renamed_from": null
+    },
+    "a-retention-declared-in-a-comment-and-applied-by-nobody": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-17",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_declared_retention_is_actually_applied.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
+      "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P3",
+      "status": "guarded",
+      "introduced_date": "2026-09-17",
+      "revisions": 0,
+      "history_additions": 0,
       "renamed_from": null
     },
     "a-rollback-wider-than-the-failure": {
@@ -9425,7 +9473,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 227,
+      "catalogue_revisions": 228,
       "head_date": "2026-09-17"
     },
     "holes": {
@@ -9440,11 +9488,11 @@
       "seen_red_unknown": 331
     },
     "population": {
-      "automatic_guard": 381,
-      "classes": 391,
+      "automatic_guard": 383,
+      "classes": 393,
       "ever_recurred_observed": 49,
       "prose_only": 10,
-      "with_signature": 380
+      "with_signature": 382
     },
     "recurrence": {
       "window_start": "2026-05-15",

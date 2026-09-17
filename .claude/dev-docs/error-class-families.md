@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**391 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**393 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -19,7 +19,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 21 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 74 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 40 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 41 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 8 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
@@ -28,7 +28,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 18 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
 | [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 24 | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | [l-instrument-ment-sur-ce-qu-il-mesure](#l-instrument-ment-sur-ce-qu-il-mesure) | 2 | Ce que cet instrument AFFICHE est-il ce qu'il a mesuré ? |
-| _sans famille_ | 3 | — |
+| _sans famille_ | 4 | — |
 
 ## le-locataire
 
@@ -377,7 +377,7 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 
 **Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?**
 
-Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list|telemetry-table-that-nothing-ever-purges` sur l'identifiant et le symptôme. 40 classe(s).
+Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list|telemetry-table-that-nothing-ever-purges` sur l'identifiant et le symptôme. 41 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -421,6 +421,7 @@ Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|cap
 | [`a-telemetry-table-that-nothing-ever-purges`](error-classes.md#a-telemetry-table-that-nothing-ever-purges) | une table écrite à chaque événement grossit sans borne. Rien n'échoue jamais — jusqu'au jour où une requête de tableau de bord ralentit, ou où le disq |
 | [`a-document-that-cannot-be-current-in-its-own-commit`](error-classes.md#a-document-that-cannot-be-current-in-its-own-commit) | un document généré est **périmé à l'instant même où on le commite**. Son contrôle de fraîcheur est rouge juste après un `make` qui vient de le produir |
 | [`a-make-target-that-claims-a-barrier-it-does-not-hold`](error-classes.md#a-make-target-that-claims-a-barrier-it-does-not-hold) | une cible `make` annonce dans son aide qu'elle est la barrière — « (CI) » — alors qu'aucun workflow ne la lance. Le document EST gardé, mais par un au |
+| [`a-retention-declared-in-a-comment-and-applied-by-nobody`](error-classes.md#a-retention-declared-in-a-comment-and-applied-by-nobody) | une politique de conservation est écrite quelque part — commentaire SQL, ADR, migration — et **rien ne l'exécute**. Rien n'échoue jamais ; la table gr |
 
 ## un-contrôle-qui-ne-peut-jamais-passer
 
@@ -589,9 +590,10 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 | [`format-marker-in-a-plain-string`](error-classes.md#format-marker-in-a-plain-string) | un marqueur `{...}` destiné à une f-string se retrouve dans une chaîne ordinaire et part **tel quel** dans le SQL. Postgres reçoit huit caractères lit |
 | [`module-level-read-turns-a-deletion-into-a-collection-error`](error-classes.md#module-level-read-turns-a-deletion-into-a-collection-error) | on supprime un fichier et le rapport de tests annonce « N errors » au lieu de « N failed ». Les propriétés que ces tests défendaient disparaissent de  |
 | [`a-form-constraint-checked-on-the-series-not-on-the-axis`](error-classes.md#a-form-constraint-checked-on-the-series-not-on-the-axis) | une combinaison de réglages rend une figure entièrement VIDE, sans message, alors que les données sont là. Signalé au rendu le 2026-09-08 : « je vois  |
+| [`a-procedure-that-omits-a-surface-it-must-touch`](error-classes.md#a-procedure-that-omits-a-surface-it-must-touch) | une procédure écrite est correcte, détaillée, et **omet une des surfaces que le geste doit toucher**. Celui qui la suit fait le travail et laisse une  |
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=391 families=18 orphans=3 -->
+<!-- error-class-families: total=393 families=18 orphans=4 -->
 
-<!-- error-class-families: sha256=b1d2ad2e11bda4d999475f67c32911aec44a6b558162bac86bb8147fdb37397d -->
+<!-- error-class-families: sha256=242731f6faebf9ec4d1747f5bb58b3baee8685ea83991d9a08b5b3977e360592 -->
