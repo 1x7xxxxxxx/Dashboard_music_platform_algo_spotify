@@ -318,9 +318,45 @@ le supposer.
   82·88·94 — **−25 % du `show()` de l'accueil**. Classe
   `a-memo-field-written-and-never-consulted`, avec son garde.
 
-  **Les sept sites listés ci-dessus n'ont PAS été mesurés** — ils restent des candidats,
-  pas des faits. La leçon de `platform_chart` s'applique à eux : profiler dans le thread
-  du script avant d'en réécrire un seul.
+  ### Les sept sites sont mesurés — et les SEPT sont réfutés (2026-09-17)
+
+  | site nommé par R121 | son coût | son `show()` |
+  |---|---|---|
+  | `platform_chart:225-285` (`_aggregate`) | **1,4 ms** | 80 ms |
+  | `alerts.py:251` (la boucle as-of) | **5,4 ms** | 105 ms |
+  | `db_health:129-145` (`cumsum`) | **~0** | 190 ms |
+  | `meta_x_spotify:168-201` (`_index100`) | **3,5 ms** | 208 ms |
+  | `meta_creatives:539-561`, `hypeddit:181`, `soundcloud:183`, `meta_ads_overview:696` | voir ci-dessous | |
+
+  **La mesure qui tranche**, prise sans profileur (le `cProfile` gonfle le total de 3×,
+  601 ms contre 182 réels) — construction de figures contre agrégation pandas :
+
+  | page | total | figures plotly | `groupby` |
+  |---|---|---|---|
+  | `meta_creatives` | 182 ms | **77 ms — 42 %** | **0,4 ms** |
+  | `meta_ads_overview` | 189 ms | **51 ms — 27 %** | **0,2 ms** |
+
+  **Les agrégations Python de ces pages coûtent moins d'une milliseconde.** Le coût est
+  la construction des figures — ce qu'ADR-007 avait déjà profilé en production le
+  2026-08-30 (`plotly.__setitem__` 0,327 s cumulé, `copy.deepcopy` 0,141 s sur 82 462
+  appels) et que ce bloc n'avait pas relu.
+
+  ### Ce que la brique a rendu quand même : deux gains réels, trouvés ailleurs
+
+  * **`ConfigLoader.load()`** reparsait 2 424 octets de YAML à chaque appel — 4,92 ms sur
+    `/mnt/c`. Mémoïsé : **−25 % du `show()` de l'accueil**, séries disjointes.
+  * **Deux calculs en double** — `onboarding_health` **324 → 181 requêtes** par rendu,
+    `db_health` **22 → 11** `fetch_df`. Trouvés par un COMPTAGE de requêtes, pas par un
+    chronomètre.
+
+  Aucun des deux n'était dans la liste. Les deux ont été trouvés par un instrument
+  différent de celui que la tâche prescrivait — et le premier profil de la nuit était
+  faux parce que `cProfile` posé autour d'`AppTest` ne voit pas le thread du script.
+
+  **R121 est close le 2026-09-17 : mesurée, et sa prémisse réfutée sur les sept sites.**
+  Le vrai sujet — le coût de construction des figures plotly — n'est pas « des
+  agrégations Python à passer en SQL ». S'il devient une brique, il en sera une autre,
+  avec la mesure d'ADR-007 pour point de départ.
 
   **Garde existant à réutiliser** : `make gold-coverage` et son cliquet.
 
