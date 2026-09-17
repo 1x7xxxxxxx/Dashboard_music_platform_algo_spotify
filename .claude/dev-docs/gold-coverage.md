@@ -595,7 +595,7 @@ Le second tableau liste les **tables brutes encore lues hors des portes**, alors
 | `meta_insights_performance` | `v_meta_campaign_daily` | 1 | 1 | 0 | dashboard/views/meta_mapping/_campaigns.py:190 |
 | `meta_insights_performance_day` | `v_meta_campaign_daily` | 6 | 5 | 0 | collectors/_meta_insight_fetch.py:59 · dashboard/views/imusician.py:36 · dashboard/views/imusician.py:45 · dashboard/views/meta_x_spotify.py:57 · dashboard/views/meta_x_spotify.py:80 |
 | `s4a_song_timeline` | `v_s4a_song_daily` | 19 | 4 | 0 | api/routers/streams.py:87 · dashboard/utils/pdf_exporter/_report.py:69 · dashboard/utils/setup_completion.py:281 · utils/freshness_monitor.py:175 |
-| `saas_artists` | `v_spotify_followers_daily` | 55 | 8 | 0 | dashboard/utils/live_pulse.py:113 · dashboard/utils/live_pulse.py:68 · dashboard/views/admin.py:501 · dashboard/views/meta_mapping/_campaigns.py:190 · dashboard/views/referral_admin.py:35 · dashboard/views/referral_admin.py:62 · utils/daily_ops_metrics.py:152 · utils/defect_gauge.py:110 |
+| `saas_artists` | `v_spotify_followers_daily` | 55 | 8 | 0 | dashboard/utils/live_pulse.py:113 · dashboard/utils/live_pulse.py:68 · dashboard/views/admin.py:501 · dashboard/views/meta_mapping/_campaigns.py:190 · dashboard/views/referral_admin.py:35 · dashboard/views/referral_admin.py:62 · utils/daily_ops_metrics.py:169 · utils/defect_gauge.py:110 |
 | `sacem_statement` | `v_sacem_monthly` | 1 | — | 0 | dashboard/views/sacem.py:32 |
 | `soundcloud_tracks_daily` | `v_soundcloud_track_latest` | 6 | 1 | 0 | dashboard/views/soundcloud.py:38 |
 | `track_platform_link` | `v_s4a_release_reach` | 6 | 2 | 0 | dashboard/utils/period_side_metrics.py:84 · dashboard/utils/setup_completion.py:281 |
@@ -655,4 +655,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=e16438c87737261028cfa3b295af320ff5fb0c846c147f2fc7acdcf3972c75e2 -->
+<!-- gold-coverage: sha256=e8b3ff52e389a475e839de47d7620c4f48a2af166b9d608caf05e01555e66827 -->

@@ -440,7 +440,11 @@ _CEILINGS = {
     # le texte, et retirer l'import le laissait satisfait), puis le cliquet
     # anti-garde-textuel a refusé DEUX autres comparaisons de chaîne que j'y avais
     # mises. Trois corrections pour un seul garde, toutes mesurées.
-    "siblings_never_swept": 109,  # 110 → 109 le 2026-09-18 : le PDF hachure ce
+    "siblings_never_swept": 106,  # 107 → 106 le 2026-09-18 : 8 verdicts sous un
+    # `except`, 6 portent deja un etat illisible, 2 lus et sains.  # 108 → 107 le 2026-09-18 : un `JOIN` interne
+    # jetait 40 % des lignes de `usage_events` — les sessions d'avant connexion —
+    # dans le compteur qui decide des repliques.  # 109 → 108 le 2026-09-18 : 88,8 % du volume
+    # YouTube est ecarte, et DECLARE par deux surfaces (bande hachuree + couverture).  # 110 → 109 le 2026-09-18 : le PDF hachure ce
     # que l'ecran coupe, depuis la MEME `unmeasured_spans`.  # 111 → 110 le 2026-09-18 : `guard:` porte CINQ
     # syntaxes et le parseur les lit toutes ; les 3 sans ref portent `—`.  # 112 → 111 le 2026-09-18 : les 8 `sum()` de
     # `platform_chart` lus un par un ; les totaux du PDF viennent de la couche or.  # 113 → 112 le 2026-09-18 :

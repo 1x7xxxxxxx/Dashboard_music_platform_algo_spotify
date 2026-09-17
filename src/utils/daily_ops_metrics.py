@@ -147,13 +147,30 @@ def _peak_sessions(db) -> int | None:
     les incluait rapprochait artificiellement un seuil de charge de son déclencheur —
     320 des 1 043 événements d'une journée venaient du locataire `sandbox`, c'est-à-dire
     de nous. Un canari n'a jamais été un utilisateur.
+
+    ⚠️ **`LEFT JOIN`, et le passage d'un `JOIN` interne est un CORRECTIF** (2026-09-18).
+    L'exclusion visait les canaris ; la jointure interne jetait en plus, sans que ce soit
+    voulu, tout événement sans artiste correspondant — c'est-à-dire **les sessions
+    d'AVANT connexion**, où `artist_id` est NULL. Elles sont pourtant des humains et de
+    la charge.
+
+    Mesuré sur la base : **3 387 des 8 331 lignes (40 %) n'ont aucun artiste
+    correspondant, dont 2 427 en `artist_id` NULL**, et les deux formes de jointure
+    divergent sur **1 244 des 2 028 minutes actives (61 %)**, avec un écart allant
+    jusqu'à **10 sessions sur une seule minute**. Le pic coïncidait à 16 ce jour-là,
+    par chance : une minute à 10 anonymes et 6 identifiés se lirait 16 ou 6 selon
+    l'instrument.
+
+    `tools/scale_check.sh` — celui qui décide s'il faut des répliques — a toujours fait
+    le `LEFT JOIN`. Deux instruments annonçaient la même grandeur et n'observaient pas
+    la même population ; c'est celui qui sous-comptait qui s'aligne.
     """
     try:
         rows = db.fetch_query("""
             SELECT max(n) FROM (
                 SELECT count(DISTINCT u.session_id) AS n
                   FROM usage_events u
-                  JOIN saas_artists a ON a.id = u.artist_id
+                  LEFT JOIN saas_artists a ON a.id = u.artist_id
                  WHERE u.ts >= now() - interval '24 hours'
                    AND COALESCE(a.is_canary, FALSE) = FALSE
                    AND COALESCE(a.is_sandbox, FALSE) = FALSE

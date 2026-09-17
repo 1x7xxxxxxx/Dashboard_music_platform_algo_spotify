@@ -564,7 +564,7 @@
       "kind": "heuristic",
       "seen_red": "unknown",
       "severity": "P2",
-      "siblings_swept": false,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-10",
       "revisions": 3,
@@ -3115,7 +3115,7 @@
       "kind": "deterministic",
       "seen_red": "unknown",
       "severity": "P1",
-      "siblings_swept": false,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-10",
       "revisions": 4,
@@ -9352,7 +9352,7 @@
       "kind": "deterministic",
       "seen_red": "2026-09-17",
       "severity": "P2",
-      "siblings_swept": false,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-17",
       "revisions": 1,
@@ -9985,7 +9985,7 @@
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
       "seen_red_unknown": 330,
-      "siblings_never_swept": 109
+      "siblings_never_swept": 106
     },
     "population": {
       "automatic_guard": 387,
