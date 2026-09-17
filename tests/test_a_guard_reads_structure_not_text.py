@@ -63,7 +63,11 @@ _TEXTUAL_GUARDS = {
     "test_i18n.py",
     "test_i18n_orphans.py",
     "test_identity_fields_collectable.py",
-    "test_only_production_puts_mail_on_the_wire.py",
+    # `test_only_production_puts_mail_on_the_wire.py` EST SORTI le 2026-09-17, et sans
+    # qu'une ligne de ce fichier-la change : il EXECUTE `tools/check_env_parity.py` par
+    # `importlib` et ne lit en TEXTE qu'un `.sh`. Il n'a jamais ete un garde textuel —
+    # le predicat ne savait pas reconnaitre `importlib` comme une execution. La liste
+    # retrecit parce que la MESURE s'est corrigee, pas le depot.
     "test_operational_scripts_are_reachable_in_containers.py",
     "test_os_hints.py",
     "test_probes_scoped_to_repo.py",
@@ -196,7 +200,13 @@ def _the_py_path_is_only_executed(tree) -> bool:
     le `.py`, et aucune lecture de ce meme `.py`. Les huit ne lancent aucun subprocess,
     donc rien ne bouge pour eux — remesure : les 27 geles restent detectes.
     """
-    _RUNNERS = {"run", "check_output", "check_call", "call", "Popen"}
+    # ⚠️ `importlib` ajoute le 2026-09-17, sur deux fichiers refuses a tort. Le raisonnement
+    # de cette exemption est « le `.py` est EXECUTE, pas lu » — et `spec_from_file_location`
+    # + `exec_module` execute tout autant qu'un `subprocess`. Ne connaitre que `subprocess`
+    # etait une liste de VERBES la ou la question porte sur le geste, exactement le defaut
+    # que `a-kill-pattern-that-matches-its-own-shell` a coute trois fois le 2026-09-16.
+    _RUNNERS = {"run", "check_output", "check_call", "call", "Popen",
+                "spec_from_file_location", "exec_module", "module_from_spec"}
 
     def _carries_py(node) -> bool:
         return any(isinstance(sub, _ast.Constant) and isinstance(sub.value, str)

@@ -30,3 +30,5 @@
 {"at": "2026-09-17T00:59:06+00:00", "head": "7301066", "kind": "done", "task": "R122", "what": "lot 7 : 6 portees, 325 ; critic 4/6 exactes"}
 {"at": "2026-09-17T01:00:06+00:00", "head": "c0dfecf", "kind": "start", "task": "R122", "what": "lot 8 : les 9 recidivistes restantes"}
 {"at": "2026-09-17T02:44:21+00:00", "head": "c0dfecf", "kind": "done", "task": "R122", "what": "lot 8 : parseur repare, 3 compteurs corriges, 0 recidiviste sans portee"}
+{"at": "2026-09-17T02:46:27+00:00", "head": "eb5f112", "kind": "done", "task": "R122", "what": "lot 8 : parseur repare, 3 compteurs corriges, 0 recidiviste sans portee"}
+{"at": "2026-09-17T03:07:30+00:00", "head": "eb5f112", "kind": "start", "task": "R122", "what": "4 rouges de fin de nuit"}

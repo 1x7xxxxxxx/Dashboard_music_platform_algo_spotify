@@ -1440,7 +1440,7 @@
       "seen_red": "2026-09-17",
       "severity": "P2",
       "status": "guarded",
-      "introduced_date": null,
+      "introduced_date": "2026-09-17",
       "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
@@ -3890,7 +3890,7 @@
       "severity": "P2",
       "status": "guarded",
       "introduced_date": "2026-08-21",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -4007,7 +4007,7 @@
       "severity": "P2",
       "status": "guarded",
       "introduced_date": "2026-08-03",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -4079,7 +4079,7 @@
       "severity": "P2",
       "status": "guarded",
       "introduced_date": "2026-08-21",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -4218,7 +4218,7 @@
       "severity": "P3",
       "status": "guarded",
       "introduced_date": "2026-06-13",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -4241,7 +4241,7 @@
       "severity": "P2",
       "status": "guarded",
       "introduced_date": "2026-09-11",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -4288,7 +4288,7 @@
       "severity": "P1",
       "status": "guarded",
       "introduced_date": "2026-08-21",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -4589,7 +4589,7 @@
       "severity": "P3",
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -6047,7 +6047,7 @@
       "severity": "P2",
       "status": "reported",
       "introduced_date": "2026-06-20",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -8537,7 +8537,7 @@
       "severity": "P4",
       "status": "open",
       "introduced_date": "2026-05-15",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -8712,7 +8712,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 209,
+      "catalogue_revisions": 210,
       "head_date": "2026-09-17"
     },
     "holes": {
