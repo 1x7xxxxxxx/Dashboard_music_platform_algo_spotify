@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**391 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (226 révisions du catalogue rejouées).
+**391 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (227 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
@@ -29,7 +29,7 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 |---|---|
 | `automatic_guard` | 381 |
 | `classes` | 391 |
-| `ever_recurred_observed` | 48 |
+| `ever_recurred_observed` | 49 |
 | `prose_only` | 10 |
 | `with_signature` | 380 |
 
@@ -51,17 +51,17 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 ## Récidive observée
 
-**59 évènements** sur 7997 classe-jours d'exposition — **0.2243** par classe-mois (IC 95 % : 0.1707 – 0.2893)
+**60 évènements** sur 7997 classe-jours d'exposition — **0.2281** par classe-mois (IC 95 % : 0.174 – 0.2936)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 56 | 0.2173 | 0.1641 – 0.2822 | insuffisant pour conclure (n=59) |
-| by_guard · prose | 3 | 0.5595 | 0.1125 – 1.6348 | insuffisant pour conclure (n=59) |
-| by_seen_red · daté | 2 | 0.3134 | 0.0352 – 1.1315 | insuffisant pour conclure (n=59) |
-| by_seen_red · jamais-ou-inconnu | 57 | 0.2221 | 0.1682 – 0.2877 | insuffisant pour conclure (n=59) |
-| by_scope · ne-couvre-pas renseigné | 59 | 0.822 | 0.6257 – 1.0603 | **séparent** |
+| by_guard · automatique | 57 | 0.2212 | 0.1675 – 0.2866 | insuffisant pour conclure (n=60) |
+| by_guard · prose | 3 | 0.5595 | 0.1125 – 1.6348 | insuffisant pour conclure (n=60) |
+| by_seen_red · daté | 3 | 0.4701 | 0.0945 – 1.3735 | insuffisant pour conclure (n=60) |
+| by_seen_red · jamais-ou-inconnu | 57 | 0.2221 | 0.1682 – 0.2877 | insuffisant pour conclure (n=60) |
+| by_scope · ne-couvre-pas renseigné | 60 | 0.8359 | 0.6379 – 1.076 | **séparent** |
 | by_scope · non renseigné | 0 | 0.0 | 0.0 – 0.0192 | **séparent** |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
