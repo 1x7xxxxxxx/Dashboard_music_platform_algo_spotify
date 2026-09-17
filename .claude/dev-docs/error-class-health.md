@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**396 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (253 révisions du catalogue rejouées).
+**396 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (254 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
