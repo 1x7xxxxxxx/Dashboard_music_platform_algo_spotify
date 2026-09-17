@@ -204,7 +204,23 @@ _CEILINGS = {
     # ⚠️ Et le balayage a corrigé un CHIFFRE : la signature brute de `make-fail-late`
     # rend 34 lignes, soit **8,5× la réalité** — 16 cibles, 12 sans prérequis,
     # 4 sans aucun garde. Lire le nombre brut aurait ouvert un chantier fantôme.
-    "siblings_never_swept": 234,
+    # 234 → 224 le 2026-09-17 : la famille `deux-surfaces-deux-nombres`. Aucun site
+    # vivant cette fois, et c'est un résultat : les 2 soustractions d'horloges
+    # restantes sont tz-aware des deux côtés, le PDF et l'écran importent les MÊMES
+    # fonctions de série.
+    #
+    # ⚠️ Ce que les balayages ont surtout produit, ce sont des POPULATIONS non
+    # triées, que seuls ces champs portent désormais : **58** agrégats pandas dans
+    # les vues (invisibles à tout garde qui lit du SQL), **20** invariants or pour
+    # 19 objets `gold_*` déclarés — donc pas une couverture un-pour-un — et **21**
+    # contrôles dans le mail du soir dont UNE SEULE paire est confrontée à
+    # elle-même. Les 19 autres ne le sont par personne.
+    #
+    # ⚠️ Et une leçon de MOTIF : la recherche « soustraction d'horloges » n'a PAS vu
+    # le mélange naïf/aware d'`airflow_monitor.py:124`, trouvé le même jour par une
+    # autre recherche — le défaut y était une COMPARAISON. Deux motifs pour une
+    # cause, et un seul aurait conclu « aucun site ».
+    "siblings_never_swept": 224,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
