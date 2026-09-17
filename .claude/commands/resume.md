@@ -12,8 +12,16 @@ Resume the current session context after a /clear or session restart.
 ## What to do
 
 1. Read `.claude/dev-docs/roadmap/checklist.md` — the **active** roadmap. Extract the
-   `## 🔖 REPRISE` block (current state, read first) and the `## 📋 Tâches ouvertes` index.
+   `## 🔖 REPRISE` block (current state, read first) and **BOTH index tables** :
+   `## 📋 Tâches ouvertes` *and* `## 🙋 En attente de toi`.
    Do not read `archive.md`: it holds only what already shipped.
+
+   ⚠️ **Les deux tables, pas une.** Cette consigne n'en nommait qu'une jusqu'au
+   2026-09-17. Une tâche qui attend un geste humain est OUVERTE — elle n'est
+   simplement pas commençable par une séance — et `/resume` annonçait « aucune tâche »
+   sur un dépôt qui en avait une. Le même défaut existait dans `tools/dev/night_run.py`,
+   corrigé le même jour : classe `a-status-screen-that-reads-half-its-source`.
+   Le compte qui fait foi est celui de `make night-status`, qui lit les deux.
 
 2. List files in `.claude/dev-docs/work-in-progress/` (excluding README.md). For each subfolder found:
    - Read the first 10 lines of `context.md` — **skip the folder entirely** if it contains `COMPLETED` or `BRICK COMPLETE` (it should have been archived; ignore it silently)

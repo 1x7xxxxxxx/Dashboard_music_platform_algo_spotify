@@ -9,6 +9,50 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🔧 R127 — Trois défauts résiduels de `night_run.py`, tous « une absence lue comme un problème absent » (livrée 2026-09-17)
+
+- [x] **R127 — durcir la machinerie de séance : les défauts résiduels de `night_run.py`
+      trouvés par l'audit REX du 2026-09-17.**
+
+  Livrée le 2026-09-17, commits `65ae525` puis `f368715` (poussés). Trois défauts
+  résiduels de `tools/dev/night_run.py`, tous de la même forme — une absence
+  d'information se lisait comme une absence de problème :
+
+  1. **Une ligne d'index sans priorité disparaissait de l'écran.** `_INDEX_ROW`
+     exigeait `(P\d)` ; une priorité `—`, `?` ou vide faisait sortir la tâche de
+     `night-status` **sans erreur**. Le champ est désormais facultatif.
+  2. **Un horodatage illisible désarmait les deux seuils.** `_age_minutes` rendait
+     `-1` sur `ValueError` ; `-1 > 90` et `-1 > 180` sont faux, donc l'avertissement
+     de `status` ET l'invariant des 3 h de `check` disparaissaient, l'unité se
+     faisant passer pour toute neuve. Elle rend désormais `None`, et les deux
+     appelants DISENT que l'âge est inconnu.
+  3. **`night-check` ne croisait pas le journal avec la roadmap.** `make night-note
+     TASK=R999` était accepté sans que rien ne bronche, et `cmd_park` IMPRIMAIT
+     « écrire la même question dans la roadmap » sans que rien ne le vérifie.
+
+  **Le croisement a trouvé TROIS divergences réelles**, deux à sa première
+  exécution et une à la troisième :
+
+  - **des identifiants inventés** : R125, R126 et R127 n'avaient jamais eu de ligne
+    de roadmap — du travail journalisé que la roadmap ignorait ;
+  - **le journal et la roadmap se contredisaient sur R116** : son `park` disait
+    « attend un humain », la roadmap dit qu'elle attend du **trafic** et l'a sortie
+    des deux tables exprès ;
+  - **une unité R120 ouverte depuis 13 h** (« coût réel des corps d'expander »,
+    `start` du 2026-09-16 22:42 jamais refermé), restée invisible parce que
+    `_current_unit` sortait au premier `done` venu, quelle que soit sa tâche. Le
+    travail avait bien été fait — R120 est close par réfutation, voir plus bas dans
+    cette même archive.
+
+  **Garde** : `tests/test_the_status_screen_reads_all_its_source.py`, 9 tests,
+  trois mutations trois rouges distincts.
+
+  **Deux classes d'erreur écrites** avec leurs signatures vues rouges :
+  `a-status-screen-that-reads-half-its-source` (P2) et
+  `a-make-variable-named-after-an-environment-variable` (P2), plus deux autres du
+  même lot (`a-load-guard-that-counts-names-instead-of-measuring-load` P3,
+  `two-instruments-that-do-not-observe-the-same-path` P2).
+
 ## ✅ R124 — Réfutée : l'instrument serveur enregistre bien, close le 2026-09-17
 
 - [x] **R124 — expliquer pourquoi `streamlytics_rerun_duration_seconds` n'avait aucune

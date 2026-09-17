@@ -24,6 +24,12 @@ Date: YYYY-MM-DD
 Actionable now:
 - <items from the `## 📋 Tâches ouvertes` index whose statut is neither BLOQUÉ nor DIFFÉRÉ>
 
+Waiting on you (not startable by a session):
+- <items from the `## 🙋 En attente de toi` index, each with the gesture it awaits>
+- ⚠️ **Cette section a été ajoutée le 2026-09-17.** Sans elle, `/sprint` lisait une
+  table sur deux et pouvait annoncer un sprint vide alors qu'une tâche attendait le
+  propriétaire. Classe `a-status-screen-that-reads-half-its-source`.
+
 Blocked (and on what):
 - <id — the blocker named in the statut column, verbatim; never paraphrase a blocker>
 

@@ -25,9 +25,13 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R127 | Durcir la machinerie de séance — les défauts résiduels de `night_run.py` trouvés par l'audit REX du 2026-09-17 | P3 | `make night-check` croise désormais le journal et l'index ; il a trouvé 2 divergences à sa première exécution |
 
-**R123 a été livrée le 2026-09-17** (commit `5662e33`) : le nettoyage de portée session
+**R127 a été livrée le 2026-09-17** (commits `65ae525` puis `f368715`, poussés) :
+les trois défauts résiduels de `night_run.py` sont fermés (priorité facultative dans
+`_INDEX_ROW`, âge illisible rendant `None` plutôt que `-1`, croisement journal↔roadmap
+dans `night-check`), et ce croisement a trouvé trois divergences réelles — dont l'unité
+R120 ouverte depuis 13 h que `_current_unit` laissait invisible. Détail dans
+`archive.md`. **R123 a été livrée le 2026-09-17** (commit `5662e33`) : le nettoyage de portée session
 passe au processus contrôleur plutôt qu'au worker. **R122 a été close le 2026-09-17**,
 convertie en chantier gouverné par un cliquet automatique — voir `archive.md` pour le
 détail des deux.
@@ -236,7 +240,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-17, aucune tâche actionnable (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R114,R127 -->
+<!-- reprise: open=R114 -->
 
 **R122 et R123 sont closes le 2026-09-17, toutes deux rotées dans `archive.md`.** R123
 a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans
@@ -259,6 +263,12 @@ l'absence constatée venait de ce que la couture ne s'exécute qu'après
 `require_login()`, et aucune session authentifiée n'avait encore eu lieu. Détail,
 y compris l'erreur de mesure qui l'avait fait croire close plus tôt, dans `archive.md`.
 La condition bloquante de la re-mesure R114 est donc levée.
+
+**R127 est livrée le 2026-09-17** (commits `65ae525` puis `f368715`) : les trois
+défauts résiduels de `tools/dev/night_run.py` trouvés par l'audit REX du jour sont
+fermés, et le croisement journal↔roadmap qu'elle a ajouté à `night-check` a trouvé
+trois divergences réelles, dont une unité R120 ouverte depuis 13 h que rien ne
+signalait. Détail complet dans `archive.md`.
 
 **R116 a quitté l'index le 2026-09-17**, pas ce fichier : `daily_ops_metrics` ne porte qu'une ligne (`complete = FALSE`, percentiles de rendu tous `NULL`), donc la courbe qui doit trancher l'ADR-027 n'existe pas encore. Son bloc de détail — non coché, pas livré — reste **ici**, dans une nouvelle section `## ⏸️ R116` hors des deux tables d'index : `archive.md` est strictement passif (aucun item non coché n'y est admis — `test_the_archive_holds_nothing_actionable`), et R116 n'est ni livrée ni abandonnée. Son déclencheur de réouverture est la ligne `daily_ops_metrics` de `### Conditions d'attente` ci-dessous. Elle n'a donc plus de ligne dans l'index actionnable ni dans « 🙋 En attente de toi » — elle n'attend aucun geste humain, seulement du trafic — et pour cette même raison elle **sort de l'ancre**, qui ne porte que ce que les deux tables de ce fichier listent encore.
 

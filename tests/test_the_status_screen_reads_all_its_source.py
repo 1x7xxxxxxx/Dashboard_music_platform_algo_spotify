@@ -208,3 +208,42 @@ def test_the_check_crosses_the_journal_with_the_roadmap() -> None:
     assert "open_questions" in called, (
         "`cmd_check` ne croise plus les questions PARQUÉES avec la roadmap — c'est la "
         "moitié du défaut : `cmd_park` demande de les y écrire et rien ne le vérifiait")
+
+
+def test_every_roadmap_reader_names_both_index_tables() -> None:
+    """La classe est fermée PARTOUT, pas seulement dans `night_run.py`.
+
+    ⚠️ Ce test est né du `ne couvre pas:` de
+    `a-status-screen-that-reads-half-its-source`, écrit le matin même : « ne couvre pas
+    les autres lecteurs de la même roadmap — `/resume`, `/sprint` — qui la découpent
+    chacun à leur façon, et rien ne compare leurs comptes ».
+
+    Vérifié le 2026-09-17 : les deux ne nommaient QUE `## 📋 Tâches ouvertes`. Le même
+    défaut, dans deux endroits de plus, six heures après avoir été corrigé au premier.
+    C'est `a-fix-that-stops-at-the-file-where-it-was-seen`, observé sur lui-même.
+
+    ⚠️ Ce garde lit une CONSIGNE en prose, pas du code : il vérifie que les deux titres
+    y figurent, pas que le modèle les lise vraiment. C'est le maximum qu'un test puisse
+    dire d'un fichier d'instructions — et c'est déjà ce qui manquait.
+    """
+    readers = {
+        ".claude/commands/resume.md",
+        ".claude/commands/sprint.md",
+    }
+    missing = []
+    for rel in sorted(readers):
+        path = _REPO / rel
+        if not path.exists():
+            missing.append(f"{rel} : absent")
+            continue
+        text = path.read_text(encoding="utf-8")
+        for table in ("## 📋 Tâches ouvertes", "## 🙋 En attente de toi"):
+            if table not in text:
+                missing.append(f"{rel} : ne nomme pas `{table}`")
+    assert not missing, (
+        "ces lecteurs de la roadmap ne nomment pas les deux tables d'index :\n  "
+        + "\n  ".join(missing) + "\n\n"
+        "Une tâche qui attend un geste humain est OUVERTE — elle n'est simplement pas "
+        "commençable par une séance. Un lecteur qui n'en voit qu'une annonce « aucune "
+        "tâche » sur un dépôt qui en a une, et c'est ce qu'on lit en premier après une "
+        "compaction.")
