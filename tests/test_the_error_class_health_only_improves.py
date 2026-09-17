@@ -404,7 +404,18 @@ _CEILINGS = {
     # qu'il est BRANCHÉ. `guard-asserts-presence-not-reachability`, écrite dans le
     # garde qui venait fermer une autre classe. Fermé par un test AST exigeant que
     # `main()` appelle le prédicat.
-    "siblings_never_swept": 149,
+    # 149 → 144 le 2026-09-17 : `le-locataire`, famille la plus récidiviste (33,3 %).
+    # Balayage à l'AST de TOUS les DAG multi-tâches : quelles tâches lisent
+    # `dag_run.conf` ? Trois candidats, **aucun n'est un site** — `alert_monitor`
+    # n'est jamais déclenché avec un locataire (vérifié : aucun chemin du dashboard),
+    # et les deux precheck n'ÉCRIVENT RIEN (ni upsert, ni execute_query, ni
+    # record_tenant_*, vérifié à l'AST).
+    #
+    # ⚠️ `multitenant-mono-test-blindspot` est estampillée en DISANT ce qu'elle ne
+    # ferme pas : les trois harnais multi-locataires existent, mais **rien ne mesure
+    # combien des ~7 250 tests tournent sur un seul locataire**. La classe reste
+    # ouverte par sa portée, pas par son garde.
+    "siblings_never_swept": 144,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
