@@ -25,7 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R121 | Les agrégations Python passent en SQL (couche or) | P3 | `make gold-coverage`, cliquet |
 | R116 | **ADR-027** — répliques et Redis, tranché APRÈS les courbes (026 est pris) | P4 | `ls docs/adr/ADR-027-*.md` |
 | R122 | Finir la revue des classes d'erreur — reste 14 récidivistes + 332 portées + **5 classes jamais écrites** | P3 | les trous de `make error-health` ne font que baisser |
 
@@ -281,85 +280,6 @@ le supposer.
 
   Contrôle : `make error-health` · évolution : `make error-health-history`.
 
-- [ ] **R121 — les agrégations Python passent en SQL.**
-
-  Une agrégation en Python tient le GIL ; la même en SQL le relâche pendant l'attente.
-  La couche or (ADR-019, 19 migrations `gold`) **est déjà le mécanisme**.
-
-  Sites localisés : `views/alerts.py:251` (`groupby().tail(1)` dans une boucle sur tous
-  les mois), `views/meta_creatives.py:539-561` (`groupby` + `nlargest` + `cumsum`),
-  `views/meta_x_spotify.py:168-201` (3 `merge` + `concat` pour un axe de dates),
-  `views/db_health.py:129-145` (`concat` en boucle + `pivot_table`),
-  `views/hypeddit.py:181`, `views/soundcloud.py:183`, `views/meta_ads_overview.py:696`.
-
-  ⚠️⚠️ **`utils/platform_chart.py:225-285` a été transféré de R120 le 2026-09-17 en le
-  qualifiant de « site le mieux placé de la liste », et RÉFUTÉ le même jour.** Profil pris
-  DANS le thread du script — `AppTest` exécute la page dans un autre thread, donc un
-  `cProfile` posé autour ne voit rien de l'application, ce qui avait déjà faussé une
-  lecture plus tôt dans la nuit :
-
-  | poste du `show()` de l'accueil | coût |
-  |---|---|
-  | `render_platform_chart` | 38,7 ms |
-  | `config_loader.load()` | **12,5 ms** |
-  | `_aggregate` (le poste annoncé) | **1,4 ms** |
-
-  **Le poste que la roadmap nommait était à 2 % de celui qu'elle ignorait.** Et
-  `_aggregate` n'est pas un `GROUP BY` déguisé : il porte un plancher de couverture — un
-  seau sous `_BUCKET_FLOOR` est rendu INCONNU plutôt que faux, ce qui concernait **38 %
-  des semaines YouTube** — et une exception par plateforme (`STEP_ONLY`, Apple ne produit
-  pas des jours à sommer). Le passer en SQL demanderait de réécrire ces deux règles, pour
-  1,4 ms.
-
-  **Ce qui a été livré à la place** : `config_loader.load()` était un accesseur qui
-  reparsait 2 424 octets de YAML **à chaque appel** — 4,92 ms sur `/mnt/c`, où chaque
-  `open()` est un message 9P. Mémoïsé (le champ `self._config` existait déjà, écrit et
-  jamais consulté). Profils alternés, séries **disjointes** : 64·66·69 ms contre
-  82·88·94 — **−25 % du `show()` de l'accueil**. Classe
-  `a-memo-field-written-and-never-consulted`, avec son garde.
-
-  ### Les sept sites sont mesurés — et les SEPT sont réfutés (2026-09-17)
-
-  | site nommé par R121 | son coût | son `show()` |
-  |---|---|---|
-  | `platform_chart:225-285` (`_aggregate`) | **1,4 ms** | 80 ms |
-  | `alerts.py:251` (la boucle as-of) | **5,4 ms** | 105 ms |
-  | `db_health:129-145` (`cumsum`) | **~0** | 190 ms |
-  | `meta_x_spotify:168-201` (`_index100`) | **3,5 ms** | 208 ms |
-  | `meta_creatives:539-561`, `hypeddit:181`, `soundcloud:183`, `meta_ads_overview:696` | voir ci-dessous | |
-
-  **La mesure qui tranche**, prise sans profileur (le `cProfile` gonfle le total de 3×,
-  601 ms contre 182 réels) — construction de figures contre agrégation pandas :
-
-  | page | total | figures plotly | `groupby` |
-  |---|---|---|---|
-  | `meta_creatives` | 182 ms | **77 ms — 42 %** | **0,4 ms** |
-  | `meta_ads_overview` | 189 ms | **51 ms — 27 %** | **0,2 ms** |
-
-  **Les agrégations Python de ces pages coûtent moins d'une milliseconde.** Le coût est
-  la construction des figures — ce qu'ADR-007 avait déjà profilé en production le
-  2026-08-30 (`plotly.__setitem__` 0,327 s cumulé, `copy.deepcopy` 0,141 s sur 82 462
-  appels) et que ce bloc n'avait pas relu.
-
-  ### Ce que la brique a rendu quand même : deux gains réels, trouvés ailleurs
-
-  * **`ConfigLoader.load()`** reparsait 2 424 octets de YAML à chaque appel — 4,92 ms sur
-    `/mnt/c`. Mémoïsé : **−25 % du `show()` de l'accueil**, séries disjointes.
-  * **Deux calculs en double** — `onboarding_health` **324 → 181 requêtes** par rendu,
-    `db_health` **22 → 11** `fetch_df`. Trouvés par un COMPTAGE de requêtes, pas par un
-    chronomètre.
-
-  Aucun des deux n'était dans la liste. Les deux ont été trouvés par un instrument
-  différent de celui que la tâche prescrivait — et le premier profil de la nuit était
-  faux parce que `cProfile` posé autour d'`AppTest` ne voit pas le thread du script.
-
-  **R121 est close le 2026-09-17 : mesurée, et sa prémisse réfutée sur les sept sites.**
-  Le vrai sujet — le coût de construction des figures plotly — n'est pas « des
-  agrégations Python à passer en SQL ». S'il devient une brique, il en sera une autre,
-  avec la mesure d'ADR-007 pour point de départ.
-
-  **Garde existant à réutiliser** : `make gold-coverage` et son cliquet.
-
 - [ ] **R116 — ADR-027, écrit APRÈS les courbes.**
 
   ⚠️ **Le numéro a changé** : ce bloc annonçait ADR-026, qui est pris depuis le
@@ -466,11 +386,15 @@ travail quotidien existe déjà et n'enlève aucune couverture** :
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-17, quatre tâches ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-17, trois tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R121,R116,R122,R117 -->
+<!-- reprise: open=R116,R122,R117 -->
 
-**Quatre tâches sont ouvertes, dont TROIS actionnables** : R121, R116, R122 — dans cet ordre, qui est celui du gain. R118 est close le 2026-09-17, réfutée sur sa propre mesure (voir `archive.md`) — les cinq vues restantes vivent maintenant dans « Conditions d'attente », pas dans l'index. **R117 est ouverte aussi** mais a quitté l'index actionnable le 2026-09-17 pour « 🙋 En attente de toi » : elle déplace le dépôt, donc aucune séance ne peut l'exécuter sans se tuer. Elle reste comptée — l'ancre ci-dessus la porte, et `test_roadmap_index_is_honest` refuse qu'une tâche ouverte disparaisse de la première chose qu'on lit au `/resume`.
+**Trois tâches sont ouvertes, dont DEUX actionnables** : R116, R122 — dans cet ordre, qui est celui du gain. R118 est close le 2026-09-17, réfutée sur sa propre mesure (voir `archive.md`) — les cinq vues restantes vivent maintenant dans « Conditions d'attente », pas dans l'index. **R117 est ouverte aussi** mais a quitté l'index actionnable le 2026-09-17 pour « 🙋 En attente de toi » : elle déplace le dépôt, donc aucune séance ne peut l'exécuter sans se tuer. Elle reste comptée — l'ancre ci-dessus la porte, et `test_roadmap_index_is_honest` refuse qu'une tâche ouverte disparaisse de la première chose qu'on lit au `/resume`.
+
+**R121 est close le 2026-09-17, mesurée et réfutée sur ses sept sites** (non pas
+livrée) : les agrégations pandas coûtent 0,2–0,4 ms, le coût mesuré est la
+construction des figures plotly (27–42 % du `show()`) — détail dans `archive.md`.
 
 **R120 est close le 2026-09-17, réfutée par sa propre mesure** (non pas livrée) : le
 détail des quatre affirmations fausses et de leur correction est dans `archive.md`.

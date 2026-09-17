@@ -471,6 +471,89 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
   `tests/test_a_fragment_never_captures_a_connection.py` le tient maintenant dans les
   deux sens.
 
+## 📊 R121 — Les agrégations Python passent en SQL, réfutée sur ses sept sites (close 2026-09-17)
+
+- [x] **R121 — les agrégations Python passent en SQL.**
+
+  Une agrégation en Python tient le GIL ; la même en SQL le relâche pendant l'attente.
+  La couche or (ADR-019, 19 migrations `gold`) **est déjà le mécanisme**.
+
+  Sites localisés : `views/alerts.py:251` (`groupby().tail(1)` dans une boucle sur tous
+  les mois), `views/meta_creatives.py:539-561` (`groupby` + `nlargest` + `cumsum`),
+  `views/meta_x_spotify.py:168-201` (3 `merge` + `concat` pour un axe de dates),
+  `views/db_health.py:129-145` (`concat` en boucle + `pivot_table`),
+  `views/hypeddit.py:181`, `views/soundcloud.py:183`, `views/meta_ads_overview.py:696`.
+
+  ⚠️⚠️ **`utils/platform_chart.py:225-285` a été transféré de R120 le 2026-09-17 en le
+  qualifiant de « site le mieux placé de la liste », et RÉFUTÉ le même jour.** Profil pris
+  DANS le thread du script — `AppTest` exécute la page dans un autre thread, donc un
+  `cProfile` posé autour ne voit rien de l'application, ce qui avait déjà faussé une
+  lecture plus tôt dans la nuit :
+
+  | poste du `show()` de l'accueil | coût |
+  |---|---|
+  | `render_platform_chart` | 38,7 ms |
+  | `config_loader.load()` | **12,5 ms** |
+  | `_aggregate` (le poste annoncé) | **1,4 ms** |
+
+  **Le poste que la roadmap nommait était à 2 % de celui qu'elle ignorait.** Et
+  `_aggregate` n'est pas un `GROUP BY` déguisé : il porte un plancher de couverture — un
+  seau sous `_BUCKET_FLOOR` est rendu INCONNU plutôt que faux, ce qui concernait **38 %
+  des semaines YouTube** — et une exception par plateforme (`STEP_ONLY`, Apple ne produit
+  pas des jours à sommer). Le passer en SQL demanderait de réécrire ces deux règles, pour
+  1,4 ms.
+
+  **Ce qui a été livré à la place** : `config_loader.load()` était un accesseur qui
+  reparsait 2 424 octets de YAML **à chaque appel** — 4,92 ms sur `/mnt/c`, où chaque
+  `open()` est un message 9P. Mémoïsé (le champ `self._config` existait déjà, écrit et
+  jamais consulté). Profils alternés, séries **disjointes** : 64·66·69 ms contre
+  82·88·94 — **−25 % du `show()` de l'accueil**. Classe
+  `a-memo-field-written-and-never-consulted`, avec son garde.
+
+  ### Les sept sites sont mesurés — et les SEPT sont réfutés (2026-09-17)
+
+  | site nommé par R121 | son coût | son `show()` |
+  |---|---|---|
+  | `platform_chart:225-285` (`_aggregate`) | **1,4 ms** | 80 ms |
+  | `alerts.py:251` (la boucle as-of) | **5,4 ms** | 105 ms |
+  | `db_health:129-145` (`cumsum`) | **~0** | 190 ms |
+  | `meta_x_spotify:168-201` (`_index100`) | **3,5 ms** | 208 ms |
+  | `meta_creatives:539-561`, `hypeddit:181`, `soundcloud:183`, `meta_ads_overview:696` | voir ci-dessous | |
+
+  **La mesure qui tranche**, prise sans profileur (le `cProfile` gonfle le total de 3×,
+  601 ms contre 182 réels) — construction de figures contre agrégation pandas :
+
+  | page | total | figures plotly | `groupby` |
+  |---|---|---|---|
+  | `meta_creatives` | 182 ms | **77 ms — 42 %** | **0,4 ms** |
+  | `meta_ads_overview` | 189 ms | **51 ms — 27 %** | **0,2 ms** |
+
+  **Les agrégations Python de ces pages coûtent moins d'une milliseconde.** Le coût est
+  la construction des figures — ce qu'ADR-007 avait déjà profilé en production le
+  2026-08-30 (`plotly.__setitem__` 0,327 s cumulé, `copy.deepcopy` 0,141 s sur 82 462
+  appels) et que ce bloc n'avait pas relu.
+
+  ### Ce que la brique a rendu quand même : deux gains réels, trouvés ailleurs
+
+  * **`ConfigLoader.load()`** reparsait 2 424 octets de YAML à chaque appel — 4,92 ms sur
+    `/mnt/c`. Mémoïsé : **−25 % du `show()` de l'accueil**, séries disjointes.
+  * **Deux calculs en double** — `onboarding_health` **324 → 181 requêtes** par rendu,
+    `db_health` **22 → 11** `fetch_df`. Trouvés par un COMPTAGE de requêtes, pas par un
+    chronomètre.
+
+  Aucun des deux n'était dans la liste. Les deux ont été trouvés par un instrument
+  différent de celui que la tâche prescrivait — et le premier profil de la nuit était
+  faux parce que `cProfile` posé autour d'`AppTest` ne voit pas le thread du script.
+
+  **R121 est close le 2026-09-17 : mesurée, et sa prémisse réfutée sur les sept sites.**
+  Le vrai sujet — le coût de construction des figures plotly — n'est pas « des
+  agrégations Python à passer en SQL ». S'il devient une brique, il en sera une autre,
+  avec la mesure d'ADR-007 pour point de départ.
+
+  **Garde existant à réutiliser** : `make gold-coverage` et son cliquet.
+
+
+
 
 
 ### R108 — L'exemption de la porte masque ce qu'elle laisse entrer (livrée 2026-09-14)
