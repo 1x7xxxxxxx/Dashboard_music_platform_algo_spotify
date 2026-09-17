@@ -25,7 +25,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R122 | **ROUVERTE** — la revue des `guard_scope` : 297 classes sur 393 n'ont toujours pas de « ne couvre pas », et la récidive est repassée au-dessus du seuil que R122 s'était donné | P3 | `make reopen-check` → la ligne R122 doit cesser de dire `ROUVRIR` |
+| R122 | **ROUVERTE** — la colonne `guard_scope` est LIVRÉE (0 classe sur 394 sans « ne couvre pas », le 2026-09-17), mais la récidive reste au-dessus du seuil que R122 s'était donné : il reste `cause_unknown` 241 et `seen_red_unknown` 331, qui se comblent en EXÉCUTANT, pas en écrivant | P3 | `make reopen-check` → la ligne R122 doit cesser de dire `ROUVRIR` |
 
 **Aucune tâche ouverte ne reste dans cet index, ni dans aucune autre section.** La
 table « 🙋 En attente de toi » plus bas est vide elle aussi depuis le 2026-09-10 :
