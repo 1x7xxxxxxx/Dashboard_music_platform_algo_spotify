@@ -13,7 +13,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [le-locataire](#le-locataire) | 42 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 18 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 13 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
-| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 19 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
+| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 23 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 28 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
@@ -27,7 +27,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 20 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 17 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
 | [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 23 | Ce que le dépôt déclare est-il ce que la production exécute ? |
-| _sans famille_ | 4 | — |
+| _sans famille_ | 3 | — |
 
 ## le-locataire
 
@@ -133,7 +133,7 @@ Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|noth
 
 **Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ?**
 
-Règle de rattachement : `unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|rendered-as-health|sums-the-display|discarded-in-silence|erases-every-other|past-the-end-of-its-evidence|renders-nothing|named-like-a-final-one|imput|estimat|wins-a-desc-ranking|taken-before-the-writer-ran|carried-across-instruments|chosen-by-a-proxy|ignores-the-floor` sur l'identifiant et le symptôme. 19 classe(s).
+Règle de rattachement : `plausible-wrong-measurement|wrong-measurement|unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|rendered-as-health|sums-the-display|discarded-in-silence|erases-every-other|past-the-end-of-its-evidence|renders-nothing|named-like-a-final-one|imput|estimat|wins-a-desc-ranking|taken-before-the-writer-ran|carried-across-instruments|chosen-by-a-proxy|ignores-the-floor` sur l'identifiant et le symptôme. 20 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -156,6 +156,7 @@ Règle de rattachement : `unmeasured|claimed-not-measured|outranks-the-measureme
 | [`a-threshold-carried-across-instruments`](error-classes.md#a-threshold-carried-across-instruments) | un déclencheur chiffré se déclenche — ou ne se déclenche pas — et la décision qui en découle repose sur une comparaison qui n'a jamais eu de sens. Rie |
 | [`a-ratio-between-two-instruments-that-ignores-the-floor-of-one`](error-classes.md#a-ratio-between-two-instruments-that-ignores-the-floor-of-one) | un RAPPORT entre deux grandeurs oriente des semaines de travail, et il est faux **dans le mauvais sens**. Les deux nombres sont justes, aucun calcul n |
 | [`a-population-chosen-by-a-proxy-for-the-cost`](error-classes.md#a-population-chosen-by-a-proxy-for-the-cost) | une brique d'optimisation énumère précisément **les mauvaises cibles**. La liste est juste selon son propre critère, le travail est réel, et le gain e |
+| [`a-command-wrapper-that-returns-a-plausible-wrong-measurement`](error-classes.md#a-command-wrapper-that-returns-a-plausible-wrong-measurement) | une commande de vérification rend un résultat **crédible et faux**. Rien n'échoue, aucun message, et le chiffre est du bon ordre de grandeur — donc on |
 
 ## le-message-parle-au-mauvais-lecteur
 
@@ -567,10 +568,9 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 | [`format-marker-in-a-plain-string`](error-classes.md#format-marker-in-a-plain-string) | un marqueur `{...}` destiné à une f-string se retrouve dans une chaîne ordinaire et part **tel quel** dans le SQL. Postgres reçoit huit caractères lit |
 | [`module-level-read-turns-a-deletion-into-a-collection-error`](error-classes.md#module-level-read-turns-a-deletion-into-a-collection-error) | on supprime un fichier et le rapport de tests annonce « N errors » au lieu de « N failed ». Les propriétés que ces tests défendaient disparaissent de  |
 | [`a-form-constraint-checked-on-the-series-not-on-the-axis`](error-classes.md#a-form-constraint-checked-on-the-series-not-on-the-axis) | une combinaison de réglages rend une figure entièrement VIDE, sans message, alors que les données sont là. Signalé au rendu le 2026-09-08 : « je vois  |
-| [`a-command-wrapper-that-returns-a-plausible-wrong-measurement`](error-classes.md#a-command-wrapper-that-returns-a-plausible-wrong-measurement) | une commande de vérification rend un résultat **crédible et faux**. Rien n'échoue, aucun message, et le chiffre est du bon ordre de grandeur — donc on |
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=380 families=17 orphans=4 -->
+<!-- error-class-families: total=380 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=9e5303db76700b21b92ca8d2952f7d7597b05af370e95d86e6c9cc5b91b3980b -->
+<!-- error-class-families: sha256=2cd40037616b6df9e40a48ca413aa2a0169f7ec02f0f92f28b5deda91723f8f5 -->

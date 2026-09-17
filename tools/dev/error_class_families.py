@@ -95,6 +95,10 @@ FAMILIES: list[tuple[str, str, str]] = [
     ("un-nombre-affirmé-qui-n-a-pas-été-mesuré",
      "Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer "
      "« zéro » de « on ne sait pas » ?",
+     # `command-wrapper-that-returns-a-plausible-wrong-measurement`, ajoutée le
+     # 2026-09-17 : un réécriveur qui rend un chiffre CONSTRUIT là où on croit
+     # lire une mesure pose exactement la question de cette famille.
+     r"plausible-wrong-measurement|wrong-measurement|"
      r"unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|"
      r"rendered-as-health|sums-the-display|discarded-in-silence|"
      r"erases-every-other|past-the-end-of-its-evidence|renders-nothing|"
