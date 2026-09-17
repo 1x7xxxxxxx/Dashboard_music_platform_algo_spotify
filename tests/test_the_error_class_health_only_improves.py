@@ -380,7 +380,19 @@ _CEILINGS = {
     # aussi la PROSE — mon propre commentaire nommait la fonction, donc le garde se
     # croyait satisfait ; (3) seule la lecture à l'AST compte un appel. Les trois
     # versions ont été MESURÉES fausses, aucune devinée.
-    "siblings_never_swept": 159,
+    # 159 → 154 le 2026-09-17 : `un-document-qui-affirme-un-état-périmé`.
+    # Deux balayages menés sur les DEUX moitiés de leur chaîne, et les deux à zéro :
+    #   · **21** `check_*` définis, **23** callables câblés, `[22 tâches] >> t_alert`
+    #     — aucun détecteur sans opérateur, et aucun opérateur hors de la chaîne ;
+    #   · les **7** services du compose portent tous `restart:` sauf `airflow-init`,
+    #     où ce serait FAUX (conteneur à usage unique).
+    #
+    # ⚠️ **SEPTIÈME lecture textuelle fausse de la séance.** Mon premier motif sur
+    # les politiques de redémarrage rendait « 10 services, 5 sans restart » : il
+    # comptait les VOLUMES et les RÉSEAUX comme des services, et ne voyait pas la
+    # valeur héritée par ancre YAML. Un analyseur YAML tranche en une ligne ce qu'un
+    # motif ne peut pas voir.
+    "siblings_never_swept": 154,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
