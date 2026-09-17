@@ -297,6 +297,25 @@ FAMILIES: list[tuple[str, str, str]] = [
      # exécute — la famille pose exactement cette question.
      r"valeur par défaut|majeure|reload-that-does-not-reload|"
      r"bind-address-that-hides-the-service"),
+    (
+        "l-instrument-ment-sur-ce-qu-il-mesure",
+        "Ce que cet instrument AFFICHE est-il ce qu'il a mesuré ?",
+        # ⚠️ Placée en DERNIER, et ce n'est pas un détail : le premier motif qui matche
+        # gagne, donc une famille posée plus haut volerait des classes à celles qui la
+        # précèdent et ferait bouger des comptes sans qu'aucune classe ne change. Ici,
+        # elle ne peut capter que ce qui tombait déjà dehors. Mesuré le 2026-09-17 :
+        # 5 orphelins avant, 3 après, aucune autre famille touchée.
+        #
+        # La question qu'elle pose n'était posée par aucune autre. Les familles
+        # existantes interrogent des documents, des gardes, des seuils, des silences —
+        # jamais l'INSTRUMENT DE MESURE lui-même. Or une cible `up` qui ne mesure rien,
+        # une jauge qui rend 0 parce qu'elle ne sait pas, un label dont la cardinalité
+        # suit le trafic : ce sont des instruments qui décrivent autre chose que ce
+        # qu'ils prétendent, et c'est une question distincte de « ce document est-il à
+        # jour ».
+        r"metric|gauge|jauge|scrape|exporter|prometheus|grafana|observab|instrument"
+        r"|telemetr|measuring-nothing|histogram|cardinalit",
+    ),
 ]
 
 _ID = re.compile(r"^## ([a-z0-9][a-z0-9-]+)$", re.M)

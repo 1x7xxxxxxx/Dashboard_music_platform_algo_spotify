@@ -58,6 +58,14 @@ _MUTATORS = {"append", "extend", "insert", "pop", "popitem", "remove", "clear",
 # parce que la donnée est immuable », et « il faut le partager » — la troisième a déjà
 # été tirée deux fois le 2026-09-16 (limiteurs, caches KPI).
 _DECLARED: dict[str, str] = {
+    "src/utils/defect_gauge.py::_WARNED_TRUNCATION":
+        "PER-INSTANCE VOULU, et sans conséquence. C'est un drapeau « j'ai déjà prévenu "
+        "une fois » devant un `logger.warning` qui signale que le nombre de séries "
+        "dépasse le plafond de cardinalité. À deux instances, le pire cas est DEUX "
+        "lignes d'avertissement au lieu d'une — et c'est même souhaitable : chaque "
+        "processus a son propre journal, et taire l'avertissement du second ferait "
+        "croire que seul le premier a tronqué. Aucune donnée n'en dépend : le "
+        "repliement lui-même conserve la somme exacte, drapeau ou pas.",
     "src/dashboard/utils/cache_epoch.py::_SEEN":
         "PER-INSTANCE VOULU. C'est la dernière époque que CE processus a vue ; chaque "
         "instance doit avoir la sienne, sinon aucune ne saurait qu'elle a raté une "

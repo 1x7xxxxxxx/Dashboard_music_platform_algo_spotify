@@ -128,6 +128,10 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
+| [a-scrape-target-that-is-up-measuring-nothing](#a-scrape-target-that-is-up-measuring-nothing) | P2 | deterministic | guarded | none |
+| [a-gauge-that-reports-zero-when-it-cannot-read](#a-gauge-that-reports-zero-when-it-cannot-read) | P2 | deterministic | guarded | none |
+| [a-metric-label-whose-cardinality-is-unbounded](#a-metric-label-whose-cardinality-is-unbounded) | P3 | deterministic | guarded | none |
+| [a-log-counter-whose-cardinality-follows-the-codebase](#a-log-counter-whose-cardinality-follows-the-codebase) | P3 | deterministic | guarded | none |
 | [a-generated-document-with-no-freshness-guard](#a-generated-document-with-no-freshness-guard) | P4 | deterministic | guarded | none |
 | [a-make-target-that-claims-a-barrier-it-does-not-hold](#a-make-target-that-claims-a-barrier-it-does-not-hold) | P3 | deterministic | guarded | none |
 | [a-replica-that-builds-its-own-image](#a-replica-that-builds-its-own-image) | P2 | deterministic | guarded | none |
@@ -7892,3 +7896,75 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-17
 - History:
   - 2026-09-17: trouvée par le balayage des frères de `a-replica-that-builds-its-own-image`, en cherchant la forme « un artefact dérivé qui diverge de sa source » hors du domaine Docker. Le balayage a rendu le tableau des quatre générateurs, dont un seul sans `--check` ni test. Inscrite à la roadmap comme R129 plutôt que corrigée sur-le-champ, puis livrée le même jour. En l'implémentant, un second défaut est apparu que le balayage n'avait pas vu : **la ligne de renvoi ancrée avait disparu de `checklist.md`**, donc le registre n'était plus annoncé nulle part. C'est ce défaut-là, et non une mutation imaginée, qui a servi à voir le garde rouge.
+
+## a-scrape-target-that-is-up-measuring-nothing
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une cible de scrutation répond `up`, sa page `/metrics` se sert correctement, et elle ne mesure **rien** de ce qu'elle est censée mesurer. La couverture est apparente : le tableau de surveillance montre une cible verte, et personne ne cherche plus.
+- root_cause: `src/api/main.py` importait `metrics_payload()` (`src/utils/metrics.py:259`), qui fait `generate_latest()` sur le registre PAR DÉFAUT du processus. Les quatre familles de `_build()` y sont bien enregistrées par import transitif — mais **aucun `.inc()`, `.observe()` ni `.set()` ne tournait jamais dans ce processus**. L'API servait donc quatre familles à zéro échantillon. Elle appelait même `enable_pool(minconn=1, maxconn=8)` (`main.py:94`) sans jamais appeler `publish_pool_metrics()`, si bien que `streamlytics_postgres_pool_connections` ne décrivait que le dashboard alors que les deux processus se partagent `max_connections`.
+- cause_evidence: measured (le 2026-09-17 en production : `curl` sur `/metrics` de l'API rendait les quatre familles déclarées et zéro série applicative, tandis que `docker exec streamlytics_dashboard …:9102/metrics` rendait un seul nom après redémarrage)
+- signature: `python3 -m pytest tests/test_the_api_measures_itself_without_unbounded_labels.py -q`
+- seen_red: 2026-09-17 sur `src/api/main.py`, deux mutations → exit 1 chaque fois, 0 après remise en état. (a) l'appel `install_http_metrics(app)` retiré — **l'état réel de l'API ce matin-là**, pas une mutation inventée ; (b) `publish_pool_metrics()` remplacé par `pass` dans la route `/metrics`.
+- long_term_fix: un middleware ASGI (`src/utils/http_metrics.py`) qui compte et chronomètre chaque requête, plus la publication du pool à la scrutation. Et surtout une **règle d'alerte sur l'absence** — `ApiExportsNothing`, `absent(streamlytics_http_requests_total)` : sans elle, la régression redeviendrait silencieuse, puisque son symptôme est précisément qu'il n'y a pas de symptôme.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_api_measures_itself_without_unbounded_labels.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — un instrument qui se déclare sain sans rien observer ; couvre: `src/api/main.py` uniquement, par **trois tests nommés de ce fichier partagé** — `test_the_api_installs_its_own_http_measurement`, `test_the_api_publishes_the_pool_it_enables` et `test_only_the_dashboard_installs_the_defect_gauge` — qui lisent les appels par AST, plus la règle Prometheus `ApiExportsNothing` qui attrape la panne à l'exécution ; ne couvre pas: (1) **le geste voisin le plus proche — un exportateur qui répond avec un registre VIDE**, décrit par `src/dashboard/serve.py` comme « pire que `down` » : un `&` mal placé produirait une cible `up` sans aucune famille, et seul `MetricsExporterSilent` le verrait, pas ce test ; (2) les autres processus — un DAG, un script de `tools/` ou un futur service qui exposerait `/metrics` sans rien alimenter n'est balayé par personne ; (3) la JUSTESSE des valeurs : que le middleware soit installé ne dit pas qu'il compte les bonnes requêtes ; (4) les cibles non applicatives (`caddy`, `node`, `prometheus`), dont le silence est couvert par `ScrapeTargetDown` et non ici.
+- rex_ref: src/dashboard/serve.py
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: trouvée en auditant la pile d'observabilité à la demande du propriétaire, qui signalait un « No data » sur un autre panneau. La cible `api` était verte depuis la mise en service d'ADR-026 le 2026-09-16 — un service entier invisible pendant un jour, sans que rien ne le signale, parce qu'une cible `up` est exactement ce qu'on regarde pour se rassurer.
+
+## a-gauge-that-reports-zero-when-it-cannot-read
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une jauge alimentée depuis une ressource externe tombe à 0 quand cette ressource est injoignable. Le tableau affiche alors un chiffre rassurant — « aucun défaut », « aucun utilisateur », « aucune erreur » — au moment précis où l'on ne sait plus rien. C'est le sens dangereux du mensonge : il rassure.
+- root_cause: une `Gauge` de `prometheus_client` est **toujours** émise une fois ses labels créés, et sa valeur par défaut est 0. L'implémentation naïve d'une jauge adossée à une base met donc `0` dans la branche `except`, ou — variante à peine meilleure — garde la dernière valeur connue, qui est servie avec l'horodatage de la scrutation courante et se lit donc comme fraîche. Dans les deux cas **une seule série porte deux informations** (la valeur, et le fait qu'on la connaisse), ce qui est structurellement impossible.
+- cause_evidence: measured (mutation exécutée le 2026-09-17 : émettre les derniers labels à 0 dans la branche `except` de `src/utils/defect_gauge.py` fait passer 2 tests au rouge ; le panneau correspondant afficherait « 0 défaut ouvert » pendant une panne de Postgres)
+- signature: `python3 -m pytest tests/test_a_mute_defect_gauge_does_not_read_as_zero.py -q`
+- seen_red: 2026-09-17 sur `src/utils/defect_gauge.py`, six mutations → exit 1 chaque fois, 0 après remise en état : (a) émettre les derniers labels à 0 dans l'`except` — **l'implémentation naïve, et le défaut nommé** ; (b) laisser `read_ok` à 1 en échec ; (c) servir le snapshot périmé ; (d) retirer `WHERE resolved_at IS NULL` ; (e) retirer le filtre canari/bac à sable ; (f) déplacer le bloc des sessions AVANT le `return` anticipé.
+- long_term_fix: **séparer le savoir de la valeur en deux séries.** `streamlytics_open_defects` n'est émise QU'APRÈS une lecture réussie ; `streamlytics_open_defects_read_ok`, sans label, est émise TOUJOURS et vaut 0/1. En échec, le snapshot est jeté et aucun échantillon de valeur n'existe. Conséquence assumée et écrite : `absent(open_defects)` devient ambigu (zéro réel, ou aveugle), et la désambiguïsation vit dans `read_ok`, qui ne peut pas mentir par absence de lignes. La règle `DefectGaugeBlind` lit cette seconde série.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_mute_defect_gauge_does_not_read_as_zero.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — rendre une valeur par défaut quand on ne sait pas ; couvre: `src/utils/defect_gauge.py` et ses cinq séries (défauts, `read_ok`, horodatage, artistes vivants, sessions/minute), **plus la surface d'affichage** via `tests/test_a_gauge_that_can_be_blind_is_never_shown_alone.py`, qui refuse qu'un panneau trace la jauge sans son `read_ok` — sans quoi le mensonge serait simplement remonté d'une couche ; ne couvre pas: (1) **le geste voisin le plus proche — la même forme dans une vue Streamlit** : un `st.metric` qui affiche `0` sur un `except` partage exactement la cause et n'est balayé par personne ici ; (2) les autres exportateurs adossés à une ressource externe qui pourraient naître (un futur collecteur Redis, un exportateur Airflow) ; (3) la FRAÎCHEUR au-delà du binaire : `read_ok` dit qu'on a lu, l'horodatage dit quand, mais aucune alerte ne se déclenche sur « lu il y a longtemps mais toujours lu » ; (4) `daily_ops_metrics`, qui écrit `complete = not missing` en base sur un principe voisin mais avec son propre code.
+- rex_ref: src/utils/ops_alerts.py
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: écrite en concevant la jauge, pas après un incident — le mode d'échec a été identifié AVANT d'écrire la branche `except`, et la mutation (a) l'a démontré sur l'implémentation naïve. Le dépôt avait déjà payé cette forme deux fois : un tableau affichant un OK vert pour un signal non câblé (le type BOOLEAN du stockage ne pouvait pas exprimer l'absence), et `src/utils/ops_alerts.py`, qui rend une entrée `UNAVAILABLE` plutôt qu'une liste vide pour la même raison.
+
+## a-metric-label-whose-cardinality-is-unbounded
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un label de métrique prend ses valeurs dans un ensemble que l'application ne contrôle pas — une URL, un identifiant de ressource, un nom de fichier. Le nombre de séries suit alors le TRAFIC au lieu de l'activité mesurée. Prometheus ralentit, puis refuse la cible ; la métrique disparaît exactement quand la charge monte, c'est-à-dire quand on la lit.
+- root_cause: sur une API REST, `request.url.path` rend `/artists/4177`, pas `/artists/{artist_id}`. Étiqueter avec lui crée une série par ressource visitée. Starlette ne pose le patron dans `request.scope["route"]` **qu'après** le routage, donc un middleware qui lit le chemin au début de la requête obtient forcément l'URL brute : l'erreur est naturelle et le code correct demande de lire la route dans le `finally`.
+- cause_evidence: read (`src/utils/http_metrics.py:_route_of` lit `request.scope["route"].path`) — **la classe n'a pas été observée en production ici** : elle est prévenue à l'écriture, et `cause_evidence` le dit plutôt que de laisser croire à un incident
+- signature: `python3 -m pytest tests/test_the_api_measures_itself_without_unbounded_labels.py -q`
+- seen_red: 2026-09-17 sur `src/utils/http_metrics.py`, une mutation → exit 1 : `_route_of` modifié pour rendre `request.url.path`. 0 après remise en état.
+- long_term_fix: lire le PATRON de route, dans le `finally` du middleware, et replier tout ce qui n'a atteint aucune route sous une valeur unique `__unmatched__` — sinon un scanner frappant mille chemins inexistants rouvrirait le problème par la porte de derrière. Le même raisonnement borne la jauge des défauts (plafond de 100 séries, queue repliée dans `__other__` **en conservant la somme**).
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_api_measures_itself_without_unbounded_labels.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — étiqueter une métrique avec une valeur que l'extérieur choisit ; couvre: par **deux tests nommés de ce fichier partagé** — `test_the_route_label_is_the_pattern_not_the_url` et `test_a_request_that_matched_no_route_is_folded` — le label `route` de `src/utils/http_metrics.py` (patron vs URL, et le repli des non-appariées) ; par ailleurs le label `logger` de `src/utils/log_metrics.py` (tronqué au paquet), le plafond de `src/utils/defect_gauge.py`, **et** l'agrégation dans les tableaux Grafana (`by (path)`/`by (url)` refusés) ; ne couvre pas: (1) **le geste voisin le plus proche — une étiquette par LOCATAIRE**, qui croîtrait avec le nombre de clients : `grafana-correspondence.md` l'interdit en prose et **aucun test ne le vérifie** ; (2) les valeurs de label issues d'une réponse d'API externe (un code d'erreur Meta, un genre Spotify) ; (3) la cardinalité RÉELLE en production — le garde lit le code, il ne compte pas les séries vivantes ; (4) `exc_type` dans la jauge des défauts, borné en pratique par les types d'exception Python mais par rien de structurel.
+- rex_ref: src/utils/http_metrics.py
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: écrite en instrumentant l'API. Le dépôt avait déjà la doctrine — `grafana-correspondence.md` refuse une étiquette par locataire pour exactement ce motif — mais aucune classe ne la portait, donc rien ne la rappelait devant un middleware neuf.
+
+## a-log-counter-whose-cardinality-follows-the-codebase
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un compteur de lignes de journal étiqueté par nom de logger complet crée une série par MODULE et par niveau. Le nombre de séries suit alors la taille du code, pas l'activité : ajouter un fichier ajoute cinq séries, et le compteur devient plus coûteux que ce qu'il mesure.
+- root_cause: `logging.LogRecord.name` porte le nom complet du module (`src.collectors.spotify_api_collector`). Le passer tel quel en label paraît juste — c'est bien l'origine de la ligne — mais le dépôt compte plus de 150 modules pour 5 niveaux, soit ~750 séries possibles pour une information que ~10 valeurs rendent aussi bien.
+- cause_evidence: read (`src/utils/log_metrics.py:_short` tronque à deux segments) — classe **prévenue à l'écriture**, non observée en production
+- signature: `python3 -m pytest tests/test_the_log_counter_counts_without_writing.py -q`
+- seen_red: 2026-09-17 sur `src/utils/log_metrics.py`, trois mutations → exit 1 chaque fois, 0 après : (a) `_LOGGER_DEPTH` porté de 2 à 4 (le nom complet) ; (b) le handler non attaché au logger racine ; (c) le handler qui formate le message.
+- long_term_fix: tronquer au module de DEUXIÈME rang (`src.collectors`, `src.dashboard`, `src.utils`), de sorte que le nombre de valeurs suive le nombre de paquets. Et un handler qui ne formate jamais : le formatage est le coût principal d'un handler ordinaire, payé ici sur le chemin de chaque ligne de journal du processus pour une chaîne que personne ne lit.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_log_counter_counts_without_writing.py }
+- guard_scope: un-coût-payé-sans-contrepartie — un instrument dont le prix croît avec le code ; couvre: `src/utils/log_metrics.py`, sur trois propriétés (troncature au paquet, attachement à la racine, absence de formatage), vérifiées sur des noms de modules RÉELS du dépôt ; ne couvre pas: (1) **le geste voisin le plus proche — le NIVEAU de la racine** : le compteur ne voit que ce qui atteint les handlers, donc passer la racine en `WARNING` le rendrait aveugle aux `INFO` sans qu'aucun test ne le dise ; (2) l'installation effective dans les processus — `serve.py` et `src/api/main.py` l'appellent, rien ne vérifie qu'ils continuent de le faire ; (3) les DAG, délibérément hors périmètre (Airflow a son journal par tâche, et un processus de tâche meurt avant d'être scruté) ; (4) le VOLUME réel de séries en production.
+- rex_ref: src/utils/log_metrics.py
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: écrite en répondant à la demande « compter les logs et les stocker pour Grafana via Prometheus ». Compter par niveau est une métrique et non du stockage de logs, donc compatible avec ADR-026 qui rejette Loki — c'est la troncature du label qui fait la différence entre une métrique et une base de données déguisée.

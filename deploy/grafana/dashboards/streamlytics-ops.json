@@ -7,7 +7,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "30s",
   "time": {
     "from": "now-6h",
@@ -297,6 +297,252 @@
           },
           "expr": "rate(process_cpu_seconds_total{job=~\"dashboard|api\"}[5m]) * 100",
           "legendFormat": "{{job}}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Defauts OUVERTS par page — survit aux redeploiements",
+      "description": "Lu depuis `app_error_log`, pas depuis un compteur en memoire : contrairement au panneau « Erreurs applicatives par page », il ne repart pas de zero a chaque redeploiement. AUCUNE serie ici ne veut dire l'une de deux choses — zero defaut ouvert, ou lecture impossible. Le panneau a cote tranche.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "sum by (page,error_class) (streamlytics_open_defects)",
+          "legendFormat": "{{page}} · {{error_class}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "… et SAIT-ON ? (1 = lu, 0 = aveugle)",
+      "description": "⚠️ Ce panneau est la RAISON d'etre du precedent. Une jauge ne peut pas porter deux informations : si elle tombait a 0 pendant une panne de base, elle se lirait « aucun defaut ouvert ». Ici, 0 veut dire « je ne sais pas ». Alerte : DefectGaugeBlind.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "streamlytics_open_defects_read_ok",
+          "legendFormat": "lecture reussie",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "time() - streamlytics_open_defects_last_success_timestamp_seconds",
+          "legendFormat": "age de la derniere lecture (s)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Utilisateurs — artistes vivants et sessions/minute",
+      "description": "Deux comptes, deux questions. « Artistes vivants » saute les admins (ils n'ont pas d'artist_id). « Sessions/minute » est EXACTEMENT la grandeur du declencheur n1 de `tools/scale_check.sh` — canari et bac a sable exclus, sans quoi 31 % des evenements d'une journee mesuree venaient du bac a sable. Aucun seuil n'est pose ici : le 20 de scale_check.sh n'a pas de derivation ecrite.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 46
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "streamlytics_active_artists",
+          "legendFormat": "artistes vivants (battement < 5 min)",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "streamlytics_sessions_1m",
+          "legendFormat": "sessions distinctes / minute",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "API — requetes par route et par statut",
+      "description": "Le label `route` porte le PATRON (/artists/{artist_id}), jamais l'URL brute : avec l'URL, chaque identifiant creerait sa serie. Avant le 2026-09-17 ce panneau ne pouvait pas exister — l'API etait scrutee sans rien mesurer.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 46
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "sum by (route,status) (rate(streamlytics_http_requests_total[5m]))",
+          "legendFormat": "{{route}} · {{status}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "API — latence par route (p95)",
+      "description": "p95 vue du serveur. Aucun seuil d'alerte n'y est adosse : il n'existe pas encore assez de trafic pour en deriver un, et le depot refuse un seuil ecrit d'instinct.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 54
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le,route) (rate(streamlytics_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Journaux — lignes par niveau",
+      "description": "Un COMPTEUR de lignes, pas un stockage de logs — c'est ce qui le rend compatible avec ADR-026, qui rejette Loki. Le label `logger` est tronque au paquet (`src.collectors`), jamais au fichier : sinon le nombre de series suivrait la taille du code au lieu de l'activite.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 54
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "sum by (level) (rate(streamlytics_log_records_total[5m]))",
+          "legendFormat": "{{level}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "sum by (logger) (rate(streamlytics_log_records_total{level=\"ERROR\"}[5m]))",
+          "legendFormat": "ERROR · {{logger}}",
+          "refId": "B"
         }
       ]
     }

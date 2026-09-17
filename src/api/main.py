@@ -93,6 +93,22 @@ from src.database.postgres_handler import enable_pool  # noqa: E402
 
 enable_pool(minconn=1, maxconn=8)
 
+# ⚠️ `enable_pool()` REGISTRE les bornes ; rien ne PUBLIE l'état du pool tant que
+# personne n'appelle `publish_pool_metrics()`. Côté dashboard c'est `end_chrome()` qui
+# s'en charge à chaque rerun ; côté API, personne ne le faisait — mesuré le 2026-09-17 :
+# les quatre familles étaient déclarées dans le registre de l'API et AUCUNE n'était
+# alimentée, donc `streamlytics_postgres_pool_connections` ne décrivait que le
+# dashboard alors que les deux processus se partagent `max_connections`.
+#
+# On le publie à la scrutation plutôt qu'à chaque requête : l'état du pool est une
+# grandeur instantanée, la lire 15 s trop tard ne coûte rien, et le faire sur le chemin
+# de chaque requête paierait deux lectures d'attributs par appel pour rien.
+from src.utils.http_metrics import install_http_metrics  # noqa: E402
+from src.utils.log_metrics import install_log_counter  # noqa: E402
+
+install_http_metrics(app)
+install_log_counter()
+
 # `/metrics` — ADR-026. Pas de serveur lateral ici, contrairement au dashboard :
 # l'API a deja un serveur HTTP, lui en ajouter un second n'acheterait rien.
 #
@@ -104,7 +120,15 @@ enable_pool(minconn=1, maxconn=8)
 def metrics():
     from fastapi.responses import Response
 
+    from src.database.postgres_handler import publish_pool_metrics
     from src.utils.metrics import metrics_payload
+
+    # Publier JUSTE AVANT de rendre la charge utile : c'est le seul instant où l'état du
+    # pool de CE processus a un sens pour le scrutateur.
+    try:
+        publish_pool_metrics()
+    except Exception:  # noqa: BLE001 — une métrique ne casse jamais /metrics
+        pass
 
     body, content_type = metrics_payload()
     return Response(content=body, media_type=content_type)

@@ -85,9 +85,12 @@ groups:
           action: >-
             Regarder d'abord `streamlytics_rerun_duration_seconds{phase}` : `chrome`
             (barre laterale, navigation, authentification) et `view` se reparent a des
-            endroits differents, et le rapport mesure entre les deux est d'environ 8x.
-            Si `phase="view"` domine sur UNE page, c'est une requete — la page est dans
-            le label. Si `chrome` domine, c'est la barre laterale, et le levier de ce
+            endroits differents. ⚠️ Une premiere redaction annoncait ici « un rapport
+            mesure d'environ 8x » entre les deux : c'est REFUTE, et dans le mauvais sens.
+            La mesure du 2026-09-16 rend `chrome` plate a 11-13 ms contre `view` de
+            49,8 ms (`saisie_s4a`) a 776,8 ms (`meta_mapping`) — c'est la VUE qui domine,
+            de tres loin. Commencer donc par `phase="view"`, page par page : la page est
+            dans le label. Si `chrome` domine, c'est la barre laterale, et le levier de ce
             soir est de demarrer la replique (voir l'en-tete de `deploy/Caddyfile`, deux
             gestes). Redemarrer le dashboard ne rend la main que si la cause est une
             fuite, ce que la courbe dit : une degradation en marche d'escalier, pas une
@@ -117,7 +120,107 @@ groups:
             ou le code a ouvert une connexion directe pour ne pas echouer. Une seule
             suffit a signaler. Comparer
             `streamlytics_postgres_pool_connections{state="borrowed"}` a la taille du
-            pool (`enable_pool(maxconn=10)`, `src/database/postgres_handler.py:92`) :
+            pool — `maxconn=8`, la valeur que passent les DEUX appelants reels
+            (`src/dashboard/utils/__init__.py` et `src/api/main.py`). Le `maxconn=10` de
+            `postgres_handler.py:92` est la valeur par DEFAUT de la signature, que
+            personne n'utilise : la comparer a `borrowed` donnerait un mauvais plafond.
             colle au plafond => monter `maxconn` ; loin du plafond => une connexion fuit,
             et c'est une vue qui ne passe pas par `view_session()`.
           panel: Grafana → Application → Pool
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # Les instruments muets — groupe ajouté le 2026-09-17
+  #
+  # Les quatre règles ci-dessus surveillent le SERVICE. Aucune ne surveillait
+  # l'INSTRUMENT, et c'est le trou que ce groupe ferme. Mesure du 2026-09-17 :
+  # `RenderLatencyDegraded` ne peut ni se déclencher ni signaler qu'elle est aveugle,
+  # parce que `histogram_quantile` d'un histogramme vide rend `NaN` et qu'une
+  # comparaison avec NaN est fausse. Une alerte `inactive` se lit « tout va bien »
+  # alors qu'elle veut dire « je ne mesure rien ».
+  #
+  # ⚠️ Aucune des quatre ne porte de seuil, et c'est délibéré. Le dépôt tient qu'un
+  # seuil écrit d'instinct est un défaut, et le trafic actuel ne permet d'en dériver
+  # aucun. Les seuils de CHARGE — sessions, taux d'erreur, pointe de journaux — sont
+  # différés avec leur commande de calibration, dans la roadmap. Ici tout est binaire :
+  # l'instrument parle, ou il ne parle pas.
+  #
+  # Total après ce groupe : 8 règles. Le déclencheur d'adoption d'Alertmanager écrit
+  # dans ADR-026 est à ~10 — on reste dessous, mais la marge se referme.
+  - name: streamlytics-instruments
+    interval: 30s
+    rules:
+      - alert: MetricsExporterSilent
+        expr: absent(streamlytics_reruns_in_flight)
+        for: 10m
+        labels:
+          severity: high
+        annotations:
+          symptom: >-
+            Le dashboard n'expose plus aucune métrique de rendu. Les panneaux « Latence
+            de rendu » et « File d'attente » sont vides, et les alertes qui en dépendent
+            (`RenderLatencyDegraded`) sont INACTIVES parce qu'elles ne mesurent rien —
+            pas parce que tout va bien.
+          action: >-
+            Vérifier que le conteneur tourne avec `python3 -m src.dashboard.serve` et non
+            `streamlit run` : seul `serve.py` démarre l'exportateur AVANT Streamlit. Puis
+            `docker exec streamlytics_dashboard python3 -c "import urllib.request as u;
+            print(u.urlopen('http://localhost:9102/metrics').read()[:200])"`. Une sortie
+            vide signifie que l'exportateur n'a pas démarré ; les logs du conteneur
+            portent alors « exportateur de métriques non démarré ».
+          panel: streaMLytics — sante et rendu / File d'attente — rendus en cours
+
+      - alert: ApiExportsNothing
+        expr: absent(streamlytics_http_requests_total)
+        for: 15m
+        labels:
+          severity: medium
+        annotations:
+          symptom: >-
+            L'API est scrutée mais n'expose aucune métrique de requête. Sa cible est `up`
+            en mesurant zéro — un service entier invisible, dont la cible verte se lit
+            comme une couverture. C'est l'état mesuré le 2026-09-17, avant l'ajout du
+            middleware.
+          action: >-
+            `curl -s http://127.0.0.1:8502/metrics | grep -c "^streamlytics_http_"` doit
+            rendre un nombre non nul. S'il rend 0, vérifier que `install_http_metrics(app)`
+            est bien appelé dans `src/api/main.py` — gardé par
+            `tests/test_the_api_measures_itself_without_unbounded_labels.py`.
+          panel: streaMLytics — sante et rendu / Processus — RAM residente
+
+      - alert: ScrapeTargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: high
+        annotations:
+          symptom: >-
+            Une cible de scrutation ne répond plus. Tout ce qu'elle mesurait a cessé
+            d'exister SANS qu'aucune autre alerte ne se déclenche : les règles portant sur
+            ses métriques deviennent silencieuses, pas rouges.
+          action: >-
+            `curl -s "http://127.0.0.1:9090/api/v1/targets?state=active" | python3 -m
+            json.tool` nomme la cible et l'erreur exacte. Un `connection refused` sur le
+            dashboard ou l'API signifie que le conteneur est tombé ou qu'il tourne avec le
+            mauvais point d'entrée ; sur `caddy`, que l'admin API de Caddy n'écoute plus
+            sur 2019.
+          panel: streaMLytics — sante et rendu
+
+      - alert: DefectGaugeBlind
+        expr: >-
+          (streamlytics_open_defects_read_ok == 0)
+          or absent(streamlytics_open_defects_read_ok)
+        for: 15m
+        labels:
+          severity: medium
+        annotations:
+          symptom: >-
+            La jauge des défauts ouverts ne peut plus lire `app_error_log`. Le panneau
+            « Défauts ouverts » n'affiche AUCUNE série — ce qui est volontaire : il vaut
+            mieux un panneau vide qu'un « 0 défaut » inventé pendant une panne de base.
+          action: >-
+            Le second terme (`absent`) signifie que le processus dashboard est mort ou que
+            la jauge n'a pas été installée ; le premier, que la base ne répond pas à une
+            requête bornée à 2 s. Vérifier Postgres d'abord (`docker exec
+            postgres_spotify_airflow pg_isready`), puis les logs du dashboard, qui portent
+            « défauts ouverts illisibles ».
+          panel: streaMLytics — sante et rendu / Defauts ouverts par page

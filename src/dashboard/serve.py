@@ -56,6 +56,32 @@ def main() -> int:
         print(f"⚠ exportateur de métriques en échec ({type(exc).__name__}) — "
               "le dashboard démarre quand même", flush=True)
 
+    # La jauge des défauts ouverts, lue depuis `app_error_log`. Elle est installée ICI
+    # et nulle part ailleurs : `metrics_payload()` de l'API fait `generate_latest()` sur
+    # le registre par DÉFAUT, donc un enregistrement dans `_build()` ferait exposer la
+    # même jauge par les deux processus — `sum()` doublerait, et l'API exécuterait la
+    # requête à chaque scrutation. Contrôle :
+    # `tests/test_the_defect_gauge_is_installed_once_and_only_by_the_dashboard.py`.
+    try:
+        from src.utils.defect_gauge import install_open_defects_collector
+
+        if install_open_defects_collector():
+            print("▶ jauge des défauts ouverts enregistrée", flush=True)
+        else:
+            print("⚠ jauge des défauts ouverts non enregistrée — le panneau des "
+                  "erreurs restera muet, le dashboard démarre quand même", flush=True)
+    except Exception as exc:  # noqa: BLE001 — jamais au prix du produit
+        print(f"⚠ jauge des défauts ouverts en échec ({type(exc).__name__}) — "
+              "le dashboard démarre quand même", flush=True)
+
+    # Le compteur de lignes de journal, par niveau. Il n'écrit nulle part : il incrémente.
+    try:
+        from src.utils.log_metrics import install_log_counter
+
+        install_log_counter()
+    except Exception as exc:  # noqa: BLE001
+        print(f"⚠ compteur de journaux non installé ({type(exc).__name__})", flush=True)
+
     from streamlit.web import cli as stcli
 
     port = os.getenv("PORT", "8501")

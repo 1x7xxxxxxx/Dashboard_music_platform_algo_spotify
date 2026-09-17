@@ -25,6 +25,8 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R130 | Les rétentions déclarées par la migration 124 ne sont appliquées par personne — `telemetry_retention.py` n'existe pas | P3 | `grep -rn 'telemetry_retention' src/` → ne rend que les mentions de la migration |
+| R131 | Calibrer les 3 seuils de charge différés (`SessionsHigh`, `ErrorRateHigh`, `LogErrorBurst`) sur 30 j de données | P4 | `SELECT max(peak_sessions), max(p95_render_ms) FROM daily_ops_metrics WHERE day > now()-interval '30 days'` |
 
 **R127 a été livrée le 2026-09-17** (commits `65ae525` puis `f368715`, poussés) :
 les trois défauts résiduels de `night_run.py` sont fermés (priorité facultative dans
@@ -240,7 +242,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-17 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R130, R131 -->
 
 **R122 et R123 sont closes le 2026-09-17, toutes deux rotées dans `archive.md`.** R123
 a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans
@@ -411,6 +413,43 @@ fiable ici.
 
 📥 **Erreurs applicatives non triées : 1** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.
 <!-- error-inbox: open=1 -->
+
+## R130 — Les rétentions déclarées ne sont appliquées par personne · P3
+
+**Trouvé le 2026-09-17** en auditant l'observabilité. `migrations/124_every_telemetry_table_declares_its_retention.sql:21-22` affirme que les purges « vivent dans `src/utils/telemetry_retention.py`, appelé par le DAG `alert_monitor` ». **Ce fichier n'existe pas.** `src/utils/nightly_maintenance.py` n'appelle que `purge_rate_limit_hits`.
+
+Les rétentions de 180 j (`usage_events`, `etl_run_log`) et 365 j (`monitoring_run`, `csv_upload_log`) sont donc **déclarées en commentaire SQL et appliquées par personne** — exactement la situation que la migration prétend fermer.
+
+⚠️ Conséquence directe sur le scaling : `usage_events` est « la table qui grossit le plus vite », et `tools/scale_check.sh:28-40` la balaie **entière**, sans clause `WHERE ts >`. Le déclencheur nº 1 du scaling coûte donc un balayage complet d'une table sans borne — et il empirera tout seul.
+
+**Le geste** : écrire `src/utils/telemetry_retention.py` avec une purge par table déclarée, l'appeler depuis `nightly_maintenance`, et borner la requête de `scale_check.sh`. Un garde doit vérifier que **toute** table portant une rétention en commentaire a bien sa purge — sinon la prochaine migration rouvrira le même trou.
+
+**Mesuré par** : `grep -rn 'telemetry_retention' src/` — doit cesser de ne rendre que les mentions de la migration.
+
+---
+
+## R131 — Calibrer les trois seuils de charge différés · P4
+
+**Ouvert le 2026-09-17 avec les alertes d'observabilité.** Quatre règles ont été livrées, toutes **sans seuil** (`absent()`, `up == 0`) parce qu'elles n'en demandent aucun. Trois autres ont été délibérément **différées** faute de données pour les dériver :
+
+| règle différée | ce qu'elle surveillerait | la grandeur qui existe déjà |
+|---|---|---|
+| `SessionsHigh` | la charge utilisateur | `streamlytics_sessions_1m`, `daily_ops_metrics.peak_sessions` |
+| `ErrorRateHigh` | une pointe d'erreurs | `streamlytics_app_errors_total`, `daily_ops_metrics.errors_by_page` |
+| `LogErrorBurst` | une pointe de journaux ERROR | `streamlytics_log_records_total{level="ERROR"}` |
+
+Le dépôt tient qu'un seuil écrit d'instinct est un défaut, et il en porte déjà **cinq sans dérivation** (disque 85 %, RAM 500 Mo, sauvegarde 25 h, watchdog 26 h / 48 h). En ajouter trois de plus par confort aggraverait précisément ce que la règle existe pour empêcher.
+
+⚠️ Le seuil de 20 sessions de `tools/scale_check.sh` est dans le même cas : il est posé face à un pic observé de **12**, sans que le facteur 1,7 soit justifié nulle part.
+
+**Mesuré par** :
+```sql
+SELECT max(peak_sessions), max(p95_render_ms), max(reruns_total)
+FROM daily_ops_metrics WHERE day > now() - interval '30 days';
+```
+Trente jours de données rendent une distribution ; avant, tout chiffre serait inventé.
+
+---
 
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 
