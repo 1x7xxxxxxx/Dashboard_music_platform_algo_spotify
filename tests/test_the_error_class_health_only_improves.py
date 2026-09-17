@@ -344,7 +344,20 @@ _CEILINGS = {
     #   · sonde par MOTS DU CODE           → 7/7, la distinction est en i18n
     # Deux sur-rapportent, deux sous-rapportent. Un résultat uniforme (0/N ou N/N)
     # doit faire LIRE avant de conclure.
-    "siblings_never_swept": 174,
+    # 174 → 169 le 2026-09-17 : `la-frontière-avec-le-dehors`, 2ᵉ famille la plus
+    # récidiviste. Les deux balayages qui comptent, tous deux exhaustifs :
+    #   · **3 lectures d'en-tête** de requête dans tout le dépôt — `stripe-signature`
+    #     (vérifié, et l'endpoint FERME EN DÉFAUT en 503 sans secret), `User-Agent`
+    #     (cosmétique) et `Retry-After` (lu sur les réponses AMONT). L'IP cliente
+    #     passe par UN parseur, qui lit depuis la DROITE de `X-Forwarded-For`.
+    #   · **toutes les étiquettes Prometheus** sont bornées par construction, et
+    #     aucune n'est un identifiant de locataire — ce qu'ADR-026 interdit.
+    #
+    # ⚠️ Un angle mort NOMMÉ plutôt que trouvé : `TRUSTED_PROXY_HOPS` vaut 2 et se
+    # lit dans l'environnement. Un déploiement à UN proxy qui oublierait de le poser
+    # retomberait sur le pair socket — le côté SÛR — mais dégraderait la granularité
+    # du limiteur sans le dire.
+    "siblings_never_swept": 169,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

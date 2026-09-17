@@ -48,7 +48,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `scope_without_not_covered` | 0 |
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 331 |
-| `siblings_never_swept` | 174 |
+| `siblings_never_swept` | 169 |
 
 ## Récidive observée
 
