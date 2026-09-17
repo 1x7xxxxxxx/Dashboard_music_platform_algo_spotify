@@ -367,7 +367,20 @@ _CEILINGS = {
     # FICHIERS et une seule interroge la BASE (« le rôle vivant tient ses bornes »).
     # Cette dernière SKIPPE sans Postgres joignable : en CI sans base, le garde ne
     # vérifie que des fichiers, ce qui ne dit rien de la prod.
-    "siblings_never_swept": 164,
+    # 164 → 159 le 2026-09-17 : `un-travail-qui-n-arrive-nulle-part`, et **DEUX sites
+    # vivants trouvés dans MON travail de la même séance**. `telemetry_retention.py`
+    # a été écrit pour fermer « déclaré en commentaire, appliqué par personne » ;
+    # `purge_telemetry` était câblée, mais `purge_summary` et `undeclared_tables`
+    # n'avaient AUCUN appelant. On ne ferme pas cette classe en écrivant un module
+    # que personne n'appelle — c'est la même, un cran plus loin.
+    #
+    # ⚠️ **Le garde écrit pour ça a dû être corrigé TROIS fois, chaque fois par une
+    # mutation qui passait au vert** : (1) `git grep` lit l'INDEX et ne voyait pas
+    # une modification non indexée ; (2) `git grep --no-index` voyait le disque mais
+    # aussi la PROSE — mon propre commentaire nommait la fonction, donc le garde se
+    # croyait satisfait ; (3) seule la lecture à l'AST compte un appel. Les trois
+    # versions ont été MESURÉES fausses, aucune devinée.
+    "siblings_never_swept": 159,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

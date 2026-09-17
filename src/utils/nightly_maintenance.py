@@ -53,10 +53,24 @@ def run() -> dict:
         # série longue du dépôt. Mais il est JOURNALISÉ en `error`, pas avalé — une
         # purge muette est exactement le défaut que ce module vient de fermer.
         try:
-            from src.utils.telemetry_retention import purge_telemetry
+            from src.utils.telemetry_retention import (
+                purge_summary, purge_telemetry, undeclared_tables,
+            )
+
+            # ⚠️ Le CONTRÔLE avant la purge, pas après : une migration qui déclare une
+            # rétention sans colonne d'âge doit se voir AVANT que la purge échoue
+            # dessus. C'était la raison d'être d'`undeclared_tables`, et elle n'était
+            # appelée par personne — trouvé le 2026-09-17 en balayant les fonctions
+            # publiques sans appelant, sur un module écrit le jour même.
+            manquantes = undeclared_tables(db)
+            if manquantes:
+                logger.error("rétention DÉCLARÉE sans colonne d'âge connue sur %s — "
+                             "la purge les saute : %s", len(manquantes), manquantes)
 
             retention = purge_telemetry(db)
-            logger.info("rétention appliquée : %s", retention)
+            # `purge_summary` rend la ligne lisible que ce module promet au mail du
+            # soir. Elle non plus n'avait aucun appelant : le résumé partait en brut.
+            logger.info("%s", purge_summary(retention))
         except Exception as exc:  # noqa: BLE001
             retention = None
             logger.error("rétention de télémétrie en échec (%s) — le résumé s'écrit "
@@ -67,6 +81,10 @@ def run() -> dict:
         summary = write(db)
         if retention is not None:
             summary["retention"] = retention
+            # La ligne LISIBLE à côté de la donnée brute : c'est elle que le mail du
+            # soir affiche, et la garder hors du résumé la rendait inatteignable.
+            from src.utils.telemetry_retention import purge_summary as _summary
+            summary["retention_line"] = _summary(retention)
     finally:
         db.close()
 
