@@ -589,6 +589,14 @@ def pytest_sessionstart(session):
         if stamp is not None:
             _DB_SESSION_START.append(stamp)
 
+    # R123 — rendre son budget aux clés de test, UNE FOIS par lancement.
+    # Au DÉMARRAGE et non à la fin : un lancement qui plante laisserait sinon le
+    # suivant avec un budget entamé, et c'est le cas qu'on veut couvrir.
+    # Le garde `workerinput` est le même que ci-dessus : seul le contrôleur passe,
+    # et hors `-n` il n'y a qu'une session, qui passe aussi.
+    if not hasattr(session.config, "workerinput"):
+        _clear_test_rate_limit_budget()
+
 
 @pytest.fixture(scope="session")
 def db_session_start():
@@ -633,26 +641,14 @@ def _clear_test_rate_limit_budget() -> None:
         pass
 
 
-@pytest.fixture(autouse=True, scope="session")
-def _rate_limit_budget_starts_full():
-    """Aucun lancement n'hérite du budget consommé par le précédent."""
-    _clear_test_rate_limit_budget()
-    yield
-    _clear_test_rate_limit_budget()
 
 
-@pytest.fixture(autouse=True, scope="session")
-def _no_synthetic_rows_left_behind():
-    """Efface, en fin de session, les lignes que la suite a fabriquées.
+def _delete_synthetic_rows() -> None:
+    """Efface les lignes que la suite a fabriquées. Ne lève jamais.
 
-    Portée SESSION et non fonction : plusieurs tests s'appuient sur leurs propres
-    lignes pendant qu'ils tournent. On ne les empêche pas d'écrire, on les empêche de
-    SURVIVRE — c'est la persistance qui ment aux pastilles, pas l'écriture.
-
-    Ne lève jamais : sans base, il n'y a rien à nettoyer, et faire échouer toute la
-    suite pour ça remplacerait un défaut discret par un blocage.
+    On n'empêche pas les tests d'écrire, on les empêche de SURVIVRE — c'est la
+    persistance qui ment aux pastilles, pas l'écriture.
     """
-    yield
     try:
     # ── Pourquoi la porte PARTAGÉE et non `get_db_connection` (2026-09-15) ──
     # `from src.dashboard.utils import get_db_connection` exécute
@@ -679,3 +675,36 @@ def _no_synthetic_rows_left_behind():
             db.close()
     except Exception:  # noqa: BLE001 — un nettoyage n'échoue pas la suite
         pass
+
+
+# ── Pourquoi des HOOKS de session et non des fixtures `scope="session"` (R123) ──
+#
+# Ces deux nettoyages étaient des fixtures `autouse, scope="session"`. Sous `-n`,
+# chaque worker ouvre sa PROPRE session pytest : la fixture tournait donc une fois
+# PAR WORKER, au démarrage et à la fin de chacun — pendant que les autres
+# travaillaient. Un worker qui démarre efface le budget `testclient:%` en plein
+# `test_api.py` d'un autre ; un worker qui finit efface les lignes `track-of-%` que
+# `test_e2e_two_tenants` est en train de lire.
+#
+# `xdist_group` ne pouvait rien pour ça : il affecte des TESTS à des workers, il ne
+# dit rien du moment où tourne une fixture de session. C'est pourquoi R123 était une
+# tâche distincte du correctif de `test_nothing_overwritten_is_lost`.
+#
+# Le remède est le processus CONTRÔLEUR. Sous xdist, seuls les workers reçoivent un
+# attribut `workerinput` sur leur `config` ; le contrôleur n'en a pas, et hors xdist
+# personne n'en a. Son `pytest_sessionstart` précède le démarrage de TOUS les workers
+# et son `pytest_sessionfinish` suit leur terminaison à tous : c'est exactement
+# « une fois par lancement, au bon moment ».
+#
+# ⚠️ « seulement sur gw0 » aurait semblé équivalent et ne l'est pas : gw0 termine sa
+# session quand IL a fini, pas quand la suite a fini — son teardown retomberait en
+# plein travail des autres. Le défaut aurait changé de fréquence, pas de nature.
+def _is_xdist_worker(config) -> bool:
+    return hasattr(config, "workerinput")
+
+
+def pytest_sessionfinish(session, exitstatus) -> None:
+    if _is_xdist_worker(session.config):
+        return
+    _clear_test_rate_limit_budget()
+    _delete_synthetic_rows()

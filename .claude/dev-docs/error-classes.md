@@ -1571,7 +1571,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: every write names its tenant. The guard walks the payload of each `upsert_many` call made during a real collection run and fails when a tenant-scoped table receives a payload without an `artist_id` key. Removing the `DEFAULT 1` from the schema is the durable follow-up (a dedicated migration, after the write paths are correct).
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — écrire une ligne sans nommer à qui elle appartient. couvre: le scanner AST `.claude/scripts/audit_tenant_writes.py` sur DEUX formes — `upsert_many(table=…, data=…)` dont la table est une CONSTANTE de chaîne et dont les clés de charge utile se résolvent statiquement, et l'`INSERT INTO <table> (colonnes…)` littéral dont la liste de colonnes omet `artist_id` ; plus la preuve de bout en bout `tests/test_e2e_two_tenants.py::test_every_write_names_its_tenant_explicitly`. ne couvre pas: TROIS formes voisines, qui partagent la cause et que le scanner abandonne EN SILENCE (`continue`, pas d'avertissement) — un nom de table qui n'est pas un littéral (f-string, variable, indexation), une charge utile imbriquée au-delà de `depth > 4`, et tout `UPDATE` (le mot n'apparaît nulle part dans le scanner). L'abandon silencieux est le vrai risque : un site non scanné se lit comme un site propre.
 - rex_ref: airflow/dags/spotify_api_daily.py
 - first_seen: 2026-08-20
 - History:
@@ -1590,7 +1590,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: migration 064 makes uniqueness `(artist_id, video_id)` / `(artist_id, channel_id)`; `artist_id` is removed from every `update_columns`, so a row keeps its first owner. `meta_campaigns/adsets/ads` keep their platform-id primary keys (15 FKs reference them) but lose the reassignment — a shared ad account can no longer steal a row.
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — un upsert dont la clé de conflit n'inclut pas le locataire donne la ligne au dernier collecteur qui passe. couvre: `youtube_videos`, par `tests/test_e2e_two_tenants.py::test_youtube_row_ownership_is_not_transferable`, qui fait collecter la MÊME vidéo par deux locataires et vérifie qu'aucun ne perd sa ligne. ne couvre pas: les autres tables upsertées du produit — 4 fichiers de `src/collectors/` et `src/transformers/` appellent `upsert_many`, et une seule table y a son test de bout en bout. Le garde prouve UNE instance, pas la classe : il faudrait soit un test par table scopée, soit un contrôle structurel sur la clé de conflit (`artist_id` dans le `ON CONFLICT`, jamais dans l'`update_columns`) — ce dernier est le `long_term_fix` et il n'est pas écrit.
 - rex_ref: migrations/064_tenant_scoped_uniqueness.sql
 - first_seen: 2026-08-20
 - History:
@@ -2264,7 +2264,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: two independent controls, because either alone is one mistake from failing. `_no_remote_resources` serves `data:` URIs only, so the class is closed whatever future value slips through unescaped; and `_esc()` escapes the three tenant-controlled interpolations the audit named. Deliberately NOT a blanket escape of the file — it also interpolates markup it builds itself (badges, probability bars, row blocks), and escaping those breaks the render. That was tried; the golden-snapshot test caught it.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_pdf_export_cannot_fetch.py }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: la-frontière-avec-le-dehors — insérer une valeur écrite par un locataire dans du balisage rendu côté serveur. couvre: l'export PDF — le moteur déclare un `url_fetcher`, celui-ci n'accepte QUE des `data:` (http/https/file refusés), un nom de titre ne peut pas porter de balisage, toute valeur contrôlée est échappée et les puits d'échappement existent encore (5 tests, `tests/test_pdf_export_cannot_fetch.py`). ne couvre pas: les DEUX autres puits de balisage du produit — les courriels HTML (`src/utils/verification_email.py`, `src/utils/email_alerts.py`) et les cinq vues qui appellent `unsafe_allow_html` (`onboarding`, `home`, `home_tiles`, `alerts`, `useful_links`). Le garde a été écrit pour un moteur (WeasyPrint) alors que la cause est un GESTE ; changer de moteur sort du périmètre sans changer le risque.
 - rex_ref: src/dashboard/utils/pdf_exporter/_report.py
 - first_seen: 2026-08-22
 - History:
@@ -2287,7 +2287,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: read from the RIGHT (`hops[len(hops) - TRUSTED_PROXY_HOPS]`), prefer Cloudflare's own `CF-Connecting-IP`, and — the part that is easy to get wrong — fall back to the socket peer when there are FEWER hops than expected, because that means the header did not come through our proxies at all. Taking `hops[0]` in that branch restores the bypass in any environment with one proxy instead of two.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_rate_limit_client_ip.py }
-- guard_scope: la-frontière-avec-le-dehors — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: la-frontière-avec-le-dehors — lire un en-tête que l'APPELANT contrôle et s'en servir pour décider. couvre: la dérivation de la clé de quota, `client_ip_from_headers` (`src/api/security.py:76`, `src/dashboard/utils/throttle.py:81`) — en-tête isolé non cru, premier saut falsifié ignoré, en-tête Cloudflare prioritaire, repli sur la socket, clé non variable par l'appelant, nombre de sauts de confiance borné (6 tests, `tests/test_rate_limit_client_ip.py`). ne couvre pas: `src/dashboard/utils/os_hints.py:121`, qui lit `User-Agent` par `st.context.headers` — MÊME cause (une valeur que l'appelant choisit oriente une décision), autre chemin, aucun test. La conséquence y est cosmétique (choisir les instructions Windows ou Mac), ce qui est précisément pourquoi personne ne l'a gardé : la famille se juge sur la cause, pas sur la gravité de l'instance.
 - rex_ref: src/api/security.py
 - first_seen: 2026-08-22
 - History:
@@ -7363,7 +7363,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - autofix: none
 - signature: none
 - seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
-- guard: { type: pytest, ref: tests/conftest.py::_rate_limit_budget_starts_full (le correctif de l'instance 1) }
+- guard: { type: pytest, ref: tests/conftest.py::pytest_sessionstart (le correctif de l'instance 1 ; c'était la fixture `_rate_limit_budget_starts_full` jusqu'au 2026-09-17, devenue un hook du contrôleur par R123 — une fixture de portée session tourne une fois PAR WORKER) }
 - guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
 - rex_ref: tests/conftest.py
 - first_seen: 2026-09-16

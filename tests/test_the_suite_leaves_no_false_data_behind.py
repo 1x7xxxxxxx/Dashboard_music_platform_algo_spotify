@@ -2,7 +2,7 @@
 
 Type: Test
 Uses: live Postgres (spotify_etl)
-Depends on: tests/conftest.py (_no_synthetic_rows_left_behind)
+Depends on: tests/conftest.py (pytest_sessionfinish + _delete_synthetic_rows)
 Persists in: —
 
 R61. Le 2026-09-05, un artiste signale « l'item Données est en vert mais on n'a pas les
@@ -106,22 +106,42 @@ def test_the_cleanup_boundary_is_declared_and_runs_at_session_end():
     from pathlib import Path
 
     tree = ast.parse((Path(__file__).parent / "conftest.py").read_text(encoding="utf-8"))
+
+    # ⚠️ Ce test exigeait une FIXTURE `autouse, scope="session"` nommée
+    # `_no_synthetic_rows_left_behind`. R123 (2026-09-17) a montré que cette forme
+    # était elle-même le défaut : sous `-n`, chaque worker ouvre sa propre session,
+    # donc la fixture tournait une fois PAR WORKER — mesuré 8 appels depuis 4
+    # processus — et le teardown d'un worker effaçait les lignes qu'un autre lisait.
+    # La frontière vit désormais dans `pytest_sessionfinish`, que seul le processus
+    # CONTRÔLEUR exécute, après terminaison de tous les workers : 2 appels, 1 PID.
+    #
+    # Ce que le garde vérifie n'a pas changé de nature — la frontière existe, elle
+    # s'exécute sans qu'on la demande, et elle supprime vraiment. Seul le mécanisme
+    # qui garantit « sans qu'on la demande » a changé : un hook pytest est appelé par
+    # construction, là où une fixture devait être `autouse`.
     fn = next((n for n in ast.walk(tree)
                if isinstance(n, ast.FunctionDef)
-               and n.name == "_no_synthetic_rows_left_behind"), None)
-    assert fn is not None, "la frontière de données a disparu de conftest.py"
+               and n.name == "pytest_sessionfinish"), None)
+    assert fn is not None, (
+        "`pytest_sessionfinish` a disparu de conftest.py : plus rien ne nettoie les "
+        "lignes fabriquées à la fin d'un lancement")
 
-    deco = next((d for d in fn.decorator_list if isinstance(d, ast.Call)), None)
-    assert deco is not None, "la frontière n'est plus une fixture"
-    kwargs = {k.arg: getattr(k.value, "value", None) for k in deco.keywords}
-    assert kwargs.get("autouse") is True, (
-        "la frontière n'est plus `autouse` : elle ne tournera que si un test la "
-        "demande, c'est-à-dire jamais")
-    assert kwargs.get("scope") == "session", (
-        "la frontière n'est plus de portée session : nettoyée par test, elle "
-        "casserait les tests qui s'appuient sur leurs propres lignes")
-    # Et elle doit vraiment supprimer.
-    deletes = [n for n in ast.walk(fn)
+    # Il doit appeler le suppresseur, et se taire sur les workers.
+    called = {n.func.id for n in ast.walk(fn)
+              if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    assert "_delete_synthetic_rows" in called, (
+        "`pytest_sessionfinish` n'appelle plus `_delete_synthetic_rows` : la frontière "
+        "de données ne tourne plus")
+    assert "_is_xdist_worker" in called, (
+        "`pytest_sessionfinish` ne filtre plus les workers : il redeviendrait "
+        "« une fois par worker », le défaut exact de R123")
+
+    # Et le suppresseur doit vraiment supprimer.
+    deleter = next((n for n in ast.walk(tree)
+                    if isinstance(n, ast.FunctionDef)
+                    and n.name == "_delete_synthetic_rows"), None)
+    assert deleter is not None, "`_delete_synthetic_rows` a disparu"
+    deletes = [n for n in ast.walk(deleter)
                if isinstance(n, ast.Constant) and isinstance(n.value, str)
                and "DELETE FROM" in n.value]
     assert deletes, "la frontière ne supprime plus rien"
