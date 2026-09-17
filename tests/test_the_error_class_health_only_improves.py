@@ -81,7 +81,11 @@ _CEILINGS = {
     "cause_unknown": 241,             # 363 → 241 : les causes qui nomment un chemin vérifiable
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
-    "scope_without_not_covered": 294,   # −3 le 2026-09-17 (lot `le-locataire`)
+    # −21 le 2026-09-17 : la famille `le-locataire` est à ZÉRO (42/42). Choisie la
+    # première non pour son volume — `un-garde-qui-ne-garde-pas` est plus grosse —
+    # mais pour sa RÉCIDIVE : 33,3 %, soit 3,4× la plus grosse famille, et c'est elle
+    # qui a coûté les deux sessions de test artiste ratées.
+    "scope_without_not_covered": 276,
     # ⚠️ Compteur NEUF le 2026-09-17, posé sur une question du propriétaire : « est-ce
     # qu'on a intégré la réflexion de savoir si l'erreur découverte peut être situéé
     # ailleurs dans le code ? ». La réponse mesurée était NON — 69 classes sur 395
