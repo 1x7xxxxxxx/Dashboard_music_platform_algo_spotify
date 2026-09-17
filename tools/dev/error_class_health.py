@@ -670,6 +670,39 @@ def _render(p: dict) -> str:
           "que soit l'écart des points. Le verdict ci-dessus le dit strate par strate "
           "plutôt que de laisser le lecteur comparer deux nombres et conclure.", ""]
 
+    # ── Le biais de POPULATION, écrit à côté du chiffre qu'il affecte ────────────
+    #
+    # Ajouté le 2026-09-17. La strate `by_scope` annonçait « **séparent** » : 0,83
+    # récidive/classe-mois quand `ne couvre pas:` est écrit, 0,0 quand il ne l'est pas,
+    # intervalles disjoints. Lu tel quel, ça dit « écrire la portée protège ».
+    #
+    # L'autre lecture est aussi compatible avec les mêmes données, et personne ne
+    # l'écrivait : une récidive est un COMMIT QUI AJOUTE UNE LIGNE D'HISTOIRE à une
+    # classe. Les classes dont la portée n'est pas écrite sont, par construction,
+    # celles qu'on n'a pas rouvertes — donc celles dont l'histoire ne bouge pas.
+    # Le zéro peut mesurer une protection ou une INATTENTION, et le chiffre seul ne
+    # les distingue pas.
+    #
+    # Un taux publié sur 21 % du catalogue et lu comme s'il portait sur 100 % est la
+    # forme la plus discrète de `un-nombre-affirmé-qui-n-a-pas-été-mesuré`.
+    scoped = pop["classes"] - h["scope_without_not_covered"]
+    if pop["classes"]:
+        share = 100 * scoped / pop["classes"]
+        L += [
+            f"⚠️ **La strate `by_scope` porte sur {scoped} classes de {pop['classes']}, "
+            f"soit {share:.0f} % du catalogue.** Les {h['scope_without_not_covered']} "
+            "autres n'ont pas de `ne couvre pas:` écrit, et **zéro récidive y est "
+            "observée** — mais une récidive se compte en lignes d'HISTOIRE ajoutées. "
+            "Une classe qu'on n'a jamais rouverte n'en gagne aucune, qu'elle soit "
+            "saine ou seulement ignorée.",
+            "",
+            "Autrement dit : ce taux ne peut pas distinguer « écrire la portée "
+            "protège » de « on ne regarde que là ». Il ne se cite pas comme s'il "
+            "décrivait les "
+            f"{pop['classes']} classes.",
+            "",
+        ]
+
     L += ["## Cohortes à horizon fixe", "",
           "Une classe **plus jeune que l'horizon est exclue de la colonne**, jamais "
           "comptée « n'a pas récidivé ». Une colonne sans population affiche `—`, "

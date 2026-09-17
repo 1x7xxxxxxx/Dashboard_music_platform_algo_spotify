@@ -81,7 +81,7 @@ _CEILINGS = {
     "cause_unknown": 241,             # 363 → 241 : les causes qui nomment un chemin vérifiable
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
-    "scope_without_not_covered": 300,
+    "scope_without_not_covered": 297,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

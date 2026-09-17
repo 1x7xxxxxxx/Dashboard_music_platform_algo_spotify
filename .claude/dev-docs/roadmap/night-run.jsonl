@@ -48,3 +48,5 @@
 {"at": "2026-09-17T10:04:58+00:00", "head": "bc780be", "kind": "park", "task": "R124", "what": "instrument serveur sans donnees + resume quotidien qui affirme complete=t : la re-mesure R114 est bloquee en amont"}
 {"at": "2026-09-17T10:19:59+00:00", "head": "2e7c6a0", "kind": "start", "task": "R125", "what": "reparer la machinerie roadmap : 4 defauts confirmes"}
 {"at": "2026-09-17T10:24:38+00:00", "head": "ee2603b", "kind": "done", "task": "R124", "what": "resolue par la session authentifiee : 28 series, p50=40ms ; l enigme du p50=50 expliquee par la fenetre rate([24h])"}
+{"at": "2026-09-17T10:33:20+00:00", "head": "7eaa7d4", "kind": "done", "task": "R125", "what": "machinerie roadmap reparee (5 defauts) + 62 lecons REX sorties du cimetiere"}
+{"at": "2026-09-17T10:33:20+00:00", "head": "7eaa7d4", "kind": "start", "task": "R126", "what": "ecrire le biais de la metrique de recidive dans le generateur"}

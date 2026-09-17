@@ -1250,7 +1250,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
@@ -7930,8 +7930,8 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
-      "guard_scope_has_not_covered": false,
-      "guard_scope_names_a_test": false,
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8003,8 +8003,8 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
-      "guard_scope_has_not_covered": false,
-      "guard_scope_names_a_test": false,
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -9171,7 +9171,7 @@
       "scope_family_invalid": 0,
       "scope_on_a_shared_guard_without_naming_its_tests": 8,
       "scope_unknown": 0,
-      "scope_without_not_covered": 300,
+      "scope_without_not_covered": 297,
       "seen_red_never": 0,
       "seen_red_unknown": 331
     },
@@ -9238,20 +9238,20 @@
       "by_scope": {
         "ne-couvre-pas renseigné": {
           "events": 58,
-          "class_days": 2124,
-          "per_class_month": 0.8301,
+          "class_days": 2182,
+          "per_class_month": 0.8081,
           "ci95": [
-            0.6303,
-            1.0732
+            0.6136,
+            1.0446
           ]
         },
         "non renseigné": {
           "events": 0,
-          "class_days": 5873,
+          "class_days": 5815,
           "per_class_month": 0.0,
           "ci95": [
             0.0,
-            0.019
+            0.0192
           ]
         }
       },

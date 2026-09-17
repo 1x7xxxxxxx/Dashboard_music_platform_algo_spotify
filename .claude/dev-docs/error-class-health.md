@@ -45,7 +45,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `scope_family_invalid` | 0 |
 | `scope_on_a_shared_guard_without_naming_its_tests` | 8 |
 | `scope_unknown` | 0 |
-| `scope_without_not_covered` | 300 |
+| `scope_without_not_covered` | 297 |
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 331 |
 
@@ -61,10 +61,14 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | by_guard · prose | 3 | 0.5595 | 0.1125 – 1.6348 | insuffisant pour conclure (n=58) |
 | by_seen_red · daté | 1 | 0.1567 | 0.002 – 0.8718 | insuffisant pour conclure (n=58) |
 | by_seen_red · jamais-ou-inconnu | 57 | 0.2221 | 0.1682 – 0.2877 | insuffisant pour conclure (n=58) |
-| by_scope · ne-couvre-pas renseigné | 58 | 0.8301 | 0.6303 – 1.0732 | **séparent** |
-| by_scope · non renseigné | 0 | 0.0 | 0.0 – 0.019 | **séparent** |
+| by_scope · ne-couvre-pas renseigné | 58 | 0.8081 | 0.6136 – 1.0446 | **séparent** |
+| by_scope · non renseigné | 0 | 0.0 | 0.0 – 0.0192 | **séparent** |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
+
+⚠️ **La strate `by_scope` porte sur 83 classes de 380, soit 22 % du catalogue.** Les 297 autres n'ont pas de `ne couvre pas:` écrit, et **zéro récidive y est observée** — mais une récidive se compte en lignes d'HISTOIRE ajoutées. Une classe qu'on n'a jamais rouverte n'en gagne aucune, qu'elle soit saine ou seulement ignorée.
+
+Autrement dit : ce taux ne peut pas distinguer « écrire la portée protège » de « on ne regarde que là ». Il ne se cite pas comme s'il décrivait les 380 classes.
 
 ## Cohortes à horizon fixe
 

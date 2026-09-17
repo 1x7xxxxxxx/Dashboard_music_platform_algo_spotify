@@ -1896,7 +1896,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: CI seeds a second tenant (`ci-canary`) right after provisioning, with real PUBLIC platform identities deliberately different from tenant 1's — a tenant borrowing another's identity passes every isolation check while proving nothing. Locally the same role is filled by `make canary`. The guard fails when fewer than two active tenants exist and names both fixes.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_suite_runs_against_two_tenants.py }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — faire tourner la suite contre une base qui ne contient qu'UN locataire, donc ne jamais exercer la séparation. couvre: la PRÉSENCE de deux locataires distincts dans la base sous test, par `tests/test_suite_runs_against_two_tenants.py` — `test_the_database_under_test_holds_at_least_two_tenants` et `test_the_second_tenant_is_not_a_copy_of_the_first` (un second qui serait une copie du premier ne prouverait rien). ne couvre pas: **ce que les tests FONT de ces deux locataires.** Le garde établit que la population existe ; il n'exige d'aucun test qu'il lise avec l'un et vérifie avec l'autre. Une suite peut avoir deux locataires en base et n'en interroger qu'un d'un bout à l'autre — c'est très exactement le défaut d'origine, avec la précondition en place. Le seul test qui exerce vraiment la séparation est `tests/test_e2e_two_tenants.py`, et rien n'impose qu'il en existe un par surface.
 - rex_ref: tools/create_canary.py
 - first_seen: 2026-08-21
 - History:
@@ -2217,7 +2217,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the identity registry gained a `pattern` per platform and `identity_is_well_formed()` / `malformed_identities()`; the save path refuses a malformed value before writing, and every probe refuses before the network. `re.fullmatch`, never `match` — `match` accepts `123/me/accounts`, which is the whole attack. No probe echoes a raw response body any more.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_credentials_security.py }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — interpoler une valeur que le locataire écrit lui-même dans un chemin d'URL, puis lui renvoyer la réponse brute. couvre: `ig_user_id` sur la route Instagram, par SIX tests de `tests/test_credentials_security.py` — `test_a_path_payload_is_never_a_well_formed_identity` (paramétré), `test_real_identifiers_are_still_accepted`, `test_the_shape_check_is_a_fullmatch`, `test_malformed_identities_reports_the_offender`, `test_the_instagram_probe_refuses_before_the_network` et `test_the_save_path_checks_every_identity_the_tab_carries`. ⚠️ Ce fichier est PARTAGÉ avec `secret-in-an-exception-message`, qui possède les trois derniers (`test_the_http_scope_does_not_silently_shrink`, `test_no_probe_surfaces_a_whole_exception`, `test_the_raw_response_body_is_never_echoed`) — les nommer évite que cette classe s'attribue la couverture de sa voisine. ne couvre pas: **les autres identifiants de plateforme saisis en texte libre.** `_registry.py` expose aussi `channel_id` (YouTube), `account_id` (Meta) et `spotify_artist_id` — tous des `st.text_input`, tous destinés à un chemin REST, et aucun n'est nommé par ce garde. La classe a été écrite sur l'instance qui a saigné, pas sur la famille de saisies qui la partage.
 - rex_ref: src/utils/tenant_identity.py
 - first_seen: 2026-08-22
 - History:
@@ -6418,7 +6418,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_a_quantity_is_summed_and_names_its_tenant.py::test_every_read_of_these_relations_names_its_tenant -q`
 - seen_red: 2026-09-12 (via la trace de mutation de `tests/test_a_quantity_is_summed_and_names_its_tenant.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_a_quantity_is_summed_and_names_its_tenant.py::test_every_read_of_these_relations_names_its_tenant }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — ajouter une plateforme après coup, et n'ajouter son nom à aucune liste de garde. couvre: QUATRE relations nommées à la main dans `_TENANT_RELATIONS` (`tests/test_a_quantity_is_summed_and_names_its_tenant.py:63`) — `hypeddit_daily_stats`, `v_hypeddit_daily`, `v_artist_monthly_revenue`, `v_sacem_monthly` — dont toute lecture doit nommer son locataire. ne couvre pas: **toute relation absente de ce tuple**, et c'est le défaut lui-même récursivement. Le garde est une LISTE TENUE À LA MAIN : la prochaine plateforme arrivera exactement comme Hypeddit est arrivée, et rien ne rougira. Un garde qui se répare en ajoutant une ligne à sa propre liste ne garde pas la classe, il garde ses instances connues. Le `long_term_fix` serait de DÉRIVER la liste du schéma — toute table portant une colonne de locataire — plutôt que de l'énumérer.
 - rex_ref: .claude/dev-docs/gold-coverage.md
 - first_seen: 2026-09-12
 - History:
