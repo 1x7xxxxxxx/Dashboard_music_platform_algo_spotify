@@ -671,3 +671,51 @@ Tant que `which code` rend `/mnt/d/1_Logiciels/VS Code/bin/code`, VS Code tourne
 Windows et ouvre le dossier par `/mnt/c` : exactement la combinaison lente. `~/.vscode-server`
 existe déjà — Remote-WSL a servi par le passé — donc la bascule ne demande aucune
 installation.
+
+## 13. R124 — Une session authentifiée en production, pour savoir si l'instrument enregistre
+
+**Pourquoi c'est ici et pas fait en séance** : la couture de métriques ne s'exécute
+qu'**après** la porte d'authentification — `require_login()` est à
+`src/dashboard/app.py:742`, `end_chrome()` à 976 et `view_timer()` à 979. Une session non
+authentifiée ne produit aucune métrique **par construction**. Je n'ai pas d'identifiants
+de production, et je n'en veux pas : c'est un geste de propriétaire.
+
+⚠️ **J'ai fait la sonde non authentifiée et j'en ai tiré une conclusion FAUSSE** —
+« défaut de production confirmé » — avant de lire le code. La page de connexion s'est
+rendue entièrement, l'instrument n'a pas bougé, et c'était le comportement attendu.
+
+### Ce qui est établi, et ne demande pas ce geste
+
+| vérification | résultat |
+|---|---|
+| cible Prometheus `dashboard` | `up`, scrape 3,8 ms, aucune erreur |
+| séries `streamlytics_*` | 2, pour 4 familles déclarées |
+| `streamlytics_rerun_duration_seconds_*` | **0 série** — maintenant, à −6 h, et en `query_range` sur 22:00–24:00 UTC |
+| `max_over_time(streamlytics_reruns_in_flight[24h])` | **0** — aucun rendu authentifié instrumenté en 24 h |
+| `daily_ops_metrics` du 2026-09-17 | `p50 = 50 ms`, `p95 = 220 ms`, `source = prometheus`, **`complete = TRUE`** |
+
+### Le geste
+
+1. Ouvre `https://app.streamlytics.fr/` et **connecte-toi**.
+2. Navigue sur deux ou trois pages (l'accueil suffit).
+3. Attends une minute, puis lance :
+
+```bash
+ssh root@167.233.92.1 "curl -sG --data-urlencode \
+  'query=streamlytics_rerun_duration_seconds_count' \
+  'http://127.0.0.1:9090/api/v1/query'"
+```
+
+### Ce que chaque issue veut dire
+
+| résultat | conclusion |
+|---|---|
+| des séries apparaissent | la couture enregistre. La question devient : **d'où venait `p50 = 50` le 2026-09-17 à 23:00 UTC**, alors que l'histogramme n'avait aucune série ? Et la re-mesure de R114 peut démarrer |
+| rien n'apparaît | la couture n'instrumente **aucun** rendu en conteneur. C'est un P2 : ADR-026 mesure le vide, et ADR-027 s'appuierait sur une ligne fabriquée |
+
+### Ce que ça débloque
+
+La remise en service de la seconde réplique (R114) est conditionnée par `deploy/Caddyfile`
+à « un chiffre qui ne dépende pas de la saturation du client ». Ce chiffre vient de cet
+instrument. Tant qu'on ignore s'il enregistre, mesurer deux topologies reproduirait
+l'ambiguïté de R114, plus cher.

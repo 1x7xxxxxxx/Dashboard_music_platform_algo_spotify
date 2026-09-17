@@ -25,7 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R124 | L'instrument serveur d'ADR-026 n'a **aucune donnée** en prod, et le résumé quotidien affirme le contraire (`complete = t`, `source = prometheus`, p50 = 50 ms) | P2 | `query_range` sur `streamlytics_rerun_duration_seconds_count` autour de l'écriture : **0 série** |
 
 **R123 a été livrée le 2026-09-17** (commit `5662e33`) : le nettoyage de portée session
 passe au processus contrôleur plutôt qu'au worker. **R122 a été close le 2026-09-17**,
@@ -466,8 +465,9 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
+| R124 | L'instrument serveur d'ADR-026 n'a aucune série en prod, et `daily_ops_metrics` affirme `complete = TRUE` avec `p50 = 50 ms` | P2 | **une session AUTHENTIFIÉE sur https://app.streamlytics.fr/** — la couture ne s'exécute qu'après `require_login()` (`app.py:742` vs `end_chrome` 976), donc seule une vraie connexion peut produire la série. Voir §13 du runbook |
 
-**Vide depuis le 2026-09-17.** R117 y a vécu du 2026-09-17 au 2026-09-17 même — le
+**Une ligne depuis le 2026-09-17** — R124, ci-dessus. Avant elle la table était vide : R117 y a vécu du 2026-09-17 au 2026-09-17 même — le
 temps d'une séance longue — puis a été livrée (les deux moitiés, déplacement sur ext4
 et bascule VS Code en Remote-WSL) et rotée dans `archive.md`. Avant elle, R1, ouvrir la
 bêta privée, y était rotée le 2026-09-10 : le produit est prêt et revérifié en
