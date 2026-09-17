@@ -231,7 +231,17 @@ _CEILINGS = {
     # utilitaires. Plusieurs sont délibérés ET COMMENTÉS comme tels ; les autres n'ont
     # été ni lus ni triés. C'est la liste où le prochain site de cette classe vit, et
     # elle n'existait nulle part avant ce balayage.
-    "siblings_never_swept": 218,
+    # 218 → 215 le 2026-09-17 : `le-message-parle-au-mauvais-lecteur`, et le balayage
+    # a trouvé **DEUX messages vivants face à l'artiste** sous un garde VERT —
+    # « (lancez `ml_scoring_daily`) » dans une vue premium ET dans le PDF que
+    # l'artiste REÇOIT. Aucun artiste ne peut lancer un DAG.
+    #
+    # ⚠️ QUATRIÈME garde de la séance vert sur ce qu'il prétend garder, et c'est
+    # encore le trou de `pkill`/`pgrep` : `_PLUMBING` nommait les MOTS de la
+    # plomberie (`DAG`, `Airflow`, `Postgres`) et pas ses NOMS. Sans le mot « DAG »
+    # dans la phrase, il ne voyait rien. Élargi en DÉRIVANT la liste de
+    # `airflow/dags/`, pour qu'elle ne se périme pas.
+    "siblings_never_swept": 215,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

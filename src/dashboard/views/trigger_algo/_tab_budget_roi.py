@@ -45,8 +45,11 @@ def _render_expected_value(ml_pred: dict, cost_per_stream: float) -> None:
         cost_est = cost_per_stream * seuil
         rows.append((label, algo, float(p), cost_est, cost_est / float(p)))
     if not rows:
+        # L'artiste ne peut PAS lancer un DAG : le message nommait une action que
+        # son lecteur ne peut pas prendre. Il dit maintenant QUAND ça arrive.
         st.caption(t("trigger_algo.roi.ml_proba_unavailable",
-                     "Probabilités ML indisponibles pour ce titre (lancez `ml_scoring_daily`)."))
+                     "Pas encore de probabilités pour ce titre. Elles sont calculées "
+                     "chaque nuit dès qu'il a assez d'historique — rien à faire de ton côté."))
         return
     cols = st.columns(len(rows))
     for col, (label, algo, p, cost_est, adj) in zip(cols, rows):

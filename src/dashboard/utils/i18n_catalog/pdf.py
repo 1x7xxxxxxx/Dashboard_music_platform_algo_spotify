@@ -156,7 +156,8 @@ EN = {
     "pdf.nodata.apple_song": "No data for this song on Apple Music.",
     "pdf.nodata.hypeddit": "No Hypeddit data available.",
     "pdf.nodata.revenue_forecast": "No revenue data for the projection.",
-    "pdf.nodata.score20": "Score /20 unavailable (run `ml_scoring_daily`).",
+    "pdf.nodata.score20": "Score /20 not available yet — it is computed nightly "
+                          "as soon as there is enough history.",
     "pdf.nodata.credentials": "Credentials status unavailable.",
     "pdf.nodata.mapping": "No campaign ↔ track mapping entered.",
     "pdf.nodata.mxs": "Not enough campaign/streams data.",

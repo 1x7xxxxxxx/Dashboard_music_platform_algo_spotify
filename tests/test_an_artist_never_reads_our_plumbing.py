@@ -42,7 +42,34 @@ _ROOT = Path(__file__).resolve().parents[1]
 _APP = _ROOT / "src/dashboard/app.py"
 
 # Words that name our machinery rather than the artist's world.
-_PLUMBING = re.compile(r"\b(DAG|DAGs|Airflow|dag_id|XCom|scheduler|Postgres|PostgreSQL)\b")
+# ⚠️ ÉLARGI le 2026-09-17, et le trou était exactement celui de `pkill`/`pgrep` :
+# le motif nommait les MOTS de la plomberie et pas ses NOMS. Mesuré ce jour-là, deux
+# messages face à l'artiste disaient « (lancez `ml_scoring_daily`) » — sans le mot
+# « DAG » — et ce garde était VERT dessus :
+#   · `views/trigger_algo/_tab_budget_roi.py`, une vue PREMIUM, pas admin ;
+#   · `pdf_exporter/_renderers.py::_render_score20`, dans un document que l'artiste
+#     REÇOIT.
+# Un nom de DAG EST de la plomberie : l'artiste ne peut lancer aucun d'entre eux, et
+# le lui demander est une impasse. La liste se dérive de `airflow/dags/`, donc elle ne
+# peut pas se périmer quand un DAG est ajouté ou renommé.
+_DAG_NAMES = sorted(
+    p.stem for p in (Path(__file__).resolve().parents[1] / "airflow" / "dags").glob("*.py")
+    if not p.stem.startswith("_")
+)
+_PLUMBING = re.compile(
+    r"\b(DAG|DAGs|Airflow|dag_id|XCom|scheduler|Postgres|PostgreSQL"
+    + ("|" + "|".join(re.escape(n) for n in _DAG_NAMES) if _DAG_NAMES else "")
+    + r")\b")
+
+
+def test_the_dag_names_are_actually_derived() -> None:
+    """Anti-vacuité : une liste vide rendrait l'élargissement sans effet, en silence."""
+    assert len(_DAG_NAMES) >= 10, (
+        f"seulement {len(_DAG_NAMES)} noms de DAG dérivés de `airflow/dags/` — "
+        "l'élargissement de 2026-09-17 ne garde plus rien")
+    assert "ml_scoring_daily" in _DAG_NAMES, (
+        "`ml_scoring_daily` a disparu de la liste dérivée ; c'est le DAG des DEUX "
+        "sites trouvés le 2026-09-17")
 
 # Keys living in a SHARED catalog but rendered only to admins. Each needs its gate.
 _ADMIN_GATED_KEYS = {

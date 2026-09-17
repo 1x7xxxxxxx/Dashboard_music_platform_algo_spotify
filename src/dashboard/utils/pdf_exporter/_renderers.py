@@ -431,7 +431,13 @@ def _render_trigger_then_now(cmp_):
 
 def _render_score20(rows):
     if not rows:
-        return f'<p class="no-data">{_t("pdf.nodata.score20", "Score /20 indisponible (lancez `ml_scoring_daily`).")}</p>'
+        # Ce PDF part CHEZ L'ARTISTE : lui demander de lancer un DAG est une
+        # impasse. Le score arrive tout seul avec la collecte de la nuit.
+        _msg = _t("pdf.nodata.score20",
+                  "Score /20 pas encore disponible — il se calcule chaque nuit "
+                  "dès qu'il y a assez d'historique.")
+        return f'<p class="no-data">{_msg}</p>'
+
     body = "".join(
         f"<tr><td>{_trunc(s, 42)}</td><td><b>{sc:.1f}</b></td><td>{dw * 100:.0f}%</td>"
         f"<td>{rr * 100:.0f}%</td><td>{ra * 100:.0f}%</td></tr>"

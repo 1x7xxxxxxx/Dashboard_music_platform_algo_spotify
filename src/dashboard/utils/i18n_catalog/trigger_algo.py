@@ -268,7 +268,8 @@ EN = {
     ),
     "trigger_algo.roi.risk_adjusted_header": "**Risk-adjusted cost (cost ÷ trigger probability):**",
     "trigger_algo.roi.ml_proba_unavailable": (
-        "ML probabilities unavailable for this track (run `ml_scoring_daily`)."
+        "No probabilities yet for this track. They are computed nightly as soon as it "
+        "has enough history — nothing to do on your side."
     ),
     "trigger_algo.roi.adj_cost_help": "Nominal cost {cost:,.2f} € ÷ P={p:.0f}% trigger.",
     "trigger_algo.roi.p_nominal_caption": "P={p:.0f}% · nominal {cost:,.0f} €",
