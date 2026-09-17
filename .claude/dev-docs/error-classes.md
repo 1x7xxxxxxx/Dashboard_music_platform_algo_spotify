@@ -128,6 +128,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
+| [a-reopening-condition-nothing-ever-evaluates](#a-reopening-condition-nothing-ever-evaluates) | P2 | deterministic | guarded | none |
 | [a-retention-declared-in-a-comment-and-applied-by-nobody](#a-retention-declared-in-a-comment-and-applied-by-nobody) | P3 | deterministic | guarded | none |
 | [a-procedure-that-omits-a-surface-it-must-touch](#a-procedure-that-omits-a-surface-it-must-touch) | P3 | deterministic | guarded | none |
 | [a-scrape-target-that-is-up-measuring-nothing](#a-scrape-target-that-is-up-measuring-nothing) | P2 | deterministic | guarded | none |
@@ -8007,3 +8008,21 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-17
 - History:
   - 2026-09-17: les deux omissions se sont manifestées dans la même séance, sur deux tâches différentes, en suivant une procédure que j'avais sous les yeux. ⚠️ Une troisième friction mesurée le même jour n'est pas corrigée par cette classe et mérite d'être écrite : l'agent `roadmap-keeper` a tourné **31 minutes sans rien écrire** sur la rotation d'une seule tâche, qui a dû être faite à la main. L'outil retire la raison de le lancer pour ça ; il reste pertinent pour une brique entière, où il faut juger plutôt que compter.
+
+## a-reopening-condition-nothing-ever-evaluates
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une tâche close se donne une **condition de réouverture calculable**, écrite noir sur blanc — et rien ne l'évalue jamais. La condition se remplit, la tâche reste close, et le dépôt continue comme si de rien n'était. Rien n'échoue ; c'est un travail qui n'arrive nulle part.
+- root_cause: écrire un déclencheur et le VÉRIFIER sont **deux gestes**, et le second n'avait jamais été fait. Le dépôt portait **onze** conditions de réouverture réparties sur deux surfaces d'écriture différentes : la prose (« Déclencheur de réouverture, calculable : … ») et une table de `checklist.md` (« Ce qu'on ne fait pas | Ce qui le rouvrirait, calculable », sept lignes d'un coup). Aucune n'était lue par un test, un contrôle, une cible `make` ou un rapport nocturne. Le cliquet des classes d'erreur, souvent cité comme le garant de R122, ne vérifie que `ever_recurred_observed >= 1` — « le détecteur détecte-t-il encore » — jamais le seuil de réouverture.
+- cause_evidence: measured (2026-09-17 : `ever_recurred_observed` valait **48** puis **49** pour un seuil de réouverture écrit à « > 47 ». Retrouvé par `git log` sur `error-class-health.json` — la condition de R122 était remplie depuis plusieurs révisions. `grep -rln 'ever_recurred_observed' tests/ tools/ Makefile` ne rendait que le générateur et son cliquet, dont aucun n'évalue le seuil.)
+- signature: `python3 -m pytest tests/test_a_reopening_condition_is_evaluated_not_only_written.py -q`
+- seen_red: 2026-09-17 sur `tools/dev/reopen_check.py`, trois mutations → exit 1 chaque fois, 0 après : (a) le `except` de `Trigger.run` rendant « en attente » au lieu d'`INDÉCIDABLE` ; (b) le registre `TRIGGERS` vidé ; (c) le code de sortie rendu constant. Le garde a de plus été vu rouge **sur l'état réel** du dépôt — 11 conditions écrites contre 6 enregistrées — avant que les quatre manquantes ne soient ajoutées.
+- long_term_fix: `make reopen-check` — un **registre explicite** de conditions, chacune avec la fonction qui la tranche, et un code de sortie non nul dès qu'une est remplie. ⚠️ Délibérément PAS un analyseur de la prose : les conditions sont rédigées en français sous des formes variées, et un analyseur les lirait mal en donnant un faux calme, ce qui serait pire que rien. Une condition qu'on ne sait pas évaluer rend `INDÉCIDABLE`, jamais « en attente » — et une évaluation qui LÈVE aussi.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_reopening_condition_is_evaluated_not_only_written.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — écrire une condition que rien ne relit ; couvre: le registre de `tools/dev/reopen_check.py` sur cinq propriétés — il n'est pas vide, une évaluation qui lève rend `INDÉCIDABLE`, une condition sans évaluateur aussi, le code de sortie porte le verdict, et l'écart entre ce que la roadmap ÉCRIT et ce que le registre CONNAÎT reste borné (les deux surfaces d'écriture sont comptées, la prose **et** la table) ; ne couvre pas: (1) **le geste voisin le plus proche — que `make reopen-check` soit LANCÉ** : rien ne l'appelle, ni la CI, ni le rapport nocturne, ni un hook ; une condition remplie reste invisible tant que personne ne tape la commande ; (2) la JUSTESSE d'une évaluation — que le seuil codé corresponde à celui écrit dans la prose n'est vérifié par personne ; (3) les conditions de réouverture écrites AILLEURS que dans `roadmap/*.md` — un ADR, un runbook, `grafana-correspondence.md` en portent, et seul le registre les connaît, pas le compteur ; (4) les quatre conditions `INDÉCIDABLE` du registre, qui restent à trancher à la main.
+- rex_ref: tools/dev/reopen_check.py
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: trouvée en répondant à la question « on n'avait pas la partie error class qui aurait pris une nuit ? ». La réponse mesurée est non — R122 n'a jamais été livrée, elle a été **convertie** en chantier gouverné par un cliquet, avec 4 `guard_scope` écrites sur ~300 et une estimation propre de ~16 h. En vérifiant où en était ce cliquet, le seuil de réouverture qu'elle s'était donné s'est révélé **franchi depuis des heures**. ⚠️ Le chiffre n'est pas le défaut : le défaut est que personne ne le lisait. Trois trous sur quatre n'avaient pas bougé d'une unité depuis la clôture, pendant que le catalogue grossissait de 15 classes — **un cliquet empêche que ça empire, il ne comble pas**.

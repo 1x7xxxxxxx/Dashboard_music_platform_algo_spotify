@@ -2254,6 +2254,30 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "a-reopening-condition-nothing-ever-evaluates": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-17",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_reopening_condition_is_evaluated_not_only_written.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
+      "guard_scope_derived_family": "sans-famille",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P2",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-repair-that-reverts-what-a-successor-widened": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-16",
@@ -9488,11 +9512,11 @@
       "seen_red_unknown": 331
     },
     "population": {
-      "automatic_guard": 383,
-      "classes": 393,
+      "automatic_guard": 384,
+      "classes": 394,
       "ever_recurred_observed": 49,
       "prose_only": 10,
-      "with_signature": 382
+      "with_signature": 383
     },
     "recurrence": {
       "window_start": "2026-05-15",

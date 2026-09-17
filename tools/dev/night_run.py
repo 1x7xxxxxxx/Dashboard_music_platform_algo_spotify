@@ -364,9 +364,40 @@ def cmd_note(args) -> int:
     return 0
 
 
+def _reopening_conditions_met() -> list[str]:
+    """Les tâches closes dont la condition de réouverture est REMPLIE.
+
+    ⚠️ Branché ici le 2026-09-17, et la raison est le défaut qui l'a fait écrire :
+    `tools/dev/reopen_check.py` est né parce que onze conditions de réouverture étaient
+    écrites et **aucune évaluée**. Le laisser sans appelant aurait reproduit ce défaut
+    d'un cran — un outil que rien ne lance ne dit rien à personne.
+
+    Une panne de l'évaluateur ne rend PAS une liste vide : elle rend une ligne qui le
+    dit. Une liste vide se lit « rien à rouvrir ».
+    """
+    try:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "reopen_check", REPO / "tools" / "dev" / "reopen_check.py")
+        mod = importlib.util.module_from_spec(spec)
+        sys.path.insert(0, str(REPO))
+        spec.loader.exec_module(mod)
+    except Exception as exc:                                    # noqa: BLE001
+        return [f"conditions de réouverture NON VÉRIFIÉES ({type(exc).__name__}) — "
+                f"`make reopen-check` le dira"]
+    out = []
+    for trigger in getattr(mod, "TRIGGERS", []):
+        verdict, detail = trigger.run()
+        if verdict == mod.MET:
+            out.append(f"[{trigger.task}] sa condition de réouverture est REMPLIE : "
+                       f"{detail} — `make reopen-check`")
+    return out
+
+
 def cmd_check(_args) -> int:
     """Les invariants d'une séance longue. Sort ≠ 0 quand il y a à redire."""
-    problems = []
+    problems = _reopening_conditions_met()
     entries = _entries()
     unit = _current_unit(entries)
     if unit:

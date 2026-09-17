@@ -25,44 +25,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-
-**R127 a été livrée le 2026-09-17** (commits `65ae525` puis `f368715`, poussés) :
-les trois défauts résiduels de `night_run.py` sont fermés (priorité facultative dans
-`_INDEX_ROW`, âge illisible rendant `None` plutôt que `-1`, croisement journal↔roadmap
-dans `night-check`), et ce croisement a trouvé trois divergences réelles — dont l'unité
-R120 ouverte depuis 13 h que `_current_unit` laissait invisible. Détail dans
-`archive.md`. **R123 a été livrée le 2026-09-17** (commit `5662e33`) : le nettoyage de portée session
-passe au processus contrôleur plutôt qu'au worker. **R122 a été close le 2026-09-17**,
-convertie en chantier gouverné par un cliquet automatique — voir `archive.md` pour le
-détail des deux.
-
-**R109 et R110 ont été livrées et déployées le 2026-09-16** — voir `archive.md`.
-Résultat mesuré : le mur du run `ci.yml` est passé d'une médiane de **427 s à 109 s**
-(run 35035830958, ×3,9), en séparant les portes statiques de la suite en 4 shards
-`pytest-split`. La prémisse de R110 — que le fichier le plus long dominait le temps de
-mur — s'est révélée **fausse** à la mesure : `loadgroup` (349,6 s) n'a pas battu
-`loadfile` (340,2 s), écart de 2,8 % dans le bruit. R110 a quand même livré quatre
-courses latentes fermées, condition nécessaire pour que R109 tienne sa promesse à
-quatre shards. Détail dans `archive.md`.
-
-**R108 a été livrée le 2026-09-14** — la dernière tâche qui
-y figurait, et avec elle l'index n'a plus eu de ligne jusqu'au 2026-09-15. Elle tranchait entre exempter ou
-compter les jointures de dimension dans le cliquet du bronze ; le critère retenu
-(« cette table porte-t-elle une quantité ADDITIVE ? ») a fait descendre le cliquet
-de 104 à 81 via un registre de 8 tables de dimension et la migration 121. Détail dans
-`archive.md`. **R103 et R107 ont été
-livrées le 2026-09-14** — le diagnostic lit une route et non un nom, et les trois
-décisions produit de R107 sont toutes tranchées. Détail dans `archive.md`. **R106 a été livrée le 2026-09-13** — la
-tuile Shazam est sur l'accueil (1 770 au catalogue, 637 pour la dernière sortie), et
-avec elle la mention que l'historique journalier de YouTube et SoundCloud est
-définitivement hors de portée. R105 a été ABANDONNÉE le
-2026-09-13 par ADR-025 : le produit est Spotify + Meta + ML, et YouTube pèse
-0,2 % du signal. Le code écrit pour elle a été retiré, pas désactivé. R104 a été close le soir même — la rupture de
-méthode YouTube est détectée sur un seuil mesuré et retirée des deux surfaces
-qui la comptaient (figure et totaux). Détail dans `archive.md`. R92 à R95, les quatre tâches de l'audit metrics layer du 2026-09-11, ont été
-closes et rotées dans `archive.md`, comme R89, R90 et R91 avant elles (critère du
-double axe écrit et six figures triées, légende devenue le filtre de sources, PDF doté
-de la figure d'évolution multi-plateformes). Détail complet dans l'archive.
+| R122 | **ROUVERTE** — la revue des `guard_scope` : 297 classes sur 393 n'ont toujours pas de « ne couvre pas », et la récidive est repassée au-dessus du seuil que R122 s'était donné | P3 | `make reopen-check` → la ligne R122 doit cesser de dire `ROUVRIR` |
 
 **Aucune tâche ouverte ne reste dans cet index, ni dans aucune autre section.** La
 table « 🙋 En attente de toi » plus bas est vide elle aussi depuis le 2026-09-10 :
@@ -83,40 +46,11 @@ de trancher : `business_discovery` lit un compte Instagram tiers sans aucun part
 Business Manager (les insights, non) — 📸 Instagram a donc son onglet, et son collecteur
 retombe sur cette route.
 
-**Le 2026-09-10 a rouvert huit tâches** (R64–R71), venues d'un audit de la figure de
-l'accueil qui a mesuré un défaut invisible aux 4 740 tests — la figure dessinait ×2,7 ce
-qui avait été mesuré — puis d'un balayage du dépôt qui a rendu **~130 sites frères** sur
-cinq classes. **Sept ont été livrées le jour même** — R64, R65, R66, R67, R68, R69, R71,
-voir `archive.md` — correctif, garde, mutations rouges et suite complète verte à 4 804
-tests. **R70 a suivi le soir même** : ADR-019 écrit, migration 097
-(`v_platform_totals`), et les **cinq** surfaces qui calculaient le total d'une
-plateforme repointées sur la définition unique — le total YouTube de l'artiste 1 valait
-120 627 sur deux d'entre elles et 118 219 sur les trois autres au même instant. Le lot
-de huit est clos.
-
-**Un audit transverse a été mené le 2026-09-10 au soir** — sécurité, résilience,
-performance, filtres, méthode de tracé, refactor. Il a d'abord trouvé **un défaut
-CRITIQUE que j'avais moi-même livré le matin** : `/kpis` rendait 500 en production pour
-tous les appelants, faute d'un alias de colonne, et le garde écrit pour cette classe
-exacte était devenu **aveugle depuis trois semaines** — ses 28 assertions « pas de 500 »
-étaient toutes satisfaites par des 401, parce qu'un contrôle d'authentification ajouté
-entre-temps arrêtait les requêtes avant les routeurs. Corrigé, déployé, et le garde
-rougit désormais sur ce défaut précis.
-
 Onze tâches en sont sorties, **R72 à R82**, chacune avec la mesure qui l'a établie.
 **Trois sont livrées et déployées le soir même** — R72 (le payeur ne choisit plus le
 locataire à provisionner), R73 (Meta pesait 81 % de la nuit dont 424 s de sommeil
 imposé), R74 (plus aucune attente illimitée, ni base ni HTTP). Les huit autres restent
 ouvertes, chacune avec sa mesure : ce sont des chantiers, pas des retouches.
-
-**Le soir du 2026-09-10 a construit les propositions du dossier d'architecture**, sans
-ouvrir de tâche : le cliquet de la frontière du bronze (124 couples, il ne peut que
-descendre), le compteur de ce que la conversion cumul → quotidien jette (la figure
-traçait 21 écoutes YouTube et en écartait 167, en silence), une seule horloge pour
-décider d'une date, 38 lectures muettes du rapport client désormais tracées, et les
-zéros de prédiction retirés. **ADR-020** clôt la question des deux vocabulaires de
-période : ils ne sont pas une duplication, ils répondent à deux questions — l'une
-calendaire, l'autre ancrée sur une sortie.
 
 **Un seul chantier reste, et ce n'est pas une tâche** : la reprise des définitions
 encore recopiées, qui se fait **au fil de l'eau** sous la règle de livraison d'ADR-019
@@ -153,6 +87,58 @@ l'effacer serait la faute.
 > elle tue le `cwd` et la mémoire de Claude, indexée par chemin. Elle s'est parquée
 > au premier réveil de la séance longue, puis a été livrée le 2026-09-17 — détail
 > dans `archive.md`.
+
+## R122 — ROUVERTE le 2026-09-17 par sa propre condition · P3
+
+**Elle n'a jamais été livrée, et il faut le dire clairement.** Close le 2026-09-17 non
+pas terminée mais **convertie** : 4 `guard_scope` écrites sur ~300, son estimation propre
+étant de **~16 h pour la seule colonne `guard_scope`**. Le reste avait été confié à un
+cliquet — qui interdit la régression sans jamais combler.
+
+**Ce qui la rouvre** : elle s'était donné une condition calculable — « rouvrir si
+`ever_recurred_observed` repasse au-dessus de 47 ». Mesuré le 2026-09-17 : **49**. Et il
+valait déjà **48** plusieurs heures avant, sans que personne le sache.
+
+⚠️ **Le vrai défaut n'est pas le chiffre, c'est que rien ne le lisait.** Huit conditions
+de réouverture étaient écrites dans la roadmap ; **aucune n'était évaluée**. Écrire un
+déclencheur et le vérifier sont deux gestes, et seul le premier avait été fait. Corrigé
+par `make reopen-check` (classe `a-reopening-condition-nothing-ever-evaluates`) — c'est
+lui qui a rendu ce verdict.
+
+### L'état exact, mesuré
+
+| compteur | à la clôture de R122 | aujourd'hui | bougé |
+|---|---:|---:|---:|
+| classes au catalogue | 378 | **393** | +15 |
+| `scope_without_not_covered` | 300 | **297** | −3 |
+| `seen_red_unknown` | 331 | **331** | **0** |
+| `cause_unknown` | 241 | **241** | **0** |
+| `ever_recurred_observed` | ≤47 | **49** | +2 |
+
+Trois trous sur quatre n'ont pas bougé d'un iota, pendant que le catalogue grossissait
+de 15 classes. Le cliquet fait ce qu'on lui a demandé — empêcher que ça empire — et rien
+de plus. **Ce n'est pas un reproche au cliquet : c'est la démonstration qu'un cliquet ne
+remplace pas un chantier.**
+
+- [ ] **R122 — reprendre la revue des `guard_scope`, par LOTS, jusqu'à repasser sous le seuil.**
+
+  Le travail utile n'est pas « écrire 297 champs ». C'est, pour chaque classe, **ouvrir
+  l'implémentation du garde** et nommer un geste voisin qu'il n'atteint pas. Mesuré le
+  2026-09-16 : sur six portées écrites avec soin, **quatre étaient inexactes**, toutes
+  pour la même raison — le garde nommé avait été lu, les autres fichiers cités non.
+
+  **Ordre de travail**, et il n'est pas opportuniste : la famille `le-locataire` d'abord.
+  Elle récidive à **33,3 %**, soit 3,4× la plus grosse famille, et c'est elle qui a coûté
+  les deux sessions de test artiste ratées.
+
+  ⚠️ **Ne pas viser un compteur.** Une portée écrite pour faire baisser un nombre est
+  exactement ce que `/capitalise` interdit : elle affirmerait une couverture sans l'avoir
+  lue, et une affirmation de couverture fausse est pire qu'un trou déclaré, parce qu'elle
+  fait cesser de chercher.
+
+  **Mesuré par** : `make reopen-check` — la ligne R122 doit cesser de dire `ROUVRIR`.
+
+---
 
 ## 🏗 R113–R116 — Monter l'architecture scalable, pour mesurer si elle est nécessaire
 
@@ -240,44 +226,9 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-17 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
-
-**R122 et R123 sont closes le 2026-09-17, toutes deux rotées dans `archive.md`.** R123
-a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans
-`test_nothing_overwritten_is_lost` — deux nettoyages de `conftest.py` en portée session
-s'exécutaient une fois PAR WORKER, `xdist_group` ne les couvrait pas — puis livrée le
-jour même (commit `5662e33`) : le nettoyage passe désormais par le processus
-contrôleur. R122 est close le même jour, convertie en chantier gouverné par un cliquet
-automatique (`make error-health`, `test_the_error_class_health_only_improves.py`) —
-détail des deux dans `archive.md`. R118 est close le 2026-09-17, réfutée sur sa propre
-mesure (voir `archive.md`) — les cinq vues restantes vivent maintenant dans
-« Conditions d'attente », pas dans l'index. **R117 est livrée le 2026-09-17** — les
-deux moitiés (déplacement du dépôt sur ext4, bascule de VS Code en Remote-WSL) sont
-faites et vérifiées, par cette même séance ; détail dans `archive.md`. Elle ne va plus
-dans l'ancre ci-dessus, qui ne porte que ce qui reste ouvert.
-
-**R124 est close le 2026-09-17, par RÉFUTATION et non par correctif** : le propriétaire
-s'est connecté en production (le geste que la tâche attendait) et l'instrument
-enregistre — 28 séries, 336 buckets, p50 mesuré à 40 ms. Il n'y avait aucun défaut ;
-l'absence constatée venait de ce que la couture ne s'exécute qu'après
-`require_login()`, et aucune session authentifiée n'avait encore eu lieu. Détail,
-y compris l'erreur de mesure qui l'avait fait croire close plus tôt, dans `archive.md`.
-La condition bloquante de la re-mesure R114 est donc levée.
-
-**R127 est livrée le 2026-09-17** (commits `65ae525` puis `f368715`) : les trois
-défauts résiduels de `tools/dev/night_run.py` trouvés par l'audit REX du jour sont
-fermés, et le croisement journal↔roadmap qu'elle a ajouté à `night-check` a trouvé
-trois divergences réelles, dont une unité R120 ouverte depuis 13 h que rien ne
-signalait. Détail complet dans `archive.md`.
+<!-- reprise: open=R122 -->
 
 **R116 a quitté l'index le 2026-09-17**, pas ce fichier : `daily_ops_metrics` ne porte qu'une ligne (`complete = FALSE`, percentiles de rendu tous `NULL`), donc la courbe qui doit trancher l'ADR-027 n'existe pas encore. Son bloc de détail — non coché, pas livré — reste **ici**, dans une nouvelle section `## ⏸️ R116` hors des deux tables d'index : `archive.md` est strictement passif (aucun item non coché n'y est admis — `test_the_archive_holds_nothing_actionable`), et R116 n'est ni livrée ni abandonnée. Son déclencheur de réouverture est la ligne `daily_ops_metrics` de `### Conditions d'attente` ci-dessous. Elle n'a donc plus de ligne dans l'index actionnable ni dans « 🙋 En attente de toi » — elle n'attend aucun geste humain, seulement du trafic — et pour cette même raison elle **sort de l'ancre**, qui ne porte que ce que les deux tables de ce fichier listent encore.
-
-**R121 est close le 2026-09-17, mesurée et réfutée sur ses sept sites** (non pas
-livrée) : les agrégations pandas coûtent 0,2–0,4 ms, le coût mesuré est la
-construction des figures plotly (27–42 % du `show()`) — détail dans `archive.md`.
-
-**R120 est close le 2026-09-17, réfutée par sa propre mesure** (non pas livrée) : le
-détail des quatre affirmations fausses et de leur correction est dans `archive.md`.
 
 R115 (l'instrument serveur) et R119 (réparer l'instrument client) sont livrées le
 2026-09-16 ; leur détail est dans `archive.md`. R114 est livrée et déployée (`e859ae3`),
@@ -310,15 +261,6 @@ sont livrées et déployées ; leur détail est dans `archive.md`.
 
 **La table « 🙋 En attente de toi » reste vide** depuis le 2026-09-10, R1 y ayant été
 rotée vers `archive.md`. Aucune tâche n'attend un geste humain.
-
-**Livrées le 2026-09-15, déjà dans `archive.md`** : **R111** (le ménage de la CI —
-apt mort, trois exécutions du même `--check`, l'étape `--fields` qui écrivait dans un
-fichier suivi, l'artefact de couverture que personne ne télécharge, `-v` qui faisait
-87 % du log) et **R112** (la sonde de production n'avait **rien exécuté pendant neuf
-jours** — `pytest-xdist` manquant à une liste tenue à la main ; la production allait
-bien, c'est l'instrument qui était cassé).
-
-**Les rétrospectives datées du 2026-09-11 au 2026-09-13** — la coupure de courant, la montée en charge chiffrée, le graphique de l'accueil, l'audit metrics layer, la carte de la couche or et la vérification en production — **ont été rotées dans `archive.md` le 2026-09-16**, ce fichier ayant dépassé son plafond de 50 Ko. Elles y sont intégrales ; `tests/test_the_resume_header_is_checked.py` impose ce plafond parce que `/resume` lit ce fichier AVANT tout, à chaque session.
 
 ### Conditions d'attente — ce qui n'est PAS une tâche
 

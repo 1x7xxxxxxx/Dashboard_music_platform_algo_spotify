@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**393 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**394 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -28,7 +28,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 18 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
 | [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 24 | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | [l-instrument-ment-sur-ce-qu-il-mesure](#l-instrument-ment-sur-ce-qu-il-mesure) | 2 | Ce que cet instrument AFFICHE est-il ce qu'il a mesuré ? |
-| _sans famille_ | 3 | — |
+| _sans famille_ | 4 | — |
 
 ## le-locataire
 
@@ -591,9 +591,10 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 | [`format-marker-in-a-plain-string`](error-classes.md#format-marker-in-a-plain-string) | un marqueur `{...}` destiné à une f-string se retrouve dans une chaîne ordinaire et part **tel quel** dans le SQL. Postgres reçoit huit caractères lit |
 | [`module-level-read-turns-a-deletion-into-a-collection-error`](error-classes.md#module-level-read-turns-a-deletion-into-a-collection-error) | on supprime un fichier et le rapport de tests annonce « N errors » au lieu de « N failed ». Les propriétés que ces tests défendaient disparaissent de  |
 | [`a-form-constraint-checked-on-the-series-not-on-the-axis`](error-classes.md#a-form-constraint-checked-on-the-series-not-on-the-axis) | une combinaison de réglages rend une figure entièrement VIDE, sans message, alors que les données sont là. Signalé au rendu le 2026-09-08 : « je vois  |
+| [`a-reopening-condition-nothing-ever-evaluates`](error-classes.md#a-reopening-condition-nothing-ever-evaluates) | une tâche close se donne une **condition de réouverture calculable**, écrite noir sur blanc — et rien ne l'évalue jamais. La condition se remplit, la  |
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=393 families=18 orphans=3 -->
+<!-- error-class-families: total=394 families=18 orphans=4 -->
 
-<!-- error-class-families: sha256=c3bae294f1eedd7b40b4e129fb78833af484e72ee7f3dbb083d8c15ad64e7d66 -->
+<!-- error-class-families: sha256=b2eb7938c6020e5f3c87ce60cbf1c16931b502d2f5a7fd2ab65e07c95785d4a2 -->

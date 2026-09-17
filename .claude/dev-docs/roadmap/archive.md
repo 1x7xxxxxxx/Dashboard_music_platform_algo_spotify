@@ -6649,3 +6649,131 @@ la même chose.
 
 Garde : `tests/test_a_declared_retention_is_actually_applied.py`, trois mutations rouges.
 Classe `a-retention-declared-in-a-comment-and-applied-by-nobody`.
+
+---
+
+## 🧾 Journal des livraisons, rapatrié de l'actif le 2026-09-17
+
+Ces paragraphes vivaient dans `checklist.md` — le fichier ACTIF — et racontaient des
+livraisons **déjà archivées en détail plus haut**. Ils n'étaient donc ni du travail
+ouvert ni une information neuve : un journal, dans le fichier qui doit dire ce qui reste.
+
+**Le compte qui a déclenché ce ménage** : `checklist.md` faisait 503 lignes pour **un**
+item d'index. Les deux tables d'index occupaient 164 lignes à elles seules, dont la
+quasi-totalité en récit ; le bloc REPRISE en faisait 174. Soit ~348 lignes sur 503 — sept
+dixièmes — qui ne décrivaient aucun travail restant. La bascule en deux fichiers avait
+déplacé les ITEMS, jamais l'HISTOIRE.
+
+⚠️ Déplacement, jamais suppression : `tests/test_roadmap_two_files.py` refuse que la
+somme des deux fichiers rétrécisse.
+
+**R127 a été livrée le 2026-09-17** (commits `65ae525` puis `f368715`, poussés) :
+les trois défauts résiduels de `night_run.py` sont fermés (priorité facultative dans
+`_INDEX_ROW`, âge illisible rendant `None` plutôt que `-1`, croisement journal↔roadmap
+dans `night-check`), et ce croisement a trouvé trois divergences réelles — dont l'unité
+R120 ouverte depuis 13 h que `_current_unit` laissait invisible. Détail dans
+`archive.md`. **R123 a été livrée le 2026-09-17** (commit `5662e33`) : le nettoyage de portée session
+passe au processus contrôleur plutôt qu'au worker. **R122 a été close le 2026-09-17**,
+convertie en chantier gouverné par un cliquet automatique — voir `archive.md` pour le
+détail des deux.
+
+**R109 et R110 ont été livrées et déployées le 2026-09-16** — voir `archive.md`.
+Résultat mesuré : le mur du run `ci.yml` est passé d'une médiane de **427 s à 109 s**
+(run 35035830958, ×3,9), en séparant les portes statiques de la suite en 4 shards
+`pytest-split`. La prémisse de R110 — que le fichier le plus long dominait le temps de
+mur — s'est révélée **fausse** à la mesure : `loadgroup` (349,6 s) n'a pas battu
+`loadfile` (340,2 s), écart de 2,8 % dans le bruit. R110 a quand même livré quatre
+courses latentes fermées, condition nécessaire pour que R109 tienne sa promesse à
+quatre shards. Détail dans `archive.md`.
+
+**R108 a été livrée le 2026-09-14** — la dernière tâche qui
+y figurait, et avec elle l'index n'a plus eu de ligne jusqu'au 2026-09-15. Elle tranchait entre exempter ou
+compter les jointures de dimension dans le cliquet du bronze ; le critère retenu
+(« cette table porte-t-elle une quantité ADDITIVE ? ») a fait descendre le cliquet
+de 104 à 81 via un registre de 8 tables de dimension et la migration 121. Détail dans
+`archive.md`. **R103 et R107 ont été
+livrées le 2026-09-14** — le diagnostic lit une route et non un nom, et les trois
+décisions produit de R107 sont toutes tranchées. Détail dans `archive.md`. **R106 a été livrée le 2026-09-13** — la
+tuile Shazam est sur l'accueil (1 770 au catalogue, 637 pour la dernière sortie), et
+avec elle la mention que l'historique journalier de YouTube et SoundCloud est
+définitivement hors de portée. R105 a été ABANDONNÉE le
+2026-09-13 par ADR-025 : le produit est Spotify + Meta + ML, et YouTube pèse
+0,2 % du signal. Le code écrit pour elle a été retiré, pas désactivé. R104 a été close le soir même — la rupture de
+méthode YouTube est détectée sur un seuil mesuré et retirée des deux surfaces
+qui la comptaient (figure et totaux). Détail dans `archive.md`. R92 à R95, les quatre tâches de l'audit metrics layer du 2026-09-11, ont été
+closes et rotées dans `archive.md`, comme R89, R90 et R91 avant elles (critère du
+double axe écrit et six figures triées, légende devenue le filtre de sources, PDF doté
+de la figure d'évolution multi-plateformes). Détail complet dans l'archive.
+
+**Le 2026-09-10 a rouvert huit tâches** (R64–R71), venues d'un audit de la figure de
+l'accueil qui a mesuré un défaut invisible aux 4 740 tests — la figure dessinait ×2,7 ce
+qui avait été mesuré — puis d'un balayage du dépôt qui a rendu **~130 sites frères** sur
+cinq classes. **Sept ont été livrées le jour même** — R64, R65, R66, R67, R68, R69, R71,
+voir `archive.md` — correctif, garde, mutations rouges et suite complète verte à 4 804
+tests. **R70 a suivi le soir même** : ADR-019 écrit, migration 097
+(`v_platform_totals`), et les **cinq** surfaces qui calculaient le total d'une
+plateforme repointées sur la définition unique — le total YouTube de l'artiste 1 valait
+120 627 sur deux d'entre elles et 118 219 sur les trois autres au même instant. Le lot
+de huit est clos.
+
+**Un audit transverse a été mené le 2026-09-10 au soir** — sécurité, résilience,
+performance, filtres, méthode de tracé, refactor. Il a d'abord trouvé **un défaut
+CRITIQUE que j'avais moi-même livré le matin** : `/kpis` rendait 500 en production pour
+tous les appelants, faute d'un alias de colonne, et le garde écrit pour cette classe
+exacte était devenu **aveugle depuis trois semaines** — ses 28 assertions « pas de 500 »
+étaient toutes satisfaites par des 401, parce qu'un contrôle d'authentification ajouté
+entre-temps arrêtait les requêtes avant les routeurs. Corrigé, déployé, et le garde
+rougit désormais sur ce défaut précis.
+
+**Le soir du 2026-09-10 a construit les propositions du dossier d'architecture**, sans
+ouvrir de tâche : le cliquet de la frontière du bronze (124 couples, il ne peut que
+descendre), le compteur de ce que la conversion cumul → quotidien jette (la figure
+traçait 21 écoutes YouTube et en écartait 167, en silence), une seule horloge pour
+décider d'une date, 38 lectures muettes du rapport client désormais tracées, et les
+zéros de prédiction retirés. **ADR-020** clôt la question des deux vocabulaires de
+période : ils ne sont pas une duplication, ils répondent à deux questions — l'une
+calendaire, l'autre ancrée sur une sortie.
+
+**R122 et R123 sont closes le 2026-09-17, toutes deux rotées dans `archive.md`.** R123
+a été ouverte le 2026-09-17 par le balayage des frères de la course corrigée dans
+`test_nothing_overwritten_is_lost` — deux nettoyages de `conftest.py` en portée session
+s'exécutaient une fois PAR WORKER, `xdist_group` ne les couvrait pas — puis livrée le
+jour même (commit `5662e33`) : le nettoyage passe désormais par le processus
+contrôleur. R122 est close le même jour, convertie en chantier gouverné par un cliquet
+automatique (`make error-health`, `test_the_error_class_health_only_improves.py`) —
+détail des deux dans `archive.md`. R118 est close le 2026-09-17, réfutée sur sa propre
+mesure (voir `archive.md`) — les cinq vues restantes vivent maintenant dans
+« Conditions d'attente », pas dans l'index. **R117 est livrée le 2026-09-17** — les
+deux moitiés (déplacement du dépôt sur ext4, bascule de VS Code en Remote-WSL) sont
+faites et vérifiées, par cette même séance ; détail dans `archive.md`. Elle ne va plus
+dans l'ancre ci-dessus, qui ne porte que ce qui reste ouvert.
+
+**R124 est close le 2026-09-17, par RÉFUTATION et non par correctif** : le propriétaire
+s'est connecté en production (le geste que la tâche attendait) et l'instrument
+enregistre — 28 séries, 336 buckets, p50 mesuré à 40 ms. Il n'y avait aucun défaut ;
+l'absence constatée venait de ce que la couture ne s'exécute qu'après
+`require_login()`, et aucune session authentifiée n'avait encore eu lieu. Détail,
+y compris l'erreur de mesure qui l'avait fait croire close plus tôt, dans `archive.md`.
+La condition bloquante de la re-mesure R114 est donc levée.
+
+**R127 est livrée le 2026-09-17** (commits `65ae525` puis `f368715`) : les trois
+défauts résiduels de `tools/dev/night_run.py` trouvés par l'audit REX du jour sont
+fermés, et le croisement journal↔roadmap qu'elle a ajouté à `night-check` a trouvé
+trois divergences réelles, dont une unité R120 ouverte depuis 13 h que rien ne
+signalait. Détail complet dans `archive.md`.
+
+**R121 est close le 2026-09-17, mesurée et réfutée sur ses sept sites** (non pas
+livrée) : les agrégations pandas coûtent 0,2–0,4 ms, le coût mesuré est la
+construction des figures plotly (27–42 % du `show()`) — détail dans `archive.md`.
+
+**R120 est close le 2026-09-17, réfutée par sa propre mesure** (non pas livrée) : le
+détail des quatre affirmations fausses et de leur correction est dans `archive.md`.
+
+**Livrées le 2026-09-15, déjà dans `archive.md`** : **R111** (le ménage de la CI —
+apt mort, trois exécutions du même `--check`, l'étape `--fields` qui écrivait dans un
+fichier suivi, l'artefact de couverture que personne ne télécharge, `-v` qui faisait
+87 % du log) et **R112** (la sonde de production n'avait **rien exécuté pendant neuf
+jours** — `pytest-xdist` manquant à une liste tenue à la main ; la production allait
+bien, c'est l'instrument qui était cassé).
+
+**Les rétrospectives datées du 2026-09-11 au 2026-09-13** — la coupure de courant, la montée en charge chiffrée, le graphique de l'accueil, l'audit metrics layer, la carte de la couche or et la vérification en production — **ont été rotées dans `archive.md` le 2026-09-16**, ce fichier ayant dépassé son plafond de 50 Ko. Elles y sont intégrales ; `tests/test_the_resume_header_is_checked.py` impose ce plafond parce que `/resume` lit ce fichier AVANT tout, à chaque session.
