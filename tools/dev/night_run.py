@@ -53,12 +53,24 @@ PROTOCOL = REPO / ".claude" / "dev-docs" / "roadmap" / "night-run.md"
 _INDEX_ROW = re.compile(r"^\|\s*(R\d+)\s*\|\s*(.+?)\s*\|\s*(P\d)\s*\|", re.M)
 
 
+class GitUnavailable(RuntimeError):
+    """`git` n'a pas répondu — on ne sait RIEN de l'arbre, ce n'est pas « propre »."""
+
+
 def _git(*args: str) -> str:
+    """La sortie de `git`, ou une LEVÉE. Ne rend jamais `""` sur un échec.
+
+    ⚠️ Ceci avalait `OSError`/`SubprocessError`/timeout et rendait `""`. Dans
+    `cmd_check`, `dirty = []` s'ensuivait, donc aucun problème signalé, donc **exit 0** :
+    un `git` indisponible rendait le contrôle VERT. C'est
+    `une-erreur-avalée-devient-une-absence` dans le garde qui doit justement dire si
+    l'arbre est propre.
+    """
     try:
         return subprocess.run(["git", "-C", str(REPO), *args], capture_output=True,
                               text=True, timeout=30).stdout.strip()
-    except (OSError, subprocess.SubprocessError):
-        return ""
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise GitUnavailable(f"git {' '.join(args)} : {type(exc).__name__}") from exc
 
 
 def _now() -> str:
@@ -90,24 +102,68 @@ def _entries() -> list[dict]:
     return out
 
 
+# Les DEUX tables d'index de la roadmap. Une tâche qui attend un humain est OUVERTE ;
+# elle n'est simplement pas commençable par une séance.
+_INDEX_SECTIONS = ("## 📋 Tâches ouvertes", "## 🙋 En attente de toi")
+
+
+def _section(text: str, title: str) -> str:
+    """Le corps d'une section, découpé sur des titres EN DÉBUT DE LIGNE.
+
+    ⚠️ `text.find(title)` trouvait la première OCCURRENCE, y compris dans la prose qui
+    parle de la section. C'est le défaut exact que
+    `tests/test_roadmap_index_is_honest.py:48-58` documente avoir expédié le 2026-08-21
+    et corrigé par `re.search(..., re.M)` — corrigé dans le test, jamais propagé ici.
+    Classe `a-document-slice-bounded-by-the-wrong-heading-level`.
+    """
+    m = re.search(r"^" + re.escape(title), text, re.M)
+    if not m:
+        return ""
+    nxt = re.search(r"^## ", text[m.end():], re.M)
+    return text[m.end():m.end() + nxt.start()] if nxt else text[m.end():]
+
+
 def _open_tasks() -> list[tuple[str, str, str]]:
-    """L'index `## 📋 Tâches ouvertes` de la roadmap, dans son ordre."""
+    """Les tâches ouvertes de la roadmap — LES DEUX tables, dans leur ordre.
+
+    ⚠️ Ceci ne lisait que `## 📋 Tâches ouvertes`. Le 2026-09-17, R124 a été déplacée
+    vers `## 🙋 En attente de toi` — sa place légitime, elle attend une session
+    authentifiée en production — et cet écran a annoncé **« 0 tâche(s) ouverte(s) »**
+    sur un dépôt qui en avait une. Le total a été rapporté au propriétaire comme vrai.
+
+    C'est l'écran qu'on lit EN PREMIER après chaque compaction : s'y tromper sur un
+    total est la façon la plus directe de faire oublier une tâche.
+    """
     if not ROADMAP.exists():
         return []
     text = ROADMAP.read_text(encoding="utf-8")
-    start = text.find("## 📋 Tâches ouvertes")
-    if start < 0:
-        return []
-    end = text.find("\n## ", start + 1)
-    return _INDEX_ROW.findall(text[start:end if end > 0 else len(text)])
+    rows: list[tuple[str, str, str]] = []
+    seen: set[str] = set()
+    for title in _INDEX_SECTIONS:
+        for row in _INDEX_ROW.findall(_section(text, title)):
+            if row[0] not in seen:
+                seen.add(row[0])
+                rows.append(row)
+    return rows
 
 
 def _current_unit(entries: list[dict]) -> dict | None:
-    """La dernière unité `start` qu'aucun `done`/`park` n'a refermée."""
+    """La dernière unité `start` qu'aucun `done`/`park` DE LA MÊME TÂCHE n'a refermée.
+
+    ⚠️ Ceci sortait au premier `done`/`park` rencontré, **quelle que soit sa tâche**.
+    `start R124` puis `done R99` rendait « aucune unité ouverte » alors que R124
+    courait toujours — et l'invariant des 3 h de `night-check` ne pouvait plus
+    la voir. Le journal porte un champ `task` ; il suffisait de le lire.
+    """
+    closed: set[str] = set()
     for entry in reversed(entries):
-        if entry.get("kind") in ("done", "park"):
-            return None
-        if entry.get("kind") == "start":
+        task = entry.get("task")
+        kind = entry.get("kind")
+        if kind in ("done", "park"):
+            if task:
+                closed.add(task)
+            continue
+        if kind == "start" and task not in closed:
             return entry
     return None
 
@@ -196,7 +252,11 @@ def open_questions(entries: list[dict]) -> list[dict]:
 def cmd_status(_args) -> int:
     entries = _entries()
     tasks = _open_tasks()
-    dirty = [ln for ln in _git("status", "--short").splitlines() if ln.strip()]
+    try:
+        dirty = [ln for ln in _git("status", "--short").splitlines() if ln.strip()]
+    except GitUnavailable as exc:
+        print(f"\n▶ ARBRE     ⚠️ git n'a pas répondu ({exc}) — état INCONNU")
+        dirty = []
     unpushed = _git("log", "--oneline", "@{u}..HEAD") if _git("rev-parse",
                                                              "--abbrev-ref",
                                                              "@{u}") else "?"
@@ -296,14 +356,22 @@ def cmd_check(_args) -> int:
     # `night-check` rouge à coup sûr : un invariant qui ne peut jamais tenir est un
     # invariant qu'on apprend à ignorer, ce qui est pire que pas d'invariant du tout.
     # Le journal est de la comptabilité ; il part avec le commit de l'unité SUIVANTE.
-    dirty = [ln for ln in _git("status", "--short").splitlines()
-             if ln.strip() and JOURNAL.name not in ln]
-    if dirty:
-        problems.append(f"arbre sale ({len(dirty)}) — une unité finie se commite "
-                        "avant la suivante")
-    if _git("rev-parse", "--abbrev-ref", "@{u}") and _git("log", "--oneline",
-                                                          "@{u}..HEAD"):
-        problems.append("commits non poussés — un arrêt les perdrait de vue")
+    # ⚠️ `git` muet est un PROBLÈME, jamais un arbre propre. Avant le 2026-09-17,
+    # `_git` avalait l'échec et rendait `""` : `dirty` valait `[]`, aucun problème
+    # n'était signalé, et `night-check` sortait VERT sur une machine où git ne
+    # répondait pas. Le garde censé dire si l'arbre est propre affirmait qu'il l'était.
+    try:
+        dirty = [ln for ln in _git("status", "--short").splitlines()
+                 if ln.strip() and JOURNAL.name not in ln]
+        if dirty:
+            problems.append(f"arbre sale ({len(dirty)}) — une unité finie se commite "
+                            "avant la suivante")
+        if _git("rev-parse", "--abbrev-ref", "@{u}") and _git("log", "--oneline",
+                                                              "@{u}..HEAD"):
+            problems.append("commits non poussés — un arrêt les perdrait de vue")
+    except GitUnavailable as exc:
+        problems.append(f"git n'a pas répondu ({exc}) — ce contrôle n'a RIEN vérifié "
+                        "sur l'arbre ni sur les commits non poussés")
     if not PROTOCOL.exists():
         problems.append(f"{PROTOCOL.relative_to(REPO)} absent")
     for problem in problems:

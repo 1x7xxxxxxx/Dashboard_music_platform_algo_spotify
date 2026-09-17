@@ -53,10 +53,21 @@ def main():
     if tool_name not in ("Write", "Edit") or not file_path.endswith(".py"):
         sys.exit(0)
 
-    # Only fire for application source files — not tests, hooks, scripts, configs
-    _INCLUDE = os.path.join("src", "Application")
+    # Only fire for application source files — not tests, hooks, scripts, configs.
+    #
+    # ⚠️ `_INCLUDE` valait `src/Application` — un répertoire qui N'EXISTE PAS dans ce
+    # dépôt (`src/` porte api, collectors, dashboard, database, models, transformers,
+    # utils). Le hook sortait donc 0 sur CHAQUE édition Python, depuis toujours. Il
+    # était présent, enregistré, documenté — et n'a jamais rien rappelé.
+    #
+    # C'est la DEUXIÈME fois pour ce fichier, et son propre REX du 2026-08-03 raconte
+    # la première sous une autre forme : il suivait un tracker jamais rendu, donc la
+    # fraîcheur était toujours périmée. On avait corrigé le TRACKER (ce qu'on lit) et
+    # laissé le FILTRE D'ENTRÉE (ce sur quoi on se déclenche) intact.
+    # Classe `a-fix-that-stops-at-the-file-where-it-was-seen`.
+    _INCLUDE = os.path.join("src", "")
     _EXCLUDE = (
-        os.path.join("src", "Application", "tests"),
+        os.path.join("src", "streamlytics.egg-info"),
         os.path.join(".claude", "hooks"),
         os.path.join(".claude", "scripts"),
         "conftest.py",
