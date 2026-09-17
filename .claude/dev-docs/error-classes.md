@@ -1482,7 +1482,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_claude_config_floor.py + validate_rex.py --strict in ci.yml }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — un délimiteur non ancré confond un soulignement RST avec le début d'un bloc de métadonnées, donc le lecteur automatique ne voit pas ce que l'auteur a écrit ; couvre: par `test_the_rex_parser_survives_rst_underlines`, le test nommé de ce fichier partagé — l'analyseur ne prend plus une ligne de tirets pour un délimiteur ; ne couvre pas: (1) **le geste voisin le plus proche — les autres délimiteurs non ancrés du dépôt** : les blocs de code Markdown, les séparateurs `---` de la roadmap, les ancres HTML sont cherchés par des expressions qui peuvent matcher au milieu d'une ligne, et seul le REX est traité ; ce défaut a d'ailleurs sa jumelle, le découpage par titre non ancré, corrigé dans un fichier et jamais propagé ; (2) les autres syntaxes de docstring ; (3) le CONTENU du bloc une fois trouvé ; (4) les fichiers non-Python qui portent des blocs REX.
 - rex_ref: .claude/scripts/validate_rex.py
 - first_seen: 2026-08-03 (ref: roadmap-two-files-2026-08-03)
 - History:
@@ -1773,7 +1773,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: every homunculus path is derived from `repo_root.name`, never written as a literal (`observe.py`, `draft_rex.py`, `session_summary.py` aligned on the form `sensor.py` and `draft_devlog.py` already used). A test rejects a literal directory segment under `.claude/homunculus/`, so writer and readers cannot diverge again.
 - autofix: none
 - guard: { type: test, ref: tests/test_probes_scoped_to_repo.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — un chemin d'état porte l'espace de noms d'un AUTRE projet, donc ce dépôt écrit ses observations chez le voisin ; couvre: quatre propriétés — ce dépôt DÉCLARE ses noms de conteneurs, le résumé de session n'attend que les siens, la sonde de fuseau est scopée à ce dépôt, et **aucun nom de conteneur étranger n'est écrit en dur** (paramétré par fichier) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres chemins d'état** : caches, répertoires temporaires, fichiers de verrou et journaux peuvent porter le même espace de noms hérité, et seuls les noms de conteneurs sont balayés ; (2) les chemins construits à l'exécution ; (3) la collision INVERSE — un autre projet qui écrirait ici ; (4) les huit autres projets qui partagent cette configuration, hors de portée par construction.
 - rex_ref: .claude/skills/verification/SKILL.md
 - first_seen: 2026-08-21 (ref: roadmap R36)
 - History:
@@ -2076,7 +2076,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the guard checks BOTH directions — an entry with no row, and a row whose anchor no longer resolves to an entry (a rename leaves a dead link that reads as catalogued). The twelve missing rows were regenerated from the entries themselves rather than retyped, and `/capitalise` now states the index row as part of what it writes.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_error_class_index_is_complete.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — le catalogue tient un index à la main pendant que `/capitalise` ajoute des entrées, donc l'index se lit comme complet en ne l'étant pas ; couvre: les DEUX sens, ce qui est tout l'intérêt — chaque classe du fichier est listée dans l'index, et l'index ne liste rien qui n'ait pas d'entrée ; ⚠️ mesuré à sa création : 63 entrées, 51 lignes d'index, et les douze manquantes étaient les douze plus récentes ; ne couvre pas: (1) **le geste voisin le plus proche — les CHAMPS de la ligne d'index** : sévérité, type et statut y sont recopiés depuis l'entrée et peuvent diverger sans que les deux tests le voient ; (2) l'ORDRE de l'index ; (3) les autres documents à index manuel — `error-class-families.md` et `gold-coverage.md` sont générés, mais les runbooks et la roadmap portent des index tenus à la main ; (4) le CONTENU de l'entrée indexée.
 - rex_ref: .claude/commands/capitalise.md
 - first_seen: 2026-08-21
 - History:
@@ -2595,7 +2595,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `collected_at` is appended to every insight table's update list by a loop rather than typed 25 times, and added explicitly to the three config literals. The guard checks the SHAPE across every table plus a live round-trip (upsert twice, the clock must move) and its inverse (omit the column, the clock must freeze) so the assertion is not true of any upsert at all.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_upsert_refreshes_its_timestamp.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — un upsert omet `collected_at` de ses colonnes de mise à jour, donc la ligne est rafraîchie et l'horodatage reste figé : la fraîcheur ment ; couvre: deux propriétés — chaque upsert Meta rafraîchit `collected_at`, et les tables de CONFIGURATION le font aussi (elles avaient été oubliées) ; ne couvre pas: (1) **le geste voisin le plus proche — les upserts des AUTRES plateformes** : Spotify, YouTube, SoundCloud et Apple écrivent tous par upsert, et seuls ceux de Meta sont vérifiés ; (2) les autres colonnes omises de `update_columns` — `artist_id` en est exclue À DESSEIN (une autre classe), mais une colonne métier oubliée gèlerait pareil ; (3) la JUSTESSE de l'horodatage écrit ; (4) les lecteurs de fraîcheur, qui croient `collected_at` sur parole.
 - rex_ref: src/collectors/_meta_upsert.py
 - first_seen: 2026-08-22
 - History:
@@ -3056,7 +3056,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: refuser au bon endroit, à la détection, avec la vraie raison ET le vrai remède — plus un test qui vérifie que le remède proposé est effectivement accepté, sinon le message enverrait dans un mur. La détection teste tabulation, point-virgule et virgule, et la RELECTURE hérite du même choix : sans ça un fichier correctement détecté explosait ensuite dans un `pd.read_csv` nu.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_refused_csv_says_the_real_reason.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — un fichier est détecté par son nom, accepté, puis refusé plus loin avec un conseil qui ne correspond pas à la vraie cause ; couvre: par `test_the_since_start_export_is_refused_at_detection`, le test nommé de ce fichier partagé — le refus arrive à la DÉTECTION et non après, donc le message porte la vraie raison — plus les trois cas de séparateur qui prouvent que le reste continue de fonctionner ; ne couvre pas: (1) **le geste voisin le plus proche — les autres refus tardifs** : un CSV d'une autre plateforme, un fichier trop gros, un encodage refusé peuvent être acceptés puis rejetés avec un conseil générique ; (2) la FORMULATION du conseil, seulement son moment ; (3) les exports S4A futurs, dont le nom changera ; (4) un fichier correctement nommé mais au contenu d'un autre export.
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-08-23
 - History:
@@ -3392,7 +3392,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `src/utils/diagnosis_text.py` — un rendu par surface (`as_html` / `as_markdown` / `as_console`), le message reste ENTIER dans le magasin et chaque lecteur s'adapte à lui. La règle : **le rendu s'adapte au message, jamais le message au rendu** — il y a un auteur et trois lecteurs, et seul l'auteur sait laquelle des deux moitiés est le geste.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_actionable_half_survives.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — un diagnostic est aplati (`splitlines()[0][:300]`) pour le rendu le plus étroit, donc la moitié ACTIONNABLE du message disparaît ; couvre: quatre propriétés — le diagnostic SoundCloud annonce ses deux cas et les porte, celui de Meta porte l'instruction de partage, la couture de sonde garde le GESTE (paramétré par fixture), et l'e-mail transforme les sauts de ligne en `<br>` et l'emphase en gras — ce dernier étant ce qui rend le message lisible là où il arrive ; ne couvre pas: (1) **le geste voisin le plus proche — les autres aplatissements pour un rendu étroit** : troncatures de tableau, libellés coupés, infobulles limitées perdent pareil, et seules les sondes sont traitées ; (2) les plateformes autres que SoundCloud et Meta ; (3) le PDF, qui a ses propres contraintes de largeur ; (4) ce que l'artiste FAIT du geste préservé.
 - rex_ref: .claude/scripts/check_diagnosis_rendering.py
 - first_seen: 2026-08-26
 - History:
@@ -3412,7 +3412,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `fed_by` déclaré dans `MONITOR_TARGETS` — le registre le savait déjà implicitement, `_CSV_STALE_H` ne s'appliquant qu'à ces deux sources — et porté jusqu'à l'e-mail. Le garde vérifie l'accord entre les deux (`fed_by == csv` ⟺ seuil CSV), donc une source CSV ajoutée sans le champ sort ici et non dans un mail nocturne.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_alert_names_a_workable_action.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — une alerte compose UNE phrase pour toute source périmée, donc elle dit « relance le DAG » à une source alimentée par un humain ; couvre: quatre propriétés — les sources alimentées par CSV sont exactement celles qui attendent un humain, le contrôle rapporte COMMENT chaque source est alimentée, le saut XCom porte tous les champs que l'e-mail peut lire (sans quoi l'information serait perdue en route), et **une source CSV ne se voit jamais dire de relancer son DAG** (paramétré) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres messages qui nomment un geste** : bandeaux du dashboard, PDF, e-mails de vérification peuvent nommer une action que le lecteur ne peut pas faire, et c'est la leçon « l'app parle de sa propre plomberie » que seul ce garde tient ; (2) les sources à alimentation MIXTE ; (3) la FAISABILITÉ réelle du geste proposé ; (4) les nouvelles sources, dont le mode d'alimentation doit être déclaré à la main.
 - rex_ref: src/utils/freshness_monitor.py
 - first_seen: 2026-08-26
 - History:
@@ -3510,7 +3510,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `src/transformers/csv_dialect.sniff_separator` — le séparateur est MESURÉ sur la ligne d'en-tête (jamais sur le fichier entier : un titre contenant une virgule est ordinaire), un ex aequo est REFUSÉ plutôt que deviné, et les deux parseurs le partagent. Le refus nomme le séparateur réellement tenté, qui est la phrase manquante neuf fois sur dix.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_csv_refusal_names_its_reason.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — un import est refusé sans nommer sa raison, donc l'artiste ne peut rien corriger ; couvre: quatre propriétés sur la détection de séparateur — chaque séparateur d'un export RÉEL est reconnu (paramétré), le cas point-virgule qui a créé la classe, une virgule DANS un titre ne bat pas le vrai séparateur, et un BOM ne cache pas la première colonne ; ne couvre pas: (1) **le geste voisin le plus proche — les autres causes de refus** : encodage, colonnes manquantes, dates illisibles, fichier vide doivent aussi nommer leur raison, et seul le séparateur est traité ; (2) la FORMULATION rendue à l'artiste ; (3) les exports d'autres plateformes ; (4) un fichier dont la première ligne est lisible et le reste non.
 - rex_ref: src/transformers/csv_dialect.py
 - first_seen: 2026-08-26
 - History:
@@ -3983,7 +3983,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: un champ `admin_note`, distinct de `note`, qui **dit à qui le texte s'adresse** au lieu de laisser le rendu deviner. Réservé à l'admin dans `credential_guides_st.py`, et **jamais** rendu par `guide_pdf.py` — ce PDF part à l'artiste. Le partage Meta est passé de note de bas de page à **étape numérotée, avant le test de connexion**, formulée comme son action, dans les deux langues. Le garde interdit un vocabulaire d'exploitant (`variables d'environnement`, `SPOTIFY_CLIENT_ID`, `System User`…) dans `note` et `steps`, et vérifie que l'étape de partage précède le test.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_guide_tells_the_artist_only_what_is_theirs.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — une note destinée à l'EXPLOITANT est affichée à l'artiste, qui n'a ni l'accès ni le pouvoir d'agir ; couvre: par `test_no_artist_facing_text_asks_for_operator_access`, `test_admin_note_is_gated_on_screen_and_absent_from_the_pdf` et `test_every_guide_still_tells_the_artist_something` — les tests nommés de ce fichier partagé ; le dernier est ce qui empêche de « corriger » en vidant les guides ; ne couvre pas: (1) **le geste voisin le plus proche — les autres surfaces à deux lecteurs** : les e-mails, les bandeaux du dashboard et les messages d'erreur s'adressent aussi tantôt à l'artiste tantôt à l'exploitant, et seuls les guides sont balayés ; (2) les textes générés dynamiquement ; (3) la JUSTESSE de ce qui est dit à l'artiste ; (4) le PDF au-delà de l'absence de la note admin.
 - rex_ref: src/dashboard/content/credential_guides.py
 - first_seen: 2026-08-30
 - History:
@@ -4459,7 +4459,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `fernet_key_command_block()` (`_core.py`) rend `(langage, bloc)` — les lignes complètes, dans l'ordre, y compris `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` puis `& <racine>\venv\Scripts\Activate.ps1`, la politique portée par le **processus** et jamais par la machine. Le venv est **lu sur le disque**, jamais déduit de `sys.platform` : le dépôt est partagé entre WSL et Windows et ne porte qu'un `venv/`. Pas de sélecteur d'OS — il en avait été retiré un de ces onglets le 2026-09-04 parce qu'il posait au lecteur une question que le système de fichiers tranche. Le rendu passe par `st.code`, pas par du Markdown. `_windows_path()` réécrit `/mnt/c/...` en `C:\...` : la page est lue depuis PowerShell même quand le processus tourne sous WSL.
 - autofix: none
 - guard: { type: test, ref: tests/test_a_printed_command_is_runnable_as_printed.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — une commande imprimée suppose un shell que le lecteur n'a pas, donc elle est copiée et ne marche pas ; couvre: quatre situations complémentaires — un venv Windows reçoit la politique d'exécution AVANT l'activation, un venv POSIX est sourcé et ne s'entend jamais parler de PowerShell, l'absence de venv rend quand même la commande nue, et un chemin WSL est RÉÉCRIT pour le shell qui le lit (paramétré) ; ne couvre pas: (1) **le geste voisin le plus proche — les commandes imprimées AILLEURS** : messages d'erreur, runbooks, e-mails, `CLAUDE.md` en contiennent des dizaines, et seule cette bannière est vérifiée ; (2) les shells autres que PowerShell, POSIX et WSL ; (3) l'EXÉCUTABILITÉ réelle — le garde vérifie la forme, il ne lance rien ; (4) les commandes qui supposent un outil installé plutôt qu'un shell.
 - rex_ref: src/dashboard/views/credentials/router.py
 - first_seen: 2026-09-05
 - History:
@@ -4514,7 +4514,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: la consigne nomme une valeur que le lecteur peut **coller**, pas un objet qu'il devrait **trouver** — un numéro qu'on lui donne bat un nom qu'il doit reconnaître. Les gardes cherchent le vocabulaire du geste faisable (« Attribuer un partenaire » / « Assign partner ») et **interdisent explicitement le retour de l'ancien** (`assert "Business Assets" not in …`, `assert "ETL_DASHBOARD_SPOTIFY" not in …`) sur les deux surfaces qui le portaient : le guide et le message d'échec de la sonde — elles se contredisaient, et c'est ce désaccord qui aurait dû alerter.
 - autofix: none
 - guard: { type: test, ref: tests/test_the_guide_tells_the_artist_only_what_is_theirs.py + tests/test_the_actionable_half_survives.py + tests/test_the_meta_tab_asks_before_it_explains.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — une instruction suppose que le lecteur VOIT ce que l'auteur voyait, alors que son écran n'affiche pas la même chose ; couvre: par `test_the_meta_sharing_step_is_the_artists_and_comes_before_the_test`, le test nommé de ce fichier partagé — l'étape de partage appartient à l'artiste et vient AVANT le test, donc elle est posée là où il peut la voir ; ne couvre pas: (1) **le geste voisin le plus proche — toutes les autres instructions qui décrivent une interface tierce** : Meta, Spotify et YouTube changent leurs écrans sans nous prévenir, et aucun garde ne peut vérifier qu'une capture ou un chemin de menu correspond encore ; (2) les différences d'affichage selon le rôle du lecteur chez le fournisseur ; (3) la LANGUE de l'interface tierce ; (4) les guides des autres plateformes.
 - rex_ref: src/dashboard/content/credential_guides.py
 - first_seen: 2026-09-05
 - History:
@@ -4569,7 +4569,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `src/utils/meta_partner.share_state()` lit les trois arêtes et rend `owned` / `accepted` / `pending` / `absent` / `unknown`. Le bloc ne prescrit que sur les deux derniers ; sur les trois premiers il **constate** au lieu de demander. `unknown` n'est PAS `absent` : un quota, une panne réseau ou un jeton mort ne prouvent aucune absence de partage, et tomber dans la branche muette sur une lecture ratée dirait à l'artiste que son partage est en place alors qu'il attendrait des chiffres qui ne viendraient jamais (`probe-reads-unreadable-as-absent`). Le garde paramètre les cinq états et vérifie au RENDU que le numéro n'apparaît que sur `absent` et `unknown`.
 - autofix: none
 - guard: { type: test, ref: tests/test_the_share_step_is_hidden_when_there_is_nothing_to_share.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — une instruction est donnée sans lire l'état qu'elle demande de changer, donc elle s'affiche alors que le geste est déjà fait ; couvre: trois propriétés — le bloc ne parle QUE si le partage est encore dû (paramétré sur l'état), un état ILLISIBLE ne prétend jamais que le partage est fait (l'ignorance ne conclut pas), et aucune surface n'appelle l'onglet des partenaires « l'endroit où ajouter » ; ne couvre pas: (1) **le geste voisin le plus proche — les autres instructions non conditionnées** : « connecte tel compte », « dépose ton CSV », « lance la collecte » s'affichent souvent sans lire si c'est déjà fait ; (2) la FRAÎCHEUR de l'état lu ; (3) les instructions dans les e-mails et le PDF, qui ne peuvent pas lire l'état au moment de la lecture ; (4) le cas où l'état dit fait et ne l'est pas chez le fournisseur.
 - rex_ref: src/dashboard/views/credentials/_platform_meta.py
 - first_seen: 2026-09-05
 - History:
@@ -4756,7 +4756,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: l'étape nomme le CHAMP (`**Lien de ton compte publicitaire**`), qui est le même sur tous les écrans et dans le PDF. La direction reste autorisée en complément — « à gauche » aide là où c'est vrai — mais jamais À LA PLACE du nom. Le garde balaie le catalogue (pas une liste de clés : la cinquième étape écrite demain est couverte par construction), repère les étapes de collage, et exige qu'une étape employant un mot de position nomme aussi un champ **qui existe sur ce guide** — sans quoi la correction s'achèterait en inventant un libellé.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_guide_step_names_a_field_not_a_direction.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — une instruction désigne un champ par sa POSITION (« en bas à droite ») au lieu de son NOM, donc elle devient fausse au premier redesign ; couvre: trois propriétés — le balayage voit bien les étapes qu'il vise, une étape qui dit OÙ dit aussi QUOI (paramétré par langue et par catalogue), et chaque champ nommé dans une étape EXISTE sur ce guide — ce dernier empêchant de satisfaire la règle en inventant un nom ; ne couvre pas: (1) **le geste voisin le plus proche — les directions ailleurs que dans les guides** : bandeaux, e-mails, PDF et runbooks disent aussi « en haut à gauche » ; (2) un nom de champ JUSTE aujourd'hui et renommé demain par le fournisseur ; (3) les captures d'écran, qui sont des directions par l'image ; (4) les guides dans une langue non paramétrée.
 - rex_ref: src/dashboard/content/credential_guides.py
 - first_seen: 2026-09-06
 - History:
@@ -4775,7 +4775,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: une CONDITION dérivée du registre (`any(f.get('secret') for f in fields_def)`), pas une suppression : sur `spotify` et `youtube` la phrase est vraie et utile, laisser vide y conserve un secret qu'on ne peut pas relire. Le garde lit l'AST et exige qu'au moins un `if` de la chaîne interroge les champs secrets **de ce formulaire** — il refuse aussi bien un `if True` qu'une liste de plateformes tapée à la main, qui ramènerait le défaut sous une autre forme. Il vérifie d'abord qu'il existe des plateformes des deux sortes, sans quoi la condition ne se distinguerait pas d'une constante.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_form_only_claims_what_it_has.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — un en-tête annonce un champ que le formulaire n'a pas, donc le lecteur cherche ce qui n'existe pas ; couvre: trois propriétés — certaines plateformes ont des secrets et d'autres non (la prémisse), la légende des secrets est rendue SOUS CONDITION, et une plateforme sans secret n'atteindrait même pas la légende (paramétré) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres en-têtes et légendes inconditionnels** : titres de section, aides contextuelles et libellés de boutons peuvent annoncer une capacité absente, et seule la légende des secrets est vérifiée ; (2) l'INVERSE — un champ présent qu'aucun en-tête n'annonce ; (3) les formulaires hors credentials ; (4) la JUSTESSE de ce que la légende dit quand elle s'affiche.
 - rex_ref: src/dashboard/views/credentials/_render.py
 - first_seen: 2026-09-06
 - History:
@@ -4962,7 +4962,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: le refus s'écrit AU MOMENT du refus, avec un statut `rejected` distinct de `error` (les deux appellent des gestes opposés : `error` est une écriture ratée, notre faute dans le code ; `rejected` est un fichier qu'on n'a pas su lire, visible seulement en agrégeant) et avec les COLONNES VUES, sans quoi le refus ne se diagnostique pas a posteriori. La tâche `check_csv_rejections` alerte à partir de DEUX refus par semaine et par locataire : un refus isolé est souvent un vrai mauvais export, la répétition accuse le code — alerter à l'unité rendrait la tâche bruyante, donc ignorée, donc inutile le jour où elle compte.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_alert_check_reaches_the_email.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — un fichier REFUSÉ ne laisse aucune ligne, donc le journal ne connaît que les imports réussis et l'artiste n'a rien à montrer ; couvre: par `test_every_check_is_wired_into_the_dependency_chain` et `test_every_pulled_finding_is_rendered_somewhere`, les tests nommés de ce fichier partagé — le constat traverse la chaîne et est rendu quelque part ; ne couvre pas: (1) **le geste voisin le plus proche — les autres refus silencieux** : un identifiant rejeté, une collecte sautée, un déclenchement refusé par le limiteur laissent aussi l'utilisateur sans trace, et seul le refus de CSV est traité ; (2) la LISIBILITÉ de la trace laissée ; (3) la rétention de `csv_upload_log`, déclarée à 365 jours et appliquée depuis peu ; (4) un refus qui arrive AVANT que le journal soit joignable.
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -5052,7 +5052,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: une résolution UNIQUE (`_resolve_serialization`) qui RENVOIE l'encodage et le séparateur retenus au lieu de les garder pour elle, et une colonne `serialization` écrite sur les deux issues — refus ET succès. Le succès est le cas où la trace vaut le plus et c'est celui qui n'était pas journalisé : un fichier lu avec le mauvais séparateur ne lève pas, il importe des chiffres faux qu'on relira des semaines plus tard. La résolution vivait en DOUBLE, à l'identique, dans `_read_headers` et `_sniff_sep` — deux copies d'une règle est une copie qui divergera.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_import_records_what_it_guessed.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — l'ingestion DEVINE trois choses et n'en enregistre aucune, donc un refus est indébogable ; couvre: trois propriétés — la résolution RAPPORTE ce qu'elle a choisi (paramétré sur brut → encodage, séparateur), le libellé ne ment jamais sur un binaire, et **chaque insertion dans le journal CSV porte la sérialisation** (paramétré par statut) — ce dernier étant ce qui rend la devinette relisible après coup ; ne couvre pas: (1) **le geste voisin le plus proche — les autres devinettes du dépôt** : le type d'un CSV, la période d'un export Apple, le fuseau d'une date, la plateforme d'un fichier sont devinés et ne laissent pas tous une trace ; (2) la JUSTESSE de la devinette, seulement sa traçabilité ; (3) les devinettes faites hors ingestion CSV ; (4) la RELECTURE de la trace — personne ne consulte `csv_upload_log.serialization` en routine.
 - rex_ref: migrations/091_csv_upload_log_records_its_serialization.sql
 - first_seen: 2026-09-06
 - History:
@@ -5107,7 +5107,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: une fonction PURE (`src/utils/meta_campaign_diagnosis.py`) qui rend la cause à partir de trois faits déjà en base — identité déclarée, statut du dernier run du locataire, présence de lignes de performance — et cinq messages, dont deux qui ne demandent aucun geste. Les trois surfaces qui annonçaient une liste vide appellent toutes le même diagnostic ; le garde compte ces appels, parce que corriger une surface sur trois est la forme que prend ce défaut quand on le corrige de mémoire.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_empty_list_names_its_real_cause.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — une liste vide accuse la cause la PLUS FRÉQUENTE au lieu de la vraie, donc l'artiste corrige ce qui n'était pas cassé ; couvre: par `test_each_cause_is_distinguished` (paramétré sur identité × statut × insights × bac à sable) et `test_the_accusing_sentence_is_gone`, les tests nommés de ce fichier partagé — chaque cause est DISTINGUÉE, et la phrase accusatrice a disparu ; ne couvre pas: (1) **le geste voisin le plus proche — les autres surfaces qui affichent un vide** : chaque figure, chaque tableau et chaque export a son message d'absence, et seule cette vue diagnostique ; (2) une CINQUIÈME cause non paramétrée ; (3) la formulation rendue ; (4) le cas où plusieurs causes sont vraies ensemble, que le paramétrage ne croise pas.
 - rex_ref: src/dashboard/views/meta_mapping/_campaigns.py
 - first_seen: 2026-09-06
 - History:
@@ -5219,7 +5219,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `read_identities` lit le miroir (`IDENTITY_MIRRORS`) quand `extra_config` est vide, exactement comme `declared_identities`. Le garde ne vérifie pas un appel : il fait tourner les DEUX lecteurs sur les mêmes données et exige le même ensemble — il rougit donc quel que soit celui des deux qui dérive, ce qu'un garde ancré sur un seul n'aurait pas fait.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_two_columns_never_disagree_on_one_identity.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — une identité vit à DEUX endroits et deux lecteurs n'en lisent qu'un chacun, donc la même donnée est « présente » ici et « inconnue » là ; couvre: quatre propriétés — une identité qui n'existe que sur le MIROIR est lue, la cellule de format est verte et non inconnue dans ce cas, **les deux lecteurs s'accordent sur la même donnée** (la classe elle-même), et un miroir ILLISIBLE ne casse jamais la colonne ; ne couvre pas: (1) **le geste voisin le plus proche — un TROISIÈME lecteur** : le PDF, l'API et les DAG lisent aussi des identités, et seuls deux lecteurs sont confrontés ; (2) l'ÉCRITURE — rien ne garantit que les deux emplacements restent d'accord quand l'un change, ce qui est `mirror-visible-to-one-reader-only` vu de l'autre bout ; (3) les plateformes sans miroir ; (4) la VALIDITÉ de l'identité, seulement son unicité de lecture.
 - rex_ref: src/dashboard/utils/status_matrix.py
 - first_seen: 2026-09-08
 - History:
@@ -6583,7 +6583,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py::test_a_removed_title_is_empty_not_none -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py::test_a_removed_title_is_empty_not_none }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-message-parle-au-mauvais-lecteur — retirer un titre ne le retire pas : la bibliothèque sérialise l'absence vers son propre mot, et le lecteur voit « undefined » ; couvre: par `test_a_removed_title_is_empty_not_none`, le test nommé de ce fichier partagé — un titre retiré rend une chaîne VIDE et non `None` ; ne couvre pas: (1) **le geste voisin le plus proche — les autres propriétés retirées par `None`** : légendes, libellés d'axes, infobulles, annotations suivent la même sérialisation et seul le titre est vérifié ; (2) les autres bibliothèques qui sérialisent l'absence à leur façon ; (3) le PDF, qui redessine ; (4) les propriétés retirées correctement mais dont l'absence produit un rendu illisible pour une autre raison.
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-12
 - History:
