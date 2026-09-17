@@ -4,6 +4,7 @@ from plotly.subplots import make_subplots
 from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.utils import ml_widgets
 from src.dashboard.utils.i18n import t
+from src.utils.track_matching import canonical_song_sql
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -337,7 +338,17 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
                 (artist_id,)
             )
             df_pop_be = db.fetch_df(
-                "SELECT date, popularity FROM track_popularity_history WHERE track_name = %s AND artist_id = %s ORDER BY date",
+                # ⚠️ `canonical_song_sql` des DEUX côtés. `track` vient de
+                # `s4a_song_timeline.song`, dérivé d'un NOM DE FICHIER — S4A y
+                # remplace `< > : " / \\ | ? *` par `_`. `track_popularity_history`
+                # est écrite par l'API Spotify, donc avec les vrais caractères.
+                # L'égalité exacte rendait la courbe MUETTE pour tout titre
+                # ponctué : 5 titres concernés sur cette base, mesuré le
+                # 2026-09-17. Le routeur normalisait déjà pour SA jointure
+                # (`router.py:94`) — c'est ici que la convention se perdait.
+                f"SELECT date, popularity FROM track_popularity_history "
+                f"WHERE {canonical_song_sql('track_name')} = %s AND artist_id = %s "
+                f"ORDER BY date",
                 (track, artist_id)
             )
         else:
@@ -348,7 +359,8 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
                 "SELECT make_date(year, month, 1) AS date, SUM(revenue_eur) AS revenue_eur FROM v_artist_monthly_revenue GROUP BY year, month ORDER BY year, month"
             )
             df_pop_be = db.fetch_df(
-                "SELECT date, popularity FROM track_popularity_history WHERE track_name = %s ORDER BY date",
+                f"SELECT date, popularity FROM track_popularity_history "
+                f"WHERE {canonical_song_sql('track_name')} = %s ORDER BY date",
                 (track,)
             )
 

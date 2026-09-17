@@ -155,6 +155,15 @@ def _show_body(db, artist_id):
             q_pop = """
                 SELECT date::date, popularity
                 FROM track_popularity_history
+                -- ⚠️ PAS de `canonical_song_sql` ici, et c'est VÉRIFIÉ, pas oublié :
+                -- les DEUX côtés viennent de l'API. `mapped_track` est lu dans
+                -- `campaign_track_mapping` (ligne 107), alimentée par un sélecteur
+                -- « Titre Spotify », et `track_popularity_history` est écrite par
+                -- `spotify_api_daily`. Aucun nom de FICHIER n'entre dans cette
+                -- comparaison, donc la substitution `: / ? *` → `_` ne s'applique
+                -- pas. Écrit le 2026-09-17 parce que le garde de
+                -- `song-name-convention-mismatch` demande de DIRE pourquoi, plutôt
+                -- que de laisser le prochain lecteur le redéduire.
                 WHERE artist_id = %s AND TRIM(track_name) = %s AND date >= %s AND date <= %s
             """
             df_pop = db.fetch_df(q_pop, (artist_id, mapped_track.strip(), start_date, end_date))

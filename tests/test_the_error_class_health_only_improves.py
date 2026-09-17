@@ -425,7 +425,21 @@ _CEILINGS = {
     #
     # ⚠️ **Huitième fois de la séance qu'un compte mécanique aurait induit en
     # erreur**, et la première où le remède supposé est lui-même le défaut.
-    "siblings_never_swept": 139,
+    # 139 → 138 le 2026-09-17 : `song-name-convention-mismatch`, et DEUX sites vivants
+    # visibles par l'artiste. S4A remplace `< > : " / \ | ? *` par `_` dans le nom de
+    # ses FICHIERS, donc le même titre arrive épelé de deux façons. Deux requêtes
+    # comparaient un nom de fichier à une table écrite par l'API : la courbe de
+    # popularité était MUETTE pour tout titre ponctué — **5 titres** sur la base de
+    # développement, mesuré.
+    #
+    # ⚠️ Le routeur qui remplit le sélecteur normalisait DÉJÀ pour SA jointure. La
+    # convention existait, l'outil existait, et ils se perdaient UN APPEL plus loin.
+    #
+    # ⚠️ Mon garde est passé VERT sur sa première mutation (il cherchait le NOM dans
+    # le texte, et retirer l'import le laissait satisfait), puis le cliquet
+    # anti-garde-textuel a refusé DEUX autres comparaisons de chaîne que j'y avais
+    # mises. Trois corrections pour un seul garde, toutes mesurées.
+    "siblings_never_swept": 138,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

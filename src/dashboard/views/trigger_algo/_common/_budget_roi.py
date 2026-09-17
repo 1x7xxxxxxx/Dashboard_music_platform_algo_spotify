@@ -4,6 +4,9 @@ from src.dashboard.utils.i18n import t
 import pandas as pd
 import streamlit as st
 from ._loaders import _load_scored_tracks
+from src.utils.track_matching import canonical_song_sql
+
+_CANON = canonical_song_sql('ctm.track_name')
 
 
 _TRIGGER_STREAM_TARGETS = {
@@ -189,7 +192,7 @@ def _show_budget_pacing_calculator(db, artist_id) -> None:
     ))
 
 
-_META_LEVER_QUERY = """
+_META_LEVER_QUERY = f"""
 SELECT
     ctm.campaign_name,
     perf.spend, perf.results, perf.cpr, perf.ctr, perf.link_clicks,
@@ -207,7 +210,13 @@ LEFT JOIN (
     WHERE mc.artist_id = %s AND a.call_to_action IS NOT NULL
     GROUP BY mc.campaign_name
 ) cta ON LOWER(cta.campaign_name) = LOWER(ctm.campaign_name)
-WHERE ctm.artist_id = %s AND LOWER(ctm.track_name) = LOWER(%s)
+-- ⚠️ `canonical_song_sql` EN PLUS de `LOWER` : la casse n'est pas la seule
+-- divergence. `ctm.track_name` vient d'un sélecteur « Titre Spotify » (API, vrais
+-- caractères) et le paramètre vient de `s4a_song_timeline.song`, dérivé d'un NOM
+-- DE FICHIER où S4A remplace `< > : " / \\ | ? *` par `_`. `LOWER` seul laissait
+-- la jointure muette pour tout titre ponctué — mesuré le 2026-09-17 : 5 titres
+-- concernés sur cette base.
+WHERE ctm.artist_id = %s AND LOWER({_CANON}) = LOWER(%s)
 ORDER BY perf.cpr ASC NULLS LAST
 """
 

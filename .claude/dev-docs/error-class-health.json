@@ -8444,12 +8444,13 @@
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-06-08"
+        "2026-06-08",
+        "2026-09-17"
       ],
       "kind": "heuristic",
       "seen_red": "unknown",
       "severity": "P2",
-      "siblings_swept": false,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-06-08",
       "revisions": 5,
@@ -9958,7 +9959,7 @@
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
       "seen_red_unknown": 331,
-      "siblings_never_swept": 139
+      "siblings_never_swept": 138
     },
     "population": {
       "automatic_guard": 386,
