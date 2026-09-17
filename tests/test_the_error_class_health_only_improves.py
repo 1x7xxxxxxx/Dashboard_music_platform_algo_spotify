@@ -241,7 +241,21 @@ _CEILINGS = {
     # plomberie (`DAG`, `Airflow`, `Postgres`) et pas ses NOMS. Sans le mot « DAG »
     # dans la phrase, il ne voyait rien. Élargi en DÉRIVANT la liste de
     # `airflow/dags/`, pour qu'elle ne se périme pas.
-    "siblings_never_swept": 215,
+    # 215 → 209 le 2026-09-17 : `un-état-qui-déborde-de-sa-portée`. Aucun site vivant,
+    # et trois faux positifs ÉCARTÉS EN LISANT plutôt qu'en comptant :
+    #  · 3 écritures sur une clé de widget vivent dans un `on_click=` — une écriture
+    #    en callback a lieu AVANT le rendu suivant, donc elle est légitime ;
+    #  · 24 `INSERT` sans `ON CONFLICT` sur 35, mais seulement **2** ont la forme
+    #    « récupère ou crée », et l'un prend un `pg_advisory_xact_lock` — le remède ;
+    #  · l'autre est une course LATENTE, pas vivante : rien ne lance deux collectes
+    #    Instagram simultanées pour un même locataire.
+    #
+    # ⚠️ Et j'allais nommer un garde INEXISTANT dans une portée
+    # (`test_the_suite_does_not_borrow_a_real_connection.py`). Vérifié avant d'écrire —
+    # c'est exactement ce que `named-guard-deleted-while-the-class-reads-guarded`
+    # demande, et la vraie fixture vit DANS `test_postgres_handler.py:42-51`, donc sa
+    # portée est ce fichier et lui seul.
+    "siblings_never_swept": 209,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
