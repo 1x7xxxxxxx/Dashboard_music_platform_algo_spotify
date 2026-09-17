@@ -1003,6 +1003,30 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "a-generated-document-with-no-freshness-guard": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-17",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_the_error_inbox_and_its_pointer_agree.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P4",
+      "status": "guarded",
+      "introduced_date": "2026-09-17",
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-glyph-with-no-font-vanishes-without-a-trace": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-10",
@@ -1358,7 +1382,7 @@
       "severity": "P3",
       "status": "guarded",
       "introduced_date": "2026-09-17",
-      "revisions": 0,
+      "revisions": 1,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9305,7 +9329,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 224,
+      "catalogue_revisions": 225,
       "head_date": "2026-09-17"
     },
     "holes": {
@@ -9320,11 +9344,11 @@
       "seen_red_unknown": 331
     },
     "population": {
-      "automatic_guard": 376,
-      "classes": 386,
+      "automatic_guard": 377,
+      "classes": 387,
       "ever_recurred_observed": 48,
       "prose_only": 10,
-      "with_signature": 375
+      "with_signature": 376
     },
     "recurrence": {
       "window_start": "2026-05-15",
