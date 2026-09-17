@@ -152,7 +152,14 @@ _CEILINGS = {
     # du FUTUR (ce que le garde laissera passer), `siblings` parle du PRÉSENT (où le
     # même défaut vit déjà). Le balayage de `a-replica-that-builds-its-own-image` a
     # trouvé DEUX sites vivants sur lesquels le garde était vert.
-    "siblings_never_swept": 386,   # −8 le 2026-09-17 : les balayages RÉELLEMENT faits ce jour-là
+    # −8 le 2026-09-17 : les balayages RÉELLEMENT faits ce jour-là.
+    # −1 de plus le même jour : `server-side-render-fetches-tenant-chosen-urls`, et ce
+    # balayage-là a trouvé **DEUX sites vivants** — `grep -rn "HTML(string=" src/` rend
+    # TROIS rendus WeasyPrint, un seul passait `url_fetcher`. Aucun ne touchait à de la
+    # donnée de locataire, donc il n'y avait pas de défaut vivant : la clôture était la
+    # propriété d'un SITE et non du GESTE, et rien ne pouvait le voir. C'est ce que ce
+    # compteur existe pour produire — pas un nombre, des sites.
+    "siblings_never_swept": 385,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

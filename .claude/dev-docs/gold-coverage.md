@@ -398,35 +398,35 @@ Prises à leur site de câblage dans `_report.py` : les fonctions de `pdf_charts
 
 | fichier:ligne | fonction | surface | visible | source établie | couche | confiance | motif | lu dans la même fonction (aucun lien prouvé) |
 |---|---|---|---|---|---|---|---|---|
-| ⚠️ `utils/pdf_exporter/_report.py:137` | `collect_report_data` | pdf_charts.streams_timeline | PDF | — | — | indéterminée | sans-appelant | ?`s4a_song_timeline` |
+| ⚠️ `utils/pdf_exporter/_report.py:131` | `collect_report_data` | pdf_charts.streams_timeline | PDF | — | — | indéterminée | sans-appelant | ?`s4a_song_timeline` |
+| ⚠️ `utils/pdf_exporter/_report.py:154` | `collect_report_data` | pdf_charts.meta_breakdown_bars | PDF | — | — | indéterminée | sql-dynamique | ?`s4a_song_timeline` |
+| ⚠️ `utils/pdf_exporter/_report.py:157` | `collect_report_data` | pdf_charts.meta_breakdown_bars | PDF | — | — | indéterminée | sql-dynamique | ?`s4a_song_timeline` |
 | ⚠️ `utils/pdf_exporter/_report.py:160` | `collect_report_data` | pdf_charts.meta_breakdown_bars | PDF | — | — | indéterminée | sql-dynamique | ?`s4a_song_timeline` |
-| ⚠️ `utils/pdf_exporter/_report.py:163` | `collect_report_data` | pdf_charts.meta_breakdown_bars | PDF | — | — | indéterminée | sql-dynamique | ?`s4a_song_timeline` |
-| ⚠️ `utils/pdf_exporter/_report.py:166` | `collect_report_data` | pdf_charts.meta_breakdown_bars | PDF | — | — | indéterminée | sql-dynamique | ?`s4a_song_timeline` |
-| ⚠️ `utils/pdf_exporter/_report.py:181` | `collect_report_data` | pdf_charts.pi_gate | PDF | — | — | indéterminée | appelants-multiples | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:143` | `collect_report_data` | pdf_charts.platform_evolution | PDF | `apple_yearly_series()` · `cumulative_by_platform()` · `daily_streams_by_platform()` | or | plusieurs amonts | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:145` | `collect_report_data` | pdf_charts.j28_trajectory | PDF | `v_s4a_song_daily` · `tracks` | mixte | plusieurs amonts | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:147` | `collect_report_data` | pdf_charts.top_songs_bar | PDF | `v_s4a_song_daily` | or | plusieurs amonts | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:150` | `collect_report_data` | pdf_charts.youtube_top_videos_bar | PDF | `v_platform_totals` · `youtube_channel_history` · `youtube_video_stats` · `youtube_videos` | mixte | plusieurs amonts | profondeur | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:152` | `collect_report_data` | pdf_charts.top_songs_bar | PDF | `apple_songs_performance` | brut | plusieurs amonts | profondeur | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:159` | `collect_report_data` | pdf_charts.hypeddit_combo | PDF | `v_hypeddit_daily` | or | plusieurs amonts | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:169` | `collect_report_data` | pdf_charts.revenue_forecast_chart | PDF | `v_artist_monthly_revenue` | or | plusieurs amonts | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:170` | `collect_report_data` | pdf_charts.indexed_lines | PDF | `v_meta_daily` · `v_s4a_song_daily` · `track_popularity_history` | mixte | plusieurs amonts | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:182` | `collect_report_data` | pdf_charts.apple_timeline | PDF | `apple_songs_history` | brut | plusieurs amonts | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:183` | `collect_report_data` | pdf_charts.sc_multiaxis | PDF | `soundcloud_tracks_daily` | brut | plusieurs amonts | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:187` | `collect_report_data` | pdf_charts.youtube_channel_growth | PDF | `youtube_cumulative_views()` · `youtube_channel_history` | mixte | plusieurs amonts | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:138` | `collect_report_data` | pdf_charts.platform_breakdown | PDF | `platform_totals()` | or | directe | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:144` | `collect_report_data` | pdf_charts.ml_probabilities | PDF | `tracks` | brut | portée (1 saut) | sans-appelant | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:146` | `collect_report_data` | pdf_charts.roi_breakeven | PDF | `get_roi_data()` | or | directe | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:151` | `collect_report_data` | pdf_charts.soundcloud_top_bar | PDF | — | — | hors base | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:156` | `collect_report_data` | pdf_charts.instagram_followers_line | PDF | `instagram_daily_stats` | brut | directe | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:158` | `collect_report_data` | pdf_charts.meta_campaigns_bar | PDF | `v_meta_daily` | or | directe | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:178` | `collect_report_data` | pdf_charts.playlist_adds_bars | PDF | `s4a_song_playlist_adds` | brut | directe | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:179` | `collect_report_data` | pdf_charts.meta_funnel | PDF | — | — | hors base | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:180` | `collect_report_data` | pdf_charts.meta_daily | PDF | `v_meta_daily` | or | directe | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:184` | `collect_report_data` | pdf_charts.ig_engagement | PDF | — | — | hors base | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:185` | `collect_report_data` | pdf_charts.s4a_cumulative | PDF | `v_s4a_song_daily` | or | directe | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:186` | `collect_report_data` | pdf_charts.s4a_audience_evolution | PDF | `v_s4a_audience_daily` | or | directe | — | ?`s4a_song_timeline` |
-| `utils/pdf_exporter/_report.py:188` | `collect_report_data` | pdf_charts.song_timeline | PDF | `v_s4a_song_daily` | or | portée (1 saut) | sans-appelant | ?`s4a_song_timeline` |
+| ⚠️ `utils/pdf_exporter/_report.py:175` | `collect_report_data` | pdf_charts.pi_gate | PDF | — | — | indéterminée | appelants-multiples | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:137` | `collect_report_data` | pdf_charts.platform_evolution | PDF | `apple_yearly_series()` · `cumulative_by_platform()` · `daily_streams_by_platform()` | or | plusieurs amonts | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:139` | `collect_report_data` | pdf_charts.j28_trajectory | PDF | `v_s4a_song_daily` · `tracks` | mixte | plusieurs amonts | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:141` | `collect_report_data` | pdf_charts.top_songs_bar | PDF | `v_s4a_song_daily` | or | plusieurs amonts | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:144` | `collect_report_data` | pdf_charts.youtube_top_videos_bar | PDF | `v_platform_totals` · `youtube_channel_history` · `youtube_video_stats` · `youtube_videos` | mixte | plusieurs amonts | profondeur | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:146` | `collect_report_data` | pdf_charts.top_songs_bar | PDF | `apple_songs_performance` | brut | plusieurs amonts | profondeur | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:153` | `collect_report_data` | pdf_charts.hypeddit_combo | PDF | `v_hypeddit_daily` | or | plusieurs amonts | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:163` | `collect_report_data` | pdf_charts.revenue_forecast_chart | PDF | `v_artist_monthly_revenue` | or | plusieurs amonts | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:164` | `collect_report_data` | pdf_charts.indexed_lines | PDF | `v_meta_daily` · `v_s4a_song_daily` · `track_popularity_history` | mixte | plusieurs amonts | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:176` | `collect_report_data` | pdf_charts.apple_timeline | PDF | `apple_songs_history` | brut | plusieurs amonts | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:177` | `collect_report_data` | pdf_charts.sc_multiaxis | PDF | `soundcloud_tracks_daily` | brut | plusieurs amonts | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:181` | `collect_report_data` | pdf_charts.youtube_channel_growth | PDF | `youtube_cumulative_views()` · `youtube_channel_history` | mixte | plusieurs amonts | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:132` | `collect_report_data` | pdf_charts.platform_breakdown | PDF | `platform_totals()` | or | directe | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:138` | `collect_report_data` | pdf_charts.ml_probabilities | PDF | `tracks` | brut | portée (1 saut) | sans-appelant | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:140` | `collect_report_data` | pdf_charts.roi_breakeven | PDF | `get_roi_data()` | or | directe | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:145` | `collect_report_data` | pdf_charts.soundcloud_top_bar | PDF | — | — | hors base | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:150` | `collect_report_data` | pdf_charts.instagram_followers_line | PDF | `instagram_daily_stats` | brut | directe | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:152` | `collect_report_data` | pdf_charts.meta_campaigns_bar | PDF | `v_meta_daily` | or | directe | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:172` | `collect_report_data` | pdf_charts.playlist_adds_bars | PDF | `s4a_song_playlist_adds` | brut | directe | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:173` | `collect_report_data` | pdf_charts.meta_funnel | PDF | — | — | hors base | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:174` | `collect_report_data` | pdf_charts.meta_daily | PDF | `v_meta_daily` | or | directe | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:178` | `collect_report_data` | pdf_charts.ig_engagement | PDF | — | — | hors base | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:179` | `collect_report_data` | pdf_charts.s4a_cumulative | PDF | `v_s4a_song_daily` | or | directe | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:180` | `collect_report_data` | pdf_charts.s4a_audience_evolution | PDF | `v_s4a_audience_daily` | or | directe | — | ?`s4a_song_timeline` |
+| `utils/pdf_exporter/_report.py:182` | `collect_report_data` | pdf_charts.song_timeline | PDF | `v_s4a_song_daily` | or | portée (1 saut) | sans-appelant | ?`s4a_song_timeline` |
 
 ## Les plateformes
 
@@ -594,7 +594,7 @@ Le second tableau liste les **tables brutes encore lues hors des portes**, alors
 | `meta_insights` | `v_meta_adset_daily` | 1 | 1 | 0 | dashboard/views/meta_creatives.py:663 |
 | `meta_insights_performance` | `v_meta_campaign_daily` | 1 | 1 | 0 | dashboard/views/meta_mapping/_campaigns.py:190 |
 | `meta_insights_performance_day` | `v_meta_campaign_daily` | 6 | 5 | 0 | collectors/_meta_insight_fetch.py:59 · dashboard/views/imusician.py:36 · dashboard/views/imusician.py:45 · dashboard/views/meta_x_spotify.py:57 · dashboard/views/meta_x_spotify.py:80 |
-| `s4a_song_timeline` | `v_s4a_song_daily` | 19 | 4 | 0 | api/routers/streams.py:87 · dashboard/utils/pdf_exporter/_report.py:75 · dashboard/utils/setup_completion.py:281 · utils/freshness_monitor.py:175 |
+| `s4a_song_timeline` | `v_s4a_song_daily` | 19 | 4 | 0 | api/routers/streams.py:87 · dashboard/utils/pdf_exporter/_report.py:69 · dashboard/utils/setup_completion.py:281 · utils/freshness_monitor.py:175 |
 | `saas_artists` | `v_spotify_followers_daily` | 55 | 8 | 0 | dashboard/utils/live_pulse.py:113 · dashboard/utils/live_pulse.py:68 · dashboard/views/admin.py:501 · dashboard/views/meta_mapping/_campaigns.py:190 · dashboard/views/referral_admin.py:35 · dashboard/views/referral_admin.py:62 · utils/daily_ops_metrics.py:152 · utils/defect_gauge.py:110 |
 | `sacem_statement` | `v_sacem_monthly` | 1 | — | 0 | dashboard/views/sacem.py:32 |
 | `soundcloud_tracks_daily` | `v_soundcloud_track_latest` | 6 | 1 | 0 | dashboard/views/soundcloud.py:38 |
@@ -655,4 +655,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=95c6c39804dc8e9bf8c6cd270943465a5a993ba9d0f5a043934c45470a6b5d73 -->
+<!-- gold-coverage: sha256=aec451b82cd63762db0cf601b142579c3dcd774e9a2bbabb072688f362e14122 -->

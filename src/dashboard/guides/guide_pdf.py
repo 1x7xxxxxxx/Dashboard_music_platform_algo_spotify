@@ -548,7 +548,9 @@ def build_guide_pdf(lang: str = "fr", out: Path | None = None) -> Path:
     from weasyprint import HTML
     target = out or output_pdf_path(lang)
     target.parent.mkdir(parents=True, exist_ok=True)
-    HTML(string=build_guide_html(lang)).write_pdf(str(target))
+    from src.dashboard.utils.pdf_url_fence import no_remote_resources
+    HTML(string=build_guide_html(lang),
+         url_fetcher=no_remote_resources).write_pdf(str(target))
     return target
 
 

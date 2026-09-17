@@ -71,7 +71,9 @@ def pdf_from_html(html: str) -> bytes | None:
     """
     try:
         from weasyprint import HTML
-        return HTML(string=html).write_pdf()
+
+        from src.dashboard.utils.pdf_url_fence import no_remote_resources
+        return HTML(string=html, url_fetcher=no_remote_resources).write_pdf()
     except Exception as e:  # noqa: BLE001 — caller falls back to an HTML download
         logger.warning("PDF rendering unavailable (%s): %s", type(e).__name__, e)
         return None

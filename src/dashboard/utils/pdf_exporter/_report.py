@@ -6,6 +6,7 @@ from src.dashboard.utils.kpi_helpers import (
     get_roi_data,
     ARTIST_NAME_FILTER,
 )
+from src.dashboard.utils.pdf_url_fence import no_remote_resources
 from ._config import ALL_SECTIONS, _CSS, _EMOJI_RE, _logo_svg, _set_lang, _t
 from ._collectors import (
     _collect_apple, _collect_apple_timeline, _collect_credentials_status, _collect_hypeddit, _collect_ig_monthly, _collect_instagram, _collect_j28, _collect_mapping, _collect_meta, _collect_meta_breakdowns, _collect_meta_daily, _collect_meta_funnel, _collect_meta_x_spotify, _collect_ml_explain, _collect_pi_gate, _collect_playlist_adds_windows, _collect_revenue_forecast, _collect_s4a_audience, _collect_s4a_daily, _collect_s4a_top_songs, _collect_sc_series, _collect_score20, _collect_song_timeline, _collect_songs_focus, _collect_soundcloud_tracks, _collect_youtube, _collect_youtube_history, _get_artist_name, _has_wrapped, _latest_release,
@@ -18,17 +19,10 @@ from ._renderers import (
 
 
 
-def _no_remote_resources(url: str, timeout: int = 10, ssl_context=None):
-    """url_fetcher that serves nothing but inline `data:` URIs.
-
-    Charts are embedded as base64 `data:` by the renderers, so this costs the report
-    nothing. Anything else raises, and WeasyPrint drops the element.
-    """
-    if url.startswith("data:"):
-        from weasyprint.urls import default_url_fetcher
-
-        return default_url_fetcher(url, timeout=timeout, ssl_context=ssl_context)
-    raise ValueError(f"blocked non-data resource in PDF render: {url[:60]}")
+# La clôture vit dans `utils/pdf_url_fence.py` depuis le 2026-09-17 : elle était ici,
+# passée à UN rendu sur trois, donc elle était la propriété d'un SITE et non du GESTE.
+# L'alias est conservé — il est nommé par des tests et par le catalogue de classes.
+_no_remote_resources = no_remote_resources
 
 
 def collect_report_data(db, artist_id, from_date, to_date, songs=None,
