@@ -440,7 +440,10 @@ _CEILINGS = {
     # le texte, et retirer l'import le laissait satisfait), puis le cliquet
     # anti-garde-textuel a refusé DEUX autres comparaisons de chaîne que j'y avais
     # mises. Trois corrections pour un seul garde, toutes mesurées.
-    "siblings_never_swept": 113,  # 116 → 113 le 2026-09-18 : famille
+    "siblings_never_swept": 111,  # 112 → 111 le 2026-09-18 : les 8 `sum()` de
+    # `platform_chart` lus un par un ; les totaux du PDF viennent de la couche or.  # 113 → 112 le 2026-09-18 :
+    # `a-percentile-computed-on-survivors` — les temps de rendu observent dans un
+    # `finally`, donc un plantage n'est pas censure.  # 116 → 113 le 2026-09-18 : famille
     # `une-erreur-avalee-devient-une-absence` — dont un balayage dont la LIMITE est
     # ecrite (13 des 18 candidats non etablis, plutot qu'un zero annonce).  # 118 → 116 le 2026-09-18 : 0 page injoignable
     # (37 entrees de menu toutes routees) et le chien de garde sonde depuis GitHub
