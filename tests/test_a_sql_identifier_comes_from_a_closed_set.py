@@ -177,3 +177,21 @@ def test_a_real_interpolated_table_name_is_seen() -> None:
     assert hit, (
         "le prédicat ne reconnaît plus `FROM {table}` — la forme même de la classe P1 "
         "qu'il est censé garder")
+
+
+def test_the_ceiling_is_not_slack() -> None:
+    """Un plafond au-dessus de la mesure est du BUDGET pour la prochaine régression.
+
+    ⚠️ Ajouté le 2026-09-17 après une mesure : porter `_MAX_UNSOURCED` de 0 à 50
+    laissait ce fichier ENTIÈREMENT VERT. Trois cliquets du dépôt étaient dans ce cas,
+    tous avec un plafond à zéro — et c'est justement là que le mou est invisible, parce
+    qu'un 0 relevé à 50 ressemble à un 0 dans le diff.
+
+    Le garde n'interdit pas de relever le plafond ; il interdit de le relever SANS que
+    la mesure suive. Descendre reste libre.
+    """
+    mesure = len([1 for closed, _f, _ln, _e in _sites() if not closed])
+    assert _MAX_UNSOURCED <= max(mesure, 0), (
+        f"plafond de {_MAX_UNSOURCED} pour {mesure} site(s) mesuré(s) : la marge est du "
+        "budget pour la prochaine régression. Descendre le plafond dans le MÊME commit "
+        "que le site qu'on vient de corriger.")

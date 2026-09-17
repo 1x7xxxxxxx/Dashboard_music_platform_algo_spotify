@@ -198,11 +198,25 @@ def test_no_new_unscoped_widget_key() -> None:
 
 
 def test_the_ceilings_are_not_slack() -> None:
-    """Une marge devient du budget pour la prochaine régression."""
+    """Une marge devient du budget pour la prochaine régression.
+
+    ⚠️ Ce test s'appelait « les plafondS » au PLURIEL et n'en vérifiait qu'UN.
+    Mesuré le 2026-09-17 par mutation : porter `_MAX_SECONDARY_AXES` de 0 à 50 laissait
+    ce fichier ENTIÈREMENT VERT — c'est-à-dire qu'on pouvait ouvrir un budget de 50
+    axes secondaires sans que rien ne rougisse. Un nom au pluriel pour un prédicat au
+    singulier est la forme exacte de `un-garde-qui-ne-garde-pas`, et elle vivait ici.
+    """
     axes, keys = _counts()
     assert sum(keys.values()) >= _MAX_LITERAL_KEYS - 12, (
         f"{sum(keys.values())} clés pour un plafond de {_MAX_LITERAL_KEYS} : "
         "descendre le plafond.")
+    # Le plafond des axes est à ZÉRO : aucune tolérance n'a de sens, et c'est
+    # justement le cas où du mou ne se voit pas — un 0 relevé à 50 ressemble à un 0.
+    total_axes = sum(axes.values()) if isinstance(axes, dict) else len(axes)
+    assert _MAX_SECONDARY_AXES <= max(total_axes, 0), (
+        f"plafond d'axes secondaires à {_MAX_SECONDARY_AXES} pour {total_axes} axe(s) "
+        "mesuré(s) : la marge est du budget pour la prochaine régression, et sur un "
+        "plafond à zéro elle est invisible.")
 
 
 def test_the_declared_axis_still_exists_and_still_has_its_axis() -> None:

@@ -310,7 +310,20 @@ _CEILINGS = {
     # rend rien pour les deux (2026-09-04), d'où le passage à un reçu lu en base.
     # Un faux positif écarté en lisant : `useful_links.py:211` NOMME `pg_dump` dans
     # une chaîne affichée à un admin — une commande à taper sur l'HÔTE, pas un appel.
-    "siblings_never_swept": 186,
+    # 186 → 184 le 2026-09-17 : les deux classes de CLIQUET, balayées PAR MUTATION —
+    # parce que mes deux prédicats mécaniques se sont contredits et que je peux dire
+    # pourquoi. Chercher un test nommé « slack/mou » rend **32** fichiers sans
+    # anti-mou : il matche le mot dans la PROSE. Chercher la propriété
+    # `mesure >= CEILING` à l'AST en rend **5** : il rate les plafonds lus depuis un
+    # dictionnaire par une variable de boucle. Le seul chiffre défendable est
+    # **25 constantes de plafond réelles sur 20 fichiers**.
+    #
+    # ⚠️ Six relevées de +50 : **QUATRE sont restées VERTES**, dont trois à ZÉRO —
+    # et zéro est exactement là où le mou est invisible, parce qu'un 0 relevé à 50
+    # ressemble à un 0 dans un diff. Le cas le plus net :
+    # `test_the_ceilings_are_not_slack` est au PLURIEL et ne vérifiait qu'UN des deux
+    # plafonds de son propre fichier. Trois corrigés, chacun re-muté rouge.
+    "siblings_never_swept": 184,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont

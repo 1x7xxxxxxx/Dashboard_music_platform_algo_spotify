@@ -109,3 +109,21 @@ def test_the_two_hypeddit_helpers_share_one_decision() -> None:
     assert "_resolve_artist_id_or_none" in calls, (
         "`_resolve_artist_id` ne délègue plus la décision : les deux helpers "
         "portent chacun leur copie du garde, ce que ce fichier existe pour empêcher")
+
+
+def test_the_ceiling_is_not_slack() -> None:
+    """Un plafond au-dessus de la mesure est du BUDGET pour la prochaine régression.
+
+    ⚠️ Ajouté le 2026-09-17 après une mesure : porter `_MAX_OPEN_CODED` de 0 à 50
+    laissait ce fichier ENTIÈREMENT VERT. Trois cliquets du dépôt étaient dans ce cas,
+    tous avec un plafond à zéro — et c'est justement là que le mou est invisible, parce
+    qu'un 0 relevé à 50 ressemble à un 0 dans le diff.
+
+    Le garde n'interdit pas de relever le plafond ; il interdit de le relever SANS que
+    la mesure suive. Descendre reste libre.
+    """
+    mesure = len(_open_coded_fallbacks())
+    assert _MAX_OPEN_CODED <= max(mesure, 0), (
+        f"plafond de {_MAX_OPEN_CODED} pour {mesure} site(s) mesuré(s) : la marge est du "
+        "budget pour la prochaine régression. Descendre le plafond dans le MÊME commit "
+        "que le site qu'on vient de corriger.")

@@ -2166,7 +2166,7 @@
       "kind": "deterministic",
       "seen_red": "2026-09-12",
       "severity": "P2",
-      "siblings_swept": false,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
       "revisions": 2,
@@ -2241,7 +2241,7 @@
       "kind": "deterministic",
       "seen_red": "2026-09-12",
       "severity": "P2",
-      "siblings_swept": false,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
       "revisions": 2,
@@ -9958,7 +9958,7 @@
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
       "seen_red_unknown": 331,
-      "siblings_never_swept": 186
+      "siblings_never_swept": 184
     },
     "population": {
       "automatic_guard": 386,
