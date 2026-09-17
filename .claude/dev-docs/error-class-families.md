@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**380 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**384 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -15,10 +15,10 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 13 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
-| [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 23 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
-| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 28 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
+| [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 24 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
+| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 21 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 71 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 73 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
@@ -191,7 +191,7 @@ Règle de rattachement : `assumes-a-shell|assumes-visibility|by-direction-not-by
 
 **Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ?**
 
-Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-after-instantiation|per-worker|namespaced-by-another|connection|closes-a-connection|only-inside-a-session|loses-the-race|first-row|session|cache|state-file|leak` sur l'identifiant et le symptôme. 23 classe(s).
+Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-after-instantiation|per-worker|namespaced-by-another|connection|closes-a-connection|only-inside-a-session|loses-the-race|first-row|session|cache|named-after-an-environment|environment-variable|state-file|leak` sur l'identifiant et le symptôme. 24 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -218,12 +218,13 @@ Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-a
 | [`a-unit-test-that-borrows-a-real-connection-from-the-pool`](error-classes.md#a-unit-test-that-borrows-a-real-connection-from-the-pool) | un fichier de tests UNITAIRES, qui patche `psycopg2.connect` et se croit entièrement simulé, parle en réalité à la base de production locale. Il passe |
 | [`a-cold-measurement-that-clears-caches-by-name`](error-classes.md#a-cold-measurement-that-clears-caches-by-name) | un cliquet qui affirme mesurer « à froid » rend un nombre DIFFÉRENT selon ce qui a tourné avant lui dans le même processus. Il passe en ordre de fichi |
 | [`a-fragment-that-outlives-the-connection-it-captured`](error-classes.md#a-fragment-that-outlives-the-connection-it-captured) | **rien ne plante**, et c'est ce qui coûte. Une page admin se met à consommer une connexion de plus par session, sans message qui relie la fuite au ges |
+| [`a-make-variable-named-after-an-environment-variable`](error-classes.md#a-make-variable-named-after-an-environment-variable) | une cible `make` prend une option qu'on ne lui a pas donnée. La commande affichée montre l'argument, mais personne ne le lit — on a tapé la ligne, on  |
 
 ## deux-surfaces-deux-nombres
 
 **Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ?**
 
-Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 28 classe(s).
+Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 29 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -255,6 +256,7 @@ Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|diver
 | [`a-span-read-from-a-table-that-carries-a-mandatory-filter`](error-classes.md#a-span-read-from-a-table-that-carries-a-mandatory-filter) | un sélecteur de période propose une fenêtre plus large que ce que la figure d'à côté peut tracer. L'utilisateur choisit dans un intervalle qui existe, |
 | [`a-limiter-consumed-in-two-steps`](error-classes.md#a-limiter-consumed-in-two-steps) | un limiteur ATOMIQUE ne borne que les tentatives séquentielles. N requêtes simultanées obtiennent toutes l'autorisation, le budget affiché est respect |
 | [`a-gate-that-can-never-be-green`](error-classes.md#a-gate-that-can-never-be-green) | une porte de comparaison rapporte une divergence **à chaque exécution**, quoi qu'on fasse. On la lit deux fois, on la contourne la troisième, et le jo |
+| [`two-instruments-that-do-not-observe-the-same-path`](error-classes.md#two-instruments-that-do-not-observe-the-same-path) | deux instruments censés mesurer la même chose rendent des résultats incompatibles, et l'un des deux rend **zéro**. Le zéro se lit comme « rien ne s'es |
 
 ## une-erreur-avalée-devient-une-absence
 
@@ -290,7 +292,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 71 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 73 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -365,6 +367,8 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 | [`a-ratchet-that-only-watches-the-direction-it-was-burned-in`](error-classes.md#a-ratchet-that-only-watches-the-direction-it-was-burned-in) | un garde passe VERT sur un défaut qui appartient pourtant très exactement à son sujet. En le relisant on ne trouve rien à redire : il fait ce qu'il di |
 | [`a-docstring-exclusion-that-compares-dedented-text`](error-classes.md#a-docstring-exclusion-that-compares-dedented-text) | un garde qui lit l'AST — donc écrit précisément pour ne PAS être textuel — reste malgré tout vert sur sa propre mutation. Il a l'air rigoureux et il n |
 | [`a-ci-checkout-too-shallow-for-the-guard-that-reads-git`](error-classes.md#a-ci-checkout-too-shallow-for-the-guard-that-reads-git) | un garde passe en local et échoue en CI, **toujours**, sans que rien dans son code ne diffère. On relance, on suspecte un aléa, on finit par lire le r |
+| [`a-status-screen-that-reads-half-its-source`](error-classes.md#a-status-screen-that-reads-half-its-source) | un écran d'état annonce un TOTAL faux, sans erreur et sans trou visible. Il dit « 0 » là où la source en porte une, parce qu'il ne lit qu'une partie d |
+| [`a-load-guard-that-counts-names-instead-of-measuring-load`](error-classes.md#a-load-guard-that-counts-names-instead-of-measuring-load) | un garde de qualité de mesure refuse systématiquement, sur une machine objectivement inactive. On finit par lui passer `--force`, ce qui le retire pou |
 
 ## un-document-qui-affirme-un-état-périmé
 
@@ -571,6 +575,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=380 families=17 orphans=3 -->
+<!-- error-class-families: total=384 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=2cd40037616b6df9e40a48ca413aa2a0169f7ec02f0f92f28b5deda91723f8f5 -->
+<!-- error-class-families: sha256=f32cdbfaff10ba30ab530f76913e84f244fdeee75fdd8189f6a63e810f02d829 -->

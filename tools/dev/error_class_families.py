@@ -152,6 +152,13 @@ FAMILIES: list[tuple[str, str, str]] = [
      r"written-after-instantiation|per-worker|"
      r"namespaced-by-another|connection|closes-a-connection|"
      r"only-inside-a-session|loses-the-race|first-row|session|cache|"
+     # `named-after-an-environment-variable`, ajouté le 2026-09-17. Une variable de
+     # `make` qui porte un nom POSIX prend la valeur du SHELL : c'est un état créé
+     # ailleurs qui déborde dans la portée de la cible, et la cible s'exécute avec
+     # une option que personne n'a donnée. La question de la famille — « cet état
+     # vit-il exactement le temps de ce qui l'a créé, ni plus, ni pour quelqu'un
+     # d'autre ? » — est exactement celle qu'il fallait poser devant `$(USER)`.
+     r"named-after-an-environment|environment-variable|"
      r"state-file|leak"),
 
     ("deux-surfaces-deux-nombres",

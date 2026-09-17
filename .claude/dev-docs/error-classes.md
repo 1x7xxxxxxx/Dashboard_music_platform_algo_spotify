@@ -130,6 +130,10 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 |---|---|---|---|---|
 | [a-ci-checkout-too-shallow-for-the-guard-that-reads-git](#a-ci-checkout-too-shallow-for-the-guard-that-reads-git) | P2 | deterministic | guarded | none |
 | [a-command-wrapper-that-returns-a-plausible-wrong-measurement](#a-command-wrapper-that-returns-a-plausible-wrong-measurement) | P2 | deterministic | guarded | none |
+| [a-status-screen-that-reads-half-its-source](#a-status-screen-that-reads-half-its-source) | P2 | deterministic | guarded | none |
+| [a-make-variable-named-after-an-environment-variable](#a-make-variable-named-after-an-environment-variable) | P2 | deterministic | guarded | none |
+| [a-load-guard-that-counts-names-instead-of-measuring-load](#a-load-guard-that-counts-names-instead-of-measuring-load) | P3 | deterministic | guarded | none |
+| [two-instruments-that-do-not-observe-the-same-path](#two-instruments-that-do-not-observe-the-same-path) | P2 | deterministic | guarded | none |
 | [a-guard-names-a-class-nobody-wrote](#a-guard-names-a-class-nobody-wrote) | P2 | deterministic | guarded | none |
 | [a-runbook-that-names-a-command-nobody-can-run](#a-runbook-that-names-a-command-nobody-can-run) | P3 | deterministic | guarded | none |
 | [a-shared-database-read-while-another-test-writes-it](#a-shared-database-read-while-another-test-writes-it) | P2 | deterministic | guarded | none |
@@ -7734,6 +7738,80 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-17
 - History:
   - 2026-09-17: la mémoire du dépôt rangeait ce défaut sous « un problème de `grep` » depuis des semaines. C'était le SYMPTÔME : `grep` est simplement la commande qu'on redirige le plus souvent. La cause était la redirection, et elle touchait toute commande qui réussit. Une classe nommée sur le symptôme envoie corriger le mauvais mécanisme — ici, exclure `grep` a semblé être le fix et n'a rien réparé.
+
+
+## a-status-screen-that-reads-half-its-source
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un écran d'état annonce un TOTAL faux, sans erreur et sans trou visible. Il dit « 0 » là où la source en porte une, parce qu'il ne lit qu'une partie de cette source. Personne ne vérifie un total : c'est ce qu'on lit à la place de vérifier.
+- signature: `.venv/bin/python -m pytest tests/test_the_status_screen_reads_all_its_source.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: 2026-09-17 sur `tools/dev/night_run.py`, `_INDEX_SECTIONS` réduit à la seule table actionnable → exit 1 ; 0 après remise.
+- root_cause: `tools/dev/night_run.py:_open_tasks` ne lisait que `## 📋 Tâches ouvertes` et ignorait `## 🙋 En attente de toi`. La roadmap porte DEUX tables d'index — une tâche qui attend un humain est ouverte, elle n'est simplement pas commençable par une séance. Mesuré : l'écran affichait **0** quand la roadmap portait **1**.
+- cause_evidence: measured (`make night-status` avant et après : 0 → 1, sur une roadmap inchangée)
+- long_term_fix: **le compte se compare à la SOURCE, pas à lui-même.** Le garde ne vérifie pas qu'une constante existe : il recalcule l'ensemble des identifiants depuis les deux sections du fichier et exige l'égalité. Un écran qui perdrait une troisième table rougirait le jour où elle apparaît.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_status_screen_reads_all_its_source.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — afficher un total dérivé d'un document à plusieurs sections ; couvre: `night-status` et ses deux tables, par `test_the_status_screen_counts_both_index_tables` et `test_the_count_matches_what_the_roadmap_carries` (le second compare à la source, c'est celui qui aurait attrapé le défaut) ; ne couvre pas: **les autres lecteurs de la même roadmap** — `/resume`, `/sprint` et `check_roadmap_update.py` la découpent chacun à leur façon, et rien ne compare leurs comptes entre eux. Deux lecteurs d'une même population qui divergent en silence est exactement ce que `a-population-that-counts-its-own-headers` a coûté.
+- rex_ref: tools/dev/night_run.py
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: **j'ai rapporté le total faux au propriétaire comme vrai**, dans la même séance, juste après avoir déplacé la tâche vers la seconde table. C'est l'écran qu'on lit EN PREMIER après chaque compaction : s'y tromper sur un total est la façon la plus directe de faire oublier une tâche.
+  - 2026-09-17: deux frères dans le même fichier, même forme — une ligne d'index sans priorité disparaissait sans un mot (`_INDEX_ROW` exigeait `(P\d)`), et `_age_minutes` rendait **-1** sur `ValueError`, ce qui désarmait les seuils de 90 ET 180 min en se faisant passer pour une unité neuve.
+
+## a-make-variable-named-after-an-environment-variable
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une cible `make` prend une option qu'on ne lui a pas donnée. La commande affichée montre l'argument, mais personne ne le lit — on a tapé la ligne, on connaît son contenu.
+- signature: `.venv/bin/python -m pytest tests/test_a_make_variable_does_not_collide_with_the_environment.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: 2026-09-17 sur `Makefile`, `$(LOGIN)` remis en `$(USER)` → exit 1 ; 0 après.
+- root_cause: `make` importe l'environnement dans ses variables. `Makefile` lisait `$(USER)` pour `--user`, et `USER` est une variable POSIX valant `timothe` : `make loadtest-concurrency URL=…` partait en mode AUTHENTIFIÉ sans qu'on le demande.
+- cause_evidence: measured (la sortie de `make` affichait `--user timothe` sans qu'aucun argument ne le porte)
+- long_term_fix: **un nom propre au projet, jamais un nom POSIX** — `LOGIN=` ici. Et le garde énumère les noms que le shell exporte presque toujours (`USER HOME SHELL PATH PWD LANG TERM LOGNAME…`) plutôt que de corriger la seule occurrence trouvée : la classe est le NOM, pas la cible.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_make_variable_does_not_collide_with_the_environment.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — nommer une variable de configuration comme une variable d'environnement ; couvre: toute référence `$(NOM)` du `Makefile` dont le NOM est dans la liste POSIX, par `test_no_make_variable_shadows_an_environment_variable` (les lignes de commentaire sont exclues, sinon écrire sur le défaut le déclencherait) ; ne couvre pas: **un script appelé par une recette qui lirait `os.environ["USER"]` de son côté** — le garde regarde les variables de `make`, pas ce que font les programmes qu'il lance. Ne couvre pas non plus `docker-compose.yml` ni les workflows GitHub, qui ont leur propre substitution d'environnement.
+- rex_ref: Makefile
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: la cible concernée mesure la production, et son mode authentifié **écrit dans `usage_events`** — la table même que `tools/scale_check.sh` interroge pour décider s'il faut des répliques. Une mesure qui se croit anonyme aurait pollué la donnée qu'elle sert à éclairer.
+
+## a-load-guard-that-counts-names-instead-of-measuring-load
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un garde de qualité de mesure refuse systématiquement, sur une machine objectivement inactive. On finit par lui passer `--force`, ce qui le retire pour de bon — y compris le jour où il avait raison.
+- signature: `.venv/bin/python -m pytest tests/test_a_load_guard_measures_load_not_names.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: 2026-09-17 sur `tools/loadtest_concurrency.py`, `_local_load()` neutralisé en `(0.0, 0.0)` → exit 1 ; 0 après remise. Et le DÉFAUT lui-même a été observé en refus réel le même jour.
+- root_cause: `_heavy_local_processes` comptait des processus par motif de NOM, dont la clé `"node "`. Un terminal d'IDE en fait tourner neuf (le serveur VS Code), donc `heavy > 2` était vrai en permanence dans le contexte d'usage prévu.
+- cause_evidence: measured (au moment du refus : charge **1,02 sur 8 cœurs — 13 %** — et **5,1 % de CPU** cumulés sur les douze processus « lourds »)
+- long_term_fix: **le verdict porte sur la grandeur, pas sur la présence.** `/proc/loadavg` normalisé par cœur, plus le %CPU cumulé des processus qui ont déjà faussé une mesure ici. La liste de noms survit — elle dit QUOI regarder — mais ne décide plus. Un garde dont le remède habituel est `--force` a déjà cessé de garder.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_load_guard_measures_load_not_names.py }
+- guard_scope: un-contrôle-qui-ne-peut-jamais-passer — refuser une mesure sur un critère qui est vrai en permanence dans son contexte d'usage ; couvre: le refus de `loadtest_concurrency`, par `test_the_refusal_is_based_on_a_measurement` et `test_the_name_list_is_no_longer_the_verdict` ; ne couvre pas: **les autres refus du même dépôt fondés sur une présence** — `check-env`, `check-db`, les préconditions `make` de la règle #10 — dont aucun n'a été audité sous cet angle. La question « ce critère peut-il être faux dans l'usage prévu ? » ne se pose aujourd'hui que sur cet outil.
+- rex_ref: tools/loadtest_concurrency.py
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: trouvé en essayant de lancer la re-mesure R114 — donc avant qu'une seule courbe ne sorte. Le garde protégeait d'une erreur réelle (un facteur 12,8 mesuré le 2026-09-15) et empêchait toute mesure depuis un éditeur. Les deux sont vrais : la cause à garder était la charge, pas la liste.
+
+## two-instruments-that-do-not-observe-the-same-path
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: deux instruments censés mesurer la même chose rendent des résultats incompatibles, et l'un des deux rend **zéro**. Le zéro se lit comme « rien ne s'est passé » alors qu'il signifie « je n'ai rien observé ». C'est la lecture, pas l'écart, qui coûte.
+- signature: `.venv/bin/python -m pytest tests/test_a_load_guard_measures_load_not_names.py::test_the_instrumented_path_is_behind_the_login_gate -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: 2026-09-17 sur `src/dashboard/app.py`, un `end_chrome()` inséré avant `require_login()` → exit 1 ; 0 après retrait.
+- root_cause: `tools/loadtest_concurrency.py` en mode anonyme mesure la page de connexion, rendue AVANT `require_login()` (`src/dashboard/app.py:742`) ; la couture de métriques s'exécute APRÈS (`end_chrome` 976, `view_timer` 979). Les deux instruments ne regardent pas le même chemin.
+- cause_evidence: measured (passe de 7 paliers jusqu'à 24 onglets : le client rend **×15,94** de sérialisation pendant que le serveur rend `nan` et **0** rerun)
+- long_term_fix: **un instrument déclare le périmètre qu'il n'observe pas**, à côté du chiffre qu'il rend. Ici : le mode anonyme ne peut pas être croisé avec le serveur, et `runbook §14` le dit avec la mesure. Le garde ancre la relation d'ORDRE entre la porte et la couture ; si elle s'inversait, il rougirait — et ce serait la bonne nouvelle à examiner, pas un faux positif.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_load_guard_measures_load_not_names.py::test_the_instrumented_path_is_behind_the_login_gate }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — lire un zéro comme une absence d'évènement plutôt que comme une absence d'observation ; couvre: le couple générateur de charge ↔ histogramme serveur, par l'ordre porte/couture dans `app.py` ; ne couvre pas: **les autres couples d'instruments du dépôt** — `daily_ops_metrics` contre Prometheus, `scale_check.sh` contre `usage_events`, les sondes de `prod-health` contre l'application — dont aucun ne déclare son périmètre d'observation. La classe est écrite sur le couple qui a saigné.
+- rex_ref: .claude/dev-docs/runbook-actions-utilisateur.md
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: **j'ai conclu à un défaut de production sur ce zéro**, écrit et poussé la conclusion, puis rétracté après avoir lu l'ordre des appels dans `app.py`. La différence entre les trois erreurs de mesure mortes avant publication et celle-ci est que j'ai lu le code APRÈS avoir conclu au lieu d'AVANT.
 
 
 ## a-population-that-counts-its-own-headers

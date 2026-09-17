@@ -56,3 +56,4 @@
 {"at": "2026-09-17T11:06:42+00:00", "head": "5b22896", "kind": "start", "task": "R127", "what": "finir les defauts residuels de night_run + capitaliser les defauts du jour"}
 {"at": "2026-09-17T11:06:58+00:00", "head": "5b22896", "kind": "note", "task": "R999", "what": "tache qui n existe pas"}
 {"at": "2026-09-17T11:07:18+00:00", "head": "5b22896", "kind": "done", "task": "R116", "what": "ne parque plus : elle n attend AUCUN geste humain, seulement du trafic dans daily_ops_metrics. Son declencheur vit dans 'Conditions d attente' de la roadmap, pas dans ce journal"}
+{"at": "2026-09-17T11:10:52+00:00", "head": "65ae525", "kind": "done", "task": "R127", "what": "3 defauts residuels fermes ; le croisement a trouve 2 divergences reelles"}
