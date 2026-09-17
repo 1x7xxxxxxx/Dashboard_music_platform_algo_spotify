@@ -616,6 +616,25 @@ un `.venv` de 2,2 Go est du travail entièrement métadonnées.
    💡 `graphify-out/` se régénère plutôt qu'il ne se copie (`make graph`), et c'est
    MIEUX : `graphify update` ajoute sans retirer, donc un graphe neuf part à zéro
    fichier fantôme — l'ancien en traînait 24 (177 nœuds).
+
+   ⚠️⚠️ **Et la liste ci-dessus était ENCORE incomplète** — constaté le 2026-09-17 en
+   fin de journée, en exécutant enfin la commande de re-dérivation. **24 entrées
+   ignorées** vivaient dans la copie source et pas dans la nouvelle, dont onze qui ne
+   sont pas du cache : `tests/fixtures/distrokid_bank_sample.csv`,
+   `machine_learning/{01_data,mlruns,mlflow.db,data_analysis_ml_perso.ipynb}` (121 Mo),
+   `backups/`, `.archive/`, `.claude/settings.local.json`, `.claude/curator/usage.json`,
+   le PDF d'architecture et `tools/dev/architecture_dossier/`.
+
+   **Le coût était invisible et mesurable** : `tests/test_distrokid_parser.py` porte un
+   `skipif` sur l'absence de sa fixture — ses **21 tests skippaient en silence**, et la
+   suite était verte sans eux. `mlruns/` est lu par `src/dashboard/views/ml_performance.py`.
+
+   **La leçon est que ce paragraphe ne doit PAS être une liste.** Elle a été fausse
+   deux fois en une journée, à cinq puis à huit entrées. Ce qui marche est la
+   commande — `git status --porcelain --ignored | grep '^!!'` dans la copie source,
+   le même dans la cible, et `comm -23` entre les deux. Les seules absences
+   acceptables au bout sont les caches : `__pycache__/`, `.cache`, `.coverage`,
+   `.hypothesis/`, `venv/`, `.audit-venv/`.
    ⚠️ Il a fallu **trois allers-retours** pour compléter la copie de mesure, dont quatre
    fichiers `assets/` à nom accentué. Vérifier par un `git status` des deux côtés.
 1bis. ⚠️ **Reposer l'identité git** — trouvé le 2026-09-17, au premier commit qui a

@@ -26,7 +26,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R123 | Deux nettoyages de `conftest.py` en `scope="session", autouse=True` s'exécutent **une fois par worker** et effacent des lignes à clé fixe pendant qu'un autre worker les lit — `xdist_group` ne peut RIEN pour eux | P2 | `pytest tests/ -n 4 --dist load` sur les fichiers cités ; aujourd'hui non reproduit, la course est lue dans le code |
-| R122 | Revue des classes d'erreur — **récidivistes : 0** ✅, **classes manquantes : 0** ✅ ; reste 316 portées et 241 causes, en queue opportuniste | P3 | les trous de `make error-health` ne font que baisser |
+| R122 | Revue des classes d'erreur — **récidivistes : 0** ✅, **classes manquantes : 0** ✅ ; reste 304 portées et 241 causes, en queue opportuniste | P3 | les trous de `make error-health` ne font que baisser |
 
 **R109 et R110 ont été livrées et déployées le 2026-09-16** — voir `archive.md`.
 Résultat mesuré : le mur du run `ci.yml` est passé d'une médiane de **427 s à 109 s**
@@ -228,16 +228,18 @@ le supposer.
 
   | trou | reste | ce qu'il faut écrire |
   |---|---|---|
-  | `scope_without_not_covered` | **316** | le `ne couvre pas:` — un geste voisin qui partage la cause |
+  | `scope_without_not_covered` | **304** | le `ne couvre pas:` — un geste voisin qui partage la cause |
   | `seen_red_unknown` | **331** | une date OBSERVÉE, ou `never` ; jamais une date inventée |
   | `cause_unknown` | **241** | `read` / `measured` / `inferred` — `inferred` est une réponse valable |
   | **portées sur un garde PARTAGÉ sans nommer leurs tests** | **8** ✅ (20 → 8 le 2026-09-17) | 50 fichiers de garde sur 286 sont partagés ; sans nom de test, la portée se lit comme « je possède tout le fichier » |
   | ~~récidivistes non traitées~~ | **0** / 47 ✅ | **toutes portées écrites le 2026-09-17** — c'était la priorité mesurée de la brique | la portée d'abord : ce sont elles qui ont échoué |
   | ~~classes jamais écrites~~ | **0** ✅ | **les cinq écrites le 2026-09-17**, chacune avec un `seen_red` DATÉ (voir plus bas) |
 
-  **L'ordre est celui du gain mesuré**, jamais alphabétique : (1) les 14 récidivistes restantes —
-  elles ont démontrablement échoué et `ne couvre pas:` est le champ qui les aurait
-  arrêtées ; (2) les `P1` + `guarded`, où une fausse impression de protection coûte le
+  **L'ordre est celui du gain mesuré**, jamais alphabétique : (1) ~~les récidivistes~~ —
+  **il n'en reste aucune**, les 47 ont été portées le 2026-09-17 ; ce point disait encore
+  « les 14 récidivistes restantes » le 2026-09-17, en contredisant la table juste
+  au-dessus qui affichait déjà `0 / 47 ✅`. Classe `a-prose-claim-that-cannot-be-verified` ;
+  (2) les `P1` + `guarded`, où une fausse impression de protection coûte le
   plus ; (3) les `cause_unknown` dont le `root_cause` ne nomme aucun fichier ; (4) le
   reste, **opportunistement** — quand une classe est touchée pour une autre raison, le
   hook le rappelle.
