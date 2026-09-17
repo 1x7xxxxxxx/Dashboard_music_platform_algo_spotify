@@ -21,7 +21,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -94,7 +94,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -169,7 +169,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-10",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -242,7 +242,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -667,7 +667,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-10",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -841,7 +841,7 @@
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-09-11",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -866,7 +866,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2169,7 +2169,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2219,7 +2219,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2244,7 +2244,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2319,7 +2319,7 @@
       "siblings_swept": false,
       "status": "resolved",
       "introduced_date": "2026-09-16",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2419,7 +2419,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3118,7 +3118,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-10",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3594,7 +3594,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3769,7 +3769,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3947,7 +3947,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-06-13",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4201,7 +4201,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4226,7 +4226,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-23",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4251,7 +4251,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-28",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4352,7 +4352,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-30",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 2,
       "renamed_from": null
     },
@@ -4601,7 +4601,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-28",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4730,7 +4730,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-26",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4780,7 +4780,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-06-13",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4832,7 +4832,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-03",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -4985,7 +4985,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-30",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5214,7 +5214,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-11",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5364,7 +5364,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5437,7 +5437,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-28",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5489,7 +5489,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-30",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -5741,7 +5741,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5993,7 +5993,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-04",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -6194,7 +6194,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -6244,7 +6244,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-30",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -6646,7 +6646,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -6696,7 +6696,7 @@
       "siblings_swept": false,
       "status": "reported",
       "introduced_date": "2026-08-21",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -6746,7 +6746,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-23",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7049,7 +7049,7 @@
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-06-20",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -7226,7 +7226,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-11",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7276,7 +7276,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-04",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7501,7 +7501,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7526,7 +7526,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-30",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7826,7 +7826,7 @@
       "siblings_swept": false,
       "status": "reported",
       "introduced_date": "2026-06-20",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8101,7 +8101,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8252,7 +8252,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-28",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8528,7 +8528,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-28",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8628,7 +8628,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8678,7 +8678,7 @@
       "siblings_swept": true,
       "status": "fixed",
       "introduced_date": "2026-08-21",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8754,7 +8754,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8879,7 +8879,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-30",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8929,7 +8929,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-23",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9029,7 +9029,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-23",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9079,7 +9079,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-30",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9330,7 +9330,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9405,7 +9405,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9456,7 +9456,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9531,7 +9531,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-23",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9607,7 +9607,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -9808,7 +9808,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9833,7 +9833,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-28",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9934,7 +9934,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-11",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9972,7 +9972,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 277,
+      "catalogue_revisions": 278,
       "head_date": "2026-09-17"
     },
     "holes": {
