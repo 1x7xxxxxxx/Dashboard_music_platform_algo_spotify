@@ -120,3 +120,29 @@ def test_a_broken_counter_never_breaks_logging(log_metrics):
     handler = log_metrics._CountingHandler(_Exploding())
     record = logging.LogRecord("src.utils.x", logging.ERROR, __file__, 1, "m", (), None)
     handler.emit(record)          # ne doit pas lever
+
+
+def test_the_counter_publishes_the_floor_it_cannot_see_below(log_metrics):
+    """Ce que l'instrument ne peut PAS voir doit etre visible a cote de ce qu'il voit.
+
+    Mesure du 2026-09-17 en production : le logger racine du conteneur est a WARNING,
+    donc ce compteur ne verra jamais un INFO. Un panneau montrant « 0 ligne INFO » se
+    lirait alors « aucune », quand la verite est « hors de portee ». Le plancher publie
+    tranche, exactement comme `_read_ok` tranche pour la jauge des defauts.
+
+    Mutation record — 2026-09-17 : la publication du plancher retiree -> exit 1 ; 0 apres.
+    """
+    reg = CollectorRegistry()
+    assert log_metrics.install_log_counter(registry=reg) is True
+    try:
+        floor = reg.get_sample_value("streamlytics_log_level_floor")
+        assert floor is not None, (
+            "Le compteur n'expose pas le seuil sous lequel il est aveugle. Un « 0 » "
+            "hors de portee est indistinguable d'un « 0 » mesure — c'est la meme "
+            "confusion que le « No data » que ce lot existe pour lever."
+        )
+        assert floor == float(logging.getLogger().getEffectiveLevel())
+    finally:
+        logging.getLogger().handlers = [
+            h for h in logging.getLogger().handlers
+            if not isinstance(h, log_metrics._CountingHandler)]

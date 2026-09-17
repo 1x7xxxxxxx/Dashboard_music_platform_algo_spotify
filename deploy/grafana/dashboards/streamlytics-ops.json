@@ -7,7 +7,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "refresh": "30s",
   "time": {
     "from": "now-6h",
@@ -504,7 +504,7 @@
       "id": 15,
       "type": "timeseries",
       "title": "Journaux — lignes par niveau",
-      "description": "Un COMPTEUR de lignes, pas un stockage de logs — c'est ce qui le rend compatible avec ADR-026, qui rejette Loki. Le label `logger` est tronque au paquet (`src.collectors`), jamais au fichier : sinon le nombre de series suivrait la taille du code au lieu de l'activite.",
+      "description": "Un COMPTEUR de lignes, pas un stockage de logs — c'est ce qui le rend compatible avec ADR-026, qui rejette Loki. Le label `logger` est tronque au paquet (`src.collectors`), jamais au fichier : sinon le nombre de series suivrait la taille du code au lieu de l'activite.\n\n⚠️ La courbe `plancher` dit ce que ce compteur NE PEUT PAS voir. Mesure du 2026-09-17 : le logger racine du conteneur est a WARNING (30), donc aucune ligne INFO ni DEBUG n'est comptee. Un « 0 INFO » se lit donc « hors de portee », pas « aucune ». Baisser le niveau changerait ce qui s'imprime, et ce n'est pas au compteur d'en decider.",
       "datasource": {
         "type": "prometheus",
         "uid": "PROM"
@@ -543,6 +543,15 @@
           "expr": "sum by (logger) (rate(streamlytics_log_records_total{level=\"ERROR\"}[5m]))",
           "legendFormat": "ERROR · {{logger}}",
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "streamlytics_log_level_floor",
+          "legendFormat": "plancher (30 = WARNING)",
+          "refId": "C"
         }
       ]
     }
