@@ -80,6 +80,40 @@ def show_empty_state(df, message: str, *, level: str = "info") -> bool:
     return False
 
 
+def say_why_it_is_empty(last_measure, window, *, empty_window: str,
+                        no_history: str) -> None:
+    """Rendre CELUI des deux silences qui est vrai, jamais l'autre.
+
+    Une figure vide a deux causes qui demandent des gestes OPPOSÉS :
+
+      * la fenêtre ne contient rien, alors que la série existe ailleurs — l'artiste
+        doit déposer un export récent, ou élargir la fenêtre ;
+      * il n'y a pas assez de points, où qu'on regarde — l'artiste doit attendre.
+
+    Les confondre envoie chercher le mauvais geste, et rien sur la figure ne détrompe.
+    Vu au navigateur le 2026-09-12 sur l'accueil : « pas encore assez d'historique » à
+    un locataire qui a QUATRE ANS de mesures, parce que le CSV Spotify n'avait pas été
+    déposé depuis 92 jours.
+
+    Cette fonction existe parce que le correctif du 2026-09-12 n'a été appliqué qu'à
+    `home.py`. Un balayage du 2026-09-17 a trouvé la même phrase, sous une requête
+    aussi fenêtrée, dans `apple_music`, `instagram` et `soundcloud` — trois vues que
+    personne n'avait relues parce que la classe portait le nom de l'accueil. Une règle
+    extraite dont un seul appelant est recâblé est une règle qu'on réécrira.
+
+    `last_measure` est la dernière mesure de la série SANS la fenêtre (`None` si la
+    série est vide partout). `window` est la `PeriodWindow` affichée.
+    """
+    hors = (last_measure is not None
+            and not getattr(window, "is_all_history", False)
+            and window is not None
+            and last_measure < window.start)
+    if hors:
+        st.warning(empty_window)
+    else:
+        st.info(no_history)
+
+
 def secondary_analyses(label: str | None = None):
     """Collapsed container for charts that refine a decision but never make one.
 

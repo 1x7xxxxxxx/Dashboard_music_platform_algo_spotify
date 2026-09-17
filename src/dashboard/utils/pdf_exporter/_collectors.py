@@ -787,10 +787,29 @@ def _collect_apple_daily(db, artist_id, single_song, from_date, to_date):
         return []
     try:
         rows = db.fetch_query(
-            """SELECT date, song_name,
-                      plays - LAG(plays) OVER (PARTITION BY song_name ORDER BY date),
-                      shazam_count - LAG(shazam_count) OVER (PARTITION BY song_name ORDER BY date)
-               FROM apple_songs_history WHERE artist_id = %s AND date BETWEEN %s AND %s
+            # LA FENÊTRE S'APPLIQUE APRÈS LE `LAG`, JAMAIS DANS LA MÊME PORTÉE.
+            #
+            # Écrite dans le même `WHERE`, la fenêtre bornait la PARTITION : le premier
+            # jour de la fenêtre n'avait pas de veille, son `LAG` valait NULL, et la
+            # boucle plus bas l'écartait (`if ds is None: continue`). Le rapport
+            # perdait donc un jour par titre, en silence.
+            #
+            # Mesuré sur la base de développement le 2026-09-17, artiste 1, fenêtre
+            # 2025-12-05 → 2025-12-11 : le PDF totalisait **0** écoute Apple là où
+            # **9** ont été gagnées — 100 % de la fenêtre. Le ratio est le fait ; les
+            # nombres sont petits parce que cette base ne porte que 22 relevés Apple.
+            #
+            # `views/apple_music.py` avait déjà la bonne forme (CTE sur tout
+            # l'historique, fenêtre au SELECT extérieur). Le moteur PDF ne l'avait pas :
+            # une règle appliquée à un seul de ses deux lecteurs, la classe que ce dépôt
+            # a déjà payée avec `canonical_song_sql`.
+            """WITH diff AS (
+                 SELECT date, song_name,
+                        plays - LAG(plays) OVER (PARTITION BY song_name ORDER BY date) AS ds,
+                        shazam_count - LAG(shazam_count) OVER (PARTITION BY song_name ORDER BY date) AS dsh
+                 FROM apple_songs_history WHERE artist_id = %s)
+               SELECT date, song_name, ds, dsh FROM diff
+               WHERE date BETWEEN %s AND %s
                ORDER BY song_name, date""",
             (artist_id, from_date, to_date))
     except Exception as exc:  # noqa: BLE001

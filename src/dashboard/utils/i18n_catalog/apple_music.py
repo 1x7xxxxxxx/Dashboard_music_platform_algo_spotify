@@ -17,6 +17,9 @@ EN = {
     "apple_music.daily_chart_title": "Streams & Shazams per day · {label}",
     "apple_music.streams_per_day": "Streams / day",
     "apple_music.shazams_per_day": "Shazams / day",
+    "apple_music.nothing_in_window": (
+        "No Apple Music readings in this period. The latest is from **{last}** — "
+        "upload a recent export, or widen the window to see the history again."),
     "apple_music.not_enough_history": "📉 Not enough history to compute growth (needs at least 2 days of data).",
     "apple_music.select_prompt": "👈 Select a song — or import Apple Music CSVs several days in a row.",
     "apple_music.error": "❌ Error: {err}",

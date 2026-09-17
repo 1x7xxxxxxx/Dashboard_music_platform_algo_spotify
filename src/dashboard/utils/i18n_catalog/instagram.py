@@ -22,6 +22,9 @@ EN = {
     "instagram.followers_evolution": "Follower Evolution ({label})",
     "instagram.followers_axis": "Number of followers",
     "instagram.base100_header": "📈 Relative evolution (base 100)",
+    "instagram.nothing_in_window": (
+        "No Instagram readings in this period. The latest is from **{last}** — "
+        "widen the window to see the history again."),
     "instagram.not_enough_history": "Not enough history for an evolution (≥2 collections).",
     "instagram.followers": "Followers",
     "instagram.follows": "Following",

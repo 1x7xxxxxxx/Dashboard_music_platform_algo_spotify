@@ -115,6 +115,50 @@ def _window_openings(fn: ast.AST) -> list[tuple[int, set[str]]]:
     return opens
 
 
+# La lecture DÉLIBÉRÉMENT hors fenêtre — ajoutée le 2026-09-17.
+#
+# `say_why_it_is_empty` (`utils/ui.py`) distingue « rien dans cette fenêtre » de
+# « pas assez d'historique ». Pour cela il lui FAUT la dernière mesure prise SANS la
+# fenêtre : une requête bornée ne pourrait jamais répondre à la question. Ces lectures
+# sont donc l'exact contraire d'un oubli, et ce garde les prenait pour des figures non
+# bornées parce qu'une figure est dessinée quelques lignes plus bas.
+#
+# L'exemption est STRUCTURELLE, pas un nom de fichier : on remonte de la requête à son
+# nom de variable, et on vérifie que ce nom (ou un nom qui en dérive) arrive dans les
+# arguments du délégué. Un commentaire ne peut pas la satisfaire.
+_DELEGATE = "say_why_it_is_empty"
+
+
+def _feeds_the_empty_state_delegate(fn: ast.AST, call: ast.Call) -> bool:
+    """La requête sert-elle à répondre « pourquoi est-ce vide ? » ?"""
+    cible = None
+    for node in ast.walk(fn):
+        if (isinstance(node, ast.Assign) and node.value is call
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)):
+            cible = node.targets[0].id
+    if cible is None:
+        return False
+    # Les noms qui DÉRIVENT de la cible, sur un cran — `_last = _tout.iloc[0][…]`.
+    derives = {cible}
+    for node in ast.walk(fn):
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and any(isinstance(n, ast.Name) and n.id in derives
+                        for n in ast.walk(node.value))):
+            derives.add(node.targets[0].id)
+    for node in ast.walk(fn):
+        if not (isinstance(node, ast.Call)
+                and (getattr(node.func, "id", "") or getattr(node.func, "attr", ""))
+                == _DELEGATE):
+            continue
+        noms = {n.id for a in list(node.args) + [k.value for k in node.keywords]
+                for n in ast.walk(a) if isinstance(n, ast.Name)}
+        if noms & derives:
+            return True
+    return False
+
+
 @lru_cache(maxsize=1)
 def _sites() -> list[tuple[bool, bool, str, int, str]]:
     """(bornée, dessine une figure, fichier, ligne, fonction) — sous une fenêtre."""
@@ -162,6 +206,8 @@ def _sites() -> list[tuple[bool, bool, str, int, str]]:
                     # garde existe pour empêcher : le libellé annonce une période que
                     # les données ne respectent pas.
                     bounded = _compares_with(after, avail)
+                if not bounded and _feeds_the_empty_state_delegate(fn, call):
+                    bounded = True
                 found.append((bounded, bool(_DRAWS.search(after)),
                               str(path.relative_to(VIEWS)), call.lineno, fn.name))
     return found

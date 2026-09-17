@@ -4,7 +4,7 @@ import plotly.express as px
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import smart_period_filter
-from src.dashboard.utils.ui import secondary_analyses, show_empty_state
+from src.dashboard.utils.ui import say_why_it_is_empty, secondary_analyses, show_empty_state
 from src.dashboard.utils.tz import to_local_naive
 
 def show():
@@ -89,7 +89,26 @@ def show():
                 with secondary_analyses(t("instagram.base100_header",
                                           "📈 Évolution relative (base 100)")):
                     if len(df_hist) < 2:
-                        st.info(t("instagram.not_enough_history", "Pas assez d'historique pour une évolution (≥2 collectes)."))
+                        # La série SANS fenêtre — une seconde lecture, seulement dans
+                        # la branche vide : le cas où il n'y a rien à dessiner est
+                        # aussi celui où on a le temps de le dire juste.
+                        _tout = db.fetch_df(
+                            "SELECT MAX(collected_at) AS last FROM instagram_daily_stats "
+                            "WHERE artist_id = %s", (artist_id,))
+                        _last = (None if _tout.empty else _tout.iloc[0]["last"])
+                        say_why_it_is_empty(
+                            None if _last is None else to_local_naive(
+                                pd.Series([_last])).iloc[0].date(),
+                            window,
+                            empty_window=t(
+                                "instagram.nothing_in_window",
+                                "Aucun relevé Instagram sur cette période. Le dernier "
+                                "remonte au **{last}** — élargis la fenêtre pour "
+                                "revoir l'historique."
+                            ).format(last="" if _last is None else _last.strftime("%d/%m/%Y")),
+                            no_history=t(
+                                "instagram.not_enough_history",
+                                "Pas assez d'historique pour une évolution (≥2 collectes)."))
                     else:
                         _metrics = {
                             'followers_count': t("instagram.followers", "Abonnés"),

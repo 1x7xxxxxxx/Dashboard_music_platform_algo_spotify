@@ -440,7 +440,12 @@ _CEILINGS = {
     # le texte, et retirer l'import le laissait satisfait), puis le cliquet
     # anti-garde-textuel a refusé DEUX autres comparaisons de chaîne que j'y avais
     # mises. Trois corrections pour un seul garde, toutes mesurées.
-    "siblings_never_swept": 127,  # 130 → 127 le 2026-09-17 : famille
+    "siblings_never_swept": 124,  # 125 → 124 le 2026-09-18 :
+    # `partial-collection-invisible` — 21/21 detecteurs branches, et les 4 plateformes
+    # hors du detecteur de creux enfin NOMMEES (R134).  # 126 → 125 le 2026-09-17 :
+    # `a-first-bucket-...` — le PDF bornait la PARTITION de son `LAG`, 100 % de la
+    # fenetre perdue sur la mesure.  # 127 → 126 le 2026-09-17 :
+    # `two-silences-one-message` — 3 sites vivants, dont 2 trouves par le garde.  # 130 → 127 le 2026-09-17 : famille
     # `le-locataire` — exemptions (2 classes, 0 site) et lectures tronquees
     # (1 site vivant corrige : SoundCloud plafonnait a 200 pages sans le dire).  # 131 → 130 le 2026-09-17 : la famille des
     # CLIQUETS balayee d'une seule mesure (16 fichiers a plafond gele), 1 site vivant

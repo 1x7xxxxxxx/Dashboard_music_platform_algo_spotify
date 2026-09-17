@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import EntitySpec, entity_period_filter
+from src.dashboard.utils.ui import say_why_it_is_empty
 
 def show():
     """Affiche la vue Apple Music."""
@@ -212,8 +213,37 @@ def show():
                     st.plotly_chart(fig, width="stretch")
 
                 else:
-                    st.info(t("apple_music.not_enough_history",
-                              "📉 Pas assez d'historique pour calculer la croissance (besoin de min. 2 jours de données)."))
+                    # DEUX SILENCES, DEUX GESTES OPPOSÉS — même correction que
+                    # `home.py:546`, et le même défaut trouvé en balayant sa classe.
+                    #
+                    # `daily_calc_query` porte `{frag}`, le filtre de FENÊTRE. Un
+                    # artiste avec trois ans d'imports Apple qui regarde « 7 jours »
+                    # sans dépôt récent tombait donc sur « pas assez d'historique » :
+                    # un message qui accuse la jeunesse du compte là où la vérité est
+                    # « rien dans cette fenêtre ». Le premier fait ATTENDRE, le second
+                    # demande un IMPORT — envoyer l'artiste chercher le mauvais geste
+                    # est le coût réel de la confusion.
+                    #
+                    # On relit donc la même série SANS la fenêtre. Deux lectures au
+                    # lieu d'une, et seulement dans la branche vide : le cas où il n'y
+                    # a rien à dessiner est aussi celui où on a le temps de le dire
+                    # juste.
+                    _hors_fenetre = db.fetch_df(
+                        "SELECT MAX(date) AS last FROM apple_songs_history "
+                        f"WHERE artist_id = %s AND song_name IN ({placeholders})",
+                        (artist_id, *selected_songs))
+                    say_why_it_is_empty(
+                        None if _hors_fenetre.empty else _hors_fenetre.iloc[0]["last"],
+                        window,
+                        empty_window=t(
+                            "apple_music.nothing_in_window",
+                            "Aucune mesure Apple Music sur cette période. La dernière "
+                            "remonte au **{last}** — dépose un export récent, ou "
+                            "élargis la fenêtre pour revoir l'historique."),
+                        no_history=t(
+                            "apple_music.not_enough_history",
+                            "📉 Pas assez d'historique pour calculer la croissance "
+                            "(besoin de min. 2 jours de données)."))
             else:
                 st.info(t("apple_music.select_prompt",
                           "👈 Sélectionnez une chanson — ou importez des CSV Apple Music plusieurs jours de suite."))

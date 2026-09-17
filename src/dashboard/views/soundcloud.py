@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from src.dashboard.utils import view_session
-from src.dashboard.utils.ui import secondary_analyses
+from src.dashboard.utils.ui import say_why_it_is_empty, secondary_analyses
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import EntitySpec, entity_period_filter
 from src.dashboard.utils.tz import to_local_datetime, to_local_naive
@@ -251,9 +251,24 @@ def show():
                                 "OAuth user-token) — points antérieurs masqués."
                             ))
                         else:
-                            st.info(t("soundcloud.not_enough_history",
-                                      "Pas assez d'historique pour une évolution "
-                                      "(≥2 collectes par métrique)."))
+                            # `df_history` est la série SANS fenêtre (la requête ne
+                            # porte que `artist_id`) ; `df_filtered` est la même,
+                            # bornée en pandas. La distinction est donc gratuite ici.
+                            say_why_it_is_empty(
+                                df_history['collected_at'].max()
+                                if not df_history.empty else None,
+                                window,
+                                empty_window=t(
+                                    "soundcloud.nothing_in_window",
+                                    "Aucun relevé SoundCloud sur cette période. Le "
+                                    "dernier remonte au **{last}** — élargis la "
+                                    "fenêtre pour revoir l'historique."
+                                ).format(last=df_history['collected_at'].max().strftime("%d/%m/%Y")
+                                         if not df_history.empty else ""),
+                                no_history=t(
+                                    "soundcloud.not_enough_history",
+                                    "Pas assez d'historique pour une évolution "
+                                    "(≥2 collectes par métrique)."))
                 else:
                     st.info(t("soundcloud.no_data_selection",
                               "Aucune donnée pour cette sélection (Vérifiez les dates ou les titres)."))

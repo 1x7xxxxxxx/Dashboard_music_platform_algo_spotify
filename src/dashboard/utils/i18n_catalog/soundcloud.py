@@ -38,6 +38,9 @@ EN = {
         "Likes: reliable from 2026-05-15 (OAuth user-token "
         "collection) — earlier points hidden."
     ),
+    "soundcloud.nothing_in_window": (
+        "No SoundCloud readings in this period. The latest is from **{last}** — "
+        "widen the window to see the history again."),
     "soundcloud.not_enough_history": "Not enough history for an evolution (≥2 collections per metric).",
     "soundcloud.no_data_selection": "No data for this selection (check the dates or tracks).",
     "soundcloud.empty_history": "History empty for now.",
