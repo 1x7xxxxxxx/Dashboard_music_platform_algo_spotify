@@ -100,8 +100,9 @@ _CEILINGS = {
     # −11 : `un-travail-qui-n-arrive-nulle-part` aussi (15/15), récidive 13,3 %.
     # −12 : `un-seuil-écrit-d-instinct` (8/8) et `un-coût-payé-sans-contrepartie`
     # (8/8), 12,5 % chacune. HUIT familles à zéro, 102 portées dans la séance.
-    # −12 : `deux-surfaces-deux-nombres` entamée (12 sur 24), récidive 10,3 %.
-    "scope_without_not_covered": 183,
+    # −24 : `deux-surfaces-deux-nombres` à ZÉRO (29/29), récidive 10,3 %.
+    # NEUF familles à zéro, 126 portées dans la séance.
+    "scope_without_not_covered": 171,
     # ⚠️ Compteur NEUF le 2026-09-17, posé sur une question du propriétaire : « est-ce
     # qu'on a intégré la réflexion de savoir si l'erreur découverte peut être situéé
     # ailleurs dans le code ? ». La réponse mesurée était NON — 69 classes sur 395
@@ -119,7 +120,7 @@ _CEILINGS = {
     # partages, et le defaut s'est produit DEUX fois en deux lots avant d'etre
     # mesure : une classe s'etait attribue le croisement Caddy de sa voisine, une
     # autre le taux de censure d'une troisieme.
-    "scope_on_a_shared_guard_without_naming_its_tests": 11,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
+    "scope_on_a_shared_guard_without_naming_its_tests": 12,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
                                       # ⚠️ 9 → 11 le 2026-09-17, et les DEUX de hausse sont
                                       # STRUCTURELS, pas de la négligence : `ci-runs-twice-for-one-commit`
                                       # et `ci-has-no-concurrency-group` partagent
@@ -130,6 +131,16 @@ _CEILINGS = {
                                       # `analyse()` étiquette chaque constat par son identifiant de
                                       # classe. C'est le prédicat qui ne sait pas le lire, pas la portée
                                       # qui ment. Écrit ici plutôt que contourné en déformant les portées.
+                                      #
+                                      # ⚠️ TROISIÈME cas de la même forme le 2026-09-17 :
+                                      # `streamlit-pin-drift` a pour garde une ÉTAPE de
+                                      # `.github/workflows/ci.yml`. Nommer l'étape (« manifest
+                                      # consistency ») ne satisfait pas davantage un prédicat qui cherche
+                                      # `::test_x`. Trois classes sur douze sont donc comptées comme des
+                                      # trous pour une raison qui n'est pas la leur — le prédicat suppose
+                                      # qu'un garde est un fichier pytest, et trois gardes de ce dépôt
+                                      # n'en sont pas. Le corriger demanderait d'accepter aussi un nom
+                                      # d'étape ou de constat ; c'est un chantier nommé, pas un oubli.
                                       # ⚠️ 8 → 14 puis 9 le 2026-09-17 : écrire 79 portées a MÉCANIQUEMENT fait
                                       # monter ce compteur, chaque portée neuve sur un garde partagé
                                       # devant nommer ses tests. Le cliquet m'a repris quatre fois

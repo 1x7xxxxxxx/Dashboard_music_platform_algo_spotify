@@ -841,7 +841,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: one manifest is canonical (`pyproject.toml`) and the others are DERIVED from it; until they are, `check_manifest_consistency.py` blocking in CI is the fix.
 - autofix: safe
 - guard: { type: ci-step, ref: .github/workflows/ci.yml }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — trois manifestes énoncent la même version épinglée et rien ne les compare, donc l'installation dépend de celui qu'on lit ; couvre: l'étape `manifest consistency` de `.github/workflows/ci.yml` — `python3 tools/dev/check_manifest_consistency.py`, la seule de ce fichier partagé qui appartienne à cette classe — qui confronte `pyproject.toml`, `requirements.txt` et `uv.lock` — trois surfaces pour une seule vérité, exactement la forme que la famille décrit ; ne couvre pas: (1) **le geste voisin le plus proche — ce qui est RÉELLEMENT installé** : le contrôle compare trois fichiers entre eux, jamais un fichier à l'environnement ; une image construite avec un cache ancien peut porter une autre version sans qu'aucun manifeste ne bouge, ce que `a-replica-that-builds-its-own-image` a montré coûteux ; (2) les dépendances TRANSITIVES, dont seul le lock parle ; (3) les versions épinglées hors de ces trois fichiers — Dockerfile, actions GitHub, outils système ; (4) la JUSTESSE de la version choisie.
 - rex_ref: tools/dev/check_manifest_consistency.py
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -1259,7 +1259,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `make sync-check` in the deploy path plus the `schema_migrations` ledger (migration 071), so prod can only reach a state the repo can rebuild.
 - autofix: none
 - guard: { type: make-precondition, ref: tools/dev/schema_drift_check.py via `make schema-check` }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — un correctif appliqué directement à la base de production n'a AUCUN fichier à relire, et rien ne comparait les deux côtés ; couvre: `make schema-check`, qui confronte le schéma de PRODUCTION au canonique (`init_db.sql` + `migrations/*.sql`) ; ne couvre pas: (1) **le geste voisin le plus proche, et la classe sœur le dit — la base LOCALE** : `local-db-drifts-from-canonical` existe précisément parce que ce contrôle ne regarde que la prod, et son propre champ `signature` déclare que la comparaison locale est le trou ; (2) les DONNÉES, seulement la forme ; (3) ce qui n'est pas dans le schéma — droits, extensions, paramètres de session, `max_connections` supposé valoir 100 sans vérification ; (4) un contrôle qui n'est lancé par AUCUN automate : il faut le taper, avec `PROD_SSH`.
 - rex_ref: tools/dev/schema_drift_check.py
 - first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite23)
 - History:
@@ -1846,7 +1846,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: — (reported, not guarded). The full diff was: 0 missing columns, 0 extra columns, 26 type differences of which 24 are `text` vs `character varying` (equivalent in Postgres — a `VARCHAR` with no length IS `text`) and 2 are widenings that do not bite. Only `track_id` had behaviour. A `make schema-check LOCAL=1` would close it; the measurement above is what would justify writing it.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/dev-docs/runbook-actions-utilisateur.md }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — la base LOCALE dérive du canonique sans que rien ne la compare, donc un test vert chez le développeur peut être faux en production ; couvre: ⚠️ **rien d'automatique, et le champ `signature` de cette classe le dit lui-même** — `make schema-check` ne compare que la prod ; ce qui existe ici est une consigne écrite dans `runbook-actions-utilisateur.md`, c'est-à-dire un geste humain ; ne couvre pas: (1) **le geste voisin le plus proche, et c'est la classe entière — la comparaison locale elle-même**, qui n'est outillée par personne ; les ~160 tests adossés à la base locale s'exécutent contre un schéma que rien ne confronte au canonique ; (2) les machines des autres développeurs ; (3) la base de CI, provisionnée depuis le canonique et donc juste par construction — ce qui masque le trou, puisque la CI ne peut pas le voir ; (4) les données locales, qui peuvent différer sans que le schéma bouge.
 - rex_ref: .claude/scripts/check_env.py
 - first_seen: 2026-08-21
 - History:
@@ -4645,7 +4645,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: une seule zone de dépôt, dans l'onglet, et `_PAGE_FOR_PLATFORM` vidé — plus aucune plateforme ne se configure hors de la page Credentials. Le garde compte les `st.file_uploader` **par AST** dans tout `views/` hors admin et exige exactement un ; il vérifie en plus que chaque plateforme `where=CSV` pointe sur l'onglet qui le contient. Compter les widgets et non les fichiers est le point : c'est ce que l'utilisateur voit.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_there_is_one_place_to_drop_a_file.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — un même geste est offert par DEUX widgets, donc l'artiste dépose son fichier au mauvais endroit ; couvre: par **cinq tests nommés de ce fichier partagé** — `test_exactly_one_uploader_widget_exists_outside_admin` (la classe elle-même), `test_every_csv_platform_points_at_the_tab_that_holds_the_uploader`, `test_the_one_uploader_sits_in_a_module_the_router_never_renders_as_a_page`, `test_the_retired_route_still_lands_on_the_tab_that_holds_the_uploader` et `test_the_uploader_is_still_callable_from_the_tab` ; ne couvre pas: (1) **le geste voisin le plus proche — les autres gestes offerts deux fois** : déclencher une collecte, changer de plan, exporter un PDF sont accessibles depuis plusieurs surfaces, et rien ne compte leurs points d'entrée ; (2) l'espace ADMIN, explicitement hors périmètre ; (3) les chemins d'URL directs ; (4) ce que l'artiste TROUVE — un seul widget bien caché n'est pas mieux que deux.
 - rex_ref: src/dashboard/views/upload_csv.py
 - first_seen: 2026-09-06
 - History:
@@ -5274,7 +5274,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: le garde LIT la palette dans le générateur de l'illustration au lieu de la recopier — deux copies divergent au premier changement — et vérifie la forme sur la structure (`stackgroup`, `fillcolor`), pas sur le texte. Le mode sombre ne déplace que le pas refusé par la bande de clarté (l'orange), les deux autres restant identiques : décaler les trois « pour l'harmonie » ferait de la figure sombre une autre figure.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — l'illustration committée et la figure vivante divergent, donc la page d'accueil promet un rendu que l'application ne produit plus ; couvre: par **cinq tests nommés de ce fichier partagé** — `test_the_live_palette_is_the_illustration_palette`, `test_a_removed_title_is_empty_not_none`, `test_the_dark_palette_stays_in_the_same_hue_family`, `test_the_form_is_a_stack_not_overlapping_lines` et `test_a_missing_day_cuts_ONLY_the_platform_that_is_missing` ; ne couvre pas: (1) **le geste voisin le plus proche — les AUTRES illustrations committées** : captures des guides, images du PDF, aperçus de la page publique décrivent aussi un rendu et ne sont comparées à rien ; seule leur EXISTENCE est vérifiée ailleurs ; (2) les propriétés non épinglées (polices, marges, ordre de légende) ; (3) le rendu SOMBRE au-delà de la famille de teintes ; (4) la régénération elle-même, qui reste un geste manuel.
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-08
 - History:
@@ -6229,7 +6229,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_a_total_is_computed_where_a_guard_can_see_it.py -q`
 - seen_red: 2026-09-12 (via la trace de mutation de `tests/test_a_total_is_computed_where_a_guard_can_see_it.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_a_total_is_computed_where_a_guard_can_see_it.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — un total calculé dans pandas après un `SELECT` brut n'apparaît dans aucun `SUM(`, donc il échappe à TOUS les gardes SQL du dépôt ; couvre: par `test_no_total_is_summed_in_pandas_over_a_raw_fact_table` et `test_the_scan_reaches_real_reducers`, les deux tests nommés de ce fichier partagé — le second prouvant que le balayage atteint de vrais réducteurs et n'est pas vert sur un ensemble vide ; ne couvre pas: (1) **le geste voisin le plus proche — les autres réductions hors SQL** : `.mean()`, `.max()`, une boucle Python, une compréhension de liste échappent exactement pareil, et seul le total est cherché ; (2) les agrégats calculés en JavaScript côté figure ; (3) les tables non reconnues comme faits ; (4) la JUSTESSE du total, seulement l'endroit où il est calculé.
 - rex_ref: tests/test_a_total_is_computed_where_a_guard_can_see_it.py
 - first_seen: 2026-09-12
 - History:
@@ -6620,7 +6620,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_a_scale_matches_the_contract_it_judges.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_scale_matches_the_contract_it_judges.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — un seul barème juge deux contrats opérationnels différents, donc une source quotidienne et une source manuelle reçoivent la même couleur pour des situations opposées ; couvre: cinq propriétés — la couleur correspond au contrat (paramétré sur jours × espèce), les deux barèmes sont RÉELLEMENT différents (sans quoi la séparation serait décorative), le défaut est le PLUS STRICT (se tromper du côté de l'alerte), chaque source déclare le contrat que le barème lit, et la vue le transmet ; ne couvre pas: (1) **le geste voisin le plus proche — un TROISIÈME contrat** : deux barèmes sont épinglés, et une source à cadence hebdomadaire ou événementielle retomberait dans l'un des deux ; (2) les VALEURS des seuils (24 h / 72 h), sans dérivation écrite ; (3) les autres surfaces qui colorent une fraîcheur — mail, PDF, API — qui peuvent appliquer leur propre barème ; (4) la déclaration du contrat elle-même, supposée juste.
 - rex_ref: src/dashboard/utils/kpi_helpers.py
 - first_seen: 2026-09-12
 - History:
@@ -6851,7 +6851,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_bounded_cumulative_starts_at_zero.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — deux séries d'une même pile sont exprimées dans deux RÉFÉRENCES différentes, donc la pile additionne des choses incomparables ; couvre: quatre propriétés — chaque courbe finit où son propre total le dit, la plateforme dominante de la fenêtre l'est réellement, la vue non bornée garde le niveau « depuis toujours », et **aucune longueur de fenêtre ne change la règle** (paramétré sur les jours) — ce dernier point empêchant un correctif qui ne marcherait qu'à une fenêtre ; ne couvre pas: (1) **le geste voisin le plus proche — les autres empilements du dépôt** : toute figure qui superpose deux séries d'origines différentes peut mélanger deux références, et seule celle-ci est vérifiée ; (2) le PDF ; (3) les comparaisons entre deux figures, chacune cohérente mais dans des références distinctes ; (4) la JUSTESSE des totaux qui servent de référence.
 - first_seen: 2026-09-13
 - History:
   - 2026-09-13: signalé comme « bug sur la vue cumulé 30 jours je n'ai pas spotify alors que c'est ma première source de revenue ». Signature vue ≠ 0 sur le défaut (`bounded=False`) et 0 après. Deux mutations gardées, une par sens : jamais rebaser (Spotify reste écrasée) et rebaser toujours (la courbe dirait 304 quand la tuile dit 118 336). Parenté avec `a-metric-computed-outside-the-metrics-layer` : deux surfaces répondent à la même question, sauf qu'ici les deux nombres sont JUSTES et c'est leur mise en commun qui ment.
@@ -6868,7 +6868,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_first_reading_date_is_one_date.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — un texte est dérivé d'une variable dont la NATURE change avec le mode d'affichage, donc le même fait reçoit deux réponses ; couvre: quatre propriétés — la date vient des RELEVÉS et non des différences (la cause exacte), sans niveaux la série alignée répond quand même, une plateforme mesurée dès le premier pas ne dit rien (le cas où il n'y a pas de première date à annoncer), et la figure transmet bien ses niveaux ; ne couvre pas: (1) **le geste voisin le plus proche — les autres textes dérivés d'une variable qui change de nature** : légendes, notes de bas de figure, infobulles et titres sont composés à partir des mêmes séries et peuvent basculer pareil ; (2) les modes d'affichage ajoutés plus tard ; (3) le PDF ; (4) la JUSTESSE de la date annoncée, seulement son unicité entre modes.
 - first_seen: 2026-09-13
 - History:
   - 2026-09-13: trouvée en VÉRIFIANT une autre correction, pas en la cherchant — la note qui explique la falaise du cumulé donnait deux dates. Signature vue ≠ 0 sur le défaut (`levels` ignoré) et 0 après. Ce n'est pas un détail d'affichage : cette phrase est celle qui explique pourquoi la courbe part d'une falaise, et une mauvaise date envoie chercher la panne au mauvais endroit.
@@ -7034,7 +7034,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: **seules des vues or entrent dans l'allowlist.** Elles portent leurs prédicats en elles, donc la question ne se pose plus. Plus `entity_column`/`entity_value` pour que l'étendue soit celle de ce qui est tracé. Ajouter le filtre dans la f-string n'aurait rien gardé : voir History.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_a_period_span_is_the_span_of_what_is_drawn.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — une étendue de période est lue sur une table qui porte un filtre OBLIGATOIRE, donc elle inclut des lignes que la figure n'affichera jamais ; couvre: cinq propriétés, paramétrées — aucune table à filtre obligatoire n'est bornable, chaque table retirée NOMME son remplacement, passer une table retirée lève AVEC le correctif (un refus qui n'indique pas la sortie se contourne), l'étendue peut se restreindre à l'entité dessinée, et une colonne d'entité est validée contre une allowlist (règle transverse 8) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres lectures de ces mêmes tables** : l'étendue est protégée, mais tout autre `MIN`/`MAX`/`COUNT` sur `s4a_song_timeline` doit porter le filtre et relève de `mandatory-filter-with-no-guard` ; (2) les tables à filtre obligatoire NON déclarées ; (3) le SENS de l'étendue quand la figure applique en plus un filtre d'entité ; (4) les étendues calculées hors de `period_filter`.
 - signature: `python3 -m pytest tests/test_a_period_span_is_the_span_of_what_is_drawn.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - rex_ref: —
@@ -7360,7 +7360,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -c "import pathlib,sys; bad=[f'{p}:{i}' for p in pathlib.Path('src').rglob('*.py') if p.name!='throttle.py' for i,l in enumerate(p.read_text(encoding='utf-8').splitlines(),1) if 'throttle_record(' in l and not l.strip().startswith('#')]; print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: script, ref: la signature ci-dessus ; comportement couvert par tests/test_the_login_budget_holds_across_instances.py }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — l'atomicité est construite dans le MAGASIN et contournée au SITE D'APPEL, qui lit puis écrit en deux temps ; couvre: une signature shell qui balaie `src/` à la recherche de la consommation en deux étapes, plus le comportement du magasin lui-même vérifié ailleurs ; ne couvre pas: (1) **le geste voisin le plus proche — les autres atomicités contournées au site d'appel** : un compteur, un stock, un verrou peuvent être atomiques dans leur magasin et consommés en deux temps par l'appelant, et c'est la même cause que `check-then-insert-loses-the-race` vue depuis l'autre bout ; (2) les appels hors `src/` ; (3) la concurrence entre INSTANCES, où même un site correct dépend de l'atomicité du magasin ; (4) le comportement sous charge réelle, qu'aucune exécution ne reproduit ici.
 - rex_ref: src/dashboard/utils/throttle.py
 - first_seen: 2026-09-16
 - History:
@@ -7577,7 +7577,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `grep -q "sed -n '/\^{/,\$\$p' /tmp/_caddy_live" Makefile`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_the_metrics_server_survives_a_rerun.py::test_the_scrape_targets_agree_with_the_caddy_upstreams }
-- guard_scope: deux-surfaces-deux-nombres — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: deux-surfaces-deux-nombres — une comparaison prépare ses deux côtés DIFFÉREMMENT, donc elle rapporte sa propre asymétrie et ne peut jamais passer ; couvre: par **cinq tests nommés de ce fichier partagé** — `test_starting_twice_binds_only_once`, `test_a_port_already_taken_is_survived` (survécu, et non fatal), `test_both_phases_are_emitted`, `test_the_app_measures_the_chrome_before_the_view` et `test_the_api_exposes_metrics_and_exempts_it_from_the_limiter` ; ne couvre pas: (1) **le geste voisin le plus proche — les autres comparaisons asymétriques du dépôt** : tout contrôle qui construit ses deux côtés par des chemins différents (un document régénéré contre sa version sur disque, un schéma canonique contre une base) peut rapporter son propre écart de préparation ; (2) ce que l'exportateur MESURE, seulement qu'il démarre ; (3) la cible Prometheus, qui peut être `up` en ne mesurant rien — c'est `a-scrape-target-that-is-up-measuring-nothing` ; (4) l'exportateur d'un SECOND processus, que ce garde ne connaît pas.
 - rex_ref: Makefile
 - first_seen: 2026-09-16
 - History:
