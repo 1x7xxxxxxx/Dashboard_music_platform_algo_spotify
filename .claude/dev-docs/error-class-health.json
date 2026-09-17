@@ -2631,7 +2631,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
@@ -2769,7 +2769,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-08",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2819,7 +2819,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-10",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2894,7 +2894,7 @@
       "siblings_swept": false,
       "status": "reported",
       "introduced_date": "2026-09-16",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2956,8 +2956,8 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
-      "guard_scope_has_not_covered": false,
-      "guard_scope_names_a_test": false,
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3255,8 +3255,8 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
-      "guard_scope_has_not_covered": false,
-      "guard_scope_names_a_test": false,
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3680,7 +3680,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
@@ -3718,7 +3718,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4466,7 +4466,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "error-class-signature",
       "has_signature": true,
@@ -4489,7 +4489,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "error-class-signature",
       "has_signature": true,
@@ -4729,7 +4729,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-03",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5664,7 +5664,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5702,7 +5702,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
@@ -6519,7 +6519,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7108,8 +7108,8 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
-      "guard_scope_has_not_covered": false,
-      "guard_scope_names_a_test": false,
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "posttooluse-hook",
       "has_signature": true,
       "history_dates_declared": [
@@ -7334,7 +7334,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
@@ -7397,7 +7397,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7522,7 +7522,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7947,7 +7947,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8109,7 +8109,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
@@ -8447,7 +8447,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-28",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8873,7 +8873,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-23",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9010,7 +9010,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
@@ -9085,7 +9085,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": true,
       "guard_type": "ci-step",
       "has_signature": true,
@@ -9626,7 +9626,7 @@
       "siblings_swept": false,
       "status": "guarded",
       "introduced_date": "2026-08-30",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9891,7 +9891,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 235,
+      "catalogue_revisions": 236,
       "head_date": "2026-09-17"
     },
     "holes": {
@@ -9899,9 +9899,9 @@
       "cause_unknown": 241,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
-      "scope_on_a_shared_guard_without_naming_its_tests": 9,
+      "scope_on_a_shared_guard_without_naming_its_tests": 11,
       "scope_unknown": 0,
-      "scope_without_not_covered": 207,
+      "scope_without_not_covered": 195,
       "seen_red_never": 0,
       "seen_red_unknown": 331,
       "siblings_never_swept": 386
@@ -9969,20 +9969,20 @@
       "by_scope": {
         "ne-couvre-pas renseigné": {
           "events": 60,
-          "class_days": 3879,
-          "per_class_month": 0.4702,
+          "class_days": 4207,
+          "per_class_month": 0.4336,
           "ci95": [
-            0.3588,
-            0.6053
+            0.3308,
+            0.5581
           ]
         },
         "non renseigné": {
           "events": 0,
-          "class_days": 4118,
+          "class_days": 3790,
           "per_class_month": 0.0,
           "ci95": [
             0.0,
-            0.0271
+            0.0294
           ]
         }
       },

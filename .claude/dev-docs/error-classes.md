@@ -1113,7 +1113,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: `pd.to_numeric(..., errors='coerce')` at the query boundary; the render-smoke suite against the live DB is what makes the NULL show up before a user does.
 - autofix: none
 - guard: { type: posttooluse-hook, ref: tests/test_views_render_smoke.py (AppTest renders every view against the live DB → catches it when a NULL is present) }
-- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-seuil-écrit-d-instinct — une colonne numérique portant UN seul `NULL` se charge en `object`, et `.round()` lève au lieu de convertir ; le seuil implicite est « combien de NULL faut-il pour que le type bascule », et la réponse est un ; couvre: par `test_view_renders_without_exception` et `test_view_renders_for_a_brand_new_artist`, les deux tests nommés de ce fichier partagé, le rendu RÉEL de toutes les vues contre une base vivante — c'est ce qui fait apparaître le `NULL`, aucun test unitaire ne l'ayant jamais produit — plus une signature shell qui refuse un `.round()` non précédé de `to_numeric` dans les vues ; ne couvre pas: (1) **le geste voisin le plus proche — les autres opérations qui lèvent sur `object`** : `.sum()`, `.mean()`, `.astype(int)`, une comparaison numérique partagent exactement la cause et la signature ne cherche que `.round(` ; (2) les `NULL` qui n'existent pas ENCORE dans la base locale — le garde ne voit que ce que les données du moment produisent ; (3) le code hors `src/dashboard/views/` ; (4) la conversion faite trop tard, après un premier calcul déjà faux.
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-29 (ref: DEVLOG#2026-05-29)
 - History:
@@ -1464,7 +1464,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_claude_config_floor.py }
-- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-seuil-écrit-d-instinct — un seuil est écrit TROIS fois dans trois fichiers et rien ne les compare, donc deux surfaces sur trois peuvent dériver ; couvre: un test qui extrait le nombre des TROIS surfaces (la règle de `CLAUDE.md`, la description de l'agent, le hook) et échoue s'il ne sont pas égaux — c'est la seule forme qui empêche la dérive, puisque chacun pris isolément est cohérent ; ne couvre pas: (1) **le geste voisin le plus proche — les autres valeurs écrites en plusieurs endroits** : le seuil de 5 tests rouges est traité, mais les seuils de 3 fichiers (règle 5), de 2 trouvailles (boucle d'ingénierie), de 5 modules (règle 18) sont eux aussi répétés sur plusieurs surfaces et personne ne les compare ; (2) la VALEUR elle-même, dont aucune dérivation n'est écrite ; (3) une QUATRIÈME surface qui citerait le seuil — un `dev-doc`, un commentaire — hors des trois connues ; (4) la cohérence entre le seuil déclaré et ce que le hook DÉCLENCHE réellement.
 - rex_ref: .claude/agents/build-error-resolver.md
 - first_seen: 2026-08-03 (ref: roadmap-two-files-2026-08-03)
 - History:
@@ -1497,7 +1497,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - cause_evidence: read (.github/workflows/ci.yml, rétro-portage mécanique 2026-09-16)
 - long_term_fix: `push` restreint à `[main, dev]`, `pull_request` conservé, `workflow_dispatch` ajouté pour relancer une branche sans PR à la main. Conséquence assumée : une branche SANS PR ouverte ne déclenche plus la CI sur push — ouvrir la PR (même en brouillon) rétablit la porte.
 - guard:     `.claude/scripts/check_ci_waste.py` (règle 1), appelé en CI à l'étape des gardes déterministes.
-- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-coût-payé-sans-contrepartie — deux déclencheurs se produisent sur le même commit, donc chaque poussée paie deux runs complets ; couvre: une lecture des fichiers de workflow par `.claude/scripts/check_ci_waste.py`, qui repère la combinaison `push: branches: ["**"]` + `pull_request:` ; ne couvre pas: (1) **le geste voisin le plus proche — les autres doublons de calcul** : un job qui refait ce qu'un autre a déjà fait, une matrice trop large, un `setup` non mis en cache coûtent autant et ne sont vus par personne ; (2) le COÛT réel — le script lit une configuration, il ne mesure aucune minute de runner ; (3) les workflows d'autres dépôts partageant le même compte ; (4) les déclenchements manuels et planifiés, hors de la combinaison cherchée.
 - history:   2026-08-17 — signature vue **rouge** sur `HEAD` (worktree détaché) et **verte** après restriction du déclencheur.
 
 ## ci-has-no-concurrency-group
@@ -1509,7 +1509,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `concurrency: {group: ci-${{ github.ref }}, cancel-in-progress: true}`. Le garde ne l'exige que des workflows d'ITÉRATION — ceux qui portent un `pull_request` ou un `push` à joker. Un workflow de release déclenché par `push: [main]` n'est pas concerné : l'annuler à mi-chemin est une perte, pas une économie, et un garde qui prescrit une régression n'est pas un garde.
 - guard:     `.claude/scripts/check_ci_waste.py` (règle 2).
-- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-coût-payé-sans-contrepartie — aucun groupe de concurrence sur un workflow d'itération, donc trois poussées rapprochées mettent trois runs complets en file au lieu d'annuler les deux premiers ; couvre: la présence d'un bloc `concurrency:` sur les workflows d'itération, par la même lecture statique que sa classe sœur ; ne couvre pas: (1) **le geste voisin le plus proche — la JUSTESSE du groupe** : un `concurrency` dont la clé est constante annulerait des runs de branches différentes, et un dont la clé est trop fine n'annulerait rien ; le garde exige la présence, jamais la clé ; (2) `cancel-in-progress`, sans lequel le groupe met en file au lieu d'annuler ; (3) les workflows non reconnus comme « d'itération » ; (4) la concurrence entre workflows DIFFÉRENTS déclenchés par le même commit.
 - history:   2026-08-17 — vue rouge sur `HEAD`, verte après ajout du groupe. Le premier jet du garde signalait aussi `cd-release.yml` ; la règle a été resserrée et la cellule qui l'aurait attrapé est au `--self-test`.
 
 ## connection-test-proves-app-not-tenant
@@ -1583,7 +1583,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: a chart is PRIMARY only if, alone, it can change what the artist does next; everything that refines goes inside `secondary_analyses()` (`src/dashboard/utils/ui.py`), collapsed — relocation, never deletion. `tests/test_chart_budget.py` holds a per-view first-paint budget that ratchets down: lowering is free, raising requires a deliberate edit.
 - autofix: none
 - guard: { type: test, ref: tests/test_chart_budget.py }
-- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-coût-payé-sans-contrepartie — les figures s'accumulent de façon ADDITIVE, chacune défendable à l'ajout, et aucune surface ne déclare de budget ; couvre: chaque fichier budgété, paramétré, devant ouvrir sur au plus son budget de figures — plus trois gardes du garde : le compteur voit vraiment des figures et chaque fichier budgété existe, le dépliant protège RÉELLEMENT les figures qu'il cache, et Instagram a gardé ses figures (elles ont seulement été déplacées) — ce dernier empêchant de « corriger » en supprimant ; ne couvre pas: (1) **le geste voisin le plus proche — les vues NON budgétées** : la liste des fichiers avec budget est tenue à la main, et une vue neuve n'y entre pas toute seule ; (2) le COÛT réel d'une figure, toutes n'étant pas égales ; (3) le PDF, qui en dessine davantage sans budget ; (4) ce que l'artiste regarde vraiment.
 - rex_ref: src/dashboard/utils/ui.py
 - first_seen: 2026-08-12 (beta session Grinch — "réduire le nombre de graphs qui permettent de prendre décision")
 - History:
@@ -2414,7 +2414,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the account-level reset moves to AFTER the last factor; a wrong code increments `failed_login_attempts` like a wrong password; and the challenge's budget is keyed by client IP in module state (`src/dashboard/utils/throttle.py`), which a new session does not reset. The per-IP budget also covers the login form, where a per-account lockout never fires at all — password spraying tries one password across many accounts.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_second_factor_is_not_brute_forceable.py }
-- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-seuil-écrit-d-instinct — le premier facteur REMBOURSE le budget anti-force-brute du second, donc le code TOTP devient énumérable ; couvre: cinq propriétés contre une base vivante — le mot de passe ne rembourse pas le budget quand le second facteur est dû, un code faux compte contre le COMPTE et pas seulement contre l'onglet, assez de codes faux verrouillent, le budget survit à une session NEUVE (sinon rouvrir un onglet le remettrait à zéro), et c'est une fenêtre GLISSANTE et non un bannissement définitif ; ne couvre pas: (1) **le geste voisin le plus proche — les autres budgets remboursés par une étape antérieure** : inscription, réinitialisation de mot de passe, renvoi de code de vérification ont chacun leur seau, et rien ne vérifie qu'une étape réussie ne recrédite pas la suivante ; (2) la VALEUR du budget (10/900 s), dont la dérivation existe pour le TOTP mais pas pour `LOGIN_MAX = 30` ; (3) la force-brute DISTRIBUÉE sur plusieurs IP, le seau étant par IP ; (4) le secret TOTP lui-même.
 - rex_ref: src/dashboard/utils/throttle.py
 - first_seen: 2026-08-22
 - History:
@@ -3074,7 +3074,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: un garde compte les graphiques rendus au PREMIER ÉCRAN — hors `secondary_analyses` et hors `st.expander` — et plafonne à 5 par fichier (Few : un tableau de bord tient dans un coup d'œil). Rien n'interdit d'en avoir beaucoup ; il faut seulement qu'ils ne soient pas tous dépliés d'emblée. Le repli vit DANS la fonction qui dessine, pas chez son appelant : un second appelant la rendrait sinon dépliée — et c'est ce que la première version faisait, jusqu'à ce que le garde refuse.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_view_opens_on_one_decision.py }
-- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-coût-payé-sans-contrepartie — plusieurs figures se disputent UNE décision, donc aucune ne la tranche ; couvre: chaque vue balayée et paramétrée, aucune ne devant s'ouvrir sur un mur de figures, avec deux gardes du garde — le balayage n'est pas vide, et l'outil de repli (`ui.secondary_analyses()`) existe encore, sans quoi le remède disparaîtrait sans que la règle bouge ; ne couvre pas: (1) **le geste voisin le plus proche — les autres surfaces qui diluent une décision** : un tableau de 20 colonnes, une liste de 15 métriques, un PDF de 12 pages posent le même problème sans compter aucune figure ; (2) la PERTINENCE des figures gardées à l'ouverture ; (3) ce qui est replié — le garde compte ce qui s'ouvre, pas ce que le dépliant contient ; (4) le nombre de décisions qu'une vue devrait porter, fixé à une par convention et non mesuré.
 - rex_ref: src/dashboard/utils/ui.py
 - first_seen: 2026-08-23
 - History:
@@ -4233,7 +4233,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: trois corrections, par ordre d'effet **mesuré** : (1) `MIN_FILE_PROCESS_INTERVAL` 30 → 300 s, qui rend **CPU au repos ~2 %, avec une pointe à ~100 % pendant la relecture — toutes les 5 minutes au lieu de toutes les 30 secondes**, soit un rapport cyclique divisé par 10. RAM scheduler 878 → 622 Mo ; (2) cadence des watchers `*/15` → horaire, 1 536 → 384 exécutions/jour ; (3) `tools/airflow_db_clean.sh` hebdomadaire, rétention 30 j, plus un `VACUUM FULL` initial — **246 → 91 Mo** (le `DELETE` seul ne rend rien à l'OS). Le garde épingle la cadence et l'intervalle de parsing, et vérifie que le script de purge est non interactif : `airflow db clean` demande confirmation par défaut, et sous cron une invite bloque indéfiniment sans que rien ne le signale.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_scheduler_is_not_the_biggest_cost.py }
-- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-coût-payé-sans-contrepartie — l'orchestrateur coûte plus que ce qu'il orchestre : 246 Mo de métadonnées Airflow contre 43 Mo de base applicative, mesuré ; couvre: quatre propriétés qui attaquent les causes distinctes — aucun observateur ne scrute plus d'une fois par heure, l'intervalle d'analyse des DAG n'est pas la valeur par défaut, la purge des métadonnées EXISTE et est non interactive (une purge qui demande confirmation ne tourne jamais dans un cron), et elle est atteignable depuis le dépôt ; ne couvre pas: (1) **le geste voisin le plus proche — que la purge TOURNE** : le garde vérifie qu'elle existe et qu'elle est lançable, jamais qu'un automate la lance ; c'est exactement `a-retention-declared-in-a-comment-and-applied-by-nobody`, sur une autre base ; (2) la TAILLE réelle, qu'aucun contrôle ne remesure — les 246 Mo sont un constat daté ; (3) les autres coûts de l'orchestrateur (RAM, CPU) ; (4) le rapport lui-même, qui redeviendrait mauvais si la base applicative rétrécissait.
 - rex_ref: tools/airflow_db_clean.sh
 - first_seen: 2026-09-04
 - History:
@@ -5466,7 +5466,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: la fenêtre découpe les LIGNES avant l'agrégation (`_in_window` dans `_aggregate`, appliqué à tous les pas), et le seau de bord ne porte que ses jours utiles — ce qui rend aussi le plancher juste, puisqu'il comptait des jours hors fenêtre. Règle générale : quand un grain est plus grossier que la fenêtre demandée, on découpe le SEAU, jamais on n'élargit la fenêtre ; et si le grain natif interdit la découpe (`v_artist_monthly_revenue` n'a pas de jour), on élargit **et on rend la période effective à l'appelant** pour qu'il la dise.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_figure_never_draws_more_than_it_measured.py }
-- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-seuil-écrit-d-instinct — une fenêtre est ÉLARGIE jusqu'aux bords de son seau au lieu que le seau soit ROGNÉ à la fenêtre, donc la figure dessine plus que ce qui a été mesuré ; couvre: par **cinq tests nommés de ce fichier partagé** — `test_no_period_and_no_step_draws_more_than_the_window_holds`, `test_a_full_window_draws_a_dense_platform_exactly`, `test_a_platform_that_stops_being_collected_holds_its_plateau`, `test_the_note_counts_the_days_after_the_last_measurement` et `test_the_aggregation_honours_the_window_at_every_step` — le dernier étant le cœur : l'agrégation doit honorer la fenêtre à CHAQUE pas, et non au seul pas où le défaut a été vu ; ne couvre pas: (1) **le geste voisin le plus proche — les autres agrégations par seau** : tuiles, PDF et exports regroupent aussi par semaine ou par mois, et seule la figure est vérifiée ; (2) le seau COURANT, partiel par nature ; (3) les fenêtres construites à l'exécution depuis un filtre ; (4) le SENS de la fenêtre — quelle date elle borne, qui est `a-window-applied-to-the-wrong-date`.
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-10
 - History:
@@ -6354,7 +6354,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_the_visual_rules_only_tighten.py::test_the_declared_axis_still_exists_and_still_has_its_axis tests/test_uniqueness_names_its_tenant.py::test_the_exemption_still_names_a_table_that_exists -q`
 - seen_red: 2026-09-12 (via la trace de mutation de `tests/test_the_visual_rules_only_tighten.py`, consignée par l'auteur du garde)
 - guard: { type: pytest, ref: tests/test_the_visual_rules_only_tighten.py::test_the_declared_axis_still_exists_and_still_has_its_axis }
-- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-seuil-écrit-d-instinct — une exemption est écrite avec une raison, la raison disparaît, et la ligne reste ; couvre: deux formes symétriques — aucun nouvel axe secondaire, aucune nouvelle clé de widget non scopée — plus trois gardes du garde : les plafonds ne sont pas LÂCHES (un plafond au-dessus de la mesure est du budget), l'axe déclaré existe encore ET a encore son axe (une exemption qui survit à son objet), et le prédicat voit les DEUX formes ; ne couvre pas: (1) **le geste voisin le plus proche — toutes les autres listes d'exemption du dépôt** : `ruff.toml`, `_TEXTUAL_GUARDS`, `_KNOWN_ORPHANS`, les exemptions de `.pre-commit-config.yaml` et celles des cliquets portent la même forme, et seules les deux visuelles sont vérifiées ; (2) une exemption dont l'objet existe mais dont la RAISON est devenue fausse ; (3) les exemptions implicites, par absence de règle ; (4) la DATE de péremption, qu'aucune exemption ne porte — c'est `a-prudence-rule-with-no-expiry-becomes-a-freeze`.
 - rex_ref: tests/test_the_visual_rules_only_tighten.py
 - first_seen: 2026-09-12
 - History:
@@ -6526,7 +6526,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_a_shared_path_does_not_drag_a_view_behind_it.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_shared_path_does_not_drag_a_view_behind_it.py }
-- guard_scope: un-coût-payé-sans-contrepartie — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-coût-payé-sans-contrepartie — un module PARTAGÉ importe une vue pour trois libellés, et traîne donc toute la vue et ses dépendances derrière lui ; couvre: le balayage — aucun module partagé n'importe une vue — plus deux gardes du garde : le prédicat voit la forme PARESSEUSE (un import dans une fonction, qui échappe à une lecture naïve), et la liste d'exemption nomme des fichiers qui EXISTENT ; ne couvre pas: (1) **le geste voisin le plus proche — les autres imports lourds sur un chemin chaud** : `pandas` (393 ms), `streamlit` (301 ms), `plotly` sont importés au niveau module en plusieurs endroits, et seul le cas partagé→vue est balayé ; (2) le COÛT réel d'un import, mesuré nulle part par ce garde ; (3) les imports circulaires, autre conséquence de la même cause ; (4) la DONNÉE partagée — extraire les libellés dans un module commun reste à faire, le garde interdit seulement l'import.
 - rex_ref: tests/test_a_shared_path_does_not_drag_a_view_behind_it.py
 - first_seen: 2026-09-12
 - History:
@@ -6659,7 +6659,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -m pytest tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py -q`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py }
-- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-seuil-écrit-d-instinct — un seuil est écrit en regardant UN pas de temps, où il est vrai, et devient faux à un autre pas ; couvre: par **six tests nommés de ce fichier partagé** — `test_no_trace_carries_a_zero_where_nothing_was_measured`, `test_the_hover_carrier_covers_every_unmeasured_day`, `test_the_gap_is_covered_by_a_hatched_band`, `test_a_platform_collected_late_says_so_without_erasing_the_others`, `test_the_window_never_starts_before_the_first_measurement` et `test_the_facets_do_not_hatch_a_platform_own_prehistory` — tous **paramétrés par mode ET par pas**, ce qui est exactement le remède : un seuil ne peut plus être vérifié à un seul grain ; ne couvre pas: (1) **le geste voisin le plus proche — les autres seuils du dépôt, dont aucun n'est vérifié à plusieurs grains** : disque 85 %, RAM 500 Mo, fraîcheur 36 h, sessions 20 sont écrits à un seul grain et jamais rejoués à un autre ; (2) les grains hors de ceux paramétrés (l'heure, la minute) ; (3) la VALEUR du seuil, seulement sa stabilité entre grains ; (4) les seuils hors figure.
 - rex_ref: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py
 - first_seen: 2026-09-12
 - History:

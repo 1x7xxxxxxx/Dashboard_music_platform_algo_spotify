@@ -98,8 +98,9 @@ _CEILINGS = {
     # à 22,2 %). La colonne est désormais rendue par `make error-families`.
     # −18 : `un-état-qui-déborde-de-sa-portée` aussi (24/24), récidive 16,7 %.
     # −11 : `un-travail-qui-n-arrive-nulle-part` aussi (15/15), récidive 13,3 %.
-    # SIX familles à zéro, 90 portées dans la séance.
-    "scope_without_not_covered": 207,
+    # −12 : `un-seuil-écrit-d-instinct` (8/8) et `un-coût-payé-sans-contrepartie`
+    # (8/8), 12,5 % chacune. HUIT familles à zéro, 102 portées dans la séance.
+    "scope_without_not_covered": 195,
     # ⚠️ Compteur NEUF le 2026-09-17, posé sur une question du propriétaire : « est-ce
     # qu'on a intégré la réflexion de savoir si l'erreur découverte peut être situéé
     # ailleurs dans le code ? ». La réponse mesurée était NON — 69 classes sur 395
@@ -117,8 +118,18 @@ _CEILINGS = {
     # partages, et le defaut s'est produit DEUX fois en deux lots avant d'etre
     # mesure : une classe s'etait attribue le croisement Caddy de sa voisine, une
     # autre le taux de censure d'une troisieme.
-    "scope_on_a_shared_guard_without_naming_its_tests": 9,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
-                                      # ⚠️ 8 → 14 puis 11 le 2026-09-17 : écrire 79 portées a MÉCANIQUEMENT fait
+    "scope_on_a_shared_guard_without_naming_its_tests": 11,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
+                                      # ⚠️ 9 → 11 le 2026-09-17, et les DEUX de hausse sont
+                                      # STRUCTURELS, pas de la négligence : `ci-runs-twice-for-one-commit`
+                                      # et `ci-has-no-concurrency-group` partagent
+                                      # `.claude/scripts/check_ci_waste.py`, un SCRIPT. Le prédicat
+                                      # `_names_a_test` cherche `::test_x` ou un `` `test_x` `` — il est
+                                      # de forme pytest et ne peut pas être satisfait par un garde qui
+                                      # est un script. Les deux classes SONT pourtant distinguées :
+                                      # `analyse()` étiquette chaque constat par son identifiant de
+                                      # classe. C'est le prédicat qui ne sait pas le lire, pas la portée
+                                      # qui ment. Écrit ici plutôt que contourné en déformant les portées.
+                                      # ⚠️ 8 → 14 puis 9 le 2026-09-17 : écrire 79 portées a MÉCANIQUEMENT fait
                                       # monter ce compteur, chaque portée neuve sur un garde partagé
                                       # devant nommer ses tests. Le cliquet m'a repris quatre fois
                                       # dans la séance. `est la PREMIERE classe dont les trois preuves sont
