@@ -43,6 +43,25 @@ services:
       file: docker-compose.yml
       service: dashboard
     container_name: streamlytics_dashboard2
+    # ⚠️ `image:` EXPLICITE, et c'est la ligne qui compte le plus de ce fichier.
+    #
+    # `extends` reprend aussi `build:`. Sans cette ligne, compose fabrique donc une
+    # image a un nom DERIVE du service — `streamlytics-dashboard2` — distincte de celle
+    # du primaire. Et `up -d` ne reconstruit pas une image qui existe deja : il sert
+    # celle qui traine.
+    #
+    # Mesure du 2026-09-17, sur la prod : le primaire tournait sur une image du
+    # 2026-09-16 a 18:51 (`python3 -m src.dashboard.serve`), la replique sur une du
+    # MEME JOUR a 12:02 (`streamlit run src/dashboard/app.py`) — anterieure au commit
+    # e70a83f qui a introduit `serve.py`. Sept heures et un commit d'ecart, aucun
+    # avertissement. Derriere le repartiteur, la moitie des visiteurs aurait recu un
+    # binaire d'un autre commit, sans exportateur de metriques : la cible Prometheus
+    # sortait `connection refused` — ce qui est le SYMPTOME chanceux. Une image
+    # perimee qui ecoute quand meme serait restee invisible.
+    #
+    # Nommer l'image du primaire rend la derive STRUCTURELLEMENT impossible : une
+    # replique ne peut pas servir un autre artefact que ce qu'elle replique.
+    image: streamlytics-dashboard
     profiles: ['replica']
     # `!override` et non une simple liste : `extends` FUSIONNE les listes. Sans ce tag,
     # la replique heritait `127.0.0.1:8501:8501` du service d'origine EN PLUS du 8511,
