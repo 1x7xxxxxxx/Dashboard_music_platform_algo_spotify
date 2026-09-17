@@ -440,7 +440,16 @@ _CEILINGS = {
     # le texte, et retirer l'import le laissait satisfait), puis le cliquet
     # anti-garde-textuel a refusé DEUX autres comparaisons de chaîne que j'y avais
     # mises. Trois corrections pour un seul garde, toutes mesurées.
-    "siblings_never_swept": 124,  # 125 → 124 le 2026-09-18 :
+    "siblings_never_swept": 113,  # 116 → 113 le 2026-09-18 : famille
+    # `une-erreur-avalee-devient-une-absence` — dont un balayage dont la LIMITE est
+    # ecrite (13 des 18 candidats non etablis, plutot qu'un zero annonce).  # 118 → 116 le 2026-09-18 : 0 page injoignable
+    # (37 entrees de menu toutes routees) et le chien de garde sonde depuis GitHub
+    # Actions, hors du VPS qu'il surveille.  # 120 → 118 le 2026-09-18 : famille des CUMULS —
+    # les 8 `SUM()` sur un compteur sont corrects, et les DEUX moteurs de rendu
+    # traitent l'asymetrie avant/apres la derniere mesure.  # 121 → 120 le 2026-09-18 : la famille
+    # `le-locataire` est ENTIEREMENT balayee (10/10).  # 124 → 121 le 2026-09-18 : fin de la famille
+    # `le-locataire` — 2 sites Spotify vivants, et le garde de la classe etait aveugle
+    # a TOUS les `except` du parc (`Try.handlers` n'est pas une liste de `stmt`).  # 125 → 124 le 2026-09-18 :
     # `partial-collection-invisible` — 21/21 detecteurs branches, et les 4 plateformes
     # hors du detecteur de creux enfin NOMMEES (R134).  # 126 → 125 le 2026-09-17 :
     # `a-first-bucket-...` — le PDF bornait la PARTITION de son `LAG`, 100 % de la

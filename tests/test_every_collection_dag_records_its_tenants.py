@@ -116,6 +116,25 @@ def _recorder_in(stmts) -> bool:
     return False
 
 
+def _retains_for_an_outer_gate(stmts) -> bool:
+    """L'autre sortie légitime : RETENIR l'erreur pour une porte extérieure.
+
+    Huit boucles de flotte le font depuis le 2026-09-17 — le locataire est sauté, son
+    exception est rangée dans une liste, et une garde « échec si TOUS ont échoué » lève
+    à la fin. Rien n'est écrit au registre pour ce locataire, et c'est correct : une
+    panne du magasin de credentials n'est pas une panne DE CE LOCATAIRE.
+
+    Sans cette alternative, élargir le garde ci-dessous condamnerait les huit d'un coup
+    et la seule issue serait de le contourner.
+    """
+    for st in stmts:
+        for node in ast.walk(st):
+            if (isinstance(node, ast.Call)
+                    and getattr(node.func, "attr", None) == "append"):
+                return True
+    return False
+
+
 def _uncovered_continues(path: Path) -> list[int]:
     """Every `continue` in a per-tenant loop that leaves no ledger row behind.
 
@@ -123,6 +142,17 @@ def _uncovered_continues(path: Path) -> list[int]:
     mutation proved it: `instagram_daily` has two `record_tenant_skip` calls, so
     deleting one left the guard green while a whole exit branch went silent again.
     A ledger with a hole in it reads exactly like a complete one.
+
+    ⚠️ **Ce garde n'a JAMAIS vu un `continue` dans un `except`**, du 2026-09-06 au
+    2026-09-18. `walk_block` ne descendait que dans les champs qui sont des listes de
+    `ast.stmt` ; or `Try.handlers` est une liste d'`ExceptHandler`, qui n'est pas un
+    `stmt`. Tous les gestionnaires d'erreur du parc étaient donc hors de portée — et
+    c'est exactement là que vit la classe, puisque « le locataire a cessé de collecter »
+    passe par une exception.
+
+    Mesuré en le corrigeant : `spotify_api_daily.collect_spotify_top_tracks` journalisait
+    l'échec d'un locataire et passait au suivant, sans rien écrire. Dans un run de
+    flotte, cet artiste n'était nulle part — la tâche restait SUCCESS.
     """
     tree = ast.parse(path.read_text(encoding="utf-8"))
     bad: list[int] = []
@@ -130,11 +160,17 @@ def _uncovered_continues(path: Path) -> list[int]:
     def walk_block(stmts, in_tenant_loop: bool) -> None:
         for i, st in enumerate(stmts):
             if isinstance(st, ast.Continue) and in_tenant_loop:
-                if not _recorder_in(stmts[:i]):
+                if not (_recorder_in(stmts[:i])
+                        or _retains_for_an_outer_gate(stmts[:i])):
                     bad.append(st.lineno)
             for field, value in ast.iter_fields(st):
                 if isinstance(value, list) and value and isinstance(value[0], ast.stmt):
                     walk_block(value, in_tenant_loop or _is_tenant_loop(st))
+                # `Try.handlers` n'est PAS une liste de `stmt` : sans cette branche,
+                # aucun `except` du parc n'est lu. Voir le docstring.
+                if field == "handlers":
+                    for h in value:
+                        walk_block(h.body, in_tenant_loop or _is_tenant_loop(st))
 
     def _is_tenant_loop(node) -> bool:
         if not isinstance(node, ast.For):

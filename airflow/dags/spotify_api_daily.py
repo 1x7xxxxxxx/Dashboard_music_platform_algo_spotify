@@ -266,7 +266,7 @@ def collect_spotify_top_tracks(**context):
         # eux, la branche « ce locataire n'a rien remonté » ci-dessous lèverait un
         # NameError au lieu de journaliser, c'est-à-dire remplacerait une alerte
         # inexacte par un plantage.
-        from src.utils.dag_run_logger import record_tenant_failure
+        from src.utils.dag_run_logger import record_tenant_failure, record_tenant_skip
         run_id = context.get('run_id', '') if context else ''
 
         if artist_id_conf:
@@ -352,6 +352,29 @@ def collect_spotify_top_tracks(**context):
                                 f'({[r[0] for r in _sa]}) — skipping, ownership is ambiguous. '
                                 'Fix saas_artists.spotify_artist_id for the wrong one.'
                             )
+                            # ON N'ATTRIBUE PAS, MAIS ON N'EST PAS MUET NON PLUS.
+                            #
+                            # Sauter sans rien écrire rendait ces locataires
+                            # indiscernables de ceux que le DAG n'a jamais regardés —
+                            # exactement ce que le registre existe pour supprimer.
+                            # Choisir l'un des deux serait pire : attribuer un catalogue
+                            # au mauvais compte est le défaut que ce garde d'ambiguïté
+                            # a été écrit pour empêcher.
+                            #
+                            # On écrit donc un `skip` pour CHACUN, avec la raison. Les
+                            # deux propriétaires possibles voient la même phrase, et
+                            # aucun ne reçoit les données de l'autre.
+                            for _claimant in (r[0] for r in _sa):
+                                try:
+                                    record_tenant_skip(
+                                        'spotify_api_daily', _claimant, 'spotify',
+                                        f"identifiant Spotify {artist_id} revendiqué par "
+                                        f"{len(_sa)} locataires — propriété ambiguë, "
+                                        "aucune donnée attribuée", run_id)
+                                except Exception as _exc:    # noqa: BLE001
+                                    logger.warning(
+                                        "  skip non enregistré pour le locataire %s (%s)",
+                                        _claimant, type(_exc).__name__)
                             continue
                         saas_artist_id = _sa[0][0] if _sa else None
                     if saas_artist_id is None:
@@ -407,6 +430,36 @@ def collect_spotify_top_tracks(**context):
                 # Per-artist isolation: a single bad Spotify ID / API error must not abort
                 # top-tracks collection for the other tenants.
                 logger.error(f'  Spotify top-tracks failed for {artist_id}: {safe_error(e)}')
+                # CESSER DE COLLECTER N'EST PAS UN STATUT QUE QUELQU'UN LIT.
+                #
+                # `continue` laisse la tâche SUCCESS : aucune porte n'échoue, donc
+                # personne n'est prévenu, et l'artiste voit un historique qui s'arrête
+                # sans qu'aucune surface ne le dise. Le repli global plus bas ne se
+                # déclenche que si AUCUN artiste n'a rendu de titre — un locataire qui
+                # échoue seul, dans un run de flotte, n'était nulle part.
+                #
+                # La résolution est refaite ici, en lecture seule et sans jamais lever :
+                # l'exception peut tomber AVANT que `saas_artist_id` ne soit calculé.
+                # On n'enregistre que si la propriété est certaine — un identifiant
+                # revendiqué par deux vrais locataires resterait ambigu, et attribuer
+                # l'échec au mauvais compte est pire que ne rien attribuer.
+                try:
+                    _owner = artist_id_conf
+                    if _owner is None:
+                        _rows = db.fetch_query(
+                            "SELECT id FROM saas_artists WHERE spotify_artist_id = %s "
+                            "AND COALESCE(is_sandbox, FALSE) = FALSE ORDER BY id",
+                            (artist_id,))
+                        _owner = _rows[0][0] if len(_rows) == 1 else None
+                    if _owner is not None:
+                        record_tenant_failure(
+                            'spotify_api_daily', _owner, 'spotify',
+                            type(e).__name__, safe_error(e, limit=200), run_id)
+                except Exception as _exc:            # noqa: BLE001
+                    logger.warning(
+                        "  statut non enregistré pour l'artiste Spotify %s (%s) — "
+                        "l'isolement par locataire prime sur la traçabilité",
+                        artist_id, type(_exc).__name__)
                 continue
 
         # Stocker l'historique de popularité
