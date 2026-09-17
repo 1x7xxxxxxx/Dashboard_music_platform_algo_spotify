@@ -140,6 +140,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [a-scoring-call-that-omits-its-context](#a-scoring-call-that-omits-its-context) | P2 | deterministic | guarded | none |
 | [an-optimisation-that-degrades-what-worked](#an-optimisation-that-degrades-what-worked) | P2 | deterministic | guarded | none |
 | [a-parser-that-knows-one-of-two-syntaxes](#a-parser-that-knows-one-of-two-syntaxes) | P2 | deterministic | guarded | none |
+| [a-class-that-claims-its-neighbours-guard](#a-class-that-claims-its-neighbours-guard) | P2 | deterministic | guarded | none |
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
 | [a-document-that-cannot-be-current-in-its-own-commit](#a-document-that-cannot-be-current-in-its-own-commit) | P2 | deterministic | guarded | none |
 | [a-population-that-counts-its-own-headers](#a-population-that-counts-its-own-headers) | P3 | deterministic | guarded | none |
@@ -739,6 +740,25 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-17: **la forme minoritaire est celle qu'on oublie** — 10 sur 376. Un parseur écrit en regardant le catalogue voit la forme dominante, et la variante ne se manifeste que par un champ qui vaut sa valeur par défaut. Ici ce défaut était `aucun`, qui est *aussi* une réponse valable : **une valeur par défaut qui coïncide avec une réponse légitime rend le défaut muet.**
   - 2026-09-17: **trouvé par un `code-critic`, pas par un test.** J'avais écrit « aucun garde automatique » dans la portée de `cumulative-counter-drawn-as-its-own-history`, en me fiant au champ DÉRIVÉ plutôt qu'à l'entrée — dont les quatre lignes disent le contraire (`status: guarded`, `kind: deterministic`, une `signature:`, un `guard:`). Le critic a exécuté les 15 tests que je déclarais inexistants : verts. Cinq portées du même lot étaient fausses pour cette raison.
   - 2026-09-17: conséquence la plus grave, et la plus silencieuse : `guards_ref_missing` valait **0 sans avoir jamais vérifié ces neuf chemins**. Un compteur à zéro parce qu'il ne regarde pas est indiscernable d'un compteur à zéro parce que tout va bien — et c'est celui-là qu'on cite pour dire que le catalogue est sain.
+
+## a-class-that-claims-its-neighbours-guard
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une classe d'erreur annonce une protection plus large que celle qu'elle a. Le champ `guard:` nomme un fichier qui contient bel et bien les tests décrits — mais ils gardent une AUTRE classe. Rien ne le signale : le fichier existe, les tests passent, et le champ est identique chez la voisine.
+- root_cause: plusieurs classes partagent un même fichier de test, et le champ `guard:` ne porte qu'un chemin. Une portée écrite sans nommer SES tests se lit donc comme « cette classe possède tout ce fichier ». Mesuré le 2026-09-17 : **50 fichiers de garde sur 286 sont partagés** par deux classes ou plus (17,5 %), un seul en porte six. Deux instances en deux lots consécutifs : `a-rollback-wider-than-la-failure` s'était attribué le croisement Caddy ↔ sonde de santé, qui répond à la question de `a-default-branch-that-skips-instead-of-refusing` — vérifié, le seul test qui protège le rollback lit le corps de `rollback()` et rien d'autre, donc **le rollback pourrait reconstruire `$SERVICES` en entier sans que ce test bouge**. Et `a-measurement-that-cannot-say-why-it-failed` revendiquait le taux de censure, qui est le test de `a-percentile-computed-on-survivors`.
+- cause_evidence: measured (50 fichiers partagés sur 286 ; 25 classes à garde partagé ont une portée écrite, **20 ne nomment aucun test**)
+- signature: `python3 -c "import json,sys; h=json.load(open('.claude/dev-docs/error-class-health.json'))['aggregate']['holes']; sys.exit(1 if h['scope_on_a_shared_guard_without_naming_its_tests'] > 20 else 0)"`
+- seen_red: 2026-09-17 sur `.claude/dev-docs/error-classes.md` — les deux portées fautives ont été trouvées par `code-critic` aux lots 9 et 10, chacune en ouvrant le fichier de test partagé et en comptant à qui appartient chaque fonction
+- long_term_fix: un compteur dans `make error-health` — `scope_on_a_shared_guard_without_naming_its_tests` — gelé à 20, qui ne peut que baisser. Une portée le quitte en nommant ses tests : un nœud `::test_x` dans la `signature:`, ou un `` `test_x` `` cité dans la portée. **Le compteur ne juge pas la justesse du nom** ; il exige qu'il y en ait un, parce que c'est l'absence de nom qui rend l'emprunt invisible.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_error_class_health_only_improves.py }
+- guard_scope: un-document-qui-affirme-un-état-périmé — décrire la couverture d'un garde partagé sans dire quelle part est la sienne ; couvre: le compteur agrégé et son plafond, dans `test_the_error_class_health_only_improves.py::test_no_counter_of_holes_ever_grows` — il refuse qu'une 21ᵉ portée ambiguë apparaisse ; ne couvre pas: (1) **les 20 déjà là** — le plafond les gèle, il ne les corrige pas, et chacune reste un emprunt possible ; (2) la JUSTESSE du nom : citer `test_x` qui n'existe pas, ou qui appartient à la voisine, satisfait le compteur — c'est `test_every_named_guard_exists` qui vérifie l'existence, et rien ne vérifie l'appartenance ; (3) les classes à garde NON partagé, où la même imprécision est sans conséquence aujourd'hui et le deviendrait si une seconde classe adoptait leur fichier ; (4) les gardes qui ne sont pas des fichiers de test — une règle transverse, un hook, une signature, où « partager » n'a pas le même sens.
+- rex_ref: tools/dev/error_class_health.py
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: **deux instances en deux lots avant d'être vue comme une classe.** La première a été prise pour une inattention, la seconde a montré la forme. C'est exactement ce que la règle transverse #14 demande d'éviter — balayer la classe avant de corriger l'instance — et je ne l'ai appliquée qu'au troisième passage. Le balayage a rendu 17,5 % du parc de gardes concerné, ce qu'aucune des deux corrections ponctuelles n'aurait montré.
+  - 2026-09-17: le compteur est gelé à sa PREMIÈRE mesure (20), pas à zéro. Geler à zéro aurait demandé de réécrire vingt portées dans le même commit, donc de les écrire vite — et c'est précisément ce qui produit les emprunts. Le plafond dit la dette ; il ne la maquille pas.
 
 ## exempt-row-hides-others-conflict
 - status: guarded

@@ -133,6 +133,27 @@ def _type_from_path(path: str | None) -> str:
     return "aucun"
 
 
+def _names_a_test(scope: str, signature: str) -> bool:
+    """La portée dit-elle QUELS tests du fichier lui appartiennent ?
+
+    Ajouté le 2026-09-17 après deux instances en deux lots. **50 fichiers de garde sur
+    286 sont partagés par plusieurs classes** — 17,5 %, et rien ne le signalait : le
+    champ `guard:` est identique des deux côtés, donc une portée écrite sans précision
+    se lit comme « cette classe possède tout ce fichier ».
+
+    Les deux cas rencontrés : `a-rollback-wider-than-the-failure` s'était attribué le
+    croisement Caddy ↔ sonde, qui appartient à sa voisine ; et
+    `a-measurement-that-cannot-say-why-it-failed` revendiquait le taux de censure, qui
+    est le test d'une troisième. Dans les deux cas, un seul test protégeait réellement
+    la classe, et la portée en promettait plusieurs.
+
+    Nommer suffit : un nœud `::test_x` dans la signature, ou un `` `test_x` `` cité dans
+    la portée. Le compteur ne juge pas la justesse du nom — il exige qu'il y en ait un.
+    """
+    return bool("::" in (scope or "") or "::" in (signature or "")
+                or re.search(r"`test_\w+`", scope or ""))
+
+
 def _guard_path(guard: str) -> str | None:
     """Le CHEMIN que la classe nomme comme garde, ou None s'il n'y en a pas.
 
@@ -254,6 +275,8 @@ def _declared(text: str) -> dict[str, dict]:
             "cause_evidence": (_field(body, "cause_evidence") or "unknown").split()[0].lower(),
             "guard_scope_declared_family": (scope.split("—")[0].strip() if scope else None),
             "guard_scope_has_not_covered": bool(scope and "ne couvre pas:" in scope),
+            "guard_scope_names_a_test": _names_a_test(
+                scope or "", _field(body, "signature") or ""),
             "guard_scope_derived_family": derived.get(cid),
         }
     return out
@@ -459,6 +482,13 @@ def build() -> tuple[str, str]:
             "renamed_from": o.get("renamed_from"),
         }
 
+    # Combien de classes pointent chaque fichier de garde ? 50 sur 286 en portent
+    # plusieurs, et c'est ce qui rend la question suivante necessaire.
+    _shared: dict[str, int] = {}
+    for _c in classes.values():
+        if _c["guard_ref"]:
+            _shared[_c["guard_ref"]] = _shared.get(_c["guard_ref"], 0) + 1
+
     holes = {
         "seen_red_unknown": sum(1 for c in classes.values() if c["seen_red"] == "unknown"),
         "seen_red_never": sum(1 for c in classes.values() if c["seen_red"] == "never"),
@@ -470,6 +500,18 @@ def build() -> tuple[str, str]:
                                          if not c["guard_scope_has_not_covered"]),
         "guards_ref_missing": sum(1 for c in classes.values()
                                   if c["guard_ref"] and not c["guard_ref_exists"]),
+        # ⚠️ Ajoute le 2026-09-17, apres DEUX instances en deux lots : une classe qui
+        # s'attribue la couverture de sa VOISINE parce que les deux pointent le meme
+        # fichier de test. **50 fichiers de garde sur 286 sont partages** (17,5 %), et le
+        # champ `guard:` etant identique des deux cotes, rien ne le signalait. Une portee
+        # ecrite sans nommer SES tests se lit comme « cette classe possede tout le
+        # fichier ». Le compteur ne juge pas la justesse du nom : il exige qu'il y en ait
+        # un.
+        "scope_on_a_shared_guard_without_naming_its_tests": sum(
+            1 for c in classes.values()
+            if c["guard_scope_has_not_covered"]
+            and c["guard_ref"] and _shared.get(c["guard_ref"], 0) > 1
+            and not c["guard_scope_names_a_test"]),
         # ⚠️ `scope_family_disagreements` a été RETIRÉ le 2026-09-16, le jour même où il
         # a été posé, et la mesure qui le retire vaut d'être gardée.
         #

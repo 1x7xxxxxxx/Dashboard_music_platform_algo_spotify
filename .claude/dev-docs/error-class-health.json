@@ -9,6 +9,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -32,6 +33,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -55,6 +57,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -78,6 +81,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "script",
       "has_signature": true,
       "history_dates_declared": [],
@@ -99,6 +103,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -122,6 +127,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -145,6 +151,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -159,6 +166,30 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "a-class-that-claims-its-neighbours-guard": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-17",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_the_error_class_health_only_improves.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P2",
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-cold-measurement-that-clears-caches-by-name": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-16",
@@ -168,6 +199,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [],
@@ -189,6 +221,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": false,
       "history_dates_declared": [
@@ -212,6 +245,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -235,6 +269,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -258,6 +293,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -281,6 +317,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -304,6 +341,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -327,6 +365,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -350,6 +389,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -373,6 +413,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -396,6 +437,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -419,6 +461,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "aucun",
       "has_signature": false,
       "history_dates_declared": [
@@ -442,6 +485,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -465,6 +509,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -488,6 +533,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -511,6 +557,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "make-precondition",
       "has_signature": true,
       "history_dates_declared": [
@@ -534,6 +581,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -557,6 +605,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -580,6 +629,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -603,6 +653,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -626,6 +677,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -649,6 +701,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [],
@@ -670,6 +723,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "aucun",
       "has_signature": false,
       "history_dates_declared": [
@@ -694,6 +748,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -717,6 +772,7 @@
       "guard_scope_declared_family": "sans-famille",
       "guard_scope_derived_family": "sans-famille",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -740,6 +796,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -763,6 +820,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -786,6 +844,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -809,6 +868,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -832,6 +892,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -855,6 +916,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -878,6 +940,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -901,6 +964,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -924,6 +988,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -947,6 +1012,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -970,6 +1036,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "aucun",
       "has_signature": false,
       "history_dates_declared": [
@@ -993,6 +1060,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1016,6 +1084,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -1039,6 +1108,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [],
@@ -1060,6 +1130,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -1083,6 +1154,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1106,6 +1178,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pretooluse-hook",
       "has_signature": true,
       "history_dates_declared": [
@@ -1130,6 +1203,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1153,6 +1227,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "script",
       "has_signature": true,
       "history_dates_declared": [
@@ -1176,6 +1251,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "script",
       "has_signature": true,
       "history_dates_declared": [
@@ -1199,6 +1275,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1222,6 +1299,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -1245,6 +1323,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1255,7 +1334,7 @@
       "severity": "P1",
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -1268,6 +1347,7 @@
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1291,6 +1371,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -1315,6 +1396,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1338,6 +1420,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1361,6 +1444,7 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1384,6 +1468,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1407,6 +1492,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1431,6 +1517,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1454,6 +1541,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1477,6 +1565,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1500,6 +1589,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -1523,6 +1613,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1533,7 +1624,7 @@
       "severity": "P1",
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -1546,6 +1637,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "doc",
       "has_signature": false,
       "history_dates_declared": [
@@ -1569,6 +1661,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1592,6 +1685,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -1615,6 +1709,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -1639,6 +1734,7 @@
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "script",
       "has_signature": true,
       "history_dates_declared": [
@@ -1662,6 +1758,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1685,6 +1782,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1709,6 +1807,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1732,6 +1831,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1755,6 +1855,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1778,6 +1879,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1801,6 +1903,7 @@
       "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1824,6 +1927,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1847,6 +1951,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "doc",
       "has_signature": true,
       "history_dates_declared": [
@@ -1870,6 +1975,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1893,6 +1999,7 @@
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1916,6 +2023,7 @@
       "guard_scope_declared_family": "une-écriture-qui-écrase",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": false,
       "history_dates_declared": [
@@ -1939,6 +2047,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1962,6 +2071,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1985,6 +2095,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ratchet",
       "has_signature": true,
       "history_dates_declared": [
@@ -2008,6 +2119,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2031,6 +2143,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2054,6 +2167,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2077,6 +2191,7 @@
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2100,6 +2215,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -2123,6 +2239,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -2146,6 +2263,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2169,6 +2287,7 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2192,6 +2311,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -2215,6 +2335,7 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2238,6 +2359,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2261,6 +2383,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2284,6 +2407,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2307,6 +2431,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2330,6 +2455,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "doc",
       "has_signature": false,
       "history_dates_declared": [
@@ -2353,6 +2479,7 @@
       "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2376,6 +2503,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -2399,6 +2527,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2422,6 +2551,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2445,6 +2575,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [],
@@ -2466,6 +2597,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2476,7 +2608,7 @@
       "severity": "P1",
       "status": "guarded",
       "introduced_date": "2026-09-10",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2489,6 +2621,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2512,6 +2645,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "posttooluse-hook",
       "has_signature": true,
       "history_dates_declared": [
@@ -2536,6 +2670,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2559,6 +2694,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": false,
       "history_dates_declared": [
@@ -2582,6 +2718,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2605,6 +2742,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2628,6 +2766,7 @@
       "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2651,6 +2790,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -2674,6 +2814,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2697,6 +2838,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2720,6 +2862,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2743,6 +2886,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2766,6 +2910,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2789,6 +2934,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2812,6 +2958,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2835,6 +2982,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "script",
       "has_signature": true,
       "history_dates_declared": [
@@ -2858,6 +3006,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2881,6 +3030,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2904,6 +3054,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -2927,6 +3078,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -2950,6 +3102,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -2973,6 +3126,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -2996,6 +3150,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3019,6 +3174,7 @@
       "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3042,6 +3198,7 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3065,6 +3222,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3088,6 +3246,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3113,6 +3272,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3136,6 +3296,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-contrôle-qui-ne-peut-jamais-passer",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3146,7 +3307,7 @@
       "severity": "P1",
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3159,6 +3320,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3183,6 +3345,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -3206,6 +3369,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3229,6 +3393,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3256,6 +3421,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3279,6 +3445,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "error-class-signature",
       "has_signature": true,
       "history_dates_declared": [
@@ -3302,6 +3469,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -3325,6 +3493,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3348,6 +3517,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3371,6 +3541,7 @@
       "guard_scope_declared_family": "un-contrôle-qui-ne-peut-jamais-passer",
       "guard_scope_derived_family": "un-contrôle-qui-ne-peut-jamais-passer",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3381,7 +3552,7 @@
       "severity": "P1",
       "status": "guarded",
       "introduced_date": "2026-09-04",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3394,6 +3565,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3417,6 +3589,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3440,6 +3613,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3463,6 +3637,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3486,6 +3661,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3509,6 +3685,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3532,6 +3709,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3555,6 +3733,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3579,6 +3758,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3603,6 +3783,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3626,6 +3807,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3649,6 +3831,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "ops-probe",
       "has_signature": true,
       "history_dates_declared": [
@@ -3674,6 +3857,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -3697,6 +3881,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3720,6 +3905,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pre-commit",
       "has_signature": true,
       "history_dates_declared": [
@@ -3743,6 +3929,7 @@
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "error-class-signature",
       "has_signature": true,
       "history_dates_declared": [],
@@ -3764,6 +3951,7 @@
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "error-class-signature",
       "has_signature": true,
       "history_dates_declared": [],
@@ -3785,6 +3973,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3808,6 +3997,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -3831,6 +4021,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -3854,6 +4045,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -3879,6 +4071,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -3903,6 +4096,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3926,6 +4120,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -3949,6 +4144,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -3972,6 +4168,7 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -3996,6 +4193,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -4020,6 +4218,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4043,6 +4242,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4066,6 +4266,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -4092,6 +4293,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4115,6 +4317,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4138,6 +4341,7 @@
       "guard_scope_declared_family": "un-contrôle-qui-ne-peut-jamais-passer",
       "guard_scope_derived_family": "un-contrôle-qui-ne-peut-jamais-passer",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4161,6 +4365,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4171,7 +4376,7 @@
       "severity": "P1",
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4184,6 +4389,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4207,6 +4413,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -4231,6 +4438,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4254,6 +4462,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -4277,6 +4486,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "error-class-signature",
       "has_signature": true,
       "history_dates_declared": [
@@ -4301,6 +4511,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4324,6 +4535,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -4349,6 +4561,7 @@
       "guard_scope_declared_family": "une-écriture-qui-écrase",
       "guard_scope_derived_family": "une-écriture-qui-écrase",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4372,6 +4585,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4395,6 +4609,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4418,6 +4633,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4441,6 +4657,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4451,7 +4668,7 @@
       "severity": "P1",
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4464,6 +4681,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4487,6 +4705,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4510,6 +4729,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4533,6 +4753,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4556,6 +4777,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [],
@@ -4577,6 +4799,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "posttooluse-hook",
       "has_signature": true,
       "history_dates_declared": [
@@ -4602,6 +4825,7 @@
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4625,6 +4849,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4648,6 +4873,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4671,6 +4897,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -4695,6 +4922,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4719,6 +4947,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4742,6 +4971,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4765,6 +4995,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -4788,6 +5019,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4811,6 +5043,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4834,6 +5067,7 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4857,6 +5091,7 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4881,6 +5116,7 @@
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -4904,6 +5140,7 @@
       "guard_scope_declared_family": "sans-famille",
       "guard_scope_derived_family": "sans-famille",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4927,6 +5164,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -4950,6 +5188,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -4973,6 +5212,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "aucun",
       "has_signature": false,
       "history_dates_declared": [
@@ -4996,6 +5236,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -5019,6 +5260,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5042,6 +5284,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5066,6 +5309,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5089,6 +5333,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5112,6 +5357,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "script",
       "has_signature": true,
       "history_dates_declared": [
@@ -5135,6 +5381,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5158,6 +5405,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5181,6 +5429,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5204,6 +5453,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -5228,6 +5478,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5251,6 +5502,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5274,6 +5526,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -5297,6 +5550,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5320,6 +5574,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -5343,6 +5598,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -5367,6 +5623,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5391,6 +5648,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -5414,6 +5672,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5437,6 +5696,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5460,6 +5720,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5483,6 +5744,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -5506,6 +5768,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5529,6 +5792,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -5552,6 +5816,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -5575,6 +5840,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5598,6 +5864,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5621,6 +5888,7 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5644,6 +5912,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5667,6 +5936,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5690,6 +5960,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5713,6 +5984,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -5736,6 +6008,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -5759,6 +6032,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5782,6 +6056,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5805,6 +6080,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5828,6 +6104,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "manual",
       "has_signature": true,
       "history_dates_declared": [
@@ -5851,6 +6128,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5874,6 +6152,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5897,6 +6176,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -5920,6 +6200,7 @@
       "guard_scope_declared_family": "une-écriture-qui-écrase",
       "guard_scope_derived_family": "une-écriture-qui-écrase",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "doc-convention",
       "has_signature": false,
       "history_dates_declared": [
@@ -5943,6 +6224,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5966,6 +6248,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -5989,6 +6272,7 @@
       "guard_scope_declared_family": "sans-famille",
       "guard_scope_derived_family": "sans-famille",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6012,6 +6296,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -6036,6 +6321,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "cross-cutting-rule",
       "has_signature": false,
       "history_dates_declared": [
@@ -6060,6 +6346,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -6083,6 +6370,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6106,6 +6394,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6129,6 +6418,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6152,6 +6442,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6175,6 +6466,7 @@
       "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "posttooluse-hook",
       "has_signature": true,
       "history_dates_declared": [
@@ -6199,6 +6491,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6222,6 +6515,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6245,6 +6539,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6268,6 +6563,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6291,6 +6587,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6314,6 +6611,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6337,6 +6635,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6360,6 +6659,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -6383,6 +6683,7 @@
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6406,6 +6707,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6429,6 +6731,7 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6452,6 +6755,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6475,6 +6779,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6498,6 +6803,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6521,6 +6827,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6544,6 +6851,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6567,6 +6875,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6590,6 +6899,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6613,6 +6923,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -6636,6 +6947,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -6659,6 +6971,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6682,6 +6995,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -6705,6 +7019,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6728,6 +7043,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "make-precondition",
       "has_signature": true,
       "history_dates_declared": [
@@ -6751,6 +7067,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -6774,6 +7091,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6797,6 +7115,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6820,6 +7139,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6843,6 +7163,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "make-precondition",
       "has_signature": true,
       "history_dates_declared": [
@@ -6866,6 +7187,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6889,6 +7211,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6912,6 +7235,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6935,6 +7259,7 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -6958,6 +7283,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -6981,6 +7307,7 @@
       "guard_scope_declared_family": "un-contrôle-qui-ne-peut-jamais-passer",
       "guard_scope_derived_family": "un-contrôle-qui-ne-peut-jamais-passer",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7004,6 +7331,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7027,6 +7355,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7050,6 +7379,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "signature",
       "has_signature": true,
       "history_dates_declared": [
@@ -7073,6 +7403,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7096,6 +7427,7 @@
       "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7119,6 +7451,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7143,6 +7476,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7166,6 +7500,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7189,6 +7524,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7212,6 +7548,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7235,6 +7572,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7258,6 +7596,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7281,6 +7620,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7304,6 +7644,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pre-commit",
       "has_signature": true,
       "history_dates_declared": [
@@ -7327,6 +7668,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7350,6 +7692,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -7373,6 +7716,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7397,6 +7741,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [],
@@ -7418,6 +7763,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -7441,6 +7787,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7464,6 +7811,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7487,6 +7835,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -7510,6 +7859,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7533,6 +7883,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7556,6 +7907,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7579,6 +7931,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -7603,6 +7956,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7626,6 +7980,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7649,6 +8004,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7672,6 +8028,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7695,6 +8052,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7718,6 +8076,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7741,6 +8100,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7764,6 +8124,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7787,6 +8148,7 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7810,6 +8172,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7833,6 +8196,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7856,6 +8220,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7879,6 +8244,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7902,6 +8268,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7925,6 +8292,7 @@
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7948,6 +8316,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7971,6 +8340,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -7994,6 +8364,7 @@
       "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -8017,6 +8388,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8040,6 +8412,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8063,6 +8436,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8086,6 +8460,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8109,6 +8484,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8133,6 +8509,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8156,6 +8533,7 @@
       "guard_scope_declared_family": "un-cumul-pris-pour-un-quotidien",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8179,6 +8557,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8202,6 +8581,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8226,6 +8606,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8249,6 +8630,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "posttooluse-hook",
       "has_signature": true,
       "history_dates_declared": [
@@ -8272,6 +8654,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8295,6 +8678,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8318,6 +8702,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8341,6 +8726,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8364,6 +8750,7 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -8388,6 +8775,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8411,6 +8799,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -8434,6 +8823,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8457,6 +8847,7 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8480,6 +8871,7 @@
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8503,6 +8895,7 @@
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8526,6 +8919,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -8550,6 +8944,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8573,6 +8968,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8596,6 +8992,7 @@
       "guard_scope_declared_family": "le-message-parle-au-mauvais-lecteur",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8620,6 +9017,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8643,6 +9041,7 @@
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -8666,6 +9065,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8689,6 +9089,7 @@
       "guard_scope_declared_family": "le-locataire",
       "guard_scope_derived_family": "le-locataire",
       "guard_scope_has_not_covered": false,
+      "guard_scope_names_a_test": false,
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
@@ -8712,7 +9113,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 211,
+      "catalogue_revisions": 212,
       "head_date": "2026-09-17"
     },
     "holes": {
@@ -8720,17 +9121,18 @@
       "cause_unknown": 241,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
+      "scope_on_a_shared_guard_without_naming_its_tests": 20,
       "scope_unknown": 0,
       "scope_without_not_covered": 304,
       "seen_red_never": 0,
       "seen_red_unknown": 331
     },
     "population": {
-      "automatic_guard": 367,
-      "classes": 377,
+      "automatic_guard": 368,
+      "classes": 378,
       "ever_recurred_observed": 47,
       "prose_only": 10,
-      "with_signature": 366
+      "with_signature": 367
     },
     "recurrence": {
       "window_start": "2026-05-15",

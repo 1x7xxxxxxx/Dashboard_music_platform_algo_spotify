@@ -197,6 +197,7 @@ le supposer.
   | `scope_without_not_covered` | **316** | le `ne couvre pas:` — un geste voisin qui partage la cause |
   | `seen_red_unknown` | **331** | une date OBSERVÉE, ou `never` ; jamais une date inventée |
   | `cause_unknown` | **241** | `read` / `measured` / `inferred` — `inferred` est une réponse valable |
+  | **portées sur un garde PARTAGÉ sans nommer leurs tests** | **20** | 50 fichiers de garde sur 286 sont partagés ; sans nom de test, la portée se lit comme « je possède tout le fichier » |
   | ~~récidivistes non traitées~~ | **0** / 47 ✅ | **toutes portées écrites le 2026-09-17** — c'était la priorité mesurée de la brique | la portée d'abord : ce sont elles qui ont échoué |
   | ~~classes jamais écrites~~ | **0** ✅ | **les cinq écrites le 2026-09-17**, chacune avec un `seen_red` DATÉ (voir plus bas) |
 

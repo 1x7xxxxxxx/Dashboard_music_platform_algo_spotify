@@ -81,7 +81,14 @@ _CEILINGS = {
     "cause_unknown": 241,             # 363 → 241 : les causes qui nomment un chemin vérifiable
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
-    "scope_without_not_covered": 304,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
+    "scope_without_not_covered": 304,
+    # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
+    # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
+    # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
+    # partages, et le defaut s'est produit DEUX fois en deux lots avant d'etre
+    # mesure : une classe s'etait attribue le croisement Caddy de sa voisine, une
+    # autre le taux de censure d'une troisieme.
+    "scope_on_a_shared_guard_without_naming_its_tests": 20,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
                                       # est la PREMIERE classe dont les trois preuves sont
                                       # observées le même jour — date vue rouge, cause mesurée,
                                       # portée écrite en lisant le garde. Les trois compteurs
@@ -128,9 +135,9 @@ _FLOORS = {
     # la correction du parseur. Il ne lisait qu'une des deux syntaxes de `guard:`, donc
     # neuf classes gardees etaient comptees comme non gardees depuis toujours. Le
     # plancher monte parce que la MESURE a change, pas le depot.
-    "classes": 377,
-    "with_signature": 366,
-    "automatic_guard": 367,
+    "classes": 378,
+    "with_signature": 367,
+    "automatic_guard": 368,
 }
 # Le plancher qui n'a pas d'équivalent dans `gold-coverage`, et le plus important ici :
 # un taux s'améliore aussi en RÉTRÉCISSANT la fenêtre d'observation.
