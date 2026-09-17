@@ -280,19 +280,61 @@ async def _one_rerun(page, selector: str, timeout_ms: int) -> tuple[str, float |
 
 
 async def _level(browser, url: str, n: int, reps: int, selector: str,
-                 timeout_ms: int, storage) -> dict:
-    """N onglets, `reps` clics simultanés chacun. Rend un relevé complet du palier."""
-    contexts = [await browser.new_context(storage_state=storage) for _ in range(n)]
+                 timeout_ms: int, creds: tuple[str, str] | None = None) -> dict:
+    """N onglets, `reps` clics simultanés chacun. Rend un relevé complet du palier.
+
+    `creds` est `(identifiant, mot de passe)` quand on mesure connecté : CHAQUE onglet
+    ouvre alors son propre contexte et s'authentifie, parce que la session ne survit pas
+    à un onglet neuf. Sans `creds`, on reste anonyme et rien n'est à partager.
+    """
+    # ⚠️ UNE CONNEXION PAR ONGLET, et ce n'est pas un choix de confort — mesuré le
+    # 2026-09-17. L'authentification NE SURVIT PAS à un nouvel onglet : le bocal à
+    # cookies d'un contexte authentifié ne porte que `_streamlit_xsrf` et
+    # `cf_clearance`, jamais `music_dashboard`. Un onglet neuf — même dans le MÊME
+    # contexte — réaffiche le formulaire de connexion.
+    #
+    # Conséquence : la promesse d'origine (« une seule authentification, réutilisée par
+    # tous les onglets ») était irréalisable, et le mode authentifié mesurait en fait
+    # des rendus ANONYMES sur la page de connexion, que la couture de métriques
+    # n'observe pas. 402 clics « authentifiés » avaient produit 10 reruns serveur.
+    #
+    # Le prix : `src/dashboard/utils/throttle.py` limite à **30 tentatives / 900 s et
+    # par IP**, seau PARTAGÉ entre instances depuis la migration 122. Une rampe complète
+    # (1+2+4+8+12+16+24 = 67 connexions) mesurerait le limiteur. `--levels 1,2,4,8` en
+    # demande 15, sous le seuil — et 8 est justement le palier de décision du protocole.
+    authed_pages: list = []
+    if creds is None:
+        contexts = [await browser.new_context() for _ in range(n)]
+    else:
+        user, password = creds
+        contexts = []
+        for i in range(n):
+            ctx = await browser.new_context()
+            page = await _login_in(ctx, url, user, password, timeout_ms)
+            if page is None:
+                for c in contexts + [ctx]:
+                    await c.close()
+                raise RuntimeError(
+                    f"connexion refusée à l'onglet {i + 1}/{n}. Cause la plus probable : "
+                    "le limiteur (30 tentatives / 900 s et par IP). Attendre 15 min, ou "
+                    "baisser `--levels` — une rampe complète demande 67 connexions. "
+                    "On n'entre PAS en mesure anonyme sans le dire.")
+            contexts.append(ctx)
+            authed_pages.append(page)
     pages = []
     outcomes = dict.fromkeys(_OUTCOMES, 0)
     conn_states: dict[str, int] = {}
     durations: list[float] = []
     try:
-        for ctx in contexts:
-            page = await ctx.new_page()
-            await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
-            await _settle(page, timeout_ms)
-            pages.append(page)
+        if authed_pages:
+            # Les onglets de mesure SONT ceux qui se sont authentifiés.
+            pages.extend(authed_pages)
+        else:
+            for ctx in contexts:
+                page = await ctx.new_page()
+                await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+                await _settle(page, timeout_ms)
+                pages.append(page)
 
         rss_after_open = _browser_rss_mb()
 
@@ -326,7 +368,7 @@ async def _level(browser, url: str, n: int, reps: int, selector: str,
             await ctx.close()
 
 
-async def _login(browser, url: str, user: str, password: str, timeout_ms: int):
+async def _login_in(ctx, url: str, user: str, password: str, timeout_ms: int):
     """Une SEULE authentification, dont l'état est réutilisé par tous les onglets.
 
     Ce n'est pas une optimisation : `src/dashboard/utils/throttle.py` limite les
@@ -334,18 +376,64 @@ async def _login(browser, url: str, user: str, password: str, timeout_ms: int):
     seau est PARTAGÉ entre les instances. Une rampe qui se reconnecterait à chaque palier
     mesurerait le limiteur.
     """
-    ctx = await browser.new_context()
     page = await ctx.new_page()
     await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
     await _settle(page, timeout_ms)
-    inputs = page.locator("input")
-    await inputs.nth(0).fill(user)
-    await inputs.nth(1).fill(password)
+    # ⚠️ Les champs sont désignés par leur RÔLE, pas par leur position — correctif du
+    # 2026-09-17. La version d'avant faisait `page.locator("input").nth(0)` et `.nth(1)`,
+    # en supposant que les deux premiers `input` de la page étaient les identifiants.
+    # Le sélecteur de langue (🇫🇷 FR / 🇬🇧 EN) est fait de DEUX boutons radio, rendus
+    # AVANT le formulaire : `nth(0)` tombait donc sur un radio, et Playwright échouait
+    # sur « waiting for element to be visible, enabled and editable ».
+    #
+    # Le mode authentifié était cassé depuis l'ajout du sélecteur, sans que personne ne
+    # le sache : c'est le mode qu'on n'exerce presque jamais. Un sélecteur POSITIONNEL
+    # se casse dès qu'on ajoute un élément au-dessus ; un sélecteur SÉMANTIQUE survit à
+    # la mise en page.
+    await page.get_by_role("textbox").first.fill(user, timeout=timeout_ms)
+    await page.get_by_role("textbox").nth(1).fill(password, timeout=timeout_ms)
     await page.get_by_role("button", name="Se connecter").first.click(timeout=timeout_ms)
     await page.wait_for_timeout(4000)
-    state = await ctx.storage_state()
-    await ctx.close()
-    return state
+    # ⚠️ On rend le CONTEXTE, pas un `storage_state()`. Correctif du 2026-09-17, et il
+    # ferme un défaut qui rendait le mode authentifié SILENCIEUSEMENT faux.
+    #
+    # `storage_state()` ne capturait pas le cookie de session `music_dashboard` — seuls
+    # `_streamlit_xsrf` et `cf_clearance` y étaient. Les onglets ouverts avec cet état
+    # repartaient donc ANONYMES, affichaient la page de connexion, et cliquaient « Pas
+    # encore de compte ? Créez-en un » : une page PUBLIQUE, que la couture de métriques
+    # n'observe pas (elle vit après `require_login()`).
+    #
+    # Prouvé : 402 clics « authentifiés » ont produit 10 reruns serveur — les 10 de la
+    # connexion elle-même — et 20 clics ciblés en ont produit ZÉRO. La courbe ×17,13
+    # publiée comme authentifiée était en fait anonyme.
+    #
+    # N onglets dans UN contexte, c'est exactement ce que fait le navigateur d'un vrai
+    # utilisateur, et ça n'a aucun état à sérialiser.
+    # ⚠️ On rend la PAGE, et on ne la ferme surtout pas. Mesuré le 2026-09-17 : fermer
+    # l'onglet de connexion puis en ouvrir un neuf perd la session — le nouvel onglet
+    # réaffiche le formulaire. L'authentification ne vit pas dans un cookie du bocal
+    # (`music_dashboard` n'y est jamais), elle vit dans la session WebSocket de CET
+    # onglet. Le mesurer ailleurs, c'est mesurer un autre chemin.
+    if not await _is_authenticated(page, timeout_ms):
+        await page.close()
+        return None
+    return page
+
+
+async def _is_authenticated(page, timeout_ms: int) -> bool:
+    """La page montre-t-elle l'application, ou encore le formulaire ?
+
+    ⚠️ `_settle()` rend la main AVANT que Streamlit ait peint le corps : une première
+    sonde écrite le 2026-09-17 a répondu « authentifié » sur une page vide, puis
+    « non authentifié » huit secondes plus tard sur la même session. On attend donc que
+    l'un des deux signaux soit franc, plutôt que de lire à l'instant le plus commode.
+    """
+    await page.wait_for_timeout(6000)
+    try:
+        body = await page.inner_text("body", timeout=timeout_ms)
+    except Exception:  # noqa: BLE001
+        return False
+    return "Se connecter" not in body
 
 
 def _pct(values: list[float], p: float) -> float:
@@ -401,12 +489,11 @@ async def _run(args) -> int:
 
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=True)
-        storage = None
+        creds = None
         try:
             if args.user:
                 print("  authentification unique (état réutilisé par tous les onglets)…")
-                storage = await _login(browser, args.url, args.user, args.password,
-                                       args.timeout * 1000)
+                creds = (args.user, args.password)
 
             rows: list[dict] = []
             for n in levels:
@@ -422,7 +509,7 @@ async def _run(args) -> int:
                     break
 
                 row = await _level(browser, args.url, n, args.reps,
-                                   args.selector, args.timeout * 1000, storage)
+                                   args.selector, args.timeout * 1000, creds)
                 _write_level(out_dir, row)
                 rows.append(row)
 

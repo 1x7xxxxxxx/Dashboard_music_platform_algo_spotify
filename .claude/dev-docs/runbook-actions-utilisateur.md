@@ -706,6 +706,74 @@ ssh root@167.233.92.1 "curl -sG --data-urlencode \
   'http://127.0.0.1:9090/api/v1/query'"
 ```
 
+### Ce que la passe A AUTHENTIFIÉE a donné le 2026-09-17, et pourquoi elle ne suffit pas
+
+Les identifiants du bac à sable ont été régénérés (`--reset --verified --email …`, script
+copié dans `/app/tools/` et non `/tmp`, voir plus bas) et la passe A a tourné **connectée**.
+
+| onglets | 1 | 2 | 4 | 8 | 12 | 16 | 24 |
+|---|---|---|---|---|---|---|---|
+| p50 (ms) | 226 | 339 | 660 | 1 246 | 1 710 | 2 317 | **3 879** |
+| rapport | ×1,00 | ×1,50 | ×2,91 | ×5,50 | ×7,55 | ×10,23 | **×17,13** |
+| censure | 0 % | 0 % | 0 % | 10 % | 6 % | 4 % | **28 %** ⚠ |
+| reruns perdus (serveur / client) | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | **0 / 0** |
+
+**Le croisement ne fonctionne toujours pas, et pour une raison neuve.** Sur ~400 clics, le
+serveur n'a enregistré que **10,2 reruns**, avec un p50 de **27,8 ms** et un p95 de
+**179,7 ms**. Les 3 879 ms du client ne s'expliquent pas par 180 ms de rendu serveur.
+
+Test direct : **20 clics → 0 observation serveur** (scrape 15 s, attente 20 s, donc
+suffisante). Alors que la couture FONCTIONNE par ailleurs — 28 combinaisons
+`(page, phase)` sont observées : `onboarding`, `home`, `youtube`, `onboarding_health`…
+
+**Deux causes émises et RÉFUTÉES le même jour :**
+- les fragments — `src/dashboard/views/onboarding.py` n'utilise aucun `@st.fragment` ;
+- un `st.stop()` avant la couture — il n'y en a aucun entre `require_login()` (742) et
+  `end_chrome` (976).
+
+**La cause restante, NON VÉRIFIÉE** (et écrite comme telle) : les onglets ouverts avec
+`browser.new_context(storage_state=…)` ne seraient pas réellement authentifiés. Ils
+cliqueraient alors « Pas encore de compte ? Créez-en un » — le seul bouton secondaire de
+la page de connexion — donc une page **publique, non instrumentée**. Cohérent avec tout
+ce qui est observé ; pas démontré.
+
+**Le geste qui trancherait** : ouvrir un onglet avec le `storage_state` sauvé et vérifier
+s'il affiche le tableau de bord ou le formulaire de connexion.
+
+⚠️ **Deux défauts de l'outillage corrigés en chemin, sans quoi rien n'aurait tourné :**
+1. Le script de bac à sable doit être copié dans **`/app/tools/`**, pas `/tmp` : il résout
+   sa racine par `Path(__file__).resolve().parents[1]`, ce qui donne `/` depuis `/tmp` —
+   et `src` n'y est pas. Le patron de `artist-preflight-prod` a le même défaut.
+2. **Le mode authentifié du générateur était cassé** : il désignait les champs par
+   POSITION (`locator("input").nth(0)`), et le sélecteur de langue 🇫🇷/🇬🇧 est fait de deux
+   boutons radio rendus AVANT le formulaire. Playwright échouait sur « waiting for element
+   to be visible, enabled and editable ». Corrigé en sélecteurs sémantiques
+   (`get_by_role("textbox")`). C'est le mode qu'on n'exerce presque jamais, donc son défaut
+   a vécu sans témoin — et c'est précisément pourquoi R114 n'avait jamais pu être rejouée.
+
+### Une option a été étudiée et REJETÉE le 2026-09-17 — ne pas la rouvrir sans lire ceci
+
+L'idée : **instrumenter la page de connexion** pour que le mode anonyme devienne
+croisable côté serveur, ce qui dispenserait de ces identifiants. `code-critic` a rendu
+**DO-NOT-BUILD**, sur trois motifs :
+
+1. **C'est un contournement de cette procédure-ci**, qui existe et ne coûte rien. Le
+   locataire bac à sable est déjà exclu de `tools/scale_check.sh` exactement pour cet
+   usage.
+2. **Le design avait un trou** : il se branchait sur `session_state['authenticated']` lu
+   AVANT l'appel, alors que `require_login()` peut rendre `False` quand ce drapeau valait
+   `True` — session expirée ou révoquée. Ce cas serait resté **non instrumenté**. On
+   aurait rendu visible le login d'un NOUVEAU visiteur et laissé aveugle celui d'un
+   utilisateur dont la session vient d'expirer, probablement le plus fréquent.
+3. **Modifier une route d'authentification impose `Spawn security-specialist` AVANT
+   d'écrire** (CLAUDE.md règle 13). `app.py` porte en commentaire l'historique d'une
+   fuite réelle sur cette exacte surface non authentifiée (2026-08-23).
+
+⚠️ Ce qui resterait vrai si on la rouvrait un jour : **la page la plus visitée du produit
+est invisible à la surveillance**, et c'est un angle mort réel — mais indépendant de
+R114, et à traiter comme tel (label structurel plutôt qu'un préfixe par convention, test
+de garde et les deux documents en prose réécrits dans le même geste).
+
 ### Ce que chaque issue veut dire
 
 | résultat | conclusion |
