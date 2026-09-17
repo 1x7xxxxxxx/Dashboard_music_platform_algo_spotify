@@ -1290,6 +1290,30 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "a-load-guard-that-counts-names-instead-of-measuring-load": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-17",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_load_guard_measures_load_not_names.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-contrôle-qui-ne-peut-jamais-passer",
+      "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P3",
+      "status": "guarded",
+      "introduced_date": "2026-09-17",
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-major-upgrade-that-moves-a-default": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-16",
@@ -1311,6 +1335,30 @@
       "status": "guarded",
       "introduced_date": "2026-09-16",
       "revisions": 2,
+      "history_additions": 0,
+      "renamed_from": null
+    },
+    "a-make-variable-named-after-an-environment-variable": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-17",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_make_variable_does_not_collide_with_the_environment.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
+      "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P2",
+      "status": "guarded",
+      "introduced_date": "2026-09-17",
+      "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2323,6 +2371,30 @@
       "status": "guarded",
       "introduced_date": "2026-09-13",
       "revisions": 1,
+      "history_additions": 0,
+      "renamed_from": null
+    },
+    "a-status-screen-that-reads-half-its-source": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-17",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_the_status_screen_reads_all_its_source.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P2",
+      "status": "guarded",
+      "introduced_date": "2026-09-17",
+      "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8572,6 +8644,30 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "two-instruments-that-do-not-observe-the-same-path": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-17",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_load_guard_measures_load_not_names.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
+      "guard_scope_derived_family": "deux-surfaces-deux-nombres",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-17"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-17",
+      "severity": "P2",
+      "status": "guarded",
+      "introduced_date": "2026-09-17",
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "two-shapes-summed-as-one": {
       "cause_evidence": "read",
       "first_seen_declared": "2026-09-08",
@@ -9161,7 +9257,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 218,
+      "catalogue_revisions": 219,
       "head_date": "2026-09-17"
     },
     "holes": {
@@ -9176,11 +9272,11 @@
       "seen_red_unknown": 331
     },
     "population": {
-      "automatic_guard": 370,
-      "classes": 380,
+      "automatic_guard": 374,
+      "classes": 384,
       "ever_recurred_observed": 47,
       "prose_only": 10,
-      "with_signature": 369
+      "with_signature": 373
     },
     "recurrence": {
       "window_start": "2026-05-15",
