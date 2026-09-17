@@ -344,13 +344,32 @@ error-resolve: check-db ## Ferme une entrée du registre. FP=<12 car.> NOTE="...
 	@test -n "$(NOTE)" || { echo "❌ NOTE manquant : une entrée fermée sans raison est une entrée perdue."; exit 1; }
 	@python3 tools/error_inbox.py --resolve "$(FP)" --note "$(NOTE)"
 
-check-env:   ## Verify critical imports + pip dep coherence (canary check)
+check-env:   ## Vérifie imports + base joignable (BLOQUANT) ; incohérences pip RAPPORTÉES seulement
+	@# ⚠️ Deux corrections du 2026-09-17, trouvées en auditant les refus du dépôt sous
+	@# la question « ce critère peut-il être faux dans l'usage prévu ? ».
+	@#
+	@# 1. LE PORT ÉTAIT EN DUR. `check-db` lit `DATABASE_URL` et en déduit hôte et port ;
+	@#    celui-ci codait `127.0.0.1:5433`. Sur une machine où la base écoute ailleurs,
+	@#    `make dashboard` échouait sur sa précondition pendant que `make error-inbox`
+	@#    passait — même question, deux vérités. `deux-surfaces-deux-nombres`, appliqué
+	@#    à un port. Les deux lisent désormais la même source.
+	@#
+	@# 2. LE NOM PROMETTAIT PLUS QUE LE CODE. L'aide disait « Verify … pip dep
+	@#    coherence » alors que la ligne se termine par `|| true` : elle imprime et
+	@#    continue, TOUJOURS. La moitié de la promesse était un rapport, pas un
+	@#    contrôle. C'est délibéré — `pip check` remonte des conflits transitifs qu'on
+	@#    ne peut pas tous corriger — mais ce n'était écrit nulle part, et un nom qui
+	@#    promet une vérification qu'il ne fait pas est ce qui fait cesser de chercher.
 	@python3 -c "import isodate, streamlit, plotly, pandas, psycopg2" 2>/dev/null \
 		|| { echo "❌ Missing dashboard deps. Run: make sync"; exit 1; }
+	@echo "— incohérences pip (RAPPORTÉES, non bloquantes) :"
 	@python3 -m pip check 2>&1 | grep -E "^[^[:space:]]" | head -10 || true
-	@python3 -c "import socket,sys; s=socket.socket(); s.settimeout(2); sys.exit(s.connect_ex(('127.0.0.1',5433)))" 2>/dev/null \
-		|| { echo "❌ PostgreSQL unreachable on localhost:5433. Run: make up"; exit 1; }
-	@echo "✅ env check passed"
+	@python3 -c "import os,sys,socket;\
+u=os.environ.get('DATABASE_URL');\
+host,port=('127.0.0.1',5433) if not u else (u.split('@')[1].split(':')[0], int(u.split('@')[1].split(':')[1].split('/')[0]));\
+s=socket.socket(); s.settimeout(2); sys.exit(s.connect_ex((host,port)))" 2>/dev/null \
+		|| { echo "❌ Database unreachable. Run: make up  (or set DATABASE_URL)"; exit 1; }
+	@echo "✅ env check passed (imports + base ; pip : voir au-dessus)"
 
 canary:      ## Create/refresh the canary tenant preflight needs. NAME="…" SPOTIFY=… YOUTUBE=… SOUNDCLOUD=… META=…
 	@[ -n "$(NAME)" ] || { echo '❌ set NAME="…", e.g. make canary NAME="Canary 1x7" SPOTIFY=<artist id>'; exit 1; }
