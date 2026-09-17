@@ -866,7 +866,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7551,7 +7551,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-23",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9405,7 +9405,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9972,8 +9972,8 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 279,
-      "head_date": "2026-09-17"
+      "catalogue_revisions": 280,
+      "head_date": "2026-09-18"
     },
     "holes": {
       "cause_inferred": 0,
@@ -9996,78 +9996,78 @@
     },
     "recurrence": {
       "window_start": "2026-05-15",
-      "as_of": "2026-09-17",
+      "as_of": "2026-09-18",
       "observed": {
         "events": 66,
-        "class_days": 7997,
-        "per_class_month": 0.2509,
+        "class_days": 8394,
+        "per_class_month": 0.239,
         "ci95": [
-          0.194,
-          0.3192
+          0.1849,
+          0.3041
         ]
       },
-      "class_days_exposed": 7997,
+      "class_days_exposed": 8394,
       "by_guard": {
         "automatique": {
           "events": 63,
-          "class_days": 7834,
-          "per_class_month": 0.2445,
+          "class_days": 8221,
+          "per_class_month": 0.233,
           "ci95": [
-            0.1878,
-            0.3128
+            0.179,
+            0.2981
           ]
         },
         "prose": {
           "events": 3,
-          "class_days": 163,
-          "per_class_month": 0.5595,
+          "class_days": 173,
+          "per_class_month": 0.5272,
           "ci95": [
-            0.1125,
-            1.6348
+            0.106,
+            1.5403
           ]
         }
       },
       "by_seen_red": {
         "daté": {
           "events": 4,
-          "class_days": 302,
-          "per_class_month": 0.4026,
+          "class_days": 358,
+          "per_class_month": 0.3397,
           "ci95": [
-            0.1083,
-            1.0309
+            0.0914,
+            0.8696
           ]
         },
         "jamais-ou-inconnu": {
           "events": 62,
-          "class_days": 7695,
-          "per_class_month": 0.2449,
+          "class_days": 8036,
+          "per_class_month": 0.2345,
           "ci95": [
-            0.1878,
-            0.314
+            0.1798,
+            0.3007
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
           "events": 66,
-          "class_days": 7997,
-          "per_class_month": 0.2509,
+          "class_days": 8394,
+          "per_class_month": 0.239,
           "ci95": [
-            0.194,
-            0.3192
+            0.1849,
+            0.3041
           ]
         }
       },
       "fixed_horizon": {
         "h7": {
-          "at_risk": 269,
-          "recurred": 39,
-          "rate": 0.145
+          "at_risk": 279,
+          "recurred": 43,
+          "rate": 0.1541
         },
         "h14": {
-          "at_risk": 175,
+          "at_risk": 185,
           "recurred": 34,
-          "rate": 0.1943
+          "rate": 0.1838
         },
         "h30": {
           "at_risk": 35,

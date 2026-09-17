@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**397 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (279 révisions du catalogue rejouées).
+**397 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (280 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
@@ -52,17 +52,17 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 ## Récidive observée
 
-**66 évènements** sur 7997 classe-jours d'exposition — **0.2509** par classe-mois (IC 95 % : 0.194 – 0.3192)
+**66 évènements** sur 8394 classe-jours d'exposition — **0.239** par classe-mois (IC 95 % : 0.1849 – 0.3041)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 63 | 0.2445 | 0.1878 – 0.3128 | insuffisant pour conclure (n=66) |
-| by_guard · prose | 3 | 0.5595 | 0.1125 – 1.6348 | insuffisant pour conclure (n=66) |
-| by_seen_red · daté | 4 | 0.4026 | 0.1083 – 1.0309 | insuffisant pour conclure (n=66) |
-| by_seen_red · jamais-ou-inconnu | 62 | 0.2449 | 0.1878 – 0.314 | insuffisant pour conclure (n=66) |
-| by_scope · ne-couvre-pas renseigné | 66 | 0.2509 | 0.194 – 0.3192 | une seule strate peuplée (n=66) |
+| by_guard · automatique | 63 | 0.233 | 0.179 – 0.2981 | insuffisant pour conclure (n=66) |
+| by_guard · prose | 3 | 0.5272 | 0.106 – 1.5403 | insuffisant pour conclure (n=66) |
+| by_seen_red · daté | 4 | 0.3397 | 0.0914 – 0.8696 | insuffisant pour conclure (n=66) |
+| by_seen_red · jamais-ou-inconnu | 62 | 0.2345 | 0.1798 – 0.3007 | insuffisant pour conclure (n=66) |
+| by_scope · ne-couvre-pas renseigné | 66 | 0.239 | 0.1849 – 0.3041 | une seule strate peuplée (n=66) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
@@ -76,8 +76,8 @@ Une classe **plus jeune que l'horizon est exclue de la colonne**, jamais compté
 
 | horizon | à risque | récidivées | taux |
 |---|---|---|---|
-| 7 j | 269 | 39 | 14 % |
-| 14 j | 175 | 34 | 19 % |
+| 7 j | 279 | 43 | 15 % |
+| 14 j | 185 | 34 | 18 % |
 | 30 j | 35 | 15 | 43 % |
 
 ## Avant la fenêtre git — DÉCLARATIF
