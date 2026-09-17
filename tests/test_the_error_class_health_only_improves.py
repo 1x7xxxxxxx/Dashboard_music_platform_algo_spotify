@@ -303,7 +303,14 @@ _CEILINGS = {
     # regarde **11**, et pour un balayage AST qui en parcourt **41**. Aucun des deux
     # chiffres n'avait été mesuré. Un sous-ensemble n'est pas un défaut ; celui qui
     # se laisse LIRE comme exhaustif en est un, et je l'ai lu ainsi deux fois.
-    "siblings_never_swept": 191,
+    # 191 → 186 le 2026-09-17 : suite de `un-garde-qui-ne-garde-pas`.
+    # Le balayage le plus net : tout appel `subprocess.*` dans `src/` et `airflow/` →
+    # **ZÉRO**. Le code conteneurisé ne shelle plus jamais, et le site historique est
+    # documenté AVEC sa mesure — l'image n'a ni `rclone` ni `git`, `command -v` ne
+    # rend rien pour les deux (2026-09-04), d'où le passage à un reçu lu en base.
+    # Un faux positif écarté en lisant : `useful_links.py:211` NOMME `pg_dump` dans
+    # une chaîne affichée à un admin — une commande à taper sur l'HÔTE, pas un appel.
+    "siblings_never_swept": 186,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
