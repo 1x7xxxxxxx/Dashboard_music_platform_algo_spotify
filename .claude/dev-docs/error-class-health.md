@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**387 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (225 révisions du catalogue rejouées).
+**391 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (226 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
@@ -11,7 +11,7 @@ Cinq chiffres avancés le 2026-09-16 avant vérification, et ce qu'ils valent :
 
 | avancé | mesuré |
 |---|---|
-| 367 classes | **387** — les 4 en trop étaient `Contract`, `Index`, `Per-class schema`, `CLASS-ID` |
+| 367 classes | **391** — les 4 en trop étaient `Contract`, `Index`, `Per-class schema`, `CLASS-ID` |
 | « 57 récidives » | **non reproductible** : cinq définitions défendables donnent 39 / 49 / 55 / 67 / 167. Ce document n'en retient qu'une, écrite ci-dessous, et c'est celle que le cliquet utilise |
 | gardes 15,1 % contre prose 22,7 % | voir les intervalles : les sous-groupes portent trop peu d'évènements pour trancher |
 | le taux s'améliore (38 → 18 → 9 %) | **il empire** une fois normalisé par l'exposition. L'ancien chiffre comptait comme « n'a pas récidivé » des classes trop jeunes pour avoir pu le faire |
@@ -27,11 +27,11 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 
 | grandeur | valeur |
 |---|---|
-| `automatic_guard` | 377 |
-| `classes` | 387 |
+| `automatic_guard` | 381 |
+| `classes` | 391 |
 | `ever_recurred_observed` | 48 |
 | `prose_only` | 10 |
-| `with_signature` | 376 |
+| `with_signature` | 380 |
 
 ## Les trous — ce que le cliquet fait baisser
 
@@ -66,9 +66,9 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
-⚠️ **La strate `by_scope` porte sur 90 classes de 387, soit 23 % du catalogue.** Les 297 autres n'ont pas de `ne couvre pas:` écrit, et **zéro récidive y est observée** — mais une récidive se compte en lignes d'HISTOIRE ajoutées. Une classe qu'on n'a jamais rouverte n'en gagne aucune, qu'elle soit saine ou seulement ignorée.
+⚠️ **La strate `by_scope` porte sur 94 classes de 391, soit 24 % du catalogue.** Les 297 autres n'ont pas de `ne couvre pas:` écrit, et **zéro récidive y est observée** — mais une récidive se compte en lignes d'HISTOIRE ajoutées. Une classe qu'on n'a jamais rouverte n'en gagne aucune, qu'elle soit saine ou seulement ignorée.
 
-Autrement dit : ce taux ne peut pas distinguer « écrire la portée protège » de « on ne regarde que là ». Il ne se cite pas comme s'il décrivait les 387 classes.
+Autrement dit : ce taux ne peut pas distinguer « écrire la portée protège » de « on ne regarde que là ». Il ne se cite pas comme s'il décrivait les 391 classes.
 
 ## Cohortes à horizon fixe
 
