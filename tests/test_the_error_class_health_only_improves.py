@@ -97,8 +97,9 @@ _CEILINGS = {
     # ponctuelle et s'étaient périmés (`la-frontière` annoncée à 23,5 %, mesurée
     # à 22,2 %). La colonne est désormais rendue par `make error-families`.
     # −18 : `un-état-qui-déborde-de-sa-portée` aussi (24/24), récidive 16,7 %.
-    # CINQ familles à zéro, 79 portées dans la séance.
-    "scope_without_not_covered": 218,
+    # −11 : `un-travail-qui-n-arrive-nulle-part` aussi (15/15), récidive 13,3 %.
+    # SIX familles à zéro, 90 portées dans la séance.
+    "scope_without_not_covered": 207,
     # ⚠️ Compteur NEUF le 2026-09-17, posé sur une question du propriétaire : « est-ce
     # qu'on a intégré la réflexion de savoir si l'erreur découverte peut être situéé
     # ailleurs dans le code ? ». La réponse mesurée était NON — 69 classes sur 395
@@ -116,7 +117,7 @@ _CEILINGS = {
     # partages, et le defaut s'est produit DEUX fois en deux lots avant d'etre
     # mesure : une classe s'etait attribue le croisement Caddy de sa voisine, une
     # autre le taux de censure d'une troisieme.
-    "scope_on_a_shared_guard_without_naming_its_tests": 11,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
+    "scope_on_a_shared_guard_without_naming_its_tests": 9,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
                                       # ⚠️ 8 → 14 puis 11 le 2026-09-17 : écrire 79 portées a MÉCANIQUEMENT fait
                                       # monter ce compteur, chaque portée neuve sur un garde partagé
                                       # devant nommer ses tests. Le cliquet m'a repris quatre fois
