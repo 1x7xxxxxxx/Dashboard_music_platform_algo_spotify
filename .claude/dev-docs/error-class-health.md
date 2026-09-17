@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**395 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (248 révisions du catalogue rejouées).
+**395 classes.** Fenêtre observée : `2026-05-15` → `2026-09-17` (249 révisions du catalogue rejouées).
 
 ## Ce que ce document corrige
 
@@ -52,17 +52,17 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 ## Récidive observée
 
-**62 évènements** sur 7997 classe-jours d'exposition — **0.2357** par classe-mois (IC 95 % : 0.1807 – 0.3021)
+**63 évènements** sur 7997 classe-jours d'exposition — **0.2395** par classe-mois (IC 95 % : 0.184 – 0.3064)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 59 | 0.229 | 0.1743 – 0.2953 | insuffisant pour conclure (n=62) |
-| by_guard · prose | 3 | 0.5595 | 0.1125 – 1.6348 | insuffisant pour conclure (n=62) |
-| by_seen_red · daté | 3 | 0.4701 | 0.0945 – 1.3735 | insuffisant pour conclure (n=62) |
-| by_seen_red · jamais-ou-inconnu | 59 | 0.2299 | 0.175 – 0.2965 | insuffisant pour conclure (n=62) |
-| by_scope · ne-couvre-pas renseigné | 62 | 0.2357 | 0.1807 – 0.3021 | une seule strate peuplée (n=62) |
+| by_guard · automatique | 60 | 0.2328 | 0.1777 – 0.2997 | insuffisant pour conclure (n=63) |
+| by_guard · prose | 3 | 0.5595 | 0.1125 – 1.6348 | insuffisant pour conclure (n=63) |
+| by_seen_red · daté | 3 | 0.4701 | 0.0945 – 1.3735 | insuffisant pour conclure (n=63) |
+| by_seen_red · jamais-ou-inconnu | 60 | 0.2338 | 0.1784 – 0.3009 | insuffisant pour conclure (n=63) |
+| by_scope · ne-couvre-pas renseigné | 63 | 0.2395 | 0.184 – 0.3064 | une seule strate peuplée (n=63) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 

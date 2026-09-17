@@ -6972,8 +6972,8 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-06-20",
-      "revisions": 4,
-      "history_additions": 1,
+      "revisions": 5,
+      "history_additions": 2,
       "renamed_from": null
     },
     "multitenant-mono-test-blindspot": {
@@ -9919,7 +9919,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 248,
+      "catalogue_revisions": 249,
       "head_date": "2026-09-17"
     },
     "holes": {
@@ -9945,23 +9945,23 @@
       "window_start": "2026-05-15",
       "as_of": "2026-09-17",
       "observed": {
-        "events": 62,
+        "events": 63,
         "class_days": 7997,
-        "per_class_month": 0.2357,
+        "per_class_month": 0.2395,
         "ci95": [
-          0.1807,
-          0.3021
+          0.184,
+          0.3064
         ]
       },
       "class_days_exposed": 7997,
       "by_guard": {
         "automatique": {
-          "events": 59,
+          "events": 60,
           "class_days": 7834,
-          "per_class_month": 0.229,
+          "per_class_month": 0.2328,
           "ci95": [
-            0.1743,
-            0.2953
+            0.1777,
+            0.2997
           ]
         },
         "prose": {
@@ -9985,23 +9985,23 @@
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 59,
+          "events": 60,
           "class_days": 7803,
-          "per_class_month": 0.2299,
+          "per_class_month": 0.2338,
           "ci95": [
-            0.175,
-            0.2965
+            0.1784,
+            0.3009
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 62,
+          "events": 63,
           "class_days": 7997,
-          "per_class_month": 0.2357,
+          "per_class_month": 0.2395,
           "ci95": [
-            0.1807,
-            0.3021
+            0.184,
+            0.3064
           ]
         }
       },
