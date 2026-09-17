@@ -91,7 +91,12 @@ _CEILINGS = {
     # −15 de plus : `une-erreur-avalée-devient-une-absence` aussi (21/21),
     # récidive 19 %. Les TROIS familles les plus récidivistes sont à zéro ;
     # 48 portées écrites dans la séance, chacune en ouvrant son garde.
-    "scope_without_not_covered": 249,
+    # −13 : `un-cumul-pris-pour-un-quotidien` aussi (19/19), récidive 21,1 %.
+    # ⚠️ Cette quatrième famille a été choisie sur un taux RECALCULÉ, pas sur
+    # celui de la prose : les taux par famille vivaient dans une analyse
+    # ponctuelle et s'étaient périmés (`la-frontière` annoncée à 23,5 %, mesurée
+    # à 22,2 %). La colonne est désormais rendue par `make error-families`.
+    "scope_without_not_covered": 236,
     # ⚠️ Compteur NEUF le 2026-09-17, posé sur une question du propriétaire : « est-ce
     # qu'on a intégré la réflexion de savoir si l'erreur découverte peut être situéé
     # ailleurs dans le code ? ». La réponse mesurée était NON — 69 classes sur 395

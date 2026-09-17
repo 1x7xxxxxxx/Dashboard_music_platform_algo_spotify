@@ -6,29 +6,31 @@
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
+⚠️ **La colonne `récidive` est ce qui décide de l'ordre de travail**, pas la colonne `classes`. Mesuré : la plus GROSSE famille récidive 3,5× moins que la plus douloureuse. Elle est calculée ici, à chaque régénération, précisément parce que les taux qui servaient à prioriser vivaient en prose et se sont périmés — un chiffre figé fait prioriser sur le passé.
+
 Le rattachement est mécanique et donc parfois discutable. La règle est publiée pour qu'on puisse le contester sans lire le script : si une classe est mal rangée, c'est le motif qu'on corrige, jamais l'entrée.
 
-| famille | classes | la question |
-|---|---|---|
-| [le-locataire](#le-locataire) | 42 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
-| [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 19 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
-| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 15 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
-| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
-| [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
-| [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 24 | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
-| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
-| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 21 | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 74 | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 41 | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
-| [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
-| [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
-| [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 8 | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
-| [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 2 | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
-| [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 20 | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
-| [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 18 | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
-| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 24 | Ce que le dépôt déclare est-il ce que la production exécute ? |
-| [l-instrument-ment-sur-ce-qu-il-mesure](#l-instrument-ment-sur-ce-qu-il-mesure) | 2 | Ce que cet instrument AFFICHE est-il ce qu'il a mesuré ? |
-| _sans famille_ | 3 | — |
+| famille | classes | récidive | la question |
+|---|---|---|---|
+| [le-locataire](#le-locataire) | 42 | **14/42** · 33.3 % | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
+| [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 19 | **4/19** · 21.1 % | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
+| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 15 | **2/15** · 13.3 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
+| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | **0/20** · 0.0 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
+| [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **1/20** · 5.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
+| [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 24 | **4/24** · 16.7 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
+| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | **3/29** · 10.3 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
+| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 21 | **4/21** · 19.0 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 74 | **7/74** · 9.5 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 41 | **2/41** · 4.9 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
+| [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | **1/8** · 12.5 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
+| [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 8 | **1/8** · 12.5 % | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
+| [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 2 | **0/2** · 0.0 % | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
+| [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 20 | **0/20** · 0.0 % | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
+| [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 18 | **4/18** · 22.2 % | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
+| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 24 | **2/24** · 8.3 % | Ce que le dépôt déclare est-il ce que la production exécute ? |
+| [l-instrument-ment-sur-ce-qu-il-mesure](#l-instrument-ment-sur-ce-qu-il-mesure) | 2 | **0/2** · 0.0 % | Ce que cet instrument AFFICHE est-il ce qu'il a mesuré ? |
+| _sans famille_ | 3 | — | — |
 
 ## le-locataire
 
@@ -597,4 +599,4 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 <!-- error-class-families: total=394 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=5f25fa0cfbd2400f3ecc6d03cd9f889db1d310e933ed7547d81cc36524ac5290 -->
+<!-- error-class-families: sha256=be0151d4f1e0aea71ae6f2393c1b55b637eac3a77e08cab86264972c6afdc1f6 -->

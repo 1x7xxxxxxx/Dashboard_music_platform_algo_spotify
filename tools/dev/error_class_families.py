@@ -363,8 +363,35 @@ def classify() -> tuple[dict[str, list[tuple[str, str]]], list[tuple[str, str]]]
     return buckets, orphans
 
 
+def _recurrence_by_class() -> dict:
+    """Quelles classes ont RÉCIDIVÉ, lu depuis l'instantané de santé.
+
+    ⚠️ Ajouté le 2026-09-17, et la raison est un défaut de méthode, pas un manque de
+    confort. Les taux de récidive PAR FAMILLE — ceux qui décident de l'ordre de travail
+    de R122 — venaient d'une analyse ponctuelle écrite en prose. Ils n'étaient donc pas
+    rejouables, et ils se sont périmés : « 23,5 % » pour `la-frontière-avec-le-dehors`
+    valait en réalité 22,2 % le jour où on l'a recalculé, le catalogue ayant grossi.
+    Prioriser sur un chiffre figé, c'est prioriser sur le passé.
+
+    Le signal est `history_additions` — une entrée d'historique postérieure au
+    `first_seen`, c'est-à-dire une classe revenue après avoir été écrite. C'est la même
+    définition que `ever_recurred_observed`, pour qu'un lecteur retrouve le même compte.
+
+    Rend un dict VIDE si l'instantané est absent ou illisible, et la colonne le dit.
+    """
+    import json
+
+    path = ROOT / ".claude" / "dev-docs" / "error-class-health.json"
+    try:
+        classes = json.loads(path.read_text(encoding="utf-8"))["classes"]
+    except Exception:                                          # noqa: BLE001
+        return {}
+    return {cid: bool(c.get("history_additions")) for cid, c in classes.items()}
+
+
 def render() -> str:
     buckets, orphans = classify()
+    recurred = _recurrence_by_class()
     total = sum(len(v) for v in buckets.values()) + len(orphans)
     lines = [
         "# Familles de classes d'erreur",
@@ -383,16 +410,29 @@ def render() -> str:
         "plus spécifique au plus général, sinon « deux surfaces, deux nombres » "
         "avalerait la moitié du catalogue.",
         "",
+        "⚠️ **La colonne `récidive` est ce qui décide de l'ordre de travail**, pas la "
+        "colonne `classes`. Mesuré : la plus GROSSE famille récidive 3,5× moins que la "
+        "plus douloureuse. Elle est calculée ici, à chaque régénération, précisément "
+        "parce que les taux qui servaient à prioriser vivaient en prose et se sont "
+        "périmés — un chiffre figé fait prioriser sur le passé.",
+        "",
         "Le rattachement est mécanique et donc parfois discutable. La règle est "
         "publiée pour qu'on puisse le contester sans lire le script : si une classe "
         "est mal rangée, c'est le motif qu'on corrige, jamais l'entrée.",
         "",
-        "| famille | classes | la question |",
-        "|---|---|---|",
+        "| famille | classes | récidive | la question |",
+        "|---|---|---|---|",
     ]
     for slug, question, _ in FAMILIES:
-        lines.append(f"| [{slug}](#{slug}) | {len(buckets[slug])} | {question} |")
-    lines += [f"| _sans famille_ | {len(orphans)} | — |", ""]
+        ids = [c for c, _ in buckets[slug]]
+        if recurred and ids:
+            n = sum(1 for c in ids if recurred.get(c))
+            rate = f"**{n}/{len(ids)}** · {100 * n / len(ids):.1f} %"
+        else:
+            rate = "— (instantané illisible)" if not recurred else "—"
+        lines.append(
+            f"| [{slug}](#{slug}) | {len(buckets[slug])} | {rate} | {question} |")
+    lines += [f"| _sans famille_ | {len(orphans)} | — | — |", ""]
 
     for slug, question, pattern in FAMILIES:
         members = buckets[slug]
