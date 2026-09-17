@@ -440,7 +440,10 @@ _CEILINGS = {
     # le texte, et retirer l'import le laissait satisfait), puis le cliquet
     # anti-garde-textuel a refusé DEUX autres comparaisons de chaîne que j'y avais
     # mises. Trois corrections pour un seul garde, toutes mesurées.
-    "siblings_never_swept": 133,  # 136 → 133 le 2026-09-17 : `layer-written-but-never-wired`,
+    "siblings_never_swept": 131,  # 133 → 131 le 2026-09-17 :
+    # `guard-asserts-presence-not-reachability` (12 gardes verts sur une mutation
+    # d'atteignabilite) et `a-visual-constant-copied-into-a-second-renderer`
+    # (28 figures sous le plancher ΔE, entrees en roadmap sous R133).  # 136 → 133 le 2026-09-17 : `layer-written-but-never-wired`,
     # `selector-blind-to-the-import-prefix`, `a-test-whose-input-derives-from-its-subject`
     # — 0 site vivant chacune, mesurées (diff de document vide, mutation de constante).  # 138 → 136 le 2026-09-17 : `df-na-rep` (3 candidats, 0 site) et
     # `object-dtype-numeric-op` (4 candidats, 0 site — mais un GARDE aveugle).

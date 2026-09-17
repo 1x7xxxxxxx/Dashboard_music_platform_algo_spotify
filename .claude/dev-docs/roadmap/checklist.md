@@ -27,9 +27,11 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 |---|---|---|---|
 | R122 | **ROUVERTE** — la colonne `guard_scope` est LIVRÉE (0 classe sur 394 sans « ne couvre pas », le 2026-09-17), mais la récidive reste au-dessus du seuil que R122 s'était donné : il reste `cause_unknown` 241 et `seen_red_unknown` 331, qui se comblent en EXÉCUTANT, pas en écrivant | P3 | `make reopen-check` → la ligne R122 doit cesser de dire `ROUVRIR` |
 | R132 | **Isolement de flotte hors Airflow** — 6 sites mesurés que le garde AST ne peut pas voir : `metric_bounds.py:124` (aveuglement de flotte), `onboarding_health.py:65` (toute la page admin tombe), 4 scripts de `debug_dag/` | P3 | `python3 -m pytest tests/test_dag_fleet_isolation.py -q` reste vert — c'est le POINT : ces sites sont hors de son périmètre, la mesure est le balayage AST ci-dessous |
+| R133 | **28 figures sous le plancher d'accessibilité de la palette** — mesuré le 2026-09-17 par figure (CIEDE2000 + Viénot/Brettel), paire dominante vert `#1DB954` ↔ un rouge, c'est-à-dire « bon/mauvais » encodé en teinte seule. `code-critic` : **BUILD-MODIFIED** — construire `semantic_colors.py` + extraire la colorimétrie de `tests/` vers `src/`, garde report-only, gate dur sur le seul diff ; **ne pas migrer les 28 sites d'un coup**. ⚠️ 28 est un PLAFOND : le plancher de 15 n'est légitime que si même type de trace, même sous-graphique sans axe secondaire, et aucune étiquette de texte persistante — `meta_funnel`, `revenue_forecast.py:82` et `ig_engagement` y tombent sans être des défauts d'attribution | P3 | le script de mesure est dans le champ `siblings` de `a-visual-constant-copied-into-a-second-renderer` (`.claude/dev-docs/error-classes.md`) ; il doit rendre moins de 28 |
 
-**Aucune tâche ouverte ne reste dans cet index, ni dans aucune autre section.** La
-table « 🙋 En attente de toi » plus bas est vide elle aussi depuis le 2026-09-10 :
+**Trois tâches sont ouvertes dans cet index** — R122, R132, R133 — et l'ancre
+`reprise:` les nomme toutes les trois. La
+table « 🙋 En attente de toi » plus bas est vide, elle, depuis le 2026-09-10 :
 R1, sa dernière ligne, est rotée dans `archive.md`. Inviter la bêta est l'usage du
 produit, pas du travail d'ingénierie — une roadmap qui suit les gestes commerciaux de
 son propriétaire ne peut par construction jamais atteindre zéro.
@@ -72,9 +74,14 @@ d'une journée entière. L'écart résiduel aux bords des journées de reporting
 et d'Apple n'est pas corrigeable ; il est nommé par `UNRECONCILABLE_NOTE`, et
 l'effacer serait la faute.
 
-**Plus aucune tâche n'est ouverte**, ni dans l'index ci-dessus ni dans
-« 🙋 En attente de toi » plus bas : R1, le dernier geste humain, y a été rotée vers
-`archive.md` le 2026-09-10.
+**Aucun geste HUMAIN n'est en attente** : « 🙋 En attente de toi » est vide depuis
+le 2026-09-10, R1 y ayant été rotée vers `archive.md`. Les trois tâches de l'index
+ci-dessus sont du travail d'ingénierie, et elles sont ouvertes.
+
+⚠️ Ces deux paragraphes ont affirmé « plus aucune tâche ouverte » le 2026-09-17
+alors que l'index en portait deux, puis trois — la classe
+`a-prose-claim-that-cannot-be-verified` que ce fichier nomme quelques lignes plus
+haut, commise dans le fichier qui la documente.
 
 ---
 
@@ -295,7 +302,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-17 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R122,R132 -->
+<!-- reprise: open=R122,R132,R133 -->
 
 **R116 a quitté l'index le 2026-09-17**, pas ce fichier : `daily_ops_metrics` ne porte qu'une ligne (`complete = FALSE`, percentiles de rendu tous `NULL`), donc la courbe qui doit trancher l'ADR-027 n'existe pas encore. Son bloc de détail — non coché, pas livré — reste **ici**, dans une nouvelle section `## ⏸️ R116` hors des deux tables d'index : `archive.md` est strictement passif (aucun item non coché n'y est admis — `test_the_archive_holds_nothing_actionable`), et R116 n'est ni livrée ni abandonnée. Son déclencheur de réouverture est la ligne `daily_ops_metrics` de `### Conditions d'attente` ci-dessous. Elle n'a donc plus de ligne dans l'index actionnable ni dans « 🙋 En attente de toi » — elle n'attend aucun geste humain, seulement du trafic — et pour cette même raison elle **sort de l'ancre**, qui ne porte que ce que les deux tables de ce fichier listent encore.
 
