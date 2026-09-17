@@ -81,7 +81,7 @@ _CEILINGS = {
     "cause_unknown": 241,             # 363 → 241 : les causes qui nomment un chemin vérifiable
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
-    "scope_without_not_covered": 316,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
+    "scope_without_not_covered": 310,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
                                       # est la PREMIERE classe dont les trois preuves sont
                                       # observées le même jour — date vue rouge, cause mesurée,
                                       # portée écrite en lisant le garde. Les trois compteurs

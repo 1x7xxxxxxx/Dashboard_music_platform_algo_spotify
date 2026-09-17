@@ -7326,7 +7326,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: none
 - seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
 - guard: { type: pytest, ref: tests/test_migrations_are_replay_safe.py (test_no_unguarded_drop + test_every_migration_on_disk_is_recorded_in_the_ledger) }
-- guard_scope: un-document-qui-affirme-un-état-périmé — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-écriture-qui-écrase — rejouer une migration ancienne qui defait ce qu'une plus recente a elargi ; couvre: `migrations/*.sql`, par deux questions — aucun `DROP` sans `IF EXISTS`, et la 024 est neutralisee une fois la 044 passee ; ne couvre pas: (1) les autres paires ancienne/recente : le second test epingle UNE paire nommee, et rien ne cherche les suivantes — c'est un epinglage d'instance, pas la classe ; (2) un `ALTER` qui retrecit sans `DROP` — changer un type, remettre un `NOT NULL`, reduire une contrainte ; (3) l'ordre reel d'application : le garde lit les fichiers, il ne rejoue rien ; (4) ce qui est applique directement en production sans passer par une migration.
 - rex_ref: migrations/106_gold_remaining_grains.sql
 - first_seen: 2026-09-16
 - History:
@@ -7380,7 +7380,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -c "import re,sys,pathlib; U=re.compile(r'\\b127[.]0[.]0[.]1:(\\d{2,5})\\b'); s=pathlib.Path('tools/deploy.sh').read_text(encoding='utf-8'); i=s.index('service_probe()'); probed=set(U.findall(s[i:s.index(chr(10)+chr(125),i)])); served={m for l in pathlib.Path('deploy/Caddyfile').read_text(encoding='utf-8').splitlines() if l.strip().startswith('reverse_proxy') for m in U.findall(l)}; bad=sorted(served-probed); print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_deploy_covers_every_service_it_starts.py }
-- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: une-erreur-avalée-devient-une-absence — passer son tour en silence sur un cas non prevu au lieu de refuser ; couvre: `tools/deploy.sh` et `deploy/Caddyfile` — un service inconnu ne doit pas tomber dans une branche par defaut qui l'ignore ; ne couvre pas: (1) les `else` et `default:` du reste du depot, en Python comme en shell — c'est la forme la plus courante du defaut et rien ne la balaie ; (2) un `case` qui refuse mais dont le message ne nomme pas le geste ; (3) les dictionnaires `.get(x, valeur_par_defaut)` qui font exactement la meme chose en une ligne — ⚠️ dont `_type_from_path` que j'ai ecrit cette nuit, qui rend `aucun` sur un chemin non reconnu ; (4) le cas ou la branche par defaut est LEGITIME et ou c'est son silence qui manque.
 - rex_ref: tools/deploy.sh
 - first_seen: 2026-09-16
 - History:
@@ -7398,7 +7398,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -c "import sys,pathlib; s=pathlib.Path('tools/deploy.sh').read_text(encoding='utf-8'); i=s.index('rollback() {'); b=s[i:s.index(chr(10)+chr(125),i)]; bad=[l.strip() for l in b.splitlines() if 'docker compose' in l and 'SERVICES' in l and not l.strip().startswith('#')]; print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_deploy_covers_every_service_it_starts.py }
-- guard_scope: un-garde-qui-ne-garde-pas — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-garde-qui-ne-garde-pas — reparer plus large que la panne ; couvre: **le corps de `rollback()` dans `tools/deploy.sh`, et rien d'autre** — un seul test, qui exige que le retour arriere reconstruise `"$_svc"` et non `$SERVICES` en entier ; ne couvre pas: (1) ⚠️ **le croisement Caddy ↔ sonde de sante que j'avais attribue ici** : il vit dans le meme FICHIER de test mais repond a une autre question, celle de `a-default-branch-that-skips-instead-of-refusing`. Le rollback pourrait reconstruire `$SERVICES` en entier sans que ce test-la bouge. Deux classes qui partagent un fichier de garde ne partagent pas sa couverture ; (2) les autres scripts qui reparent — `migrate.sh`, les cibles du `Makefile`, un `docker compose restart` tape a la main ; (3) ce que la reparation FAIT : le garde lit le TEXTE du corps, jamais l'effet d'une execution ; (4) le cas symetrique, une reparation trop ETROITE qui laisse la moitie du service en panne.
 - rex_ref: tools/deploy.sh
 - first_seen: 2026-09-16
 - History:
@@ -7489,7 +7489,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `.venv/bin/python -c "import importlib,sys; sys.path.insert(0,'.'); m=importlib.import_module('src.utils.metrics'); sys.modules.pop('src.utils.metrics'); importlib.import_module('src.utils.metrics')"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_the_metrics_server_survives_a_rerun.py }
-- guard_scope: un-travail-qui-n-arrive-nulle-part — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-travail-qui-n-arrive-nulle-part — enregistrer deux fois une metrique et faire tomber le processus a l'import ; couvre: `src/utils/metrics.py` et `src/dashboard/app.py` — le serveur demarre deux fois ne lie qu'un port, un port deja pris est survecu, les deux phases sont emises, et la chrome est mesuree AVANT la vue ; ne couvre pas: (1) les metriques de l'API, qui vivent dans le meme module mais sont exposees par une route FastAPI et n'ont aucun test de double enregistrement ; (2) un troisieme chemin d'import — ce depot charge ses vues sous DEUX noms de module (`views.x` et `src.dashboard.views.x`), ce qui est precisement la cause de la classe, et rien ne verifie qu'un quatrieme n'apparaitra pas ; (3) les collecteurs `process_*` enregistres par defaut par `prometheus_client` ; (4) ce que la metrique VAUT : le garde verifie qu'elle existe et qu'elle n'explose pas, jamais qu'elle mesure la bonne chose.
 - rex_ref: src/utils/metrics.py
 - first_seen: 2026-09-16
 - History:
@@ -7580,7 +7580,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `.venv/bin/python -m pytest tests/test_a_measurement_says_why_it_failed.py -q -p no:cacheprovider >/dev/null 2>&1`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_measurement_says_why_it_failed.py }
-- guard_scope: le-temps-et-l-horloge — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — rendre un taux d'echec sans dire de quoi il est fait ; couvre: UN outil, `tools/loadtest_concurrency.py` — les trois causes d'echec sont comptees separement, le marqueur est specifique aux reruns, le taux de CENSURE est publie, et la saturation du client est mesuree a chaque palier ; ne couvre pas: (1) tous les autres outils de mesure du depot — `lazy_body_cost`, `view_rerun_cost`, `figure_vs_aggregation_cost`, `pytest_peak_memory`, ecrits cette nuit : aucun ne compte ses echecs par cause ; (2) ce que les trois causes VALENT — le garde verifie qu'elles sont distinguees, jamais que la distinction est juste ; (3) une quatrieme cause qui apparaitrait et serait rangee dans l'une des trois.
 - rex_ref: tools/loadtest_concurrency.py
 - first_seen: 2026-09-16
 - History:
@@ -7616,7 +7616,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `.venv/bin/python -m pytest tests/test_a_figure_from_a_harness_carries_its_floor.py -q -p no:cacheprovider >/dev/null 2>&1`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: pytest, ref: tests/test_a_figure_from_a_harness_carries_its_floor.py }
-- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-seuil-écrit-d-instinct — comparer deux mesures dont l'une porte un plancher que l'autre n'a pas ; couvre: le depot ENTIER pour les chiffres `468`/`538` — les `.md`, `.yml`, `.yaml`, `.sql` et `.sh` en texte integral, **et les `.py` par leur PROSE** (docstrings lues a l'`ast`, commentaires au `tokenize`) : le plancher `352` ou un pointeur explicite (ADR-026, « addendum », « plancher », « AppTest ») doit se trouver dans les **15 lignes** autour ; ne couvre pas: (1) **les autres ratios entre instruments**, et il y en a — cette nuit meme, comparer 114 ms de rerun a chaud a 357,7 ms de mesure serveur a failli refuser cinq refactors ; le garde epingle DEUX nombres precis, pas la forme du raisonnement ; (2) dans un `.py`, tout ce qui n'est pas de la prose — un `468` dans un litteral, un nom de variable, une valeur de test ; (3) les `.json` et les fichiers non suivis par git ; (4) un chiffre RECALCULE a partir de ceux-la — un rapport, un pourcentage — qui perd le lien avec le plancher en chemin ; (5) la fenetre de 15 lignes : un pointeur a la seizieme ne compte pas.
 - rex_ref: docs/adr/ADR-026-observability-is-adopted-to-watch-the-triggers.md
 - first_seen: 2026-09-16
 - History:

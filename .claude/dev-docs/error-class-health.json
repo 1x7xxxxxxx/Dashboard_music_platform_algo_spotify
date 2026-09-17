@@ -324,9 +324,9 @@
       "guard_automatic": true,
       "guard_ref": "tests/test_a_deploy_covers_every_service_it_starts.py",
       "guard_ref_exists": true,
-      "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
+      "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1242,9 +1242,9 @@
       "guard_automatic": true,
       "guard_ref": "tests/test_a_measurement_says_why_it_failed.py",
       "guard_ref_exists": true,
-      "guard_scope_declared_family": "le-temps-et-l-horloge",
+      "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1360,7 +1360,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1798,9 +1798,9 @@
       "guard_automatic": true,
       "guard_ref": "tests/test_a_figure_from_a_harness_carries_its_floor.py",
       "guard_ref_exists": true,
-      "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
+      "guard_scope_declared_family": "un-seuil-écrit-d-instinct",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -1913,9 +1913,9 @@
       "guard_automatic": true,
       "guard_ref": "tests/test_migrations_are_replay_safe.py",
       "guard_ref_exists": true,
-      "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_declared_family": "une-écriture-qui-écrase",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_type": "pytest",
       "has_signature": false,
       "history_dates_declared": [
@@ -1938,7 +1938,7 @@
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
-      "guard_scope_has_not_covered": false,
+      "guard_scope_has_not_covered": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -8721,7 +8721,7 @@
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
       "scope_unknown": 0,
-      "scope_without_not_covered": 316,
+      "scope_without_not_covered": 310,
       "seen_red_never": 0,
       "seen_red_unknown": 331
     },
@@ -8788,16 +8788,16 @@
       "by_scope": {
         "ne-couvre-pas renseigné": {
           "events": 58,
-          "class_days": 1938,
-          "per_class_month": 0.9098,
+          "class_days": 1944,
+          "per_class_month": 0.907,
           "ci95": [
-            0.6908,
-            1.1762
+            0.6887,
+            1.1725
           ]
         },
         "non renseigné": {
           "events": 0,
-          "class_days": 6059,
+          "class_days": 6053,
           "per_class_month": 0.0,
           "ci95": [
             0.0,
