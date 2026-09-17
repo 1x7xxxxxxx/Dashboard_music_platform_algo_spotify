@@ -101,15 +101,22 @@ logs:        ## Tail Airflow scheduler logs
 #     `n8n-ollama` **2,53 Go** (un modele resident) et le serveur MCP `knowledge-rag`
 #     **1,15 Go**. Ni l'un ni l'autre ne se tue pour lancer des tests.
 #
-# Sur une machine libre le compte reste proche de l'ancien ; ici il donne 4 workers, et
-# la suite FINIT au lieu d'etre tuee. Une suite tuee rend un journal VIDE, et un journal
+# ⚠️ Reserve portee de 4 a 5 Go le 2026-09-17, sur un TROISIEME OOM — la suite tuee
+# a **98 %**, apres 7 minutes. Le calcul avait bien baisse a `-n 3` ; ce qui manquait
+# est ailleurs : il prend un instantane de `MemAvailable` AU LANCEMENT, et la memoire
+# disponible PENDANT la course est plus basse — les derniers pourcents sont les rendus
+# `AppTest` les plus lourds, et trois d'entre eux tombent ensemble.
+#
+# Un seuil calcule sur l'etat initial d'une ressource qui varie pendant l'usage est
+# une mesure prise au mauvais instant. Le remede honnete serait de mesurer le PIC
+# reel de la suite entiere ; en attendant, la reserve absorbe l'ecart. Une suite tuee rend un journal VIDE, et un journal
 # vide se lit comme « rien ne tourne » — c'est le pire mode de panne pour une seance
 # sans surveillance.
 #
 # `nproc` seul serait revenu au defaut ; la memoire seule pourrait demander 14 workers
 # sur 8 coeurs. Les deux bornes comptent.
 PYTEST_WORKERS := $(shell a=$$(awk '/MemAvailable/{print int($$2/1024)}' /proc/meminfo 2>/dev/null || echo 4096); \
-  n=$$(( (a - 4096) / 700 )); c=$$(nproc 2>/dev/null || echo 4); \
+  n=$$(( (a - 5120) / 700 )); c=$$(nproc 2>/dev/null || echo 4); \
   [ $$n -gt $$c ] && n=$$c; [ $$n -lt 2 ] && n=2; echo $$n)
 PYTEST_DIST := -n $(PYTEST_WORKERS) --dist loadgroup
 

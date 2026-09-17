@@ -123,9 +123,14 @@ _FLOORS = {
     # DATE — chacune vue rouge par mutation, dont deux avec la valeur fautive d'origine
     # (`_COLUMN_WIDTH_PX = 720`, `noise_tokens` retire de l'appel de production).
     # `seen_red_unknown` ne bouge donc pas : +5 classes, +5 dates observees.
-    "classes": 376,
-    "with_signature": 365,
-    "automatic_guard": 358,
+    # +1 : `a-parser-that-knows-one-of-two-syntaxes`.
+    # ⚠️ `automatic_guard` fait un BOND de 358 a 367, et ce n'est pas du travail : c'est
+    # la correction du parseur. Il ne lisait qu'une des deux syntaxes de `guard:`, donc
+    # neuf classes gardees etaient comptees comme non gardees depuis toujours. Le
+    # plancher monte parce que la MESURE a change, pas le depot.
+    "classes": 377,
+    "with_signature": 366,
+    "automatic_guard": 367,
 }
 # Le plancher qui n'a pas d'équivalent dans `gold-coverage`, et le plus important ici :
 # un taux s'améliore aussi en RÉTRÉCISSANT la fenêtre d'observation.

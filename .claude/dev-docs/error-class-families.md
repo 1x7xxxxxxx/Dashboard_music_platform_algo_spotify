@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**376 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**377 classes**, regroupées en **17 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -11,7 +11,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | famille | classes | la question |
 |---|---|---|
 | [le-locataire](#le-locataire) | 42 | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
-| [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 17 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
+| [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 18 | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 13 | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 19 | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
@@ -84,10 +84,11 @@ Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|cana
 
 **Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ?**
 
-Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generations|snapshot` sur l'identifiant et le symptôme. 17 classe(s).
+Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generations|snapshot` sur l'identifiant et le symptôme. 18 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`a-parser-that-knows-one-of-two-syntaxes`](error-classes.md#a-parser-that-knows-one-of-two-syntaxes) | un compteur dérivé est faux, et sa valeur fausse est une réponse **parfaitement plausible**. Rien ne signale l'erreur : le champ vaut sa valeur par dé |
 | [`snapshot-fixture-hook-reflow`](error-classes.md#snapshot-fixture-hook-reflow) | a byte-exact golden/snapshot fixture under `tests/fixtures/` is silently reflowed by the `trailing-whitespace` / `end-of-file-fixer` pre-commit hooks  |
 | [`counter-includes-our-own-robots`](error-classes.md#counter-includes-our-own-robots) | un compteur affiché à des visiteurs — « N artistes utilisent le produit » — inclut les comptes de service que nous créons nous-mêmes. Le nombre est fa |
 | [`snapshot-keyed-by-a-per-row-timestamp`](error-classes.md#snapshot-keyed-by-a-per-row-timestamp) | un agrégat sur « le dernier relevé » ne somme qu'**une** ligne du lot, et le delta qui en découle part à l'utilisateur comme un effondrement. |
@@ -567,6 +568,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=376 families=17 orphans=3 -->
+<!-- error-class-families: total=377 families=17 orphans=3 -->
 
-<!-- error-class-families: sha256=6e9fbdb6e5e598ef30d98489d604eded0113899ee6b14b4ce58070c71d2c9e78 -->
+<!-- error-class-families: sha256=1d0f59270dc998d7d1edc203bbe63c8835fade6fae6be6eda471a8553b3565f1 -->

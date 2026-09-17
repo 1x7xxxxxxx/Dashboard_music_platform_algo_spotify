@@ -75,12 +75,48 @@ def _is_automatic(kind: str) -> bool:
 # étaient comptés comme de la prose. Dix faux positifs. Un cliquet qui se trompe sur la
 # moitié de sa population fait corriger les mauvaises entrées — et j'ai annoncé le
 # chiffre faux avant de le vérifier.
-_PROSE_CEILING = 18
+# 18 → 10 le 2026-09-17, même cause : huit classes gardées étaient comptées comme
+# prose seule parce que leur `guard:` est écrit en forme nue. Le dépôt n'a pas changé,
+# la mesure oui.
+_PROSE_CEILING = 10
 
 
 # Les en-têtes qui ne sont PAS des classes. Ils ressemblent à des classes à un
 # découpage sur `## `, et les compter gonflait la population de trois.
 _NOT_A_CLASS = re.compile(r"^[a-z0-9][a-z0-9-]+$")
+
+
+def _guard_kind(block: str) -> str:
+    r"""Le TYPE de garde d'une entrée — les DEUX syntaxes, via la règle unique.
+
+    ⚠️ Ce fichier lisait `^- guard: \{ type: ([\w-]+)` et rien d'autre jusqu'au
+    2026-09-17. Le catalogue écrit `guard:` de deux façons, et la forme NUE —
+    `- guard: tests/x.py — explication` — retombait donc sur `aucun`.
+
+    C'est l'instance FRÈRE de `a-parser-that-knows-one-of-two-syntaxes`, trouvée en
+    balayant après le correctif du générateur : **huit classes gardées étaient comptées
+    comme prose seule** (18 au lieu de 10), et les « menteuses » — celles qui se
+    déclarent `guarded` sans garde automatique — en contenaient autant à tort.
+
+    La règle est IMPORTÉE, pas recopiée. Une troisième copie divergerait comme les deux
+    premières : le générateur de santé a exactement le même besoin, et `error-classes.md`
+    n'a pas à être compris de trois façons.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_health_rules", _ROOT / "tools" / "dev" / "error_class_health.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    m = re.search(r"^- guard: (.*)$", block, re.M)
+    if not m:
+        return "aucun"
+    value = m.group(1).strip()
+    braced = re.match(r"\{ type: ([\w-]+)", value)
+    if braced:
+        return braced.group(1)
+    return mod._type_from_path(mod._guard_path(value))
+
 
 
 def _classes() -> list[tuple[str, str]]:
@@ -101,8 +137,7 @@ def _classes() -> list[tuple[str, str]]:
         name = (block.split("\n", 1)[0].strip().split() or [""])[0]
         if not _NOT_A_CLASS.match(name) or name == "class-id":
             continue
-        m = re.search(r"^- guard: \{ type: ([\w-]+)", block, re.M)
-        out.append((name, m.group(1) if m else "aucun"))
+        out.append((name, _guard_kind(block)))
     return out
 
 
@@ -139,13 +174,17 @@ def test_a_guarded_class_names_a_guard_that_runs() -> None:
         name = block.split("\n", 1)[0].strip()
         if not re.search(r"^- status: guarded\s*$", block, re.M):
             continue
-        m = re.search(r"^- guard: \{ type: ([\w-]+)", block, re.M)
-        kind = m.group(1) if m else "aucun"
+        kind = _guard_kind(block)
         if not _is_automatic(kind):
             liars.append(f"{name} → guard de type `{kind}`")
 
     # Gelé à la MESURE du 2026-09-16 (8), pas à une estimation. Ne peut que baisser.
-    assert len(liars) <= 8, (
+    # 8 → 2 le 2026-09-17, et **aucune classe n'a été corrigée pour ça** : c'est le
+    # LECTEUR qui était faux. Il ne connaissait qu'une des deux syntaxes de `guard:`,
+    # donc six classes parfaitement gardées étaient accusées de mentir. Une accusation
+    # portée par un compteur faux est pire qu'un compteur absent — on corrige ce qui
+    # n'est pas cassé, et on apprend à ignorer le rouge.
+    assert len(liars) <= 2, (
         f"{len(liars)} classes se déclarent `guarded` sans garde qui s'exécute :\n  "
         + "\n  ".join(sorted(liars)[:10])
         + "\n\nSoit le statut descend (`reported`), soit le garde devient un test ou un "

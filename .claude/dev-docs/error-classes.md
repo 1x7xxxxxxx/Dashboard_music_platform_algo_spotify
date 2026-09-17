@@ -139,6 +139,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [two-shapes-summed-as-one](#two-shapes-summed-as-one) | P2 | deterministic | guarded | none |
 | [a-scoring-call-that-omits-its-context](#a-scoring-call-that-omits-its-context) | P2 | deterministic | guarded | none |
 | [an-optimisation-that-degrades-what-worked](#an-optimisation-that-degrades-what-worked) | P2 | deterministic | guarded | none |
+| [a-parser-that-knows-one-of-two-syntaxes](#a-parser-that-knows-one-of-two-syntaxes) | P2 | deterministic | guarded | none |
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
 | [a-document-that-cannot-be-current-in-its-own-commit](#a-document-that-cannot-be-current-in-its-own-commit) | P2 | deterministic | guarded | none |
 | [a-population-that-counts-its-own-headers](#a-population-that-counts-its-own-headers) | P3 | deterministic | guarded | none |
@@ -719,6 +720,26 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-17: classe écrite depuis la docstring de son garde. C'est la cinquième et dernière des classes qu'un garde nommait sans qu'elles existent, trouvées le 2026-09-16 en balayant 81 déclarations.
   - 2026-09-17: ⚠️ **deux mutations avant celle-ci n'ont pas mordu**, et ce sont elles qui ont de la valeur. La première visait le moteur par un `sed` maladroit : le fichier compilait, le test restait vert — **une mutation qui ne mord pas ressemble exactement à un garde qui couvre**. La seconde a muté `_from_signup.py`, un appelant que ce garde-là ne lit pas. Seule la troisième — neutraliser `artist_noise_tokens`, la dégradation que la classe décrit — a fait tomber 2 des 31 paires du cliché.
 
+## a-parser-that-knows-one-of-two-syntaxes
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un compteur dérivé est faux, et sa valeur fausse est une réponse **parfaitement plausible**. Rien ne signale l'erreur : le champ vaut sa valeur par défaut, qui se trouve être aussi une réponse légitime.
+- root_cause: le document source écrit un champ de DEUX façons et le parseur n'en connaît qu'une. `tools/dev/error_class_health.py::_guard_path()` ne lisait que la forme structurée `guard: { type: …, ref: … }` — 365 classes sur 376. La forme NUE, `- guard: tests/x.py — explication`, rendait `guard_type: 'aucun'` et `guard_ref: None`. **Neuf classes nomment ainsi un garde parfaitement réel**, dont `cumulative-counter-drawn-as-its-own-history`, qui pointe un fichier de 15 tests verts.
+- cause_evidence: measured (2026-09-17 : 365 formes structurées, 10 formes nues dont 9 nommant un chemin ; `automatic_guard` 358 → **366** après correction)
+- signature: `python3 -m pytest tests/test_the_health_parser_reads_both_guard_forms.py -q`
+- seen_red: 2026-09-17 sur `tools/dev/error_class_health.py` (`_GUARD_BARE` neutralisé) → exit 1, **4 tests rouges** nommant les classes retombées à `None` ; 0 après remise en état
+- long_term_fix: `_guard_path()` lit les deux formes, et `_type_from_path()` DÉDUIT le type du chemin (`tests/` → pytest, `.claude/hooks/` → hook, `.claude/scripts/` → signature). Les deux moitiés comptent : vérifié en exécutant les deux variantes côte à côte, corriger le chemin SEUL laisse le type à `aucun`, donc `_is_automatic()` à False et `automatic_guard` sous-compté. **Un compteur à moitié réparé est plus difficile à soupçonner qu'un compteur franchement cassé.**
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_health_parser_reads_both_guard_forms.py }
+- guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — dériver un compteur d'un champ dont on ne lit qu'une des syntaxes ; couvre: le champ `guard:` du catalogue et lui seul — toute forme nue nommant un chemin doit être parsée, et le type déduit doit être reconnu comme automatique ; une non-vacuité exige que les DEUX formes existent encore dans le catalogue, sinon le garde ne prouverait plus rien ; ne couvre pas: (1) **les autres champs du même catalogue** — `signature:`, `seen_red:`, `cause_evidence:`, `guard_scope:` sont lus par des expressions régulières qui peuvent avoir le même angle mort, et rien ne le vérifie ; (2) les autres générateurs du dépôt — `error_class_families.py`, `gold_coverage.py`, `audit_runner.py` lisent le même fichier avec leurs propres parseurs ; (3) une troisième syntaxe qui apparaîtrait demain ; (4) ce que le chemin DÉSIGNE : le garde vérifie qu'il est lu, `guards_ref_missing` qu'il existe, aucun des deux que le fichier garde vraiment la classe.
+- rex_ref: tools/dev/error_class_health.py
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: **la forme minoritaire est celle qu'on oublie** — 10 sur 376. Un parseur écrit en regardant le catalogue voit la forme dominante, et la variante ne se manifeste que par un champ qui vaut sa valeur par défaut. Ici ce défaut était `aucun`, qui est *aussi* une réponse valable : **une valeur par défaut qui coïncide avec une réponse légitime rend le défaut muet.**
+  - 2026-09-17: **trouvé par un `code-critic`, pas par un test.** J'avais écrit « aucun garde automatique » dans la portée de `cumulative-counter-drawn-as-its-own-history`, en me fiant au champ DÉRIVÉ plutôt qu'à l'entrée — dont les quatre lignes disent le contraire (`status: guarded`, `kind: deterministic`, une `signature:`, un `guard:`). Le critic a exécuté les 15 tests que je déclarais inexistants : verts. Cinq portées du même lot étaient fausses pour cette raison.
+  - 2026-09-17: conséquence la plus grave, et la plus silencieuse : `guards_ref_missing` valait **0 sans avoir jamais vérifié ces neuf chemins**. Un compteur à zéro parce qu'il ne regarde pas est indiscernable d'un compteur à zéro parce que tout va bien — et c'est celui-là qu'on cite pour dire que le catalogue est sain.
+
 ## exempt-row-hides-others-conflict
 - status: guarded
 - severity: P2
@@ -892,7 +913,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: the PostToolUse hook rejects a `.style.format(` with no `na_rep=` at edit time, before the view is ever rendered.
 - autofix: none
 - guard: { type: posttooluse-hook, ref: .claude/hooks/lint_dashboard_view.py }
-- guard_scope: un-seuil-écrit-d-instinct — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-garde-qui-ne-garde-pas — afficher `nan` à un artiste au lieu d'une absence ; couvre: DEUX surfaces — un hook PostToolUse qui relit le fichier qu'on vient d'écrire s'il est sous `src/dashboard/views/`, **et** une signature qui balaie tout ce répertoire à chaque `make audit` ; ne couvre pas: (1) ⚠️ **le hook AVERTIT, il ne bloque pas** — exit 0 par conception, donc un `nan` part en production si personne ne lit stderr ; (2) ⚠️ **le balayage du parc existe mais rend des faux positifs** : mesuré le 2026-09-17, exit 1 sur `meta_ads_overview.py:645` et `meta_x_spotify.py:315`, tous deux corrects — `na_rep=` y est sur une autre ligne que `.style.format(`, que la grep ne voit pas. Un balayage bruyant se fait ignorer ; (3) tout ce qui n'est pas dans `views/` — un helper d'`utils/`, le PDF, un e-mail, l'API ; (4) les autres façons de rendre un `nan` visible — un f-string, un `st.metric`, une figure Plotly, un `to_markdown()`.
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-14 (ref: DEVLOG#2026-05-14)
 - History:
@@ -931,7 +952,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: migrate the remaining views to `view_session()`; the class closes when no view holds its own copy of the guard.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: CLAUDE.md#9 }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-garde-qui-ne-garde-pas — laisser coexister deux façons d'ouvrir la session d'une vue ; couvre: le plafond TEXTUEL de connexions par fichier de vue (`test_view_connection_budget`) et le compte d'un rendu RÉEL (`test_a_render_opens_one_connection`) — mais ni l'un ni l'autre n'exige `view_session()` ; ne couvre pas: (1) **l'adoption elle-même**, qui est le sujet de la classe : une vue conforme à la main reste conforme, et rien ne la pousse à migrer — la classe est `open` et P4 pour cette raison ; (2) les trois vues que `view_session()` ne peut PAS servir aujourd'hui (`admin` et `airflow_kpi` ne résolvent aucun locataire, `referral` refuse les admins que `view_session` sert avec `artist_id = 1`) — les migrer mécaniquement serait une régression, et c'est écrit ; (3) les surfaces hors `views/` qui ouvrent aussi des connexions.
 - rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -1131,7 +1152,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: every export goes through `defang_formulas()` in `csv_exporter.py`; the export helper is the only writer, so a new export inherits it.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: src/dashboard/utils/csv_exporter.py (defang_formulas) }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: la-frontière-avec-le-dehors — écrire une donnée d'artiste dans un CSV sans neutraliser ce qu'un tableur y lira comme une formule ; couvre: `defang_formulas()` aux **trois** sorties de fichier du produit (`csv_exporter` en Excel et en CSV, `admin.py:760`) — vérifié, il n'en existe pas de quatrième — **plus un check AST automatique** (`audit_python_signatures.py::csv_formula_injection`, câblé dans `make audit`) et un test unitaire dédié. ⚠️ J'avais écrit « aucun garde automatique, le balayage est manuel » : faux, et la commande était déjà dans le champ `signature:` de cette entrée ; ne couvre pas: (1) les colonnes non-`object` — un flottant qui devient du texte plus tard, une date formatée en aval ; (2) les autres formats qu'un tableur ouvre : le TSV, le presse-papier, un `st.download_button` qui compose son propre texte ; (3) un caractère INVISIBLE avant le déclencheur (`\u200b=cmd`), vérifié non neutralisé. ⚠️ J'avais aussi cité `\t=cmd|…` comme un trou : faux — `\t` et `\r` sont dans `_FORMULA_LEAD`, vérifié en exécutant la fonction.
 - rex_ref: —
 - first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite20)
 - History:
@@ -1315,7 +1336,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: two tenants, and the write path. `tests/test_e2e_two_tenants.py` runs the real DAG collection functions with the platform HTTP layer stubbed so the response DEPENDS on the identity requested — a row of A under B's `artist_id` is then directly observable. `test_views_render_smoke.py` gained a non-admin pass over an empty tenant (the day-one state), and `test_signup_funnel_db.py` covers account creation. Proven: 7 red on the pre-fix tree, 9 green after.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: extend tests/test_api_db_smoke.py + tests/test_views_render_smoke.py to ≥2 tenants }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — valider sur un seul locataire un produit qui en sert plusieurs ; couvre: `tests/test_views_render_smoke.py::test_view_renders_for_a_brand_new_artist`, qui crée un VRAI second locataire vide en base et rend **13 vues** (`EMPTY_TENANT_VIEWS`), échouant sur toute exception ; plus le parcours de bout en bout à deux locataires. ⚠️ J'avais écrit « aucun garde propre, seul le canari la voit » — **faux, et contredit par le `long_term_fix` de cette même entrée**, qui revendique ce garde comme livré (« 7 rouges sur l'arbre d'avant, 9 verts après ») ; ne couvre pas: (1) les vues hors des 13 de `EMPTY_TENANT_VIEWS` — la liste est tenue à la main ; (2) les DAG et les exports, qui peuvent être écrits et testés sur l'artiste 1 seul ; (3) un rendu qui RÉUSSIT en montrant les données du mauvais locataire : le garde attrape une exception, pas une fuite — c'est le parcours à deux locataires qui pose cette question-là.
 - rex_ref: docs/adr/ADR-006-central-credential-model.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
@@ -1353,7 +1374,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_roadmap_two_files.py }
-- guard_scope: le-message-parle-au-mauvais-lecteur — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-document-qui-affirme-un-état-périmé — écrire un état dans un fichier que personne ne rend ; couvre: les DEUX fichiers de roadmap, par la somme de leurs items — elle ne peut pas rétrécir, donc une rotation qui perd une ligne se voit ; ne couvre pas: (1) **le rendu**, précisément : rien ne vérifie qu'un état écrit est LU quelque part — c'est le défaut de la classe, et son garde ne l'atteint pas ; (2) les autres fichiers d'état du dépôt — `.claude/curator/usage.json` (gitignoré, donc perdu au clone), les instantanés générés, `pending-rex.md` ; (3) un item conservé mais vidé de son contenu : le compte tient, le sens part ; (4) la fraîcheur — un fichier peut être rendu et dire une chose fausse.
 - rex_ref: .claude/agents/roadmap-keeper.md
 - first_seen: 2026-08-03 (ref: roadmap-two-files-2026-08-03)
 - secondary_signature (heuristic, nightly): `! grep -rlE "TODO: (Run|run|fill)" .claude/dev-docs/ .claude/commands/ .claude/agents/`
@@ -1433,7 +1454,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: every `CONNECTION_TESTS[platform]` must probe the artist's own asset (`/act_<id>`, `channels?id=`, `/users/<id>/tracks`, `/artists/<id>`) and treat an empty result as a failure with the next action named. A missing tenant identifier is `False`, never `True`.
 - autofix: none
 - guard: { type: test, ref: tests/test_connection_test_proves_tenant.py }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — faire passer un test de connexion sur les identifiants de l'APP alors que le locataire n'a rien ; couvre: **les cinq plateformes qui ont une surface de test de connexion** — SoundCloud, Meta, YouTube, Spotify et Instagram — par des réponses HTTP simulées ; **plus un test de couverture** (`test_every_logical_platform_has_a_connection_test`) qui échoue si une plateforme de `PLATFORM_IDENTITIES` n'en a pas. ⚠️ J'avais écrit que Spotify et Instagram n'avaient aucun cas : faux, ils ont chacun un test dédié plus un cas paramétré ; ne couvre pas: (1) **Apple Music**, qui n'a aucune surface de test de connexion — elle est CSV seulement, donc ce n'est pas un trou du garde mais une absence de sujet ; (2) le vrai dehors : tout est joué sur des réponses fabriquées, donc un changement de forme chez la plateforme passe inaperçu jusqu'à ce qu'un artiste le rencontre ; (3) le cas inverse — un locataire réellement connecté que le test déclare en échec, qui coûte une session de support et n'a aucun cas ici.
 - rex_ref: src/dashboard/views/credentials/_registry.py
 - first_seen: 2026-06-15 (Benken — Meta ad account never shared, YouTube channel empty)
 - History:
@@ -1567,7 +1588,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: every trigger carries the tenant; a non-admin without a resolved `artist_id` triggers nothing; the CSV watchers have no default tenant — a manual trigger without `artist_id` raises, and a *scheduled* run (which legitimately has no conf) reports the unattributable files and writes nothing.
 - autofix: none
 - guard: { type: error-class-signature, ref: audit_runner --deterministic }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — déclencher un DAG sans dire POUR QUI ; couvre: `check_dag_trigger_scope.py`, qui cherche les appels à `trigger_dag` sans `artist_id` dans leur `conf` — **et qui suit l'assignation d'une variable** : `conf=payload` avec `payload = {'artist_id': …}` est reconnu comme scopé, vérifié en exécutant le détecteur. ⚠️ J'avais listé ce cas comme un trou ; il est fermé depuis le 2026-09-04 et l'History de cette entrée le dit ; ne couvre pas: (1) un déclenchement qui ne passe pas par `trigger_dag` — l'UI Airflow, l'API REST, `airflow dags trigger` en ligne de commande, un planning qui tourne pour toute la flotte ; (2) ce que le DAG FAIT du `artist_id` reçu : le transmettre n'est pas le respecter ; (3) un `conf` assemblé en plusieurs étapes, ou construit par une fonction.
 - rex_ref: src/dashboard/app.py
 - first_seen: 2026-08-20
 - History:
@@ -1625,7 +1646,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: reason on the TYPE, never on the name — a tenant column is `INTEGER`. The write auditor and migration 068 both filter on `data_type = 'integer'`, and 068 carries the note so the next migration does not relearn it.
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
-- guard_scope: le-locataire — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: le-locataire — lire une colonne sur la foi de son NOM au lieu de son type ; couvre: le parcours à deux locataires, qui échoue si les données de l'un apparaissent chez l'autre, et dont `test_every_write_names_its_tenant_explicitly` interroge `information_schema` sur `column_name = 'artist_id'` — **une heuristique par NOM, ironiquement la forme même du défaut** ; ne couvre pas: (1) la confusion elle-même : sur `artists`, `artist_history` et `tracks`, `artist_id` est l'identifiant SPOTIFY (VARCHAR) et le locataire est `saas_artist_id` (INTEGER) — aucune assertion ne vérifie qu'on raisonne sur le type, c'est une règle de `.claude/rules/python.md` ; (2) ⚠️ **le vrai garde de l'incident du 2026-08-22 n'est pas dans le fichier que le champ `guard:` nomme** : il vit dans `tests/test_platform_sources_agree.py::test_no_platform_resolves_to_a_table_that_is_not_tenant_scopable`, et l'entrée ne le référence pas ; (3) les autres noms ambigus — `date`, `name`, `status`, `total`.
 - rex_ref: migrations/068_drop_artist_id_defaults.sql
 - first_seen: 2026-08-20
 - History:
@@ -5919,7 +5940,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 -c "import ast,sys;f=next((n for n in ast.walk(ast.parse(open('src/dashboard/utils/platform_chart.py').read())) if isinstance(n,ast.FunctionDef) and n.name=='_as_mode'),None);ok=f is not None and 'cumulative' in [a.arg for a in f.args.args];ok=ok and all(any(k.arg=='cumulative' for n in ast.walk(ast.parse(open(v).read())) if isinstance(n,ast.Call) for k in n.keywords) for v in ('src/dashboard/views/home.py','src/dashboard/views/onboarding.py'));sys.exit(0 if ok else 1)"`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: tests/test_a_curve_ends_where_its_tile_says.py — le dernier point de la série égale `v_platform_totals` pour CHAQUE locataire (sur base vivante), le cumul ne recule jamais, et cinq tests purs tiennent la lecture de la couche or, le report en avant, le seau grossier qui prend le DERNIER niveau, et le niveau de départ hérité d'avant la fenêtre. Mutations vues rouges le 2026-09-11 : `gold = None` (4 échecs), le seau qui somme (3), le trou qui casse la courbe (3).
-- guard_scope: un-cumul-pris-pour-un-quotidien — (famille DÉRIVÉE mécaniquement 2026-09-16 ; couvre / ne couvre pas restent à écrire)
+- guard_scope: un-cumul-pris-pour-un-quotidien — tracer un compteur cumulatif comme s'il était une série quotidienne ; couvre: `tests/test_a_curve_ends_where_its_tile_says.py` — **15 tests**, dont « le dernier point de la série égale `v_platform_totals` », « la courbe ne redescend jamais » et « un seau grossier prend le dernier NIVEAU, pas la somme des deltas » ; plus une signature AST. ⚠️ J'avais écrit ici « rien de mécanique, le champ `guard:` vaut aucun » : **c'était faux sur les quatre lignes de cette même entrée** (`status: guarded`, `kind: deterministic`, une `signature:` réelle, un `guard:` qui nomme ce fichier), et le `code-critic` l'a réfuté en exécutant les 15 tests — verts. Je m'étais fié au champ `guard_type` du JSON généré, que le parseur rendait `aucun` faute de savoir lire la forme NUE de `guard:` ; ne couvre pas: (1) les plateformes hors des courbes testées — le garde épingle celles qu'on a rencontrées, pas la règle ; (2) un cumul affiché ailleurs que dans une courbe : une tuile, un export, un e-mail ; (3) la NATURE du compteur d'une plateforme ajoutée — rien ne la déclare, et c'est `STEP_ONLY` plus la mémoire de l'auteur qui la portent.
 - rex_ref: src/dashboard/utils/platform_chart.py
 - first_seen: 2026-09-11
 - History:

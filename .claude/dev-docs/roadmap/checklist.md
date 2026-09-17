@@ -25,7 +25,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R122 | Finir la revue des classes d'erreur — reste 14 récidivistes + 332 portées + **5 classes jamais écrites** | P3 | les trous de `make error-health` ne font que baisser |
+| R122 | Revue des classes d'erreur — **récidivistes : 0** ✅, **classes manquantes : 0** ✅ ; reste 316 portées et 241 causes, en queue opportuniste | P3 | les trous de `make error-health` ne font que baisser |
 
 **R109 et R110 ont été livrées et déployées le 2026-09-16** — voir `archive.md`.
 Résultat mesuré : le mur du run `ci.yml` est passé d'une médiane de **427 s à 109 s**
@@ -194,10 +194,10 @@ le supposer.
 
   | trou | reste | ce qu'il faut écrire |
   |---|---|---|
-  | `scope_without_not_covered` | **325** | le `ne couvre pas:` — un geste voisin qui partage la cause |
-  | `seen_red_unknown` | **332** | une date OBSERVÉE, ou `never` ; jamais une date inventée |
-  | `cause_unknown` | **242** | `read` / `measured` / `inferred` — `inferred` est une réponse valable |
-  | récidivistes non traitées | **9** / 47 | la portée d'abord : ce sont elles qui ont échoué |
+  | `scope_without_not_covered` | **316** | le `ne couvre pas:` — un geste voisin qui partage la cause |
+  | `seen_red_unknown` | **331** | une date OBSERVÉE, ou `never` ; jamais une date inventée |
+  | `cause_unknown` | **241** | `read` / `measured` / `inferred` — `inferred` est une réponse valable |
+  | ~~récidivistes non traitées~~ | **0** / 47 ✅ | **toutes portées écrites le 2026-09-17** — c'était la priorité mesurée de la brique | la portée d'abord : ce sont elles qui ont échoué |
   | ~~classes jamais écrites~~ | **0** ✅ | **les cinq écrites le 2026-09-17**, chacune avec un `seen_red` DATÉ (voir plus bas) |
 
   **L'ordre est celui du gain mesuré**, jamais alphabétique : (1) les 14 récidivistes restantes —

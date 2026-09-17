@@ -28,3 +28,5 @@
 {"at": "2026-09-17T00:44:58+00:00", "head": "c6a0c6e", "kind": "done", "task": "R122", "what": "lot 6 : 5 classes ecrites, 5 seen_red dates, orphelines 5 → 0"}
 {"at": "2026-09-17T00:45:58+00:00", "head": "7301066", "kind": "start", "task": "R122", "what": "lot 7 : portees des recidivistes restantes"}
 {"at": "2026-09-17T00:59:06+00:00", "head": "7301066", "kind": "done", "task": "R122", "what": "lot 7 : 6 portees, 325 ; critic 4/6 exactes"}
+{"at": "2026-09-17T01:00:06+00:00", "head": "c0dfecf", "kind": "start", "task": "R122", "what": "lot 8 : les 9 recidivistes restantes"}
+{"at": "2026-09-17T02:44:21+00:00", "head": "c0dfecf", "kind": "done", "task": "R122", "what": "lot 8 : parseur repare, 3 compteurs corriges, 0 recidiviste sans portee"}

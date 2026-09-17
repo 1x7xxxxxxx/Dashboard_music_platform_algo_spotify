@@ -65,6 +65,29 @@ généré périmé, un plafond à resserrer, un garde à écrire, une portée à
 - écrire dans l'arbre **pendant qu'une suite complète tourne** — son verdict décrirait un
   arbre qui n'existe plus. `make night-status` le dit.
 
+## ⚠️ La machine peut cesser de pouvoir travailler — et le dire prend deux commandes
+
+Mesuré le 2026-09-17, après **cinq** suites tuées d'affilée puis un fichier de test seul
+passé de 6 s à plus de 120 s :
+
+```bash
+free -m | sed -n '2,3p'        # la ligne Swap, pas seulement la ligne Mem
+cat /proc/pressure/memory      # avg60 / avg300 — la pression SOUTENUE
+```
+
+L'état trouvé : **2,9 Go de swap sur 4 utilisés**, `avg300=1,73`. Le système paginait
+depuis un moment, et c'est pour ça que tout ralentissait d'un facteur 20.
+
+**J'ai donné trois diagnostics avant de lire ces deux chiffres** — « trop de workers »,
+puis « le harnais tue les tâches de fond », puis seulement la pagination. Les deux
+premiers ont produit trois correctifs successifs sur le nombre de workers, qui ne
+traitaient pas la cause. `free` annonçait 6,9 Go « disponibles » pendant tout ce temps :
+ce chiffre compte du cache réclamable, pas de la mémoire prête à servir.
+
+Quand ces deux commandes disent que la machine pagine : **on arrête d'essayer**. On
+commite ce qui est vérifié en le disant, et on n'annonce aucun total de suite qu'on n'a
+pas obtenu.
+
 ## Les trois pièges déjà payés dans ce dépôt
 
 1. **`pytest tests/` à la main perd `-n auto`** : 1 146 s au lieu de 418 s. Toujours

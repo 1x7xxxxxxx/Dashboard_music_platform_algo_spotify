@@ -103,18 +103,75 @@ def _tree_is_dirty() -> bool:
 _GUARD_REF = re.compile(r"ref:\s*([^,}\s]+)")
 
 
-def _guard_path(guard: str) -> str | None:
-    """Le CHEMIN d'un `guard: { type: …, ref: … }`, ou None si ce n'en est pas un.
+# La forme NUE : `- guard: tests/x.py — explication`, ou avec des accents graves.
+# Elle est minoritaire (10 classes sur 381) et c'est exactement pourquoi elle a été
+# oubliée. Le chemin est le premier jeton, éventuellement entre accents graves.
+_GUARD_BARE = re.compile(r"^`?([A-Za-z0-9_./-]+\.[A-Za-z0-9_]+)`?")
 
-    Règle reprise de `tests/test_every_named_guard_exists.py:54-60` plutôt que
-    réinventée : un `ref:` qui ne contient pas de `/` est de la prose (`make`, `extend`,
-    `la règle …`), pas un fichier. Une ancre (`CLAUDE.md#9`) et un nœud pytest
-    (`tests/x.py::y`) se ramènent au fichier.
+
+def _type_from_path(path: str | None) -> str:
+    """Le TYPE d'un garde écrit en forme nue, déduit de l'endroit où il vit.
+
+    Ajouté le 2026-09-17 avec la lecture de la forme nue. Sans lui, le chemin était
+    enfin trouvé mais le type restait `aucun`, donc `_is_automatic()` rendait False et
+    `automatic_guard` sous-comptait encore : **corriger la moitié d'un parseur laisse le
+    compteur faux, et il est alors plus difficile à soupçonner qu'avant.**
+
+    La déduction est mécanique et ne devine rien : un fichier de `tests/` est un pytest,
+    un `.claude/hooks/` est un hook, un `.claude/scripts/` est une signature. Tout le
+    reste — une règle de `src/`, une procédure humaine — reste `aucun`, c'est-à-dire
+    « pas automatique », ce qui est exact.
     """
-    m = _GUARD_REF.search(guard or "")
-    if not m:
+    if not path:
+        return "aucun"
+    if path.startswith("tests/"):
+        return "pytest"
+    if path.startswith(".claude/hooks/"):
+        return "hook"
+    if path.startswith(".claude/scripts/"):
+        return "error-class-signature"
+    return "aucun"
+
+
+def _guard_path(guard: str) -> str | None:
+    """Le CHEMIN que la classe nomme comme garde, ou None s'il n'y en a pas.
+
+    ⚠️ Cette fonction ne lisait QUE la forme `{ type: …, ref: … }` jusqu'au 2026-09-17,
+    et le catalogue en porte DEUX. La forme nue — `- guard: tests/x.py — explication` —
+    rendait `guard_type: 'aucun'`, `guard_ref: None`, donc « cette classe n'a pas de
+    garde ».
+
+    **Neuf classes nomment ainsi un garde parfaitement réel**, dont
+    `cumulative-counter-drawn-as-its-own-history`, qui pointe un fichier de 15 tests
+    verts. Conséquences, toutes silencieuses :
+
+      * `automatic_guard` sous-comptait de neuf ;
+      * `guards_ref_missing` valait 0 sans avoir jamais vérifié ces neuf chemins — un
+        compteur à zéro parce qu'il ne regarde pas est indiscernable d'un compteur à
+        zéro parce que tout va bien ;
+      * et j'ai écrit « aucun garde automatique » dans une portée de classe **en me
+        fiant à ce champ dérivé au lieu de lire l'entrée**. Le `code-critic` l'a relevé
+        en exécutant les 15 tests que je déclarais inexistants.
+
+    Règle du chemin reprise de `tests/test_every_named_guard_exists.py:54-60` plutôt que
+    réinventée : un `ref:` sans `/` est de la prose (`make`, `extend`, `la règle …`), pas
+    un fichier. Une ancre (`CLAUDE.md#9`) et un nœud pytest (`tests/x.py::y`) se ramènent
+    au fichier.
+    """
+    guard = (guard or "").strip()
+    if not guard:
         return None
-    path = m.group(1).split("::")[0].split("#")[0].strip().rstrip(",;)")
+    m = _GUARD_REF.search(guard)
+    if m:
+        path = m.group(1)
+    elif guard.startswith("{"):
+        return None          # forme structurée sans `ref:` — rien à lire
+    else:
+        bare = _GUARD_BARE.match(guard)
+        if not bare:
+            return None
+        path = bare.group(1)
+    path = path.split("::")[0].split("#")[0].strip().rstrip(",;)`")
     if "/" not in path or path.startswith(("http", "<")):
         return None
     return path
@@ -173,7 +230,7 @@ def _declared(text: str) -> dict[str, dict]:
     for cid, body in bodies.items():
         guard = _field(body, "guard") or ""
         gtype = (re.search(r"type:\s*([\w-]+)", guard) or [None, "aucun"])[1] \
-            if "type:" in guard else "aucun"
+            if "type:" in guard else _type_from_path(_guard_path(guard))
         # ⚠️ Un `ref:` n'est un CHEMIN que s'il en a la forme. Ma première version
         # prenait le premier jeton après `ref:` et rapportait huit gardes « manquants »
         # dont `la`, `make`, `extend` et `CLAUDE.md#9` — des fragments de prose, pas des
