@@ -330,7 +330,21 @@ _CEILINGS = {
     # `page == '<clé>'`, et une garde centralisée est invisible à une recherche de
     # voisinage. Même leçon que sur les cliquets : le prédicat mécanique se trompe
     # dans les deux sens, et seule la LECTURE tranche.
-    "siblings_never_swept": 179,
+    # 179 → 174 le 2026-09-17. **QUATRIÈME prédicat mécanique faux de la soirée**, et
+    # celui-ci donne la règle qui manquait : mon balayage a signalé **7 sondes sur 7**
+    # comme ne distinguant pas « illisible » d'« absent ». **7/7 n'est pas un
+    # résultat, c'est un symptôme.** Les sondes rendent `(bool, message)` : la
+    # distinction vit dans le MESSAGE (`inconclusive_page`, `token_missing`,
+    # `app_not_configured`), pas dans le code que je cherchais.
+    #
+    # Les quatre prédicats faux de la soirée, et leur mode d'échec :
+    #   · « slack » cherché par NOM        → 32 au lieu de ~4 (matche la prose)
+    #   · `mesure >= CEILING` à l'AST      → 5 (rate les plafonds en dictionnaire)
+    #   · garde admin par PROXIMITÉ        → 10/10 « sans contrôle », il est CENTRALISÉ
+    #   · sonde par MOTS DU CODE           → 7/7, la distinction est en i18n
+    # Deux sur-rapportent, deux sous-rapportent. Un résultat uniforme (0/N ou N/N)
+    # doit faire LIRE avant de conclure.
+    "siblings_never_swept": 174,
     # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
     # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
     # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
