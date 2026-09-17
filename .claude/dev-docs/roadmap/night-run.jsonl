@@ -22,3 +22,5 @@
 {"at": "2026-09-17T00:09:02+00:00", "head": "ab9827b", "kind": "done", "task": "R121", "what": "onboarding_health 324 → 181 requetes ; db_health 22 → 11 fetch_df"}
 {"at": "2026-09-17T00:09:30+00:00", "head": "8cdfd18", "kind": "start", "task": "R121", "what": "profiler les 4 derniers sites nommes"}
 {"at": "2026-09-17T00:20:57+00:00", "head": "8cdfd18", "kind": "done", "task": "R121", "what": "7 sites mesures, 7 refutes ; le cout est plotly (42%), pas l'agregation (0,4 ms)"}
+{"at": "2026-09-17T00:25:14+00:00", "head": "2cd2c13", "kind": "start", "task": "R116", "what": "ADR-027 : les courbes existent-elles ?"}
+{"at": "2026-09-17T00:25:43+00:00", "head": "2cd2c13", "kind": "park", "task": "R116", "what": "ADR-027 attend 14 jours complets dans daily_ops_metrics ; aujourd'hui 0, tous les percentiles NULL"}

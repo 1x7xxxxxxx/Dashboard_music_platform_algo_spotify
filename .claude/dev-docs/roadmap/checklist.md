@@ -25,7 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R116 | **ADR-027** — répliques et Redis, tranché APRÈS les courbes (026 est pris) | P4 | `ls docs/adr/ADR-027-*.md` |
 | R122 | Finir la revue des classes d'erreur — reste 14 récidivistes + 332 portées + **5 classes jamais écrites** | P3 | les trous de `make error-health` ne font que baisser |
 
 **R109 et R110 ont été livrées et déployées le 2026-09-16** — voir `archive.md`.
@@ -280,6 +279,26 @@ le supposer.
 
   Contrôle : `make error-health` · évolution : `make error-health-history`.
 
+---
+
+## ⏸️ R116 — ADR-027, en attente de ses courbes (sortie de l'index 2026-09-17)
+
+**Ni livrée ni abandonnée — parquée sur une mesure, pas archivée.** `archive.md` est
+strictement passif (`tests/test_roadmap_two_files.py::test_the_archive_holds_nothing_actionable`
+refuse tout item non coché qui y atterrit), donc ce bloc reste ici, hors des deux
+index. Sortie de l'index actionnable le 2026-09-17 parce que `daily_ops_metrics` ne
+porte qu'**une seule ligne** (2026-09-16), `complete = FALSE`, et **tous ses
+percentiles de rendu sont `NULL`** — seul `peak_sessions = 8` est renseigné. La
+courbe que R116 exige, `streamlytics_rerun_duration_seconds` côté serveur, n'existe
+donc pas encore ; le bloc le disait déjà lui-même : « un ADR écrit avant la mesure
+serait une rationalisation ». Déclencheur de réouverture, calculable, dans
+`### Conditions d'attente` ci-dessous, ligne « Écrire **ADR-027** (répliques et
+Redis) » : `SELECT count(*) FROM daily_ops_metrics WHERE complete` doit rendre
+**14 jours** à `TRUE` (aujourd'hui : 0). Elle n'attend aucun geste humain, seulement
+du trafic — elle ne va donc pas dans « 🙋 En attente de toi » — et pour la même
+raison elle sort de l'ancre de reprise en tête de fichier, qui ne porte que ce que
+les deux tables d'index de ce fichier listent encore.
+
 - [ ] **R116 — ADR-027, écrit APRÈS les courbes.**
 
   ⚠️ **Le numéro a changé** : ce bloc annonçait ADR-026, qui est pris depuis le
@@ -386,11 +405,13 @@ travail quotidien existe déjà et n'enlève aucune couverture** :
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-17, trois tâches ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-17, une tâche actionnable (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R116,R122,R117 -->
+<!-- reprise: open=R122,R117 -->
 
-**Trois tâches sont ouvertes, dont DEUX actionnables** : R116, R122 — dans cet ordre, qui est celui du gain. R118 est close le 2026-09-17, réfutée sur sa propre mesure (voir `archive.md`) — les cinq vues restantes vivent maintenant dans « Conditions d'attente », pas dans l'index. **R117 est ouverte aussi** mais a quitté l'index actionnable le 2026-09-17 pour « 🙋 En attente de toi » : elle déplace le dépôt, donc aucune séance ne peut l'exécuter sans se tuer. Elle reste comptée — l'ancre ci-dessus la porte, et `test_roadmap_index_is_honest` refuse qu'une tâche ouverte disparaisse de la première chose qu'on lit au `/resume`.
+**R122 est seule actionnable.** R118 est close le 2026-09-17, réfutée sur sa propre mesure (voir `archive.md`) — les cinq vues restantes vivent maintenant dans « Conditions d'attente », pas dans l'index. **R117 est ouverte aussi** mais a quitté l'index actionnable le 2026-09-17 pour « 🙋 En attente de toi » : elle déplace le dépôt, donc aucune séance ne peut l'exécuter sans se tuer. Elle reste comptée — l'ancre ci-dessus la porte, et `test_roadmap_index_is_honest` refuse qu'une tâche ouverte disparaisse de la première chose qu'on lit au `/resume`.
+
+**R116 a quitté l'index le 2026-09-17**, pas ce fichier : `daily_ops_metrics` ne porte qu'une ligne (`complete = FALSE`, percentiles de rendu tous `NULL`), donc la courbe qui doit trancher l'ADR-027 n'existe pas encore. Son bloc de détail — non coché, pas livré — reste **ici**, dans une nouvelle section `## ⏸️ R116` hors des deux tables d'index : `archive.md` est strictement passif (aucun item non coché n'y est admis — `test_the_archive_holds_nothing_actionable`), et R116 n'est ni livrée ni abandonnée. Son déclencheur de réouverture est la ligne `daily_ops_metrics` de `### Conditions d'attente` ci-dessous. Elle n'a donc plus de ligne dans l'index actionnable ni dans « 🙋 En attente de toi » — elle n'attend aucun geste humain, seulement du trafic — et pour cette même raison elle **sort de l'ancre**, qui ne porte que ce que les deux tables de ce fichier listent encore.
 
 **R121 est close le 2026-09-17, mesurée et réfutée sur ses sept sites** (non pas
 livrée) : les agrégations pandas coûtent 0,2–0,4 ms, le coût mesuré est la
@@ -450,6 +471,7 @@ Motif d'ADR-007 : un travail dont le bénéfice mesuré est nul n'entre pas dans
 | Sortir **Airflow** de la boîte (il prend 2,3 Go des 7,7) | la RAM des conteneurs dashboard dépasse **2 Go** — ce que R87 rapproche. `docker stats --no-stream` |
 | Construire la **couche or** (table de faits agrégée) | un locataire dépasse **100 000 lignes** sur une table de faits, ou un agrégat d'accueil dépasse **200 ms**. Aujourd'hui : 14 694 lignes, 46 ms |
 | ClickHouse / Parquet / dbt / Dagster | déclencheurs d'**ADR-014**, relus le 2026-09-11 : aucun n'est tiré (62 Mo contre 50 Go, 34 k lignes contre 10 M) |
+| Écrire **ADR-027** (répliques et Redis) | `daily_ops_metrics` porte **14 jours `complete = TRUE`** : `SELECT count(*) FROM daily_ops_metrics WHERE complete` — **aujourd'hui 0**. La table a UNE ligne (2026-09-16), `complete = FALSE`, et **tous ses percentiles de rendu sont `NULL`** ; seul `peak_sessions = 8` est renseigné. La courbe qui doit trancher — `streamlytics_rerun_duration_seconds` côté serveur, et `streamlytics_reruns_in_flight` pour la saturation — n'existe donc pas encore. Le bloc de R116 le disait lui-même : *« un ADR écrit avant la mesure serait une rationalisation »*. Ce n'est pas du travail en retard, c'est du temps et du trafic |
 | Fragmenter les **5 vues restantes** de R118 — `imusician`, `meta_ads_overview`, `hypeddit`, `youtube`, `admin` | l'une d'elles dépasse **300 ms de vue** dans l'histogramme SERVEUR : `histogram_quantile(0.5, sum by (page,le) (rate(streamlytics_rerun_duration_seconds_bucket{phase="view"}[1h])))`. Mesuré localement le 2026-09-17 : 20 à 130 ms de rerun à chaud, **dans la même bande que les six déjà fragmentées** (78 à 172 ms) — donc rien ne les distingue, et le bruit local (±60 à 100 %) est plus large que les écarts. Seul le serveur peut trancher, et il lui faut du trafic sur ces pages |
 
 ### La méthode, pour R85 à R87
