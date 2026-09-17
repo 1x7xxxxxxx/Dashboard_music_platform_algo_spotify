@@ -38,3 +38,5 @@
 {"at": "2026-09-17T03:55:08+00:00", "head": "19f69f1", "kind": "start", "task": "R122", "what": "lot 10 : P1 guarded, suite"}
 {"at": "2026-09-17T04:06:11+00:00", "head": "fd7bc10", "kind": "done", "task": "R122", "what": "lot 10 : 6 portees P1, 304 ; critic 5/6"}
 {"at": "2026-09-17T04:06:31+00:00", "head": "fd7bc10", "kind": "start", "task": "R122", "what": "lot 11 : balayer les gardes PARTAGES entre classes"}
+{"at": "2026-09-17T04:10:41+00:00", "head": "c64e638", "kind": "done", "task": "R122", "what": "lot 11 : classe des gardes partages + compteur gele a 20"}
+{"at": "2026-09-17T04:31:10+00:00", "head": "c64e638", "kind": "start", "task": "R122", "what": "lot 12 : nommer les tests des portees a garde partage"}

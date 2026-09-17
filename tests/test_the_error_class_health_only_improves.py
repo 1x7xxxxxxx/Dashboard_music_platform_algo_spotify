@@ -88,7 +88,7 @@ _CEILINGS = {
     # partages, et le defaut s'est produit DEUX fois en deux lots avant d'etre
     # mesure : une classe s'etait attribue le croisement Caddy de sa voisine, une
     # autre le taux de censure d'une troisieme.
-    "scope_on_a_shared_guard_without_naming_its_tests": 20,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
+    "scope_on_a_shared_guard_without_naming_its_tests": 8,  # phase C ; -1 le 2026-09-17 : `two-doors-onto-one-database`
                                       # est la PREMIERE classe dont les trois preuves sont
                                       # observées le même jour — date vue rouge, cause mesurée,
                                       # portée écrite en lisant le garde. Les trois compteurs
