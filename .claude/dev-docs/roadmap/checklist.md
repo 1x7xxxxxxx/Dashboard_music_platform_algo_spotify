@@ -224,10 +224,29 @@ le supposer.
   **Et ça déplace R116** : son blocage n'est pas « pas assez de jours », c'est que la
   seule ligne existante n'est pas étayée par la source qu'elle nomme.
 
-  Premier geste, le moins cher : provoquer un rendu réel en prod et regarder si une
-  série apparaît. Si oui, la couture enregistre et la question devient « pourquoi
-  l'histogramme ne survit pas » ; si non, `src/dashboard/serve.py` ou
-  `metrics_seam.py` n'est pas sur le chemin du rendu en conteneur.
+  **Ce geste a été fait le 2026-09-17, et il a RÉFUTÉ ma propre conclusion.** J'ai
+  ouvert une session réelle sur `https://app.streamlytics.fr/` (page de connexion rendue
+  entièrement : i18n, logo, formulaire), attendu 45 s, et relu : `reruns_in_flight`
+  toujours à 0, histogramme toujours vide. J'ai écrit « défaut de production confirmé ».
+
+  ⚠️ **C'était faux, et la lecture du code l'a montré dix minutes plus tard** :
+  `require_login()` est à `src/dashboard/app.py:742`, `end_chrome()` à 976 et
+  `view_timer()` à 979 — **après** la porte d'authentification. Une page de connexion
+  n'est PAS instrumentée, par construction. Ma sonde ne pouvait rien produire, et
+  l'absence de métrique qu'elle a constatée était le comportement attendu.
+
+  **Ce qui reste donc vrai, et c'est plus étroit** : aucun rendu AUTHENTIFIÉ n'a été
+  instrumenté depuis 24 h (`max_over_time(streamlytics_reruns_in_flight[24h]) = 0`), ce
+  qui est plausible sur une prod à deux artistes. Et la question qui n'a **aucune**
+  explication reste entière : d'où venait `p50_render_ms = 50` à 23:00:06 UTC, avec
+  `complete = TRUE` et `source = prometheus`, alors que l'histogramme n'a jamais eu de
+  série sur cette fenêtre ?
+
+  **Le geste suivant demande un humain** : une session AUTHENTIFIÉE en production, puis
+  relire `streamlytics_rerun_duration_seconds_count`. Je n'ai pas d'identifiants, et je
+  n'en veux pas — c'est un geste de propriétaire. Il tranche pour de bon entre « la
+  couture enregistre, et le résumé quotidien a une autre source » et « la couture
+  n'enregistre pas non plus en authentifié ».
 
 
 ## ⏸️ R116 — ADR-027, en attente de ses courbes (sortie de l'index 2026-09-17)
