@@ -1088,14 +1088,15 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-16"
+        "2026-09-16",
+        "2026-09-18"
       ],
       "kind": "deterministic",
       "seen_red": "unknown",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
       "revisions": 2,
@@ -4528,14 +4529,15 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-08-24"
+        "2026-08-24",
+        "2026-09-18"
       ],
       "kind": "deterministic",
       "seen_red": "unknown",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-24",
       "revisions": 3,
@@ -10861,7 +10863,7 @@
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
       "seen_red_unknown": 309,
-      "siblings_never_swept": 102,
+      "siblings_never_swept": 100,
       "sites_unknown": 101,
       "swept_by_rerunning_the_guard": 97
     },
@@ -10955,11 +10957,11 @@
       }
     },
     "sweep_yield": {
-      "sweeps_done": 298,
-      "sweeps_with_a_verdict": 197,
+      "sweeps_done": 300,
+      "sweeps_with_a_verdict": 199,
       "sweeps_that_found_something": 26,
       "live_sites_found": 63,
-      "hit_rate_on_verdicts": 0.132,
+      "hit_rate_on_verdicts": 0.131,
       "note": "Le taux porte sur les balayages dont le verdict est LISIBLE. Les autres sont comptés dans holes.sites_unknown — un balayage muet n'est pas un balayage sans trouvaille."
     }
   }
