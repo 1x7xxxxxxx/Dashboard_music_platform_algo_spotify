@@ -318,3 +318,44 @@ quand le cache d'outils du runner ne l'a pas — variable, pas systématique.
 runs. Le remède serait alors de replier l'installation de Python dans `setup-uv`
 lui-même (`python-version:`), pour qu'elle passe par le même cache. À mesurer avant,
 pas à supposer.
+
+## Deux optimisations ÉCARTÉES par leur propre mesure — 2026-09-18
+
+Les deux venaient d'un plan approuvé. Les deux sont mortes en étant chiffrées, et c'est
+la mesure qui vaut d'être gardée, pas le renoncement.
+
+### Scinder le catalogue en deux fichiers — gain ≈ 0 s
+
+Le plan proposait `error-classes.md` (196 classes vivantes) + `error-classes-archive.md`
+(206 dormantes), pour passer de 8 400 à ~4 500 lignes.
+
+| ce qu'on croyait acheter | ce que ça achète réellement |
+|---|---|
+| « la suite lit un fichier deux fois plus court » | **≈ 0 s.** Les 13 s que le catalogue coûte à la suite sont dominées par les **8,46 s** du cliquet de santé, qui viennent du rejeu de l'historique **git** — scinder le fichier d'aujourd'hui ne change rien aux révisions d'hier |
+| — | le rayon de souffle : **47 sites lecteurs** (33 en Python, 14 ailleurs), chacun devant décider « le fichier actif seul, ou les deux ? » |
+
+Retenu à la place : **une section `## 💤 Classes DORMANTES` dans le même fichier**. Même
+bénéfice de lecture, un seul fichier, aucun lecteur à modifier — les trois parseurs
+ignorent déjà tout titre hors kebab-case.
+
+### Fusionner les cinq gardes du catalogue — gain ≈ 0,1 s
+
+Le plan proposait de regrouper `test_every_error_class_is_complete`,
+`test_error_class_index_is_complete`, `test_a_guard_names_a_class_that_exists`,
+`test_the_error_class_families_only_improve` et
+`test_the_error_class_health_only_improves` — « 10,8 s cumulées et trois dicts gelés ».
+
+Mesuré :
+
+* **lire et découper le catalogue coûte 23 ms** (12,4 ms de lecture, 10,3 ms de
+  découpage, 1,8 Mo, 409 blocs). Cinq gardes = **114 ms**, pas 10,8 s ;
+* les 10,8 s sont **8,46 s de cliquet de santé** (git, pas le fichier) plus des cas
+  PARAMÉTRÉS — `test_a_guard_names_a_class_that_exists` rend 101 cas à ~0,04 s chacun,
+  et fusionner les fichiers ne réduit pas le nombre de cas ;
+* le coût : **16 champs `guard:`/`signature:` du catalogue** pointent ces cinq fichiers.
+
+Gain ≈ 0,1 s contre 16 références à réécrire. Écarté.
+
+**La leçon des deux, et elle est la même** : le temps d'une suite ne se lit pas dans la
+taille de ce qu'elle ouvre. Il se lit dans `.test_durations`, test par test — et les
+deux fois, le poste dominant n'était pas celui que le plan nommait.
