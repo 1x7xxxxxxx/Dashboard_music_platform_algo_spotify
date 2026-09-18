@@ -7574,3 +7574,77 @@ balayage AST doit rendre 0 site hors `debug_dag/` ». Mesuré après correction 
 Garde élargi : `tests/test_dag_fleet_isolation.py::test_fleet_loops_outside_the_dags_are_isolated`,
 muté dans les deux sens (rouge sur le défaut remis, vert sur une boucle de même
 forme qui n'est pas la flotte).
+
+## R133 — 28 figures sous le plancher d'accessibilité · P3 · ✅ 2026-09-19
+
+- [x] **R133 — construire `semantic_colors.py`, un garde report-only et une porte dure
+      sur le SEUL diff ; ne pas migrer les figures existantes d'un coup.** ✅ 2026-09-19
+
+**Close le 2026-09-19.** Condition de clôture, telle qu'elle était écrite : « le script
+de mesure doit rendre moins de 28 ». Il rend **19** — mais pas parce que des figures ont
+été corrigées. **Parce que le 28 était faux**, et c'est le résultat principal de cette
+tâche.
+
+### Le même défaut à trois granularités successives
+
+| mesure | granularité | résultat | ce qu'elle mélangeait |
+|---|---|---|---|
+| 2026-09-17, 1er jet | par **fonction** | 26 | les figures distinctes d'un même `show()` |
+| 2026-09-17, corrigée | par **figure** | 28 | les **panneaux** d'un `make_subplots` |
+| 2026-09-19 | par **panneau**, fragment borné à son rendu | **19** | — |
+
+`_tab_algos.py:90` est le cas d'école : `#1DB954` vit en `row=1`, `#FF6B6B` en `row=2`.
+Deux repères distincts, aucun œil n'a jamais à les attribuer l'un contre l'autre — et la
+mesure par figure les opposait à ΔE 3,1. Les quatre onglets de `trigger_algo` sortent
+pour cette seule raison.
+
+⚠️ Le fragment d'une figure courait jusqu'à la figure SUIVANTE — 108 lignes pour
+`_tab_algos.py:90` — donc il ramassait le code, les couleurs et les canaux de secours de
+tout ce qui se trouvait entre les deux. Il est borné à son rendu (`st.plotly_chart`,
+`savefig`, `return fig`).
+
+⚠️ Le marqueur « atténué » (un canal d'attribution autre que la teinte) s'allumait sur
+**24 des 25** figures, donc il ne disait rien : il acceptait `marker=` et `linestyle=`,
+présents dans presque chaque trace. Un marqueur DE LA MÊME COULEUR n'est pas un second
+canal. Resserré à la valeur écrite sur la donnée, la position distincte, et le motif.
+
+### Ce qui a été construit — le périmètre exact de `code-critic` (BUILD-MODIFIED)
+
+- `src/dashboard/utils/colorimetry.py` — la colorimétrie SORTIE de `tests/`, sans une
+  ligne de logique changée. C'était la première condition : une mesure enfermée dans un
+  test n'est disponible ni pour l'outil qui rapporte, ni pour la porte qui refuse.
+- `tools/dev/figure_contrast_report.py` + `make figure-contrast` — **rapport seul**.
+- `tests/test_a_new_figure_can_be_attributed.py` — la porte dure **sur le seul diff**.
+  Clé sur `fichier + paire de couleurs`, jamais `fichier:ligne` : une clé de ligne
+  rendrait « neuve » toute figure sous laquelle on ajoute un commentaire, et une porte
+  qui se déclenche sur du texte se fait désactiver. **Un compte**, pas un ensemble :
+  `revenue_forecast.py` porte quatre fois la même paire.
+- `src/dashboard/utils/semantic_colors.py` + son garde, 24 assertions.
+
+**Les 19 figures ne sont PAS migrées**, conformément au verdict. Elles sont un plafond
+dans `.claude/dev-docs/figure-contrast-baseline.json`, qui ne peut que rétrécir.
+
+### Le chiffre qui résume la tâche
+
+`#a32929` — un rouge ordinaire — contre `#27751a` — un vert ordinaire — est à **ΔE 1,6**
+en deuteranopie. Balayé par clarté ET par saturation : un rouge à la clarté d'un vert
+échoue à 60 %, 75 % et 90 % de saturation. Il ne devient attribuable qu'en s'éloignant en
+CLARTÉ. **La séparation ne vient pas de la teinte.** « Prendre un rouge plus rouge » ne
+marche pas — c'est ce qui avait été essayé le 2026-09-08 sur la palette de plateformes.
+
+⚠️ **Deux fois la mesure m'a contredit pendant cette tâche.** Mon quatuor à la main
+donnait `bon ↔ attention` à ΔE 8,6 en deutan ; et j'ai cru que la bande de clarté du
+dépôt était la contrainte, alors qu'un glouton max-min y atteint 31,9. L'optimum brut a
+ensuite été REFUSÉ avec son prix : il pousse `MAUVAIS` à L* 88,4, un rose quasi blanc qui
+lirait comme un fond — 27,5 de pire paire contre 18,2 pour le choix retenu, **9,3 de
+marge payés pour que `MAUVAIS` lise encore comme un rouge**. Décision de sens, écrite
+pour être contredite.
+
+⚠️ Et `ATTENTION` a d'abord été écrit **hors de sa propre contrainte** : L* 78,1 pour une
+bande qui s'arrête à 77, trois paragraphes sous la phrase qui déclare l'appliquer.
+Trouvé par relecture, pas par un garde — `test_every_semantic_colour_sits_in_the_declared_band`
+existe maintenant pour ça.
+
+**Mesuré par** : `make figure-contrast` (19 sous le plancher, 30 figures),
+`python3 -m pytest tests/test_a_new_figure_can_be_attributed.py tests/test_semantic_colours_are_attributable.py -q`
+(37 verts). Les deux gardes mutés dans les deux sens.

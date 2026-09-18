@@ -118,3 +118,5 @@
 {"at": "2026-09-18T21:29:40+00:00", "head": "cc38f2b", "kind": "start", "task": "R132", "what": "isolement de flotte hors Airflow — 6 sites mesures"}
 {"at": "2026-09-18T21:42:55+00:00", "head": "570348a", "kind": "done", "task": "R132", "what": "isolement de flotte hors Airflow : 6 candidats, 4 ecartes, 2 sites vivants corriges ; elargissement de portee trouve VACANT par mutation, predicat elargi a la propriete"}
 {"at": "2026-09-18T21:42:59+00:00", "head": "570348a", "kind": "start", "task": "R142", "what": "guard_destructive : git checkout <fichier> sans -- n'est pas vu"}
+{"at": "2026-09-18T21:48:16+00:00", "head": "1ab82d4", "kind": "done", "task": "R142", "what": "git checkout <f> sans -- non vu par le hook : 6 orthographes sondees, 2 trous, corriges ; la portee a DEUX axes et le balayage du matin n'en avait couvert qu'un"}
+{"at": "2026-09-18T21:48:20+00:00", "head": "1ab82d4", "kind": "start", "task": "R133", "what": "semantic_colors.py + garde report-only + gate dur sur le seul diff"}

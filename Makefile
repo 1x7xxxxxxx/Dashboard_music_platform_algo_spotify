@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -305,6 +305,17 @@ gold-coverage: ## Carte de la couche or → .claude/dev-docs/gold-coverage.md
 # il n'y avait rien à déplacer.
 gold-coverage-check: ## Échoue si la carte ne décrit plus le dépôt — LANCÉE EN CI (étape « Portes statiques ») depuis le 2026-09-18
 	@python3 tools/dev/gold_coverage.py --check
+
+# ── R133 : les figures qu'un daltonien ne peut pas attribuer ──────────────────
+# Stdlib seule (la colorimétrie est dans `src/dashboard/utils/colorimetry.py`, pas de
+# dépendance d'exécution) — donc pas de précondition, règle transverse #10.
+figure-contrast: ## Rapport des figures sous le plancher d'attribution — NE BLOQUE RIEN
+	@python3 tools/dev/figure_contrast_report.py
+
+# ⚠️ À lancer SEULEMENT après avoir corrigé une figure, jamais pour faire taire la porte.
+# Le cliquet `test_the_baseline_only_shrinks` refuse un total qui remonte.
+figure-contrast-baseline: ## Régénère le plafond après une CORRECTION de figure
+	@python3 tools/dev/figure_contrast_report.py --baseline
 
 error-families: ## Familles de classes d'erreur → .claude/dev-docs/error-class-families.md
 	@python3 tools/dev/error_class_families.py

@@ -1,0 +1,336 @@
+{
+  "_pourquoi": "Le PLAFOND de R133 : les figures sous le plancher d'attribution AU MOMENT DE LA MESURE. Une figure neuve ou dont la paire de couleurs change n'est pas dedans, donc la porte la refuse. Ce fichier ne peut que RÉTRÉCIR — c'est un cliquet, pas une liste d'exemptions permanentes.",
+  "_cle": "fichier + la paire de couleurs la plus confusable, PAS `fichier:ligne` : une clé de ligne rendrait toute figure « neuve » dès qu'on ajoute un commentaire au-dessus, et une porte qui se déclenche sur du texte se fait désactiver.",
+  "_compte": "Un COMPTE par clé, pas un ensemble : `revenue_forecast.py` porte la même paire `#1db954 ↔ #ff6b35` sur QUATRE figures. Un ensemble les écraserait en une, et une cinquième occurrence passerait en silence.",
+  "plancher": 15.0,
+  "mesure_le": "2026-09-18",
+  "total": 19,
+  "cles": {
+    "src/dashboard/utils/pdf_charts.py #003f5c #bc5090": 1,
+    "src/dashboard/utils/pdf_charts.py #1db954 #ef553b": 1,
+    "src/dashboard/utils/pdf_charts.py #1db954 #f58529": 1,
+    "src/dashboard/utils/pdf_charts.py #1db954 #ff7700": 1,
+    "src/dashboard/utils/pdf_charts.py #457b9d #9d4edd": 1,
+    "src/dashboard/utils/pdf_charts.py #54a24b #e45756": 1,
+    "src/dashboard/utils/pdf_charts.py #ff0000 #ff7700": 1,
+    "src/dashboard/views/airflow_kpi.py #00cc96 #ffa15a": 1,
+    "src/dashboard/views/db_health.py #ff6b6b #ffa500": 1,
+    "src/dashboard/views/imusician.py #1db954 #ff4444": 1,
+    "src/dashboard/views/meta_ads_overview.py #ff6361 #ffa600": 1,
+    "src/dashboard/views/meta_creatives.py #2ca02c #ff6b35": 1,
+    "src/dashboard/views/meta_x_spotify.py #1db954 #ff6361": 1,
+    "src/dashboard/views/revenue_forecast.py #1db954 #ff6b35": 4,
+    "src/dashboard/views/trigger_algo/_tab_budget_roi.py #1db954 #ff6b6b": 2
+  },
+  "detail": [
+    {
+      "fichier": "src/dashboard/utils/pdf_charts.py",
+      "ligne": 823,
+      "couleurs": [
+        "#ff6b61",
+        "#bc5090",
+        "#003f5c",
+        "#e45756",
+        "#4c78a8",
+        "#54a24b"
+      ],
+      "delta_e": 1.1,
+      "sous": "deutan",
+      "paire": [
+        "#e45756",
+        "#54a24b"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/views/meta_x_spotify.py",
+      "ligne": 267,
+      "couleurs": [
+        "#ff6361",
+        "#003f5c",
+        "#1db954",
+        "#ffa600",
+        "#58508d",
+        "#bc5090",
+        "#00d166"
+      ],
+      "delta_e": 2.4,
+      "sous": "deutan",
+      "paire": [
+        "#ff6361",
+        "#1db954"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/views/trigger_algo/_tab_budget_roi.py",
+      "ligne": 278,
+      "couleurs": [
+        "#1db954",
+        "#ff6b6b"
+      ],
+      "delta_e": 3.1,
+      "sous": "deutan",
+      "paire": [
+        "#1db954",
+        "#ff6b6b"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/views/trigger_algo/_tab_budget_roi.py",
+      "ligne": 422,
+      "couleurs": [
+        "#ff6b6b",
+        "#1db954"
+      ],
+      "delta_e": 3.1,
+      "sous": "deutan",
+      "paire": [
+        "#ff6b6b",
+        "#1db954"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/views/imusician.py",
+      "ligne": 464,
+      "couleurs": [
+        "#1db954",
+        "#8e44ad",
+        "#ff4444"
+      ],
+      "delta_e": 5.2,
+      "sous": "deutan",
+      "paire": [
+        "#1db954",
+        "#ff4444"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/utils/pdf_charts.py",
+      "ligne": 800,
+      "couleurs": [
+        "#636efa",
+        "#00cc96",
+        "#ef553b",
+        "#1db954"
+      ],
+      "delta_e": 6.2,
+      "sous": "deutan",
+      "paire": [
+        "#ef553b",
+        "#1db954"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/views/meta_creatives.py",
+      "ligne": 514,
+      "couleurs": [
+        "#1f77b4",
+        "#2ca02c",
+        "#ff6b35"
+      ],
+      "delta_e": 6.9,
+      "sous": "protan",
+      "paire": [
+        "#2ca02c",
+        "#ff6b35"
+      ],
+      "attenue": false
+    },
+    {
+      "fichier": "src/dashboard/utils/pdf_charts.py",
+      "ligne": 772,
+      "couleurs": [
+        "#c13584",
+        "#f58529",
+        "#1db954"
+      ],
+      "delta_e": 8.0,
+      "sous": "protan",
+      "paire": [
+        "#f58529",
+        "#1db954"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/utils/pdf_charts.py",
+      "ligne": 439,
+      "couleurs": [
+        "#ff0000",
+        "#ff7700"
+      ],
+      "delta_e": 8.5,
+      "sous": "deutan",
+      "paire": [
+        "#ff0000",
+        "#ff7700"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/views/revenue_forecast.py",
+      "ligne": 82,
+      "couleurs": [
+        "#1db954",
+        "#ff6b35",
+        "#a855f7"
+      ],
+      "delta_e": 8.6,
+      "sous": "deutan",
+      "paire": [
+        "#1db954",
+        "#ff6b35"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/views/revenue_forecast.py",
+      "ligne": 434,
+      "couleurs": [
+        "#1db954",
+        "#8e44ad",
+        "#ff6b35"
+      ],
+      "delta_e": 8.6,
+      "sous": "deutan",
+      "paire": [
+        "#1db954",
+        "#ff6b35"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/views/revenue_forecast.py",
+      "ligne": 531,
+      "couleurs": [
+        "#1db954",
+        "#ff6b35"
+      ],
+      "delta_e": 8.6,
+      "sous": "deutan",
+      "paire": [
+        "#1db954",
+        "#ff6b35"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/views/revenue_forecast.py",
+      "ligne": 695,
+      "couleurs": [
+        "#ff6b35",
+        "#1db954",
+        "#a855f7"
+      ],
+      "delta_e": 8.6,
+      "sous": "deutan",
+      "paire": [
+        "#ff6b35",
+        "#1db954"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/views/airflow_kpi.py",
+      "ligne": 630,
+      "couleurs": [
+        "#ef553b",
+        "#ffa15a",
+        "#00cc96"
+      ],
+      "delta_e": 9.9,
+      "sous": "protan",
+      "paire": [
+        "#ffa15a",
+        "#00cc96"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/utils/pdf_charts.py",
+      "ligne": 738,
+      "couleurs": [
+        "#ff7700",
+        "#1db954",
+        "#457b9d",
+        "#9d4edd"
+      ],
+      "delta_e": 10.9,
+      "sous": "deutan",
+      "paire": [
+        "#ff7700",
+        "#1db954"
+      ],
+      "attenue": false
+    },
+    {
+      "fichier": "src/dashboard/utils/pdf_charts.py",
+      "ligne": 706,
+      "couleurs": [
+        "#ff7700",
+        "#c13584",
+        "#457b9d",
+        "#9d4edd"
+      ],
+      "delta_e": 11.3,
+      "sous": "deutan",
+      "paire": [
+        "#457b9d",
+        "#9d4edd"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/views/meta_ads_overview.py",
+      "ligne": 333,
+      "couleurs": [
+        "#bc5090",
+        "#ffa600",
+        "#ff6361"
+      ],
+      "delta_e": 13.4,
+      "sous": "deutan",
+      "paire": [
+        "#ffa600",
+        "#ff6361"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/views/db_health.py",
+      "ligne": 221,
+      "couleurs": [
+        "#ffa500",
+        "#ff6b6b"
+      ],
+      "delta_e": 13.8,
+      "sous": "deutan",
+      "paire": [
+        "#ffa500",
+        "#ff6b6b"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/utils/pdf_charts.py",
+      "ligne": 581,
+      "couleurs": [
+        "#003f5c",
+        "#bc5090",
+        "#ffa500"
+      ],
+      "delta_e": 14.8,
+      "sous": "protan",
+      "paire": [
+        "#003f5c",
+        "#bc5090"
+      ],
+      "attenue": false
+    }
+  ]
+}
