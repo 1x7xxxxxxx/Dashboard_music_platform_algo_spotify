@@ -143,3 +143,41 @@ def test_the_uploader_is_still_callable_from_the_tab(fn: str):
     import src.dashboard.views.upload_csv as mod
     assert callable(getattr(mod, fn, None)), (
         f"upload_csv.{fn} a disparu — l'onglet « 📂 Mes fichiers » l'appelle")
+
+
+def test_the_detector_sees_an_uploader_and_not_the_prose_about_one(tmp_path: Path):
+    """Non-vacuité : le détecteur mord sur la forme INTERDITE, fabriquée ici.
+
+    Les trois assertions ci-dessus comptent `len(sites) == 1`. Un `_uploader_sites`
+    qui ne trouverait plus rien les rendrait toutes les trois vertes — la première
+    en comptant 0 au lieu de 1 ferait rougir, mais seulement parce que le dépôt
+    porte exactement un site AUJOURD'HUI ; le jour où le composant est déplacé, un
+    détecteur aveugle passe pour un dépôt propre. On fabrique donc le widget.
+
+    Et le second volet est celui que ce dépôt a payé trois fois : la PROSE qui
+    nomme `file_uploader` ne doit pas compter. Ce fichier lui-même en parle dans sa
+    docstring de module.
+    """
+    defect = tmp_path / "a_second_drop_zone.py"
+    defect.write_text(
+        "import streamlit as st\n"
+        "\n"
+        "def show():\n"
+        "    st.file_uploader('Dépose ton CSV', type='csv')\n",
+        encoding="utf-8",
+    )
+    assert _uploader_sites(defect) == ["a_second_drop_zone.py:4"], (
+        "le détecteur ne voit pas un `st.file_uploader(...)` écrit noir sur blanc : "
+        "il ne garde plus rien, et les comptages ci-dessus sont verts par cécité.")
+
+    prose = tmp_path / "only_talks_about_it.py"
+    prose.write_text(
+        '"""Cette vue MÈNE vers st.file_uploader, elle ne le refabrique pas."""\n'
+        "# voir st.file_uploader dans upload_csv.render_uploader\n"
+        "FIELD = 'file_uploader'\n",
+        encoding="utf-8",
+    )
+    assert _uploader_sites(prose) == [], (
+        "le détecteur compte une docstring, un commentaire ou une chaîne : "
+        "documenter la zone de dépôt ferait rougir le garde, et la seule issue "
+        "serait de cesser de la documenter.")

@@ -144,3 +144,39 @@ def test_a_received_exception_is_never_interpolated_raw(rel: str):
         "le message porte le credential. Emballer dans `redact(...)` "
         "(`src/utils/safe_error.py`)."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path) -> None:
+    """Non-vacuité : sur le code EXACT du défaut, le détecteur doit mordre.
+
+    Ajouté le 2026-09-18. Ce garde parcourt l'arbre ; il reste vert tant qu'aucun
+    site n'interpole une exception — donc, s'il est aveugle, exactement aussi vert.
+    Les deux moitiés sont fabriquées ici.
+    """
+    # ⚠️ La fabrication doit incarner CE QUE LE DÉTECTEUR CHERCHE, et la classe le dit
+    # dans son nom : une exception passée en ARGUMENT. Une première version de ce test
+    # fabriquait un `except … as e`, qui est le défaut VOISIN — le détecteur ne l'a pas
+    # vue, à raison, et j'ai failli conclure qu'il était aveugle.
+    defect = tmp_path / "defect.py"
+    defect.write_text(
+        "import logging\n"
+        "logger = logging.getLogger(__name__)\n"
+        "def notify(exc):\n"
+        "    logger.error(f'échec de la collecte : {exc}')\n",
+        encoding="utf-8")
+    assert _offending_lines(defect), (
+        "une exception interpolée dans une f-string n'est plus vue : le message d'une "
+        "exception HTTP embarque l'URL préparée, et plusieurs API portent leur "
+        "credential en PARAMÈTRE DE REQUÊTE — c'est le secret qui part au journal.")
+
+    correct = tmp_path / "correct.py"
+    correct.write_text(
+        "import logging\n"
+        "from src.utils.safe_error import safe_error\n"
+        "logger = logging.getLogger(__name__)\n"
+        "def notify(exc):\n"
+        "    logger.error('échec de la collecte : %s', safe_error(exc))\n",
+        encoding="utf-8")
+    assert not _offending_lines(correct), (
+        "la forme CORRIGÉE (`safe_error`) fait rougir le garde : corriger le défaut "
+        "deviendrait impossible sans désarmer le test.")

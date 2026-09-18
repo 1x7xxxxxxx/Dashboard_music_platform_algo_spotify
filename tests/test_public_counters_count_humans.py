@@ -113,3 +113,31 @@ def test_the_public_page_shows_no_real_artist_name_as_an_example():
             f"{relpath} montre le nom d'artiste du propriétaire de la plateforme "
             "comme valeur d'exemple sur la page d'inscription publique."
         )
+
+
+def test_the_detector_sees_the_query_it_is_written_for(tmp_path) -> None:
+    """Non-vacuité : une requête qui compte `saas_artists` DOIT être vue.
+
+    Ajouté le 2026-09-18. Ce garde parcourt les surfaces publiques ; il reste vert
+    tant qu'aucune ne compte les locataires sans exclure les canaris — donc, s'il est
+    aveugle, exactement aussi vert. La docstring de `_tenant_count_queries` raconte
+    déjà comment il a été rouge sur du code CORRECT ; ce test garde l'autre sens.
+    """
+    defect = tmp_path / "defect.py"
+    defect.write_text(
+        'def public_count(db):\n'
+        '    return db.fetch_query("SELECT COUNT(*) FROM saas_artists")[0][0]\n',
+        encoding="utf-8")
+    assert _tenant_count_queries(defect), (
+        "une requête comptant `saas_artists` n'est plus vue : le compteur public "
+        "affiché à un visiteur inclurait nos propres canaris, ce que ce dépôt a déjà "
+        "livré une fois.")
+
+    muet = tmp_path / "muet.py"
+    muet.write_text(
+        'def rien(db):\n'
+        '    return db.fetch_query("SELECT COUNT(*) FROM s4a_song_timeline")[0][0]\n',
+        encoding="utf-8")
+    assert not _tenant_count_queries(muet), (
+        "une requête qui ne compte PAS les locataires est signalée : le garde "
+        "mordrait sur des surfaces qui n'ont rien à voir avec son sujet.")

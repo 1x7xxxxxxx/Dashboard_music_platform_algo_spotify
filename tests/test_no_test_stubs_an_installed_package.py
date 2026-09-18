@@ -95,3 +95,30 @@ def test_no_installed_package_is_replaced_by_a_mock(rel: str):
         "vacant et casse les imports du reste de la session (il n'est jamais "
         "restauré)."
     )
+
+
+def test_the_detector_sees_the_stub_it_is_written_for(tmp_path) -> None:
+    """Non-vacuité : un module posé dans `sys.modules` DOIT être vu.
+
+    Ajouté le 2026-09-18. Ce garde parcourt `tests/` ; il reste vert tant qu'aucun
+    fichier ne remplace un paquet installé — donc, s'il est aveugle, exactement aussi
+    vert. Un faux module qui masque le vrai fait passer la suite sur une API qui
+    n'existe pas, et le rouge n'arrive qu'en production.
+    """
+    defect = tmp_path / "defect.py"
+    defect.write_text(
+        'import sys\n'
+        'def _stub_module(name):\n'
+        '    sys.modules[name] = object()\n'
+        '_stub_module("pandas")\n',
+        encoding="utf-8")
+    assert "pandas" in _stubbed_names(defect), (
+        "un module passé à `_stub_module` n'est plus vu : la suite pourrait remplacer "
+        "un paquet réellement installé, et tester une API qui n'existe pas.")
+
+    muet = tmp_path / "muet.py"
+    muet.write_text('import pandas as pd\n\n\ndef f(df):\n    return pd.isna(df)\n',
+                    encoding="utf-8")
+    assert not _stubbed_names(muet), (
+        "un simple IMPORT est compté comme un remplacement : le garde mordrait sur "
+        "tout fichier de test qui utilise la bibliothèque normalement.")

@@ -2931,7 +2931,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: a test replaced `sys.modules["…"]` with a stub and, in its `finally`, called `del` instead of restoring the previous value. Deleting the key EVICTS the real module for the rest of the session: the next import re-executes it from disk and hands out a SECOND module object, while every module that already did `from … import NAME` still holds the first. A later `monkeypatch.setattr("pkg.mod.NAME", …)` then patches one object while the code under test reads the other. Measured 2026-08-23 in `tests/test_readiness_carries_the_live_diagnosis.py:192` on `src.dashboard.views.credentials._registry`; CI failed on `test_a_raising_probe_becomes_a_red_not_a_traceback`, whose output showed the five REAL probes running despite a monkeypatch to a single fake one.
 - cause_evidence: read (tests/test_readiness_carries_the_live_diagnosis.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_no_test_deletes_a_module.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_no_test_deletes_a_module.py::test_the_detector_sees_the_eviction_it_is_written_for)
 - long_term_fix: borrow, never evict — `previous = sys.modules.get(key)` before, and restore it (or `pop` only when there was nothing) after. The guard walks the AST of every test for `del sys.modules[…]` and for `sys.modules.pop` without a saved previous value, because the trap is invisible in a single-file run: the test that causes it always passes.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_no_test_deletes_a_module.py }
@@ -2941,6 +2941,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: three reproductions failed before this was found, and each failure was informative — the test passes alone, passes with its neighbour, and passes with the environment stripped. What it does NOT survive is a full run, which is the only condition CI uses. The lesson is about method: an order-dependent failure cannot be reproduced by narrowing, only by running the whole thing.
+  - 2026-09-18: le garde fabrique les deux formes. Mutation `_evictions` → `return []` : **441 cas paramétrés restent verts**, seul le test de non-vacuité rougit — la démonstration chiffrée qu'un balayage large ne prouve rien sur son propre détecteur.
 
 ## tool-imports-the-app-without-a-path
 - status: guarded
@@ -3317,7 +3318,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `live_pulse.get_registered_count_public` et `get_live_pulse` (`src/dashboard/utils/live_pulse.py`) et le KPI admin (`src/dashboard/views/admin.py`) comptaient `SELECT COUNT(*) FROM saas_artists WHERE active = TRUE`. Le canari de surveillance porte `is_canary = TRUE` depuis la migration 064 et `credential_loader.load_all_artists(exclude_canaries=True)` faisait déjà la distinction — les compteurs, non. Le plus exposé des trois est sur la **page d'inscription publique**.
 - cause_evidence: read (src/dashboard/utils/live_pulse.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_public_counters_count_humans.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_public_counters_count_humans.py::test_the_detector_sees_the_query_it_is_written_for) — le garde FABRIQUE la forme interdite et exige que son détecteur la voie, plus la forme CORRIGÉE qu'il ne doit pas voir : une requête comptant `saas_artists` DOIT être vue ; une requête sur une autre table non. Écrit le 2026-09-18 ; il se prouve à chaque exécution.
 - long_term_fix: le prédicat « ce qui compte comme un locataire humain » est une constante unique (`live_pulse._HUMAN_TENANTS`), et le garde inspecte par AST le SQL réellement exécuté — en **résolvant les constantes de module interpolées**, sans quoi il déclarerait absent un prédicat qui est là.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_public_counters_count_humans.py }
@@ -3336,7 +3337,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `test_credentials_security.py::test_no_probe_surfaces_a_whole_exception` demande « une exception née d'un appel HTTP peut-elle atteindre ce module ? » et répond en suivant le **graphe d'imports**. C'est juste pour une exception capturée sur place, et aveugle à celle qu'on reçoit en ARGUMENT : `error_alert._maybe_email(page, exc)` (`src/dashboard/utils/error_alert.py`) n'importe aucun client HTTP et n'en est importé par aucun, et envoyait la traceback complète **par Brevo**, un tiers, dans une boîte mail. Le message d'une exception `requests` embarque l'URL préparée — donc `access_token=`, `key=`.
 - cause_evidence: read (src/dashboard/utils/error_alert.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_an_exception_passed_as_an_argument_is_redacted.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_an_exception_passed_as_an_argument_is_redacted.py::test_the_detector_sees_the_defect_it_is_written_for) — le garde FABRIQUE la forme interdite et exige que son détecteur la voie, plus la forme CORRIGÉE qu'il ne doit pas voir : une exception reçue en ARGUMENT et interpolée dans une f-string DOIT être vue ; la même enveloppée de `safe_error` NE doit pas l'être. Écrit le 2026-09-18 ; il se prouve à chaque exécution.
 - long_term_fix: un second garde, avec un prédicat qui épouse la vraie question — *cette fonction met-elle dans une chaîne une exception qu'elle n'a pas attrapée ?* Il repère les paramètres portant une exception (nom conventionnel ou annotation) et les variables issues d'un `traceback.format_*`, et exige un emballage (`redact` / `safe_error`). Sur `src/`, `airflow/` et `tools/`, il ne trouvait que deux sites — la précision du prédicat est ce qui rend le garde utilisable.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_an_exception_passed_as_an_argument_is_redacted.py }
@@ -3495,7 +3496,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `tests/test_e2e_two_tenants.py` et `tests/test_collectors_errors.py` posaient `sys.modules["spotipy"] = MagicMock()`, idem pour `googleapiclient`, `airflow`, `airflow.operators` — **à l'import du fichier, donc dès la COLLECTE**, et sans jamais restaurer. La justification écrite (« ils vivent dans l'image Airflow, pas dans le venv de dev ou de CI ») a cessé d'être vraie sans que personne le remarque : les quatre paquets sont des dépendances déclarées et installées. `airflow.operators` devenu MagicMock, tout `from airflow.operators.empty import EmptyOperator` ultérieur échouait.
 - cause_evidence: read (tests/test_e2e_two_tenants.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_no_test_stubs_an_installed_package.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_no_test_stubs_an_installed_package.py::test_the_detector_sees_the_stub_it_is_written_for) — le garde FABRIQUE la forme interdite et exige que son détecteur la voie, plus la forme CORRIGÉE qu'il ne doit pas voir : un module posé dans `sys.modules` DOIT être vu ; un simple import non. Écrit le 2026-09-18 ; il se prouve à chaque exécution.
 - long_term_fix: les stubs obsolètes sont retirés (les paquets existent, les imports résolvent), et un garde vérifie par AST qu'aucun fichier de test ne remplace un paquet **installé** par un mock. Le prédicat porte bien sur la question — le stub reste légitime pour un paquet réellement absent, et un garde qui l'interdirait partout serait contourné.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_no_test_stubs_an_installed_package.py }
@@ -4906,7 +4907,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `st.file_uploader` était instancié par `views/upload_csv.py::show()` **et**, via le même `render_uploader`, par l'onglet « 📂 Mes fichiers » de la page Credentials. Streamlit garde un état par widget : un fichier déposé d'un côté n'existait pas de l'autre. La page `upload_csv` avait quitté le menu le 2026-09-04 mais restait routée, et `platform_value.CSV` y envoyait encore l'artiste depuis le sélecteur de mise en route — le doublon était donc la route **recommandée**, pas un vestige.
 - cause_evidence: read (`src/dashboard/views/upload_csv.py:554` définit `render_uploader`, et `views/credentials/router.py:576-577` l'IMPORTE au lieu d'instancier un second `st.file_uploader` — un seul widget, donc un seul état Streamlit. Vérifié le 2026-09-17)
 - signature: `python3 -m pytest tests/test_there_is_one_place_to_drop_a_file.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_there_is_one_place_to_drop_a_file.py::test_the_detector_sees_an_uploader_and_not_the_prose_about_one)
 - long_term_fix: une seule zone de dépôt, dans l'onglet, et `_PAGE_FOR_PLATFORM` vidé — plus aucune plateforme ne se configure hors de la page Credentials. Le garde compte les `st.file_uploader` **par AST** dans tout `views/` hors admin et exige exactement un ; il vérifie en plus que chaque plateforme `where=CSV` pointe sur l'onglet qui le contient. Compter les widgets et non les fichiers est le point : c'est ce que l'utilisateur voit.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_there_is_one_place_to_drop_a_file.py }
@@ -4917,6 +4918,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-06: ma première version du garde affirmait que la page retirée « mène à l'onglet au lieu de rendre le sien » — elle lisait le texte du renvoi que je venais d'écrire dans `show()`. Or `app.py` n'importe `views.upload_csv` **nulle part** : `?page=upload_csv` rend `views.credentials` depuis la fusion. Le renvoi était donc correct et inatteignable, et le garde le gardait. Réancré sur l'ATTEIGNABILITÉ — voir `page-that-nothing-routes-to`.
   - 2026-09-06: vu rouge par mutation (une seconde zone rendue depuis la page retirée ; S4A repointé sur l'ancienne page ; le lien de sortie changé), vert après.
+  - 2026-09-18: le garde porte SA PROPRE mutation. `_uploader_sites` reçoit un module fabriqué portant `st.file_uploader(...)` (il doit le voir) puis un module qui n'en parle que dans une docstring, un commentaire et une chaîne (il ne doit RIEN voir). Mutation vérifiée : `attr == "file_uploader"` → `"file_uploader_NOPE"` ⇒ 2 rouges.
 
 ## page-that-nothing-routes-to
 - status: guarded
@@ -6050,7 +6052,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: le dashboard, l'API et les DAGs se connectaient en `postgres`. Ce que cela donne à une injection ou à une fuite de DSN n'est pas « la lecture des tables » : c'est `COPY … TO PROGRAM`, donc l'exécution de commandes sur l'hôte de la base, plus `pg_authid` (les empreintes de mots de passe de tous les rôles), plus la désactivation de n'importe quel garde en base. Entre une erreur applicative et la machine, il n'y avait aucune couche.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_application_is_not_a_superuser.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_the_application_is_not_a_superuser.py::test_the_detector_sees_the_promotion_it_is_written_for)
 - long_term_fix: un rôle applicatif `NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS`, propriétaire de rien, avec SELECT/INSERT/UPDATE/DELETE sur les données et **aucun DDL** — les migrations gardent le superutilisateur, ce qui est exactement la séparation cherchée. `ALTER DEFAULT PRIVILEGES` couvre les tables futures, sans quoi la panne arriverait des semaines plus tard sur une surface sans rapport. La migration REDESCEND le rôle à chaque passage : `make migrate` est rejoué à chaque déploiement, c'est la ceinture contre une promotion faite à la main. Règle générale : le rôle qui exécute les requêtes de l'application n'est jamais celui qui a créé les tables.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_application_is_not_a_superuser.py }
@@ -6062,6 +6064,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-10: les bornes sont prouvées EN SE CONNECTANT sous le rôle, pas en lisant les droits : lectures et écritures passent, `pg_authid` / `COPY … TO PROGRAM` / DDL sont refusés par Postgres lui-même. Lire une table de privilèges n'aurait dit que ce qu'on a écrit.
   - 2026-09-10: le garde visait d'abord `docker-compose.yml` — **gitignoré**. Il n'aurait jamais tourné en CI ni dit quoi que ce soit de ce que le dépôt livre. Quatrième instance de « un contrôle qui ne peut jamais passer » ; le contrat public est `docker-compose.example.yml`, et le fichier local est vérifié EN PLUS, pour la dérive entre le poste et le dépôt.
   - 2026-09-10: la bascule n'est pas faite par la migration. Créer un rôle inutilisé ne change aucun comportement, ce qui est délibéré : changer le rôle d'une application vivante est un geste d'exploitation avec redémarrage, pas l'effet de bord d'un `git pull`.
+  - 2026-09-18: le prédicat a été EXTRAIT du corps du test (`_grants(sql)`) pour être appelable, puis nourri d'une migration fabriquée qui promeut (`ALTER ROLE … SUPERUSER` + `GRANT pg_execute_server_program`) — il doit mordre — et de la forme corrigée avec son commentaire — il doit se taire. Mutation `return trouves` → `return []` : le test d'origine reste VERT, seul le nouveau rougit. C'est la mesure de ce que l'ancien garantissait.
 
 ## a-batch-that-commits-one-row-at-a-time
 - status: guarded

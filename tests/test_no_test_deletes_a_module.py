@@ -92,3 +92,48 @@ def test_a_test_restores_what_it_borrows_from_sys_modules(name: str) -> None:
         f"    if previous is not None: sys.modules[key] = previous\n"
         f"    else: sys.modules.pop(key, None)"
     )
+
+
+def test_the_detector_sees_the_eviction_it_is_written_for(tmp_path: Path) -> None:
+    """Non-vacuité : sur le code EXACT du défaut, `_evictions` doit mordre.
+
+    Le paramétré ci-dessus est vert sur ~170 fichiers propres, et il resterait vert
+    mot pour mot si `_evictions` rendait toujours `[]`. C'est la forme d'aveuglement
+    la plus coûteuse du dépôt : un garde qu'on croit tendu sur toute la suite alors
+    qu'il ne regarde rien. On lui soumet donc les deux moitiés — la forme interdite,
+    puis la forme CORRIGÉE, qui doit rester muette sous peine de rendre la
+    correction impossible sans désarmer le garde.
+    """
+    defect = tmp_path / "test_evicts.py"
+    defect.write_text(
+        "import sys\n"
+        "\n"
+        "def test_x():\n"
+        "    del sys.modules['src.utils.config_loader']\n"
+        "    sys.modules.pop('src.database.postgres_handler', None)\n",
+        encoding="utf-8",
+    )
+    assert _evictions(defect) == [4, 5], (
+        f"le détecteur rend {_evictions(defect)} sur un fichier qui supprime DEUX "
+        "entrées de sys.modules noir sur blanc : il ne garde plus rien, et les "
+        "~170 cas paramétrés sont verts par cécité.")
+
+    restored = tmp_path / "test_restores.py"
+    restored.write_text(
+        "import sys\n"
+        "\n"
+        "def test_x():\n"
+        "    previous = sys.modules.get('src.utils.config_loader')\n"
+        "    try:\n"
+        "        pass\n"
+        "    finally:\n"
+        "        if previous is not None:\n"
+        "            sys.modules['src.utils.config_loader'] = previous\n"
+        "        else:\n"
+        "            sys.modules.pop('src.utils.config_loader', None)\n",
+        encoding="utf-8",
+    )
+    assert _evictions(restored) == [], (
+        f"le détecteur rend {_evictions(restored)} sur la forme CORRIGÉE — celle "
+        "que le message d'erreur ci-dessus recommande littéralement. Suivre le "
+        "conseil du garde ferait rougir le garde.")

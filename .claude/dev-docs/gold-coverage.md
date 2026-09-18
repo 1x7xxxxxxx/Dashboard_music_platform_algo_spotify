@@ -498,7 +498,7 @@ Le chiffre d'une case est le nombre de fichiers de garde qui NOMMENT une relatio
 | famille | Apple Music | Hypeddit | Instagram | Meta Ads | Revenu | SoundCloud | Spotify S4A | YouTube |
 |---|---|---|---|---|---|---|---|---|
 | [le-locataire](error-class-families.md#le-locataire) | 2 | 1 | 2 | 2 | 2 | 3 | 5 | 3 |
-| [un-cumul-pris-pour-un-quotidien](error-class-families.md#un-cumul-pris-pour-un-quotidien) | 2 | 1 | 1 | 1 | 1 | 4 | 3 | 3 |
+| [un-cumul-pris-pour-un-quotidien](error-class-families.md#un-cumul-pris-pour-un-quotidien) | 2 | 1 | 1 | 1 | 1 | 4 | 4 | 3 |
 | [deux-surfaces-deux-nombres](error-class-families.md#deux-surfaces-deux-nombres) | 4 | 1 | 3 | 3 | 2 | 4 | 5 | 4 |
 | [une-erreur-avalée-devient-une-absence](error-class-families.md#une-erreur-avalée-devient-une-absence) | 2 | 1 | 2 | 1 | 1 | 2 | 5 | 2 |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](error-class-families.md#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 2 | 1 | 2 | 1 | 1 | 2 | 3 | 2 |
@@ -655,4 +655,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=02a1902c86e874fea507032d2ce1a959ea67275b18543d24f954f10ba74aef1b -->
+<!-- gold-coverage: sha256=57f25acc3d07f33fed37420620f0f569d0a9c54dd36e2ad2a5cc288ae0fad4d9 -->

@@ -80,14 +80,60 @@ def _statements(sql: str) -> list[str]:
     return [s.strip() for s in no_line.split(";") if s.strip()]
 
 
-def test_the_migration_never_grants_what_it_exists_to_deny() -> None:
-    for stmt in _statements(MIG()):
+def _grants(sql: str) -> list[str]:
+    """Les attributs interdits que ce SQL ACCORDE — extraite pour être appelable.
+
+    Tant que le prédicat vivait dans le corps du test, la seule façon de savoir s'il
+    mordait était d'abîmer la migration réelle. Sous cette forme, le garde peut lui
+    soumettre une migration FABRIQUÉE.
+    """
+    trouves: list[str] = []
+    for stmt in _statements(sql):
         for word in FORBIDDEN:
             # NOSUPERUSER contient SUPERUSER : on cherche le mot NON préfixé de NO.
             for m in re.finditer(rf"(?<![A-Z_]){re.escape(word)}\b", stmt, re.I):
                 before = stmt[max(0, m.start() - 2):m.start()].upper()
-                assert before == "NO" or word.startswith("pg_") and "GRANT" not in stmt.upper(), (
-                    f"la migration du rôle applicatif accorde `{word}` :\n  {stmt[:200]}")
+                if before == "NO" or word.startswith("pg_") and "GRANT" not in stmt.upper():
+                    continue
+                trouves.append(f"{word} :: {stmt[:200]}")
+    return trouves
+
+
+def test_the_migration_never_grants_what_it_exists_to_deny() -> None:
+    accordes = _grants(MIG())
+    assert not accordes, (
+        "la migration du rôle applicatif accorde ce qu'elle existe pour retirer :\n  "
+        + "\n  ".join(accordes))
+
+
+def test_the_detector_sees_the_promotion_it_is_written_for() -> None:
+    """Non-vacuité : sur une migration qui PROMEUT, le prédicat doit mordre.
+
+    Le test ci-dessus est vert sur une migration correcte, et il le resterait sur un
+    prédicat qui ne trouve plus rien — c'est exactement la forme d'aveuglement que
+    ce dépôt a mesurée neuf fois. On lui soumet donc les deux moitiés.
+    """
+    promotion = (
+        "ALTER ROLE streamlytics_app SUPERUSER;\n"
+        "GRANT pg_execute_server_program TO streamlytics_app;\n"
+    )
+    vus = _grants(promotion)
+    assert any(v.startswith("SUPERUSER") for v in vus), (
+        "`ALTER ROLE … SUPERUSER` passe : le garde ne verrait pas la promotion "
+        "qu'il existe pour interdire.")
+    assert any(v.startswith("pg_execute_server_program") for v in vus), (
+        "`GRANT pg_execute_server_program` passe : le rôle regagne l'exécution de "
+        "commandes sur l'hôte par l'autre chemin, et rien ne le dit.")
+
+    # Et la moitié qui compte autant : la forme CORRIGÉE, plus la prose qui la
+    # documente, doivent rester MUETTES. Un garde rouge sur le commentaire qui
+    # explique le correctif s'enlève au lieu de se corriger.
+    correcte = (
+        "-- Ce rôle ne doit jamais porter SUPERUSER ni pg_execute_server_program.\n"
+        "ALTER ROLE streamlytics_app NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;\n"
+    )
+    assert _grants(correcte) == [], (
+        f"le garde mord sur la migration corrigée ou sur son commentaire : {_grants(correcte)}")
 
 
 def test_the_migration_pins_the_role_down_on_every_replay() -> None:
