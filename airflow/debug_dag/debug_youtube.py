@@ -199,7 +199,8 @@ def step_5_dry_run_insert(data):
         v = videos[0]
         print(f"\n🔹 [Table: youtube_videos] (Upsert x {len(videos)})")
         print(f"   Exemple : '{v['title']}'")
-        print("   SQL : INSERT ... ON CONFLICT (video_id) DO UPDATE ...")
+        # ⚠️ Clé lue au CATALOGUE le 2026-09-18 : elle annoncait `(video_id)` seul.
+        print("   SQL : INSERT ... ON CONFLICT (artist_id, video_id) DO UPDATE ...")
 
     # 3. Stats Vidéos
     if v_stats:

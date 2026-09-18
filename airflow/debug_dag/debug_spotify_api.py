@@ -196,9 +196,11 @@ def step_5_dry_run_insert(data):
 
         # Simulation Track Popularity History
         print("\n🔹 [Table: track_popularity_history] (Insert Snapshot)")
-        print(f"   Clé Unique : Track ID + Date du jour ({date.today()})")
+        # ⚠️ Clé lue au CATALOGUE le 2026-09-18 : elle annoncait `(track_id, date)`,
+        # la forme PRÉ-MULTILOCATAIRE.
+        print(f"   Clé Unique : Artist ID + Track ID + Date du jour ({date.today()})")
         print("   SQL : INSERT INTO track_popularity_history (track_id, popularity, date) ...")
-        print("         ON CONFLICT (track_id, date) DO UPDATE ...")
+        print("         ON CONFLICT (artist_id, track_id, date) DO UPDATE ...")
 
     logger.info("✅ Logique d'insertion valide.")
 

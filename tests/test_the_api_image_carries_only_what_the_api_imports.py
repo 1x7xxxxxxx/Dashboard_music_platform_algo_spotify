@@ -169,3 +169,83 @@ def test_the_lexical_backstop_goes_red_on_a_lazy_import(tmp_path):
     hits = [n for n in ast.walk(tree) if isinstance(n, ast.Import)
             and any(a.name.split(".")[0] in EXCLUDED_MODULES for a in n.names)]
     assert hits, "the lexical rule does not see a function-scope import"
+
+
+# ── Les CONTRAINTES, pas seulement les NOMS — 2026-09-18 ─────────────────────
+#
+# `_requirement_names()` ci-dessus decoupe sur `==`, `>=` et `<` pour ne garder que le
+# NOM. C'est ce qu'il lui faut pour sa question — « l'image API porte-t-elle un paquet
+# que l'API n'importe pas ? ». Mais il rend les deux manifestes identiques meme quand
+# ils installent des VERSIONS differentes, et ces deux manifestes construisent deux
+# images qui tournent cote a cote en production.
+#
+# Mesure du 2026-09-18 : sur 20 paquets communs, **un seul diverge** — et c'est
+# `bcrypt`, la bibliotheque qui hache les mots de passe, dans deux images qui
+# authentifient toutes les deux.
+#
+#     requirements.txt:40      bcrypt>=4.0,<5.1     (releve par 0b83522, avec le lock)
+#     requirements-api.txt:52  bcrypt>=4.0,<4.1     (fige par 283ff46, anterieur)
+#     pyproject.toml:50        bcrypt>=4.0,<5.1
+#
+# `uv.lock` resout 4.0.1, qui satisfait les DEUX — donc l'environnement verrouille ne
+# montre rien. Les images Docker, elles, installent depuis les `requirements*.txt`
+# (CLAUDE.md : « Legacy install path — kept parallel for the existing Dockerfile »),
+# donc `pip` peut resoudre deux majeures differentes de part et d'autre. bcrypt 4.1+
+# REFUSE un mot de passe de plus de 72 octets la ou 4.0 le tronque : la meme
+# inscription peut passer d'un cote et echouer de l'autre.
+#
+# ⚠️ Ce cliquet ne CORRIGE pas la divergence : relever une epingle change ce qu'une
+# image de production installe, et c'est une decision du proprietaire (R140 §16.6).
+# Il la GELE — elle ne peut plus grandir en silence, et le jour ou elle est tranchee,
+# `_DIVERGENCES_CONNUES` se vide et ce test refuse qu'elle revienne.
+_DIVERGENCES_CONNUES = {"bcrypt"}
+
+
+def _requirement_constraints(path: Path) -> dict[str, str]:
+    """`{nom: contrainte}` — la contrainte de version, telle qu'ecrite."""
+    import re
+    out: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.split("#")[0].strip()
+        if not line or line.startswith("-"):
+            continue
+        m = re.match(r"^([A-Za-z0-9_.\-]+)(\[[^\]]*\])?\s*(.*)$", line)
+        if m:
+            out[m.group(1).lower().replace("_", "-")] = (m.group(3) or "").strip()
+    return out
+
+
+def test_the_two_images_pin_the_same_versions():
+    plein = _requirement_constraints(_ROOT / "requirements.txt")
+    api = _requirement_constraints(_ROOT / "requirements-api.txt")
+    communs = sorted(set(plein) & set(api))
+    assert len(communs) > 10, (
+        f"seulement {len(communs)} paquets communs aux deux manifestes — la lecture a "
+        "rate sa cible, et le test ci-dessous est vert pour une raison qui n'a rien a "
+        "voir avec la propriete.")
+    divergents = {k for k in communs if plein[k] != api[k]}
+    neuves = divergents - _DIVERGENCES_CONNUES
+    assert not neuves, (
+        "".join(f"\n  {k}: requirements.txt={plein[k]!r} vs requirements-api.txt={api[k]!r}"
+                for k in sorted(neuves)) +
+        "\n\nCes paquets sont contraints DIFFEREMMENT dans deux manifestes qui "
+        "construisent deux images tournant cote a cote. `pip` peut y resoudre deux "
+        "versions differentes — le lock ne protege que l'environnement de "
+        "developpement. Aligner les deux, ou inscrire la divergence dans "
+        "`_DIVERGENCES_CONNUES` AVEC sa raison et sa ligne de roadmap.")
+
+
+def test_the_frozen_divergences_are_still_real():
+    """Un cliquet qui gele une divergence disparue est un mensonge qui dure.
+
+    Il s'annonce comme une dette et n'en est plus une ; pire, il autorise a la
+    reintroduire. Ce test force le vidage le jour ou elle est tranchee.
+    """
+    plein = _requirement_constraints(_ROOT / "requirements.txt")
+    api = _requirement_constraints(_ROOT / "requirements-api.txt")
+    fantomes = {k for k in _DIVERGENCES_CONNUES
+                if k not in plein or k not in api or plein[k] == api[k]}
+    assert not fantomes, (
+        f"{sorted(fantomes)} sont geles dans `_DIVERGENCES_CONNUES` alors qu'ils ne "
+        "divergent plus (ou ne sont plus dans les deux manifestes). Les retirer : un "
+        "cliquet qui garde une dette reglee autorise a la recreer.")

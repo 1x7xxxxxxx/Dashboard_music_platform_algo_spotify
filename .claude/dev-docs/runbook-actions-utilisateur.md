@@ -1086,5 +1086,54 @@ grep -n "2>&1\|tee\|\$(" tools/schema_drift_cron.sh tools/infra_health_cron.sh |
 sortie ne doit pas être redirigée, ou passer l'impression derrière `--print-token`. Les
 trois sont défendables ; aucune n'est à moi.
 
+### 16.6 — Deux définitions du MRR sous le même libellé
+
+`admin.py:509-521` et `billing.py:323-341` calculent le MRR en SQL : `WHERE status =
+'active'`, `SUM(sp.price_monthly)`. `revenue_forecast.py:56-67` le calcule en pandas sur
+`status ∈ {'active','trialing'}` **et** `price > 0`.
+
+Dès qu'un abonnement est `trialing` — et `admin.py:524` parle explicitement d'« essai de
+bienvenue » — « MRR total » vaut **deux nombres différents sur deux pages**, et
+« Artistes payants » aussi. Aucune des trois ne filtre `HUMAN_TENANTS`, alors que le
+compteur d'artistes juste au-dessus (`admin.py:501`) le fait.
+
+```bash
+grep -n "price_monthly\|trialing\|HUMAN_TENANTS" src/dashboard/views/admin.py \
+  src/dashboard/views/billing.py src/dashboard/utils/revenue_forecast.py
+```
+
+**La décision** : un essai gratuit compte-t-il dans le MRR ? Les deux réponses sont
+défendables (prévisionnel contre encaissé) ; ce qui ne l'est pas, c'est que deux pages
+répondent différemment sous le même mot. Et faut-il exclure les locataires techniques du
+revenu comme on les exclut du compte d'artistes ?
+
+### 16.7 — Deux pages admin prescrivent deux requêtes pour « la dernière collecte »
+
+`useful_links.py:335-350` rend en `st.code` des commandes `psql` que l'admin copie-colle ;
+`admin.py:336-343` calcule la même chose lui-même. Les colonnes divergent sur **cinq
+plateformes sur six** — et pour Meta, `useful_links` prescrit `MAX(collected_at)` là où
+`admin` lit `MAX(day_date)`.
+
+⚠️ **Ce n'est PAS une violation de règle, et je l'ai d'abord écrit comme si.** Le libellé
+dit « Dernière **collecte** », ce à quoi `collected_at` répond correctement.
+`freshness_monitor.py:18-19` mesure l'écart : sur `meta_insights_performance_day`,
+`collected_at` valait le matin même et `day_date` **2024-09-30**. Les deux colonnes
+répondent à deux questions — « quand a-t-on écrit » et « de quand date la donnée ».
+
+**La décision** : laquelle des deux questions l'écran admin doit-il poser ? Une fois
+tranchée, les deux pages disent la même chose, et `quality_gate.py:40-41` donne déjà la
+règle pour la seconde.
+
+### 16.8 — Quatre artefacts livrés que rien ne compare à leur source
+
+| artefact | ce qui est mesuré |
+|---|---|
+| `requirements-api.txt:52` | `bcrypt>=4.0,<4.1` contre `<5.1` dans `requirements.txt` et `pyproject.toml`. `uv.lock` résout 4.0.1, qui satisfait les deux — mais les images Docker installent depuis les `requirements*.txt`, pas depuis le lock. bcrypt 4.1+ **refuse** un mot de passe de plus de 72 octets là où 4.0 le tronque : la même inscription peut passer d'un côté et échouer de l'autre. Un cliquet gèle la divergence (`test_the_two_images_pin_the_same_versions`) ; **relever une épingle change ce qu'une image de production installe** |
+| 3 PNG d'exemple | `a275ece` (2026-09-12) a changé la palette du générateur ; les images datent de `18b9de5` (2026-09-04). Ce sont les figures servies à tout artiste sans données. `make example-charts` les régénère — c'est un changement **visible par l'artiste** |
+| `.claude/dev-docs/api/endpoints.md` | annonce « 8 routes », l'API en sert **11** (10 au schéma OpenAPI + `/metrics`), et les chemins tabulés sont ceux d'avant les préfixes. Son générateur n'a aucun invocateur et ses seuls référents vivants sont dans `.claude/.retired/` — régénérer ou retirer `.claude/dev-docs/api/` est une décision |
+| 7 PNG orphelins de `docs/guides/media/` | `_swap()` n'écrit que si absent et **ne supprime jamais** ; 17 des 24 commités sont référencés |
+
+**La décision** : pour chacun, régénérer, aligner, ou retirer.
+
 **Vérification que cette section est à jour** :
 `python3 -m pytest tests/test_roadmap_index_is_honest.py -q`

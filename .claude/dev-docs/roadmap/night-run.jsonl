@@ -96,3 +96,6 @@
 {"at": "2026-09-18T18:34:56+00:00", "head": "33b9c51", "kind": "done", "task": "R137", "what": "famille une-erreur-avalee-devient-une-absence : 7 classes, 37 sites vivants, 2 corriges, 2 verdicts non concluants"}
 {"at": "2026-09-18T18:35:01+00:00", "head": "33b9c51", "kind": "start", "task": "R137", "what": "famille la-frontiere-avec-le-dehors — 8 classes"}
 {"at": "2026-09-18T18:47:39+00:00", "head": "33b9c51", "kind": "park", "task": "R137", "what": "4 decisions produit parquees en R140 — titre trop large dans le PDF, jeton SoundCloud partage dev/prod, bouton 'ce locataire' qui declenche la flotte, migration sans allowlist"}
+{"at": "2026-09-18T19:10:24+00:00", "head": "dced3bd", "kind": "done", "task": "R137", "what": "famille la-frontiere-avec-le-dehors : 8 classes, 11 sites vivants, 6 corriges (dont une cle API en clair), 5 decisions parquees en R140, R141 consignee"}
+{"at": "2026-09-18T19:10:47+00:00", "head": "dced3bd", "kind": "start", "task": "R137", "what": "famille un-document-qui-affirme-un-etat-perime — 7 classes"}
+{"at": "2026-09-18T19:36:40+00:00", "head": "dced3bd", "kind": "park", "task": "R137", "what": "3 lots de decisions ajoutes a R140 (16.6 MRR, 16.7 fraicheur admin, 16.8 quatre artefacts dont bcrypt)"}

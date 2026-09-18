@@ -58,6 +58,7 @@ from __future__ import annotations
 
 import ast
 import os
+import re
 import pathlib
 import socket
 
@@ -202,3 +203,85 @@ def test_the_unresolvable_call_sites_are_named_not_hidden() -> None:
         f"this guard cannot check them: {sorted(new)}. Prefer a literal target, or "
         "add the file here deliberately."
     )
+
+
+# ── Ce que les ÉCRANS de mise au point ANNONCENT — 2026-09-18 ────────────────
+#
+# Les tests ci-dessus demandent « cette requête EXÉCUTÉE vise-t-elle un index qui
+# existe ? ». Ils écartent — à raison — tout `ON CONFLICT` qui n'atteint aucun curseur,
+# et les scripts de `airflow/debug_dag/` n'en atteignent aucun : ils IMPRIMENT.
+#
+# C'est précisément ce qui les a laissés mentir. Mesuré le 2026-09-18 contre le
+# catalogue vivant : **cinq clés annoncées sur sept étaient fausses**, toutes de la même
+# façon — la forme PRÉ-MULTILOCATAIRE, sans `artist_id`.
+#
+#     debug_s4a.py         ['song','date']  →  (artist_id, song, date)
+#     debug_s4a.py         ['date']         →  (artist_id, date)
+#     debug_s4a.py         ['song']         →  (artist_id, song, time_window)
+#     debug_spotify_api.py (track_id,date)  →  (artist_id, track_id, date)
+#     debug_youtube.py     (video_id)       →  (artist_id, video_id)
+#
+# Rien ne s'exécute, donc aucune requête ne casse. Ce qui casse est le LECTEUR :
+# `CLAUDE.md` désigne `python airflow/debug_dag/debug_<name>.py` comme le chemin pour
+# éprouver un DAG sans Airflow, et ces écrans dictent la clé à un opérateur qui les
+# croit. Classe `un-document-qui-affirme-un-état-périmé`.
+#
+# ⚠️ Une forme reste NON couverte, et le dire est le point : `debug_spotify_api.py:201`
+# annonce la clé EN PROSE — « Clé Unique : Artist ID + Track ID + Date du jour ». Elle a
+# été corrigée à la main le même jour, et aucun prédicat raisonnable ne la lit. Écrire
+# que ce garde « couvre les écrans de mise au point » serait faux : il couvre les clés
+# écrites en SQL ou en liste Python, pas celles écrites en français.
+
+_DEBUG_DIR = _ROOT / "airflow" / "debug_dag"
+
+# `ON CONFLICT (…)` dans une chaîne imprimée, et `Clé d'unicité (Conflict) : [...]`.
+_ANNONCE_SQL = re.compile(r"ON\s+CONFLICT\s*\(([^)]+)\)", re.I)
+_ANNONCE_LISTE = re.compile(r"Cl[ée]\s+d'unicit[ée][^:]*:\s*\[([^\]]+)\]")
+# La table est annoncée juste au-dessus, dans l'une des deux formes de ces scripts.
+_TABLE = re.compile(r"Table\s+Cible\s*:\s*([a-z_0-9]+)|\[Table:\s*([a-z_0-9]+)\]|"
+                    r"INSERT\s+INTO\s+([a-z_0-9]+)", re.I)
+
+
+def _cles_annoncees() -> list[tuple[str, int, str, tuple[str, ...]]]:
+    """`(fichier, ligne, table, colonnes)` pour chaque clé ANNONCÉE à l'écran."""
+    trouve = []
+    for path in sorted(_DEBUG_DIR.glob("debug_*.py")):
+        lignes = path.read_text(encoding="utf-8").splitlines()
+        table = ""
+        for i, ligne in enumerate(lignes, 1):
+            mt = _TABLE.search(ligne)
+            if mt:
+                table = next(g for g in mt.groups() if g)
+            for rx in (_ANNONCE_SQL, _ANNONCE_LISTE):
+                m = rx.search(ligne)
+                if not m or not table:
+                    continue
+                cols = tuple(sorted(c.strip().strip("'\"") for c in m.group(1).split(",")))
+                trouve.append((path.name, i, table, cols))
+    return trouve
+
+
+def test_the_announced_keys_were_really_found() -> None:
+    """Non-vacuité : sans extraction, tout le reste est vert pour rien."""
+    trouve = _cles_annoncees()
+    assert len(trouve) >= 5, (
+        f"seulement {len(trouve)} clé(s) annoncée(s) extraite(s) de "
+        f"{_DEBUG_DIR.name}/ — l'extraction a raté sa cible, et le test ci-dessous "
+        "n'affirme rien. Les écrans ont pu changer de forme.")
+
+
+@pytest.mark.parametrize("fichier,ligne,table,cols", _cles_annoncees(),
+                         ids=lambda v: str(v) if not isinstance(v, tuple) else "-".join(v))
+def test_a_debug_screen_announces_a_key_that_exists(unique_indexes, fichier, ligne,
+                                                    table, cols) -> None:
+    reels = unique_indexes.get(table)
+    if reels is None:
+        pytest.skip(f"{table} absente du catalogue de cette base")
+    assert cols in {tuple(sorted(r)) for r in reels}, (
+        f"{fichier}:{ligne} annonce `ON CONFLICT {cols}` sur `{table}`, que le "
+        f"catalogue ne porte pas. Clés réelles : "
+        f"{sorted(tuple(sorted(r)) for r in reels)}.\n"
+        "Rien ne s'exécute ici — c'est le LECTEUR qui casse. `CLAUDE.md` désigne ces "
+        "scripts comme le chemin de test local d'un DAG : un opérateur lit cette clé "
+        "et la croit. Cinq des sept étaient fausses le 2026-09-18, toutes sans "
+        "`artist_id`.")

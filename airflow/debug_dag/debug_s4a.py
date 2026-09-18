@@ -162,35 +162,38 @@ def step_4_dry_run_db(parsed_results):
 
         if ftype == 'song_timeline':
             print("   🎯 Table Cible : s4a_song_timeline")
-            print("   🔑 Clé d'unicité (Conflict) : ['song', 'date']")
+            # ⚠️ Clé lue au CATALOGUE le 2026-09-18. Elle annonçait `['song', 'date']`
+            # — la clé PRÉ-MULTILOCATAIRE. `CLAUDE.md` designe ce script comme le
+            # chemin de test local : un operateur la lisait et la croyait.
+            print("   🔑 Clé d'unicité (Conflict) : ['artist_id', 'song', 'date']")
             print("   📝 Colonnes à Update : ['streams', 'collected_at']")
 
             print("   📝 Requête SQL simulée (Upsert) :")
             print(f"""
-            INSERT INTO s4a_song_timeline (song, date, streams)
-            VALUES ('{sample['song']}', '{sample['date']}', {sample['streams']})
-            ON CONFLICT (song, date) DO UPDATE
+            INSERT INTO s4a_song_timeline (artist_id, song, date, streams)
+            VALUES ({{artist_id}}, '{sample['song']}', '{sample['date']}', {sample['streams']})
+            ON CONFLICT (artist_id, song, date) DO UPDATE
             SET streams = EXCLUDED.streams, collected_at = NOW();
             """)
 
         elif ftype == 'audience':
             print("   🎯 Table Cible : s4a_audience")
-            print("   🔑 Clé d'unicité (Conflict) : ['date']")
+            print("   🔑 Clé d'unicité (Conflict) : ['artist_id', 'date']")
             print("   📝 Requête SQL simulée :")
             print(f"""
-            INSERT INTO s4a_audience (date, listeners, streams, followers)
-            VALUES ('{sample.get('date')}', ...)
-            ON CONFLICT (date) DO UPDATE ...
+            INSERT INTO s4a_audience (artist_id, date, listeners, streams, followers)
+            VALUES ({{artist_id}}, '{sample.get('date')}', ...)
+            ON CONFLICT (artist_id, date) DO UPDATE ...
             """)
 
         elif ftype == 'songs_global':
              print("   🎯 Table Cible : s4a_songs_global")
-             print("   🔑 Clé d'unicité (Conflict) : ['song']")
+             print("   🔑 Clé d'unicité (Conflict) : ['artist_id', 'song', 'time_window']")
              print("   📝 Requête SQL simulée :")
              print(f"""
-             INSERT INTO s4a_songs_global (song, listeners, ...)
-             VALUES ('{sample.get('song')}', ...)
-             ON CONFLICT (song) DO UPDATE ...
+             INSERT INTO s4a_songs_global (artist_id, song, time_window, listeners, ...)
+             VALUES ({{artist_id}}, '{sample.get('song')}', ...)
+             ON CONFLICT (artist_id, song, time_window) DO UPDATE ...
              """)
 
     db.close()

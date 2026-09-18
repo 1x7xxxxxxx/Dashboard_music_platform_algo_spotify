@@ -507,7 +507,7 @@ _CEILINGS = {
     # (21 balayages productifs sur 191, 52 sites vivants au total). Le premier chiffre
     # ne portait que sur les balayages de la nuit, ceux qui trouvaient. Un taux mesuré
     # sur la population qui l'a inspiré n'est pas un taux.
-    "sites_unknown": 37,
+    "sites_unknown": 30,
     #
     # ── « BALAYÉ » N'EST PAS « LE GARDE ÉTAIT VERT » (2026-09-18) ────────────
     #
@@ -524,7 +524,7 @@ _CEILINGS = {
     # ferait bondir `siblings_never_swept` de 106 à ~203, et le cliquet lirait une
     # RÉGRESSION là où il y a une correction de mesure. Le vrai nombre de classes
     # dont personne n'a cherché les frères est donc la SOMME des deux.
-    "swept_by_rerunning_the_guard": 34,
+    "swept_by_rerunning_the_guard": 27,
     "scope_on_a_shared_guard_without_naming_its_tests": 15,  # phase C ; 23 → 15 le 2026-09-17
                                       # ⚠️ 9 → 11 le 2026-09-17, et les DEUX de hausse sont
                                       # STRUCTURELS, pas de la négligence : `ci-runs-twice-for-one-commit`
