@@ -43,6 +43,29 @@ _FIELD = {
 }
 
 
+def _existing_mirrors(db, artist_id: int) -> dict:
+    """{plateforme logique: valeur} pour les miroirs déjà posés sur `saas_artists`."""
+    from src.utils.tenant_identity import mirrored_columns
+
+    colonnes = mirrored_columns()
+    if not colonnes:
+        return {}
+    # Identifiants issus d'une constante de module, jamais d'une entrée (règle #8).
+    noms = ", ".join(sorted(set(colonnes.values())))
+    try:
+        rows = db.fetch_query(
+            f"SELECT {noms} FROM saas_artists WHERE id = %s", (artist_id,))  # noqa: S608
+    except Exception as exc:  # noqa: BLE001 — un miroir illisible ne bloque pas l'onboarding
+        logger.warning("mirrors unreadable for %s: %s", artist_id, type(exc).__name__)
+        return {}
+    if not rows:
+        return {}
+    ordre = sorted(set(colonnes.values()))
+    par_colonne = dict(zip(ordre, rows[0]))
+    return {logique: par_colonne.get(col)
+            for logique, col in colonnes.items() if par_colonne.get(col)}
+
+
 def _identifier(platform: str, link: str) -> str:
     """L'identifiant que le pipeline attend, ou une chaîne vide. Ne lève jamais."""
     try:
@@ -104,9 +127,21 @@ def materialise(db, artist_id: int) -> list:
         except ValueError:
             return []
 
-    from ._core import _load_credentials, _save_credentials, find_identity_conflict
+    from ._core import _load_credentials, find_identity_conflict
+    from src.utils.tenant_identity import (
+        identity_is_well_formed,
+        write_platform_identity,
+    )
 
     existing = _load_credentials(db, artist_id)
+    # LES MIROIRS DÉJÀ POSÉS, lus une fois.
+    #
+    # Le garde « ne jamais écraser une saisie de l'artiste » consultait la ligne de
+    # `artist_credentials` SEULE. Or `write_platform_identity` écrit le miroir
+    # INCONDITIONNELLEMENT : un locataire portant un miroir sans ligne de credentials —
+    # l'état relevé en production pour l'artiste 1 — aurait vu un lien d'inscription
+    # écraser sa clé de collecte. On consulte donc les deux.
+    _mirrors = _existing_mirrors(db, artist_id)
     connected = []
     for platform, link in (links or {}).items():
         if platform not in _FIELD or not (link or "").strip():
@@ -122,8 +157,19 @@ def materialise(db, artist_id: int) -> list:
         row_extra = dict((existing.get(row) or {}).get("extra_config") or {})
         if row_extra.get(field):
             continue                       # jamais écraser une saisie de l'artiste
+        if _mirrors.get(platform):
+            continue                       # un miroir déjà posé est une saisie aussi
         identifier = _identifier(platform, link.strip())
         if not identifier:
+            continue
+        # LE MÊME contrôle de forme que le formulaire (`_render.py`, « Refuse a
+        # malformed identity BEFORE anything else touches it »). Ce chemin ne
+        # l'appelait pas : `malformed_identities` n'avait qu'UN site d'application
+        # dans tout le dépôt, et ce n'était pas celui-ci. Une valeur libre saisie à
+        # l'inscription devenait donc une identité persistée, puis un segment de
+        # chemin d'URL sortante.
+        if not identity_is_well_formed(platform, identifier):
+            logger.info("signup link for %s has the wrong shape, skipped", platform)
             continue
         # Fusion : `_save_credentials` REMPLACE `extra_config`. Écrire `ig_user_id`
         # seul effacerait `account_id` ET `account_ids` s'ils étaient déjà là — le
@@ -138,11 +184,25 @@ def materialise(db, artist_id: int) -> list:
                 logger.info("signup link for %s already belongs to another tenant",
                             platform)
                 continue
-            # Chaîne VIDE et non `None` : c'est la convention de `_handle_save`,
-            # et elle signifie « ne touche pas au secret » côté SQL. Aucune de ces
-            # trois plateformes n'a de champ secret, mais la ligne en porte un en
-            # production (P1 du 2026-08-22) — l'écraser serait le reperdre.
-            _save_credentials(db, artist_id, row, "", extra)
+            # `write_platform_identity` et NON `_save_credentials`, depuis le
+            # 2026-09-18. Trois raisons, dans cet ordre :
+            #
+            # 1. Lui seul écrit le MIROIR (`saas_artists.spotify_artist_id`), que
+            #    `spotify_api_daily` lit pour choisir ses locataires. Sans lui, ce
+            #    chemin produisait un artiste « connecté » sur tous les écrans et
+            #    jamais collecté — le scénario exact du canari du 2026-08-21, rejoué
+            #    par un chemin d'écriture né APRÈS lui.
+            # 2. Son `INSERT … ON CONFLICT` fusionne `extra_config` par `||` au lieu
+            #    de le REMPLACER, ce qui donne gratuitement la propriété que le
+            #    commentaire ci-dessus protège à la main.
+            # 3. Il ne nomme jamais `token_encrypted`, donc il ne peut pas l'écraser —
+            #    la convention de la chaîne vide devient inutile plutôt que subtile.
+            #
+            # ⚠️ `platform` et non `row` : il lui faut la plateforme LOGIQUE. Lui
+            # passer `storage_platform(...)` ferait chercher `account_id` pour un lien
+            # Instagram et interrogerait le mauvais miroir — correct aujourd'hui par
+            # pure chance, `meta` n'ayant pas de miroir.
+            write_platform_identity(db, artist_id, platform, extra)
             connected.append(platform)
         except Exception as exc:  # noqa: BLE001 — une plateforme n'en perd pas quatre
             logger.warning("could not materialise %s for %s: %s",

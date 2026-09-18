@@ -27,7 +27,7 @@ from ._core import (
     _encrypt_secrets,
     _mask,
     _save_credentials,
-    extract_spotify_artist_id,
+    normalise_spotify_for_save,
 )
 from ._registry import CONNECTION_TESTS
 
@@ -857,16 +857,12 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
         # (collection list) and the track→tenant bridge read. Store the bare ID back in
         # extra_config too so the form round-trips the normalised value.
         if platform_key == 'spotify':
-            sp_id = extract_spotify_artist_id(extra.get('spotify_artist_id', ''))
-            # Only write it back when there IS one. This assignment used to be
-            # unconditional and ran AFTER the empty-pop above, so Spotify was the
-            # single platform that could persist `{"spotify_artist_id": ""}` — the
-            # exact shape the pop exists to prevent, and a row that reads as
-            # "connected" to every surface that counts rows instead of identities.
-            if sp_id:
-                extra['spotify_artist_id'] = sp_id
-            else:
-                extra.pop('spotify_artist_id', None)
+            # La logique vit dans `_core.normalise_spotify_for_save`, pas ici : son
+            # troisième cas — une saisie ILLISIBLE reste refusable — ne pouvait pas
+            # être testé tant qu'il était enfoui dans cette fonction Streamlit, et
+            # c'est exactement le cas qui, perdu, transforme un refus franc en succès
+            # silencieux qui met le miroir à NULL. Voir sa docstring.
+            extra = normalise_spotify_for_save(extra)
 
         # SoundCloud: the artist supplies their PROFILE URL; the pipeline needs the
         # numeric user id. Normalised HERE, at write time, for the same reason the

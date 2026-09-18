@@ -66,3 +66,63 @@ def test_extract_spotify_artist_id(value):
 def test_extract_spotify_artist_id_empty():
     assert extract_spotify_artist_id("") == ""
     assert extract_spotify_artist_id(None) == ""
+
+
+# ── Les cas NÉGATIFS, absents jusqu'au 2026-09-18 ────────────────────────────
+#
+# Les cinq cas ci-dessus sont tous POSITIFS. C'est exactement pour ça que le défaut
+# a survécu quinze semaines : `extract_spotify_artist_id` finissait par
+# `return v if re.fullmatch(r'[0-9A-Za-z]{22}', v) else v` — les DEUX branches
+# rendaient `v`, donc le contrôle de forme était décoratif — et aucun test ne
+# demandait jamais ce qu'il advenait d'une entrée ILLISIBLE. Un jeu de tests qui
+# n'exerce que le chemin heureux ne peut pas voir un repli faux.
+#
+# La valeur rendue atteint un SEGMENT DE CHEMIN d'URL sortante
+# (`_platform_spotify.py`, `f'https://api.spotify.com/v1/artists/{artist_id}'`), et
+# `requests` applique la suppression des segments `..` AVANT d'émettre : mesuré le
+# 2026-09-18, `'../../v1/me'` produisait bien un appel à `https://api.spotify.com/v1/me`.
+
+@pytest.mark.parametrize("value", [
+    "me/accounts",          # la charge utile du P1 Instagram du 2026-08-22
+    "../../v1/me",          # traversée de chemin, effective contre api.spotify.com
+    "../../../me",
+    "x?fields=id",          # `?` n'est pas encodé : le locataire choisit la requête
+    "@evil.example/x",
+    "pas-un-id",
+    "3TVXtAsR1Inumwj472S9r",        # 21 caractères — un de moins
+    "3TVXtAsR1Inumwj472S9r44",      # 23 — un de trop
+    "3TVXtAsR1Inumwj472S9r-4",      # bon compte, caractère hors base-62
+])
+def test_an_unreadable_spotify_reference_yields_nothing(value):
+    """Le repli rend `''`, comme la docstring le promet — jamais l'entrée brute.
+
+    Rendre `value` ici laisserait une valeur choisie par le locataire atteindre une
+    URL sortante. Rendre `''` la fait refuser en amont, avec un message qui nomme la
+    forme attendue.
+    """
+    assert extract_spotify_artist_id(value) == "", (
+        f"`{value!r}` ressort intact : le repli rend l'entrée brute au lieu de `''`, "
+        "et cette valeur atteint un segment de chemin d'URL sortante."
+    )
+
+
+def test_the_shape_comes_from_the_one_registry():
+    """La forme est celle de `PLATFORM_IDENTITIES`, pas une seconde regex locale.
+
+    Avant le 2026-08-22, ce registre existait en CINQ exemplaires qui divergeaient.
+    Une copie locale dans l'extracteur rouvrirait exactement cette porte : le jour où
+    Spotify changerait de longueur d'identifiant, deux endroits devraient bouger et un
+    seul bougerait.
+    """
+    from src.utils.tenant_identity import PLATFORM_IDENTITIES, identity_is_well_formed
+
+    motif = PLATFORM_IDENTITIES["spotify"].pattern
+    assert motif == r"[0-9A-Za-z]{22}", (
+        "le motif du registre a changé — ce test doit être relu, pas ajusté")
+    # Le contrat croisé : ce que l'extracteur accepte est exactement ce que le
+    # registre déclare bien formé.
+    for v in (_SPOTIFY_ID, "me/accounts", "pas-un-id", ""):
+        rendu = extract_spotify_artist_id(v)
+        assert bool(rendu) == identity_is_well_formed("spotify", v) or rendu == _SPOTIFY_ID, (
+            f"désaccord sur {v!r} : extracteur → {rendu!r}, registre → "
+            f"{identity_is_well_formed('spotify', v)}")

@@ -43,6 +43,7 @@ def _test_spotify(fields: dict) -> tuple:
         # so a wrong/empty Spotify ID fails HERE (in the form) instead of silently as 0 rows
         # in spotify_api_daily a day later.
         from ._core import extract_spotify_artist_id
+        from src.utils.tenant_identity import identity_is_well_formed
         artist_id = extract_spotify_artist_id(fields.get('spotify_artist_id', ''))
         if not artist_id:
             # The shared app answering is not "connected": without the artist's own ID
@@ -51,6 +52,27 @@ def _test_spotify(fields: dict) -> tuple:
                             "App Spotify OK, mais ton **Spotify Artist ID** n'est pas "
                             "renseigné — sans lui aucune donnée ne peut être collectée. "
                             "Colle l'URL de ta page artiste (open.spotify.com/artist/…)."), IDENTITY_MISSING)
+        # REVALIDER avant le réseau, même si l'extracteur est corrigé.
+        #
+        # Défense en profondeur, sur le modèle de `_platform_meta.py`. Ce qui part
+        # dans la f-string ci-dessous est un SEGMENT DE CHEMIN, et `requests` applique
+        # la suppression des segments `..` AVANT d'émettre : mesuré le 2026-09-18,
+        # `'../../v1/me'` produisait un appel à `https://api.spotify.com/v1/me`.
+        # L'hôte, lui, ne bouge jamais (15 charges utiles essayées, `@`, `//`, `\`,
+        # `%00`, CRLF : toutes encodées ou inoffensives) — le risque n'est donc pas
+        # l'exfiltration du jeton partagé, qui est un `client_credentials` sans
+        # contexte utilisateur, mais l'épuisement du quota de l'application que TOUS
+        # les locataires partagent : un seul peut priver la flotte de sa collecte.
+        #
+        # `allow_redirects=False` ne couvre rien de tout ça : il empêche le SERVEUR de
+        # rediriger, pas le client de construire.
+        if not identity_is_well_formed('spotify', artist_id):
+            return False, tagged(t("credentials.identity_malformed",
+                            "❌ **{field}** n'a pas le format attendu. Attendu : "
+                            "`{shape}`. Copie l'identifiant seul, sans URL ni "
+                            "caractère autour.").format(
+                                field='Spotify Artist ID', shape='22 caractères'),
+                            IDENTITY_MISSING)
         ra = requests.get(
             f'https://api.spotify.com/v1/artists/{artist_id}',
             headers={'Authorization': f"Bearer {data['access_token']}"},

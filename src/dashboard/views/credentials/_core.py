@@ -196,13 +196,65 @@ def extract_spotify_artist_id(value: str) -> str:
     (spotify:artist:<id>). Returns '' if nothing usable is found.
     """
     import re
+
+    from src.utils.tenant_identity import identity_is_well_formed
+
     v = (value or '').strip()
     if not v:
         return ''
     m = re.search(r'(?:artist[:/])([0-9A-Za-z]{22})', v)
     if m:
         return m.group(1)
-    return v if re.fullmatch(r'[0-9A-Za-z]{22}', v) else v
+    # Le repli rend `''`, comme la docstring le promet depuis toujours.
+    #
+    # Jusqu'au 2026-09-18 cette ligne était `return v if re.fullmatch(...) else v` :
+    # les DEUX branches rendaient `v`, donc le contrôle de forme était décoratif et
+    # `'../../v1/me'` ressortait intact — puis atteignait un SEGMENT DE CHEMIN d'URL
+    # sortante dans `_platform_spotify.py`. Mesuré : `requests` applique la suppression
+    # des segments `..` AVANT d'émettre, donc la traversée fonctionne contre
+    # `api.spotify.com` (l'hôte, lui, ne bouge jamais : 15 charges utiles essayées).
+    #
+    # La forme se décide par `identity_is_well_formed`, jamais par une seconde regex :
+    # `PLATFORM_IDENTITIES` est LE registre, et une copie locale est exactement ce qui
+    # avait divergé en cinq endroits avant le 2026-08-22.
+    return v if identity_is_well_formed('spotify', v) else ''
+
+
+def normalise_spotify_for_save(extra: dict) -> dict:
+    """Normalise `extra['spotify_artist_id']` avant l'écriture, SANS jamais le taire.
+
+    Trois cas, et le troisième est celui qui coûte :
+
+    * lisible      → l'identifiant nu remplace ce que le locataire a collé ;
+    * vide         → la clé SORT, parce qu'une ligne portant `{"spotify_artist_id": ""}`
+                     se lit « connectée » sur toute surface qui compte des LIGNES au
+                     lieu de compter des IDENTITÉS ;
+    * illisible    → la valeur BRUTE RESTE, pour que `malformed_identities` la refuse
+                     avec son message, qui nomme la forme attendue.
+
+    ⚠️ Ce troisième cas est la raison d'être de cette fonction, et il a failli être
+    perdu le 2026-09-18. `extract_spotify_artist_id` rendait alors l'entrée brute dans
+    TOUS les cas (son ternaire de repli avait deux branches identiques) ; corriger cet
+    extracteur seul aurait fait sortir la clé du dict pour une saisie illisible, donc :
+    `malformed_identities` ne voyait plus rien, l'écran affichait « enregistré », et
+    `write_platform_identity` exécutait ensuite une mise à NULL de la colonne miroir
+    (`tenant_identity.py`, `extra.get(...) or None`). Un locataire qui ré-enregistrait
+    son formulaire aurait perdu sa clé de collecte **sans un mot**. Le contrôle de
+    forme vacuous était ce qui maintenait le refus atteignable ; le retirer seul
+    retournait le correctif contre lui.
+
+    Rend un NOUVEAU dict : l'appelant décide quoi en faire.
+    """
+    out = dict(extra)
+    brut = (out.get('spotify_artist_id') or '').strip()
+    lisible = extract_spotify_artist_id(brut)
+    if lisible:
+        out['spotify_artist_id'] = lisible
+    elif brut:
+        out['spotify_artist_id'] = brut          # illisible : reste REFUSABLE
+    else:
+        out.pop('spotify_artist_id', None)
+    return out
 
 
 def _mask(value: str, visible: int = 6) -> str:
