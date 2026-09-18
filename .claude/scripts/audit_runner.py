@@ -27,6 +27,16 @@ rex:
     fix: "audit_runner.py parses error-classes.md signatures and runs them; Makefile + CI delegate to it (catalogue = single source of truth)"
     ref: "DEVLOG#2026-06-13-suite22"
     severity: warn
+  - date: 2026-09-18
+    issue: "run_signature returned hit = (returncode != 0), so rc=2 (sh syntax error), rc=127 (missing command) and rc=5 (pytest collected nothing — a signature pointing at a deleted test) all read as 'the class was touched'. A deterministic signature with an unterminated backtick blocked CI for a whole day while reporting a find."
+    fix: "Three-state verdict: 0 clean, 1 hit, {2,5,126,127} or timeout BROKEN — reported in its own section with exit 2. Added --lint (sh -n, no <placeholder>, even backtick count) wired before --static in ci.yml; it found 3 unrunnable signatures out of 390 in 0.4 s."
+    ref: "0d24560"
+    severity: crit
+  - date: 2026-09-18
+    issue: "A class was written for every defect fixed — ~10 a day, 16 hand-held fields each, and 91% never recur. The catalogue grew faster than anyone could read it."
+    fix: "--admission gate: a class introduced after the cutover must carry `admitted:` with a NUMBER — two dated recurrences, >=2 swept sites, or a named P1 production impact. Retroactive calibration on the 401 existing classes: 60 (15%) would have been admitted, so ~10/day becomes ~1.4/day."
+    ref: "f47d1ec"
+    severity: warn
 ---
 """
 import argparse

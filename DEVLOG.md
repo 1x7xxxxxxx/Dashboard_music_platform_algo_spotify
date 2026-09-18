@@ -5,6 +5,107 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-18 — Six axes pour rendre la boucle de travail moins chère, et un facteur 4,9 qui était un biais
+
+Le propriétaire a arrêté la passe sur le catalogue d'erreurs et demandé **où le dépôt
+perd de l'efficacité** : quoi ajouter, quoi retirer, quitte à supprimer. Six axes, tous
+chiffrés, tous livrés. Ce qui suit est le REX de cette passe — ce qui a été mesuré,
+ce qui a été refusé par sa propre mesure, et les six choses que j'ai eues fausses.
+
+### Le résultat qui réoriente tout : l'axe qui « payait » ne payait pas
+
+`make error-health` publiait, sur 8 394 classe-jours, que les classes sans garde
+automatique récidivent **4,9× plus** — et c'est le chiffre qui servait à justifier le
+rituel. `tools/dev/error_class_health.py:506` calculait l'exposition depuis
+`introduced_date` et l'étiquetait avec l'état **d'aujourd'hui**. Une classe née sans
+garde, récidivée, *puis* gardée versait sa vie entière ET sa récidive dans le bras
+« gardé ». C'est un **biais d'immortal time**, et comme c'est la récidive qui fait
+écrire le garde, la causalité était inversée.
+
+L'estimateur a été réparé (~40 lignes) : `guard_since` par classe, l'exposition
+**découpée** à cette date, chaque évènement attribué par la sienne. La prédiction
+— « le bras gardé va remonter vers le taux global » — a été **écrite dans le code avant
+de lire le résultat**. Elle s'est vérifiée : **×4,9 → ×1,1**. L'effet était le biais en
+entier.
+
+Trois autres strates ont été essayées et aucune ne sépare : `seen_red` daté, `guard_scope`
+(saturé à 100 %), et le verdict de balayage — dont le facteur 4,5 à IC disjoints s'est
+révélé rétrospectif (sur 37 classes, le balayage précède la récidive **0 fois**, tombe
+le même jour 12 fois). Conséquence assumée : le régime du catalogue n'est plus choisi
+« sur ce que disent les chiffres », mais sur un critère qu'un programme tranche —
+**un champ survit si une machine peut vérifier sa valeur sans faire confiance à
+l'auteur, et la re-vérifie à chaque exécution.**
+
+### Ce qui a changé, par axe
+
+- **A — la cérémonie.** 48 % des commits du jour étaient « Regénérer l'instantané » :
+  l'instantané de santé était un **miroir** d'un artefact dérivé de `git log`, donc
+  commiter le catalogue le périmait par construction. `_revisions()` compte désormais
+  l'arbre de travail comme révision en attente, et le refus d'arbre sale (exit 3)
+  devient une bannière. **~50 commits/jour → 0.**
+- **B — la porte bloquante.** La CI était rouge sur une signature `deterministic` dont
+  le backtick n'était pas fermé. `run_signature` distingue enfin **cassée** de **a
+  mordu** (rc ∈ {2,5,126,127} → exit 2, section à part), et `--lint` a trouvé
+  **3 signatures inexécutables sur 390 en 0,4 s**.
+- **C — fraîcheur.** Deux tests régénéraient un document entier pour le comparer octet
+  à octet (23,06 s + 6,97 s). La propriété part en CI, où elle bloque enfin quelque
+  chose. **−27,8 s** par exécution locale.
+- **C — rendu.** Les 39 vues étaient rendues **deux fois**, une par fichier de garde.
+  `render_once()` les rend une fois. Mesuré en alternance : **30,6 s → 18,1 s, −41 %**
+  sur ces deux fichiers. ⚠️ **Et 1,5 % sur `make test`, sous le bruit : aucun
+  résultat.** Ce qui est acheté, c'est 44 s de CPU, donc de la marge de shard, pas de
+  l'horloge locale — le confondre serait refaire l'erreur reprochée à R110.
+- **D — régime du catalogue.** `autofix` retiré de 396 classes (un champ constant n'est
+  pas de l'information), 206 classes rangées en dormantes **sans qu'une seule soit
+  supprimée**, et un **billet d'admission** : une classe neuve doit porter un NOMBRE —
+  deux récidives datées, ≥2 sites balayés, ou un impact P1 nommé. ~10/jour → **~1,4/jour**.
+- **E — ce qui part.** Le plan annonçait **1 780 lignes mortes** ; la mesure en a trouvé
+  **301**. Sept des onze scripts « morts » sont exécutés à chaque CI comme signatures du
+  catalogue — le balayage les avait ratés parce qu'il cherchait des appels de script à
+  script. Deux skills retirées, `mutate_guards.py` **gardé** et enfin nommé dans
+  CLAUDE.md.
+- **F — les sondes.** La durée des DAG entre en base (migration 126,
+  `dag_durations_s JSONB`, clé absente ≠ 0), et les deux déclencheurs de réouverture de
+  R87 sont **comparés chaque nuit** au lieu d'être écrits dans une prose que personne
+  ne relit.
+
+### Ce que j'ai eu faux, et qui vaut plus que le reste
+
+1. **Le facteur 4,9** — un biais en entier. Rétracté dans CLAUDE.md règle 15, avec le
+   tableau du biais.
+2. **Le compteur comptait la mauvaise chose.** Toute ligne d'`History` valait récidive.
+   Les 81 concernées reclassées une par une : **33 vraies récidives, 26 défauts du
+   GARDE, 22 du travail sur la classe**. Écrire le verdict d'un balayage qui PROUVE
+   qu'une classe est saine faisait donc **monter** sa récidive. Total corrigé :
+   **32 évènements, pas 69.**
+3. **1 780 lignes mortes → 301.** Le prédicat cherchait une forme d'écriture.
+4. **Six assertions de présence satisfaites par la prose** du fichier inspecté, cinq
+   contre du code écrit le jour même — dont un garde P1 sur `utc=True`, vert grâce à
+   quatre mentions en docstring. Classe neuve : `guard-satisfied-by-its-own-comment`.
+5. **Une mutation appliquée à un motif ABSENT** ne modifie rien et laisse sept tests
+   verts. J'ai failli en conclure qu'un garde était vacu. **Vérifier que la ligne a
+   CHANGÉ**, pas seulement que la commande a tourné.
+6. **Deux faux positifs signalés puis rétractés** : les « 6 références pendantes » de
+   CLAUDE.md (elles vivent dans le dépôt baseline) et le « faux positif du hook
+   d'injection » (non reproduit — `detect_domains()` se comporte correctement).
+
+### Trois optimisations écartées par leur propre mesure
+
+Scinder le catalogue en deux fichiers (**≈ 0 s** contre 47 sites lecteurs) · fusionner
+les cinq gardes du catalogue (le parse coûte **23 ms**, pas 10,8 s) · alléger les rendus
+`AppTest` par un Humble Object (ils attrapent des défauts que 4 737 tests unitaires
+verts ne voyaient pas). Détail chiffré :
+`.claude/dev-docs/test-suite-performance.md`.
+
+### État
+
+CI verte (elle était à **1 succès sur 60 runs** au début de la passe) · `make test`
+**190,5 s**, 7 485 verts · prod déployée en `f686678`, api+dashboard sains, 5/5 cibles
+Prometheus, 123/123 migrations · catalogue à **403 classes**, `seen_red_unknown`
+175 → 141, `guard_does_not_prove_itself` 384 → 306.
+
+---
+
 ## 2026-09-16 — La CI passe de 7 min à 1 min 49, et deux énoncés de la roadmap tombent
 
 ### Ce qui a changé

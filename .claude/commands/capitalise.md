@@ -1,6 +1,17 @@
 ---
 description: "Transforme un défaut corrigé en classe d'erreur durable, avec une signature shell qui la détecte."
-rex: []
+rex:
+  - date: 2026-09-18
+    issue: "`seen_red:` dated a one-off observation, so a guard proved itself once, by hand, and never again. 384 of 402 classes carried no reproducible proof that their guard bites."
+    fix: "`seen_red: self-proving (<file>::<test>)` — the guard fabricates the forbidden shape AND the corrected shape at every run. 307 classes remain without it, and the counter is ratcheted so it can only fall."
+    ref: "5962fd1, b25fb23"
+    severity: warn
+  - date: 2026-09-18
+    issue: "A presence assertion (`assert \"X\" in source`) is satisfied by the PROSE of the file it inspects — the inverse of guard-matches-its-own-comment. Hit 6 times in one session, five of them against code written that same day, including a P1 tz guard green on 4 docstring mentions."
+    fix: "New class guard-satisfied-by-its-own-comment (P2) + tests/code_text.py, which strips comments and docstrings IN PLACE so token adjacency survives, and .claude/scripts/audit_presence_assertions.py (110 candidates, 11 proven, now 0)."
+    ref: "91c6d29, 50b501c"
+    severity: crit
+
 ---
 
 # /capitalise

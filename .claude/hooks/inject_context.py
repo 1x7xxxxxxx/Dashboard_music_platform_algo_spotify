@@ -30,6 +30,11 @@ rex:
     fix: "Ported _discover_domains() (Dashboard/msdr): a skill or rule declaring `keywords:` self-wires, so a forgotten post-install step can no longer silence the hook. Scans rules/ too, which no sibling does."
     ref: "CLAUDE.md · setup-claude-code.sh:553"
     severity: crit
+  - date: 2026-09-18
+    issue: "Reported as a false positive: two workflows (~15 Ko) injected on two consecutive turns where neither was relevant. Investigated and NOT reproduced — detect_domains() returns nothing on the three prompts and fires correctly on genuine ones. The claim was retracted; no change was made."
+    fix: "None. Recorded so the next reader does not re-open a defect that was measured absent — the cost of an unverified report is that someone loops on it."
+    ref: "CLAUDE.md axe E"
+    severity: info
 ---
 """
 import glob
