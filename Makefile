@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: dip-calibrate figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: schema-declared dip-calibrate figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -312,6 +312,11 @@ gold-coverage-check: ## Échoue si la carte ne décrit plus le dépôt — LANC�
 # ── R134 : le seuil du détecteur de creux, dérivé et non deviné ───────────────
 # Lecture seule sur la base. Précondition explicite (règle transverse #10) : l'outil
 # sort 2 avec « Lancer : make up » si la base est injoignable.
+# ── R143 : ce que le depot declare contre ce que la base porte ────────────────
+# Lecture seule. Precondition explicite : l'outil sort 2 avec « Lancer : make up ».
+schema-declared: ## Divergences type declare (init_db + migrations) <-> base — lecture seule
+	@python3 tools/dev/schema_declaration_check.py
+
 dip-calibrate: ## Dérive le seuil de creux PAR TABLE sur les données réelles — lecture seule
 	@python3 tools/dev/calibrate_dip_thresholds.py
 

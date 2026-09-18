@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**403 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**404 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -20,7 +20,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 25 | **3/25** · 12.0 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | **5/29** · 17.2 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 25 | **2/25** · 8.0 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 82 | **9/82** · 11.0 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 83 | **9/83** · 10.8 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | **4/39** · 10.3 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | **0/8** · 0.0 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
@@ -303,7 +303,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|substitution|s'exécute|accent grave|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 82 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|substitution|s'exécute|accent grave|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 83 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -329,6 +329,7 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 | [`guard-branch-only-reached-when-it-fails`](error-classes.md#guard-branch-only-reached-when-it-fails) | un garde est vert sur une base propre et rouge dans la grande exécution, et le rouge ne parle pas du sujet gardé — un `TypeError`, un `KeyError`, une  |
 | [`a-glyph-with-no-font-vanishes-without-a-trace`](error-classes.md#a-glyph-with-no-font-vanishes-without-a-trace) | un document généré perd des caractères — sans erreur, sans avertissement, sans carré de substitution. Reproduit le 2026-09-10 : rendu le golden HTML d |
 | [`a-ratchet-frozen-on-a-partial-predicate`](error-classes.md#a-ratchet-frozen-on-a-partial-predicate) | un cliquet gelé à zéro passe au vert, et la chose qu'il interdit est toujours là. Mesuré le 2026-09-10 : `_MAX_SECONDARY_AXES = 0` était vert alors qu |
+| [`a-create-if-not-exists-that-declares-nothing`](error-classes.md#a-create-if-not-exists-that-declares-nothing) | le fichier qui prétend décrire le schéma décrit autre chose, et rien ne le dit. Une colonne porte en base un type différent de celui que `init_db.sql` |
 | [`a-surgical-restore-erases-work-nothing-will-give-back`](error-classes.md#a-surgical-restore-erases-work-nothing-will-give-back) | du travail non commité disparaît sans trace ni message. Aucune erreur, aucun avertissement : la commande réussit, et ce qu'elle a écrasé n'est ni dans |
 | [`a-filtered-test-run-proves-nothing`](error-classes.md#a-filtered-test-run-proves-nothing) | annoncer « N tests verts » après une exécution filtrée par `-k`. Le 2026-09-11 : **931 verts** annoncés, puis la sélection officielle en a trouvé **4  |
 | [`a-generated-document-asserts-a-stale-state`](error-classes.md#a-generated-document-asserts-a-stale-state) | un document généré décrit un dépôt qui n'existe plus. Il ne porte aucune marque de péremption — il se lit exactement comme une mesure fraîche, et c'es |
@@ -606,6 +607,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=403 families=18 orphans=3 -->
+<!-- error-class-families: total=404 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=6bac0df3a8d4035a313be4b34089e57f4b281d531ef5cc47ec4e2b3a2345cd06 -->
+<!-- error-class-families: sha256=dc6e0ba07d7f21f2c5a8ca84baf32cd35dc2d31156549e4b06527077c1f40820 -->
