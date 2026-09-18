@@ -145,6 +145,30 @@ def test_the_censoring_rate_is_published() -> None:
         "24 onglets, 68 à 82 % des échantillons étaient censurés et le chiffre publié "
         "décrivait le quart restant.")
 
+    # ── ET LA VALEUR, PAS SEULEMENT LA CLÉ (2026-09-18) ────────────────────────
+    #
+    # Mutation jouée ce jour-là : garder la clé et figer sa valeur à `0.0`. Le test
+    # est resté VERT — il vérifiait le CÂBLAGE (produite, puis lue) et jamais ce qui
+    # circule dedans. Or un taux de censure constamment nul dit « rien n'a été perdu »,
+    # c'est-à-dire exactement le chiffre rassurant que cette classe existe pour
+    # interdire. Le garde attrapait le renommage et laissait passer le mensonge.
+    #
+    # On exige donc que la valeur DÉRIVE des mesures : une expression, pas une
+    # constante. C'est le même cran que le passage « nom » → « chemin » décrit
+    # au-dessus, appliqué une fois de plus.
+    for n in ast.walk(level):
+        if not isinstance(n, ast.Dict):
+            continue
+        for k, v in zip(n.keys, n.values):
+            if not (isinstance(k, ast.Constant) and k.value == "censored_pct"):
+                continue
+            assert not isinstance(v, ast.Constant), (
+                "`censored_pct` est une CONSTANTE dans `_level()`. Un taux de censure "
+                "figé annonce « rien n'a été perdu » quel que soit ce qui s'est passé — "
+                "le p50 décrit alors les survivants et la valeur publiée à côté ne le "
+                "corrige pas. Il doit se calculer à partir des tentatives et des "
+                "aboutissements.")
+
     run = _func(tree, "_run")
     read = {n.slice.value for n in ast.walk(run)
             if isinstance(n, ast.Subscript) and isinstance(n.slice, ast.Constant)

@@ -43,7 +43,26 @@ def _get_artist_name(db, artist_id):
 
 
 def get_available_songs(db, artist_id):
-    """Retourne la liste des chansons disponibles pour un artiste (triées par streams desc)."""
+    """Retourne la liste des chansons disponibles pour un artiste (triées par streams desc).
+
+    ⚠️ **LES DEUX BRANCHES LEVAIENT, ET L'`except` LE CACHAIT** (corrigé le 2026-09-18).
+
+    La première passait `(artist_id)` — une simple PARENTHÈSE, pas un tuple — d'où
+    `TypeError: 'int' object does not support indexing`. La seconde portait un `%s` et
+    passait `()`, d'où `IndexError: tuple index out of range`. Le `except Exception`
+    plus bas journalisait puis rendait `[]`.
+
+    Conséquence mesurée sur l'artiste 1 : **0 titre au lieu de 11**. Le sélecteur de
+    titres du PDF était vide pour TOUS les artistes, sans erreur visible — seulement
+    une ligne « PDF: get_available_songs unreadable: TypeError » dans le journal d'un
+    conteneur. C'est `une-erreur-avalée-devient-une-absence` dans le document PAYANT.
+
+    Trouvé en lisant l'échec d'un test d'export, pas par une plainte : aucune surface
+    ne distingue « cet artiste n'a pas de titre » de « la requête n'a pas tourné ».
+
+    La branche sans locataire porte le filtre obligatoire de `s4a_song_timeline`
+    (CLAUDE.md) — c'est ce que le `%s` orphelin devait recevoir.
+    """
     try:
         if artist_id is not None:
             rows = db.fetch_query(
@@ -51,7 +70,7 @@ def get_available_songs(db, artist_id):
                    FROM v_s4a_song_daily
                    WHERE artist_id = %s
                    GROUP BY song ORDER BY total DESC""",
-                    (artist_id)
+                (artist_id,),
             )
         else:
             rows = db.fetch_query(
@@ -59,7 +78,7 @@ def get_available_songs(db, artist_id):
                    FROM v_s4a_song_daily
                    WHERE song NOT ILIKE %s
                    GROUP BY song ORDER BY total DESC""",
-                    ()
+                ("%1x7xxxxxxx%",),
             )
         return [r[0] for r in rows] if rows else []
     except Exception as exc:  # noqa: BLE001
@@ -118,14 +137,17 @@ def _collect_songs_focus(db, artist_id, songs, from_date, to_date):
                        FROM v_s4a_song_daily
                        WHERE song = %s AND artist_id = %s
                          AND day >= CURRENT_DATE - INTERVAL '7 days'""",
-                    (song,artist_id)
+                    (song, artist_id),
                 )
             else:
                 row = db.fetch_query(
                     """SELECT COALESCE(SUM(streams), 0)
                        FROM v_s4a_song_daily
                        WHERE song = %s AND day >= CURRENT_DATE - INTERVAL '7 days'""",
-                    (song)
+                    # `(song)` n'est pas un tuple : psycopg2 recevait une CHAÎNE
+                    # et levait `TypeError: not all arguments converted`. Corrigé
+                    # le 2026-09-18 avec les deux frères de ce fichier.
+                    (song,),
                 )
             entry['last7d_streams'] = int(row[0][0] or 0)
         except Exception as exc:  # noqa: BLE001
@@ -215,7 +237,7 @@ def _collect_s4a_top_songs(db, artist_id, from_date, to_date, songs_filter=None)
                     """SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily
                        WHERE song = %s
                          AND day >= CURRENT_DATE - INTERVAL '7 days'""",
-                    (song),
+                    (song,),
                 )
             last7_map[song] = int(r7[0][0] or 0) if r7 else 0
         return [(r[0], int(r[1] or 0), last7_map.get(r[0], 0)) for r in rows]
