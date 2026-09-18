@@ -11061,6 +11061,7 @@
       "seen_red_unknown": 141,
       "siblings_never_swept": 1,
       "sites_unknown": 2,
+      "sites_unknown_hors_relance": 2,
       "swept_by_rerunning_the_guard": 0
     },
     "population": {

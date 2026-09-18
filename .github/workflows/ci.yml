@@ -219,6 +219,17 @@ jobs:
           # deux manquaient, pas trois.
           uv run --frozen python .claude/scripts/audit_runner.py --coverage
           uv run --frozen python .claude/scripts/audit_unreachable_tools.py
+          # ⚠️ AJOUTÉ le 2026-09-18. `.test_durations` équilibre les quatre shards de
+          # CI ; une entrée qui ne désigne plus rien gonfle la part d'un shard d'un
+          # temps jamais payé, et un test collecté sans durée reçoit de `pytest-split`
+          # une durée MOYENNE — ce que ce fichier existe pour empêcher.
+          # Mesuré ce jour-là : **26 entrées non collectables pour 33,2 s**, dont deux
+          # pesaient 27,8 s à elles seules, et **40 tests sans durée**.
+          # Le prédicat ÉVIDENT — « le fichier du node-id existe-t-il » — rend **0** :
+          # les 26 vivaient dans des fichiers présents. Seule une COLLECTE ne ment pas.
+          # Ici et pas dans `make test` : une collecte coûte ~8 s, et ce dépôt a déjà
+          # sorti les contrôles de fraîcheur de la suite pour ce motif exact.
+          uv run --frozen python tools/dev/check_durations_are_collectable.py
           uv run --frozen python .claude/scripts/check_config_refs.py
           uv run --frozen python .claude/scripts/check_ci_waste.py
           # LA FRAÎCHEUR DES DOCUMENTS GÉNÉRÉS EST REVENUE ICI — 2026-09-18.

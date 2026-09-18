@@ -330,6 +330,70 @@ _RERUN = re.compile(r"son garde PARCOURT l'arbre et a été exécuté"
                     r"|C'est le PRÉDICAT qui a été balayé, pas la classe")
 
 
+def _prose_des_trous(h: dict, a: dict) -> list[str]:
+    """Les deux ⚠️ des trous, écrits de façon qu'on ne puisse PAS les additionner.
+
+    ⚠️ **Ils ont été publiés côte à côte sans dire qu'ils se recouvrent.** Au
+    2026-09-17 : `swept_by_rerunning_the_guard` = 97, `sites_unknown` = 100,
+    **intersection 97**. Un lecteur additionnait et lisait 197 classes en défaut, là où
+    il y en avait 100. Une relance de garde ne porte jamais de compte en gras : elle est
+    muette **par construction**, donc toujours comptée dans les deux.
+
+    Et la phrase historique dégénérait : écrite pour l'ère des 97, elle rendait « est
+    donc **1**, et non 1 » une fois le balayage terminé — un chiffre qui ne dit plus rien
+    et qu'on lit quand même.
+
+    La règle appliquée ici : **un paragraphe qui publie deux populations qui s'emboîtent
+    doit publier leur intersection**, sinon la structure invite à l'addition.
+    """
+    relances = h["swept_by_rerunning_the_guard"]
+    muets = h["sites_unknown"]
+    hors = h["sites_unknown_hors_relance"]
+    intersection = muets - hors
+    jamais = h["siblings_never_swept"]
+    out: list[str] = []
+
+    if relances:
+        out += [
+            f"⚠️ **{relances} des {a['sweep_yield']['sweeps_done']} « balayages » n'en "
+            "sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un "
+            "garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a "
+            "rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur "
+            f"**8 sites vivants**. Avec les {jamais} jamais balayée(s), le nombre de "
+            "classes dont personne n'a cherché les frères est donc "
+            f"**{jamais + relances}**.",
+            "",
+        ]
+    else:
+        out += [
+            f"✅ **Aucun des {a['sweep_yield']['sweeps_done']} balayages n'est une "
+            "relance de garde.** Ils étaient **97** le 2026-09-17, et les 97 ont rendu "
+            "des sites vivants qu'un garde vert ne pouvait pas voir. La porte "
+            "`audit_runner.py --sweep-verdict` refuse désormais cette forme **au moment "
+            f"de l'écrire**. Reste {jamais} classe(s) jamais balayée(s) — un trou "
+            "déclaré, pas un faux balayage.",
+            "",
+        ]
+
+    out += [
+        f"⚠️ **{muets} balayage(s) sont MUETS** : la question a été posée, la réponse "
+        "s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme zéro — un "
+        "balayage dont on ignore le résultat n'est pas un balayage sans résultat. Le "
+        "dénominateur du taux ci-dessus les exclut délibérément : les inclure "
+        "diviserait par une population qui ne répond pas à la question, ce que ce dépôt "
+        "appelle `anchor-a-number-to-its-population`.",
+        "",
+        f"🔗 **Ces deux nombres NE S'ADDITIONNENT PAS.** Une relance de garde ne porte "
+        f"jamais de compte en gras, donc elle est muette par construction : "
+        f"l'intersection vaut **{intersection}**, et les muets qui ne sont pas une "
+        f"relance sont **{hors}**. Au 2026-09-17 les deux paragraphes ci-dessus "
+        "annonçaient 97 et 100 sans le dire — un lecteur y lisait 197 classes en défaut, "
+        "là où il y en avait 100.",
+        "",
+    ]
+    return out
+
+
 def _swept_by_rerunning_the_guard(champ: str) -> bool:
     """Le champ décrit-il une RELANCE du garde plutôt qu'un balayage de frères ?"""
     return champ.strip().startswith("swept:") and bool(_RERUN.search(champ))
@@ -758,6 +822,20 @@ def build() -> tuple[str, str]:
         "sites_unknown": sum(
             1 for c in classes.values()
             if c["siblings_swept"] and c["siblings_sites"] is None),
+        # ⚠️ `swept_by_rerunning_the_guard` est un SOUS-ENSEMBLE de `sites_unknown` : une
+        # relance de garde ne porte jamais de compte en gras, donc elle est muette par
+        # construction. Au 2026-09-17 l'intersection valait **97 sur 100**, et les deux
+        # étaient publiés dans deux paragraphes ⚠️ consécutifs **sans dire qu'ils se
+        # recouvrent** : un lecteur additionnait et concluait à 197 classes en défaut,
+        # alors qu'il y en avait 100.
+        #
+        # Ce compteur-ci est la part qui ne se recoupe PAS. Publié à côté des deux
+        # autres, il rend l'addition impossible : trois nombres dont deux s'emboîtent ne
+        # s'additionnent pas par distraction.
+        "sites_unknown_hors_relance": sum(
+            1 for c in classes.values()
+            if c["siblings_swept"] and c["siblings_sites"] is None
+            and not c["siblings_is_a_guard_rerun"]),
         # Un « balayage » qui n'en est pas un : le garde a été relancé, il était vert.
         # Voir `_swept_by_rerunning_the_guard` — un garde vert ne prouve rien sur les
         # frères, il prouve que SON prédicat ne les voit pas.
@@ -888,20 +966,7 @@ def _render(p: dict) -> str:
         f"| taux de trouvaille (sur verdicts lisibles) | "
         f"**{a['sweep_yield']['hit_rate_on_verdicts']}** |",
         "",
-        f"⚠️ **{h['swept_by_rerunning_the_guard']} des {a['sweep_yield']['sweeps_done']} "
-        "« balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il "
-        "était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il "
-        "n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur "
-        "**8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères "
-        f"est donc **{h['siblings_never_swept'] + h['swept_by_rerunning_the_guard']}**, "
-        f"et non {h['siblings_never_swept']}.",
-        "",
-        f"⚠️ **{h['sites_unknown']} balayages sont MUETS** : la question a été posée, la "
-        "réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme "
-        "zéro — un balayage dont on ignore le résultat n'est pas un balayage sans "
-        "résultat. Le dénominateur du taux ci-dessus les exclut délibérément : les "
-        "inclure diviserait par une population qui ne répond pas à la question, ce que "
-        "ce dépôt appelle `anchor-a-number-to-its-population`.",
+        *_prose_des_trous(h, a),
         "",
         "## Ce que ce document corrige",
         "",

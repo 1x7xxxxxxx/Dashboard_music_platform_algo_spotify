@@ -111,3 +111,4 @@
 {"at": "2026-09-18T20:42:19+00:00", "head": "d5242cd", "kind": "done", "task": "R137", "what": "14 dernieres classes : R137 ATTEINTE — swept_by_rerunning_the_guard 97 -> 0, sites_unknown -> 2, 410 sites vivants, taux 0,263"}
 {"at": "2026-09-18T20:42:25+00:00", "head": "d5242cd", "kind": "start", "task": "R138", "what": "porte --sweep-verdict + config-check cable en CI"}
 {"at": "2026-09-18T20:52:04+00:00", "head": "44f37c8", "kind": "done", "task": "R138", "what": "porte --sweep-verdict ecrite, muted rouge x3 (decablee, vacante, drapeau retire d argparse avec son nom present), cablee en CI avec --coverage et audit_unreachable_tools"}
+{"at": "2026-09-18T20:53:55+00:00", "head": "5dc05df", "kind": "start", "task": "R139", "what": "double comptage sites_unknown + .test_durations non collectables"}
