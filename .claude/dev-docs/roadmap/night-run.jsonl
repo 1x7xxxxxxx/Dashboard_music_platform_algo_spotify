@@ -62,3 +62,5 @@
 {"at": "2026-09-18T00:28:54+00:00", "head": "8b05422", "kind": "start", "task": "R122", "what": "A1 verdict lisible aux balayages muets, sans blanchir les 97 relances de garde"}
 {"at": "2026-09-18T00:39:22+00:00", "head": "1631828", "kind": "done", "task": "R122", "what": "axe 1 clos : sites_unknown 242->101, rendement reel 11 pct, 52 sites vivants trouves"}
 {"at": "2026-09-18T00:39:22+00:00", "head": "1631828", "kind": "start", "task": "R122", "what": "A2 muter les gardes jamais vus rouges, P1 et P2 d abord"}
+{"at": "2026-09-18T09:26:20+00:00", "head": "3906f96", "kind": "done", "task": "R122", "what": ""}
+{"at": "2026-09-18T09:26:20+00:00", "head": "3906f96", "kind": "start", "task": "R122", "what": ""}
