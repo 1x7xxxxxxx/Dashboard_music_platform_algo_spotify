@@ -288,14 +288,22 @@ error-inbox-check: ## Le registre décrit-il encore la base ? 0 à jour · 1 pé
 gold-coverage: ## Carte de la couche or → .claude/dev-docs/gold-coverage.md
 	@python3 tools/dev/gold_coverage.py
 
-# ⚠️ Les trois cibles `*-check` ci-dessous ne sont lancées par AUCUN workflow — vérifié le
-# 2026-09-17 par `grep` sur `.github/workflows/` et `.pre-commit-config.yaml` : zéro
-# occurrence. Elles portaient pourtant la mention « (CI) » dans leur aide, ce qui nommait
-# le mauvais mécanisme : un lecteur pouvait croire que la cible EST la barrière, et
-# supprimer le test pytest qui la tient réellement. Le blocage passe par les tests, qui
-# tournent sous `make test` et donc en CI. Les cibles restent utiles comme geste manuel —
-# elles disent en une ligne ce qu'un test rend en trace pytest.
-gold-coverage-check: ## Échoue si la carte ne décrit plus le dépôt — geste MANUEL ; le blocage vient de tests/test_the_gold_coverage_only_improves.py
+# ⚠️ CE COMMENTAIRE A ÉTÉ CORRIGÉ LE 2026-09-18, ET L'HISTOIRE VAUT D'ÊTRE LUE.
+#
+# Il disait, à juste titre au 2026-09-17, que les trois cibles `*-check` n'étaient
+# lancées par AUCUN workflow et que le blocage réel passait par les tests pytest.
+# C'était vrai, et c'était le problème : les deux tests qui tenaient la fraîcheur
+# RÉGÉNÉRAIENT le document entier à chaque exécution locale — 23,06 s et 6,97 s, soit
+# **30,0 s de la suite** pour deux assertions.
+#
+# Depuis le 2026-09-18, `gold-coverage-check` et `error-health-check` sont lancées par
+# `.github/workflows/ci.yml` (étape « Portes statiques »), et les deux tests coûteux
+# sont retirés de la suite. La propriété est payée une fois par commit, et elle bloque
+# la CI au lieu de ne bloquer que le développeur qui lançait la suite complète.
+#
+# `error-families-check` reste un geste manuel : son cliquet dans la suite coûte 0,07 s,
+# il n'y avait rien à déplacer.
+gold-coverage-check: ## Échoue si la carte ne décrit plus le dépôt — LANCÉE EN CI (étape « Portes statiques ») depuis le 2026-09-18
 	@python3 tools/dev/gold_coverage.py --check
 
 error-families: ## Familles de classes d'erreur → .claude/dev-docs/error-class-families.md
@@ -367,7 +375,7 @@ error-health: ## Santé du catalogue de classes → .claude/dev-docs/error-class
 	@# champ tenu à la main ne peut contredire.
 	@$(PYTHON) tools/dev/error_class_health.py
 
-error-health-check: ## Échoue si l'instantané de santé ne décrit plus le catalogue — geste MANUEL ; le blocage vient de tests/test_the_error_class_health_only_improves.py
+error-health-check: ## Échoue si l'instantané de santé ne décrit plus le catalogue — LANCÉE EN CI (étape « Portes statiques ») depuis le 2026-09-18
 	@$(PYTHON) tools/dev/error_class_health.py --check
 
 error-health-history: ## L'évolution d'une métrique, lue dans l'historique git du JSON

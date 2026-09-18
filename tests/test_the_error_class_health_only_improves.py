@@ -636,25 +636,27 @@ _FLOORS = {
 _EXPOSURE_FLOOR = 7628
 
 
-def _fresh() -> tuple[str, str]:
-    import tools.dev.error_class_health as h
-    return h.build()
-
-
 def _payload() -> dict:
     return json.loads(_DATA.read_text(encoding="utf-8"))
 
 
-def test_the_snapshot_still_describes_the_catalogue() -> None:
-    """Les deux artefacts sur le disque sont ceux que le dépôt produit."""
-    js, md = _fresh()
-    assert _DATA.exists() and _DOC.exists(), "instantané absent — `make error-health`"
-    assert _DATA.read_text(encoding="utf-8") == js, (
-        "`error-class-health.json` ne décrit plus le catalogue.\n"
-        "Remède : make error-health")
-    assert _DOC.read_text(encoding="utf-8") == md, (
-        "`error-class-health.md` ne décrit plus le catalogue.\n"
-        "Remède : make error-health")
+# LA FRAÎCHEUR DE L'INSTANTANÉ EST VÉRIFIÉE EN CI, PLUS DANS LA SUITE — 2026-09-18.
+#
+# `test_the_snapshot_still_describes_the_catalogue` vivait ici et coûtait **6,97 s** :
+# il appelait `_fresh()`, donc `build()`, donc **330 `git show`** à chaque exécution
+# locale. Les six autres tests de ce fichier lisent le JSON sur disque ; le plus cher
+# coûte 0,19 s.
+#
+# `make error-health-check` fait exactement cela et n'était lancé par aucun workflow.
+# La propriété vit désormais dans `.github/workflows/ci.yml`.
+#
+# ⚠️ Ce test avait une seconde conséquence, invisible tant qu'on le lisait comme un
+# simple contrôle : c'est LUI qui forçait le cycle « commiter le catalogue → régénérer
+# → recommiter ». `build()` lit `git log -- error-classes.md`, donc commiter change
+# l'instantané, et l'égalité octet à octet exigeait alors un second commit. **50 des
+# 104 commits du 2026-09-18 étaient ce second commit.**
+#
+# Ce qui reste ici : les cliquets, qui n'ont pas besoin de git.
 
 
 def test_no_hole_counter_ever_grows() -> None:

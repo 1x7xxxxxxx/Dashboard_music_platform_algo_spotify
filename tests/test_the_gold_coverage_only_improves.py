@@ -194,15 +194,23 @@ _FLOOR: dict[str, int] = {
 }
 
 
-def test_the_document_still_describes_the_repository(gc) -> None:
-    fresh = gc.build()
-    current = _DOC.read_text(encoding="utf-8") if _DOC.exists() else ""
-    assert current == fresh, (
-        "`.claude/dev-docs/gold-coverage.md` ne décrit plus le dépôt.\n"
-        "Remède : make gold-coverage\n\n"
-        "Un document généré qui affirme un état périmé est pire qu'un document "
-        "absent : il se lit comme une mesure."
-    )
+# LA FRAÎCHEUR DE CE DOCUMENT EST VÉRIFIÉE EN CI, PLUS DANS LA SUITE — 2026-09-18.
+#
+# `test_the_document_still_describes_the_repository` vivait ici et coûtait **23,06 s**,
+# soit 5,8 % de la suite entière, pour UNE assertion : il appelait `gc.build()`, donc il
+# régénérait le document complet à chaque exécution locale, pour le comparer octet à
+# octet. Les onze autres tests de ce fichier lisent le JSON déjà sur disque et coûtent
+# ensemble moins de 0,2 s.
+#
+# Or `make gold-coverage-check` fait exactement cela, et n'était lancé par AUCUN
+# workflow — le commentaire de `Makefile:290` le dit lui-même. La propriété est donc
+# déplacée dans `.github/workflows/ci.yml`, étape « Portes statiques », où elle est
+# payée une fois par commit au lieu d'une fois par exécution locale.
+#
+# Elle est MIEUX gardée qu'avant, pas moins : jusqu'ici elle ne bloquait qu'un
+# développeur qui lançait la suite entière ; elle bloque désormais la CI.
+#
+# Ce qui reste ici : les cliquets, qui sont la vraie valeur de ce fichier.
 
 
 def test_no_counter_of_holes_ever_grows(counters) -> None:

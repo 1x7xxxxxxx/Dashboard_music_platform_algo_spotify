@@ -84,13 +84,28 @@ def test_the_three_document_checks_point_at_their_real_guard():
     Ces trois-la sont nommees explicitement parce que ce sont elles qui portaient la
     mention fausse. Le test precedent couvre la forme ; celui-ci couvre le cas.
     """
-    expected = {
-        "gold-coverage-check": "tests/test_the_gold_coverage_only_improves.py",
+    # DEUX BARRIERES ONT DEMENAGE LE 2026-09-18, ET CE TEST A ETE LE PREMIER A LE DIRE.
+    #
+    # `gold-coverage-check` et `error-health-check` etaient tenues par un test pytest qui
+    # REGENERAIT le document entier pour le comparer octet a octet — 23,06 s et 6,97 s,
+    # soit 30,0 s de la suite pour deux assertions. Les deux tests sont retires et les
+    # deux cibles sont desormais lancees par `.github/workflows/ci.yml`.
+    #
+    # Le contrat de ce test ne change pas d'un iota : une ligne d'aide nomme le mecanisme
+    # qui bloque REELLEMENT, et ce mecanisme doit exister. Seule la NATURE du mecanisme
+    # change — un pas de workflow au lieu d'un fichier de test — donc on verifie que le
+    # workflow appelle bien la commande, pas seulement qu'il porte le mot « CI ».
+    par_workflow = {
+        "gold-coverage-check": "tools/dev/gold_coverage.py --check",
+        "error-health-check": "tools/dev/error_class_health.py --check",
+    }
+    par_pytest = {
         "error-families-check": "tests/test_the_error_class_families_only_improve.py",
-        "error-health-check": "tests/test_the_error_class_health_only_improves.py",
     }
     seen = dict(_help_lines())
-    for target, guard in expected.items():
+    ci = (_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    for target, guard in par_pytest.items():
         assert target in seen, f"make target `{target}` disappeared from the help index."
         assert guard in seen[target], (
             f"`{target}` no longer names `{guard}` as what blocks. If the barrier moved, "
@@ -98,3 +113,16 @@ def test_the_three_document_checks_point_at_their_real_guard():
             f"disagree loudly rather than drift quietly."
         )
         assert (_ROOT / guard).exists(), f"{guard} named by `{target}` is gone."
+
+    for target, commande in par_workflow.items():
+        assert target in seen, f"make target `{target}` disappeared from the help index."
+        assert "CI" in seen[target], (
+            f"`{target}` ne dit plus que son blocage vient de la CI. Si la barriere a "
+            f"redemenage, mettre a jour la ligne d'aide ET cette attente ensemble.")
+        assert commande in ci, (
+            f"`{target}` annonce etre lancee en CI, et `.github/workflows/ci.yml` "
+            f"n'appelle pas `{commande}`. C'est exactement la mention fausse que ce "
+            f"fichier existe pour interdire : le 2026-09-17, trois cibles annoncaient "
+            f"« (CI) » alors qu'aucun workflow ne les lancait.")
+        assert (_ROOT / commande.split()[0]).exists(), (
+            f"la CI appelle `{commande}`, dont le script n'existe pas.")

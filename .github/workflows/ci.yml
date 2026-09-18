@@ -199,11 +199,24 @@ jobs:
           uv run --frozen python .claude/scripts/audit_runner.py --prose
           uv run --frozen python .claude/scripts/check_config_refs.py
           uv run --frozen python .claude/scripts/check_ci_waste.py
-          # `gold_coverage.py --check` et `error_class_families.py --check` NE SONT PLUS
-          # appelés ici (2026-09-15). Ils tournaient TROIS fois par run : ici, via
-          # `audit_runner --static` (la classe `a-generated-document-asserts-a-stale-state`
-          # a exactement cette signature), et dans la suite. Le premier calcul coûte 11
-          # à 20 s. Deux passages suffisent.
+          # LA FRAÎCHEUR DES DOCUMENTS GÉNÉRÉS EST REVENUE ICI — 2026-09-18.
+          #
+          # Elle vivait dans la suite, où elle coûtait **30,0 s par exécution locale**
+          # pour deux assertions : `test_the_document_still_describes_the_repository`
+          # (23,06 s) et `test_the_snapshot_still_describes_the_catalogue` (6,97 s)
+          # régénéraient chacun le document ENTIER pour le comparer octet à octet. Les
+          # autres cliquets de ces deux fichiers lisent le JSON sur disque et coûtent
+          # moins de 0,2 s ensemble.
+          #
+          # Ici elle est payée UNE fois par commit au lieu d'une fois par exécution
+          # locale — et surtout elle bloque enfin quelque chose : `gold-coverage-check`
+          # et `error-health-check` n'étaient lancés par AUCUN workflow (vérifié le
+          # 2026-09-17, et le commentaire de `Makefile:290` le disait déjà).
+          #
+          # ⚠️ `error_class_families.py --check` reste hors d'ici : son cliquet dans la
+          # suite coûte 0,07 s, donc il n'y a rien à déplacer.
+          uv run --frozen python tools/dev/gold_coverage.py --check
+          uv run --frozen python tools/dev/error_class_health.py --check
 
   # ════════════════════════════════════════════════════════════════════════════
   suite:
