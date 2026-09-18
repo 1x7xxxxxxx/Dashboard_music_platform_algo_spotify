@@ -919,12 +919,12 @@
       "kind": "deterministic",
       "seen_red": "2026-09-16",
       "severity": "P3",
-      "siblings_is_a_guard_rerun": true,
+      "siblings_is_a_guard_rerun": false,
       "siblings_sites": null,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -1137,12 +1137,12 @@
       "kind": "deterministic",
       "seen_red": "self-proving",
       "severity": "P2",
-      "siblings_is_a_guard_rerun": true,
-      "siblings_sites": null,
+      "siblings_is_a_guard_rerun": false,
+      "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -1387,7 +1387,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2611,12 +2611,12 @@
       "kind": "deterministic",
       "seen_red": "2026-09-12",
       "severity": "P2",
-      "siblings_is_a_guard_rerun": true,
-      "siblings_sites": null,
+      "siblings_is_a_guard_rerun": false,
+      "siblings_sites": 22,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5935,12 +5935,12 @@
       "kind": "deterministic",
       "seen_red": "self-proving",
       "severity": "P1",
-      "siblings_is_a_guard_rerun": true,
-      "siblings_sites": null,
+      "siblings_is_a_guard_rerun": false,
+      "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7001,12 +7001,12 @@
       "kind": "deterministic",
       "seen_red": "2026-09-18",
       "severity": "P3",
-      "siblings_is_a_guard_rerun": true,
+      "siblings_is_a_guard_rerun": false,
       "siblings_sites": null,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-06-10",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7520,12 +7520,12 @@
       "kind": "deterministic",
       "seen_red": "self-proving",
       "severity": "P2",
-      "siblings_is_a_guard_rerun": true,
-      "siblings_sites": null,
+      "siblings_is_a_guard_rerun": false,
+      "siblings_sites": 15,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-23",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11044,7 +11044,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 343,
+      "catalogue_revisions": 344,
       "head_date": "2026-09-18"
     },
     "holes": {
@@ -11059,8 +11059,8 @@
       "seen_red_never": 0,
       "seen_red_unknown": 141,
       "siblings_never_swept": 1,
-      "sites_unknown": 49,
-      "swept_by_rerunning_the_guard": 48
+      "sites_unknown": 45,
+      "swept_by_rerunning_the_guard": 42
     },
     "population": {
       "automatic_guard": 393,
@@ -11173,10 +11173,10 @@
     },
     "sweep_yield": {
       "sweeps_done": 402,
-      "sweeps_with_a_verdict": 353,
-      "sweeps_that_found_something": 69,
-      "live_sites_found": 215,
-      "hit_rate_on_verdicts": 0.195,
+      "sweeps_with_a_verdict": 357,
+      "sweeps_that_found_something": 71,
+      "live_sites_found": 252,
+      "hit_rate_on_verdicts": 0.199,
       "note": "Le taux porte sur les balayages dont le verdict est LISIBLE. Les autres sont comptés dans holes.sites_unknown — un balayage muet n'est pas un balayage sans trouvaille."
     }
   }

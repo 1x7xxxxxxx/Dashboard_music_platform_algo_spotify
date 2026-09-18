@@ -92,3 +92,4 @@
 {"at": "2026-09-18T17:45:59+00:00", "head": "ea7ffd0", "kind": "done", "task": "R137", "what": "un-garde-qui-ne-garde-pas finie : 20 classes, 13 sites, 3 constats d'agent contredits"}
 {"at": "2026-09-18T17:46:30+00:00", "head": "6d09b35", "kind": "start", "task": "R137", "what": "famille une-configuration-qui-diverge-de-la-prod — 8 classes"}
 {"at": "2026-09-18T18:15:21+00:00", "head": "23373ee", "kind": "done", "task": "R137", "what": "une-configuration-qui-diverge finie : 8 classes, 39 sites, 2 corrections livrees"}
+{"at": "2026-09-18T18:15:53+00:00", "head": "ca8df15", "kind": "start", "task": "R137", "what": "famille une-erreur-avalee-devient-une-absence — 7 classes"}

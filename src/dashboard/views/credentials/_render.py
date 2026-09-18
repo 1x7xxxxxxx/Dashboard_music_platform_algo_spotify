@@ -786,7 +786,11 @@ def _saved_row_extra(db, artist_id: int, row: str) -> dict:
         rows = db.fetch_query(
             "SELECT extra_config FROM artist_credentials "
             "WHERE artist_id = %s AND platform = %s", (artist_id, row))
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — le contrat est « ne lève jamais »
+        # Un `{}` MUET ne distingue pas « pas de config » de « lecture cassée », et
+        # l'appelant prérend un formulaire qui écrasera la ligne. Le contrat tient.
+        logger.warning("extra_config illisible pour %s/%s : %s",
+                       artist_id, row, type(exc).__name__)
         return {}
     if not rows or not rows[0][0]:
         return {}
@@ -813,7 +817,11 @@ def _saved_meta_accounts(db, artist_id: int) -> list:
         rows = db.fetch_query(
             "SELECT extra_config FROM artist_credentials "
             "WHERE artist_id = %s AND platform = 'meta'", (artist_id,))
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — le contrat est « ne lève jamais »
+        # Le docstring ci-dessus le dit : sans cette relecture, réenregistrer un champ
+        # « deviendrait une suppression de données ». Un échec muet produisait ça.
+        logger.warning("comptes meta illisibles pour %s : %s",
+                       artist_id, type(exc).__name__)
         return []
     if not rows or not rows[0][0]:
         return []
