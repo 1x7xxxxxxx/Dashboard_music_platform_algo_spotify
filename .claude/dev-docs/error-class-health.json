@@ -368,7 +368,7 @@
         "2026-09-06"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -1263,7 +1263,7 @@
         "2026-09-10"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -3843,7 +3843,7 @@
         "2026-08-26"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -5236,7 +5236,7 @@
         "2026-08-22"
       ],
       "kind": "manual",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -6606,7 +6606,7 @@
         "2026-09-06"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -7231,7 +7231,7 @@
         "2026-09-06"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -7504,7 +7504,7 @@
         "2026-08-26"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -7942,7 +7942,7 @@
         "2026-09-13"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -7996,7 +7996,7 @@
         "2026-09-08"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -9031,7 +9031,7 @@
         "2026-08-28"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -9194,7 +9194,7 @@
         "2026-09-03"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -10090,7 +10090,7 @@
         "2026-08-26"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -10309,7 +10309,7 @@
         "2026-09-08"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -10390,7 +10390,7 @@
         "2026-09-05"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -10912,7 +10912,7 @@
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 196,
+      "seen_red_unknown": 182,
       "siblings_never_swept": 1,
       "sites_unknown": 100,
       "swept_by_rerunning_the_guard": 97
@@ -10959,21 +10959,21 @@
       },
       "by_seen_red": {
         "daté": {
-          "events": 19,
-          "class_days": 3241,
-          "per_class_month": 0.1782,
+          "events": 21,
+          "class_days": 3472,
+          "per_class_month": 0.1839,
           "ci95": [
-            0.1072,
-            0.2783
+            0.1138,
+            0.2811
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 24,
-          "class_days": 5153,
-          "per_class_month": 0.1416,
+          "events": 22,
+          "class_days": 4922,
+          "per_class_month": 0.1359,
           "ci95": [
-            0.0907,
-            0.2107
+            0.0851,
+            0.2057
           ]
         }
       },
