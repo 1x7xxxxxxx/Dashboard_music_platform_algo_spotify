@@ -477,7 +477,7 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 **401 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
 
-**fixed** : 10· **guarded** : 368· **open** : 4· **reported** : 17· **resolved** : 2
+**fixed** : 10· **guarded** : 369· **open** : 4· **reported** : 16· **resolved** : 2
 
 **0 classe(s) nomment un fichier de garde qui n'existe plus** et **12** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
@@ -655,4 +655,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=f56ddae3f4a3eeb92bccf4d6f1122079acbb96e77bb3944577aee4b6a6703e0e -->
+<!-- gold-coverage: sha256=1683979d9fcda75f40f8890cd983f84d2b9670d6ab4bcf8ebdac6bc88bcbd026 -->

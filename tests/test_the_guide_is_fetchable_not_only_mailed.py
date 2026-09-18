@@ -38,12 +38,14 @@ avant la moindre exécution. C'est plus brutal qu'un échec, et moins lisible.
 from __future__ import annotations
 
 import ast
+
+from tests.code_text import code_of
 import pathlib
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 ONBOARDING = REPO / "src/dashboard/views/onboarding.py"
 GUIDE_PAGE = REPO / "src/dashboard/views/onboarding_health.py"
-SRC = GUIDE_PAGE.read_text(encoding="utf-8")
+SRC = code_of(GUIDE_PAGE)
 
 
 def test_a_page_in_the_app_offers_the_guide_for_download():

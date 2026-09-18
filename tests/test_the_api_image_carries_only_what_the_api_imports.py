@@ -33,6 +33,8 @@ import sys
 import textwrap
 from pathlib import Path
 
+from tests.code_text import code_of
+
 import pytest
 
 _ROOT = Path(__file__).resolve().parents[1]
@@ -62,7 +64,7 @@ def _requirement_names(path: Path) -> set[str]:
 
 
 def test_the_dockerfile_installs_the_api_manifest():
-    body = _DOCKERFILE.read_text(encoding="utf-8")
+    body = code_of(_DOCKERFILE)
     assert "requirements-api.txt" in body, (
         "Dockerfile.api no longer installs requirements-api.txt — the split is undone "
         "and the image is back to carrying the full ML stack."

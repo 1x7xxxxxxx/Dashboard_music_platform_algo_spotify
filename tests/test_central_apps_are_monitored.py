@@ -31,13 +31,22 @@ def _repo_root() -> Path:
 
 
 REPO = _repo_root()
+from tests.code_text import code_of
+
 DAG = REPO / "airflow" / "dags" / "alert_monitor.py"
 TOOL = REPO / "tools" / "check_central_apps.py"
 PROBES = REPO / "src" / "utils" / "central_apps.py"
 
 
 def _source() -> str:
-    return DAG.read_text(encoding="utf-8")
+    """Le CODE du DAG, sa prose retirée.
+
+    Mesuré le 2026-09-18 : `assert "check_central_apps" in src` était **déjà verte
+    à vide** — le nom ne vivait plus que dans un commentaire d'`alert_monitor`, et
+    le garde affirmait donc que le contrôle est branché sans rien en savoir. Classe
+    `guard-satisfied-by-its-own-comment`.
+    """
+    return code_of(DAG)
 
 
 def test_the_probes_live_where_airflow_can_import_them():

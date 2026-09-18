@@ -6682,7 +6682,7 @@
       "cause_evidence": "measured",
       "first_seen_declared": "2026-09-18",
       "guard_automatic": true,
-      "guard_ref": "tests/test_the_spotify_page_reads_only_the_gold_layer.py",
+      "guard_ref": "tests/test_a_presence_assertion_is_not_satisfied_by_prose.py",
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
@@ -6693,13 +6693,13 @@
       "history_dates_declared": [
         "2026-09-18"
       ],
-      "kind": "heuristic",
-      "seen_red": "2026-09-18",
+      "kind": "deterministic",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": 110,
+      "siblings_sites": 11,
       "siblings_swept": true,
-      "status": "reported",
+      "status": "guarded",
       "introduced_date": "2026-09-18",
       "revisions": 0,
       "history_additions": 0,
@@ -9998,10 +9998,11 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-08-30"
+        "2026-08-30",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -10242,7 +10243,8 @@
       "has_signature": true,
       "history_dates_declared": [
         "2026-08-22",
-        "2026-09-17"
+        "2026-09-17",
+        "2026-09-18"
       ],
       "kind": "deterministic",
       "seen_red": "2026-09-17",
@@ -10983,7 +10985,7 @@
     "holes": {
       "cause_inferred": 0,
       "cause_unknown": 140,
-      "guard_does_not_prove_itself": 320,
+      "guard_does_not_prove_itself": 318,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
       "scope_on_a_shared_guard_without_naming_its_tests": 15,
@@ -11038,20 +11040,20 @@
       "by_seen_red": {
         "daté": {
           "events": 17,
-          "class_days": 2795,
-          "per_class_month": 0.1849,
+          "class_days": 2776,
+          "per_class_month": 0.1862,
           "ci95": [
-            0.1077,
-            0.2961
+            0.1084,
+            0.2981
           ]
         },
         "jamais-ou-inconnu": {
           "events": 26,
-          "class_days": 5599,
-          "per_class_month": 0.1412,
+          "class_days": 5618,
+          "per_class_month": 0.1407,
           "ci95": [
-            0.0922,
-            0.2069
+            0.0919,
+            0.2062
           ]
         }
       },
@@ -11088,7 +11090,7 @@
       "sweeps_done": 400,
       "sweeps_with_a_verdict": 300,
       "sweeps_that_found_something": 37,
-      "live_sites_found": 196,
+      "live_sites_found": 97,
       "hit_rate_on_verdicts": 0.123,
       "note": "Le taux porte sur les balayages dont le verdict est LISIBLE. Les autres sont comptés dans holes.sites_unknown — un balayage muet n'est pas un balayage sans trouvaille."
     }

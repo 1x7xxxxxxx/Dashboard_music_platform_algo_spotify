@@ -210,12 +210,29 @@ def test_the_helpers_exist_and_normalise_before_converting():
     tree = ast.parse(tz)
     names = {f.name for f in ast.walk(tree) if isinstance(f, ast.FunctionDef)}
     assert SAFE_CALLS <= names, f"utils/tz.py no longer defines {SAFE_CALLS - names}"
-    assert "utc=True" in tz, (
-        "utils/tz.py no longer passes utc=True — mixed offsets raise again."
+    # ⚠️ READ THE CALL, NOT THE FILE. Until 2026-09-18 these two assertions were
+    # `"utc=True" in tz` and `"tz_convert" in tz` — plain substring checks on the
+    # whole source. `utils/tz.py` explains itself at length and names BOTH strings
+    # four times in its docstrings, so removing `utc=True` from the only call that
+    # matters (`pd.to_datetime(values, utc=True)` → `pd.to_datetime(values)`) left
+    # this P1 guard GREEN, along with all six tests of the file. Error class
+    # `guard-satisfied-by-its-own-comment`: the guard is not red on its prose, it is
+    # satisfied BY it, and nothing says so.
+    parse = next((n for n in ast.walk(tree)
+                  if isinstance(n, ast.Call)
+                  and ast.unparse(n.func).endswith("to_datetime")), None)
+    assert parse is not None, "utils/tz.py no longer parses anything"
+    assert any(kw.arg == "utc" and getattr(kw.value, "value", None) is True
+               for kw in parse.keywords), (
+        f"utils/tz.py no longer passes utc=True to its parse "
+        f"(`{ast.unparse(parse)[:80]}`) — mixed offsets raise again."
     )
-    assert "tz_convert" in tz, (
-        "utils/tz.py no longer converts back to the display timezone; `utc=True` "
-        "alone shifts the rendered hour, and near midnight the rendered DATE."
+    converts = [n for n in ast.walk(tree)
+                if isinstance(n, ast.Call) and ast.unparse(n.func).endswith("tz_convert")]
+    assert converts, (
+        "utils/tz.py no longer CALLS tz_convert (it may still name it in prose); "
+        "`utc=True` alone shifts the rendered hour, and near midnight the rendered "
+        "DATE."
     )
 
 

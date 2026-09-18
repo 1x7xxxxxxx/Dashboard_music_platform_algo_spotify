@@ -6777,3 +6777,44 @@ jours** — `pytest-xdist` manquant à une liste tenue à la main ; la productio
 bien, c'est l'instrument qui était cassé).
 
 **Les rétrospectives datées du 2026-09-11 au 2026-09-13** — la coupure de courant, la montée en charge chiffrée, le graphique de l'accueil, l'audit metrics layer, la carte de la couche or et la vérification en production — **ont été rotées dans `archive.md` le 2026-09-16**, ce fichier ayant dépassé son plafond de 50 Ko. Elles y sont intégrales ; `tests/test_the_resume_header_is_checked.py` impose ce plafond parce que `/resume` lit ce fichier AVANT tout, à chaque session.
+
+## R136 — Onze gardes étaient VERTS grâce au commentaire du fichier qu'ils inspectaient · ✅ CLOSE le 2026-09-18
+
+- [x] **R136 — onze assertions de présence satisfaites par la prose du fichier inspecté, corrigées et gardées**
+
+**Trouvée en cherchant à dater un `seen_red`, pas en cherchant un défaut.** La question
+« ce garde a-t-il déjà été vu rouge ? » produit une mutation, et la mutation produit le
+défaut.
+
+`assert "<mot>" in fichier.read_text()` ne distingue pas le code de la prose du fichier
+visé. Trois défauts ENTIERS ont été remis en place sans faire rougir leur garde :
+
+| défaut remis | fichier | verdict |
+|---|---|---|
+| `pd.to_datetime(values, utc=True)` → `pd.to_datetime(values)` | `utils/tz.py` (nomme `utc=True` 4× en docstring) | **6 tests verts**, classe **P1** |
+| `PostgresHandler.from_env_or_config()` → DSN à la main | `dashboard/utils/__init__.py` (le nomme 2× de plus en prose) | **5 tests verts** |
+| `WITH linked AS MATERIALIZED (` → `WITH linked AS (` | migration 119 (le mot vit dans son commentaire) | **16 tests verts** |
+
+Et **deux assertions étaient déjà vertes à vide** : le mot ne vivait plus que dans un
+commentaire, donc elles n'affirmaient plus rien depuis un moment.
+
+**Ce qui est livré** : `tests/code_text.code_of(chemin)` retire commentaires et
+docstrings **sur place**, sans détruire l'adjacence des jetons — la première version
+joignait les jetons par des sauts de ligne et faisait rougir trois gardes sur du code
+correct, ce qui a coûté autant qu'un faux négatif. Les 11 sites lisent désormais
+`code_of`. Deux exemptions sont NOMMÉES avec leur raison (la présence d'un commentaire
+est parfois le sujet), et un test vérifie que chaque exemption désigne encore un test
+existant.
+
+**Le balayage** : `python3 .claude/scripts/audit_presence_assertions.py --proven` rend
+110 candidats en mode par défaut, **11 prouvés** en résolvant le fichier réellement lu.
+Les liaisons sont portées par FONCTION et non par fichier — liées au fichier, deux
+`src = X.read_text()` de tests différents se recouvraient et l'audit nommait une cible
+que l'assertion ne lit pas (2 faux positifs sur 10).
+
+**Le cliquet** : `tests/test_a_presence_assertion_is_not_satisfied_by_prose.py`, à 0,
+muté rouge en réintroduisant l'assertion textuelle du garde `tz`.
+
+Classe : `guard-satisfied-by-its-own-comment` (P2, `deterministic`, `guarded`). C'est
+`guard-matches-its-own-comment` retourné — là-bas le garde rougit sur sa prose et on le
+corrige dans l'heure ; ici il verdit GRÂCE à elle et rien ne le dit jamais.

@@ -40,6 +40,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from tests.code_text import code_of
+
 
 def _repo_root() -> Path:
     for d in Path(__file__).resolve().parents:
@@ -54,7 +56,7 @@ AUTH = REPO / "src" / "dashboard" / "auth.py"
 
 
 def _dag_tree() -> ast.Module:
-    return ast.parse(DAG.read_text(encoding="utf-8"))
+    return ast.parse(code_of(DAG))
 
 
 def _fn(tree: ast.Module, name: str) -> ast.FunctionDef:
@@ -101,7 +103,7 @@ def test_capabilities_are_not_page_routes():
 # ── 2. One resolver, reachable from a DAG ───────────────────────────────────
 
 def test_the_dashboard_and_the_dag_share_one_resolver():
-    auth = AUTH.read_text(encoding="utf-8")
+    auth = code_of(AUTH)
     assert "plan_resolver" in auth, (
         "auth.py no longer delegates to src/utils/plan_resolver: the precedence now "
         "exists twice, and the copies drift where nothing looks."
@@ -194,5 +196,5 @@ def test_the_operator_alert_channel_is_untouched():
     """`send_alert` must keep going to ALERT_EMAIL — a mute monitor IS the incident."""
     alerts = (REPO / "src" / "utils" / "email_alerts.py").read_text(encoding="utf-8")
     assert "self.alert_email" in alerts
-    dag = DAG.read_text(encoding="utf-8")
+    dag = code_of(DAG)
     assert "send_email(" in dag, "the digest no longer addresses tenants at all"

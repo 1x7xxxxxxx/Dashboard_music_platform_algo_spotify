@@ -31,6 +31,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from tests.code_text import code_of
+
 
 def _repo_root() -> Path:
     for d in Path(__file__).resolve().parents:
@@ -1064,7 +1066,7 @@ def test_the_charts_never_use_a_second_y_axis():
 
 def test_the_welcome_mail_embeds_its_image_and_reads_without_it():
     """By CID, never by URL — and the mail must be complete when images are blocked."""
-    body = VERIF.read_text(encoding="utf-8")
+    body = code_of(VERIF)
     assert "cid:" in body, "the welcome image is no longer embedded by Content-ID"
     # Les DOCSTRINGS exclues. La première version cherchait `src="https://` dans le
     # texte du module et se déclenchait sur le commentaire qui EXPLIQUE pourquoi c'est

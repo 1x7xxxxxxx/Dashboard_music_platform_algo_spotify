@@ -38,6 +38,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from tests.code_text import code_of
+
 
 def _repo_root() -> Path:
     for d in Path(__file__).resolve().parents:
@@ -53,7 +55,7 @@ MONITOR = REPO / "airflow" / "dags" / "alert_monitor.py"
 
 
 def test_the_backup_script_pushes_offsite():
-    body = BACKUP.read_text(encoding="utf-8")
+    body = code_of(BACKUP)
     assert "R2_REMOTE" in body, (
         "db_backup.sh no longer references R2_REMOTE: the archive stays on the disk "
         "it protects, which is the defect this guard exists for."
@@ -67,7 +69,7 @@ def test_a_missing_offsite_target_is_loud_but_does_not_break_the_local_backup():
     Silent would hide the gap; fatal would turn a working local backup red and make
     it indistinguishable from a broken pg_dump.
     """
-    lines = BACKUP.read_text(encoding="utf-8").splitlines()
+    lines = code_of(BACKUP).splitlines()
     start = next(i for i, ln in enumerate(lines) if 'if [ -z "${R2_REMOTE:-}" ]' in ln)
     # Sliced LINE by line, not by `index("fi")`: that substring matches the "fi" inside
     # the French word « défini » two lines below, and truncated the branch before its
@@ -153,7 +155,7 @@ def test_the_monitor_does_not_shell_out_to_a_binary_its_image_lacks():
 
 def test_the_receipt_is_the_single_contract_between_the_two_halves():
     """The host writes it, the container reads it — a rename on one side is silent."""
-    backup = BACKUP.read_text(encoding="utf-8")
+    backup = code_of(BACKUP)
     monitor = MONITOR.read_text(encoding="utf-8")
     assert "offsite_receipt.json" in backup and "offsite_receipt.json" in monitor, (
         "the receipt path diverged between db_backup.sh and alert_monitor: the "
@@ -171,7 +173,7 @@ def test_the_git_target_encrypts_before_it_pushes():
     The git target is a third-party host (ADR-015). What makes it acceptable is not
     the repo being private — it is that the bytes are AES256 before they move.
     """
-    body = BACKUP.read_text(encoding="utf-8")
+    body = code_of(BACKUP)
     enc = body.index("--cipher-algo AES256")
     push = body.index("push -q --force origin backups")
     assert enc < push, "the push happens before the encryption"
@@ -183,7 +185,7 @@ def test_the_git_target_encrypts_before_it_pushes():
 
 def test_the_offsite_push_is_verified_by_reading_the_remote_back():
     """The receipt attests a presence, not an intention."""
-    body = BACKUP.read_text(encoding="utf-8")
+    body = code_of(BACKUP)
     assert "ls-remote origin refs/heads/backups" in body, (
         "nothing reads the remote back after the git push: the receipt would be "
         "written on the strength of a zero exit code alone."
@@ -201,7 +203,7 @@ def test_the_backup_script_reads_the_env_file_itself():
     `check-calls-a-binary-its-image-lacks`: the thing is present, just not where the
     work happens.
     """
-    body = BACKUP.read_text(encoding="utf-8")
+    body = code_of(BACKUP)
     assert "ENV_FILE" in body and "OFFSITE_GIT_REMOTE" in body, (
         "db_backup.sh no longer loads its offsite keys from .env: run from cron, "
         "R2_REMOTE and OFFSITE_GIT_REMOTE would both be empty and the script would "

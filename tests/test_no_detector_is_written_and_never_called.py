@@ -24,6 +24,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from tests.code_text import code_of
+
 REPO = Path(__file__).resolve().parents[1]
 MODULE = REPO / "src" / "utils" / "monitoring_checks.py"
 # Where a detector must be consumed to count as wired.
@@ -31,7 +33,7 @@ _CONSUMERS = [REPO / "airflow" / "dags", REPO / "src", REPO / "tools"]
 
 
 def _public_functions() -> list[str]:
-    tree = ast.parse(MODULE.read_text(encoding="utf-8"))
+    tree = ast.parse(code_of(MODULE))
     return [n.name for n in tree.body
             if isinstance(n, ast.FunctionDef) and not n.name.startswith("_")]
 
@@ -75,13 +77,22 @@ def test_the_deleted_detector_stays_deleted():
     it went is not "it was unused" but "it duplicated a live check" — a future reader
     tempted to restore it needs that sentence, not just a red test.
     """
-    src = MODULE.read_text(encoding="utf-8")
+    src = code_of(MODULE)
     assert "def silent_zero_findings" not in src, (
         "silent_zero_findings is back. Its predicate is already computed by "
         "artist_readiness.platform_status as NO_DATA and reported nightly by "
         "readiness_red_flags — two readers for one fact is watchdog-becomes-the-noise."
     )
-    assert "silent_zero_findings" in src, (
+    # LE TEXTE ENTIER, DÉLIBÉRÉMENT — et c'est l'exception qui confirme la règle.
+    #
+    # L'assertion du dessus lit le CODE (`code_of`) parce qu'elle interdit une
+    # DÉFINITION ; celle-ci lit le fichier entier parce que son sujet EST le
+    # commentaire. Une assertion de présence satisfaite par la prose est un défaut
+    # (`guard-satisfied-by-its-own-comment`) sauf quand la prose est ce qu'on garde,
+    # et alors il faut le dire. Le balayage
+    # `.claude/scripts/audit_presence_assertions.py --proven` porte cette exemption
+    # nommée, avec sa raison.
+    assert "silent_zero_findings" in MODULE.read_text(encoding="utf-8"), (
         "the note explaining why it was removed went with it. Without the note the "
         "next person re-adds it, which is how a decision becomes a cycle."
     )

@@ -14,7 +14,7 @@ Le compteur `siblings_never_swept` mesure l'EFFORT. Celui-ci mesure le résultat
 | balayages faits | **400** |
 | dont le verdict est LISIBLE | **300** |
 | qui ont trouvé au moins un site | **37** |
-| sites vivants trouvés | **196** |
+| sites vivants trouvés | **97** |
 | taux de trouvaille (sur verdicts lisibles) | **0.123** |
 
 ⚠️ **97 des 400 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **98**, et non 1.
@@ -57,7 +57,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|
 | `cause_inferred` | 0 |
 | `cause_unknown` | 140 |
-| `guard_does_not_prove_itself` | 320 |
+| `guard_does_not_prove_itself` | 318 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_on_a_shared_guard_without_naming_its_tests` | 15 |
@@ -79,8 +79,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|---|---|---|
 | by_guard · automatique | 39 | 0.1442 | 0.1025 – 0.1972 | insuffisant pour conclure (n=43) |
 | by_guard · prose | 4 | 0.7029 | 0.1891 – 1.7995 | insuffisant pour conclure (n=43) |
-| by_seen_red · daté | 17 | 0.1849 | 0.1077 – 0.2961 | insuffisant pour conclure (n=43) |
-| by_seen_red · jamais-ou-inconnu | 26 | 0.1412 | 0.0922 – 0.2069 | insuffisant pour conclure (n=43) |
+| by_seen_red · daté | 17 | 0.1862 | 0.1084 – 0.2981 | insuffisant pour conclure (n=43) |
+| by_seen_red · jamais-ou-inconnu | 26 | 0.1407 | 0.0919 – 0.2062 | insuffisant pour conclure (n=43) |
 | by_scope · ne-couvre-pas renseigné | 43 | 0.1557 | 0.1127 – 0.2098 | une seule strate peuplée (n=43) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.

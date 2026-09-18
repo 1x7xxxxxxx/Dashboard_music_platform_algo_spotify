@@ -18,6 +18,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from tests.code_text import code_of
+
 import pytest
 
 
@@ -94,8 +96,8 @@ def test_the_archive_keeps_what_was_delivered():
 
 def test_the_active_file_stays_the_one_that_is_read():
     """Both files must name each other, or a reader lands on half the truth."""
-    active_txt = ACTIVE.read_text(encoding="utf-8")
-    archive_txt = ARCHIVE.read_text(encoding="utf-8")
+    active_txt = code_of(ACTIVE)
+    archive_txt = code_of(ARCHIVE)
     assert "archive.md" in active_txt, (
         "checklist.md never names archive.md — a reader cannot know the other half exists"
     )
@@ -132,7 +134,7 @@ def test_no_brick_id_vanishes_from_both_files() -> None:
         return (set(re.findall(r"^- \[[ x]\] \*\*(R\d{1,3}) ", text, re.M))
                 | set(re.findall(r"^\|\s*(R\d{1,3})\s*\|", text, re.M)))
 
-    here = _ids(ACTIVE.read_text(encoding="utf-8")) | _ids(ARCHIVE.read_text(encoding="utf-8"))
+    here = _ids(code_of(ACTIVE)) | _ids(code_of(ARCHIVE))
 
     before_txt = ""
     for path in (ACTIVE, ARCHIVE):
@@ -167,7 +169,7 @@ def test_the_active_file_does_not_carry_a_section_twice() -> None:
     import collections
     import re
 
-    text = ACTIVE.read_text(encoding="utf-8")
+    text = code_of(ACTIVE)
 
     marks = re.findall(r"<!--\s*reprise:\s*open=", text)
     assert len(marks) <= 1, (
@@ -196,7 +198,7 @@ def test_the_duplication_detector_is_not_vacuous() -> None:
     import collections
     import re
 
-    text = ACTIVE.read_text(encoding="utf-8")
+    text = code_of(ACTIVE)
     assert re.search(r"^- \[[ x]\] \*\*R\d+\b", text, re.M), (
         "l'expression des briques ne matche RIEN dans le fichier actif — le détecteur "
         "de duplication ne peut plus rien voir")

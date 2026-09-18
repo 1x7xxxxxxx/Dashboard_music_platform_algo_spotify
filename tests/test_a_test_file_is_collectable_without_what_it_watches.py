@@ -38,7 +38,6 @@ _ACCEPTED = {
     "test_alert_subject_names_the_tenant.py",
     "test_every_named_guard_exists.py",
     "test_every_nightly_check_is_scheduled_and_heard.py",
-    "test_the_guide_is_fetchable_not_only_mailed.py",
     "test_two_checks_one_question.py",
 }
 

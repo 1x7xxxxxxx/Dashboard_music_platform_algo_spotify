@@ -70,11 +70,27 @@ def _modules_reading_dsn_env() -> dict:
 
 def test_the_dashboard_uses_the_shared_door():
     """The specific regression: the dashboard's own precedence, missing a step."""
-    src = (REPO / "src" / "dashboard" / "utils" / "__init__.py").read_text("utf-8")
-    assert "from_env_or_config()" in src, (
-        "get_db_connection no longer delegates — whatever it does instead is a "
-        "second precedence, and the last one omitted DATABASE_HOST, which is the "
-        "only thing Airflow has"
+    door = REPO / "src" / "dashboard" / "utils" / "__init__.py"
+    src = door.read_text("utf-8")
+    # ⚠️ READ THE CALL, NOT THE FILE. Until 2026-09-18 this was
+    # `assert "from_env_or_config()" in src`, and the file NAMES that method twice
+    # more — once in a module comment, once in the docstring of this very function.
+    # Replacing the delegation with a hand-built DSN
+    # (`PostgresHandler(host=os.getenv('DB_HOST'))`) left all five tests GREEN, which
+    # is precisely the second precedence this class exists to forbid. Error class
+    # `guard-satisfied-by-its-own-comment`.
+    tree = ast.parse(src)
+    fn = next((n for n in ast.walk(tree)
+               if isinstance(n, ast.FunctionDef) and n.name == "get_db_connection"), None)
+    assert fn is not None, "get_db_connection has disappeared from the shared door"
+    delegates = [n for n in ast.walk(fn)
+                 if isinstance(n, ast.Call)
+                 and ast.unparse(n.func).endswith("from_env_or_config")]
+    assert delegates, (
+        "get_db_connection no longer CALLS PostgresHandler.from_env_or_config (it may "
+        "still name it in a comment) — whatever it does instead is a second "
+        "precedence, and the last one omitted DATABASE_HOST, which is the only thing "
+        "Airflow has"
     )
     assert "config_loader.load()" not in src, (
         "the config.yaml fallback is back in the dashboard; it belongs in the one "

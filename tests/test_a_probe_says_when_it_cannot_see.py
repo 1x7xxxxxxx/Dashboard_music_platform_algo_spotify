@@ -35,6 +35,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from tests.code_text import code_of
+
 
 def _repo_root() -> Path:
     for d in Path(__file__).resolve().parents:
@@ -50,7 +52,7 @@ MAKEFILE = REPO / "Makefile"
 
 def test_the_probe_reports_what_it_could_not_read():
     """`_has_any` must hand back the unreadable accessors, not swallow them."""
-    tree = ast.parse(TOOL.read_text(encoding="utf-8"))
+    tree = ast.parse(code_of(TOOL))
     fn = next((n for n in ast.walk(tree)
                if isinstance(n, ast.FunctionDef) and n.name == "_has_any"), None)
     assert fn is not None, "_has_any is gone — this guard points at air"
@@ -66,7 +68,7 @@ def test_the_probe_reports_what_it_could_not_read():
 
 def test_a_dead_end_verdict_requires_every_accessor_to_be_readable():
     """The verdict must be withheld when anything was unreadable."""
-    src = TOOL.read_text(encoding="utf-8")
+    src = code_of(TOOL)
     tree = ast.parse(src)
     node = next((n for n in ast.walk(tree)
                  if isinstance(n, ast.Constant) and n.value == "dead_end"), None)
@@ -94,7 +96,7 @@ def test_the_journey_tools_do_not_run_on_the_system_interpreter():
     # next. Reading line by line, the second version of this guard failed on a
     # correct target — the same "predicate wider than its question" it warns about,
     # committed twice in a row while writing it.
-    raw = MAKEFILE.read_text(encoding="utf-8").replace("\\\n", " ")
+    raw = code_of(MAKEFILE).replace("\\\n", " ")
     for lineno, line in enumerate(raw.splitlines(), 1):
         if not any(f"python3 {tool}" in line for tool in tools):
             continue
@@ -119,10 +121,10 @@ def test_a_tenant_without_a_user_row_is_refused_not_rendered():
     reported « Utilisateur introuvable » plus a CUL-DE-SAC on the account page. Artist
     17 has a user row in production and none locally; neither finding was about the app.
     """
-    tree = ast.parse(TOOL.read_text(encoding="utf-8"))
+    tree = ast.parse(code_of(TOOL))
     main = next(n for n in ast.walk(tree)
                 if isinstance(n, ast.FunctionDef) and n.name == "main")
-    src = ast.get_source_segment(TOOL.read_text(encoding="utf-8"), main) or ""
+    src = ast.get_source_segment(code_of(TOOL), main) or ""
     assert "if not user_id:" in src, (
         "the tool no longer checks that the tenant has a user row before rendering. "
         "Without it, every page renders as a non-existent user and the output "

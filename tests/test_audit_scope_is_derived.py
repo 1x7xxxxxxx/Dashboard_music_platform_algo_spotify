@@ -20,6 +20,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from tests.code_text import code_of
+
 REPO = Path(__file__).resolve().parents[1]
 DAG = REPO / "airflow" / "dags" / "alert_monitor.py"
 
@@ -31,7 +33,7 @@ def test_the_audit_scope_is_not_a_hand_written_list():
         "registry had five, and Instagram went unasked for months. Derive it from "
         "tenant_identity.PLATFORM_IDENTITIES."
     )
-    assert "PLATFORM_IDENTITIES" in src, (
+    assert "PLATFORM_IDENTITIES" in code_of(DAG), (
         "nothing in alert_monitor references the identity registry — the scope "
         "cannot be derived from it"
     )

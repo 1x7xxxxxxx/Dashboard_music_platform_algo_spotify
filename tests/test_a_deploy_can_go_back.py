@@ -29,6 +29,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from tests.code_text import code_of
+
 _ROOT = Path(__file__).resolve().parents[1]
 _DEPLOY = _ROOT / "tools" / "deploy.sh"
 
@@ -36,7 +38,7 @@ _FAILURE_MARK = "did not return 200"
 
 
 def _lines() -> list[str]:
-    return _DEPLOY.read_text(encoding="utf-8").splitlines()
+    return code_of(_DEPLOY).splitlines()
 
 
 def _failure_branch() -> list[str]:
@@ -92,7 +94,7 @@ def test_the_rollback_actually_goes_back() -> None:
 
 def test_a_deploy_refuses_to_run_ahead_of_its_migrations() -> None:
     """Migrer APRES avoir deploye demarre une app qui repond 200 et rend 500."""
-    body = _DEPLOY.read_text(encoding="utf-8")
+    body = code_of(_DEPLOY)
     assert "schema_migrations" in body, (
         "`tools/deploy.sh` ne regarde pas le registre des migrations. Quand l'ordre est "
         "inverse, rien n'echoue bruyamment : l'application DEMARRE, repond 200 sur "
