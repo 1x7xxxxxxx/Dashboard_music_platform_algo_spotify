@@ -739,7 +739,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: **l'export Apple Music n'a aucune colonne de date.** C'est le sélecteur de leur interface qui choisit la période, et le fichier n'en garde pas la trace. Trois conséquences, toutes du même défaut — on ne sait pas ce que couvre le fichier qu'on somme : (1) sans le demander, trois exports annuels déposés le même jour s'écrasent, même clé ; (2) deux exports annuels sont des périodes **disjointes** — les soustraire l'un de l'autre comme deux photos d'un cumul n'a aucun sens ; (3) un cumul « depuis le début » CONTIENT déjà les années, donc les additionner compte les mêmes écoutes deux fois. Question posée le 2026-09-08 : *« y a-t-il un intérêt de demander à l'artiste d'importer les CSV de chaque année ? »* — oui, et c'est ce fait-là qui décide de tout.
 - cause_evidence: read (le format d'export Apple, vérifié : aucune colonne de date)
 - signature: `python3 -m pytest tests/test_apple_periods_are_asked_not_guessed.py -q`
-- seen_red: 2026-09-18 — en faisant rendre à `non_overlapping_cover` la totalité des lectures au lieu de trier les formes, `test_nested_periods_are_never_counted_twice` sort **1** ; **0** restauré. La mutation incarne exactement le défaut : un cumul « depuis le début » additionné à l'année qu'il contient déjà.
+- seen_red: self-proving (tests/test_apple_periods_are_asked_not_guessed.py::test_the_period_is_asked_because_the_file_cannot_say_it)
 - long_term_fix: **on DEMANDE la période au lieu de la deviner.** L'import Apple pose la question, la réponse entre dans la clé de conflit, et les deux formes — période bornée et cumul depuis le début — sont marquées comme telles. `STEP_ONLY` en est le corollaire dans l'agrégation : Apple ne produit pas des jours à sommer, il produit un total par période, et lui appliquer le plancher de couverture supprimerait chacun de ses points.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
@@ -750,6 +750,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-17: classe écrite depuis la docstring de son garde. Elle nommait le fait décisif — l'export Apple n'a pas de colonne de date — qui n'était écrit nulle part ailleurs, et dont dépendent les trois règles d'import.
   - 2026-09-18: `seen_red` daté sur la règle d'imbrication, pas sur `STEP_ONLY` : vider `STEP_ONLY` laisse le garde VERT, parce qu'il vérifie que la période est DEMANDÉE et correctement appariée, jamais le pas d'affichage. Deux propriétés voisines dans le même fichier, une seule gardée ici — l'autre l'est par `a-cumulative-counter-drawn-as-its-own-history`.
+  - 2026-09-18: défaut remis en place par la mutation que le test NOMME lui-même dans son commentaire — une valeur par défaut sur la lecture de la réponse, `answers.get('apple_period')` → `answers.get('apple_period', 'all')` (src/dashboard/views/upload_csv.py:371). La question cesse d'être posée alors que le `raise` reste en place ⇒ 1 rouge. C'est la mutation qui laissait ce garde VERT avant que la seconde moitié de l'assertion soit écrite.
 
 ## a-scoring-call-that-omits-its-context
 - status: guarded
@@ -2078,7 +2079,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: the finding takes part in the email BODY and even the SUBJECT line, but not in the boolean that decides whether to send an email at all. Measured 2026-08-21 in `airflow/dags/alert_monitor.py`: `central_apps_broken` was rendered at line ~794 and placed FIRST in the subject at ~829, while `has_issues` at ~533 listed eight other sources and not it. A shared app that stopped authenticating, as the only problem, produced nothing — the function returned early. It was masked purely by coincidence: Meta happened to be broken *and* stale at once, and staleness was in the decision. The check written specifically to end a months-long silence was itself silent under exactly the condition it targeted.
 - cause_evidence: read (airflow/dags/alert_monitor.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_alert_monitor_sends_what_it_finds.py -q`
-- seen_red: 2026-09-18 — en retirant `drift` de l'expression `has_issues` de `alert_monitor.py:1711`, le garde sort **1** ; **0** restauré.
+- seen_red: self-proving (tests/test_alert_monitor_sends_what_it_finds.py::test_the_decision_is_read_by_name_and_not_by_substring)
 - long_term_fix: the guard parses the DAG, collects every local name assigned from an `xcom_pull` inside `send_consolidated_alert`, and requires each to appear in the `has_issues` expression. It sweeps the class rather than the instance, so a check added later gets the same treatment for free.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_alert_monitor_sends_what_it_finds.py }
@@ -2090,6 +2091,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-08-22 (récidive): widened shape — the existing guard covers *pulled but not decided*, and a state that is never COMPUTED cannot be pulled. `readiness_red_flags` only returned `NO_DATA`, so a tenant who signed up and declared nothing produced no row at all and no alert could exist for the single most likely outcome of a beta invitation. `readiness_stalled_flags` (TODO for more than 7 days, measured from `saas_artists.created_at`) now computes it, and the existing guard caught the new xcom key for free when it was deliberately left out of `has_issues` — verified by mutation.
   - 2026-08-21: found while adding `check_canary_health` — reading the send path to wire a new finding is what exposed that an existing one was never wired. Adding a neighbour is a cheap way to audit the neighbourhood.
   - 2026-08-21: the accompanying wiring guard was ITSELF hollow at first — a `re.search` with `DOTALL` spanning from `t_creds` to `>> t_alert` swept up the operator DEFINITIONS in between, so `t_canary` was "found" even after being removed from the dependency line. Third hollow guard of the same session, third one caught only by mutation. Assert on the narrowest text that carries the meaning, never on "does this name appear somewhere in the file".
+  - 2026-09-18: ⚠️ **le garde de cette classe P1 était aveugle à son propre défaut, et la mutation l'a montré.** `_has_issues_expression()` rendait l'expression comme une CHAÎNE et le test demandait `nom not in expression` : `canary` est un SOUS-MOT de `canary_preflight`, donc retirer `or canary` de la décision (alert_monitor.py:1716) laissait les 13 tests VERTS — exactement le défaut que la classe existe pour interdire, sur le constat du canari. Corrigé : l'expression est lue par NOM (`ast.Name`), et un test de non-vacuité rejoue la mutation sous forme de DONNÉE (`has_issues = failing_dags or canary_preflight or stalled_tenants` ne doit pas contenir `canary`). Défaut rejoué après correctif ⇒ 1 rouge.
 
 ## canary-tenant-unwatched
 - status: fixed
@@ -2099,7 +2101,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: freshness is measured per SOURCE across the fleet, and a source stays fresh as long as ONE tenant collects — which is almost always the admin, whose data path differs from a tenant's. A break in the per-tenant path (a lost identity mirror, a DAG that stops honouring `dag_run.conf`, an isolation regression) is therefore invisible to every existing check. The canary tenant exists precisely to be that second data point, and until 2026-08-21 nothing read it: a watchdog with no reader.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_alert_monitor_sends_what_it_finds.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_alert_monitor_sends_what_it_finds.py::test_the_canary_has_a_watchdog_at_all)
 - long_term_fix: `check_canary_health` in `alert_monitor` reports, per platform the canary actually declared, whether rows are still landing under it (36 h threshold — one nightly cycle plus margin, so a single missed run is not noise). Absence of a canary is itself reported: with none, the detector is simply off, and that must not read as health. The finding reaches the body AND the subject (`🐤 CANARI MUET`) AND `has_issues`.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_alert_monitor_sends_what_it_finds.py }
@@ -2110,6 +2112,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-08-22 (récidive): the reader existed and watched 2 platforms of 5, on a table that differed from the one the artist's own screen reads. Both fixed: `check_canary_health` derives its targets from `freshness_monitor.SOURCES_FOR_PLATFORM`, and a second reader, `check_canary_preflight`, runs the artist-session gate itself every night — scoped to the platforms the canary declares rather than the hardcoded `youtube` the runbook documents.
   - 2026-08-21: the detector is exercised directly against a stubbed database — stale, never-collected, absent, healthy, and never-declared — not only checked for being wired. Wiring a detector that never fires is the same decoration in a different place.
+  - 2026-09-18: défaut remis en place en débranchant la tâche — `task_id='check_canary_health'` renommé, donc un détecteur sans horaire ⇒ 1 rouge. ⚠️ Cette assertion est de la forme `assert "<texte>" in src`, celle que `guard-satisfied-by-its-own-comment` rend suspecte : elle tient ici parce que le littéral porte de la ponctuation de code (`task_id='…'`), donc il ne peut pas apparaître dans une phrase. Le balayage de cette classe l'exclut pour cette raison exacte.
 
 ## watchdog-becomes-the-noise
 - status: fixed
@@ -2119,7 +2122,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: a tenant added FOR monitoring is then counted by the tenant-oriented checks as if it were a customer. Measured 2026-08-21, hours after creating the production canary: `check_credentials_all` and `check_onboarding_readiness` both enumerate `get_active_artists()`, so the canary would have emitted "3 missing credentials" (SoundCloud, Meta, Instagram — which it can never declare; Meta demands real ad-account ownership) plus a permanent "connected but no data" for Spotify, whose readiness signal measures an S4A CSV a canary will never have. `missing_creds` is part of the send decision, so this would have forced an email EVERY night, forever, for a tenant in its correct state.
 - cause_evidence: read (airflow/dags/alert_monitor.py::check_credentials_all, lu le 2026-09-18) — ancré sur le SYMBOLE, jamais sur un numéro de ligne : deux ancres du catalogue avaient déjà dérivé parce qu'un fichier avait bougé. La cause décrit bien ce site : check_credentials_all,check_onboarding_readiness,get_active_artists y cohabitent.
 - signature: `python3 -m pytest tests/test_alert_monitor_sends_what_it_finds.py -q`
-- seen_red: 2026-09-18 — **deux mutations**. En faisant réclamer au canari une plateforme qu'il n'a jamais déclarée, le garde sort **1** ; en exigeant que TOUTES ses tables soient fraîches au lieu d'au moins une, **1** aussi. **0** restauré.
+- seen_red: self-proving (tests/test_alert_monitor_sends_what_it_finds.py::test_onboarding_checks_exclude_the_canary)
 - long_term_fix: `get_active_artists(exclude_canaries=True)` in the two onboarding-oriented checks only. The flag defaults to **False** deliberately: excluding by default would silently stop the collectors from running for the canary, and a canary nobody collects for is dead weight. The canary's health has its own dedicated check, which asks the single relevant question — is it still collecting what it declared?
 - autofix: none
 - guard: { type: pytest, ref: tests/test_alert_monitor_sends_what_it_finds.py }
@@ -2130,6 +2133,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-08-22: nearly reintroduced. Widening the canary watchdog from two hardcoded tables to every table of every declared platform made it demand rows in ALL of them — and Spotify is provable by the API table OR the S4A CSV. The production canary holds 10 rows in `track_popularity_history` and 0 in `s4a_song_timeline`, so a tenant collecting exactly as designed was reported mute. Fixed to a per-platform "at least one table is fresh" verdict, the same best-of-sources rule the artist's own matrix uses. Found by running the DAG in production rather than by reading it.
   - 2026-08-21: self-inflicted, and caught the same evening only by asking "what does the thing I just added do to the checks that already exist?". This repo has now paid the cry-wolf tax three times — the migrate reporter naming four re-run artefacts next to one real error, the schema drift where 24 of 26 differences were `text` vs `varchar`, and this. A detector's value is set by the ratio of its findings that deserve an action, not by the number it produces.
+  - 2026-09-18: défaut remis en place en repassant `exclude_canaries=True` à `False`, c'est-à-dire le canari recompté comme un client par les contrôles d'onboarding ⇒ 1 rouge. Le garde vérifie aussi que l'exclusion est OPT-IN, donc que les collecteurs continuent de voir tous les locataires — les deux moitiés d'une exemption, et c'est la seconde qui manquait ailleurs (`an-exemption-reads-as-a-failure-elsewhere`).
 
 ## app-id-confused-with-ad-account-id
 - status: fixed
@@ -5606,7 +5610,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `apple_songs_performance` portait `UNIQUE(artist_id, song_name)` — sans date. Chaque dépôt de CSV écrasait donc le précédent, et la table n'a JAMAIS porté plus d'un relevé : 11 lignes pour l'artiste 1, toutes au même horodatage. Aucune période n'était découpable, et re-déposer le même export ne pouvait rien changer. La source fournissait bien une donnée par période ; c'est la clé qui interdisait de la garder. La conclusion « Apple n'a pas de série » a ensuite été écrite dans un message affiché à l'artiste, transformant notre contrainte en propriété de la plateforme.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_apple_periods_are_asked_not_guessed.py -q`
-- seen_red: 2026-09-18 — en ramenant la cible de conflit Apple à `['artist_id', 'song_name']`, le garde sort **1** sur **2** assertions ; **0** restauré. Deux exports de périodes différentes s'écraseraient alors l'un l'autre.
+- seen_red: self-proving (tests/test_apple_periods_are_asked_not_guessed.py::test_the_upsert_key_lets_a_second_reading_exist)
 - long_term_fix: migrations 093 (`snapshot_date` dans la clé) et 094 (`period_start`/`period_end`, remplis en lisant les deux dates que Apple écrit dans le nom du fichier). Le garde lit la clé de conflit de la PAGE D'IMPORT et non le DDL : c'est elle qu'`upsert_many` envoie à Postgres, donc c'est elle qui décide. La règle générale : avant d'écrire dans le produit qu'une source n'a pas d'historique, vérifier si c'est la source, la CLÉ, ou une question qu'on n'a jamais posée.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
@@ -5617,6 +5621,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-08: signature vue ROUGE en remettant `['artist_id', 'song_name']` comme clé de conflit — « la clé de conflit Apple est ['artist_id', 'song_name'] : sans la DATE, chaque dépôt écrase le précédent » — et verte sur l'arbre corrigé.
   - 2026-09-08: le défaut a survécu à un premier correctif. La migration 093 a donné le droit de garder plusieurs relevés, mais pas de savoir ce que chacun MESURE : trois exports annuels déposés le même jour se seraient encore écrasés. Une clé qui autorise l'historique n'est pas la même chose qu'une clé qui distingue les relevés.
+  - 2026-09-18: défaut remis en place en retirant `snapshot_date` de `conflict_columns` (src/dashboard/utils/csv_platforms.py:53), c'est-à-dire la clé d'avant la migration 093 ⇒ 2 rouges — celui-ci ET `conflict-target-an-index-cannot-match`, ce qui montre que les deux classes partagent la même surface de décision : la clé envoyée à Postgres, pas le DDL.
 
 ## an-aggregate-counter-is-not-the-sum-of-its-parts
 - status: guarded
@@ -5647,7 +5652,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: des relevés de période qui se RECOUVRENT sont additionnés comme s'ils étaient disjoints. Apparu le 2026-09-08 en conséquence directe d'un correctif : dès que la période d'un export Apple se lit dans le nom du fichier, un artiste a naturellement l'export « depuis le début » (2015-06-30 → 2026-09-04) ET celui de 2024. Les sommer compte 2024 deux fois — une fois seul, une fois dans le cumul qui le contient. C'est la même faute que `a-cumulative-counter-charted-as-a-daily-figure`, sur des périodes au lieu de grandeurs : additionner deux mesures qui se recouvrent.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_apple_periods_are_asked_not_guessed.py -q`
-- seen_red: 2026-09-18 — en faisant rendre à `non_overlapping_cover` la totalité des lectures, le garde sort **1** ; **0** restauré. Un cumul « depuis le début » s'ajoute alors à l'année qu'il contient déjà.
+- seen_red: self-proving (tests/test_apple_periods_are_asked_not_guessed.py::test_nested_periods_are_never_counted_twice)
 - long_term_fix: `non_overlapping_cover` — on garde le découpage le plus FIN qui ne se chevauche pas (les plus courts d'abord, et un relevé n'est retenu que s'il ne chevauche aucun des gardés), et le total prend le relevé le plus LARGE, qui porte déjà tout. La règle générale : avant de sommer des mesures de période, vérifier qu'aucune n'en contient une autre — un correctif qui donne accès à plus de données crée souvent cette forme.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
@@ -5658,6 +5663,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-08: signature vue ROUGE en neutralisant le test de chevauchement — « le découpage retenu se chevauche : [(2015-06-30, 2026-09-04, 3718), (2024-01-01, 2024-12-31, 900)] » — et verte sur l'arbre corrigé.
   - 2026-09-08: le garde de la variante annuelle est resté VERT sur sa mutation, et le cas manquant est instructif : le filtre « un relevé ne compte que s'il tient dans UNE année » ne se distingue pas tant qu'un relevé plus court existe à côté, puisque le découpage écarte déjà le long. Il ne se distingue que si le relevé de onze ans est SEUL — sans le filtre, il deviendrait un point « 2015 » portant onze ans d'écoutes. Un cas de test qui ne varie qu'avec un autre cas présent ne teste pas la règle.
+  - 2026-09-18: garde COMPORTEMENTAL sur un faux `db` — les deux relevés qui se recouvrent (le cumul 2015→2026 et l'année 2024) sont écrits DANS le test. Défaut remis en place : `non_overlapping_cover` court-circuitée par `return sorted(readings)` (src/dashboard/utils/platform_timeseries.py) ⇒ 1 rouge, et les 18 autres restent verts — seul le cas de recouvrement le voit, ce qui est exactement sa raison d'être.
 
 ## conflict-target-an-index-cannot-match
 - status: guarded
@@ -5667,7 +5673,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: la migration 094 a créé l'index unique sur des EXPRESSIONS — `(artist_id, song_name, snapshot_date, COALESCE(period_start, DATE '0001-01-01'), COALESCE(period_end, DATE '0001-01-01'))` — pendant que l'upsert désignait des COLONNES : `ON CONFLICT (artist_id, song_name, snapshot_date, period_start, period_end)`. Postgres n'apparie une cible `ON CONFLICT` à un index que si les expressions coïncident, donc la contrainte existait et l'upsert ne pouvait pas la voir. Le `COALESCE` avait une vraie raison : un index unique ordinaire tient deux NULL pour différents, et deux relevés « depuis le début » n'auraient plus été dédupliqués — l'idempotence acquise en 093 aurait été perdue.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_apple_periods_are_asked_not_guessed.py -q`
-- seen_red: 2026-09-18 — en retirant `snapshot_date` de la cible de conflit Apple dans `src/dashboard/utils/csv_platforms.py`, le garde sort **1** sur **2** assertions ; **0** restauré.
+- seen_red: self-proving (tests/test_apple_periods_are_asked_not_guessed.py::test_the_conflict_target_can_actually_be_matched_by_postgres)
 - long_term_fix: migration 095 — `NULLS NOT DISTINCT` (PostgreSQL 15+, la production tourne en 17.10) rend deux NULL égaux DANS l'index, sans expression : la cible redevient une liste de colonnes, l'upsert l'apparie, et l'idempotence tient. Le garde compare les DEUX listes — celle du schéma canonique et celle que la page d'import envoie — et refuse toute expression dans la contrainte, parce qu'une expression rend la cible inappariable par construction.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
@@ -5680,6 +5686,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-08: la migration a été testée sur son EXÉCUTION (`✅ no unexpected psql error`) et pas sur son USAGE. Un `CREATE UNIQUE INDEX` réussit toujours ; ce qui échoue, c'est l'`INSERT … ON CONFLICT` qui vient après, et rien dans la séance ne l'exerçait. Une migration qui change une clé d'unicité doit être suivie d'un upsert réel, pas seulement d'un psql vert.
   - 2026-09-08: c'est le TROISIÈME correctif de la même clé en une journée — 093 (garder plusieurs relevés), 094 (savoir ce que chacun mesure), 095 (que Postgres puisse l'apparier). Chacun était juste et incomplet. Une clé d'unicité porte trois questions distinctes : que dédupliquer, quoi distinguer, et sous quelle forme l'upsert la désigne.
   - 2026-09-18: `seen_red` daté et balayée contre la base. Le contrôle que cette classe appelle est devenu mécanique : 37 cibles, un index unique pour chacune.
+  - 2026-09-18: même mutation que la classe voisine (`snapshot_date` retiré de la clé de conflit) ⇒ rouge. Le garde APPARIE la cible de conflit du code aux index uniques réels, donc il rougit aussi bien quand la clé change que quand l'index change — c'est la propriété qui compte, une cible et un index étant deux écritures séparées que rien d'autre ne relie.
 
 ## a-gap-in-one-series-erases-every-other
 - status: guarded

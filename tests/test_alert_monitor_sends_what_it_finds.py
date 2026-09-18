@@ -29,13 +29,24 @@ def _source() -> str:
     return DAG.read_text(encoding="utf-8")
 
 
-def _has_issues_expression() -> str:
+def _has_issues_names() -> set[str]:
+    """The NAMES the send decision actually reads — by AST, never as a substring.
+
+    Measured 2026-09-18. This returned the unparsed expression as a STRING, and the
+    test asked `name not in expression`. `canary` is a substring of
+    `canary_preflight`, so removing `or canary` from the decision left the guard
+    GREEN: a P1 class whose whole point is "a finding that is rendered but does not
+    decide" could lose one of its findings without a word. Two names in this file are
+    prefixes of two others (`canary`/`canary_preflight`, `row_dips`/`row_anomalies`
+    share no prefix but the first pair is enough), so the flaw was live, not
+    theoretical.
+    """
     tree = ast.parse(_source())
     for node in ast.walk(tree):
         if (isinstance(node, ast.Assign) and node.targets
                 and isinstance(node.targets[0], ast.Name)
                 and node.targets[0].id == "has_issues"):
-            return ast.unparse(node.value)
+            return {n.id for n in ast.walk(node.value) if isinstance(n, ast.Name)}
     raise AssertionError("has_issues is no longer assigned in alert_monitor")
 
 
@@ -50,18 +61,39 @@ def _xcom_pull_targets() -> set[str]:
 
 def test_every_pulled_finding_takes_part_in_the_send_decision() -> None:
     """The sweep, not the instance: any future check gets the same treatment."""
-    expression = _has_issues_expression()
+    decides = _has_issues_names()
     pulled = _xcom_pull_targets()
     assert pulled, "no xcom_pull found — the parser is looking in the wrong place"
+    assert decides, "has_issues reads no name at all — the parser lost the expression"
 
     # `freshness` is filtered into `stale_sources`, which IS in the decision.
     derived = {"freshness"}
-    missing = sorted(n for n in pulled - derived if n not in expression)
+    missing = sorted(pulled - derived - decides)
     assert not missing, (
         f"{missing} are pulled and rendered but do not take part in has_issues. "
         "If one of them is the ONLY problem, no email is sent at all — the check "
         "becomes a silent one, which is exactly what it was written to prevent."
     )
+
+
+def test_the_decision_is_read_by_name_and_not_by_substring() -> None:
+    """Non-vacuity: a name that is a PREFIX of another must not count as present.
+
+    This is the mutation that was green before 2026-09-18, reproduced as data so it
+    can never be green again: `canary` removed from the decision while
+    `canary_preflight` stays. A substring check sees `canary` inside
+    `canary_preflight` and reports nothing.
+    """
+    tree = ast.parse("has_issues = failing_dags or canary_preflight or stalled_tenants")
+    node = next(n for n in ast.walk(tree) if isinstance(n, ast.Assign))
+    names = {n.id for n in ast.walk(node.value) if isinstance(n, ast.Name)}
+    assert "canary" not in names, (
+        "the decision parser reports `canary` as present in an expression that only "
+        "mentions `canary_preflight`. Every finding whose name is a prefix of "
+        "another could then leave has_issues unnoticed, and this class exists "
+        "precisely because a finding left has_issues unnoticed.")
+    assert {"failing_dags", "canary_preflight", "stalled_tenants"} == names, (
+        f"the parser reads {sorted(names)} where three names are written.")
 
 
 def test_the_canary_has_a_watchdog_at_all() -> None:
