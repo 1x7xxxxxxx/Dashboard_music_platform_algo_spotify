@@ -332,3 +332,22 @@ def test_the_raw_response_body_is_never_echoed() -> None:
                     f"surfaced — on a 200 with no expected field this returned "
                     f"whatever the tenant-chosen path produced, including tokens"
                 )
+
+
+def test_the_http_detector_sees_the_forms_it_is_written_for() -> None:
+    """Non-vacuité : le périmètre du balayage est AMORCÉ par ce détecteur.
+
+    Ajouté le 2026-09-18, et c'est le point : si `_calls_http` rendait `False` pour
+    tout, ce fichier n'inspecterait AUCUN module et resterait vert — la forme exacte
+    de `guard-seeded-by-prose-not-by-code`, qui est née ici. Les trois formes
+    reconnues sont fabriquées, plus les deux qui doivent rester silencieuses.
+    """
+    assert _calls_http("import requests\nrequests.get('http://x')\n"), "import + attribut"
+    assert _calls_http("from googleapiclient.discovery import build\nbuild('x', 'v')\n"), "import de client"
+    assert _calls_http("from urllib.request import urlopen\nurlopen('http://x')\n"), "urlopen"
+
+    assert not _calls_http('"""Ce module parle de requests.get mais n\'appelle rien."""\n'), (
+        "une DOCSTRING citant un client HTTP amorce le périmètre : le détecteur lit "
+        "du texte, pas de la structure — c'est le défaut que ce fichier a payé.")
+    assert not _calls_http("# requests.get(...) — commentaire d'explication\nx = 1\n"), (
+        "un COMMENTAIRE citant un client HTTP amorce le périmètre.")

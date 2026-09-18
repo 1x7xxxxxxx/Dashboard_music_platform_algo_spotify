@@ -36,3 +36,33 @@ def test_no_unguarded_load_dotenv(collector):
         "in try/except — it will crash the collector at import if /opt/airflow/.env is "
         "unreadable. Wrap it like soundcloud_api_collector.py (try/except OSError)."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuité : sur le code EXACT du défaut, le détecteur doit mordre.
+
+    Ajouté le 2026-09-18. Ce garde parcourt les collecteurs ; il reste vert tant
+    qu'aucun n'appelle `load_dotenv` au niveau module — c'est-à-dire, s'il est
+    aveugle, exactement aussi vert que s'il voyait tout. Fabriquer la forme interdite
+    le prouve à CHAQUE exécution plutôt qu'une fois à la main.
+    """
+    defect = ast.parse(
+        "from dotenv import load_dotenv\n"
+        "load_dotenv()\n"
+        "def collect():\n"
+        "    return 1\n"
+    )
+    assert list(_module_level_load_dotenv_calls(defect)), (
+        "un `load_dotenv()` au niveau MODULE n'est plus vu : dans un conteneur sans "
+        "`.env`, il lève à l'import et emporte le DAG entier, pas seulement ce collecteur.")
+
+    guarded = ast.parse(
+        "try:\n"
+        "    from dotenv import load_dotenv\n"
+        "    load_dotenv()\n"
+        "except Exception:\n"
+        "    pass\n"
+    )
+    assert not list(_module_level_load_dotenv_calls(guarded)), (
+        "la forme GARDÉE (sous `try`) fait rougir le garde : corriger le défaut "
+        "deviendrait impossible sans désarmer le test.")

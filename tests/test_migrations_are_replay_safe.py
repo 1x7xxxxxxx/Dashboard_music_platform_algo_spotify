@@ -148,3 +148,23 @@ def test_every_migration_on_disk_is_recorded_in_the_ledger() -> None:
         "le dit, parce que le script continue après erreur à dessein.\n"
         "Diagnostic : `bash tools/migrate.sh` et lire l'erreur nommée pour ce fichier."
     )
+
+
+def test_the_comment_stripper_sees_the_forms_it_is_written_for() -> None:
+    """Non-vacuité : c'est ce dépouillement qui permet de DOCUMENTER le défaut.
+
+    Ajouté le 2026-09-18. Sans lui, une migration qui explique en commentaire
+    pourquoi un `DROP` non gardé est dangereux ferait rougir son propre garde — la
+    classe `a-noisy-signature-teaches-that-red-is-noise`, payée le 2026-08-03. Les
+    deux moitiés sont fabriquées : le commentaire est retiré, le SQL est gardé.
+    """
+    texte = ("DROP VIEW v_x;              -- ce DROP-ci est réel\n"
+             "-- DROP VIEW v_y; celui-ci n'est qu'une explication\n")
+    net = _strip_sql_comments(texte)
+    assert "DROP VIEW v_x" in net, (
+        "le SQL réel a été emporté avec le commentaire : le garde ne verrait plus "
+        "les `DROP` qu'il existe pour attraper.")
+    assert "v_y" not in net, (
+        "un `DROP` cité en COMMENTAIRE survit au dépouillement : écrire SUR le défaut "
+        "ferait rougir la CI, et la seule façon de la garder verte serait d'arrêter "
+        "de documenter les migrations.")

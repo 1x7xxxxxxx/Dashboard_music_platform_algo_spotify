@@ -285,3 +285,34 @@ def test_the_corrected_form_is_not_a_false_positive() -> None:
     nus = [c for loop in _artist_loops(ast.parse(_SOURCE_CORRECTED))
            for c in _unprotected_calls(loop)]
     assert not nus, f"faux positif sur la forme corrigée : {nus}"
+
+
+def test_the_detector_sees_the_form_this_repo_actually_writes() -> None:
+    """Non-vacuité, sur la forme qui a produit le TROISIÈME aveuglement de ce fichier.
+
+    Ajouté le 2026-09-18. Un garde de balayage reste vert tant qu'aucun DAG ne viole
+    la règle — donc, s'il est aveugle, exactement aussi vert. La forme fabriquée ici
+    est celle que le dépôt écrit réellement : l'appel de flotte est affecté à une
+    variable, puis la boucle itère cette variable. C'est précisément ce que la version
+    « appel INLINE dans l'itérateur » ne voyait pas.
+    """
+    reel = ast.parse(
+        "def collect():\n"
+        "    artists = get_active_artists()\n"
+        "    for artist_id, name in artists:\n"
+        "        pass\n"
+    )
+    assert "artists" in _fleet_bound_names(reel), (
+        "une variable liée au RÉSULTAT d'un appel de flotte n'est plus reconnue : le "
+        "garde revient à n'accepter que l'appel inline, et les boucles réelles de ce "
+        "dépôt lui échappent toutes.")
+
+    sans = ast.parse(
+        "def collect():\n"
+        "    artists = [1, 2, 3]\n"
+        "    for a in artists:\n"
+        "        pass\n"
+    )
+    assert "artists" not in _fleet_bound_names(sans), (
+        "une liste littérale est prise pour la flotte : le garde mordrait sur du code "
+        "qui n'itère aucun locataire.")

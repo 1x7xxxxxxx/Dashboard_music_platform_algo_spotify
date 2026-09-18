@@ -121,3 +121,23 @@ def test_the_guard_accepts_the_forms_production_actually_uses():
     # `from_env_or_config()` is a classmethod, so it is not a construction call at all.
     tree = ast.parse("PostgresHandler.from_env_or_config()")
     assert not list(_direct_construction_calls(tree))
+
+
+def test_the_detector_sees_the_form_it_is_written_for() -> None:
+    """Non-vacuité : construction DIRECTE vue, porte de classe ignorée.
+
+    Ajouté le 2026-09-18. Ce garde parcourt l'arbre ; il reste vert tant qu'aucun
+    site ne construit le handler à la main — donc, s'il est aveugle, exactement aussi
+    vert. Les deux moitiés sont fabriquées ici : la forme interdite DOIT être vue,
+    et la porte de classe (qui a sa propre signature) NE doit pas l'être, sinon
+    migrer vers elle ferait rougir le garde qui la recommande.
+    """
+    direct = ast.parse("db = PostgresHandler(host='h', port=1, database='d')\n")
+    assert list(_direct_construction_calls(direct)), (
+        "une construction directe de `PostgresHandler` n'est plus vue")
+
+    porte = ast.parse("db = PostgresHandler.from_env_or_config()\n")
+    assert not list(_direct_construction_calls(porte)), (
+        "la porte de classe est comptée comme une construction directe : migrer vers "
+        "`from_env_or_config()` — ce que ce garde existe pour encourager — ferait "
+        "rougir le garde lui-même.")

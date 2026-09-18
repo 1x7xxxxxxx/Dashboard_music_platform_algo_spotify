@@ -105,3 +105,34 @@ def test_the_cleanup_migration_is_still_there():
         assert f"SET {column}" in body, (
             f"`{column}` n'est plus nettoyée — c'est pourtant une colonne sur "
             "laquelle `track_release_reference` s'appuie désormais.")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuité : sur le code EXACT du défaut, le détecteur doit mordre.
+
+    Ajouté le 2026-09-18. Un garde de BALAYAGE est vert tant qu'aucun site ne viole
+    la règle — c'est-à-dire, s'il est aveugle, exactement aussi vert que s'il voyait
+    tout. Voir sa signature rouge UNE fois à la main prouve qu'elle mordait CE SOIR-LÀ ;
+    fabriquer la forme interdite ici la prouve à CHAQUE exécution.
+
+    Les DEUX moitiés comptent. Sans la seconde, corriger le défaut ferait rougir son
+    propre garde — ce dépôt l'a mesuré le 2026-08-03, et la seule façon de garder la
+    CI verte était alors d'arrêter de documenter.
+    """
+    defect = ast.parse(
+        "def show(row):\n"
+        "    return str(row.get('titre') or '')\n"
+    )
+    assert _offending_calls(defect), (
+        "`str(x or '')` n'est plus vu : un NaN pandas est VRAI, donc il traverse le "
+        "`or` et s'écrit `nan` dans la colonne — c'est le défaut que ce fichier garde.")
+
+    correct = ast.parse(
+        "import pandas as pd\n"
+        "def show(row):\n"
+        "    v = row.get('titre')\n"
+        "    return '' if pd.isna(v) else str(v)\n"
+    )
+    assert not _offending_calls(correct), (
+        "la forme CORRIGÉE fait rougir le garde : corriger le défaut deviendrait "
+        "impossible sans casser la CI, et la seule issue serait de désarmer le garde.")

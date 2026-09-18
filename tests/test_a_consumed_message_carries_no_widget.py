@@ -194,3 +194,22 @@ def test_the_guard_sees_the_shape_not_the_words(source, expect_hit):
     hits = [w for block in _consumed_blocks(tree)
             for w in _reachable_widgets(block, funcs, set())]
     assert bool(hits) is expect_hit
+
+
+def test_the_widget_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuité : un widget interactif dans un bloc consommé DOIT être vu.
+
+    Ajouté le 2026-09-18. Un garde de balayage est vert tant qu'aucune surface ne
+    porte la forme interdite — donc, s'il est aveugle, exactement aussi vert. Les deux
+    moitiés sont fabriquées : le widget interactif est vu, un affichage passif ne
+    l'est pas (sinon un message consommé ne pourrait plus rien AFFICHER du tout).
+    """
+    interactif = ast.parse("def f():\n    st.button('Relancer')\n")
+    assert _interactive_calls(interactif), (
+        "`st.button` n'est plus reconnu comme interactif : un bouton posé dans un "
+        "message consommé disparaît au rerun suivant, et son clic n'arrive jamais.")
+
+    passif = ast.parse("def f():\n    st.success('Enregistré')\n")
+    assert not _interactive_calls(passif), (
+        "un affichage PASSIF est compté comme interactif : un message consommé ne "
+        "pourrait plus rien afficher, ce qui n'est pas ce que ce garde demande.")
