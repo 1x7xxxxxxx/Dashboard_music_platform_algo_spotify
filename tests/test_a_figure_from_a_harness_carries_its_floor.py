@@ -140,6 +140,35 @@ def _unexplained_citations(text: str) -> list[int]:
     return out
 
 
+def test_the_citation_detector_sees_a_bare_figure_and_spares_an_explained_one() -> None:
+    """Non-vacuité : le chiffre nu est FABRIQUÉ ici, avec et sans son explication.
+
+    Le balayage ci-dessous est un `assert not offenders` sur tout l'arbre : vert sur
+    un dépôt propre ET sur un prédicat qui ne trouve plus rien. La seconde moitié
+    compte autant — un garde qui mord sur une citation DÛMENT expliquée rendrait
+    impossible d'écrire sur la classe, et la seule issue serait de le désarmer.
+    """
+    a, b = _FIGURE
+    nu = f"Le rendu passe de {a}-{b} ms sous charge.\n"
+    assert _unexplained_citations(nu) == [1], (
+        f"le détecteur rend {_unexplained_citations(nu)} sur une citation nue du "
+        "chiffre : un ratio entre deux instruments repartirait sans son plancher, "
+        "et personne ne verrait qu'il n'en a pas.")
+
+    explique = f"{_FLOOR}\nLe rendu passe de {a}-{b} ms sous charge.\n"
+    assert _unexplained_citations(explique) == [], (
+        "le détecteur mord sur une citation dont l'explication est À CÔTÉ — écrire "
+        "sur la classe deviendrait impossible.")
+
+    # Et la leçon que la docstring du prédicat porte déjà : la PROXIMITÉ décide.
+    # Une explication à 200 lignes de là ne blanchit rien.
+    loin = f"{_FLOOR}\n" + ("\n" * (_WINDOW * 4)) + f"Le rendu passe de {a}-{b} ms.\n"
+    assert _unexplained_citations(loin), (
+        "une explication située hors de la fenêtre blanchit quand même la citation : "
+        "le garde est redevenu une vérification PAR FICHIER, celle qui est restée "
+        "verte sur la mutation du 2026-09-17.")
+
+
 def test_the_page_figure_never_travels_without_its_floor() -> None:
     offenders = []
     me = Path(__file__).name

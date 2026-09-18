@@ -57,14 +57,14 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|
 | `cause_inferred` | 0 |
 | `cause_unknown` | 140 |
-| `guard_does_not_prove_itself` | 318 |
+| `guard_does_not_prove_itself` | 307 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_on_a_shared_guard_without_naming_its_tests` | 15 |
 | `scope_unknown` | 0 |
 | `scope_without_not_covered` | 0 |
 | `seen_red_never` | 0 |
-| `seen_red_unknown` | 143 |
+| `seen_red_unknown` | 141 |
 | `siblings_never_swept` | 1 |
 | `sites_unknown` | 100 |
 | `swept_by_rerunning_the_guard` | 97 |
@@ -79,8 +79,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|---|---|---|
 | by_guard · automatique | 39 | 0.1442 | 0.1025 – 0.1972 | insuffisant pour conclure (n=43) |
 | by_guard · prose | 4 | 0.7029 | 0.1891 – 1.7995 | insuffisant pour conclure (n=43) |
-| by_seen_red · daté | 17 | 0.1862 | 0.1084 – 0.2981 | insuffisant pour conclure (n=43) |
-| by_seen_red · jamais-ou-inconnu | 26 | 0.1407 | 0.0919 – 0.2062 | insuffisant pour conclure (n=43) |
+| by_seen_red · daté | 16 | 0.1854 | 0.1059 – 0.3012 | insuffisant pour conclure (n=43) |
+| by_seen_red · jamais-ou-inconnu | 27 | 0.1422 | 0.0937 – 0.2069 | insuffisant pour conclure (n=43) |
 | by_scope · ne-couvre-pas renseigné | 43 | 0.1557 | 0.1127 – 0.2098 | une seule strate peuplée (n=43) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.

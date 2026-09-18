@@ -41,9 +41,16 @@ def test_there_are_migrations_to_check() -> None:
     assert len(MIGRATIONS) > 50, f"only {len(MIGRATIONS)} migrations found — bad path?"
 
 
-@pytest.mark.parametrize("path", MIGRATIONS, ids=lambda p: p.name)
-def test_no_unguarded_drop(path: Path) -> None:
-    code = _strip_sql_comments(path.read_text(encoding="utf-8"))
+def unguarded_drops(sql: str) -> list[tuple[int, str]]:
+    """(ligne, instruction) de chaque DROP nu hors d'un bloc DO gardé.
+
+    Extraite pour être APPELABLE sur du SQL fabriqué. Tant qu'elle vivait dans le
+    corps du test paramétré, la seule façon de savoir si elle mordait encore était
+    d'abîmer une vraie migration — donc personne ne le faisait, et le paramétré
+    serait resté vert sur 127 fichiers avec un prédicat aveugle (mesuré).
+    """
+    code = _strip_sql_comments(sql)
+    out: list[tuple[int, str]] = []
     inside_do = False
     for lineno, line in enumerate(code.splitlines(), 1):
         stripped = line.strip()
@@ -53,7 +60,45 @@ def test_no_unguarded_drop(path: Path) -> None:
             inside_do = False
         if not _DROP.search(line) or _GUARDED.search(line):
             continue
-        assert inside_do, (
+        if not inside_do:
+            out.append((lineno, stripped))
+    return out
+
+
+def test_the_drop_detector_sees_the_shape_it_is_written_for() -> None:
+    """Non-vacuité : le DROP nu est FABRIQUÉ ici, et les trois formes sûres aussi.
+
+    Mesuré le 2026-09-18 : en neutralisant le prédicat (`… or True`), les **127 cas
+    paramétrés restent verts**. Un cliquet qui ne voit rien certifie alors une
+    propriété qu'il ne vérifie plus, et c'est un P1 — un DROP rejoué seul détruit
+    ce qui porte le nom aujourd'hui.
+    """
+    nu = "ALTER TABLE t DROP CONSTRAINT t_pkey;\n"
+    assert unguarded_drops(nu) == [(1, "ALTER TABLE t DROP CONSTRAINT t_pkey;")], (
+        f"le détecteur rend {unguarded_drops(nu)} sur un DROP nu écrit noir sur "
+        "blanc : le cliquet ne garde plus rien.")
+
+    # Les trois formes SÛRES doivent rester muettes, sans quoi corriger un défaut
+    # rendrait la CI rouge et la seule issue serait de désarmer le garde.
+    assert unguarded_drops("ALTER TABLE t DROP CONSTRAINT IF EXISTS t_pkey;\n") == [], (
+        "`IF EXISTS` fait rougir le détecteur — la première des deux portes.")
+    garde = ("DO $$ BEGIN\n"
+             "  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 't_pkey') THEN\n"
+             "    ALTER TABLE t DROP CONSTRAINT t_pkey;\n"
+             "  END IF;\n"
+             "END $$;\n")
+    assert unguarded_drops(garde) == [], (
+        "un DROP dans un bloc DO qui teste d'abord l'objet fait rougir le détecteur "
+        "— c'est la forme 061, la seconde porte.")
+    assert unguarded_drops("-- ALTER TABLE t DROP CONSTRAINT t_pkey;\n") == [], (
+        "le détecteur mord sur un COMMENTAIRE : documenter le défaut ferait rougir "
+        "la CI, et la seule issue serait de cesser de le documenter.")
+
+
+@pytest.mark.parametrize("path", MIGRATIONS, ids=lambda p: p.name)
+def test_no_unguarded_drop(path: Path) -> None:
+    for lineno, stripped in unguarded_drops(path.read_text(encoding="utf-8")):
+        assert False, (
             f"{path.name}:{lineno} drops an object with no IF EXISTS and outside a "
             f"guarded DO block:\n    {stripped}\n"
             "Replayed on its own — which the ledger now does for any file that never "
