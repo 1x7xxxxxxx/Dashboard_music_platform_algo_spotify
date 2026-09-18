@@ -294,11 +294,39 @@ def _declared(text: str) -> dict[str, dict]:
             # et `None` est compté comme un TROU, pas comme un zéro. Un balayage dont
             # on ne sait pas ce qu'il a trouvé n'est pas un balayage sans trouvaille.
             "siblings_sites": _swept_sites(_field(body, "siblings") or ""),
+            "siblings_is_a_guard_rerun": _swept_by_rerunning_the_guard(
+                _field(body, "siblings") or ""),
             "guard_scope_names_a_test": _names_a_test(
                 scope or "", _field(body, "signature") or ""),
             "guard_scope_derived_family": derived.get(cid),
         }
     return out
+
+
+# ── « Balayé » n'est pas « le garde était vert » ──────────────────────────────
+#
+# Mesuré le 2026-09-18 : **97 des 292 champs `siblings: swept:` (33 %)** ne décrivent
+# pas un balayage de frères. Ils disent, mot pour mot, « son garde PARCOURT l'arbre et
+# a été exécuté ce jour-là, vert » — c'est-à-dire qu'on a relancé le prédicat existant
+# et qu'il n'a rien trouvé.
+#
+# ⚠️ **Ce n'est pas la même question, et ce dépôt l'a payé trois fois la nuit
+# précédente** : `multitenant-dag-fleet-poisoning` avait un garde vert sur **8 sites
+# vivants** ; `test_every_collection_dag_records_its_tenants` n'avait lu aucun `except`
+# en douze jours ; `test_views_render_smoke` restait vert sur le défaut qu'il déclarait
+# couvrir. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a
+# rien.
+#
+# On ne redéfinit PAS `siblings_swept` pour autant : cela ferait bondir
+# `siblings_never_swept` de 106 à ~203 et le cliquet lirait une régression là où il y a
+# une correction de mesure. Le trou est donc compté à part, et il a son propre plafond.
+_RERUN = re.compile(r"son garde PARCOURT l'arbre et a été exécuté"
+                    r"|C'est le PRÉDICAT qui a été balayé, pas la classe")
+
+
+def _swept_by_rerunning_the_guard(champ: str) -> bool:
+    """Le champ décrit-il une RELANCE du garde plutôt qu'un balayage de frères ?"""
+    return champ.strip().startswith("swept:") and bool(_RERUN.search(champ))
 
 
 # ── Le RENDEMENT d'un balayage ───────────────────────────────────────────────
@@ -569,6 +597,11 @@ def build() -> tuple[str, str]:
         "sites_unknown": sum(
             1 for c in classes.values()
             if c["siblings_swept"] and c["siblings_sites"] is None),
+        # Un « balayage » qui n'en est pas un : le garde a été relancé, il était vert.
+        # Voir `_swept_by_rerunning_the_guard` — un garde vert ne prouve rien sur les
+        # frères, il prouve que SON prédicat ne les voit pas.
+        "swept_by_rerunning_the_guard": sum(
+            1 for c in classes.values() if c["siblings_is_a_guard_rerun"]),
         # ⚠️ `scope_family_disagreements` a été RETIRÉ le 2026-09-16, le jour même où il
         # a été posé, et la mesure qui le retire vaut d'être gardée.
         #
@@ -693,6 +726,14 @@ def _render(p: dict) -> str:
         f"| sites vivants trouvés | **{a['sweep_yield']['live_sites_found']}** |",
         f"| taux de trouvaille (sur verdicts lisibles) | "
         f"**{a['sweep_yield']['hit_rate_on_verdicts']}** |",
+        "",
+        f"⚠️ **{h['swept_by_rerunning_the_guard']} des {a['sweep_yield']['sweeps_done']} "
+        "« balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il "
+        "était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il "
+        "n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur "
+        "**8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères "
+        f"est donc **{h['siblings_never_swept'] + h['swept_by_rerunning_the_guard']}**, "
+        f"et non {h['siblings_never_swept']}.",
         "",
         f"⚠️ **{h['sites_unknown']} balayages sont MUETS** : la question a été posée, la "
         "réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme "

@@ -468,6 +468,23 @@ _CEILINGS = {
     # c'est la LISIBILITÉ qui était perdue, et une ligne de 600 caractères ne se
     # relit pas.
     "sites_unknown": 242,
+    #
+    # ── « BALAYÉ » N'EST PAS « LE GARDE ÉTAIT VERT » (2026-09-18) ────────────
+    #
+    # Mesuré en relisant les champs : **97 des 292 `siblings: swept:` (33 %)**
+    # disent, mot pour mot, « son garde PARCOURT l'arbre et a été exécuté ce
+    # jour-là, vert ». C'est une RELANCE du prédicat existant, pas une recherche
+    # de frères — et ce dépôt a payé trois fois la différence dans la nuit du 17
+    # au 18 : `multitenant-dag-fleet-poisoning` avait un garde vert sur **8 sites
+    # vivants** ; `test_every_collection_dag_records_its_tenants` n'avait lu aucun
+    # `except` en douze jours ; `test_views_render_smoke` restait vert sur le
+    # défaut qu'il déclarait couvrir.
+    #
+    # Compté À PART plutôt qu'en redéfinissant `siblings_swept` : la redéfinition
+    # ferait bondir `siblings_never_swept` de 106 à ~203, et le cliquet lirait une
+    # RÉGRESSION là où il y a une correction de mesure. Le vrai nombre de classes
+    # dont personne n'a cherché les frères est donc la SOMME des deux.
+    "swept_by_rerunning_the_guard": 97,
     "scope_on_a_shared_guard_without_naming_its_tests": 15,  # phase C ; 23 → 15 le 2026-09-17
                                       # ⚠️ 9 → 11 le 2026-09-17, et les DEUX de hausse sont
                                       # STRUCTURELS, pas de la négligence : `ci-runs-twice-for-one-commit`
