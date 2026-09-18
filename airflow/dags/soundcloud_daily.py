@@ -73,7 +73,16 @@ def precheck_soundcloud_credentials(**context):
         client_id = creds.get('client_id') or app_client_id
         client_secret = creds.get('client_secret') or app_client_secret
         if not user_id:
-            continue  # not connected — skip silently
+            # MÊME question que la collecte, une surface plus loin. Sans ce test, un
+            # artiste signé sur un label — pas de profil personnel, jamais — était
+            # compté « non connecté » par ce précontrôle alors que la collecte, elle,
+            # ramène ses titres déclarés depuis le 2026-08-23. Le journal annonçait
+            # donc « skipped N not-connected » en incluant des locataires qui
+            # collectent, ce qui est précisément la phrase qu'on lit pour décider
+            # qu'il n'y a rien à regarder.
+            from src.utils.claimed_tracks import has_claimed_tracks
+            if not has_claimed_tracks(aid, 'soundcloud'):
+                continue  # ni profil ni titre déclaré — réellement non connecté
         if client_id and client_secret:
             configured.append(name)
         else:

@@ -102,6 +102,33 @@ def test_the_dag_reads_the_claims_before_skipping():
              and (getattr(n.func, "id", "") == "has_claimed_tracks")]
     assert calls, "`has_claimed_tracks` est mentionné mais jamais appelé"
 
+    # ⚠️ « appelé quelque part dans le fichier » NE SUFFIT PAS, et ce n'est pas
+    # théorique : le 2026-09-18, aligner le PRÉCONTRÔLE sur la collecte a ajouté un
+    # second appel — et ce test est alors resté VERT quand on a retiré celui de la
+    # COLLECTE. Un garde de présence devient aveugle dès qu'un second site fournit
+    # la présence. On exige donc l'appel DANS la branche qui décide de sauter :
+    # celle qui teste `user_id` et porte un `continue`.
+    branches = [n for n in ast.walk(tree) if isinstance(n, ast.If)
+                and "user_id" in ast.unparse(n.test)
+                and any(isinstance(x, ast.Continue) for x in ast.walk(n))]
+    assert branches, (
+        "aucune branche ne teste `user_id` pour décider de sauter — la forme du DAG "
+        "a changé, et ce test ne sait plus où regarder.")
+    # TOUTES, pas « au moins une ». Avec `any`, ce test est resté vert quand la
+    # COLLECTE a perdu son appel, parce que le PRÉCONTRÔLE en portait un — deux
+    # branches qui posent la même question, et une seule vérifiée. La propriété
+    # juste est : tout endroit qui saute sur un `user_id` vide lit d'abord les
+    # déclarations, sinon il refuse un locataire pour ce qu'il ne peut pas fournir.
+    nues = [ast.unparse(b.test) + f" (ligne {b.lineno})" for b in branches
+            if not any(isinstance(c, ast.Call)
+                       and getattr(c.func, "id", "") == "has_claimed_tracks"
+                       for c in ast.walk(b))]
+    assert not nues, (
+        f"{nues} sautent sur un `user_id` vide SANS lire les déclarations. Un appel "
+        "ailleurs dans le fichier ne protège pas cette branche-là : chaque endroit "
+        "qui saute refuse un artiste signé sur un label pour la seule chose qu'il "
+        "ne peut pas fournir.")
+
 
 def test_the_skip_reason_says_both_conditions():
     """La raison journalisée doit nommer ce qui manque VRAIMENT, sinon elle égare."""
