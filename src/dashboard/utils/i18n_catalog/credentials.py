@@ -325,9 +325,6 @@ EN = {
         "(\"Instagram Business Account ID\" field). Without it, no Instagram "
         "statistics can be collected."
     ),
-    "credentials.meta.network_error_probe": (
-        "Network error during the Instagram test: {err}"
-    ),
     "credentials.probe_network_error": (
         "Network error ({err}) — try again in a moment. If it persists, contact "
         "the administrator."

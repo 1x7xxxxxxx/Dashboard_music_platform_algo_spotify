@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**403 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (340 révisions du catalogue rejouées).
+**403 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (341 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -12,14 +12,14 @@ Le compteur `siblings_never_swept` mesure l'EFFORT. Celui-ci mesure le résultat
 | grandeur | valeur |
 |---|---|
 | balayages faits | **402** |
-| dont le verdict est LISIBLE | **317** |
-| qui ont trouvé au moins un site | **49** |
-| sites vivants trouvés | **140** |
-| taux de trouvaille (sur verdicts lisibles) | **0.155** |
+| dont le verdict est LISIBLE | **325** |
+| qui ont trouvé au moins un site | **53** |
+| sites vivants trouvés | **161** |
+| taux de trouvaille (sur verdicts lisibles) | **0.163** |
 
-⚠️ **83 des 402 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **84**, et non 1.
+⚠️ **75 des 402 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **76**, et non 1.
 
-⚠️ **85 balayages sont MUETS** : la question a été posée, la réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme zéro — un balayage dont on ignore le résultat n'est pas un balayage sans résultat. Le dénominateur du taux ci-dessus les exclut délibérément : les inclure diviserait par une population qui ne répond pas à la question, ce que ce dépôt appelle `anchor-a-number-to-its-population`.
+⚠️ **77 balayages sont MUETS** : la question a été posée, la réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme zéro — un balayage dont on ignore le résultat n'est pas un balayage sans résultat. Le dénominateur du taux ci-dessus les exclut délibérément : les inclure diviserait par une population qui ne répond pas à la question, ce que ce dépôt appelle `anchor-a-number-to-its-population`.
 
 ## Ce que ce document corrige
 
@@ -66,8 +66,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 141 |
 | `siblings_never_swept` | 1 |
-| `sites_unknown` | 85 |
-| `swept_by_rerunning_the_guard` | 83 |
+| `sites_unknown` | 77 |
+| `swept_by_rerunning_the_guard` | 75 |
 
 ## Récidive observée
 

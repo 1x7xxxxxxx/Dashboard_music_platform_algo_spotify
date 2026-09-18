@@ -85,3 +85,5 @@
 {"at": "2026-09-18T16:35:09+00:00", "head": "08fdb92", "kind": "done", "task": "R137", "what": "deux-surfaces-deux-nombres finie : 7 classes, 24 sites, 13 derives de carte corrigees"}
 {"at": "2026-09-18T16:35:19+00:00", "head": "3fd5bd7", "kind": "start", "task": "R137", "what": "la panne du bouton Lancer les collectes — AirflowTrigger() nu"}
 {"at": "2026-09-18T16:55:30+00:00", "head": "e79d185", "kind": "done", "task": "R137", "what": "P1 : parcours auto de 1ere collecte mort 12 jours, corrige + fabrique + 2 gardes"}
+{"at": "2026-09-18T16:56:05+00:00", "head": "bb5ea04", "kind": "start", "task": "R137", "what": "famille un-etat-qui-deborde-de-sa-portee — 8 classes"}
+{"at": "2026-09-18T17:21:09+00:00", "head": "bb5ea04", "kind": "park", "task": "R137", "what": "13 fuites de connexion dans airflow/dags + credential_loader — les DAG sont sur la liste 'jamais sans un humain'"}

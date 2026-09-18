@@ -154,7 +154,7 @@ def step_3_test_api():
             logger.error(f"❌ Erreur inconnue : {response.text}")
 
     except Exception as e:
-        logger.error(f"❌ Exception Python lors de l'appel : {e}")
+        logger.error(f"❌ Exception Python lors de l'appel : {type(e).__name__}")
 
     return None
 
@@ -212,7 +212,7 @@ def step_5_test_media():
             return [m.get('id') for m in items]
         logger.error(f"❌ Échec media : {r.text[:200]}")
     except Exception as e:
-        logger.error(f"❌ Exception media : {e}")
+        logger.error(f"❌ Exception media : {type(e).__name__}")
     return []
 
 
@@ -240,7 +240,7 @@ def step_6_test_media_insights(media_ids):
         else:
             logger.error(f"❌ Échec insights : {r.text[:200]}")
     except Exception as e:
-        logger.error(f"❌ Exception insights : {e}")
+        logger.error(f"❌ Exception insights : {type(e).__name__}")
 
 
 if __name__ == "__main__":

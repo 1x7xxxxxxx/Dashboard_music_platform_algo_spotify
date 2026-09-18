@@ -210,8 +210,18 @@ def _test_instagram(fields: dict):
     try:
         return _probe_instagram(ig_user_id, token)
     except Exception as e:  # noqa: BLE001 — a probe failure is a red verdict, not a crash
-        return False, tagged(t("credentials.meta.network_error_probe",
-                        "Erreur réseau pendant le test Instagram : {err}").format(err=e), UNREACHABLE)
+        # `type(e).__name__`, JAMAIS `str(e)`. `_probe_instagram` passe le jeton
+        # partagé en PARAMÈTRE DE REQUÊTE : le message d'une `ConnectionError`
+        # embarque l'URL préparée, chaîne de requête comprise. Mesuré le 2026-09-18 —
+        # le jeton apparaît bien dans `str(e)`, et pas dans `type(e).__name__`.
+        # `_test_meta` porte ce correctif et son motif depuis le début ; cette
+        # fonction-sœur ne l'avait jamais reçu, et c'est le jeton Meta de
+        # l'application partagée — celui qui n'expire pas — qui s'affichait à un
+        # artiste sur une simple panne DNS.
+        return False, tagged(t("credentials.probe_network_error",
+                        "Erreur réseau ({err}) — réessaie dans un instant. Si ça "
+                        "persiste, contacte l'administrateur.").format(
+                            err=type(e).__name__), UNREACHABLE)
 
 # ── L'assistant « je colle l'adresse, tu trouves mon numéro » ────────────────
 

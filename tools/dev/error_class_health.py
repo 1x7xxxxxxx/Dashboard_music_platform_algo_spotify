@@ -350,15 +350,25 @@ def _swept_sites(champ: str) -> "int | None":
     `**3 sites vivants**`). Une mention en passant ne suffit pas, parce qu'une prose qui
     parle de sites sans les compter est exactement ce qu'on cherche à rendre visible.
     `None` remonte dans `sites_unknown`, un trou déclaré — jamais confondu avec zéro.
+
+    ⚠️ **Le verdict est la PREMIÈRE forme en gras, pas le zéro le plus proche.**
+    Jusqu'au 2026-09-18 la recherche de zéro passait AVANT le compte et parcourait tout
+    le champ : un balayage qui trouvait six sites et RACONTAIT ensuite qu'un prédicat
+    fautif avait « rendu **0 site vivant** » se voyait attribuer zéro. L'instrument
+    lisait la rétractation au lieu du résultat — et c'est la même forme que
+    `guard-satisfied-by-its-own-comment`, appliquée à un compteur : la prose qui décrit
+    le défaut change la mesure. Mesuré ce jour-là sur
+    `leak-via-an-exception-received-as-an-argument` : 6 sites publiés, 0 compté.
     """
     if not champ.strip().startswith("swept:"):
         return None
-    if _SITES_ZERO.search(champ):
+    zero = _SITES_ZERO.search(champ)
+    n = _SITES_N.search(champ)
+    if zero and (n is None or zero.start() < n.start()):
         return 0
-    m = _SITES_N.search(champ)
-    if not m:
+    if n is None:
         return None
-    v = m.group(1).lower()
+    v = n.group(1).lower()
     return int(v) if v.isdigit() else _MOTS.get(v)
 
 

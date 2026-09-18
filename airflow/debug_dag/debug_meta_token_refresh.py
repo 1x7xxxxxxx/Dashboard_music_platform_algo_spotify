@@ -181,7 +181,7 @@ def step_4_full_refresh(token_info):
             else:
                 logger.error(f"  ❌ Échec : {data.get('error', data)}")
         except Exception as e:
-            logger.error(f"  ❌ Exception : {e}")
+            logger.error(f"  ❌ Exception : {type(e).__name__}")
 
 
 if __name__ == "__main__":

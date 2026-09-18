@@ -507,7 +507,7 @@ _CEILINGS = {
     # (21 balayages productifs sur 191, 52 sites vivants au total). Le premier chiffre
     # ne portait que sur les balayages de la nuit, ceux qui trouvaient. Un taux mesuré
     # sur la population qui l'a inspiré n'est pas un taux.
-    "sites_unknown": 85,
+    "sites_unknown": 77,
     #
     # ── « BALAYÉ » N'EST PAS « LE GARDE ÉTAIT VERT » (2026-09-18) ────────────
     #
@@ -524,7 +524,7 @@ _CEILINGS = {
     # ferait bondir `siblings_never_swept` de 106 à ~203, et le cliquet lirait une
     # RÉGRESSION là où il y a une correction de mesure. Le vrai nombre de classes
     # dont personne n'a cherché les frères est donc la SOMME des deux.
-    "swept_by_rerunning_the_guard": 83,
+    "swept_by_rerunning_the_guard": 75,
     "scope_on_a_shared_guard_without_naming_its_tests": 15,  # phase C ; 23 → 15 le 2026-09-17
                                       # ⚠️ 9 → 11 le 2026-09-17, et les DEUX de hausse sont
                                       # STRUCTURELS, pas de la négligence : `ci-runs-twice-for-one-commit`
@@ -752,3 +752,32 @@ def test_the_scan_is_not_vacuous() -> None:
         "catalogue, donc la récidive OBSERVÉE serait nulle par construction.")
     assert agg["population"]["ever_recurred_observed"] >= 1, (
         "aucune récidive observée sur tout l'historique : le détecteur ne détecte plus.")
+
+
+def test_the_sweep_verdict_is_the_first_bold_count_not_the_nearest_zero() -> None:
+    """La prose qui RÉTRACTE un zéro ne doit pas faire rapporter zéro.
+
+    Mesuré le 2026-09-18. `_swept_sites` cherchait `**0 site vivant**` dans TOUT le
+    champ, et avant le compte. Une classe qui publiait six sites vivants puis racontait
+    qu'un prédicat fautif avait « rendu **0 site vivant** » se voyait attribuer **0** :
+    l'instrument lisait la rétractation au lieu du résultat.
+
+    C'est `guard-satisfied-by-its-own-comment` appliqué à un COMPTEUR — écrire sur le
+    défaut change la mesure — et c'est la deuxième fois de la journée que cette forme
+    mord, la première étant deux gardes rougis par un commentaire expliquant leur
+    propre correctif.
+    """
+    from tools.dev.error_class_health import _swept_sites
+
+    cas = [
+        ("swept: **6 sites vivants**, et un prédicat rendait **0 site vivant**", 6),
+        ("swept: **0 site vivant**, vérifié", 0),
+        ("swept: **1 site vivant**", 1),
+        ("swept: **0 site vivant**, puis **3 sites vivants** plus loin", 0),
+        ("swept: aucune forme en gras", None),
+        ("pas un balayage", None),
+    ]
+    faux = [(c, _swept_sites(c), a) for c, a in cas if _swept_sites(c) != a]
+    assert not faux, (
+        "le verdict de balayage n'est plus la PREMIÈRE forme en gras : "
+        f"{[(c[:50], got, att) for c, got, att in faux]}")

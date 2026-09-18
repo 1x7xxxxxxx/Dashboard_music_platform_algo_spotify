@@ -73,7 +73,7 @@ def main():
         data = resp.json()
         print(f"  ✅ Connected as: {data.get('name')} (id={data.get('id')})")
     except Exception as e:
-        print(f"  ❌ Connectivity failed: {e}")
+        print(f"  ❌ Connectivity failed: {type(e).__name__}")
         sys.exit(1)
 
     # ── Step 3: Dry-run campaigns fetch ───────────────────────────
@@ -104,7 +104,7 @@ def main():
         if len(campaigns) > 3:
             print(f"     ... and {len(campaigns) - 3} more")
     except Exception as e:
-        print(f"  ❌ Dry-run failed: {e}")
+        print(f"  ❌ Dry-run failed: {type(e).__name__}")
         sys.exit(1)
 
     # ── Step 4: Full run (--write only) ───────────────────────────
@@ -147,9 +147,9 @@ def main():
                 count = rows[0][0] if rows else '?'
                 print(f"    {tbl:<45} {count:>6} rows")
             except Exception as count_err:
-                print(f"    {tbl:<45} ERROR: {count_err}")
+                print(f"    {tbl:<45} ERROR: {type(count_err).__name__}")
     except Exception as e:
-        print(f"  ❌ Full run failed: {e}")
+        print(f"  ❌ Full run failed: {type(e).__name__}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
