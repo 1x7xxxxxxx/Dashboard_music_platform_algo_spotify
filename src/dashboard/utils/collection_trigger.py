@@ -28,8 +28,37 @@ from typing import Optional
 
 def trigger_all_collections(artist_id: Optional[int], airflow_trigger,
                             collection_dags) -> tuple[dict, dict]:
-    """Fire every collection DAG for ONE tenant. Returns (launched, not_launched)."""
+    """Fire every collection DAG for ONE tenant. Returns (launched, not_launched).
+
+    ⚠️ **La couture échoue FORT si `airflow_trigger` n'est pas un déclencheur.**
+    Ajouté le 2026-09-18, après avoir mesuré que deux appelants passaient ici le
+    MODULE `src.utils.airflow_trigger` au lieu d'une instance. Le module n'a pas
+    d'attribut `trigger_dag` : chaque DAG partait donc dans la boucle `except`
+    ci-dessous et ressortait en `AttributeError` — cinq chaînes de refus polies, une
+    par DAG, au lieu d'une erreur. Dans `_render.py` un `except Exception: pass`
+    finissait de tout avaler.
+
+    Ces deux appelants formaient le parcours automatique de PREMIÈRE collecte en
+    entier, et il est resté mort **douze jours** sans qu'aucun test ne rougisse. Le
+    garde censé le couvrir
+    (`tests/test_the_journey_starts_the_collection_itself.py:150`) vérifiait que
+    l'APPEL `autostart_if_journey_complete` existe dans l'AST — jamais ce qu'on lui
+    passait. Une forme, pas une propriété.
+
+    Une boucle `try/except` par élément est le bon dessin pour l'isolement par DAG ;
+    elle devient un piège quand le défaut est dans l'ARGUMENT et non dans l'appel,
+    parce qu'elle le répète au lieu de le signaler.
+    """
     from src.utils.safe_error import safe_error
+
+    if not callable(getattr(airflow_trigger, "trigger_dag", None)):
+        raise TypeError(
+            f"trigger_all_collections a reçu {type(airflow_trigger).__name__} "
+            f"({getattr(airflow_trigger, '__name__', airflow_trigger)!r}) au lieu d'un "
+            "déclencheur Airflow. Passer `build_airflow_trigger()` — une INSTANCE. "
+            "Passer le module `src.utils.airflow_trigger` produit un `AttributeError` "
+            "par DAG, avalé par la boucle d'isolement, et la collecte ne part jamais."
+        )
 
     launched: dict[str, str] = {}
     not_launched: dict[str, str] = {}

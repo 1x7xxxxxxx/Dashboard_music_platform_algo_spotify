@@ -43,6 +43,21 @@ auth:
         role: artist
         artist_id: 1
 
+# ⚠️ Section ABSENTE de ce gabarit jusqu'au 2026-09-18, alors que
+# `build_airflow_trigger()` la lit et que le `config.yaml` de la machine de
+# développement la portait déjà. Un repli vivant mais non documenté se lit comme un
+# repli mort : l'audit du jour l'a d'abord classé « clé morte, à supprimer ».
+#
+# Ordre de résolution, du plus prioritaire au moins : `AIRFLOW_USERNAME` /
+# `AIRFLOW_PASSWORD` (le nom CÔTÉ APPLICATION, celui que compose fabrique pour le
+# service dashboard), puis `AIRFLOW_ADMIN_USERNAME` / `AIRFLOW_ADMIN_PASSWORD` (le nom
+# de PROVISIONNEMENT, donné à `airflow-init` pour CRÉER le compte), puis cette
+# section. S'il ne reste rien, on LÈVE — il n'y a plus de défaut littéral.
+airflow:
+  base_url: "http://localhost:8080"
+  username: "VOTRE_UTILISATEUR_AIRFLOW"
+  password: "VOTRE_MOT_DE_PASSE_AIRFLOW"  # pragma: allowlist secret
+
 smtp:
   # Le nom d'affichage de l'expéditeur. MESURÉ le 2026-08-23 : cette valeur-ci était
   # `Music Cross Platform Dashboard & Trigger Spotify`, et c'est elle — pas un réglage

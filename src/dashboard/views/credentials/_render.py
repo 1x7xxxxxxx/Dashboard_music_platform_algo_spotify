@@ -1106,20 +1106,12 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
         # Non-blocking: a DAG-trigger failure must NOT invalidate the credential save.
         for dag_id in dags_for_save(platform_key, extra):
             try:
-                import os
-                from src.utils.airflow_trigger import AirflowTrigger
-                # Accept either env naming: the dashboard container exposes the Airflow
-                # admin creds as AIRFLOW_USERNAME/AIRFLOW_PASSWORD (docker-compose), while
-                # AIRFLOW_ADMIN_* is the .env name. A hard os.environ[...] on the wrong
-                # name silently broke every post-save auto-trigger ("credentials OK but
-                # no data"). Read both; never KeyError.
-                trigger = AirflowTrigger(
-                    base_url=os.getenv('AIRFLOW_BASE_URL', 'http://localhost:8080'),
-                    username=(os.getenv('AIRFLOW_ADMIN_USERNAME')
-                              or os.getenv('AIRFLOW_USERNAME', 'admin')),
-                    password=(os.getenv('AIRFLOW_ADMIN_PASSWORD')
-                              or os.getenv('AIRFLOW_PASSWORD', '')),
-                )
+                # LA fabrique (2026-09-18). Ce bloc portait la 2e des QUATRE
+                # précédences du dépôt, et un `getenv(..., '')` qui rendait une chaîne
+                # vide. Motif complet : `build_airflow_trigger`.
+                from src.utils.airflow_trigger import build_airflow_trigger
+
+                trigger = build_airflow_trigger()
                 result = trigger.trigger_dag(dag_id, conf={'artist_id': artist_id})
                 if result.get('success'):
                     # The artist reads the DAG status right after this toast. The
@@ -1210,9 +1202,12 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
             from src.dashboard.utils.collection_trigger import (
                 autostart_if_journey_complete,
             )
-            from src.utils import airflow_trigger as _trigger
+            # Une INSTANCE, pas le MODULE — c'est le module qui passait ici, et
+            # `trigger_dag` n'existe pas dessus. Motif : `trigger_all_collections`.
+            from src.utils.airflow_trigger import build_airflow_trigger
             _launched, _failed = autostart_if_journey_complete(
-                db, artist_id, st.session_state, _trigger, COLLECTION_DAGS)
+                db, artist_id, st.session_state, build_airflow_trigger(),
+                COLLECTION_DAGS)
             if _launched or _failed:
                 st.session_state[AUTOSTART_KEY] = (len(_launched), len(_failed))
         except Exception:  # noqa: BLE001 — un démarrage raté ne casse pas la saisie

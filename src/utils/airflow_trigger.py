@@ -7,25 +7,120 @@ from src.utils.safe_error import safe_error
 logger = logging.getLogger(__name__)
 
 
+def build_airflow_trigger(config: Optional[Dict] = None) -> "AirflowTrigger":
+    """LE seul endroit du dépôt qui résout les identifiants de l'API Airflow.
+
+    Pourquoi une fabrique, et pas un objet de module importé depuis `app.py`
+    ---------------------------------------------------------------------------
+    Au 2026-09-18 il existait **quatre** précédences pour les mêmes identifiants :
+
+    * `app.py:75`          — `AIRFLOW_*` puis `config.yaml`
+    * `credentials/_render.py:1116` — `AIRFLOW_ADMIN_*` puis `AIRFLOW_*`, sans `config.yaml`
+    * `views/home.py:763`  — **aucune** : les littéraux `admin`/`admin`
+    * `dashboard/utils/airflow_monitor.py:50` — environnement seul, et `auth = (None, None)`
+      quand rien n'est posé, donc un client NON AUTHENTIFIÉ qui rapporte
+      « Aucun DAG trouvé » au lieu d'échouer.
+
+    Importer l'objet d'`app.py` aurait marché (vérifié : pas de cycle) et aurait été
+    le mauvais geste — une vue dépendrait alors du module applicatif de 992 lignes
+    pour obtenir un identifiant, et l'import exécute ses `RuntimeError` de démarrage,
+    qu'un `except Exception` d'appelant transforme en « fonctionnalité indisponible ».
+
+    L'ordre, et ce qui le justifie
+    -------------------------------
+    1. `AIRFLOW_USERNAME` / `AIRFLOW_PASSWORD` — le nom CÔTÉ APPLICATION. C'est celui
+       que `docker-compose.example.yml:271` fabrique pour le service dashboard, que
+       `.env.railway.example:16` documente, et que la CI pose.
+    2. `AIRFLOW_ADMIN_USERNAME` / `AIRFLOW_ADMIN_PASSWORD` — le nom de PROVISIONNEMENT
+       (`docker-compose.yml:51` les donne à `airflow-init` pour CRÉER le compte). Ils
+       sont présents dans le `.env` de ce poste, donc les refuser casserait le dev
+       local ; ils viennent en second, jamais en premier.
+    3. `config.yaml`, section `airflow:`. ⚠️ Elle n'est PAS dans
+       `config/config.example.yaml` — elle existe pourtant dans le `config.yaml` de ce
+       poste. On la garde et on la documente, au lieu de retirer une source vivante.
+    4. Sinon on LÈVE. Jamais de repli littéral.
+    """
+    import os
+
+    if config is None:
+        try:
+            from src.utils import config_loader
+            config = config_loader.load()
+        except Exception:      # noqa: BLE001 — pas de config.yaml : l'env doit suffire
+            config = {}
+    a = (config or {}).get("airflow", {}) or {}
+
+    base_url = (os.getenv("AIRFLOW_BASE_URL")
+                or a.get("base_url") or "http://localhost:8080")
+    username = (os.getenv("AIRFLOW_USERNAME") or os.getenv("AIRFLOW_ADMIN_USERNAME")
+                or a.get("username"))
+    password = (os.getenv("AIRFLOW_PASSWORD") or os.getenv("AIRFLOW_ADMIN_PASSWORD")
+                or a.get("password"))
+    if not username or not password:
+        raise RuntimeError(
+            "Identifiants Airflow absents. Poser `AIRFLOW_USERNAME` et "
+            "`AIRFLOW_PASSWORD` dans `.env`/`.env.local` (ou `AIRFLOW_ADMIN_*`, ou la "
+            "section `airflow:` de `config/config.yaml`). Aucun défaut littéral n'est "
+            "servi : il permettrait de déclencher des DAG sans authentification, et "
+            "c'est exactement ce qui a rendu le bouton « Lancer les collectes » "
+            "inopérant pendant des semaines."
+        )
+    return AirflowTrigger(base_url=base_url, username=username, password=password)
+
+
 class AirflowTrigger:
     """Classe pour déclencher les DAGs Airflow via l'API REST."""
 
-    def __init__(self, base_url: str = "http://localhost:8080",
-                 username: str = "admin", password: str = "admin"):
-        """
-        Initialise le trigger Airflow.
+    def __init__(self, base_url: str, username: str, password: str):
+        """Initialise le trigger Airflow. Les trois arguments sont OBLIGATOIRES.
 
-        Args:
-            base_url: URL de base d'Airflow
-            username: Nom d'utilisateur Airflow
-            password: Mot de passe Airflow
+        ⚠️ **Il n'y a plus de valeur par défaut, et c'est le correctif.** Jusqu'au
+        2026-09-18 les trois paramètres en portaient une, celle de l'administrateur
+        Airflow par convention, et `home.py:763` construisait `AirflowTrigger()` nu — donc
+        avec ces trois littéraux. Mesuré contre l'instance vivante : les identifiants
+        réels ne valent pas `admin`/`admin`, et `curl -u admin:admin …/api/v1/dags`
+        rend **HTTP 401**. Le bouton « Lancer les collectes » de l'étape 4 de la mise
+        en route échouait pour tout le monde.
+
+        ⚠️ **Et c'est une RÉCIDIVE.** `archive.md:1958` (HIGH-05, juin 2026) annonce
+        exactement ce correctif — « RuntimeError raised if AIRFLOW_PASSWORD is falsy ».
+        Il avait été écrit dans un APPELANT (`app.py`) et non dans la classe : la
+        classe a gardé son défaut, et trois autres appelants sont nés depuis. **Une
+        vérification d'identifiant qui vit dans un appelant sur quatre n'est pas une
+        vérification.**
+
+        On lève sur une valeur FAUSSE, pas seulement absente : `_render.py:1121`
+        passait `os.getenv('AIRFLOW_PASSWORD', '')`, une chaîne vide — un appel non
+        authentifié déguisé en appel configuré.
         """
+        manquants = [n for n, v in (("username", username), ("password", password))
+                     if not v]
+        if manquants:
+            raise ValueError(
+                f"AirflowTrigger : {', '.join(manquants)} vide ou absent. Passer par "
+                "`build_airflow_trigger()`, qui résout `AIRFLOW_USERNAME` / "
+                "`AIRFLOW_PASSWORD` (ou `AIRFLOW_ADMIN_*`, ou `config.yaml`) au seul "
+                "endroit du dépôt qui a le droit de les lire. Un identifiant qui a une "
+                "valeur par défaut est un identifiant qu'on oublie de passer."
+            )
+        # Un `http://user:pass@hote/` porterait le mot de passe dans TOUTE trace  # pragma: allowlist secret
+        # `requests`, et `safe_error.redact()` ne retire que les paramètres de requête
+        # `nom=valeur`, jamais l'« userinfo » d'une URL. On refuse la forme plutôt que
+        # d'élargir le rédacteur : l'authentification passe par l'en-tête, ici.
+        if "@" in base_url.split("//", 1)[-1].split("/", 1)[0]:
+            raise ValueError(
+                "AirflowTrigger : `base_url` porte des identifiants dans l'URL "
+                "— la forme avec un « userinfo » avant l'arobase. Ils fuiraient "
+                "dans les journaux et dans "
+                "les messages d'erreur, que `redact()` ne nettoie pas sur cette forme. "
+                "Passer par `username`/`password`, qui partent en en-tête."
+            )
         self.base_url = base_url.rstrip('/')
         self.auth = (username, password)
         self.session = requests.Session()
         self.session.auth = self.auth
 
-        logger.info(f"✅ AirflowTrigger initialisé: {base_url}")
+        logger.info(f"✅ AirflowTrigger initialisé: {self.base_url}")
 
     def trigger_dag(self, dag_id: str, conf: Optional[Dict] = None) -> Dict:
         """
@@ -250,7 +345,7 @@ class AirflowTrigger:
 
 # Test
 if __name__ == "__main__":
-    trigger = AirflowTrigger()
+    trigger = build_airflow_trigger()   # la démo documente le chemin RÉEL
 
     # Test de connexion
     print("\n🔍 Test de connexion...")

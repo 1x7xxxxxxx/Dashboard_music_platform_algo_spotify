@@ -47,12 +47,17 @@ class AirflowMonitor:
         else:
             self.base_url = raw_url
 
-        self.username = os.getenv('AIRFLOW_USERNAME')
-        self.password = os.getenv('AIRFLOW_PASSWORD')
+        # LA fabrique, depuis le 2026-09-18 — c'était la QUATRIÈME précédence pour
+        # les mêmes identifiants, et la plus dangereuse : sans variable posée, elle
+        # produisait `session.auth = (None, None)`, donc un client NON AUTHENTIFIÉ qui
+        # rapportait « Aucun DAG trouvé » au lieu d'échouer. Une absence de droits se
+        # lisait comme une absence de données.
+        from src.utils.airflow_trigger import build_airflow_trigger
 
-        # On utilise une session pour garder les cookies/auth
+        _t = build_airflow_trigger()
+        self.username, self.password = _t.auth
         self.session = requests.Session()
-        self.session.auth = (self.username, self.password)
+        self.session.auth = _t.auth
 
 
     def _runs_per_dag(self, dag_ids: list[str], limit: int) -> dict:

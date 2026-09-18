@@ -179,3 +179,111 @@ def test_the_verdict_survives_the_rerun_that_follows_the_save():
     assert "AUTOSTART_KEY" in router_names, (
         "personne ne relit le résultat du démarrage après le rerun : le message est "
         "écrit puis effacé, comme le verdict de sauvegarde avant sa correction")
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  L'ARGUMENT, pas seulement l'appel
+# ════════════════════════════════════════════════════════════════════════════
+#
+# `test_both_completing_gestures_try_to_start` ci-dessus vérifie que l'APPEL
+# `autostart_if_journey_complete` existe dans l'AST. Il ne regarde pas ce qu'on lui
+# passe — et c'est ainsi qu'il est resté VERT douze jours sur un parcours mort.
+#
+# Les deux sites passaient `from src.utils import airflow_trigger as _trigger`, donc
+# le MODULE là où une INSTANCE est attendue. `trigger_all_collections` appelle
+# `airflow_trigger.trigger_dag(...)` ; un module n'a pas cet attribut. Reproduit sans
+# réseau le 2026-09-18 : zéro DAG lancé, chacun refusé sur
+# `AttributeError: module 'src.utils.airflow_trigger' has no attribute 'trigger_dag'`.
+# Dans `_render.py`, un `except Exception: pass` avalait le tout.
+#
+# Règle 20, dans sa forme la plus nue : le prédicat cherchait une FORME D'ÉCRITURE
+# (« l'appel est là ») là où la propriété est « l'appel reçoit de quoi travailler ».
+
+def _noms_importes_comme_modules(arbre) -> set:
+    """Les noms liés par `from X import Y` où Y est un MODULE, pas un symbole.
+
+    On ne peut pas trancher module/symbole par l'AST seul. On s'appuie donc sur la
+    forme qui a produit le défaut et qui est reconnaissable : `from <paquet> import
+    <nom>` où `<nom>` correspond à un fichier `.py` de ce paquet sur le disque.
+    """
+    from pathlib import Path
+
+    racine = Path(__file__).resolve().parents[1]
+    out = set()
+    for n in ast.walk(arbre):
+        if not isinstance(n, ast.ImportFrom) or not n.module:
+            continue
+        paquet = racine / Path(n.module.replace(".", "/"))
+        if not paquet.is_dir():
+            continue
+        for alias in n.names:
+            if any(f.stem == alias.name for f in paquet.iterdir() if f.is_file()):
+                out.add(alias.asname or alias.name)
+    return out
+
+
+@pytest.mark.parametrize("path", _TRIGGER_SITES, ids=lambda p: p.name)
+def test_the_trigger_argument_is_an_instance_not_a_module(path):
+    """Ce qu'on PASSE, pas seulement qu'on appelle."""
+    arbre = ast.parse(path.read_text(encoding="utf-8"))
+    modules = _noms_importes_comme_modules(arbre)
+    fautifs = []
+    for n in ast.walk(arbre):
+        if not isinstance(n, ast.Call):
+            continue
+        if "autostart_if_journey_complete" not in ast.unparse(n.func):
+            continue
+        # signature : (db, artist_id, session_state, airflow_trigger, collection_dags)
+        if len(n.args) < 4:
+            fautifs.append(f"{path.name}: appel à {len(n.args)} argument(s)")
+            continue
+        arg = ast.unparse(n.args[3])
+        if arg in modules:
+            fautifs.append(f"{path.name}:{n.lineno} passe le MODULE `{arg}`")
+    assert not fautifs, (
+        "un module est passé là où une instance de déclencheur est attendue : "
+        f"{fautifs}. `trigger_all_collections` appelle `trigger_dag` dessus ; un "
+        "module n'a pas cet attribut, chaque DAG part dans la boucle `except` et "
+        "ressort en refus poli. Passer `build_airflow_trigger()`."
+    )
+
+
+def test_the_module_detector_actually_separates_the_two_forms():
+    """La preuve que ce fichier se donne : le détecteur doit pouvoir dire NON.
+
+    Un détecteur qui rend l'ensemble vide laisse le test ci-dessus passer sur rien —
+    exactement ce qu'a fait le prédicat précédent pendant douze jours.
+    """
+    modules = _noms_importes_comme_modules(
+        ast.parse("from src.utils import airflow_trigger as _t\n"
+                  "from src.utils.airflow_trigger import build_airflow_trigger\n"))
+    assert "_t" in modules, (
+        "le détecteur ne voit pas `from src.utils import airflow_trigger` comme un "
+        "import de MODULE — c'est pourtant la forme exacte du défaut")
+    assert "build_airflow_trigger" not in modules, (
+        "le détecteur prend une FONCTION importée pour un module — il rendrait "
+        "l'arbre rouge en permanence")
+
+
+def test_the_seam_refuses_a_module_at_runtime():
+    """La ceinture et les bretelles : même si l'AST rate un site, la couture lève.
+
+    Un prédicat AST ne voit pas `getattr(mod, 'AirflowTrigger')()`, une fabrique
+    dynamique, ni un argument passé par `**kwargs`. La couture, elle, voit ce qui
+    ARRIVE.
+    """
+    from src.dashboard.utils.collection_trigger import trigger_all_collections
+    from src.utils import airflow_trigger as module_pas_instance
+
+    with pytest.raises(TypeError, match="au lieu d'un déclencheur"):
+        trigger_all_collections(1, module_pas_instance, [("spotify_api_daily", "S")])
+
+    # Et elle ne refuse PAS un vrai déclencheur — sinon elle bloquerait tout.
+    class _Faux:
+        def trigger_dag(self, dag_id, conf=None):
+            return {"success": True, "dag_run_id": "x"}
+
+    lance, refuse = trigger_all_collections(1, _Faux(), [("spotify_api_daily", "S")])
+    assert lance and not refuse, (
+        "la couture refuse un objet qui porte pourtant `trigger_dag` — elle est trop "
+        f"stricte : {lance=} {refuse=}")

@@ -37,7 +37,7 @@ from src.utils.env_files import load_project_env  # noqa: E402
 load_project_env()
 
 from src.utils.config_loader import config_loader
-from src.utils.airflow_trigger import AirflowTrigger
+from src.utils.airflow_trigger import build_airflow_trigger
 from src.dashboard.auth import (require_login, show_user_sidebar, get_artist_plan,
                                 render_logout_footer)
 from src.dashboard.utils.i18n import t
@@ -54,14 +54,11 @@ import pandas as pd
 pd.set_option('future.no_silent_downcasting', True)
 
 config = config_loader.load()
-airflow_config = config.get('airflow', {})
-# Env vars take precedence over config.yaml — required for Railway deployment
-_airflow_pass = os.getenv('AIRFLOW_PASSWORD') or airflow_config.get('password')
-if not _airflow_pass:
-    raise RuntimeError(
-        "AIRFLOW_PASSWORD not configured. Set it in .env or config/config.yaml. "
-        "Never use a hardcoded default — it allows unauthenticated DAG triggering."
-    )
+# ⚠️ Le garde « AIRFLOW_PASSWORD absent » VIVAIT ICI jusqu'au 2026-09-18, et c'est
+# précisément ce qui l'a rendu inopérant. Écrit dans UN appelant, il laissait la
+# classe garder ses défauts littéraux `admin`/`admin` — et trois autres appelants
+# sont nés depuis, dont un qui construisait `AirflowTrigger()` nu. Il vit désormais
+# dans `build_airflow_trigger()`, le seul lecteur de ces identifiants.
 # Fail loud at boot, not at the first credential save. Without FERNET_KEY every stored API
 # credential is undecryptable and every connection test silently fails (the kind of silent
 # gap the Benken session hit). Resolution mirrors _core._get_fernet (env → config.yaml).
@@ -72,11 +69,7 @@ if not (os.getenv('FERNET_KEY') or config.get('fernet_key')):
         "silently fail. Generate one: python -c \"from cryptography.fernet import Fernet; "
         "print(Fernet.generate_key().decode())\""
     )
-airflow_trigger = AirflowTrigger(
-    base_url=os.getenv('AIRFLOW_BASE_URL', airflow_config.get('base_url', 'http://localhost:8080')),
-    username=os.getenv('AIRFLOW_USERNAME', airflow_config.get('username', 'admin')),
-    password=_airflow_pass,
-)
+airflow_trigger = build_airflow_trigger(config)
 
 # Les deux pages atteintes depuis un e-mail vivent à part : elles n'ont ni
 # session, ni barre latérale, ni locataire résolu. Voir le module pour le motif.

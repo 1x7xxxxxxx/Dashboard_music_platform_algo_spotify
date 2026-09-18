@@ -749,7 +749,7 @@ def _launch_collections() -> None:
         remember_not_launched, remember_runs)
 
     try:
-        from src.utils.airflow_trigger import AirflowTrigger
+        from src.utils.airflow_trigger import build_airflow_trigger
         from src.dashboard.app import COLLECTION_DAGS      # noqa: PLC0415
     except Exception:      # noqa: BLE001 — hors app : le bouton ne doit pas casser la page
         st.warning(t("home.launch_unavailable",
@@ -760,7 +760,7 @@ def _launch_collections() -> None:
     artist_id = tenant_scope()
     with st.status(t("home.launching", "Lancement des collectes…"), expanded=False):
         launched, not_launched = trigger_all_collections(
-            artist_id, AirflowTrigger(), COLLECTION_DAGS)
+            artist_id, build_airflow_trigger(), COLLECTION_DAGS)
     remember_runs(launched)
     remember_not_launched(not_launched)
     if launched:

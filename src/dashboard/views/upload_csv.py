@@ -1041,9 +1041,16 @@ def render_uploader(db, target_artist_id: int) -> None:
             from src.dashboard.utils.collection_trigger import (
                 autostart_if_journey_complete,
             )
-            from src.utils import airflow_trigger as _trigger
+            # ⚠️ Une INSTANCE, pas le MODULE. Ce site passait
+            # `from src.utils import airflow_trigger as _trigger` — un module, qui n'a
+            # pas d'attribut `trigger_dag`. Avec `_render.py`, ces deux sites forment
+            # le parcours automatique de PREMIÈRE collecte en entier : depuis son
+            # introduction le 2026-09-06, tout artiste qui bouclait sa mise en route
+            # obtenait zéro DAG. Reproduit sans réseau le 2026-09-18.
+            from src.utils.airflow_trigger import build_airflow_trigger
             _launched, _not_launched = autostart_if_journey_complete(
-                db, target_artist_id, st.session_state, _trigger, COLLECTION_DAGS)
+                db, target_artist_id, st.session_state, build_airflow_trigger(),
+                COLLECTION_DAGS)
         except Exception:  # noqa: BLE001 — un démarrage raté ne casse pas l'import
             pass
         if _launched:
