@@ -283,7 +283,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
 | R125 | Saisir les écoutes 28 j réalisées (DW / RR / Radio) pour au moins un morceau, dans **Saisie S4A** | P3 | ouvrir Saisie S4A, entrer les trois chiffres à 28 jours pour un morceau prédit il y a plus de 28 jours — voir §15 du runbook |
-| R140 | Trancher **quatre décisions de produit** trouvées par le balayage R137 — un appariement de titres trop large dans le PDF, un jeton SoundCloud partagé entre dev et prod, un bouton « ce locataire » qui déclenche la flotte, un script de migration sans allowlist | P2 | lire les quatre mesures et dire pour chacune ce que le produit DOIT faire — voir §16 du runbook |
+| R140 | Trancher **dix-sept décisions de produit** trouvées par le balayage R137 — dont un appariement de titres trop large dans le PDF, un jeton SoundCloud partagé entre dev et prod, `/health` qui dit « ok » sans rien vérifier pendant que trois systèmes en font un verdict, le digest hebdomadaire qui somme deux générations (6 165 € au lieu de 3 088), et vingt dates affichées en UTC sans qualificatif | P2 | lire les dix-sept mesures et dire pour chacune ce que le produit DOIT faire — voir §16.1 à §16.17 du runbook |
 
 ⚠️ **R125 est entrée le 2026-09-18, mesurée en PRODUCTION, pas supposée** :
 `ml_song_predictions` porte **617 lignes**, `s4a_song_algo_outcomes` (la saisie humaine)

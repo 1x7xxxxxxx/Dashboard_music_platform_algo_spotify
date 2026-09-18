@@ -29,6 +29,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 
 def _repo_root() -> Path:
     for d in [Path(__file__).resolve()] + list(Path(__file__).resolve().parents):
@@ -509,6 +511,56 @@ def test_the_index_counting_predicate_is_not_vacuous() -> None:
     assert _COMPTE_INDEX.search("**Huit tâches sont ouvertes dans cet index** — R132") is not None
     assert _valeur(_COMPTE_INDEX.search("Quatre tâches sont ouvertes dans cet index").group("n")) == 4
     assert _COMPTE_INDEX.search("trois défauts ouverts dans le catalogue") is None
+
+
+# ⚠️ Troisième forme, trouvée le 2026-09-18 en fermant le goal : une LIGNE de table qui
+# compte ses propres SOUS-SECTIONS de runbook. R140 annonçait « Trancher **quatre**
+# décisions de produit » alors que treize s'y étaient ajoutées au fil des balayages —
+# §16.1 à §16.17. Les deux gardes ci-dessus sont aveugles par construction : l'un compte
+# les lignes d'une SECTION, l'autre les tâches de l'INDEX. Aucun ne regarde ce qu'une
+# ligne dit d'un AUTRE fichier.
+#
+# C'est la cinquième occurrence de `a-prose-claim-that-cannot-be-verified` dans ce
+# fichier, et la troisième de ma main. Le motif est stable : un nombre écrit en toutes
+# lettres, un renvoi vers une section, et personne pour les confronter.
+# ⚠️ `[^\n]*?` et NON `[^|]*?`. Premier jet : il interdisait le caractère `|`, et la
+# mutation est passée — le compte et le renvoi vivent dans DEUX COLONNES de la même
+# ligne de table, donc séparés par des `|`. Le prédicat cherchait une forme d'écriture
+# (« pas de pipe entre les deux ») là où la propriété est « sur la même ligne ».
+# Troisième fois dans la journée qu'un prédicat se trompe de cette façon exacte.
+_RENVOI_RUNBOOK = re.compile(
+    r"\*\*(?P<n>" + _MOT + r"|\d+)\s+d[ée]cisions?[^\n]*?"
+    r"§\s*(?P<a>[\d.]+)\s*(?:à|a|-|–)\s*§?\s*(?P<b>[\d.]+)", re.I)
+
+
+def test_a_row_that_counts_runbook_sections_counts_the_ones_there_are() -> None:
+    """Une ligne qui annonce N décisions et renvoie à §x.1–§x.N compte les vraies.
+
+    Le renvoi EST la contrainte : sans lui, « dix-sept décisions » ne se vérifie nulle
+    part. C'est pourquoi ce garde n'exige pas un renvoi — il ne contraint que les lignes
+    qui en portent un, et ne peut donc pas pousser à en retirer un pour se taire.
+    """
+    texte = ACTIVE.read_text(encoding="utf-8")
+    runbook = (REPO / ".claude" / "dev-docs" / "runbook-actions-utilisateur.md")
+    if not runbook.is_file():
+        pytest.skip("runbook absent de cet arbre")
+    corps = runbook.read_text(encoding="utf-8")
+    faux = []
+    for m in _RENVOI_RUNBOOK.finditer(texte):
+        annonce = _valeur(m.group("n"))
+        prefixe = m.group("a").split(".")[0]
+        reelles = len(re.findall(rf"^#{{3}} {re.escape(prefixe)}\.\d+ ", corps, re.M))
+        if annonce is not None and reelles and annonce != reelles:
+            ligne = texte[:m.start()].count("\n") + 1
+            faux.append((ligne, annonce, reelles, prefixe))
+    assert not faux, (
+        "".join(f"\n  checklist.md:{ln} annonce {a} décision(s) et renvoie à §{p}, "
+                f"qui en porte {r}" for ln, a, r, p in faux) +
+        "\n\nUne ligne d'index qui compte les sous-sections d'un runbook compte celles "
+        "qui existent. R140 a annoncé « quatre » pendant que treize s'y ajoutaient : les "
+        "deux autres gardes de comptage sont aveugles ici — l'un compte les lignes d'une "
+        "SECTION, l'autre les tâches de l'INDEX, aucun ne regarde ce qu'une ligne dit "
+        "d'un AUTRE fichier.")
 
 
 def test_the_counting_predicate_reads_both_shapes() -> None:
