@@ -467,7 +467,20 @@ _CEILINGS = {
     # `siblings_never_swept`. Le fichier restait valide et le cliquet fonctionnait —
     # c'est la LISIBILITÉ qui était perdue, et une ligne de 600 caractères ne se
     # relit pas.
-    "sites_unknown": 242,
+    #
+    # 242 → 101 le 2026-09-18 (axe 1 de la nuit). 41 champs disaient « aucun autre
+    # site » sans le gras ; 94 autres étaient silencieux, et le SILENCE est le verdict :
+    # une trouvaille est bruyante. Prédicat validé sur un jeu de CONTRÔLE de 91 verdicts
+    # déjà connus — **0 faux négatif, 0 faux positif** — après que trois prédicats plus
+    # naïfs eurent sur-classé (« aucun autre site » attrapait 131 champs dont 97 étaient
+    # des relances de garde ; un discriminant de population en ratait « ZÉRO » et
+    # « 5 plateformes »).
+    #
+    # ⚠️ Le rendement a CHUTÉ en remplissant le dénominateur : 32 % → 17,6 % → **11 %**
+    # (21 balayages productifs sur 191, 52 sites vivants au total). Le premier chiffre
+    # ne portait que sur les balayages de la nuit, ceux qui trouvaient. Un taux mesuré
+    # sur la population qui l'a inspiré n'est pas un taux.
+    "sites_unknown": 101,
     #
     # ── « BALAYÉ » N'EST PAS « LE GARDE ÉTAIT VERT » (2026-09-18) ────────────
     #
