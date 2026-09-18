@@ -806,11 +806,33 @@ def test_adopting_a_registered_account_refuses_anything_that_is_not_fresh():
     makes the door safe is the condition, not the intention.
     """
     fn = _fn(SANDBOX, "_adopt")
-    src = ast.get_source_segment(SANDBOX.read_text(encoding="utf-8"), fn) or ""
-    assert "_TENANT_DATA_TABLES" in src, (
+    # ⚠️ **À L'AST, PAS AU NOM** (corrigé le 2026-09-18). Ce test cherchait la
+    # sous-chaîne `_TENANT_DATA_TABLES` dans le source de `_adopt`. Le jour où la
+    # liste écrite à la main est devenue une dérivation — `_tenant_data_tables()`,
+    # parce qu'elle en oubliait 75 sur 81 — le garde est parti au rouge alors que la
+    # porte faisait EXACTEMENT ce qu'il demande, en mieux. Un garde qui cherche un
+    # NOM mesure l'orthographe, pas le comportement : c'est
+    # `un-garde-textuel-est-aveugle`, ici dans le sens du faux POSITIF.
+    #
+    # La question réelle est « la porte parcourt-elle les tables du locataire pour y
+    # compter des lignes ? ». On la pose donc sur l'itération.
+    boucles = [n for n in ast.walk(fn) if isinstance(n, ast.For)]
+    parcourt = any(
+        isinstance(b.iter, ast.Call)
+        and (getattr(b.iter.func, "id", "") or getattr(b.iter.func, "attr", ""))
+        in {"_tenant_data_tables", "tenant_scoped_tables"}
+        or (isinstance(b.iter, ast.Name) and "TABLE" in b.iter.id.upper())
+        for b in boucles)
+    assert parcourt, (
         "adoption no longer checks for collected rows: exempting a live tenant from "
         "the uniqueness guard would reopen the tenant leak that guard closed")
-    assert "is_canary" in src, (
+    # Même correction qu'au-dessus : on demande si la porte LIT le drapeau, pas si
+    # son source contient le mot. Un commentaire l'aurait satisfait.
+    lit_canari = any(
+        isinstance(n, ast.Constant) and n.value == "is_canary"
+        or isinstance(n, ast.Name) and n.id == "is_canary"
+        for n in ast.walk(fn))
+    assert lit_canari, (
         "a canary can be adopted: it is a FLAG, not a permission — exempting it would "
         "hollow out the nightly per-tenant proof it carries")
 

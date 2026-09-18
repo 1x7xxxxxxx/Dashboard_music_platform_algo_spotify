@@ -12,7 +12,9 @@ import sys
 import os
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+_ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(_ROOT))
+sys.path.insert(0, str(_ROOT / 'airflow'))  # pour importer `dags.alert_monitor`
 
 # Load config to set DB env vars
 from src.utils.config_loader import config_loader
@@ -36,19 +38,45 @@ print("=" * 70)
 db = PostgresHandler.from_env_or_config()
 
 # ── 1. Credential audit ───────────────────────────────────────────
+# Ce bloc APPELLE la production au lieu de la réécrire. Il portait jusqu'au
+# 2026-09-18 les deux moitiés du défaut que `audit-scope-restated-not-derived` a
+# fermé côté DAG le 2026-08-22, et qui avaient survécu ici sans qu'un garde les
+# voie : une liste de quatre plateformes écrite à la main — donc **Instagram
+# n'était jamais audité** — et un test `if not creds` qui jugeait la ligne de
+# stockage VIDE OU NON au lieu de juger l'identité DÉCLARÉE. Les deux se lisaient
+# comme un rapport propre : celui qui exécutait ce script voyait quatre lignes
+# vertes et concluait que tout était vérifié.
+#
+# Un script de débogage qui reformule la logique qu'il débogue ne débogue rien :
+# il peut être vert quand la production est rouge, et l'inverse.
 print("\n🔑 Credential audit")
-MONITORED_PLATFORMS = ['spotify', 'youtube', 'soundcloud', 'meta']
+from dags.alert_monitor import _mirrored_identities, _monitored_platforms  # noqa: E402
+from src.utils.tenant_identity import (declared_identities,  # noqa: E402
+                                       storage_platform)
+
+platforms = _monitored_platforms()
 artists = get_active_artists()
 missing_creds = []
 for artist_id, artist_name in artists:
-    for platform in MONITORED_PLATFORMS:
-        creds = load_platform_credentials(artist_id, platform)
-        status = '✅' if creds else '❌ MISSING'
-        print(f"  {status}  {artist_name} / {platform}")
-        if not creds:
-            missing_creds.append({'artist_name': artist_name, 'platform': platform})
+    extra_by_platform = {}
+    for storage in {storage_platform(p) for p in platforms}:
+        try:
+            extra_by_platform[storage] = load_platform_credentials(
+                artist_id, storage) or {}
+        except Exception as e:  # noqa: BLE001 — une ligne illisible, pas la flotte
+            print(f"  ⚠️  lecture impossible {artist_name} / {storage} : "
+                  f"{type(e).__name__}")
+    declared = declared_identities(extra_by_platform,
+                                   _mirrored_identities(artist_id))
+    for platform in platforms:
+        ok = platform in declared
+        print(f"  {'✅' if ok else '❌ MISSING'}  {artist_name} / {platform}")
+        if not ok:
+            missing_creds.append({'artist_name': artist_name,
+                                  'platform': platform})
 
-print(f"\n  → {len(missing_creds)} credential(s) manquant(s)")
+print(f"\n  → {len(missing_creds)} identité(s) non déclarée(s) sur "
+      f"{len(artists) * len(platforms)} combinaison(s)")
 
 # ── 2. Freshness check ────────────────────────────────────────────
 print("\n🕐 Freshness check")

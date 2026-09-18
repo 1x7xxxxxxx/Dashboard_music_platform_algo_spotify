@@ -56,17 +56,58 @@ load_project_env()
 
 _OK, _KO = "✅", "❌"
 
-# Tables holding per-tenant collected rows, wiped by --reset. `artist_id` is the
-# TENANT here; tables where that column is a Spotify id (artists, tracks,
-# artist_history) are deliberately absent — see .claude/rules/python.md.
-_TENANT_DATA_TABLES = (
-    "artist_credentials",
-    "s4a_song_timeline",
-    "youtube_videos",
-    "youtube_channels",
-    "youtube_video_stats",
-    "etl_run_log",
-)
+# ── CE QUE `--reset` GARDE, ET CE QU'IL VIDE ────────────────────────────────
+#
+# ⚠️ **Cette liste était écrite à la main et portait SIX tables** jusqu'au 2026-09-18.
+# Le schéma en compte **81** scopées-locataire : `--reset` en laissait donc **75**
+# derrière lui — Meta 26, Apple 4, Instagram 3, Hypeddit 2, ML 2, SoundCloud 1,
+# SACEM 1. « Rejouer depuis zéro » n'était à zéro que pour Spotify/S4A et YouTube, et
+# l'écart était invisible : rien ne comparait la liste au schéma.
+#
+# ⚠️ **Et la correction évidente — dériver les 81 et tout vider — DÉTRUIRAIT le
+# compte.** `tenant_scoped_tables()` répond à « cette colonne désigne-t-elle un
+# locataire par son TYPE », pas à « cette table est-elle sûre à vider ». `saas_users`
+# y figure : la substitution littérale supprimait le login du bac à sable à chaque
+# reset, en contradiction directe avec le contrat écrit trois lignes plus haut
+# (« same tenant, same login ») et avec l'aide de `--reset` (« garde le compte »).
+# Refusé par `code-critic` AVANT écriture, et vérifié ensuite table par table.
+#
+# D'où DEUX ensembles, et la polarité est choisie, pas subie : une table neuve
+# oubliée de `_WIPE` n'est jamais vidée — un bac à sable qui ne repart pas tout à
+# fait à zéro, gênant et VISIBLE à l'usage. Oubliée de `_PRESERVE`, elle serait vidée
+# en silence. Le garde
+# `tests/test_the_sandbox_reset_covers_every_tenant_table.py` exige que l'union des
+# deux ÉGALE le schéma, donc une table neuve fait rougir au lieu de tomber du mauvais
+# côté.
+#
+# `artist_id` est le LOCATAIRE ici ; les tables où cette colonne est un identifiant
+# Spotify (`artists`, `tracks`, `artist_history`) sont absentes des deux ensembles
+# parce que `tenant_scoped_tables()` les écarte déjà par le type — voir
+# `.claude/rules/python.md`.
+
+# Ce que le reset NE TOUCHE PAS, chacune avec sa raison. Ce ne sont pas des données
+# de plateforme : ce sont le compte et ce qui documente son histoire.
+_PRESERVE_ON_RESET = {
+    "saas_users": "le compte de connexion — le contrat dit « same tenant, same login »",
+    "active_sessions": "état de session, pas une donnée collectée",
+    "app_error_log": "son utilité REPOSE sur la survie de `occurrences`/`first_seen` : "
+                     "les vider efface le signal de récidive que `make error-inbox` lit",
+    "data_revisions": "table d'audit — le nom de sa migration est littéralement "
+                      "« nothing overwritten is lost »",
+    "artist_subscriptions": "facturation — le palier irréversible",
+    "subscription_plan_history": "facturation, historique",
+    "promo_events": "au compte, pas à une plateforme",
+    "referral_codes": "au compte, pas à une plateforme",
+    "usage_events": "télémétrie de l'humain qui utilise l'app ; `tools/scale_check.sh` "
+                    "la lit pour décider s'il faut des répliques",
+}
+
+
+def _tenant_data_tables() -> tuple[str, ...]:
+    """Les tables que `--reset` vide : le schéma MOINS ce qu'on préserve."""
+    from src.utils.tenant_tables import tenant_scoped_tables
+
+    return tuple(sorted(set(tenant_scoped_tables()) - set(_PRESERVE_ON_RESET)))
 
 
 def _db():
@@ -110,7 +151,7 @@ def _wipe(db, artist_id: int) -> None:
     clear_platform_identities(db, artist_id)
     print(f"   {_OK} identités effacées (credentials + colonnes miroir)")
 
-    for table in _TENANT_DATA_TABLES:
+    for table in _tenant_data_tables():
         if table == "artist_credentials":
             continue                      # déjà traité par la porte partagée
         try:
@@ -189,7 +230,7 @@ def _adopt(db, needle: str) -> int:
               "la surveillance nocturne qu'il porte.")
         return 0
 
-    for table in _TENANT_DATA_TABLES:
+    for table in _tenant_data_tables():
         if table == "artist_credentials":
             continue
         try:

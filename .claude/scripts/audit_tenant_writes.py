@@ -43,6 +43,7 @@ import sys
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_ROOT))
 _SCAN_DIRS = ("src", "airflow/dags")
 _TENANT_KEYS = {"artist_id", "saas_artist_id"}
 
@@ -71,45 +72,20 @@ _VARCHAR = re.compile(r"(?:VARCHAR|TEXT|CHAR)", re.I)
 
 
 def tenant_scoped_tables() -> dict[str, str]:
-    """{table: colonne QUI PORTE LE LOCATAIRE}, déduite du TYPE déclaré.
+    """{table: colonne QUI PORTE LE LOCATAIRE} — DÉLÉGUÉ à `src/utils/tenant_tables.py`.
 
-    Une table dont le seul `artist_id` est un VARCHAR (identifiant de plateforme)
-    et qui n'a pas de `saas_artist_id` n'est PAS scopée-locataire : elle est une
-    table de référence globale, et l'exiger d'elle serait un faux positif.
+    Le corps vivait ici jusqu'au 2026-09-18. Il a déménagé parce qu'un SECOND lecteur
+    est apparu — `tools/create_sandbox.py`, qui doit savoir quelles tables vider — et
+    que `.dockerignore:50` exclut `.claude/` de tout contexte Docker : un outil de
+    production qui importerait d'ici lèverait `ModuleNotFoundError` dès qu'il tourne en
+    conteneur. La dépendance va de `.claude/` vers `src/`, jamais l'inverse.
+
+    Le nom reste exporté ici : la signature du catalogue d'erreurs et le Makefile
+    appellent ce script, pas le module.
     """
-    tables: dict[str, str] = {}
-    sources = [_ROOT / "init_db.sql"] + sorted((_ROOT / "migrations").glob("*.sql"))
-    create_re = re.compile(
-        r"CREATE TABLE(?:\s+IF NOT EXISTS)?\s+(\w+)\s*\((.*?)\n\s*\);",
-        re.S | re.I)
-    alter_re = re.compile(
-        r"ALTER TABLE\s+(\w+)\s+ADD COLUMN(?:\s+IF NOT EXISTS)?\s+(artist_id|saas_artist_id)"
-        r"([^,;\n]*)",
-        re.I)
-    for path in sources:
-        if not path.exists():
-            continue
-        text = path.read_text(encoding="utf-8", errors="replace")
-        for name, body in create_re.findall(text):
-            table = name.lower()
-            for col in ("saas_artist_id", "artist_id"):
-                m = re.search(rf"^\s*{col}\s+([^,\n]*)", body, re.M | re.I)
-                if not m:
-                    continue
-                # `saas_artist_id` est le locataire par construction ; `artist_id`
-                # ne l'est que s'il est ENTIER.
-                if col == "saas_artist_id" or not _VARCHAR.search(m.group(1)):
-                    tables[table] = col
-                    break
-        for name, col, decl in alter_re.findall(text):
-            table, col = name.lower(), col.lower()
-            if col == "saas_artist_id" or not _VARCHAR.search(decl):
-                # Une colonne ajoutée après coup NE DÉCLASSE PAS un locataire déjà
-                # trouvé : `saas_artist_id` l'emporte sur `artist_id`.
-                if tables.get(table) != "saas_artist_id":
-                    tables[table] = col
-    return tables
+    from src.utils.tenant_tables import tenant_scoped_tables as _derive
 
+    return _derive()
 
 def _dict_keys(node: ast.AST) -> tuple[set[str], bool] | None:
     """(explicit keys, complete?) of a dict literal. None if it is not a dict.

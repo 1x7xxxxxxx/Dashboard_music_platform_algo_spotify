@@ -140,7 +140,11 @@ def step_4_check_database():
         logger.info("✅ Connexion réussie.")
 
         # Vérif Tables
-        tables = ['youtube_channels', 'youtube_channel_history', 'youtube_videos', 'youtube_video_stats']
+        # Dérivé du schéma, pas réécrit : la liste écrite à la main en portait
+        # quatre sur six — `youtube_comments` et `youtube_playlists` n'étaient
+        # jamais sondées, et leur absence se lisait comme « toutes détectées ».
+        from src.database.youtube_schema import YOUTUBE_SCHEMA
+        tables = sorted(YOUTUBE_SCHEMA)
         for t in tables:
             try:
                 db.fetch_df(f"SELECT 1 FROM {t} LIMIT 1")
