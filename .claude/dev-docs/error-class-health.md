@@ -11,13 +11,13 @@ Le compteur `siblings_never_swept` mesure l'EFFORT. Celui-ci mesure le résultat
 
 | grandeur | valeur |
 |---|---|
-| balayages faits | **305** |
-| dont le verdict est LISIBLE | **204** |
-| qui ont trouvé au moins un site | **26** |
-| sites vivants trouvés | **63** |
-| taux de trouvaille (sur verdicts lisibles) | **0.127** |
+| balayages faits | **310** |
+| dont le verdict est LISIBLE | **209** |
+| qui ont trouvé au moins un site | **27** |
+| sites vivants trouvés | **64** |
+| taux de trouvaille (sur verdicts lisibles) | **0.129** |
 
-⚠️ **97 des 305 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **192**, et non 95.
+⚠️ **97 des 310 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **187**, et non 90.
 
 ⚠️ **101 balayages sont MUETS** : la question a été posée, la réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme zéro — un balayage dont on ignore le résultat n'est pas un balayage sans résultat. Le dénominateur du taux ci-dessus les exclut délibérément : les inclure diviserait par une population qui ne répond pas à la question, ce que ce dépôt appelle `anchor-a-number-to-its-population`.
 
@@ -45,7 +45,7 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 |---|---|
 | `automatic_guard` | 390 |
 | `classes` | 400 |
-| `ever_recurred_observed` | 28 |
+| `ever_recurred_observed` | 29 |
 | `prose_only` | 10 |
 | `with_signature` | 389 |
 
@@ -63,24 +63,24 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `scope_unknown` | 0 |
 | `scope_without_not_covered` | 0 |
 | `seen_red_never` | 0 |
-| `seen_red_unknown` | 304 |
-| `siblings_never_swept` | 95 |
+| `seen_red_unknown` | 300 |
+| `siblings_never_swept` | 90 |
 | `sites_unknown` | 101 |
 | `swept_by_rerunning_the_guard` | 97 |
 
 ## Récidive observée
 
-**33 évènements** sur 8394 classe-jours d'exposition — **0.1195** par classe-mois (IC 95 % : 0.0823 – 0.1678)
+**34 évènements** sur 8394 classe-jours d'exposition — **0.1231** par classe-mois (IC 95 % : 0.0853 – 0.1721)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 30 | 0.1109 | 0.0748 – 0.1584 | insuffisant pour conclure (n=33) |
-| by_guard · prose | 3 | 0.5272 | 0.106 – 1.5403 | insuffisant pour conclure (n=33) |
-| by_seen_red · daté | 7 | 0.1996 | 0.08 – 0.4113 | insuffisant pour conclure (n=33) |
-| by_seen_red · jamais-ou-inconnu | 26 | 0.1079 | 0.0704 – 0.158 | insuffisant pour conclure (n=33) |
-| by_scope · ne-couvre-pas renseigné | 33 | 0.1195 | 0.0823 – 0.1678 | une seule strate peuplée (n=33) |
+| by_guard · automatique | 31 | 0.1146 | 0.0779 – 0.1627 | insuffisant pour conclure (n=34) |
+| by_guard · prose | 3 | 0.5272 | 0.106 – 1.5403 | insuffisant pour conclure (n=34) |
+| by_seen_red · daté | 8 | 0.2215 | 0.0954 – 0.4365 | insuffisant pour conclure (n=34) |
+| by_seen_red · jamais-ou-inconnu | 26 | 0.1083 | 0.0707 – 0.1587 | insuffisant pour conclure (n=34) |
+| by_scope · ne-couvre-pas renseigné | 34 | 0.1231 | 0.0853 – 0.1721 | une seule strate peuplée (n=34) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
@@ -94,7 +94,7 @@ Une classe **plus jeune que l'horizon est exclue de la colonne**, jamais compté
 
 | horizon | à risque | récidivées | taux |
 |---|---|---|---|
-| 7 j | 279 | 24 | 9 % |
+| 7 j | 279 | 25 | 9 % |
 | 14 j | 185 | 21 | 11 % |
 | 30 j | 35 | 7 | 20 % |
 

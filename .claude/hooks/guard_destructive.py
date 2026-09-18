@@ -195,6 +195,59 @@ def _paths_that_would_lose_work(command: str) -> list[str]:
         return []
 
 
+# ── `git clean`, le frère que le garde du rétablissement ne voyait pas ────────
+#
+# Mesuré le 2026-09-18 en balayant la FAMILLE du geste plutôt que son verbe : sur neuf
+# façons d'écraser du travail non commité, cinq étaient bloquées et quatre passaient.
+# `git clean -fd` est celle qui appartient sans discussion à la classe — elle supprime
+# les fichiers NON SUIVIS, qui ne sont ni dans un commit, ni dans un stash, ni dans le
+# reflog. Un test qu'on vient d'écrire et pas encore ajouté est exactement cela.
+#
+# ⚠️ Le garde du rétablissement ne pouvait pas l'attraper : il ignore délibérément les
+# lignes `??` de `git status`, parce qu'un `checkout -- <fichier>` ne touche pas un
+# fichier non suivi. `clean` ne touche QUE ceux-là. Deux gestes, une cause, des
+# prédicats exactement complémentaires.
+_CLEAN_RE = re.compile(r"\bgit\s+(?:-C\s+\S+\s+)*clean\b(?P<flags>[^&|;\n]*)")
+
+
+def _untracked_that_clean_would_delete(command: str) -> list[str]:
+    """Les fichiers non suivis qu'un `git clean` de cette commande supprimerait.
+
+    Vide dès que la question ne se pose pas : pas de `clean`, pas de `-f` (git refuse
+    alors tout seul), `--dry-run`/`-n` (il ne supprime rien), rien d'non suivi.
+    Ne lève JAMAIS, pour la même raison que son voisin.
+    """
+    try:
+        for segment in re.split(r"&&|\|\||;|\n", command):
+            m = _CLEAN_RE.search(segment)
+            if not m:
+                continue
+            try:
+                head = shlex.split(segment)
+            except ValueError:
+                head = segment.split()
+            if not any(t.rsplit("/", 1)[-1] == "git" for t in head[:3]):
+                continue
+            flags = m.group("flags")
+            # `-n` peut vivre DANS un groupe de drapeaux courts : `git clean -fdn`
+            # porte `-f` et `-n`, et git répond « Would remove ». Chercher un
+            # `-n` isolé le ratait, et le garde bloquait la commande même que
+            # son message propose pour voir ce qui partirait.
+            if re.search(r"(?:^|\s)(?:-\w*n\b|--dry-run\b)", flags):
+                continue
+            if not re.search(r"(?:^|\s)-\w*f", flags):
+                continue  # sans `-f`, git refuse de lui-même
+            out = subprocess.run(["git", "status", "--porcelain"],
+                                 capture_output=True, text=True, timeout=10)
+            if out.returncode != 0:
+                continue
+            return sorted({ligne[3:].strip() for ligne in out.stdout.splitlines()
+                           if ligne.startswith("??")})
+        return []
+    except Exception:  # noqa: BLE001 — un garde qui lève bloquerait chaque commande
+        return []
+
+
 # ── Le geste qui se tue lui-même, et emporte la suite de la ligne ─────────────
 #
 # `pkill -f "<motif>"` compare le motif à la ligne de commande de CHAQUE processus —
@@ -585,6 +638,16 @@ def check_command(cmd: str) -> tuple[str, str] | None:
                 "geste sûr est `git stash && git stash drop`, ou commiter d'abord. Deux "
                 "correctifs ont été perdus par cette commande le 2026-09-10, à quelques "
                 "heures d'intervalle, sur ce même geste.")
+    perdus = _untracked_that_clean_would_delete(cmd)
+    if perdus:
+        listing = ", ".join(perdus[:6]) + (f" (+{len(perdus) - 6})" if len(perdus) > 6 else "")
+        return ("block",
+                "ce `git clean` SUPPRIMERAIT des fichiers non suivis : "
+                f"{listing}. Ils ne sont dans aucun commit, aucun stash, aucun reflog — "
+                "rien ne les rendra. Un test ou un script qu'on vient d'écrire et pas "
+                "encore `git add` est exactement dans ce cas. Si le but est de voir ce "
+                "qui partirait : `git clean -nd`. Si c'est de le garder : `git add -A` "
+                "d'abord, ou `git stash -u`.")
     # Regex tier next: it expresses the dangerous shapes the literal tier cannot.
     for pattern, message in _BLOCK_REGEX:
         if re.search(pattern, cmd, re.IGNORECASE):

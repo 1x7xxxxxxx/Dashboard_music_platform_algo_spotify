@@ -153,3 +153,83 @@ def test_the_guard_never_raises_on_a_command_it_cannot_parse() -> None:
                   f"{_RESTORE_VERB} -- /chemin/qui/n/existe/pas"):
         rc, _ = _hook(weird)
         assert rc in (0, 2), f"le hook a planté sur {weird!r} (rc={rc})"
+
+
+# ── `git clean`, le frère mesuré le 2026-09-18 ────────────────────────────────
+#
+# Balayage de la FAMILLE du geste (« écraser du travail que rien ne rendra »)
+# plutôt que de son verbe : **9 gestes sondés, 5 bloqués, 4 non**. Sur les quatre,
+# `git stash` sort de la classe — il est récupérable par `git stash list`. Restent
+# `git clean -fd`, une redirection `>` et un `cp` par-dessus un fichier sale.
+#
+# Seul `git clean` est ajouté, et le choix est un arbitrage écrit : bloquer toute
+# redirection vers un fichier suivi et modifié produirait du bruit à chaque
+# génération de document, et un garde bruyant apprend que le rouge est du bruit
+# (classe `a-noisy-signature-teaches-that-red-is-noise`). Les deux autres sont
+# déclarés dans `guard_scope` comme mesurés et NON couverts.
+#
+# ⚠️ Pourquoi le garde du rétablissement ne pouvait pas l'attraper : il ignore
+# délibérément les lignes `??` de `git status`, parce qu'un `checkout -- <f>` ne
+# touche pas un fichier non suivi. `clean` ne touche QUE ceux-là. Deux gestes, une
+# cause, des prédicats exactement complémentaires.
+
+@pytest.fixture
+def untracked_target(tmp_path_factory):
+    """Un fichier NON SUIVI dans le dépôt — ce que `git clean` supprime."""
+    cible = ROOT / "_untracked_probe_for_the_clean_guard.tmp"
+    cible.write_text("du travail que rien ne rendrait\n", encoding="utf-8")
+    try:
+        yield cible.name
+    finally:
+        cible.unlink(missing_ok=True)
+
+
+def test_clean_with_nothing_untracked_is_a_no_op_and_must_pass() -> None:
+    """Anti-bruit : sans rien à perdre, le geste passe. Sinon on le contournerait."""
+    subprocess.run(["git", "status", "--porcelain"], cwd=ROOT,
+                   capture_output=True, text=True, timeout=10)
+    rc, _ = _hook("git clean -nd")
+    assert rc == 0, "un `git clean --dry-run` ne supprime rien et ne doit jamais bloquer"
+
+
+def test_clean_that_would_delete_untracked_work_blocks(untracked_target) -> None:
+    rc, out = _hook("git clean -fd")
+    assert rc != 0, (
+        "`git clean -fd` supprimerait un fichier non suivi et n'est pas bloqué. Un "
+        "test ou un script qu'on vient d'écrire et pas encore `git add` n'est dans "
+        "aucun commit, aucun stash, aucun reflog — c'est la même perte que le "
+        "`checkout` chirurgical, par l'autre bout de `git status`.")
+    assert untracked_target in out, (
+        "le message ne NOMME pas le fichier qui serait perdu. Un garde qui dit "
+        "« dangereux » sans dire quoi est un garde qu'on contourne.")
+
+
+def test_a_forced_dry_run_still_deletes_nothing(untracked_target) -> None:
+    """`git clean -fdn` porte `-f` ET `-n` : il n'efface rien, il LISTE.
+
+    Cette assertion a été ajoutée après une mutation : retirer la branche
+    `--dry-run` du hook laissait le garde VERT, parce que toutes les formes
+    testées jusque-là (`-nd`, `--dry-run`) échouaient déjà sur l'absence de
+    `-f`. La branche existait sans être gardée — un cas de plus de
+    `guard-branch-only-reached-when-it-fails`, trouvé en mutant.
+    """
+    rc, _ = _hook("git clean -fdn")
+    assert rc == 0, (
+        "`git clean -fdn` est bloqué alors qu'il ne supprime rien : `-n` gagne "
+        "sur `-f`. Un garde qui refuse la commande servant à VOIR ce qui partirait "
+        "pousse à la contourner, et c'est celle que son propre message propose.")
+
+
+def test_clean_without_force_is_left_to_git() -> None:
+    """`git clean` sans `-f` échoue de lui-même : le doubler serait du bruit."""
+    rc, _ = _hook("git clean")
+    assert rc == 0
+
+
+def test_the_clean_guard_reads_the_command_not_the_prose(untracked_target) -> None:
+    """Écrire SUR le geste ne doit pas déclencher le garde du geste."""
+    rc, _ = _hook("echo 'git clean -fd supprime les fichiers non suivis'")
+    assert rc == 0, (
+        "documenter `git clean` déclenche son propre garde — c'est la classe "
+        "`a-bash-hook-that-blocks-the-prose-about-the-gesture`, déjà payée trois "
+        "fois le 2026-09-12.")
