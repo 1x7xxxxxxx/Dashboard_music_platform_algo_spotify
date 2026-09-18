@@ -11,13 +11,13 @@ Le compteur `siblings_never_swept` mesure l'EFFORT. Celui-ci mesure le résultat
 
 | grandeur | valeur |
 |---|---|
-| balayages faits | **326** |
-| dont le verdict est LISIBLE | **226** |
-| qui ont trouvé au moins un site | **34** |
-| sites vivants trouvés | **83** |
-| taux de trouvaille (sur verdicts lisibles) | **0.15** |
+| balayages faits | **328** |
+| dont le verdict est LISIBLE | **228** |
+| qui ont trouvé au moins un site | **35** |
+| sites vivants trouvés | **84** |
+| taux de trouvaille (sur verdicts lisibles) | **0.154** |
 
-⚠️ **97 des 326 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **171**, et non 74.
+⚠️ **97 des 328 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **169**, et non 72.
 
 ⚠️ **100 balayages sont MUETS** : la question a été posée, la réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme zéro — un balayage dont on ignore le résultat n'est pas un balayage sans résultat. Le dénominateur du taux ci-dessus les exclut délibérément : les inclure diviserait par une population qui ne répond pas à la question, ce que ce dépôt appelle `anchor-a-number-to-its-population`.
 
@@ -45,7 +45,7 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 |---|---|
 | `automatic_guard` | 390 |
 | `classes` | 400 |
-| `ever_recurred_observed` | 35 |
+| `ever_recurred_observed` | 36 |
 | `prose_only` | 10 |
 | `with_signature` | 389 |
 
@@ -63,24 +63,24 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `scope_unknown` | 0 |
 | `scope_without_not_covered` | 0 |
 | `seen_red_never` | 0 |
-| `seen_red_unknown` | 286 |
-| `siblings_never_swept` | 74 |
+| `seen_red_unknown` | 284 |
+| `siblings_never_swept` | 72 |
 | `sites_unknown` | 100 |
 | `swept_by_rerunning_the_guard` | 97 |
 
 ## Récidive observée
 
-**40 évènements** sur 8394 classe-jours d'exposition — **0.1449** par classe-mois (IC 95 % : 0.1035 – 0.1973)
+**41 évènements** sur 8394 classe-jours d'exposition — **0.1485** par classe-mois (IC 95 % : 0.1065 – 0.2014)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 36 | 0.1331 | 0.0932 – 0.1843 | **séparent** |
+| by_guard · automatique | 37 | 0.1368 | 0.0963 – 0.1886 | **séparent** |
 | by_guard · prose | 4 | 0.7029 | 0.1891 – 1.7995 | **séparent** |
-| by_seen_red · daté | 13 | 0.2809 | 0.1494 – 0.4803 | insuffisant pour conclure (n=40) |
-| by_seen_red · jamais-ou-inconnu | 27 | 0.1175 | 0.0774 – 0.1709 | insuffisant pour conclure (n=40) |
-| by_scope · ne-couvre-pas renseigné | 40 | 0.1449 | 0.1035 – 0.1973 | une seule strate peuplée (n=40) |
+| by_seen_red · daté | 14 | 0.267 | 0.1459 – 0.448 | insuffisant pour conclure (n=41) |
+| by_seen_red · jamais-ou-inconnu | 27 | 0.1207 | 0.0795 – 0.1756 | insuffisant pour conclure (n=41) |
+| by_scope · ne-couvre-pas renseigné | 41 | 0.1485 | 0.1065 – 0.2014 | une seule strate peuplée (n=41) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
@@ -94,9 +94,9 @@ Une classe **plus jeune que l'horizon est exclue de la colonne**, jamais compté
 
 | horizon | à risque | récidivées | taux |
 |---|---|---|---|
-| 7 j | 279 | 31 | 11 % |
-| 14 j | 185 | 25 | 14 % |
-| 30 j | 35 | 8 | 23 % |
+| 7 j | 279 | 32 | 11 % |
+| 14 j | 185 | 26 | 14 % |
+| 30 j | 35 | 9 | 26 % |
 
 ## Avant la fenêtre git — DÉCLARATIF
 
