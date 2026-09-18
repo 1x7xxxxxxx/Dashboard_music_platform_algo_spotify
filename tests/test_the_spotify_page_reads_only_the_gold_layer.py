@@ -233,3 +233,29 @@ def test_the_reach_view_scans_the_cohort_once():
         "la CTE `linked` n'est plus matérialisée : inlinée, elle laisse appliquer le "
         "filtre de correspondance APRÈS la jointure aux 13 794 lignes quotidiennes "
         "— 142 399 lignes produites puis jetées (mesuré par EXPLAIN ANALYZE).")
+
+
+def test_the_cohort_starts_at_the_release_and_not_before() -> None:
+    """Un jour ANTÉRIEUR à la sortie entre dans la cohorte comme un zéro mesuré.
+
+    Ajouté le 2026-09-18, et c'est la raison qui compte : la classe
+    `a-zero-that-predates-the-thing-it-measures` nommait ce fichier comme son garde,
+    et **aucune de ses assertions ne portait sur cette borne**. Toutes couvraient
+    `a-subplan-re-executed-by-a-misestimated-row-count` — même migration, même vue,
+    autre défaut. Un `guard:` qui pointe le bon FICHIER ne prouve pas que la classe
+    soit gardée ; il faut ouvrir les assertions.
+
+    Le défaut, lui, est silencieux par construction : sans la borne, chaque jour où
+    `s4a_song_timeline` porte une ligne pour un titre pas encore sorti devient un
+    « 0 écoute à J-12 ». La courbe de cohorte démarre plus bas, la pente paraît plus
+    forte, et rien n'échoue.
+    """
+    sql = (ROOT / "migrations" / "119_gold_s4a_release_cohort.sql").read_text(encoding="utf-8")
+    cohorte = sql[sql.index("CREATE OR REPLACE VIEW v_s4a_release_cohort"):]
+    cohorte = cohorte[:cohorte.index(";", cohorte.index("SELECT")) + 1] \
+        if ";" in cohorte else cohorte
+    assert re.search(r"\bday\s*>=\s*\w*\.?release_date\b", cohorte, re.I), (
+        "`v_s4a_release_cohort` ne borne plus ses jours à la date de sortie. Les "
+        "jours ANTÉRIEURS entrent alors dans la cohorte avec 0 écoute — un zéro qui "
+        "précède la chose qu'il mesure. La courbe démarre plus bas et la pente "
+        "paraît plus forte, sans qu'aucune ligne ne soit fausse prise isolément.")
