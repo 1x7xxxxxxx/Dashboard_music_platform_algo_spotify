@@ -6930,3 +6930,44 @@ muté rouge en réintroduisant l'assertion textuelle du garde `tz`.
 Classe : `guard-satisfied-by-its-own-comment` (P2, `deterministic`, `guarded`). C'est
 `guard-matches-its-own-comment` retourné — là-bas le garde rougit sur sa prose et on le
 corrige dans l'heure ; ici il verdit GRÂCE à elle et rien ne le dit jamais.
+
+---
+
+## 📐 Le récit de mesure de R114–R121 (déplacé de `checklist.md` le 2026-09-18)
+
+Déplacé **verbatim** depuis la section `## 🔖 REPRISE` de l'actif, qui pesait 11 957 o
+dont l'essentiel était l'historique de briques déjà closes. Le plafond de taille de
+`checklist.md` existe pour ça, et son message le dit : « rotate the oldest sections into
+archive.md rather than raising this number ». Rien n'est réécrit.
+
+R115 (l'instrument serveur) et R119 (réparer l'instrument client) sont livrées le
+2026-09-16 ; leur détail est dans `archive.md`. R114 est livrée et déployée (`e859ae3`),
+et **son résultat était AMBIGU** — c'est ce constat qui a ouvert R118 à R121. La
+première mesure de l'instrument serveur a tranché : c'est la VUE qui domine, pas la
+chrome, ce qui a réordonné R118 devant R120.
+
+**L'ordre était contraint** : R115 (l'instrument) puis R119 (le réparer) AVANT toute
+optimisation. **Les deux sont faites**, et la première mesure du nouvel instrument a
+immédiatement inversé la suite (voir R120). Puis **R120, R118**, R121 (les causes), puis R116 (l'ADR), puis R117 (l'outillage).
+
+⚠️ **L'ordre R118/R120 a changé DEUX FOIS le 2026-09-16, chaque fois sur une mesure**, et
+les deux mouvements comptent. R118 est d'abord passée devant R120 : la mesure serveur
+avait montré que la VUE domine la chrome (4,6× à 63×), ce qui invalidait la prémisse de
+R120. Puis R120 est repassée devant : les trois pages les plus chères — `meta_mapping`
+777 ms, `soundcloud` 515 ms, `home` 316 ms — **n'ont presque aucun filtre**, et un
+fragment ne borne que le travail refait quand un filtre bouge. R118 garde donc ce qui
+était mesurément cher (fait), et le reste attend d'apparaître dans l'histogramme.
+
+⚠️ **Mode de travail : une étape à la fois, validée avant la suivante.**
+
+⚠️ **Mode de travail convenu le 2026-09-16 : une étape à la fois, validée par le
+propriétaire avant la suivante.** Ce n'est pas une précaution de style — R114 modifie le
+reverse proxy de la production et R115 y ajoute deux conteneurs. Ne pas enchaîner deux
+étapes sans retour. L'étape 0 (robustesse) et l'étape 1 (les
+seaux d'authentification en base) sont livrées et commitées ; leur détail est plus bas.
+
+R109 (découper la CI en 4 shards) et R110 (répartir le long pôle par `--dist loadgroup`)
+sont livrées et déployées ; leur détail est dans `archive.md`.
+
+**La table « 🙋 En attente de toi » reste vide** depuis le 2026-09-10, R1 y ayant été
+rotée vers `archive.md`. Aucune tâche n'attend un geste humain.

@@ -238,6 +238,30 @@ n'est pas un échec du chantier : c'est le résultat que 0,129 ne se généralis
   balaie pas une classe sans ouvrir son garde. En faire une cible propre serait retourner à
   l'optimisation d'un champ rempli, ce que la mort du ×4,9 condamne.
 
+### Ce que le balayage a DÉJÀ trouvé — 15 sites vivants au 2026-09-18
+
+Lot 1, `le-locataire`, 4 classes → **2 sites vivants, tous deux P1, corrigés** (`e94d836`) :
+`_from_signup.py:145` écrivait une identité sans son miroir (locataire « connecté »
+partout, jamais collecté) ; `_core.py:205` portait un contrôle de forme VACUOUS dont le
+résultat atteignait un segment de chemin d'URL sortante. ⚠️ Corriger le second SEUL
+transformait un refus franc en succès silencieux qui met le miroir à NULL — quatre
+constats bloquants de `security-specialist`, détail dans le commit.
+
+Lot 2, 4 classes → **13 sites vivants, non encore corrigés** :
+
+| classe | sites |
+|---|---|
+| `per-tenant-outcome-not-recorded` | **7** — la branche « credentials illisibles » qui `continue` sans enregistreur : `soundcloud_daily.py:146-159`, `youtube_daily.py:91-103`, `meta_ads_api_daily.py:79-90` et `:94-100` ; et une liste locale que rien ne relit : `ml_scoring_daily.py:61-86`, `ml_outcome_labeling.py:60-80`, `weekly_digest.py:308-312`. ⚠️ Le garde existant confond « il y a un `.append()` » avec « une porte extérieure alerte » — faux négatif **prouvé par mutation** sur un DAG fabriqué |
+| `write-path-without-cache-invalidation` | **6** — `instagram_api_collector.py:329-339`, `soundcloud_api_collector.py:348-352`, `youtube_daily.py:171`, `spotify_api_daily.py:180` et `:470`, `_meta_upsert.py:329-333`. La purge vit côté DÉCLENCHEUR (le bouton du dashboard), jamais côté ÉCRITURE : tout autre chemin (UI Airflow, CLI, `full_history` en journée) écrit dans une table cachée sans que rien ne le sache |
+| `an-account-filter-that-names-no-single-column` | **0** — les 7 candidats inspectés un par un, garde exécuté contre une base vivante (3 tests, non skippés) |
+| `an-exemption-on-one-surface-reads-as-a-failure-on-another` | **1 à trancher** — `spotify_api_daily.py:344-378` exempte le bac à sable de la résolution d'ambiguïté, donc il ne peut structurellement recevoir aucune donnée Spotify ; `artist_readiness.py` ignore l'exemption et affichera « importe ton CSV, ou vérifie l'ID artiste » — un geste que ce locataire ne peut pas faire. Non observable en local (bac à sable vide) : la preuve vit en production sur le locataire 18 |
+
+⚠️ **Ce que ces deux lots disent du taux de 0,129** : 8 classes balayées, **15 sites**.
+C'est bien au-dessus de la prédiction, et l'explication la plus probable n'est pas que le
+dépôt soit plus cassé qu'on croyait — c'est que les classes JAMAIS balayées sont
+précisément celles dont personne n'avait regardé les frères. À redire après 30 classes,
+pas après 8.
+
   **Mesuré par** : `make error-health` — `swept_by_rerunning_the_guard` **0**,
   `sites_unknown` **3**, plafonds de `tests/test_the_error_class_health_only_improves.py`
   descendus **dans le même commit** (sinon `test_the_ceiling_is_not_slack` rougit).
@@ -435,37 +459,16 @@ colonne : **un test vert ici échouera là-bas**.
 
 **R116 a quitté l'index le 2026-09-17**, pas ce fichier : `daily_ops_metrics` ne porte qu'une ligne (`complete = FALSE`, percentiles de rendu tous `NULL`), donc la courbe qui doit trancher l'ADR-027 n'existe pas encore. Son bloc de détail — non coché, pas livré — reste **ici**, dans une nouvelle section `## ⏸️ R116` hors des deux tables d'index : `archive.md` est strictement passif (aucun item non coché n'y est admis — `test_the_archive_holds_nothing_actionable`), et R116 n'est ni livrée ni abandonnée. Son déclencheur de réouverture est la ligne `daily_ops_metrics` de `### Conditions d'attente` ci-dessous. Elle n'a donc plus de ligne dans l'index actionnable ni dans « 🙋 En attente de toi » — elle n'attend aucun geste humain, seulement du trafic — et pour cette même raison elle **sort de l'ancre**, qui ne porte que ce que les deux tables de ce fichier listent encore.
 
-R115 (l'instrument serveur) et R119 (réparer l'instrument client) sont livrées le
-2026-09-16 ; leur détail est dans `archive.md`. R114 est livrée et déployée (`e859ae3`),
-et **son résultat était AMBIGU** — c'est ce constat qui a ouvert R118 à R121. La
-première mesure de l'instrument serveur a tranché : c'est la VUE qui domine, pas la
-chrome, ce qui a réordonné R118 devant R120.
+**R109, R110, R114, R115, R118 à R121 sont livrées** ; leur récit de mesure — dont les
+deux réordonnancements de R118/R120, chacun sur une mesure — a été **déplacé verbatim
+dans `archive.md`** le 2026-09-18, sous « Le récit de mesure de R114–R121 ». Il n'est pas
+perdu : il n'appartient simplement pas à un écran qui répond « où j'en suis ».
 
-**L'ordre était contraint** : R115 (l'instrument) puis R119 (le réparer) AVANT toute
-optimisation. **Les deux sont faites**, et la première mesure du nouvel instrument a
-immédiatement inversé la suite (voir R120). Puis **R120, R118**, R121 (les causes), puis R116 (l'ADR), puis R117 (l'outillage).
-
-⚠️ **L'ordre R118/R120 a changé DEUX FOIS le 2026-09-16, chaque fois sur une mesure**, et
-les deux mouvements comptent. R118 est d'abord passée devant R120 : la mesure serveur
-avait montré que la VUE domine la chrome (4,6× à 63×), ce qui invalidait la prémisse de
-R120. Puis R120 est repassée devant : les trois pages les plus chères — `meta_mapping`
-777 ms, `soundcloud` 515 ms, `home` 316 ms — **n'ont presque aucun filtre**, et un
-fragment ne borne que le travail refait quand un filtre bouge. R118 garde donc ce qui
-était mesurément cher (fait), et le reste attend d'apparaître dans l'histogramme.
-
-⚠️ **Mode de travail : une étape à la fois, validée avant la suivante.**
-
-⚠️ **Mode de travail convenu le 2026-09-16 : une étape à la fois, validée par le
-propriétaire avant la suivante.** Ce n'est pas une précaution de style — R114 modifie le
-reverse proxy de la production et R115 y ajoute deux conteneurs. Ne pas enchaîner deux
-étapes sans retour. L'étape 0 (robustesse) et l'étape 1 (les
-seaux d'authentification en base) sont livrées et commitées ; leur détail est plus bas.
-
-R109 (découper la CI en 4 shards) et R110 (répartir le long pôle par `--dist loadgroup`)
-sont livrées et déployées ; leur détail est dans `archive.md`.
-
-**La table « 🙋 En attente de toi » reste vide** depuis le 2026-09-10, R1 y ayant été
-rotée vers `archive.md`. Aucune tâche n'attend un geste humain.
+**La table « 🙋 En attente de toi » porte UNE ligne** : R125, entrée le 2026-09-18.
+⚠️ Ce paragraphe a affirmé le contraire — « reste vide … aucune tâche n'attend un geste
+humain » — **vingt-cinq lignes après avoir décrit R125 qui y est**. La même section se
+contredisait donc elle-même, et c'est `a-prose-claim-that-cannot-be-verified` commise
+dans le fichier qui la nomme.
 
 ### Conditions d'attente — ce qui n'est PAS une tâche
 
