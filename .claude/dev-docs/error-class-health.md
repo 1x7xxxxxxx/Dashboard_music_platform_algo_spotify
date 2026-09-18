@@ -57,13 +57,14 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|
 | `cause_inferred` | 0 |
 | `cause_unknown` | 181 |
+| `guard_does_not_prove_itself` | 391 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_on_a_shared_guard_without_naming_its_tests` | 15 |
 | `scope_unknown` | 0 |
 | `scope_without_not_covered` | 0 |
 | `seen_red_never` | 0 |
-| `seen_red_unknown` | 230 |
+| `seen_red_unknown` | 221 |
 | `siblings_never_swept` | 1 |
 | `sites_unknown` | 100 |
 | `swept_by_rerunning_the_guard` | 97 |

@@ -98,6 +98,37 @@ correctif laissait vivants — dont le fichier copié tel quel en production. **
 comme un TROU, jamais comme un zéro. « Je n'ai rien trouvé » et « je n'ai pas cherché » se ressemblent dans un
 catalogue et pas du tout dans un dépôt.
 
+## Le garde porte SA PROPRE mutation — ajouté le 2026-09-18
+
+Voir une signature rouge UNE fois, à la main, dans une séance, prouve moins qu'on ne
+croit : ça prouve qu'elle mordait **ce soir-là, sur cet arbre-là**. Le geste qui vaut est
+d'écrire dans le garde un test qui **fabrique la forme interdite** et exige que le
+détecteur la voie — alors le garde se prouve à CHAQUE exécution.
+
+La forme, telle que les neuf gardes qui la portent déjà l'écrivent :
+
+```python
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuité : sur le code EXACT du défaut, le détecteur doit mordre."""
+    defect = ast.parse("<le code fautif, en clair>")
+    assert _le_detecteur(defect), "le défaut n'est pas vu"
+    correct = ast.parse("<la forme corrigée>")
+    assert not _le_detecteur(correct), "un correctif ferait rougir le garde"
+```
+
+Les DEUX moitiés comptent. Sans la seconde, corriger le défaut fait rougir son propre
+garde — ce dépôt l'a mesuré le 2026-08-03, et la seule façon de garder la CI verte était
+alors d'arrêter de documenter.
+
+**Mesuré le 2026-09-18, et c'est pour ça que cette section existe : sur les 192 gardes
+des classes alors `seen_red: unknown`, NEUF (5 %) portaient cette preuve.** Le prédicat
+qui les compte est passé par 60 → 59 → 18 → 9 en se resserrant, et chaque palier retirait
+des sites qui matchaient une FORME et non la propriété — compter la docstring comme une
+« fabrication » faisait passer dix tests de rendu pour des auto-mutations.
+
+`seen_red:` accepte donc une troisième valeur, à côté d'une date et de `never` :
+`self-proving (<fichier>::<test>)`. Elle dit plus qu'une date, pas moins.
+
 ## La seconde étape non négociable — je nomme le GESTE, pas le verbe
 
 **Avant de choisir le garde**, je nomme la famille de geste qui partage la cause, et **au

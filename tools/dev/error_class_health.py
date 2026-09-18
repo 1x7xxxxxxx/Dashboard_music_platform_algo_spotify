@@ -606,7 +606,20 @@ def build() -> tuple[str, str]:
             _shared[_c["guard_ref"]] = _shared.get(_c["guard_ref"], 0) + 1
 
     holes = {
+        # ── `self-proving` : un TROISIÈME état, mesuré le 2026-09-18 ────────────
+        # `seen_red: <date>` dit « je l'ai vue rouge UNE fois, à la main ».
+        # `seen_red: self-proving (<test>)` dit quelque chose de plus fort : le garde
+        # porte un test qui FABRIQUE la forme interdite et exige que son détecteur la
+        # voie — donc il se prouve à CHAQUE exécution, pas une fois dans une séance.
+        #
+        # Mesuré le jour de son introduction : sur les **192** gardes des classes alors
+        # `unknown`, **9 seulement (5 %)** portaient cette preuve. Le prédicat est passé
+        # par 60 → 59 → 18 → 9 en se resserrant, et chaque palier retirait des sites qui
+        # matchaient une FORME et non la propriété — la docstring comptée comme une
+        # fabrication faisait passer dix tests de rendu pour des auto-mutations.
         "seen_red_unknown": sum(1 for c in classes.values() if c["seen_red"] == "unknown"),
+        "guard_does_not_prove_itself": sum(
+            1 for c in classes.values() if c["seen_red"] != "self-proving"),
         "seen_red_never": sum(1 for c in classes.values() if c["seen_red"] == "never"),
         "cause_unknown": sum(1 for c in classes.values() if c["cause_evidence"] == "unknown"),
         "cause_inferred": sum(1 for c in classes.values() if c["cause_evidence"] == "inferred"),
