@@ -301,7 +301,20 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     balayant le code, les tests **et** la couche de configuration. Un correctif
     qui ne balaie pas laisse la classe vivante ailleurs.
 
-15. **Un défaut corrigé → `/capitalise`.** Elle renvoie l'entrée pour
+15. **Un défaut corrigé → un TEST. Une CLASSE seulement avec un billet
+    d'admission → `/capitalise`.** Depuis le 2026-09-19, une classe neuve porte
+    `- admitted:` avec un NOMBRE, jamais un jugement : `recurrence:<date1>,<date2>`
+    (daté deux fois — une fois est un accident), `sites:<N≥2>` (un balayage a trouvé au
+    moins deux sites vivants), ou `p1:<impact production nommé>`. Si aucun des trois ne
+    tient, on écrit le test et on le dit. Le catalogue a gagné **365 classes en sept
+    semaines** — ~10 par jour — et **91 % ne récidivent jamais** ; le billet en aurait
+    retenu **1 sur 8**. ⚠️ Le seuil de 2 sites n'est pas justifié par une corrélation :
+    le verdict de balayage sépare fortement (0,505 contre 0,112, IC disjoints) mais il
+    est RÉTROSPECTIF — sur 37 classes, le balayage précède la récidive 0 fois et tombe
+    le même jour 12 fois. Il tient sur un argument de décision : un défaut présent à
+    deux endroits n'est pas un cas isolé, par définition. Contrôle bloquant :
+    `python3 .claude/scripts/audit_runner.py --admission`.
+    Une fois le billet acquis, `/capitalise` écrit l'entrée. Elle renvoie l'entrée pour
     `.claude/dev-docs/error-classes.md` au schéma du fichier, dont un
     `root_cause`, un `long_term_fix` — le changement qui rend la classe
     impossible — et une `signature` shell **qu'elle a vue sortir ≠ 0 sur le

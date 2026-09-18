@@ -13,6 +13,40 @@ rex: []
 
 <!-- fields-ratchet: 0 -->
 
+<!-- admission-since: 2026-09-19 -->
+
+> **Le billet d'admission — à partir du 2026-09-19.** Une classe écrite à cette date
+> ou après porte `- admitted:` avec l'une de ces trois valeurs, et chacune est un
+> **nombre**, pas un jugement :
+>
+> | billet | ce qu'il affirme |
+> |---|---|
+> | `recurrence:<date1>,<date2>` | le défaut est **daté deux fois**. Une fois est un accident |
+> | `sites:<N>` avec **N ≥ 2** | un balayage a trouvé au moins deux sites VIVANTS |
+> | `p1:<impact production nommé>` | un dommage constaté en production |
+>
+> **Pourquoi.** Le catalogue a gagné 365 classes en sept semaines — 234 en septembre,
+> ~10 par jour — et **91 % ne récidivent jamais**. On paie 15 champs tenus à la main
+> pour un évènement qui n'arrivera pas. Étalonné rétroactivement sur les 402 classes
+> existantes, ce billet en aurait retenu **52, soit 1 sur 8** : de ~10/jour à ~1,3.
+>
+> ⚠️ **Le seuil n'est pas justifié par une corrélation, et c'est important.** Le
+> verdict de balayage sépare fortement dans les données (0,505 contre 0,112,
+> intervalles disjoints — la seule séparation nette du jeu). C'est un leurre : sur
+> les 37 classes à ≥ 1 site, le balayage précède la récidive **0 fois**, la suit
+> 2 fois, et tombe **le même jour 12 fois**. C'est la signature de « ça a récidivé,
+> j'ai balayé, j'ai écrit les deux lignes dans le même commit » — rétrospectif, donc
+> inutilisable comme prédicteur. Le seuil tient sur un argument de DÉCISION : un
+> défaut présent à deux endroits n'est pas un cas isolé, par définition.
+>
+> **Ce qu'on écrit à la place.** Un défaut corrigé produit un **test**, par défaut.
+> Une classe est l'index des GARDES, pas le journal des défauts. Un défaut sans
+> garde possible devient une ligne d'`History` sur la classe la plus proche.
+>
+> Les classes antérieures sont acquises : on ne réécrit pas l'histoire, on cesse
+> d'en produire au même rythme. Contrôle : `python3 .claude/scripts/audit_runner.py
+> --admission`.
+
 Every recurring bug is abstracted here into a **class** with a **machine-detectable
 signature**. `/sweep`, `make audit`, and `.claude/hooks/suggest_sweep.py` all
 consume `signature.cmd` literally — signature logic lives nowhere else.

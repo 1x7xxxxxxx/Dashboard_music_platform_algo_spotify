@@ -93,6 +93,11 @@ def parse_all_headers(text: str) -> list[dict]:
             "status": (status.group(1) if status else "open").lower(),
             "signature": sig_val,
             "signature_raw": raw.group(0) if raw else None,
+            "first_seen": (re.search(r"^- first_seen:\s*(20\d\d-\d\d-\d\d)", body,
+                                     flags=re.M) or [None, None])[1]
+            if re.search(r"^- first_seen:\s*(20\d\d-\d\d-\d\d)", body, flags=re.M)
+            else None,
+            "admitted": _prose_field(body, "admitted"),
             "root_cause": _prose_field(body, "root_cause"),
             "long_term_fix": _prose_field(body, "long_term_fix"),
         })
@@ -416,6 +421,99 @@ def _coverage(headers: list[dict]) -> int:
     return 0
 
 
+
+# ── LE BILLET D'ADMISSION ────────────────────────────────────────────────────
+#
+# Trois formes, et chacune est un NOMBRE, pas un jugement :
+#
+#   recurrence:<date1>,<date2>   le défaut est daté DEUX fois. Une fois est un
+#                                accident, deux fois est une classe.
+#   sites:<N>  avec N ≥ 2        un balayage a trouvé au moins deux sites VIVANTS.
+#                                Un balayage muet, ou une simple relance du garde,
+#                                n'est pas un billet.
+#   p1:<impact production>       un dommage constaté en production.
+_ADMISSION = re.compile(
+    r"^\s*(?:recurrence:20\d\d-\d\d-\d\d,\s*20\d\d-\d\d-\d\d"
+    r"|sites:(\d+)"
+    r"|p1:\S.*)\s*$")
+_ADMISSION_SINCE = re.compile(r"^<!-- admission-since: (20\d\d-\d\d-\d\d) -->$", re.M)
+
+
+def _admission_since() -> str | None:
+    m = _ADMISSION_SINCE.search(_CATALOGUE.read_text(encoding="utf-8"))
+    return m.group(1) if m else None
+
+
+def _admission_verdict(billet: str | None) -> str | None:
+    """None si le billet est valide, sinon la raison du refus."""
+    if not billet:
+        return "aucun champ `- admitted:`"
+    m = _ADMISSION.match(billet.strip())
+    if not m:
+        return (f"billet illisible : {billet.strip()[:60]!r}. Formes acceptées : "
+                "`recurrence:<date>,<date>` · `sites:<N≥2>` · `p1:<impact>`")
+    if m.group(1) is not None and int(m.group(1)) < 2:
+        return (f"`sites:{m.group(1)}` — un seul site est un cas isolé, pas une "
+                "classe. Le seuil est 2, et c'est le seul qui se tienne sans "
+                "statistique : un défaut présent à deux endroits n'est pas unique "
+                "par définition.")
+    return None
+
+
+def _admission(headers: list[dict]) -> int:
+    """Une classe NEUVE doit dire pourquoi elle mérite d'exister.
+
+    Pourquoi ce garde, et pourquoi maintenant. Le catalogue a grossi de **365
+    classes en sept semaines** — 234 pour le seul mois de septembre 2026, soit
+    ~10 par jour. Chacune coûte 15 champs tenus à la main. Et la mesure dit que
+    **91 % ne récidivent jamais** : on paie l'écriture d'une classe pour un
+    évènement qui n'arrivera pas.
+
+    Étalonné rétroactivement sur les 402 classes existantes :
+
+        récidivé au moins une fois   37  (9 %)
+        balayage à ≥ 1 site          38  (9 %)
+        balayage à ≥ 2 sites         21  (5 %)
+        ADMISES (récidive OU ≥2)     52  (13 %)
+
+    La règle aurait retenu **1 classe sur 8** — de ~10/jour à ~1,3/jour.
+
+    ⚠️ Ce seuil n'est PAS justifié par une corrélation. Le verdict de balayage
+    sépare fortement dans les données (0,505 contre 0,112, intervalles disjoints),
+    et c'est un leurre : sur les 37 classes à ≥1 site, le balayage précède la
+    récidive **0 fois**, la suit 2 fois, et tombe le MÊME JOUR 12 fois. C'est la
+    signature de « ça a récidivé, j'ai balayé, j'ai écrit les deux lignes dans le
+    même commit ». Rétrospectif, donc inutilisable comme prédicteur.
+
+    Le seuil tient sur un argument de DÉCISION : un défaut présent à deux endroits
+    n'est pas un cas isolé, par définition, sans avoir besoin d'une statistique.
+    Les classes antérieures à la bascule sont acquises — on ne réécrit pas
+    l'histoire, on arrête d'en produire au même rythme.
+    """
+    since = _admission_since()
+    if since is None:
+        print("▶ admission: aucune date de bascule posée — rien à exiger.\n"
+              "   Poser `<!-- admission-since: AAAA-MM-JJ -->` en tête du catalogue.")
+        return 0
+
+    neuves = [h for h in headers if (h.get("first_seen") or "") >= since]
+    fautives = [(h["id"], _admission_verdict(h.get("admitted")))
+                for h in neuves]
+    fautives = [(cid, why) for cid, why in fautives if why]
+
+    print(f"▶ admission: bascule au {since} — {len(neuves)} classe(s) neuve(s), "
+          f"{len(neuves) - len(fautives)} avec un billet valide")
+    if not fautives:
+        print("✅ toute classe écrite depuis la bascule justifie son existence")
+        return 0
+    for cid, why in fautives:
+        print(f"  ⊘  {cid}\n       {why}")
+    print(f"\n⊘ {len(fautives)} classe(s) neuve(s) sans billet d'admission.\n"
+          "  Un défaut corrigé produit un TEST par défaut. Il produit une CLASSE "
+          "seulement quand il est daté deux fois, présent à deux endroits, ou qu'il "
+          "a causé un dommage en production.")
+    return 2
+
 def _fields(headers: list[dict], strict: bool = False) -> int:
     """Schema completeness: does every class say WHY it happened and WHAT ends it?
 
@@ -695,6 +793,8 @@ def main() -> None:
     ap.add_argument("--static", action="store_true",
                     help="Run deterministic classes whose signature is grep-only (no pytest) — "
                          "for the IPC daily sweep (no PG / test env)")
+    ap.add_argument("--admission", action="store_true",
+                    help="Une classe NEUVE doit porter `- admitted:` (récidive/sites/p1)")
     ap.add_argument("--lint", action="store_true",
                     help="Vérifie que chaque signature s'EXÉCUTE (sh -n, pas de gabarit)")
     ap.add_argument("--coverage", action="store_true",
@@ -738,6 +838,9 @@ def main() -> None:
             sys.exit(0)
         print("❌ no classes parsed — check error-classes.md format", file=sys.stderr)
         sys.exit(2)
+
+    if args.admission:
+        sys.exit(_admission(headers))
 
     if args.lint:
         sys.exit(_lint(headers))

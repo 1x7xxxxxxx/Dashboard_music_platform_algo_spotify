@@ -8,6 +8,29 @@ rex: []
 Un défaut corrigé une fois revient. Une classe écrite avec une signature qui la
 détecte ne revient pas sans qu'on le sache.
 
+## La question AVANT toutes les autres : cette classe mérite-t-elle d'exister ?
+
+Depuis le 2026-09-19, une classe neuve porte `- admitted:` avec **un nombre**, pas un
+jugement :
+
+| billet | ce qu'il affirme |
+|---|---|
+| `recurrence:<date1>,<date2>` | le défaut est **daté deux fois**. Une fois est un accident |
+| `sites:<N>` avec **N ≥ 2** | un balayage a trouvé au moins deux sites VIVANTS |
+| `p1:<impact production nommé>` | un dommage constaté en production |
+
+**Si aucun des trois ne tient, je n'écris pas de classe.** J'écris un test, et je le
+dis. Le catalogue a gagné 365 classes en sept semaines — ~10 par jour — et **91 % ne
+récidivent jamais** : écrire 15 champs pour un évènement qui n'arrivera pas est le coût
+que ce billet supprime. Étalonné sur les 402 classes existantes, il en aurait retenu
+**1 sur 8**.
+
+Un défaut sans garde possible ne devient pas une classe non plus : il devient une ligne
+d'`History` sur la classe la plus proche. **Le catalogue est l'index des gardes, pas le
+journal des défauts.**
+
+Contrôle, bloquant en CI : `python3 .claude/scripts/audit_runner.py --admission`.
+
 ## Ce que je fais
 
 J'écris une entrée au schéma du catalogue, et je **valide sa signature par

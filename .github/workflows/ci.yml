@@ -195,6 +195,12 @@ jobs:
           #
           # `--lint` coûte 0,4 s et rougit AVANT, en nommant le champ fautif.
           uv run --frozen python .claude/scripts/audit_runner.py --lint
+          # Une classe NEUVE doit dire pourquoi elle merite d'exister : le
+          # catalogue a gagne 365 classes en sept semaines, et 91 % ne
+          # recidivent jamais. Les classes anterieures a la bascule sont
+          # acquises — on ne reecrit pas l'histoire, on cesse d'en produire
+          # au meme rythme. Etalonnage : 1 classe sur 8 aurait ete retenue.
+          uv run --frozen python .claude/scripts/audit_runner.py --admission
           uv run --frozen python .claude/scripts/audit_runner.py --static
           uv run --frozen python .claude/scripts/audit_runner.py --prose
           uv run --frozen python .claude/scripts/check_config_refs.py
