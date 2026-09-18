@@ -75,18 +75,67 @@ def _python_files() -> list[Path]:
     return sorted(set(out))
 
 
+def bare_handlers(source: str) -> list[int]:
+    """Line numbers of every `except:` with no exception class, in ONE source.
+
+    Extracted so the guard can be handed a FABRICATED source. While the sweep was
+    the only entry point, the sole way to know whether it still bit was to break a
+    real file — so nobody checked, and `test_no_bare_except_anywhere` would have
+    stayed green on a detector that found nothing.
+    """
+    tree = ast.parse(source)
+    return sorted(n.lineno for n in ast.walk(tree)
+                  if isinstance(n, ast.ExceptHandler) and n.type is None)
+
+
 def bare_except_sites() -> list[str]:
     """`path:line` for every `except:` with no exception class, repo-wide."""
     found = []
     for path in _python_files():
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            lignes = bare_handlers(path.read_text(encoding="utf-8"))
         except (SyntaxError, UnicodeDecodeError):
             continue  # not ours to parse; other guards cover syntax
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ExceptHandler) and node.type is None:
-                found.append(f"{path.relative_to(REPO).as_posix()}:{node.lineno}")
+        found += [f"{path.relative_to(REPO).as_posix()}:{n}" for n in lignes]
     return sorted(found)
+
+
+def test_the_detector_sees_the_bare_except_it_is_written_for():
+    """Non-vacuity: the forbidden shape is fabricated here, and must be caught.
+
+    `test_this_guard_reads_the_ast_and_not_the_text` below asserts the detector's
+    SHAPE — that it mentions `ast.ExceptHandler`. A detector can mention it and
+    still return nothing (walk the wrong tree, filter on the wrong attribute), and
+    this repo has measured that exact blindness. Shape is not behaviour.
+
+    The second half matters just as much: the CORRECTED form, and the comments that
+    document the class, must stay silent. `src/transformers/s4a_csv_parser.py`
+    carries the literal `except:` inside a comment on purpose.
+    """
+    defect = (
+        "def parse(path):\n"
+        "    try:\n"
+        "        return read(path)\n"
+        "    except:\n"
+        "        return {'type': None, 'data': []}\n"
+    )
+    assert bare_handlers(defect) == [4], (
+        f"the detector returns {bare_handlers(defect)} on a bare `except:` written "
+        "in plain sight. It guards nothing, and the repo-wide sweep is green by "
+        "blindness — exactly how `collector-silent-success` was produced.")
+
+    corrected = (
+        "# A bare `except:` here used to return {'type': None, 'data': []}.\n"
+        "def parse(path):\n"
+        "    try:\n"
+        "        return read(path)\n"
+        "    except (OSError, UnicodeDecodeError) as e:\n"
+        "        raise ParseError(path) from e\n"
+    )
+    assert bare_handlers(corrected) == [], (
+        "the detector fires on the corrected form or on the comment that documents "
+        "the defect. Documenting the class would turn the CI red, and the cheapest "
+        "way out would be to delete the documentation.")
 
 
 def test_no_bare_except_anywhere():
@@ -108,14 +157,22 @@ def test_this_guard_reads_the_ast_and_not_the_text():
     string a grep would look for, inside comments that exist to explain the defect. A
     textual version of this guard would be red on correct code — and the usual next
     step is to weaken the documentation to quiet the test.
+
+    This is a SHAPE assertion, and it is no longer the proof: a detector can name
+    `ast.ExceptHandler` and still return nothing.
+    `test_the_detector_sees_the_bare_except_it_is_written_for` is what proves the
+    behaviour; this one only pins WHY the AST was chosen over a grep. Measured
+    2026-09-18: retargeting the detector to a helper made this test red while the
+    behaviour was intact — a shape assertion breaks on refactors and stays green on
+    blindness, which is the wrong way round.
     """
     src = Path(__file__).read_text(encoding="utf-8")
     tree = ast.parse(src)
     fn = next(n for n in ast.walk(tree)
-              if isinstance(n, ast.FunctionDef) and n.name == "bare_except_sites")
+              if isinstance(n, ast.FunctionDef) and n.name == "bare_handlers")
     names = {n.attr for n in ast.walk(fn) if isinstance(n, ast.Attribute)}
     assert "ExceptHandler" in names, (
-        "bare_except_sites no longer inspects ast.ExceptHandler. Any string-matching "
+        "bare_handlers no longer inspects ast.ExceptHandler. Any string-matching "
         "replacement fires on the two comments in src/transformers/ that document "
         "this very class."
     )

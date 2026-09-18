@@ -57,14 +57,14 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|
 | `cause_inferred` | 0 |
 | `cause_unknown` | 140 |
-| `guard_does_not_prove_itself` | 378 |
+| `guard_does_not_prove_itself` | 373 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_on_a_shared_guard_without_naming_its_tests` | 15 |
 | `scope_unknown` | 0 |
 | `scope_without_not_covered` | 0 |
 | `seen_red_never` | 0 |
-| `seen_red_unknown` | 169 |
+| `seen_red_unknown` | 165 |
 | `siblings_never_swept` | 1 |
 | `sites_unknown` | 100 |
 | `swept_by_rerunning_the_guard` | 97 |
@@ -79,7 +79,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|---|---|---|
 | by_guard · automatique | 39 | 0.1442 | 0.1025 – 0.1972 | insuffisant pour conclure (n=43) |
 | by_guard · prose | 4 | 0.7029 | 0.1891 – 1.7995 | insuffisant pour conclure (n=43) |
-| by_seen_red · daté | 21 | 0.1839 | 0.1138 – 0.2811 | insuffisant pour conclure (n=43) |
+| by_seen_red · daté | 21 | 0.1839 | 0.1138 – 0.2812 | insuffisant pour conclure (n=43) |
 | by_seen_red · jamais-ou-inconnu | 22 | 0.1359 | 0.0851 – 0.2057 | insuffisant pour conclure (n=43) |
 | by_scope · ne-couvre-pas renseigné | 43 | 0.1557 | 0.1127 – 0.2098 | une seule strate peuplée (n=43) |
 

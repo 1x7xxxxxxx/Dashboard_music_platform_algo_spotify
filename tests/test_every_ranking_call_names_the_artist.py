@@ -36,10 +36,15 @@ _RANKERS = {"rank_track_candidates", "rank_campaign_candidates"}
 
 
 @functools.lru_cache(maxsize=1)
-def _call_sites() -> list[tuple[str, int, str, ast.Call]]:
-    """(fichier, ligne, nom appelé, nœud) pour chaque appel aux moteurs, sous src/."""
+def _call_sites(racine: pathlib.Path | None = None) -> list[tuple[str, int, str, ast.Call]]:
+    """(fichier, ligne, nom appelé, nœud) pour chaque appel aux moteurs, sous src/.
+
+    Racine paramétrable pour que le garde puisse se soumettre un module FABRIQUÉ.
+    Le plancher de population ci-dessous attrape un détecteur totalement aveugle ;
+    il ne dit rien d'un détecteur qui trouve les appels connus et rate le prochain.
+    """
     found = []
-    for path in sorted(_SRC.rglob("*.py")):
+    for path in sorted((racine or _SRC).rglob("*.py")):
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
         except SyntaxError:  # pragma: no cover — le hook ruff l'attrape avant
@@ -58,6 +63,32 @@ def test_the_rankers_are_actually_called_somewhere():
         f"seulement {len(sites)} appel(s) aux moteurs de rapprochement sous src/ — "
         "soit ils ont été renommés, soit ce garde regarde au mauvais endroit."
     )
+
+
+def test_the_detector_sees_the_call_it_is_written_for(tmp_path: pathlib.Path):
+    """Non-vacuité : sur un appel FABRIQUÉ à un moteur, le détecteur doit mordre.
+
+    Et la seconde moitié : la PROSE qui nomme le moteur ne doit pas compter. Ce
+    dépôt a mesuré sept fois qu'un détecteur vert sur son propre commentaire mène
+    à retirer le commentaire plutôt qu'à corriger le détecteur.
+    """
+    moteur = sorted(_RANKERS)[0]
+    faux = tmp_path / "src"
+    faux.mkdir()
+    (faux / "une_vue.py").write_text(
+        f"# On appelle {moteur} sans bruit ici, disait le commentaire.\n"
+        f'DOC = "{moteur}(rows)"\n'
+        f"def show():\n"
+        f"    return {moteur}(rows)\n",
+        encoding="utf-8",
+    )
+    vus = _call_sites(faux)
+    assert [(ln, fn) for _p, ln, fn, _n in vus] == [(4, moteur)], (
+        f"le détecteur rend {[(ln, fn) for _p, ln, fn, _n in vus]} : soit il ne voit "
+        f"pas un appel à `{moteur}` écrit noir sur blanc — et un appel ajouté demain "
+        "partirait sans `noise_tokens`, donc rapprocherait les titres d'un autre "
+        "artiste — soit il compte le commentaire et la chaîne, et documenter la "
+        "classe ferait rougir la CI.")
 
 
 @pytest.mark.parametrize(

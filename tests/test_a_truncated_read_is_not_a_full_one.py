@@ -154,10 +154,16 @@ _KNOWN_FLAGS = {
 }
 
 
-def _capped_readers() -> list[tuple[str, str]]:
-    """(fichier, fonction) de chaque lecture bornée par un plafond de PAGES."""
+def _capped_readers(racine: Path | None = None) -> list[tuple[str, str]]:
+    """(fichier, fonction) de chaque lecture bornée par un plafond de PAGES.
+
+    La racine est un PARAMÈTRE pour que le garde puisse se soumettre un collecteur
+    fabriqué. Sans elle, la seule preuve de non-vacuité disponible était le plancher
+    de population (`>= 2`) — qui attrape un détecteur totalement aveugle, mais pas un
+    détecteur qui trouve la population et rate la FORME.
+    """
     out = []
-    for path in sorted(_COLLECTORS.rglob("*.py")):
+    for path in sorted((racine or _COLLECTORS).rglob("*.py")):
         if "__pycache__" in path.parts:
             continue
         src = path.read_text(encoding="utf-8")
@@ -184,6 +190,32 @@ def test_the_population_of_capped_readers_is_not_empty() -> None:
         "`src/collectors/` — il y en avait 2 le 2026-09-17. Soit la convention "
         "`max_pages` a changé de nom, soit le lecteur AST est cassé ; dans les deux "
         "cas le test d'à côté ne garde plus rien.")
+
+
+def test_the_detector_sees_the_cap_it_is_written_for(tmp_path: Path) -> None:
+    """Non-vacuité : sur un collecteur FABRIQUÉ, le détecteur doit nommer la fonction.
+
+    Le plancher de population ci-dessus rougit sur un détecteur totalement aveugle.
+    Il ne dit rien d'un détecteur qui trouverait les deux lecteurs connus et raterait
+    le TROISIÈME — celui qu'on ajoutera. C'est cette moitié-là qu'on fabrique.
+    """
+    faux = tmp_path / "collectors"
+    faux.mkdir()
+    (faux / "fake_api_collector.py").write_text(
+        "class FakeCollector:\n"
+        "    def fetch_all(self, max_pages=10):\n"
+        "        return []\n"
+        "\n"
+        "    def fetch_one(self):\n"
+        "        return []\n",
+        encoding="utf-8",
+    )
+    vus = _capped_readers(faux)
+    assert vus == [("fake_api_collector.py", "fetch_all")], (
+        f"le détecteur rend {vus} : il ne reconnaît pas un plafond `max_pages` écrit "
+        "noir sur blanc, ou il accuse la fonction voisine qui n'en porte pas. Dans "
+        "les deux cas, un lecteur borné ajouté demain passerait sans drapeau de "
+        "troncature, et son DAG enregistrerait une lecture partielle comme complète.")
 
 
 def test_every_capped_reader_carries_its_truncation() -> None:

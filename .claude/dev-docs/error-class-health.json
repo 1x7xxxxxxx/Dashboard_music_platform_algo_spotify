@@ -2862,10 +2862,11 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-17"
+        "2026-09-17",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-17",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -3406,10 +3407,11 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-10"
+        "2026-09-10",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 1,
@@ -4606,10 +4608,11 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-03"
+        "2026-09-03",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -5455,10 +5458,11 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-06"
+        "2026-09-06",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -7829,10 +7833,11 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-06"
+        "2026-09-06",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "self-proving",
       "severity": "P3",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -10908,14 +10913,14 @@
     "holes": {
       "cause_inferred": 0,
       "cause_unknown": 140,
-      "guard_does_not_prove_itself": 378,
+      "guard_does_not_prove_itself": 373,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
       "scope_on_a_shared_guard_without_naming_its_tests": 15,
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 169,
+      "seen_red_unknown": 165,
       "siblings_never_swept": 1,
       "sites_unknown": 100,
       "swept_by_rerunning_the_guard": 97
@@ -10963,16 +10968,16 @@
       "by_seen_red": {
         "daté": {
           "events": 21,
-          "class_days": 3472,
+          "class_days": 3471,
           "per_class_month": 0.1839,
           "ci95": [
             0.1138,
-            0.2811
+            0.2812
           ]
         },
         "jamais-ou-inconnu": {
           "events": 22,
-          "class_days": 4922,
+          "class_days": 4923,
           "per_class_month": 0.1359,
           "ci95": [
             0.0851,

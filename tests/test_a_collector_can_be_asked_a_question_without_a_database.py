@@ -82,6 +82,55 @@ def test_the_sweep_finds_the_collectors_it_is_about():
         f"{[t[1] for t in targets]}. Le balayage ne voit plus ce qu'il garde.")
 
 
+def test_the_detector_sees_the_collector_it_is_written_for(tmp_path: Path):
+    """Non-vacuité : sur un collecteur FABRIQUÉ, le détecteur doit le nommer.
+
+    Le plancher de population ci-dessus (`>= 3`) rougit si le détecteur devient
+    totalement aveugle. Il ne dit rien du cas qui compte pour l'avenir : un
+    collecteur NEUF, écrit demain, qui ouvre sa base d'une façon que le détecteur ne
+    reconnaît pas. Il passerait sans `db=`, et ses gardes tomberaient faute de
+    Postgres au lieu de tomber pour leur propre raison — c'est-à-dire qu'ils
+    seraient skippés, donc verts.
+
+    Les deux indirections connues sont fabriquées ici : la construction directe et
+    la délégation à `_default_db()`.
+    """
+    direct = tmp_path / "direct.py"
+    direct.write_text(
+        "class DirectCollector:\n"
+        "    def __init__(self, token):\n"
+        "        self.db = PostgresHandler.from_env_or_config()\n",
+        encoding="utf-8",
+    )
+    assert [n for n, _i in _classes_opening_a_db(direct)] == ["DirectCollector"], (
+        "le détecteur ne voit pas `PostgresHandler.from_env_or_config()` dans un "
+        "`__init__` : un collecteur neuf échapperait à toute la famille.")
+
+    indirect = tmp_path / "indirect.py"
+    indirect.write_text(
+        "class IndirectCollector:\n"
+        "    def __init__(self, token):\n"
+        "        self.db = _default_db()\n",
+        encoding="utf-8",
+    )
+    assert [n for n, _i in _classes_opening_a_db(indirect)] == ["IndirectCollector"], (
+        "l'indirection `_default_db()` échappe au détecteur — c'est exactement la "
+        "forme de `MetaAdsCollector`, donc la classe serait vivante sur un site réel.")
+
+    pur = tmp_path / "pur.py"
+    pur.write_text(
+        '"""Ce collecteur n\'appelle PAS from_env_or_config ni _default_db."""\n'
+        "class PureCollector:\n"
+        "    def __init__(self, token, db=None):\n"
+        "        self.db = db\n",
+        encoding="utf-8",
+    )
+    assert _classes_opening_a_db(pur) == [], (
+        "le détecteur accuse un collecteur qui reçoit déjà sa base — la forme "
+        "CORRIGÉE. Corriger deviendrait impossible sans désarmer le garde, et sa "
+        "docstring suffirait à le faire rougir.")
+
+
 @pytest.mark.parametrize("module,cls", [(m, c) for m, c, _ in _all_targets()])
 def test_every_collector_that_opens_a_database_lets_one_be_passed(module, cls):
     """`db=` dans la signature — la question pure doit pouvoir être posée."""

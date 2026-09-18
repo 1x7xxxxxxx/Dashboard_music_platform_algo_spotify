@@ -758,7 +758,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: SoundCloud et YouTube préfixent le nom de l'artiste au titre (« 1x7xxxxxxx - Kimono À Semelle De Fer »). Depuis que l'inclusion est pondérée par la COUVERTURE — elle rendait un 0,90 plat quel que soit le bruit, donc au-dessus du seuil de 0,80 — ce nom compte comme un mot du titre s'il n'est pas déclaré en `noise_tokens`. Mesuré le 2026-09-06 en écrivant le correctif : sans `noise_tokens`, la couverture tombe à **5/6 et le score à 0,75**, sous le seuil. Le moteur est délibérément moins sûr sans le contexte ; la production doit donc toujours le donner.
 - cause_evidence: measured (score 0,90 → 0,75 sans `noise_tokens`, couverture 6/6 → 5/6 — 2026-09-06)
 - signature: `python3 -m pytest tests/test_every_ranking_call_names_the_artist.py -q`
-- seen_red: 2026-09-17 sur `src/dashboard/views/meta_mapping/_tracks.py:88` (`noise_tokens=noise` retiré de l'appel de production) → exit 1 ; 0 après remise en état
+- seen_red: self-proving (tests/test_every_ranking_call_names_the_artist.py::test_the_detector_sees_the_call_it_is_written_for)
 - long_term_fix: le garde balaie `src/` à l'AST et exige que **tout appel de production** aux deux moteurs (`rank_track_candidates`, `rank_campaign_candidates`) nomme l'artiste. C'est la contrepartie exacte d'un contrat posé ailleurs — `test_title_similarity_containment_artist_prefix` fige que la fonction est moins sûre sans le nom ; ce garde-ci rend le « toujours » vérifiable.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_ranking_call_names_the_artist.py }
@@ -768,6 +768,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-06
 - History:
   - 2026-09-17: classe écrite depuis la docstring de son garde. Le chiffre qui la justifie — 0,90 → 0,75, sous le seuil — n'était écrit que là.
+  - 2026-09-18: `_call_sites` prend sa racine en paramètre et reçoit un module fabriqué où le moteur est appelé UNE fois, et NOMMÉ deux fois de plus — dans un commentaire et dans une chaîne. Les deux moitiés : voir l'appel, ignorer la prose. C'est la moitié qui protège l'AVENIR (un site d'appel ajouté demain), là où le paramétré ne protège que les sites du jour.
 
 ## an-optimisation-that-degrades-what-worked
 - status: guarded
@@ -4361,7 +4362,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: 4 sites vivants au 2026-09-03 : `scripts/manage_mapping.py:76,92,131` — un outil d'exploitation interactif qui écrit la table de mapping Meta, où avaler `Ctrl-C` signifie qu'on ne peut pas abandonner une invite — et `airflow/debug_dag/debug_s4a.py:70`, qui journalisait « Impossible de créer le dossier » **sans jamais dire pourquoi**. Ce n'est pas une question de style ici : c'est le mécanisme qui a produit la classe phare du dépôt. Deux commentaires le disent encore, dans l'arbre : `src/transformers/s4a_csv_parser.py:184` (« le `except:` nu ci-dessous renvoyait `{'type': None}` ») et `src/transformers/csv_dialect.py:20` (« the S4A path answered `{'type': None, 'data': []}` out of a bare `except:` »). Autrement dit `collector-silent-success` — une famille entière de gardes, une règle transverse (#6) et un auditeur AST dédié — **a été produite par un `except:` nu**, corrigé deux fois au site d'appel et jamais enregistré comme classe.
 - cause_evidence: read (scripts/manage_mapping.py, rétro-portage mécanique 2026-09-16)
 - signature: `.venv/bin/python -m pytest tests/test_no_except_swallows_the_interrupt.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_no_except_swallows_the_interrupt.py::test_the_detector_sees_the_bare_except_it_is_written_for)
 - long_term_fix: chaque site nomme sa classe d'exception (`(ValueError, IndexError)` pour un `int(input())`, `OSError` pour une création de dossier, avec la raison journalisée). Le garde lit `ast.ExceptHandler.type is None` : les deux commentaires ci-dessus contiennent la chaîne exacte qu'un `grep` chercherait, donc un garde textuel serait rouge sur du code correct — et le réflexe suivant serait d'affaiblir la documentation pour faire taire le test. Portée déclarée en positif (`_ROOTS`), archives exclues **par nom** et l'exclusion prouvée honnête par `test_the_archives_are_really_dead`, qui vérifie en AST qu'aucun module vivant ne les importe.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_no_except_swallows_the_interrupt.py }
@@ -4372,6 +4373,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-03: vu rouge par mutation — un `except:` nu réintroduit dans `manage_mapping.py`, le garde tombe.
   - 2026-09-03: **le contrôle d'archives mortes était textuel au premier jet** et matchait la prose `archive.md` dans des commentaires ordinaires. Deuxième fois dans le MÊME fichier, celui qui explique pourquoi il faut lire l'AST. Réécrit sur `ast.Import`/`ast.ImportFrom`.
+  - 2026-09-18: le prédicat a été EXTRAIT en `bare_handlers(source)` pour être appelable, puis nourri d'un `except:` fabriqué (il doit le voir, ligne 4) et de la forme corrigée AVEC le commentaire qui documente la classe (il doit se taire). Mutation vérifiée : `n.type is None` → `is not None and False` ⇒ seul le nouveau test rougit. ⚠️ Et la mesure du jour : `test_this_guard_reads_the_ast_and_not_the_text`, qui affirme la FORME du détecteur (« il nomme ast.ExceptHandler »), est devenu rouge sur un simple renommage alors que le comportement était intact, et serait resté VERT sur le détecteur aveugli. Une assertion de forme casse sur les refactors et tient sur la cécité — exactement l'inverse de ce qu'on veut.
 
 ## retry-blind-to-the-exception-its-client-raises
 - status: guarded
@@ -4866,7 +4868,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `tests/test_instagram_collects_without_business_manager.py:93` interroge une branche **pure** de `InstagramCollector._discover` (pas de pseudo ⇒ on lève avec le geste). Mais `src/collectors/instagram_api_collector.py:87` ouvre une connexion Postgres dans le constructeur (`self.db = PostgresHandler.from_env_or_config()`), qu'aucune de ces assertions n'utilise. Or `.github/workflows/ci.yml` exécute les signatures de classes à l'étape 10, **avant** `Provision Postgres` (étape 12) et sans le `DATABASE_URL` qui n'est posé que sur `Run tests`. Le garde échouait donc là sur l'absence de base, et remontait au rapport sous l'étiquette `guard-asserts-presence-not-reachability` — une classe qui n'avait rien à voir.
 - cause_evidence: read (tests/test_instagram_collects_without_business_manager.py, rétro-portage mécanique 2026-09-16)
 - signature: `DATABASE_URL=postgresql://127.0.0.1:9/spotify_etl python3 -m pytest tests/test_instagram_collects_without_business_manager.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_a_collector_can_be_asked_a_question_without_a_database.py::test_the_detector_sees_the_collector_it_is_written_for)
 - long_term_fix: **le constructeur accepte `db=`**, comme `MetaAdsCollector` depuis toujours — le motif était dans le dépôt, deux collecteurs sur trois ne l'avaient jamais adopté. Le premier correctif débranchait `PostgresHandler.from_env_or_config` par monkeypatch : ça marchait, et ça laissait vivre le vrai problème — le collecteur n'offrait aucun moyen de dire « je n'ai rien à écrire ». **Injection et non connexion PARESSEUSE** : la seconde déplacerait l'échec d'une base injoignable APRÈS les appels d'API, donc après avoir dépensé du quota pour des lignes qu'on ne pourra pas écrire ; `db=None` reste le chemin de production et garde l'échec immédiat. Le garde `tests/test_a_collector_can_be_asked_a_question_without_a_database.py` balaie `src/collectors/` en AST, exige `db=` sur tout `__init__` qui ouvre une connexion, exige que le paramètre soit RÉELLEMENT posé sur `self.db` (un paramètre accepté puis jeté ment à son appelant), et vérifie que le défaut reste `None`. La signature porte un `DATABASE_URL` mort — port 9, **sans identifiants** : un DSN d'essai portant `user:password` fait mordre `detect-secrets` à chaque commit, et une classe qui oblige à poser un `pragma: allowlist secret` apprend à en poser ailleurs.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_collector_can_be_asked_a_question_without_a_database.py }
@@ -4877,6 +4879,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-06: vu rouge en rétablissant la construction directe avec un `DATABASE_URL` pointant un port mort, vert après.
   - 2026-09-06 (soir): j'avais écrit « la cause n'est PAS que le constructeur ouvre une base — c'est un choix de conception qu'on ne change pas dans une séance de CI rouge ». C'était juste comme priorité et faux comme diagnostic : le motif d'injection existait DÉJÀ dans `meta_ads_api_collector.py:114`, donc l'adopter n'inventait rien et ne décidait rien. Reporter une correction parce qu'elle *ressemble* à un choix de conception, sans vérifier si le dépôt l'a déjà tranchée, coûte un aller-retour. Trois mutations rouges : paramètre retiré, paramètre accepté puis ignoré, défaut autre que `None`.
+  - 2026-09-18: trois collecteurs fabriqués — construction directe, délégation `_default_db()`, et la forme CORRIGÉE qui reçoit `db=`. Mutation vérifiée sur la branche d'indirection. ⚠️ Et une leçon de méthode : la première mutation a été appliquée par `sed` sur un motif qui n'existait à AUCUNE ligne (l'expression tenait sur une seule ligne, pas deux) — la suite est restée verte et j'ai failli conclure que le garde était vacant. Une mutation qui ne modifie rien rend un vert indiscernable d'un vert mérité : vérifier que la ligne a CHANGÉ.
 
 ## red-gate-hides-every-step-behind-it
 - status: guarded
@@ -5441,7 +5444,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `title_similarity` rendait `CONTAINMENT_SCORE` (0,90) dès qu'un jeu de jetons était inclus dans l'autre, SANS regarder ce qui restait. Mesuré le 2026-09-06 : « Mix » ⊆ « house music mix 3 back to old school » valait 0,90, « Feet » ⊆ « 1x7xxxxxxx feet first free download » aussi, et « Kimono à semelle de fer » ⊆ « Kimono à semelle de fer II » également. Inoffensif tant que les titres sont longs et distinctifs ; un artiste dont un morceau s'appelle « Solo » ou « Nuit » verrait un mix DJ auto-associé.
 - cause_evidence: read (src/utils/track_mapping_suggest.py::title_similarity, lu le 2026-09-18) — ancré sur le SYMBOLE, jamais sur un numéro de ligne : deux ancres du catalogue avaient déjà dérivé parce qu'un fichier avait bougé. La cause décrit bien ce site : title_similarity,CONTAINMENT_SCORE y cohabitent.
 - signature: `python3 -m pytest tests/test_track_mapping_suggest.py tests/test_every_ranking_call_names_the_artist.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_track_mapping_suggest.py::test_containment_is_weighted_by_what_it_leaves_out)
 - long_term_fix: le score devient `0,9 × couverture`, la couverture étant la part des jetons de CONTENU du plus long expliqués par le plus court, une fois retirés le bruit connu (`free download`, `feat`, `official`…) et le NOM DE L'ARTISTE. SoundCloud et YouTube le préfixent au titre, donc sans lui la couverture chute et un vrai rapprochement passe sous le seuil : la fonction est délibérément moins sûre quand on ne le lui donne pas, et `test_every_ranking_call_names_the_artist.py` vérifie que chaque site d'appel de production le donne. Effet mesuré : les dix titres SoundCloud passent de 0,90 à 1,00, et les faux positifs à 0,13.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_every_ranking_call_names_the_artist.py }
@@ -5451,6 +5454,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-06
 - History:
   - 2026-09-06: `_DASH_SUFFIX_MAX_WORDS` est resté VERT sous mutation — le porter de 3 à 99 ne cassait rien, parce qu'aucun test n'exerçait un suffixe long se terminant par un mot du vocabulaire. Un réglage qu'aucun test n'atteint est un réglage qu'on changera par erreur. Cas ajouté (« - Nous irons tous au paradis en live »), mutation revue rouge.
+  - 2026-09-18: le garde ne lit pas du code, il fabrique l'ENTRÉE du défaut — « HOUSE MUSIC MIX #3 BACK TO OLD SCHOOL » contre « Mix » — et exige un score sous le seuil. Défaut remis en place (`CONTAINMENT_SCORE * coverage` → `CONTAINMENT_SCORE`, src/utils/track_mapping_suggest.py:96) ⇒ 2 rouges ; retiré ⇒ vert. C'est la forme la plus forte de la preuve : la donnée du défaut vit dans le test, donc elle ne peut pas se périmer avec l'arbre.
 
 ## nan-written-as-a-value
 - status: guarded
@@ -6094,7 +6098,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `fetch_media` plafonne à 10 pages ; au-delà, les publications les plus anciennes ne sont pas relues, et le seul signal était un `logger.warning` dans le journal d'un conteneur. Ce plafond n'est pas une erreur — c'est une lecture bornée, et le collecteur a raison de ne pas lever — mais son résultat est un fait sur les DONNÉES, et un fait sur les données ne se dit pas dans un log.
 - cause_evidence: read (src/collectors/instagram_api_collector.py::fetch_media, lu le 2026-09-18) — ancré sur le SYMBOLE, jamais sur un numéro de ligne : deux ancres du catalogue avaient déjà dérivé parce qu'un fichier avait bougé. La cause décrit bien ce site : fetch_media,logger.warning y cohabitent.
 - signature: `python3 -m pytest tests/test_a_truncated_read_is_not_a_full_one.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_a_truncated_read_is_not_a_full_one.py::test_the_detector_sees_the_cap_it_is_written_for)
 - long_term_fix: le collecteur porte la troncature sur l'objet (remise à faux à chaque appel, sinon un locataire tronqué marque tous les suivants du même processus), et le DAG l'enregistre `partial` — le statut que la tâche d'alerte remonte déjà. Règle générale : entre `success` et `failed` il existe un troisième cas, « ça a marché mais pas en entier », et l'écrire `success` rend l'incomplet indiscernable du complet sur toutes les surfaces qui lisent le journal.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_truncated_read_is_not_a_full_one.py }
@@ -6108,6 +6112,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-10
 - History:
   - 2026-09-10: trouvée en VÉRIFIANT une prémisse de roadmap, pas en la suivant. La tâche affirmait que trois collecteurs « relisent tout chaque nuit sans repère de progression » et qu'un repère les accélérerait : c'est FAUX et l'appliquer aurait été une régression — ces API rendent des compteurs CUMULÉS par entité, et relire chaque entité chaque nuit est la mesure elle-même. Le vrai défaut du voisinage était l'inverse : non pas trop lire, mais lire trop peu en silence.
+  - 2026-09-18: `_capped_readers` prend désormais sa racine en PARAMÈTRE et reçoit un collecteur fabriqué portant `max_pages` sur une fonction et pas sur sa voisine. Ce que ça ajoute au plancher de population qui existait déjà : le plancher attrape un détecteur TOTALEMENT aveugle, pas un détecteur qui trouve les deux lecteurs connus et raterait le troisième. Mutation vérifiée (`fn.name != "fetch_all"`) : le plancher reste VERT, le nouveau rougit.
 
 ## a-date-that-does-not-say-which-clock-produced-it
 - status: guarded
