@@ -922,7 +922,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: `get_artist_id() or 1` coerces an unhydrated session onto artist 1 → cross-tenant data leak (CLAUDE.md rule #7).
 - signature: `python3 -m pytest tests/test_a_tenant_scoped_action_names_its_tenant.py::test_a_missing_tenant_never_falls_back_to_a_hardcoded_one -q`
-- seen_red: 2026-09-18 — en ajoutant `artist_id = get_artist_id() or 1` dans la `show()` de `views/useful_links.py`, `tests/test_a_tenant_scoped_action_names_its_tenant.py` part au rouge ; retiré, il passe.
+- seen_red: self-proving (tests/test_a_tenant_scoped_action_names_its_tenant.py::test_the_detectors_see_the_two_defects_they_are_written_for)
 - root_cause: `get_artist_id()` returns None for two unrelated states (admin, and no tenant), and `or 1` was the shortest way to make a view render during development.
 - cause_evidence: read (src/dashboard/auth.py:771::get_artist_id, lu le 2026-09-18) — le corps est `return st.session_state.get('artist_id')`, et un `.get()` rend `None` pour une clé ABSENTE (aucune session, aucun locataire) **comme** pour une clé POSÉE à `None` (l'admin, qui voit tout). Les deux états sont indistinguables au retour — vérifié : `{}.get('artist_id')` et `{'artist_id': None}.get('artist_id')` rendent la même chose — et `or 1` les confondait tous les deux avec l'artiste 1.
 - long_term_fix: `view_session()` and `tenant_scope()` (R25) encapsulate the guard, so a view cannot express the fallback without going out of its way.
@@ -939,6 +939,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-06-13: **now CI-BLOCKING** — `audit_runner.py --deterministic` runs every `kind: deterministic` signature as a blocking ci.yml step (0 real hits today). status open→guarded; this P1 leak pattern can no longer merge.
   - 2026-08-23: gardée pour la première fois, dans le cadre de R40. La classe était cataloguée P1 depuis des mois avec `status: open` et `guard: none` — le catalogue la connaissait, rien ne la surveillait. Le garde lit l'AST : un `BoolOp(Or)` dont la première valeur est `get_artist_id()` / `tenant_scope()` et une autre une constante. Vu rouge par mutation sur `get_artist_id() or 1` et `tenant_scope() or 'admin'`, vert sur le dépôt réel.
   - 2026-09-04 (garde): dérive `signature:` / `guard:`. Le garde réel avait migré vers un test AST ; la ligne `signature:`, celle qu'exécute `audit_runner`, était restée l'ancien `grep`. Les deux pointent désormais le même test.
+  - 2026-09-18: le prédicat a été extrait en `_hardcoded_fallbacks(tree)` et reçoit `artist_id = get_artist_id() or 1` fabriqué (il doit mordre, ligne 2) puis la forme CORRIGÉE que son propre message recommande — `if artist_id is None: st.error(…); st.stop()` — qu'il doit ignorer. Avant cette extraction, `assert not bad` était paramétré sur ~40 vues propres : vert sur un dépôt sain ET sur un prédicat aveugle, pour une règle P1 dont la conséquence est de servir à un locataire les lignes de l'ADMIN.
 
 ## sql-fstring-identifier
 - status: guarded
@@ -1392,7 +1393,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: the probe moves to the only place that holds both the binary and the credentials (the host script), and the in-container check reads a RECEIPT that probe leaves behind — written only after the script read the remote back (`rclone lsf`, or a local/remote SHA comparison). The check then asserts freshness of a proof rather than re-doing the probe. `tests/test_a_backup_survives_its_disk.py` walks the check's AST and fails if it names any host binary.
 - signature: `python3 -m pytest tests/test_a_backup_survives_its_disk.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_a_backup_survives_its_disk.py::test_the_monitor_does_not_shell_out_to_a_binary_its_image_lacks)
 - autofix: none
 - guard: { type: test, ref: tests/test_a_backup_survives_its_disk.py (AST: no host-binary literal inside check_offsite_backup) }
 - guard_scope: un-garde-qui-ne-garde-pas — un contrôle appelle un binaire que son image n'a PAS, donc il échoue toujours et ressemble à un contrôle qui trouve un vrai problème ; couvre: quatre propriétés — la sauvegarde pousse bien hors site, une cible hors site absente est BRUYANTE sans casser la sauvegarde locale, le moniteur rapporte une copie hors site absente ou périmée, et il rend ce constat dans le mail — ses tests nommés dans ce fichier partagé sont `test_the_monitor_does_not_shell_out_to_a_binary_its_image_lacks` ; ne couvre pas: (1) **le geste voisin le plus proche — les autres contrôles qui appellent un binaire depuis un conteneur** : `psql`, `gh`, `ssh`, `docker` sont invoqués depuis des images qui ne les portent pas toutes, et seul le cas `rclone` a été payé ; (2) la PRÉSENCE du binaire n'est pas vérifiée — le garde vérifie le comportement quand la cible manque, pas quand l'outil manque ; (3) les binaires présents mais d'une version incompatible ; (4) l'exécution réelle du contrôle, qu'aucun automate ne déclenche
@@ -1401,6 +1402,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-04 (ref: R57)
 - History:
   - 2026-09-04: swept all 12 DAGs — `check_offsite_backup` was the ONLY site. Fix: receipt-based check + AST guard, verified red by mutation (re-inserting the `'rclone'` literal fails the guard). The class is worth keeping because the failure is silent by construction: a check that can never pass looks exactly like a check that keeps finding a problem.
+  - 2026-09-18: défaut remis en place en nommant `rclone` dans `check_offsite_backup` ⇒ 1 rouge. Le garde lit les CONSTANTES de la fonction par AST : il verrait donc aussi un binaire nommé dans une liste d'arguments, pas seulement dans un `subprocess.run` reconnaissable.
 
 ## env-not-wired-to-service
 - status: guarded
@@ -3000,7 +3002,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: les deux surfaces de paiement construisaient l'URL du Payment Link en `f"{checkout_url}?client_reference_id={_aid}" if _aid else checkout_url`, donc une session ayant perdu son identifiant de locataire rendait quand même un bouton **payable**, sans le paramètre qui nomme le bénéficiaire. En face, `stripe_webhook.py:140` exécute `if artist_id and customer_id:` — sans `client_reference_id`, il ne fait RIEN et sort en 200. Mesuré 2026-08-23 (R40) sur `views/upgrade.py:125` et `views/billing.py:244`, trouvés ensemble par balayage de la classe.
 - cause_evidence: read (`src/dashboard/views/billing.py:250-256` — le bouton payable n'est rendu que `if _aid:`, et la branche `else` affiche un bouton DÉSACTIVÉ plus une erreur. Le commentaire 243-248 conserve la mesure du 2026-08-23 : les deux surfaces dégradaient vers `checkout_url` nu. Vérifié le 2026-09-17)
 - signature: `python3 -m pytest tests/test_a_tenant_scoped_action_names_its_tenant.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_a_tenant_scoped_action_names_its_tenant.py::test_the_detectors_see_the_two_defects_they_are_written_for)
 - long_term_fix: un lien de paiement non attribuable est pire qu'aucun lien — on ne le rend pas. Bouton désactivé plus un message qui nomme le geste (« reconnecte-toi »). Le garde lit l'AST de chaque `st.link_button` et exige que **toutes** les branches de l'URL portent `client_reference_id`, en résolvant les `Name` à travers les affectations locales.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_tenant_scoped_action_names_its_tenant.py::test_no_payment_link_can_render_without_its_tenant }
@@ -3010,6 +3012,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: le garde a d'abord été écrit VERT sur son propre défaut, et seule la mutation l'a montré. Le code fautif passait la **variable** `_url` à `st.link_button`, assignée une ligne plus haut ; en ne regardant que le site d'appel, le garde voyait un `Name` nu, concluait « ce n'est pas un lien de paiement » et passait. Cinquième fois que la portée du prédicat est le défaut, et la seule chose qui l'ait dit est d'avoir retiré le fix pour regarder la couleur.
+  - 2026-09-18: même extraction pour `_unattributable_links(tree)`, nourri d'un `st.link_button('…', url)` où `url = checkout_url` sans `client_reference_id` (il doit mordre) et de la version attribuée (il doit se taire). Mutation vérifiée : `return bad` → `return []` ⇒ les 147 cas paramétrés restent VERTS, seul le nouveau rougit.
 
 ## partial-collection-invisible
 - status: guarded
@@ -4454,7 +4457,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: mesuré sur l'hôte de production le 2026-09-03 — **21 archives quotidiennes, toutes sous `/opt/streamlytics/backups` sur `/dev/sda1`, c'est-à-dire le disque de la base qu'elles sauvegardent**. `crontab -l` ne contenait ni `rsync`, ni `s3`, ni `rclone` : aucune copie hors-site. L'en-tête de `tools/db_backup.sh` annonçait pourtant *« Phase D wires it to a Storage Box »* — une intention écrite en juin et jamais câblée. Second volet : **`tools/db_restore_test.sh` existait sans aucun appelant planifié** (3 crons : sauvegarde 03:00, dérive de schéma 04:00, santé infra 05:00 — aucun ne restaure), et sa seule assertion était `TABLES >= 1`. Il **affichait** un compte de lignes sans jamais le comparer : un dump tronqué à sa première table, ou un `pg_dump --schema-only`, passait au vert. C'était un contrôle de `gunzip` portant le nom d'un contrôle de sauvegarde.
 - cause_evidence: read (tools/db_backup.sh, rétro-portage mécanique 2026-09-16)
 - signature: `.venv/bin/python -m pytest tests/test_a_backup_survives_its_disk.py -q`
-- seen_red: 2026-09-18 — en renommant l'état `'absent'` poussé par `check_offsite_backup` (`airflow/dags/alert_monitor.py:1195`), le garde sort ≠ 0 ; **0** restauré. C'est l'état qui porte la phrase « les sauvegardes vivent sur le disque de la base — si ce disque meurt, elles meurent avec » : le supprimer rend la classe invisible au mail.
+- seen_red: self-proving (tests/test_a_backup_survives_its_disk.py::test_the_offsite_push_is_verified_by_reading_the_remote_back)
 - long_term_fix: `db_backup.sh` pousse l'archive vers R2 (`rclone`), avec une rétention distante indépendante de la locale. Il **n'échoue pas** quand `R2_REMOTE` est absent — la sauvegarde locale a réussi, et la faire rougir la rendrait indiscernable d'un `pg_dump` cassé ; le refus du silence vit dans `alert_monitor.check_offsite_backup`, qui distingue quatre états (`absent`, `empty`, `stale`, `unreadable`) et les rend dans le mail consolidé. Le drill **compare** la base restaurée à la vivante, avec un compte EXACT via `query_to_xml`, et une tolérance de 10 % calibrée sur la croissance mesurée (2 736 lignes/jour pour ~49 000 en base ≈ 5,6 %/jour).
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_backup_survives_its_disk.py }
@@ -4467,6 +4470,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-04: trois mutations, trois rouges — `rclone copy` retiré, le drill revenu à l'estimation, le constat retiré du mail.
   - 2026-09-04: **la première version du drill comparait deux estimations.** `pg_stat_user_tables.n_live_tup` n'est rafraîchi que par ANALYZE et l'autovacuum : il rendait « 40 015 lignes restaurées contre 1 149 vivantes » **sur la même base**. Un garde bâti sur une estimation compare du bruit. Compte exact désormais.
   - 2026-09-04: et le garde lui-même a porté **deux prédicats textuels faux** — `body.index("fi")` tombait sur le « fi » de « défini » et tronquait la branche inspectée ; et la recherche de `n_live_tup` matchait le commentaire qui explique justement pourquoi l'éviter. Découpage ligne à ligne, commentaires retirés. Troisième fois dans la journée qu'une sous-chaîne répond à une question de structure.
+  - 2026-09-18: défaut remis en place en débranchant la relecture du distant — `ls-remote origin refs/heads/backups` renommé (tools/db_backup.sh) ⇒ 1 rouge. Le reçu attesterait alors une INTENTION (un code de sortie nul) au lieu d'une présence, ce qui est exactement le mode d'échec d'une sauvegarde : elle ne ment qu'au moment où on en a besoin.
 
 ## orchestrator-costs-more-than-what-it-orchestrates
 - status: guarded
@@ -5199,7 +5203,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `views/upload_csv.py::_read_headers` essayait les encodages dans l'ordre `('utf-8', 'utf-8-sig', …)`. Un fichier UTF-8 portant un BOM **décode sans erreur** en `utf-8` : la boucle s'arrêtait au premier essai et le BOM survivait, collé au premier en-tête (`\ufeffdate`). Seconde condition, nécessaire pour que ça casse : `_detect_platform` normalisait par `c.lower().strip()`, et `\ufeff` n'est PAS un blanc — `strip()` ne le retire pas. Mesuré le 2026-09-06 sur un import réel : **12 fichiers Spotify for Artists sur 14 refusés**. Spotify exporte avec BOM ; Excel en ajoute un en réenregistrant, ce qui touche aussi les artistes qui ouvrent leur CSV avant de le déposer.
 - cause_evidence: read (la résolution a DÉMÉNAGÉ depuis `views/upload_csv.py` : elle vit une seule fois dans `src/dashboard/utils/csv_serialization.py::_resolve_serialization`, qui essaie `utf-8-sig` AVANT `utf-8` et documente exactement le mécanisme — un fichier UTF-8 avec BOM décode sans erreur en `utf-8`. ⚠️ Le `root_cause` ci-dessus nomme donc un chemin PÉRIMÉ ; la cause est juste, son adresse ne l'est plus. Vérifié le 2026-09-17)
 - signature: `python3 -m pytest tests/test_a_csv_is_recognised_whatever_its_encoding.py -q`
-- seen_red: 2026-09-18 — en plaçant `utf-8` AVANT `utf-8-sig` dans `_ENCODINGS`, le garde sort **1** ; **0** restauré. C'est tout le défaut : un UTF-8 portant un BOM décode SANS ERREUR en `utf-8`, donc le repli n'est jamais atteint et le BOM reste collé au premier en-tête.
+- seen_red: self-proving (tests/test_a_csv_is_recognised_whatever_its_encoding.py::test_the_header_reader_strips_the_mark_at_the_source)
 - long_term_fix: `utf-8-sig` passe AVANT `utf-8` dans les deux lecteurs (`_read_headers` et `_sniff_sep`) — il lit les deux cas à l'identique et retire le BOM quand il est là, donc le placer en tête ne coûte rien. Seconde couche, celle qui rend la classe impossible plutôt qu'improbable : `_normalise_header` retire les DEUX formes du marqueur — `\ufeff` (décodé en UTF-8) et `ï»¿` (les mêmes octets lus en latin-1) — avant toute comparaison, pour qu'un en-tête arrivé par un autre chemin ne rouvre pas le défaut. Le garde rejoue les CINQ fichiers réellement refusés, avec ET sans BOM : la question est « le préfixe invisible change-t-il la réponse ? ».
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_csv_is_recognised_whatever_its_encoding.py }
@@ -5211,6 +5215,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-06: le message d'erreur était JUSTE et illisible, et c'est ce qui a coûté trois mois. « Colonnes vues : ﻿date, streams » nomme exactement la bonne colonne, parce qu'un BOM ne se rend pas. Un diagnostic affiché à l'utilisateur doit rendre visible ce qui diffère — ici il fallait `repr()`, pas le texte.
   - 2026-09-06: vérifié en RETIRANT le correctif : `None` avec BOM, `s4a` sans, sur les cinq fichiers du rapport. Les deux couches ont été mutées séparément.
   - 2026-09-06: découvert en vérifiant un import que l'artiste croyait terminé. Le journal de production ne portait AUCUNE ligne du jour : les trois fichiers marqués « ✅ Prêt » ne l'étaient qu'au sens de la DÉTECTION, et le bouton « Importer » n'avait pas été cliqué. Un état intermédiaire nommé comme un état final se lit comme un état final.
+  - 2026-09-18: défaut remis en place en rendant l'ordre des encodages — `('utf-8-sig', 'utf-8', …)` → `('utf-8', 'utf-8-sig', …)` (src/dashboard/utils/csv_serialization.py:16) ⇒ 1 rouge. C'est la subtilité qui fait la classe : `utf-8` DÉCODE un fichier à BOM sans lever, donc le repli n'est jamais atteint et le BOM survit dans le premier en-tête.
 
 ## detection-keyed-on-the-filename
 - status: guarded
@@ -5220,7 +5225,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `views/upload_csv.py::_detect_platform` portait trois conditions sur le NOM de fichier. **(1)** La timeline S4A exigeait `'audience' not in name` : un titre contenant le mot (« … - Audience-timeline.csv ») était refusé, et un export d'audience renommé serait passé pour une timeline. La condition était inutile — la branche audience passe avant et retient déjà tout ce qui porte `listeners`. **(2)** L'audience pouvait être reconnue par le seul jeton `audience` du nom. **(3)** L'export « Depuis le début », inexploitable parce que Spotify y renvoie auditeurs et sauvegardes à ZÉRO, était refusé sur `'songs-all' in name` — donc un renommage, ou le suffixe `(1)` qu'ajoute un navigateur, le faisait accepter comme un catalogue valide.
 - cause_evidence: read (`src/dashboard/views/upload_csv.py:68` — la signature est devenue `_detect_platform(filename: str, columns: list[str])` et le corps normalise les en-têtes (`cols = {_normalise_header(c) for c in columns}`) : la décision ne repose plus sur le seul nom. Vérifié le 2026-09-17)
 - signature: `python3 -m pytest tests/test_a_csv_is_recognised_whatever_its_encoding.py -q`
-- seen_red: 2026-09-18 — en réinjectant une condition sur le NOM en tête de `_detect_platform` (`if 'audience' in filename: return None`), le garde sort **1** sur **3** assertions ; **0** restauré.
+- seen_red: self-proving (tests/test_a_csv_is_recognised_whatever_its_encoding.py::test_the_filename_decides_nothing)
 - long_term_fix: la détection se fait sur les COLONNES, qui sont une propriété du fichier ; le nom ne sert plus que de départage quand les colonnes ne tranchent pas. Le cas (3) ne pouvait pas se résoudre à la détection — un export « Depuis le début » a exactement les mêmes en-têtes qu'un export sur 12 mois — donc son refus est descendu dans `_parse_file`, où les VALEURS sont lisibles : `listeners` et `saves` entièrement à zéro. Un contrôle descend au niveau où l'information existe, plutôt que de s'appuyer sur un indice corrélé.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_csv_is_recognised_whatever_its_encoding.py }
@@ -5231,6 +5236,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-06: demandé explicitement — « tous les fichiers, peu importe leur nom, doivent être reconnus, c'est vraiment très important ». La formulation dit la bonne règle : un nom de fichier est choisi par la plateforme qui l'exporte, par le navigateur qui le télécharge, et parfois par l'utilisateur. Rien de tout cela n'est un contrat.
   - 2026-09-18: `seen_red` daté. La classe et sa voisine `filename-dependency-survives-below-detection` couvrent deux COUCHES du même geste — la détection, et le parseur deux couches plus bas ; les deux ont été datées le même jour, et c'est leur juxtaposition qui montre que le trou d'origine traversait la pile.
+  - 2026-09-18: défaut remis en place en réintroduisant le jeton du NOM — `'song' not in cols` → `'audience' in name` (src/dashboard/views/upload_csv.py:115) ⇒ 1 rouge, sur le cas paramétré `s4a_audience:export.csv`. Le garde énumère les plateformes contre des noms de fichier neutres, donc il vaut pour toute détection future, pas seulement pour S4A.
 
 ## intermediate-state-named-like-a-final-one
 - status: guarded
@@ -5555,7 +5561,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: toutes les sources ne mesurent pas la même chose. `s4a_song_timeline.streams` est une quantité du JOUR ; `soundcloud_tracks_daily.playback_count` et `youtube_channel_history.view_count` sont des cumuls depuis toujours. La figure de bienvenue les additionnait dans un `UNION ALL` : **23 560 « écoutes » le 8 septembre** pour l'artiste 1, chaque jour, contre un maximum réel de 1 605 streams/jour. Convertir naïvement le cumul en écart (`LAG`) déplace le défaut sans le retirer, et trois artefacts réels le prouvent : une collecte ratée qui écrit 0 (2026-06-01, 19 titres) rend 23 480 le lendemain ; un trou de 104 jours pose 104 jours de gain sur un seul ; et un locataire portant plusieurs `channel_id` (le bac à sable en a trois, dont une à 155 vues) saute de 155 à 120 627 en une nuit.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_cumulative_counter_is_not_a_daily_figure.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_a_cumulative_counter_is_not_a_daily_figure.py::test_a_failed_collection_that_wrote_zero_creates_no_spike)
 - long_term_fix: `src/dashboard/utils/platform_timeseries.py` — un seul endroit qui nomme la NATURE de chaque colonne, et trois règles : l'écart se prend sur le maximum déjà vu (pas sur la veille), il n'existe qu'entre deux jours **consécutifs** (sinon aucun point, un trou étant la forme honnête de « on ne sait pas »), et il se calcule par entité (titre, chaîne) avant toute somme. Ce qui n'a pas d'historique — Apple Music, un instantané par CSV — est **nommé** plutôt que dessiné à zéro.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_cumulative_counter_is_not_a_daily_figure.py }
@@ -5566,6 +5572,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-08: le garde tourne sur un vrai moteur SQL (sqlite) et non sur un stub, parce que les trois règles VIVENT dans le SQL. Un stub Python rendant des lignes toutes faites n'aurait testé que le stub — et le premier jet l'a failli : sans traduire `GREATEST` en `MAX`, la requête levait, le filet de `_rows` rattrapait, et le test passait au vert sur zéro ligne exécutée.
   - 2026-09-08: la moitié « pas beau » du reproche avait sa propre cause, mesurable elle aussi. Les couleurs de marque exactes ont été REFUSÉES par le validateur de la skill dataviz — `#FF0000` (YouTube) contre `#FF5500` (SoundCloud) : ΔE 7,4 en vision normale, sous le plancher de 15. Deux traits qu'on ne peut pas attribuer. Jeux clair et sombre re-calés séparément (la bande de clarté diffère), tous deux « ALL CHECKS PASS ».
+  - 2026-09-18: défaut remis en place en remplaçant le maximum DÉJÀ VU par la veille — `MAX(playback_count) OVER (… ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)` → `LAG(…)` (src/dashboard/utils/platform_timeseries.py) ⇒ 1 rouge. Les lignes sont FABRIQUÉES dans le test (l'artefact réel du 2026-06-01 : un 0 écrit par une collecte ratée, puis la vraie valeur), donc la preuve ne dépend d'aucune donnée du dépôt.
 
 ## a-step-that-nothing-routes-to
 - status: guarded
@@ -5637,7 +5644,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `youtube_channel_history.view_count` est le compteur de la CHAÎNE. Mesuré : figé à 120 627 du 2026-08-28 au 2026-09-07, puis 120 987 d'un coup. Il est mis à jour par paliers et porte autre chose que la somme des vidéos — vidéos privées ou supprimées, agrégats internes. La série lui prenait son écart quotidien, donc un palier de +360 devenait « 360 vues le 8 septembre ». La somme des compteurs PAR VIDÉO (`youtube_video_stats`) donne +3, 0, +3, 0, +1… soit 44 sur 28 jours — le même ordre de grandeur que Studio.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_a_cumulative_counter_is_not_a_daily_figure.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_a_cumulative_counter_is_not_a_daily_figure.py::test_youtube_reads_per_video_counters_not_the_channel_one)
 - long_term_fix: lire les compteurs de l'entité la plus FINE que la source expose, et prendre l'écart par entité avant d'additionner. Le garde épingle la source elle-même : `youtube_video_stats` présent, `youtube_channel_history` absent, `PARTITION BY video_id` présent. La règle générale : un compteur agrégé fourni par une plateforme n'est pas la somme de ses parties, et seule une source EXTÉRIEURE — ici YouTube Studio — permet de savoir lequel des deux ment.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_a_cumulative_counter_is_not_a_daily_figure.py }
@@ -5649,6 +5656,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-08: signature vue ROUGE en remettant `youtube_channel_history` comme source (2 échecs), verte sur l'arbre corrigé.
   - 2026-09-08: ce qui a permis de trancher n'est pas un raisonnement mais un chiffre venu d'ailleurs. Sans les 64 vues de YouTube Studio, les deux sources étaient également plausibles — l'une disait 360, l'autre 44, et rien dans notre base ne départageait. Quand deux compteurs internes divergent, chercher la mesure extérieure avant de choisir.
   - 2026-09-08: l'affirmation est ramenée à sa preuve. Une recherche web n'a trouvé AUCUNE source décrivant un décalage entre le compteur de chaîne YouTube et la somme des compteurs par vidéo : ce qui est établi ici est une MESURE sur ce locataire, confrontée à YouTube Studio, pas un comportement documenté de l'API. La conduite à tenir ne change pas — lire l'entité la plus fine — mais la raison n'est pas « YouTube est connu pour ça ».
+  - 2026-09-18: défaut remis en place en repointant la série sur le compteur de CHAÎNE — `FROM youtube_video_stats` → `FROM youtube_channel_history` ⇒ 2 rouges. C'est le compteur qui était figé à 120 627 pendant onze jours puis 120 987, soit +360 attribués à une seule journée.
 
 ## overlapping-readings-summed-as-one
 - status: guarded
@@ -7346,13 +7354,14 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - guard: { type: ci-step, ref: tests/test_a_parameterised_query_says_what_it_means.py }
 - guard_scope: un-document-qui-affirme-un-état-périmé — un `%` isolé dans une requête paramétrée est interprété par le pilote, donc la requête échoue ou change de sens ; couvre: par `test_no_stray_percent_sign_in_a_parameterised_query` et `test_the_two_predicates_are_not_vacuous`, les tests nommés de ce fichier partagé ; ne couvre pas: (1) **le geste voisin le plus proche — les autres caractères interprétés par le pilote ou par Python** : `{}` dans une chaîne destinée à `.format()`, `\\` dans une expression régulière, `$` dans un `Template` produisent la même surprise, et c'est `format-marker-in-a-plain-string` pour l'un d'eux ; (2) les requêtes construites à l'exécution ; (3) le SQL écrit hors Python (migrations, vues) ; (4) un `%` correctement échappé mais placé au mauvais endroit.
 - signature: `python3 -m pytest tests/test_a_parameterised_query_says_what_it_means.py::test_no_stray_percent_sign_in_a_parameterised_query -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_a_parameterised_query_says_what_it_means.py::test_the_two_detectors_see_the_defects_they_are_written_for)
 - siblings: swept:2026-09-17 — son garde PARCOURT l'arbre et a été exécuté ce jour-là, vert : `python3 -m pytest tests/test_a_parameterised_query_says_what_it_means.py::test_no_stray_percent_sign_in_a_parameterised_query -q`. Aucun site ne correspond à son prédicat sur l'arbre du jour. ⚠️ C'est le PRÉDICAT qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus, et ce dépôt a mesuré le 2026-09-17 qu'un garde parcourant l'arbre peut rester vert sur 8 sites vivants (`multitenant-dag-fleet-poisoning`).
 - rex_ref: —
 - first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
 - History:
   - 2026-09-13: `guarded`. Écrite le jour où le défaut a été commis **deux fois de suite** : la première dans le commentaire expliquant un ratio, la seconde dans le paragraphe rédigé pour mettre en garde contre la première. C'est ce doublon qui a décidé de la classe — un piège où l'on retombe en écrivant la note qui l'évite n'est pas une inattention, c'est une propriété du support.
   - 2026-09-13: signature **vue rouge par mutation** (le signe remis dans le commentaire → `1 failed`), verte sur l'arbre corrigé. Les docstrings sont exclues du balayage par `ast` : sans cela, ce catalogue et le garde lui-même — qui décrivent le défaut — l'auraient déclenché, et ce dépôt a déjà appris trois fois qu'un garde rouge sur la prose de son fix enseigne que le rouge est du bruit.
+  - 2026-09-18: prédicat extrait en `_stray_percent(text)` et nourri des trois cas qui comptent — un `%` isolé DANS UN COMMENTAIRE `--` (il doit mordre : psycopg2 n'y voit pas un commentaire), le `%%` correctement doublé (il doit se taire), et un littéral sans `%s` donc jamais paramétré (il doit se taire aussi, sinon il fait du bruit). Le plancher de population (≥ 20 littéraux) qui existait déjà attrape un LECTEUR cassé, pas un prédicat qui lit bien et ne mord plus ; les deux moitiés sont nécessaires.
 
 ## an-empty-group-wins-a-desc-ranking
 - status: guarded
@@ -7366,14 +7375,14 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - guard: { type: ci-step, ref: tests/test_a_parameterised_query_says_what_it_means.py }
 - guard_scope: un-nombre-affirmé-qui-n-a-pas-été-mesuré — PostgreSQL place les `NULL` EN PREMIER sur un `ORDER BY … DESC`, donc le groupe VIDE gagne le classement et la surface affiche « — » alors qu'un vrai chiffre existe ; couvre: par `test_a_desc_ranking_cannot_be_won_by_an_empty_group` et `test_the_two_predicates_are_not_vacuous`, les tests nommés de ce fichier partagé — le second prouvant que les prédicats ne sont pas vides ; ⚠️ ce garde m'a attrapé le 2026-09-17 sur `telemetry_retention.py`, où le `ORDER BY 3 DESC` portait un `COUNT(*)` qui ne peut pas être NULL : faux positif, corrigé par un `NULLS LAST` explicite plutôt que par une exemption ; ne couvre pas: (1) **le geste voisin le plus proche — les classements faits en pandas** : `sort_values(ascending=False)` place les `NaN` en DERNIER, convention inverse, et personne ne vérifie qu'on le sait ; (2) les `ORDER BY` construits à l'exécution ; (3) les classements ASC, où la convention s'inverse aussi ; (4) le cas où le groupe vide DOIT gagner.
 - signature: `python3 -m pytest tests/test_a_parameterised_query_says_what_it_means.py::test_a_desc_ranking_cannot_be_won_by_an_empty_group -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_a_parameterised_query_says_what_it_means.py::test_the_two_detectors_see_the_defects_they_are_written_for)
 - siblings: swept:2026-09-17 — son garde PARCOURT l'arbre et a été exécuté ce jour-là, vert : `python3 -m pytest tests/test_a_parameterised_query_says_what_it_means.py::test_a_desc_ranking_cannot_be_won_by_an_empty_group -q`. Aucun site ne correspond à son prédicat sur l'arbre du jour. ⚠️ C'est le PRÉDICAT qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus, et ce dépôt a mesuré le 2026-09-17 qu'un garde parcourant l'arbre peut rester vert sur 8 sites vivants (`multitenant-dag-fleet-poisoning`).
 - rex_ref: —
 - first_seen: 2026-09-13 (ref: DEVLOG#2026-09-13)
 - History:
   - 2026-09-13: `guarded`. **Trouvée par mutation, pas par lecture.** La porte (`HAVING`) était écrite du premier coup et paraissait redondante ; c'est en la retirant pour éprouver le garde que la conséquence est apparue, puis a été confirmée par une requête directe sur la base. Le défaut n'a donc jamais atteint un écran — mais il aurait attendu le premier locataire dont une campagne liée n'a aucune visite.
   - 2026-09-13: la première version du prédicat jugeait le LITTÉRAL entier et ne rougissait pas : le `HAVING` d'une CTE voisine (`best_cpr`) exemptait toute la requête. Corrigé en découpant le littéral à ses frontières de CTE. Un littéral n'est pas une unité de raisonnement SQL — c'est la même erreur de PORTÉE que `a-ratchet-at-zero-over-a-scope-that-excludes-the-defect`, à une autre échelle.
-
+  - 2026-09-18: prédicat extrait en `_nullable_desc_ranking(text)`, nourri du classement interdit (`ORDER BY r DESC LIMIT 1` sur `NULLIF`) et des DEUX portes que son message recommande — `NULLS LAST` et `HAVING` — qui doivent l'éteindre. Plus une assertion que ce dépôt a apprise aujourd'hui : un `NULLS LAST` écrit dans un COMMENTAIRE ne doit PAS l'éteindre (`guard-satisfied-by-its-own-comment`).
 
 ## a-merged-branch-outlives-its-pull-request
 - status: guarded

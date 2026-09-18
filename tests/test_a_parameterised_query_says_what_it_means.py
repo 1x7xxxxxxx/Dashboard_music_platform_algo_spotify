@@ -78,19 +78,45 @@ def _sql_literals() -> list[tuple[Path, int, str]]:
     return out
 
 
+def _stray_percent(text: str) -> bool:
+    """Un signe pour cent isolé dans un littéral SQL PARAMÉTRÉ.
+
+    Extrait pour être appelable sur une requête fabriquée : `assert not hits` est
+    vert sur un dépôt propre ET sur un prédicat aveugle, et rien ne les sépare.
+    """
+    if "%s" not in text or not _SQL.search(text):
+        return False
+    return "%" in re.sub(r"%[s%]", "", text)
+
+
+def _nullable_desc_ranking(text: str) -> bool:
+    """Un `ORDER BY … DESC … LIMIT` sur une expression `NULLIF`, sans porte."""
+    query = re.sub(r"--[^\n]*", "", text)
+    if not re.search(r"\bNULLIF\b", query, re.I):
+        return False
+    for chunk in _CTE_BOUNDARY.split(query):
+        if not re.search(r"\bNULLIF\b", chunk, re.I):
+            continue
+        if not re.search(r"\bORDER\s+BY\b[^)]*?\bDESC\b", chunk, re.I):
+            continue
+        if not re.search(r"\bLIMIT\b", chunk, re.I):
+            continue
+        if re.search(r"\bNULLS\s+LAST\b", chunk, re.I):
+            continue
+        if re.search(r"\bHAVING\b", chunk, re.I):
+            continue
+        return True
+    return False
+
+
 def test_no_stray_percent_sign_in_a_parameterised_query() -> None:
     """Classe `a-percent-sign-in-a-parameterised-query`.
 
     Un littéral qui porte `%s` est destiné à `psycopg2`. Tout autre signe pour cent
     qui n'est pas doublé y est une bombe — y compris dans un commentaire `--`.
     """
-    hits = []
-    for path, line, text in _sql_literals():
-        if "%s" not in text or not _SQL.search(text):
-            continue
-        if "%" in re.sub(r"%[s%]", "", text):
-            hits.append(f"{path.relative_to(REPO)}:{line}")
-
+    hits = [f"{path.relative_to(REPO)}:{line}"
+            for path, line, text in _sql_literals() if _stray_percent(text)]
     assert not hits, (
         "signe pour cent isolé dans un littéral SQL paramétré : " + ", ".join(hits)
         + "\n`psycopg2` interpole ce signe dans toute la chaîne, COMMENTAIRES SQL "
@@ -107,24 +133,8 @@ def test_a_desc_ranking_cannot_be_won_by_an_empty_group() -> None:
     nullable par construction. C'est le seul cas où l'on sait, sans exécuter, qu'un
     `NULL` peut remonter en tête.
     """
-    hits = []
-    for path, line, text in _sql_literals():
-        query = re.sub(r"--[^\n]*", "", text)
-        if not re.search(r"\bNULLIF\b", query, re.I):
-            continue
-        for chunk in _CTE_BOUNDARY.split(query):
-            if not re.search(r"\bNULLIF\b", chunk, re.I):
-                continue
-            if not re.search(r"\bORDER\s+BY\b[^)]*?\bDESC\b", chunk, re.I):
-                continue
-            if not re.search(r"\bLIMIT\b", chunk, re.I):
-                continue
-            if re.search(r"\bNULLS\s+LAST\b", chunk, re.I):
-                continue
-            if re.search(r"\bHAVING\b", chunk, re.I):
-                continue
-            hits.append(f"{path.relative_to(REPO)}:{line}")
-
+    hits = [f"{path.relative_to(REPO)}:{line}"
+            for path, line, text in _sql_literals() if _nullable_desc_ranking(text)]
     assert not hits, (
         "classement décroissant sur une expression nullable, sans porte : "
         + ", ".join(sorted(set(hits)))
@@ -151,3 +161,50 @@ def test_the_two_predicates_are_not_vacuous() -> None:
     assert nullif, (
         "aucun littéral n'utilise `NULLIF` : le second garde n'a plus de site, "
         "il faut vérifier que la portée est toujours la bonne.")
+
+
+def test_the_two_detectors_see_the_defects_they_are_written_for() -> None:
+    """Non-vacuité : les deux formes interdites, FABRIQUÉES, plus les corrigées.
+
+    Le test au-dessus vérifie que le balayage atteint son corpus (≥ 20 littéraux) —
+    ce qui attrape un lecteur cassé, pas un prédicat qui lit bien et ne mord plus.
+    Les deux moitiés sont nécessaires et ce dépôt a payé l'absence de la seconde.
+    """
+    # 1. Le signe pour cent, y compris dans un COMMENTAIRE SQL : c'est le cas qui a
+    #    coûté le plus cher, parce que `psycopg2` interpole la chaîne entière.
+    assert _stray_percent(
+        "SELECT * FROM t WHERE artist_id = %s -- au moins 50% des jours\n"), (
+        "le détecteur ignore un `%` isolé dans un commentaire `--`. C'est exactement "
+        "la forme du défaut : `psycopg2` n'y voit pas un commentaire, la requête "
+        "échoue sur `IndexError: tuple index out of range`, et le message accuse les "
+        "paramètres alors que leur compte est juste.")
+    assert not _stray_percent(
+        "SELECT * FROM t WHERE artist_id = %s -- au moins 50%% des jours\n"), (
+        "le détecteur mord sur un `%%` correctement doublé — le correctif que son "
+        "propre message recommande.")
+    assert not _stray_percent("SELECT * FROM t WHERE name LIKE 'a%'"), (
+        "le détecteur mord sur un littéral sans `%s`, donc jamais remis à psycopg2 "
+        "avec des paramètres : ce n'est pas la classe, et l'accuser ferait du bruit.")
+
+    # 2. Le classement décroissant sur une expression nullable.
+    nullable = ("SELECT k, SUM(x) / NULLIF(SUM(y), 0) AS r FROM t "
+                "GROUP BY k ORDER BY r DESC LIMIT 1")
+    assert _nullable_desc_ranking(nullable), (
+        "le détecteur ne voit pas un `ORDER BY … DESC … LIMIT` sur une expression "
+        "`NULLIF`. PostgreSQL place les NULL EN PREMIER sur un DESC : le groupe VIDE "
+        "gagne, et la surface affiche « — » alors qu'un vrai chiffre existe.")
+    assert _nullable_desc_ranking(nullable + " -- on pourrait mettre NULLS LAST"), (
+        "un COMMENTAIRE qui mentionne `NULLS LAST` éteint le détecteur. La porte "
+        "doit être dans la requête, pas dans la prose à côté — c'est la forme "
+        "`guard-satisfied-by-its-own-comment`, et elle rendrait ce garde vert sur "
+        "une requête qui n'a jamais été corrigée.")
+    assert not _nullable_desc_ranking(
+        "SELECT k, SUM(x) / NULLIF(SUM(y), 0) AS r FROM t "
+        "GROUP BY k ORDER BY r DESC NULLS LAST LIMIT 1"), (
+        "le détecteur mord sur `NULLS LAST` — l'une des deux portes que son message "
+        "recommande explicitement.")
+    assert not _nullable_desc_ranking(
+        "SELECT k, SUM(x) / NULLIF(SUM(y), 0) AS r FROM t "
+        "GROUP BY k HAVING SUM(y) > 0 ORDER BY r DESC LIMIT 1"), (
+        "le détecteur mord sur un `HAVING` qui écarte les groupes vides — l'autre "
+        "porte recommandée.")

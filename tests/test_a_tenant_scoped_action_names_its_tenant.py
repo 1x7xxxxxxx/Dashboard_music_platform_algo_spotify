@@ -96,9 +96,13 @@ def test_the_scope_is_not_empty() -> None:
     assert len(_view_files()) > 30, "the views walk found almost nothing"
 
 
-@pytest.mark.parametrize("rel", _view_files())
-def test_no_payment_link_can_render_without_its_tenant(rel: str) -> None:
-    tree = ast.parse((_ROOT / rel).read_text(encoding="utf-8"))
+def _unattributable_links(tree: ast.AST) -> list[int]:
+    """Lignes où un lien de paiement Stripe peut se rendre SANS son locataire.
+
+    Extraite du corps du test pour être appelable sur un arbre FABRIQUÉ. Sous sa
+    forme précédente, `assert not bad` était vert sur un dépôt propre ET sur un
+    prédicat qui ne trouve plus rien, et rien ne permettait de les distinguer.
+    """
     env = _assignments(tree)
     bad: list[int] = []
     for node in ast.walk(tree):
@@ -114,7 +118,12 @@ def test_no_payment_link_can_render_without_its_tenant(rel: str) -> None:
             continue
         if not all(_mentions(leaf, "client_reference_id") for leaf in leaves):
             bad.append(node.lineno)
+    return bad
 
+
+@pytest.mark.parametrize("rel", _view_files())
+def test_no_payment_link_can_render_without_its_tenant(rel: str) -> None:
+    bad = _unattributable_links(ast.parse((_ROOT / rel).read_text(encoding="utf-8")))
     assert not bad, (
         f"{rel} line(s) {bad}: a Stripe checkout link can render WITHOUT "
         f"`client_reference_id`. The webhook runs `if artist_id and customer_id:` — "
@@ -123,9 +132,8 @@ def test_no_payment_link_can_render_without_its_tenant(rel: str) -> None:
     )
 
 
-@pytest.mark.parametrize("rel", _view_files())
-def test_a_missing_tenant_never_falls_back_to_a_hardcoded_one(rel: str) -> None:
-    tree = ast.parse((_ROOT / rel).read_text(encoding="utf-8"))
+def _hardcoded_fallbacks(tree: ast.AST) -> list[tuple[int, str]]:
+    """`get_artist_id() or 1` et ses variantes — règle transverse #7."""
     bad: list[tuple[int, str]] = []
     for node in ast.walk(tree):
         if not (isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or)):
@@ -136,9 +144,55 @@ def test_a_missing_tenant_never_falls_back_to_a_hardcoded_one(rel: str) -> None:
         for alt in rest:
             if isinstance(alt, ast.Constant):
                 bad.append((node.lineno, f"{_name_of(first)}() or {alt.value!r}"))
+    return bad
 
+
+@pytest.mark.parametrize("rel", _view_files())
+def test_a_missing_tenant_never_falls_back_to_a_hardcoded_one(rel: str) -> None:
+    bad = _hardcoded_fallbacks(ast.parse((_ROOT / rel).read_text(encoding="utf-8")))
     assert not bad, (
         f"{rel}: {bad} — CLAUDE.md rule #7. A tenant whose identity failed to resolve "
         f"must never be served another tenant's rows; a hardcoded fallback serves the "
         f"ADMIN's. Stop the session (`st.error(...); st.stop()`) or use `view_session()`."
     )
+
+
+def test_the_detectors_see_the_two_defects_they_are_written_for() -> None:
+    """Non-vacuité : les deux formes interdites, fabriquées ici, plus les corrigées.
+
+    Les deux tests ci-dessus sont paramétrés sur ~40 vues propres, donc verts. Ils
+    resteraient verts mot pour mot si leurs prédicats ne trouvaient plus rien — la
+    forme d'aveuglement que ce dépôt a mesurée neuf fois, et ici sur une règle P1 :
+    `get_artist_id() or 1` sert à un locataire les lignes de l'ADMIN.
+    """
+    lien_nu = ast.parse(
+        "def show():\n"
+        "    url = checkout_url\n"
+        "    st.link_button('Passer premium', url)\n")
+    assert _unattributable_links(lien_nu) == [3], (
+        f"le détecteur rend {_unattributable_links(lien_nu)} sur un lien de paiement "
+        "sans `client_reference_id` : le paiement aboutirait et aucun plan ne serait "
+        "provisionné, parce que le webhook fait `if artist_id and customer_id:`.")
+
+    lien_attribue = ast.parse(
+        "def show():\n"
+        "    url = f'{checkout_url}?client_reference_id={aid}'\n"
+        "    st.link_button('Passer premium', url)\n")
+    assert _unattributable_links(lien_attribue) == [], (
+        "le détecteur accuse un lien qui porte bien son `client_reference_id` — la "
+        "forme corrigée. Corriger deviendrait impossible sans désarmer le garde.")
+
+    repli = ast.parse("def show():\n    artist_id = get_artist_id() or 1\n")
+    assert [ln for ln, _ in _hardcoded_fallbacks(repli)] == [2], (
+        "le détecteur ne voit pas `get_artist_id() or 1`, la règle transverse #7 "
+        "écrite noir sur blanc : un locataire dont l'identité n'a pas pu être "
+        "résolue recevrait les lignes de l'artiste 1, c'est-à-dire l'admin.")
+
+    garde = ast.parse(
+        "def show():\n"
+        "    artist_id = get_artist_id()\n"
+        "    if artist_id is None:\n"
+        "        st.error('Session invalide.'); st.stop()\n")
+    assert _hardcoded_fallbacks(garde) == [], (
+        "le détecteur accuse la forme CORRIGÉE — celle que son propre message "
+        "d'erreur recommande.")
