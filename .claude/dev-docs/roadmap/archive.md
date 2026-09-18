@@ -172,6 +172,118 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
   transforme déjà en rouge — **ou si `ever_recurred_observed` repasse au-dessus de
   47**.
 
+## 🩺 R122 — Rouverte le 2026-09-17, revue des `guard_scope` reprise · ✅ CLOSE le 2026-09-18 par sa propre condition de réouverture
+
+**Suite directe de la clôture ci-dessus, même item.** Le déclencheur qu'elle s'était
+donné le 2026-09-17 (« rouvrir si `ever_recurred_observed` repasse au-dessus de 47 »)
+s'est déclenché le soir même sur **49**, et le bloc de reprise vivait dans
+`checklist.md` depuis. `python3 tools/dev/reopen_check.py`, exécuté le **2026-09-18**,
+rend :
+
+```
+R122  en attente   ever_recurred_observed = 37 (seuil : > 47)
+```
+
+**37 ≤ 47 : la condition n'est plus remplie.** R122 se ferme donc par son propre
+déclencheur, pas par un jugement porté sur l'avancement du travail.
+
+⚠️ **Ce n'est pas un compteur qu'on aurait fait baisser en effaçant du travail.** Il est
+tombé de 49 à 37 parce que le COMPTEUR a été corrigé le 2026-09-18 : les 81 lignes
+d'`History` du catalogue de classes d'erreur ont été reclassées une par une — 33 vraies
+récidives, 26 défauts du garde lui-même (signature dérivée, prédicat aveugle, faux
+positif), 22 notes de travail — et seules les 33 vraies récidives comptent désormais
+dans `ever_recurred_observed`. Aucune classe n'a été retirée du catalogue, aucun garde
+n'a été affaibli.
+
+- [x] **R122 — reprendre la revue des `guard_scope`, par LOTS, jusqu'à repasser sous le
+      seuil.** Close par le déclencheur lui-même (37 ≤ 47) avant qu'un lot supplémentaire
+      de `guard_scope` n'ait été écrit — le cliquet automatique (`make error-health`,
+      `test_the_error_class_health_only_improves.py`) reste seul responsable des deux
+      trous non comblés ci-dessous.
+
+**Le bloc de reprise, déplacé depuis `checklist.md` verbatim, à l'exception de quatre
+chiffres périmés le jour même de cette clôture et d'une phrase devenue fausse** — les
+corriger est le geste qui rend ce bloc lisible dans six mois :
+
+| ce que le bloc annonçait | mesuré le 2026-09-18 (`.claude/dev-docs/error-class-health.json`, `aggregate.holes` / `aggregate.population`) |
+|---|---:|
+| `cause_unknown` 241 | **140** |
+| `seen_red_unknown` 331 | **141** |
+| `ever_recurred_observed` 49 | **37** |
+| `siblings_never_swept` 386 | **1** |
+
+La phrase « `make reopen-check` continue à juste titre d'afficher `ROUVRIR` » est
+**fausse depuis le 2026-09-18** : il affiche désormais `en attente`, comme le verdict
+reproduit plus haut le montre.
+
+**Elle n'a jamais été livrée, et il faut le dire clairement.** Close le 2026-09-17 non
+pas terminée mais **convertie** : 4 `guard_scope` écrites sur ~300, son estimation propre
+étant de **~16 h pour la seule colonne `guard_scope`**. Le reste avait été confié à un
+cliquet — qui interdit la régression sans jamais combler.
+
+**Ce qui l'avait rouverte** : elle s'était donné une condition calculable — « rouvrir si
+`ever_recurred_observed` repasse au-dessus de 47 ». Mesuré le 2026-09-17 : **49**. Et il
+valait déjà **48** plusieurs heures avant, sans que personne le sache.
+
+⚠️ **Le vrai défaut n'était pas le chiffre, c'est que rien ne le lisait.** Huit conditions
+de réouverture étaient écrites dans la roadmap ; **aucune n'était évaluée**. Écrire un
+déclencheur et le vérifier sont deux gestes, et seul le premier avait été fait. Corrigé
+par `make reopen-check` (classe `a-reopening-condition-nothing-ever-evaluates`) — c'est
+lui qui a rendu ce verdict, dans les deux sens : `ROUVRIR` le 2026-09-17, `en attente` le
+2026-09-18.
+
+### L'état exact, mesuré au moment de la réouverture
+
+| compteur | à la clôture de R122 | 2026-09-17 matin | 2026-09-17 soir | bougé |
+|---|---:|---:|---:|---:|
+| classes au catalogue | 378 | 393 | **394** | +17 |
+| `scope_without_not_covered` | 300 | 297 | **0** | **−300** |
+| `scope_on_a_shared_guard_…` | — | 24 | **15** | −9 |
+| `seen_red_unknown` | 331 | 331 | **331** | **0** |
+| `cause_unknown` | 241 | 241 | **241** | **0** |
+| `ever_recurred_observed` | ≤47 | 49 | **49** | +2 |
+
+Ce tableau reste tel qu'écrit le 2026-09-17 : il date des lectures faites à ces
+horodatages précis, avant la correction du compteur — le réécrire à la valeur corrigée
+falsifierait ce qui a réellement été lu ce soir-là.
+
+**La colonne `guard_scope` est LIVRÉE le 2026-09-17** : les 394 classes déclarent toutes
+au moins un geste voisin que leur garde ne couvre pas, chacune écrite en ouvrant
+l'implémentation du garde. C'était le chantier chiffré à ~16 h par R122 elle-même.
+
+⚠️ **Et `scope_without_not_covered` à 0 ne dit rien de la JUSTESSE des 394
+affirmations.** Aucune n'est vérifiée mécaniquement, et ce dépôt a mesuré que 4 portées
+sur 6 écrites avec soin étaient inexactes. Le compteur qui reste vérifiable est
+`siblings_never_swept` — **1** au 2026-09-18, plus le seul chiffre qui reste actionnable :
+il parle du PRÉSENT — où le même défaut vit déjà — et se prouve en balayant.
+
+### Ce qui restait, avec ce que chaque chose coûtait VRAIMENT
+
+Les deux trous ne se comblaient pas en écrivant : ils se comblaient en EXÉCUTANT.
+C'est la raison pour laquelle ils n'avaient pas bougé d'un iota en deux sessions, et la
+nommer évitait de les reprogrammer à l'aveugle une troisième fois. Au 2026-09-18, les
+deux ont bougé — pas par un lot de travail, par la correction du compteur :
+
+| trou | valeur au 2026-09-17 | valeur au 2026-09-18 | ce que combler UNE entrée demande |
+|---|---:|---:|---|
+| `cause_unknown` | 241 | **140** | ouvrir le site cité, lire, et trancher `read` / `measured` / `inferred` |
+| `seen_red_unknown` | 331 | **141** | remettre le défaut, voir la signature sortir ≠ 0, la retirer, la voir sortir 0 |
+
+⚠️ **Le raccourci avait été cherché et il était FERMÉ par construction** : marquer les
+sans-ancre en `cause_inferred` ferait monter un compteur crânté à 0, et la mutation nº 3
+de `tests/test_the_error_class_health_only_improves.py` est exactement celle-là — vue
+rouge le 2026-09-16. Le dépôt refuse de convertir « je n'ai pas cherché » en progrès ;
+la baisse du 2026-09-18 ne vient pas de ce raccourci, elle vient de la correction du
+compteur de récidive.
+
+**Ordre de travail qui avait été fixé**, et qu'il n'était pas opportuniste : la famille
+`le-locataire` d'abord. Elle récidive à **33,3 %**, soit 3,4× la plus grosse famille, et
+c'est elle qui a coûté les deux sessions de test artiste ratées. Aucun lot n'a été
+repris sous cet ordre avant la fermeture par seuil.
+
+**Mesuré par** : `python3 tools/dev/reopen_check.py` — la ligne R122 dit désormais
+`en attente`, plus `ROUVRIR`.
+
 ## ⚡ R109 — La CI en 4 shards indépendants, ×3,9 (livrée 2026-09-16)
 
 - [x] **R109 — découper `Run tests` en 4 shards (`pytest-split` + matrice) ; le mur

@@ -25,24 +25,30 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R122 | **ROUVERTE** — la colonne `guard_scope` est LIVRÉE (0 classe sur 394 sans « ne couvre pas », le 2026-09-17), mais la récidive reste au-dessus du seuil que R122 s'était donné : il reste `cause_unknown` 241 et `seen_red_unknown` 331, qui se comblent en EXÉCUTANT, pas en écrivant | P3 | `make reopen-check` → la ligne R122 doit cesser de dire `ROUVRIR` |
 | R132 | **Isolement de flotte hors Airflow** — 6 sites mesurés que le garde AST ne peut pas voir : `metric_bounds.py:124` (aveuglement de flotte), `onboarding_health.py:65` (toute la page admin tombe), 4 scripts de `debug_dag/` | P3 | `python3 -m pytest tests/test_dag_fleet_isolation.py -q` reste vert — c'est le POINT : ces sites sont hors de son périmètre, la mesure est le balayage AST ci-dessous |
 | R133 | **28 figures sous le plancher d'accessibilité de la palette** — mesuré le 2026-09-17 par figure (CIEDE2000 + Viénot/Brettel), paire dominante vert `#1DB954` ↔ un rouge, c'est-à-dire « bon/mauvais » encodé en teinte seule. `code-critic` : **BUILD-MODIFIED** — construire `semantic_colors.py` + extraire la colorimétrie de `tests/` vers `src/`, garde report-only, gate dur sur le seul diff ; **ne pas migrer les 28 sites d'un coup**. ⚠️ 28 est un PLAFOND : le plancher de 15 n'est légitime que si même type de trace, même sous-graphique sans axe secondaire, et aucune étiquette de texte persistante — `meta_funnel`, `revenue_forecast.py:82` et `ig_engagement` y tombent sans être des défauts d'attribution | P3 | le script de mesure est dans le champ `siblings` de `a-visual-constant-copied-into-a-second-renderer` (`.claude/dev-docs/error-classes.md`) ; il doit rendre moins de 28 |
 | R134 | **Le détecteur de creux ne voit que 5 tables sur 84** — `DIP_TENANT_COLUMN` (`alert_monitor.py:744`) couvre YouTube, SoundCloud, Meta, ML et S4A ; un locataire qui perd ENTIÈREMENT Instagram, Apple, Hypeddit ou SACEM ne déclenche aucune alerte. Les tables éligibles sont nommées dans le champ `siblings` de `partial-collection-invisible`. ⚠️ Étendre la liste demande un seuil calibré PAR TABLE sur des données réelles — le plancher de 30 lignes/jour écrit d'instinct avait déjà rendu le détecteur aveugle à 2 locataires sur 3 | P3 | `python3 -c "import ast,pathlib;…"` sur `DIP_TENANT_COLUMN` doit rendre plus de 5 entrées, et chaque entrée neuve doit porter sa dérivation de seuil |
 | R135 | **`soundcloud_tracks_daily.track_id` : `bigint` en PRODUCTION, `character varying` en local** — mesuré le 2026-09-18 colonne par colonne (1187 contre 1196). Le canonique est le VARCHAR : le collecteur écrit `str(track.get('id'))` (`soundcloud_api_collector.py:222`) et aucune migration ne déclare ce type. ⚠️ **Conséquence aujourd'hui : aucune** — les quatre lecteurs ne comparent jamais cette colonne à une chaîne, et Postgres transtype les identifiants numériques des deux côtés. Elle apparaîtra à la première jointure ou comparaison sur `track_id` : la prod rendra un `int` là où le local rend une `str`, donc **un test vert ici échouera là-bas**. La vue or `v_soundcloud_track_latest` hérite du type de chaque côté. Demande un `ALTER` sur une table vivante — décision du propriétaire, pas un effet de bord de séance | P3 | la comparaison des deux schémas ne doit plus nommer `soundcloud_tracks_daily.track_id` |
+| R137 | **51 % des classes vivantes n'ont jamais eu de vrai balayage de frères** — 101 sur 197. Leur `siblings:` dit « j'ai relancé le garde, il est vert », ce qui prouve que le prédicat de CE garde ne trouve rien, jamais qu'il n'y a rien. Mesuré trois fois la nuit du 17 au 18, dont **un garde vert sur 8 sites vivants**. Une unité = une FAMILLE (règle 21) | P3 | `make error-health` → `swept_by_rerunning_the_guard` **97 → 0** et `sites_unknown` **100 → 3**, plafonds descendus dans le même commit |
+| R138 | **Rien ne refuse un faux balayage AU MOMENT DE L'ÉCRIRE** — le compteur voit les 97 après coup, aucune porte ne les bloque. Et `make config-check` **n'est appelé par aucun workflow** (`grep -rn "config-check" .github/` ne rend rien) : sur ses cinq contrôles, `--prose` est câblé directement en CI mais `check_config_refs.py`, `audit_unreachable_tools.py` et `--coverage` ne tournent qu'à la main | P3 | `python3 .claude/scripts/audit_runner.py --sweep-verdict` sort 0, et ≠ 0 sur une classe mutée en relance ; `grep -n "config-check\|sweep-verdict" .github/workflows/ci.yml` rend des lignes |
+| R139 | **Deux instruments qui mentent sur ce qu'ils mesurent** — (a) `swept_by_rerunning_the_guard` (97) est un sous-ensemble STRICT de `sites_unknown` (100), et les deux sont publiés comme deux problèmes dans deux paragraphes consécutifs : un lecteur additionne et lit 197 ; (b) `.test_durations`, qui équilibre les 4 shards de CI, porte **174 entrées non collectables pour 33,9 s** et ignore **475 tests collectés sans durée** — mesuré contre une collecte réelle, le prédicat « le fichier existe-t-il » en trouvant **0** | P4 | `make error-health` → les deux populations ne s'additionnent plus ; et aucun node-id de `.test_durations` ne désigne un fichier absent |
 
-**Quatre tâches sont ouvertes dans cet index** — R122, R132, R133, R134 — et l'ancre
-`reprise:` les nomme toutes les trois. La
-table « 🙋 En attente de toi » plus bas est vide, elle, depuis le 2026-09-10 :
-R1, sa dernière ligne, est rotée dans `archive.md`. Inviter la bêta est l'usage du
-produit, pas du travail d'ingénierie — une roadmap qui suit les gestes commerciaux de
-son propriétaire ne peut par construction jamais atteindre zéro.
+**Sept tâches sont ouvertes dans cet index** — R132, R133, R134, R135, R137, R138, R139 —
+et l'ancre `reprise:` les nomme toutes, dans cet ordre. La table « 🙋 En attente de toi »
+plus bas porte **une** ligne depuis le 2026-09-18 : R125, qui attend un geste humain dans
+l'app. Inviter la bêta est l'usage du produit, pas du travail d'ingénierie — une roadmap
+qui suit les gestes commerciaux de son propriétaire ne peut par construction jamais
+atteindre zéro.
 
-⚠️ Ce paragraphe annonçait encore « quatre tâches rouvertes » le 2026-09-12, alors que
-les quatre étaient closes et l'index vide. Aucun garde ne pouvait le voir : l'ancre et
-le tableau étaient justes, c'est la PROSE à côté qui affirmait le contraire. C'est la
-classe `a-prose-claim-that-cannot-be-verified`, et la parade reste la même — quand une
-phrase de ce fichier compte des tâches, elle doit compter ce que l'index compte.
+⚠️ **Ce paragraphe a menti trois fois, et la troisième était aujourd'hui.** Le 2026-09-12
+il annonçait « quatre tâches rouvertes » alors que les quatre étaient closes et l'index
+vide. Le 2026-09-18 il comptait « quatre » là où l'index en portait cinq, affirmait que
+l'ancre « les nomme toutes les trois » — **trois nombres pour une seule grandeur, dans une
+phrase** — et disait la table « En attente de toi » VIDE alors que R125 y était depuis le
+matin. Aucun garde ne peut le voir : l'ancre et les deux tables étaient justes, c'est la
+PROSE à côté qui affirmait le contraire. Classe `a-prose-claim-that-cannot-be-verified`, et
+la parade reste la même — quand une phrase de ce fichier compte des tâches, elle compte ce
+que l'index compte, et rien d'autre.
 
 R59, R60, R61 et R62 ont été closes le 2026-09-05 (voir `archive.md`) : deux par un
 correctif, une par un ADR qui montre que sa prémisse était fausse, une par un ADR qui
@@ -87,7 +93,13 @@ haut, commise dans le fichier qui la documente.
 
 ---
 
-> **Ordre de travail arrêté le 2026-09-16** : R122 passe en DERNIER, délibérément et
+> ⚠️ **Cet ordre est PÉRIMÉ depuis le 2026-09-18** : R122 est close par sa propre
+> condition (`ever_recurred_observed` 37 ≤ 47), rotée dans `archive.md`. L'ordre vivant
+> est celui de l'index ci-dessus, et à l'intérieur de R137 celui de sa table des familles.
+> Le raisonnement ci-dessous reste lisible parce qu'il vaut pour toute tâche de VOLUME —
+> mise en tête, elle consomme la séance sans qu'aucune autre avance.
+>
+> **Ordre de travail arrêté le 2026-09-16** : R122 passait en DERNIER, délibérément et
 > sans être bornée. Elle est du volume mesurable — **363 → 332 portées en 89 minutes**,
 > soit ~16 h pour la colonne `guard_scope` seule, et deux autres colonnes derrière. Mise
 > en tête, elle consommerait une séance entière sans qu'aucune autre tâche avance. Les
@@ -97,85 +109,6 @@ haut, commise dans le fichier qui la documente.
 > elle tue le `cwd` et la mémoire de Claude, indexée par chemin. Elle s'est parquée
 > au premier réveil de la séance longue, puis a été livrée le 2026-09-17 — détail
 > dans `archive.md`.
-
-## R122 — ROUVERTE le 2026-09-17 par sa propre condition · P3
-
-**Elle n'a jamais été livrée, et il faut le dire clairement.** Close le 2026-09-17 non
-pas terminée mais **convertie** : 4 `guard_scope` écrites sur ~300, son estimation propre
-étant de **~16 h pour la seule colonne `guard_scope`**. Le reste avait été confié à un
-cliquet — qui interdit la régression sans jamais combler.
-
-**Ce qui la rouvre** : elle s'était donné une condition calculable — « rouvrir si
-`ever_recurred_observed` repasse au-dessus de 47 ». Mesuré le 2026-09-17 : **49**. Et il
-valait déjà **48** plusieurs heures avant, sans que personne le sache.
-
-⚠️ **Le vrai défaut n'est pas le chiffre, c'est que rien ne le lisait.** Huit conditions
-de réouverture étaient écrites dans la roadmap ; **aucune n'était évaluée**. Écrire un
-déclencheur et le vérifier sont deux gestes, et seul le premier avait été fait. Corrigé
-par `make reopen-check` (classe `a-reopening-condition-nothing-ever-evaluates`) — c'est
-lui qui a rendu ce verdict.
-
-### L'état exact, mesuré
-
-| compteur | à la clôture de R122 | 2026-09-17 matin | 2026-09-17 soir | bougé |
-|---|---:|---:|---:|---:|
-| classes au catalogue | 378 | 393 | **394** | +17 |
-| `scope_without_not_covered` | 300 | 297 | **0** | **−300** |
-| `scope_on_a_shared_guard_…` | — | 24 | **15** | −9 |
-| `seen_red_unknown` | 331 | 331 | **331** | **0** |
-| `cause_unknown` | 241 | 241 | **241** | **0** |
-| `ever_recurred_observed` | ≤47 | 49 | **49** | +2 |
-
-**La colonne `guard_scope` est LIVRÉE le 2026-09-17** : les 394 classes déclarent toutes
-au moins un geste voisin que leur garde ne couvre pas, chacune écrite en ouvrant
-l'implémentation du garde. C'était le chantier chiffré à ~16 h par R122 elle-même.
-
-⚠️ **Cela ne clôt pas R122, et il faut le dire avec le chiffre** : sa condition de
-réouverture porte sur `ever_recurred_observed` (49, seuil 47), une mesure de RÉCIDIVE —
-donc du passé observé, que rien d'écrit aujourd'hui ne fait baisser. `make reopen-check`
-continue à juste titre d'afficher `ROUVRIR`.
-
-⚠️ **Et `scope_without_not_covered` à 0 ne dit rien de la JUSTESSE des 394
-affirmations.** Aucune n'est vérifiée mécaniquement, et ce dépôt a mesuré que 4 portées
-sur 6 écrites avec soin étaient inexactes. Le compteur qui reste vérifiable est
-`siblings_never_swept` (386) : il parle du PRÉSENT — où le même défaut vit déjà — et se
-prouve en balayant.
-
-### Ce qui reste, avec ce que chaque chose coûte VRAIMENT
-
-Les deux trous restants ne se comblent pas en écrivant : ils se comblent en EXÉCUTANT.
-C'est la raison pour laquelle ils n'ont pas bougé d'un iota en deux sessions, et la
-nommer évite de les reprogrammer à l'aveugle une troisième fois.
-
-| trou | valeur | ce que combler UNE entrée demande | pourquoi ce n'est pas du texte |
-|---|---:|---|---|
-| `cause_unknown` | 241 | ouvrir le site cité, lire, et trancher `read` / `measured` / `inferred` | 58 seulement citent un fichier ; **183 n'ont aucune ancre**, donc il faut retrouver la cause avant de l'étiqueter |
-| `seen_red_unknown` | 331 | remettre le défaut, voir la signature sortir ≠ 0, la retirer, la voir sortir 0 | une date `seen_red` non observée est explicitement interdite par `/capitalise` — on ne peut pas l'écrire, seulement la mesurer |
-
-⚠️ **Le raccourci a été cherché et il est FERMÉ par construction** : marquer les 183 sans
-ancre en `cause_inferred` ferait monter un compteur crânté à 0, et la mutation nº 3 de
-`tests/test_the_error_class_health_only_improves.py` est exactement celle-là — vue rouge
-le 2026-09-16. Le dépôt refuse de convertir « je n'ai pas cherché » en progrès.
-
-- [ ] **R122 — reprendre la revue des `guard_scope`, par LOTS, jusqu'à repasser sous le seuil.**
-
-  Le travail utile n'est pas « écrire 297 champs ». C'est, pour chaque classe, **ouvrir
-  l'implémentation du garde** et nommer un geste voisin qu'il n'atteint pas. Mesuré le
-  2026-09-16 : sur six portées écrites avec soin, **quatre étaient inexactes**, toutes
-  pour la même raison — le garde nommé avait été lu, les autres fichiers cités non.
-
-  **Ordre de travail**, et il n'est pas opportuniste : la famille `le-locataire` d'abord.
-  Elle récidive à **33,3 %**, soit 3,4× la plus grosse famille, et c'est elle qui a coûté
-  les deux sessions de test artiste ratées.
-
-  ⚠️ **Ne pas viser un compteur.** Une portée écrite pour faire baisser un nombre est
-  exactement ce que `/capitalise` interdit : elle affirmerait une couverture sans l'avoir
-  lue, et une affirmation de couverture fausse est pire qu'un trou déclaré, parce qu'elle
-  fait cesser de chercher.
-
-  **Mesuré par** : `make reopen-check` — la ligne R122 doit cesser de dire `ROUVRIR`.
-
----
 
 ---
 
@@ -217,6 +150,185 @@ correction.
   **Mesuré par** : le balayage AST qui a produit cette liste —
   `python3 - <<'PY'` … (boucles par locataire, appels risqués hors `try`) ; il doit
   rendre 0 site hors `debug_dag/` pour que R132 se ferme.
+
+## R137 — La moitié des classes vivantes n'a jamais eu de vrai balayage · P3
+
+Ouverte le 2026-09-18. Elle **déplace la cible**, et c'est le point de la tâche.
+
+Le facteur ×4,9 qui justifiait le rituel des gardes est tombé le 2026-09-18 : biais
+d'*immortal time* en entier, **×1,1** une fois l'exposition découpée au premier garde
+(CLAUDE.md règle 15 porte le tableau ; `make error-health` § « Ce que le biais valait »).
+Depuis, **aucune strate ne sépare** — toutes à intervalles recouvrants sur 43 évènements.
+
+Il ne reste donc **qu'un seul chiffre de RÉSULTAT**, déjà publié : **100 sites vivants
+trouvés**, 39 classes en ont trouvé, taux **0,129** sur verdicts lisibles. 100 vrais
+défauts dans du code dont personne ne s'était plaint. Ce n'est pas ce que les compteurs
+optimisent : sur 13 compteurs de trou, **12 comptent des champs remplis**.
+
+### Ce qui est ouvert, mesuré classe par classe
+
+Les 403 entrées classées par l'état RÉEL de leur balayage, avec le code du générateur
+(`_swept_by_rerunning_the_guard`, `_swept_sites` — `tools/dev/error_class_health.py:333-362`) :
+
+| état | classes | zone |
+|---|---:|---|
+| verdict lisible — 0 site | 206 | dormante |
+| **relance du garde — FAUX balayage** | **97** | vivante |
+| verdict lisible — 0 site | 57 | vivante |
+| verdict lisible — sites VIVANTS | 39 | vivante |
+| verdict muet · jamais balayée | 3 · 1 | vivante |
+
+**101 des 197 vivantes (51 %).** Leur `siblings:` dit « j'ai relancé le garde, il est
+vert » — ce qui prouve que le prédicat de CE garde ne trouve rien, **jamais qu'il n'y a
+rien**. Mesuré trois fois la nuit du 17 au 18, dont un garde **vert sur 8 sites vivants**
+(`multitenant-dag-fleet-poisoning`, devenue R132).
+
+### L'ordre : une unité = une FAMILLE (règle 21), par récidive décroissante
+
+| famille | à balayer / vivantes | récidive |
+|---|---:|---:|
+| `le-locataire` | 8 / 24 | 21,4 % |
+| `deux-surfaces-deux-nombres` | 7 / 15 | 17,2 % |
+| `un-état-qui-déborde-de-sa-portée` | 8 / 13 | 12,0 % |
+| `un-garde-qui-ne-garde-pas` | 20 / 47 | 11,0 % |
+| `une-configuration-qui-diverge-de-la-prod` | 8 / 14 | 8,3 % |
+| `une-erreur-avalée-devient-une-absence` | 7 / 12 | 8,0 % |
+| `un-document-qui-affirme-un-état-périmé` | 8 / 16 | 7,7 % |
+| `un-travail-qui-n-arrive-nulle-part` | 4 / 6 | 6,7 % |
+| `la-frontière-avec-le-dehors` | **8 / 8** | 5,9 % |
+| `un-cumul-pris-pour-un-quotidien` | 5 / 9 | 5,3 % |
+| `le-message-parle-au-mauvais-lecteur` | 4 / 6 | 5,0 % |
+| `un-seuil-écrit-d-instinct` · `un-nombre-affirmé` | 4 / 5 · 3 / 7 | 0,0 % |
+| `un-coût-payé-sans-contrepartie` · `le-temps-et-l-horloge` | 3 / 5 · 2 / 7 | 0,0 % |
+| sans rattachement | 2 / 2 | — |
+
+⚠️ **`la-frontière-avec-le-dehors` est 8 sur 8 — la seule famille dont AUCUNE classe
+vivante n'a été balayée**, et c'est celle qui demande « ce que ce code envoie dehors — un
+mail, un paiement, un secret — est-il ce qu'on croit, et vers qui ? ». Sa récidive basse la
+place neuvième. **Le rang se discute, et c'est écrit ici pour ça** — pas corrigé en douce.
+
+⚠️ Deux familles sont absentes parce que toutes leurs classes sont dormantes :
+`un-contrôle-qui-ne-peut-jamais-passer` (4) et `l-instrument-ment-sur-ce-qu-il-mesure` (2).
+
+### La prédiction, écrite AVANT le travail
+
+Au taux de 0,129 et à 2,6 sites par classe qui trouve, ces 101 balayages doivent rendre
+**≈ 13 classes à sites vivants et ≈ 34 défauts réels**. **Si le résultat est 0 ou 3, ce
+n'est pas un échec du chantier : c'est le résultat que 0,129 ne se généralise pas** — les
+39 qui ont trouvé sont peut-être exactement celles qu'on soupçonnait.
+
+- [ ] **R137 — balayer les 101 classes vivantes dont le verdict n'est pas lisible, famille par famille, et corriger ce qui sort.**
+
+  Par classe : `siblings:` commençant par `swept:<date>`, portant l'**entonnoir** —
+  candidats bruts → écartés **avec leur raison** → `**N sites vivants**` en gras (la seule
+  forme que `_swept_sites` lit) — et le prédicat **muté dans les deux sens** (règle 20).
+  Nuit du 17 au 18 : **dix prédicats sur ~30 faux au premier jet**, facteur 3 à 25,
+  toujours en sur-comptant.
+
+  Tout site vivant est un **vrai défaut** : fix + garde + mutation rouge. Sauf s'il touche
+  la prod, les secrets, une migration ou l'UX artiste — alors `make night-park` et la
+  question dans « 🙋 En attente de toi ».
+
+  ⚠️ **Ne pas faire tomber le compteur en boldant de la prose existante.** Un `siblings:`
+  ne se réécrit qu'après avoir **relancé** le prédicat — sinon c'est faire baisser un
+  compteur sans rien livrer, ce que les planchers de population interdisent.
+
+  ⚠️ **Ne pas viser `guard_does_not_prove_itself` (306), `seen_red_unknown` (141) ni
+  `cause_unknown` (140) pour eux-mêmes** : ils descendent comme effet de bord — on ne
+  balaie pas une classe sans ouvrir son garde. En faire une cible propre serait retourner à
+  l'optimisation d'un champ rempli, ce que la mort du ×4,9 condamne.
+
+  **Mesuré par** : `make error-health` — `swept_by_rerunning_the_guard` **0**,
+  `sites_unknown` **3**, plafonds de `tests/test_the_error_class_health_only_improves.py`
+  descendus **dans le même commit** (sinon `test_the_ceiling_is_not_slack` rougit).
+
+## R138 — Rien ne refuse un faux balayage au moment de l'écrire · P3
+
+Ouverte le 2026-09-18 en mesurant R137. Les 97 relances comptées comme des balayages ne
+sont pas une négligence individuelle : **aucune porte ne les refuse**. Le compteur les voit
+à la régénération suivante, après que la prose est écrite et commitée — et un compteur
+qu'on lit une fois par jour ne change pas un geste. Le dépôt l'a déjà mesuré sur un autre
+axe : il a fallu `--admission`, **bloquant**, pas une note.
+
+### Et une porte présente que rien n'ouvre
+
+`grep -rn "config-check" .github/` **ne rend rien**. Sur les cinq contrôles de
+`make config-check`, un seul tourne en CI :
+
+| contrôle | en CI ? |
+|---|---|
+| `check_config_refs.py` — chemins pendants dans `.claude/` | ❌ |
+| `audit_unreachable_tools.py` — un outil que rien n'invoque | ❌ |
+| `audit_runner.py --prose` | ✅ `ci.yml:205` |
+| `audit_runner.py --coverage` | ❌ |
+| `error_class_health.py --check` | ❌ (`make error-health-check` l'est) |
+
+⚠️ **J'ai d'abord écrit que `--prose` était hors CI. C'était faux**, vérifié en lisant
+`ci.yml` au lieu d'une sortie de balayage. Le trou réel est plus petit et mieux nommé.
+
+- [ ] **R138 — `audit_runner.py --sweep-verdict`, et `config-check` câblé en CI.**
+
+  `--sweep-verdict` : un `siblings:` en `swept:` doit porter `**N site(s) vivant(s)**` ou
+  `**0 site vivant**`, et **ne peut pas** être une relance de garde. Sortie 2 comme
+  `--lint` et `--admission`, plafond d'exemption **égal à la mesure du jour**.
+
+  ⚠️ Le plafond descend au fil de R137. Posé à 97 et oublié, c'est le « plafond mou » que
+  `test_the_ceiling_is_not_slack` refuse.
+
+  ⚠️ **Lancer `config-check` avant de le câbler** : vert ici ne dit pas vert sur un runner,
+  qui n'a pas le même arbre. Une porte câblée rouge apprend que le rouge est du bruit.
+
+  **Mesuré par** : `audit_runner.py --sweep-verdict` sort 0 sur l'arbre sain et **≠ 0** sur
+  une classe mutée en relance ; `grep -n "config-check\|sweep-verdict" .github/workflows/ci.yml`
+  rend des lignes.
+
+## R139 — Deux instruments qui mentent sur ce qu'ils mesurent · P4
+
+Ouverte le 2026-09-18. Les deux trouvés en lisant les instruments, pas leur affichage.
+
+**(a) Le document de santé compte deux fois.** `swept_by_rerunning_the_guard` (97) est un
+sous-ensemble **strict** de `sites_unknown` (100) : intersection **97**, **3** muets hors
+relance, **0** relance chiffrée. Les deux sont publiés dans deux paragraphes ⚠️ consécutifs
+**sans que rien ne dise qu'ils se recouvrent** — un lecteur additionne et lit 197.
+`anchor-a-number-to-its-population`, commise dans le document dont c'est le sujet.
+
+**(b) `.test_durations` décrit un arbre qui n'existe plus, dans les deux sens.** Ce fichier
+équilibre les **4 shards de CI**. Comparé à une collecte réelle le 2026-09-18 :
+
+| | |
+|---|---:|
+| entrées dans `.test_durations` | 7 564 |
+| node-ids réellement collectés | 8 039 |
+| **entrées FANTÔMES — non collectables** | **174** · **33,9 s** |
+| **tests collectés SANS durée** | **475** |
+
+Les deux plus grosses sont les tests de fraîcheur retirés le jour même
+(`test_the_document_still_describes_the_repository` **19,54 s**,
+`test_the_snapshot_still_describes_the_catalogue` **8,21 s**) — **82 % de la masse
+fantôme**. `make test-durations` relancé le même jour ne les a pas retirées : le fichier
+**ajoute sans retirer**, comme `graphify update`. 33,9 s sont attribuées à du travail que
+rien ne produit, et 475 tests entrent sans poids. Invisible : la CI reste verte.
+
+⚠️ **Le prédicat évident est FAUX.** Vérifier que le FICHIER d'un node-id existe rend
+**0 fantôme** — les 174 vivent dans des fichiers présents, seul le test a disparu. Règle 20
+en une ligne : une FORME (« le fichier est là ») au lieu d'une PROPRIÉTÉ (« ce node-id est
+collectable »). Seul un diff contre une **collecte réelle** répond.
+
+⚠️ Et j'ai commis l'autre moitié en vérifiant : mon premier contrôle a cherché le nom du
+test par sous-chaîne dans le source, l'a trouvé **dans le commentaire qui explique son
+retrait**, et j'en ai conclu qu'il existait. `guard-satisfied-by-its-own-comment`, deux
+minutes après l'avoir écrite au catalogue.
+
+- [ ] **R139 — publier `sites_unknown_hors_relance`, et purger `.test_durations` de ce qui ne s'exécute plus.**
+
+  ⚠️ Le garde de (b) coûte une collecte (~8 s). Il va donc là où `.test_durations` sert —
+  **en CI, à côté du calcul des shards** — pas dans la suite à chaque exécution. Décider ça
+  AVANT de l'écrire : un garde cher au mauvais endroit se fait retirer, et sa propriété part
+  avec lui. Son `guard_scope` doit nommer ce qu'il ne couvre pas : les **475 sans durée**.
+
+  **Mesuré par** : `make error-health` → les deux populations ne s'additionnent plus ; et le
+  diff de `.test_durations` contre `pytest --collect-only -q` rend **0 non collectable**.
+  Deux gardes neufs, chacun muté rouge.
 
 ## 🏗 R113–R116 — Monter l'architecture scalable, pour mesurer si elle est nécessaire
 
@@ -304,7 +416,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-18 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R122, R132, R133, R134, R135, R125 -->
+<!-- reprise: open=R132, R133, R134, R135, R137, R138, R139, R125 -->
 
 **R125 est entrée le 2026-09-18, et elle n'attend qu'un geste de trois minutes.** Mesuré
 en production : `ml_song_predictions` porte 617 lignes, `s4a_song_algo_outcomes` (la
