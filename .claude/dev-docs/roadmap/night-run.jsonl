@@ -114,3 +114,4 @@
 {"at": "2026-09-18T20:53:55+00:00", "head": "5dc05df", "kind": "start", "task": "R139", "what": "double comptage sites_unknown + .test_durations non collectables"}
 {"at": "2026-09-18T21:06:55+00:00", "head": "8b50834", "kind": "done", "task": "R139", "what": "double comptage corrige (sites_unknown_hors_relance + prose qui dit le recouvrement) et .test_durations purge de 26 fantomes, 7771=7771, controle cable en CI"}
 {"at": "2026-09-18T21:13:01+00:00", "head": "c607a7b", "kind": "start", "task": "R141", "what": "20 citations orphelines de noms de tests — tri site par site"}
+{"at": "2026-09-18T21:23:25+00:00", "head": "8516d54", "kind": "done", "task": "R141", "what": "20 citations triees -> 15 notes de retrait, 2 faux positifs, 4 vrais pointeurs morts corriges ; garde par tokenize mute rouge x2 ; echappatoire du cliquet completee (22/22 conservees) avec sa breche declaree"}

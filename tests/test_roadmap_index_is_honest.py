@@ -452,10 +452,24 @@ def test_a_sentence_that_counts_rows_counts_the_rows_there_are() -> None:
     faux = []
     for entete, alias in _SECTION_ALIAS.items():
         for m in re.finditer(re.escape(alias), texte):
+            # ⚠️ Une ligne de tableau dont la PREMIÈRE CELLULE est une date est un relevé
+            # DATÉ, pas un état courant. Ajouté le 2026-09-18 : le paragraphe qui raconte
+            # les mensonges passés de ce fichier les CITE — « la table porte UNE ligne »,
+            # « En attente de toi VIDE » — et ce garde les lisait comme des affirmations
+            # vivantes. Il refusait donc l'historique qui explique pourquoi il existe.
+            # Le discriminant est structurel, pas lexical : `| 2026-09-18 | …` est daté,
+            # `| R140 | …` ne l'est pas — donc une ligne d'index reste contrainte.
+            debut_ligne = texte.rfind("\n", 0, m.start()) + 1
+            ligne_entiere = texte[debut_ligne: texte.find("\n", m.start())]
+            if re.match(r"\s*\|\s*\d{4}-\d{2}-\d{2}", ligne_entiere):
+                continue
             # la fenêtre où une phrase peut encore parler de CETTE section
             fenetre = texte[m.end(): m.end() + 160]
             # coupée au premier saut de paragraphe : au-delà, la phrase a changé de sujet
             fenetre = fenetre.split("\n\n")[0]
+            # et coupée à la fin de la LIGNE : une ligne de tableau suivante est un autre
+            # relevé, pas la suite de la phrase.
+            fenetre = fenetre.split("\n")[0] if ligne_entiere.lstrip().startswith("|") else fenetre
             c = _COMPTE.search(fenetre)
             if not c:
                 continue

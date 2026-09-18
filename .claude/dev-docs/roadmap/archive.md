@@ -9,6 +9,59 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🔍 R141 — Un commentaire qui nomme un test disparu : 20 → 4 (livrée 2026-09-18)
+
+**Livrée et poussée le 2026-09-18** — commit `8516d54`. La ligne de l'actif est reprise
+**verbatim** plus bas ; elle porte la mesure finale, et c'est elle le cœur de l'entrée.
+
+### Ce que le tri a rendu — le chiffre annoncé valait ×7
+
+Les **20 citations orphelines** annoncées à l'ouverture, triées une par une :
+
+| nature | nombre |
+|---|---:|
+| notes de RETRAIT légitimes | **15** |
+| faux positifs du prédicat | **2** |
+| **vrais pointeurs morts** | **4** |
+
+Les 15 premières ne sont pas un défaut : un commentaire qui dit « `test_x` A ÉTÉ RETIRÉ
+LE 2026-09-13 » **nomme** `test_x`, et c'est exactement son travail. Les 2 faux positifs
+venaient d'ailleurs que d'un test — `test_ok_account` de la clé de traduction
+`credentials.meta.test_ok_account`, `test_durations` du FICHIER `.test_durations`.
+
+Les quatre vrais : `validate_rex.py:70` (fichier renommé), `validate_rex.py:78` (fichier
+qui **n'a jamais existé**, et dont le commentaire affirmait en plus un mécanisme que le
+garde réel n'emploie pas), `src/dashboard/serve.py:64`, et
+`src/dashboard/content/credential_guides.py:202`.
+
+⚠️ **Le quatrième, c'est le garde neuf qui l'a trouvé — à sa première exécution.** Mon
+tri manuel l'avait classé « retrait documenté » parce que son bloc contenait des mots de
+retrait ; le garde, lui, contraint le renvoi à désigner un FICHIER quoi qu'en dise la
+prose autour. C'est la règle 20 en une ligne : le tri lisait une FORME (« ce bloc parle
+d'un retrait »), le garde lit la PROPRIÉTÉ (« ce nom existe-t-il »).
+
+### Le garde, et la brèche qu'il a fallu déclarer
+
+`tests/test_a_comment_names_a_test_that_exists.py` lit les commentaires par `tokenize`
+— donc **en tant que commentaires**, pas par sous-chaîne dans le source. Muté rouge dans
+les deux sens.
+
+⚠️ Le cliquet des gardes textuels a imposé d'**élargir son échappatoire à `tokenize`** :
+l'AST de Python jette les commentaires, donc exiger `ast` reviendrait à interdire la
+question. Mesuré avant de l'élargir : **22 gelées sur 22 restent détectées**, et seuls 3
+fichiers de tests utilisent `tokenize`. **La brèche est déclarée dans le code**, pas tue :
+écrire `tokenize.` n'importe où exempte — la même évasion existait déjà pour `ast.parse`.
+
+- [x] **R141 — un commentaire qui nomme un test disparu : 20 citations orphelines, 4 vrais pointeurs morts.**
+
+  La ligne de l'index, telle qu'elle était à la clôture :
+
+  > ~~**Un commentaire qui nomme un test disparu**~~ — **CLOSE le 2026-09-18, et le chiffre annoncé valait ×7.** Les 20 citations orphelines triées une par une : **15 sont des notes de RETRAIT légitimes** (un commentaire qui dit « X a été retiré » nomme X — c'est son travail), **2 sont des faux positifs du prédicat** (`test_ok_account` venait d'une clé de traduction, `test_durations` du FICHIER `.test_durations`), et **3 étaient de vrais pointeurs morts** — plus **un quatrième que le garde neuf a trouvé à sa première exécution** et que mon tri avait classé « retrait documenté » à tort. **20 → 4.** Neuvième sur-comptage de la séance, et aucune de ces corrections n'est venue d'une relecture du prédicat. | P4
+
+  **Mesuré par** : `.venv/bin/python -m pytest tests/test_a_comment_names_a_test_that_exists.py -q`
+
+---
+
 ## 📐 R139 — Deux instruments qui mentaient sur ce qu'ils mesurent (livrée 2026-09-18)
 
 **Livrée et poussée le 2026-09-18** — commit `8b50834`. Ce qui suit d'abord est ce que

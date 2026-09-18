@@ -57,7 +57,12 @@ repos:
         # markdown uses 2-space line breaks; tests/fixtures hold byte-exact snapshots
         exclude: (\.md$|^tests/fixtures/)
       - id: end-of-file-fixer
-        exclude: ^tests/fixtures/   # byte-exact golden snapshots must not be reflowed
+        # `.test_durations` est ecrit par `pytest-split`, qui ne pose pas de saut de ligne
+        # final. Le hook le corrigeait a CHAQUE commit touchant les durees — six fois dans
+        # la seule seance du 2026-09-18, chacune coutant un aller-retour `git add`. Le
+        # fichier est genere et jamais lu par un humain ; normaliser sa derniere ligne
+        # n'achete rien et se paie a chaque mesure.
+        exclude: (^tests/fixtures/|^\.test_durations$)   # snapshots byte-exacts ; JSON genere
       - id: check-yaml
         # `deploy/docker-compose.replica.yml` porte `ports: !override`, un tag que
         # DOCKER COMPOSE comprend (>= 2.24) et que PyYAML refuse : « could not
