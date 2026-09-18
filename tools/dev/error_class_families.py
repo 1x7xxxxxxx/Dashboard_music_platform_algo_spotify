@@ -210,7 +210,14 @@ FAMILIES: list[tuple[str, str, str]] = [
      # aussi peu gardée qu'une porte qui ne regarde pas — la question de la famille
      # (« sa portée contient-elle ce défaut ? ») est la bonne dans les deux cas, à
      # ceci près qu'ici la portée est trop LARGE, pas trop étroite.
+     # `substitution|s'exécute|accent grave` ajoutés le 2026-09-18 : une chaîne de
+     # DESCRIPTION dont le shell exécute le contenu appartient à cette famille,
+     # au même titre que `a-kill-pattern-that-matches-its-own-shell` et
+     # `a-verdict-swallowed-by-the-pipe-that-abbreviated-it`, qui y sont déjà.
+     # La question de la famille — « le garde couvre-t-il ce défaut ? » — vaut
+     # ici parce que le geste qui VÉRIFIE devient le geste qui AGIT.
      r"guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|"
+     r"substitution|s'exécute|accent grave|"
      # `correct-because-there-is-only-one-of-it`, ajoutee le 2026-09-16 : c'est la
      # classe GENERIQUE dont trois autres du jour sont des instances. Son garde est un
      # registre qui MET EN QUESTION plutot qu'il ne refuse — la forme de garde que

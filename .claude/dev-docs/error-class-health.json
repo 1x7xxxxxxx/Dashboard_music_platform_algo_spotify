@@ -1,5 +1,32 @@
 {
   "classes": {
+    "a-backtick-in-a-shell-string-is-executed": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-18",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_description_does_not_execute.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
+      "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
+      "guard_type": "test",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-18"
+      ],
+      "kind": "deterministic",
+      "seen_red": "2026-09-18",
+      "severity": "P2",
+      "siblings_is_a_guard_rerun": false,
+      "siblings_sites": 1,
+      "siblings_swept": true,
+      "status": "guarded",
+      "introduced_date": null,
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-bash-hook-that-blocks-the-prose-about-the-gesture": {
       "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
@@ -1118,7 +1145,7 @@
         "2026-09-16"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -1217,7 +1244,7 @@
       "guard_ref": "tests/test_the_pdf_prints_every_glyph_it_carries.py",
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
-      "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "pytest",
@@ -2299,7 +2326,7 @@
       "guard_ref": "tests/test_a_curve_ends_where_its_tile_says.py",
       "guard_ref_exists": true,
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
-      "guard_scope_derived_family": "la-frontière-avec-le-dehors",
+      "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": true,
       "guard_type": "pytest",
@@ -6102,7 +6129,7 @@
       "guard_ref": "tests/test_a_shipped_script_can_actually_run.py",
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
-      "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
       "guard_type": "pytest",
@@ -9012,7 +9039,7 @@
         "2026-09-17"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 2,
@@ -9580,7 +9607,7 @@
         "2026-08-23"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -9823,7 +9850,7 @@
         "2026-08-30"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -10338,7 +10365,7 @@
         "2026-08-21"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P1",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -10805,17 +10832,17 @@
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 321,
+      "seen_red_unknown": 316,
       "siblings_never_swept": 106,
       "sites_unknown": 101,
       "swept_by_rerunning_the_guard": 97
     },
     "population": {
-      "automatic_guard": 388,
-      "classes": 398,
+      "automatic_guard": 389,
+      "classes": 399,
       "ever_recurred_observed": 53,
       "prose_only": 10,
-      "with_signature": 387
+      "with_signature": 388
     },
     "recurrence": {
       "window_start": "2026-05-15",
@@ -10852,21 +10879,21 @@
       },
       "by_seen_red": {
         "daté": {
-          "events": 9,
-          "class_days": 762,
-          "per_class_month": 0.3591,
+          "events": 11,
+          "class_days": 864,
+          "per_class_month": 0.387,
           "ci95": [
-            0.1638,
-            0.6816
+            0.1929,
+            0.6926
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 57,
-          "class_days": 7632,
-          "per_class_month": 0.227,
+          "events": 55,
+          "class_days": 7530,
+          "per_class_month": 0.222,
           "ci95": [
-            0.172,
-            0.2942
+            0.1673,
+            0.289
           ]
         }
       },
@@ -10900,11 +10927,11 @@
       }
     },
     "sweep_yield": {
-      "sweeps_done": 292,
-      "sweeps_with_a_verdict": 191,
-      "sweeps_that_found_something": 21,
-      "live_sites_found": 52,
-      "hit_rate_on_verdicts": 0.11,
+      "sweeps_done": 293,
+      "sweeps_with_a_verdict": 192,
+      "sweeps_that_found_something": 22,
+      "live_sites_found": 53,
+      "hit_rate_on_verdicts": 0.115,
       "note": "Le taux porte sur les balayages dont le verdict est LISIBLE. Les autres sont comptés dans holes.sites_unknown — un balayage muet n'est pas un balayage sans trouvaille."
     }
   }

@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**398 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**399 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -20,14 +20,14 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 24 | **4/24** · 16.7 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | **3/29** · 10.3 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 25 | **4/25** · 16.0 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 75 | **8/75** · 10.7 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 41 | **2/41** · 4.9 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 79 | **9/79** · 11.4 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | **2/39** · 5.1 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | **1/8** · 12.5 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 8 | **2/8** · 25.0 % | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 2 | **0/2** · 0.0 % | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 19 | **0/19** · 0.0 % | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
-| [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 18 | **4/18** · 22.2 % | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
+| [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 17 | **3/17** · 17.6 % | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
 | [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 24 | **2/24** · 8.3 % | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | [l-instrument-ment-sur-ce-qu-il-mesure](#l-instrument-ment-sur-ce-qu-il-mesure) | 2 | **0/2** · 0.0 % | Ce que cet instrument AFFICHE est-il ce qu'il a mesuré ? |
 | _sans famille_ | 3 | — | — |
@@ -302,7 +302,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 75 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|substitution|s'exécute|accent grave|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 79 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -333,6 +333,7 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 | [`tests-run-a-different-core-than-prod`](error-classes.md#tests-run-a-different-core-than-prod) | la suite valide le code contre une version majeure d'un socle que la production n'exécute pas, et rend vert. Rien ne signale l'écart : les deux moitié |
 | [`assertion-wider-than-the-question-it-asks`](error-classes.md#assertion-wider-than-the-question-it-asks) | un test accuse une régression de destruction de données qui n'a jamais eu lieu, et bloque une PR sans rapport. |
 | [`alert-names-the-class-and-drops-the-reason`](error-classes.md#alert-names-the-class-and-drops-the-reason) | une panne de collecte est correctement détectée, correctement isolée, correctement alertée — et le message reçu ne dit pas quoi faire, parce que la ph |
+| [`exec-bit-lost-outside-the-index`](error-classes.md#exec-bit-lost-outside-the-index) | un script du dépôt refuse de s'exécuter depuis un clone frais — et son propre mode d'emploi dit de le lancer ainsi. |
 | [`retry-blind-to-the-exception-its-client-raises`](error-classes.md#retry-blind-to-the-exception-its-client-raises) | un décorateur `@retry` est en place, visible, jamais retiré — et **aucune tentative n'a jamais été rejouée**. Un blip réseau fait échouer la tâche du  |
 | [`probe-reads-unreadable-as-absent`](error-classes.md#probe-reads-unreadable-as-absent) | un outil de diagnostic accuse le produit d'un défaut qu'il n'a pas — et il vise précisément la page où un vrai défaut coûterait le plus cher. |
 | [`guard-matches-its-own-comment`](error-classes.md#guard-matches-its-own-comment) | un test de garde est VERT sur le défaut qu'il existe pour attraper, ou ROUGE sur le commentaire qui explique le correctif. Les deux erreurs viennent d |
@@ -348,8 +349,10 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 | [`guard-branch-only-reached-when-it-fails`](error-classes.md#guard-branch-only-reached-when-it-fails) | un garde est vert sur une base propre et rouge dans la grande exécution, et le rouge ne parle pas du sujet gardé — un `TypeError`, un `KeyError`, une  |
 | [`menu-filter-mistaken-for-an-access-gate`](error-classes.md#menu-filter-mistaken-for-an-access-gate) | une page réservée n'apparaît pas dans le menu et s'affiche quand même — il suffit d'en connaître l'adresse. La liste qui devait la protéger existe, el |
 | [`filename-dependency-survives-below-detection`](error-classes.md#filename-dependency-survives-below-detection) | un fichier est reconnu à l'écran puis n'importe rien, sous un message qui accuse son CONTENU (« Aucune ligne valide détectée après parsing ») ou qui d |
+| [`a-glyph-with-no-font-vanishes-without-a-trace`](error-classes.md#a-glyph-with-no-font-vanishes-without-a-trace) | un document généré perd des caractères — sans erreur, sans avertissement, sans carré de substitution. Reproduit le 2026-09-10 : rendu le golden HTML d |
 | [`a-ratchet-frozen-on-a-partial-predicate`](error-classes.md#a-ratchet-frozen-on-a-partial-predicate) | un cliquet gelé à zéro passe au vert, et la chose qu'il interdit est toujours là. Mesuré le 2026-09-10 : `_MAX_SECONDARY_AXES = 0` était vert alors qu |
 | [`a-surgical-restore-erases-work-nothing-will-give-back`](error-classes.md#a-surgical-restore-erases-work-nothing-will-give-back) | du travail non commité disparaît sans trace ni message. Aucune erreur, aucun avertissement : la commande réussit, et ce qu'elle a écrasé n'est ni dans |
+| [`a-query-assembled-by-string-substitution`](error-classes.md#a-query-assembled-by-string-substitution) | une requête SQL fabriquée en appliquant `.replace()` à une autre requête. Elle se compile, s'exécute, et rend **zéro ligne**. Comme la lecture est env |
 | [`a-filtered-test-run-proves-nothing`](error-classes.md#a-filtered-test-run-proves-nothing) | annoncer « N tests verts » après une exécution filtrée par `-k`. Le 2026-09-11 : **931 verts** annoncés, puis la sélection officielle en a trouvé **4  |
 | [`a-document-slice-bounded-by-the-wrong-heading-level`](error-classes.md#a-document-slice-bounded-by-the-wrong-heading-level) | un découpage de document Markdown emporte **plus que ce qu'il visait**, et rien dans le résultat ne le dit. Le 2026-09-13 : la rotation de trois secti |
 | [`a-generated-document-asserts-a-stale-state`](error-classes.md#a-generated-document-asserts-a-stale-state) | un document généré décrit un dépôt qui n'existe plus. Il ne porte aucune marque de péremption — il se lit exactement comme une mesure fraîche, et c'es |
@@ -381,12 +384,13 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 | [`a-generated-document-with-no-freshness-guard`](error-classes.md#a-generated-document-with-no-freshness-guard) | un document **généré** n'a ni contrôle de fraîcheur ni test jumeau, là où tous ses pairs en ont. Il se périme en silence et continue d'être lu comme u |
 | [`a-view-body-behind-a-non-default-filter`](error-classes.md#a-view-body-behind-a-non-default-filter) | une vue rend sans erreur dans la suite, et lève chez l'utilisateur dès qu'il élargit un filtre. Le bloc fautif vit derrière une condition de TAILLE de |
 | [`a-sweep-predicate-that-matches-a-form-not-a-property`](error-classes.md#a-sweep-predicate-that-matches-a-form-not-a-property) | un balayage annonce un nombre de sites, et ce nombre est faux d'un facteur 3 à 25 — toujours dans le sens du SUR-COMPTAGE. Rien ne le signale : le pré |
+| [`a-backtick-in-a-shell-string-is-executed`](error-classes.md#a-backtick-in-a-shell-string-is-executed) | une commande destinée à être AFFICHÉE s'exécute. Le message qui décrit un geste devient le geste. Rien n'avertit : la sortie ressemble à celle de la c |
 
 ## un-document-qui-affirme-un-état-périmé
 
 **Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ?**
 
-Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list|telemetry-table-that-nothing-ever-purges|proc[ée]dure|playbook|runbook|instruction` sur l'identifiant et le symptôme. 41 classe(s).
+Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|caption|note|prose|generated|index|diagram|map|guide|runbook|lags-its-source|hand-written-list|telemetry-table-that-nothing-ever-purges|proc[ée]dure|playbook|runbook|instruction` sur l'identifiant et le symptôme. 39 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -406,7 +410,6 @@ Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|cap
 | [`dev-doc-nothing-points-at`](error-classes.md#dev-doc-nothing-points-at) | un document utile existe et reste introuvable, parce qu'aucun index ne le nomme. Symétriquement, des gabarits vides survivent des mois sans que person |
 | [`code-ships-without-a-trace`](error-classes.md#code-ships-without-a-trace) | une séance modifie du code de production et se termine sans entrée de journal ni mise à jour de roadmap. Le code part ; le raisonnement qui l'a produi |
 | [`shipped-artifact-lags-its-source`](error-classes.md#shipped-artifact-lags-its-source) | tous les gardes sont verts, la source est juste, et l'utilisateur reçoit quand même les instructions d'il y a trois mois. |
-| [`exec-bit-lost-outside-the-index`](error-classes.md#exec-bit-lost-outside-the-index) | un script du dépôt refuse de s'exécuter depuis un clone frais — et son propre mode d'emploi dit de le lancer ainsi. |
 | [`mermaid-block-does-not-render`](error-classes.md#mermaid-block-does-not-render) | un diagramme s'affiche en boîte d'erreur, ou pas du tout, chez le lecteur — et rien ne rougit, parce que rien dans le dépôt ne rend du markdown. |
 | [`one-guide-three-sources`](error-classes.md#one-guide-three-sources) | un lecteur anglophone reçoit une procédure abandonnée côté français ; le PDF d'une langue décrit plus d'étapes que l'autre. Personne ne le voit : ces  |
 | [`extracted-rule-with-one-caller-rewired`](error-classes.md#extracted-rule-with-one-caller-rewired) | une règle est factorisée pour être partagée, la factorisation est annoncée dans les commentaires — et les deux copies coexistent, parce qu'un seul app |
@@ -415,7 +418,6 @@ Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|cap
 | [`consumed-state-hides-its-own-widget`](error-classes.md#consumed-state-hides-its-own-widget) | un bouton s'affiche, on clique, et il ne se passe rien. Aucune erreur, aucune trace : le bloc qui portait le bouton disparaît simplement de l'écran. S |
 | [`conflict-target-an-index-cannot-match`](error-classes.md#conflict-target-an-index-cannot-match) | tout upsert sur la table échoue, en bloc, avec un message qui parle d'une contrainte ABSENTE alors qu'elle est là. Signalé le 2026-09-08 sur cinq fich |
 | [`a-verdict-computed-from-a-value-nobody-read`](error-classes.md#a-verdict-computed-from-a-value-nobody-read) | un document PAYANT affirme « ✅ Rentable » à un artiste alors que la base était injoignable. Le chiffre affiché est `0,00 €` des deux côtés, le net vau |
-| [`a-glyph-with-no-font-vanishes-without-a-trace`](error-classes.md#a-glyph-with-no-font-vanishes-without-a-trace) | un document généré perd des caractères — sans erreur, sans avertissement, sans carré de substitution. Reproduit le 2026-09-10 : rendu le golden HTML d |
 | [`a-non-vacuity-check-anchored-on-the-data-instead-of-the-parser`](error-classes.md#a-non-vacuity-check-anchored-on-the-data-instead-of-the-parser) | le jour où le travail est réellement terminé, **trois gardes tombent ensemble** — et ils tombent sur la seule chose qu'ils n'avaient pas prévue : le s |
 | [`a-diagram-is-verified-by-looking-at-it`](error-classes.md#a-diagram-is-verified-by-looking-at-it) | un schéma généré est syntaxiquement valide, son SVG contient tout le texte attendu, et il est faux à l'œil. Mesuré le 2026-09-10 sur sept schémas neuf |
 | [`a-caption-written-beside-the-behaviour-instead-of-derived-from-it`](error-classes.md#a-caption-written-beside-the-behaviour-instead-of-derived-from-it) | la légende sous une figure affirme trois choses fausses en même temps, sans qu'aucune ne soit un bug de calcul. Vu au rendu le 2026-09-10 en « Chacune |
@@ -522,7 +524,7 @@ Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|wi
 
 **Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ?**
 
-Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhook|stripe|payment|url|cors|redact|external|api-|fstring-identifier|string-substitution|untrusted|privileged|access-gate|is-not-an-identity|rendered-to-the-visitor|bare-except|containment` sur l'identifiant et le symptôme. 18 classe(s).
+Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhook|stripe|payment|url|cors|redact|external|api-|fstring-identifier|string-substitution|untrusted|privileged|access-gate|is-not-an-identity|rendered-to-the-visitor|bare-except|containment` sur l'identifiant et le symptôme. 17 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -542,7 +544,6 @@ Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhoo
 | [`bare-except`](error-classes.md#bare-except) | un `except:` nu avale aussi `KeyboardInterrupt` et `SystemExit` — donc une interruption volontaire et l'arrêt du processus — et il ne dit jamais QUELL |
 | [`a-handle-is-not-an-identity`](error-classes.md#a-handle-is-not-an-identity) | un artiste colle l'adresse de son profil, l'app résout un identifiant, l'enregistre, et collecte les chiffres de quelqu'un d'autre. Rien n'échoue : la |
 | [`containment-ignores-what-it-leaves-out`](error-classes.md#containment-ignores-what-it-leaves-out) | un titre court s'associe tout seul à un libellé long qui le contient — un mix DJ, un set, un morceau d'un autre artiste. Le score est le même que pour |
-| [`a-query-assembled-by-string-substitution`](error-classes.md#a-query-assembled-by-string-substitution) | une requête SQL fabriquée en appliquant `.replace()` à une autre requête. Elle se compile, s'exécute, et rend **zéro ligne**. Comme la lecture est env |
 | [`a-metric-label-whose-cardinality-is-unbounded`](error-classes.md#a-metric-label-whose-cardinality-is-unbounded) | un label de métrique prend ses valeurs dans un ensemble que l'application ne contrôle pas — une URL, un identifiant de ressource, un nom de fichier. L |
 
 ## une-configuration-qui-diverge-de-la-prod
@@ -601,6 +602,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=398 families=18 orphans=3 -->
+<!-- error-class-families: total=399 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=cdbb5103975ca087d9ae137717e7801b1064544eaa5568a9ebd997e6953b2bc5 -->
+<!-- error-class-families: sha256=7bc61cd3bcbecd6e3b2e57891562a39c3190687d099e904ad693a1b520a39e03 -->
