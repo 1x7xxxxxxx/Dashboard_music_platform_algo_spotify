@@ -866,19 +866,25 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         if not order:
             return False
 
-    if mode == "cumulative":
-        # Le sous-titre annonce le NIVEAU où la courbe finit, pas une somme de pas :
-        # additionner des cumuls avait déjà produit 16 568 594 écoutes pour un artiste
-        # qui en a 186 000. Avec la couche or, la somme des derniers points est aussi
-        # le total que les tuiles affichent — c'est la propriété qu'on veut visible.
-        total = sum(next((v for v in reversed(aligned[k]) if v is not None), 0)
-                    for k in order)
-    else:
-        total = sum(v for pkey in order for v in aligned_raw[pkey] if v)
+    # LE TOTAL A ÉTÉ RETIRÉ ICI LE 2026-09-18, ET C'EST UN FAIT MESURÉ, PAS UN
+    # NETTOYAGE.
+    #
+    # Il était calculé de deux façons — le NIVEAU final en mode cumulé, la somme des
+    # pas sinon — et passé à `_render_facets`, qui **ne le lisait pas** : le
+    # sous-titre qui l'affichait est parti le 2026-09-12 avec celui de la pile. La
+    # classe `a-total-that-sums-the-display-instead-of-the-data` ne pouvait donc plus
+    # se manifester, et son garde ne pouvait plus la voir : remettre le défaut
+    # (`total = sum(v for k in order for v in aligned[k] if v)`, la somme des cumuls
+    # qui avait produit 16 568 594 écoutes pour un artiste qui en a 186 000) laissait
+    # **toute la suite verte**, 446 tests de figure compris.
+    #
+    # Un calcul faux que personne ne lit n'est pas inoffensif : il attend le jour où
+    # quelqu'un rebranche le sous-titre. Le retirer est le seul état où la classe est
+    # close par CONSTRUCTION. Avec lui partent `title`, `step` et `surface`, morts de
+    # la même façon — `_build_notes` porte déjà la leçon dans sa docstring.
     if mode == "facets":
         _render_facets(fig_span=span, aligned=aligned, order=order, segments=segments,
-                       palette=palette, ink=ink, muted=muted, surface=surface,
-                       grid=grid, title=title, step=step, total=total, key=key)
+                       palette=palette, ink=ink, muted=muted, grid=grid, key=key)
         if recap is not None:
             _render_recap(recap, span, aligned, aligned_raw, order, thin, mode,
                           step, extra=recap_extra,
@@ -1094,8 +1100,7 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
 
 
 def _render_facets(*, fig_span: list, aligned: dict, order: list, segments: dict,
-                   palette: dict, ink: str, muted: str, surface: str, grid: str,
-                   title: str, step: str, total: int, key: str) -> None:
+                   palette: dict, ink: str, muted: str, grid: str, key: str) -> None:
     """Petits multiples : une facette par plateforme, chacune sur SON échelle.
 
     La seule forme qui rende visible une plateforme mille fois plus petite qu'une

@@ -5589,7 +5589,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: l'illustration committée (`assets/examples/dashboard-global.png`, générée par `tools/dev/make_example_charts.py`) est un `stackplot` aux couleurs `BLUE/ORANGE/AQUA` — déjà passées par le validateur `dataviz`. La figure live, écrite plus tard et sans la regarder, était faite de lignes qui se croisent aux couleurs de MARQUE — lesquelles ont d'ailleurs été refusées par le même validateur. Deux formes, deux palettes, une seule promesse. L'empilement n'est pas cosmétique : il répond à « combien au total, et qui y contribue », là où des lignes superposées répondent « laquelle est la plus haute » — qui n'est pas la question de l'accueil.
 - cause_evidence: read (tools/dev/make_example_charts.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py -q`
-- seen_red: 2026-09-18 — en changeant le premier bleu du générateur d'illustrations (`tools/dev/make_example_charts.py`), le garde sort **1** ; **0** restauré.
+- seen_red: self-proving (tests/test_the_live_chart_matches_the_illustration.py::test_the_live_palette_is_the_illustration_palette)
 - long_term_fix: le garde LIT la palette dans le générateur de l'illustration au lieu de la recopier — deux copies divergent au premier changement — et vérifie la forme sur la structure (`stackgroup`, `fillcolor`), pas sur le texte. Le mode sombre ne déplace que le pas refusé par la bande de clarté (l'orange), les deux autres restant identiques : décaler les trois « pour l'harmonie » ferait de la figure sombre une autre figure.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
@@ -5601,6 +5601,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-08: une aire empilée n'a pas de trou, et c'est la contrainte qui a demandé le plus de mesure. Compter un jour non mesuré pour zéro fait plonger le TOTAL et se lit comme une chute d'écoutes ; on coupe donc la bande. Mesuré sur l'artiste 1 avant de trancher : 79 jours complets sur 90, en 2 tranches — la bande reste lisible et les 11 jours manquants ne mentent pas.
   - 2026-09-08: le remaniement qui a replié le bandeau de mise en route a fait rougir `test_the_launch_step_launches`, ancré sur `_section_onboarding` — la fonction scindée — et non sur sa question. Réancré en suivant les appels du module, comme les autres gardes de la journée.
   - 2026-09-18: `seen_red` daté. ⚠️ Ma première mutation visait « le premier appel à `platform_chart` » dans le générateur — c'était un COMMENTAIRE (« Repris de `platform_chart._PALETTE_LIGHT` le 2026-09-1… »). Le lien entre les deux fichiers n'est pas un appel, c'est une valeur RECOPIÉE, et c'est précisément ce que la classe dit.
+  - 2026-09-18: défaut remis en place en faisant DÉRIVER l'illustration — une couleur changée dans `tools/dev/make_example_charts.py:64` ⇒ 1 rouge. Le garde lit la palette du GÉNÉRATEUR, pas une liste recopiée : c'est ce qui le rend capable de voir une dérive introduite du côté de l'illustration, qui est le côté d'où elle est venue.
 
 ## a-key-that-forbids-history
 - status: guarded
@@ -5696,7 +5697,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `platform_chart._segments` calculait des tranches COMMUNES — un pas n'était tracé que si TOUTES les plateformes empilées y avaient une mesure. Une aire empilée n'a pas de trou, donc couper la bande entière semblait la seule réponse honnête à un jour non mesuré. Conséquence chiffrée sur l'artiste 1, au pas hebdomadaire : **19 semaines** de Spotify effacées, dont **13** dont YouTube était le seul responsable, et **0** où Spotify manquait. La règle `stackable` qui écartait les plateformes clairsemées était le correctif de ce même défaut, et elle excluait YouTube (24 jours mesurés sur 195) et SoundCloud (12 sur 74) de TOUTES les vues — c'est la plainte « je ne vois que Spotify ».
 - cause_evidence: read (src/dashboard/utils/platform_chart.py::_segments, lu le 2026-09-18) — ancré sur le SYMBOLE, jamais sur un numéro de ligne : deux ancres du catalogue avaient déjà dérivé parce qu'un fichier avait bougé. La cause décrit bien ce site : platform_chart._segments,stackable y cohabitent.
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_the_live_chart_matches_the_illustration.py::test_a_missing_day_cuts_ONLY_the_platform_that_is_missing)
 - long_term_fix: les tranches sont **par plateforme**. Une source inconnue ne dessine rien ce jour-là et les autres continuent ; Plotly empile en un seul `stackgroup`, donc le total d'un pas incomplet est celui des plateformes présentes, et `t_missing` le dit avec le compte PAR plateforme. La règle de couverture disparaît : elle ne protégeait plus rien, il ne reste que la contrainte de forme — deux points, sinon il n'y a pas d'aire.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
@@ -5708,6 +5709,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-08: signature vue ROUGE en remettant les tranches communes — « Spotify est coupé par le trou d'une AUTRE plateforme : [[0, 1], [4, 5]] » — et verte sur l'arbre corrigé. Preuve sur les vraies séries : les 19 semaines masquées tombent à **0**, Spotify tracé 181/181 en une seule tranche.
   - 2026-09-08: le correctif d'un défaut de figure en a créé un deuxième, plus silencieux. `stackable` écartait les sources clairsemées PARCE QUE leurs trous coupaient tout le monde ; une fois la cause retirée, la règle a survécu et cachait deux plateformes sur trois. Retirer une cause n'annule pas ses compensations — il faut aller les chercher.
+  - 2026-09-18: défaut remis en place en rendant les tranches COMMUNES — `known(values, i)` → `all(known(aligned.get(k) or [], i) for k in order)` dans `_segments` ⇒ 1 rouge. C'est littéralement la version d'avant le 2026-09-08, celle qui faisait disparaître 19 semaines de Spotify dont 13 par la seule faute de YouTube.
 
 ## a-total-that-sums-the-display-instead-of-the-data
 - status: guarded
@@ -5717,7 +5719,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: le sous-titre lisait `aligned`, c'est-à-dire la série APRÈS `_as_mode`. En mode cumulé chaque point porte le total depuis le début, donc les additionner somme des cumuls. Le correctif précédent du même jour avait déplacé le calcul de `series` (la série brute, qui ignorait le filtre de sources et comparait des dates du jour à des clés de seau) vers `aligned` — plus près, toujours faux, et sur une variable dont le nom ne dit pas qu'elle a été transformée.
 - cause_evidence: read (src/dashboard/utils/platform_chart.py::aligned, lu le 2026-09-18) — ancré sur le SYMBOLE, jamais sur un numéro de ligne : deux ancres du catalogue avaient déjà dérivé parce qu'un fichier avait bougé. La cause décrit bien ce site : aligned,_as_mode,series y cohabitent.
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py::test_no_indicator_ever_sums_cumulative_values -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_the_live_chart_matches_the_illustration.py::test_no_render_helper_receives_a_value_it_never_reads)
 - long_term_fix: `aligned_raw` conserve les quantités par pas avant `_as_mode`, et c'est la seule forme qu'on somme. Le garde lit le sous-titre RENDU — il rend la figure, extrait le nombre du titre et le compare à la somme connue — au lieu de vérifier quelle variable la fonction utilise : c'est le nombre affiché qui était faux.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
@@ -5729,6 +5731,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-08: signature vue ROUGE en relisant `aligned` — « mode cumulative : le sous-titre annonce 126668550 au lieu de 100 — il additionne des cumuls » — et verte sur l'arbre corrigé.
   - 2026-09-08: aucun test ne pouvait le voir, et le premier garde écrit ce jour-là (`test_every_surface_gives_the_same_total`) est resté VERT sur le défaut : il compare des surfaces entre elles, or le sous-titre n'est aucune des trois. Ce qui l'a trouvé est d'avoir RENDU la figure et regardé l'image. Une valeur affichée n'est prouvée que par un garde qui la lit là où elle s'affiche.
+  - 2026-09-18: ⚠️ **cette classe ne pouvait plus se manifester, donc plus être gardée, et il a fallu une mutation pour s'en apercevoir.** Le défaut d'origine remis à la lettre — `total = sum(v for k in order for v in aligned[k] if v)`, la somme de cumuls qui avait annoncé 16 568 594 écoutes à un artiste qui en a 186 000 — laissait **446 tests de figure verts**. La cause : le sous-titre qui affichait ce total est parti le 2026-09-12, mais le CALCUL est resté, passé à `_render_facets` qui ne le lisait pas (non plus que `title`, `step`, `surface` — quatre paramètres morts). Un calcul faux que personne ne lit n'est pas inoffensif : il est hors de portée de tout test et redevient visible dès qu'on rebranche l'affichage. Les quatre sont retirés, et le garde porte désormais la propriété qui reste posable : « ce qu'une fonction de rendu reçoit, elle le lit ». Paramètre mort remis ⇒ 1 rouge.
 
 ## a-partial-bucket-drawn-as-a-full-one
 - status: guarded
@@ -5738,7 +5741,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `_aggregate` sommait ce qu'il trouvait dans chaque seau sans jamais compter combien de jours ce seau CONTENAIT. Une semaine à un jour mesuré et une semaine à sept produisaient un point de même nature. La conversion cumul → quotidien ne rattrape rien : un delta n'est calculé qu'entre deux jours CONSÉCUTIFS, donc les jours sautés ne sont pas reportés sur le suivant, ils manquent. Le verdict d'empilement était en outre pris APRÈS agrégation, où un seau partiel comptait pour un seau mesuré : la couverture paraissait meilleure au pas hebdomadaire qu'au pas quotidien, sur les mêmes données.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py -q -k bucket`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_the_live_chart_matches_the_illustration.py::test_a_partial_bucket_is_unknown_not_full)
 - long_term_fix: un seau doit être mesuré sur au moins la moitié des jours qu'il contient DANS la plage utile — les bords comptent pour ce qu'ils peuvent, sinon on perdrait un seau juste à chaque extrémité. En dessous il est rendu INCONNU. Une série déjà au grain du seau (`STEP_ONLY`, Apple par année) y échappe : sa mesure est entière, c'est l'unité qui diffère. Le verdict d'empilement se prend sur la série QUOTIDIENNE. Le test épingle les distributions réelles (1,1,1,1,2,2,2,3,5,6 jours par semaine pour YouTube ; 1,1,2,3,5 pour SoundCloud ; 7 partout pour Spotify), pas la constante.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
@@ -5749,6 +5752,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-08
 - History:
   - 2026-09-08: signature vue ROUGE avec `_BUCKET_FLOOR = 0.0` — « une semaine mesurée 1 jour sur 7 est tracée comme une semaine pleine » et « assert 10 == 2 » — et verte sur l'arbre corrigé. Deuxième mutation (retirer l'exemption `STEP_ONLY`) rouge sur « le plancher a mangé les relevés annuels d'Apple ».
+  - 2026-09-18: défaut remis en place en annulant le plancher — `_BUCKET_FLOOR = 0.5` → `0.0` ⇒ 2 rouges, dont `test_the_bucket_floor_matches_the_measured_distributions`, qui adosse la valeur aux distributions RÉELLES au lieu de l'épingler. Les deux assertions se tiennent : l'une dit qu'un seuil existe, l'autre qu'il n'a pas été écrit d'instinct.
 
 ## a-failed-collection-writes-zeros
 - status: guarded
@@ -5779,7 +5783,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: le pas annuel appliqué à une période d'un an ne produit qu'UN seul seau, donc un seul point par plateforme — et sous un point isolé il n'y a pas de surface. La contrainte de forme était pourtant déjà écrite dans le module (`_MIN_POINTS = 2`, « une aire a besoin de deux points »), mais appliquée aux SÉRIES uniquement, jamais à l'AXE. La figure se rendait donc « avec succès », traces comprises, et ne dessinait rien. C'est mon propre changement de la même séance qui l'a rendu atteignable, en resserrant `stackable` sur cette contrainte sans la propager au `span`.
 - cause_evidence: read (src/dashboard/utils/platform_chart.py::stackable, lu le 2026-09-18) — ancré sur le SYMBOLE, jamais sur un numéro de ligne : deux ancres du catalogue avaient déjà dérivé parce qu'un fichier avait bougé. La cause décrit bien ce site : stackable,span y cohabitent.
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py -q -k step`
-- seen_red: 2026-09-18 — en remplaçant `stackgroup="g"` par `fill="tozeroy"`, le garde sort **1** ; **0** restauré. Les séries se superposent alors au lieu de s'empiler, et le total lu sur l'axe cesse d'être la somme.
+- seen_red: self-proving (tests/test_the_live_chart_matches_the_illustration.py::test_a_single_reading_draws_no_area_and_says_so)
 - long_term_fix: `_FINER_STEPS` — quand le pas demandé ne produit pas au moins `_MIN_POINTS` seaux, on descend au pas immédiatement plus fin (année → semaine → jour) et `t_coarsened` le dit, en nommant ce que le pas plus fin coûte (Apple n'existe qu'au pas annuel). Un réglage ignoré en silence se lit comme une panne. La règle générale : une contrainte de forme s'applique à TOUT ce qui compose la forme — les séries et l'axe —, sinon elle est vraie d'un côté et fausse de l'autre.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
@@ -5790,6 +5794,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-08: signature vue ROUGE sur trois mutations — repli supprimé, repli systématique, repli silencieux (« le pas a été changé sans le dire : [] ») — et verte sur l'arbre corrigé.
   - 2026-09-08: le défaut a été trouvé par un artiste sur une combinaison de deux menus, pas par les 4 737 tests verts de l'heure précédente. Une figure se teste sur les réglages qu'un lecteur peut COMBINER, pas seulement sur ceux que le test choisit — le produit cartésien des menus est le vrai espace de rendu, et il était couvert par un seul point.
+  - 2026-09-18: défaut remis en place en abaissant la contrainte de forme — `measured >= _MIN_POINTS` → `measured >= 1` dans `stackable` ⇒ 1 rouge. Le garde APPELLE `stackable` au lieu de recopier sa règle, ce que la docstring de la fonction exige explicitement : une règle recopiée dans un test est une deuxième règle.
 
 ## a-window-widened-to-its-bucket-instead-of-the-bucket-clipped
 - status: guarded
@@ -7008,7 +7013,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - long_term_fix: un titre qu'on retire est une chaîne **vide** (`title=dict(text="")`), jamais une absence. Le garde rend la figure dans les quatre modes et refuse un `layout.title.text` à `None`.
 - autofix: none
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py::test_a_removed_title_is_empty_not_none -q`
-- seen_red: 2026-09-18 — en remplaçant `title=dict(text="")` par `title=None` dans `platform_chart.py`, le garde sort **1** ; **0** restauré. La mutation incarne le défaut : Plotly rend alors son titre PAR DÉFAUT, pas rien.
+- seen_red: self-proving (tests/test_the_live_chart_matches_the_illustration.py::test_a_removed_title_is_empty_not_none)
 - guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py::test_a_removed_title_is_empty_not_none }
 - guard_scope: le-message-parle-au-mauvais-lecteur — retirer un titre ne le retire pas : la bibliothèque sérialise l'absence vers son propre mot, et le lecteur voit « undefined » ; couvre: par `test_a_removed_title_is_empty_not_none`, le test nommé de ce fichier partagé — un titre retiré rend une chaîne VIDE et non `None` ; ne couvre pas: (1) **le geste voisin le plus proche — les autres propriétés retirées par `None`** : légendes, libellés d'axes, infobulles, annotations suivent la même sérialisation et seul le titre est vérifié ; (2) les autres bibliothèques qui sérialisent l'absence à leur façon ; (3) le PDF, qui redessine ; (4) les propriétés retirées correctement mais dont l'absence produit un rendu illisible pour une autre raison.
 - siblings: swept:2026-09-18 — **0 site vivant**. Balayé sur les figures du dépôt qui retirent un titre : `platform_chart` est la seule à le faire dynamiquement (les autres n'en posent jamais ou en posent toujours un). ⚠️ Ne couvre pas : la même confusion `None` contre chaîne vide ailleurs qu'un titre de figure — une étiquette d'axe, une légende, un `hovertemplate`.
@@ -7017,6 +7022,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-12: **aucun test Python ne pouvait le voir, et c'est le cœur de la classe.** `layout.title.text` valait `None` — exactement ce qu'on avait demandé, donc tout garde qui interroge l'objet Python est vert. Le mot naît à la SÉRIALISATION vers le JS, c'est-à-dire dans le navigateur. C'est la 8ᵉ fois que ce dépôt trouve un défaut de figure en regardant l'écran et zéro fois en lisant le code.
   - 2026-09-12: signature vue rouge en remettant `title=None`, verte avec `title=dict(text="")`. Le garde interroge `is not None` et non le contenu : exiger un texte précis reviendrait à interdire de retirer le titre.
+  - 2026-09-18: défaut remis en place à la lettre — `title=dict(text="")` → `title=None` (src/dashboard/utils/platform_chart.py:1018), c'est-à-dire la forme que Plotly sérialise vers la chaîne « undefined » ⇒ 1 rouge. Le garde lit la mise en page REMISE à Plotly, pas le code : c'est pourquoi il voit une absence que la lecture du source ne distingue pas d'un vide.
 
 ## a-visual-constant-copied-into-a-second-renderer
 - status: guarded

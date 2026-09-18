@@ -456,6 +456,41 @@ def test_the_smallest_platform_is_visible_in_at_least_one_mode() -> None:
     assert "facets" in pc.MODES, "le mode n'est pas proposé"
 
 
+def test_no_render_helper_receives_a_value_it_never_reads() -> None:
+    """Un paramètre calculé, passé, et jamais lu est un calcul faux qui attend son tour.
+
+    Mesuré le 2026-09-18, et c'est ce qui rend ce garde non négociable :
+    `_render_facets` recevait `total`, `title`, `step` et `surface`, et n'en lisait
+    **aucun**. Le sous-titre qui affichait le total était parti le 2026-09-12 ; le
+    calcul, lui, était resté. Conséquence : la classe
+    `a-total-that-sums-the-display-instead-of-the-data` ne pouvait plus se manifester,
+    donc plus être gardée — le défaut d'origine remis en place à la lettre
+    (`total = sum(v for k in order for v in aligned[k] if v)`, la somme de cumuls qui
+    avait annoncé 16 568 594 écoutes à un artiste qui en a 186 000) laissait **446
+    tests de figure verts**.
+
+    Un calcul mort n'est pas neutre : il est faux sans surveillance, et il redevient
+    visible le jour où quelqu'un rebranche le sous-titre. La propriété gardée ici est
+    donc « ce que ces fonctions reçoivent, elles le lisent » — pas « le total est
+    juste », qu'aucun test ne pouvait plus poser.
+    """
+    tree = ast.parse(_CHART.read_text(encoding="utf-8"))
+    morts: list[str] = []
+    for fn in ast.walk(tree):
+        if not (isinstance(fn, ast.FunctionDef) and fn.name.startswith("_render")):
+            continue
+        params = [a.arg for a in fn.args.args + fn.args.kwonlyargs]
+        lus = {n.id for n in ast.walk(fn) if isinstance(n, ast.Name)}
+        # Une valeur par défaut qui se lit comme une déclaration de compatibilité
+        # n'est pas concernée : c'est le paramètre PASSÉ par l'appelant qui coûte.
+        morts += [f"{fn.name}({p})" for p in params if p not in lus and p != "self"]
+    assert not morts, (
+        "paramètre(s) reçu(s) et jamais lu(s) : " + ", ".join(morts) + ".\n"
+        "Soit l'appelant calcule pour rien — et un calcul non lu n'est surveillé par "
+        "aucun test —, soit la fonction a oublié de s'en servir. Les deux se "
+        "corrigent en retirant le paramètre, jamais en l'ignorant.")
+
+
 # ── Un seau partiel ne se fait pas passer pour un seau plein ────────────────
 
 def test_a_partial_bucket_is_unknown_not_full() -> None:
