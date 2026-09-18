@@ -88,6 +88,19 @@ def run() -> dict:
     finally:
         db.close()
 
+    # LES DEUX DÉCLENCHEURS DE R87, comparés ici parce que c'est ici qu'ils sont écrits.
+    #
+    # `tools/scale_check.sh` les porte depuis le 2026-09-11 et exige `PROD_SSH` : aucun
+    # automate ne l'a jamais lancé. Ses deux grandeurs sont dans la ligne qu'on vient
+    # d'écrire ; il ne manquait que la comparaison.
+    from src.utils.daily_ops_metrics import reopening_triggers
+
+    franchis = reopening_triggers(summary)
+    if franchis:
+        summary["reopening_triggers"] = franchis
+        for ligne in franchis:
+            logger.warning("SEUIL R87 FRANCHI — %s", ligne)
+
     if not summary.get("complete"):
         # On NE lève PAS : une ligne incomplète est écrite à dessein, et faire échouer
         # la tâche ferait crier `tools/infra_health_cron.sh` pour une métrique absente.

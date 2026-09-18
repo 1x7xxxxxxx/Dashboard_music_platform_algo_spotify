@@ -140,6 +140,43 @@ def _errors_by_page() -> dict:
         return {}
 
 
+def _dag_durations() -> dict:
+    """{dag_id: durée MAXIMALE en secondes} sur 24 h. Dictionnaire vide si illisible.
+
+    La seule grandeur de ce module qui ne vienne PAS de Prometheus, et il faut dire
+    pourquoi : aucune métrique ne l'expose. La durée d'un DAG vit dans
+    `airflow_db.dag_run`, la base de métadonnées d'Airflow — un exportateur Airflow
+    n'existe pas dans ce dépôt et ADR-026 n'en prévoit aucun.
+
+    Ce n'est donc pas une seconde instrumentation de la même grandeur (la faute que
+    l'en-tête de ce module interdit) : c'est la SEULE instrumentation de celle-ci.
+
+    ⚠️ Le MAXIMUM, pas la moyenne. Un pic est ce qui approche d'un délai d'expiration ;
+    une moyenne le dilue. Et un DAG qui n'est pas parti n'écrit PAS `0` — il n'écrit
+    pas sa clé. Un zéro inventé se lirait « instantané » là où il veut dire « jamais
+    parti », et ce dépôt a une classe pour exactement ça.
+
+    L'import est DANS la fonction : ce module est importé par le dashboard, qui n'a
+    pas Airflow. Le patron est celui des DAG du dépôt.
+    """
+    try:
+        from airflow.settings import Session          # noqa: PLC0415
+        from sqlalchemy import text                   # noqa: PLC0415
+
+        session = Session()
+        try:
+            rows = session.execute(text(
+                "SELECT dag_id, MAX(EXTRACT(EPOCH FROM (end_date - start_date))) "
+                "FROM dag_run "
+                "WHERE end_date IS NOT NULL AND start_date > NOW() - INTERVAL '24 hours' "
+                "GROUP BY dag_id")).fetchall()
+        finally:
+            session.close()
+        return {str(d): round(float(sec), 1) for d, sec in rows if sec is not None}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _peak_sessions(db) -> int | None:
     """Pic de sessions HUMAINES en une minute sur 24 h.
 
@@ -198,6 +235,7 @@ def collect(db, day: date | None = None) -> dict:
             else round(v, 2))
 
     values["errors_by_page"] = _errors_by_page()
+    values["dag_durations_s"] = _dag_durations()
     peak = _peak_sessions(db)
     values["peak_sessions"] = peak
     if peak is None:
@@ -221,8 +259,48 @@ def collect(db, day: date | None = None) -> dict:
 _WRITABLE_COLUMNS = frozenset({
     "p50_render_ms", "p95_render_ms", "p95_chrome_ms", "p95_view_ms",
     "peak_sessions", "reruns_total", "pool_high_water", "pool_direct_fallbacks",
-    "cpu_max_pct", "ram_max_pct", "disk_pct", "errors_by_page", "complete",
+    "cpu_max_pct", "ram_max_pct", "disk_pct", "errors_by_page",
+    "dag_durations_s", "complete",
 })
+
+
+# ── Les deux déclencheurs de R87, comparés là où les grandeurs sont déjà écrites ──
+#
+# `tools/scale_check.sh` porte ces deux seuils depuis le 2026-09-11, et il exige un
+# accès `PROD_SSH` : il ne peut donc être ni un cron sur la machine (elle devrait se
+# connecter à elle-même), ni une étape de CI (pas d'identifiants de prod). Résultat
+# mesuré le 2026-09-18 : **aucun automate ne l'a jamais lancé** — il ne part que quand
+# un humain tape `make scale-check`.
+#
+# Or ses deux grandeurs sont ÉCRITES ICI, chaque nuit, par le même DAG. Il ne manquait
+# que la comparaison. C'est le contraire d'une seconde instrumentation : c'est la même
+# mesure, relue au seul endroit où elle est déjà persistée.
+SEUIL_SESSIONS = 20      # pic de sessions HUMAINES par minute — R87 §1
+SEUIL_P50_MS = 200       # p50 de rendu serveur — R87 §2
+
+
+def reopening_triggers(values: dict) -> list[str]:
+    """Les déclencheurs de R87 franchis par CETTE ligne. Liste vide = sous les seuils.
+
+    ⚠️ Un `None` n'est PAS « sous le seuil ». Une grandeur absente veut dire que
+    Prometheus n'a pas répondu ou que personne ne s'est connecté — deux choses très
+    différentes d'« il y a peu de charge », et aucune ne permet de conclure. On ne
+    compare que ce qui a une valeur, et `complete` porte le reste.
+    """
+    franchis: list[str] = []
+    pic = values.get("peak_sessions")
+    if pic is not None and pic > SEUIL_SESSIONS:
+        franchis.append(
+            f"pic de {pic} sessions humaines/minute (> {SEUIL_SESSIONS}) — R87 §1 : "
+            "les répliques Streamlit redeviennent une question. Ce qui casse à N>1 est "
+            "inventorié dans `tests/test_in_memory_limits_forbid_replicas.py`.")
+    p50 = values.get("p50_render_ms")
+    if p50 is not None and p50 > SEUIL_P50_MS:
+        franchis.append(
+            f"p50 de rendu à {p50} ms (> {SEUIL_P50_MS}) — R87 §2 : le serveur, pas le "
+            "client. ⚠️ Cette valeur ne compte QUE les pages authentifiées ; une page "
+            "de connexion lente n'y apparaît pas.")
+    return franchis
 
 
 def write(db, day: date | None = None) -> dict:
@@ -244,7 +322,8 @@ def write(db, day: date | None = None) -> dict:
     import json
 
     params = [values["day"]] + [
-        json.dumps(values[c]) if c == "errors_by_page" else values[c] for c in cols]
+        json.dumps(values[c]) if c in ("errors_by_page", "dag_durations_s")
+        else values[c] for c in cols]
     db.execute_query(
         f"INSERT INTO daily_ops_metrics (day, {', '.join(cols)}) "  # noqa: S608
         f"VALUES ({placeholders}) "
