@@ -299,8 +299,15 @@ EN = {
         "Meta app not configured on the platform side (META_ACCESS_TOKEN) — "
         "contact the administrator."
     ),
+    # ⚠️ `{ig}` — il MANQUAIT, et `str.format` ne lève pas sur un kwarg en trop.
+    # `_platform_meta.py:84-86` appelle `.format(name=…, acc=…, ig=ig_suffix)` : le
+    # lecteur FR voyait la confirmation Instagram construite l. 76-81, le lecteur EN la
+    # perdait **en silence**. C'est la forme miroir de `format-marker-in-a-plain-string` :
+    # le marqueur n'est pas rendu littéralement, c'est son CONTENU qui disparaît.
+    # (La forme inverse — EN porteur d'un marqueur absent du FR — lèverait un `KeyError`
+    # en production ; mesuré le 2026-09-18 sur les 53 catalogues croisés : 0 occurrence.)
     "credentials.meta.test_ok_account": (
-        "Connected: {name} — ad account “{acc}” reachable ✅"
+        "Connected: {name} — ad account “{acc}” reachable ✅{ig}"
     ),
     "credentials.meta.ig_unreachable": (
         "Ad account OK, but the **Instagram account {ig}** is unreachable: "

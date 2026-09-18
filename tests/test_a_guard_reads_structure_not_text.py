@@ -91,7 +91,11 @@ _TEXTUAL_GUARDS = {
     "test_every_dag_imports.py",
     "test_every_dev_doc_is_reachable.py",
     "test_i18n.py",
-    "test_i18n_orphans.py",
+    # `test_i18n_orphans.py` est sorti de cette liste le 2026-09-18 : ses deux gardes
+    # neufs lisent l'AST (les `t(clé, défaut)` extraits par `ast.walk`), et le cliquet
+    # l'a signalé de lui-même. Un cliquet qui se resserre tout seul est le seul qui
+    # reste un cliquet — laissé en place, il aurait été du budget pour un futur garde
+    # textuel que personne n'aurait décidé d'autoriser.
     "test_identity_fields_collectable.py",
     # `test_only_production_puts_mail_on_the_wire.py` EST SORTI le 2026-09-17, et sans
     # qu'une ligne de ce fichier-la change : il EXECUTE `tools/check_env_parity.py` par

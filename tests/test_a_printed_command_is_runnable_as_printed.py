@@ -19,6 +19,7 @@ of `guard-reads-the-box-not-its-subject`, found on 2026-09-05. Each situation is
 on a `tmp_path`.
 """
 import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -236,9 +237,25 @@ _DASHBOARD = Path(__file__).resolve().parents[1] / "src/dashboard"
 # Les seuls textes qui peuvent porter une commande, avec la raison. `useful_links`
 # est admin-only (`_ADMIN_ONLY` dans `app.py`) et sa ligne DÉCRIT le service qu'on
 # est en train de regarder — elle n'appelle aucun geste.
+# ⚠️ **L'exemption était POSÉE SUR LE FICHIER, et sa raison ne valait que pour UNE
+# ligne.** Mesuré le 2026-09-18 : `useful_links.py` rendait **18 commandes exécutables**
+# en `st.code` — dont `docker exec dashboard_music_platform_algo_spotify-postgres-1 …`,
+# **exécutée telle que rendue → `No such container`** (le nom réel est
+# `postgres_spotify_airflow`, hérité du répertoire d'avant R117), et neuf `python …`
+# alors que seul `python3` est sur le PATH. Le fichier entier était exempté au motif que
+# « sa ligne DÉCRIT le service qu'on regarde et n'appelle aucun geste » — vrai pour la
+# ligne 132, faux pour les dix-huit autres.
+#
+# C'est `an-exemption-that-outlives-what-it-exempted` : la cible existait, l'exemption
+# aussi, et seule sa RAISON avait cessé d'être vraie. Les 18 commandes sont corrigées ;
+# l'exemption est resserrée sur la chaîne qui la justifiait, et elle est désormais
+# contredisable — si cette prose change, le garde le dira.
 _COMMAND_ALLOWED = {
-    "src/dashboard/views/useful_links.py",
     "src/dashboard/utils/i18n_catalog/useful_links.py",
+}
+# Les chaînes exactes qui DÉCRIVENT un service au lieu d'appeler un geste.
+_COMMAND_ALLOWED_STRINGS = {
+    "Ce dashboard — `streamlit run src/dashboard/app.py`",
 }
 
 _COMMAND_MARKERS = ("`pip install", "`python ", "`python3 ", "`streamlit run",
@@ -270,7 +287,8 @@ def test_no_string_shown_to_an_artist_carries_a_command():
         for node in ast.walk(tree):
             if (isinstance(node, ast.Constant) and isinstance(node.value, str)
                     and id(node) not in docstrings):
-                if any(m in node.value for m in _COMMAND_MARKERS):
+                if (any(m in node.value for m in _COMMAND_MARKERS)
+                        and node.value not in _COMMAND_ALLOWED_STRINGS):
                     offenders.append(f"{rel}:{node.lineno} — {node.value[:70]!r}")
     assert not offenders, (
         "des textes de page portent une commande à coller ; si le lecteur est un "
@@ -287,3 +305,73 @@ def test_the_single_builder_is_the_one_that_prepends_the_prelude():
     lang2, block = command_block("echo hi", Path(__file__).resolve().parents[1])
     assert lang == lang2
     assert block.splitlines() == [*prelude, "echo hi"]
+
+
+# ── Un `docker exec <nom>` nomme un conteneur DÉCLARÉ — 2026-09-18 ──────────
+#
+# Le garde ci-dessus vérifie qu'une commande n'est pas noyée dans de la prose. Il ne
+# regarde pas si elle MARCHE. Mesuré le 2026-09-18, en l'exécutant telle que rendue :
+#
+#     docker exec dashboard_music_platform_algo_spotify-postgres-1 psql …
+#     → Error response from daemon: No such container
+#
+# Six occurrences dans `useful_links.py`, toutes portant le nom du répertoire d'AVANT
+# R117 (le dépôt a déménagé de `/mnt/c/…/dashboard_music_platform_algo_spotify` vers
+# `~/streamlytics` le 2026-09-17). Docker nomme par défaut `<répertoire>-<service>-1` ;
+# ce dépôt déclare explicitement `container_name:`, donc le nom par défaut n'a jamais
+# existé ici — mais il avait l'air plausible, et c'est ce qui l'a laissé passer.
+#
+# ⚠️ **Ce garde existe parce que la mutation l'a exigé.** Retirer l'exemption de fichier
+# a bien fait voir `useful_links.py` au garde d'à côté — mais remettre le nom périmé le
+# laissait VERT : son prédicat porte sur la prose, pas sur l'exécutabilité. Une commande
+# peut être parfaitement présentée et ne désigner rien.
+_RACINE = Path(__file__).resolve().parents[1]
+_DOCKER_EXEC = re.compile(r"docker\s+exec\s+(?:-[a-zA-Z]+\s+)*([a-zA-Z0-9][\w.-]*)")
+
+
+def _conteneurs_declares() -> set[str]:
+    noms: set[str] = set()
+    for nom_fichier in ("docker-compose.yml", "docker-compose.example.yml",
+                        "deploy/docker-compose.observability.yml"):
+        f = _RACINE / nom_fichier
+        if f.is_file():
+            noms |= set(re.findall(r"^\s*container_name:\s*([\w.-]+)\s*$",
+                                   f.read_text(encoding="utf-8"), re.M))
+    return noms
+
+
+def test_the_declared_container_names_were_found() -> None:
+    """Non-vacuité : sans noms déclarés, tout `docker exec` serait signalé — ou aucun."""
+    noms = _conteneurs_declares()
+    assert len(noms) >= 3, (
+        f"seulement {len(noms)} `container_name:` lu(s) dans les fichiers compose — "
+        "l'extraction a raté sa cible, et le test ci-dessous ne peut rien affirmer.")
+
+
+def test_a_printed_docker_exec_names_a_declared_container() -> None:
+    """Tout `docker exec <nom>` rendu à un humain désigne un conteneur déclaré."""
+    declares = _conteneurs_declares()
+    fautifs = []
+    for rel in ("src/dashboard/views/useful_links.py",
+                "src/dashboard/utils/i18n_catalog/useful_links.py",
+                ".claude/dev-docs/runbook-actions-utilisateur.md"):
+        f = _RACINE / rel
+        if not f.is_file():
+            continue
+        texte = f.read_text(encoding="utf-8")
+        for m in _DOCKER_EXEC.finditer(texte):
+            nom = m.group(1)
+            # Une substitution de shell résout à l'exécution — c'est la forme SÛRE.
+            if nom.startswith(("$", "{", "%")) or "$(" in texte[max(0, m.start() - 2):m.start() + 20]:
+                continue
+            if nom not in declares:
+                fautifs.append(f"{rel}:{texte[:m.start()].count(chr(10)) + 1} — « {nom} »")
+    assert not fautifs, (
+        "".join(f"\n  {x}" for x in fautifs) +
+        f"\n\nCes commandes nomment un conteneur qu'aucun fichier compose ne déclare "
+        f"(déclarés : {sorted(declares)}). Elles sont rendues à un opérateur qui les "
+        "colle : exécutées telles quelles, elles rendent « No such container ». Un nom "
+        "de conteneur codé en dur **pourrit tout seul**, sans que personne ne touche au "
+        "code — celui-ci portait le nom du répertoire d'avant le déménagement de R117. "
+        "Préférer `$(docker ps --format '{{.Names}}' | grep -i postgres | head -1)`, "
+        "qui résout à l'exécution.")

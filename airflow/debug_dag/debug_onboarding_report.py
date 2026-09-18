@@ -2,7 +2,7 @@
 
 Type: Sub
 Uses: src.dashboard.utils.pdf_exporter, src.database.postgres_handler
-Persists in: /tmp/onboarding_<artist>.pdf (dry-run); nothing else
+Persists in: /tmp/<depot>/onboarding_<artist_id>_<slug>.pdf (dry-run); nothing else
 
 Default = DRY RUN: lists eligible users (verified, active, non-admin, report pending,
 S4A data present) and writes each built PDF to /tmp — sends NO email, stamps NOTHING.
@@ -50,7 +50,14 @@ def main(send: bool = False):
         pdf = generate_pdf(db, artist_id=artist_id, artist_name=artist_name,
                            from_date=date(2015, 1, 1), to_date=date.today(),
                            sections={k: True for k in ALL_SECTIONS})
-        out = Path("/tmp") / f"onboarding_{_slug(artist_name)}.pdf"
+        out = (
+        # ⚠️ Namespacé par le DÉPÔT **et** par l'identifiant du locataire. Ce PDF
+        # vivait à plat dans `/tmp/onboarding_<slug>.pdf` : deux artistes de même slug,
+        # ou deux dépôts sur la même machine, écrasaient le même fichier — dans un
+        # répertoire lisible par tous les utilisateurs de la machine.
+        Path("/tmp") / Path(__file__).resolve().parents[2].name
+        / f"onboarding_{artist_id}_{_slug(artist_name)}.pdf")
+        out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(pdf)
         print(f"    PDF built ({len(pdf):,} bytes) → {out}")
         if send:

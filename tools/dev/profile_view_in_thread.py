@@ -4,7 +4,7 @@
 Type: Utility
 Uses: streamlit.testing (AppTest), cProfile
 Triggers: `python3 tools/dev/profile_view_in_thread.py <vue>`
-Persists in: nothing
+Persists in: /tmp/<depot>-profil/{prof,warm}.out
 
 ⚠️ LE PIEGE QUE CET OUTIL EXISTE POUR EVITER
 ---------------------------------------------
@@ -56,7 +56,17 @@ sys.path.insert(0, ROOT)
 from streamlit.testing.v1 import AppTest
 
 VIEW = sys.argv[1]
-OUT = "/tmp/claude-1000/prof.out"
+# ⚠️ Namespacé par le DÉPÔT. Ces deux fichiers vivaient à `/tmp/claude-1000/prof.out`
+# et `/warm.out` — `/tmp/claude-1000/` est le namespace de session de **Claude Code**,
+# partagé par uid : il contient aussi `-mnt-c-…-dofus/` et
+# `-mnt-c-…-msdr-predictive-maintenance/`, ce dernier étant exactement le projet du
+# `root_cause` de cette classe. Deux dépôts profilés en parallèle écrasaient le même
+# fichier, et `pstats` aurait lu la mesure de l'autre sans rien dire.
+# Le module CALCULE déjà `REPO_NAME` cinq lignes plus haut et s'en sert pour l'affichage.
+_TMP = pathlib.Path("/tmp") / f"{REPO_NAME}-profil"
+_TMP.mkdir(parents=True, exist_ok=True)
+OUT = str(_TMP / "prof.out")
+WARM = str(_TMP / "warm.out")
 S = """
 import sys, cProfile
 sys.path.insert(0, {root!r})
@@ -68,7 +78,7 @@ _pr = cProfile.Profile(); _pr.enable()
 show()
 _pr.disable(); _pr.dump_stats({out!r})
 """
-AppTest.from_string(S.format(root=ROOT, view=VIEW, out="/tmp/claude-1000/warm.out")).run(timeout=300)
+AppTest.from_string(S.format(root=ROOT, view=VIEW, out=WARM)).run(timeout=300)
 AppTest.from_string(S.format(root=ROOT, view=VIEW, out=OUT)).run(timeout=300)
 
 st = pstats.Stats(OUT)

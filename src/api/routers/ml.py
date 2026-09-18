@@ -4,7 +4,6 @@ GET /ml/predictions — latest model probabilities per song for the authenticate
 """
 from typing import Optional
 
-import pandas as pd
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
@@ -28,8 +27,28 @@ class MLPrediction(BaseModel):
 
 
 def _f(v) -> Optional[float]:
-    """Coerce a DB double (NULL → NaN once in a DataFrame) to float | None."""
-    return float(v) if v is not None and not pd.isna(v) else None
+    """Coerce a DB double (NULL → NaN once in a DataFrame) to float | None.
+
+    ⚠️ **Sans pandas, et c'est un correctif de coût mesuré.** Ce module portait
+    `import pandas as pd` au niveau module pour ce SEUL `pd.isna(v)`, et il était le
+    seul importateur de pandas de tout `src/api/`. Mesuré en alternance sur trois
+    tirages (`python -X importtime -c "import src.api.main"`) : pandas pèse
+    **~300 ms sur ~800**, soit près de **40 % du temps d'import de l'application**.
+    C'est payé à chaque démarrage de PROCESSUS — conteneur, déploiement, reprise après
+    OOM — jamais amorti par le trafic.
+
+    L'équivalence n'est pas supposée : les deux formes ont été confrontées sur 16 cas
+    (`None`, entiers, `Decimal`, `±inf`, `float('nan')`, `np.nan`, `np.float64('nan')`,
+    `pd.NA`, `pd.NaT`, `np.int64`) — **0 divergence**. `pd.NA` et `NaT` lèvent sur
+    `float()`, d'où le `except`, et `NaN != NaN` fait le reste sans aucune dépendance.
+    """
+    if v is None:
+        return None
+    try:
+        f = float(v)
+    except (TypeError, ValueError):   # pd.NA, pd.NaT, tout objet non convertible
+        return None
+    return f if f == f else None      # NaN est le seul float différent de lui-même
 
 
 @router.get("/predictions", response_model=list[MLPrediction], summary="ML song predictions")

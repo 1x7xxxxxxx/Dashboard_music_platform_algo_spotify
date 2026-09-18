@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import inspect
 import sys
 from pathlib import Path
 
@@ -236,6 +237,51 @@ def test_the_rex_parser_survives_rst_underlines():
     assert m, "the rex block in a docstring with RST underlines is invisible to the parser"
     assert m.group(1).strip() == "rex: []", (
         f"parser latched onto the wrong delimiter — captured {m.group(1)[:60]!r}")
+
+
+def test_the_rex_writer_survives_rst_underlines_too():
+    """Le JUMEAU. Le lecteur a été réparé le 2026-08-03 ; l'écrivain ne l'a pas été.
+
+    ⚠️ Mesuré le 2026-09-18 : `promote_rex.py:130` portait encore
+    `re.compile(r"(---\n)(.*?)(\n---)", re.DOTALL)` — **le motif EXACT d'avant le
+    correctif**, dans le script qui ÉCRIT. Sur le document ci-dessous, le motif nu
+    ouvre son bloc à l'offset 28 et capture `'\nSome prose here.\n'` ; le motif ancré
+    ouvre à 51 et capture le YAML.
+
+    La conséquence est PIRE que celle du défaut d'origine : le lecteur se trompait de
+    verdict, l'écrivain insère l'entrée REX **au milieu de la prose du docstring**.
+
+    Ce test existe parce que le garde d'à côté ne pouvait pas le voir : il est ancré
+    sur `validate_rex`, et la classe vit dans le COUPLE lecteur/écrivain du même
+    format. Balayer par fichier rate le jumeau ; balayer par format le trouve.
+    """
+    sys.path.insert(0, str(CLAUDE / "scripts"))
+    try:
+        import promote_rex
+    finally:
+        sys.path.pop(0)
+
+    doc = ("Titre du module\n"
+           "---------------\n\n"
+           "Some prose here.\n\n"
+           "---\n"
+           "rex: []\n"
+           "---\n")
+    src = inspect.getsource(promote_rex)
+    assert 'r"^---\\n(.*?)\\n---' in src, (
+        "`promote_rex` n'utilise plus un délimiteur ANCRÉ. Un `---` non ancré ouvre "
+        "son bloc sur un soulignement RST, et cet outil ÉCRIT : il insérerait l'entrée "
+        "REX au milieu de la prose.")
+
+    import re as _re
+    ancre = _re.compile(r"^---\n(.*?)\n---[ \t]*$", _re.DOTALL | _re.MULTILINE)
+    nu = _re.compile(r"(---\n)(.*?)(\n---)", _re.DOTALL)
+    m_ancre, m_nu = ancre.search(doc), nu.search(doc)
+    assert m_ancre and m_ancre.group(1).strip() == "rex: []", (
+        f"le motif ancré capture {m_ancre.group(1)[:60]!r} au lieu du bloc rex")
+    assert m_nu and m_nu.start() < m_ancre.start(), (
+        "le motif NU ne s'ouvre plus avant l'ancré sur ce document — la démonstration "
+        "de sa cécité ne tient plus et ce test doit être relu.")
 
 
 def test_the_build_error_threshold_agrees_across_its_three_surfaces():

@@ -127,15 +127,28 @@ def _inject_py(path: Path, entry: dict) -> tuple[bool, str]:
         return False, "no module-level docstring"
     doc = tree.body[0].value
     docstring = doc.value
-    yaml_block_re = re.compile(r"(---\n)(.*?)(\n---)", re.DOTALL)
+    # ⚠️ ANCRÉ (`^`/`$` + MULTILINE), comme `validate_rex.py:94`. Ce motif était nu ici
+    # — c'est-à-dire le motif EXACT d'avant le correctif du 2026-08-03, survivant dans le
+    # script JUMEAU : celui qui LIT a été réparé, celui qui ÉCRIT ne l'a pas été.
+    #
+    # Ce qu'un `---` non ancré ouvre : un **soulignement RST** dans la prose d'un
+    # docstring (`Titre\n-----`). Mesuré sur l'entrée qui a créé la classe — le motif nu
+    # ouvre son bloc à l'offset 60 et capture `'Some prose here.\n'` là où le motif ancré
+    # rend `'rex:\n  - date: …'`.
+    #
+    # La conséquence est PIRE que celle du défaut d'origine. Le lecteur se trompait de
+    # verdict ; l'écrivain, lui, insère l'entrée REX **au milieu de la prose**.
+    yaml_block_re = re.compile(r"^---\n(.*?)\n---[ \t]*$", re.DOTALL | re.MULTILINE)
     m = yaml_block_re.search(docstring)
     if not m:
         return False, "no YAML block (---...---) in docstring"
-    new_yaml = _append_entry_to_yaml_block(m.group(2), entry)
+    new_yaml = _append_entry_to_yaml_block(m.group(1), entry)
     if new_yaml is None:
         return False, "could not locate rex: key in docstring YAML"
+    # Le motif ancré ne capture QUE le corps (un seul groupe) : les deux délimiteurs
+    # sont réécrits littéralement, plutôt que repris de groupes qui n'existent plus.
     new_docstring = (
-        docstring[:m.start()] + m.group(1) + new_yaml + m.group(3)
+        docstring[:m.start()] + "---\n" + new_yaml + "\n---"
         + docstring[m.end():]
     )
     # Replace the original docstring literal in src. `ast.get_source_segment`

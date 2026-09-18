@@ -74,3 +74,97 @@ def test_no_orphan_en_keys():
         f"{len(orphans)} orphan EN key(s) — no t() reference, remove them or add the "
         f"dynamic prefix to _DYNAMIC_PREFIXES:\n" + "\n".join(orphans)
     )
+
+
+# ── Un marqueur qu'une traduction PERD — 2026-09-18 ─────────────────────────
+#
+# `test_no_orphan_en_keys` vérifie qu'une clé anglaise a bien un emploi. Il ne regarde
+# jamais ce que la TRADUCTION fait des marqueurs de format, et c'est par là qu'un
+# message perd son contenu sans que rien ne rougisse.
+#
+# Mesuré ce jour-là : `credentials.meta.test_ok_account`
+#   FR (défaut, `_platform_meta.py:84`) : « … accessible ✅**{ig}** »
+#   EN (catalogue)                      : « … reachable ✅ »   ← `{ig}` absent
+#
+# L'appel est `.format(name=…, acc=…, ig=ig_suffix)`. **`str.format` ignore un kwarg en
+# trop sans lever** : le lecteur francophone voyait la confirmation Instagram construite
+# dix lignes plus haut, le lecteur anglophone la perdait **en silence**.
+#
+# La forme INVERSE — une traduction portant un marqueur que le défaut n'a pas — lève un
+# `KeyError` en production. Elle est donc bruyante, et les deux directions méritent le
+# même garde : celle qui perd est muette, celle qui ajoute plante.
+# ⚠️ La spécification de format fait partie du marqueur (`{total:,.2f}`), et la
+# comparer ferait rougir sur une traduction PARFAITEMENT valide. On compare les
+# NOMS. Mon premier motif exigeait `\}` juste après le nom : il a signalé
+# `imusician.roi_total_help` comme « perdant {total} » alors que la traduction le
+# porte — un faux positif. Mais en le lisant, on a trouvé un VRAI défaut dessous,
+# et c'est pour ça que la ligne suivante existe.
+_MARQUEUR = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)[^{}]*\}")
+
+
+def _defauts_du_code() -> dict[str, str]:
+    """`{clé: texte par DÉFAUT}` — le second argument littéral de chaque `t(...)`."""
+    import ast
+    out: dict[str, str] = {}
+    for path in _SRC.rglob("*.py"):
+        if "__pycache__" in str(path):
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:      # pragma: no cover - defensive
+            continue
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call)
+                    and getattr(node.func, "id", "") in {"t", "_t"}
+                    and len(node.args) >= 2):
+                continue
+            cle, defaut = node.args[0], node.args[1]
+            if (isinstance(cle, ast.Constant) and isinstance(cle.value, str)
+                    and isinstance(defaut, ast.Constant)
+                    and isinstance(defaut.value, str)):
+                out.setdefault(cle.value, defaut.value)
+    return out
+
+
+def test_the_default_extraction_is_not_vacuous() -> None:
+    """Sans extraction, le test ci-dessous est vert sur un catalogue entièrement faux."""
+    d = _defauts_du_code()
+    assert len(d) > 200, (
+        f"seulement {len(d)} défaut(s) littéral(aux) extrait(s) des appels `t(...)` — "
+        "l'extraction a raté sa cible.")
+    porteurs = [k for k, v in d.items() if _MARQUEUR.search(v)]
+    assert len(porteurs) > 20, (
+        f"seulement {len(porteurs)} défaut(s) portent un marqueur `{{nom}}` — "
+        "le prédicat de marqueur ne mord pas, donc il ne peut rien séparer.")
+
+
+def test_a_translation_keeps_every_marker_its_default_carries() -> None:
+    """Une traduction porte exactement les marqueurs de son défaut.
+
+    Les deux sens comptent, pour deux raisons opposées : un marqueur EN PLUS lève un
+    `KeyError` chez l'utilisateur ; un marqueur EN MOINS ne lève rien et lui retire
+    l'information. C'est le second qui a vécu six mois.
+    """
+    defauts = _defauts_du_code()
+    en = i18n._TR.get("en", {})
+    perdus, ajoutes = [], []
+    for cle, defaut in defauts.items():
+        trad = en.get(cle)
+        if not isinstance(trad, str):
+            continue
+        m_def = set(_MARQUEUR.findall(defaut))
+        m_tra = set(_MARQUEUR.findall(trad))
+        if m_def - m_tra:
+            perdus.append((cle, sorted(m_def - m_tra)))
+        if m_tra - m_def:
+            ajoutes.append((cle, sorted(m_tra - m_def)))
+    assert not perdus, (
+        "".join(f"\n  {c} perd {m}" for c, m in sorted(perdus)) +
+        "\n\nLa traduction anglaise ne porte pas un marqueur que son défaut porte. "
+        "`str.format` ignore le kwarg en trop SANS LEVER : le lecteur anglophone perd "
+        "l'information en silence. Ajouter le marqueur, ou retirer le kwarg des deux "
+        "côtés si l'information n'a plus lieu d'être.")
+    assert not ajoutes, (
+        "".join(f"\n  {c} ajoute {m}" for c, m in sorted(ajoutes)) +
+        "\n\nLa traduction porte un marqueur que son défaut n'a pas : `.format()` "
+        "lèvera un `KeyError` chez l'utilisateur anglophone.")

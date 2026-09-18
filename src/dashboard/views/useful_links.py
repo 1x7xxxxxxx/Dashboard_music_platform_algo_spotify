@@ -155,7 +155,7 @@ def show():
 | Password | voir `config/config.yaml` |
 """))
         _cmd(t("useful_links.cmd_psql_connect", "Connexion directe psql"),
-             "docker exec -it dashboard_music_platform_algo_spotify-postgres-1 psql -U postgres -d spotify_etl")
+             "docker exec -it postgres_spotify_airflow psql -U postgres -d spotify_etl")
 
         st.divider()
         st.subheader(t("useful_links.sec_airflow_dags", "Airflow — Accès rapide aux DAGs"))
@@ -202,13 +202,13 @@ def show():
 
         st.subheader(t("useful_links.sec_database", "Base de données"))
         _cmd(t("useful_links.cmd_run_sql", "Exécuter un script SQL sur spotify_etl"),
-             "docker exec -i dashboard_music_platform_algo_spotify-postgres-1 psql -U postgres -d spotify_etl < scripts/mon_script.sql")
+             "docker exec -i postgres_spotify_airflow psql -U postgres -d spotify_etl < scripts/mon_script.sql")
         _cmd(t("useful_links.cmd_list_tables", "Lister toutes les tables"),
-             'docker exec dashboard_music_platform_algo_spotify-postgres-1 psql -U postgres -d spotify_etl -c "\\dt"')
+             'docker exec postgres_spotify_airflow psql -U postgres -d spotify_etl -c "\\dt"')
         _cmd(t("useful_links.cmd_check_rows", "Vérifier les lignes d'une table"),
-             'docker exec dashboard_music_platform_algo_spotify-postgres-1 psql -U postgres -d spotify_etl -c "SELECT COUNT(*) FROM s4a_song_timeline;"')
+             'docker exec postgres_spotify_airflow psql -U postgres -d spotify_etl -c "SELECT COUNT(*) FROM s4a_song_timeline;"')
         _cmd(t("useful_links.cmd_backup", "Backup DB"),
-             "docker exec dashboard_music_platform_algo_spotify-postgres-1 pg_dump -U postgres spotify_etl > backup_$(date +%Y%m%d).sql")
+             "docker exec postgres_spotify_airflow pg_dump -U postgres spotify_etl > backup_$(date +%Y%m%d).sql")
 
         st.subheader(t("useful_links.sec_volumes", "Volumes & reset"))
         _cmd(t("useful_links.cmd_list_volumes", "Voir les volumes Docker"), "docker volume ls")
@@ -317,12 +317,12 @@ Si le DAG `meta_ads_api_daily` échoue → vérifier le token Instagram.
 
         for script, dag_id, desc in debug_scripts:
             st.markdown(f"**{desc}** (`{dag_id}`)")
-            st.code(f"python airflow/debug_dag/{script}", language="bash")
+            st.code(f".venv/bin/python airflow/debug_dag/{script}", language="bash")
 
         st.divider()
         st.subheader(t("useful_links.sec_util_scripts", "Scripts utilitaires"))
         _cmd(t("useful_links.cmd_migrate", "Appliquer les migrations manquantes en DB"), "make migrate")
-        _cmd(t("useful_links.cmd_manage_mapping", "Gérer le mapping artistes"), "python scripts/manage_mapping.py")
+        _cmd(t("useful_links.cmd_manage_mapping", "Gérer le mapping artistes"), ".venv/bin/python scripts/manage_mapping.py")
         st.caption(t(
             "useful_links.util_caption",
             "Spotify (client_credentials) et YouTube (clé API statique) "
@@ -354,7 +354,7 @@ Si le DAG `meta_ads_api_daily` échoue → vérifier le token Instagram.
         ]
         for label, query in queries:
             st.markdown(f"**{label}**")
-            st.code(f'docker exec dashboard_music_platform_algo_spotify-postgres-1 psql -U postgres -d spotify_etl -c "{query}"', language="bash")
+            st.code(f'docker exec postgres_spotify_airflow psql -U postgres -d spotify_etl -c "{query}"', language="bash")
 
         st.divider()
         st.subheader(t("useful_links.sec_ruff", "Ruff — vérification syntaxe Python"))

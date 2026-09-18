@@ -48,7 +48,12 @@ EN = {
     ),
     "imusician.roi_revenue": "💰 Revenue (distrib. + SACEM)",
     "imusician.roi_spend": "📱 Meta spend",
-    "imusician.roi_total_help": "ROI on Meta Ads spend = {total:,.2f} €",
+    # ⚠️ PAS de `:,.2f` ici. `imusician.py:445` passe `fmt_eur(...)`, qui rend une
+    # CHAÎNE déjà formatée en euros — appliquer une spécification numérique dessus
+    # lève `ValueError: Unknown format code 'f' for object of type 'str'`.
+    # Mesuré le 2026-09-18 : le gabarit FR rend « … = 1 234,56 € », l'anglais LÈVE.
+    # Un artiste anglophone ouvrant la tuile ROI obtenait donc une exception.
+    "imusician.roi_total_help": "ROI on Meta Ads spend = {total}",
     "imusician.roi_profitable": "✅ Profitable",
     "imusician.roi_unprofitable": "⚠️ Unprofitable",
     "imusician.roi_no_spend_help": "No promo spend over the period — widen the filter",

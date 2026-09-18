@@ -1247,5 +1247,83 @@ purgée, ou retirera la purge sans rien casser d'apparent.
 **La décision** : déclarer une rétention est un changement de schéma (`COMMENT ON
 TABLE`), donc un geste de migration.
 
+### 16.14 — `/health` dit « ok » sans rien vérifier, et trois systèmes le croient
+
+`src/api/main.py:164` rend `{"status": "ok"}` **sans aucune vérification**. Trois surfaces
+en font un verdict FINAL : `railway.toml:24` (`healthcheckPath`),
+`docker-compose.yml:171` (`test: curl --fail`), `Dockerfile.api:54` (`HEALTHCHECK`).
+
+**Un conteneur dont la base est injoignable est donc déclaré sain et continue de recevoir
+du trafic.**
+
+```bash
+grep -n "status.*ok" src/api/main.py
+grep -rn "health" railway.toml docker-compose.yml Dockerfile.api
+```
+
+**La décision** : ce que `/health` doit vérifier. Y ajouter un ping Postgres change
+**quand un conteneur est retiré du service** — une base momentanément lente ferait
+redémarrer l'API. C'est un arbitrage de disponibilité, pas un correctif.
+
+### 16.15 — Le scheduler reparse les DAG deux fois par minute, en vrai
+
+```
+$ docker exec airflow_scheduler airflow config get-value scheduler min_file_process_interval
+30
+env: <unset>
+```
+
+Le correctif de la classe `orchestrator-costs-more-than-what-it-orchestrates` — « 30 →
+300 s, rapport cyclique divisé par 10 » — **n'est pas appliqué au système qui tourne**. Le
+réglage n'existe que dans `docker-compose.example.yml:64` ; `docker-compose.yml:43` ne le
+porte pas.
+
+⚠️ **Et le garde lit le GABARIT** : `test_the_scheduler_is_not_the_biggest_cost.py:61`
+pointe `docker-compose.example.yml`. Il est vert sur le modèle pendant que le système réel
+est au défaut.
+
+**Adjacent, mesuré, sans site de code** : `airflow_webserver` occupe **1,047 Gio** à 0,10 %
+CPU — ~1,8× le scheduler, ~4,6× Postgres — pour une UI en loopback, sans limite déclarée.
+Et **~50 Mo de bases d'échafaudage orphelines** créées le 2026-09-11 (`ci_like_…`,
+`freshcheck_…`, `spotify_etl_ci`, `spotify_etl_fresh`) contre 53 Mo pour la base réelle ;
+aucun `CREATE DATABASE` du dépôt ne les produit — ce sont des gestes manuels.
+
+**La décision** : modifier `docker-compose.yml` touche la pile déployée.
+
+### 16.16 — Vingt dates affichées sans dire de quelle horloge elles viennent
+
+Les colonnes naïves de cette base portent de l'**UTC** (vérifié : `etl_run_log.started_at`
+à 9 min du `now() AT TIME ZONE 'UTC'`), et les `timestamptz` remontent en UTC. Un
+`strftime` direct affiche donc l'heure UTC **sans qualificatif** : en été parisien c'est
+−2 h, et au bord de minuit c'est le **jour** qui change.
+
+**20 sites** — les badges de fraîcheur de l'accueil, sept colonnes de la page Alertes dont
+`locked_until` et la date d'inscription, le journal ETL, les dates de disjoncteur, les
+périodes d'abonnement.
+
+⚠️ Ce qui rend la décision facile à prendre et difficile à deviner : **deux sites du MÊME
+fichier traitent la MÊME colonne différemment** — `soundcloud.py:57` convertit, `:266`
+non ; `instagram.py:70` convertit, `:31` non. Le mécanisme existe (`utils/tz.py`), il
+n'est simplement pas appliqué partout.
+
+**La décision** : afficher l'heure locale change ce que l'artiste lit sur vingt écrans.
+
+### 16.17 — Trois pages rendent 38, 34 et 19 figures
+
+`trigger_algo` (page routée) rend **11 graphiques + 27 jauges = 38 figures** au premier
+écran — le site historique de la classe, jamais corrigé : `secondary_analyses` n'est
+adopté que dans **1 fichier sur 10**. Puis `revenue_forecast` (5 + 29 = 34) et
+`airflow_kpi` (3 + 16 = 19, zéro adoption).
+
+⚠️ **Le garde est vert**, pour deux raisons cumulatives : il compte **par fichier** (une
+page-paquet de 10 fichiers avec une seule entrée de routage échappe au plafond), et
+`_RENDERERS` **n'inclut pas `st.metric`** alors que le `root_cause` de la classe compte
+les jauges.
+
+**Nuance à trancher** : les fichiers `_tab_*` sont des ONGLETS. Si un onglet compte comme
+un second écran, `trigger_algo` est défendable (1 à 4 graphiques par onglet). Mais le
+garde n'exclut que `secondary_analyses` et `expander`, **pas `st.tabs`** — par sa propre
+définition, un onglet est du premier écran.
+
 **Vérification que cette section est à jour** :
 `python3 -m pytest tests/test_roadmap_index_is_honest.py -q`

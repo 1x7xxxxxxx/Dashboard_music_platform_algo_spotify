@@ -235,11 +235,22 @@ def show():
                     say_why_it_is_empty(
                         None if _hors_fenetre.empty else _hors_fenetre.iloc[0]["last"],
                         window,
+                        # ⚠️ `.format(last=…)` — il MANQUAIT. `say_why_it_is_empty`
+                        # (`utils/ui.py:112`) fait `st.warning(empty_window)` tel quel :
+                        # sans formatage, l'artiste lisait littéralement `**{last}**`.
+                        # Les trois autres appelants formatent (`soundcloud.py:266`,
+                        # `instagram.py:109`, `home.py:552`) ; Apple était le seul à ne
+                        # pas le faire, et c'est la branche « rien dans cette fenêtre »,
+                        # donc elle ne s'affiche QUE pour un artiste dont les données
+                        # sont hors période — précisément celui qui a besoin de la date.
                         empty_window=t(
                             "apple_music.nothing_in_window",
                             "Aucune mesure Apple Music sur cette période. La dernière "
                             "remonte au **{last}** — dépose un export récent, ou "
-                            "élargis la fenêtre pour revoir l'historique."),
+                            "élargis la fenêtre pour revoir l'historique."
+                        ).format(
+                            last="" if _hors_fenetre.empty
+                            else _hors_fenetre.iloc[0]["last"]),
                         no_history=t(
                             "apple_music.not_enough_history",
                             "📉 Pas assez d'historique pour calculer la croissance "
