@@ -70,7 +70,7 @@
         "2026-09-10"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -449,7 +449,7 @@
         "2026-09-10"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -559,7 +559,7 @@
         "2026-08-24"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -586,7 +586,7 @@
         "2026-09-14"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -2155,7 +2155,7 @@
         "2026-09-16"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -3679,7 +3679,7 @@
         "2026-09-10"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -3762,7 +3762,7 @@
         "2026-09-10"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -3789,7 +3789,7 @@
         "2026-08-24"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 4,
@@ -4140,7 +4140,7 @@
         "2026-09-08"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": null,
@@ -4582,7 +4582,7 @@
         "2026-09-04"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -5867,7 +5867,7 @@
         "2026-08-23"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -5922,7 +5922,7 @@
         "2026-08-23"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -6305,7 +6305,7 @@
         "2026-09-06"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -6877,7 +6877,7 @@
         "2026-06-10"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -6960,7 +6960,7 @@
         "2026-08-20"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -7041,7 +7041,7 @@
         "2026-08-26"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -8023,7 +8023,7 @@
         "2026-09-12"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -8268,7 +8268,7 @@
         "2026-08-23"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -8403,7 +8403,7 @@
         "2026-09-05"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -8458,7 +8458,7 @@
         "2026-09-03"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -8760,7 +8760,7 @@
         "2026-09-03"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -9058,7 +9058,7 @@
         "2026-08-23"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -9411,7 +9411,7 @@
         "2026-08-23"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 2,
@@ -9574,7 +9574,7 @@
         "2026-08-22"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P1",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -9847,7 +9847,7 @@
         "2026-09-04"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -10912,7 +10912,7 @@
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 221,
+      "seen_red_unknown": 196,
       "siblings_never_swept": 1,
       "sites_unknown": 100,
       "swept_by_rerunning_the_guard": 97
@@ -10960,20 +10960,20 @@
       "by_seen_red": {
         "daté": {
           "events": 19,
-          "class_days": 2746,
-          "per_class_month": 0.2103,
+          "class_days": 3241,
+          "per_class_month": 0.1782,
           "ci95": [
-            0.1266,
-            0.3285
+            0.1072,
+            0.2783
           ]
         },
         "jamais-ou-inconnu": {
           "events": 24,
-          "class_days": 5648,
-          "per_class_month": 0.1292,
+          "class_days": 5153,
+          "per_class_month": 0.1416,
           "ci95": [
-            0.0827,
-            0.1922
+            0.0907,
+            0.2107
           ]
         }
       },

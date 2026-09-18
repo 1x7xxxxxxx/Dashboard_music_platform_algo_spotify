@@ -85,7 +85,7 @@ _CEILINGS = {
     # une preuve. Un garde ne compte comme vu rouge que s'il ÉCHOUE sur le défaut.
     # Historique : 363 → 352 (les `n-a`) → 332 (phase B, traces de mutation) → 330
     # le 2026-09-17 (un défaut remis et vu lever) → 321 ce jour-ci.
-    "seen_red_unknown": 221,
+    "seen_red_unknown": 196,
     # ── Ajouté le 2026-09-18 avec l'état `self-proving` ─────────────────────────
     # Voir une signature rouge UNE fois, à la main, prouve qu'elle mordait CE SOIR-LÀ.
     # Un garde qui porte un test fabriquant la forme interdite se prouve à CHAQUE
