@@ -118,16 +118,59 @@ class TestAgainstPostgres:
         )
 
     def test_a_known_fresh_source_reads_as_fresh(self):
-        """Non-vacuity: the checks above are also true of a monitor returning nothing."""
+        """Non-vacuity: the checks above are also true of a monitor returning nothing.
+
+        ⚠️ IL POSE LA LIGNE QU'IL LIT — 2026-09-18, et c'est une correction.
+
+        Cette assertion lisait la base AMBIANTE et demandait qu'au moins une source y
+        ait un âge mesurable. Sur un poste de développement c'est toujours vrai ; sur
+        une base de CI, fraîchement créée depuis `init_db.sql` et les migrations, elle
+        est VIDE — aucune source n'a d'âge, et le test rougit pour une raison qui n'est
+        pas son sujet.
+
+        Il a échoué en CI **trois exécutions de suite sans que personne le voie**,
+        parce qu'une porte statique rougissait plus tôt et que la suite n'allait jamais
+        jusqu'au bout — `une-CI-rouge-cache-tout-ce-qui-suit`, troisième instance dans
+        ce dépôt. Il est apparu à la minute où cette porte est redevenue verte.
+
+        Le remède est celui que `check_guards_are_env_independent.py` répète à chaque
+        exécution : **poser ce qu'on lit** au lieu de le lire sur la machine. La ligne
+        est écrite, mesurée, puis retirée.
+        """
+        import datetime as _dt
+
         from src.dashboard.utils import get_db_connection
         from src.utils.freshness_monitor import check_freshness
 
         db = get_db_connection()
+        marqueur = f"ci-freshness-{_dt.datetime.now(_dt.timezone.utc):%H%M%S%f}"
         try:
+            db.execute_query(
+                "INSERT INTO youtube_channel_history "
+                "(channel_id, artist_id, subscriber_count, view_count, collected_at) "
+                "VALUES (%s, 1, 0, 0, NOW())", (marqueur,))
             results = check_freshness(db)
+            assert results, (
+                "check_freshness returned nothing — nothing above is being tested")
+            # L'ASSERTION PORTE SUR LA SOURCE QU'ON VIENT D'ÉCRIRE, pas sur « au moins
+            # une source ». C'est ce qui rend la ligne posée PORTANTE : sans elle, la
+            # valeur lue serait celle de la base ambiante, et le test redeviendrait
+            # vert pour une raison qui ne lui appartient pas.
+            youtube = next((r for r in results if r["source"] == "YouTube"), None)
+            assert youtube is not None, (
+                "la source YouTube a disparu de `MONITOR_TARGETS` — ce test pose une "
+                "ligne dans `youtube_channel_history` et ne la retrouverait plus.")
+            assert youtube["age_h"] is not None, (
+                "YouTube n'a pas d'âge mesurable alors qu'une ligne vient d'être POSÉE "
+                "avec `collected_at = NOW()` : la colonne d'âge n'est pas lue.")
+            assert youtube["age_h"] < 1, (
+                f"YouTube est lue à {youtube['age_h']} h alors que la ligne a été "
+                "écrite à l'instant — les deux horloges ont divergé.")
         finally:
+            try:
+                db.execute_query(
+                    "DELETE FROM youtube_channel_history WHERE channel_id = %s",
+                    (marqueur,))
+            except Exception:          # pragma: no cover — le nettoyage ne masque rien
+                pass
             db.close()
-        assert results, "check_freshness returned nothing — nothing above is being tested"
-        assert any(r["age_h"] is not None for r in results), (
-            "no source has a measurable age at all; the age column is not being read"
-        )
