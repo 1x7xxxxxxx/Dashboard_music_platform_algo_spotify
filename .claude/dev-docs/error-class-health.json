@@ -495,14 +495,15 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-16"
+        "2026-09-16",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
       "revisions": 3,
@@ -2739,14 +2740,15 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-16"
+        "2026-09-16",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
       "revisions": 3,
@@ -4513,7 +4515,7 @@
       "status": "guarded",
       "introduced_date": "2026-08-22",
       "revisions": 4,
-      "history_additions": 1,
+      "history_additions": 2,
       "renamed_from": null
     },
     "automation-gap-between-two-ecosystems": {
@@ -10862,8 +10864,8 @@
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 309,
-      "siblings_never_swept": 100,
+      "seen_red_unknown": 307,
+      "siblings_never_swept": 98,
       "sites_unknown": 101,
       "swept_by_rerunning_the_guard": 97
     },
@@ -10878,23 +10880,23 @@
       "window_start": "2026-05-15",
       "as_of": "2026-09-18",
       "observed": {
-        "events": 32,
+        "events": 33,
         "class_days": 8394,
-        "per_class_month": 0.1159,
+        "per_class_month": 0.1195,
         "ci95": [
-          0.0793,
-          0.1636
+          0.0823,
+          0.1678
         ]
       },
       "class_days_exposed": 8394,
       "by_guard": {
         "automatique": {
-          "events": 29,
+          "events": 30,
           "class_days": 8221,
-          "per_class_month": 0.1072,
+          "per_class_month": 0.1109,
           "ci95": [
-            0.0718,
-            0.154
+            0.0748,
+            0.1584
           ]
         },
         "prose": {
@@ -10910,31 +10912,31 @@
       "by_seen_red": {
         "daté": {
           "events": 7,
-          "class_days": 1014,
-          "per_class_month": 0.2099,
+          "class_days": 1018,
+          "per_class_month": 0.209,
           "ci95": [
-            0.0841,
-            0.4324
+            0.0837,
+            0.4307
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 25,
-          "class_days": 7380,
-          "per_class_month": 0.103,
+          "events": 26,
+          "class_days": 7376,
+          "per_class_month": 0.1072,
           "ci95": [
-            0.0666,
-            0.152
+            0.07,
+            0.157
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 32,
+          "events": 33,
           "class_days": 8394,
-          "per_class_month": 0.1159,
+          "per_class_month": 0.1195,
           "ci95": [
-            0.0793,
-            0.1636
+            0.0823,
+            0.1678
           ]
         }
       },
@@ -10957,11 +10959,11 @@
       }
     },
     "sweep_yield": {
-      "sweeps_done": 300,
-      "sweeps_with_a_verdict": 199,
+      "sweeps_done": 302,
+      "sweeps_with_a_verdict": 201,
       "sweeps_that_found_something": 26,
       "live_sites_found": 63,
-      "hit_rate_on_verdicts": 0.131,
+      "hit_rate_on_verdicts": 0.129,
       "note": "Le taux porte sur les balayages dont le verdict est LISIBLE. Les autres sont comptés dans holes.sites_unknown — un balayage muet n'est pas un balayage sans trouvaille."
     }
   }

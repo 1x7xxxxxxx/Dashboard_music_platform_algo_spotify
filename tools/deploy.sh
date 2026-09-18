@@ -38,7 +38,11 @@ for s in $SERVICES; do
         echo "STOP : le service '$s' n'a pas de sonde de sante dans ce script."
         echo "   Le deployer serait le mettre en service SANS verification et SANS"
         echo "   retour arriere. Ajouter sa sonde dans service_probe(), ou corriger"
-        echo "   le nom. Services connus : api dashboard dashboard2"
+        # Derive du registre, jamais reecrit : la liste ecrite a la main aurait
+        # menti au premier service ajoute a `service_probe()` — et c'est
+        # precisement ce message qu'on lit quand on vient d'en ajouter un.
+        echo "   le nom. Services connus : $(sed -n '/^service_probe()/,/^}/p' "$0" \
+            | sed -n 's/^ *\([a-z0-9_]*\)) *echo.*/\1/p' | tr '\n' ' ')"
         exit 1
     fi
 done
