@@ -1949,7 +1949,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: one tenant identity is stored in TWO places — `artist_credentials.extra_config` (read by every screen and every readiness check) and `saas_artists.spotify_artist_id` (read by `spotify_api_daily` to decide whose catalogue to collect). The credentials form wrote both; `tools/create_canary.py` wrote only the first. Measured 2026-08-21: canary tenant 471 reported "Connecté — artiste « Daft Punk » ✅" everywhere while its DAG logged "aucun spotify_artist_id déclaré" and wrote 0 rows. The tenant whose entire purpose is to catch a false green WAS the false green.
 - cause_evidence: read (tools/create_canary.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_tenant_identity_mirrors.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: 2026-09-18 — en ajoutant un `UPDATE saas_artists SET spotify_artist_id` direct dans une `show()` de vue, court-circuitant `write_platform_identity`, `tests/test_tenant_identity_mirrors.py` part au rouge ; retiré, il passe.
 - long_term_fix: `src/utils/tenant_identity.py` holds `IDENTITY_MIRRORS` and `write_platform_identity()` — the single path that writes the credentials row AND every mirror the platform declares. Both writers call it; no third writer can get it half right.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_tenant_identity_mirrors.py }
@@ -2050,7 +2050,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: the finding takes part in the email BODY and even the SUBJECT line, but not in the boolean that decides whether to send an email at all. Measured 2026-08-21 in `airflow/dags/alert_monitor.py`: `central_apps_broken` was rendered at line ~794 and placed FIRST in the subject at ~829, while `has_issues` at ~533 listed eight other sources and not it. A shared app that stopped authenticating, as the only problem, produced nothing — the function returned early. It was masked purely by coincidence: Meta happened to be broken *and* stale at once, and staleness was in the decision. The check written specifically to end a months-long silence was itself silent under exactly the condition it targeted.
 - cause_evidence: read (airflow/dags/alert_monitor.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_alert_monitor_sends_what_it_finds.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: 2026-09-18 — en ajoutant dans `send_consolidated_alert` un `xcom_pull` dont le nom n'entre pas dans l'expression `has_issues`, `tests/test_alert_monitor_sends_what_it_finds.py` part au rouge ; retiré, il passe.
 - long_term_fix: the guard parses the DAG, collects every local name assigned from an `xcom_pull` inside `send_consolidated_alert`, and requires each to appear in the `has_issues` expression. It sweeps the class rather than the instance, so a check added later gets the same treatment for free.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_alert_monitor_sends_what_it_finds.py }
@@ -2364,7 +2364,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: a credential is passed as a QUERY PARAMETER, so a `requests` exception message embeds the full prepared URL. Surfacing the exception — to a user, or into a log — surfaces the credential. No attacker action required: a DNS blip is enough.
 - signature: `python3 -m pytest tests/test_credentials_security.py -q -k exception`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: 2026-09-18 — en remplaçant `type(e).__name__` par `str(e)` dans la sonde de `credentials/_platform_spotify.py`, `tests/test_credentials_security.py` part au rouge ; rétabli, il passe.
 - root_cause: two shapes. (a) `src/utils/central_apps.py::check_meta` printed `f"probe error ({exc})"` for a call carrying `META_ACCESS_TOKEN` and `META_APP_ID|META_APP_SECRET` in the query string — executed **nightly** by `alert_monitor.check_central_apps`, whose stdout is persisted in the Airflow task log. (b) the Meta, YouTube, Spotify and SoundCloud connection tests each ended in `except Exception as e: return False, str(e)`, rendered untruncated to the tenant by `st.error`. Meta and YouTube put their credential in the URL, so a non-admin could be shown the platform-wide System User token or the billable API key.
 - cause_evidence: read (src/utils/central_apps.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: no probe surfaces a caught exception; they return `type(e).__name__` plus a static message. Applied uniformly to all four platforms even though Spotify (header auth) and SoundCloud (POST body) are clean today — so nobody has to re-derive which one is safe. The guard walks the AST of every except-handler in those modules and fails on `str(e)` or `f"{e}"`.
@@ -2456,7 +2456,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: an administrative gesture that is supposed to cut access writes a column nothing reads on the live path. The UI confirms, the row changes, and the holder keeps working until their session expires on its own.
 - signature: `python3 -m pytest tests/test_revocation_actually_revokes.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: 2026-09-18 — en neutralisant `if not active or (token_version or 0) > tv:` dans `src/api/deps.py`, `tests/test_revocation_actually_revokes.py` part au rouge sur 2 tests ; rétabli, il passe.
 - root_cause: `active` appeared in exactly one query — the login one. `require_login()` (`src/dashboard/auth.py`) returned True from `st.session_state` alone, and the API's `get_current_user` asked only whether the JWT verified. So `admin.py:_toggle_user_active` stopped the NEXT login and nothing else, and changing a password after a compromise left the intruder's 24 h token valid.
 - cause_evidence: read (src/dashboard/auth.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: authorisation is re-read from the row on every request — `active`, `role` and `artist_id`, throttled to 30 s on the dashboard and per-request on the API — plus `saas_users.token_version` (migration 072) carried as a `tv` claim and bumped by deactivation and by a password change. A missing claim reads as 0, so deploying it signs nobody out. The two surfaces fail in OPPOSITE directions on a database outage, deliberately: the dashboard open (a blip must not evict every artist, and it shows a banner), the API closed (its tokens travel further and it has no banner).
@@ -3212,7 +3212,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `_prune_renamed_campaigns` (`src/collectors/_meta_upsert.py`) exécute `DELETE FROM <table> WHERE artist_id = %s AND campaign_name <> ALL(%s)` — le `DELETE` est scopé au LOCATAIRE, la liste de campagnes ne couvre qu'un COMPTE PUBLICITAIRE. Tant qu'un artiste n'a qu'un compte, les deux portées coïncident et le défaut est invisible. Le jour où la boucle passe sur deux comptes — le cas d'une agence, demandé par un vrai utilisateur — la passe du second efface tout ce que le premier vient d'écrire. Ce n'est pas une collision d'upsert, c'est une suppression de masse.
 - cause_evidence: read (src/collectors/_meta_upsert.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_meta_ads_collector.py::TestPruneRenamedCampaigns -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: 2026-09-18 — en retirant `AND ad_account_id IS NOT DISTINCT FROM %s` du `DELETE` de `_meta_upsert.py:184`, `tests/test_meta_ads_collector.py` part au rouge ; rétabli, il passe.
 - long_term_fix: le `DELETE` porte le même discriminant que ce qu'il vient de rafraîchir — `AND ad_account_id IS NOT DISTINCT FROM %s`. La colonne est ajoutée par `migrations/076` sur les 10 tables à la maille campagne plus les 3 tables de provenance ; elle est nullable, et `IS NOT DISTINCT FROM NULL` reproduit exactement l'ancien comportement tant que la flotte est mono-compte. **Le correctif est posé AVANT que le multi-comptes existe** : une fois la boucle livrée, le défaut n'aurait été visible qu'en constatant des données manquantes.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_meta_ads_collector.py::TestPruneRenamedCampaigns::test_the_delete_is_scoped_to_one_ad_account }
