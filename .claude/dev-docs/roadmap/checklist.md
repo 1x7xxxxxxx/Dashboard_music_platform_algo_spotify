@@ -301,9 +301,17 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-17 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-18 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R122,R132,R133,R134 -->
+<!-- reprise: open=R122,R125,R132,R133,R134 -->
+
+**R125 est entrée le 2026-09-18, et elle n'attend qu'un geste de trois minutes.** Mesuré
+en production : `ml_song_predictions` porte 617 lignes, `s4a_song_algo_outcomes` (la
+saisie humaine) en porte 0, `ml_prediction_outcomes` 0, et le DAG hebdomadaire
+`ml_outcome_labeling` n'a aucune entrée dans `etl_run_log`. **Le jeu d'entraînement du
+scoring n'accumule rien depuis la livraison de la brique 16**, et rien ne le signale :
+une table vide se lit comme « pas encore de données ». Procédure au §15 du runbook des
+gestes humains.
 
 **R116 a quitté l'index le 2026-09-17**, pas ce fichier : `daily_ops_metrics` ne porte qu'une ligne (`complete = FALSE`, percentiles de rendu tous `NULL`), donc la courbe qui doit trancher l'ADR-027 n'existe pas encore. Son bloc de détail — non coché, pas livré — reste **ici**, dans une nouvelle section `## ⏸️ R116` hors des deux tables d'index : `archive.md` est strictement passif (aucun item non coché n'y est admis — `test_the_archive_holds_nothing_actionable`), et R116 n'est ni livrée ni abandonnée. Son déclencheur de réouverture est la ligne `daily_ops_metrics` de `### Conditions d'attente` ci-dessous. Elle n'a donc plus de ligne dans l'index actionnable ni dans « 🙋 En attente de toi » — elle n'attend aucun geste humain, seulement du trafic — et pour cette même raison elle **sort de l'ancre**, qui ne porte que ce que les deux tables de ce fichier listent encore.
 
@@ -482,8 +490,18 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
+| R125 | Saisir les écoutes 28 j réalisées (DW / RR / Radio) pour au moins un morceau, dans **Saisie S4A** | P3 | ouvrir Saisie S4A, entrer les trois chiffres à 28 jours pour un morceau prédit il y a plus de 28 jours — voir §15 du runbook |
 
-**La table est de nouveau vide depuis le 2026-09-17.** R114 y a vécu jusqu'au 2026-09-17 : le geste demandé — les identifiants du bac à sable — a été fait, les quatre passes alternées ont tourné, et le **signal de décision n'a jamais tiré** (A ne perd aucun rerun, donc B n'a rien à supprimer). La réplique n'est pas adoptée, la production est remise à son état d'avant l'expérience, et le déclencheur de réouverture est un des deux seuils de `tools/scale_check.sh`. Rotée close dans `archive.md` ; détail humain au §14 du runbook.
+⚠️ **R125 est entrée le 2026-09-18, mesurée en PRODUCTION, pas supposée** :
+`ml_song_predictions` porte **617 lignes**, `s4a_song_algo_outcomes` (la saisie humaine)
+en porte **0**, et `ml_prediction_outcomes` **0**. Le DAG hebdomadaire
+`ml_outcome_labeling` est actif et n'a **aucune entrée** dans `etl_run_log` : il apparie
+les prédictions assez vieilles avec les écoutes réalisées saisies à la main, et il n'a
+jamais rien à apparier. **Le jeu d'entraînement vivant n'accumule rien depuis la
+livraison de la brique 16**, sans qu'aucune alerte ne le dise — une table vide se lit
+comme « pas encore de données », jamais comme « personne n'a fait le geste ».
+
+**Avant elle, la table était vide depuis le 2026-09-17.** R114 y a vécu jusqu'au 2026-09-17 : le geste demandé — les identifiants du bac à sable — a été fait, les quatre passes alternées ont tourné, et le **signal de décision n'a jamais tiré** (A ne perd aucun rerun, donc B n'a rien à supprimer). La réplique n'est pas adoptée, la production est remise à son état d'avant l'expérience, et le déclencheur de réouverture est un des deux seuils de `tools/scale_check.sh`. Rotée close dans `archive.md` ; détail humain au §14 du runbook.
 
 Avant elle, R124 y a vécu du 2026-09-17 au
 2026-09-17 même : le geste demandé a été fait (session authentifiée en production), et

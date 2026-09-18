@@ -917,3 +917,52 @@ le 2026-09-17 ; `tests/test_a_make_variable_does_not_collide_with_the_environmen
 | l'écart reste sous le seuil | on ne conclut pas, et on l'écrit. **C'est un résultat**, pas un échec |
 
 </details>
+
+---
+
+## 15. R125 — Saisir les écoutes réalisées à 28 jours, pour que le modèle apprenne
+
+**Ce que ça débloque** : le jeu d'entraînement vivant du scoring. Aujourd'hui il est vide
+et rien ne le dit.
+
+### Ce qui est mesuré, en production, le 2026-09-18
+
+| table | lignes | ce que ça veut dire |
+|---|---|---|
+| `ml_song_predictions` | **617** | le modèle prédit toutes les nuits, et il écrit |
+| `s4a_song_algo_outcomes` | **0** | personne n'a jamais saisi une écoute réalisée |
+| `ml_prediction_outcomes` | **0** | donc aucune prédiction n'a jamais été étiquetée |
+| `etl_run_log` pour `ml_outcome_labeling` | **aucune entrée** | le DAG hebdomadaire n'a rien à apparier |
+
+Le DAG `ml_outcome_labeling` est **actif** (non suspendu) et tourne le lundi 06:00 UTC.
+Il apparie chaque prédiction de plus de 28 jours avec les écoutes **réellement** obtenues
+sur Discover Weekly / Release Radar / Radio, saisies à la main dans **Saisie S4A**. Sans
+cette saisie, il n'a rien à faire et ne laisse aucune trace — **une table vide se lit
+comme « pas encore de données », jamais comme « personne n'a fait le geste »**.
+
+### Le geste
+
+1. Ouvrir le dashboard → **Saisie S4A**.
+2. Choisir un morceau **prédit il y a plus de 28 jours** (le scoring tourne depuis la
+   brique 16 ; la liste des prédictions est visible dans *Road to Algo*).
+3. Entrer, pour ce morceau, les écoutes obtenues **sur la fenêtre de 28 jours** dans les
+   trois sources : **Discover Weekly**, **Release Radar**, **Radio**. Ces chiffres se
+   lisent dans Spotify for Artists → *Playlists* → filtre 28 jours.
+4. Enregistrer. Un seul morceau suffit pour prouver que la chaîne fonctionne ; le jeu
+   d'entraînement se construit ensuite au rythme des saisies.
+
+### La commande qui prouve que c'est fait
+
+```bash
+ssh root@167.233.92.1 "docker exec \$(docker ps --format '{{.Names}}' | grep -i postgres | head -1) \
+  psql -U postgres -d spotify_etl -c \"SELECT
+    (SELECT count(*) FROM s4a_song_algo_outcomes) AS saisies_humaines,
+    (SELECT count(*) FROM ml_prediction_outcomes) AS etiquetees\""
+```
+
+`saisies_humaines > 0` après le geste. `etiquetees > 0` **le lundi suivant** seulement —
+l'appariement est hebdomadaire, pas immédiat. Les deux chiffres valaient 0 le 2026-09-18.
+
+⚠️ **Ce qui ne marchera pas** : saisir les écoutes d'un morceau prédit il y a moins de
+28 jours. Le DAG l'ignore par construction, la saisie sera correcte et `etiquetees`
+restera à 0 — et on conclura à tort que la chaîne est cassée.
