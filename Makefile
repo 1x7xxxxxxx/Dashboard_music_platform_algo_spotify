@@ -536,6 +536,10 @@ config-check: ## Check the .claude/ config itself: dangling paths, class schema,
 	@# python3 + stdlib only — no runtime dependency, so no fail-fast prerequisite
 	@# is required (CLAUDE.md rule 10 exempts file-only targets).
 	@python3 .claude/scripts/check_config_refs.py
+	@# Un outil que rien n'invoque n'est pas neutre : c'est une AFFIRMATION qu'une
+	@# chose est couverte. Ce depot l'a mesure ailleurs — 33 spawns pour les agents
+	@# nommes dans une regle imperative, 0 sur 23 pour ceux nommes dans un tableau.
+	@python3 .claude/scripts/audit_unreachable_tools.py
 	@python3 .claude/scripts/audit_runner.py --prose
 	@python3 .claude/scripts/audit_runner.py --coverage
 	@# ⚠️ Ajoute le 2026-09-16 : le plan de R122 disait « `error-health-check`

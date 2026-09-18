@@ -28,6 +28,20 @@ Les pics par processus et leur somme. Mesure de reference, meme machine, meme jo
 `tests/test_views_render_smoke.py -n 2` → **508 · 265 · 126 Mo, total 899 Mo**.
 C'est ce 508 qui fixe le diviseur de `PYTEST_WORKERS` dans le `Makefile`.
 """
+
+# ── OUTIL DE MESURE À USAGE PONCTUEL — lu par personne en routine (2026-09-18) ──
+#
+# Ce fichier n'est appelé par aucun automate : ni Makefile, ni CI, ni hook, ni signature
+# du catalogue. C'est VOULU — c'est un instrument, pas un garde. Il ne prétend couvrir
+# rien, donc son silence ne ment sur rien.
+#
+# Il est CONSERVÉ plutôt que supprimé pour une raison chiffrée : son coût est nul (il
+# n'est ni injecté en contexte, ni collecté par la suite), et le réécrire coûterait la
+# séance qui l'a produit. Sa mesure, elle, est consignée — voir
+# `.claude/dev-docs/test-suite-performance.md` et `roadmap/archive.md`.
+#
+# Si tu le lances : relis d'abord ce que la mesure a déjà rendu. Ce dépôt a plusieurs
+# fois remesuré ce qui était écrit à côté.
 import pathlib
 import subprocess
 import sys

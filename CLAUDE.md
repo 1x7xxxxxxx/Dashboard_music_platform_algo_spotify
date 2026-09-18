@@ -294,7 +294,7 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
 > tableau ou un registre. Les tableaux d'agents ci-dessous sont de la documentation, pas un
 > déclencheur.
 
-<!-- measured-rules:begin v2 — tools/dev/install_measured_rules.py -->
+<!-- measured-rules:begin v2 — genere par /mnt/c/Users/timot/Desktop/claude_code_deployment_baseline/tools/dev/install_measured_rules.py (le BASELINE, pas ce depot) -->
 
 14. **Une classe de défaut identifiée → `Spawn sibling-sweeper` AVANT d'écrire le
     fix.** Il renvoie la liste exhaustive des sites frères en `fichier:ligne`, en
@@ -380,6 +380,18 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     Contrôle : `make night-check` — arbre sale, commits non poussés, unité ouverte
     depuis plus de 3 h.
 
+15ter. **Muter un garde neuf AVANT de le croire → `python3 tools/dev/mutate_guards.py
+    <tests/test_x.py>`.** Il propose une mutation, l'applique, lance le garde, et
+    RESTAURE l'arbre quoi qu'il arrive. Un garde jamais vu rouge ne garde rien, et la
+    seule façon de le savoir est de le mettre en défaut : ~40 mutations le 2026-09-18
+    ont trouvé **sept défauts vivants**, dont deux gardes P1 aveugles à leur propre
+    sujet. ⚠️ Il ne DATE rien tout seul : il rend « ce garde a rougi sur telle
+    mutation », et c'est un humain qui décide si la mutation INCARNE le défaut. Une
+    mutation qui casse autre chose ne prouve rien — et une mutation appliquée sur un
+    motif ABSENT du fichier ne modifie rien du tout, laisse la suite verte, et se lit
+    comme un garde vacant. Vérifier que la ligne a CHANGÉ.
+    Contrôle que l'outil reste atteignable : `make config-check`.
+
 16. **Avant de lancer la suite après un changement de code → lancer
     `python3 .claude/scripts/select_tests.py`.** Il rend les tests atteignables
     depuis ce qui a changé — ou la suite entière quand il ne peut pas conclure.
@@ -464,6 +476,9 @@ a file that had not existed for weeks.
 | `response-protocol/` | Detailed audit rules — `disable-model-invocation: true`, so **manual only** (`/review-*`) |
 | `audit-collectors/` | Silent success anti-pattern rules — load when touching collectors |
 | `impact-analysis/` | A bug/divergence/drift/500 was identified — whole-repo impact sweep + root-cause + durable guard (rule #11) |
+| `continuous-learning/` | Capturer un motif non évident trouvé en séance. **Nommée ici parce qu'un hook la nomme déjà** : `session_summary.py:429` écrit « run /continuous-learning » en fin de séance, et ce fichier ne le disait pas |
+
+⚠️ **Deux skills retirées le 2026-09-18**, vers `.claude/.retired/skills/` — geste réversible, `git mv`. `systematic-debugging/` (300 l.) n'était nommée que dans un bloc **commenté** de `inject_context.py`, et son sujet est couvert par `workflows/bug-resolution.md`, auto-injecté sur 56 mots-clés et rendu obligatoire par la règle 11. `verification/` (129 l.) n'avait aucune référence vivante. La loi mesurée de ce dépôt vaut aussi pour les skills : **ce qui n'est nommé nulle part n'est jamais invoqué.** Le déclencheur de réouverture est écrit dans `.claude/.retired/skills/POURQUOI-CES-DEUX.md`.
 
 ### Workflows (`.claude/workflows/`) — playbooks the model EXECUTES
 

@@ -39,6 +39,20 @@ Il tourne sous `AppTest`, dont le rendu porte ~1,8 s de harnais ici (1 007 lectu
 le DELTA entre deux variantes du meme processus en veut. Pour l'absolu, l'instrument est
 `streamlytics_rerun_duration_seconds`, cote serveur, en conteneur.
 """
+
+# ── OUTIL DE MESURE À USAGE PONCTUEL — lu par personne en routine (2026-09-18) ──
+#
+# Ce fichier n'est appelé par aucun automate : ni Makefile, ni CI, ni hook, ni signature
+# du catalogue. C'est VOULU — c'est un instrument, pas un garde. Il ne prétend couvrir
+# rien, donc son silence ne ment sur rien.
+#
+# Il est CONSERVÉ plutôt que supprimé pour une raison chiffrée : son coût est nul (il
+# n'est ni injecté en contexte, ni collecté par la suite), et le réécrire coûterait la
+# séance qui l'a produit. Sa mesure, elle, est consignée — voir
+# `.claude/dev-docs/test-suite-performance.md` et `roadmap/archive.md`.
+#
+# Si tu le lances : relis d'abord ce que la mesure a déjà rendu. Ce dépôt a plusieurs
+# fois remesuré ce qui était écrit à côté.
 import pathlib
 import statistics
 import sys

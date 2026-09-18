@@ -26,10 +26,14 @@ un bloc REX n'a pas de nœud `Name` — il ne peut pas être choisi.
 from __future__ import annotations
 
 import ast
+import os
 import pathlib
 import re
 import subprocess
 import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
+from src.utils.env_files import load_project_env  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 VENV = ROOT / ".venv" / "bin" / "python"
@@ -106,9 +110,25 @@ def ast_sites(source: pathlib.Path, needle: str) -> list[tuple[int, int]]:
 
 
 def run_guard(guard: pathlib.Path) -> int:
+    """Lance UN garde, dans l'environnement que le produit résout.
+
+    ⚠️ `load_project_env()` n'était pas appelé jusqu'au 2026-09-18, et
+    `tests/test_operator_tools_read_the_apps_env.py` l'a signalé à la minute où ce
+    fichier est entré dans une règle de `CLAUDE.md` — donc dans le périmètre de ce
+    garde. Il avait raison, et l'enjeu n'est pas théorique : **~40 mutations ont été
+    jouées cette nuit-là**. Un garde lancé depuis un shell nu lit un environnement
+    différent de celui de la suite ; son verdict peut alors décrire une configuration
+    que personne n'exécute, et un « vert » se lire comme « le garde ne mord pas »
+    alors qu'il n'a simplement pas pu s'exécuter comme il le fait en vrai.
+
+    C'est très exactement le mode d'échec que ce harnais existe pour attraper, retourné
+    contre lui : un outil qui rend un verdict PLAUSIBLE au lieu d'un verdict juste.
+    """
+    load_project_env()
     r = subprocess.run([str(VENV), "-m", "pytest", str(guard.relative_to(ROOT)),
                         "-q", "--no-header", "-x", "--tb=no"],
-                       capture_output=True, text=True, cwd=ROOT, timeout=300)
+                       capture_output=True, text=True, cwd=ROOT, timeout=300,
+                       env=os.environ.copy())
     return r.returncode
 
 
