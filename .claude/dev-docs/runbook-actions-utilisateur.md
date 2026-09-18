@@ -969,7 +969,7 @@ restera à 0 — et on conclura à tort que la chaîne est cassée.
 
 ---
 
-## 16. R140 — Quatre décisions de produit trouvées par le balayage des classes d'erreur
+## 16. R140 — Dix-sept décisions de produit trouvées par le balayage des classes d'erreur
 
 **Ce que ça débloque** : rien ne se répare tant qu'elles ne sont pas tranchées, et aucune
 n'est une question technique. Chacune a sa mesure, rejouable ; aucune n'a été corrigée,
@@ -1327,3 +1327,59 @@ définition, un onglet est du premier écran.
 
 **Vérification que cette section est à jour** :
 `python3 -m pytest tests/test_roadmap_index_is_honest.py -q`
+
+## 17. R134 — Lancer le calibrateur de creux contre la base de PRODUCTION
+
+**Ce que j'attends de toi** : une commande, et sa sortie collée ici.
+
+```bash
+make dip-calibrate            # depuis un shell qui voit la base de PRODUCTION
+```
+
+### Pourquoi je ne peux pas le faire moi-même
+
+Le détecteur de creux (`check_row_dips`) ne surveille que **5 tables**. Un locataire qui
+perd ENTIÈREMENT Instagram, Apple, Hypeddit ou SACEM ne déclenche aucune alerte — sa
+collecte s'arrête et le mail du soir ne dit rien.
+
+Étendre la liste demande un seuil **par table**, et ce dépôt s'interdit de l'écrire
+d'instinct pour une raison mesurée : un plancher de 30 lignes/jour, écrit à vue, avait
+rendu ce détecteur aveugle à **2 locataires sur 3**.
+
+**Mesuré le 2026-09-19 sur la base locale : 0 table sur 8 est calibrable.**
+
+| table | observations (locataire, jour) | verdict |
+|---|---|---|
+| `instagram_daily_stats` | 34 | pas un fait quotidien — **12 %** de jours couverts |
+| `hypeddit_daily_stats` | 21 | échantillon trop petit |
+| `sacem_statement` | 9 | échantillon trop petit |
+| `apple_songs_history` | 2 | échantillon trop petit |
+| `instagram_media` | 1 | échantillon trop petit |
+| `instagram_media_insights`, `apple_daily_plays`, `apple_listeners` | **0** | vides |
+
+Ce n'est pas une panne de l'outil : c'est une base de développement. Les distributions
+existent en production, et nulle part ailleurs.
+
+### Ce qui est déjà livré, et qui t'attend
+
+- `tools/dev/calibrate_dip_thresholds.py` + `make dip-calibrate` — il dérive médiane,
+  10ᵉ centile et couverture par table, et **REFUSE** de rendre un seuil quand
+  l'échantillon est trop petit ou quand la table n'est pas un fait quotidien.
+- `tests/test_a_dip_threshold_is_derived_not_guessed.py` — une table ajoutée à
+  `DIP_TENANT_COLUMN` sans dérivation datée fait rougir la suite. Muté : ajouter
+  `instagram_daily_stats` sans sa mesure rougit ; avec, passe.
+
+⚠️ **Une correction à la liste des candidates** : `hypeddit_campaigns` avait été comptée
+éligible parce qu'elle porte `artist_id` et une date. C'est une table de **dimension** —
+des campagnes sont créées de temps en temps, pas chaque jour. Un « creux » y est le
+fonctionnement normal, et l'y brancher aurait produit une alerte quotidienne que personne
+ne lit, ce qui détruit le détecteur pour les tables où il a raison. Elle est retirée des
+candidates, et le critère est désormais « reçoit-elle des lignes CHAQUE JOUR », mesuré,
+au lieu de « porte-t-elle un locataire et une date ».
+
+### Ce que je fais de ta réponse
+
+Je reporte chaque seuil dérivé dans `DIP_TENANT_COLUMN` **avec `n=<observations>` et la
+date de ta mesure** — c'est ce que le garde exige — puis j'étends le détecteur aux seules
+tables que le calibrateur a acceptées. Celles qu'il refuse restent dehors, avec leur
+raison écrite.

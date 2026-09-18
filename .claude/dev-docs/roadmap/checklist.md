@@ -25,14 +25,14 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R134 | **Le détecteur de creux ne voit que 5 tables sur 84** — `DIP_TENANT_COLUMN` (`alert_monitor.py:744`) couvre YouTube, SoundCloud, Meta, ML et S4A ; un locataire qui perd ENTIÈREMENT Instagram, Apple, Hypeddit ou SACEM ne déclenche aucune alerte. Les tables éligibles sont nommées dans le champ `siblings` de `partial-collection-invisible`. ⚠️ Étendre la liste demande un seuil calibré PAR TABLE sur des données réelles — le plancher de 30 lignes/jour écrit d'instinct avait déjà rendu le détecteur aveugle à 2 locataires sur 3 | P3 | `python3 -c "import ast,pathlib;…"` sur `DIP_TENANT_COLUMN` doit rendre plus de 5 entrées, et chaque entrée neuve doit porter sa dérivation de seuil |
 | R135 | **`soundcloud_tracks_daily.track_id` : `bigint` en PRODUCTION, `character varying` en local** — mesuré le 2026-09-18 colonne par colonne (1187 contre 1196). Le canonique est le VARCHAR : le collecteur écrit `str(track.get('id'))` (`soundcloud_api_collector.py:222`) et aucune migration ne déclare ce type. ⚠️ **Conséquence aujourd'hui : aucune** — les quatre lecteurs ne comparent jamais cette colonne à une chaîne, et Postgres transtype les identifiants numériques des deux côtés. Elle apparaîtra à la première jointure ou comparaison sur `track_id` : la prod rendra un `int` là où le local rend une `str`, donc **un test vert ici échouera là-bas**. La vue or `v_soundcloud_track_latest` hérite du type de chaque côté. Demande un `ALTER` sur une table vivante — décision du propriétaire, pas un effet de bord de séance | P3 | la comparaison des deux schémas ne doit plus nommer `soundcloud_tracks_daily.track_id` |
 
-**Deux tâches sont ouvertes dans cet index** — R134, R135 —
+**Une tâche est ouverte dans cet index** — R135 —
 et l'ancre `reprise:` les nomme toutes, dans cet ordre. La table « 🙋 En attente de toi »
-plus bas porte **deux** lignes : R125, qui attend un geste humain dans l'app, et R140,
+plus bas porte **trois** lignes : R125, qui attend un geste humain dans l'app, R140,
 entrée le 2026-09-18, qui attend **dix-sept** décisions de PRODUIT (§16.1 à §16.17 du
-runbook). ⚠️ Cette phrase a porté « quatre » jusqu'au 2026-09-18 au soir, pendant que le
+runbook), et R134, parquée le 2026-09-19 faute de données locales à calibrer.
+⚠️ Cette phrase a porté « quatre » jusqu'au 2026-09-18 au soir, pendant que le
 tableau juste en dessous DÉMENTAIT ce chiffre : la correction avait été écrite dans le
 journal des mensonges sans être appliquée à la phrase qui le portait. Inviter la bêta est l'usage
 du produit, pas du travail d'ingénierie — une roadmap qui suit les gestes commerciaux de
@@ -114,7 +114,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-18 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R134, R135, R125, R140 -->
+<!-- reprise: open=R135, R125, R140, R134 -->
 
 **R125 est entrée le 2026-09-18, et elle n'attend qu'un geste de trois minutes.** Mesuré
 en production : `ml_song_predictions` porte 617 lignes, `s4a_song_algo_outcomes` (la
@@ -138,9 +138,15 @@ deux réordonnancements de R118/R120, chacun sur une mesure — a été **dépla
 dans `archive.md`** le 2026-09-18, sous « Le récit de mesure de R114–R121 ». Il n'est pas
 perdu : il n'appartient simplement pas à un écran qui répond « où j'en suis ».
 
-**La table « 🙋 En attente de toi » porte DEUX lignes** : R125 et R140, toutes deux
-entrées le 2026-09-18.
-⚠️ Ce paragraphe a menti DEUX fois, et la seconde le même jour que la première. Il a
+**La table « 🙋 En attente de toi » porte TROIS lignes** : R125 et R140, entrées le
+2026-09-18, et R134, parquée le 2026-09-19 faute de données locales à calibrer.
+⚠️ Ce paragraphe a menti TROIS fois, et la troisième a été attrapée par un GARDE — pas
+par une relecture. Le 2026-09-19, en parquant R134, j'ai recalé la phrase de tête de
+l'index et pas celle-ci ; `test_a_sentence_that_counts_rows_counts_the_rows_there_are` a
+nommé le fichier, la ligne, le chiffre écrit et le chiffre réel. C'est la différence
+entre une leçon et un garde : les deux premières occurrences ont coûté une lecture
+humaine, la troisième a coûté une seconde.
+⚠️ Les deux premières fois, sans garde. Il a
 d'abord affirmé « reste vide … aucune tâche n'attend un geste humain » **vingt-cinq
 lignes après avoir décrit R125 qui y est**. Corrigé en « UNE ligne », il est redevenu
 faux à l'entrée de R140 quelques heures plus tard — par moi, qui avais recalé la phrase
@@ -260,6 +266,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 |----|-------|------|--------------------------|
 | R125 | Saisir les écoutes 28 j réalisées (DW / RR / Radio) pour au moins un morceau, dans **Saisie S4A** | P3 | ouvrir Saisie S4A, entrer les trois chiffres à 28 jours pour un morceau prédit il y a plus de 28 jours — voir §15 du runbook |
 | R140 | Trancher **dix-sept décisions de produit** trouvées par le balayage R137 — dont un appariement de titres trop large dans le PDF, un jeton SoundCloud partagé entre dev et prod, `/health` qui dit « ok » sans rien vérifier pendant que trois systèmes en font un verdict, le digest hebdomadaire qui somme deux générations (6 165 € au lieu de 3 088), et vingt dates affichées en UTC sans qualificatif | P2 | lire les dix-sept mesures et dire pour chacune ce que le produit DOIT faire — voir §16.1 à §16.17 du runbook |
+| R134 | **Étendre le détecteur de creux au-delà de ses 5 tables** — il ne voit ni Instagram, ni Apple, ni Hypeddit, ni SACEM. L'outillage est LIVRÉ (`make dip-calibrate` + le garde qui refuse un seuil non dérivé) ; il bute sur la donnée : **0 table sur 8 calibrable localement**, la mieux fournie n'ayant que 12 % de jours couverts | P3 | lancer `make dip-calibrate` **contre la base de PRODUCTION** et me renvoyer sa sortie — voir §17 du runbook |
 
 ⚠️ **R125 est entrée le 2026-09-18, mesurée en PRODUCTION, pas supposée** :
 `ml_song_predictions` porte **617 lignes**, `s4a_song_algo_outcomes` (la saisie humaine)

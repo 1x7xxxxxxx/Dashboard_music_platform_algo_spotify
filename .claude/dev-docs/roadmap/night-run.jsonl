@@ -120,3 +120,6 @@
 {"at": "2026-09-18T21:42:59+00:00", "head": "570348a", "kind": "start", "task": "R142", "what": "guard_destructive : git checkout <fichier> sans -- n'est pas vu"}
 {"at": "2026-09-18T21:48:16+00:00", "head": "1ab82d4", "kind": "done", "task": "R142", "what": "git checkout <f> sans -- non vu par le hook : 6 orthographes sondees, 2 trous, corriges ; la portee a DEUX axes et le balayage du matin n'en avait couvert qu'un"}
 {"at": "2026-09-18T21:48:20+00:00", "head": "1ab82d4", "kind": "start", "task": "R133", "what": "semantic_colors.py + garde report-only + gate dur sur le seul diff"}
+{"at": "2026-09-18T22:16:54+00:00", "head": "c3b06d0", "kind": "done", "task": "R133", "what": "28 etait faux : 19 par PANNEAU. colorimetrie extraite vers src/, rapport report-only, porte dure sur le seul diff, semantic_colors mesure (pire paire 18,2)"}
+{"at": "2026-09-18T22:16:58+00:00", "head": "c3b06d0", "kind": "start", "task": "R134", "what": "detecteur de creux : 5 tables sur 84, seuil calibre PAR TABLE"}
+{"at": "2026-09-18T22:18:42+00:00", "head": "c3b06d0", "kind": "park", "task": "R134", "what": "0 table sur 8 calibrable localement (la mieux fournie a 12% de jours couverts) — outillage livre, la donnee est en prod"}
