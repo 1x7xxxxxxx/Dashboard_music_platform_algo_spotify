@@ -151,11 +151,11 @@
         "2026-09-11"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-11",
       "revisions": 3,
@@ -2100,11 +2100,11 @@
         "2026-09-12"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
       "revisions": 3,
@@ -2809,11 +2809,11 @@
         "2026-09-12"
       ],
       "kind": "manual",
-      "seen_red": "2026-09-12",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-09-12",
       "revisions": 3,
@@ -4985,14 +4985,15 @@
       "guard_type": "pre-commit",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-05"
+        "2026-09-05",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-05",
       "revisions": 3,
@@ -9217,11 +9218,11 @@
         "2026-06-01"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-06-01",
       "revisions": 4,
@@ -9241,14 +9242,15 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-08-31"
+        "2026-08-31",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-31",
       "revisions": 2,
@@ -10906,8 +10908,8 @@
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 258,
-      "siblings_never_swept": 40,
+      "seen_red_unknown": 253,
+      "siblings_never_swept": 34,
       "sites_unknown": 100,
       "swept_by_rerunning_the_guard": 97
     },
@@ -10954,20 +10956,20 @@
       "by_seen_red": {
         "daté": {
           "events": 16,
-          "class_days": 2073,
-          "per_class_month": 0.2346,
+          "class_days": 2226,
+          "per_class_month": 0.2185,
           "ci95": [
-            0.134,
-            0.3811
+            0.1248,
+            0.3549
           ]
         },
         "jamais-ou-inconnu": {
           "events": 26,
-          "class_days": 6321,
-          "per_class_month": 0.125,
+          "class_days": 6168,
+          "per_class_month": 0.1281,
           "ci95": [
-            0.0817,
-            0.1832
+            0.0837,
+            0.1878
           ]
         }
       },
@@ -11001,11 +11003,11 @@
       }
     },
     "sweep_yield": {
-      "sweeps_done": 360,
-      "sweeps_with_a_verdict": 260,
+      "sweeps_done": 366,
+      "sweeps_with_a_verdict": 266,
       "sweeps_that_found_something": 36,
       "live_sites_found": 86,
-      "hit_rate_on_verdicts": 0.138,
+      "hit_rate_on_verdicts": 0.135,
       "note": "Le taux porte sur les balayages dont le verdict est LISIBLE. Les autres sont comptés dans holes.sites_unknown — un balayage muet n'est pas un balayage sans trouvaille."
     }
   }
