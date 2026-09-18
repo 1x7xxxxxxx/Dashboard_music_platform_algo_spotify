@@ -7325,18 +7325,19 @@
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-08-21"
+        "2026-08-21",
+        "2026-09-18"
       ],
       "kind": "manual",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 2,
+      "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-08-21",
       "revisions": 5,
-      "history_additions": 0,
+      "history_additions": 1,
       "renamed_from": null
     },
     "make-fail-late": {
@@ -8034,14 +8035,15 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-04"
+        "2026-09-04",
+        "2026-09-18"
       ],
       "kind": "manual",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-04",
       "revisions": 2,
@@ -9799,14 +9801,15 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-08"
+        "2026-09-08",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-08",
       "revisions": 3,
@@ -10232,14 +10235,15 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-17"
+        "2026-09-17",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-17",
+      "seen_red": "2026-09-18",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-17",
       "revisions": 1,
@@ -10892,15 +10896,15 @@
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 284,
-      "siblings_never_swept": 72,
+      "seen_red_unknown": 281,
+      "siblings_never_swept": 68,
       "sites_unknown": 100,
       "swept_by_rerunning_the_guard": 97
     },
     "population": {
       "automatic_guard": 390,
       "classes": 400,
-      "ever_recurred_observed": 36,
+      "ever_recurred_observed": 37,
       "prose_only": 10,
       "with_signature": 389
     },
@@ -10908,23 +10912,23 @@
       "window_start": "2026-05-15",
       "as_of": "2026-09-18",
       "observed": {
-        "events": 41,
+        "events": 42,
         "class_days": 8394,
-        "per_class_month": 0.1485,
+        "per_class_month": 0.1521,
         "ci95": [
-          0.1065,
-          0.2014
+          0.1096,
+          0.2056
         ]
       },
       "class_days_exposed": 8394,
       "by_guard": {
         "automatique": {
-          "events": 37,
+          "events": 38,
           "class_days": 8221,
-          "per_class_month": 0.1368,
+          "per_class_month": 0.1405,
           "ci95": [
-            0.0963,
-            0.1886
+            0.0994,
+            0.1929
           ]
         },
         "prose": {
@@ -10939,45 +10943,45 @@
       },
       "by_seen_red": {
         "daté": {
-          "events": 14,
-          "class_days": 1594,
-          "per_class_month": 0.267,
+          "events": 15,
+          "class_days": 1646,
+          "per_class_month": 0.277,
           "ci95": [
-            0.1459,
-            0.448
+            0.1549,
+            0.457
           ]
         },
         "jamais-ou-inconnu": {
           "events": 27,
-          "class_days": 6800,
-          "per_class_month": 0.1207,
+          "class_days": 6748,
+          "per_class_month": 0.1216,
           "ci95": [
-            0.0795,
-            0.1756
+            0.0801,
+            0.177
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 41,
+          "events": 42,
           "class_days": 8394,
-          "per_class_month": 0.1485,
+          "per_class_month": 0.1521,
           "ci95": [
-            0.1065,
-            0.2014
+            0.1096,
+            0.2056
           ]
         }
       },
       "fixed_horizon": {
         "h7": {
           "at_risk": 279,
-          "recurred": 32,
-          "rate": 0.1147
+          "recurred": 33,
+          "rate": 0.1183
         },
         "h14": {
           "at_risk": 185,
-          "recurred": 26,
-          "rate": 0.1405
+          "recurred": 27,
+          "rate": 0.1459
         },
         "h30": {
           "at_risk": 35,
@@ -10987,11 +10991,11 @@
       }
     },
     "sweep_yield": {
-      "sweeps_done": 328,
-      "sweeps_with_a_verdict": 228,
-      "sweeps_that_found_something": 35,
-      "live_sites_found": 84,
-      "hit_rate_on_verdicts": 0.154,
+      "sweeps_done": 332,
+      "sweeps_with_a_verdict": 232,
+      "sweeps_that_found_something": 36,
+      "live_sites_found": 86,
+      "hit_rate_on_verdicts": 0.155,
       "note": "Le taux porte sur les balayages dont le verdict est LISIBLE. Les autres sont comptés dans holes.sites_unknown — un balayage muet n'est pas un balayage sans trouvaille."
     }
   }
