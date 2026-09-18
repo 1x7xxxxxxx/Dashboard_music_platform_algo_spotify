@@ -55,7 +55,7 @@
       "renamed_from": null
     },
     "a-batch-that-commits-one-row-at-a-time": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_batch_is_all_or_nothing.py",
@@ -789,7 +789,7 @@
       "renamed_from": null
     },
     "a-failed-collection-writes-zeros": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-08",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_zeroed_collection_is_seen.py",
@@ -977,7 +977,7 @@
       "renamed_from": null
     },
     "a-form-constraint-checked-on-the-series-not-on-the-axis": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-08",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_live_chart_matches_the_illustration.py",
@@ -1031,7 +1031,7 @@
       "renamed_from": null
     },
     "a-gap-in-one-series-erases-every-other": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-08",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_live_chart_matches_the_illustration.py",
@@ -2523,7 +2523,7 @@
       "renamed_from": null
     },
     "a-read-that-failed-is-rendered-as-a-number": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_failed_read_is_not_an_absence.py",
@@ -2931,7 +2931,7 @@
       "renamed_from": null
     },
     "a-shared-module-drags-a-view-behind-it": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_shared_path_does_not_drag_a_view_behind_it.py",
@@ -3067,7 +3067,7 @@
       "renamed_from": null
     },
     "a-step-that-nothing-routes-to": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-08",
       "guard_automatic": true,
       "guard_ref": "tests/test_every_step_of_the_assistant_is_reachable.py",
@@ -3204,7 +3204,7 @@
       "renamed_from": null
     },
     "a-symmetric-guard-for-an-asymmetric-truth": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_figure_never_draws_more_than_it_measured.py",
@@ -3367,7 +3367,7 @@
       "renamed_from": null
     },
     "a-total-that-sums-the-display-instead-of-the-data": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-08",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_live_chart_matches_the_illustration.py",
@@ -3394,7 +3394,7 @@
       "renamed_from": null
     },
     "a-truncated-read-recorded-as-a-complete-one": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_truncated_read_is_not_a_full_one.py",
@@ -3421,7 +3421,7 @@
       "renamed_from": null
     },
     "a-unit-test-that-borrows-a-real-connection-from-the-pool": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-16",
       "guard_automatic": true,
       "guard_ref": "tests/test_postgres_handler.py",
@@ -4125,7 +4125,7 @@
       "renamed_from": null
     },
     "an-exemption-on-one-surface-reads-as-a-failure-on-another": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-08",
       "guard_automatic": true,
       "guard_ref": "tests/test_an_empty_list_names_its_real_cause.py",
@@ -4262,7 +4262,7 @@
       "renamed_from": null
     },
     "an-unmeasured-platform-is-rendered-as-zero": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_an_unmeasured_platform_says_so.py",
@@ -5416,7 +5416,7 @@
       "renamed_from": null
     },
     "consumed-state-hides-its-own-widget": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-08",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_consumed_message_carries_no_widget.py",
@@ -5443,7 +5443,7 @@
       "renamed_from": null
     },
     "containment-ignores-what-it-leaves-out": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_every_ranking_call_names_the_artist.py",
@@ -5606,7 +5606,7 @@
       "renamed_from": null
     },
     "dag-conf-honoured-by-one-task-only": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-21",
       "guard_automatic": true,
       "guard_ref": "tests/test_e2e_two_tenants.py",
@@ -6262,7 +6262,7 @@
       "renamed_from": null
     },
     "filename-dependency-survives-below-detection": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_renamed_export_still_reaches_the_database.py",
@@ -6481,7 +6481,7 @@
       "renamed_from": null
     },
     "guard-asserts-presence-not-reachability": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-05",
       "guard_automatic": true,
       "guard_ref": "tests/test_instagram_collects_without_business_manager.py",
@@ -7927,7 +7927,7 @@
       "renamed_from": null
     },
     "one-fact-two-answers-by-display-mode": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-13",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_first_reading_date_is_one_date.py",
@@ -7981,7 +7981,7 @@
       "renamed_from": null
     },
     "one-identity-two-readers": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-08",
       "guard_automatic": true,
       "guard_ref": "tests/test_two_columns_never_disagree_on_one_identity.py",
@@ -8008,7 +8008,7 @@
       "renamed_from": null
     },
     "one-scale-for-two-contracts": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_scale_matches_the_contract_it_judges.py",
@@ -8063,7 +8063,7 @@
       "renamed_from": null
     },
     "one-version-marker-out-of-many": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_track_mapping_suggest.py",
@@ -8118,7 +8118,7 @@
       "renamed_from": null
     },
     "orchestrator-costs-more-than-what-it-orchestrates": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-04",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_scheduler_is_not_the_biggest_cost.py",
@@ -8443,7 +8443,7 @@
       "renamed_from": null
     },
     "probe-reads-unreadable-as-absent": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-03",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_probe_says_when_it_cannot_see.py",
@@ -8961,7 +8961,7 @@
       "renamed_from": null
     },
     "second-factor-budget-refunded-by-the-first": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-22",
       "guard_automatic": true,
       "guard_ref": "tests/test_second_factor_is_not_brute_forceable.py",
@@ -9070,7 +9070,7 @@
       "renamed_from": null
     },
     "sentinel-means-privileged-and-missing": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-22",
       "guard_automatic": true,
       "guard_ref": "tests/test_stray_session_reads_nothing.py",
@@ -9369,7 +9369,7 @@
       "renamed_from": null
     },
     "static-hint-contradicts-the-live-probe": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-22",
       "guard_automatic": true,
       "guard_ref": "tests/test_readiness_carries_the_live_diagnosis.py",
@@ -9396,7 +9396,7 @@
       "renamed_from": null
     },
     "stopped-collecting-is-not-a-status-anyone-reads": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-23",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_tenant_that_stopped_collecting_is_reported.py",
@@ -9531,7 +9531,7 @@
       "renamed_from": null
     },
     "tenant-identity-falls-back-to-admin": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-06-15",
       "guard_automatic": true,
       "guard_ref": "tests/test_e2e_two_tenants.py",
@@ -9777,7 +9777,7 @@
       "renamed_from": null
     },
     "the-feature-is-wired-to-the-function-nobody-calls": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-23",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_os_switch_is_visible.py",
@@ -10102,7 +10102,7 @@
       "renamed_from": null
     },
     "two-clocks-subtracted-from-each-other": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": true,
       "guard_ref": "tests/test_one_clock_decides_a_date.py",
@@ -10673,7 +10673,7 @@
       "renamed_from": null
     },
     "view-session-adoption": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-05-15",
       "guard_automatic": true,
       "guard_ref": null,
@@ -10755,7 +10755,7 @@
       "renamed_from": null
     },
     "watchdog-becomes-the-noise": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-21",
       "guard_automatic": true,
       "guard_ref": "tests/test_alert_monitor_sends_what_it_finds.py",
@@ -10904,7 +10904,7 @@
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 181,
+      "cause_unknown": 148,
       "guard_does_not_prove_itself": 391,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,

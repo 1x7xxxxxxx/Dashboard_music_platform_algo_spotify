@@ -116,7 +116,18 @@ _CEILINGS = {
     # l'autre, et la mutation n° 3 de ce fichier refuse ce troc.
     # −1 le 2026-09-17 : `multitenant-dag-fleet-poisoning` passe en `measured` — les
     # trois prédicats fautifs de son garde ont été EXÉCUTÉS un par un, pas relus.
-    "cause_unknown": 181,  # 182 → 181 le 2026-09-17 : `object-dtype-numeric-op` mesurée — `SUM(bigint)`
+    # 181 → 148 le 2026-09-18, et la méthode compte autant que le chiffre. Les 181
+    # n'avaient AUCUNE ancre vers du code — les étiqueter demandait de retrouver la
+    # cause, pas de la relire. Ce qui a débloqué : ancrer sur un SYMBOLE au lieu d'un
+    # chemin. Entonnoir mesuré : 181 → **112** citant un symbole → **73** dont le
+    # symbole existe dans l'arbre → **48** dont le symbole est DISTINCTIF et défini en
+    # production → **34** dont le fichier ancré contient AU MOINS DEUX jetons de la
+    # cause (un seul peut être une coïncidence) → **33** après lecture, la 34ᵉ écartée
+    # parce que son ancre tombait dans du rendu PDF sans rapport.
+    #
+    # ⚠️ Les 33 ont été LUES, une par une. La confirmation mécanique choisit QUOI lire ;
+    # elle ne remplace pas la lecture, et `read` veut dire « j'ai lu ».
+    "cause_unknown": 148,  # 182 → 181 le 2026-09-17 : `object-dtype-numeric-op` mesurée — `SUM(bigint)`
     # rend `numeric` en PostgreSQL, donc dtype `object` SANS aucun NULL.
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes

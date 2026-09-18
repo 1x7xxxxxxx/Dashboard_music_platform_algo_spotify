@@ -56,7 +56,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | trou | classes |
 |---|---|
 | `cause_inferred` | 0 |
-| `cause_unknown` | 181 |
+| `cause_unknown` | 148 |
 | `guard_does_not_prove_itself` | 391 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
