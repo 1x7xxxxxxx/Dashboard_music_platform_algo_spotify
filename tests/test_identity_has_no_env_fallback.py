@@ -38,18 +38,27 @@ _IDENTITY_ENV = {
     "SPOTIFY_ARTIST_IDS",
 }
 
-# Single-tenant by design: these scripts exist to run one artist from a shell.
-_EXEMPT_DIRS = ("airflow/debug_dag",)
-
-
+# ⚠️ Il y avait ici `_EXEMPT_DIRS = ("airflow/debug_dag",)`, retiré le 2026-09-18.
+# Il n'écartait RIEN, et pas par accident : `_sources()` ne parcourt que
+# `src/collectors`, `src/utils` et `airflow/dags`, dont aucun chemin ne peut commencer
+# par `airflow/debug_dag`. Mesuré avant retrait : **92 fichiers parcourus, 0 écarté.**
+#
+# Son intention — « ces scripts existent pour lancer UN artiste depuis un shell, donc
+# l'identité de l'environnement y est légitime » — reste vraie et reste inscrite ici.
+# Elle n'a simplement aucune surface où s'appliquer.
+#
+# Ce qui la rendait dangereuse plutôt que seulement inutile : le répertoire qu'elle
+# nommait existe, porte 15 fichiers, et **15 lignes** y citent une variable d'identité
+# de locataire. Le jour où quelqu'un ajoute `airflow/debug_dag` à la liste ci-dessous,
+# l'exemption aurait re-couvert ces 15 lignes EN SILENCE, sans qu'on l'ait décidé.
+#
+# Et la décision est mesurée, pas supposée : le prédicat exact de ce fichier, exécuté
+# sur ces 15 fichiers le 2026-09-18, rend **0 site**. Élargir la portée ne coûterait
+# donc rien aujourd'hui — mais ce serait un choix, pas un effet de bord.
 def _sources() -> list[Path]:
     out: list[Path] = []
     for sub in ("src/collectors", "src/utils", "airflow/dags"):
-        for p in (ROOT / sub).rglob("*.py"):
-            rel = p.relative_to(ROOT).as_posix()
-            if any(rel.startswith(d) for d in _EXEMPT_DIRS):
-                continue
-            out.append(p)
+        out.extend((ROOT / sub).rglob("*.py"))
     return sorted(out)
 
 

@@ -162,19 +162,47 @@ def _erase_artist_gdpr(db, artist_id: int, admin_user_id: int, reason: str) -> d
 
     deleted: dict[str, int] = {}
 
+    # ⚠️ Trois issues DISTINCTES depuis le 2026-09-18. Avant, elles valaient toutes
+    # `-1`, et le commentaire l'assumait : « same semantics as a missing table ».
+    # C'est le contraire de ce qu'un reçu d'effacement doit faire — **un ÉCHEC réel
+    # d'effacement de données personnelles se lisait exactement comme un nom de table
+    # mort**, et ce reçu est la preuve qu'on produirait si on nous la demandait.
+    #
+    # Mesuré ce jour-là : **11 des 33 noms de `_GDPR_PLATFORM_TABLES` n'existent dans
+    # aucune base** (122 tables réelles) — `s4a_spotify_data`, `soundcloud_stats_daily`,
+    # `instagram_posts`, `meta_creative_assets`, `meta_creative_targeting`,
+    # `meta_ads_api_raw`, `meta_custom_conversions`, `apple_top_content`,
+    # `hypeddit_overview`, `ml_training_features`, `imusician_revenues`. Un tiers du
+    # reçu était donc du bruit indistinguable d'une panne.
+    #
+    # Les noms morts sont CONSERVÉS dans la liste à dessein : les retirer effacerait la
+    # trace qu'on a un jour cru ces plateformes couvertes. Le reçu dit maintenant
+    # laquelle des trois choses s'est produite.
     for table in _GDPR_PLATFORM_TABLES:
         try:
             # CLAUDE.md rule #8 — explicit allowlist check before f-string SQL.
-            # ValueError (table not allowlisted) falls into the except below and
-            # records -1, same semantics as a missing table.
             validate_table(table)
+        except Exception:
+            deleted[table] = "non-allowlistée"
+            continue
+        try:
+            existe = db.fetch_query(
+                "SELECT 1 FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_name = %s", (table,))
+        except Exception:
+            existe = None
+        if not existe:
+            deleted[table] = "absente de ce déploiement"
+            continue
+        try:
             rows = db.fetch_query(
                 f"DELETE FROM {table} WHERE artist_id = %s RETURNING 1",
                 (artist_id,),
             )
             deleted[table] = len(rows) if rows else 0
-        except Exception:
-            deleted[table] = -1  # table may not exist in all deployments OR not in _ALLOWED_TABLES
+        except Exception as exc:
+            # LE seul cas qui veut dire « des données personnelles peuvent subsister ».
+            deleted[table] = f"ÉCHEC: {type(exc).__name__}"
 
     # Delete user accounts linked to this artist
     user_rows = db.fetch_query(

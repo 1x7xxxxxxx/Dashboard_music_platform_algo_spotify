@@ -73,7 +73,13 @@ def step_1_check_env():
     print_header("Étape 1 : Vérification .env")
 
     required = [
-        "INSTAGRAM_ACCESS_TOKEN",
+        # ⚠️ `META_ACCESS_TOKEN`, pas `INSTAGRAM_ACCESS_TOKEN`. Cette seconde variable
+        # n'est declaree dans AUCUN service compose — ni dans l'exemple, ni sur la
+        # machine — et `src/collectors/instagram_api_collector.py:51-57` le documente
+        # depuis le 2026-08-23. Le correctif de ce jour-la a nettoye le collecteur et
+        # laisse ce script derriere : son etape 1 echouait donc sur une machine
+        # CORRECTEMENT configuree, ce qui envoie l'enquete suivante au mauvais endroit.
+        "META_ACCESS_TOKEN",
         "INSTAGRAM_USER_ID",
         "DATABASE_HOST",
         "DATABASE_NAME",
@@ -139,7 +145,7 @@ def step_2_check_database():
 def step_3_test_api():
     print_header("Étape 3 : Test API Meta (Instagram)")
 
-    token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
+    token = os.getenv("META_ACCESS_TOKEN")
     user_id = os.getenv("INSTAGRAM_USER_ID")
     from src.utils.meta_config import META_GRAPH_BASE_URL
     base_url = META_GRAPH_BASE_URL
@@ -214,7 +220,7 @@ def step_4_dry_run_insert(api_data):
 
 def step_5_test_media():
     print_header("Étape 5 : Test API Media (/{ig-user-id}/media)")
-    token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
+    token = os.getenv("META_ACCESS_TOKEN")
     user_id = os.getenv("INSTAGRAM_USER_ID")
     from src.utils.meta_config import META_GRAPH_BASE_URL
     url = f"{META_GRAPH_BASE_URL}/{user_id}/media"
@@ -247,7 +253,7 @@ def step_6_test_media_insights(media_ids):
     if not media_ids:
         logger.warning("⏩ Pas de media_id, test insights annulé.")
         return
-    token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
+    token = os.getenv("META_ACCESS_TOKEN")
     from src.utils.meta_config import META_GRAPH_BASE_URL
     mid = media_ids[0]
     url = f"{META_GRAPH_BASE_URL}/{mid}/insights"

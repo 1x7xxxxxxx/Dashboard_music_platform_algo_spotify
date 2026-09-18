@@ -46,7 +46,7 @@ groups:
             `/var/log/caddy` et `/var/lib/docker/containers` sont les deux qui grossissent
             ici ; la rotation de `daemon.json` les borne a 30 Mo par conteneur depuis le
             2026-09-16, donc un depassement pointe ailleurs.
-          panel: Grafana → VPS → Disque
+          panel: streaMLytics — sante et rendu / VPS — CPU, RAM, disque
 
       # ── MEMOIRE ───────────────────────────────────────────────────────────
       - alert: MemoryNearlyExhausted
@@ -64,7 +64,7 @@ groups:
             reversibles ce soir, dans cet ordre : arreter le profil d'observabilite
             (`docker compose --profile observability down`, ~500 Mo) puis la replique
             `streamlytics_dashboard2` si elle tourne. Aucun des deux ne coupe le produit.
-          panel: Grafana → VPS → RAM
+          panel: streaMLytics — sante et rendu / VPS — CPU, RAM, disque
 
   - name: streamlytics-app
     interval: 30s
@@ -102,7 +102,7 @@ groups:
             R121). Elle est envoyee quand meme parce que le symptome, lui, est deja chez
             l'artiste — et qu'une lenteur non mesuree est precisement ce que le premier
             parcours artiste n'a PAS su nommer : ~20 remarques, aucune sur la lenteur.
-          panel: Grafana → Application → p95 par phase
+          panel: streaMLytics — sante et rendu / Latence de rendu — CHROME vs VUE (p95)
 
       # ── POOL DE CONNEXIONS ────────────────────────────────────────────────
       - alert: ConnectionPoolExhausted
@@ -126,7 +126,7 @@ groups:
             personne n'utilise : la comparer a `borrowed` donnerait un mauvais plafond.
             colle au plafond => monter `maxconn` ; loin du plafond => une connexion fuit,
             et c'est une vue qui ne passe pas par `view_session()`.
-          panel: Grafana → Application → Pool
+          panel: streaMLytics — sante et rendu / Pool Postgres — et le repli SILENCIEUX
 
   # ══════════════════════════════════════════════════════════════════════════════
   # Les instruments muets — groupe ajouté le 2026-09-17

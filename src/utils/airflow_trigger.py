@@ -219,8 +219,13 @@ class AirflowTrigger:
         Returns:
             Liste de dicts avec les résultats de chaque DAG
         """
+        # ⚠️ `meta_ads_api_daily`, pas `meta_ads_daily_docker`. Le second nom ne designe
+        # aucun DAG de `airflow/dags/` — mesure le 2026-09-18 : les `dag_id` declares ne
+        # le contiennent pas. Un declenchement sur ce nom rend 404 et la collecte Meta ne
+        # part jamais. Remonte la chaine : cette methode n'a aucun appelant dans le depot,
+        # donc le defaut etait INERTE ici — il ne l'etait pas dans le bloc __main__.
         dags = [
-            'meta_ads_daily_docker',
+            'meta_ads_api_daily',
             'spotify_api_daily',
             'youtube_daily',
             'data_quality_check',
@@ -353,8 +358,8 @@ if __name__ == "__main__":
         print("✅ Connexion OK\n")
 
         # Test déclenchement d'un DAG
-        print("🚀 Test déclenchement meta_ads_daily_docker...")
-        result = trigger.trigger_dag('meta_ads_daily_docker')
+        print("🚀 Test déclenchement meta_ads_api_daily...")
+        result = trigger.trigger_dag('meta_ads_api_daily')
 
         if result['success']:
             print(f"✅ {result['message']}")

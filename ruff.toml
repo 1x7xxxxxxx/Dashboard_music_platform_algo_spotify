@@ -26,6 +26,14 @@ ignore = [
 [lint.per-file-ignores]
 # Test files: allow unused imports (fixtures, re-exports)
 "tests/*" = ["F401"]
-# DAG files: sys.path insert is mandatory (see CLAUDE.md)
-"airflow/dags/*" = ["E402"]
-"airflow/debug_dag/*" = ["E402"]
+# ⚠️ Il y avait ici `"airflow/dags/*" = ["E402"]` et `"airflow/debug_dag/*" = ["E402"]`,
+# retirés le 2026-09-18. `E402` est dans l'`ignore` GLOBAL ci-dessus (l. 11) depuis plus
+# longtemps qu'eux : les deux entrées n'exemptaient donc RIEN. Mesuré — `ruff --isolated
+# --select E402` sur ces deux dossiers sort des erreurs, la config projet en sort zéro,
+# et retirer ces deux lignes ne change pas ce zéro.
+#
+# Ce qui les rendait dangereuses plutôt que seulement inutiles : le jour où `E402`
+# sortirait de l'ignore global — la décision qu'on prendrait pour voir enfin les imports
+# tardifs ailleurs — elles auraient ré-exempté tout `airflow/` en silence, sans qu'on
+# l'ait choisi. Une exemption redondante n'est pas neutre : elle survit à la décision
+# qui la rendait superflue.

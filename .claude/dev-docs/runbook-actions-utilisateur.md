@@ -1177,5 +1177,75 @@ genres ; les fixtures en produisent un quatrième, qui tombe dans « real ».
 Pour (d), effacer 9 lignes d'une base est une opération de données, et déclarer un
 quatrième genre est un changement de schéma — les deux t'appartiennent.
 
+### 16.10 — Trois exports cochables qui rendent une feuille vide
+
+`export_csv.py:74,78` propose à l'artiste de cocher **Apple Music** et **YouTube
+playlists** ; `csv_exporter.py:58,63,89` en fait des onglets du ZIP. Mesuré :
+`apple_daily_plays`, `apple_listeners` et `youtube_playlists` portent **0 ligne** et
+**aucun chemin de code ne les écrit**. Les deux parseurs qui les produiraient
+(`apple_music_csv_parser.py:179` et `:221`) **n'ont aucun appelant**.
+
+Et le cas le plus coûteux n'est pas une table vide : `apple_songs_history` porte
+**22 lignes GELÉES au 2025-12-11**, aucun `INSERT` nulle part, et **sept lecteurs** —
+dont deux collecteurs du PDF client et le panneau de fraîcheur admin. Une table figée
+ment mieux qu'une table vide : elle affiche un chiffre.
+
+```bash
+docker exec $(docker ps --format '{{.Names}}' | grep -i postgres | head -1) \
+  psql -U postgres -d spotify_etl -c "
+    SELECT relname, n_live_tup FROM pg_stat_user_tables
+     WHERE relname IN ('apple_daily_plays','apple_listeners','youtube_playlists',
+                       'apple_songs_history') ORDER BY 1;"
+```
+
+**La décision** : retirer ces sources de l'export, ou rebrancher les parseurs. Et pour
+Apple : la collecte est-elle censée reprendre depuis le 2025-12-11 ?
+
+### 16.11 — Quatre barèmes pour « une source n'a pas collecté récemment »
+
+| surface | seuil API | seuil CSV |
+|---|---|---|
+| `freshness_monitor.py:8,9` | 48 h | 168 h |
+| `kpi_helpers.py:44-47` | 🟢<24 · 🟠<72 · 🔴≥72 | 🟢<168 · 🟠<720 |
+| `alert_monitor.py:633,1052` | **36 h** | **36 h** aussi |
+| `db_health.py:45,46` | 🟠 336 h · 🔴 720 h | idem |
+
+Mesuré sur les écarts réels entre collectes consécutives : **18 écarts** tombent entre
+24 h et 36 h — le tableau de bord peint 🟠 et **aucune surface d'alerte ne parle** ;
+**6** tombent entre 36 h et 48 h, où `alert_monitor` déclencherait et
+`freshness_monitor` dirait « fraîche ». Et le canari applique 36 h uniformément, **y
+compris à S4A que le registre déclare `csv` avec 168 h**.
+
+⚠️ Une cinquième expression est en PROSE et déjà fausse : `alert_monitor.py:1039` écrit
+« *past a 48h threshold* » au-dessus d'un code qui utilise 36.
+
+**La décision** : quel barème fait foi, et les autres s'y réfèrent.
+
+### 16.12 — Huit seuils écrits d'instinct, chacun avec ce qui tombe du mauvais côté
+
+Le détail est dans le champ `siblings` de `a-threshold-true-at-one-grain-and-false-at-another`.
+Les trois qui demandent une décision, avec leur mesure :
+
+- `_DISCONTINUITY_MIN_POINTS = 10` : **1 série sur 4 est du mauvais côté, à un point
+  près** — le locataire 471 a 9 points YouTube, le détecteur est muet pour lui.
+- `MIN_BASELINE_ROWS = 5.0` appliqué à 5 tables dont l'unité de « ligne » diffère :
+  **1 couple (table, locataire) sur 6 sous le plancher**, et **0 sur 6 ne déclenche**.
+  Le seuil est **inerte** — la forme exacte de la leçon des « 30 lignes/jour ».
+- Quatre nombres pour le même choix jour↔semaine↔mois — **360/60**, **92**, **90**,
+  **120**. Conséquence mesurée : « tout l'historique » (≈1 356 j) se dessine en **mois**
+  sur la page d'accueil et en **semaine** dans l'onboarding et le PDF. Même locataire,
+  même figure, même jour.
+
+### 16.13 — Deux tables de journal, deux moitiés du même écart
+
+`data_revisions` n'est **ni déclarée ni purgée** — elle est écrite par un **déclencheur
+SQL**, donc invisible à l'inventaire de la migration 124, qui a été fait sur les
+écrivains Python. `rate_limit_hits` est l'inverse : **purgée sans être déclarée**, donc
+`undeclared_tables()` ne peut pas la juger — le prochain inventaire la comptera comme non
+purgée, ou retirera la purge sans rien casser d'apparent.
+
+**La décision** : déclarer une rétention est un changement de schéma (`COMMENT ON
+TABLE`), donc un geste de migration.
+
 **Vérification que cette section est à jour** :
 `python3 -m pytest tests/test_roadmap_index_is_honest.py -q`
