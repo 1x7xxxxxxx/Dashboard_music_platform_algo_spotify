@@ -63,7 +63,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `scope_unknown` | 0 |
 | `scope_without_not_covered` | 0 |
 | `seen_red_never` | 0 |
-| `seen_red_unknown` | 323 |
+| `seen_red_unknown` | 321 |
 | `siblings_never_swept` | 106 |
 | `sites_unknown` | 101 |
 | `swept_by_rerunning_the_guard` | 97 |
@@ -78,8 +78,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|---|---|---|
 | by_guard · automatique | 63 | 0.233 | 0.179 – 0.2981 | insuffisant pour conclure (n=66) |
 | by_guard · prose | 3 | 0.5272 | 0.106 – 1.5403 | insuffisant pour conclure (n=66) |
-| by_seen_red · daté | 9 | 0.387 | 0.1766 – 0.7347 | insuffisant pour conclure (n=66) |
-| by_seen_red · jamais-ou-inconnu | 57 | 0.2254 | 0.1707 – 0.2921 | insuffisant pour conclure (n=66) |
+| by_seen_red · daté | 9 | 0.3591 | 0.1638 – 0.6816 | insuffisant pour conclure (n=66) |
+| by_seen_red · jamais-ou-inconnu | 57 | 0.227 | 0.172 – 0.2942 | insuffisant pour conclure (n=66) |
 | by_scope · ne-couvre-pas renseigné | 66 | 0.239 | 0.1849 – 0.3041 | une seule strate peuplée (n=66) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.

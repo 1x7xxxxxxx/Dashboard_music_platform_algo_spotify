@@ -76,14 +76,16 @@ _CEILINGS = {
     # Resserrés le 2026-09-16 dans le commit de la passe mécanique, comme
     # `test_the_ceiling_is_not_slack` l'exige : un plafond laissé au-dessus de la mesure
     # est du budget pour régresser en silence.
-    # 331 → 323 le 2026-09-18 (axe 2 de la nuit) : SEPT gardes P1 mutés et vus
+    # 331 → 321 le 2026-09-18 (axe 2 de la nuit) : NEUF gardes P1 mutés et vus
     # rouges, un par un. ⚠️ DEUX mutations ont d'abord échoué en disant quelque
     # chose sur MOI et non sur le garde : un `chmod -x` sur le DISQUE laissait
     # `exec-bit-lost-outside-the-index` vert, à raison — il lit l'INDEX, ce que
     # `git archive` embarque ; et casser `_build` produisait 11 ERREURS d'import
     # au lieu d'un échec du garde, c'est-à-dire un autre mode de panne, donc pas
     # une preuve. Un garde ne compte comme vu rouge que s'il ÉCHOUE sur le défaut.
-    "seen_red_unknown": 323,  # 331 → 330 le 2026-09-17 : défaut remis et vu lever.          # 363 → 352 (n-a) → 332 (phase B : traces de mutation)
+    # Historique : 363 → 352 (les `n-a`) → 332 (phase B, traces de mutation) → 330
+    # le 2026-09-17 (un défaut remis et vu lever) → 321 ce jour-ci.
+    "seen_red_unknown": 321,
     "seen_red_never": 0,
     # 363 → 241 : les causes qui nomment un chemin vérifiable.
     # 241 → 183 le 2026-09-17 : les **58** classes dont le `root_cause` cite un fichier

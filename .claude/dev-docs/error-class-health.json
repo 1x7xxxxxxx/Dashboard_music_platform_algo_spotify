@@ -8605,7 +8605,7 @@
         "2026-08-22"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -10773,7 +10773,7 @@
         "2026-08-20"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-18",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -10805,7 +10805,7 @@
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 323,
+      "seen_red_unknown": 321,
       "siblings_never_swept": 106,
       "sites_unknown": 101,
       "swept_by_rerunning_the_guard": 97
@@ -10853,20 +10853,20 @@
       "by_seen_red": {
         "daté": {
           "events": 9,
-          "class_days": 707,
-          "per_class_month": 0.387,
+          "class_days": 762,
+          "per_class_month": 0.3591,
           "ci95": [
-            0.1766,
-            0.7347
+            0.1638,
+            0.6816
           ]
         },
         "jamais-ou-inconnu": {
           "events": 57,
-          "class_days": 7687,
-          "per_class_month": 0.2254,
+          "class_days": 7632,
+          "per_class_month": 0.227,
           "ci95": [
-            0.1707,
-            0.2921
+            0.172,
+            0.2942
           ]
         }
       },
