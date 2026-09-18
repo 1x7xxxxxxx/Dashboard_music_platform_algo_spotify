@@ -458,7 +458,7 @@ _CEILINGS = {
     #
     # Ce que la descente a rapporté est désormais CHIFFRÉ, ce qui n'était pas le
     # cas quand elle a commencé : voir `sites_unknown` juste dessous.
-    "siblings_never_swept": 103,
+    "siblings_never_swept": 102,
     # ── LE RENDEMENT, sous cliquet lui aussi (2026-09-18) ────────────────────
     #
     # `siblings_never_swept` mesure l'EFFORT ; ce compteur-ci mesure ce qu'on SAIT

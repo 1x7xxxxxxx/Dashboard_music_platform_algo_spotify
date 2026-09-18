@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**400 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (293 révisions du catalogue rejouées).
+**400 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (294 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -11,13 +11,13 @@ Le compteur `siblings_never_swept` mesure l'EFFORT. Celui-ci mesure le résultat
 
 | grandeur | valeur |
 |---|---|
-| balayages faits | **297** |
-| dont le verdict est LISIBLE | **196** |
-| qui ont trouvé au moins un site | **25** |
-| sites vivants trouvés | **61** |
-| taux de trouvaille (sur verdicts lisibles) | **0.128** |
+| balayages faits | **298** |
+| dont le verdict est LISIBLE | **197** |
+| qui ont trouvé au moins un site | **26** |
+| sites vivants trouvés | **63** |
+| taux de trouvaille (sur verdicts lisibles) | **0.132** |
 
-⚠️ **97 des 297 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **200**, et non 103.
+⚠️ **97 des 298 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **199**, et non 102.
 
 ⚠️ **101 balayages sont MUETS** : la question a été posée, la réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme zéro — un balayage dont on ignore le résultat n'est pas un balayage sans résultat. Le dénominateur du taux ci-dessus les exclut délibérément : les inclure diviserait par une population qui ne répond pas à la question, ce que ce dépôt appelle `anchor-a-number-to-its-population`.
 
@@ -45,7 +45,7 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 |---|---|
 | `automatic_guard` | 390 |
 | `classes` | 400 |
-| `ever_recurred_observed` | 53 |
+| `ever_recurred_observed` | 54 |
 | `prose_only` | 10 |
 | `with_signature` | 389 |
 
@@ -64,23 +64,23 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `scope_without_not_covered` | 0 |
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 309 |
-| `siblings_never_swept` | 103 |
+| `siblings_never_swept` | 102 |
 | `sites_unknown` | 101 |
 | `swept_by_rerunning_the_guard` | 97 |
 
 ## Récidive observée
 
-**66 évènements** sur 8394 classe-jours d'exposition — **0.239** par classe-mois (IC 95 % : 0.1849 – 0.3041)
+**67 évènements** sur 8394 classe-jours d'exposition — **0.2426** par classe-mois (IC 95 % : 0.188 – 0.3082)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 63 | 0.233 | 0.179 – 0.2981 | insuffisant pour conclure (n=66) |
-| by_guard · prose | 3 | 0.5272 | 0.106 – 1.5403 | insuffisant pour conclure (n=66) |
-| by_seen_red · daté | 15 | 0.4497 | 0.2515 – 0.7418 | insuffisant pour conclure (n=66) |
-| by_seen_red · jamais-ou-inconnu | 51 | 0.2101 | 0.1564 – 0.2762 | insuffisant pour conclure (n=66) |
-| by_scope · ne-couvre-pas renseigné | 66 | 0.239 | 0.1849 – 0.3041 | une seule strate peuplée (n=66) |
+| by_guard · automatique | 64 | 0.2367 | 0.1822 – 0.3022 | insuffisant pour conclure (n=67) |
+| by_guard · prose | 3 | 0.5272 | 0.106 – 1.5403 | insuffisant pour conclure (n=67) |
+| by_seen_red · daté | 15 | 0.4497 | 0.2515 – 0.7418 | insuffisant pour conclure (n=67) |
+| by_seen_red · jamais-ou-inconnu | 52 | 0.2142 | 0.16 – 0.2809 | insuffisant pour conclure (n=67) |
+| by_scope · ne-couvre-pas renseigné | 67 | 0.2426 | 0.188 – 0.3082 | une seule strate peuplée (n=67) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
@@ -94,8 +94,8 @@ Une classe **plus jeune que l'horizon est exclue de la colonne**, jamais compté
 
 | horizon | à risque | récidivées | taux |
 |---|---|---|---|
-| 7 j | 279 | 43 | 15 % |
-| 14 j | 185 | 34 | 18 % |
+| 7 j | 279 | 44 | 16 % |
+| 14 j | 185 | 35 | 19 % |
 | 30 j | 35 | 15 | 43 % |
 
 ## Avant la fenêtre git — DÉCLARATIF
