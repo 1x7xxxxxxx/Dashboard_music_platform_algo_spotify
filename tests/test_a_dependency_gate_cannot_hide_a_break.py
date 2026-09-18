@@ -43,14 +43,29 @@ def test_the_gate_tells_a_namespace_directory_from_a_real_package():
     """`airflow/` at the repo root is captured as a namespace package, so
     `find_spec('airflow')` answers yes for a dependency that is not installed —
     and `from airflow import DAG` then fails with 'unknown location', which reads
-    as a corrupt install rather than an absent one."""
+    as a corrupt install rather than an absent one.
+
+    ⚠️ Cette assertion a été INCONDITIONNELLE le 2026-09-18, et c'est le point.
+    Elle vivait sous `if spec is not None and spec.origin is None`, donc elle ne
+    s'exécutait QUE sur une machine où Airflow n'est pas installé. Ici il l'est :
+    la branche était morte, et ramener la sonde à un `find_spec` nu — le défaut
+    exact qu'elle garde — laissait ce fichier VERT. Instance de
+    `guard-branch-only-reached-when-it-fails`, trouvée en mutant.
+
+    Le cas se construit désormais sans dépendre de l'hôte : `deploy/` est un
+    répertoire du dépôt sans `__init__.py`, donc une PORTION d'espace de noms —
+    `find_spec` répond oui, `origin` est `None`, et rien ne l'installe jamais.
+    """
     import importlib.util
 
-    spec = importlib.util.find_spec("airflow")
-    if spec is not None and spec.origin is None:
-        assert not _really_importable("airflow"), (
-            "the probe accepted a namespace portion as an installed package — the "
-            "exact confusion this gate exists to remove")
+    portion = importlib.util.find_spec("deploy")
+    assert portion is not None and portion.origin is None, (
+        "`deploy/` n'est plus vu comme une portion d'espace de noms — ce test perd "
+        "son cas et redevient vert à vide. Choisir un autre répertoire du dépôt "
+        "sans `__init__.py`, ou dire ici pourquoi la forme a disparu.")
+    assert not _really_importable("deploy"), (
+        "the probe accepted a namespace portion as an installed package — the "
+        "exact confusion this gate exists to remove")
     assert _really_importable("pathlib"), "the probe rejects a genuinely real package"
 
 

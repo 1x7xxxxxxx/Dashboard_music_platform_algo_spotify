@@ -85,7 +85,7 @@ _CEILINGS = {
     # une preuve. Un garde ne compte comme vu rouge que s'il ÉCHOUE sur le défaut.
     # Historique : 363 → 352 (les `n-a`) → 332 (phase B, traces de mutation) → 330
     # le 2026-09-17 (un défaut remis et vu lever) → 321 ce jour-ci.
-    "seen_red_unknown": 300,
+    "seen_red_unknown": 294,
     "seen_red_never": 0,
     # 363 → 241 : les causes qui nomment un chemin vérifiable.
     # 241 → 183 le 2026-09-17 : les **58** classes dont le `root_cause` cite un fichier
@@ -458,7 +458,7 @@ _CEILINGS = {
     #
     # Ce que la descente a rapporté est désormais CHIFFRÉ, ce qui n'était pas le
     # cas quand elle a commencé : voir `sites_unknown` juste dessous.
-    "siblings_never_swept": 90,
+    "siblings_never_swept": 83,
     # ── LE RENDEMENT, sous cliquet lui aussi (2026-09-18) ────────────────────
     #
     # `siblings_never_swept` mesure l'EFFORT ; ce compteur-ci mesure ce qu'on SAIT
@@ -489,7 +489,7 @@ _CEILINGS = {
     # (21 balayages productifs sur 191, 52 sites vivants au total). Le premier chiffre
     # ne portait que sur les balayages de la nuit, ceux qui trouvaient. Un taux mesuré
     # sur la population qui l'a inspiré n'est pas un taux.
-    "sites_unknown": 101,
+    "sites_unknown": 100,
     #
     # ── « BALAYÉ » N'EST PAS « LE GARDE ÉTAIT VERT » (2026-09-18) ────────────
     #

@@ -27,6 +27,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 
 def _repo_root() -> Path:
     for d in Path(__file__).resolve().parents:
@@ -120,3 +122,57 @@ def test_db_health_is_admin_only():
     assert "db_health" in _admin_only_keys(), (
         "db_health est revenue au menu artiste : elle redit la matrice d'état dans "
         "le vocabulaire de la plomberie")
+
+
+# ── L'assertion COMPORTEMENTALE, ajoutée le 2026-09-18 ────────────────────────
+#
+# Tout ce qui précède lit l'AST de `_render_page` : le nom `_ADMIN_ONLY`, le texte
+# `page ==`, la présence d'un `return`. C'est un contrôle d'ACCÈS vérifié par la
+# FORME du code — `guard-anchored-on-shape-not-question`. Deux conséquences, et la
+# seconde est celle qui coûte :
+#
+#   * un renommage de la constante, ou un aiguillage par dictionnaire au lieu de
+#     `page == …`, fait rougir ce fichier sans qu'aucun comportement ait changé ;
+#   * et surtout, un refus CASSÉ qui garde la forme passerait — par exemple si
+#     `_is_admin()` se mettait à rendre `True` par défaut.
+#
+# Le test ci-dessous pose la question au lieu de la forme : un non-admin qui vise
+# une page admin par `?page=<clé>` obtient-il un refus, et rien d'autre ?
+
+_REFUS = "réservée aux administrateurs"
+
+_SCRIPT_NON_ADMIN = """
+import sys
+sys.path.insert(0, {root!r})
+import streamlit as st
+st.session_state["role"] = "artist"
+st.session_state["artist_id"] = 1
+st.session_state["email"] = "artist@test"
+st.session_state["authenticated"] = True
+st.query_params["page"] = {page!r}
+sys.path.insert(0, {root!r} + "/src/dashboard")
+import app
+app._render_page({page!r})
+"""
+
+
+@pytest.mark.parametrize("page", sorted(_admin_only_keys())[:3])
+def test_a_non_admin_asking_for_an_admin_page_by_url_is_refused(page, tmp_path):
+    """La question, pas la forme : le refus arrive-t-il vraiment ?"""
+    from streamlit.testing.v1 import AppTest
+
+    script = tmp_path / f"probe_{page}.py"
+    script.write_text(_SCRIPT_NON_ADMIN.format(root=str(_repo_root()), page=page),
+                      encoding="utf-8")
+    at = AppTest.from_file(str(script), default_timeout=30).run()
+
+    assert not at.exception, (
+        f"viser `?page={page}` en non-admin lève au lieu de refuser : "
+        f"{[e.value for e in at.exception]}")
+    erreurs = " ".join(e.value for e in at.error)
+    assert _REFUS in erreurs, (
+        f"`?page={page}` ne produit AUCUN refus pour un non-admin. Le filtre du menu "
+        "n'est pas un garde : la page reste atteignable par une URL, un signet ou un "
+        "lien. C'est le défaut que ce fichier existe pour empêcher, et les "
+        "assertions d'AST au-dessus ne peuvent pas le voir — elles vérifient que le "
+        "code a la bonne FORME, pas qu'il refuse.")
