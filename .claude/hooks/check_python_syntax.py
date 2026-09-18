@@ -20,6 +20,8 @@ rex:
 """
 import json
 import sys
+import os
+import pathlib
 import subprocess
 import shutil
 
@@ -44,17 +46,39 @@ import shutil
 _FULL_SUITE = "pytest tests/"
 
 
+def _cwd_of(pid: str) -> str:
+    """Le répertoire de travail de ce processus — vide si illisible."""
+    try:
+        return os.readlink(f"/proc/{pid}/cwd")
+    except OSError:
+        return ""
+
+
 def warn_if_a_full_suite_is_running() -> None:
     """Dit qu'une suite complète tourne — son verdict ne décrira plus cet arbre.
 
     Ne lève jamais et ne bloque jamais : ce hook suit CHAQUE écriture de `.py`.
+
+    ⚠️ **La sonde est scopée à CE dépôt depuis le 2026-09-18.** Elle énumérait les
+    processus de la MACHINE et filtrait sur la sous-chaîne `pytest tests/` — un nom
+    générique. Sur un poste qui porte plusieurs dépôts Python (celui-ci en porte au
+    moins trois : `n8n-ollama`, `knowledge-rag`, et celui-là), la suite d'un AUTRE
+    projet faisait avertir ici, et une suite de CE dépôt lancée depuis un autre
+    répertoire n'était pas vue. C'est `probe-scoped-to-the-machine-not-the-repo`,
+    transposée du conteneur au processus : le mécanisme fautif n'est pas Docker, c'est
+    « une énumération de l'hôte filtrée par un texte qui ne nomme pas CE dépôt ».
+    On lit donc `/proc/<pid>/cwd`, qui nomme le dépôt sans ambiguïté.
     """
+    racine = str(pathlib.Path(__file__).resolve().parents[2])
     try:
         out = subprocess.run(["ps", "-eo", "pid,etimes,args"],
                              capture_output=True, text=True, timeout=5)
         for line in out.stdout.splitlines():
             if _FULL_SUITE not in line or " -k " in line or "grep" in line:
                 continue
+            _pid = line.split(None, 1)[0]
+            if not _pid.isdigit() or not _cwd_of(_pid).startswith(racine):
+                continue          # une suite d'un AUTRE dépôt — pas notre affaire
             parts = line.split(None, 2)
             if len(parts) < 3 or not parts[1].isdigit():
                 continue
