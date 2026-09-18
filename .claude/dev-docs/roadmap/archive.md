@@ -9,6 +9,225 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🧹 R137 — Les 97 classes jamais vraiment balayées : 97 → 0, et 410 sites vivants trouvés (livrée 2026-09-18)
+
+**Livrée et poussée le 2026-09-18.** Treize unités, chacune une FAMILLE (règle 21),
+chacune commitée et poussée séparément — `33b9c51`, `dced3bd`, `7d6c208`, `946077f`,
+`6d35833`, `d5242cd`. Le corps ci-dessous est le bloc de l'actif, rapatrié verbatim :
+il est écrit au présent de l'ouverture, et le garder tel quel est ce qui permet de
+relire la prédiction À CÔTÉ de son résultat.
+
+### Le résultat, mesuré
+
+| grandeur | avant | après |
+|---|---:|---:|
+| `swept_by_rerunning_the_guard` — faux balayages | 97 | **0** |
+| `sites_unknown` — verdict illisible | 100 | **2** |
+| sites vivants trouvés | 100 | **410** |
+| taux de trouvaille sur verdicts lisibles | 0,129 | **0,263** |
+
+```bash
+make error-health
+python3 -c "import json; a=json.load(open('.claude/dev-docs/error-class-health.json'))['aggregate']; print(a['holes']['swept_by_rerunning_the_guard'], a['holes']['sites_unknown'], a['sweep_yield'])"
+```
+
+**La cible est atteinte, et dépassée sur le second chiffre** : la ligne d'index annonçait
+`97 → 0` et `100 → 3`, la mesure rend `0` et `2`.
+
+⚠️ **Les 2 `sites_unknown` restants sont DÉLIBÉRÉS, pas des oublis.** L'un est un motif
+qu'on n'a jamais vu mordre ; l'autre porte 13 sites dont trancher demande de relire chaque
+test **avec sa surface vidée**. Les laisser non conclus et le DIRE est le contraire de les
+compter comme balayés — c'est précisément le geste que R137 corrigeait.
+
+⚠️ **Prédiction du 1er commit RÉFUTÉE**, et conservée ici parce que c'est la partie la
+plus utile de l'entrée : elle annonçait ≈9 classes trouveuses et ≈23,5 sites pour 70
+balayages ; mesuré **41 et 182**. **Le facteur ne se cite PAS comme un rendement** —
+0,129 portait sur TOUS les balayages, alors que les 97 étaient sélectionnées pour
+n'avoir *jamais* été balayées. Les comparer est `anchor-a-number-to-its-population`.
+Ce qui tient, et qui ne dépend d'aucun ratio : **182 défauts réels dans du code dont
+personne ne s'était plaint** — 410 au terme du chantier.
+
+Ouverte le 2026-09-18. Elle **déplace la cible**, et c'est le point de la tâche.
+
+Le facteur ×4,9 qui justifiait le rituel des gardes est tombé le 2026-09-18 : biais
+d'*immortal time* en entier, **×1,1** une fois l'exposition découpée au premier garde
+(CLAUDE.md règle 15 porte le tableau ; `make error-health` § « Ce que le biais valait »).
+Depuis, **aucune strate ne sépare** — toutes à intervalles recouvrants sur 43 évènements.
+
+Il ne reste donc **qu'un seul chiffre de RÉSULTAT**, déjà publié : **100 sites vivants
+trouvés**, 39 classes en ont trouvé, taux **0,129** sur verdicts lisibles. 100 vrais
+défauts dans du code dont personne ne s'était plaint. Ce n'est pas ce que les compteurs
+optimisent : sur 13 compteurs de trou, **12 comptent des champs remplis**.
+
+### Ce qui est ouvert, mesuré classe par classe
+
+Les 403 entrées classées par l'état RÉEL de leur balayage, avec le code du générateur
+(`_swept_by_rerunning_the_guard`, `_swept_sites` — `tools/dev/error_class_health.py:333-362`) :
+
+| état | classes | zone |
+|---|---:|---|
+| verdict lisible — 0 site | 206 | dormante |
+| **relance du garde — FAUX balayage** | **97** | vivante |
+| verdict lisible — 0 site | 57 | vivante |
+| verdict lisible — sites VIVANTS | 39 | vivante |
+| verdict muet · jamais balayée | 3 · 1 | vivante |
+
+**101 des 197 vivantes (51 %).** Leur `siblings:` dit « j'ai relancé le garde, il est
+vert » — ce qui prouve que le prédicat de CE garde ne trouve rien, **jamais qu'il n'y a
+rien**. Mesuré trois fois la nuit du 17 au 18, dont un garde **vert sur 8 sites vivants**
+(`multitenant-dag-fleet-poisoning`, devenue R132).
+
+### L'ordre : une unité = une FAMILLE (règle 21), par récidive décroissante
+
+| famille | à balayer / vivantes | récidive |
+|---|---:|---:|
+| `le-locataire` | 8 / 24 | 21,4 % |
+| `deux-surfaces-deux-nombres` | 7 / 15 | 17,2 % |
+| `un-état-qui-déborde-de-sa-portée` | 8 / 13 | 12,0 % |
+| `un-garde-qui-ne-garde-pas` | 20 / 47 | 11,0 % |
+| `une-configuration-qui-diverge-de-la-prod` | 8 / 14 | 8,3 % |
+| `une-erreur-avalée-devient-une-absence` | 7 / 12 | 8,0 % |
+| `un-document-qui-affirme-un-état-périmé` | 8 / 16 | 7,7 % |
+| `un-travail-qui-n-arrive-nulle-part` | 4 / 6 | 6,7 % |
+| `la-frontière-avec-le-dehors` | **8 / 8** | 5,9 % |
+| `un-cumul-pris-pour-un-quotidien` | 5 / 9 | 5,3 % |
+| `le-message-parle-au-mauvais-lecteur` | 4 / 6 | 5,0 % |
+| `un-seuil-écrit-d-instinct` · `un-nombre-affirmé` | 4 / 5 · 3 / 7 | 0,0 % |
+| `un-coût-payé-sans-contrepartie` · `le-temps-et-l-horloge` | 3 / 5 · 2 / 7 | 0,0 % |
+| sans rattachement | 2 / 2 | — |
+
+⚠️ **`la-frontière-avec-le-dehors` est 8 sur 8 — la seule famille dont AUCUNE classe
+vivante n'a été balayée**, et c'est celle qui demande « ce que ce code envoie dehors — un
+mail, un paiement, un secret — est-il ce qu'on croit, et vers qui ? ». Sa récidive basse la
+place neuvième. **Le rang se discute, et c'est écrit ici pour ça** — pas corrigé en douce.
+
+⚠️ Deux familles sont absentes parce que toutes leurs classes sont dormantes :
+`un-contrôle-qui-ne-peut-jamais-passer` (4) et `l-instrument-ment-sur-ce-qu-il-mesure` (2).
+
+### La prédiction, écrite AVANT le travail
+
+Au taux de 0,129 et à 2,6 sites par classe qui trouve, ces 101 balayages doivent rendre
+**≈ 13 classes à sites vivants et ≈ 34 défauts réels**. **Si le résultat est 0 ou 3, ce
+n'est pas un échec du chantier : c'est le résultat que 0,129 ne se généralise pas** — les
+39 qui ont trouvé sont peut-être exactement celles qu'on soupçonnait.
+
+- [x] **R137 — balayer les 101 classes vivantes dont le verdict n'est pas lisible, famille par famille, et corriger ce qui sort.**
+
+  Par classe : `siblings:` commençant par `swept:<date>`, portant l'**entonnoir** —
+  candidats bruts → écartés **avec leur raison** → `**N sites vivants**` en gras (la seule
+  forme que `_swept_sites` lit) — et le prédicat **muté dans les deux sens** (règle 20).
+  Nuit du 17 au 18 : **dix prédicats sur ~30 faux au premier jet**, facteur 3 à 25,
+  toujours en sur-comptant.
+
+  Tout site vivant est un **vrai défaut** : fix + garde + mutation rouge. Sauf s'il touche
+  la prod, les secrets, une migration ou l'UX artiste — alors `make night-park` et la
+  question dans « 🙋 En attente de toi ».
+
+  ⚠️ **Ne pas faire tomber le compteur en boldant de la prose existante.** Un `siblings:`
+  ne se réécrit qu'après avoir **relancé** le prédicat — sinon c'est faire baisser un
+  compteur sans rien livrer, ce que les planchers de population interdisent.
+
+  ⚠️ **Ne pas viser `guard_does_not_prove_itself` (306), `seen_red_unknown` (141) ni
+  `cause_unknown` (140) pour eux-mêmes** : ils descendent comme effet de bord — on ne
+  balaie pas une classe sans ouvrir son garde. En faire une cible propre serait retourner à
+  l'optimisation d'un champ rempli, ce que la mort du ×4,9 condamne.
+
+### Ce que le balayage a DÉJÀ trouvé — 16 sites vivants au 2026-09-18
+
+Lot 1, `le-locataire`, 4 classes → **2 sites vivants, tous deux P1, corrigés** (`e94d836`) :
+`_from_signup.py:145` écrivait une identité sans son miroir (locataire « connecté »
+partout, jamais collecté) ; `_core.py:205` portait un contrôle de forme VACUOUS dont le
+résultat atteignait un segment de chemin d'URL sortante. ⚠️ Corriger le second SEUL
+transformait un refus franc en succès silencieux qui met le miroir à NULL — quatre
+constats bloquants de `security-specialist`, détail dans le commit.
+
+Lot 2, 4 classes → **14 sites vivants, non encore corrigés**. ⚠️ Ce total disait **13** avant que les entonnoirs soient écrits : le 14ᵉ est le site `à trancher` de `an-exemption-…`, que le rapport de balayage listait à part. Un site à trancher reste un site — le compter ailleurs aurait flatté le chiffre :
+
+| classe | sites |
+|---|---|
+| `per-tenant-outcome-not-recorded` | **7** — la branche « credentials illisibles » qui `continue` sans enregistreur : `soundcloud_daily.py:146-159`, `youtube_daily.py:91-103`, `meta_ads_api_daily.py:79-90` et `:94-100` ; et une liste locale que rien ne relit : `ml_scoring_daily.py:61-86`, `ml_outcome_labeling.py:60-80`, `weekly_digest.py:308-312`. ⚠️ Le garde existant confond « il y a un `.append()` » avec « une porte extérieure alerte » — faux négatif **prouvé par mutation** sur un DAG fabriqué |
+| `write-path-without-cache-invalidation` | **6** — `instagram_api_collector.py:329-339`, `soundcloud_api_collector.py:348-352`, `youtube_daily.py:171`, `spotify_api_daily.py:180` et `:470`, `_meta_upsert.py:329-333`. La purge vit côté DÉCLENCHEUR (le bouton du dashboard), jamais côté ÉCRITURE : tout autre chemin (UI Airflow, CLI, `full_history` en journée) écrit dans une table cachée sans que rien ne le sache |
+| `an-account-filter-that-names-no-single-column` | **0** — les 7 candidats inspectés un par un, garde exécuté contre une base vivante (3 tests, non skippés) |
+| `an-exemption-on-one-surface-reads-as-a-failure-on-another` | **1 à trancher** — `spotify_api_daily.py:344-378` exempte le bac à sable de la résolution d'ambiguïté, donc il ne peut structurellement recevoir aucune donnée Spotify ; `artist_readiness.py` ignore l'exemption et affichera « importe ton CSV, ou vérifie l'ID artiste » — un geste que ce locataire ne peut pas faire. Non observable en local (bac à sable vide) : la preuve vit en production sur le locataire 18 |
+
+⚠️ **Ce que ces deux lots disent du taux de 0,129** : 8 classes balayées, **16 sites**
+(rendement global 100 → 116, taux 0,129 → **0,142**).
+C'est bien au-dessus de la prédiction, et l'explication la plus probable n'est pas que le
+dépôt soit plus cassé qu'on croyait — c'est que les classes JAMAIS balayées sont
+précisément celles dont personne n'avait regardé les frères. À redire après 30 classes,
+pas après 8.
+
+  **Mesuré par** : `make error-health` — `swept_by_rerunning_the_guard` **0**,
+  `sites_unknown` **3**, plafonds de `tests/test_the_error_class_health_only_improves.py`
+  descendus **dans le même commit** (sinon `test_the_ceiling_is_not_slack` rougit).
+
+## 🚪 R138 — La porte qui refuse un faux balayage AU MOMENT DE L'ÉCRIRE (livrée 2026-09-18)
+
+**Livrée et poussée le 2026-09-18**, commit `44f37c8`. Elle ferme par une PORTE ce que
+R137 a fermé à la main : un `siblings:` en `swept:` qui n'est qu'une relance de garde est
+désormais refusé à l'écriture, pas constaté à la régénération suivante.
+
+### Le résultat, mesuré
+
+```bash
+python3 .claude/scripts/audit_runner.py --sweep-verdict
+# ▶ sweep-verdict: 402 balayage(s) déclaré(s), 2 non concluant(s) assumé(s)
+# ✅ tout `swept:` porte un verdict lisible          → exit 0
+
+grep -n "sweep-verdict\|--coverage\|audit_unreachable" .github/workflows/ci.yml
+# 214: audit_runner.py --sweep-verdict
+# 220: audit_runner.py --coverage
+# 221: audit_unreachable_tools.py
+
+.venv/bin/python -m pytest tests/test_the_sweep_gate_is_wired_where_it_blocks.py -q
+```
+
+⚠️ **La correction de prémisse est GARDÉE, c'est la leçon de la brique.** La ligne d'index
+annonçait trois contrôles « qui ne tournent qu'à la main », dont `check_config_refs.py` —
+**déjà en CI depuis plus longtemps**. Mesuré en lisant `ci.yml` avant de câbler :
+**deux manquaient, pas trois** (`audit_unreachable_tools.py` et `--coverage`). Les deux
+sont câblés, plus la porte `--sweep-verdict`. Le trou réel était plus petit et mieux nommé
+que celui qu'on s'était annoncé — et c'est la seconde fois dans cette même brique qu'une
+affirmation sur la CI tombe en la LISANT (voir le ⚠️ sur `--prose` ci-dessous).
+
+Ouverte le 2026-09-18 en mesurant R137. Les 97 relances comptées comme des balayages ne
+sont pas une négligence individuelle : **aucune porte ne les refuse**. Le compteur les voit
+à la régénération suivante, après que la prose est écrite et commitée — et un compteur
+qu'on lit une fois par jour ne change pas un geste. Le dépôt l'a déjà mesuré sur un autre
+axe : il a fallu `--admission`, **bloquant**, pas une note.
+
+### Et une porte présente que rien n'ouvre
+
+`grep -rn "config-check" .github/` **ne rend rien**. Sur les cinq contrôles de
+`make config-check`, un seul tourne en CI :
+
+| contrôle | en CI ? |
+|---|---|
+| `check_config_refs.py` — chemins pendants dans `.claude/` | ❌ |
+| `audit_unreachable_tools.py` — un outil que rien n'invoque | ❌ |
+| `audit_runner.py --prose` | ✅ `ci.yml:205` |
+| `audit_runner.py --coverage` | ❌ |
+| `error_class_health.py --check` | ❌ (`make error-health-check` l'est) |
+
+⚠️ **J'ai d'abord écrit que `--prose` était hors CI. C'était faux**, vérifié en lisant
+`ci.yml` au lieu d'une sortie de balayage. Le trou réel est plus petit et mieux nommé.
+
+- [x] **R138 — `audit_runner.py --sweep-verdict`, et `config-check` câblé en CI.**
+
+  `--sweep-verdict` : un `siblings:` en `swept:` doit porter `**N site(s) vivant(s)**` ou
+  `**0 site vivant**`, et **ne peut pas** être une relance de garde. Sortie 2 comme
+  `--lint` et `--admission`, plafond d'exemption **égal à la mesure du jour**.
+
+  ⚠️ Le plafond descend au fil de R137. Posé à 97 et oublié, c'est le « plafond mou » que
+  `test_the_ceiling_is_not_slack` refuse.
+
+  ⚠️ **Lancer `config-check` avant de le câbler** : vert ici ne dit pas vert sur un runner,
+  qui n'a pas le même arbre. Une porte câblée rouge apprend que le rouge est du bruit.
+
+  **Mesuré par** : `audit_runner.py --sweep-verdict` sort 0 sur l'arbre sain et **≠ 0** sur
+  une classe mutée en relance ; `grep -n "config-check\|sweep-verdict" .github/workflows/ci.yml`
+  rend des lignes.
+
 ## 🔧 R127 — Trois défauts résiduels de `night_run.py`, tous « une absence lue comme un problème absent » (livrée 2026-09-17)
 
 - [x] **R127 — durcir la machinerie de séance : les défauts résiduels de `night_run.py`
