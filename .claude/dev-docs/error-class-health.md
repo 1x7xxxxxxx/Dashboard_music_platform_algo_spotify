@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**403 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (350 révisions du catalogue rejouées).
+**403 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (351 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -14,7 +14,7 @@ Le compteur `siblings_never_swept` mesure l'EFFORT. Celui-ci mesure le résultat
 | balayages faits | **402** |
 | dont le verdict est LISIBLE | **400** |
 | qui ont trouvé au moins un site | **105** |
-| sites vivants trouvés | **412** |
+| sites vivants trouvés | **413** |
 | taux de trouvaille (sur verdicts lisibles) | **0.263** |
 
 ✅ **Aucun des 402 balayages n'est une relance de garde.** Ils étaient **97** le 2026-09-17, et les 97 ont rendu des sites vivants qu'un garde vert ne pouvait pas voir. La porte `audit_runner.py --sweep-verdict` refuse désormais cette forme **au moment de l'écrire**. Reste 1 classe(s) jamais balayée(s) — un trou déclaré, pas un faux balayage.
@@ -75,19 +75,19 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 ## Récidive observée
 
-**45 évènements** sur 8394 classe-jours d'exposition — **0.163** par classe-mois (IC 95 % : 0.1189 – 0.2181)
+**46 évènements** sur 8394 classe-jours d'exposition — **0.1666** par classe-mois (IC 95 % : 0.122 – 0.2222)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 41 | 0.1516 | 0.1088 – 0.2057 | insuffisant pour conclure (n=45) |
-| by_guard · prose | 4 | 0.7029 | 0.1891 – 1.7995 | insuffisant pour conclure (n=45) |
-| by_guard_since · avec-garde | 41 | 0.1628 | 0.1168 – 0.2209 | insuffisant pour conclure (n=45) |
-| by_guard_since · sans-garde | 4 | 0.1645 | 0.0443 – 0.4213 | insuffisant pour conclure (n=45) |
-| by_seen_red · daté | 16 | 0.1856 | 0.106 – 0.3014 | insuffisant pour conclure (n=45) |
-| by_seen_red · jamais-ou-inconnu | 29 | 0.1527 | 0.1023 – 0.2193 | insuffisant pour conclure (n=45) |
-| by_scope · ne-couvre-pas renseigné | 45 | 0.163 | 0.1189 – 0.2181 | une seule strate peuplée (n=45) |
+| by_guard · automatique | 42 | 0.1553 | 0.1119 – 0.2099 | insuffisant pour conclure (n=46) |
+| by_guard · prose | 4 | 0.7029 | 0.1891 – 1.7995 | insuffisant pour conclure (n=46) |
+| by_guard_since · avec-garde | 42 | 0.1668 | 0.1202 – 0.2255 | insuffisant pour conclure (n=46) |
+| by_guard_since · sans-garde | 4 | 0.1645 | 0.0443 – 0.4213 | insuffisant pour conclure (n=46) |
+| by_seen_red · daté | 17 | 0.1972 | 0.1148 – 0.3157 | insuffisant pour conclure (n=46) |
+| by_seen_red · jamais-ou-inconnu | 29 | 0.1527 | 0.1023 – 0.2193 | insuffisant pour conclure (n=46) |
+| by_scope · ne-couvre-pas renseigné | 46 | 0.1666 | 0.122 – 0.2222 | une seule strate peuplée (n=46) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
@@ -95,8 +95,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 | | avec garde | sans garde | rapport |
 |---|---|---|---|
-| `by_guard` — étiquette d'aujourd'hui, **confondu** | 0.1516 | 0.7029 | ×4.6 |
-| `by_guard_since` — découpé au premier garde | 0.1628 | 0.1645 | ×1.0 |
+| `by_guard` — étiquette d'aujourd'hui, **confondu** | 0.1553 | 0.7029 | ×4.5 |
+| `by_guard_since` — découpé au premier garde | 0.1668 | 0.1645 | ×1.0 |
 
 L'écart de la première ligne est un **artefact de mesure**, pas un effet. Écrire un garde automatique reste la bonne pratique ; ce tableau dit seulement que **ce jeu de données ne la démontre pas**, et qu'aucune règle ne devrait citer la première ligne comme preuve.
 

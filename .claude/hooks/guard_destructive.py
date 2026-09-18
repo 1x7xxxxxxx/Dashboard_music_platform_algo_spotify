@@ -132,9 +132,34 @@ _WARN_PATTERNS: list[tuple[str, str]] = [
 #
 # `git stash` fait le même travail sans rien jeter : c'est ce que le message propose.
 
+# ⚠️ **`--` EST OPTIONNEL, et l'exiger a coûté un fichier le 2026-09-18.** Le motif
+# d'origine demandait `checkout … -- <chemins>`. La forme que les mains écrivent
+# réellement est `git checkout <fichier>`, sans séparateur — c'est celle qui a effacé
+# `tests/test_dag_fleet_isolation.py` ce soir-là, en plein milieu d'une séance, après
+# une mutation. Sondé ensuite, six orthographes :
+#
+#     git checkout <fichier>            NON VU  ← le geste qui a détruit le travail
+#     git checkout HEAD <fichier>       NON VU
+#     git checkout -- <fichier>         vu
+#     git restore <fichier>             vu
+#     git checkout main                 non vu  (et c'est correct)
+#     git checkout -b <branche>         non vu  (et c'est correct)
+#
+# C'est la TROISIÈME orthographe du même geste, et `test_git_restore_is_the_same_gesture`
+# existait déjà avec pour docstring « deux orthographes, un seul effet — en garder une
+# seule serait la portée du défaut ». Le garde avait donc nommé sa propre classe et s'y
+# est fait prendre : un garde écrit sur la FORME (`--`) et non sur la PROPRIÉTÉ (un
+# rétablissement git visant un chemin qui porte du travail non commité).
+#
+# Rendre `--` optionnel ne crée pas de faux positif, parce que le verdict ne vient PAS
+# du motif : `_paths_that_would_lose_work` écarte les drapeaux, puis interroge
+# `git status --porcelain -- <chemin>`. `git checkout main` produit donc un chemin qui
+# n'existe pas, aucune perte, aucun blocage. Un changement de branche ne devient bloqué
+# que s'il existe un fichier SALE portant le nom de la branche — cas où git lui-même
+# exige `--` pour lever l'ambiguïté.
 _RESTORE_RE = re.compile(
     r"\bgit\s+(?:-C\s+\S+\s+)*"
-    r"(?:checkout(?:\s+(?:HEAD|@|[0-9a-f]{7,40}))?\s+--\s+|restore\s+)"
+    r"(?:checkout(?:\s+(?:HEAD|@|[0-9a-f]{7,40}))?\s+(?:--\s+)?|restore\s+)"
     r"(?P<paths>.+)")
 
 

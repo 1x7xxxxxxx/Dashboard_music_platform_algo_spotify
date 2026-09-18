@@ -115,6 +115,53 @@ def test_git_restore_is_the_same_gesture(dirty_target) -> None:
     assert rc == 2, "`git restore` détruit exactement la même chose et passait"
 
 
+def test_the_separator_is_optional_and_the_bare_form_is_the_one_hands_write(
+        dirty_target) -> None:
+    """La TROISIÈME orthographe, et celle qui a réellement détruit du travail.
+
+    ⚠️ Mesuré le 2026-09-18 : `git checkout <fichier>`, sans `--`, a effacé
+    `tests/test_dag_fleet_isolation.py` en plein milieu d'une séance, après une
+    mutation. Le motif du hook exigeait le séparateur, donc cette forme — la plus
+    courante — passait.
+
+    Le test juste au-dessus, `test_git_restore_is_the_same_gesture`, portait déjà pour
+    docstring « deux orthographes, un seul effet — en garder une seule serait la portée
+    du défaut ». Le garde avait NOMMÉ sa classe et s'y est fait prendre quand même : il
+    était écrit sur la FORME (`--`) et non sur la PROPRIÉTÉ (un rétablissement git
+    visant un chemin qui porte du travail non commité).
+    """
+    rc, out = _hook(f"{_RESTORE_VERB} {dirty_target}")
+    assert rc == 2, (
+        "`checkout <fichier>` SANS `--` est passé. C'est la forme que les mains "
+        "écrivent, et celle qui a détruit un fichier de garde entier le 2026-09-18.")
+    assert dirty_target in out, "le refus ne nomme pas ce qui serait perdu"
+
+
+def test_a_revision_before_the_path_is_the_same_gesture(dirty_target) -> None:
+    """`checkout HEAD <fichier>` écrase l'arbre de travail exactement pareil."""
+    rc, _ = _hook(f"{_RESTORE_VERB} HEAD {dirty_target}")
+    assert rc == 2, (
+        "`checkout HEAD <fichier>` est passé : le motif exigeait un `--` après la "
+        "révision, que personne n'écrit.")
+
+
+@pytest.mark.parametrize("cmd", ["main", "-b une-branche-neuve"])
+def test_widening_the_pattern_does_not_block_a_branch_switch(cmd: str) -> None:
+    """Le prix de l'élargissement, mesuré — et il est nul.
+
+    Rendre `--` optionnel fait matcher `checkout main` par le MOTIF. Le verdict ne vient
+    pas du motif : `_paths_that_would_lose_work` écarte les drapeaux puis interroge
+    `git status --porcelain -- <chemin>`. Une branche n'est pas un chemin sale, donc
+    rien n'est bloqué. Sans ce test, l'élargissement serait un pari ; avec lui c'est une
+    mesure, et il rougira le jour où quelqu'un durcira le motif au point d'interdire
+    l'usage courant — le mode d'échec que ce fichier documente depuis sa première ligne.
+    """
+    rc, _ = _hook(f"{_RESTORE_VERB} {cmd}")
+    assert rc == 0, (
+        f"`checkout {cmd}` est bloqué : le garde interdit un changement de branche, "
+        "qui ne peut rien effacer. Un garde qui gêne l'usage courant se fait esquiver.")
+
+
 def test_staged_only_does_not_touch_the_working_tree(dirty_target) -> None:
     """`--staged` désindexe ; il ne peut rien effacer de l'arbre de travail."""
     rc, _ = _hook(f"git restore --staged {dirty_target}")

@@ -116,3 +116,5 @@
 {"at": "2026-09-18T21:13:01+00:00", "head": "c607a7b", "kind": "start", "task": "R141", "what": "20 citations orphelines de noms de tests — tri site par site"}
 {"at": "2026-09-18T21:23:25+00:00", "head": "8516d54", "kind": "done", "task": "R141", "what": "20 citations triees -> 15 notes de retrait, 2 faux positifs, 4 vrais pointeurs morts corriges ; garde par tokenize mute rouge x2 ; echappatoire du cliquet completee (22/22 conservees) avec sa breche declaree"}
 {"at": "2026-09-18T21:29:40+00:00", "head": "cc38f2b", "kind": "start", "task": "R132", "what": "isolement de flotte hors Airflow — 6 sites mesures"}
+{"at": "2026-09-18T21:42:55+00:00", "head": "570348a", "kind": "done", "task": "R132", "what": "isolement de flotte hors Airflow : 6 candidats, 4 ecartes, 2 sites vivants corriges ; elargissement de portee trouve VACANT par mutation, predicat elargi a la propriete"}
+{"at": "2026-09-18T21:42:59+00:00", "head": "570348a", "kind": "start", "task": "R142", "what": "guard_destructive : git checkout <fichier> sans -- n'est pas vu"}
