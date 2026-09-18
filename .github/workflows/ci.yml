@@ -203,6 +203,22 @@ jobs:
           uv run --frozen python .claude/scripts/audit_runner.py --admission
           uv run --frozen python .claude/scripts/audit_runner.py --static
           uv run --frozen python .claude/scripts/audit_runner.py --prose
+          # ⚠️ AJOUTÉE le 2026-09-18 — la porte que R137 n'avait pas.
+          # Le compteur `make error-health` voit les faux balayages APRÈS coup ; il en a
+          # compté **97** le 2026-09-17, chacun disant « j'ai relancé le garde, il est
+          # vert » — ce qui prouve que le prédicat de CE garde ne trouve rien, jamais
+          # qu'il n'y a rien (mesuré trois fois : un garde vert sur 8 sites vivants).
+          # Les 97 ont été balayées et ont rendu 310 défauts réels. Mais un compteur
+          # remis à zéro ne dit rien sur le prochain : rien n'empêchait d'en écrire un
+          # 98ᵉ. Cette porte refuse au moment de l'écrire.
+          uv run --frozen python .claude/scripts/audit_runner.py --sweep-verdict
+          # ⚠️ `--coverage` et `audit_unreachable_tools.py` ajoutés le même jour, et la
+          # prémisse de R138 était PARTIELLEMENT FAUSSE : elle annonçait trois contrôles
+          # « qui ne tournent qu'à la main », dont `check_config_refs.py` — qui est en CI
+          # depuis plus longtemps, sur la ligne juste en dessous. Mesuré avant de câbler :
+          # deux manquaient, pas trois.
+          uv run --frozen python .claude/scripts/audit_runner.py --coverage
+          uv run --frozen python .claude/scripts/audit_unreachable_tools.py
           uv run --frozen python .claude/scripts/check_config_refs.py
           uv run --frozen python .claude/scripts/check_ci_waste.py
           # LA FRAÎCHEUR DES DOCUMENTS GÉNÉRÉS EST REVENUE ICI — 2026-09-18.

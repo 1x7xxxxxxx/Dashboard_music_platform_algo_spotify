@@ -470,6 +470,125 @@ def _admission_verdict(billet: str | None) -> str | None:
     return None
 
 
+def _sweep_verdict(headers: list[dict]) -> int:
+    """Un `siblings:` qui dit `swept:` doit porter un VERDICT lisible.
+
+    Pourquoi une PORTE, alors qu'un compteur existe déjà
+    -----------------------------------------------------
+    `make error-health` compte les faux balayages APRÈS coup. Il en a compté **97** le
+    2026-09-17 — c'est-à-dire 97 classes dont le `siblings:` disait « j'ai relancé le
+    garde, il est vert », ce qui prouve que le prédicat de CE garde ne trouve rien,
+    jamais qu'il n'y a rien. Mesuré trois fois la nuit du 17 au 18 : **un garde vert sur
+    8 sites vivants**.
+
+    Les 97 ont été balayées (R137, closes le 2026-09-18, 310 défauts réels trouvés). Un
+    compteur remis à zéro ne dit rien sur le prochain : **rien n'empêchait d'en écrire un
+    98ᵉ**, et le compteur ne l'aurait signalé qu'au prochain `make error-health`, dans le
+    meilleur des cas quelques commits plus tard.
+
+    Pourquoi les prédicats sont IMPORTÉS et non recopiés
+    -----------------------------------------------------
+    Une porte qui recopierait `_RERUN` et `_swept_sites` serait une **seconde définition
+    de la même grandeur**, et ce dépôt a mesuré ce que ça coûte : c'est la classe
+    `trigger-threshold-split`, dont le balayage du 2026-09-18 a trouvé **quatre barèmes
+    pour « une source n'a pas collecté récemment »** et **18 écarts réels** tombant là où
+    une surface alerte et l'autre non. La porte et le compteur doivent dire la même chose
+    **par construction**, pas par relecture.
+
+    Ce que la porte refuse, et ce qu'elle laisse passer
+    ----------------------------------------------------
+    Elle refuse deux formes, et deux seulement :
+
+    * un `swept:` dont la prose est une RELANCE de garde ;
+    * un `swept:` sans compte lisible en gras (`**N site(s) vivant(s)**` / `**0 site
+      vivant**`).
+
+    Elle NE refuse PAS l'absence de `swept:` — une classe jamais balayée est un trou
+    déclaré, compté par `siblings_never_swept`, pas une faute d'écriture. Et elle ne juge
+    pas le CHIFFRE : un balayage peut légitimement rendre 0.
+
+    ⚠️ **Deux classes sont exemptées, et l'exemption est la raison d'être de la porte.**
+    Les deux portent un verdict délibérément NON CONCLUANT : un motif jamais vu mordre —
+    on refuse d'écrire « 0 site » dessus — et 13 sites dont trancher demande de relire
+    chaque test avec sa surface vidée. Les exempter EST le comportement voulu : la porte
+    exige un verdict lisible, pas un verdict inventé. Elles sont nommées ici plutôt que
+    devinées par un motif, pour qu'ajouter une troisième soit une décision.
+    """
+    import sys as _sys
+    _sys.path.insert(0, str(_REPO / "tools" / "dev"))
+    try:
+        from error_class_health import (  # noqa: PLC0415
+            _blocks, _field, _swept_by_rerunning_the_guard, _swept_sites)
+    except ImportError as exc:      # pragma: no cover - le générateur doit être là
+        print(f"▶ sweep-verdict: `tools/dev/error_class_health.py` illisible ({exc}).\n"
+              "   La porte IMPORTE ses prédicats du compteur, à dessein : les recopier "
+              "produirait deux définitions de la même grandeur.")
+        return 1
+    finally:
+        _sys.path.pop(0)
+
+    # ⚠️ Le champ `siblings` est lu par `_blocks`/`_field` du GÉNÉRATEUR, pas par
+    # `parse_all_headers` de ce fichier — qui ne l'extrait pas. Première écriture de
+    # cette porte : elle lisait `h.get("siblings")` sur les en-têtes locaux, donc
+    # **toujours vide**, et elle sortait 0 en annonçant « 0 balayage déclaré » sur un
+    # catalogue qui en porte 402. Verte parce qu'elle ne voyait RIEN — le mode
+    # d'aveuglement que ce dépôt appelle un garde vacant, et que seule l'exécution a
+    # révélé : ni ruff ni la lecture ne pouvaient le dire.
+    blocs = _blocks((_REPO / ".claude" / "dev-docs" / "error-classes.md")
+                    .read_text(encoding="utf-8"))
+
+    non_concluants = {
+        # motif jamais vu mordre — un zéro non validé ne s'écrit pas comme un zéro mesuré
+        "a-fallback-that-runs-when-the-first-branch-succeeded",
+        # 13 sites dont le tri demande de relire chaque test avec sa surface VIDÉE
+        "a-guard-satisfied-by-the-collapse-it-should-catch",
+    }
+
+    relances, muets, total = [], [], 0
+    for cle, corps in blocs.items():
+        champ = (_field(corps, "siblings") or "").strip()
+        if not champ.startswith("swept:"):
+            continue                      # jamais balayée : un trou déclaré, pas une faute
+        total += 1
+        if cle in non_concluants:
+            continue
+        if _swept_by_rerunning_the_guard(champ):
+            relances.append(cle)
+        elif _swept_sites(champ) is None:
+            muets.append(cle)
+
+    if total == 0:
+        print("▶ sweep-verdict: **0 balayage déclaré** dans le catalogue.\n"
+              "   Ce n'est pas un succès : le catalogue en porte des centaines. La\n"
+              "   lecture a raté sa cible, et cette porte serait verte sur n'importe\n"
+              "   quoi. Vérifier `_blocks`/`_field` du générateur.")
+        return 1
+
+    if not relances and not muets:
+        print(f"▶ sweep-verdict: {total} balayage(s) déclaré(s), "
+              f"{len(non_concluants)} non concluant(s) assumé(s)")
+        print("✅ tout `swept:` porte un verdict lisible")
+        return 0
+
+    if relances:
+        print(f"❌ {len(relances)} balayage(s) ne sont qu'une RELANCE du garde :")
+        for c in sorted(relances):
+            print(f"   {c}")
+        print("   Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y")
+        print("   a rien. Mesuré trois fois la nuit du 17 au 18 : un garde vert sur")
+        print("   8 sites vivants. Balayer la PROPRIÉTÉ, pas relancer la forme.")
+    if muets:
+        print(f"❌ {len(muets)} balayage(s) sans verdict lisible :")
+        for c in sorted(muets):
+            print(f"   {c}")
+        print("   Écrire **N site(s) vivant(s)** ou **0 site vivant** EN GRAS — c'est la")
+        print("   forme que `_swept_sites` lit. Une prose qui parle de sites sans les")
+        print("   compter est exactement ce que `sites_unknown` existe pour rendre")
+        print("   visible. Si le verdict est vraiment non concluant, le dire et")
+        print("   l'inscrire dans `non_concluants` — c'est une décision, pas un oubli.")
+    return 1
+
+
 def _admission(headers: list[dict]) -> int:
     """Une classe NEUVE doit dire pourquoi elle mérite d'exister.
 
@@ -803,6 +922,9 @@ def main() -> None:
     ap.add_argument("--static", action="store_true",
                     help="Run deterministic classes whose signature is grep-only (no pytest) — "
                          "for the IPC daily sweep (no PG / test env)")
+    ap.add_argument("--sweep-verdict", action="store_true",
+                    help="Refuser un `swept:` sans verdict lisible, ou qui n'est qu'une "
+                         "relance de garde")
     ap.add_argument("--admission", action="store_true",
                     help="Une classe NEUVE doit porter `- admitted:` (récidive/sites/p1)")
     ap.add_argument("--lint", action="store_true",
@@ -851,6 +973,9 @@ def main() -> None:
 
     if args.admission:
         sys.exit(_admission(headers))
+
+    if args.sweep_verdict:
+        sys.exit(_sweep_verdict(headers))
 
     if args.lint:
         sys.exit(_lint(headers))

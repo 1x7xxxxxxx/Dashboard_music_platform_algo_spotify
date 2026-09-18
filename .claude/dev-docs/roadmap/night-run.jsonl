@@ -108,3 +108,5 @@
 {"at": "2026-09-18T20:19:55+00:00", "head": "6d35833", "kind": "done", "task": "R137", "what": "famille un-seuil-ecrit-d-instinct + un-travail-qui-n-arrive-nulle-part : 8 classes, 42 sites vivants, 7 corriges dont le recu RGPD, 4 lots parques"}
 {"at": "2026-09-18T20:19:58+00:00", "head": "6d35833", "kind": "start", "task": "R137", "what": "les 14 dernieres classes — 5 familles restantes"}
 {"at": "2026-09-18T20:34:37+00:00", "head": "6d35833", "kind": "park", "task": "R137", "what": "4 lots ajoutes a R140 (16.14 /health sans verification, 16.15 scheduler a 30s en vrai, 16.16 vingt dates sans horloge, 16.17 trois pages a 38/34/19 figures)"}
+{"at": "2026-09-18T20:42:19+00:00", "head": "d5242cd", "kind": "done", "task": "R137", "what": "14 dernieres classes : R137 ATTEINTE — swept_by_rerunning_the_guard 97 -> 0, sites_unknown -> 2, 410 sites vivants, taux 0,263"}
+{"at": "2026-09-18T20:42:25+00:00", "head": "d5242cd", "kind": "start", "task": "R138", "what": "porte --sweep-verdict + config-check cable en CI"}
