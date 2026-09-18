@@ -9,6 +9,112 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 📐 R139 — Deux instruments qui mentaient sur ce qu'ils mesurent (livrée 2026-09-18)
+
+**Livrée et poussée le 2026-09-18** — commit `8b50834`. Ce qui suit d'abord est ce que
+la MESURE a rendu ; le bloc de l'actif est rapatrié **verbatim** plus bas, sous « Le bloc
+de l'actif, tel qu'il était ouvert ». Il porte les chiffres qu'on croyait au moment de
+l'ouvrir — **174 entrées / 33,9 s / 475 sans durée** contre **26 / 33,2 s / 40** mesurés.
+Les garder côte à côte est ce qui permet de relire une prédiction à côté de son résultat.
+
+### (a) Le double comptage — ce qui a été corrigé
+
+`error-class-health.md` publiait `swept_by_rerunning_the_guard` et `sites_unknown` dans
+**deux paragraphes ⚠️ consécutifs**, sans dire que le premier est un **sous-ensemble** du
+second. Au 2026-09-17 : **97** et **100**, intersection **97** — une relance de garde ne
+porte jamais de compte en gras, donc elle est muette **par construction**. Un lecteur
+additionnait et lisait **197 classes en défaut** là où il y en avait **100**.
+
+Le document publie désormais `sites_unknown_hors_relance` et **une ligne qui NOMME
+l'intersection** : les deux populations ne s'additionnent plus.
+
+⚠️ **Et la phrase du premier paragraphe DÉGÉNÉRAIT.** Écrite pour l'ère des 97, elle
+rendait « est donc **1**, et non 1 » une fois le balayage de R137 terminé — les deux
+membres de l'opposition devenus ÉGAUX, et elle continuait de les opposer. Dans un
+document **généré**, donc reproduit à chaque exécution. C'est le mode d'échec propre à la
+prose calculée : elle ne se périme pas, elle se recompose fausse.
+
+### (b) `.test_durations` — ce que la collecte réelle a rendu
+
+Mesuré contre une **collecte réelle**, et non contre les chiffres d'ouverture :
+
+| grandeur | mesure |
+|---|---:|
+| entrées non collectables | **26** · **33,2 s** |
+| dont les deux plus grosses | **27,8 s**, soit **84 % de la masse** |
+| tests collectés **sans** durée | **40** |
+| après purge et complétion | **7771 = 7771** |
+
+⚠️ **Le prédicat évident rend 0.** « Le fichier du node-id existe-t-il » ne trouve
+**AUCUNE** des 26 — toutes vivent dans des fichiers **présents**, seul le test a disparu.
+Une FORME au lieu d'une PROPRIÉTÉ (règle 20). Seul un diff contre une collecte réelle
+répond.
+
+Le contrôle `tools/dev/check_durations_are_collectable.py` est câblé **en CI**, à côté du
+calcul des shards — **pas dans la suite** : une collecte coûte ~8 s, et un garde cher au
+mauvais endroit se fait retirer avec sa propriété.
+
+### Les gardes, mutés rouges
+
+Trois formes pour (a), deux pour (b) — plus le **décâblage** et la **suppression** de
+l'outil, qui sont les deux façons dont ce garde peut mourir sans bruit.
+
+```bash
+python3 tools/dev/check_durations_are_collectable.py          # exit 0
+.venv/bin/python -m pytest tests/test_two_overlapping_counts_publish_their_intersection.py -q
+python3 -c "import json; print(json.load(open('.claude/dev-docs/error-class-health.json'))['aggregate']['holes']['sites_unknown_hors_relance'])"
+```
+
+### Le bloc de l'actif, tel qu'il était ouvert (verbatim — ses chiffres sont ceux d'avant la mesure)
+
+Ouverte le 2026-09-18. Les deux trouvés en lisant les instruments, pas leur affichage.
+
+**(a) Le document de santé compte deux fois.** `swept_by_rerunning_the_guard` (97) est un
+sous-ensemble **strict** de `sites_unknown` (100) : intersection **97**, **3** muets hors
+relance, **0** relance chiffrée. Les deux sont publiés dans deux paragraphes ⚠️ consécutifs
+**sans que rien ne dise qu'ils se recouvrent** — un lecteur additionne et lit 197.
+`anchor-a-number-to-its-population`, commise dans le document dont c'est le sujet.
+
+**(b) `.test_durations` décrit un arbre qui n'existe plus, dans les deux sens.** Ce fichier
+équilibre les **4 shards de CI**. Comparé à une collecte réelle le 2026-09-18 :
+
+| | |
+|---|---:|
+| entrées dans `.test_durations` | 7 564 |
+| node-ids réellement collectés | 8 039 |
+| **entrées FANTÔMES — non collectables** | **174** · **33,9 s** |
+| **tests collectés SANS durée** | **475** |
+
+Les deux plus grosses sont les tests de fraîcheur retirés le jour même
+(`test_the_document_still_describes_the_repository` **19,54 s**,
+`test_the_snapshot_still_describes_the_catalogue` **8,21 s**) — **82 % de la masse
+fantôme**. `make test-durations` relancé le même jour ne les a pas retirées : le fichier
+**ajoute sans retirer**, comme `graphify update`. 33,9 s sont attribuées à du travail que
+rien ne produit, et 475 tests entrent sans poids. Invisible : la CI reste verte.
+
+⚠️ **Le prédicat évident est FAUX.** Vérifier que le FICHIER d'un node-id existe rend
+**0 fantôme** — les 174 vivent dans des fichiers présents, seul le test a disparu. Règle 20
+en une ligne : une FORME (« le fichier est là ») au lieu d'une PROPRIÉTÉ (« ce node-id est
+collectable »). Seul un diff contre une **collecte réelle** répond.
+
+⚠️ Et j'ai commis l'autre moitié en vérifiant : mon premier contrôle a cherché le nom du
+test par sous-chaîne dans le source, l'a trouvé **dans le commentaire qui explique son
+retrait**, et j'en ai conclu qu'il existait. `guard-satisfied-by-its-own-comment`, deux
+minutes après l'avoir écrite au catalogue.
+
+- [x] **R139 — publier `sites_unknown_hors_relance`, et purger `.test_durations` de ce qui ne s'exécute plus.**
+
+  ⚠️ Le garde de (b) coûte une collecte (~8 s). Il va donc là où `.test_durations` sert —
+  **en CI, à côté du calcul des shards** — pas dans la suite à chaque exécution. Décider ça
+  AVANT de l'écrire : un garde cher au mauvais endroit se fait retirer, et sa propriété part
+  avec lui. Son `guard_scope` doit nommer ce qu'il ne couvre pas : les **475 sans durée**.
+
+  **Mesuré par** : `make error-health` → les deux populations ne s'additionnent plus ; et le
+  diff de `.test_durations` contre `pytest --collect-only -q` rend **0 non collectable**.
+  Deux gardes neufs, chacun muté rouge.
+
+---
+
 ## 🧹 R137 — Les 97 classes jamais vraiment balayées : 97 → 0, et 410 sites vivants trouvés (livrée 2026-09-18)
 
 **Livrée et poussée le 2026-09-18.** Treize unités, chacune une FAMILLE (règle 21),

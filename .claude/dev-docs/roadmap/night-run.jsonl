@@ -112,3 +112,4 @@
 {"at": "2026-09-18T20:42:25+00:00", "head": "d5242cd", "kind": "start", "task": "R138", "what": "porte --sweep-verdict + config-check cable en CI"}
 {"at": "2026-09-18T20:52:04+00:00", "head": "44f37c8", "kind": "done", "task": "R138", "what": "porte --sweep-verdict ecrite, muted rouge x3 (decablee, vacante, drapeau retire d argparse avec son nom present), cablee en CI avec --coverage et audit_unreachable_tools"}
 {"at": "2026-09-18T20:53:55+00:00", "head": "5dc05df", "kind": "start", "task": "R139", "what": "double comptage sites_unknown + .test_durations non collectables"}
+{"at": "2026-09-18T21:06:55+00:00", "head": "8b50834", "kind": "done", "task": "R139", "what": "double comptage corrige (sites_unknown_hors_relance + prose qui dit le recouvrement) et .test_durations purge de 26 fantomes, 7771=7771, controle cable en CI"}

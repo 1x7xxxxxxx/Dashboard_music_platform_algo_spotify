@@ -29,10 +29,9 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | R133 | **28 figures sous le plancher d'accessibilité de la palette** — mesuré le 2026-09-17 par figure (CIEDE2000 + Viénot/Brettel), paire dominante vert `#1DB954` ↔ un rouge, c'est-à-dire « bon/mauvais » encodé en teinte seule. `code-critic` : **BUILD-MODIFIED** — construire `semantic_colors.py` + extraire la colorimétrie de `tests/` vers `src/`, garde report-only, gate dur sur le seul diff ; **ne pas migrer les 28 sites d'un coup**. ⚠️ 28 est un PLAFOND : le plancher de 15 n'est légitime que si même type de trace, même sous-graphique sans axe secondaire, et aucune étiquette de texte persistante — `meta_funnel`, `revenue_forecast.py:82` et `ig_engagement` y tombent sans être des défauts d'attribution | P3 | le script de mesure est dans le champ `siblings` de `a-visual-constant-copied-into-a-second-renderer` (`.claude/dev-docs/error-classes.md`) ; il doit rendre moins de 28 |
 | R134 | **Le détecteur de creux ne voit que 5 tables sur 84** — `DIP_TENANT_COLUMN` (`alert_monitor.py:744`) couvre YouTube, SoundCloud, Meta, ML et S4A ; un locataire qui perd ENTIÈREMENT Instagram, Apple, Hypeddit ou SACEM ne déclenche aucune alerte. Les tables éligibles sont nommées dans le champ `siblings` de `partial-collection-invisible`. ⚠️ Étendre la liste demande un seuil calibré PAR TABLE sur des données réelles — le plancher de 30 lignes/jour écrit d'instinct avait déjà rendu le détecteur aveugle à 2 locataires sur 3 | P3 | `python3 -c "import ast,pathlib;…"` sur `DIP_TENANT_COLUMN` doit rendre plus de 5 entrées, et chaque entrée neuve doit porter sa dérivation de seuil |
 | R135 | **`soundcloud_tracks_daily.track_id` : `bigint` en PRODUCTION, `character varying` en local** — mesuré le 2026-09-18 colonne par colonne (1187 contre 1196). Le canonique est le VARCHAR : le collecteur écrit `str(track.get('id'))` (`soundcloud_api_collector.py:222`) et aucune migration ne déclare ce type. ⚠️ **Conséquence aujourd'hui : aucune** — les quatre lecteurs ne comparent jamais cette colonne à une chaîne, et Postgres transtype les identifiants numériques des deux côtés. Elle apparaîtra à la première jointure ou comparaison sur `track_id` : la prod rendra un `int` là où le local rend une `str`, donc **un test vert ici échouera là-bas**. La vue or `v_soundcloud_track_latest` hérite du type de chaque côté. Demande un `ALTER` sur une table vivante — décision du propriétaire, pas un effet de bord de séance | P3 | la comparaison des deux schémas ne doit plus nommer `soundcloud_tracks_daily.track_id` |
-| R139 | **Deux instruments qui mentent sur ce qu'ils mesurent** — (a) `swept_by_rerunning_the_guard` (97) est un sous-ensemble STRICT de `sites_unknown` (100), et les deux sont publiés comme deux problèmes dans deux paragraphes consécutifs : un lecteur additionne et lit 197 ; (b) `.test_durations`, qui équilibre les 4 shards de CI, porte **174 entrées non collectables pour 33,9 s** et ignore **475 tests collectés sans durée** — mesuré contre une collecte réelle, le prédicat « le fichier existe-t-il » en trouvant **0** | P4 | `make error-health` → les deux populations ne s'additionnent plus ; et aucun node-id de `.test_durations` ne désigne un fichier absent |
 | R141 | **Un commentaire qui nomme un test disparu** — balayage du flux de JETONS (donc les commentaires EN TANT QUE commentaires) sur `tests/ tools/ src/ airflow/ .claude/scripts/` : **196 citations de noms de tests, 20 orphelines**. ⚠️ Deux corrections de prédicat déjà faites, toutes deux en sur-comptant : les noms **coupés par le retour à la ligne** d'un commentaire (27 → 20), et les notes de **RETRAIT** légitimes — `test_a_step_is_offered_only_where_it_draws.py:152` dit « A ÉTÉ RETIRÉ LE 2026-09-13 », nommer le test retiré est son travail. **20 est donc un PLAFOND, pas un défaut** : le tri site par site est la tâche, et le garde ne s'écrit qu'après | P4 | le balayage par jetons doit rendre moins de 20 orphelines, et chaque site restant porte sa raison |
 
-**Six tâches sont ouvertes dans cet index** — R132, R133, R134, R135, R139, R141 —
+**Cinq tâches sont ouvertes dans cet index** — R132, R133, R134, R135, R141 —
 et l'ancre `reprise:` les nomme toutes, dans cet ordre. La table « 🙋 En attente de toi »
 plus bas porte **deux** lignes : R125, qui attend un geste humain dans l'app, et R140,
 entrée le 2026-09-18, qui attend quatre décisions de PRODUIT. Inviter la bêta est l'usage
@@ -90,54 +89,6 @@ correction.
   `python3 - <<'PY'` … (boucles par locataire, appels risqués hors `try`) ; il doit
   rendre 0 site hors `debug_dag/` pour que R132 se ferme.
 
-## R139 — Deux instruments qui mentent sur ce qu'ils mesurent · P4
-
-Ouverte le 2026-09-18. Les deux trouvés en lisant les instruments, pas leur affichage.
-
-**(a) Le document de santé compte deux fois.** `swept_by_rerunning_the_guard` (97) est un
-sous-ensemble **strict** de `sites_unknown` (100) : intersection **97**, **3** muets hors
-relance, **0** relance chiffrée. Les deux sont publiés dans deux paragraphes ⚠️ consécutifs
-**sans que rien ne dise qu'ils se recouvrent** — un lecteur additionne et lit 197.
-`anchor-a-number-to-its-population`, commise dans le document dont c'est le sujet.
-
-**(b) `.test_durations` décrit un arbre qui n'existe plus, dans les deux sens.** Ce fichier
-équilibre les **4 shards de CI**. Comparé à une collecte réelle le 2026-09-18 :
-
-| | |
-|---|---:|
-| entrées dans `.test_durations` | 7 564 |
-| node-ids réellement collectés | 8 039 |
-| **entrées FANTÔMES — non collectables** | **174** · **33,9 s** |
-| **tests collectés SANS durée** | **475** |
-
-Les deux plus grosses sont les tests de fraîcheur retirés le jour même
-(`test_the_document_still_describes_the_repository` **19,54 s**,
-`test_the_snapshot_still_describes_the_catalogue` **8,21 s**) — **82 % de la masse
-fantôme**. `make test-durations` relancé le même jour ne les a pas retirées : le fichier
-**ajoute sans retirer**, comme `graphify update`. 33,9 s sont attribuées à du travail que
-rien ne produit, et 475 tests entrent sans poids. Invisible : la CI reste verte.
-
-⚠️ **Le prédicat évident est FAUX.** Vérifier que le FICHIER d'un node-id existe rend
-**0 fantôme** — les 174 vivent dans des fichiers présents, seul le test a disparu. Règle 20
-en une ligne : une FORME (« le fichier est là ») au lieu d'une PROPRIÉTÉ (« ce node-id est
-collectable »). Seul un diff contre une **collecte réelle** répond.
-
-⚠️ Et j'ai commis l'autre moitié en vérifiant : mon premier contrôle a cherché le nom du
-test par sous-chaîne dans le source, l'a trouvé **dans le commentaire qui explique son
-retrait**, et j'en ai conclu qu'il existait. `guard-satisfied-by-its-own-comment`, deux
-minutes après l'avoir écrite au catalogue.
-
-- [ ] **R139 — publier `sites_unknown_hors_relance`, et purger `.test_durations` de ce qui ne s'exécute plus.**
-
-  ⚠️ Le garde de (b) coûte une collecte (~8 s). Il va donc là où `.test_durations` sert —
-  **en CI, à côté du calcul des shards** — pas dans la suite à chaque exécution. Décider ça
-  AVANT de l'écrire : un garde cher au mauvais endroit se fait retirer, et sa propriété part
-  avec lui. Son `guard_scope` doit nommer ce qu'il ne couvre pas : les **475 sans durée**.
-
-  **Mesuré par** : `make error-health` → les deux populations ne s'additionnent plus ; et le
-  diff de `.test_durations` contre `pytest --collect-only -q` rend **0 non collectable**.
-  Deux gardes neufs, chacun muté rouge.
-
 ## ⏸️ R116 — ADR-027, en attente de ses courbes (sortie de l'index 2026-09-17)
 
 **Ni livrée ni abandonnée — parquée sur une mesure, pas archivée.** `archive.md` est
@@ -187,7 +138,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-18 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R132, R133, R134, R135, R139, R141, R125, R140 -->
+<!-- reprise: open=R132, R133, R134, R135, R141, R125, R140 -->
 
 **R125 est entrée le 2026-09-18, et elle n'attend qu'un geste de trois minutes.** Mesuré
 en production : `ml_song_predictions` porte 617 lignes, `s4a_song_algo_outcomes` (la
