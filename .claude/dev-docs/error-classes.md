@@ -947,7 +947,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: a table/column name interpolated into SQL via f-string without `frozenset` allowlist validation (CLAUDE.md rule #8) → SQL injection.
 - signature: `python3 -m pytest tests/test_a_sql_identifier_comes_from_a_closed_set.py -q`
-- seen_red: 2026-09-18 — en ajoutant `f"SELECT * FROM {_t} WHERE artist_id = %s"` dans la `show()` de `views/useful_links.py`, `tests/test_a_sql_identifier_comes_from_a_closed_set.py` part au rouge ; retiré, il passe.
+- seen_red: self-proving (tests/test_a_sql_identifier_comes_from_a_closed_set.py::test_a_real_interpolated_table_name_is_seen)
 - root_cause: psycopg2 parameterises VALUES but not identifiers, so a dynamic table or column name has no `%s` form and the f-string is the only thing that works.
 - cause_evidence: measured (2026-09-18, exécuté) — `SELECT count(*) FROM %s` avec `('saas_artists',)` LÈVE `SyntaxError: syntax error at or near "'saas_artists'"` : psycopg2 envoie l'identifiant comme un LITTÉRAL entre apostrophes. La même requête avec un `%s` en VALEUR (`WHERE id = %s`) passe. La prémisse de la classe n'est donc pas une croyance sur la bibliothèque : elle est vérifiée en trois secondes, et c'est ce qui la rend réfutable.
 - long_term_fix: every dynamic identifier resolves through a `frozenset` allowlist before interpolation (rule #8); the allowlist is the fix, the grep only finds the ones that skipped it.
@@ -963,6 +963,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-10 (garde): le premier prédicat s'est trompé deux fois. Il cherchait la validation dans la fonction ENGLOBANTE — or `period_filter.py` valide dans `_validate()`, appelée d'ailleurs : sept faux positifs. Et il comptait « ✅ Table {name} », un message de LOG, parce que son motif voyait le mot `Table`. La f-string doit d'abord porter un VERBE SQL — un garde qui crie sur un log perd sa crédibilité sur une injection.
   - 2026-09-10: ce qu'il ne tient PAS, dit plutôt que sous-entendu : aucune analyse de flot. Un identifiant qui traverserait trois fonctions depuis une entrée utilisateur lui échapperait. Le cliquet est à ZÉRO, donc tout site nouveau doit prouver sa provenance — c'est la propriété qu'on peut réellement vérifier.
   - 2026-05-15: catalogued. Heuristic — manual triage required (value `%s` params are fine; only identifier interpolation is the bug).
+  - 2026-09-18: garde déjà auto-prouvant, VÉRIFIÉ en le relisant plutôt qu'en le supposant — il fabrique `f"SELECT * FROM {table} WHERE artist_id = %s"` et exige que le prédicat la voie, puis `f"   ✅ Table {table_name} created"` et exige qu'il l'ignore (sept faux positifs au premier essai). Les deux moitiés sont écrites, plus un plancher de population à 15 sites.
 
 ## db-connection-per-show
 - status: open
@@ -1413,7 +1414,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - cause_evidence: measured (2026-09-18, exécuté) — `os.getenv` rend `None` pour une variable ABSENTE et `''` pour une variable VIDE, et les deux sont faux dans un `if`. Un conteneur auquel il manque une variable se comporte donc exactement comme un conteneur qui en porte une vide : aucune exception, aucune trace, et c'est ce qui rend la classe silencieuse.
 - long_term_fix: `tests/test_env_contract.py` joins them — for each service group, every CRITICAL env var read in that group's code must appear in that service's `environment:` block. Two extensions after it missed real cases: the CRITICAL set now includes the ALERTING vars (`SMTP_USER`, `SMTP_PASSWORD`, `ALERT_EMAIL`), and the scan follows TRANSITIVE reads — `src/utils` is scanned for both groups, because a DAG that imports `email_alerts` reads env there and the guard was only looking at `airflow/dags` + `src/collectors`.
 - signature: `python3 -m pytest tests/test_env_contract.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_env_contract.py::test_central_app_env_is_wired_to_its_service)
 - autofix: none
 - guard: { type: test, ref: tests/test_env_contract.py (code-reads ⊆ service-declares, per service group, transitive) }
 - guard_scope: une-configuration-qui-diverge-de-la-prod — faire lire à un service une variable que son conteneur ne reçoit pas ; couvre: 11 variables listées à la main dans `CRITICAL`, lues sous un nom LITTÉRAL (`os.getenv` / `os.environ.get` / `os.environ[…]`, à l'AST) dans `src/dashboard`, `src/utils`, `src/collectors` et `airflow/dags`, croisées avec le bloc `environment:` de DEUX services (`dashboard`, `airflow-scheduler`) de `docker-compose.example.yml` ; ne couvre pas: (1) `docker-compose.yml` — le fichier qui tourne réellement — jamais lu : seul l'exemple l'est, et c'est précisément la divergence que la classe nomme ; (2) les cinq autres services du fichier (`api`, `dashboard2`, `airflow-webserver`, `airflow-init`, `postgres`) ; (3) `src/api/**`, `src/database/**`, `src/models/**`, `src/transformers/**`, `tools/**` — hors des répertoires balayés ; (4) une lecture sous un nom NON littéral : `src/utils/central_apps.py:269` fait `os.getenv(var)` dans une boucle, invisible à ce parseur ; (5) une variable DÉCLARÉE dans le bloc mais vide à l'exécution — déclarer n'est pas valoriser, et `''` est le piège même de la classe ; (6) toute variable critique absente de `CRITICAL`, qu'aucun mécanisme n'alimente.
@@ -1423,6 +1424,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-06-19: the prod (untracked) compose dashboard service omitted SPOTIFY/YOUTUBE/SOUNDCLOUD/META env; SoundCloud was in no service. Fix: wired the central-app block into the dashboard service of `docker-compose.example.yml` + the SoundCloud vars into the airflow anchor; guard test cross-checks code reads vs the service env block. PR #87/#91.
   - 2026-09-04 (récidive): same class, a NON-service consumer. The R57 procedure said "put `R2_REMOTE` in `.env`, then recreate airflow-scheduler" — which wires the CONTAINER, while the process that actually pushes is a host cron (`0 3 * * * bash tools/db_backup.sh`) that inherits no environment at all. The variable would have been configured everywhere except where it is used, and the script would have taken its "no target configured" branch every night in silence. Fix: `db_backup.sh` reads its own keys out of `.env` (an explicit environment still wins), plus `R2_REMOTE`/`OFFSITE_GIT_REMOTE` added to the shared airflow anchor. A service env block is not the only place a variable can fail to arrive.
+  - 2026-09-18: défaut remis en place en retirant `META_APP_ID` du bloc `environment:` d'Airflow (docker-compose.example.yml:133) ⇒ 1 rouge sur le cas paramétré `[airflow]`. Le garde croise ce que le CODE lit avec ce que le SERVICE déclare, donc il vaut pour toute variable future sans être réécrit — c'est l'incident Benken, où une variable absente se lit comme « non configuré » et non comme « mal déployé ».
 
 ## prod-compose-drift
 - status: reported
@@ -1984,7 +1986,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: one tenant identity is stored in TWO places — `artist_credentials.extra_config` (read by every screen and every readiness check) and `saas_artists.spotify_artist_id` (read by `spotify_api_daily` to decide whose catalogue to collect). The credentials form wrote both; `tools/create_canary.py` wrote only the first. Measured 2026-08-21: canary tenant 471 reported "Connecté — artiste « Daft Punk » ✅" everywhere while its DAG logged "aucun spotify_artist_id déclaré" and wrote 0 rows. The tenant whose entire purpose is to catch a false green WAS the false green.
 - cause_evidence: read (tools/create_canary.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_tenant_identity_mirrors.py -q`
-- seen_red: 2026-09-18 — en ajoutant un `UPDATE saas_artists SET spotify_artist_id` direct dans une `show()` de vue, court-circuitant `write_platform_identity`, `tests/test_tenant_identity_mirrors.py` part au rouge ; retiré, il passe.
+- seen_red: self-proving (tests/test_tenant_identity_mirrors.py::test_the_shared_writer_really_writes_BOTH_places)
 - long_term_fix: `src/utils/tenant_identity.py` holds `IDENTITY_MIRRORS` and `write_platform_identity()` — the single path that writes the credentials row AND every mirror the platform declares. Both writers call it; no third writer can get it half right.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_tenant_identity_mirrors.py }
@@ -1996,6 +1998,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-08-21: verifying a signature BY HAND in an interactive shell is unreliable here — `grep` is a shell function (the RTK wrapper), and it returns 0 whenever stdout is redirected, whatever it matched. Both signatures above looked constant-and-hollow under `! grep … > /dev/null` and were in fact correct. Verify a signature through `audit_runner.py`, which runs the real binary, or prefix `command grep`. The instrument was the defect, not the signature.
   - 2026-08-21: the guard's FIRST version was vacuous — it asserted `"write_platform_identity" in text`, which the import line satisfied on its own, so deleting the call left it green. Rewritten on the AST to require an actual `ast.Call`. Only then did the mutation turn it red. A guard that tests for a substring tests the import, not the behaviour.
   - 2026-09-04 (garde): même dérive `signature:` / `guard:` que `artist-id-or-1`. L'historique de cette classe DIT que le garde a été réécrit en AST le 2026-08-21 après un premier échec vacuous — et la signature exécutée est restée le grep, par la règle append-only qui interdit de réécrire une entrée en place. Les deux pointent désormais `tests/test_tenant_identity_mirrors.py`.
+  - 2026-09-18: défaut remis en place en débranchant le miroir — `mirror_col = IDENTITY_MIRRORS.get(logical)` → `None` (src/utils/tenant_identity.py:195) ⇒ 1 rouge. Les deux emplacements divergent alors en silence : les écrans lisent `extra_config`, les DAG lisent `saas_artists`, et chacun a raison de son côté.
 
 ## api-partial-date-into-date-column
 - status: fixed
@@ -2413,7 +2416,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: a credential is passed as a QUERY PARAMETER, so a `requests` exception message embeds the full prepared URL. Surfacing the exception — to a user, or into a log — surfaces the credential. No attacker action required: a DNS blip is enough.
 - signature: `python3 -m pytest tests/test_credentials_security.py -q -k exception`
-- seen_red: 2026-09-18 — en remplaçant `type(e).__name__` par `str(e)` dans la sonde de `credentials/_platform_spotify.py`, `tests/test_credentials_security.py` part au rouge ; rétabli, il passe.
+- seen_red: self-proving (tests/test_credentials_security.py::test_no_probe_surfaces_a_whole_exception)
 - root_cause: two shapes. (a) `src/utils/central_apps.py::check_meta` printed `f"probe error ({exc})"` for a call carrying `META_ACCESS_TOKEN` and `META_APP_ID|META_APP_SECRET` in the query string — executed **nightly** by `alert_monitor.check_central_apps`, whose stdout is persisted in the Airflow task log. (b) the Meta, YouTube, Spotify and SoundCloud connection tests each ended in `except Exception as e: return False, str(e)`, rendered untruncated to the tenant by `st.error`. Meta and YouTube put their credential in the URL, so a non-admin could be shown the platform-wide System User token or the billable API key.
 - cause_evidence: read (src/utils/central_apps.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: no probe surfaces a caught exception; they return `type(e).__name__` plus a static message. Applied uniformly to all four platforms even though Spotify (header auth) and SoundCloud (POST body) are clean today — so nobody has to re-derive which one is safe. The guard walks the AST of every except-handler in those modules and fails on `str(e)` or `f"{e}"`.
@@ -2431,6 +2434,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - The nightly one is the worse of the two. A tenant-facing leak needs a person
     clicking during an outage; the log one writes both secrets to disk on its own
     schedule, and the file outlives the incident.
+  - 2026-09-18: défaut remis en place — `probe error ({type(exc).__name__})` → `probe error ({exc})` (src/utils/central_apps.py:222) ⇒ 1 rouge sur le cas paramétré du fichier concerné. L'appel porte un jeton dans son URL, donc l'exception le porte aussi : afficher l'exception ENTIÈRE est la fuite.
 
 ## server-side-render-fetches-tenant-chosen-urls
 - status: guarded
@@ -2438,7 +2442,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: a renderer that runs on the SERVER builds a document from tenant data and then resolves the resources it references. Any markup surviving into that document becomes a request made by the server, from inside the network, with the server's own reachability.
 - signature: `python3 -m pytest tests/test_pdf_export_cannot_fetch.py -q`
-- seen_red: 2026-09-18 — en retirant `url_fetcher=_no_remote_resources` de l'appel `HTML(...)` de `pdf_exporter/_report.py`, `tests/test_pdf_export_cannot_fetch.py` part au rouge ; rétabli, il passe.
+- seen_red: self-proving (tests/test_pdf_export_cannot_fetch.py::test_the_renderer_declares_a_url_fetcher)
 - root_cause: `src/dashboard/utils/pdf_exporter/_report.py` called `HTML(string=html_str).write_pdf()` with no `url_fetcher`. WeasyPrint's default fetcher registers http/https/ftp/**file** with `allowed_protocols=None` and follows redirects. `_renderers.py` escaped nothing (zero occurrences of `escape`), and two tenant-controlled values reach it: a song name — taken from the STEM OF AN UPLOADED CSV FILENAME, and `parse_timeline` does not run it through `canonical_song()` unlike `parse_songs_global` — and a Meta campaign name. Both are free-plan reachable (`export_pdf` and `upload_csv` are in `_FREE_FEATURES`).
 - cause_evidence: read (src/dashboard/utils/pdf_exporter/_report.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: two independent controls, because either alone is one mistake from failing. `_no_remote_resources` serves `data:` URIs only, so the class is closed whatever future value slips through unescaped; and `_esc()` escapes the three tenant-controlled interpolations the audit named. Deliberately NOT a blanket escape of the file — it also interpolates markup it builds itself (badges, probability bars, row blocks), and escaping those breaks the render. That was tried; the golden-snapshot test caught it.
@@ -2456,6 +2460,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
     Byte-identical output is the only assertion that catches a change that is
     invisible in review.
   - 2026-09-17 (récidive): balayage des frères — la clôture existait depuis le 2026-08-23 et n'était passée qu'à **un rendu sur trois**. Rien ne pouvait le voir : le garde d'origine (`tests/test_pdf_export_cannot_fetch.py`) vérifie LE rendu du rapport, pas la classe de geste. Un garde écrit sur le site du défaut laisse les frères nus — c'est la même leçon que `a-kill-pattern-that-matches-its-own-shell`, sur un autre geste.
+  - 2026-09-18: défaut remis en place — `HTML(string=html_str, url_fetcher=_no_remote_resources)` → `HTML(string=html_str)` (src/dashboard/utils/pdf_exporter/_report.py:536) ⇒ 1 rouge. Sans le récupérateur, WeasyPrint enregistre son défaut, qui suit `http://`, `file://` ET `data:` — c'est-à-dire une SSRF depuis le serveur avec une URL choisie par le locataire.
 
 ## trusted-value-read-from-an-untrusted-header
 - status: guarded
@@ -2506,7 +2511,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: an administrative gesture that is supposed to cut access writes a column nothing reads on the live path. The UI confirms, the row changes, and the holder keeps working until their session expires on its own.
 - signature: `python3 -m pytest tests/test_revocation_actually_revokes.py -q`
-- seen_red: 2026-09-18 — en neutralisant `if not active or (token_version or 0) > tv:` dans `src/api/deps.py`, `tests/test_revocation_actually_revokes.py` part au rouge sur 2 tests ; rétabli, il passe.
+- seen_red: self-proving (tests/test_revocation_actually_revokes.py::test_the_dashboard_re_reads_the_row_and_drops_a_revoked_session)
 - root_cause: `active` appeared in exactly one query — the login one. `require_login()` (`src/dashboard/auth.py`) returned True from `st.session_state` alone, and the API's `get_current_user` asked only whether the JWT verified. So `admin.py:_toggle_user_active` stopped the NEXT login and nothing else, and changing a password after a compromise left the intruder's 24 h token valid.
 - cause_evidence: read (src/dashboard/auth.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: authorisation is re-read from the row on every request — `active`, `role` and `artist_id`, throttled to 30 s on the dashboard and per-request on the API — plus `saas_users.token_version` (migration 072) carried as a `tv` claim and bumped by deactivation and by a password change. A missing claim reads as 0, so deploying it signs nobody out. The two surfaces fail in OPPOSITE directions on a database outage, deliberately: the dashboard open (a blip must not evict every artist, and it shows a banner), the API closed (its tokens travel further and it has no banner).
@@ -2518,6 +2523,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-08-22
 - History:
   - 2026-08-22: `guarded`. Verified RED by neutralising the two reads. The suite pins the legacy-token case too — without it, the obvious implementation (reject any token with no `tv`) would have logged out every live user on deploy.
+  - 2026-09-18: défaut remis en place en ne relisant plus la colonne — `SELECT active, role, …` → `SELECT TRUE, role, …` (src/dashboard/auth.py:131), donc une révocation écrite en base que la session en cours n'apprend jamais ⇒ 1 rouge. Le garde passe par une VRAIE session, pas par la forme de la requête.
 
 ## sentinel-means-privileged-and-missing
 - status: guarded
@@ -2621,7 +2627,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: pressing "save" on a form destroys a stored secret the form has no field for. The UI reports success, nothing logs a warning, and the loss only surfaces one collection cycle later as a credential that "stopped working".
 - signature: `python3 -m pytest tests/test_saving_a_tab_never_destroys_a_secret.py -q`
-- seen_red: 2026-09-18 — en remplaçant `token_encrypted = COALESCE(NULLIF(EXCLUDED…, ''), artist_credentials.token_encrypted)` par `EXCLUDED.token_encrypted` dans `credentials/_core.py`, `test_resaving_a_tab_with_no_secret_field_keeps_the_stored_secret[meta]` part au rouge ; rétabli, il passe.
+- seen_red: self-proving (tests/test_saving_a_tab_never_destroys_a_secret.py::test_resaving_a_tab_with_no_secret_field_keeps_the_stored_secret)
 - root_cause: `credentials/_core.py::_save_credentials` upserted `token_encrypted = EXCLUDED.token_encrypted` — an overwrite — while `_render.py::_handle_save` computes `encrypted_blob = ''` whenever no SECRET field on the tab holds a value. Two of the four tabs declare no secret field at all (`soundcloud`: only `user_id`; `meta`: only `account_id` + `ig_user_id`), so they could ONLY ever save an empty blob. Both rows nevertheless hold one in production, written by something else: the rotated OAuth refresh_token (`soundcloud_api_collector.py:132`, 228 B) and the System User token (`tools/dev/inject_meta_token.py`, 804 B) that every tenant's Meta AND Instagram collection depends on.
 - cause_evidence: read (tools/dev/inject_meta_token.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: `COALESCE(NULLIF(EXCLUDED.token_encrypted, ''), artist_credentials.token_encrypted)` — an empty blob now means "leave it alone". Erasing a secret must be a gesture someone asks for, never a side effect of saving something else. The general shape: a surface that cannot DISPLAY a value must not be able to DELETE it.
@@ -2633,6 +2639,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-08-22
 - History:
   - 2026-08-22: `guarded`. Found while auditing why tenant credentials "stopped working" twice. Verified RED on both secret-less tabs by restoring the overwrite. The file also pins WHICH tabs are secret-less, so adding a secret field to one of them forces a re-read of the reasoning instead of silently changing what the tests mean. A mocked test could not have caught this: the defect is in the SQL.
+  - 2026-09-18: défaut remis en place — le `COALESCE(NULLIF(EXCLUDED.token_encrypted, ''), …)` redevient `token_encrypted = EXCLUDED.token_encrypted` (src/dashboard/views/credentials/_core.py:379) ⇒ 2 rouges, sur SoundCloud et Meta. C'est la forme exacte du P1 du 2026-08-22 : un onglet réenregistré sans champ secret écrase un secret que le formulaire ne peut pas réafficher.
 
 ## delivery-failure-logged-as-success
 - status: guarded
@@ -2640,7 +2647,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: the code path that sends a notification returns a "did not send" value, the very next line logs that it was sent, and the task ends green. The findings inside the message were computed correctly and rendered correctly; nobody received them.
 - signature: `python3 -m pytest tests/test_alert_delivery_is_proven.py -q`
-- seen_red: 2026-09-18 — en remplaçant le `raise AlertDeliveryError` de `deliver_or_raise` par un `return None`, `tests/test_alert_delivery_is_proven.py` part au rouge sur 6 de ses 8 tests, dont `test_no_send_result_is_thrown_away` ; rétabli, il passe.
+- seen_red: self-proving (tests/test_alert_delivery_is_proven.py::test_the_consolidated_alert_uses_the_raising_path)
 - root_cause: `airflow/dags/alert_monitor.py` ended with `EmailAlert().send_alert(subject, body)` followed by an unconditional `logger.info("Consolidated alert sent")`. `send_alert` returns False — never raises — when `SMTP_USER`/`SMTP_PASSWORD`/`ALERT_EMAIL` are absent from the container. Production logs show three consecutive nights (16, 17, 18 August 2026) writing that success line immediately after the module warned "Email alerts non configurées". The existing guard `test_alert_monitor_sends_what_it_finds.py` covers the hop before this one — that every finding takes part in the send DECISION — and structurally cannot see whether the send SUCCEEDED.
 - cause_evidence: read (airflow/dags/alert_monitor.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: `email_alerts.deliver_or_raise()` for the one path whose silence is the incident — it raises, naming which of the two failures occurred (env absent vs send refused), so the task goes red and `on_failure_callback` fires. `send_alert` keeps its non-raising contract for its six other callers. Persistent proof in `monitoring_run` (migration 073) written BEFORE the attempt and updated after, so an external reader on another mail path sees the failure. And an AST sweep that fails on any `send_alert`/`send_email` call whose result is a bare expression — the generalisation, which caught two more sites the day it was written.
@@ -2652,6 +2659,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-08-22
 - History:
   - 2026-08-22: `guarded`. Sibling of `finding-rendered-but-not-alerted`: there a finding reached the body but not the decision; here the decision fired and the delivery was never checked. Same root — one boolean carrying two questions. Verified RED by restoring the discarded call.
+  - 2026-09-18: défaut remis en place — `deliver_or_raise(subject, body)` redevient `EmailAlert().send_alert(subject, body)` (airflow/dags/alert_monitor.py:2481), c'est-à-dire un envoi dont le résultat est jeté ⇒ 2 rouges. Le second garde (`test_no_send_result_is_thrown_away`) mord aussi, donc la propriété est tenue par deux angles : la fonction appelée, et le fait qu'aucun retour d'envoi ne soit ignoré.
 
 ## static-hint-contradicts-the-live-probe
 - status: guarded
@@ -2983,7 +2991,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `tests/conftest.py` had no network boundary of any kind, so a test that presses a UI button reaches the real relay with the credentials in `.env` and a recipient read from whatever database the run points at — locally, the migrated copy of production. Measured 2026-08-23: `test_admin_hypeddit_buttons.py::test_every_button_survives_a_click[admin]` presses every button on the admin view, one of which is `📧 Renvoyer vérification` (`admin.py:685` → `send_verification_email(sel_user['email'], …)`). Three suite runs that day delivered three verification emails to `timothe.baudry137@gmail.com`; had the selected row been a beta tester, it would have been theirs. The `localhost` link is the same default that `env-not-wired-to-service` covers — no local process sets `APP_BASE_URL` — but here the defect is that the mail left at all.
 - cause_evidence: read (tests/conftest.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_the_suite_cannot_send_mail.py -q`
-- seen_red: 2026-09-18 — en faisant cesser à la frontière SMTP du `conftest` d'ENREGISTRER la tentative (`attempts.append(...)` → `pass`), `test_a_test_cannot_open_a_real_smtp_connection` part au rouge ; rétablie, il passe. ⚠️ Une première mutation (supprimer la fixture) produisait 2 ERREURS de collecte et non un échec du garde — un autre mode de panne, donc pas une preuve. La mutation SÛRE vise ce que la frontière enregistre, jamais son existence : la supprimer laisserait un test ouvrir une vraie connexion.
+- seen_red: self-proving (tests/test_the_suite_cannot_send_mail.py::test_a_test_cannot_open_a_real_smtp_connection)
 - long_term_fix: an autouse fixture in `conftest.py` replaces `smtplib.SMTP`/`SMTP_SSL` for every test; a test that means to exercise the send path patches them itself and is never seen by the boundary. It RECORDS the attempt and asserts at teardown rather than only raising, because `send_verification_email` wraps its send in `except Exception` — an exception alone is swallowed and the offending test stays green. The signature trips the boundary on purpose and needs no database, so it is deterministic in CI.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_the_suite_cannot_send_mail.py + tests/conftest.py::_no_real_smtp }
@@ -2993,6 +3001,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: found from the operator's INBOX, not from any check the repo runs — three emails timestamped within the session's own test runs. No detector could have seen it: every guard in the repo asks whether the code is right, and none asks what the suite does to the outside world. The generalisation worth keeping is that a test suite has a blast radius, and it was never bounded here — SMTP is now, real HTTP is not yet.
+  - 2026-09-18: défaut remis en place en retirant la frontière — `monkeypatch.setattr(smtplib, "SMTP", _blocked)` remplacé par un `pass` (tests/conftest.py:327) ⇒ 1 rouge. Le garde OUVRE une connexion depuis un test et exige qu'elle soit refusée : il mesure la frontière, il ne lit pas le conftest.
 
 ## unattributable-payment-link
 - status: guarded
@@ -3274,7 +3283,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `_prune_renamed_campaigns` (`src/collectors/_meta_upsert.py`) exécute `DELETE FROM <table> WHERE artist_id = %s AND campaign_name <> ALL(%s)` — le `DELETE` est scopé au LOCATAIRE, la liste de campagnes ne couvre qu'un COMPTE PUBLICITAIRE. Tant qu'un artiste n'a qu'un compte, les deux portées coïncident et le défaut est invisible. Le jour où la boucle passe sur deux comptes — le cas d'une agence, demandé par un vrai utilisateur — la passe du second efface tout ce que le premier vient d'écrire. Ce n'est pas une collision d'upsert, c'est une suppression de masse.
 - cause_evidence: read (src/collectors/_meta_upsert.py, rétro-portage mécanique 2026-09-16)
 - signature: `python3 -m pytest tests/test_meta_ads_collector.py::TestPruneRenamedCampaigns -q`
-- seen_red: 2026-09-18 — en retirant `AND ad_account_id IS NOT DISTINCT FROM %s` du `DELETE` de `_meta_upsert.py:184`, `tests/test_meta_ads_collector.py` part au rouge ; rétabli, il passe.
+- seen_red: self-proving (tests/test_meta_ads_collector.py::TestPruneRenamedCampaigns::test_the_delete_is_scoped_to_one_ad_account)
 - long_term_fix: le `DELETE` porte le même discriminant que ce qu'il vient de rafraîchir — `AND ad_account_id IS NOT DISTINCT FROM %s`. La colonne est ajoutée par `migrations/076` sur les 10 tables à la maille campagne plus les 3 tables de provenance ; elle est nullable, et `IS NOT DISTINCT FROM NULL` reproduit exactement l'ancien comportement tant que la flotte est mono-compte. **Le correctif est posé AVANT que le multi-comptes existe** : une fois la boucle livrée, le défaut n'aurait été visible qu'en constatant des données manquantes.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_meta_ads_collector.py::TestPruneRenamedCampaigns::test_the_delete_is_scoped_to_one_ad_account }
@@ -3285,6 +3294,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-08-23: la règle générale vaut au-delà de Meta — **un nettoyage doit porter exactement la même portée que l'écriture qu'il suit**. Ici l'écriture était par compte et la suppression par locataire ; les deux portées ont coïncidé aussi longtemps qu'il n'y avait qu'un compte, ce qui est la pire façon pour un défaut d'attendre. Trouvé en explorant une demande produit (« Tom gère plusieurs comptes »), pas en lisant le code de nettoyage.
   - 2026-09-18: balayée. Le seul candidat non trivial a été tranché en lisant les COLONNES de la table en base, pas le code : « la portée du DELETE égale-t-elle celle de l'écriture » est une question sur le schéma, et le code ne la répond pas.
+  - 2026-09-18: défaut remis en place en retirant la clause de compte — `AND ad_account_id IS NOT DISTINCT FROM %s` supprimée du `DELETE` (src/collectors/_meta_upsert.py:184) ⇒ 2 rouges. La purge effacerait alors les campagnes des AUTRES comptes du même locataire, qui n'ont pas été rafraîchies par cette passe.
 
 ## layer-written-but-never-wired
 - status: guarded

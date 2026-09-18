@@ -5868,10 +5868,11 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-08-22"
+        "2026-08-22",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P1",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -6140,10 +6141,11 @@
       "has_signature": true,
       "history_dates_declared": [
         "2026-06-19",
-        "2026-09-04"
+        "2026-09-04",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "self-proving",
       "severity": "P1",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -6989,10 +6991,11 @@
       "has_signature": true,
       "history_dates_declared": [
         "2026-08-21",
-        "2026-09-04"
+        "2026-09-04",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P1",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -8657,7 +8660,7 @@
         "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -8764,10 +8767,11 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-08-22"
+        "2026-08-22",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -8845,10 +8849,11 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-08-22"
+        "2026-08-22",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -9062,10 +9067,11 @@
       "has_signature": true,
       "history_dates_declared": [
         "2026-08-22",
-        "2026-08-23"
+        "2026-08-23",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P1",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -9171,10 +9177,11 @@
       "has_signature": true,
       "history_dates_declared": [
         "2026-08-22",
-        "2026-09-17"
+        "2026-09-17",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 2,
@@ -9363,10 +9370,11 @@
       "has_signature": true,
       "history_dates_declared": [
         "2026-05-15",
-        "2026-09-10"
+        "2026-09-10",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P1",
       "siblings_is_a_guard_rerun": true,
       "siblings_sites": null,
@@ -9743,10 +9751,11 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-08-23"
+        "2026-08-23",
+        "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P1",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
@@ -10974,14 +10983,14 @@
     "holes": {
       "cause_inferred": 0,
       "cause_unknown": 140,
-      "guard_does_not_prove_itself": 330,
+      "guard_does_not_prove_itself": 320,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
       "scope_on_a_shared_guard_without_naming_its_tests": 15,
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 144,
+      "seen_red_unknown": 143,
       "siblings_never_swept": 1,
       "sites_unknown": 100,
       "swept_by_rerunning_the_guard": 97
@@ -11028,21 +11037,21 @@
       },
       "by_seen_red": {
         "daté": {
-          "events": 20,
-          "class_days": 3136,
-          "per_class_month": 0.1939,
+          "events": 17,
+          "class_days": 2795,
+          "per_class_month": 0.1849,
           "ci95": [
-            0.1184,
-            0.2994
+            0.1077,
+            0.2961
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 23,
-          "class_days": 5258,
-          "per_class_month": 0.133,
+          "events": 26,
+          "class_days": 5599,
+          "per_class_month": 0.1412,
           "ci95": [
-            0.0843,
-            0.1995
+            0.0922,
+            0.2069
           ]
         }
       },
