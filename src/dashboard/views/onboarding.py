@@ -5,7 +5,6 @@ Uses: get_db_connection, get_artist_id, get_artist_plan, PLAN_FEATURES
 Depends on: artist_credentials table, saas_artists table
 Accessible via /?page=onboarding (authenticated route).
 """
-import json
 import logging
 from pathlib import Path
 
@@ -15,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.tz import to_local_datetime
-from src.utils.tenant_identity import declared_identities
 from src.dashboard.utils.i18n import get_lang, t
 from src.dashboard.auth import tenant_scope, get_artist_plan, is_admin
 from src.database.stripe_schema import PLAN_FEATURES
@@ -24,14 +22,6 @@ from src.dashboard.utils.navigation import goto
 
 
 # Platforms and which plan they require — all platform connectors are Free-tier.
-_PLATFORM_META = {
-    'spotify':    {'label': 'Spotify API',  'plan': 'free', 'icon': '🎵'},
-    'youtube':    {'label': 'YouTube',       'plan': 'free', 'icon': '🎬'},
-    'meta':       {'label': 'Meta Ads',      'plan': 'free', 'icon': '📱'},
-    'instagram':  {'label': 'Instagram',     'plan': 'free', 'icon': '📸'},
-    'soundcloud': {'label': 'SoundCloud',    'plan': 'free', 'icon': '☁️'},
-    'apple_music':{'label': 'Apple Music',   'plan': 'free', 'icon': '🎎'},
-}
 
 _STEP_KEY = '_onboarding_step'
 
@@ -47,46 +37,6 @@ def _goto(page_key: str) -> None:
     goto(page_key)
 
 
-def _get_configured_platforms(artist_id: int, db) -> set[str]:
-    """Platforms the artist has actually connected.
-
-    "Connected" means an IDENTITY was declared, not that a row exists: a tab opened
-    and saved blank left a row behind and counted as connected here while the
-    readiness matrix said ⚪. Instagram has no row of its own — it rides the `meta`
-    row via `ig_user_id` — and the registry knows that, so this no longer restates it.
-
-    The caller owns the connection and hands it in. This view is capped at ONE
-    opened connection by `tests/test_view_connection_budget.py` — a textual count —
-    and `_step_credentials` needs the same one for the status matrix.
-    """
-    if db is None or artist_id is None:
-        return set()
-    try:
-        rows = db.fetch_query(
-            "SELECT platform, extra_config FROM artist_credentials "
-            "WHERE artist_id = %s AND (token_encrypted IS NOT NULL OR extra_config IS NOT NULL)",
-            (artist_id,),
-        )
-        extra_by_platform = {}
-        for platform, extra in rows:
-            if isinstance(extra, str):
-                try:
-                    extra = json.loads(extra)
-                except ValueError:
-                    extra = {}
-            extra_by_platform[platform] = extra if isinstance(extra, dict) else {}
-        return declared_identities(extra_by_platform)
-    except Exception as e:
-        # NOT a silent `return set()`: a DB error and "this artist has connected
-        # nothing" are different facts, and rendering the first as the second
-        # tells an artist who configured everything that they configured nothing.
-        st.warning(t(
-            "onboarding.status_unavailable",
-            "⚠️ Impossible de lire l'état de tes connexions ({err}). La liste "
-            "ci-dessous peut afficher « non connecté » à tort — réessaie dans un "
-            "instant avant de tout reconfigurer."
-        ).format(err=type(e).__name__))
-        return set()
 
 
 def _trial_deadline(artist_id: int | None, db) -> str | None:

@@ -29,10 +29,6 @@ EN = {
     "onboarding.matrix_legend":
         "**Set up**: the identifier is entered. **Responds**: the platform "
         "answered us. **Data**: figures have arrived.",
-    "onboarding.status_unavailable": (
-        "⚠️ Could not read your connection status ({err}). The list below may show "
-        "“not connected” by mistake — retry in a moment before reconfiguring anything."
-    ),
     "onboarding.reco_tag": " — ⭐ recommended",
     "onboarding.need": "You will need: {need}",
     "onboarding.go_configure": "🔑 Connect my selection →",

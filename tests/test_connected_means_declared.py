@@ -66,6 +66,21 @@ _SURFACES = (
 # is what the two sweeps above check, and they check the helper too.
 _DELEGATES_TO = {
     "src/dashboard/views/home.py": "read_setup_state",
+    # Ajouté le 2026-09-18 : l'assistant ne calcule plus « connecté » lui-même. Il
+    # portait `_get_configured_platforms`, 40 lignes soigneusement documentées que
+    # PLUS RIEN n'appelait depuis que l'affichage est passé à `render_status_matrix`.
+    # La fonction morte était le seul endroit du fichier qui nommait le registre :
+    # la retirer a fait rougir ce garde, ce qui est exactement ce qu'on lui demande —
+    # sauf que la surface ne ment pas, elle délègue.
+    "src/dashboard/views/onboarding.py": "render_status_matrix",
+}
+
+# Où vit chaque délégataire. Sans cette table, `_DELEGATES_TO` accepterait N'IMPORTE
+# QUEL nom — écrire `"onboarding.py": "print"` aurait rendu le garde vert. Une
+# délégation qu'on ne suit pas est une exemption déguisée.
+_DELEGATE_LIVES_IN = {
+    "read_setup_state": "src/dashboard/utils/setup_completion.py",
+    "render_status_matrix": "src/dashboard/utils/status_matrix.py",
 }
 
 
@@ -108,6 +123,31 @@ def test_no_surface_builds_connection_from_a_bare_row_set(rel: str) -> None:
         f"{rel} derives connection from the rows themselves: {offences} — "
         f"use tenant_identity.declared_identities()"
     )
+
+
+def test_every_delegate_consults_the_registry_itself() -> None:
+    """Une délégation se SUIT, sinon c'est une exemption déguisée.
+
+    `_DELEGATES_TO` dit « cette surface ne nomme pas le registre, elle passe par X ».
+    Rien ne vérifiait que X le nomme non plus. Le trou n'est pas théorique : la valeur
+    est une simple chaîne cherchée dans le texte de la surface, donc `"print"` aurait
+    suffi à exempter n'importe quel fichier.
+    """
+    for surface, delegate in sorted(_DELEGATES_TO.items()):
+        chez = _DELEGATE_LIVES_IN.get(delegate)
+        assert chez, (
+            f"`{delegate}` exempte `{surface}` sans qu'on sache où il vit. "
+            "Ajoute-le à `_DELEGATE_LIVES_IN`, ou la délégation ne prouve rien.")
+        module = ROOT / chez
+        assert module.exists(), f"`{chez}` n'existe plus — `{delegate}` ne délègue à rien"
+        texte = module.read_text(encoding="utf-8")
+        assert f"def {delegate}" in texte, (
+            f"`{delegate}` n'est pas défini dans `{chez}` : la chaîne cherchée dans "
+            f"`{surface}` pourrait matcher tout autre chose.")
+        assert any(m in texte for m in ("declared_identities", "PLATFORM_IDENTITIES")), (
+            f"`{chez}` ne consulte pas le registre d'identités. La surface "
+            f"`{surface}` en est exemptée POUR RIEN — et la chaîne des délégations "
+            "se termine sur personne.")
 
 
 def test_every_surface_actually_calls_the_shared_helper() -> None:
