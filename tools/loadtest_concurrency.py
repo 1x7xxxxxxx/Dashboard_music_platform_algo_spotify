@@ -114,7 +114,7 @@ _ERROR = "compilationError"
 _OUTCOMES = ("ok", "click_failed", "never_started", "never_finished", "app_error")
 
 
-def _heavy_local_processes(exclude_own_browser: bool = False) -> int:
+def _heavy_local_processes(exclude_own_browser: bool = False) -> int | None:
     """Combien de processus lourds tournent ICI — la mesure en dépend.
 
     Le 2026-09-15 ce dépôt a publié trois chiffres faux parce qu'ils avaient été pris
@@ -131,11 +131,11 @@ def _heavy_local_processes(exclude_own_browser: bool = False) -> int:
     try:
         out = subprocess.run(["ps", "-eo", "cmd"], capture_output=True, text=True, timeout=10)
     except (OSError, subprocess.TimeoutExpired):
-        return 0
+        return None            # inconnu, pas « aucun » — voir `_local_load`
     return sum(1 for line in out.stdout.splitlines() if any(k in line for k in keys))
 
 
-def _local_load() -> tuple[float, float]:
+def _local_load() -> tuple[float, float] | None:
     """(charge 1 min normalisée par cœur, %CPU cumulé des processus lourds).
 
     ⚠️ Ajouté le 2026-09-17, et c'est un correctif de GARDE, pas un assouplissement.
@@ -158,7 +158,19 @@ def _local_load() -> tuple[float, float]:
         out = subprocess.run(["ps", "-eo", "pcpu,cmd"], capture_output=True,
                              text=True, timeout=10)
     except (OSError, ValueError, subprocess.TimeoutExpired):
-        return (0.0, 0.0)
+        # UNE EXPIRATION N'EST PAS UNE MACHINE INACTIVE (corrigé le 2026-09-18).
+        #
+        # `return (0.0, 0.0)` faisait dire au garde « charge 0.00/cœur — mesure
+        # autorisée » alors qu'on venait seulement de CESSER D'ATTENDRE `ps`. Or un
+        # `ps` qui met plus de dix secondes est précisément le symptôme d'une machine
+        # chargée : le seul cas où la lecture échoue est celui où son verdict aurait
+        # dû être « non ». Le défaut se déclenchait donc exactement quand il coûtait.
+        #
+        # On rend `None`, que l'appelant lit comme INCONNU et refuse — la direction
+        # prudente. C'est `a-timeout-reported-as-a-missing-thing`, dans le fichier qui
+        # porte déjà `a-measurement-taken-under-self-inflicted-load` : même cause,
+        # deux classes.
+        return None
     keys = ("pytest", "audit_runner", "playwright", "chromium")
     cpu = 0.0
     for line in out.stdout.splitlines()[1:]:
@@ -171,7 +183,7 @@ def _local_load() -> tuple[float, float]:
     return (one_min / cores, cpu)
 
 
-def _browser_rss_mb() -> float:
+def _browser_rss_mb() -> float | None:
     """La RAM résidente de NOS processus de navigateur, en Mo. 0 si illisible.
 
     C'est la grandeur qui explique le compte non monotone de la version d'avant :
@@ -182,7 +194,7 @@ def _browser_rss_mb() -> float:
         out = subprocess.run(
             ["ps", "-eo", "rss,cmd"], capture_output=True, text=True, timeout=10)
     except (OSError, subprocess.TimeoutExpired):
-        return 0.0
+        return None            # inconnu, pas « zéro octet » — voir `_local_load`
     total_kb = 0
     for line in out.stdout.splitlines()[1:]:
         rss, _, cmd = line.strip().partition(" ")
@@ -358,7 +370,10 @@ async def _level(browser, url: str, n: int, reps: int, selector: str,
             # Le taux de CENSURE, publié. Le p50 ne décrit que `ok` ; au-delà de 20 % il
             # ne peut plus être lu comme une mesure de la dégradation.
             "censored_pct": 100.0 * (attempted - outcomes["ok"]) / attempted if attempted else 0.0,
-            "browser_rss_mb": round(rss_after_open, 1),
+            # `None` traverse jusqu'au JSON : un champ absent se lit comme une
+            # absence, un `0.0` se lirait comme une mesure.
+            "browser_rss_mb": (None if rss_after_open is None
+                               else round(rss_after_open, 1)),
             "available_mb": round(_available_mb(), 1),
             "live_contexts": len(contexts),
             "timeout_ms": timeout_ms,
@@ -587,17 +602,29 @@ def main() -> int:
     # Seuils : 50 % d'un cœur en moyenne sur 1 min, ou 80 % d'un cœur consommés par
     # les processus qui ont déjà faussé une mesure ici (pytest, audit_runner,
     # playwright, chromium). En dessous, la machine est inactive et la mesure vaut.
-    load_ratio, heavy_cpu = _local_load()
+    mesure = _local_load()
     heavy = _heavy_local_processes()
+    if mesure is None:
+        # On ne SAIT pas. Refuser est la direction prudente : le seul cas où `ps`
+        # expire est celui d'une machine chargée, c'est-à-dire celui où le verdict
+        # aurait été « non ». Répondre « autorisée » ici serait se tromper
+        # exactement quand ça compte.
+        print("❌ charge locale ILLISIBLE (`ps` ou /proc/loadavg a expiré). Ce n'est "
+              "pas une machine inactive : c'est une machine dont on ne sait rien, et "
+              "un `ps` qui met plus de dix secondes est déjà un symptôme.\n"
+              "   Attendre, ou --force-busy en sachant ce qu'on lit.")
+        return 1 if not args.force_busy else 0
+    load_ratio, heavy_cpu = mesure
     if (load_ratio > 0.50 or heavy_cpu > 80.0) and not args.force_busy:
         print(f"❌ machine occupée : charge {load_ratio:.2f}/cœur, "
-              f"{heavy_cpu:.0f} % de CPU sur {heavy} processus lourds. "
+              f"{heavy_cpu:.0f} % de CPU sur "
+              f"{'?' if heavy is None else heavy} processus lourds. "
               "Une mesure prise sous charge auto-infligée a déjà coûté un facteur "
               "12,8 à ce dépôt.\n"
               "   Attendre, ou --force-busy en sachant ce qu'on lit.")
         return 1
     print(f"▶ machine : charge {load_ratio:.2f}/cœur, {heavy_cpu:.0f} % de CPU lourd "
-          f"({heavy} processus repérés) — mesure autorisée")
+          f"({'?' if heavy is None else heavy} processus repérés) — mesure autorisée")
     if args.user and not args.password:
         print("❌ --user sans --password")
         return 1
