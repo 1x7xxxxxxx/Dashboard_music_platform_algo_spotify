@@ -238,7 +238,7 @@ n'est pas un échec du chantier : c'est le résultat que 0,129 ne se généralis
   balaie pas une classe sans ouvrir son garde. En faire une cible propre serait retourner à
   l'optimisation d'un champ rempli, ce que la mort du ×4,9 condamne.
 
-### Ce que le balayage a DÉJÀ trouvé — 15 sites vivants au 2026-09-18
+### Ce que le balayage a DÉJÀ trouvé — 16 sites vivants au 2026-09-18
 
 Lot 1, `le-locataire`, 4 classes → **2 sites vivants, tous deux P1, corrigés** (`e94d836`) :
 `_from_signup.py:145` écrivait une identité sans son miroir (locataire « connecté »
@@ -247,7 +247,7 @@ résultat atteignait un segment de chemin d'URL sortante. ⚠️ Corriger le sec
 transformait un refus franc en succès silencieux qui met le miroir à NULL — quatre
 constats bloquants de `security-specialist`, détail dans le commit.
 
-Lot 2, 4 classes → **13 sites vivants, non encore corrigés** :
+Lot 2, 4 classes → **14 sites vivants, non encore corrigés**. ⚠️ Ce total disait **13** avant que les entonnoirs soient écrits : le 14ᵉ est le site `à trancher` de `an-exemption-…`, que le rapport de balayage listait à part. Un site à trancher reste un site — le compter ailleurs aurait flatté le chiffre :
 
 | classe | sites |
 |---|---|
@@ -256,7 +256,8 @@ Lot 2, 4 classes → **13 sites vivants, non encore corrigés** :
 | `an-account-filter-that-names-no-single-column` | **0** — les 7 candidats inspectés un par un, garde exécuté contre une base vivante (3 tests, non skippés) |
 | `an-exemption-on-one-surface-reads-as-a-failure-on-another` | **1 à trancher** — `spotify_api_daily.py:344-378` exempte le bac à sable de la résolution d'ambiguïté, donc il ne peut structurellement recevoir aucune donnée Spotify ; `artist_readiness.py` ignore l'exemption et affichera « importe ton CSV, ou vérifie l'ID artiste » — un geste que ce locataire ne peut pas faire. Non observable en local (bac à sable vide) : la preuve vit en production sur le locataire 18 |
 
-⚠️ **Ce que ces deux lots disent du taux de 0,129** : 8 classes balayées, **15 sites**.
+⚠️ **Ce que ces deux lots disent du taux de 0,129** : 8 classes balayées, **16 sites**
+(rendement global 100 → 116, taux 0,129 → **0,142**).
 C'est bien au-dessus de la prédiction, et l'explication la plus probable n'est pas que le
 dépôt soit plus cassé qu'on croyait — c'est que les classes JAMAIS balayées sont
 précisément celles dont personne n'avait regardé les frères. À redire après 30 classes,
