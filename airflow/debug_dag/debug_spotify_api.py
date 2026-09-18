@@ -30,13 +30,24 @@ load_dotenv()
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+# La rédaction doit survivre à l'échec de TOUT le reste : la ligne qui journalise un
+# `ImportError` s'exécute précisément quand le bloc d'import a échoué. Un
+# `safe_error` importé là-dedans y serait indéfini — un `NameError` à la place du
+# message d'erreur qu'on venait chercher.
+try:
+    from src.utils.safe_error import safe_error
+except ImportError:  # pragma: no cover - le repli ne dit que le TYPE, qui ne fuit pas
+    def safe_error(exc):  # type: ignore[misc]
+        return type(exc).__name__
+
+
 # Import conditionnel
 try:
     from src.collectors.spotify_api import SpotifyCollector
     from src.database.postgres_handler import PostgresHandler
     MODULES_AVAILABLE = True
 except ImportError as e:
-    logger.error(f"❌ Erreur d'import critique : {e}")
+    logger.error(f"❌ Erreur d'import critique : {safe_error(e)}")
     logger.error("Vérifiez que vous êtes à la racine du projet.")
     MODULES_AVAILABLE = False
 
@@ -93,7 +104,7 @@ def step_2_test_api_auth():
             logger.warning("⚠️ Authentification semble OK mais recherche vide.")
             return collector
     except Exception as e:
-        logger.error(f"❌ Échec Authentification : {e}")
+        logger.error(f"❌ Échec Authentification : {safe_error(e)}")
         return None
 
 def step_3_collect_data(collector):
@@ -152,7 +163,7 @@ def step_4_check_database():
         db.close()
         return True
     except Exception as e:
-        logger.error(f"❌ Échec BDD : {e}")
+        logger.error(f"❌ Échec BDD : {safe_error(e)}")
         return False
 
 def step_5_dry_run_insert(data):

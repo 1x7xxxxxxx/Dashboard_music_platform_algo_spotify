@@ -966,3 +966,125 @@ l'appariement est hebdomadaire, pas immédiat. Les deux chiffres valaient 0 le 2
 ⚠️ **Ce qui ne marchera pas** : saisir les écoutes d'un morceau prédit il y a moins de
 28 jours. Le DAG l'ignore par construction, la saisie sera correcte et `etiquetees`
 restera à 0 — et on conclura à tort que la chaîne est cassée.
+
+---
+
+## 16. R140 — Quatre décisions de produit trouvées par le balayage des classes d'erreur
+
+**Ce que ça débloque** : rien ne se répare tant qu'elles ne sont pas tranchées, et aucune
+n'est une question technique. Chacune a sa mesure, rejouable ; aucune n'a été corrigée,
+délibérément — les quatre changent soit ce qu'un artiste voit, soit un état partagé avec
+la production.
+
+### 16.1 — Un appariement de titres trop large, dans le PDF que l'artiste reçoit
+
+`src/utils/track_matching.py:191` rend `qb == cb or qb in cb or cb in qb` : une inclusion
+par **sous-chaîne**, en booléen dur. Le frère de la même famille
+(`track_mapping_suggest.py:96`) a été réparé le 2026-09-06 et rend `0,9 × couverture` ;
+celui-ci ne pèse jamais ce qui reste dehors.
+
+Rejouable :
+
+```bash
+.venv/bin/python -c "
+import sys; sys.path.insert(0,'.')
+from src.utils.track_matching import track_title_matches as m
+from src.utils.track_mapping_suggest import title_similarity as s
+for a,b in [('Mix','HOUSE MUSIC MIX #3 BACK TO OLD SCHOOL'),('Sun','Sunset Boulevard'),
+            ('Solo','Solomon Dream'),('Nuit','La nuit de tous les dangers')]:
+    print(m(a,b), round(s(a,b),4), a, '|', b)"
+```
+
+Sortie du 2026-09-18 : **les quatre rendent `True`**, avec des similarités de 0,11 à 0,24.
+
+Les **6 sites d'appel sont tous dans le PDF** (`pdf_exporter/_collectors.py:292,412,435,
+842,864,890`), tous sous `single_song` — donc le défaut se manifeste quand un artiste
+demande le PDF d'**un seul morceau** au titre **court**.
+
+⚠️ `tests/test_track_title_matches.py:36` croit couvrir le cas : son assertion utilise un
+titre LONG, et aucun cas du fichier n'exerce un titre court.
+
+**La décision** : resserrer fait DISPARAÎTRE des lignes de PDF que des artistes ont déjà
+reçus. Trois options — (a) laisser, (b) exiger une couverture minimale comme le frère
+réparé, (c) resserrer et prévenir les artistes concernés. Je n'ai pas tranché.
+
+### 16.2 — Le jeton SoundCloud est partagé entre une instance de dev et la production
+
+`src/collectors/soundcloud_api_collector.py:123` fait `grant_type=refresh_token`, et son
+propre docstring dit que SoundCloud **fait tourner** le jeton à l'usage. Une instance de
+développement qui collecte invalide donc celui de la production.
+
+C'est la cause mesurée de l'incident qui a créé la classe
+`a-dev-instance-sends-production-shaped-mail` : le 2026-08-24, un scheduler local a échoué
+sur ce credential partagé que la prod venait de faire tourner 28 minutes plus tôt.
+
+Étiqueter le mail a réparé le symptôme. `email_alerts._outbound_blocked()` barre les mails
+hors production ; **rien n'équivaut côté credentials**.
+
+```bash
+grep -n "refresh_token\|_outbound_blocked\|is_production" src/collectors/soundcloud_api_collector.py
+```
+
+**La décision** : un second jeu de credentials SoundCloud pour le dev, ou un garde
+`is_production()` qui refuse la rotation hors prod. Le premier coûte une app SoundCloud de
+plus, le second empêche de tester la collecte en local. Touche les secrets — jamais sans
+toi.
+
+### 16.3 — Un bouton « ce locataire » qui déclenche la flotte entière
+
+`src/dashboard/utils/collection_trigger.py:68` fait
+`conf = {'artist_id': artist_id} if artist_id is not None else {}`.
+
+⚠️ **Ce n'est pas une fuite de locataire, et je l'ai d'abord écrit comme si.**
+`tenant_scope()` (`auth.py:778`) ne rend `None` que pour un **admin** — un non-admin reçoit
+`st.stop()`. Et un DAG sans `artist_id` appelle `get_active_artists(include_artist_id=None)`,
+donc collecte **tous les artistes actifs** ; le repli sur l'identité de l'environnement
+exige `LEGACY_SINGLE_TENANT=1`, explicitement opt-in (`soundcloud_daily.py:123`).
+
+Le docstring du bouton dit « Déclenche les collectes de **CE** locataire ».
+
+**La décision** : quand un admin presse ce bouton, faut-il (a) collecter toute la flotte —
+le comportement actuel, à documenter — ou (b) refuser et demander de choisir un artiste ?
+
+### 16.4 — Un script de migration qui interpole des identifiants SQL sans allowlist
+
+`migrations/migrate_saas_artist_id.py:54,57,66,73,82` interpole `table`, `name` et `cols` —
+des **paramètres de fonction** — dans `ALTER TABLE` / `UPDATE` / `ADD CONSTRAINT`, sans
+aucune allowlist sur le chemin. Les appelants (l. 100-112) passent des littéraux, donc rien
+n'est exploitable aujourd'hui.
+
+```bash
+grep -nE "ALTER TABLE|ADD CONSTRAINT|UPDATE " migrations/migrate_saas_artist_id.py
+```
+
+La règle transverse #8 l'exigerait dans `src/` ; `migrations/` n'est parcouru par aucun
+garde.
+
+**La décision** : ce script est à usage unique et déjà passé. Le corriger, le geler avec un
+en-tête qui dit qu'il a servi, ou étendre le garde à `migrations/` en acceptant qu'il
+rougisse sur les scripts déjà joués.
+
+### 16.5 — Un refresh_token SoundCloud imprimé en clair sur la sortie standard
+
+`airflow/debug_dag/debug_soundcloud_oauth.py:117` fait `print(f"\n   {effective_rt}\n")`.
+
+**Ce n'est pas une escalade** : c'est délibéré, le runbook OAuth frappe le jeton et
+demande de le coller dans le dashboard, et l'opérateur le détient déjà. Le reste de ce
+fichier a été rédigé le 2026-09-18 ; cette ligne est la seule volontairement laissée.
+
+Ce qui la rend inconfortable : **les deux crons de ce dépôt capturent la sortie standard
+d'un sous-processus dans un fichier de log ET dans un corps de mail**
+(`tools/schema_drift_cron.sh`, `tools/infra_health_cron.sh`). Si ce script est un jour
+enveloppé de la même façon, le jeton est persisté sur disque et posté.
+
+```bash
+grep -n "print(f\"\\n   {effective_rt}" airflow/debug_dag/debug_soundcloud_oauth.py
+grep -n "2>&1\|tee\|\$(" tools/schema_drift_cron.sh tools/infra_health_cron.sh | head
+```
+
+**La décision** : garder tel quel, ajouter un avertissement d'une ligne disant que la
+sortie ne doit pas être redirigée, ou passer l'impression derrière `--print-token`. Les
+trois sont défendables ; aucune n'est à moi.
+
+**Vérification que cette section est à jour** :
+`python3 -m pytest tests/test_roadmap_index_is_honest.py -q`

@@ -20,6 +20,32 @@ import os
 import sys
 
 import requests
+
+# La rédaction doit survivre à l'échec de TOUT le reste : la ligne qui journalise un
+# `ImportError` s'exécute précisément quand le bloc d'import a échoué. Un
+# `safe_error` importé là-dedans y serait indéfini — un `NameError` à la place du
+# message d'erreur qu'on venait chercher.
+
+# ⚠️ `redact` en plus de `safe_error` : ce sont deux questions différentes.
+# `safe_error(e)` traite une EXCEPTION ; le corps d'une réponse HTTP n'en est pas une,
+# et ces sondes l'écrivent tel quel. `debug_soundcloud.py:116` lit le corps d'un POST
+# qui portait `client_secret`, et `debug_instagram.py:165` est la branche `else` de la
+# fonction dont les branches 401/400 n'affichent que `err.get('message')` — le
+# balayage du 2026-09-18 avait converti les gestionnaires d'exception et laissé la
+# branche du corps entier.
+try:
+    from src.utils.safe_error import redact, safe_error
+except ImportError:  # pragma: no cover - le repli ne dit que le TYPE, qui ne fuit pas
+    def safe_error(exc):  # type: ignore[misc]
+        return type(exc).__name__
+
+    def redact(text):  # type: ignore[misc]
+        # Le repli n'essaie PAS de reproduire les motifs : il efface. Sans le
+        # module, on ne sait pas ce qui est un secret — rendre le corps entier
+        # serait choisir la lisibilité contre la confidentialité, dans le seul
+        # cas où on ne peut pas trancher.
+        return '<corps non rédigeable — src/ inatteignable>'
+
 from dotenv import load_dotenv
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
@@ -50,7 +76,7 @@ def _get_user_token(client_id: str, client_secret: str,
         timeout=15,
     )
     if r.status_code != 200:
-        raise RuntimeError(f"refresh_token grant failed: HTTP {r.status_code} — {r.text[:200]}")
+        raise RuntimeError(f"refresh_token grant failed: HTTP {r.status_code} — {redact(r.text[:200])}")
     data = r.json()
     effective = data.get('refresh_token') or refresh_token
     if effective != refresh_token:
@@ -80,7 +106,7 @@ def main() -> int:
         token, effective_rt = _get_user_token(cid, csec, rtok)
         logger.info("✅ User token obtained via refresh_token grant.")
     except Exception as e:
-        logger.error(f"❌ NO-GO — token grant failed: {e}")
+        logger.error(f"❌ NO-GO — token grant failed: {safe_error(e)}")
         return 1
 
     r = requests.get(
@@ -90,7 +116,7 @@ def main() -> int:
         timeout=15,
     )
     if r.status_code != 200:
-        logger.error(f"❌ NO-GO — tracks fetch failed: HTTP {r.status_code} — {r.text[:200]}")
+        logger.error(f"❌ NO-GO — tracks fetch failed: HTTP {r.status_code} — {redact(r.text[:200])}")
         return 1
 
     tracks = r.json().get('collection', r.json()) if r.content else []

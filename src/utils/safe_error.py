@@ -39,12 +39,49 @@ _PARAM_RE = re.compile(
 # Meta's app-credential form: `<app_id>|<app_secret>`.
 _PIPE_SECRET_RE = re.compile(r"\b(\d{6,})\|([A-Za-z0-9]{8,})")
 
+# ── Trois formes qui n'ont PAS de `=`, mesurées le 2026-09-18 ────────────────
+#
+# `_PARAM_RE` est ancré sur `name=value`, la forme d'une chaîne de requête. Six
+# formes sur neuf passaient donc à travers, mesurées une par une. Deux comptent
+# immédiatement dans ce dépôt : `debug_meta_token_refresh.py:159` appelle
+# `redact(data.get('error', data))` sur un DICT, dont le `str()` est
+# `{'access_token': '…'}` — la rédaction était appelée et provablement inerte sur la
+# valeur qu'elle gardait ; et `debug_soundcloud.py:133` construit
+# `headers={'Authorization': f'OAuth {token}'}`, que tout `repr` de requête rend en
+# clair.
+#
+# ⚠️ Ce qui reste NON couvert, et c'est délibéré : un secret en SEGMENT DE CHEMIN
+# (`…/token/AbCdEf/refresh`). Aucun motif ne distingue un jeton d'un identifiant de
+# ressource sans connaître l'API, et un rédacteur qui efface des morceaux d'URL au
+# hasard rend les messages illisibles — c'est-à-dire qu'on cesse de les lire.
+
+# `Authorization: Bearer xxx`, `'Authorization': 'OAuth xxx'`, `Proxy-Authorization`…
+_AUTH_HEADER_RE = re.compile(
+    r"(?i)((?:proxy-)?authorization[\"\']?\s*[:=]\s*[\"\']?)"
+    r"(bearer|basic|oauth|token|apikey)(\s+)([^\s\"\',}\]]+)"
+)
+# `"access_token": "xxx"` et `'x-api-key': 'xxx'` — la forme JSON / dict Python.
+_JSON_SECRET_RE = re.compile(
+    r"(?i)([\"\'](?:" + "|".join(_SECRET_PARAMS) + r"|x-api-key|x-auth-token|"
+    r"authorization|private_key|client_id_secret)[\"\']\s*:\s*)"
+    r"([\"\'])([^\"\']+)([\"\'])"
+)
+# Le mot de passe d'un DSN ecrit en URL : entre les deux-points qui suivent
+# l'utilisateur et l'arobase qui precede l'hote. (Forme decrite et non ecrite :
+# `detect-secrets` classe l'exemple litteral en « Basic Auth Credentials », et
+# un depot ou documenter un defaut declenche son propre garde apprend a lire le
+# rouge comme du bruit.)
+_URL_USERINFO_RE = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://[^\s:/@]+:)([^\s@/]+)(@)")
+
 
 def redact(text: object) -> str:
     """Replace credential values with `***`, keeping the surrounding message."""
     out = str(text)
     out = _PARAM_RE.sub(lambda m: f"{m.group(1)}=***", out)
     out = _PIPE_SECRET_RE.sub(lambda m: f"{m.group(1)}|***", out)
+    out = _AUTH_HEADER_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}{m.group(3)}***", out)
+    out = _JSON_SECRET_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}***{m.group(4)}", out)
+    out = _URL_USERINFO_RE.sub(lambda m: f"{m.group(1)}***{m.group(3)}", out)
     return out
 
 

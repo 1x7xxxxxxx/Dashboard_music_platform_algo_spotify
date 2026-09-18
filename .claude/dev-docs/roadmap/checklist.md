@@ -32,13 +32,15 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | R137 | **51 % des classes vivantes n'ont jamais eu de vrai balayage de frères** — 101 sur 197. Leur `siblings:` dit « j'ai relancé le garde, il est vert », ce qui prouve que le prédicat de CE garde ne trouve rien, jamais qu'il n'y a rien. Mesuré trois fois la nuit du 17 au 18, dont **un garde vert sur 8 sites vivants**. Une unité = une FAMILLE (règle 21) | P3 | `make error-health` → `swept_by_rerunning_the_guard` **97 → 0** et `sites_unknown` **100 → 3**, plafonds descendus dans le même commit |
 | R138 | **Rien ne refuse un faux balayage AU MOMENT DE L'ÉCRIRE** — le compteur voit les 97 après coup, aucune porte ne les bloque. Et `make config-check` **n'est appelé par aucun workflow** (`grep -rn "config-check" .github/` ne rend rien) : sur ses cinq contrôles, `--prose` est câblé directement en CI mais `check_config_refs.py`, `audit_unreachable_tools.py` et `--coverage` ne tournent qu'à la main | P3 | `python3 .claude/scripts/audit_runner.py --sweep-verdict` sort 0, et ≠ 0 sur une classe mutée en relance ; `grep -n "config-check\|sweep-verdict" .github/workflows/ci.yml` rend des lignes |
 | R139 | **Deux instruments qui mentent sur ce qu'ils mesurent** — (a) `swept_by_rerunning_the_guard` (97) est un sous-ensemble STRICT de `sites_unknown` (100), et les deux sont publiés comme deux problèmes dans deux paragraphes consécutifs : un lecteur additionne et lit 197 ; (b) `.test_durations`, qui équilibre les 4 shards de CI, porte **174 entrées non collectables pour 33,9 s** et ignore **475 tests collectés sans durée** — mesuré contre une collecte réelle, le prédicat « le fichier existe-t-il » en trouvant **0** | P4 | `make error-health` → les deux populations ne s'additionnent plus ; et aucun node-id de `.test_durations` ne désigne un fichier absent |
+| R141 | **Un commentaire qui nomme un test disparu** — balayage du flux de JETONS (donc les commentaires EN TANT QUE commentaires) sur `tests/ tools/ src/ airflow/ .claude/scripts/` : **196 citations de noms de tests, 20 orphelines**. ⚠️ Deux corrections de prédicat déjà faites, toutes deux en sur-comptant : les noms **coupés par le retour à la ligne** d'un commentaire (27 → 20), et les notes de **RETRAIT** légitimes — `test_a_step_is_offered_only_where_it_draws.py:152` dit « A ÉTÉ RETIRÉ LE 2026-09-13 », nommer le test retiré est son travail. **20 est donc un PLAFOND, pas un défaut** : le tri site par site est la tâche, et le garde ne s'écrit qu'après | P4 | le balayage par jetons doit rendre moins de 20 orphelines, et chaque site restant porte sa raison |
 
-**Sept tâches sont ouvertes dans cet index** — R132, R133, R134, R135, R137, R138, R139 —
+**Huit tâches sont ouvertes dans cet index** — R132, R133, R134, R135, R137, R138, R139,
+R141 —
 et l'ancre `reprise:` les nomme toutes, dans cet ordre. La table « 🙋 En attente de toi »
-plus bas porte **une** ligne depuis le 2026-09-18 : R125, qui attend un geste humain dans
-l'app. Inviter la bêta est l'usage du produit, pas du travail d'ingénierie — une roadmap
-qui suit les gestes commerciaux de son propriétaire ne peut par construction jamais
-atteindre zéro.
+plus bas porte **deux** lignes : R125, qui attend un geste humain dans l'app, et R140,
+entrée le 2026-09-18, qui attend quatre décisions de PRODUIT. Inviter la bêta est l'usage
+du produit, pas du travail d'ingénierie — une roadmap qui suit les gestes commerciaux de
+son propriétaire ne peut par construction jamais atteindre zéro.
 
 ⚠️ **Ce paragraphe a menti trois fois, et la troisième était aujourd'hui.** Le 2026-09-12
 il annonçait « quatre tâches rouvertes » alors que les quatre étaient closes et l'index
@@ -441,7 +443,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-18 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R132, R133, R134, R135, R137, R138, R139, R125 -->
+<!-- reprise: open=R132, R133, R134, R135, R137, R138, R139, R141, R125, R140 -->
 
 **R125 est entrée le 2026-09-18, et elle n'attend qu'un geste de trois minutes.** Mesuré
 en production : `ml_song_predictions` porte 617 lignes, `s4a_song_algo_outcomes` (la
@@ -615,6 +617,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
 | R125 | Saisir les écoutes 28 j réalisées (DW / RR / Radio) pour au moins un morceau, dans **Saisie S4A** | P3 | ouvrir Saisie S4A, entrer les trois chiffres à 28 jours pour un morceau prédit il y a plus de 28 jours — voir §15 du runbook |
+| R140 | Trancher **quatre décisions de produit** trouvées par le balayage R137 — un appariement de titres trop large dans le PDF, un jeton SoundCloud partagé entre dev et prod, un bouton « ce locataire » qui déclenche la flotte, un script de migration sans allowlist | P2 | lire les quatre mesures et dire pour chacune ce que le produit DOIT faire — voir §16 du runbook |
 
 ⚠️ **R125 est entrée le 2026-09-18, mesurée en PRODUCTION, pas supposée** :
 `ml_song_predictions` porte **617 lignes**, `s4a_song_algo_outcomes` (la saisie humaine)

@@ -192,8 +192,17 @@ _HTTP_MARKERS = ("requests.", "googleapiclient", "urlopen")
 # credential in the query string — and it is the command the runbook makes you run.
 # Four more sites came with it, including the SoundCloud OAuth helper. Third widening,
 # third time the scope was the defect rather than the logic.
+# `airflow/debug_dag/` added 2026-09-18 — QUATRIÈME élargissement, quatrième fois que
+# la portée est le défaut plutôt que la logique. `debug_youtube.py:95` rendait
+# `f"❌ Échec Authentification : {e}"` sur un `HttpError` de `googleapiclient`, dont
+# l'URI porte `key=<clé API YouTube>`. Mesuré : la clé sortait en clair dans le
+# journal. Et ce n'est pas un script oublié — `CLAUDE.md` dit de lancer
+# `python airflow/debug_dag/debug_<name>.py` pour éprouver un DAG sans Airflow.
+# Le porteur que la classe nommait — `params={…}` d'un appel `requests` — n'existe
+# pas ici : `googleapiclient` construit l'URI lui-même. C'est la LIBRAIRIE qui
+# recopie son URI dans l'exception, pas l'appelant qui y met un paramètre.
 _SCOPE_DIRS = ("src/collectors", "src/utils", "src/dashboard/views/credentials",
-               "airflow/dags", "tools")
+               "airflow/dags", "airflow/debug_dag", "tools")
 
 
 def _module_name(path: Path) -> str:
@@ -293,7 +302,11 @@ def _modules_that_call_http() -> list[str]:
 # `tests/test_an_exception_passed_as_an_argument_is_redacted.py`, dont la portée est
 # tout `src/` + `airflow/` + `tools/`. Relever ce plancher quand le vrai nombre
 # monte ; ne jamais le baisser pour faire passer un test.
-_SCOPE_FLOOR = 36
+# 36 → 53 le 2026-09-18, DANS LE MÊME COMMIT que l'ajout de `airflow/debug_dag` à
+# `_SCOPE_DIRS`. Élargir la portée sans relever le plancher rend 17 modules libres de
+# sortir sans un mot — dont les 8 `debug_dag/` qu'on venait précisément d'y faire
+# entrer. La couverture montait, le cliquet qui la protège restait où il était.
+_SCOPE_FLOOR = 53
 
 
 def test_the_http_scope_does_not_silently_shrink() -> None:

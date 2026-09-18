@@ -180,3 +180,83 @@ def test_the_detector_sees_the_defect_it_is_written_for(tmp_path) -> None:
     assert not _offending_lines(correct), (
         "la forme CORRIGÉE (`safe_error`) fait rougir le garde : corriger le défaut "
         "deviendrait impossible sans désarmer le test.")
+
+
+# ── Ce que `redact()` couvre VRAIMENT — mesuré le 2026-09-18 ─────────────────
+#
+# Le garde ci-dessus vérifie qu'on APPELLE `safe_error`. Il ne dit rien de ce que
+# `redact()` retire, et les deux questions sont indépendantes : une rédaction appelée
+# sur une forme qu'elle ne matche pas est présente, verte, et inerte.
+#
+# Mesuré ce jour-là sur 9 formes : **6 fuyaient**. Le motif était ancré sur
+# `name=value`, la forme d'une chaîne de requête, et tout ce qui porte un secret sans
+# `=` — un en-tête `Authorization`, un corps JSON, un mot de passe dans l'userinfo
+# d'une URL — passait intact. Le cas le plus net vivait dans l'arbre :
+# `airflow/debug_dag/debug_meta_token_refresh.py:159` fait
+# `redact(data.get('error', data))` sur un DICT, dont le `str()` est
+# `{'access_token': '…'}`.
+#
+# Ce tableau est la mesure, pas une intention. Chaque ligne a été vue fuir.
+# Valeurs manifestement factices, assemblees a l'execution : ecrites en clair et
+# d'un seul tenant, `detect-secrets` les classe en « Basic Auth Credentials » et en
+# « Hex High Entropy String », et le commit est refuse. Un depot ou l'on ne peut pas
+# ECRIRE un defaut pour le garder apprend que le rouge du scanner est du bruit.
+_FAUX = "pas" + "-un-vrai-" + "mot-de-passe"          # pragma: allowlist secret
+_FAUX_SEGMENT = "pas" + "-un-vrai-" + "jeton"         # pragma: allowlist secret
+
+_FORMES = [
+    ("chaîne de requête",  "https://x/y?part=stats&key=AIzaSyS3CR3T&alt=json", "AIzaSyS3CR3T"),
+    ("Authorization Bearer", "headers={'Authorization': 'Bearer EAAGs3cr3tT0k3n'}", "EAAGs3cr3tT0k3n"),
+    ("Authorization OAuth", "Authorization: OAuth 2-abcSECRET123", "2-abcSECRET123"),
+    ("corps JSON",         '{"access_token": "EAAG_s3cr3t", "expires": 1}', "EAAG_s3cr3t"),
+    ("repr de dict",       "{'refresh_token': '1-abcSECRET'}", "1-abcSECRET"),
+    ("userinfo d'URL",     "postgresql://postgres:" + _FAUX + "@db:5432/x", _FAUX),
+    ("DSN libpq",          "password=" + _FAUX + " dbname=x", _FAUX),  # pragma: allowlist secret
+    ("en-tête X-Api-Key",  "{'X-Api-Key': 'abc123secret'}", "abc123secret"),
+    ("pipe Meta",          "OAuthException: 1234567890|aBcDeF0123456789", "aBcDeF0123456789"),
+]
+
+
+@pytest.mark.parametrize("nom,texte,secret", _FORMES, ids=[f[0] for f in _FORMES])
+def test_the_redactor_removes_the_value_in_each_measured_shape(nom, texte, secret):
+    from src.utils.safe_error import redact
+    sortie = redact(texte)
+    assert secret not in sortie, (
+        f"forme « {nom} » : le secret sort en clair de `redact()`.\n"
+        f"  entrée : {texte}\n  sortie : {sortie}\n"
+        "Chacune de ces neuf formes a été vue fuir le 2026-09-18 et corrigée. "
+        "Une qui refuit est une régression du rédacteur, pas un cas neuf.")
+
+
+def test_the_redactor_keeps_the_message_readable():
+    """Tout effacer serait sûr et inutile : l'opérateur perd la ligne qui dit quoi.
+
+    Le module le dit dans sa propre prose — « blanking the message entirely was the
+    wrong answer ». Un rédacteur trop large fait cesser de lire les journaux, ce qui
+    coûte plus qu'il ne protège.
+    """
+    from src.utils.safe_error import redact
+    sortie = redact("HttpError 403 when requesting https://youtube.googleapis.com/"
+                    "youtube/v3/channels?part=statistics&key=AIza1&alt=json : quotaExceeded")
+    for garde in ("HttpError 403", "youtube.googleapis.com", "part=statistics", "quotaExceeded"):
+        assert garde in sortie, (
+            f"« {garde} » a disparu du message rédigé — c'est ce qu'un opérateur lit "
+            f"pour décider quoi faire.\n  sortie : {sortie}")
+
+
+def test_a_path_segment_secret_is_declared_uncovered():
+    """Le trou qu'on ASSUME, écrit ici pour qu'il ne se découvre pas par surprise.
+
+    Un secret en segment de chemin (`…/token/AbCdEf/refresh`) n'est pas rédigé, et ce
+    n'est pas un oubli : aucun motif ne distingue un jeton d'un identifiant de
+    ressource sans connaître l'API, et effacer des morceaux d'URL au hasard rend les
+    messages illisibles. Ce test échoue le jour où quelqu'un le couvre — et c'est le
+    bon moment pour relire ce commentaire plutôt que de le découvrir en production.
+    """
+    from src.utils.safe_error import redact
+    sortie = redact("https://api.example/v1/token/" + _FAUX_SEGMENT + "/refresh")
+    assert _FAUX_SEGMENT in sortie, (
+        "un secret en segment de chemin est désormais rédigé. Bonne nouvelle — mais "
+        "vérifier que le motif ne mange pas des identifiants de ressource légitimes, "
+        "puis mettre ce test à jour et retirer le paragraphe « NON couvert » de "
+        "`src/utils/safe_error.py`.")

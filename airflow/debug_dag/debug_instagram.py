@@ -30,6 +30,32 @@ load_dotenv()
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+# La rédaction doit survivre à l'échec de TOUT le reste : la ligne qui journalise un
+# `ImportError` s'exécute précisément quand le bloc d'import a échoué. Un
+# `safe_error` importé là-dedans y serait indéfini — un `NameError` à la place du
+# message d'erreur qu'on venait chercher.
+
+# ⚠️ `redact` en plus de `safe_error` : ce sont deux questions différentes.
+# `safe_error(e)` traite une EXCEPTION ; le corps d'une réponse HTTP n'en est pas une,
+# et ces sondes l'écrivent tel quel. `debug_soundcloud.py:116` lit le corps d'un POST
+# qui portait `client_secret`, et `debug_instagram.py:165` est la branche `else` de la
+# fonction dont les branches 401/400 n'affichent que `err.get('message')` — le
+# balayage du 2026-09-18 avait converti les gestionnaires d'exception et laissé la
+# branche du corps entier.
+try:
+    from src.utils.safe_error import redact, safe_error
+except ImportError:  # pragma: no cover - le repli ne dit que le TYPE, qui ne fuit pas
+    def safe_error(exc):  # type: ignore[misc]
+        return type(exc).__name__
+
+    def redact(text):  # type: ignore[misc]
+        # Le repli n'essaie PAS de reproduire les motifs : il efface. Sans le
+        # module, on ne sait pas ce qui est un secret — rendre le corps entier
+        # serait choisir la lisibilité contre la confidentialité, dans le seul
+        # cas où on ne peut pas trancher.
+        return '<corps non rédigeable — src/ inatteignable>'
+
+
 # Import conditionnel pour éviter le crash si le module manque
 try:
     from src.database.postgres_handler import PostgresHandler
@@ -89,7 +115,7 @@ def step_2_check_database():
             count = res.iloc[0,0]
             logger.info(f"   ℹ️ Table 'instagram_daily_stats' existe ({count} lignes).")
         except Exception as e:
-            logger.warning(f"   ⚠️ La table semble manquer ou est vide : {e}")
+            logger.warning(f"   ⚠️ La table semble manquer ou est vide : {safe_error(e)}")
             print("   💡 SQL de création suggéré :")
             print("""
             CREATE TABLE IF NOT EXISTS instagram_daily_stats (
@@ -107,7 +133,7 @@ def step_2_check_database():
         return True
 
     except Exception as e:
-        logger.error(f"❌ Échec connexion BDD : {e}")
+        logger.error(f"❌ Échec connexion BDD : {safe_error(e)}")
         return False
 
 def step_3_test_api():
@@ -151,7 +177,7 @@ def step_3_test_api():
             logger.error("   ➡️  Vérifiez l'ID utilisateur (INSTAGRAM_USER_ID).")
 
         else:
-            logger.error(f"❌ Erreur inconnue : {response.text}")
+            logger.error(f"❌ Erreur inconnue : {redact(response.text)}")
 
     except Exception as e:
         logger.error(f"❌ Exception Python lors de l'appel : {type(e).__name__}")
@@ -210,7 +236,7 @@ def step_5_test_media():
                     f"❤️{m.get('like_count')} 💬{m.get('comments_count')}"
                 )
             return [m.get('id') for m in items]
-        logger.error(f"❌ Échec media : {r.text[:200]}")
+        logger.error(f"❌ Échec media : {redact(r.text[:200])}")
     except Exception as e:
         logger.error(f"❌ Exception media : {type(e).__name__}")
     return []
@@ -238,7 +264,7 @@ def step_6_test_media_insights(media_ids):
                 logger.info(f"   • {it.get('name')} = {v}")
             logger.info("✅ Insights OK.")
         else:
-            logger.error(f"❌ Échec insights : {r.text[:200]}")
+            logger.error(f"❌ Échec insights : {redact(r.text[:200])}")
     except Exception as e:
         logger.error(f"❌ Exception insights : {type(e).__name__}")
 

@@ -57,11 +57,15 @@ def _smtp_config() -> dict:
         'port': env.get('SMTP_PORT') or cfg.get('port', 587),
         'user': env.get('SMTP_USER') or cfg.get('user', ''),
         'password': env.get('SMTP_PASSWORD') or cfg.get('password', ''),
-        'from_name': env.get('SMTP_FROM_NAME') or cfg.get('from_name', 'streaMLytics'),
-        # Sender address — distinct from the SMTP login (e.g. Brevo: login is the
-        # account/relay user, but the From must be the authenticated domain address
-        # noreply@streamlytics.fr for SPF/DKIM alignment). Falls back to the login.
-        'from_email': env.get('SMTP_FROM') or cfg.get('from_email', ''),
+        # ⚠️ Pas de `from_name` / `from_email` ici. Ils y ont vécu jusqu'au 2026-09-18,
+        # CALCULÉS et jamais lus — les deux seuls consommateurs (`:115`, `:430`) ne
+        # prennent que host/port/user/password. C'était une SECONDE composition de
+        # l'identité d'expéditeur, dormante et déjà divergente de
+        # `email_identity.sender_identity()` : avec `from_name: ""` dans config.yaml
+        # celle-ci rendait `""` là où la source unique rend `streaMLytics`, et son
+        # adresse n'avait pas le repli `SMTP_USER`. Dormante aujourd'hui veut dire
+        # « lisible demain par qui la trouve là ». L'identité s'obtient par
+        # `from_header()`, et nulle part ailleurs.
     }
 
 

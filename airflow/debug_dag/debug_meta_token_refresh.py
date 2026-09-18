@@ -13,7 +13,6 @@ Usage:
 import os
 import sys
 import logging
-from src.utils.safe_error import redact, safe_error
 import requests
 import argparse
 from datetime import datetime, timedelta
@@ -29,6 +28,25 @@ logger = logging.getLogger("MetaTokenRefreshDebug")
 load_dotenv()
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+# La rédaction doit survivre à l'échec de TOUT le reste : la ligne qui journalise un
+# `ImportError` s'exécute précisément quand le bloc d'import a échoué. Un
+# `safe_error` importé là-dedans y serait indéfini — un `NameError` à la place du
+# message d'erreur qu'on venait chercher.
+# ⚠️ `redact` est importé ICI et pas en tête de fichier. Il l'était jusqu'au
+# 2026-09-18 — ligne 16, QUINZE lignes avant le `sys.path.insert` qui rend `src/`
+# atteignable. Si la racine du dépôt n'était pas déjà dans `sys.path`, le module
+# mourait là, et le repli quelques lignes plus bas ne s'exécutait jamais : le seul
+# fichier des sept où le contrat « la rédaction survit à tout le reste » ne tenait pas.
+try:
+    from src.utils.safe_error import redact, safe_error
+except ImportError:  # pragma: no cover - le repli ne dit que le TYPE, qui ne fuit pas
+    def safe_error(exc):  # type: ignore[misc]
+        return type(exc).__name__
+
+    def redact(text):  # type: ignore[misc]
+        return '<non rédigeable — src/ inatteignable>'
+
 
 try:
     from src.database.postgres_handler import PostgresHandler  # noqa: F401 — imported to probe availability, DB_AVAILABLE is the payload
@@ -64,7 +82,7 @@ def step_1_check_credentials():
                 valid.append((artist_id, name, creds))
         return valid
     except Exception as e:
-        logger.error(f"Erreur : {e}")
+        logger.error(f"Erreur : {safe_error(e)}")
         return []
 
 
@@ -110,7 +128,7 @@ def step_2_check_expiry(artists_with_creds):
                 logger.warning(f"⚠️  {name}: expires_at non renseigné — refresh nécessaire pour le populer")
                 results.append((artist_id, name, creds, None, -1))
         except Exception as e:
-            logger.error(f"❌ {name}: erreur DB — {e}")
+            logger.error(f"❌ {name}: erreur DB — {safe_error(e)}")
 
     return results
 

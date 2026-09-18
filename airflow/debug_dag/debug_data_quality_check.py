@@ -18,6 +18,17 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+# La rédaction doit survivre à l'échec de TOUT le reste : la ligne qui journalise un
+# `ImportError` s'exécute précisément quand le bloc d'import a échoué. Un
+# `safe_error` importé là-dedans y serait indéfini — un `NameError` à la place du
+# message d'erreur qu'on venait chercher.
+try:
+    from src.utils.safe_error import safe_error
+except ImportError:  # pragma: no cover - le repli ne dit que le TYPE, qui ne fuit pas
+    def safe_error(exc):  # type: ignore[misc]
+        return type(exc).__name__
+
 load_dotenv()
 
 logging.basicConfig(
@@ -38,7 +49,7 @@ try:
     os.environ.setdefault('DATABASE_PASSWORD', str(_db.get('password', '')))
     logger.info('DB config loaded from config.yaml')
 except Exception as e:
-    logger.warning(f'config.yaml unavailable — relying on .env: {e}')
+    logger.warning(f'config.yaml unavailable — relying on .env: {safe_error(e)}')
 
 
 def _get_db():
@@ -67,11 +78,11 @@ def step_1_check_db():
                 row = db.fetch_query(f'SELECT COUNT(*) FROM {t}')
                 logger.info(f'  ✅ {t}: {row[0][0]} rows')
             except Exception as e:
-                logger.warning(f'  ⚠️  {t}: {e}')
+                logger.warning(f'  ⚠️  {t}: {safe_error(e)}')
         db.close()
         return True
     except Exception as e:
-        logger.error(f'❌ DB connection failed: {e}')
+        logger.error(f'❌ DB connection failed: {safe_error(e)}')
         return False
 
 
@@ -99,7 +110,7 @@ def step_2_meta_freshness():
         logger.info(f'✅ {active} active campaign(s) — data is fresh')
         return True
     except Exception as e:
-        logger.error(f'Task failed: {e}')
+        logger.error(f'Task failed: {safe_error(e)}')
         return False
     finally:
         db.close()
@@ -182,10 +193,10 @@ def step_3_spotify_consistency():
         for w in warnings:
             logger.warning(f'  ⚠️  {w}')
         for e in issues:
-            logger.error(f'  ❌ {e}')
+            logger.error(f'  ❌ {safe_error(e)}')
         return len(issues) == 0
     except Exception as e:
-        logger.error(f'Task failed: {e}')
+        logger.error(f'Task failed: {safe_error(e)}')
         return False
     finally:
         db.close()
@@ -228,7 +239,7 @@ def step_4_daily_stats():
         logger.info('✅ Daily stats generated')
         return True
     except Exception as e:
-        logger.error(f'Task failed: {e}')
+        logger.error(f'Task failed: {safe_error(e)}')
         return False
     finally:
         db.close()
@@ -253,7 +264,7 @@ def step_5_summary():
         logger.info('✅ Test email sent')
         return True
     except Exception as e:
-        logger.error(f'Email failed: {e}')
+        logger.error(f'Email failed: {safe_error(e)}')
         return False
 
 

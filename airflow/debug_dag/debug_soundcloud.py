@@ -22,6 +22,32 @@ logger = logging.getLogger(__name__)
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+# La rédaction doit survivre à l'échec de TOUT le reste : la ligne qui journalise un
+# `ImportError` s'exécute précisément quand le bloc d'import a échoué. Un
+# `safe_error` importé là-dedans y serait indéfini — un `NameError` à la place du
+# message d'erreur qu'on venait chercher.
+
+# ⚠️ `redact` en plus de `safe_error` : ce sont deux questions différentes.
+# `safe_error(e)` traite une EXCEPTION ; le corps d'une réponse HTTP n'en est pas une,
+# et ces sondes l'écrivent tel quel. `debug_soundcloud.py:116` lit le corps d'un POST
+# qui portait `client_secret`, et `debug_instagram.py:165` est la branche `else` de la
+# fonction dont les branches 401/400 n'affichent que `err.get('message')` — le
+# balayage du 2026-09-18 avait converti les gestionnaires d'exception et laissé la
+# branche du corps entier.
+try:
+    from src.utils.safe_error import redact, safe_error
+except ImportError:  # pragma: no cover - le repli ne dit que le TYPE, qui ne fuit pas
+    def safe_error(exc):  # type: ignore[misc]
+        return type(exc).__name__
+
+    def redact(text):  # type: ignore[misc]
+        # Le repli n'essaie PAS de reproduire les motifs : il efface. Sans le
+        # module, on ne sait pas ce qui est un secret — rendre le corps entier
+        # serait choisir la lisibilité contre la confidentialité, dans le seul
+        # cas où on ne peut pas trancher.
+        return '<corps non rédigeable — src/ inatteignable>'
+
+
 _TOKEN_ENDPOINT = "https://api.soundcloud.com/oauth2/token"
 _API_BASE = "https://api.soundcloud.com"
 SEP = "=" * 60
@@ -74,7 +100,7 @@ try:
     db.close()
     logger.info("🔒 Connexion PostgreSQL fermée")
 except Exception as e:
-    logger.error(f"❌ Connexion PostgreSQL échouée : {e}")
+    logger.error(f"❌ Connexion PostgreSQL échouée : {safe_error(e)}")
 
 
 # ── Étape 3 : OAuth token endpoint ─────────────────────────────────────────
@@ -102,11 +128,11 @@ try:
         logger.info(f"✅ Access token obtenu : {access_token[:8]}… (expire dans {expires_in}s)")
     elif r.status_code == 401:
         logger.error("❌ 401 — client_id ou client_secret invalide.")
-        logger.error(f"   Réponse : {r.text[:300]}")
+        logger.error(f"   Réponse : {redact(r.text[:300])}")
     else:
-        logger.error(f"❌ HTTP {r.status_code} : {r.text[:300]}")
+        logger.error(f"❌ HTTP {r.status_code} : {redact(r.text[:300])}")
 except Exception as e:
-    logger.error(f"❌ Erreur réseau : {e}")
+    logger.error(f"❌ Erreur réseau : {safe_error(e)}")
 
 if not access_token:
     logger.error("Token absent — impossible de tester l'API. Vérifier client_id / client_secret.")
@@ -139,9 +165,9 @@ try:
     elif r.status_code == 404:
         logger.error(f"❌ 404 — User ID '{USER_ID}' introuvable. Vérifier que c'est bien l'ID numérique.")
     else:
-        logger.error(f"❌ HTTP {r.status_code} : {r.text[:300]}")
+        logger.error(f"❌ HTTP {r.status_code} : {redact(r.text[:300])}")
 except Exception as e:
-    logger.error(f"❌ Erreur réseau : {e}")
+    logger.error(f"❌ Erreur réseau : {safe_error(e)}")
 
 
 # ── Étape 5 : Test expiry guard ────────────────────────────────────────────
@@ -161,7 +187,7 @@ try:
     logger.info(f"✅ Token renouvelé automatiquement : {collector._access_token[:8]}…")
     collector.db.close()
 except Exception as e:
-    logger.error(f"❌ Expiry guard failed : {e}")
+    logger.error(f"❌ Expiry guard failed : {safe_error(e)}")
 
 
 # ── Fin ────────────────────────────────────────────────────────────────────
