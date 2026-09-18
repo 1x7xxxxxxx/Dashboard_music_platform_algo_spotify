@@ -440,46 +440,34 @@ _CEILINGS = {
     # le texte, et retirer l'import le laissait satisfait), puis le cliquet
     # anti-garde-textuel a refusé DEUX autres comparaisons de chaîne que j'y avais
     # mises. Trois corrections pour un seul garde, toutes mesurées.
-    "siblings_never_swept": 106,  # 107 → 106 le 2026-09-18 : 8 verdicts sous un
-    # `except`, 6 portent deja un etat illisible, 2 lus et sains.  # 108 → 107 le 2026-09-18 : un `JOIN` interne
-    # jetait 40 % des lignes de `usage_events` — les sessions d'avant connexion —
-    # dans le compteur qui decide des repliques.  # 109 → 108 le 2026-09-18 : 88,8 % du volume
-    # YouTube est ecarte, et DECLARE par deux surfaces (bande hachuree + couverture).  # 110 → 109 le 2026-09-18 : le PDF hachure ce
-    # que l'ecran coupe, depuis la MEME `unmeasured_spans`.  # 111 → 110 le 2026-09-18 : `guard:` porte CINQ
-    # syntaxes et le parseur les lit toutes ; les 3 sans ref portent `—`.  # 112 → 111 le 2026-09-18 : les 8 `sum()` de
-    # `platform_chart` lus un par un ; les totaux du PDF viennent de la couche or.  # 113 → 112 le 2026-09-18 :
-    # `a-percentile-computed-on-survivors` — les temps de rendu observent dans un
-    # `finally`, donc un plantage n'est pas censure.  # 116 → 113 le 2026-09-18 : famille
-    # `une-erreur-avalee-devient-une-absence` — dont un balayage dont la LIMITE est
-    # ecrite (13 des 18 candidats non etablis, plutot qu'un zero annonce).  # 118 → 116 le 2026-09-18 : 0 page injoignable
-    # (37 entrees de menu toutes routees) et le chien de garde sonde depuis GitHub
-    # Actions, hors du VPS qu'il surveille.  # 120 → 118 le 2026-09-18 : famille des CUMULS —
-    # les 8 `SUM()` sur un compteur sont corrects, et les DEUX moteurs de rendu
-    # traitent l'asymetrie avant/apres la derniere mesure.  # 121 → 120 le 2026-09-18 : la famille
-    # `le-locataire` est ENTIEREMENT balayee (10/10).  # 124 → 121 le 2026-09-18 : fin de la famille
-    # `le-locataire` — 2 sites Spotify vivants, et le garde de la classe etait aveugle
-    # a TOUS les `except` du parc (`Try.handlers` n'est pas une liste de `stmt`).  # 125 → 124 le 2026-09-18 :
-    # `partial-collection-invisible` — 21/21 detecteurs branches, et les 4 plateformes
-    # hors du detecteur de creux enfin NOMMEES (R134).  # 126 → 125 le 2026-09-17 :
-    # `a-first-bucket-...` — le PDF bornait la PARTITION de son `LAG`, 100 % de la
-    # fenetre perdue sur la mesure.  # 127 → 126 le 2026-09-17 :
-    # `two-silences-one-message` — 3 sites vivants, dont 2 trouves par le garde.  # 130 → 127 le 2026-09-17 : famille
-    # `le-locataire` — exemptions (2 classes, 0 site) et lectures tronquees
-    # (1 site vivant corrige : SoundCloud plafonnait a 200 pages sans le dire).  # 131 → 130 le 2026-09-17 : la famille des
-    # CLIQUETS balayee d'une seule mesure (16 fichiers a plafond gele), 1 site vivant
-    # corrige — `_MAX_FILES_WITHOUT_DURATION` valait 6 pour une mesure de 0.  # 133 → 131 le 2026-09-17 :
-    # `guard-asserts-presence-not-reachability` (12 gardes verts sur une mutation
-    # d'atteignabilite) et `a-visual-constant-copied-into-a-second-renderer`
-    # (28 figures sous le plancher ΔE, entrees en roadmap sous R133).  # 136 → 133 le 2026-09-17 : `layer-written-but-never-wired`,
-    # `selector-blind-to-the-import-prefix`, `a-test-whose-input-derives-from-its-subject`
-    # — 0 site vivant chacune, mesurées (diff de document vide, mutation de constante).  # 138 → 136 le 2026-09-17 : `df-na-rep` (3 candidats, 0 site) et
-    # `object-dtype-numeric-op` (4 candidats, 0 site — mais un GARDE aveugle).
-    # ⚠️ Compteur NEUF le 2026-09-17, gele a sa premiere mesure. Une classe dont le
-    # fichier de garde est PARTAGE avec une autre doit nommer SES tests — sinon sa
-    # portee se lit comme « je possede tout ce fichier ». 50 fichiers sur 286 sont
-    # partages, et le defaut s'est produit DEUX fois en deux lots avant d'etre
-    # mesure : une classe s'etait attribue le croisement Caddy de sa voisine, une
-    # autre le taux de censure d'une troisieme.
+    #
+    # ⚠️ **386 → 106 dans la nuit du 2026-09-17 au 18**, par ~30 balayages. Le
+    # détail de chaque descente vit dans les messages de commit et dans le champ
+    # `siblings:` de chaque classe — PAS ici. Il y était, sous forme de douze
+    # fragments concaténés par une insertion automatique sur une seule ligne de
+    # 600 caractères, et une ligne qu'on ne relit pas ne documente rien.
+    #
+    # Ce que la descente a rapporté est désormais CHIFFRÉ, ce qui n'était pas le
+    # cas quand elle a commencé : voir `sites_unknown` juste dessous.
+    "siblings_never_swept": 106,
+    # ── LE RENDEMENT, sous cliquet lui aussi (2026-09-18) ────────────────────
+    #
+    # `siblings_never_swept` mesure l'EFFORT ; ce compteur-ci mesure ce qu'on SAIT
+    # du résultat. Un balayage FAIT dont la trouvaille s'est perdue en prose ne
+    # compte ni comme zéro ni comme trouvaille — il compte comme un trou, et c'est
+    # ce trou qui empêchait de répondre à « est-ce que balayer paie ? ».
+    #
+    # Mesuré le 2026-09-18 en donnant un verdict lisible au champ : sur 291
+    # balayages, **49 seulement** en portaient un (34 à zéro, 15 avec des sites,
+    # 30 sites au total). Taux de trouvaille sur ces 49 : **30,6 %** — le chiffre
+    # qui justifie de continuer, et qui n'existait pas avant ce jour.
+    #
+    # ⚠️ Ce bloc a dû être RÉÉCRIT : l'insertion automatique avait concaténé sur
+    # cette ligne les commentaires de chaque abaissement précédent de
+    # `siblings_never_swept`. Le fichier restait valide et le cliquet fonctionnait —
+    # c'est la LISIBILITÉ qui était perdue, et une ligne de 600 caractères ne se
+    # relit pas.
+    "sites_unknown": 242,
     "scope_on_a_shared_guard_without_naming_its_tests": 15,  # phase C ; 23 → 15 le 2026-09-17
                                       # ⚠️ 9 → 11 le 2026-09-17, et les DEUX de hausse sont
                                       # STRUCTURELS, pas de la négligence : `ci-runs-twice-for-one-commit`

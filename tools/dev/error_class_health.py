@@ -282,11 +282,50 @@ def _declared(text: str) -> dict[str, dict]:
             # vivants. Ajouté le 2026-09-17 sur une question du propriétaire ; mesure du
             # jour : 69 classes sur 395 portaient une trace de balayage, 326 aucune.
             "siblings_swept": (_field(body, "siblings") or "").strip().startswith("swept:"),
+            # ⚠️ **LE RENDEMENT DU BALAYAGE N'ÉTAIT PAS MESURABLE**, et c'est ce que
+            # cette ligne corrige (2026-09-18). `siblings_swept` ne disait que « la
+            # question a été posée » ; ce qu'elle a RAPPORTÉ vivait en prose libre.
+            # Compté ce jour-là : sur 291 balayages, **49 seulement** portaient un
+            # verdict lisible (34 à zéro, 15 avec des sites) — les 242 autres étaient
+            # inclassables. On ne pouvait donc pas répondre à « est-ce que balayer
+            # paie ? », qui est la seule question qui décide de continuer.
+            #
+            # `sites` vaut un entier quand la prose l'affirme en gras, sinon `None` —
+            # et `None` est compté comme un TROU, pas comme un zéro. Un balayage dont
+            # on ne sait pas ce qu'il a trouvé n'est pas un balayage sans trouvaille.
+            "siblings_sites": _swept_sites(_field(body, "siblings") or ""),
             "guard_scope_names_a_test": _names_a_test(
                 scope or "", _field(body, "signature") or ""),
             "guard_scope_derived_family": derived.get(cid),
         }
     return out
+
+
+# ── Le RENDEMENT d'un balayage ───────────────────────────────────────────────
+_SITES_ZERO = re.compile(r"\*\*0 sites? vivants?", re.I)
+_SITES_N = re.compile(r"\*\*(\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)"
+                      r"\s+sites?\s+vivants?", re.I)
+_MOTS = {"un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5,
+         "six": 6, "sept": 7, "huit": 8, "neuf": 9, "dix": 10}
+
+
+def _swept_sites(champ: str) -> "int | None":
+    """Combien de sites VIVANTS ce balayage a trouvés — ou `None` si la prose ne le dit pas.
+
+    Volontairement strict : seule la forme en gras compte (`**0 site vivant**`,
+    `**3 sites vivants**`). Une mention en passant ne suffit pas, parce qu'une prose qui
+    parle de sites sans les compter est exactement ce qu'on cherche à rendre visible.
+    `None` remonte dans `sites_unknown`, un trou déclaré — jamais confondu avec zéro.
+    """
+    if not champ.strip().startswith("swept:"):
+        return None
+    if _SITES_ZERO.search(champ):
+        return 0
+    m = _SITES_N.search(champ)
+    if not m:
+        return None
+    v = m.group(1).lower()
+    return int(v) if v.isdigit() else _MOTS.get(v)
 
 
 # ── Git : ce que personne ne peut éditer ─────────────────────────────────────
@@ -524,6 +563,12 @@ def build() -> tuple[str, str]:
         # « swept — aucun autre site » est un RÉSULTAT, et n'en est pas un.
         "siblings_never_swept": sum(
             1 for c in classes.values() if not c["siblings_swept"]),
+        # Un balayage FAIT dont on ne sait pas ce qu'il a trouvé. Distinct de
+        # `siblings_never_swept` : là, la question n'a pas été posée ; ici, elle l'a
+        # été et la réponse s'est perdue en prose.
+        "sites_unknown": sum(
+            1 for c in classes.values()
+            if c["siblings_swept"] and c["siblings_sites"] is None),
         # ⚠️ `scope_family_disagreements` a été RETIRÉ le 2026-09-16, le jour même où il
         # a été posé, et la mesure qui le retire vaut d'être gardée.
         #
@@ -557,6 +602,31 @@ def build() -> tuple[str, str]:
     }
     rates = _rates(declared, observed)
 
+    # ── LE RENDEMENT : ce que balayer RAPPORTE, et non combien on en a fait ──────
+    #
+    # Ajouté le 2026-09-18, parce que la question « faut-il continuer à balayer ? » se
+    # posait et n'avait aucune réponse chiffrée. Le compteur `siblings_never_swept`
+    # mesure l'EFFORT ; celui-ci mesure le résultat.
+    #
+    # ⚠️ `sweeps_with_a_verdict` est le dénominateur honnête. Compter les sites trouvés
+    # sur TOUS les balayages diviserait par un nombre qui contient 242 balayages muets,
+    # et sortirait un taux artificiellement bas — la faute même que ce dépôt appelle
+    # `anchor-a-number-to-its-population`.
+    _swept = [c for c in classes.values() if c["siblings_swept"]]
+    _avec_verdict = [c for c in _swept if c["siblings_sites"] is not None]
+    _productifs = [c for c in _avec_verdict if c["siblings_sites"] > 0]
+    yield_ = {
+        "sweeps_done": len(_swept),
+        "sweeps_with_a_verdict": len(_avec_verdict),
+        "sweeps_that_found_something": len(_productifs),
+        "live_sites_found": sum(c["siblings_sites"] for c in _avec_verdict),
+        "hit_rate_on_verdicts": (round(len(_productifs) / len(_avec_verdict), 3)
+                                 if _avec_verdict else None),
+        "note": ("Le taux porte sur les balayages dont le verdict est LISIBLE. "
+                 "Les autres sont comptés dans holes.sites_unknown — un balayage "
+                 "muet n'est pas un balayage sans trouvaille."),
+    }
+
     payload = {
         "classes": classes,
         # ⚠️ ÉCRIT EN DERNIER ET CONTIGU, pour que
@@ -571,6 +641,7 @@ def build() -> tuple[str, str]:
             "holes": dict(sorted(holes.items())),
             "population": dict(sorted(population.items())),
             "recurrence": rates,
+            "sweep_yield": yield_,
         },
     }
     js = json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=False) + "\n"
@@ -608,6 +679,27 @@ def _render(p: dict) -> str:
         f"**{pop['classes']} classes.** Fenêtre observée : `{r.get('window_start')}` → "
         f"`{r.get('as_of')}` ({a['generated_from']['catalogue_revisions']} révisions du "
         "catalogue rejouées).",
+        "",
+        "## Ce que le balayage RAPPORTE",
+        "",
+        "Le compteur `siblings_never_swept` mesure l'EFFORT. Celui-ci mesure le "
+        "résultat, et c'est lui qui décide s'il faut continuer.",
+        "",
+        "| grandeur | valeur |",
+        "|---|---|",
+        f"| balayages faits | **{a['sweep_yield']['sweeps_done']}** |",
+        f"| dont le verdict est LISIBLE | **{a['sweep_yield']['sweeps_with_a_verdict']}** |",
+        f"| qui ont trouvé au moins un site | **{a['sweep_yield']['sweeps_that_found_something']}** |",
+        f"| sites vivants trouvés | **{a['sweep_yield']['live_sites_found']}** |",
+        f"| taux de trouvaille (sur verdicts lisibles) | "
+        f"**{a['sweep_yield']['hit_rate_on_verdicts']}** |",
+        "",
+        f"⚠️ **{h['sites_unknown']} balayages sont MUETS** : la question a été posée, la "
+        "réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme "
+        "zéro — un balayage dont on ignore le résultat n'est pas un balayage sans "
+        "résultat. Le dénominateur du taux ci-dessus les exclut délibérément : les "
+        "inclure diviserait par une population qui ne répond pas à la question, ce que "
+        "ce dépôt appelle `anchor-a-number-to-its-population`.",
         "",
         "## Ce que ce document corrige",
         "",

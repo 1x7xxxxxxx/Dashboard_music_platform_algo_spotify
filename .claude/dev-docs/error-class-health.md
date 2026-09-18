@@ -3,7 +3,21 @@
 
 # La santé du catalogue de classes d'erreur
 
-**397 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (284 révisions du catalogue rejouées).
+**398 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (284 révisions du catalogue rejouées).
+
+## Ce que le balayage RAPPORTE
+
+Le compteur `siblings_never_swept` mesure l'EFFORT. Celui-ci mesure le résultat, et c'est lui qui décide s'il faut continuer.
+
+| grandeur | valeur |
+|---|---|
+| balayages faits | **292** |
+| dont le verdict est LISIBLE | **50** |
+| qui ont trouvé au moins un site | **16** |
+| sites vivants trouvés | **40** |
+| taux de trouvaille (sur verdicts lisibles) | **0.32** |
+
+⚠️ **242 balayages sont MUETS** : la question a été posée, la réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme zéro — un balayage dont on ignore le résultat n'est pas un balayage sans résultat. Le dénominateur du taux ci-dessus les exclut délibérément : les inclure diviserait par une population qui ne répond pas à la question, ce que ce dépôt appelle `anchor-a-number-to-its-population`.
 
 ## Ce que ce document corrige
 
@@ -11,7 +25,7 @@ Cinq chiffres avancés le 2026-09-16 avant vérification, et ce qu'ils valent :
 
 | avancé | mesuré |
 |---|---|
-| 367 classes | **397** — les 4 en trop étaient `Contract`, `Index`, `Per-class schema`, `CLASS-ID` |
+| 367 classes | **398** — les 4 en trop étaient `Contract`, `Index`, `Per-class schema`, `CLASS-ID` |
 | « 57 récidives » | **non reproductible** : cinq définitions défendables donnent 39 / 49 / 55 / 67 / 167. Ce document n'en retient qu'une, écrite ci-dessous, et c'est celle que le cliquet utilise |
 | gardes 15,1 % contre prose 22,7 % | voir les intervalles : les sous-groupes portent trop peu d'évènements pour trancher |
 | le taux s'améliore (38 → 18 → 9 %) | **il empire** une fois normalisé par l'exposition. L'ancien chiffre comptait comme « n'a pas récidivé » des classes trop jeunes pour avoir pu le faire |
@@ -27,11 +41,11 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 
 | grandeur | valeur |
 |---|---|
-| `automatic_guard` | 387 |
-| `classes` | 397 |
+| `automatic_guard` | 388 |
+| `classes` | 398 |
 | `ever_recurred_observed` | 53 |
 | `prose_only` | 10 |
-| `with_signature` | 386 |
+| `with_signature` | 387 |
 
 ## Les trous — ce que le cliquet fait baisser
 
@@ -49,6 +63,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 330 |
 | `siblings_never_swept` | 106 |
+| `sites_unknown` | 242 |
 
 ## Récidive observée
 
@@ -66,9 +81,9 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
-⚠️ **La strate `by_scope` porte sur 397 classes de 397, soit 100 % du catalogue.** Les 0 autres n'ont pas de `ne couvre pas:` écrit, et **zéro récidive y est observée** — mais une récidive se compte en lignes d'HISTOIRE ajoutées. Une classe qu'on n'a jamais rouverte n'en gagne aucune, qu'elle soit saine ou seulement ignorée.
+⚠️ **La strate `by_scope` porte sur 398 classes de 398, soit 100 % du catalogue.** Les 0 autres n'ont pas de `ne couvre pas:` écrit, et **zéro récidive y est observée** — mais une récidive se compte en lignes d'HISTOIRE ajoutées. Une classe qu'on n'a jamais rouverte n'en gagne aucune, qu'elle soit saine ou seulement ignorée.
 
-Autrement dit : ce taux ne peut pas distinguer « écrire la portée protège » de « on ne regarde que là ». Il ne se cite pas comme s'il décrivait les 397 classes.
+Autrement dit : ce taux ne peut pas distinguer « écrire la portée protège » de « on ne regarde que là ». Il ne se cite pas comme s'il décrivait les 398 classes.
 
 ## Cohortes à horizon fixe
 

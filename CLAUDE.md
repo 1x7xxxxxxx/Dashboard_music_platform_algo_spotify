@@ -312,9 +312,22 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     plausible s'écrit `inferred`, pas dans la voix d'un fait), et `guard_scope:` (la
     **famille de geste** couverte, et au moins un geste voisin **non couvert**).
     Mesuré le 2026-09-16 : une classe gardée sur le VERBE `pkill` a récidivé trois fois
-    par `pgrep`, qui partageait la cause. Et mesuré aussi, sur 194 révisions du
-    catalogue : une classe **sans garde automatique récidive 5,2× plus** — 1,005
-    évènement par classe-mois contre 0,193, intervalles à 95 % disjoints.
+    par `pgrep`, qui partageait la cause.
+    ⚠️ **Ce paragraphe a porté un second chiffre, et il est PÉRIMÉ.** Il annonçait, sur
+    194 révisions du catalogue, qu'« une classe sans garde automatique récidive 5,2×
+    plus — 1,005 évènement par classe-mois contre 0,193, intervalles à 95 % disjoints ».
+    Remesuré le 2026-09-18 sur 283 révisions : **2,3×**, 0,527 contre 0,233, et les
+    intervalles **SE RECOUVRENT** — [0,106 ; 1,540] contre [0,179 ; 0,298]. La
+    différence n'est plus établie à ce n (le bras « prose » ne porte que 3 évènements
+    sur 173 jours-classe). Écrire un garde automatique reste la bonne pratique ; ce
+    n'est simplement plus ce chiffre-là qui la justifie, et une règle qui s'appuie sur
+    une mesure doit dire quand la mesure a bougé. C'est
+    `un-document-qui-affirme-un-état-périmé`, commise dans le fichier qui la documente.
+    ⚠️ Et l'axe `seen_red` ne discrimine pas non plus : les classes DATÉES récidivent
+    **plus** (0,340 contre 0,234), intervalles recouvrants, sur 4 évènements seulement.
+    On continue de dater `seen_red` — décision du propriétaire le 2026-09-18, motif
+    explicite : le n est trop faible pour conclure, et remplir la colonne est ce qui
+    fera converger l'intervalle. Ce n'est donc pas un acquis, c'est un pari déclaré.
     Contrôle : `make error-health-check`. Évolution : `make error-health-history`.
 
 15bis. **Séance longue sans interlocuteur — `/loop`, une consigne de nuit, ou plus de
@@ -362,6 +375,38 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     les liens, et signale explicitement deux sources qui se contredisent. Déclencheur
     vérifiable : `grep -rl "<le code d'erreur>" .claude/dev-docs/` ne renvoie rien.
     Le cas vivant est R13 — Meta répond `code-190` sur tout REST depuis des semaines.
+
+20. **Un balayage qui publie un NOMBRE de sites → le muter dans les DEUX SENS avant de
+    l'écrire.** Un **faux positif** (un site qui a la forme et n'est PAS le défaut) et un
+    **faux négatif** (un site qui EST le défaut, écrit autrement). Et le champ `siblings:`
+    porte l'entonnoir minimal qui rende le chiffre contredisable : candidats bruts →
+    écartés avec leur raison → sites vivants.
+    La raison est mesurée, pas prudentielle. Nuit du 2026-09-17 au 18, ~30 balayages :
+    **dix prédicats étaient faux au premier jet**, d'un facteur 3 à 25, et **toujours en
+    sur-comptant** — 112 → 0, 688 → 16, 385 → 18, 13 → 1, 11 → 2, 9 → 0, 3 → 0. Aucune
+    de ces dix corrections n'est venue d'une relecture du prédicat ; les dix sont venues
+    d'une mutation ou d'une lecture site par site. La cause commune est toujours la même :
+    le prédicat cherche une FORME D'ÉCRITURE (`page == "x"`, `assert not …`, `^CONST =`)
+    là où la classe parle d'une PROPRIÉTÉ (« la page est-elle atteignable », « l'absence
+    est-elle ancrée », « ce plafond a-t-il un plancher »).
+    Classe : `a-sweep-predicate-that-matches-a-form-not-a-property`.
+    Contrôle : `make error-health` → panneau « Ce que le balayage RAPPORTE » ; un balayage
+    dont le verdict n'est pas lisible compte dans `sites_unknown`, un trou sous cliquet.
+
+21. **Balayer par FAMILLE, pas par classe.** Les classes d'une même famille partagent
+    leur cause, donc une seule mesure en tranche plusieurs.
+    Mesuré sur les balayages eux-mêmes, en croisant leur date et leur famille : le
+    2026-09-17, **271 des 273 classes balayées (99 %)** appartenaient à une famille
+    balayée plusieurs fois ce jour-là ; le 2026-09-18, **17 sur 18 (94 %)**. Le
+    groupement n'est donc pas une intention qu'on se donne — c'est ce qui se produit
+    quand on suit la cause, et le reconnaître évite de rouvrir une mesure déjà faite
+    pour la classe d'à côté.
+    ⚠️ Ce que cette mesure NE dit pas : combien de mesures distinctes une famille a
+    coûté. J'ai d'abord écrit « quatre mesures pour dix classes » — une impression, pas
+    un relevé, c'est-à-dire précisément la règle 20 enfreinte dans le texte qui
+    l'introduit. Le chiffre ci-dessus est celui qu'on peut rejouer.
+    `.claude/dev-docs/error-class-families.md` est généré pour ça : il porte, pour
+    chaque famille, LA question qu'elle fait poser.
 
 > Règles 18-19 ajoutées le 2026-08-21 pour la raison mesurée ci-dessus, et pas pour
 > gonfler un score : ces deux agents n'étaient nommés que dans un tableau, donc jamais
