@@ -5879,7 +5879,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -6152,7 +6152,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-06-20",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -7002,7 +7002,7 @@
       "siblings_swept": true,
       "status": "fixed",
       "introduced_date": "2026-08-21",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8667,7 +8667,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-23",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8778,7 +8778,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8860,7 +8860,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9078,7 +9078,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 2,
       "renamed_from": null
     },
@@ -9188,7 +9188,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -9381,7 +9381,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9762,7 +9762,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-23",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -10977,7 +10977,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 328,
+      "catalogue_revisions": 329,
       "head_date": "2026-09-18"
     },
     "holes": {
