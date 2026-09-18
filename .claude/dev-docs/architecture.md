@@ -1,7 +1,13 @@
 # Architecture Diagrams
 
-*Auto-updated by the `strategic-plan-architect` background agent after each session.*
-*Last updated: 2026-05-30 (Road to Algorithms: volume/regressor decision layer — new ALGO_VOLUME_ZONES + regressor render helpers in the existing utils modules; no service topology change)*
+*Tenu à jour à la main, et par `strategic-plan-architect` quand il est invoqué.*
+
+> ⚠️ **Ce fichier portait « Last updated: 2026-05-30 » jusqu'au 2026-09-18**, alors que
+> `git log -1 -- .claude/dev-docs/architecture.md` rendait **2026-09-16** et que quinze
+> commits l'avaient touché depuis juin. Une date écrite à la main dans un document qui
+> vit dans git est une seconde source pour une grandeur que git tient déjà — elle ne
+> peut que diverger. La date de dernière écriture se lit par
+> `git log -1 --date=short --format=%ad -- .claude/dev-docs/architecture.md`.
 
 ---
 
@@ -10,12 +16,10 @@
 ```mermaid
 graph TD
     A1[Spotify API] -->|REST| C
-    A2[Spotify for Artists CSV] -->|file upload| C
     A3[Meta Ads API] -->|REST| C
     A4[YouTube Data API] -->|REST| C
     A5[SoundCloud API] -->|REST| C
     A6[Instagram Graph API] -->|REST| C
-    A7[Apple Music CSV] -->|file upload| C
 
     C[Airflow DAGs<br/>Docker — port 8080]
     C -->|upsert_many| D[(PostgreSQL<br/>spotify_etl<br/>port 5433)]
@@ -23,8 +27,27 @@ graph TD
 
     D -->|fetch_df| F[streaMLytics<br/>Streamlit — port 8501]
 
+    %% Les CSV n'entrent PAS par Airflow. Les 4 `*_csv_watcher` ont ete supprimes le
+    %% 2026-09-04 (ADR-014) ; l'import se fait depuis la page du dashboard, qui garde
+    %% le fichier 14 jours. Ce diagramme les routait encore vers Airflow le
+    %% 2026-09-18, alors que la prose du meme fichier (l. 117-122) annoncait la
+    %% correction comme FAITE : elle n'avait touche que la prose.
+    A2[Spotify for Artists CSV] -->|import depuis la page| F
+    A7[Apple Music CSV] -->|import depuis la page| F
+    A8[DistroKid / SACEM CSV] -->|import depuis la page| F
+    F -->|transformers/* + upsert_many| D
+
+    D -->|fetch_df / upsert_many| I[FastAPI REST<br/>src/api — JWT<br/>uvicorn, port 8502]
+    A9[Stripe] -->|webhook POST /stripe/webhook| I
+
     G[Fernet-encrypted credentials<br/>artist_credentials table] -->|credential_loader| C
     H[saas_artists table<br/>multi-tenant SaaS] -->|artist_id FK| D
+
+    %% Profil `observability` de deploy/docker-compose.observability.yml — ARRETE par
+    %% defaut, adopte par ADR-026 pour surveiller les declencheurs d'ADR-002/007/014.
+    F -.->|/metrics, port lateral| P[Prometheus<br/>127.0.0.1:9090]
+    I -.->|/metrics, MEME port HTTP| P
+    P -.->|datasource| GR[Grafana<br/>127.0.0.1:3000]
 ```
 
 ---
@@ -45,11 +68,14 @@ graph LR
     CL -->|reads| DB
     COL -->|upsert_many via| PH
 
-    ML[ml_scoring_daily DAG] -->|loads model| MLR[machine_learning/models/v2_noscaler/]
+    ML[ml_scoring_daily DAG] -->|loads model| MLR[machine_learning/models/v3/]
     ML -->|scores via| INF[ml_inference.py]
     INF -->|writes| DB
 
-    TA[trigger_algo.py] -->|renders via| MW[utils/ml_widgets.py]
+    V[views/*.py] -->|with view_session()| VS[dashboard/utils/view_session]
+    VS -->|ouvre UNE connexion, la ferme a la sortie| GDB[get_db_connection]
+
+    TA[trigger_algo/ package] -->|renders via| MW[utils/ml_widgets.py]
     MLP[ml_performance.py] -->|renders via| MW
     MW -->|reads zones/metrics| AK[utils/algo_knowledge.py]
     TA -.->|lifecycle tab reads| BENCH[(algo_lifecycle_benchmark<br/>GLOBAL read-only)]
@@ -74,9 +100,17 @@ graph LR
 | `dashboard/utils/ml_widgets.py` | Utility | streamlit + plotly — classification scorecard + feature gauges + `render_coach` ranked to-do list; volume layer: `render_floor_forecast`/`floor_forecast_text`/`render_regressor_badge`/`render_volume_gauges`/`render_shap_narrative` (registry-threaded `_render_one_gauge`/`_live_value`). Consumes algo_knowledge |
 | `airflow/dags/*.py` | Feature | collectors, credential_loader |
 | `src/collectors/*.py` | Sub | platform APIs, PostgresHandler |
-| `airflow/debug_dag/*.py` | Sub | mirrors its production DAG |
+| `airflow/debug_dag/*.py` | Sub | **la plupart** doublent un DAG homonyme ; trois n'en ont aucun (`debug_apple_music`, `debug_s4a`, `debug_soundcloud_oauth` doublent le chemin d'import CSV du dashboard) et `trial_expiry_reminder` est un DAG sans script de debug — 15 scripts pour 13 DAG |
 | `src/database/*_schema.py` | Sub | PostgresHandler |
 | `src/transformers/*.py` | Sub | CSV input, feeds collectors |
+| `src/api/main.py` | Core | FastAPI + `api/routers/*` + `api/security.py` ; expose `/metrics` sur SON port HTTP, sans serveur latéral (ADR-026) |
+| `src/api/auth.py` | Sub | python-jose — encode/decode JWT, `API_SECRET_KEY` |
+| `src/api/deps.py` | Sub | `api/auth.py`, `dashboard/utils/get_db_connection`, PostgresHandler |
+| `src/api/security.py` | Sub | middlewares starlette — `utils/request_throttle.py` (fenêtre glissante, table `rate_limit_hits`) + en-têtes de réponse |
+| `src/api/routers/*.py` | Feature | `api/deps.py` — 7 routeurs : artists, auth, kpis, ml, streams, stripe_webhook, youtube |
+| `src/dashboard/serve.py` | Core | l'ENTRÉE du conteneur (`CMD`) — démarre l'exportateur de métriques PUIS `streamlit run`, même processus |
+| `src/dashboard/utils/__init__.py` | Core | `view_session()` — le gabarit obligatoire d'une vue neuve (règle transverse #7) |
+| `src/utils/*.py` | Utility | 65 modules — dont `metrics.py`, `request_throttle.py`, `dag_run_logger.py`, `circuit_breaker.py` |
 | `retry.py` | Utility | — |
 | `config_loader.py` | Utility | config/config.yaml |
 | `credential_loader.py` | Utility | PostgresHandler, Fernet |
@@ -97,6 +131,9 @@ graph LR
 | Instagram | `instagram_api_collector.py` | `instagram_daily_stats`, `instagram_media`, `instagram_media_insights` | `instagram_daily` |
 | Apple Music | `apple_music_csv_parser.py` | `apple_songs_performance`, `apple_daily_plays`, `apple_listeners` | import CSV du dashboard (`views/upload_csv.py`) |
 | iMusician | manual entry + CSV import | `imusician_sales_detail` (raw, per-line) → `imusician_monthly_revenue` (DERIVED, rolled up) | import CSV du dashboard (`views/upload_csv.py`) |
+| DistroKid | `distrokid_parser.py` | `distrokid_sales_detail` | import CSV du dashboard |
+| SACEM | `sacem_parser.py` | `sacem_statement` (migration 055) | import CSV du dashboard |
+| Hypeddit | — (saisie manuelle, `views/hypeddit.py`) | `hypeddit_campaigns`, `hypeddit_daily_stats` | aucun — saisie |
 | ML scoring | `ml_inference.py` (**v3**, group-CV rebuild 2026-06-05) | `ml_song_predictions` (+`pi_forecast_7d`), `s4a_song_saves_daily` (saves history → resurrection radar) | `ml_scoring_daily` |
 | ML outcome labelling (NEW 2026-06-12) | `ml_outcome_labeling.py` | `s4a_song_algo_outcomes` (manual realized DW/RR/Radio streams, windowed 7d/28d/custom — capture in Saisie S4A), `ml_prediction_outcomes` (training-ready labelled pairs; labels use **28d only**) | `ml_outcome_labeling` (weekly Mon 06:00) |
 | Algo lifecycle benchmark | `machine_learning/export_lifecycle_benchmark.py` (offline) | `algo_lifecycle_benchmark` (GLOBAL / non-tenant, read-only, NOT in `_ALLOWED_TABLES`) | none (manual seed via migration 035; PROVISIONAL) |
@@ -162,11 +199,31 @@ graph LR
 
 ### Failure flow diagram
 
+> ⚠️ **Deux corrections du 2026-09-18, chacune mesurée.**
+>
+> `precheck_credentials` n'est PAS l'étape universelle que ce diagramme en faisait :
+> `grep -rln precheck_credentials airflow/dags/` rend **2 fichiers sur 13**
+> (`soundcloud_daily.py`, `instagram_daily.py`). Onze DAG entrent directement dans la
+> tâche de collecte.
+>
+> Et le journal par locataire (`etl_run_log`) et le **disjoncteur**
+> (`etl_circuit_breaker`) n'apparaissaient nulle part, alors que le flux s'y termine.
+> Le disjoncteur n'est câblé dans **aucun** DAG directement : il est alimenté par
+> `DagRunLogger._record_on_the_breaker`, « le seul point que toutes les collectes
+> traversent déjà ». ⚠️ **Conséquence, et elle est vivante** : un DAG qui n'appelle
+> jamais `record_tenant_*` n'alimente donc jamais le disjoncteur. Ils sont **5 sur 13**
+> à l'appeler, et `meta_ads_api_daily` — un COLLECTEUR — n'en fait pas partie. Un
+> identifiant Meta cassé consomme donc deux essais × N locataires chaque nuit,
+> indéfiniment : exactement ce que le module a été écrit pour éviter, et ce que sa
+> propre docstring décrit.
+
 ```mermaid
 flowchart TD
-    A[DAG triggered] --> B[precheck_credentials]
-    B -->|missing creds| FAIL1[❌ FAILED — no retry\nAction: Dashboard → Credentials]
-    B -->|OK| C[collect task — attempt 1/3]
+    A[DAG triggered] --> B{precheck_credentials ?}
+    B -->|absent — 11 DAG sur 13| C
+    B -->|présent — soundcloud, instagram| B2[precheck_credentials]
+    B2 -->|missing creds| FAIL1[❌ FAILED — no retry\nAction: Dashboard → Credentials]
+    B2 -->|OK| C[collect task — attempt 1/3]
 
     C -->|HTTP 200| SUCCESS[✅ SUCCESS\nupsert_many → DB]
     C -->|HTTP 401 ValueError| FAIL2[❌ FAILED immediately\nno @retry loop\nAirflow → attempt 2 +10min]
@@ -183,6 +240,12 @@ flowchart TD
     ATT2 -->|rate limit cleared| SUCCESS
     ATT3 -->|still failing| FINAL[❌ DAG FAILED\nemail alert\nManual retrigger next day]
     ATT3 -->|OK| SUCCESS
+
+    %% Ce que le flux ci-dessus NE montrait PAS jusqu'au 2026-09-18, et qui existe.
+    SUCCESS --> LOG[record_tenant_success/failure/skip<br/>etl_run_log]
+    FINAL --> LOG
+    LOG -->|_record_on_the_breaker| CB[(etl_circuit_breaker)]
+    CB -.->|ouvre apres N echecs| A
 ```
 
 ### Root causes for 429 spikes to avoid
@@ -208,7 +271,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `meta_creatives.py` | Créatives Meta — 6 tabs (Classement/Comparaison/Funnel/Évolution/Fatigue/Activité) + per-creative multi-metric timeline since 2026-05-29 | meta_insights (ad grain), meta_ads | all |
 | `meta_breakdowns.py` | 🌍 Breakdowns Meta (since 2026-05-29) — campaign→adset→creative cascade, dimension (country/placement/age) × metric-family (perf/engagement); choropleth (utils/geo.py) + Pareto (utils/charts.py::pareto_spend_cpr) | all |
 | `meta_x_spotify.py` | Meta × Spotify | meta_insights, tracks, track_popularity_history, campaign_track_mapping (read-only) | all |
-| `meta_mapping.py` | Mapping Spotify × Meta Ads (nom de campagne) — under "Données" section since 2026-05-28 | campaign_track_mapping (read+write, artist_id NOT NULL) | all |
+| `meta_mapping/` (package) | Mapping Spotify × Meta Ads (nom de campagne) — under "Données" section since 2026-05-28 | campaign_track_mapping (read+write, artist_id NOT NULL) | all |
 | `youtube.py` | YouTube | youtube_* | all |
 | `platform_status.py` | 📋 État de tes plateformes — la matrice complète des six sources. **Hors du menu depuis le 2026-09-05** (chaque onglet de Credentials porte les quatre pastilles de SA plateforme) mais toujours ROUTÉE : des messages y renvoient | lecture seule (artist_readiness) | all |
 | `soundcloud.py` | SoundCloud | soundcloud_tracks_daily | all |
@@ -219,7 +282,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `hypeddit.py` | Hypeddit | hypeddit_* | all |
 | `imusician.py` | iMusician (Distributeur) | imusician_monthly_revenue (derived from imusician_sales_detail) | all |
 | `revenue_forecast.py` | 📈 Prévisions revenus | imusician_monthly_revenue (derived), ml_song_predictions | premium |
-| `trigger_algo.py` | Trigger Algo — 7 tabs (Global/Suivi Algos/Budget/Explainabilité/Modèle/Cycle de vie & Benchmark/**Streams algos générés** — last one NEW 2026-06-12: stacked bar of realized DW/RR/Radio streams, cumulative total + per-playlist, 7d/28d/custom, from `s4a_song_algo_outcomes`); Modèle + Explainabilité tabs stack ALL populated algos (DW + Radio + RR — all 3 populated as of 2026-05-30) via `ml_widgets` scorecard / feature gauges + `algo_knowledge` zones; volume layer (2026-05-30): floor wording in `_display_prob_bar`, `render_volume_gauges` in the coach loop, regressor SHAP autopsy (`render_shap_narrative`/`render_regressor_badge`) in Explainabilité, organic budget-scaling section in Budget; Budget tab `_show_velocity_budget_advice` cross-link routes through `algo_knowledge.velocity_penalty_threshold` | ml_song_predictions, algo_lifecycle_benchmark (lifecycle tab, GLOBAL read-only) | all |
+| `trigger_algo/` (package) | Trigger Algo — 7 tabs (Global/Suivi Algos/Budget/Explainabilité/Modèle/Cycle de vie & Benchmark/**Streams algos générés** — last one NEW 2026-06-12: stacked bar of realized DW/RR/Radio streams, cumulative total + per-playlist, 7d/28d/custom, from `s4a_song_algo_outcomes`); Modèle + Explainabilité tabs stack ALL populated algos (DW + Radio + RR — all 3 populated as of 2026-05-30) via `ml_widgets` scorecard / feature gauges + `algo_knowledge` zones; volume layer (2026-05-30): floor wording in `_display_prob_bar`, `render_volume_gauges` in the coach loop, regressor SHAP autopsy (`render_shap_narrative`/`render_regressor_badge`) in Explainabilité, organic budget-scaling section in Budget; Budget tab `_show_velocity_budget_advice` cross-link routes through `algo_knowledge.velocity_penalty_threshold` | ml_song_predictions, algo_lifecycle_benchmark (lifecycle tab, GLOBAL read-only) | all |
 | `ml_performance.py` | ML Performance — + "Scorecard classification" tab (shared `ml_widgets`) since 2026-05-29; scorecard grid loops `ak.populated_algos()` (no hardcoded algo tuple) since 2026-05-30 | ml_song_predictions, mlruns | admin |
 | `airflow_kpi.py` | Airflow KPI | Airflow REST API | admin |
 | `admin.py` | Admin | saas_artists, artist_credentials | admin |

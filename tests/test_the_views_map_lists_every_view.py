@@ -77,6 +77,10 @@ def _views_map_text() -> str:
     return rest[: nxt.start()] if nxt else rest
 
 
+def _is_package(view: str) -> bool:
+    return (VIEWS_DIR / view).is_dir()
+
+
 @pytest.mark.parametrize("view", sorted(_views()))
 def test_every_view_is_named_in_the_views_map(view):
     body = _views_map_text()
@@ -114,3 +118,67 @@ def test_the_extraction_is_not_vacuous():
         "and the parametrised checks are asserting against an empty string."
     )
     assert len(_views()) > 20, "views/ yielded almost nothing — check the listing"
+
+
+@pytest.mark.parametrize("view", sorted(_views()))
+def test_the_map_says_whether_a_view_is_a_file_or_a_package(view):
+    r"""Le NOM ne suffit pas : la carte doit dire la FORME.
+
+    Mesuré le 2026-09-18. `trigger_algo.py` et `meta_mapping.py` ont été scindés en
+    PAQUETS (`src/dashboard/views/trigger_algo/`, `meta_mapping/`) — le même mouvement
+    que `credentials.py → credentials/`, que la carte dénote correctement. Les deux
+    autres lignes sont restées en `.py`, et **le garde est passé vert** : son motif
+    `` `{view}(?:\.py|/)?` `` accepte le nom suivi de `.py`, de `/`, ou de rien, donc
+    il ne peut pas distinguer un fichier d'un répertoire.
+
+    Un lecteur qui cherche `trigger_algo.py` sur le disque ne le trouve pas — et la
+    carte existe précisément pour qu'on la consulte AU LIEU de lister le répertoire.
+    C'est l'exclusion nº 2 que `guard_scope` déclarait déjà : « le CONTENU de ce que
+    la carte dit d'une vue, seulement son nom ».
+    """
+    body = _views_map_text()
+    paquet = _is_package(view)
+    comme_fichier = re.search(rf"`{re.escape(view)}\.py`", body) is not None
+    comme_paquet = re.search(rf"`{re.escape(view)}/`", body) is not None
+    if paquet:
+        assert comme_paquet and not comme_fichier, (
+            f"`{view}` est un PAQUET sur le disque "
+            f"(`src/dashboard/views/{view}/__init__.py`), et la carte l'écrit "
+            f"{'aussi en `.py` ' if comme_fichier else ''}"
+            f"{'sans jamais le suffixer par `/`' if not comme_paquet else ''}. "
+            "Écrire `" + view + "/` (package) — la ligne `credentials/` est le modèle."
+        )
+    else:
+        assert comme_fichier and not comme_paquet, (
+            f"`{view}` est un FICHIER sur le disque "
+            f"(`src/dashboard/views/{view}.py`), et la carte l'écrit comme un "
+            "répertoire. Un lecteur ira chercher un dossier qui n'existe pas."
+        )
+
+
+def test_the_form_predicate_separates_the_two_shapes():
+    """La preuve que ce fichier se donne à lui-même, à chaque exécution.
+
+    Le test ci-dessus est vert tant que l'arbre est sain, donc il ne dit pas s'il
+    SAURAIT voir une carte qui ment sur la forme. On fabrique les deux écritures et on
+    exige qu'elles se séparent — un prédicat qui rendrait la même chose des deux côtés
+    serait vert sur l'arbre réel et aveugle le jour où il compte.
+    """
+    corps = "| `foo.py` | une vue | - | all |\n| `bar/` (package) | une autre | - | all |"
+    assert re.search(r"`foo\.py`", corps) and not re.search(r"`foo/`", corps)
+    assert re.search(r"`bar/`", corps) and not re.search(r"`bar\.py`", corps)
+    # Et le motif de l'ANCIEN garde ne les separe PAS — c'est le defaut lui-meme.
+    def ancien(v):
+        return re.search(rf"`{v}(?:\.py|/)?`", corps) is not None
+
+    assert ancien("foo") and ancien("bar"), (
+        "le motif historique devrait matcher les deux formes — s'il ne le fait plus, "
+        "la demonstration de sa cecite ne tient plus et ce test doit etre relu")
+
+
+def test_at_least_one_view_of_each_shape_exists():
+    """Non-vacuite : sans les deux formes dans l'arbre, le test ci-dessus ne garde rien."""
+    formes = {_is_package(v) for v in _views()}
+    assert formes == {True, False}, (
+        f"l'arbre ne porte plus qu'une seule forme de vue ({formes}) — "
+        "`test_the_map_says_whether_a_view_is_a_file_or_a_package` ne prouve plus rien")
