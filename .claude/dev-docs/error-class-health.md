@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**400 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (322 révisions du catalogue rejouées).
+**401 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (322 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -11,13 +11,13 @@ Le compteur `siblings_never_swept` mesure l'EFFORT. Celui-ci mesure le résultat
 
 | grandeur | valeur |
 |---|---|
-| balayages faits | **399** |
-| dont le verdict est LISIBLE | **299** |
-| qui ont trouvé au moins un site | **36** |
-| sites vivants trouvés | **86** |
-| taux de trouvaille (sur verdicts lisibles) | **0.12** |
+| balayages faits | **400** |
+| dont le verdict est LISIBLE | **300** |
+| qui ont trouvé au moins un site | **37** |
+| sites vivants trouvés | **196** |
+| taux de trouvaille (sur verdicts lisibles) | **0.123** |
 
-⚠️ **97 des 399 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **98**, et non 1.
+⚠️ **97 des 400 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **98**, et non 1.
 
 ⚠️ **100 balayages sont MUETS** : la question a été posée, la réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme zéro — un balayage dont on ignore le résultat n'est pas un balayage sans résultat. Le dénominateur du taux ci-dessus les exclut délibérément : les inclure diviserait par une population qui ne répond pas à la question, ce que ce dépôt appelle `anchor-a-number-to-its-population`.
 
@@ -27,7 +27,7 @@ Cinq chiffres avancés le 2026-09-16 avant vérification, et ce qu'ils valent :
 
 | avancé | mesuré |
 |---|---|
-| 367 classes | **400** — les 4 en trop étaient `Contract`, `Index`, `Per-class schema`, `CLASS-ID` |
+| 367 classes | **401** — les 4 en trop étaient `Contract`, `Index`, `Per-class schema`, `CLASS-ID` |
 | « 57 récidives » | **non reproductible** : cinq définitions défendables donnent 39 / 49 / 55 / 67 / 167. Ce document n'en retient qu'une, écrite ci-dessous, et c'est celle que le cliquet utilise |
 | gardes 15,1 % contre prose 22,7 % | voir les intervalles : les sous-groupes portent trop peu d'évènements pour trancher |
 | le taux s'améliore (38 → 18 → 9 %) | **il empire** une fois normalisé par l'exposition. L'ancien chiffre comptait comme « n'a pas récidivé » des classes trop jeunes pour avoir pu le faire |
@@ -43,11 +43,11 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 
 | grandeur | valeur |
 |---|---|
-| `automatic_guard` | 390 |
-| `classes` | 400 |
+| `automatic_guard` | 391 |
+| `classes` | 401 |
 | `ever_recurred_observed` | 37 |
 | `prose_only` | 10 |
-| `with_signature` | 389 |
+| `with_signature` | 390 |
 
 ## Les trous — ce que le cliquet fait baisser
 
@@ -57,14 +57,14 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|
 | `cause_inferred` | 0 |
 | `cause_unknown` | 140 |
-| `guard_does_not_prove_itself` | 373 |
+| `guard_does_not_prove_itself` | 365 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_on_a_shared_guard_without_naming_its_tests` | 15 |
 | `scope_unknown` | 0 |
 | `scope_without_not_covered` | 0 |
 | `seen_red_never` | 0 |
-| `seen_red_unknown` | 165 |
+| `seen_red_unknown` | 160 |
 | `siblings_never_swept` | 1 |
 | `sites_unknown` | 100 |
 | `swept_by_rerunning_the_guard` | 97 |
@@ -79,15 +79,15 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|---|---|---|
 | by_guard · automatique | 39 | 0.1442 | 0.1025 – 0.1972 | insuffisant pour conclure (n=43) |
 | by_guard · prose | 4 | 0.7029 | 0.1891 – 1.7995 | insuffisant pour conclure (n=43) |
-| by_seen_red · daté | 21 | 0.1839 | 0.1138 – 0.2812 | insuffisant pour conclure (n=43) |
-| by_seen_red · jamais-ou-inconnu | 22 | 0.1359 | 0.0851 – 0.2057 | insuffisant pour conclure (n=43) |
+| by_seen_red · daté | 21 | 0.185 | 0.1145 – 0.2828 | insuffisant pour conclure (n=43) |
+| by_seen_red · jamais-ou-inconnu | 22 | 0.1353 | 0.0848 – 0.2049 | insuffisant pour conclure (n=43) |
 | by_scope · ne-couvre-pas renseigné | 43 | 0.1557 | 0.1127 – 0.2098 | une seule strate peuplée (n=43) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
-⚠️ **La strate `by_scope` porte sur 400 classes de 400, soit 100 % du catalogue.** Les 0 autres n'ont pas de `ne couvre pas:` écrit, et **zéro récidive y est observée** — mais une récidive se compte en lignes d'HISTOIRE ajoutées. Une classe qu'on n'a jamais rouverte n'en gagne aucune, qu'elle soit saine ou seulement ignorée.
+⚠️ **La strate `by_scope` porte sur 401 classes de 401, soit 100 % du catalogue.** Les 0 autres n'ont pas de `ne couvre pas:` écrit, et **zéro récidive y est observée** — mais une récidive se compte en lignes d'HISTOIRE ajoutées. Une classe qu'on n'a jamais rouverte n'en gagne aucune, qu'elle soit saine ou seulement ignorée.
 
-Autrement dit : ce taux ne peut pas distinguer « écrire la portée protège » de « on ne regarde que là ». Il ne se cite pas comme s'il décrivait les 400 classes.
+Autrement dit : ce taux ne peut pas distinguer « écrire la portée protège » de « on ne regarde que là ». Il ne se cite pas comme s'il décrivait les 401 classes.
 
 ## Cohortes à horizon fixe
 

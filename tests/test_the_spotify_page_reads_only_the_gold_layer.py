@@ -80,6 +80,45 @@ def test_the_page_reads_no_bronze_table():
         "diverger.\n  " + "\n  ".join(offenders))
 
 
+def _joins_on_a_display_name(sql: str) -> bool:
+    """Cette requête rapproche-t-elle un titre par son NOM d'affichage ?
+
+    Extrait du corps du test pour être appelable : tant qu'il y vivait, la seule
+    façon de savoir s'il mordait encore était d'écrire le défaut dans la vraie page.
+    `assert not offenders` est vert sur une page propre ET sur un prédicat aveugle.
+    """
+    return bool(
+        re.search(r"REPLACE\s*\(\s*\w*\.?track_name", sql, re.I)
+        or re.search(r"track_name\s*\)?\s*=\s*\w*\.?song\b", sql, re.I)
+        or re.search(r"\btrr\.title\s*=\s*\w*\.?song\b", sql, re.I)
+    )
+
+
+def test_the_detector_sees_the_join_it_is_written_for():
+    """Non-vacuité : les trois formes interdites sont FABRIQUÉES ici.
+
+    Chacune est celle qui a réellement perdu 95 686 écoutes sur 163 088 ; la forme
+    corrigée — le passage par `track_platform_link` — doit rester muette, sans quoi
+    corriger le défaut rendrait la CI rouge.
+    """
+    for interdit in (
+        "SELECT * FROM t JOIN trr ON REPLACE(trr.track_name, '_', ' ') = s.song",
+        "SELECT * FROM t JOIN trr ON trr.track_name = s.song",
+        "SELECT * FROM t JOIN trr ON trr.title = s.song",
+    ):
+        assert _joins_on_a_display_name(interdit), (
+            f"forme interdite non détectée : {interdit}. Le rapprochement par nom "
+            "d'affichage repasserait sans un mot, et il perd les titres dont le nom "
+            "de fichier CSV diffère du vrai titre.")
+
+    correct = ("SELECT * FROM t JOIN track_platform_link l "
+               "ON l.platform_title = s.song AND l.platform = 's4a' "
+               "AND l.status = 'confirmed'")
+    assert not _joins_on_a_display_name(correct), (
+        "le détecteur accuse le rattachement CORRIGÉ par `track_platform_link` : "
+        "corriger deviendrait impossible sans désarmer le garde.")
+
+
 def test_the_page_does_not_join_a_display_name_to_a_song():
     """Le défaut mesuré : la jointure par nom perdait 59 % des écoutes.
 
@@ -87,12 +126,8 @@ def test_the_page_does_not_join_a_display_name_to_a_song():
     « _ », parce que le nom vient du NOM DE FICHIER du CSV. Joindre les deux perdait
     5 titres sur 11 et 95 686 écoutes sur 163 088 — dont le plus gros du catalogue.
     """
-    offenders = [
-        " ".join(lit.split())[:100] for lit in _sql_literals(PAGE)
-        if re.search(r"REPLACE\s*\(\s*\w*\.?track_name", lit, re.I)
-        or re.search(r"track_name\s*\)?\s*=\s*\w*\.?song\b", lit, re.I)
-        or re.search(r"\btrr\.title\s*=\s*\w*\.?song\b", lit, re.I)
-    ]
+    offenders = [" ".join(lit.split())[:100]
+                 for lit in _sql_literals(PAGE) if _joins_on_a_display_name(lit)]
     assert not offenders, (
         "Rapprochement par NOM d'affichage. Le rattachement passe par "
         "`track_platform_link` (platform='s4a', status='confirmed'), dont "
@@ -229,7 +264,13 @@ def test_the_reach_view_scans_the_cohort_once():
         f"`v_s4a_release_reach` référence la cohorte {refs} fois. Une seconde "
         f"référence force le planificateur à recalculer tout le sous-plan — c'est "
         f"le passage de 75 ms à plus de 2 minutes, mesuré le 2026-09-14.")
-    assert "MATERIALIZED" in sql, (
+    # ⚠️ `"MATERIALIZED" in sql` — la forme d'avant le 2026-09-18 — était VERTE sur le
+    # commentaire de la ligne 57, qui contient le mot. Défaut reinstauré en entier
+    # (`WITH linked AS MATERIALIZED (` → `WITH linked AS (`, migration 119 ligne 61) :
+    # les 16 tests restaient verts. C'est `guard-matches-its-own-comment` retourné —
+    # le garde n'était pas rouge sur sa prose, il était SATISFAIT par elle.
+    sans_prose = re.sub(r"--[^\n]*", "", sql)
+    assert re.search(r"\bWITH\s+linked\s+AS\s+MATERIALIZED\b", sans_prose, re.I), (
         "la CTE `linked` n'est plus matérialisée : inlinée, elle laisse appliquer le "
         "filtre de correspondance APRÈS la jointure aux 13 794 lignes quotidiennes "
         "— 142 399 lignes produites puis jetées (mesuré par EXPLAIN ANALYZE).")
@@ -254,7 +295,13 @@ def test_the_cohort_starts_at_the_release_and_not_before() -> None:
     cohorte = sql[sql.index("CREATE OR REPLACE VIEW v_s4a_release_cohort"):]
     cohorte = cohorte[:cohorte.index(";", cohorte.index("SELECT")) + 1] \
         if ";" in cohorte else cohorte
-    assert re.search(r"\bday\s*>=\s*\w*\.?release_date\b", cohorte, re.I), (
+    # Commentaires retirés : le fichier porte `-- `day >= release_date` ancre la
+    # cohorte…` en ligne 44. La tranche commence après, donc le garde ne s'y trompe
+    # pas AUJOURD'HUI — mais un commentaire déplacé DANS la vue le rendrait vert sur
+    # sa propre prose, ce qui vient d'arriver à l'assertion `MATERIALIZED` juste
+    # au-dessus. On ne laisse pas la correction dépendre d'un ordre de lignes.
+    assert re.search(r"\bday\s*>=\s*\w*\.?release_date\b",
+                     re.sub(r"--[^\n]*", "", cohorte), re.I), (
         "`v_s4a_release_cohort` ne borne plus ses jours à la date de sortie. Les "
         "jours ANTÉRIEURS entrent alors dans la cohorte avec 0 écoute — un zéro qui "
         "précède la chose qu'il mesure. La courbe démarre plus bas et la pente "
