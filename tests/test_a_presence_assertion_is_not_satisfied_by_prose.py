@@ -96,6 +96,21 @@ def test_the_reader_keeps_the_code_and_drops_only_the_prose(tmp_path: Path) -> N
         "jetons est détruite, et tout garde qui cherche un import complet rougirait "
         "sur du code parfaitement correct.")
 
+    # LE MARKDOWN N'EST PAS DU CODE COMMENTÉ — mesuré le 2026-09-18, quelques heures
+    # après la livraison de ce module. `#` y est un TITRE et `--` une séparation de
+    # tableau ; les retirer faisait déclarer « prose seule » toute assertion portant
+    # sur un en-tête de document. Un faux positif de l'outil anti-faux-positif, qui a
+    # bloqué la CI sur une assertion parfaitement légitime.
+    md = tmp_path / "doc.md"
+    md.write_text("# Ce que le biais valait\n\n| a | b |\n|---|---|\n| 1 | 2 |\n",
+                  encoding="utf-8")
+    assert "Ce que le biais valait" in code_of(md), (
+        "un TITRE Markdown est retiré comme s'il était un commentaire : toute "
+        "assertion sur un en-tête de document serait déclarée non gardée.")
+    assert "|---|---|" in code_of(md), (
+        "la ligne de séparation d'un tableau Markdown est prise pour un commentaire "
+        "SQL — un document rendu ne peut alors plus être gardé sur sa structure.")
+
     # Et le fichier NON-Python : le commentaire SQL part, la requête reste.
     sql = tmp_path / "v.sql"
     sql.write_text(

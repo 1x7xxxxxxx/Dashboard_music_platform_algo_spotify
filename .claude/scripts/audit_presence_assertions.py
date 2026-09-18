@@ -79,6 +79,12 @@ EXEMPTES = {
 def prose_and_code(path: pathlib.Path) -> tuple[str, str]:
     """(prose, code) d'un fichier — commentaires et docstrings d'un côté."""
     txt = path.read_text(encoding="utf-8", errors="replace")
+    # ⚠️ Le MARKDOWN n'a pas de commentaire de ligne : `#` y est un titre. Le traiter
+    # comme un commentaire faisait déclarer « prose seule » toute assertion portant sur
+    # un en-tête de document — un faux positif de l'outil anti-faux-positif, mesuré le
+    # jour de sa livraison.
+    if path.suffix in (".md", ".markdown", ".rst", ".txt"):
+        return "", txt
     if path.suffix != ".py":
         lignes = txt.splitlines()
         prose = "\n".join(x for x in lignes if x.lstrip().startswith(("#", "--", "//")))

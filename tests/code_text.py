@@ -50,6 +50,13 @@ def code_of(path: str | Path) -> str:
     """
     p = Path(path)
     texte = p.read_text(encoding="utf-8", errors="replace")
+    # ⚠️ LE MARKDOWN N'A PAS DE COMMENTAIRE DE LIGNE — mesuré le 2026-09-18, quelques
+    # heures après la livraison de ce module. `#` y est un TITRE, et `--` une ligne de
+    # séparation de tableau. Les retirer faisait lire un document comme s'il était vide
+    # de ses en-têtes, donc toute assertion portant sur un titre était déclarée
+    # « satisfaite par la prose ». Un faux positif d'un outil anti-faux-positif.
+    if p.suffix in (".md", ".markdown", ".rst", ".txt"):
+        return texte
     if p.suffix != ".py":
         return "\n".join(x for x in texte.splitlines()
                           if not x.lstrip().startswith(("#", "--", "//")))

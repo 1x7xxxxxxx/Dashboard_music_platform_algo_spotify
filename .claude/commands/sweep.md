@@ -70,7 +70,7 @@ gate).
 
 - If the catalogue class is `autofix: safe`: apply the **mechanical** fix to the
   exact hits only — nothing else. State each file changed.
-- If `autofix: none` (semantic — auth, SQL, control flow…): **report only**.
+- If `autofix: none` **or the field is ABSENT** (semantic — auth, SQL, control flow…): **report only**. L'absence est le défaut sûr, et c'est celui de 399 classes sur 402 : seules celles dont le correctif est réellement mécanique écrivent `autofix: safe`.
   Propose the patch; do not edit. Hard rule: *never rewrite unrelated code
   unasked*.
 

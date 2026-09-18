@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**402 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (333 révisions du catalogue rejouées).
+**402 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (334 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -79,11 +79,22 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|---|---|---|
 | by_guard · automatique | 39 | 0.1442 | 0.1025 – 0.1972 | insuffisant pour conclure (n=43) |
 | by_guard · prose | 4 | 0.7029 | 0.1891 – 1.7995 | insuffisant pour conclure (n=43) |
+| by_guard_since · avec-garde | 39 | 0.1549 | 0.1101 – 0.2117 | insuffisant pour conclure (n=43) |
+| by_guard_since · sans-garde | 4 | 0.1645 | 0.0443 – 0.4213 | insuffisant pour conclure (n=43) |
 | by_seen_red · daté | 16 | 0.1856 | 0.106 – 0.3014 | insuffisant pour conclure (n=43) |
 | by_seen_red · jamais-ou-inconnu | 27 | 0.1422 | 0.0937 – 0.2069 | insuffisant pour conclure (n=43) |
 | by_scope · ne-couvre-pas renseigné | 43 | 0.1557 | 0.1127 – 0.2098 | une seule strate peuplée (n=43) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
+
+#### Ce que le biais valait, en clair
+
+| | avec garde | sans garde | rapport |
+|---|---|---|---|
+| `by_guard` — étiquette d'aujourd'hui, **confondu** | 0.1442 | 0.7029 | ×4.9 |
+| `by_guard_since` — découpé au premier garde | 0.1549 | 0.1645 | ×1.1 |
+
+L'écart de la première ligne est un **artefact de mesure**, pas un effet. Écrire un garde automatique reste la bonne pratique ; ce tableau dit seulement que **ce jeu de données ne la démontre pas**, et qu'aucune règle ne devrait citer la première ligne comme preuve.
 
 ⚠️ **La strate `by_scope` porte sur 402 classes de 402, soit 100 % du catalogue.** Les 0 autres n'ont pas de `ne couvre pas:` écrit, et **zéro récidive y est observée** — mais une récidive se compte en lignes d'HISTOIRE ajoutées. Une classe qu'on n'a jamais rouverte n'en gagne aucune, qu'elle soit saine ou seulement ignorée.
 

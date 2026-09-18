@@ -430,6 +430,16 @@ def _events(body: str) -> tuple[int, int, int]:
             len(_HISTORY_LINE.findall(body)) - len(marques))
 
 
+def _recurrence_dates(body: str) -> list[str]:
+    """Les DATES des récidives d'une classe, dans l'ordre.
+
+    Le compte seul ne suffit plus depuis que l'exposition est découpée au premier
+    garde : un évènement doit être attribué à la période où il s'est produit, pas à
+    l'état d'aujourd'hui. La ligne porte déjà sa date — on la lit.
+    """
+    return sorted(d for d, kind in _HISTORY_MARKED.findall(body) if kind == "récidive")
+
+
 def _observed() -> dict:
     """Rejeu de toutes les révisions du catalogue : introduction et récidives.
 
@@ -453,6 +463,13 @@ def _observed() -> dict:
                 "introduced_date": day, "introduced_commit": sha[:12],
                 "revisions": 0, "history_additions": 0, "guard_failures": 0,
                 "history_unmarked": 0, "renamed_from": None,
+                # LE JOUR OÙ CETTE CLASSE A GAGNÉ UN GARDE — la pièce qui rend
+                # `by_guard` interprétable. Sans elle, l'étiquette d'AUJOURD'HUI était
+                # appliquée à toute la vie de la classe depuis son introduction : une
+                # classe née sans garde, récidivée, puis gardée versait sa récidive
+                # dans le bras « automatique ». Et comme c'est la récidive qui fait
+                # écrire le garde, la causalité était inversée — biais d'immortal time.
+                "guard_since": None,
             })
             before = prev.get(cid)
             if before is None:
@@ -469,6 +486,8 @@ def _observed() -> dict:
                         break
             elif before != body:
                 rec["revisions"] += 1
+            if rec["guard_since"] is None and _guard_path(_field(body, "guard") or ""):
+                rec["guard_since"] = day
         prev = cur
 
     # ── Les évènements se LISENT sur la révision courante, ils ne se déduisent plus
@@ -489,6 +508,7 @@ def _observed() -> dict:
         rec["history_additions"] = recid
         rec["guard_failures"] = gardes
         rec["history_unmarked"] = muettes
+        rec["recurrence_dates"] = _recurrence_dates(body)
 
     as_of = revs[-1][1]
     return {"window_start": revs[0][1], "as_of": as_of,
@@ -536,7 +556,8 @@ def _rates(declared: dict, observed: dict) -> dict:
 
     total_events = total_days = 0
     strata: dict[str, dict[str, list]] = {
-        "by_guard": {}, "by_seen_red": {}, "by_scope": {}}
+        "by_guard": {}, "by_seen_red": {}, "by_scope": {},
+        "by_guard_since": {}}
     for cid, d in declared.items():
         o = per.get(cid)
         if not o:
@@ -553,9 +574,46 @@ def _rates(declared: dict, observed: dict) -> dict:
             ("by_scope", "ne-couvre-pas renseigné" if d["guard_scope_has_not_covered"]
              else "non renseigné"),
         ):
-            s = strata[key].setdefault(label, [0, 0])
-            s[0] += events
-            s[1] += exposure
+            st = strata[key].setdefault(label, [0, 0])
+            st[0] += events
+            st[1] += exposure
+
+        # ── LE DÉCOUPAGE AU PREMIER GARDE ────────────────────────────────────
+        #
+        # `by_guard` ci-dessus applique l'étiquette d'AUJOURD'HUI à toute la vie de la
+        # classe. Une classe née sans garde, récidivée, puis gardée verse sa récidive
+        # dans le bras « automatique » — et comme c'est la récidive qui fait écrire le
+        # garde, la causalité est inversée. C'est un biais d'immortal time, et il rend
+        # `by_guard` ININTERPRÉTABLE, dans les deux sens.
+        #
+        # Ici la MÊME classe contribue aux deux bras : ses jours avant son premier
+        # garde d'un côté, ses jours après de l'autre, et chaque récidive est attribuée
+        # par SA PROPRE date. C'est une comparaison avant/après intra-classe.
+        #
+        # ⚠️ Prédiction écrite AVANT de lire le résultat, pour qu'elle soit falsifiable :
+        # le bras « avec-garde » doit REMONTER vers le taux global, parce que
+        # l'essentiel des jours-classe aujourd'hui étiquetés « automatique » est du
+        # temps PRÉ-garde. Si les deux bras ne se séparent pas, le dépôt protège un
+        # rituel — et il le saura, ce qu'il ne peut pas savoir autrement.
+        gs = o.get("guard_since")
+        dates = o.get("recurrence_dates") or []
+        if gs and gs > start:
+            coupe = min(gs, as_of)
+            avant_j = max(0, _days(start, coupe))
+            apres_j = max(0, _days(coupe, as_of))
+            avant_e = sum(1 for x in dates if x < coupe)
+            apres_e = sum(1 for x in dates if x >= coupe)
+        elif gs:
+            avant_j, avant_e = 0, 0
+            apres_j, apres_e = exposure, len(dates)
+        else:
+            avant_j, avant_e = exposure, len(dates)
+            apres_j, apres_e = 0, 0
+        for label, ev_, j_ in (("sans-garde", avant_e, avant_j),
+                               ("avec-garde", apres_e, apres_j)):
+            st = strata["by_guard_since"].setdefault(label, [0, 0])
+            st[0] += ev_
+            st[1] += j_
 
     def _rate(ev: int, days_: int) -> dict:
         months = days_ / 30.4
@@ -897,7 +955,7 @@ def _render(p: dict) -> str:
     L += ["", "### Par strate", "",
           "| strate | évènements | par classe-mois | IC 95 % | verdict |",
           "|---|---|---|---|---|"]
-    for key in ("by_guard", "by_seen_red", "by_scope"):
+    for key in ("by_guard", "by_guard_since", "by_seen_red", "by_scope"):
         groups = r.get(key) or {}
         verdict = _verdict(groups)
         for label, v in groups.items():
@@ -907,6 +965,39 @@ def _render(p: dict) -> str:
     L += ["", "⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel "
           "que soit l'écart des points. Le verdict ci-dessus le dit strate par strate "
           "plutôt que de laisser le lecteur comparer deux nombres et conclure.", ""]
+
+    # ── `by_guard` contre `by_guard_since` : la seule comparaison qui vaille ──────
+    #
+    # Les trois premières strates étiquettent une classe avec son état d'AUJOURD'HUI et
+    # appliquent cette étiquette à toute sa vie depuis son introduction. Une classe née
+    # sans garde, récidivée, puis gardée verse sa vie entière ET sa récidive dans le
+    # bras « automatique ». Comme c'est la récidive qui fait écrire le garde, la
+    # causalité est inversée : c'est un biais d'immortal time, et il gonfle l'écart.
+    #
+    # `by_guard_since` est la même question posée SANS ce biais : la même classe
+    # contribue à ses deux bras, avant et après son premier garde, et chaque récidive
+    # est attribuée par sa propre date.
+    g_now, g_split = r.get("by_guard") or {}, r.get("by_guard_since") or {}
+    if g_now and g_split:
+        a_now = (g_now.get("automatique") or {}).get("per_class_month")
+        p_now = (g_now.get("prose") or {}).get("per_class_month")
+        a_sp = (g_split.get("avec-garde") or {}).get("per_class_month")
+        s_sp = (g_split.get("sans-garde") or {}).get("per_class_month")
+        if None not in (a_now, p_now, a_sp, s_sp):
+            L += [
+                "#### Ce que le biais valait, en clair", "",
+                "| | avec garde | sans garde | rapport |",
+                "|---|---|---|---|",
+                f"| `by_guard` — étiquette d'aujourd'hui, **confondu** | {a_now} | "
+                f"{p_now} | ×{round(p_now / a_now, 1) if a_now else '—'} |",
+                f"| `by_guard_since` — découpé au premier garde | {a_sp} | {s_sp} | "
+                f"×{round(s_sp / a_sp, 1) if a_sp else '—'} |",
+                "",
+                "L'écart de la première ligne est un **artefact de mesure**, pas un "
+                "effet. Écrire un garde automatique reste la bonne pratique ; ce "
+                "tableau dit seulement que **ce jeu de données ne la démontre pas**, "
+                "et qu'aucune règle ne devrait citer la première ligne comme preuve.",
+                ""]
 
     # ── Le biais de POPULATION, écrit à côté du chiffre qu'il affecte ────────────
     #

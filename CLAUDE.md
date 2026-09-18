@@ -313,15 +313,28 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     **famille de geste** couverte, et au moins un geste voisin **non couvert**).
     Mesuré le 2026-09-16 : une classe gardée sur le VERBE `pkill` a récidivé trois fois
     par `pgrep`, qui partageait la cause.
-    ⚠️ **Ce paragraphe a porté un second chiffre, et il est PÉRIMÉ.** Il annonçait, sur
-    194 révisions du catalogue, qu'« une classe sans garde automatique récidive 5,2×
-    plus — 1,005 évènement par classe-mois contre 0,193, intervalles à 95 % disjoints ».
-    Remesuré le 2026-09-18 sur 296 révisions, **après avoir corrigé le compteur
-    lui-même** : **4,9×**, 0,527 contre 0,107, et les intervalles **SE RECOUVRENT** —
-    [0,106 ; 1,540] contre [0,072 ; 0,154]. La différence n'est pas établie à ce n (le
-    bras « prose » ne porte que 3 évènements sur 173 jours-classe). Écrire un garde
-    automatique reste la bonne pratique ; ce n'est simplement pas ce chiffre-là qui la
-    justifie, et une règle qui s'appuie sur une mesure doit dire quand la mesure a bougé.
+    ⚠️ **Ce paragraphe a porté un second chiffre. Il est mort, et pas d'un cran : d'un
+    biais.** Il a annoncé successivement « 5,2× » (194 révisions), puis « 4,9× » avec
+    intervalles recouvrants (296 révisions, compteur corrigé). Les deux venaient d'une
+    strate `by_guard` qui étiquetait chaque classe avec son état **d'AUJOURD'HUI** et
+    appliquait cette étiquette à **toute sa vie** depuis son introduction. Une classe
+    née sans garde, récidivée, puis gardée versait ses jours entiers ET sa récidive
+    dans le bras « automatique » — et comme c'est la récidive qui fait écrire le garde,
+    la causalité était inversée. C'est un biais d'*immortal time*.
+    Mesuré sans lui le 2026-09-18, en découpant l'exposition de chaque classe à son
+    PREMIER garde et en attribuant chaque récidive par sa propre date :
+
+    | | avec garde | sans garde | rapport |
+    |---|---|---|---|
+    | `by_guard` — étiquette d'aujourd'hui, **confondu** | 0,144 | 0,703 | ×4,9 |
+    | `by_guard_since` — découpé au premier garde | **0,155** | **0,165** | **×1,1** |
+
+    **Le facteur était entièrement l'artefact.** Écrire un garde automatique reste la
+    bonne pratique — pour une raison de conception, pas de statistique : un garde
+    s'exécute, une prose ne s'exécute pas. Mais **aucune règle ne doit citer un chiffre
+    de récidive comme sa preuve** : ce jeu de données n'en produit aucun. Contrôle :
+    `make error-health` → section « Ce que le biais valait, en clair ». Garde :
+    `tests/test_the_guard_axis_is_measured_without_immortal_time.py`.
     ⚠️ **Le compteur comptait la MAUVAISE chose, et c'est la vraie leçon de la série.**
     Jusqu'au 2026-09-18, toute ligne d'`History` ajoutée comptait comme une récidive.
     Les 81 lignes concernées ont été classées une par une : **33 sont de vraies
