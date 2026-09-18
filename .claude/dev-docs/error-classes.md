@@ -1676,7 +1676,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: the central-app model (ADR-006) legitimately falls back to env for the shared APP credentials (`client_id`, `api_key`, `access_token`). The same `x or os.getenv(...)` shape was then applied to the tenant identity, where it means something entirely different. Amplified by three reads that returned an empty value on failure — `load_platform_credentials` returned `{}` on any DB error, `get_active_artists` returned `[]` on a DB error *and* on an unknown/inactive `artist_id`, and an empty-string identity is falsy — so an outage, a typo, or an artist saving a blank form all landed on the same fallback.
 - cause_evidence: read (src/utils/credential_loader.py::client_id, lu le 2026-09-18) — ancré sur le SYMBOLE, jamais sur un numéro de ligne : deux ancres du catalogue avaient déjà dérivé parce qu'un fichier avait bougé. La cause décrit bien ce site : client_id,access_token,load_platform_credentials y cohabitent.
 - signature: `python3 -m pytest tests/test_e2e_two_tenants.py -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_e2e_two_tenants.py::test_empty_identity_is_treated_as_absent)
 - long_term_fix: identity has no default. Absent (including `""`) ⇒ skip the tenant with a message naming the next action. Store failure ⇒ `CredentialLoadError`; unknown artist ⇒ `UnknownArtistError`; "no active tenant" is the only `[]`. The legacy single-tenant path is opt-in behind `LEGACY_SINGLE_TENANT=1`. The credentials form no longer persists an empty identity. `docker-compose*.yml` no longer carries the admin's ids as defaults.
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
@@ -1688,6 +1688,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-08-22 (récidive): last surviving site closed — `src/collectors/instagram_api_collector.py:43` still read `ig_user_id or os.getenv("INSTAGRAM_USER_ID")`. Unreachable through the DAG (which skips blanks) and reachable by any direct instantiation. The existing pytest signature could not have caught it because the DAG path was already correct; the new guard is an **AST sweep** over collectors and DAGs for `<x> or os.getenv(<identity var>)`. AST is mandatory here: the removed variable names appear in the explanatory comments of the very files checked, so a grep would be permanently red on the documentation of its own fix.
   - 2026-08-20: two beta sessions, same double symptom ("all credentials failed" + "the data was the admin's"). Sites fixed: `soundcloud_daily.py:103`, `youtube_daily.py:79`, `meta_ads_api_collector.py:81`, `soundcloud_api_collector.py:46`, plus `spotify_api_daily.py` (tenant #1's app credentials served the whole fleet; `SPOTIFY_ARTIST_IDS` folded the admin into every run). Guard proven: **7 failed / 2 passed** on the unpatched tree, 9 passed after. Two pre-existing tests asserted the defective contract (`test_db_error_returns_empty`) and were inverted.
   - 2026-08-20: adjacent finding surfaced by the guard itself — nothing constrains `saas_artists.spotify_artist_id` to one tenant, and the DAG took `_sa[0][0]`, attributing a whole catalogue to whichever tenant had the lower id. Ambiguous ownership now skips with both ids logged.
+  - 2026-09-18: défaut remis en place à la lettre — `creds.get('user_id')` redevient `creds.get('user_id') or os.getenv('SOUNDCLOUD_USER_ID')` (airflow/dags/soundcloud_daily.py:170) ⇒ 2 rouges : le locataire non connecté reçoit les données de l'admin, et l'identité VIDE (le geste le plus probable d'un artiste qui enregistre sans remplir) sélectionne la branche d'environnement. Garde de bout en bout sur une vraie base, donc il mesure le RÉSULTAT en table, pas la forme du code.
 
 ## write-without-explicit-artist-id
 - status: guarded
@@ -1697,7 +1698,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: ~80 tables declare `artist_id INTEGER DEFAULT 1`, a single-tenant leftover. The default turns "the developer forgot the tenant" into "the admin owns it" instead of into a constraint violation.
 - cause_evidence: measured (2026-09-18, exécuté en base) — et **la mesure CORRIGE la cause** : le `root_cause` annonce « ~80 tables déclarent `artist_id INTEGER DEFAULT 1` », or aujourd'hui **0 colonne sur 107** porte encore ce défaut. La migration `068_drop_artist_id_defaults.sql` les a retirés — le `long_term_fix` de cette classe a donc été APPLIQUÉ, et la prose décrivait un état d'avant. Le risque décrit reste réel pour une table neuve qui ré-introduirait le défaut ; c'est ce que garde `audit_tenant_writes.py`.
 - signature: `python3 .claude/scripts/audit_tenant_writes.py`
-- seen_red: 2026-09-18 — en retirant `"artist_id"` du payload littéral de `views/saisie_s4a.py:188`, `audit_tenant_writes.py` sort **1** et nomme le site ; rétabli, il rend 0. ⚠️ **Deux mutations ont d'abord laissé l'auditeur à zéro, et elles mesurent sa PORTÉE** : retirer `artist_id` d'une liste CONSTRUITE plus haut (`soundcloud_api_collector`, `instagram_api_collector`) ne le fait pas bouger, parce qu'il lit les appels à `upsert_many` et non les fonctions qui préparent leurs données. Il le DIT lui-même : **9 des 35 sites d'upsert sont « non résolubles »**, nommés un par un dans sa sortie (`_meta_upsert` ×3, `instagram_api_collector` ×2, `admin.py` ×2, `ml_scoring_daily`, `spotify_api_daily`). Un défaut de cette classe y vivrait sans être vu.
+- seen_red: self-proving (tests/test_e2e_two_tenants.py::test_every_write_names_its_tenant_explicitly)
 - long_term_fix: every write names its tenant. The guard walks the payload of each `upsert_many` call made during a real collection run and fails when a tenant-scoped table receives a payload without an `artist_id` key. Removing the `DEFAULT 1` from the schema is the durable follow-up (a dedicated migration, after the write paths are correct).
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
@@ -1708,6 +1709,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-08-20: signature promoted from the DB-gated E2E to a repo-wide AST+SQL scan (`audit_tenant_writes.py`): it learns the tenant-scoped tables from `init_db.sql`+migrations (80 of them), resolves each `upsert_many` payload and every raw `INSERT INTO`, and reports what it cannot resolve rather than passing it. Proven **1 MISSING before the fix, 0 after**.
   - 2026-08-20: found while auditing the two failed beta sessions. `track_popularity_history` had been storing EVERY tenant's Spotify popularity history under `artist_id = 1` since the multi-tenant migration — daily, in production, undetected, because nothing ever compared the payload to the schema. A row whose tenant cannot be resolved is now skipped with a warning rather than attributed to the admin. Latent sibling fixed at the same time: `youtube_comments` (dormant, `collect_comments=False`).
+  - 2026-09-18: défaut remis en place en retirant `'artist_id': self.artist_id` du payload (src/collectors/soundcloud_api_collector.py:221) ⇒ 3 rouges. Le garde ne lit pas le code : il INTERCEPTE `upsert_many` et compare les clés du payload aux colonnes réelles de la table, donc il couvre toute écriture future du même chemin sans être réécrit.
 
 ## upsert-transfers-row-ownership
 - status: guarded
@@ -1717,7 +1719,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: the tables were designed single-tenant, where the platform id *is* the natural key. `artist_id` was later added to `update_columns` so it could be backfilled — which turned every conflict into a transfer of ownership.
 - cause_evidence: measured (2026-09-18, exécuté en base) — sur les **78** index uniques hors clé primaire, **13** ne contiennent pas `artist_id`. Les treize ont été regardés : ce sont des tables non scopées par locataire (`login_rate_limit`, `promo_codes`, `etl_daily_metrics`) ou dont la clé est globale par construction (`app_error_log` est indexée par EMPREINTE, précisément pour que deux locataires partagent une ligne de défaut). Aucune table scopée n'a de clé de conflit sans son locataire.
 - signature: `python3 -m pytest tests/test_e2e_two_tenants.py -q -k ownership`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_e2e_two_tenants.py::test_youtube_row_ownership_is_not_transferable)
 - long_term_fix: migration 064 makes uniqueness `(artist_id, video_id)` / `(artist_id, channel_id)`; `artist_id` is removed from every `update_columns`, so a row keeps its first owner. `meta_campaigns/adsets/ads` keep their platform-id primary keys (15 FKs reference them) but lose the reassignment — a shared ad account can no longer steal a row.
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
@@ -1727,6 +1729,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-08-20
 - History:
   - 2026-08-20: reproduced live on a provisioned Postgres — two tenants collecting the same channel, the first tenant's `youtube_videos` row disappeared. The theft is what made the identity fallback *persist*: even after fixing the identity, rows already written stayed re-attributed. `tools/tenant_contamination_check.py` measures the remaining damage.
+  - 2026-09-18: défaut remis en place — clé de conflit `['artist_id','video_id']` → `['video_id']` et `artist_id` remis dans `update_columns` (airflow/dags/youtube_daily.py:197) ⇒ 1 rouge. ⚠️ À dire précisément : sur l'arbre d'aujourd'hui, Postgres refuse d'abord la cible (`there is no unique or exclusion constraint matching the ON CONFLICT specification`), parce que l'index unique est désormais `(artist_id, video_id)`. Le transfert de propriété n'est donc plus EXPRIMABLE sans casser aussi l'index — c'est un fix plus fort qu'un garde, et le garde reste utile parce qu'il vaut pour la prochaine table dont l'index n'aura pas encore bougé.
 
 ## dag-trigger-without-tenant-scope
 - status: guarded
@@ -1797,7 +1800,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: the multi-tenant migration reused the `artist_id` name for the new tenant column while the old single-tenant tables kept it for the platform id. Two meanings, one name, and nothing in the schema says which is which except the type.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - signature: `python3 .claude/scripts/audit_tenant_writes.py`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_e2e_two_tenants.py::test_spotify_popularity_history_carries_its_tenant)
 - long_term_fix: reason on the TYPE, never on the name — a tenant column is `INTEGER`. The write auditor and migration 068 both filter on `data_type = 'integer'`, and 068 carries the note so the next migration does not relearn it.
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
@@ -1809,6 +1812,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-08-22 (récidive): **caught in production, by walking into it.** Deriving the canary watchdog's targets from the freshness registry, I returned both a target's global table and its `tenant_table`. For Spotify that included `artists`, where the column named `artist_id` is the SPOTIFY id (VARCHAR) — the tenant there is `saas_artist_id`. The nightly check answered `operator does not exist: character varying = integer`. It reported "could not run" rather than health (the conservative contract held) but still put a false 🐤 CANARI MUET in the alert subject. `tables_for_platform` now returns the `tenant_table` when a target declares one and never both, guarded by `tests/test_platform_sources_agree.py::test_no_platform_resolves_to_a_table_that_is_not_tenant_scopable`. The class was already catalogued and already in `rules/python.md`; knowing it did not prevent it — a guard did, one commit later than it should have.
   - 2026-08-20: a first version of migration 068 set `NOT NULL` on every column named `artist_id`, including `tracks.artist_id` — the Spotify id, which the collector legitimately writes and which the test fixture did not provide. The full suite went red against a database carrying the migration, which is exactly what running it against a provisioned schema is for. Filtering on the type fixed it, and `tracks.saas_artist_id` is excluded from NOT NULL on purpose: a track no tenant claims belongs in the catalogue with a NULL owner rather than an invented one.
   - 2026-09-17 (récidive): trouvée en balayant les frères de la famille `le-locataire`, et le site est l'outil que la RÈGLE elle-même désigne comme son garde. `python.md` écrit « on raisonne sur le TYPE, jamais sur le nom. Garde : audit_tenant_writes.py » ; l'outil matchait sur le nom. ⚠️ C'est la TROISIÈME fois dans la même séance qu'un garde est vert sur ce qu'il prétend garder — après la clôture d'URL des rendus PDF (1 site sur 3) et `test_dag_fleet_isolation.py` (8 sites vivants). Le point commun n'est pas la négligence : les trois gardes ont été écrits avec soin, et les trois posent une question plus étroite que la classe qu'ils nomment. C'est ce que `guard_scope` existe pour rendre visible, et ce que `siblings` existe pour aller chercher.
+  - 2026-09-18: défaut remis en place en retirant `'artist_id': saas_artist_id` du relevé de popularité (airflow/dags/spotify_api_daily.py:422) ⇒ 1 rouge. C'est exactement la fuite d'origine : `track_popularity_history.artist_id` est le LOCATAIRE (INTEGER) alors que `artists.artist_id` est l'identifiant Spotify (VARCHAR), et le payload portait le second.
 
 ## identity-claimed-by-two-tenants
 - status: guarded
@@ -1916,7 +1920,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `spotify_api_daily.collect_spotify_artists` reads `dag_run.conf['artist_id']`; `collect_spotify_top_tracks`, in the same DAG, never looked at the context and selected its work with `SELECT artist_id FROM artists` — the entire Spotify catalogue.
 - cause_evidence: read (airflow/dags/spotify_api_daily.py::collect_spotify_artists, lu le 2026-09-18) — ancré sur le SYMBOLE, jamais sur un numéro de ligne : deux ancres du catalogue avaient déjà dérivé parce qu'un fichier avait bougé. La cause décrit bien ce site : spotify_api_daily.collect_spotify_artists,collect_spotify_top_tracks y cohabitent.
 - signature: `python3 -m pytest tests/test_e2e_two_tenants.py::test_spotify_popularity_history_carries_its_tenant -q`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_e2e_two_tenants.py::test_spotify_popularity_history_carries_its_tenant)
 - long_term_fix: the task reads the conf and, when present, resolves the tenant's own `spotify_artist_id`; an active tenant with no Spotify id logs which tenant and returns 0 instead of falling through to the fleet query. The guard drives the DAG the way the dashboard does — scoped — so a task that ignores the scope produces a payload for more than one tenant and fails.
 - autofix: none
 - guard: { type: test, ref: tests/test_e2e_two_tenants.py }
@@ -1926,6 +1930,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-08-21
 - History:
   - 2026-08-21: found by running the suite against the real local database for the first time (R18 unblocked `make up`). The test had always passed because a throwaway database holds exactly one tenant — with a second, the scoped call built a payload for `{1, 223}`. The first reading was "the DAG leaks"; it does not, every row carries its own tenant. What it does is fetch every tenant's top tracks from the Spotify API on a per-tenant click — wasted quota against a rate-limited API this repo already has a whole failure strategy for. The test itself was the second defect: `assert artist_ids == {tenant}` only held on an empty fleet, so it would have cried wolf the day CI got data.
+  - 2026-09-18: défaut remis en place dans la SECONDE tâche seulement — `artist_id_conf = conf.get('artist_id')` → `None` (airflow/dags/spotify_api_daily.py:263), c'est-à-dire `collect_spotify_top_tracks` qui ignore le déclenchement du dashboard pendant que `collect_spotify_artists` l'honore ⇒ 1 rouge. ⚠️ Mesure de méthode : un premier passage filtré par `-k "conf or tenant_scope"` a rendu 272 verts et m'a fait croire le garde aveugle — le filtre excluait le seul test qui mord. Un `-k` qui ne contient pas le garde ne prouve rien.
 
 ## local-db-drifts-from-canonical
 - status: reported
