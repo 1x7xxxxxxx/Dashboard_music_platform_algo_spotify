@@ -59,8 +59,18 @@ def show():
             artists = [(aid, row[0][0] if row else f"#{aid}")]
 
         total_red = 0
+        echecs: list[str] = []
         for aid, name in artists:
-            matrix = artist_readiness(db, aid)
+            # ISOLEMENT PAR LOCATAIRE — ajouté le 2026-09-18 (R132). Sans ce `try`, un
+            # artiste dont la lecture lève emportait TOUTE la page : pour l'admin, qui
+            # déroule la liste entière, un seul locataire cassé effaçait l'état des
+            # autres. Un artiste ne voit que sa propre ligne, donc lui n'était pas exposé
+            # à la flotte — c'est l'écran de supervision qui perdait sa raison d'être.
+            try:
+                matrix = artist_readiness(db, aid)
+            except Exception as exc:      # noqa: BLE001 — isolement par locataire
+                echecs.append(f"{name} (id={aid}) : {type(exc).__name__}")
+                continue
             reds = [m for m in matrix if m["status"] == NO_DATA]
             total_red += len(reds)
             # L'IDENTIFIANT NE S'AFFICHE QUE POUR L'ADMIN. Signalé le 2026-09-06 :
@@ -79,12 +89,37 @@ def show():
                 # The same renderer as the artist's own pages: an admin looking at a
                 # blocked tenant must see exactly what that tenant sees, or the two
                 # of them are talking about different screens.
-                render_status_matrix(db, aid, key_suffix=f"health{aid}",
-                                    rows=matrix)
+                #
+                # ⚠️ LE RENDU LIT LA BASE, LUI AUSSI — et il était hors du `try`
+                # ci-dessus. Trouvé le 2026-09-18 en MUTANT le garde élargi : isoler
+                # la seule lecture `artist_readiness` laissait `render_status_matrix`
+                # nu, donc un locataire dont le rendu lève emportait encore toute la
+                # page. Le `try` d'origine couvrait l'appel que j'avais REGARDÉ, pas
+                # la frontière d'E/S — c'est la portée qui était le défaut, comme pour
+                # `pkill`/`pgrep`.
+                try:
+                    render_status_matrix(db, aid, key_suffix=f"health{aid}",
+                                        rows=matrix)
+                except Exception as exc:  # noqa: BLE001 — isolement par locataire
+                    echecs.append(f"{name} (id={aid}) — rendu : {type(exc).__name__}")
+                    st.warning(f"Affichage indisponible ({type(exc).__name__}).")
+
+        # ⚠️ Les locataires NON LUS sont annoncés AVANT le verdict, et jamais avalés.
+        # Sans cette ligne, l'isolement par locataire ajouté juste au-dessus aurait
+        # transformé une panne bruyante (la page entière tombe) en une panne SILENCIEUSE
+        # (la page s'affiche, il manque des artistes, et « ✅ aucun blocage » se lit comme
+        # un verdict sur toute la flotte). C'est le troc que ce dépôt refuse : isoler un
+        # défaut ne veut pas dire cesser de le dire.
+        if echecs:
+            st.error(
+                f"⛔ {len(echecs)} artiste(s) n'ont pas pu être lus — le verdict "
+                f"ci-dessous ne porte PAS sur eux : {', '.join(echecs)}")
 
         if is_admin():
             if total_red:
                 st.warning(f"🔴 {total_red} plateforme(s) connectée(s) sans données — action requise.")
+            elif echecs:
+                st.info("✅ Aucun blocage 'connecté sans données' parmi les artistes LUS.")
             else:
                 st.success("✅ Aucun blocage 'connecté sans données' sur les artistes actifs.")
 

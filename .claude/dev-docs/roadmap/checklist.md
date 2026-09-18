@@ -25,15 +25,17 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R132 | **Isolement de flotte hors Airflow** — 6 sites mesurés que le garde AST ne peut pas voir : `metric_bounds.py:124` (aveuglement de flotte), `onboarding_health.py:65` (toute la page admin tombe), 4 scripts de `debug_dag/` | P3 | `python3 -m pytest tests/test_dag_fleet_isolation.py -q` reste vert — c'est le POINT : ces sites sont hors de son périmètre, la mesure est le balayage AST ci-dessous |
 | R133 | **28 figures sous le plancher d'accessibilité de la palette** — mesuré le 2026-09-17 par figure (CIEDE2000 + Viénot/Brettel), paire dominante vert `#1DB954` ↔ un rouge, c'est-à-dire « bon/mauvais » encodé en teinte seule. `code-critic` : **BUILD-MODIFIED** — construire `semantic_colors.py` + extraire la colorimétrie de `tests/` vers `src/`, garde report-only, gate dur sur le seul diff ; **ne pas migrer les 28 sites d'un coup**. ⚠️ 28 est un PLAFOND : le plancher de 15 n'est légitime que si même type de trace, même sous-graphique sans axe secondaire, et aucune étiquette de texte persistante — `meta_funnel`, `revenue_forecast.py:82` et `ig_engagement` y tombent sans être des défauts d'attribution | P3 | le script de mesure est dans le champ `siblings` de `a-visual-constant-copied-into-a-second-renderer` (`.claude/dev-docs/error-classes.md`) ; il doit rendre moins de 28 |
 | R134 | **Le détecteur de creux ne voit que 5 tables sur 84** — `DIP_TENANT_COLUMN` (`alert_monitor.py:744`) couvre YouTube, SoundCloud, Meta, ML et S4A ; un locataire qui perd ENTIÈREMENT Instagram, Apple, Hypeddit ou SACEM ne déclenche aucune alerte. Les tables éligibles sont nommées dans le champ `siblings` de `partial-collection-invisible`. ⚠️ Étendre la liste demande un seuil calibré PAR TABLE sur des données réelles — le plancher de 30 lignes/jour écrit d'instinct avait déjà rendu le détecteur aveugle à 2 locataires sur 3 | P3 | `python3 -c "import ast,pathlib;…"` sur `DIP_TENANT_COLUMN` doit rendre plus de 5 entrées, et chaque entrée neuve doit porter sa dérivation de seuil |
 | R135 | **`soundcloud_tracks_daily.track_id` : `bigint` en PRODUCTION, `character varying` en local** — mesuré le 2026-09-18 colonne par colonne (1187 contre 1196). Le canonique est le VARCHAR : le collecteur écrit `str(track.get('id'))` (`soundcloud_api_collector.py:222`) et aucune migration ne déclare ce type. ⚠️ **Conséquence aujourd'hui : aucune** — les quatre lecteurs ne comparent jamais cette colonne à une chaîne, et Postgres transtype les identifiants numériques des deux côtés. Elle apparaîtra à la première jointure ou comparaison sur `track_id` : la prod rendra un `int` là où le local rend une `str`, donc **un test vert ici échouera là-bas**. La vue or `v_soundcloud_track_latest` hérite du type de chaque côté. Demande un `ALTER` sur une table vivante — décision du propriétaire, pas un effet de bord de séance | P3 | la comparaison des deux schémas ne doit plus nommer `soundcloud_tracks_daily.track_id` |
 
-**Quatre tâches sont ouvertes dans cet index** — R132, R133, R134, R135 —
+**Trois tâches sont ouvertes dans cet index** — R133, R134, R135 —
 et l'ancre `reprise:` les nomme toutes, dans cet ordre. La table « 🙋 En attente de toi »
 plus bas porte **deux** lignes : R125, qui attend un geste humain dans l'app, et R140,
-entrée le 2026-09-18, qui attend quatre décisions de PRODUIT. Inviter la bêta est l'usage
+entrée le 2026-09-18, qui attend **dix-sept** décisions de PRODUIT (§16.1 à §16.17 du
+runbook). ⚠️ Cette phrase a porté « quatre » jusqu'au 2026-09-18 au soir, pendant que le
+tableau juste en dessous DÉMENTAIT ce chiffre : la correction avait été écrite dans le
+journal des mensonges sans être appliquée à la phrase qui le portait. Inviter la bêta est l'usage
 du produit, pas du travail d'ingénierie — une roadmap qui suit les gestes commerciaux de
 son propriétaire ne peut par construction jamais atteindre zéro.
 
@@ -63,45 +65,6 @@ d'autre** — et le paragraphe qui l'énonce n'y échappe pas, comme sa propre l
 fois » vient de le montrer.
 
 ---
-
-## R132 — L'isolement de flotte s'arrête aux frontières du garde · P3
-
-Ouverte le 2026-09-17, en balayant les frères de `multitenant-dag-fleet-poisoning`.
-**Le balayage a trouvé 8 sites vivants sur 6 fichiers de production alors que le garde
-était VERT sur 13 tests** ; les 8 sont corrigés et le garde élargi les rougit. Ce qui
-reste est ce que le garde **ne peut pas** voir, et il faut le dire avec sa raison.
-
-### Ce qui reste, et pourquoi le garde ne l'atteint pas
-
-| site | forme | pourquoi hors de portée |
-|---|---|---|
-| `src/utils/metric_bounds.py:124-129` | **aveuglement de flotte** | la boucle est ici, le `try` est dans `alert_monitor.py::check_metric_bounds` — **un autre module**. Une levée sur un locataire ne fait pas tomber le DAG : elle vide les constats de la nuit pour TOUS, silencieusement. Le détecter demande une analyse **inter-procédurale**, pas un prédicat plus large |
-| `src/dashboard/views/onboarding_health.py:65` | crash, variante Streamlit | `for aid, name in artists:` sous un `try … finally: db.close()` **sans `except`** — une levée fait tomber toute la page admin, pas la ligne de l'artiste. Hors du périmètre `airflow/dags/` du garde |
-| `airflow/dags/trial_expiry_reminder.py:147` | **corrigé à la main** | la source de flotte est `_due_accounts(db)`, pas `get_active_artists()` : `_artist_loops` ne reconnaît pas la boucle. Le site est fermé, **le garde ne le protège pas** |
-| `airflow/debug_dag/` ×4 | aveuglement | `debug_meta_token_refresh.py:58`, `debug_alert_monitor.py:45`, `debug_ml_scoring.py:58`, `debug_ml_outcome_labeling.py:48`. Scripts interactifs, hors production |
-
-⚠️ **Trois axes indépendants, et c'est pour ça que ce n'est pas un élargissement de
-plus.** Fermer ces sites demande de bouger en même temps la portée FICHIER (au-delà de
-`airflow/dags/`), la détection de SOURCE de flotte (au-delà de `get_active_artists`), et
-la portée du `try` (au-delà de la même fonction). Chacun élargi seul peut faire rougir
-des boucles d'agrégation légitimes — le mode d'échec que ce dépôt a déjà mesuré sur un
-garde élargi trop vite. C'est une refonte du modèle de « boucle de flotte », pas une
-correction.
-
-- [ ] **R132 — décider, pour chacun des 6 sites, entre le corriger à la main et étendre
-      le garde ; et si le garde est étendu, le faire UN AXE À LA FOIS avec la mesure du
-      bruit qu'il produit.**
-
-  Le premier axe utile est probablement la SOURCE de flotte : `_due_accounts(db)` et
-  `SELECT DISTINCT artist_id` sont des boucles par locataire aussi légitimes que
-  `get_active_artists()`, et rien ne les reconnaît.
-
-  ⚠️ **Ne pas viser un compteur.** `siblings_never_swept` a baissé de 1 en trouvant 8
-  sites : c'est le balayage qui vaut, pas le nombre.
-
-  **Mesuré par** : le balayage AST qui a produit cette liste —
-  `python3 - <<'PY'` … (boucles par locataire, appels risqués hors `try`) ; il doit
-  rendre 0 site hors `debug_dag/` pour que R132 se ferme.
 
 ## ⏸️ R116 — ADR-027, en attente de ses courbes (sortie de l'index 2026-09-17)
 
@@ -152,7 +115,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-18 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R132, R133, R134, R135, R125, R140 -->
+<!-- reprise: open=R133, R134, R135, R125, R140 -->
 
 **R125 est entrée le 2026-09-18, et elle n'attend qu'un geste de trois minutes.** Mesuré
 en production : `ml_song_predictions` porte 617 lignes, `s4a_song_algo_outcomes` (la

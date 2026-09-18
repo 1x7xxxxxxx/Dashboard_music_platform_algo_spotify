@@ -122,8 +122,24 @@ def run(db) -> tuple[list[str], int]:
     ) or []]
     findings: list[str] = []
     for aid in tenants:
-        lifetime = platform_totals(db, aid)
-        series = daily_streams_by_platform(db, aid)
+        # ISOLEMENT PAR LOCATAIRE — ajouté le 2026-09-18 (R132). Sans ce `try`, une
+        # lecture qui lève pour UN artiste tuait la tâche entière : `check_metric_bounds`
+        # est une tâche du DAG de surveillance nocturne, donc le contrôle devenait
+        # AVEUGLE pour toute la flotte, et son silence se lit comme « rien à signaler ».
+        #
+        # C'est la même cause que les 8 sites de `airflow/dags/` corrigés le 2026-09-17,
+        # et ce site leur avait échappé : le garde `test_dag_fleet_isolation.py` ne
+        # parcourt que `airflow/dags/`, et la boucle a été SORTIE du DAG vers `src/utils/`
+        # le 2026-09-12 — précisément pour la rendre testable sans Airflow. Elle a donc
+        # quitté le périmètre du garde le jour où elle est devenue plus facile à tester.
+        try:
+            lifetime = platform_totals(db, aid)
+            series = daily_streams_by_platform(db, aid)
+        except Exception as exc:      # noqa: BLE001 — isolement par locataire
+            findings.append(
+                f"artiste {aid} — lecture impossible ({type(exc).__name__}) : ce "
+                "locataire n'a pas pu être contrôlé, les autres l'ont été")
+            continue
         rows = [(k, lifetime.get(k), sum(v for _, v in series.get(k, []) or []) or None)
                 for k in KINDS]
         findings += [f"artiste {aid} — {msg}" for msg in report(rows)]

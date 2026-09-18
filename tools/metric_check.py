@@ -41,8 +41,20 @@ def main() -> int:
 
     findings = []
     for aid in sorted(tenants):
-        lifetime = platform_totals(db, aid)
-        series = daily_streams_by_platform(db, aid)
+        # ISOLEMENT PAR LOCATAIRE — ajouté le 2026-09-18 (R132). Le jumeau en ligne de
+        # commande de `src/utils/metric_bounds.py`, corrigé le même jour pour la même
+        # cause. Ici un plantage est VISIBLE (l'outil se lance à la main), mais il
+        # arrête le contrôle au premier locataire illisible : les suivants ne sont pas
+        # examinés, et l'opérateur lit un rapport partiel comme un rapport complet.
+        try:
+            lifetime = platform_totals(db, aid)
+            series = daily_streams_by_platform(db, aid)
+        except Exception as exc:      # noqa: BLE001 — isolement par locataire
+            findings.append(
+                f"artiste {aid} — lecture impossible ({type(exc).__name__}) : ce "
+                "locataire n'a pas pu être contrôlé, les autres l'ont été")
+            print(f"  artiste {aid:>4}  ❌ illisible ({type(exc).__name__})")
+            continue
         rows = [(k, lifetime.get(k), sum(v for _, v in series.get(k, []) or []) or None)
                 for k in KINDS]
         for msg in report(rows):

@@ -66,6 +66,75 @@ def _fleet_bound_names(tree: ast.AST) -> set[str]:
     return bound
 
 
+# ── La flotte s'énumère aussi en SQL, et c'était le QUATRIÈME aveuglement ──────
+#
+# Mesuré le 2026-09-18, en mutant le garde élargi : DEUX des trois sites que je venais de
+# corriger restaient invisibles. Remettre le défaut dans `src/utils/metric_bounds.py` ne
+# faisait PAS rougir le test.
+#
+# La cause est celle de la règle 20 : le prédicat cherchait une FORME D'ÉCRITURE — un
+# appel nommé `get_active_artists` — là où la classe parle d'une PROPRIÉTÉ : « cette
+# boucle parcourt-elle la flotte ». Les deux sites énumèrent leurs locataires en SQL :
+#
+#     tenants = [r[0] for r in db.fetch_query(
+#         "SELECT DISTINCT artist_id FROM s4a_song_timeline …")]   # metric_bounds
+#     df = db.fetch_df("SELECT id, name FROM saas_artists WHERE active = TRUE …")
+#     artists = [(int(r["id"]), r["name"]) for _, r in df.iterrows()]  # onboarding_health
+#
+# La preuve qu'une variable porte la flotte n'est donc pas le nom de l'appel : c'est le
+# TEXTE de la requête qui l'a produite. On sème sur ce texte, puis on propage par
+# affectation jusqu'au point fixe — `df` → `artists` est exactement le cas qui manquait.
+_TENANT_QUERY_MARKS = ("from saas_artists", "distinct artist_id")
+
+
+def _assigns_of_scope(scope: ast.AST):
+    """Les affectations de CETTE portée, sans descendre dans les fonctions imbriquées.
+
+    ⚠️ La première version propageait à l'échelle du MODULE, et la mutation l'a montrée
+    fausse tout de suite : un `rows` lié à la flotte dans une fonction rendait « flotte »
+    le `rows` de toutes les autres. Deux faux positifs mesurés —
+    `pdf_exporter/_collectors.py:229` (une boucle sur les TITRES d'un seul artiste) et
+    `alert_monitor.py:692` (le canari, qui ne regarde qu'un locataire). Un garde qui
+    rougit sur du code correct se fait désarmer ; c'est le mode d'échec que ce dépôt a
+    déjà payé sur la liste dérivée de « toute fonction contenant un raise » (108 hits).
+    """
+    corps = scope.body if hasattr(scope, "body") else []
+    sorties = []
+    pile = list(corps)
+    while pile:
+        n = pile.pop()
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+            continue                       # une autre portée : ses noms ne fuient pas ici
+        if isinstance(n, ast.Assign):
+            sorties.append(n)
+        pile.extend(ast.iter_child_nodes(n))
+    return sorties
+
+
+def _tenant_bound_names(tree: ast.AST) -> set[str]:
+    """Les variables de CETTE portée qui portent une énumération de locataires."""
+    def _enumere(node) -> bool:
+        if _iterates_the_fleet(node):
+            return True
+        return any(isinstance(n, ast.Constant) and isinstance(n.value, str)
+                   and any(m in n.value.lower() for m in _TENANT_QUERY_MARKS)
+                   for n in ast.walk(node))
+
+    assigns = [(n.targets, n.value) for n in _assigns_of_scope(tree)]
+    bound: set[str] = set()
+    for _ in range(len(assigns) + 1):      # point fixe, borné par le nombre d'affectations
+        avant = len(bound)
+        for targets, value in assigns:
+            derive = _enumere(value) or any(
+                isinstance(n, ast.Name) and n.id in bound for n in ast.walk(value))
+            if derive:
+                for t in targets:
+                    bound |= {n.id for n in ast.walk(t) if isinstance(n, ast.Name)}
+        if len(bound) == avant:
+            break
+    return bound
+
+
 def _artist_loops(tree: ast.AST):
     """Yield every loop over the tenant fleet — `for` statements AND comprehensions.
 
@@ -73,22 +142,32 @@ def _artist_loops(tree: ast.AST):
     iterates a call to `get_active_artists` whatever it names the variable, or if it
     iterates a VARIABLE that was bound to such a call earlier in the module.
     """
-    fleet_names = _fleet_bound_names(tree)
+    fleet_names = _fleet_bound_names(tree) | _tenant_bound_names(tree)
+    par_portee = {id(sc): fleet_names | _tenant_bound_names(sc)
+                  for sc in ast.walk(tree)
+                  if isinstance(sc, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    proprietaire = {}
+    for sc in ast.walk(tree):
+        if isinstance(sc, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for n in ast.walk(sc):
+                proprietaire.setdefault(id(n), id(sc))
 
-    def _iterates(iter_node) -> bool:
+    def _iterates(iter_node, loop=None) -> bool:
         if _iterates_the_fleet(iter_node):
             return True
-        return any(isinstance(n, ast.Name) and n.id in fleet_names
+        noms = par_portee.get(proprietaire.get(id(loop if loop is not None else iter_node)),
+                              fleet_names)
+        return any(isinstance(n, ast.Name) and n.id in noms
                    for n in ast.walk(iter_node))
 
     for node in ast.walk(tree):
         if isinstance(node, ast.For):
             names = {n.id for n in ast.walk(node.target) if isinstance(n, ast.Name)}
-            if "artist_id" in names or _iterates(node.iter):
+            if "artist_id" in names or _iterates(node.iter, node):
                 yield node
         elif isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp,
                                ast.GeneratorExp)):
-            if any(_iterates(g.iter) for g in node.generators):
+            if any(_iterates(g.iter, node) for g in node.generators):
                 yield node
 
 
@@ -216,6 +295,121 @@ def _unprotected_calls(loop) -> list[tuple[str, int]]:
 
 
 _DAG_FILES = sorted(_DAGS_DIR.glob("*.py"))
+
+# ── La flotte ne vit pas QUE dans `airflow/dags/` — 2026-09-18 (R132) ────────
+#
+# Le balayage du 2026-09-17 a corrigé 8 sites dans `airflow/dags/` et en a laissé
+# **6 hors périmètre**, documentés et non corrigés. Deux d'entre eux étaient de vraies
+# pannes de flotte :
+#
+#   * `src/utils/metric_bounds.py:124` — la boucle de `check_metric_bounds`, une tâche du
+#     DAG de surveillance NOCTURNE. Un locataire illisible tuait la tâche entière, donc le
+#     contrôle devenait aveugle pour toute la flotte — et son silence se lit comme
+#     « rien à signaler ».
+#   * `src/dashboard/views/onboarding_health.py:65` — un artiste dont la lecture lève
+#     emportait TOUTE la page de supervision.
+#
+# ⚠️ **Et `metric_bounds` a quitté ce garde le jour où il est devenu plus facile à
+# tester.** La boucle a été SORTIE d'`alert_monitor.py` vers `src/utils/` le 2026-09-12,
+# « pour qu'un contrôle enfermé dans un DAG soit exerçable sans Airflow ». Le garde, lui,
+# ne parcourait que `airflow/dags/`. Un déplacement qui améliore la testabilité peut faire
+# sortir le code d'un garde — et rien ne le dit.
+#
+# ── L'entonnoir, contredisable (règle 20) ─────────────────────────────────────
+#
+#   candidats bruts, une fois le prédicat élargi aux énumérations SQL : **6**
+#   écartés, avec leur raison :
+#     · `pdf_exporter/_collectors.py:229,236` — boucle sur les TITRES d'UN artiste ;
+#       faux positif de ma propre propagation, aveugle aux portées (corrigé)
+#     · `alert_monitor.py:692` — le canari ne regarde qu'un locataire ; même cause
+#     · `airflow/debug_dag/` (4 fichiers, 8 appels) — scripts lancés À LA MAIN. Le
+#       traceback y EST la sortie attendue : un `try` par locataire masquerait
+#       précisément ce que l'opérateur est venu voir, et personne n'attend de ces
+#       scripts une couverture de flotte. Écartés sur la CONSÉQUENCE, pas sur la forme.
+#   **2 sites vivants** — `onboarding_health.py:92` (le rendu lit la base hors du
+#   `try`) et `tools/metric_check.py:44,45` (le jumeau CLI de `metric_bounds`).
+#   Les deux corrigés le 2026-09-18.
+#
+# Mesuré après correction : `src/` **0**, `tools/` **0**, `.claude/scripts/` **0**,
+# `airflow/dags/` **0** (le prédicat élargi n'y ajoute aucun rouge).
+_AUTRES_ARBRES = ("src", "tools", ".claude/scripts")
+_FLEET_FILES = sorted(
+    f for arbre in _AUTRES_ARBRES
+    for f in (Path(__file__).resolve().parent.parent / arbre).rglob("*.py")
+    if "__pycache__" not in str(f)
+)
+
+# Les fichiers dont on SAIT qu'ils portent une boucle de flotte, parce qu'ils ont été
+# corrigés à la main le 2026-09-18. Le test ci-dessous exige que le prédicat les VOIE.
+_PORTENT_UNE_BOUCLE_DE_FLOTTE = (
+    "src/utils/metric_bounds.py",
+    "src/dashboard/views/onboarding_health.py",
+    "tools/tenant_contamination_check.py",
+    "tools/metric_check.py",
+)
+
+
+def test_the_wider_scope_is_not_empty() -> None:
+    """Sans fichiers, le test de flotte ci-dessous est vert sur un arbre entièrement cassé."""
+    assert len(_FLEET_FILES) > 100, (
+        f"seulement {len(_FLEET_FILES)} fichier(s) hors `airflow/dags/` — la liste a raté "
+        "sa cible, et `test_fleet_loops_outside_the_dags_are_isolated` n'affirme rien.")
+
+
+@pytest.mark.parametrize("rel", _PORTENT_UNE_BOUCLE_DE_FLOTTE)
+def test_the_widened_scope_is_not_vacant(rel: str) -> None:
+    """Élargir la PORTÉE ne sert à rien si le PRÉDICAT ne voit pas les fichiers ajoutés.
+
+    ⚠️ C'est le défaut mesuré le 2026-09-18, et il serait passé sans la mutation.
+    Après avoir corrigé trois boucles de flotte à la main, j'ai étendu ce fichier de
+    `airflow/dags/` à `src/`, `tools/` et `.claude/scripts/`, mesuré **0 site partout**,
+    et conclu que l'élargissement verrouillait les trois corrections. Puis j'ai remis le
+    défaut dans `metric_bounds.py` : **le test est resté VERT**. `_artist_loops` ne
+    reconnaissait la flotte que sur un appel nommé `get_active_artists` ; deux des trois
+    fichiers énumèrent leurs locataires en SQL, donc le garde ne les REGARDAIT pas.
+
+    Un « 0 » peut vouloir dire « rien à signaler » ou « je n'ai rien regardé », et rien
+    dans le chiffre ne permet de trancher. Ce test rend les deux distinguables : il
+    échoue si le prédicat cesse de voir une boucle qu'on sait présente — par un
+    renommage, une réécriture de la requête d'énumération, ou une restriction de portée.
+    """
+    chemin = Path(__file__).resolve().parent.parent / rel
+    if not chemin.exists():
+        pytest.skip(f"{rel} n'existe plus")
+    tree = ast.parse(chemin.read_text(encoding="utf-8-sig"))
+    assert list(_artist_loops(tree)), (
+        f"`{rel}` porte une boucle par locataire corrigée à la main, et `_artist_loops` "
+        "n'en voit AUCUNE. Le fichier est bien dans la portée du garde, mais le garde "
+        "n'affirme rien à son sujet : remettre le défaut ne le ferait pas rougir.\n"
+        "C'est la forme de vacance la plus coûteuse, parce qu'elle se lit comme une "
+        "couverture acquise.")
+
+
+@pytest.mark.parametrize("fichier", _FLEET_FILES, ids=lambda p: p.name)
+def test_fleet_loops_outside_the_dags_are_isolated(fichier):
+    """Le MÊME détecteur, sur les arbres où la flotte vit aussi.
+
+    Seule sa PORTÉE était le défaut — puis, mesuré le même jour, son PRÉDICAT aussi.
+    C'est le motif de la nuit : sur treize familles balayées, aucun garde vert ne
+    mentait ; ils lisaient une surface qui n'était pas celle où le défaut vivait.
+    """
+    tree = ast.parse(fichier.read_text(encoding="utf-8-sig"))
+    violations = []
+    for loop in _artist_loops(tree):
+        for name, line in _unprotected_calls(loop):
+            kind = ("compréhension — aucun `try` n'y est possible, la réécrire en boucle"
+                    if not isinstance(loop, ast.For) else "hors de tout `try` de la boucle")
+            violations.append(
+                f"{fichier.name}:{line} — `{name}` peut lever par locataire, {kind} "
+                f"(boucle l.{loop.lineno})")
+    assert not violations, (
+        "\n".join(violations) + "\n\nUne boucle de flotte sans `try` par locataire fait "
+        "d'un artiste cassé une panne pour TOUS. Ici, hors d'Airflow, la conséquence n'est "
+        "pas un DAG bloqué mais un contrôle AVEUGLE ou une page vide — et le silence se "
+        "lit comme « rien à signaler ».\nIsoler ne veut pas dire taire : le locataire non "
+        "lu doit apparaître dans la sortie, comme le fait `metric_bounds` avec sa ligne "
+        "« lecture impossible » et `tenant_contamination_check` avec son constat "
+        "`UNREADABLE`.")
 
 
 @pytest.mark.parametrize("dag_file", _DAG_FILES, ids=lambda p: p.name)

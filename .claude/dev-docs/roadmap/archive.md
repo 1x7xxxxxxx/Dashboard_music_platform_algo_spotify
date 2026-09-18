@@ -7499,3 +7499,78 @@ route du locataire est finie ou non.*
   (il refuse `/mnt/…`, où DrvFS gonfle les temps de 5× à 160×). Il ne trace **pas** de
   courbe de concurrence et `--self-check` montre pourquoi : `AppTest` sature de lui-même
   sous threads, un `st.write('hello')` passant de 352 ms à 2 144 ms.
+
+## R132 — L'isolement de flotte s'arrête aux frontières du garde · P3 · ✅ 2026-09-18
+
+Ouverte le 2026-09-17, en balayant les frères de `multitenant-dag-fleet-poisoning`.
+**Le balayage a trouvé 8 sites vivants sur 6 fichiers de production alors que le garde
+était VERT sur 13 tests** ; les 8 sont corrigés et le garde élargi les rougit. Ce qui
+reste est ce que le garde **ne peut pas** voir, et il faut le dire avec sa raison.
+
+### Ce qui reste, et pourquoi le garde ne l'atteint pas
+
+| site | forme | pourquoi hors de portée |
+|---|---|---|
+| `src/utils/metric_bounds.py:124-129` | **aveuglement de flotte** | la boucle est ici, le `try` est dans `alert_monitor.py::check_metric_bounds` — **un autre module**. Une levée sur un locataire ne fait pas tomber le DAG : elle vide les constats de la nuit pour TOUS, silencieusement. Le détecter demande une analyse **inter-procédurale**, pas un prédicat plus large |
+| `src/dashboard/views/onboarding_health.py:65` | crash, variante Streamlit | `for aid, name in artists:` sous un `try … finally: db.close()` **sans `except`** — une levée fait tomber toute la page admin, pas la ligne de l'artiste. Hors du périmètre `airflow/dags/` du garde |
+| `airflow/dags/trial_expiry_reminder.py:147` | **corrigé à la main** | la source de flotte est `_due_accounts(db)`, pas `get_active_artists()` : `_artist_loops` ne reconnaît pas la boucle. Le site est fermé, **le garde ne le protège pas** |
+| `airflow/debug_dag/` ×4 | aveuglement | `debug_meta_token_refresh.py:58`, `debug_alert_monitor.py:45`, `debug_ml_scoring.py:58`, `debug_ml_outcome_labeling.py:48`. Scripts interactifs, hors production |
+
+⚠️ **Trois axes indépendants, et c'est pour ça que ce n'est pas un élargissement de
+plus.** Fermer ces sites demande de bouger en même temps la portée FICHIER (au-delà de
+`airflow/dags/`), la détection de SOURCE de flotte (au-delà de `get_active_artists`), et
+la portée du `try` (au-delà de la même fonction). Chacun élargi seul peut faire rougir
+des boucles d'agrégation légitimes — le mode d'échec que ce dépôt a déjà mesuré sur un
+garde élargi trop vite. C'est une refonte du modèle de « boucle de flotte », pas une
+correction.
+
+- [x] **R132 — décider, pour chacun des 6 sites, entre le corriger à la main et étendre
+      le garde ; et si le garde est étendu, le faire UN AXE À LA FOIS avec la mesure du
+      bruit qu'il produit.** ✅ 2026-09-18
+
+  **Le pronostic ci-dessous était juste, et c'est le seul axe qu'il a fallu bouger.**
+  Les deux autres — la portée FICHIER et l'analyse inter-procédurale — n'ont pas été
+  nécessaires : élargir la portée fichier seule s'est révélé **VACANT**, et c'est le
+  fait de la tâche. Après avoir corrigé `metric_bounds.py`, `onboarding_health.py` et
+  `tenant_contamination_check.py` à la main, j'ai étendu le garde à `src/`, `tools/` et
+  `.claude/scripts/`, mesuré **0 partout**, et la mutation a montré que remettre le
+  défaut dans `metric_bounds.py` **ne faisait pas rougir le test** : le prédicat ne
+  voyait pas ces boucles du tout. Un élargissement de portée qui n'affirmait rien sur
+  2 de ses 3 fichiers.
+
+  Le second axe — la SOURCE de flotte — a donc été fait ensuite : `_artist_loops`
+  reconnaît maintenant une variable issue d'une requête d'ÉNUMÉRATION de locataires
+  (`SELECT DISTINCT artist_id`, `FROM saas_artists`), propagée par affectation jusqu'au
+  point fixe **dans la portée de la fonction**. La restriction de portée n'est pas
+  cosmétique : sans elle le prédicat rendait **2 faux positifs** (`_collectors.py:229`,
+  une boucle sur les TITRES d'un artiste, et `alert_monitor.py:692`, le canari), parce
+  qu'un `rows` lié à la flotte dans une fonction rendait « flotte » le `rows` de toutes
+  les autres.
+
+  **Bilan : 6 candidats bruts → 4 écartés avec leur raison → 2 sites vivants de plus**,
+  tous deux corrigés. `onboarding_health.py:92` — `render_status_matrix` lit la base et
+  vivait HORS du `try` posé le matin même, donc un locataire dont le RENDU lève emportait
+  encore toute la page. `tools/metric_check.py:44-45` — le jumeau CLI de `metric_bounds`,
+  qui s'arrêtait au premier locataire illisible et rendait un rapport partiel lu comme
+  complet.
+
+  Les 8 appels de `airflow/debug_dag/` sont écartés **sur la conséquence, pas sur la
+  forme** : le traceback y est la sortie attendue d'un script lancé à la main, et un
+  `try` par locataire masquerait précisément ce que l'opérateur est venu voir.
+
+  ⚠️ `airflow/dags/` reste à **0** avec le prédicat élargi : l'élargissement n'introduit
+  aucun rouge ailleurs.
+
+  ⚠️ **Ne pas viser un compteur.** `siblings_never_swept` a baissé de 1 en trouvant 8
+  sites : c'est le balayage qui vaut, pas le nombre.
+
+  **Mesuré par** : le balayage AST qui a produit cette liste —
+  `python3 - <<'PY'` … (boucles par locataire, appels risqués hors `try`) ; il doit
+  rendre 0 site hors `debug_dag/` pour que R132 se ferme.
+
+**Close le 2026-09-18.** Condition de clôture, telle qu'elle était écrite : « le
+balayage AST doit rendre 0 site hors `debug_dag/` ». Mesuré après correction —
+`src/` **0**, `tools/` **0**, `.claude/scripts/` **0**, `airflow/dags/` **0**.
+Garde élargi : `tests/test_dag_fleet_isolation.py::test_fleet_loops_outside_the_dags_are_isolated`,
+muté dans les deux sens (rouge sur le défaut remis, vert sur une boucle de même
+forme qui n'est pas la flotte).

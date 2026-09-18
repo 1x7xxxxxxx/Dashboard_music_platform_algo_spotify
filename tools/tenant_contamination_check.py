@@ -260,6 +260,39 @@ def scan(db) -> list[dict]:
 
     findings: list[dict] = []
     for artist_id, name in artists:
+        # ISOLEMENT PAR LOCATAIRE — ajouté le 2026-09-18 (R132). Ce contrôle cherche de la
+        # CONTAMINATION entre locataires : une table manquante ou une requête qui lève
+        # pour UN artiste interrompait le balayage, et les suivants n'étaient jamais
+        # examinés. Un contrôle de contamination qui s'arrête au premier obstacle rend un
+        # verdict PARTIEL qui se lit comme un verdict complet — le contraire de ce qu'il
+        # existe pour faire.
+        #
+        # L'échec sort comme un CONSTAT et non comme une exception avalée : la signature
+        # `list[dict]` est conservée (trois appelants la lisent), et le locataire non lu
+        # apparaît dans la sortie au lieu de disparaître d'elle. Isoler un défaut ne veut
+        # pas dire cesser de le dire.
+        try:
+            findings.extend(
+                _examiner_locataire(db, artist_id, name, identities, by_platform, scoped))
+        except Exception as exc:      # noqa: BLE001 — isolement par locataire
+            findings.append({
+                "artist_id": artist_id, "artist": name, "platform": "—",
+                "table": "—", "kind": "UNREADABLE", "rows": 0,
+                "detail": f"tenant could not be scanned: {type(exc).__name__}",
+            })
+    return findings
+
+
+def _examiner_locataire(db, artist_id, name, identities, by_platform,
+                        scoped) -> list[dict]:
+    """Le corps d'UN locataire, extrait pour que la boucle puisse l'isoler.
+
+    Extrait tel quel le 2026-09-18 : aucune ligne de logique n'a changé, seul le cadre.
+    Une boucle qui porte son `try` autour de trente lignes en ligne finit par l'élargir
+    à ce qu'il ne devait pas couvrir.
+    """
+    findings: list[dict] = []
+    if True:      # noqa: SIM103 — préserve l'indentation du corps extrait tel quel
         declared = identities.get(artist_id, {})
         for platform, tables in by_platform.items():
             identity = declared.get(platform)
