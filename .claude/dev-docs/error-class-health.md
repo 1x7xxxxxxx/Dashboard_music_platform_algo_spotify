@@ -11,13 +11,13 @@ Le compteur `siblings_never_swept` mesure l'EFFORT. Celui-ci mesure le résultat
 
 | grandeur | valeur |
 |---|---|
-| balayages faits | **302** |
-| dont le verdict est LISIBLE | **201** |
+| balayages faits | **305** |
+| dont le verdict est LISIBLE | **204** |
 | qui ont trouvé au moins un site | **26** |
 | sites vivants trouvés | **63** |
-| taux de trouvaille (sur verdicts lisibles) | **0.129** |
+| taux de trouvaille (sur verdicts lisibles) | **0.127** |
 
-⚠️ **97 des 302 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **195**, et non 98.
+⚠️ **97 des 305 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **192**, et non 95.
 
 ⚠️ **101 balayages sont MUETS** : la question a été posée, la réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme zéro — un balayage dont on ignore le résultat n'est pas un balayage sans résultat. Le dénominateur du taux ci-dessus les exclut délibérément : les inclure diviserait par une population qui ne répond pas à la question, ce que ce dépôt appelle `anchor-a-number-to-its-population`.
 
@@ -63,8 +63,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `scope_unknown` | 0 |
 | `scope_without_not_covered` | 0 |
 | `seen_red_never` | 0 |
-| `seen_red_unknown` | 307 |
-| `siblings_never_swept` | 98 |
+| `seen_red_unknown` | 304 |
+| `siblings_never_swept` | 95 |
 | `sites_unknown` | 101 |
 | `swept_by_rerunning_the_guard` | 97 |
 
@@ -78,8 +78,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|---|---|---|
 | by_guard · automatique | 30 | 0.1109 | 0.0748 – 0.1584 | insuffisant pour conclure (n=33) |
 | by_guard · prose | 3 | 0.5272 | 0.106 – 1.5403 | insuffisant pour conclure (n=33) |
-| by_seen_red · daté | 7 | 0.209 | 0.0837 – 0.4307 | insuffisant pour conclure (n=33) |
-| by_seen_red · jamais-ou-inconnu | 26 | 0.1072 | 0.07 – 0.157 | insuffisant pour conclure (n=33) |
+| by_seen_red · daté | 7 | 0.1996 | 0.08 – 0.4113 | insuffisant pour conclure (n=33) |
+| by_seen_red · jamais-ou-inconnu | 26 | 0.1079 | 0.0704 – 0.158 | insuffisant pour conclure (n=33) |
 | by_scope · ne-couvre-pas renseigné | 33 | 0.1195 | 0.0823 – 0.1678 | une seule strate peuplée (n=33) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
