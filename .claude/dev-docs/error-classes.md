@@ -8303,19 +8303,21 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - severity: P2
 - kind: deterministic
 - symptom: un document généré est **périmé à l'instant même où on le commite**. Son contrôle de fraîcheur est rouge juste après un `make` qui vient de le produire, et relancer le `make` ne le rend pas vert. On conclut que le générateur est cassé ; il ne l'est pas.
-- signature: `grep -q "DEUX COMMITS" Makefile`
-- seen_red: 2026-09-16 sur la cible `error-health` du Makefile, avant que l'ordre y soit écrit → exit 1 ; 0 après.
+- signature: `python3 -m pytest tests/test_a_snapshot_survives_the_commit_of_its_source.py -q`
+- seen_red: self-proving (tests/test_a_snapshot_survives_the_commit_of_its_source.py::test_the_pending_revision_is_read_from_disk_and_not_from_git)
 - root_cause: le document tire ses faits de l'**historique git d'un fichier du même dépôt**. Committer ce fichier change donc les faits, et l'instantané committé à côté décrit l'état d'avant. Mesuré le 2026-09-16 sur `.claude/dev-docs/error-class-health.json`, qui compte les révisions de `error-classes.md` : `make config-check` est passé rouge sur `"revisions": 3 → 4` immédiatement après le commit du catalogue.
 - cause_evidence: measured (la sortie de `make config-check` nommait le champ et l'écart, et le second commit a fait converger)
-- long_term_fix: **deux commits, et le second ne touche pas la source.** (1) commiter le fichier observé ; (2) régénérer et commiter les artefacts SEULS. Le compte de révisions ne bouge plus, donc le contrôle reste vert. L'ordre est écrit dans la cible `make` elle-même, là où on le lit au moment de s'en servir. Un seul commit serait une porte qui ne peut jamais être verte — et ce dépôt sait ce que ça coûte : on apprend à la contourner.
+- long_term_fix: **le document cesse de porter un nombre qui change quand on le commite.** La cause n'est pas le commit, c'est la grandeur : `_revisions()` ignorait l'état du disque. Elle compte désormais l'arbre de travail comme une révision EN ATTENTE, donc le total vaut N+1 des deux côtés du commit — et c'est la lecture honnête de ce que le nombre mesure, « combien d'états distincts de ce catalogue ont existé ». ⚠️ Le remède précédent — « deux commits, et le second ne touche pas la source » — était CORRECT et a tenu deux jours ; il coûtait 48 % du journal de commits. Un remède juste peut être trop cher, et c'est le chiffrage qui le dit, pas la relecture.
 - autofix: none
-- guard: { type: make-precondition, ref: Makefile }
+- guard: { type: pytest, ref: tests/test_a_snapshot_survives_the_commit_of_its_source.py }
 - guard_scope: un-document-qui-affirme-un-état-périmé — générer un document dont les faits viennent du dépôt qui le contient ; couvre: la cible `error-health` et son ordre écrit ; ne couvre pas: **tout autre générateur qui lirait `git log`** — aujourd'hui il n'y en a qu'un, mais `gold-coverage` ou `error-families` hériteraient du défaut le jour où ils regarderaient l'historique plutôt que l'arbre de travail.
 - siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `grep -q "DEUX COMMITS" Makefile`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: tools/dev/error_class_health.py
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: trouvé **par la porte elle-même**, dans le commit qui la posait. C'est le meilleur moment : le coût était une minute de perplexité, pas une semaine de contrôle rouge qu'on finit par ignorer.
+  - 2026-09-18: **le remède « deux commits » a été chiffré, et il coûte la moitié du journal.** Sur les 104 commits du 2026-09-18, **50 sont « Regenerer l instantane apres le commit du catalogue »** — 48 %. Sur sept jours : 85 sur 440. Chacun démarre en plus une exécution de CI complète que `cancel-in-progress` tue aussitôt (13 runs annulés sur 60). Le remède est correct et il est cher ; la question rouverte est de savoir pourquoi l'artefact porte un nombre qui change quand on le commite.
+  - 2026-09-18 (garde): remède remplacé, et le défaut reproduit à la lettre avant de conclure. Catalogue modifié → `make error-health` → un seul commit → `--check` sortait **1** en nommant exactement deux champs : `classes.<id>.revisions` et `aggregate.generated_from.catalogue_revisions`. Les deux sont de la PROVENANCE, et le seul consommateur est un plancher de non-vacuité (`>= 100`). Après correctif, le même cycle sort **0**. Trois mutations vues rouges : l'arbre de travail cesse de compter ; la révision en attente est comptée sans être LUE (attrapée seulement après avoir refait l'assertion en comportement — la version textuelle cherchait `CATALOGUE.read_text` et trouvait une occurrence sans rapport, `guard-satisfied-by-its-own-comment` pour la troisième fois de la journée) ; le refus exit 3 revient.
 
 ## a-ci-checkout-too-shallow-for-the-guard-that-reads-git
 - status: guarded

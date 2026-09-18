@@ -360,15 +360,21 @@ error-families-check: ## Échoue si la taxonomie ne décrit plus le catalogue �
 	@python3 tools/dev/error_class_families.py --check
 
 error-health: ## Santé du catalogue de classes → .claude/dev-docs/error-class-health.{json,md}
-	@# ⚠️ DEUX COMMITS, et ce n'est pas un defaut : ce document tire ses faits de
-	@# l'historique GIT du catalogue, donc committer le catalogue les change. L'ordre
-	@# qui converge :
-	@#   1. commiter `error-classes.md` ;
-	@#   2. `make error-health` puis commiter les deux artefacts SEULS.
-	@# Le second commit ne touche pas le catalogue, donc le compte de revisions ne bouge
-	@# plus et `--check` reste vert. Un seul commit serait perime a l'instant meme ou il
-	@# est ecrit — un document qui ne peut jamais etre a jour est une porte qui ne peut
-	@# jamais etre verte, et ce depot a la classe.
+	@# UN SEUL COMMIT depuis le 2026-09-18 — et ce qui a change vaut d'etre lu.
+	@#
+	@# Ce bloc disait « DEUX COMMITS, et ce n'est pas un defaut » : le document tirant
+	@# ses faits de l'historique GIT du catalogue, commiter le catalogue les changeait,
+	@# donc l'instantane commite a cote etait perime d'exactement un. Le remede etait
+	@# correct. Il coutait **50 des 104 commits du 2026-09-18** — 48 % du journal —
+	@# chacun demarrant une execution de CI complete aussitot annulee.
+	@#
+	@# La cause n'etait pas le commit, c'etait le NOMBRE : `_revisions()` ignorait
+	@# l'etat du disque. Il compte desormais l'arbre de travail comme une revision EN
+	@# ATTENTE, donc le total vaut N+1 des deux cotes du commit. C'est aussi la lecture
+	@# honnete de la grandeur — « combien d'etats distincts de ce catalogue ont existe ».
+	@#
+	@# Garde : tests/test_a_snapshot_survives_the_commit_of_its_source.py, trois
+	@# mutations vues rouges.
 	@# L'historique GIT de ce JSON EST la série temporelle — rien de temporel n'est
 	@# stocké dedans. Il rejoue les révisions du catalogue et compte les commits qui
 	@# AJOUTENT une ligne d'historique à une classe : une récidive mesurée, qu'aucun

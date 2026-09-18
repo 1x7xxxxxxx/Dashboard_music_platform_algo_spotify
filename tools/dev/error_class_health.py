@@ -104,10 +104,6 @@ def _git(*args: str) -> str:
                           text=True, timeout=120).stdout
 
 
-def _tree_is_dirty() -> bool:
-    return bool(_git("status", "--porcelain", "--", CAT_REL).strip())
-
-
 # ── Le texte : ce que le catalogue DÉCLARE ───────────────────────────────────
 
 _GUARD_REF = re.compile(r"ref:\s*([^,}\s]+)")
@@ -368,15 +364,56 @@ def _swept_sites(champ: str) -> "int | None":
 
 # ── Git : ce que personne ne peut éditer ─────────────────────────────────────
 
+# LA MARQUE DE LA RÉVISION EN ATTENTE.
+#
+# `WORKTREE` n'est pas un sha : c'est l'état du catalogue sur le disque, qui n'a pas
+# encore de commit. Le rejeu le lit directement au lieu de demander `git show`.
+WORKTREE = "WORKTREE"
+
+
 def _revisions() -> list[tuple[str, str]]:
-    """[(sha, date ISO)] du plus ancien au plus récent, pour le catalogue seul."""
+    """[(sha, date ISO)] du plus ancien au plus récent, pour le catalogue seul.
+
+    ⚠️ L'ARBRE DE TRAVAIL COMPTE COMME UNE RÉVISION, et c'est ce qui a supprimé la
+    moitié du journal de commits.
+
+    Sans cela, le compte de révisions valait N sur un catalogue modifié et N+1 une fois
+    commité — donc l'instantané commité à côté du catalogue était périmé **à l'instant
+    même de son commit**, d'exactement un. Le dépôt avait répondu par le remède écrit
+    dans `a-document-that-cannot-be-current-in-its-own-commit` : « deux commits, et le
+    second ne touche pas la source ». Il est correct, et il coûte cher — mesuré le
+    2026-09-18 : **50 des 104 commits de la journée** étaient ce second commit, 48 %,
+    chacun démarrant en plus une exécution de CI complète aussitôt annulée.
+
+    En comptant l'état du disque comme une révision EN ATTENTE, le nombre vaut N+1 des
+    deux côtés du commit. C'est aussi la lecture honnête de ce que la grandeur mesure :
+    « combien d'états distincts de ce catalogue ont existé », et l'état courant en est
+    un. Un instantané peut alors être commité avec sa source.
+    """
     out = _git("log", "--reverse", "--format=%H %cI", "--", CAT_REL)
     rows = []
     for line in out.splitlines():
         sha, _, iso = line.partition(" ")
         if sha:
             rows.append((sha, iso[:10]))
+    if _catalogue_differs_from_head():
+        rows.append((WORKTREE, date.today().isoformat()))
     return rows
+
+
+def _catalogue_differs_from_head() -> bool:
+    """Le catalogue sur le disque diffère-t-il de celui du dernier commit ?
+
+    Plus précis que « l'arbre est sale » : seul le catalogue compte ici, et un dépôt
+    dont d'autres fichiers sont modifiés n'a aucune révision de catalogue en attente.
+    """
+    try:
+        committed = _git("show", f"HEAD:{CAT_REL}")
+    except Exception:                                    # pragma: no cover
+        return False
+    if not committed:
+        return CATALOGUE.exists()
+    return CATALOGUE.read_text(encoding="utf-8") != committed
 
 
 def _events(body: str) -> tuple[int, int, int]:
@@ -406,7 +443,8 @@ def _observed() -> dict:
     per: dict[str, dict] = {}
     prev: dict[str, str] = {}
     for sha, day in revs:
-        text = _git("show", f"{sha}:{CAT_REL}")
+        text = (CATALOGUE.read_text(encoding="utf-8") if sha == WORKTREE
+                else _git("show", f"{sha}:{CAT_REL}"))
         if not text:
             continue
         cur = _blocks(text)
@@ -932,16 +970,22 @@ def main() -> int:
                     help="sort ≠ 0 si les documents sur le disque ne sont pas ceux-ci")
     args = ap.parse_args()
 
-    # ⚠️ Un arbre sale fait décrire DEUX états à un seul document : git rend le dernier
-    # commit, le fichier rend le travail en cours. Refuser de conclure, avec un code
-    # distinct — `a-verdict-from-a-tree-that-moved-under-it`.
-    if _tree_is_dirty():
+    # ⚠️ LE REFUS A ÉTÉ RETIRÉ LE 2026-09-18, ET SA PRÉMISSE AVEC.
+    #
+    # Il disait : « un arbre sale fait décrire DEUX états à un seul document — git rend
+    # le dernier commit, le fichier rend le travail en cours ». C'était vrai tant que le
+    # rejeu ignorait le disque. Depuis que `_revisions()` compte l'arbre de travail comme
+    # une révision EN ATTENTE, les deux moitiés décrivent le même état : le catalogue tel
+    # qu'il est maintenant.
+    #
+    # Ce qui reste vrai, et qui mérite d'être DIT plutôt que de bloquer : la moitié
+    # observée porte de l'histoire commitée, et la dernière révision n'est pas encore
+    # dans un commit. Une bannière le nomme ; elle ne refuse rien.
+    if _catalogue_differs_from_head():
         sys.stderr.write(
-            f"⚠️  `{CAT_REL}` porte des modifications non commitées.\n"
-            "   Les faits tirés de GIT et ceux tirés du FICHIER décriraient deux états\n"
-            "   différents. Commiter d'abord, puis relancer.\n")
-        if args.check:
-            return 3
+            f"ℹ️  `{CAT_REL}` porte des modifications non commitées : elles sont comptées\n"
+            "   comme la révision COURANTE. L'histoire vient de git, l'état vient du\n"
+            "   disque, et les deux décrivent le même catalogue.\n")
     js, md = build()
     if args.check:
         for path, fresh, remedy in ((DATA, js, "make error-health"),

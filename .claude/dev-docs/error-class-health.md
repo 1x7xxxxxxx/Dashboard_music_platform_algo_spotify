@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**402 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (332 révisions du catalogue rejouées).
+**402 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (333 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -57,7 +57,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|
 | `cause_inferred` | 0 |
 | `cause_unknown` | 140 |
-| `guard_does_not_prove_itself` | 307 |
+| `guard_does_not_prove_itself` | 306 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_on_a_shared_guard_without_naming_its_tests` | 15 |
@@ -79,7 +79,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|---|---|---|
 | by_guard · automatique | 39 | 0.1442 | 0.1025 – 0.1972 | insuffisant pour conclure (n=43) |
 | by_guard · prose | 4 | 0.7029 | 0.1891 – 1.7995 | insuffisant pour conclure (n=43) |
-| by_seen_red · daté | 16 | 0.1854 | 0.1059 – 0.3012 | insuffisant pour conclure (n=43) |
+| by_seen_red · daté | 16 | 0.1856 | 0.106 – 0.3014 | insuffisant pour conclure (n=43) |
 | by_seen_red · jamais-ou-inconnu | 27 | 0.1422 | 0.0937 – 0.2069 | insuffisant pour conclure (n=43) |
 | by_scope · ne-couvre-pas renseigné | 43 | 0.1557 | 0.1127 – 0.2098 | une seule strate peuplée (n=43) |
 
