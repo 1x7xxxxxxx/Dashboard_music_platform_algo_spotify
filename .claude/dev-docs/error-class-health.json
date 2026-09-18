@@ -213,7 +213,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-10",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -618,7 +618,7 @@
       "siblings_swept": false,
       "status": "reported",
       "introduced_date": "2026-09-10",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3570,7 +3570,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5120,7 +5120,7 @@
       "siblings_swept": true,
       "status": "open",
       "introduced_date": "2026-05-15",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -5891,7 +5891,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -6246,7 +6246,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-05",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -10878,7 +10878,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 302,
+      "catalogue_revisions": 303,
       "head_date": "2026-09-18"
     },
     "holes": {
