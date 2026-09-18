@@ -136,7 +136,18 @@ class AirflowMonitor:
                         # plus bas levait `TypeError: can't compare offset-naive and
                         # offset-aware`. Reproduit le 2026-09-17.
                         start = datetime.now(timezone.utc)
-                        duration = 0
+                        # `None`, JAMAIS `0`. Un run sans `start_date` n'a pas duré
+                        # zéro seconde : il n'a **pas encore commencé** (en file
+                        # d'attente, ou planifié). Écrire `0` rendait la colonne
+                        # remplie sur toutes les lignes, donc MESURÉE en apparence, et
+                        # `airflow_kpi.py:564` en calcule la moyenne pour la tuile
+                        # « Temps Exec Moyen (s) » sans filtrer sur `state` — chaque
+                        # run en attente tirait donc la moyenne vers le bas.
+                        # `_run_summary`, ONZE lignes plus bas dans ce même fichier,
+                        # fait déjà `duration_sec = None` : les deux chemins lisaient
+                        # la même API et ne répondaient pas la même chose.
+                        # `None` devient `NaN`, que `.mean()` de pandas ignore.
+                        duration = None
 
                     all_runs.append({
                         'dag_id': dag_id,

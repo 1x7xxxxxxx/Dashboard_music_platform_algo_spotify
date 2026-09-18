@@ -24,7 +24,9 @@ from src.dashboard.utils.kpi_helpers import (
     get_total_views_youtube,
 )
 
-_ARTIST_FILTER = "%1x7xxxxxxx%"
+from src.utils.artist_name_filter import (
+    ARTIST_NAME_LIKE as _ARTIST_FILTER,
+)
 
 
 # ---------------------------------------------------------------------------

@@ -22,7 +22,9 @@ from src.database.postgres_handler import validate_table, validate_columns
 # s4a_song_timeline carries a per-song "Total" summary row named after the artist;
 # CLAUDE.md mandates excluding it via `song NOT ILIKE %ARTIST_NAME_FILTER%` on every
 # query, else counts/dates are inflated by that synthetic row.
-_ARTIST_NAME_FILTER = "1x7xxxxxxx"
+from src.utils.artist_name_filter import (
+    ARTIST_NAME_FILTER as _ARTIST_NAME_FILTER,
+)
 
 _DATASETS = [
     {'key': 's4a_timeline',       'table': 's4a_song_timeline',            'label': 'S4A Timeline',

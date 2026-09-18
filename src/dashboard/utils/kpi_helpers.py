@@ -47,7 +47,9 @@ _CSV_FRESH_H = 24 * 7        # une semaine : le rythme de publication de S4A
 _CSV_WARN_H = 24 * 30        # un mois sans dépôt — là, la donnée est vraiment vieille
 
 # Filtre ligne "Total" des CSV Spotify for Artists
-ARTIST_NAME_FILTER = "1x7xxxxxxx"
+# Ré-EXPORTÉE, plus définie ici : `src/api/` ne peut pas importer ce module (il
+# tire `streamlit`), et c'est pour ça que la constante existait en cinq copies.
+from src.utils.artist_name_filter import ARTIST_NAME_FILTER  # noqa: E402,F401
 
 
 # ─── Fraîcheur des sources ──────────────────────────────────────────────────

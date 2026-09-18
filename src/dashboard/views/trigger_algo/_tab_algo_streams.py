@@ -14,7 +14,9 @@ import streamlit as st
 
 from src.dashboard.utils.i18n import t
 
-_ARTIST_FILTER = "%1x7xxxxxxx%"
+from src.utils.artist_name_filter import (
+    ARTIST_NAME_LIKE as _ARTIST_FILTER,
+)
 _WINDOWS = [("7d", "7 jours"), ("28d", "28 jours"), ("custom", "Période perso")]
 _SOURCE_LABELS = {"dw_streams": "Discover Weekly", "rr_streams": "Release Radar", "radio_streams": "Radio"}
 _SOURCE_COLORS = {"Discover Weekly": "#1DB954", "Release Radar": "#F037A5", "Radio": "#FFA726"}

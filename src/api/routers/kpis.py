@@ -13,7 +13,9 @@ from src.database.postgres_handler import PostgresHandler
 
 router = APIRouter(prefix="/kpis", tags=["kpis"])
 
-_ARTIST_NAME_FILTER = "1x7xxxxxxx"
+from src.utils.artist_name_filter import (
+    ARTIST_NAME_FILTER as _ARTIST_NAME_FILTER,
+)
 
 
 class KPISummary(BaseModel):

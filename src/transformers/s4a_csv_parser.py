@@ -9,7 +9,9 @@ from src.utils.track_matching import canonical_song
 
 logger = logging.getLogger(__name__)
 
-_ARTIST_FILTER = '1x7xxxxxxx'
+from src.utils.artist_name_filter import (
+    ARTIST_NAME_FILTER as _ARTIST_FILTER,
+)
 
 
 class MissingFromFilenameError(ValueError):

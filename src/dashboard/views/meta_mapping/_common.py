@@ -8,7 +8,13 @@ import streamlit as st
 
 # S4A "Total" summary row is filtered out of every s4a_song_timeline query
 # (project convention — see CLAUDE.md ARTIST_NAME_FILTER).
-_S4A_FILTER = "%1x7xxxxxxx%"
+# RÉ-EXPORTÉ : `_tracks.py` et `_campaigns.py` l'importent depuis ici. Le `noqa`
+# est nécessaire parce que `F401` est à portée de FICHIER — « non utilisé ici » n'est
+# pas « non utilisé ». J'ai retiré cette ligne une première fois le 2026-09-18 en
+# lisant ruff sans lire les importateurs : deux tests de rendu sont partis au rouge.
+from src.utils.artist_name_filter import (  # noqa: F401 — ré-export
+    ARTIST_NAME_LIKE as _S4A_FILTER,
+)
 
 
 def _load_canonical(db, artist_id):

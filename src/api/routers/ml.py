@@ -14,7 +14,9 @@ from src.database.postgres_handler import PostgresHandler
 router = APIRouter(prefix="/ml", tags=["ml"])
 
 # S4A "Total" summary row — excluded from every song-level query (CLAUDE.md).
-_ARTIST_NAME_FILTER = "1x7xxxxxxx"
+from src.utils.artist_name_filter import (
+    ARTIST_NAME_FILTER as _ARTIST_NAME_FILTER,
+)
 
 
 class MLPrediction(BaseModel):

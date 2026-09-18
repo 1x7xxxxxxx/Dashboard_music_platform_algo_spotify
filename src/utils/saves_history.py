@@ -16,7 +16,9 @@ Persists in: PostgreSQL spotify_etl
 from collections import defaultdict
 from datetime import date, timedelta
 
-ARTIST_FILTER = "%1x7xxxxxxx%"
+from src.utils.artist_name_filter import (
+    ARTIST_NAME_LIKE as ARTIST_FILTER,
+)
 
 
 def snapshot_saves(db, artist_id: int) -> int:

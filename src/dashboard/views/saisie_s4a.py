@@ -22,7 +22,9 @@ import streamlit as st
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 
-_ARTIST_FILTER = "%1x7xxxxxxx%"
+from src.utils.artist_name_filter import (
+    ARTIST_NAME_LIKE as _ARTIST_FILTER,
+)
 _WINDOWS = [("Playlist 7j", "7d"), ("Playlist 28j", "28d"), ("Playlist 12 mois", "12m")]
 
 
