@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**402 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**403 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -17,7 +17,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 15 | **1/15** · 6.7 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | **0/20** · 0.0 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **1/20** · 5.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
-| [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 24 | **3/24** · 12.5 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
+| [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 25 | **3/25** · 12.0 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | **5/29** · 17.2 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 25 | **2/25** · 8.0 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 82 | **9/82** · 11.0 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
@@ -197,7 +197,7 @@ Règle de rattachement : `assumes-a-shell|assumes-visibility|by-direction-not-by
 
 **Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ?**
 
-Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-after-instantiation|per-worker|namespaced-by-another|connection|closes-a-connection|only-inside-a-session|loses-the-race|first-row|session|cache|named-after-an-environment|environment-variable|state-file|leak` sur l'identifiant et le symptôme. 24 classe(s).
+Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-after-instantiation|per-worker|namespaced-by-another|connection|closes-a-connection|only-inside-a-session|loses-the-race|first-row|session|cache|named-after-an-environment|environment-variable|state-file|leak` sur l'identifiant et le symptôme. 25 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -213,6 +213,7 @@ Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-a
 | [`connection-escapes-unclosed`](error-classes.md#connection-escapes-unclosed) | sans charge, rien. Au palier suivant, des connexions s'accumulent contre `max_connections` (100 par défaut, partagé avec Airflow et une API qui peut e |
 | [`a-merged-branch-outlives-its-pull-request`](error-classes.md#a-merged-branch-outlives-its-pull-request) | le dépôt affiche des dizaines de branches « actives » alors qu'une seule ligne de travail existe. Le propriétaire se demande s'il va **perdre des avan |
 | [`a-fragment-that-outlives-the-connection-it-captured`](error-classes.md#a-fragment-that-outlives-the-connection-it-captured) | **rien ne plante**, et c'est ce qui coûte. Une page admin se met à consommer une connexion de plus par session, sans message qui relie la fuite au ges |
+| [`a-cache-whose-sharing-depends-on-an-unasserted-scheduler-flag`](error-classes.md#a-cache-whose-sharing-depends-on-an-unasserted-scheduler-flag) | un montage d'optimisation est en place, tous les tests sont verts, et le gain qu'il devait rendre est **nul**. Rien ne rougit, parce que le montage n' |
 | [`widget-key-written-after-instantiation`](error-classes.md#widget-key-written-after-instantiation) | a helper called from a VIEW writes `st.session_state[<key>]` for a key that is a sidebar widget's, and Streamlit raises `StreamlitAPIException: st.ses |
 | [`broken-probe-rendered-as-user-fault`](error-classes.md#broken-probe-rendered-as-user-fault) | a check that FAILED (missing table, bad identifier, dead connection) renders identically to "connected, no data", so the user is told to fix something |
 | [`state-file-accumulates-its-own-history`](error-classes.md#state-file-accumulates-its-own-history) | le fichier lu en PREMIER à chaque séance grossit sans fin parce qu'on empile les états successifs au lieu de les faire tourner. Le coût est payé à cha |
@@ -605,6 +606,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=402 families=18 orphans=3 -->
+<!-- error-class-families: total=403 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=cb793d2bc86b8bb2ab37710c7f2956f34f07e8da342f3a048236e776ca18850a -->
+<!-- error-class-families: sha256=902b6942be9fdcc0e1ee8f4eaf880ad41f435a9d8688b05309281efa539fc053 -->

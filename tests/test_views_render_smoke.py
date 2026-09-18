@@ -50,28 +50,24 @@ pytestmark = pytest.mark.skipif(
 # adding a view (the same step that adds it to _NAV_SECTIONS).
 # Source UNIQUE — `tests/render_harness.py`. Ces constantes vivaient en double
 # dans les deux fichiers de rendu et ont divergé NEUF JOURS (voir le module).
-from tests.render_harness import SCRIPT as _SCRIPT_SRC  # noqa: E402
 from tests.render_harness import TENANT_SCRIPT as _TENANT_SCRIPT_SRC  # noqa: E402
 from tests.render_harness import EMPTY_TENANT_VIEWS as _TENANT_VIEWS  # noqa: E402
 from tests.render_harness import VIEWS  # noqa: E402
+from tests.render_harness import render_once  # noqa: E402
+
+# Même rendu que `test_a_render_opens_one_connection.py`, payé une fois — voir
+# le module. `xdist_group` est ce qui rend le partage effectif sous `-n`.
+_VUES = [pytest.param(v, marks=pytest.mark.xdist_group(v)) for v in VIEWS]
 
 # AppTest re-execs a script string in a fresh interpreter path, so the script must
 # re-inject the repo root and seed an admin session before importing the view.
-_SCRIPT = _SCRIPT_SRC
 
 
-@pytest.mark.parametrize("view", VIEWS)
+@pytest.mark.parametrize("view", _VUES)
 def test_view_renders_without_exception(view):
-
-    from streamlit.testing.v1 import AppTest
-
-    at = AppTest.from_string(_SCRIPT.format(root=os.getcwd(), view=view))
-    at.run(timeout=90)
-
-    if at.exception:
-        ex = at.exception[0]
-        detail = getattr(ex, "value", ex)
-        pytest.fail(f"{view}.show() raised {type(detail).__name__}: {detail}")
+    erreur = render_once(view).erreur
+    if erreur:
+        pytest.fail(f"{view}.show() raised {erreur}")
 
 # ── The new-artist case: non-admin, own tenant, no data yet ─────────────────
 # Everything above renders as ADMIN on artist 1 — a tenant with years of data and

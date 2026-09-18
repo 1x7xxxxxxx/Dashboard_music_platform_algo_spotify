@@ -29,7 +29,6 @@ how many connections does rendering this page open?
 """
 from __future__ import annotations
 
-import os
 import socket
 
 import pytest
@@ -63,8 +62,15 @@ pytestmark = pytest.mark.skipif(
 
 # Source UNIQUE — `tests/render_harness.py`. Ces constantes vivaient en double
 # dans les deux fichiers de rendu et ont divergé NEUF JOURS (voir le module).
-from tests.render_harness import SCRIPT as _SCRIPT_SRC  # noqa: E402
 from tests.render_harness import VIEWS  # noqa: E402
+from tests.render_harness import render_once  # noqa: E402
+from tests.render_harness import une_vue_ouvre_vraiment_une_connexion  # noqa: E402
+
+# Le rendu est partagé avec `test_views_render_smoke.py` par un `lru_cache`, qui
+# vit dans UN processus. `xdist_group` place les deux tests d'une vue dans le même
+# worker ; sans lui, sous `-n`, le cache ne sert rien et le gain disparaît EN
+# SILENCE — aucun test ne rougit.
+_VUES = [pytest.param(v, marks=pytest.mark.xdist_group(v)) for v in VIEWS]
 # `process_guide` et `upload_csv` ont quitté cette liste le 2026-09-15, NEUF JOURS
 # après avoir quitté celle de `test_views_render_smoke.py:130-143` — qui explique
 # déjà pourquoi : `src/dashboard/views/process_guide.py` a été SUPPRIMÉ, et
@@ -76,28 +82,17 @@ from tests.render_harness import VIEWS  # noqa: E402
 # corrigé l'instance et laissé les frères vivants » ; l'autre moitié — la borne
 # basse manquante — est traitée dans `connections_opened_by` ci-dessous.
 
-_SCRIPT = _SCRIPT_SRC
 
 
 def connections_opened_by(view: str) -> int:
-    """Render `view` and count real `PostgresHandler._connect` calls."""
-    from streamlit.testing.v1 import AppTest
+    """Le compte de `PostgresHandler._connect` sur le rendu de `view`.
 
-    from src.database.postgres_handler import PostgresHandler
-
-    count = {"n": 0}
-    original = PostgresHandler._connect
-
-    def counting(self, *args, **kwargs):
-        count["n"] += 1
-        return original(self, *args, **kwargs)
-
-    PostgresHandler._connect = counting
-    try:
-        at = AppTest.from_string(_SCRIPT.format(root=os.getcwd(), view=view))
-        at.run(timeout=180)
-    finally:
-        PostgresHandler._connect = original
+    Le rendu lui-même est délégué à `render_harness.render_once`, qui le paie UNE
+    fois par worker et sert aussi `test_views_render_smoke.py`. Ce fichier gardait
+    sa propre copie du rendu : les mêmes 39 vues étaient rendues deux fois par
+    exécution, mesuré à 88,6 s (21,3 % de la suite) le 2026-09-18.
+    """
+    rendu = render_once(view)
 
     # ── La borne BASSE, ajoutée le 2026-09-15 ──
     # `opened <= plafond` est vrai pour ZÉRO connexion, et un rendu qui échoue à
@@ -108,15 +103,15 @@ def connections_opened_by(view: str) -> int:
     # `test_a_page_asks_the_same_question_once.py:166-174` a appris exactement cette
     # leçon le 2026-09-12 et l'a nommée « un prédicat sans site ». Elle n'avait pas
     # été propagée ici. Un plafond comparé à zéro ne garde rien.
-    if at.exception:
+    if rendu.erreur is not None:
         raise AssertionError(
             f"le rendu de `{view}` a levé, donc il n'a ouvert aucune connexion et "
-            f"le plafond passerait sur du vide :\n{at.exception[0].value}"
+            f"le plafond passerait sur du vide :\n{rendu.erreur}"
         )
-    return count["n"]
+    return rendu.connexions
 
 
-@pytest.mark.parametrize("view", VIEWS)
+@pytest.mark.parametrize("view", _VUES)
 def test_rendering_a_view_opens_at_most_its_ceiling(view):
     allowed = _KNOWN_MULTI.get(view, 1)
     opened = connections_opened_by(view)
@@ -146,25 +141,16 @@ def test_the_counter_actually_counts():
 
     A counter wired to nothing reports 0 for every view and the whole file passes
     while measuring nothing — the failure mode this repo has hit four times.
+
+    Depuis le 2026-09-18 la mutation porte sur `render_once`, la couture RÉELLEMENT
+    lue par les 39 cas ci-dessus. Elle portait avant sur une copie locale de la
+    technique de patch : une copie peut rester juste pendant que la couture servie
+    rend zéro.
     """
-    from src.dashboard.utils import get_db_connection
-    from src.database.postgres_handler import PostgresHandler
-
-    count = {"n": 0}
-    original = PostgresHandler._connect
-
-    def counting(self, *args, **kwargs):
-        count["n"] += 1
-        return original(self, *args, **kwargs)
-
-    PostgresHandler._connect = counting
-    try:
-        db = get_db_connection()
-        if db is not None:
-            db.close()
-    finally:
-        PostgresHandler._connect = original
-    assert count["n"] == 1, (
-        f"the patch counted {count['n']} connections for exactly one open — the "
-        "instrument is not attached to the code path it claims to measure."
+    vue, compte = une_vue_ouvre_vraiment_une_connexion()
+    assert compte >= 1, (
+        "aucune des 39 vues n'a ouvert une seule connexion au rendu — le compteur de "
+        "`render_once` n'est pas attaché au chemin de code qu'il prétend mesurer, et "
+        "les 39 plafonds `<= 1` passent sur du vide."
     )
+    assert vue, "aucune vue n'a rendu sans erreur"

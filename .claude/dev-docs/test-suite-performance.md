@@ -359,3 +359,46 @@ Gain ≈ 0,1 s contre 16 références à réécrire. Écarté.
 **La leçon des deux, et elle est la même** : le temps d'une suite ne se lit pas dans la
 taille de ce qu'elle ouvre. Il se lit dans `.test_durations`, test par test — et les
 deux fois, le poste dominant n'était pas celui que le plan nommait.
+
+## Le rendu payé une fois — 2026-09-18, et ce que le gain N'EST PAS
+
+`tests/test_views_render_smoke.py` et `tests/test_a_render_opens_one_connection.py`
+importaient le même `SCRIPT` et la même liste `VIEWS` de `tests/render_harness.py`, et
+rendaient les **mêmes 39 vues chacun de son côté** — mesuré à **88,6 s, 21,3 %** de la
+suite, dont `airflow_kpi` seule à 9,96 + 12,91 s.
+
+Les deux propriétés se lisent sur le même `AppTest` : `at.exception` d'un côté, le
+compte de `PostgresHandler._connect` de l'autre. `render_harness.render_once()` rend la
+vue, retient **deux scalaires** `(erreur, connexions)` — jamais l'objet `AppTest`, dont
+la rétention avait fait sortir la suite par l'OOM le 2026-09-17 — et sert les deux.
+
+**Mesuré en ALTERNANCE, deux tours, sur ces deux fichiers seuls à `-n 4`** :
+
+| | tour 1 | tour 2 | médiane |
+|---|---|---|---|
+| avant | 30,70 s | 30,56 s | **30,6 s** |
+| après | 17,83 s | 18,37 s | **18,1 s** |
+
+**−41 %.** Dispersion intra-bras ~3 %, séparation 41 % : au-dessus du seuil de bruit de
+±40 %, et c'est le premier gain de ce document qui le franchisse sur un poste de rendu.
+93 tests des deux côtés — rien n'a été perdu en route.
+
+⚠️ **Ce gain n'est PAS un gain de 41 % sur la suite complète, et le confondre serait
+refaire l'erreur que ce document reproche à R110.** `make test` rend **190,5 s** après,
+contre 193,5 s de référence : **1,5 %, sous le bruit, donc aucun résultat.** La raison
+est exactement celle du démenti `loadgroup` ci-dessus — à `PYTEST_WORKERS` workers, ces
+deux fichiers ne sont pas le chemin critique, les autres workers absorbaient déjà leur
+temps. Ce qui est acheté est **44 s de travail CPU** qui cessent d'être payées, donc de
+la marge sur un runner plus étroit et sur les shards de CI, pas de l'horloge locale.
+
+⚠️ **Et le montage a un mode d'échec silencieux**, qui est la vraie raison d'être du
+garde : un `lru_cache` vit dans UN processus. Si les deux tests d'une vue partent dans
+deux workers, le cache ne sert rien, le rendu est repayé, **et les deux propriétés
+restent vraies**. Trois choses doivent tenir ensemble — `--dist loadgroup` dans le
+`Makefile`, `@pytest.mark.xdist_group(<vue>)` sur chaque cas, et le même nom de groupe
+des deux côtés — et aucune n'est impliquée par ce que les tests affirment.
+`tests/test_a_shared_render_stays_in_one_worker.py` les vérifie toutes les trois en
+important les modules et en lisant les marques **réellement collectées**, et se prouve
+lui-même en fabriquant à chaque exécution un montage nu, un montage gardé et un montage
+à groupe constant. Classe :
+`a-cache-whose-sharing-depends-on-an-unasserted-scheduler-flag`.
