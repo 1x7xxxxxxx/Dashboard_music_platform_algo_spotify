@@ -398,6 +398,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 | [tool-imports-the-app-without-a-path](#tool-imports-the-app-without-a-path) | P1 | deterministic | guarded | none |
 | [test-sends-real-mail-to-real-people](#test-sends-real-mail-to-real-people) | P1 | deterministic | guarded | none |
+| [a-blocking-gate-red-on-its-own-syntax](#a-blocking-gate-red-on-its-own-syntax) | P2 | deterministic | guarded | none |
 | [unattributable-payment-link](#unattributable-payment-link) | P2 | deterministic | guarded | none |
 | [partial-collection-invisible](#partial-collection-invisible) | P2 | deterministic | guarded | none |
 | [test-calls-a-real-api](#test-calls-a-real-api) | P2 | deterministic | guarded | none |
@@ -1091,7 +1092,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - severity: P3
 - kind: heuristic
 - symptom: a new collector method + table ship (migration applied, code volume-mounted) but the owning DAG hasn't re-run since, so the table stays empty and the view shows "no data" — looks like a bug, is actually a stale-schedule. (Instagram `instagram_media`: collector committed 13:52 UTC, DAG last ran 10:00 UTC → 0 rows.)
-- signature: `docker exec <pg> psql -U postgres -d spotify_etl -tc "SELECT 'instagram_media' WHERE (SELECT COUNT(*) FROM instagram_media)=0 AND to_regclass('instagram_media') IS NOT NULL;"` (per-table; generalise: table exists + 0 rows while a sibling stats table has recent `MAX(collected_at)`)
+- signature: `PG=$(docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1); [ -n "$PG" ] && ! docker exec "$PG" psql -U postgres -d spotify_etl -tc "SELECT 1 WHERE (SELECT COUNT(*) FROM instagram_media)=0 AND to_regclass('instagram_media') IS NOT NULL" | grep -q 1`
 - seen_red: 2026-09-18 — la signature de cette classe a été JOUÉE, en production, sur les **81** tables scopées-locataire au lieu d'une seule. Elle sort ≠ 0 en nommant **13** tables qui existent et sont vides.
 - root_cause: shipping code and running it are separate events here: `src/` is volume-mounted so the code is live instantly, while the table only fills on the DAG's next schedule.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
@@ -1105,6 +1106,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-05-15: catalogued from the Instagram "Publications récentes" empty report. NOT a code defect — operational: after shipping a collector method that populates a new table, the owning DAG must be re-triggered (it won't backfill until its next scheduled/manual run). Runbook: trigger the DAG, verify `SELECT COUNT(*) FROM <new_table>` > 0, smoke the view. Report-only (no CI gate — DB-state, not source).
   - 2026-09-18 (récidive): **la signature marchait, personne ne l'avait jamais jouée sur autre chose que sa table d'origine.** Jouée sur les 81, elle rend 13 tables vides en production, dont une qui révèle une chaîne entière à l'arrêt. La leçon n'est pas « il manquait un détecteur » — il était écrit depuis le début, en `kind: manual`, et son coût d'exécution est de trois secondes.
+  - 2026-09-18 (garde): la signature portait un gabarit `<pg>` — donc elle ne pouvait s'exécuter qu'après une substitution à la main, ce qu'aucun automate ne fait. Le nom du conteneur se DÉRIVE désormais comme le `Makefile` le fait déjà (`PG_CONT`, ligne 18), et la signature se tait quand Postgres n'est pas en marche au lieu de rendre un faux verdict. Trouvée par `audit_runner.py --lint`, né le même jour.
 
 ## ingest-time-as-release-date
 - status: guarded
@@ -1943,7 +1945,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - symptom: tests pass in CI and against a throwaway database, and fail on the developer's own machine — with type errors, not logic errors.
 - root_cause: `make schema-check` compares PRODUCTION against canonical (`init_db.sql` + `migrations/*.sql`). Nothing compares the LOCAL development database, which predates several migrations and drifted silently. Measured 2026-08-21: `soundcloud_tracks_daily.track_id` was `bigint` locally against `VARCHAR(50)` canonical, breaking 7 tests with `invalid input syntax for type bigint`.
 - cause_evidence: read (`Makefile:554` et `:560` — `schema-check` vise la PROD et `schema-check-local` a été ajoutée pour la base locale, avec en aide « the drift no CI run can see ». Les deux cibles coexistent, ce qui est l'asymétrie décrite et son correctif. Vérifié le 2026-09-17)
-- signature: `make schema-check PROD_SSH=<user@host>` — compares prod only; the local comparison is the gap this class names
+- signature: — (aucune : la comparaison LOCALE est précisément ce qui manque, et c'est ce que cette classe nomme. Le geste d'exploitation qui compare la PROD, lui, existe : `make schema-check PROD_SSH=<user@host>` — il demande une cible SSH, donc il n'est pas exécutable par un automate et n'est pas une signature.)
 - seen_red: 2026-09-18 — la comparaison a été JOUÉE (local 1196 colonnes contre production 1187) et elle nomme trois écarts, dont deux tables que ce poste porte et qu'aucune migration ne déclare. Elle sort ≠ 0 sur l'arbre du jour.
 - long_term_fix: — (reported, not guarded). The full diff was: 0 missing columns, 0 extra columns, 26 type differences of which 24 are `text` vs `character varying` (equivalent in Postgres — a `VARCHAR` with no length IS `text`) and 2 are widenings that do not bite. Only `track_id` had behaviour. A `make schema-check LOCAL=1` would close it; the measurement above is what would justify writing it.
 - autofix: none
@@ -1955,7 +1957,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-08-21: surfaced the first time the suite ran against the local database instead of a throwaway one. The local column was converted (349 rows preserved). Worth knowing before writing the guard: most of the "drift" is cosmetic, so a naive column-type comparison would report 26 findings of which 24 are noise — the same cry-wolf failure the migrate reporter hit the same day.
   - 2026-09-18 (récidive): **deux tables de plus sur le poste, qu'aucune migration ne connaît.** La mesure d'origine disait « 0 extra columns » ; elle est périmée. Le contrôle qui la rejoue existe depuis toujours — il suffisait de le lancer, et ce que la classe demandait (`make schema-check LOCAL=1`) reste non écrit.
-
+  - 2026-09-18 (garde): le champ `signature:` portait un geste d'exploitation à trou (`PROD_SSH=<user@host>`). `sh -n` le refusait, et `run_signature` lisait ce refus comme « la classe est touchée ». Une commande qu'un humain doit compléter n'est pas une signature : elle est désormais écrite comme telle, en toutes lettres, et le champ vaut `—`. La commande n'est pas perdue — elle est dans la même ligne, et dans le runbook que `guard:` nomme.
 
 ## env-resolved-against-cwd
 - status: fixed
@@ -8730,9 +8732,9 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-backtick-in-a-shell-string-is-executed
 - status: guarded
 - severity: P2
-- kind: deterministic
+- kind: heuristic
 - symptom: une commande destinée à être AFFICHÉE s'exécute. Le message qui décrit un geste devient le geste. Rien n'avertit : la sortie ressemble à celle de la commande qu'on croyait lancer, plus celle qu'on ne voulait pas.
-- signature: `! grep -nE '^\s*echo .*`[a-z]' <script>` — heuristique, report-only.
+- signature: `python3 -m pytest tests/test_a_description_does_not_execute.py -q`
 - seen_red: 2026-09-18 — vécu, pas simulé. Un `echo` de description contenant `` `uv sync` `` entre accents graves, dans un appel Bash : le shell a INTERPRÉTÉ les accents graves, **`uv sync` a réellement tourné** et a désinstallé 22 paquets de développement (pytest, ruff, pre-commit, detect-secrets, pytest-xdist…). Les quatre commandes suivantes ont rendu `No module named pytest`, ce qui ressemblait à un dépôt cassé et n'était qu'un environnement vidé. Rétabli par `uv sync --frozen --extra dev`.
 - root_cause: en Bash, les accents graves sont une SUBSTITUTION DE COMMANDE, y compris à l'intérieur d'une chaîne entre guillemets doubles. Écrire du Markdown — où l'accent grave cite du code — dans un `echo` de description est donc un piège permanent, et il se déclenche d'autant plus facilement que ce dépôt écrit sa prose en français et y cite des commandes en continu.
 - cause_evidence: measured
@@ -8745,6 +8747,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-18
 - History:
   - 2026-09-18: survenue pendant l'axe 2 de la nuit, en mutant `a-gate-that-repairs-what-it-judges`. L'ironie est instructive : la classe qu'on vérifiait porte sur une porte qui RÉPARE ce qu'elle juge, et la vérification a elle-même modifié — puis cassé — l'environnement qu'elle jugeait.
+  - 2026-09-18 (garde): ⚠️ **cette classe a rendu la CI rouge pendant trois heures, et pas à cause du défaut qu'elle décrit.** Sa signature était un GABARIT — `! grep -nE '^\s*echo .*` … `<script>` — portant un placeholder et un backtick non fermé. `audit_runner` la passait à `/bin/sh`, qui rendait « Syntax error: Unterminated quoted string » et un code ≠ 0 ; le runner lisait ce code comme « la classe est touchée ». La classe se déclarait `deterministic` — donc bloquante — alors que son propre texte disait « heuristique, report-only » depuis le premier jour. Corrigé : `kind: heuristic`, et la signature devient le pytest que `guard:` nommait déjà. **1 succès sur les 60 runs CI de la journée** avant ce correctif.
 
 ## a-parenthesis-is-not-a-tuple
 - status: guarded
@@ -8785,3 +8788,24 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-18: trouvée en cherchant à DATER un `seen_red`, pas en cherchant un défaut. La question « ce garde a-t-il déjà été vu rouge ? » a produit la mutation, et la mutation a produit le défaut. C'est le deuxième bénéfice mesuré de l'axe : chercher la preuve d'un garde trouve les gardes qui n'en sont pas. Distincte de `guard-matches-its-own-comment`, qui est la même cause avec la conséquence INVERSE — là-bas le garde rougit sur sa prose et on le corrige dans l'heure ; ici il verdit grâce à elle et rien ne le dit jamais.
   - 2026-09-18 (garde): passée de `reported` à `guarded` le même jour. Le balayage rendait 110 CANDIDATS (une forme suspecte) ; en résolvant le fichier réellement lu et en séparant sa prose de son code, il rend **11 sites PROUVÉS** — et deux faux positifs de plus, tous deux dus à des liaisons `src = X.read_text()` qui se recouvraient entre tests du même fichier. Liaisons portées par FONCTION : les faux positifs disparaissent. Un audit qui désigne la mauvaise cible coûte le temps qu'on passe à la vérifier.
   - 2026-09-18 (garde): deux exemptions NOMMÉES, parce que la présence d'un commentaire est parfois le sujet — le commentaire qui empêche de « simplifier » un garde AST en grep, et la note qui explique pourquoi un détecteur a été retiré. Sans elles, le cliquet aurait forcé à supprimer deux gardes corrects. Une exemption est vérifiée : `test_every_named_exemption_still_exists`.
+
+## a-blocking-gate-red-on-its-own-syntax
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une porte bloquante est rouge, et ce qu'elle nomme n'existe pas. Le message dit « ces touches sont réelles » ; on cherche un défaut du produit, il n'y en a pas. Au bout de quelques jours, l'équipe apprend qu'un rouge de cette porte est du bruit — et c'est la porte entière qui cesse de compter.
+- root_cause: `run_signature` (`.claude/scripts/audit_runner.py:190`) posait `hit = proc.returncode != 0`. Ce prédicat confond un VERDICT (« j'ai cherché, j'ai trouvé ») avec une PANNE D'OUTILLAGE : `sh` qui ne sait pas parser la commande (2), `grep` qui ne peut pas lire un fichier (2), `pytest` qui ne collecte aucun test parce que la signature pointe un test renommé (5), une commande absente de l'image (127), un dépassement de délai. Aucun de ces cinq ne parle du produit.
+- cause_evidence: measured (le 2026-09-18, la CI a rendu **1 succès sur 60 exécutions** ; l'étape « Portes statiques » sortait 1 sur `a-backtick-in-a-shell-string-is-executed`, dont la signature portait trois accents graves, une quote simple ouverte et un `<script>` à compléter — `/bin/sh` rendait « Syntax error: Unterminated quoted string »)
+- signature: `python3 .claude/scripts/audit_runner.py --lint`
+- seen_red: self-proving (tests/test_a_blocking_signature_can_actually_run.py::test_the_lint_sees_the_three_shapes_that_produced_it)
+- long_term_fix: **un verdict à trois états, et un lint qui s'exécute avant la porte.** `run_signature` rend `CLEAN` / `HIT` / `BROKEN` ; une signature `BROKEN` sort avec le code **2**, jamais 1, dans une section qui dit « ce n'est PAS une touche ». Et `--lint` (0,4 s) refuse en amont toute signature que `sh -n` ne sait pas lire, qui porte un `<gabarit>`, ou dont la ligne `- signature:` compte un nombre IMPAIR d'accents graves — cette dernière est ce qui tronquait la capture du parseur en silence.
+- guard: { type: pytest, ref: tests/test_a_blocking_signature_can_actually_run.py }
+- guard_scope: un-garde-qui-ne-garde-pas — une porte automatique rouge pour une raison qui n'est pas son sujet ; couvre: **les 389 signatures du catalogue**, par `test_the_catalogue_carries_no_signature_that_cannot_run` (cliquet à 0) et les trois formes fabriquées de `test_the_lint_sees_the_three_shapes_that_produced_it` ; ne couvre pas: une signature syntaxiquement VALIDE qui rend un faux positif pour une autre raison (un motif trop large, un chemin qui n'existe plus) — c'est `--prose` et `guard_scope` qui traitent cela ; ni les portes de CI qui ne passent pas par `audit_runner` (ruff, detect-secrets, `validate_rex`), dont les codes de sortie ne sont pas normalisés ici.
+- siblings: swept:2026-09-18 — `audit_runner.py --lint` sur les 390 signatures du catalogue : **2 sites vivants** trouvés en plus de celui qui a bloqué la CI. `collector-shipped-dag-not-rerun` portait le gabarit `<pg>` (corrigé : le conteneur se dérive comme `PG_CONT` du Makefile, ligne 18) ; `local-db-drifts-from-canonical` portait `PROD_SSH=<user@host>` — ce n'est pas une signature mais un geste d'exploitation, et c'est désormais écrit en toutes lettres.
+- admitted: sites:2
+- rex_ref: .claude/scripts/audit_runner.py
+- first_seen: 2026-09-18
+- History:
+  - 2026-09-18: trouvée en regardant la CI pour la première fois de la nuit, après DIX exécutions de la suite locale. La suite était verte à chaque fois ; la CI était rouge depuis 07:14 sur une porte différente. Une barrière locale ne dit rien d'une barrière distante, et je n'avais pas regardé.
+  - 2026-09-18 (garde): la première version du lint portait une vérification **qui ne pouvait jamais se déclencher** — elle lisait un champ `signature_raw` que le parseur ne produisait pas. C'est `un-contrôle-qui-ne-peut-jamais-passer`, écrit dans le garde même qui existe pour interdire les gardes vides. Le champ est désormais peuplé, et la vérification est prouvée capable de mordre : la ligne d'origine porte **3** accents graves.
+  - 2026-09-18 (garde): le garde a lui-même été refusé par `test_a_guard_reads_structure_not_text.py` dans l'heure. Sa dernière assertion lisait le SOURCE d'`audit_runner.py` et y cherchait `rc=<n>` — un nombre présent dans un commentaire ne dit rien de ce que le code en fait, et c'est `guard-satisfied-by-its-own-comment`, écrite le matin même. Remplacée par sa forme comportementale : chaque code de `_BROKEN_CODES` est EXÉCUTÉ (`exit <n>`) et doit rendre `BROKEN`. Muté rouge en faisant diverger le traitement de la déclaration (`in _BROKEN_CODES` → `in (2, 5)`).

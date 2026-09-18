@@ -74,6 +74,15 @@ def parse_all_headers(text: str) -> list[dict]:
         # A `—` placeholder (no real command) counts as NO signature.
         sig = re.search(r"^- signature:\s*`([^`]+)`", body, flags=re.M)
         sig_val = sig.group(1).strip() if sig else None
+        # LA LIGNE ENTIÈRE, pas seulement la capture — et c'est `--lint` qui la lit.
+        #
+        # La capture ci-dessus s'arrête au PREMIER accent grave fermant. Une ligne qui
+        # en porte un nombre impair est donc tronquée en silence, et la commande
+        # obtenue peut être syntaxiquement invalide tout en ayant l'air complète.
+        # C'est ce qui a bloqué la CI le 2026-09-18 : la signature contenait un
+        # accent grave à l'intérieur de son motif grep. Le compte se fait sur la ligne
+        # brute, sinon on ne peut pas le voir.
+        raw = re.search(r"^- signature:.*$", body, flags=re.M)
         if sig_val in ("—", "-", ""):
             sig_val = None
         kind = re.search(r"^- kind:\s*([\w-]+)", body, flags=re.M)
@@ -83,6 +92,7 @@ def parse_all_headers(text: str) -> list[dict]:
             "kind": (kind.group(1) if kind else ("heuristic" if sig_val else "")).lower(),
             "status": (status.group(1) if status else "open").lower(),
             "signature": sig_val,
+            "signature_raw": raw.group(0) if raw else None,
             "root_cause": _prose_field(body, "root_cause"),
             "long_term_fix": _prose_field(body, "long_term_fix"),
         })
@@ -182,14 +192,48 @@ def signature_env() -> dict:
     return _ENV
 
 
-def run_signature(sig: str) -> tuple[bool, str]:
-    """Run one signature from the repo root. Returns (hit, output)."""
-    proc = subprocess.run(
-        sig, shell=True, cwd=_REPO, env=signature_env(),
-        capture_output=True, text=True, timeout=300,
-    )
-    hit = proc.returncode != 0
-    return hit, (proc.stdout + proc.stderr).strip()
+# Les codes de sortie qui ne veulent PAS dire « la classe est touchée ».
+#
+# Mesuré le 2026-09-18, et c'est ce qui a rendu la CI rouge pendant trois heures.
+# `hit = proc.returncode != 0` confond quatre choses très différentes :
+#
+#   rc=2   `/bin/sh` n'a pas su parser la signature — c'est le cas qui a bloqué la CI,
+#          sur une signature portant un backtick non fermé et un `<placeholder>` ;
+#          c'est aussi ce que rend `grep` quand il ne peut pas LIRE un fichier ;
+#   rc=5   pytest : « no tests collected » — une signature qui pointe un test renommé
+#          ou supprimé. Le garde a disparu, et le runner annonce un défaut ;
+#   rc=126 trouvé mais non exécutable · rc=127 commande absente (un outil pas installé
+#          sur ce poste, ou pas dans l'image du runner) ;
+#   timeout une signature qui pend.
+#
+# Aucun de ces cinq n'est un défaut du PRODUIT. Les compter comme des touches fait
+# exactement ce que ce dépôt reproche à une sonde : rendre un résultat PLAUSIBLE là où
+# la bonne réponse est « je ne sais pas ». Ils remontent donc séparément, et avec un
+# code de sortie distinct — 2, jamais 1.
+_BROKEN_CODES = {2, 5, 126, 127}
+
+CLEAN, HIT, BROKEN = "clean", "hit", "broken"
+
+
+def run_signature(sig: str) -> tuple[str, str]:
+    """Run one signature from the repo root. Returns (verdict, output).
+
+    `verdict` vaut `CLEAN` (rien trouvé), `HIT` (la classe est touchée) ou `BROKEN`
+    (la signature n'a pas pu rendre de verdict — voir `_BROKEN_CODES`).
+    """
+    try:
+        proc = subprocess.run(
+            sig, shell=True, cwd=_REPO, env=signature_env(),
+            capture_output=True, text=True, timeout=300,
+        )
+    except subprocess.TimeoutExpired:
+        return BROKEN, "la signature a dépassé 300 s sans rendre de verdict"
+    out = (proc.stdout + proc.stderr).strip()
+    if proc.returncode == 0:
+        return CLEAN, out
+    if proc.returncode in _BROKEN_CODES:
+        return BROKEN, f"exit {proc.returncode} — {out}"
+    return HIT, out
 
 
 def _venv_python() -> str:
@@ -298,6 +342,57 @@ def run_batched(classes: list[dict]) -> tuple[dict[str, tuple[bool, str]], list[
 
 _OPTOUT_KINDS = {"manual", "runtime-manual"}  # acknowledged as intentionally NOT auto-swept
 
+
+_PLACEHOLDER_IN_SIG = re.compile(r"<[a-z_][a-z0-9_ -]*>", re.I)
+
+
+def _lint(headers: list[dict]) -> int:
+    """Une signature doit pouvoir S'EXÉCUTER avant de pouvoir juger quoi que ce soit.
+
+    Né le 2026-09-18, d'une matinée entière de CI rouge. La signature de
+    `a-backtick-in-a-shell-string-is-executed` était un GABARIT — un `<script>` à
+    remplacer et un backtick non fermé. `/bin/sh` rendait « Syntax error: Unterminated
+    quoted string » et un code 2, que `run_signature` lisait comme « la classe est
+    touchée ». Une porte bloquante était donc rouge à cause de sa propre syntaxe, et le
+    message annonçait « ces touches sont réelles ».
+
+    Trois contrôles, tous mécaniques :
+
+    * `sh -n` — la commande parse-t-elle ?
+    * aucun `<placeholder>` — une signature qu'il faut compléter à la main n'est pas
+      exécutable, quelle que soit la qualité de sa prose ;
+    * un nombre PAIR d'accents graves sur la ligne `- signature:` — c'est ce qui a
+      fait tronquer la capture du parseur au mauvais endroit, et la classe
+      `a-backtick-in-a-shell-string-is-executed` existe précisément pour dire que
+      l'accent grave est un opérateur, pas une décoration.
+    """
+    fautes: list[tuple[str, str]] = []
+    for h in headers:
+        sig = (h.get("signature") or "").strip()
+        if not sig:
+            continue
+        cid = h["id"]
+        if h.get("signature_raw") and h["signature_raw"].count("`") % 2:
+            fautes.append((cid, "nombre IMPAIR d'accents graves sur la ligne `- signature:`"))
+        placeholder = _PLACEHOLDER_IN_SIG.search(sig)
+        if placeholder:
+            fautes.append((cid, f"porte le gabarit {placeholder.group(0)} — "
+                                "à compléter à la main, donc non exécutable"))
+            continue
+        proc = subprocess.run(["sh", "-n", "-c", sig], capture_output=True, text=True)
+        if proc.returncode != 0:
+            fautes.append((cid, f"`sh -n` refuse : {proc.stderr.strip()[:90]}"))
+
+    print(f"▶ lint: {sum(1 for h in headers if (h.get('signature') or '').strip())} "
+          f"signature(s) examinée(s)")
+    if not fautes:
+        print("✅ toutes les signatures s'exécutent")
+        return 0
+    for cid, why in fautes:
+        print(f"  ⊘  {cid}\n       {why}")
+    print(f"\n⊘ {len(fautes)} signature(s) ne peuvent pas rendre de verdict.\n"
+          "  Une porte bloquante rouge à cause de sa propre syntaxe n'est pas une porte.")
+    return 2
 
 def _coverage(headers: list[dict]) -> int:
     """Meta-guard: every catalogued class must be GUARDED (has a runnable `- signature:`) OR
@@ -550,8 +645,10 @@ def _prose(classes: list[dict]) -> int:
 
     all_prose, mixed, unlocatable, muettes = [], [], [], []
     for c in scoped:
-        hit, output = run_signature(c["signature"])
-        if not hit:
+        verdict, output = run_signature(c["signature"])
+        if verdict != HIT:
+            # `BROKEN` n'est pas « pas de hit » : une signature qui ne sait pas
+            # répondre ne dit rien sur la prose non plus. `--lint` la nomme.
             continue
         if _silent(c["signature"]):
             muettes.append(c["id"])
@@ -598,6 +695,8 @@ def main() -> None:
     ap.add_argument("--static", action="store_true",
                     help="Run deterministic classes whose signature is grep-only (no pytest) — "
                          "for the IPC daily sweep (no PG / test env)")
+    ap.add_argument("--lint", action="store_true",
+                    help="Vérifie que chaque signature s'EXÉCUTE (sh -n, pas de gabarit)")
     ap.add_argument("--coverage", action="store_true",
                     help="Meta-guard: fail if any class lacks a signature AND isn't runtime-manual")
     ap.add_argument("--fields", action="store_true",
@@ -640,6 +739,9 @@ def main() -> None:
         print("❌ no classes parsed — check error-classes.md format", file=sys.stderr)
         sys.exit(2)
 
+    if args.lint:
+        sys.exit(_lint(headers))
+
     if args.coverage:
         sys.exit(_coverage(headers))
 
@@ -679,20 +781,33 @@ def main() -> None:
     if not args.no_batch:
         batched, individual = run_batched(selected)
 
-    hits = []
+    hits, broken = [], []
     for c in selected:
         if c["id"] in batched:
-            hit, output = batched[c["id"]]
+            was_hit, output = batched[c["id"]]
+            verdict = HIT if was_hit else CLEAN
         else:
-            hit, output = run_signature(c["signature"])
-        _telemetry_record("error_classes", c["id"], hit=hit)  # curator usage signal
-        mark = "⚠ HIT" if hit else "✅"
+            verdict, output = run_signature(c["signature"])
+        _telemetry_record("error_classes", c["id"], hit=(verdict == HIT))
+        mark = {HIT: "⚠ HIT", BROKEN: "⊘ CASSÉE", CLEAN: "✅"}[verdict]
         print(f"  {mark}  {c['id']}  [{c['kind']}/{c['status']}]")
-        if hit:
-            hits.append(c["id"])
+        if verdict in (HIT, BROKEN):
+            (hits if verdict == HIT else broken).append(c["id"])
             for line in output.splitlines()[:6]:
                 print(f"        {line}")
 
+    # LES CASSÉES D'ABORD, ET AVEC LEUR PROPRE CODE DE SORTIE.
+    #
+    # Une signature qui ne sait pas rendre de verdict n'est pas un défaut du produit :
+    # c'est un défaut de l'outillage, et le confondre avec une touche envoie chercher
+    # un bug là où il n'y en a pas. Le 2026-09-18, une signature au backtick non fermé
+    # a bloqué la CI toute une matinée sous l'étiquette « ces touches sont réelles ».
+    if broken:
+        print(f"\n⊘ {len(broken)} signature(s) n'ont pas pu rendre de verdict : "
+              f"{', '.join(broken)}")
+        print("  Ce n'est PAS une touche. Remède : `audit_runner.py --lint`, qui nomme "
+              "le champ fautif.")
+        sys.exit(2)
     if hits:
         print(f"\n⚠ {len(hits)} class(es) with hits: {', '.join(hits)}")
         if args.deterministic or args.static:

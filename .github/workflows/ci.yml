@@ -184,6 +184,17 @@ jobs:
         # déterministes dont la signature n'est PAS un pytest.
         run: |
           uv run --frozen python .claude/scripts/validate_rex.py --strict
+          # `--lint` AVANT `--static`, et l'ordre est le sujet (2026-09-18).
+          #
+          # Cette étape a rendu la CI rouge toute une matinée — 1 succès sur 60 runs —
+          # sur une signature qui ne PARSAIT pas : trois accents graves, une quote
+          # ouverte, un `<script>` à remplacer à la main. `/bin/sh` rendait un code 2,
+          # `run_signature` lisait « returncode != 0 » comme une touche, et le message
+          # annonçait « these are real ». Une porte bloquante rouge à cause de sa
+          # propre syntaxe n'est pas une porte : elle apprend qu'un rouge est du bruit.
+          #
+          # `--lint` coûte 0,4 s et rougit AVANT, en nommant le champ fautif.
+          uv run --frozen python .claude/scripts/audit_runner.py --lint
           uv run --frozen python .claude/scripts/audit_runner.py --static
           uv run --frozen python .claude/scripts/audit_runner.py --prose
           uv run --frozen python .claude/scripts/check_config_refs.py

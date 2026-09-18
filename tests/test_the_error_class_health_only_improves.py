@@ -627,7 +627,7 @@ _FLOORS = {
     # la correction du parseur. Il ne lisait qu'une des deux syntaxes de `guard:`, donc
     # neuf classes gardees etaient comptees comme non gardees depuis toujours. Le
     # plancher monte parce que la MESURE a change, pas le depot.
-    "classes": 378,
+    "classes": 379,
     "with_signature": 367,
     "automatic_guard": 368,
 }

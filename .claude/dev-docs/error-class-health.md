@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**401 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (330 révisions du catalogue rejouées).
+**402 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (331 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -11,13 +11,13 @@ Le compteur `siblings_never_swept` mesure l'EFFORT. Celui-ci mesure le résultat
 
 | grandeur | valeur |
 |---|---|
-| balayages faits | **400** |
-| dont le verdict est LISIBLE | **300** |
-| qui ont trouvé au moins un site | **37** |
-| sites vivants trouvés | **97** |
-| taux de trouvaille (sur verdicts lisibles) | **0.123** |
+| balayages faits | **401** |
+| dont le verdict est LISIBLE | **301** |
+| qui ont trouvé au moins un site | **38** |
+| sites vivants trouvés | **99** |
+| taux de trouvaille (sur verdicts lisibles) | **0.126** |
 
-⚠️ **97 des 400 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **98**, et non 1.
+⚠️ **97 des 401 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **98**, et non 1.
 
 ⚠️ **100 balayages sont MUETS** : la question a été posée, la réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme zéro — un balayage dont on ignore le résultat n'est pas un balayage sans résultat. Le dénominateur du taux ci-dessus les exclut délibérément : les inclure diviserait par une population qui ne répond pas à la question, ce que ce dépôt appelle `anchor-a-number-to-its-population`.
 
@@ -27,7 +27,7 @@ Cinq chiffres avancés le 2026-09-16 avant vérification, et ce qu'ils valent :
 
 | avancé | mesuré |
 |---|---|
-| 367 classes | **401** — les 4 en trop étaient `Contract`, `Index`, `Per-class schema`, `CLASS-ID` |
+| 367 classes | **402** — les 4 en trop étaient `Contract`, `Index`, `Per-class schema`, `CLASS-ID` |
 | « 57 récidives » | **non reproductible** : cinq définitions défendables donnent 39 / 49 / 55 / 67 / 167. Ce document n'en retient qu'une, écrite ci-dessous, et c'est celle que le cliquet utilise |
 | gardes 15,1 % contre prose 22,7 % | voir les intervalles : les sous-groupes portent trop peu d'évènements pour trancher |
 | le taux s'améliore (38 → 18 → 9 %) | **il empire** une fois normalisé par l'exposition. L'ancien chiffre comptait comme « n'a pas récidivé » des classes trop jeunes pour avoir pu le faire |
@@ -43,8 +43,8 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 
 | grandeur | valeur |
 |---|---|
-| `automatic_guard` | 391 |
-| `classes` | 401 |
+| `automatic_guard` | 392 |
+| `classes` | 402 |
 | `ever_recurred_observed` | 37 |
 | `prose_only` | 10 |
 | `with_signature` | 390 |
@@ -85,9 +85,9 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
-⚠️ **La strate `by_scope` porte sur 401 classes de 401, soit 100 % du catalogue.** Les 0 autres n'ont pas de `ne couvre pas:` écrit, et **zéro récidive y est observée** — mais une récidive se compte en lignes d'HISTOIRE ajoutées. Une classe qu'on n'a jamais rouverte n'en gagne aucune, qu'elle soit saine ou seulement ignorée.
+⚠️ **La strate `by_scope` porte sur 402 classes de 402, soit 100 % du catalogue.** Les 0 autres n'ont pas de `ne couvre pas:` écrit, et **zéro récidive y est observée** — mais une récidive se compte en lignes d'HISTOIRE ajoutées. Une classe qu'on n'a jamais rouverte n'en gagne aucune, qu'elle soit saine ou seulement ignorée.
 
-Autrement dit : ce taux ne peut pas distinguer « écrire la portée protège » de « on ne regarde que là ». Il ne se cite pas comme s'il décrivait les 401 classes.
+Autrement dit : ce taux ne peut pas distinguer « écrire la portée protège » de « on ne regarde que là ». Il ne se cite pas comme s'il décrivait les 402 classes.
 
 ## Cohortes à horizon fixe
 
