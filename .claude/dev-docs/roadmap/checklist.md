@@ -29,7 +29,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | R133 | **28 figures sous le plancher d'accessibilité de la palette** — mesuré le 2026-09-17 par figure (CIEDE2000 + Viénot/Brettel), paire dominante vert `#1DB954` ↔ un rouge, c'est-à-dire « bon/mauvais » encodé en teinte seule. `code-critic` : **BUILD-MODIFIED** — construire `semantic_colors.py` + extraire la colorimétrie de `tests/` vers `src/`, garde report-only, gate dur sur le seul diff ; **ne pas migrer les 28 sites d'un coup**. ⚠️ 28 est un PLAFOND : le plancher de 15 n'est légitime que si même type de trace, même sous-graphique sans axe secondaire, et aucune étiquette de texte persistante — `meta_funnel`, `revenue_forecast.py:82` et `ig_engagement` y tombent sans être des défauts d'attribution | P3 | le script de mesure est dans le champ `siblings` de `a-visual-constant-copied-into-a-second-renderer` (`.claude/dev-docs/error-classes.md`) ; il doit rendre moins de 28 |
 | R134 | **Le détecteur de creux ne voit que 5 tables sur 84** — `DIP_TENANT_COLUMN` (`alert_monitor.py:744`) couvre YouTube, SoundCloud, Meta, ML et S4A ; un locataire qui perd ENTIÈREMENT Instagram, Apple, Hypeddit ou SACEM ne déclenche aucune alerte. Les tables éligibles sont nommées dans le champ `siblings` de `partial-collection-invisible`. ⚠️ Étendre la liste demande un seuil calibré PAR TABLE sur des données réelles — le plancher de 30 lignes/jour écrit d'instinct avait déjà rendu le détecteur aveugle à 2 locataires sur 3 | P3 | `python3 -c "import ast,pathlib;…"` sur `DIP_TENANT_COLUMN` doit rendre plus de 5 entrées, et chaque entrée neuve doit porter sa dérivation de seuil |
 | R135 | **`soundcloud_tracks_daily.track_id` : `bigint` en PRODUCTION, `character varying` en local** — mesuré le 2026-09-18 colonne par colonne (1187 contre 1196). Le canonique est le VARCHAR : le collecteur écrit `str(track.get('id'))` (`soundcloud_api_collector.py:222`) et aucune migration ne déclare ce type. ⚠️ **Conséquence aujourd'hui : aucune** — les quatre lecteurs ne comparent jamais cette colonne à une chaîne, et Postgres transtype les identifiants numériques des deux côtés. Elle apparaîtra à la première jointure ou comparaison sur `track_id` : la prod rendra un `int` là où le local rend une `str`, donc **un test vert ici échouera là-bas**. La vue or `v_soundcloud_track_latest` hérite du type de chaque côté. Demande un `ALTER` sur une table vivante — décision du propriétaire, pas un effet de bord de séance | P3 | la comparaison des deux schémas ne doit plus nommer `soundcloud_tracks_daily.track_id` |
-| R137 | **51 % des classes vivantes n'ont jamais eu de vrai balayage de frères** — 101 sur 197. Leur `siblings:` dit « j'ai relancé le garde, il est vert », ce qui prouve que le prédicat de CE garde ne trouve rien, jamais qu'il n'y a rien. Mesuré trois fois la nuit du 17 au 18, dont **un garde vert sur 8 sites vivants**. Une unité = une FAMILLE (règle 21) | P3 | `make error-health` → `swept_by_rerunning_the_guard` **97 → 0** et `sites_unknown` **100 → 3**, plafonds descendus dans le même commit |
+| R137 | **51 % des classes vivantes n'ont jamais eu de vrai balayage de frères** — 101 sur 197. Leur `siblings:` dit « j'ai relancé le garde, il est vert », ce qui prouve que le prédicat de CE garde ne trouve rien, jamais qu'il n'y a rien. Mesuré trois fois la nuit du 17 au 18, dont **un garde vert sur 8 sites vivants**. Une unité = une FAMILLE (règle 21) | P3 | `make error-health` → `swept_by_rerunning_the_guard` **97 → 0** et `sites_unknown` **100 → 3**, plafonds descendus dans le même commit | ⚠️ **Prédiction du 1er commit RÉFUTÉE** : elle annonçait ≈9 classes trouveuses et ≈23,5 sites pour 70 balayages ; mesuré **41 et 182**. Le facteur ne se cite PAS comme un rendement — 0,129 portait sur TOUS les balayages, les 97 étaient sélectionnées pour n'avoir jamais été balayées (`anchor-a-number-to-its-population`). Ce qui tient : **182 défauts réels dans du code dont personne ne s'était plaint**.
 | R138 | **Rien ne refuse un faux balayage AU MOMENT DE L'ÉCRIRE** — le compteur voit les 97 après coup, aucune porte ne les bloque. Et `make config-check` **n'est appelé par aucun workflow** (`grep -rn "config-check" .github/` ne rend rien) : sur ses cinq contrôles, `--prose` est câblé directement en CI mais `check_config_refs.py`, `audit_unreachable_tools.py` et `--coverage` ne tournent qu'à la main | P3 | `python3 .claude/scripts/audit_runner.py --sweep-verdict` sort 0, et ≠ 0 sur une classe mutée en relance ; `grep -n "config-check\|sweep-verdict" .github/workflows/ci.yml` rend des lignes |
 | R139 | **Deux instruments qui mentent sur ce qu'ils mesurent** — (a) `swept_by_rerunning_the_guard` (97) est un sous-ensemble STRICT de `sites_unknown` (100), et les deux sont publiés comme deux problèmes dans deux paragraphes consécutifs : un lecteur additionne et lit 197 ; (b) `.test_durations`, qui équilibre les 4 shards de CI, porte **174 entrées non collectables pour 33,9 s** et ignore **475 tests collectés sans durée** — mesuré contre une collecte réelle, le prédicat « le fichier existe-t-il » en trouvant **0** | P4 | `make error-health` → les deux populations ne s'additionnent plus ; et aucun node-id de `.test_durations` ne désigne un fichier absent |
 | R141 | **Un commentaire qui nomme un test disparu** — balayage du flux de JETONS (donc les commentaires EN TANT QUE commentaires) sur `tests/ tools/ src/ airflow/ .claude/scripts/` : **196 citations de noms de tests, 20 orphelines**. ⚠️ Deux corrections de prédicat déjà faites, toutes deux en sur-comptant : les noms **coupés par le retour à la ligne** d'un commentaire (27 → 20), et les notes de **RETRAIT** légitimes — `test_a_step_is_offered_only_where_it_draws.py:152` dit « A ÉTÉ RETIRÉ LE 2026-09-13 », nommer le test retiré est son travail. **20 est donc un PLAFOND, pas un défaut** : le tri site par site est la tâche, et le garde ne s'écrit qu'après | P4 | le balayage par jetons doit rendre moins de 20 orphelines, et chaque site restant porte sa raison |
@@ -51,66 +51,6 @@ matin. Aucun garde ne peut le voir : l'ancre et les deux tables étaient justes,
 PROSE à côté qui affirmait le contraire. Classe `a-prose-claim-that-cannot-be-verified`, et
 la parade reste la même — quand une phrase de ce fichier compte des tâches, elle compte ce
 que l'index compte, et rien d'autre.
-
-R59, R60, R61 et R62 ont été closes le 2026-09-05 (voir `archive.md`) : deux par un
-correctif, une par un ADR qui montre que sa prémisse était fausse, une par un ADR qui
-mesure une porte fermée. **R63** a suivi le soir même, le quota Meta revenu ayant permis
-de trancher : `business_discovery` lit un compte Instagram tiers sans aucun partage
-Business Manager (les insights, non) — 📸 Instagram a donc son onglet, et son collecteur
-retombe sur cette route.
-
-Onze tâches en sont sorties, **R72 à R82**, chacune avec la mesure qui l'a établie.
-**Trois sont livrées et déployées le soir même** — R72 (le payeur ne choisit plus le
-locataire à provisionner), R73 (Meta pesait 81 % de la nuit dont 424 s de sommeil
-imposé), R74 (plus aucune attente illimitée, ni base ni HTTP). Les huit autres restent
-ouvertes, chacune avec sa mesure : ce sont des chantiers, pas des retouches.
-
-**Un seul chantier reste, et ce n'est pas une tâche** : la reprise des définitions
-encore recopiées, qui se fait **au fil de l'eau** sous la règle de livraison d'ADR-019
-— son avancement se lit dans le cliquet du bronze, pas ici.
-
-**La réconciliation des fuseaux de PUBLICATION a été retirée d'ici le 2026-09-15, et
-il faut lire pourquoi avant de la rouvrir.** Ce paragraphe la justifiait par « 7,9 %
-des lignes YouTube changent de jour selon le fuseau qu'on retient ». **Ce chiffre a
-été retiré comme faux le 2026-09-10 même** — il mélangeait deux ères sur une base
-locale — et la rétractation est écrite dans `error-classes.md`, dans `archive.md` et
-dans ADR-021 ; ce fichier-ci est le seul à l'avoir gardé cinq jours de plus. Recompté
-en production : **0 ligne sur 5 807** pour `collected_at` post-migration-019, les
-collectes nocturnes atterrissant à 10 h UTC, à plus de quatre heures de toute
-frontière de jour. ADR-021 tranche la question — chaque date déclare l'horloge qui l'a
-produite — et **désigne nommément cette tâche comme la forme dangereuse** : une
-harmonisation appliquée sans distinction déplacerait 267 jours calendaires déjà justes
-d'une journée entière. L'écart résiduel aux bords des journées de reporting de Spotify
-et d'Apple n'est pas corrigeable ; il est nommé par `UNRECONCILABLE_NOTE`, et
-l'effacer serait la faute.
-
-**Aucun geste HUMAIN n'est en attente** : « 🙋 En attente de toi » est vide depuis
-le 2026-09-10, R1 y ayant été rotée vers `archive.md`. Les quatre tâches de l'index
-ci-dessus sont du travail d'ingénierie, et elles sont ouvertes.
-
-⚠️ Ces deux paragraphes ont affirmé « plus aucune tâche ouverte » le 2026-09-17
-alors que l'index en portait deux, puis trois — la classe
-`a-prose-claim-that-cannot-be-verified` que ce fichier nomme quelques lignes plus
-haut, commise dans le fichier qui la documente.
-
----
-
-> ⚠️ **Cet ordre est PÉRIMÉ depuis le 2026-09-18** : R122 est close par sa propre
-> condition (`ever_recurred_observed` 37 ≤ 47), rotée dans `archive.md`. L'ordre vivant
-> est celui de l'index ci-dessus, et à l'intérieur de R137 celui de sa table des familles.
-> Le raisonnement ci-dessous reste lisible parce qu'il vaut pour toute tâche de VOLUME —
-> mise en tête, elle consomme la séance sans qu'aucune autre avance.
->
-> **Ordre de travail arrêté le 2026-09-16** : R122 passait en DERNIER, délibérément et
-> sans être bornée. Elle est du volume mesurable — **363 → 332 portées en 89 minutes**,
-> soit ~16 h pour la colonne `guard_scope` seule, et deux autres colonnes derrière. Mise
-> en tête, elle consommerait une séance entière sans qu'aucune autre tâche avance. Les
-> quatre tâches au-dessus ont un critère de fin net ; elles passent d'abord.
-> R117 devait fermer la marche, parquée pour la raison qu'elle **ne pouvait pas être
-> faite par la séance qui la ferait** : elle déplace le dépôt hors de `/mnt/c`, donc
-> elle tue le `cwd` et la mémoire de Claude, indexée par chemin. Elle s'est parquée
-> au premier réveil de la séance longue, puis a été livrée le 2026-09-17 — détail
-> dans `archive.md`.
 
 ---
 
@@ -357,43 +297,6 @@ minutes après l'avoir écrite au catalogue.
   diff de `.test_durations` contre `pytest --collect-only -q` rend **0 non collectable**.
   Deux gardes neufs, chacun muté rouge.
 
-## 🏗 R113–R116 — Monter l'architecture scalable, pour mesurer si elle est nécessaire
-
-Le contexte, en une phrase : la concurrence a enfin été MESURÉE le 2026-09-16 contre la
-production, et elle dément le plafond que ce dépôt citait depuis trois mois.
-
-| onglets | p50 | reruns perdus | p50 / p50(1) |
-|---|---|---|---|
-| 1 | 329 ms | 0 | ×1,00 |
-| 4 | 754 ms | 0 | ×2,29 |
-| 8 | 1 088 ms | **9** | ×3,31 |
-| 24 | 3 488 ms | **98** | ×10,60 |
-
-Débit plafonné à ~7 rendus/s contre 11,1 « soutenables » dérivés. La dérivation était
-optimiste de 1,2× à 1,6× **et aveugle à l'échec** : elle ne connaît que la latence,
-jamais les 98 reruns perdus. **Le point unique est un processus Python — Redis n'est pas
-le levier, la seconde instance l'est.** C'est l'inverse de l'ordre qu'on suppose.
-
-⚠️ **Le p50 de ce tableau ne se compare PAS au déclencheur qui a rouvert R87**, et je
-l'avais fait. Trouvé par `code-critic` le 2026-09-16 : le déclencheur disait
-« `loadtest_dashboard.py -n 12` rend un p50 > 200 ms », or cet outil **se sature
-lui-même** (352 ms à un fil, 2 144 ms à six, sous `AppTest`) — c'est la raison pour
-laquelle il a été remplacé. Le nouvel outil rend **329 ms à N=1**, donc déjà au-dessus
-d'un seuil défini pour l'autre instrument. Deux échelles, un seuil transporté de l'une à
-l'autre.
-
-**Le signal de décision est donc la colonne « reruns perdus »** — un COMPTE, sans unité
-à transporter et sans ligne de base à soustraire. Un rerun perdu est un clic qui n'a
-jamais rendu de page ; zéro est zéro quel que soit l'instrument. Protocole complet,
-écrit AVANT la première courbe : `.claude/dev-docs/measurement-protocol-R114.md`.
-
-Ces quatre tâches construisent la forme scalable **même si le seuil n'est pas atteint**
-(R87 est close sur un pic de 12 sessions/minute contre un seuil de 20). C'est une
-décision assumée : découvrir par la mesure que ce n'était pas nécessaire vaut mieux que
-le supposer.
-
----
-
 ## ⏸️ R116 — ADR-027, en attente de ses courbes (sortie de l'index 2026-09-17)
 
 **Ni livrée ni abandonnée — parquée sur une mesure, pas archivée.** `archive.md` est
@@ -467,11 +370,17 @@ deux réordonnancements de R118/R120, chacun sur une mesure — a été **dépla
 dans `archive.md`** le 2026-09-18, sous « Le récit de mesure de R114–R121 ». Il n'est pas
 perdu : il n'appartient simplement pas à un écran qui répond « où j'en suis ».
 
-**La table « 🙋 En attente de toi » porte UNE ligne** : R125, entrée le 2026-09-18.
-⚠️ Ce paragraphe a affirmé le contraire — « reste vide … aucune tâche n'attend un geste
-humain » — **vingt-cinq lignes après avoir décrit R125 qui y est**. La même section se
-contredisait donc elle-même, et c'est `a-prose-claim-that-cannot-be-verified` commise
-dans le fichier qui la nomme.
+**La table « 🙋 En attente de toi » porte DEUX lignes** : R125 et R140, toutes deux
+entrées le 2026-09-18.
+⚠️ Ce paragraphe a menti DEUX fois, et la seconde le même jour que la première. Il a
+d'abord affirmé « reste vide … aucune tâche n'attend un geste humain » **vingt-cinq
+lignes après avoir décrit R125 qui y est**. Corrigé en « UNE ligne », il est redevenu
+faux à l'entrée de R140 quelques heures plus tard — par moi, qui avais recalé la phrase
+de comptage de l'index et pas celle-ci.
+C'est `a-prose-claim-that-cannot-be-verified`, et l'angle mort est nommable :
+`test_no_prose_sentence_places_a_task_in_a_section_that_has_no_such_row` vérifie qu'un
+IDENTIFIANT est dans la bonne section — jamais **combien** de lignes une section porte.
+Une phrase qui compte n'est donc gardée par rien, et ce fichier en porte plusieurs.
 
 ### Conditions d'attente — ce qui n'est PAS une tâche
 
@@ -522,41 +431,6 @@ fiable ici.
 | ClickHouse / Parquet / dbt / Dagster | déclencheurs d'**ADR-014**, relus le 2026-09-11 : aucun n'est tiré (62 Mo contre 50 Go, 34 k lignes contre 10 M) |
 | Écrire **ADR-027** (répliques et Redis) | `daily_ops_metrics` porte **14 jours `complete = TRUE`** : `SELECT count(*) FROM daily_ops_metrics WHERE complete` — **aujourd'hui 0**. La table a UNE ligne (2026-09-16), `complete = FALSE`, et **tous ses percentiles de rendu sont `NULL`** ; seul `peak_sessions = 8` est renseigné. La courbe qui doit trancher — `streamlytics_rerun_duration_seconds` côté serveur, et `streamlytics_reruns_in_flight` pour la saturation — n'existe donc pas encore. Le bloc de R116 le disait lui-même : *« un ADR écrit avant la mesure serait une rationalisation »*. Ce n'est pas du travail en retard, c'est du temps et du trafic |
 | Fragmenter les **5 vues restantes** de R118 — `imusician`, `meta_ads_overview`, `hypeddit`, `youtube`, `admin` | l'une d'elles dépasse **300 ms de vue** dans l'histogramme SERVEUR : `histogram_quantile(0.5, sum by (page,le) (rate(streamlytics_rerun_duration_seconds_bucket{phase="view"}[1h])))`. Mesuré localement le 2026-09-17 : 20 à 130 ms de rerun à chaud, **dans la même bande que les six déjà fragmentées** (78 à 172 ms) — donc rien ne les distingue, et le bruit local (±60 à 100 %) est plus large que les écarts. Seul le serveur peut trancher, et il lui faut du trafic sur ces pages |
-
-### La méthode, pour R85 à R87
-
-- **R85 (cache)** est sorti **BUILD-MODIFIED** d'une revue `code-critic`, avec un point
-  bloquant : les cinq fonctions visées sont écrites pour *ne jamais lever et rendre
-  vide*. Les cacher transformerait une panne passagère de base en « aucune donnée »
-  faux pendant 600 s **pour tous les spectateurs**. Les quatre autres conditions :
-  `views/onboarding.py:162` manque à la liste des appelants ; `apple_lifetime_plays`
-  n'est pas dans l'ensemble enveloppé alors que c'est ce dont `apple_music.py` a besoin ;
-  les imports de constantes ne doivent pas passer par le module caché ; et
-  `upload_csv.py` doit purger — **fait le 2026-09-11**, c'était un défaut vivant.
-  Le précédent à copier est `kpi_helpers` : `ttl=600`, `_db` hors clé, `artist_id`
-  DEDANS, purge sur l'événement et pas sur l'horloge.
-- **R86 (pool) est ÉCRIT, TESTÉ, MESURÉ — et personne ne l'appelle.** Le gain est
-  réel : 20 cycles ouverture/fermeture font **0 poignée de main** au lieu de 20, soit
-  ~40 ms sur un rendu de 287 en production, et `statement_timeout` survit au pool
-  (mutations vues rouges sur les trois propriétés). Ce qui bloque est ailleurs et
-  **n'est pas expliqué** : l'activer fait passer l'accueil de **13 à 23 requêtes SQL**,
-  mesuré sur une base neuve, à l'identique contre `main`. Les dix en trop ne sont pas
-  un surcoût mais une **section supplémentaire rendue** (matrice de mise en route,
-  fraîcheur par source, sonde Meta). Suspect principal, non prouvé :
-  `_ensure_connection()` appelle `conn.poll()`, qui sur une connexion RÉUTILISÉE peut
-  lever `OperationalError` et déclencher un emprunt de plus. Reproduction : brancher
-  `enable_pool(1, 8)` dans `get_db_connection()`, puis
-  `pytest tests/test_a_page_asks_the_same_question_once.py` sur une base neuve.
-  Tant que l'effet n'est pas expliqué, le chemin chaud de 43 vues + l'API + Airflow
-  ne le reçoit pas.
-- **R87 (répliques)** ne change aucune ligne d'application : 3 services, 3 upstreams, et
-  **`lb_policy cookie` est obligatoire** (Streamlit tient un état serveur par websocket).
-  Le compose de prod est gitignoré : modifier sur la boîte ET porter dans
-  `docker-compose.example.yml`. Conséquence à accepter : le cache devient par réplique.
-- **Mesurer, pas déduire** : `tools/loadtest_dashboard.py`, à lancer **sur le serveur**
-  (il refuse `/mnt/…`, où DrvFS gonfle les temps de 5× à 160×). Il ne trace **pas** de
-  courbe de concurrence et `--self-check` montre pourquoi : `AppTest` sature de lui-même
-  sous threads, un `st.write('hello')` passant de 352 ms à 2 144 ms.
 
 > Les trois sections du 2026-09-10 (audit transverse, R83, les sept tâches livrées
 > plus tôt) ont été **déplacées** dans `archive.md` le 2026-09-13 : ce fichier avait

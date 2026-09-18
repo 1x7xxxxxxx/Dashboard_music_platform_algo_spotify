@@ -339,7 +339,14 @@ def _supervision_freshness(db) -> pd.DataFrame:
         ("Instagram",      "SELECT MAX(collected_at)::date FROM instagram_daily_stats"),
         ("SoundCloud",     "SELECT MAX(collected_at)::date FROM soundcloud_tracks_daily"),
         ("YouTube",        "SELECT MAX(collected_at)::date FROM youtube_video_stats"),
-        ("Apple Music",    "SELECT MAX(collected_at)::date FROM apple_songs_history"),
+        # ⚠️ `date`, pas `collected_at` — cette table est la SEULE des sept à porter une
+        # date métier, et les six autres lignes de cette liste appliquent déjà la règle
+        # (`MAX(date)`, `MAX(day_date)`, `MAX(prediction_date)`). Instagram, SoundCloud
+        # et YouTube n'ont que `collected_at` : pour elles, c'est la bonne colonne.
+        # L'écart mesuré ici valait 0 j le 2026-09-18 — le défaut était LATENT. Sur
+        # `meta_insights_performance_day`, la même erreur vaut **718 jours**
+        # (`freshness_monitor.py:18`), et ce docstring dit « last-DATA date ».
+        ("Apple Music",    "SELECT MAX(date) FROM apple_songs_history"),
         ("ML prédictions", "SELECT MAX(prediction_date) FROM ml_song_predictions"),
     ]
     today = _dt.date.today()

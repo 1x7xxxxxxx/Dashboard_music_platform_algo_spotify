@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**403 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (346 révisions du catalogue rejouées).
+**403 classes.** Fenêtre observée : `2026-05-15` → `2026-09-18` (347 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -12,14 +12,14 @@ Le compteur `siblings_never_swept` mesure l'EFFORT. Celui-ci mesure le résultat
 | grandeur | valeur |
 |---|---|
 | balayages faits | **402** |
-| dont le verdict est LISIBLE | **372** |
-| qui ont trouvé au moins un site | **80** |
-| sites vivants trouvés | **282** |
-| taux de trouvaille (sur verdicts lisibles) | **0.215** |
+| dont le verdict est LISIBLE | **377** |
+| qui ont trouvé au moins un site | **84** |
+| sites vivants trouvés | **292** |
+| taux de trouvaille (sur verdicts lisibles) | **0.223** |
 
-⚠️ **27 des 402 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **28**, et non 1.
+⚠️ **22 des 402 « balayages » n'en sont PAS** : ils disent que le garde a été relancé et qu'il était vert. Un garde vert prouve que SON prédicat ne trouve rien, jamais qu'il n'y a rien — mesuré trois fois la nuit du 17 au 18, dont un garde vert sur **8 sites vivants**. Le nombre de classes dont personne n'a cherché les frères est donc **23**, et non 1.
 
-⚠️ **30 balayages sont MUETS** : la question a été posée, la réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme zéro — un balayage dont on ignore le résultat n'est pas un balayage sans résultat. Le dénominateur du taux ci-dessus les exclut délibérément : les inclure diviserait par une population qui ne répond pas à la question, ce que ce dépôt appelle `anchor-a-number-to-its-population`.
+⚠️ **25 balayages sont MUETS** : la question a été posée, la réponse s'est perdue en prose. Ils ne comptent ni comme trouvaille ni comme zéro — un balayage dont on ignore le résultat n'est pas un balayage sans résultat. Le dénominateur du taux ci-dessus les exclut délibérément : les inclure diviserait par une population qui ne répond pas à la question, ce que ce dépôt appelle `anchor-a-number-to-its-population`.
 
 ## Ce que ce document corrige
 
@@ -45,7 +45,7 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 |---|---|
 | `automatic_guard` | 393 |
 | `classes` | 403 |
-| `ever_recurred_observed` | 37 |
+| `ever_recurred_observed` | 38 |
 | `prose_only` | 10 |
 | `with_signature` | 391 |
 
@@ -66,24 +66,24 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | `seen_red_never` | 0 |
 | `seen_red_unknown` | 141 |
 | `siblings_never_swept` | 1 |
-| `sites_unknown` | 30 |
-| `swept_by_rerunning_the_guard` | 27 |
+| `sites_unknown` | 25 |
+| `swept_by_rerunning_the_guard` | 22 |
 
 ## Récidive observée
 
-**43 évènements** sur 8394 classe-jours d'exposition — **0.1557** par classe-mois (IC 95 % : 0.1127 – 0.2098)
+**44 évènements** sur 8394 classe-jours d'exposition — **0.1594** par classe-mois (IC 95 % : 0.1158 – 0.2139)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 39 | 0.1442 | 0.1025 – 0.1972 | insuffisant pour conclure (n=43) |
-| by_guard · prose | 4 | 0.7029 | 0.1891 – 1.7995 | insuffisant pour conclure (n=43) |
-| by_guard_since · avec-garde | 39 | 0.1549 | 0.1101 – 0.2117 | insuffisant pour conclure (n=43) |
-| by_guard_since · sans-garde | 4 | 0.1645 | 0.0443 – 0.4213 | insuffisant pour conclure (n=43) |
-| by_seen_red · daté | 16 | 0.1856 | 0.106 – 0.3014 | insuffisant pour conclure (n=43) |
-| by_seen_red · jamais-ou-inconnu | 27 | 0.1422 | 0.0937 – 0.2069 | insuffisant pour conclure (n=43) |
-| by_scope · ne-couvre-pas renseigné | 43 | 0.1557 | 0.1127 – 0.2098 | une seule strate peuplée (n=43) |
+| by_guard · automatique | 40 | 0.1479 | 0.1057 – 0.2014 | insuffisant pour conclure (n=44) |
+| by_guard · prose | 4 | 0.7029 | 0.1891 – 1.7995 | insuffisant pour conclure (n=44) |
+| by_guard_since · avec-garde | 40 | 0.1589 | 0.1135 – 0.2163 | insuffisant pour conclure (n=44) |
+| by_guard_since · sans-garde | 4 | 0.1645 | 0.0443 – 0.4213 | insuffisant pour conclure (n=44) |
+| by_seen_red · daté | 16 | 0.1856 | 0.106 – 0.3014 | insuffisant pour conclure (n=44) |
+| by_seen_red · jamais-ou-inconnu | 28 | 0.1474 | 0.098 – 0.2131 | insuffisant pour conclure (n=44) |
+| by_scope · ne-couvre-pas renseigné | 44 | 0.1594 | 0.1158 – 0.2139 | une seule strate peuplée (n=44) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
@@ -91,8 +91,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 | | avec garde | sans garde | rapport |
 |---|---|---|---|
-| `by_guard` — étiquette d'aujourd'hui, **confondu** | 0.1442 | 0.7029 | ×4.9 |
-| `by_guard_since` — découpé au premier garde | 0.1549 | 0.1645 | ×1.1 |
+| `by_guard` — étiquette d'aujourd'hui, **confondu** | 0.1479 | 0.7029 | ×4.8 |
+| `by_guard_since` — découpé au premier garde | 0.1589 | 0.1645 | ×1.0 |
 
 L'écart de la première ligne est un **artefact de mesure**, pas un effet. Écrire un garde automatique reste la bonne pratique ; ce tableau dit seulement que **ce jeu de données ne la démontre pas**, et qu'aucune règle ne devrait citer la première ligne comme preuve.
 

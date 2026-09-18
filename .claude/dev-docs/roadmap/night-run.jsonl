@@ -99,3 +99,6 @@
 {"at": "2026-09-18T19:10:24+00:00", "head": "dced3bd", "kind": "done", "task": "R137", "what": "famille la-frontiere-avec-le-dehors : 8 classes, 11 sites vivants, 6 corriges (dont une cle API en clair), 5 decisions parquees en R140, R141 consignee"}
 {"at": "2026-09-18T19:10:47+00:00", "head": "dced3bd", "kind": "start", "task": "R137", "what": "famille un-document-qui-affirme-un-etat-perime — 7 classes"}
 {"at": "2026-09-18T19:36:40+00:00", "head": "dced3bd", "kind": "park", "task": "R137", "what": "3 lots de decisions ajoutes a R140 (16.6 MRR, 16.7 fraicheur admin, 16.8 quatre artefacts dont bcrypt)"}
+{"at": "2026-09-18T19:40:34+00:00", "head": "7d6c208", "kind": "done", "task": "R137", "what": "famille un-document-qui-affirme-un-etat-perime : 7 classes, 17 sites vivants, 9 cles recalees + 1 cliquet bcrypt, 3 lots parques en R140"}
+{"at": "2026-09-18T19:40:40+00:00", "head": "7d6c208", "kind": "start", "task": "R137", "what": "famille un-cumul-pris-pour-un-quotidien — 5 classes"}
+{"at": "2026-09-18T19:49:20+00:00", "head": "7d6c208", "kind": "park", "task": "R137", "what": "4 chiffres visibles par l artiste parques en R140 16.9 (PDF 152 zeros, Apple LAG non consecutif, digest 2 generations, compteur 10 dont 9 tests)"}

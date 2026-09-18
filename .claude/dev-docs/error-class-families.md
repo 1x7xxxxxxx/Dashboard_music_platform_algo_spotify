@@ -21,7 +21,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | **5/29** · 17.2 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 25 | **2/25** · 8.0 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 82 | **9/82** · 11.0 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | **3/39** · 7.7 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | **4/39** · 10.3 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | **0/8** · 0.0 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 8 | **0/8** · 0.0 % | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
@@ -414,6 +414,7 @@ Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|cap
 | [`on-conflict-target-without-index`](error-classes.md#on-conflict-target-without-index) | l'import ne se dégrade pas, il LÈVE — `ERROR: there is no unique or exclusion constraint matching the ON CONFLICT specification`. Prouvé en production |
 | [`a-bash-hook-that-blocks-the-prose-about-the-gesture`](error-classes.md#a-bash-hook-that-blocks-the-prose-about-the-gesture) | **écrire sur un défaut devient impossible.** Trois commandes bloquées d'affilée le 2026-09-12, toutes en train d'écrire la classe d'erreur du geste co |
 | [`a-percent-sign-in-a-parameterised-query`](error-classes.md#a-percent-sign-in-a-parameterised-query) | une requête paramétrée échoue en bloc sur `IndexError: tuple index out of range`, alors que le nombre d'emplacements `%s` et le nombre de valeurs pass |
+| [`a-prose-claim-that-cannot-be-verified`](error-classes.md#a-prose-claim-that-cannot-be-verified) | un document dont les TABLEAUX sont justes affirme le contraire dans la prose posée à côté, et rien ne le voit. Mesuré le 2026-09-15 sur `.claude/dev-d |
 | [`guide-single-os-shortcut`](error-classes.md#guide-single-os-shortcut) | setup-guide prose spells a keyboard shortcut for one OS family (`Ctrl+U`, `Ctrl+F`, `F12`). A macOS artist following the guide literally is blocked at |
 | [`script-unreachable-from-its-dependencies`](error-classes.md#script-unreachable-from-its-dependencies) | a runbook step that reads perfectly cannot be executed anywhere. `can't open file '/app/tools/<script>.py'` from a container, `ModuleNotFoundError: ps |
 | [`age-computed-against-another-clock`](error-classes.md#age-computed-against-another-clock) | a staleness check compares a stored timestamp against a clock that is not the one that wrote it. The verdict is wrong by the offset between the two, i |
@@ -431,7 +432,6 @@ Règle de rattachement : `stale|périmé|obsolete|doc|readme|roadmap|comment|cap
 | [`a-note-outlives-the-figure-it-explains`](error-classes.md#a-note-outlives-the-figure-it-explains) | la figure est juste et le lecteur croit qu'elle est vide, parce que la légende sous elle décrit l'ancienne figure. Signalé le 2026-09-11 **après** le  |
 | [`a-verdict-whose-validator-lives-outside-the-repo`](error-classes.md#a-verdict-whose-validator-lives-outside-the-repo) | une règle est écrite dans un commentaire avec son chiffre, et personne ne peut la rejouer. La palette portait « refusé : ΔE 4.5 (deutan) » depuis le 2 |
 | [`a-dependency-that-does-not-come-back`](error-classes.md#a-dependency-that-does-not-come-back) | après un redémarrage de l'hôte (WSL, Docker Desktop, la machine), les services qui DÉPENDENT d'un autre remontent et celui dont ils dépendent reste à  |
-| [`a-prose-claim-that-cannot-be-verified`](error-classes.md#a-prose-claim-that-cannot-be-verified) | un document dont les TABLEAUX sont justes affirme le contraire dans la prose posée à côté, et rien ne le voit. Mesuré le 2026-09-15 sur `.claude/dev-d |
 | [`a-repair-that-reverts-what-a-successor-widened`](error-classes.md#a-repair-that-reverts-what-a-successor-widened) | un correctif de rejouabilité fait DISPARAÎTRE une colonne, une contrainte ou un index qu'une migration ultérieure avait ajoutés. Le fichier corrigé pa |
 | [`a-document-that-cannot-be-current-in-its-own-commit`](error-classes.md#a-document-that-cannot-be-current-in-its-own-commit) | un document généré est **périmé à l'instant même où on le commite**. Son contrôle de fraîcheur est rouge juste après un `make` qui vient de le produir |
 | [`a-make-target-that-claims-a-barrier-it-does-not-hold`](error-classes.md#a-make-target-that-claims-a-barrier-it-does-not-hold) | une cible `make` annonce dans son aide qu'elle est la barrière — « (CI) » — alors qu'aucun workflow ne la lance. Le document EST gardé, mais par un au |
@@ -608,4 +608,4 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 <!-- error-class-families: total=403 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=902b6942be9fdcc0e1ee8f4eaf880ad41f435a9d8688b05309281efa539fc053 -->
+<!-- error-class-families: sha256=6bac0df3a8d4035a313be4b34089e57f4b281d531ef5cc47ec4e2b3a2345cd06 -->

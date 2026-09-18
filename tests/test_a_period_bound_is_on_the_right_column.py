@@ -34,6 +34,7 @@ fallait les deux.
 from __future__ import annotations
 
 import ast
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -185,3 +186,95 @@ def test_the_three_subjects_are_actually_distinguished() -> None:
     assert is_cohort_column("timestamp") and not is_cohort_column("date"), (
         "la distinction publication / événement s'est effondrée — c'est elle, et elle "
         "seule, qui distingue une cohorte d'un flux")
+
+
+# ── Un écran de FRAÎCHEUR lit la date de la DONNÉE — 2026-09-18 ──────────────
+#
+# Les tests ci-dessus portent sur les figures BORNÉES par une période. Un écran de
+# supervision n'est pas borné : il demande `MAX(<colonne>)` et affiche le résultat comme
+# « dernière donnée ». C'est la même question — de quelle horloge parle-t-on — et aucun
+# garde ne la posait là.
+#
+# Mesuré le 2026-09-18 : `_supervision_freshness` (`views/admin.py`) interroge sept
+# tables. Six lisent la date métier. La septième lisait `MAX(collected_at)::date FROM
+# apple_songs_history`, **la seule des sept à porter aussi une colonne `date`**. Écart du
+# jour : 0. Le défaut était LATENT — et c'est exactement pour ça qu'il a survécu à un
+# correctif qui avait déjà traité ses deux voisines de liste.
+#
+# La preuve que la classe mord vraiment est ailleurs, dans la même base :
+# `meta_insights_performance_day` porte `MAX(collected_at)` = aujourd'hui et
+# `MAX(day_date)` = 2024-09-30 — **718 jours**. `src/utils/freshness_monitor.py:18` le
+# documente, et `src/utils/quality_gate.py:40-41` écrit la règle.
+#
+# ⚠️ Ce garde a besoin de la BASE : « cette table a-t-elle une date métier ? » ne se lit
+# pas dans le code. Il saute sans Postgres, comme ses pairs — et son test de population
+# refuse de passer en silence sur un inventaire vide.
+_ADMIN = Path(__file__).resolve().parents[1] / "src" / "dashboard" / "views" / "admin.py"
+_FRAICHEUR = re.compile(r'"SELECT MAX\((?P<col>[a-z_]+)\)(?:::date)? FROM (?P<tbl>[a-z_0-9]+)"')
+# Une date de MESURE (quand on a écrit) contre une date de SUJET (ce que la donnée date).
+_ECRITURE = {"collected_at", "created_at", "updated_at", "inserted_at", "fetched_at"}
+
+
+def _lectures_de_fraicheur() -> list[tuple[int, str, str]]:
+    """`(ligne, colonne, table)` pour chaque `MAX(...)` de l'écran de supervision."""
+    texte = _ADMIN.read_text(encoding="utf-8")
+    return [(texte[:m.start()].count("\n") + 1, m.group("col"), m.group("tbl"))
+            for m in _FRAICHEUR.finditer(texte)]
+
+
+def test_the_freshness_screen_was_really_found() -> None:
+    """Non-vacuité : sans extraction, le test ci-dessous est vert pour rien."""
+    lues = _lectures_de_fraicheur()
+    assert len(lues) >= 5, (
+        f"seulement {len(lues)} requête(s) de fraîcheur extraite(s) de admin.py — "
+        "l'écran a changé de forme et le garde ne lit plus rien.")
+
+
+def test_a_freshness_screen_reads_the_date_the_data_carries() -> None:
+    """Quand la table porte une date métier, l'écran de fraîcheur la lit."""
+    import os
+    import socket
+    psycopg2 = __import__("pytest").importorskip("psycopg2")
+    s = socket.socket()
+    s.settimeout(1)
+    try:
+        s.connect(("127.0.0.1", 5433))
+    except OSError:
+        __import__("pytest").skip("Postgres 5433 injoignable — « cette table a-t-elle "
+                                  "une date métier ? » ne se lit pas dans le code")
+    finally:
+        s.close()
+    conn = psycopg2.connect(host="127.0.0.1", port=5433, dbname="spotify_etl",
+                            user="postgres", password=os.getenv("DB_PASSWORD", "postgres"),
+                            connect_timeout=3)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT table_name, column_name FROM information_schema.columns
+                 WHERE table_schema = 'public'
+                   AND (data_type LIKE '%date%' OR data_type LIKE '%timestamp%')
+            """)
+            par_table: dict[str, set[str]] = {}
+            for t, c in cur.fetchall():
+                par_table.setdefault(t, set()).add(c)
+    finally:
+        conn.close()
+
+    fautifs = []
+    for ligne, col, tbl in _lectures_de_fraicheur():
+        if col not in _ECRITURE:
+            continue
+        metier = sorted(par_table.get(tbl, set()) - _ECRITURE)
+        # `track_created_at` date le TITRE, pas la mesure — ce n'est pas une date de
+        # relevé, et la lire ferait dire à l'écran une autre chose encore.
+        metier = [m for m in metier if not m.endswith("_created_at")]
+        if metier:
+            fautifs.append((ligne, tbl, col, metier))
+    assert not fautifs, (
+        "".join(f"\n  admin.py:{ln} lit `MAX({c})` sur `{t}`, qui porte {m}"
+                for ln, t, c, m in fautifs) +
+        "\n\nCet écran annonce « last-data date » : il doit lire la date PORTÉE PAR LA "
+        "DONNÉE quand elle existe, jamais sa date d'écriture (`quality_gate.py:40-41`). "
+        "Sur `meta_insights_performance_day`, confondre les deux vaut **718 jours** "
+        "(`freshness_monitor.py:18`). Sur Apple l'écart valait 0 le 2026-09-18 — un "
+        "défaut latent survit à un correctif qui a traité ses voisines.")

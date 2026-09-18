@@ -1135,5 +1135,47 @@ règle pour la seconde.
 
 **La décision** : pour chacun, régénérer, aligner, ou retirer.
 
+### 16.9 — Quatre chiffres que l'artiste voit et qui mélangent deux natures
+
+Toutes mesurées le 2026-09-18 ; aucune n'est corrigée, parce que chacune change un nombre
+qu'un artiste a déjà lu.
+
+**a. Le PDF trace 152 jours de zéro avant la première mesure.**
+`pdf_charts.py:352` (`platform_evolution`, titre « cumulative growth ») laisse la tête de
+la courbe à zéro, et le code le justifie : « avant sa première mesure, une plateforme
+valait bien zéro ». Mesuré sur l'artiste 1 : **152 seaux à zéro** avant le premier niveau
+YouTube (118 032), **155** avant SoundCloud (23 241).
+
+**b. Apple Music : « streams quotidiens » calculés sur des jours non consécutifs.**
+`apple_music.py:162-163` et `pdf_exporter/_collectors.py:830-831` font
+`plays - LAG(plays) OVER (...)` sans borner la consécutivité. Mesuré : **11 paires,
+0 consécutive, plus grand trou 12 jours** — 100 % des points portent la croissance de
+plusieurs jours posée sur un seul.
+
+```bash
+docker exec $(docker ps --format '{{.Names}}' | grep -i postgres | head -1) \
+  psql -U postgres -d spotify_etl -c "
+    SELECT COUNT(*) paires, COUNT(*) FILTER (WHERE d = 1) consecutives, MAX(d) plus_grand_trou
+      FROM (SELECT date - LAG(date) OVER (PARTITION BY song_name ORDER BY date) d
+              FROM apple_songs_history) t WHERE d IS NOT NULL;"
+```
+
+**c. Le digest hebdomadaire somme deux générations de lignes Meta.**
+`digest_queries.py:97` fait `SUM(spend)` sur `meta_insights_performance`, qui porte
+**231 lignes quotidiennes (3 087,82 €)** et **21 lignes de cumul à vie (3 077,83 €)**
+datées du seul 2025-12-15 — total mélangé **6 165,65 €**. La borne est un seuil de date,
+donc l'e-mail est juste **par accident de calendrier**, pas par construction.
+
+**d. Le compteur public dit 10 artistes, 1 est réel.**
+`live_pulse.py:71` compte **10** locataires « humains » ; **9 sont des artefacts de test**
+(8 `Oracle Probe`, 1 `Smoke`). Les 8 portent tous `created_at` du **2026-09-15 entre 18h32
+et 18h34** — une seule exécution — et plusieurs passes complètes le 2026-09-18 n'en ont
+ajouté aucune : **la fuite est refermée**, c'est un résidu. `tenant_kind.py` déclare trois
+genres ; les fixtures en produisent un quatrième, qui tombe dans « real ».
+
+**La décision** : pour (a), (b) et (c), resserrer et prévenir, ou laisser et documenter.
+Pour (d), effacer 9 lignes d'une base est une opération de données, et déclarer un
+quatrième genre est un changement de schéma — les deux t'appartiennent.
+
 **Vérification que cette section est à jour** :
 `python3 -m pytest tests/test_roadmap_index_is_honest.py -q`

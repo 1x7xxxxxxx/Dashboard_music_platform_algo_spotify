@@ -393,3 +393,140 @@ def test_the_locating_claim_predicate_tells_arrival_from_departure():
     # porte sur l'accord prose ↔ tableau, pas sur l'existence de la phrase.
     both = _locating_claims(arrival + "\n\n" + departure)
     assert [t for t, _, _ in both] == ["R1"], f"extraction instable sur deux phrases : {both!r}"
+
+
+# ── Une phrase qui COMPTE des lignes — 2026-09-18 ────────────────────────────
+#
+# `test_no_prose_sentence_places_a_task_in_a_section_that_has_no_such_row` vérifie qu'un
+# IDENTIFIANT est nommé dans la bonne section. Il ne regarde jamais **combien** de lignes
+# une section porte — et c'est par là que ce fichier se trompe, encore et encore.
+#
+# Quatre occurrences, toutes dans `checklist.md`, toutes invisibles aux gardes :
+#   2026-09-12  « quatre tâches rouvertes » — les quatre étaient closes, l'index vide.
+#   2026-09-18  « Quatre tâches sont ouvertes » là où l'index en portait cinq, et
+#               « l'ancre les nomme toutes les trois » — trois nombres dans une phrase.
+#   2026-09-18  « la table En attente de toi reste VIDE » alors que R125 y était depuis
+#               le matin.
+#   2026-09-18  « la table porte UNE ligne » — corrigée le matin, redevenue fausse
+#               l'après-midi à l'entrée de R140, par la même personne qui venait de
+#               recaler la phrase voisine.
+#
+# La forme est toujours la même : un nombre écrit EN LETTRES à côté d'une section dont
+# les lignes sont comptables. On peut donc le compter.
+_NOMBRES = {"aucune": 0, "aucun": 0, "vide": 0, "zéro": 0,
+            "une": 1, "un": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5,
+            "six": 6, "sept": 7, "huit": 8, "neuf": 9, "dix": 10, "onze": 11,
+            "douze": 12}
+_MOT = "|".join(sorted(_NOMBRES, key=len, reverse=True))
+# « porte DEUX lignes », « Huit tâches sont ouvertes dans cet index », « reste vide »
+_COMPTE = re.compile(
+    r"(?:\*\*)?\b(?P<n>" + _MOT + r"|\d+)(?:\*\*)?\s+"
+    r"(?:ligne|tâche|item|entrée)s?\b"
+    r"|(?:porte|reste|contient)\s+(?:\*\*)?(?P<m>" + _MOT + r"|\d+)(?:\*\*)?",
+    re.I)
+
+
+def _valeur(mot: str) -> int | None:
+    mot = mot.strip("* ").lower()
+    if mot.isdigit():
+        return int(mot)
+    return _NOMBRES.get(mot)
+
+
+def _lignes_de(entete: str) -> int:
+    return sum(1 for ligne in _section(entete) if _ROW.match(ligne))
+
+
+def test_a_sentence_that_counts_rows_counts_the_rows_there_are() -> None:
+    """Une phrase qui annonce un NOMBRE de lignes doit annoncer celui de la table.
+
+    Elle n'est contrainte que lorsqu'elle NOMME sa section : « la table
+    « 🙋 En attente de toi » porte deux lignes ». Une phrase qui compte autre chose —
+    des plateformes, des défauts, des jours — ne nomme aucune de ces deux sections et
+    n'est donc pas concernée. C'est ce qui sépare la propriété d'une chasse aux nombres.
+    """
+    texte = ACTIVE.read_text(encoding="utf-8")
+    reels = {h: _lignes_de(h) for h in (_WAITING_H, _ACTIONABLE_H)}
+    faux = []
+    for entete, alias in _SECTION_ALIAS.items():
+        for m in re.finditer(re.escape(alias), texte):
+            # la fenêtre où une phrase peut encore parler de CETTE section
+            fenetre = texte[m.end(): m.end() + 160]
+            # coupée au premier saut de paragraphe : au-delà, la phrase a changé de sujet
+            fenetre = fenetre.split("\n\n")[0]
+            c = _COMPTE.search(fenetre)
+            if not c:
+                continue
+            v = _valeur(c.group("n") or c.group("m") or "")
+            if v is None or v == reels[entete]:
+                continue
+            ligne = texte[:m.start()].count("\n") + 1
+            faux.append((ligne, alias, v, reels[entete], fenetre.strip()[:70]))
+    assert not faux, (
+        "".join(f"\n  checklist.md:{num} dit {v} pour « {a} », qui porte {r} — « {f}… »"
+                for num, a, v, r, f in faux) +
+        "\n\nUne phrase de ce fichier qui compte des lignes compte ce que la table "
+        "compte, et rien d'autre. Quatre occurrences mesurées le 2026-09-18, dont deux "
+        "le même jour : la phrase est corrigée, une ligne entre, la phrase redevient "
+        "fausse. Aucun autre garde ne la voit — ils vérifient qu'un IDENTIFIANT est dans "
+        "la bonne section, jamais COMBIEN de lignes elle porte.")
+
+
+# ⚠️ L'ancrage sur l'ALIAS ne suffit pas, et ma propre mutation l'a montré.
+# « **Quatre tâches sont ouvertes dans cet index** » ne contient pas la chaîne
+# « Tâches ouvertes » — la phrase parle de la section sans la NOMMER, par « cet index ».
+# Or c'est l'une des quatre occurrences historiques : le 2026-09-18 elle disait quatre
+# là où l'index en portait cinq. Un garde ancré sur le nom de la section est vert dessus.
+# Second ancrage, sur la PHRASE : tout « N tâche(s) … ouverte(s) … index » compte les
+# lignes de la table actionnable, qu'il nomme la section ou non.
+_COMPTE_INDEX = re.compile(
+    r"(?:\*\*)?\b(?P<n>" + _MOT + r"|\d+)(?:\*\*)?\s+t[âa]ches?\b[^.\n]{0,60}?"
+    r"\bouvertes?\b[^.\n]{0,40}?\bindex\b", re.I)
+
+
+def test_a_sentence_that_counts_the_open_index_counts_its_rows() -> None:
+    """« N tâches sont ouvertes dans cet index » compte les lignes de l'index.
+
+    Séparé du test ci-dessus parce que la propriété est la même mais l'ancrage ne peut
+    pas l'être : cette phrase désigne la section par « cet index », jamais par son titre.
+    """
+    texte = ACTIVE.read_text(encoding="utf-8")
+    reel = _lignes_de(_ACTIONABLE_H)
+    faux = []
+    for m in _COMPTE_INDEX.finditer(texte):
+        v = _valeur(m.group("n"))
+        if v is not None and v != reel:
+            faux.append((texte[:m.start()].count("\n") + 1, v, m.group(0)[:60]))
+    assert not faux, (
+        "".join(f"\n  checklist.md:{num} annonce {v} tâche(s) ouverte(s), l'index en "
+                f"porte {reel} — « {ext}… »" for num, v, ext in faux) +
+        "\n\nCette phrase désigne l'index par « cet index » et non par son titre : le "
+        "garde ancré sur le nom de section est structurellement vert dessus. C'est la "
+        "mutation qui l'a révélé, pas une relecture.")
+
+
+def test_the_index_counting_predicate_is_not_vacuous() -> None:
+    assert _COMPTE_INDEX.search("**Huit tâches sont ouvertes dans cet index** — R132") is not None
+    assert _valeur(_COMPTE_INDEX.search("Quatre tâches sont ouvertes dans cet index").group("n")) == 4
+    assert _COMPTE_INDEX.search("trois défauts ouverts dans le catalogue") is None
+
+
+def test_the_counting_predicate_reads_both_shapes() -> None:
+    """Non-vacuité : le prédicat sépare-t-il vraiment un compte juste d'un compte faux ?
+
+    Sans ceci, un motif qui ne matche jamais rend le test ci-dessus vert sur un fichier
+    qui ment — le mode d'aveuglement que ce dépôt a mesuré dix fois.
+    """
+    def lu(phrase: str):
+        # Le MÊME accès que le code réel : deux branches, `porte …` et `N lignes`, et
+        # l'une peut gagner là où on attendait l'autre. Les tester séparément ferait
+        # passer le test sur un chemin que la production n'emprunte pas.
+        m = _COMPTE.search(phrase)
+        return None if m is None else _valeur(m.group("n") or m.group("m") or "")
+
+    assert lu("porte **DEUX lignes** : R125 et R140") == 2
+    assert lu("**Huit tâches sont ouvertes** dans cet index") == 8
+    assert lu("la table reste vide") == 0
+    assert lu("porte 3 lignes") == 3
+    # et une phrase qui ne compte PAS de lignes ne doit pas mordre
+    assert lu("cette section explique le flux") is None
