@@ -69,7 +69,17 @@ CAT_REL = ".claude/dev-docs/error-classes.md"
 # Le catalogue entre dans git ce jour-là. Avant : histoire DÉCLARATIVE (réécrite après
 # coup). Après : histoire OBSERVÉE, commit par commit. Calculé, pas codé en dur — voir
 # `_window_start()`.
-_HISTORY_LINE = re.compile(r"^\s*-\s+(20\d\d-\d\d-\d\d)\s*:", re.M)
+# ⚠️ La marque optionnelle est ce qui distingue une RÉCIDIVE d'une note de travail.
+# Mesuré le 2026-09-18 en classant les 81 lignes que ce fichier comptait comme des
+# évènements : **33 sont de vraies récidives, 26 sont des défauts du GARDE** (signature
+# dérivée, prédicat aveugle, faux positif) et **22 sont du travail sur la classe**
+# (garde ajouté, changement de statut, verdict de balayage). Le compteur les additionnait
+# toutes, donc le taux de récidive — le chiffre sur lequel repose l'argument « une classe
+# sans garde récidive N× plus » — était surestimé d'un facteur **2,5**. Écrire un verdict
+# de balayage faisait monter la récidive de la classe qu'on venait de prouver saine.
+_HISTORY_LINE = re.compile(r"^\s*-\s+(20\d\d-\d\d-\d\d)(?:\s+\((?:récidive|garde)\))?\s*:", re.M)
+_HISTORY_MARKED = re.compile(
+    r"^\s*-\s+(20\d\d-\d\d-\d\d)\s+\((récidive|garde)\)\s*:", re.M)
 _CLASS_HEAD = re.compile(r"^## ([a-z0-9][a-z0-9-]+)\s*$", re.M)
 
 # Les types de garde qui s'exécutent SANS que personne y pense. Comparaison par
@@ -369,6 +379,20 @@ def _revisions() -> list[tuple[str, str]]:
     return rows
 
 
+def _events(body: str) -> tuple[int, int, int]:
+    """(récidives, défauts de garde, lignes muettes) d'un corps de classe.
+
+    Extraite pour être APPELABLE par son garde. La version précédente vivait en ligne
+    dans `_observed()`, et le test écrit pour elle n'exerçait que la regex : rendre le
+    compteur permissif le laissait VERT. Un garde qui ne touche pas la fonction ne
+    garde pas la fonction.
+    """
+    marques = _HISTORY_MARKED.findall(body)
+    return (sum(1 for _d, kind in marques if kind == "récidive"),
+            sum(1 for _d, kind in marques if kind == "garde"),
+            len(_HISTORY_LINE.findall(body)) - len(marques))
+
+
 def _observed() -> dict:
     """Rejeu de toutes les révisions du catalogue : introduction et récidives.
 
@@ -389,7 +413,8 @@ def _observed() -> dict:
         for cid, body in cur.items():
             rec = per.setdefault(cid, {
                 "introduced_date": day, "introduced_commit": sha[:12],
-                "revisions": 0, "history_additions": 0, "renamed_from": None,
+                "revisions": 0, "history_additions": 0, "guard_failures": 0,
+                "history_unmarked": 0, "renamed_from": None,
             })
             before = prev.get(cid)
             if before is None:
@@ -406,9 +431,26 @@ def _observed() -> dict:
                         break
             elif before != body:
                 rec["revisions"] += 1
-                if len(_HISTORY_LINE.findall(body)) > len(_HISTORY_LINE.findall(before)):
-                    rec["history_additions"] += 1
         prev = cur
+
+    # ── Les évènements se LISENT sur la révision courante, ils ne se déduisent plus
+    # d'un diff. Deux raisons, la seconde mesurée. (1) La ligne porte sa propre date,
+    # donc rejouer l'historique pour la retrouver n'apporte rien. (2) Un diff compte
+    # toute ligne d'History AJOUTÉE, y compris un verdict de balayage écrit le jour
+    # où l'on PROUVE qu'une classe n'a pas récidivé — le 2026-09-18, deux balayages
+    # à zéro site vivant ont fait monter `ever_recurred_observed` de 54 à 56.
+    # Le DISQUE, pas `git show` : c'est la source dont `build()` tire tout le reste, et
+    # une marque écrite mais pas encore commitée doit compter — sinon le document se
+    # contredirait avec le catalogue posé à côté de lui.
+    courant = _blocks(CATALOGUE.read_text(encoding="utf-8"))
+    for cid, body in courant.items():
+        rec = per.get(cid)
+        if rec is None:
+            continue
+        recid, gardes, muettes = _events(body)
+        rec["history_additions"] = recid
+        rec["guard_failures"] = gardes
+        rec["history_unmarked"] = muettes
 
     as_of = revs[-1][1]
     return {"window_start": revs[0][1], "as_of": as_of,

@@ -803,7 +803,7 @@
       "status": "guarded",
       "introduced_date": "2026-09-08",
       "revisions": 6,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "a-fallback-that-answers-the-whole-question": {
@@ -1072,7 +1072,7 @@
       "status": "guarded",
       "introduced_date": "2026-09-12",
       "revisions": 5,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "a-gate-that-can-never-be-green": {
@@ -1099,7 +1099,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 2,
+      "revisions": 3,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -1612,7 +1612,7 @@
       "status": "guarded",
       "introduced_date": "2026-09-17",
       "revisions": 4,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "a-major-upgrade-that-moves-a-default": {
@@ -1829,7 +1829,7 @@
       "status": "guarded",
       "introduced_date": "2026-09-13",
       "revisions": 7,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "a-method-change-counted-as-growth": {
@@ -1992,7 +1992,7 @@
       "status": "guarded",
       "introduced_date": "2026-09-11",
       "revisions": 7,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "a-parenthesis-is-not-a-tuple": {
@@ -2372,7 +2372,7 @@
       "status": "guarded",
       "introduced_date": "2026-09-11",
       "revisions": 4,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "a-ratchet-at-zero-over-a-scope-that-excludes-the-defect": {
@@ -2967,7 +2967,7 @@
       "status": "guarded",
       "introduced_date": "2026-09-12",
       "revisions": 6,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "a-span-read-from-a-table-that-carries-a-mandatory-filter": {
@@ -3506,7 +3506,7 @@
       "status": "guarded",
       "introduced_date": "2026-09-12",
       "revisions": 6,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "a-verdict-swallowed-by-the-pipe-that-abbreviated-it": {
@@ -3992,7 +3992,7 @@
       "status": "guarded",
       "introduced_date": "2026-09-08",
       "revisions": 6,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "an-alert-judged-on-time-for-a-manual-source": {
@@ -4237,7 +4237,7 @@
       "status": "guarded",
       "introduced_date": "2026-09-12",
       "revisions": 6,
-      "history_additions": 2,
+      "history_additions": 0,
       "renamed_from": null
     },
     "an-unmeasured-platform-is-rendered-as-zero": {
@@ -4319,7 +4319,7 @@
       "status": "fixed",
       "introduced_date": "2026-08-21",
       "revisions": 4,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "api-router-schema-drift": {
@@ -4404,7 +4404,7 @@
       "status": "guarded",
       "introduced_date": "2026-05-15",
       "revisions": 10,
-      "history_additions": 4,
+      "history_additions": 0,
       "renamed_from": null
     },
     "assertion-wider-than-the-question-it-asks": {
@@ -4540,7 +4540,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-24",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4785,7 +4785,7 @@
       "status": "guarded",
       "introduced_date": "2026-08-30",
       "revisions": 8,
-      "history_additions": 2,
+      "history_additions": 1,
       "renamed_from": null
     },
     "canary-tenant-unwatched": {
@@ -5137,7 +5137,7 @@
       "status": "guarded",
       "introduced_date": "2026-05-15",
       "revisions": 8,
-      "history_additions": 3,
+      "history_additions": 1,
       "renamed_from": null
     },
     "column-name-is-not-its-meaning": {
@@ -5550,7 +5550,7 @@
       "status": "guarded",
       "introduced_date": "2026-06-13",
       "revisions": 7,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "cumulative-counter-drawn-as-its-own-history": {
@@ -5632,7 +5632,7 @@
       "status": "guarded",
       "introduced_date": "2026-08-21",
       "revisions": 5,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "dag-without-dagrun-timeout": {
@@ -5688,7 +5688,7 @@
       "status": "open",
       "introduced_date": "2026-05-15",
       "revisions": 10,
-      "history_additions": 3,
+      "history_additions": 1,
       "renamed_from": null
     },
     "ddl-resurrects-a-migrated-fix": {
@@ -5985,7 +5985,7 @@
       "status": "guarded",
       "introduced_date": "2026-05-15",
       "revisions": 7,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "download-payload-rebuilt-per-rerun": {
@@ -6012,7 +6012,7 @@
       "status": "guarded",
       "introduced_date": "2026-08-30",
       "revisions": 7,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "empty-list-blames-the-most-common-cause": {
@@ -6719,7 +6719,7 @@
       "status": "guarded",
       "introduced_date": "2026-08-21",
       "revisions": 5,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "handler-built-without-its-arguments": {
@@ -6910,7 +6910,7 @@
       "status": "fixed",
       "introduced_date": "2026-08-21",
       "revisions": 5,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "identity-read-but-never-collectable": {
@@ -7423,7 +7423,7 @@
       "status": "guarded",
       "introduced_date": "2026-09-06",
       "revisions": 5,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "mermaid-block-does-not-render": {
@@ -7860,7 +7860,7 @@
       "status": "guarded",
       "introduced_date": "2026-06-01",
       "revisions": 5,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "on-conflict-target-without-index": {
@@ -9240,7 +9240,7 @@
       "status": "guarded",
       "introduced_date": "2026-06-08",
       "revisions": 6,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "sql-fstring-identifier": {
@@ -9268,7 +9268,7 @@
       "status": "guarded",
       "introduced_date": "2026-05-15",
       "revisions": 6,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "state-file-accumulates-its-own-history": {
@@ -10077,7 +10077,7 @@
       "status": "guarded",
       "introduced_date": "2026-09-10",
       "revisions": 4,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "two-definitions-that-must-coincide-are-never-compared": {
@@ -10458,7 +10458,7 @@
       "status": "guarded",
       "introduced_date": "2026-05-15",
       "revisions": 9,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "upsert-freezes-its-own-timestamp": {
@@ -10648,7 +10648,7 @@
       "status": "open",
       "introduced_date": "2026-05-15",
       "revisions": 8,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "view-state-outlives-the-visit": {
@@ -10730,7 +10730,7 @@
       "status": "fixed",
       "introduced_date": "2026-08-21",
       "revisions": 5,
-      "history_additions": 1,
+      "history_additions": 0,
       "renamed_from": null
     },
     "websocket-dies-behind-the-proxy": {
@@ -10850,7 +10850,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 294,
+      "catalogue_revisions": 295,
       "head_date": "2026-09-18"
     },
     "holes": {
@@ -10870,7 +10870,7 @@
     "population": {
       "automatic_guard": 390,
       "classes": 400,
-      "ever_recurred_observed": 54,
+      "ever_recurred_observed": 28,
       "prose_only": 10,
       "with_signature": 389
     },
@@ -10878,23 +10878,23 @@
       "window_start": "2026-05-15",
       "as_of": "2026-09-18",
       "observed": {
-        "events": 67,
+        "events": 32,
         "class_days": 8394,
-        "per_class_month": 0.2426,
+        "per_class_month": 0.1159,
         "ci95": [
-          0.188,
-          0.3082
+          0.0793,
+          0.1636
         ]
       },
       "class_days_exposed": 8394,
       "by_guard": {
         "automatique": {
-          "events": 64,
+          "events": 29,
           "class_days": 8221,
-          "per_class_month": 0.2367,
+          "per_class_month": 0.1072,
           "ci95": [
-            0.1822,
-            0.3022
+            0.0718,
+            0.154
           ]
         },
         "prose": {
@@ -10909,50 +10909,50 @@
       },
       "by_seen_red": {
         "daté": {
-          "events": 15,
+          "events": 7,
           "class_days": 1014,
-          "per_class_month": 0.4497,
+          "per_class_month": 0.2099,
           "ci95": [
-            0.2515,
-            0.7418
+            0.0841,
+            0.4324
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 52,
+          "events": 25,
           "class_days": 7380,
-          "per_class_month": 0.2142,
+          "per_class_month": 0.103,
           "ci95": [
-            0.16,
-            0.2809
+            0.0666,
+            0.152
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 67,
+          "events": 32,
           "class_days": 8394,
-          "per_class_month": 0.2426,
+          "per_class_month": 0.1159,
           "ci95": [
-            0.188,
-            0.3082
+            0.0793,
+            0.1636
           ]
         }
       },
       "fixed_horizon": {
         "h7": {
           "at_risk": 279,
-          "recurred": 44,
-          "rate": 0.1577
+          "recurred": 24,
+          "rate": 0.086
         },
         "h14": {
           "at_risk": 185,
-          "recurred": 35,
-          "rate": 0.1892
+          "recurred": 21,
+          "rate": 0.1135
         },
         "h30": {
           "at_risk": 35,
-          "recurred": 15,
-          "rate": 0.4286
+          "recurred": 7,
+          "rate": 0.2
         }
       }
     },

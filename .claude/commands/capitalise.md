@@ -25,7 +25,7 @@ exécution** avant de la livrer :
 | `guard` | le test ou le hook qui bloque, ou `—` |
 | `guard_scope` | `<famille> — <le geste> ; couvre: … ; **ne couvre pas: …**` |
 | `siblings` | `swept:<date> — <fichier:ligne, …>` · `swept:<date> — aucun autre site` · `not-swept`. **Le défaut existe-t-il DÉJÀ ailleurs ?** |
-| `history` | daté, ce qui s'est passé |
+| `history` | daté, ce qui s'est passé — et **la ligne déclare sa nature** : `- AAAA-MM-JJ (récidive):` quand le défaut est réapparu sur un site neuf, `- AAAA-MM-JJ (garde):` quand c'est le GARDE qui a été pris en défaut (signature dérivée, prédicat aveugle, faux positif), **sans marque** pour une note de travail (garde ajouté, statut changé, verdict de balayage) |
 
 **Et j'ajoute la ligne dans la table `## Index` en tête du catalogue** — l'entrée
 seule ne suffit pas. C'est ce tableau qu'on lit en premier ; une classe absente de
@@ -33,6 +33,25 @@ l'index est une classe qu'on écrira une deuxième fois sous un autre nom. Mesur
 2026-08-21 : 63 entrées, 51 lignes d'index, et les douze manquantes étaient les
 douze plus récentes. Contrôle : `python3 -m pytest tests/test_error_class_index_is_complete.py -q`
 (classe `catalogue-index-omits-its-own-entries`).
+
+## La marque d'une ligne d'`History` — pourquoi elle n'est pas décorative
+
+**Seule une ligne `(récidive)` compte dans le taux de récidive**, et ce taux est le
+chiffre sur lequel repose l'argument « une classe sans garde automatique récidive N×
+plus », cité dans `CLAUDE.md`.
+
+Mesuré le 2026-09-18 : le compteur comptait **toute** ligne d'`History` ajoutée. Les 81
+lignes concernées ont été classées une par une — **33** récidives, **26** défauts du
+garde, **22** notes de travail. Le taux était donc surestimé d'un facteur **2,5**, et le
+mode d'échec est le pire possible pour une mesure : *écrire le verdict d'un balayage qui
+PROUVE qu'une classe est saine faisait monter sa récidive*. Deux balayages à zéro site
+vivant, le même jour, ont porté `ever_recurred_observed` de 54 à 56.
+
+Distinguer `(récidive)` de `(garde)` n'est pas une nuance de vocabulaire : **les deux
+appellent des remèdes opposés.** Une récidive demande de chercher d'autres sites ; un
+garde pris en défaut demande d'élargir le garde. Les confondre perd les deux signaux.
+
+Contrôle : `tests/test_a_recurrence_is_not_a_note.py`, muté rouge trois fois.
 
 ## La seule étape non négociable
 

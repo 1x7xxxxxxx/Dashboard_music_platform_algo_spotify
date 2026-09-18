@@ -316,15 +316,24 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     ⚠️ **Ce paragraphe a porté un second chiffre, et il est PÉRIMÉ.** Il annonçait, sur
     194 révisions du catalogue, qu'« une classe sans garde automatique récidive 5,2×
     plus — 1,005 évènement par classe-mois contre 0,193, intervalles à 95 % disjoints ».
-    Remesuré le 2026-09-18 sur 283 révisions : **2,3×**, 0,527 contre 0,233, et les
-    intervalles **SE RECOUVRENT** — [0,106 ; 1,540] contre [0,179 ; 0,298]. La
-    différence n'est plus établie à ce n (le bras « prose » ne porte que 3 évènements
-    sur 173 jours-classe). Écrire un garde automatique reste la bonne pratique ; ce
-    n'est simplement plus ce chiffre-là qui la justifie, et une règle qui s'appuie sur
-    une mesure doit dire quand la mesure a bougé. C'est
-    `un-document-qui-affirme-un-état-périmé`, commise dans le fichier qui la documente.
+    Remesuré le 2026-09-18 sur 296 révisions, **après avoir corrigé le compteur
+    lui-même** : **4,9×**, 0,527 contre 0,107, et les intervalles **SE RECOUVRENT** —
+    [0,106 ; 1,540] contre [0,072 ; 0,154]. La différence n'est pas établie à ce n (le
+    bras « prose » ne porte que 3 évènements sur 173 jours-classe). Écrire un garde
+    automatique reste la bonne pratique ; ce n'est simplement pas ce chiffre-là qui la
+    justifie, et une règle qui s'appuie sur une mesure doit dire quand la mesure a bougé.
+    ⚠️ **Le compteur comptait la MAUVAISE chose, et c'est la vraie leçon de la série.**
+    Jusqu'au 2026-09-18, toute ligne d'`History` ajoutée comptait comme une récidive.
+    Les 81 lignes concernées ont été classées une par une : **33 sont de vraies
+    récidives, 26 sont des défauts du GARDE** (signature dérivée, prédicat aveugle,
+    faux positif) et **22 sont du travail sur la classe**. Écrire le verdict d'un
+    balayage qui PROUVE qu'une classe est saine faisait donc monter sa récidive — mesuré
+    le jour même, deux balayages à zéro site vivant ont porté `ever_recurred_observed`
+    de 54 à 56. Une ligne d'`History` déclare désormais sa nature —
+    `- AAAA-MM-JJ (récidive):` ou `- AAAA-MM-JJ (garde):`, sans marque pour une note de
+    travail — et seule la première compte. Total corrigé : **32 évènements, pas 69**.
     ⚠️ Et l'axe `seen_red` ne discrimine pas non plus : les classes DATÉES récidivent
-    **plus** (0,340 contre 0,234), intervalles recouvrants, sur 4 évènements seulement.
+    **deux fois plus** (0,210 contre 0,103), intervalles recouvrants, sur 7 évènements.
     On continue de dater `seen_red` — décision du propriétaire le 2026-09-18, motif
     explicite : le n est trop faible pour conclure, et remplir la colonne est ce qui
     fera converger l'intervalle. Ce n'est donc pas un acquis, c'est un pari déclaré.
