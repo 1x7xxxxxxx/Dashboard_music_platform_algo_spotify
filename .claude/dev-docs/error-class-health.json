@@ -23,7 +23,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-18",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -131,7 +131,7 @@
       "siblings_sites": 2,
       "siblings_swept": true,
       "status": "guarded",
-      "introduced_date": null,
+      "introduced_date": "2026-09-18",
       "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
@@ -5190,7 +5190,7 @@
       "siblings_swept": true,
       "status": "open",
       "introduced_date": "2026-05-15",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -6733,7 +6733,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-18",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -7442,7 +7442,7 @@
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-08-21",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -11015,7 +11015,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 331,
+      "catalogue_revisions": 332,
       "head_date": "2026-09-18"
     },
     "holes": {
