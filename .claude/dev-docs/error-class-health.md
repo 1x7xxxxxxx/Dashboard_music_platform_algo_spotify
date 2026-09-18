@@ -56,7 +56,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | trou | classes |
 |---|---|
 | `cause_inferred` | 0 |
-| `cause_unknown` | 148 |
+| `cause_unknown` | 140 |
 | `guard_does_not_prove_itself` | 391 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
@@ -71,17 +71,17 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 ## Récidive observée
 
-**42 évènements** sur 8394 classe-jours d'exposition — **0.1521** par classe-mois (IC 95 % : 0.1096 – 0.2056)
+**43 évènements** sur 8394 classe-jours d'exposition — **0.1557** par classe-mois (IC 95 % : 0.1127 – 0.2098)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 38 | 0.1405 | 0.0994 – 0.1929 | insuffisant pour conclure (n=42) |
-| by_guard · prose | 4 | 0.7029 | 0.1891 – 1.7995 | insuffisant pour conclure (n=42) |
-| by_seen_red · daté | 18 | 0.1993 | 0.118 – 0.315 | insuffisant pour conclure (n=42) |
-| by_seen_red · jamais-ou-inconnu | 24 | 0.1292 | 0.0827 – 0.1922 | insuffisant pour conclure (n=42) |
-| by_scope · ne-couvre-pas renseigné | 42 | 0.1521 | 0.1096 – 0.2056 | une seule strate peuplée (n=42) |
+| by_guard · automatique | 39 | 0.1442 | 0.1025 – 0.1972 | insuffisant pour conclure (n=43) |
+| by_guard · prose | 4 | 0.7029 | 0.1891 – 1.7995 | insuffisant pour conclure (n=43) |
+| by_seen_red · daté | 19 | 0.2103 | 0.1266 – 0.3285 | insuffisant pour conclure (n=43) |
+| by_seen_red · jamais-ou-inconnu | 24 | 0.1292 | 0.0827 – 0.1922 | insuffisant pour conclure (n=43) |
+| by_scope · ne-couvre-pas renseigné | 43 | 0.1557 | 0.1127 – 0.2098 | une seule strate peuplée (n=43) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 

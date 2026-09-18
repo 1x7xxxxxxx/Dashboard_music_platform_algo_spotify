@@ -1923,7 +1923,7 @@
       "renamed_from": null
     },
     "a-metric-registered-twice-kills-the-import": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-09-16",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_metrics_server_survives_a_rerun.py",
@@ -3173,7 +3173,7 @@
       "status": "guarded",
       "introduced_date": "2026-09-10",
       "revisions": 4,
-      "history_additions": 1,
+      "history_additions": 2,
       "renamed_from": null
     },
     "a-sweep-predicate-that-matches-a-form-not-a-property": {
@@ -4398,7 +4398,7 @@
       "renamed_from": null
     },
     "artist-id-or-1": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-03-27",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_tenant_scoped_action_names_its_tenant.py",
@@ -5497,7 +5497,7 @@
       "renamed_from": null
     },
     "correct-because-there-is-only-one-of-it": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-09-16",
       "guard_automatic": true,
       "guard_ref": "tests/test_process_state_is_declared_for_a_second_instance.py",
@@ -6096,7 +6096,7 @@
       "renamed_from": null
     },
     "env-not-wired-to-service": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-06-19",
       "guard_automatic": true,
       "guard_ref": "tests/test_env_contract.py",
@@ -9289,7 +9289,7 @@
       "renamed_from": null
     },
     "sql-fstring-identifier": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-03-28",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_sql_identifier_comes_from_a_closed_set.py",
@@ -9967,7 +9967,7 @@
       "renamed_from": null
     },
     "tool-imports-the-app-without-a-path": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-08-23",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_tool_script_can_actually_start.py",
@@ -10538,7 +10538,7 @@
       "renamed_from": null
     },
     "upsert-transfers-row-ownership": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-08-20",
       "guard_automatic": true,
       "guard_ref": "tests/test_e2e_two_tenants.py",
@@ -10864,7 +10864,7 @@
       "renamed_from": null
     },
     "write-without-explicit-artist-id": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-08-20",
       "guard_automatic": true,
       "guard_ref": "tests/test_e2e_two_tenants.py",
@@ -10904,7 +10904,7 @@
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 148,
+      "cause_unknown": 140,
       "guard_does_not_prove_itself": 391,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
@@ -10928,23 +10928,23 @@
       "window_start": "2026-05-15",
       "as_of": "2026-09-18",
       "observed": {
-        "events": 42,
+        "events": 43,
         "class_days": 8394,
-        "per_class_month": 0.1521,
+        "per_class_month": 0.1557,
         "ci95": [
-          0.1096,
-          0.2056
+          0.1127,
+          0.2098
         ]
       },
       "class_days_exposed": 8394,
       "by_guard": {
         "automatique": {
-          "events": 38,
+          "events": 39,
           "class_days": 8221,
-          "per_class_month": 0.1405,
+          "per_class_month": 0.1442,
           "ci95": [
-            0.0994,
-            0.1929
+            0.1025,
+            0.1972
           ]
         },
         "prose": {
@@ -10959,12 +10959,12 @@
       },
       "by_seen_red": {
         "daté": {
-          "events": 18,
+          "events": 19,
           "class_days": 2746,
-          "per_class_month": 0.1993,
+          "per_class_month": 0.2103,
           "ci95": [
-            0.118,
-            0.315
+            0.1266,
+            0.3285
           ]
         },
         "jamais-ou-inconnu": {
@@ -10979,12 +10979,12 @@
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 42,
+          "events": 43,
           "class_days": 8394,
-          "per_class_month": 0.1521,
+          "per_class_month": 0.1557,
           "ci95": [
-            0.1096,
-            0.2056
+            0.1127,
+            0.2098
           ]
         }
       },

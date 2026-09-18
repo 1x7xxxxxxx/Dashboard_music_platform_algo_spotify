@@ -52,15 +52,30 @@ def guard_targets(guard: pathlib.Path) -> list[str]:
 
 
 def sources_read(guard: pathlib.Path) -> list[pathlib.Path]:
-    """Les fichiers du dépôt que ce garde lit ou importe."""
+    """Les fichiers du dépôt que ce garde lit ou importe.
+
+    ⚠️ Trois formes, et la deuxième est celle qui manquait : un chemin littéral, une
+    COMPOSITION `ROOT / "src" / "x.py"` — que ce dépôt utilise partout — et un import
+    de module. Sans la composition, le harnais rendait « aucune source » sur des gardes
+    qui en lisent trois, et concluait « aucune mutation » au lieu de « je n'ai pas
+    trouvé où muter ». Les deux se ressemblent dans une sortie et pas du tout dans un
+    verdict.
+    """
     text = guard.read_text(encoding="utf-8")
     paths: set[pathlib.Path] = set()
     for m in re.finditer(r"['\"]((?:src|airflow|tools|migrations)/[\w/.-]+\.\w+)['\"]", text):
         paths.add(ROOT / m.group(1))
-    for m in re.finditer(r"from\s+(src[\w.]*)\s+import", text):
+    # `_ROOT / "src" / "dashboard" / "app.py"` — la composition par `/`
+    for m in re.finditer(r'(?:\/\s*"[\w.-]+"\s*){2,}', text):
+        bits = re.findall(r'"([\w.-]+)"', m.group(0))
+        if bits and bits[-1].endswith(".py"):
+            paths.add(ROOT.joinpath(*bits))
+    for m in re.finditer(r"from\s+((?:src|tools)[\w.]*)\s+import", text):
         p = ROOT / (m.group(1).replace(".", "/") + ".py")
         if p.exists():
             paths.add(p)
+        elif (d := ROOT / m.group(1).replace(".", "/")).is_dir():
+            paths.update(x for x in d.glob("*.py") if x.name != "__init__.py")
     return sorted(p for p in paths if p.exists() and p.suffix == ".py")
 
 
@@ -70,10 +85,13 @@ def ast_sites(source: pathlib.Path, needle: str) -> list[tuple[int, int]]:
         tree = ast.parse(source.read_text(encoding="utf-8"))
     except (SyntaxError, OSError):
         return []
-    docs = {id(d) for f in ast.walk(tree)
-            if isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module))
-            for d in [f.body[0].value] if f.body and isinstance(f.body[0], ast.Expr)
-            and isinstance(f.body[0].value, ast.Constant)}
+    docs = set()
+    for f in ast.walk(tree):
+        if not isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)):
+            continue
+        body = getattr(f, "body", None)
+        if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
+            docs.add(id(body[0].value))
     out = []
     for n in ast.walk(tree):
         if id(n) in docs:
@@ -95,13 +113,21 @@ def run_guard(guard: pathlib.Path) -> int:
 
 
 def try_mutations(guard: pathlib.Path, budget: int = 6) -> dict:
-    """Rend le premier couple (source, cible) qui fait ROUGIR le garde."""
+    """Rend le premier couple (source, cible) qui fait ROUGIR le garde.
+
+    ⚠️ La sauvegarde et la restauration se font en OCTETS. Mesuré le 2026-09-18 : un
+    round-trip `read_text`/`write_text` NORMALISE les fins de ligne, et ce harnais a
+    réécrit 249 lignes de `csv_exporter.py` (un fichier en CRLF) en croyant le
+    restaurer. Une restauration qui ne restaure pas est la classe
+    `a-surgical-restore-erases-work-nothing-will-give-back` commise par l'outil.
+    """
     if run_guard(guard) != 0:
         return {"skipped": "le garde n'est pas vert avant mutation"}
     cibles = guard_targets(guard)
     essais = 0
     for source in sources_read(guard):
-        original = source.read_text(encoding="utf-8")
+        brut = source.read_bytes()           # l'ORIGINAL, octet pour octet
+        original = brut.decode("utf-8")
         lignes = original.splitlines(keepends=True)
         for needle in cibles:
             sites = ast_sites(source, needle)
@@ -115,10 +141,10 @@ def try_mutations(guard: pathlib.Path, budget: int = 6) -> dict:
             muted[ln - 1] = (lignes[ln - 1][:col]
                              + lignes[ln - 1][col:].replace(needle, needle + "_MUTE", 1))
             try:
-                source.write_text("".join(muted), encoding="utf-8")
+                source.write_bytes("".join(muted).encode("utf-8"))
                 rc = run_guard(guard)
             finally:
-                source.write_text(original, encoding="utf-8")
+                source.write_bytes(brut)      # les OCTETS d'origine, pas un ré-encodage
             if rc != 0:
                 return {"source": str(source.relative_to(ROOT)), "cible": needle,
                         "ligne": ln, "essais": essais}
