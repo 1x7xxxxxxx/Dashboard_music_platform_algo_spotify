@@ -135,7 +135,7 @@ _CEILING: dict[str, int] = {
     # a pas. Écrire `./Makefile` le ferait taire sans rien changer au monde : ce
     # serait contenter le compteur, pas fermer le trou. Le garde EXISTE et sa
     # signature (`grep -q "DEUX COMMITS" Makefile`) a été vue rouge.
-    "error-classes.guard_unnamed": 12,
+    "error-classes.guard_unnamed": 11,
     # Un objet or que rien ne confronte est le premier à dériver en silence : le
     # spend Meta l'a fait pendant des semaines. Zéro, et ça ne remonte pas.
     "invariants.unreconciled": 0,

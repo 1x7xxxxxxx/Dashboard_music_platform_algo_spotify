@@ -135,10 +135,18 @@ def test_the_generator_concludes_on_a_dirty_catalogue(health, monkeypatch) -> No
     monkeypatch.setattr(health, "_catalogue_differs_from_head", lambda: True)
     monkeypatch.setattr(sys, "argv", ["error_class_health.py", "--check"])
     code = health.main()
-    assert code != 3, (
-        "le générateur refuse de nouveau de conclure sur un catalogue modifié (code 3). "
-        "La cérémonie des deux commits revient avec lui : 48 % du journal du 2026-09-18.")
-    assert code == 0, (
-        f"`--check` rend {code} sur un catalogue modifié dont l'instantané est à jour. "
-        "Si c'est 1, le compte de révisions est redevenu instable — vérifier que "
-        "l'arbre de travail est toujours compté comme une révision en attente.")
+    # LA PROPRIÉTÉ EST « IL CONCLUT », PAS « IL EST VERT ».
+    #
+    # ⚠️ La première version affirmait `code == 0`. Elle est passée en local et a
+    # ÉCHOUÉ EN CI, et la raison vaut d'être écrite : forcer « catalogue modifié » sur
+    # un arbre propre fait produire au générateur N+1 révisions pendant que l'artefact
+    # sur le disque en porte N. `--check` rend alors 1, et il a RAISON. Le test
+    # importait donc une seconde propriété — la fraîcheur de l'instantané — qui dépend
+    # de l'état du dépôt au moment où il a été généré. Un test dont le verdict dépend
+    # de la façon dont on est arrivé là ne garde rien de stable.
+    #
+    # `0` = à jour, `1` = périmé : les deux sont des CONCLUSIONS. `3` était le refus.
+    assert code in (0, 1), (
+        f"`--check` rend {code} sur un catalogue modifié. Le code 3 était le refus de "
+        "conclure, et la cérémonie des deux commits revient avec lui : 48 % du journal "
+        "du 2026-09-18.")

@@ -479,12 +479,12 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 **fixed** : 10· **guarded** : 370· **open** : 4· **reported** : 16· **resolved** : 2
 
-**0 classe(s) nomment un fichier de garde qui n'existe plus** et **12** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
+**0 classe(s) nomment un fichier de garde qui n'existe plus** et **11** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
 _Aucune classe ne nomme un garde disparu._
 
 
-Sans chemin de garde : `db-connection-per-show` · `view-session-adoption` · `snapshot-fixture-hook-reflow` · `dag-trigger-without-tenant-scope` · `ast-guard-blind-to-bom` · `migration-ahead-of-its-code` · `repo-copy-of-a-config-is-not-what-runs` · `mermaid-block-does-not-render` · `guard-anchored-on-shape-not-question` · `a-filtered-test-run-proves-nothing` · `a-guard-that-sees-the-binding-not-the-application` · `a-document-that-cannot-be-current-in-its-own-commit`.
+Sans chemin de garde : `db-connection-per-show` · `view-session-adoption` · `snapshot-fixture-hook-reflow` · `dag-trigger-without-tenant-scope` · `ast-guard-blind-to-bom` · `migration-ahead-of-its-code` · `repo-copy-of-a-config-is-not-what-runs` · `mermaid-block-does-not-render` · `guard-anchored-on-shape-not-question` · `a-filtered-test-run-proves-nothing` · `a-guard-that-sees-the-binding-not-the-application`.
 
 
 ## Ce qui n'est gardé par rien
@@ -562,7 +562,7 @@ Le défaut qui a fait naître cette section : `meta_insights_performance` et `me
 | 3 | Install dependencies from lockfile | sync | bloquante |
 | 4 | Manifest consistency (blocking) | check_manifest_consistency.py | bloquante |
 | 5 | Lint (ruff) — full project (blocking) | ruff check | bloquante |
-| 6 | REX integrity + static error-class guards (blocking) | validate_rex.py, audit_runner.py, check_config_refs.py, check_ci_waste.py, gold_coverage.py, error_class_famil | bloquante |
+| 6 | REX integrity + static error-class guards (blocking) | validate_rex.py, audit_runner.py, check_config_refs.py, check_ci_waste.py, error_class_families.py, gold_cover | bloquante |
 | 7 | Install uv | — | bloquante |
 | 8 | Set up Python 3.11 | — | bloquante |
 | 9 | Install dependencies from lockfile | sync | bloquante |
@@ -650,9 +650,9 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-gold-objects: total=24 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=19 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=402 guard_missing=0 guard_unnamed=12 -->
+<!-- gold-coverage-error-classes: total=402 guard_missing=0 guard_unnamed=11 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=20 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=12 blocking=12 -->
 
-<!-- gold-coverage: sha256=37188331c77164f61015dde1f3c04c58737682714c0101fe95878616ae220f5c -->
+<!-- gold-coverage: sha256=fe2dd76c4b1a4d50bddfecc6f20409a1cac832e8b58b30aed9759644f67640f1 -->
