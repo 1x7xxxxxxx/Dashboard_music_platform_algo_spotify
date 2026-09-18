@@ -125,3 +125,4 @@
 {"at": "2026-09-18T22:18:42+00:00", "head": "c3b06d0", "kind": "park", "task": "R134", "what": "0 table sur 8 calibrable localement (la mieux fournie a 12% de jours couverts) — outillage livre, la donnee est en prod"}
 {"at": "2026-09-18T22:22:26+00:00", "head": "b2f8a8e", "kind": "done", "task": "R134", "what": "parquee : 0/8 calibrable en local ; calibrateur + garde de derivation livres et mutes"}
 {"at": "2026-09-18T22:23:20+00:00", "head": "b2f8a8e", "kind": "start", "task": "R143", "what": "divergences type declare <-> base : 4 non expliquees par une migration, dont une identite de locataire"}
+{"at": "2026-09-18T22:33:17+00:00", "head": "5017af4", "kind": "done", "task": "R143", "what": "premisse de R135 fausse : la cause est CREATE TABLE IF NOT EXISTS (55x) ; 44 divergences, 2 sites vivants dont une identite de locataire ; classe + garde auto-prouvant"}
