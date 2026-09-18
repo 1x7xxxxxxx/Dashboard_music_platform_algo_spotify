@@ -199,7 +199,9 @@ _SPOTIFY = PlatformCred(
     # PDF à l'inscription, où ni l'une ni l'autre ne désigne quoi que ce soit.
     #
     # Le nom du champ, lui, est le même partout. Il vient de `fields=` ci-dessous :
-    # `tests/test_a_guide_step_names_a_field_that_exists.py` échoue s'ils divergent.
+    # `tests/test_a_guide_step_names_a_field_not_a_direction.py` échoue s'ils divergent.
+    # (Le nom annoncé ici jusqu'au 2026-09-18 — `…_a_field_that_exists.py` — n'a jamais
+    # existé. Un renvoi qui manque ne se plaint pas : il envoie chercher.)
     steps=(
         CredStep("Bouton `•••` → **Partager** → **Copier le lien vers l'artiste** → "
                  "colle-le dans le champ **URL profil artiste**, à gauche.",

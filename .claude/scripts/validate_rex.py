@@ -67,7 +67,7 @@ _SCAN_DIRS: list[tuple[str, str]] = [
     ("scripts",   "*.py"),
     # ADDED 2026-07-22. `inject_context.py:91` self-wires tools from ("skills", "rules", "workflows")
     # — so a workflow IS an injectable tool — but this list omitted `workflows`, and so did
-    # `tests/test_claude_config.py`. Consequence measured that day: `bug-resolution.md` had been
+    # `tests/test_claude_config_floor.py` (renomme depuis). Consequence measured that day: `bug-resolution.md` had been
     # injected **35 times** (usage_report INJECTIONS), the third most-fired injectable in the repo,
     # and it could not carry a `rex:` block. The workflow whose whole job is to turn a bug into a
     # recorded lesson was the one tool structurally unable to record one.
@@ -75,8 +75,12 @@ _SCAN_DIRS: list[tuple[str, str]] = [
     # coverage of the tool surface. It was not: a whole tree sat outside the denominator. Same shape
     # as `roadmap_stats` counting `- [ ]` while `- [~]` items sat unticked, and as I6 asserting a hole
     # two pieces of work had already closed — a green number whose denominator omits the unscanned.
-    # `tests/test_rex_covers_every_injectable.py` now derives this list from the INJECTOR, so a tree
-    # added there can never again be silently unvalidated here.
+    # `tests/test_no_rex_lives_outside_the_validator.py::test_every_rex_bearing_markdown_is_visited`
+    # ferme ce trou, et AUTREMENT que ce commentaire l'a longtemps annonce : il ne derive pas
+    # cette liste de l'injecteur, il balaie TOUT `.md` sous `.claude/` portant un `rex:` et exige
+    # que le validateur le visite. C'est plus large — un fichier a rex hors de tout arbre declare
+    # est attrape aussi. Le nom annonce ici (`test_rex_covers_every_injectable.py`) n'a jamais
+    # existe ; corrige le 2026-09-18 (R141).
     ("workflows", "*.md"),
 ]
 

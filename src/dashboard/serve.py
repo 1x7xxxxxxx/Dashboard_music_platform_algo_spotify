@@ -61,7 +61,10 @@ def main() -> int:
     # le registre par DÉFAUT, donc un enregistrement dans `_build()` ferait exposer la
     # même jauge par les deux processus — `sum()` doublerait, et l'API exécuterait la
     # requête à chaque scrutation. Contrôle :
-    # `tests/test_the_defect_gauge_is_installed_once_and_only_by_the_dashboard.py`.
+    # `tests/test_the_api_measures_itself_without_unbounded_labels.py:118-122` — il exige
+    # l'appel ICI et son ABSENCE dans `src/api/main.py`. Le nom annonce ici jusqu'au
+    # 2026-09-18 (`test_the_defect_gauge_is_installed_once_and_only_by_the_dashboard.py`)
+    # n'a jamais existe : un renvoi qui manque ne se plaint pas, il envoie chercher.
     try:
         from src.utils.defect_gauge import install_open_defects_collector
 

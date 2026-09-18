@@ -138,6 +138,29 @@ def _reads_source_textually(path: Path) -> bool:
     body = path.read_text(encoding="utf-8")
     if "ast.parse" in body or "ast.walk" in body:
         return False
+    # `tokenize` EST une lecture structurelle, et c'est la SEULE possible pour un
+    # commentaire : l'AST de Python les jette. Un garde qui veut lire « les commentaires
+    # en tant que commentaires » ne peut pas passer par `ast`, et l'y contraindre
+    # reviendrait à interdire la question.
+    #
+    # Ajouté le 2026-09-18 pour `test_a_comment_names_a_test_that_exists.py` (R141), qui
+    # lit le flux de jetons pour ne PAS attraper un chemin cité dans du code ou une
+    # chaîne. Mesuré avant de l'écrire, parce que desserrer un cliquet se mesure :
+    # **22 gelées sur 22 restent détectées** avec cette exemption, et seuls **trois**
+    # fichiers de tests utilisent `tokenize` dans tout le dépôt. Elle n'ouvre donc pas
+    # de budget — elle nomme un outil que le premier terme avait simplement oublié.
+    #
+    # ⚠️ **Brèche connue, et elle n'est pas neuve.** Un fichier qui écrit `tokenize.`
+    # n'importe où est exempté, même s'il compare ensuite des chaînes — vérifié en
+    # fabriquant une sonde purement textuelle : rouge sans le mot, verte avec. La MÊME
+    # évasion existe depuis toujours pour `ast.parse`, qu'il suffit d'écrire dans un
+    # commentaire. La fermer demanderait de prouver que l'outil s'applique au contenu LU,
+    # c'est-à-dire une analyse de teinture — le correctif que `_TEXTUAL_GUARDS` documente
+    # comme hors de proportion après trois tentatives mesurées. Ce prédicat est une
+    # heuristique qui rend le geste facile à faire et le contournement visible, pas une
+    # preuve.
+    if "tokenize." in body:
+        return False
     # DÉLÉGUER LA LECTURE STRUCTURELLE N'EST PAS LA PERDRE. Depuis le 2026-09-12,
     # `tests/nav_source.py` est le seul endroit qui sait où vit la déclaration du
     # menu et l'évalue par `ast` — neuf gardes la lisaient chacun à sa façon, et le
