@@ -26,7 +26,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 
-**Aucune tâche n'est ouverte dans cet index** — R135 a été livrée le 2026-09-20.
+**Aucune tâche n'est ouverte dans cet index.** R145 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance, close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
 L'ancre `reprise:` ne nomme donc plus que les lignes en attente d'un geste humain. La table « 🙋 En attente de toi »
 plus bas est **VIDE** pour la première fois depuis son ouverture. R140, R125 et R134 en
 sont sorties le 2026-09-20 — les dix-sept décisions de la première tranchées et
@@ -116,24 +116,27 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-18 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-20 (à lire EN PREMIER au `/resume`)
 
 <!-- reprise: open= -->
 
-**R125 est entrée le 2026-09-18, et elle n'attend qu'un geste de trois minutes.** Mesuré
-en production : `ml_song_predictions` porte 617 lignes, `s4a_song_algo_outcomes` (la
-saisie humaine) en porte 0, `ml_prediction_outcomes` 0, et le DAG hebdomadaire
-`ml_outcome_labeling` n'a aucune entrée dans `etl_run_log`. **Le jeu d'entraînement du
-scoring n'accumule rien depuis la livraison de la brique 16**, et rien ne le signale :
-une table vide se lit comme « pas encore de données ». Procédure au §15 du runbook des
-gestes humains.
+**R125 est LIVRÉE le 2026-09-20**, par le propriétaire. La saisie humaine
+`s4a_song_algo_outcomes` porte **33 lignes en production** ; elle en portait 0 depuis la
+livraison de la brique 16, et rien ne le signalait — une table vide se lit comme « pas
+encore de données ». Le défaut qui a retardé la saisie est capitalisé :
+`a-confirmation-thrown-away-by-the-rerun-that-follows-it` — le bouton enregistrait
+réellement, et `st.rerun()` jetait le rendu qui portait le `st.success()`. **23 sites**
+de la même forme dans `src/dashboard/`, tous convertis à `flash()` / `show_flash()`.
 
-**R135 est entrée le 2026-09-18, mesurée contre la production.** La comparaison des deux
-schémas (1187 colonnes contre 1196) nomme une divergence de TYPE :
-`soundcloud_tracks_daily.track_id` est `bigint` en prod et `character varying` en local.
-Rien ne casse aujourd'hui — Postgres transtype les identifiants numériques — et c'est
-exactement pourquoi elle a survécu. Elle apparaîtra à la première comparaison sur cette
-colonne : **un test vert ici échouera là-bas**.
+**R135 est LIVRÉE le 2026-09-20, et sa prémisse était FAUSSE.** Elle annonçait une
+divergence de type isolée (`soundcloud_tracks_daily.track_id`, `bigint` en prod contre
+`character varying` en local). La mesure en a trouvé **44**, et la cause n'était pas
+celle-là : `CREATE TABLE IF NOT EXISTS` n'applique RIEN sur une table qui existe déjà —
+**55 occurrences** dans `init_db.sql`. Une colonne ajoutée là sans migration ne change
+aucune base déjà créée, et le fichier décrit alors un schéma qui n'existe nulle part.
+Cliquet posé à **43** divergences (migration 127 en a retiré une), avec sa non-vacuité
+ajoutée le 2026-09-20 : plafond serré ET population plancherée à 560 colonnes / 58
+tables. Classe : `a-create-if-not-exists-that-declares-nothing`.
 
 **R116 a quitté l'index le 2026-09-17**, pas ce fichier : `daily_ops_metrics` ne porte qu'une ligne (`complete = FALSE`, percentiles de rendu tous `NULL`), donc la courbe qui doit trancher l'ADR-027 n'existe pas encore. Son bloc de détail — non coché, pas livré — reste **ici**, dans une nouvelle section `## ⏸️ R116` hors des deux tables d'index : `archive.md` est strictement passif (aucun item non coché n'y est admis — `test_the_archive_holds_nothing_actionable`), et R116 n'est ni livrée ni abandonnée. Son déclencheur de réouverture est la ligne `daily_ops_metrics` de `### Conditions d'attente` ci-dessous. Elle n'a donc plus de ligne dans l'index actionnable ni dans « 🙋 En attente de toi » — elle n'attend aucun geste humain, seulement du trafic — et pour cette même raison elle **sort de l'ancre**, qui ne porte que ce que les deux tables de ce fichier listent encore.
 

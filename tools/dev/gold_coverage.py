@@ -738,8 +738,51 @@ class Slicer:
         return None
 
     # ── lecture d'un exécuteur SQL ────────────────────────────────────────
-    def _read_sql(self, arg, scope: Scope, pf: PyFile, out: Slice):
+    def _sql_through_call(self, arg, pf: PyFile, here: str) -> str | None:
+        """Le SQL d'un appel dont le corps rend un littéral — UN niveau, pas plus.
+
+        Pourquoi ce saut existe (R145, 2026-09-20)
+        ------------------------------------------
+        Une grandeur qui ne doit avoir qu'UNE définition finit dans un helper —
+        `src/utils/mrr.py::mrr_by_plan_sql()` — et cesse alors d'être un littéral au
+        site d'appel. Sans ce saut, centraliser une requête faisait PERDRE sa source à
+        la carte : les figures à source établie sont tombées de 93 à 85 sur 204 le jour
+        où R140 a unifié le MRR, alors que les trois tables (`artist_subscriptions`,
+        `subscription_plans`, `saas_artists`) restaient parfaitement lisibles dans le
+        corps du helper.
+
+        Le remède ne pouvait pas être de défaire la centralisation : elle corrigeait
+        une divergence réelle entre deux surfaces qui affichaient deux nombres sous le
+        même libellé. C'est à l'analyseur de suivre.
+
+        UN niveau seulement, et c'est délibéré : au-delà, ce n'est plus « lire une
+        requête », c'est exécuter le programme — et le document doit rester capable de
+        dire « je ne sais pas » plutôt que d'inventer.
+        """
+        if not isinstance(arg, ast.Call):
+            return None
+        q = _qualify(arg.func, pf, here)
+        if not q:
+            return None
+        tgt = self._definition(q)
+        if tgt is None:
+            return None
+        trel, tfn = tgt
+        tpf = self.files.get(trel)
+        if tpf is None:
+            return None
+        tscope = build_scope(tfn)
+        for n in ast.walk(tfn):
+            if isinstance(n, ast.Return) and n.value is not None:
+                texte = _sql_text(n.value, tscope, tpf)
+                if texte:
+                    return texte
+        return None
+
+    def _read_sql(self, arg, scope: Scope, pf: PyFile, out: Slice, here: str | None = None):
         text = _sql_text(arg, scope, pf) if arg is not None else None
+        if not text and arg is not None and here is not None:
+            text = self._sql_through_call(arg, pf, here)
         if not text:
             out.flags.add("sql-dynamique")
             return
@@ -804,7 +847,7 @@ class Slicer:
                 fname = getattr(node.func, "attr", None) or getattr(node.func, "id", None)
                 arg = self.sql_arg(node, pf, here)
                 if arg is not None:
-                    self._read_sql(arg, scope, pf, out)
+                    self._read_sql(arg, scope, pf, out, here)
                     continue
                 q = _qualify(node.func, pf, here)
                 if q and any(q.startswith(d + ".") for d in _DOOR_MODULES):
@@ -940,7 +983,7 @@ def all_reads(files, slicer) -> list[Read]:
                 if arg is None:
                     continue
                 tmp = Slice()
-                slicer._read_sql(arg, scope, pf, tmp)
+                slicer._read_sql(arg, scope, pf, tmp, here)
                 if not tmp.sources:
                     continue
                 text = _sql_text(arg, scope, pf) or ""
@@ -1144,7 +1187,7 @@ def neighbourhood(files, slicer, surfaces):
                         if arg is None:
                             continue
                         tmp = Slice()
-                        slicer._read_sql(arg, scope, pf, tmp)
+                        slicer._read_sql(arg, scope, pf, tmp, here)
                         found |= {n for _, n in tmp.sources}
             cache[key] = found
         s.neighbourhood = cache[key] - {n for _, n in s.sl.sources}
@@ -1963,7 +2006,7 @@ def build() -> str:
                 if arg is None:
                     continue
                 tmp = Slice()
-                slicer._read_sql(arg, scope, pf, tmp)
+                slicer._read_sql(arg, scope, pf, tmp, here)
                 for _, name in tmp.sources:
                     if name in gold:
                         gold[name].consumers.add(f"{rel}:{node.lineno}")

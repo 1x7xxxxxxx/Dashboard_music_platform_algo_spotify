@@ -127,3 +127,4 @@
 {"at": "2026-09-18T22:23:20+00:00", "head": "b2f8a8e", "kind": "start", "task": "R143", "what": "divergences type declare <-> base : 4 non expliquees par une migration, dont une identite de locataire"}
 {"at": "2026-09-18T22:33:17+00:00", "head": "5017af4", "kind": "done", "task": "R143", "what": "premisse de R135 fausse : la cause est CREATE TABLE IF NOT EXISTS (55x) ; 44 divergences, 2 sites vivants dont une identite de locataire ; classe + garde auto-prouvant"}
 {"at": "2026-09-20T17:07:27+00:00", "head": "af0f7a8", "kind": "start", "task": "R144", "what": "R140 : integration des 17 decisions"}
+{"at": "2026-09-20T20:49:45+00:00", "head": "0ad820c", "kind": "done", "task": "R144", "what": "R140 : les 17 decisions integrees, R125/R134/R135/R142/R143 closes, 50 commits deployes, 2 classes d'erreur, R145 ouverte sur mesure"}

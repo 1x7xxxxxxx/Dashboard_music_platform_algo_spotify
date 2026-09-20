@@ -7917,3 +7917,48 @@ les 50 %. C'est la seule des huit qui puisse basculer, et le jour où elle le fe
    produit une alerte quotidienne que personne ne lit.
 
 **Mesuré par** : `make dip-calibrate-prod PROD_SSH=…` → « 0 table(s) calibrable(s) sur 8 ».
+
+## R145 — La carte de la couche or ne sait plus lire 8 figures · P4
+
+- [x] **R145 — rendre au générateur de `gold-coverage.md` la capacité de suivre UN niveau de composition SQL.**
+
+  **Ce n'est pas un défaut du code — c'est une perte de lisibilité de la carte**, et la
+  distinction commande la priorité. Les figures concernées sont correctes et conformes à
+  la règle transverse #8 : leur table est validée contre une allowlist avant
+  interpolation. Ce qui a changé, c'est que le SQL n'est plus un littéral au site
+  d'appel.
+
+  **Mesuré le 2026-09-20**, avant et après la journée, par régénération :
+
+  | grandeur | avant | après |
+  |---|---|---|
+  | figures à source établie | 93 / 204 | **85 / 204** |
+  | figures déclarées indéterminées | 11 | **19** |
+  | motif `sql-dynamique` | 17 | **25** |
+
+  **La cause est nommée, pas supposée** — les deux fonctions qui basculent sont
+  `views/admin.py::_render_supervision` et `views/billing.py::_show_admin_view`, et
+  toutes deux appellent désormais les helpers que R140 a introduits pour qu'une
+  grandeur n'ait qu'UNE définition :
+
+  - `src/utils/mrr.py::mrr_by_plan_sql()` — le MRR se calculait dans deux surfaces qui
+    divergeaient ; il en a maintenant une seule définition ;
+  - `src/utils/tenant_kind.py::HUMAN_TENANTS` — le prédicat « locataire humain »,
+    composé en f-string dans la requête.
+
+  **Le bon remède n'est donc PAS de défaire la centralisation** : elle a corrigé une
+  divergence réelle entre deux surfaces. C'est l'analyseur qui doit suivre un appel de
+  fonction dont le retour est un littéral SQL, comme il suit déjà les constantes.
+
+  ⚠️ **Le piège de mesure, à ne pas répéter** : la première lecture du diff était 117
+  lignes ajoutées / 116 retirées, dont l'écrasante majorité n'est que du décalage de
+  numéro de ligne. Le chiffre qui compte ne se lit pas dans `git diff --stat` — il se lit
+  dans les trois agrégats du tableau ci-dessus. Un balayage qui aurait compté les lignes
+  du diff aurait annoncé 233 sites pour 8 figures : règle 20, une FORME au lieu d'une
+  PROPRIÉTÉ.
+
+  **Mesuré par** : `make gold-coverage` puis `grep -c "sql-dynamique" .claude/dev-docs/gold-coverage.md` — la ligne de synthèse doit rendre `sql-dynamique` à **17** et « **93 sur 204** portent une source établie ».
+
+  ✅ **LIVRÉE le 2026-09-20**, le jour de son ouverture. `_sql_through_call` suit UN niveau de composition : un appel dont le corps rend un littéral SQL est résolu dans le fichier cible, et ses tables redeviennent lisibles. Mesuré — figures à source établie **85 → 93 sur 204**, `sql-dynamique` **25 → 17**. Le saut a été muté vacant (`return None` d'entrée) : la carte retombe à 85 / 25, donc il n'est pas décoratif. Garde : `tests/test_the_gold_map_follows_one_level_of_sql_composition.py`, muté rouge deux fois — méthode renommée, et un lecteur privé de son module `here`.
+
+  **Ce qui n'a PAS été fait, et c'est délibéré** : le saut s'arrête à un niveau. Au-delà, ce n'est plus lire une requête, c'est exécuter le programme — et la carte doit garder le droit de dire « je ne sais pas » plutôt que d'inventer.

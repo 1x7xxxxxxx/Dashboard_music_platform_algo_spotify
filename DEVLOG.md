@@ -5,6 +5,139 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-20 — La roadmap atteint zéro, et trois de mes propres chiffres étaient locaux
+
+**Ce qui a changé** — R135, R140 (dix-sept décisions), R142, R143, R125 et R134 closes ;
+50 commits et 4 migrations déployés en production ; deux classes d'erreur écrites. La
+table « 🙋 En attente de toi » est **VIDE pour la première fois**, et l'index des tâches
+ouvertes est tombé à zéro avant de rouvrir sur une seule ligne, R145, née d'une mesure
+faite en fin de séance.
+
+### Le défaut que le propriétaire a trouvé en trois minutes
+
+« J'ai appuyé sur enregistrer les outcomes 7j + 28j mais rien ne m'a communiqué que ça
+avait été enregistré. » L'enregistrement **marchait**. Ce qui manquait, c'est que
+`st.rerun()` jette le rendu courant : le `st.success()` juste avant lui n'est jamais
+peint. Une action qui réussit se lit alors exactement comme une action qui échoue —
+l'utilisateur recommence, ou conclut que la fonctionnalité est cassée.
+
+Le balayage a rendu **23 sites** de la même forme dans `src/dashboard/`, tous convertis à
+`flash()` / `show_flash()` — un message déposé en session, consommé par `pop()` au rendu
+suivant. Classe `a-confirmation-thrown-away-by-the-rerun-that-follows-it`, gardée par un
+détecteur AST qui couvre les **quatre** niveaux (`success`, `info`, `warning`, `error`) :
+un `st.error` avalé par un rerun est pire encore, puisque l'échec devient invisible.
+
+### Trois fois le même défaut, dans mes propres rapports
+
+Le plus instructif de la journée n'est pas dans le code. En voulant fermer la roadmap,
+j'ai découvert que `tools/dev/reopen_check.py` — l'outil qui décide si une tâche parquée
+doit rouvrir — lisait `localhost:5433`. Il annonçait « R116 : 0 jour complet » et
+« R131 : 5 jours sur 30 » ; la production porte **2** et **4**. Le motif correct vivait
+**dans le même fichier** : `_r114()` exigeait déjà `PROD_SSH` et levait sans lui.
+
+Et la classe s'est révélée en comptant : **quatre occurrences le même jour, trois de ma
+main**. Neuf artefacts de test annoncés comme un défaut de production (`UPDATE 0`
+là-bas) ; un scheduler annoncé à 30 s alors qu'il était déjà à 300 ; une procédure de
+runbook écrite sans avoir été exécutée — le serveur n'a pas `psycopg2`. J'ai commis trois
+fois l'erreur que je cherchais. Classe
+`a-local-measurement-presented-as-a-production-fact`, P2, et un site reste **VIVANT et
+déclaré** : `tools/error_inbox.py` génère un document commité depuis la base joignable —
+empreinte `513cba56…` en local, `b5a19ecf…` en production, pour un compte identique de
+1 ligne des deux côtés. Deux erreurs qui s'annulent donnent un total juste et un verdict
+faux.
+
+### Ce que la production a appris à `/health`
+
+Déployé, `/health` a rendu **503 sur une base saine**. `resolve_kwargs()` ne lit pas
+`DATABASE_URL`, et les conteneurs `api`/`dashboard` n'ont que celle-là — pas de
+`DATABASE_HOST`, pas de `config/config.yaml`. L'API servait normalement pendant ce
+temps (`/auth/token` → 401). Corrigé par `from_env_or_config()`.
+
+**Cinq de mes tests étaient verts pendant ce 503**, parce que trois d'entre eux
+simulaient `_base_repond` — la fonction même que le test prétend vérifier. C'est
+`security-specialist` qui l'a trouvé, avec quatre autres constats : aucun verrou (20
+sondes = 20 connexions), l'horodatage écrit avant la sonde, une écriture de cache en deux
+temps, et un `SET LOCAL` inerte sous `autocommit`.
+
+### Les trois cliquets rouges après `/capitalise`, réparés et non desserrés
+
+Écrire les deux classes a fait rougir trois cliquets — et aucun n'a été desserré :
+
+| rouge | cause | correctif |
+|---|---|---|
+| classe rangée parmi les dormantes | insertion alphabétique : la classe a atterri après le séparateur alors que son balayage a trouvé un site vivant | déplacée dans la section vivante |
+| 4 orphelins de famille contre 3 | aucun motif ne retenait la classe neuve | `thrown-away` ajouté, écrit sur le SORT du résultat et non sur `rerun` — le mécanisme d'une seule surface. Mesuré avant l'ajout : il ne déplace aucune classe déjà classée |
+| `guard_does_not_prove_itself` 308 > 306 | mes deux gardes portaient une DATE, pas une auto-preuve | les deux détecteurs rejouent le défaut ET son correctif à chaque exécution |
+
+Les auto-preuves ont été mises en défaut pour de bon, ligne vérifiée changée :
+`perdus = []` → 5 rouges ; `vus.add(appele)` retiré → 3 rouges. Chacune porte aussi un
+**faux positif fabriqué** (règle 20) — un message sans rerun derrière, un
+`from_env_or_config` appelé par une fonction voisine hors du chemin du contrôle.
+
+Effet mesuré sur le catalogue : 406 classes, `sites_unknown` **100 → 2**,
+`guard_does_not_prove_itself` revenu à son plafond de 306, 108 balayages avec trouvaille
+pour **440 sites vivants**.
+
+### La prémisse de R135 était fausse, et c'est ce qui l'a rendue utile
+
+R135 annonçait UNE divergence de type (`soundcloud_tracks_daily.track_id`). La mesure en
+a trouvé **44**, et la cause était ailleurs : `CREATE TABLE IF NOT EXISTS` n'applique
+RIEN sur une table qui existe — **55 occurrences** dans `init_db.sql`. Une colonne
+ajoutée là sans migration ne change aucune base déjà créée, et le fichier décrit alors un
+schéma qui n'existe nulle part. Cliquet à **43** après migration 127, dont la première
+version a fait rougir 23 tests : elle supprimait `v_platform_totals` sans la recréer,
+parce qu'elle capturait les dépendances DIRECTES là où `CASCADE` en emporte la fermeture
+TRANSITIVE. Réécrite en CTE récursive, recréation des feuilles vers la racine.
+
+### R145, ouverte ET close en fin de séance — par un cliquet qui a refusé
+
+Régénérer `gold-coverage.md` a montré que les figures à source établie tombaient de
+**93 à 85 sur 204**, `sql-dynamique` de 17 à **25**. Ce n'est pas un défaut : les deux
+fonctions qui basculent (`admin.py::_render_supervision`, `billing.py::_show_admin_view`)
+appellent les helpers que R140 a introduits pour qu'une grandeur n'ait qu'UNE définition
+(`mrr_by_plan_sql()`, `HUMAN_TENANTS`). Le SQL cesse d'être un littéral au site d'appel,
+et l'analyseur ne sait plus le suivre. Le remède n'est donc pas de défaire la
+centralisation — c'est d'apprendre à l'analyseur à suivre un niveau de composition.
+
+**C'est un garde qui a forcé la correction le soir même.** J'allais clore la séance en
+laissant R145 ouverte ; la suite complète est revenue avec
+`test_no_counter_of_holes_ever_grows` : « tiles.unknown : 19 contre un plafond de 11 ».
+Les deux issues étaient de corriger, ou de desserrer le plafond — et desserrer un plafond
+pour faire taire un garde qui a raison est précisément ce que la consigne permanente
+interdit. `_sql_through_call` résout donc un appel dont le corps rend un littéral SQL
+dans le fichier cible : **85 → 93 figures** à source établie, `sql-dynamique` **25 → 17**.
+Vingt lignes, parce que `self.files` et `_qualify` existaient déjà.
+
+⚠️ **Le cliquet était vert cinq minutes plus tôt, sur des données périmées.** Il lit le
+document généré, et le document n'avait pas été régénéré depuis le 2026-09-18. La
+régression datait du matin ; c'est `make gold-coverage` qui l'a rendue visible, pas le
+garde. Un cliquet qui lit un artefact ne vaut que par la fraîcheur de l'artefact —
+`make gold-coverage-check` existe exactement pour ça, et il annonçait bien `PÉRIMÉ`.
+
+⚠️ **Le piège de mesure vaut d'être noté** : la première lecture du diff était 117 lignes
+ajoutées / 116 retirées, dont l'écrasante majorité n'est que du décalage de numéro de
+ligne. Un balayage qui aurait compté les lignes aurait annoncé 233 sites pour 8 figures.
+Règle 20 : une FORME au lieu d'une PROPRIÉTÉ.
+
+### Le cliquet de schéma n'avait pas de non-vacuité
+
+Trouvé par la même régénération : `test_the_declared_schema_matches_the_database.py`
+portait `_PLAFOND = 43` **sans test de non-vacuité**. « 43 divergences au plus » est
+trivialement vrai sur zéro colonne lue — le cliquet serait resté vert en ne mesurant plus
+rien. Trois moitiés ajoutées et mutées rouges : plafond **serré** (43 = 43), population
+**plancherée** (560 colonnes / 58 tables, mesurées à 598 / 61), et le comparateur de
+types mis en défaut (`normaliser` rendant une constante → 14 rouges).
+
+### État en fin de séance
+
+- Suite complète : **8647 verts, 54 skippés, 0 rouge** (236,75 s).
+- Roadmap : **0 tâche ouverte**, « En attente de toi » **vide**, deux tâches
+  parquées qui n'attendent que du trafic — R116 à 2 jours complets sur 14, R131 à 4 sur 30,
+  **chiffres de production** depuis aujourd'hui.
+- Le seul travail restant est l'usage du produit : inviter la bêta.
+
+---
+
 ## 2026-09-18 — Six axes pour rendre la boucle de travail moins chère, et un facteur 4,9 qui était un biais
 
 Le propriétaire a arrêté la passe sur le catalogue d'erreurs et demandé **où le dépôt

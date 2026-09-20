@@ -10,9 +10,20 @@
 # Machine AU REPOS. Vérifier d'abord qu'on est seul :
 ps -eo cmd | python3 -c "import sys; print(sum(1 for l in sys.stdin if any(k in l for k in ('pytest','audit_runner','agent'))),'processus lourds')"
 
-# Puis, jamais `python3` nu, jamais `> fichier` (RTK avale la sortie redirigée) :
-rtk proxy .venv/bin/python -m pytest tests/ -n auto --dist loadfile -q 2>&1 | tail -5
+# Puis, jamais `python3` nu, jamais `> fichier` (RTK avale la sortie redirigée).
+# ⚠️ Passer par `make test` — les drapeaux vivent dans le Makefile et la forme nue les
+# perd. `make` écrit `.pytest-last.log` au fil de l'eau, donc la progression est lisible.
+make test 2>&1 | tail -5
 ```
+
+⚠️ **Le bloc ci-dessus a nommé `-n auto --dist loadfile` jusqu'au 2026-09-20**, alors que
+le Makefile est passé à `-n $(PYTEST_WORKERS) --dist loadgroup` le 2026-09-17, après deux
+morts par OOM en une heure. `PYTEST_WORKERS` est **calculé** —
+`(MemAvailable_Mo − 5120) / 700`, borné à `[2, nproc]` — et sur cette WSL plafonnée à
+10 Go il ne peut pas atteindre 8 ; il tombe à **2** dès que la pile Docker tourne.
+Reprendre la « référence » avec l'ancienne ligne mesurait donc une configuration que rien
+ne lance, et la comparer aux chiffres de ce document aurait comparé deux régimes
+différents. C'est la raison pour laquelle on passe par `make` et jamais par la forme nue.
 
 | Mesure | Valeur | Date |
 |---|---|---|
@@ -24,6 +35,14 @@ rtk proxy .venv/bin/python -m pytest tests/ -n auto --dist loadfile -q 2>&1 | ta
 | Un test trivial dans `tests/`, après | **9,24 s** | 2026-09-15 |
 | `audit_runner --static` | 199,4 s | 2026-09-15 |
 | `audit_runner --deterministic` | **expire à 1800 s** | 2026-09-15 |
+| Suite complète, `make test` (`-n 2`, pile Docker up) | **236,75 s** pour 8 647 verts / 54 skippés | 2026-09-20 |
+
+⚠️ **Les lignes datées du 2026-09-15 décrivent `/mnt/c` et `--dist loadfile`** — deux
+choses qui ont changé depuis (R117 a déplacé le dépôt sur ext4 ; le 2026-09-17 a changé
+les drapeaux). Elles restent ici parce qu'un chiffre daté est une citation, pas une
+affirmation d'aujourd'hui ; elles ne se comparent pas à la ligne du 2026-09-20.
+La suite a aussi **grossi de 25 %** entre les deux (5 764 tests collectés le 2026-09-15,
+8 701 le 2026-09-20) : le mur ne se compare pas non plus à population différente.
 
 La suite varie de ±40 % d'une exécution à l'autre sur cette machine. **Un écart de
 moins de 40 % n'est pas un résultat.** Ne jamais conclure sur une seule paire.

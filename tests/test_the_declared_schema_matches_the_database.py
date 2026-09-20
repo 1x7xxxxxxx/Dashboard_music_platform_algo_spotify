@@ -132,6 +132,65 @@ def test_the_number_of_divergences_only_falls() -> None:
         "`init_db.sql`.")
 
 
+
+# ── Non-vacuité du cliquet ────────────────────────────────────────────────────
+# Un cliquet pose DEUX questions, et la seconde est celle qu'on oublie : le plafond
+# est-il serré, et la population est-elle plancherée ? « 43 divergences au plus » est
+# trivialement vrai sur zéro colonne lue — et c'est exactement ce qui arrive si
+# `init_db.sql` est déplacé ou si le parseur cesse de reconnaître une forme de
+# déclaration. Le cliquet resterait vert en ne mesurant plus rien.
+
+_PLANCHER_COLONNES = 560
+_PLANCHER_TABLES = 58
+
+
+def test_the_ratchet_measures_a_population_that_is_not_empty() -> None:
+    """NON-VACUITÉ, moitié population. 598 colonnes / 61 tables le 2026-09-20."""
+    d = declarations()
+    tables = {k[0] for k in d}
+    assert len(d) >= _PLANCHER_COLONNES, (
+        f"{len(d)} colonnes déclarées lues, contre un plancher de {_PLANCHER_COLONNES}. "
+        "Le cliquet ci-dessus compterait des divergences sur une population amputée — "
+        "il resterait VERT en ne mesurant plus rien. Si la baisse est voulue (tables "
+        "réellement supprimées), baisser le plancher DANS LE MÊME COMMIT.")
+    assert len(tables) >= _PLANCHER_TABLES, (
+        f"{len(tables)} tables déclarées lues, contre un plancher de {_PLANCHER_TABLES}.")
+
+
+def test_the_ceiling_is_tight_not_slack() -> None:
+    """NON-VACUITÉ, moitié plafond. Un plafond au-dessus de la mesure est du mou.
+
+    Il autorise en silence exactement ce qu'il prétend interdire : avec `_PLAFOND` à 50
+    pour 43 divergences réelles, sept régressions passeraient sans un mot.
+    """
+    db = _db()
+    if db is None:
+        pytest.skip("base injoignable — la mesure n'est pas possible")
+    try:
+        mesure = len(divergences(db))
+    finally:
+        db.close()
+    assert mesure == _PLAFOND, (
+        f"{mesure} divergence(s) mesurée(s) pour un plafond de {_PLAFOND}. Un plafond "
+        "au-dessus de la mesure est du MOU : il laisse passer la différence sans rien "
+        "dire. S'il vient de descendre, recaler `_PLAFOND` sur la mesure dans le même "
+        "commit que la correction.")
+
+
+def test_the_divergence_detector_sees_a_divergence_it_is_written_for() -> None:
+    """NON-VACUITÉ, moitié prédicat : sur une paire fabriquée, le comparateur sépare.
+
+    Les DEUX moitiés comptent. Sans la seconde, corriger une divergence ferait rougir
+    son propre garde.
+    """
+    assert normaliser("VARCHAR(50)") != normaliser("BIGINT"), (
+        "le comparateur ne distingue pas deux types réellement différents — il "
+        "rendrait zéro divergence sur n'importe quelle base")
+    assert normaliser("VARCHAR(50)") == normaliser("VARCHAR(255)"), (
+        "une simple différence de TAILLE est comptée comme une divergence : le cliquet "
+        "se remplirait de bruit et cesserait d'être lisible")
+
+
 def test_the_two_identity_columns_stay_text() -> None:
     """Les deux colonnes de R135, CORRIGÉES — ce test garde le correctif, plus le défaut.
 
