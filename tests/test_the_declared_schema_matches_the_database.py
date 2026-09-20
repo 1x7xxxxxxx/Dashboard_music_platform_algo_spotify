@@ -39,8 +39,9 @@ from tools.dev.schema_declaration_check import (  # noqa: E402
     declarations, divergences, normaliser,
 )
 
-#: Mesuré le 2026-09-19 sur la base locale. PLAFOND : il descend, il ne monte pas.
-_PLAFOND = 44
+#: Mesuré le 2026-09-19 (44), descendu à 43 le 2026-09-20 par la migration 127, qui
+#: rend `instagram_daily_stats.ig_user_id` à son type déclaré. PLAFOND : il descend.
+_PLAFOND = 43
 
 
 def _db():
@@ -131,66 +132,32 @@ def test_the_number_of_divergences_only_falls() -> None:
         "`init_db.sql`.")
 
 
-def test_the_two_known_identity_columns_are_still_the_ones_we_think() -> None:
-    """La mesure qui a ouvert cette classe, rejouée — pas recopiée.
+def test_the_two_identity_columns_stay_text() -> None:
+    """Les deux colonnes de R135, CORRIGÉES — ce test garde le correctif, plus le défaut.
 
-    Si `ig_user_id` cesse d'être `bigint` localement, c'est que quelqu'un a corrigé la
-    moitié du problème : ce test le dit au lieu de laisser la prose ci-dessus vieillir.
+    ⚠️ Sa version du 2026-09-19 affirmait l'inverse : elle exigeait que `ig_user_id` SOIT
+    divergente, et se contentait d'un `skip` le jour où quelqu'un la corrigerait. C'était
+    juste tant que le défaut vivait, et ça devenait un trou dès qu'il mourait — un test
+    qui décrit un état plutôt qu'un INVARIANT se périme avec l'état.
+
+    Corrigées par `migrations/127_identity_columns_are_text_not_integers.sql`, vérifiée
+    sur l'état de la PRODUCTION reproduit en local (`track_id` remis en `bigint`, les
+    deux vues déposées et recréées, 349 lignes intactes, définitions identiques au
+    caractère près).
     """
     db = _db()
     if db is None:
         pytest.skip("base injoignable")
     try:
-        connues = {(e["table"], e["colonne"]): e for e in divergences(db)}
+        divergentes = {(e["table"], e["colonne"]) for e in divergences(db)}
     finally:
         db.close()
-    ig = connues.get(("instagram_daily_stats", "ig_user_id"))
-    if ig is None:
-        pytest.skip("`ig_user_id` n'est plus divergente — mettre à jour la prose et le "
-                    "plafond dans le MÊME commit")
-    assert ig["base"] == "bigint" and ig["declare"] == "character varying", (
-        f"`ig_user_id` diverge autrement que mesuré : {ig}. La prose de ce fichier et de "
-        "`schema_declaration_check.py` décrit un autre état que le vôtre.")
-
-
-# ── Le garde se prouve À CHAQUE EXÉCUTION, pas une fois à la main ─────────────
-#
-# Une mutation datée prouve le garde le jour où on la fait. Une FABRICATION le prouve à
-# chaque lancement : le test construit la forme interdite et exige que le détecteur la
-# voie. C'est la différence entre « je l'ai vu rouge en septembre » et « il rougit ».
-
-class _BaseFabriquee:
-    """Une base dont on choisit les types, sans Postgres."""
-
-    def __init__(self, colonnes: dict[tuple[str, str], str]):
-        self._colonnes = colonnes
-
-    def fetch_query(self, sql, params=None):
-        return [(t, c, d) for (t, c), d in self._colonnes.items()]
-
-
-def test_the_detector_sees_a_divergence_it_fabricates() -> None:
-    """AUTO-PREUVE : une colonne déclarée `varchar` et portée en `bigint` DOIT sortir.
-
-    C'est exactement la forme de `soundcloud_tracks_daily.track_id` et de
-    `instagram_daily_stats.ig_user_id` — la classe entière, en deux lignes.
-    """
-    declare = {("t", "identifiant"): "VARCHAR(50)"}
-    base = _BaseFabriquee({("t", "identifiant"): "bigint"})
-    vus = divergences(base, declare)
-    assert len(vus) == 1 and vus[0]["base"] == "bigint", (
-        f"le détecteur ne voit pas une colonne déclarée `VARCHAR` et portée en `bigint` : "
-        f"{vus}. C'est la forme des deux sites vivants de cette classe — s'il ne la voit "
-        "pas fabriquée, il ne la voit nulle part.")
-
-
-def test_the_detector_stays_silent_on_the_corrected_form() -> None:
-    """AUTO-PREUVE, l'autre sens : la même colonne, corrigée, ne doit PLUS sortir.
-
-    Sans cette moitié, un détecteur qui dénonce TOUT passerait le test ci-dessus.
-    """
-    declare = {("t", "identifiant"): "VARCHAR(50)"}
-    base = _BaseFabriquee({("t", "identifiant"): "character varying"})
-    assert divergences(base, declare) == [], (
-        "le détecteur dénonce une colonne dont le type en base est exactement celui "
-        "qu'elle déclare — il dénoncerait donc tout, et son chiffre ne voudrait rien dire.")
+    fautives = {c for c in (("soundcloud_tracks_daily", "track_id"),
+                            ("instagram_daily_stats", "ig_user_id"))
+                if c in divergentes}
+    assert not fautives, (
+        f"identifiant(s) de plateforme redevenu(s) numérique(s) : {sorted(fautives)}.\n"
+        "Ce ne sont pas des nombres — on ne les additionne ni ne les ordonne, on les "
+        "compare et on les transmet. `ig_user_id` vaut `17841402151518986`, au-delà de "
+        "2^53 : tout passage par JSON ou JavaScript l'arrondirait en silence.\n"
+        "Rejouer `make migrate` (migration 127, idempotente).")

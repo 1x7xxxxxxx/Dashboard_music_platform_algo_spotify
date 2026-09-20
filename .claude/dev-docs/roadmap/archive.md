@@ -7648,3 +7648,98 @@ existe maintenant pour ça.
 **Mesuré par** : `make figure-contrast` (19 sous le plancher, 30 figures),
 `python3 -m pytest tests/test_a_new_figure_can_be_attributed.py tests/test_semantic_colours_are_attributable.py -q`
 (37 verts). Les deux gardes mutés dans les deux sens.
+
+## R135 — Deux identifiants de plateforme redevenus du TEXTE · P3 · ✅ 2026-09-20
+
+- [x] **R135 — trancher le type canonique de `soundcloud_tracks_daily.track_id` et
+      l'appliquer partout.** ✅ 2026-09-20
+
+**Livrée par `migrations/127_identity_columns_are_text_not_integers.sql`**, jamais par un
+`ALTER` à la main sur la production.
+
+### Ce que la tâche a trouvé en plus de ce qu'elle disait
+
+Sa prémisse était fausse — vérifiée avant d'agir dessus, comme la règle l'exige. La
+roadmap affirmait « aucune migration ne déclare ce type » : vrai à la lettre et trompeur,
+car **`init_db.sql:106` le déclare `VARCHAR(50) NOT NULL` depuis toujours**. La
+conclusion (« le canonique est le VARCHAR ») était juste, mais pour une raison plus forte
+que celle écrite, et le vrai coupable n'était nommé nulle part :
+
+> **`CREATE TABLE IF NOT EXISTS`, employé 55 fois.** Sur une base où la table existe
+> déjà, la déclaration n'est PAS appliquée — elle est ignorée, sans un mot.
+
+Balayer cette cause (R143) a rendu un **second site** :
+`instagram_daily_stats.ig_user_id`, déclaré `VARCHAR`, réellement `bigint`, lu
+`17841402151518986` — au-delà de 2^53, donc arrondi en silence par tout passage en JSON
+ou JavaScript. C'est une **identité de locataire**.
+
+### Pourquoi le texte, et pas l'entier
+
+Ce ne sont pas des nombres : on ne les additionne pas, on ne les ordonne pas. On les
+compare et on les transmet. SoundCloud et Meta les documentent comme des chaînes opaques,
+et Meta a déjà livré des identifiants alphanumériques sur d'autres objets. Un `bigint`
+est une affirmation sur un format que nous ne contrôlons pas.
+
+### La vérification qui compte
+
+⚠️ **La migration a été prouvée sur l'état qu'elle corrige, pas sur l'état local.**
+`track_id` était DÉJÀ `character varying` ici : sa section aurait été un no-op, et
+j'aurais livré une migration jamais vue fonctionner. L'état de la production a donc été
+**reproduit** en local — `track_id` remis en `bigint`, les deux vues dépendantes déposées
+et recréées — puis la migration appliquée dessus :
+
+| contrôle | avant | après |
+|---|---|---|
+| `soundcloud_tracks_daily.track_id` | `bigint` | **`character varying(50)`** |
+| `instagram_daily_stats.ig_user_id` | `bigint` | **`character varying(50)`** |
+| lignes `soundcloud_tracks_daily` | 349 | **349** |
+| `v_platform_levels` | 1317 | **1317** |
+| `v_soundcloud_track_latest` | 19 | **19** |
+| définitions des deux vues | — | **identiques au caractère près** |
+
+Relance idempotente (`make migrate` deux fois de suite : « est déjà character varying »).
+Et le garde muté : remettre `ig_user_id` en `bigint` rougit `test_the_two_identity_columns_stay_text`
+ET le cliquet ; la migration les rend verts.
+
+⚠️ **Les vues ne sont pas recopiées dans la migration.** `v_platform_levels` et
+`v_soundcloud_track_latest` font ~110 lignes de SQL, et PostgreSQL refuse
+`ALTER COLUMN … TYPE` tant qu'une vue lit la colonne. Les transcrire aurait créé une
+seconde définition à faire coïncider avec la première — la classe
+`two-definitions-that-must-coincide-are-never-compared` posée de mes propres mains. Elles
+sont lues dans `pg_get_viewdef`, déposées, puis recréées telles quelles.
+
+⚠️ **Le test qui gardait ce défaut affirmait l'inverse.** Sa version du 2026-09-19
+exigeait que `ig_user_id` SOIT divergente et se contentait d'un `skip` le jour où
+quelqu'un la corrigerait — juste tant que le défaut vivait, un trou dès qu'il mourait. Un
+test qui décrit un ÉTAT plutôt qu'un INVARIANT se périme avec l'état. Réécrit en
+invariant.
+
+### ⚠️ La migration portait elle-même le défaut, et la suite l'a trouvé
+
+**23 tests rouges** au premier lancement complet, dont l'invariant de la couche or. Cause :
+la capture des vues dépendantes ne regardait que le **premier niveau** (`pg_depend` sur
+l'attribut), alors que la dépose se fait avec `CASCADE`, qui agit **transitivement**.
+
+`v_platform_totals` lit `v_soundcloud_track_latest`. Le `CASCADE` l'emportait, la capture
+ne l'avait pas vue, rien ne la recréait — et **la migration se terminait sans erreur**.
+Sur la production, une vue aurait disparu en silence.
+
+`CASCADE` et une capture directe sont incompatibles par construction, et rien dans le code
+ne le disait. Corrigé par un CTE récursif qui calcule la fermeture et note la profondeur de
+chaque vue : dépose des feuilles vers la racine, recrée dans l'ordre inverse. Rejoué sur
+l'état de la production reproduit — **23 vues, aucune manquante, aucun écart de compte ni
+de définition**.
+
+⚠️ Et la réparation a failli être fausse aussi : j'ai d'abord restauré `v_platform_totals`
+depuis la migration **097**, alors que dix migrations postérieures l'amendent. La vue est
+revenue dans une version périmée, et l'invariant de la couche or est resté rouge —
+`gold_apple_lifetime()` rendait 3 267 là où la vue rendait 0.
+
+Garde neuf : `tests/test_no_migration_leaves_a_view_behind.py` — toute vue qu'une migration
+déclare doit exister. Le prédicat porte sur la PROPRIÉTÉ (« cette vue existe-t-elle »), pas
+sur la forme (« telle migration contient-elle un CASCADE ») : une vue peut disparaître par
+un CASCADE non recréé, une migration à moitié appliquée ou un `DROP` manuel, et les trois
+donnent le même symptôme. Muté rouge en supprimant la vue.
+
+**Mesuré par** : `make schema-declared` rend **43** divergences (contre 44), et aucune ne
+nomme `track_id` ni `ig_user_id`. Plafond descendu dans le même commit.

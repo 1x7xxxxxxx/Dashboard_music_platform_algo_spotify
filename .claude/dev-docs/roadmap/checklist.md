@@ -25,10 +25,9 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R135 | **`soundcloud_tracks_daily.track_id` : `bigint` en PRODUCTION, `character varying` en local** — mesuré le 2026-09-18 colonne par colonne (1187 contre 1196). Le canonique est le VARCHAR, et pour une raison PLUS FORTE que celle écrite ici jusqu'au 2026-09-19 : ce n'est pas qu'« aucune migration ne déclare ce type », c'est que **`init_db.sql:106` le déclare `VARCHAR(50) NOT NULL` depuis toujours**. La production diverge donc du schéma de référence, pas d'un défaut de déclaration — et la cause est `CREATE TABLE IF NOT EXISTS`, employé **55 fois**, qui n'applique RIEN sur une table qui existe déjà. Le collecteur écrit bien `str(track.get('id'))` (`soundcloud_api_collector.py:222`). ⚠️ **ET LA COLONNE N'EST PAS SEULE.** Balayage du 2026-09-19 (`make schema-declared`) : **44 divergences déclaré↔base**, dont `instagram_daily_stats.ig_user_id` — déclaré `VARCHAR`, réellement `bigint` **en LOCAL**, lu `17841402151518986`, au-delà de 2^53. C'est une **identité de locataire**. Conséquence aujourd'hui : nulle, comme pour `track_id` — rien ne la compare à une chaîne. Les deux basculeront au premier `WHERE col = %s` avec un paramètre texte. ⚠️ **Conséquence aujourd'hui : aucune** — les quatre lecteurs ne comparent jamais cette colonne à une chaîne, et Postgres transtype les identifiants numériques des deux côtés. Elle apparaîtra à la première jointure ou comparaison sur `track_id` : la prod rendra un `int` là où le local rend une `str`, donc **un test vert ici échouera là-bas**. La vue or `v_soundcloud_track_latest` hérite du type de chaque côté. Demande un `ALTER` sur une table vivante — décision du propriétaire, pas un effet de bord de séance | P3 | la comparaison des deux schémas ne doit plus nommer `soundcloud_tracks_daily.track_id` |
 
-**Une tâche est ouverte dans cet index** — R135 —
-et l'ancre `reprise:` les nomme toutes, dans cet ordre. La table « 🙋 En attente de toi »
+**Aucune tâche n'est ouverte dans cet index** — R135 a été livrée le 2026-09-20.
+L'ancre `reprise:` ne nomme donc plus que les lignes en attente d'un geste humain. La table « 🙋 En attente de toi »
 plus bas porte **trois** lignes : R125, qui attend un geste humain dans l'app, R140,
 entrée le 2026-09-18, qui attend **dix-sept** décisions de PRODUIT (§16.1 à §16.17 du
 runbook), et R134, parquée le 2026-09-19 faute de données locales à calibrer.
@@ -114,7 +113,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-18 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R135, R125, R140, R134 -->
+<!-- reprise: open=R125, R140, R134 -->
 
 **R125 est entrée le 2026-09-18, et elle n'attend qu'un geste de trois minutes.** Mesuré
 en production : `ml_song_predictions` porte 617 lignes, `s4a_song_algo_outcomes` (la

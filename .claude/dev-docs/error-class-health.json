@@ -475,7 +475,8 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-19"
+        "2026-09-19",
+        "2026-09-20"
       ],
       "kind": "deterministic",
       "seen_red": "self-proving",
@@ -485,7 +486,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-19",
-      "revisions": 0,
+      "revisions": 1,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11073,7 +11074,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 352,
+      "catalogue_revisions": 353,
       "head_date": "2026-09-19"
     },
     "holes": {
@@ -11101,103 +11102,103 @@
     },
     "recurrence": {
       "window_start": "2026-05-15",
-      "as_of": "2026-09-19",
+      "as_of": "2026-09-20",
       "observed": {
         "events": 46,
-        "class_days": 8797,
-        "per_class_month": 0.159,
+        "class_days": 9201,
+        "per_class_month": 0.152,
         "ci95": [
-          0.1164,
-          0.212
+          0.1113,
+          0.2027
         ]
       },
-      "class_days_exposed": 8797,
+      "class_days_exposed": 9201,
       "by_guard": {
         "automatique": {
           "events": 42,
-          "class_days": 8614,
-          "per_class_month": 0.1482,
+          "class_days": 9008,
+          "per_class_month": 0.1417,
           "ci95": [
-            0.1068,
-            0.2004
+            0.1021,
+            0.1916
           ]
         },
         "prose": {
           "events": 4,
-          "class_days": 183,
-          "per_class_month": 0.6645,
+          "class_days": 193,
+          "per_class_month": 0.6301,
           "ci95": [
-            0.1788,
-            1.7012
+            0.1695,
+            1.6131
           ]
         }
       },
       "by_seen_red": {
         "daté": {
           "events": 17,
-          "class_days": 2779,
-          "per_class_month": 0.186,
+          "class_days": 2937,
+          "per_class_month": 0.176,
           "ci95": [
-            0.1083,
-            0.2978
+            0.1024,
+            0.2817
           ]
         },
         "jamais-ou-inconnu": {
           "events": 29,
-          "class_days": 6018,
-          "per_class_month": 0.1465,
+          "class_days": 6264,
+          "per_class_month": 0.1407,
           "ci95": [
-            0.0981,
-            0.2104
+            0.0942,
+            0.2021
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
           "events": 46,
-          "class_days": 8797,
-          "per_class_month": 0.159,
+          "class_days": 9201,
+          "per_class_month": 0.152,
           "ci95": [
-            0.1164,
-            0.212
+            0.1113,
+            0.2027
           ]
         }
       },
       "by_guard_since": {
         "avec-garde": {
           "events": 42,
-          "class_days": 8045,
-          "per_class_month": 0.1587,
+          "class_days": 8436,
+          "per_class_month": 0.1514,
           "ci95": [
-            0.1144,
-            0.2145
+            0.1091,
+            0.2046
           ]
         },
         "sans-garde": {
           "events": 4,
-          "class_days": 752,
-          "per_class_month": 0.1617,
+          "class_days": 765,
+          "per_class_month": 0.159,
           "ci95": [
-            0.0435,
-            0.414
+            0.0428,
+            0.407
           ]
         }
       },
       "fixed_horizon": {
         "h7": {
-          "at_risk": 315,
+          "at_risk": 322,
           "recurred": 34,
-          "rate": 0.1079
+          "rate": 0.1056
         },
         "h14": {
-          "at_risk": 195,
-          "recurred": 28,
-          "rate": 0.1436
+          "at_risk": 227,
+          "recurred": 30,
+          "rate": 0.1322
         },
         "h30": {
-          "at_risk": 35,
-          "recurred": 9,
-          "rate": 0.2571
+          "at_risk": 66,
+          "recurred": 17,
+          "rate": 0.2576
         }
       }
     },
