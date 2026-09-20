@@ -695,9 +695,9 @@ sync-check: schema-check ## Full repo↔prod sync: schema-drift + migration-ledg
 	@echo "▶ deploy-drift: $(PROD_REPO) HEAD vs origin/main…"
 	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cd $(PROD_REPO) && git fetch -q origin main && if [ "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" ]; then echo "  ✅ deployed code == origin/main"; else echo "  ⚠ DEPLOY DRIFT: server HEAD != origin/main — run on prod: git pull --ff-only origin main && docker compose up -d --build api dashboard"; git -C $(PROD_REPO) log --oneline HEAD..origin/main | head -5; exit 1; fi'
 
-deploy:      ## Deploy origin/main to prod (pull --ff-only + --build + health). SERVICE="api dashboard"
+deploy:      ## Deploy origin/main to prod. SERVICE="api dashboard" · MIGRATE=1 applique les migrations en attente avant le build
 	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host (e.g. make deploy PROD_SSH=root@1.2.3.4 SERVICE=api)"; exit 1; }
-	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cd $(PROD_REPO) && bash tools/deploy.sh $(SERVICE)'
+	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cd $(PROD_REPO) && MIGRATE=$(MIGRATE) bash tools/deploy.sh $(SERVICE)'
 
 dashboard: check-env   ## Launch Streamlit dashboard (foreground, port 8501)
 	streamlit run src/dashboard/app.py

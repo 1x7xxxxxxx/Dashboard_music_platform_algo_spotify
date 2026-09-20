@@ -105,3 +105,59 @@ def test_a_deploy_refuses_to_run_ahead_of_its_migrations() -> None:
         "le refus doit NOMMER la commande qui debloque, sinon il laisse l'operateur "
         "chercher (classe `a-printed-command-is-runnable-as-printed`)."
     )
+
+
+def test_a_rollback_with_nowhere_to_go_says_so_instead_of_concluding() -> None:
+    """⚠️ MESURE EN PRODUCTION LE 2026-09-20, et la conclusion etait FAUSSE.
+
+    La porte de `api` est sortie rouge. Le retour arriere a annonce
+    « ba9c361 -> ba9c361 » puis conclu :
+
+        « api ne repond TOUJOURS PAS apres le retour arriere. La panne ne vient donc
+          pas du code deploye : regarder la base, le reseau, ou l'hote. »
+
+    Le `git reset` n'avait RIEN annule — `$before` et `$after` etaient identiques,
+    parce que le `git pull` avait eu lieu a l'invocation PRECEDENTE, celle qui s'etait
+    arretee sur les migrations en attente. Et la panne venait bien du code deploye :
+    une sonde `/health` qui ne savait pas lire `DATABASE_URL`.
+
+    Un raisonnement « le retour n'a rien change, donc la cause est ailleurs » ne vaut
+    QUE si le retour a reellement recule. Sinon il envoie chercher au mauvais endroit,
+    au pire moment.
+    """
+    corps = "\n".join(_rollback_body())
+    assert corps, "corps de `rollback()` introuvable — le garde ne lit plus rien"
+    assert 'if [ "$before" = "$after" ]' in corps, (
+        "le retour arriere ne verifie pas qu'il a quelque part ou revenir. Quand "
+        "`$before` == `$after`, le `git reset` est un no-op et le service reste rouge — "
+        "et le script en conclut que le code est hors de cause. C'est faux, et c'est la "
+        "conclusion qui coute le plus cher : elle envoie enqueter ailleurs.")
+    assert "PAS DE RETOUR POSSIBLE" in corps, (
+        "le cas « nulle part ou revenir » n'est pas NOMME. Un operateur doit pouvoir "
+        "distinguer « j'ai recule et ca reste rouge » de « je n'ai pas recule ».")
+
+
+def test_the_deploy_offers_a_one_command_path_and_keeps_the_refusal() -> None:
+    """La friction mesuree : TROIS commandes pour un geste.
+
+    Le 2026-09-20, sur un ecart de 50 commits : `make deploy` s'arrete sur les
+    migrations, `make migrate-prod`, puis `make deploy` a nouveau.
+
+    ⚠️ Le refus par defaut RESTE, et c'est le point de ce test. `MIGRATE=1` est un
+    choix pris EXPLICITEMENT, pas un assouplissement : sans le drapeau, le script
+    refuse toujours. La fenetre est la bonne — le pull a eu lieu, le build n'a pas
+    commence — donc les migrations tournent contre le code qu'elles accompagnent.
+    """
+    body = code_of(_DEPLOY)
+    assert 'if [ "${MIGRATE:-0}" = "1" ]' in body, (
+        "`tools/deploy.sh` n'offre pas de voie en une commande. La friction se paie a "
+        "chaque deploiement portant une migration.")
+    assert "exit 1" in body.split('if [ "${MIGRATE:-0}" = "1" ]')[1].split("fi")[0] \
+           or "STOP :" in body, (
+        "le drapeau ne verifie pas que les migrations sont PASSEES avant de construire. "
+        "Appliquer puis construire sans relire le registre, c'est deployer sur une "
+        "migration qui a echoue.")
+    apres = body.split('if [ "${MIGRATE:-0}" = "1" ]')[1]
+    assert "else" in apres and "STOP :" in apres, (
+        "le refus par defaut a disparu : `MIGRATE=1` doit AJOUTER une voie, jamais "
+        "remplacer le garde. Sans drapeau, le script doit toujours s'arreter.")

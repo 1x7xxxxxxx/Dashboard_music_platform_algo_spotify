@@ -90,12 +90,44 @@ if docker ps --format '{{.Names}}' | grep -qx "$PG_CONT"; then
         onrepo="$(ls migrations/*.sql 2>/dev/null | xargs -n1 basename | sort)"
         pending="$(comm -23 <(echo "$onrepo") <(echo "$ledger" | sort))"
         if [ -n "$pending" ]; then
-            echo "STOP : migration(s) presente(s) dans le depot et absente(s) du registre :"
-            echo "$pending" | sed 's/^/      /'
-            echo "   Deployer maintenant demarrerait une application qui repond 200 sur"
-            echo "   /health et 500 sur les donnees. Lancer d'abord :"
-            echo "      bash tools/migrate.sh"
-            exit 1
+            # ── MIGRATE=1 : la friction mesuree le 2026-09-20 ────────────────────
+            # Sans ce drapeau il faut TROIS commandes pour un geste : `make deploy`
+            # s'arrete ici, `make migrate-prod`, puis `make deploy` a nouveau. Le
+            # proprietaire l'a vecu sur un ecart de 50 commits.
+            #
+            # Le refus par defaut RESTE, et il est le bon : `migrate.sh` ne pose pas
+            # `ON_ERROR_STOP` parce que le jeu n'est idempotent qu'en execution
+            # COMPLETE, et un deploiement n'est pas le bon endroit pour decider de ce
+            # compromis a la place de l'operateur.
+            #
+            # `MIGRATE=1` est ce choix, pris EXPLICITEMENT, une fois. La fenetre est
+            # exactement la bonne : le pull a eu lieu (le code sur disque est neuf),
+            # le build n'a pas commence (les conteneurs servent encore l'ancien). Les
+            # migrations tournent donc contre le code qu'elles accompagnent — ni
+            # avant, ni apres.
+            if [ "${MIGRATE:-0}" = "1" ]; then
+                echo "▶ MIGRATE=1 — application des migrations en attente AVANT le build :"
+                echo "$pending" | sed 's/^/      /'
+                bash tools/migrate.sh
+                ledger="$(docker exec -i "$PG_CONT" psql -U postgres -d spotify_etl -tA \
+                            -c "SELECT filename FROM schema_migrations;" 2>/dev/null || echo "")"
+                reste="$(comm -23 <(echo "$onrepo") <(echo "$ledger" | sort))"
+                if [ -n "$reste" ]; then
+                    echo "STOP : migration(s) TOUJOURS absente(s) du registre apres migrate.sh :"
+                    echo "$reste" | sed 's/^/      /'
+                    echo "   Le build est annule. Lire l'erreur nommee ci-dessus."
+                    exit 1
+                fi
+                echo "  migrations : toutes enregistrees apres application"
+            else
+                echo "STOP : migration(s) presente(s) dans le depot et absente(s) du registre :"
+                echo "$pending" | sed 's/^/      /'
+                echo "   Deployer maintenant demarrerait une application qui repond 200 sur"
+                echo "   /health et 500 sur les donnees. Deux voies :"
+                echo "      bash tools/migrate.sh        # puis relancer ce script"
+                echo "      MIGRATE=1 <cette commande>   # les applique ici, avant le build"
+                exit 1
+            fi
         fi
         echo "  migrations : $(echo "$onrepo" | wc -l) au depot, toutes enregistrees"
     fi
@@ -135,8 +167,30 @@ esac
 # retro-compatibles par construction dans ce depot (ajout de colonne, jamais de
 # suppression en vol) — et pourquoi `tools/migrate.sh` reste un geste separe, a lancer
 # AVANT le deploiement.
+# ── UN RETOUR QUI NE RECULE PAS NE CONCLUT PAS (2026-09-20) ─────────────────
+# Mesure ce jour-la, en production : la porte de `api` est sortie rouge, le retour
+# arriere a annonce « ba9c361 -> ba9c361 » et a conclu « la panne ne vient donc pas du
+# code deploye : regarder la base, le reseau, ou l'hote ».
+#
+# CETTE CONCLUSION ETAIT FAUSSE, et elle envoyait chercher au mauvais endroit. Le
+# `git pull` avait eu lieu a l'invocation PRECEDENTE — celle qui s'etait arretee sur
+# les migrations en attente — donc `$before` et `$after` etaient identiques et le
+# `git reset` n'a rien annule. La panne venait bien du code deploye : une sonde
+# `/health` qui ne savait pas lire `DATABASE_URL`.
+#
+# Un retour arriere qui n'avait nulle part ou revenir doit le DIRE, pas deduire.
 rollback() {
     _svc="$1"; _url="$2"
+    if [ "$before" = "$after" ]; then
+        echo "PAS DE RETOUR POSSIBLE : la porte de $_svc est rouge, et le depot est deja"
+        echo "   sur $before — rien n'a ete tire par CETTE invocation, donc il n'y a nulle"
+        echo "   part ou revenir. Ne pas en conclure que le code est hors de cause : le"
+        echo "   pull a pu avoir lieu a une invocation precedente (typiquement celle qui"
+        echo "   s'est arretee sur des migrations en attente)."
+        echo "   Pour revenir vraiment : git log --oneline -5, puis"
+        echo "      git reset --hard <commit> && docker compose up -d --build $_svc"
+        return
+    fi
     echo "RETOUR ARRIERE : $after -> $before (la porte de $_svc est rouge)"
     git reset --hard -q "$before" || { echo "   reset impossible — intervention manuelle"; return; }
     # Le service EN CAUSE, pas tout `$SERVICES` — corrige le 2026-09-16. La version
@@ -153,9 +207,11 @@ rollback() {
         fi
         sleep 1
     done
-    echo "   $_svc ne repond TOUJOURS PAS apres le retour arriere."
-    echo "      La panne ne vient donc pas du code deploye : regarder la base, le"
-    echo "      reseau, ou l'hote. C'est une information, pas un echec du retour."
+    echo "   $_svc ne repond TOUJOURS PAS apres le retour arriere ($after -> $before)."
+    echo "      Le code a ETE remis en arriere et le service reste rouge : la panne est"
+    echo "      donc probablement ailleurs — base, reseau, ou hote. C'est une"
+    echo "      information, pas un echec du retour."
+    echo "      ⚠️  Ce raisonnement ne vaut QUE parce que le retour a reellement recule."
 }
 
 # Health gates: api on 8502/health, dashboard on 8501 Streamlit /_stcore/health.
