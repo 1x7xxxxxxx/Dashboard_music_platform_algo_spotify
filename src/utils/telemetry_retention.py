@@ -52,6 +52,17 @@ _AGE_COLUMN: dict[str, str] = {
     "etl_run_log": "started_at",
     "monitoring_run": "run_at",
     "csv_upload_log": "imported_at",
+    # Ajoutees le 2026-09-20 (R140 §16.13), AVEC leur declaration de retention. L'ordre
+    # compte : `undeclared_tables()` existe precisement pour attraper une declaration
+    # posee sans sa colonne — la purge echouerait la nuit venue, sur une table que la
+    # migration venait de declarer purgee. Il a rougi sur ces deux-la avant cette ligne.
+    #
+    # `revised_at` et non `created_at` : `data_revisions` n'a pas de `created_at`, elle
+    # date l'ECRASEMENT. `ts` et non `created_at` pour `rate_limit_hits` : les deux
+    # existent, et `ts` est celle que les fenetres glissantes de `request_throttle`
+    # interrogent — purger sur l'autre laisserait vivre des coups que le compteur ignore.
+    "data_revisions": "revised_at",
+    "rate_limit_hits": "ts",
     # app_error_log est CONDITIONNELLE, traitee a part : voir `_purge_conditional`.
 }
 

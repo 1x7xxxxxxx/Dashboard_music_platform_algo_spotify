@@ -143,6 +143,36 @@ def _continuous(rows: list[tuple], days: list) -> list:
 # plus déroutante qu'une courbe un peu lissée.
 _WEEKLY_ABOVE_DAYS = 92
 
+# Au-delà de ce nombre de seaux, une figure cesse d'être lisible : les points se
+# touchent et l'axe devient illisible. Repris de `home.py`, où il vivait sous le nom
+# `_MAX_BUCKETS` — c'est la MOITIÉ de l'échelle que ce module ne portait pas.
+_MAX_BUCKETS = 60
+
+
+def default_step(window_days):
+    """Le pas d'une figure pour une fenêtre donnée. UNE échelle, toutes les surfaces.
+
+    ⚠️ **Il y en avait DEUX, divergentes au-delà de 92 jours** — mesuré le 2026-09-20
+    (R140 §16.12) : à 365 j l'accueil rendait `month` et le PDF du même artiste `week`.
+    `home.py` portait `_DAY_UNTIL_YEAR = 360` / `_MAX_BUCKETS = 60` (jour → mois → année,
+    **jamais semaine**) ; `platform_chart:608` et `pdf_charts:309` partageaient
+    `_WEEKLY_ABOVE_DAYS`. Le pas dépendait de la PAGE.
+
+    Les deux bornes sont mesurées et ne portent pas sur la même chose : **92 jours** vient
+    de la COUVERTURE (SoundCloud 56 % de jours mesurés, YouTube 39 % — au pas quotidien
+    une bande empilée perdait des plateformes entières), **60 seaux** de la LISIBILITÉ.
+    Conséquence assumée : l'accueil dessine en SEMAINE entre 92 et 420 jours.
+    Détail et mesure : `tests/test_one_ladder_chooses_the_grain.py`.
+    """
+    if not window_days or window_days < _WEEKLY_ABOVE_DAYS:
+        return "day"
+    if window_days / 7 <= _MAX_BUCKETS:
+        return "week"
+    if window_days / 30 <= _MAX_BUCKETS:
+        return "month"
+    return "year"
+
+
 # Vers quoi descendre quand le pas demandé ne produit pas assez de seaux pour dessiner
 # quoi que ce soit. Du plus grossier au plus fin, en s'arrêtant au premier qui tient.
 # Le MOIS est arrivé le 2026-09-12 avec la barre de pas : le sélecteur n'offrait que

@@ -362,12 +362,13 @@ def _render_trend(db, series, since, until, range_key, artist_id,
         _dates = [d for rows in (series or {}).values() for d, _v in rows]
         _window_days = (max(_dates) - min(_dates)).days if _dates else 0
 
-    if _window_days < _DAY_UNTIL_YEAR:
-        step = 'day'
-    elif _window_days / 30 <= _MAX_BUCKETS:
-        step = 'month'
-    else:
-        step = 'year'
+    # UNE SEULE ÉCHELLE — 2026-09-20 (R140 §16.12). Cette page portait la sienne
+    # (`_DAY_UNTIL_YEAR` / `_MAX_BUCKETS`, jour → mois → année, jamais semaine)
+    # pendant que la figure partagée et le PDF utilisaient `_WEEKLY_ABOVE_DAYS = 92`.
+    # Mesuré : à 365 jours l'accueil dessinait en MOIS et le PDF du même artiste en
+    # SEMAINE. Même locataire, même figure, même jour.
+    from src.dashboard.utils.platform_chart import default_step
+    step = default_step(_window_days)
 
     # LE MODE, en barre lui aussi : « je pense que c'est mieux de mettre des cases à
     # cocher plutôt qu'un onglet déroulant pour voir toutes les possibilités direct ».

@@ -136,18 +136,28 @@ def test_the_figure_can_draw_every_grain_the_rule_can_produce() -> None:
     dérivation peut produire. Sans ce garde, ajouter un palier `'quarter'` à la
     règle viderait la figure sans qu'aucun test ne bronche.
     """
-    fn = next(n for n in ast.walk(_tree("src/dashboard/views/home.py"))
-              if isinstance(n, ast.FunctionDef) and n.name == "_render_trend")
-    # Les valeurs littérales affectées à `step` dans la fonction : c'est ce que la
-    # règle peut produire, lu dans la structure et non dans un commentaire.
+    # ⚠️ LA RÈGLE A DÉMÉNAGÉ, ET CE GARDE L'A DIT — 2026-09-20 (R140 §16.12).
+    #
+    # Elle vivait dans `_render_trend` sous forme de `step = 'month'` littéraux. Elle vit
+    # maintenant dans `platform_chart.default_step()`, parce que `home.py` en portait une
+    # SECONDE qui divergeait du PDF au-delà de 92 jours (accueil `month`, PDF `week`,
+    # même locataire, même figure, même jour).
+    #
+    # Ce test a rougi au moment du déplacement, avec le bon message : « la règle de
+    # dérivation est ailleurs et ce garde ne voit plus rien ». C'est exactement ce qu'un
+    # garde doit faire quand son sujet bouge — refuser d'être aveuglé en silence plutôt
+    # que passer au vert sur un ensemble vide. Il est repointé, pas desserré.
+    fn = next(n for n in ast.walk(_tree("src/dashboard/utils/platform_chart.py"))
+              if isinstance(n, ast.FunctionDef) and n.name == "default_step")
+    # Les valeurs littérales RENDUES par la règle : c'est ce qu'elle peut produire, lu
+    # dans la structure et non dans un commentaire.
     produced = {n.value.value for n in ast.walk(fn)
-                if isinstance(n, ast.Assign)
-                and any(getattr(t, "id", "") == "step" for t in n.targets)
+                if isinstance(n, ast.Return)
                 and isinstance(n.value, ast.Constant)
                 and isinstance(n.value.value, str)}
     assert produced, (
-        "`_render_trend` n'affecte plus de grain littéral à `step` — la règle de "
-        "dérivation est ailleurs et ce garde ne voit plus rien")
+        "`default_step` ne rend plus de grain littéral — la règle de dérivation a encore "
+        "déménagé et ce garde ne voit plus rien. Le repointer, jamais le retirer.")
     unknown = produced - set(_FINER_STEPS) - {"day"}
     assert not unknown, (
         f"grain(s) que la règle produit mais que la figure ne sait pas agréger : "
