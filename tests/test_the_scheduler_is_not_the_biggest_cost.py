@@ -46,6 +46,8 @@ from __future__ import annotations
 
 import ast
 import re
+
+import pytest
 from pathlib import Path
 
 
@@ -104,7 +106,25 @@ def test_no_watcher_polls_more_than_hourly():
 
 
 def test_the_dag_parsing_interval_is_not_the_default():
-    """The single biggest lever, and the one nobody sets."""
+    """The single biggest lever, and the one nobody sets.
+
+    ⚠️ **Ce test lit le GABARIT, et il a été VERT pendant que le système tournait au
+    défaut.** Mesuré le 2026-09-20 (R140 §16.15) :
+
+        $ docker exec airflow_scheduler airflow config get-value \
+              scheduler min_file_process_interval
+        30
+
+    Le réglage vivait dans `docker-compose.example.yml:64` — jamais dans le
+    `docker-compose.yml` réel, qui est **gitignoré**. Le correctif était donc écrit,
+    commité, gardé… et appliqué à rien.
+
+    C'est la forme la plus coûteuse d'un garde : il ne ment pas, il regarde ailleurs.
+    `test_the_running_scheduler_agrees_with_the_template` ci-dessous interroge le
+    système qui tourne, et saute quand il n'y en a pas — ce qui est honnête : un test
+    de CI ne peut pas juger une machine absente, mais il ne doit pas non plus laisser
+    croire qu'il l'a fait.
+    """
     body = COMPOSE.read_text(encoding="utf-8")
     m = re.search(r"AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL:\s*['\"]?(\d+)", body)
     assert m, (
@@ -116,6 +136,47 @@ def test_the_dag_parsing_interval_is_not_the_default():
         f"the parsing interval is back down to {m.group(1)} s. Below ~2 minutes the "
         "scheduler spends its time re-reading files that change a few times a month."
     )
+
+
+def test_the_running_scheduler_agrees_with_the_template():
+    """LE SYSTÈME QUI TOURNE, pas le modèle — le garde qui manquait.
+
+    Il interroge le scheduler réel. S'il n'y en a pas (CI, poste sans Docker), il SAUTE
+    plutôt que de passer : un test vert sur une machine où le sujet est absent est
+    exactement ce qui a laissé ce défaut vivre.
+    """
+    import shutil
+    import subprocess
+
+    if not shutil.which("docker"):
+        pytest.skip("docker absent — le scheduler réel n'est pas interrogeable ici")
+    try:
+        noms = subprocess.run(["docker", "ps", "--format", "{{.Names}}"],
+                              capture_output=True, text=True, timeout=15)
+    except Exception:                          # noqa: BLE001
+        pytest.skip("docker injoignable")
+    scheduler = next((n for n in noms.stdout.split() if "scheduler" in n), None)
+    if scheduler is None:
+        pytest.skip("aucun conteneur scheduler en cours")
+
+    r = subprocess.run(
+        ["docker", "exec", scheduler, "airflow", "config", "get-value",
+         "scheduler", "min_file_process_interval"],
+        capture_output=True, text=True, timeout=60)
+    valeurs = [x for x in r.stdout.split() if x.isdigit()]
+    if not valeurs:
+        pytest.skip(f"réponse illisible du scheduler : {r.stdout[:120]!r}")
+    effectif = int(valeurs[-1])
+
+    body = COMPOSE.read_text(encoding="utf-8")
+    m = re.search(r"AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL:\s*['\"]?(\d+)", body)
+    attendu = int(m.group(1)) if m else 0
+    assert effectif >= 120, (
+        f"le scheduler qui TOURNE reparse toutes les {effectif} s, alors que le gabarit "
+        f"déclare {attendu} s. Le réglage vit dans `docker-compose.example.yml` et le "
+        "fichier réellement utilisé — `docker-compose.yml`, gitignoré — ne le porte pas.\n"
+        "Ajouter `AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: '300'` à l'ancrage "
+        "`&airflow-common-env`, puis `docker-compose up -d airflow-scheduler`.")
 
 
 def test_the_metadata_purge_exists_and_is_non_interactive():

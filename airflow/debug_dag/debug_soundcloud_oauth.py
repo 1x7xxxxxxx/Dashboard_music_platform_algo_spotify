@@ -126,10 +126,30 @@ def main() -> int:
         logger.info(f"   • {lk:>6}  {title}")
 
     max_likes = max((lk for _, lk in likes), default=0)
+    # ── LE JETON NE S'IMPRIME QUE SI ON LE DEMANDE — 2026-09-20 (R140 §16.5) ──
+    #
+    # L'impression est délibérée : le runbook OAuth frappe le jeton et demande de le
+    # coller dans le dashboard, et l'opérateur le détient déjà. Ce n'est donc pas une
+    # escalade de privilège.
+    #
+    # ⚠️ Ce qui la rend inconfortable est ailleurs : **les deux crons de ce dépôt
+    # capturent la sortie standard d'un sous-processus dans un fichier de log ET dans un
+    # corps de mail** (`tools/schema_drift_cron.sh`, `tools/infra_health_cron.sh`). Si ce
+    # script y est un jour enveloppé — et rien ne l'interdit — le jeton est persisté sur
+    # disque et posté par courrier.
+    #
+    # Le drapeau coûte une ligne et retire ce risque sans rien casser du runbook : la
+    # procédure dit désormais `--print-token`, et une invocation automatique qui ne le
+    # passe pas n'imprime rien.
     print("\n" + "=" * 64)
     print("🔑 STORE THIS refresh_token in Dashboard → Credentials → SoundCloud")
     print("   (the one you minted is now SPENT — SoundCloud rotates on use):")
-    print(f"\n   {effective_rt}\n")
+    if "--print-token" in sys.argv:
+        print(f"\n   {effective_rt}\n")
+    else:
+        print("\n   (masqué — relancer avec `--print-token` pour l'afficher)")
+        print("   Raison : les crons de ce dépôt capturent stdout dans un log ET un")
+        print("   e-mail ; un jeton imprimé sans qu'on l'ait demandé s'y retrouverait.\n")
     print("=" * 64)
     if max_likes > 0:
         logger.info(f"✅ GO — max likes_count = {max_likes} (> 0). User token exposes "

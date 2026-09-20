@@ -1,4 +1,26 @@
 #!/usr/bin/env python3
+"""⚠️ SCRIPT À USAGE UNIQUE — DÉJÀ JOUÉ. NE PAS REJOUER, NE PAS RÉUTILISER.
+
+Gelé le 2026-09-20 (R140 §16.4).
+
+Ce script interpole `table`, `name` et `cols` — des PARAMÈTRES DE FONCTION — dans
+`ALTER TABLE`, `UPDATE` et `ADD CONSTRAINT`, sans aucune allowlist sur le chemin
+(l. 54, 57, 66, 73, 82). La règle transverse #8 l'exigerait dans `src/` ; `migrations/`
+n'est parcouru par aucun garde.
+
+**Rien n'est exploitable aujourd'hui** : les appelants (l. 100-112) passent des
+littéraux, et la migration a déjà eu lieu.
+
+Pourquoi il est GELÉ plutôt que corrigé, ou que le garde étendu :
+étendre l'allowlist à `migrations/` ferait rougir des scripts qu'on ne rejouera jamais,
+et un garde qui rougit sur de l'immuable apprend qu'on peut l'ignorer. Le corriger
+demanderait de re-tester une migration qui ne sera pas rejouée. Le geste proportionné est
+de dire qu'il a servi — pour que le prochain qui cherche un modèle de migration ne
+recopie pas cette forme.
+
+**Si une migration similaire est à écrire** : valider les noms de table et de colonne
+contre un `frozenset` avant toute interpolation, et paramétrer les VALEURS avec `%s`.
+"""
 """Migration script: Add artist_id to all data tables for SaaS multi-tenant support.
 
 Idempotent — safe to re-run on existing databases.

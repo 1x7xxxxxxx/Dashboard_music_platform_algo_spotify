@@ -178,13 +178,6 @@ If the `meta_ads_api_daily` DAG fails → check the Instagram token.
         "Credentials → the platform's « Test connection » button."
     ),
     "useful_links.sec_db_checks": "Quick DB checks",
-    "useful_links.q_spotify": "Last Spotify collection",
-    "useful_links.q_youtube": "Last YouTube collection",
-    "useful_links.q_soundcloud": "Last SoundCloud collection",
-    "useful_links.q_instagram": "Last Instagram collection",
-    "useful_links.q_s4a": "Last S4A collection",
-    "useful_links.q_apple": "Last Apple Music collection",
-    "useful_links.q_meta": "Last Meta Insights collection",
     "useful_links.q_ml": "ML prediction count",
     "useful_links.q_artists": "Registered artists",
     "useful_links.sec_ruff": "Ruff — Python syntax check",

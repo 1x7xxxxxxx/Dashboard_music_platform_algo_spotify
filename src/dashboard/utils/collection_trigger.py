@@ -28,7 +28,26 @@ from typing import Optional
 
 def trigger_all_collections(artist_id: Optional[int], airflow_trigger,
                             collection_dags) -> tuple[dict, dict]:
-    """Fire every collection DAG for ONE tenant. Returns (launched, not_launched).
+    """Fire every collection DAG for ONE tenant — OR FOR THE WHOLE FLEET.
+
+    ⚠️ **Le titre ci-dessus disait « ONE tenant » et c'était faux quand `artist_id` est
+    `None`** — corrigé le 2026-09-20 (R140 §16.3). Dans ce cas la `conf` est vide, et un
+    DAG sans `artist_id` appelle `get_active_artists(include_artist_id=None)` : il
+    collecte **tous les artistes actifs**.
+
+    Ce n'est PAS une fuite de locataire, et je l'ai d'abord écrit comme si :
+    `tenant_scope()` (`auth.py:778`) ne rend `None` que pour un **admin** — un non-admin
+    reçoit `st.stop()`. Et le repli sur l'identité de l'environnement exige
+    `LEGACY_SINGLE_TENANT=1`, explicitement opt-in (`soundcloud_daily.py:123`). Un admin
+    qui presse ce bouton sans artiste sélectionné obtient donc une collecte de flotte,
+    ce qui est le SEUL moyen qu'il ait de la déclencher — le bouton « Lancer TOUTES les
+    collectes » a été retiré le 2026-09-08.
+
+    Le comportement est donc conservé, et c'est la DOCUMENTATION qui était fausse. La
+    décision, prise le 2026-09-20 : documenter plutôt que restreindre — refuser
+    retirerait à l'admin sa seule relance de flotte, pour corriger une phrase.
+
+    Returns (launched, not_launched).
 
     ⚠️ **La couture échoue FORT si `airflow_trigger` n'est pas un déclencheur.**
     Ajouté le 2026-09-18, après avoir mesuré que deux appelants passaient ici le

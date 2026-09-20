@@ -332,21 +332,67 @@ Si le DAG `meta_ads_api_daily` échoue → vérifier le token Instagram.
 
         st.divider()
         st.subheader(t("useful_links.sec_db_checks", "Vérifications rapides DB"))
-        queries = [
-            (t("useful_links.q_spotify", "Dernière collecte Spotify"),
-             "SELECT MAX(collected_at) FROM track_popularity_history;"),
-            (t("useful_links.q_youtube", "Dernière collecte YouTube"),
-             "SELECT MAX(collected_at) FROM youtube_video_stats;"),
-            (t("useful_links.q_soundcloud", "Dernière collecte SoundCloud"),
-             "SELECT MAX(collected_at) FROM soundcloud_tracks;"),
-            (t("useful_links.q_instagram", "Dernière collecte Instagram"),
-             "SELECT MAX(collected_at) FROM instagram_media;"),
-            (t("useful_links.q_s4a", "Dernière collecte S4A"),
-             "SELECT MAX(collected_at) FROM s4a_song_timeline;"),
-            (t("useful_links.q_apple", "Dernière collecte Apple Music"),
-             "SELECT MAX(collected_at) FROM apple_songs_performance;"),
-            (t("useful_links.q_meta", "Dernière collecte Meta Insights"),
-             "SELECT MAX(collected_at) FROM meta_insights_performance_day;"),
+        # ── DEUX QUESTIONS, DEUX REQUÊTES, ET ELLES VIENNENT DU REGISTRE ─────
+        #
+        # Cette liste était écrite à la main et prescrivait `MAX(collected_at)` pour les
+        # SEPT sources, sous le libellé « Dernière collecte ». `admin.py:358` calcule la
+        # même chose de son côté et lit, lui, la date MÉTIER là où elle existe
+        # (`MAX(date)`, `MAX(day_date)`, `MAX(prediction_date)`). Les colonnes
+        # divergeaient sur cinq plateformes sur six.
+        #
+        # ⚠️ **Ce n'était PAS une violation de règle**, et R140 §16.7 le dit : le libellé
+        # annonce « dernière COLLECTE », ce à quoi `collected_at` répond correctement. Les
+        # deux colonnes répondent à deux questions — « quand a-t-on écrit » et « de quand
+        # date la donnée ». Choisir une seule des deux PERD l'information qui compte.
+        #
+        # Mesuré sur `meta_insights_performance_day` le 2026-08-21 : `collected_at` valait
+        # le matin même et `day_date` **2024-09-30**. Le DAG tournait, ré-écrivait les
+        # mêmes lignes vieilles de deux ans, et toute sonde lisant l'horodatage d'écriture
+        # la déclarait fraîche. Meta Ads était morte depuis début août derrière un voyant
+        # vert. C'est la seule paire qui rende ce fait visible.
+        #
+        # Les deux requêtes sont DÉRIVÉES de `MONITOR_TARGETS`, qui déclare déjà `col`
+        # (l'horodatage d'écriture) et `metric_col` (la date que la donnée décrit). Les
+        # écrire ici en dur aurait fait une TROISIÈME liste à faire coïncider avec les
+        # deux autres.
+        # ⚠️ **RÈGLE TRANSVERSE #8** : ces noms de table et de colonne sont interpolés
+        # dans une f-string SQL, donc ils se valident d'abord contre un `frozenset`.
+        # Mon premier jet les prenait du registre SANS les vérifier — et
+        # `test_a_sql_identifier_comes_from_a_closed_set` l'a dit en nommant les deux
+        # lignes. Le registre est une constante de module, donc rien n'est exploitable ;
+        # mais un plafond qui ne monte pas ne se discute pas, et les deux allowlists
+        # existent déjà, dérivées du même registre.
+        from src.database.postgres_handler import validate_columns, validate_table
+        from src.utils.freshness_monitor import (
+            _ALLOWED_COLS, _ALLOWED_TABLES, MONITOR_TARGETS,
+        )
+
+        queries = []
+        for cible in MONITOR_TARGETS:
+            src_, tbl, col = cible["source"], cible["table"], cible["col"]
+            # DEUX barrières, et elles ne font pas doublon : les allowlists disent « ce
+            # nom est dans le registre de fraîcheur », les validateurs disent « ce nom a
+            # la forme d'un identifiant SQL ». Un registre corrompu passe la seconde, un
+            # identifiant exotique passe la première.
+            if tbl not in _ALLOWED_TABLES or col not in _ALLOWED_COLS:
+                continue
+            validate_table(tbl)
+            validate_columns([col])
+            # ⚠️ `metric_col` SEULEMENT, jamais `tenant_metric_col` : le second décrit
+            # la `tenant_table`, pas `table`. Mon premier jet les confondait et
+            # produisait `SELECT MAX(date) FROM artists` — une colonne qui n'existe pas.
+            # Trouvé en EXÉCUTANT les sept requêtes générées, pas en les relisant.
+            metric = cible.get("metric_col")
+            if metric is not None and metric not in _ALLOWED_COLS:
+                metric = None
+            if metric is not None:
+                validate_columns([metric])
+            queries.append((f"{src_} — écrit le (dernière COLLECTE)",
+                            f"SELECT MAX({col}) FROM {tbl};"))
+            if metric and metric != col:
+                queries.append((f"{src_} — donnée du (dernière DONNÉE)",
+                                f"SELECT MAX({metric}) FROM {tbl};"))
+        queries += [
             (t("useful_links.q_ml", "Nombre de prédictions ML"),
              "SELECT COUNT(*) FROM ml_song_predictions;"),
             (t("useful_links.q_artists", "Artistes enregistrés"),
