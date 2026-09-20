@@ -7821,3 +7821,99 @@ C'est le résultat le plus utile de cette séance, et il n'était pas prévu :
 
 **Mesuré par** : `make test` — **8413 verts, 54 skippés**. Les gardes neufs sont
 mutés dans les deux sens ; six commits poussés sur `main`.
+
+## R125 — Saisir les écoutes réalisées à 28 jours · P3 · ✅ 2026-09-20
+
+- [x] **R125 — saisir les écoutes 28 j réalisées (DW / RR / Radio) pour au moins un
+      morceau, dans Saisie S4A.** ✅ 2026-09-20
+
+**Faite par le propriétaire.** Vérifié en production : `s4a_song_algo_outcomes` porte
+**33 lignes sur 11 titres** (3 fenêtres par titre), contre **0** depuis l'ouverture du
+jeu d'entraînement.
+
+### Ce qui a été saisi, et pourquoi c'est utile
+
+**Zéro partout.** Aucune écoute issue de Discover Weekly, Release Radar ou Radio sur les
+28 derniers jours, pour tout le catalogue.
+
+Ce n'est pas un vide : le modèle prédisait **0,073** de probabilité sur ces morceaux — il
+estimait qu'il n'y aurait quasiment aucun placement algorithmique. Ces onze labels le
+**confirment**. Un label négatif apprend autant qu'un positif, et jusqu'à cette saisie le
+modèle avait 617 prédictions et **zéro** retour.
+
+`ml_prediction_outcomes` reste à 0 : l'appariement tourne dans `ml_outcome_labeling`, le
+lundi 06:00 UTC.
+
+### ⚠️ Le geste a révélé un défaut, et il n'était pas dans cette tâche
+
+Le propriétaire a rapporté : *« j'ai appuyé sur enregistrer les outcomes 7j + 28j mais
+rien n'a fonctionné ou rien ne m'a communiqué que ça avait été enregistré »*.
+
+**L'écriture avait réussi.** Le code faisait `st.success(...)` puis `st.rerun()`, et le
+rerun jette le rendu en cours : le message n'est jamais peint. L'écran se recharge sans
+un mot, ce qui se lit exactement comme un échec. **Sa lecture de l'interface était la
+bonne.**
+
+Balayé : **23 sites** portaient ce motif dans `src/dashboard/`, dont les **quatre**
+boutons de cette page. Corrigé par `flash()` / `show_flash()`, avec un garde qui couvre
+les quatre niveaux de message — un `st.error` avalé par un rerun est pire encore.
+
+**Mesuré par** : `SELECT count(*) FROM s4a_song_algo_outcomes` → **33** en production
+(0 le 2026-09-18).
+
+## R134 — Le détecteur de creux au-delà de ses 5 tables · P3 · ✅ 2026-09-20
+
+- [x] **R134 — étendre le détecteur de creux, avec un seuil calibré PAR TABLE sur des
+      données réelles.** ✅ 2026-09-20 — close sur sa MESURE, pas sur une extension.
+
+### Le résultat : 0 table sur 8 calibrable, en production
+
+Lancé le 2026-09-20 contre la base de production :
+
+| table | observations | locataires | couverture | verdict |
+|---|---|---|---|---|
+| `instagram_daily_stats` | 131 | 2 | **41 %** | pas un fait quotidien |
+| `sacem_statement` | 9 | 1 | — | échantillon trop petit |
+| `hypeddit_daily_stats` | 6 | 1 | — | échantillon trop petit |
+| `apple_songs_history` | 2 | 1 | — | échantillon trop petit |
+| `instagram_media` | 2 | 2 | — | échantillon trop petit |
+| `instagram_media_insights`, `apple_daily_plays`, `apple_listeners` | **0** | | | vides |
+
+**Aucun seuil rendu, et c'est un résultat.** Deux tables passent le minimum de 30
+observations ; aucune n'atteint les 50 % de jours couverts qui distinguent un fait
+QUOTIDIEN d'un relevé occasionnel. `sacem_statement` à 9 jours sur 1168 est un relevé
+trimestriel, pas une collecte.
+
+Étendre le détecteur maintenant reviendrait à écrire huit seuils d'instinct — exactement
+ce que la tâche interdisait, et ce qu'un plancher de 30 lignes/jour écrit à vue avait
+déjà coûté : un détecteur aveugle à **2 locataires sur 3**.
+
+### Ce qui reste livré, et qui attend la donnée
+
+* `tools/dev/calibrate_dip_thresholds.py` — dérive médiane, 10ᵉ centile et couverture
+  par table, et **REFUSE** de rendre un seuil quand l'échantillon est trop petit ou la
+  table non quotidienne. C'est sa fonction principale.
+* `make dip-calibrate` (local) et `make dip-calibrate-prod PROD_SSH=…`.
+* `tests/test_a_dip_threshold_is_derived_not_guessed.py` — une table ajoutée à
+  `DIP_TENANT_COLUMN` sans dérivation datée fait rougir la suite. Lu à l'AST.
+
+### Le déclencheur de réouverture, chiffré
+
+**`instagram_daily_stats` à 41 % de couverture.** Il lui manque ~25 jours pour franchir
+les 50 %. C'est la seule des huit qui puisse basculer, et le jour où elle le fera,
+`make dip-calibrate-prod` rendra un seuil dérivé — pas un seuil choisi.
+
+### ⚠️ Deux corrections que cette tâche a produites
+
+1. **L'instruction du runbook était infaisable.** §17 prescrivait `make dip-calibrate`
+   « depuis un shell qui voit la production ». Le serveur n'a pas `psycopg2` : tout y
+   tourne en conteneur. La commande correcte passe par le scheduler Airflow, seul
+   endroit qui bind-monte `tools/` ET porte la dépendance. Une procédure qu'on n'a pas
+   exécutée soi-même est une hypothèse.
+2. **`hypeddit_campaigns` retirée des candidates.** Elle porte `artist_id` et une date,
+   donc elle passait le critère « par locataire ET datée » qui avait servi à compter 84
+   tables éligibles — mais c'est une table de DIMENSION. Des campagnes se créent de
+   temps en temps ; un « creux » y est le fonctionnement normal, et l'y brancher aurait
+   produit une alerte quotidienne que personne ne lit.
+
+**Mesuré par** : `make dip-calibrate-prod PROD_SSH=…` → « 0 table(s) calibrable(s) sur 8 ».

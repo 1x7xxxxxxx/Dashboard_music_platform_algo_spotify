@@ -920,7 +920,7 @@ le 2026-09-17 ; `tests/test_a_make_variable_does_not_collide_with_the_environmen
 
 ---
 
-## 15. R125 — Saisir les écoutes réalisées à 28 jours, pour que le modèle apprenne
+## 15. ~~R125 — Saisir les écoutes réalisées à 28 jours, pour que le modèle apprenne~~ · ✅ FAIT le 2026-09-20 — 33 lignes en production, 11 titres ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 **Ce que ça débloque** : le jeu d'entraînement vivant du scoring. Aujourd'hui il est vide
 et rien ne le dit.
@@ -1328,7 +1328,9 @@ définition, un onglet est du premier écran.
 **Vérification que cette section est à jour** :
 `python3 -m pytest tests/test_roadmap_index_is_honest.py -q`
 
-## 17. R134 — Lancer le calibrateur de creux contre la base de PRODUCTION
+## 17. ~~R134 — Lancer le calibrateur de creux contre la base de PRODUCTION~~ · ✅ FAIT le 2026-09-20 — lancé en production, **0 table sur 8 calibrable** ; détail dans `.claude/dev-docs/roadmap/archive.md`
+
+⚠️ **Et la commande écrite ici était infaisable.** Elle prescrivait `make dip-calibrate` « depuis un shell qui voit la production » ; le serveur n'a pas `psycopg2` — tout y tourne en conteneur. La bonne commande est `make dip-calibrate-prod PROD_SSH=…`, qui passe par le scheduler Airflow, seul endroit qui bind-monte `tools/` ET porte la dépendance.
 
 **Ce que j'attends de toi** : une commande, et sa sortie collée ici.
 
