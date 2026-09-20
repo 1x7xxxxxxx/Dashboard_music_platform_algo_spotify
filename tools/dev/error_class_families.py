@@ -82,7 +82,14 @@ FAMILIES: list[tuple[str, str, str]] = [
      # `metric-registered-twice-kills-the-import`, ajoutée le 2026-09-16 : le cas
      # limite de cette famille — le travail n'arrive nulle part parce que le module
      # n'a jamais fini de se charger. Rien ne s'affiche du tout.
-     r"rebuilt-per-rerun|unwired|debranch|not-reached|orphan|"
+     # `thrown-away`, ajouté le 2026-09-20 avec
+     # `a-confirmation-thrown-away-by-the-rerun-that-follows-it`. Le motif est écrit
+     # sur le SORT du résultat (« jeté »), pas sur `rerun`, qui est le mécanisme d'UNE
+     # surface : la question de la famille — « ce résultat atteint-il quelqu'un ? » —
+     # se pose identiquement pour un message que la page écrase et pour un fichier
+     # qu'un second passage réécrit. Mesuré avant l'ajout : le motif ne déplace aucune
+     # classe déjà classée, il ne fait que retirer celle-ci des orphelines.
+     r"rebuilt-per-rerun|thrown-away|unwired|debranch|not-reached|orphan|"
      r"registered-twice-kills-the-import|"
      # `an-identifier-that-is-referenced-but-never-declared`, ajoutee le 2026-09-16 :
      # meme famille vue depuis la REFERENCE plutot que depuis le code. Un panneau

@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**404 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**406 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -14,7 +14,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 |---|---|---|---|
 | [le-locataire](#le-locataire) | 42 | **9/42** · 21.4 % | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 19 | **1/19** · 5.3 % | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
-| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 15 | **1/15** · 6.7 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
+| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 16 | **1/16** · 6.2 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | **0/20** · 0.0 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **1/20** · 5.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 25 | **3/25** · 12.0 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
@@ -28,7 +28,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 2 | **0/2** · 0.0 % | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 19 | **0/19** · 0.0 % | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 17 | **1/17** · 5.9 % | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
-| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 24 | **2/24** · 8.3 % | Ce que le dépôt déclare est-il ce que la production exécute ? |
+| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 25 | **2/25** · 8.0 % | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | [l-instrument-ment-sur-ce-qu-il-mesure](#l-instrument-ment-sur-ce-qu-il-mesure) | 2 | **0/2** · 0.0 % | Ce que cet instrument AFFICHE est-il ce qu'il a mesuré ? |
 | _sans famille_ | 3 | — | — |
 
@@ -115,7 +115,7 @@ Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generat
 
 **Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ?**
 
-Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|nothing-routes|nobody-call|never-hit|not-when-it-is-needed|nobody-writes|rebuilt-per-rerun|unwired|debranch|not-reached|orphan|registered-twice-kills-the-import|referenced-but-never-declared|dangling|nothing-ever|never-evaluat|jamais évalué` sur l'identifiant et le symptôme. 15 classe(s).
+Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|nothing-routes|nobody-call|never-hit|not-when-it-is-needed|nobody-writes|rebuilt-per-rerun|thrown-away|unwired|debranch|not-reached|orphan|registered-twice-kills-the-import|referenced-but-never-declared|dangling|nothing-ever|never-evaluat|jamais évalué` sur l'identifiant et le symptôme. 16 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -123,6 +123,7 @@ Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|noth
 | [`the-feature-is-wired-to-the-function-nobody-calls`](error-classes.md#the-feature-is-wired-to-the-function-nobody-calls) | une fonctionnalité est écrite, traduite, complète — et ne s'affiche nulle part. Aucun test ne tombe : la fonction qui la rend existe et fonctionne, el |
 | [`page-that-nothing-routes-to`](error-classes.md#page-that-nothing-routes-to) | une vue rend parfaitement, son test de rendu est vert, elle figure dans une liste intitulée « ce qu'un artiste peut atteindre » — et aucun artiste ne  |
 | [`a-surface-reads-a-table-nobody-writes`](error-classes.md#a-surface-reads-a-table-nobody-writes) | un panneau de tableau de bord reste vide sans rien dire. La table qu'il lit existe, le SQL est valide, et personne ne l'écrit. |
+| [`a-confirmation-thrown-away-by-the-rerun-that-follows-it`](error-classes.md#a-confirmation-thrown-away-by-the-rerun-that-follows-it) | une action RÉUSSIT et l'écran ne le dit pas. La page se recharge sans un mot, ce qui se lit exactement comme un échec — l'utilisateur recommence, ou c |
 | [`a-telemetry-table-that-nothing-ever-purges`](error-classes.md#a-telemetry-table-that-nothing-ever-purges) | une table écrite à chaque événement grossit sans borne. Rien n'échoue jamais — jusqu'au jour où une requête de tableau de bord ralentit, ou où le disq |
 | [`an-identifier-that-is-referenced-but-never-declared`](error-classes.md#an-identifier-that-is-referenced-but-never-declared) | **une interface entière rend « No data », et rien n'est en erreur.** Aucun journal ne se plaint, la source de données répond, les requêtes sont justes |
 | [`config-path-dangling`](error-classes.md#config-path-dangling) | a rule, skill or command names a `.claude/` file that is not there. Nothing errors — the instruction is simply unfollowable, and the reader cannot tel |
@@ -555,7 +556,7 @@ Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhoo
 
 **Ce que le dépôt déclare est-il ce que la production exécute ?**
 
-Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version|montée de majeure|valeur par défaut|majeure|reload-that-does-not-reload|bind-address-that-hides-the-service` sur l'identifiant et le symptôme. 24 classe(s).
+Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version|montée de majeure|valeur par défaut|majeure|reload-that-does-not-reload|bind-address-that-hides-the-service` sur l'identifiant et le symptôme. 25 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -573,6 +574,7 @@ Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compos
 | [`a-major-upgrade-that-moves-a-default`](error-classes.md#a-major-upgrade-that-moves-a-default) | une montée de MAJEURE laisse le build vert et rend une de ses garanties fausse. Rien n'échoue, rien n'avertit : le seul endroit où le changement exist |
 | [`a-reload-that-does-not-reload-what-you-changed`](error-classes.md#a-reload-that-does-not-reload-what-you-changed) | on pose un fichier de configuration, on recharge le service, la commande sort en 0, le fichier est bien là — et **le réglage n'est pas appliqué**. Rie |
 | [`a-replica-that-builds-its-own-image`](error-classes.md#a-replica-that-builds-its-own-image) | une seconde instance d'un service, définie par `extends`, sert un artefact DIFFÉRENT de celui qu'elle réplique — code applicatif d'un autre commit, au |
+| [`a-local-measurement-presented-as-a-production-fact`](error-classes.md#a-local-measurement-presented-as-a-production-fact) | un chiffre relevé sur l'environnement de développement est énoncé comme une propriété de la PRODUCTION. Il n'y a ni erreur ni exception : la requête r |
 | [`input-nobody-would-type-reaches-the-driver`](error-classes.md#input-nobody-would-type-reaches-the-driver) | a caller-supplied string reaches the database driver in a shape the driver refuses, and the refusal is an unhandled exception rather than a rejected r |
 | [`dead-content-that-still-ships`](error-classes.md#dead-content-that-still-ships) | un utilisateur suit une consigne que le produit ne demande plus, et échoue. La consigne vient d'un contenu maintenu, traduit, et que plus rien n'affic |
 | [`websocket-dies-behind-the-proxy`](error-classes.md#websocket-dies-behind-the-proxy) | « je clique sur un bouton et il ne se passe rien, je dois recliquer ». Pas UN bouton — **tous**, par intermittence, et avec **aucune réaction** : ni s |
@@ -607,6 +609,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=404 families=18 orphans=3 -->
+<!-- error-class-families: total=406 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=dc6e0ba07d7f21f2c5a8ca84baf32cd35dc2d31156549e4b06527077c1f40820 -->
+<!-- error-class-families: sha256=65ef2f1a1469b691b08c720990a5eb38f744d4b0b28b7027f6b3a10b6d93743c -->

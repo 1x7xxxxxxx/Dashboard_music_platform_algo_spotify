@@ -49,9 +49,14 @@ def _arbre() -> ast.Module:
     return ast.parse(_OUTIL.read_text(encoding="utf-8"))
 
 
-def _appels_de(nom: str) -> set[str]:
-    """Les fonctions appelées par ce contrôle, transitivement sur un niveau."""
-    arbre = _arbre()
+def _appels_de(nom: str, arbre: ast.Module | None = None) -> set[str]:
+    """Les fonctions appelées par ce contrôle, transitivement sur un niveau.
+
+    `arbre` est paramétrable pour que le détecteur puisse être mis en défaut sur un
+    code FABRIQUÉ — sans ça, il ne s'exécute que sur le fichier réel, et un prédicat
+    qui ne voit rien passerait pour un garde vert.
+    """
+    arbre = arbre if arbre is not None else _arbre()
     fns = {n.name: n for n in ast.walk(arbre) if isinstance(n, ast.FunctionDef)}
     if nom not in fns:
         return set()
@@ -110,3 +115,81 @@ def test_the_pattern_is_the_one_its_neighbour_already_used() -> None:
     assert "PROD_SSH" in ast.unparse(fns["_r114"]), (
         "`_r114` n'exige plus `PROD_SSH`. C'est le contrôle qui portait la discipline "
         "avant les autres ; la perdre là, c'est perdre le modèle.")
+
+
+_DEFAUT = """
+def _lire_localement():
+    h = PostgresHandler.from_env_or_config()
+    return h.fetch_query("SELECT count(*) FROM daily_ops_metrics")
+
+def _r116():
+    jours = _lire_localement()
+    return jours >= 14
+"""
+
+_CORRIGE = """
+def _ops_metrics_en_prod(sql):
+    hote = os.environ.get("PROD_SSH")
+    if not hote:
+        raise RuntimeError("sans PROD_SSH ce contrôle n'a RIEN vérifié")
+    return _ssh(hote, sql)
+
+def _r116():
+    jours = _ops_metrics_en_prod("SELECT count(*) FROM daily_ops_metrics")
+    return jours >= 14
+"""
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuité : sur le code EXACT du défaut, le détecteur doit mordre.
+
+    Les DEUX moitiés comptent. Sans la seconde, corriger le défaut ferait rougir son
+    propre garde — mesuré dans ce dépôt le 2026-08-03, et la seule façon de garder la
+    CI verte avait alors été d'arrêter de documenter.
+    """
+    defaut = ast.parse(_DEFAUT)
+    assert "from_env_or_config" in _appels_de("_r116", defaut), (
+        "le défaut n'est pas vu : le détecteur ne descend pas dans la fonction appelée")
+
+    corrige = ast.parse(_CORRIGE)
+    assert "from_env_or_config" not in _appels_de("_r116", corrige), (
+        "un correctif ferait rougir le garde")
+
+
+def test_the_second_half_of_the_guard_sees_its_own_defect() -> None:
+    """La moitié « refuse de conclure » se prouve aussi : sur le défaut, elle manque.
+
+    Elle vérifie que `PROD_SSH` et `RuntimeError` apparaissent dans le corps du contrôle
+    et de ce qu'il appelle. Rejouée ici sur les deux formes fabriquées, elle sépare.
+    """
+    def _corps(source: str) -> str:
+        arbre = ast.parse(source)
+        fns = {n.name: n for n in ast.walk(arbre) if isinstance(n, ast.FunctionDef)}
+        noms = ({"_r116"} | _appels_de("_r116", arbre)) & set(fns)
+        return "\n".join(ast.unparse(fns[n]) for n in noms)
+
+    defectueux = _corps(_DEFAUT)
+    assert "PROD_SSH" not in defectueux and "RuntimeError" not in defectueux, (
+        "le prédicat trouve la discipline dans un code qui ne l'a pas — il est aveugle")
+
+    correct = _corps(_CORRIGE)
+    assert "PROD_SSH" in correct and "RuntimeError" in correct, (
+        "le prédicat ne voit pas la discipline dans un code qui la porte")
+
+
+def test_the_detector_does_not_report_a_call_made_by_an_unrelated_function() -> None:
+    """Le faux positif fabriqué (règle 20).
+
+    `from_env_or_config` appelée par une fonction VOISINE, que le contrôle n'appelle
+    pas, ne doit rien déclencher — sinon le garde rougirait sur tout fichier qui
+    contient les deux formes, quel que soit le lien entre elles.
+    """
+    voisin = ast.parse(
+        "def _autre_outil():\n"
+        "    return PostgresHandler.from_env_or_config()\n"
+        "\n"
+        "def _r116():\n"
+        "    return _ops_metrics_en_prod('SELECT 1')\n")
+    assert "from_env_or_config" not in _appels_de("_r116", voisin), (
+        "un appel hors du chemin du contrôle est compté — le détecteur suit le fichier, "
+        "pas l'appel")

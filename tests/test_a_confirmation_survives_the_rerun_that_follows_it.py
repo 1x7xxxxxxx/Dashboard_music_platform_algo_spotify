@@ -120,3 +120,42 @@ def test_the_flash_is_consumed_not_just_read() -> None:
                for n in ast.walk(fn)), (
         "`show_flash` ne CONSOMME pas le message : il resterait affiché à chaque rendu "
         "suivant, et un message permanent est un message qu'on apprend à ignorer.")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuité : sur le code EXACT du défaut, le détecteur doit mordre.
+
+    Les DEUX moitiés comptent. Sans la seconde, corriger le défaut ferait rougir son
+    propre garde — et la seule façon de garder la CI verte serait d'arrêter de corriger.
+    """
+    defaut = ast.parse(
+        "def enregistrer():\n"
+        "    ecrire()\n"
+        "    st.success('Enregistré.')\n"
+        "    st.rerun()\n")
+    assert _sites_perdus(defaut) == [3], "le défaut n'est pas vu"
+
+    corrige = ast.parse(
+        "def enregistrer():\n"
+        "    ecrire()\n"
+        "    flash('Enregistré.')\n"
+        "    st.rerun()\n")
+    assert _sites_perdus(corrige) == [], "un correctif ferait rougir le garde"
+
+
+@pytest.mark.parametrize("niveau", ["success", "info", "warning", "error"])
+def test_the_detector_sees_all_four_levels_not_only_success(niveau: str) -> None:
+    """Un `st.error` avalé par un rerun est PIRE : l'échec devient invisible.
+
+    Le garde a été écrit sur le symptôme signalé — un `st.success` — et la portée est
+    la famille de geste, pas le verbe. Sans cette paramétrisation, un garde ancré sur
+    `success` laisserait les trois autres niveaux vivants.
+    """
+    arbre = ast.parse(f"def f():\n    st.{niveau}('x')\n    st.rerun()\n")
+    assert _sites_perdus(arbre) == [2], f"st.{niveau} avalé par le rerun n'est pas vu"
+
+
+def test_the_detector_does_not_fire_on_a_message_that_is_not_followed_by_a_rerun() -> None:
+    """Le faux positif fabriqué (règle 20) : un message SANS rerun derrière est correct."""
+    arbre = ast.parse("def f():\n    st.success('x')\n    return None\n")
+    assert _sites_perdus(arbre) == [], "un message qui survit à son rendu est signalé à tort"
