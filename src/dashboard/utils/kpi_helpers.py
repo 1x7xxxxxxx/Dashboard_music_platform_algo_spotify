@@ -41,6 +41,27 @@ _KPI_TTL = 600
 #   CSV  — personne ne dépose un export tous les jours. Spotify for Artists publie
 #          par semaine ; une semaine sans dépôt est ordinaire, un mois est un
 #          abandon. D'où 7 j / 30 j, demandés et non déduits.
+# ⚠️ CE BARÈME NE S'ALIGNE PAS SUR LA SUPERVISION, ET C'EST MESURÉ — 2026-09-20.
+#
+# R140 §16.11 recensait quatre barèmes de fraîcheur, et ma recommandation était de les
+# aligner sur `freshness_monitor` (48 h API / 168 h CSV). **Appliquée ici, elle était
+# fausse**, et c'est `tests/test_a_scale_matches_the_contract_it_judges.py` qui l'a dit :
+# il porte une demande EXPLICITE du propriétaire — « passe le seuil rouge à 30 j et
+# orange à partir de 1 semaine » — née d'une plainte, « c'est en rouge alors qu'on a que
+# 3 jours de retard ». Aligner le rouge API sur 48 h faisait rougir une source de DEUX
+# jours, ce que ce contrat interdit nommément.
+#
+# La raison dépasse le confort : **un rouge qui s'allume sur un comportement normal
+# cesse d'être lu**, et il ne dira plus rien le jour où la source casse vraiment. Même
+# famille que `watchdog-becomes-the-noise`, du côté de l'échelle.
+#
+# Ce barème et celui de `freshness_monitor` répondent donc à deux questions distinctes :
+# ici « que montre-t-on à l'artiste », là-bas « réveille-t-on quelqu'un ». La
+# contradiction réelle n'était pas entre eux — c'était entre les deux surfaces de
+# SUPERVISION : le canari jugeait à 36 h uniformes ce que le registre déclare à 48 h ou
+# 168 h. **6 écarts mesurés** tombaient entre 36 h et 48 h, où le canari criait pendant
+# que la fraîcheur répondait « fraîche ». C'est là que l'unification a eu lieu
+# (`airflow/dags/alert_monitor.py`, `stale_hours_for`), et nulle part ailleurs.
 _FRESH_H = 24
 _WARN_H = 72
 _CSV_FRESH_H = 24 * 7        # une semaine : le rythme de publication de S4A

@@ -86,6 +86,49 @@ SOURCES_FOR_PLATFORM = {
 }
 
 
+# ── LE SEUIL CANONIQUE, ENFIN EXPORTÉ — 2026-09-20 (R140 §16.11) ─────────────
+#
+# `MONITOR_TARGETS` porte `stale_h` par SOURCE depuis toujours — 48 h pour une source
+# nourrie par un DAG, 168 h pour une source nourrie à la main. Mais il n'était lisible
+# que d'ici, et trois autres surfaces ont donc écrit le leur :
+#
+#   `kpi_helpers.py:44-47`   24 h / 72 h        le badge à trois couleurs de l'artiste
+#   `alert_monitor.py:633`   36 h UNIFORME      le canari de production
+#   `alert_monitor.py:1052`  36 h UNIFORME      le journal des collectes
+#   `db_health.py:45-46`     14 j / 30 j        la table admin par table
+#
+# Mesuré le 2026-09-20 sur les écarts RÉELS entre collectes consécutives, 4 702 écarts :
+#
+#   **26 écarts entre 24 h et 36 h** — le tableau de bord peint 🟠 et AUCUNE surface
+#   d'alerte ne parle ; **6 entre 36 h et 48 h** — `alert_monitor` déclenche pendant que
+#   `freshness_monitor` répond « fraîche ». Deux fenêtres où deux surfaces du même
+#   produit se contredisent devant le même fait.
+#
+# ⚠️ Et le canari appliquait **36 h à TOUT**, y compris à `Spotify S4A` et `Apple Music`
+# que ce registre déclare `csv` / **168 h**. Un export déposé chaque semaine — la cadence
+# de publication de S4A — était donc « en retard » dès le deuxième jour. C'est la forme
+# exacte de `watchdog-becomes-the-noise` : l'alerte a déjà crié 85 nuits d'affilée sur
+# cette source, et le commentaire de `MONITOR_TARGETS` ci-dessus le documente.
+#
+# ⚠️ Ce qui N'EST PAS unifié, et pourquoi : les quatre surfaces posent des questions
+# différentes. Un badge à trois couleurs a besoin d'un palier intermédiaire qu'un seuil
+# binaire n'a pas ; la table admin de `db_health` raisonne en SEMAINES sur des tables
+# entières, pas en heures sur une source. Ce qui est unifié est la FRONTIÈRE du rouge :
+# « périmé » veut dire la même chose partout, et les paliers plus doux restent libres.
+_TABLE_STALE_H = {t["table"]: t["stale_h"] for t in MONITOR_TARGETS}
+
+
+def stale_hours_for(table: str, defaut: int = _DEFAULT_STALE_H) -> int:
+    """Au-delà de combien d'heures CETTE table est périmée. La seule réponse du dépôt.
+
+    Une table inconnue du registre rend le seuil des sources nourries par un DAG : c'est
+    le cas le plus fréquent, et le plus strict des deux — une source nourrie à la main
+    jugée trop sévèrement crie, une source automatique jugée trop mollement se tait, et
+    entre les deux erreurs c'est le silence qui coûte.
+    """
+    return _TABLE_STALE_H.get(table, defaut)
+
+
 def sources_for(platform: str) -> tuple:
     """The freshness source labels that can prove `platform` is collecting."""
     return SOURCES_FOR_PLATFORM.get(platform, ())

@@ -630,7 +630,19 @@ def check_canary_health(**context):
     import sys
     sys.path.insert(0, '/opt/airflow')
 
-    STALE_HOURS = 36  # one nightly cycle plus margin — a single missed run is noise
+    # ⚠️ LE SEUIL VIENT DU REGISTRE, PAR TABLE — 2026-09-20 (R140 §16.11).
+    #
+    # C'était `STALE_HOURS = 36`, appliqué UNIFORMÉMENT. Or `freshness_monitor` déclare
+    # `Spotify S4A` et `Apple Music` comme nourries à la main, à **168 h** : un export
+    # déposé chaque semaine — la cadence de publication de S4A — était donc « en retard »
+    # dès le deuxième jour. C'est la forme exacte de `watchdog-becomes-the-noise` que le
+    # docstring de cette fonction invoque, et cette alerte a déjà crié 85 nuits d'affilée
+    # sur cette source.
+    #
+    # Mesuré le 2026-09-20 sur 4 702 écarts réels entre collectes consécutives : **6**
+    # tombent entre 36 h et 48 h, où ce canari déclenchait pendant que `freshness_monitor`
+    # répondait « fraîche ». Deux surfaces du même produit, deux verdicts, un seul fait.
+    from src.utils.freshness_monitor import stale_hours_for
 
     problems = []
     db = None
@@ -692,7 +704,8 @@ def check_canary_health(**context):
                 ages.append((table, db.fetch_query(
                     f"SELECT EXTRACT(EPOCH FROM (now() - MAX({col})))/3600 "  # noqa: S608
                     f"FROM {table} WHERE artist_id = %s", (artist_id,))[0][0]))
-            fresh = [(t, a) for t, a in ages if a is not None and a <= STALE_HOURS]
+            fresh = [(t, a) for t, a in ages
+                     if a is not None and a <= stale_hours_for(t)]
             if fresh or not ages:
                 continue
             seen = [(t, a) for t, a in ages if a is not None]
@@ -704,7 +717,7 @@ def check_canary_health(**context):
                 t_best, a_best = min(seen, key=lambda x: x[1])
                 problems.append({'platform': platform, 'reason':
                                  f'canary "{name}" last collected into {t_best} '
-                                 f'{int(a_best)}h ago (> {STALE_HOURS}h)'})
+                                 f'{int(a_best)}h ago (> {stale_hours_for(t_best)}h)'})
 
         # Coverage, stated once and explicitly: which platforms this canary can
         # prove, and which it cannot. NOT appended to `problems` — Meta and
@@ -1033,7 +1046,8 @@ def check_collection_outcomes(**context):
     run for THIS tenant, and what did the platform actually say?**
 
     Why it is not redundant with freshness. Freshness reads `MAX(date)` on a table, so
-    it can only notice a stopped tenant once the data has aged past a 48h threshold —
+    it can only notice a stopped tenant once the data has aged past its per-source stale
+    threshold (48 h for a DAG-fed source, 168 h for one fed by hand — `stale_hours_for`) —
     and only for the 7 sources it monitors. The ledger sees the failure the same night,
     carries the LITERAL cause the API returned, and covers a tenant who has never had a
     single row (freshness has nothing to measure there).
