@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.ui import secondary_analyses
+from src.dashboard.utils.ui import flash, secondary_analyses
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.kpi_helpers import (
     get_instagram_followers,
@@ -702,7 +702,7 @@ def show():
                         'top_fans_count': top_fans_count,
                         'top_fans_rank': top_fans_rank,
                     })
-                    st.success(t("data_wrapped.save_success",
+                    flash(t("data_wrapped.save_success",
                                  "✅ Données {year} enregistrées.").format(year=int(year)))
                     st.rerun()
                 except Exception as e:
@@ -723,7 +723,7 @@ def show():
                 if st.button(t("data_wrapped.btn_delete", "🗑️ Supprimer"), type="secondary"):
                     try:
                         _delete_wrapped(db, del_artist_id, int(del_year))
-                        st.success(t("data_wrapped.delete_success",
+                        flash(t("data_wrapped.delete_success",
                                      "Année {year} supprimée.").format(year=int(del_year)))
                         st.rerun()
                     except Exception as e:

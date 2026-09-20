@@ -16,6 +16,7 @@ from src.utils.track_matching import canonical_song
 from src.utils.track_mapping_suggest import confidence_badge, rank_campaign_candidates
 
 from ._common import _S4A_FILTER, _artist_noise, _mutex_checkboxes
+from src.dashboard.utils.ui import flash
 
 
 def _load_unmapped_campaigns(db, artist_id: int):
@@ -303,7 +304,7 @@ def render_campaign_tab(db, artist_id, canonical):
         if st.button(t("meta_mapping.associate_button", "💾 Enregistrer (associer / rejeter)"),
                      type="primary"):
             n_a, n_r = _save_campaign_links(db, artist_id, sugg, edited)
-            st.success(t("meta_mapping.campaigns_saved",
+            flash(t("meta_mapping.campaigns_saved",
                          "{a} associée(s), {r} rejetée(s).").format(a=n_a, r=n_r))
             st.rerun()
 
@@ -356,7 +357,7 @@ def render_campaign_tab(db, artist_id, canonical):
                 db.execute_query(
                     "DELETE FROM campaign_track_mapping WHERE id = %s AND artist_id = %s",
                     (options[sel], artist_id))
-                st.success(t("meta_mapping.deleted", "Supprimé : {label}").format(label=sel))
+                flash(t("meta_mapping.deleted", "Supprimé : {label}").format(label=sel))
                 st.rerun()
     with sub_add:
         campaigns = _load_campaigns(db, artist_id)
@@ -388,6 +389,6 @@ def render_campaign_tab(db, artist_id, canonical):
                 "VALUES (%s, %s, %s) "
                 "ON CONFLICT (artist_id, campaign_name, track_name) DO NOTHING",
                 (artist_id, campaign, track))
-            st.success(t("meta_mapping.mapped", "Associé : **{campaign}** → **{track}**")
+            flash(t("meta_mapping.mapped", "Associé : **{campaign}** → **{track}**")
                        .format(campaign=campaign, track=track))
             st.rerun()

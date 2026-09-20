@@ -22,9 +22,11 @@ import streamlit as st
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 
+from src.dashboard.utils.ui import flash
 from src.utils.artist_name_filter import (
     ARTIST_NAME_LIKE as _ARTIST_FILTER,
 )
+
 _WINDOWS = [("Playlist 7j", "7d"), ("Playlist 28j", "28d"), ("Playlist 12 mois", "12m")]
 
 
@@ -191,7 +193,7 @@ def _save_fixed(db, artist_id, edited: pd.DataFrame, radio_count: int) -> None:
                        [{"artist_id": artist_id, "recorded_at": today,
                          "song_count": int(radio_count)}],
                        ["artist_id", "recorded_at"], ["song_count"])
-        st.success(t("saisie_s4a.saved_fixed",
+        flash(t("saisie_s4a.saved_fixed",
                      "Enregistré : {pa} valeurs playlist + {dm} Discovery Mode + "
                      "{na} streams non-algo + Radio = {radio}.")
                    .format(pa=len(pa_rows), dm=len(dm_rows), na=len(na_rows), radio=int(radio_count)))
@@ -256,7 +258,7 @@ def _render_outcome_grid(db, artist_id, tracks) -> None:
             db.upsert_many("s4a_song_algo_outcomes", rows,
                            ["artist_id", "song", "time_window", "recorded_at"],
                            ["dw_streams", "rr_streams", "radio_streams"])
-            st.success(t("saisie_s4a.saved_outcomes",
+            flash(t("saisie_s4a.saved_outcomes",
                          "Outcomes réalisés enregistrés (7j + 28j) pour {n} titres.").format(n=len(tracks)))
             st.rerun()
         except Exception as exc:
@@ -294,7 +296,7 @@ def _render_outcome_custom_grid(db, artist_id, tracks) -> None:
             db.upsert_many("s4a_song_algo_outcomes", rows,
                            ["artist_id", "song", "time_window", "recorded_at"],
                            ["dw_streams", "rr_streams", "radio_streams", "period_start", "period_end"])
-            st.success(t("saisie_s4a.outcome_custom_saved",
+            flash(t("saisie_s4a.outcome_custom_saved",
                          "Période {start} → {end} enregistrée pour {n} titres.")
                        .format(start=start, end=end, n=len(rows)))
             st.rerun()
@@ -331,7 +333,7 @@ def _render_custom_grid(db, artist_id, tracks) -> None:
             db.upsert_many("s4a_song_playlist_adds", rows,
                            ["artist_id", "song", "time_window", "recorded_at"],
                            ["count", "period_start", "period_end"])
-            st.success(t("saisie_s4a.saved_custom", "Plage {start} → {end} enregistrée pour {n} titres.")
+            flash(t("saisie_s4a.saved_custom", "Plage {start} → {end} enregistrée pour {n} titres.")
                        .format(start=start, end=end, n=len(rows)))
             st.rerun()
         except Exception as exc:

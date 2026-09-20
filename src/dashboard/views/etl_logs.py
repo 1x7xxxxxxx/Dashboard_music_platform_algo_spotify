@@ -14,6 +14,7 @@ import plotly.express as px
 from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
+from src.dashboard.utils.ui import flash
 
 STATUS_COLORS = {
     'success': '#27ae60',
@@ -299,7 +300,7 @@ def _section_circuit_breakers(db):
                     try:
                         from src.utils.circuit_breaker import reset_circuit
                         reset_circuit(platform, artist_id)
-                        st.success(t("etl_logs.cb_reset_ok", "Circuit {platform} réinitialisé.").format(platform=platform))
+                        flash(t("etl_logs.cb_reset_ok", "Circuit {platform} réinitialisé.").format(platform=platform))
                         st.rerun()
                     except Exception as e:
                         st.error(t("etl_logs.cb_reset_err", "Erreur : {err}").format(err=e))

@@ -11,6 +11,7 @@ from src.dashboard.auth import is_admin
 from src.database.postgres_handler import validate_table
 from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.utils.cache_invalidation import purge_after_write
+from src.dashboard.utils.ui import flash
 
 
 def _guard():
@@ -631,7 +632,7 @@ def _tab_artists(db) -> None:
                 else:
                     try:
                         _create_artist(db, new_name, new_slug, new_tier)
-                        st.success(t("admin.artist_created", "✅ Artiste « {name} » créé.").format(name=new_name))
+                        flash(t("admin.artist_created", "✅ Artiste « {name} » créé.").format(name=new_name))
                         st.rerun()
                     except Exception as e:
                         st.error(t("admin.generic_error", "Erreur : {err}").format(err=e))
@@ -660,7 +661,7 @@ def _tab_artists(db) -> None:
                     try:
                         _update_artist(db, sel['id'], edit_name, edit_tier)
                         _toggle_active(db, sel['id'], edit_active)
-                        st.success(t("admin.artist_updated", "✅ Artiste mis à jour."))
+                        flash(t("admin.artist_updated", "✅ Artiste mis à jour."))
                         st.rerun()
                     except Exception as e:
                         st.error(t("admin.generic_error", "Erreur : {err}").format(err=e))
@@ -725,12 +726,12 @@ def _tab_users(db) -> None:
             if sel_user['active']:
                 if st.button(t("admin.btn_revoke", "🔴 Révoquer l'accès"), key="revoke_user"):
                     _toggle_user_active(db, sel_user['id'], False)
-                    st.success(t("admin.access_revoked", "Accès révoqué pour {user}.").format(user=sel_user['username']))
+                    flash(t("admin.access_revoked", "Accès révoqué pour {user}.").format(user=sel_user['username']))
                     st.rerun()
             else:
                 if st.button(t("admin.btn_restore", "✅ Restaurer l'accès"), key="restore_user"):
                     _toggle_user_active(db, sel_user['id'], True)
-                    st.success(t("admin.access_restored", "Accès restauré pour {user}.").format(user=sel_user['username']))
+                    flash(t("admin.access_restored", "Accès restauré pour {user}.").format(user=sel_user['username']))
                     st.rerun()
 
         # Resend verification email
@@ -758,7 +759,7 @@ def _tab_users(db) -> None:
             if cc1.button(t("admin.btn_confirm_delete", "Confirmer la suppression"), type="primary", key="confirm_del_user"):
                 _delete_user(db, sel_user['id'])
                 st.session_state.pop('_confirm_delete_user', None)
-                st.success(t("admin.account_deleted", "Compte supprimé."))
+                flash(t("admin.account_deleted", "Compte supprimé."))
                 st.rerun()
             if cc2.button(t("admin.btn_cancel", "Annuler"), key="cancel_del_user"):
                 st.session_state.pop('_confirm_delete_user', None)

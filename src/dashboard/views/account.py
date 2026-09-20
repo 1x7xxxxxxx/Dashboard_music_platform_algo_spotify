@@ -14,6 +14,7 @@ from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import verify_password, hash_password, _validate_password_strength
 from src.dashboard.utils.tz import to_local_datetime
+from src.dashboard.utils.ui import flash
 
 
 def _get_user_row(db, username: str) -> dict | None:
@@ -183,7 +184,7 @@ def _section_totp(db, user: dict) -> None:
                 "UPDATE saas_users SET totp_enabled = FALSE, totp_secret = NULL WHERE id = %s",
                 (user["id"],),
             )
-            st.success(t("account.totp_disabled",
+            flash(t("account.totp_disabled",
                          "✅ 2FA désactivée. Vous pouvez la réactiver à tout moment."))
             st.rerun()
         return
@@ -254,7 +255,7 @@ def _section_totp(db, user: dict) -> None:
                 (secret, user["id"]),
             )
             st.session_state.pop('totp_enroll_secret', None)
-            st.success(t("account.totp_active",
+            flash(t("account.totp_active",
                          "✅ L'authentification à deux facteurs est désormais active sur votre compte."))
             st.rerun()
         else:

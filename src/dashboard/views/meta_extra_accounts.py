@@ -27,6 +27,7 @@ import json
 import streamlit as st
 
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.ui import flash
 from src.utils.tenant_identity import (
     META_ACCOUNTS_FIELD,
     malformed_meta_accounts,
@@ -103,7 +104,7 @@ def render_extra_ad_accounts(db, artist_id: int) -> None:
             st.error(t("meta.extra_accounts_failed",
                        "Enregistrement impossible — réessaie dans un instant."))
             return
-        st.success(t("meta.extra_accounts_saved",
+        flash(t("meta.extra_accounts_saved",
                      "✅ {n} compte(s) suivi(s).").format(
                          n=len(merged[META_ACCOUNTS_FIELD])))
         st.rerun()

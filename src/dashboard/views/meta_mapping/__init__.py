@@ -26,6 +26,7 @@ from src.utils.track_matching import rebuild_release_reference
 from ._campaigns import render_campaign_tab
 from ._common import _load_canonical
 from ._tracks import render_overview_tab
+from src.dashboard.utils.ui import flash
 
 
 def show():
@@ -44,7 +45,7 @@ def show():
             if st.button(t("track_mapping.rebuild_button",
                            "🔄 Reconstruire la référence des titres")):
                 n = rebuild_release_reference(db, artist_id)
-                st.success(t("track_mapping.rebuilt",
+                flash(t("track_mapping.rebuilt",
                              "{n} titre(s) de référence reconstruits.").format(n=n))
                 st.rerun()
             return

@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
+from src.dashboard.utils.ui import flash
 
 
 def _guard():
@@ -121,7 +122,7 @@ def show():
                                if is_active else
                                t("promo_admin.toggle_reenabled",
                                  "Code **{code}** re-enabled."))
-                        st.success(msg.format(code=selected_code))
+                        flash(msg.format(code=selected_code))
                         st.rerun()
 
             st.markdown("---")

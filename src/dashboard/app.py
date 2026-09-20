@@ -592,6 +592,14 @@ def _render_page(page):
         st.error(t("nav.admin_only", "🔒 Cette page est réservée aux administrateurs."))
         return
 
+    # LE CONSOMMATEUR des `flash(...)` déposés avant un `st.rerun()` — 2026-09-20.
+    # Sans lui, les 23 sites convertis déposent un message que personne ne ramasse.
+    # Posé AVANT le routage : c'est en tête de page que l'œil revient après un
+    # rechargement. Détail du défaut et des 23 sites :
+    # `tests/test_a_confirmation_survives_the_rerun_that_follows_it.py`.
+    from src.dashboard.utils.ui import show_flash
+    show_flash()
+
     if page == "home":
         from views.home import show; show()
 

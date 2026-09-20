@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.ui import smart_date_range
+from src.dashboard.utils.ui import flash, smart_date_range
 from src.dashboard.utils.cache_invalidation import purge_after_write
 from src.dashboard.auth import is_admin, tenant_scope
 from src.dashboard.utils.kpi_helpers import get_roi_data, get_monthly_roi_series
@@ -197,7 +197,7 @@ def _render_entry_form(db, artist_id):
                     db, DISTRIBUTOR_TABLES[distributor],
                     target_id, int(year), int(month), float(revenue), notes.strip()
                 )
-                st.success(t(
+                flash(t(
                     "imusician.entry_saved",
                     "{distributor} — {month} {year} : {revenue:,.2f} € enregistré."
                 ).format(
@@ -382,7 +382,7 @@ def show():
                                         db, DISTRIBUTOR_TABLES[del_distributor],
                                         del_target_id, int(del_year), int(del_month)
                                     )
-                                    st.success(t(
+                                    flash(t(
                                         "imusician.entry_deleted",
                                         "Entrée supprimée : {distributor} — {month} {year}"
                                     ).format(

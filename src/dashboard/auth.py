@@ -19,6 +19,7 @@ from typing import Optional
 
 import bcrypt
 import streamlit as st
+from src.dashboard.utils.ui import flash
 
 _project_root = str(Path(__file__).resolve().parent.parent.parent)
 if _project_root not in sys.path:
@@ -476,7 +477,7 @@ def _show_bootstrap_form(db) -> None:
                 """,
                 (username.strip(), email.strip(), hash_password(pw))
             )
-            st.success(_t("auth.bootstrap_ok",
+            flash(_t("auth.bootstrap_ok",
                           "Compte admin '{u}' créé. Vous pouvez maintenant vous connecter.")
                        .format(u=username))
             st.rerun()

@@ -114,6 +114,52 @@ def say_why_it_is_empty(last_measure, window, *, empty_window: str,
         st.info(no_history)
 
 
+# ── Un message qui SURVIT au rerun qui le suit ───────────────────────────────
+#
+# ⚠️ **Signalé par le propriétaire le 2026-09-20, et c'est un défaut de PRODUIT, pas de
+# confort.** Il a saisi ses écoutes réalisées dans « Saisie S4A », pressé
+# « 💾 Enregistrer », et rapporté : « rien n'a fonctionné ou rien ne m'a communiqué que
+# ça avait été enregistré ».
+#
+# **L'enregistrement avait fonctionné** — 33 lignes écrites en production, vérifiées. Le
+# code faisait :
+#
+#     st.success("… enregistrés …")
+#     st.rerun()
+#
+# `st.rerun()` JETTE le rendu en cours : le message n'est jamais peint. L'utilisateur
+# voit la page se recharger sans un mot, exactement comme si rien ne s'était passé — et
+# la réaction naturelle est de recommencer, ou de conclure que c'est cassé.
+#
+# Balayé le 2026-09-20 : **23 sites** dans `src/dashboard/`, dont les QUATRE boutons de
+# `saisie_s4a.py`. Ce n'est donc pas un oubli, c'est un motif qu'on recopie.
+#
+# Le remède tient dans l'ordre : on DÉPOSE le message dans l'état de session AVANT le
+# rerun, et le rendu suivant le ramasse. `st.toast` existe et survit aussi, mais il
+# s'efface tout seul en quelques secondes — pour une confirmation d'écriture, on veut
+# quelque chose qui reste à l'écran jusqu'à l'action suivante.
+_CLE_MESSAGE = "_message_apres_rerun"
+
+
+def flash(message: str, *, level: str = "success") -> None:
+    """Dépose un message que le PROCHAIN rendu affichera. À appeler avant `st.rerun()`."""
+    st.session_state[_CLE_MESSAGE] = (level, message)
+
+
+def show_flash() -> None:
+    """Affiche et CONSOMME le message déposé. À appeler en tête de page.
+
+    Consommé, pas seulement lu : sans le `pop`, le message resterait affiché à chaque
+    rendu suivant et deviendrait le bruit qu'on apprend à ignorer.
+    """
+    depose = st.session_state.pop(_CLE_MESSAGE, None)
+    if not depose:
+        return
+    level, message = depose
+    {"success": st.success, "info": st.info,
+     "warning": st.warning, "error": st.error}.get(level, st.info)(message)
+
+
 def secondary_analyses(label: str | None = None):
     """Collapsed container for charts that refine a decision but never make one.
 
