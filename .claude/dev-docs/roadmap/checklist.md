@@ -79,7 +79,10 @@ donc pas encore ; le bloc le disait déjà lui-même : « un ADR écrit avant la
 serait une rationalisation ». Déclencheur de réouverture, calculable, dans
 `### Conditions d'attente` ci-dessous, ligne « Écrire **ADR-027** (répliques et
 Redis) » : `SELECT count(*) FROM daily_ops_metrics WHERE complete` doit rendre
-**14 jours** à `TRUE` (aujourd'hui : 0). Elle n'attend aucun geste humain, seulement
+**14 jours** à `TRUE` — **2 en production le 2026-09-20**, et le chiffre écrit ici
+disait « 0 » parce qu'il avait été relevé sur la base LOCALE. `make reopen-check-prod`
+le remesure ; sans `PROD_SSH` le contrôle rend désormais INDÉCIDABLE plutôt qu'un chiffre
+qui ne décrit rien. Elle n'attend aucun geste humain, seulement
 du trafic — elle ne va donc pas dans « 🙋 En attente de toi » — et pour la même
 raison elle sort de l'ancre de reprise en tête de fichier, qui ne porte que ce que
 les deux tables d'index de ce fichier listent encore.
@@ -237,7 +240,10 @@ sans que le facteur 1,7 soit justifié.
 
 ```sql
 SELECT count(*) FROM daily_ops_metrics WHERE day > now() - interval '30 days';
--- doit rendre 30 (aujourd'hui : 1)
+-- doit rendre 30 — **4 en production le 2026-09-20**
+-- ⚠️ À mesurer EN PRODUCTION : `make reopen-check-prod PROD_SSH=…`. Le « 1 » écrit ici
+-- venait de la base locale, et l'outil de réouverture faisait la même erreur jusqu'au
+-- 2026-09-20 (il annonçait 5).
 ```
 
 - [ ] **R131 — les trois seuils de charge, dérivés d'une distribution et non d'un instinct.**

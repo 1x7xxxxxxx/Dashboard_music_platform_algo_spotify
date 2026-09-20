@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -356,6 +356,14 @@ error-families: ## Familles de classes d'erreur → .claude/dev-docs/error-class
 # d'archive. Les tests les ont rattrapées — après coup. Ici, l'outil refuse avant.
 reopen-check: ## Les conditions de RÉOUVERTURE des tâches closes sont-elles remplies ? — exit 1 si oui
 	@python3 tools/dev/reopen_check.py
+
+# ⚠️ DEUX conditions portent sur du TRAFIC (`daily_ops_metrics`, alimentée par le DAG de
+# production). Sans `PROD_SSH` elles rendent INDÉCIDABLE — c'est voulu : jusqu'au
+# 2026-09-20 elles mesuraient la base LOCALE et rendaient un chiffre qui ne décrivait
+# rien (R116 : 0 en local contre 2 en prod ; R131 : 5 contre 4).
+reopen-check-prod: ## Le même, avec les conditions de TRAFIC mesurées en prod. PROD_SSH=user@host
+	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host"; exit 1; }
+	@PROD_SSH=$(PROD_SSH) python3 tools/dev/reopen_check.py
 
 roadmap-close: ## Ferme une tâche : retire sa ligne d'index et recale l'ancre — make roadmap-close ID=R128
 	@test -n "$(ID)" || { echo "❌ ID= manquant. Ex : make roadmap-close ID=R128"; exit 1; }

@@ -89,28 +89,59 @@ def _r122() -> tuple[str, str]:
     return verdict, f"ever_recurred_observed = {n} (seuil : > {seuil})"
 
 
-def _r116() -> tuple[str, str]:
-    from src.database.postgres_handler import PostgresHandler
+# ── LES DEUX CONDITIONS QUI PARLENT DE PRODUCTION SE MESURENT EN PRODUCTION ──
+#
+# ⚠️ **Mesure le 2026-09-20 : ces deux controles interrogeaient la base LOCALE.** Ils
+# appelaient `from_env_or_config()`, qui depuis un poste de developpement resout
+# `localhost:5433`. Les chiffres divergeaient :
+#
+#                      local (ce que l'outil disait)   production (la verite)
+#     R116                  0 jour complet                    2
+#     R131                  5 jours sur 30                    4
+#
+# `daily_ops_metrics` est alimentee par le DAG de production. Une condition de
+# reouverture qui porte sur du TRAFIC ne peut pas se juger sur une base de
+# developpement — elle y sera toujours fausse, dans un sens ou dans l'autre, et c'est
+# l'outil meme dont le role est de decider quand une tache revient.
+#
+# Le motif correct existait deja dans ce fichier : `_r114()` passe par `PROD_SSH` et
+# LEVE si la variable manque, plutot que de conclure sur rien. Ces deux-la le suivent
+# desormais — un controle qui ne peut pas mesurer rend INDECIDABLE, jamais « en
+# attente ». Une condition indecidable n'est pas une condition satisfaite, et elle
+# n'est pas non plus une condition refusee.
+def _ops_metrics_en_prod(sql: str) -> int:
+    """Interroge `daily_ops_metrics` DANS la base de production. Leve sans `PROD_SSH`."""
+    import os
+    ssh = os.environ.get("PROD_SSH", "").strip()
+    if not ssh:
+        raise RuntimeError(
+            "PROD_SSH non défini — ce contrôle n'a RIEN vérifié. `daily_ops_metrics` est "
+            "alimentée par le DAG de PRODUCTION ; la mesurer en local rend un chiffre "
+            "qui ne décrit rien. Relancer avec PROD_SSH=user@host.")
+    r = subprocess.run(
+        ["ssh", "-o", "ConnectTimeout=10", ssh,
+         "docker exec -i postgres_spotify_airflow psql -U postgres -d spotify_etl "
+         f"-tA -c \"{sql}\""],
+        capture_output=True, text=True, check=False, timeout=60)
+    if r.returncode != 0:
+        raise RuntimeError(f"ssh/psql en échec : {(r.stderr or '').strip()[:120]}")
+    valeurs = [x for x in r.stdout.split() if x.isdigit()]
+    if not valeurs:
+        raise RuntimeError(f"réponse illisible : {r.stdout[:80]!r}")
+    return int(valeurs[-1])
 
-    db = PostgresHandler.from_env_or_config()
-    try:
-        n = db.fetch_query("SELECT count(*) FROM daily_ops_metrics WHERE complete")[0][0]
-    finally:
-        db.close()
-    return (MET if n >= 14 else NOT_MET), f"{n} jour(s) complet(s) (seuil : 14)"
+
+def _r116() -> tuple[str, str]:
+    n = _ops_metrics_en_prod(
+        "SELECT count(*) FROM daily_ops_metrics WHERE complete")
+    return (MET if n >= 14 else NOT_MET), f"{n} jour(s) complet(s) en PROD (seuil : 14)"
 
 
 def _r131() -> tuple[str, str]:
-    from src.database.postgres_handler import PostgresHandler
-
-    db = PostgresHandler.from_env_or_config()
-    try:
-        n = db.fetch_query(
-            "SELECT count(*) FROM daily_ops_metrics "
-            "WHERE day > now() - interval '30 days'")[0][0]
-    finally:
-        db.close()
-    return (MET if n >= 30 else NOT_MET), f"{n} jour(s) sur 30"
+    n = _ops_metrics_en_prod(
+        "SELECT count(*) FROM daily_ops_metrics "
+        "WHERE day > now() - interval '30 days'")
+    return (MET if n >= 30 else NOT_MET), f"{n} jour(s) sur 30 en PROD"
 
 
 def _data_quality_dag() -> tuple[str, str]:
