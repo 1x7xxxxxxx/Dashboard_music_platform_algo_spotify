@@ -825,13 +825,20 @@ def _collect_apple_daily(db, artist_id, single_song, from_date, to_date):
             # l'historique, fenêtre au SELECT extérieur). Le moteur PDF ne l'avait pas :
             # une règle appliquée à un seul de ses deux lecteurs, la classe que ce dépôt
             # a déjà payée avec `canonical_song_sql`.
+            # ⚠️ `jours_ecoules = 1` — 2026-09-20 (R140 §16.9b). `plays - LAG(plays)`
+            # suppose deux mesures CONSÉCUTIVES. Apple est nourri par un dépôt de CSV à
+            # la main : mesuré le 2026-09-20 sur `apple_songs_history`, **11 paires,
+            # 0 consécutive, plus grand trou 12 jours**. Cent pour cent des points
+            # portaient la croissance de plusieurs jours posée sur une seule journée.
+            # Même correctif que `views/apple_music.py` — les deux lecteurs, pas un.
             """WITH diff AS (
                  SELECT date, song_name,
                         plays - LAG(plays) OVER (PARTITION BY song_name ORDER BY date) AS ds,
-                        shazam_count - LAG(shazam_count) OVER (PARTITION BY song_name ORDER BY date) AS dsh
+                        shazam_count - LAG(shazam_count) OVER (PARTITION BY song_name ORDER BY date) AS dsh,
+                        date - LAG(date) OVER (PARTITION BY song_name ORDER BY date) AS jours
                  FROM apple_songs_history WHERE artist_id = %s)
                SELECT date, song_name, ds, dsh FROM diff
-               WHERE date BETWEEN %s AND %s
+               WHERE date BETWEEN %s AND %s AND jours = 1
                ORDER BY song_name, date""",
             (artist_id, from_date, to_date))
     except Exception as exc:  # noqa: BLE001

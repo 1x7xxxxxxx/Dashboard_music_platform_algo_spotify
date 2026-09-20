@@ -179,6 +179,35 @@ def _fresh_budget():
             lim.store = original[name]
 
 
+@pytest.fixture(autouse=True)
+def _les_inscriptions_de_test_ne_sont_pas_des_clients():
+    """Marque `is_sandbox` sur tout locataire « Oracle Probe » que ce fichier a créé.
+
+    ⚠️ Ces inscriptions passent par le VRAI formulaire — c'est tout l'objet du fichier —
+    donc rien ne peut les marquer à la création. Sans ce nettoyage, elles entrent dans le
+    compteur PUBLIC de `live_pulse.py` : mesuré le 2026-09-20, il annonçait **10
+    artistes** dont **9 artefacts**, et les huit « Oracle Probe » portaient tous
+    `created_at` dans un intervalle de DEUX MINUTES — une seule exécution de ce fichier,
+    le 2026-09-15.
+
+    Marquer plutôt que supprimer : une suppression échouerait sur les lignes filles
+    (utilisateur, identifiants) et laisserait la moitié du travail faite. Le drapeau dit
+    la vérité — « un locataire que nous opérons » — et `tenant_kind.HUMAN_TENANTS`
+    l'exclut partout d'un coup.
+    """
+    yield
+    try:
+        from src.dashboard.utils import get_db_connection
+        db = get_db_connection()
+        if db is not None:
+            db.execute_query(
+                "UPDATE saas_artists SET is_sandbox = TRUE "
+                "WHERE name = 'Oracle Probe' AND COALESCE(is_sandbox, FALSE) = FALSE")
+            db.close()
+    except Exception:                          # noqa: BLE001 — un nettoyage ne casse rien
+        pass
+
+
 @pytest.fixture
 def cleanup_emails():
     """Delete any account the test created, by email."""

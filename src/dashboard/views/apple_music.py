@@ -159,14 +159,28 @@ def show():
                             song_name,
                             plays,
                             shazam_count,
+                            -- ⚠️ `jours_ecoules` BORNE LA DIFFÉRENCE — 2026-09-20 (R140 §16.9b).
+                            -- `plays - LAG(plays)` suppose deux mesures CONSÉCUTIVES. Apple est
+                            -- nourri par un dépôt de CSV à la main, donc les mesures sont
+                            -- espacées : mesuré le 2026-09-20 sur `apple_songs_history` —
+                            -- **11 paires, 0 consécutive, plus grand trou 12 jours**. CENT POUR
+                            -- CENT des points portaient donc la croissance de plusieurs jours
+                            -- posée sur une seule journée, et le lecteur lisait un pic.
+                            date - LAG(date) OVER (PARTITION BY song_name ORDER BY date)
+                                AS jours_ecoules,
                             plays - LAG(plays) OVER (PARTITION BY song_name ORDER BY date) as daily_streams,
                             shazam_count - LAG(shazam_count) OVER (PARTITION BY song_name ORDER BY date) as daily_shazams
                         FROM apple_songs_history
                         WHERE artist_id = %s AND song_name IN ({placeholders})
                     )
-                    SELECT date, song_name, plays, shazam_count, daily_streams, daily_shazams
+                    SELECT date, song_name, plays, shazam_count,
+                           daily_streams, daily_shazams, jours_ecoules
                     FROM daily_diff
-                    WHERE daily_streams IS NOT NULL {frag}
+                    -- Une différence sur plus d'UN jour n'est pas un quotidien.
+                    -- La taire serait inventer un zéro ; la dessiner serait
+                    -- inventer un pic. Elle est donc ÉCARTÉE ici et son absence
+                    -- se voit — c'est la règle « l'absence devient un pixel ».
+                    WHERE daily_streams IS NOT NULL AND jours_ecoules = 1 {frag}
                     ORDER BY date
                 """
 

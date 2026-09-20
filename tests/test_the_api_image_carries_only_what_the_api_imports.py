@@ -194,11 +194,22 @@ def test_the_lexical_backstop_goes_red_on_a_lazy_import(tmp_path):
 # REFUSE un mot de passe de plus de 72 octets la ou 4.0 le tronque : la meme
 # inscription peut passer d'un cote et echouer de l'autre.
 #
-# ⚠️ Ce cliquet ne CORRIGE pas la divergence : relever une epingle change ce qu'une
-# image de production installe, et c'est une decision du proprietaire (R140 §16.6).
-# Il la GELE — elle ne peut plus grandir en silence, et le jour ou elle est tranchee,
-# `_DIVERGENCES_CONNUES` se vide et ce test refuse qu'elle revienne.
-_DIVERGENCES_CONNUES = {"bcrypt"}
+# ⚠️ **TRANCHEE LE 2026-09-20** (R140 §16.8), et l'ensemble est VIDE — ce test refuse
+# desormais qu'elle revienne, comme la version precedente de ce commentaire l'annoncait.
+#
+# La direction a ete donnee par la MESURE, pas par un arbitrage : `uv.lock` resout
+# **4.0.1**, et les TROIS fichiers portaient le meme commentaire disant « Pin
+# bcrypt<4.1 » — deux d'entre eux sous une contrainte `<5.1` qui le contredit. Le
+# commentaire et le lock designaient donc la meme borne ; seules deux contraintes
+# s'en ecartaient.
+#
+# Verifie le 2026-09-20 sur l'environnement reel : bcrypt 4.0.1 + passlib 1.7.4,
+# hachage et verification corrects, et un mot de passe de 100 octets ACCEPTE (tronque)
+# — le comportement que 4.1+ remplace par une `ValueError`.
+#
+# Aligner vers `<5.1` aurait ete aligner sur le cote NON verifie : personne n'a mesure
+# que passlib 1.7.4 survit a bcrypt 4.1+, et son propre commentaire dit le contraire.
+_DIVERGENCES_CONNUES: set[str] = set()
 
 
 def _requirement_constraints(path: Path) -> dict[str, str]:

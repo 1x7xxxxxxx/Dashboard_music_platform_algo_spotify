@@ -103,8 +103,13 @@ def empty_tenant():
     db = get_db_connection()
     slug = f"smoke-{uuid.uuid4().hex[:10]}"
     artist_id = db.fetch_query(
-        "INSERT INTO saas_artists (name, slug, tier, active) "
-        "VALUES (%s, %s, 'free', TRUE) RETURNING id", (f"Smoke {slug}", slug),
+        # `is_sandbox` — 2026-09-20 (R140 §16.9d). Sans lui, un locataire fabriqué par
+        # un test entre dans le compteur PUBLIC de `live_pulse.py`. Mesuré ce jour-là :
+        # il annonçait 10 artistes, dont 9 artefacts. Cette fixture nettoie normalement
+        # derrière elle, mais une exécution morte en route laisse sa ligne — et le
+        # nettoyage ne peut pas être la seule défense.
+        "INSERT INTO saas_artists (name, slug, tier, active, is_sandbox) "
+        "VALUES (%s, %s, 'free', TRUE, TRUE) RETURNING id", (f"Smoke {slug}", slug),
     )[0][0]
     db.close()
     yield artist_id

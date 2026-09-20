@@ -1,0 +1,34 @@
+{
+  "_pourquoi": "Le PLAFOND de figures du premier écran, JAUGES COMPRISES. Le garde dur (`test_a_view_opens_on_one_decision`) ne compte pas `st.metric` et rend 0 fichier en faute ; en les comptant, 17 dépassent. Un garde qui rougit sur 17 fichiers est un garde qu'on désactive — même verdict que R133, où `code-critic` a écrit « ne pas migrer les 28 d'un coup ». Ce fichier est un CLIQUET : chaque entrée ne peut que descendre, et une vue neuve doit tenir sous le plafond sans entrée du tout.",
+  "_mesure_le": "2026-09-20",
+  "_plafond_dur": 5,
+  "_renderers": [
+    "altair_chart",
+    "area_chart",
+    "bar_chart",
+    "line_chart",
+    "metric",
+    "plotly_chart",
+    "pyplot"
+  ],
+  "_tabs": "`st.tabs` BORNE un écran : un onglet n'est pas du premier écran. C'est pourquoi le comptage est PAR FICHIER et que les modules `_tab_*` sont comptés séparément — décision du 2026-09-20 (R140 §16.17).",
+  "plafonds": {
+    "src/dashboard/views/admin.py": 12,
+    "src/dashboard/views/airflow_kpi.py": 19,
+    "src/dashboard/views/billing.py": 6,
+    "src/dashboard/views/data_wrapped.py": 19,
+    "src/dashboard/views/db_health.py": 8,
+    "src/dashboard/views/etl_logs.py": 6,
+    "src/dashboard/views/home_tiles.py": 6,
+    "src/dashboard/views/imusician.py": 10,
+    "src/dashboard/views/instagram.py": 6,
+    "src/dashboard/views/meta_ads_overview.py": 19,
+    "src/dashboard/views/meta_breakdowns.py": 7,
+    "src/dashboard/views/meta_creatives.py": 8,
+    "src/dashboard/views/revenue_forecast.py": 34,
+    "src/dashboard/views/soundcloud.py": 7,
+    "src/dashboard/views/trigger_algo/_tab_budget_roi.py": 11,
+    "src/dashboard/views/trigger_algo/_tab_global.py": 7,
+    "src/dashboard/views/usage_analytics.py": 6
+  }
+}

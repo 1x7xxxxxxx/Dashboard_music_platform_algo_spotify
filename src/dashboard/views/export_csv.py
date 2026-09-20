@@ -70,12 +70,18 @@ def show():
             "Spotify for Artists": [
                 "s4a_song_timeline", "s4a_songs_global", "s4a_audience"
             ],
-            "Apple Music": [
-                "apple_songs_performance", "apple_daily_plays", "apple_listeners"
-            ],
+            # ⚠️ TROIS TABLES RETIRÉES le 2026-09-20 (R140 §16.10) : `apple_daily_plays`,
+            # `apple_listeners` et `youtube_playlists` portent **0 ligne** et **aucun
+            # chemin de code ne les écrit**. Les deux parseurs Apple qui les
+            # produiraient (`apple_music_csv_parser.py:179` et `:221`) n'ont AUCUN
+            # appelant.
+            # Proposer une case qui livre une feuille vide est pire qu'une absence :
+            # l'artiste coche, attend, et conclut que ses données ont disparu.
+            # Garde : `tests/test_an_export_offers_only_what_something_writes.py`.
+            "Apple Music": ["apple_songs_performance"],
             "YouTube": [
                 "youtube_channels", "youtube_channel_history", "youtube_videos",
-                "youtube_video_stats", "youtube_playlists", "youtube_comments"
+                "youtube_video_stats"
             ],
             "SoundCloud": ["soundcloud_tracks_daily"],
             "Instagram": ["instagram_daily_stats"],

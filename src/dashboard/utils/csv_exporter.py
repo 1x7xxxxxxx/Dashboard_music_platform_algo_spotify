@@ -49,22 +49,20 @@ _TABLES = [
         lambda aid: (aid,),
     ),
     # ── Apple Music ──────────────────────────────────────────────────────
+    # ⚠️ `apple_daily_plays` et `apple_listeners` RETIRÉES le 2026-09-20 (R140 §16.10) :
+    # 0 ligne, et AUCUN chemin de code ne les écrit. Les deux parseurs qui les
+    # produiraient (`apple_music_csv_parser.py:179` et `:221`) n'ont aucun appelant.
+    # Un onglet vide dans un ZIP se lit comme une perte de données, pas comme une
+    # absence de source.
     (
         "apple_songs_performance",
         "SELECT * FROM apple_songs_performance WHERE artist_id = %s ORDER BY song_name",
         lambda aid: (aid,),
     ),
-    (
-        "apple_daily_plays",
-        "SELECT * FROM apple_daily_plays WHERE artist_id = %s ORDER BY date, song_name",
-        lambda aid: (aid,),
-    ),
-    (
-        "apple_listeners",
-        "SELECT * FROM apple_listeners WHERE artist_id = %s ORDER BY date",
-        lambda aid: (aid,),
-    ),
     # ── YouTube ──────────────────────────────────────────────────────────
+    # ⚠️ `youtube_playlists` ET `youtube_comments` RETIRÉES le 2026-09-20, même raison :
+    # 0 ligne, 0 écrivain. `youtube_comments` n'existe QUE comme schéma
+    # (`youtube_schema.py:133`) — trouvée par l'entonnoir du garde, pas par moi.
     (
         "youtube_channels",
         "SELECT * FROM youtube_channels WHERE artist_id = %s ORDER BY channel_id",
@@ -83,16 +81,6 @@ _TABLES = [
     (
         "youtube_video_stats",
         "SELECT * FROM youtube_video_stats WHERE artist_id = %s ORDER BY collected_at DESC",
-        lambda aid: (aid,),
-    ),
-    (
-        "youtube_playlists",
-        "SELECT * FROM youtube_playlists WHERE artist_id = %s ORDER BY playlist_id",
-        lambda aid: (aid,),
-    ),
-    (
-        "youtube_comments",
-        "SELECT * FROM youtube_comments WHERE artist_id = %s ORDER BY published_at DESC",
         lambda aid: (aid,),
     ),
     # ── SoundCloud ───────────────────────────────────────────────────────
