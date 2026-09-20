@@ -188,7 +188,50 @@ def track_title_matches(query: str, candidate: str) -> bool:
         return False
     if qt != ct:
         return False
-    return qb == cb or qb in cb or cb in qb
+    if qb == cb:
+        return True
+
+    # ── L'INCLUSION EXIGE UNE COUVERTURE — 2026-09-20 (R140 §16.1) ───────────
+    #
+    # C'était `qb in cb or cb in qb` : une inclusion par SOUS-CHAÎNE, en booléen dur, qui
+    # ne pèse jamais ce qui reste dehors. Mesuré le 2026-09-18 puis reproduit le
+    # 2026-09-20 — les quatre rendaient `True` :
+    #
+    #     'Mix'  ⊂ 'HOUSE MUSIC MIX #3 BACK TO OLD SCHOOL'   similarité 0,1125
+    #     'Sun'  ⊂ 'Sunset Boulevard'                        similarité 0,1579
+    #     'Solo' ⊂ 'Solomon Dream'                           similarité 0,2353
+    #     'Nuit' ⊂ 'La nuit de tous les dangers'             similarité 0,1500
+    #
+    # Les SIX sites d'appel sont dans le PDF (`pdf_exporter/_collectors.py:292,412,435,
+    # 842,864,890`), tous sous `single_song` : le défaut se manifeste quand un artiste
+    # demande le PDF d'UN SEUL morceau au titre COURT — il reçoit les chiffres d'un autre.
+    #
+    # ⚠️ **Le frère de la même famille a été réparé le 2026-09-06 et pas celui-ci.**
+    # `track_mapping_suggest.title_similarity` pèse la couverture (`0,9 × couverture`)
+    # depuis cette date. Deux implémentations d'une même question, l'une corrigée,
+    # l'autre non — la classe `a-rule-copied-is-a-rule-that-will-diverge`, vue de
+    # l'intérieur.
+    #
+    # On LIT donc le frère au lieu d'écrire un second barème. L'import est tardif parce
+    # que `track_mapping_suggest` importe CE module (`split_version`) : au niveau module,
+    # ce serait un cycle. Au niveau appel, il n'y en a pas.
+    #
+    # Le seuil est MESURÉ, pas arrondi. Sur les quatre faux appariements et cinq
+    # légitimes (`'Blue Sky' ⊂ 'Blue Sky Reprise'`, `'Reves' ⊂ 'Reves lucides'`…) :
+    #
+    #     maximum des FAUX     0,2353
+    #     minimum des VRAIS    0,4500
+    #
+    # 0,35 tombe au milieu de l'intervalle vide, à 0,11 de chaque bord. Un seuil posé sur
+    # un bord aurait basculé au premier titre un peu différent.
+    from src.utils.track_mapping_suggest import title_similarity
+
+    return title_similarity(qb, cb) >= _MIN_CONTAINMENT_SIMILARITY
+
+
+#: Sous ce score, une inclusion de titres n'est pas un appariement — voir le bloc de
+#: `track_title_matches`. Mesuré le 2026-09-20 : faux ≤ 0,2353, légitimes ≥ 0,4500.
+_MIN_CONTAINMENT_SIMILARITY = 0.35
 
 
 def rebuild_release_reference(db, artist_id: int) -> int:
