@@ -319,16 +319,11 @@ def _show_admin_view(db):
     st.dataframe(df, width="stretch", hide_index=True)
 
     # Revenue summary
-    rev_rows = db.fetch_query(
-        """
-        SELECT sp.name, COUNT(*) AS artists, SUM(sp.price_monthly) AS mrr
-        FROM artist_subscriptions asub
-        JOIN subscription_plans sp ON sp.id = asub.plan_id
-        WHERE asub.status = 'active'
-        GROUP BY sp.name, sp.price_monthly
-        ORDER BY sp.price_monthly DESC
-        """
-    )
+    # LA MÊME DÉFINITION QU'`admin.py` — 2026-09-20 (R140 §16.6). Les deux pages
+    # affichaient « MRR total » sous le même mot pour deux nombres différents dès qu'un
+    # abonnement était `trialing`.
+    from src.utils.mrr import MRR_LABEL, mrr_by_plan_sql, mrr_params
+    rev_rows = db.fetch_query(mrr_by_plan_sql(), mrr_params())
 
     if rev_rows:
         st.markdown("---")
@@ -336,7 +331,7 @@ def _show_admin_view(db):
         col1, col2, col3 = st.columns(3)
         total_mrr = sum(float(r[2] or 0) for r in rev_rows)
         total_artists = sum(int(r[1]) for r in rev_rows)
-        col1.metric(t("billing.total_mrr", "MRR total"), f"{total_mrr:.2f} €")
+        col1.metric(t("billing.total_mrr", MRR_LABEL), f"{total_mrr:.2f} €")
         col2.metric(t("billing.paying_artists", "Artistes payants"), total_artists)
         col3.metric("ARPU", f"{(total_mrr / total_artists):.2f} €" if total_artists else "—")
 

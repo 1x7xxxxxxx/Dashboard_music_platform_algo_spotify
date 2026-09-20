@@ -279,13 +279,19 @@ def test_connected_tenant_gets_its_own_data(db, tenant, env_points_at_test_db,
 
 
 def test_unconnected_tenant_collects_nothing_not_the_admins_data(
-        db, tenant, env_points_at_test_db, fake_soundcloud):
+        db, tenant, env_points_at_test_db, fake_soundcloud, monkeypatch):
     """A tenant with no identity must stay empty — never inherit the admin's.
 
     This is the beta failure, reduced to one assertion: the artist registered,
     never opened Credentials, and the next fleet run handed them the admin's
     SoundCloud profile under their own artist_id.
     """
+    # CE TEST FAIT UN RUN DE FLOTTE, qui inclut l'admin — et depuis le 2026-09-20
+    # (R140 §16.2) la rotation du refresh_token SoundCloud est REFUSÉE hors
+    # production : consommer ce jeton depuis une instance de dev invaliderait
+    # celui de la prod, qui échouerait à sa collecte suivante.
+    # Le garde est correct ; c'est l'environnement du test qu'il faut poser.
+    monkeypatch.setenv("STREAMLYTICS_ENV", "production")
     _run_soundcloud()  # fleet run, tenant has no soundcloud row
 
     rows = db.fetch_query(

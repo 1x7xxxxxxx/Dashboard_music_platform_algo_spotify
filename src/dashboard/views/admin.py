@@ -540,16 +540,18 @@ def _render_supervision(db):
     c3.metric(t("admin.metric_verified", "Comptes vérifiés"), f"{verified or 0}/{total_u or 0}")
     c4.metric(t("admin.metric_active_artists", "Artistes actifs"), na[0][0] if na else 0)
 
-    rev = db.fetch_query(
-        "SELECT sp.name, COUNT(*), SUM(sp.price_monthly) "
-        "FROM artist_subscriptions a JOIN subscription_plans sp ON sp.id = a.plan_id "
-        "WHERE a.status = 'active' GROUP BY sp.name, sp.price_monthly ORDER BY sp.price_monthly"
-    )
+    # UNE SEULE DÉFINITION DU MRR — 2026-09-20 (R140 §16.6). Elle vivait ici, dans
+    # `billing.py` et dans `revenue_forecast.py`, avec DEUX réponses sous le même mot :
+    # les deux requêtes SQL ignoraient `trialing`, le calcul pandas le comptait. Et
+    # aucune des trois n'excluait les locataires techniques — que le compteur
+    # « Artistes actifs » quatre lignes plus haut exclut, lui, depuis toujours.
+    from src.utils.mrr import MRR_LABEL, mrr_by_plan_sql, mrr_params
+    rev = db.fetch_query(mrr_by_plan_sql(), mrr_params())
     mrr = sum(float(r[2] or 0) for r in rev) if rev else 0.0
     if rev:
         paying = sum(int(r[1]) for r in rev)
         m1, m2, m3 = st.columns(3)
-        m1.metric(t("admin.metric_mrr", "MRR (abonnements actifs)"), f"{mrr:.2f} €")
+        m1.metric(t("admin.metric_mrr", MRR_LABEL), f"{mrr:.2f} €")
         m2.metric(t("admin.metric_paying", "Abonnés payants"), paying)
         m3.metric(t("admin.metric_arpu", "ARPU"), f"{mrr / paying:.2f} €" if paying else "—")
         st.dataframe(pd.DataFrame(rev, columns=["Plan", "Abonnés", "MRR (€)"]),

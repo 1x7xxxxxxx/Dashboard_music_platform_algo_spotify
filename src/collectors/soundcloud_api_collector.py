@@ -113,6 +113,18 @@ class SoundCloudCollector:
     def _get_user_token(self) -> None:
         """OAuth user-token (B2 P2): grant_type=refresh_token.
 
+        ⚠️ **HORS PRODUCTION, CE CHEMIN EST REFUSÉ** — 2026-09-20 (R140 §16.2).
+        SoundCloud FAIT TOURNER le `refresh_token` à l'usage : la valeur consommée
+        devient invalide, et seule la nouvelle vaut. Comme le magasin de credentials est
+        le même pour toutes les instances, une collecte lancée en développement
+        invalidait celui de la PRODUCTION — la nuit suivante, la prod échouait sur un
+        jeton qu'elle n'avait jamais utilisé.
+        Ce n'est pas une hypothèse : c'est l'incident du 2026-08-24 qui a créé la classe
+        `a-dev-instance-sends-production-shaped-mail`, où un scheduler local a échoué sur
+        ce credential 28 minutes après que la prod l'eut fait tourner.
+        Le précédent est `email_alerts._outbound_blocked()`, qui barre les mails hors
+        production depuis le même incident. Rien n'équivalait côté credentials.
+
         Yields a user-context token → the SC API returns real per-track
         likes_count (client_credentials returns 0 for third-party reads).
         SoundCloud rotates the refresh_token on use — the new one MUST be
@@ -120,6 +132,21 @@ class SoundCloudCollector:
         silent fallback to client_credentials, which would mask a broken user
         connection and silently restore likes=0.
         """
+        from src.utils.instance_identity import instance_env, is_production
+        if not is_production():
+            raise RuntimeError(
+                f"Rotation du refresh_token SoundCloud REFUSÉE sur l'instance "
+                f"'{instance_env()}'. SoundCloud fait tourner ce jeton à l'usage, et le "
+                f"magasin de credentials est partagé : consommer celui-ci invaliderait "
+                f"celui de la PRODUCTION, qui échouerait à sa prochaine collecte.\n"
+                f"Pour collecter SoundCloud ici, deux voies :\n"
+                f"  · STREAMLYTICS_ENV=production, uniquement si cette instance EST la "
+                f"production ;\n"
+                f"  · un jeu d'identifiants SoundCloud distinct pour cette instance.\n"
+                f"Le mode `client_credentials` reste disponible et ne fait tourner aucun "
+                f"jeton — il rend `likes=0` sur les lectures tierces."
+            )
+
         r = self.session.post(
             _TOKEN_ENDPOINT,
             data={

@@ -58,6 +58,14 @@ _MUTATORS = {"append", "extend", "insert", "pop", "popitem", "remove", "clear",
 # parce que la donnée est immuable », et « il faut le partager » — la troisième a déjà
 # été tirée deux fois le 2026-09-16 (limiteurs, caches KPI).
 _DECLARED: dict[str, str] = {
+    "src/api/main.py::_sante_etat":
+        "PER-INSTANCE VOULU. C'est le verdict de la sonde `/health`, caché 5 s. Chaque "
+        "instance sonde SA PROPRE base et cache SON PROPRE verdict ; deux instances "
+        "n'ont rien à s'accorder, parce que Railway et Docker lisent le code HTTP de "
+        "CHACUNE séparément. Le partager serait un défaut, pas une amélioration : une "
+        "base injoignable pour une instance serait masquée derrière un verdict frais "
+        "posé par l'autre, et l'orchestrateur laisserait l'instance morte recevoir du "
+        "trafic — exactement ce que cet endpoint existe pour empêcher.",
     "src/utils/defect_gauge.py::_WARNED_TRUNCATION":
         "PER-INSTANCE VOULU, et sans conséquence. C'est un drapeau « j'ai déjà prévenu "
         "une fois » devant un `logger.warning` qui signale que le nombre de séries "

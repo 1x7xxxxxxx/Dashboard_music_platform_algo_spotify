@@ -141,6 +141,32 @@ class InstagramCollector:
             # Do NOT write to os.environ — would expose the token to child processes
             # and /proc/<pid>/environ. Persist via DB only.
 
+            # ⚠️ HORS PRODUCTION, ON NE PERSISTE PAS — 2026-09-20 (R140 §16.2).
+            #
+            # Le magasin de credentials est PARTAGÉ entre les instances : écrire ici
+            # depuis une machine de développement remplace le jeton de la production.
+            #
+            # La conséquence n'est PAS celle de SoundCloud, et la distinction a été
+            # vérifiée avant d'écrire ce garde : Meta utilise `fb_exchange_token`, qui
+            # ÉMET un nouveau jeton longue durée sans invalider l'ancien — la prod
+            # continuerait donc de fonctionner. Ce qui change quand même, c'est
+            # `expires_at` : un jeton rafraîchi depuis une copie ANCIENNE peut être
+            # valide moins longtemps que celui que la prod détenait, et la prod croirait
+            # avoir plus de marge qu'elle n'en a.
+            #
+            # Le collecteur n'est pas bloqué pour autant : il garde le jeton neuf EN
+            # MÉMOIRE pour cette exécution, donc la collecte locale fonctionne. Seule
+            # l'écriture partagée est refusée. C'est la différence avec SoundCloud, où
+            # l'appel lui-même détruit le jeton de la prod et doit donc être empêché.
+            from src.utils.instance_identity import instance_env, is_production
+            if not is_production():
+                logger.info(
+                    "Meta access_token rafraîchi mais NON persisté : instance '%s'. "
+                    "Le magasin de credentials est partagé avec la production ; "
+                    "l'écrire d'ici raccourcirait son `expires_at`. Le jeton neuf est "
+                    "utilisé en mémoire pour cette exécution.", instance_env())
+                return True
+
             try:
                 from src.utils.credential_loader import update_platform_secret
                 update_platform_secret(

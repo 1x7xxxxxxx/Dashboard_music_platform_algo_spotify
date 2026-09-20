@@ -34,6 +34,11 @@ from src.dashboard.utils.revenue_forecast import (
     ltv_scenarios,
 )
 from src.database.stripe_schema import PLAN_CATALOG as _CAT
+# L'ENSEMBLE DES STATUTS QUI COMPTENT DANS LE MRR — 2026-09-20 (R140 §16.6).
+# Il était écrit en dur ICI, trois fois, pendant qu'`admin.py` et `billing.py`
+# filtraient sur `'active'` seul : deux pages annonçaient deux nombres différents sous
+# le même mot dès qu'un abonnement passait en `trialing`.
+from src.utils.mrr import MRR_STATUSES
 
 
 # DB loaders + forecast math now live in src/dashboard/utils/revenue_forecast.py
@@ -53,7 +58,7 @@ def _tab_mrr(db) -> None:
                   "Aucun abonnement trouvé dans la base. Connectez Stripe pour alimenter ces données."))
         return
 
-    active = df[df['status'].isin(['active', 'trialing'])]
+    active = df[df['status'].isin(MRR_STATUSES)]
     paying = active[active['price'] > 0]
 
     total_mrr = float(paying['price'].sum())
@@ -135,7 +140,7 @@ def _tab_projection(db) -> None:
     st.subheader(t("revenue_forecast.growth_header", "Simulation de croissance MRR"))
 
     df = _load_subscriptions(db)
-    active_paying = df[df['status'].isin(['active', 'trialing']) & (df['price'] > 0)]
+    active_paying = df[df['status'].isin(MRR_STATUSES) & (df['price'] > 0)]
     mrr_0 = float(active_paying['price'].sum()) if not active_paying.empty else 0.0
 
     st.caption(t("revenue_forecast.mrr_start",
@@ -251,7 +256,7 @@ def _tab_ltv(db) -> None:
     st.subheader(t("revenue_forecast.ltv_header", "LTV & Churn"))
 
     df = _load_subscriptions(db)
-    active = df[df['status'].isin(['active', 'trialing'])]
+    active = df[df['status'].isin(MRR_STATUSES)]
     paying = active[active['price'] > 0]
 
     total_mrr = float(paying['price'].sum()) if not paying.empty else 0.0

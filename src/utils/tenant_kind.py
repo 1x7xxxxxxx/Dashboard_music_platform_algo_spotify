@@ -39,3 +39,26 @@ HUMAN_TENANTS = f"active = TRUE AND NOT {NON_HUMAN_TENANT}"
 # Appended to a WHERE that already has a condition, when a check is onboarding-shaped
 # and would otherwise raise on a tenant nobody is onboarding.
 EXCLUDE_NON_HUMAN = f" AND NOT {NON_HUMAN_TENANT}"
+
+
+def non_human_tenant(alias: str = "") -> str:
+    """Le même prédicat, QUALIFIÉ par un alias de table — pour les requêtes jointes.
+
+    Ajouté le 2026-09-20 (R140 §16.6). `NON_HUMAN_TENANT` nomme ses colonnes nues, ce
+    qui suffit tant qu'une seule table est en jeu. Dès qu'une requête joint
+    `saas_artists` à autre chose, il faut `sa.is_canary` — et la première version de
+    `src/utils/mrr.py` l'obtenait par une chaîne de `.replace()` sur la constante :
+    illisible, et surtout muette le jour où la constante change de forme.
+
+    Le composer ici garde la définition à UN endroit et la rend utilisable des deux
+    façons. `tests/test_a_tenant_flag_is_applied_everywhere.py` continue de balayer le
+    résultat, puisqu'il porte sur la FORME de l'exclusion et non sur son origine.
+    """
+    p = f"{alias}." if alias else ""
+    return f"(COALESCE({p}is_canary, FALSE) OR COALESCE({p}is_sandbox, FALSE))"
+
+
+def human_tenants(alias: str = "") -> str:
+    """Le complément, qualifié. Même raison."""
+    p = f"{alias}." if alias else ""
+    return f"{p}active = TRUE AND NOT {non_human_tenant(alias)}"

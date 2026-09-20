@@ -88,15 +88,38 @@ FROM (
 # `ELSE NULL` et non `ELSE 0` : sans impression, le taux de clic n'est pas nul, il
 # est indéfini — 0/0. Annoncer « 0,00 % » à un artiste qui n'a jamais fait de
 # publicité lui décrit une campagne qui n'existe pas.
+#
+# ⚠️ **LA VUE OR, PAS LA TABLE BRUTE** — 2026-09-20 (R140 §16.9c).
+#
+# `meta_insights_performance` porte DEUX générations de lignes :
+#
+#   · **231 lignes quotidiennes** — 3 087,82 € — `date_start` de 2023-08-25 à 2024-09-30
+#   · **21 lignes de CUMUL À VIE** — 3 077,83 € — toutes datées du 2025-12-15, leur
+#     propre jour de collecte
+#
+# Les additionner donne **6 165,65 €**, soit presque exactement le double de la
+# dépense réelle, et c'est ce que cet e-mail envoyait à l'artiste. La borne
+# `date_start >= CURRENT_DATE - 7` ne l'évitait que par ACCIDENT DE CALENDRIER : elle
+# est juste tant que le 2025-12-15 est hors de la fenêtre, et fausse les sept jours
+# où il y entre.
+#
+# Le correctif n'est PAS un second filtre ici. `v_meta_campaign_daily` distingue déjà
+# les deux générations — elle exige une ligne correspondante dans
+# `meta_insights_performance_day`, que les lignes de cumul n'ont pas — et rend 231
+# lignes / 3 087,82 €. Réécrire le discriminant dans cette requête aurait créé une
+# seconde définition à faire coïncider avec la première : la classe
+# `two-definitions-that-must-coincide-are-never-compared`.
+#
+# La colonne s'appelle `day` dans la vue, `date_start` dans la table.
 META_WEEKLY_SPEND_SQL = """
 SELECT
     SUM(spend),
     CASE WHEN SUM(impressions) > 0
          THEN ROUND((SUM(link_clicks)::numeric / SUM(impressions)::numeric) * 100, 2)
          ELSE NULL END
-FROM meta_insights_performance
+FROM v_meta_campaign_daily
 WHERE artist_id = %s
-  AND date_start >= CURRENT_DATE - 7
+  AND day >= CURRENT_DATE - 7
 """
 
 

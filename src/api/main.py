@@ -18,6 +18,8 @@ Environment variables:
 """
 import os
 import sys
+import threading
+import time
 from pathlib import Path
 
 # Ensure project root is on sys.path so src.* imports resolve
@@ -25,7 +27,7 @@ _root = str(Path(__file__).resolve().parent.parent.parent)
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
-from fastapi import FastAPI  # noqa: E402
+from fastapi import FastAPI, Response  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 from src.api.routers import auth, artists, streams, youtube, ml, kpis, stripe_webhook  # noqa: E402
@@ -161,7 +163,122 @@ app.include_router(kpis.router)
 app.include_router(stripe_webhook.router)
 
 
+# ── `/health` VÉRIFIE quelque chose — 2026-09-20 (R140 §16.14) ───────────────
+#
+# Il rendait `{"status": "ok"}` sans aucun contrôle, et DEUX surfaces en font un verdict
+# FINAL : `railway.toml:24` (`healthcheckPath`, `healthcheckTimeout = 30`) et
+# `Dockerfile.api:54` (`HEALTHCHECK`, `--retries=3 --interval=30s`). Un conteneur dont la
+# base est injoignable était donc déclaré sain — et continuait de recevoir du trafic.
+#
+# ⚠️ **DEUX surfaces, pas trois.** Le premier jet de ce commentaire comptait aussi
+# `docker-compose.yml:171` ; c'est le healthcheck d'**airflow-webserver**, visant le
+# `/health` d'Airflow sur son propre port 8080. Aucun service FastAPI n'est défini dans
+# ce fichier. Le décompte importe : c'est lui qui donne la cadence de sondage et donc le
+# modèle de charge de cet endpoint.
+#
+# ⚠️ **ET LE PREMIER JET RENDAIT 503 SUR UNE BASE SAINE.** Il posait le délai par
+# `db.fetch_query("SET LOCAL statement_timeout = 2000")` — or `fetch_query` appelle
+# `fetchall()` après l'exécution, et un `SET` ne renvoie aucun jeu de résultats :
+# `ProgrammingError`, attrapé par le `except`, donc `degraded` en permanence. Railway
+# n'aurait jamais validé un déploiement et Docker aurait marqué le conteneur `unhealthy`
+# en 90 s. **Cinq tests étaient verts pendant ce temps** : les trois premiers simulaient
+# `_base_repond` lui-même, et le faux double de la base acceptait n'importe quel SQL.
+# Un test qui simule la fonction qu'il vérifie ne vérifie rien.
+# `SET LOCAL` était de toute façon inopérant — `PostgresHandler` est en `autocommit`,
+# donc hors bloc transactionnel : PostgreSQL rend `WARNING: SET LOCAL can only be used
+# in transaction blocks` et le délai effectif restait celui de la connexion, 15 s.
+#
+# La sonde ouvre donc sa PROPRE connexion, avec son propre `statement_timeout` dans les
+# `options` — le seul endroit où il s'applique vraiment.
+_SANTE_TTL_S = 5.0
+_SANTE_TIMEOUT_MS = 2000
+_sante_verrou = threading.Lock()
+_sante_etat: dict[str, object] = {"quand": 0.0, "verdict": None}
+
+
+def _sonder_la_base() -> tuple[bool, str]:
+    """Une connexion neuve, un `SELECT 1`, des bornes explicites. Ne lève jamais."""
+    conn = None
+    try:
+        import psycopg2
+
+        from src.utils.pg_connect import resolve_kwargs
+        kwargs = resolve_kwargs()
+        conn = psycopg2.connect(
+            connect_timeout=2,
+            options=f"-c statement_timeout={_SANTE_TIMEOUT_MS}",
+            **kwargs)
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+            cur.fetchone()
+        return (True, "ok")
+    except Exception as exc:                  # noqa: BLE001 — une sonde ne lève jamais
+        # La CLASSE part au journal, jamais dans la réponse : cet endpoint est public.
+        import logging
+        logging.getLogger("streamlytics.api").warning(
+            "sonde /health en échec : %s", type(exc).__name__)
+        return (False, "database")
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:                 # noqa: BLE001 — fermeture best-effort
+                pass
+
+
+def _base_repond() -> tuple[bool, str]:
+    """Le verdict de la sonde, mis en cache et SÉRIALISÉ.
+
+    ⚠️ **Le verrou n'est pas une précaution, il est la borne de charge.** Sans lui, la
+    lecture du cache et son écriture encadrent la sonde : N requêtes simultanées à cache
+    froid passent toutes le test avant que la première n'écrive. Mesuré — 20 sondes
+    simultanées ouvraient **20 connexions**. Et `_borrow_from_pool()` retombe sur un
+    `psycopg2.connect()` direct quand le pool est épuisé, donc `maxconn` ne borne rien :
+    une rafale anonyme sur un endpoint public et non limité consommait autant de créneaux
+    de `max_connections` que le pool de threads d'uvicorn en autorise.
+
+    ⚠️ **L'horodatage est posé APRÈS la sonde.** Le premier jet le lisait avant : si la
+    sonde dure plus longtemps que le TTL, l'entrée est périmée à l'instant où elle est
+    écrite, et le cache ne protège jamais dans le seul régime qui le justifie — une base
+    lente. Mesuré : sonde de 10,4 s, TTL 5 s, trois connexions pour trois sondes.
+
+    ⚠️ **Le verdict et son instant sont un SEUL tuple.** En deux affectations avec
+    l'instant écrit en premier, un lecteur concurrent peut voir un instant FRAIS avec un
+    verdict PÉRIMÉ — et servir `200 ok` pendant un TTL entier alors que la base vient de
+    tomber. Les écritures de dict sont atomiques sous le GIL ; le défaut est l'ordre.
+    """
+    etat = _sante_etat.get("verdict")
+    quand = float(_sante_etat.get("quand") or 0.0)
+    if etat is not None and time.monotonic() - quand < _SANTE_TTL_S:
+        return etat                                      # type: ignore[return-value]
+
+    with _sante_verrou:
+        # Relire APRÈS le verrou : les retardataires d'une rafale profitent de la sonde
+        # que le premier vient de faire, au lieu d'en lancer une chacun.
+        etat = _sante_etat.get("verdict")
+        quand = float(_sante_etat.get("quand") or 0.0)
+        if etat is not None and time.monotonic() - quand < _SANTE_TTL_S:
+            return etat                                  # type: ignore[return-value]
+        verdict = _sonder_la_base()
+        _sante_etat["verdict"] = verdict                 # la valeur AVANT son instant
+        _sante_etat["quand"] = time.monotonic()          # posé APRÈS la sonde
+        return verdict
+
+
 @app.get("/health", tags=["meta"], summary="Health check")
-def health():
-    """Returns ``{"status": "ok"}`` — no auth required."""
-    return {"status": "ok"}
+def health(response: Response):
+    """Le service répond ET sa base répond. Sans authentification.
+
+    Rend `200 {"status": "ok"}` quand Postgres accepte un `SELECT 1`, et
+    `503 {"status": "degraded", "reason": "database"}` sinon — le code HTTP est ce que
+    lisent le `HEALTHCHECK` Docker et Railway.
+
+    ⚠️ `reason` est un VOCABULAIRE FERMÉ, pas la classe de l'exception. Distinguer
+    `OperationalError` de `AdminShutdown` ou de `TooManyConnections` donnerait à un
+    appelant anonyme un oracle sur l'état interne de la base. La classe part au journal.
+    """
+    ok, motif = _base_repond()
+    if ok:
+        return {"status": "ok"}
+    response.status_code = 503
+    return {"status": "degraded", "reason": motif}
