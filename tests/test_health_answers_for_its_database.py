@@ -24,6 +24,7 @@ servent plus qu'à fabriquer les états qu'on ne peut pas provoquer.
 """
 from __future__ import annotations
 
+import ast
 import sys
 import threading
 import time
@@ -112,6 +113,65 @@ def test_an_unreachable_database_answers_503(api) -> None:
         f"base injoignable et `/health` rend {r.status_code}. Un 200 ici laisse un "
         "conteneur sans base recevoir du trafic.")
     assert r.json()["status"] == "degraded"
+
+
+def test_the_probe_resolves_the_way_production_is_configured() -> None:
+    """LE CAS DE PRODUCTION, que l'environnement local ne peut pas montrer.
+
+    ⚠️ Mesuré EN PRODUCTION le 2026-09-20, après déploiement : `/health` rendait
+    `503 {"reason":"database"}` sur une API qui servait normalement — `/auth/token`
+    répondait 401 sur de mauvais identifiants, `/metrics` 200.
+
+    La sonde appelait `resolve_kwargs()`, qui **ne lit pas `DATABASE_URL`**. Or les
+    conteneurs `api` et `dashboard` reçoivent `DATABASE_URL` et **aucun**
+    `DATABASE_HOST`, et n'ont pas de `config/config.yaml` : elle levait
+    `RuntimeError: No database configuration`, attrapée, et rendait « base
+    injoignable » sur une base parfaitement joignable.
+
+    **Ce défaut est invisible en local** : `config/config.yaml` y existe, donc
+    `resolve_kwargs()` réussit et tous les tests passent. Ce test reproduit la
+    configuration de production — `DATABASE_URL` seul — et c'est le seul qui pouvait
+    l'attraper d'ici.
+    """
+    from src.api import main
+    arbre = ast.parse(Path(main.__file__).read_text(encoding="utf-8"))
+    fn = next(n for n in ast.walk(arbre)
+              if isinstance(n, ast.FunctionDef) and n.name == "_sonder_la_base")
+    noms = {a.name for n in ast.walk(fn) if isinstance(n, ast.ImportFrom) for a in n.names}
+    assert "PostgresHandler" in noms, (
+        "la sonde n'utilise pas `PostgresHandler.from_env_or_config()`. C'est le SEUL "
+        "résolveur qui lit `DATABASE_URL` en premier — et c'est ainsi que les conteneurs "
+        "`api` et `dashboard` sont configurés en production.")
+    assert "resolve_kwargs" not in noms, (
+        "la sonde appelle `resolve_kwargs()` directement : il ne lit pas `DATABASE_URL` "
+        "et lève en production, où il n'y a pas de `config/config.yaml`.")
+
+
+def test_the_probe_works_with_only_a_database_url() -> None:
+    """Le comportement, pas seulement la structure : la résolution DOIT aboutir.
+
+    On masque `config/config.yaml` et les `DATABASE_*`, en ne laissant que
+    `DATABASE_URL` — la configuration exacte des conteneurs de production.
+    """
+    if not _base_joignable():
+        pytest.skip("base injoignable")
+    import psycopg2
+
+    from src.utils.pg_connect import resolve_kwargs
+    k = resolve_kwargs()
+    url = (f"postgresql://{k['user']}:{k['password']}@{k['host']}:{k['port']}"
+           f"/{k['database']}")
+    sans_config = {n: "" for n in ("DATABASE_HOST", "DATABASE_PORT", "DATABASE_NAME",
+                                   "DATABASE_USER", "DATABASE_PASSWORD")}
+    from src.api import main
+    _vider_le_cache(main)
+    with mock.patch.dict("os.environ", {**sans_config, "DATABASE_URL": url}, clear=False):
+        ok, motif = main._sonder_la_base()
+    assert ok is True, (
+        f"la sonde rend {motif!r} avec `DATABASE_URL` pour seule configuration — la "
+        "configuration EXACTE des conteneurs `api` et `dashboard`. C'est le défaut "
+        "constaté en production le 2026-09-20.")
+    assert psycopg2  # l'import prouve que la dépendance est là
 
 
 def test_the_probe_never_raises() -> None:

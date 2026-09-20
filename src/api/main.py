@@ -202,12 +202,33 @@ def _sonder_la_base() -> tuple[bool, str]:
     try:
         import psycopg2
 
-        from src.utils.pg_connect import resolve_kwargs
-        kwargs = resolve_kwargs()
+        # ⚠️ **`from_env_or_config()`, PAS `resolve_kwargs()`** — et l'écart n'existe
+        # QUE là où ça compte. Mesuré en production le 2026-09-20, après déploiement :
+        # `/health` rendait `503 {"reason":"database"}` sur une API qui servait
+        # normalement (`/auth/token` → 401 correct, `/metrics` → 200).
+        #
+        # `resolve_kwargs()` ne lit PAS `DATABASE_URL` ; `from_env_or_config()` le lit
+        # EN PREMIER puis retombe sur lui. Or les conteneurs `api` et `dashboard`
+        # reçoivent `DATABASE_URL` et **aucun** `DATABASE_HOST`, et n'ont pas de
+        # `config/config.yaml`. La sonde levait donc `RuntimeError: No database
+        # configuration`, attrapée, et rendait « base injoignable » sur une base
+        # parfaitement joignable.
+        #
+        # Le correctif de `security-specialist` disait `from_env_or_config()` ; j'ai
+        # substitué `resolve_kwargs()` pour pouvoir passer mes propres bornes. On prend
+        # donc la RÉSOLUTION du premier et les BORNES de la seconde : le handler porte
+        # ses paramètres, on s'en sert pour ouvrir une connexion bornée.
+        #
+        # Ce défaut ne pouvait pas se voir ici : en local `config/config.yaml` existe,
+        # donc `resolve_kwargs()` réussit. C'est la deuxième fois ce soir que ce
+        # `/health` échoue faute d'avoir exercé le chemin RÉEL dans l'environnement réel.
+        from src.database.postgres_handler import PostgresHandler
+        h = PostgresHandler.from_env_or_config()
         conn = psycopg2.connect(
             connect_timeout=2,
             options=f"-c statement_timeout={_SANTE_TIMEOUT_MS}",
-            **kwargs)
+            host=h.host, port=h.port, database=h.database,
+            user=h.user, password=h.password)
         with conn.cursor() as cur:
             cur.execute("SELECT 1")
             cur.fetchone()
