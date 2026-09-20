@@ -7743,3 +7743,81 @@ donnent le même symptôme. Muté rouge en supprimant la vue.
 
 **Mesuré par** : `make schema-declared` rend **43** divergences (contre 44), et aucune ne
 nomme `track_id` ni `ig_user_id`. Plafond descendu dans le même commit.
+
+## R140 — Dix-sept décisions de produit · P2 · ✅ 2026-09-20
+
+- [x] **R140 — trancher les dix-sept décisions de produit trouvées par le balayage des
+      classes d'erreur, et les intégrer.** ✅ 2026-09-20
+
+Ouverte le 2026-09-18 : le balayage de R137 avait trouvé dix-sept points qui ne se
+tranchent pas techniquement — chacun demandait un arbitrage de produit. Toutes traitées
+le 2026-09-20, en six commits (`5ddd7f6`, `f1fad1c`, `379310b`, `329dbeb`, `8c91bd4`,
+`191fb62`).
+
+### Ce qui a changé, décision par décision
+
+| § | décision | ce qui a changé |
+|---|---|---|
+| 16.1 | appariement de titres du PDF | seuil de couverture **0,35**, mesuré au milieu d'un intervalle vide |
+| 16.2 | jeton SoundCloud partagé | rotation refusée hors prod ; frère Meta couvert à la mesure de sa conséquence |
+| 16.3 | bouton « ce locataire » | **documenté**, pas restreint |
+| 16.4 | script de migration | **gelé**, avec l'alternative |
+| 16.5 | `refresh_token` imprimé | derrière `--print-token` |
+| 16.6 | deux MRR | une définition ; `trialing` compte ; locataires techniques exclus |
+| 16.7 | « dernière collecte » | deux questions **étiquetées**, dérivées du registre |
+| 16.8 | artefacts livrés | `bcrypt` aligné sur `<4.1`, PNG régénérés, `dev-docs/api/` retirée |
+| 16.9a | 152 jours de zéro | **laissée** — les deux lectures se défendent sur une courbe cumulative |
+| 16.9b | Apple non consécutif | les **deux** lecteurs bornés à `jours = 1` |
+| 16.9c | digest Meta | **3 087,82 €** au lieu de 6 165,65 € |
+| 16.9d | compteur public | **10 → 1** |
+| 16.10 | exports vides | **4** tables retirées |
+| 16.11 | quatre barèmes | le canari demande son seuil au registre |
+| 16.12 | échelle du pas | une seule ; accueil et PDF d'accord |
+| 16.13 | deux journaux | rétentions déclarées, purge câblée |
+| 16.14 | `/health` | vérifie sa base, rend **503** sinon |
+| 16.15 | scheduler | **30 → 300 s**, appliqué au conteneur qui tourne |
+| 16.17 | figures du premier écran | plafond cranté à **191**, `st.tabs` borne un écran |
+
+### Les mesures qui ont corrigé la roadmap elle-même
+
+Quatre énoncés de R140 étaient inexacts, et la vérification les a redressés :
+
+* **§16.12** annonçait « quatre nombres : 360/60, 92, 90, 120 ». `120` désigne une
+  troncature de chaîne et un numéro de migration ; `90` est le préréglage du SÉLECTEUR
+  de période. Les nombres en cause sont **360/60 contre 92**.
+* **§16.11** comptait les 26 écarts de 24–36 h comme un défaut. Ils n'en sont pas : un
+  badge informe, il ne réveille personne. La vraie contradiction est celle de 36–48 h,
+  **entre deux surfaces de supervision**.
+* **§16.10** nommait trois tables ; l'entonnoir du garde en a trouvé une **quatrième**,
+  `youtube_comments`, qui n'existe que comme schéma.
+* **§16.8** décrivait « deux épingles divergentes ». En réalité **les trois fichiers**
+  portent le même commentaire disant `<4.1`, et deux une contrainte `<5.1` qui le
+  contredit — ce qui donne la direction de l'alignement.
+
+### Les trois mesures en direct
+
+* **721 jours** d'écart sur `meta_insights_performance_day` : `collected_at` au matin
+  même, `day_date` au 2024-09-30. Le DAG tourne et ré-écrit les mêmes lignes.
+* **0 paire consécutive sur 11** dans `apple_songs_history`, plus grand trou 12 jours.
+* **9 artefacts sur 10** dans le compteur public, les huit `Oracle Probe` créés dans un
+  intervalle de deux minutes.
+
+### Ce que le dépôt a corrigé de mes propres corrections
+
+C'est le résultat le plus utile de cette séance, et il n'était pas prévu :
+
+1. **`security-specialist`** a trouvé que mon `/health` rendait **503 sur une base
+   saine**, avec cinq de mes tests verts par-dessus — trois simulaient la fonction
+   qu'ils prétendaient vérifier. Plus cinq autres défauts réels du même correctif.
+2. **`build-error-resolver`** a infirmé mon diagnostic de six tests rouges et trouvé
+   **trois** causes, dont mon propre test polluant un cache de processus.
+3. **Un test de contrat préexistant** a montré que mon alignement des seuils
+   contredisait une demande explicite du propriétaire.
+4. **Les méta-gardes de structure** ont attrapé **quatre** de mes gardes neufs, tous
+   pour la même raison : comparer une chaîne au TEXTE d'un fichier, ce qu'un commentaire
+   suffit à satisfaire.
+5. **Un garde a refusé d'être aveuglé** par un déplacement de code, au lieu de passer au
+   vert sur un ensemble vide.
+
+**Mesuré par** : `make test` — **8413 verts, 54 skippés**. Les gardes neufs sont
+mutés dans les deux sens ; six commits poussés sur `main`.

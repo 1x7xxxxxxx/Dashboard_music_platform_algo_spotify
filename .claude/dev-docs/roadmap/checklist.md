@@ -28,9 +28,9 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 **Aucune tâche n'est ouverte dans cet index** — R135 a été livrée le 2026-09-20.
 L'ancre `reprise:` ne nomme donc plus que les lignes en attente d'un geste humain. La table « 🙋 En attente de toi »
-plus bas porte **trois** lignes : R125, qui attend un geste humain dans l'app, R140,
-entrée le 2026-09-18, qui attend **dix-sept** décisions de PRODUIT (§16.1 à §16.17 du
-runbook), et R134, parquée le 2026-09-19 faute de données locales à calibrer.
+plus bas porte **deux** lignes : R125, qui attend un geste humain dans l'app, et R134,
+parquée le 2026-09-19 faute de données locales à calibrer. **R140 en est sortie le
+2026-09-20** : ses dix-sept décisions sont tranchées et intégrées.
 ⚠️ Cette phrase a porté « quatre » jusqu'au 2026-09-18 au soir, pendant que le
 tableau juste en dessous DÉMENTAIT ce chiffre : la correction avait été écrite dans le
 journal des mensonges sans être appliquée à la phrase qui le portait. Inviter la bêta est l'usage
@@ -47,6 +47,7 @@ Les chiffres ci-dessous sont des citations datées, pas l'état d'aujourd'hui.
 | 2026-09-18 matin | « En attente de toi » **VIDE** | R125 y était depuis l'aube |
 | 2026-09-18 après-midi | « porte **UNE** ligne » | **deux** — R140 venait d'entrer, par la même main qui venait de recaler la phrase voisine |
 | 2026-09-18 soir | R140 « **quatre** décisions » | **dix-sept** — §16.1 à §16.17 |
+| 2026-09-20 | *(aucun mensonge)* | R140 sort de la table, les deux phrases de comptage recalées **dans le même commit** — c'est la première rotation de cette table où le garde n'a rien eu à dire |
 
 Les deux premières n'étaient gardées par rien. Les trois dernières le sont maintenant, et
 chaque garde a été écrit APRÈS l'occurrence qu'il aurait attrapée :
@@ -113,7 +114,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-18 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R125, R140, R134 -->
+<!-- reprise: open=R125, R134 -->
 
 **R125 est entrée le 2026-09-18, et elle n'attend qu'un geste de trois minutes.** Mesuré
 en production : `ml_song_predictions` porte 617 lignes, `s4a_song_algo_outcomes` (la
@@ -137,8 +138,9 @@ deux réordonnancements de R118/R120, chacun sur une mesure — a été **dépla
 dans `archive.md`** le 2026-09-18, sous « Le récit de mesure de R114–R121 ». Il n'est pas
 perdu : il n'appartient simplement pas à un écran qui répond « où j'en suis ».
 
-**La table « 🙋 En attente de toi » porte TROIS lignes** : R125 et R140, entrées le
-2026-09-18, et R134, parquée le 2026-09-19 faute de données locales à calibrer.
+**La table « 🙋 En attente de toi » porte DEUX lignes** : R125, entrée le 2026-09-18, et
+R134, parquée le 2026-09-19. R140 en est sortie le 2026-09-20, ses dix-sept décisions
+tranchées.
 ⚠️ Ce paragraphe a menti TROIS fois, et la troisième a été attrapée par un GARDE — pas
 par une relecture. Le 2026-09-19, en parquant R134, j'ai recalé la phrase de tête de
 l'index et pas celle-ci ; `test_a_sentence_that_counts_rows_counts_the_rows_there_are` a
@@ -264,7 +266,6 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
 | R125 | Saisir les écoutes 28 j réalisées (DW / RR / Radio) pour au moins un morceau, dans **Saisie S4A** | P3 | ouvrir Saisie S4A, entrer les trois chiffres à 28 jours pour un morceau prédit il y a plus de 28 jours — voir §15 du runbook |
-| R140 | Trancher **dix-sept décisions de produit** trouvées par le balayage R137 — dont un appariement de titres trop large dans le PDF, un jeton SoundCloud partagé entre dev et prod, `/health` qui dit « ok » sans rien vérifier pendant que trois systèmes en font un verdict, le digest hebdomadaire qui somme deux générations (6 165 € au lieu de 3 088), et vingt dates affichées en UTC sans qualificatif | P2 | lire les dix-sept mesures et dire pour chacune ce que le produit DOIT faire — voir §16.1 à §16.17 du runbook |
 | R134 | **Étendre le détecteur de creux au-delà de ses 5 tables** — il ne voit ni Instagram, ni Apple, ni Hypeddit, ni SACEM. L'outillage est LIVRÉ (`make dip-calibrate` + le garde qui refuse un seuil non dérivé) ; il bute sur la donnée : **0 table sur 8 calibrable localement**, la mieux fournie n'ayant que 12 % de jours couverts | P3 | lancer `make dip-calibrate` **contre la base de PRODUCTION** et me renvoyer sa sortie — voir §17 du runbook |
 
 ⚠️ **R125 est entrée le 2026-09-18, mesurée en PRODUCTION, pas supposée** :

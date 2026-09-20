@@ -969,7 +969,7 @@ restera à 0 — et on conclura à tort que la chaîne est cassée.
 
 ---
 
-## 16. R140 — Dix-sept décisions de produit trouvées par le balayage des classes d'erreur
+## 16. ~~R140 — Dix-sept décisions de produit trouvées par le balayage des classes d'erreur~~ · ✅ FAIT le 2026-09-20 — les dix-sept tranchées et intégrées ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 **Ce que ça débloque** : rien ne se répare tant qu'elles ne sont pas tranchées, et aucune
 n'est une question technique. Chacune a sa mesure, rejouable ; aucune n'a été corrigée,
