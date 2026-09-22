@@ -1516,21 +1516,45 @@ increases the sales of the middle price — previously the highest price — by 
 **50 %** ». Trois options ne servent pas à vendre la plus chère ; elles servent à
 rendre celle du milieu évidente.
 
-### Le geste — remplir ces trois lignes
+### Ce qui a changé le 2026-09-22 — l'ordre s'est inversé
 
-Trois options, chacune avec un prix et une différence **de périmètre**, pas de
-qualité. La colonne « ce que ça change » est celle qui fait le travail : si les trois
-lignes disent la même chose en plus ou moins gros, ce ne sont pas des options.
+Cette section disait « la construction suit le remplissage, pas l'inverse », et
+demandait de remplir un tableau **ici**, en Markdown. C'est l'inverse qui a été fait,
+et pour une raison : un prix écrit dans un runbook ne s'affiche nulle part, et un prix
+écrit dans le code demande un redéploiement pour bouger — donc ne bouge jamais.
 
-| | prix | ce que ça inclut | ce que ça change pour l'artiste |
-|---|---|---|---|
-| **Essentiel** | … € | … | … |
-| **Standard** ← celle que tu veux vendre | … € | … | … |
-| **Accompagnement** | … € | … | … |
+**La page existe depuis le 2026-09-22** : `🎯 Faire piloter mes campagnes`, accessible
+à tous les plans, trois options en colonnes avec les prix en bas (Enns p. 29), les
+livrables typés par agent (🙋 toi / ⚙️ l'outil), les quatre leviers gratuits, et le
+bouton de rendez-vous. **Aucun montant n'est écrit dans le code.** Tant que les trois
+prix ne sont pas posés, l'artiste voit la page **sans sa grille** — et toi seul vois
+un avertissement qui te renvoie ici.
+
+### Le geste — trois champs, dans l'application
+
+1. Ouvrir **⚙️ Admin → onglet Réglages**, section **🎯 Prix de la prestation
+   d'optimisation**.
+2. Saisir **trois** montants — un nombre entier d'euros, sans décimale ni symbole
+   (`450`). Un décimal est refusé, avec sa raison : un prix à la virgule près se lit
+   comme un devis calculé, or c'est précisément ce qui n'est pas vendu ici.
+3. Enregistrer. Les trois s'appliquent **tout de suite**, sans redéploiement.
+
+Les trois périmètres sont déjà écrits dans `src/dashboard/utils/service_offer.py` et
+s'affichent sous chaque nom :
+
+| | périmètre | conditions de paiement |
+|---|---|---|
+| **Essentiel** | une campagne, une sortie, sur une fenêtre définie | 100 % à la commande |
+| **Standard** ← celle que tu veux vendre | le cycle complet d'une sortie : plusieurs angles, et tu itères sur toute la fenêtre | 50 / 50 |
+| **Accompagnement** | le cycle Standard répété, sortie après sortie | mensualisé, ou douze mois d'avance avec 10 % de remise |
 
 Deux repères, pas des règles : l'écart entre Essentiel et Standard se lit mieux
 autour de ×2, et l'Accompagnement existe même s'il ne se vend jamais — c'est son
 rôle.
+
+⚠️ **Les trois, ou aucun.** Afficher le seul prix posé ferait de l'option la moins
+chère la seule visible — l'inverse exact de ce que trois options servent à faire.
+C'est pour ça que la grille reste masquée tant qu'il en manque un.
 
 ### Une décision qui se prend en même temps
 
@@ -1544,11 +1568,18 @@ une décision sur la STRUCTURE de l'offre, indépendante de l'unité de facturat
 
 ### Vérification
 
-Les trois lignes remplies dans ce tableau, puis leur mise en page sur la page
-Facturation — la construction suit le remplissage, pas l'inverse.
+La preuve que le geste est fait n'est pas « j'ai saisi » : c'est que la grille
+s'affiche. Les trois lignes rendent une valeur non vide :
 
 ```bash
-python3 -m pytest tests/test_views_render_smoke.py -q -k billing
+docker exec -i $(docker ps -qf name=postgres) psql -U postgres -d spotify_etl -c \
+  "SELECT key, value FROM app_settings WHERE key LIKE 'service_price_%';"
+```
+
+Puis la page, regardée :
+
+```bash
+python3 -m pytest tests/test_views_render_smoke.py -q -k "service or billing"
 ```
 
 ---

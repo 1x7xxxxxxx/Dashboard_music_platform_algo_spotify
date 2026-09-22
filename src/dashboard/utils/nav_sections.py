@@ -64,10 +64,31 @@ from __future__ import annotations
 # artiste Free — conséquence assumée le 2026-09-12, l'entrée restant visible pour
 # dire ce que l'offre contient.
 NAV_SECTIONS: list = [
-    ("start",     "",                       [("🏠 Accueil", "home")]),
+    # ── LA TÊTE DU MENU — 2026-09-22 ────────────────────────────────────────
+    #
+    # Demandé en regardant l'écran : « accueil et ensuite guide de démarrage »,
+    # puis les deux exports. Trois gestes dans l'ordre où on les fait quand on
+    # arrive : je regarde où j'en suis, je branche ce qui manque, j'emporte le
+    # résultat.
+    #
+    # Les exports étaient dispersés — « 📄 Export PDF » au milieu des six pages
+    # Premium, « ⬇️ Export CSV » sous « Compte », entre la facturation et le
+    # parrainage. Aucun des deux ne se trouvait en cherchant « je veux mon
+    # rapport » : le premier demandait de connaître son plan, le second de penser
+    # à son compte. Ils sont maintenant là où on les cherche.
+    #
+    # ⚠️ « 📄 Export PDF » est PREMIUM (décision du 2026-09-04 : « la sortie brute
+    # reste gratuite, la mise en forme est le service »). Le remonter met donc un
+    # 🔒 rouge en troisième entrée pour un compte gratuit. C'est assumé : l'entrée
+    # reste visible pour dire ce que l'abonnement contient, et depuis le
+    # 2026-09-22 le cadenas le dit en couleur.
+    ("start",     "",
+     [("🏠 Accueil", "home"),
+      ("🚀 Mise en route (assistant)", "onboarding"),
+      ("📄 Export PDF", "export_pdf"),
+      ("⬇️ Export CSV", "export_csv")]),
     ("data",      "⚙️ Configuration de streaMLytics",
-     [("🚀 Mise en route (assistant)", "onboarding"),
-      ("🚦 Santé onboarding", "onboarding_health"),
+     [("🚦 Santé onboarding", "onboarding_health"),
       ("🔑 Credentials API + imports CSV", "credentials"),
       # « 📋 État de tes plateformes » a été RETIRÉE du menu le 2026-09-05 : chaque
       # onglet de Credentials porte désormais les quatre mêmes pastilles pour SA
@@ -110,7 +131,6 @@ NAV_SECTIONS: list = [
     # liste et le catalogue de prix ne peuvent plus diverger en silence.
     ("premium",   "💎 Premium — ce que l'abonnement ouvre",
      [("🔀 Impact de mes campagnes (toutes plateformes)", "meta_x_spotify"),
-      ("📄 Export PDF", "export_pdf"),
       ("🎨 Visuels de campagne", "meta_creatives"),
       ("🌍 Qui a vu tes pubs (pays, âge, placement)", "meta_breakdowns"),
       ("📊 CPR Optimizer", "meta_cpr_optimizer"),
@@ -139,7 +159,9 @@ NAV_SECTIONS: list = [
     ("account",   "👤 Compte",
      [("👤 Mon compte", "account"),
       ("💳 Billing", "billing"),
-      ("⬇️ Export CSV", "export_csv"),
+      # La prestation vit sous la facturation et non dans « 💎 Premium » : ce
+      # n'est PAS ce que l'abonnement ouvre, c'est ce qu'un humain fait à côté.
+      ("🎯 Faire piloter mes campagnes", "service"),
       ("🎁 Parrainage", "referral")]),
     # ⚡ « Perf. Dashboard » (`perf_monitor`) a ete RETIRE le 2026-09-16, R115 etape 6.
     # Grafana le couvre entierement, et mieux : la vue ne montrait que la session de

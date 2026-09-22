@@ -202,6 +202,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
+| [an-absence-that-becomes-a-nan-because-nan-is-truthy](#an-absence-that-becomes-a-nan-because-nan-is-truthy) | P2 | deterministic | guarded | none |
 | [a-proxy-rendered-under-the-name-of-the-thing-it-proxies](#a-proxy-rendered-under-the-name-of-the-thing-it-proxies) | P2 | deterministic | guarded | none |
 | [a-second-door-that-knows-fewer-sources-than-the-first](#a-second-door-that-knows-fewer-sources-than-the-first) | P3 | deterministic | guarded | none |
 | [a-price-page-that-restates-a-gate-instead-of-reading-it](#a-price-page-that-restates-a-gate-instead-of-reading-it) | P2 | deterministic | guarded | none |
@@ -618,6 +619,25 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > arrived from another repo in a looser format; no severity has been invented for them.
 
 ---
+
+## an-absence-that-becomes-a-nan-because-nan-is-truthy
+- status: guarded
+- severity: P2
+- admitted: sites:8
+- kind: deterministic
+- symptom: une valeur absente traverse DEUX filets successifs et ressort en `NaN`. Selon le site, elle s'affiche « nan € » sans que rien ne lève, ou elle fait planter la page sur `ValueError: cannot convert float NaN to integer`. Le code a l'air de se protéger — deux fois — et ne se protège pas du tout.
+- root_cause: la forme `float(pd.to_numeric(valeur, errors="coerce") or 0)`, écrite en **huit endroits**. `pd.to_numeric` rend `NaN` sur une valeur manquante, et **`NaN` est VRAI en Python** : le `or` ne se déclenche jamais. Le second filet échoue pour la même raison arithmétique — `if streams <= 0: return None` laisse passer `NaN`, puisque `nan <= 0` est faux. Le cas qui l'a révélé : `SUM()` sur zéro ligne rend `NULL`, donc un artiste sans aucun relevé de ventes obtenait `{'eur_par_stream': nan}` au lieu de `None`, et le `NaN` traversait ensuite toutes les multiplications de valeur jusqu'à l'écran.
+- cause_evidence: measured (trouvé par l'exécution de `tests/test_a_track_rate_falls_back_and_says_so.py::test_an_artist_with_nothing_measurable_gets_none` le 2026-09-22, qui a rendu `{'eur_par_stream': nan, ...}` au lieu de `None` ; `float('nan') or 0` rend `nan` et `float('nan') <= 0` rend `False`, vérifiés à l'interpréteur)
+- signature: `python3 -m pytest tests/test_an_absence_does_not_become_a_nan.py -q`
+- seen_red: self-proving (tests/test_an_absence_does_not_become_a_nan.py::test_the_detector_sees_the_defect_it_is_written_for) — le garde fabrique un module portant la forme fautive ET un commentaire qui en parle, et exige que le détecteur voie le premier sans compter le second ; `test_the_corrected_form_leaves_the_detector_silent` et `test_an_unrelated_or_is_not_a_false_positive` tiennent les deux réciproques. S'y ajoutent deux mutations à la main le 2026-09-22 : une seule ligne de `stream_rate` remise à la forme fautive → le cliquet structurel sort ≠ 0 ; **les deux** lignes remises → le test de COMPORTEMENT sort ≠ 0 lui aussi. 0 après remise en état.
+- long_term_fix: `src/dashboard/utils/safe_number.py` — trois portes qui attrapent le `NaN` au lieu de compter sur sa fausseté : `nombre()` (rend le défaut), `entier()` (ne lève jamais) et surtout **`mesure()`, qui rend `None`**. Le choix entre `nombre()` et `mesure()` est la vraie décision : un zéro affiché est un fait affirmé, une absence ne l'est pas. Les huit sites sont convertis (5 dans `artist_cashflow.py`, 3 dans `views/meta_creatives.py`), et le cliquet de `tests/test_an_absence_does_not_become_a_nan.py` est à **zéro** : un neuvième fait rougir.
+- guard: { type: pytest, ref: tests/test_an_absence_does_not_become_a_nan.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — laisser une valeur non mesurée ressortir en `NaN` sous couvert d'un garde qui ne garde rien ; tests: `test_no_site_relies_on_or_to_catch_a_nan` (le cliquet), `test_the_remedy_exists_and_catches_nan` (le remède fait ce qu'il promet), `test_the_detector_sees_the_defect_it_is_written_for`, `test_the_corrected_form_leaves_the_detector_silent`, `test_an_unrelated_or_is_not_a_false_positive` ; couvre: tout `src/dashboard/`, par la conjonction AST « un `BoolOp or` dont le membre gauche est un appel `to_numeric` » ; ne couvre pas: (1) **les autres façons de fabriquer un `NaN`** — une division `0/0`, un `reindex` sans `fill_value`, une soustraction de séries mal alignées : le prédicat ne voit que cette conjonction-là ; (2) `src/collectors/`, `airflow/` et `tools/`, hors du balayage — un collecteur portant la même forme ne rougit pas ; (3) le geste voisin le plus proche : **le CHOIX entre `nombre()` et `mesure()`**, c'est-à-dire entre un zéro et une absence. Un site qui prend `nombre()` là où il fallait `mesure()` est invisible au garde, et c'est pourtant l'erreur qui se paie — un zéro dessiné est un fait affirmé ; (4) un `or` sur une valeur déjà convertie en amont, hors de la même expression.
+- siblings: swept:2026-09-22 — candidats bruts **8** occurrences de la conjonction `to_numeric(...) or <défaut>` sur `src/dashboard/`, et **8 sites vivants** : aucun faux positif, la conjonction étant beaucoup plus étroite que le motif `or`. Répartition : `utils/artist_cashflow.py` ×5 (`stream_rate`, `track_stream_rate`, `trigger_value`) et `views/meta_creatives.py` ×3 (le funnel par créative). ⚠️ **Les deux moitiés n'ont pas le même mode d'échec, et c'est ce qui rendait le balayage nécessaire** : les cinq de `artist_cashflow` sont des `float()` — la valeur se propage en SILENCE jusqu'à l'affichage ; les trois de `meta_creatives` sont des `int()` — `int(nan)` LÈVE, donc une ligne à colonne nulle fait planter la page. Chercher le symptôme (« nan à l'écran ») aurait raté les trois plantants ; chercher la forme d'écriture les a tous trouvés. ⚠️ Faux positif écarté par mutation : un `or` ordinaire (`cfg.get('nom') or 'inconnu'`, `(r.get('a') or 0) + (r.get('b') or 0)`) n'est pas compté — vérifié par `test_an_unrelated_or_is_not_a_false_positive`.
+- rex_ref: src/dashboard/utils/safe_number.py
+- first_seen: 2026-09-22
+- History:
+  - 2026-09-22: trouvée en écrivant le test d'une fonction NEUVE (`track_stream_rate`), pas en relisant l'ancienne. Le défaut vivait dans `stream_rate` depuis son écriture, sous deux gardes apparents qui ne gardaient rien. C'est l'argument le plus net pour écrire le test du cas vide : `test_an_artist_with_nothing_measurable_gets_none` n'a pas vérifié un comportement connu, il en a découvert un.
 
 ## a-proxy-rendered-under-the-name-of-the-thing-it-proxies
 - status: guarded

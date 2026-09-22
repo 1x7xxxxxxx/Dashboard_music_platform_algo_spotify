@@ -3,7 +3,6 @@ from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.utils.i18n import t
 import pandas as pd
 import streamlit as st
-from ._loaders import _load_scored_tracks
 from src.utils.track_matching import canonical_song_sql
 
 _CANON = canonical_song_sql('ctm.track_name')
@@ -57,41 +56,19 @@ def _show_28d_gate(db, track: str, artist_id) -> None:
                  "Seuils 28j approximatifs, dérivés de data_anon.csv (knee du taux de succès)."))
 
 
-def _show_budget_tier_selector(db, artist_id):
-    """A&R portfolio tool: select the top-N% tracks by score (lift/precision tradeoff)."""
-    st.subheader(t("trigger_algo.common.ar_selector_header", "🎯 Sélection A&R par budget (top-N%)"))
-    df = _load_scored_tracks(db, artist_id)
-    if df is None or len(df) < 3:
-        st.info(t("trigger_algo.common.ar_selector_min",
-                  "Outil disponible dès 3 titres scorés (échelle catalogue). Le calcul "
-                  "tourne chaque jour en fin de matinée."))
-        return
-    m = ak.ALGO_MODEL_METRICS.get("DW", {})
-    n = len(df)
-    pct = st.slider(t("trigger_algo.common.ar_slider", "Pousser le top N% par score"),
-                    10, 100, 20, step=10,
-                    help=t("trigger_algo.common.ar_slider_help",
-                           "Seuil bas → précision haute (peu de gâchis) ; seuil haut → recall élevé."))
-    k = max(1, (n * pct + 99) // 100)
-    sel = df.head(k)
-    c1, c2, c3 = st.columns(3)
-    c1.metric(t("trigger_algo.common.ar_selected_metric", "Titres sélectionnés"), f"{k}/{n}")
-    c2.metric(t("trigger_algo.common.ar_precision_metric", "Précision modèle"),
-              f"{m.get('precision', 0) * 100:.0f}%")
-    if pct <= 10:
-        c3.metric(t("trigger_algo.common.ar_lift_metric", "Lift top-10%"),
-                  f"×{m.get('lift_top10', 0):.1f}")
-    else:
-        c3.metric(t("trigger_algo.common.ar_recall_metric", "Recall (rappel)"),
-                  f"{m.get('recall', 0) * 100:.0f}%")
-    st.caption(t("trigger_algo.common.ar_caption",
-                 "Budget serré → vise le top 10% (précision quasi parfaite, peu de gâchis). "
-                 "Gros budget → baisse le seuil pour capter plus d'opportunités (recall ↑, précision ↓)."))
-    show = sel[["song", "score_20"]].copy()
-    show["score_20"] = show["score_20"].fillna(0).round(1)
-    show.columns = [t("trigger_algo.common.ar_col_track", "Titre à pousser"),
-                    t("trigger_algo.common.ar_col_score", "Score /20")]
-    st.dataframe(show, hide_index=True, width="stretch")
+# ⚠️ `_show_budget_tier_selector` SUPPRIMÉ — 2026-09-22.
+#
+# Un curseur « pousser le top N % du catalogue », dont le classement venait du
+# `Score /20`. Ce score étirait en min-max sur une échelle de 20 un écart de
+# probabilité de **0,36 point** (mesuré sur les dix titres de l'artiste 1) : le
+# curseur choisissait donc un sous-ensemble au hasard, avec l'apparence d'un
+# arbitrage. Un curseur posé au-dessus du hasard est pire qu'aucun curseur — il
+# transfère la responsabilité du choix à quelqu'un qui croit choisir.
+#
+# Ce qui le remplace vit dans l'onglet « Où en sont mes titres » : le catalogue
+# classé par l'avancement vers la porte la plus proche, qui s'étale de 0,7 % à
+# 98,9 % sur ces mêmes dix titres.
+
 
 
 def _show_velocity_budget_advice(db, track, artist_id, spent):

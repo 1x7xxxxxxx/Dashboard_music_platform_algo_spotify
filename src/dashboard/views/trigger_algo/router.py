@@ -4,6 +4,7 @@ from datetime import timedelta
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import smart_period_filter
+from src.dashboard.utils.ui import secondary_analyses
 from src.utils.track_matching import canonical_song_sql
 import streamlit as st
 from ._common import (
@@ -11,12 +12,10 @@ from ._common import (
     _load_ml_pred,
 )
 from ._tab_algo_streams import _show_tab_algo_streams
-from ._tab_algos import _show_tab_algos
+from ._tab_titre import _show_tab_titre
 from ._tab_budget_roi import _show_tab_budget_roi
-from ._tab_explainability import _show_tab_explainability
-from ._tab_global import _show_tab_global
+from ._tab_catalogue import _show_tab_catalogue
 from ._tab_lifecycle import _show_tab_lifecycle
-from ._tab_model import _show_tab_model
 
 
 def show():
@@ -52,9 +51,15 @@ def show():
             "- **DW % / RR % / Radio %** = probabilité **absolue et calibrée** de déclenchement "
             "(50 % = vraiment 1 chance sur 2). C'est LA mesure de ta vraie chance. Bandes de "
             "décision : 🔴 < 20 % **STOP** · 🟠 20–50 % **OPTIMISER** · 🟢 ≥ 50 % **SCALER**.\n"
-            "- **Score /20** = **classement interne** de ton catalogue (meilleur titre = 20, "
-            "pire = 0). Sert à savoir *quel titre pousser en priorité*, PAS à lire une chance de "
-            "trigger. Un titre peut être 20/20 avec seulement 10 % de proba réelle.\n\n"
+            # ⚠️ LE « SCORE /20 » EST RETIRÉ — 2026-09-22. Il étirait en min-max sur
+            # une échelle de 20 un écart de probabilité de 0,36 point, mesuré sur les
+            # dix titres de l'artiste 1. Il fabriquait l'apparence d'un classement à
+            # partir d'une donnée qui n'en portait aucun — c'est-à-dire exactement ce
+            # qu'il prétendait offrir. Sa prose le disait déjà : « un titre peut être
+            # 20/20 avec seulement 10 % de proba réelle ».
+            "- ⚠️ **Une probabilité proche de 6,5 % (DW/RR) ou 10,7 % (Radio) est le "
+            "PLANCHER de la calibration** : elle veut dire que le modèle a rendu zéro, "
+            "pas qu'il hésite. Deux titres posés dessus ne se comparent pas.\n\n"
 
             "**🧭 Les notions clés**\n"
             "- **Popularity Index (0–100)** — la « note de popularité » Spotify du titre. C'est "
@@ -71,12 +76,17 @@ def show():
             "Algorithmes).\n\n"
 
             "**🗂️ Les onglets**\n"
-            "- 🎯 **Vue Globale** — métriques du titre + probas + son classement /20.\n"
+            "- 🎯 **Vue Globale** — métriques du titre et probabilités.\n"
             "- 📊 **Suivi Algorithmes** — verdict, leviers d'action, trajectoire J+28, portes par PI.\n"
             "- 💰 **Budget & ROI** — combien dépenser en pub et quand.\n"
             "- 🔍 **Explainabilité** — *pourquoi* le modèle donne ce score (SHAP, leviers).\n"
             "- 📈 **Modèle** — fiabilité technique du modèle ML.\n"
-            "- 📉 **Cycle de vie & Benchmark** — où en est ton titre vs les autres, dans le temps.\n\n"
+            "- 📉 **Cycle de vie & Benchmark** — où en est ton titre vs les autres, dans le temps.\n"
+            # ⚠️ CETTE LISTE EN ANNONÇAIT SIX POUR SEPT ONGLETS (corrigé 2026-09-22).
+            # L'absent était « Streams algos générés » — le seul onglet qui parle d'un
+            # fait CONSTATÉ (ce qu'une playlist a réellement rapporté) plutôt que
+            # d'une prédiction. Le guide envoyait donc le lecteur partout sauf là.
+            "- 📈 **Streams algos générés** — ce que chaque playlist t'a réellement rapporté.\n\n"
 
             "⚠️ **Limite honnête** : le modèle prédit BIEN *si* un titre va déclencher "
             "(classification, AUC ~0.92), mais MAL *combien* de streams il fera (le volume n'est "
@@ -165,27 +175,39 @@ def show():
         ml_pred = _load_ml_pred(db, selected_track, artist_id)
         benchmark_df = _load_lifecycle_benchmark(db)
 
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-            t("trigger_algo.tab_global", "🎯 Vue Globale"),
-            t("trigger_algo.tab_algos", "📊 Suivi Algorithmes"),
+        # ⚠️ L'ONGLET 1 S'OUVRE SUR LE CATALOGUE, PLUS SUR UN TITRE — 2026-09-22.
+        # « Où en sont mes titres » répond à la question qu'on se pose en arrivant :
+        # lequel je pousse. « Vue Globale » ouvrait sur onze figures d'UN titre,
+        # classé par un `Score /20` qui étirait 0,36 point de probabilité sur une
+        # échelle de 20. Le catalogue est classé par l'avancement vers la porte la
+        # plus proche — mesuré de 0,7 % à 98,9 % sur les dix mêmes titres.
+        # ⚠️ SEPT ONGLETS → QUATRE. « 📈 Modèle » et « 🔍 Explainabilité » sont
+        # partis dans la page admin `ml_performance` : ils exposaient AUC, F1,
+        # log-odds, drift et LIME à un artiste, et leur figure principale était vide
+        # par construction sur ce catalogue (`streams_7d = 0` sur les dix titres).
+        # Le coach et la sensibilité locale, eux, sont REMONTÉS en première ligne de
+        # « Ce titre » — c'est ce qu'un artiste vient chercher.
+        tab1, tab2, tab3, tab4 = st.tabs([
+            t("trigger_algo.tab_catalogue", "🎯 Où en sont mes titres"),
+            t("trigger_algo.tab_titre", "🎧 Ce titre : ce qu'il reste à faire"),
+            t("trigger_algo.tab_realise", "📈 Ce qui s'est vraiment passé"),
             t("trigger_algo.tab_budget", "💰 Budget & ROI"),
-            t("trigger_algo.tab_explain", "🔍 Explainabilité"),
-            t("trigger_algo.tab_model", "📈 Modèle"),
-            t("trigger_algo.tab_lifecycle", "📉 Cycle de vie & Benchmark"),
-            t("trigger_algo.tab_algostreams", "📈 Streams algos générés"),
         ])
         with tab1:
-            _show_tab_global(db, selected_track, artist_id, date_from, date_to, ml_pred, release_date=track_release_date)
+            _show_tab_catalogue(db, artist_id)
         with tab2:
-            _show_tab_algos(db, selected_track, artist_id, date_from, date_to, ml_pred, release_date=track_release_date)
+            _show_tab_titre(db, selected_track, artist_id, ml_pred)
         with tab3:
-            _show_tab_budget_roi(db, selected_track, artist_id, date_from, date_to)
-        with tab4:
-            _show_tab_explainability(db, ml_pred, selected_track, artist_id)
-        with tab5:
-            _show_tab_model(db, selected_track, artist_id)
-        with tab6:
-            _show_tab_lifecycle(db, selected_track, artist_id,
-                                release_date=track_release_date, benchmark_df=benchmark_df)
-        with tab7:
+            # « Ce qui s'est vraiment passé » : les streams réellement produits par
+            # chaque playlist, puis le cycle de vie replié. Le seul onglet qui parle
+            # d'un fait CONSTATÉ — et le seul qui puisse un jour fermer la boucle
+            # d'apprentissage, aujourd'hui vide (`s4a_song_algo_outcomes` : 0 ligne).
             _show_tab_algo_streams(db, selected_track, artist_id)
+            with secondary_analyses(t("trigger_algo.lifecycle_folded",
+                                      "📉 Cycle de vie & benchmark de cohorte")):
+                _show_tab_lifecycle(db, selected_track, artist_id,
+                                    release_date=track_release_date,
+                                    benchmark_df=benchmark_df)
+        with tab4:
+            _show_tab_budget_roi(db, selected_track, artist_id, date_from, date_to,
+                                 ml_pred=ml_pred)

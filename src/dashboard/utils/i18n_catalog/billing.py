@@ -7,12 +7,7 @@ EN = {
         "The tool tells you where your money goes. If you want someone to handle "
         "**the campaigns themselves**, that is a separate service, and we talk "
         "before starting."),
-    "billing.service_call_why": (
-        "**A call first is necessary**, and not as a formality: I look at your "
-        "project, what your numbers already say, and the budget that makes "
-        "sense. If it is not a fit, I say so."),
     "billing.service_book": "📅 Book a call",
-    "billing.service_btn": "✉️ Email me",
     "billing.service_no_calendly": (
         "⚙️ `SERVICE_CALENDLY_URL` is not set: the booking button is hidden. Set "
         "it in `.env.local` (local) and in the container environment (prod)."),
@@ -78,4 +73,5 @@ EN = {
     "billing.total_mrr": "Total MRR",
     "billing.paying_artists": "Paying artists",
     "billing.no_tenant": "Incomplete session: the payment could not be linked to your account. Please sign in again and retry.",
+    "billing.service_see": "See the service",
 }

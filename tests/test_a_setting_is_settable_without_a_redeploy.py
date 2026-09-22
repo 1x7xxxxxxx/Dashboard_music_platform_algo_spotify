@@ -130,22 +130,32 @@ def test_an_unknown_key_is_refused(db) -> None:
         set_setting(db, "cle_inventee_par_une_vue", "https://exemple.fr")
 
 
-def test_the_billing_page_reads_the_setting_not_the_constant() -> None:
+@pytest.mark.parametrize("surface", ["billing.py", "service.py"])
+def test_the_page_that_draws_the_button_reads_the_setting(surface: str) -> None:
     """Sinon le champ de l'admin existe et ne change rien à l'écran.
 
-    Par l'AST : le nom de la constante DOIT pouvoir être cité en prose, c'est là
-    qu'on explique pourquoi elle n'est plus que le défaut.
+    ⚠️ La propriété n'est PAS « `billing.py` appelle `get_setting` » — c'est
+    ce qu'elle disait jusqu'au 2026-09-22, et déplacer le rendu vers la page
+    dédiée l'aurait fait rougir pour une raison fausse. La propriété est :
+    **toute surface qui dessine le bouton de rendez-vous résout le lien
+    elle-même**. Deux surfaces le dessinent, donc deux surfaces sont gardées ;
+    une troisième qui le dessinerait sans lire le réglage naîtrait figée sur
+    l'environnement, et la seule façon de poser le lien redeviendrait un
+    redéploiement.
+
+    Par l'AST : le nom de la constante DOIT pouvoir être cité en prose, c'est
+    là qu'on explique pourquoi elle n'est plus que le défaut.
     """
-    tree = ast.parse((_ROOT / "src" / "dashboard" / "views" / "billing.py")
+    tree = ast.parse((_ROOT / "src" / "dashboard" / "views" / surface)
                      .read_text(encoding="utf-8"))
     lit = any(isinstance(n, ast.Call)
               and (getattr(n.func, "id", None) == "get_setting"
                    or getattr(n.func, "attr", None) == "get_setting")
               for n in ast.walk(tree))
     assert lit, (
-        "`billing.py` n'appelle pas `get_setting` : le lien redevient figé dans "
-        "l'environnement, et la seule façon de le poser redevient un "
-        "redéploiement.")
+        f"`{surface}` dessine le bouton de rendez-vous sans appeler "
+        "`get_setting` : le lien y redevient figé dans l'environnement, et la "
+        "seule façon de le poser redevient un redéploiement.")
 
 
 def test_the_admin_exposes_a_way_to_set_it() -> None:

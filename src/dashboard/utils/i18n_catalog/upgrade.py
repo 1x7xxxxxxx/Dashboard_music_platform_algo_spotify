@@ -11,9 +11,7 @@ EN = {
     "upgrade.go_premium": "Upgrade to Premium →",
     "upgrade.stripe_note": "Payments are handled via Stripe. "
                            "Cancel anytime from the Billing page.",
-    "upgrade.service_cta": "🎯 **Need us to optimize your marketing campaigns for you?** "
-                           "Done-for-you service (preliminary call to validate fit + budget) — "
-                           "📧 [{email}](mailto:{email}?subject=Optimisation%20campagnes%20-%20streaMLytics)",
+    "upgrade.service_cta": "🎯 **Would you rather someone took care of it?** Running your campaigns is a separate service — three options, and a call before we start.",
     # Premium feature bullets
     # Page labels (Free feature list) — only keys whose EN differs from FR
     "upgrade.page.home": "Home",
@@ -26,4 +24,5 @@ EN = {
     "upgrade.page.revenue_forecast": "Revenue forecasts",
     "upgrade.page.account": "My account",
     "upgrade.no_tenant": "Incomplete session: the payment could not be linked to your account. Please sign in again and retry.",
+    "upgrade.service_btn": "See the service",
 }

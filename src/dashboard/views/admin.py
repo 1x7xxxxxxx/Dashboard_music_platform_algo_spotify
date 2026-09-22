@@ -1075,6 +1075,10 @@ def _tab_reglages(db) -> None:
         st.caption(t("admin.settings_current", "Actuellement : {url}").format(
             url=actuel))
 
+    st.markdown("---")
+    from src.dashboard.views.admin_service_pricing import render_service_pricing
+    render_service_pricing(db)
+
 
 def show():
     _guard()

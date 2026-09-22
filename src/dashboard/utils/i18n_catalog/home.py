@@ -164,4 +164,11 @@ EN = {
     "home.never_run": "never run",
     "home.dag.data_quality_check": "Data quality",
     "home.display_error": "Display error: {err}",
+    # Le raccourci vers le rapport PDF, remis le 2026-09-22.
+    "home.pdf_cta": "📄 Generate my PDF report",
+    "home.pdf_help": "Your current numbers, laid out and ready to send.",
+    "home.pdf_locked": "🔒 PDF report — included in Premium",
+    "home.pdf_locked_help": (
+        "Laying out the report is part of the subscription; exporting your raw data "
+        "stays free (⬇️ Export CSV)."),
 }

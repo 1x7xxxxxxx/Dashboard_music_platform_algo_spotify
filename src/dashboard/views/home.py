@@ -845,6 +845,42 @@ def _section_dag_status():
             )
 
 
+def _bouton_rapport_pdf() -> None:
+    """Le raccourci vers le rapport PDF, juste sous les chiffres.
+
+    ⚠️ IL AVAIT ÉTÉ RETIRÉ, ET LA RAISON MÉRITE D'ÊTRE RELUE.
+
+    Le commentaire qui le remplaçait disait « redundant with the dedicated
+    📄 Export PDF page ». C'est vrai de la FONCTION et faux du GESTE : l'envie
+    d'emporter un rapport ne naît pas dans un menu, elle naît en regardant ses
+    chiffres. Un raccourci placé là où l'intention se forme n'est pas un doublon
+    du menu — c'est le menu qui arrive trop tard.
+
+    Remis le 2026-09-22 sur demande, au même moment où « 📄 Export PDF » remonte
+    en troisième entrée du menu. Les deux gestes visent la même chose : le rapport
+    était trouvable seulement par quelqu'un qui le cherchait déjà.
+
+    ⚠️ Le bouton porte le VERROU du plan, comme le menu. Un compte gratuit voit le
+    cadenas et atterrit sur la page d'abonnement — jamais un bouton qui promet et
+    ouvre une page vide.
+    """
+    from src.dashboard.auth import get_artist_plan
+    from src.database.stripe_schema import page_is_locked
+
+    verrouille = page_is_locked(get_artist_plan(), "export_pdf")
+    libelle = (t("home.pdf_locked", "🔒 Rapport PDF — inclus dans Premium")
+               if verrouille else
+               t("home.pdf_cta", "📄 Générer mon rapport PDF"))
+    aide = (t("home.pdf_locked_help",
+              "La mise en forme du rapport est comprise dans l'abonnement ; "
+              "l'export brut de tes données reste gratuit (⬇️ Export CSV).")
+            if verrouille else
+            t("home.pdf_help",
+              "Tes chiffres du moment, mis en page et prêts à envoyer."))
+    if st.button(libelle, help=aide, width="stretch"):
+        goto("upgrade" if verrouille else "export_pdf")
+
+
 def show():
     # Pas de filet sous le titre ni sous le bandeau de mise en route. Demandé le
     # 2026-09-08 : « enlève les 2 traits blancs qui entourent mise en route ». Un
@@ -873,7 +909,7 @@ def show():
                 _section_onboarding(db, artist_id)
 
             _section_streams(db, artist_id)
-            # PDF shortcut removed here — redundant with the dedicated "📄 Export PDF" page.
+            _bouton_rapport_pdf()
             # Pas de filet avant la fraîcheur : demandé le 2026-09-08, « retire les
             # 2 traits au-dessus de fraîcheur des données ». Les sous-titres suffisent
             # à séparer trois blocs qui ne se ressemblent pas.

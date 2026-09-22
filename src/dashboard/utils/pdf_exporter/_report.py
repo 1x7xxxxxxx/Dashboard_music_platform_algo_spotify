@@ -365,7 +365,8 @@ def render_html(data, artist_name, sections=None, lang="fr"):
     if sections.get('songs'):
         _focus = data.get('single_song') or data.get('latest_release')
         head = f"<div class='song-title'>{_focus}</div>" if _focus else ""
-        score_h = _t("pdf.subsection.score20", "Score /20 — tracks du rapport")
+        score_h = _t("pdf.subsection.score20",
+                     "Avancement vers la porte la plus proche — tracks du rapport")
         score = (f"<h3>{score_h}</h3>"
                  f"{_render_score20(data.get('score20'))}")
         j28_txt = _t(

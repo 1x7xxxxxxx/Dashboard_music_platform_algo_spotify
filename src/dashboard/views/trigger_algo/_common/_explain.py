@@ -132,15 +132,16 @@ def _show_imputation_caveat(feats: dict, feature_columns) -> None:
         st.warning(t(
             "trigger_algo.common.imputation_warning",
             "⚠️ **{n}/{total} variables imputées à 0/neutre** "
-            "faute de données S4A : les probabilités sont **indicatives, non calibrées** "
-            "(comparaison relative entre titres, pas une probabilité absolue).\n\n"
+            "faute de données S4A : les probabilités restent **calibrées (Platt)**, mais "
+            "elles décrivent un titre dont on ne mesure qu'une partie — l'incertitude "
+            "vient des variables manquantes, pas de la calibration.\n\n"
             "Variables concernées : {labels}."
         ).format(n=len(flagged), total=len(feature_columns), labels=", ".join(labels)))
     if not dm_known:
         st.caption(t("trigger_algo.common.dm_unknown",
                      "ℹ️ **Discovery Mode non renseigné** pour ce titre → traité comme "
-                     "désactivé (peut fausser DW/Radio). Saisissez-le dans l'onglet "
-                     "« 🎯 Vue Globale » pour fiabiliser le score."))
+                     "désactivé (peut fausser DW/Radio). Saisis-le sur la page "
+                     "**📝 Saisie S4A** pour fiabiliser le score."))
     else:
         opted = float(feats.get(_DM_KEY, 0.0)) >= 0.5
         _state = (t("trigger_algo.common.dm_on", "activé") if opted

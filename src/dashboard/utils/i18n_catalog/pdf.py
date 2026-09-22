@@ -39,12 +39,14 @@ EN = {
     # ── Subsection headers ──
     "pdf.subsection.connections": "Connections per platform",
     "pdf.subsection.mapping": "Campaign ↔ track mapping",
-    "pdf.subsection.score20": "Score /20 — report tracks",
+    "pdf.subsection.score20": "Progress to the nearest gate — report tracks",
     "pdf.subsection.cursors": "Decision cursors (DW · RR · Radio)",
 
     # ── Subtitles & notes ──
     "pdf.subtitle.full_catalog": "Full catalogue — {n} tracks (independent of selected songs).",
-    "pdf.note.score20": "Score /20 = catalogue-relative ranking (best = 20, worst = 0) ; for the absolute probability, read DW/RR/Radio %.",
+    "pdf.note.score20": ("Progress = where the track stands on the lever closest to its "
+        "target. DW/RR/Radio percentages are calibrated probabilities; a value near "
+        "6.5% is the calibration floor and does not tell two tracks apart."),
     "pdf.note.j28": "Curve = cumulative streams of the track over its first 28 days. "
                     "As a reference, when an algorithmic playlist triggers it generates "
                     "its own volume of algo-streams (over 28d) starting around "
@@ -120,7 +122,9 @@ EN = {
     "pdf.col.status": "Status",
     "pdf.col.platform": "Platform",
     "pdf.col.credentials": "Credentials",
-    "pdf.col.score20": "Score /20",
+    "pdf.col.progress": "Progress",
+    "pdf.col.lever": "Nearest lever",
+    "pdf.col.gap": "Missing",
     "pdf.col.dw_pct": "DW %",
     "pdf.col.rr_pct": "RR %",
     "pdf.col.radio_pct": "Radio %",
@@ -156,7 +160,7 @@ EN = {
     "pdf.nodata.apple_song": "No data for this song on Apple Music.",
     "pdf.nodata.hypeddit": "No Hypeddit data available.",
     "pdf.nodata.revenue_forecast": "No revenue data for the projection.",
-    "pdf.nodata.score20": "Score /20 not available yet — it is computed nightly "
+    "pdf.nodata.score20": "Not available yet — computed nightly "
                           "as soon as there is enough history.",
     "pdf.nodata.credentials": "Credentials status unavailable.",
     "pdf.nodata.mapping": "No campaign ↔ track mapping entered.",

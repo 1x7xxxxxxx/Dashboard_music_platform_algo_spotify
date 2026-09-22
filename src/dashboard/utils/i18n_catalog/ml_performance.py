@@ -15,4 +15,8 @@ EN = {
     "ml_performance.tab_scorecard": "📋 Classification scorecard",
     "ml_performance.tab_predictions": "🎯 Predictions in DB",
     "ml_performance.mlflow_experiment": "MLflow experiment #{exp_id} — run `{run_id}…`",
+    "ml_performance.tab_reliability": "📈 Reliability per algo",
+    "ml_performance.tab_explain": "🔍 Explainability (SHAP)",
+    "ml_performance.pick_track": "🎵 Track",
+    "ml_performance.no_track": "No prediction in the database — nothing to explain.",
 }

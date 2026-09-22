@@ -1039,11 +1039,36 @@ def _collect_ml_explain(db, artist_id, tracks):
 
 
 def _collect_score20(db, artist_id, sel):
-    """Score /20 rows for the report tracks (catalogue-relative). Reuses the view's
-    pure helper. → [(song, score_20, dw, rr, radio)]."""
+    """L'avancement vers la porte la plus proche, par titre — PLUS le Score /20.
+
+    ⚠️ LE `Score /20` EST RETIRÉ DU PDF AUSSI — 2026-09-22, et c'est délibéré.
+
+    Il étirait en min-max sur une échelle de 20 un écart de probabilité de **0,36
+    point**, mesuré sur les dix titres de l'artiste 1 : il fabriquait un classement à
+    partir d'une donnée qui n'en portait aucun. Le laisser vivre ici alors qu'il
+    disparaît de l'écran aurait créé **deux définitions du même chiffre**, et ce
+    dépôt a déjà payé trois fois pour savoir laquelle survit : la mauvaise, dans le
+    document que l'artiste garde.
+
+    Le PDF reçoit donc la MÊME grandeur que l'écran, depuis la MÊME fonction pure
+    (`views/trigger_algo/_catalogue.construire`) : l'avancement vers la porte la plus
+    proche, dans l'unité du geste.
+
+    → [(song, avancement_0_1, libellé_du_levier, écart, unité, dw, rr, radio)]
+    """
     try:
-        from src.dashboard.views.trigger_algo._common import _load_scored_tracks
-        df = _load_scored_tracks(db, artist_id)
+        from src.dashboard.views.trigger_algo._catalogue import construire
+        rows = db.fetch_query(
+            """SELECT song, days_since_release, streams_28d, dw_probability,
+                      rr_probability, radio_probability, features_json
+                 FROM ml_song_predictions
+                WHERE artist_id = %s AND prediction_date = (
+                      SELECT MAX(prediction_date) FROM ml_song_predictions
+                       WHERE artist_id = %s)""",
+            (artist_id, artist_id))
+        cols = ["song", "days_since_release", "streams_28d", "dw_probability",
+                "rr_probability", "radio_probability", "features_json"]
+        df = construire([dict(zip(cols, r)) for r in (rows or [])])
     except Exception as exc:  # noqa: BLE001
         logger.warning("PDF: _collect_score20 unreadable: %s", type(exc).__name__)
         return []
@@ -1053,10 +1078,9 @@ def _collect_score20(db, artist_id, sel):
         df = df[df['song'].isin(sel)]
     if df.empty:
         return []
-    df = df.sort_values('score_20', ascending=False)
     return [
-        (r['song'], float(r['score_20'] or 0), float(r['dw_probability'] or 0),
-         float(r['rr_probability'] or 0), float(r['radio_probability'] or 0))
+        (r['song'], r['avancement'], r['gate_label'], r['gate_gap'], r['gate_unit'],
+         r['dw_probability'], r['rr_probability'], r['radio_probability'])
         for _, r in df.iterrows()
     ]
 

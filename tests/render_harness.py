@@ -80,6 +80,7 @@ VIEWS = [
 # Jusqu'au 2026-09-16, celle-ci s'appelait `TENANT_VIEWS` elle aussi : deux constantes
 # du même nom, dans la même suite, différant de dix entrées.
 EMPTY_TENANT_VIEWS = [
+    "service",
     "home", "onboarding", "onboarding_health", "credentials", "account",
     "soundcloud", "youtube", "instagram", "spotify_s4a_combined", "apple_music",
     "export_csv", "export_pdf", "useful_links",

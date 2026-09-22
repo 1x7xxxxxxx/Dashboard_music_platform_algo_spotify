@@ -82,6 +82,7 @@ from src.dashboard.email_actions import _unsubscribe, _verify_email
 # était EXACTEMENT à son plafond de longueur et qu'ajouter une ligne de menu —
 # commentaire compris — faisait rougir la CI. Le cliquet a refusé la dette au lieu
 # d'être relevé, et le découpage a été vérifié au navigateur, comme il l'exigeait.
+from src.dashboard.utils.nav_badges import _neighbour_pages
 from src.dashboard.utils.nav_sections import NAV_SECTIONS as _NAV_SECTIONS
 from src.database.stripe_schema import page_is_locked
 # Pages réservées admin (cachées pour le rôle 'artist')
@@ -305,25 +306,6 @@ def _select_nav_radio(page_key: str, rendered) -> None:
         st.session_state[skey] = page_key if page_key in keys else None
 
 
-def _neighbour_pages(rendered, current: str, is_locked) -> tuple:
-    """(page précédente, page suivante) dans l'ordre du menu — ou None de chaque côté.
-
-    Les pages VERROUILLÉES sont sautées : une flèche est un geste d'exploration, et
-    l'envoyer buter sur le paywall une entrée sur deux transforme l'exploration en
-    parcours d'obstacles. Elles restent atteignables par le menu, avec leur 🔒, qui
-    est le bon endroit pour proposer une montée en gamme — le clic y est délibéré.
-
-    Pure : elle ne lit ni Streamlit ni la session, donc l'ordre se teste sans rendre
-    une page.
-    """
-    order = [key for _, _, items in rendered for _, key in items
-             if not is_locked(key)]
-    if current not in order:
-        return None, None
-    i = order.index(current)
-    return (order[i - 1] if i > 0 else None,
-            order[i + 1] if i < len(order) - 1 else None)
-
 
 def render_navigation(role: str, rendered, all_skeys) -> str:
     """Draw the section radios; return the page, plan-gating applied."""
@@ -405,7 +387,12 @@ def render_navigation(role: str, rendered, all_skeys) -> str:
                     for _, _, items in rendered for lbl, key in items}
 
     # Cadenas : 🔒 verrouillé, 🔓 payant ET ouvert. Règle dans `utils/nav_badges.py`.
+    # Depuis le 2026-09-22, l'EN-TÊTE de section en porte un aussi — voir
+    # `section_badge` : une section entièrement payante et entièrement ouverte
+    # affiche un cadenas ouvert VERT, ce qui est la seule façon pour un abonné de
+    # voir d'un coup d'œil ce que son abonnement lui ouvre.
     from src.dashboard.utils.nav_badges import badge as _badge
+    from src.dashboard.utils.nav_badges import section_badge as _section_badge
     _paid = {k for _, _, items in rendered for _, k in items if page_is_locked('free', k)}
 
     def _fmt(key: str) -> str:
@@ -414,7 +401,11 @@ def render_navigation(role: str, rendered, all_skeys) -> str:
     for skey, header, items in rendered:
         if header:
             sec_id = skey[len("_nav_"):]
-            st.sidebar.markdown(f"###### {t(f'nav.section.{sec_id}', header)}")
+            _marque = _section_badge([k for _, k in items],
+                                     is_locked=_is_locked, paid_pages=_paid)
+            _titre = t(f'nav.section.{sec_id}', header)
+            st.sidebar.markdown(
+                f"###### {_marque + ' ' if _marque else ''}{_titre}")
         st.sidebar.radio(
             header or "Navigation",
             [key for _, key in items],
@@ -661,6 +652,7 @@ def _render_page(page):
     elif page == "etl_logs": from views.etl_logs import show; show()
     elif page == "ml_performance": from views.ml_performance import show; show()
     elif page == "useful_links": from views.useful_links import show; show()
+    elif page == "service": from views.service import show; show()
     elif page == "billing": from views.billing import show; show()
     elif page == "revenue_forecast": from views.revenue_forecast import show; show()
     elif page == "sacem": from views.sacem import show; show()

@@ -329,7 +329,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 |----|-------|------|--------------------------|
 | R151 | Hiérarchie des évènements agrégés Meta (limite iOS 14) | P3 | cinq minutes dans le Gestionnaire d'évènements : faire glisser la conversion Hypeddit en **position 1** — runbook §18 |
 | R148 | Trois conversations « combien tu paierais » | P3 | trois entretiens de vingt minutes, avec des artistes **qui ont vu leurs données** — runbook §19 |
-| R150 | Trois options chiffrées pour la prestation | P3 | remplir les trois lignes du tableau Essentiel / Standard / Accompagnement — runbook §20 |
+| R150 | Trois options chiffrées pour la prestation | P3 | **côté outil : livré le 2026-09-22** (page `🎯 Faire piloter mes campagnes`, trois options, prix en réglages). Reste TON geste : saisir les trois montants dans **⚙️ Admin → Réglages** — runbook §20 |
 
 ⚠️ **R151 avant tout le reste.** C'est cinq minutes, et il conditionne la fiabilité de
 TOUS les coûts par résultat de l'app. R148 vient après l'activation : demander à

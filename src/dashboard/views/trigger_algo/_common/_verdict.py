@@ -10,7 +10,6 @@ from ._loaders import _clean_feat, _load_feature_importance, _load_scored_tracks
 ELBOW_THRESHOLDS_28D = {"DW": 137, "RR": 130, "RADIO": 639}
 
 
-HEURISTIC_GOALS = {"RR": 1000, "DW": 10000}
 
 
 def _display_prob_bar(label: str, prob: float | None, forecast: int | None = None):
@@ -57,58 +56,57 @@ def _show_ml_section(pred: dict):
     ml_widgets.render_calibration_badge("RADIO", pred.get("radio_probability"))
 
 
-def _show_heuristic_section(current_total: float, current_pop: float):
+
+
+def show_no_prediction_yet() -> None:
+    """Ce qui remplace les trois barres du « mode heuristique ». SUPPRIMÉ 2026-09-22.
+
+    `_show_heuristic_section` dessinait trois barres de progression quand aucune
+    prédiction n'existait. Elle portait trois défauts, et aucun n'était réparable
+    sans réinventer une méthode :
+
+    1. **Un zéro codé en dur.** `_tab_global.py` l'appelait avec `current_pop = 0`.
+       La barre Discover Weekly valant `(part_streams + part_popularité) / 2`, elle
+       affichait donc **toujours** « Popularité : 0 % (obj. 30) » et un pourcentage
+       DW **mécaniquement divisé par deux**, pour tout titre, depuis toujours.
+    2. **Des cibles que le code désavouait lui-même** : la légende juste en dessous
+       écrivait que 1 000 et 10 000 sont des « heuristiques arrondies ».
+    3. **Un seuil détourné de son sens.** La barre Radio divisait les streams du
+       titre par 639, qui est le volume d'algo-streams que la playlist ÉMET une fois
+       déclenchée — un signal de détection, pas un objectif à atteindre. Le reste du
+       paquet refuse d'ailleurs de tracer ces seuils comme cibles.
+
+    Trois barres fabriquées donnent l'apparence d'un diagnostic. Une phrase qui dit
+    ce qu'on sait vaut mieux — et c'est tout ce qu'on sait.
+    """
     st.info(t("trigger_algo.common.heuristic_mode",
-              "⚠️ **Mode heuristique** — pas encore de prédiction pour ce titre. Les "
-              "probabilités du modèle arrivent au prochain calcul, en fin de matinée."))
-    GOAL_RR = HEURISTIC_GOALS["RR"]
-    GOAL_DW_S = HEURISTIC_GOALS["DW"]
-    GOAL_DW_P = 30
-    GOAL_RADIO = ELBOW_THRESHOLDS_28D["RADIO"]
-    pct_rr = min(current_total / GOAL_RR, 1.0)
-    pct_dw = (min(current_total / GOAL_DW_S, 1.0) + min(current_pop / GOAL_DW_P, 1.0)) / 2
-    pct_radio = min(current_total / GOAL_RADIO, 1.0)
-    st.write(t("trigger_algo.common.heur_rr", "**📡 Release Radar** ({pct}%)").format(pct=int(pct_rr * 100)))
-    st.progress(pct_rr)
-    if pct_rr >= 1.0:
-        st.caption(t("trigger_algo.common.trigger_activated", "✅ Trigger théoriquement activé !"))
-    else:
-        st.caption(t("trigger_algo.common.rr_missing",
-                     "Manque {n:,.0f} streams (seuil heuristique arrondi)")
-                   .format(n=GOAL_RR - current_total))
-    st.write(t("trigger_algo.common.heur_dw", "**💎 Discover Weekly** ({pct}%)").format(pct=int(pct_dw * 100)))
-    st.progress(pct_dw)
-    col1, col2 = st.columns(2)
-    col1.info(t("trigger_algo.common.dw_streams_pct", "Streams : {pct:.0f}% (obj. 10k)")
-              .format(pct=min(current_total / GOAL_DW_S, 1.0) * 100))
-    col2.info(t("trigger_algo.common.dw_pop_pct", "Popularité : {pct:.0f}% (obj. 30)")
-              .format(pct=min(current_pop / GOAL_DW_P, 1.0) * 100))
-    st.write(t("trigger_algo.common.heur_radio", "**📻 Radio Spotify** ({pct}%)").format(pct=int(pct_radio * 100)))
-    st.progress(pct_radio)
-    if pct_radio >= 1.0:
-        st.caption(t("trigger_algo.common.radio_detected",
-                     "✅ Streams 28j au niveau d'un trigger Radio détecté."))
-    else:
-        st.caption(t("trigger_algo.common.radio_below",
-                     "Streams 28j ({cur:,.0f}) sous le niveau de détection d'un "
-                     "trigger Radio (~{goal:,.0f} algo-streams émis par la playlist).")
-                   .format(cur=current_total, goal=GOAL_RADIO))
-    st.caption(t(
-        "trigger_algo.common.heuristic_thresholds",
-        "ℹ️ Les cibles 1k/10k sont des **heuristiques arrondies**. Les seuils elbow "
-        "(~{dw} DW · ~{rr} RR · ~{radio} Radio) sont le **minimum d'algo-streams qu'une "
-        "playlist génère** au début d'un trigger — un signal de détection, **pas** un "
-        "objectif de streams à produire soi-même pour déclencher."
-    ).format(dw=ELBOW_THRESHOLDS_28D['DW'], rr=ELBOW_THRESHOLDS_28D['RR'],
-             radio=ELBOW_THRESHOLDS_28D['RADIO']))
+              "⚠️ **Pas encore de prédiction pour ce titre.** Le calcul tourne chaque "
+              "nuit dès qu'un titre a au moins une écoute sur les 35 derniers jours."))
 
 
 def _show_verdict_banner(ml_pred: dict | None) -> None:
     """Consolidated kill / optimize / scale decision at the top of the algos tab.
 
     Headline verdict on the best algorithmic opportunity (max of the 3 probs).
-    Probabilities are NOT calibrated, so the 20/50% bands are decision heuristics,
-    not exact likelihoods — the caveat is surfaced via ak.calibration_note().
+
+    ⚠️ CETTE DOCSTRING DISAIT L'INVERSE DU CODE — corrigé le 2026-09-22.
+
+    Elle affirmait « Probabilities are NOT calibrated », pendant que la légende
+    rendue trois lignes plus bas affirmait « calibrées (Platt) ». Quatre surfaces du
+    paquet se contredisaient sur ce point. Le code tranche :
+    `machine_learning/models/v3/calibration.json` existe et `ml_inference._calibrate`
+    l'applique à chaque inférence. **Les probabilités SONT calibrées.**
+
+    Mais le fait utile n'est pas « c'est calibré » — c'est le PLANCHER que la
+    calibration introduit, et que personne n'avait écrit. Les intercepts étant
+    négatifs, un score brut NUL ne rend pas 0 % :
+
+        DW 6,53 %  ·  RR 6,51 %  ·  Radio 10,72 %
+
+    Une probabilité posée sur ces valeurs ne dit donc pas « le modèle hésite » : elle
+    dit **« le modèle a rendu zéro »**. Mesuré sur les dix titres de l'artiste 1 le
+    2026-09-22 — RR y va de 0,0654 à 0,0656, soit un écart de score brut de 0,0007.
+    Garde : `tests/test_a_calibrated_floor_is_not_a_ranking.py`.
     """
     if not ml_pred:
         return
@@ -163,7 +161,10 @@ def _show_verdict_banner(ml_pred: dict | None) -> None:
     st.caption(t(
         "trigger_algo.common.verdict_platt",
         "Probabilités calibrées (Platt) — les seuils 20 %/50 % correspondent à de vraies "
-        "probabilités de déclenchement."
+        "probabilités de déclenchement. ⚠️ Une valeur proche de **6,5 % (DW/RR)** ou de "
+        "**10,7 % (Radio)** est le PLANCHER de la calibration : elle signifie que le "
+        "modèle a rendu zéro, pas qu'il hésite. Deux titres posés dessus ne se "
+        "comparent pas."
     ))
 
 

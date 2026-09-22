@@ -267,6 +267,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `home.py` | Home | All tables (KPI + freshness) | all |
 | `home_tiles.py` | — (sous-module de Home, pas une page) | aucune — reçoit des dictionnaires déjà calculés | all |
 | `admin_activation.py` | — (sous-module d'Admin, pas une page) | `etl_run_log`, `saas_artists` via `src/utils/activation.py` | admin |
+| `admin_service_pricing.py` | — (sous-module d'Admin, pas une page) — les trois prix de la prestation, saisis dans ⚙️ Réglages. **Aucun montant n'est écrit dans le code** : un prix figé dans l'arbre demande un redéploiement pour bouger, donc ne bouge jamais | `app_settings` (3 clés `service_price_*`) | admin |
 | `spotify_s4a_combined.py` | Spotify + S4A | tracks, track_popularity_history, s4a_* | all |
 | `meta_ads_overview.py` | Meta Ads | meta_insights_performance (+ custom_conversions, lp_views), meta_insights_performance_day/age/country/placement, meta_insights_engagement, meta_adsets (targeting × CPR — "🎯 Ciblage vs Performance") | all |
 | `meta_creatives.py` | Créatives Meta — 6 tabs (Classement/Comparaison/Funnel/Évolution/Fatigue/Activité) + per-creative multi-metric timeline since 2026-05-29 | meta_insights (ad grain), meta_ads | all |
@@ -299,6 +300,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `data_wrapped.py` | 🎁 Data Wrapped — saisie des métriques S4A annuelles et courbes d'évolution | artist_wrapped | all |
 | `account.py` | 👤 Mon compte — mot de passe, consentements, export de données | saas_users, saas_artists | all |
 | `referral.py` | 🎁 Parrainage — page côté artiste | referral_codes, referral_events | all |
+| `service.py` | 🎯 Faire piloter mes campagnes — la prestation HUMAINE, trois options en colonnes, prix en bas (Enns p. 29). Chaque livrable déclare son agent : 🙋 l'exploitant / ⚙️ l'outil. Gratuite d'accès — faire payer le droit de lire une offre n'aurait pas de sens ; la grille de prix, elle, reste masquée tant que les trois ne sont pas posés | `app_settings` (3 prix + lien de rendez-vous), aucune donnée d'artiste | all |
 | `upgrade.py` | Paywall de comparaison des plans — **hors navigation**, affichée quand une fonctionnalité verrouillée est cliquée | PLAN_FEATURES, PLAN_RANK | all |
 | `register.py` | Inscription — **hors navigation**, avant connexion | saas_artists, envoi du mail de vérification | public |
 | `privacy.py` | Politique de confidentialité (RGPD) — **hors navigation**, accessible sans connexion via `/?page=privacy` | statique | public |

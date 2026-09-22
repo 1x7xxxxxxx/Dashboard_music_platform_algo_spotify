@@ -20,6 +20,19 @@ EN = {
     "admin.settings_saved": (
         "✅ Setting saved — it applies right away on the Billing page."),
     "admin.settings_current": "Currently: {url}",
+    # Les trois prix de la prestation (R150) — réglages, pas constantes.
+    "admin.settings_prices_header": "**🎯 Campaign service pricing**",
+    "admin.settings_prices_help":
+        "A whole number of euros, no decimals — `450`. Until all **three** are "
+        "set, artists see the service without its price grid.",
+    "admin.settings_prices_missing":
+        "⚠️ The grid is incomplete: the **🎯 Have my campaigns run for me** page "
+        "shows no prices. Fill in all three.",
+    "admin.settings_prices_env":
+        "Forced by the environment — remove the variable to take over here.",
+    "admin.settings_save_prices": "💾 Save all three prices",
+    "admin.settings_prices_saved":
+        "✅ Prices saved — they apply right now on the service page.",
     # Guard / title / tabs
     "admin.access_denied": "⛔ Administrator access only.",
     "admin.title": "⚙️ Administration",

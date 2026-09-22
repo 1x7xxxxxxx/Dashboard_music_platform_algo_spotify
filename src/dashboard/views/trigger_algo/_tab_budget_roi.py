@@ -11,9 +11,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from ._common import (
     _TRIGGER_STREAM_TARGETS,
-    _load_ml_pred,
     _show_budget_pacing_calculator,
-    _show_budget_tier_selector,
     _show_pi_breakeven,
     _show_velocity_budget_advice,
 )
@@ -72,14 +70,57 @@ def _render_expected_value(ml_pred: dict, cost_per_stream: float) -> None:
                    .format(note=note))
 
 
-def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
+def _cout_par_stream(db, artist_id, date_from, date_to) -> float | None:
+    """Dépense ÷ écoutes sur la fenêtre — agrégé TOUS TITRES, et la vue le dit.
+
+    Extrait pour que le panneau de réglages lise la même valeur que les tuiles de
+    budget plus bas. Deux calculs du même coût finiraient par diverger.
+    """
+    try:
+        dep = db.fetch_query(
+            "SELECT COALESCE(SUM(spend), 0) FROM v_meta_daily "
+            "WHERE artist_id = %s AND day BETWEEN %s AND %s",
+            (artist_id, date_from, date_to)) if artist_id else None
+        st_ = db.fetch_query(
+            "SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily "
+            "WHERE artist_id = %s AND day BETWEEN %s AND %s",
+            (artist_id, date_from, date_to)) if artist_id else None
+    except Exception:                                    # noqa: BLE001
+        return None
+    if not dep or not st_:
+        return None
+    depense, streams = float(dep[0][0] or 0), float(st_[0][0] or 0)
+    return depense / streams if depense > 0 and streams > 0 else None
+
+
+def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=None):
+    """⚠️ `ml_pred` est REÇU, plus rechargé — 2026-09-22.
+
+    Le routeur charge déjà la prédiction du titre (`router.py`) et la passe aux
+    autres onglets. Celui-ci ne la recevait pas et rappelait `_load_ml_pred` **deux
+    fois** : une fois pour la valeur attendue, une fois pour les portes PI. Trois
+    exécutions de la même requête, avec les mêmes paramètres, par rendu de page.
+
+    `tests/test_a_page_asks_the_same_question_once.py` plafonne les allers-retours
+    par rendu et interdit la même requête deux fois avec les mêmes paramètres ; ce
+    site en était la principale source dans ce paquet.
+    """
     st.caption(t(
         "trigger_algo.roi.caption",
         "💰 **Décision budget** — quels titres pousser en priorité (top-N% par score), ton "
         "budget Meta Ads restant, et le coût ajusté au risque (coût ÷ probabilité de "
         "déclenchement) = le vrai € à payer pour espérer ouvrir une porte algorithmique."
     ))
-    _show_budget_tier_selector(db, artist_id)
+    st.markdown("---")
+
+    # ── LE PANNEAU DE RÉGLAGES EN TÊTE — 2026-09-22 ─────────────────────────
+    # Les réglages d'une campagne vivaient éparpillés sur quatre surfaces. Ils sont
+    # désormais mesurés sur la même base, à la même maille, et classés par leur
+    # effet réel. Il vient AVANT le budget : on décide quoi régler avant de décider
+    # combien mettre.
+    from ._tab_reglages import _show_reglages
+    _show_reglages(db, artist_id, ml_pred, _cout_par_stream(db, artist_id,
+                                                            date_from, date_to))
     st.markdown("---")
 
     # 1. Budget Meta restant
@@ -150,9 +191,8 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
                                  .format(label=label, seuil=seuil, cost=cost_est, missing=cost_est - remaining))
             st.caption(t("trigger_algo.roi.shap_volumes_caption",
                          "Volumes de déclenchement SHAP (Classe 1) par algo, pas des arrondis 1k/10k."))
-            _ev_pred = _load_ml_pred(db, track, artist_id)
-            if _ev_pred:
-                _render_expected_value(_ev_pred, cost_per_stream)
+            if ml_pred:
+                _render_expected_value(ml_pred, cost_per_stream)
         else:
             b4.metric(t("trigger_algo.roi.cost_per_stream_metric", "Coût / stream"), "—")
             if lifetime_budget == 0:
@@ -326,7 +366,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
 
     # 4. Breakeven
     st.subheader(t("trigger_algo.roi.breakeven_header", "⚖️ Breakeven — Cumul spend vs Cumul revenue"))
-    _show_pi_breakeven(_load_ml_pred(db, track, artist_id))
+    _show_pi_breakeven(ml_pred)
     try:
         if artist_id:
             df_spend_d = db.fetch_df(

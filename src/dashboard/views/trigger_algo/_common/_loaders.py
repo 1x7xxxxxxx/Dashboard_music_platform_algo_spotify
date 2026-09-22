@@ -1,7 +1,6 @@
 """trigger_algo loaders — move-only split of _common."""
 import json
 
-import pandas as pd
 import streamlit as st
 
 # Process-global caches for static artifacts (mirror ml_inference._model_cache).
@@ -96,26 +95,30 @@ def _load_xgb_model(model_key: str):
         return None
 
 
-def _compute_score_20(df: pd.DataFrame) -> pd.DataFrame:
-    """Add score_20 column min-max scaled to /20 (best track = 20, worst = 0)."""
-    dw = df["dw_probability"].fillna(0).astype(float)
-    rr = df["rr_probability"].fillna(0).astype(float)
-    radio = df["radio_probability"].fillna(0).astype(float)
-    vel = df["velocity"].fillna(0).astype(float).clip(0, 5) / 5.0
-    composite = 0.35 * dw + 0.35 * rr + 0.20 * radio + 0.10 * vel
-    max_val = composite.max()
-    min_val = composite.min()
-    span = max_val - min_val
-    df = df.copy()
-    # Min-max stretch over the full 0-20 range. Degenerate catalogue (1 track or
-    # all-equal composites) → span 0 → everyone gets 20.0 (no meaningful ranking).
-    df["score_20"] = ((composite - min_val) / span * 20) if span > 0 else 20.0
-    return df
-
+# ⚠️ `_compute_score_20` SUPPRIMÉ — 2026-09-22.
+#
+# Il calculait `0,35·DW + 0,35·RR + 0,20·Radio + 0,10·vélocité`, puis ÉTIRAIT le
+# résultat en min-max sur une échelle de 0 à 20. Mesuré sur les dix titres de
+# l'artiste 1 : l'écart de probabilité entre le meilleur et le pire vaut **0,36
+# point**, et les dix sont posés sur le plancher de la calibration Platt. Le score
+# transformait donc des fractions de point de bruit en un écart de vingt points —
+# il fabriquait l'apparence d'un classement à partir d'une donnée qui n'en portait
+# aucun, et c'était le nombre le plus trompeur de la vue.
+#
+# Remplacé partout — écran ET PDF, dans le même commit, pour ne pas laisser deux
+# définitions du même chiffre survivre l'une à l'autre — par l'avancement vers la
+# porte la plus proche (`views/trigger_algo/_catalogue.construire`), qui s'étale de
+# 0,7 % à 98,9 % sur ces mêmes titres.
+#
+# Garde : `tests/test_a_calibrated_floor_is_not_a_ranking.py`.
 
 @st.cache_data(ttl=60)
 def _load_scored_tracks(_db, artist_id):
-    """Latest-date scored tracks with score_20, sorted desc. None if empty.
+    """Les titres notés à la dernière date de prédiction. `None` si vide.
+
+    ⚠️ Ne rend PLUS de `score_20` (supprimé le 2026-09-22, voir plus haut) et
+    n'impose plus d'ordre : le classement du catalogue vit dans
+    `views/trigger_algo/_catalogue.construire`, sur une grandeur qui sépare.
 
     Shared by the Vue Globale benchmark table and the Budget top-N% selector — called
     from 3 tabs that all render per rerun, so cached (ttl=60) to run the scan once.
@@ -141,7 +144,7 @@ def _load_scored_tracks(_db, artist_id):
         return None
     if df is None or df.empty:
         return None
-    return _compute_score_20(df).sort_values("score_20", ascending=False)
+    return df
 
 
 def _load_lifecycle_benchmark(_db, dataset_version="v2"):

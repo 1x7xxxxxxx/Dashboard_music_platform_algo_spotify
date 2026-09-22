@@ -17,6 +17,7 @@ from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
+from src.dashboard.utils.safe_number import entier
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import require_plan, is_admin
@@ -833,9 +834,9 @@ def _render_funnel(df: pd.DataFrame) -> None:
             return
         sel = st.selectbox(t("meta_creatives.creative", "Créative"), names, key="funnel_creative")
         r = df[df['creative_name'] == sel].iloc[0]
-        imp = int(pd.to_numeric(r['total_impressions'], errors='coerce') or 0)
-        clk = int(pd.to_numeric(r['total_clicks'], errors='coerce') or 0)
-        res = int(pd.to_numeric(r['total_results'], errors='coerce') or 0)
+        imp = entier(r['total_impressions'])
+        clk = entier(r['total_clicks'])
+        res = entier(r['total_results'])
         fig = go.Figure(go.Funnel(
             # R146 — l'étape terminale portait « Résultats », ce qui donnait à un
             # clic sortant l'allure d'un aboutissement. Même anti-motif que le

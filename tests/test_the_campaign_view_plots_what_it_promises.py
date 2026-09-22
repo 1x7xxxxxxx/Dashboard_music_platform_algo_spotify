@@ -245,10 +245,27 @@ def test_the_premium_section_lists_exactly_what_is_sold() -> None:
     # `trigger_algo` est payante et garde sa propre section : c'est la promesse du
     # produit, elle vient AVANT ce que l'abonnement ouvre. Toute autre page payante
     # atteignable par un artiste appartient à « premium ».
+    #
+    # ⚠️ `export_pdf` a rejoint la tête de menu le 2026-09-22, sur demande explicite
+    # (« export csv et export pdf à déplacer car accueil et ensuite guide de
+    # démarrage »). Elle est payante et elle vit dans « start », à côté d'`home`,
+    # `onboarding` et `export_csv` — c'est le parcours d'un artiste neuf, et le
+    # rapport en fait partie même quand il faut payer pour l'ouvrir.
+    #
+    # Ce que ce garde défendait — « un 🔒 semé au milieu de pages gratuites ne dit
+    # pas ce que l'abonnement contient » — est désormais tenu par AUTRE CHOSE : les
+    # cadenas colorés posés sur les noms de section le même jour (🔒 rouge / 🔓 vert,
+    # `utils/nav_badges.py`). Le signal est passé du REGROUPEMENT à la PASTILLE.
+    #
+    # L'exemption nomme la PAGE, pas la section. Exempter « start » en entier
+    # laisserait n'importe quelle page payante future s'y ranger sans que rien ne le
+    # dise — et c'est exactement la dérive que ce test existe pour attraper.
+    _PAYANTES_HORS_PREMIUM = {"export_pdf"}
     ailleurs = [k for sec, keys in sections.items()
                 if sec not in ("premium", "advanced", "admin")
                 for k in keys
-                if k not in admin_only and page_is_locked("free", k)]
+                if k not in admin_only and k not in _PAYANTES_HORS_PREMIUM
+                and page_is_locked("free", k)]
     assert not ailleurs, (
         f"page(s) payante(s) hors de la section « Premium » : {ailleurs}. Un 🔒 semé "
         "au milieu de pages gratuites ne dit pas ce que l'abonnement contient.")
@@ -321,13 +338,34 @@ def test_the_app_builds_the_badge_the_same_way() -> None:
     from src.dashboard.utils.nav_badges import badge
     from src.database.stripe_schema import page_is_locked
 
+    # ⚠️ Les cadenas portent une COULEUR depuis le 2026-09-22 — « rouge et vert
+    # mais léger ». Les valeurs attendues sont donc du markdown Streamlit, et non
+    # l'emoji nu. La couleur enveloppe le seul cadenas : un libellé de menu
+    # entièrement teinté se lirait comme une page en panne.
     payantes = {"meta_x_spotify"}
     assert badge("meta_x_spotify", is_locked=lambda k: page_is_locked("free", k),
-                 paid_pages=payantes) == "🔒 "
+                 paid_pages=payantes) == ":red[🔒] "
     assert badge("meta_x_spotify", is_locked=lambda k: page_is_locked("premium", k),
-                 paid_pages=payantes) == "🔓 "
+                 paid_pages=payantes) == ":green[🔓] "
     assert badge("home", is_locked=lambda k: page_is_locked("free", k),
                  paid_pages=payantes) == ""
+
+    # L'EN-TÊTE de section, ajouté le même jour. Une section ENTIÈREMENT payante
+    # porte l'état du plan ; une section mixte se tait, parce qu'un cadenas qui
+    # parle pour la majorité ment à la minorité.
+    from src.dashboard.utils.nav_badges import section_badge
+
+    assert section_badge(["meta_x_spotify"],
+                         is_locked=lambda k: page_is_locked("free", k),
+                         paid_pages=payantes) == ":red[🔒]"
+    assert section_badge(["meta_x_spotify"],
+                         is_locked=lambda k: page_is_locked("premium", k),
+                         paid_pages=payantes) == ":green[🔓]"
+    assert section_badge(["home", "meta_x_spotify"],
+                         is_locked=lambda k: page_is_locked("free", k),
+                         paid_pages=payantes) == "", (
+        "une section mixte porte une marque : elle affirmerait pour toutes ses "
+        "pages ce qui n'est vrai que pour certaines")
 
     # Et `app.py` appelle bien CETTE règle, plutôt que d'en garder une copie.
     arbre = ast.parse((_ROOT / "src" / "dashboard" / "app.py").read_text(encoding="utf-8"))

@@ -842,6 +842,103 @@ def feature_live_available(spec: dict, feats: dict) -> bool:
     return bool(flag and (feats or {}).get(flag))
 
 
+# ── La PORTÉE d'un levier : le titre, ou l'artiste ────────────────────────────
+#
+# ⚠️ MESURÉ LE 2026-09-22, et c'est ce qui rendait le coach inutilisable pour
+# comparer des titres.
+#
+# `build_coach_actions` mélangeait deux natures de levier. Sur les dix titres de
+# l'artiste 1, quatre features sont IDENTIQUES d'un titre à l'autre — le nombre de
+# followers, la cadence de sortie, la taille du catalogue, le compteur Radio. Le
+# coach répétait donc « gagne 2 650 followers » dix fois, et un classement de
+# catalogue bâti là-dessus ne classait rien : la même valeur sur tous les titres ne
+# peut, par construction, en distinguer aucun.
+#
+# La séparation profite à tout consommateur, pas seulement à la vue : le PDF et
+# toute surface future reçoivent la même distinction sans la réécrire.
+#
+# Le critère est la SOURCE de la donnée, pas son libellé :
+#   · `s4a_artist_radio_count`, `s4a_audience` (followers), le catalogue et la
+#     cadence sont écrits PAR ARTISTE ;
+#   · `s4a_song_*` (saves, ajouts, Discovery Mode, non-algo) et tout ce qui dérive
+#     de la timeline d'un titre sont écrits PAR TITRE.
+LEVER_SCOPE: dict[str, str] = {
+    # Artiste — une seule valeur pour tout le catalogue
+    "CurrentSpotifyFollowers": "artist",
+    "ReleaseConsistencyNum": "artist",
+    "HowManySongsHasThisArtistEverReleased": "artist",
+    "HowManySongsDoYouHaveInRadioRightNow": "artist",
+    # Titre — une valeur par chanson
+    "StreamsLast7Days": "track",
+    "NonAlgoStreams28Days": "track",
+    "Velocity_Streams": "track",
+    "ListenersStreamRatio28Days": "track",
+    "SavesLast28Days": "track",
+    "PlaylistAddsLast28Days": "track",
+    "IsThisSongOptedIntoSpotifyDiscoveryMode": "track",
+    "DaysSinceRelease": "track",
+    "ReleasePhaseEarly": "track",
+}
+
+
+def lever_scope(feature_id: str) -> str:
+    """« track » ou « artist ». Défaut prudent : « track ».
+
+    Un levier inconnu est traité comme propre au titre — il apparaîtra donc dans le
+    classement plutôt que d'en disparaître. Entre montrer un levier de trop et en
+    cacher un, la première erreur se voit et se corrige ; la seconde est muette.
+    """
+    return LEVER_SCOPE.get(feature_id, "track")
+
+
+def split_coach_actions(algo: str, feats: dict) -> tuple[list[dict], list[dict]]:
+    """Les actions du coach, séparées en (leviers du TITRE, leviers de l'ARTISTE).
+
+    Les deux listes gardent l'ordre de `build_coach_actions` — urgence croissante,
+    le levier le plus proche de sa cible d'abord.
+
+    Seuls les leviers de TITRE peuvent servir à comparer deux chansons. Les leviers
+    d'artiste s'affichent une fois, pour tout le catalogue.
+    """
+    titre, artiste = [], []
+    for action in build_coach_actions(algo, feats):
+        (artiste if lever_scope(action["feature"]) == "artist" else titre).append(action)
+    return titre, artiste
+
+
+def nearest_gate(feats: dict, algos: tuple[str, ...] = ("DW", "RR", "RADIO")) -> dict | None:
+    """La porte la plus PROCHE pour ce titre — celle dont le premier levier est le
+    moins loin de sa cible.
+
+    Rend `{algo, action, avancement, n_leviers}`, ou `None` quand aucun levier de
+    titre n'est en zone malus (rien à faire, ou rien de mesuré).
+
+    `avancement` est `current / target` borné à [0, 1] : c'est le nombre qui porte
+    le classement du catalogue. Il est préféré à la probabilité pour une raison
+    mesurée — voir `tests/test_a_calibrated_floor_is_not_a_ranking.py` : sur ce
+    catalogue les probabilités sont posées sur le plancher de la calibration Platt
+    et n'écartent les titres que de fractions de point.
+
+    ⚠️ Un levier « smooth » (vélocité trop haute) n'a ni cible ni écart — il ne peut
+    donc pas porter un avancement. Il reste dans `action` pour être affiché, avec un
+    `avancement` à `None` : c'est une absence, pas un zéro.
+    """
+    meilleur = None
+    for algo in algos:
+        titre, _artiste = split_coach_actions(algo, feats)
+        if not titre:
+            continue
+        tete = titre[0]
+        if meilleur is None or tete["urgency"] < meilleur["action"]["urgency"]:
+            cible, courant = tete.get("target"), tete.get("current")
+            avancement = None
+            if cible:
+                avancement = max(0.0, min(1.0, float(courant or 0) / float(cible)))
+            meilleur = {"algo": algo, "action": tete,
+                        "avancement": avancement, "n_leviers": len(titre)}
+    return meilleur
+
+
 def build_coach_actions(algo: str, feats: dict) -> list[dict]:
     """Ranked prescriptive actions for an algo's malus-zone, actionable, measured
     features. Velocity-too-high becomes a high-priority 'smooth' action; the rest

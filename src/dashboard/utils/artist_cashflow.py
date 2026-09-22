@@ -25,6 +25,9 @@ motif nommé.
 from __future__ import annotations
 
 import pandas as pd
+
+from src.dashboard.utils.safe_number import nombre
+from src.utils.track_matching import canonical_song_sql
 from dateutil.relativedelta import relativedelta
 
 # La fenêtre sur laquelle on lit le rythme ACTUEL, en mois.
@@ -173,12 +176,58 @@ def stream_rate(db, artist_id: int) -> dict | None:
         return None
     if df is None or df.empty:
         return None
-    streams = float(pd.to_numeric(df['streams'].iloc[0], errors='coerce') or 0)
-    revenus = float(pd.to_numeric(df['revenus'].iloc[0], errors='coerce') or 0)
+    streams = nombre(df['streams'].iloc[0])
+    revenus = nombre(df['revenus'].iloc[0])
     if streams <= 0 or revenus <= 0:
         return None
     return {'eur_par_stream': revenus / streams,
             'streams': streams, 'revenus': revenus}
+
+
+# Le taux d'UN titre. La normalisation est appliquée DES DEUX CÔTÉS de l'égalité :
+# `song` vient de `s4a_song_timeline`, dérivé d'un nom de fichier où Spotify for
+# Artists remplace `< > : " / \ | ? *` par `_`, tandis que `track_title` vient du
+# CSV du distributeur et porte les vrais caractères. Mesuré en production le
+# 2026-09-22 : **sans normalisation, 1 titre sur 11 se rattache ; avec, 4 sur 11**
+# — la jointure des trois autres était muette, et leur repli sur le taux
+# d'artiste passait pour une absence de relevé. Cas d'école : « Qui a bu le
+# crachoir du saloon ? » côté distributeur contre « … saloon _ » côté S4A.
+_Q_TAUX_TITRE = f"""
+SELECT SUM(quantity)::numeric    AS streams,
+       SUM(revenue_eur)::numeric AS revenus
+FROM imusician_sales_detail
+WHERE artist_id = %s
+  AND {canonical_song_sql('track_title')} = {canonical_song_sql('%s')}
+"""
+
+
+def track_stream_rate(db, artist_id: int, song: str) -> dict | None:
+    """€ par écoute pour CE titre, avec repli explicite sur le taux de l'artiste.
+
+    Mesuré le 2026-09-22 : le taux varie de **0,001058 à 0,002484 €/écoute** selon
+    le titre, pour une moyenne d'artiste à 0,001819 sur Spotify. Un facteur 2,3 entre
+    le meilleur et le pire — appliquer le taux moyen à tous les titres écraserait
+    précisément l'écart qu'on cherche à montrer.
+
+    Rend `{'eur_par_stream', 'streams', 'revenus', 'source'}` où `source` vaut
+    `'track'` ou `'artist'`, **ou `None`** quand rien n'est mesurable.
+
+    ⚠️ `source` n'est pas décoratif : l'écran DOIT dire lequel des deux taux il
+    affiche. Un titre neuf hérite du taux d'artiste, et présenter cet héritage comme
+    une mesure du titre serait une valeur inventée portant le nom d'un relevé.
+    """
+    try:
+        df = db.fetch_df(_Q_TAUX_TITRE, (artist_id, song))
+    except Exception:
+        return None
+    if df is not None and not df.empty:
+        streams = nombre(df['streams'].iloc[0])
+        revenus = nombre(df['revenus'].iloc[0])
+        if streams > 0 and revenus > 0:
+            return {'eur_par_stream': revenus / streams, 'streams': streams,
+                    'revenus': revenus, 'source': 'track'}
+    repli = stream_rate(db, artist_id)
+    return {**repli, 'source': 'artist'} if repli else None
 
 
 _Q_BENCH = """
@@ -221,7 +270,7 @@ def trigger_value(db, eur_par_stream: float) -> pd.DataFrame:
         r = par_algo.get(code)
         if r is None:
             continue
-        streams = float(pd.to_numeric(r['streams_med'], errors='coerce') or 0)
+        streams = nombre(r['streams_med'])
         if streams <= 0:
             continue
         lignes.append({'algo': code, 'nom': nom, 'streams_med': streams,

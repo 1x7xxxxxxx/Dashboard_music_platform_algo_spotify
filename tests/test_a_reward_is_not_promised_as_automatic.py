@@ -50,8 +50,16 @@ _COLONNES = ("referral_free_months", "first_month_discount_pct")
 _CREDITEUR = "src/dashboard/views/register.py"
 
 # Les surfaces qui PARLENT de la récompense à l'utilisateur.
+# `views/service.py` a rejoint la liste le 2026-09-22, le jour de sa
+# naissance. C'est une surface d'ENGAGEMENT : elle promet des livrables, et
+# la moitié d'entre eux sont des gestes humains. Une promesse qui y prend le
+# futur ou l'adverbe — « ton export sera envoyé automatiquement » — est
+# exactement le défaut que ce fichier garde, à ceci près qu'ici personne ne
+# la créditerait jamais. Une surface qui naît hors de cette liste naît non
+# gardée, et c'est ainsi que le référencement a divergé la première fois.
 _SURFACES = ("src/dashboard/views/referral.py",
-             "src/dashboard/views/billing.py")
+             "src/dashboard/views/billing.py",
+             "src/dashboard/views/service.py")
 
 _PROD = [p for p in (_ROOT / "src").rglob("*.py") if "__pycache__" not in str(p)]
 

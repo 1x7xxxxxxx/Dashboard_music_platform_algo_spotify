@@ -9,8 +9,7 @@ from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_plan, is_admin, tenant_scope
 from src.database.stripe_schema import (
-    PLAN_CATALOG, PLAN_RANK, SERVICE_CALENDLY_URL, SERVICE_CONTACT_EMAIL,
-    SERVICE_CREDENTIALS)
+    PLAN_CATALOG, PLAN_RANK, SERVICE_CALENDLY_URL)
 
 
 def _price_str(plan: str) -> str:
@@ -90,58 +89,47 @@ def show():
 
 
 def _render_service_cta(db=None) -> None:
-    """Le service d'optimisation — ce que j'apporte, et comment on en parle.
+    """L'amorce vers la prestation. Le détail vit sur sa propre page.
 
-    ⚠️ Ce panneau porte ce qui a quitté la carte Premium le 2026-09-21 : la
-    production de créatives vidéo. Elle n'y avait pas sa place — c'est du travail
-    humain, pas une fonction du logiciel — et l'y laisser faisait promettre à un
-    abonnement de 10 €/mois quelque chose qu'aucune ligne de code ne fait.
+    ⚠️ CE PANNEAU PORTAIT TOUTE L'OFFRE JUSQU'AU 2026-09-22 — quatre arguments et
+    deux boutons — et il ne chiffrait rien (R150). Elle vit maintenant sur la page
+    « 🎯 Faire piloter mes campagnes », avec trois options en colonnes et les prix
+    en bas : Enns (*Pricing Creativity* p. 29) demande une proposition d'UNE page,
+    et la rendre ici la ferait cohabiter avec la grille d'abonnement à 10 €/mois.
+    Deux grilles de prix sur un écran, c'est la confusion outil / humain que ce
+    dépôt a payée dix-sept jours.
+
+    ⚠️ **`get_setting` est appelé ICI et le lien est passé au bouton.** Ce n'est pas
+    un détail de style : `tests/test_a_setting_is_settable_without_a_redeploy.py:133`
+    vérifie par AST que cette page lit le RÉGLAGE plutôt qu'une constante — et la
+    propriété qu'il garde est « la surface qui montre le bouton lit le réglage ».
     """
+    from src.dashboard.utils.app_settings import get_setting
+    from src.dashboard.utils.navigation import goto
+
     st.markdown("---")
     st.subheader(t("billing.service_header",
                    "🎯 Faire piloter tes campagnes (prestation sur-mesure)"))
     st.markdown(t(
         "billing.service_body",
-        "L'outil te dit où va ton argent. Si tu veux que quelqu'un s'occupe "
-        "**des campagnes elles-mêmes**, c'est une prestation à part, et on en "
-        "parle avant de commencer."))
+        "L'outil te dit où va ton argent. Si tu veux que quelqu'un s'occupe **des "
+        "campagnes elles-mêmes**, c'est une prestation à part — trois formules, et "
+        "un appel avant de commencer."))
 
-    for i, ligne in enumerate(SERVICE_CREDENTIALS):
-        st.markdown("- " + t(f"billing.service_credential.{i}", ligne))
-
-    st.caption(t(
-        "billing.service_call_why",
-        "**Un appel préalable est nécessaire**, et ce n'est pas une formalité : "
-        "je regarde ton projet, ce que tes chiffres disent déjà, et le budget "
-        "qui a du sens. Si ça ne colle pas, je le dis."))
-
-    # ⚠️ Le lien se LIT à chaque rendu, environnement d'abord puis base : il est
-    # éditable depuis la page Admin sans redéploiement. Le premier jet ne lisait
-    # que `SERVICE_CALENDLY_URL`, ce qui était correct et laissait la
-    # fonctionnalité ÉTEINTE — poser un lien de rendez-vous ne doit pas demander
-    # de rebâtir un conteneur.
-    from src.dashboard.utils.app_settings import get_setting
     lien = get_setting(db, "service_calendly_url", SERVICE_CALENDLY_URL)
-
     cols = st.columns(2)
+    if cols[0].button(t("billing.service_see", "Voir la prestation"),
+                      type="primary", width="stretch"):
+        goto("service")
     if lien:
-        cols[0].link_button(
-            t("billing.service_book", "📅 Prendre rendez-vous"),
-            lien, type="primary", width="stretch")
+        cols[-1].link_button(t("billing.service_book", "📅 Prendre rendez-vous"),
+                             lien, width="stretch")
     elif is_admin():
-        # ⚠️ Vu par l'EXPLOITANT seul, et jamais par l'artiste : un bouton mort
-        # vaut moins qu'un bouton absent. Tant que la variable n'est pas posée,
-        # la page propose le courriel, qui fonctionne.
-        cols[0].warning(t(
+        st.warning(t(
             "billing.service_no_calendly",
             "⚙️ Aucun lien de prise de rendez-vous : le bouton est masqué. "
             "Pose-le dans **⚙️ Admin → Réglages** — il s'applique tout de suite, "
             "sans redéploiement."))
-    cols[-1].link_button(
-        t("billing.service_btn", "✉️ M'écrire"),
-        f"mailto:{SERVICE_CONTACT_EMAIL}"
-        "?subject=Optimisation%20campagnes%20marketing%20-%20streaMLytics",
-        width="stretch")
 
 
 def _show_current_plan(db, artist_id: int):

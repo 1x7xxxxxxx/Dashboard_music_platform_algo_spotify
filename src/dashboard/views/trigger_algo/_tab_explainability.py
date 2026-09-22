@@ -55,8 +55,11 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
 
     _calib = ml_widgets.calibration_note_text("DW", ml_pred.get("dw_probability"))
     if _calib:
+        # « modèle non calibré » était FAUX (2026-09-22) : `calibration.json` existe
+        # et `ml_inference._calibrate` l'applique. Trois surfaces le disaient,
+        # deux autres disaient l'inverse — voir `_verdict._show_verdict_banner`.
         st.info(t("trigger_algo.explain.calib_note",
-                  "📖 Lecture des probabilités (modèle non calibré) : {note}").format(note=_calib))
+                  "📖 Lecture des probabilités (calibrées Platt) : {note}").format(note=_calib))
 
     try:
         import shap
@@ -99,9 +102,15 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
                     shap_exp = explainer(X_df)
                     shap.plots.waterfall(shap_exp[0], max_display=13, show=False)
                     st.pyplot(plt.gcf(), clear_figure=True)
+                    # ⚠️ Celle-ci est EXACTE, contrairement aux deux autres mentions
+                    # « non calibré » corrigées le 2026-09-22 : SHAP explique le
+                    # classifieur BRUT, avant que Platt ne s'applique. Elle est
+                    # reformulée pour qu'on voie que c'est l'espace qui n'est pas
+                    # calibré, pas le modèle livré.
                     st.caption(t(
                         "trigger_algo.explain.shap_logodds_caption",
-                        "Valeurs SHAP en espace log-odds (modèle non calibré). "
+                        "Valeurs SHAP en espace log-odds — c'est-à-dire AVANT la "
+                        "calibration Platt, sur le score brut du classifieur. "
                         "Barres rouges = contribution positive au score, bleues = négative."
                     ))
                 except Exception as e:

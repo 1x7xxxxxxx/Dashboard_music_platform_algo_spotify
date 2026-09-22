@@ -84,6 +84,7 @@ _TR: dict[str, dict[str, str]] = {
         "nav.item.data_wrapped": "🎁 Data Wrapped",
         "nav.item.account": "👤 My account",
         "nav.item.billing": "💳 Billing",
+        "nav.item.service": "🎯 Have my campaigns run for me",
         "nav.item.referral": "🎁 Referral",
         "nav.item.usage_analytics": "📈 Usage Analytics",
         "nav.item.airflow_kpi": "🏗️ ETL monitoring",

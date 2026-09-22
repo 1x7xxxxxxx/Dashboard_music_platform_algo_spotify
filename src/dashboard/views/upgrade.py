@@ -8,10 +8,12 @@ import os
 
 import streamlit as st
 
+from src.dashboard.utils.navigation import goto
+
 from src.dashboard.auth import get_artist_id, get_artist_plan
 from src.dashboard.utils.i18n import t
 from src.database.stripe_schema import (
-    PLAN_CATALOG, PLAN_RANK, SERVICE_CONTACT_EMAIL,
+    PLAN_CATALOG, PLAN_RANK,
 )
 
 
@@ -131,10 +133,19 @@ def show() -> None:
           "Les paiements sont gérés via Stripe. "
           "Annulation possible à tout moment depuis la page Billing.")
     )
-    st.markdown(
-        t("upgrade.service_cta",
-          "🎯 **Besoin qu'on optimise vos campagnes marketing pour vous ?** Service sur-mesure "
-          "(appel préalable pour valider le fit + le budget) — 📧 [{email}]"
-          "(mailto:{email}?subject=Optimisation%20campagnes%20-%20streaMLytics)").format(
-              email=SERVICE_CONTACT_EMAIL)
-    )
+    # ⚠️ LA COPIE DÉGRADÉE A ÉTÉ RETIRÉE — 2026-09-22.
+    #
+    # Cette page portait sa propre version de l'offre : une ligne, sans Calendly, sans
+    # les arguments, avec un `subject:` de courriel DIFFÉRENT de celui de Facturation,
+    # et le vouvoiement là où l'autre tutoie. Quatre divergences sur une offre écrite
+    # deux fois — la classe « un catalogue recopié », que ce dépôt a payée trois fois,
+    # la dernière avec dix-sept jours de promesse fausse.
+    #
+    # L'offre vit maintenant dans `utils/service_offer.py` et se lit sur sa propre
+    # page. Ici, une amorce, et rien d'autre.
+    st.markdown(t(
+        "upgrade.service_cta",
+        "🎯 **Tu préfères que quelqu'un s'en occupe ?** Piloter tes campagnes est une "
+        "prestation à part — trois formules, et un appel avant de commencer."))
+    if st.button(t("upgrade.service_btn", "Voir la prestation")):
+        goto("service")

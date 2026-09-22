@@ -16,6 +16,13 @@ _SRC = pathlib.Path(__file__).resolve().parents[1] / "src"
 # `email.*` keys are consumed in src/utils/verification_email.py via the `_tr()` wrapper
 # (and `email.welcome.step{i}` is built in a loop) — neither shape the literal matcher sees.
 _DYNAMIC_PREFIXES = (
+    # Les livrables, options et leviers de la prestation sont construits
+    # depuis `utils/service_offer.py` — `t(liv.cle, liv.texte)`. Ce sont des
+    # DONNÉES, pas des littéraux d'appel, exactement comme
+    # `billing.service_credential.*`. Leur cohérence est gardée par
+    # `tests/test_the_service_offer_says_who_does_the_work.py`.
+    "service.liv.", "service.opt.", "service.levier.",
+    "service.qui_fait_quoi",
     "email.",
     "algo.calib.", "algo.divnote.", "algo.label.", "algo.lever.", "algo.model.",
     "algo.regressor.", "algo.suppressed.", "common.month.", "credentials.field.",

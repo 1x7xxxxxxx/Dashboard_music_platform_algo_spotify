@@ -139,8 +139,14 @@ PLAN_CAPABILITIES: dict[str, frozenset[str]] = {
 # l'abonnement a expiré doit toujours pouvoir suivre un ancien lien vers son guide.
 # La retirer transformerait ce lien en mur de paiement, ce qui est exactement ce que
 # cette liste existe pour empêcher.
-ALWAYS_ACCESSIBLE = {'account', 'billing', 'process_guide', 'onboarding',
-                     'onboarding_health'}
+ALWAYS_ACCESSIBLE = {
+    # `service` : la page qui PRÉSENTE la prestation. La mettre derrière un
+    # paywall reviendrait à faire payer le droit de lire une offre — et
+    # `test_the_plan_pitch_matches_the_gate.py:151` exigerait en plus
+    # qu'elle figure dans l'argumentaire d'abonnement, ce qu'elle n'est pas.
+    'service',
+    'account', 'billing', 'process_guide', 'onboarding', 'onboarding_health',
+}
 
 def page_is_locked(plan: str, page_key: str) -> bool:
     """Ce plan interdit-il cette page ? LA question, posée à un seul endroit.

@@ -34,6 +34,10 @@ def _load_const(name):
 # couvrir ; si une vue neuve est non-analytique, elle doit être ajoutée ICI, sans
 # quoi le garde la réclame dans le rapport.
 _NON_ANALYTICS = {
+    # `service` présente une PRESTATION humaine (trois options, un lien de
+    # rendez-vous) — même famille que `billing` et `upgrade`. Elle ne dessine
+    # aucune donnée d'artiste, donc elle n'a rien à porter dans le rapport.
+    "service",
     "home", "export_pdf", "export_csv",            # entry / exports
     "process_guide", "credentials", "upload_csv",  # data setup
     "meta_mapping", "db_health",                   # mapping/management tools

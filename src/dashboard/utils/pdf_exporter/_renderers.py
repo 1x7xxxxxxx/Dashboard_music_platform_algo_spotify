@@ -439,18 +439,26 @@ def _render_score20(rows):
         # Ce PDF part CHEZ L'ARTISTE : lui demander de lancer un DAG est une
         # impasse. Le score arrive tout seul avec la collecte de la nuit.
         _msg = _t("pdf.nodata.score20",
-                  "Score /20 pas encore disponible — il se calcule chaque nuit "
+                  "Pas encore disponible — il se calcule chaque nuit "
                   "dès qu'il y a assez d'historique.")
         return f'<p class="no-data">{_msg}</p>'
 
+    def _pct(v):
+        return "—" if v is None else f"{float(v) * 100:.0f}%"
+
+    def _manque(gap, unit):
+        return "—" if gap is None else f"{float(gap):,.0f} {unit or ''}".replace(",", " ")
+
     body = "".join(
-        f"<tr><td>{_trunc(s, 42)}</td><td><b>{sc:.1f}</b></td><td>{dw * 100:.0f}%</td>"
-        f"<td>{rr * 100:.0f}%</td><td>{ra * 100:.0f}%</td></tr>"
-        for s, sc, dw, rr, ra in rows
+        f"<tr><td>{_trunc(s, 38)}</td><td><b>{_pct(av)}</b></td>"
+        f"<td>{_trunc(lab or '—', 26)}</td><td>{_manque(gap, unit)}</td>"
+        f"<td>{_pct(dw)}</td><td>{_pct(rr)}</td><td>{_pct(ra)}</td></tr>"
+        for s, av, lab, gap, unit, dw, rr, ra in rows
     )
-    note = (f"<p class='subtitle'>{_t('pdf.note.score20', 'Score /20 = classement relatif du catalogue (meilleur = 20, pire = 0) ; pour la proba absolue, lire DW/RR/Radio %.')}</p>")
+    note = (f"<p class='subtitle'>{_t('pdf.note.score20', 'Avancement = où en est le titre sur le levier le plus proche de sa cible. Les pourcentages DW/RR/Radio sont des probabilités calibrées ; une valeur proche de 6,5 % est le plancher de la calibration et ne distingue pas deux titres.')}</p>")
     return note + _html_table(
-        [_t("pdf.col.title", "Titre"), _t("pdf.col.score20", "Score /20"),
+        [_t("pdf.col.title", "Titre"), _t("pdf.col.progress", "Avancement"),
+         _t("pdf.col.lever", "Levier le plus proche"), _t("pdf.col.gap", "Il manque"),
          _t("pdf.col.dw_pct", "DW %"), _t("pdf.col.rr_pct", "RR %"),
          _t("pdf.col.radio_pct", "Radio %")], body)
 
