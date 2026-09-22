@@ -288,6 +288,18 @@ def _section_streams(db, artist_id):
         render_tiles(totals, grand_total, ig_count,
                      prev=_prev, side=_side, prev_grand=_prev_grand)
 
+    # ── CE QUE LA PUBLICITÉ A APPRIS, EN PHRASES ────────────────────────────────
+    #
+    # `_side` est PASSÉ, pas re-interrogé : le module ne reçoit ni `db` ni
+    # `artist_id`, donc il ne peut pas poser de requête même si on le lui demandait.
+    # L'accueil est à 13 allers-retours pour un plafond de 13.
+    #
+    # Et pas une seule jauge : `home_tiles.py` est à 6 `st.metric` pour un plafond
+    # de 6. La contrainte et la bonne forme pointent au même endroit — un chiffre
+    # qui change une décision a besoin d'une phrase, pas d'une case.
+    from src.dashboard.views.home_meta_advice import render_meta_advice
+    render_meta_advice(_side)
+
 
 # `_render_tiles` EST PARTIE DANS `views/home_tiles.py` le 2026-09-13, sous le nom
 # `render_tiles`.

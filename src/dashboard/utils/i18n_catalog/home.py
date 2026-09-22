@@ -178,4 +178,23 @@ EN = {
         "These sources are not connected yet — each one adds a piece to your "
         "numbers:"),
     "home.absence_repli": "See the {n} sources to connect, one by one",
+    # ── Ce que la publicité a appris (`views/home_meta_advice.py`, 2026-09-22) ──
+    "home.advice_header": "\U0001F4F1 What your advertising has learned",
+    "home.advice_spend": "Over the period you spent **{depense} \u20ac** on advertising.",
+    "home.advice_best": (
+        "Your cheapest campaign is **{nom}**: **{cpr} \u20ac** per outbound click."),
+    "home.advice_no_campaign": (
+        "No campaign carries a usable cost per result yet."),
+    "home.advice_too_thin": (
+        "\u26a0\ufe0f That is measured on too little to make a rule of it \u2014 let it "
+        "run, or compare your campaigns in detail."),
+    "home.advice_solid": (
+        "That is measured on **{depense} \u20ac** of this campaign: enough to rely on."),
+    "home.advice_cta": "\U0001F4CA Compare all my campaigns",
+    "home.advice_cta_locked": "Compare all my campaigns",
+    "home.advice_cta_help": (
+        "The per-campaign score, the cheapest age bracket, and which budgets to "
+        "raise or cut."),
+    "home.advice_cta_locked_help": (
+        "The detailed comparison of your campaigns is included in the subscription."),
 }
