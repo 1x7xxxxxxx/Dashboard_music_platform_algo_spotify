@@ -10,7 +10,7 @@ coûte le plus cher : l'effacement RGPD.
 
 Ce qui a été mesuré le 2026-09-18
 ----------------------------------
-`_GDPR_PLATFORM_TABLES` (`src/dashboard/views/admin.py`) porte **33 noms de tables**.
+`_GDPR_PLATFORM_TABLES` (`src/dashboard/views/admin_accounts.py`) porte **33 noms de tables**.
 **11 n'existent dans aucune base** — la base locale en compte 122, aucune ne s'appelle
 `s4a_spotify_data`, `soundcloud_stats_daily`, `instagram_posts`, `meta_creative_assets`,
 `meta_creative_targeting`, `meta_ads_api_raw`, `meta_custom_conversions`,
@@ -48,7 +48,14 @@ from pathlib import Path
 import pytest
 
 _ROOT = Path(__file__).resolve().parents[1]
-_ADMIN = _ROOT / "src" / "dashboard" / "views" / "admin.py"
+#: ⚠️ `admin_accounts.py`, et NON `admin.py`, depuis le 2026-09-22 (R155) : la page
+#: admin a été scindée en six sections et le bloc RGPD est parti dans son propre module
+#: quand `admin.py` a franchi le plafond de 1 200 lignes.
+#: Ce sont les tests de NON-VACUITÉ de ce fichier qui l'ont dit — « seulement 0 nom(s)
+#: extrait(s) », `assert 0 > 20`. Sans eux, l'extraction aurait rendu une liste vide et
+#: les trois tests qui suivent auraient été VERTS sur une population inexistante : le
+#: reçu d'effacement n'aurait plus été vérifié du tout, sans une ligne rouge.
+_ADMIN = _ROOT / "src" / "dashboard" / "views" / "admin_accounts.py"
 
 
 def _liste_gdpr() -> list[str]:
@@ -115,19 +122,24 @@ def test_a_failure_cannot_be_written_as_an_absence() -> None:
 
 def test_every_named_table_exists_or_is_declared_historical() -> None:
     """Les noms de la liste désignent une table, ou la prose dit qu'ils sont là pour mémoire."""
-    s = socket.socket()
-    s.settimeout(1)
-    try:
-        s.connect(("127.0.0.1", 5433))
-    except OSError:
-        pytest.skip("Postgres 5433 injoignable — « cette table existe-t-elle » ne se "
-                    "lit pas dans le code")
-    finally:
-        s.close()
+    # ⚠️ LA PORTE PARTAGÉE, et non un DSN composé ici. Ce test était le TREIZIÈME site
+    # de `a-second-door-that-knows-fewer-sources-than-the-first`, trouvé le 2026-09-22 :
+    # les douze premiers avaient été convertis le matin même, et celui-ci a survécu au
+    # balayage. Son mode d'échec est le mode d'échec de la classe — une sonde de SOCKET
+    # dit « la base est joignable », puis la connexion échoue sur le MOT DE PASSE. Il
+    # skippait sans base et ERREURAIT avec une base dont le mot de passe vit dans
+    # `config/config.yaml`, jamais dans `DB_PASSWORD`.
+    #
+    # Le garde de la classe ne l'a pas vu parce qu'il énumérait SIX noms `DATABASE_*` et
+    # que cette ligne lisait `DB_PASSWORD` : une liste de noms est une forme, « ce module
+    # compose-t-il son propre DSN » est la propriété. Le garde a été élargi le même jour.
+    from tests.db_gate import db_ready, dsn
+
+    if not db_ready():
+        pytest.skip("Postgres injoignable ou non migré — « cette table existe-t-elle » "
+                    "ne se lit pas dans le code")
     psycopg2 = pytest.importorskip("psycopg2")
-    conn = psycopg2.connect(host="127.0.0.1", port=5433, dbname="spotify_etl",
-                            user="postgres", password=os.getenv("DB_PASSWORD", "postgres"),
-                            connect_timeout=3)
+    conn = psycopg2.connect(**dsn(), connect_timeout=3)
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT table_name FROM information_schema.tables "

@@ -507,12 +507,24 @@ def _sweep_verdict(headers: list[dict]) -> int:
     déclaré, compté par `siblings_never_swept`, pas une faute d'écriture. Et elle ne juge
     pas le CHIFFRE : un balayage peut légitimement rendre 0.
 
-    ⚠️ **Deux classes sont exemptées, et l'exemption est la raison d'être de la porte.**
-    Les deux portent un verdict délibérément NON CONCLUANT : un motif jamais vu mordre —
-    on refuse d'écrire « 0 site » dessus — et 13 sites dont trancher demande de relire
-    chaque test avec sa surface vidée. Les exempter EST le comportement voulu : la porte
-    exige un verdict lisible, pas un verdict inventé. Elles sont nommées ici plutôt que
-    devinées par un motif, pour qu'ajouter une troisième soit une décision.
+    ⚠️ **L'exemption est VIDE depuis le 2026-09-22, et c'est un état, pas un oubli.**
+    Elle portait deux classes à verdict délibérément non concluant. Les deux ont été
+    tranchées ce jour-là, et la même cause les expliquait toutes les deux : **leur
+    prédicat cherchait une FORME là où la classe parle d'une PROPRIÉTÉ.**
+
+      * `a-fallback-that-runs-when-the-first-branch-succeeded` — sept mots (`push`,
+        `commit`, …) à droite d'un `||`. Refait sur « le repli AGIT-il ? » : 91 bruts,
+        90 écartés, **1 site vivant** — et l'ancien motif l'avait VU puis écarté comme
+        faux positif de `commit` dans `pre-commit`. Il avait raison sur le site et tort
+        sur la raison.
+      * `a-guard-satisfied-by-the-collapse-it-should-catch` — `assert not …`. Refait sur
+        « cette assertion est-elle VRAIE sur un écran vide ? » : 26 bruts, 11 fonctions
+        écartées, **2 sites vivants**, prouvés par un témoin — les deux restaient vertes
+        avec la surface stérilisée, une fonction ancrée du même fichier rougissait.
+
+    Garder l'exemption après coup aurait autorisé en silence un futur balayage muet sur
+    ces deux noms exactement. Y remettre une classe reste possible ; c'est une décision
+    qui s'écrit, et le compteur `sites_unknown` la rendra visible de toute façon.
     """
     import sys as _sys
     _sys.path.insert(0, str(_REPO / "tools" / "dev"))
@@ -537,31 +549,50 @@ def _sweep_verdict(headers: list[dict]) -> int:
     blocs = _blocks((_REPO / ".claude" / "dev-docs" / "error-classes.md")
                     .read_text(encoding="utf-8"))
 
-    non_concluants = {
-        # motif jamais vu mordre — un zéro non validé ne s'écrit pas comme un zéro mesuré
-        "a-fallback-that-runs-when-the-first-branch-succeeded",
-        # 13 sites dont le tri demande de relire chaque test avec sa surface VIDÉE
-        "a-guard-satisfied-by-the-collapse-it-should-catch",
-    }
+    #: VIDE au 2026-09-22 — les deux exemptions d'origine ont été tranchées. Voir la
+    #: docstring : une classe n'y entre que par une décision écrite.
+    non_concluants: set[str] = set()
 
     relances, muets, total = [], [], 0
+    perimees = []                         # exemptions qui n'exemptent plus rien
     for cle, corps in blocs.items():
         champ = (_field(corps, "siblings") or "").strip()
         if not champ.startswith("swept:"):
             continue                      # jamais balayée : un trou déclaré, pas une faute
         total += 1
         if cle in non_concluants:
+            # ⚠️ UNE EXEMPTION SE VÉRIFIE, elle ne se croit pas. Ajouté le 2026-09-22,
+            # après avoir tranché les deux classes qu'elle portait : la liste serait
+            # restée et aurait autorisé en silence un balayage muet sur ces deux noms
+            # exactement. Une exemption dont le motif a disparu est un garde désarmé
+            # dont personne ne sait qu'il l'est.
+            if _swept_sites(champ) is not None:
+                perimees.append(cle)
             continue
         if _swept_by_rerunning_the_guard(champ):
             relances.append(cle)
         elif _swept_sites(champ) is None:
             muets.append(cle)
 
+    inconnues = sorted(non_concluants - set(blocs))
+
     if total == 0:
         print("▶ sweep-verdict: **0 balayage déclaré** dans le catalogue.\n"
               "   Ce n'est pas un succès : le catalogue en porte des centaines. La\n"
               "   lecture a raté sa cible, et cette porte serait verte sur n'importe\n"
               "   quoi. Vérifier `_blocks`/`_field` du générateur.")
+        return 1
+
+    if perimees or inconnues:
+        print(f"❌ {len(perimees) + len(inconnues)} exemption(s) périmée(s) dans "
+              "`non_concluants` :")
+        for c in perimees:
+            print(f"   {c} — porte désormais un compte LISIBLE, l'exemption ne sert plus")
+        for c in inconnues:
+            print(f"   {c} — cette classe n'existe plus dans le catalogue")
+        print("   Les retirer de `non_concluants`. Une exemption qui n'exempte plus rien")
+        print("   est un garde désarmé dont personne ne sait qu'il l'est : elle autorise")
+        print("   en silence un futur balayage muet sur ce nom exactement.")
         return 1
 
     if not relances and not muets:

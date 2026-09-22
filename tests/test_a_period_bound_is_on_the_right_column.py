@@ -209,7 +209,6 @@ def test_the_three_subjects_are_actually_distinguished() -> None:
 # ⚠️ Ce garde a besoin de la BASE : « cette table a-t-elle une date métier ? » ne se lit
 # pas dans le code. Il saute sans Postgres, comme ses pairs — et son test de population
 # refuse de passer en silence sur un inventaire vide.
-_ADMIN = Path(__file__).resolve().parents[1] / "src" / "dashboard" / "views" / "admin.py"
 _FRAICHEUR = re.compile(r'"SELECT MAX\((?P<col>[a-z_]+)\)(?:::date)? FROM (?P<tbl>[a-z_0-9]+)"')
 # Une date de MESURE (quand on a écrit) contre une date de SUJET (ce que la donnée date).
 _ECRITURE = {"collected_at", "created_at", "updated_at", "inserted_at", "fetched_at"}

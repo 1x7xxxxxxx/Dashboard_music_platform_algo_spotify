@@ -723,17 +723,18 @@
       "has_signature": false,
       "history_dates_declared": [
         "2026-09-10",
-        "2026-09-18"
+        "2026-09-18",
+        "2026-09-22"
       ],
       "kind": "manual",
       "seen_red": "n-a",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
-      "siblings_swept": false,
+      "siblings_sites": 2,
+      "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-09-10",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -969,17 +970,18 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-16"
+        "2026-09-16",
+        "2026-09-22"
       ],
       "kind": "deterministic",
       "seen_red": "2026-09-16",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
+      "siblings_sites": 1,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -1423,7 +1425,7 @@
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
-      "guard_ref": "tests/test_a_recap_row_answers_the_question_it_names.py",
+      "guard_ref": "tests/test_an_absence_is_only_proven_on_a_present_surface.py",
       "guard_ref_exists": true,
       "guard_scope_declared_family": "une-erreur-avalée-devient-une-absence",
       "guard_scope_derived_family": "une-erreur-avalée-devient-une-absence",
@@ -1432,17 +1434,18 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-12"
+        "2026-09-12",
+        "2026-09-22"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-22",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
-      "siblings_sites": null,
+      "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3164,8 +3167,8 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-22",
-      "revisions": 0,
-      "history_additions": 0,
+      "revisions": 1,
+      "history_additions": 1,
       "renamed_from": null
     },
     "a-shared-database-read-while-another-test-writes-it": {
@@ -9142,7 +9145,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11265,7 +11268,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 357,
+      "catalogue_revisions": 358,
       "head_date": "2026-09-22"
     },
     "holes": {
@@ -11278,16 +11281,16 @@
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 141,
-      "siblings_never_swept": 1,
-      "sites_unknown": 2,
-      "sites_unknown_hors_relance": 2,
+      "seen_red_unknown": 140,
+      "siblings_never_swept": 0,
+      "sites_unknown": 0,
+      "sites_unknown_hors_relance": 0,
       "swept_by_rerunning_the_guard": 0
     },
     "population": {
       "automatic_guard": 401,
       "classes": 411,
-      "ever_recurred_observed": 39,
+      "ever_recurred_observed": 40,
       "prose_only": 10,
       "with_signature": 399
     },
@@ -11295,23 +11298,23 @@
       "window_start": "2026-05-15",
       "as_of": "2026-09-22",
       "observed": {
-        "events": 47,
+        "events": 48,
         "class_days": 10013,
-        "per_class_month": 0.1427,
+        "per_class_month": 0.1457,
         "ci95": [
-          0.1048,
-          0.1898
+          0.1074,
+          0.1932
         ]
       },
       "class_days_exposed": 10013,
       "by_guard": {
         "automatique": {
-          "events": 43,
+          "events": 44,
           "class_days": 9800,
-          "per_class_month": 0.1334,
+          "per_class_month": 0.1365,
           "ci95": [
-            0.0965,
-            0.1797
+            0.0992,
+            0.1832
           ]
         },
         "prose": {
@@ -11327,42 +11330,42 @@
       "by_seen_red": {
         "daté": {
           "events": 18,
-          "class_days": 3253,
-          "per_class_month": 0.1682,
+          "class_days": 3263,
+          "per_class_month": 0.1677,
           "ci95": [
-            0.0996,
-            0.2659
+            0.0993,
+            0.265
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 29,
-          "class_days": 6760,
-          "per_class_month": 0.1304,
+          "events": 30,
+          "class_days": 6750,
+          "per_class_month": 0.1351,
           "ci95": [
-            0.0873,
-            0.1873
+            0.0911,
+            0.1929
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 47,
+          "events": 48,
           "class_days": 10013,
-          "per_class_month": 0.1427,
+          "per_class_month": 0.1457,
           "ci95": [
-            0.1048,
-            0.1898
+            0.1074,
+            0.1932
           ]
         }
       },
       "by_guard_since": {
         "avec-garde": {
-          "events": 43,
+          "events": 44,
           "class_days": 9222,
-          "per_class_month": 0.1417,
+          "per_class_month": 0.145,
           "ci95": [
-            0.1026,
-            0.1909
+            0.1054,
+            0.1947
           ]
         },
         "sans-garde": {
@@ -11394,11 +11397,11 @@
       }
     },
     "sweep_yield": {
-      "sweeps_done": 410,
-      "sweeps_with_a_verdict": 408,
-      "sweeps_that_found_something": 112,
-      "live_sites_found": 477,
-      "hit_rate_on_verdicts": 0.275,
+      "sweeps_done": 411,
+      "sweeps_with_a_verdict": 411,
+      "sweeps_that_found_something": 114,
+      "live_sites_found": 480,
+      "hit_rate_on_verdicts": 0.277,
       "note": "Le taux porte sur les balayages dont le verdict est LISIBLE. Les autres sont comptés dans holes.sites_unknown — un balayage muet n'est pas un balayage sans trouvaille."
     }
   }

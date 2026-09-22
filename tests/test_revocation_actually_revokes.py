@@ -77,7 +77,9 @@ def test_a_live_token_works_before_anything_is_revoked(account):
 
 def test_deactivating_the_account_kills_its_api_token(account):
     from src.dashboard.utils import get_db_connection
-    from src.dashboard.views.admin import _toggle_user_active
+    # Déplacé dans `admin_accounts.py` le 2026-09-22 (R155) : la page admin a été
+    # scindée en six sections et la gestion des comptes vit désormais dans son module.
+    from src.dashboard.views.admin_accounts import _toggle_user_active
 
     token = _token_for(account)
     db = get_db_connection()

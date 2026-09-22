@@ -131,3 +131,5 @@
 {"at": "2026-09-22T12:31:22+00:00", "head": "a5b1582", "kind": "start", "task": "R154", "what": "cinq listes de sources -> le tronc ; garde de la sixieme"}
 {"at": "2026-09-22T12:32:06+00:00", "head": "1e092ad", "kind": "done", "task": "R154", "what": "8 requetes pliees ; garde repointe 8->10 sources ; 3 defauts a moi trouves par des gardes"}
 {"at": "2026-09-22T12:32:12+00:00", "head": "1e092ad", "kind": "start", "task": "R155", "what": "six onglets admin, selecteur paresseux"}
+{"at": "2026-09-22T12:43:29+00:00", "head": "10a1d61", "kind": "done", "task": "R155", "what": "six sections, selecteur paresseux : 23 req -> 1-22 ; admin 1238 -> 829 l. ; garde d onglets repointe"}
+{"at": "2026-09-22T12:43:34+00:00", "head": "10a1d61", "kind": "start", "task": "R156", "what": "classes d erreur : sante du catalogue puis capitalise"}

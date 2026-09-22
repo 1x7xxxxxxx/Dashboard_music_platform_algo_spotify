@@ -9,6 +9,165 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🗂️ R155 — Dix écrans d'administration en SIX sections, un sélecteur paresseux (livrée 2026-09-22)
+
+**Livrée et poussée le 2026-09-22** — commit `10a1d61`. La demande était « regrouper en
+plusieurs onglets sur une même page admin », avec la consigne d'identifier d'abord ce qui
+fait doublon avec Grafana.
+
+### Le chiffre qui a décidé de la FORME, et qui a écarté `st.tabs`
+
+Dix pages réservées à l'administration, ~4 500 lignes. Leur coût en requêtes, page par
+page, mesuré avant de toucher quoi que ce soit :
+
+    admin 23 · db_health 22 · airflow_kpi 19 · alerts 11 · referral 6
+    etl_logs 5 · usage 5 · promo 2                          →  93 requêtes
+
+**`st.tabs` aurait exécuté le corps de TOUS les onglets à chaque clic sur n'importe quel
+widget de la page.** Ce n'est pas une supposition : `admin.py` le documentait déjà pour
+ses cinq onglets d'origine — « Streamlit executes every tab's body on every rerun ». Des
+vrais onglets se lisent comme une amélioration d'ergonomie et coûtent tout le budget.
+
+Un `st.segmented_control` synchronisé sur l'URL n'exécute que le groupe choisi — le motif
+de `views/credentials/router.py:508`. Mesuré après :
+
+    business 6 · santé 22 · comptes 1 · réglages 4 · usage 5 · liens 0
+
+**La section la plus consultée — les comptes — passe de 23 requêtes à 1.**
+
+### Les six sections
+
+| clé | section | ce qu'elle porte |
+|---|---|---|
+| `business` | 📊 Business | l'activation en tête (2 sur 5), MRR et ARPU sous un repli |
+| `sante` | 🩺 Santé | fraîcheur par source, journaux ETL, alertes, KPI Airflow |
+| `comptes` | 👥 Comptes | utilisateurs, rôles, effacement RGPD — délégué à `admin_accounts.py` |
+| `reglages` | ⚙️ Réglages | plans, prix de prestation, parrainage, codes promo |
+| `usage` | 📈 Usage | télémétrie de rendu et de navigation |
+| `liens` | 🔗 Liens | renvois vers Grafana et les surfaces externes |
+
+### Ce qui a été SUPPRIMÉ, et ce qui ne l'a pas été
+
+La condition bloquante était `.claude/dev-docs/grafana-correspondence.md`, et **il
+contredit la moitié de la demande** : trois des quatre vues de surveillance ne font PAS
+doublon avec Grafana. Seule la quatrième a été repliée derrière un renvoi. Le document
+porte aussi le seul chiffre délibérément abandonné (le « DB ping ») avec son déclencheur
+de réouverture.
+
+### La contrainte qui tient toute l'architecture
+
+`test_a_render_opens_one_connection` plafonne un rendu à UNE connexion, et `_KNOWN_MULTI`
+est **vide** — aucune vue n'a d'exemption. Un groupe qui délègue doit donc `return`
+**avant** `get_db_connection()`, sinon le rendu en compte deux. C'est vérifié par la
+POSITION des lignes dans l'AST, seule chose qu'un lecteur statique puisse établir ici.
+
+Garde : `tests/test_the_admin_page_renders_one_section_at_a_time.py` — aucun `st.tabs` au
+premier niveau, chaque groupe atteignable et rendant quelque chose, aucune connexion
+ouverte avant une délégation, et le choix qui voyage dans l'URL. ⚠️ Il ne tient PAS le
+nombre de requêtes lui-même : le compter demanderait d'instrumenter six rendus complets à
+chaque exécution de la suite, pour une propriété que l'absence de `st.tabs` garantit
+structurellement. Le chiffre est dans la docstring, daté ; la structure est gardée.
+
+`admin.py` : 1 151 → 1 238 → **829** lignes, par extraction de `admin_accounts.py`
+(460 l.) quand le plafond de 1 200 a été franchi — deux fois dans la même séance.
+
+---
+
+## 🌳 R154 — Cinq listes des mêmes tables repliées sur un tronc (livrée 2026-09-22)
+
+**Livrée et poussée le 2026-09-22** — commit `1e092ad`.
+
+Le matin, j'ai unifié DEUX registres de sources — la grille de l'accueil et l'alerte
+nocturne — parce qu'iMusician n'était que dans l'un et pouvait se périmer sans qu'aucune
+alerte ne le dise. **Je n'ai pas balayé.** La règle transverse 14 dit de chercher les
+frères AVANT d'écrire le correctif ; l'après-midi en a trouvé deux de plus :
+
+    src/dashboard/views/db_health.py    `_DATASETS`, 11 entrées écrites à la main
+    src/dashboard/views/admin.py        `_supervision_freshness`, HUIT requêtes
+                                        `SELECT MAX(...)` composées sur place
+
+Les deux s'accordaient avec le registre au moment de la mesure. C'est exactement la forme
+d'un défaut latent : une copie ne devient fausse qu'au premier changement, et personne ne
+relit cinq listes pour vérifier qu'elles disent la même chose.
+
+Le tronc est `src/utils/source_registry.py` — **stdlib seule**, donc importable depuis un
+DAG *et* depuis Streamlit : `Source(cle, table, col, fed_by, metric_col=None)`, 10
+sources. Deux colonnes par table, et chacune répond à une question précise :
+
+    `col`         la date d'ÉCRITURE — quand la ligne a été posée
+    `metric_col`  la date de MESURE  — de quand la donnée parle
+
+`freshness_monitor` passe de 7 à 10 cibles. `_supervision_freshness` boucle sur le tronc
+au lieu de composer huit requêtes. Hypeddit et SACEM entrent au registre de l'accueil
+pour **zéro requête de plus** — deux branches du même `UNION ALL`.
+
+Garde : `tests/test_no_sixth_list_of_the_same_tables.py`. ⚠️ Sa première docstring
+affirmait couvrir la confusion écriture/mesure ; **la mutation a montré que non**, et le
+test étroit `test_a_freshness_surface_reads_the_measurement_date` a été ajouté pour le
+cas manquant. Un garde dont la prose promet plus que son prédicat est pire qu'un garde
+absent : on cesse de vérifier.
+
+⚠️ **La grille de l'ACCUEIL n'a PAS été corrigée** — elle lit toujours la date
+d'écriture, et Meta y affiche « à jour » avec 720 jours de retard réel. C'est R157 dans
+l'index actif, avec sa mesure et son coût visible.
+
+---
+
+## 🧭 R156 — Le catalogue de classes d'erreur n'a plus aucun trou de balayage (livrée 2026-09-22)
+
+**Livrée le 2026-09-22.** 411 classes, **411 balayages, 411 verdicts lisibles, 0 muet,
+0 jamais balayée** — un état que le catalogue n'avait jamais atteint.
+
+Trois trous fermés, et **la même cause explique les trois** : le prédicat du balayage
+cherchait une FORME D'ÉCRITURE là où la classe parle d'une PROPRIÉTÉ. C'est la classe
+`a-sweep-predicate-that-matches-a-form-not-a-property`, commise trois fois en balayant
+les classes voisines.
+
+| trou | l'ancien prédicat | la propriété | entonnoir refait | sites |
+|---|---|---|---|---|
+| `a-guard-satisfied-by-the-collapse` | `assert not …` | *vraie sur un écran vide ?* | 26 bruts, 11 fonctions écartées | **2, corrigés** |
+| `a-fallback-…-first-branch-succeeded` | sept mots à droite d'un `\|\|` | *le repli AGIT-il ?* | 91 bruts, 90 écartés | **1, corrigé** |
+| `a-diagram-is-verified-by-looking-at-it` | balayage REFUSÉ par argument | *où affirme-t-on un visuel en ne vérifiant que du texte ?* | ~75 bruts, ~70 + 3 écartés | **2, corrigés** |
+
+**Ce que chaque trou cachait :**
+
+1. `assert all("x" not in r for r in rows)` est vraie sur une population vide — donc
+   c'est le défaut — et l'ancien prédicat la classait en **ANCRE de présence** : un seul
+   site de cette forme blanchissait la fonction entière. Deux fonctions de
+   `test_the_choice_comes_before_the_form.py` restaient **VERTES** avec la surface
+   stérilisée, pendant qu'une fonction ancrée du même fichier **ROUGISSAIT** — c'est le
+   témoin qui sépare « mon prédicat a raison » de « mon prédicat matche ». Garde neuf :
+   `tests/test_an_absence_is_only_proven_on_a_present_surface.py`, cliquet à 0, muté
+   trois fois, trois rouges sur trois tests distincts.
+2. `Makefile:745` — `pip install --user pre-commit || pip install pre-commit`.
+   `--user` **RÉUSSIT** en posant le binaire hors du `PATH` : le repli ne part jamais et
+   `pre-commit install` tombait à la ligne suivante. **L'ancien motif l'avait VU puis
+   ÉCARTÉ** comme faux positif de `commit` dans `pre-commit` — il avait raison sur le
+   site et tort sur la raison. Corrigé sur le patron de `tools/db_backup.sh:207` : on
+   relit ce qu'on vient de faire au lieu de croire le code de sortie. Vérifié par un
+   `pip` factice qui sort 0 sans rien installer.
+3. Le refus du balayage du schéma était **juste et hors sujet** : « aucun prédicat ne
+   dit si un schéma est juste » porte sur le DÉTECTEUR, pas sur les frères. Reformulé, il
+   rend deux sites — un test nommé `…_is_the_one_that_was_reported` dont les trois
+   assertions vérifient une existence et une taille (n'importe quelle image de plus de
+   5 Ko le laissait vert), et une assertion de PDF dont la fenêtre était **4 Ko sur 602**.
+   Prouvé : un PDF fabriqué portant `media/` à l'octet 5 017 passait le test.
+
+**L'exemption codée en dur d'`audit_runner.py` a été VIDÉE dans le même commit.** Elle
+nommait exactement les deux classes tranchées ; la laisser aurait autorisé en silence un
+futur balayage muet sur ces deux noms. Mutée : la porte mord quand le compte disparaît.
+
+**Aucune classe NEUVE n'a été écrite, et c'est la décision.** Les quatre formes trouvées
+ont chacune **1 site vivant** : aucune ne tient le billet d'admission de la règle 15
+(`recurrence` daté deux fois, `sites:N≥2`, ou un `p1:` nommé). On écrit le test et on le
+dit — c'est la règle appliquée à mes propres trouvailles, le jour où le catalogue atteint
+411 classes dont 91 % ne récidivent jamais.
+
+Cliquets resserrés dans le même commit : `siblings_never_swept` 1 → **0**,
+`sites_unknown` 2 → **0**, `seen_red_unknown` 141 → **140**.
+
+---
+
 ## 🔍 R141 — Un commentaire qui nomme un test disparu : 20 → 4 (livrée 2026-09-18)
 
 **Livrée et poussée le 2026-09-18** — commit `8516d54`. La ligne de l'actif est reprise

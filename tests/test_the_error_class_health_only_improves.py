@@ -85,7 +85,7 @@ _CEILINGS = {
     # une preuve. Un garde ne compte comme vu rouge que s'il ÉCHOUE sur le défaut.
     # Historique : 363 → 352 (les `n-a`) → 332 (phase B, traces de mutation) → 330
     # le 2026-09-17 (un défaut remis et vu lever) → 321 ce jour-ci.
-    "seen_red_unknown": 141,
+    "seen_red_unknown": 140,
     # ── Ajouté le 2026-09-18 avec l'état `self-proving` ─────────────────────────
     # Voir une signature rouge UNE fois, à la main, prouve qu'elle mordait CE SOIR-LÀ.
     # Un garde qui porte un test fabriquant la forme interdite se prouve à CHAQUE
@@ -476,7 +476,14 @@ _CEILINGS = {
     #
     # Ce que la descente a rapporté est désormais CHIFFRÉ, ce qui n'était pas le
     # cas quand elle a commencé : voir `sites_unknown` juste dessous.
-    "siblings_never_swept": 1,
+    # 1 → 0 le 2026-09-22. La dernière classe jamais balayée était
+    # `a-diagram-is-verified-by-looking-at-it`, dont le balayage avait été REFUSÉ par
+    # argument : « aucun prédicat ne sépare un schéma juste d'un schéma faux ». L'argument
+    # est juste et répondait à la mauvaise question — un balayage de frères cherche les
+    # autres surfaces où la MÊME confusion est commise, pas le détecteur. Reformulé en
+    # « où affirme-t-on un visuel en ne vérifiant que du texte ? » : 2 sites vivants,
+    # corrigés. **Le catalogue n'a plus aucune classe non balayée.**
+    "siblings_never_swept": 0,
     # ── LE RENDEMENT, sous cliquet lui aussi (2026-09-18) ────────────────────
     #
     # `siblings_never_swept` mesure l'EFFORT ; ce compteur-ci mesure ce qu'on SAIT
@@ -507,7 +514,15 @@ _CEILINGS = {
     # (21 balayages productifs sur 191, 52 sites vivants au total). Le premier chiffre
     # ne portait que sur les balayages de la nuit, ceux qui trouvaient. Un taux mesuré
     # sur la population qui l'a inspiré n'est pas un taux.
-    "sites_unknown": 2,
+    # 2 → 0 le 2026-09-22 : les DEUX balayages muets tranchés, et la même cause
+    # expliquait les deux — leur prédicat cherchait une FORME là où la classe parle
+    # d'une PROPRIÉTÉ. `a-fallback-…-succeeded` : sept mots à droite d'un `||` → « le
+    # repli AGIT-il ? », 1 site vivant que l'ancien motif avait vu PUIS écarté comme
+    # faux positif de `commit` dans `pre-commit`. `a-guard-satisfied-by-the-collapse` :
+    # `assert not …` → « vraie sur un écran vide ? », 2 sites prouvés par un témoin.
+    # L'exemption codée en dur d'`audit_runner.py` a été VIDÉE dans le même commit :
+    # la laisser aurait autorisé en silence un futur balayage muet sur ces deux noms.
+    "sites_unknown": 0,
     #
     # ── « BALAYÉ » N'EST PAS « LE GARDE ÉTAIT VERT » (2026-09-18) ────────────
     #

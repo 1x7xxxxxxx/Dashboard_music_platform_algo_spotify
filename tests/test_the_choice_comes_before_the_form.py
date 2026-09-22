@@ -111,7 +111,19 @@ def test_the_platform_buttons_are_the_first_line_of_the_page(creds_page):
 
 
 def test_the_page_carries_no_horizontal_rule(creds_page):
-    rules = [e for e in _flat(creds_page.main)
+    """⚠️ L'ANCRE D'ABORD. Une absence ne se prouve que sur une surface PRÉSENTE.
+
+    Mesuré le 2026-09-22 : avec `_flat` rendu stérile — l'effondrement que
+    `render_platform_chart` produit pour de vrai en avalant son exception — cette
+    fonction restait VERTE, et `test_the_platform_buttons_are_the_first_line_of_the_page`
+    du même fichier rougissait. Classe
+    `a-guard-satisfied-by-the-collapse-it-should-catch`.
+    """
+    els = _flat(creds_page.main)
+    assert any(type(e).__name__ == "ButtonGroup" for e in els), (
+        "la page ne rend plus sa barre de plateformes : la surface est effondrée, et "
+        "l'absence de règle horizontale vérifiée ci-dessous ne prouverait rien.")
+    rules = [e for e in els
              if type(e).__name__ == "Markdown"
              and str(getattr(e, "value", "")).strip() == "---"]
     assert not rules, f"{len(rules)} règle(s) horizontale(s) subsistent sur la page"
@@ -142,12 +154,22 @@ def test_the_live_line_sits_above_the_logo():
 
 
 def test_an_artist_is_not_told_their_own_address():
+    """⚠️ L'ANCRE D'ABORD — même raison que ci-dessus, même mesure.
+
+    Une barre latérale qui ne rend RIEN ne répète aucune adresse : les deux
+    assertions d'absence étaient vraies sur le vide, donc satisfaites par la panne
+    qu'elles devraient attraper.
+    """
     at = _run(_APP_SCRIPT, role="artist", aid=18)
     texts = [str(getattr(e, "value", "") or getattr(e, "body", "") or "")
              for e in _flat(at.sidebar)]
+    assert any("en ligne" in x and "artistes" in x for x in texts), (
+        "la barre latérale ne rend plus sa ligne « n en ligne · n artistes » : elle "
+        "est effondrée, et les deux absences ci-dessous seraient vraies pour rien.")
     assert not any("someone@example.test" in x for x in texts), (
         "la barre latérale répète l'adresse de l'artiste")
-    assert not any("🎤" in x and "—" in x for x in texts)
+    assert not any("🎤" in x and "—" in x for x in texts), (
+        "la ligne « 🎤 Artiste — <adresse> » est revenue pour un artiste")
 
 
 def test_an_admin_still_sees_which_identity_is_loaded():

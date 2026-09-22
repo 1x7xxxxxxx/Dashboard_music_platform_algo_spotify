@@ -131,12 +131,22 @@ def test_every_screenshot_a_guide_names_exists_on_disk():
         + "\n  ".join(missing))
 
 
-def test_the_spotify_screenshot_is_the_one_that_was_reported():
-    """Le cas signalé, nommé — pour que la suppression du fichier soit rouge ici.
+def test_the_spotify_screenshot_is_present_and_not_truncated():
+    """Le fichier du cas signalé est LÀ et non tronqué. Rien de plus.
 
-    Les trois tests au-dessus portent sur des RÈGLES ; celui-ci épingle le fichier
-    que cinq signalements désignaient, parce qu'une règle satisfaite par un ensemble
-    vide reste satisfaite.
+    Les trois tests au-dessus portent sur des RÈGLES ; celui-ci épingle le fichier que
+    cinq signalements désignaient, parce qu'une règle satisfaite par un ensemble vide
+    reste satisfaite.
+
+    ⚠️ IL S'APPELAIT `..._is_the_one_that_was_reported` jusqu'au 2026-09-22, et ce nom
+    affirmait ce qu'aucune de ses trois assertions ne vérifie : que l'image MONTRE le
+    menu « Partager → Copier le lien vers l'artiste ». Remplacer le PNG par n'importe
+    quelle image de plus de 5 000 octets le laisse vert. Le contenu d'une capture est un
+    jugement d'œil, et ce dépôt a payé la leçon ailleurs : six défauts sur sept schémas
+    neufs, invisibles dans le code comme dans le rendu HTML
+    (`a-diagram-is-verified-by-looking-at-it`). Un nom qui promet plus que son prédicat
+    est pire qu'un test absent : on cesse de regarder. La vérification du CONTENU reste
+    humaine, et le nom le dit désormais en ne la revendiquant pas.
     """
     shot = screenshot_path("spotify_share_artist_link.png")
     assert shot.exists(), (

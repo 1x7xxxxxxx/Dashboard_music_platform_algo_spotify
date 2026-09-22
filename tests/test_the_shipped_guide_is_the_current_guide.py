@@ -229,7 +229,12 @@ def test_the_pdf_stays_self_contained():
     as broken boxes in an inbox.
     """
     pdf = (GUIDES / "onboarding_guide.pdf").read_bytes()
-    assert b"media/" not in pdf[:4096], (
+    # ⚠️ THE WHOLE FILE, not `pdf[:4096]`. A PDF's object and cross-reference streams
+    # sit far past the first 4 KB: a document that *did* reference `media/` would have
+    # passed the windowed form. Measured 2026-09-22 on a fabricated 5 KB PDF — the old
+    # assertion was green on the exact defect it names. The file is already in memory,
+    # so scanning all 602 KB costs nothing.
+    assert b"media/" not in pdf, (
         "the PDF references external images — mailed as an attachment it would show "
         "empty frames."
     )

@@ -740,10 +740,25 @@ clean:       ## Remove Python and ruff caches
 	rm -rf .ruff_cache .pytest_cache
 
 hooks-install: ## Install pre-commit hooks (ruff + secret scan + hygiene)
+	@# ⚠️ Le repli se décide sur le RÉSULTAT, pas sur le code de sortie.
+	@# `pip install --user` RÉUSSIT en posant le binaire dans un répertoire qui n'est
+	@# pas sur le PATH : `||` ne se déclenche donc jamais, et `pre-commit install`
+	@# tombait à la ligne suivante sur un « command not found » qui n'accuse pas la
+	@# bonne étape. Classe `a-fallback-that-runs-when-the-first-branch-succeeded`,
+	@# trouvée le 2026-09-22 — et le balayage de 2026-09-18 l'avait ÉCARTÉE comme faux
+	@# positif de `pre-commit`/`commit` : le motif matchait, sur le mauvais mot.
+	@# Le patron est celui de `tools/db_backup.sh:207` — on relit ce qu'on vient de
+	@# faire au lieu de croire le code de sortie.
 	@if ! command -v pre-commit >/dev/null 2>&1; then \
 		echo "→ Installing pre-commit via pip..."; \
-		pip install --user pre-commit >/dev/null || pip install pre-commit; \
+		pip install --user pre-commit >/dev/null 2>&1 || true; \
+		command -v pre-commit >/dev/null 2>&1 || pip install pre-commit || true; \
 	fi
+	@command -v pre-commit >/dev/null 2>&1 || { \
+		echo "❌ pre-commit toujours introuvable après installation."; \
+		echo "   'pip install --user' peut réussir en écrivant hors du PATH."; \
+		echo "   Réparer : pip install pre-commit   (ou ajouter ~/.local/bin au PATH)"; \
+		exit 1; }
 	@pre-commit install
 	@echo "✅ pre-commit hooks installed. Bypass once with: git commit --no-verify"
 	@echo "   Run on all files manually: pre-commit run --all-files"

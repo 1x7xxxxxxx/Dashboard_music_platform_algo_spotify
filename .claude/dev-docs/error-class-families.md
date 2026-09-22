@@ -18,7 +18,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | **0/20** · 0.0 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **1/20** · 5.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 25 | **3/25** · 12.0 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
-| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 30 | **5/30** · 16.7 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
+| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 30 | **6/30** · 20.0 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 26 | **2/26** · 7.7 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 84 | **10/84** · 11.9 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | **4/39** · 10.3 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
@@ -616,4 +616,4 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 <!-- error-class-families: total=411 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=b17eccf4fb84415484d6f09dda1bc5334e1d64c9aa98c9538982ac75136aadfa -->
+<!-- error-class-families: sha256=0bb1790463939ac70216911de2bf02df8669f2eef26dd39bb0573b616db86a54 -->

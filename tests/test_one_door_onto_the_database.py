@@ -230,6 +230,16 @@ def _tests_connecting_without_the_door() -> list[str]:
             tree = ast.parse(txt)
         except SyntaxError:
             continue
+        # ⚠️ LE COMPOSÉ SUR PLACE SE JUGE AVANT L'EXEMPTION DE MODULE, et je l'ai
+        # découvert en mutant. `_passe_par_la_porte` court-circuite le module ENTIER dès
+        # qu'il IMPORTE un nom de porte quelque part. Un module qui importe `dsn()` pour
+        # une sonde et recompose son DSN dix lignes plus bas lui était donc invisible —
+        # ma mutation du 2026-09-22 a remis un `psycopg2.connect(host=…, password=…)` en
+        # dur et le garde est resté **VERT**. Importer la porte prouve quelque chose du
+        # MODULE ; ça ne prouve rien de CET appel-là.
+        if _compose_son_dsn(tree):
+            out.append(str(path.relative_to(REPO)))
+            continue
         if _passe_par_la_porte(tree):
             continue
         # LA PROPRIÉTÉ EST « LIRE », PAS « NOMMER » — et la distinction a coûté un
@@ -241,6 +251,41 @@ def _tests_connecting_without_the_door() -> list[str]:
         if any(_lit_une_variable(n) for n in ast.walk(tree)):
             out.append(str(path.relative_to(REPO)))
     return out
+
+
+def _compose_son_dsn(tree) -> bool:
+    """LA PROPRIÉTÉ, là où `_lit_une_variable` ne tient qu'une LISTE DE NOMS.
+
+    ⚠️ Ajouté le 2026-09-22, après un TREIZIÈME site passé au travers du cliquet à
+    zéro. `_DSN_VARS` énumère six noms `DATABASE_*` ;
+    `tests/test_an_erasure_receipt_tells_failure_from_absence.py:135` composait sa
+    connexion avec `password=os.getenv("DB_PASSWORD", <valeur par défaut>)` — **toute la famille
+    `DB_*` était invisible**, et un mot de passe écrit en clair l'aurait été aussi.
+
+    Une liste de noms est une FORME ; « ce module compose-t-il lui-même son DSN » est la
+    PROPRIÉTÉ, et elle se lit sans connaître aucun nom de variable : un
+    `psycopg2.connect(...)` dont les arguments de connexion sont passés en MOTS-CLEFS
+    sur place. La porte partagée se passe en `**dsn()`, donc elle n'en porte aucun.
+
+    Entonnoir mesuré le jour même sur `tests/` : **15 appels** `psycopg2.connect`,
+    **14 écartés** — tous en `**kw` venu d'un résolveur — **1 site vivant**, celui-ci.
+
+    ⚠️ Ce qu'il ne tient PAS : un DSN composé dans une VARIABLE puis déballé
+    (`kw = {"host": …}; connect(**kw)`). La forme n'existe pas aujourd'hui dans ce
+    dépôt ; `_lit_une_variable` l'attraperait si elle lisait un nom connu, et rien
+    sinon.
+    """
+    kw_dsn = {"host", "port", "dbname", "database", "user", "password"}
+    for n in ast.walk(tree):
+        if not isinstance(n, ast.Call):
+            continue
+        f = n.func
+        if not (getattr(f, "attr", None) == "connect"
+                and getattr(getattr(f, "value", None), "id", None) == "psycopg2"):
+            continue
+        if {k.arg for k in n.keywords if k.arg} & kw_dsn:
+            return True
+    return False
 
 
 def _lit_une_variable(node) -> bool:

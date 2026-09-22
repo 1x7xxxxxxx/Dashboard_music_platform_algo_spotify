@@ -25,10 +25,52 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R157 | La grille de fraîcheur de l'accueil lit la date d'ÉCRITURE | P2 | `MAX(col)` contre `MAX(metric_col)` par source — **Meta : 720 jours d'écart**, SACEM : 65 |
+| R158 | `activation.py` compte la livraison sur `rows_inserted > 0` | P3 | rejouer en PRODUCTION la paire (artiste, plateforme) dont tous les succès portent 0 ligne |
+| R159 | Deux résidus de `home_tiles.py` laissés en connaissance de cause | P4 | le commentaire ligne ~290 et le bloc indenté ligne ~362 relus, corrigés ou expliqués |
 
-**Cet index est VIDE le 2026-09-22 au soir.** Les sept lignes ouvertes le matin même —
-R146 à R152, nées des dix livres ingérés ce jour-là — sont sorties par deux portes
-différentes, et la distinction est le résultat de la séance :
+**Cet index porte TROIS lignes le 2026-09-22 au soir**, toutes nées d'une mesure prise
+ce jour-là et aucune d'une intuition. Il était vide à midi ; les trois sont entrées par
+le travail de l'après-midi, et deux d'entre elles avaient été **délibérément laissées de
+côté** dans le plan de l'accueil — « porté en roadmap, pas dans ce commit ». C'est ici
+qu'elles atterrissent, plutôt que dans une ligne d'historique que personne ne relit.
+
+⚠️ **R157 est la plus lourde, et sa correction a un coût VISIBLE.** La grille de
+l'accueil demande au registre la colonne `col` — la date à laquelle la ligne a été
+ÉCRITE — jamais `metric_col`, la date dont la donnée PARLE. Mesuré en base le
+2026-09-22, par source :
+
+| source | écriture | mesure | écart |
+|---|---|---|---|
+| **Meta Ads** | 2026-09-20 | **2024-09-30** | **720 j** |
+| SACEM | 2026-06-11 | 2026-04-07 | 65 j |
+| Spotify S4A · Hypeddit | — | — | 1 j |
+| Apple Music | — | — | 0 j |
+
+Le DAG Meta réécrit chaque matin des lignes de 2024 : la tuile dit « à jour » pendant
+que la dernière donnée réelle a deux ans. **Corriger la lecture fait virer la tuile Meta
+au rouge pour TOUS les artistes** — ce n'est pas une régression, c'est la vérité qui
+apparaît, mais c'est un changement d'écran qui se décide, pas qui se glisse. La
+supervision admin, elle, lit DÉJÀ la bonne colonne depuis R154
+(`_supervision_freshness` appelle `colonne_de_mesure`, gardé par
+`test_a_freshness_surface_reads_the_measurement_date`) : les deux surfaces répondent
+donc aujourd'hui différemment à la même question.
+
+⚠️ **R158 porte une prémisse que je n'ai PAS pu reproduire, et la ligne le dit.** Le
+matin du 2026-09-22, en production, `rows_inserted` mentait dans les deux sens —
+Benken/YouTube : 32 exécutions `success` à 0 ligne alors que 95 jours sont en base ;
+GRiNCH/SoundCloud : 31 `success` et 0 ligne. Rejoué l'après-midi sur la base LOCALE :
+**zéro paire** (artiste, plateforme) dont tous les succès portent 0 ligne. Les deux bases
+ne portent pas la même population — 4 673 `artist_id` distincts localement, dont la
+plupart sont des identifiants de plateforme et non des locataires. La ligne est donc
+ouverte avec sa mesure d'origine ET son non-rejeu, plutôt que d'affirmer en local ce qui
+a été vu ailleurs.
+
+---
+
+Les sept lignes ouvertes le matin du 2026-09-22 — R146 à R152, nées des dix livres
+ingérés ce jour-là — sont sorties par deux portes différentes, et la distinction est le
+résultat de la matinée :
 
 | | sortie | ce qui l'a tranchée |
 |---|---|---|
@@ -141,11 +183,27 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-22 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R148,R150,R151,R153 -->
+<!-- reprise: open=R148,R150,R151,R153,R157,R158,R159 -->
 
-**Sept lignes ouvertes le matin du 2026-09-22, trois le soir.** Quatre sont closes :
-R146, R147, R149, R152. Les trois autres ont migré dans la table des gestes humains
-plus bas. L'index actionnable est **vide**.
+**Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
+ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers
+la table des gestes humains (R148, R150, R151, R153), et **trois entrées l'après-midi**
+(R157, R158, R159), chacune née d'une mesure prise ce jour-là.
+
+**Trois unités livrées et poussées l'après-midi**, toutes trois dans `archive.md` :
+
+| unité | ce qu'elle a fait | le chiffre |
+|---|---|---|
+| **R154** `1e092ad` | cinq listes des mêmes tables repliées sur `src/utils/source_registry.py` | 8 requêtes pliées, 7 → 10 cibles surveillées |
+| **R155** `10a1d61` | dix écrans d'administration en **six sections**, sélecteur paresseux | la section des comptes : **23 requêtes → 1** |
+| **R156** | les trois trous de balayage du catalogue d'erreurs, fermés | **411/411 verdicts lisibles, 0 muet, 0 jamais balayée** |
+
+**Par où reprendre** : R157 est la seule P2 de l'index, et c'est la plus utile — la
+grille de fraîcheur de l'accueil dit « Meta à jour » avec **720 jours** de retard réel,
+pendant que la supervision admin lit déjà la bonne colonne depuis R154. Deux surfaces
+qui répondent différemment à la même question. ⚠️ Sa correction fait virer une tuile au
+rouge pour tous les artistes : c'est la vérité qui apparaît, mais c'est un changement
+d'écran qui se décide.
 
 **Le P2 est livré.** R146 : la conversion CAPI d'Hypeddit se déclenche quand l'auditeur
 QUITTE le smart link, pas quand il écoute. Le balayage a trouvé **seize grappes de
