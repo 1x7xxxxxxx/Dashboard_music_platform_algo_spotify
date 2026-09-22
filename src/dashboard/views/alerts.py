@@ -14,7 +14,8 @@ from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.kpi_helpers import (
-    get_source_freshness, freshness_status,
+    ETAT_PERIME, ETATS_A_TRAITER,
+    get_source_freshness, freshness_state, freshness_status,
 )
 from src.dashboard.utils.date_format import format_date
 
@@ -86,21 +87,49 @@ def _section_circuit_breakers(db, artist_id) -> int:
 # ── Section 2: Data freshness ─────────────────────────────────────
 
 def _section_freshness_alerts(db, artist_id) -> int:
-    """Returns count of stale (orange/red) sources."""
+    """Les sources qui appellent un geste. Rend leur nombre.
+
+    ⚠️ CETTE LISTE NE POUVAIT **JAMAIS** SE REMPLIR, et un écran vide se lit comme
+    « tout va bien ». Le filtre comparait la COULEUR rendue :
+
+        freshness_status(info['last_dt'])[1] in ('#e74c3c', '#f39c12')
+
+    `freshness_status` rend `#1DB954`, `#FFA500` et `#FF4444`. **L'intersection est
+    vide** — vérifiée le 2026-09-22 — donc `stale` valait `[]` en toute circonstance et
+    la vue affichait « ✅ All data sources are fresh » sur un catalogue dont la moitié
+    des sources sont périmées depuis des mois.
+
+    Un verdict ne se lit pas dans sa PRÉSENTATION. Une couleur est ce qu'on dessine ;
+    l'état est ce qu'on mesure, et c'est lui qui se compare. `freshness_state` le nomme,
+    et `ETATS_A_TRAITER` dit lesquels appellent un geste — aucun appelant ne réécrit
+    cette liste.
+
+    ⚠️ Et le verdict porte sur la date de MESURE, pas d'écriture : Meta affichait 722
+    jours d'écart entre les deux en production le même jour (R157).
+    """
     freshness = get_source_freshness(db, artist_id)
+
+    # Une lecture qui a ÉCHOUÉ n'est pas un catalogue frais. `lu` vaut False quand la
+    # requête est tombée ; sans ce test, la panne se lirait « ✅ tout est frais ».
+    if not all(info.get("lu", True) for info in freshness.values()):
+        st.warning(t("alerts.freshness_unreadable",
+                     "⚠️ Impossible de lire la fraîcheur des sources — ce n'est pas "
+                     "« tout va bien », c'est « on ne sait pas »."))
+        return 0
+
     stale = [
         (label, info)
         for label, info in freshness.items()
-        if freshness_status(info['last_dt'])[1] in ('#e74c3c', '#f39c12')
+        if freshness_state(info.get("mesure_dt")) in ETATS_A_TRAITER
     ]
     if not stale:
         st.success(t("alerts.sources_all_fresh", "✅ All data sources are fresh."))
         return 0
 
     for label, info in stale:
-        emoji, color, age_label = freshness_status(info['last_dt'])
-        date_str = info['last_dt'].strftime("%d/%m %H:%M") if info['last_dt'] else "never"
-        icon = "🔴" if color == '#e74c3c' else "🟡"
+        emoji, color, age_label = freshness_status(info.get("mesure_dt"))
+        date_str = format_date(info.get("mesure_dt"), vide="never")
+        icon = "🔴" if freshness_state(info.get("mesure_dt")) == ETAT_PERIME else "🟡"
         st.markdown(
             f"{icon} **{_html.escape(label)}** — "
             + t(

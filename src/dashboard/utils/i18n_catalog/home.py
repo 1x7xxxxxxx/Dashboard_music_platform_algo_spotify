@@ -179,6 +179,16 @@ EN = {
         "numbers:"),
     "home.absence_repli": "See the {n} sources to connect, one by one",
     # ── Ce que la publicité a appris (`views/home_meta_advice.py`, 2026-09-22) ──
+    # R157 : la tuile montre la date de MESURE ; quand la date d'ÉCRITURE rend un
+    # verdict DIFFÉRENT sur le même barème, on nomme l'écart. Aucun seuil neuf.
+    "home.freshness_written": "collected {d}",
+    # Les libellés d'âge de `freshness_status`. Ils étaient en dur, donc ils
+    # sortaient en français dans un PDF anglais envoyé par mail (R157).
+    "freshness.no_data": "No data",
+    "freshness.hours_ago": "{n}h ago",
+    "freshness.days_ago": "{n}d ago",
+    "alerts.freshness_unreadable": (
+        "\u26a0\ufe0f Could not read source freshness \u2014 this is not \u00ab all good \u00bb, it is \u00ab we do not know \u00bb."),
     "home.advice_header": "\U0001F4F1 What your advertising has learned",
     "home.advice_spend": "Over the period you spent **{depense} \u20ac** on advertising.",
     "home.advice_best": (

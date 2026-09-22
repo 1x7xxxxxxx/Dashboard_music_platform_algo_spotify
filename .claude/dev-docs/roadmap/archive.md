@@ -9,6 +9,98 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🩺 R157 — Un verdict de fraîcheur porte sur la date que la donnée porte (livrée 2026-09-22)
+
+- [x] **R157 — la grille de fraîcheur lisait la date d'ÉCRITURE : Meta affichait « 🟢 il y a 0h » avec 722 jours de retard réel.** (P2)
+
+### DEUX défauts, pas un — et le second ne pouvait jamais se déclencher
+
+**1. La mauvaise COLONNE.** La grille lisait `col`, la date d'écriture.
+
+| source | écriture | mesure | écart |
+|---|---|---|---|
+| **Meta Ads** | 2026-09-20 | **2024-09-30** | **722 jours** |
+| SACEM | 2026-06-11 | 2026-04-07 | 65 jours |
+| S4A · Hypeddit | — | — | 1 jour |
+| Apple Music | — | — | 0 jour |
+
+Le DAG Meta réécrit chaque matin les mêmes lignes de 2024, donc la tuile affichait
+« 🟢 il y a 0h » **et la date d'aujourd'hui** : la couleur et la date mentaient
+**ensemble**, ce qui est pire qu'une seule des deux. La supervision admin lisait la bonne
+colonne depuis R154 — deux surfaces répondaient différemment à la même question.
+
+**2. La mauvaise REPRÉSENTATION, trouvée en passant.** `alerts.py` sélectionnait les
+sources à traiter ainsi :
+
+    if freshness_status(info['last_dt'])[1] in ('#e74c3c', '#f39c12')
+
+`freshness_status` rend `#1DB954`, `#FFA500`, `#FF4444`. **L'intersection est VIDE** —
+vérifiée par exécution le 2026-09-22. La liste « sources périmées » ne pouvait donc
+**JAMAIS** se remplir, et l'écran affichait « ✅ All data sources are fresh » sur un
+catalogue dont la moitié dort depuis des mois. Un verdict ne se lit pas dans sa
+présentation : la couleur est ce qu'on DESSINE, l'état est ce qu'on MESURE.
+
+### Ce qui a changé
+
+`freshness_state()` nomme les quatre états (`inconnu` / `frais` / `attention` / `perime`)
+et `ETATS_A_TRAITER` dit lesquels appellent un geste — **un seul barème, deux lectures** :
+`freshness_status` en dérive sa couleur. `freshness_status` continue de rendre TROIS
+éléments, parce que quatre appelants dépaquettent ce triplet.
+
+`get_source_freshness` rend désormais `last_dt`, `mesure_dt`, `ecart_j` et `lu`, **pour
+une seule requête** — deux colonnes de plus par branche du `UNION ALL`, pas une branche de
+plus. La colonne de mesure vient de `colonne_de_mesure()`, le registre de R154, jamais
+d'une seconde déclaration.
+
+**Un échec ne se déguise plus en absence.** La fonction faisait `except Exception: pass`
+et rendait toutes les dates à `None` — indistinguable d'un locataire sans données. `lu`
+vaut `False` sur une lecture ratée, et la vue Alertes dit « on ne sait pas » au lieu de
+« ✅ tout est frais ».
+
+### Le rendu, choisi puis REGARDÉ
+
+    🔴 722j · 30/09/2024 · chaque jour à 05:00 · collecte du 20/09/2026
+
+La tuile porte la date de la DONNÉE, et une quatrième ligne nomme la collecte quand elle
+diverge. ⚠️ **Aucun seuil neuf pour décider quand le dire** : on le dit quand les deux
+dates ne rendent pas le même verdict sur le barème qui existe déjà. Mesuré sur les dix
+sources — la règle parle pour Meta (722 j, `attention` → `perime`) et Hypeddit (1 j,
+`frais` → `attention`), et se **taît** sur SACEM (65 j, `perime` des deux côtés : l'écart
+ne change pas le geste). Un seuil en jours aurait demandé une distribution ; il n'y en a
+pas — dix sources, six valeurs. Le barème, lui, est déjà calibré.
+
+### Deux défauts voisins corrigés au passage
+
+* **Les libellés d'âge n'étaient pas traduits.** « Il y a 722j » et « Pas de données »
+  étaient en dur, donc ils sortaient en français sur un écran anglais **et dans un rapport
+  PDF anglais envoyé par mail** — `_render_freshness` reprend ce libellé tel quel. Trouvé
+  en REGARDANT les deux rendus, pas en relisant le code.
+* **L'en-tête du PDF disait « Dernière collecte »** — honnête pour l'ancienne lecture,
+  faux pour la nouvelle. Devenu « Dernière donnée ». J'ai d'abord voulu GARDER l'ancienne
+  clé de traduction « pour les rapports déjà envoyés » ; `test_no_orphan_en_keys` a refusé,
+  et il avait raison : un PDF envoyé est un fichier statique, il ne consulte aucun
+  catalogue.
+* `_freshness_badge` (code mort, 13 lignes) supprimée.
+
+### Le garde
+
+`tests/test_a_freshness_verdict_reads_the_date_the_data_carries.py`, 13 tests. Il lit
+l'**argument** de chaque appel par l'AST — les trois fichiers nomment `last_dt` une
+dizaine de fois dans leurs commentaires pour expliquer pourquoi il est parti, et un
+prédicat textuel rougirait sur sa propre explication.
+
+Muté **quatre fois**, quatre rouges : le verdict revenu sur `last_dt` ; `alerts` qui
+redécide par la couleur ; l'échec redevenu une absence ; deux états rendant la même
+couleur (ce qui viderait de sens le garde des couleurs).
+
+⚠️ **Mon propre test d'échec lisait le SUCCÈS du test précédent.**
+`get_source_freshness` est décorée `@st.cache_data` et son premier paramètre s'appelle
+`_db` — le tiret bas le SORT de la clé de cache, donc trois faux clients de base avec le
+même `artist_id` partagent un seul résultat. Le cache n'était pas en cause, ma clé
+l'était : un `artist_id` distinct par cas.
+
+---
+
 ## 🌍 R160 — Une date qui ne se lit pas à l'envers (livrée 2026-09-22)
 
 - [x] **R160 — `%d/%m/%Y` sur 49 sites, et en mode anglais `04/03/2025` se lit « 3 avril » au lieu de « 4 mars ».** (P3)

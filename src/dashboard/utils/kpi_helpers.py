@@ -71,7 +71,8 @@ _CSV_WARN_H = 24 * 30        # un mois sans dépôt — là, la donnée est vrai
 # Ré-EXPORTÉE, plus définie ici : `src/api/` ne peut pas importer ce module (il
 # tire `streamlit`), et c'est pour ça que la constante existait en cinq copies.
 from src.utils.artist_name_filter import ARTIST_NAME_FILTER  # noqa: E402,F401
-from src.utils.source_registry import PAR_CLE, table_et_colonne  # noqa: E402
+from src.utils.source_registry import (
+    PAR_CLE, colonne_de_mesure, table_et_colonne)  # noqa: E402
 
 
 def _t(cle: str, defaut: str) -> str:
@@ -249,16 +250,51 @@ SOURCES_CONFIG = [
 # Allowlists — protect f-string identifier interpolation in get_source_freshness()
 _ALLOWED_TABLES     = frozenset(s["table"]      for s in SOURCES_CONFIG)
 _ALLOWED_COLS       = frozenset(s["col"]        for s in SOURCES_CONFIG)
+#: Les colonnes de MESURE, dérivées du registre — jamais une seconde liste.
+_ALLOWED_MESURE_COLS = frozenset(colonne_de_mesure(s["label"])
+                                 for s in SOURCES_CONFIG)
 _ALLOWED_ARTIST_COLS = frozenset(s["artist_col"] for s in SOURCES_CONFIG if s.get("artist_col"))
 _ALLOWED_ARTIST_FILTERS = frozenset(s["artist_filter"] for s in SOURCES_CONFIG if s.get("artist_filter"))
 
 
 @st.cache_data(ttl=_KPI_TTL)
 def get_source_freshness(_db, artist_id):
-    """Return {label: {icon, last_dt}} for each source in a single UNION ALL query.
+    """{label: {icon, last_dt, mesure_dt, ecart_j, lu}} — une seule requête.
 
-    Replaces 7 sequential SELECT MAX() calls with one round-trip.
-    Identifiers are validated against allowlists before interpolation.
+    DEUX DATES, PARCE QU'UNE SEULE MENTAIT
+    ---------------------------------------
+    `last_dt` est la date d'ÉCRITURE (`col`) : quand la ligne a été posée.
+    `mesure_dt` est la date de MESURE (`metric_col`, sinon `col`) : de quand la donnée
+    PARLE. Le verdict se calcule sur la seconde.
+
+    ⚠️ Mesuré en production le 2026-09-22, et l'écart n'est pas théorique :
+
+        source          écriture      mesure        écart
+        Meta Ads        2026-09-20    2024-09-30    **722 jours**
+        SACEM           2026-06-11    2026-04-07    65 jours
+        S4A, Hypeddit   —             —             1 jour
+        Apple Music     —             —             0 jour
+
+    Le DAG Meta réécrit chaque matin les mêmes lignes de 2024 : la tuile affichait
+    « 🟢 il y a 0h » **et** la date d'aujourd'hui, donc la couleur et la date mentaient
+    ensemble. La supervision admin lit la bonne colonne depuis R154 — deux surfaces
+    répondaient différemment à la même question.
+
+    `ecart_j` est la différence en jours. Elle porte le DIAGNOSTIC, que ni l'une ni
+    l'autre date ne donne seule : un écart large veut dire « la collecte tourne et la
+    donnée est vieille », ce qui n'est pas « la collecte est en panne ».
+
+    UN ÉCHEC NE SE DÉGUISE PLUS EN ABSENCE
+    ---------------------------------------
+    ⚠️ Cette fonction faisait `except Exception: pass` et rendait toutes les dates à
+    `None` — indistinguable de « ce locataire n'a aucune donnée ». C'est exactement ce
+    que `.claude/rules/python.md` interdit : « une lecture qui échoue ne se déguise pas
+    en rien à lire ». `lu` vaut `False` quand la requête a échoué, et les surfaces
+    peuvent alors dire « on n'a pas pu lire » au lieu de « il n'y a rien ».
+
+    Les identifiants sont validés contre des allowlists dérivées du registre avant
+    interpolation (règle transverse 8). Le coût reste UNE requête : deux colonnes de
+    plus par branche du `UNION ALL`, pas une branche de plus.
     """
     db = _db
     # Validate all identifiers against allowlists before building the query
@@ -273,47 +309,109 @@ def get_source_freshness(_db, artist_id):
         if src.get("artist_filter") and src["artist_filter"] not in _ALLOWED_ARTIST_FILTERS:
             raise ValueError(f"Artist filter not in allowlist: {src['artist_filter']}")
 
+    # ⚠️ La colonne de MESURE vient du REGISTRE, pas d'une seconde déclaration ici.
+    # `colonne_de_mesure` rend `metric_col` quand la table en porte une, sinon `col` —
+    # une table dont la date d'écriture EST la date de mesure (un instantané) n'a rien
+    # à déclarer, et la fonction le dit à sa place.
+    mesures = {src["label"]: colonne_de_mesure(src["label"]) for src in SOURCES_CONFIG}
+    for label, mcol in mesures.items():
+        if mcol not in _ALLOWED_MESURE_COLS:
+            raise ValueError(f"Measurement column not in allowlist: {mcol} ({label})")
+
     branches = []
     params = []
     for src in SOURCES_CONFIG:
+        mcol = mesures[src["label"]]
+        colonnes = (f"SELECT '{src['label']}' AS label, MAX({src['col']}) AS last_dt,"
+                    f" MAX({mcol}) AS mesure_dt")
         custom_filter = src.get("artist_filter")
         if artist_id is not None and custom_filter:
-            branches.append(
-                f"SELECT '{src['label']}' AS label, MAX({src['col']}) AS last_dt"
-                f" FROM {src['table']} WHERE {custom_filter}"
-            )
+            branches.append(f"{colonnes} FROM {src['table']} WHERE {custom_filter}")
             params.append(artist_id)
         elif artist_id is not None and not src.get("skip_artist_filter"):
-            branches.append(
-                f"SELECT '{src['label']}' AS label, MAX({src['col']}) AS last_dt"
-                f" FROM {src['table']} WHERE {src['artist_col']} = %s"
-            )
+            branches.append(f"{colonnes} FROM {src['table']}"
+                            f" WHERE {src['artist_col']} = %s")
             params.append(artist_id)
         else:
-            branches.append(
-                f"SELECT '{src['label']}' AS label, MAX({src['col']}) AS last_dt"
-                f" FROM {src['table']}"
-            )
+            branches.append(f"{colonnes} FROM {src['table']}")
     query = " UNION ALL ".join(branches)
     params = tuple(params)
 
     label_to_icon = {src["label"]: src["icon"] for src in SOURCES_CONFIG}
-    result = {src["label"]: {"icon": src["icon"], "last_dt": None} for src in SOURCES_CONFIG}
+    result = {src["label"]: {"icon": src["icon"], "last_dt": None, "mesure_dt": None,
+                            "ecart_j": None, "lu": True}
+              for src in SOURCES_CONFIG}
+
+    def _dt(v):
+        if v is None or isinstance(v, datetime):
+            return v
+        return datetime(v.year, v.month, v.day, 0, 0, 0)
 
     try:
         rows = db.fetch_query(query, params) if params else db.fetch_query(query)
-        for label, val in rows:
-            if val is not None and not isinstance(val, datetime):
-                val = datetime(val.year, val.month, val.day, 0, 0, 0)
-            result[label] = {"icon": label_to_icon.get(label, ""), "last_dt": val}
-    except Exception:
-        pass  # return defaults (all None) on failure
+    except Exception as e:      # noqa: BLE001 — la grille se rend sans les dates
+        # ⚠️ ON LE DIT, on ne rend plus des `None` muets. `lu=False` est « on n'a pas
+        # pu lire » ; `last_dt=None` avec `lu=True` est « il n'y a rien ». Les deux se
+        # ressemblaient jusqu'au 2026-09-22 et n'appellent pas le même geste.
+        logger.warning("source freshness unreadable: %s", type(e).__name__)
+        for info in result.values():
+            info["lu"] = False
+        return result
+
+    for label, ecrit, mesure in rows:
+        ecrit, mesure = _dt(ecrit), _dt(mesure)
+        ecart = None
+        if ecrit is not None and mesure is not None:
+            ecart = (ecrit.date() - mesure.date()).days
+        result[label] = {"icon": label_to_icon.get(label, ""), "last_dt": ecrit,
+                         "mesure_dt": mesure, "ecart_j": ecart, "lu": True}
 
     return result
 
 
+#: Les quatre états d'une source. ILS SONT NOMMÉS, et c'est un correctif.
+#:
+#: ⚠️ `alerts.py` cherchait les sources périmées en comparant la COULEUR rendue :
+#: `if freshness_status(...)[1] in ('#e74c3c', '#f39c12')`. Les couleurs rendues sont
+#: `#1DB954`, `#FFA500` et `#FF4444` — **l'intersection est VIDE**, mesurée le
+#: 2026-09-22. La liste « sources périmées » de la vue Alertes ne pouvait donc JAMAIS
+#: se remplir, et un écran vide se lit comme « tout va bien ».
+#:
+#: Un verdict ne se lit pas dans sa présentation. Une couleur est ce qu'on DESSINE ;
+#: l'état est ce qu'on MESURE, et c'est lui qui se compare.
+ETAT_INCONNU, ETAT_FRAIS, ETAT_ATTENTION, ETAT_PERIME = (
+    "inconnu", "frais", "attention", "perime")
+
+#: Les états qui appellent un geste. Nommé pour qu'aucun appelant ne réécrive la liste.
+ETATS_A_TRAITER = frozenset({ETAT_ATTENTION, ETAT_PERIME})
+
+
+def freshness_state(last_dt, kind: str = "api") -> str:
+    """L'ÉTAT d'une source — la seule grandeur qui se compare.
+
+    `freshness_status` en dérive sa couleur et son libellé : un seul barème, deux
+    lectures. Les seuils vivent ici et nulle part ailleurs.
+    """
+    if last_dt is None:
+        return ETAT_INCONNU
+    from datetime import timezone as _tz
+    _now = datetime.now(_tz.utc)
+    _ref = last_dt if last_dt.tzinfo is not None else last_dt.replace(tzinfo=_tz.utc)
+    age_h = (_now - _ref).total_seconds() / 3600
+    _fresh, _warn = ((_CSV_FRESH_H, _CSV_WARN_H) if kind == "csv"
+                     else (_FRESH_H, _WARN_H))
+    if age_h < _fresh:
+        return ETAT_FRAIS
+    if age_h < _warn:
+        return ETAT_ATTENTION
+    return ETAT_PERIME
+
+
 def freshness_status(last_dt, kind: str = "api"):
     """(emoji, couleur, libellé) selon l'âge de `last_dt` ET la nature de la source.
+
+    ⚠️ Rend TROIS éléments, et continuera : quatre appelants dépaquettent ce triplet.
+    Pour comparer un verdict, utiliser `freshness_state` — jamais la couleur.
 
     `kind` vient de `SOURCES_CONFIG` et vaut `"api"` ou `"csv"`. Il ne change pas la
     mesure, il change le BARÈME : une API muette depuis trois jours est en panne, un
@@ -334,23 +432,24 @@ def freshness_status(last_dt, kind: str = "api"):
     On compare donc deux instants du même référentiel : l'heure courante en UTC contre
     un horodatage qu'on déclare UTC, ce qu'il est.
     """
-    if last_dt is None:
-        return "⚫", "#888888", "Pas de données"
+    etat = freshness_state(last_dt, kind)
+    if etat == ETAT_INCONNU:
+        return "⚫", "#888888", _t("freshness.no_data", "Pas de données")
     from datetime import timezone as _tz
     _now = datetime.now(_tz.utc)
     _ref = last_dt if last_dt.tzinfo is not None else last_dt.replace(tzinfo=_tz.utc)
     age_h = (_now - _ref).total_seconds() / 3600
-    _fresh, _warn = ((_CSV_FRESH_H, _CSV_WARN_H) if kind == "csv"
-                     else (_FRESH_H, _WARN_H))
-    if age_h < _fresh:
-        return "🟢", "#1DB954", (f"Il y a {int(age_h)}h" if age_h < 24
-                                 else f"Il y a {int(age_h / 24)}j")
-    elif age_h < _warn:
-        days = int(age_h / 24)
-        return "🟠", "#FFA500", f"Il y a {days}j"
-    else:
-        days = int(age_h / 24)
-        return "🔴", "#FF4444", f"Il y a {days}j"
+    # ⚠️ TRADUITS. « Il y a 722j » et « Pas de données » étaient en dur, donc ils
+    # sortaient en français sur un écran anglais ET dans un rapport PDF anglais —
+    # `_render_freshness` reprend ce libellé tel quel, et ce document part par mail.
+    # Trouvé le 2026-09-22 en REGARDANT les deux rendus, pas en relisant le code.
+    age = (_t("freshness.hours_ago", "Il y a {n}h").format(n=int(age_h)) if age_h < 24
+           else _t("freshness.days_ago", "Il y a {n}j").format(n=int(age_h / 24)))
+    if etat == ETAT_FRAIS:
+        return "🟢", "#1DB954", age
+    if etat == ETAT_ATTENTION:
+        return "🟠", "#FFA500", age
+    return "🔴", "#FF4444", age
 
 
 # ─── KPI Streams ────────────────────────────────────────────────────────────

@@ -14,7 +14,7 @@ from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.status_matrix import render_status_matrix
 from src.dashboard.utils.airflow_monitor import AirflowMonitor, cached_last_run_per_dag
 from src.dashboard.utils.kpi_helpers import (
-    get_source_freshness, freshness_status,
+    get_source_freshness, freshness_state, freshness_status,
     SOURCES_CONFIG,
 )
 from src.dashboard.utils.date_format import format_date
@@ -31,21 +31,6 @@ from src.dashboard.utils.date_format import format_date
 _DAY_UNTIL_YEAR = 360
 # Au-delà de ce nombre de points, une courbe devient une bande. ~5 ans au pas mois.
 _MAX_BUCKETS = 60
-
-
-def _freshness_badge(label, icon, last_dt):
-    """Génère une carte de fraîcheur HTML."""
-    emoji, color, age_label = freshness_status(last_dt)
-    date_str = last_dt.strftime("%d/%m %H:%M") if last_dt else "—"
-    return f"""
-    <div style="border:1px solid {color}; border-radius:8px; padding:8px 12px;
-                background:{color}18; text-align:center; min-width:110px;">
-        <div style="font-size:1.3em;">{icon}</div>
-        <div style="font-weight:600; font-size:0.85em;">{label}</div>
-        <div style="font-size:0.75em; color:{color};">{emoji} {age_label}</div>
-        <div style="font-size:0.65em; color:#888;">{date_str}</div>
-    </div>
-    """
 
 
 def _section_freshness(db, artist_id, etat=None):
@@ -120,9 +105,12 @@ def _section_freshness(db, artist_id, etat=None):
     for kind, title in groups:
         # Seules les sources qui ONT une mesure : les autres sont traitées au-dessus,
         # avec leur geste. Une tuile à « — » répétait l'absence sans rien en dire.
+        # ⚠️ `mesure_dt` ET NON `last_dt` : la présence se juge sur la date que la
+        # donnée PORTE, pas sur celle où on l'a écrite. Une table que le DAG réécrit
+        # chaque matin a toujours une date d'écriture.
         labels = [lbl for lbl in freshness
                   if meta.get(lbl, {}).get("kind") == kind
-                  and freshness[lbl]["last_dt"] is not None]
+                  and freshness[lbl].get("mesure_dt") is not None]
         if not labels:
             continue
         st.markdown(f"**{title}**")
@@ -131,11 +119,42 @@ def _section_freshness(db, artist_id, etat=None):
             info = freshness[label]
             # Le BARÈME suit le contrat de la source : un CSV non redéposé
             # depuis trois jours n'est pas une panne, une API muette si.
-            emoji, color, age_label = freshness_status(info["last_dt"], kind)
-            date_str = info["last_dt"].strftime("%d/%m %H:%M") if info["last_dt"] else "—"
+            # ── LE VERDICT SE CALCULE SUR LA DATE DE MESURE ────────────────────
+            #
+            # ⚠️ Il se calculait sur `last_dt`, la date d'ÉCRITURE. Mesuré en
+            # production le 2026-09-22 : `meta_insights_performance_day` porte un
+            # `MAX(collected_at)` du jour même et un `MAX(day_date)` au **2024-09-30**
+            # — **722 jours**. La tuile affichait « 🟢 il y a 0h » ET la date
+            # d'aujourd'hui : la couleur et la date mentaient ENSEMBLE, ce qui est pire
+            # qu'une seule des deux. La supervision admin lit la bonne colonne depuis
+            # R154 : deux surfaces répondaient différemment à la même question.
+            _mesure = info.get("mesure_dt")
+            emoji, color, age_label = freshness_status(_mesure, kind)
+            date_str = format_date(_mesure)
             at = meta.get(label, {}).get("at")
             when = (t("home.freshness_every_day", "chaque jour à {h}").format(h=at)
                     if at else t("home.freshness_on_upload", "à chaque import"))
+
+            # ── QUAND DIRE QUE LES DEUX DATES DIVERGENT ────────────────────────
+            #
+            # ⚠️ AUCUN SEUIL NEUF, et c'est le point. On le dit quand les deux dates
+            # ne rendent pas le MÊME VERDICT sur le barème qui existe déjà. Un écart
+            # d'un jour est normal — un export quotidien décrit la veille — et il ne
+            # change aucun verdict, donc il reste muet. Mesuré le 2026-09-22 sur les
+            # dix sources : cette règle parle pour Meta (720 j, `attention` →
+            # `perime`) et Hypeddit (1 j, `frais` → `attention`), et se taît sur SACEM
+            # (65 j, `perime` des deux côtés — l'écart ne change pas le geste).
+            #
+            # Un seuil en jours aurait demandé une distribution ; il n'y en a pas
+            # (dix sources, six valeurs). Le barème, lui, est déjà calibré.
+            _ecrit = info.get("last_dt")
+            _divergence = ""
+            if _ecrit is not None and _mesure is not None and (
+                    freshness_state(_ecrit, kind) != freshness_state(_mesure, kind)):
+                _divergence = (
+                    f'<div style="font-size:0.6em; color:#c77; margin-top:2px;">'
+                    f'{_html.escape(t("home.freshness_written", "collecte du {d}").format(d=format_date(_ecrit)))}'
+                    f'</div>')
             with col:
                 # HIGH-07: html.escape() on all interpolated values — defence-in-depth
                 # against stored XSS if a DB-sourced value ever reaches these variables.
@@ -147,6 +166,7 @@ def _section_freshness(db, artist_id, etat=None):
                         <div style="font-size:0.75em; color:{_html.escape(color)};">{_html.escape(emoji)} {_html.escape(age_label)}</div>
                         <div style="font-size:0.65em; color:#888;">{_html.escape(date_str)}</div>
                         <div style="font-size:0.62em; color:#999; margin-top:2px;">{_html.escape(when)}</div>
+                        {_divergence}
                     </div>""",
                     unsafe_allow_html=True
                 )

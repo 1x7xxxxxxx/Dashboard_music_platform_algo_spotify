@@ -65,9 +65,19 @@ def _kpi_grid(cards_html):
 
 
 def _render_freshness(freshness):
+    """Le tableau de fraîcheur du rapport.
+
+    ⚠️ Il lisait `last_dt`, la date d'ÉCRITURE. Meta y sortait vert avec 722 jours de
+    retard réel (R157, mesuré en production le 2026-09-22) — et ce document part par
+    MAIL, donc il est lu loin de toute possibilité de vérifier. Le verdict porte
+    désormais sur `mesure_dt`, la date dont la donnée parle.
+
+    L'en-tête de colonne suit : « Dernière collecte » décrivait honnêtement l'ancienne
+    lecture et décrirait mal la nouvelle.
+    """
     rows = []
     for label, info in freshness.items():
-        _, color, age_label = _pkg.freshness_status(info['last_dt'])
+        _, color, age_label = _pkg.freshness_status(info.get('mesure_dt'))
         # `info['icon']` est une icône d'interface : invisible dans le document, elle
         # ne laissait qu'une espace avant le nom de la source.
         rows.append(
@@ -75,7 +85,7 @@ def _render_freshness(freshness):
             f"<td>{_badge(color, age_label)}</td></tr>"
         )
     _h_source = _t("pdf.col.source", "Source")
-    _h_last = _t("pdf.col.last_collect", "Dernière collecte")
+    _h_last = _t("pdf.col.last_data", "Dernière donnée")
     return f"""<table class="compact">
       <thead><tr><th>{_h_source}</th><th>{_h_last}</th></tr></thead>
       <tbody>{''.join(rows)}</tbody></table>"""

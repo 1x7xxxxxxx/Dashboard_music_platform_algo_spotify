@@ -92,7 +92,15 @@ EN = {
 
     # ── Table headers ──
     "pdf.col.source": "Source",
-    "pdf.col.last_collect": "Last collection",
+    # ── R157 (2026-09-22) : la colonne dit la dernière DONNÉE, pas la dernière
+    #    collecte. Meta y sortait vert avec 722 jours de retard réel, parce que le DAG
+    #    réécrit chaque matin les mêmes lignes de 2024.
+    #
+    #    ⚠️ `pdf.col.last_collect` a été RETIRÉE, et j'avais d'abord voulu la garder
+    #    « pour les rapports déjà envoyés ». `test_no_orphan_en_keys` a refusé, et il
+    #    avait raison : un PDF envoyé est un fichier STATIQUE, il ne consulte aucun
+    #    catalogue. Une clé gardée pour un lecteur qui n'existe pas est une ligne morte.
+    "pdf.col.last_data": "Last data",
     "pdf.col.song": "Song",
     "pdf.col.title": "Title",
     # R55 — le taux de trigger d'UN titre : ses 30 premiers jours vs aujourd'hui.
