@@ -42,6 +42,8 @@ ici serait exactement le défaut que ce module-là existe pour refuser : conseil
 """
 from __future__ import annotations
 
+from datetime import date
+
 import streamlit as st
 
 from src.dashboard.utils.i18n import t
@@ -221,6 +223,74 @@ def _bloc_axes(side: dict) -> None:
             st.markdown(_phrase_ecart(e))
 
 
+def _ligne_activite(side: dict) -> None:
+    """Ce que la lecture a RAMENÉ, et depuis quand plus rien ne tourne.
+
+    ⚠️ TROIS ÉTATS, ET ILS NE SE CONFONDENT PAS. C'est la règle « une lecture qui
+    échoue ne se déguise pas en rien à lire » de `.claude/rules/python.md`, appliquée
+    à un écran plutôt qu'à un `except` :
+
+      * **une campagne tourne** → on ne dit rien. Le silence est le bon message ;
+        annoncer « tout va bien » à chaque rendu apprend à sauter la ligne.
+      * **aucune ne tourne, et on le SAIT** — `meta_campaigns` porte des lignes et
+        aucune n'est `ACTIVE`. On le dit, avec la date de la dernière dépense.
+      * **on ne sait pas** — `meta_campaigns` est vide pour ce locataire alors que la
+        dépense existe. On donne la date et on s'arrête là : écrire « aucune campagne
+        active » serait une affirmation qu'aucune donnée ne soutient.
+
+    Pourquoi le STATUT et pas la date
+    ----------------------------------
+    « La dernière dépense est vieille » et « aucune campagne ne tourne » sont deux
+    faits distincts. Une campagne `ACTIVE` à budget épuisé ne dépense plus et tourne
+    toujours. La source de vérité est donc `meta_campaigns.status`, celle que
+    `freshness_monitor` prend déjà pour taire son alerte (`meta_no_active_campaign`) —
+    on ne s'en invente pas une seconde.
+
+    Mesuré en production le 2026-09-22, artiste 1 : **19 ARCHIVED, 15 PAUSED, zéro
+    ACTIVE**, et `MAX(day)` au **2024-09-30** — 722 jours — pendant que
+    `MAX(collected_at)` vaut le JOUR MÊME, parce que le DAG réécrit chaque matin les
+    mêmes lignes de 2024.
+
+    Pourquoi cette ligne confirme que la lecture a MARCHÉ
+    -----------------------------------------------------
+    `period_side_metrics` rend `{}` sur exception, et `render_meta_advice` ne dessine
+    rien sans dépense. **Atteindre cette ligne prouve donc que la requête est passée
+    et a ramené des chiffres** : le seul état ambigu qui restait est « ces chiffres
+    sont-ils d'aujourd'hui ? », et c'est exactement ce qu'elle tranche. Elle ne
+    proclame pas un succès technique — elle date ce qui est à l'écran.
+    """
+    jour = side.get("meta_last_day")
+    actives = side.get("meta_active")
+    connues = side.get("meta_campaigns_known") or 0
+
+    if actives:
+        return                       # ça tourne : le silence est le bon message
+
+    if jour is None:
+        return                       # aucune dépense datée : rien à situer
+
+    depuis = (date.today() - jour).days
+    jour_txt = jour.strftime("%d/%m/%Y")
+
+    if connues:
+        st.info(t(
+            "home.advice_no_active",
+            "✅ Tes données Meta sont bien remontées — et **aucune campagne n'est "
+            "active aujourd'hui**. La dernière dépense date du **{jour}**, il y a "
+            "**{depuis} jours**. Les chiffres ci-dessus décrivent donc cette "
+            "campagne-là, pas ce qui tourne en ce moment.").format(
+                jour=jour_txt, depuis=f"{depuis:,}".replace(",", " ")))
+    else:
+        # `meta_campaigns` vide : la dépense est là, le statut ne l'est pas.
+        st.info(t(
+            "home.advice_last_spend_only",
+            "✅ Tes données Meta sont bien remontées : la dernière dépense date du "
+            "**{jour}**, il y a **{depuis} jours**. Nous n'avons pas encore la liste "
+            "de tes campagnes, donc nous ne pouvons pas dire si l'une tourne "
+            "encore.").format(jour=jour_txt,
+                              depuis=f"{depuis:,}".replace(",", " ")))
+
+
 def render_meta_advice(side: dict) -> None:
     """Trois phrases sur ce que la publicité a appris, ou le refus de conclure.
 
@@ -262,10 +332,22 @@ def render_meta_advice(side: dict) -> None:
                      "exploitable."))
         return
 
-    st.markdown(t(
-        "home.advice_best",
-        "Ta campagne la moins chère est **{nom}** : **{cpr} €** le clic sortant.")
-        .format(nom=nom, cpr=f"{cpr:.3f}".replace(".", ",")))
+    # ⚠️ LA DATE VOYAGE AVEC LE CHIFFRE. Sans elle, « 0,109 € le clic » se lit au
+    # présent — et en production le dernier jour de dépense est le **30/09/2024**,
+    # soit 722 jours. Le coût est juste ; le temps de la phrase était faux.
+    _jour = side.get("best_cpr_last_day")
+    if _jour:
+        st.markdown(t(
+            "home.advice_best_dated",
+            "Ta campagne la moins chère est **{nom}** : **{cpr} €** le clic sortant, "
+            "sur ses dépenses jusqu'au **{jour}**.")
+            .format(nom=nom, cpr=f"{cpr:.3f}".replace(".", ","),
+                    jour=_jour.strftime("%d/%m/%Y")))
+    else:
+        st.markdown(t(
+            "home.advice_best",
+            "Ta campagne la moins chère est **{nom}** : **{cpr} €** le clic sortant.")
+            .format(nom=nom, cpr=f"{cpr:.3f}".replace(".", ",")))
     # ⚠️ LA RÉSERVE VOYAGE AVEC LE CHIFFRE. Un clic sortant n'est pas une écoute :
     # la phrase canonique vit dans `proxy_disclosure` et n'est pas réécrite ici.
     st.caption(cpr_help())
@@ -289,6 +371,8 @@ def render_meta_advice(side: dict) -> None:
             "C'est mesuré sur **{depense} €** de cette campagne : assez pour s'y "
             "fier.").format(
                 depense=f"{depense_campagne:,.0f}".replace(",", " ")))
+
+    _ligne_activite(side)
 
     # Le renvoi vers ce que l'accueil ne peut PAS payer : la comparaison complète,
     # la tranche d'âge la moins chère, et les budgets à monter ou à baisser.

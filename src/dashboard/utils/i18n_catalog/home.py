@@ -183,6 +183,24 @@ EN = {
     "home.advice_spend": "Over the period you spent **{depense} \u20ac** on advertising.",
     "home.advice_best": (
         "Your cheapest campaign is **{nom}**: **{cpr} \u20ac** per outbound click."),
+    # ── LA DATE VOYAGE AVEC LE CHIFFRE (2026-09-22) ─────────────────────────────
+    # Sans elle, « 0,109 € per outbound click » se lit au présent, et la dernière
+    # dépense de ce catalogue date du 30/09/2024 — 722 jours, mesurés en production.
+    "home.advice_best_dated": (
+        "Your cheapest campaign is **{nom}**: **{cpr} \u20ac** per outbound click, "
+        "on its spending up to **{jour}**."),
+    # Les deux états d'un compte qui ne dépense plus. Ils ne se confondent pas : le
+    # premier SAIT qu'aucune campagne ne tourne (`meta_campaigns` porte des lignes,
+    # aucune ACTIVE), le second ne sait pas (la liste est vide). Affirmer « none is
+    # active » sans la liste serait une phrase qu'aucune donnée ne soutient.
+    "home.advice_no_active": (
+        "\u2705 Your Meta data came through \u2014 and **no campaign is running "
+        "today**. The last spending was on **{jour}**, **{depuis} days** ago. So the "
+        "figures above describe that campaign, not what is running right now."),
+    "home.advice_last_spend_only": (
+        "\u2705 Your Meta data came through: the last spending was on **{jour}**, "
+        "**{depuis} days** ago. We do not have your campaign list yet, so we cannot "
+        "say whether one is still running."),
     "home.advice_no_campaign": (
         "No campaign carries a usable cost per result yet."),
     "home.advice_too_thin": (

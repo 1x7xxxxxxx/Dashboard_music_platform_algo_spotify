@@ -26,8 +26,9 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R157 | La grille de fraîcheur de l'accueil lit la date d'ÉCRITURE | P2 | `MAX(col)` contre `MAX(metric_col)` par source — **Meta : 720 jours d'écart**, SACEM : 65 |
+| R160 | Une date `%d/%m/%Y` se lit à l'envers en mode EN | P3 | `grep -rn "%d/%m/%Y" src/ --include=*.py` → **49 sites, 28 fichiers** ; un formateur qui suit la langue, ou un format non ambigu |
 
-**Cet index porte UNE ligne le 2026-09-22 au soir**, toutes deux nées d'une mesure prise
+**Cet index porte DEUX lignes le 2026-09-22 au soir**, toutes deux nées d'une mesure prise
 ce jour-là et aucune d'une intuition. Il était vide à midi ; TROIS sont entrées par le
 travail de l'après-midi et **R159 en est déjà sortie, livrée le soir même**. Les deux qui
 restent avaient été **délibérément laissées de côté** dans le plan de l'accueil — « porté
@@ -54,6 +55,27 @@ supervision admin, elle, lit DÉJÀ la bonne colonne depuis R154
 (`_supervision_freshness` appelle `colonne_de_mesure`, gardé par
 `test_a_freshness_surface_reads_the_measurement_date`) : les deux surfaces répondent
 donc aujourd'hui différemment à la même question.
+
+⚠️ **R160 est née d'un geste que je faisais moi-même, et je me suis compté faux
+d'abord.** En datant les chiffres de campagne (2026-09-22), j'ai écrit
+`jour.strftime("%d/%m/%Y")` — la convention du dépôt. Regardé en mode EN, le rendu donne
+« on its spending up to **30/09/2024** » : lisible ici parce que 30 ne peut pas être un
+mois, **et ambigu dès qu'un jour tombe sous 13**. `04/03/2025` veut dire 4 mars pour un
+lecteur anglais et 3 avril pour un lecteur français, sur le même écran, sans rien pour
+trancher. Le mode EN est vivant (`i18n._LANGS` porte `en`) et l'i18n est livrée depuis le
+2026-06-10.
+
+Mes deux sites neufs SUIVENT la convention plutôt que de s'en écarter seuls — 49 sites
+qui divergent valent mieux que 49 plus 2 qui divergent autrement. La correction est un
+formateur unique qui suit la langue, et elle touche tout le dépôt : hors périmètre d'un
+commit qui datait un chiffre.
+
+⚠️ **J'ai annoncé « 21 sites dans 10 fichiers » avant de mesurer proprement.** Ce
+premier compte venait d'un grep sur `strftime("%d/%m/%Y")` — une seule orthographe, qui
+rate les f-strings et les formats passés en variable. Le compte réel est **49 sites dans
+28 fichiers**, soit **×2,3**. C'est `anchor-a-number-to-its-population` : un prédicat qui
+cherche une forme d'écriture au lieu de la propriété « cette date est-elle formatée en
+jour/mois/année ».
 
 ⚠️ **R158 est LIVRÉE le 2026-09-22 au soir, et sa prémisse n'était vraie qu'en
 production.** Rejouée sur la base LOCALE l'après-midi, elle rendait **zéro paire** — les
@@ -181,7 +203,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-22 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R148,R150,R151,R153,R157 -->
+<!-- reprise: open=R148,R150,R151,R153,R157,R160 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers

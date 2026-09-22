@@ -102,7 +102,11 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
                 -- rapprochement flou qui se trompe de campagne en SILENCE est pire
                 -- qu'une règle simple que l'artiste peut vérifier d'un coup d'œil :
                 -- le nom de la campagne retenue est affiché avec le chiffre.
-                SELECT campaign_name, spend, spend / results AS cpr
+                -- `last_day` est déjà calculé ci-dessous pour l'`ORDER BY` : le
+                -- remonter ne coûte RIEN. C'est la date du dernier jour où CETTE
+                -- campagne a dépensé, et l'écran en a besoin pour dire « depuis
+                -- quand » plutôt que de présenter un chiffre de 2024 au présent.
+                SELECT campaign_name, spend, spend / results AS cpr, last_day
                   FROM (SELECT campaign_name, SUM(spend) AS spend,
                                SUM(results) AS results, MAX(day) AS last_day
                           FROM v_meta_campaign_daily
@@ -279,6 +283,47 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
               (SELECT cpr FROM best_cpr)                            AS best_cpr,
               (SELECT campaign_name FROM best_cpr)                  AS best_cpr_name,
               (SELECT spend FROM best_cpr)                          AS best_cpr_spend,
+              (SELECT last_day FROM best_cpr)                       AS best_cpr_last_day,
+              -- ── LA DERNIÈRE JOURNÉE DE DÉPENSE, TOUTES CAMPAGNES, HORS FENÊTRE ──
+              --
+              -- ⚠️ SANS BORNE DE PÉRIODE, ET C'EST VOLONTAIRE. Les autres
+              -- sous-requêtes de ce bloc sont bornées parce qu'elles répondent à
+              -- « combien sur la période ». Celle-ci répond à « depuis quand
+              -- n'y a-t-il plus rien », et une borne la rendrait circulaire : sur
+              -- une fenêtre de 30 jours elle renverrait NULL pour un catalogue qui
+              -- s'est arrêté il y a deux ans, c'est-à-dire exactement le cas
+              -- qu'elle existe pour nommer.
+              --
+              -- Mesuré en production le 2026-09-22 : `MAX(day)` vaut **2024-09-30**
+              -- pour les deux locataires qui ont de la donnée Meta, soit **722
+              -- jours**, tandis que `MAX(collected_at)` vaut le JOUR MÊME — le DAG
+              -- réécrit chaque matin les mêmes lignes de 2024. Toute sonde qui lit
+              -- l'horodatage d'écriture déclare cette source fraîche.
+              (SELECT MAX(day) FROM v_meta_daily
+                 WHERE artist_id = %s)                              AS meta_last_day,
+              -- ── LE STATUT, QUI EST AUTORITAIRE — pas une inférence sur la date ──
+              --
+              -- « la dernière dépense est vieille » et « aucune campagne ne tourne »
+              -- sont deux faits distincts, et seul le second se lit dans
+              -- `meta_campaigns.status`. Une campagne ACTIVE à budget épuisé ne
+              -- dépense plus et tourne toujours ; une campagne PAUSED d'hier n'a
+              -- rien à voir avec une archivée de 2024. `freshness_monitor` prend
+              -- déjà cette table comme source de vérité pour taire son alerte
+              -- (`meta_no_active_campaign`) : on ne s'en invente pas une seconde.
+              --
+              -- ⚠️ DEUX COLONNES, PAS UNE. `total` distingue « aucune active » de
+              -- « on ne sait rien des campagnes de ce locataire » — l'artiste 18 a
+              -- de la dépense en base et ZÉRO ligne dans `meta_campaigns`. Écrire
+              -- « aucune campagne active » pour lui serait une affirmation qu'aucune
+              -- donnée ne soutient ; c'est « absent » contre « échec », la règle de
+              -- `.claude/rules/python.md`.
+              --
+              -- Mesuré en production le 2026-09-22, artiste 1 : 19 ARCHIVED,
+              -- 15 PAUSED, **zéro ACTIVE**.
+              (SELECT COUNT(*) FILTER (WHERE status = 'ACTIVE')
+                 FROM meta_campaigns WHERE artist_id = %s)          AS meta_active,
+              (SELECT COUNT(*) FROM meta_campaigns
+                 WHERE artist_id = %s)                              AS meta_campaigns_known,
               (SELECT p FROM best_algo)                             AS best_algo_p,
               (SELECT algo FROM best_algo)                          AS best_algo_name,
               (SELECT song FROM best_algo)                          AS best_algo_song,
@@ -377,6 +422,8 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
               artist_id, since, since, until, until,      # ig_first
               artist_id, since, since, until, until,      # ig_last
               artist_id, since, since, until, until,      # spend
+              artist_id,                                  # meta_last_day (non borné)
+              artist_id, artist_id,                       # meta_active / _known
               artist_id, artist_id,                       # shazam
               artist_id, artist_id,                       # cash sorti / rentré
               artist_id, artist_id, artist_id))           # axes age / pays / placement
@@ -386,6 +433,7 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
     if not rows:
         return {}
     (ig_first, ig_last, spend, best_cpr, best_cpr_name, best_cpr_spend,
+     best_cpr_last_day, meta_last_day, meta_active, meta_campaigns_known,
      best_algo_p, best_algo_name, best_algo_song,
      release_song, release_age, release_dw, release_rr, release_radio,
      shazam_total, shazam_release,
@@ -400,6 +448,23 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
         "best_cpr_name": best_cpr_name,
         "best_cpr_spend": (float(best_cpr_spend)
                            if best_cpr_spend is not None else None),
+        # ── LA DATE, pour que l'écran ne présente pas 2024 au présent ────────────
+        #
+        # `best_cpr_last_day` : le dernier jour où LA campagne citée a dépensé.
+        # `meta_last_day`     : le dernier jour où N'IMPORTE QUELLE campagne a
+        #                       dépensé, hors fenêtre de période.
+        #
+        # ⚠️ Les deux sont là et ne disent pas la même chose. La première date le
+        # chiffre affiché ; la seconde répond à « le compte est-il encore actif ».
+        # Elles coïncident quand la dernière campagne est aussi celle qu'on cite —
+        # c'est le cas aujourd'hui (les deux au 2024-09-30) — et divergeraient dès
+        # qu'une campagne plus récente n'aurait pas assez de résultats pour entrer
+        # dans `best_cpr`, qui exige `SUM(results) > 0`.
+        "best_cpr_last_day": best_cpr_last_day,
+        "meta_last_day": meta_last_day,
+        "meta_active": int(meta_active) if meta_active is not None else None,
+        "meta_campaigns_known": (int(meta_campaigns_known)
+                                 if meta_campaigns_known is not None else 0),
         # `best_algo_p` est une PRÉDICTION. Le nom de la clé le dit, et la surface
         # qui l'affiche doit le dire aussi — voir le docstring.
         "best_algo_p": float(best_algo_p) if best_algo_p is not None else None,
