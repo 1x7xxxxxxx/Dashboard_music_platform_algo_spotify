@@ -26,9 +26,8 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R157 | La grille de fraîcheur de l'accueil lit la date d'ÉCRITURE | P2 | `MAX(col)` contre `MAX(metric_col)` par source — **Meta : 720 jours d'écart**, SACEM : 65 |
-| R158 | `activation.py` compte la livraison sur `rows_inserted > 0` | P3 | rejouer en PRODUCTION la paire (artiste, plateforme) dont tous les succès portent 0 ligne |
 
-**Cet index porte DEUX lignes le 2026-09-22 au soir**, toutes deux nées d'une mesure prise
+**Cet index porte UNE ligne le 2026-09-22 au soir**, toutes deux nées d'une mesure prise
 ce jour-là et aucune d'une intuition. Il était vide à midi ; TROIS sont entrées par le
 travail de l'après-midi et **R159 en est déjà sortie, livrée le soir même**. Les deux qui
 restent avaient été **délibérément laissées de côté** dans le plan de l'accueil — « porté
@@ -56,15 +55,14 @@ supervision admin, elle, lit DÉJÀ la bonne colonne depuis R154
 `test_a_freshness_surface_reads_the_measurement_date`) : les deux surfaces répondent
 donc aujourd'hui différemment à la même question.
 
-⚠️ **R158 porte une prémisse que je n'ai PAS pu reproduire, et la ligne le dit.** Le
-matin du 2026-09-22, en production, `rows_inserted` mentait dans les deux sens —
-Benken/YouTube : 32 exécutions `success` à 0 ligne alors que 95 jours sont en base ;
-GRiNCH/SoundCloud : 31 `success` et 0 ligne. Rejoué l'après-midi sur la base LOCALE :
-**zéro paire** (artiste, plateforme) dont tous les succès portent 0 ligne. Les deux bases
-ne portent pas la même population — 4 673 `artist_id` distincts localement, dont la
-plupart sont des identifiants de plateforme et non des locataires. La ligne est donc
-ouverte avec sa mesure d'origine ET son non-rejeu, plutôt que d'affirmer en local ce qui
-a été vu ailleurs.
+⚠️ **R158 est LIVRÉE le 2026-09-22 au soir, et sa prémisse n'était vraie qu'en
+production.** Rejouée sur la base LOCALE l'après-midi, elle rendait **zéro paire** — les
+deux bases ne portent pas la même population (4 673 `artist_id` distincts localement,
+dont la plupart sont des identifiants de plateforme et non des locataires). J'ai donc
+ouvert la production, où elle se reproduit exactement : 32 `success` à 0 ligne sur
+(12, youtube) pour **95 lignes fraîches du jour**, et 31 sur (13, soundcloud) pour 0
+ligne. **Une des deux paires à zéro est un mensonge, l'autre non, et le compteur ne peut
+pas les distinguer.** Détail et mesure : `archive.md`, section R158.
 
 ---
 
@@ -183,7 +181,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-22 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R148,R150,R151,R153,R157,R158 -->
+<!-- reprise: open=R148,R150,R151,R153,R157 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers

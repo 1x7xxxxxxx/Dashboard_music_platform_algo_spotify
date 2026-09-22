@@ -59,30 +59,103 @@ ACTIVATION_WINDOW_DAYS = 30
 ACTIVATION_MIN_PLATFORMS = 1
 
 
+def _livraisons_cte(window_days: int) -> str:
+    """La CTE `livraisons` : une plateforme par ligne RÉELLEMENT en base.
+
+    ⚠️ ELLE NE LIT PLUS `etl_run_log`, ET LA RAISON EST MESURÉE EN PRODUCTION.
+    -------------------------------------------------------------------------
+    Le prédicat d'origine était `status = 'success' AND rows_inserted > 0`. Il est
+    faux, et le docstring de ce module se contredisait lui-même en le justifiant :
+    il citait l'artiste 13 (« trente `success` à zéro ligne sur SoundCloud ») pour
+    prouver qu'il fallait exiger `rows_inserted > 0`, **et il annonçait UNE
+    plateforme pour l'artiste 12, qui en a DEUX.**
+
+    Relevé en production le 2026-09-22, les deux cas côte à côte :
+
+    ==========================  =========================  ==================
+    (artiste, plateforme)        `etl_run_log`              la table de données
+    ==========================  =========================  ==================
+    12 / youtube                32 `success`, **0 ligne**   **95 lignes**, la
+                                                            plus récente du JOUR
+    13 / soundcloud             31 `success`, 0 ligne       0 ligne
+    12 / soundcloud (témoin)    31 `success`, 31 à >0       672 lignes
+    ==========================  =========================  ==================
+
+    `rows_inserted = 0` signifie donc « la collecte n'a rien inséré CETTE FOIS » —
+    ce qui est vrai d'un upsert idempotent qui ne trouve rien de neuf — et jamais
+    « cette plateforme ne livre pas ». Sur les deux paires où le compteur est à
+    zéro partout, **une sur deux est un mensonge** : YouTube alimente Benken tous
+    les jours, et l'activation ne le voyait pas.
+
+    La question « cette plateforme a-t-elle livré ? » se lit donc dans la TABLE DE
+    DONNÉES, jamais dans le journal d'exécution. C'est déjà ce que fait
+    `get_source_freshness` ; ce module était la dernière surface à croire le journal.
+
+    Le SQL est composé depuis `src.utils.source_registry`, le tronc de R154 — donc
+    une source ajoutée au registre entre ici sans qu'on y touche. Les noms de tables
+    et de colonnes viennent d'un `frozenset` d'allowlist dérivé du registre avant
+    interpolation (règle transverse 8) ; l'identifiant du locataire reste un `%s`.
+    """
+    from src.utils.source_registry import SOURCES, colonne_de_mesure
+
+    # Règle 8 : l'allowlist est DÉRIVÉE du registre, donc elle ne peut pas s'en
+    # écarter. Un nom qui n'y est pas ne s'interpole pas.
+    tables = frozenset(s.table for s in SOURCES)
+    colonnes = frozenset(colonne_de_mesure(s.cle) for s in SOURCES)
+    cols_locataire = frozenset(s.artist_col for s in SOURCES if s.artist_col)
+    ponts = frozenset(s.artist_filter for s in SOURCES if s.artist_filter)
+
+    branches = []
+    for src in SOURCES:
+        mesure = colonne_de_mesure(src.cle)
+        if src.table not in tables or mesure not in colonnes:
+            raise ValueError(f"{src.cle}: table ou colonne hors allowlist")
+        if src.artist_col:
+            if src.artist_col not in cols_locataire:
+                raise ValueError(f"{src.cle}: colonne de locataire hors allowlist")
+            scope = f"{src.artist_col} = a.id"
+        else:
+            if src.artist_filter not in ponts:
+                raise ValueError(f"{src.cle}: pont hors allowlist")
+            # Le pont porte un `%s` pour la flotte ; ici on corrèle sur `a.id`.
+            scope = src.artist_filter.replace("%s", "a.id")
+        # ⚠️ `EXISTS`, PAS `SELECT … LIMIT 1`. Le premier jet écrivait
+        # `SELECT … FROM t WHERE … LIMIT 1` dans chaque branche : **Postgres refuse un
+        # `LIMIT` dans une branche d'`UNION ALL` sans parenthèses** — « syntax error at
+        # or near UNION », rejoué sur la base de production le 2026-09-22. Et
+        # retirer le `LIMIT` sans rien d'autre aurait été pire que l'erreur : le
+        # `COUNT(*)` extérieur aurait compté les LIGNES, pas les plateformes, et une
+        # source à 672 lignes aurait rendu une activation de 672.
+        # `EXISTS` rend au plus une ligne par branche, sans parenthèses ni `LIMIT`, et
+        # il court-circuite dès la première ligne trouvée.
+        branches.append(
+            f"            SELECT {src.cle!r} AS plateforme WHERE EXISTS (\n"
+            f"                 SELECT 1 FROM {src.table}\n"
+            f"                  WHERE {scope}\n"
+            f"                    AND {mesure} > NOW() - INTERVAL "
+            f"'{int(window_days)} days')")
+    return "\n            UNION ALL\n".join(branches)
+
+
 def activation_sql(window_days: int = ACTIVATION_WINDOW_DAYS) -> str:
     """Le SQL qui rend (activés, total) parmi les locataires HUMAINS.
 
-    Le prédicat de livraison est `status = 'success' AND rows_inserted > 0` — les
-    deux conditions, pas une. Mesuré : un `success` à zéro ligne existe (l'artiste
-    13 en porte trente sur SoundCloud) et ne montre rien à personne.
+    Le prédicat de livraison est **une ligne présente dans la table de données**, dans
+    la fenêtre, et rien d'autre. Voir `_livraisons_cte` pour la mesure de production
+    qui a écarté `etl_run_log.rows_inserted > 0`.
     """
     from src.utils.tenant_kind import HUMAN_TENANTS
 
     return f"""
-        WITH livraisons AS (
-            SELECT artist_id, COUNT(DISTINCT platform) AS plateformes
-              FROM etl_run_log
-             WHERE status = 'success'
-               AND rows_inserted > 0
-               AND created_at > NOW() - INTERVAL '{int(window_days)} days'
-             GROUP BY artist_id
-        )
-        SELECT COUNT(*) FILTER (
-                   WHERE COALESCE(l.plateformes, 0) >= {int(ACTIVATION_MIN_PLATFORMS)}
-               ) AS actives,
+        SELECT COUNT(*) FILTER (WHERE l.plateformes >= {int(ACTIVATION_MIN_PLATFORMS)})
+                   AS actives,
                COUNT(*) AS total
           FROM saas_artists a
-          LEFT JOIN livraisons l ON l.artist_id = a.id
+          CROSS JOIN LATERAL (
+              SELECT COUNT(*) AS plateformes FROM (
+{_livraisons_cte(window_days)}
+              ) AS s
+          ) AS l
          WHERE {HUMAN_TENANTS}
     """
 
@@ -97,23 +170,19 @@ def dormant_tenants_sql(window_days: int = ACTIVATION_WINDOW_DAYS) -> str:
     from src.utils.tenant_kind import HUMAN_TENANTS
 
     return f"""
-        WITH livraisons AS (
-            SELECT artist_id, COUNT(DISTINCT platform) AS plateformes
-              FROM etl_run_log
-             WHERE status = 'success'
-               AND rows_inserted > 0
-               AND created_at > NOW() - INTERVAL '{int(window_days)} days'
-             GROUP BY artist_id
-        )
         SELECT a.id,
                a.name,
-               a.created_at::date                                   AS inscrit_le,
-               (NOW()::date - a.created_at::date)                   AS jours,
-               a.promo_plan_expires_at::date                        AS essai_jusquau,
-               COALESCE(l.plateformes, 0)                           AS plateformes
+               a.created_at::date                 AS inscrit_le,
+               (NOW()::date - a.created_at::date) AS jours,
+               a.promo_plan_expires_at::date      AS essai_jusquau,
+               l.plateformes                      AS plateformes
           FROM saas_artists a
-          LEFT JOIN livraisons l ON l.artist_id = a.id
+          CROSS JOIN LATERAL (
+              SELECT COUNT(*) AS plateformes FROM (
+{_livraisons_cte(window_days)}
+              ) AS s
+          ) AS l
          WHERE {HUMAN_TENANTS}
-           AND COALESCE(l.plateformes, 0) < {int(ACTIVATION_MIN_PLATFORMS)}
+           AND l.plateformes < {int(ACTIVATION_MIN_PLATFORMS)}
          ORDER BY a.created_at
     """

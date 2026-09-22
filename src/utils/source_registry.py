@@ -80,11 +80,41 @@ class Source(NamedTuple):
     #: Deux lecteurs, donc elle descend. Même geste que `MIN_DEPENSE` le matin même.
     metric_col: str | None = None
 
+    #: La colonne qui porte le LOCATAIRE dans cette table. `None` quand la table n'est
+    #: pas scopée par l'identifiant SaaS et qu'il faut un pont — voir `artist_filter`.
+    #:
+    #: ⚠️ ELLE DESCEND ICI LE 2026-09-22, pour la raison exacte de `metric_col` :
+    #: un TROISIÈME lecteur en a eu besoin, et il ne pouvait pas aller la chercher.
+    #: `src/utils/activation.py` comptait la livraison sur
+    #: `etl_run_log.rows_inserted > 0`, et ce compteur MENT — mesuré en production le
+    #: 2026-09-22 : l'artiste 12 porte **32 exécutions `success` à 0 ligne** sur
+    #: YouTube et **95 lignes fraîches du jour** dans
+    #: `youtube_channel_history`. Répondre « cette plateforme a-t-elle livré ? »
+    #: demande donc de lire la TABLE DE DONNÉES, et la lire par locataire demande
+    #: cette colonne. Elle vivait dans `kpi_helpers.SOURCES_CONFIG`, que
+    #: `activation.py` ne peut pas importer : il est lu par un DAG, et un module de
+    #: `src/utils/` qui importe le tableau de bord est la violation de couche déjà
+    #: payée le matin même (`meta_axes` → une vue, 1 073 ms au premier rendu).
+    artist_col: str | None = "artist_id"
+
+    #: Le PONT, quand `artist_col` est `None` : une clause SQL complète qui scope la
+    #: table sur le locataire, avec un `%s` pour son identifiant. Constante de
+    #: confiance (aucune entrée utilisateur), validée contre une allowlist avant
+    #: interpolation — règle transverse 8.
+    artist_filter: str | None = None
+
 
 #: Les sources connues du produit. L'ORDRE n'a pas de sens ici — chaque lecteur trie
 #: selon sa propre question (l'accueil par ce qui a des données, l'alerte par gravité).
 SOURCES: tuple[Source, ...] = (
-    Source("Spotify API", "artists", "collected_at", "api"),
+    # `artists` a pour clé l'identifiant Spotify (VARCHAR), pas le locataire SaaS.
+    # Le pont passe par `saas_artists.spotify_artist_id` : un compte non relié ne
+    # matche RIEN, donc il lit « pas de données » au lieu d'hériter de la
+    # fraîcheur d'un autre locataire. C'est `artist_id n'est pas toujours le
+    # locataire` de `.claude/rules/python.md`, appliqué au registre.
+    Source("Spotify API", "artists", "collected_at", "api", artist_col=None,
+           artist_filter="artist_id IN (SELECT spotify_artist_id FROM saas_artists "
+                         "WHERE id = %s)"),
     Source("Spotify S4A", "s4a_song_timeline", "collected_at", "csv", "date"),
     Source("YouTube", "youtube_channel_history", "collected_at", "api"),
     Source("SoundCloud", "soundcloud_tracks_daily", "collected_at", "api"),

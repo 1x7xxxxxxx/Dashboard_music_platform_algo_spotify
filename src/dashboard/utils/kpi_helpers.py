@@ -71,7 +71,7 @@ _CSV_WARN_H = 24 * 30        # un mois sans dépôt — là, la donnée est vrai
 # Ré-EXPORTÉE, plus définie ici : `src/api/` ne peut pas importer ce module (il
 # tire `streamlit`), et c'est pour ça que la constante existait en cinq copies.
 from src.utils.artist_name_filter import ARTIST_NAME_FILTER  # noqa: E402,F401
-from src.utils.source_registry import table_et_colonne  # noqa: E402
+from src.utils.source_registry import PAR_CLE, table_et_colonne  # noqa: E402
 
 
 def _t(cle: str, defaut: str) -> str:
@@ -106,7 +106,15 @@ def _src(cle: str) -> dict:
     pouvait donc se périmer indéfiniment sans qu'aucune alerte ne le dise.
     """
     table, col = table_et_colonne(cle)
-    return {"label": cle, "table": table, "col": col}
+    src = PAR_CLE[cle]
+    # ⚠️ `artist_col` et `artist_filter` viennent du tronc depuis le 2026-09-22, pour la
+    # raison qui a fait descendre `metric_col` : un TROISIÈME lecteur en a eu besoin
+    # (`src/utils/activation.py`, lu par un DAG, qui ne peut pas importer ce fichier).
+    # Les redéclarer ici en ferait la seconde copie que ce module existe pour éviter.
+    out = {"label": cle, "table": table, "col": col, "artist_col": src.artist_col}
+    if src.artist_filter:
+        out["artist_filter"] = src.artist_filter
+    return out
 
 
 # Ce que chaque source ajoute au tronc commun, et que l'accueil SEUL utilise.
@@ -138,13 +146,6 @@ SOURCES_CONFIG = [
     {
         **_src("Spotify API"),
         "kind": "api", "at": "07:00", "icon": "🎸",
-        "artist_col": None,
-        # `artists` PK is the Spotify string id, not the saas artist_id. Scope per
-        # tenant through the saas_artists.spotify_artist_id bridge so a fresh account
-        # doesn't inherit another tenant's freshness (an unbridged tenant matches
-        # nothing → "no data"). Trusted constant (no user input) — validated against
-        # _ALLOWED_ARTIST_FILTERS before interpolation (CLAUDE.md rule #8).
-        "artist_filter": "artist_id IN (SELECT spotify_artist_id FROM saas_artists WHERE id = %s)",
         "page": "credentials",
         "valeur": lambda: _t("src.spotify_api.valeur",
                              "tes abonnés Spotify et la popularité de tes titres"),
@@ -155,7 +156,6 @@ SOURCES_CONFIG = [
     {
         **_src("Spotify S4A"),
         "kind": "csv", "at": None, "icon": "🎵",
-        "artist_col": "artist_id",
         "page": "upload_csv",
         "valeur": lambda: _t("src.s4a.valeur",
                              "tes écoutes jour par jour, titre par titre — la base "
@@ -167,7 +167,6 @@ SOURCES_CONFIG = [
     {
         **_src("YouTube"),
         "kind": "api", "at": "08:00", "icon": "🎬",
-        "artist_col": "artist_id",
         "page": "credentials",
         "valeur": lambda: _t("src.youtube.valeur",
                              "les vues et les abonnés de ta chaîne"),
@@ -177,7 +176,6 @@ SOURCES_CONFIG = [
     {
         **_src("SoundCloud"),
         "kind": "api", "at": "09:00", "icon": "☁️",
-        "artist_col": "artist_id",
         "page": "credentials",
         "valeur": lambda: _t("src.soundcloud.valeur",
                              "tes écoutes, tes likes et tes reposts, chaque jour"),
@@ -188,7 +186,6 @@ SOURCES_CONFIG = [
     {
         **_src("Instagram"),
         "kind": "api", "at": "10:00", "icon": "📸",
-        "artist_col": "artist_id",
         "page": "credentials",
         "valeur": lambda: _t("src.instagram.valeur",
                              "tes abonnés et la portée de tes publications"),
@@ -199,7 +196,6 @@ SOURCES_CONFIG = [
     {
         **_src("Apple Music"),
         "kind": "csv", "at": None, "icon": "🍎",
-        "artist_col": "artist_id",
         "page": "upload_csv",
         "valeur": lambda: _t("src.apple.valeur",
                              "tes écoutes Apple Music — et tes Shazams, qui n'arrivent "
@@ -211,7 +207,6 @@ SOURCES_CONFIG = [
     {
         **_src("Meta Ads"),
         "kind": "api", "at": "05:00", "icon": "📱",
-        "artist_col": "artist_id",
         "page": "credentials",
         "valeur": lambda: _t("src.meta.valeur",
                              "ce que coûte chaque écoute achetée, et ce qui marche "
@@ -223,7 +218,6 @@ SOURCES_CONFIG = [
     {
         **_src("iMusician"),
         "kind": "csv", "at": None, "icon": "💰",
-        "artist_col": "artist_id",
         "page": "imusician",
         "valeur": lambda: _t("src.imusician.valeur",
                              "ce que ta musique te rapporte, mois par mois"),
@@ -234,7 +228,6 @@ SOURCES_CONFIG = [
     {
         **_src("Hypeddit"),
         "kind": "csv", "at": None, "icon": "📊",
-        "artist_col": "artist_id",
         "page": "hypeddit",
         "valeur": lambda: _t("src.hypeddit.valeur",
                              "le taux de clic de tes pages de sortie"),
@@ -245,7 +238,6 @@ SOURCES_CONFIG = [
     {
         **_src("SACEM"),
         "kind": "csv", "at": None, "icon": "🎼",
-        "artist_col": "artist_id",
         "page": "sacem",
         "valeur": lambda: _t("src.sacem.valeur",
                              "tes droits d'auteur, brut et net de charges"),

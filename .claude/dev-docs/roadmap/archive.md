@@ -9,6 +9,101 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 📊 R158 — L'activation se lit dans la DONNÉE, plus dans le journal (livrée 2026-09-22)
+
+- [x] **R158 — `activation.py` comptait la livraison sur `etl_run_log.rows_inserted > 0`, un compteur qui ment dans les deux sens.** (P3)
+
+**Livrée le 2026-09-22 au soir**, le jour de son entrée à l'index.
+
+### La prémisse ne se reproduisait PAS en local — il a fallu ouvrir la production
+
+Rejouée sur la base locale : **zéro paire** (artiste, plateforme) dont tous les succès
+portent 0 ligne. Les deux bases n'ont pas la même population — 4 673 `artist_id`
+distincts localement, dont la plupart sont des identifiants de plateforme et non des
+locataires. **« Pas reproductible en local » n'est pas « pas reproductible »**, et
+`PROD_SSH` non défini n'est pas « hors de portée » : l'hôte par défaut est dans
+`tools/prod_introspect.sh:27`, la clé est là, et la production répond.
+
+### Ce que la production dit, les deux cas côte à côte
+
+| (artiste, plateforme) | `etl_run_log` | la table de données |
+|---|---|---|
+| **12 / youtube** (Benken) | 32 `success`, `rows_inserted = 0` **partout** | **95 lignes**, la plus récente du **JOUR** |
+| 13 / soundcloud (GRiNCH) | 31 `success`, 0 partout | 0 ligne |
+| 12 / soundcloud (témoin) | 31 `success`, 31 à > 0 | 672 lignes |
+
+**Sur les deux paires où le compteur est à zéro partout, une sur deux est un mensonge.**
+`rows_inserted = 0` dit « cette exécution n'a rien inséré » — vrai d'un upsert idempotent
+qui ne trouve rien de neuf — et jamais « cette plateforme ne livre pas ».
+
+⚠️ **Le docstring du module se contredisait lui-même.** Il citait l'artiste 13 (« trente
+`success` à zéro ligne sur SoundCloud ») pour JUSTIFIER d'exiger `rows_inserted > 0`, et
+il annonçait dans le même souffle **une** plateforme pour l'artiste 12, qui en a **deux**.
+La justification était vraie sur un cas et fausse sur l'autre, dans le même paragraphe.
+
+### Ce qui a changé, mesuré en production le jour même
+
+| locataire | ancien | nouveau |
+|---|---|---|
+| artiste 1 (propriétaire) | 5 | **6** |
+| artiste 12 (Benken) | 1 | **2** |
+| artiste 18 (bac à sable) | 0 | **4** |
+| les cinq autres | inchangés | inchangés |
+
+**Le titre ne bouge pas : 2 activés sur 5.** `ACTIVATION_MIN_PLATFORMS` vaut 1 et Benken
+comptait déjà par SoundCloud. Les trois affirmations de la roadmap qui citent ce chiffre
+ont été revérifiées et tiennent. **Ce qui bouge est le mécanisme** : un locataire dont la
+seule plateforme vivante livre par upsert idempotent serait listé DORMANT tout en
+recevant de la donnée fraîche chaque jour. Le défaut était latent, pas visible.
+
+### La violation de couche qu'il a fallu lever d'abord
+
+Lire la table de données par locataire demande la colonne du locataire. Elle vivait dans
+`kpi_helpers.SOURCES_CONFIG`, que `activation.py` **ne peut pas importer** : il est lu par
+un DAG, et un module de `src/utils/` qui importe le tableau de bord est la violation déjà
+payée le matin même (`meta_axes` → une vue, 1 073 ms au premier rendu).
+
+`artist_col` et `artist_filter` descendent donc dans `src/utils/source_registry.py`, le
+tronc de R154 — **même geste que `metric_col` le matin, pour la même raison : un
+TROISIÈME lecteur en a eu besoin.** `kpi_helpers` les DÉRIVE désormais au lieu de les
+redéclarer ; vérifié identique source par source, les dix.
+
+### Deux défauts attrapés avant livraison, par la base et pas par l'œil
+
+1. **`SELECT … LIMIT 1` dans une branche d'`UNION ALL` est refusé par Postgres** —
+   « syntax error at or near UNION ». Aucune relecture ne l'avait vu ; la base l'a dit en
+   une seconde. Passé en `EXISTS`, qui rend au plus une ligne sans parenthèses ni `LIMIT`
+   et court-circuite dès la première trouvée.
+2. **Retirer le `LIMIT` sans passer à `EXISTS` aurait été PIRE que l'erreur** : le
+   `COUNT(*)` extérieur aurait compté les LIGNES, et une source à 672 lignes aurait rendu
+   une activation de 672. Un SQL composé se fait valider par le moteur.
+
+### Les gardes
+
+**Neuf** : `tests/test_activation_is_read_from_the_data_not_the_log.py` — aucune lecture
+d'`etl_run_log` **dans le SQL rendu** (pas dans la source : le docstring nomme
+`rows_inserted` dix fois pour expliquer pourquoi il est parti, et un garde textuel
+rougirait sur sa propre explication), chaque branche scopée sur `a.id`, le SQL **exécuté**
+contre la base, et le compte borné par le nombre de sources du registre. Muté : remettre
+`etl_run_log` → 7 rouges ; remettre `LIMIT 1` → 3 rouges dont le test de validité.
+
+**Corrigé** : `tests/test_activation_counts_delivery_not_a_dag_that_ran.py` **nourrissait
+la mauvaise porte.** Écrit le matin, il écrivait ses trois locataires synthétiques dans
+`etl_run_log` — il est donc sorti ROUGE de la correction, en annonçant `set()` là où il
+attendait un activé, et c'était le bon comportement. Son harnais écrit désormais dans les
+tables de données, ce qui le rend **plus fort qu'avant** : `_A_VIDE` porte un `success`
+annonçant **42 lignes** et rien en base (la forme la plus dure du défaut d'origine, qu'un
+prédicat sur `rows_inserted > 0` passait), et un cas neuf reproduit Benken — de la donnée
+fraîche avec un journal à zéro. Mutation : l'ancien prédicat remis dans la source commune
+rend **4 rouges**, dont le cas Benken invisible le matin.
+
+**Aucune classe d'erreur neuve**, et c'est la décision de la règle 15 : le balayage de
+« qui répond à une question de DONNÉE en lisant le journal d'exécution » rend **1 site**,
+celui-ci. Les autres usages de `rows_inserted` sont l'écrivain (`dag_run_logger`) et deux
+écrans qui l'affichent comme un volume, étiqueté « Lignes insérées ».
+
+---
+
 ## 🧹 R159 — Les deux résidus de `home_tiles.py` (livrée 2026-09-22)
 
 - [x] **R159 — deux résidus de `home_tiles.py` laissés en connaissance de cause : un commentaire déjà disparu, un bloc de sept lignes en colonne 0 dans un corps indenté.** (P4)

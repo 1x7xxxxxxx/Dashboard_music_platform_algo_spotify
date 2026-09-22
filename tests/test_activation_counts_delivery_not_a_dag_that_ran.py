@@ -21,12 +21,33 @@ un écran vide depuis quarante et un jours.
 
 Classe : `a-metric-that-measures-the-machine-instead-of-the-delivery`.
 
-Ce que ce garde couvre : les DEUX moitiés du prédicat de livraison, chacune par une
-mutation qui l'incarne, et le fait que la liste des dormants et le compteur soient
-d'accord. Ce qu'il NE couvre PAS : la fenêtre de trente jours (un choix, pas une
-vérité), le seuil d'une seule plateforme, et toute autre métrique de l'app qui
-compterait des exécutions plutôt que des livraisons — la même faute ailleurs
-passerait sous ce test sans le faire rougir.
+⚠️ SON HARNAIS NOURRISSAIT LA MAUVAISE PORTE — corrigé le 2026-09-22 au soir
+------------------------------------------------------------------------------
+Écrit le matin, ce fichier écrivait ses trois locataires synthétiques dans
+`etl_run_log`, parce que c'est là que `activation_sql` lisait. L'après-midi a mesuré
+que ce journal MENT, et dans les deux sens :
+
+    (12, youtube)   32 `success`, rows_inserted=0 partout  →  95 LIGNES, du JOUR
+    (13, soundcloud) 31 `success`, rows_inserted=0 partout →  0 ligne
+
+`rows_inserted = 0` dit « cette exécution n'a rien inséré » — vrai d'un upsert
+idempotent qui ne trouve rien de neuf — jamais « cette plateforme ne livre pas ». Sur
+les deux paires à zéro partout, **une sur deux est un mensonge** : YouTube alimente
+Benken tous les jours. `activation_sql` lit donc désormais les TABLES DE DONNÉES.
+
+Un harnais qui nourrit l'ancienne source de vérité ne teste plus rien : ce fichier est
+sorti ROUGE de la correction, en annonçant `set()` là où il attendait un activé, et
+c'était le bon comportement. Il écrit maintenant dans les tables de données, ce qui le
+rend PLUS fort qu'avant : le cas `_A_VIDE` porte désormais un `success` à **42 lignes**
+dans le journal et **rien** en base — la forme la plus dure du défaut d'origine — et un
+cas neuf reproduit Benken, de la donnée fraîche sans aucun log favorable.
+
+Ce que ce garde couvre : les deux sens de la divergence journal/donnée, chacun par un
+locataire qui l'incarne, la fenêtre, et l'accord entre le compteur et la liste des
+dormants. Ce qu'il NE couvre PAS : la JUSTESSE de la fenêtre de trente jours (un choix,
+pas une vérité), le seuil d'une seule plateforme, et toute autre métrique de l'app qui
+compterait des exécutions plutôt que des livraisons — la même faute ailleurs passerait
+sous ce test sans le faire rougir.
 """
 from __future__ import annotations
 
@@ -66,12 +87,25 @@ def bac():
                 "VALUES (%s, %s, %s, TRUE, 'free') ON CONFLICT (id) DO NOTHING",
                 (aid, nom, nom),
             )
+        # ── LA DONNÉE, qui est la seule source de vérité de l'activation ──────
+        #
+        # `_A_LIVRE` reçoit une ligne en base ET un journal DÉFAVORABLE : `success` à
+        # zéro ligne, exactement la forme de (12, youtube) en production. C'est le cas
+        # que l'ancien prédicat comptait comme dormant alors que l'artiste voit des
+        # données fraîches chaque jour.
+        cur.execute(
+            "INSERT INTO youtube_channel_history (channel_id, subscriber_count, "
+            "video_count, view_count, collected_at, artist_id) "
+            "VALUES ('zz-chan', 10, 1, 100, NOW(), %s)", (_A_LIVRE,))
+
+        # ── LE JOURNAL, qui ne doit plus rien décider ─────────────────────────
         lignes = [
-            # celui-ci a reçu quelque chose — le seul activé
-            (_A_LIVRE, "spotify", "success", 42),
-            # `success` à ZÉRO ligne : le cas de l'artiste 13 en production
-            (_A_VIDE, "soundcloud", "success", 0),
-            # jamais connecté : le cas des artistes 11, 17 et 18
+            # Journal DÉFAVORABLE sur un compte qui a de la donnée : le cas Benken.
+            (_A_LIVRE, "youtube", "success", 0),
+            # Journal FAVORABLE — 42 lignes annoncées — et RIEN en base. La forme la
+            # plus dure du défaut d'origine : avant, ce compte était « activé ».
+            (_A_VIDE, "soundcloud", "success", 42),
+            # Jamais connecté : le cas des artistes 11, 13 et 17.
             (_A_SKIP, "spotify", "skipped", 0),
         ]
         for aid, plat, statut, n in lignes:
@@ -96,27 +130,52 @@ def _etat(cur) -> tuple[set[int], set[int]]:
     return nos - dormants, dormants & nos
 
 
-def test_only_the_tenant_that_received_rows_is_activated(bac):
+def test_only_the_tenant_whose_table_holds_a_row_is_activated(bac):
+    """La propriété, en un coup d'œil : la DONNÉE décide, le journal ne décide rien."""
     actives, dormants = _etat(bac)
     assert actives == {_A_LIVRE}, f"activés inattendus : {actives}"
     assert dormants == {_A_VIDE, _A_SKIP}
 
 
-def test_a_success_with_zero_rows_does_not_activate(bac):
-    """Le défaut EXACT qu'on a vu en production — trente `success`, zéro ligne."""
-    _actives, dormants = _etat(bac)
-    assert _A_VIDE in dormants, (
-        "un `success` à zéro ligne compte comme une activation : la métrique mesure "
-        "la machine, pas ce que l'artiste reçoit"
+def test_data_in_the_table_activates_even_when_the_log_says_zero(bac):
+    """LE CAS BENKEN, reproduit — et celui que l'ancien prédicat ratait.
+
+    `_A_LIVRE` porte une ligne fraîche dans `youtube_channel_history` ET un journal
+    qui annonce `success` à **zéro ligne**. En production, (12, youtube) porte
+    exactement cette forme : 32 exécutions à zéro, 95 lignes en base, la plus récente
+    du jour même. Un upsert idempotent qui ne trouve rien de neuf n'insère rien et
+    n'efface rien.
+    """
+    actives, _dormants = _etat(bac)
+    assert _A_LIVRE in actives, (
+        "un locataire dont la table de données porte une ligne fraîche est compté "
+        "DORMANT parce que son journal annonce zéro insertion. C'est le défaut mesuré "
+        "en production le 2026-09-22 : `rows_inserted` dit ce qu'une EXÉCUTION a "
+        "inséré, jamais ce que la base CONTIENT."
     )
 
 
-def test_rows_delivered_under_a_failed_status_do_not_activate(bac):
-    """L'autre moitié du prédicat, et elle se mute dans l'autre sens.
+def test_a_log_that_claims_rows_does_not_activate_without_the_data(bac):
+    """L'AUTRE SENS, et il est plus dur que la version d'origine.
 
-    Sans ce cas, un prédicat réduit à `rows_inserted > 0` passerait les deux tests
-    précédents. On fait donc livrer des lignes à un locataire dont l'exécution a
-    ÉCHOUÉ : un lot partiel écrit puis annulé n'est pas une livraison.
+    `_A_VIDE` porte un `success` annonçant **42 lignes** et RIEN en base. La version
+    de ce test écrite le matin utilisait un `success` à ZÉRO ligne — un prédicat
+    réduit à `rows_inserted > 0` la passait. Ici aucun prédicat sur le journal ne
+    peut la passer : seule une lecture de la table y arrive.
+    """
+    _actives, dormants = _etat(bac)
+    assert _A_VIDE in dormants, (
+        "un journal qui annonce 42 lignes active le compte alors que sa table est "
+        "vide : la métrique mesure la machine, pas ce que l'artiste reçoit"
+    )
+
+
+def test_rows_claimed_under_a_failed_status_do_not_activate(bac):
+    """Un statut d'échec ne peut pas non plus activer — il n'a plus de voix du tout.
+
+    Le prédicat ne lit plus le statut, donc ce test ne vérifie plus une moitié de
+    condition : il vérifie que le journal est SANS EFFET, quel que soit ce qu'il dit.
+    C'est plus faible en intention et plus fort en portée.
     """
     bac.execute(
         "INSERT INTO etl_run_log (dag_id, artist_id, platform, status, "
@@ -126,7 +185,8 @@ def test_rows_delivered_under_a_failed_status_do_not_activate(bac):
     )
     _actives, dormants = _etat(bac)
     assert _A_SKIP in dormants, (
-        "des lignes comptées sous un statut d'échec activent le compte"
+        "des lignes ANNONCÉES par le journal activent le compte : il ne devrait avoir "
+        "aucune voix, quel que soit son statut"
     )
 
 
@@ -142,14 +202,38 @@ def test_the_counter_and_the_list_agree(bac):
     )
 
 
-def test_an_old_delivery_does_not_activate_today(bac):
-    """La fenêtre mord : livrer il y a six mois n'active personne aujourd'hui."""
+def test_an_old_row_does_not_activate_today(bac):
+    """La fenêtre mord sur la DONNÉE : une ligne de six mois n'active personne.
+
+    Écrite dans la table, pas dans le journal — sinon ce test ne vérifierait plus que
+    l'inertie d'une source que le prédicat ne lit plus.
+    """
     bac.execute(
-        "INSERT INTO etl_run_log (dag_id, artist_id, platform, status, "
-        "rows_inserted, started_at, created_at) "
-        "VALUES ('t', %s, 'meta', 'success', 500, "
-        "NOW() - INTERVAL '180 days', NOW() - INTERVAL '180 days')",
+        "INSERT INTO soundcloud_tracks_daily (track_id, artist_id, collected_at) "
+        "VALUES ('zz-old', %s, NOW() - INTERVAL '180 days')",
         (_A_VIDE,),
     )
     _actives, dormants = _etat(bac)
-    assert _A_VIDE in dormants, "une livraison hors fenêtre active encore le compte"
+    assert _A_VIDE in dormants, (
+        "une ligne vieille de six mois active encore le compte : la fenêtre ne mord "
+        "plus sur la date de la donnée."
+    )
+
+
+def test_a_fresh_row_in_that_same_table_does_activate(bac):
+    """NON-VACUITÉ du test ci-dessus : la fenêtre doit SÉPARER, pas tout refuser.
+
+    Sans lui, un prédicat qui rejetterait `soundcloud_tracks_daily` en entier — table
+    mal orthographiée, colonne renommée, branche disparue du registre — passerait le
+    test de la fenêtre pour la mauvaise raison.
+    """
+    bac.execute(
+        "INSERT INTO soundcloud_tracks_daily (track_id, artist_id, collected_at) "
+        "VALUES ('zz-new', %s, NOW())",
+        (_A_VIDE,),
+    )
+    actives, _dormants = _etat(bac)
+    assert _A_VIDE in actives, (
+        "une ligne FRAÎCHE dans la même table n'active pas : ce n'est donc pas la "
+        "fenêtre qui décide, c'est la branche qui est morte."
+    )
