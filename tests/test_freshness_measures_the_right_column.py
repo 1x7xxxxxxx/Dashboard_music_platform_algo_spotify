@@ -39,7 +39,13 @@ from tests.db_gate import requires_live_db
 # `line_date` entered on 2026-09-22 with SACEM. `sacem_statement` is a LEDGER: one row
 # per movement, and `line_date` is the day that movement happened. That is precisely a
 # metric date — the row can be re-imported years later without it moving.
-_METRIC_NAMES = ("day_date", "date", "day", "metric_date", "report_date", "line_date")
+# `snapshot_date` entered on 2026-09-22 with Apple Music. The Apple export is a
+# snapshot of a PERIOD, and `snapshot_date` (migration 093) is the date the export
+# itself carries — a file re-imported next month does not move it. That is exactly
+# a metric date. (`period_end`, migration 094, would be one too but is NULL in
+# every row.)
+_METRIC_NAMES = ("day_date", "date", "day", "metric_date", "report_date",
+                 "line_date", "snapshot_date")
 
 
 def test_every_declared_metric_column_is_named_like_one():

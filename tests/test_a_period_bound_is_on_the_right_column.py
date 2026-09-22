@@ -215,38 +215,49 @@ _FRAICHEUR = re.compile(r'"SELECT MAX\((?P<col>[a-z_]+)\)(?:::date)? FROM (?P<tb
 _ECRITURE = {"collected_at", "created_at", "updated_at", "inserted_at", "fetched_at"}
 
 
-def _lectures_de_fraicheur() -> list[tuple[int, str, str]]:
-    """`(ligne, colonne, table)` pour chaque `MAX(...)` de l'écran de supervision."""
-    texte = _ADMIN.read_text(encoding="utf-8")
-    return [(texte[:m.start()].count("\n") + 1, m.group("col"), m.group("tbl"))
-            for m in _FRAICHEUR.finditer(texte)]
+def _lectures_de_fraicheur() -> list[tuple[str, str, str]]:
+    """`(source, colonne lue, table)` pour chaque source du REGISTRE.
+
+    ⚠️ CE GARDE VISAIT `admin.py` ET SES HUIT REQUÊTES ÉCRITES À LA MAIN. Elles ont
+    été pliées dans le registre commun le 2026-09-22, et l'extraction est tombée à
+    zéro — c'est son propre test de non-vacuité qui l'a dit, en une phrase juste :
+    « l'écran a changé de forme et le garde ne lit plus rien ».
+
+    Repointé sur le registre, il garde PLUS qu'avant : huit requêtes devenues dix
+    sources, et une source ajoutée demain sans sa date de mesure rougit ici. La
+    question qu'il pose est la même, et c'est la seule du dépôt qui ne se lise pas
+    dans le code : « cette table porte-t-elle une date métier ? » demande la base.
+    """
+    from src.utils.source_registry import SOURCES, colonne_de_mesure
+
+    return [(s.cle, colonne_de_mesure(s.cle), s.table) for s in SOURCES]
 
 
 def test_the_freshness_screen_was_really_found() -> None:
     """Non-vacuité : sans extraction, le test ci-dessous est vert pour rien."""
     lues = _lectures_de_fraicheur()
     assert len(lues) >= 5, (
-        f"seulement {len(lues)} requête(s) de fraîcheur extraite(s) de admin.py — "
-        "l'écran a changé de forme et le garde ne lit plus rien.")
+        f"seulement {len(lues)} source(s) extraite(s) du registre — il a changé de "
+        "forme et le garde ne lit plus rien.")
 
 
 def test_a_freshness_screen_reads_the_date_the_data_carries() -> None:
     """Quand la table porte une date métier, l'écran de fraîcheur la lit."""
-    import os
-    import socket
-    psycopg2 = __import__("pytest").importorskip("psycopg2")
-    s = socket.socket()
-    s.settimeout(1)
-    try:
-        s.connect(("127.0.0.1", 5433))
-    except OSError:
-        __import__("pytest").skip("Postgres 5433 injoignable — « cette table a-t-elle "
-                                  "une date métier ? » ne se lit pas dans le code")
-    finally:
-        s.close()
-    conn = psycopg2.connect(host="127.0.0.1", port=5433, dbname="spotify_etl",
-                            user="postgres", password=os.getenv("DB_PASSWORD", "postgres"),
-                            connect_timeout=3)
+    # ⚠️ PAR LA PORTE CANONIQUE, pas par un DSN écrit ici. Ce bloc construisait le
+    # sien avec `os.getenv("DB_PASSWORD", "postgres")` : il ne connaît que
+    # l'environnement, alors que `tests.db_gate.dsn()` connaît aussi
+    # `config/config.yaml` — où le mot de passe vit sur ce poste. Vingt tests sont
+    # tombés d'un coup sur ce défaut le 2026-09-22 ; trois modules ont été corrigés
+    # et celui-ci a échappé au balayage.
+    import pytest as _pt
+    psycopg2 = _pt.importorskip("psycopg2")
+    from tests.db_gate import dsn as _dsn
+
+    kw = _dsn()
+    if kw is None:
+        _pt.skip("Postgres injoignable — « cette table a-t-elle une date métier ? » "
+                 "ne se lit pas dans le code")
+    conn = psycopg2.connect(**kw, connect_timeout=3)
     try:
         with conn.cursor() as cur:
             cur.execute("""
@@ -271,9 +282,10 @@ def test_a_freshness_screen_reads_the_date_the_data_carries() -> None:
         if metier:
             fautifs.append((ligne, tbl, col, metier))
     assert not fautifs, (
-        "".join(f"\n  admin.py:{ln} lit `MAX({c})` sur `{t}`, qui porte {m}"
+        "".join(f"\n  la source « {ln} » lit `{c}` sur `{t}`, qui porte {m}"
                 for ln, t, c, m in fautifs) +
-        "\n\nCet écran annonce « last-data date » : il doit lire la date PORTÉE PAR LA "
+        "\n\nLe registre annonce une date de MESURE : il doit déclarer la date PORTÉE "
+        "PAR LA "
         "DONNÉE quand elle existe, jamais sa date d'écriture (`quality_gate.py:40-41`). "
         "Sur `meta_insights_performance_day`, confondre les deux vaut **718 jours** "
         "(`freshness_monitor.py:18`). Sur Apple l'écart valait 0 le 2026-09-18 — un "

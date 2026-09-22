@@ -12,7 +12,8 @@ _CSV_STALE_H = 7 * 24  # CSV S4A / Apple Music : watcher peu fréquent
 # du 2026-09-14, appliquée avant d'avoir à la réapprendre.
 _MANUAL_STALE_H = 30 * 24
 
-from src.utils.source_registry import table_et_colonne  # noqa: E402
+from src.utils.source_registry import (  # noqa: E402
+    colonne_de_mesure, table_et_colonne)
 
 # Sources à monitorer : (label, table, colonne, seuil_h)
 # `tenant_table`/`tenant_col`: where to look when the question is asked about ONE
@@ -43,7 +44,16 @@ def _cible(cle: str, **propre) -> dict:
     diffère volontairement.
     """
     table, col = table_et_colonne(cle)
-    return {"source": cle, "table": table, "col": col, **propre}
+    cible = {"source": cle, "table": table, "col": col}
+    # ⚠️ `metric_col` est LUE au tronc depuis le 2026-09-22, plus déclarée ici. C'est
+    # une propriété de la TABLE — « de quand cette donnée parle-t-elle » — et une
+    # deuxième surface en a eu besoin (`admin § Technique`, huit requêtes écrites à
+    # la main). Deux lecteurs, donc elle descend.
+    mesure = colonne_de_mesure(cle)
+    if mesure != col:
+        cible["metric_col"] = mesure
+    cible.update(propre)
+    return cible
 
 
 MONITOR_TARGETS = [
@@ -65,7 +75,7 @@ MONITOR_TARGETS = [
            # la QUESTION — « est-ce vieux ? » n'appelle aucun geste, alors que « une
            # sortie est parue et tu n'as pas importé depuis » en appelle un, une
            # seule fois.
-           silence_expected="s4a_no_release_since_last_import", metric_col="date"),
+           silence_expected="s4a_no_release_since_last_import"),
     _cible("YouTube", stale_h=_DEFAULT_STALE_H),
     _cible("SoundCloud", stale_h=_DEFAULT_STALE_H),
     _cible("Instagram", stale_h=_DEFAULT_STALE_H),
@@ -76,7 +86,7 @@ MONITOR_TARGETS = [
            # API confirms amount_spent=0 with no insight row in 90 days. Reporting
            # that as "stale" is true and useless — it would fire every night forever
            # for a correct pipeline, which is how a reader learns to skip the alert.
-           silence_expected="meta_no_active_campaign", metric_col="day_date"),
+           silence_expected="meta_no_active_campaign"),
     # ── Les trois entrées du 2026-09-22 ────────────────────────────────────────
     # Elles étaient ABSENTES de l'alerte alors que leurs tables existent depuis des
     # mois. iMusician vivait dans la grille du tableau de bord et nulle part
@@ -92,8 +102,8 @@ MONITOR_TARGETS = [
     # ÉCRITE. Sans le déclarer, corriger une vieille saisie ferait bouger
     # l'horodatage d'écriture et la source paraîtrait fraîche — le défaut exact de
     # Meta du 2026-08-21, mort depuis six semaines derrière un feu vert.
-    _cible("Hypeddit", stale_h=_MANUAL_STALE_H, fed_by="csv", metric_col="date"),
-    _cible("SACEM", stale_h=_MANUAL_STALE_H, fed_by="csv", metric_col="line_date"),
+    _cible("Hypeddit", stale_h=_MANUAL_STALE_H, fed_by="csv"),
+    _cible("SACEM", stale_h=_MANUAL_STALE_H, fed_by="csv"),
 ]
 
 # Logical platform -> the freshness sources that can PROVE it is collecting.

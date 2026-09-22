@@ -8,7 +8,7 @@ import pandas as pd
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
-from src.database.postgres_handler import validate_table
+from src.database.postgres_handler import validate_columns, validate_table
 from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.utils.cache_invalidation import purge_after_write
 from src.dashboard.utils.ui import flash
@@ -359,39 +359,55 @@ def _render_token_management() -> None:
 
 
 def _supervision_freshness(db) -> pd.DataFrame:
-    """Per-platform last-data date + freshness flag. Each query guarded (autocommit
-    handler → a missing table doesn't poison the next query)."""
+    """La fraîcheur par plateforme, À L'ÉCHELLE DE LA FLOTTE.
+
+    ⚠️ PAS par locataire, et `grafana-correspondence.md` l'a écrit à tort. Ce
+    document gardait cette section en la justifiant « la fraîcheur par plateforme,
+    par locataire » ; ces requêtes n'ont jamais porté de `WHERE artist_id`. Le
+    VERDICT tenait — Grafana ne l'a pas, aucun exportateur ne lit Postgres et
+    ADR-026 n'en prévoit pas — mais sa RAISON était fausse, et une raison fausse est
+    ce qui fait supprimer une vue utile le jour où quelqu'un la vérifie. Corrigé
+    dans le document le 2026-09-22.
+
+    ⚠️ LES SOURCES SONT LUES AU REGISTRE COMMUN, plus écrites à la main. Cette
+    fonction portait HUIT requêtes `SELECT MAX(...)` composées ici, soit la
+    cinquième liste des mêmes tables dans ce dépôt. Les deux premières ont été
+    unifiées le matin du 2026-09-22 ; celle-ci et `db_health._DATASETS` avaient
+    échappé au balayage — la règle du dépôt dit de chercher les frères AVANT
+    d'écrire le correctif, et je ne l'avais pas fait.
+
+    La colonne lue est celle de MESURE (`colonne_de_mesure`), pas celle d'écriture :
+    sur `meta_insights_performance_day` l'écart vaut **718 jours**, parce que le DAG
+    ré-écrit chaque matin des lignes de 2024 et que toute sonde lisant
+    `collected_at` les déclare fraîches.
+    """
     import datetime as _dt
-    checks = [
-        ("Spotify S4A",    "SELECT MAX(date) FROM s4a_song_timeline"),
-        ("Meta Ads",       "SELECT MAX(day_date) FROM meta_insights_performance_day"),
-        ("Instagram",      "SELECT MAX(collected_at)::date FROM instagram_daily_stats"),
-        ("SoundCloud",     "SELECT MAX(collected_at)::date FROM soundcloud_tracks_daily"),
-        ("YouTube",        "SELECT MAX(collected_at)::date FROM youtube_video_stats"),
-        # ⚠️ `date`, pas `collected_at` — cette table est la SEULE des sept à porter une
-        # date métier, et les six autres lignes de cette liste appliquent déjà la règle
-        # (`MAX(date)`, `MAX(day_date)`, `MAX(prediction_date)`). Instagram, SoundCloud
-        # et YouTube n'ont que `collected_at` : pour elles, c'est la bonne colonne.
-        # L'écart mesuré ici valait 0 j le 2026-09-18 — le défaut était LATENT. Sur
-        # `meta_insights_performance_day`, la même erreur vaut **718 jours**
-        # (`freshness_monitor.py:18`), et ce docstring dit « last-DATA date ».
-        # La table MORTE affichait une fraîcheur gelée au dernier écrivain
-        # disparu — « Apple Music : 2025-12-11 » pendant que les imports
-        # arrivaient ailleurs. La vue or (131) réunit les deux sources.
-        ("Apple Music",    "SELECT MAX(day) FROM v_apple_song_cumulative"),
-        ("ML prédictions", "SELECT MAX(prediction_date) FROM ml_song_predictions"),
-    ]
+
+    from src.utils.source_registry import SOURCES, colonne_de_mesure
+
+    # `ml_song_predictions` n'est pas une plateforme : c'est notre propre sortie.
+    # Elle reste déclarée ICI, là où la question se pose, plutôt que d'entrer au
+    # registre des sources — qui répond à « cette plateforme livre-t-elle ».
+    extras = [("ML prédictions", "ml_song_predictions", "prediction_date")]
+    cibles = [(s.cle, s.table, colonne_de_mesure(s.cle)) for s in SOURCES] + extras
+
     today = _dt.date.today()
     rows = []
-    for label, sql in checks:
+    for label, table, col in cibles:
+        # CLAUDE.md règle #8 — les deux identifiants viennent d'un registre en dur,
+        # jamais d'une entrée utilisateur, et on le vérifie quand même.
+        validate_table(table)
+        validate_columns([col])
         try:
-            r = db.fetch_query(sql)
+            r = db.fetch_query(f"SELECT MAX({col}) FROM {table}")
             last = r[0][0] if r and r[0] else None
         except Exception:
             last = None
         if last is None or not hasattr(last, "year"):
             rows.append((label, "—", "❓ inconnu"))
             continue
+        if hasattr(last, "date"):
+            last = last.date()
         age = (today - last).days
         flag = ("🟢 à jour" if age <= 2 else "🟠 en retard" if age <= 7 else "🔴 obsolète")
         rows.append((label, str(last), f"{flag} ({age} j)"))

@@ -69,30 +69,62 @@ class Source(NamedTuple):
     table: str
     col: str
     fed_by: str
+    #: La colonne que la donnée DÉCRIT, quand la table la porte à côté de la date
+    #: d'écriture. `None` quand `col` EST la date de mesure (un instantané : les
+    #: abonnés d'aujourd'hui, les titres d'aujourd'hui).
+    #:
+    #: ⚠️ ELLE EST DESCENDUE ICI LE 2026-09-22, et c'est une propriété de la TABLE,
+    #: pas d'un lecteur. Elle vivait chez l'alerte nocturne « qui est la surface qui
+    #: en a besoin » — puis une deuxième en a eu besoin (`admin § Technique`, qui
+    #: écrivait huit requêtes à la main pour lire `MAX(date)` et `MAX(day_date)`).
+    #: Deux lecteurs, donc elle descend. Même geste que `MIN_DEPENSE` le matin même.
+    metric_col: str | None = None
 
 
 #: Les sources connues du produit. L'ORDRE n'a pas de sens ici — chaque lecteur trie
 #: selon sa propre question (l'accueil par ce qui a des données, l'alerte par gravité).
 SOURCES: tuple[Source, ...] = (
     Source("Spotify API", "artists", "collected_at", "api"),
-    Source("Spotify S4A", "s4a_song_timeline", "collected_at", "csv"),
+    Source("Spotify S4A", "s4a_song_timeline", "collected_at", "csv", "date"),
     Source("YouTube", "youtube_channel_history", "collected_at", "api"),
     Source("SoundCloud", "soundcloud_tracks_daily", "collected_at", "api"),
     Source("Instagram", "instagram_daily_stats", "collected_at", "api"),
-    Source("Apple Music", "apple_songs_performance", "collected_at", "csv"),
-    Source("Meta Ads", "meta_insights_performance_day", "collected_at", "api"),
+    # `snapshot_date` (migration 093) est la date que l'export Apple PORTE. Elle
+    # égalait `collected_at` au 2026-09-22 — 29 lignes sur 29, toutes au 08/09 —
+    # donc l'écart était LATENT, et un garde l'avait nommé comme tel de longue
+    # date. Le déclarer le rend nul par construction : un export de la semaine
+    # dernière déposé aujourd'hui cesserait de compter comme frais.
+    # `period_end` (094) existe aussi mais vaut NULL partout : inutilisable.
+    Source("Apple Music", "apple_songs_performance", "collected_at", "csv",
+           "snapshot_date"),
+    Source("Meta Ads", "meta_insights_performance_day", "collected_at", "api", "day_date"),
     Source("iMusician", "imusician_monthly_revenue", "updated_at", "csv"),
     # ── Entrées le 2026-09-22 : leurs tables existent en production depuis des mois
     # et AUCUN des deux registres ne les connaissait. Ni l'accueil ni l'alerte ne
     # pouvaient donc dire qu'elles étaient vides ou périmées.
     # `updated_at` et non `created_at` : une saisie manuelle se CORRIGE, et la
     # corriger est un signe de vie. Même choix que iMusician ci-dessus.
-    Source("Hypeddit", "hypeddit_daily_stats", "updated_at", "csv"),
-    Source("SACEM", "sacem_statement", "created_at", "csv"),
+    Source("Hypeddit", "hypeddit_daily_stats", "updated_at", "csv", "date"),
+    Source("SACEM", "sacem_statement", "created_at", "csv", "line_date"),
 )
 
 #: Index par clé, pour qui a une clé et veut la source.
 PAR_CLE: dict[str, Source] = {s.cle: s for s in SOURCES}
+
+
+def colonne_de_mesure(cle: str) -> str:
+    """La colonne à lire pour savoir de QUAND la donnée parle.
+
+    Rend `metric_col` quand la table en porte une, sinon `col`. C'est LA question
+    qu'une surface de fraîcheur pose, et la confondre avec la date d'écriture a
+    coûté **718 jours** sur `meta_insights_performance_day` : le DAG ré-écrivait
+    des lignes de 2024 chaque matin, et toute sonde lisant `collected_at` les
+    déclarait fraîches. Meta était mort depuis six semaines derrière un feu vert.
+    """
+    s = PAR_CLE.get(cle)
+    if s is None:
+        raise KeyError(f"source inconnue : {cle!r}")
+    return s.metric_col or s.col
 
 
 def table_et_colonne(cle: str) -> tuple[str, str]:
