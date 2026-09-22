@@ -50,7 +50,21 @@ _DB_HOST, _DB_PORT = "127.0.0.1", 5433
 
 # Views whose show() builds tabs. A view here whose tabs all render empty is either
 # broken or should not be in this list — both are worth a failure.
-TABBED_VIEWS = ["admin"]
+#
+# ⚠️ `admin` A QUITTÉ CETTE LISTE LE 2026-09-22, et ce n'est pas un desserrage : elle
+# n'a PLUS d'onglets. Ses sept `st.tabs` sont devenus un sélecteur à six sections,
+# parce que Streamlit exécute le corps de CHAQUE onglet à chaque rerun — mesuré,
+# regrouper les dix écrans d'administration en onglets coûtait **93 requêtes par
+# clic**, là où un sélecteur n'en paie que 1 à 22 selon la section regardée.
+#
+# Ce garde a rougi et il a dit exactement la bonne chose : « admin renders no tabs at
+# all — is it still a tabbed view? ». La réponse est non. Sa propriété — le contenu
+# d'un onglet se rend DANS son onglet — reste vraie et garde désormais
+# `trigger_algo`, qui porte quatre vrais `st.tabs`.
+#
+# Ce que l'admin garde à la place : `test_the_admin_page_renders_one_section_at_a_time`,
+# qui refuse le retour à `st.tabs` et vérifie que chaque section rend quelque chose.
+TABBED_VIEWS = ["trigger_algo"]
 
 # Element kinds that count as "this tab rendered something".
 _PROBES = ("button", "dataframe", "selectbox", "text_input", "subheader", "checkbox",

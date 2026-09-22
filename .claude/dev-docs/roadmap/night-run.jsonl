@@ -129,3 +129,5 @@
 {"at": "2026-09-20T17:07:27+00:00", "head": "af0f7a8", "kind": "start", "task": "R144", "what": "R140 : integration des 17 decisions"}
 {"at": "2026-09-20T20:49:45+00:00", "head": "0ad820c", "kind": "done", "task": "R144", "what": "R140 : les 17 decisions integrees, R125/R134/R135/R142/R143 closes, 50 commits deployes, 2 classes d'erreur, R145 ouverte sur mesure"}
 {"at": "2026-09-22T12:31:22+00:00", "head": "a5b1582", "kind": "start", "task": "R154", "what": "cinq listes de sources -> le tronc ; garde de la sixieme"}
+{"at": "2026-09-22T12:32:06+00:00", "head": "1e092ad", "kind": "done", "task": "R154", "what": "8 requetes pliees ; garde repointe 8->10 sources ; 3 defauts a moi trouves par des gardes"}
+{"at": "2026-09-22T12:32:12+00:00", "head": "1e092ad", "kind": "start", "task": "R155", "what": "six onglets admin, selecteur paresseux"}

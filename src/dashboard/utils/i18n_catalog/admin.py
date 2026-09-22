@@ -36,7 +36,6 @@ EN = {
     # Guard / title / tabs
     "admin.access_denied": "⛔ Administrator access only.",
     "admin.title": "⚙️ Administration",
-    "admin.tab_supervision": "📊 Supervision",
     "admin.tab_artists": "👥 Artists",
     "admin.tab_users": "👤 Users",
     "admin.tab_upload": "📂 CSV Upload",
@@ -191,4 +190,19 @@ EN = {
     "admin.act_col_trial": "Trial until",
     "admin.act_col_plats": "Platforms",
     "admin.business_expander": "📊 Business — signups & subscriptions",
+    # ── Les six groupes de la page admin (2026-09-22) ──────────────────────
+    # `st.tabs` aurait coûté 93 requêtes par clic (mesuré) : Streamlit exécute le
+    # corps de chaque onglet. Un sélecteur n'exécute que le groupe choisi.
+    "admin.group_bar": "Section",
+    "admin.sub_bar": "Screen",
+    "admin.s_business": "\U0001F4B0 Signups \u0026 margin",
+    "admin.s_referral": "\U0001F381 Referral",
+    "admin.s_promo": "\U0001F3F7\uFE0F Promo codes",
+    "admin.s_datasets": "\U0001F3E5 Datasets",
+    "admin.s_etl": "\U0001F4DC ETL logs",
+    "admin.s_airflow": "\U0001F6A6 Pipelines",
+    "admin.s_alerts": "\U0001F514 Alerts",
+    "admin.s_platforms": "\U0001F4E1 Freshness per platform",
+    "admin.s_usage": "\U0001F4C8 App usage",
+    "admin.s_ml": "\U0001F916 ML performance",
 }
