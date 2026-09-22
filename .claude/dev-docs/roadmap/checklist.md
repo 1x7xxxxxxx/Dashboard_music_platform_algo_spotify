@@ -27,13 +27,13 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 |---|---|---|---|
 | R157 | La grille de fraîcheur de l'accueil lit la date d'ÉCRITURE | P2 | `MAX(col)` contre `MAX(metric_col)` par source — **Meta : 720 jours d'écart**, SACEM : 65 |
 | R158 | `activation.py` compte la livraison sur `rows_inserted > 0` | P3 | rejouer en PRODUCTION la paire (artiste, plateforme) dont tous les succès portent 0 ligne |
-| R159 | Deux résidus de `home_tiles.py` laissés en connaissance de cause | P4 | le commentaire ligne ~290 et le bloc indenté ligne ~362 relus, corrigés ou expliqués |
 
-**Cet index porte TROIS lignes le 2026-09-22 au soir**, toutes nées d'une mesure prise
-ce jour-là et aucune d'une intuition. Il était vide à midi ; les trois sont entrées par
-le travail de l'après-midi, et deux d'entre elles avaient été **délibérément laissées de
-côté** dans le plan de l'accueil — « porté en roadmap, pas dans ce commit ». C'est ici
-qu'elles atterrissent, plutôt que dans une ligne d'historique que personne ne relit.
+**Cet index porte DEUX lignes le 2026-09-22 au soir**, toutes deux nées d'une mesure prise
+ce jour-là et aucune d'une intuition. Il était vide à midi ; TROIS sont entrées par le
+travail de l'après-midi et **R159 en est déjà sortie, livrée le soir même**. Les deux qui
+restent avaient été **délibérément laissées de côté** dans le plan de l'accueil — « porté
+en roadmap, pas dans ce commit ». C'est ici qu'elles atterrissent, plutôt que dans une
+ligne d'historique que personne ne relit.
 
 ⚠️ **R157 est la plus lourde, et sa correction a un coût VISIBLE.** La grille de
 l'accueil demande au registre la colonne `col` — la date à laquelle la ligne a été
@@ -183,7 +183,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-22 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R148,R150,R151,R153,R157,R158,R159 -->
+<!-- reprise: open=R148,R150,R151,R153,R157,R158 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers

@@ -9,6 +9,45 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🧹 R159 — Les deux résidus de `home_tiles.py` (livrée 2026-09-22)
+
+- [x] **R159 — deux résidus de `home_tiles.py` laissés en connaissance de cause : un commentaire déjà disparu, un bloc de sept lignes en colonne 0 dans un corps indenté.** (P4)
+
+**Livrée le 2026-09-22**, le soir de son entrée à l'index. Deux résidus avaient été
+laissés en connaissance de cause dans le plan de l'accueil — « les deux entrent en
+roadmap, pas dans ce commit », parce qu'une correction silencieuse pendant un autre
+travail est une dérive.
+
+**Le premier n'existait DÉJÀ plus, et le dire compte.** Le commentaire « SA VOISINE RESTE
+VIDE » décrivait un état périmé depuis qu'Hypeddit occupe la place (2026-09-13) ; le
+réagencement de `agencer(unites, par_rangee=2)` l'avait emporté avec les six
+`st.columns(2)` écrits à la main. Un résidu noté puis corrigé par un autre travail se
+relit comme un résidu vivant : vérifier avant d'agir sur une ligne de roadmap est ce qui
+sépare une correction d'une régression.
+
+**Le second était réel** : sept lignes de commentaire en **colonne 0** au milieu du corps
+de `render_tiles` (lignes 421-427), expliquant la suppression de `_recap_extra`. Python
+ignore l'indentation d'un commentaire, donc rien ne s'en est jamais plaint — mais à la
+lecture le bloc se lit comme du code de niveau module et suggère que la fonction est
+terminée, alors que **345 lignes lui appartiennent encore**. Indenté à 4 espaces, comme
+le commentaire voisin de la ligne 430.
+
+**Balayage de la forme (règle 14)**, sur `src/ airflow/ tools/ tests/ .claude/scripts/` :
+23 lignes brutes → 3 groupes → **2 écartés**, et les deux pour la même raison —
+`views/privacy.py:16` est un titre Markdown à l'intérieur d'une chaîne triple passée à
+`st.markdown`, et
+`test_the_share_step_is_hidden_when_there_is_nothing_to_share.py:47` est un commentaire
+Python dans le script d'un `AppTest.from_string`, **où la colonne 0 est correcte** : c'est
+le niveau module du script rendu. Mon prédicat lisait les lignes brutes sans savoir
+lesquelles vivent dans une chaîne. → **1 site vivant**, celui-ci.
+
+**Aucun garde écrit, et c'est la décision.** Un site, P4, et un prédicat qui demande
+l'exclusion des littéraux de chaîne pour ne pas rougir sur deux fichiers justes : la
+règle 15 dit d'écrire le test quand aucun billet d'admission ne tient, et ici même le
+test coûterait plus que ce qu'il garde. Le balayage est consigné, la forme est nommée.
+
+---
+
 ## 🗂️ R155 — Dix écrans d'administration en SIX sections, un sélecteur paresseux (livrée 2026-09-22)
 
 **Livrée et poussée le 2026-09-22** — commit `10a1d61`. La demande était « regrouper en

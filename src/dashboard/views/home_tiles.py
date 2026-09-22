@@ -418,13 +418,13 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
             _rendu(_col)
 
 
-# `_recap_extra` A ÉTÉ SUPPRIMÉE LE 2026-09-12, pas mise de côté. Elle fabriquait
-# les lignes « Apple Music / Instagram / Meta Ads » de la table de droite, avec leur
-# unité entre parenthèses. Les trois ont désormais leur BOÎTE dans la rangée du haut,
-# où elles portent en plus l'écart contre la période précédente. Garder la fonction
-# « au cas où » aurait produit ce que ce dépôt paie le plus souvent : du code correct
-# que rien n'atteint, et qui pourrit jusqu'à ce qu'on le rebranche sur un écran qui a
-# changé sous lui.
+    # `_recap_extra` A ÉTÉ SUPPRIMÉE LE 2026-09-12, pas mise de côté. Elle fabriquait
+    # les lignes « Apple Music / Instagram / Meta Ads » de la table de droite, avec leur
+    # unité entre parenthèses. Les trois ont désormais leur BOÎTE dans la rangée du haut,
+    # où elles portent en plus l'écart contre la période précédente. Garder la fonction
+    # « au cas où » aurait produit ce que ce dépôt paie le plus souvent : du code correct
+    # que rien n'atteint, et qui pourrit jusqu'à ce qu'on le rebranche sur un écran qui a
+    # changé sous lui.
 
 
     # ── LES TROIS PORTES DE LA DERNIÈRE SORTIE, SOUS LES PLATEFORMES ────────
