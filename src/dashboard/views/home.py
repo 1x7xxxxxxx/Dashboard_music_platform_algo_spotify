@@ -47,7 +47,7 @@ def _freshness_badge(label, icon, last_dt):
     """
 
 
-def _section_freshness(db, artist_id):
+def _section_freshness(db, artist_id, etat=None):
     """Deux groupes, parce que ce sont deux CONTRATS différents.
 
     Les huit sources étaient sur une seule ligne, sous un paragraphe qui expliquait
@@ -58,9 +58,55 @@ def _section_freshness(db, artist_id):
     Chaque source porte désormais son contrat (`kind`) et son heure (`at`) dans
     `SOURCES_CONFIG`, et la grille les montre là où on les lit : sous la source.
     """
-    st.subheader(t("home.freshness_header", "📡 Fraîcheur des données"))
+    st.subheader(t("home.freshness_header", "📡 Ce qui alimente tes chiffres"))
     freshness = get_source_freshness(db, artist_id)
     meta = {src["label"]: src for src in SOURCES_CONFIG}
+
+    # ── CE QUI MANQUE, ET CE QU'IL Y A À FAIRE ────────────────────────────────
+    #
+    # Ajouté le 2026-09-22. Avant, une source sans donnée affichait « — » et
+    # s'arrêtait : sur les six locataires bêta de production, QUATRE n'avaient rien
+    # nulle part, donc leur accueil était un écran de tirets sans une seule
+    # indication de quoi faire.
+    #
+    # Yifrah, *Microcopy* p.129 : « au lieu de dire qu'il n'y a rien ici, écris ce
+    # qui est censé s'y trouver ou ce qu'on peut y faire […] fournis un lien. »
+    #
+    # ⚠️ Zéro requête : `freshness` est déjà en main, et `plan` est résolu une fois
+    # ici plutôt qu'une fois par carte. L'accueil est à son plafond d'allers-retours.
+    absentes = [meta[lbl] for lbl, info in freshness.items()
+                if info["last_dt"] is None and lbl in meta]
+    if absentes:
+        from src.dashboard.auth import get_artist_plan
+        from src.dashboard.utils.absence_cta import render_absence_list
+
+        # ⚠️ TANT QUE LA MISE EN ROUTE N'EST PAS FINIE, CES CARTES SE REPLIENT —
+        # et c'est un défaut trouvé en REGARDANT le rendu, qu'aucun test ne voyait.
+        #
+        # Un locataire vide se retrouvait devant TROIS surfaces qui répondent à la
+        # même question : le bandeau de mise en route (quatre étapes), sa matrice par
+        # plateforme, et ces dix cartes. Trois fois « voilà ce qu'il te reste à
+        # faire », dans trois vocabulaires différents.
+        #
+        # Les deux ne sont pas redondantes, elles sont à deux GRAINS : le bandeau est
+        # par ÉTAPE (« importe tes fichiers »), les cartes sont par PLATEFORME (« ton
+        # SoundCloud n'est pas branché »). Tant qu'il reste une étape, le bandeau est
+        # la bonne réponse et il occupe la place ; une fois la mise en route terminée,
+        # c'est l'axe plateforme que l'artiste vient chercher.
+        en_route = etat is not None and not etat.complete
+        st.caption(t("home.absence_intro",
+                     "Ces sources ne sont pas encore branchées — chacune ajoute une "
+                     "pièce à tes chiffres :"))
+        if en_route:
+            titre = t("home.absence_repli",
+                      "Voir les {n} sources à brancher, une par une").format(
+                          n=len(absentes))
+            with st.expander(titre, expanded=False):
+                render_absence_list(absentes, plan=get_artist_plan(),
+                                    limite=len(absentes), prefixe="home_")
+        else:
+            render_absence_list(absentes, plan=get_artist_plan(), prefixe="home_")
+        st.markdown("")
 
     # Deux titres, aucune glose. « 🔄 Collecte automatique » et « 📂 À déposer
     # toi-même » disent déjà tout ce que les deux phrases retirées le 2026-09-12
@@ -71,7 +117,11 @@ def _section_freshness(db, artist_id):
         ("csv", t("home.freshness_csv", "📂 À déposer toi-même")),
     )
     for kind, title in groups:
-        labels = [lbl for lbl in freshness if meta.get(lbl, {}).get("kind") == kind]
+        # Seules les sources qui ONT une mesure : les autres sont traitées au-dessus,
+        # avec leur geste. Une tuile à « — » répétait l'absence sans rien en dire.
+        labels = [lbl for lbl in freshness
+                  if meta.get(lbl, {}).get("kind") == kind
+                  and freshness[lbl]["last_dt"] is not None]
         if not labels:
             continue
         st.markdown(f"**{title}**")
@@ -603,8 +653,13 @@ _STATE_COLOR = {
 }
 
 
-def _section_onboarding(db, artist_id: int) -> None:
-    """Brick 29 — Onboarding progress tracker for new artists."""
+def _section_onboarding(db, artist_id: int, state=None) -> None:
+    """Brick 29 — Onboarding progress tracker for new artists.
+
+    `state` est LU PAR L'APPELANT depuis le 2026-09-22, parce que la section de
+    fraîcheur en a besoin elle aussi : deux lectures poseraient deux fois la même
+    requête. Il reste facultatif pour les appels hors `show()`.
+    """
     # La définition des quatre étapes vit dans `utils.setup_completion`, pas ici.
     # Elle était écrite ICI et l'aiguillage d'accueil en posait une AUTRE (« l'artiste
     # n'a-t-il rien branché du tout ? ») : deux surfaces, même question, réponses
@@ -612,11 +667,12 @@ def _section_onboarding(db, artist_id: int) -> None:
     from src.dashboard.utils.setup_completion import (
         STEP_LABELS, read_setup_state)
 
-    # LE PLAN FILTRE LES ÉTAPES : une étape qui mène à une page verrouillée
-    # enverrait l'artiste sur le paywall depuis son parcours de mise en route.
-    from src.dashboard.auth import get_artist_plan
-    state = read_setup_state(db, artist_id, st.session_state.get('user_id'),
-                             plan=get_artist_plan())
+    if state is None:
+        # LE PLAN FILTRE LES ÉTAPES : une étape qui mène à une page verrouillée
+        # enverrait l'artiste sur le paywall depuis son parcours de mise en route.
+        from src.dashboard.auth import get_artist_plan
+        state = read_setup_state(db, artist_id, st.session_state.get('user_id'),
+                                 plan=get_artist_plan())
     if not state.steps:
         return
 
@@ -864,21 +920,26 @@ def _bouton_rapport_pdf() -> None:
     cadenas et atterrit sur la page d'abonnement — jamais un bouton qui promet et
     ouvre une page vide.
     """
-    from src.dashboard.auth import get_artist_plan
-    from src.database.stripe_schema import page_is_locked
+    # ⚠️ Le prédicat de verrou vit dans `utils/plan_gate.py` depuis le 2026-09-22,
+    # et ce site est le SEUL des trois qui migre entièrement — les deux autres
+    # (`export_pdf`, `onboarding`) posent une autre question que « cette PAGE
+    # est-elle ouverte ? » et n'emprunteraient que le vocabulaire.
+    #
+    # `bouton_vers` rend True seulement si cliqué ET ouvert : la navigation vers
+    # l'abonnement a déjà eu lieu dans l'autre cas, et ce site n'a pas à la connaître.
+    from src.dashboard.utils.plan_gate import bouton_vers
 
-    verrouille = page_is_locked(get_artist_plan(), "export_pdf")
-    libelle = (t("home.pdf_locked", "🔒 Rapport PDF — inclus dans Premium")
-               if verrouille else
-               t("home.pdf_cta", "📄 Générer mon rapport PDF"))
-    aide = (t("home.pdf_locked_help",
-              "La mise en forme du rapport est comprise dans l'abonnement ; "
-              "l'export brut de tes données reste gratuit (⬇️ Export CSV).")
-            if verrouille else
-            t("home.pdf_help",
-              "Tes chiffres du moment, mis en page et prêts à envoyer."))
-    if st.button(libelle, help=aide, width="stretch"):
-        goto("upgrade" if verrouille else "export_pdf")
+    if bouton_vers(
+        "export_pdf",
+        ouvert=t("home.pdf_cta", "📄 Générer mon rapport PDF"),
+        ferme=t("home.pdf_locked", "Rapport PDF — inclus dans Premium"),
+        aide_ouvert=t("home.pdf_help",
+                      "Tes chiffres du moment, mis en page et prêts à envoyer."),
+        aide_ferme=t("home.pdf_locked_help",
+                     "La mise en forme du rapport est comprise dans l'abonnement ; "
+                     "l'export brut de tes données reste gratuit (⬇️ Export CSV)."),
+    ):
+        goto("export_pdf")
 
 
 def show():
@@ -904,9 +965,20 @@ def show():
 
     with project_db() as db:
         try:
-            # Onboarding tracker — only shown to artists with incomplete setup
+            # ⚠️ L'ÉTAT DE MISE EN ROUTE EST LU UNE FOIS, ICI, et passé aux deux
+            # sections qui en ont besoin. Le relire dans la seconde poserait
+            # DEUX FOIS la même requête avec les mêmes paramètres, ce que
+            # `test_a_page_asks_the_same_question_once` interdit nommément — et
+            # l'accueil est à son plafond d'allers-retours.
+            etat = None
             if artist_id is not None:
-                _section_onboarding(db, artist_id)
+                from src.dashboard.auth import get_artist_plan
+                from src.dashboard.utils.setup_completion import read_setup_state
+                etat = read_setup_state(db, artist_id,
+                                        st.session_state.get('user_id'),
+                                        plan=get_artist_plan())
+                # Onboarding tracker — only shown to artists with incomplete setup
+                _section_onboarding(db, artist_id, etat)
 
             _section_streams(db, artist_id)
             _bouton_rapport_pdf()
@@ -914,6 +986,6 @@ def show():
             # 2 traits au-dessus de fraîcheur des données ». Les sous-titres suffisent
             # à séparer trois blocs qui ne se ressemblent pas.
             _section_dag_status()
-            _section_freshness(db, artist_id)
+            _section_freshness(db, artist_id, etat)
         except Exception as e:
             st.error(t("home.display_error", "Erreur d'affichage : {err}").format(err=e))

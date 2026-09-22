@@ -42,4 +42,14 @@ EN = {
     "src.imusician.geste": "Enter or drop your distributor statement",
     "src.hypeddit.geste": "Enter the numbers from your latest Hypeddit campaign",
     "src.sacem.geste": "Drop your SACEM account statement",
+
+    # ── Le rendu d'absence (`utils/absence_cta.py`) ────────────────────────
+    "absence.manque": "you are missing {valeur}",
+    "absence.cta": "Take me there \u2192",
+    "absence.cta_verrouille": "\U0001F512 Included in Premium",
+    "absence.reste": "And {n} more source(s) to connect",
+
+    # ── La note de plan (`utils/plan_gate.py`) ─────────────────────────────
+    "plan_gate.ferme": "Included in Premium",
+    "plan_gate.ouvert": "Included in your plan",
 }

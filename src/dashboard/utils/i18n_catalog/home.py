@@ -167,8 +167,15 @@ EN = {
     # Le raccourci vers le rapport PDF, remis le 2026-09-22.
     "home.pdf_cta": "📄 Generate my PDF report",
     "home.pdf_help": "Your current numbers, laid out and ready to send.",
-    "home.pdf_locked": "🔒 PDF report — included in Premium",
+    # Sans cadenas : `plan_gate.bouton_vers` le pose lui-même depuis le
+    # 2026-09-22. Le laisser ici en afficherait DEUX.
+    "home.pdf_locked": "PDF report — included in Premium",
     "home.pdf_locked_help": (
         "Laying out the report is part of the subscription; exporting your raw data "
         "stays free (⬇️ Export CSV)."),
+    # ── Les sources non branchées (2026-09-22) ─────────────────────────────
+    "home.absence_intro": (
+        "These sources are not connected yet — each one adds a piece to your "
+        "numbers:"),
+    "home.absence_repli": "See the {n} sources to connect, one by one",
 }
