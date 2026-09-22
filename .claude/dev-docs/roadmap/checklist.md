@@ -26,9 +26,8 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R157 | La grille de fraîcheur de l'accueil lit la date d'ÉCRITURE | P2 | `MAX(col)` contre `MAX(metric_col)` par source — **Meta : 720 jours d'écart**, SACEM : 65 |
-| R160 | Une date `%d/%m/%Y` se lit à l'envers en mode EN | P3 | `grep -rn "%d/%m/%Y" src/ --include=*.py` → **49 sites, 28 fichiers** ; un formateur qui suit la langue, ou un format non ambigu |
 
-**Cet index porte DEUX lignes le 2026-09-22 au soir**, toutes deux nées d'une mesure prise
+**Cet index porte UNE ligne le 2026-09-22 au soir**, toutes deux nées d'une mesure prise
 ce jour-là et aucune d'une intuition. Il était vide à midi ; TROIS sont entrées par le
 travail de l'après-midi et **R159 en est déjà sortie, livrée le soir même**. Les deux qui
 restent avaient été **délibérément laissées de côté** dans le plan de l'accueil — « porté
@@ -203,7 +202,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-22 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R148,R150,R151,R153,R157,R160 -->
+<!-- reprise: open=R148,R150,R151,R153,R157 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers

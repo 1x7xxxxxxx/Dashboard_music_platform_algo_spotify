@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 # pdf_exporter imports pdf_charts lazily (inside functions), and _config imports
 # only i18n — so this top-level import introduces no cycle.
 from src.dashboard.utils.pdf_exporter._config import _t  # noqa: E402
+from src.dashboard.utils.date_format import format_date
 
 _GREEN = "#1DB954"
 _DARK = "#1a1a2e"
@@ -148,7 +149,7 @@ def streams_timeline(db, artist_id, from_date, to_date, title=None) -> str | Non
     ax.fill_between(xs, ys, color=_GREEN, alpha=0.12)
     _style(ax)
     if title is None:
-        rng = f"{from_date:%d/%m/%Y} → {to_date:%d/%m/%Y}"
+        rng = f"{format_date(from_date)} → {format_date(to_date)}"
         title = _t("pdf.chart.streams_s4a_range", "Streams S4A — {range}").format(range=rng)
     ax.set_title(title, color=_DARK, fontsize=11, fontweight="bold", loc="left")
     fig.autofmt_xdate(rotation=30)

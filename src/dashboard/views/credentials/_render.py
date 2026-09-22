@@ -38,6 +38,7 @@ from src.dashboard.content.credential_guides_st import (
 from src.utils.tenant_identity import mirrored_columns, write_platform_identity
 from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.auth import is_admin
+from src.dashboard.utils.date_format import format_date, format_datetime
 
 
 # Le verdict de la dernière sauvegarde, porté d'un run à l'autre.
@@ -360,7 +361,7 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
     if existing_row:
         updated = existing_row.get('updated_at')
         updated_str = (
-            to_local_datetime(updated).strftime('%d/%m/%Y %H:%M') if updated else '?'
+            format_datetime(to_local_datetime(updated)) if updated else '?'
         )
         # Expiry badge for platforms that use expiring tokens (Meta)
         expires_at = existing_row.get('expires_at')
@@ -378,15 +379,15 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                 if days_left <= 0:
                     st.error(t("credentials.token_expired",
                                "Token **expiré** depuis le {date}. Renouvellement requis.").format(
-                                   date=exp.strftime('%d/%m/%Y')))
+                                   date=format_date(exp)))
                 elif days_left <= 15:
                     st.warning(t("credentials.token_expiring",
                                  "Token expire dans **{days} jour(s)** ({date}) — renouvellement recommandé.").format(
-                                     days=days_left, date=exp.strftime('%d/%m/%Y')))
+                                     days=days_left, date=format_date(exp)))
                 else:
                     st.success(t("credentials.creds_saved_valid",
                                  "Credentials enregistrés — mise à jour : {updated} · Token valide jusqu'au {date} ({days}j)").format(
-                                     updated=updated_str, date=exp.strftime('%d/%m/%Y'), days=days_left))
+                                     updated=updated_str, date=format_date(exp), days=days_left))
             except Exception:
                 st.success(t("credentials.creds_saved",
                              "Credentials enregistrés — mise à jour : {updated}").format(updated=updated_str))

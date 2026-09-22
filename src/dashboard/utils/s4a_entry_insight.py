@@ -56,6 +56,7 @@ import streamlit as st
 
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.semantic_colors import ATTENTION, BON, MAUVAIS, NEUTRE
+from src.dashboard.utils.date_format import format_date
 
 # Au-delà, une valeur ne décrit plus la situation d'aujourd'hui. 35 jours = la fenêtre
 # de 28 jours de S4A plus une semaine de battement : on ne crie pas parce qu'une
@@ -138,7 +139,7 @@ def render_freshness(db, artist_id: int) -> None:
         "": _pastille(ln),
         t("s4a_insight.col_block", "Bloc"): ln["bloc"],
         t("s4a_insight.col_last", "Dernière saisie"): (
-            "—" if ln["derniere"] is None else ln["derniere"].strftime("%d/%m/%Y")),
+            "—" if ln["derniere"] is None else format_date(ln["derniere"])),
         t("s4a_insight.col_age", "Âge"): (
             "—" if ln["jours"] is None else f"{ln['jours']} j"),
         t("s4a_insight.col_rows", "Lignes"): (
@@ -298,7 +299,7 @@ def render_playlist_history(db, artist_id: int) -> None:
             "s4a_insight.hist_single",
             "Une seule saisie à ce jour ({d}) — il en faut deux pour dessiner une "
             "évolution. Les valeurs de cette saisie sont dans l'onglet **Signaux**."
-        ).format(d=seul.strftime("%d/%m/%Y")))
+        ).format(d=format_date(seul)))
         return
 
     couleurs = {"7d": NEUTRE, "28d": ATTENTION, "12m": MAUVAIS}

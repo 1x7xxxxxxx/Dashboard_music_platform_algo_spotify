@@ -17,6 +17,7 @@ from src.dashboard.utils.kpi_helpers import (
     get_source_freshness, freshness_status,
     SOURCES_CONFIG,
 )
+from src.dashboard.utils.date_format import format_date
 
 
 # Au-delà de cette fenêtre, le pas JOUR n'est plus le défaut : « Depuis le début »
@@ -612,7 +613,7 @@ def _render_trend(db, series, since, until, range_key, artist_id,
                 "Aucune mesure sur cette période. La dernière remonte au **{last}** "
                 "— dépose un export récent, ou élargis la fenêtre pour revoir "
                 "l'historique."
-            ).format(last=_last.strftime("%d/%m/%Y")))
+            ).format(last=format_date(_last)))
         else:
             st.info(t(
                 "home.trend_no_series",

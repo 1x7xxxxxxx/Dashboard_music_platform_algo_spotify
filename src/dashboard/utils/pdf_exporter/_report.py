@@ -14,6 +14,7 @@ from ._collectors import (
 from ._renderers import (
     _chart, _render_apple, _render_completeness, _render_credentials, _render_freshness, _render_hypeddit, _render_instagram, _render_mapping, _render_meta, _render_overview, _render_revenue_forecast, _render_roi, _render_trigger_then_now, _render_s4a_top_songs, _render_score20, _render_songs_focus, _render_soundcloud_tracks, _render_youtube,
 )
+from src.dashboard.utils.date_format import format_date, format_datetime
 
 
 
@@ -241,8 +242,8 @@ def render_html(data, artist_name, sections=None, lang="fr"):
     if sections is None:
         sections = {k: True for k in ALL_SECTIONS}
 
-    gen_dt = data['generated_at'].strftime("%d/%m/%Y à %H:%M")
-    period = f"{data['from_date'].strftime('%d/%m/%Y')} → {data['to_date'].strftime('%d/%m/%Y')}"
+    gen_dt = format_datetime(data['generated_at'])
+    period = f"{format_date(data['from_date'])} → {format_date(data['to_date'])}"
     charts = data.get('charts', {})
 
     body_parts = []

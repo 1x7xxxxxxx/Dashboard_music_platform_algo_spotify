@@ -31,6 +31,7 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.utils.ui import flash
 from src.database.postgres_handler import validate_table
+from src.dashboard.utils.date_format import format_serie
 
 logger = logging.getLogger(__name__)
 
@@ -239,7 +240,7 @@ def _tab_users(db) -> None:
         df_display['Email vérifié'] = df_display['email_verified'].apply(lambda v: _fmt_bool(v, "✅ Oui", "⏳ Non"))
         # `created_at` is timestamptz: rows either side of a DST change carry
         # different offsets and plain to_datetime raises. See utils/tz.py.
-        df_display['created_at'] = to_local_datetime(df_display['created_at']).dt.strftime('%d/%m/%Y')
+        df_display['created_at'] = format_serie(to_local_datetime(df_display['created_at']))
         st.dataframe(
             df_display[['id', 'username', 'email', 'role', 'artist_name', 'Accès', 'Email vérifié', 'created_at']].rename(columns={
                 'id': 'ID', 'username': 'Utilisateur', 'email': 'Email',

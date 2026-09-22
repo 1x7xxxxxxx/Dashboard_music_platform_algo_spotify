@@ -63,6 +63,7 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.period_filter import smart_period_filter
 from src.dashboard.utils.ui import secondary_analyses
+from src.dashboard.utils.date_format import format_date
 
 _SPOTIFY_GREEN = "#1DB954"
 _LISTENER_INK = "#7C4DFF"
@@ -420,7 +421,7 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple) -> None:
              "Barre grise : le cumul depuis la sortie. **PI** : l'indice de "
              "popularité Spotify (0-100) au dernier relevé — c'est le seuil que "
              "chaque algorithme demande pour s'ouvrir.").format(
-                 n=_MOMENTUM_DAYS, d=horizon.strftime("%d/%m/%Y"))
+                 n=_MOMENTUM_DAYS, d=format_date(horizon))
     if without_pi:
         # Un titre sans PI se COMPTE, comme un titre sans mesure récente : une
         # étiquette absente se lit sinon comme un PI de zéro.
@@ -570,7 +571,7 @@ def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple):
              "Série démarrée à la **première écoute** ({d}), pas au premier jour "
              "du fichier : Spotify exporte la timeline du compte et y inscrit 0 "
              "avant la sortie.").format(
-                 d=start.strftime("%d/%m/%Y") if isinstance(start, date) else "—")
+                 d=format_date(start) if isinstance(start, date) else "—")
     if pi.empty:
         note += " " + t("spotify_s4a_combined.pi_missing",
                         "Aucun indice de popularité sur cette période : ce titre "
@@ -586,8 +587,8 @@ def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple):
                         "importé au moment d'une sortie (jusqu'au {s_d}). Une "
                         "courbe d'écoutes qui s'arrête est un import qui s'arrête, "
                         "pas un titre qui meurt.").format(
-                            pi_d=pd.to_datetime(pi["day"]).max().strftime("%d/%m/%Y"),
-                            s_d=pd.to_datetime(df["day"]).max().strftime("%d/%m/%Y"))
+                            pi_d=format_date(pd.to_datetime(pi["day"]).max()),
+                            s_d=format_date(pd.to_datetime(df["day"]).max()))
     return fig, note
 
 

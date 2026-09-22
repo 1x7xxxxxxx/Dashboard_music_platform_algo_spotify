@@ -81,6 +81,7 @@ from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from plotly.subplots import make_subplots
 
 from src.dashboard.utils.platform_colors import PALETTE_DARK, PALETTE_LIGHT
+from src.dashboard.utils.date_format import format_date
 
 # L'encre du TROISIÈME axe — le coût par écoute, qui n'appartient à aucune
 # plateforme. Elle n'est utilisée par aucune série de l'axe principal : c'est ce
@@ -492,8 +493,8 @@ def _late(modele: str, jamais: str, first, fin) -> str:
     """
     if first is None:
         return jamais
-    return modele.format(d=first.strftime("%d/%m/%Y"),
-                         fin=pd.to_datetime(fin).strftime("%d/%m/%Y"))
+    return modele.format(d=format_date(first),
+                         fin=format_date(pd.to_datetime(fin)))
 
 
 def _merge(frames: list) -> pd.DataFrame:
@@ -573,8 +574,8 @@ def _show_body(db, artist_id) -> None:
         d0, d1, fenetre = _campaign_window(camp_start, camp_end, campaign)
         st.caption(t("meta_x_spotify.window_caption",
                      "{f} — campagne du {a} au {b}, {n} jour(s) de diffusion.")
-                   .format(f=fenetre, a=camp_start.strftime("%d/%m/%Y"),
-                           b=camp_end.strftime("%d/%m/%Y"),
+                   .format(f=fenetre, a=format_date(camp_start),
+                           b=format_date(camp_end),
                            n=(camp_end - camp_start).days + 1))
 
     # LE TITRE LIÉ, ET SUR QUELLE PLATEFORME — demandé le 2026-09-21. « Titre

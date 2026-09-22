@@ -487,7 +487,7 @@ def _tab_artists(db) -> None:
         df_display['Statut'] = df_display['active'].apply(_status)
         # `created_at` is timestamptz: rows either side of a DST change carry
         # different offsets and plain to_datetime raises. See utils/tz.py.
-        df_display['created_at'] = to_local_datetime(df_display['created_at']).dt.strftime('%d/%m/%Y')
+        df_display['created_at'] = format_serie(to_local_datetime(df_display['created_at']))
         st.dataframe(
             df_display[['id', 'name', 'slug', 'tier', 'Statut', 'created_at']].rename(columns={
                 'id': 'ID', 'name': 'Nom', 'slug': 'Slug',
@@ -743,6 +743,7 @@ def _deleguer(module: str) -> None:
 
 from src.dashboard.views.admin_accounts import (  # noqa: E402
     _tab_gdpr, _tab_users)
+from src.dashboard.utils.date_format import format_serie
 
 
 def show():

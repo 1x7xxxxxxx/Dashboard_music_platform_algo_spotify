@@ -15,6 +15,7 @@ from ._common import (
     _show_pi_breakeven,
     _show_velocity_budget_advice,
 )
+from src.dashboard.utils.date_format import format_date
 
 
 # Maps the cost-target labels to (ml_pred probability key, calibration-band algo key).
@@ -500,11 +501,11 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
                     x=breakeven_date.timestamp() * 1000,
                     line_dash="dash", line_color="white",
                     annotation_text=t("trigger_algo.roi.breakeven_annotation", "Breakeven : {date}")
-                    .format(date=breakeven_date.strftime('%d/%m/%Y')),
+                    .format(date=format_date(breakeven_date)),
                     annotation_position="top right", row="all", col=1
                 )
                 st.success(t("trigger_algo.roi.breakeven_reached", "✅ Breakeven atteint le **{date}**")
-                           .format(date=breakeven_date.strftime('%d/%m/%Y')))
+                           .format(date=format_date(breakeven_date)))
             else:
                 st.warning(t("trigger_algo.roi.breakeven_not_reached",
                              "⚠️ Breakeven non atteint sur la période disponible."))
@@ -518,7 +519,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
                     "Verdict arrêté au {date} — au-delà, seul {side} est renseigné "
                     "({days} jours). Comparer un cumul à une courbe que personne n'a "
                     "encore rapportée ferait dire au croisement ce qu'il ne dit pas."
-                ).format(date=covered_end.strftime('%d/%m/%Y'),
+                ).format(date=format_date(covered_end),
                          side=_tail_side, days=_tail_days))
 
             fig_be.update_layout(

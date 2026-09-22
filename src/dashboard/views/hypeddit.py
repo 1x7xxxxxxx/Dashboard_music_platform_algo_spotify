@@ -54,6 +54,7 @@ from src.dashboard.utils.period_filter import (
 )
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.platform_colors import PALETTE_LIGHT
+from src.dashboard.utils.date_format import format_serie
 
 # Hypeddit a sa couleur MESURÉE depuis le 2026-09-21 : un cyan, famille de teinte
 # libre, pire paire 18,1 contre le magenta d'Apple. Les trois séries de cette page
@@ -342,7 +343,7 @@ def _render_history(db):
     # when each helper owned its own connection.
 
     if not df_hist.empty:
-        df_hist['date'] = pd.to_datetime(df_hist['date']).dt.strftime('%d/%m/%Y')
+        df_hist['date'] = format_serie(pd.to_datetime(df_hist['date']))
         st.dataframe(df_hist, width="stretch")
     else:
         st.info(t("hypeddit.empty_history", "Historique vide."))

@@ -19,6 +19,7 @@ from src.dashboard.auth import tenant_scope, get_artist_plan, is_admin
 from src.database.stripe_schema import PLAN_FEATURES
 from src.dashboard.utils.status_matrix import render_status_matrix
 from src.dashboard.utils.navigation import goto
+from src.dashboard.utils.date_format import format_date
 
 
 # Platforms and which plan they require — all platform connectors are Free-tier.
@@ -58,7 +59,7 @@ def _trial_deadline(artist_id: int | None, db) -> str | None:
             "SELECT promo_plan_expires_at FROM saas_artists WHERE id = %s",
             (artist_id,))
         if row and row[0][0]:
-            return to_local_datetime(row[0][0]).strftime("%d/%m/%Y")
+            return format_date(to_local_datetime(row[0][0]))
     except Exception:  # noqa: BLE001 — une date manquante n'empêche pas l'onboarding
         return None
     return None

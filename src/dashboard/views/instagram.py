@@ -50,6 +50,7 @@ from src.dashboard.utils.ui import (
     show_empty_state,
 )
 from src.dashboard.utils.tz import to_local_naive
+from src.dashboard.utils.date_format import format_date
 
 # Instagram n'a PAS de couleur mesurée : sept teintes attribuables sont impossibles
 # dans cette palette (recherche conjointe du 2026-09-21, ΔE 9,6 en clair contre un
@@ -80,7 +81,7 @@ def show():
                 follows = int(df_latest['follows_count'].iloc[0] or 0)
                 media = int(df_latest['media_count'].iloc[0] or 0)
                 username = df_latest['username'].iloc[0]
-                last_date = pd.to_datetime(df_latest['collected_at'].iloc[0]).strftime('%d/%m/%Y')
+                last_date = format_date(pd.to_datetime(df_latest['collected_at'].iloc[0]))
 
                 st.subheader(t("instagram.account", "Compte : @{username}").format(username=username))
 
@@ -145,7 +146,7 @@ def show():
                         "Aucun relevé Instagram sur cette période. Le dernier "
                         "remonte au **{last}** — élargis la fenêtre pour revoir "
                         "l'historique."
-                    ).format(last="—" if _last is None else _last.strftime("%d/%m/%Y")),
+                    ).format(last="—" if _last is None else format_date(_last)),
                     no_history=t(
                         "instagram.not_enough_history",
                         "Aucun relevé Instagram pour ce compte. Branche-le depuis "
@@ -223,7 +224,7 @@ def show():
                         "**{j} jours**. Élargis la période pour revoir "
                         "l'historique."
                     ).format(n=int(_dernier.iloc[0]["n"]),
-                             d=pd.to_datetime(_last).strftime("%d/%m/%Y"), j=_jours))
+                             d=format_date(pd.to_datetime(_last)), j=_jours))
                 else:
                     st.info(t("instagram.no_posts",
                               "Aucune publication collectée pour ce compte."))

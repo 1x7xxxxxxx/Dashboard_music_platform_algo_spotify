@@ -40,6 +40,7 @@ from __future__ import annotations
 import streamlit as st
 
 from src.dashboard.utils.platform_timeseries import PLATFORM_LABELS
+from src.dashboard.utils.date_format import format_date
 
 
 # Le mot qui suit le nombre, dans le sous-titre. Il compte des SEAUX, pas des unités
@@ -283,8 +284,8 @@ def _bucket_label(day, step: str) -> str:
         return str(day.year)
     if step == "week":
         return t("platform_chart.week_of", "la semaine du {d}").format(
-            d=day.strftime("%d/%m/%Y"))
-    return t("platform_chart.day_of", "le {d}").format(d=day.strftime("%d/%m/%Y"))
+            d=format_date(day))
+    return t("platform_chart.day_of", "le {d}").format(d=format_date(day))
 
 
 def render_collection_start_note(starts: list, step: str = "day") -> None:

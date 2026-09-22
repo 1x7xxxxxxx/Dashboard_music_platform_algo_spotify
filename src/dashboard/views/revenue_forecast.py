@@ -37,6 +37,7 @@ from src.database.stripe_schema import PLAN_CATALOG as _CAT
 # filtraient sur `'active'` seul : deux pages annonçaient deux nombres différents sous
 # le même mot dès qu'un abonnement passait en `trialing`.
 from src.utils.mrr import MRR_STATUSES
+from src.dashboard.utils.date_format import format_date
 
 
 # DB loaders + forecast math now live in src/dashboard/utils/revenue_forecast.py
@@ -794,7 +795,7 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
     ).format(tx=f"{taux['eur_par_stream']:.6f}", s=_fr(taux['streams']),
              r=_fr(taux['revenus'], "{:,.2f}"),
              d=(t("revenue_forecast.pred_dated", " (prédictions du {d})").format(
-                 d=f"{espoir['date']:%d/%m/%Y}")
+                 d=format_date(espoir["date"]))
                 if espoir and espoir.get('date') else "")) + manque)
 
 

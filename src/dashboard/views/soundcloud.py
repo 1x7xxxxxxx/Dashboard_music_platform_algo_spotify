@@ -50,6 +50,7 @@ from src.dashboard.utils.period_filter import EntitySpec, entity_period_filter
 from src.dashboard.utils.tz import to_local_datetime, to_local_naive
 from src.dashboard.utils.platform_colors import PALETTE_LIGHT
 from src.dashboard.views.soundcloud_claims import render_claimed_tracks
+from src.dashboard.utils.date_format import format_date, format_serie
 
 # L'orange MESURÉ de SoundCloud — pas `#FF5500`, la teinte de marque exacte, que
 # le balayage du 2026-09-08 a refusée (ΔE 4,6 contre YouTube en deutéranopie).
@@ -129,7 +130,7 @@ def show():
 
                 # Récupération de la dernière date de collecte
                 # timestamptz across a DST change → mixed offsets (utils/tz.py).
-                last_date_str = to_local_datetime(df_latest['collected_at']).max().strftime('%d/%m/%Y')
+                last_date_str = format_date(to_local_datetime(df_latest['collected_at']).max())
 
                 # Affichage sur 2 lignes
                 c1, c2, c3 = st.columns(3)
@@ -438,7 +439,7 @@ def _render_catalog_series(db, artist_id) -> None:
             "maximum — une collecte qui a répondu faux, pas une perte d'audience. "
             "Les tracer dessinerait une chute qui n'a pas eu lieu.").format(
                 k=len(ecartes),
-                d=", ".join(pd.to_datetime(ecartes["day"]).dt.strftime("%d/%m/%Y")))
+                d=", ".join(format_serie(pd.to_datetime(ecartes["day"]))))
     st.caption(legende)
 
 
@@ -607,7 +608,7 @@ def _base100_figure(db, artist_id, selected_tracks, window):
                 "remonte au **{last}** — élargis la période pour revoir "
                 "l'historique."
             ).format(tracks=", ".join(selected_tracks),
-                     last=pd.to_datetime(dernier).strftime("%d/%m/%Y"))
+                     last=format_date(pd.to_datetime(dernier)))
         # LE MESSAGE NOMME LA VRAIE CAUSE. Celui d'avant accusait l'historique
         # (« ≥2 collectes par métrique ») alors que, sur le titre proposé
         # d'office, trois métriques sur quatre valaient ZÉRO partout.

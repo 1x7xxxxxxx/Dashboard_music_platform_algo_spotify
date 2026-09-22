@@ -15,6 +15,7 @@ from src.dashboard.utils.pdf_exporter import (
     get_available_songs, get_artists_list, generate_pdf, ALL_SECTIONS,
     _latest_release, _get_artist_name, _release_date,
 )
+from src.dashboard.utils.date_format import format_date
 
 # Internal sentinel values (== comparisons) — display is translated via format_func.
 _PERIOD_SLUGS = {
@@ -265,7 +266,7 @@ def _show_form(db):
         sections = {k: (v and k not in PREMIUM_SECTIONS) for k, v in sections.items()}
 
     active_sections = [_section_display(k) for k, v in sections.items() if v]
-    period_str = f"{from_date.strftime('%d/%m/%Y')} → {to_date.strftime('%d/%m/%Y')}"
+    period_str = f"{format_date(from_date)} → {format_date(to_date)}"
     st.caption(t(
         "export_pdf.report_summary",
         "Rapport pour **{name}** · Période : {period} · Sections : {sections}"

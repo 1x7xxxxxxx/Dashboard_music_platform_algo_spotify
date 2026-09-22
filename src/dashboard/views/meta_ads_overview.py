@@ -7,6 +7,7 @@ from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.ui import secondary_analyses
+from src.dashboard.utils.date_format import format_date
 
 # Meta gender targeting codes → labels (empty = no restriction = everyone).
 _GENDER_LABELS = {'1': 'Hommes', '2': 'Femmes', '': 'Tous', '1,2': 'Tous', '2,1': 'Tous'}
@@ -71,8 +72,8 @@ def _render_scope_notice(db, artist_id) -> None:
                "**{spend} €** sur **{campaigns}** campagne(s), du {start} au {end}."
                ).format(spend=f"{spend:,.0f}".replace(",", "\u202f"),
                         campaigns=campaigns,
-                        start=first_day.strftime("%d/%m/%Y") if first_day else "?",
-                        end=last_day.strftime("%d/%m/%Y"))
+                        start=format_date(first_day) if first_day else "?",
+                        end=format_date(last_day))
 
     if linked:
         answer = t("meta_ads_overview.scope_linked",

@@ -8,6 +8,7 @@ from datetime import datetime
 import streamlit as st
 
 from src.dashboard.auth import is_admin
+from src.dashboard.utils.date_format import format_datetime
 from src.dashboard.utils.i18n import t
 
 # Service base URLs — env-driven so the admin "Services locaux" links work on a deployed
@@ -409,7 +410,7 @@ Si le DAG `meta_ads_api_daily` échoue → vérifier le token Instagram.
 
         st.divider()
         st.caption(t("useful_links.page_generated", "Page générée le {ts}").format(
-            ts=datetime.now().strftime('%d/%m/%Y à %H:%M')))
+            ts=format_datetime(datetime.now())))
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ from src.utils.freshness_monitor import check_freshness
 from src.dashboard.auth import is_admin
 from src.database.postgres_handler import validate_table, validate_columns
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.date_format import format_datetime
 
 def get_quality_metrics(db):
     """Les métriques de qualité par DAG, lues dans le registre qui est RÉELLEMENT écrit.
@@ -75,7 +76,7 @@ def _section_source_status(db):
         else:
             statut = t("airflow_kpi.status_error", "⚫ Erreur")
 
-        date_str = r['last_dt'].strftime("%d/%m/%Y %H:%M") if r['last_dt'] else "—"
+        date_str = format_datetime(r['last_dt']) if r['last_dt'] else "—"
         rows.append({
             t("airflow_kpi.col_source", "Source"): r['source'],
             t("airflow_kpi.col_last_collect", "Dernière collecte"): date_str,

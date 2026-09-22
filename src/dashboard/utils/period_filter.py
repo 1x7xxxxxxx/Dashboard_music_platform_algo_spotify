@@ -27,6 +27,7 @@ from typing import Callable, Optional
 import streamlit as st
 
 from src.database.postgres_handler import PostgresHandler
+from src.dashboard.utils.date_format import format_date
 
 # ⚠️ UNE TABLE À FILTRE OBLIGATOIRE N'ENTRE PAS ICI.
 #
@@ -224,7 +225,7 @@ def _resolve_window(
         return PeriodWindow(floor, span_max or today, _PRESETS["all"], "all", True)
     if preset == "custom" and custom:
         s, e = custom
-        return PeriodWindow(s, e, f"{s:%d/%m/%Y} → {e:%d/%m/%Y}", "custom", False)
+        return PeriodWindow(s, e, f"{format_date(s)} → {format_date(e)}", "custom", False)
     if preset == "last_release":
         start = latest_release or floor
         return PeriodWindow(start, today, _PRESETS["last_release"], "last_release", False)

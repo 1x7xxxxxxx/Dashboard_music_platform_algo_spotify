@@ -21,6 +21,7 @@ from src.dashboard.utils.safe_number import entier
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import require_plan, is_admin
+from src.dashboard.utils.date_format import format_date
 
 # All-creatives daily series (for the heatmap + cumulative-budget charts).
 # La jointure `meta_insights` x `meta_ads` vivait ici et dans deux autres requetes
@@ -749,7 +750,7 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
         "Créative **{creative}** · granularité {granularity} · {d_from} → {d_to}. "
         "Cliquez une métrique dans la légende pour l'afficher/masquer (double-clic = isoler)."
     ).format(creative=creative, granularity=granularity,
-             d_from=f"{d_from:%d/%m/%Y}", d_to=f"{d_to:%d/%m/%Y}"))
+             d_from=format_date(d_from), d_to=format_date(d_to)))
 
 
 def _render_scatter(df: pd.DataFrame) -> None:

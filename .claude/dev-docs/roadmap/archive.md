@@ -9,6 +9,95 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🌍 R160 — Une date qui ne se lit pas à l'envers (livrée 2026-09-22)
+
+- [x] **R160 — `%d/%m/%Y` sur 49 sites, et en mode anglais `04/03/2025` se lit « 3 avril » au lieu de « 4 mars ».** (P3)
+
+### Pourquoi ça a tenu trois mois
+
+L'anglais est livré depuis le **2026-06-10** et le PDF est bilingue. `%d/%m/%Y` était la
+convention du dépôt : **49 sites, 28 fichiers**.
+
+    04/03/2025   →   4 mars     pour un lecteur français
+                 →   3 avril    pour un lecteur anglais
+
+⚠️ **Le cas ne saute aux yeux que pour un jour au-dessus de 12** — donc **environ deux
+tiers des dates de l'année sont lues correctement par accident**. C'est la pire fréquence
+possible : assez rare pour qu'on ne le remarque jamais, assez fréquente pour que ça arrive.
+
+### Le remède : un mois qui porte son nom
+
+Passer l'anglais en `%m/%d/%Y` n'aurait fait que **déplacer** l'ambiguïté — un lecteur qui
+ne sait pas dans quelle langue il est reste perdu. Un nom de mois la supprime.
+
+| | |
+|---|---|
+| fr | `30/09/2024` · `30/09/2024 à 14:05` |
+| en | `30 Sep 2024` · `30 Sep 2024 at 14:05` |
+
+**L'ordre des champs est le même dans les deux langues**, à dessein : la forme américaine
+« Sep 30, 2024 » est aussi correcte, celle-ci garde la silhouette jour-mois-année, donc
+quelqu'un qui bascule de langue reconnaît la même donnée au même endroit.
+
+**Les noms de mois sont écrits, pas demandés à `%b`** : `%b` suit la locale du PROCESSUS —
+celle du conteneur — donc il rendrait « sept. » à un anglophone, et rien ne le dirait avant
+de le voir. **L'import d'`i18n` est paresseux** : ce module est lu par le PDF, qui tourne
+aussi dans un DAG, et un module partagé qui importe le tableau de bord est la violation
+payée le matin même (`meta_axes` → une vue, 1 073 ms).
+
+### L'entonnoir, et les trois exemptions VÉRIFIÉES
+
+Candidats bruts **49** → **46 sites d'affichage**, tous convertis. Trois écartés, et
+chaque exemption porte son propre test — une liste de noms qui survivrait à sa raison est
+exactement ce que ce dépôt a vidé le matin du 2026-09-22 dans `audit_runner.py` :
+
+| exempté | raison | le test qui la vérifie |
+|---|---|---|
+| `date_format.py` | **c'est le formateur** : il PRODUIT `%d/%m/%Y` en français | il doit exposer les trois fonctions |
+| `sacem_parser.py` | **une LECTURE** — `strptime`, le format du fichier SACEM, une propriété de la source | rouge si un `strftime` s'y glisse, ou si `strptime` disparaît |
+| `freshness_monitor.py` | sa phrase est **du français en dur**, non traduite ; sa date suit sa langue | rouge le jour où le module importera `t` / `translate` |
+
+### Ma transformation mécanique a cassé QUATRE sites
+
+Et je les ai trouvés en vérifiant, pas en les devinant. Mon expression incluait les
+guillemets et les parenthèses dans sa classe de caractères, donc elle a **traversé des
+frontières d'expression** :
+
+    3 × `.dt.strftime(…)` de pandas  →  `format_date(….dt)`      — appliqué à une Series
+    1 × `", ".join(…)`               →  `d=", format_date(".join(…)`  — syntaxe cassée
+
+`ruff` a dit les 48 imports manquants ; il n'aurait **rien dit** des trois `.dt`, qui
+compilent. Les 48 sites ont été relus un par un.
+
+### Le garde, et les trois fois où il a été refait
+
+`tests/test_a_date_shown_to_a_reader_follows_their_language.py`, cliquet à **0**.
+
+1. **Il lisait les LIGNES du fichier.** `test_a_guard_reads_structure_not_text` l'a refusé,
+   et il avait raison **dans les deux sens** : une assertion textuelle est satisfaite par
+   un commentaire, **et écrire `%d/%m/%Y` dans un commentaire pour expliquer sa
+   disparition aurait fait rougir le garde** — `a-bash-hook-that-blocks-the-prose-about-the-gesture`
+   transposé à un test. Passé à l'AST : un format vit dans une CHAÎNE, donc la prose est
+   libre par construction.
+2. **Il comptait deux fois le format d'une f-string.** `ast.walk` visite la `JoinedStr`
+   **et** la `Constant` de son `format_spec` : mon propre test de non-vacuité l'a dit
+   (« 3 des deux formes »). Un ensemble au lieu d'une liste.
+3. **Une dernière assertion textuelle survivait** (`"strptime" in src`) — passée à l'AST
+   aussi.
+
+Muté : une régression en `strftime` → rouge ; la même en f-string → rouge ; un commentaire
+qui nomme le format → **invisible**, ce qui est le bon comportement. Les deux langues
+regardées sur l'accueil rendu : `30/09/2024` et `30 Sep 2024`.
+
+### Le reste mesuré, porté ailleurs
+
+Deux formes restent **non couvertes**, et le dire est le point : une date construite à la
+main (`f"{d.day}/{d.month}/{d.year}"`), invisible à ce prédicat et tout aussi ambiguë ; et
+la phrase française en dur de `freshness_monitor`, qu'il faudra traduire — c'est un autre
+travail que celui de formater une date.
+
+---
+
 ## 🗓️ R161 — Un chiffre de campagne porte sa date (livrée 2026-09-22)
 
 - [x] **R161 — l'accueil présentait un coût par résultat de 2024 au présent, et ne disait pas qu'aucune campagne ne tourne.** (P2)

@@ -15,6 +15,7 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.auth import verify_password, hash_password, _validate_password_strength
 from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.utils.ui import flash
+from src.dashboard.utils.date_format import format_datetime
 
 
 def _get_user_row(db, username: str) -> dict | None:
@@ -279,7 +280,7 @@ def _section_consent(db, user: dict) -> None:
     if user.get("marketing_consent_at"):
         st.caption(
             t("account.consent_updated", "Dernière mise à jour : {date}").format(
-                date=to_local_datetime(user['marketing_consent_at']).strftime('%d/%m/%Y %H:%M'))
+                date=format_datetime(to_local_datetime(user['marketing_consent_at'])))
         )
 
     # Email alerts checked by default: for users who never set a preference,

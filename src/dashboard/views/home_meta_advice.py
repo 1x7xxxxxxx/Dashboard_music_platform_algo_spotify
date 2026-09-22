@@ -46,6 +46,7 @@ from datetime import date
 
 import streamlit as st
 
+from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.meta_confidence import confidence_factor
 from src.dashboard.utils.plan_gate import bouton_vers, note_de_plan
@@ -270,7 +271,7 @@ def _ligne_activite(side: dict) -> None:
         return                       # aucune dépense datée : rien à situer
 
     depuis = (date.today() - jour).days
-    jour_txt = jour.strftime("%d/%m/%Y")
+    jour_txt = format_date(jour)
 
     if connues:
         st.info(t(
@@ -342,7 +343,7 @@ def render_meta_advice(side: dict) -> None:
             "Ta campagne la moins chère est **{nom}** : **{cpr} €** le clic sortant, "
             "sur ses dépenses jusqu'au **{jour}**.")
             .format(nom=nom, cpr=f"{cpr:.3f}".replace(".", ","),
-                    jour=_jour.strftime("%d/%m/%Y")))
+                    jour=format_date(_jour)))
     else:
         st.markdown(t(
             "home.advice_best",

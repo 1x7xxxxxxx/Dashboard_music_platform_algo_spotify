@@ -16,6 +16,7 @@ from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.kpi_helpers import (
     get_source_freshness, freshness_status,
 )
+from src.dashboard.utils.date_format import format_date
 
 
 # ── Section 1: Circuit breakers ───────────────────────────────────
@@ -196,7 +197,7 @@ def _section_billing_alerts(db) -> int:
         return 0
 
     for artist_name, status, period_end in rows:
-        end_str = pd.to_datetime(period_end).strftime("%d/%m/%Y") if period_end else "—"
+        end_str = format_date(pd.to_datetime(period_end)) if period_end else "—"
         icon = "🔴" if status in ('past_due', 'unpaid', 'canceled') else "🟡"
         st.markdown(
             f"{icon} **{_html.escape(str(artist_name))}** — "

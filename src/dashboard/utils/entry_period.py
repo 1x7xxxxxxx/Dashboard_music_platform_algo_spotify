@@ -45,6 +45,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import streamlit as st
+from src.dashboard.utils.date_format import format_date
 
 # Les fenêtres que Spotify for Artists sait afficher, plus l'ancrage sur la sortie.
 # L'ordre est celui dans lequel on les utilise, pas l'ordre croissant : la fenêtre
@@ -125,6 +126,6 @@ def entry_period_selector(*, key: str, release: Optional[_dt.date] = None,
         st.caption("Date de sortie inconnue pour ce titre — fenêtre de 28 jours utilisée.")
 
     fenetre = resolve(choix, today, release, custom)
-    st.caption(f"Du **{fenetre.start:%d/%m/%Y}** au **{fenetre.end:%d/%m/%Y}** "
+    st.caption(f"Du **{format_date(fenetre.start)}** au **{format_date(fenetre.end)}** "
                f"· {fenetre.days} jours")
     return fenetre
