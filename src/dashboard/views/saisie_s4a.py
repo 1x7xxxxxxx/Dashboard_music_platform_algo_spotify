@@ -14,12 +14,19 @@ plus a per-artist "# songs in Radio now" counter (migration 052) and a separate
 custom-range section (key in the first days after a release). The non-algo streams
 and radio count un-impute the last two ml_inference features (were hard-coded 0).
 """
-from datetime import date, timedelta
+from datetime import date
 
 import pandas as pd
 import streamlit as st
 
 from src.dashboard.utils import view_session
+from src.dashboard.utils.entry_period import entry_period_selector
+from src.dashboard.utils.s4a_entry_insight import (
+    render_completeness,
+    render_freshness,
+    render_playlist_history,
+    render_prediction_vs_reality,
+)
 from src.dashboard.utils.i18n import t
 
 from src.dashboard.utils.ui import flash
@@ -267,16 +274,14 @@ def _render_outcome_grid(db, artist_id, tracks) -> None:
 
 def _render_outcome_custom_grid(db, artist_id, tracks) -> None:
     st.markdown("**" + t("saisie_s4a.outcome_custom_header",
-                         "📅 Période personnalisée (streams DW/RR/Radio générés)") + "**")
-    today = date.today()
-    c1, c2 = st.columns(2)
-    start = c1.date_input(t("saisie_s4a.custom_start", "Début"), value=today - timedelta(days=7),
-                          format="YYYY-MM-DD", key=f"algo_custom_start_{artist_id}")
-    end = c2.date_input(t("saisie_s4a.custom_end", "Fin"), value=today, format="YYYY-MM-DD",
-                        key=f"algo_custom_end_{artist_id}")
-    if start > end:
-        st.warning(t("saisie_s4a.start_before_end", "La date de début doit précéder la date de fin."))
-        return
+                         "📅 Autre fenêtre (streams DW/RR/Radio générés)") + "**")
+    # ⚠️ DES RACCOURCIS, PAS DEUX DATES À TAPER — 2026-09-22.
+    # « début fin avec des valeurs à rentrer c'est pas très agréable ». Et le fond
+    # dépasse le confort : les seules fenêtres pour lesquelles S4A affiche un chiffre
+    # sont 7 j, 28 j et 12 mois. Une paire de dates libres invite à saisir une période
+    # dont la source ne produit aucune valeur. Détail : `utils/entry_period.py`.
+    fenetre = entry_period_selector(key=f"algo_custom_{artist_id}")
+    start, end = fenetre.start, fenetre.end
 
     df = pd.DataFrame([{"Titre": s, "DW": 0, "RR": 0, "Radio": 0} for s in tracks])
     _num = st.column_config.NumberColumn(min_value=0, step=1)
@@ -305,16 +310,12 @@ def _render_outcome_custom_grid(db, artist_id, tracks) -> None:
 
 
 def _render_custom_grid(db, artist_id, tracks) -> None:
-    st.subheader(t("saisie_s4a.custom_header", "📅 Plage personnalisée (ex. premiers jours post-release)"))
-    today = date.today()
-    c1, c2 = st.columns(2)
-    start = c1.date_input(t("saisie_s4a.custom_start", "Début"), value=today - timedelta(days=3),
-                          format="YYYY-MM-DD", key=f"custom_start_{artist_id}")
-    end = c2.date_input(t("saisie_s4a.custom_end", "Fin"), value=today, format="YYYY-MM-DD",
-                        key=f"custom_end_{artist_id}")
-    if start > end:
-        st.warning(t("saisie_s4a.start_before_end", "La date de début doit précéder la date de fin."))
-        return
+    st.subheader(t("saisie_s4a.custom_header",
+                   "📅 Autre fenêtre (ex. premiers jours post-release)"))
+    # Même raison qu'au-dessus. « Depuis la sortie » est ici le raccourci utile :
+    # c'est exactement le cas que ce bloc existe pour servir.
+    fenetre = entry_period_selector(key=f"custom_{artist_id}")
+    start, end = fenetre.start, fenetre.end
 
     df = pd.DataFrame([{"Titre": s, "Ajouts playlist": 0} for s in tracks])
     edited = st.data_editor(
@@ -353,9 +354,42 @@ def show():
         if not tracks:
             st.warning(t("saisie_s4a.no_tracks", "Aucun titre disponible (timeline S4A vide)."))
             return
-        _render_fixed_grid(db, artist_id, tracks)
-        st.markdown("---")
-        _render_outcome_grid(db, artist_id, tracks)
-        _render_outcome_custom_grid(db, artist_id, tracks)
-        st.markdown("---")
-        _render_custom_grid(db, artist_id, tracks)
+        # ⚠️ TROIS ONGLETS, ET C'EST UNE CORRECTION DE LISIBILITÉ, PAS DE GOÛT.
+        #
+        # La page empilait QUATRE grilles de saisie à la file, toutes de la même
+        # forme et toutes pré-remplies avec le dernier instantané. Deux conséquences
+        # mesurées le 2026-09-22 :
+        #
+        #   · on ne sait pas où on en est — une grille remplie a la même allure
+        #     qu'on l'ait enregistrée hier ou il y a cent jours ;
+        #   · les deux moitiés n'ont pas le même rythme. Les signaux se relèvent une
+        #     fois par mois, les résultats réalisés ~4 semaines APRÈS la prédiction.
+        #     Les empiler invite à tout ressaisir en même temps, ce qui rend le label
+        #     malhonnête.
+        #
+        # Un onglet BORNE un écran — c'est aussi ce que le cliquet de figures de
+        # premier écran reconnaît comme un repli structurel.
+        onglet_signaux, onglet_resultats, onglet_bilan = st.tabs([
+            t("saisie_s4a.tab_signals", "📊 Signaux du mois"),
+            t("saisie_s4a.tab_outcomes", "🎯 Résultats réalisés"),
+            t("saisie_s4a.tab_insight", "📈 Ce que ça donne"),
+        ])
+
+        with onglet_signaux:
+            _render_fixed_grid(db, artist_id, tracks)
+            st.markdown("---")
+            _render_custom_grid(db, artist_id, tracks)
+
+        with onglet_resultats:
+            _render_outcome_grid(db, artist_id, tracks)
+            st.markdown("---")
+            _render_outcome_custom_grid(db, artist_id, tracks)
+
+        with onglet_bilan:
+            render_freshness(db, artist_id)
+            st.markdown("---")
+            render_prediction_vs_reality(db, artist_id)
+            st.markdown("---")
+            render_completeness(db, artist_id, tracks)
+            st.markdown("---")
+            render_playlist_history(db, artist_id)

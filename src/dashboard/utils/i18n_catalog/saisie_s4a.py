@@ -51,11 +51,12 @@ EN = {
     "saisie_s4a.outcome_custom_saved": "Range {start} → {end} saved for {n} tracks.",
     # Custom grid
     "saisie_s4a.custom_header": "📅 Custom range (e.g. first days post-release)",
-    "saisie_s4a.custom_start": "Start",
-    "saisie_s4a.custom_end": "End",
-    "saisie_s4a.start_before_end": "The start date must precede the end date.",
     "saisie_s4a.save_custom": "💾 Save custom range",
     "saisie_s4a.saved_custom": "Range {start} → {end} saved for {n} tracks.",
     # Shared
     "saisie_s4a.error": "Error: {exc}",
+    # Les trois onglets (2026-09-22) — la page empilait quatre grilles.
+    "saisie_s4a.tab_signals": "📊 This month's signals",
+    "saisie_s4a.tab_outcomes": "🎯 Recorded outcomes",
+    "saisie_s4a.tab_insight": "📈 What it adds up to",
 }
