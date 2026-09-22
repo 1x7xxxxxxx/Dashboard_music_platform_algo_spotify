@@ -139,17 +139,32 @@ def test_the_ads_view_sits_right_under_spotify() -> None:
         f"la vue Meta Ads n'est plus juste sous Spotify + S4A : {a}")
 
 
-def test_the_report_closes_the_platforms_and_the_service_follows_it() -> None:
-    """Le rapport RÉSUME les plateformes, donc il vient après elles.
+def test_the_report_opens_what_the_subscription_sells() -> None:
+    """Le rapport est ce que l'abonnement donne de plus TANGIBLE : il ouvre Premium.
 
-    Et la prestation le suit immédiatement : l'ordre raconte « voilà ta carrière en un
-    document, et voilà qui peut s'en occuper ». En troisième entrée du menu, le rapport
-    proposait un résumé avant qu'il y ait quoi que ce soit à résumer.
+    ⚠️ CE TEST EXIGEAIT L'INVERSE pendant quelques heures, et la différence entre les
+    deux n'est pas une correction — c'est un arbitrage entre deux récits, tranché par le
+    propriétaire le 2026-09-22 au soir.
+
+      * en DERNIER d'« Analytics », l'ordre disait « voilà tes plateformes, voilà leur
+        résumé ». Le rapport était près de ce qu'il résume ;
+      * en TÊTE de « Premium », il répond à « qu'est-ce que j'achète » avant les cinq
+        pages d'analyse, qu'il faut ouvrir pour comprendre. Un document qu'on emporte
+        est plus tangible qu'une page qu'on visite.
+
+    Ce qu'on perd est écrit dans `nav_sections.py` : le résumé est désormais loin de ce
+    qu'il résume. Les deux placements se défendaient ; celui-ci est le choix fait.
     """
+    p = _items("premium")
+    assert p[0] == "export_pdf", (
+        f"le rapport PDF n'ouvre plus la section Premium : {p}. C'est ce que "
+        "l'abonnement donne de plus tangible — un document qu'on emporte.")
     a = _items("analytics")
-    assert a[-2:] == ["export_pdf", "service"], (
-        "le rapport PDF et la prestation ne ferment plus Analytics dans cet ordre : "
-        f"{a[-3:]}")
+    assert "export_pdf" not in a, (
+        f"le rapport PDF est revenu dans Analytics en plus de Premium : {a}. Une entrée "
+        "dans deux sections se sélectionne deux fois et n'en surligne qu'une.")
+    assert a[-1] == "service", (
+        f"« Faire piloter mes campagnes » ne ferme plus Analytics : {a[-2:]}")
 
 
 def test_the_raw_export_is_an_account_gesture() -> None:

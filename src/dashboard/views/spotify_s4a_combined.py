@@ -63,7 +63,6 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.period_filter import smart_period_filter
 from src.dashboard.utils.ui import secondary_analyses
-from src.dashboard.utils.date_format import format_date
 
 _SPOTIFY_GREEN = "#1DB954"
 _LISTENER_INK = "#7C4DFF"
@@ -74,6 +73,13 @@ _GHOST_INK = "#CFD8DC"
 # courbe se lit à droite.
 _RATIO_INK = "#FF6D00"
 _PI_INK = "#0091EA"
+# L'encre des ABONNÉS, sur l'axe secondaire de la figure d'engagement (2026-09-22).
+# MESURÉE : ΔE 65 en CIELAB contre la plus proche des cinq encres ci-dessus — le
+# meilleur des quatre candidats essayés (cyan 39, brun 54, jaune 60). ⚠️ Mesuré en
+# vision NORMALE ; la deutéranopie n'a pas été simulée, donc ce 65 ne se compare pas au
+# plancher de 15 d'un ΔE deutan. La lecture est portée par trois distinctions non
+# chromatiques : l'axe de droite, son titre teinté, et barres contre ligne.
+_FOLLOWER_INK = "#D81B60"
 
 # La fenêtre sur laquelle « ce titre bouge-t-il encore » se juge. 28 jours est la
 # fenêtre de Spotify for Artists elle-même — on parle la langue de la source plutôt
@@ -456,14 +462,12 @@ def _render_secondary(db, spans: pd.DataFrame, frag: str, params: tuple) -> None
         if note:
             st.caption(note)
     st.markdown("---")
-    fig = _saves_fig(db, frag, params)
+    # UNE figure au lieu de deux (2026-09-22) : sauvegardes, playlists et abonnés.
+    # La légende « Deux sources, deux horloges… » est retirée — c'est le TRAIT qui le
+    # dit désormais, plein pour l'API, pointillé pour le CSV.
+    fig = _engagement_fig(db, frag, params)
     if fig is not None:
         st.plotly_chart(fig, width="stretch")
-    st.markdown("---")
-    fig, note = _followers(db, frag, params)
-    if fig is not None:
-        st.plotly_chart(fig, width="stretch")
-        st.caption(note)
 
 
 def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple):
@@ -551,77 +555,116 @@ def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple):
     fig.update_layout(height=340, hovermode="x unified",
                       legend=dict(orientation="h", y=1.15))
 
-    note = t("spotify_s4a_combined.detail_caption",
-             "Série démarrée à la **première écoute** ({d}), pas au premier jour "
-             "du fichier : Spotify exporte la timeline du compte et y inscrit 0 "
-             "avant la sortie.").format(
-                 d=format_date(start) if isinstance(start, date) else "—")
+    # ⚠️ DEUX TIERS DE CETTE LÉGENDE SONT RETIRÉS — 2026-09-22, demandé en regardant
+    # l'écran. Partaient : « Série démarrée à la première écoute… » et « L'indice de
+    # popularité est relevé par l'API tous les jours… ». Toutes deux vraies, toutes deux
+    # longues, et toutes deux expliquant la FORME de la figure à quelqu'un qui voulait
+    # lire son CONTENU.
+    #
+    # ⚠️ CE QUI RESTE, ET POURQUOI IL RESTE. `pi_missing` n'est pas une paraphrase : il
+    # dit une ABSENCE et nomme le GESTE qui la lève (« le rattachement se fait depuis
+    # 🔗 Mapping cross-plateforme »). C'est la seule forme de texte que ce dépôt tient
+    # pour non négociable sur un écran — une absence muette se lit comme un zéro, et un
+    # artiste ne peut pas deviner qu'il doit rattacher un titre.
+    note = ""
     if pi.empty:
-        note += " " + t("spotify_s4a_combined.pi_missing",
-                        "Aucun indice de popularité sur cette période : ce titre "
-                        "n'a pas de lien Spotify confirmé, ou l'API n'a pas encore "
-                        "relevé. Le rattachement se fait depuis **🔗 Mapping "
-                        "cross-plateforme**.")
-    else:
-        # LES DEUX HORLOGES, DITES. C'est le fait que la figure montre et qu'un
-        # lecteur pourrait prendre pour un défaut de données.
-        note += " " + t("spotify_s4a_combined.pi_clock",
-                        "L'**indice de popularité** est relevé par l'API tous les "
-                        "jours (jusqu'au {pi_d}) ; les écoutes viennent du CSV, "
-                        "importé au moment d'une sortie (jusqu'au {s_d}). Une "
-                        "courbe d'écoutes qui s'arrête est un import qui s'arrête, "
-                        "pas un titre qui meurt.").format(
-                            pi_d=format_date(pd.to_datetime(pi["day"]).max()),
-                            s_d=format_date(pd.to_datetime(df["day"]).max()))
+        note = t("spotify_s4a_combined.pi_missing",
+                 "Aucun indice de popularité sur cette période : ce titre "
+                 "n'a pas de lien Spotify confirmé, ou l'API n'a pas encore "
+                 "relevé. Le rattachement se fait depuis **🔗 Mapping "
+                 "cross-plateforme**.")
     return fig, note
 
 
-def _saves_fig(db, frag: str, params: tuple):
-    st.markdown(f"##### {t('spotify_s4a_combined.saves_header', '💾 Sauvegardes et ajouts en playlist')}")
-    df = _df(db, f"""
+def _engagement_fig(db, frag: str, params: tuple):
+    """Sauvegardes, ajouts en playlist et ABONNÉS sur une seule figure.
+
+    Demandé le 2026-09-22 : « ajoute sur le même graphique les sauvegardes et ajouts en
+    playlist + le nombre d'abonnés en couleur différente et visuellement identifiable ».
+    C'étaient deux figures (`_saves_fig`, `_followers`) l'une sous l'autre.
+
+    ⚠️ DEUX GRAINS, DEUX NATURES, DONC DEUX AXES — et ce n'est pas un détail de forme.
+    Les sauvegardes et les ajouts en playlist sont des FLUX mensuels : « combien ce
+    mois-ci ». Les abonnés sont un NIVEAU quotidien : « combien en tout, aujourd'hui ».
+    Les mettre sur la même échelle ferait lire un niveau comme un flux — c'est
+    exactement `un-cumul-pris-pour-un-quotidien`, la famille qui a coûté le plus cher
+    à ce dépôt sur les figures.
+
+    Les abonnés vont donc sur l'axe de DROITE, et la figure porte cette distinction de
+    trois façons indépendantes — parce que la couleur seule ne suffit pas pour qui ne
+    la voit pas :
+
+      * la POSITION : une seule série se lit à droite ;
+      * le TITRE DE L'AXE, teinté de l'encre de cette série — la convention de cette
+        page depuis le 2026-09-21, écrite en tête du fichier ;
+      * la FORME : des barres pour les flux, une ligne pour le niveau.
+
+    L'encre des abonnés est `_FOLLOWER_INK`, et elle est MESURÉE : ΔE 65 en CIELAB
+    contre la plus proche des cinq encres déjà utilisées sur cette page. ⚠️ Mesuré en
+    vision NORMALE — la deutéranopie n'a pas été simulée, donc ce 65 ne se compare pas
+    au plancher de 15 que ce dépôt utilise pour un ΔE deutan. Ce sont les trois
+    distinctions non chromatiques ci-dessus qui portent la lecture dans ce cas.
+
+    ⚠️ LES DEUX SOURCES D'ABONNÉS RESTENT DEUX SÉRIES, jamais raboutées : le CSV porte
+    l'historique profond et s'arrête au dernier import, l'API court au jour le jour et
+    ne remonte pas avant sa mise en service. Les coller ferait passer un changement de
+    source pour une inflexion. La LÉGENDE qui l'expliquait a été retirée le 2026-09-22
+    sur demande ; c'est donc le TRAIT qui le dit maintenant — plein pour l'API qui
+    mesure tous les jours, pointillé pour le CSV qui s'arrête.
+    """
+    st.markdown(f"##### {t('spotify_s4a_combined.engagement_header', '💾 Sauvegardes, playlists et abonnés')}")
+
+    flux = _df(db, f"""
         SELECT month, saves, playlist_adds FROM v_s4a_audience_monthly
          WHERE TRUE {frag} ORDER BY month
     """, params)
-    if df.empty:
-        st.info(t("spotify_s4a_combined.no_data", "Pas de données disponibles."))
-        return None
-    df = df.copy()
-    df["month"] = pd.to_datetime(df["month"])
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=df["month"], y=df["saves"],
-                         name=t("spotify_s4a_combined.saves", "Sauvegardes"),
-                         marker_color=_SPOTIFY_GREEN))
-    fig.add_trace(go.Bar(x=df["month"], y=df["playlist_adds"],
-                         name=t("spotify_s4a_combined.playlist_adds", "Ajouts en playlist"),
-                         marker_color=_LISTENER_INK))
-    fig.update_layout(height=320, barmode="group", hovermode="x unified")
-    return fig
-
-
-def _followers(db, frag: str, params: tuple):
-    st.markdown(f"##### {t('spotify_s4a_combined.followers_header', '🔔 Abonnés')}")
-    df = _df(db, f"""
+    abo = _df(db, f"""
         SELECT day, followers, source FROM v_spotify_followers_daily
          WHERE TRUE {frag} ORDER BY day
     """, params)
-    if df.empty:
+    if flux.empty and abo.empty:
         st.info(t("spotify_s4a_combined.no_data", "Pas de données disponibles."))
-        return None, None
-    fig = go.Figure()
-    # UNE SÉRIE PAR SOURCE, jamais raboutées : le CSV s'arrête au dernier import,
-    # l'API court au jour le jour. Les coller ferait passer un changement de source
-    # pour une inflexion.
-    for src, grp in df.groupby("source", sort=False):
-        label = t(f"spotify_s4a_combined.source.{src}",
-                  "CSV Spotify for Artists" if src == "s4a_csv" else "API Spotify")
-        fig.add_trace(go.Scatter(x=grp["day"], y=grp["followers"], mode="lines",
-                                 name=label, line=dict(width=2)))
-    fig.update_layout(height=320, hovermode="x unified",
-                      yaxis_title=t("spotify_s4a_combined.followers", "Abonnés"))
-    return fig, t("spotify_s4a_combined.followers_caption",
-                  "Deux sources, deux horloges : le CSV porte l'historique profond et "
-                  "s'arrête au dernier import ; l'API relève tous les jours mais ne "
-                  "remonte pas avant sa mise en service. Elles ne se raboutent pas.")
+        return None
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    if not flux.empty:
+        flux = flux.copy()
+        flux["month"] = pd.to_datetime(flux["month"])
+        fig.add_trace(go.Bar(x=flux["month"], y=flux["saves"],
+                             name=t("spotify_s4a_combined.saves", "Sauvegardes"),
+                             marker_color=_SPOTIFY_GREEN),
+                      secondary_y=False)
+        fig.add_trace(go.Bar(x=flux["month"], y=flux["playlist_adds"],
+                             name=t("spotify_s4a_combined.playlist_adds",
+                                    "Ajouts en playlist"),
+                             marker_color=_LISTENER_INK),
+                      secondary_y=False)
+
+    if not abo.empty:
+        for src, grp in abo.groupby("source", sort=False):
+            csv = src == "s4a_csv"
+            label = t(f"spotify_s4a_combined.source.{src}",
+                      "CSV Spotify for Artists" if csv else "API Spotify")
+            fig.add_trace(
+                go.Scatter(x=grp["day"], y=grp["followers"], mode="lines",
+                           name=t("spotify_s4a_combined.followers_src",
+                                  "Abonnés · {src}").format(src=label),
+                           line=dict(color=_FOLLOWER_INK, width=2.5,
+                                     dash="dot" if csv else "solid")),
+                secondary_y=True)
+
+    fig.update_yaxes(title_text=t("spotify_s4a_combined.monthly_flow", "Par mois"),
+                     secondary_y=False)
+    # L'axe de droite est TEINTÉ de l'encre de ses séries : sans ça, deux échelles se
+    # lisent comme une, et c'est là que naît le faux croisement.
+    fig.update_yaxes(title_text=t("spotify_s4a_combined.followers", "Abonnés"),
+                     secondary_y=True, showgrid=False,
+                     title_font=dict(color=_FOLLOWER_INK),
+                     tickfont=dict(color=_FOLLOWER_INK))
+    fig.update_layout(height=380, barmode="group", hovermode="x unified",
+                      legend=dict(orientation="h", y=1.14))
+    return fig
 
 
 def show():

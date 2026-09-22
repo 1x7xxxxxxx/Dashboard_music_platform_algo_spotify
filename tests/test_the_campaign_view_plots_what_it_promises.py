@@ -293,10 +293,25 @@ def test_the_prediction_opens_what_the_subscription_sells() -> None:
     sections = dict((sec, [k for _, k in items]) for sec, _, items in NAV_SECTIONS)
     assert "premium" in sections, f"la section « premium » a disparu : {list(sections)}"
     assert sections["premium"], "la section « premium » est vide"
-    assert sections["premium"][0] == "trigger_algo", (
-        "la prédiction de déclenchement n'ouvre plus la section Premium : "
-        f"{sections['premium']}. C'est la promesse du produit ; elle vient en tête de "
-        "ce que l'abonnement vend.")
+    # ⚠️ « EN TÊTE » A CHANGÉ DE MAIN le 2026-09-22 au soir, quelques heures après que
+    # ce test l'ait exigé pour la prédiction. Le rapport de carrière PDF ouvre désormais
+    # la section, sur décision du propriétaire : c'est ce que l'abonnement donne de plus
+    # TANGIBLE — un document qu'on emporte, là où la prédiction demande d'ouvrir une
+    # page pour être comprise.
+    #
+    # L'intention de ce test ne change pas : la prédiction reste la PROMESSE du produit
+    # et vit dans Premium, devant les cinq pages Meta. Ce qui change est le voisin qui la
+    # précède, et le test n'épingle plus une position absolue — il épingle l'ORDRE
+    # RELATIF, qui est ce qui portait le sens.
+    p = sections["premium"]
+    assert "trigger_algo" in p, (
+        f"la prédiction de déclenchement a quitté Premium : {p}")
+    assert p.index("trigger_algo") < p.index("meta_x_spotify"), (
+        f"la prédiction ne précède plus les pages Meta : {p}. C'est la promesse du "
+        "produit ; elle vient avant ce qui la raffine.")
+    assert p.index("trigger_algo") <= 1, (
+        f"la prédiction est reléguée au rang {p.index('trigger_algo')} : {p}. Elle "
+        "ouvre la section, ou suit immédiatement ce qui l'ouvre.")
     assert "advanced" not in sections, (
         "une section « advanced » est revenue. Elle a été retirée le 2026-09-22 : une "
         "section d'un seul élément payant, posée à côté de la liste de ce qu'on paie, "

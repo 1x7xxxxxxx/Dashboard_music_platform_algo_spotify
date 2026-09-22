@@ -299,3 +299,140 @@ def test_the_recap_table_is_gone_but_the_ranked_one_stays() -> None:
     assert "top_fans_rank" in src, (
         "la colonne de rang a disparu du CODE : c'est la seule donnée que le tableau "
         "survivant apporte et qu'aucune figure ne montre.")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 4. LA FIGURE D'ENGAGEMENT — trois séries, deux natures, deux axes
+# ══════════════════════════════════════════════════════════════════════════
+
+def test_saves_playlists_and_followers_share_one_figure() -> None:
+    """Demandé le 2026-09-22 : les trois sur le même graphique.
+
+    C'étaient deux figures empilées (`_saves_fig`, `_followers`).
+    """
+    tree = ast.parse(_SPOTIFY.read_text(encoding="utf-8"))
+    noms = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    assert "_engagement_fig" in noms, (
+        "`_engagement_fig` a disparu : les trois séries ne partagent plus une figure.")
+    for ancien in ("_saves_fig", "_followers"):
+        assert ancien not in noms, (
+            f"`{ancien}` est revenu : les deux figures se sont resséparées.")
+
+
+def test_the_followers_level_never_shares_an_axis_with_a_monthly_flow() -> None:
+    """DEUX NATURES, DEUX AXES — et ce n'est pas une question de forme.
+
+    Sauvegardes et ajouts en playlist sont des FLUX mensuels (« combien ce mois-ci »).
+    Les abonnés sont un NIVEAU quotidien (« combien en tout, aujourd'hui »). Sur la même
+    échelle, un niveau se lit comme un flux : c'est `un-cumul-pris-pour-un-quotidien`,
+    la famille qui a coûté le plus cher à ce dépôt sur les figures.
+    """
+    tree = ast.parse(_SPOTIFY.read_text(encoding="utf-8"))
+    fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
+               and n.name == "_engagement_fig"), None)
+    assert fn is not None, "`_engagement_fig` a disparu"
+    # ⚠️ SUR LE TRACÉ, PAS SUR LE TEXTE DE LA FONCTION. Mon premier jet cherchait
+    # `"secondary_y=True" in src` : il restait vrai parce que `update_yaxes` porte le
+    # même mot-clé pour TITRER l'axe. Déplacer la série sur l'axe principal laissait
+    # donc le test VERT — trouvé en mutant. C'est
+    # `a-sweep-predicate-that-matches-a-form-not-a-property`, commis une fois de plus.
+    #
+    # La propriété se lit sur les APPELS : chaque `add_trace` déclare de quel côté il
+    # va, et on vérifie que les barres et la ligne ne vont pas du même.
+    cotes = {}
+    for n in ast.walk(fn):
+        if not (isinstance(n, ast.Call)
+                and getattr(n.func, "attr", None) == "add_trace" and n.args):
+            continue
+        forme = getattr(getattr(n.args[0], "func", None), "attr", None)  # Bar / Scatter
+        sec = next((k.value for k in n.keywords if k.arg == "secondary_y"), None)
+        if forme and isinstance(sec, ast.Constant):
+            cotes.setdefault(forme, set()).add(bool(sec.value))
+    assert cotes.get("Bar") == {False}, (
+        f"les flux mensuels ne sont plus tous sur l'axe principal : {cotes}")
+    assert cotes.get("Scatter") == {True}, (
+        f"les abonnés ne sont plus sur l'axe SECONDAIRE : {cotes}. Un NIVEAU quotidien "
+        "sur la même échelle qu'un flux mensuel se lit comme un flux — "
+        "`un-cumul-pris-pour-un-quotidien`.")
+
+
+def test_the_followers_are_identifiable_without_colour() -> None:
+    """La couleur ne suffit pas pour qui ne la voit pas : TROIS distinctions.
+
+    L'encre `_FOLLOWER_INK` est mesurée (ΔE 65 en CIELAB contre la plus proche des cinq
+    encres de la page), mais ce ΔE est mesuré en vision NORMALE — la deutéranopie n'a
+    pas été simulée. Ce sont donc les distinctions NON chromatiques qui portent la
+    lecture : l'axe de droite, son titre teinté, et barres contre ligne.
+    """
+    tree = ast.parse(_SPOTIFY.read_text(encoding="utf-8"))
+    fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
+               and n.name == "_engagement_fig"), None)
+    assert fn is not None
+    src = ast.unparse(fn)
+    assert "title_font" in src and "_FOLLOWER_INK" in src, (
+        "le titre de l'axe des abonnés n'est plus teinté de l'encre de sa série : deux "
+        "échelles se lisent alors comme une, et c'est là que naît le faux croisement.")
+    assert "go.Bar" in src and "go.Scatter" in src, (
+        "les flux et le niveau n'ont plus deux FORMES : la distinction repose alors sur "
+        "la seule couleur.")
+
+
+def test_the_two_follower_sources_are_never_spliced() -> None:
+    """Le CSV s'arrête au dernier import, l'API court au jour le jour.
+
+    Les coller ferait passer un changement de source pour une inflexion. La LÉGENDE qui
+    l'expliquait a été retirée le 2026-09-22 sur demande — c'est donc le TRAIT qui le dit
+    maintenant : plein pour l'API qui mesure tous les jours, pointillé pour le CSV qui
+    s'arrête. Sans ce trait, la suppression de la légende aurait perdu le fait.
+    """
+    tree = ast.parse(_SPOTIFY.read_text(encoding="utf-8"))
+    fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
+               and n.name == "_engagement_fig"), None)
+    assert fn is not None
+    src = ast.unparse(fn)
+    assert "groupby" in src and "source" in src, (
+        "les abonnés ne sont plus groupés par SOURCE : les deux séries sont raboutées, "
+        "et un changement de source se lit comme une inflexion.")
+    # ⚠️ LE TRAIT DOIT ÊTRE CONDITIONNEL, pas simplement présent. Mon premier jet
+    # cherchait `"dash" in src` : remplacer `dash="dot" if csv else "solid"` par
+    # `dash="solid"` laissait le test VERT alors que les deux sources devenaient
+    # indistinguables. Trouvé en mutant — une propriété, pas un mot.
+    conditionnels = [
+        n for n in ast.walk(fn)
+        if isinstance(n, ast.keyword) and n.arg == "dash"
+        and isinstance(n.value, ast.IfExp)]
+    assert conditionnels, (
+        "le trait des abonnés n'est plus CONDITIONNEL : les deux sources se dessinent "
+        "pareil. La légende « Deux sources, deux horloges » a été retirée le "
+        "2026-09-22 — c'est le trait qui porte le fait, et sans lui il est perdu.")
+
+
+@pytest.mark.parametrize("fragment", [
+    "Deux sources, deux horloges",
+    "Série démarrée à la **première écoute**",
+    "indice de popularité** est relevé par l'API tous les",
+])
+def test_the_form_explaining_captions_stay_removed(fragment: str) -> None:
+    """Elles expliquaient la FORME à quelqu'un qui voulait lire le CONTENU."""
+    fautifs = [c for c in _chaines(_SPOTIFY) if fragment in c]
+    assert not fautifs, (
+        f"« {fragment} » est revenu à l'écran. Retiré le 2026-09-22 : ce que la phrase "
+        "disait est porté par la figure elle-même — le trait pour les deux sources, "
+        "l'axe pour les deux natures.")
+
+
+def test_the_absence_that_names_a_gesture_survives() -> None:
+    """LA MOITIÉ QUI COMPTE, et elle n'est pas négociable.
+
+    `pi_missing` n'est pas une paraphrase : il dit une ABSENCE et nomme le GESTE qui la
+    lève. Une absence muette se lit comme un zéro, et un artiste ne peut pas deviner
+    qu'il doit rattacher un titre.
+    """
+    gardees = [c for c in _chaines(_SPOTIFY)
+               if "Aucun indice de popularité" in c]
+    assert gardees, (
+        "la phrase d'absence d'indice de popularité a disparu avec les autres. Elle "
+        "nomme un GESTE — « le rattachement se fait depuis 🔗 Mapping cross-plateforme » "
+        "— et c'est la seule forme de texte que ce dépôt tient pour non négociable.")
+    assert any("Mapping" in c for c in gardees), (
+        "elle ne nomme plus la page où agir : c'est le geste qui la rend utile.")

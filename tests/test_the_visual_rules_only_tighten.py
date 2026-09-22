@@ -138,10 +138,21 @@ _DECLARED_AXES: dict[str, tuple[int, str]] = {
            "natures ; c'est le croisement qui a révélé 0,002 €/écoute en Colombie "
            "contre 0,181 € au Brésil"),
     "spotify_s4a_combined.py": (
-        6, "§2 : comptes (auditeurs-jour, streams) vs TAUX (écoutes/auditeur-jour) ; "
+        9, "§2 : comptes (auditeurs-jour, streams) vs TAUX (écoutes/auditeur-jour) ; "
            "détail par titre : compte (streams/jour) vs INDICE borné 0-100 (PI), "
            "dont l'axe est fixé et ne peut donc pas être calé pour fabriquer un "
-           "croisement"),
+           "croisement ; §figure d'engagement (2026-09-22) : FLUX MENSUELS "
+           "(sauvegardes, ajouts en playlist — « combien ce mois-ci ») vs NIVEAU "
+           "QUOTIDIEN (abonnés — « combien en tout, aujourd'hui »). Deux natures et "
+           "deux grains, donc le partage d'échelle ferait lire un niveau comme un "
+           "flux : c'est `un-cumul-pris-pour-un-quotidien`, la famille la plus "
+           "coûteuse de ce dépôt sur les figures. Le faux croisement reste possible "
+           "à l'œil et il est ASSUMÉ — ce qu'on achète en échange est une lecture "
+           "d'un coup d'œil au lieu de deux figures empilées, demandée le 2026-09-22. "
+           "Trois distinctions non chromatiques le rendent lisible : la position de "
+           "l'axe, son titre teinté de l'encre de sa seule série, et barres contre "
+           "ligne. Les petits multiples — la seule alternative que ce fichier admet — "
+           "auraient rendu les deux figures d'avant, c'est-à-dire refusé la demande"),
 }
 
 # La source-sonde de la seconde forme, gardée hors des tests pour rester lisible.

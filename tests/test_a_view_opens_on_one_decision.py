@@ -58,9 +58,20 @@ _MAX_FIRST_SCREEN = 5
 #: et on voulait qu'il ne le soit pas), donc ses trois figures sont honnêtement des
 #: figures de premier écran. Elles l'étaient déjà depuis le 2026-09-21 sans que ce
 #: garde puisse le voir : il abritait le bloc par son NOM, pas par son état.
-_PLAFOND_PAR_VUE = {
-    "src/dashboard/views/spotify_s4a_combined.py": 6,
-}
+#: VIDE au 2026-09-22 au soir, et la façon dont elle s'est vidée est le point.
+#:
+#: Elle a porté `spotify_s4a_combined` à 6 pendant quelques heures : le bloc
+#: « Analyses détaillées » était devenu permanent, donc ses trois figures étaient
+#: honnêtement des figures de premier écran. Puis deux de ces figures ont FUSIONNÉ
+#: — sauvegardes, playlists et abonnés sur une seule, avec un axe secondaire — et la
+#: page est repassée à 5, le plafond général.
+#:
+#: `test_every_raised_ceiling_is_still_needed` l'a dit le jour même : « son exemption
+#: n'a plus d'objet et masquerait une régression jusqu'à 6 ». C'est exactement ce que ce
+#: garde existe pour attraper, et il l'a fait sur l'exemption de son propre auteur, six
+#: heures après sa pose. Une exemption qu'on doit se rappeler de retirer ne se retire
+#: jamais.
+_PLAFOND_PAR_VUE: dict[str, int] = {}
 
 
 def _view_files() -> list[str]:

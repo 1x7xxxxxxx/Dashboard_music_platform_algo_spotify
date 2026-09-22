@@ -58,7 +58,10 @@ _BUDGET = {
     # Ce n'est donc PAS un desserrage : c'est le plafond qui rattrape la réalité. Les
     # six figures répondent à trois questions posées deux par deux, côte à côte :
     # sorties/audience, puis ce-qui-bouge/détail.
-    "spotify_s4a_combined.py": 6,
+    # 6 → 5 le même soir : deux figures du bandeau ont fusionné (sauvegardes,
+    # playlists et abonnés sur une seule, les abonnés sur un axe secondaire). Un
+    # budget qu'on laisse au-dessus de la mesure est du crédit pour une régression.
+    "spotify_s4a_combined.py": 5,
     "apple_music.py": 2,
     "imusician.py": 2,
     # 1 → 3 le 2026-09-21, DÉLIBÉRÉMENT, et les trois répondent à trois questions

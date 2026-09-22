@@ -145,7 +145,6 @@ NAV_SECTIONS: list = [
       # qu'on y saisit sont les chiffres du Spotify Wrapped FOR ARTISTS, donc des
       # chiffres Spotify. Une entrée par SOURCE DE SAISIE éparpillait une seule
       # histoire. La route reste valide — des liens la visent.
-      ("📄 Rapport de carrière PDF", "export_pdf"),
       ("🎯 Faire piloter mes campagnes", "service")]),
     # ── CE QUI SE VEND, RASSEMBLÉ — 2026-09-21, complété le 2026-09-22 ─────────
     #
@@ -163,7 +162,18 @@ NAV_SECTIONS: list = [
     # (`tests/test_the_campaign_view_plots_what_it_promises.py`) : cette liste et le
     # catalogue de prix ne peuvent plus diverger en silence.
     ("premium",   "💎 Premium — ce que l'abonnement ouvre",
-     [("🚀 Prédiction déclenchement algos Spotify (DW, Radio, RR…)", "trigger_algo"),
+     # ⚠️ LE RAPPORT OUVRE LA SECTION — déplacé le 2026-09-22 au soir, quelques heures
+     # après l'avoir mis en dernier d'« Analytics ». Les deux placements se défendent, et
+     # celui-ci gagne pour une raison que l'autre n'avait pas : le rapport est ce que
+     # l'abonnement donne de plus TANGIBLE — un document qu'on emporte. En tête de la
+     # liste de ce qu'on paie, il répond à « qu'est-ce que j'achète » avant les cinq
+     # pages d'analyse, qu'il faut ouvrir pour comprendre.
+     #
+     # Ce qu'on perd, et il faut le dire : en dernier d'« Analytics », l'ordre racontait
+     # « voilà tes plateformes, voilà leur résumé ». Ici le résumé est loin de ce qu'il
+     # résume. C'est un arbitrage entre deux récits, pas une correction.
+     [("📄 Rapport de carrière PDF", "export_pdf"),
+      ("🚀 Prédiction déclenchement algos Spotify (DW, Radio, RR…)", "trigger_algo"),
       ("🔀 Impact de mes campagnes (toutes plateformes)", "meta_x_spotify"),
       ("🎨 Visuels de campagne", "meta_creatives"),
       ("🌍 Qui a vu tes pubs (pays, âge, placement)", "meta_breakdowns"),
