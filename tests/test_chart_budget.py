@@ -25,12 +25,39 @@ _VIEWS = Path(__file__).resolve().parents[1] / "src" / "dashboard" / "views"
 # lower them freely, raise one only with a reason written in the diff.
 _BUDGET = {
     "instagram.py": 2,             # followers trend + engagement per month
-    "soundcloud.py": 1,            # plays per track over time
+    # 1 → 3 le 2026-09-21, DÉLIBÉRÉMENT, et voici les trois décisions distinctes.
+    # Ce cliquet demande une raison écrite dans le diff pour toute hausse ; la
+    # voici, parce que « j'ai ajouté des figures » n'en est pas une.
+    #
+    #   · le CATALOGUE dans le temps (écoutes, likes, reposts, commentaires) —
+    #     demandé par le propriétaire le 2026-09-21, et il n'existait nulle part :
+    #     la page ne savait montrer qu'un TITRE à la fois ;
+    #   · la croissance d'un TITRE choisi — la figure historique, qui répond à
+    #     « celui-ci décolle-t-il ? », une autre question ;
+    #   · le CLASSEMENT, qui était un tableau de sept colonnes et devient deux
+    #     cadres : volume et taux d'engagement. Ce n'est pas une figure de plus,
+    #     c'est un tableau qui devient lisible — le taux d'engagement y est la
+    #     vraie information, et un tri par volume l'enterrait.
+    #
+    # La base 100 reste ABRITÉE dans `secondary_analyses` : elle compare des
+    # métriques entre elles et n'ouvre aucune action.
+    "soundcloud.py": 3,
     "youtube.py": 2,               # channel trend + top content
     "spotify_s4a_combined.py": 3,  # top songs + audience + per-song drill-down
     "apple_music.py": 2,
     "imusician.py": 2,
-    "meta_x_spotify.py": 1,
+    # 1 → 3 le 2026-09-21, DÉLIBÉRÉMENT, et les trois répondent à trois questions
+    # distinctes — chacune dans SON onglet, donc jamais trois à l'écran.
+    #
+    #   📈 l'impact dans le temps — la figure historique ;
+    #   🔽 le parcours Meta × Spotify × Hypeddit, RAPATRIÉ de « Publicité Meta
+    #      Ads » et corrigé : `lp_views` et `custom_conversions` y étaient empilés
+    #      comme deux étapes successives alors que ce sont deux MESURES de la même
+    #      étape, la première sous-comptant — `lp < conv` **91 jours sur 91** ;
+    #   🌍 le croisement PAYS : dépense Meta × écoutes du distributeur. C'est lui
+    #      qui rend visible 0,002 €/écoute en Colombie contre 0,181 € au Brésil,
+    #      **93×**, que ni la page Meta ni la page Spotify ne pouvaient dire.
+    "meta_x_spotify.py": 3,
 }
 
 
@@ -117,7 +144,25 @@ def test_secondary_analyses_actually_shields_charts():
 
 
 def test_instagram_kept_its_charts_only_moved_them():
-    """Reduction must be relocation, never deletion."""
+    """Réduction = relocalisation, jamais suppression — SAUF décision du propriétaire.
+
+    ⚠️ 4 → 3 le 2026-09-21, et c'est la PREMIÈRE suppression assumée depuis que ce
+    test existe. Elle mérite d'être écrite plutôt que de faire baisser un nombre.
+
+    La figure supprimée est « Évolution relative (base 100) ». Demande littérale :
+    « SUPPRIMER LE GRAPHIQUE BASE 100, SI ON ARRIVE TOUT METTRE MAIS PAS EN BASE
+    100 ». Elle existait pour une raison réelle — abonnés (1 522), abonnements
+    (621) et publications (51) sont dans un rapport de 30, donc illisibles sur un
+    repère commun — mais elle payait ce service avec les CHIFFRES : on y lisait
+    « 103 » au lieu de « 1 525 abonnés ».
+
+    Les trois séries vivent maintenant dans UNE figure en petits multiples, avec
+    leurs vraies valeurs. La figure « Évolution des Abonnés » seule disparaît donc
+    aussi : elle en était le premier cadre, dessiné deux fois.
+
+    Bilan : 4 figures → 3, dont une SUPPRIMÉE et deux FUSIONNÉES. Le compte de
+    premier écran passe de 2 à 2 — la fusion ne coûte rien à l'écran d'ouverture.
+    """
     text = (_VIEWS / "instagram.py").read_text(encoding="utf-8")
-    assert text.count("st.plotly_chart") == 4
+    assert text.count("st.plotly_chart") == 3
     assert _primary_chart_count(_VIEWS / "instagram.py") == 2

@@ -29,48 +29,29 @@ EN = {
     "meta_ads_overview.scope": "🎯 Analysis Scope",
     "meta_ads_overview.select_campaigns": "Select the campaigns to analyse:",
     "meta_ads_overview.global_perf": "### 🚀 Overall Performance",
-    "meta_ads_overview.spend": "Spend",
-    "meta_ads_overview.impressions": "Impressions",
     "meta_ads_overview.link_clicks": "Link Clicks",
-    "meta_ads_overview.cpr_spotify": "CPR (Spotify Clicks)",
-    "meta_ads_overview.capi_required": "— (CAPI required)",
+    "meta_ads_overview.capi_required": (
+        "CPR empty: it requires CAPI (server-side events) — no custom "
+        "conversion is reported here."),
+    # Les six cadres de la performance globale, construits par
+    # `t(f"meta_ads_overview.perf.{i}", libellé)`. `_PERF_PANNEAUX` les énumère et
+    # `test_the_global_perf_names_every_panel_it_draws` vérifie que chacun a sa clé.
+    "meta_ads_overview.perf.0": "Spend (€)",
+    "meta_ads_overview.perf.1": "Impressions",
+    "meta_ads_overview.perf.2": "Link clicks",
+    "meta_ads_overview.perf.3": "CPM (€)",
+    "meta_ads_overview.perf.4": "CPC (€)",
+    "meta_ads_overview.perf.5": "CPR (€)",
     "meta_ads_overview.engagement": "##### ❤️ Engagement",
     "meta_ads_overview.total_interactions": "⚡ Total Interactions",
-    "meta_ads_overview.funnel_title": "🔽 Hypeddit conversion funnel",
-    "meta_ads_overview.capi_info": (
-        "Spotify clicks (CAPI) will show up here once the Conversions API is "
-        "configured on Hypeddit. The first 3 funnel steps are already available."
-    ),
-    "meta_ads_overview.ad_clicks": "Ad clicks",
-    "meta_ads_overview.ctr_help": "CTR: {v} %",
-    "meta_ads_overview.lp_views": "LP Views",
-    "meta_ads_overview.lp_open_help": "LP open rate: {v} % of clicks",
     "meta_ads_overview.spotify_clicks": "Spotify Clicks",
-    "meta_ads_overview.lp_spotify_help": "LP→Spotify rate: {v} %",
-    "meta_ads_overview.funnel_clicks": "Ad clicks",
-    "meta_ads_overview.col_campaign": "Campaign",
     "meta_ads_overview.perf_by_campaign": "📊 Performance by Campaign",
     "meta_ads_overview.budget_eur": "Budget (€)",
-    "meta_ads_overview.native_results": "Native Meta results (per objective)",
-    "meta_ads_overview.interactions": "Interactions",
     "meta_ads_overview.chart_360": "360° View: Budget vs Volumes vs Ratios",
-    "meta_ads_overview.volumes": "Volumes",
-    "meta_ads_overview.ratios_eur": "Ratios (€)",
-    "meta_ads_overview.multi_metric": "📊 Multi-metric comparison by campaign",
-    "meta_ads_overview.multi_metric_caption": (
-        "One row per metric, independent scales. Click a legend entry to hide it."
-    ),
     "meta_ads_overview.spend_eur": "Spend (€)",
-    "meta_ads_overview.metric": "Metric",
-    "meta_ads_overview.value": "Value",
-    "meta_ads_overview.no_campaign_data": "No campaign data for the selected filters.",
     "meta_ads_overview.time_evolution": "⏳ Time Evolution (Budget vs Results vs CPR)",
     "meta_ads_overview.daily_dynamics": "Daily Dynamics",
     "meta_ads_overview.no_time_data": "No time-series data.",
-    "meta_ads_overview.pareto_section": "🎯 Distributions & Efficiency (CPR Pareto)",
-    "meta_ads_overview.pareto_country": "Countries (Top Spend)",
-    "meta_ads_overview.pareto_placement": "Placements",
-    "meta_ads_overview.pareto_age": "Performance by Age",
     "meta_ads_overview.summary_table": "🗃️ Summary Table",
     "meta_ads_overview.targeting_perf": "🎯 Targeting vs Performance",
     "meta_ads_overview.targeting_caption": (
@@ -89,5 +70,17 @@ EN = {
     "meta_ads_overview.gender.men": "Men",
     "meta_ads_overview.gender.women": "Women",
     "meta_ads_overview.gender.all": "All",
-    "meta_ads_overview.pareto_expander": "🎯 Breakdowns (country, placement, age) — detail",
+    # La figure fusionnée et la comparaison lisible (2026-09-21).
+    "meta_ads_overview.axis_volume": "Spend (€) · clicks",
+    "meta_ads_overview.compare_caption": "Campaigns are on the Y axis: a vertical axis "
+                                         "reads a long name without rotating it, and this "
+                                         "account carries some 90 characters long. Each "
+                                         "column has its own scale — a budget in euros "
+                                         "and a CPR with three decimals do not share a "
+                                         "frame. Sorted by spend: **the CPR on the right "
+                                         "reads against the budget on the left**, which "
+                                         "is the only way to see whether what you funded "
+                                         "most is also what costs least.",
+    # R146 — la série nomme le clic sortant.
+    "meta_ads_overview.cpr_series": "CPR (€ per outbound click)",
 }

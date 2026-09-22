@@ -1,6 +1,8 @@
 """EN catalog for the register view."""
 
 EN = {
+    "register.referral_from_link": (
+        "🎁 Code **{c}** applied from your invite link — you can replace it."),
     # Les liens de profil, saisis à l'inscription (2026-09-05). Facultatifs :
     # aucun `*` dans les libellés.
     "register.link_spotify": "Link to your Spotify Artist page",
@@ -47,7 +49,9 @@ EN = {
     # Success / outcome
     "register.promo_active": " Your **{plan} plan** is active for **{days} days**.",
     "register.welcome_trial": " You get **{days} days of free Premium access**.",
-    "register.referral_discount": " A **20% discount** will be applied to your first paid month.",
+    "register.referral_discount": (
+        " A **20% discount** is yours on your first paid month — tell us when "
+        "you subscribe, it is applied by hand."),
     "register.next_step": "📬 **Next step: open your mailbox.** The verification link "
                           "activates your account — onboarding opens right after.\n\n"
                           "It leaves **immediately** and usually arrives in under a "

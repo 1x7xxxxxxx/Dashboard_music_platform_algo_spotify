@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**406 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**410 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -14,17 +14,17 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 |---|---|---|---|
 | [le-locataire](#le-locataire) | 42 | **9/42** · 21.4 % | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 19 | **1/19** · 5.3 % | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
-| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 16 | **1/16** · 6.2 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
+| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 17 | **1/17** · 5.9 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | **0/20** · 0.0 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **1/20** · 5.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 25 | **3/25** · 12.0 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
-| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | **5/29** · 17.2 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
+| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 30 | **5/30** · 16.7 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 25 | **2/25** · 8.0 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 83 | **9/83** · 10.8 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 84 | **10/84** · 11.9 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | **4/39** · 10.3 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | **0/8** · 0.0 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
-| [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 8 | **0/8** · 0.0 % | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
+| [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 9 | **0/9** · 0.0 % | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 2 | **0/2** · 0.0 % | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 19 | **0/19** · 0.0 % | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 17 | **1/17** · 5.9 % | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
@@ -115,10 +115,11 @@ Règle de rattachement : `cumulative|counter|compteur|delta|lifetime|two-generat
 
 **Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ?**
 
-Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|nothing-routes|nobody-call|never-hit|not-when-it-is-needed|nobody-writes|rebuilt-per-rerun|thrown-away|unwired|debranch|not-reached|orphan|registered-twice-kills-the-import|referenced-but-never-declared|dangling|nothing-ever|never-evaluat|jamais évalué` sur l'identifiant et le symptôme. 16 classe(s).
+Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|nothing-routes|nobody-call|never-hit|not-when-it-is-needed|nobody-writes|no-mechanism|rebuilt-per-rerun|thrown-away|unwired|debranch|not-reached|orphan|registered-twice-kills-the-import|referenced-but-never-declared|dangling|nothing-ever|never-evaluat|jamais évalué` sur l'identifiant et le symptôme. 17 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`a-promise-with-no-mechanism-behind-it`](error-classes.md#a-promise-with-no-mechanism-behind-it) | l'interface promet, au futur et à la voix passive, une action qu'aucun code n'exécute — « ils **seront appliqués** avant votre prochain cycle de factu |
 | [`finding-rendered-but-not-alerted`](error-classes.md#finding-rendered-but-not-alerted) | a monitoring check runs, finds a real problem, writes it to xcom — and no alert is ever sent. The dashboard of checks looks complete; the inbox stays  |
 | [`the-feature-is-wired-to-the-function-nobody-calls`](error-classes.md#the-feature-is-wired-to-the-function-nobody-calls) | une fonctionnalité est écrite, traduite, complète — et ne s'affiche nulle part. Aucun test ne tombe : la fonction qui la rend existe et fonctionne, el |
 | [`page-that-nothing-routes-to`](error-classes.md#page-that-nothing-routes-to) | une vue rend parfaitement, son test de rendu est vert, elle figure dans une liste intitulée « ce qu'un artiste peut atteindre » — et aucun artiste ne  |
@@ -232,10 +233,11 @@ Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-a
 
 **Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ?**
 
-Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 29 classe(s).
+Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 30 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`a-second-door-that-knows-fewer-sources-than-the-first`](error-classes.md#a-second-door-that-knows-fewer-sources-than-the-first) | un module recopie la résolution d'une ressource partagée en n'en connaissant qu'une partie des sources. Le défaut est INVISIBLE tant que la source man |
 | [`streamlit-pin-drift`](error-classes.md#streamlit-pin-drift) | a package pinned `==X` in one manifest while another manifest / the lockfile / the installed env pins `==Y` → prod≠dev, "works locally breaks in Docke |
 | [`prod-canonical-schema-drift`](error-classes.md#prod-canonical-schema-drift) | the live prod DB has a table/column the version-controlled schema (`init_db.sql` + `migrations/*.sql`) lacks, or vice-versa. Code reading/writing the  |
 | [`prod-compose-drift`](error-classes.md#prod-compose-drift) | the live prod `docker-compose.yml` is UNTRACKED (gitignored) and hand-derived, so it silently diverges from the canonical `docker-compose.example.yml` |
@@ -304,10 +306,11 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|substitution|s'exécute|accent grave|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 83 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|substitution|s'exécute|accent grave|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 84 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`a-price-page-that-restates-a-gate-instead-of-reading-it`](error-classes.md#a-price-page-that-restates-a-gate-instead-of-reading-it) | la page qui VEND une fonctionnalité et le verrou qui l'OUVRE se contredisent. Rien ne lève : les deux textes sont valides, ils sont simplement écrits  |
 | [`a-guard-names-a-class-nobody-wrote`](error-classes.md#a-guard-names-a-class-nobody-wrote) | un défaut est parfaitement décrit — symptôme, cause, mesure, date, coût — **dans la docstring d'un test, et nulle part ailleurs**. Le catalogue ne le  |
 | [`a-shared-database-read-while-another-test-writes-it`](error-classes.md#a-shared-database-read-while-another-test-writes-it) | un test est **rouge dans la suite complète et vert quand on le relance seul**. Le rapport ne montre rien d'anormal, la valeur attendue est simplement  |
 | [`probe-scoped-to-the-machine-not-the-repo`](error-classes.md#probe-scoped-to-the-machine-not-the-repo) | a health probe enumerates every container or process on the HOST instead of the ones this repo declares. It reports on neighbouring projects — and can |
@@ -474,10 +477,11 @@ Règle de rattachement : `runs-twice|concurrency-group|overload|competing-for-on
 
 **Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ?**
 
-Règle de rattachement : `threshold|seuil|min[_-]|floor|ceiling|limit|budget|quota|window|magic-number|hardcoded` sur l'identifiant et le symptôme. 8 classe(s).
+Règle de rattachement : `threshold|seuil|min[_-]|floor|ceiling|limit|budget|quota|window|magic-number|hardcoded` sur l'identifiant et le symptôme. 9 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`a-proxy-rendered-under-the-name-of-the-thing-it-proxies`](error-classes.md#a-proxy-rendered-under-the-name-of-the-thing-it-proxies) | une figure, une tuile ou un tableau affiche un indicateur INTERMÉDIAIRE sous le nom du résultat final qu'on aimerait mesurer. Rien ne lève : le chiffr |
 | [`a-scoring-call-that-omits-its-context`](error-classes.md#a-scoring-call-that-omits-its-context) | un rapprochement correct cesse d'être proposé tout seul, et rien ne le signale. Pas d'exception, pas de compte qui change : le score passe simplement  |
 | [`df-na-rep`](error-classes.md#df-na-rep) | `df.style.format({...})` without `na_rep=` → `TypeError` when a formatted column is NULL (LEFT JOIN / empty window). |
 | [`trigger-threshold-split`](error-classes.md#trigger-threshold-split) | a rule, the agent it spawns, and the hook that signals it state different thresholds. The agent's `description` wins, because it is the only one the r |
@@ -609,6 +613,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=406 families=18 orphans=3 -->
+<!-- error-class-families: total=410 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=65ef2f1a1469b691b08c720990a5eb38f744d4b0b28b7027f6b3a10b6d93743c -->
+<!-- error-class-families: sha256=e0a0cb554b4be58537498afb10248e37ab5c73260333a446ac165a546ea9b6f7 -->

@@ -11,7 +11,7 @@ import streamlit as st
 from src.dashboard.auth import get_artist_id, get_artist_plan
 from src.dashboard.utils.i18n import t
 from src.database.stripe_schema import (
-    PLAN_CATALOG, PLAN_FEATURES, PLAN_RANK, SERVICE_CONTACT_EMAIL,
+    PLAN_CATALOG, PLAN_RANK, SERVICE_CONTACT_EMAIL,
 )
 
 
@@ -22,31 +22,12 @@ def _price_label(plan: str) -> str:
     return t("upgrade.price_monthly", "{p}€/mois").format(p=p)
 
 
-# Human-readable labels for each page key
-_PAGE_LABELS = {
-    'home': 'Accueil',
-    'spotify_s4a_combined': 'Spotify & S4A',
-    'youtube': 'YouTube',
-    'meta_ads_overview': 'Meta Ads - Vue d\'ensemble',
-    'instagram': 'Instagram',
-    'soundcloud': 'SoundCloud',
-    'apple_music': 'Apple Music',
-    'hypeddit': 'Hypeddit',
-    'imusician': 'Distributeur (iMusician)',
-    'sacem': '🎼 Royalties SACEM',
-    'upload_csv': 'Import CSV',
-    'db_health': '🩺 Santé des données',
-    'credentials': 'Credentials API',
-    'export_csv': 'Export CSV',
-    'data_wrapped': 'Data Wrapped',
-    'trigger_algo': '🚀 Road to Algo (ML)',
-    'export_pdf': 'Export PDF',
-    'revenue_forecast': 'Prévisions revenus',
-    'meta_x_spotify': 'META x Spotify',
-    'meta_mapping': 'Mapping cross-plateforme',
-    'account': 'Mon compte',
-    'billing': 'Billing',
-}
+
+# `_PAGE_LABELS` a été RETIRÉ le 2026-09-21 avec son unique lecteur. Il servait
+# à afficher la liste Free comme des noms de pages triés alphabétiquement ;
+# l'argumentaire vit maintenant dans `utils/plan_pitch`, qui nomme des
+# DÉCISIONS et lit le verrou plutôt que de le recopier. Garder le dictionnaire
+# aurait laissé une seconde liste de libellés à faire diverger.
 
 _PLAN_DISPLAY = {
     'free':    {'label': 'Free',    'color': '#6c757d'},
@@ -55,18 +36,17 @@ _PLAN_DISPLAY = {
 
 
 def _feature_list(plan: str) -> list[str]:
-    """Return readable feature list for a given plan (premium = extras over Free)."""
-    if plan == 'premium':
-        return [
-            t("upgrade.feat_road", "🚀 Road to Algo — prédictions ML"),
-            t("upgrade.feat_forecast", "📈 Prévisions de revenus (ML)"),
-            t("upgrade.feat_creatives", "🎨 Créatives Meta Ads"),
-            '📊 CPR Optimizer',
-            'META x Spotify',
-            t("upgrade.feat_support", "Support prioritaire"),
-        ]
-    keys = PLAN_FEATURES.get(plan, set())
-    return [t(f"upgrade.page.{k}", _PAGE_LABELS.get(k, k)) for k in sorted(keys)]
+    """Les mêmes lignes que la page de facturation — source unique.
+
+    ⚠️ Cette fonction écrivait SA propre liste pour Premium, et rangeait Free en
+    affichant des NOMS DE PAGES triés alphabétiquement (`_PAGE_LABELS`). Deux
+    défauts dans la même dizaine de lignes :
+    le texte Premium a divergé de `billing.py` et de `onboarding.py` (trois
+    versions le 2026-09-21), et le texte Free énumérait des clés techniques là où
+    l'artiste cherche ce qu'il peut FAIRE.
+    """
+    from src.dashboard.utils.plan_pitch import bullets
+    return bullets(plan)
 
 
 def show() -> None:

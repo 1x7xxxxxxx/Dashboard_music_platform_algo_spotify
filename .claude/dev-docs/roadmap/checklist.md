@@ -26,9 +26,32 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 
-**Aucune tâche n'est ouverte dans cet index.** R145 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance, close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
-L'ancre `reprise:` ne nomme donc plus que les lignes en attente d'un geste humain. La table « 🙋 En attente de toi »
-plus bas est **VIDE** pour la première fois depuis son ouverture. R140, R125 et R134 en
+**Cet index est VIDE le 2026-09-22 au soir.** Les sept lignes ouvertes le matin même —
+R146 à R152, nées des dix livres ingérés ce jour-là — sont sorties par deux portes
+différentes, et la distinction est le résultat de la séance :
+
+| | sortie | ce qui l'a tranchée |
+|---|---|---|
+| **R146** (P2) | ✅ livrée | la limite est écrite sur **seize grappes de surfaces** ; adosser une vraie écoute est impossible (S4A ne rend que des CSV) |
+| **R147** | ✅ livrée | la courbe existe, et elle rend **3 essais arrivés à terme, 0 conversion** — un effectif dont aucun taux ne sort |
+| **R149** | ✅ livrée | l'activation, mesurée à **2 sur 5**, posée en tête du panneau admin ; MRR et ARPU passent sous un repli |
+| **R152** | ✅ tranchée | **ADR-028** : pas d'axe de valeur tant que l'activation n'est pas réglée, avec son déclencheur de réouverture |
+| **R148 · R150 · R151** | 🙋 en attente de toi | trois gestes humains, chacun avec sa procédure dans le runbook |
+
+⚠️ **Et une trouvaille qui n'était dans aucun livre**, tombée en lançant la suite :
+douze modules de test construisaient leur DSN à la main. Sans base ils skippaient, avec
+une base ils ERREURAIENT — **20 rouges d'un coup**, aucun lié au travail en cours. Les
+douze passent désormais par la porte canonique, et **91 tests** qui ne s'exécutaient pas
+s'exécutent. Classe : `a-second-door-that-knows-fewer-sources-than-the-first`.
+
+**Ces lignes venaient des dix livres ingérés le 2026-09-22**, pas d'une intuition.
+Chacune croise une phrase d'un livre avec un chiffre déjà mesuré sur ce dépôt — le détail
+et la citation sont dans le bloc « 📚 R146-R151 » plus bas. Une ligne dont le livre ne
+faisait que confirmer ce qu'on savait déjà n'y est PAS entrée.
+
+**Aucune autre tâche n'est ouverte dans cet index.** R145 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance, close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
+L'ancre `reprise:` ne nomme donc plus que les lignes en attente d'un geste humain — R151, R148 et R150 depuis le 2026-09-22. La table « 🙋 En attente de toi »
+plus bas en porte **trois** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
 sont sorties le 2026-09-20 — les dix-sept décisions de la première tranchées et
 intégrées, la deuxième faite par le propriétaire (33 lignes en production), la troisième
 mesurée EN PRODUCTION et close sur son résultat.
@@ -116,9 +139,36 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-20 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-22 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R148,R150,R151 -->
+
+**Sept lignes ouvertes le matin du 2026-09-22, trois le soir.** Quatre sont closes :
+R146, R147, R149, R152. Les trois autres ont migré dans la table des gestes humains
+plus bas. L'index actionnable est **vide**.
+
+**Le P2 est livré.** R146 : la conversion CAPI d'Hypeddit se déclenche quand l'auditeur
+QUITTE le smart link, pas quand il écoute. Le balayage a trouvé **seize grappes de
+surfaces** qui affichaient ce clic sous le nom de « résultat » — dont l'optimiseur qui
+RECOMMANDE d'augmenter un budget, la tuile du premier écran, l'argumentaire
+d'abonnement et le PDF envoyé par mail — et **six sites déjà honnêtes**, tous écrits la
+veille dans un seul fichier. La forme correcte existait et n'avait pas voyagé ; elle
+vit maintenant dans `src/dashboard/utils/proxy_disclosure.py`, à un seul endroit.
+
+**Le chiffre qui recadre tout le reste**, mesuré en production le même jour et qui
+n'était demandé par aucune des sept lignes : sur **quatre artistes bêta**, **un seul**
+a une plateforme qui livre des données. Trois regardent un tableau de bord vide —
+Cuzebo depuis **cent jours**. Leur `etl_run_log` ne porte aucun échec, il porte
+`skipped` : ils n'ont jamais saisi d'identifiant de plateforme, et `alert_monitor` dit
+explicitement que `skipped` n'est pas un signalement. Correct pour l'exploitation,
+aveugle pour le commerce. C'est la réponse à R147 (0 conversion sur 3 essais), le motif
+de R149 (l'activation est LA métrique) et la raison d'ADR-028 (pas d'axe de valeur
+quand le revenu par client est nul parce qu'il n'y a pas de client).
+
+**Le geste qui reste le plus rentable est R151** : cinq minutes dans le Gestionnaire
+d'évènements de Meta, et il conditionne la fiabilité de TOUS les coûts par résultat de
+l'app. Procédure : runbook §18.
+
 
 **R125 est LIVRÉE le 2026-09-20**, par le propriétaire. La saisie humaine
 `s4a_song_algo_outcomes` porte **33 lignes en production** ; elle en portait 0 depuis la
@@ -145,8 +195,9 @@ deux réordonnancements de R118/R120, chacun sur une mesure — a été **dépla
 dans `archive.md`** le 2026-09-18, sous « Le récit de mesure de R114–R121 ». Il n'est pas
 perdu : il n'appartient simplement pas à un écran qui répond « où j'en suis ».
 
-**La table « 🙋 En attente de toi » est VIDE** — une première. R140, R125 et R134 en sont
-sorties le 2026-09-20.
+**La table « 🙋 En attente de toi » porte TROIS lignes** — R151, R148 et R150, entrées
+le 2026-09-22. Elle avait été vide pour la première fois le 2026-09-20, quand R140,
+R125 et R134 en étaient sorties ; le vide a tenu deux jours.
 ⚠️ Vide ne veut pas dire « rien n'attend un humain » pour toujours : inviter la bêta est
 l'usage du produit, pas du travail d'ingénierie, et cette table se remplira de nouveau.
 ⚠️ Ce paragraphe a menti TROIS fois, et la troisième a été attrapée par un GARDE — pas
@@ -276,6 +327,14 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
+| R151 | Hiérarchie des évènements agrégés Meta (limite iOS 14) | P3 | cinq minutes dans le Gestionnaire d'évènements : faire glisser la conversion Hypeddit en **position 1** — runbook §18 |
+| R148 | Trois conversations « combien tu paierais » | P3 | trois entretiens de vingt minutes, avec des artistes **qui ont vu leurs données** — runbook §19 |
+| R150 | Trois options chiffrées pour la prestation | P3 | remplir les trois lignes du tableau Essentiel / Standard / Accompagnement — runbook §20 |
+
+⚠️ **R151 avant tout le reste.** C'est cinq minutes, et il conditionne la fiabilité de
+TOUS les coûts par résultat de l'app. R148 vient après l'activation : demander à
+quelqu'un ce qu'il paierait pour un produit qu'il n'a jamais vu fonctionner ne mesure
+rien — et au 2026-09-22, **un seul** artiste bêta sur quatre a une plateforme qui livre.
 
 ⚠️ **R125 est entrée le 2026-09-18, mesurée en PRODUCTION, pas supposée** :
 `ml_song_predictions` porte **617 lignes**, `s4a_song_algo_outcomes` (la saisie humaine)
@@ -323,3 +382,97 @@ qui cherchait l'état des briques lisait une liste de secrets à faire tourner.
   Files: `.env`, Railway env vars. Auto-refreshed tokens (Meta personal 60-day, SoundCloud Client Credentials, Spotify Client Credentials regrant) are NOT in scope — see `.claude/dev-docs/meta-ads-credential-guide.md` § "What is automated vs manual".
 
 ---
+
+---
+
+## 📚 R148, R150, R151 — ce que les dix livres du 2026-09-22 ont changé
+
+Dix livres ingérés (11 939 passages) en trois domaines : `business-offre` (6),
+`marketing-ads` (3), `marketing-musical` (1). Ce bloc portait à l'origine six points où
+un livre **contredit ou complète une mesure existante**, un par tâche R146 à R152 (sept
+tâches, une synthèse — R152 partageait son livre avec R147). Quatre ont été closes le
+2026-09-22 et **déplacées dans `archive.md`** (« 📚 R146, R147, R149, R152 — les quatre
+tâches ... closes le jour même ») : R146 (P2, livrée), R147 (livrée), R149 (livrée),
+R152 (tranchée par ADR-028). Les trois points restants, ci-dessous, sont ceux qui
+attendent encore un geste humain.
+
+### R148 — Le prix a été posé, jamais mesuré
+
+*Monetizing Innovation* (Ramanujam & Tacke) : parler du prix **avant** de construire,
+et le terme central est *willingness to pay*.
+
+> « To build a product around a price, you must engage in deep discussions with
+> potential customers before you design and develop it. »
+
+Ici l'ordre a été l'inverse : le produit d'abord, 10 €/mois ensuite. Et aucun des
+artistes bêta n'a jamais été interrogé sur ce qu'il paierait. Le livre ne dit pas que
+10 € est faux — il dit qu'on n'en sait rien, et c'est vérifiable : zéro trace d'un
+entretien WTP dans le dépôt.
+
+### R150 — La prestation ne chiffre rien
+
+*Pricing Creativity* et *The Win Without Pitching* (Blair Enns) : proposer des **options**
+plutôt qu'un prix, et établir la disposition à payer avant de chiffrer.
+
+Le panneau de service livré le 2026-09-21 nomme quatre arguments et propose un appel.
+Il ne porte aucune structure de prix, donc l'appel commence à zéro à chaque fois. Trois
+options ancrent la conversation sans engager sur un tarif public.
+
+### R151 — La limite iOS 14 sur les évènements agrégés
+
+*La petite boîte à outils Facebook Ads et Instagram Ads* (Pellerin) :
+
+> « Depuis iOs 14, il est nécessaire de définir une **hiérarchie** entre les différentes
+> conversions personnalisées créées, afin que Facebook identifie celle(s) à mesurer en
+> priorité. »
+
+Meta ne mesure que huit évènements par domaine, dans un ordre choisi. Si la conversion
+Hypeddit n'est pas prioritaire dans l'Events Manager, une partie des conversions n'est
+tout simplement pas attribuée — et cela se lit comme des campagnes moins performantes
+qu'elles ne le sont. C'est un geste humain de cinq minutes, avec une conséquence
+mesurable sur tous les chiffres de coût par résultat de l'app.
+
+### Les deux repères chiffrés à se donner
+
+*Lean Analytics* publie des bornes de référence SaaS, et streaMLytics tombe dans un
+cas précis : **essai sans carte bancaire**.
+
+| | avec carte à l'inscription | **sans carte (ton cas)** |
+|---|---|---|
+| visiteurs qui démarrent l'essai | 0,5–2 % | **5–10 %** |
+| essais qui deviennent payants | 50 % | **15 %** |
+| bout en bout | 0,6 % | **1,2 %** |
+
+Et sur la rétention : « The best SaaS sites usually have churn ranging from **1,5 % to
+3 % a month** », et il faut passer **sous 5 %/mois** avant de pouvoir parler de
+croissance.
+
+Ces quatre nombres donnent enfin une barre à R147 et R149 : sans eux, « 15 % de
+conversion » est une impression ; avec eux, c'est une cible ou un écart.
+
+⚠️ Ce sont des repères de 2013 sur des SaaS B2B. Ils cadrent l'ordre de grandeur, ils
+ne remplacent pas la mesure de TES cohortes — qui est précisément ce que R147 demande.
+
+### Une confirmation, et elle compte autant
+
+*Pricing Creativity* (Enns) : « adding a third, higher price increases the sales of the
+middle price — previously the highest price — by almost **50 %** ».
+
+Deux plans (Free / Premium) n'ont pas de milieu. Le Premium à 10 € est le haut de
+gamme, donc le point de résistance. Un troisième niveau au-dessus — même peu vendu —
+déplacerait le Premium vers le centre. C'est le même mécanisme que R150 demande pour
+la prestation : **trois options, pas un prix**. Les deux se décident ensemble.
+
+### Ce que les livres n'ont PAS apporté
+
+⚠️ Deux des dix sont des **dérivés, pas les originaux** : « 100M Offers Made Easy … by
+Turning ChatGPT into Alex Hormozi » (Ben Preston) commente Hormozi, et « Breakthrough
+Copywriter 2.0 » (Worstell) commente Schwartz. Quand le RAG citera un passage de l'un
+des deux, c'est une paraphrase qu'on lira, pas la source — à garder en tête avant de
+fonder une décision dessus.
+
+Et rien dans ces dix livres ne traite de **TVA, de frais de fonctionnement déductibles
+ni d'obligations de facturation**. C'est délibéré : ce sujet change chaque année et
+dépend de la forme juridique. Les sources qui font foi sont le BOFiP, impots.gouv.fr et
+l'URSSAF — elles se rangent dans `admin-fiscalite`, préfixé `admin-` pour rester hors
+des recherches par défaut.

@@ -43,7 +43,7 @@ def test_key_falls_back_to_all():
 # ── _validate_entity (frozenset guards) ───────────────────────────────────
 def test_validate_accepts_known_spec():
     _validate_entity(EntitySpec("soundcloud_tracks_daily", "title", "collected_at"))
-    _validate_entity(EntitySpec("apple_songs_history", "song_name", "date"))
+    _validate_entity(EntitySpec("v_apple_song_cumulative", "song_name", "day"))
 
 
 def test_validate_rejects_bad_table():
@@ -58,7 +58,7 @@ def test_validate_rejects_bad_entity_column():
 
 def test_validate_rejects_bad_date_column():
     with pytest.raises(ValueError):
-        _validate_entity(EntitySpec("apple_songs_history", "song_name", "evil"))
+        _validate_entity(EntitySpec("v_apple_song_cumulative", "song_name", "evil"))
 
 
 def test_entityspec_defaults():

@@ -2,49 +2,10 @@
 
 EN = {
     # Recap — Spotify
-    "data_wrapped.recap_spotify_header": "🎧 Spotify",
-    "data_wrapped.recap_total_streams": "Total streams (S4A)",
-    "data_wrapped.recap_spotify_popularity": "Spotify popularity",
-    "data_wrapped.recap_popularity_help": "Track: {track}",
-    "data_wrapped.recap_followers": "Followers (latest reading)",
-    "data_wrapped.recap_top5_header": "#### 🏆 Top 5 tracks (cumulative streams)",
-    "data_wrapped.recap_cumulative_streams": "Cumulative streams",
-    "data_wrapped.recap_no_s4a_track": "No S4A track for this artist.",
-    "data_wrapped.recap_top_unavailable": "Top tracks unavailable.",
-    # Recap — other platforms
-    "data_wrapped.recap_platforms_header": "📺 Other platforms",
-    "data_wrapped.recap_youtube_views": "YouTube — views",
-    "data_wrapped.recap_apple_plays": "Apple Music — plays",
-    "data_wrapped.recap_soundcloud_plays": "SoundCloud — plays",
-    "data_wrapped.recap_soundcloud_likes": "{likes} likes",
-    "data_wrapped.recap_instagram_followers": "Instagram — followers",
-    # Recap — revenue
-    "data_wrapped.recap_revenue_header": "💶 Revenue & advertising (career)",
-    "data_wrapped.recap_imusician_revenue": "iMusician revenue",
-    "data_wrapped.recap_meta_spend": "Meta Ads spend",
-    "data_wrapped.recap_roi": "ROI",
-    "data_wrapped.recap_profitable": "profitable",
-    # Recap — ML
-    "data_wrapped.recap_ml_header": "🔮 ML highlight",
-    "data_wrapped.recap_no_ml": 'No prediction yet — they are recomputed every day, late morning.',
-    "data_wrapped.recap_ml_best": "🔮 Most promising track: **{song}** — {algo} **{pct}%**",
-    "data_wrapped.recap_ml_caption": "Absolute trigger probability (calibrated model output). "
-                                     "See “🚀 Road to Algo (ML)” for details.",
-    # Recap — freshness
-    "data_wrapped.recap_freshness_header": "🩺 Data freshness",
-    "data_wrapped.recap_freshness_unavailable": "Freshness unavailable.",
-    # Recap tab intro
-    "data_wrapped.recap_intro": "**Automatic** all-platform recap (career / all-time), computed "
-                                "from your collected data. “—” = source not connected or empty.",
-    # Main view
     "data_wrapped.title": "🎁 Data Wrapped — Recap",
     "data_wrapped.session_invalid": "Invalid session.",
     "data_wrapped.intro": "**Auto recap** across all platforms (career) + manual entry of annual "
                           "Spotify for Artists metrics and year-by-year evolution.",
-    "data_wrapped.tab_recap": "🎁 Auto recap",
-    "data_wrapped.tab_form": "✏️ Entry",
-    "data_wrapped.tab_charts": "📊 Evolution",
-    "data_wrapped.tab_data": "🗃️ Data",
     "data_wrapped.db_unreachable": "Database unreachable.",
     "data_wrapped.no_artist": "No artist in the database.",
     "data_wrapped.artist_label": "Artist",

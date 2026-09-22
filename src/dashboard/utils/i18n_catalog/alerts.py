@@ -46,4 +46,24 @@ EN = {
     "alerts.col_role": "Role",
     "alerts.col_signup": "Signup",
     "alerts.col_plan": "Plan",
+    # R147 — les cohortes d'essai, avec leur effectif.
+    "alerts.section_trial_cohorts": "🎟️ 30-day trials — what becomes of them",
+    "alerts.trial_expander": "🎟️ Trial cohorts — detail",
+    "alerts.no_trial_cohort": (
+        "No trial granted yet — the curve fills from the first signup."),
+    "alerts.trial_granted": "Trials granted",
+    "alerts.trial_matured": "Reached day 30",
+    "alerts.trial_paid": "Became paying",
+    "alerts.trial_col_granted": "Granted",
+    "alerts.trial_col_matured": "Matured",
+    "alerts.trial_col_paid": "Paying",
+    "alerts.trial_rate": "Trial conversion rate",
+    "alerts.trial_rate_bench": (
+        "Lean Analytics benchmark for a no-credit-card trial: ~15%."),
+    "alerts.trial_too_few": (
+        "**{payants} conversion(s) out of {termines} matured trial(s).** No rate is "
+        "shown: under the 15% benchmark (no-credit-card trial, *Lean Analytics*), it "
+        "would take **{seuil} matured trials** without a single conversion for that "
+        "benchmark to be in question. Running trials are not counted — they are not "
+        "failures yet."),
 }

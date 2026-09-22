@@ -38,22 +38,19 @@ _DB_HOST, _DB_PORT = "127.0.0.1", 5433
 
 
 def _kwargs() -> dict | None:
-    if os.environ.get("DATABASE_URL"):
-        from urllib.parse import urlparse
-        u = urlparse(os.environ["DATABASE_URL"])
-        return {"host": u.hostname or "localhost", "port": u.port or 5432,
-                "database": (u.path or "").lstrip("/"), "user": u.username or "postgres",
-                "password": u.password or ""}
-    try:
-        with socket.create_connection((_DB_HOST, _DB_PORT), timeout=1.5):
-            pass
-    except OSError:
-        return None
-    return {"host": _DB_HOST, "port": _DB_PORT,
-            "database": os.environ.get("DATABASE_NAME", "spotify_etl"),
-            "user": os.environ.get("DATABASE_USER", "postgres"),
-            "password": os.environ.get("DATABASE_PASSWORD")
-            or os.environ.get("DB_PASSWORD", "")}
+    """Les mots-clés de connexion — par la porte canonique."""
+    # ⚠️ LA PORTE CANONIQUE, PAS UNE COPIE — 2026-09-22.
+    #
+    # Ce bloc construisait son DSN à la main et ne lisait que l'environnement. Sur
+    # un poste dont le mot de passe vit dans `config/config.yaml`, la socket
+    # s'ouvrait et l'authentification échouait : le skip devenait ERREUR dès qu'une
+    # base tournait. Vingt tests rouges d'un coup, aucun lié au changement en cours.
+    # `tests/db_gate.dsn()` passe par `src.utils.pg_connect.resolve_kwargs`, qui
+    # connaît les trois sources. Classe :
+    # `a-second-door-that-knows-fewer-sources-than-the-first`.
+    from tests.db_gate import dsn
+
+    return dsn()
 
 
 _KW = _kwargs()

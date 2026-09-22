@@ -8,7 +8,9 @@ import streamlit as st
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_plan, is_admin, tenant_scope
-from src.database.stripe_schema import PLAN_CATALOG, PLAN_RANK, SERVICE_CONTACT_EMAIL
+from src.database.stripe_schema import (
+    PLAN_CATALOG, PLAN_RANK, SERVICE_CALENDLY_URL, SERVICE_CONTACT_EMAIL,
+    SERVICE_CREDENTIALS)
 
 
 def _price_str(plan: str) -> str:
@@ -18,54 +20,38 @@ def _price_str(plan: str) -> str:
     return t("billing.price_monthly", "{p} €/mois").format(p=p)
 
 
-# ── Plan display catalogue (3-column layout). Prices come from PLAN_CATALOG
-# (single source of truth); curated bullets mirror PLAN_FEATURES (validated 2026-06-09:
-# Export PDF in Free, Revenue forecast Premium-only, Basic 5€ / Premium 10€).
-# Built per-render (not at import) so t() resolves the session language. ──
+# ── LES CARTES SONT DÉRIVÉES, PLUS RECOPIÉES — 2026-09-21 ───────────────────
+#
+# Elles étaient écrites à la main ici, une troisième fois après `upgrade.py` et
+# `onboarding.py`, et les trois se contredisaient. Deux erreurs mesurées le même
+# jour :
+#
+#   · « 📄 Export PDF du rapport (FR / EN) » figurait en **Free**. Le PDF a quitté
+#     Free le 2026-09-04 par une décision explicite (commit 5fdc65a). Cette page
+#     l'a donc promis gratuitement pendant DIX-SEPT JOURS, sous un menu qui
+#     l'affichait cadenassé.
+#   · « 🎬 Génération de créatives vidéo (60+ par campagne) » figurait en
+#     **Premium**. Rien dans l'arbre ne génère de vidéo — ni ffmpeg, ni moviepy,
+#     ni aucun module de rendu. C'est une prestation HUMAINE : elle descend dans
+#     le panneau de service, où elle est vraie.
+#
+# `utils/plan_pitch` LIT le verrou au lieu de le recopier. Une page qui change de
+# plan déplace sa ligne toute seule.
 def _plan_cards() -> dict:
+    from src.dashboard.utils.plan_pitch import bullets
     return {
         'free': {
             'label': t("billing.plan_free_label", "🆓 Free"),
             'price': _price_str('free'),
             'max_artists': t("billing.one_artist", "1 artiste"),
-            'features': [
-                t("billing.feat_all_analytics",
-                  "Toutes les analytics plateformes (Spotify, Apple Music, "
-                  "YouTube, SoundCloud, Instagram, Meta Ads, Hypeddit)"),
-                t("billing.feat_distributor",
-                  "💰 Revenus distributeur (iMusician + DistroKid) + 🎼 royalties SACEM"),
-                t("billing.feat_mapping",
-                  "🔗 Mapping cross-plateforme — suggestions automatiques "
-                  "(titres entre plateformes + campagnes Meta Ads)"),
-                t("billing.feat_roi",
-                  "💹 ROI Breakeven — revenus (distrib. + SACEM) vs dépenses Meta Ads"),
-                t("billing.feat_csv", "📂 Import & export CSV / XLSX"),
-                t("billing.feat_pdf", "📄 Export PDF du rapport (FR / EN)"),
-                t("billing.feat_wrapped", "🎁 Data Wrapped annuel"),
-                t("billing.feat_credentials", "🔑 Credentials API"),
-            ],
+            'features': bullets('free'),
         },
         'premium': {
             'label': t("billing.plan_premium_label", "💎 Premium"),
             'price': _price_str('premium'),
             'max_artists': t("billing.up_to_10", "Jusqu'à 10 artistes"),
-            'features': [
-                t("billing.feat_everything_free", "Tout ce que contient Free"),
-                t("billing.feat_road_to_algo",
-                  "🚀 Road to Algo — prédictions ML (machine learning) pour identifier les "
-                  "leviers qui déclenchent les playlists algorithmiques Spotify : "
-                  "Discover Weekly, Release Radar, Radio"),
-                t("billing.feat_revenue_forecast", "📈 Prévisions de revenus (ML)"),
-                t("billing.feat_autosync",
-                  "🔄 Téléchargement quotidien et automatique des CSV "
-                  "Spotify for Artists + Apple Music (plus aucun export manuel)"),
-                t("billing.feat_cpr",
-                  "📊 Optimisation CPR — budget & streams des campagnes Meta Ads"),
-                t("billing.feat_creatives",
-                  "🎬 Génération de créatives vidéo (60+ par campagne) "
-                  "+ optimisation du targeting"),
-                t("billing.feat_support", "Support prioritaire"),
-            ],
+            'features': [t("billing.feat_everything_free",
+                           "Tout ce que contient Free")] + bullets('premium'),
         },
     }
 
@@ -97,28 +83,65 @@ def show():
         current_plan = None if admin else get_artist_plan()
         _render_plan_columns(current_plan)
 
-        _render_service_cta()
+        _render_service_cta(db)
 
     finally:
         db.close()
 
 
-def _render_service_cta() -> None:
-    """Done-for-you marketing-campaign optimization — manual service, call-first."""
+def _render_service_cta(db=None) -> None:
+    """Le service d'optimisation — ce que j'apporte, et comment on en parle.
+
+    ⚠️ Ce panneau porte ce qui a quitté la carte Premium le 2026-09-21 : la
+    production de créatives vidéo. Elle n'y avait pas sa place — c'est du travail
+    humain, pas une fonction du logiciel — et l'y laisser faisait promettre à un
+    abonnement de 10 €/mois quelque chose qu'aucune ligne de code ne fait.
+    """
     st.markdown("---")
     st.subheader(t("billing.service_header",
-                   "🎯 Optimisation de vos campagnes marketing (service sur-mesure)"))
-    st.markdown(
-        t("billing.service_body",
-          "Vous voulez déléguer l'optimisation de vos campagnes (Meta Ads & cie) ? "
-          "Je peux m'en occuper directement. **Un appel préalable est requis** pour vérifier "
-          "que ça colle à votre projet et définir le budget que vous souhaitez investir.\n\n"
-          "📧 Contact : **{email}**").format(email=SERVICE_CONTACT_EMAIL)
-    )
-    st.link_button(
-        t("billing.service_btn", "✉️ Me contacter pour l'optimisation"),
-        f"mailto:{SERVICE_CONTACT_EMAIL}?subject=Optimisation%20campagnes%20marketing%20-%20streaMLytics",
-    )
+                   "🎯 Faire piloter tes campagnes (prestation sur-mesure)"))
+    st.markdown(t(
+        "billing.service_body",
+        "L'outil te dit où va ton argent. Si tu veux que quelqu'un s'occupe "
+        "**des campagnes elles-mêmes**, c'est une prestation à part, et on en "
+        "parle avant de commencer."))
+
+    for i, ligne in enumerate(SERVICE_CREDENTIALS):
+        st.markdown("- " + t(f"billing.service_credential.{i}", ligne))
+
+    st.caption(t(
+        "billing.service_call_why",
+        "**Un appel préalable est nécessaire**, et ce n'est pas une formalité : "
+        "je regarde ton projet, ce que tes chiffres disent déjà, et le budget "
+        "qui a du sens. Si ça ne colle pas, je le dis."))
+
+    # ⚠️ Le lien se LIT à chaque rendu, environnement d'abord puis base : il est
+    # éditable depuis la page Admin sans redéploiement. Le premier jet ne lisait
+    # que `SERVICE_CALENDLY_URL`, ce qui était correct et laissait la
+    # fonctionnalité ÉTEINTE — poser un lien de rendez-vous ne doit pas demander
+    # de rebâtir un conteneur.
+    from src.dashboard.utils.app_settings import get_setting
+    lien = get_setting(db, "service_calendly_url", SERVICE_CALENDLY_URL)
+
+    cols = st.columns(2)
+    if lien:
+        cols[0].link_button(
+            t("billing.service_book", "📅 Prendre rendez-vous"),
+            lien, type="primary", width="stretch")
+    elif is_admin():
+        # ⚠️ Vu par l'EXPLOITANT seul, et jamais par l'artiste : un bouton mort
+        # vaut moins qu'un bouton absent. Tant que la variable n'est pas posée,
+        # la page propose le courriel, qui fonctionne.
+        cols[0].warning(t(
+            "billing.service_no_calendly",
+            "⚙️ Aucun lien de prise de rendez-vous : le bouton est masqué. "
+            "Pose-le dans **⚙️ Admin → Réglages** — il s'applique tout de suite, "
+            "sans redéploiement."))
+    cols[-1].link_button(
+        t("billing.service_btn", "✉️ M'écrire"),
+        f"mailto:{SERVICE_CONTACT_EMAIL}"
+        "?subject=Optimisation%20campagnes%20marketing%20-%20streaMLytics",
+        width="stretch")
 
 
 def _show_current_plan(db, artist_id: int):
@@ -167,10 +190,16 @@ def _show_current_plan(db, artist_id: int):
         "SELECT referral_free_months FROM saas_artists WHERE id = %s", (artist_id,)
     )
     free_months = free_months_row[0][0] if free_months_row else 0
+    # ⚠️ Même correction que sur la page de parrainage, le 2026-09-21, et pour la
+    # même raison mesurée : RIEN ne consomme `referral_free_months`. Deux surfaces
+    # affichaient un futur passif qui décrit un mécanisme inexistant. Le crédit est
+    # réel, son application est manuelle, et l'automatiser est une brique de
+    # roadmap (coupons Stripe), pas une retouche de texte.
     if free_months > 0:
         st.success(t("billing.free_months",
-                     "🎁 Vous avez **{n} mois gratuit(s)** grâce au parrainage — appliqués "
-                     "avant votre prochain cycle de facturation.").format(n=free_months))
+                     "🎁 Tu as **{n} mois offert(s)** grâce au parrainage. "
+                     "Écris-nous avant ton prochain paiement et on les applique — "
+                     "ce n'est pas encore automatique.").format(n=free_months))
 
     discount_row = db.fetch_query(
         "SELECT first_month_discount_pct FROM saas_artists WHERE id = %s", (artist_id,)
@@ -178,8 +207,9 @@ def _show_current_plan(db, artist_id: int):
     discount_pct = discount_row[0][0] if discount_row else 0
     if discount_pct > 0:
         st.info(t("billing.discount",
-                  "🏷️ Un **rabais de {pct}%** sera appliqué à votre premier mois payant "
-                  "(récompense parrainage).").format(pct=discount_pct))
+                  "🏷️ Un **rabais de {pct} %** t'est acquis sur ton premier mois "
+                  "payant (parrainage). Signale-le nous au moment de t'abonner : "
+                  "il se pose à la main.").format(pct=discount_pct))
 
     if period_end:
         if cancel_at_end:

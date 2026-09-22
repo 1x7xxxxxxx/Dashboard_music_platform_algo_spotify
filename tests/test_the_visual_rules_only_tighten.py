@@ -65,7 +65,14 @@ SCANNED = Path(__file__).resolve().parent.parent / "src" / "dashboard"
 # Le plafond des clés monte de 77 à 119 le 2026-09-12, et c'est un progrès : 77 était
 # la mesure d'un périmètre trop étroit. À partir d'ici il ne peut que descendre.
 _MAX_SECONDARY_AXES = 0
-_MAX_LITERAL_KEYS = 119
+# 119 → 115 le 2026-09-21, et la baisse vient de DEUX gestes opposés qu'il faut
+# distinguer : six préréglages maison de `trigger_algo/router.py` ont été
+# remplacés par le sélecteur partagé (moins de widgets, donc moins de clés), et le
+# prédicat a cessé d'accuser les clés que `smart_period_filter` scope lui-même.
+# Le second n'est pas un desserrage : il retire du compte des clés qui PORTENT le
+# locataire — les compter poussait à écrire une f-string qui l'aurait scopé deux
+# fois. À partir d'ici, 115 ne peut que descendre.
+_MAX_LITERAL_KEYS = 115
 
 # Mutation record — 2026-09-12, quatre mutations, quatre rouges :
 #   * une fonction avec `fig.update_layout(yaxis2=dict(overlaying='y'))` ajoutée à
@@ -93,6 +100,48 @@ _MAX_LITERAL_KEYS = 119
 _DECLARED_AXES: dict[str, tuple[int, str]] = {
     "charts.py": (1, "pareto_spend_cpr : dépense (€, total) vs CPR (€/résultat, taux) "
                      "— deux natures, le seul cas admis"),
+    # Déclaré le 2026-09-21, sur le MÊME critère que `charts.py` : deux natures, pas
+    # deux totaux. Le plafond global reste à 0 — une exemption nominative laisse
+    # rougir un axe ajouté à CÔTÉ, un plafond relevé ne le ferait pas.
+    #
+    # Deux figures, six occurrences du prédicat (le `specs=`, puis chaque
+    # `secondary_y=True`) :
+    #
+    #   §2 audience  — gauche : auditeurs-jour et streams (des COMPTES) ; droite :
+    #                  écoutes par auditeur-jour (un TAUX). C'est exactement la
+    #                  paire admise par `charts.py`. La forme d'avant était deux
+    #                  panneaux empilés ; le propriétaire a demandé une figure et
+    #                  une légende, et le docstring de `_render_audience` écrit ce
+    #                  qu'on achète et ce qu'on paie.
+    #   tiroir détail — gauche : streams/jour (un COMPTE, non borné) ; droite :
+    #                  l'indice de popularité (un INDICE borné 0-100, non additif,
+    #                  qu'on ne somme pas et dont l'axe est FIXÉ à [0, 100]). Un
+    #                  axe à bornes fixes ne peut pas être « choisi par nous » pour
+    #                  placer un croisement : c'est ce qui retire à cette figure le
+    #                  défaut que le cliquet vise.
+    # Déclarés le 2026-09-21, sur le MÊME critère que `charts.py` : des VOLUMES à
+    # gauche, un PRIX à droite. Deux natures, le seul cas admis — un second axe
+    # entre deux totaux reste interdit, et le plafond global reste à 0.
+    #
+    #   meta_ads_overview  dépense (€) + clics (unités) ← gauche · CPR (€/résultat) → droite
+    #   meta_x_spotify     dépense (€) + écoutes        ← gauche · € par écoute     → droite
+    #
+    # Dans les deux cas l'axe de droite est TEINTÉ de la couleur de sa seule
+    # série : sans ça, deux échelles se lisent comme une, et c'est là que naît le
+    # faux croisement.
+    "meta_ads_overview.py": (
+        3, "dépense (€) + clics (volumes) vs CPR (€/résultat, un PRIX) — deux "
+           "natures ; les trois cadres empilés d'avant faisaient 150 px chacun sur "
+           "une campagne de 31 jours, et aucune courbe ne s'y lisait"),
+    "meta_x_spotify.py": (
+        3, "dépense (€) + écoutes (volumes) vs € par écoute (un PRIX) — deux "
+           "natures ; c'est le croisement qui a révélé 0,002 €/écoute en Colombie "
+           "contre 0,181 € au Brésil"),
+    "spotify_s4a_combined.py": (
+        6, "§2 : comptes (auditeurs-jour, streams) vs TAUX (écoutes/auditeur-jour) ; "
+           "détail par titre : compte (streams/jour) vs INDICE borné 0-100 (PI), "
+           "dont l'axe est fixé et ne peut donc pas être calé pour fabriquer un "
+           "croisement"),
 }
 
 # La source-sonde de la seconde forme, gardée hors des tests pour rester lisible.
@@ -161,9 +210,25 @@ def _counts() -> tuple[dict, dict]:
         n_ax = _count_axes_in(tree)
         # Une clé de widget littérale ne porte pas le locataire ; une f-string le
         # peut. On compte donc les littérales, sans juger chacune.
+        #
+        # ⚠️ SAUF celles passées aux SÉLECTEURS PARTAGÉS — corrigé le 2026-09-21.
+        # `smart_period_filter` et `entity_period_filter` appellent
+        # `_widget_key(key, artist_id)` sur ce qu'on leur donne : la clé RÉELLE
+        # porte donc le locataire, quel que soit le littéral écrit à l'appel. Les
+        # compter accusait l'usage CORRECT du remède — et poussait à écrire une
+        # f-string qui scoperait le locataire DEUX fois.
+        #
+        # C'est la propriété qui compte (« la clé posée dans `session_state`
+        # porte-t-elle le locataire ? »), pas la forme du littéral à l'appel.
+        _SCOPENT_EUX_MEMES = {"smart_period_filter", "entity_period_filter"}
+        scopees = {id(kw) for n in ast.walk(tree)
+                   if isinstance(n, ast.Call)
+                   and (getattr(n.func, "id", "") or getattr(n.func, "attr", ""))
+                   in _SCOPENT_EUX_MEMES
+                   for kw in n.keywords if kw.arg == "key"}
         n_k = sum(1 for n in ast.walk(tree)
                   if isinstance(n, ast.keyword) and n.arg == "key"
-                  and isinstance(n.value, ast.Constant))
+                  and isinstance(n.value, ast.Constant) and id(n) not in scopees)
         declared = _DECLARED_AXES.get(f.name, (0, ""))[0]
         if n_ax > declared:
             axes[f.name] = n_ax - declared

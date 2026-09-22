@@ -100,10 +100,10 @@ logger = logging.getLogger(__name__)
 # marque est un rouge-rose, YouTube prend le rouge, et deux rouges dans la même
 # pile sont indiscernables (ΔE 3,0 en deutan avec les teintes exactes). La teinte
 # libre la plus proche de sa famille est le magenta.
-_PALETTE_LIGHT = {"spotify": "#3acf84", "youtube": "#bd354b", "soundcloud": "#e0631b",
-                  "apple": "#bd00a4"}
-_PALETTE_DARK = {"spotify": "#268756", "youtube": "#e01b2b", "soundcloud": "#f28100",
-                 "apple": "#cf19b6"}
+# ⚠️ LA PALETTE A DÉMÉNAGÉ le 2026-09-21 vers `utils/platform_colors.py`, sans
+# qu'une valeur change. Le pourquoi y est écrit, avec la mesure de META.
+from src.dashboard.utils.platform_colors import PALETTE_DARK as _PALETTE_DARK  # noqa: E402
+from src.dashboard.utils.platform_colors import PALETTE_LIGHT as _PALETTE_LIGHT  # noqa: E402
 
 # Aucune fenêtre par défaut : « depuis le début » est le choix par défaut du sélecteur
 # de l'accueil (`utils/date_range`), et la figure doit dire la même chose que lui.

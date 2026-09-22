@@ -1,4 +1,5 @@
 """PostgreSQL schema for Stripe billing — Brick 21."""
+import os
 
 STRIPE_SCHEMA = {
     'subscription_plans': """
@@ -89,6 +90,31 @@ PLAN_CATALOG = {
 # Done-for-you marketing-campaign optimization — manual service (call-first to assess
 # fit + budget). Surfaced as a contact CTA on billing/upgrade.
 SERVICE_CONTACT_EMAIL = "1x7xxxxxxx@gmail.com"
+
+# Le lien de prise de rendez-vous du service d'optimisation. Demandé le 2026-09-21 :
+# « mettre un lien calendly pour prise de rdv et discuter du projet ».
+#
+# ⚠️ Il se lit dans l'ENVIRONNEMENT et n'a PAS de valeur par défaut. Écrire ici une
+# URL inventée serait pire qu'un champ vide : le bouton s'afficherait, l'artiste
+# cliquerait, et tomberait sur une page morte — un rendez-vous qu'on croit pris et
+# qui n'existe pas. Tant que `SERVICE_CALENDLY_URL` n'est pas posée, la page propose
+# le courriel seul et le dit à l'exploitant.
+SERVICE_CALENDLY_URL = os.getenv("SERVICE_CALENDLY_URL", "").strip()
+
+# Ce que l'exploitant apporte EN PLUS de l'outil, sur le service d'optimisation.
+# C'est une prestation humaine : elle n'a pas sa place dans la carte d'un abonnement
+# à 10 €/mois, et elle y était — « 🎬 Génération de créatives vidéo (60+ par
+# campagne) » figurait en Premium alors que rien dans l'arbre ne génère de vidéo
+# (vérifié le 2026-09-21 : ni ffmpeg, ni moviepy, ni aucun module de rendu).
+SERVICE_CREDENTIALS = (
+    "🎬 **Des dizaines de créatives vidéo** produites pour ta campagne, "
+    "déclinées par hook et par accroche",
+    "📈 **De l'expérience en publicité** — campagnes réellement pilotées, "
+    "pas une théorie de tableau de bord",
+    "🎧 **Curateur de playlists depuis 2 ans** — je sais ce qui se place et "
+    "ce qui ne se place pas",
+    "🎯 **Le paramétrage complet** — audiences, placements, budgets, itérations",
+)
 
 # Pages always accessible regardless of plan (account management + billing + help)
 # Pages qu'aucun plan ne verrouille. `onboarding` en fait partie depuis le

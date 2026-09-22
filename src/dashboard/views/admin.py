@@ -375,7 +375,10 @@ def _supervision_freshness(db) -> pd.DataFrame:
         # L'écart mesuré ici valait 0 j le 2026-09-18 — le défaut était LATENT. Sur
         # `meta_insights_performance_day`, la même erreur vaut **718 jours**
         # (`freshness_monitor.py:18`), et ce docstring dit « last-DATA date ».
-        ("Apple Music",    "SELECT MAX(date) FROM apple_songs_history"),
+        # La table MORTE affichait une fraîcheur gelée au dernier écrivain
+        # disparu — « Apple Music : 2025-12-11 » pendant que les imports
+        # arrivaient ailleurs. La vue or (131) réunit les deux sources.
+        ("Apple Music",    "SELECT MAX(day) FROM v_apple_song_cumulative"),
         ("ML prédictions", "SELECT MAX(prediction_date) FROM ml_song_predictions"),
     ]
     today = _dt.date.today()
@@ -519,53 +522,80 @@ def _render_costs(db, mrr: float) -> None:
             st.rerun()
 
 
+
 def _render_supervision(db):
-    # ── Business ──────────────────────────────────────────────────────────
-    st.subheader(t("admin.business_header", "📊 Business — inscriptions & abonnements"))
-    su = db.fetch_query(
-        "SELECT COUNT(*) FILTER (WHERE created_at >= now() - interval '7 days'), "
-        "       COUNT(*) FILTER (WHERE created_at >= now() - interval '30 days'), "
-        "       COUNT(*) FILTER (WHERE email_verified), COUNT(*) "
-        "FROM saas_users WHERE role <> 'admin'"
-    )
-    s7, s30, verified, total_u = (su[0] if su else (0, 0, 0, 0))
-    # Même définition que le compteur public — et depuis le 2026-08-30, la MÊME
-    # constante, pas une phrase qui dit qu'elles sont les mêmes. C'était une copie :
-    # le drapeau `is_sandbox` ajouté ce jour-là a été posé sur les deux sites que je
-    # connaissais, et celui-ci a été trouvé par le garde, pas par la relecture.
-    from src.utils.tenant_kind import HUMAN_TENANTS
-    na = db.fetch_query(f"SELECT COUNT(*) FROM saas_artists WHERE {HUMAN_TENANTS}")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric(t("admin.metric_signups_7d", "Inscriptions 7 j"), s7 or 0)
-    c2.metric(t("admin.metric_signups_30d", "Inscriptions 30 j"), s30 or 0)
-    c3.metric(t("admin.metric_verified", "Comptes vérifiés"), f"{verified or 0}/{total_u or 0}")
-    c4.metric(t("admin.metric_active_artists", "Artistes actifs"), na[0][0] if na else 0)
-
-    # UNE SEULE DÉFINITION DU MRR — 2026-09-20 (R140 §16.6). Elle vivait ici, dans
-    # `billing.py` et dans `revenue_forecast.py`, avec DEUX réponses sous le même mot :
-    # les deux requêtes SQL ignoraient `trialing`, le calcul pandas le comptait. Et
-    # aucune des trois n'excluait les locataires techniques — que le compteur
-    # « Artistes actifs » quatre lignes plus haut exclut, lui, depuis toujours.
-    from src.utils.mrr import MRR_LABEL, mrr_by_plan_sql, mrr_params
-    rev = db.fetch_query(mrr_by_plan_sql(), mrr_params())
-    mrr = sum(float(r[2] or 0) for r in rev) if rev else 0.0
-    if rev:
-        paying = sum(int(r[1]) for r in rev)
-        m1, m2, m3 = st.columns(3)
-        m1.metric(t("admin.metric_mrr", MRR_LABEL), f"{mrr:.2f} €")
-        m2.metric(t("admin.metric_paying", "Abonnés payants"), paying)
-        m3.metric(t("admin.metric_arpu", "ARPU"), f"{mrr / paying:.2f} €" if paying else "—")
-        st.dataframe(pd.DataFrame(rev, columns=["Plan", "Abonnés", "MRR (€)"]),
-                     hide_index=True, width="stretch")
-    else:
-        st.caption(t("admin.no_paid_subs",
-                     "Aucun abonnement payant actif (tous en Free / essai de bienvenue)."))
-
-    # ── Coûts & marge ─────────────────────────────────────────────────────
-    _render_costs(db, mrr)
-
-    # ── Technique ─────────────────────────────────────────────────────────
+    from src.dashboard.views.admin_activation import _render_activation
+    _render_activation(db)
     st.markdown("---")
+
+    # ── Business ──────────────────────────────────────────────────────────
+    # Sous un repli depuis le 2026-09-22 (R149) : sept tuiles en tête d'écran ne
+    # désignaient aucune priorité. Elles sont conservées, pas supprimées.
+    # ⚠️ LE CORPS EST ICI, PAS DANS UNE FONCTION APPELÉE DEPUIS LE `with`.
+    #
+    # Il a d'abord été extrait en `_render_business(db)` — plus lisible, et FAUX du
+    # point de vue du garde : `test_the_first_screen_counts_its_gauges` lit l'AST et
+    # ne peut pas savoir qu'une fonction est appelée depuis un dépliant. Les sept
+    # tuiles comptaient donc comme visibles au premier écran, exactement ce que R149
+    # cherchait à corriger. Le repli doit être STRUCTUREL pour être mesurable.
+    with st.expander(t("admin.business_expander",
+                       "📊 Business — inscriptions & abonnements"), expanded=False):
+        st.subheader(t("admin.business_header", "📊 Business — inscriptions & abonnements"))
+        su = db.fetch_query(
+            "SELECT COUNT(*) FILTER (WHERE created_at >= now() - interval '7 days'), "
+            "       COUNT(*) FILTER (WHERE created_at >= now() - interval '30 days'), "
+            "       COUNT(*) FILTER (WHERE email_verified), COUNT(*) "
+            "FROM saas_users WHERE role <> 'admin'"
+        )
+        s7, s30, verified, total_u = (su[0] if su else (0, 0, 0, 0))
+        # Même définition que le compteur public — et depuis le 2026-08-30, la MÊME
+        # constante, pas une phrase qui dit qu'elles sont les mêmes. C'était une copie :
+        # le drapeau `is_sandbox` ajouté ce jour-là a été posé sur les deux sites que je
+        # connaissais, et celui-ci a été trouvé par le garde, pas par la relecture.
+        from src.utils.tenant_kind import HUMAN_TENANTS
+        na = db.fetch_query(f"SELECT COUNT(*) FROM saas_artists WHERE {HUMAN_TENANTS}")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric(t("admin.metric_signups_7d", "Inscriptions 7 j"), s7 or 0)
+        c2.metric(t("admin.metric_signups_30d", "Inscriptions 30 j"), s30 or 0)
+        c3.metric(t("admin.metric_verified", "Comptes vérifiés"), f"{verified or 0}/{total_u or 0}")
+        c4.metric(t("admin.metric_active_artists", "Artistes actifs"), na[0][0] if na else 0)
+
+        # UNE SEULE DÉFINITION DU MRR — 2026-09-20 (R140 §16.6). Elle vivait ici, dans
+        # `billing.py` et dans `revenue_forecast.py`, avec DEUX réponses sous le même mot :
+        # les deux requêtes SQL ignoraient `trialing`, le calcul pandas le comptait. Et
+        # aucune des trois n'excluait les locataires techniques — que le compteur
+        # « Artistes actifs » quatre lignes plus haut exclut, lui, depuis toujours.
+        from src.utils.mrr import MRR_LABEL, mrr_by_plan_sql, mrr_params
+        rev = db.fetch_query(mrr_by_plan_sql(), mrr_params())
+        mrr = sum(float(r[2] or 0) for r in rev) if rev else 0.0
+        if rev:
+            paying = sum(int(r[1]) for r in rev)
+            m1, m2, m3 = st.columns(3)
+            m1.metric(t("admin.metric_mrr", MRR_LABEL), f"{mrr:.2f} €")
+            m2.metric(t("admin.metric_paying", "Abonnés payants"), paying)
+            m3.metric(t("admin.metric_arpu", "ARPU"), f"{mrr / paying:.2f} €" if paying else "—")
+            st.dataframe(pd.DataFrame(rev, columns=["Plan", "Abonnés", "MRR (€)"]),
+                         hide_index=True, width="stretch")
+        else:
+            st.caption(t("admin.no_paid_subs",
+                         "Aucun abonnement payant actif (tous en Free / essai de bienvenue)."))
+
+        # ── Coûts & marge ─────────────────────────────────────────────────────
+        _render_costs(db, mrr)
+
+    st.markdown("---")
+    _render_technique(db)
+
+
+
+def _render_technique(db) -> None:
+    """La fraîcheur par plateforme — elle reste VISIBLE, hors du repli.
+
+    Elle n'est pas rangée avec le business : c'est de la santé d'exploitation, et
+    elle est la seule surface qui dise si les données arrivent encore. La ranger
+    sous un repli avec le MRR aurait échangé un écran encombré contre un écran
+    muet.
+    """
     st.subheader(t("admin.tech_header", "🩺 Technique — fraîcheur des données par plateforme"))
     st.dataframe(_supervision_freshness(db), hide_index=True, width="stretch")
     st.caption(t(
@@ -979,6 +1009,73 @@ def _tab_gdpr(db) -> None:
 
 
 
+def _tab_reglages(db) -> None:
+    """Les réglages d'exploitation posés depuis l'application.
+
+    ⚠️ Cet onglet existe parce que la première version du lien de rendez-vous ne
+    lisait que `SERVICE_CALENDLY_URL`. C'était juste sur le fond — une URL
+    inventée afficherait un bouton menant à une page morte, soit un rendez-vous
+    qu'on croit pris — mais la conséquence était que la fonctionnalité restait
+    ÉTEINTE : la poser demandait d'éditer `.env.local`, de rebâtir
+    l'environnement du conteneur en production, et de redémarrer. Personne ne
+    fait ça pour changer un lien de rendez-vous.
+    """
+    from src.dashboard.utils.app_settings import (
+        ReglageInvalide, env_impose, get_setting, set_setting)
+    from src.dashboard.utils.ui import flash
+
+    st.subheader(t("admin.settings_header", "⚙️ Réglages de l'outil"))
+
+    actuel = get_setting(db, "service_calendly_url")
+    impose = env_impose("service_calendly_url")
+
+    st.markdown(t("admin.settings_calendly_header",
+                  "**📅 Lien de prise de rendez-vous**"))
+    st.caption(t(
+        "admin.settings_calendly_help",
+        "Affiché comme bouton sur **💳 Facturation**, sous ton offre "
+        "d'optimisation de campagnes. Tant qu'il est vide, l'artiste ne voit que "
+        "le courriel — un bouton vers une page morte vaut moins qu'un bouton "
+        "absent."))
+
+    if impose:
+        # Sans cette ligne, l'exploitant saisit une valeur, la voit enregistrée,
+        # et l'écran continue d'afficher l'autre — sans rien qui l'explique.
+        st.info(t(
+            "admin.settings_env_wins",
+            "🔒 La variable d'environnement `SERVICE_CALENDLY_URL` est posée : "
+            "elle PRIME sur ce champ, et c'est elle qui s'affiche. Retire-la de "
+            "l'environnement pour reprendre la main ici."))
+
+    with st.form("reglage_calendly"):
+        valeur = st.text_input(
+            t("admin.settings_calendly_label", "URL de prise de rendez-vous"),
+            value="" if impose else actuel,
+            placeholder="https://calendly.com/ton-compte/30min")
+        c1, c2 = st.columns([1, 1])
+        enregistrer = c1.form_submit_button(
+            t("admin.settings_save", "💾 Enregistrer"), width="stretch")
+        effacer = c2.form_submit_button(
+            t("admin.settings_clear", "🗑️ Effacer"), width="stretch")
+
+    if enregistrer or effacer:
+        try:
+            set_setting(db, "service_calendly_url", "" if effacer else valeur)
+        except ReglageInvalide as e:
+            # Le refus est NOMMÉ. Un réglage corrigé en silence est un réglage
+            # que celui qui l'a saisi croira posé.
+            st.error(t("admin.settings_refused", "❌ {raison}").format(raison=e))
+        else:
+            flash(t("admin.settings_saved",
+                    "✅ Réglage enregistré — il s'applique dès maintenant sur la "
+                    "page Facturation."))
+            st.rerun()
+
+    if actuel and not impose:
+        st.caption(t("admin.settings_current", "Actuellement : {url}").format(
+            url=actuel))
+
+
 def show():
     _guard()
 
@@ -986,13 +1083,14 @@ def show():
     st.markdown("---")
 
     (tab_supervision, tab_artists, tab_users, tab_upload,
-     tab_gdpr, tab_tokens) = st.tabs(
+     tab_gdpr, tab_tokens, tab_reglages) = st.tabs(
         [t("admin.tab_supervision", "📊 Supervision"),
          t("admin.tab_artists", "👥 Artistes"),
          t("admin.tab_users", "👤 Utilisateurs"),
          t("admin.tab_upload", "📂 Upload CSV"),
          t("admin.tab_gdpr", "🗑️ Effacement RGPD"),
-         t("admin.tab_tokens", "🔑 Tokens")])
+         t("admin.tab_tokens", "🔑 Tokens"),
+         t("admin.tab_settings", "⚙️ Réglages")])
 
     # ══════════════════════════════════════════
     # ONGLET 0 : SUPERVISION (business + technique)
@@ -1009,6 +1107,9 @@ def show():
     try:
         with tab_supervision:
             _render_supervision(db)
+
+        with tab_reglages:
+            _tab_reglages(db)
 
         # ══════════════════════════════════════════
         # ONGLET 5 : GESTION DES TOKENS (référence admin)

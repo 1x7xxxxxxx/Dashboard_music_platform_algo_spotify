@@ -134,6 +134,14 @@ _OUT_OF_SCOPE = {
                       "comparer. Une contamination y serait le REFLET d'une "
                       "contamination dans la table d'origine, que ce contrôle voit déjà "
                       "là-bas — la voir deux fois n'ajouterait rien",
+    "artist_cost_entries": "ce que l'ARTISTE saisit lui-même — coût de "
+                           "distribution, mastering, visuel (migration 133). Aucune "
+                           "identité de plateforme n'y entre : rien n'est allé "
+                           "chercher ces lignes sous un `channel_id` ou un "
+                           "`ig_user_id`, donc il n'y a rien à confronter. Le "
+                           "locataire est posé par la session au moment du "
+                           "formulaire, et c'est `test_a_tenant_write_names_its_owner` "
+                           "qui garde ce point-là",
     "etl_run_log": "pipeline telemetry",
     "app_error_log": "diagnostics: one row per DEFECT, keyed by fingerprint. artist_id records WHO happened to hit it, never who owns the row — a defect has no tenant",
     "etl_circuit_breaker": "pipeline telemetry",

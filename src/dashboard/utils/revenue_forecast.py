@@ -51,17 +51,21 @@ def load_artist_revenues(db, artist_id: int) -> pd.DataFrame:
     )
 
 
-def load_artist_revenue_by_source(db, artist_id: int) -> dict:
-    """Total music revenue per source for an artist: {iMusician, DistroKid, SACEM}."""
-    rows = db.fetch_query(
-        "SELECT source, COALESCE(SUM(revenue_eur), 0) FROM v_artist_monthly_revenue "
-        "WHERE artist_id = %s GROUP BY source",
-        (artist_id,),
-    )
-    m = {r[0]: float(r[1] or 0) for r in (rows or [])}
-    return {'iMusician': m.get('imusician', 0.0),
-            'DistroKid': m.get('distrokid', 0.0),
-            'SACEM': m.get('sacem', 0.0)}
+# ── `load_artist_revenue_by_source` A ÉTÉ RETIRÉE le 2026-09-21 ─────────────
+#
+# Elle lisait `v_artist_monthly_revenue` — le BRUT — sous un nom qui dit
+# seulement « revenue ». Son unique appelante affichait donc **43,06 €** de
+# SACEM dans un tiroir, sous une figure qui en dessinait **36,49 €** depuis
+# `v_artist_monthly_revenue_net`. Les deux nombres étaient justes ; l'écart est
+# 6,57 € de charges et de TVA, et rien à l'écran ne disait lequel on regardait.
+#
+# Le retrait est le remède DURABLE, pas le renommage : tant que la fonction
+# existe, le prochain appelant reproduira l'écart sans le voir. Ce qui compte
+# pour un point mort est le net — ce qui arrive réellement sur le compte — et il
+# se lit dans `v_artist_monthly_cashflow` (migration 133), la seule vue qui pose
+# les revenus et les dépenses sur le même axe.
+#
+# Garde : `tests/test_the_money_has_one_definition.py`.
 
 
 def load_artists(db) -> pd.DataFrame:

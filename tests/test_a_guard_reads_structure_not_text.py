@@ -440,7 +440,13 @@ _TEXT_ASSERTIONS_ON_PY: dict[str, int] = {
     "test_tenant_scope_is_not_view_session.py": 2,
     "test_the_alert_names_a_workable_action.py": 2,
     "test_the_credentials_page_asks_before_it_reports.py": 2,
-    "test_the_dense_views_use_the_pattern_written_for_them.py": 2,
+    # 2 → 0 le 2026-09-21. Les deux assertions textuelles cherchaient
+    # `"def secondary_analyses("` et `"expanded=False"` dans le source de
+    # `ui.py`. La seconde est passée ROUGE le jour où la fonction a gagné un
+    # paramètre `expanded: bool = False` — le défaut était toujours `False`,
+    # donc la propriété gardée toujours vraie : le garde parlait de
+    # l'orthographe. Les deux lisent désormais l'AST.
+    "test_the_dense_views_use_the_pattern_written_for_them.py": 0,
     "test_the_digest_is_a_paid_feature.py": 1,
     "test_the_error_boundary_covers_everything.py": 1,
     "test_the_first_look_does_not_cry_wolf.py": 1,

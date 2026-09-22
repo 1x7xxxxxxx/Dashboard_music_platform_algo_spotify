@@ -18,6 +18,18 @@ from src.dashboard.utils.ui import flash
 
 
 def _get_user_row(db, username: str) -> dict | None:
+    """La ligne du compte. ⚠️ SANS `a.tier` ni `a.slug` — 2026-09-21.
+
+    `tier` n'est que le REPLI de `get_artist_plan()`, qui lit d'abord
+    `artist_subscriptions` et applique la précédence promo / essai / `view_as`.
+    Mesuré : l'artiste 1 porte `tier='premium'` et **aucune ligne d'abonnement**,
+    donc cette page pouvait annoncer un plan que la facturation contredit. Le
+    laisser dans le SELECT aurait suffi à ce qu'on le réaffiche un jour.
+
+    `slug` est un champ de développeur : un artiste n'en fait rien.
+
+    Garde : `tests/test_the_plan_is_shown_by_its_resolver.py`.
+    """
     rows = db.fetch_query(
         """
         SELECT u.id, u.username, u.email, u.password_hash, u.role,
@@ -25,8 +37,6 @@ def _get_user_row(db, username: str) -> dict | None:
                u.terms_accepted, u.terms_accepted_at,
                u.marketing_consent, u.marketing_consent_at,
                a.name  AS artist_name,
-               a.slug  AS artist_slug,
-               a.tier  AS artist_tier,
                u.totp_enabled
         FROM saas_users u
         LEFT JOIN saas_artists a ON u.artist_id = a.id
@@ -41,7 +51,7 @@ def _get_user_row(db, username: str) -> dict | None:
         "created_at", "email_verified",
         "terms_accepted", "terms_accepted_at",
         "marketing_consent", "marketing_consent_at",
-        "artist_name", "artist_slug", "artist_tier",
+        "artist_name",
         "totp_enabled",
     ]
     return dict(zip(cols, rows[0]))
@@ -51,26 +61,96 @@ def _get_user_row(db, username: str) -> dict | None:
 # Sections
 # ─────────────────────────────────────────────
 
-def _section_profile(user: dict) -> None:
+_Q_BRANCHEES = """
+SELECT platform, MAX(updated_at)::date AS depuis
+FROM artist_credentials WHERE artist_id = %s
+GROUP BY platform ORDER BY platform
+"""
+
+
+def _section_profile(db, user: dict) -> None:
+    """Le compte en un écran : qui je suis, ce que j'ai, ce qui est branché.
+
+    ⚠️ DEUX CORRECTIONS DE FOND le 2026-09-21, pas une réorganisation.
+
+    **1. Le plan affiché était la COLONNE BRUTE `saas_artists.tier`.** Elle n'est
+    qu'un REPLI dans `get_artist_plan()`, qui lit d'abord `artist_subscriptions`
+    et applique la précédence promo / essai de bienvenue / `view_as`. Mesuré sur
+    l'artiste 1 : `tier = 'premium'` alors qu'il n'a **aucune ligne
+    d'abonnement**. La page de compte pouvait donc annoncer un plan que la barre
+    latérale et la facturation contredisent — trois surfaces, deux vérités. On
+    lit désormais la fonction, jamais la colonne.
+
+    **2. `slug` et `tier` ont disparu de l'écran.** Ce sont des champs de
+    développeur : un artiste n'a rien à faire d'un slug, et « tier » ne veut rien
+    dire pour quelqu'un dont la page de prix parle de « Free » et « Premium ».
+    """
+    from src.dashboard.auth import get_artist_plan
+
     st.subheader(t("account.profile_header", "👤 Mon compte"))
-    c1, c2, c3 = st.columns(3)
+
+    plan = get_artist_plan() if user.get("artist_name") else None
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric(t("account.username", "Nom d'utilisateur"), user["username"])
-    c2.metric(t("account.role", "Rôle"), user["role"])
+    c2.metric(t("account.plan", "Mon plan"),
+              (plan or user["role"]).capitalize())
     c3.metric(
         t("account.email_verified", "Email vérifié"),
-        t("account.yes", "✅ Oui") if user["email_verified"] else t("account.pending", "⏳ En attente"),
-    )
+        t("account.yes", "✅ Oui") if user["email_verified"]
+        else t("account.pending", "⏳ En attente"))
+    c4.metric(t("account.twofa", "2FA"),
+              t("account.on", "🔐 Activée") if user.get("totp_enabled")
+              else t("account.off", "—"))
 
     st.caption(t("account.email_caption", "Email : **{email}**").format(email=user['email']))
     if user.get("artist_name"):
-        st.caption(
-            t("account.artist_caption", "Artiste : **{name}** — slug `{slug}` — tier `{tier}`").format(
-                name=user['artist_name'], slug=user['artist_slug'], tier=user['artist_tier'])
-        )
+        st.caption(t("account.artist_caption", "Artiste : **{name}**").format(
+            name=user['artist_name']))
     joined = user.get("created_at")
     if joined:
         st.caption(t("account.member_since", "Membre depuis : {date}").format(
             date=to_local_datetime(joined).strftime('%d %B %Y')))
+
+    _section_connected(db, user)
+
+
+def _section_connected(db, user: dict) -> None:
+    """Ce qui est branché — la question qu'on vient poser ici, et qui était ailleurs.
+
+    « Est-ce que mon Spotify est bien connecté ? » se répondait en trois clics,
+    sur une autre page. Elle a sa place sur la page du compte : c'est un état du
+    compte, pas un réglage.
+
+    ⚠️ Cette section ne dit PAS si la connexion FONCTIONNE — une clé enregistrée
+    peut être expirée, et Meta répond `code-190` sur ce dépôt depuis des semaines.
+    Elle dit ce qui est DÉCLARÉ, et renvoie à la page qui teste. Confondre les
+    deux enverrait l'artiste se rassurer sur une pastille verte.
+    """
+    artiste = st.session_state.get("artist_id")
+    if not artiste:
+        return
+    try:
+        df = db.fetch_df(_Q_BRANCHEES, (artiste,))
+    except Exception:
+        return
+    st.markdown("---")
+    st.markdown(t("account.connected_header", "**🔌 Mes comptes branchés**"))
+    if df is None or df.empty:
+        st.info(t("account.connected_none",
+                  "Aucun compte branché. C'est ce qui remplit tes pages : "
+                  "ouvre **🔑 Credentials API** dans la barre latérale."))
+        return
+
+    from src.dashboard.views.credentials._render import platform_label
+    lignes = " · ".join(
+        f"**{platform_label(r['platform'])}** ({r['depuis']:%m/%Y})"
+        for _i, r in df.iterrows())
+    st.markdown(lignes)
+    st.caption(t(
+        "account.connected_caption",
+        "{n} compte(s) déclaré(s). Cette liste dit ce qui est **enregistré**, pas "
+        "ce qui **répond** : une clé peut avoir expiré depuis. Le test vit dans "
+        "**🔑 Credentials API**.").format(n=len(df)))
 
 
 def _section_change_password(db, user: dict) -> None:
@@ -301,7 +381,7 @@ def show() -> None:
         ])
 
         with tab_profile:
-            _section_profile(user)
+            _section_profile(db, user)
             # Data-export tab removed (redundant with the Export CSV page); the
             # RGPD account-deletion path stays here so it remains reachable.
             st.markdown("---")

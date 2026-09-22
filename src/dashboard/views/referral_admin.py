@@ -22,6 +22,120 @@ def _guard():
         st.stop()
 
 
+# ── LES CRÉANCES À HONORER — 2026-09-21 ────────────────────────────────────
+#
+# Ce panneau existe parce que la promesse n'est pas automatique, et que le dire à
+# l'artiste ne suffit pas : il faut que quelqu'un puisse la TENIR.
+#
+# Balayé le 2026-09-21 : **rien dans l'arbre ne consomme `referral_free_months`
+# ni `first_month_discount_pct`**. Aucun coupon Stripe, aucune prolongation
+# d'essai, aucun avoir. La montée en gamme passe par un lien de paiement statique
+# (`STRIPE_CHECKOUT_URL`), qui ne peut porter de remise par client sans un appel à
+# l'API Stripe que personne n'écrit. Les deux colonnes sont écrites à
+# l'inscription, affichées sur deux pages, et lues par personne.
+#
+# Personne n'a encore été lésé — zéro parrainage en base ce jour-là. C'est
+# précisément la fenêtre où l'on peut corriger sans dette : au premier filleul,
+# la promesse devient un impayé.
+#
+# ⚠️ Ce panneau ne REMPLACE PAS l'automatisation, il la rend inutile pour
+# survivre. Poser les coupons Stripe reste une brique de roadmap ; en attendant,
+# l'exploitant a la liste, chiffrée, de ce qu'il doit.
+_Q_CREANCES = """
+SELECT sa.id, sa.name,
+       sa.referral_free_months        AS mois_offerts,
+       sa.first_month_discount_pct    AS remise_pct,
+       sp.name                        AS plan,
+       sp.price_monthly               AS prix,
+       asub.status                    AS statut,
+       asub.current_period_end        AS prochain_paiement
+FROM saas_artists sa
+LEFT JOIN artist_subscriptions asub ON asub.artist_id = sa.id
+LEFT JOIN subscription_plans sp     ON sp.id = asub.plan_id
+WHERE COALESCE(sa.referral_free_months, 0) > 0
+   OR COALESCE(sa.first_month_discount_pct, 0) > 0
+ORDER BY sa.referral_free_months DESC NULLS LAST, sa.name
+"""
+
+
+def _render_creances(db) -> None:
+    """Ce que le programme DOIT, et à qui — en euros."""
+    st.markdown("---")
+    st.subheader(t("referral_admin.owed_header",
+                   "🧾 Récompenses à appliquer À LA MAIN"))
+
+    df = db.fetch_df(_Q_CREANCES)
+    if df is None or df.empty:
+        st.success(t("referral_admin.owed_none",
+                     "Aucune récompense en attente. Rien à appliquer aujourd'hui."))
+        st.caption(t(
+            "referral_admin.owed_why",
+            "Ce panneau existe parce que `referral_free_months` et "
+            "`first_month_discount_pct` ne sont consommés par AUCUN code : le lien "
+            "de paiement Stripe est statique et ne porte pas de remise par client. "
+            "Les deux pages qui les affichent le disent désormais à l'artiste."))
+        return
+
+    for c in ("mois_offerts", "remise_pct", "prix"):
+        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+    # La valeur d'un mois offert est le PRIX DU PLAN de l'artiste, pas un tarif
+    # moyen : un parrain resté en Free ne coûte rien tant qu'il ne s'abonne pas.
+    df["valeur_eur"] = df["mois_offerts"] * df["prix"]
+
+    # ⚠️ UNE SEULE JAUGE, ET C'EST UN ARBITRAGE, pas une économie de place.
+    #
+    # Trois jauges portaient cette section, et le cliquet du premier écran a
+    # rougi : cette page en affichait 7 pour un plafond de 5. Plutôt que de lui
+    # inventer une exemption, on choisit — et le choix est instructif.
+    #
+    # La jauge gardée est le nombre de MOIS, pas la valeur en euros. La valeur
+    # vaut 0,00 € tant que les parrains n'ont pas d'abonnement payant, ce qui se
+    # lit « rien à payer » alors que la dette existe ; les mois, eux, sont dus
+    # quoi qu'il arrive. Les deux autres chiffres descendent dans la légende, où
+    # ils informent sans occuper le regard.
+    st.metric(t("referral_admin.owed_months", "Mois offerts dus"),
+              int(df["mois_offerts"].sum()))
+    st.caption(t(
+        "referral_admin.owed_summary",
+        "{n} artiste(s) concerné(s) · **{v} €** à honorer au tarif de leur plan "
+        "actuel."
+    ).format(n=len(df),
+             v=f"{float(df['valeur_eur'].sum()):,.2f}".replace(",", " ")))
+
+    # ⚠️ « 0,00 € » à côté de « 3 mois offerts dus » se lit « rien à payer », et
+    # c'est faux : un parrain resté en Free ne coûte rien AUJOURD'HUI, et coûtera
+    # trois mois le jour où il s'abonne. Vu au rendu le 2026-09-21 sur l'artiste 1,
+    # qui n'a pas de ligne d'abonnement. Le dire vaut mieux qu'un zéro muet.
+    _dormants = int((df["prix"] <= 0).sum())
+    if _dormants:
+        st.caption(t(
+            "referral_admin.owed_dormant",
+            "⏳ **{n} de ces artistes n'ont pas d'abonnement payant** : leurs mois "
+            "offerts ne coûtent rien tant qu'ils ne s'abonnent pas, et la valeur "
+            "ci-dessus les compte donc à zéro. Elle montera d'un coup le jour où "
+            "ils passent à l'acte — c'est une dette, pas une absence."
+        ).format(n=_dormants))
+
+    st.dataframe(
+        df.rename(columns={
+            "name": t("common.artist", "Artiste"),
+            "mois_offerts": t("referral_admin.col_months", "Mois offerts"),
+            "remise_pct": t("referral_admin.col_discount", "Remise 1er mois (%)"),
+            "plan": t("referral_admin.col_plan", "Plan"),
+            "prix": t("referral_admin.col_price", "Prix (€)"),
+            "statut": t("referral_admin.col_status", "Statut"),
+            "prochain_paiement": t("referral_admin.col_next", "Prochain paiement"),
+            "valeur_eur": t("referral_admin.col_value", "Valeur (€)"),
+        }).drop(columns=["id"]),
+        width="stretch", hide_index=True)
+    st.caption(t(
+        "referral_admin.owed_howto",
+        "Geste : portail Stripe → l'abonnement de l'artiste → **ajouter un coupon** "
+        "(100 % sur N mois, ou {pct} % sur le premier) → remettre sa colonne à zéro "
+        "en base. Tant que ce n'est pas automatisé, cette liste EST le programme."
+    ).format(pct=int(df["remise_pct"].max())))
+
+
 def show():
     _guard()
     st.title(t("referral_admin.title", "📊 Programme de parrainage — KPIs"))
@@ -137,3 +251,7 @@ def show():
             )
         else:
             st.info(t("referral_admin.no_events", "Aucun événement de parrainage pour l'instant."))
+
+        # Les créances EN DERNIER : ce sont les KPI qui disent s'il y a lieu de
+        # regarder, et la liste qui dit quoi faire. L'ordre suit la question.
+        _render_creances(db)

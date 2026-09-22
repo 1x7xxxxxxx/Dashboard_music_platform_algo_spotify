@@ -100,7 +100,32 @@ _CEILING: dict[str, int] = {
     # n'apporte rien). Un livrable qui déclare « je ne sais pas » là où il sait est
     # aussi trompeur qu'un livrable qui invente.
     "figures.unknown": 7,
-    "tiles.unknown": 11,
+    # 11 → 10 le 2026-09-21. La tuile disparue est « 📅 Dernière mise à jour »
+    # de SoundCloud, retirée à la demande du propriétaire : une date de collecte
+    # est un fait de PLOMBERIE, et elle était indéterminée pour le lecteur de la
+    # carte parce que rien ne la rattachait à une source de donnée métier.
+    # 10 → 11 le 2026-09-21, et c'est la SEULE hausse de ce fichier : la tuile
+    # « ⏳ Point mort » de la page « Mon argent ». Elle n'a pas de source parce
+    # qu'elle n'a pas de colonne — c'est une DATE CALCULÉE,
+    # `break_even(monthly_net(cashflow))`, deux dérivations au-dessus de la
+    # requête. Le traceur la déclare honnêtement « indéterminée · profondeur »,
+    # avec son motif, et elle est listée en tête de son tableau.
+    #
+    # Les deux autres tuiles du même bandeau ont été RECÂBLÉES pour être
+    # attribuables — elles lisent `mensuel` au lieu du dictionnaire du point mort,
+    # ce qui est la même valeur avec un saut de moins. Celle-ci ne peut pas l'être
+    # sans mentir sur ce qu'elle montre.
+    # 11 → 12 le 2026-09-21 : la tuile « Mon plan » de la page du compte. Elle
+    # n'a pas de source parce qu'elle n'a pas de COLONNE — c'est une valeur
+    # RÉSOLUE, `get_artist_plan()`, qui lit `artist_subscriptions` puis applique
+    # la précédence promo / essai / `view_as`, avec un cache entre les deux.
+    #
+    # C'est la hausse la plus justifiée possible : elle est la CONSÉQUENCE du
+    # correctif. La tuile affichait auparavant `saas_artists.tier`, une colonne
+    # brute — parfaitement attribuable, et fausse : l'artiste 1 la porte à
+    # « premium » sans aucune ligne d'abonnement. On échange une attribution
+    # propre contre un chiffre juste.
+    "tiles.unknown": 12,
     "pdf.unknown": 5,
     "gold-objects.orphans": 0,
     # 21 → 18 → 0 le 2026-09-12. Les 12 derniers n'ont pas été « repointés » : ils
@@ -159,7 +184,12 @@ _CEILING: dict[str, int] = {
 # Les populations, pour qu'un compteur ne puisse pas baisser en SUPPRIMANT la
 # surface. « Zéro indéterminée » sur zéro figure est vrai et ne dit rien.
 _FLOOR: dict[str, int] = {
-    "figures.total": 89,
+    # 89 → 88 le 2026-09-21 : deux figures de comparaison par campagne fusionnées
+    # en une (elles posaient la même question avec quatorze séries, sur un axe X
+    # où des noms de 90 caractères étaient illisibles), et trois Pareto retirés
+    # comme redondants avec « 🌍 Qui a vu tes pubs » — moins une figure nette une
+    # fois le funnel et le croisement pays recréés ailleurs.
+    "figures.total": 88,
     # 207 → 204 le 2026-09-16, et la baisse est LEGITIME : `views/perf_monitor.py` a
     # ete supprime (R115 etape 6), avec ses tuiles « Dernier rendu », « DB ping »,
     # « RAM process » et « CPU process ». Grafana les porte desormais, apres une
@@ -167,7 +197,69 @@ _FLOOR: dict[str, int] = {
     # (`.claude/dev-docs/grafana-correspondence.md`). Le plancher baisse dans le
     # MEME commit que la suppression, comme ce test l'exige — sinon une surface
     # retiree ferait baisser un compteur sans que personne ne relise pourquoi.
-    "tiles.total": 204,
+    # 204 → 202 → 200 le 2026-09-21, en trois gestes du même jour. Deux motifs,
+    # tous deux « cette tuile ne décide rien » :
+    #   · une date de COLLECTE n'est pas un indicateur — SoundCloud perd
+    #     « 🎵 Titres en ligne » et « 📅 Dernière mise à jour », Instagram perd
+    #     « 📅 Mise à jour ». Dans les trois cas la date descend dans la légende
+    #     de la figure, où elle est LUE au lieu d'occuper un quart du bandeau ;
+    #   · une MOYENNE sur une population hétérogène ne décrit rien — Hypeddit
+    #     perd « 👁️ Visites Moy. » et « 🖱️ Clicks Moy. ». Mesuré : cinq de ses
+    #     six campagnes ne portent qu'UN relevé, qui est le total de la campagne.
+    #     La moyenne y mélangeait des totaux de campagnes différentes, prises à
+    #     des dates sans rapport.
+    # Le plancher baisse DANS LE MÊME commit, comme ce cliquet l'exige — sans quoi
+    # « zéro indéterminée » finirait par porter sur zéro tuile.
+    # 200 → 190 le 2026-09-21, et cette baisse-ci est d'une autre nature que les
+    # précédentes : ce ne sont pas des tuiles retirées une à une, c'est une
+    # SECTION supprimée. Le « Recap auto » de Data Wrapped portait dix tuiles qui
+    # recalculaient, en carrière, des chiffres ayant déjà leur page — Spotify,
+    # Apple, YouTube, SoundCloud, Instagram, revenus, ML, fraîcheur.
+    #
+    # Ce n'était pas du doublon d'écran mais une SECONDE DÉFINITION de chaque
+    # chiffre, et ce dépôt a déjà payé cette forme (un total Apple différent entre
+    # deux pages, pour le même artiste au même instant). Dix tuiles en moins, zéro
+    # information en moins.
+    # 190 → 185 le 2026-09-21, troisième resserrage du jour et dernier de cette
+    # séance. Les cinq tuiles partent de « Publicité Meta Ads » avec le FUNNEL
+    # qui les portait — il a déménagé dans « 🔀 Impact de mes campagnes » sous le
+    # nom Meta × Spotify × Hypeddit, et corrigé au passage : `lp_views` y était
+    # empilé sous `custom_conversions` comme une étape suivante, alors que
+    # `lp < conv` **91 jours sur 91**. Ce sont deux mesures de la MÊME étape.
+    # 185 → 178 le 2026-09-21, et les sept tuiles perdues le sont pour la MÊME
+    # raison, formulée par le propriétaire : « peut-on visualiser les datas de perf
+    # globales quand on compare 2 tracks avec des graphiques plutôt que des champs
+    # de valeur ? ».
+    #
+    #   · SIX de « 🚀 Performance Globale » (Meta Ads) — dépenses, impressions,
+    #     clics lien, CPM, CPC, CPR. Elles affichaient la SOMME de la sélection.
+    #     On sélectionne deux titres pour les COMPARER : la somme efface
+    #     exactement ce qu'on était venu chercher, et aucun réglage de la tuile
+    #     ne peut le rendre. Elles deviennent une figure à six cadres, une barre
+    #     par campagne, chaque barre portant sa valeur écrite — rien n'est perdu
+    #     de ce qu'un chiffre disait, et la comparaison est rendue.
+    #   · UNE de « 🎨 Créatives Meta Ads » — le bandeau passe de quatre jauges à
+    #     trois, mais surtout deux d'entre elles cachaient un NOM DE CRÉATIVE
+    #     tronqué à 30 caractères dans un champ `delta`, c'est-à-dire à l'endroit
+    #     où Streamlit écrit une variation. Le nom est maintenant dans le libellé,
+    #     entier, et la troisième jauge nomme le hook.
+    #
+    # Le plancher baisse DANS LE MÊME commit, comme ce cliquet l'exige.
+    # 178 → 168 le 2026-09-21. La page « Prévisions revenus » perd DIX tuiles,
+    # et aucune n'était une information que l'artiste n'a plus :
+    #
+    #   · trois de « Revenus cumulés par source » — elles restent, dans le tiroir
+    #     de détail, et en NET au lieu du brut (c'est la correction du jour) ;
+    #   · trois du « ROI Meta » (dépense, revenu, ROI %) — la dépense Meta est
+    #     désormais une série de la figure d'ouverture ;
+    #   · quatre du « waterfall de marge » (revenus projetés, dépense Meta, infra
+    #     VPS, marge nette) — la marge projetée EST la courbe de cumul, qui sort
+    #     du même calcul que le point mort, là où le waterfall en utilisait un
+    #     autre et reconduisait une dépense arrêtée depuis septembre 2024.
+    #
+    # Trois tuiles neuves les remplacent : cumul net, rythme actuel, point mort.
+    # Le plancher baisse DANS LE MÊME commit, comme ce cliquet l'exige.
+    "tiles.total": 168,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

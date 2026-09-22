@@ -344,6 +344,192 @@ INVARIANTS: tuple[Invariant, ...] = (
             "information sur le produit — ces posts-là ne sont comptés nulle part, "
             "et personne ne le dit à l'écran.",
     ),
+    Invariant(
+        name="pi_view_keeps_every_reading_of_a_linked_track",
+        left_sql="SELECT artist_id, SUM(popularity) FROM v_spotify_track_pi_daily "
+                 "GROUP BY 1",
+        right_sql="SELECT p.artist_id, SUM(p.popularity) FROM track_popularity_history p "
+                  "JOIN track_platform_link sp ON sp.artist_id = p.artist_id "
+                  "AND sp.platform = 'spotify' AND sp.status = 'confirmed' "
+                  "AND sp.platform_ref_id = p.track_id "
+                  "JOIN track_platform_link s4a ON s4a.artist_id = sp.artist_id "
+                  "AND s4a.match_key = sp.match_key AND s4a.platform = 's4a' "
+                  "AND s4a.status = 'confirmed' GROUP BY 1",
+        left_label="v_spotify_track_pi_daily",
+        right_label="track_popularity_history[liens confirmés]",
+        why="L'indice de popularité passe par DEUX liens — le lien Spotify, qui "
+            "porte le `track_id`, et le lien S4A, qui porte le nom de fichier du "
+            "CSV. Une jointure qui perd une jambe ne rend pas une erreur : elle "
+            "change QUI entre, sans qu'aucune ligne ne soit fausse. ⚠️ Le côté "
+            "droit est la définition que la vue applique, délibérément : "
+            "l'invariant ne demande pas que tout relevé de popularité entre — un "
+            "titre sans lien confirmé n'a pas à entrer, et c'est ce qui écarte la "
+            "ligne `track_id='test_track_001'` (PI 50) qui faisait un pic ×5,6 "
+            "dans le PDF client jusqu'au 2026-09-21. "
+            "MUTATIONS JOUÉES LE 2026-09-21, y compris celles qui n'ont PAS mordu : "
+            "retirer la jambe S4A de la vue → 1187 des deux côtés, VERT ; joindre "
+            "par `platform_title = track_name` au lieu du `track_id` → 1187, VERT "
+            "aussi (pour 'spotify' les deux champs coïncident aujourd'hui). Les "
+            "deux sont muettes parce que sur cette base les 11 liens Spotify ont "
+            "tous leur jumeau S4A. Il MORD dès que cet état cesse, et c'est un "
+            "état ordinaire — un artiste qui rattache Spotify avant S4A : la "
+            "jambe retirée rend alors **1237 contre 1187**, ROUGE, les 50 points "
+            "de la ligne de test rentrant par la porte qu'on vient de fermer.",
+    ),
+    Invariant(
+        name="apple_cumulative_keeps_both_sources",
+        left_sql="SELECT artist_id, SUM(plays) FROM v_apple_song_cumulative GROUP BY 1",
+        right_sql="SELECT artist_id, SUM(plays) FROM ("
+                  "  SELECT DISTINCT ON (artist_id, song_name, day) artist_id, plays FROM ("
+                  "    SELECT artist_id, song_name, snapshot_date AS day, plays::bigint, 0 AS p"
+                  "      FROM apple_songs_performance WHERE snapshot_date IS NOT NULL"
+                  "    UNION ALL"
+                  "    SELECT artist_id, song_name, date, plays::bigint, 1"
+                  "      FROM apple_songs_history WHERE date IS NOT NULL) z"
+                  "  ORDER BY artist_id, song_name, day, p) y GROUP BY 1",
+        left_label="v_apple_song_cumulative",
+        right_label="apple_songs_performance union apple_songs_history",
+        why="LE defaut du 2026-09-21, rapporte par l'artiste : « j'avais pourtant "
+            "download les derniers csv » alors que la page disait « la derniere "
+            "mesure remonte au 2025-12-11 ». Les deux avaient raison — ils "
+            "parlaient de deux TABLES. L'import ecrit `apple_songs_performance` ; "
+            "`apple_songs_history` n'est ecrite par rien depuis des mois, et trois "
+            "surfaces la lisaient. La vue reunit les deux ; cet invariant garde "
+            "qu'elle ne perd aucune des deux JAMBES. Retirer celle d'heritage fait "
+            "tomber le total de 9 196 a 3 267 chez le locataire 1 — mesure.",
+    ),
+    Invariant(
+        name="apple_gains_telescope_to_the_cumulative",
+        left_sql="SELECT artist_id, SUM(daily_plays) FROM v_apple_song_daily GROUP BY 1",
+        right_sql="SELECT artist_id, SUM(mx - mn) FROM ("
+                  "  SELECT artist_id, song_name, MAX(plays) AS mx, MIN(plays) AS mn"
+                  "    FROM v_apple_song_cumulative GROUP BY 1, 2) s GROUP BY 1",
+        left_label="v_apple_song_daily[somme des gains]",
+        right_label="v_apple_song_cumulative[dernier moins premier]",
+        why="Une somme de differences successives doit valoir la difference des "
+            "extremes — un telescopage, vrai par construction TANT QUE le `LAG` "
+            "partitionne sur le bon titre et ordonne sur le bon jour. C'est "
+            "exactement ce qui casse quand on ajoute une colonne a la partition ou "
+            "qu'on change la source sous la fenetre, et ca ne leve pas : la figure "
+            "dessine simplement des gains faux. Attention : il suppose les cumuls "
+            "MONOTONES ; Apple corrige parfois ses chiffres a la baisse, et une "
+            "correction ferait diverger cet invariant a juste titre — c'est un fait "
+            "a connaitre, pas une derive a taire.",
+    ),
+    Invariant(
+        name="soundcloud_catalog_equals_its_tracks",
+        left_sql="SELECT artist_id, SUM(plays) FROM v_soundcloud_catalog_daily GROUP BY 1",
+        right_sql="SELECT artist_id, SUM(plays) FROM v_soundcloud_track_daily GROUP BY 1",
+        left_label="v_soundcloud_catalog_daily",
+        right_label="v_soundcloud_track_daily",
+        why="Le total du catalogue et la somme de ses titres, au meme grain de jour. "
+            "Les deux vues derivent de la MEME sous-requete — le dernier releve de "
+            "chaque titre dans la journee — donc l'egalite est vraie par "
+            "construction, et c'est assume : elle garde qu'un futur remaniement ne "
+            "fasse pas diverger les deux deduplications (317 horodatages pour "
+            "19 jours, mesure). ATTENTION, MUTATION JOUEE ET MUETTE le 2026-09-21 : "
+            "inverser le sens de la deduplication (premier releve du jour au lieu "
+            "du dernier) rend 422 048 des deux cotes — sur cette base les valeurs "
+            "d'un meme jour sont identiques. L'invariant ne mord donc PAS sur cette "
+            "mutation-la ; il mord sur un titre perdu d'un seul cote.",
+    ),
+    Invariant(
+        name="soundcloud_latest_is_the_last_readable_day",
+        left_sql="SELECT artist_id, SUM(playback_count) FROM v_soundcloud_track_latest "
+                 "GROUP BY 1",
+        right_sql="SELECT DISTINCT ON (artist_id) artist_id, plays "
+                  "FROM v_soundcloud_catalog_daily WHERE lisible "
+                  "ORDER BY artist_id, day DESC",
+        left_label="v_soundcloud_track_latest[total]",
+        right_label="v_soundcloud_catalog_daily[dernier jour lisible]",
+        why="LE defaut du 2026-09-21, rapporte par l'artiste : « pourquoi il y a un "
+            "bump le 1er juin ». Le 2026-06-01, les 19 titres etaient ecrits a ZERO "
+            "— une collecte ratee persistee. MUTATION JOUEE, et elle a corrige ce "
+            "que j'allais ecrire : en simulant une DERNIERE collecte ratee (19 "
+            "lignes a zero, en transaction annulee), le cote GAUCHE tombe a **0** "
+            "quand le dernier jour lisible vaut **23 486**. Ce n'est donc pas la "
+            "courbe qui aurait menti, ce sont LES TUILES — "
+            "`v_soundcloud_track_latest` ne porte aucun verdict de lisibilite. La "
+            "page lit desormais le dernier jour LISIBLE ; cet invariant garde "
+            "qu'elle continue.",
+    ),
+    Invariant(
+        name="cashflow_revenue_vs_net_source",
+        left_sql="SELECT artist_id, SUM(amount_eur) FROM v_artist_monthly_cashflow "
+                 "WHERE flux = 'revenu' GROUP BY 1",
+        right_sql="SELECT artist_id, SUM(net_eur) FROM v_artist_monthly_revenue_net "
+                  "WHERE net_eur IS NOT NULL GROUP BY 1",
+        left_label="v_artist_monthly_cashflow (revenus)",
+        right_label="v_artist_monthly_revenue_net",
+        why="Le côté REVENU de la trésorerie et sa source. Le défaut que cet "
+            "invariant attrape a été vu au navigateur le 2026-09-21, dans un seul "
+            "écran : le tiroir affichait 43,06 € de SACEM sous une figure qui en "
+            "dessinait 36,49 €. Les deux nombres étaient justes — l'un BRUT, "
+            "l'autre NET de 6,57 € de charges et de TVA — et rien ne disait lequel "
+            "on lisait. La page ne lit plus que le net ; cet invariant garde que la "
+            "trésorerie n'en perde ni n'en invente une ligne."),
+    Invariant(
+        name="cashflow_meta_spend_vs_gold",
+        left_sql="SELECT artist_id, SUM(amount_eur) FROM v_artist_monthly_cashflow "
+                 "WHERE source = 'meta_ads' GROUP BY 1",
+        right_sql="SELECT artist_id, SUM(spend) FROM v_meta_daily "
+                  "GROUP BY 1 HAVING SUM(spend) > 0",
+        left_label="v_artist_monthly_cashflow (meta_ads)",
+        right_label="v_meta_daily",
+        why="La dépense publicitaire est désormais une LIGNE de la trésorerie, et "
+            "elle entre dans le point mort de l'artiste. Elle passe par une "
+            "agrégation au mois qui lui est propre : un mois perdu par le "
+            "regroupement ne ferait pas rougir la page, il avancerait la date du "
+            "point mort — c'est-à-dire qu'il rendrait la réponse OPTIMISTE, la "
+            "direction où l'on ne va pas vérifier."),
+    Invariant(
+        name="spread_costs_vs_raw_entries",
+        left_sql="SELECT artist_id, SUM(amount_eur) FROM v_artist_monthly_costs "
+                 "WHERE amount_eur > 0 GROUP BY 1",
+        # ⚠️ L'AUTRE CÔTÉ NE DOIT PAS DESCENDRE DE LA MÊME VUE, et le premier jet
+        # de cet invariant le faisait — il comparait `v_artist_monthly_cashflow`
+        # (qui LIT `v_artist_monthly_costs`) à `v_artist_monthly_costs`. Testé le
+        # 2026-09-21 en retirant un mois à `generate_series` : **zéro désaccord**.
+        # Les deux côtés bougeaient ensemble, par construction. Un invariant qui
+        # compare une vue à elle-même ne peut pas échouer.
+        #
+        # Ici le compte de mois est refait par ARITHMÉTIQUE sur les bornes, sans
+        # `generate_series` : c'est une seconde dérivation, et une erreur de
+        # bornes dans la vue la fait rougir.
+        right_sql="""
+            SELECT artist_id, SUM(
+                CASE billing_period
+                    WHEN 'one_off' THEN amount_eur
+                    WHEN 'monthly' THEN amount_eur * n_mois
+                    WHEN 'yearly'  THEN ROUND(amount_eur / 12.0, 2) * n_mois
+                END)
+            FROM (
+                SELECT artist_id, amount_eur, billing_period,
+                       GREATEST(1, (
+                           (EXTRACT(YEAR FROM LEAST(
+                                COALESCE(date_trunc('month', end_month)::date,
+                                         date_trunc('month', CURRENT_DATE)::date),
+                                date_trunc('month', CURRENT_DATE)::date)) * 12
+                            + EXTRACT(MONTH FROM LEAST(
+                                COALESCE(date_trunc('month', end_month)::date,
+                                         date_trunc('month', CURRENT_DATE)::date),
+                                date_trunc('month', CURRENT_DATE)::date)))
+                           - (EXTRACT(YEAR FROM date_trunc('month', start_month)) * 12
+                              + EXTRACT(MONTH FROM date_trunc('month', start_month)))
+                           + 1)::int) AS n_mois
+                FROM artist_cost_entries
+                WHERE amount_eur > 0
+            ) c GROUP BY artist_id""",
+        left_label="v_artist_monthly_costs (étalement)",
+        right_label="artist_cost_entries (arithmétique des bornes)",
+        why="L'étalement des coûts saisis, et le même compte refait SANS "
+            "`generate_series`. Un abonnement annuel est divisé par douze et "
+            "répété tant qu'il est actif ; un `one_off` tombe sur son seul mois. "
+            "Une erreur de bornes répéterait un coût ou en perdrait un sans rien "
+            "casser : le point mort bougerait, et ce serait tout ce qu'on verrait. "
+            "⚠️ Le premier jet de cet invariant comparait la trésorerie à la vue "
+            "d'étalement — deux côtés qui DESCENDENT l'un de l'autre. Muté le "
+            "2026-09-21 en retirant un mois à la série : zéro désaccord."),
 )
 
 

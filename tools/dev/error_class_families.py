@@ -89,6 +89,14 @@ FAMILIES: list[tuple[str, str, str]] = [
      # se pose identiquement pour un message que la page écrase et pour un fichier
      # qu'un second passage réécrit. Mesuré avant l'ajout : le motif ne déplace aucune
      # classe déjà classée, il ne fait que retirer celle-ci des orphelines.
+     # `no-mechanism`, ajouté le 2026-09-22 avec
+     # `a-promise-with-no-mechanism-behind-it`. Le motif est écrit sur l'ABSENCE de
+     # destinataire du travail, comme `thrown-away` l'est sur son sort : une
+     # récompense calculée, écrite en base, affichée à l'écran, et qu'aucun code
+     # n'applique jamais ne « va » nulle part — c'est la question de la famille, mot
+     # pour mot. Vérifié avant l'ajout : le motif ne déplace aucune classe déjà
+     # classée, il retire seulement celle-ci des orphelines.
+     r"no-mechanism|"
      r"rebuilt-per-rerun|thrown-away|unwired|debranch|not-reached|orphan|"
      r"registered-twice-kills-the-import|"
      # `an-identifier-that-is-referenced-but-never-declared`, ajoutee le 2026-09-16 :

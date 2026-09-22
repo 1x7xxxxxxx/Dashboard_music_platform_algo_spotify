@@ -119,13 +119,63 @@ def test_the_config_section_is_not_called_data():
     )
 
 
-def test_data_wrapped_sits_with_the_readings_not_the_exports():
-    """Ce n'est pas un export : c'est une lecture de ses chiffres."""
-    section = next(sid for sid, _l, key in _artist_items() if key == "data_wrapped")
-    assert section == "analytics", (
-        f"Data Wrapped est rangé dans la section {section!r}. Un export produit un "
-        "fichier ; Data Wrapped se regarde à l'écran, comme les six pages au-dessus."
-    )
+def test_data_wrapped_is_rendered_by_a_reading_page_and_keeps_its_route():
+    """Ce n'est pas un export : c'est une lecture de ses chiffres — DANS une page.
+
+    ⚠️ CE GARDE A CHANGÉ DE FORME le 2026-09-21, pas d'intention. Il exigeait que
+    « 🎁 Data Wrapped » soit rangé dans la section `analytics` du menu. Elle n'y
+    est plus, parce qu'elle n'est plus une entrée de menu du tout : ce qu'on y
+    saisit sont les chiffres du Spotify Wrapped FOR ARTISTS — listeners, streams,
+    saves, playlist adds — c'est-à-dire des chiffres Spotify. Une entrée par
+    SOURCE DE SAISIE éparpillait une seule histoire.
+
+    L'intention — « c'est une lecture, pas un export » — est donc vérifiée
+    autrement, et plus fermement qu'avant : on ne demande plus qu'une LIGNE de
+    menu existe, on demande que le CONTENU soit rendu par une page de lecture. La
+    version d'avant restait verte si l'entrée était là et la page vide.
+
+    Trois propriétés, parce que le déplacement peut rater de trois façons :
+      1. l'entrée a bien quitté le menu ;
+      2. une page de LECTURE rend la section ;
+      3. la route survit — des liens la visent, comme `process_guide`.
+    """
+    import ast
+
+    menu = [key for _sid, _l, key in _artist_items()]
+    assert "data_wrapped" not in menu, (
+        "« Data Wrapped » est revenue dans le menu. Son contenu est rendu par "
+        "🎵 Spotify + Spotify for Artists : deux chemins vers la même saisie "
+        "finissent par diverger.")
+
+    hote = _ROOT / "src" / "dashboard" / "views" / "spotify_s4a_combined.py"
+    appelle = any(
+        isinstance(n, ast.Call)
+        and (getattr(n.func, "id", "") or getattr(n.func, "attr", ""))
+        == "render_wrapped_section"
+        for n in ast.walk(ast.parse(hote.read_text(encoding="utf-8"))))
+    assert appelle, (
+        "aucune page de lecture ne rend la section Wrapped : elle a quitté le menu "
+        "sans arriver nulle part. C'est une suppression déguisée en déplacement.")
+
+    module = _ROOT / "src" / "dashboard" / "views" / "data_wrapped.py"
+    noms = {n.name for n in ast.walk(ast.parse(module.read_text(encoding="utf-8")))
+            if isinstance(n, ast.FunctionDef)}
+    # ⚠️ UNE DIFFÉRENCE D'ENSEMBLES, PAS UN `assert "<litt>" in <var>`.
+    #
+    # `noms` vient de l'AST — ce sont des noms de fonctions, pas du texte — mais
+    # `test_a_guard_reads_structure_not_text` ne peut pas le savoir : il voit une
+    # variable dérivée d'un `read_text` et une chaîne littérale comparée par `in`,
+    # c'est-à-dire la forme exacte des trois gardes pris au vert sur leur propre
+    # commentaire. Son faux positif est le prix de sa portée, et il a raison de le
+    # payer plutôt que de laisser passer la vraie forme.
+    #
+    # La différence d'ensembles dit la même chose, ne ressemble pas au défaut, et
+    # nomme au passage ce qui manque.
+    manquantes = {"show", "render_wrapped_section"} - noms
+    assert not manquantes, (
+        f"`data_wrapped` a perdu {sorted(manquantes)} : fonctions vues = "
+        f"{sorted(noms)[:8]}. La ROUTE doit survivre — un artiste qui suit un "
+        "ancien lien ne tombe pas sur un mur.")
 
 
 # ── Les flèches ──────────────────────────────────────────────────────────────

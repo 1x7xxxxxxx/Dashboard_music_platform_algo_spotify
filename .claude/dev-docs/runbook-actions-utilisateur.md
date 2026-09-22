@@ -1385,3 +1385,212 @@ Je reporte chaque seuil dérivé dans `DIP_TENANT_COLUMN` **avec `n=<observation
 date de ta mesure** — c'est ce que le garde exige — puis j'étends le détecteur aux seules
 tables que le calibrateur a acceptées. Celles qu'il refuse restent dehors, avec leur
 raison écrite.
+
+---
+
+## 18. R151 — La hiérarchie des évènements agrégés Meta (limite iOS 14)
+
+**Cinq minutes dans le Gestionnaire d'évènements, et c'est le geste le plus rentable
+des sept ouverts le 2026-09-22.** Il ne change pas une ligne de code : il change la
+FIABILITÉ de tous les coûts par résultat que l'app affiche.
+
+### D'où ça sort
+
+*La petite boîte à outils Facebook Ads et Instagram Ads* (Pellerin) :
+
+> « Depuis iOs 14, il est nécessaire de définir une **hiérarchie** entre les
+> différentes conversions personnalisées créées, afin que Facebook identifie
+> celle(s) à mesurer en priorité. »
+
+Meta ne mesure que **huit évènements par domaine**, dans un ordre que TU choisis. Si la
+conversion Hypeddit n'est pas en haut de cette liste, une partie des conversions n'est
+pas attribuée du tout — et ça se lit comme des campagnes moins performantes qu'elles ne
+le sont. Le chiffre est faux dans le sens qui décourage.
+
+### Les étapes
+
+1. Ouvrir **business.facebook.com** → menu de gauche → **Gestionnaire d'événements**.
+2. Colonne de gauche, choisir la **source de données** qui porte le pixel utilisé par
+   les campagnes (celui d'Hypeddit, pas un pixel de test).
+3. Onglet **Paramètres** (ou **Settings**) → section **Mesure des événements agrégés**
+   → bouton **Configurer les événements Web**.
+4. Le domaine vérifié apparaît avec ses huit emplacements. Repérer l'évènement de
+   conversion personnalisée d'Hypeddit — c'est celui que l'app lit sous le nom
+   `custom_conversions`.
+5. **Le faire glisser en position 1**, au-dessus de `PageView`, `ViewContent` et
+   `Lead` s'ils y sont. La priorité 1 est celle que Meta mesure toujours.
+6. Cliquer **Appliquer**. Meta prévient que la modification met **72 heures** à
+   prendre effet et suspend l'optimisation pendant ce délai — c'est normal, et c'est
+   la raison pour laquelle on le fait une fois, pas tous les mois.
+
+### Si l'étape 4 ne montre aucun domaine
+
+Le domaine n'est pas vérifié. Dans **Paramètres de l'entreprise → Sécurité de la marque
+→ Domaines**, ajouter le domaine du smart link Hypeddit et suivre la vérification par
+enregistrement DNS. Sans domaine vérifié, la hiérarchie n'existe pas et **aucun**
+évènement web n'est priorisé.
+
+### Vérification — ce qui prouve que c'est fait
+
+Capture d'écran de la liste des huit évènements avec la conversion Hypeddit en
+position 1. Puis, **soixante-douze heures plus tard**, comparer le nombre de résultats
+d'une campagne active avant et après :
+
+```bash
+ssh <prod> "docker exec postgres_spotify_airflow psql -U postgres -d spotify_etl -c \
+  \"SELECT day, SUM(custom_conversions) FROM v_meta_campaign_daily \
+    WHERE artist_id = 1 AND day > CURRENT_DATE - 14 GROUP BY day ORDER BY day;\""
+```
+
+⚠️ Une hausse n'est PAS une preuve à elle seule — la dépense varie aussi. Ce qui
+tranche est le rapport `custom_conversions / link_clicks` : la priorisation ne crée pas
+de clics, elle en fait remonter davantage.
+
+### Ce que ce geste ne corrige pas
+
+R146 reste entier : même parfaitement attribué, ce chiffre compte des **clics
+sortants**, pas des écoutes. Les deux tâches sont indépendantes — l'une répare la
+mesure, l'autre dit ce qu'elle mesure.
+
+---
+
+## 19. R148 — Trois conversations « combien tu paierais »
+
+**Le prix de 10 €/mois a été posé, jamais mesuré.** *Monetizing Innovation*
+(Ramanujam & Tacke) dit de parler du prix AVANT de construire ; ici l'ordre a été
+l'inverse. Le livre ne dit pas que 10 € est faux — il dit qu'on n'en sait rien, et
+c'est vérifiable : **zéro trace d'un entretien sur la disposition à payer dans tout le
+dépôt**.
+
+### ⚠️ Lire ceci avant de décrocher le téléphone
+
+Mesuré en production le 2026-09-22 : sur quatre artistes bêta, **un seul** a une
+plateforme qui livre des données. Cuzebo attend depuis **cent jours**, GRiNCH depuis
+quarante et un, artiste1 depuis vingt-trois — et l'essai d'artiste1 se termine le
+**2026-09-29**.
+
+Demander à quelqu'un ce qu'il paierait pour un produit **qu'il n'a jamais vu
+fonctionner** ne mesure rien. Les trois entretiens se font donc avec des gens qui ont
+vu leurs propres chiffres à l'écran. Aujourd'hui, ça fait **une** personne.
+
+**L'ordre est donc : activer d'abord (voir §20), interroger ensuite.**
+
+### Les questions — dans cet ordre, et sans en sauter
+
+Elles viennent de la méthode Van Westendorp, qui pose quatre prix et non un. On ne
+demande jamais « est-ce que tu paierais 10 € ? » : la réponse est une politesse.
+
+1. « À quel prix ce produit te semblerait-il **trop cher** pour que tu l'envisages ? »
+2. « À quel prix te semblerait-il **cher, mais tu réfléchirais** quand même ? »
+3. « À quel prix te semblerait-il une **bonne affaire** ? »
+4. « À quel prix te semblerait-il **si bas que tu douterais** de la qualité ? »
+5. Puis, seulement là : « Qu'est-ce que tu fais aujourd'hui à la place, et combien ça
+   te coûte — en argent ou en heures ? »
+
+La question 5 est celle qui vaut le plus. Un prix se compare toujours à une
+alternative ; si l'alternative est « je regarde Spotify for Artists gratuitement le
+dimanche », le chiffre des questions 1 à 4 ne veut pas dire grand-chose sans elle.
+
+### Le geste
+
+Trois entretiens, **vingt minutes chacun**, en direct (pas par écrit — on perd les
+hésitations). Noter les réponses **verbatim**, pas résumées.
+
+### Vérification
+
+Un fichier `docs/wtp-interviews-2026-XX.md` avec, pour chacun des trois : la date, qui,
+les quatre prix, la réponse à la question 5. Trois entretiens, douze prix. C'est tout
+ce que cette tâche demande — **aucune décision de tarif n'en découle automatiquement**.
+
+---
+
+## 20. R150 — Trois options chiffrées pour la prestation
+
+Le panneau de prestation livré le 2026-09-21 nomme quatre arguments et propose un
+appel. Il **ne chiffre rien** — donc chaque appel recommence à zéro, et c'est toi qui
+portes la charge de sortir un prix en direct.
+
+*Pricing Creativity* et *The Win Without Pitching* (Blair Enns) : proposer des
+**options**, jamais un prix. Et le mécanisme mesuré : « adding a third, higher price
+increases the sales of the middle price — previously the highest price — by almost
+**50 %** ». Trois options ne servent pas à vendre la plus chère ; elles servent à
+rendre celle du milieu évidente.
+
+### Le geste — remplir ces trois lignes
+
+Trois options, chacune avec un prix et une différence **de périmètre**, pas de
+qualité. La colonne « ce que ça change » est celle qui fait le travail : si les trois
+lignes disent la même chose en plus ou moins gros, ce ne sont pas des options.
+
+| | prix | ce que ça inclut | ce que ça change pour l'artiste |
+|---|---|---|---|
+| **Essentiel** | … € | … | … |
+| **Standard** ← celle que tu veux vendre | … € | … | … |
+| **Accompagnement** | … € | … | … |
+
+Deux repères, pas des règles : l'écart entre Essentiel et Standard se lit mieux
+autour de ×2, et l'Accompagnement existe même s'il ne se vend jamais — c'est son
+rôle.
+
+### Une décision qui se prend en même temps
+
+Le même mécanisme vaut pour l'**abonnement** : Free et Premium n'ont pas de milieu,
+donc Premium à 10 € est le haut de gamme, c'est-à-dire le point de résistance. Un
+troisième palier au-dessus déplacerait Premium vers le centre.
+
+⚠️ Ce n'est PAS un axe de valeur — cette question-là est tranchée par **ADR-028**, qui
+refuse d'en adopter un tant que l'activation n'est pas réglée. Un troisième palier est
+une décision sur la STRUCTURE de l'offre, indépendante de l'unité de facturation.
+
+### Vérification
+
+Les trois lignes remplies dans ce tableau, puis leur mise en page sur la page
+Facturation — la construction suit le remplissage, pas l'inverse.
+
+```bash
+python3 -m pytest tests/test_views_render_smoke.py -q -k billing
+```
+
+---
+
+## 21. ~~R149 — Choisir UNE métrique qui compte pour le stade actuel~~ · ✅ TRANCHÉ le 2026-09-22 — l'activation, mesurée à **2 sur 5** ; le geste commercial qui reste est décrit ci-dessous
+
+**R149 est CLOSE le 2026-09-22** : la métrique est choisie, mesurée et posée en tête du
+panneau de supervision admin. Ce n'est pas un choix de goût — la mesure a tranché seule.
+
+**L'activation vaut 2 sur 5** (locataires humains). Trois comptes n'ont jamais reçu
+une seule ligne de donnée, et leur `etl_run_log` ne porte aucun échec : il porte
+`skipped`, parce qu'aucun identifiant de plateforme n'a été saisi. Le garde d'identité
+fait son travail, et `alert_monitor` dit explicitement que `skipped` n'est pas un
+signalement. Correct pour l'exploitation, **aveugle pour le commerce**.
+
+### Le geste qui reste — il n'est pas technique
+
+Trois comptes à relancer, par ordre d'urgence :
+
+| artiste | inscrit depuis | essai | quoi faire |
+|---|---|---|---|
+| **artiste1** (id 17) | 23 jours | **se termine le 2026-09-29** | le plus urgent — sept jours pour qu'il voie quelque chose |
+| **GRiNCH** (id 13) | 41 jours | clos le 2026-09-11 | essai déjà perdu ; le rattraper demande une prolongation |
+| **Cuzebo** (id 11) | 100 jours | clos le 2026-07-14 | le plus ancien ; savoir s'il est encore joignable avant d'investir |
+
+Ce qui leur manque est **un identifiant de plateforme saisi dans l'app** (Spotify,
+SoundCloud, YouTube ou Instagram). La procédure côté artiste est celle de la section
+sur la session de test artiste ; côté toi, le geste est de vérifier avec eux, en
+direct, que la page de connexion des plateformes est franchissable.
+
+### Vérification
+
+```bash
+ssh <prod> "docker exec streamlytics_dashboard python3 -c \"
+import sys; sys.path.insert(0,'/app')
+from src.database.postgres_handler import PostgresHandler
+from src.utils.activation import activation_sql, dormant_tenants_sql
+db = PostgresHandler.from_env_or_config()
+print('activés :', db.fetch_query(activation_sql())[0])
+for r in db.fetch_query(dormant_tenants_sql()): print(' dormant', r)
+\""
+```
+
+La tâche est close quand cette commande rend **zéro dormant** — ou quand la relance a
+eu lieu et que la réponse est écrite, y compris si c'est un non.

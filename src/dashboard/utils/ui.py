@@ -160,7 +160,7 @@ def show_flash() -> None:
      "warning": st.warning, "error": st.error}.get(level, st.info)(message)
 
 
-def secondary_analyses(label: str | None = None):
+def secondary_analyses(label: str | None = None, *, expanded: bool = False):
     """Collapsed container for charts that refine a decision but never make one.
 
     Used as a context manager, exactly like st.expander:
@@ -168,11 +168,20 @@ def secondary_analyses(label: str | None = None):
         with secondary_analyses():
             st.plotly_chart(fig_detail, width="stretch")
 
-    Deliberately NOT `expanded=True`: the point is the first screen. Charts moved
-    in here are still one click away — nothing is deleted, so a view can be
-    re-balanced later without recovering lost code.
+    Collapsed BY DEFAULT: the point is the first screen. Charts moved in here are
+    still one click away — nothing is deleted, so a view can be re-balanced later
+    without recovering lost code.
+
+    `expanded=True` is an opt-in, per view, for the case where the refining figure
+    is the one the artist actually came for. It changes only what is VISIBLE: a
+    Streamlit expander always executes its body, so an opened drawer costs no extra
+    query. ⚠️ The two chart-budget guards
+    (`test_chart_budget`, `test_a_view_opens_on_one_decision`) shield a
+    `secondary_analyses(...)` block by NAME, not by its `expanded` value — an opened
+    drawer is therefore invisible to them. Opening one is a deliberate act whose
+    first-screen cost has to be counted by hand.
     """
     return st.expander(
-        label or t("ui.secondary_analyses", "📊 Analyses détaillées (facultatif)"),
-        expanded=False,
+        label or t("ui.secondary_analyses", "📊 Analyses détaillées"),
+        expanded=expanded,
     )

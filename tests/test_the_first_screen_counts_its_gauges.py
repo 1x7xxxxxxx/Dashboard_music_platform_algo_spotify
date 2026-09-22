@@ -100,9 +100,19 @@ def test_no_view_exceeds_its_recorded_ceiling() -> None:
 
 
 def test_the_ceilings_only_fall() -> None:
-    """Le total enregistré est un plafond global : 191 le 2026-09-20."""
+    """Le total enregistré est un plafond global : 191 → 162 le 2026-09-21.
+
+    La baisse vient de cinq resserrages (des sections supprimées ce jour-là),
+    entrée neuve de `meta_x_spotify` (7) COMPRISE. Le détail est dans
+    `_note_2026_09_21` du fichier de plafonds, à côté des nombres qu'il explique.
+
+    ⚠️ Le chiffre est celui que la mesure a rendu, pas celui que j'avais estimé :
+    mon premier jet annonçait 169 en additionnant à la main, et le total réel est
+    162. Écrire une somme sans la relire est exactement ce que ce cliquet existe
+    pour attraper ailleurs.
+    """
     total = sum(_reference()["plafonds"].values())
-    assert total <= 191, (
+    assert total <= 162, (
         f"le total des plafonds vaut {total}, contre 191 le 2026-09-20. Ce fichier "
         "descend quand une vue est allégée ; il ne monte pas. Une vue neuve doit tenir "
         f"sous {_MAX_FIRST_SCREEN} sans entrée du tout.")

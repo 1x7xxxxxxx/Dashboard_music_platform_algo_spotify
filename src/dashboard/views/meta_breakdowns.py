@@ -21,6 +21,7 @@ from src.dashboard.utils.meta_accounts import (
 from src.dashboard.utils.geo import iso2_to_iso3, iso2_to_name
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.proxy_disclosure import cpr_help, outbound_help
 from src.dashboard.auth import require_plan
 
 
@@ -70,8 +71,12 @@ def _render_performance(df, dim_key, entity_label):
     total_spend, total_res = df['spend'].sum(), df['results'].sum()
     c1, c2, c3 = st.columns(3)
     c1.metric(t("meta_breakdowns.total_spend", "Dépense totale"), f"{total_spend:,.2f} €")
-    c2.metric(t("meta_breakdowns.results", "Résultats"), f"{int(total_res):,}")
-    c3.metric(t("meta_breakdowns.avg_cpr", "CPR moyen"), f"{total_spend / total_res:,.2f} €" if total_res else "—")
+    # R146 — « Résultats » nommait un clic sortant comme un aboutissement.
+    c2.metric(t("meta_breakdowns.results", "Clics sortants"), f"{int(total_res):,}",
+              help=outbound_help())
+    c3.metric(t("meta_breakdowns.avg_cpr", "CPR moyen"),
+              f"{total_spend / total_res:,.2f} €" if total_res else "—",
+              help=cpr_help())
 
     df['dim_label'] = _dim_label(df, dim_key)
 

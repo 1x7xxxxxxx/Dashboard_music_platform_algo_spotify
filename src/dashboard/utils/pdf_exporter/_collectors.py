@@ -2,10 +2,6 @@
 import logging
 from datetime import timedelta
 from src.utils.track_matching import track_title_matches, canonical_song_sql
-from src.dashboard.utils.kpi_helpers import (
-    ARTIST_NAME_FILTER,
-)
-
 # UNE LECTURE QUI ÉCHOUE LAISSAIT UNE SECTION VIDE, SANS UNE TRACE.
 #
 # Ce module portait 36 gestionnaires d'exception muets, un par collecteur, tous en
@@ -568,12 +564,27 @@ def _collect_meta_x_spotify(db, artist_id, from_date, to_date, ad_account=None):
                WHERE artist_id = %s AND day BETWEEN %s AND %s
                GROUP BY day ORDER BY day""",
                     (artist_id,c_from, c_to))
+        # LA VUE OR, PAS LA TABLE BRUTE — repointé le 2026-09-21, sur une mesure.
+        #
+        # La forme d'avant lisait `track_popularity_history` et n'écartait que la
+        # ligne « Total » des CSV S4A. Elle prenait donc TOUTE ligne de popularité
+        # du locataire, y compris celles d'aucun titre rattaché. Ce filtre-là
+        # n'est plus écrit ici du tout : la vue or ne peut pas porter la ligne
+        # « Total », qui n'a ni identifiant Spotify ni lien confirmé.
+        # Mesuré ce jour-là sur le locataire 1 : une ligne
+        # `track_id='test_track_001'` / « Test Track Initialization », **PI 50**,
+        # datée du 11/09/2026, laissée par une initialisation de base. Sur les
+        # 47 jours de la courbe, **un** point affichait 50 au lieu de 9 — un pic
+        # ×5,6 dans le PDF d'un client, dessiné par une donnée de test.
+        #
+        # `v_spotify_track_pi_daily` (migration 130) ne porte que les titres à
+        # LIEN CONFIRMÉ sur les deux plateformes. Le pic disparaît par
+        # construction, et la définition du PI n'est plus écrite deux fois.
         pop = db.fetch_query(
-            f"""SELECT date::text, MAX(popularity) FROM track_popularity_history
-                WHERE {canonical_song_sql('track_name')} NOT ILIKE %s
-                  AND artist_id = %s AND date BETWEEN %s AND %s
-                GROUP BY date ORDER BY date""",
-            (f"%{ARTIST_NAME_FILTER}%", artist_id, c_from, c_to))
+            """SELECT day::text, MAX(popularity) FROM v_spotify_track_pi_daily
+                WHERE artist_id = %s AND day BETWEEN %s AND %s
+                GROUP BY day ORDER BY day""",
+            (artist_id, c_from, c_to))
         sp = {r[0]: float(r[1] or 0) for r in (meta or [])}
         res = {r[0]: int(r[2] or 0) for r in (meta or [])}
         cpr = {r[0]: float(r[3] or 0) for r in (meta or [])}
@@ -804,7 +815,15 @@ def _collect_song_timeline(db, artist_id, song, from_date, to_date):
 
 
 def _collect_apple_daily(db, artist_id, single_song, from_date, to_date):
-    """Daily streams + shazams (LAG diff over apple_songs_history), track-scoped."""
+    """Gain de streams + shazams entre deux relevés (v_apple_song_daily), par titre.
+
+    ⚠️ CE COLLECTEUR N'EST APPELÉ PAR PERSONNE — constaté le 2026-09-21. `_report.py`
+    n'importe que `_collect_apple_timeline`. Il est corrigé plutôt que supprimé parce
+    que DEUX gardes le nomment (`test_a_window_never_bounds_the_lag_it_reads`,
+    `test_a_dual_axis_only_joins_two_different_natures`) : le retirer demande de
+    trancher leur sort, ce qui n'est pas le même geste. Laissé faux, il aurait été
+    la troisième copie du défaut en attente de rebranchement.
+    """
     if artist_id is None:
         return []
     try:
@@ -825,43 +844,66 @@ def _collect_apple_daily(db, artist_id, single_song, from_date, to_date):
             # l'historique, fenêtre au SELECT extérieur). Le moteur PDF ne l'avait pas :
             # une règle appliquée à un seul de ses deux lecteurs, la classe que ce dépôt
             # a déjà payée avec `canonical_song_sql`.
-            # ⚠️ `jours_ecoules = 1` — 2026-09-20 (R140 §16.9b). `plays - LAG(plays)`
-            # suppose deux mesures CONSÉCUTIVES. Apple est nourri par un dépôt de CSV à
-            # la main : mesuré le 2026-09-20 sur `apple_songs_history`, **11 paires,
-            # 0 consécutive, plus grand trou 12 jours**. Cent pour cent des points
-            # portaient la croissance de plusieurs jours posée sur une seule journée.
-            # Même correctif que `views/apple_music.py` — les deux lecteurs, pas un.
-            """WITH diff AS (
-                 SELECT date, song_name,
-                        plays - LAG(plays) OVER (PARTITION BY song_name ORDER BY date) AS ds,
-                        shazam_count - LAG(shazam_count) OVER (PARTITION BY song_name ORDER BY date) AS dsh,
-                        date - LAG(date) OVER (PARTITION BY song_name ORDER BY date) AS jours
-                 FROM apple_songs_history WHERE artist_id = %s)
-               SELECT date, song_name, ds, dsh FROM diff
-               WHERE date BETWEEN %s AND %s AND jours = 1
-               ORDER BY song_name, date""",
+            # ⚠️ DEUX CORRECTIONS LE 2026-09-21, et la seconde annule la précédente.
+            #
+            # 1. LA TABLE. `apple_songs_history` n'est écrite par RIEN — l'import
+            #    CSV alimente `apple_songs_performance`. Un artiste a lu « la
+            #    dernière mesure remonte au 2025-12-11 » le jour où il déposait un
+            #    export. La vue or (migration 131) réunit les deux sources.
+            #
+            # 2. `jours = 1` EST RETIRÉ. Il avait été ajouté le 2026-09-20 pour que
+            #    la croissance de plusieurs jours ne soit pas posée sur une seule
+            #    journée — l'intention était juste. Mais son propre commentaire
+            #    portait la mesure qui la condamnait : « 11 paires, 0 consécutive ».
+            #    Un filtre qui écarte CENT POUR CENT de sa population ne corrige
+            #    rien, il éteint la figure. Apple se dépose à la main : deux relevés
+            #    consécutifs n'existent pas dans ce produit.
+            #
+            #    Le gain est donc rendu tel qu'il est mesuré, AVEC le nombre de
+            #    jours qu'il couvre — c'est la surface qui le dit, pas le collecteur
+            #    qui le cache.
+            """SELECT day, song_name, daily_plays, daily_shazams, days_since_previous
+                 FROM v_apple_song_daily
+                WHERE artist_id = %s AND day BETWEEN %s AND %s
+                  AND daily_plays IS NOT NULL
+                ORDER BY song_name, day""",
             (artist_id, from_date, to_date))
     except Exception as exc:  # noqa: BLE001
         logger.warning("PDF: _collect_apple_daily unreadable: %s", type(exc).__name__)
         return []
+    # LA DURÉE EST PORTÉE JUSQU'AU BOUT, et ce n'est pas décoratif.
+    #
+    # Un gain de 36 écoutes sur 179 jours et un gain de 36 sur 12 ne sont pas le
+    # même fait. Le remède d'avant (`jours = 1`) écartait les deux ; celui-ci les
+    # garde et les QUALIFIE. Un quadruplet plutôt qu'un triplet : sans la durée,
+    # le consommateur ne peut pas dire ce qu'il dessine, et le garde
+    # `test_a_span_difference_is_never_presented_as_a_daily_figure` le refuse.
+    #
+    # Quand plusieurs titres tombent le même jour, on garde le PLUS GRAND écart :
+    # l'agrégat couvre alors au moins cette durée, et arrondir vers le bas
+    # ferait paraître le gain plus rapide qu'il ne l'est.
     agg = {}
-    for d, name, ds, dsh in (rows or []):
+    for d, name, ds, dsh, span in (rows or []):
         if ds is None or (single_song and not track_title_matches(single_song, name)):
             continue
-        a = agg.setdefault(d, [0, 0])
+        a = agg.setdefault(d, [0, 0, 0])
         a[0] += max(0, int(ds or 0))
         a[1] += max(0, int(dsh or 0))
-    return [(d, v[0], v[1]) for d, v in sorted(agg.items())]
+        a[2] = max(a[2], int(span or 0))
+    return [(d, v[0], v[1], v[2]) for d, v in sorted(agg.items())]
 
 
 def _collect_apple_timeline(db, artist_id, single_song, from_date, to_date):
-    """Cumulative plays + shazams per snapshot date (apple_songs_history), track-scoped."""
+    """Cumul écoutes + shazams par date de relevé (v_apple_song_cumulative), par titre."""
     if artist_id is None:
         return []
     try:
         rows = db.fetch_query(
-            """SELECT date, song_name, plays, shazam_count FROM apple_songs_history
-               WHERE artist_id = %s AND date BETWEEN %s AND %s ORDER BY date""",
+            # Même correction que ci-dessus : la vue or, pas la table que rien
+            # n'écrit. C'est CE collecteur-ci qui alimente le PDF du client.
+            """SELECT day, song_name, plays, shazam_count
+                 FROM v_apple_song_cumulative
+                WHERE artist_id = %s AND day BETWEEN %s AND %s ORDER BY day""",
             (artist_id, from_date, to_date))
     except Exception as exc:  # noqa: BLE001
         logger.warning("PDF: _collect_apple_timeline unreadable: %s", type(exc).__name__)
@@ -946,8 +988,13 @@ def _collect_meta_funnel(db, artist_id, from_date, to_date, ad_account=None):
     if not r:
         return []
     imp, reach, res, conv = (int(r[0][i] or 0) for i in range(4))
-    return [("Impressions", imp), ("Reach", reach), ("Résultats", res),
-            ("Conversions Spotify", conv)]
+    # R146 — « Conversions Spotify » était le FAUX NÉGATIF du balayage : aucun des
+    # mots « CPR », « résultat » ou « results » n'y figurait, et c'était pourtant le
+    # site le plus affirmatif du dépôt. `custom_conversions` est le clic qui QUITTE
+    # le smart link ; rien ne dit que l'auditeur a écouté. Le PDF part par mail,
+    # sans info-bulle ni survol : le nom doit porter la limite tout seul.
+    return [("Impressions", imp), ("Reach", reach), ("Résultats Meta", res),
+            ("Clics sortants vers Spotify", conv)]
 
 
 def _collect_meta_daily(db, artist_id, from_date, to_date, ad_account=None):

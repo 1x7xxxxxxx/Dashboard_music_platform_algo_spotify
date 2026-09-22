@@ -91,3 +91,43 @@ def db_ready() -> bool:
 def requires_live_db():
     """Module-level marker: `pytestmark = requires_live_db()`."""
     return pytest.mark.skipif(not db_ready(), reason=_SKIP_REASON)
+
+
+def dsn() -> dict | None:
+    """Les mots-clés de connexion, par la MÊME porte que l'application.
+
+    ⚠️ Mesuré le 2026-09-22 : **vingt tests rouges d'un coup**, tous sur
+    `fe_sendauth: no password supplied`, et aucun n'avait de rapport avec le
+    changement en cours. Trois modules construisaient leur DSN à la main :
+
+        "password": os.environ.get("DATABASE_PASSWORD") or os.environ.get("DB_PASSWORD", "")
+
+    Cette ligne ne connaît que l'environnement. La porte canonique
+    (`PostgresHandler.from_env_or_config` → `src.utils.pg_connect.resolve_kwargs`)
+    connaît **trois** sources : `DATABASE_URL`, puis les `DATABASE_*`, puis
+    `config/config.yaml`. Sur ce poste le mot de passe ne vit que dans le fichier
+    de configuration.
+
+    Le symptôme est particulièrement traître : sans Postgres, `db_ready()` rend
+    False et ces modules SKIPPENT proprement. Dès qu'une base tourne, la socket
+    s'ouvre, l'authentification échoue, et le skip devient **erreur**. Un
+    développeur qui démarre sa pile voit donc vingt rouges apparaître sans avoir
+    touché à rien — et le docstring de `from_env_or_config` DÉCRIVAIT DÉJÀ ce
+    défaut chez trois collecteurs, sans que personne le cherche côté tests.
+
+    Classe : `a-second-door-that-knows-fewer-sources-than-the-first`.
+    Garde : `tests/test_one_door_onto_the_database.py` porte déjà la règle pour
+    `src/` ; ce helper l'étend aux tests.
+    """
+    if os.environ.get("DATABASE_URL"):
+        return {"dsn": os.environ["DATABASE_URL"]}
+    try:
+        with socket.create_connection((DB_HOST, DB_PORT), timeout=1.5):
+            pass
+    except OSError:
+        return None
+    try:
+        from src.utils.pg_connect import resolve_kwargs
+        return resolve_kwargs()
+    except Exception:
+        return None

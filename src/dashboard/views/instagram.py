@@ -1,15 +1,67 @@
-import streamlit as st
+"""Instagram — la communauté dans le temps, en vraies valeurs.
+
+Type: Feature
+Uses: view_session, smart_period_filter, platform_absence, i18n
+Depends on: instagram_daily_stats, instagram_media,
+            v_instagram_media_monthly, v_instagram_followers_daily
+Persists in: — (lecture seule)
+
+LA BASE 100 EST PARTIE, ET C'EST UN ARBITRAGE ASSUMÉ
+------------------------------------------------------
+Demandé le 2026-09-21 : « supprimer le graphique base 100, si on arrive tout
+mettre mais pas en base 100 ».
+
+La base 100 existait pour une raison réelle : abonnés (1 522), abonnements (621)
+et publications (51) sont dans un rapport de 30, et sur un repère commun les deux
+dernières séries sont écrasées au fond. Ce qu'elle coûtait, en revanche, c'est
+les CHIFFRES : un artiste y lit « 103 » là où il veut lire « 1 525 abonnés ».
+
+Les trois séries sont donc en PETITS MULTIPLES — trois cadres, une horloge
+commune, chacun sur son échelle, avec ses vraies valeurs. C'est la forme que ce
+dépôt admet déjà partout ailleurs pour des ordres de grandeur incomparables, et
+elle répond à la demande sans rien inventer : rien n'est normalisé, rien n'est
+caché.
+
+Conséquence : la figure « Évolution des Abonnés » seule disparaît aussi — elle
+était le premier des trois cadres, dessiné deux fois.
+
+CE QUE LA PAGE NE PEUT PAS MONTRER, ET POURQUOI
+-------------------------------------------------
+`instagram_media_insights` est **vide** (0 ligne, mesuré le 2026-09-21) : Meta ne
+sert impressions/reach/saved/partages que pour des posts de moins de 90 jours,
+avec le scope `instagram_manage_insights`. Le dernier post de ce compte date du
+**07/11/2025**. Aucune recollecte ne les fera apparaître tant qu'il n'y a pas de
+publication récente — et le dire ainsi vaut mieux que de renvoyer l'artiste vers
+un bouton qui ne changera rien.
+"""
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.period_filter import smart_period_filter
-from src.dashboard.utils.ui import say_why_it_is_empty, secondary_analyses, show_empty_state
+from src.dashboard.utils.period_filter import (
+    latest_release_date,
+    smart_period_filter,
+)
+from src.dashboard.utils.ui import (
+    say_why_it_is_empty,
+    secondary_analyses,
+    show_empty_state,
+)
 from src.dashboard.utils.tz import to_local_naive
 
+# Instagram n'a PAS de couleur mesurée : sept teintes attribuables sont impossibles
+# dans cette palette (recherche conjointe du 2026-09-21, ΔE 9,6 en clair contre un
+# plancher de 15 — la deutéranopie fait converger un cyan et un violet vers le même
+# bleu). Le détail est dans `platform_colors`. Sa page n'affiche qu'UNE plateforme :
+# la question de l'attribution ne s'y pose pas, et on garde donc sa teinte de marque.
+_IG = "#E1306C"
+
 def show():
-    st.title(t("instagram.title", "📸 Instagram - Performance"))
-    st.markdown("---")
+    # ⚠️ NI TITRE NI SOUS-TITRE — retirés le 2026-09-21, même geste que sur Apple,
+    # YouTube et SoundCloud : « 📸 Instagram - Performance » répétait l'entrée de
+    # menu qu'on vient de cliquer.
 
     with view_session() as (db, artist_id):
         # 1. KPIs (Dernier Snapshot)
@@ -32,11 +84,14 @@ def show():
 
                 st.subheader(t("instagram.account", "Compte : @{username}").format(username=username))
 
-                c1, c2, c3, c4 = st.columns(4)
+                # ⚠️ TROIS TUILES, PAS QUATRE — « 📅 Mise à jour » est partie le
+                # 2026-09-21. Une date de collecte est un fait de PLOMBERIE : elle
+                # ne décide rien et occupait le quart du bandeau. Elle descend dans
+                # la légende, avec ce qu'elle veut dire.
+                c1, c2, c3 = st.columns(3)
                 c1.metric(t("instagram.kpi_followers", "👥 Abonnés"), f"{followers:,}")
                 c2.metric(t("instagram.kpi_follows", "➡️ Abonnements"), f"{follows:,}")
                 c3.metric(t("instagram.kpi_media", "📸 Publications"), f"{media:,}")
-                c4.metric(t("instagram.kpi_last_update", "📅 Mise à jour"), last_date)
             else:
                 st.warning(t("instagram.no_data", "Aucune donnée Instagram. Lancez le collecteur."))
                 return
@@ -50,9 +105,15 @@ def show():
         # 2. GRAPHIQUE D'ÉVOLUTION
         st.subheader(t("instagram.community_growth", "📈 Croissance de la communauté"))
 
+        # DÉFAUT « DEPUIS LA DERNIÈRE SORTIE » — 2026-09-21, appliqué à toute
+        # l'app. « En cours » (l'année civile) est un cadre de calendrier posé sur
+        # une donnée qui suit des SORTIES : en janvier, il rend une page quasi vide
+        # pour un artiste dont la dernière sortie date de novembre.
         window = smart_period_filter(
             db, table="instagram_daily_stats", date_column="collected_at",
             artist_id=artist_id, key="ig_community",
+            latest_release_resolver=lambda: latest_release_date(db, artist_id),
+            default_override="last_release",
         )
 
         try:
@@ -65,81 +126,34 @@ def show():
             """
             df_hist = db.fetch_df(query, (artist_id, *frag_params))
 
-            if not show_empty_state(df_hist, t("instagram.no_history", "Aucune donnée d'historique pour cette période.")):
+            if df_hist.empty:
+                # DEUX SILENCES, DEUX GESTES. « Rien dans CETTE fenêtre » fait
+                # élargir ; « aucun relevé » fait brancher le collecteur. Le
+                # message d'avant disait « aucune donnée d'historique pour cette
+                # période » — une phrase qui mélange les deux, et le garde
+                # `test_a_silence_names_its_own_cause` la refuse à raison.
+                _tout = db.fetch_df(
+                    "SELECT MAX(collected_at) AS last FROM instagram_daily_stats "
+                    "WHERE artist_id = %s", (artist_id,))
+                _last = None if _tout.empty else _tout.iloc[0]["last"]
+                say_why_it_is_empty(
+                    None if _last is None else to_local_naive(
+                        pd.Series([_last])).iloc[0].date(),
+                    window,
+                    empty_window=t(
+                        "instagram.nothing_in_window",
+                        "Aucun relevé Instagram sur cette période. Le dernier "
+                        "remonte au **{last}** — élargis la fenêtre pour revoir "
+                        "l'historique."
+                    ).format(last="—" if _last is None else _last.strftime("%d/%m/%Y")),
+                    no_history=t(
+                        "instagram.not_enough_history",
+                        "Aucun relevé Instagram pour ce compte. Branche-le depuis "
+                        "**🔑 Credentials API + imports CSV**."))
+            else:
                 # timestamptz across a DST change → mixed offsets (utils/tz.py).
                 df_hist['collected_at'] = to_local_naive(df_hist['collected_at'])
-
-                # Abonnés — px.line + axe Y serré : la variation macro doit
-                # rester lisible (px.area pinnait l'axe à 0 → tendance écrasée).
-                fig = px.line(
-                    df_hist, x='collected_at', y='followers_count',
-                    title=t("instagram.followers_evolution", "Évolution des Abonnés ({label})").format(label=window.label),
-                    markers=True, color_discrete_sequence=['#E1306C'],
-                )
-                ymin = df_hist['followers_count'].min()
-                ymax = df_hist['followers_count'].max()
-                pad = max((ymax - ymin) * 0.15, 1)
-                fig.update_layout(
-                    yaxis=dict(range=[ymin - pad, ymax + pad]),
-                    yaxis_title=t("instagram.followers_axis", "Nombre d'abonnés"), hovermode="x unified",
-                )
-                st.plotly_chart(fig, width="stretch")
-
-                # Secondaire : compare des courbes entre elles — ne décide rien seule.
-                with secondary_analyses(t("instagram.base100_header",
-                                          "📈 Évolution relative (base 100)")):
-                    if len(df_hist) < 2:
-                        # La série SANS fenêtre — une seconde lecture, seulement dans
-                        # la branche vide : le cas où il n'y a rien à dessiner est
-                        # aussi celui où on a le temps de le dire juste.
-                        _tout = db.fetch_df(
-                            "SELECT MAX(collected_at) AS last FROM instagram_daily_stats "
-                            "WHERE artist_id = %s", (artist_id,))
-                        _last = (None if _tout.empty else _tout.iloc[0]["last"])
-                        say_why_it_is_empty(
-                            None if _last is None else to_local_naive(
-                                pd.Series([_last])).iloc[0].date(),
-                            window,
-                            empty_window=t(
-                                "instagram.nothing_in_window",
-                                "Aucun relevé Instagram sur cette période. Le dernier "
-                                "remonte au **{last}** — élargis la fenêtre pour "
-                                "revoir l'historique."
-                            ).format(last="" if _last is None else _last.strftime("%d/%m/%Y")),
-                            no_history=t(
-                                "instagram.not_enough_history",
-                                "Pas assez d'historique pour une évolution (≥2 collectes)."))
-                    else:
-                        _metrics = {
-                            'followers_count': t("instagram.followers", "Abonnés"),
-                            'follows_count': t("instagram.follows", "Abonnements"),
-                            'media_count': t("instagram.publications", "Publications"),
-                        }
-                        rows = []
-                        for col, lbl in _metrics.items():
-                            s = df_hist[col].astype('float')
-                            nonnull = s.dropna()
-                            base = nonnull.iloc[0] if not nonnull.empty else 0
-                            if not base:
-                                continue
-                            for d, v in zip(df_hist['collected_at'], s):
-                                if pd.notna(v):
-                                    rows.append({'date': d, 'Métrique': lbl,
-                                                 'Base 100': round(v / base * 100, 2)})
-                        if rows:
-                            df_norm = pd.DataFrame(rows)
-                            fig_n = px.line(
-                                df_norm, x='date', y='Base 100', color='Métrique',
-                                title=t("instagram.base100_title",
-                                        "Évolution relative — base 100 ({label})").format(label=window.label),
-                                markers=True,
-                                labels={'Métrique': t("instagram.metric_lbl", "Métrique")},
-                            )
-                            fig_n.update_layout(
-                                hovermode="x unified",
-                                yaxis_title=t("instagram.base100_axis", "Base 100 (1er point = 100)"),
-                            )
-                            st.plotly_chart(fig_n, width="stretch")
+                _render_community(df_hist, window, last_date)
 
         except Exception as e:
             st.error(t("instagram.history_error", "Erreur historique : {err}").format(err=e))
@@ -151,6 +165,8 @@ def show():
         win_m = smart_period_filter(
             db, table="instagram_media", date_column="timestamp",
             artist_id=artist_id, key="ig_media",
+            latest_release_resolver=lambda: latest_release_date(db, artist_id),
+            default_override="last_release",
         )
         try:
             frag_m, params_m = win_m.sql_between("timestamp")
@@ -186,7 +202,32 @@ def show():
                 GROUP BY 1 ORDER BY 1
             """, (artist_id, *params_month))
 
-            if not show_empty_state(df_eng, t("instagram.no_posts", "Aucun post sur cette période.")):
+            # ⚠️ LE SILENCE NOMME SA CAUSE — 2026-09-21, rapporté par l'artiste :
+            # « pour engagement et publi je n'ai aucune data ». Le message disait
+            # « Aucun post sur cette période » et s'arrêtait là. Mesuré : le
+            # compte porte **51 publications**, la dernière du **07/11/2025**. Il
+            # n'y a donc pas « aucun post » — il n'y en a aucun DANS CETTE
+            # FENÊTRE, ce qui appelle un geste tout différent : élargir la
+            # période, ou publier.
+            if df_eng.empty:
+                _dernier = db.fetch_df(
+                    "SELECT MAX(timestamp) AS last, COUNT(*) AS n "
+                    "FROM instagram_media WHERE artist_id = %s", (artist_id,))
+                _last = None if _dernier.empty else _dernier.iloc[0]["last"]
+                if _last is not None:
+                    _jours = (pd.Timestamp.now() - pd.to_datetime(_last)).days
+                    st.info(t(
+                        "instagram.no_posts_in_window",
+                        "Aucune publication dans cette fenêtre. Le compte en porte "
+                        "**{n}** au total, la dernière du **{d}** — il y a "
+                        "**{j} jours**. Élargis la période pour revoir "
+                        "l'historique."
+                    ).format(n=int(_dernier.iloc[0]["n"]),
+                             d=pd.to_datetime(_last).strftime("%d/%m/%Y"), j=_jours))
+                else:
+                    st.info(t("instagram.no_posts",
+                              "Aucune publication collectée pour ce compte."))
+            else:
                 df_eng['mois'] = pd.to_datetime(df_eng['mois'])
                 df_long = df_eng.melt(
                     id_vars=['mois', 'posts'], value_vars=['likes', 'comments'],
@@ -222,10 +263,28 @@ def show():
                                           "📈 Taux d'engagement (indicatif)")):
                     # Taux d'engagement (indicatif — abonnés = snapshot actuel)
                     if followers:
+                        # ⚠️ `pd.to_numeric` SUR LES TROIS COLONNES — vu au rendu
+                        # le 2026-09-21 : « unsupported operand type(s) for /:
+                        # 'decimal.Decimal' and 'float' ».
+                        #
+                        # `SUM(...)` en Postgres sur une colonne entière rend un
+                        # NUMERIC, que psycopg2 traduit en `decimal.Decimal`. Un
+                        # `Decimal` se divise par un `Decimal` sans broncher — et
+                        # lève dès qu'on le divise par un `float`. La section
+                        # entière tombait alors dans son `except` et l'artiste
+                        # lisait « Erreur publications » à la place de ses
+                        # publications.
+                        #
+                        # C'est la même classe que le `.round(1)` sur une colonne
+                        # `object` déjà corrigé dans `soundcloud.py` : une colonne
+                        # venue de SQL n'a pas le dtype qu'on croit, et on la
+                        # coerce AVANT d'arithmétiser.
                         dfr = df_eng.copy()
+                        _l = pd.to_numeric(dfr['likes'], errors='coerce')
+                        _c = pd.to_numeric(dfr['comments'], errors='coerce')
+                        _p = pd.to_numeric(dfr['posts'], errors='coerce')
                         dfr['taux'] = (
-                            (dfr['likes'] + dfr['comments']) / dfr['posts']
-                            / float(followers) * 100
+                            (_l + _c) / _p.where(_p != 0) / float(followers) * 100
                         ).round(2)
                         fig_r = px.line(
                             dfr, x='mois', y='taux', markers=True,
@@ -265,13 +324,30 @@ def show():
             }
 
             if insights_empty:
+                # ⚠️ CE MESSAGE ENVOYAIT VERS UN GESTE INUTILE. Il disait
+                # « recollecte après une publication récente » — or une recollecte
+                # ne peut RIEN changer tant qu'aucun post n'a moins de 90 jours,
+                # et le dernier de ce compte date du 07/11/2025. Il nomme donc
+                # maintenant la seule chose qui débloque : publier.
+                _dp = db.fetch_df("SELECT MAX(timestamp) AS last FROM instagram_media "
+                                  "WHERE artist_id = %s", (artist_id,))
+                _dl = None if _dp.empty else _dp.iloc[0]["last"]
+                _age = None if _dl is None else (pd.Timestamp.now() - pd.to_datetime(_dl)).days
                 st.info(t(
                     "instagram.insights_unavailable",
-                    "Insights (impressions/reach/saved/partages) indisponibles : "
-                    "l'API Meta ne les fournit que pour des posts < 90 jours avec "
-                    "le scope instagram_manage_insights. Recollecte après une "
-                    "publication récente."
-                ))
+                    "**Impressions, portée, enregistrements et partages ne sont "
+                    "pas disponibles.** Meta ne les sert que pour les posts de "
+                    "moins de **90 jours**, et ta publication la plus récente date "
+                    "de **{j} jours**. Ce n'est pas un défaut de collecte : "
+                    "relancer une collecte ne les fera pas apparaître. Ils "
+                    "reviendront d'eux-mêmes après ta prochaine publication."
+                ).format(j="—" if _age is None else _age)
+                    if _age is not None and _age > 90 else t(
+                    "instagram.insights_unavailable_scope",
+                    "**Impressions, portée, enregistrements et partages ne sont "
+                    "pas disponibles.** Meta les réserve aux posts de moins de "
+                    "90 jours ET au scope `instagram_manage_insights` — vérifie "
+                    "l'autorisation dans **🔑 Credentials**."))
                 q_media = f"""
                     SELECT media_url, caption, media_type, permalink,
                            timestamp, like_count, comments_count
@@ -311,3 +387,62 @@ def show():
 
 if __name__ == "__main__":
     show()
+
+
+def _render_community(df_hist, window, last_date: str) -> None:
+    """Abonnés, abonnements et publications — trois cadres, une horloge.
+
+    REMPLACE DEUX FIGURES PAR UNE, et répond à la demande du 2026-09-21 : « si on
+    peut mettre sur un axe temporel le nombre d'abonnés et d'abonnement et de
+    publication », et « supprimer le graphique base 100 ».
+
+    ⚠️ POURQUOI PAS UN SEUL CADRE. Les trois séries sont dans un rapport de 30
+    (1 522 / 621 / 51) : sur un repère commun, les deux dernières sont deux lignes
+    plates au fond du cadre. C'est exactement le problème que la base 100 résolvait
+    — en payant les CHIFFRES, puisqu'on y lit « 103 » au lieu de « 1 525 abonnés ».
+    Les petits multiples le résolvent sans rien normaliser : chaque série garde son
+    échelle ET ses valeurs.
+
+    ⚠️ ET POURQUOI PAS UN DOUBLE AXE. Trois séries, trois ordres de grandeur : un
+    axe secondaire n'en sauverait qu'une, et leur croisement serait un artefact de
+    cadrage. La règle du dépôt est constante là-dessus.
+
+    L'AXE DE CHAQUE CADRE EST RESSERRÉ sur la plage réelle, pas ancré à zéro : à
+    1 522 abonnés, une variation de 3 est invisible sur un axe qui part de 0 — et
+    c'est pourtant toute l'information d'une semaine.
+    """
+    from plotly.subplots import make_subplots
+
+    series = (
+        ("followers_count", t("instagram.followers", "Abonnés"), _IG),
+        ("follows_count", t("instagram.follows", "Abonnements"), _IG),
+        ("media_count", t("instagram.publications", "Publications"), _IG),
+    )
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.07,
+                        subplot_titles=[lbl for _, lbl, _ in series])
+    for i, (col, lbl, ink) in enumerate(series, start=1):
+        fig.add_trace(go.Scatter(
+            x=df_hist["collected_at"], y=df_hist[col], mode="lines+markers",
+            name=lbl, line=dict(color=ink, width=2), marker=dict(size=6),
+            hovertemplate=f"{lbl} : %{{y:,.0f}}<extra></extra>"), row=i, col=1)
+        # L'axe suit la plage RÉELLE : à 1 522 abonnés, +3 est invisible depuis 0.
+        vmin, vmax = float(df_hist[col].min()), float(df_hist[col].max())
+        marge = max((vmax - vmin) * 0.15, 1)
+        fig.update_yaxes(range=[vmin - marge, vmax + marge], row=i, col=1)
+
+    fig.update_layout(
+        height=640, hovermode="x unified", showlegend=False, margin=dict(t=90),
+        title_text=t("instagram.community_title",
+                     "Ma communauté dans le temps ({label})").format(label=window.label))
+    st.plotly_chart(fig, width="stretch")
+
+    # LA DATE DE COLLECTE EST ICI, plus dans une tuile : c'est une note de bas de
+    # figure, pas un indicateur.
+    gagnes = int(df_hist["followers_count"].iloc[-1] - df_hist["followers_count"].iloc[0])
+    st.caption(t(
+        "instagram.community_caption",
+        "**{n} relevé(s)**, dernier le **{d}**. Sur la période : **{g:+d} abonné(s)**. "
+        "Chaque cadre a sa propre échelle, resserrée sur ses valeurs — un axe ancré à "
+        "zéro rendrait invisible un gain de trois abonnés sur mille cinq cents. Les "
+        "trois courbes portent leurs VRAIES valeurs : rien n'est ramené à une base."
+    ).format(n=len(df_hist), d=last_date, g=gagnes))

@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 from src.dashboard.utils import view_session
 from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.ui import secondary_analyses
 
 # Meta gender targeting codes → labels (empty = no restriction = everyone).
@@ -104,6 +104,84 @@ def show():
         render_extra_ad_accounts(db, artist_id)
 
 
+# Les six mesures de la performance globale. (libellé, colonne ou calcul, format)
+# `derive` reçoit la ligne agrégée d'une campagne et rend le ratio — jamais une
+# moyenne de ratios : un CPM est `Σdépense / Σimpressions × 1000`, pas la moyenne
+# des CPM quotidiens.
+_PERF_PANNEAUX = [
+    ("Dépenses (€)",  lambda r: r['spend'],                                      "{:,.0f}"),
+    ("Impressions",   lambda r: r['impressions'],                                "{:,.0f}"),
+    ("Clics lien",    lambda r: r['link_clicks'],                                "{:,.0f}"),
+    ("CPM (€)",       lambda r: r['spend'] / r['impressions'] * 1000
+                                if r['impressions'] > 0 else float("nan"),       "{:,.2f}"),
+    ("CPC (€)",       lambda r: r['spend'] / r['link_clicks']
+                                if r['link_clicks'] > 0 else float("nan"),       "{:,.2f}"),
+    # R146 — « CPR » garde le mot de Meta (l'artiste le retrouve tel quel dans le
+    # Gestionnaire de publicités) mais ne voyage plus jamais sans sa limite : la
+    # légende sous la figure dit que le résultat est un clic sortant.
+    ("CPR (€)",       lambda r: r['spend'] / r['custom_conversions']
+                                if r['custom_conversions'] > 0 else float("nan"), "{:,.2f}"),
+]
+
+
+def _render_global_perf(df_perf: pd.DataFrame) -> None:
+    """La performance globale, CAMPAGNE PAR CAMPAGNE — six cadres, une unité chacun.
+
+    ⚠️ Remplace six `st.metric` qui affichaient la SOMME de la sélection. Demande
+    du propriétaire le 2026-09-21 : « peut-on visualiser les datas de perf
+    globales quand on compare 2 tracks avec des graphiques plutôt que des champs
+    de valeur ? ».
+
+    Il a raison au-delà de la forme : additionner deux campagnes pour en tirer un
+    CPM unique répond à une question que personne ne pose. On sélectionne deux
+    titres pour les COMPARER ; la somme efface exactement ce qu'on cherchait. Une
+    seule campagne sélectionnée rend un cadre à une barre, qui porte sa valeur
+    écrite — l'information est la même que celle de l'ancienne jauge.
+
+    Six cadres et non six séries : des euros, des impressions, des clics et trois
+    coûts n'ont ni la même unité ni le même ordre de grandeur. Le cliquet d'axes
+    secondaires de ce dépôt (`_MAX_SECONDARY_AXES = 0`) dit la même chose.
+    """
+    from plotly.subplots import make_subplots
+
+    d = df_perf.dropna(subset=['campaign_name']).copy()
+    if d.empty:
+        return
+    d = d.sort_values('spend', ascending=True)          # plus gros budget EN HAUT
+    noms = d['campaign_name'].tolist()
+    court = [n if len(n) <= 34 else n[:33] + "…" for n in noms]
+
+    fig = make_subplots(
+        rows=2, cols=3, shared_yaxes=True,
+        horizontal_spacing=0.06, vertical_spacing=0.18,
+        subplot_titles=[t(f"meta_ads_overview.perf.{i}", lab)
+                        for i, (lab, _f, _fmt) in enumerate(_PERF_PANNEAUX)])
+    for i, (lab, calc, fmt) in enumerate(_PERF_PANNEAUX):
+        vals = [float(calc(r)) for _, r in d.iterrows()]
+        fig.add_trace(go.Bar(
+            x=vals, y=court, orientation='h', showlegend=False,
+            marker={'color': "#1877F2" if i < 3 else "#7f7f7f"},
+            text=[fmt.format(v).replace(",", " ") if pd.notna(v) else "—" for v in vals],
+            textposition='outside', cliponaxis=False,
+            customdata=noms,
+            hovertemplate=f"%{{customdata}}<br>{lab} : %{{text}}<extra></extra>",
+        ), row=i // 3 + 1, col=i % 3 + 1)
+        fig.update_xaxes(showticklabels=False, row=i // 3 + 1, col=i % 3 + 1)
+    fig.update_layout(height=max(360, 46 * len(noms) + 220), bargap=0.3,
+                      margin={'l': 10, 'r': 40, 't': 60, 'b': 20})
+    fig.update_yaxes(automargin=True)
+    st.plotly_chart(fig, width="stretch")
+
+    if not (d['custom_conversions'] > 0).any():
+        st.caption(t("meta_ads_overview.capi_required",
+                     "CPR vide : il demande la CAPI (évènements serveur) — "
+                     "aucune conversion personnalisée n'est remontée ici."))
+    else:
+        # R146 — la limite s'affiche quand le chiffre EST là. L'ancien message ne
+        # parlait que du cas vide : la seule fois où le CPR ne trompait personne.
+        st.caption(disclosure_caption())
+
+
 def _show_meta_ads(db, artist_id):
     # Le compte AVANT les campagnes : deux comptes peuvent porter la même campagne
     # « Release FR », donc la liste offerte dépend du compte choisi, jamais l'inverse.
@@ -190,27 +268,8 @@ def _show_meta_ads(db, artist_id):
         for c in ['spend', 'results', 'custom_conversions', 'lp_views', 'impressions', 'link_clicks']:
             df_perf[c] = pd.to_numeric(df_perf[c], errors='coerce').fillna(0)
 
-        # Totaux
-        tot_spend   = df_perf['spend'].sum()
-        tot_conv    = df_perf['custom_conversions'].sum()
-        tot_lp      = df_perf['lp_views'].sum()
-        tot_clicks  = df_perf['link_clicks'].sum()
-        tot_impr    = df_perf['impressions'].sum()
-
-        cpm = (tot_spend / tot_impr * 1000) if tot_impr > 0 else 0
-        cpc = (tot_spend / tot_clicks)       if tot_clicks > 0 else 0
-        cpr = (tot_spend / tot_conv)         if tot_conv > 0 else 0
-
         st.markdown(t("meta_ads_overview.global_perf", "### 🚀 Performance Globale"))
-        k1, k2, k3, k4, k5, k6 = st.columns(6)
-        k1.metric(t("meta_ads_overview.spend", "Dépenses"), f"{tot_spend:,.0f} €")
-        k2.metric(t("meta_ads_overview.impressions", "Impressions"), f"{tot_impr:,.0f}")
-        k3.metric(t("meta_ads_overview.link_clicks", "Clics Lien"), f"{tot_clicks:,.0f}")
-        k4.metric("CPM", f"{cpm:.2f} €")
-        k5.metric("CPC", f"{cpc:.2f} €")
-        k6.metric(t("meta_ads_overview.cpr_spotify", "CPR (Clics Spotify)"),
-                  f"{cpr:.2f} €" if tot_conv > 0 else t("meta_ads_overview.capi_required", "— (CAPI requis)"),
-                  delta_color="inverse")
+        _render_global_perf(df_perf)
 
         # Engagement
         if not df_eng.empty:
@@ -223,89 +282,32 @@ def _show_meta_ads(db, artist_id):
 
     st.markdown("---")
 
-    # ==============================================================================
-    # 🔽 SECTION 1b : FUNNEL HYPEDDIT (Impressions → Clics → LP → Spotify)
-    # ==============================================================================
-    st.subheader(t("meta_ads_overview.funnel_title", "🔽 Funnel de conversion Hypeddit"))
+    # ═══════════════════════════════════════════════════════════════════════
+    # LE FUNNEL A DÉMÉNAGÉ le 2026-09-21 — et il était FAUX.
+    # ═══════════════════════════════════════════════════════════════════════
+    #
+    # Il vit désormais dans « 🔀 Impact de mes campagnes », sous le nom
+    # **Meta × Spotify × Hypeddit**, parce qu'il traverse trois sources et qu'il
+    # appartient à la page qui les croise déjà.
+    #
+    # ⚠️ IL N'A PAS ÉTÉ DÉPLACÉ TEL QUEL. L'artiste avait signalé l'incohérence :
+    # « 643 vues de LP pour 5972 clics Spotify, on devrait avoir une valeur
+    # inférieure ». Mesuré sur tout l'historique du locataire 1 :
+    #
+    #     les deux métriques mesurées le même jour : **91 jours**
+    #     `lp_views < custom_conversions` : **91 jours sur 91**
+    #
+    # Zéro jour cohérent. Le défaut n'était pas dans les chiffres mais dans le
+    # MODÈLE : `lp_views` (le `landing_page_view` de Meta, qui exige que le pixel
+    # se déclenche au chargement) et `custom_conversions` (l'évènement SERVEUR de
+    # la CAPI Hypeddit) ne sont pas deux étapes successives — ce sont **deux
+    # mesures de la même étape**, dont l'une sous-compte par construction.
+    #
+    # Les empiler affirmait un emboîtement que la donnée contredit tous les jours.
+    # Dans sa nouvelle forme, `lp_views` est une note de QUALITÉ sur l'étape, et
+    # les quatre étapes sont : impressions → clics pub → arrivées sur le smart
+    # link → clics vers les plateformes.
 
-    if not df_perf.empty:
-        has_capi = tot_conv > 0
-        if not has_capi:
-            st.info(t(
-                "meta_ads_overview.capi_info",
-                "Les clics Spotify (CAPI) seront visibles ici une fois le "
-                "Conversions API configuré sur Hypeddit. "
-                "Les 3 premières étapes du funnel sont déjà disponibles."
-            ))
-
-        # Taux de conversion à chaque étape
-        ctr_pct       = (tot_clicks / tot_impr * 100) if tot_impr > 0 else 0
-        lp_open_pct   = (tot_lp / tot_clicks * 100)   if tot_clicks > 0 else 0
-        spotify_pct   = (tot_conv / tot_lp * 100)      if tot_lp > 0 else 0
-
-        # KPIs d'étape
-        f1, f2, f3, f4 = st.columns(4)
-        f1.metric(t("meta_ads_overview.impressions", "Impressions"),   f"{tot_impr:,.0f}")
-        f2.metric(t("meta_ads_overview.ad_clicks", "Clics sur pub"), f"{tot_clicks:,.0f}",
-                  help=t("meta_ads_overview.ctr_help", "CTR : {v} %").format(v=f"{ctr_pct:.2f}"))
-        f3.metric(t("meta_ads_overview.lp_views", "Vues LP"),       f"{tot_lp:,.0f}",
-                  help=t("meta_ads_overview.lp_open_help", "LP open rate : {v} % des clics").format(v=f"{lp_open_pct:.1f}"))
-        if has_capi:
-            f4.metric(t("meta_ads_overview.spotify_clicks", "Clics Spotify"), f"{tot_conv:,.0f}",
-                      help=t("meta_ads_overview.lp_spotify_help", "Taux LP→Spotify : {v} %").format(v=f"{spotify_pct:.1f}"))
-        else:
-            f4.metric(t("meta_ads_overview.spotify_clicks", "Clics Spotify"), "— (CAPI)")
-
-        # Funnel chart
-        funnel_labels  = [t("meta_ads_overview.impressions", "Impressions"),
-                          t("meta_ads_overview.funnel_clicks", "Clics pub"),
-                          t("meta_ads_overview.lp_views", "Vues LP")]
-        funnel_values  = [tot_impr, tot_clicks, tot_lp]
-        funnel_colors  = ["#636efa", "#00cc96", "#EF553B"]
-        if has_capi:
-            funnel_labels.append(t("meta_ads_overview.spotify_clicks", "Clics Spotify"))
-            funnel_values.append(tot_conv)
-            funnel_colors.append("#1DB954")
-
-        fig_funnel = go.Figure(go.Funnel(
-            y=funnel_labels,
-            x=funnel_values,
-            textinfo="value+percent initial",
-            marker=dict(color=funnel_colors),
-            connector=dict(line=dict(color="royalblue", dash="dot", width=2)),
-        ))
-        fig_funnel.update_layout(
-            height=320,
-            margin=dict(t=10, b=10, l=0, r=0),
-        )
-        st.plotly_chart(fig_funnel, width="stretch")
-
-        # Taux de conversion par campagne
-        if len(df_perf) > 1:
-            df_rates = df_perf[['campaign_name', 'impressions', 'link_clicks', 'lp_views', 'custom_conversions', 'spend']].copy()
-            df_rates['CTR (%)']          = (df_rates['link_clicks'] / df_rates['impressions'] * 100).round(2)
-            df_rates['LP open (%)']      = (df_rates['lp_views'] / df_rates['link_clicks'] * 100).where(df_rates['link_clicks'] > 0).round(1)
-            df_rates['Spotify click (%)'] = (df_rates['custom_conversions'] / df_rates['lp_views'] * 100).where(df_rates['lp_views'] > 0).round(1)
-            df_rates['CPR (€)']          = (df_rates['spend'] / df_rates['custom_conversions']).where(df_rates['custom_conversions'] > 0).round(2)
-
-            display_cols = ['campaign_name', 'impressions', 'link_clicks', 'lp_views',
-                            'CTR (%)', 'LP open (%)', 'Spotify click (%)', 'CPR (€)']
-            if has_capi:
-                display_cols.insert(4, 'custom_conversions')
-
-            st.dataframe(
-                df_rates[display_cols].rename(columns={
-                    'campaign_name': t("meta_ads_overview.col_campaign", "Campagne"),
-                    'impressions': t("meta_ads_overview.impressions", "Impressions"),
-                    'link_clicks': t("meta_ads_overview.funnel_clicks", "Clics pub"),
-                    'lp_views': t("meta_ads_overview.lp_views", "Vues LP"),
-                    'custom_conversions': t("meta_ads_overview.spotify_clicks", "Clics Spotify"),
-                }),
-                width="stretch",
-                hide_index=True,
-            )
-
-    st.markdown("---")
 
     # ==============================================================================
     # 📈 SECTION 2 : PERFORMANCE PAR CAMPAGNE (GRAPHIQUE PRINCIPAL)
@@ -324,146 +326,63 @@ def _show_meta_ads(db, artist_id):
         df_chart['cpm'] = df_chart.apply(lambda x: x['spend']/x['impressions']*1000 if x['impressions']>0 else 0, axis=1)
         df_chart['cpc'] = df_chart.apply(lambda x: x['spend']/x['link_clicks'] if x['link_clicks']>0 else 0, axis=1)
 
-        # TROIS UNITÉS, TROIS CADRES — les six séries étaient réparties sur trois axes
-        # superposés (budget en euros, volumes en unités, ratios en euros par résultat).
-        # Un lecteur y voyait des courbes se croiser ; ces croisements ne sont que le
-        # produit du cadrage choisi. Partagés en x, les cadres gardent la comparaison
-        # campagne par campagne et rendent chaque grandeur lisible sur son échelle.
+        # UNE FIGURE, PAS DEUX — et des noms de campagne LISIBLES. 2026-09-21.
+        #
+        # Deux sections posaient la même question : « 📊 Performance par
+        # Campagne » (trois cadres, huit séries, légende masquée) et
+        # « 📊 Comparaison multi-métriques par campagne » (six métriques de
+        # plus). Quatorze séries pour une seule question, et sur 21 campagnes.
+        #
+        # Le défaut de lecture n'était pas le nombre de cadres, c'était l'AXE :
+        # les noms de campagne vivaient en x, pivotés, et ce compte en porte qui
+        # font 90 caractères (« KSD - Kaiber 1_Ready for a total immersion… »).
+        # Aucun n'était lisible.
+        #
+        # Les campagnes passent donc en Y — un axe vertical lit un nom long sans
+        # le pivoter — et chaque métrique prend sa colonne, sur son échelle. C'est
+        # la forme des petits multiples, appliquée à un classement.
         from plotly.subplots import make_subplots
-        fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.07,
-                            row_heights=[0.4, 0.3, 0.3],
-                            subplot_titles=[
-                                t("meta_ads_overview.budget_eur", "Budget (€)"),
-                                t("meta_ads_overview.volumes", "Volumes"),
-                                t("meta_ads_overview.ratios_eur", "Ratios (€)")])
 
-        # Axe Y1 (Gauche - Barres)
-        fig.add_trace(go.Bar(
-            x=df_chart['campaign_name'], y=df_chart['spend'],
-            name=t("meta_ads_overview.budget_eur", "Budget (€)"), marker_color='rgba(255, 99, 97, 0.5)',
-            yaxis='y', offsetgroup=1
-        ))
-
-        # Axe Y2 (Droite 1 - Barres fines)
-        fig.add_trace(go.Bar(
-            x=df_chart['campaign_name'], y=df_chart['results'],
-            name=t("meta_ads_overview.native_results", "Résultats natifs Meta (selon objectif)"),
-            marker_color='rgba(0, 63, 92, 0.9)',
-            yaxis='y2', offsetgroup=2
-        ))
-        fig.add_trace(go.Bar(
-            x=df_chart['campaign_name'], y=df_chart['link_clicks'],
-            name=t("meta_ads_overview.link_clicks", "Clics Lien"), marker_color='rgba(88, 80, 141, 0.7)', offsetgroup=2, visible=True
-        ), row=2, col=1)
-        fig.add_trace(go.Bar(
-            x=df_chart['campaign_name'], y=df_chart['page_interactions'],
-            name=t("meta_ads_overview.interactions", "Interactions"), marker_color='rgba(255, 166, 0, 0.7)', offsetgroup=2, visible=True
-        ), row=2, col=1)
-
-        # Impressions
-        fig.add_trace(go.Scatter(
-            x=df_chart['campaign_name'], y=df_chart['impressions'],
-            name=t("meta_ads_overview.impressions", "Impressions"), mode='markers',
-            marker=dict(symbol='star', size=10, color='#333'), visible='legendonly'
-        ), row=2, col=1)
-
-        # Axe Y3 (Droite 2 - Ratios) - ACTIVÉS
-        fig.add_trace(go.Scatter(
-            x=df_chart['campaign_name'], y=df_chart['cpr'],
-            name='CPR (€)', mode='lines+markers+text',
-            text=df_chart['cpr'].apply(lambda x: f"{x:.2f}€"), textposition="top center",
-            line=dict(color='#bc5090', width=2), marker=dict(size=8), visible=True
-        ), row=3, col=1)
-        fig.add_trace(go.Scatter(
-            x=df_chart['campaign_name'], y=df_chart['cpm'],
-            name='CPM (€)', mode='lines+markers',
-            line=dict(color='#ffa600', width=2), marker=dict(size=8), visible=True
-        ), row=3, col=1)
-        fig.add_trace(go.Scatter(
-            x=df_chart['campaign_name'], y=df_chart['cpc'],
-            name='CPC (€)', mode='lines+markers',
-            line=dict(color='#ff6361', width=2), marker=dict(size=8), visible=True
-        ), row=3, col=1)
-
+        _top = df_chart.sort_values('spend', ascending=False).head(12).iloc[::-1]
+        _colonnes = [
+            ('spend', t("meta_ads_overview.budget_eur", "Budget (€)"), '#ff6361', ',.0f'),
+            ('link_clicks', t("meta_ads_overview.link_clicks", "Clics Lien"), '#58508d', ',.0f'),
+            ('cpr', 'CPR (€)', '#bc5090', '.3f'),
+        ]
+        fig = make_subplots(
+            rows=1, cols=len(_colonnes), shared_yaxes=True, horizontal_spacing=0.05,
+            subplot_titles=[lbl for _c, lbl, _k, _f in _colonnes])
+        for i, (col, lbl, ink, fmt) in enumerate(_colonnes, start=1):
+            vals = pd.to_numeric(_top[col], errors='coerce')
+            fig.add_trace(go.Bar(
+                y=_top['campaign_name'], x=vals, orientation='h', name=lbl,
+                marker_color=ink, opacity=0.85,
+                text=[("—" if pd.isna(v) else format(v, fmt)) for v in vals],
+                textposition="outside", cliponaxis=False,
+                hovertemplate="%{y}<br>%{x:,.3f}<extra></extra>"), row=1, col=i)
         fig.update_layout(
-            height=600,
-            title=t("meta_ads_overview.chart_360", "Vue 360° : Budget vs Volumes vs Ratios"),
-            showlegend=False,
-            hovermode="x unified",
-            barmode='group'
-        )
+            height=max(420, 34 * len(_top)), showlegend=False, bargap=0.28,
+            margin=dict(l=10, r=60, t=70),
+            title=t("meta_ads_overview.chart_360",
+                    "Mes campagnes, côte à côte — les 12 plus dépensières"))
+        fig.update_yaxes(automargin=True)
         st.plotly_chart(fig, width="stretch")
+        st.caption(t(
+            "meta_ads_overview.compare_caption",
+            "Les campagnes sont en ORDONNÉE : un axe vertical lit un nom long sans "
+            "le pivoter, et ce compte en porte qui font 90 caractères. Chaque "
+            "colonne a son échelle — un budget en euros et un CPR à trois "
+            "décimales ne se comparent pas sur le même repère. Trié par dépense : "
+            "**le CPR de la colonne de droite se lit en regard du budget de "
+            "gauche**, ce qui est la seule façon de voir si ce qu'on a le plus "
+            "financé est aussi ce qui coûte le moins cher."))
 
-    st.markdown("---")
-
-    # ==============================================================================
-    # 📊 SECTION 2b : COMPARAISON MULTI-MÉTRIQUES PAR CAMPAGNE
-    # ==============================================================================
-    st.subheader(t("meta_ads_overview.multi_metric", "📊 Comparaison multi-métriques par campagne"))
-    st.caption(t("meta_ads_overview.multi_metric_caption",
-                 "Une rangée par métrique, échelles indépendantes. Cliquez une entrée de légende pour la masquer."))
-
-    if not df_perf.empty:
-        df_multi = df_perf[['campaign_name', 'spend', 'impressions',
-                            'link_clicks', 'lp_views', 'custom_conversions']].copy()
-        if not df_eng.empty:
-            df_multi = df_multi.merge(
-                df_eng[['campaign_name', 'saves', 'shares', 'page_interactions']],
-                on='campaign_name', how='left',
-            )
-        else:
-            df_multi[['saves', 'shares', 'page_interactions']] = 0
-        df_multi = df_multi.fillna(0)
-
-        metric_labels = {
-            'spend':              t("meta_ads_overview.spend_eur", "Dépenses (€)"),
-            'impressions':        t("meta_ads_overview.impressions", "Impressions"),
-            'link_clicks':        t("meta_ads_overview.funnel_clicks", "Clics pub"),
-            'lp_views':           t("meta_ads_overview.lp_views", "Vues LP"),
-            'custom_conversions': t("meta_ads_overview.spotify_clicks", "Clics Spotify"),
-            'saves':              'Saves',
-            'shares':             'Shares',
-            'page_interactions':  t("meta_ads_overview.interactions", "Interactions"),
-        }
-        var_col = t("meta_ads_overview.metric", "Métrique")
-        val_col = t("meta_ads_overview.value", "Valeur")
-        df_multi = df_multi.rename(columns=metric_labels)
-        df_long = df_multi.melt(
-            id_vars='campaign_name',
-            value_vars=list(metric_labels.values()),
-            var_name=var_col,
-            value_name=val_col,
-        )
-
-        fig_multi = px.bar(
-            df_long,
-            x='campaign_name', y=val_col,
-            facet_row=var_col,
-            color=var_col,
-            category_orders={var_col: list(metric_labels.values())},
-            height=130 * len(metric_labels),
-            labels={'campaign_name': t("meta_ads_overview.col_campaign", "Campagne")},
-        )
-        # Independent Y-axis per metric so volumes (impressions) and small counts (shares) both visible
-        fig_multi.update_yaxes(matches=None, showticklabels=True, title_text="")
-        # Clean facet labels: "Métrique=Dépenses (€)" → "Dépenses (€)"
-        fig_multi.for_each_annotation(lambda a: a.update(text=a.text.split("=", 1)[-1]))
-        fig_multi.update_layout(
-            showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            margin=dict(t=40, b=40, l=10, r=10),
-            bargap=0.3,
-        )
-        st.plotly_chart(fig_multi, width="stretch")
-    else:
-        st.info(t("meta_ads_overview.no_campaign_data", "Aucune donnée de campagne pour les filtres sélectionnés."))
-
-    st.markdown("---")
 
     # ==============================================================================
     # ⏳ SECTION 3 : ÉVOLUTION TEMPORELLE
     # ==============================================================================
-    st.subheader(t("meta_ads_overview.time_evolution", "⏳ Évolution Temporelle (Budget vs Résultat vs CPR)"))
+    st.subheader(t("meta_ads_overview.time_evolution",
+                   "⏳ Dépense, clics et coût — sur une seule horloge"))
 
     # `v_meta_daily` (migration 106) porte cette maille — (locataire, compte,
     # campagne, jour) — et dix surfaces la demandaient. Les colonnes gardent leurs
@@ -504,33 +423,52 @@ def _show_meta_ads(db, artist_id):
         df_day['cpr'] = (df_day['spend'] / df_day['custom_conversions']
                          ).where(df_day['custom_conversions'] > 0)
 
-        # TROIS UNITÉS, TROIS CADRES. Des euros dépensés, un nombre de clics et un coût
-        # par résultat n'ont ni la même unité ni le même ordre de grandeur ; trois axes
-        # superposés donnaient à leurs croisements une apparence de sens qu'ils n'ont
-        # pas. Partagés en x, les trois cadres gardent la lecture chronologique.
+        # UN SEUL GRAPHIQUE — 2026-09-21, demandé : « essaye de tout mettre sur
+        # un même graphique ». Les trois cadres empilés avaient une bonne raison
+        # d'exister (trois unités, trois ordres de grandeur) et un vrai défaut :
+        # sur une campagne de 31 jours, chaque cadre faisait 150 px de haut et
+        # aucune des trois courbes ne se lisait.
+        #
+        # Ce qui rend la fusion honnête, et qui manquait à la version d'avant :
+        #
+        #   · la DÉPENSE et les CLICS partagent l'axe de GAUCHE — ce sont deux
+        #     volumes, comparables entre eux ;
+        #   · le CPR va seul à DROITE — c'est un PRIX, donc une autre nature.
+        #     C'est le seul cas que ce dépôt admet pour un double axe, et celui
+        #     que `charts.py` documente depuis le 2026-09-12 ;
+        #   · l'axe de droite est TEINTÉ de la couleur de sa seule série, sans
+        #     quoi deux échelles se lisent comme une.
+        #
+        # Un croisement reste visible à l'œil ; rien dans la figure ne le présente
+        # comme un évènement.
         from plotly.subplots import make_subplots
-        fig_time = make_subplots(
-            rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.07,
-            row_heights=[0.4, 0.3, 0.3],
-            subplot_titles=[t("meta_ads_overview.spend_eur", "Dépenses (€)"),
-                            t("meta_ads_overview.spotify_clicks", "Clics Spotify"),
-                            "CPR (€)"])
+        _INK_SPEND, _INK_CLICKS, _INK_CPR = "#2a78d6", "#1baf7a", "#eda100"
+        fig_time = make_subplots(specs=[[{"secondary_y": True}]])
         fig_time.add_trace(go.Bar(
             x=df_day['day_date'], y=df_day['spend'],
             name=t("meta_ads_overview.spend_eur", "Dépenses (€)"),
-            marker_color='#2a78d6'), row=1, col=1)
+            marker_color=_INK_SPEND, opacity=0.55), secondary_y=False)
         fig_time.add_trace(go.Scatter(
             x=df_day['day_date'], y=df_day['custom_conversions'],
             name=t("meta_ads_overview.spotify_clicks", "Clics Spotify"),
             mode='lines', connectgaps=False,
-            line=dict(color='#1baf7a', width=2)), row=2, col=1)
+            line=dict(color=_INK_CLICKS, width=2)), secondary_y=False)
         fig_time.add_trace(go.Scatter(
-            x=df_day['day_date'], y=df_day['cpr'], name='CPR (€)',
+            x=df_day['day_date'], y=df_day['cpr'],
+            name=t("meta_ads_overview.cpr_series", "CPR (€/clic sortant)"),
             mode='lines+markers', connectgaps=False,
-            line=dict(color='#eda100', width=2)), row=3, col=1)
+            line=dict(color=_INK_CPR, width=2, dash='dot'),
+            marker=dict(size=6)), secondary_y=True)
+        fig_time.update_yaxes(
+            title_text=t("meta_ads_overview.axis_volume", "Dépense (€) · clics"),
+            secondary_y=False)
+        fig_time.update_yaxes(
+            title_text="CPR (€)", showgrid=False, secondary_y=True,
+            title_font=dict(color=_INK_CPR), tickfont=dict(color=_INK_CPR))
         fig_time.update_layout(
-            height=560, title=t("meta_ads_overview.daily_dynamics", "Dynamique Quotidienne"),
-            hovermode="x unified", showlegend=False)
+            height=460, hovermode="x unified", barmode='overlay',
+            legend=dict(orientation="h", y=1.12),
+            title=t("meta_ads_overview.daily_dynamics", "Dynamique Quotidienne"))
         st.plotly_chart(fig_time, width="stretch")
     else:
         st.info(t("meta_ads_overview.no_time_data", "Pas de données temporelles."))
@@ -538,118 +476,93 @@ def _show_meta_ads(db, artist_id):
     st.markdown("---")
 
     # ==============================================================================
-    # 🌍 SECTION 4 : PARETOS (PAYS, PLACEMENT, AGE)
+    # 🌍 SECTION 4 — VIDE depuis le 2026-09-21, et son titre part avec elle.
     # ==============================================================================
-    st.subheader(t("meta_ads_overview.pareto_section", "🎯 Répartitions & Efficacité (Pareto CPR)"))
-
-    def create_pareto_chart(df, x_col, title):
-        if df.empty: return None
-        df['spend'] = pd.to_numeric(df['spend'], errors='coerce').fillna(0)
-        df['results'] = pd.to_numeric(df['results'], errors='coerce').fillna(0)
-        df['cpr'] = df.apply(lambda x: x['spend'] / x['results'] if x['results'] > 0 else 0, axis=1)
-        df = df.sort_values('spend', ascending=False).head(15)
-
-        # DEUX CADRES PARTAGÉS EN X. Cette fabrique est instanciée TROIS fois (pays,
-        # placement, âge) : son axe secondaire comptait donc pour trois. Dépense totale
-        # et coût par résultat sont tous deux en euros, mais séparés de deux ordres de
-        # grandeur — superposés, le CPR est plat ; sur un second axe, son croisement
-        # avec les barres est un artefact de cadrage. Les valeurs restent écrites sur
-        # les points, donc rien n'est perdu à la lecture.
-        from plotly.subplots import make_subplots
-        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.09,
-                            row_heights=[0.62, 0.38],
-                            subplot_titles=[t("meta_ads_overview.spend_eur",
-                                              "Dépenses (€)"), "CPR (€)"])
-        fig.add_trace(go.Bar(x=df[x_col], y=df['spend'],
-                             name=t("meta_ads_overview.spend_eur", "Dépenses (€)"),
-                             marker_color='#2a78d6'), row=1, col=1)
-        fig.add_trace(go.Scatter(x=df[x_col], y=df['cpr'], name='CPR (€)',
-                                 mode='lines+markers+text',
-                                 text=df['cpr'].apply(lambda x: f"{x:.2f}€"),
-                                 textposition="top center",
-                                 line=dict(color='#eb6834', width=2)), row=2, col=1)
-        fig.update_layout(title=title, showlegend=False, height=460)
-        return fig
-
-    query_country = (
-        "SELECT country, SUM(spend) as spend, SUM(results) as results "
-        f"FROM meta_insights_performance_country WHERE artist_id = %s{_campaign_in} GROUP BY country"
-    )
-    df_country = db.fetch_df(query_country, params)
-
-    query_place = (
-        "SELECT placement, SUM(spend) as spend, SUM(results) as results "
-        f"FROM meta_insights_performance_placement WHERE artist_id = %s{_campaign_in} GROUP BY placement"
-    )
-    df_place = db.fetch_df(query_place, params)
-
-    query_age = (
-        "SELECT age_range, SUM(spend) as spend, SUM(results) as results "
-        f"FROM meta_insights_performance_age WHERE artist_id = %s{_campaign_in} GROUP BY age_range"
-    )
-    df_age = db.fetch_df(query_age, params)
-
-    # Trois Pareto de RÉPARTITION : ils expliquent d'où vient le CPR déjà vu plus haut,
-    # ils ne le remplacent pas. Repliés, la première vue de la page perd trois figures
-    # sur huit sans rien perdre du raisonnement. `secondary_analyses()` a été écrit le
-    # 2026-08-12 pour la remarque « réduire le nombre de graphs qui permettent de
-    # prendre décision », et n'était appliqué sur aucune des cinq vues les plus denses.
-    with secondary_analyses(t("meta_ads_overview.pareto_expander",
-                              "🎯 Répartitions (pays, placement, âge) — détail")):
-        c1, c2 = st.columns(2)
-        with c1:
-            if fig_country := create_pareto_chart(df_country, 'country', t("meta_ads_overview.pareto_country", "Pays (Top Dépenses)")): st.plotly_chart(fig_country, width="stretch")
-        with c2:
-            if fig_place := create_pareto_chart(df_place, 'placement', t("meta_ads_overview.pareto_placement", "Placements")): st.plotly_chart(fig_place, width="stretch")
-
-        if fig_age := create_pareto_chart(df_age, 'age_range', t("meta_ads_overview.pareto_age", "Performance par Âge")): st.plotly_chart(fig_age, width="stretch")
+    # Un en-tête sans contenu est pire qu'une section supprimée : il promet
+    # quelque chose puis ne le livre pas. Le raisonnement du retrait est juste
+    # en dessous ; il reste parce qu'il explique où la chose est ALLÉE.
+    # ═══════════════════════════════════════════════════════════════════════
+    # LES TROIS PARETO « pays / placement / âge » SONT PARTIS le 2026-09-21.
+    # ═══════════════════════════════════════════════════════════════════════
+    #
+    # Question posée : « pour la view qui a vu tes pubs, ce n'est pas redondant
+    # avec une autre view où on trace des placement pays âge ? » — oui, et c'est
+    # vérifiable : les deux lisaient les MÊMES tables,
+    # `meta_insights_performance_{country,placement,age}`.
+    #
+    # La différence n'était pas dans le sujet mais dans la portée, et celle d'ici
+    # était strictement plus PETITE :
+    #
+    #     ici                 3 dimensions · grain CAMPAGNE · performance seule
+    #     🌍 Qui a vu tes pubs 3 dimensions · 3 grains (campagne/adset/créative)
+    #                          · 2 familles (performance ET engagement) · + carte
+    #
+    # Un sous-ensemble qui vit ailleurs n'est pas un raccourci, c'est une seconde
+    # définition en attente de diverger. Elle part d'ici, où elle était repliée
+    # dans un tiroir, et pas de la page qui la porte entièrement.
+    #
+    # ⚠️ Le croisement PAYS, lui, n'a pas disparu : il a été REFAIT ailleurs, avec
+    # ce qui lui manquait. « 🔀 Impact de mes campagnes » croise désormais la
+    # dépense Meta par pays avec les ÉCOUTES par pays du distributeur — mesuré le
+    # 2026-09-21 : la Colombie rend 0,002 € par écoute contre 0,181 € au Brésil,
+    # **93 fois** moins cher, et aucune des deux pages ne pouvait le dire.
 
     st.markdown("---")
 
     # ==============================================================================
     # 📋 SECTION 5 : DONNÉES BRUTES (TABLEAU COMPLET)
     # ==============================================================================
-    st.subheader(t("meta_ads_overview.summary_table", "🗃️ Tableau Récapitulatif"))
+    # LE TABLEAU DESCEND DANS UN TIROIR — 2026-09-21.
+    #
+    # `test_the_dense_views_use_the_pattern_written_for_them` a rougi quand les
+    # trois Pareto sont partis : ils étaient le SEUL `secondary_analyses` de cette
+    # vue, et elle en porte huit figures. Le garde a raison, et son remède est le
+    # bon : un tableau de 21 lignes et 9 colonnes RAFFINE une décision, il n'en
+    # prend aucune — c'est la définition même du tiroir. La figure de comparaison
+    # juste au-dessus répond à la question ; le tableau sert à retrouver une
+    # valeur précise, et c'est un second geste.
+    with secondary_analyses(t("meta_ads_overview.summary_table",
+                              "🗃️ Tableau récapitulatif — le détail chiffré")):
 
-    # ⚠️ %% in CTR column alias avoids Python IndexError in format strings
-    _campaign_in_p = _acct_p + (
-        f" AND p.campaign_name IN ({','.join(['%s'] * len(selected_campaigns))})"
-        if selected_campaigns else ""
-    )
-    # La jointure d'engagement ne nommait pas le locataire : deux artistes ayant une
-    # campagne du même nom mélangeaient leurs saves et leurs partages.
-    query_full = (
-        'SELECT p.campaign_name, SUM(p.spend) as "Dépenses",'
-        ' SUM(p.custom_conversions) as "Clics Spotify",'
-        ' SUM(p.lp_views) as "Vues LP", SUM(p.link_clicks) as "Clics pub",'
-        ' CASE WHEN SUM(p.custom_conversions) > 0'
-        '      THEN SUM(p.spend) / SUM(p.custom_conversions) END as "CPR",'
-        ' SUM(p.impressions) as "Impressions",'
-        ' CASE WHEN SUM(p.impressions) > 0'
-        '      THEN SUM(p.spend) / SUM(p.impressions) * 1000 END as "CPM",'
-        ' CASE WHEN SUM(p.impressions) > 0'
-        '      THEN SUM(p.link_clicks)::numeric / SUM(p.impressions) * 100 END as "CTR (%%)",'
-        ' MAX(e.saves) as "Saves", MAX(e.shares) as "Shares",'
-        ' MAX(e.page_interactions) as "Interactions",'
-        ' MAX(p.collected_at) as "Mise à jour"'
-        " FROM v_meta_campaign_daily p"
-        " LEFT JOIN meta_insights_engagement e ON e.campaign_name = p.campaign_name"
-        "                                     AND e.artist_id = p.artist_id"
-        f" WHERE p.artist_id = %s{_campaign_in_p}"
-        ' GROUP BY p.campaign_name ORDER BY SUM(p.spend) DESC'
-    )
-    df_full = db.fetch_df(query_full, params)
-
-    if not df_full.empty:
-        st.dataframe(
-            df_full.style.format({
-                "Dépenses": "{:,.2f} €", "CPR": "{:,.2f} €", "CPM": "{:,.2f} €",
-                "CTR (%)": "{:,.2f}",
-                "Saves": "{:,.0f}", "Shares": "{:,.0f}", "Interactions": "{:,.0f}",
-                "Clics Spotify": "{:,.0f}", "Clics pub": "{:,.0f}",
-            }, na_rep="—"),
-            width="stretch",
+        # ⚠️ %% in CTR column alias avoids Python IndexError in format strings
+        _campaign_in_p = _acct_p + (
+            f" AND p.campaign_name IN ({','.join(['%s'] * len(selected_campaigns))})"
+            if selected_campaigns else ""
         )
+        # La jointure d'engagement ne nommait pas le locataire : deux artistes ayant une
+        # campagne du même nom mélangeaient leurs saves et leurs partages.
+        query_full = (
+            'SELECT p.campaign_name, SUM(p.spend) as "Dépenses",'
+            ' SUM(p.custom_conversions) as "Clics Spotify",'
+            ' SUM(p.lp_views) as "Vues LP", SUM(p.link_clicks) as "Clics pub",'
+            ' CASE WHEN SUM(p.custom_conversions) > 0'
+            '      THEN SUM(p.spend) / SUM(p.custom_conversions) END as "CPR (€/clic sortant)",'
+            ' SUM(p.impressions) as "Impressions",'
+            ' CASE WHEN SUM(p.impressions) > 0'
+            '      THEN SUM(p.spend) / SUM(p.impressions) * 1000 END as "CPM",'
+            ' CASE WHEN SUM(p.impressions) > 0'
+            '      THEN SUM(p.link_clicks)::numeric / SUM(p.impressions) * 100 END as "CTR (%%)",'
+            ' MAX(e.saves) as "Saves", MAX(e.shares) as "Shares",'
+            ' MAX(e.page_interactions) as "Interactions",'
+            ' MAX(p.collected_at) as "Mise à jour"'
+            " FROM v_meta_campaign_daily p"
+            " LEFT JOIN meta_insights_engagement e ON e.campaign_name = p.campaign_name"
+            "                                     AND e.artist_id = p.artist_id"
+            f" WHERE p.artist_id = %s{_campaign_in_p}"
+            ' GROUP BY p.campaign_name ORDER BY SUM(p.spend) DESC'
+        )
+        df_full = db.fetch_df(query_full, params)
+
+        if not df_full.empty:
+            st.dataframe(
+                df_full.style.format({
+                    "Dépenses": "{:,.2f} €", "CPR": "{:,.2f} €", "CPM": "{:,.2f} €",
+                    "CTR (%)": "{:,.2f}",
+                    "Saves": "{:,.0f}", "Shares": "{:,.0f}", "Interactions": "{:,.0f}",
+                    "Clics Spotify": "{:,.0f}", "Clics pub": "{:,.0f}",
+                }, na_rep="—"),
+                width="stretch",
+            )
 
     # ==============================================================================
     # 🎯 SECTION 6 : CIBLAGE vs PERFORMANCE (#9) — quel ciblage adset performe

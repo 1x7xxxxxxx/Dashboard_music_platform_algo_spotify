@@ -64,8 +64,7 @@ from __future__ import annotations
 # artiste Free — conséquence assumée le 2026-09-12, l'entrée restant visible pour
 # dire ce que l'offre contient.
 NAV_SECTIONS: list = [
-    ("start",     "",                       [("🏠 Accueil", "home"),
-                                             ("📄 Export PDF", "export_pdf")]),
+    ("start",     "",                       [("🏠 Accueil", "home")]),
     ("data",      "⚙️ Configuration de streaMLytics",
      [("🚀 Mise en route (assistant)", "onboarding"),
       ("🚦 Santé onboarding", "onboarding_health"),
@@ -77,30 +76,66 @@ NAV_SECTIONS: list = [
       # information de plus. La ROUTE survit (voir `_main_body`) — des liens la visent.
       ("🔗 Mapping cross-plateforme", "meta_mapping"),
       ("📝 Saisie S4A (playlist & Discovery)", "saisie_s4a"),
+      # ⚠️ HYPEDDIT REJOINT LA CONFIGURATION le 2026-09-21, juste après Saisie S4A.
+      #
+      # Elle vivait dans « 📊 Analytics plateformes », entre Instagram et Data
+      # Wrapped. C'était vrai côté machine et faux côté parcours : Hypeddit
+      # n'est pas une plateforme qu'on COLLECTE, c'est un formulaire qu'on
+      # REMPLIT — les visites et clics d'un smart link se recopient à la main
+      # depuis leur tableau de bord. Elle appartient donc au même geste que la
+      # saisie S4A, et se fait au même moment.
+      #
+      # C'est le même déplacement, pour la même raison, que « 📝 Saisie S4A »
+      # elle-même le 2026-09-12 : elle était rangée avec le modèle qu'elle
+      # nourrit, alors que c'est une SAISIE.
+      ("📱 Hypeddit (saisie smart link)", "hypeddit"),
       ("🗄️ Santé des données", "db_health")]),
     ("advanced",  "🔮 Prédiction algos Spotify",
      [("🚀 Prédiction déclenchement algos Spotify (DW, Radio, RR…)", "trigger_algo")]),
+    # ── CE QUI SE VEND, RASSEMBLÉ — 2026-09-21 ────────────────────────────────
+    #
+    # Les six pages Premium étaient dispersées dans CINQ sections, chacune au
+    # milieu de pages gratuites. Conséquence pour un artiste Free : six 🔒 semés
+    # dans le menu, sans qu'aucun écran ne dise ce que l'abonnement contient — et
+    # pour un artiste Premium, aucune façon de voir ce qu'il paie.
+    #
+    # Elles vivent maintenant ensemble, juste sous la prédiction, qui est la
+    # promesse du produit (déplacement du 2026-09-12, même raison).
+    #
+    # ⚠️ `meta_ads_overview` N'EST PAS ICI : elle est gratuite. Rassembler « ce
+    # qui se vend » ne veut pas dire rassembler « tout ce qui touche à Meta » —
+    # le critère est le PLAN, et il se lit dans `stripe_schema.PLAN_FEATURES`,
+    # pas dans le thème de la page. Un garde le vérifie
+    # (`tests/test_the_campaign_view_plots_what_it_promises.py`) : cette
+    # liste et le catalogue de prix ne peuvent plus diverger en silence.
+    ("premium",   "💎 Premium — ce que l'abonnement ouvre",
+     [("🔀 Impact de mes campagnes (toutes plateformes)", "meta_x_spotify"),
+      ("📄 Export PDF", "export_pdf"),
+      ("🎨 Visuels de campagne", "meta_creatives"),
+      ("🌍 Qui a vu tes pubs (pays, âge, placement)", "meta_breakdowns"),
+      ("📊 CPR Optimizer", "meta_cpr_optimizer"),
+      ("📈 Prévisions revenus", "revenue_forecast")]),
     ("analytics", "📊 Analytics plateformes",
      [("🎵 Spotify + Spotify for Artists", "spotify_s4a_combined"),
-      ("🎵 META x Spotify", "meta_x_spotify"),
       ("🎎 Apple Music", "apple_music"),
       ("🎬 YouTube", "youtube"),
       ("☁️ SoundCloud", "soundcloud"),
-      ("📸 Instagram", "instagram"),
-      ("📱 Hypeddit", "hypeddit"),
-      # Data Wrapped vivait dans « Rapports & exports », à côté des exports PDF/CSV.
-      # Ce n'est pas un export : c'est une lecture de ses chiffres, comme les six
-      # entrées au-dessus. Déplacé le 2026-09-04 à la demande de l'artiste.
-      ("🎁 Data Wrapped", "data_wrapped")]),
+      ("📸 Instagram", "instagram")]),
+    # ⚠️ « 🎁 Data Wrapped » a quitté le menu le 2026-09-21, et sa ROUTE survit.
+    #
+    # Son contenu est rendu par « 🎵 Spotify + Spotify for Artists », replié : ce
+    # qu'on y saisit sont les chiffres du Spotify Wrapped FOR ARTISTS — listeners,
+    # streams, saves, playlist adds — c'est-à-dire des chiffres Spotify. Une
+    # entrée de menu par SOURCE DE SAISIE éparpillait une seule histoire.
+    #
+    # La route reste valide (`data_wrapped.show()` existe toujours) pour la même
+    # raison que `process_guide` : des liens la visent, et un artiste qui suit un
+    # ancien lien ne doit pas tomber sur un mur.
     ("ads",       "📣 Publicité Meta Ads",
-     [("📱 Vue d'ensemble", "meta_ads_overview"),
-      ("🎨 Visuels de campagne", "meta_creatives"),
-      ("🌍 Qui a vu tes pubs (pays, âge, placement)", "meta_breakdowns"),
-      ("📊 CPR Optimizer", "meta_cpr_optimizer")]),
+     [("📱 Vue d'ensemble", "meta_ads_overview")]),
     ("revenue",   "💶 Revenus",
      [("💰 Distributeurs (iMusician, DistroKid…)", "imusician"),
-      ("🎼 SACEM", "sacem"),
-      ("📈 Prévisions revenus", "revenue_forecast")]),
+      ("🎼 SACEM", "sacem")]),
     ("account",   "👤 Compte",
      [("👤 Mon compte", "account"),
       ("💳 Billing", "billing"),

@@ -3,6 +3,7 @@ from datetime import date
 from datetime import timedelta
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.period_filter import smart_period_filter
 from src.utils.track_matching import canonical_song_sql
 import streamlit as st
 from ._common import (
@@ -132,68 +133,33 @@ def show():
             track_release_date = today - timedelta(days=28)
 
         with sel2:
-            _PRESETS = [
-                "28 derniers jours",
-                "90 derniers jours",
-                "Mois en cours",
-                "Mois précédent",
-                "Mois / Année",
-                "Personnalisé",
-            ]
-            period_preset = st.selectbox(
-                t("trigger_algo.sel_period", "📅 Période"),
-                _PRESETS,
-                key=f"period_preset_{selected_track}"
+            # LE FILTRE PARTAGÉ — 2026-09-21. Ce bloc portait SIX préréglages
+            # écrits à la main (« 28 derniers jours », « Mois précédent »,
+            # « Mois / Année », « Personnalisé »…), chacun avec son propre calcul
+            # de bornes, plus deux sous-sélecteurs mois/année et un `date_input`
+            # de repli — une soixantaine de lignes qui refaisaient
+            # `smart_period_filter`, en moins bien.
+            #
+            # Ce qu'il perdait, et qui n'est pas cosmétique : la borne sur
+            # l'ÉTENDUE RÉELLE des données. « 28 derniers jours » sur un titre
+            # dont l'import S4A s'arrête six mois plus tôt rend une page vide, et
+            # l'artiste ne peut pas savoir si c'est la donnée ou son choix.
+            # `smart_period_filter` dérive ses choix de `_data_span`, donc ne
+            # propose jamais une fenêtre sans donnée.
+            #
+            # L'ancre reste la sortie DU TITRE sélectionné — la plus précise
+            # disponible ici — et le défaut est « depuis la dernière release »,
+            # comme partout ailleurs.
+            #
+            # ⚠️ La table est la vue OR, pas `s4a_song_timeline` : cette dernière
+            # porte la ligne « Total » des CSV, et son étendue l'inclurait.
+            window = smart_period_filter(
+                db, table="v_s4a_song_daily", date_column="day",
+                artist_id=artist_id, key=f"trigger_algo_{selected_track}",
+                latest_release=track_release_date,
+                default_override="last_release",
             )
-
-        # Sub-selectors rendered below the two-column row (full width)
-        import calendar as _cal
-        _MONTHS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-                   "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
-
-        if period_preset == "28 derniers jours":
-            date_from, date_to = today - timedelta(days=28), today
-
-        elif period_preset == "90 derniers jours":
-            date_from, date_to = today - timedelta(days=90), today
-
-        elif period_preset == "Mois en cours":
-            date_from = today.replace(day=1)
-            date_to = today
-
-        elif period_preset == "Mois précédent":
-            first_current = today.replace(day=1)
-            date_to = first_current - timedelta(days=1)
-            date_from = date_to.replace(day=1)
-
-        elif period_preset == "Mois / Année":
-            cm, cy = st.columns([1, 1])
-            sel_month = cm.selectbox(
-                t("trigger_algo.sel_month", "Mois"), _MONTHS,
-                index=today.month - 1,
-                key=f"sel_month_{selected_track}"
-            )
-            sel_year = cy.selectbox(
-                t("trigger_algo.sel_year", "Année"),
-                list(range(2022, today.year + 1))[::-1],
-                key=f"sel_year_{selected_track}"
-            )
-            month_num = _MONTHS.index(sel_month) + 1
-            date_from = date(sel_year, month_num, 1)
-            last_day = _cal.monthrange(sel_year, month_num)[1]
-            date_to = min(date(sel_year, month_num, last_day), today)
-
-        else:  # Personnalisé
-            _custom = st.date_input(
-                t("trigger_algo.sel_custom_range", "Plage personnalisée"),
-                value=(today - timedelta(days=28), today),
-                max_value=today,
-                key=f"period_custom_{selected_track}"
-            )
-            if isinstance(_custom, (list, tuple)) and len(_custom) == 2:
-                date_from, date_to = _custom[0], _custom[1]
-            else:
-                date_from, date_to = today - timedelta(days=28), today
+        date_from, date_to = window.start, window.end
 
         # Load ML prediction + global benchmark once — shared across tabs
         ml_pred = _load_ml_pred(db, selected_track, artist_id)

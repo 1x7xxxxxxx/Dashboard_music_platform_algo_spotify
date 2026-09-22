@@ -210,6 +210,117 @@ def _section_billing_alerts(db) -> int:
 
 # ── Admin: subscription analytics ─────────────────────────────────
 
+def _plans_a_tracer(hist) -> list[str]:
+    """Les plans à dessiner : ce qu'on vend aujourd'hui ∪ ce que l'historique porte.
+
+    Classe : `a-display-that-restates-a-catalogue-instead-of-reading-it`.
+    """
+    from src.database.stripe_schema import PLAN_CATALOG
+
+    vendus = list(PLAN_CATALOG)
+    vus = [p for p in hist['plan'].dropna().unique() if p not in vendus] \
+        if hist is not None and 'plan' in getattr(hist, 'columns', []) else []
+    return vendus + sorted(vus)
+
+
+_PLAN_STATE_SQL = """
+    SELECT sa.id,
+           sa.created_at,
+           sa.promo_plan,
+           sa.promo_plan_expires_at,
+           sp.name AS subscription_plan,
+           sa.tier
+      FROM saas_artists sa
+      LEFT JOIN artist_subscriptions asub
+        ON asub.artist_id = sa.id AND asub.status IN ('active', 'trialing')
+      LEFT JOIN subscription_plans sp ON sp.id = asub.plan_id
+     ORDER BY sa.id
+"""
+
+
+def _plan_events(hist, etats, now):
+    """Les transitions de plan RÉELLES. Le journal seul en rate la moitié.
+
+    ⚠️ MESURÉ EN PRODUCTION LE 2026-09-22 — quatre artistes sur huit étaient faux,
+    et la figure affirmait **5 Premium sur 6 artistes** quand le résolveur de plan
+    en voyait **2 sur 8**. Le total lui-même manquait deux comptes.
+
+    `subscription_plan_history` est un journal *append-only*, et il ne porte que ce
+    que quelqu'un a pensé à y écrire. Trois trous, chacun observé :
+
+      · **L'expiration d'un essai n'est écrite nulle part.** `_grant_welcome_trial`
+        pose `promo_plan_expires_at` et `plan_resolver` la relit À CHAQUE LECTURE ;
+        aucun travail de fond ne journalise le jour où elle tombe. Un essayeur
+        restait donc « Premium » pour l'éternité sur cette figure — trois artistes
+        en production, essais clos depuis le 2026-07-14, le 2026-07-15 et le
+        2026-09-11.
+      · **Une inscription ne garantit pas une ligne.** `log_plan_change` avale ses
+        erreurs par conception (« un échec de journal ne doit jamais casser
+        l'inscription »), et le remplissage de la migration 029 ne couvrait que les
+        comptes existants ce jour-là. Deux artistes nés après n'avaient aucune
+        ligne : la figure les ignorait purement et simplement.
+      · **Un plan posé hors du chemin d'inscription** (édition admin d'une colonne,
+        code promo appliqué à la main) ne passe par aucun appelant de
+        `log_plan_change`.
+
+    La parade tient en une phrase : **le journal décrit le PASSÉ, le résolveur décrit
+    MAINTENANT.** On ne devine donc aucune date de rétroaction ; on ajoute trois
+    évènements de synthèse, et le dernier point de la courbe est celui qui fait foi :
+
+      1. une **naissance** à `created_at` (plan gratuit) quand le journal ne porte
+         rien à cette date ou avant — sans elle, un compte n'existe pas sur la figure ;
+      2. une **expiration** à `promo_plan_expires_at` quand elle est passée, portant
+         le plan d'APRÈS (abonnement actif, sinon `tier`, sinon gratuit) — c'est
+         exactement la précédence de `plan_from_row`, et c'est ce qui redresse les
+         seaux passés ;
+      3. un **ancrage à maintenant** valant la résolution de `plan_resolver`. Le
+         dernier seau, celui que lisent les quatre tuiles sous la figure, ne peut
+         alors plus contredire ce que l'artiste voit dans son propre compte.
+
+    L'ancrage a un coût assumé : un plan accordé hors journal apparaît à la date
+    d'AUJOURD'HUI et non à celle de l'octroi, qu'aucune colonne ne porte. Une
+    marche tardive vaut mieux qu'un compte manquant ou qu'un Premium immortel.
+
+    Garde : `tests/test_the_plan_chart_agrees_with_the_plan_resolver.py`.
+    """
+    from src.database.stripe_schema import normalize_plan
+    from src.utils.plan_resolver import plan_from_row
+
+    lignes = [] if hist is None or hist.empty else [
+        {'artist_id': int(r.artist_id), 'plan': r.plan, 'changed_at': r.changed_at}
+        for r in hist.itertuples()
+    ]
+    premiere = {}
+    for e in lignes:
+        d = e['changed_at']
+        if e['artist_id'] not in premiere or d < premiere[e['artist_id']]:
+            premiere[e['artist_id']] = d
+
+    for a in etats.itertuples():
+        aid = int(a.id)
+        naissance = pd.Timestamp(a.created_at).tz_localize(None) \
+            if pd.notna(a.created_at) else None
+        # 1. la naissance — un compte que le journal ignore existe quand même.
+        if naissance is not None and (aid not in premiere or premiere[aid] > naissance):
+            lignes.append({'artist_id': aid, 'plan': 'free', 'changed_at': naissance})
+        # 2. l'expiration — le seul évènement que personne n'écrit.
+        exp = pd.Timestamp(a.promo_plan_expires_at).tz_localize(None) \
+            if pd.notna(a.promo_plan_expires_at) else None
+        if exp is not None and exp <= now:
+            apres = normalize_plan(a.subscription_plan) if a.subscription_plan \
+                else (normalize_plan(a.tier) if a.tier else 'free')
+            lignes.append({'artist_id': aid, 'plan': apres, 'changed_at': exp})
+        # 3. l'ancrage — maintenant, c'est le résolveur qui a raison.
+        lignes.append({
+            'artist_id': aid,
+            'plan': plan_from_row((a.promo_plan, a.promo_plan_expires_at,
+                                   a.subscription_plan, a.tier)),
+            'changed_at': now,
+        })
+
+    return pd.DataFrame(lignes).sort_values('changed_at')
+
+
 def _section_plan_evolution(db) -> None:
     """Stacked-area chart of the number of artists per plan over time.
 
@@ -223,7 +334,12 @@ def _section_plan_evolution(db) -> None:
         "SELECT artist_id, plan, changed_at FROM subscription_plan_history "
         "ORDER BY changed_at"
     )
-    if not rows:
+    etats = pd.DataFrame(
+        db.fetch_query(_PLAN_STATE_SQL),
+        columns=['id', 'created_at', 'promo_plan', 'promo_plan_expires_at',
+                 'subscription_plan', 'tier'],
+    )
+    if etats.empty:
         st.info(
             t(
                 "alerts.no_plan_history",
@@ -233,24 +349,41 @@ def _section_plan_evolution(db) -> None:
         )
         return
 
-    hist = pd.DataFrame(rows, columns=['artist_id', 'plan', 'changed_at'])
+    hist = pd.DataFrame(rows or [], columns=['artist_id', 'plan', 'changed_at'])
     # Normalise to tz-naive UTC so comparisons with the bucket timestamps work.
-    hist['changed_at'] = pd.to_datetime(hist['changed_at'], utc=True).dt.tz_localize(None)
+    if not hist.empty:
+        hist['changed_at'] = pd.to_datetime(hist['changed_at'], utc=True).dt.tz_localize(None)
 
-    start = hist['changed_at'].min().normalize().replace(day=1)
-    today = pd.Timestamp.utcnow().tz_localize(None).normalize()
-    buckets = pd.date_range(start=start, end=today, freq='MS')
+    # Le journal ne porte ni les expirations d'essai ni les comptes qu'il a ratés —
+    # `_plan_events` les rétablit, et ancre le dernier point sur le résolveur.
+    now = pd.Timestamp.utcnow().tz_localize(None)
+    evts = _plan_events(hist, etats, now)
+
+    start = evts['changed_at'].min().normalize().replace(day=1)
+    buckets = pd.date_range(start=start, end=now.normalize(), freq='MS')
     # Always include "now" as the final point so the latest state is shown.
-    buckets = buckets.append(pd.DatetimeIndex([today])).unique()
+    buckets = buckets.append(pd.DatetimeIndex([now])).unique()
 
     records = []
     for b in buckets:
-        asof = hist[hist['changed_at'] <= b]
+        asof = evts[evts['changed_at'] <= b]
         if asof.empty:
             continue
         latest = asof.sort_values('changed_at').groupby('artist_id').tail(1)
         counts = latest['plan'].value_counts()
-        for plan in ('free', 'basic', 'premium'):
+        # ⚠️ LES PLANS SE LISENT, ILS NE SE RECOPIENT PAS — 2026-09-22.
+        #
+        # Cette ligne était `('free', 'basic', 'premium')`. `basic` a été RETIRÉ du
+        # catalogue : `PLAN_CATALOG` et `PLAN_FEATURES` n'en portent plus que deux.
+        # La figure dessinait donc une bande « Basic » plate à zéro pour toujours —
+        # un plan que le produit ne vend plus, montré à l'exploitant comme s'il
+        # existait. Et symétriquement, un plan AJOUTÉ n'y serait jamais apparu.
+        #
+        # On prend l'union de ce que le catalogue vend AUJOURD'HUI et de ce que
+        # l'historique contient RÉELLEMENT : un plan retiré reste visible sur la
+        # période où il a existé — c'est un historique, l'effacer le falsifierait —
+        # et un plan neuf apparaît tout seul.
+        for plan in _plans_a_tracer(evts):
             records.append({'Date': b, 'Plan': plan.capitalize(),
                             'Artistes': int(counts.get(plan, 0))})
 
@@ -286,6 +419,163 @@ def _section_plan_evolution(db) -> None:
         col.metric(plan, val)
 
 
+# Le repère de *Lean Analytics* pour un essai SANS carte bancaire : 15 % des essais
+# deviennent payants (50 % quand la carte est prise à l'inscription). C'est un chiffre
+# de 2013 sur des SaaS B2B — il donne un ordre de grandeur, pas une cible.
+_REPERE_CONVERSION = 0.15
+
+
+def _essais_avant_de_douter(repere: float = _REPERE_CONVERSION, seuil: float = 0.05) -> int:
+    """Combien d'essais doivent finir À ZÉRO avant que le repère soit en cause.
+
+    Une série de zéros n'est un signal que si elle est improbable sous le repère.
+    Sous 15 %, observer zéro conversion sur `n` essais a la probabilité `0,85**n` ;
+    on cherche le premier `n` qui passe sous 5 %.
+
+    Ce nombre existe pour une raison précise, et c'est la leçon de R147 : avec trois
+    essais arrivés à terme, « 0 % de conversion » et « 15 % de conversion » sont la
+    MÊME observation. Afficher un pourcentage là-dessus invente une information.
+    """
+    from math import ceil, log
+
+    return int(ceil(log(seuil) / log(1 - repere)))
+
+
+def _trial_cohorts(etats, hist, now):
+    """Les cohortes d'essai, avec leur EFFECTIF — jamais un taux nu.
+
+    R147 (2026-09-22), née d'une phrase de *Product-Led Growth* (Wes Bush) : « you
+    need to start with a free trial. Once your free trial is proven to convert, you
+    can consider freemium. » streaMLytics fait les deux à la fois — trente jours de
+    Premium à l'inscription, puis un plan gratuit ILLIMITÉ — et personne n'avait
+    jamais regardé ce que font les comptes au jour 31.
+
+    ⚠️ **La prémisse de la tâche était à moitié fausse, et c'est ce qui a fait
+    écrire cette fonction ainsi.** La roadmap disait « `subscription_plan_history`
+    et `log_plan_change` portent déjà la donnée ». Vérifié en production : le
+    journal porte l'OCTROI (`welcome_trial`) et la CONVERSION (`stripe_webhook`),
+    mais **jamais l'expiration** — aucun travail de fond ne l'écrit, `plan_resolver`
+    la recalcule à chaque lecture. La fin d'un essai se lit donc dans
+    `saas_artists.promo_plan_expires_at`, et nulle part ailleurs.
+
+    Trois colonnes, trois questions distinctes :
+      · **accordés** — combien d'essais ont commencé ce mois-là ;
+      · **arrivés à terme** — combien ont atteint leur jour 30 (les autres courent
+        encore : les compter dans un dénominateur les compterait comme des échecs) ;
+      · **devenus payants** — un abonnement actif, ou une ligne `stripe_webhook`
+        postérieure à la fin de l'essai.
+
+    Le taux n'est rendu que lorsqu'il veut dire quelque chose ; en dessous,
+    `_essais_avant_de_douter()` dit combien il en faudrait. Mesuré en production le
+    2026-09-22 : **trois essais arrivés à terme, zéro conversion** — et zéro sur
+    trois est parfaitement compatible avec le repère de 15 %.
+    """
+    from src.database.stripe_schema import normalize_plan
+
+    paiements = {}
+    if hist is not None and not hist.empty:
+        for r in hist.itertuples():
+            if getattr(r, 'source', None) == 'stripe_webhook':
+                aid = int(r.artist_id)
+                d = r.changed_at
+                if aid not in paiements or d < paiements[aid]:
+                    paiements[aid] = d
+
+    lignes = []
+    for a in etats.itertuples():
+        if pd.isna(a.promo_plan_expires_at):
+            continue                       # pas d'essai : rien à suivre
+        aid = int(a.id)
+        fin = pd.Timestamp(a.promo_plan_expires_at).tz_localize(None)
+        debut = pd.Timestamp(a.created_at).tz_localize(None) \
+            if pd.notna(a.created_at) else fin
+        paye = (a.subscription_plan is not None
+                and normalize_plan(a.subscription_plan) != 'free') \
+            or (aid in paiements and paiements[aid] >= fin)
+        lignes.append({
+            'artist_id': aid,
+            'Cohorte': debut.strftime('%Y-%m'),
+            'accordes': 1,
+            'termines': int(fin <= now),
+            'payants': int(bool(paye)),
+        })
+
+    if not lignes:
+        return pd.DataFrame(columns=['Cohorte', 'accordes', 'termines', 'payants'])
+    return (pd.DataFrame(lignes)
+            .groupby('Cohorte', as_index=False)[['accordes', 'termines', 'payants']]
+            .sum()
+            .sort_values('Cohorte'))
+
+
+def _section_trial_cohorts(db) -> None:
+    """R147 — ce que font les comptes au jour 31, avec l'effectif en face."""
+    rows = db.fetch_query(
+        "SELECT artist_id, plan, changed_at, source FROM subscription_plan_history "
+        "ORDER BY changed_at"
+    )
+    hist = pd.DataFrame(rows or [],
+                        columns=['artist_id', 'plan', 'changed_at', 'source'])
+    if not hist.empty:
+        hist['changed_at'] = pd.to_datetime(hist['changed_at'], utc=True).dt.tz_localize(None)
+    etats = pd.DataFrame(
+        db.fetch_query(_PLAN_STATE_SQL),
+        columns=['id', 'created_at', 'promo_plan', 'promo_plan_expires_at',
+                 'subscription_plan', 'tier'],
+    )
+    now = pd.Timestamp.utcnow().tz_localize(None)
+    coh = _trial_cohorts(etats, hist, now)
+
+    if coh.empty:
+        st.info(t("alerts.no_trial_cohort",
+                  "Aucun essai accordé pour l'instant — la courbe se remplit à la "
+                  "première inscription."))
+        return
+
+    termines = int(coh['termines'].sum())
+    payants = int(coh['payants'].sum())
+    seuil = _essais_avant_de_douter()
+
+    # ⚠️ REPLIÉ, ET C'EST LA DISCIPLINE DE R149 APPLIQUÉE À SOI-MÊME.
+    #
+    # Ces quatre figures ont fait passer la vue Alertes de 5 à 7 au premier écran, et
+    # le cliquet `test_the_first_screen_counts_its_gauges` l'a dit tout de suite. La
+    # tentation était de relever le plafond : ç'aurait été ajouter des tuiles le jour
+    # même où l'on écrit qu'il y en a trop. Une cohorte se consulte périodiquement,
+    # elle n'alerte de rien — sa place est sous un dépliant.
+    #
+    # Le repli doit être STRUCTUREL : un `with` dans une fonction appelée depuis un
+    # dépliant est invisible à l'AST du garde.
+    with st.expander(t("alerts.trial_expander",
+                       "🎟️ Détail des cohortes d'essai"), expanded=False):
+        c1, c2, c3 = st.columns(3)
+        c1.metric(t("alerts.trial_granted", "Essais accordés"), int(coh['accordes'].sum()))
+        c2.metric(t("alerts.trial_matured", "Arrivés au jour 30"), termines)
+        c3.metric(t("alerts.trial_paid", "Devenus payants"), payants)
+
+        affichage = coh.rename(columns={
+            'accordes': t("alerts.trial_col_granted", "Accordés"),
+            'termines': t("alerts.trial_col_matured", "Arrivés à terme"),
+            'payants': t("alerts.trial_col_paid", "Payants"),
+        })
+        st.dataframe(affichage, width="stretch", hide_index=True)
+
+        if termines >= seuil:
+            st.metric(t("alerts.trial_rate", "Taux de conversion des essais"),
+                      f"{payants / termines:.0%}")
+            st.caption(t("alerts.trial_rate_bench",
+                         "Repère *Lean Analytics* pour un essai sans carte bancaire : "
+                         "≈ 15 %.").replace("*", ""))
+        else:
+            # Le point de R147 : sous cet effectif, un pourcentage serait une invention.
+            st.info(t(
+                "alerts.trial_too_few",
+                "**{payants} conversion(s) sur {termines} essai(s) arrivé(s) à terme.** "
+                "Aucun taux n'est affiché : sous le repère de 15 % (essai sans carte "
+                "bancaire, *Lean Analytics*), il faudrait **{seuil} essais** terminés "
+                "sans une seule conversion pour que ce repère soit en cause. Les essais "
+                "en cours ne sont pas comptés — ce ne sont pas encore des échecs."
+            ).format(payants=payants, termines=termines, seuil=seuil))
 def _section_users_table(db) -> None:
     """Table of every user: email, signup date, and effective plan."""
     from datetime import datetime, timezone
@@ -366,6 +656,10 @@ def show():
             st.markdown("---")
             st.subheader(t("alerts.section_plan_evolution", "📈 Évolution des plans"))
             _section_plan_evolution(db)
+            st.markdown("---")
+            st.subheader(t("alerts.section_trial_cohorts",
+                           "🎟️ Essais de 30 jours — ce qu'ils deviennent"))
+            _section_trial_cohorts(db)
             st.markdown("---")
             st.subheader(t("alerts.section_users", "👥 Utilisateurs (email & date d'inscription)"))
             _section_users_table(db)

@@ -47,8 +47,12 @@ from src.database.postgres_handler import PostgresHandler
 # Classe : `a-span-read-from-a-table-that-carries-a-mandatory-filter`.
 _ALLOWED_TABLES = frozenset({
     "meta_insights_performance_day",
-    "apple_songs_history",
     "youtube_channel_history",
+    # Ajoutée le 2026-09-21 : « Top Contenus » bornait les vidéos par sa PROPRE
+    # liste de préréglages. Un sélecteur par page est une définition de « période »
+    # par page — et celle-ci ne bornait pas sur l'étendue réelle, donc laissait
+    # choisir une fenêtre vide.
+    "youtube_videos",
     "soundcloud_tracks_daily",
     "instagram_daily_stats",
     "instagram_media",
@@ -58,13 +62,36 @@ _ALLOWED_TABLES = frozenset({
     "v_s4a_song_daily",
     "v_s4a_audience_daily",
     "v_s4a_release_cohort",
+    "v_apple_song_cumulative",
 })
 
 # Les tables retirées de l'allowlist, avec la vue qui les remplace. Nommer le
 # remplacement évite qu'on remette la table « parce que ça marchait avant ».
+# ⚠️ LA RAISON EST PAR TABLE, pas commune — corrigé le 2026-09-21.
+#
+# Le message d'erreur en disait UNE pour toutes : « son étendue inclurait la ligne
+# "Total" et tous les titres ». C'est vrai des deux tables S4A et FAUX de la
+# troisième, dont le défaut est d'un autre genre. Un garde qui refuse pour la
+# mauvaise raison envoie le lecteur chercher le mauvais problème — et ici il
+# l'aurait envoyé chercher un filtre manquant là où la table n'a simplement plus
+# d'écrivain.
 _REPLACED_BY_GOLD = {
-    "s4a_song_timeline": "v_s4a_song_daily",
-    "s4a_audience": "v_s4a_audience_daily",
+    "s4a_song_timeline": (
+        "v_s4a_song_daily",
+        "son étendue inclurait la ligne « Total » des CSV et les doublons "
+        "(date, titre) — deux règles que la vue or applique"),
+    "s4a_audience": (
+        "v_s4a_audience_daily",
+        "son étendue inclurait la ligne « Total » des CSV"),
+    # Retirée le 2026-09-21, et pas pour une règle oubliée : `apple_songs_history`
+    # n'est écrite par RIEN. Déclarée, autorisée ici, lue par trois surfaces,
+    # alimentée par personne — l'import CSV écrit `apple_songs_performance`. Un
+    # artiste a donc lu « la dernière mesure remonte au 2025-12-11 » le jour même
+    # où il déposait un export.
+    "apple_songs_history": (
+        "v_apple_song_cumulative",
+        "plus RIEN ne l'écrit depuis des mois — l'import CSV alimente "
+        "`apple_songs_performance`, et la vue or réunit les deux (migration 131)"),
 }
 _ALLOWED_DATE_COLUMNS = frozenset({
     # `day` est la colonne de date des VUES de la couche or (`v_s4a_song_daily`,
@@ -73,7 +100,7 @@ _ALLOWED_DATE_COLUMNS = frozenset({
     # période était de revenir à la table brute, ce qui est exactement l'inverse du
     # but. Ajoutée le 2026-09-12 avec la migration 105.
     "day_date", "date", "day", "month", "collected_at", "first_seen", "timestamp",
-    "track_created_at",
+    "track_created_at", "published_at",
 })
 _ALLOWED_ARTIST_COLUMNS = frozenset({"artist_id"})
 # Entity (track/song) label columns the entity_period_filter may select on.
@@ -110,10 +137,10 @@ class PeriodWindow:
 
 def _validate(table: str, date_column: str, artist_column: str) -> None:
     if table in _REPLACED_BY_GOLD:
+        remplacement, pourquoi = _REPLACED_BY_GOLD[table]
         raise ValueError(
-            f"smart_period_filter: '{table}' porte un filtre obligatoire et ne peut "
-            f"pas être bornée directement — son étendue inclurait la ligne « Total » "
-            f"et tous les titres. Utilise '{_REPLACED_BY_GOLD[table]}'.")
+            f"smart_period_filter: '{table}' ne peut pas être bornée directement — "
+            f"{pourquoi}. Utilise '{remplacement}'.")
     if table not in _ALLOWED_TABLES:
         raise ValueError(f"smart_period_filter: table '{table}' not in allowlist")
     if date_column not in _ALLOWED_DATE_COLUMNS:
@@ -147,6 +174,31 @@ def _data_span(
     if rows and rows[0][0] is not None:
         return rows[0][0], rows[0][1]
     return None, None
+
+
+def latest_release_date(db, artist_id: Optional[int]) -> Optional[_dt.date]:
+    """La date de la DERNIÈRE sortie du locataire — une seule définition.
+
+    Ajoutée le 2026-09-21. La demande était « pour la croissance quotidienne,
+    mets la dernière release en automatique — fais ça pour toute l'app », et le
+    mot qui compte est *toute* : un défaut appliqué page par page devient une
+    définition par page. Celle-ci est la référence canonique
+    (`track_release_reference`, nourrie par les dates S4A), la même que le
+    mapping cross-plateforme et la cohorte de sorties.
+
+    Rend `None` sans référence — le sélecteur retombe alors sur le début de
+    l'historique et le DIT, ce qui est le bon comportement pour un compte neuf :
+    une fenêtre ancrée sur une sortie qui n'existe pas serait vide.
+    """
+    if artist_id is None:
+        return None
+    try:
+        rows = db.fetch_query(
+            "SELECT MAX(release_date)::date FROM track_release_reference "
+            "WHERE artist_id = %s AND release_date IS NOT NULL", (artist_id,))
+    except Exception:      # noqa: BLE001 — une fenêtre par défaut ne casse pas une page
+        return None
+    return rows[0][0] if rows and rows[0][0] else None
 
 
 def _default_preset(
@@ -323,6 +375,8 @@ def entity_period_filter(
     artist_id: Optional[int],
     key_prefix: str,
     label: str = "Filtrer",
+    default_override: Optional[str] = "last_release",
+    preferred_default=None,
 ):
     """Render entity selector + the shared period filter (release-anchored).
 
@@ -333,6 +387,24 @@ def entity_period_filter(
     _validate_entity(spec)
     options = _entity_options(db, spec, artist_id)
     default = _entity_default(options, spec.multi, spec.default_count)
+
+    # `preferred_default` — 2026-09-21. Le classement par date de sortie n'est pas
+    # toujours le bon défaut : sur SoundCloud, `track_created_at` est la date
+    # d'UPLOAD, et le titre le plus récemment uploadé du locataire 1 porte
+    # **4 écoutes et 0 like**. La page s'ouvrait donc sur son titre le plus vide.
+    #
+    # ⚠️ IL PASSE PAR `default=`, PAS PAR `st.session_state`. Pré-remplir l'état
+    # d'un widget qui reçoit AUSSI un `default=` déclenche l'avertissement
+    # Streamlit « created with a default value but also had its value set via the
+    # Session State API » — et le comportement y est non spécifié. Le premier jet
+    # faisait exactement ça. Ici l'appelant propose, le widget dispose, et un choix
+    # ultérieur de l'artiste écrase le tout par le mécanisme normal.
+    if preferred_default is not None:
+        voulus = ([preferred_default] if not isinstance(preferred_default, (list, tuple))
+                  else list(preferred_default))
+        retenus = [v for v in voulus if v in options]
+        if retenus:
+            default = retenus if spec.multi else retenus[0]
 
     if spec.multi:
         selection = st.multiselect(
@@ -359,9 +431,22 @@ def entity_period_filter(
         )
         return rows[0][0] if rows and rows[0][0] else None
 
+    # DÉFAUT « DEPUIS LA DERNIÈRE SORTIE » — 2026-09-21, pour toute l'app.
+    #
+    # Sans lui, `_default_preset(span, None)` rendait « en cours » : l'année (ou
+    # le mois) civile en cours. Mesuré ce jour-là sur Apple, dont les relevés
+    # sont espacés de plusieurs mois : la page n'affichait **qu'un seul point**,
+    # et donc aucun gain, sur un titre qui en a trois. Une fenêtre calendaire est
+    # le mauvais cadre pour une donnée qu'on dépose à la main.
+    #
+    # L'ancre reste l'entité choisie quand elle en a une (`_release_resolver`) ;
+    # sinon on retombe sur la dernière sortie du locataire, puis sur le début de
+    # l'historique. Trois crans, du plus précis au plus sûr.
     window = smart_period_filter(
         db, table=spec.table, date_column=spec.date_column,
         artist_id=artist_id, key=_entity_key(key_prefix, primary),
-        latest_release_resolver=_release_resolver,
+        latest_release_resolver=(
+            lambda: _release_resolver() or latest_release_date(db, artist_id)),
+        default_override=default_override,
     )
     return selection, window

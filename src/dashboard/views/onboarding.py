@@ -312,50 +312,18 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
     # Les noms sont ceux que l'artiste connaît, pas les nôtres : « S4A » et
     # « iMusician » sont du vocabulaire interne — le premier est un sigle, le second
     # un fournisseur parmi d'autres. Signalé le 2026-09-04.
+    # ── L'ARGUMENTAIRE VIENT DE `utils/plan_pitch` — 2026-09-21 ──────────────
+    #
+    # Cette liste était la TROISIÈME copie du catalogue des plans, après
+    # `billing.py` et `upgrade.py`, et c'était la seule à jour : elle avait suivi
+    # le passage du PDF en Premium le 2026-09-04, les deux autres non. Une copie
+    # juste au milieu de deux fausses reste une copie — c'est elle qui sera
+    # oubliée la prochaine fois. Sa VOIX est conservée : le pitch nomme des
+    # décisions, pas des pages, parce que c'est ici que la règle a été posée.
+    from src.dashboard.utils.plan_pitch import bullets
     plan_data = [
-        ('free',    'Free',    [t("nav.item.home", "🏠 Accueil"),
-                                t("onboarding.feat_spotify", "🎵 Spotify + Spotify for Artists"),
-                                '🎬 YouTube',
-                                '📱 Meta Ads', '📸 Instagram', '☁️ SoundCloud',
-                                '🎎 Apple Music',
-                                t("onboarding.feat_distributors",
-                                  "💰 Distributeurs (iMusician, DistroKid…)"),
-                                t("nav.item.upload_csv", "📂 Ajouter mes chiffres Spotify for Artists & Apple"),
-                                # « Export CSV » ne dit rien à qui n'est pas
-                                # développeur. La glose est plus longue que le nom,
-                                # et c'est le bon rapport : le nom ne se comprend pas.
-                                t("onboarding.feat_export_csv",
-                                  "⬇️ Export CSV — un fichier tableur (type Excel) "
-                                  "avec tes données brutes"),
-                                '🎁 Data Wrapped']),
-        ('premium', 'Premium', [t("onboarding.feat_algo",
-                                  "+ 🚀 **Savoir si un titre va déclencher Discover "
-                                  "Weekly** — avant de dépenser en promo"),
-                                t("onboarding.feat_revenue",
-                                  "+ 📈 **Ce que tes écoutes vont rapporter** le mois "
-                                  "prochain"),
-                                t("onboarding.feat_meta_x",
-                                  "+ 🔀 **Quel euro de pub a produit quelles écoutes**"),
-                                # « quel euro de pub ET SON PARAMÉTRAGE », demandé le
-                                # 2026-09-04. Le constat sans le geste laisse
-                                # l'artiste devant un chiffre : ce qui se vend ici,
-                                # c'est la recommandation de budget par campagne
-                                # (+30 % / +10 % / = / −30 %, `meta_cpr_optimizer`).
-                                # La ligne dit le geste, pas la formule — et elle ne
-                                # promet que ce que cette vue calcule réellement.
-                                t("onboarding.feat_meta_budget",
-                                  "+ 💶 **Combien remettre sur quelle campagne** — "
-                                  "augmenter, tenir ou couper, campagne par "
-                                  "campagne, d'après le coût par écoute gagnée"),
-                                t("onboarding.feat_creatives",
-                                  "+ 🎨 **Quelle créative coûte le moins cher** par "
-                                  "écoute gagnée"),
-                                # Déplacé de Free vers Premium le 2026-09-04 : ce qui
-                                # se paie n'est pas le PDF, c'est le rapport filtrable
-                                # envoyé chaque semaine sans qu'on y pense.
-                                t("onboarding.feat_pdf_weekly",
-                                  "+ 📄 Ton rapport PDF filtrable — à la demande, et "
-                                  "envoyé par mail chaque semaine")]),
+        ('free',    'Free',    bullets('free')),
+        ('premium', 'Premium', ["+ " + b for b in bullets('premium')]),
     ]
 
     plan_ranks = {'free': 0, 'premium': 1}

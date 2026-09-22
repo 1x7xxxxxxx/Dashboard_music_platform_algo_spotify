@@ -2,6 +2,7 @@
 import src.dashboard.utils.pdf_exporter as _pkg
 
 from ._config import _t
+from ..proxy_disclosure import pdf_disclosure
 
 
 
@@ -280,7 +281,8 @@ def _render_meta(meta):
     summary = _kpi_grid(
         _kpi_card(f'{meta["total_spend"]:,.2f} €', _t("pdf.kpi.total_spend", "Dépenses totales"),
                   val_style="color:#FF4444;")
-        + _kpi_card(f'{meta["total_results"]:,}', _t("pdf.kpi.total_results", "Résultats totaux"))
+        + _kpi_card(f'{meta["total_results"]:,}',
+                    _t("pdf.kpi.total_results", "Clics sortants"))
     )
     rows = "".join(
         f"<tr><td>{c[0]}</td><td>{c[1]:,.2f} €</td><td>{c[2]:,}</td>"
@@ -289,9 +291,12 @@ def _render_meta(meta):
     )
     table = _html_table(
         [_t("pdf.col.campaign", "Campagne"), _t("pdf.col.spend", "Dépenses"),
-         _t("pdf.col.results", "Résultats"), _t("pdf.col.impressions", "Impressions"),
+         _t("pdf.col.results", "Clics sortants"), _t("pdf.col.impressions", "Impressions"),
          _t("pdf.col.reach", "Reach"), _t("pdf.col.cpr", "CPR")], rows)
-    return summary + table
+    # R146 — le PDF n'a ni info-bulle ni survol : la limite s'écrit sous le tableau
+    # ou elle n'existe pas. Il part par mail et se lit hors de l'app.
+    note = f'<p class="chart-note">{pdf_disclosure(_t)}</p>'
+    return summary + table + note
 
 
 def _render_soundcloud_tracks(tracks):

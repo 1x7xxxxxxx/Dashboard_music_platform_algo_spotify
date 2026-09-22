@@ -249,8 +249,9 @@ def _show_meta_lever_scoring(db, track: str, artist_id) -> None:
     df["ctr"] = pd.to_numeric(df["ctr"], errors="coerce")
     show = df.rename(columns={
         "campaign_name": t("trigger_algo.common.meta_col_campaign", "Campagne"),
-        "spend": "Spend €", "results": "Results",
-        "cpr": "CPR €", "ctr": "CTR %",
+        # R146 — « Results » nommait un clic sortant comme un aboutissement.
+        "spend": "Spend €", "results": "Clics sortants",
+        "cpr": "CPR € (/clic sortant)", "ctr": "CTR %",
         "link_clicks": t("trigger_algo.common.meta_col_clicks", "Clics"), "ctas": "CTA",
     })
     st.dataframe(show, hide_index=True, width='stretch')
@@ -269,5 +270,6 @@ def _show_meta_lever_scoring(db, track: str, artist_id) -> None:
                          "→ réalloue vers le CTA/audience qui performe.")
                        .format(name=worst['campaign_name'], cpr=worst['cpr']))
     st.caption(t("trigger_algo.common.meta_cpr_caption",
-                 "CPR = coût par résultat (plus bas = mieux). Croise avec le levier SHAP "
+                 "CPR = coût par **clic sortant** vers la plateforme, pas par écoute "
+                 "(plus bas = mieux). Croise avec le levier SHAP "
                  "pénalisé : le CTA « Ajouter en playlist » bat « Écouter » sur le DW."))

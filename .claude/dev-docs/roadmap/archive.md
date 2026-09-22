@@ -7962,3 +7962,123 @@ les 50 %. C'est la seule des huit qui puisse basculer, et le jour où elle le fe
   ✅ **LIVRÉE le 2026-09-20**, le jour de son ouverture. `_sql_through_call` suit UN niveau de composition : un appel dont le corps rend un littéral SQL est résolu dans le fichier cible, et ses tables redeviennent lisibles. Mesuré — figures à source établie **85 → 93 sur 204**, `sql-dynamique` **25 → 17**. Le saut a été muté vacant (`return None` d'entrée) : la carte retombe à 85 / 25, donc il n'est pas décoratif. Garde : `tests/test_the_gold_map_follows_one_level_of_sql_composition.py`, muté rouge deux fois — méthode renommée, et un lecteur privé de son module `here`.
 
   **Ce qui n'a PAS été fait, et c'est délibéré** : le saut s'arrête à un niveau. Au-delà, ce n'est plus lire une requête, c'est exécuter le programme — et la carte doit garder le droit de dire « je ne sais pas » plutôt que d'inventer.
+
+## 📚 R146, R147, R149, R152 — les quatre tâches nées des dix livres du 2026-09-22, closes le jour même (rapatriées de `checklist.md`)
+
+Les dix livres ingérés ce jour-là (11 939 passages, `business-offre`/`marketing-ads`/
+`marketing-musical`) avaient fait ouvrir sept lignes — R146 à R152. Quatre ont été
+closes le soir même ; R148, R150 et R151 restent ouvertes dans `checklist.md`, sous la
+table « 🙋 En attente de toi ». Le contexte livre-par-livre de ces quatre reste
+ci-dessous, verbatim, avec le résultat mesuré qui les a closes.
+
+### R146 — On optimise sur un clic sortant, pas sur une écoute ⚠️ P2 · ✅ LIVRÉE le 2026-09-22
+
+*Making Websites Win* (Blanks & Jesson), sur le suivi :
+
+> « If you are only able to track when someone clicks away from your website, you will
+> optimize your business for **click-outs, not for conversions**. So do whatever you can
+> to put tracking code on the ultimate conversion page. »
+
+C'est exactement la situation mesurée ici le 2026-09-21. `custom_conversions` est
+l'évènement CAPI d'Hypeddit : il se déclenche quand l'auditeur **quitte** le smart link
+vers Spotify. Personne ne sait s'il a écouté. Meta optimise donc la diffusion sur le
+clic sortant, et le « CPR » de l'optimiseur de budget est un coût par clic sortant
+déguisé en coût par résultat.
+
+Conséquence chiffrée déjà au dossier : 0,130 €/résultat de coût d'ensemble — mais
+0,001296 € par écoute RÉELLE côté distributeur. Les deux nombres ne parlent pas de la
+même chose et la page ne le dit nulle part.
+
+Deux sorties possibles, dans cet ordre de préférence :
+1. adosser une conversion à une écoute réelle (S4A n'expose pas d'API temps réel — à
+   creuser, c'est peut-être impossible) ;
+2. à défaut, **l'écrire sur la figure** : « résultat = clic sortant vers la plateforme,
+   pas écoute ». Une limite nommée coûte moins cher qu'un chiffre qu'on croit comprendre.
+
+**Résultat mesuré, ce qui l'a close** : livrée — la limite (« un résultat = un clic
+sortant, pas une écoute ») est écrite sur 16 grappes de surfaces ; phrase canonique
+unique dans `src/dashboard/utils/proxy_disclosure.py` ; garde
+`tests/test_a_meta_result_is_never_shown_without_its_limit.py`. L'option « adosser une
+conversion à une écoute réelle » est écartée : Spotify for Artists ne rend que des CSV,
+pas de flux temps réel.
+
+### R147 — L'essai et le gratuit se font concurrence · ✅ LIVRÉE le 2026-09-22
+
+*Product-Led Growth* (Wes Bush) :
+
+> « Regardless of whether you're using a differentiated, dominant, or disruptive
+> strategy, **you need to start with a free trial. Once your free trial is proven to
+> convert, you can consider freemium.** »
+
+streaMLytics fait les deux en même temps : chaque inscrit reçoit 30 jours de Premium
+(`_grant_welcome_trial`), et à l'expiration il retombe sur un plan gratuit **illimité**
+qui porte seize lignes d'argumentaire. Bush dit que le second absorbe la pression du
+premier.
+
+Ce n'est pas une raison de fermer le gratuit — c'est une raison de **mesurer** : que
+font les comptes au jour 31 ? `subscription_plan_history` et `log_plan_change` portent
+déjà la donnée ; personne ne l'a tracée.
+
+**Résultat mesuré, ce qui l'a close** : livrée — cohorte d'essai mesurée en
+PRODUCTION — **5 essais accordés, 3 arrivés au jour 30, 0 conversion**. Aucun taux
+n'est affiché : sous le repère de 15 % de *Lean Analytics*, il faudrait **19** essais
+terminés sans conversion pour que le repère soit en cause. ⚠️ **La prémisse de la
+tâche était à moitié fausse** : `subscription_plan_history` porte l'octroi et la
+conversion, mais **jamais l'expiration** — elle se lit dans
+`saas_artists.promo_plan_expires_at` et nulle part ailleurs. Défaut trouvé au passage
+et corrigé : la figure d'évolution des plans annonçait **5 Premium sur 6 artistes** là
+où le résolveur en voyait **2 sur 8**.
+
+### R149 — Beaucoup de tuiles, aucune métrique · ✅ LIVRÉE le 2026-09-22
+
+*Lean Analytics* (Croll & Yoskovitz), la discipline de l'OMTM :
+
+> « At any given time, there's **one metric you should care about above all else**. »
+
+Le tableau de bord admin porte MRR, LTV, churn, usage analytics, santé ETL, coûts
+d'exploitation. C'est le contraire de la discipline décrite : à un stade où les comptes
+se comptent sur les doigts, le MRR n'est pas la question — l'activation l'est
+probablement (combien d'artistes branchent au moins une plateforme et reviennent).
+
+**Résultat mesuré, ce qui l'a close** : livrée — la métrique est **l'activation** (au
+moins une plateforme qui LIVRE une ligne sous 30 jours), mesurée à **2 sur 5**
+locataires humains. Trois comptes n'ont jamais reçu une ligne — Cuzebo 100 j, GRiNCH
+41 j, artiste1 23 j. MRR/ARPU passent sous un repli. Module `src/utils/activation.py`.
+
+### R152 — Un prix fixe sans axe de valeur · ✅ TRANCHÉE le 2026-09-22
+
+*Product-Led Growth* (Bush) insiste sur la **value metric** : l'axe sur lequel on
+facture doit suivre la valeur que le client reçoit.
+
+streaMLytics facture **10 €/mois, à plat**, avec « jusqu'à 10 artistes ». Pour un
+artiste solo — c'est-à-dire tout le marché visé — cet axe ne bouge jamais. Le revenu
+par client est donc plafonné le jour de l'inscription, quoi qu'il se passe ensuite :
+qu'il branche cinq plateformes ou une, qu'il dépense 50 € ou 5 000 € en publicité.
+
+Des axes plausibles existent dans la donnée déjà collectée — la dépense publicitaire
+suivie, le nombre de plateformes connectées, le volume d'écoutes. Ce n'est pas une
+recommandation de changer le prix : c'est le constat qu'**aucune décision n'a été
+prise** sur ce point, et qu'un prix plat est un choix par défaut plutôt qu'un choix.
+
+**Résultat mesuré, ce qui l'a close** : tranchée par **ADR-028** : pas d'axe de valeur
+tant que l'activation n'est pas réglée ; 0 abonnement actif en production, donc le
+revenu par client qu'un axe multiplierait est nul. Déclencheur de réouverture écrit
+dans l'ADR.
+
+### L'ordre pour demain — état du matin du 2026-09-22, périmé le soir même
+
+Écrit avant que la séance ne commence, quand les sept lignes étaient toutes ouvertes.
+Quatre de ses cinq points sont faits — seul le cinquième (R148/R150, qui dépendent de
+R149) reste vrai et vit désormais dans `checklist.md`.
+
+1. **R151** — cinq minutes, geste humain, et il conditionne la fiabilité de tous les
+   coûts par résultat affichés dans l'app. À faire avant de regarder un seul chiffre
+   Meta.
+2. **R146** — le plus grave (P2). Décider entre « adosser une vraie écoute » et
+   « écrire la limite sur la figure ». La seconde option coûte une heure et retire un
+   contresens.
+3. **R147** — la mesure de cohorte est du SQL sur une table déjà remplie ; c'est le
+   meilleur rapport information/effort du lot.
+4. **R149** puis **R152** — deux décisions de produit, pas du code. Elles se prennent
+   à deux, pas en écrivant des tests.
+5. **R148** et **R150** — les entretiens et les options de prix. Ils dépendent de R149.

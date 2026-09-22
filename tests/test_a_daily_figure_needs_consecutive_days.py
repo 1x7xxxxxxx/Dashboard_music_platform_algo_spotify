@@ -43,6 +43,11 @@ _LECTEURS = (
 )
 
 
+def _literaux(rel: str) -> list[str]:
+    """Les chaînes du module, docstrings exclues — la LISTE, pas le blob recousu."""
+    return _sql_du_fichier(rel).split("\x00")
+
+
 def _sql_du_fichier(rel: str) -> str:
     """Le SQL que ce fichier CONTIENT, lu dans ses littéraux — pas dans son texte.
 
@@ -57,39 +62,124 @@ def _sql_du_fichier(rel: str) -> str:
     nœud, et une docstring est écartée explicitement.
     """
     arbre = ast.parse((ROOT / rel).read_text(encoding="utf-8"))
-    docs = {ast.get_docstring(n) for n in ast.walk(arbre)
-            if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef,
-                              ast.ClassDef))}
+    # ⚠️ PAR `id()`, ET C'EST UNE CORRECTION — 2026-09-21.
+    #
+    # La version d'avant faisait `docs = {ast.get_docstring(n) …}` puis
+    # `if n.value not in docs`. `ast.get_docstring()` rend la docstring NETTOYÉE
+    # (dédentée, `.strip()`), quand `n.value` est le littéral BRUT : dès qu'une
+    # docstring commence par un retour à la ligne ou porte une indentation — donc
+    # presque toujours — les deux chaînes diffèrent et l'exclusion ne s'applique
+    # pas. La docstring entrait dans le « SQL du fichier ».
+    #
+    # Mesuré ce jour-là : la docstring de `views/apple_music.py`, qui EXPLIQUE que
+    # la table morte n'est plus lue, suffisait à faire croire au garde qu'elle
+    # l'était encore. C'est exactement le défaut que ce fichier se vantait d'avoir
+    # réglé « par construction » — il l'avait réglé pour les commentaires, pas pour
+    # les docstrings.
+    docs = set()
+    for n in ast.walk(arbre):
+        if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            corps = getattr(n, "body", None)
+            if corps and isinstance(corps[0], ast.Expr) \
+                    and isinstance(corps[0].value, ast.Constant) \
+                    and isinstance(corps[0].value.value, str):
+                docs.add(id(corps[0].value))
     morceaux = []
     for n in ast.walk(arbre):
         if isinstance(n, ast.Constant) and isinstance(n.value, str):
-            if n.value not in docs:
+            if id(n) not in docs:
                 morceaux.append(n.value)
         elif isinstance(n, ast.JoinedStr):
             morceaux.extend(v.value for v in n.values
                             if isinstance(v, ast.Constant) and isinstance(v.value, str))
-    return "\n".join(morceaux)
+    return "\x00".join(morceaux)
 
 
 @pytest.mark.parametrize("rel", _LECTEURS)
-def test_every_lag_on_apple_is_bounded_by_consecutivity(rel: str) -> None:
-    """LE GARDE. Un `LAG` sur `apple_songs_history` sans borne de jours.
+def test_a_span_difference_is_never_presented_as_a_daily_figure(rel: str) -> None:
+    """LE GARDE, et sa PROPRIÉTÉ a changé le 2026-09-21 — pas son intention.
 
-    Le prédicat cherche la PROPRIÉTÉ dans le SQL RÉEL : la requête qui fait un
-    `LAG(plays)` doit aussi mesurer l'écart de dates ET le contraindre à 1.
+    L'intention reste celle du 2026-09-20 : une différence entre deux mesures
+    espacées n'est pas un quotidien, et la présenter comme tel fait lire un pic
+    là où il y a une accumulation.
+
+    ⚠️ **LE REMÈDE, LUI, ÉTAIT FAUX, et ce fichier portait la mesure qui le
+    prouve.** Il exigeait `jours = 1`, c'est-à-dire deux relevés consécutifs. Sa
+    propre docstring mesurait : « 11 paires · **0 consécutive** ». Un filtre qui
+    écarte CENT POUR CENT de sa population n'assainit pas une figure, il
+    l'éteint — et c'est ce que l'artiste a vu : une section vide. Apple se dépose
+    à la main ; deux relevés consécutifs n'existent pas dans ce produit.
+
+    La propriété gardée est donc : **si une surface expose un GAIN entre deux
+    relevés Apple, elle expose aussi la DURÉE sur laquelle il a été gagné.** Deux
+    façons de la tenir, les deux acceptées :
+
+      · contraindre à des jours consécutifs (`jours = 1`) — le gain EST alors
+        quotidien ;
+      · porter l'écart (`days_since_previous` / `jours_ecoules`) jusqu'à
+        l'écran — le gain est alors qualifié.
+
+    C'est `a-sweep-predicate-that-matches-a-form-not-a-property`, règle 20 de
+    CLAUDE.md : le prédicat encodait UN remède quand la classe parle d'une
+    propriété.
     """
-    sql = _sql_du_fichier(rel)
-    if "apple_songs_history" not in sql:
-        pytest.skip(f"{rel} ne lit plus `apple_songs_history`")
-    assert re.search(r"LAG\s*\(\s*plays", sql), (
-        f"{rel} ne fait plus de `LAG(plays)` — mettre ce garde à jour.")
-    assert re.search(r"LAG\s*\(\s*date", sql), (
-        f"{rel} calcule un quotidien par `LAG(plays)` sans mesurer l'ÉCART DE DATES. "
-        "Sur `apple_songs_history`, 0 paire sur 11 est consécutive et le plus grand "
-        "trou vaut 12 jours : chaque point porterait plusieurs jours de croissance.")
-    assert re.search(r"(jours_ecoules|jours)\s*=\s*1", sql), (
-        f"{rel} mesure l'écart de dates mais ne le CONTRAINT pas à 1. Calculer sans "
-        "filtrer ne change rien à ce que l'artiste lit.")
+    # ⚠️ ON NE REGARDE QUE LES LITTÉRAUX SQL, et c'est une correction attrapée
+    # par mutation le 2026-09-21. Le premier jet cherchait « jours » dans TOUTES
+    # les chaînes du fichier : la légende française « … sur %{customdata} jour(s) »
+    # le satisfaisait, donc retirer la colonne du SELECT laissait le garde VERT.
+    # Un prédicat qui accepte de la prose à la place d'une colonne ne garde rien.
+    # ⚠️ ON FILTRE LES LITTÉRAUX, PAS LES LIGNES — seconde correction du même
+    # jour. Découper le blob sur `\n` coupait les requêtes multi-lignes en deux :
+    # aucune ligne ne portait à la fois SELECT et FROM, la liste sortait vide, et
+    # les deux cas partaient en `skip`. Un garde qui skippe ne garde rien, et il
+    # le fait sans rougir — c'est pire qu'un garde absent, parce qu'on le compte.
+    requetes = [c for c in _literaux(rel)
+                if "SELECT" in c.upper() and "FROM" in c.upper()]
+    sql = "\n".join(requetes)
+    gain = re.search(r"LAG\s*\(\s*plays", sql) or "daily_plays" in sql
+    if not gain:
+        pytest.skip(f"{rel} n'expose plus de gain Apple entre deux relevés")
+
+    consecutif = re.search(r"(jours_ecoules|jours)\s*=\s*1", sql)
+    duree = re.search(r"\b(days_since_previous|jours_ecoules)\b", sql)
+    assert consecutif or duree, (
+        f"{rel} expose un gain entre deux relevés Apple sans porter la DURÉE sur "
+        "laquelle il a été gagné. Mesuré le 2026-09-21 : l'écart entre deux "
+        "relevés va de 12 à 179 jours chez le locataire 1 — un gain de 36 écoutes "
+        "sur 179 jours n'est pas comparable à un gain de 36 sur 12.\n"
+        "Deux remèdes acceptés : contraindre à `jours = 1`, ou porter "
+        "`days_since_previous` jusqu'à l'écran.")
+
+
+def test_the_surface_actually_shows_the_span() -> None:
+    """Porter la durée dans le SQL ne suffit pas : l'artiste doit la LIRE.
+
+    Sans ce second test, le précédent serait satisfait par une colonne
+    sélectionnée et jamais affichée — « a-guard-that-sees-the-binding-not-the-
+    application », la classe que ce dépôt a nommée sur son propre cliquet de
+    fenêtres.
+    """
+    vue = ROOT / "src" / "dashboard" / "views" / "apple_music.py"
+    arbre = ast.parse(vue.read_text(encoding="utf-8"))
+    docs = set()
+    for n in ast.walk(arbre):
+        if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            corps = getattr(n, "body", None)
+            if corps and isinstance(corps[0], ast.Expr) \
+                    and isinstance(corps[0].value, ast.Constant) \
+                    and isinstance(corps[0].value.value, str):
+                docs.add(id(corps[0].value))
+    # La durée doit apparaître dans un texte DESTINÉ À L'ÉCRAN — une étiquette,
+    # un survol ou une légende — pas seulement dans la requête.
+    affiche = [n.value for n in ast.walk(arbre)
+               if isinstance(n, ast.Constant) and isinstance(n.value, str)
+               and id(n) not in docs
+               and ("jour" in n.value.lower() or " j" in n.value)
+               and "SELECT" not in n.value.upper()]
+    assert affiche, (
+        "la vue Apple ne dit nulle part à l'écran sur COMBIEN de jours un gain a "
+        "été accumulé. La colonne peut être lue et jetée : c'est le trou que ce "
+        "test existe pour fermer.")
 
 
 def test_the_data_still_justifies_the_guard() -> None:

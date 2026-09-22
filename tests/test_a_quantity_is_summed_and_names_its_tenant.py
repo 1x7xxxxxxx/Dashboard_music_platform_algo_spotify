@@ -67,19 +67,21 @@ _FROM = re.compile(r"\b(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)", re.I)
 
 
 def _dsn() -> dict | None:
-    if os.environ.get("DATABASE_URL"):
-        return {"dsn": os.environ["DATABASE_URL"]}
-    try:
-        with socket.create_connection((_DB_HOST, _DB_PORT), timeout=1.5):
-            pass
-    except OSError:
-        return None
-    return {
-        "host": _DB_HOST, "port": _DB_PORT,
-        "dbname": os.environ.get("DATABASE_NAME", "spotify_etl"),
-        "user": os.environ.get("DATABASE_USER", "postgres"),
-        "password": os.environ.get("DATABASE_PASSWORD") or os.environ.get("DB_PASSWORD", ""),
-    }
+    """Les mots-clés de connexion — par la porte canonique, jamais recopiée.
+
+    ⚠️ 2026-09-22 : ce bloc construisait son DSN à la main et ne lisait que
+    l'environnement. Sur un poste dont le mot de passe vit dans
+    `config/config.yaml`, la socket s'ouvre et l'authentification échoue — le
+    module ne skippe pas, il ERREUR. Dix modules de test portaient exactement
+    cette forme, trouvés par balayage après que trois d'entre eux ont rougi.
+    `tests/db_gate.dsn()` passe par `src.utils.pg_connect.resolve_kwargs`, qui
+    connaît les trois sources (`DATABASE_URL`, les `DATABASE_*`, `config.yaml`).
+
+    Classe : `a-second-door-that-knows-fewer-sources-than-the-first`.
+    """
+    from tests.db_gate import dsn
+
+    return dsn()
 
 
 _CONN = _dsn()

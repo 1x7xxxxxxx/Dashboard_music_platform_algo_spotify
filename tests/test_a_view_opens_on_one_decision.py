@@ -54,9 +54,26 @@ def _view_files() -> list[str]:
     return out
 
 
+def _tab_names(tree: ast.Module) -> set[str]:
+    """Les variables issues d'un `st.tabs([...])` — `a, b, c = st.tabs([...])`."""
+    out: set[str] = set()
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)):
+            continue
+        if getattr(node.value.func, "attr", "") != "tabs":
+            continue
+        for cible in node.targets:
+            if isinstance(cible, ast.Name):
+                out.add(cible.id)
+            elif isinstance(cible, ast.Tuple):
+                out |= {e.id for e in cible.elts if isinstance(e, ast.Name)}
+    return out
+
+
 def _collapsed_lines(tree: ast.Module) -> set[int]:
-    """Lignes vivant dans un dépliant — `secondary_analyses(...)` ou `st.expander(...)`."""
+    """Lignes vivant dans un dépliant — `secondary_analyses`, `expander` ou un ONGLET."""
     covered = set()
+    onglets = _tab_names(tree)
     for node in ast.walk(tree):
         if not isinstance(node, ast.With):
             continue
@@ -65,7 +82,25 @@ def _collapsed_lines(tree: ast.Module) -> set[int]:
              or getattr(i.context_expr.func, "attr", ""))
             for i in node.items if isinstance(i.context_expr, ast.Call)
         }
-        if names & {"secondary_analyses", "expander"}:
+        # `with tab_impact:` — le contexte est une VARIABLE, pas un appel.
+        if any(isinstance(i.context_expr, ast.Name) and i.context_expr.id in onglets
+               for i in node.items):
+            names = names | {"tabs"}
+        # ⚠️ `tabs` EST RECONNU DEPUIS LE 2026-09-21, et c'est une correction, pas
+        # un assouplissement. Le MESSAGE de ce garde promet déjà la sortie —
+        # « ou déplacer dans un onglet — un onglet BORNE un écran » — et le
+        # prédicat ne l'implémentait pas. La promesse était écrite, elle n'était
+        # pas tenue : une vue qui suivait le conseil restait accusée.
+        #
+        # C'est la même forme que le Dockerfile refusé par
+        # `test_a_guard_reads_structure_not_text` alors que son message annonçait
+        # l'exemption. Un garde dont le remède ne passe pas son propre contrôle
+        # pousse à contourner le contrôle.
+        #
+        # Un onglet borne bien un écran : `st.tabs` n'en affiche qu'un à la fois.
+        # Il ne borne PAS le coût — Streamlit exécute tous les corps — mais ce
+        # garde-ci compte ce qui S'AFFICHE, pas ce qui s'exécute.
+        if names & {"secondary_analyses", "expander", "tabs"}:
             for stmt in node.body:
                 covered |= set(range(stmt.lineno, (stmt.end_lineno or stmt.lineno) + 1))
     return covered

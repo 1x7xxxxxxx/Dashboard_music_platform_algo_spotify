@@ -583,7 +583,7 @@ def indexed_lines(series, title) -> str | None:
     palette = {
         _t("pdf.chart.series.meta_budget", "Budget Meta"): _RED,
         _t("pdf.chart.series.spotify_streams", "Streams Spotify"): _GREEN,
-        _t("pdf.chart.series.results", "Résultats"): "#003f5c",
+        _t("pdf.chart.series.results", "Clics sortants"): "#003f5c",
         _t("pdf.chart.series.cpr", "CPR"): "#bc5090",
         _t("pdf.chart.series.popularity", "Popularité"): "#FFA500",
     }
@@ -821,7 +821,7 @@ def meta_daily(rows) -> str | None:
         return None
     xs = [r[0] for r in rows]
     fig, ax = plt.subplots(figsize=(8.6, 3.0))
-    _results = _t("pdf.chart.series.results", "Résultats")
+    _results = _t("pdf.chart.series.results", "Clics sortants")
     ax.bar(xs, [float(r[1] or 0) for r in rows], color="#FF6B61", alpha=0.4, width=1.0,
            label=_t("pdf.chart.budget_eur", "Budget €"))
     ax.plot(xs, [float(r[3] or 0) for r in rows], color="#bc5090", linewidth=1.5,
@@ -833,7 +833,8 @@ def meta_daily(rows) -> str | None:
              label=_results)
     ax2.set_ylabel(_results, color="#003f5c", fontsize=8)
     ax2.spines["top"].set_visible(False)
-    ax.set_title(_t("pdf.chart.meta_budget_results_cpr", "Meta Ads — budget · résultats · CPR"),
+    ax.set_title(_t("pdf.chart.meta_budget_results_cpr",
+                    "Meta Ads — budget · clics sortants · CPR"),
                  color=_DARK, fontsize=11, fontweight="bold", loc="left")
     h1, l1 = ax.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()

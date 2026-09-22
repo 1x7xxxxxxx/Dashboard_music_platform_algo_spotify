@@ -63,17 +63,27 @@ def test_each_removed_table_names_its_replacement(pf):
     """Une interdiction sans remplacement se fait contourner « parce que ça marchait »."""
     for table in _MANDATORY_FILTER_TABLES:
         assert table in pf._REPLACED_BY_GOLD, f"{table} interdite sans remplacement nommé"
-        assert pf._REPLACED_BY_GOLD[table] in pf._ALLOWED_TABLES, (
+        remplacement, pourquoi = pf._REPLACED_BY_GOLD[table]
+        assert remplacement in pf._ALLOWED_TABLES, (
             f"le remplacement de {table} n'est pas lui-même bornable")
+        # ⚠️ LA RAISON AUSSI est par table depuis le 2026-09-21. Le message en
+        # donnait UNE pour toutes — « la ligne Total » — vraie des deux tables
+        # S4A et fausse d'`apple_songs_history`, dont le défaut est de n'avoir
+        # plus aucun écrivain. Un refus qui invoque le mauvais motif envoie
+        # chercher le mauvais problème.
+        assert pourquoi and len(pourquoi) > 20, (
+            f"{table} est interdite sans raison lisible : « {pourquoi} »")
 
 
 def test_passing_a_removed_table_raises_with_the_fix(pf):
     """Le message doit nommer la vue à utiliser, pas seulement refuser."""
-    for table, replacement in pf._REPLACED_BY_GOLD.items():
+    for table, (replacement, pourquoi) in pf._REPLACED_BY_GOLD.items():
         with pytest.raises(ValueError) as exc:
             pf._validate(table, "date", "artist_id")
         assert replacement in str(exc.value), (
             f"le refus de '{table}' ne nomme pas '{replacement}' : « {exc.value} »")
+        assert pourquoi in str(exc.value), (
+            f"le refus de '{table}' ne donne pas SA raison : « {exc.value} »")
 
 
 def test_data_span_can_restrict_to_the_entity_drawn(pf):

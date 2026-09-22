@@ -439,6 +439,27 @@ _WIDEN_AND_FILL: dict[str, int] = {
     "src/dashboard/views/meta_ads_overview.py:_show_meta_ads": 6,
     "src/dashboard/views/meta_creatives.py:_render_creative_timeline": 1,
     "src/dashboard/views/trigger_algo/_tab_budget_roi.py:_show_tab_budget_roi": 2,
+    # ── Le zéro EST juste ici, et c'est le cas que le message de ce garde prévoit.
+    #
+    # `monthly_net` élargit au mois complet et remplit à zéro les mois sans ligne.
+    # Ce n'est pas un compteur mesuré par une collecte — c'est un LIVRE DE COMPTES.
+    # Un mois sans ligne de royaltie, sans jour de dépense publicitaire et sans
+    # coût saisi est un mois où il n'est rien passé sur le compte. Les zéros sont
+    # indispensables à ce qu'on en fait :
+    #
+    #   · le `cumsum` qui porte la courbe de cumul — le cas nommé dans le message
+    #     de ce garde ;
+    #   · le rythme mensuel. Mesuré dans
+    #     `test_a_month_with_no_line_is_a_month_at_zero` : deux mois à 120 € sur
+    #     une année rendent 20 €/mois, pas 120. Sans les zéros, le point mort est
+    #     annoncé six fois trop tôt.
+    #
+    # ⚠️ CE QUE CE ZÉRO PEUT ENCORE DIRE DE FAUX, et la raison pour laquelle on
+    # l'accepte quand même : un rapport de ventes jamais importé se lit comme un
+    # mois sans revenu. L'erreur va alors vers le PESSIMISME — pace plus faible,
+    # point mort plus lointain — c'est-à-dire la direction où une surprise est
+    # bonne. Un point mort optimiste, lui, ferait dépenser sur une promesse.
+    "src/dashboard/utils/artist_cashflow.py:monthly_net": 3,
 }
 
 _SCANNED = ("src/dashboard/views", "src/dashboard/utils")
@@ -528,7 +549,25 @@ def test_the_fixed_sites_did_not_come_back() -> None:
         # fichier -> (ce qu'on compte dans l'arbre, combien de fois)
         "src/dashboard/views/meta_x_spotify.py": ("connectgaps", 2),
         "src/dashboard/views/meta_ads_overview.py": ("connectgaps", 2),
-        "src/dashboard/views/hypeddit.py": ("connectgaps", 1),
+        # ⚠️ HYPEDDIT NE COMPTE PLUS `connectgaps` MAIS `min_count` — 2026-09-21.
+        #
+        # Le marqueur suit le MÉCANISME, et le mécanisme a changé avec la figure.
+        # `connectgaps=False` protégeait une COURBE par jour : un jour sans mesure
+        # y coupait la ligne au lieu d'être traversé en droite. Cette figure n'a
+        # plus d'axe de jours — mesuré : cinq des six campagnes n'ont qu'UN relevé,
+        # donc l'axe des jours était un axe de campagnes qui s'ignorait. Elle
+        # dessine maintenant des BARRES par campagne.
+        #
+        # Le zéro inventé y entre par une autre porte, et ce garde me l'a fait
+        # trouver : `groupby().sum()` rend **0** quand tout le groupe est `NaN`.
+        # Une campagne jamais relevée sortait donc avec une barre à zéro,
+        # indiscernable d'une campagne mesurée à zéro — la lecture ne mettait plus
+        # de zéro, l'AGRÉGATION le remettait. `min_count=1` rend `NaN`, et Plotly
+        # ne dessine alors aucune barre.
+        #
+        # Changer le marqueur sans changer le nombre : la propriété gardée est la
+        # même, son porteur non.
+        "src/dashboard/views/hypeddit.py": ("min_count", 1),
         # les 3 séries du PDF : audience S4A (×2) et YouTube (×2)
         "src/dashboard/utils/pdf_charts.py": ("_measured", 4),
     }
@@ -538,6 +577,11 @@ def test_the_fixed_sites_did_not_come_back() -> None:
         if name == "_measured":
             seen = sum(1 for n in ast.walk(tree) if isinstance(n, ast.Call)
                        and getattr(n.func, "id", "") == "_measured")
+        elif name == "min_count":
+            # `min_count=` est un mot-clé d'appel, comme `connectgaps=` : on le
+            # compte de la même façon, et un commentaire ne peut pas le produire.
+            seen = sum(1 for n in ast.walk(tree) if isinstance(n, ast.keyword)
+                       and n.arg == "min_count")
         else:
             seen = sum(1 for n in ast.walk(tree) if isinstance(n, ast.keyword)
                        and n.arg == "connectgaps")

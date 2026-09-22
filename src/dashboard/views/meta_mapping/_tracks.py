@@ -244,11 +244,80 @@ def _render_track_suggestions(db, artist_id, canonical, links_df):
     _render_orphans(orphans)
 
 
-def _render_coverage_grid(canonical, links_df):
-    """Recap: ✅ green where a platform is linked, · otherwise. Cross-platform presence
-    only — Meta-campaign info lives in the 📣 Campagnes Meta tab."""
+def _render_coverage_grid(db, artist_id, canonical, links_df):
+    """Le récap : ai-je le BON NOMBRE de titres sur chaque plateforme ?
+
+    Trois changements le 2026-09-21, tous demandés en regardant l'écran.
+
+    1. **Une ligne de comptes en tête.** La grille disait, titre par titre, si une
+       plateforme était liée ; elle ne répondait pas à la question qu'on se pose
+       en l'ouvrant — « est-ce que tout y est ? ». Il fallait compter les ✅ à
+       l'œil sur onze lignes et six colonnes. Le compte est maintenant écrit, et
+       comparé au nombre de titres canoniques.
+
+    2. **Rouge pour ce qui manque.** Le « · » d'avant était neutre : une case vide
+       et une case non liée se lisaient pareil. Une absence qui coûte quelque
+       chose doit se voir.
+
+    3. **Ce que la plateforme CONNAÎT entre dans le compte.** Un titre peut être
+       vu par la plateforme sans être lié — c'est le cas qui produit un écart, et
+       le seul que la grille ne montrait nulle part. La colonne « vus » vient du
+       même chargeur que les suggestions, donc elle ne peut pas diverger d'elles.
+
+    ⚠️ Hypeddit compte ses CAMPAGNES, pas ses titres : un titre sans campagne
+    promo n'est pas une anomalie. Sa colonne de compte est donc informative et
+    jamais rouge — l'écrire ici évite de « corriger » un écart qui n'en est pas un.
+    """
     confirmed = links_df[links_df.status == 'confirmed'] if not links_df.empty else links_df
-    st.subheader(t("track_mapping.coverage_header", "🗺️ Couverture cross-plateforme (récap)"))
+    st.subheader(t("track_mapping.coverage_header",
+                   "🗺️ Couverture cross-plateforme — ai-je tout, partout ?"))
+
+    n_canon = len(canonical)
+    lies, vus = {}, {}
+    for pkey, _ in _PLATFORMS:
+        lies[pkey] = 0 if confirmed.empty else int(
+            confirmed[confirmed.platform == pkey].match_key.nunique())
+        vus[pkey] = len(_load_platform_titles(db, artist_id, pkey))
+
+    # LA LIGNE DE COMPTES, une colonne par plateforme.
+    cols = st.columns(len(_PLATFORMS))
+    for col, (pkey, _) in zip(cols, _PLATFORMS):
+        complet = lies[pkey] >= n_canon
+        # ⚠️ `with col:` PUIS `st.metric`, jamais `col.metric(...)`. Les deux
+        # rendent la même chose, mais le receveur `col` est une variable de
+        # boucle : `tools/dev/gold_coverage.py` ne peut pas la résoudre et
+        # classe la tuile « indéterminée · receveur-inconnu ». Le cliquet des
+        # trous l'a attrapée le 2026-09-21 — `tiles.unknown 12 contre 11` — et
+        # il a raison : une tuile qu'aucun outil ne sait rattacher à sa source
+        # est un trou de la carte, pas un détail de style.
+        #
+        # `delta_color="off"` : ce n'est pas une évolution, c'est un écart. La
+        # flèche verte/rouge de Streamlit raconterait une variation dans le temps.
+        with col:
+            st.metric(_PLATFORM_SHORT[pkey],
+                      f"{lies[pkey]} / {n_canon}",
+                      delta=t("track_mapping.seen_n", "{n} vu(s)").format(n=vus[pkey]),
+                      delta_color="off",
+                      help=(t("track_mapping.count_ok",
+                              "Tous les titres canoniques sont liés sur cette plateforme.")
+                            if complet else
+                            t("track_mapping.count_missing",
+                              "{k} titre(s) canonique(s) sans lien confirmé ici. "
+                              "La plateforme en connaît {v} au total.")
+                            .format(k=n_canon - lies[pkey], v=vus[pkey])))
+
+    if pkey_manquants := [_PLATFORM_SHORT[k] for k, _ in _PLATFORMS
+                          if k != 'hypeddit' and lies[k] < n_canon]:
+        st.warning(t("track_mapping.coverage_gap",
+                     "⚠️ Il manque des liens sur : **{p}**. Un titre non lié sort "
+                     "des comparaisons cross-plateforme — c'est ce qui faisait "
+                     "perdre 59 % des écoutes avant le rattachement par lien "
+                     "confirmé.").format(p=", ".join(pkey_manquants)))
+    else:
+        st.success(t("track_mapping.coverage_full",
+                     "✅ Les {n} titres canoniques sont liés sur toutes les "
+                     "plateformes qui les portent.").format(n=n_canon))
+
     grid_rows = []
     for tr in canonical:
         row = {t("track_mapping.col_track", "Track"): tr['title'],
@@ -256,19 +325,26 @@ def _render_coverage_grid(canonical, links_df):
         for pkey, _ in _PLATFORMS:
             linked = (not confirmed.empty and not confirmed[
                 (confirmed.match_key == tr['match_key']) & (confirmed.platform == pkey)].empty)
-            row[_PLATFORM_SHORT[pkey]] = "✅" if linked else "·"
+            row[_PLATFORM_SHORT[pkey]] = "✅" if linked else "❌"
         grid_rows.append(row)
 
     grid = pd.DataFrame(grid_rows)
     plat_cols = [_PLATFORM_SHORT[k] for k, _ in _PLATFORMS]
 
-    def _green(v):
-        return 'background-color: #1e7d3322; color: #1b8a3a; font-weight: 600' if v == "✅" else ''
+    def _cell(v):
+        if v == "✅":
+            return 'background-color: #1e7d3322; color: #1b8a3a; font-weight: 600'
+        if v == "❌":
+            return 'background-color: #c0392b22; color: #b03a2e; font-weight: 600'
+        return ''
 
-    st.dataframe(grid.style.map(_green, subset=plat_cols), hide_index=True, width='stretch')
+    st.dataframe(grid.style.map(_cell, subset=plat_cols), hide_index=True, width='stretch')
     st.caption(t("track_mapping.coverage_legend",
-                 "✅ = plateforme liée · « · » = non liée. (Les campagnes Meta sont dans "
-                 "l'onglet **📣 Campagnes Meta**.)"))
+                 "✅ lié · ❌ non lié. Le compte du haut confronte les liens CONFIRMÉS "
+                 "au nombre de titres canoniques ; « vu(s) » est ce que la plateforme "
+                 "connaît, lié ou non. Hypeddit compte des CAMPAGNES promo, pas des "
+                 "titres : y avoir moins n'est pas une anomalie. (Les campagnes Meta "
+                 "sont dans l'onglet **📣 Campagnes Meta**.)"))
 
 
 def render_overview_tab(db, artist_id, canonical):
@@ -277,4 +353,4 @@ def render_overview_tab(db, artist_id, canonical):
     _render_track_suggestions(db, artist_id, canonical, links_df)
     st.markdown("---")
     # … cross-platform coverage recap just below.
-    _render_coverage_grid(canonical, links_df)
+    _render_coverage_grid(db, artist_id, canonical, links_df)

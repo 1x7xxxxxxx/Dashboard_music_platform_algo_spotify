@@ -1,6 +1,53 @@
 """EN strings for the Meta Ads creatives view."""
 
 EN = {
+    # ── Page unique : décision en haut, puis classement, hooks, fatigue ──────
+    "meta_creatives.banner_intro": (
+        "**{spend:,.0f} € spent across {n} creative(s).** Here are the three "
+        "decisions those numbers carry."),
+    "meta_creatives.best_creative": "🏆 Best creative — {nom}",
+    "meta_creatives.backed_by": "{spend:.0f} € · {res:,.0f} results",
+    "meta_creatives.no_winner": "No creative has enough results yet to be crowned.",
+    "meta_creatives.best_hook": "🎣 Best hook — {nom}",
+    "meta_creatives.hook_backed_by": (
+        "{spend:.0f} € · {n} creative(s) · {part:.0f} % of the named budget"),
+    "meta_creatives.no_hook_named": (
+        "No hook is named in your creative titles. Name them \"Hook 1 …\", "
+        "\"Hook 2 …\", \"Sans hook …\" and this card will tell you which one "
+        "converts."),
+    "meta_creatives.to_cut": "✂️ Cut this — {nom}",
+    "meta_creatives.already_spent": (
+        "{spend:.0f} € spent · ~{trop:.0f} € more than your blended cost "
+        "({ref:.3f} €)"),
+    "meta_creatives.nothing_to_cut": "No creative is drifting on a budget that matters.",
+    "meta_creatives.section_ranking": "🏁 Your creatives, ranked",
+    "meta_creatives.section_hooks": "🎣 Which hook converts",
+    "meta_creatives.section_fatigue": "🪫 Is the audience saturated?",
+    "meta_creatives.section_details": "🔬 Dig deeper",
+    "meta_creatives.no_ranking": "No creative with any spend.",
+    "meta_creatives.ranking_caption": (
+        "Best cost per result on top. A missing bar means no measured result, "
+        "hence no CPR — it is not a zero."),
+    "meta_creatives.ranking_truncated": (
+        "Only the {n} highest-spending creatives are drawn; the collapsed table "
+        "below holds them all."),
+    "meta_creatives.table_expander": "🔢 The ranking down to the cent — table",
+    "meta_creatives.funnel_expander": "🔻 One creative's journey — detail",
+    "meta_creatives.hook_cpr": "Cost per result (€)",
+    "meta_creatives.hook_spend": "Spend it was judged on (€)",
+    "meta_creatives.hooks_absent": (
+        "Your creative titles do not name a hook (yet). Name them \"Hook 1 — …\", "
+        "\"Hook 2 — …\", \"Sans hook — …\": this chart will then compare the "
+        "cost per result of each opening."),
+    "meta_creatives.hooks_caption": (
+        "The hook is read from the NAME you give your creative — Meta does not "
+        "know it. **{part:.0f} % of your spend** carries a named hook; the rest "
+        "is not ranked here. A lower cost on a tiny spend is not a verdict: that "
+        "is what the second panel is for."),
+    "meta_creatives.rank.cpr": "CPR (€)",
+    "meta_creatives.rank.total_spend": "Spend (€)",
+    "meta_creatives.rank.total_results": "Outbound clicks",
+    "meta_creatives.rank.avg_ctr": "CTR (%)",
     "meta_creatives.unit_money": "Euros",
     "meta_creatives.unit_counts": "Volumes",
     "meta_creatives.unit_rate": "Rate (%)",
@@ -18,12 +65,6 @@ EN = {
     "meta_creatives.filter_by_campaign": "Filter by campaign",
     "meta_creatives.all_campaigns": "All",
     "meta_creatives.no_creative_campaign": "No creative for this campaign.",
-    "meta_creatives.tab_ranking": "📋 Ranking",
-    "meta_creatives.tab_compare": "🫧 Comparison",
-    "meta_creatives.tab_funnel": "🔻 Funnel",
-    "meta_creatives.tab_evolution": "📈 Evolution",
-    "meta_creatives.tab_fatigue": "🪫 Fatigue",
-    "meta_creatives.tab_activity": "🗓️ Activity",
     "meta_creatives.badge_legend": (
         "🟢 Top creative = CPR ≤ {low}€ | 🟡 Average = CPR ≤ {high}€ | "
         "🔴 Underperforming = CPR > {high}€"
@@ -41,15 +82,11 @@ EN = {
     "meta_creatives.badge_avg": "🟡 Around average",
     "meta_creatives.badge_under": "🔴 Underperforming",
     # KPI row
-    "meta_creatives.total_spend": "Total spend",
-    "meta_creatives.best_cpr": "Best CPR",
-    "meta_creatives.median_cpr": "Median CPR",
-    "meta_creatives.worst_cpr": "Worst CPR",
     # Ranking table
     "meta_creatives.col_status": "Status",
     "meta_creatives.col_creative": "Creative",
     "meta_creatives.col_spend": "Spend",
-    "meta_creatives.col_results": "Results",
+    "meta_creatives.col_results": "Outbound clicks",
     "meta_creatives.col_avg_ctr": "Avg CTR",
     # Timeline
     "meta_creatives.timeline_title": "📈 Creative evolution over time",
@@ -83,7 +120,7 @@ EN = {
     "meta_creatives.indicator": "Indicator",
     "meta_creatives.no_creative": "No creative.",
     "meta_creatives.clicks": "Clicks",
-    "meta_creatives.results": "Results",
+    "meta_creatives.results": "Outbound clicks",
     "meta_creatives.frequency": "Frequency",
     "meta_creatives.fatigue_caption": (
         "Rising frequency **and** falling CTR = saturated audience (fatigue) → refresh the creative."

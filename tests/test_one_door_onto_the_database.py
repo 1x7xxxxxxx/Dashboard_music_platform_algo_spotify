@@ -23,6 +23,7 @@ asymmetry. This file stops a fourth copy appearing.
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -127,11 +128,11 @@ def test_no_new_module_resolves_the_database_itself():
     }
     offenders = sorted(set(_modules_reading_dsn_env()) - known)
     assert not offenders, (
-        "new module(s) reading DSN environment variables directly:\n  "
-        + "\n  ".join(offenders)
-        + "\nUse PostgresHandler.from_env_or_config(). Two precedences meant the "
-          "dashboard and the scheduler could not use each other's configuration; a "
-          "third would mean nobody can say how the app finds its database."
+        "module(s) de test ouvrant une connexion depuis des variables de DSN, "
+        "sans passer par `tests/db_gate.dsn()` :\n  " + "\n  ".join(offenders)
+        + "\n\nCes modules skippent sans base et ERREURENT avec une base dont le "
+          "mot de passe vit dans config.yaml. Remplacer le corps de `_dsn()` par "
+          "`from tests.db_gate import dsn; return dsn()`."
     )
 
 
@@ -165,3 +166,183 @@ def test_the_shared_door_still_knows_all_three_sources():
     assert "DATABASE_URL" in fn and "resolve_kwargs" in fn, (
         "the shared resolver lost a source; every caller now inherits that gap"
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# La SUITE elle-même — ajouté le 2026-09-22
+#
+# Ce fichier gardait `src/`, `airflow/dags/` et `tools/`, et pas `tests/`. Vingt
+# tests sont devenus rouges le même jour, tous sur `fe_sendauth: no password
+# supplied`, et aucun n'avait de rapport avec le changement en cours : douze
+# modules de test construisaient leur DSN à la main, en ne lisant QUE
+# l'environnement. Sur un poste dont le mot de passe vit dans `config/config.yaml`,
+# la socket s'ouvre et l'authentification échoue.
+#
+# Le symptôme est traître dans les deux sens : sans base, ces modules skippent
+# proprement ; avec une base, ils ERREURENT. Un développeur qui démarre sa pile
+# voit donc vingt rouges apparaître sans avoir touché à rien — et le docstring de
+# `from_env_or_config` décrivait DÉJÀ ce défaut chez trois collecteurs, sans que
+# personne pense à le chercher côté tests.
+#
+# Classe : `a-second-door-that-knows-fewer-sources-than-the-first`.
+# ──────────────────────────────────────────────────────────────────────────────
+
+_PORTES_PARTAGEES = {"dsn", "resolve_kwargs", "from_env_or_config"}
+
+
+def _passe_par_la_porte(tree) -> bool:
+    """Le module IMPORTE-t-il vraiment une porte partagée ?
+
+    ⚠️ La première version cherchait `resolve_kwargs|from tests.db_gate import`
+    dans le TEXTE du fichier, et la mutation du 2026-09-22 ne l'a pas fait rougir :
+    la docstring que je venais d'écrire dans les neuf modules corrigés CITE
+    `resolve_kwargs`. Le garde se satisfaisait donc de la prose qui décrit le fix,
+    pendant que le code portait de nouveau le défaut.
+
+    C'est `a-textual-guard-that-matches-its-own-prose`, mesuré quatre fois en une
+    soirée sur ce dépôt le 2026-08-22. On lit l'AST : un `import`, jamais un mot.
+    """
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            if any(a.name in _PORTES_PARTAGEES for a in node.names):
+                return True
+        elif isinstance(node, ast.Attribute) and node.attr in _PORTES_PARTAGEES:
+            return True
+    return False
+
+
+def _tests_connecting_without_the_door() -> list[str]:
+    """Les modules de test qui SE CONNECTENT depuis des variables, sans la porte.
+
+    La propriété n'est pas « lire une variable de DSN » — vingt-cinq modules le
+    font, dont celui-ci et `test_pg_connect`, qui testent le résolveur. C'est
+    « ouvrir une connexion » à partir de ces variables **et** ignorer la porte.
+    """
+    out = []
+    moi = Path(__file__).resolve()
+    for path in sorted((REPO / "tests").rglob("*.py")):
+        if path.name == "db_gate.py" or path.resolve() == moi:
+            continue
+        txt = path.read_text(encoding="utf-8")
+        if "psycopg2.connect" not in txt:
+            continue
+        try:
+            tree = ast.parse(txt)
+        except SyntaxError:
+            continue
+        if _passe_par_la_porte(tree):
+            continue
+        # LA PROPRIÉTÉ EST « LIRE », PAS « NOMMER » — et la distinction a coûté un
+        # faux positif au premier jet. `test_credential_loader` porte les cinq noms
+        # dans un `assert var not in code` : c'est un GARDE qui vérifie leur
+        # absence, exactement l'inverse du défaut. On exige donc que le nom soit
+        # l'argument d'un `os.environ.get(...)` / `os.getenv(...)`, pas un littéral
+        # quelque part dans le fichier.
+        if any(_lit_une_variable(n) for n in ast.walk(tree)):
+            out.append(str(path.relative_to(REPO)))
+    return out
+
+
+def _lit_une_variable(node) -> bool:
+    """Vrai si `node` est un `os.environ.get("DATABASE_…")` ou `os.getenv(…)`."""
+    if not isinstance(node, ast.Call) or not node.args:
+        return False
+    cible = node.func
+    nom = getattr(cible, "attr", None) or getattr(cible, "id", None)
+    if nom not in {"get", "getenv", "environ"}:
+        return False
+    premier = node.args[0]
+    return (isinstance(premier, ast.Constant) and isinstance(premier.value, str)
+            and premier.value in _DSN_VARS)
+
+
+def test_no_test_module_opens_its_own_door():
+    """Un cliquet à ZÉRO : les douze sont corrigés, aucun treizième."""
+    offenders = _tests_connecting_without_the_door()
+    assert not offenders, (
+        "module(s) de test ouvrant une connexion depuis des variables de DSN, sans "
+        "passer par `tests/db_gate.dsn()` : " + ", ".join(offenders)
+        + ". Ces modules skippent sans base et ERREURENT avec une base dont le mot "
+          "de passe vit dans config.yaml. Remplacer le corps de `_dsn()` par "
+          "`from tests.db_gate import dsn; return dsn()`."
+    )
+
+
+def test_the_test_sweep_sees_the_modules_that_connect():
+    """Anti-vacuité : un balayage qui ne trouve plus personne garde zéro.
+
+    Douze modules de test ouvrent une connexion Postgres. Si ce nombre tombe sous
+    huit, c'est le PRÉDICAT qui a cessé de voir, pas la suite qui s'est simplifiée.
+    """
+    qui_se_connectent = [
+        p for p in (REPO / "tests").rglob("*.py")
+        if "psycopg2.connect" in p.read_text(encoding="utf-8")
+    ]
+    assert len(qui_se_connectent) >= 8, (
+        f"seulement {len(qui_se_connectent)} module(s) de test ouvrent une "
+        "connexion — le balayage ne voit plus rien, son zéro ne prouve rien."
+    )
+
+
+def test_a_guard_that_asserts_absence_is_not_an_offender():
+    """Le faux positif nommé — `test_credential_loader` VÉRIFIE cette absence.
+
+    Il porte les cinq noms de variables dans un `assert var not in code`. Un
+    prédicat qui cherche le nom plutôt que l'usage le compte comme coupable : il
+    était dans les dix trouvés au premier jet, et il ne l'est plus.
+    """
+    assert "tests/test_credential_loader.py" not in _tests_connecting_without_the_door()
+
+
+def _un_module_jetable_ouvre_sa_porte(tmp_path, source: str) -> bool:
+    """Le MÊME prédicat, appliqué à un module fabriqué pour l'occasion."""
+    f = tmp_path / "test_jetable.py"
+    f.write_text(source, encoding="utf-8")
+    if "psycopg2.connect" not in source:
+        return False
+    tree = ast.parse(source)
+    if _passe_par_la_porte(tree):
+        return False
+    return any(_lit_une_variable(n) for n in ast.walk(tree))
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path):
+    """Le garde se prouve lui-même — la porte maison est VUE."""
+    assert _un_module_jetable_ouvre_sa_porte(tmp_path, '''
+import os, psycopg2
+
+def _dsn():
+    return {"host": "localhost", "port": 5433,
+            "password": os.environ.get("DATABASE_PASSWORD", "")}
+
+def test_x():
+    psycopg2.connect(**_dsn())
+'''), "une porte maison lisant DATABASE_PASSWORD doit être signalée"
+
+
+def test_the_shared_door_leaves_the_detector_silent(tmp_path):
+    """La réciproque : sans elle, un prédicat qui dit « oui » à tout passerait."""
+    assert not _un_module_jetable_ouvre_sa_porte(tmp_path, '''
+import psycopg2
+from tests.db_gate import dsn
+
+def test_x():
+    psycopg2.connect(**dsn())
+'''), "un module qui passe par la porte partagée ne doit pas être signalé"
+
+
+def test_naming_the_variable_without_reading_it_is_not_the_defect(tmp_path):
+    """Le faux positif synthétique — un garde qui vérifie leur ABSENCE.
+
+    C'est la forme exacte de `test_credential_loader.py`, comptée coupable par le
+    premier prédicat parce qu'elle NOMME les variables.
+    """
+    assert not _un_module_jetable_ouvre_sa_porte(tmp_path, '''
+import psycopg2
+
+def test_the_module_reads_no_connection_variable():
+    code = open("src/utils/credential_loader.py").read()
+    for var in ("DATABASE_HOST", "DATABASE_PASSWORD"):
+        assert var not in code
+    assert psycopg2 is not None
+'''), "nommer une variable dans une assertion d'absence n'est pas la lire"

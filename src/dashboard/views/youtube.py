@@ -1,12 +1,60 @@
-"""Vue Streamlit pour YouTube (Optimisée Dark Mode & Multi-Axes)."""
+"""YouTube — la chaîne, et ce que YouTube accepte de nous dire d'elle.
+
+Type: Feature
+Uses: view_session, smart_period_filter, platform_timeseries, i18n
+Depends on: youtube_channel_history, youtube_videos, youtube_video_stats
+Persists in: — (lecture seule)
+
+LES ABONNÉS SONT ARRONDIS À LA SOURCE, et ce n'est pas un défaut d'ici
+----------------------------------------------------------------------
+Rapporté le 2026-09-21 : « il n'y a pas moyen de retrouver une meilleure
+granularité pour les abonnés car ça passe de 10,6k à 10,7k ». C'est exact, et la
+cause est chez YouTube.
+
+`youtube_collector` interroge la **Data API v3** avec une CLÉ D'API
+(`developerKey=`), et `channels.list(part='statistics')` y rend un
+`subscriberCount` **arrondi à trois chiffres significatifs** pour toute lecture
+publique. Mesuré en base sur ce locataire :
+
+    34 jours de relevés · **2 valeurs distinctes** : 10 600 et 10 700
+
+Il n'y a rien à corriger dans cette page : la marche de 100 EST la donnée. Ce que
+la page peut faire — et fait maintenant — c'est cesser de la dessiner comme une
+courbe continue et le DIRE.
+
+Le chemin vers l'exact existe, et il est nommé plutôt que supposé : la **YouTube
+Analytics API** (`youtubeAnalytics.reports.query`, métriques `subscribersGained`
+et `subscribersLost`) rend le quotidien exact — mais elle exige un OAuth de
+PROPRIÉTAIRE de chaîne, pas une clé d'API. C'est une brique de credentials, du
+même genre que le jeton de rafraîchissement SoundCloud.
+
+LES VUES, ELLES, ONT DÉJÀ LEUR GRANULARITÉ FINE
+-------------------------------------------------
+Et c'est la moitié contre-intuitive de la réponse. Deux compteurs coexistent :
+
+    youtube_channel_history.view_count   2 valeurs distinctes sur 34 jours
+    somme de youtube_video_stats         99 770 → 99 775 → 99 777 → 99 778 → …
+
+Le second bouge à l'unité, jour après jour. C'est lui que trace la courbe (via
+`platform_timeseries.youtube_cumulative_views`) et lui qui porte les totaux du
+produit. Le compteur de chaîne, lui, inclut des vidéos absentes du catalogue et
+avance par paliers.
+"""
 import streamlit as st
 import plotly.graph_objects as go
 import isodate
-from datetime import datetime, timedelta
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.period_filter import smart_period_filter
+from src.dashboard.utils.period_filter import (
+    latest_release_date,
+    smart_period_filter,
+)
 from src.dashboard.utils import platform_timeseries as pts
+from src.dashboard.utils.platform_colors import PALETTE_LIGHT
+
+# La couleur MESURÉE de YouTube — pas `#FF0000`, que le balayage du 2026-09-08 a
+# refusé (ΔE 4,6 contre SoundCloud en deutéranopie avec les teintes de marque).
+_YT = PALETTE_LIGHT["youtube"]
 
 def parse_duration(duration_str):
     """Convertit 'PT1M30S' en secondes."""
@@ -18,9 +66,10 @@ def parse_duration(duration_str):
         return 0
 
 def show():
-    st.title(t("youtube.title", "🎬 YouTube Analytics"))
-    st.markdown(t("youtube.subtitle", "### Analyse de la Chaîne et des Vidéos"))
-    st.markdown("---")
+    # ⚠️ NI TITRE NI SOUS-TITRE — retirés le 2026-09-21, même geste que la page
+    # Apple : « 🎬 YouTube Analytics » répétait l'entrée de menu qu'on vient de
+    # cliquer, et « Analyse de la Chaîne et des Vidéos » décrivait la page au lieu
+    # de la commencer.
 
     with view_session() as (db, artist_id):
         try:
@@ -29,9 +78,17 @@ def show():
             # ============================================================================
             st.subheader(t("youtube.channel_header", "📈 Évolution de la Chaîne"))
 
+            # « DEPUIS LA DERNIÈRE SORTIE » par défaut — 2026-09-21, demandé
+            # explicitement, et c'est un REVIREMENT assumé. Le défaut valait
+            # `"all"` depuis que les abonnés n'existent que sur cette table ; le
+            # motif écrit alors portait sur la SOURCE des abonnés, pas sur la
+            # fenêtre. Les deux questions sont distinctes, et la seconde appartient
+            # au propriétaire : toute l'app s'ancre sur la dernière sortie.
             window = smart_period_filter(
                 db, table="youtube_channel_history", date_column="collected_at",
-                artist_id=artist_id, key="yt_channel", default_override="all",
+                artist_id=artist_id, key="yt_channel",
+                latest_release_resolver=lambda: latest_release_date(db, artist_id),
+                default_override="last_release",
             )
             frag, frag_params = window.sql_between("collected_at")
             # Les ABONNÉS n'existent que sur la chaîne — cette table est leur seule
@@ -68,11 +125,23 @@ def show():
                 # fill='tozeroy' ancrait la bande à 0 → avec des comptes absolus élevés,
                 # les variations quotidiennes paraissaient plates. On garde une ligne
                 # simple et on resserre l'axe sur la plage réelle (voir update_layout).
+                # UN ESCALIER, PAS UNE COURBE — 2026-09-21.
+                #
+                # `subscriberCount` est arrondi à trois chiffres significatifs par la
+                # Data API : mesuré ici, **2 valeurs distinctes sur 34 jours** (10 600
+                # et 10 700). Tracée en `lines+markers` avec l'axe resserré sur la
+                # plage réelle, cette marche de 100 prenait l'allure d'une pente
+                # continue — l'artiste lisait une progression jour par jour là où il
+                # n'y a que deux mesures.
+                #
+                # `line_shape="hv"` dit la vérité de la donnée : la valeur tient, puis
+                # saute. C'est la même discipline que « l'absence devient un pixel »,
+                # appliquée à la PRÉCISION plutôt qu'à l'absence.
                 fig_channel.add_trace(go.Scatter(
                     x=df_hist['date'], y=df_hist['subs'],
                     name=t("youtube.subscribers", "Abonnés"),
-                    mode='lines+markers',
-                    line=dict(color='#FF0000', width=2),
+                    mode='lines+markers', line_shape='hv',
+                    line=dict(color=_YT, width=2),
                 ), row=1, col=1)
 
                 # Axe Y2 (Droite) : Vues Totales (Blanc/Gris clair pour Dark Mode)
@@ -81,7 +150,7 @@ def show():
                     x=[d for d, _ in views_series], y=[v for _, v in views_series],
                     name=t("youtube.total_views", "Vues Totales"),
                     mode='lines+markers',
-                    line=dict(color='#E0E0E0', width=2, dash='dot'),
+                    line=dict(color=_YT, width=2, dash='dot'),
                 ), row=2, col=1)
 
                 # Smart range: zoom the subscriber axis onto the actual data band
@@ -115,23 +184,33 @@ def show():
                 )
                 st.plotly_chart(fig_channel, width="stretch")
 
-                # KPIs actuels. Les deux compteurs de vues sont affichés côte à
-                # côte et nommés : celui du CATALOGUE est celui de la courbe et des
-                # totaux du produit, celui de la CHAÎNE est ce qu'annonce YouTube.
-                # Les voir diverger est une information ; en voir un sans savoir
-                # lequel est ce qui a produit 120 627 ici et 118 219 ailleurs.
-                latest = df_hist.iloc[-1]
-                c1, c2, c3 = st.columns(3)
-                c1.metric(t("youtube.kpi_current_subs", "👥 Abonnés Actuels"),
-                          f"{int(latest['subs']):,}")
-                c2.metric(t("youtube.kpi_total_views", "👁️ Vues Totales"),
-                          f"{views_series[-1][1]:,}" if views_series else "—")
-                c3.metric(t("youtube.kpi_channel_views", "📺 Vues de la chaîne"),
-                          f"{int(latest['channel_views']):,}",
-                          help=t("youtube.kpi_channel_views_help",
-                                 "Compteur annoncé par YouTube pour la chaîne entière : "
-                                 "il inclut les vidéos privées, supprimées et les "
-                                 "agrégats internes, absents du catalogue analysé ici."))
+                # ⚠️ LES TROIS TUILES SONT PARTIES le 2026-09-21, à la demande du
+                # propriétaire — « 👥 Abonnés Actuels / 👁️ Vues Totales / 📺 Vues de
+                # la chaîne ». Elles répétaient en chiffre le dernier point des deux
+                # courbes juste au-dessus, et la troisième demandait une bulle d'aide
+                # pour expliquer pourquoi elle différait de la deuxième.
+                #
+                # Ce qu'elles portaient d'irremplaçable — que les deux compteurs de
+                # vues ne sont pas le même — descend dans la légende, où il est LU au
+                # lieu d'être survolé.
+                _subs_paliers = int(df_hist['subs'].nunique())
+                st.caption(t(
+                    "youtube.channel_caption",
+                    "**Abonnés** : YouTube arrondit ce compteur à trois chiffres "
+                    "significatifs sur l'API publique — {n} valeur(s) distincte(s) "
+                    "seulement sur {j} jours de relevés ici, d'où l'escalier. Le "
+                    "quotidien exact existe, mais il demande un accès "
+                    "**propriétaire de chaîne** (API YouTube Analytics), pas une clé "
+                    "d'API.\n\n"
+                    "**Vues** : la courbe additionne les compteurs PAR VIDÉO, qui "
+                    "bougent à l'unité ({vues}). Le compteur que YouTube affiche pour "
+                    "la chaîne vaut {chaine} — il inclut des vidéos privées, "
+                    "supprimées et des agrégats absents du catalogue analysé ici. "
+                    "Les voir diverger est une information, pas une erreur."
+                ).format(
+                    n=_subs_paliers, j=len(df_hist),
+                    vues=f"{views_series[-1][1]:,}".replace(",", " ") if views_series else "—",
+                    chaine=f"{int(df_hist.iloc[-1]['channel_views']):,}".replace(",", " ")))
 
             else:
                 st.info(t("youtube.no_channel_history", "Pas encore d'historique pour la chaîne."))
@@ -146,59 +225,70 @@ def show():
             st.subheader(t("youtube.top_header", "🏆 Top Contenus (Analyse Multi-Axes)"))
 
             _all_lbl = t("common.all", "Tous")
-            _PERIOD_OPTIONS = {
-                _all_lbl: None,
-                t("youtube.period_12m", "12 derniers mois"): 365,
-                t("youtube.period_6m", "6 derniers mois"): 180,
-                t("youtube.period_3m", "3 derniers mois"): 90,
-                t("youtube.period_30d", "30 derniers jours"): 30,
-            }
+
+            # LE FILTRE CANONIQUE, PAS UN DE PLUS — 2026-09-21.
+            #
+            # Cette section portait son propre sélecteur : cinq préréglages écrits à
+            # la main (« 12 derniers mois », « 30 derniers jours »…) convertis en
+            # `timedelta`. Il ne partageait rien avec le reste de l'app : ni les
+            # mêmes intitulés, ni la plage personnalisée, ni l'ancrage sur la
+            # dernière sortie, ni la borne sur l'étendue RÉELLE des données — un
+            # artiste pouvait donc y choisir une fenêtre vide, ce que
+            # `smart_period_filter` rend impossible par construction.
+            #
+            # Un sélecteur par page, c'est une définition de « période » par page.
+            # Garde : `test_a_period_selector_is_the_shared_one.py`.
             c_period, c_filter1, c_filter2 = st.columns(3)
             with c_period:
-                period_label = st.selectbox(t("youtube.publish_period", "Période de publication"), list(_PERIOD_OPTIONS.keys()))
-            days_back = _PERIOD_OPTIONS[period_label]
-            published_since = (
-                datetime.now() - timedelta(days=days_back) if days_back else None
-            )
+                win_pub = smart_period_filter(
+                    db, table="youtube_videos", date_column="published_at",
+                    artist_id=artist_id, key="yt_videos",
+                    latest_release_resolver=lambda: latest_release_date(db, artist_id),
+                    default_override="last_release",
+                )
+            # Récupération des vidéos + stats, bornée par LA fenêtre partagée.
+            #
+            # `published_at` est la date de PUBLICATION : la fenêtre choisit donc les
+            # vidéos SORTIES dans la période, pas les vues qu'elles ont faites
+            # pendant. C'est ce que « Top Contenus » veut dire, et le libellé le dit.
+            pub_frag, pub_params = win_pub.sql_between("published_at")
+            videos_query = f"""
+                SELECT
+                    v.title, v.duration, v.published_at, v.thumbnail_url,
+                    vs.view_count, vs.like_count, vs.comment_count
+                FROM youtube_videos v
+                JOIN (
+                    SELECT video_id, MAX(collected_at) as max_date
+                    FROM youtube_video_stats
+                    WHERE artist_id = %s
+                    GROUP BY video_id
+                ) latest ON v.video_id = latest.video_id
+                JOIN youtube_video_stats vs
+                    ON vs.video_id = latest.video_id AND vs.collected_at = latest.max_date
+                WHERE v.artist_id = %s {pub_frag.replace('published_at', 'v.published_at')}
+                ORDER BY v.published_at DESC
+            """
+            df_videos = db.fetch_df(videos_query, (artist_id, artist_id, *pub_params))
 
-            # Récupération des vidéos + stats
-            if published_since:
-                videos_query = """
-                    SELECT
-                        v.title, v.duration, v.published_at, v.thumbnail_url,
-                        vs.view_count, vs.like_count, vs.comment_count
-                    FROM youtube_videos v
-                    JOIN (
-                        SELECT video_id, MAX(collected_at) as max_date
-                        FROM youtube_video_stats
-                        WHERE artist_id = %s
-                        GROUP BY video_id
-                    ) latest ON v.video_id = latest.video_id
-                    JOIN youtube_video_stats vs
-                        ON vs.video_id = latest.video_id AND vs.collected_at = latest.max_date
-                    WHERE v.artist_id = %s
-                      AND v.published_at >= %s
-                    ORDER BY v.published_at DESC
-                """
-                df_videos = db.fetch_df(videos_query, (artist_id, artist_id, published_since))
-            else:
-                videos_query = """
-                    SELECT
-                        v.title, v.duration, v.published_at, v.thumbnail_url,
-                        vs.view_count, vs.like_count, vs.comment_count
-                    FROM youtube_videos v
-                    JOIN (
-                        SELECT video_id, MAX(collected_at) as max_date
-                        FROM youtube_video_stats
-                        WHERE artist_id = %s
-                        GROUP BY video_id
-                    ) latest ON v.video_id = latest.video_id
-                    JOIN youtube_video_stats vs
-                        ON vs.video_id = latest.video_id AND vs.collected_at = latest.max_date
-                    WHERE v.artist_id = %s
-                    ORDER BY v.published_at DESC
-                """
-                df_videos = db.fetch_df(videos_query, (artist_id, artist_id))
+            # ⚠️ CETTE FENÊTRE EST UNE COHORTE, ET ÇA SE DIT À L'ARTISTE.
+            #
+            # Elle borne `published_at` : elle choisit les vidéos SORTIES dans la
+            # période, pas l'activité qu'elles ont eue pendant. Les chiffres
+            # affichés sont ceux acquis À CE JOUR, depuis la publication. « Top
+            # contenus des 30 derniers jours » se lirait comme un flux ; c'est un
+            # classement de cohorte.
+            #
+            # ⚠️ Et l'annonce vit APRÈS le bornage, pas avant : le garde
+            # (`test_a_period_bound_is_on_the_right_column`) lit les textes des
+            # 90 lignes qui SUIVENT le `sql_between`, parce qu'un texte placé
+            # au-dessus du sélecteur ne décrit pas forcément la figure d'en
+            # dessous. Posée près du sélecteur, la phrase était invisible au garde
+            # — et, plus important, elle était loin de la figure qu'elle qualifie.
+            st.caption(t("youtube.cohort_notice",
+                         "Classement **par date de publication** : la fenêtre "
+                         "choisit les vidéos SORTIES dans la période. Les chiffres "
+                         "sont ceux **acquis à ce jour**, depuis leur publication — "
+                         "pas l'activité de la période."))
 
             if not df_videos.empty:
                 # Traitement

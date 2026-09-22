@@ -35,6 +35,7 @@ import html as _html
 import streamlit as st
 
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.proxy_disclosure import cpr_help
 
 
 def render_tiles(totals: dict, grand_total: int, ig_count: int,
@@ -301,7 +302,11 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
                          "Dépense publicitaire de la période affichée, et le coût "
                          "par résultat de la campagne la plus RÉCENTE — celle de la "
                          "dernière sortie, pas le record de toutes les campagnes.")
-                  + (f" Campagne : {_cpr_name}." if _cpr_name else ""))
+                  + (f" Campagne : {_cpr_name}." if _cpr_name else "")
+                  # R146 — ce chiffre est un coût par CLIC SORTANT. C'est la
+                  # tuile du premier écran : elle ne peut pas être la seule à
+                  # laisser croire qu'un « résultat » est une écoute.
+                  + "\n\n" + cpr_help())
 
     # ── HYPEDDIT — LE TAUX DE CLIC DE LA DERNIÈRE SORTIE ────────────────────
     #

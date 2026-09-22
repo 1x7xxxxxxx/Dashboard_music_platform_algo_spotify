@@ -1,6 +1,19 @@
 """EN catalog for the account view."""
 
 EN = {
+    # ── Le compte en un écran (2026-09-21) ───────────────────────────────────
+    "account.plan": "My plan",
+    "account.twofa": "2FA",
+    "account.on": "🔐 Enabled",
+    "account.off": "—",
+    "account.connected_header": "**🔌 My connected accounts**",
+    "account.connected_none": (
+        "No account connected. This is what fills your pages: open "
+        "**🔑 API Credentials** in the sidebar."),
+    "account.connected_caption": (
+        "{n} account(s) declared. This list says what is **saved**, not what "
+        "**answers**: a key may have expired since. The test lives in "
+        "**🔑 API Credentials**."),
     "account.title": "👤 My Account",
     "account.session_expired": "Session expired. Please log in again.",
     "account.user_not_found": "User not found.",
@@ -11,12 +24,11 @@ EN = {
     # Profile
     "account.profile_header": "👤 My account",
     "account.username": "Username",
-    "account.role": "Role",
     "account.email_verified": "Email verified",
     "account.yes": "✅ Yes",
     "account.pending": "⏳ Pending",
     "account.email_caption": "Email: **{email}**",
-    "account.artist_caption": "Artist: **{name}** — slug `{slug}` — tier `{tier}`",
+    "account.artist_caption": "Artist: **{name}**",
     "account.member_since": "Member since: {date}",
     # Change password
     "account.change_pw_header": "🔒 Change password",

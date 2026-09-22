@@ -34,7 +34,7 @@ EN = {
     "meta_cpr_optimizer.col_score": "Score",
     "meta_cpr_optimizer.col_current_cpr": "Current CPR",
     "meta_cpr_optimizer.col_spend": "Spend",
-    "meta_cpr_optimizer.col_results": "Results",
+    "meta_cpr_optimizer.col_results": "Outbound clicks",
     "meta_cpr_optimizer.col_ml_max": "ML max",
     # Detail cards
     "meta_cpr_optimizer.unknown": "unknown",
@@ -60,4 +60,24 @@ EN = {
         "🔴 **Underperforming**: high CPR ({cpr}) and/or weak ML potential ({ml}). "
         "Reduce the budget by 30% or rework the creative and targeting."
     ),
+
+    # Le panneau d'âge et la confiance (2026-09-21).
+    "meta_cpr_optimizer.age_header": "🎂 Which age band clicks cheapest",
+    "meta_cpr_optimizer.age_axis": "CPR (€ per outbound click)",
+    "meta_cpr_optimizer.age_thin": "Not enough age bands measured (spend AND results) to "
+                                   "compare.",
+    "meta_cpr_optimizer.age_finding": "**{best}** is your most efficient band: **{cb:.4f} "
+                                      "€** per result, against **{cw:.4f} €** for "
+                                      "**{worst}** — **{ratio:.0f} %** cheaper. And "
+                                      "**{part:.0f} %** of your spend goes to bands that "
+                                      "convert WORSE than the median.\n\n"
+                                      "⚠️ This panel is measured, not assumed. The common "
+                                      "intuition — « young people click more » — is not "
+                                      "what this account says: the score follows the "
+                                      "data, never the other way round.",
+    "meta_cpr_optimizer.confidence_note": "The score also weights by CONFIDENCE: a "
+                                          "campaign is half-believed at **{k:.0f} "
+                                          "results**, and barely at all below a few "
+                                          "dozen. A flattering CPR on ten euros of spend "
+                                          "no longer climbs the ranking.",
 }

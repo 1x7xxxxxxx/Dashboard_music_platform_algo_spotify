@@ -14,14 +14,6 @@ EN = {
     "onboarding.trial_offer": "🎁 **Premium free for 1 month** (30 days), until **{date}**.\n\nAfter that your account returns to **Free**: you keep your data, your connections and your exports. You lose **🚀 Road to Algo** (Discover Weekly trigger predictions), **revenue forecasts** and the **Meta × Spotify cross-analyses**.",
     "onboarding.welcome_body": "Your account has been created with the **{plan}** plan. "
                                "Here is what your current plan includes:",
-    "onboarding.feat_algo": "+ 🚀 **Know whether a track will trigger Discover Weekly** — before you spend on promotion",
-    "onboarding.feat_revenue": "+ 📈 **What your streams will earn** next month",
-    "onboarding.feat_meta_x": "+ 🔀 **Which euro of ads produced which streams**",
-    "onboarding.feat_spotify": "🎵 Spotify + Spotify for Artists",
-    "onboarding.feat_distributors": "💰 Distributors (iMusician, DistroKid…)",
-    "onboarding.feat_export_csv": "⬇️ CSV export — a spreadsheet file (Excel-style) with your raw data",
-    "onboarding.feat_pdf_weekly": "+ 📄 Your filterable PDF report — on demand, and mailed to you every week",
-    "onboarding.feat_creatives": "+ 🎨 **Which creative costs least** per stream gained",
     "onboarding.your_plan": " ← *your plan*",
     "onboarding.upgrade_to": "Upgrade to {tier} →",
     # Step 2 — Credentials
@@ -61,10 +53,6 @@ EN = {
                            "after the month if you do not go Premium. **Your data stays "
                            "yours either way** — nothing is deleted, and the CSV export "
                            "stays free.",
-    "onboarding.feat_meta_budget": (
-        "+ 💶 **How much to put back on which campaign** — scale up, hold or cut, "
-        "campaign by campaign, from the cost per listen gained"
-    ),
     "onboarding.status_title": "📋 Where you stand",
     "onboarding.col.quick": "⭐ Start here",
     "onboarding.col.longer": "A little longer",

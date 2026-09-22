@@ -38,7 +38,7 @@ EN = {
         "check that a full collection has run."
     ),
     "meta_breakdowns.total_spend": "Total spend",
-    "meta_breakdowns.results": "Results",
+    "meta_breakdowns.results": "Outbound clicks",
     "meta_breakdowns.avg_cpr": "Average CPR",
     "meta_breakdowns.spend_eur": "Spend (€)",
     "meta_breakdowns.pareto_title": "Spend & CPR — {entity}",

@@ -15,10 +15,6 @@ EN = {
                            "Done-for-you service (preliminary call to validate fit + budget) — "
                            "📧 [{email}](mailto:{email}?subject=Optimisation%20campagnes%20-%20streaMLytics)",
     # Premium feature bullets
-    "upgrade.feat_road": "🚀 Road to Algo — ML predictions",
-    "upgrade.feat_forecast": "📈 Revenue forecasts (ML)",
-    "upgrade.feat_creatives": "🎨 Meta Ads creatives",
-    "upgrade.feat_support": "Priority support",
     # Page labels (Free feature list) — only keys whose EN differs from FR
     "upgrade.page.home": "Home",
     "upgrade.page.meta_ads_overview": "Meta Ads - Overview",

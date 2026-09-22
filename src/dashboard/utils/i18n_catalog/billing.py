@@ -1,6 +1,32 @@
 """EN catalog for the billing view."""
 
 EN = {
+    # ── Le service d'optimisation (2026-09-21) ───────────────────────────────
+    "billing.service_header": "🎯 Have your campaigns run for you (bespoke service)",
+    "billing.service_body": (
+        "The tool tells you where your money goes. If you want someone to handle "
+        "**the campaigns themselves**, that is a separate service, and we talk "
+        "before starting."),
+    "billing.service_call_why": (
+        "**A call first is necessary**, and not as a formality: I look at your "
+        "project, what your numbers already say, and the budget that makes "
+        "sense. If it is not a fit, I say so."),
+    "billing.service_book": "📅 Book a call",
+    "billing.service_btn": "✉️ Email me",
+    "billing.service_no_calendly": (
+        "⚙️ `SERVICE_CALENDLY_URL` is not set: the booking button is hidden. Set "
+        "it in `.env.local` (local) and in the container environment (prod)."),
+    "billing.service_credential.0": (
+        "🎬 **Dozens of video creatives** produced for your campaign, varied by "
+        "hook and by opening"),
+    "billing.service_credential.1": (
+        "📈 **Real advertising experience** — campaigns actually run, not a "
+        "dashboard theory"),
+    "billing.service_credential.2": (
+        "🎧 **Playlist curator for 2 years** — I know what gets placed and what "
+        "does not"),
+    "billing.service_credential.3": (
+        "🎯 **The full setup** — audiences, placements, budgets, iterations"),
     "billing.title": "💳 Billing & Subscription",
     "billing.price_free": "€0/month",
     "billing.price_monthly": "€{p}/month",
@@ -9,34 +35,7 @@ EN = {
     "billing.plan_premium_label": "💎 Premium",
     "billing.one_artist": "1 artist",
     "billing.up_to_10": "Up to 10 artists",
-    "billing.feat_all_analytics": "All platform analytics (Spotify, Apple Music, "
-                                  "YouTube, SoundCloud, Instagram, Meta Ads, Hypeddit)",
-    "billing.feat_distributor": "💰 Distributor revenue (iMusician + DistroKid) + 🎼 SACEM royalties",
-    "billing.feat_mapping": "🔗 Cross-platform mapping — automatic suggestions "
-                            "(titles across platforms + Meta Ad campaigns)",
-    "billing.feat_roi": "💹 ROI Breakeven — revenue (distrib. + SACEM) vs Meta Ads spend",
-    "billing.feat_csv": "📂 CSV / XLSX import & export",
-    "billing.feat_pdf": "📄 PDF report export (FR / EN)",
-    "billing.feat_wrapped": "🎁 Annual Data Wrapped",
-    "billing.feat_credentials": "🔑 API credentials",
     "billing.feat_everything_free": "Everything in Free",
-    "billing.feat_road_to_algo": "🚀 Road to Algo — ML (machine learning) predictions to pinpoint "
-                                 "the levers that trigger Spotify's algorithmic playlists: "
-                                 "Discover Weekly, Release Radar, Radio",
-    "billing.feat_revenue_forecast": "📈 Revenue forecasts (ML)",
-    "billing.feat_autosync": ("🔄 Daily automatic download of Spotify for Artists "
-                              "+ Apple Music CSVs (no more manual exports)"),
-    "billing.feat_cpr": "📊 CPR optimization — Meta Ads campaign budget & streams",
-    "billing.feat_creatives": ("🎬 Video creative generation (60+ per campaign) "
-                               "+ targeting optimization"),
-    "billing.feat_support": "Priority support",
-    # Service CTA
-    "billing.service_header": "🎯 Marketing campaign optimization (done-for-you service)",
-    "billing.service_body": "Want to delegate the optimization of your campaigns (Meta Ads & co)? "
-                            "I can handle it directly. **A preliminary call is required** to check "
-                            "it fits your project and define the budget you want to invest.\n\n"
-                            "📧 Contact: **{email}**",
-    "billing.service_btn": "✉️ Contact me about optimization",
     # Current plan
     "billing.free_plan_info": "You are on the **Free** plan. Check out the offers below.",
     "billing.trial_active": "🎁 **{plan}** access active (welcome trial). "
@@ -44,10 +43,12 @@ EN = {
     "billing.metric_plan": "Plan",
     "billing.metric_price": "Monthly price",
     "billing.metric_status": "Status",
-    "billing.free_months": "🎁 You have **{n} free month(s)** from referrals — applied "
-                           "before your next billing cycle.",
-    "billing.discount": "🏷️ A **{pct}% discount** will be applied to your first paid month "
-                        "(referral reward).",
+    "billing.free_months": (
+        "🎁 You have **{n} free month(s)** from referrals. Write to us before "
+        "your next payment and we apply them — it is not automatic yet."),
+    "billing.discount": (
+        "🏷️ A **{pct}% discount** is yours on your first paid month (referral). "
+        "Tell us when you subscribe: it is applied by hand."),
     "billing.cancel_warning": "⚠️ Your subscription is set to **cancel on {date}**. "
                               "Reactivate via the Stripe portal below.",
     "billing.next_renewal": "Next renewal: {date}",

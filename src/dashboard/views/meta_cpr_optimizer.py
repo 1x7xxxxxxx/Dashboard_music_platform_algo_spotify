@@ -6,12 +6,15 @@ Depends on: meta_insights_performance, campaign_track_mapping, ml_song_predictio
 Score: max(dw_prob, rr_prob, radio_prob) × (cpr_median / cpr_campaign)
        → normalisé 0-10. Seuils: ≥7 → +30%, 5-7 → +10%, 3-5 → neutre, <3 → -30%.
 """
-import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
 
 from src.dashboard.utils import view_session
 from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.proxy_disclosure import disclosure_caption
+from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.auth import require_plan
 from src.utils.track_matching import canonical_song_sql
 
@@ -93,17 +96,69 @@ GROUP BY campaign_name
 """
 
 
-def _compute_scores(df: pd.DataFrame, cpr_median: float) -> pd.DataFrame:
-    """Add score_raw, score_10, recommendation, budget_delta columns."""
+# LE PRIOR DE CONFIANCE, en RÉSULTATS. Une campagne à 14 résultats ne peut pas
+# soutenir une affirmation sur son CPR ; une à 6 932 le peut. `K` est le nombre de
+# résultats à partir duquel on croit une campagne à moitié — il vaut la MÉDIANE
+# observée, pas une constante ronde, pour que le seuil suive le compte réel.
+_K_DEFAUT = K_DEFAUT
+
+
+def _facteur_confiance(resultats: float, k: float) -> float:
+    """Délégué à `utils.meta_confidence` — deux vues posent la même question.
+
+    Le classement des créatives en a eu besoin le 2026-09-21, pour le même motif
+    exact (« si j'ai dépensé que 10 € »). Recopier la formule aurait créé deux
+    barèmes qui divergent au premier réglage.
+    """
+    return confidence_factor(resultats, k)
+
+
+def _compute_scores(df: pd.DataFrame, cpr_median: float,
+                    affinite_age: dict | None = None,
+                    k_confiance: float = _K_DEFAUT) -> pd.DataFrame:
+    """Score = probabilité ML × efficacité × CONFIANCE × affinité d'âge.
+
+    ⚠️ BARÈME REFAIT le 2026-09-21, sur deux demandes et une mesure qui en
+    contredit une.
+
+    **1. « si j'ai dépensé que 10 € en CPR… »** — le score valait
+    `ml_prob × (cpr_médian / cpr)`. Rien n'y bornait la CONFIANCE : une campagne
+    à 14 résultats et au CPR chanceux sortait devant une campagne à 6 932. Mesuré
+    sur ce compte : les campagnes vont de **14 à 6 932 résultats**, médiane
+    **1 244** — deux ordres de grandeur, et le barème les traitait à égalité.
+    Le facteur `n / (n + k)` corrige ça sans exclure personne.
+
+    **2. « il faut prendre en compte l'âge »** — fait, mais MESURÉ, pas supposé.
+    Et la mesure dit l'inverse de la prémisse :
+
+        18-24   564,80 €   4 081 résultats   CPR **0,1384**
+        25-34 1 397,61 €   9 503 résultats   CPR **0,1471**
+        35-44   166,93 €   1 891 résultats   CPR **0,0883**  ← le meilleur
+        45-54   122,75 €   1 342 résultats   CPR **0,0915**
+
+    Les **35-44 convertissent 57 % moins cher que les 18-24**, et **78 % du budget
+    part sur les deux tranches les plus chères**. Coder « les jeunes cliquent
+    plus » aurait inscrit dans le barème une croyance que les données de ce compte
+    réfutent. L'affinité est donc calculée à partir du CPR OBSERVÉ par tranche :
+    une campagne est récompensée d'avoir touché les tranches qui convertissent
+    bien CHEZ CET ARTISTE, quelles qu'elles soient.
+    """
     def _score_row(row) -> float:
         if pd.isna(row['cpr']) or row['cpr'] <= 0 or cpr_median <= 0:
             return 0.0
         ml_prob = max(row['dw_prob'], row['rr_prob'], row['radio_prob'])
-        # Higher ML prob + lower CPR → higher score
-        return float(ml_prob) * (cpr_median / float(row['cpr']))
+        efficacite = cpr_median / float(row['cpr'])
+        confiance = _facteur_confiance(row.get('total_results'), k_confiance)
+        age = 1.0
+        if affinite_age:
+            age = float(affinite_age.get(row['campaign_name'], 1.0))
+        return float(ml_prob) * efficacite * confiance * age
 
     df = df.copy()
     df['score_raw'] = df.apply(_score_row, axis=1)
+    df['confiance'] = (df['total_results'].apply(
+        lambda n: _facteur_confiance(n, k_confiance))
+        if 'total_results' in df.columns else 0.0)
     # Normalize to 0-10 (cap at 10)
     max_raw = df['score_raw'].max()
     if max_raw > 0:
@@ -226,6 +281,12 @@ def show() -> None:
         "Score composite ML × CPR pour chaque campagne. "
         "Basé sur `campaign_track_mapping` + `ml_song_predictions` + `meta_insights_performance`."
     ))
+    # R146 — CETTE PAGE RECOMMANDE D'AUGMENTER OU DE RÉDUIRE UN BUDGET.
+    # Toutes ses recommandations sont assises sur le CPR, c'est-à-dire sur un coût
+    # par CLIC SORTANT. C'est la surface où la limite compte le plus : ailleurs on
+    # lit un chiffre, ici on agit dessus. Elle est donc en tête de page, visible
+    # sans survol, et pas dans une info-bulle.
+    st.info(disclosure_caption())
 
     with view_session() as (db, artist_id):
         # Un nom de campagne peut exister dans DEUX comptes publicitaires : sans ce
@@ -239,6 +300,15 @@ def show() -> None:
         )
         cpr_all = db.fetch_df(
             _QUERY_ALL_CAMPAIGN_CPR.format(acct=_acct), (artist_id, *_acct_params))
+        # ⚠️ LA TROISIÈME LECTURE EST **DANS** LE `with`, et c'est une correction.
+        #
+        # Elle vivait dix lignes plus bas, hors du bloc : `view_session()` avait
+        # déjà fermé la connexion, et `PostgresHandler._ensure_connection()` la
+        # rouvrait en silence. La page marchait, ouvrait DEUX connexions par
+        # rendu contre la règle #9, et rien ne le disait —
+        # `test_a_render_opens_one_connection` l'a nommé. C'est mot pour mot le
+        # défaut que `hypeddit.py` documente depuis le 2026-08-21.
+        affinite, ages = _affinite_age(db, artist_id, _acct, _acct_params)
 
     if df.empty:
         st.info(t(
@@ -252,7 +322,14 @@ def show() -> None:
     # CPR médian global (toutes campagnes avec données)
     cpr_median = float(cpr_all['cpr'].median()) if not cpr_all.empty else 1.0
 
-    df = _compute_scores(df, cpr_median)
+    # L'affinité d'âge est LUE plus haut, dans le bloc de connexion ; elle est
+    # APPLIQUÉE ici. Le détail du raisonnement, et les chiffres qui réfutent
+    # « les jeunes cliquent plus », sont dans le docstring de `_compute_scores`.
+    k_conf = (float(cpr_all['cpr'].notna().sum()) and
+              float(df['total_results'].median()) if 'total_results' in df.columns
+              else _K_DEFAUT) or _K_DEFAUT
+    df = _compute_scores(df, cpr_median, affinite_age=affinite, k_confiance=k_conf)
+    _render_age_panel(ages, k_conf)
 
     st.markdown(t("meta_cpr_optimizer.account_median",
                   "CPR médian du compte : **{v}€**").format(v=f"{cpr_median:.2f}"))
@@ -284,3 +361,108 @@ def show() -> None:
         "Le score est calculé sur les données disponibles — "
         "plus il y a de jours de collecte, plus le score est fiable."
     ))
+
+
+def _affinite_age(db, artist_id, acct: str, acct_p: tuple):
+    """(affinité par campagne, table des tranches) — MESURÉE, jamais supposée.
+
+    L'affinité d'une campagne est la moyenne, pondérée par sa dépense, de
+    l'efficacité des tranches d'âge qu'elle a touchées. L'efficacité d'une tranche
+    est `CPR médian des tranches ÷ CPR de la tranche` : au-dessus de 1 elle
+    convertit mieux que la moyenne, en dessous moins bien.
+
+    Une campagne sans ventilation d'âge rend 1,0 — neutre. Elle n'est ni
+    récompensée ni punie pour une donnée qu'on n'a pas.
+    """
+    ages = db.fetch_df(f"""
+        SELECT campaign_name, age_range, SUM(spend) AS spend, SUM(results) AS results
+          FROM meta_insights_performance_age
+         WHERE artist_id = %s{acct}
+         GROUP BY campaign_name, age_range
+    """, (artist_id, *acct_p))
+    if ages is None or ages.empty:
+        return {}, pd.DataFrame()
+
+    ages = ages.copy()
+    ages['spend'] = pd.to_numeric(ages['spend'], errors='coerce').fillna(0.0)
+    ages['results'] = pd.to_numeric(ages['results'], errors='coerce').fillna(0)
+
+    par_tranche = ages.groupby('age_range', as_index=False)[['spend', 'results']].sum()
+    # ⚠️ IL FAUT UNE DÉPENSE **ET** DES RÉSULTATS — vu au premier rendu.
+    #
+    # La tranche « Unknown » porte 0,00 € de dépense et 7 résultats : le rapport
+    # vaut 0, et le panneau l'a proclamée « ta tranche la plus efficace : 0,0000 €
+    # par résultat ». Un coût nul n'est pas un coût bas, c'est une absence de
+    # coût — le même zéro inventé que cette session poursuit partout ailleurs.
+    #
+    # Une tranche sans dépense mesurée n'a pas de CPR : elle sort du calcul plutôt
+    # que d'être proclamée gratuite.
+    par_tranche['cpr'] = (par_tranche['spend'].where(par_tranche['spend'] > 0)
+                          / par_tranche['results'].where(par_tranche['results'] > 0))
+    # ⚠️ Une tranche sans CPR calculable sort du calcul : elle ne vaut ni 0 (« elle
+    # convertit gratuitement ») ni 1 (« elle est moyenne »), elle est inconnue.
+    mediane = par_tranche['cpr'].median()
+    if pd.isna(mediane) or mediane <= 0:
+        return {}, par_tranche
+    par_tranche['efficacite'] = mediane / par_tranche['cpr']
+
+    eff = dict(zip(par_tranche['age_range'], par_tranche['efficacite']))
+    affinite = {}
+    for camp, grp in ages.groupby('campaign_name'):
+        poids = grp['spend'].sum()
+        if poids <= 0:
+            continue
+        valeur = sum(row['spend'] * eff.get(row['age_range'], 1.0)
+                     for _, row in grp.iterrows()
+                     if pd.notna(eff.get(row['age_range'], 1.0)))
+        affinite[camp] = valeur / poids
+    return affinite, par_tranche
+
+
+def _render_age_panel(par_tranche, k_conf: float) -> None:
+    """Le panneau d'âge : ce que la donnée dit, y compris quand elle surprend."""
+    if par_tranche is None or par_tranche.empty or 'efficacite' not in par_tranche:
+        return
+    d = par_tranche.dropna(subset=['cpr'])
+    d = d[d['cpr'] > 0].sort_values('cpr')
+    if len(d) < 2:
+        st.caption(t("meta_cpr_optimizer.age_thin",
+                     "Pas assez de tranches d'âge mesurées (dépense ET résultats) "
+                     "pour comparer."))
+        return
+    meilleure, pire = d.iloc[0], d.iloc[-1]
+    part_chere = (d[d['efficacite'] < 1]['spend'].sum()
+                  / d['spend'].sum() * 100) if d['spend'].sum() else 0
+
+    # « convertit vraiment » affirmait une conversion réelle sur un compte de clics
+    # sortants — c'était le site le plus trompeur du balayage R146, parce que
+    # l'adverbe même prétendait trancher entre le proxy et la chose.
+    st.subheader(t("meta_cpr_optimizer.age_header",
+                   "🎂 Quelle tranche d'âge clique le moins cher"))
+    fig = go.Figure(go.Bar(
+        x=d['age_range'], y=d['cpr'], marker_color='#2a78d6', opacity=0.85,
+        text=[f"{v:.3f} €" for v in d['cpr']], textposition='outside',
+        cliponaxis=False,
+        customdata=d['spend'],
+        hovertemplate="%{x}<br>CPR %{y:.4f} €<br>%{customdata:,.0f} € dépensés"
+                      "<extra></extra>"))
+    fig.update_layout(height=360, margin=dict(t=40),
+                      yaxis_title=t("meta_cpr_optimizer.age_axis", "CPR (€)"))
+    st.plotly_chart(fig, width="stretch")
+    st.info(t(
+        "meta_cpr_optimizer.age_finding",
+        "**{best}** est ta tranche la plus efficace : **{cb:.4f} €** par résultat, "
+        "contre **{cw:.4f} €** pour **{worst}** — soit **{ratio:.0f} %** moins "
+        "cher. Et **{part:.0f} %** de ta dépense part sur des tranches qui "
+        "convertissent MOINS bien que la médiane.\n\n"
+        "⚠️ Ce panneau est mesuré, pas supposé. L'intuition courante — « les jeunes "
+        "cliquent plus » — n'est pas ce que dit ce compte : c'est le score qui "
+        "s'aligne sur la donnée, jamais l'inverse."
+    ).format(best=meilleure['age_range'], cb=meilleure['cpr'],
+             worst=pire['age_range'], cw=pire['cpr'],
+             ratio=(1 - meilleure['cpr'] / pire['cpr']) * 100, part=part_chere))
+    st.caption(t("meta_cpr_optimizer.confidence_note",
+                 "Le score pondère aussi par la CONFIANCE : une campagne est crue à "
+                 "moitié à **{k:.0f} résultats**, et presque pas en dessous de "
+                 "quelques dizaines. Un CPR flatteur sur dix euros de dépense ne "
+                 "remonte plus le classement.").format(k=k_conf))

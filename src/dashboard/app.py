@@ -404,8 +404,12 @@ def render_navigation(role: str, rendered, all_skeys) -> str:
     label_by_key = {key: t(f"nav.item.{key}", lbl)
                     for _, _, items in rendered for lbl, key in items}
 
+    # Cadenas : 🔒 verrouillé, 🔓 payant ET ouvert. Règle dans `utils/nav_badges.py`.
+    from src.dashboard.utils.nav_badges import badge as _badge
+    _paid = {k for _, _, items in rendered for _, k in items if page_is_locked('free', k)}
+
     def _fmt(key: str) -> str:
-        return f"🔒 {label_by_key[key]}" if _is_locked(key) else label_by_key[key]
+        return f"{_badge(key, is_locked=_is_locked, paid_pages=_paid)}{label_by_key[key]}"
 
     for skey, header, items in rendered:
         if header:

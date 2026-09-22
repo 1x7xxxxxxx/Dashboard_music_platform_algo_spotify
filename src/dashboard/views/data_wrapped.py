@@ -1,8 +1,26 @@
-"""Data Wrapped — annual Spotify for Artists metrics entry and evolution charts."""
+"""Data Wrapped — la saisie annuelle Spotify for Artists, et son évolution.
+
+Type: Feature
+Uses: get_db_connection, fragment_db, secondary_analyses, i18n
+Depends on: artist_wrapped
+Persists in: artist_wrapped
+
+⚠️ CETTE PAGE N'EST PLUS DANS LE MENU depuis le 2026-09-21. Son contenu est
+RENDU par `views/spotify_s4a_combined.py`, où il appartient : les métriques d'un
+Wrapped sont des chiffres Spotify for Artists, saisis pour la seule plateforme
+que cette page-là raconte. La ROUTE survit — `show()` reste valide, des liens la
+visent, et le dépôt garde `process_guide` pour exactement cette raison.
+
+CE QUI EST PARTI AVEC LE DÉPLACEMENT
+--------------------------------------
+Le « Recap auto », qui recalculait en carrière des chiffres ayant déjà leur page.
+Le détail du raisonnement est écrit au-dessus de `_tab_charts`, à l'endroit où
+les cinq fonctions vivaient.
+"""
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import date, datetime
+from datetime import datetime
 import sys
 from pathlib import Path
 
@@ -12,21 +30,6 @@ from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import flash, secondary_analyses
 from src.dashboard.auth import get_artist_id, is_admin
-from src.dashboard.utils.kpi_helpers import (
-    get_instagram_followers,
-    get_roi_data,
-    get_soundcloud_likes,
-    get_source_freshness,
-    get_spotify_popularity,
-    get_total_plays_apple,
-    get_total_plays_soundcloud,
-    get_total_streams_s4a,
-    get_total_views_youtube,
-)
-
-from src.utils.artist_name_filter import (
-    ARTIST_NAME_LIKE as _ARTIST_FILTER,
-)
 
 
 # ---------------------------------------------------------------------------
@@ -228,144 +231,27 @@ def _multi_line_chart(df, series, title, log_scale=False):
 # Recap auto — all-time multi-platform bilan (read-only, reuses kpi_helpers)
 # ---------------------------------------------------------------------------
 
-def _recap_spotify(db, aid):
-    st.subheader(t("data_wrapped.recap_spotify_header", "🎧 Spotify"))
-    total = get_total_streams_s4a(db, aid)
-    pop = get_spotify_popularity(db, aid)
-    try:
-        arow = db.fetch_query(
-            "SELECT listeners, followers_level FROM v_s4a_audience_daily "
-            "WHERE artist_id = %s ORDER BY day DESC LIMIT 1", (aid,))
-        followers = int(arow[0][1]) if arow and arow[0][1] is not None else None
-    except Exception:
-        followers = None
-    c1, c2, c3 = st.columns(3)
-    c1.metric(t("data_wrapped.recap_total_streams", "Streams totaux (S4A)"),
-              _fmt_big(total) if total else "—")
-    c2.metric(t("data_wrapped.recap_spotify_popularity", "Popularité Spotify"),
-              pop["score"] if pop else "—",
-              help=t("data_wrapped.recap_popularity_help", "Titre : {track}").format(
-                  track=pop['track']) if pop else None)
-    c3.metric(t("data_wrapped.recap_followers", "Followers (dernier relevé)"),
-              _fmt_big(followers) if followers is not None else "—")
-
-    st.markdown(t("data_wrapped.recap_top5_header", "#### 🏆 Top 5 titres (streams cumulés)"))
-    try:
-        df_top = db.fetch_df(
-            "SELECT song, SUM(streams) AS streams FROM v_s4a_song_daily "
-            " WHERE artist_id = %s "
-            " GROUP BY song ORDER BY streams DESC LIMIT 5", (aid,))
-        if df_top is not None and not df_top.empty:
-            fig = go.Figure(go.Bar(
-                x=df_top["streams"], y=df_top["song"], orientation="h",
-                marker_color="#1DB954"))
-            fig.update_layout(height=240, margin=dict(t=10, b=10),
-                              yaxis=dict(autorange="reversed"),
-                              xaxis_title=t("data_wrapped.recap_cumulative_streams",
-                                            "Streams cumulés"))
-            st.plotly_chart(fig, width="stretch")
-        else:
-            st.caption(t("data_wrapped.recap_no_s4a_track", "Aucun titre S4A pour cet artiste."))
-    except Exception:
-        st.caption(t("data_wrapped.recap_top_unavailable", "Top titres indisponible."))
-
-
-def _recap_platforms(db, aid):
-    st.subheader(t("data_wrapped.recap_platforms_header", "📺 Autres plateformes"))
-    yt = get_total_views_youtube(db, aid)
-    apple = get_total_plays_apple(db, aid)
-    sc = get_total_plays_soundcloud(db, aid)
-    sc_likes = get_soundcloud_likes(db, aid)
-    ig = get_instagram_followers(db, aid)
-    p1, p2, p3, p4 = st.columns(4)
-    p1.metric(t("data_wrapped.recap_youtube_views", "YouTube — vues"),
-              _fmt_big(yt) if yt else "—")
-    p2.metric(t("data_wrapped.recap_apple_plays", "Apple Music — plays"),
-              _fmt_big(apple) if apple else "—")
-    p3.metric(t("data_wrapped.recap_soundcloud_plays", "SoundCloud — plays"),
-              _fmt_big(sc) if sc else "—",
-              help=t("data_wrapped.recap_soundcloud_likes", "{likes} likes").format(
-                  likes=_fmt_big(sc_likes)) if sc_likes else None)
-    p4.metric(t("data_wrapped.recap_instagram_followers", "Instagram — followers"),
-              _fmt_big(ig["followers"]) if ig else "—")
-
-
-def _recap_revenue(db, aid):
-    st.subheader(t("data_wrapped.recap_revenue_header", "💶 Revenus & publicité (carrière)"))
-    roi = get_roi_data(db, aid, date(2000, 1, 1), date.today())
-    r1, r2, r3 = st.columns(3)
-    from src.dashboard.utils.kpi_helpers import fmt_eur
-    r1.metric(t("data_wrapped.recap_imusician_revenue", "Revenu iMusician"),
-              fmt_eur(roi['revenue_eur'], 0))
-    r2.metric(t("data_wrapped.recap_meta_spend", "Dépense Meta Ads"),
-              fmt_eur(roi['meta_spend'], 0))
-    roi_pct = roi.get("roi_pct")
-    r3.metric(t("data_wrapped.recap_roi", "ROI"),
-              f"{roi_pct:.0f} %" if roi_pct is not None else "—",
-              delta=t("data_wrapped.recap_profitable", "rentable")
-              if roi.get("profitable") else None)
-
-
-def _recap_ml(db, aid):
-    st.subheader(t("data_wrapped.recap_ml_header", "🔮 Highlight ML"))
-    try:
-        df_ml = db.fetch_df(
-            "SELECT song, dw_probability, rr_probability, radio_probability "
-            "FROM ml_song_predictions WHERE artist_id = %s AND song NOT ILIKE %s "
-            "AND prediction_date = (SELECT MAX(prediction_date) FROM ml_song_predictions "
-            "WHERE artist_id = %s)", (aid, _ARTIST_FILTER, aid))
-    except Exception:
-        df_ml = None
-    if df_ml is None or df_ml.empty:
-        st.caption(t("data_wrapped.recap_no_ml",
-                     "Pas encore de prédiction — elles sont recalculées chaque jour en fin de matinée."))
-        return
-    cols = ["dw_probability", "rr_probability", "radio_probability"]
-    df_ml["best"] = df_ml[cols].max(axis=1)
-    top = df_ml.sort_values("best", ascending=False).iloc[0]
-    labels = {"dw_probability": "Discover Weekly", "rr_probability": "Release Radar",
-              "radio_probability": "Radio"}
-    probs = {labels[c]: (top[c] or 0) for c in cols}
-    best_algo = max(probs, key=probs.get)
-    st.success(t("data_wrapped.recap_ml_best",
-                 "🔮 Titre le plus prometteur : **{song}** — {algo} **{pct}%**").format(
-                     song=top['song'], algo=best_algo,
-                     pct=f"{probs[best_algo] * 100:.0f}"))
-    st.caption(t("data_wrapped.recap_ml_caption",
-                 "Probabilité absolue de déclenchement (sortie calibrée du modèle). "
-                 "Voir « 🚀 Road to Algo (ML) » pour le détail."))
-
-
-def _recap_freshness(db, aid):
-    st.subheader(t("data_wrapped.recap_freshness_header", "🩺 Fraîcheur des données"))
-    try:
-        fresh = get_source_freshness(db, aid)
-    except Exception:
-        st.caption(t("data_wrapped.recap_freshness_unavailable", "Fraîcheur indisponible."))
-        return
-    items = list(fresh.items())
-    cols = st.columns(4)
-    for i, (label, info) in enumerate(items):
-        dt = info.get("last_dt")
-        cols[i % 4].caption(
-            f"{info.get('icon', '')} {label} : "
-            f"{dt.strftime('%Y-%m-%d') if dt else '—'}")
-
-
-def _show_recap_tab(db, aid):
-    st.caption(t(
-        "data_wrapped.recap_intro",
-        "Bilan **automatique** toutes plateformes (carrière / all-time), calculé "
-        "depuis tes données collectées. « — » = source non connectée ou vide."))
-    _recap_spotify(db, aid)
-    st.markdown("---")
-    _recap_platforms(db, aid)
-    st.markdown("---")
-    _recap_revenue(db, aid)
-    st.markdown("---")
-    _recap_ml(db, aid)
-    st.markdown("---")
-    _recap_freshness(db, aid)
+# ═══════════════════════════════════════════════════════════════════════════
+# LE « RECAP AUTO » A ÉTÉ SUPPRIMÉ le 2026-09-21 — demandé, et mesuré redondant.
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Cinq blocs partaient avec lui : `_recap_spotify`, `_recap_platforms`,
+# `_recap_revenue`, `_recap_ml`, `_recap_freshness`. Chacun recalculait, en
+# « carrière / all-time », des chiffres qui ont déjà leur page :
+#
+#     🎧 Spotify            → 🎵 Spotify & Spotify for Artists
+#     📺 Autres plateformes → Apple, YouTube, SoundCloud, Instagram
+#     💶 Revenus            → 💶 Revenus (iMusician, SACEM, Prévisions)
+#     🔮 Highlight ML       → 🚀 Prédiction déclenchement algos
+#     🩺 Fraîcheur          → 🚦 Santé onboarding + 🗄️ Santé des données
+#
+# Ce n'est pas seulement du doublon d'écran : c'est une SECONDE DÉFINITION de
+# chaque chiffre. Le dépôt a déjà payé cette forme — un total Apple différent
+# entre deux pages du même produit, pour le même artiste au même instant. Une
+# page qui re-somme ce qu'une autre somme déjà finit par en différer.
+#
+# Ce qui reste ici est ce qui n'existe nulle part ailleurs : la SAISIE annuelle
+# Spotify for Artists (Wrapped), son évolution, et ses données brutes.
 
 
 # ---------------------------------------------------------------------------
@@ -521,20 +407,246 @@ def _tab_charts(artist_options: dict) -> None:
                 )
 
 
+
+
+def render_wrapped_section(db, artist_id: int) -> None:
+    """La section Wrapped, rendue dans une page qui a DÉJÀ sa connexion.
+
+    Ajoutée le 2026-09-21 pour l'intégration dans `spotify_s4a_combined`. Elle
+    ne prend ni ne ferme de connexion : c'est celle de l'appelant (règle #9,
+    une connexion par vue).
+
+    ⚠️ Elle N'OUVRE PAS de sélecteur d'artiste — la page hôte a déjà résolu son
+    locataire. Le sélecteur de `show()` existe pour l'usage ADMIN de la route
+    autonome, qui survit : des liens la visent, et le dépôt garde
+    `process_guide` pour exactement cette raison.
+    """
+    _render_wrapped_body(db, {"": artist_id})
+
+
+def _render_wrapped_body(db, artist_options: dict) -> None:
+    """Saisie → évolution → données, sur une connexion FOURNIE.
+
+    Extraite de `show()` le 2026-09-21 pour que `spotify_s4a_combined` puisse
+    rendre la même section sans ouvrir une seconde connexion (règle #9). Les
+    deux appelants passent donc la leur.
+    """
+    # L'ORDRE EST LINÉAIRE DEPUIS LE 2026-09-21 : saisie, puis évolution,
+    # puis données. Demandé — « intègre le panneau évolution en dessous de
+    # saisie et le panneau données ».
+    #
+    # Et les onglets partent avec le récap, pour une raison mesurée : `st.tabs`
+    # exécute le corps de TOUS ses onglets à chaque rendu. Quatre onglets, c'est
+    # quatre fois le travail pour un seul regardé — c'est ce qui faisait de
+    # cette page la deuxième plus chère de la session du 2026-09-16 (357,7 ms
+    # de phase `view` contre 13,4 ms de chrome). Trois sections empilées ne
+    # coûtent pas moins en soi ; ce qui coûte moins, c'est d'en avoir supprimé
+    # une sur quatre — la plus lourde, qui interrogeait cinq domaines.
+    if True:
+        st.subheader(t("data_wrapped.form_header", "Ajouter / modifier une année"))
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            selected_name = st.selectbox(
+                t("data_wrapped.artist_label", "Artiste"),
+                list(artist_options.keys()), key="form_artist"
+            )
+            target_artist_id = artist_options[selected_name]
+        with col_b:
+            year = st.number_input(
+                t("data_wrapped.year_label", "Année"),
+                min_value=2015, max_value=datetime.now().year,
+                value=datetime.now().year - 1, step=1, key="form_year"
+            )
+
+        # Pre-fill from DB if row exists
+        existing = _load_row_for_year(db, target_artist_id, int(year))
+        g = existing.get  # shorthand
+
+        st.markdown("---")
+        st.markdown(t("data_wrapped.section_audience", "**Audience**"))
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            listeners = st.number_input(
+                t("data_wrapped.field_listeners", "Listeners"),
+                min_value=0, value=int(g('listeners') or 0), step=1000
+            )
+        with c2:
+            listener_gain_pct = st.number_input(
+                t("data_wrapped.field_listener_gain", "Gain listeners (%)"),
+                value=float(g('listener_gain_pct') or 0.0),
+                step=0.1, format="%.1f",
+                help=t("data_wrapped.gain_help", "Croissance annuelle en %, ex: 45.3")
+            )
+        with c3:
+            countries = st.number_input(
+                t("data_wrapped.field_countries", "Pays"),
+                min_value=0, value=int(g('countries') or 0), step=1
+            )
+
+        st.markdown(t("data_wrapped.section_streams", "**Streams**"))
+        c4, c5, c6 = st.columns(3)
+        with c4:
+            streams = st.number_input(
+                t("data_wrapped.field_total_streams", "Streams totaux"),
+                min_value=0, value=int(g('streams') or 0), step=10000
+            )
+        with c5:
+            stream_gain_pct = st.number_input(
+                t("data_wrapped.field_stream_gain", "Gain streams (%)"),
+                value=float(g('stream_gain_pct') or 0.0),
+                step=0.1, format="%.1f",
+                help=t("data_wrapped.gain_help", "Croissance annuelle en %, ex: 45.3")
+            )
+        with c6:
+            hours_listened = st.number_input(
+                t("data_wrapped.field_hours_listened", "Heures d'écoute"),
+                min_value=0.0,
+                value=float(g('hours_listened') or 0.0), step=100.0, format="%.1f"
+            )
+
+        st.markdown(t("data_wrapped.section_engagement", "**Engagement**"))
+        c7, c8, c9, c10 = st.columns(4)
+        with c7:
+            saves = st.number_input(
+                t("data_wrapped.field_saves", "Saves"),
+                min_value=0, value=int(g('saves') or 0), step=100
+            )
+        with c8:
+            save_gain_pct = st.number_input(
+                t("data_wrapped.field_save_gain", "Gain saves (%)"),
+                value=float(g('save_gain_pct') or 0.0),
+                step=0.1, format="%.1f",
+                help=t("data_wrapped.gain_help", "Croissance annuelle en %, ex: 45.3")
+            )
+        with c9:
+            playlist_adds = st.number_input(
+                t("data_wrapped.field_playlist_adds", "Playlist adds"),
+                min_value=0, value=int(g('playlist_adds') or 0), step=100
+            )
+        with c10:
+            playlist_add_gain_pct = st.number_input(
+                t("data_wrapped.field_playlist_add_gain", "Gain playlist adds (%)"),
+                value=float(g('playlist_add_gain_pct') or 0.0),
+                step=0.1, format="%.1f",
+                help=t("data_wrapped.gain_help", "Croissance annuelle en %, ex: 45.3")
+            )
+
+        st.markdown(t("data_wrapped.section_superfans",
+                      "**Super-fans (vous dans leur top artistes)**"))
+        ct1, ct2 = st.columns(2)
+        with ct1:
+            top_fans_count = st.number_input(
+                t("data_wrapped.field_fans_count", "Nombre de fans"),
+                min_value=0,
+                value=int(g('top_fans_count') or 0), step=1,
+                help=t("data_wrapped.fans_count_help",
+                       "Fans qui vous avaient en top artiste, ex: 11")
+            )
+        with ct2:
+            top_fans_rank = st.number_input(
+                t("data_wrapped.field_fans_rank", "Rang (vous dans leur top N)"),
+                min_value=1,
+                value=int(g('top_fans_rank') or 5), step=1,
+                help=t("data_wrapped.fans_rank_help", "Ex: 5 = vous étiez dans leur top 5")
+            )
+
+        st.markdown("---")
+        if st.button(t("data_wrapped.btn_save", "💾 Enregistrer"), type="primary"):
+            try:
+                _upsert_wrapped(db, target_artist_id, int(year), {
+                    'listeners': listeners, 'streams': streams,
+                    'hours_listened': hours_listened, 'countries': countries,
+                    'listener_gain_pct': listener_gain_pct,
+                    'stream_gain_pct': stream_gain_pct,
+                    'save_gain_pct': save_gain_pct,
+                    'playlist_add_gain_pct': playlist_add_gain_pct,
+                    'saves': saves, 'playlist_adds': playlist_adds,
+                    'top_fans_count': top_fans_count,
+                    'top_fans_rank': top_fans_rank,
+                })
+                flash(t("data_wrapped.save_success",
+                             "✅ Données {year} enregistrées.").format(year=int(year)))
+                st.rerun()
+            except Exception as e:
+                st.error(t("data_wrapped.error_generic", "Erreur : {err}").format(err=e))
+
+        # Delete expander
+        with st.expander(t("data_wrapped.expander_delete", "🗑️ Supprimer une année")):
+            del_name = st.selectbox(
+                t("data_wrapped.artist_label", "Artiste"),
+                list(artist_options.keys()), key="del_artist"
+            )
+            del_artist_id = artist_options[del_name]
+            del_year = st.number_input(
+                t("data_wrapped.year_label", "Année"),
+                min_value=2015, max_value=datetime.now().year,
+                value=datetime.now().year - 1, step=1, key="del_year"
+            )
+            if st.button(t("data_wrapped.btn_delete", "🗑️ Supprimer"), type="secondary"):
+                try:
+                    _delete_wrapped(db, del_artist_id, int(del_year))
+                    flash(t("data_wrapped.delete_success",
+                                 "Année {year} supprimée.").format(year=int(del_year)))
+                    st.rerun()
+                except Exception as e:
+                    st.error(t("data_wrapped.error_generic",
+                               "Erreur : {err}").format(err=e))
+
+    # ── Évolution, sous la saisie ───────────────────────────────────────
+    st.markdown("---")
+    _tab_charts(artist_options)
+
+    # ── Données brutes, en dernier ──────────────────────────────────────
+    st.markdown("---")
+    if True:
+        data_name = st.selectbox(
+            t("data_wrapped.artist_label", "Artiste"),
+            list(artist_options.keys()), key="data_artist"
+        )
+        data_artist_id = artist_options[data_name]
+        df_raw = _load_wrapped(db, data_artist_id)
+
+        if df_raw.empty:
+            st.info(t("data_wrapped.data_no_data", "Aucune donnée enregistrée."))
+        else:
+            display_cols = [
+                'year', 'listeners', 'listener_gain_pct', 'streams', 'stream_gain_pct',
+                'hours_listened', 'countries', 'saves', 'save_gain_pct',
+                'playlist_adds', 'playlist_add_gain_pct',
+                'top_fans_count', 'top_fans_rank',
+            ]
+            rename_map = {
+                'year': t("data_wrapped.col_year", "Année"),
+                'listeners': t("data_wrapped.col_listeners", "Listeners"),
+                'listener_gain_pct': t("data_wrapped.col_listener_gain", "△ Listeners %"),
+                'streams': t("data_wrapped.col_streams", "Streams"),
+                'stream_gain_pct': t("data_wrapped.col_stream_gain", "△ Streams %"),
+                'hours_listened': t("data_wrapped.col_hours", "Heures écoute"),
+                'countries': t("data_wrapped.col_countries", "Pays"),
+                'saves': t("data_wrapped.col_saves", "Saves"),
+                'save_gain_pct': t("data_wrapped.col_save_gain", "△ Saves %"),
+                'playlist_adds': t("data_wrapped.col_playlist_adds", "Playlist adds"),
+                'playlist_add_gain_pct': t("data_wrapped.col_playlist_gain", "△ PL adds %"),
+                'top_fans_count': t("data_wrapped.col_superfans", "Super-fans"),
+                'top_fans_rank': t("data_wrapped.col_fans_rank", "Rang (top N)"),
+            }
+            existing_cols = [c for c in display_cols if c in df_raw.columns]
+            st.dataframe(
+                df_raw[existing_cols].rename(columns=rename_map),
+                hide_index=True,
+                width="stretch",
+            )
+
+
 def show():
     st.title(t("data_wrapped.title", "🎁 Data Wrapped — Bilan"))
-    st.markdown(t(
+    st.caption(t(
         "data_wrapped.intro",
-        "**Recap auto** toutes plateformes (carrière) + saisie manuelle des métriques "
-        "annuelles Spotify for Artists et évolution année par année."
+        "Les métriques annuelles de ton **Spotify Wrapped for Artists**, saisies à "
+        "la main : elles ne sont dans aucune API. Saisie, puis évolution année par "
+        "année, puis les données brutes."
     ))
-
-    tab_recap, tab_form, tab_charts, tab_data = st.tabs([
-        t("data_wrapped.tab_recap", "🎁 Recap auto"),
-        t("data_wrapped.tab_form", "✏️ Saisie"),
-        t("data_wrapped.tab_charts", "📊 Évolution"),
-        t("data_wrapped.tab_data", "🗃️ Données"),
-    ])
 
     db = get_db_connection()
     if db is None:
@@ -570,209 +682,7 @@ def show():
             name = name_row[0][0] if name_row else f"Artiste {aid}"
             artist_options = {name: aid}
 
-        # ── Onglet 0 : Recap auto ───────────────────────────────────────────
-        with tab_recap:
-            recap_name = st.selectbox(
-                t("data_wrapped.artist_label", "Artiste"),
-                list(artist_options.keys()), key="recap_artist"
-            )
-            _show_recap_tab(db, artist_options[recap_name])
-
-        # ── Onglet 1 : Formulaire ───────────────────────────────────────────
-        with tab_form:
-            st.subheader(t("data_wrapped.form_header", "Ajouter / modifier une année"))
-
-            col_a, col_b = st.columns(2)
-            with col_a:
-                selected_name = st.selectbox(
-                    t("data_wrapped.artist_label", "Artiste"),
-                    list(artist_options.keys()), key="form_artist"
-                )
-                target_artist_id = artist_options[selected_name]
-            with col_b:
-                year = st.number_input(
-                    t("data_wrapped.year_label", "Année"),
-                    min_value=2015, max_value=datetime.now().year,
-                    value=datetime.now().year - 1, step=1, key="form_year"
-                )
-
-            # Pre-fill from DB if row exists
-            existing = _load_row_for_year(db, target_artist_id, int(year))
-            g = existing.get  # shorthand
-
-            st.markdown("---")
-            st.markdown(t("data_wrapped.section_audience", "**Audience**"))
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                listeners = st.number_input(
-                    t("data_wrapped.field_listeners", "Listeners"),
-                    min_value=0, value=int(g('listeners') or 0), step=1000
-                )
-            with c2:
-                listener_gain_pct = st.number_input(
-                    t("data_wrapped.field_listener_gain", "Gain listeners (%)"),
-                    value=float(g('listener_gain_pct') or 0.0),
-                    step=0.1, format="%.1f",
-                    help=t("data_wrapped.gain_help", "Croissance annuelle en %, ex: 45.3")
-                )
-            with c3:
-                countries = st.number_input(
-                    t("data_wrapped.field_countries", "Pays"),
-                    min_value=0, value=int(g('countries') or 0), step=1
-                )
-
-            st.markdown(t("data_wrapped.section_streams", "**Streams**"))
-            c4, c5, c6 = st.columns(3)
-            with c4:
-                streams = st.number_input(
-                    t("data_wrapped.field_total_streams", "Streams totaux"),
-                    min_value=0, value=int(g('streams') or 0), step=10000
-                )
-            with c5:
-                stream_gain_pct = st.number_input(
-                    t("data_wrapped.field_stream_gain", "Gain streams (%)"),
-                    value=float(g('stream_gain_pct') or 0.0),
-                    step=0.1, format="%.1f",
-                    help=t("data_wrapped.gain_help", "Croissance annuelle en %, ex: 45.3")
-                )
-            with c6:
-                hours_listened = st.number_input(
-                    t("data_wrapped.field_hours_listened", "Heures d'écoute"),
-                    min_value=0.0,
-                    value=float(g('hours_listened') or 0.0), step=100.0, format="%.1f"
-                )
-
-            st.markdown(t("data_wrapped.section_engagement", "**Engagement**"))
-            c7, c8, c9, c10 = st.columns(4)
-            with c7:
-                saves = st.number_input(
-                    t("data_wrapped.field_saves", "Saves"),
-                    min_value=0, value=int(g('saves') or 0), step=100
-                )
-            with c8:
-                save_gain_pct = st.number_input(
-                    t("data_wrapped.field_save_gain", "Gain saves (%)"),
-                    value=float(g('save_gain_pct') or 0.0),
-                    step=0.1, format="%.1f",
-                    help=t("data_wrapped.gain_help", "Croissance annuelle en %, ex: 45.3")
-                )
-            with c9:
-                playlist_adds = st.number_input(
-                    t("data_wrapped.field_playlist_adds", "Playlist adds"),
-                    min_value=0, value=int(g('playlist_adds') or 0), step=100
-                )
-            with c10:
-                playlist_add_gain_pct = st.number_input(
-                    t("data_wrapped.field_playlist_add_gain", "Gain playlist adds (%)"),
-                    value=float(g('playlist_add_gain_pct') or 0.0),
-                    step=0.1, format="%.1f",
-                    help=t("data_wrapped.gain_help", "Croissance annuelle en %, ex: 45.3")
-                )
-
-            st.markdown(t("data_wrapped.section_superfans",
-                          "**Super-fans (vous dans leur top artistes)**"))
-            ct1, ct2 = st.columns(2)
-            with ct1:
-                top_fans_count = st.number_input(
-                    t("data_wrapped.field_fans_count", "Nombre de fans"),
-                    min_value=0,
-                    value=int(g('top_fans_count') or 0), step=1,
-                    help=t("data_wrapped.fans_count_help",
-                           "Fans qui vous avaient en top artiste, ex: 11")
-                )
-            with ct2:
-                top_fans_rank = st.number_input(
-                    t("data_wrapped.field_fans_rank", "Rang (vous dans leur top N)"),
-                    min_value=1,
-                    value=int(g('top_fans_rank') or 5), step=1,
-                    help=t("data_wrapped.fans_rank_help", "Ex: 5 = vous étiez dans leur top 5")
-                )
-
-            st.markdown("---")
-            if st.button(t("data_wrapped.btn_save", "💾 Enregistrer"), type="primary"):
-                try:
-                    _upsert_wrapped(db, target_artist_id, int(year), {
-                        'listeners': listeners, 'streams': streams,
-                        'hours_listened': hours_listened, 'countries': countries,
-                        'listener_gain_pct': listener_gain_pct,
-                        'stream_gain_pct': stream_gain_pct,
-                        'save_gain_pct': save_gain_pct,
-                        'playlist_add_gain_pct': playlist_add_gain_pct,
-                        'saves': saves, 'playlist_adds': playlist_adds,
-                        'top_fans_count': top_fans_count,
-                        'top_fans_rank': top_fans_rank,
-                    })
-                    flash(t("data_wrapped.save_success",
-                                 "✅ Données {year} enregistrées.").format(year=int(year)))
-                    st.rerun()
-                except Exception as e:
-                    st.error(t("data_wrapped.error_generic", "Erreur : {err}").format(err=e))
-
-            # Delete expander
-            with st.expander(t("data_wrapped.expander_delete", "🗑️ Supprimer une année")):
-                del_name = st.selectbox(
-                    t("data_wrapped.artist_label", "Artiste"),
-                    list(artist_options.keys()), key="del_artist"
-                )
-                del_artist_id = artist_options[del_name]
-                del_year = st.number_input(
-                    t("data_wrapped.year_label", "Année"),
-                    min_value=2015, max_value=datetime.now().year,
-                    value=datetime.now().year - 1, step=1, key="del_year"
-                )
-                if st.button(t("data_wrapped.btn_delete", "🗑️ Supprimer"), type="secondary"):
-                    try:
-                        _delete_wrapped(db, del_artist_id, int(del_year))
-                        flash(t("data_wrapped.delete_success",
-                                     "Année {year} supprimée.").format(year=int(del_year)))
-                        st.rerun()
-                    except Exception as e:
-                        st.error(t("data_wrapped.error_generic",
-                                   "Erreur : {err}").format(err=e))
-
-        # ── Onglet 2 : Évolution ────────────────────────────────────────────
-        with tab_charts:
-            _tab_charts(artist_options)
-
-        # ── Onglet 3 : Données brutes ────────────────────────────────────────
-        with tab_data:
-            data_name = st.selectbox(
-                t("data_wrapped.artist_label", "Artiste"),
-                list(artist_options.keys()), key="data_artist"
-            )
-            data_artist_id = artist_options[data_name]
-            df_raw = _load_wrapped(db, data_artist_id)
-
-            if df_raw.empty:
-                st.info(t("data_wrapped.data_no_data", "Aucune donnée enregistrée."))
-            else:
-                display_cols = [
-                    'year', 'listeners', 'listener_gain_pct', 'streams', 'stream_gain_pct',
-                    'hours_listened', 'countries', 'saves', 'save_gain_pct',
-                    'playlist_adds', 'playlist_add_gain_pct',
-                    'top_fans_count', 'top_fans_rank',
-                ]
-                rename_map = {
-                    'year': t("data_wrapped.col_year", "Année"),
-                    'listeners': t("data_wrapped.col_listeners", "Listeners"),
-                    'listener_gain_pct': t("data_wrapped.col_listener_gain", "△ Listeners %"),
-                    'streams': t("data_wrapped.col_streams", "Streams"),
-                    'stream_gain_pct': t("data_wrapped.col_stream_gain", "△ Streams %"),
-                    'hours_listened': t("data_wrapped.col_hours", "Heures écoute"),
-                    'countries': t("data_wrapped.col_countries", "Pays"),
-                    'saves': t("data_wrapped.col_saves", "Saves"),
-                    'save_gain_pct': t("data_wrapped.col_save_gain", "△ Saves %"),
-                    'playlist_adds': t("data_wrapped.col_playlist_adds", "Playlist adds"),
-                    'playlist_add_gain_pct': t("data_wrapped.col_playlist_gain", "△ PL adds %"),
-                    'top_fans_count': t("data_wrapped.col_superfans", "Super-fans"),
-                    'top_fans_rank': t("data_wrapped.col_fans_rank", "Rang (top N)"),
-                }
-                existing_cols = [c for c in display_cols if c in df_raw.columns]
-                st.dataframe(
-                    df_raw[existing_cols].rename(columns=rename_map),
-                    hide_index=True,
-                    width="stretch",
-                )
+        _render_wrapped_body(db, artist_options)
 
     finally:
         release_page_db()

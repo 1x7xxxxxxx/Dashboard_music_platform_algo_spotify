@@ -128,6 +128,49 @@ def _window_openings(fn: ast.AST) -> list[tuple[int, set[str]]]:
 # arguments du délégué. Un commentaire ne peut pas la satisfaire.
 _DELEGATE = "say_why_it_is_empty"
 
+# LA SONDE — seconde forme de la lecture délibérément hors fenêtre, ajoutée le
+# 2026-09-21.
+#
+# L'exemption ci-dessus exige que la requête ARRIVE dans `say_why_it_is_empty`.
+# C'est une forme d'appel, pas la propriété : une fonction qui RETOURNE son
+# message au lieu de le poser — parce que son appelant doit l'afficher à un
+# endroit précis, ici dans un `with secondary_analyses(...)` — pose exactement la
+# même requête pour exactement la même raison, et se faisait accuser.
+#
+# La propriété est : **cette requête ne peut PAS alimenter une figure.** Une
+# projection réduite à un seul agrégat de date (`MAX(day) AS last`) rend UNE ligne
+# et UNE colonne ; il n'y a rien à tracer avec. La borner lui retirerait sa seule
+# utilité — répondre « et hors de la fenêtre, il y a quoi ? ».
+_AGREGAT = re.compile(
+    r"^(?:MIN|MAX|COUNT|SUM|AVG)\s*\([^()]*\)(?:::\w+)?(?:\s+AS\s+\w+)?$", re.I)
+
+
+def _is_a_probe(sql: str) -> bool:
+    """La requête est-elle une SONDE — que des agrégats, sans `GROUP BY` ?
+
+    ⚠️ LE PREMIER JET EXIGEAIT UN SEUL AGRÉGAT DE DATE, et c'était une forme, pas
+    la propriété. `SELECT MAX(timestamp) AS last, COUNT(*) AS n FROM …` — une
+    sonde qui demande « quand, et combien » en une passe — lui échappait, et le
+    cliquet accusait une requête qui ne peut alimenter aucune figure.
+    """
+    plat = " ".join(sql.split())
+    m = re.match(r"^\s*SELECT\s+(.+?)\s+FROM\b", plat, re.I)
+    if not m or re.search(r"\bGROUP\s+BY\b", plat, re.I):
+        return False
+    # Découpe sur les virgules de PREMIER niveau : `MAX(a), COUNT(*)` → deux.
+    colonnes, profondeur, courante = [], 0, ""
+    for ch in m.group(1):
+        if ch == "(":
+            profondeur += 1
+        elif ch == ")":
+            profondeur -= 1
+        if ch == "," and profondeur == 0:
+            colonnes.append(courante); courante = ""
+        else:
+            courante += ch
+    colonnes.append(courante)
+    return all(_AGREGAT.match(c.strip()) for c in colonnes if c.strip())
+
 
 def _feeds_the_empty_state_delegate(fn: ast.AST, call: ast.Call) -> bool:
     """La requête sert-elle à répondre « pourquoi est-ce vide ? » ?"""
@@ -208,6 +251,13 @@ def _sites() -> list[tuple[bool, bool, str, int, str]]:
                     bounded = _compares_with(after, avail)
                 if not bounded and _feeds_the_empty_state_delegate(fn, call):
                     bounded = True
+                if not bounded:
+                    # La SONDE : une projection réduite à un seul agrégat de date
+                    # ne peut alimenter aucune figure. Voir `_is_a_probe`.
+                    sqls = [a.value for a in ast.walk(call)
+                            if isinstance(a, ast.Constant) and isinstance(a.value, str)]
+                    if any(_is_a_probe(q) for q in sqls):
+                        bounded = True
                 found.append((bounded, bool(_DRAWS.search(after)),
                               str(path.relative_to(VIEWS)), call.lineno, fn.name))
     return found
@@ -294,3 +344,36 @@ def test_a_derived_window_variable_still_counts_as_the_window() -> None:
     assert {"start_d", "end_d"} <= names, (
         f"la clôture transitive ne suit plus les variables dérivées : {sorted(names)}. "
         "Sans elle, une requête bornée par `start_d` est déclarée non bornée.")
+
+
+def test_the_probe_predicate_sees_what_it_is_written_for() -> None:
+    """NON-VACUITÉ de la seconde exemption, dans les DEUX sens.
+
+    Une sonde rend une ligne et une colonne : on ne trace rien avec, et la borner
+    lui retire sa seule utilité. Une requête qui rend une SÉRIE, elle, doit être
+    bornée — même si elle commence par un agrégat.
+    """
+    for sonde in (
+        "SELECT MAX(day) AS last FROM v_soundcloud_track_daily WHERE artist_id = %s",
+        "SELECT MIN(collected_at) FROM youtube_channel_history WHERE artist_id = %s",
+        "SELECT MAX(date)::date AS d FROM apple_songs_history WHERE artist_id = %s",
+    ):
+        assert _is_a_probe(sonde), f"sonde non reconnue : {sonde}"
+
+    # La forme à DEUX agrégats, qui a fait corriger le prédicat le 2026-09-21.
+    assert _is_a_probe(
+        "SELECT MAX(timestamp) AS last, COUNT(*) AS n FROM instagram_media "
+        "WHERE artist_id = %s"), (
+        "une sonde qui demande « quand » ET « combien » en une passe reste une "
+        "sonde : une ligne, rien à tracer.")
+
+    for serie in (
+        "SELECT day, SUM(plays) FROM v_soundcloud_catalog_daily GROUP BY day",
+        "SELECT SUM(plays) FROM v_soundcloud_catalog_daily GROUP BY day",
+        "SELECT MAX(plays), day FROM v_soundcloud_catalog_daily GROUP BY day",
+        "SELECT day, MAX(plays) FROM v_soundcloud_catalog_daily GROUP BY day",
+    ):
+        assert not _is_a_probe(serie), (
+            f"le détecteur prend une SÉRIE pour une sonde : {serie}. Une requête "
+            "qui rend plusieurs lignes peut alimenter une figure, donc doit être "
+            "bornée.")

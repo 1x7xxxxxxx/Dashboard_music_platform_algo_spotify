@@ -3,13 +3,6 @@
 EN = {
     "spotify_s4a_combined.title": "🎵 Spotify & Spotify for Artists",
 
-    # §0 — the clocks
-    "spotify_s4a_combined.clocks": "ⓘ **{n}** tracks measured, the most recent up to "
-                                   "**{d}**. The Spotify for Artists CSV is imported "
-                                   "around a release: each track therefore has its own "
-                                   "end date, and a missing measurement is not a "
-                                   "missing stream.",
-
     # §1 — releases at equal age
     "spotify_s4a_combined.releases_header": "🚀 My releases, at equal age",
     "spotify_s4a_combined.pick_releases": "Releases to compare",
@@ -43,11 +36,12 @@ EN = {
     "spotify_s4a_combined.audience_caption": "**Listener-days**: one unique listener "
                                              "counted once per day of listening — "
                                              "someone who returns on ten days counts "
-                                             "ten times. The lower panel therefore says "
-                                             "how often people listen, not how many "
-                                             "people listen. When it falls at steady "
-                                             "volume, the audience renews without "
-                                             "becoming loyal.",
+                                             "ten times. **Streams / listener-day**, the "
+                                             "dotted line read on the RIGHT axis, "
+                                             "therefore says how often people listen, "
+                                             "not how many people listen. When it falls "
+                                             "at steady volume, the audience renews "
+                                             "without becoming loyal.",
 
     # §3 — momentum
     "spotify_s4a_combined.momentum_header": "🔥 What is moving right now",
@@ -56,18 +50,15 @@ EN = {
     "spotify_s4a_combined.recent_window": "last {n} measured days",
     "spotify_s4a_combined.momentum_caption": "Solid bar: the **last {n} measured days** "
                                              "(up to {d}). Grey bar: the total since "
-                                             "release.",
+                                             "release. **PI**: the Spotify popularity "
+                                             "index (0-100) at the latest reading — the "
+                                             "threshold every algorithm asks for.",
     "spotify_s4a_combined.momentum_excluded": "**{k} track(s) excluded**: no measurement "
                                               "in this window.",
-
-    # §4 — the ads pointer
-    "spotify_s4a_combined.ads_header": "💸 When should I run ads again?",
-    "spotify_s4a_combined.ads_body": "The link between ad spend and streams lives on "
-                                     "**🎵 META x Spotify** — budget, results and "
-                                     "streams on one time axis. This page does not "
-                                     "repeat it: two definitions of the same figure "
-                                     "always end up diverging.",
-    "spotify_s4a_combined.goto_meta": "🎵 Open META x Spotify",
+    "spotify_s4a_combined.pi_tag": "PI {v}",
+    "spotify_s4a_combined.momentum_no_pi": "**{k} track(s) without a PI**: no popularity "
+                                           "reading — Spotify linking happens in "
+                                           "**🔗 Cross-platform mapping**.",
 
     # The drawer
     "spotify_s4a_combined.detail_header": "🎸 Track detail",
@@ -77,6 +68,17 @@ EN = {
                                            "({d}), not at the first day of the file: "
                                            "Spotify exports the account timeline and "
                                            "writes 0 there before the release.",
+    "spotify_s4a_combined.pi_series": "Popularity index (0-100)",
+    "spotify_s4a_combined.pi_axis": "Popularity index",
+    "spotify_s4a_combined.pi_missing": "No popularity index over this period: this track "
+                                       "has no confirmed Spotify link, or the API has "
+                                       "not read it yet. Linking happens in **🔗 "
+                                       "Cross-platform mapping**.",
+    "spotify_s4a_combined.pi_clock": "The **popularity index** is read by the API every "
+                                     "day (up to {pi_d}); the streams come from the CSV, "
+                                     "imported around a release (up to {s_d}). A stream "
+                                     "curve that stops is an import that stopped, not a "
+                                     "track that died.",
     "spotify_s4a_combined.saves_header": "💾 Saves and playlist adds",
     "spotify_s4a_combined.saves": "Saves",
     "spotify_s4a_combined.playlist_adds": "Playlist adds",
@@ -93,4 +95,11 @@ EN = {
     # Shared empty states
     "spotify_s4a_combined.no_data": "No data available.",
     "spotify_s4a_combined.no_data_period": "No data for this period.",
+
+    # Le bilan annuel, rapatrié de « Data Wrapped » (2026-09-21).
+    "spotify_s4a_combined.wrapped_header": "🎁 My yearly recap (Spotify Wrapped for Artists)",
+    "spotify_s4a_combined.wrapped_intro": "These figures are in no API: Spotify only "
+                                          "publishes them once a year, in your Wrapped for "
+                                          "Artists. Enter them here and the year-over-year "
+                                          "curve builds itself.",
 }

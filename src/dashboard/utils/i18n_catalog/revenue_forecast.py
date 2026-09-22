@@ -1,13 +1,136 @@
 """EN catalog for the revenue_forecast view."""
 
 EN = {
+    # ── Mon argent : flux, cumul, point mort (2026-09-21) ────────────────────
+    "revenue_forecast.artist_forecast_header":
+        "My money: what comes in, what goes out, and when I break even",
+    "revenue_forecast.artist_forecast_caption": (
+        "All your money on one chart: distributors (iMusician, DistroKid), SACEM "
+        "royalties, Meta advertising and your release costs. The lower curve "
+        "crosses zero the day you break even."),
+    "revenue_forecast.artist_caption":
+        "Revenue, spend and break-even — all on one chart.",
+    "revenue_forecast.no_money_yet": (
+        "No money movement on record. Import a sales report from **CSV import**, "
+        "or connect Meta in **🔑 API Credentials**."),
+    "revenue_forecast.frame_flows": "What comes in and goes out, each month (€)",
+    "revenue_forecast.frame_cumul":
+        "Where I stand overall (€) — break-even is at zero",
+    "revenue_forecast.line_cumul": "Net cumulative",
+    "revenue_forecast.line_proj": "Projection",
+    "revenue_forecast.breakeven_line": "break-even",
+    "revenue_forecast.kpi_cumul": "💰 Where I stand overall",
+    "revenue_forecast.kpi_cumul_delta": "{r:+,.0f} € in · {d:,.0f} € out",
+    "revenue_forecast.kpi_rythme": "📆 My current pace",
+    "revenue_forecast.kpi_rythme_delta": "average of the last {n} months",
+    "revenue_forecast.kpi_breakeven": "⏳ Break-even",
+    "revenue_forecast.be_no_date": "out of reach",
+    "revenue_forecast.be_done": (
+        "✅ You have broken even<br>cumulative: {c:+,.0f} €"),
+    "revenue_forecast.be_unknown": "No history yet",
+    "revenue_forecast.be_never": (
+        "⚠️ Break-even NEVER reached at this pace<br>"
+        "{c:,.0f} € short, and the pace is {r:+.2f} €/month"),
+    "revenue_forecast.be_reached": (
+        "⏳ Break-even in <b>{d}</b>{q}<br>"
+        "{c:,.0f} € short at a pace of {r:+.2f} €/month"),
+    "revenue_forecast.be_months": "{n} months",
+    "revenue_forecast.be_years": "{n:,.0f} months — {a:,.0f} years",
+    "revenue_forecast.be_short_done": "reached",
+    "revenue_forecast.be_short_never": "never at this pace",
+    "revenue_forecast.be_short_months": "{n} months",
+    "revenue_forecast.be_short_years": "{a:,.0f} years",
+    # ── Les coûts que seul l'artiste connaît ─────────────────────────────────
+    "revenue_forecast.costs_expander":
+        "💳 My costs (distribution, mastering, artwork…) — enter them",
+    "revenue_forecast.costs_caption": (
+        "What you pay to release your music comes through no API: your "
+        "distributor does not return it in its sales reports. Enter it here and "
+        "it joins the chart and the break-even date."),
+    "revenue_forecast.costs_spread": (
+        "**{tot:,.2f} €** in total, spread over {n} months — that is "
+        "**{moy:,.2f} €/month** in the chart and in the break-even date."),
+    "revenue_forecast.cost_category": "Cost type",
+    "revenue_forecast.cost_amount": "Amount (€)",
+    "revenue_forecast.cost_period": "Frequency",
+    "revenue_forecast.cost_start": "Starting from",
+    "revenue_forecast.cost_label": "Label (optional)",
+    "revenue_forecast.cost_end": "Until",
+    "revenue_forecast.cost_ongoing": "Still active",
+    "revenue_forecast.cost_once": "One-off spend: it lands on its single month.",
+    "revenue_forecast.cost_yearly_warning": (
+        "⚠️ **{m:.2f} € PER YEAR**, not in total: while the subscription is "
+        "active it renews and accumulates in the break-even date."),
+    "revenue_forecast.cost_monthly_warning": "⚠️ **{m:.2f} € PER MONTH**, not in total.",
+    "revenue_forecast.cost_save": "💾 Save",
+    "revenue_forecast.cost_zero": "A zero amount changes nothing on the chart.",
+    "revenue_forecast.cost_saved": (
+        "✅ {m:.2f} € recorded — the chart and the break-even date account for it."),
+    "revenue_forecast.no_cost": (
+        "No cost entered. The break-even date above therefore only counts your "
+        "advertising — it is OPTIMISTIC by everything you paid to put your music "
+        "online."),
+    "revenue_forecast.cat.distribution": "Distribution",
+    "revenue_forecast.cat.mastering": "Mastering",
+    "revenue_forecast.cat.visuel": "Artwork",
+    "revenue_forecast.cat.promo": "Promo",
+    "revenue_forecast.cat.materiel": "Gear",
+    "revenue_forecast.cat.autre": "Other",
+    "revenue_forecast.period.one_off": "One off",
+    "revenue_forecast.period.yearly": "Per year",
+    "revenue_forecast.period.monthly": "Per month",
+    # ── Les sources de la figure ─────────────────────────────────────────────
+    "revenue_forecast.source.imusician": "iMusician",
+    "revenue_forecast.source.distrokid": "DistroKid",
+    "revenue_forecast.source.sacem": "SACEM",
+    "revenue_forecast.source.meta_ads": "Meta advertising",
+    "revenue_forecast.source.distribution": "Distribution",
+    "revenue_forecast.source.mastering": "Mastering",
+    "revenue_forecast.source.visuel": "Artwork",
+    "revenue_forecast.source.promo": "Promo",
+    "revenue_forecast.source.materiel": "Gear",
+    "revenue_forecast.source.autre": "Other",
+    # ── Ce que vaut un déclenchement d'algorithme ────────────────────────────
+    "revenue_forecast.trigger_header": "🚀 What if a track triggered the algorithms?",
+    "revenue_forecast.no_rate": (
+        "At least one distributor sales report is needed to know what a stream "
+        "earns you. Import a CSV from **CSV import**."),
+    "revenue_forecast.no_benchmark":
+        "The reference cohort is not loaded on this database.",
+    "revenue_forecast.own_median": "your median track: {e:,.2f} €",
+    "revenue_forecast.bar_value": "What one trigger is worth",
+    "revenue_forecast.bar_expect": "Expected value on your catalogue",
+    "revenue_forecast.pred_dated": " (predictions from {d})",
+    "revenue_forecast.trigger_gap": (
+        "\n\nYour catalogue of **{k} tracks** expects **{e} €** in total, that "
+        "is **{u} € per track**. To close the **{c} €** between you and "
+        "break-even, it would take about **{n}** more, at the same level."),
+    "revenue_forecast.trigger_caption": (
+        "At **{tx} € per stream** — your real rate, measured over {s} streams "
+        "paid {r} € by your distributor.\n\n"
+        "⚠️ **This is not the gain from triggering.** The reference cohort "
+        "contains only tracks that DID trigger: with no control track, we cannot "
+        "say what the algorithm added. It is an order of magnitude — this is "
+        "where the tracks that get there end up. The expected value multiplies "
+        "it by the CALIBRATED chance of each of your tracks{d}."),
+    # ── Les tiroirs ──────────────────────────────────────────────────────────
+    "revenue_forecast.detail_expander":
+        "🔎 Per-source and per-month detail — exact figures",
+    "revenue_forecast.by_source_net": (
+        "NET amounts — charges and VAT deducted, same as the chart and the "
+        "break-even date."),
+    "revenue_forecast.col_in": "In (€)",
+    "revenue_forecast.col_out": "Out (€)",
+    "revenue_forecast.col_net": "Net (€)",
+    "revenue_forecast.col_cumul": "Cumulative (€)",
+    "revenue_forecast.ml_expander":
+        "🤖 Which of my tracks is closest — ML scores",
     # Entry point
     "revenue_forecast.title": "📈 Revenue forecast",
     "revenue_forecast.tab_mrr": "📊 Current MRR",
     "revenue_forecast.tab_projection": "🔮 MRR projection",
     "revenue_forecast.tab_ltv": "💎 LTV & churn",
     "revenue_forecast.tab_artist": "🎵 Artist projection",
-    "revenue_forecast.artist_caption": "Projection of your music revenue based on your iMusician history.",
     # Tab 1 — Current MRR
     "revenue_forecast.mrr_header": "Current MRR",
     "revenue_forecast.no_subscriptions": "No subscription found in the database. Connect Stripe to feed this data.",
@@ -50,37 +173,12 @@ EN = {
     "revenue_forecast.avg_music_revenue": "Average music revenue / month / artist",
     "revenue_forecast.ltv_artistic_metric": "Artistic LTV over {months} months",
     # Tab 4 — Artist projection
-    "revenue_forecast.artist_forecast_header": "Music revenue projection (iMusician + DistroKid + SACEM)",
-    "revenue_forecast.artist_forecast_caption": "Consolidated monthly music revenue: "
-                                                "distributors (iMusician + DistroKid) + gross SACEM royalties.",
-    "revenue_forecast.by_source_header": "**Cumulative revenue by source**",
-    "revenue_forecast.line_total": "Total (all distributors)",
-    "revenue_forecast.line_sacem": "🎼 SACEM royalties",
     "revenue_forecast.no_active_artist": "No active artist.",
     "revenue_forecast.no_artist_id": "Unable to determine your artist identifier.",
-    "revenue_forecast.insufficient_data": (
-        "Insufficient data for a projection (minimum 3 months of distributor/SACEM history "
-        "required). Import your CSVs/XLSX from the **CSV Import** page."
-    ),
     "revenue_forecast.horizon": "Projection horizon (months)",
-    "revenue_forecast.avg_monthly_revenue": "Average monthly revenue",
-    "revenue_forecast.trend": "Trend",
-    "revenue_forecast.projection_metric": "Projection M+{horizon}",
-    "revenue_forecast.vs_average": "{delta:+.2f} € vs average",
-    "revenue_forecast.historical_data": "Historical data",
     "revenue_forecast.col_month": "Month",
-    "revenue_forecast.col_revenue": "Revenue (€)",
     # Meta Ads ROI
-    "revenue_forecast.meta_roi_header": "### 💸 Meta Ads — historical ROI",
-    "revenue_forecast.no_meta_spend": (
-        'No Meta Ads spend over the period. Connect Meta in **🔑 Credentials API**, then run **🚀 Launch ALL collections**.'),
-    "revenue_forecast.total_meta_spend": "Total Meta spend",
-    "revenue_forecast.total_imusician_revenue": "Total iMusician revenue",
-    "revenue_forecast.global_roi": "Global ROI",
-    "revenue_forecast.profitable": "profitable",
-    "revenue_forecast.loss_making": "loss-making",
     # ML predictions
-    "revenue_forecast.ml_header": "### 🤖 ML predictions — scores per track",
     "revenue_forecast.no_ml": (
         'No prediction yet. They are recomputed every day, late morning, from the data already collected.'),
     "revenue_forecast.ml_caption": (
@@ -101,15 +199,4 @@ EN = {
     "revenue_forecast.col_streams_7d": "Streams 7d (actual)",
     "revenue_forecast.col_streams_28d": "Streams 28d (actual)",
     # Net margin
-    "revenue_forecast.margin_header": "### 📊 Projected net margin",
-    "revenue_forecast.margin_caption": "Over the selected projection horizon: **{horizon} months**",
-    "revenue_forecast.vps_cost": "VPS infra cost (€/month)",
-    "revenue_forecast.vps_cost_help": "Monthly server cost (VPS, Railway, Docker host…)",
-    "revenue_forecast.meta_spend_est": "Estimated Meta spend (€/month)",
-    "revenue_forecast.meta_spend_est_help": "Pre-filled with the historical average. Adjustable.",
-    "revenue_forecast.projected_revenue": "Projected revenue",
-    "revenue_forecast.meta_spend_metric": "Meta spend",
-    "revenue_forecast.vps_infra": "VPS infra",
-    "revenue_forecast.net_margin": "Net margin",
-    "revenue_forecast.waterfall_expander": "💧 Margin breakdown — detail",
 }

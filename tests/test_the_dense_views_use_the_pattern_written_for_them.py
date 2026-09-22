@@ -65,9 +65,45 @@ def test_each_dense_view_collapses_its_secondary_charts(view, density):
 
 
 def test_the_pattern_itself_is_still_there():
-    """Non-vacuity: the parametrised assertions above all hinge on this name."""
-    ui = (REPO / "src/dashboard/utils/ui.py").read_text(encoding="utf-8")
-    assert "def secondary_analyses(" in ui
-    assert "expanded=False" in ui, (
-        "an expander opened by default collapses nothing — the point is the first "
-        "screen")
+    """Non-vacuity: the parametrised assertions above all hinge on this name.
+
+    ⚠️ Lu par l'AST depuis le 2026-09-21, et c'est une CORRECTION de portée, pas un
+    assouplissement. La forme d'avant cherchait la chaîne `"expanded=False"` dans le
+    fichier. Elle est devenue rouge le jour où `secondary_analyses` a gagné un
+    paramètre `expanded: bool = False` — la valeur par défaut était toujours
+    `False`, donc la propriété gardée était toujours vraie, et le garde parlait de
+    l'ORTHOGRAPHE. Symétriquement il serait resté VERT sur
+    `expanded=True` si le mot `expanded=False` avait survécu dans un commentaire :
+    c'est la classe `a-textual-guard-that-matches-its-own-prose`, prise quatre fois
+    dans ce dépôt.
+
+    La question est : quelle valeur un appelant qui ne dit rien obtient-il ? Le
+    défaut du paramètre la donne, et rien d'autre.
+    """
+    import ast
+
+    src = (REPO / "src/dashboard/utils/ui.py").read_text(encoding="utf-8")
+    fn = next((n for n in ast.walk(ast.parse(src))
+               if isinstance(n, ast.FunctionDef) and n.name == "secondary_analyses"),
+              None)
+    assert fn is not None, "`secondary_analyses` a disparu — le motif n'existe plus"
+
+    args = fn.args
+    named = [a.arg for a in args.args] + [a.arg for a in args.kwonlyargs]
+    assert "expanded" in named, (
+        "`secondary_analyses` n'expose plus `expanded` : son état d'ouverture n'est "
+        f"plus une décision lisible ici. Paramètres vus : {named}")
+
+    if "expanded" in [a.arg for a in args.kwonlyargs]:
+        i = [a.arg for a in args.kwonlyargs].index("expanded")
+        default = args.kw_defaults[i]
+    else:
+        i = [a.arg for a in args.args].index("expanded")
+        offset = len(args.args) - len(args.defaults)
+        default = args.defaults[i - offset] if i >= offset else None
+
+    assert isinstance(default, ast.Constant) and default.value is False, (
+        "le dépliant est OUVERT par défaut : un appelant qui ne dit rien ne replie "
+        "plus rien, et c'est tout le point du premier écran. Ouvrir reste possible "
+        "site par site (`secondary_analyses(expanded=True)`), et ce choix-là se lit "
+        "dans la vue qui le prend.")

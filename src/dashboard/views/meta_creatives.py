@@ -5,6 +5,8 @@ Uses: get_db_connection, get_artist_id, require_plan
 Depends on: meta_ads, meta_insights, meta_campaigns tables (API-based)
 Persists in: read-only
 """
+import re
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -14,6 +16,8 @@ from src.dashboard.utils import view_session
 from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.proxy_disclosure import disclosure_caption
+from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import require_plan, is_admin
 
@@ -189,58 +193,377 @@ def _badge(cpr: float, median: float) -> str:
     return t("meta_creatives.badge_under", "🔴 Sous-performante")
 
 
-def _render_kpi_row(df: pd.DataFrame) -> None:
-    top = df[df['cpr'].notna()]
-    if top.empty:
-        return
-    best = top.iloc[0]
-    worst = top.iloc[-1]
-    median_cpr = top['cpr'].median()
-    total_spend = df['total_spend'].sum()
+# ── Le HOOK, lu dans le nom que l'artiste donne à sa créative ────────────────
+#
+# Ce n'est pas une donnée de Meta : Meta ne connaît pas la notion de « hook ».
+# C'est une CONVENTION DE NOMMAGE que l'artiste tient lui-même, et qu'on retrouve
+# dans ses noms de créatives — « Hook 1 début : I missed… », « Drop Hook 2 You
+# absolutely », « Sans hook drop ».
+#
+# ⚠️ Un prédicat qui lit une FORME D'ÉCRITURE ne mesure pas la PROPRIÉTÉ (règle
+# transverse 20). Il est donc muté dans les deux sens par
+# `tests/test_a_creative_name_yields_its_hook.py`, et surtout : **la part de
+# dépense qu'il ne sait pas étiqueter est AFFICHÉE**, jamais tue. Mesuré sur
+# l'artiste 1 le 2026-09-21 — 12 créatives sur 56 portent un hook nommé, pour
+# **1 500 € des 3 088 € dépensés (49 %)**. Un classement des hooks qui passerait
+# sous silence l'autre moitié de l'argent serait un classement faux.
+_HOOK_NONE = "Sans hook"
 
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric(t("meta_creatives.total_spend", "Dépense totale"), f"{total_spend:.2f}€")
-    col2.metric(t("meta_creatives.best_cpr", "Meilleure CPR"), f"{best['cpr']:.2f}€", delta=best['creative_name'][:30], delta_color="off")
-    col3.metric(t("meta_creatives.median_cpr", "CPR médian"), f"{median_cpr:.2f}€")
-    col4.metric(t("meta_creatives.worst_cpr", "Pire CPR"), f"{worst['cpr']:.2f}€", delta=worst['creative_name'][:30], delta_color="off")
+
+def _hook_family(creative_name) -> str | None:
+    """Le hook nommé dans le titre d'une créative, ou None s'il n'y en a pas.
+
+    « Sans hook » EST une réponse — c'est une variante que l'artiste a tournée
+    exprès — tandis qu'un nom qui ne parle pas de hook du tout ne dit rien et
+    rend None.
+    """
+    if creative_name is None or pd.isna(creative_name):
+        return None
+    nom = str(creative_name)
+    if re.search(r"sans\s+hook", nom, re.I):
+        return _HOOK_NONE
+    m = re.search(r"hook\s*(\d+)", nom, re.I)
+    return f"Hook {m.group(1)}" if m else None
+
+
+def _numerise(df: pd.DataFrame) -> pd.DataFrame:
+    """Postgres NUMERIC → float. Sans ça Plotly mistype et Altair refuse `decimal`."""
+    d = df.copy()
+    for c in ('cpr', 'total_spend', 'total_results', 'avg_ctr',
+              'total_reach', 'total_impressions', 'total_clicks'):
+        if c in d.columns:
+            d[c] = pd.to_numeric(d[c], errors='coerce')
+    return d
+
+
+def _par_hook(df: pd.DataFrame) -> pd.DataFrame:
+    """Agrège par famille de hook. CPR recalculé sur les TOTAUX, jamais moyenné.
+
+    Moyenner des CPR donne le poids d'une créative à 10 € et celui d'une créative
+    à 800 €. Le coût par résultat d'une famille est `Σ dépense / Σ résultats`.
+    """
+    # ⚠️ La coercition est REFAITE ICI plutôt qu'appelée : la carte de la couche or
+    # (`make gold-coverage`) remonte la provenance d'une figure de proche en
+    # proche, et `_numerise()` imbriqué dans cette fonction ajoutait un saut de
+    # trop — la figure des hooks sortait « indéterminée · profondeur » alors que
+    # sa source est la même `v_meta_creative_daily` que le reste de la page.
+    # Quatre lignes de redite contre un trou dans la carte : le trou coûte plus cher.
+    d = df.copy()
+    for _c in ('cpr', 'total_spend', 'total_results'):
+        if _c in d.columns:
+            d[_c] = pd.to_numeric(d[_c], errors='coerce')
+    d['hook'] = d['creative_name'].apply(_hook_family)
+    d = d.dropna(subset=['hook'])
+    if d.empty:
+        return d
+    g = d.groupby('hook', as_index=False).agg(
+        total_spend=('total_spend', 'sum'),
+        total_results=('total_results', 'sum'),
+        creatives=('creative_name', 'nunique'))
+    g['cpr'] = g['total_spend'] / g['total_results'].where(g['total_results'] > 0)
+    g['confiance'] = g['total_results'].apply(lambda n: confidence_factor(n, K_DEFAUT))
+    return g.sort_values('cpr', na_position='last')
+
+
+def _le_plus_sur(d: pd.DataFrame, col_cpr: str = 'cpr') -> pd.Series | None:
+    """Le meilleur coût par résultat PONDÉRÉ par ce qui le soutient.
+
+    ⚠️ C'est la demande explicite du propriétaire, formulée deux fois le
+    2026-09-21 : « je veux le plus gros budget avec le meilleur ratio de CPR,
+    mais pas quand j'ai dépensé que 10 € ». Ses propres données lui donnent
+    raison — « Sans hook » sort en tête à 0,104 € sur **69 € dépensés**, devant
+    « Hook 1 » à 0,113 € sur **846 €**. Couronner le premier conseillerait de
+    tout miser sur un essai que rien ne soutient.
+
+    Le classement se fait donc sur `(médian / cpr) × confiance`, où la confiance
+    est `n / (n + 300)` — la même que celle du barème de l'optimiseur CPR, dans
+    le même module, pour qu'un réglage ne corrige jamais une vue sur deux.
+    """
+    d = d[d[col_cpr].notna() & (d[col_cpr] > 0)]
+    if d.empty:
+        return None
+    median = float(d[col_cpr].median())
+    if median <= 0:
+        return None
+    score = (median / d[col_cpr]) * d['total_results'].apply(
+        lambda n: confidence_factor(n, K_DEFAUT))
+    if not (score > 0).any():
+        return None
+    return d.loc[score.idxmax()]
+
+
+def _a_couper(d: pd.DataFrame) -> pd.Series | None:
+    """Celle qui a coûté le plus d'ARGENT EN TROP — mesuré contre le coût d'ensemble.
+
+    ⚠️ Deux jets corrigés le 2026-09-21, et les deux erreurs sont instructives.
+
+    **1. Le pire RATIO n'est pas le plus gros gaspillage.** La règle était « la
+    pire CPR parmi celles au-dessus de la dépense médiane ». Sur les données
+    réelles de l'artiste 1 — 61 créatives, dépense médiane **25 €** — elle
+    désignait une créative de 25 €. Techniquement juste, et sans intérêt : la
+    couper ne libère rien. La question devant cet écran n'est pas « laquelle a le
+    pire ratio » mais « où part l'argent que je perds ». Ça se mesure :
+
+        surcoût = dépense × (1 − CPR_référence / CPR)
+
+    soit les euros payés EN PLUS de ce qu'auraient coûté les mêmes résultats au
+    coût de référence.
+
+    **2. La référence n'est pas le CPR MÉDIAN.** Le médian se prend sur les
+    créatives, une voix chacune : une nuée de petits essais ratés le tire vers le
+    haut et fait passer les grosses dépenses pour bonnes. Mesuré le même jour :
+    médian **0,310 €** contre coût d'ensemble **0,130 €** — un facteur 2,4, qui
+    plafonnait tous les surcoûts sous 20 € et enterrait le vrai.
+
+    La référence est donc le coût d'ENSEMBLE, `Σdépense / Σrésultats` : ce que
+    l'artiste paie réellement en moyenne, pondéré par l'argent. Avec elle, la
+    carte désigne « Chorus - Kaiber Photo » — 220 € dépensés à 0,19 €, soit **70 €
+    au-dessus** de son propre coût d'ensemble — et 462 € au total dépassent la
+    référence sur 3 088 €. C'est un constat qu'on peut aller vérifier.
+    """
+    d = d[d['cpr'].notna() & (d['cpr'] > 0) & (d['total_spend'] > 0)]
+    if len(d) < 2:
+        return None
+    resultats = float(d['total_results'].sum())
+    if resultats <= 0:
+        return None
+    reference = float(d['total_spend'].sum()) / resultats
+    if reference <= 0:
+        return None
+    surcout = d['total_spend'] * (1 - reference / d['cpr'])
+    if not (surcout > 0).any():
+        return None
+    pire = d.loc[surcout.idxmax()].copy()
+    pire['surcout'] = float(surcout.max())
+    pire['reference'] = reference
+    return pire
+
+
+def _render_decision_banner(df: pd.DataFrame) -> None:
+    """Ce qu'il faut faire, nommé — avant toute figure.
+
+    Demandé par le propriétaire le 2026-09-21 : « indique-moi tout en haut les
+    meilleures perf avec le nom des hooks et créatives les plus performantes : on
+    doit pouvoir prendre des décisions ». La page ouvrait jusque-là sur quatre
+    jauges dont deux portaient un nom TRONQUÉ à 30 caractères dans un `delta`,
+    c'est-à-dire à l'endroit exact où Streamlit écrit une variation.
+    """
+    d = _numerise(df)
+    meilleure = _le_plus_sur(d)
+    couper = _a_couper(d)
+    hooks = _par_hook(df)
+    meilleur_hook = _le_plus_sur(hooks) if not hooks.empty else None
+
+    depense = float(d['total_spend'].sum())
+    st.markdown(t(
+        "meta_creatives.banner_intro",
+        "**{spend:,.0f} € dépensés sur {n} créative(s).** Voici les trois décisions "
+        "que ces chiffres portent."
+    ).format(spend=depense, n=len(d)).replace(",", " "))
+
+    c1, c2, c3 = st.columns(3)
+    if meilleure is not None:
+        c1.metric(
+            t("meta_creatives.best_creative", "🏆 Meilleure créative — {nom}").format(
+                nom=meilleure['creative_name']),
+            f"{float(meilleure['cpr']):.3f} €",
+            delta=t("meta_creatives.backed_by",
+                    "{spend:.0f} € · {res:,.0f} résultats").format(
+                spend=float(meilleure['total_spend']),
+                res=float(meilleure['total_results'])).replace(",", " "),
+            delta_color="off")
+    else:
+        c1.info(t("meta_creatives.no_winner",
+                  "Aucune créative n'a encore assez de résultats pour être couronnée."))
+
+    if meilleur_hook is not None:
+        part = (float(hooks['total_spend'].sum()) / depense * 100) if depense else 0.0
+        c2.metric(
+            t("meta_creatives.best_hook", "🎣 Meilleur hook — {nom}").format(
+                nom=meilleur_hook['hook']),
+            f"{float(meilleur_hook['cpr']):.3f} €",
+            delta=t("meta_creatives.hook_backed_by",
+                    "{spend:.0f} € · {n} créative(s) · {part:.0f} % du budget nommé"
+                    ).format(spend=float(meilleur_hook['total_spend']),
+                             n=int(meilleur_hook['creatives']), part=part),
+            delta_color="off")
+    else:
+        c2.info(t("meta_creatives.no_hook_named",
+                  "Aucun hook nommé dans tes titres de créatives. Nomme-les "
+                  "« Hook 1 … », « Hook 2 … », « Sans hook … » et cette carte "
+                  "te dira lequel convertit."))
+
+    if couper is not None:
+        c3.metric(
+            t("meta_creatives.to_cut", "✂️ À couper — {nom}").format(
+                nom=couper['creative_name']),
+            f"{float(couper['cpr']):.3f} €",
+            delta=t("meta_creatives.already_spent",
+                    "{spend:.0f} € dépensés · ~{trop:.0f} € de trop vs ton coût "
+                    "d'ensemble ({ref:.3f} €)").format(
+                spend=float(couper['total_spend']),
+                trop=float(couper['surcout']),
+                ref=float(couper['reference'])),
+            delta_color="off")
+    else:
+        c3.info(t("meta_creatives.nothing_to_cut",
+                  "Aucune créative ne dérape sur un budget qui compte."))
+
+
+# Le classement, en figures. (label, colonne, format, couleur, sens)
+# `plus_bas_est_mieux` n'est vrai que pour un COÛT : c'est ce qui décide du sens
+# du tri et de la couleur du meilleur.
+_RANG_PANNEAUX = [
+    ("CPR (€)",       'cpr',           "{:.3f}", "#ff6b35", True),
+    ("Dépense (€)",   'total_spend',   "{:.0f}", "#7f7f7f", False),
+    ("Résultats",     'total_results', "{:.0f}", "#2ca02c", False),
+    ("CTR (%)",       'avg_ctr',       "{:.2f}", "#e6b800", False),
+]
+_RANG_MAX = 15
+
+
+def _render_ranking(df: pd.DataFrame) -> None:
+    """Le classement des créatives — QUATRE cadres, un par unité, noms en Y.
+
+    ⚠️ Remplace un `st.dataframe` de huit colonnes, à la demande du propriétaire
+    le 2026-09-21 : « montre-moi le classement par comparaison graphique plutôt
+    que par tableau ». Le tableau n'a pas disparu — il est replié plus bas, parce
+    qu'il reste le seul endroit où lire une valeur exacte.
+
+    Pourquoi quatre cadres et non quatre séries sur un repère : un coût en euros,
+    une dépense en euros, un nombre de résultats et un pourcentage n'ont ni la
+    même unité ni le même ordre de grandeur. Superposés, le CTR passe sous le
+    pixel. Le cliquet d'axes secondaires de ce dépôt (`_MAX_SECONDARY_AXES = 0`)
+    dit la même chose d'une autre façon.
+    """
+    from plotly.subplots import make_subplots
+
+    d = _numerise(df)
+    d = d[d['total_spend'].notna() & (d['total_spend'] > 0)]
+    if d.empty:
+        st.info(t("meta_creatives.no_ranking", "Aucune créative avec de la dépense."))
+        return
+    tronque = len(d) > _RANG_MAX
+    d = d.nlargest(_RANG_MAX, 'total_spend')
+    # Meilleur CPR EN HAUT : Plotly empile les catégories du bas vers le haut, donc
+    # on trie en décroissant pour que le meilleur finisse en tête de figure.
+    d = d.sort_values('cpr', ascending=False, na_position='first')
+    noms = d['creative_name'].tolist()
+
+    fig = make_subplots(
+        rows=1, cols=len(_RANG_PANNEAUX), shared_yaxes=True, horizontal_spacing=0.035,
+        subplot_titles=[t(f"meta_creatives.rank.{col}", lab)
+                        for lab, col, _, _, _ in _RANG_PANNEAUX])
+    for i, (lab, col, fmt, couleur, _bas) in enumerate(_RANG_PANNEAUX, start=1):
+        vals = d[col] if col in d.columns else pd.Series([float("nan")] * len(d))
+        fig.add_trace(go.Bar(
+            x=vals, y=noms, orientation='h', marker={'color': couleur},
+            name=lab, showlegend=False,
+            text=[fmt.format(v) if pd.notna(v) else "—" for v in vals],
+            textposition='outside', cliponaxis=False,
+            hovertemplate=f"%{{y}}<br>{lab} : %{{x}}<extra></extra>",
+        ), row=1, col=i)
+        fig.update_xaxes(showticklabels=False, row=1, col=i)
+    fig.update_layout(height=max(320, 34 * len(noms) + 120),
+                      margin={'l': 10, 'r': 40, 't': 60, 'b': 20},
+                      bargap=0.25)
+    fig.update_yaxes(automargin=True)
+    st.plotly_chart(fig, width="stretch")
+    st.caption(t(
+        "meta_creatives.ranking_caption",
+        "Meilleur coût par résultat en haut. Une barre absente = pas de résultat "
+        "mesuré, donc pas de CPR — ce n'est pas un zéro.") + (
+        " " + t("meta_creatives.ranking_truncated",
+                "Seules les {n} créatives qui ont le plus dépensé sont tracées ; "
+                "le tableau replié plus bas les porte toutes.").format(n=_RANG_MAX)
+        if tronque else ""))
+
+
+def _render_hooks(df: pd.DataFrame) -> None:
+    """Quel hook convertit — et sur combien d'argent il a été jugé.
+
+    DEUX cadres, et le second n'est pas décoratif : il porte la dépense qui
+    soutient chaque coût. Sans lui, « Sans hook » gagnerait à l'œil (0,104 €)
+    alors qu'il a été jugé sur 69 € contre 846 € pour « Hook 1 ».
+    """
+    from plotly.subplots import make_subplots
+
+    depense_totale = float(_numerise(df)['total_spend'].sum())
+    hooks = _par_hook(df)
+    if hooks.empty or len(hooks) < 2:
+        st.info(t(
+            "meta_creatives.hooks_absent",
+            "Tes titres de créatives ne nomment pas (encore) de hook. Nomme-les "
+            "« Hook 1 — … », « Hook 2 — … », « Sans hook — … » : cette figure "
+            "comparera alors le coût par résultat de chaque accroche."))
+        return
+    h = hooks.sort_values('cpr', ascending=False, na_position='first')
+    fig = make_subplots(rows=1, cols=2, shared_yaxes=True, horizontal_spacing=0.06,
+                        subplot_titles=[t("meta_creatives.hook_cpr", "Coût par résultat (€)"),
+                                        t("meta_creatives.hook_spend", "Dépense jugée (€)")])
+    fig.add_trace(go.Bar(x=h['cpr'], y=h['hook'], orientation='h',
+                         marker={'color': "#ff6b35"}, showlegend=False,
+                         text=[f"{v:.3f}" if pd.notna(v) else "—" for v in h['cpr']],
+                         textposition='outside', cliponaxis=False), row=1, col=1)
+    fig.add_trace(go.Bar(x=h['total_spend'], y=h['hook'], orientation='h',
+                         marker={'color': "#7f7f7f"}, showlegend=False,
+                         text=[f"{v:.0f} €" for v in h['total_spend']],
+                         textposition='outside', cliponaxis=False), row=1, col=2)
+    fig.update_xaxes(showticklabels=False)
+    fig.update_layout(height=max(260, 46 * len(h) + 120),
+                      margin={'l': 10, 'r': 40, 't': 60, 'b': 20})
+    fig.update_yaxes(automargin=True)
+    st.plotly_chart(fig, width="stretch")
+
+    part = (float(hooks['total_spend'].sum()) / depense_totale * 100) if depense_totale else 0.0
+    st.caption(t(
+        "meta_creatives.hooks_caption",
+        "Le hook est lu dans le NOM que tu donnes à ta créative — Meta ne le "
+        "connaît pas. **{part:.0f} % de ta dépense** porte un hook nommé ; le "
+        "reste n'est pas classé ici. Un coût plus bas sur une dépense minuscule "
+        "n'est pas un verdict : c'est pourquoi le second cadre existe."
+    ).format(part=part))
 
 
 def _render_table(df: pd.DataFrame) -> None:
-    median_cpr = df[df['cpr'].notna()]['cpr'].median()
+    """Le tableau exact — REPLIÉ, sous la figure qui l'a remplacé.
 
-    display = df.copy()
-    display['statut'] = display['cpr'].apply(lambda x: _badge(x, median_cpr))
-    display['cpr'] = display['cpr'].apply(lambda x: f"{x:.2f}€" if pd.notna(x) else "—")
-    display['total_spend'] = display['total_spend'].apply(lambda x: f"{x:.2f}€")
-    display['avg_ctr'] = display['avg_ctr'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "—")
-    display['total_reach'] = display['total_reach'].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
+    Il n'a pas été supprimé : c'est le seul endroit où lire une valeur au
+    centième, et la figure est le seul endroit où comparer. Les deux servent.
+    """
+    with secondary_analyses(t("meta_creatives.table_expander",
+                              "🔢 Le classement au chiffre près — tableau")):
+        median_cpr = df[df['cpr'].notna()]['cpr'].median()
 
-    st.dataframe(
-        display[['statut', 'creative_name', 'campaign_name', 'cpr',
-                 'total_spend', 'total_results', 'avg_ctr', 'total_reach']].rename(columns={
-            'statut': t("meta_creatives.col_status", "Statut"),
-            'creative_name': t("meta_creatives.col_creative", "Créative"),
-            'campaign_name': t("meta_creatives.col_campaign", "Campagne"),
-            'cpr': 'CPR',
-            'total_spend': t("meta_creatives.col_spend", "Dépense"),
-            'total_results': t("meta_creatives.col_results", "Résultats"),
-            'avg_ctr': t("meta_creatives.col_avg_ctr", "CTR moyen"),
-            'total_reach': 'Reach',
-        }),
-        width="stretch",
-        hide_index=True,
-    )
+        display = df.copy()
+        display['statut'] = display['cpr'].apply(lambda x: _badge(x, median_cpr))
+        display['cpr'] = display['cpr'].apply(lambda x: f"{x:.2f}€" if pd.notna(x) else "—")
+        display['total_spend'] = display['total_spend'].apply(lambda x: f"{x:.2f}€")
+        display['avg_ctr'] = display['avg_ctr'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "—")
+        display['total_reach'] = display['total_reach'].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
 
-
-def _render_bar_chart(df: pd.DataFrame) -> None:
-    chart_df = df[df['cpr'].notna()].copy()
-    if chart_df.empty:
-        return
-    # cpr is Postgres NUMERIC → Decimal; Altair can't infer its vegalite type and
-    # warns "I don't know how to infer vegalite type from 'decimal'". Coerce to float.
-    chart_df['cpr'] = pd.to_numeric(chart_df['cpr'], errors='coerce').astype(float)
-    chart_df = chart_df.set_index('creative_name')[['cpr']].rename(columns={'cpr': 'CPR (€)'})
-    st.bar_chart(chart_df, color="#ff6b35")
+        st.dataframe(
+            display[['statut', 'creative_name', 'campaign_name', 'cpr',
+                     'total_spend', 'total_results', 'avg_ctr', 'total_reach']].rename(columns={
+                'statut': t("meta_creatives.col_status", "Statut"),
+                'creative_name': t("meta_creatives.col_creative", "Créative"),
+                'campaign_name': t("meta_creatives.col_campaign", "Campagne"),
+                'cpr': 'CPR',
+                'total_spend': t("meta_creatives.col_spend", "Dépense"),
+                'total_results': t("meta_creatives.col_results", "Résultats"),
+                'avg_ctr': t("meta_creatives.col_avg_ctr", "CTR moyen"),
+                'total_reach': 'Reach',
+            }),
+            width="stretch",
+            hide_index=True,
+        )
+        if pd.notna(median_cpr):
+            st.caption(t(
+                "meta_creatives.badge_legend",
+                "🟢 Top créative = CPR ≤ {low}€ | "
+                "🟡 Moyenne = CPR ≤ {high}€ | "
+                "🔴 Sous-performante = CPR > {high}€"
+            ).format(low=f"{median_cpr * 0.75:.2f}", high=f"{median_cpr * 1.25:.2f}"))
 
 
 @st.fragment
@@ -500,25 +823,31 @@ def _render_funnel(df: pd.DataFrame) -> None:
 
     (Docstring d'origine : #3 — Impressions → Clics → Résultats funnel for one creative.)
     """
-    names = (df.dropna(subset=['creative_name'])
-               .sort_values('creative_created', ascending=False, na_position='last')
-               ['creative_name'].drop_duplicates().tolist())
-    if not names:
-        st.info(t("meta_creatives.no_creative", "Aucune créative."))
-        return
-    sel = st.selectbox(t("meta_creatives.creative", "Créative"), names, key="funnel_creative")
-    r = df[df['creative_name'] == sel].iloc[0]
-    imp = int(pd.to_numeric(r['total_impressions'], errors='coerce') or 0)
-    clk = int(pd.to_numeric(r['total_clicks'], errors='coerce') or 0)
-    res = int(pd.to_numeric(r['total_results'], errors='coerce') or 0)
-    fig = go.Figure(go.Funnel(
-        y=[t("meta_creatives.impressions", "Impressions"),
-           t("meta_creatives.clicks", "Clics"),
-           t("meta_creatives.results", "Résultats")], x=[imp, clk, res],
-        textinfo="value+percent initial", marker={'color': ['#1f77b4', '#2ca02c', '#ff6b35']},
-    ))
-    fig.update_layout(height=400)
-    st.plotly_chart(fig, width="stretch")
+    with secondary_analyses(t("meta_creatives.funnel_expander",
+                              "🔻 Le parcours d'une créative — détail")):
+        names = (df.dropna(subset=['creative_name'])
+                   .sort_values('creative_created', ascending=False, na_position='last')
+                   ['creative_name'].drop_duplicates().tolist())
+        if not names:
+            st.info(t("meta_creatives.no_creative", "Aucune créative."))
+            return
+        sel = st.selectbox(t("meta_creatives.creative", "Créative"), names, key="funnel_creative")
+        r = df[df['creative_name'] == sel].iloc[0]
+        imp = int(pd.to_numeric(r['total_impressions'], errors='coerce') or 0)
+        clk = int(pd.to_numeric(r['total_clicks'], errors='coerce') or 0)
+        res = int(pd.to_numeric(r['total_results'], errors='coerce') or 0)
+        fig = go.Figure(go.Funnel(
+            # R146 — l'étape terminale portait « Résultats », ce qui donnait à un
+            # clic sortant l'allure d'un aboutissement. Même anti-motif que le
+            # funnel de `meta_x_spotify`, corrigé le 2026-09-21 : le fix n'avait
+            # pas balayé ce fichier.
+            y=[t("meta_creatives.impressions", "Impressions"),
+               t("meta_creatives.clicks", "Clics"),
+               t("meta_creatives.results", "Clics sortants")], x=[imp, clk, res],
+            textinfo="value+percent initial", marker={'color': ['#1f77b4', '#2ca02c', '#ff6b35']},
+        ))
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, width="stretch")
 
 
 @st.fragment
@@ -637,6 +966,8 @@ def show() -> None:
     st.title(t("meta_creatives.title", "🎨 Créatives Meta Ads"))
     st.caption(t("meta_creatives.subtitle",
                  "Classement de vos créatives par CPR — basé sur les données Meta Ads API (meta_ads × meta_insights)."))
+    # R146 — toute la page classe des créatives sur un coût par CLIC SORTANT.
+    st.caption(disclosure_caption())
 
     # La connexion vivante est DECLAREE pour les fragments de cette page : dans un
     # rendu complet ils la reutilisent au lieu d'en ouvrir une (~13 ms la poignee
@@ -695,50 +1026,40 @@ def show() -> None:
             st.warning(t("meta_creatives.no_creative_campaign", "Aucune créative pour cette campagne."))
             return
 
-        _render_kpi_row(df)
+        # ── UNE SEULE PAGE, et c'est une demande explicite du 2026-09-21 :
+        # « regroupe-moi tout en 1 seule page ».
+        #
+        # ⚠️ Les six onglets n'ont pas été dépliés tels quels. `st.tabs` BORNE un
+        # écran — c'est écrit dans `first-screen-ceilings.json` — donc tout aplatir
+        # aurait fait passer cette vue de 8 figures de premier écran à quatorze. Le
+        # remplacement n'est pas l'onglet, c'est le DÉPLIANT : la page se lit d'un
+        # bout à l'autre en scrollant, la décision est en haut, et chaque analyse
+        # qui ne fait que raffiner cette décision se replie elle-même.
+        #
+        # Reste donc à l'écran, dans cet ordre : la décision, le classement, les
+        # hooks, la fatigue, l'évolution. Cinq blocs, quatre figures.
+        _render_decision_banner(df)
         st.markdown("---")
 
-        t_rank, t_cmp, t_funnel, t_evo, t_fatigue, t_act = st.tabs([
-            t("meta_creatives.tab_ranking", "📋 Classement"),
-            t("meta_creatives.tab_compare", "🫧 Comparaison"),
-            t("meta_creatives.tab_funnel", "🔻 Funnel"),
-            t("meta_creatives.tab_evolution", "📈 Évolution"),
-            t("meta_creatives.tab_fatigue", "🪫 Fatigue"),
-            t("meta_creatives.tab_activity", "🗓️ Activité"),
-        ])
+        st.subheader(t("meta_creatives.section_ranking", "🏁 Le classement de tes créatives"))
+        _render_ranking(df)
+        _render_table(df)
 
-        with t_rank:
-            _render_table(df)
-            median_cpr = df[df['cpr'].notna()]['cpr'].median()
-            if pd.notna(median_cpr):
-                st.caption(t(
-                    "meta_creatives.badge_legend",
-                    "🟢 Top créative = CPR ≤ {low}€ | "
-                    "🟡 Moyenne = CPR ≤ {high}€ | "
-                    "🔴 Sous-performante = CPR > {high}€"
-                ).format(low=f"{median_cpr * 0.75:.2f}", high=f"{median_cpr * 1.25:.2f}"))
-            st.markdown("---")
-            _render_bar_chart(df)
+        st.markdown("---")
+        st.subheader(t("meta_creatives.section_hooks", "🎣 Quelle accroche convertit"))
+        _render_hooks(df)
 
-        with t_cmp:
-            # Nuage et efficacité regardent la MÊME donnée que le classement de
-            # l'onglet précédent, sous deux angles de comparaison. Chacune se replie
-            # elle-même : la présentation appartient à la fonction qui dessine, pas à
-            # son appelant — sinon un second appelant la rendrait dépliée.
-            _render_scatter(df)
-            st.markdown("---")
-            _render_efficiency(df)
+        st.markdown("---")
+        st.subheader(t("meta_creatives.section_fatigue", "🪫 Une audience saturée ?"))
+        _tab_fatigue(_acct_ma, _acct_params)
 
-        with t_funnel:
-            _render_funnel(df)
+        _tab_creative_timeline(selected_campaign, _acct_ma, _acct_params)
 
-        with t_evo:
-            _tab_creative_timeline(selected_campaign, _acct_ma, _acct_params)
-
-        with t_fatigue:
-            _tab_fatigue(_acct_ma, _acct_params)
-
-        with t_act:
-            ts_all = db.fetch_df(_QUERY_TS_ALL.format(acct=_acct_ma),
-                                 (artist_id, *_acct_params))
-            _render_activity(ts_all)
+        st.markdown("---")
+        st.subheader(t("meta_creatives.section_details", "🔬 Pour creuser"))
+        _render_funnel(df)
+        _render_scatter(df)
+        _render_efficiency(df)
+        ts_all = db.fetch_df(_QUERY_TS_ALL.format(acct=_acct_ma),
+                             (artist_id, *_acct_params))
+        _render_activity(ts_all)

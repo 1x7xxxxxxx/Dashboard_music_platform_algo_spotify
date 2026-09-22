@@ -39,8 +39,18 @@ EN = {
     "track_mapping.col_track": "Track",
     "track_mapping.col_release": "Release",
     # Unified overview tab (coverage grid + Meta campaigns + suggestions)
-    "track_mapping.coverage_header": "🗺️ Cross-platform coverage (recap)",
-    "track_mapping.coverage_legend": "✅ = platform linked · “·” = not linked. (Meta campaigns "
-                                     "live in the **📣 Meta campaigns** tab.)",
+    "track_mapping.coverage_header": "🗺️ Cross-platform coverage — do I have everything, everywhere?",
+    "track_mapping.coverage_legend": "✅ linked · ❌ not linked. The count on top compares CONFIRMED links to the number of canonical tracks; \"seen\" is what the platform knows, linked or not. Hypeddit counts promo CAMPAIGNS, not tracks: having fewer is not an anomaly. (Meta campaigns live in the **📣 Meta campaigns** tab.)",
     "track_mapping.suggest_header": "🔎 Suggestions to review",
+    # Le récap de couverture — comptes par plateforme (2026-09-21).
+    "track_mapping.seen_n": "{n} seen",
+    "track_mapping.count_ok": "Every canonical track is linked on this platform.",
+    "track_mapping.count_missing": "{k} canonical track(s) with no confirmed link here. "
+                                   "The platform knows {v} in total.",
+    "track_mapping.coverage_gap": "⚠️ Links are missing on: **{p}**. An unlinked track "
+                                  "drops out of every cross-platform comparison — that is "
+                                  "what lost 59 % of the streams before linking went "
+                                  "through the confirmed link.",
+    "track_mapping.coverage_full": "✅ All {n} canonical tracks are linked on every "
+                                   "platform that carries them.",
 }

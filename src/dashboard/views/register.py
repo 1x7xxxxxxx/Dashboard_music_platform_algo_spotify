@@ -528,13 +528,30 @@ def show():
                               help=t("register.pw_help", "8 caractères minimum."))
         pw2 = col4.text_input(t("register.confirm_password", "Confirmer le mot de passe *"), type="password")
 
+        # ── LE CODE ARRIVE PAR L'URL — 2026-09-21 ───────────────────────────
+        #
+        # La page de parrainage donnait un code (`A3F8C1`) et disait « partage-le ».
+        # Un code seul se recopie à la main, dans un champ qu'il faut d'abord
+        # trouver, sur un formulaire où l'on est déjà en train de saisir six autres
+        # champs. Le lien `…?page=register&ref=A3F8C1` le pose tout seul.
+        #
+        # ⚠️ Pré-REMPLI, jamais imposé : la valeur reste modifiable. Un filleul qui
+        # a reçu un code promo par ailleurs doit pouvoir écraser celui du lien —
+        # `_validate_promo_code` est essayé avant `_validate_referral_code`, et
+        # verrouiller le champ lui retirerait le meilleur des deux.
+        _ref_url = (st.query_params.get("ref") or "").strip().upper()[:32]
         referral_code = st.text_input(
             t("register.referral_code", "Code promo ou parrainage (optionnel)"),
+            value=_ref_url,
             placeholder=t("register.referral_ph", "ex. A3F8C1"),
             help=t("register.referral_help",
                    "Code promo (accès gratuit) ou code de parrainage d'un ami "
                    "(20% sur le premier mois)."),
         ).strip().upper()
+        if _ref_url:
+            st.caption(t("register.referral_from_link",
+                         "🎁 Code **{c}** appliqué depuis ton lien d'invitation — "
+                         "tu peux le remplacer.").format(c=_ref_url))
 
         # ── Les liens de profil : un bloc, à plat, sans titre ni explication ──
         #
@@ -706,7 +723,7 @@ def show():
                                      days=WELCOME_TRIAL_DAYS)
                 if discount_pct:
                     discount_msg += t("register.referral_discount",
-                                      " Un **rabais de 20%** sera appliqué à votre premier mois payant.")
+                                      " Un **rabais de 20 %** t'est acquis sur ton premier mois payant — signale-le nous au moment de t'abonner, il se pose à la main.")
             # The welcome email + onboarding guide PDF is sent AFTER the user confirms
             # their address (see app._verify_email), not here — so the guide only reaches
             # a proven-deliverable inbox.

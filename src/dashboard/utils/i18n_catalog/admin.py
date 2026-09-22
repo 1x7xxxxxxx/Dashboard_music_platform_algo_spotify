@@ -1,6 +1,25 @@
 """EN catalog for the admin view."""
 
 EN = {
+    # ── Réglages d'exploitation (2026-09-21) ─────────────────────────────────
+    "admin.tab_settings": "⚙️ Settings",
+    "admin.settings_header": "⚙️ Tool settings",
+    "admin.settings_calendly_header": "**📅 Booking link**",
+    "admin.settings_calendly_help": (
+        "Shown as a button on **💳 Billing**, under your campaign-optimisation "
+        "offer. While it is empty the artist only sees the email — a button to a "
+        "dead page is worth less than no button."),
+    "admin.settings_env_wins": (
+        "🔒 The `SERVICE_CALENDLY_URL` environment variable is set: it TAKES "
+        "PRECEDENCE over this field, and it is the one displayed. Remove it from "
+        "the environment to take control here."),
+    "admin.settings_calendly_label": "Booking URL",
+    "admin.settings_save": "💾 Save",
+    "admin.settings_clear": "🗑️ Clear",
+    "admin.settings_refused": "❌ {raison}",
+    "admin.settings_saved": (
+        "✅ Setting saved — it applies right away on the Billing page."),
+    "admin.settings_current": "Currently: {url}",
     # Guard / title / tabs
     "admin.access_denied": "⛔ Administrator access only.",
     "admin.title": "⚙️ Administration",
@@ -141,4 +160,22 @@ EN = {
     "admin.erasure_detail": "Detail per table",
     "admin.erasure_error": "Error during erasure: {err}",
     "admin.gdpr_history_header": "📋 Erasure history",
+    # R149 — l'activation, la métrique unique du stade actuel.
+    "admin.activation_header": "🎯 Activation — the metric that matters right now",
+    "admin.metric_activation": "Activated artists",
+    "admin.activation_def": (
+        "**Activated** = at least one platform delivered at least one row in the "
+        "last {j} days. Not a login, not an identifier entered, not a DAG that "
+        "ran: data actually DELIVERED to the artist."),
+    "admin.activation_all": "✅ Every account receives at least one platform.",
+    "admin.activation_dormant": (
+        "**{n} account(s) have never received any data.** Each signed up, got "
+        "thirty days of Premium, and is looking at an empty dashboard."),
+    "admin.act_col_id": "ID",
+    "admin.act_col_name": "Artist",
+    "admin.act_col_signup": "Signed up",
+    "admin.act_col_days": "Days",
+    "admin.act_col_trial": "Trial until",
+    "admin.act_col_plats": "Platforms",
+    "admin.business_expander": "📊 Business — signups & subscriptions",
 }

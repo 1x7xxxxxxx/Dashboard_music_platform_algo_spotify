@@ -25,6 +25,26 @@ _DYNAMIC_PREFIXES = (
     # `test_a_link_is_enough_to_identify_a_tenant` checks every one has an entry.
     "credentials.resolve.",
     "export_csv.source.", "export_pdf.period.", "export_pdf.section.",
+    # Construites par `t(f"meta_creatives.rank.{col}", label)` — les quatre
+    # cadres du classement des créatives. `_RANG_PANNEAUX` les énumère, et
+    # `test_the_ranking_names_every_panel_it_draws` vérifie que chacun a sa clé.
+    "meta_creatives.rank.",
+    # Idem pour les six cadres de la performance globale Meta Ads —
+    # `test_the_global_perf_names_every_panel_it_draws` tient l'autre bout.
+    "meta_ads_overview.perf.",
+    # Les sources, catégories et fréquences de la page « Mon argent », construites
+    # par `t(f"revenue_forecast.source.{s}")`, `…cat.{k}` et `…period.{k}`.
+    # `_FLUX_NOMS`, `_CAT_COUTS` et le sélecteur de fréquence les énumèrent, et
+    # `test_every_money_label_has_a_translation` tient l'autre bout.
+    "revenue_forecast.source.",
+    "revenue_forecast.cat.",
+    "revenue_forecast.period.",
+    # L'argumentaire des plans (`utils/plan_pitch._PITCH`) et les arguments du
+    # service (`stripe_schema.SERVICE_CREDENTIALS`) sont des DONNÉES : leurs clés
+    # ne sont pas des littéraux d'appel. `test_the_plan_pitch_matches_the_gate`
+    # exige une traduction pour chacune — c'est lui qui tient l'autre bout.
+    "pitch.",
+    "billing.service_credential.",
     # Construites par `t(f"home.mode_{k}", MODES[k])` — les trois modes d'affichage de
     # la courbe. `MODES` les énumère, et `test_every_mode_is_offered_and_named`
     # (test_the_live_chart_matches_the_illustration) vérifie qu'aucun n'est sans
@@ -40,6 +60,12 @@ _DYNAMIC_PREFIXES = (
     # test_the_spotify_page_reads_only_the_gold_layer) vérifie qu'aucune n'est sans
     # libellé — le préfixe n'ouvre donc pas une porte sans contrôle.
     "spotify_s4a_combined.source.",
+    # `t(f"meta_x_spotify.series_{col}")` — une clé par COLONNE tracée, et les
+    # colonnes sont énumérées par `_SERIES` dans la vue.
+    # `test_every_plotted_series_is_named` (dans
+    # `test_the_campaign_view_plots_what_it_promises.py`) vérifie qu'aucune n'est
+    # sans libellé : le préfixe n'ouvre donc pas une porte sans contrôle.
+    "meta_x_spotify.series_",
     # `for key, default, image in (…)` : les trois promesses du bloc 1 passent
     # leur clé en VARIABLE, une par figure d'exemple (2026-09-04).
     #

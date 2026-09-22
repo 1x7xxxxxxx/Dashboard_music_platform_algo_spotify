@@ -37,5 +37,23 @@ EN = {
     # Guides — OS switch (os_hints.py)
     "guides.os_selector": "💻 Show instructions for my computer:",
     # Views — collapsed container for refine-only charts (ui.secondary_analyses)
-    "ui.secondary_analyses": "📊 Detailed analyses (optional)",
+    "ui.secondary_analyses": "📊 Detailed analyses",
+    # R146 — the one place the outbound-click limit is written, in English.
+    # `src/dashboard/utils/proxy_disclosure.py` carries the French defaults and the
+    # measurement behind them.
+    "proxy.outbound_label": "Outbound clicks",
+    "proxy.cpr_label": "CPR (€) — cost per outbound click",
+    "proxy.cpr_help": (
+        "**A \"result\" here is a click LEAVING the smart link** towards Spotify — "
+        "the event Hypeddit reports to Meta. It is not a listen: nobody knows "
+        "whether the listener actually played the track. Meta optimises delivery "
+        "on that click, so this cost is a cost per outbound click, not a cost per "
+        "listen. For the price of a real listen, see the \"Cost per stream\" tile "
+        "on the **Meta × Spotify** page."),
+    "proxy.outbound_help": (
+        "Clicks leaving the smart link towards the platform, reported by "
+        "Hypeddit's CAPI. A listen is not guaranteed behind each one."),
+    "proxy.caption": (
+        "ℹ️ **A \"result\" is an outbound click to the platform**, not a listen. "
+        "The cost-per-result figures on this page read as cost per click."),
 }

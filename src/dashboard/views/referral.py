@@ -8,6 +8,7 @@ Persists in: PostgreSQL spotify_etl (referral_codes, referral_events, saas_artis
 Accessible to all plans (free, basic, premium).
 Each artist gets one unique code. Referrer earns +1 free month per successful referral.
 """
+import os
 import secrets
 import streamlit as st
 
@@ -66,15 +67,32 @@ def show():
         code = _get_or_create_code(db, artist_id)
 
         # ── Your code ─────────────────────────────────────────────────────
-        st.subheader(t("referral.your_code", "Votre code de parrainage"))
-        st.code(code, language=None)
+        # ── LE LIEN, PAS SEULEMENT LE CODE — 2026-09-21 ──────────────────
+        #
+        # La page donnait `A3F8C1` et disait « partagez-le ». Entre ce code et un
+        # filleul inscrit, il y avait quatre gestes à sa charge : ouvrir le site,
+        # trouver « créer un compte », repérer un champ nommé « Code promo ou
+        # parrainage » au milieu de six autres, et retaper six caractères sans se
+        # tromper. Chacun perd du monde, et aucun n'était nécessaire :
+        # `register.py` lit maintenant `?ref=` et pré-remplit le champ.
+        #
+        # Le code reste affiché à côté : il se dit à l'oral, le lien non.
+        st.subheader(t("referral.your_link", "Ton lien d'invitation"))
+        base = os.getenv("APP_BASE_URL", "http://localhost:8501").rstrip("/")
+        lien = f"{base}/?page=register&ref={code}"
+        st.code(lien, language=None)
         st.caption(
-            t("referral.code_caption",
-              "Code **unique** et permanent attribué à votre compte. Partagez-le : "
-              "les artistes qui l'utilisent à l'inscription obtiennent **20% sur leur "
-              "premier mois**. (Rappel : chaque nouvel inscrit reçoit aussi **30 jours "
-              "d'accès Premium offerts** automatiquement.)")
+            t("referral.link_caption",
+              "Envoie ce lien : le code est posé tout seul dans le formulaire "
+              "d'inscription. Ton filleul obtient **20 % sur son premier mois "
+              "payant**, et tu gagnes **1 mois offert** quand il s'abonne. "
+              "(Chaque nouvel inscrit reçoit aussi **30 jours de Premium** "
+              "automatiquement, parrainage ou non.)")
         )
+        with st.expander(t("referral.code_alone", "Juste le code, pour le dire à l'oral")):
+            st.code(code, language=None)
+            st.caption(t("referral.code_caption",
+                         "Code **unique** et permanent attribué à ton compte."))
 
         st.markdown("---")
 
@@ -95,11 +113,30 @@ def show():
         col1.metric(t("referral.artists_referred", "Artistes parrainés"), total_referrals)
         col2.metric(t("referral.free_months_earned", "Mois gratuits gagnés"), free_months)
 
+        # ⚠️ LA PHRASE A CHANGÉ LE 2026-09-21, ET C'EST UNE CORRECTION DE FOND.
+        #
+        # Elle disait : « Ils seront appliqués avant votre prochain cycle de
+        # facturation. » — au futur, à la voix passive, comme si un mécanisme s'en
+        # chargeait. Balayé le même jour : **rien ne consomme `referral_free_months`**.
+        # Aucun coupon Stripe, aucune prolongation d'essai, aucun avoir. La montée
+        # en gamme passe par un lien de paiement statique (`STRIPE_CHECKOUT_URL`),
+        # qui ne peut porter aucune remise par client sans un appel à l'API Stripe
+        # que personne n'écrit.
+        #
+        # Le crédit est donc RÉEL et son application est MANUELLE. Le dire est la
+        # seule version honnête tant que l'automatisation n'existe pas — et elle
+        # est à la roadmap, pas dans ce correctif : poser des coupons Stripe est
+        # une brique, pas une retouche de texte.
+        #
+        # Personne n'a encore été lésé : zéro parrainage en base au 2026-09-21. La
+        # promesse n'aurait échoué qu'au premier, ce qui est exactement le moment
+        # où elle coûte le plus cher.
         if free_months > 0:
             st.success(
                 t("referral.free_months_msg",
-                  "🎉 Vous avez **{n} mois gratuit(s)** crédités sur votre compte. "
-                  "Ils seront appliqués avant votre prochain cycle de facturation.").format(
+                  "🎉 Tu as **{n} mois offert(s)** acquis. Écris-nous avant ton "
+                  "prochain paiement et on les applique sur ton abonnement — "
+                  "l'application n'est pas encore automatique.").format(
                       n=free_months)
             )
 
@@ -138,8 +175,9 @@ def show():
             st.markdown(t("referral.how_body", """
 **Pour vous (parrain) :**
 - Partagez votre code avec n'importe quel artiste.
-- Quand il s'inscrit et souscrit à un plan payant avec votre code, vous gagnez automatiquement **+1 mois gratuit** sur votre plan actuel.
-- Les mois gratuits s'accumulent — sans plafond.
+- Quand il s'inscrit et souscrit à un plan payant avec votre code, vous gagnez **+1 mois offert** sur votre plan actuel.
+- Les mois offerts s'accumulent — sans plafond.
+- ⚠️ **L'application n'est pas encore automatique** : écris-nous avant ton prochain paiement et on les pose sur ton abonnement.
 
 **Pour lui (filleul) :**
 - Saisissez le code de parrainage à l'inscription.

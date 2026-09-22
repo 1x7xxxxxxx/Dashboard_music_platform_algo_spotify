@@ -2374,6 +2374,33 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "a-price-page-that-restates-a-gate-instead-of-reading-it": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-21",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_the_plan_pitch_matches_the_gate.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
+      "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-21"
+      ],
+      "kind": "deterministic",
+      "seen_red": "self-proving",
+      "severity": "P2",
+      "siblings_is_a_guard_rerun": false,
+      "siblings_sites": 1,
+      "siblings_swept": true,
+      "status": "guarded",
+      "introduced_date": "2026-09-22",
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-procedural-rule-in-the-database": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-12",
@@ -2428,6 +2455,34 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "a-promise-with-no-mechanism-behind-it": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-21",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_reward_is_not_promised_as_automatic.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
+      "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-21",
+        "2026-09-22"
+      ],
+      "kind": "deterministic",
+      "seen_red": "self-proving",
+      "severity": "P2",
+      "siblings_is_a_guard_rerun": false,
+      "siblings_sites": 0,
+      "siblings_swept": true,
+      "status": "guarded",
+      "introduced_date": "2026-09-22",
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-prose-claim-that-cannot-be-verified": {
       "cause_evidence": "unknown",
       "first_seen_declared": "2026-09-12",
@@ -2455,6 +2510,33 @@
       "introduced_date": "2026-09-15",
       "revisions": 6,
       "history_additions": 1,
+      "renamed_from": null
+    },
+    "a-proxy-rendered-under-the-name-of-the-thing-it-proxies": {
+      "cause_evidence": "read",
+      "first_seen_declared": "2026-09-22",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_a_meta_result_is_never_shown_without_its_limit.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "l-instrument-ment-sur-ce-qu-il-mesure",
+      "guard_scope_derived_family": "un-seuil-écrit-d-instinct",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-22"
+      ],
+      "kind": "deterministic",
+      "seen_red": "self-proving",
+      "severity": "P2",
+      "siblings_is_a_guard_rerun": false,
+      "siblings_sites": 16,
+      "siblings_swept": true,
+      "status": "guarded",
+      "introduced_date": "2026-09-22",
+      "revisions": 0,
+      "history_additions": 0,
       "renamed_from": null
     },
     "a-prudence-rule-with-no-expiry-becomes-a-freeze": {
@@ -3059,6 +3141,33 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "a-second-door-that-knows-fewer-sources-than-the-first": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-22",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_one_door_onto_the_database.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "deux-surfaces-deux-nombres",
+      "guard_scope_derived_family": "deux-surfaces-deux-nombres",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-22"
+      ],
+      "kind": "deterministic",
+      "seen_red": "self-proving",
+      "severity": "P3",
+      "siblings_is_a_guard_rerun": false,
+      "siblings_sites": 12,
+      "siblings_swept": true,
+      "status": "guarded",
+      "introduced_date": "2026-09-22",
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "a-shared-database-read-while-another-test-writes-it": {
       "cause_evidence": "measured",
       "first_seen_declared": "2026-09-16",
@@ -3346,7 +3455,8 @@
       "guard_type": "test",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-18"
+        "2026-09-18",
+        "2026-09-22"
       ],
       "kind": "heuristic",
       "seen_red": "2026-09-18",
@@ -3356,8 +3466,8 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-18",
-      "revisions": 2,
-      "history_additions": 0,
+      "revisions": 3,
+      "history_additions": 1,
       "renamed_from": null
     },
     "a-symmetric-guard-for-an-asymmetric-truth": {
@@ -10386,7 +10496,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "deux-surfaces-deux-nombres",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -10402,7 +10512,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -11128,7 +11238,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 355,
+      "catalogue_revisions": 356,
       "head_date": "2026-09-20"
     },
     "holes": {
@@ -11148,120 +11258,120 @@
       "swept_by_rerunning_the_guard": 0
     },
     "population": {
-      "automatic_guard": 396,
-      "classes": 406,
-      "ever_recurred_observed": 38,
+      "automatic_guard": 400,
+      "classes": 410,
+      "ever_recurred_observed": 39,
       "prose_only": 10,
-      "with_signature": 394
+      "with_signature": 398
     },
     "recurrence": {
       "window_start": "2026-05-15",
-      "as_of": "2026-09-20",
+      "as_of": "2026-09-22",
       "observed": {
-        "events": 46,
-        "class_days": 9201,
-        "per_class_month": 0.152,
+        "events": 47,
+        "class_days": 10013,
+        "per_class_month": 0.1427,
         "ci95": [
-          0.1113,
-          0.2027
+          0.1048,
+          0.1898
         ]
       },
-      "class_days_exposed": 9201,
+      "class_days_exposed": 10013,
       "by_guard": {
         "automatique": {
-          "events": 42,
-          "class_days": 9008,
-          "per_class_month": 0.1417,
+          "events": 43,
+          "class_days": 9800,
+          "per_class_month": 0.1334,
           "ci95": [
-            0.1021,
-            0.1916
+            0.0965,
+            0.1797
           ]
         },
         "prose": {
           "events": 4,
-          "class_days": 193,
-          "per_class_month": 0.6301,
+          "class_days": 213,
+          "per_class_month": 0.5709,
           "ci95": [
-            0.1695,
-            1.6131
+            0.1536,
+            1.4616
           ]
         }
       },
       "by_seen_red": {
         "daté": {
-          "events": 17,
-          "class_days": 2937,
-          "per_class_month": 0.176,
+          "events": 18,
+          "class_days": 3253,
+          "per_class_month": 0.1682,
           "ci95": [
-            0.1024,
-            0.2817
+            0.0996,
+            0.2659
           ]
         },
         "jamais-ou-inconnu": {
           "events": 29,
-          "class_days": 6264,
-          "per_class_month": 0.1407,
+          "class_days": 6760,
+          "per_class_month": 0.1304,
           "ci95": [
-            0.0942,
-            0.2021
+            0.0873,
+            0.1873
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 46,
-          "class_days": 9201,
-          "per_class_month": 0.152,
+          "events": 47,
+          "class_days": 10013,
+          "per_class_month": 0.1427,
           "ci95": [
-            0.1113,
-            0.2027
+            0.1048,
+            0.1898
           ]
         }
       },
       "by_guard_since": {
         "avec-garde": {
-          "events": 42,
-          "class_days": 8436,
-          "per_class_month": 0.1514,
+          "events": 43,
+          "class_days": 9222,
+          "per_class_month": 0.1417,
           "ci95": [
-            0.1091,
-            0.2046
+            0.1026,
+            0.1909
           ]
         },
         "sans-garde": {
           "events": 4,
-          "class_days": 765,
-          "per_class_month": 0.159,
+          "class_days": 791,
+          "per_class_month": 0.1537,
           "ci95": [
-            0.0428,
-            0.407
+            0.0414,
+            0.3936
           ]
         }
       },
       "fixed_horizon": {
         "h7": {
-          "at_risk": 322,
-          "recurred": 34,
-          "rate": 0.1056
+          "at_risk": 332,
+          "recurred": 35,
+          "rate": 0.1054
         },
         "h14": {
-          "at_risk": 227,
+          "at_risk": 245,
           "recurred": 30,
-          "rate": 0.1322
+          "rate": 0.1224
         },
         "h30": {
-          "at_risk": 66,
-          "recurred": 17,
-          "rate": 0.2576
+          "at_risk": 117,
+          "recurred": 25,
+          "rate": 0.2137
         }
       }
     },
     "sweep_yield": {
-      "sweeps_done": 405,
-      "sweeps_with_a_verdict": 403,
-      "sweeps_that_found_something": 108,
-      "live_sites_found": 440,
-      "hit_rate_on_verdicts": 0.268,
+      "sweeps_done": 409,
+      "sweeps_with_a_verdict": 407,
+      "sweeps_that_found_something": 111,
+      "live_sites_found": 469,
+      "hit_rate_on_verdicts": 0.273,
       "note": "Le taux porte sur les balayages dont le verdict est LISIBLE. Les autres sont comptés dans holes.sites_unknown — un balayage muet n'est pas un balayage sans trouvaille."
     }
   }

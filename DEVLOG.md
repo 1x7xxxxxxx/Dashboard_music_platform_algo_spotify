@@ -5,6 +5,177 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-22 (soir) — Sept lignes venues de dix livres, et le chiffre qu'aucune ne demandait
+
+**Ce qui a changé.** Les sept tâches ouvertes le matin (R146–R152, nées des dix livres
+ingérés dans le RAG) sont traitées : quatre closes, trois passées en gestes humains avec
+leur procédure. Deux classes d'erreur écrites, quatre gardes neufs, tous vus rouges.
+
+### Le chiffre que personne n'avait demandé
+
+Aucune des sept lignes ne demandait de regarder ça, et c'est le résultat le plus
+important de la séance. Sur les **quatre artistes bêta** en production :
+
+| | plateformes qui LIVRENT des lignes |
+|---|---|
+| Benken | 1 |
+| Cuzebo · GRiNCH · artiste1 | **0** |
+
+Trois comptes sur quatre regardent un tableau de bord **vide**. Cuzebo depuis **cent
+jours**. Leur `etl_run_log` ne porte aucun échec — il porte `skipped`, quarante-neuf
+fois pour l'un d'eux : le garde d'identité les saute parce qu'aucun identifiant de
+plateforme n'a jamais été saisi, et `alert_monitor` énonce noir sur blanc que « `skipped`
+is deliberately NOT a finding ». **Correct pour l'exploitation, aveugle pour le
+commerce.** Rien, nulle part, ne signalait qu'un compte en essai de trente jours
+n'avait rien à regarder.
+
+Ça répond à trois des sept lignes d'un coup : R147 (zéro conversion sur trois essais
+n'est pas une énigme de prix), R149 (voilà la métrique du stade), R152 (un axe de valeur
+multiplie un revenu par client qui vaut zéro).
+
+### R146 — le P2, et les seize surfaces
+
+`custom_conversions` est l'évènement que la CAPI d'Hypeddit renvoie **quand l'auditeur
+QUITTE le smart link**. C'est un clic sortant ; personne ne sait s'il a écouté. L'app
+l'affichait partout sous « Résultats » et « coût par résultat » — y compris sur la page
+qui RECOMMANDE d'augmenter ou de couper un budget.
+
+Le balayage a rendu **16 grappes vivantes** et **6 sites déjà honnêtes**, ces six-là
+tous dans un seul fichier écrit la veille. La forme correcte existait et n'avait pas
+voyagé — c'est le même motif que « un catalogue recopié trois fois » du matin même. La
+phrase vit désormais dans `src/dashboard/utils/proxy_disclosure.py`, avec quatre portes
+selon la surface (info-bulle, compte brut, légende de page, PDF).
+
+⚠️ **Les catalogues ANGLAIS portaient encore les anciens libellés** après la correction
+française — quatre fichiers. Ce n'est pas moi qui l'ai vu : c'est `test_i18n.py`. Même
+moitié de dépôt que le correctif de parrainage avait ratée quelques heures plus tôt.
+
+### R147 — la prémisse de la tâche était à moitié fausse
+
+La roadmap disait « `subscription_plan_history` et `log_plan_change` portent déjà la
+donnée ». Vérifié en production : le journal porte l'OCTROI et la CONVERSION, **jamais
+l'expiration** — aucun travail de fond ne l'écrit, `plan_resolver` la recalcule à chaque
+lecture.
+
+Conséquence trouvée en tirant ce fil, et c'est un défaut vivant : la figure « Évolution
+des plans » de la page Alertes annonçait **5 Premium sur 6 artistes** là où le résolveur
+en voyait **2 sur 8**. Quatre artistes faux sur huit — trois essayeurs comptés Premium à
+vie, deux comptes absents de la figure. Et le tableau des utilisateurs, vingt lignes plus
+bas sur la MÊME page, avait raison depuis toujours.
+
+La cohorte, elle, rend : **5 essais accordés, 3 arrivés au jour 30, 0 conversion**. Aucun
+taux n'est affiché, et c'est le point : sous le repère de 15 % de *Lean Analytics*,
+observer zéro sur trois a une probabilité de **61 %**. Il en faudrait **19** pour que le
+repère soit en cause — le nombre est calculé, pas choisi, et il suit son repère.
+
+### Ce qui n'était dans aucun livre
+
+En lançant la suite : **20 rouges d'un coup**, tous sur `fe_sendauth: no password
+supplied`, aucun lié au travail en cours. Douze modules de test construisaient leur DSN
+à la main en ne lisant que l'environnement, là où la porte canonique connaît aussi
+`config.yaml`. Sans base ils skippaient, avec une base ils ERREURAIENT : démarrer sa
+pile Docker suffisait à faire apparaître vingt rouges.
+
+Le docstring de `from_env_or_config` **décrivait déjà ce défaut** chez trois collecteurs.
+Un défaut nommé dans une docstring n'est pas un défaut gardé. Les douze corrigés,
+**91 tests** qui ne s'exécutaient pas s'exécutent.
+
+⚠️ **Et le garde que j'ai écrit pour ça n'a pas rougi à sa première mutation** : il
+cherchait `resolve_kwargs` dans le TEXTE, et la docstring que je venais d'écrire dans
+les neuf modules corrigés cite ce mot. Il se satisfaisait de la prose qui décrit le fix
+pendant que le code reportait le défaut. Réécrit pour lire l'AST, il rougit. C'est la
+quatrième fois que ce dépôt paie exactement ça.
+
+### R152 — une décision, écrite
+
+**ADR-028** : pas d'axe de valeur tant que l'activation n'est pas réglée. La raison est
+arithmétique, pas prudentielle — **0 abonnement actif** en production, donc le revenu par
+client qu'un axe multiplierait vaut zéro. Le déclencheur de réouverture est calculable et
+écrit dans l'ADR.
+
+### Ce qui t'attend
+
+Trois lignes dans « 🙋 En attente de toi », chacune avec sa procédure :
+**R151** (cinq minutes dans le Gestionnaire d'évènements Meta — le plus rentable),
+**R148** (trois entretiens sur le prix, APRÈS l'activation),
+**R150** (trois options chiffrées pour la prestation).
+
+---
+
+## 2026-09-22 — Neuf vues refaites, et quatre promesses que le produit ne tenait pas
+
+**Ce qui a changé.** Une longue séance d'optimisation de vues, lancée sur « enlève le
+texte inutile » et terminée sur quatre défauts de fond que personne n'aurait trouvés en
+regardant le code.
+
+### Les quatre promesses non tenues
+
+| surface | ce qu'elle affirmait | la mesure |
+|---|---|---|
+| page de prix | « 📄 Export PDF » **gratuit** | a quitté Free le 2026-09-04 — **17 jours** de promesse fausse sous un menu qui l'affichait cadenassé |
+| page de prix | « 🎬 Génération de créatives vidéo (60+) » en Premium | **rien dans l'arbre ne produit de vidéo** — ni ffmpeg, ni moviepy |
+| parrainage + facturation | « seront appliqués avant votre prochain cycle » | **rien ne consomme** `referral_free_months` : le lien de paiement Stripe est statique |
+| page du compte | plan lu dans `saas_artists.tier` | l'artiste 1 y porte « premium » **sans aucune ligne d'abonnement** |
+
+Aucune ne lève, aucune ne se voit en test de rendu, et les quatre se paient en
+confiance. Les deux premières viennent d'un catalogue recopié **trois fois** ; la
+troisième d'une récompense conçue côté écriture et côté affichage, jamais côté
+encaissement ; la quatrième d'un affichage qui lit le repli au lieu du résolveur.
+
+### Ce que les balayages ont ajouté
+
+Le correctif du parrainage n'avait touché que **le français de deux pages**. Le balayage
+a trouvé **quatre sites vivants de plus** — le message d'inscription et les trois
+catalogues anglais — où un lecteur anglophone lisait la promesse intacte. Et le prédicat
+du balayage avait lui-même un faux négatif, prouvé par mutation : « crédités
+automatiquement » y échappait.
+
+Le second balayage a trouvé que `views/alerts.py` itérait encore le plan **`basic`**,
+retiré du catalogue : la figure d'évolution des plans dessinait une bande plate à zéro
+pour un plan que le produit ne vend plus.
+
+### Trois gardes pris en défaut par leur propre sujet
+
+1. Un garde d'anti-débordement acceptait `date is None` — or `OutOfBoundsDatetime` hérite
+   de `ValueError` et se faisait avaler par le `except`. Le garde du défaut passait
+   **vert sur le défaut**.
+2. Un garde de créances était tenu debout par sa propre légende, qui citait les colonnes
+   qu'il surveillait : retirer les colonnes de la requête le laissait vert.
+3. Un garde de tableau des plans cherchait une sous-chaîne dans un fichier ; le texte
+   ayant migré vers un module partagé, il a rougi sur **l'amélioration qu'il protégeait**.
+
+Les trois sont la même classe — lire une FORME plutôt qu'une PROPRIÉTÉ — et elle est
+désormais datée trois fois dans la même séance.
+
+### Le point mort, enfin calculable
+
+`v_artist_monthly_cashflow` (migration 133) met revenus et dépenses sur le même axe pour
+la première fois. Résultat pour l'artiste 1 : **−2 839,43 €**, un rythme de **+0,48 €/mois**,
+un point mort à **496 ans**. Le calcul a d'ailleurs fait tomber la page au premier essai —
+2521 déborde la plage de `pandas.Timestamp`, et c'est l'artiste le plus loin du point mort
+qui en a le plus besoin.
+
+Le coût de distribution, lui, n'existait dans **aucune table** : `app_operating_costs`
+porte le VPS de l'exploitant, pas un euro de l'artiste. D'où `artist_cost_entries`, saisie
+à la main faute d'API distributeur.
+
+### Dix livres, et six lignes de roadmap
+
+Ingérés en 17 minutes (11 939 passages) — pas les « plusieurs heures » que j'avais
+annoncées : le goulot est l'embedding (373 % de CPU), pas `/mnt/c`. Le classement à blanc
+les envoyait **tous** dans `divers` ; trois règles ajoutées à `organize.py`.
+
+La trouvaille qui compte vient de *Making Websites Win* : « if you can only track when
+someone clicks away, you will optimize for **click-outs, not conversions** ». C'est
+exactement le montage Meta → Hypeddit → Spotify : la conversion CAPI se déclenche au
+**départ** du smart link. R146, seul P2 du lot.
+
+**Écrit ce jour :** migrations 133 et 134 · `utils/{artist_cashflow, plan_pitch,
+app_settings, meta_confidence}` · 2 classes d'erreur admises sur `sites:4` et `sites:6` ·
+R146–R152 · ~30 tests de garde, 21 mutations vérifiées.
+
+---
+
 ## 2026-09-20 — La roadmap atteint zéro, et trois de mes propres chiffres étaient locaux
 
 **Ce qui a changé** — R135, R140 (dix-sept décisions), R142, R143, R125 et R134 closes ;

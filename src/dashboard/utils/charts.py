@@ -34,13 +34,16 @@ def pareto_spend_cpr(df, dim_col: str, title: str, *, top_n: int = 15):
         marker_color='rgba(0, 63, 92, 0.6)', yaxis='y',
     ))
     fig.add_trace(go.Scatter(
-        x=df[dim_col], y=df['cpr'], name='CPR (€)', mode='lines+markers',
+        # R146 — ce helper est appelé par `meta_ads_overview` ET `meta_breakdowns` :
+        # nommer le clic ICI corrige les deux d'un coup, et tout appelant futur.
+        x=df[dim_col], y=df['cpr'], name='CPR (€/clic sortant)', mode='lines+markers',
         line={'color': '#ff6361', 'width': 3}, yaxis='y2',
     ))
     fig.update_layout(
         title=title,
         yaxis={'title': 'Dépense (€)', 'showgrid': False},
-        yaxis2={'title': 'CPR (€)', 'overlaying': 'y', 'side': 'right', 'showgrid': False},
+        yaxis2={'title': 'CPR (€/clic sortant)', 'overlaying': 'y', 'side': 'right',
+                'showgrid': False},
         showlegend=False, height=400, margin={'t': 50},
     )
     return fig

@@ -163,7 +163,7 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None,
         'revenue_fc': pdf_charts.revenue_forecast_chart(revenue_fc['months']) if revenue_fc else None,
         'mxs': pdf_charts.indexed_lines(
             {_t("pdf.chart.series.meta_budget", "Budget Meta"): meta_x_spotify['spend'],
-             _t("pdf.chart.series.results", "Résultats"): meta_x_spotify['results'],
+             _t("pdf.chart.series.results", "Clics sortants"): meta_x_spotify['results'],
              _t("pdf.chart.series.cpr", "CPR"): meta_x_spotify['cpr'],
              _t("pdf.chart.series.spotify_streams", "Streams Spotify"): meta_x_spotify['streams'],
              _t("pdf.chart.series.popularity", "Popularité"): meta_x_spotify['popularity']},

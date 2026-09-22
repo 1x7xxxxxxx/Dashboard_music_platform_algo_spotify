@@ -840,40 +840,71 @@ def test_adopting_a_registered_account_refuses_anything_that_is_not_fresh():
 
 
 def test_the_plan_table_does_not_contradict_the_real_gating():
-    """A comparison table that lies about the current plan is worse than none.
+    """Un tableau comparatif qui ment sur le plan courant est pire que rien.
 
-    `export_pdf` IS in `PLAN_FEATURES['free']`, so the Free column must keep it. What
-    moved to Premium on 2026-09-04 is the WEEKLY MAILED report (migration 081) — a
-    different thing that happens to produce the same file.
+    ⚠️ CE GARDE A ÉTÉ REPOINTÉ le 2026-09-21, et le motif est instructif.
+
+    Il lisait le CODE SOURCE de `_step_welcome` et y cherchait des sous-chaînes
+    (`nav.item.export_pdf`, `feat_pdf_weekly`) coupées en deux blocs par la
+    position de `('premium',`. Le jour où les trois surfaces de prix ont cessé de
+    recopier leur catalogue pour lire `utils/plan_pitch`, le texte a quitté ce
+    fichier — et le garde a rougi sur **l'amélioration même qu'il existait pour
+    protéger**.
+
+    C'est la classe `a-sweep-predicate-that-matches-a-form-not-a-property` : il
+    cherchait « la chaîne est-elle dans ce fichier » là où la propriété est
+    « la colonne affichée nomme-t-elle cette page ». La seconde se lit désormais
+    directement, et pour les DEUX colonnes à la fois.
+
+    Ce qu'il tient est inchangé, et même élargi : ce n'est plus trois items
+    choisis à la main, c'est **toute** page vendue qui doit tomber dans la colonne
+    que le verrou lui donne.
     """
     import sys
     sys.path.insert(0, str(REPO))
-    from src.database.stripe_schema import PLAN_FEATURES
+    from src.dashboard.utils.plan_pitch import pages_of, tier_of
 
-    fn = _fn(ONB, "_step_welcome")
-    src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
-    free_block = src[src.index("('free',"):src.index("('premium',")]
-    premium_block = src[src.index("('premium',"):]
+    libres, payantes = pages_of("free"), pages_of("premium")
+    assert libres and payantes, (
+        "l'argumentaire ne nomme plus de page dans l'une des deux colonnes : "
+        "« aucune contradiction » sur un tableau vide est vrai et ne dit rien")
+    assert not (libres & payantes), (
+        f"page(s) vendues des DEUX côtés : {sorted(libres & payantes)}")
 
-    # DÉRIVÉ du gating, jamais figé sur un item : la première version affirmait
-    # « export_pdf est dans Free » et serait devenue fausse le jour où le prix change —
-    # c'est-à-dire le lendemain (2026-09-04, `export_pdf` est passé Premium). Un garde
-    # qui recopie une décision se périme avec elle ; celui-ci lit la décision.
-    checked = {"export_pdf": "nav.item.export_pdf", "export_csv": "feat_export_csv",
-               "data_wrapped": "Data Wrapped"}
-    for feature, marker in checked.items():
-        free = feature in PLAN_FEATURES["free"]
-        assert (marker in free_block) is free, (
-            f"the plan table puts {feature!r} in the wrong column: PLAN_FEATURES says "
-            f"free={free}, the table says {marker in free_block}. A comparison table "
-            "that misstates the current plan is worse than none."
-        )
-        if not free:
-            assert marker in premium_block or "feat_pdf_weekly" in premium_block, (
-                f"{feature!r} left Free and appears nowhere in Premium either — it "
-                "vanished from the table entirely")
-    assert "feat_pdf_weekly" in premium_block, (
-        "the weekly mailed report left the Premium column")
+    for page in libres | payantes:
+        attendu = tier_of(page)
+        reel = "free" if page in libres else "premium"
+        assert reel == attendu, (
+            f"le tableau des plans met {page!r} en {reel} alors que le verrou dit "
+            f"{attendu}. Un tableau comparatif qui se trompe de colonne est pire "
+            "que pas de tableau : l'artiste clique sur ce qu'on lui a promis et "
+            "trouve un cadenas.")
+
+    # Le cas NOMMÉ qui a produit ce garde : le rapport PDF a quitté Free le
+    # 2026-09-04 (« ce qui se vend n'est pas la donnée, c'est le RAPPORT »).
+    assert "export_pdf" in payantes, (
+        "`export_pdf` a disparu de la colonne Premium. Il a quitté Free le "
+        "2026-09-04 ; s'il n'est vendu nulle part, il n'est plus vendu du tout.")
+    assert "export_csv" in libres, (
+        "`export_csv` a quitté Free : c'est la contrepartie explicite du PDF "
+        "payant — « tes données restent les tiennes dans les deux cas ».")
+
+
+def test_the_onboarding_table_renders_from_the_shared_pitch():
+    """NON-VACUITÉ du repointage : la page LIT bien la source qu'on vérifie.
+
+    Sans ce test, le précédent validerait un module que l'écran n'affiche plus —
+    il prouverait la cohérence d'un catalogue que personne ne rend.
+    """
+    src = ONB.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    importe = any(isinstance(n, ast.ImportFrom)
+                  and (n.module or "").endswith("plan_pitch")
+                  for n in ast.walk(tree))
+    assert importe, (
+        "`onboarding.py` n'importe plus `utils.plan_pitch` : son tableau est "
+        "redevenu une copie, et le garde ci-dessus ne décrit plus ce qui "
+        "s'affiche.")
 
 
 # ── 8. Les optimisations du 2026-09-04 ───────────────────────────────────────

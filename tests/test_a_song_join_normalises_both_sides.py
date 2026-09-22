@@ -68,12 +68,32 @@ _API_SPELLED = ("track_popularity_history", "campaign_track_mapping", "tracks")
 # Les comparaisons VÉRIFIÉES comme sûres : les deux côtés viennent de la même source,
 # donc aucune substitution de nom de fichier n'entre en jeu. Chaque entrée porte la
 # raison — c'est ce qui la distingue d'un oubli.
-_SAME_SOURCE_BOTH_SIDES = {
-    "src/dashboard/views/meta_x_spotify.py":
-        "`mapped_track` vient de `campaign_track_mapping` (sélecteur « Titre Spotify », "
-        "donc API) et `track_popularity_history` est écrite par `spotify_api_daily` : "
-        "aucun nom de FICHIER n'entre dans la comparaison. Vérifié le 2026-09-17.",
-}
+# ⚠️ CETTE LISTE EST VIDE DEPUIS LE 2026-09-21, et la façon dont elle s'est vidée
+# est la leçon. Elle portait `meta_x_spotify.py` avec cette raison, écrite le
+# 2026-09-17 : « `mapped_track` vient de `campaign_track_mapping` (sélecteur
+# « Titre Spotify », donc API) […] aucun nom de FICHIER n'entre dans la
+# comparaison. »
+#
+# **La prémisse était fausse, et elle l'était déjà ce jour-là.** Le chemin
+# d'écriture actif du dashboard — `meta_mapping/_campaigns.py:96` — écrit
+# `campaign_track_mapping.track_name` en appelant `canonical_song(...)`, donc en
+# forme FICHIER, et son propre commentaire le dit (« track_name in `_`-form to
+# match s4a_song_timeline.song »). Mesuré le 2026-09-21 : les DEUX orthographes
+# coexistent en base chez le locataire 1, selon l'époque de la saisie.
+#
+# La colonne est donc à provenance MIXTE, et c'est ce qui rend l'exemption
+# indéfendable : une exemption raisonne sur « d'où vient cette colonne », or la
+# réponse dépend de la ligne, pas de la table.
+#
+# ⚠️ Et l'exemption portait sur un FICHIER quand la raison portait sur UNE
+# REQUÊTE. Le même fichier contenait une seconde comparaison — un nom de fichier
+# contre un nom d'API — que cette exemption couvrait sans l'avoir jamais
+# examinée. Une exemption plus large que sa raison est un trou, pas une
+# exception.
+#
+# Les deux requêtes ont été retirées le 2026-09-21 : la vue passe par
+# `track_platform_link` et ne compare plus aucun nom.
+_SAME_SOURCE_BOTH_SIDES: dict[str, str] = {}
 
 # Les jointures connues, avec le fichier qui les porte. La liste grandit par
 # `test_no_new_song_join_escapes_this_guard`.
@@ -82,6 +102,55 @@ _JOINS = {
     "src/dashboard/views/trigger_algo/_common/_budget_roi.py": "campaign_track_mapping",
     "src/dashboard/views/trigger_algo/router.py": "tracks",
 }
+
+
+def _chaines_hors_docstring(arbre: ast.AST) -> list[str]:
+    """Les chaînes littérales du module, docstrings EXCLUES.
+
+    Même forme que `test_the_spotify_page_reads_only_the_gold_layer._sql_literals`,
+    et pour la même raison : un nom de colonne cité dans une docstring n'est pas
+    une requête. Les f-strings sont recousues — leurs trous restent des trous.
+    """
+    docs = set()
+    for n in ast.walk(arbre):
+        if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            corps = getattr(n, "body", None)
+            if corps and isinstance(corps[0], ast.Expr) \
+                    and isinstance(corps[0].value, ast.Constant):
+                docs.add(id(corps[0].value))
+    out = []
+    for n in ast.walk(arbre):
+        if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in docs:
+            out.append(n.value)
+        elif isinstance(n, ast.JoinedStr):
+            out.append("".join(v.value for v in n.values
+                               if isinstance(v, ast.Constant) and isinstance(v.value, str)))
+    return out
+
+
+def test_the_detector_ignores_a_join_named_only_in_prose() -> None:
+    """NON-VACUITÉ de la correction ci-dessus — et elle vient d'un vrai incident.
+
+    Le détecteur doit voir la requête et IGNORER la docstring qui la décrit. Les
+    deux sont fabriquées ici, pour que la correction ne dépende pas d'un fichier
+    du dépôt qui pourrait changer.
+    """
+    prose = ast.parse(
+        'def f():\n'
+        '    """Le garde cherchait la forme track_name = %s, et c\'était le défaut."""\n'
+        '    return 1\n')
+    assert not any(re.search(r"track_name\s*\)?\s*=\s*%s", s)
+                   for s in _chaines_hors_docstring(prose)), (
+        "le détecteur lit encore les docstrings : il accusera la prose qui "
+        "explique le défaut, ce qui est arrivé trois fois sur ce garde.")
+
+    requete = ast.parse(
+        'def f():\n'
+        '    """Rien à signaler."""\n'
+        '    return "SELECT x FROM t WHERE track_name = %s"\n')
+    assert any(re.search(r"track_name\s*\)?\s*=\s*%s", s)
+               for s in _chaines_hors_docstring(requete)), (
+        "le détecteur ne voit plus la requête : il ne garde plus rien.")
 
 
 def test_the_normaliser_still_exists() -> None:
@@ -126,17 +195,31 @@ def test_no_new_song_join_escapes_this_guard() -> None:
     manquants = []
     for chemin in sorted((_ROOT / "src" / "dashboard").rglob("*.py")):
         texte = chemin.read_text(encoding="utf-8")
-        if not re.search(r"(?:\w+\.)?track_name\s*\)?\s*=\s*(?:LOWER\()?%s", texte):
+        # ⚠️ ON NE CHERCHE PLUS DANS LE TEXTE DU FICHIER — troisième récurrence,
+        # le 2026-09-21, et sur le MÊME fichier que la deuxième.
+        #
+        # Point 4 du journal de mutations ci-dessus raconte déjà le cas : le
+        # commentaire écrit dans `meta_x_spotify.py` contenait le nom cherché.
+        # Il a été corrigé pour l'exemption (passée à l'AST) et PAS pour la
+        # détection, restée un `re.search` sur `chemin.read_text()`. Le
+        # 2026-09-21 la docstring de cette même vue — celle qui EXPLIQUE que le
+        # garde cherchait la forme `track_name = %s` — a donc été accusée d'être
+        # la jointure qu'elle décrit.
+        #
+        # La question est : quelle REQUÊTE le fichier exécute-t-il ? Seules les
+        # chaînes qui ne sont pas des docstrings y répondent.
+        try:
+            arbre_fichier = ast.parse(texte)
+        except SyntaxError:                      # pragma: no cover
+            continue
+        if not any(re.search(r"(?:\w+\.)?track_name\s*\)?\s*=\s*(?:LOWER\()?%s", sql)
+                   for sql in _chaines_hors_docstring(arbre_fichier)):
             continue
         # ⚠️ À l'AST, pas en texte — DIXIÈME fois de la séance. Ma version précédente
         # faisait `if "canonical_song_sql" in texte`, et le COMMENTAIRE que je venais
         # d'écrire dans `meta_x_spotify.py` pour expliquer pourquoi il n'en a pas besoin
         # contenait le nom : le fichier s'exemptait tout seul, et l'exemption nommée
         # ci-dessous était morte sans que rien ne le dise.
-        try:
-            arbre_fichier = ast.parse(texte)
-        except SyntaxError:                      # pragma: no cover
-            continue
         if any(isinstance(n, ast.Call)
                and (getattr(n.func, "id", "") or getattr(n.func, "attr", ""))
                == "canonical_song_sql"
