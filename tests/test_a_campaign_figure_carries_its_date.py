@@ -189,8 +189,17 @@ def test_no_active_campaign_is_said_with_its_date() -> None:
         "aucune campagne n'est active et l'écran ne le dit pas : les chiffres "
         "ci-dessus se lisent au présent.")
     joint = "\n".join(encarts)
-    assert "30/09/2024" in joint and "722" in joint, (
-        f"l'encart ne porte pas la date et l'ancienneté : {joint}")
+    # ⚠️ L'ANCIENNETÉ SE CALCULE, ELLE NE SE FIGE PAS. Ce test épinglait « 722 » — le
+    # nombre de jours écoulés le 2026-09-22. Il est devenu rouge le LENDEMAIN, à 723,
+    # sans qu'aucune ligne de code ait bougé : un test qui fige une grandeur dépendant
+    # de l'horloge se périme chaque nuit, et son rouge n'apprend rien.
+    #
+    # C'est la même erreur que celle que ce dépôt appelle
+    # `a-prose-claim-that-cannot-be-verified`, transposée à une assertion : un chiffre
+    # écrit à la main là où une mesure était disponible.
+    attendu = (datetime.date.today() - _VIEUX).days
+    assert "30/09/2024" in joint and str(attendu) in joint, (
+        f"l'encart ne porte pas la date et l'ancienneté ({attendu} j) : {joint}")
     assert "active" in joint.lower(), (
         f"l'encart ne dit pas que rien ne tourne : {joint}")
 

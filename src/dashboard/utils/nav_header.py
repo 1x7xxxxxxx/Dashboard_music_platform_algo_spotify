@@ -87,11 +87,37 @@ def render_nav_header(rendered, is_locked) -> None:
         + _html.escape(t("nav.title", "🎵 Navigation")) + '</div>',
         unsafe_allow_html=True)
     from src.dashboard.utils.navigation import goto
-    if _c_prev.button("◀", key="_nav_prev", disabled=_prev is None,
+    # ⚠️ DES ICÔNES MATERIAL, PAS DES GLYPHES — corrigé le 2026-09-23 sur le
+    # signalement « il y a toujours l'erreur (absence des flèches) à côté de
+    # navigation », et la cause n'était ni l'alignement ni la largeur.
+    #
+    # Les boutons portaient « ◀ » et « ▶ » (U+25C0 / U+25B6). MESURÉ au navigateur, sur
+    # une sonde qui reproduit cette disposition sans authentification : les deux boutons
+    # sortent **VIDES** — 26 × 40 px, `visible: true`, aucun débordement, aucun rognage,
+    # et RIEN dedans. Le glyphe n'est pas dessiné parce que la police disponible ne le
+    # porte pas. Les autres emojis de la même page sortent en tofu « ▯ », donc visibles ;
+    # ces deux-là sont simplement absents, ce qui est exactement le mot employé.
+    #
+    # Trois remplaçants ont été essayés dans la même sonde et regardés :
+    #     ‹ ›   rendent          · ASCII étendu, mais dépendent encore de la police
+    #     < >   rendent          · sûrs, et lisibles comme des chevrons de code
+    #     material              rendent, et NE PEUVENT PAS manquer
+    #
+    # Le troisième gagne pour une raison structurelle : Streamlit EMBARQUE la police
+    # Material Symbols. Le glyphe ne dépend donc plus de ce qui est installé sur la
+    # machine du lecteur — c'est le même principe que « les noms de mois sont écrits,
+    # pas demandés à `%b` » (R160) : on cesse de dépendre d'un environnement qu'on ne
+    # voit pas.
+    #
+    # Le LIBELLÉ reste vide à dessein : l'icône est le bouton. Le `help` porte le sens
+    # pour un lecteur d'écran et au survol.
+    if _c_prev.button("", key="_nav_prev", icon=":material/chevron_left:",
+                      disabled=_prev is None,
                       help=t("nav.prev", "Page précédente"),
                       width="stretch"):
         goto(_prev)
-    if _c_next.button("▶", key="_nav_next", disabled=_next is None,
+    if _c_next.button("", key="_nav_next", icon=":material/chevron_right:",
+                      disabled=_next is None,
                       help=t("nav.next", "Page suivante"),
                       width="stretch"):
         goto(_next)

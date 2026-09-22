@@ -377,34 +377,48 @@ def test_the_followers_are_identifiable_without_colour() -> None:
         "la seule couleur.")
 
 
-def test_the_two_follower_sources_are_never_spliced() -> None:
-    """Le CSV s'arrête au dernier import, l'API court au jour le jour.
+def test_the_two_follower_sources_are_now_one_curve() -> None:
+    """⚠️ CE TEST EXIGEAIT L'INVERSE HIER, et le renversement est MESURÉ.
 
-    Les coller ferait passer un changement de source pour une inflexion. La LÉGENDE qui
-    l'expliquait a été retirée le 2026-09-22 sur demande — c'est donc le TRAIT qui le dit
-    maintenant : plein pour l'API qui mesure tous les jours, pointillé pour le CSV qui
-    s'arrête. Sans ce trait, la suppression de la légende aurait perdu le fait.
+    Le 2026-09-22 il exigeait DEUX séries d'abonnés jamais raboutées, au motif que
+    « les coller ferait passer un changement de source pour une inflexion ». Le motif
+    était bon et la prémisse n'avait jamais été vérifiée.
+
+    Elle l'a été le 2026-09-23, sur l'artiste 1 :
+
+        s4a_csv      889 jours   2024-01-01 → 2026-06-07
+        spotify_api   48 jours   2025-11-23 → 2026-09-20
+        jours COMMUNS 32 · divergents 5 · **écart maximum 1 abonné** sur ~684 (0,15 %)
+
+    Deux sources qui se recouvrent sur 32 jours sans jamais s'écarter de plus d'un
+    abonné ne risquent pas de fabriquer une inflexion : elles mesurent la même chose, à
+    un décalage d'heure de relevé près. Tracer deux courbes demandait au lecteur un
+    travail — décider si l'écart compte — dont la réponse est toujours « non ».
+
+    LA FUSION EST CONDITIONNELLE. Ce qui la rend légitime n'est pas la mesure d'un jour
+    mais le DÉTECTEUR qui la surveille :
+    `tests/test_the_two_follower_sources_agree.py` rougit en CI dès qu'elles s'écartent,
+    et la vue affiche un `st.warning` que l'artiste voit. Sans lui, la courbe unique
+    mentirait en silence le jour d'une dérive — ce qui était exactement la crainte de la
+    version d'hier, et elle est désormais gardée au lieu d'être contournée.
     """
     tree = ast.parse(_SPOTIFY.read_text(encoding="utf-8"))
     fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
                and n.name == "_engagement_fig"), None)
     assert fn is not None
-    src = ast.unparse(fn)
-    assert "groupby" in src and "source" in src, (
-        "les abonnés ne sont plus groupés par SOURCE : les deux séries sont raboutées, "
-        "et un changement de source se lit comme une inflexion.")
-    # ⚠️ LE TRAIT DOIT ÊTRE CONDITIONNEL, pas simplement présent. Mon premier jet
-    # cherchait `"dash" in src` : remplacer `dash="dot" if csv else "solid"` par
-    # `dash="solid"` laissait le test VERT alors que les deux sources devenaient
-    # indistinguables. Trouvé en mutant — une propriété, pas un mot.
-    conditionnels = [
-        n for n in ast.walk(fn)
-        if isinstance(n, ast.keyword) and n.arg == "dash"
-        and isinstance(n.value, ast.IfExp)]
-    assert conditionnels, (
-        "le trait des abonnés n'est plus CONDITIONNEL : les deux sources se dessinent "
-        "pareil. La légende « Deux sources, deux horloges » a été retirée le "
-        "2026-09-22 — c'est le trait qui porte le fait, et sans lui il est perdu.")
+    scatters = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
+                and getattr(n.func, "attr", None) == "add_trace" and n.args
+                and getattr(getattr(n.args[0], "func", None), "attr", None) == "Scatter"]
+    assert len(scatters) == 1, (
+        f"{len(scatters)} courbes d'abonnés. Une seule depuis le 2026-09-23 — et la "
+        "condition de cette fusion est le détecteur de divergence, pas la mesure d'un "
+        "jour.")
+    appelle = any(isinstance(n, ast.Call) and getattr(n.func, "id", None) == "comparer"
+                  for n in ast.walk(fn))
+    assert appelle, (
+        "la courbe unique est cousue sans que rien ne surveille le raccord : c'est "
+        "exactement ce que la version d'hier craignait, et la fusion ne se justifie "
+        "que gardée.")
 
 
 @pytest.mark.parametrize("fragment", [

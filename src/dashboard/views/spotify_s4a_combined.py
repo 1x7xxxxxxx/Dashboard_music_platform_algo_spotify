@@ -59,6 +59,8 @@ from plotly.subplots import make_subplots
 
 from src.dashboard.auth import artist_id_sql_filter
 from src.dashboard.utils import project_db
+from src.dashboard.utils.date_format import format_date
+from src.dashboard.utils.followers_agreement import comparer
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.period_filter import smart_period_filter
@@ -456,18 +458,39 @@ def _render_secondary(db, spans: pd.DataFrame, frag: str, params: tuple) -> None
     # valeur, dans le même commit, et l'ancien chiffre était l'angle mort que le
     # commentaire du 2026-09-21 annonçait déjà.
     st.markdown(f"#### {t('ui.secondary_analyses', '📊 Analyses détaillées')}")
-    fig, note = _song_detail(db, spans, frag, params)
-    if fig is not None:
-        st.plotly_chart(fig, width="stretch")
-        if note:
-            st.caption(note)
-    st.markdown("---")
-    # UNE figure au lieu de deux (2026-09-22) : sauvegardes, playlists et abonnés.
-    # La légende « Deux sources, deux horloges… » est retirée — c'est le TRAIT qui le
-    # dit désormais, plein pour l'API, pointillé pour le CSV.
-    fig = _engagement_fig(db, frag, params)
-    if fig is not None:
-        st.plotly_chart(fig, width="stretch")
+
+    # ── CÔTE À CÔTE, ET NON FUSIONNÉES — 2026-09-23 ───────────────────────────
+    #
+    # Demandé : « regroupe-moi les 2 graph en 1 seul SI POSSIBLE : détail par titre et
+    # sauvegardes playlist et abonnés ». Ce n'est pas possible sans rendre la figure
+    # trompeuse, et la raison qui tranche n'est pas le nombre d'axes.
+    #
+    # ⚠️ LES DEUX FIGURES N'ONT PAS LA MÊME PORTÉE. « Détail par titre » montre UN titre
+    # choisi dans un sélecteur ; l'engagement montre TOUT l'artiste. Superposer la courbe
+    # d'abonnés de l'artiste aux écoutes d'un seul titre invite une lecture causale que
+    # la donnée ne soutient pas — « mes abonnés montent parce que ce titre monte » —
+    # alors que la courbe d'abonnés est EXACTEMENT LA MÊME quel que soit le titre
+    # sélectionné. Une figure qui suggère un lien inexistant est pire que deux figures.
+    #
+    # S'y ajoute un obstacle mécanique : cinq séries pour QUATRE natures — un flux
+    # quotidien (écoutes/jour), un indice BORNÉ 0-100 (popularité), un flux mensuel
+    # (sauvegardes, playlists) et un niveau quotidien (abonnés). Plotly rend deux axes
+    # lisibles, pas quatre, et ce dépôt plafonne les axes secondaires à zéro nouveau.
+    #
+    # Ce qui EST faisable, et qui répond au besoin derrière la demande — tout voir d'un
+    # regard — c'est de les poser sur la MÊME RANGÉE. C'est déjà deux fois le geste de
+    # cette page : §1/§2 le 2026-09-21, ce-qui-bouge/détail le 2026-09-22.
+    g, d = st.columns(2)
+    with g:
+        fig, note = _song_detail(db, spans, frag, params)
+        if fig is not None:
+            st.plotly_chart(fig, width="stretch")
+            if note:
+                st.caption(note)
+    with d:
+        fig = _engagement_fig(db, frag, params)
+        if fig is not None:
+            st.plotly_chart(fig, width="stretch")
 
 
 def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple):
@@ -642,17 +665,42 @@ def _engagement_fig(db, frag: str, params: tuple):
                       secondary_y=False)
 
     if not abo.empty:
-        for src, grp in abo.groupby("source", sort=False):
-            csv = src == "s4a_csv"
-            label = t(f"spotify_s4a_combined.source.{src}",
-                      "CSV Spotify for Artists" if csv else "API Spotify")
-            fig.add_trace(
-                go.Scatter(x=grp["day"], y=grp["followers"], mode="lines",
-                           name=t("spotify_s4a_combined.followers_src",
-                                  "Abonnés · {src}").format(src=label),
-                           line=dict(color=_FOLLOWER_INK, width=2.5,
-                                     dash="dot" if csv else "solid")),
-                secondary_y=True)
+        # ── UNE SEULE COURBE D'ABONNÉS, ET UN DÉTECTEUR AVEC — 2026-09-23 ──────
+        #
+        # Demandé : « ne mets pas 2 sources pour abonnés, mets en place un garde qui
+        # nous confirme que les 2 sont bien les mêmes sinon alerte ».
+        #
+        # MESURÉ avant de fusionner, artiste 1 : 32 jours où les deux sources existent,
+        # 5 divergent, **écart maximum 1 abonné sur ~684** — 0,15 %, un décalage d'heure
+        # de relevé. Deux sources qui ne s'écartent jamais de plus d'un abonné mesurent
+        # la même chose, et les tracer séparément demandait au lecteur un travail dont
+        # la réponse est toujours « non ».
+        #
+        # ⚠️ MAIS « elles s'accordent aujourd'hui » n'est pas « elles s'accorderont ».
+        # Raccorder deux sources sans rien qui surveille le raccord fabrique une courbe
+        # qui mentira le jour où l'une dérivera, et qui mentira EN SILENCE. Le détecteur
+        # est la CONDITION de la fusion. Il est muet tant que tout va bien — une
+        # confirmation permanente s'apprend à sauter.
+        accord = comparer(abo[["day", "source", "followers"]].itertuples(index=False))
+        if accord.jours_communs and not accord.accord:
+            st.warning(t(
+                "spotify_s4a_combined.followers_diverge",
+                "⚠️ Les deux relevés d'abonnés ne concordent plus : **{e}** d'écart le "
+                "**{j}** (toléré : {tol}). La courbe ci-dessous en affiche un seul — "
+                "vérifie l'import CSV et la collecte API avant de t'y fier.").format(
+                    e=accord.ecart_max, j=format_date(accord.jour_pire),
+                    tol=int(accord.tolerance_au_pire)))
+
+        # Le CSV porte l'historique profond, l'API continue au-delà. On préfère donc le
+        # CSV là où il existe et l'API ensuite : la jonction tombe là où les deux
+        # s'accordent, ce que le détecteur ci-dessus vient de vérifier.
+        serie = (abo.sort_values(["day", "source"])
+                    .drop_duplicates(subset="day", keep="first"))
+        fig.add_trace(
+            go.Scatter(x=serie["day"], y=serie["followers"], mode="lines",
+                       name=t("spotify_s4a_combined.followers", "Abonnés"),
+                       line=dict(color=_FOLLOWER_INK, width=2.5)),
+            secondary_y=True)
 
     fig.update_yaxes(title_text=t("spotify_s4a_combined.monthly_flow", "Par mois"),
                      secondary_y=False)

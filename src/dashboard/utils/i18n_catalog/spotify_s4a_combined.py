@@ -1,6 +1,15 @@
 """EN strings for the Spotify & Spotify for Artists view."""
 
 EN = {
+    # ── L'ALERTE DE DIVERGENCE (2026-09-23) ────────────────────────────────────
+    # La figure ne trace plus QU'UNE courbe d'abonnés, parce que les deux sources se
+    # recouvrent sur 32 jours sans jamais s'ecarter de plus d'un abonne. Cette phrase
+    # est la CONDITION de cette fusion : elle est muette tant qu'elles s'accordent, et
+    # elle parle a l'artiste — seul a pouvoir relancer un import — quand elles derivent.
+    "spotify_s4a_combined.followers_diverge": (
+        "\u26a0\ufe0f The two follower readings no longer agree: **{e}** apart on "
+        "**{j}** (tolerated: {tol}). The curve below shows only one \u2014 check the "
+        "CSV import and the API collection before relying on it."),
     # ── La figure d'engagement (2026-09-22) : une seule, trois séries ──────────
     # Les abonnés sont un NIVEAU quotidien, les deux autres des FLUX mensuels : d'où
     # l'axe secondaire, et d'où ces deux libellés d'axe qui nomment la NATURE de ce
@@ -9,7 +18,6 @@ EN = {
     "spotify_s4a_combined.monthly_flow": "Per month",
     # Le trait distingue les deux sources (plein = API quotidienne, pointillé = CSV qui
     # s'arrête au dernier import) ; le libellé les nomme.
-    "spotify_s4a_combined.followers_src": "Followers \u00b7 {src}",
 
     # §1 — releases at equal age
     "spotify_s4a_combined.releases_header": "🚀 My releases, at equal age",
