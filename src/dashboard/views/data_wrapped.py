@@ -277,12 +277,8 @@ def _tab_charts(artist_options: dict) -> None:
     from src.dashboard.utils.fragment_db import fragment_db
 
     with fragment_db() as (db, _artist_id):
-        # Artist selector (separate from form tab)
-        chart_name = st.selectbox(
-            t("data_wrapped.artist_label", "Artiste"),
-            list(artist_options.keys()), key="chart_artist"
-        )
-        chart_artist_id = artist_options[chart_name]
+        # Même règle que la saisie : pas de question quand la réponse est forcée.
+        chart_artist_id = _artiste(artist_options, "chart_artist")
         df = _load_wrapped(db, chart_artist_id)
 
         if df.empty:
@@ -327,24 +323,34 @@ def _tab_charts(artist_options: dict) -> None:
                   "Listeners · Streams · Saves · Playlist adds"),
                 log_scale=log_scale,
             )
-            if fig:
-                st.plotly_chart(fig, width="stretch")
-
-            # Secondary volumes — countries & hours
-            st.markdown(t("data_wrapped.countries_listening_header", "#### Pays & écoute"))
-            col_c, col_h = st.columns(2)
-            with col_c:
-                fig = _line_chart(df, 'countries',
-                                  t("data_wrapped.chart_countries_reached", "Pays touchés"),
-                                  color="#457b9d", fmt_fn=_fmt_big)
+            # ── LES TROIS SUR UNE LIGNE — 2026-09-22 ────────────────────────
+            #
+            # Demandé en regardant l'écran : « mets les 3 graphiques de Spotify
+            # Wrapped sur la même ligne pour gagner en visibilité ». Le combiné
+            # était pleine largeur, puis Pays et Heures côte à côte en dessous —
+            # donc deux rangées, et un défilement entre trois figures qui
+            # racontent la même année.
+            #
+            # Le sous-titre « Pays & écoute » disparaît avec la rangée qu'il
+            # coiffait : chaque figure porte déjà son propre titre.
+            c_vol, c_pays, c_heures = st.columns(3)
+            with c_vol:
                 if fig:
                     st.plotly_chart(fig, width="stretch")
-            with col_h:
-                fig = _line_chart(df, 'hours_listened',
-                                  t("data_wrapped.chart_hours_listened", "Heures d'écoute"),
-                                  color="#e9c46a", fmt_fn=_fmt_big)
-                if fig:
-                    st.plotly_chart(fig, width="stretch")
+            with c_pays:
+                fig_p = _line_chart(df, 'countries',
+                                    t("data_wrapped.chart_countries_reached",
+                                      "Pays touchés"),
+                                    color="#457b9d", fmt_fn=_fmt_big)
+                if fig_p:
+                    st.plotly_chart(fig_p, width="stretch")
+            with c_heures:
+                fig_h = _line_chart(df, 'hours_listened',
+                                    t("data_wrapped.chart_hours_listened",
+                                      "Heures d'écoute"),
+                                    color="#e9c46a", fmt_fn=_fmt_big)
+                if fig_h:
+                    st.plotly_chart(fig_h, width="stretch")
 
             # Quatre graphiques de GAIN : ils raffinent la lecture des volumes
             # ci-dessus, aucun ne fait décider seul. Repliés — rien n'est
@@ -424,6 +430,30 @@ def render_wrapped_section(db, artist_id: int) -> None:
     _render_wrapped_body(db, {"": artist_id})
 
 
+def _artiste(artist_options: dict, cle: str):
+    """L'artiste visé, et un sélecteur SEULEMENT s'il y a un choix à faire.
+
+    ⚠️ POSÉ LE 2026-09-22, demandé en regardant l'écran : « pour le choix d'artiste
+    il faudrait automatiquement mettre celui du compte ».
+
+    Quatre sélecteurs d'artiste vivaient sur cette page — saisie, suppression,
+    évolution, données. Pour un artiste, `artist_options` ne porte qu'UNE entrée :
+    les quatre lui demandaient donc de choisir entre lui-même et rien, quatre fois,
+    et il devait le faire avant de pouvoir saisir. Un choix qui n'en est pas un est
+    une étape de trop.
+
+    Le sélecteur SURVIT quand il y a plusieurs options, parce qu'alors il sert
+    vraiment : `show()` est la route autonome et un admin y voit toute la flotte.
+    C'est le même critère que partout ailleurs dans ce dépôt — on ne supprime pas la
+    possibilité, on supprime la question quand la réponse est forcée.
+    """
+    noms = list(artist_options.keys())
+    if len(noms) <= 1:
+        return artist_options[noms[0]] if noms else None
+    return artist_options[st.selectbox(
+        t("data_wrapped.artist_label", "Artiste"), noms, key=cle)]
+
+
 def _render_wrapped_body(db, artist_options: dict) -> None:
     """Saisie → évolution → données, sur une connexion FOURNIE.
 
@@ -445,19 +475,14 @@ def _render_wrapped_body(db, artist_options: dict) -> None:
     if True:
         st.subheader(t("data_wrapped.form_header", "Ajouter / modifier une année"))
 
-        col_a, col_b = st.columns(2)
-        with col_a:
-            selected_name = st.selectbox(
-                t("data_wrapped.artist_label", "Artiste"),
-                list(artist_options.keys()), key="form_artist"
-            )
-            target_artist_id = artist_options[selected_name]
-        with col_b:
-            year = st.number_input(
-                t("data_wrapped.year_label", "Année"),
-                min_value=2015, max_value=datetime.now().year,
-                value=datetime.now().year - 1, step=1, key="form_year"
-            )
+        # L'ARTISTE EST CELUI DU COMPTE quand il n'y a qu'un candidat (2026-09-22).
+        # L'année reste pleine largeur : c'est la seule chose à choisir ici.
+        target_artist_id = _artiste(artist_options, "form_artist")
+        year = st.number_input(
+            t("data_wrapped.year_label", "Année"),
+            min_value=2015, max_value=datetime.now().year,
+            value=datetime.now().year - 1, step=1, key="form_year"
+        )
 
         # Pre-fill from DB if row exists
         existing = _load_row_for_year(db, target_artist_id, int(year))
@@ -571,76 +596,59 @@ def _render_wrapped_body(db, artist_options: dict) -> None:
             except Exception as e:
                 st.error(t("data_wrapped.error_generic", "Erreur : {err}").format(err=e))
 
-        # Delete expander
-        with st.expander(t("data_wrapped.expander_delete", "🗑️ Supprimer une année")):
-            del_name = st.selectbox(
-                t("data_wrapped.artist_label", "Artiste"),
-                list(artist_options.keys()), key="del_artist"
-            )
-            del_artist_id = artist_options[del_name]
-            del_year = st.number_input(
-                t("data_wrapped.year_label", "Année"),
-                min_value=2015, max_value=datetime.now().year,
-                value=datetime.now().year - 1, step=1, key="del_year"
-            )
-            if st.button(t("data_wrapped.btn_delete", "🗑️ Supprimer"), type="secondary"):
-                try:
-                    _delete_wrapped(db, del_artist_id, int(del_year))
-                    flash(t("data_wrapped.delete_success",
-                                 "Année {year} supprimée.").format(year=int(del_year)))
-                    st.rerun()
-                except Exception as e:
-                    st.error(t("data_wrapped.error_generic",
-                               "Erreur : {err}").format(err=e))
-
     # ── Évolution, sous la saisie ───────────────────────────────────────
     st.markdown("---")
     _tab_charts(artist_options)
 
-    # ── Données brutes, en dernier ──────────────────────────────────────
+    # ── LA SUPPRESSION, TOUT EN BAS — 2026-09-22 ────────────────────────
+    #
+    # Demandé en regardant l'écran : « déplace supprimer une année tout en bas
+    # après les graphiques d'évolution ». Elle vivait sous le formulaire de saisie,
+    # donc un geste destructeur était le voisin immédiat d'un geste de création —
+    # et il fallait passer devant lui pour atteindre les courbes.
+    #
+    # En bas, l'ordre de la page raconte : je saisis, je regarde ce que ça donne, et
+    # si je me suis trompé je corrige. La suppression reste dans un `st.expander`
+    # REFERMÉ : c'est le seul geste irréversible de cette page.
     st.markdown("---")
-    if True:
-        data_name = st.selectbox(
-            t("data_wrapped.artist_label", "Artiste"),
-            list(artist_options.keys()), key="data_artist"
+    with st.expander(t("data_wrapped.expander_delete", "🗑️ Supprimer une année")):
+        del_artist_id = _artiste(artist_options, "del_artist")
+        del_year = st.number_input(
+            t("data_wrapped.year_label", "Année"),
+            min_value=2015, max_value=datetime.now().year,
+            value=datetime.now().year - 1, step=1, key="del_year"
         )
-        data_artist_id = artist_options[data_name]
-        df_raw = _load_wrapped(db, data_artist_id)
+        if st.button(t("data_wrapped.btn_delete", "🗑️ Supprimer"), type="secondary"):
+            try:
+                _delete_wrapped(db, del_artist_id, int(del_year))
+                flash(t("data_wrapped.delete_success",
+                        "Année {year} supprimée.").format(year=int(del_year)))
+                st.rerun()
+            except Exception as e:
+                st.error(t("data_wrapped.error_generic",
+                           "Erreur : {err}").format(err=e))
 
-        if df_raw.empty:
-            st.info(t("data_wrapped.data_no_data", "Aucune donnée enregistrée."))
-        else:
-            display_cols = [
-                'year', 'listeners', 'listener_gain_pct', 'streams', 'stream_gain_pct',
-                'hours_listened', 'countries', 'saves', 'save_gain_pct',
-                'playlist_adds', 'playlist_add_gain_pct',
-                'top_fans_count', 'top_fans_rank',
-            ]
-            rename_map = {
-                'year': t("data_wrapped.col_year", "Année"),
-                'listeners': t("data_wrapped.col_listeners", "Listeners"),
-                'listener_gain_pct': t("data_wrapped.col_listener_gain", "△ Listeners %"),
-                'streams': t("data_wrapped.col_streams", "Streams"),
-                'stream_gain_pct': t("data_wrapped.col_stream_gain", "△ Streams %"),
-                'hours_listened': t("data_wrapped.col_hours", "Heures écoute"),
-                'countries': t("data_wrapped.col_countries", "Pays"),
-                'saves': t("data_wrapped.col_saves", "Saves"),
-                'save_gain_pct': t("data_wrapped.col_save_gain", "△ Saves %"),
-                'playlist_adds': t("data_wrapped.col_playlist_adds", "Playlist adds"),
-                'playlist_add_gain_pct': t("data_wrapped.col_playlist_gain", "△ PL adds %"),
-                'top_fans_count': t("data_wrapped.col_superfans", "Super-fans"),
-                'top_fans_rank': t("data_wrapped.col_fans_rank", "Rang (top N)"),
-            }
-            existing_cols = [c for c in display_cols if c in df_raw.columns]
-            st.dataframe(
-                df_raw[existing_cols].rename(columns=rename_map),
-                hide_index=True,
-                width="stretch",
-            )
+    # ⚠️ LE TABLEAU RÉCAP A ÉTÉ RETIRÉ le 2026-09-22, demandé en regardant l'écran :
+    # « supprime le tableau récap car déjà la visualisation via graphique ».
+    #
+    # C'était une section « Données brutes » de treize colonnes — listeners, streams,
+    # heures, pays, saves, playlist adds, super-fans, et les quatre pourcentages de
+    # gain — plus son propre sélecteur d'artiste. Chacune de ces colonnes est déjà une
+    # COURBE au-dessus : le tableau redisait en chiffres ce que les figures montrent
+    # en formes, sur une page dont la valeur est justement de voir l'évolution.
+    #
+    # ⚠️ CE QUI EST PERDU, et le dire est le point : la valeur EXACTE de chaque année.
+    # Une courbe se lit à l'œil, un tableau se lit au chiffre — et la saisie
+    # elle-même sert de relecture, puisqu'elle recharge l'année choisie. Le petit
+    # tableau des super-fans SURVIT, parce qu'il porte `top_fans_rank`, que AUCUNE
+    # figure ne dessine.
 
 
 def show():
-    st.title(t("data_wrapped.title", "🎁 Data Wrapped — Bilan"))
+    # « Spotify Wrapped (bilan annuel) » depuis le 2026-09-22 : « Data Wrapped »
+    # était le nom du fichier, pas celui de la chose. Ce qu'on saisit ici est le
+    # Wrapped for Artists de Spotify, une fois l'an.
+    st.title(t("data_wrapped.title", "🎁 Spotify Wrapped (bilan annuel)"))
     st.caption(t(
         "data_wrapped.intro",
         "Les métriques annuelles de ton **Spotify Wrapped for Artists**, saisies à "

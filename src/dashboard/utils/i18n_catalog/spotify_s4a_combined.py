@@ -1,7 +1,6 @@
 """EN strings for the Spotify & Spotify for Artists view."""
 
 EN = {
-    "spotify_s4a_combined.title": "🎵 Spotify & Spotify for Artists",
 
     # §1 — releases at equal age
     "spotify_s4a_combined.releases_header": "🚀 My releases, at equal age",
@@ -13,52 +12,21 @@ EN = {
     "spotify_s4a_combined.goto_mapping": "🔗 Link my tracks",
     "spotify_s4a_combined.days_since_release": "Days since release",
     "spotify_s4a_combined.cumulative_streams": "Cumulative streams",
-    "spotify_s4a_combined.releases_caption": "Compared over their **first {h} days**, "
-                                             "the shortest measured series in the "
-                                             "selection. Measurement available per "
-                                             "release — {detail}.",
-    "spotify_s4a_combined.pre_release": "↩︎ {n} stream(s) dated the **day before** a "
-                                        "release are not in these curves: Spotify "
-                                        "publishes at midnight in the earliest time "
-                                        "zone, and the report dates in another.",
 
     # §2 — audience
-    "spotify_s4a_combined.audience_header": "👥 Am I gaining listeners, or do the same "
-                                            "ones replay?",
     "spotify_s4a_combined.no_audience": "No audience report imported. Import it from "
                                         "**📂 Add my Spotify for Artists & Apple "
                                         "figures**.",
-    "spotify_s4a_combined.kpi_listeners": "👥 Listeners (last complete month)",
-    "spotify_s4a_combined.kpi_ratio": "🔁 Streams per listener-day",
     "spotify_s4a_combined.listener_days": "Listener-days",
     "spotify_s4a_combined.ratio_short": "Streams / listener-day",
     "spotify_s4a_combined.ratio_axis": "× per listener-day",
-    "spotify_s4a_combined.audience_caption": "**Listener-days**: one unique listener "
-                                             "counted once per day of listening — "
-                                             "someone who returns on ten days counts "
-                                             "ten times. **Streams / listener-day**, the "
-                                             "dotted line read on the RIGHT axis, "
-                                             "therefore says how often people listen, "
-                                             "not how many people listen. When it falls "
-                                             "at steady volume, the audience renews "
-                                             "without becoming loyal.",
 
     # §3 — momentum
     "spotify_s4a_combined.momentum_header": "🔥 What is moving right now",
     "spotify_s4a_combined.no_recent": "No track measured over the last {n} imported days.",
     "spotify_s4a_combined.lifetime": "Lifetime total",
     "spotify_s4a_combined.recent_window": "last {n} measured days",
-    "spotify_s4a_combined.momentum_caption": "Solid bar: the **last {n} measured days** "
-                                             "(up to {d}). Grey bar: the total since "
-                                             "release. **PI**: the Spotify popularity "
-                                             "index (0-100) at the latest reading — the "
-                                             "threshold every algorithm asks for.",
-    "spotify_s4a_combined.momentum_excluded": "**{k} track(s) excluded**: no measurement "
-                                              "in this window.",
     "spotify_s4a_combined.pi_tag": "PI {v}",
-    "spotify_s4a_combined.momentum_no_pi": "**{k} track(s) without a PI**: no popularity "
-                                           "reading — Spotify linking happens in "
-                                           "**🔗 Cross-platform mapping**.",
 
     # The drawer
     "spotify_s4a_combined.detail_header": "🎸 Track detail",

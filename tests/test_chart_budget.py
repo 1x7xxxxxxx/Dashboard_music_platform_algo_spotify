@@ -43,7 +43,22 @@ _BUDGET = {
     # métriques entre elles et n'ouvre aucune action.
     "soundcloud.py": 3,
     "youtube.py": 2,               # channel trend + top content
-    "spotify_s4a_combined.py": 3,  # top songs + audience + per-song drill-down
+    # ⚠️ 3 → 6 le 2026-09-22, DÉLIBÉRÉMENT, et le chiffre d'avant était un angle mort
+    # que le code annonçait déjà. Le bloc « 📊 Analyses détaillées » était un
+    # `secondary_analyses(expanded=True)` depuis le 2026-09-21 : OUVERT à l'écran, donc
+    # ses trois figures étaient peintes au premier coup d'œil, et ce garde les abritait
+    # quand même parce qu'il reconnaît le bloc par son NOM et non par son état. Le
+    # commentaire de la vue le disait mot pour mot : « cette page peint donc SIX
+    # figures au premier écran là où ils en comptent trois ».
+    #
+    # Le 2026-09-22 le tiroir est devenu un bandeau PERMANENT — demandé en regardant
+    # l'écran, parce qu'un `st.expander` reste refermable et qu'un clic malheureux
+    # cachait le détail. Le nom disparaît, l'abri avec, et le compte devient vrai.
+    #
+    # Ce n'est donc PAS un desserrage : c'est le plafond qui rattrape la réalité. Les
+    # six figures répondent à trois questions posées deux par deux, côte à côte :
+    # sorties/audience, puis ce-qui-bouge/détail.
+    "spotify_s4a_combined.py": 6,
     "apple_music.py": 2,
     "imusician.py": 2,
     # 1 → 3 le 2026-09-21, DÉLIBÉRÉMENT, et les trois répondent à trois questions

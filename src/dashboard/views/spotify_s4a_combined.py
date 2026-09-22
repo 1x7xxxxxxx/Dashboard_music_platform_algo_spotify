@@ -210,29 +210,23 @@ def _render_releases(db, frag: str, params: tuple) -> None:
         legend=dict(orientation="h", y=1.12))
     st.plotly_chart(fig, width="stretch")
 
-    # La légende DIT l'horizon et ce que chaque sortie porte réellement. Sans elle,
-    # une courbe qui s'arrête plus tôt se lit comme un essoufflement.
-    detail = " · ".join(
-        f"{r.title} : {int(r.contiguous_days)} j"
-        for r in sel.itertuples())
-    st.caption(t("spotify_s4a_combined.releases_caption",
-                 "Comparées sur leurs **{h} premiers jours**, la plus courte série "
-                 "mesurée de la sélection. Mesure disponible par sortie — {detail}.")
-               .format(h=horizon, detail=detail))
-
-    dropped = int(sel["pre_release_streams"].sum())
-    if dropped:
-        # Compté plutôt que perdu : 4 écoutes de veille de sortie chez l'artiste 1,
-        # artefact de fuseau de publication. Aujourd'hui négligeable — le jour où
-        # une sortie mondiale en portera des milliers, la phrase existera déjà.
-        st.caption(t("spotify_s4a_combined.pre_release",
-                     "↩︎ {n} écoute(s) datées de la **veille** d'une sortie ne sont "
-                     "pas dans ces courbes : Spotify publie à minuit dans le fuseau "
-                     "le plus en avance, et le rapport date dans un autre.")
-                   .format(n=dropped))
+    # ⚠️ DEUX LÉGENDES RETIRÉES le 2026-09-22, demandé en regardant l'écran.
+    #
+    # La première disait l'horizon de comparaison et ce que chaque sortie porte
+    # (« Comparées sur leurs 737 premiers jours… »). La seconde comptait les écoutes
+    # datées de la veille d'une sortie, un artefact de fuseau de publication.
+    #
+    # Les deux étaient JUSTES et personne ne les lisait : quatre lignes de réserve
+    # sous une figure de deux courbes. L'horizon est visible sur l'axe des abscisses,
+    # qui porte « Jours depuis la sortie » ; l'artefact de fuseau vaut 2 écoutes sur
+    # ce catalogue. Le calcul, lui, n'a pas changé — `pre_release_streams` est
+    # toujours écarté des courbes, et le dire dans le code plutôt qu'à l'écran est
+    # le bon endroit pour une précision que personne n'actionne.
+    #
+    # ⚠️ Si une sortie mondiale en portait des milliers un jour, la phrase devrait
+    # revenir. Le seuil n'est pas gardé : c'est un jugement, et il est écrit ici.
 
 
-# ── §2 — décision B : l'audience grandit-elle ? ────────────────────────────────
 def _render_audience(db, frag: str, params: tuple) -> None:
     """Auditeurs, écoutes, et le rapport des deux.
 
@@ -257,9 +251,11 @@ def _render_audience(db, frag: str, params: tuple) -> None:
     croisement reste possible à l'œil ; rien dans la figure ne le présente comme un
     évènement.
     """
-    st.subheader(t("spotify_s4a_combined.audience_header",
-                   "👥 Je gagne des auditeurs, ou les mêmes réécoutent ?"))
-
+    # ⚠️ SOUS-TITRE ET DEUX JAUGES RETIRÉS le 2026-09-22, demandé en regardant
+    # l'écran. La question « je gagne des auditeurs ou les mêmes réécoutent ? » est
+    # exactement ce que la figure MONTRE — les barres d'auditeurs-jour contre la
+    # courbe pointillée du ratio — et les deux tuiles répétaient en chiffre le
+    # dernier point de ces deux séries. Trois éléments pour une seule lecture.
     mon = _df(db, f"""
         SELECT month, streams, listener_days, streams_per_listener_day,
                streams_per_listener_day_prev, followers_end, is_complete
@@ -272,24 +268,6 @@ def _render_audience(db, frag: str, params: tuple) -> None:
                   "Aucun rapport d'audience importé. Il s'importe depuis "
                   "**📂 Ajouter mes chiffres Spotify for Artists & Apple**."))
         return
-
-    full = mon[mon["is_complete"]]
-    tile_src = full if not full.empty else mon
-    last = tile_src.iloc[-1]
-
-    c1, c2 = st.columns(2)
-    c1.metric(t("spotify_s4a_combined.kpi_listeners", "👥 Auditeurs (dernier mois complet)"),
-              f"{int(last['listener_days']):,}".replace(",", " "))
-
-    ratio = last["streams_per_listener_day"]
-    prev = last["streams_per_listener_day_prev"]
-    delta = None
-    if pd.notna(ratio) and pd.notna(prev):
-        # Le delta vient de la vue (LAG), pas d'une soustraction ici : une tuile qui
-        # calcule en pandas est invisible à tout garde SQL.
-        delta = f"{float(ratio) - float(prev):+.2f}"
-    c2.metric(t("spotify_s4a_combined.kpi_ratio", "🔁 Écoutes par auditeur-jour"),
-              f"{float(ratio):.2f}" if pd.notna(ratio) else "—", delta=delta)
 
     mon = mon.copy()
     mon["month"] = pd.to_datetime(mon["month"])
@@ -318,16 +296,16 @@ def _render_audience(db, frag: str, params: tuple) -> None:
                       legend=dict(orientation="h", y=1.12))
     st.plotly_chart(fig, width="stretch")
 
-    # ⚠️ « le rapport du bas » a survécu UN rendu au passage en panneau unique :
-    # la phrase désignait la figure par sa POSITION, et la position a changé sous
-    # elle. Elle nomme maintenant la série — un nom ne bouge pas avec la mise en page.
-    st.caption(t("spotify_s4a_combined.audience_caption",
-                 "**Auditeurs-jour** : un auditeur unique compté une fois par jour "
-                 "d'écoute — quelqu'un qui revient dix jours compte dix fois. "
-                 "**Écoutes / auditeur-jour**, la courbe pointillée lue sur l'axe de "
-                 "DROITE, dit donc combien de fois on écoute, pas combien de "
-                 "personnes écoutent. Quand elle baisse à volume stable, l'audience "
-                 "se renouvelle sans se fidéliser."))
+    # ⚠️ LÉGENDE RETIRÉE le 2026-09-22, demandé en regardant l'écran. Elle
+    # expliquait ce qu'est un auditeur-jour et ce que dit la courbe pointillée —
+    # six lignes sous une figure de trois séries.
+    #
+    # Ce qui PORTE le sens reste en place et c'est là qu'il doit être : le libellé de
+    # la série dit « Écoutes / auditeur-jour », l'axe de droite porte son unité
+    # « × par auditeur-jour » et la couleur de cet axe est celle de sa seule série.
+    # Nommer le denominateur DANS le libellé était déjà la décision — appeler ce
+    # ratio « par auditeur » serait exact au calcul et faux au sens — et c'est elle
+    # qui survit, pas sa paraphrase.
 
 
 # ── §3 — décision A : pousser ou laisser ───────────────────────────────────────
@@ -365,7 +343,12 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple) -> None:
         return
 
     merged = spans.merge(recent, on="song", how="inner").sort_values("recent")
-    excluded = len(spans) - len(merged)
+    # ⚠️ `excluded = len(spans) - len(merged)` a été RETIRÉ avec la légende qu'il
+    # nourrissait (2026-09-22). Il ne servait qu'à écrire « N titre(s) écarté(s) », et
+    # un calcul qui n'alimente plus rien pourrit — ce dépôt a payé deux fois « une
+    # couche débranchée » et « du code mort cache une conséquence vivante ». Le filtre
+    # lui-même n'a pas bougé : c'est le `how="inner"` ci-dessus qui écarte, et il est
+    # visible là où il agit.
 
     # L'INDICE DE POPULARITÉ, collé au titre qu'il qualifie.
     #
@@ -392,7 +375,9 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple) -> None:
         if pd.notna(v) else ""
         for v in merged["popularity"]
     ]
-    without_pi = int(merged["popularity"].isna().sum())
+    # ⚠️ `without_pi` a été RETIRÉ avec la même légende : il comptait les titres sans
+    # indice de popularité pour l'annoncer sous la figure. Les barres concernées
+    # portent déjà l'absence dans leur étiquette.
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -416,38 +401,23 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple) -> None:
                       legend=dict(orientation="h", y=1.1))
     st.plotly_chart(fig, width="stretch")
 
-    note = t("spotify_s4a_combined.momentum_caption",
-             "Barre pleine : les **{n} derniers jours mesurés** (jusqu'au {d}). "
-             "Barre grise : le cumul depuis la sortie. **PI** : l'indice de "
-             "popularité Spotify (0-100) au dernier relevé — c'est le seuil que "
-             "chaque algorithme demande pour s'ouvrir.").format(
-                 n=_MOMENTUM_DAYS, d=format_date(horizon))
-    if without_pi:
-        # Un titre sans PI se COMPTE, comme un titre sans mesure récente : une
-        # étiquette absente se lit sinon comme un PI de zéro.
-        note += " " + t("spotify_s4a_combined.momentum_no_pi",
-                        "**{k} titre(s) sans PI** : aucun relevé de popularité — "
-                        "le rattachement Spotify se fait depuis **🔗 Mapping "
-                        "cross-plateforme**.").format(k=without_pi)
-    if excluded:
-        # Un titre écarté se COMPTE. Une exclusion muette est le défaut qu'on vient
-        # de corriger ailleurs, dans l'autre sens.
-        note += " " + t("spotify_s4a_combined.momentum_excluded",
-                        "**{k} titre(s) écarté(s)** : aucune mesure dans cette "
-                        "fenêtre.").format(k=excluded)
-    st.caption(note)
+    # ⚠️ LÉGENDE RETIRÉE le 2026-09-22, demandé en regardant l'écran. Elle disait
+    # ce que valent la barre pleine, la barre grise et le sigle PI, plus le nombre de
+    # titres écartés faute de mesure dans la fenêtre.
+    #
+    # Ce qui la remplace n'est pas rien : la LÉGENDE de la figure nomme déjà ses deux
+    # séries, et c'est l'endroit où on regarde quand on se demande ce qu'une barre
+    # représente. Une phrase sous la figure redit ce que la légende porte à
+    # l'intérieur.
+    #
+    # ⚠️ CE QUI EST PERDU, et le dire est le point : le nombre de titres ÉCARTÉS
+    # faute de mesure dans la fenêtre. C'était une information d'absence — « 1 titre
+    # n'est pas là » — et une absence non dite se lit comme un catalogue plus petit.
+    # Elle disparaît de l'écran sur demande explicite ; la valeur reste calculée et
+    # lisible dans le code, et si un catalogue en écartait la moitié un jour, il
+    # faudrait la remettre.
 
 
-# ── §4 — le renvoi vers META x Spotify : RETIRÉ le 2026-09-21 ──────────────────
-#
-# Cette section n'était pas une figure mais un paragraphe et un bouton, qui
-# disaient où vivait le rapprochement dépense/écoutes. La barre de navigation le
-# dit déjà, et un renvoi qui occupe une section entière se lit comme du contenu.
-# Le principe qu'il défendait — le couplage Meta n'a qu'UNE définition, sur sa
-# page — n'a pas changé : cette page ne le recalcule toujours pas.
-
-
-# ── Le tiroir ──────────────────────────────────────────────────────────────────
 def _render_secondary(db, spans: pd.DataFrame, frag: str, params: tuple) -> None:
     """Le tiroir. Les `st.plotly_chart` sont LEXICALEMENT dans le `with`.
 
@@ -458,28 +428,42 @@ def _render_secondary(db, spans: pd.DataFrame, frag: str, params: tuple) -> None
     ils ont raison de refuser : un lecteur du code ne peut pas le savoir non plus.
     Les renderers rendent donc une figure, ils ne la posent pas.
     """
-    # OUVERT d'emblée (2026-09-21, demande du propriétaire) : le détail par titre
-    # est ce qu'on vient regarder après avoir vu quel titre bouge, et le clic
-    # supplémentaire le cachait. ⚠️ Les deux gardes de budget de figures
-    # (`test_chart_budget`, `test_a_view_opens_on_one_decision`) reconnaissent ce
-    # bloc par son NOM et non par son état : cette page peint donc SIX figures au
-    # premier écran là où ils en comptent trois. Écrit ici pour que le chiffre soit
-    # une décision et pas un angle mort.
-    with secondary_analyses(expanded=True):
-        fig, note = _song_detail(db, spans, frag, params)
-        if fig is not None:
-            st.plotly_chart(fig, width="stretch")
-            if note:
-                st.caption(note)
-        st.markdown("---")
-        fig = _saves_fig(db, frag, params)
-        if fig is not None:
-            st.plotly_chart(fig, width="stretch")
-        st.markdown("---")
-        fig, note = _followers(db, frag, params)
-        if fig is not None:
-            st.plotly_chart(fig, width="stretch")
+    # ⚠️ CE N'EST PLUS UN TIROIR — 2026-09-22, demandé en regardant l'écran :
+    # « ouvert de façon automatique sans possibilité de refermer le bandeau : le
+    # rendre permanent ».
+    #
+    # Il était déjà ouvert d'emblée depuis le 2026-09-21 (`expanded=True`), et cela
+    # ne suffisait pas : **un `st.expander` reste refermable par construction**, donc
+    # un clic malheureux cachait le détail et rien ne le rouvrait au rerun suivant.
+    # « Ouvert par défaut » et « permanent » sont deux choses, et seule la seconde
+    # était demandée.
+    #
+    # `secondary_analyses` n'est donc PLUS appelée ici. Elle reste le bon outil
+    # partout ailleurs — c'est un helper partagé par plusieurs vues et on ne le
+    # change pas pour une page.
+    #
+    # ⚠️ CE QUE ÇA COÛTE, ET QUI LE SAIT. Les deux gardes de budget de figures
+    # (`test_chart_budget`, `test_a_view_opens_on_one_decision`) abritaient ce bloc
+    # par son NOM. Sans ce nom, les trois figures d'ici deviennent des figures de
+    # premier écran à leurs yeux — ce qui est **exact** : elles le sont vraiment,
+    # depuis le 2026-09-21. Le plafond de cette page est donc relevé à leur vraie
+    # valeur, dans le même commit, et l'ancien chiffre était l'angle mort que le
+    # commentaire du 2026-09-21 annonçait déjà.
+    st.markdown(f"#### {t('ui.secondary_analyses', '📊 Analyses détaillées')}")
+    fig, note = _song_detail(db, spans, frag, params)
+    if fig is not None:
+        st.plotly_chart(fig, width="stretch")
+        if note:
             st.caption(note)
+    st.markdown("---")
+    fig = _saves_fig(db, frag, params)
+    if fig is not None:
+        st.plotly_chart(fig, width="stretch")
+    st.markdown("---")
+    fig, note = _followers(db, frag, params)
+    if fig is not None:
+        st.plotly_chart(fig, width="stretch")
+        st.caption(note)
 
 
 def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple):
@@ -641,7 +625,10 @@ def _followers(db, frag: str, params: tuple):
 
 
 def show():
-    st.title(t("spotify_s4a_combined.title", "🎵 Spotify & Spotify for Artists"))
+    # ⚠️ PAS DE `st.title` — retiré le 2026-09-22, demandé en regardant l'écran.
+    # L'entrée du menu porte déjà « 🎵 Spotify + Spotify for Artists » et reste
+    # surlignée : le titre le répétait à un centimètre, en mangeant la hauteur du
+    # premier écran. Les quatre sous-titres de section suffisent à se repérer.
 
     # La connexion vivante est DECLAREE pour les fragments de cette page : dans un
     # rendu complet ils la reutilisent au lieu d'en ouvrir une (~13 ms la poignee
@@ -671,9 +658,18 @@ def show():
             _render_audience(db, frag, params)
 
         st.markdown("---")
-        _render_momentum(db, spans, frag, params)
-        st.markdown("---")
-        _render_secondary(db, spans, frag, params)
+        # §3 ET LE DÉTAIL CÔTE À CÔTE — 2026-09-22, demandé en regardant l'écran :
+        # « mets sur la même ligne le graph ce qui bouge en ce moment et analyses
+        # détaillées ».
+        #
+        # C'est le même geste, pour la même raison, que §1 et §2 le 2026-09-21 : on
+        # voit quel titre bouge, puis on veut son détail — les lire l'un SOUS l'autre
+        # demandait de faire défiler entre les deux moitiés d'une même question.
+        gauche, droite = st.columns(2)
+        with gauche:
+            _render_momentum(db, spans, frag, params)
+        with droite:
+            _render_secondary(db, spans, frag, params)
         st.markdown("---")
         _render_wrapped(db)
 
@@ -708,7 +704,7 @@ def _render_wrapped(db) -> None:
     if artist_id is None:
         return      # admin sans locataire résolu : la route autonome reste ouverte
     with secondary_analyses(t("spotify_s4a_combined.wrapped_header",
-                              "🎁 Mon bilan annuel (Spotify Wrapped for Artists)")):
+                              "🎁 Spotify Wrapped (bilan annuel)")):
         st.caption(t("spotify_s4a_combined.wrapped_intro",
                      "Ces chiffres ne sont dans aucune API : Spotify ne les publie "
                      "qu'une fois l'an, dans ton Wrapped for Artists. Saisis-les ici "

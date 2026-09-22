@@ -45,7 +45,6 @@ EN = {
     "data_wrapped.log_scale_help": "Recommended if volumes differ strongly "
                                    "(e.g.: streams ≫ saves), to see all curves.",
     "data_wrapped.chart_combined_title": "Listeners · Streams · Saves · Playlist adds",
-    "data_wrapped.countries_listening_header": "#### Countries & listening",
     "data_wrapped.chart_countries_reached": "Countries reached",
     "data_wrapped.chart_hours_listened": "Hours listened",
     "data_wrapped.annual_gains_header": "#### Annual gains (%)",
@@ -59,17 +58,6 @@ EN = {
     "data_wrapped.col_fans_count": "Fans count",
     "data_wrapped.col_fans_rank": "Rank (top N)",
     # Data tab
-    "data_wrapped.data_no_data": "No data recorded.",
-    "data_wrapped.col_listeners": "Listeners",
-    "data_wrapped.col_listener_gain": "△ Listeners %",
     "data_wrapped.col_streams": "Streams",
-    "data_wrapped.col_stream_gain": "△ Streams %",
-    "data_wrapped.col_hours": "Hours listened",
-    "data_wrapped.col_countries": "Countries",
-    "data_wrapped.col_saves": "Saves",
-    "data_wrapped.col_save_gain": "△ Saves %",
-    "data_wrapped.col_playlist_adds": "Playlist adds",
-    "data_wrapped.col_playlist_gain": "△ PL adds %",
-    "data_wrapped.col_superfans": "Super-fans",
     "data_wrapped.gains_expander": "📊 Annual gains (%) — detail",
 }

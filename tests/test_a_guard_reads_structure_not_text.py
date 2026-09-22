@@ -365,6 +365,21 @@ def _text_assertions_on_source(path: Path) -> list[int]:
         if not isinstance(target, _ast.Name):
             continue
         src = _ast.dump(node.value)
+        # ⚠️ `code_of()` N'EST PAS UN LECTEUR DE PROSE, et l'ignorer créait une
+        # CONTRADICTION entre deux gardes de la même famille — trouvée le 2026-09-22.
+        #
+        # `tests/code_text.code_of` retire commentaires et docstrings : c'est
+        # exactement le remède que `test_a_presence_assertion_is_not_satisfied_by_prose`
+        # PRESCRIT dans son message d'échec (« Lire `tests.code_text.code_of(<chemin>)`
+        # au lieu de `<chemin>.read_text()` »). Ce garde-ci le signalait quand même,
+        # parce que son argument est une constante de chemin `.py`.
+        #
+        # Un auteur devait donc choisir LEQUEL des deux gardes satisfaire, et aucun
+        # choix n'était bon. Une comparaison contre la sortie de `code_of` ne peut pas
+        # être satisfaite par un commentaire — il n'y en a plus dedans — donc ce n'est
+        # pas la forme que ce garde existe pour refuser.
+        if "code_of" in src:
+            continue
         # `inspect.getsource(fn)` rend le texte de la fonction — docstring et
         # commentaires COMPRIS. C'est exactement la même lecture qu'un `read_text`,
         # et le prédicat ne la voyait pas : trois sites y échappaient entièrement
@@ -421,7 +436,10 @@ _TEXT_ASSERTIONS_ON_PY: dict[str, int] = {
     "test_a_dependency_gate_cannot_hide_a_break.py": 2,
     "test_a_label_signed_artist_is_collectable.py": 2,
     "test_a_link_is_enough_to_identify_a_tenant.py": 1,
-    "test_a_probe_says_when_it_cannot_see.py": 2,
+    # 2 → 0 le 2026-09-22 : ce fichier lit par `code_of()`, que ce garde ignore
+    # désormais (voir `_text_assertions_on_source`). Ses deux assertions n'étaient
+    # jamais des comparaisons contre de la PROSE ; le prédicat ne savait pas le voir.
+    "test_a_probe_says_when_it_cannot_see.py": 0,
     "test_a_sandbox_tenant_may_hold_its_owners_identity.py": 1,
     "test_a_timestamptz_column_survives_daylight_saving.py": 0,
     "test_a_view_opens_on_one_decision.py": 1,

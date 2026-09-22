@@ -44,6 +44,24 @@ _RENDERERS = {"plotly_chart", "altair_chart", "line_chart", "bar_chart",
 # tient dans un coup d'œil. Cinq laisse de la marge tout en interdisant le mur.
 _MAX_FIRST_SCREEN = 5
 
+#: Les vues dont le premier écran porte DÉLIBÉRÉMENT plus que le plafond général.
+#:
+#: ⚠️ UNE EXEMPTION QUI SE VÉRIFIE, et pas une liste de noms. Ce dépôt a vidé une
+#: exemption codée en dur le matin du 2026-09-22 (`audit_runner.non_concluants`) parce
+#: qu'elle avait survécu à sa raison, et le remède posé ce jour-là est le même ici :
+#: `test_every_raised_ceiling_is_still_needed` rougit dès qu'une entrée cesse d'être
+#: nécessaire. On ne peut donc pas laisser derrière soi un plafond relevé pour rien.
+#:
+#: `spotify_s4a_combined` : six figures, trois questions posées deux par deux et lues
+#: côte à côte — sorties/audience, puis ce-qui-bouge/détail. Son bloc « Analyses
+#: détaillées » est PERMANENT depuis le 2026-09-22 (un `st.expander` reste refermable,
+#: et on voulait qu'il ne le soit pas), donc ses trois figures sont honnêtement des
+#: figures de premier écran. Elles l'étaient déjà depuis le 2026-09-21 sans que ce
+#: garde puisse le voir : il abritait le bloc par son NOM, pas par son état.
+_PLAFOND_PAR_VUE = {
+    "src/dashboard/views/spotify_s4a_combined.py": 6,
+}
+
 
 def _view_files() -> list[str]:
     out = []
@@ -144,11 +162,45 @@ def test_the_tool_still_exists():
 @pytest.mark.parametrize("rel", _view_files())
 def test_a_view_does_not_open_on_a_wall_of_charts(rel: str):
     lines = _first_screen_charts(_ROOT / rel)
-    assert len(lines) <= _MAX_FIRST_SCREEN, (
+    plafond = _PLAFOND_PAR_VUE.get(rel, _MAX_FIRST_SCREEN)
+    assert len(lines) <= plafond, (
         f"{rel} rend {len(lines)} graphiques au PREMIER ÉCRAN (lignes {lines[:8]}…). "
-        f"Plafond : {_MAX_FIRST_SCREEN}. Replie les graphiques qui RAFFINENT une "
+        f"Plafond : {plafond}. Replie les graphiques qui RAFFINENT une "
         f"décision sans la faire :\n"
         f"    with secondary_analyses():\n"
         f"        st.plotly_chart(fig_detail, width=\"stretch\")\n"
         f"Rien n'est supprimé — tout reste à un clic."
     )
+
+
+@pytest.mark.parametrize("rel", sorted(_PLAFOND_PAR_VUE))
+def test_every_raised_ceiling_is_still_needed(rel: str):
+    """UNE EXEMPTION SE VÉRIFIE. Un plafond relevé pour rien est un garde désarmé.
+
+    Trois façons dont une entrée de `_PLAFOND_PAR_VUE` peut cesser d'avoir un objet,
+    et les trois sont refusées ici :
+
+      * le fichier a disparu ;
+      * la vue est repassée SOUS le plafond général — l'entrée n'exempte plus rien et
+        masquerait une future régression jusqu'à son propre chiffre ;
+      * le plafond de l'entrée est plus BAS que le plafond général, ce qui n'est pas
+        une exemption mais une confusion.
+
+    Ce garde est le remède posé le matin du 2026-09-22, quand une exemption codée en
+    dur dans `audit_runner.non_concluants` a survécu aux deux classes qu'elle
+    exemptait : la liste serait restée, et un futur balayage muet y serait passé en
+    silence.
+    """
+    chemin = _ROOT / rel
+    assert chemin.is_file(), (
+        f"« {rel} » a un plafond relevé et n'existe plus : retirer l'entrée de "
+        "`_PLAFOND_PAR_VUE`.")
+    plafond = _PLAFOND_PAR_VUE[rel]
+    assert plafond > _MAX_FIRST_SCREEN, (
+        f"le plafond de « {rel} » ({plafond}) n'est pas plus haut que le plafond "
+        f"général ({_MAX_FIRST_SCREEN}) : ce n'est pas une exemption.")
+    n = len(_first_screen_charts(chemin))
+    assert n > _MAX_FIRST_SCREEN, (
+        f"« {rel} » ne rend plus que {n} graphiques au premier écran, sous le plafond "
+        f"général de {_MAX_FIRST_SCREEN} : son exemption n'a plus d'objet et masquerait "
+        f"une régression jusqu'à {plafond}. La retirer.")
