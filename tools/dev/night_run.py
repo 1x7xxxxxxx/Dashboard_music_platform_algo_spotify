@@ -434,6 +434,51 @@ def cmd_check(_args) -> int:
     if not PROTOCOL.exists():
         problems.append(f"{PROTOCOL.relative_to(REPO)} absent")
 
+    # ── UNE FERMETURE SANS OUVERTURE ────────────────────────────────────────────
+    #
+    # ⚠️ Trouvé le 2026-09-22 EN LE COMMETTANT : `night-done TASK=R161` lancé sans
+    # `night-start`. Le journal est append-only, donc la ligne `start` manquante ne se
+    # rattrape pas — et `night-check` restait **VERT**, parce qu'il ne cherchait qu'une
+    # unité OUVERTE depuis plus de 3 h. Une unité fermée sans avoir été ouverte n'a
+    # aucune durée, aucun sha de départ, et ne figure dans aucun écran de reprise :
+    # après une compaction, le travail qu'elle nomme est invisible.
+    #
+    # C'est la même forme que `a-status-screen-that-reads-half-its-source` — l'écran
+    # lisait une moitié de son invariant. La portée est étroite : on ne signale qu'une
+    # `done`/`park` dont AUCUN `start` de la même tâche ne précède, et on ne remonte
+    # pas au-delà du journal.
+    # ⚠️ L'EXEMPTION SE VÉRIFIE, elle ne se code pas en dur. Le premier jet signalait
+    # toute fermeture orpheline et rougissait donc POUR TOUJOURS sur R117, une orpheline
+    # du 2026-09-17 que ce garde a découverte en naissant. Y répondre par une liste de
+    # noms aurait produit exactement ce que ce dépôt a vidé le matin même : une
+    # exemption qui survit à sa raison.
+    #
+    # Le remède est celui que le message prescrit déjà : le journal est append-only,
+    # donc la ligne manquante s'écrit dans `archive.md`. Une orpheline est donc
+    # ACCEPTABLE si et seulement si sa brique y est archivée — et cette condition se
+    # vérifie à chaque exécution, sans nommer personne.
+    archive = REPO / ".claude" / "dev-docs" / "roadmap" / "archive.md"
+    try:
+        archivees = archive.read_text(encoding="utf-8")
+    except OSError as exc:
+        problems.append(f"{archive.name} illisible ({exc}) — les fermetures orphelines "
+                        "n'ont RIEN pu être vérifiées contre l'archive")
+        archivees = None
+
+    starts = {e.get("task") for e in entries if e.get("kind") == "start"}
+    orphelines = sorted({e.get("task") for e in entries
+                         if e.get("kind") in ("done", "park")
+                         and e.get("task") and e.get("task") not in starts})
+    if orphelines and archivees is not None:
+        muettes = [t for t in orphelines
+                   if f"**{t} —" not in archivees and f"**{t} -" not in archivees]
+        if muettes:
+            problems.append(
+                f"unité(s) fermée(s) sans jamais avoir été ouverte(s), ET absente(s) "
+                f"de l'archive : {', '.join(muettes)} — pas de durée, pas de sha de "
+                "départ, et aucun récit. Le journal est append-only : la ligne "
+                "manquante s'écrit dans `archive.md`, sous un bloc `- [x] **<id> — …**`.")
+
     # ── Le journal et la roadmap doivent parler des MÊMES tâches ────────────────
     #
     # ⚠️ Deux défauts fermés ici, tous deux vérifiés le 2026-09-17 :

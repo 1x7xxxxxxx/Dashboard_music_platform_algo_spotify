@@ -9,6 +9,76 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🗓️ R161 — Un chiffre de campagne porte sa date (livrée 2026-09-22)
+
+- [x] **R161 — l'accueil présentait un coût par résultat de 2024 au présent, et ne disait pas qu'aucune campagne ne tourne.** (P2)
+
+⚠️ **Cette unité a été fermée dans le journal de nuit sans avoir été ouverte** —
+`night-done TASK=R161` sans `night-start`. Le journal est append-only, donc la ligne
+`start` manquante ne se rattrape pas : on l'écrit ici. Conséquence réelle : `make
+night-check` reste vert (il cherche une unité OUVERTE depuis plus de 3 h, pas une
+fermeture orpheline), donc **rien ne signale ce trou**. C'est un frère de
+`a-status-screen-that-reads-half-its-source`, non gardé.
+
+### Le défaut, mesuré en production le 2026-09-22
+
+L'accueil affichait « ta campagne la moins chère est X : **0,109 €** le clic sortant ».
+Le coût était juste ; **le temps de la phrase était faux.**
+
+| grandeur | valeur |
+|---|---|
+| `MAX(day_date)` | **2024-09-30** — la dernière journée où une campagne a dépensé |
+| `MAX(collected_at)` | **le jour même** — le DAG réécrit chaque matin les lignes de 2024 |
+| écart | **722 jours** |
+| `meta_campaigns` | **19 ARCHIVED + 15 PAUSED, zéro ACTIVE** |
+
+**La requête passait.** Elle ramenait 3 087,82 € sur 231 journées et les deux dates. Ce
+n'était pas une panne de lecture : c'était un écran qui présentait 2024 au présent.
+
+### Trois états, et ils ne se confondent pas
+
+C'est « une lecture qui échoue ne se déguise pas en rien à lire »
+(`.claude/rules/python.md`) appliqué à un écran plutôt qu'à un `except` :
+
+| état | ce que l'écran fait |
+|---|---|
+| une campagne tourne | **silence** — annoncer « tout va bien » à chaque rendu apprend à sauter la ligne (leçon des 85 nuits de `freshness_monitor`) |
+| aucune, et on le SAIT | la phrase, avec la date et l'ancienneté |
+| on ne SAIT pas | la date seule. `meta_campaigns` est **vide** pour l'artiste 18 en production alors que sa dépense existe ; écrire « aucune campagne active » serait une affirmation qu'aucune donnée ne soutient |
+
+**Le statut est autoritaire, pas inféré d'une date** : une campagne `ACTIVE` à budget
+épuisé ne dépense plus et tourne toujours. La source est `meta_campaigns.status`, celle
+que `freshness_monitor` prend déjà pour taire `meta_no_active_campaign`.
+
+### Le coût : zéro requête neuve
+
+Quatre colonnes de plus dans la requête unique, dont `last_day` **déjà calculé** pour
+l'`ORDER BY` et pas sélectionné. La sous-requête `MAX(day)` est délibérément **non
+bornée** par la période : bornée, elle rendrait `NULL` sur une fenêtre de 30 jours pour un
+catalogue arrêté il y a deux ans — exactement le cas qu'elle existe pour nommer. Les
+quatre cliquets tiennent (14 requêtes, 6 jauges, 1 connexion, longueur), zéro `st.metric`.
+
+### Les deux gardes qui m'ont arrêté
+
+**Le mien, écrit ce matin.** `test_an_absence_is_only_proven_on_a_present_surface` a rougi
+sur **deux de mes assertions neuves** — `assert not list(at.info)` et
+`assert not list(at.metric)` — vraies sur un écran vide, donc satisfaites par
+l'effondrement qu'elles devraient attraper. Ancrées, puis vérifié par mutation : le bloc
+rendu vide fait rougir **7 tests**, dont ces deux-là qui seraient restés verts.
+
+**Le garde neuf lui-même, à son premier jet.** Il cherchait la date dans le texte JOINT
+de l'écran, et l'encart d'activité porte la même date : retirer la date de la ligne du
+chiffre le laissait **VERT**. Resserré sur la ligne du chiffre. Muté quatre fois au total,
+quatre rouges.
+
+⚠️ Et ma première ancre visait le NOMBRE formaté (« 3 088 ») : elle a rougi parce que le
+séparateur de milliers n'était pas l'espace que j'avais tapé. **Ancrer sur la donnée,
+jamais sur sa typographie.**
+
+Rendu **regardé** dans les deux langues, trois états chacun.
+
+---
+
 ## 📊 R158 — L'activation se lit dans la DONNÉE, plus dans le journal (livrée 2026-09-22)
 
 - [x] **R158 — `activation.py` comptait la livraison sur `etl_run_log.rows_inserted > 0`, un compteur qui ment dans les deux sens.** (P3)
