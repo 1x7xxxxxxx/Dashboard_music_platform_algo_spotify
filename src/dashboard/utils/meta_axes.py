@@ -2,7 +2,7 @@
 
 Type: Sub
 Uses: rien (pur — ni Streamlit, ni base)
-Depends on: trigger_algo/_reglages.MIN_DEPENSE pour le plancher de fiabilité
+Depends on: utils/meta_confidence.MIN_DEPENSE pour le plancher de fiabilité
 Triggers: views/home_meta_advice.py
 Persists in: nothing
 
@@ -25,7 +25,7 @@ décision. Mesuré sur le catalogue de l'artiste 1 le 2026-09-22 :
 
 ⚠️ LE PLANCHER DE FIABILITÉ, ET CE QU'IL M'A ÉVITÉ DE PUBLIER
 --------------------------------------------------------------
-`MIN_DEPENSE` est importé de `_reglages`, pas recopié. Ce n'est pas un seuil de
+`MIN_DEPENSE` est importé de `utils/meta_confidence`, pas recopié. Ce n'est pas un seuil de
 modèle : c'est « la borne en dessous de laquelle le classement de CE catalogue
 s'inverse d'une annonce à l'autre ».
 
@@ -51,7 +51,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-from src.dashboard.views.trigger_algo._reglages import MIN_DEPENSE
+from src.dashboard.utils.meta_confidence import MIN_DEPENSE
 
 
 class Ligne(NamedTuple):

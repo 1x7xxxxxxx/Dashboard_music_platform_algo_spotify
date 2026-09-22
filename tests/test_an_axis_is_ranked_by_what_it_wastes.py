@@ -10,15 +10,24 @@ Un ×3 sur 40 € engagés ne coûte rien. Un ×1,3 sur 1 400 € coûte cher. C
 axes sur le rapport de leurs coûts produit un joli tableau ; les classer sur ce que
 l'écart COÛTE produit un geste.
 
-Mesuré sur le catalogue de l'artiste 1 le 2026-09-22, les deux classements ne sont pas
-seulement différents — ils sont **inversés** :
+Mesuré sur le catalogue de l'artiste 1 le 2026-09-22, bout en bout par la requête de
+l'accueil, les deux classements ne sont pas seulement différents — ils sont **inversés** :
 
     par facteur       pays ×1,92  >  âge ×1,67  >  placement ×1,27
-    par gaspillage    âge ~768 €  >  placement ~183 €  >  pays ~69 €
+    par gaspillage    âge ~768 €  >  pays ~289 €  >  placement ~182 €
+
+Le pays a le rapport le plus spectaculaire et coûte **2,7 fois moins cher** que l'âge.
+
+⚠️ Les fixtures ci-dessous ne portent que les QUATRE premiers pays, pas les onze de la
+base : elles rendent donc ~69 € et ×1,09 sur cet axe, pas les chiffres ci-dessus. C'est
+volontaire — une fixture courte se lit — mais il ne faut pas confondre les deux relevés,
+et c'est précisément le genre de confusion qui fait publier un nombre faux.
 
 Le plancher de fiabilité, et ce qu'il a intercepté
 ---------------------------------------------------
-`MIN_DEPENSE` vient de `trigger_algo/_reglages`, **importé et non recopié**. Ce n'est
+`MIN_DEPENSE` vient de `utils/meta_confidence`, **importé et non recopié**. Il
+y a été descendu le 2026-09-22 : un module partagé ne peut pas importer une vue sans
+la charger entière — 1 073 ms mesurés au premier rendu pour un budget de 287 ms. Ce n'est
 pas un seuil de modèle : c'est « la borne en dessous de laquelle le classement de CE
 catalogue s'inverse d'une annonce à l'autre ».
 
@@ -62,15 +71,26 @@ def test_the_floor_comes_from_the_module_that_measured_it() -> None:
            / "src" / "dashboard" / "utils" / "meta_axes.py").read_text(encoding="utf-8")
     tree = ast.parse(src)
     importe = any(
-        isinstance(n, ast.ImportFrom) and "_reglages" in (n.module or "")
+        isinstance(n, ast.ImportFrom) and "meta_confidence" in (n.module or "")
         and any(a.name == "MIN_DEPENSE" for a in n.names)
         for n in ast.walk(tree))
     assert importe, (
-        "`meta_axes` ne prend plus `MIN_DEPENSE` chez `_reglages` : le seuil est "
-        "écrit deux fois, et les deux divergeront.")
-    assert "MIN_DEPENSE = " not in src, (
-        "`meta_axes` REDÉFINIT `MIN_DEPENSE` — c'est la seconde copie que "
-        "l'import existe pour éviter.")
+        "`meta_axes` ne prend plus `MIN_DEPENSE` chez `utils/meta_confidence` : le "
+        "seuil est écrit deux fois, et les deux divergeront.")
+
+    # ⚠️ PAR L'AST, PAS PAR LE TEXTE. Le premier jet écrivait
+    # `assert "MIN_DEPENSE = " not in src` — satisfait par un COMMENTAIRE, et ce
+    # fichier-ci en porte plusieurs qui nomment la constante.
+    # `test_a_guard_reads_structure_not_text` l'a refusé, avec sa raison : trois
+    # gardes ont été pris au vert sur leur propre défaut le 2026-09-04, dont deux sur
+    # le commentaire qui expliquait le correctif.
+    redefinit = any(
+        isinstance(n, ast.Assign)
+        and any(getattr(c, "id", None) == "MIN_DEPENSE" for c in n.targets)
+        for n in ast.walk(tree))
+    assert not redefinit, (
+        "`meta_axes` AFFECTE `MIN_DEPENSE` — c'est la seconde copie que l'import "
+        "existe pour éviter.")
 
 
 def test_a_line_below_the_floor_is_never_named_best() -> None:

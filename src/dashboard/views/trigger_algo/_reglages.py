@@ -50,8 +50,13 @@ import pandas as pd
 #: enseignement. Elles ne sont pas des seuils du modèle : ce sont les bornes en
 #: dessous desquelles le classement de CE catalogue s'inverse d'une annonce à
 #: l'autre — `MESSAGE_PAGE` (1 annonce, 13 €) en est l'exemple.
-MIN_ADS = 5
-MIN_DEPENSE = 100.0
+# Les deux bornes vivent dans `utils/meta_confidence.py` depuis le 2026-09-22 :
+# un module PARTAGÉ en a eu besoin, et un utilitaire ne peut pas importer une
+# vue sans la charger entière — 1 073 ms mesurés au premier rendu pour un
+# budget de 287 ms. Ré-exportées ici pour que les lecteurs de ce module ne
+# changent pas de porte.
+from src.dashboard.utils.meta_confidence import (  # noqa: E402
+    MIN_ADS, MIN_DEPENSE)
 
 
 def classer(lignes: list[dict], axe: str) -> pd.DataFrame:
