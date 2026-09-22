@@ -218,6 +218,12 @@ _MAX_LOGIN_ATTEMPTS = 5
 _LOCKOUT_MINUTES    = 15
 
 
+#: Un condensat bcrypt jetable, pour égaliser le temps de réponse quand le compte
+#: n'a pas de mot de passe. Calculé une fois au chargement : le refaire à chaque
+#: tentative coûterait un bcrypt de plus par requête, sans rien acheter.
+_CONDENSAT_LEURRE = hash_password("aucun-mot-de-passe-ne-correspond-a-ce-condensat")
+
+
 def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict], Optional[str]]:
     """Return (user_dict, None) on success, (None, error_msg) on failure.
 
@@ -239,7 +245,8 @@ def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict]
     if not rows:
         return None, _t("auth.invalid_credentials", "Identifiant ou mot de passe invalide.")
 
-    uid, uname, email, pw_hash, artist_id, role, email_verified, fail_count, locked_until, totp_enabled, totp_secret = rows[0]
+    (uid, uname, email, pw_hash, artist_id, role, email_verified, fail_count,
+     locked_until, totp_enabled, totp_secret) = rows[0]
 
     # HIGH-01: check lockout before bcrypt (prevents timing oracle on locked accounts)
     if locked_until:
@@ -250,6 +257,35 @@ def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict]
             return None, _t("auth.locked",
                             "Compte verrouillé après trop de tentatives échouées. "
                             "Réessayez dans {m} minute(s).").format(m=remaining)
+
+    # ⚠️ UN COMPTE SANS MOT DE PASSE N'ATTEINT JAMAIS BCRYPT — migration 135.
+    #
+    # `password_hash` est devenu NULLABLE le 2026-09-22 pour que la connexion Google
+    # puisse créer un compte sans secret inventé. Conséquence mesurée en l'exécutant :
+    # `verify_password(x, None)` fait `None.encode('utf-8')` et lève `AttributeError`.
+    # Un visiteur anonyme saisissant l'e-mail d'un compte Google avec n'importe quel
+    # mot de passe faisait donc planter la page de connexion.
+    #
+    # ⚠️ LE MESSAGE EST GÉNÉRIQUE, et la première version ne l'était pas.
+    #
+    # Elle disait « ce compte se connecte avec Google », en se justifiant ainsi :
+    # « le même fait se lit en tentant la connexion Google ». L'audit de sécurité a
+    # montré que c'est FAUX — le lire par Google suppose de contrôler un compte
+    # Google portant cette adresse, alors que le message le donnait à quiconque
+    # tape l'adresse dans un formulaire public. C'était le premier oracle
+    # d'énumération à coût nul de l'application, et il contredisait la propriété que
+    # `register.py` protège en payant un e-mail au vrai propriétaire.
+    #
+    # Le cul-de-sac redouté n'en est pas un : le bouton « Se connecter avec Google »
+    # est affiché juste en dessous de ce formulaire.
+    #
+    # Le `sleep` n'en est pas un : on fait un VRAI bcrypt sur un condensat jetable,
+    # pour que le temps de réponse soit celui d'un mot de passe faux. Sans lui, le
+    # retour anticipé serait un oracle de TEMPS, qui survivrait au message générique.
+    if pw_hash is None:
+        verify_password(password, _CONDENSAT_LEURRE)
+        return None, _t("auth.invalid_credentials",
+                        "Identifiant ou mot de passe invalide.")
 
     if not verify_password(password, pw_hash):
         # Increment failure counter; lock if threshold reached
@@ -305,6 +341,52 @@ def _resend_verification(username: str, email: str, db) -> None:
                     "Échec de l'envoi de l'email. Vérifiez la config SMTP dans config/config.yaml."))
 
 
+def _fin_de_session(notice: str) -> None:
+    """Termine une session EN COURS — expiration ou révocation — pour de bon.
+
+    La différence avec un simple `clear()` est l'identité Google. Elle ne vit pas
+    dans `session_state` : `st.user` est reconstruit à chaque run depuis le cookie
+    d'identité. L'effacer ne l'atteint donc pas, et la couture Google la retrouve
+    quelques lignes plus bas, dans le même run.
+
+    On coupe donc les DEUX autorités, comme à la déconnexion explicite. L'ordre
+    compte : si `deconnecter()` levait malgré son propre filet, le `finally`
+    garantit que la session applicative meurt quand même — c'est le mode de
+    défaillance inoffensif, et c'est celui qu'on veut en dernier recours.
+    """
+    from src.dashboard.utils.google_auth import deconnecter
+    try:
+        deconnecter()
+    finally:
+        st.session_state.clear()
+        st.session_state[notice] = True
+
+
+def _clear_session_keeping_the_funnel_thread() -> None:
+    """Efface tout le `session_state` (MEDIUM-01) et reporte UN corrélateur.
+
+    L'effacement est la défense contre la fixation de session, et il reste entier :
+    tout ce qui vient d'avant la connexion disparaît. Le seul rescapé est
+    l'identifiant de session de la TÉLÉMÉTRIE, qui ne donne accès à rien.
+
+    Pourquoi il est nécessaire : `clear()` régénère `_session_id`, donc la session
+    anonyme qui a vu l'écran de connexion et la session authentifiée qui en sort
+    portent deux identifiants. Sans report, l'entonnoir d'inscription ne peut pas
+    se recoudre — on mesure « combien ont vu » et « combien sont entrés » sans
+    pouvoir dire si ce sont les mêmes.
+
+    ⚠️ Écrit comme fonction et non recopié sur les deux sites (mot de passe et
+    second facteur) : trois lignes recopiées à deux endroits, c'est la classe « un
+    catalogue recopié », que ce dépôt a payée quatre fois. La déconnexion, elle,
+    n'appelle PAS cette fonction — un utilisateur qui part ne commence pas un
+    entonnoir.
+    """
+    from src.dashboard.utils.usage_tracker import session_id_courant
+    avant = session_id_courant()
+    st.session_state.clear()
+    st.session_state['_session_id_avant_connexion'] = avant
+
+
 def _hydrate_session(user: dict) -> None:
     st.session_state['authenticated'] = True
     # The row was just read by _authenticate_user; start the R24 re-read clock here
@@ -331,8 +413,8 @@ def _hydrate_session(user: dict) -> None:
     except Exception:  # noqa: BLE001 — une préférence illisible n'empêche pas d'entrer
         pass
     try:
-        from src.dashboard.utils.usage_tracker import track
-        track('login')
+        from src.dashboard.utils.usage_tracker import track_login
+        track_login()
     except Exception:
         pass
 
@@ -380,6 +462,13 @@ def _show_totp_challenge(db) -> None:
         cancel    = col2.form_submit_button(_t("common.cancel", "Annuler"))
 
     if cancel:
+        # ⚠️ ET LA DÉCONNEXION GOOGLE — sans elle, « Annuler » est une boucle
+        # infinie pour qui est arrivé par Google : on retire `_totp_pending`, le
+        # script repart, `_traiter_retour_google` retrouve l'identité dans le cookie
+        # et le repose. Le formulaire mot de passe devient inatteignable tant que le
+        # cookie d'identité vit. Trouvé par l'audit de sécurité le 2026-09-22.
+        from src.dashboard.utils.google_auth import deconnecter
+        deconnecter()
         st.session_state.pop('_totp_pending', None)
         st.rerun()
 
@@ -413,7 +502,7 @@ def _show_totp_challenge(db) -> None:
                 # Les deux facteurs sont passés : c'est ICI que le budget de connexion
                 # par IP est rendu, pas après le seul mot de passe.
                 throttle_reset("login")
-                st.session_state.clear()
+                _clear_session_keeping_the_funnel_thread()
                 _hydrate_session(user)
                 # Both factors are now in: this is where the account-level lockout
                 # counter is cleared, not after the password (see _authenticate_user).
@@ -490,6 +579,96 @@ def _show_bootstrap_form(db) -> None:
 # Login
 # ─────────────────────────────────────────────
 
+def _bouton_google() -> None:
+    """Le bouton de connexion Google, affiché SEULEMENT s'il peut marcher.
+
+    Sans `[auth]` dans `.streamlit/secrets.toml`, `st.login()` lève. Afficher le
+    bouton quand même offrirait un chemin qui plante — pire qu'un bouton absent,
+    et c'est la doctrine déjà appliquée au bouton de rendez-vous sans lien.
+    """
+    from src.dashboard.utils import google_auth
+
+    if not google_auth.configure():
+        return
+    st.button(
+        _t("auth.google_signin", "Se connecter avec Google"),
+        width="stretch", on_click=st.login)
+
+
+def _traiter_retour_google(db) -> bool:
+    """Le retour de Google. Rend True si la session est hydratée.
+
+    ⚠️ LES QUATRE CONTRÔLES DE CETTE FONCTION ONT TOUS ÉTÉ TROUVÉS MANQUANTS dans
+    la première version du design, par une critique menée avant écriture. Chacun
+    laissait entrer quelqu'un que le chemin mot de passe refuse :
+
+    1. `email_verified` du jeton Google (dans `identite_courante`) ;
+    2. `active = TRUE` (dans `trouver_ou_refuser`) — sinon un accès révoqué par
+       l'administrateur continuait d'entrer par Google, alors que la requête du
+       chemin mot de passe porte ce filtre depuis toujours ;
+    3. le SECOND FACTEUR, ci-dessous — sinon un compte avec TOTP activé était
+       joignable sans code, ce qui est exactement le trou que R26 a fermé de
+       l'autre côté ;
+    4. `email_verified` de NOTRE côté avant toute liaison (pré-inscription).
+
+    Aucun de ces quatre n'était visible dans un test : ils ne se voient qu'en
+    comparant, ligne à ligne, ce que le chemin mot de passe vérifie.
+    """
+    from src.dashboard.utils import google_auth
+
+    if not google_auth.configure():
+        return False
+
+    ident = google_auth.identite_courante()
+    if ident is None:
+        return False
+    if isinstance(ident, google_auth.Refus):
+        st.error(_t(ident.raison, ident.defaut))
+        # On DÉCONNECTE côté Google, sinon le refus se rejoue à chaque rerun sans
+        # que la personne puisse rien y faire : le cookie d'identité la ramène
+        # indéfiniment sur le même message.
+        google_auth.deconnecter()
+        return False
+
+    user, refus = google_auth.trouver_ou_refuser(db, ident)
+    if refus is not None:
+        st.error(_t(refus.raison, refus.defaut))
+        google_auth.deconnecter()
+        return False
+
+    if user is None:
+        # Inconnu : ce n'est pas une connexion, c'est une inscription. Elle a besoin
+        # de ce qu'un jeton d'identité ne porte pas — nom d'artiste, CGU — donc elle
+        # passe par le formulaire court, et par le MÊME créateur de compte que
+        # l'inscription classique.
+        google_auth.memoriser_inscription(ident)
+        st.query_params["page"] = "register"
+        st.rerun()
+        return False
+
+    # LE SECOND FACTEUR, au même rang que sur le chemin mot de passe (l. ~660).
+    # L'ordre est identique : on mémorise l'utilisateur en attente et on rend la
+    # main SANS hydrater. `_show_totp_challenge` hydratera après le code.
+    if user.get("totp_enabled"):
+        # ⚠️ PROJETÉ, pas rangé tel quel. `_en_dict` rend la ligne ENTIÈRE, avec
+        # `password_hash`. Le chemin mot de passe, lui, range un dictionnaire plus
+        # étroit — et ce fichier porte déjà la trace d'un défaut où `_totp_pending`
+        # survivait à une déconnexion avec le `totp_secret` dedans. Y ajouter un
+        # condensat de mot de passe aggraverait exactement ce cas.
+        st.session_state["_totp_pending"] = {
+            k: user[k] for k in
+            ("id", "username", "email", "artist_id", "role", "totp_secret")}
+        st.rerun()
+        return False
+
+    _clear_session_keeping_the_funnel_thread()
+    _hydrate_session(user)
+    db.execute_query(
+        "UPDATE saas_users SET updated_at = NOW() WHERE id = %s", (user["id"],))
+    st.rerun()
+    return True
+
+
 def require_login() -> bool:
     """Show login form if not authenticated.
 
@@ -504,15 +683,26 @@ def require_login() -> bool:
     """
     if st.session_state.get('authenticated'):
         now = time.time()
+        # ⚠️ `_fin_de_session()` ET NON `clear()` SEUL — trouvé par l'audit de
+        # sécurité le 2026-09-22, et c'est le trou le plus grave de la journée.
+        #
+        # Ces deux branches effacent la session et TOMBENT dans la suite de la
+        # fonction, où vit désormais `_traiter_retour_google`. Or `st.user` ne vit
+        # PAS dans `session_state` : il vient du contexte du run. `clear()` ne le
+        # touche donc pas — la couture Google retrouvait l'identité, retrouvait le
+        # compte, et ré-hydratait la session DANS LE MÊME RUN.
+        #
+        # Conséquence : pour un utilisateur Google, le délai d'inactivité (C3) et
+        # la révocation par l'administrateur (R24) devenaient des non-évènements.
+        # Pire, le message qui explique la déconnexion était lui aussi effacé —
+        # personne n'aurait jamais su.
         if _session_idle_expired(st.session_state.get('_last_activity'), now):
             # C3: idle timeout — drop the whole session, fall through to the login form
-            st.session_state.clear()
-            st.session_state['_session_expired_notice'] = True
+            _fin_de_session('_session_expired_notice')
         elif not _session_still_authorised(now):
             # R24: the account was deactivated, deleted, or had its password changed
             # while this session was open. Fall through to the login form.
-            st.session_state.clear()
-            st.session_state['_session_revoked_notice'] = True
+            _fin_de_session('_session_revoked_notice')
         else:
             st.session_state['_last_activity'] = now
             _maybe_bump_heartbeat()
@@ -534,6 +724,12 @@ def require_login() -> bool:
         if st.session_state.get('_totp_pending'):
             _show_totp_challenge(db)
             return False
+
+        # Le retour de Google est traité AVANT le formulaire, et au même rang que le
+        # second facteur : c'est une authentification en cours, pas un écran d'accueil.
+        # S'il rend True, la session est hydratée et on n'affiche rien.
+        if _traiter_retour_google(db):
+            return True
 
         # Logo + pre-login language toggle on one row (toggle right-aligned, centered
         # vertically). The choice is persisted via ?lang= so it survives the post-auth
@@ -591,6 +787,8 @@ def require_login() -> bool:
         # que du texte, et `test_navigation_inside_the_app_opens_no_tab` vérifie
         # justement qu'aucun libellé n'y garde de syntaxe markdown — un crochet dans
         # une traduction s'afficherait tel quel le jour où le rendu changerait.
+        _bouton_google()
+
         if st.button(":blue["
                      + _t("auth.register_link", "Pas encore de compte ? Créez-en un")
                      + "]",
@@ -643,7 +841,7 @@ def require_login() -> bool:
                     return False
                 _trs("login")
                 # MEDIUM-01: clear pre-auth session state before hydrating
-                st.session_state.clear()
+                _clear_session_keeping_the_funnel_thread()
                 _hydrate_session(user)
                 db.execute_query(
                     "UPDATE saas_users SET updated_at = NOW() WHERE username = %s",
@@ -750,12 +948,37 @@ def render_logout_footer() -> None:
     except TypeError:
         clicked = st.sidebar.button(label, key="_logout_footer")
     if clicked:
-        # clear(), not a pop-list. `_SESSION_KEYS` named six keys and the session
-        # holds more than six — `_totp_pending` carries the account's `totp_secret`
-        # and survived a logout, as did the cached plan and the re-auth clock. A
-        # hand-maintained list of things to forget grows a hole every time a key is
-        # added; forgetting everything cannot.
-        st.session_state.clear()
+        # ⚠️ LES DEUX, ET DANS CET ORDRE — ajouté le 2026-09-22 avec la connexion
+        # Google. Les deux modes de défaillance sont ASYMÉTRIQUES :
+        #
+        #   * `clear()` seul (la forme d'avant) est inoffensif : plus rien ne relit
+        #     `st.user`, donc la session applicative est bien morte même si le cookie
+        #     d'identité de Google survit côté navigateur ;
+        #   * `st.logout()` seul laisserait `authenticated=True` intact, et
+        #     `require_login()` teste ça EN PREMIER sans jamais consulter `st.user` —
+        #     la personne croit être déconnectée et ne l'est pas. Une session fantôme.
+        #
+        # Le second est le vrai danger, donc l'ordre place la déconnexion Google
+        # d'abord, sous un `finally` qui garantit l'effacement même si elle levait —
+        # on retombe alors sur le cas inoffensif.
+        #
+        # ⚠️ Ce commentaire a décrit pendant une heure un `finally` qui vivait dans
+        # `deconnecter()` et n'y était pas. Le comportement était correct par
+        # accident (`st.logout()` ne lève pas), mais une `ScriptControlException`
+        # — qui dérive de `BaseException` — aurait traversé le `except Exception`
+        # de `deconnecter()` et sauté l'effacement, produisant exactement la session
+        # fantôme que le commentaire prétendait empêcher. Décrire un mécanisme qui
+        # n'existe pas est pire que ne rien décrire.
+        from src.dashboard.utils.google_auth import deconnecter
+        try:
+            deconnecter()
+        finally:
+            # clear(), not a pop-list. `_SESSION_KEYS` named six keys and the
+            # session holds more than six — `_totp_pending` carries the account's
+            # `totp_secret` and survived a logout, as did the cached plan and the
+            # re-auth clock. A hand-maintained list of things to forget grows a hole
+            # every time a key is added; forgetting everything cannot.
+            st.session_state.clear()
         st.rerun()
 
 

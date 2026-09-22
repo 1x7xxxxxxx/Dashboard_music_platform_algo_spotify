@@ -80,4 +80,16 @@ EN = {
                               "Send a request to **1x7xxxxxxx@gmail.com** with the subject "
                               "**'Delete my account — [your username]'**. "
                               "Your data will be deleted within 30 days.",
+    # ── Compte cr\u00e9\u00e9 par Google : poser un PREMIER mot de passe (2026-09-22) ──
+    "account.set_pw_header": "\U0001F512 Set a password",
+    "account.set_pw_help":
+        "Your account was created with Google, so it has no password yet. Setting "
+        "one gives you a second way in \u2014 Google sign-in keeps working.",
+    "account.set_pw_btn": "Set password",
+    "account.set_pw_done":
+        "\u2705 Password set. You can now sign in either way.",
+    "account.pw_all_required_two": "Both fields are required.",
+    "account.totp_google_confirm":
+        "Your account signs in with Google: your current session counts as "
+        "confirmation.",
 }

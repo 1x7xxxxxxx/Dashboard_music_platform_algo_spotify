@@ -710,6 +710,10 @@ def _main_body():
     _page_param = st.query_params.get("page")
 
     if _page_param == "register":
+        # Sondé ICI : celle du corps authentifié est APRÈS la porte, donc ces deux
+        # écrans n'étaient pas mesurés — test_the_signup_funnel_is_visible_at_all.py
+        from src.dashboard.utils.usage_tracker import track_page_view
+        track_page_view("register")
         from views.register import show as show_register
         show_register()
         st.stop()
@@ -736,6 +740,10 @@ def _main_body():
     # fois plus tard que nécessaire et partout où il ne sert plus.
     if not st.session_state.get('authenticated'):
         _show_cookie_notice()
+        # Sous la condition, pas à côté : `require_login()` rend True sans rien
+        # dessiner quand la session vaut, et compterait alors tout le trafic connecté.
+        from src.dashboard.utils.usage_tracker import track_page_view
+        track_page_view("login")
     if not require_login():
         st.stop()
 

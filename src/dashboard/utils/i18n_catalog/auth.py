@@ -56,4 +56,23 @@ EN = {
     "auth.paywall": ("🔒 This feature requires the **{plan}** plan. "
                      "Your current plan: **{current}**."),
     "auth.paywall_btn": "→ See plans and upgrade",
+    # ── Connexion Google (2026-09-22) ────────────────────────────────────────
+    "auth.google_signin": "Sign in with Google",
+    # Les refus de la couture Google. Ils NOMMENT leur raison : un refus muet
+    # renvoie la personne r\u00e9essayer exactement la m\u00eame chose.
+    "google.email_not_verified":
+        "Google has not confirmed this email address. Verify it in your Google "
+        "account and try again \u2014 or sign in with a password.",
+    "google.incomplete_token":
+        "Google did not return enough information to sign you in. Try again, or use "
+        "a password.",
+    "google.account_inactive":
+        "This access has been disabled. Get in touch if that is a mistake.",
+    "google.unverified_local_account":
+        "An account already exists with this address, but it was never verified. "
+        "Open the verification link you received by email, or sign in with your "
+        "password \u2014 then Google sign-in will work.",
+    "google.linked_to_another_google_account":
+        "This address is already linked to another Google account. Sign in "
+        "with your password, or get in touch.",
 }

@@ -153,7 +153,76 @@ def _section_connected(db, user: dict) -> None:
         "**🔑 Credentials API**.").format(n=len(df)))
 
 
+def _section_set_first_password(db, user: dict) -> None:
+    """Poser un premier mot de passe sur un compte créé par Google.
+
+    Ce n'est PAS un changement : il n'y a rien à confirmer, puisqu'il n'y a rien.
+    L'autorisation vient de la session en cours — la personne est déjà entrée par
+    Google, ce qui est au moins aussi fort qu'un mot de passe qu'elle taperait.
+
+    À quoi ça sert : c'est la porte de sortie. Sans elle, un compte Google dépend
+    de Google pour toujours, et l'application n'a aucun parcours de
+    réinitialisation qui pourrait le rattraper.
+    """
+    from src.dashboard.auth import hash_password
+
+    st.subheader(t("account.set_pw_header", "🔒 Définir un mot de passe"))
+    st.caption(t(
+        "account.set_pw_help",
+        "Ton compte a été créé avec Google, donc il n'a pas encore de mot de passe. "
+        "En définir un te donne un second moyen d'entrer — la connexion Google "
+        "continuera de fonctionner."))
+    with st.form("set_first_password"):
+        new_pw = st.text_input(t("account.new_pw", "Nouveau mot de passe"),
+                               type="password")
+        new_pw2 = st.text_input(t("account.confirm_new_pw",
+                                  "Confirmer le nouveau mot de passe"),
+                                type="password")
+        valide = st.form_submit_button(t("account.set_pw_btn",
+                                         "Définir le mot de passe"), type="primary")
+    if not valide:
+        return
+    if not new_pw or not new_pw2:
+        st.error(t("account.pw_all_required_two",
+                   "Les deux champs sont obligatoires."))
+        return
+    if new_pw != new_pw2:
+        st.error(t("account.pw_mismatch",
+                   "Les mots de passe ne correspondent pas."))
+        return
+    erreur = _validate_password_strength(new_pw)
+    if erreur:
+        st.error(erreur)
+        return
+    # `token_version` monte comme sur un changement : les jetons d'API émis avant
+    # cessent de valoir. C'est le même geste, donc la même conséquence.
+    condensat = hash_password(new_pw)
+    db.execute_query(
+        "UPDATE saas_users SET password_hash = %s, "
+        "token_version = token_version + 1, updated_at = NOW() WHERE id = %s",
+        (condensat, user["id"]))
+    # Le dict en mémoire suit la base, avec la VRAIE valeur. Le premier jet y posait
+    # une chaîne factice — de quoi faire croire à un lecteur, et au scanner de
+    # secrets, qu'un condensat vit ici en dur.
+    user["password_hash"] = condensat
+    st.success(t("account.set_pw_done",
+                 "✅ Mot de passe défini. Tu peux désormais entrer des deux façons."))
+
+
 def _section_change_password(db, user: dict) -> None:
+    # ⚠️ UN COMPTE GOOGLE N'A PAS DE MOT DE PASSE ACTUEL — migration 135, trouvé par
+    # l'audit de sécurité le 2026-09-22. `verify_password(x, None)` lève
+    # `AttributeError` : ce formulaire, rendu inconditionnellement, plantait à la
+    # soumission pour tout compte créé par Google.
+    #
+    # Et le plantage cachait un vrai manque : l'application n'a AUCUN parcours de
+    # réinitialisation de mot de passe. Un compte Google n'avait donc aucun moyen
+    # d'en acquérir un — il dépendait de Google pour toujours. Ce bloc lui en donne
+    # un, ce qui est aussi la porte de sortie si quelqu'un perd son compte Google.
+    if user.get("password_hash") is None:
+        _section_set_first_password(db, user)
+        return
+
     st.subheader(t("account.change_pw_header", "🔒 Changer le mot de passe"))
     with st.form("change_password"):
         current = st.text_input(t("account.current_pw", "Mot de passe actuel"), type="password")
@@ -252,12 +321,28 @@ def _section_totp(db, user: dict) -> None:
                      "Votre application d'authentification est requise à chaque connexion."))
         st.markdown("---")
         st.write(t("account.totp_disable_title", "**Désactiver la 2FA**"))
+        # ⚠️ LE PIÈGE SANS SORTIE, trouvé par l'audit de sécurité le 2026-09-22 :
+        # activer la 2FA ne demande pas de mot de passe (plus haut), la DÉSACTIVER
+        # en demande un, et un compte Google n'en a pas. Il pouvait donc l'activer
+        # et ne JAMAIS pouvoir l'enlever — en plus de planter à la soumission.
+        #
+        # Pour ce compte, la confirmation est la session elle-même : elle a été
+        # obtenue par Google, et le second facteur a déjà été présenté pour
+        # l'ouvrir. Redemander un secret qui n'existe pas n'ajoute aucune preuve.
+        sans_mot_de_passe = user.get("password_hash") is None
         with st.form("disable_totp"):
-            pw = st.text_input(t("account.totp_confirm_pw",
-                                 "Confirmez votre mot de passe pour désactiver la 2FA"), type="password")
+            if sans_mot_de_passe:
+                st.caption(t(
+                    "account.totp_google_confirm",
+                    "Ton compte se connecte avec Google : ta session en cours vaut "
+                    "confirmation."))
+                pw = None
+            else:
+                pw = st.text_input(t("account.totp_confirm_pw",
+                                     "Confirmez votre mot de passe pour désactiver la 2FA"), type="password")
             submitted = st.form_submit_button(t("account.totp_disable_btn", "Désactiver la 2FA"), type="secondary")
         if submitted:
-            if not verify_password(pw, user["password_hash"]):
+            if not sans_mot_de_passe and not verify_password(pw, user["password_hash"]):
                 st.error(t("account.totp_pw_incorrect", "Mot de passe incorrect."))
                 return
             db.execute_query(

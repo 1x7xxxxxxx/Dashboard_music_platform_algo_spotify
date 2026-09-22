@@ -36,7 +36,7 @@ différentes, et la distinction est le résultat de la séance :
 | **R147** | ✅ livrée | la courbe existe, et elle rend **3 essais arrivés à terme, 0 conversion** — un effectif dont aucun taux ne sort |
 | **R149** | ✅ livrée | l'activation, mesurée à **2 sur 5**, posée en tête du panneau admin ; MRR et ARPU passent sous un repli |
 | **R152** | ✅ tranchée | **ADR-028** : pas d'axe de valeur tant que l'activation n'est pas réglée, avec son déclencheur de réouverture |
-| **R148 · R150 · R151** | 🙋 en attente de toi | trois gestes humains, chacun avec sa procédure dans le runbook |
+| **R148 · R150 · R151 · R153** | 🙋 en attente de toi | quatre gestes humains, chacun avec sa procédure dans le runbook |
 
 ⚠️ **Et une trouvaille qui n'était dans aucun livre**, tombée en lançant la suite :
 douze modules de test construisaient leur DSN à la main. Sans base ils skippaient, avec
@@ -50,8 +50,8 @@ et la citation sont dans le bloc « 📚 R146-R151 » plus bas. Une ligne dont l
 faisait que confirmer ce qu'on savait déjà n'y est PAS entrée.
 
 **Aucune autre tâche n'est ouverte dans cet index.** R145 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance, close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
-L'ancre `reprise:` ne nomme donc plus que les lignes en attente d'un geste humain — R151, R148 et R150 depuis le 2026-09-22. La table « 🙋 En attente de toi »
-plus bas en porte **trois** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
+L'ancre `reprise:` ne nomme donc plus que les lignes en attente d'un geste humain — R151, R148, R150 et R153 depuis le 2026-09-22. La table « 🙋 En attente de toi »
+plus bas en porte **quatre** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
 sont sorties le 2026-09-20 — les dix-sept décisions de la première tranchées et
 intégrées, la deuxième faite par le propriétaire (33 lignes en production), la troisième
 mesurée EN PRODUCTION et close sur son résultat.
@@ -141,7 +141,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-22 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R148,R150,R151 -->
+<!-- reprise: open=R148,R150,R151,R153 -->
 
 **Sept lignes ouvertes le matin du 2026-09-22, trois le soir.** Quatre sont closes :
 R146, R147, R149, R152. Les trois autres ont migré dans la table des gestes humains
@@ -195,7 +195,7 @@ deux réordonnancements de R118/R120, chacun sur une mesure — a été **dépla
 dans `archive.md`** le 2026-09-18, sous « Le récit de mesure de R114–R121 ». Il n'est pas
 perdu : il n'appartient simplement pas à un écran qui répond « où j'en suis ».
 
-**La table « 🙋 En attente de toi » porte TROIS lignes** — R151, R148 et R150, entrées
+**La table « 🙋 En attente de toi » porte QUATRE lignes** — R151, R148, R150 et R153, entrées
 le 2026-09-22. Elle avait été vide pour la première fois le 2026-09-20, quand R140,
 R125 et R134 en étaient sorties ; le vide a tenu deux jours.
 ⚠️ Vide ne veut pas dire « rien n'attend un humain » pour toujours : inviter la bêta est
@@ -330,6 +330,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | R151 | Hiérarchie des évènements agrégés Meta (limite iOS 14) | P3 | cinq minutes dans le Gestionnaire d'évènements : faire glisser la conversion Hypeddit en **position 1** — runbook §18 |
 | R148 | Trois conversations « combien tu paierais » | P3 | trois entretiens de vingt minutes, avec des artistes **qui ont vu leurs données** — runbook §19 |
 | R150 | Trois options chiffrées pour la prestation | P3 | **côté outil : livré le 2026-09-22** (page `🎯 Faire piloter mes campagnes`, trois options, prix en réglages). Reste TON geste : saisir les trois montants dans **⚙️ Admin → Réglages** — runbook §20 |
+| R153 | L'identifiant OAuth Google pour la connexion en un clic | P3 | **côté outil : livré le 2026-09-22** (couture OIDC, 4 contrôles, formulaire court, hôte canonique). Reste TON geste : créer le client OAuth dans la console Google Cloud et poser `.streamlit/secrets.toml` — runbook §23. ⚠️ Scopes `openid email profile` **et rien d'autre** : un scope de plus fait basculer dans le régime de R105 |
 
 ⚠️ **R151 avant tout le reste.** C'est cinq minutes, et il conditionne la fiabilité de
 TOUS les coûts par résultat de l'app. R148 vient après l'activation : demander à

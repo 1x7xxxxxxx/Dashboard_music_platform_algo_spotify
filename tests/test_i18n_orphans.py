@@ -16,6 +16,11 @@ _SRC = pathlib.Path(__file__).resolve().parents[1] / "src"
 # `email.*` keys are consumed in src/utils/verification_email.py via the `_tr()` wrapper
 # (and `email.welcome.step{i}` is built in a loop) — neither shape the literal matcher sees.
 _DYNAMIC_PREFIXES = (
+    # Les refus de la couture Google voyagent dans un `Refus(raison, defaut)`
+    # et se rendent par `t(refus.raison, refus.defaut)`. Ce sont des DONNÉES,
+    # pas des littéraux d'appel — un refus doit pouvoir être rendu par la
+    # fonction qui le reçoit, pas seulement par celle qui le construit.
+    "google.",
     # Les livrables, options et leviers de la prestation sont construits
     # depuis `utils/service_offer.py` — `t(liv.cle, liv.texte)`. Ce sont des
     # DONNÉES, pas des littéraux d'appel, exactement comme

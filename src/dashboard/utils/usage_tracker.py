@@ -22,6 +22,20 @@ def _session_id() -> str:
     return sid
 
 
+def session_id_courant() -> str:
+    """L'identifiant de la session EN COURS, pour qui a besoin de le reporter.
+
+    Exposé le 2026-09-22 pour l'entonnoir d'inscription. `auth.py` efface tout le
+    `session_state` à la connexion (défense contre la fixation de session,
+    MEDIUM-01), donc la session anonyme qui a vu l'écran de connexion et la session
+    authentifiée qui en sort portent deux identifiants différents. Sans un report
+    explicite, les deux moitiés de l'entonnoir ne se recousent pas.
+
+    Ce n'est pas un jeton : il ne donne accès à rien et ne sert qu'à la télémétrie.
+    """
+    return _session_id()
+
+
 def _connect():
     """Connexion courte, SANS l'effet de bord `st.error` de `get_db_connection`.
 
@@ -74,6 +88,21 @@ def track(event: str, page: str | None = None, meta: dict | None = None) -> None
             db.close()
         except Exception:
             pass
+
+
+def track_login() -> None:
+    """L'évènement de connexion, AVEC le fil vers la session anonyme d'avant.
+
+    `meta->>'session_avant'` est ce qui rend l'entonnoir interrogeable :
+
+        SELECT count(DISTINCT session_id) FROM usage_events WHERE page = 'login'
+        -- combien ont VU l'écran
+        SELECT count(*) FROM usage_events WHERE event = 'login'
+        -- combien sont entrés
+        -- et le fil relie les deux, malgré l'effacement de session
+    """
+    avant = st.session_state.pop("_session_id_avant_connexion", None)
+    track("login", meta={"session_avant": avant} if avant else None)
 
 
 def track_page_view(page: str) -> None:

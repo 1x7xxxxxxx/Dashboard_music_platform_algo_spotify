@@ -41,7 +41,22 @@ from tools.dev.schema_declaration_check import (  # noqa: E402
 
 #: Mesuré le 2026-09-19 (44), descendu à 43 le 2026-09-20 par la migration 127, qui
 #: rend `instagram_daily_stats.ig_user_id` à son type déclaré. PLAFOND : il descend.
-_PLAFOND = 43
+#:
+#: ⚠️ 43 → 34 le 2026-09-22, et AUCUNE colonne n'a changé de type. Neuf d'entre elles
+#: n'avaient jamais divergé : le lecteur de déclarations les lisait mal. Son alternance
+#: `timestamp|\w+` avalait le préfixe de `TIMESTAMPTZ` et laissait « TZ » derrière —
+#: une alternance prend la PREMIÈRE branche qui matche, jamais la plus longue. Neuf
+#: colonnes étaient donc déclarées « sans fuseau » contre leur propre migration.
+#:
+#: Ce que ça dit du chiffre : un plafond de divergences compte aussi les erreurs de
+#: MESURE, et rien ne les distingue des vraies tant qu'on ne lit pas la liste. Les
+#: 34 restantes ont été regardées ; ce sont des écarts réels (`VARCHAR` contre `text`,
+#: `TIMESTAMP` contre `TIMESTAMPTZ` sur des tables anciennes).
+#:
+#: Trouvé en ajoutant une DIXIÈME colonne à la famille — `saas_users.google_linked_at`,
+#: migration 135. Le garde d'alias testait `normaliser()` et passait ; le défaut vivait
+#: entre les deux gardes, chacun vert sur sa moitié.
+_PLAFOND = 34
 
 
 def _db():

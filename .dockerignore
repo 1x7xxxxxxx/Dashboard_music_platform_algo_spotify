@@ -58,11 +58,33 @@ node_modules/
 
 # ── Secrets / local config ────────────────────────────────────────────────
 # Never bake credentials into images — they come from env vars at runtime.
+# ⚠️ CETTE LISTE REFLÈTE la section « secrets » de `.gitignore`, et c'est un garde
+# qui l'exige — `tests/test_a_secret_never_rides_into_an_image_layer.py`. Les deux
+# fichiers sont DEUX FRONTIÈRES DISTINCTES : le dépôt git d'un côté, le contexte de
+# build de l'autre. Le 2026-09-22, quatre porteurs n'étaient gardés que d'un côté, et
+# la demi-protection est exactement ce qui trompe — être protégé du dépôt donne
+# l'impression d'être protégé de l'image.
+#
+# Un secret grave dans une couche d'image ne s'efface pas : le retirer dans une couche
+# suivante le laisse lisible dans la précédente, et quiconque tire l'image peut le lire.
 .env
 .env.local
+.env.*
 .env.*.local
+# `**/.env` et non `.env` seul : un motif sans barre oblique ne vise que la RACINE.
+# `airflow/.env`, que `.gitignore` anticipe, serait passé au travers.
+**/.env
+airflow/.env
+*.credentials
 config/config.yaml
 .mcp.json
+# Le `[auth]` de la connexion Google : `client_secret` et `cookie_secret`. Le
+# `Dockerfile` porte `COPY .streamlit/`, donc sans cette ligne le fichier part dans
+# l'image le jour où il existe. En production il se MONTE en volume.
+.streamlit/secrets.toml
+# Les deux gabarits SANS secret voyagent : ils documentent les variables attendues.
+!.env.example
+!.env.railway.example
 
 # ── Logs ──────────────────────────────────────────────────────────────────
 *.log

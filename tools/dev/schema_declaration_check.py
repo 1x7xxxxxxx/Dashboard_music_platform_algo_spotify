@@ -51,7 +51,7 @@ RACINE = pathlib.Path(__file__).resolve().parents[2]
 # tout ce qui suit est un MODIFICATEUR (`NOT NULL`, `DEFAULT …`, `REFERENCES …`).
 _TYPE = re.compile(
     r"^(\w+)\s+"
-    r"(double\s+precision|character\s+varying|timestamp(?:\s+with(?:out)?\s+time\s+zone)?|\w+)"
+    r"(double\s+precision|character\s+varying|timestamptz|timestamp(?:\s+with(?:out)?\s+time\s+zone)?|\w+)"
     r"(\s*\(\s*\d+(?:\s*,\s*\d+)?\s*\))?", re.I)
 _MOTS_CLES = {"UNIQUE", "PRIMARY", "FOREIGN", "CONSTRAINT", "CHECK", "EXCLUDE", "LIKE"}
 
@@ -96,6 +96,18 @@ def declarations(racine: pathlib.Path = RACINE) -> dict[tuple[str, str], str]:
     `init_db.sql` d'abord, puis les `ALTER … TYPE` des migrations dans l'ordre — une
     migration postérieure a le dernier mot, sinon toute colonne légitimement élargie
     ressortirait comme une divergence.
+
+    ⚠️ `timestamptz` EST LISTÉ AVANT `timestamp`, et ce n'est pas cosmétique. Une
+    alternance d'expression régulière prend la PREMIÈRE branche qui matche, jamais la
+    plus longue : `timestamp` ou `mot` avalait le préfixe de `TIMESTAMPTZ` et laissait
+    « TZ » derrière lui. Neuf colonnes du dépôt étaient DÉCLARÉES « sans fuseau »
+    alors que leur migration dit le contraire, et elles ressortaient en divergence
+    permanente — un faux positif qui occupait quatre lignes du plafond.
+
+    Mesuré le 2026-09-22, en ajoutant une dixième colonne qui a rejoint la famille.
+    ⚠️ Le cas `TIMESTAMPTZ` de `test_postgres_aliases_are_not_counted_as_divergences`
+    passait déjà : il éprouve `normaliser()`, PAS ce lecteur-ci. Le défaut vivait dans
+    l'espace entre les deux gardes, chacun vert sur sa moitié.
     """
     out: dict[tuple[str, str], str] = {}
     init = racine / "init_db.sql"
@@ -112,13 +124,13 @@ def declarations(racine: pathlib.Path = RACINE) -> dict[tuple[str, str], str]:
         for m in re.finditer(
                 r"ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(\w+)[\s\S]{0,200}?"
                 r"ALTER\s+(?:COLUMN\s+)?(\w+)\s+(?:SET\s+DATA\s+)?TYPE\s+"
-                r"(double\s+precision|character\s+varying|timestamp(?:\s+with(?:out)?\s+time\s+zone)?|\w+)",
+                r"(double\s+precision|character\s+varying|timestamptz|timestamp(?:\s+with(?:out)?\s+time\s+zone)?|\w+)",
                 f.read_text(encoding="utf-8", errors="replace"), re.I):
             out[(m.group(1), m.group(2))] = m.group(3)
         for m in re.finditer(
                 r"ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(\w+)\s+ADD\s+COLUMN\s+"
                 r"(?:IF\s+NOT\s+EXISTS\s+)?(\w+)\s+"
-                r"(double\s+precision|character\s+varying|timestamp(?:\s+with(?:out)?\s+time\s+zone)?|\w+)",
+                r"(double\s+precision|character\s+varying|timestamptz|timestamp(?:\s+with(?:out)?\s+time\s+zone)?|\w+)",
                 f.read_text(encoding="utf-8", errors="replace"), re.I):
             out.setdefault((m.group(1), m.group(2)), m.group(3))
     return out

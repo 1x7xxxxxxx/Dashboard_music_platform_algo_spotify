@@ -270,15 +270,34 @@ def _create_artist_and_user(
     marketing_consent: bool = False,
     referred_by_code: str = '',
     first_month_discount_pct: int = 0,
+    google_sub: str | None = None,
 ) -> tuple[int, int]:
     """Atomic insert: saas_artists + saas_users via CTE.
 
     Returns (saas_users.id, saas_artists.id).
     autocommit=True on the handler — CTE executes as a single statement,
     so either both rows are created or neither is.
+
+    `google_sub` — l'inscription par Google, 2026-09-22
+    ----------------------------------------------------
+    Un PARAMÈTRE, et non une seconde fonction. Le CTE ci-dessous est la seule
+    écriture atomique des deux tables ; en écrire une copie pour Google ferait
+    diverger les deux au premier champ ajouté — c'est la classe « un catalogue
+    recopié », que ce dépôt a payée quatre fois, la dernière la semaine même.
+
+    Quand il est fourni, TROIS choses changent, et chacune pour une raison :
+
+    * `password_hash` vaut NULL — inventer un secret que personne ne connaît et que
+      rien ne fait tourner serait pire que de ne pas en avoir (migration 135) ;
+    * `email_verified` vaut TRUE — Google vient de le prouver, et le claim
+      `email_verified` a été exigé avant d'arriver ici. Redemander une vérification
+      par mail serait demander une seconde preuve du même fait ;
+    * `verification_token` vaut NULL — il n'y a rien à vérifier, donc aucun jeton ne
+      traîne dans une URL.
     """
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)
+    par_google = google_sub is not None
     rows = db.fetch_query(
         """
         WITH new_artist AS (
@@ -291,18 +310,24 @@ def _create_artist_and_user(
             (username, email, password_hash, artist_id, role, active,
              email_verified, verification_token,
              terms_accepted, terms_accepted_at,
-             marketing_consent, marketing_consent_at)
-        SELECT %s, %s, %s, id, 'artist', TRUE, FALSE, %s,
+             marketing_consent, marketing_consent_at,
+             google_sub, google_linked_at)
+        SELECT %s, %s, %s, id, 'artist', TRUE, %s, %s,
                TRUE, %s,
+               %s, %s,
                %s, %s
         FROM new_artist
         RETURNING id, (SELECT id FROM new_artist)
         """,
         (artist_name.strip(), slug.strip(),
          referred_by_code or None, first_month_discount_pct,
-         username.strip(), email.strip(), hash_password(pw), token,
+         username.strip(), email.strip(),
+         None if par_google else hash_password(pw),
+         par_google,
+         None if par_google else token,
          now,
-         marketing_consent, now if marketing_consent else None)
+         marketing_consent, now if marketing_consent else None,
+         google_sub, now if par_google else None)
     )
     user_id, artist_id = rows[0]
     return user_id, artist_id
@@ -477,6 +502,141 @@ def _notify_existing_account(db, email: str) -> bool:
 _DONE_KEY = "_register_done"
 
 
+def _inscription_google(db) -> bool:
+    """Le formulaire court quand Google a reconnu quelqu'un qu'on ne connaît pas.
+
+    Rend True si cet écran a pris la main — l'appelant ne dessine alors rien d'autre.
+
+    Ce qu'il demande, et pourquoi ces deux champs seulement
+    -------------------------------------------------------
+    Un jeton d'identité porte une adresse et un nom de personne. Il ne porte NI le
+    nom d'artiste (qui n'est pas le nom civil), NI l'acceptation des conditions —
+    et celle-ci est une obligation légale qu'aucun tiers ne peut donner à la place
+    de l'intéressé. Ce sont les deux seuls champs restants ; tout le reste est
+    déduit ou repris du jeton.
+
+    ⚠️ L'état intermédiaire EXPIRE (`google_auth.INSCRIPTION_TTL_SECS`). Sans ça,
+    un onglet laissé ouvert et repris le lendemain créerait un compte sur un jeton
+    d'identité que plus rien n'a revérifié — Streamlit ne vérifie pas l'expiration
+    du jeton tout seul, c'est écrit dans sa documentation. Ce dépôt a déjà mesuré
+    la même classe avec R24 : une autorisation lue une fois devient fausse.
+    """
+    from src.dashboard.utils import google_auth
+
+    ident = google_auth.inscription_en_cours()
+    if ident is None:
+        return False
+
+    st.title(t("register.google_title", "🎵 Encore deux choses"))
+    st.caption(t("register.google_sub",
+                 "Google nous a confirmé **{email}**. Il ne manque que ton nom "
+                 "d'artiste.").format(email=ident.email))
+
+    with st.form("register_google"):
+        artist_name = st.text_input(
+            t("register.artist_name", "Nom d'artiste"),
+            value=ident.nom)
+        # ⚠️ LES MÊMES CLÉS que le formulaire complet, et c'est le point : le texte
+        # d'un consentement est un engagement juridique, et deux formulations pour
+        # le même consentement divergeraient à la première relecture d'avocat. Le
+        # premier jet inventait `register.terms` et `register.marketing`, jumelles
+        # de `register.terms_checkbox` et `register.marketing_checkbox` — la classe
+        # « un catalogue recopié », attrapée par le garde d'i18n.
+        terms = st.checkbox(
+            t("register.terms_checkbox",
+              "J'accepte la [Politique de confidentialité](?page=privacy) et les "
+              "Conditions d'utilisation *"),
+            value=False,
+            help=t("register.terms_help", "Requis pour créer un compte."))
+        # `value=True` comme sur le formulaire complet — décision produit du
+        # 2026-09-05, assumée là-bas avec sa réserve RGPD (*Planet49*, C-673/17).
+        # La diverger ici donnerait deux comportements pour un même consentement.
+        marketing = st.checkbox(
+            t("register.marketing_checkbox",
+              "J'accepte de recevoir des actualités, mises à jour et communications "
+              "marketing par email (optionnel)"),
+            value=True,
+            help=t("register.marketing_help",
+                   "Vous pouvez retirer ce consentement à tout moment."))
+        valide = st.form_submit_button(
+            t("register.google_submit", "Créer mon compte"), type="primary")
+
+    if st.button(t("register.google_cancel", "Annuler")):
+        google_auth.oublier_inscription()
+        google_auth.deconnecter()
+        st.query_params.pop("page", None)
+        st.rerun()
+
+    if not valide:
+        return True
+
+    if not artist_name.strip():
+        st.error(t("register.err_artist_name", "Le nom d'artiste est obligatoire."))
+        return True
+    if not terms:
+        st.error(t("register.err_terms", "Tu dois accepter les conditions."))
+        return True
+
+    # ⚠️ L'IDENTITÉ EST RELUE À LA SOUMISSION, pas seulement à la mémorisation.
+    # Le TTL de 15 minutes borne l'âge de l'état ; il ne dit rien de ce que `st.user`
+    # porte MAINTENANT. Entre les deux, la personne a pu se déconnecter de Google, ou
+    # un autre onglet a pu changer d'identité. Créer un compte depuis une copie
+    # devenue fausse est la classe R24 transposée : une autorisation lue une fois.
+    vivante = google_auth.identite_courante()
+    if not isinstance(vivante, google_auth.Identite) or vivante.sub != ident.sub:
+        google_auth.oublier_inscription()
+        st.error(t("register.google_stale",
+                   "Ta session Google a changé depuis l'ouverture de cette page. "
+                   "Reviens à l'écran de connexion et recommence."))
+        return True
+
+    # Le budget par IP, comme le parcours classique (`throttle_consume("register")`
+    # plus bas). Le premier jet ne l'avait pas, et l'en-tête de ce fichier promet que
+    # ce budget borne CHAQUE soumission — une promesse que la branche Google
+    # démentait. Une inscription fait une boucle de SELECT, une insertion en deux
+    # tables et un octroi d'essai : ce n'est pas gratuit.
+    # ⚠️ `throttle_consume` rend `None` quand c'est AUTORISÉ, et le délai d'attente
+    # quand le budget est épuisé. Le premier jet écrivait `if not throttle_consume(…)`,
+    # ce qui bloquait TOUTE inscription et laissait passer exactement celles qu'il
+    # fallait arrêter — un limiteur inversé se lit comme un limiteur.
+    from src.dashboard.utils.throttle import throttle_consume
+    retry_after = throttle_consume("register")
+    if retry_after is not None:
+        st.error(t("register.throttled",
+                   "Trop de tentatives d'inscription depuis cette connexion. "
+                   "Réessayez dans {s} seconde(s).").format(s=retry_after))
+        return True
+
+    slug, username = _derive_identifiers(db, artist_name)
+    try:
+        _user_id, new_artist_id = _create_artist_and_user(
+            db, artist_name, slug, username, ident.email, pw="", token="",
+            marketing_consent=marketing, google_sub=ident.sub,
+        )
+    except Exception as e:      # noqa: BLE001 — frontière : la page ne plante pas
+        # ⚠️ LA COURSE. Entre l'affichage de ce formulaire et sa soumission, un autre
+        # chemin a pu créer un compte sur la même adresse — une inscription classique
+        # dans un autre onglet, ou un second passage par Google. La contrainte UNIQUE
+        # lève alors, et `register.py` porte en tête de fichier la règle qui s'applique
+        # ici : une exception n'atteint jamais la page.
+        logger.warning("inscription Google refusée : %s", type(e).__name__)
+        google_auth.oublier_inscription()
+        st.error(t("register.google_race",
+                   "Un compte existe déjà avec cette adresse. Reviens à l'écran de "
+                   "connexion et réessaie — la connexion Google te reconnaîtra."))
+        return True
+
+    _grant_welcome_trial(db, new_artist_id)
+    google_auth.oublier_inscription()
+    # Pas d'e-mail de vérification : Google vient de prouver l'adresse, et redemander
+    # une preuve du même fait rallongerait le parcours sans rien garantir de plus.
+    _remember_success(artist_name, ident.email, _welcome_trial_msg(),
+                      email_sent=False, resend="google")
+    st.rerun()
+    return True
+
+
+
 def show():
     # L'écran d'après-inscription ne vivait QUE pendant le run du submit : le moindre
     # bouton dessus le faisait disparaître, puisque le rerun ne repasse pas dans la
@@ -486,6 +646,16 @@ def show():
     if st.session_state.get(_DONE_KEY):
         _render_success(**st.session_state[_DONE_KEY])
         return
+
+    # Le retour de Google pour quelqu'un qu'on ne connaît pas : deux champs, pas
+    # le formulaire complet. Il prend la main AVANT le titre habituel — c'est un
+    # autre écran, pas une variante du même.
+    # `project_db()` et non `get_db_connection()` : le garde de fermeture ne
+    # reconnaît que cette forme, et il a raison — un `try/finally` écrit à la main
+    # se perd au premier `return` ajouté au milieu.
+    with project_db() as _db_google:
+        if _db_google is not None and _inscription_google(_db_google):
+            return
 
     # Title + pre-login language toggle on one row (toggle right-aligned), persisted
     # via ?lang= into the app.

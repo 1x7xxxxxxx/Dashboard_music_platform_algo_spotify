@@ -1625,3 +1625,108 @@ for r in db.fetch_query(dormant_tenants_sql()): print(' dormant', r)
 
 La tâche est close quand cette commande rend **zéro dormant** — ou quand la relance a
 eu lieu et que la réponse est écrite, y compris si c'est un non.
+
+---
+
+## 23. R153 — Créer l'identifiant OAuth Google pour la connexion en un clic
+
+Le code est livré et **inerte** : sans `.streamlit/secrets.toml`, le bouton « Se
+connecter avec Google » ne s'affiche pas et le mot de passe reste le seul chemin.
+C'est délibéré — un bouton qui mène à un plantage vaut moins qu'un bouton absent.
+
+**Pourquoi c'est toi et pas moi** : Google demande un projet Cloud au nom d'un
+propriétaire, et un `client_secret` qu'aucune ligne de Python ne peut fabriquer.
+
+### Ce que ça change, mesuré avant de le construire
+
+⚠️ **L'étape que ça supprime ne perd personne.** Mesuré en production le 2026-09-22 :
+**7 comptes artistes sur 7 ont vérifié leur e-mail**, soit 100 %. Ce qui perd du
+monde, c'est le branchement des plateformes — 4 sur 6 n'ont jamais posé un seul
+identifiant. La connexion Google améliore une étape qui ne coince pas.
+
+Deux raisons de la faire quand même, et elles ne sont pas celles qu'on croit :
+
+| | mesure |
+|---|---|
+| comptes déjà sur une adresse Gmail | **6 sur 7** — la population a déjà un compte Google |
+| comptes avec un second facteur activé | **0 sur 8** — notre couverture 2FA est nulle |
+
+Le gain de sécurité est là, et pas dans l'entonnoir : un compte Google porte souvent
+une validation en deux étapes qu'on n'a jamais réussi à faire adopter ici. Et aucun
+mot de passe n'est stocké pour ces comptes — une fuite de base ne livre rien de
+rejouable les concernant.
+
+⚠️ **Et on saura enfin si ça sert.** La sonde manquait : `track_page_view` vivait
+APRÈS la porte de connexion, donc la production portait 811 vues de page et **zéro**
+sur `register` ou `login`, pour 241 connexions. Elle est posée maintenant, avec le
+fil qui recoud les deux moitiés malgré l'effacement de session. Laisse passer deux
+semaines avant de conclure quoi que ce soit.
+
+### Les étapes
+
+1. **Console Google Cloud** → sélectionner (ou créer) le projet streaMLytics.
+2. **API et services → Écran de consentement OAuth**. Type d'utilisateur :
+   **External**. (Internal est réservé à un domaine Workspace ; nos artistes ont des
+   comptes Gmail personnels, ils recevraient `access_denied`.)
+3. **Scopes : `openid`, `email`, `profile`. RIEN D'AUTRE.**
+   ⚠️ C'est la différence exacte avec R105, abandonnée le 2026-09-13. Ces trois-là
+   sont **non sensibles** : aucune vérification Google, pas d'écran « Google n'a pas
+   vérifié cette application », et l'exception documentée dispense du plafond de 100
+   testeurs et de l'expiration des autorisations à 7 jours. Le moindre scope en plus
+   fait basculer l'application dans le régime de R105, avec son dossier, son domaine
+   vérifié et sa vidéo de démonstration.
+4. **Identifiants → Créer → ID client OAuth 2.0**, type **Application Web**.
+5. **URI de redirection autorisées** — exactement ces deux, à la lettre près :
+   ```
+   http://localhost:8501/oauth2callback
+   https://app.streamlytics.fr/oauth2callback
+   ```
+   ⚠️ **`app.` et lui seul** pour la production. `streamlytics.fr` et
+   `www.streamlytics.fr` redirigent vers lui en 308 avant que le flux ne commence
+   (`deploy/Caddyfile`). Déclarer les trois marcherait, mais donnerait trois cookies
+   d'identité distincts : se connecter sur `www.` ne connecterait pas sur `app.`, et
+   personne ne comprendrait pourquoi.
+6. **Publier l'application** (« In production »). Laissée en « Testing », elle
+   fonctionne aussi pour les scopes de base, mais l'état est ambigu à relire.
+7. **Poser le fichier de secrets**, en local :
+   ```bash
+   cp .streamlit/secrets.toml.example .streamlit/secrets.toml
+   python3 -c "import secrets; print(secrets.token_urlsafe(48))"   # cookie_secret
+   # puis coller client_id / client_secret / cookie_secret
+   ```
+8. **En production**, le fichier se **MONTE en volume** — il ne se construit pas dans
+   l'image et ne se commite pas. Il est exclu de `.gitignore` ET de `.dockerignore` :
+   les deux, parce que ce sont deux frontières distinctes et que le `Dockerfile` porte
+   `COPY .streamlit/`. Garde : `tests/test_a_secret_never_rides_into_an_image_layer.py`.
+
+### Vérification
+
+La preuve n'est pas « le bouton s'affiche ». C'est qu'un compte entre, et qu'un
+compte qui ne doit pas entrer n'entre pas. Trois gestes :
+
+```bash
+# 1. La migration est passée
+docker exec -i $(docker ps -qf name=postgres) psql -U postgres -d spotify_etl -c \
+  "\d saas_users" | grep -E "google_sub|password_hash"
+# attendu : google_sub | text |  (nullable)  ET  password_hash | text | (nullable)
+
+# 2. Les gardes du chemin Google
+.venv/bin/python -m pytest \
+  tests/test_google_sign_in_refuses_what_the_password_path_refuses.py -q
+```
+
+3. **À la main, une fois** — et c'est le seul contrôle qui touche le vrai Google :
+   connecte-toi avec ton compte, puis désactive-le depuis ⚙️ Admin → Utilisateurs, et
+   réessaie. Tu dois voir « Cet accès a été désactivé », pas une session. C'est le
+   trou nº 2 de la critique de design, et c'est le seul qui ne se prouve qu'en vrai.
+
+### Ce qui reste ouvert après ça
+
+Rien côté outil. La question ouverte est de MESURE : dans deux semaines,
+```sql
+SELECT count(DISTINCT session_id) FILTER (WHERE page = 'login')  AS ont_vu,
+       count(*)                   FILTER (WHERE event = 'login') AS sont_entres
+FROM usage_events WHERE ts > now() - interval '14 days';
+```
+Si le rapport ne bouge pas, la connexion Google n'aura rien réglé — et ce sera une
+information, pas un échec.

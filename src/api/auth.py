@@ -91,7 +91,22 @@ def authenticate_api_user(db, username: str, password: str):
         if now < lu:
             return None, "locked"
 
-    if not verify_password(password, pw_hash or ""):
+    # ⚠️ LE SITE FRÈRE, manqué par le premier correctif du 2026-09-22 et trouvé par
+    # l'audit de sécurité. `password_hash` est devenu NULLABLE (migration 135) pour
+    # les comptes créés par Google. Ici, `or ""` ne protège pas : il change seulement
+    # l'exception — `bcrypt.checkpw(b'...', b'')` lève `ValueError: Invalid salt`,
+    # vérifié en l'exécutant. Le routeur ne l'attrape pas, donc **POST /auth/token
+    # rendait 500 à un appelant anonyme** pour l'adresse de n'importe quel compte
+    # Google, et le compteur d'échecs n'était jamais atteint : la tentative n'était
+    # même pas enregistrée.
+    #
+    # Le message reste GÉNÉRIQUE ici, contrairement au dashboard : l'API n'a pas de
+    # bouton « Se connecter avec Google » à montrer, donc nommer la méthode
+    # n'aiderait personne et ne ferait qu'ouvrir un oracle d'énumération.
+    if pw_hash is None:
+        return None, "invalid_credentials"
+
+    if not verify_password(password, pw_hash):
         new_fail = (fail_count or 0) + 1
         if new_fail >= _MAX_LOGIN_ATTEMPTS:
             db.execute_query(

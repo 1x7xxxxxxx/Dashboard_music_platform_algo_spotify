@@ -78,4 +78,17 @@ EN = {
                              "could not be sent (SMTP not configured). "
                              "Ask an admin to manually verify your account.",
     "register.failed": "Sign-up did not go through. Try again; if the problem persists, contact us quoting reference **{ref}**.",
+    # ── Inscription raccourcie via Google (2026-09-22) ───────────────────────
+    "register.google_title": "\U0001F3B5 Two more things",
+    "register.google_sub":
+        "Google confirmed **{email}** for us. All that is missing is your artist "
+        "name.",
+    "register.google_submit": "Create my account",
+    "register.google_cancel": "Cancel",
+    "register.google_race":
+        "An account already exists with this address. Go back to the sign-in screen "
+        "and try again \u2014 Google sign-in will recognise you.",
+    "register.google_stale":
+        "Your Google session changed since this page opened. Go back to the sign-in "
+        "screen and start again.",
 }
