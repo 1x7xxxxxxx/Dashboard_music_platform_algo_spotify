@@ -71,6 +71,17 @@ _CSV_WARN_H = 24 * 30        # un mois sans dépôt — là, la donnée est vrai
 # Ré-EXPORTÉE, plus définie ici : `src/api/` ne peut pas importer ce module (il
 # tire `streamlit`), et c'est pour ça que la constante existait en cinq copies.
 from src.utils.artist_name_filter import ARTIST_NAME_FILTER  # noqa: E402,F401
+from src.utils.source_registry import table_et_colonne  # noqa: E402
+
+
+def _t(cle: str, defaut: str) -> str:
+    """Traduction DIFFÉRÉE — `i18n` importe ce module en retour.
+
+    L'appel doit avoir lieu au RENDU, pas au chargement : une chaîne figée à
+    l'import garderait la langue du premier visiteur pour tout le processus.
+    """
+    from src.dashboard.utils.i18n import t
+    return t(cle, defaut)
 
 
 # ─── Fraîcheur des sources ──────────────────────────────────────────────────
@@ -86,14 +97,47 @@ from src.utils.artist_name_filter import ARTIST_NAME_FILTER  # noqa: E402,F401
 # ici est une duplication assumée et gardée par
 # `tests/test_the_announced_collection_time_is_the_real_one.py`, qui les compare aux
 # DAGs — annoncer une heure fausse est pire que n'en annoncer aucune.
+def _src(cle: str) -> dict:
+    """La table et la colonne de cette source, LUES au registre commun.
+
+    ⚠️ Lues, jamais recopiées. Ce fichier et `src/utils/freshness_monitor.py`
+    portaient chacun sa propre copie jusqu'au 2026-09-22 : sept sources y étaient
+    identiques et la huitième, iMusician, n'existait QUE du côté de l'accueil — elle
+    pouvait donc se périmer indéfiniment sans qu'aucune alerte ne le dise.
+    """
+    table, col = table_et_colonne(cle)
+    return {"label": cle, "table": table, "col": col}
+
+
+# Ce que chaque source ajoute au tronc commun, et que l'accueil SEUL utilise.
+#
+#   kind="api"  la collecte part toute seule, `at` est l'heure du cron (Europe/Paris)
+#   kind="csv"  la source ne bouge qu'au dépôt d'un fichier, donc `at` est None
+#
+#   page        la clé de ROUTE où l'artiste va agir. Jamais une prose : une page
+#               nommée en français dans un message ne mène nulle part, et ce dépôt en
+#               comptait NEUF au 2026-09-22.
+#   valeur      ce que la source apporterait — ce qu'on perd à ne pas la brancher.
+#   geste       ce qu'il y a à faire, en une phrase, SANS vocabulaire de plomberie.
+#               Les raisons brutes d'`etl_run_log` (« no SoundCloud user_id and no
+#               claimed track ») se traduisent : 14 messages artiste nommaient un DAG
+#               avant qu'on l'apprenne.
+#   poids       départage deux sources aussi fraîches l'une que l'autre. Il ne dit
+#               PAS l'importance produit : il ordonne un écran, rien de plus.
+#
+# Les heures sont celles des DAGs (`airflow/dags/*.py`, `schedule="0 H * * *"`) :
+# Meta 5 h, Spotify 7 h, YouTube 8 h, SoundCloud 9 h, Instagram 10 h. Les recopier
+# ici est une duplication assumée et gardée par
+# `tests/test_the_announced_collection_time_is_the_real_one.py`, qui les compare aux
+# DAGs — annoncer une heure fausse est pire que n'en annoncer aucune.
+#
+# ⚠️ Le PLAN n'est pas un champ. Il se dérive de `page` par `plan_pitch.tier_of()` :
+# l'écrire ici en ferait une quatrième copie du catalogue des plans, et ce dépôt a
+# payé cette classe quatre fois — la dernière avec dix-sept jours de promesse fausse.
 SOURCES_CONFIG = [
     {
-        "label": "Spotify API",
-        "kind": "api",
-        "at": "07:00",
-        "icon": "🎸",
-        "table": "artists",
-        "col": "collected_at",
+        **_src("Spotify API"),
+        "kind": "api", "at": "07:00", "icon": "🎸",
         "artist_col": None,
         # `artists` PK is the Spotify string id, not the saas artist_id. Scope per
         # tenant through the saas_artists.spotify_artist_id bridge so a fresh account
@@ -101,69 +145,112 @@ SOURCES_CONFIG = [
         # nothing → "no data"). Trusted constant (no user input) — validated against
         # _ALLOWED_ARTIST_FILTERS before interpolation (CLAUDE.md rule #8).
         "artist_filter": "artist_id IN (SELECT spotify_artist_id FROM saas_artists WHERE id = %s)",
+        "page": "credentials",
+        "valeur": lambda: _t("src.spotify_api.valeur",
+                             "tes abonnés Spotify et la popularité de tes titres"),
+        "geste": lambda: _t("src.spotify_api.geste",
+                            "Colle le lien de ton profil Spotify"),
+        "poids": 9,
     },
     {
-        "label": "Spotify S4A",
-        "kind": "csv",
-        "at": None,
-        "icon": "🎵",
-        "table": "s4a_song_timeline",
-        "col": "collected_at",
+        **_src("Spotify S4A"),
+        "kind": "csv", "at": None, "icon": "🎵",
         "artist_col": "artist_id",
+        "page": "upload_csv",
+        "valeur": lambda: _t("src.s4a.valeur",
+                             "tes écoutes jour par jour, titre par titre — la base "
+                             "de toutes les prédictions"),
+        "geste": lambda: _t("src.s4a.geste",
+                            "Dépose ton export Spotify for Artists"),
+        "poids": 10,
     },
     {
-        "label": "YouTube",
-        "kind": "api",
-        "at": "08:00",
-        "icon": "🎬",
-        "table": "youtube_channel_history",
-        "col": "collected_at",
+        **_src("YouTube"),
+        "kind": "api", "at": "08:00", "icon": "🎬",
         "artist_col": "artist_id",
+        "page": "credentials",
+        "valeur": lambda: _t("src.youtube.valeur",
+                             "les vues et les abonnés de ta chaîne"),
+        "geste": lambda: _t("src.youtube.geste", "Colle le lien de ta chaîne YouTube"),
+        "poids": 4,
     },
     {
-        "label": "SoundCloud",
-        "kind": "api",
-        "at": "09:00",
-        "icon": "☁️",
-        "table": "soundcloud_tracks_daily",
-        "col": "collected_at",  # DATE
+        **_src("SoundCloud"),
+        "kind": "api", "at": "09:00", "icon": "☁️",
         "artist_col": "artist_id",
+        "page": "credentials",
+        "valeur": lambda: _t("src.soundcloud.valeur",
+                             "tes écoutes, tes likes et tes reposts, chaque jour"),
+        "geste": lambda: _t("src.soundcloud.geste",
+                            "Colle le lien de ton profil SoundCloud"),
+        "poids": 5,
     },
     {
-        "label": "Instagram",
-        "kind": "api",
-        "at": "10:00",
-        "icon": "📸",
-        "table": "instagram_daily_stats",
-        "col": "collected_at",  # DATE
+        **_src("Instagram"),
+        "kind": "api", "at": "10:00", "icon": "📸",
         "artist_col": "artist_id",
+        "page": "credentials",
+        "valeur": lambda: _t("src.instagram.valeur",
+                             "tes abonnés et la portée de tes publications"),
+        "geste": lambda: _t("src.instagram.geste",
+                            "Relie ton compte Instagram professionnel"),
+        "poids": 3,
     },
     {
-        "label": "Apple Music",
-        "kind": "csv",
-        "at": None,
-        "icon": "🍎",
-        "table": "apple_songs_performance",
-        "col": "collected_at",
+        **_src("Apple Music"),
+        "kind": "csv", "at": None, "icon": "🍎",
         "artist_col": "artist_id",
+        "page": "upload_csv",
+        "valeur": lambda: _t("src.apple.valeur",
+                             "tes écoutes Apple Music — et tes Shazams, qui n'arrivent "
+                             "que par là"),
+        "geste": lambda: _t("src.apple.geste",
+                            "Dépose ton export Apple Music for Artists"),
+        "poids": 6,
     },
     {
-        "label": "Meta Ads",
-        "kind": "api",
-        "at": "05:00",
-        "icon": "📱",
-        "table": "meta_insights_performance_day",
-        "col": "collected_at",
+        **_src("Meta Ads"),
+        "kind": "api", "at": "05:00", "icon": "📱",
         "artist_col": "artist_id",
+        "page": "credentials",
+        "valeur": lambda: _t("src.meta.valeur",
+                             "ce que coûte chaque écoute achetée, et ce qui marche "
+                             "dans tes pubs"),
+        "geste": lambda: _t("src.meta.geste",
+                            "Relie ton compte publicitaire Meta"),
+        "poids": 8,
     },
     {
-        "label": "iMusician",
-        "kind": "csv",
-        "at": None,
-        "icon": "💰",
-        "table": "imusician_monthly_revenue",
-        "col": "updated_at",
+        **_src("iMusician"),
+        "kind": "csv", "at": None, "icon": "💰",
         "artist_col": "artist_id",
+        "page": "imusician",
+        "valeur": lambda: _t("src.imusician.valeur",
+                             "ce que ta musique te rapporte, mois par mois"),
+        "geste": lambda: _t("src.imusician.geste",
+                            "Saisis ou dépose ton relevé de distributeur"),
+        "poids": 7,
+    },
+    {
+        **_src("Hypeddit"),
+        "kind": "csv", "at": None, "icon": "📊",
+        "artist_col": "artist_id",
+        "page": "hypeddit",
+        "valeur": lambda: _t("src.hypeddit.valeur",
+                             "le taux de clic de tes pages de sortie"),
+        "geste": lambda: _t("src.hypeddit.geste",
+                            "Saisis les chiffres de ta dernière campagne Hypeddit"),
+        "poids": 2,
+    },
+    {
+        **_src("SACEM"),
+        "kind": "csv", "at": None, "icon": "🎼",
+        "artist_col": "artist_id",
+        "page": "sacem",
+        "valeur": lambda: _t("src.sacem.valeur",
+                             "tes droits d'auteur, brut et net de charges"),
+        "geste": lambda: _t("src.sacem.geste", "Dépose ton relevé de compte SACEM"),
+        "poids": 1,
     },
 ]
 

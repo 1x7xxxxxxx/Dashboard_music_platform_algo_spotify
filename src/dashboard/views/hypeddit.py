@@ -46,6 +46,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.cache_invalidation import purge_after_write
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import (
     latest_release_date,
@@ -110,6 +111,15 @@ def add_campaign_stats(db, campaign_name: str, date, visits: int, clicks: int):
             update_columns=['visits', 'clicks', 'updated_at']
         )
 
+        # ⚠️ LA PURGE, ajoutée le 2026-09-22 avec l'entrée de Hypeddit au registre
+        # des sources. Tant que cette table n'était lue par aucun cache, ne pas
+        # purger ne coûtait rien. Depuis qu'elle sert la fraîcheur de l'accueil —
+        # derrière un TTL de 600 s — un artiste qui saisit sa campagne verrait
+        # « ✅ enregistré » et une tuile inchangée pendant dix minutes, sans rien à
+        # l'écran pour l'expliquer.
+        #
+        # « On ne fait pas confiance à l'horloge, on écoute l'évènement. »
+        purge_after_write()
         return True, t("hypeddit.save_success", "✅ Données enregistrées avec succès")
 
     except Exception as e:

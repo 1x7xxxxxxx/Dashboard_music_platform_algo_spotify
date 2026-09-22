@@ -35,7 +35,11 @@ from src.utils.freshness_monitor import MONITOR_TARGETS
 from tests.db_gate import requires_live_db
 
 # Column names that mean "the day this row is about", as opposed to when it landed.
-_METRIC_NAMES = ("day_date", "date", "day", "metric_date", "report_date")
+#
+# `line_date` entered on 2026-09-22 with SACEM. `sacem_statement` is a LEDGER: one row
+# per movement, and `line_date` is the day that movement happened. That is precisely a
+# metric date — the row can be re-imported years later without it moving.
+_METRIC_NAMES = ("day_date", "date", "day", "metric_date", "report_date", "line_date")
 
 
 def test_every_declared_metric_column_is_named_like_one():

@@ -230,10 +230,29 @@ def test_readiness_reads_a_table_the_dag_actually_writes():
     # le registre pour les tables qu'il déclare. Ce garde a rougi sur ce
     # déménagement, ce qui est exactement son travail : il nomme la table devenue
     # orpheline au lieu de passer vert sur un fichier rétréci.
+    #
+    # ⚠️ TROISIÈME ÉLARGISSEMENT, le 2026-09-22, et la répétition est la leçon.
+    # `hypeddit_daily_stats` et `imusician_monthly_revenue` sont entrées au registre
+    # de surveillance — elles y manquaient, donc elles pouvaient se périmer sans
+    # qu'aucune alerte ne le dise. Ce garde a aussitôt rougi : aucun DAG, aucun
+    # collecteur, aucune page d'import ne les écrit.
+    #
+    # Il disait vrai et concluait faux. Ces deux sources ne sont NI collectées NI
+    # importées : elles sont SAISIES, dans leur propre vue, formulaire par
+    # formulaire. L'hypothèse de portée — « une table surveillée est écrite par un
+    # DAG, un collecteur, ou la page d'import » — était fausse une fois de plus.
+    #
+    # Le motif se répète parce que la liste est écrite à la main : chaque fois qu'une
+    # manière neuve d'alimenter une table apparaît, ce garde la découvre en rougissant.
+    # C'est un comportement acceptable — il NOMME la table orpheline au lieu de passer
+    # vert sur un périmètre rétréci — mais il faut le savoir en le lisant.
     page = "\n".join(
         (root / rel).read_text(encoding="utf-8", errors="ignore")
         for rel in ("src/dashboard/views/upload_csv.py",
-                    "src/dashboard/utils/csv_platforms.py")
+                    "src/dashboard/utils/csv_platforms.py",
+                    # Saisies à la main, une vue chacune.
+                    "src/dashboard/views/hypeddit.py",
+                    "src/dashboard/views/imusician.py")
     )
     written = dags + collectors + page
 

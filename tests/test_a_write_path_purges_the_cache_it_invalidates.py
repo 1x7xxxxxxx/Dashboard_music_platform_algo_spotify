@@ -60,10 +60,24 @@ _PURGE = _PURGES[0]
 
 
 def _cached_tables() -> set[str]:
-    """The tables `kpi_helpers` reads behind `@st.cache_data`."""
-    text = _KPI.read_text(encoding="utf-8")
-    return (set(re.findall(r'"table"\s*:\s*"(\w+)"', text))
-            | set(re.findall(r"'table'\s*:\s*'(\w+)'", text)))
+    """The tables `kpi_helpers` reads behind `@st.cache_data`.
+
+    ⚠️ READ FROM THE IMPORTED REGISTRY, not scraped from the file's text.
+
+    This function used to regex `"table"\\s*:\\s*"(\\w+)"` out of `kpi_helpers.py`.
+    On 2026-09-22 the table names moved into `src/utils/source_registry.py` — so
+    that the dashboard grid and the nightly alert would stop keeping two divergent
+    copies — and the regex returned the empty set. Every writer suddenly looked
+    safe, because no table was cached any more.
+
+    The non-vacuity assertion below caught it, which is the whole reason it is
+    there. But the lesson is the module's own: its docstring argues that a textual
+    search "matches every reader too" and that the structural question is the right
+    one — and then asked the producer side textually. Half-structural is blind on
+    the half that is not.
+    """
+    from src.dashboard.utils.kpi_helpers import SOURCES_CONFIG
+    return {s["table"] for s in SOURCES_CONFIG if s.get("table")}
 
 
 def _calls_purge(path: pathlib.Path) -> bool:

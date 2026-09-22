@@ -7,6 +7,12 @@ logger = logging.getLogger(__name__)
 # Seuils de fraîcheur (en heures)
 _DEFAULT_STALE_H = 48
 _CSV_STALE_H = 7 * 24  # CSV S4A / Apple Music : watcher peu fréquent
+# Une saisie MENSUELLE — distributeur, SACEM, campagne Hypeddit. Un seuil
+# d'une semaine y crierait onze mois sur douze : c'est la leçon des 85 nuits
+# du 2026-09-14, appliquée avant d'avoir à la réapprendre.
+_MANUAL_STALE_H = 30 * 24
+
+from src.utils.source_registry import table_et_colonne  # noqa: E402
 
 # Sources à monitorer : (label, table, colonne, seuil_h)
 # `tenant_table`/`tenant_col`: where to look when the question is asked about ONE
@@ -23,45 +29,71 @@ _CSV_STALE_H = 7 * 24  # CSV S4A / Apple Music : watcher peu fréquent
 #
 # Where a table has no separate metric date (a snapshot: followers today, tracks
 # today), `collected_at` IS the measurement time and there is nothing to add.
+def _cible(cle: str, **propre) -> dict:
+    """Une cible de surveillance : le tronc commun, plus ce qui n'est qu'à elle.
+
+    ⚠️ La table et la colonne sont LUES au registre partagé, jamais recopiées.
+    Jusqu'au 2026-09-22 ce fichier portait sa propre liste, et
+    `kpi_helpers.SOURCES_CONFIG` la sienne : sept sources y étaient identiques, et
+    la huitième — iMusician — n'existait QUE côté tableau de bord. Elle pouvait
+    donc se périmer indéfiniment sans qu'aucune alerte ne le dise.
+
+    Ce qui reste déclaré ICI est ce que l'alerte seule connaît : le seuil, le
+    silence légitime, la colonne de MESURE, et la table par locataire quand elle
+    diffère volontairement.
+    """
+    table, col = table_et_colonne(cle)
+    return {"source": cle, "table": table, "col": col, **propre}
+
+
 MONITOR_TARGETS = [
-    {"source": "Spotify API",  "table": "artists",                  "col": "collected_at", "stale_h": _DEFAULT_STALE_H, "skip_artist_filter": True,
-     "tenant_table": "track_popularity_history", "tenant_col": "collected_at",
-     "tenant_metric_col": "date"},
-    {"source": "Spotify S4A",  "table": "s4a_song_timeline",       "col": "collected_at", "stale_h": _CSV_STALE_H,
-     # Fed by a human dropping an export, not by a scheduled fetch. Stated here
-     # because the alert used to tell the reader to "relancer le DAG" for EVERY
-     # stale source — an action that cannot move a CSV watcher whose dropbox is
-     # empty, and the only two stale sources of 2026-08-26 were both this kind.
-     "fed_by": "csv",
-     # ⚠️ MESURÉ LE 2026-09-14 : cette alerte a crié 85 NUITS D'AFFILÉE.
-     # `csv_upload_log` ne porte que DEUX imports S4A réussis pour le locataire 1 —
-     # le 2026-06-08 et le 2026-09-08, **92 jours d'écart** — alors que le seuil
-     # vaut 7 jours. Une source nourrie à la main n'a pas la cadence d'un DAG, et
-     # un seuil de temps la juge donc fautive presque tout le temps.
-     #
-     # Aucun seuil ne répare ça : à 7 jours elle crie 85 fois, à 90 jours elle ne
-     # dit plus rien d'utile. Ce n'est pas le seuil qui est mauvais, c'est la
-     # QUESTION — « est-ce vieux ? » n'appelle aucun geste, alors que « une sortie
-     # est parue et tu n'as pas importé depuis » en appelle un, une seule fois.
-     #
-     # L'âge, lui, reste visible là où il sert : la page Spotify l'affiche titre
-     # par titre depuis la refonte du 2026-09-14. Un état se montre, il ne se crie
-     # pas toutes les nuits — c'est ainsi qu'on apprend à sauter une alerte.
-     "silence_expected": "s4a_no_release_since_last_import",
-     "metric_col": "date"},
-    {"source": "YouTube",      "table": "youtube_channel_history",  "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
-    {"source": "SoundCloud",   "table": "soundcloud_tracks_daily",  "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
-    {"source": "Instagram",    "table": "instagram_daily_stats",    "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
-    {"source": "Apple Music",  "table": "apple_songs_performance",  "col": "collected_at", "stale_h": _CSV_STALE_H,
-     "fed_by": "csv"},
-    {"source": "Meta Ads",     "table": "meta_insights_performance_day", "col": "collected_at", "stale_h": _DEFAULT_STALE_H,
-     # Ads insights only exist while ads run. Measured 2026-08-21: the admin
-     # account holds 19 ARCHIVED + 15 PAUSED campaigns, zero ACTIVE, and the
-     # API confirms amount_spent=0 with no insight row in 90 days. Reporting
-     # that as "stale" is true and useless — it would fire every night forever
-     # for a correct pipeline, which is how a reader learns to skip the alert.
-     "silence_expected": "meta_no_active_campaign",
-     "metric_col": "day_date"},
+    _cible("Spotify API", stale_h=_DEFAULT_STALE_H, skip_artist_filter=True,
+           # La table par locataire DIFFÈRE de la table de flotte, et c'est voulu :
+           # `artists` est clé par l'identifiant Spotify, pas par le locataire.
+           tenant_table="track_popularity_history", tenant_col="collected_at",
+           tenant_metric_col="date"),
+    _cible("Spotify S4A", stale_h=_CSV_STALE_H, fed_by="csv",
+           # ⚠️ MESURÉ LE 2026-09-14 : cette alerte a crié 85 NUITS D'AFFILÉE.
+           # `csv_upload_log` ne porte que DEUX imports S4A réussis pour le
+           # locataire 1 — le 2026-06-08 et le 2026-09-08, 92 jours d'écart — alors
+           # que le seuil vaut 7 jours. Une source nourrie à la main n'a pas la
+           # cadence d'un DAG, et un seuil de temps la juge donc fautive presque
+           # tout le temps.
+           #
+           # Aucun seuil ne répare ça : à 7 jours elle crie 85 fois, à 90 jours elle
+           # ne dit plus rien d'utile. Ce n'est pas le seuil qui est mauvais, c'est
+           # la QUESTION — « est-ce vieux ? » n'appelle aucun geste, alors que « une
+           # sortie est parue et tu n'as pas importé depuis » en appelle un, une
+           # seule fois.
+           silence_expected="s4a_no_release_since_last_import", metric_col="date"),
+    _cible("YouTube", stale_h=_DEFAULT_STALE_H),
+    _cible("SoundCloud", stale_h=_DEFAULT_STALE_H),
+    _cible("Instagram", stale_h=_DEFAULT_STALE_H),
+    _cible("Apple Music", stale_h=_CSV_STALE_H, fed_by="csv"),
+    _cible("Meta Ads", stale_h=_DEFAULT_STALE_H,
+           # Ads insights only exist while ads run. Measured 2026-08-21: the admin
+           # account holds 19 ARCHIVED + 15 PAUSED campaigns, zero ACTIVE, and the
+           # API confirms amount_spent=0 with no insight row in 90 days. Reporting
+           # that as "stale" is true and useless — it would fire every night forever
+           # for a correct pipeline, which is how a reader learns to skip the alert.
+           silence_expected="meta_no_active_campaign", metric_col="day_date"),
+    # ── Les trois entrées du 2026-09-22 ────────────────────────────────────────
+    # Elles étaient ABSENTES de l'alerte alors que leurs tables existent depuis des
+    # mois. iMusician vivait dans la grille du tableau de bord et nulle part
+    # ailleurs ; Hypeddit et SACEM dans aucun des deux.
+    #
+    # Toutes trois sont nourries à la main, donc `_CSV_STALE_H` — et toutes trois
+    # héritent de la leçon des 85 nuits ci-dessus : leur cadence est celle d'un
+    # humain. Un seuil d'une semaine sur une saisie mensuelle CRIERAIT. Elles
+    # entrent donc avec un seuil de 30 jours, pas 7.
+    _cible("iMusician", stale_h=_MANUAL_STALE_H, fed_by="csv"),
+    # ⚠️ `metric_col` sur ces deux-là, et c'est un garde existant qui l'a exigé :
+    # leurs tables portent la date que la donnée DÉCRIT à côté de celle où elle a été
+    # ÉCRITE. Sans le déclarer, corriger une vieille saisie ferait bouger
+    # l'horodatage d'écriture et la source paraîtrait fraîche — le défaut exact de
+    # Meta du 2026-08-21, mort depuis six semaines derrière un feu vert.
+    _cible("Hypeddit", stale_h=_MANUAL_STALE_H, fed_by="csv", metric_col="date"),
+    _cible("SACEM", stale_h=_MANUAL_STALE_H, fed_by="csv", metric_col="line_date"),
 ]
 
 # Logical platform -> the freshness sources that can PROVE it is collecting.

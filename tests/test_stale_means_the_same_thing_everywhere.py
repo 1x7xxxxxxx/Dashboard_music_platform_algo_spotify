@@ -41,18 +41,42 @@ sys.path.insert(0, str(ROOT))
 
 from src.dashboard.utils.kpi_helpers import _WARN_H  # noqa: E402
 from src.utils.freshness_monitor import (  # noqa: E402
-    _CSV_STALE_H, _DEFAULT_STALE_H, MONITOR_TARGETS, stale_hours_for,
+    _CSV_STALE_H, _DEFAULT_STALE_H, _MANUAL_STALE_H, MONITOR_TARGETS, stale_hours_for,
 )
 
 _DAG = ROOT / "airflow" / "dags" / "alert_monitor.py"
 
 
 def test_the_registry_is_the_only_place_a_stale_hour_is_chosen() -> None:
-    """ANTI-VACUITÉ : le registre doit porter les deux seuils, distincts."""
+    """ANTI-VACUITÉ : le registre distingue les CADENCES, et elles sont ordonnées.
+
+    ⚠️ Ce test exigeait `seuils == {48, 168}` — exactement deux, ni plus ni moins.
+    Le 2026-09-22, trois sources saisies à la MAIN sont entrées (distributeur, SACEM,
+    Hypeddit) avec un seuil de 30 jours, et il a rougi. Il avait raison de parler,
+    et tort dans sa forme : il figeait un INSTANTANÉ (« deux seuils ») là où sa
+    propre phrase d'échec nomme une PROPRIÉTÉ (« il doit distinguer une source
+    nourrie par un DAG d'une source nourrie à la main »).
+
+    Un troisième palier n'est pas un desserrage, c'est la même distinction poussée
+    d'un cran : un relevé SACEM arrive par trimestre, un relevé de distributeur par
+    mois. Les juger à sept jours les ferait crier onze mois sur douze — c'est la
+    leçon des 85 nuits d'affilée du 2026-09-14.
+
+    Ce qui est exigé ici est donc : au moins trois paliers, STRICTEMENT croissants du
+    robot vers l'humain. Un seuil manuel plus court qu'un seuil de DAG serait une
+    erreur de saisie, et celle-là rougit encore.
+    """
     seuils = {t["stale_h"] for t in MONITOR_TARGETS}
-    assert seuils == {_DEFAULT_STALE_H, _CSV_STALE_H}, (
-        f"le registre porte {seuils} — il doit distinguer une source nourrie par un DAG "
-        "d'une source nourrie à la main, sinon `stale_hours_for` ne sert à rien.")
+    assert len(seuils) >= 3, (
+        f"le registre ne porte que {sorted(seuils)} — il doit distinguer au moins "
+        "trois cadences : un DAG quotidien, un dépôt de fichier, une saisie mensuelle. "
+        "Sans ça, `stale_hours_for` ne sert à rien.")
+    assert _DEFAULT_STALE_H < _CSV_STALE_H < _MANUAL_STALE_H, (
+        f"les paliers ne sont pas ordonnés : DAG={_DEFAULT_STALE_H} h, "
+        f"fichier={_CSV_STALE_H} h, saisie={_MANUAL_STALE_H} h. Plus un humain est "
+        "dans la boucle, plus la source a le droit d'être vieille sans être fautive.")
+    assert {_DEFAULT_STALE_H, _CSV_STALE_H, _MANUAL_STALE_H} <= seuils, (
+        "un palier déclaré n'est utilisé par aucune source — il ne garde rien.")
 
 
 def test_the_artist_badge_is_NOT_aligned_and_that_is_the_measured_answer() -> None:

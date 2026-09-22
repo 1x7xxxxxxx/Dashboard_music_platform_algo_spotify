@@ -36,11 +36,27 @@ def test_the_csv_fed_sources_are_exactly_the_ones_that_wait_on_a_human():
     Pinning the REALITY (which sources these are) rather than the constant, so a new
     CSV source added without `fed_by` shows up here instead of in a nightly mail.
     """
+    from src.utils.freshness_monitor import _CSV_STALE_H, _MANUAL_STALE_H
+
+    # ⚠️ Ce test épinglait la liste EXACTE `{"Spotify S4A", "Apple Music"}`, et le
+    # 2026-09-22 il a rougi quand trois sources saisies à la main y sont entrées —
+    # distributeur, SACEM, Hypeddit. Il avait raison de parler : une source CSV
+    # ajoutée sans `fed_by` doit apparaître ici plutôt que dans un mail nocturne.
+    #
+    # Mais la propriété que sa propre phrase d'échec décrit n'est pas la liste, c'est
+    # la CORRESPONDANCE : « une source a le seuil humain sans `fed_by: csv`, ou
+    # l'inverse ». La liste était l'instantané de cette correspondance à un moment
+    # donné. Les seuils humains sont désormais deux — sept jours pour un dépôt de
+    # fichier, trente pour une saisie mensuelle — et la correspondance est intacte.
+    _SEUILS_HUMAINS = {_CSV_STALE_H, _MANUAL_STALE_H}
     csv_fed = {t["source"] for t in MONITOR_TARGETS if t.get("fed_by") == "csv"}
-    by_threshold = {t["source"] for t in MONITOR_TARGETS if t["stale_h"] == 7 * 24}
-    assert csv_fed == {"Spotify S4A", "Apple Music"}
+    by_threshold = {t["source"] for t in MONITOR_TARGETS
+                    if t["stale_h"] in _SEUILS_HUMAINS}
+    assert len(csv_fed) >= 2, (
+        f"only {len(csv_fed)} human-fed source(s) — this test would pin almost "
+        "nothing. Non-vacuity, not a style rule.")
     assert csv_fed == by_threshold, (
-        "a source has the CSV staleness threshold but not `fed_by: csv` (or the "
+        "a source has a human staleness threshold but not `fed_by: csv` (or the "
         f"reverse): {csv_fed ^ by_threshold}. The alert would name a DAG relaunch "
         "for a source nothing can relaunch.")
 
