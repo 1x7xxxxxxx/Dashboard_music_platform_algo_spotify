@@ -315,7 +315,59 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
               (SELECT ctr FROM hypeddit_release)           AS hypeddit_ctr,
               (SELECT visits FROM hypeddit_release)        AS hypeddit_visits,
               (SELECT clicks FROM hypeddit_release)        AS hypeddit_clicks,
-              (SELECT campaign_name FROM hypeddit_release) AS hypeddit_campaign
+              (SELECT campaign_name FROM hypeddit_release) AS hypeddit_campaign,
+              -- ── CE QUI EST SORTI, ET CE QUI EST RENTRE ──────────────────────
+              --
+              -- Deux sommes simples sur la vue or du flux de tresorerie. Non
+              -- bornees a la periode, comme Shazam et Hypeddit ci-dessus, et pour
+              -- la meme raison : ces vues n'ont que l'annee et le mois. Les borner
+              -- a des DATES elargirait ou retrecirait la fenetre sans le dire.
+              -- L'infobulle l'annonce, exactement comme les deux autres.
+              --
+              -- LA VUE OR, JAMAIS LA TABLE. Une somme de
+              -- `sacem_statement.mouvement_eur` rend ZERO : c'est un grand livre ou
+              -- un versement est un mouvement NEGATIF, et la repartition reelle est
+              -- ailleurs. Le defaut a ete paye le 2026-09-14 (21,49 affiches a un
+              -- artiste qui avait recu 36,49) et je l'ai reproduit en mesurant, le
+              -- 2026-09-22, avant d'ecrire cette ligne.
+              --
+              -- `direction` n'est PAS applique : on veut deux totaux separes, pas
+              -- un solde. Le solde est le point mort, il se calcule ailleurs.
+              (SELECT SUM(amount_eur) FROM v_artist_monthly_cashflow
+                 WHERE artist_id = %s AND flux = 'depense')  AS cash_sorti,
+              (SELECT SUM(amount_eur) FROM v_artist_monthly_cashflow
+                 WHERE artist_id = %s AND flux = 'revenu')   AS cash_rentre,
+              -- ── LES TROIS AXES DE LA PUBLICITE, EN JSON ────────────────────
+              --
+              -- On remonte les LIGNES, pas un verdict : le classement vit dans
+              -- `utils/meta_axes.py`, un module pur qui s'eprouve sur des valeurs.
+              -- Le faire en SQL le rendrait intestable et le dupliquerait du cote
+              -- du CPR Optimizer, qui pose la meme question autrement.
+              --
+              -- `json_agg` parce qu'une sous-requete scalaire ne rend qu'UNE valeur,
+              -- et qu'on en veut N. Cout : trois sous-requetes dans la meme
+              -- instruction, donc ZERO aller-retour de plus. L'accueil est a son
+              -- plafond.
+              --
+              -- ⚠️ AUCUN plancher de fiabilite ici. Il vit dans `meta_axes`, avec la
+              -- raison qui le justifie et le garde qui l'eprouve. L'ecrire aussi en
+              -- SQL en ferait deux, et deux seuils divergent.
+              (SELECT json_agg(x) FROM (
+                 SELECT age_range AS v, SUM(spend) AS d, SUM(results) AS r
+                   FROM meta_insights_performance_age
+                  WHERE artist_id = %s AND age_range IS NOT NULL
+                  GROUP BY 1) x)                             AS axe_age,
+              (SELECT json_agg(x) FROM (
+                 SELECT country AS v, SUM(spend) AS d, SUM(results) AS r
+                   FROM meta_insights_performance_country
+                  WHERE artist_id = %s AND country IS NOT NULL
+                  GROUP BY 1) x)                             AS axe_pays,
+              (SELECT json_agg(x) FROM (
+                 SELECT platform || ' / ' || placement AS v,
+                        SUM(spend) AS d, SUM(results) AS r
+                   FROM meta_insights_performance_placement
+                  WHERE artist_id = %s AND placement IS NOT NULL
+                  GROUP BY 1) x)                             AS axe_placement
         """, (artist_id, since, since, until, until,     # best_cpr
               artist_id, artist_id,                       # apple_song, last_release
               artist_id, since, since, until, until,      # hypeddit_release
@@ -325,7 +377,9 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
               artist_id, since, since, until, until,      # ig_first
               artist_id, since, since, until, until,      # ig_last
               artist_id, since, since, until, until,      # spend
-              artist_id, artist_id))                      # shazam
+              artist_id, artist_id,                       # shazam
+              artist_id, artist_id,                       # cash sorti / rentré
+              artist_id, artist_id, artist_id))           # axes age / pays / placement
     except Exception as e:      # noqa: BLE001 — le récapitulatif se rend sans ces lignes
         logger.warning("side metrics unreadable: %s", type(e).__name__)
         return {}
@@ -335,7 +389,8 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
      best_algo_p, best_algo_name, best_algo_song,
      release_song, release_age, release_dw, release_rr, release_radio,
      shazam_total, shazam_release,
-     hypeddit_ctr, hypeddit_visits, hypeddit_clicks, hypeddit_campaign) = rows[0]
+     hypeddit_ctr, hypeddit_visits, hypeddit_clicks, hypeddit_campaign,
+     cash_sorti, cash_rentre, axe_age, axe_pays, axe_placement) = rows[0]
     return {
         "ig_followers": ig_last,
         "ig_delta": (None if ig_first is None or ig_last is None
@@ -384,4 +439,16 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
         "hypeddit_clicks": (int(hypeddit_clicks)
                             if hypeddit_clicks is not None else None),
         "hypeddit_campaign": hypeddit_campaign,
+        # ⚠️ `None` ET NON `0` quand rien n'est déposé. Un artiste qui n'a jamais
+        # importé de relevé de distributeur lirait « 0 € rentré » comme une
+        # faillite, là où il n'y a qu'un fichier manquant. C'est la règle « une
+        # tuile ne montre jamais un zéro qu'elle n'a pas mesuré », transposée à
+        # l'euro — et l'appelant renvoie alors vers la carte d'absence.
+        "cash_sorti": float(cash_sorti) if cash_sorti is not None else None,
+        "cash_rentre": float(cash_rentre) if cash_rentre is not None else None,
+        # Les lignes BRUTES des trois axes. Le classement, le plancher de fiabilité
+        # et le refus de conclure vivent dans `utils/meta_axes.py` — ici on ne fait
+        # que transporter.
+        "axes": {"age": axe_age or [], "pays": axe_pays or [],
+                 "placement": axe_placement or []},
     }

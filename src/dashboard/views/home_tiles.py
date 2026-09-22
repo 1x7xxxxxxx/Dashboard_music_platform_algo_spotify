@@ -38,6 +38,42 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import cpr_help
 
 
+def agencer(unites: list, par_rangee: int = 2) -> list[list]:
+    """Range les unités en rangées SANS jamais en couper une.
+
+    Une « unité » est une liste de boîtes qui doivent rester côte à côte. Deux
+    existent, et leur voisinage est une décision écrite, pas un hasard de place :
+
+      Apple + Shazam   même dépôt de CSV, même nature de relevé — « les voisiner
+                       laisse l'œil transporter la réserve de l'un sur l'autre »
+      Meta + Hypeddit  la chaîne que le produit raconte : on dépense, les gens
+                       cliquent, le titre est écouté, l'algorithme le reprend
+
+    Un simple découpage en tranches de deux les casserait dès qu'une unité de deux
+    tombe en position impaire. Cette fonction regarde donc PLUS LOIN dans la liste :
+    quand il ne reste qu'une place et que l'unité suivante en demande deux, elle
+    avance une unité d'une seule boîte pour combler, et l'unité de deux garde sa
+    rangée entière.
+
+    Pure : ni Streamlit, ni base. Elle se teste sur des entiers.
+    """
+    restantes = list(unites)
+    rangees: list[list] = []
+    while restantes:
+        rangee: list = []
+        place = par_rangee
+        while place and restantes:
+            # La première unité qui TIENT dans ce qui reste de la rangée.
+            i = next((j for j, u in enumerate(restantes) if len(u) <= place), None)
+            if i is None:
+                break          # rien ne tient : la rangée se ferme incomplète
+            unite = restantes.pop(i)
+            rangee.extend(unite)
+            place -= len(unite)
+        rangees.append(rangee)
+    return rangees
+
+
 def render_tiles(totals: dict, grand_total: int, ig_count: int,
                   prev: dict | None = None, side: dict | None = None,
                   prev_grand: int | None = None) -> None:
@@ -179,26 +215,32 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
                 st.caption(t("home.tile_last_seen", "Dernier relevé : {d}").format(
                     d=_last[key].strftime("%d/%m/%y")))
 
-    # DEUX PAR RANGÉE, pas trois : la colonne fait 2/5 de la page et un libellé
+    # ── L'ORDRE SUIT LA DONNÉE — 2026-09-22 ────────────────────────────────
+    #
+    # « l'accueil montre en prio les plateformes qui ont des données ». Les six
+    # rangées étaient écrites à la main, dans un ordre fixe, et un artiste qui n'a
+    # que SoundCloud le trouvait en cinquième position derrière quatre tirets.
+    #
+    # Une UNITÉ est une liste de boîtes qui ne se séparent jamais. Deux existent,
+    # et leur voisinage est une décision écrite :
+    #
+    #   Apple + Shazam   même dépôt de CSV, même nature de relevé — « les voisiner
+    #                    laisse l'œil transporter la réserve de l'un sur l'autre »
+    #   Meta + Hypeddit  la chaîne que le produit raconte : on dépense (Meta), les
+    #                    gens cliquent (Hypeddit), le titre est écouté, l'algorithme
+    #                    le reprend
+    #
+    # `agencer()` les range sans jamais en couper une. Spotify+YouTube et
+    # SoundCloud+Instagram n'avaient, eux, AUCUNE justification d'appariement : le
+    # seul commentaire sur SoundCloud disait qu'il était POUSSÉ là par Apple+Shazam.
+    #
+    # ⚠️ DEUX PAR RANGÉE, pas trois : la colonne fait 2/5 de la page et un libellé
     # comme « ☁️ SoundCloud » se coupe en deux à trois colonnes.
-    a1, a2 = st.columns(2)
-    _box(a1, "spotify", "🎵 Spotify")
-    _box(a2, "youtube", "🎬 YouTube")
-
-    # ── APPLE ET SHAZAM DANS LA MÊME RANGÉE, et ce n'est pas un hasard de place ──
     #
-    # Les deux viennent du MÊME dépôt de CSV Apple et sont de la même nature : un
-    # relevé, pas une quantité datée. Les voisiner laisse l'œil transporter la
-    # réserve de l'un sur l'autre, au lieu de la répéter deux fois.
-    #
-    # SoundCloud descend d'une rangée pour leur laisser la place. Il n'est pas
-    # retiré — ADR-025 le garde en périphérie « comme aujourd'hui », et une tuile
-    # qui disparaît est une information perdue, pas une simplification.
-    b1, b2 = st.columns(2)
-    _box(b1, "apple", "🎎 Apple Music",
-         t("home.apple_no_window",
-           "Apple Music ne fournit qu'un relevé par dépôt de CSV : impossible de le "
-           "découper par période. Choisis « Depuis le début » pour son total."))
+    # ⚠️ Le tri ne touche QUE ce bloc. Le total toutes plateformes reste en tête et
+    # les trois portes algorithmiques restent en dernier — « place les 3 box en
+    # dessous de insta & meta ads » (2026-09-13), pour ne pas mélanger du mesuré et
+    # du prédit dans le même coup d'œil.
 
     # ── SHAZAM — LE CATALOGUE, ET LA DERNIÈRE SORTIE ────────────────────────
     #
@@ -237,26 +279,6 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
                     "compte de Shazams ne peut pas être isolé. La page **🔗 "
                     "Correspondance des titres** permet de faire le lien.")
             .format(song=_shz_song))
-    with b2.container(border=True):
-        st.metric(
-            t("home.tile_shazam", "🎧 Shazam"), _n(_shz),
-            delta=(t("home.tile_shazam_release", "🆕 Dernière sortie · {n}")
-                   .format(n=f"{_shz_rel:,}".replace(",", " "))
-                   if _shz_rel is not None else None),
-            delta_color="off", help=_shz_help)
-
-    # INSTAGRAM PORTE UN EFFECTIF, ET SON ÉCART EST DÉJÀ UN ÉCART — `ig_delta` est
-    # le gain d'abonnés SUR LA FENÊTRE, pas un cumul.
-    c1, c2 = st.columns(2)
-    _box(c1, "soundcloud", "☁️ SoundCloud")
-    _ig_d = _s.get("ig_delta")
-    with c2.container(border=True):
-        st.metric("📸 Instagram", _n(ig_count),
-                  delta=(f"{_ig_d:+d}" if _ig_d else None),
-                  help=t("home.ig_is_a_headcount",
-                         "Un EFFECTIF d'abonnés, pas un cumul d'écoutes : il ne se "
-                         "découpe pas par période et n'entre pas dans le total "
-                         "ci-dessus. L'écart est celui de la période affichée."))
 
     # META ADS — LE CPR DE LA DERNIÈRE CAMPAGNE, PAS LE RECORD HISTORIQUE.
     # « met en automatique la dernière release et pas forcément les meilleurs
@@ -287,47 +309,7 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
             cpr=f"{_cpr:,.4f}".replace(",", "\u202f").replace(".", ",") + "\u00a0€",
             budget=(" · " + f"{_cpr_spend:,.2f}".replace(",", "\u202f")
                     .replace(".", ",") + "\u00a0€") if _cpr_spend else "")
-    # META OUVRE UNE RANGÉE, ET SA VOISINE RESTE VIDE. Sept tuiles ne se rangent pas
-    # par deux ; la colonne libre est le prix à payer pour que Meta garde la MÊME
-    # largeur que les six autres — « il faut ramener la taille de la box meta de la
-    # même dimension que les autres » (2026-09-13). Une tuile pleine largeur
-    # annulerait exactement cette demande.
-    d1, d2 = st.columns(2)
-    with d1.container(border=True):
-        st.metric(t("home.tile_meta", "📊 Meta Ads"),
-                  (f"{_spend:,.2f}".replace(",", "\u202f").replace(".", ",")
-                   + "\u00a0€") if _spend else "—",
-                  delta=_cpr_line, delta_color="off",
-                  help=t("home.tile_meta_help",
-                         "Dépense publicitaire de la période affichée, et le coût "
-                         "par résultat de la campagne la plus RÉCENTE — celle de la "
-                         "dernière sortie, pas le record de toutes les campagnes.")
-                  + (f" Campagne : {_cpr_name}." if _cpr_name else "")
-                  # R146 — ce chiffre est un coût par CLIC SORTANT. C'est la
-                  # tuile du premier écran : elle ne peut pas être la seule à
-                  # laisser croire qu'un « résultat » est une écoute.
-                  + "\n\n" + cpr_help())
 
-    # ── HYPEDDIT — LE TAUX DE CLIC DE LA DERNIÈRE SORTIE ────────────────────
-    #
-    # « intègre le meilleur rapport visits/click dans la page d'accueil pour
-    # hypeddit obtenue pour la dernière release » (2026-09-13). Hypeddit est dans le
-    # cœur du produit (ADR-025) et était la DERNIÈRE divergence entre cet arbitrage
-    # et l'écran : 0 occurrence ici, alors que `v_hypeddit_daily` porte un vrai grain
-    # journalier. Elle ferme aussi la colonne restée vide sous Meta.
-    #
-    # C'EST LE MAILLON QUI MANQUAIT À LA CHAÎNE QUE LE PRODUIT RACONTE : on dépense
-    # (Meta, à gauche), les gens cliquent (ici), le titre est écouté (Spotify, en
-    # haut), l'algorithme le reprend (les trois portes, en dessous).
-    #
-    # LES DEUX VOLUMES ACCOMPAGNENT LE TAUX, et ce n'est pas de la décoration : un
-    # taux plein obtenu sur deux visites et 46 pour cent obtenus sur 7 828 sont le
-    # même pixel dans une tuile. Le dénominateur est ce qui les sépare.
-    #
-    # NON BORNÉ PAR LE FILTRE, et l'infobulle le dit. La question posée est « qu'a
-    # obtenu CETTE sortie », pas « qu'a-t-elle obtenu ces trente jours » — bornée, la
-    # tuile serait vide presque toujours : la campagne de l'artiste 1 date du
-    # 2024-08-30, mesuré le 2026-09-13.
     _hd_ctr, _hd_camp = _s.get("hypeddit_ctr"), _s.get("hypeddit_campaign")
     _hd_v, _hd_c = _s.get("hypeddit_visits"), _s.get("hypeddit_clicks")
     _hd_help = t(
@@ -347,16 +329,93 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
             "« {song} » n'est rattachée à aucune campagne Hypeddit confirmée. La "
             "page **🔗 Correspondance des titres** permet de faire le lien."
         ).format(song=_s["release_song"])
-    with d2.container(border=True):
-        st.metric(
-            t("home.tile_hypeddit", "📱 Hypeddit"),
-            (f"{_hd_ctr:.1f}".replace(".", ",") + "\u00a0%") if _hd_ctr is not None
-            else "—",
-            delta=(t("home.tile_hypeddit_volume", "👁️ {v} · 🖱️ {c}").format(
-                       v=f"{_hd_v:,}".replace(",", "\u202f"),
-                       c=f"{_hd_c:,}".replace(",", "\u202f"))
-                   if _hd_v else None),
-            delta_color="off", help=_hd_help)
+
+    # Chaque boîte : (la valeur qui dit si elle a des données, son rendu).
+    def _u_spotify(col):
+        _box(col, "spotify", "🎵 Spotify")
+
+    def _u_youtube(col):
+        _box(col, "youtube", "🎬 YouTube")
+
+    def _u_soundcloud(col):
+        _box(col, "soundcloud", "☁️ SoundCloud")
+
+    def _u_apple(col):
+        _box(col, "apple", "🎎 Apple Music",
+             t("home.apple_no_window",
+               "Apple Music ne fournit qu'un relevé par dépôt de CSV : impossible de "
+               "le découper par période. Choisis « Depuis le début » pour son total."))
+
+    def _u_shazam(col):
+        with col.container(border=True):
+            st.metric(
+                t("home.tile_shazam", "🎧 Shazam"), _n(_shz),
+                delta=(t("home.tile_shazam_release", "🆕 Dernière sortie · {n}")
+                       .format(n=f"{_shz_rel:,}".replace(",", " "))
+                       if _shz_rel is not None else None),
+                delta_color="off", help=_shz_help)
+
+    def _u_instagram(col):
+        # INSTAGRAM PORTE UN EFFECTIF, ET SON ÉCART EST DÉJÀ UN ÉCART — `ig_delta`
+        # est le gain d'abonnés SUR LA FENÊTRE, pas un cumul.
+        with col.container(border=True):
+            st.metric("📸 Instagram", _n(ig_count),
+                      delta=(f"{_ig_d:+d}" if _ig_d else None),
+                      help=t("home.ig_is_a_headcount",
+                             "Un EFFECTIF d'abonnés, pas un cumul d'écoutes : il ne "
+                             "se découpe pas par période et n'entre pas dans le "
+                             "total ci-dessus. L'écart est celui de la période "
+                             "affichée."))
+
+    def _u_meta(col):
+        with col.container(border=True):
+            st.metric(t("home.tile_meta", "📊 Meta Ads"),
+                      (f"{_spend:,.2f}".replace(",", "\u202f").replace(".", ",")
+                       + "\u00a0€") if _spend else "—",
+                      delta=_cpr_line, delta_color="off",
+                      help=t("home.tile_meta_help",
+                             "Dépense publicitaire de la période affichée, et le "
+                             "coût par résultat de la campagne la plus RÉCENTE — "
+                             "celle de la dernière sortie, pas le record de toutes "
+                             "les campagnes.")
+                      + (f" Campagne : {_cpr_name}." if _cpr_name else "")
+                      # R146 — ce chiffre est un coût par CLIC SORTANT. C'est la
+                      # tuile du premier écran : elle ne peut pas être la seule à
+                      # laisser croire qu'un « résultat » est une écoute.
+                      + "\n\n" + cpr_help())
+
+    def _u_hypeddit(col):
+        with col.container(border=True):
+            st.metric(
+                t("home.tile_hypeddit", "📱 Hypeddit"),
+                (f"{_hd_ctr:.1f}".replace(".", ",") + "\u00a0%")
+                if _hd_ctr is not None else "—",
+                delta=(t("home.tile_hypeddit_volume", "👁️ {v} · 🖱️ {c}").format(
+                           v=f"{_hd_v:,}".replace(",", "\u202f"),
+                           c=f"{_hd_c:,}".replace(",", "\u202f"))
+                       if _hd_v else None),
+                delta_color="off", help=_hd_help)
+
+    _ig_d = _s.get("ig_delta")
+    _unites = [
+        [(_t.get("spotify"), _u_spotify)],
+        [(_t.get("youtube"), _u_youtube)],
+        # ⚠️ UNE SEULE UNITÉ — voir le commentaire en tête de bloc.
+        [(_t.get("apple"), _u_apple), (_shz, _u_shazam)],
+        [(_t.get("soundcloud"), _u_soundcloud)],
+        [(ig_count, _u_instagram)],
+        # ⚠️ UNE SEULE UNITÉ — la chaîne dépense → clic.
+        [(_spend, _u_meta), (_hd_ctr, _u_hypeddit)],
+    ]
+    # `sorted` est STABLE : à présence égale, l'ordre de déclaration ci-dessus
+    # départage. Une unité a des données dès qu'UNE de ses boîtes en a — sans quoi
+    # Shazam vide ferait descendre Apple qui livre.
+    _unites.sort(key=lambda u: not any(v for v, _f in u))
+
+    for _rangee in agencer(_unites):
+        _cols = st.columns(2)
+        for _col, (_valeur, _rendu) in zip(_cols, _rangee):
+            _rendu(_col)
 
 
 # `_recap_extra` A ÉTÉ SUPPRIMÉE LE 2026-09-12, pas mise de côté. Elle fabriquait

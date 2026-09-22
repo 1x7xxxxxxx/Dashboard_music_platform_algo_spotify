@@ -197,4 +197,22 @@ EN = {
         "raise or cut."),
     "home.advice_cta_locked_help": (
         "The detailed comparison of your campaigns is included in the subscription."),
+    # ── Investi / Rentré (2026-09-22) ──────────────────────────────────────
+    "home.money_line": "Invested **{sorti} \u20ac** \u00b7 Earned back **{rentre} \u20ac**",
+    "home.money_caveat": (
+        "Since the beginning, outside the selected period. The revenue is what you "
+        "imported \u2014 distributors and SACEM. The break-even point is computed on "
+        "\U0001F4C8 Revenue forecast."),
+    "home.money_no_revenue": (
+        "You have not uploaded a distributor statement yet: there is no way to say "
+        "what this spending brought you."),
+    # ── Les trois axes de la publicité (2026-09-22) ────────────────────────
+    "home.axe_age": "age bracket",
+    "home.axe_pays": "country",
+    "home.axe_placement": "ad placement",
+    "home.axe_phrase": (
+        "On **{axe}**, your best result is **{meilleur}** at {cpr_min} \u20ac per "
+        "outbound click, and your worst **{pire}** at {cpr_max} \u20ac. About "
+        "**{perte} \u20ac** went above the cheapest cost."),
+    "home.axes_reste": "The {n} other axes, less costly",
 }
