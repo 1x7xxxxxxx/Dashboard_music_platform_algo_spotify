@@ -5,7 +5,6 @@ import warnings
 # time — silenced before any view imports matplotlib/altair so it never reaches the UI/logs.
 warnings.filterwarnings("ignore", message="Unable to import Axes3D")
 
-import html as _html
 import streamlit as st
 from pathlib import Path
 import sys
@@ -82,7 +81,6 @@ from src.dashboard.email_actions import _unsubscribe, _verify_email
 # était EXACTEMENT à son plafond de longueur et qu'ajouter une ligne de menu —
 # commentaire compris — faisait rougir la CI. Le cliquet a refusé la dette au lieu
 # d'être relevé, et le découpage a été vérifié au navigateur, comme il l'exigeait.
-from src.dashboard.utils.nav_badges import _neighbour_pages
 from src.dashboard.utils.nav_sections import NAV_SECTIONS as _NAV_SECTIONS
 from src.database.stripe_schema import page_is_locked
 # Pages réservées admin (cachées pour le rôle 'artist')
@@ -315,73 +313,16 @@ def render_navigation(role: str, rendered, all_skeys) -> str:
     def _is_locked(key: str) -> bool:
         return page_is_locked(plan, key)
 
-    # Le titre, et deux flèches pour passer d'une page à la suivante sans chercher
-    # dans une liste de quarante entrées. Demandé le 2026-09-04 : « rajoute 2 flèches
-    # cliquables qui passent d'un onglet à l'autre à côté de NAVIGATION ».
+    # Le titre de la barre et les deux flèches vivent dans `utils/nav_header.py`.
     #
-    # Écrire `_nav_page` ici est LÉGAL et ne l'est pas partout : on est dans la phase
-    # barre latérale, avant que les radios de section soient instanciés — c'est
-    # exactement la contrainte documentée dans `utils/navigation.py`. Le rerun qui
-    # suit fait accorder le menu par `resolve_nav_page`.
-    _cur = st.session_state.get('_nav_page', 'home')
-    _prev, _next = _neighbour_pages(rendered, _cur, _is_locked)
-
-    # `vertical_alignment="center"` et un `###` plutôt qu'un `st.title`.
-    #
-    # Un `st.title` mesure ~2,5 fois la hauteur d'un bouton et porte sa propre marge
-    # haute ; les colonnes s'alignant par le HAUT, les deux flèches flottaient contre
-    # le sommet du titre, très au-dessus de sa ligne de base. « Pas alignées avec
-    # Navigation, c'est moche » — 2026-09-04, et c'est exact : rien ne les alignait.
-    #
-    # Deux corrections, pas une. L'alignement centre les trois colonnes sur la même
-    # ligne médiane ; le titre passe en `###` pour que cette ligne médiane soit à peu
-    # près la hauteur d'un bouton — centrer un titre trois fois trop haut aurait
-    # laissé les flèches au milieu d'un grand vide.
-    try:
-        _c_title, _c_prev, _c_next = st.sidebar.columns(
-            [5, 1, 1], vertical_alignment="center")
-    except TypeError:      # Streamlit < 1.36 — pas d'alignement vertical
-        _c_title, _c_prev, _c_next = st.sidebar.columns([5, 1, 1])
-    # Le titre reçoit la HAUTEUR d'un bouton, et s'y centre lui-même.
-    #
-    # Mesuré au navigateur, parce que deux tentatives ont raté avant celle-ci. Un
-    # `st.title` place les flèches ~25 px au-dessus de sa ligne de base (colonnes
-    # alignées par le haut). `vertical_alignment="center"` + un `###` laisse encore
-    # 8 px, et la mesure dit pourquoi : le conteneur `stMarkdown` du titre est haut
-    # de **13 px** alors que le `<h3>` qu'il porte en fait **29** — le titre déborde
-    # de la boîte que Streamlit centre. Mettre la marge à zéro n'y change rien : ce
-    # n'est pas la marge qui est fausse, c'est la hauteur mesurée.
-    #
-    # On cesse donc de compenser et on égalise : une boîte de 40 px — la hauteur
-    # d'un bouton Streamlit — qui centre son propre texte. Les deux colonnes ont
-    # alors la même hauteur de contenu, et l'alignement est vrai quelle que soit la
-    # façon dont Streamlit la calcule. C'est NOTRE balise, pas un `<style>` visant
-    # ses classes internes (`st-emotion-cache-…` change sans prévenir).
-    #
-    # Le `-16px` est MESURÉ, et sa valeur a une raison qui vaut d'être écrite : à
-    # hauteurs égales (40 px des deux côtés, Streamlit 1.54), le bloc de texte
-    # commençait 8 px plus bas que le bouton. Une compensation de -8 px n'en a
-    # rattrapé que 4 — `vertical_alignment="center"` recentre APRÈS la marge, donc
-    # il en amortit la moitié. Il faut le double de l'écart observé.
-    #
-    # Pour le remesurer un jour : comparer `getBoundingClientRect()` du div ci-
-    # dessous et d'une flèche, et mettre ici deux fois l'écart des centres. Trop
-    # petit pour valoir un test — un test de pixels casse à chaque montée de
-    # version et n'apprendrait rien de plus que l'œil.
-    _c_title.markdown(
-        '<div style="height:40px;margin-top:-16px;display:flex;align-items:center;'
-        'font-size:1.25rem;font-weight:600;">'
-        + _html.escape(t("nav.title", "🎵 Navigation")) + '</div>',
-        unsafe_allow_html=True)
-    from src.dashboard.utils.navigation import goto
-    if _c_prev.button("◀", key="_nav_prev", disabled=_prev is None,
-                      help=t("nav.prev", "Page précédente"),
-                      width="stretch"):
-        goto(_prev)
-    if _c_next.button("▶", key="_nav_next", disabled=_next is None,
-                      help=t("nav.next", "Page suivante"),
-                      width="stretch"):
-        goto(_next)
+    # ⚠️ SORTIS D'ICI le 2026-09-22 par le cliquet de longueur : ce fichier est gelé à
+    # 997 lignes, et le pourcentage d'avancement de la configuration l'a fait passer à
+    # 1 015. « Ce qui entre dans ce fichier doit en faire sortir autant. » Ce bloc était
+    # le meilleur candidat — quarante-cinq lignes cohésives, dont trente d'essai sur des
+    # pixels mesurés au navigateur, qui ont leur place à côté du `<div>` qu'elles
+    # décrivent et pas au milieu du routage.
+    from src.dashboard.utils.nav_header import render_nav_header
+    render_nav_header(rendered, _is_locked)
 
     label_by_key = {key: t(f"nav.item.{key}", lbl)
                     for _, _, items in rendered for lbl, key in items}
@@ -404,6 +345,23 @@ def render_navigation(role: str, rendered, all_skeys) -> str:
             _marque = _section_badge([k for _, k in items],
                                      is_locked=_is_locked, paid_pages=_paid)
             _titre = t(f'nav.section.{sec_id}', header)
+            # ── LE POURCENTAGE D'AVANCEMENT DE LA CONFIGURATION — 2026-09-22 ────
+            #
+            # Demandé en regardant l'écran : « un % de complétion à côté de la
+            # section Configuration, sur 100 ». Il répond à une question que les
+            # sept entrées de la section ne posent pas — *combien il m'en reste* —
+            # et il la rend visible SANS ouvrir la section.
+            #
+            # Le calcul vit dans `utils/setup_progress.py` — deux cliquets l'ont
+            # fait sortir d'ici : la longueur de ce fichier (gelée à 997 lignes) et
+            # la fermeture de connexion, que le garde a nommée à la ligne près.
+            # Son récit, son horizon de cache et le « None plutôt que 0 » y sont.
+            if sec_id == "data":
+                from src.dashboard.utils.setup_progress import setup_pct
+                _pct = setup_pct(st.session_state.get('artist_id'),
+                                 st.session_state.get('user_id'), plan)
+                if _pct is not None:
+                    _titre += f"  ·  {_pct} %"
             st.sidebar.markdown(
                 f"###### {_marque + ' ' if _marque else ''}{_titre}")
         st.sidebar.radio(

@@ -147,10 +147,35 @@ def _neighbour_pages(rendered, current: str, is_locked) -> tuple:
     était le meilleur candidat : purement navigationnelle, sans Streamlit, et
     déjà testée hors rendu.
     """
-    order = [key for _, _, items in rendered for _, key in items
-             if not is_locked(key)]
-    if current not in order:
-        return None, None
-    i = order.index(current)
-    return (order[i - 1] if i > 0 else None,
-            order[i + 1] if i < len(order) - 1 else None)
+    tout = [key for _, _, items in rendered for _, key in items]
+    ouvert = [k for k in tout if not is_locked(k)]
+
+    if current in ouvert:
+        i = ouvert.index(current)
+        return (ouvert[i - 1] if i > 0 else None,
+                ouvert[i + 1] if i < len(ouvert) - 1 else None)
+
+    # ── LA PAGE COURANTE EST VERROUILLÉE : ON NE LAISSE PERSONNE COINCÉ ────────
+    #
+    # ⚠️ DÉFAUT MESURÉ LE 2026-09-22. Le code d'avant construisait la liste SANS les
+    # pages verrouillées, puis faisait `if current not in order: return None, None`.
+    # Conséquence : un compte gratuit qui CLIQUE une entrée 🔒 — ce que le cadenas
+    # l'invite à faire, puisqu'il annonce ce que l'abonnement contient — atterrit sur
+    # le mur de montée en gamme avec **LES DEUX FLÈCHES MORTES**. Plus aucune sortie
+    # que le menu. Vérifié sur `export_pdf`, `trigger_algo` et `meta_cpr_optimizer` :
+    # les trois rendaient `(None, None)`.
+    #
+    # Le saut des pages verrouillées reste vrai et voulu — une flèche est un geste
+    # d'exploration, et l'envoyer buter sur le paywall une entrée sur deux transforme
+    # l'exploration en parcours d'obstacles. Mais « ne pas y MENER » n'est pas « ne
+    # pas en SORTIR », et les deux avaient été confondus.
+    #
+    # On ancre donc sur la position de la page dans l'ordre COMPLET, et on rend les
+    # voisines ouvertes de chaque côté : le geste reste toujours possible.
+    if current not in tout:
+        return None, None          # clé inconnue (URL périmée) : rien à proposer
+    i = tout.index(current)
+    avant = [k for k in tout[:i] if not is_locked(k)]
+    apres = [k for k in tout[i + 1:] if not is_locked(k)]
+    return (avant[-1] if avant else None,
+            apres[0] if apres else None)

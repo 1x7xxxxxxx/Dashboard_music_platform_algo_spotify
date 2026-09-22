@@ -271,15 +271,36 @@ def test_the_premium_section_lists_exactly_what_is_sold() -> None:
         "au milieu de pages gratuites ne dit pas ce que l'abonnement contient.")
 
 
-def test_the_premium_section_sits_right_below_prediction() -> None:
-    """L'ORDRE est la demande, et il se perd au premier ajout de section."""
+def test_the_prediction_opens_what_the_subscription_sells() -> None:
+    """La prédiction est la PROMESSE du produit : elle ouvre la liste de ce qu'on paie.
+
+    ⚠️ CE TEST EXIGEAIT AUTRE CHOSE, et son remplacement est le point. Il demandait
+    que la section « premium » soit **juste sous** une section « advanced ». Le
+    2026-09-22, « 🔮 Prédiction algos Spotify » a cessé d'être une section — demandé
+    en regardant l'écran — parce qu'elle n'en portait qu'une, et que cette page est
+    PAYANTE : une section d'un seul élément payant posée à côté de « 💎 Premium — ce
+    que l'abonnement ouvre » séparait la promesse du produit de la liste de ce qu'on
+    achète.
+
+    L'INTENTION n'a pas changé : la prédiction vient en premier parce que c'est ce
+    que l'abonnement vend d'abord. Elle s'exprime maintenant sur la place de la PAGE
+    dans la section, et non sur la place d'une section dans le menu — donc un
+    regroupement de sections ne peut plus la casser par accident.
+    """
     import sys
     sys.path.insert(0, str(_ROOT))
     from src.dashboard.utils.nav_sections import NAV_SECTIONS
-    ordre = [sec for sec, _, _ in NAV_SECTIONS]
-    assert "advanced" in ordre and "premium" in ordre
-    assert ordre.index("premium") == ordre.index("advanced") + 1, (
-        f"« premium » n'est plus juste sous « advanced » (prédiction) : {ordre}")
+    sections = dict((sec, [k for _, k in items]) for sec, _, items in NAV_SECTIONS)
+    assert "premium" in sections, f"la section « premium » a disparu : {list(sections)}"
+    assert sections["premium"], "la section « premium » est vide"
+    assert sections["premium"][0] == "trigger_algo", (
+        "la prédiction de déclenchement n'ouvre plus la section Premium : "
+        f"{sections['premium']}. C'est la promesse du produit ; elle vient en tête de "
+        "ce que l'abonnement vend.")
+    assert "advanced" not in sections, (
+        "une section « advanced » est revenue. Elle a été retirée le 2026-09-22 : une "
+        "section d'un seul élément payant, posée à côté de la liste de ce qu'on paie, "
+        "sépare la promesse du produit de son prix.")
 
 
 def test_the_padlock_says_what_the_plan_opens_not_only_what_it_blocks() -> None:

@@ -25,8 +25,23 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R162 | Le garde des connexions ne voit que le PREMIER niveau du corps | P3 | un prédicat qui parcourt `ast.walk(fn)` au lieu de `fn.body` → **1 site** : `app.py:480 _check_db_health` |
 
-**Cet index est VIDE le 2026-09-22 au soir**, et il l'a été trois fois dans la journée.
+**Cet index porte UNE ligne le 2026-09-22 au soir.** Il a été vide trois fois dans la
+journée ; R162 y est entrée en dernier, trouvée en MUTANT un garde neuf.
+
+⚠️ **R162 — un garde qui ne voit que le premier niveau.**
+`tests/test_a_connection_is_closed_on_every_path.py` parcourt `fn.body`, donc le corps
+de la fonction **au premier niveau seulement**. Une ouverture imbriquée dans un `try`,
+un `if` ou une boucle lui est invisible. Trouvé le 2026-09-22 en mutant : j'ai remplacé
+un `with project_db()` par un `get_db_connection()` posé DANS un `try` sans `finally`,
+et le garde est resté **VERT** — c'est mon test étroit qui l'a attrapé.
+
+Mesuré avec un prédicat élargi à `ast.walk(fn)` sur tout `src/dashboard/` : **1 site**,
+`app.py:480 _check_db_health`. Il **ferme** sur son chemin heureux
+(`if db is not None: db.close()`), donc la fuite est **latente** et non vivante — c'est
+pourquoi ceci est une ligne de roadmap et pas un correctif d'urgence. Le remède est le
+même que partout ailleurs : `with project_db() as db:`.
 Vide à midi ; **R157, R158, R159, R160 et R161** y sont entrées par le travail de
 l'après-midi, toutes nées d'une mesure prise ce jour-là et aucune d'une intuition ; les
 cinq en sont sorties le soir même, livrées. Leur récit est dans `archive.md`.
@@ -171,7 +186,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-22 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R148,R150,R151,R153 -->
+<!-- reprise: open=R148,R150,R151,R153,R162 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers

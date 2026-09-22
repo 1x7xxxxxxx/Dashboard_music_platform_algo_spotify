@@ -64,31 +64,54 @@ from __future__ import annotations
 # artiste Free — conséquence assumée le 2026-09-12, l'entrée restant visible pour
 # dire ce que l'offre contient.
 NAV_SECTIONS: list = [
-    # ── LA TÊTE DU MENU — 2026-09-22 ────────────────────────────────────────
+    # ── L'ORDRE DU MENU — réorganisé le 2026-09-22 sur retour d'écran ──────────
     #
-    # Demandé en regardant l'écran : « accueil et ensuite guide de démarrage »,
-    # puis les deux exports. Trois gestes dans l'ordre où on les fait quand on
-    # arrive : je regarde où j'en suis, je branche ce qui manque, j'emporte le
-    # résultat.
+    # Neuf demandes, formulées en regardant la barre latérale. Elles se ramènent à
+    # une seule règle : **le menu suit le parcours, pas la plomberie.**
     #
-    # Les exports étaient dispersés — « 📄 Export PDF » au milieu des six pages
-    # Premium, « ⬇️ Export CSV » sous « Compte », entre la facturation et le
-    # parrainage. Aucun des deux ne se trouvait en cherchant « je veux mon
-    # rapport » : le premier demandait de connaître son plan, le second de penser
-    # à son compte. Ils sont maintenant là où on les cherche.
+    #   1. l'accueil, seul en tête — trois gestes y étaient empilés
+    #   2. je configure          → « ⚙️ Configuration », avec son % d'avancement
+    #   3. je regarde mes chiffres → « 📊 Analytics plateformes », AVANT le premium
+    #   4. je vois ce que j'achète → « 💎 Premium »
     #
-    # ⚠️ « 📄 Export PDF » est PREMIUM (décision du 2026-09-04 : « la sortie brute
-    # reste gratuite, la mise en forme est le service »). Le remonter met donc un
-    # 🔒 rouge en troisième entrée pour un compte gratuit. C'est assumé : l'entrée
-    # reste visible pour dire ce que l'abonnement contient, et depuis le
-    # 2026-09-22 le cadenas le dit en couleur.
+    # Ce qui a changé, et pourquoi chaque déplacement plutôt qu'un autre :
+    #
+    # « 🔮 Prédiction algos Spotify » N'EST PLUS UNE SECTION. Elle n'en portait
+    # qu'une, et cette page est PAYANTE : une section d'un seul élément payant
+    # posée à côté de « 💎 Premium — ce que l'abonnement ouvre » séparait la
+    # promesse du produit de la liste de ce qu'on paie. Elle ouvre donc le premium,
+    # à sa place : c'est la page que l'abonnement vend en premier.
+    #
+    # « 📣 Publicité Meta Ads » N'EST PLUS UNE SECTION non plus. Elle n'en portait
+    # qu'une, gratuite, et c'est une plateforme comme les autres — elle rejoint
+    # « 📊 Analytics plateformes », juste sous Spotify + S4A, parce que c'est la
+    # source qu'on croise le plus souvent avec les écoutes.
+    #
+    # « 🚀 Mise en route » RETOURNE dans la configuration, juste avant « 🚦 Santé
+    # onboarding ». L'assistant et le contrôle de ce qu'il a produit se lisent dans
+    # cet ordre-là ; en tête de menu, l'assistant proposait d'installer sans dire
+    # ce qui était déjà installé.
+    #
+    # « ⬇️ Export CSV » RETOURNE sous « 👤 Compte », entre la facturation et le
+    # parrainage — sa place d'avant le 2026-09-22. Une sortie brute de ses propres
+    # données est un geste de compte, pas un geste d'analyse.
+    #
+    # « 📄 Export PDF » devient « 📄 Rapport de carrière PDF » et PASSE EN DERNIER
+    # d'« Analytics plateformes ». Le nom d'abord : « Export PDF » décrit un format,
+    # « Rapport de carrière » décrit ce qu'on obtient — et c'est ce qu'on cherche.
+    # La place ensuite : il vient après les plateformes parce qu'il les RÉSUME ;
+    # en troisième entrée du menu, il proposait un résumé avant qu'il y ait quoi
+    # que ce soit à résumer.
+    #
+    # « 🎯 Faire piloter mes campagnes » suit immédiatement le rapport. L'ordre
+    # raconte quelque chose : voilà ta carrière en un document, et voilà qui peut
+    # s'en occuper. Elle quitte donc « 👤 Compte », où elle était rangée par
+    # facturation plutôt que par usage.
     ("start",     "",
-     [("🏠 Accueil", "home"),
-      ("🚀 Mise en route (assistant)", "onboarding"),
-      ("📄 Export PDF", "export_pdf"),
-      ("⬇️ Export CSV", "export_csv")]),
+     [("🏠 Accueil", "home")]),
     ("data",      "⚙️ Configuration de streaMLytics",
-     [("🚦 Santé onboarding", "onboarding_health"),
+     [("🚀 Mise en route (assistant)", "onboarding"),
+      ("🚦 Santé onboarding", "onboarding_health"),
       ("🔑 Credentials API + imports CSV", "credentials"),
       # « 📋 État de tes plateformes » a été RETIRÉE du menu le 2026-09-05 : chaque
       # onglet de Credentials porte désormais les quatre mêmes pastilles pour SA
@@ -97,71 +120,62 @@ NAV_SECTIONS: list = [
       # information de plus. La ROUTE survit (voir `_main_body`) — des liens la visent.
       ("🔗 Mapping cross-plateforme", "meta_mapping"),
       ("📝 Saisie S4A (playlist & Discovery)", "saisie_s4a"),
-      # ⚠️ HYPEDDIT REJOINT LA CONFIGURATION le 2026-09-21, juste après Saisie S4A.
-      #
-      # Elle vivait dans « 📊 Analytics plateformes », entre Instagram et Data
-      # Wrapped. C'était vrai côté machine et faux côté parcours : Hypeddit
-      # n'est pas une plateforme qu'on COLLECTE, c'est un formulaire qu'on
-      # REMPLIT — les visites et clics d'un smart link se recopient à la main
-      # depuis leur tableau de bord. Elle appartient donc au même geste que la
-      # saisie S4A, et se fait au même moment.
-      #
-      # C'est le même déplacement, pour la même raison, que « 📝 Saisie S4A »
-      # elle-même le 2026-09-12 : elle était rangée avec le modèle qu'elle
-      # nourrit, alors que c'est une SAISIE.
+      # ⚠️ HYPEDDIT EST UNE SAISIE, PAS UNE PLATEFORME (2026-09-21). Elle vivait
+      # dans « 📊 Analytics plateformes », entre Instagram et Data Wrapped —
+      # vrai côté machine, faux côté parcours : les visites et clics d'un smart
+      # link se recopient à la main depuis son tableau de bord. Même déplacement,
+      # même raison, que « 📝 Saisie S4A » le 2026-09-12.
       ("📱 Hypeddit (saisie smart link)", "hypeddit"),
       ("🗄️ Santé des données", "db_health")]),
-    ("advanced",  "🔮 Prédiction algos Spotify",
-     [("🚀 Prédiction déclenchement algos Spotify (DW, Radio, RR…)", "trigger_algo")]),
-    # ── CE QUI SE VEND, RASSEMBLÉ — 2026-09-21 ────────────────────────────────
+    # ── CE QU'ON REGARDE, AVANT CE QU'ON ACHÈTE — 2026-09-22 ──────────────────
+    #
+    # Cette section était SOUS « 💎 Premium ». Un artiste gratuit voyait donc six
+    # cadenas avant d'atteindre ses propres chiffres, ce qui inverse l'ordre des
+    # choses : on regarde d'abord ce qu'on a, on décide ensuite si on paie pour
+    # plus.
+    ("analytics", "📊 Analytics plateformes",
+     [("🎵 Spotify + Spotify for Artists", "spotify_s4a_combined"),
+      ("📣 Publicité Meta Ads", "meta_ads_overview"),
+      ("🎎 Apple Music", "apple_music"),
+      ("🎬 YouTube", "youtube"),
+      ("☁️ SoundCloud", "soundcloud"),
+      ("📸 Instagram", "instagram"),
+      # ⚠️ « 🎁 Data Wrapped » a quitté le menu le 2026-09-21, et sa ROUTE survit.
+      # Son contenu est rendu par « 🎵 Spotify + Spotify for Artists », replié : ce
+      # qu'on y saisit sont les chiffres du Spotify Wrapped FOR ARTISTS, donc des
+      # chiffres Spotify. Une entrée par SOURCE DE SAISIE éparpillait une seule
+      # histoire. La route reste valide — des liens la visent.
+      ("📄 Rapport de carrière PDF", "export_pdf"),
+      ("🎯 Faire piloter mes campagnes", "service")]),
+    # ── CE QUI SE VEND, RASSEMBLÉ — 2026-09-21, complété le 2026-09-22 ─────────
     #
     # Les six pages Premium étaient dispersées dans CINQ sections, chacune au
-    # milieu de pages gratuites. Conséquence pour un artiste Free : six 🔒 semés
-    # dans le menu, sans qu'aucun écran ne dise ce que l'abonnement contient — et
-    # pour un artiste Premium, aucune façon de voir ce qu'il paie.
+    # milieu de pages gratuites : six 🔒 semés dans le menu, sans qu'aucun écran ne
+    # dise ce que l'abonnement contient — et pour un abonné, aucune façon de voir
+    # ce qu'il paie. Depuis le 2026-09-22 l'en-tête porte lui aussi un cadenas
+    # (`nav_badges.section_badge`) : 🔒 rouge quand rien n'est ouvert, 🔓 vert quand
+    # tout l'est.
     #
-    # Elles vivent maintenant ensemble, juste sous la prédiction, qui est la
-    # promesse du produit (déplacement du 2026-09-12, même raison).
-    #
-    # ⚠️ `meta_ads_overview` N'EST PAS ICI : elle est gratuite. Rassembler « ce
-    # qui se vend » ne veut pas dire rassembler « tout ce qui touche à Meta » —
-    # le critère est le PLAN, et il se lit dans `stripe_schema.PLAN_FEATURES`,
-    # pas dans le thème de la page. Un garde le vérifie
-    # (`tests/test_the_campaign_view_plots_what_it_promises.py`) : cette
-    # liste et le catalogue de prix ne peuvent plus diverger en silence.
+    # ⚠️ `meta_ads_overview` N'EST PAS ICI : elle est GRATUITE. Rassembler « ce qui
+    # se vend » ne veut pas dire rassembler « tout ce qui touche à Meta » — le
+    # critère est le PLAN, et il se lit dans `stripe_schema.PLAN_FEATURES`, pas dans
+    # le thème de la page. Un garde le vérifie
+    # (`tests/test_the_campaign_view_plots_what_it_promises.py`) : cette liste et le
+    # catalogue de prix ne peuvent plus diverger en silence.
     ("premium",   "💎 Premium — ce que l'abonnement ouvre",
-     [("🔀 Impact de mes campagnes (toutes plateformes)", "meta_x_spotify"),
+     [("🚀 Prédiction déclenchement algos Spotify (DW, Radio, RR…)", "trigger_algo"),
+      ("🔀 Impact de mes campagnes (toutes plateformes)", "meta_x_spotify"),
       ("🎨 Visuels de campagne", "meta_creatives"),
       ("🌍 Qui a vu tes pubs (pays, âge, placement)", "meta_breakdowns"),
       ("📊 CPR Optimizer", "meta_cpr_optimizer"),
       ("📈 Prévisions revenus", "revenue_forecast")]),
-    ("analytics", "📊 Analytics plateformes",
-     [("🎵 Spotify + Spotify for Artists", "spotify_s4a_combined"),
-      ("🎎 Apple Music", "apple_music"),
-      ("🎬 YouTube", "youtube"),
-      ("☁️ SoundCloud", "soundcloud"),
-      ("📸 Instagram", "instagram")]),
-    # ⚠️ « 🎁 Data Wrapped » a quitté le menu le 2026-09-21, et sa ROUTE survit.
-    #
-    # Son contenu est rendu par « 🎵 Spotify + Spotify for Artists », replié : ce
-    # qu'on y saisit sont les chiffres du Spotify Wrapped FOR ARTISTS — listeners,
-    # streams, saves, playlist adds — c'est-à-dire des chiffres Spotify. Une
-    # entrée de menu par SOURCE DE SAISIE éparpillait une seule histoire.
-    #
-    # La route reste valide (`data_wrapped.show()` existe toujours) pour la même
-    # raison que `process_guide` : des liens la visent, et un artiste qui suit un
-    # ancien lien ne doit pas tomber sur un mur.
-    ("ads",       "📣 Publicité Meta Ads",
-     [("📱 Vue d'ensemble", "meta_ads_overview")]),
     ("revenue",   "💶 Revenus",
      [("💰 Distributeurs (iMusician, DistroKid…)", "imusician"),
       ("🎼 SACEM", "sacem")]),
     ("account",   "👤 Compte",
      [("👤 Mon compte", "account"),
       ("💳 Billing", "billing"),
-      # La prestation vit sous la facturation et non dans « 💎 Premium » : ce
-      # n'est PAS ce que l'abonnement ouvre, c'est ce qu'un humain fait à côté.
-      ("🎯 Faire piloter mes campagnes", "service"),
+      ("⬇️ Export CSV", "export_csv"),
       ("🎁 Parrainage", "referral")]),
     # ⚡ « Perf. Dashboard » (`perf_monitor`) a ete RETIRE le 2026-09-16, R115 etape 6.
     # Grafana le couvre entierement, et mieux : la vue ne montrait que la session de

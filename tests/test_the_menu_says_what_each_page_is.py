@@ -1,7 +1,7 @@
 """Le menu, les flèches, et la sortie — ce que l'artiste lit avant de cliquer.
 
 Type: Test
-Uses: app._NAV_SECTIONS, app._neighbour_pages, auth.render_logout_footer
+Uses: app._NAV_SECTIONS, nav_badges._neighbour_pages, auth.render_logout_footer
 Depends on: src/dashboard/app.py, src/dashboard/auth.py
 Persists in: nothing
 
@@ -29,7 +29,12 @@ from pathlib import Path
 
 import pytest
 
-from src.dashboard.app import _ADMIN_ONLY, _NAV_SECTIONS, _neighbour_pages
+# ⚠️ `_neighbour_pages` vit dans `utils/nav_badges` depuis le 2026-09-22, sorti
+# d'`app.py` par le cliquet de longueur de ce fichier. `app.py` le ré-exportait ;
+# ruff a retiré cet import devenu inutile le soir même, et l'import d'ici l'a
+# suivi. Une réexportation n'est pas un domicile.
+from src.dashboard.app import _ADMIN_ONLY, _NAV_SECTIONS
+from src.dashboard.utils.nav_badges import _neighbour_pages
 
 _ROOT = Path(__file__).resolve().parents[1]
 
