@@ -5,6 +5,63 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-22 (nuit) — La page de saisie ne disait pas depuis quand elle mentait
+
+**Ce qui a changé.** Deux commits déployés (`2cecff6`, `1263ef3`). La page de saisie
+S4A passe de quatre grilles empilées à trois onglets, ses deux paires « Début / Fin »
+deviennent des raccourcis, et un onglet neuf répond à la question que la page ne
+posait pas : *où j'en suis ?*
+
+### Le chiffre qui a dicté la conception
+
+Relevé en production avant d'écrire une ligne :
+
+| bloc | dernière saisie | âge |
+|---|---|---|
+| Résultats réalisés | 2026-09-20 | **2 j** |
+| Ajouts en playlist · Discovery · non-algo · Radio | 2026-06-10 | **104 j** |
+
+Cent quatre jours entre les deux moitiés de la même page, et **rien à l'écran ne le
+disait**. Une grille pré-remplie a exactement la même allure qu'on l'ait enregistrée
+hier ou en juin. Le modèle lit pourtant un compteur Radio saisi **une seule fois**,
+en juin, comme s'il décrivait septembre.
+
+C'est la classe de R125 — une table vide se lit comme « pas encore de données » —
+retournée : **une table PLEINE se lit comme « à jour »**. La première avait coûté une
+brique entière de ML sans labels ; la seconde coûtait la fraîcheur de quatre signaux
+sur cinq.
+
+### Le filtre : ce n'était pas qu'une question de confort
+
+« début fin avec des valeurs à rentrer c'est pas très agréable ». Vrai, et il y a plus
+gênant dessous : Spotify for Artists n'affiche un chiffre que pour **7 jours, 28 jours
+et 12 mois**. Une paire de dates libres invitait à saisir « du 3 au 19 » — une période
+pour laquelle la source ne produit **aucune** valeur. Le champ acceptait donc un
+nombre que rien ne pouvait avoir produit, et il partait dans `period_start` /
+`period_end`, indiscernable d'une vraie donnée six mois plus tard.
+
+⚠️ **Le balayage du reste de l'app ne conclut pas ce qu'on attendait.** Les seules
+paires nues étaient ces deux-là. `export_pdf` porte déjà huit préréglages avec
+« Personnalisé » en échappatoire — la bonne forme. Les `date_input` restants
+(`admin`, `revenue_forecast`, `promo_admin`, `hypeddit`) sont des **données métier** :
+la date d'un coût, l'expiration d'un code. Les convertir en filtres aurait été une
+régression. Et les deux vocabulaires de période ne sont pas unifiés : **ADR-020**
+tranche explicitement l'inverse, sur mesure.
+
+### Ce que l'onglet neuf montre, et ce qu'il refuse de montrer
+
+Quatre surfaces, chacune adossée à une mesure. La plus utile est aussi la plus
+sobre — le **pari du modèle** : en production, **10 titres, 0 déclenchement, 1,13
+attendu**. La légende écrit noir sur blanc que ce n'est pas un taux d'erreur : sur dix
+titres, l'écart dû au seul hasard est du même ordre. Même discipline que R147 sur les
+cohortes d'essai, et pour la même raison — un chiffre sur une population trop petite
+n'est pas un résultat, c'est une invention.
+
+Et l'historique des ajouts **refuse de se dessiner** quand il n'y a qu'un relevé :
+une courbe à un point suggère une tendance qu'un relevé ne porte pas.
+
+---
+
 ## 2026-09-22 (soir) — Sept lignes venues de dix livres, et le chiffre qu'aucune ne demandait
 
 **Ce qui a changé.** Les sept tâches ouvertes le matin (R146–R152, nées des dix livres
