@@ -26,63 +26,33 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 
-**Cet index est VIDE le 2026-09-22 au soir**, toutes deux nées d'une mesure prise
-ce jour-là et aucune d'une intuition. Il était vide à midi ; TROIS sont entrées par le
-travail de l'après-midi et **R159 en est déjà sortie, livrée le soir même**. Les deux qui
-restent avaient été **délibérément laissées de côté** dans le plan de l'accueil — « porté
-en roadmap, pas dans ce commit ». C'est ici qu'elles atterrissent, plutôt que dans une
-ligne d'historique que personne ne relit.
+**Cet index est VIDE le 2026-09-22 au soir**, et il l'a été trois fois dans la journée.
+Vide à midi ; **R157, R158, R159, R160 et R161** y sont entrées par le travail de
+l'après-midi, toutes nées d'une mesure prise ce jour-là et aucune d'une intuition ; les
+cinq en sont sorties le soir même, livrées. Leur récit est dans `archive.md`.
 
-⚠️ **R157 est la plus lourde, et sa correction a un coût VISIBLE.** La grille de
-l'accueil demande au registre la colonne `col` — la date à laquelle la ligne a été
-ÉCRITE — jamais `metric_col`, la date dont la donnée PARLE. Mesuré en base le
-2026-09-22, par source :
+⚠️ **Les paragraphes qui vivaient ici ont été retirés, et c'est le geste correct.** Ils
+portaient les ARGUMENTS de décisions désormais prises — pourquoi R157 méritait une
+décision de produit, pourquoi les 49 dates de R160 divergeaient. Une fois la décision
+prise et la brique livrée, ces arguments décrivent un état qui n'existe plus : c'est
+`un-document-qui-affirme-un-état-périmé`, et un écran de reprise en est la pire victime.
+Ils sont conservés **verbatim** dans `archive.md`, avec leur mesure.
 
-| source | écriture | mesure | écart |
-|---|---|---|---|
-| **Meta Ads** | 2026-09-20 | **2024-09-30** | **720 j** |
-| SACEM | 2026-06-11 | 2026-04-07 | 65 j |
-| Spotify S4A · Hypeddit | — | — | 1 j |
-| Apple Music | — | — | 0 j |
+**Ce qui reste n'est pas de l'ingénierie.** Les quatre lignes de « 🙋 En attente de toi »
+attendent chacune un geste que personne d'autre que le propriétaire ne peut faire : créer
+un client OAuth chez Google, faire glisser une conversion dans le Gestionnaire
+d'évènements de Meta, interroger trois artistes sur leur prix, saisir trois montants. Le
+côté outil des quatre est **livré**, et chacune porte sa procédure et sa preuve dans le
+runbook.
 
-Le DAG Meta réécrit chaque matin des lignes de 2024 : la tuile dit « à jour » pendant
-que la dernière donnée réelle a deux ans. **Corriger la lecture fait virer la tuile Meta
-au rouge pour TOUS les artistes** — ce n'est pas une régression, c'est la vérité qui
-apparaît, mais c'est un changement d'écran qui se décide, pas qui se glisse. La
-supervision admin, elle, lit DÉJÀ la bonne colonne depuis R154
-(`_supervision_freshness` appelle `colonne_de_mesure`, gardé par
-`test_a_freshness_surface_reads_the_measurement_date`) : les deux surfaces répondent
-donc aujourd'hui différemment à la même question.
+**Vérifié le même soir, pour que « vide » veuille dire quelque chose :**
 
-⚠️ **R160 est née d'un geste que je faisais moi-même, et je me suis compté faux
-d'abord.** En datant les chiffres de campagne (2026-09-22), j'ai écrit
-`jour.strftime("%d/%m/%Y")` — la convention du dépôt. Regardé en mode EN, le rendu donne
-« on its spending up to **30/09/2024** » : lisible ici parce que 30 ne peut pas être un
-mois, **et ambigu dès qu'un jour tombe sous 13**. `04/03/2025` veut dire 4 mars pour un
-lecteur anglais et 3 avril pour un lecteur français, sur le même écran, sans rien pour
-trancher. Le mode EN est vivant (`i18n._LANGS` porte `en`) et l'i18n est livrée depuis le
-2026-06-10.
-
-Mes deux sites neufs SUIVENT la convention plutôt que de s'en écarter seuls — 49 sites
-qui divergent valent mieux que 49 plus 2 qui divergent autrement. La correction est un
-formateur unique qui suit la langue, et elle touche tout le dépôt : hors périmètre d'un
-commit qui datait un chiffre.
-
-⚠️ **J'ai annoncé « 21 sites dans 10 fichiers » avant de mesurer proprement.** Ce
-premier compte venait d'un grep sur `strftime("%d/%m/%Y")` — une seule orthographe, qui
-rate les f-strings et les formats passés en variable. Le compte réel est **49 sites dans
-28 fichiers**, soit **×2,3**. C'est `anchor-a-number-to-its-population` : un prédicat qui
-cherche une forme d'écriture au lieu de la propriété « cette date est-elle formatée en
-jour/mois/année ».
-
-⚠️ **R158 est LIVRÉE le 2026-09-22 au soir, et sa prémisse n'était vraie qu'en
-production.** Rejouée sur la base LOCALE l'après-midi, elle rendait **zéro paire** — les
-deux bases ne portent pas la même population (4 673 `artist_id` distincts localement,
-dont la plupart sont des identifiants de plateforme et non des locataires). J'ai donc
-ouvert la production, où elle se reproduit exactement : 32 `success` à 0 ligne sur
-(12, youtube) pour **95 lignes fraîches du jour**, et 31 sur (13, soundcloud) pour 0
-ligne. **Une des deux paires à zéro est un mensonge, l'autre non, et le compteur ne peut
-pas les distinguer.** Détail et mesure : `archive.md`, section R158.
+| | état |
+|---|---|
+| index actionnable | **0 ligne** |
+| `TODO` / `FIXME` / `XXX` réels dans `src/ airflow/ tools/ .claude/scripts/` | **0** — les 3 occurrences sont un compteur nommé « TODO counter » et deux docstrings qui DÉCRIVENT le motif comme un défaut |
+| R116 · R131, parquées | conditions de réouverture **évaluées mécaniquement** à chaque `make night-check` — aucune remplie |
+| suite | 9 496 verts |
 
 ---
 
