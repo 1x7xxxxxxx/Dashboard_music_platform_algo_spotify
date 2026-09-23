@@ -9,6 +9,48 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🔌 R162 — Le garde des connexions lit les blocs imbriqués (livrée 2026-09-23)
+
+- [x] **R162 — le garde des connexions ne voyait que le PREMIER niveau du corps.** (P3) ✅ (2026-09-23)
+
+  **Ce qui a été fait.** `tests/test_a_connection_is_closed_on_every_path.py` parcourt
+  désormais TOUS les blocs d'une fonction (`try`, `if`/`else`, boucles, `with`,
+  `except`, `finally`, `match`), et cherche le `try/finally` fermant dans la suite du
+  bloc PUIS dans ce qui le suit aux niveaux supérieurs. Le cas paramétré n'a plus sa
+  propre copie du prédicat : il appelle `_scan_tree`, le même que le garde.
+
+  **Le chiffre annoncé était faux, dans les deux sens.** Le premier élargissement a
+  rendu **2 sites**, pas 1 : `app.py _check_db_health` (vivant) et
+  `cache_epoch.py bump()` — **faux positif** : ouverture dans `if owned:`, fermée par
+  le `try/finally` frère un niveau au-dessus. La recherche dans la suite des blocs
+  parents est cette correction. Sites vivants : **1**.
+
+  **Le remède n'était pas celui annoncé.** `with project_db()` aurait été une
+  régression : son chemin d'échec est `st.stop()`, et le travail de
+  `_check_db_health` est justement d'afficher la bannière « base inaccessible ». Le
+  correctif est un `try/finally` autour de la sonde.
+
+  **Mutation** : garde rouge sur `_check_db_health` avant le correctif, vert après ;
+  quatre cas imbriqués épinglés (deux défauts, deux formes correctes voisines).
+  `make test-changed` avec Postgres : **2 337 verts**, 0 rouge. Sans Postgres la même
+  sélection rendait 4 rouges (`/health` 503, section « santé » de l'admin) — tous
+  reproduits sur l'arbre d'origine, donc l'environnement et non le changement.
+
+  Le récit d'origine, verbatim :
+
+  ⚠️ **R162 — un garde qui ne voit que le premier niveau.**
+  `tests/test_a_connection_is_closed_on_every_path.py` parcourt `fn.body`, donc le corps
+  de la fonction **au premier niveau seulement**. Une ouverture imbriquée dans un `try`,
+  un `if` ou une boucle lui est invisible. Trouvé le 2026-09-22 en mutant : j'ai remplacé
+  un `with project_db()` par un `get_db_connection()` posé DANS un `try` sans `finally`,
+  et le garde est resté **VERT** — c'est mon test étroit qui l'a attrapé.
+
+  Mesuré avec un prédicat élargi à `ast.walk(fn)` sur tout `src/dashboard/` : **1 site**,
+  `app.py:480 _check_db_health`. Il **ferme** sur son chemin heureux
+  (`if db is not None: db.close()`), donc la fuite est **latente** et non vivante — c'est
+  pourquoi ceci est une ligne de roadmap et pas un correctif d'urgence. Le remède est le
+  même que partout ailleurs : `with project_db() as db:`.
+
 ## 🩺 R157 — Un verdict de fraîcheur porte sur la date que la donnée porte (livrée 2026-09-22)
 
 - [x] **R157 — la grille de fraîcheur lisait la date d'ÉCRITURE : Meta affichait « 🟢 il y a 0h » avec 722 jours de retard réel.** (P2)

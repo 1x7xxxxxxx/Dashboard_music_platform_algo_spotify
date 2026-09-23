@@ -40,6 +40,15 @@ correct. `_tests_absent` is that correction.
 Mutation record — 2026-09-11: run against the tree before the fix, this guard
 reported 4 sites and exited non-zero; after the fix, 0. It has been seen red on
 the defect it exists to catch.
+
+Widened 2026-09-23 (R162): the scan walked `fn.body`, the first level only, and
+stayed green on an open nested in a `try` without `finally` (mutation of
+2026-09-22). It now scans every nested block, and looks for the closing
+`try/finally` in what FOLLOWS the block too, one level up. Seen red on
+`app.py _check_db_health` (open in an `else`, closed on the happy path only)
+before its fix, green after. The first widening also reported
+`cache_epoch.bump`, which is correct; the follow-on lookup is that correction,
+and both forms are pinned in the parametrized cases below.
 """
 from __future__ import annotations
 
@@ -113,44 +122,88 @@ def _exits_holding(stmt: ast.stmt, name: str) -> bool:
     return False
 
 
-def _scan(path: pathlib.Path) -> list[str]:
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    rel = path.relative_to(_ROOT)
+def _blocks(fn: ast.AST) -> list[tuple[list[ast.stmt], list[ast.Try], list[ast.stmt]]]:
+    """Every statement list inside `fn`, its enclosing `try`s, and what follows it.
+
+    The third element is the statements that run after the block ends, in the
+    enclosing blocks: `if owned: db = open()` followed, one level up, by the
+    `try/finally` that closes it is correct, and scanning the block alone would
+    report it (`cache_epoch.bump`, the false positive of the first widening).
+
+    Walking `fn.body` alone saw the first level only: an open nested in a `try`,
+    an `if`, a loop or a `with` was invisible (R162, found by mutation
+    2026-09-22). Nested function definitions are left to their own scan.
+    """
+    out: list[tuple[list[ast.stmt], list[ast.Try], list[ast.stmt]]] = []
+
+    def visit(stmts: list[ast.stmt], trys: list[ast.Try], after: list[ast.stmt]) -> None:
+        out.append((stmts, trys, after))
+        for k, s in enumerate(stmts):
+            if isinstance(s, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            nxt = stmts[k + 1:] + after
+            inner = trys + [s] if isinstance(s, ast.Try) else trys
+            for field in ("body", "orelse"):
+                sub = getattr(s, field, None)
+                if isinstance(sub, list) and sub and isinstance(sub[0], ast.stmt):
+                    visit(sub, inner, nxt)
+            for h in getattr(s, "handlers", []):
+                visit(h.body, trys, nxt)
+            if isinstance(s, ast.Try):
+                visit(s.finalbody, trys, nxt)
+            for case in getattr(s, "cases", []):
+                visit(case.body, trys, nxt)
+
+    visit(fn.body, [], [])
+    return out
+
+
+def _scan_tree(tree: ast.AST, rel: object) -> list[str]:
     found: list[str] = []
     for fn in ast.walk(tree):
         if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
-        for i, stmt in enumerate(fn.body):
-            if not (isinstance(stmt, ast.Assign) and isinstance(stmt.value, ast.Call)):
-                continue
-            func = stmt.value.func
-            called = func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
-            if called not in _OPENERS:
-                continue
-            if len(stmt.targets) != 1 or not isinstance(stmt.targets[0], ast.Name):
-                continue
-            var = stmt.targets[0].id
-            rest = fn.body[i + 1:]
-            guard = next(
-                (s for s in rest
-                 if isinstance(s, ast.Try) and any(_closes(x, var) for x in s.finalbody)),
-                None,
-            )
-            if guard is None:
-                found.append(
-                    f"{rel}:{stmt.lineno} {fn.name}() — `{var}` is opened and no "
-                    f"try/finally closes it. Use `with project_db() as {var}:`."
+        for block, enclosing, after in _blocks(fn):
+            for i, stmt in enumerate(block):
+                if not (isinstance(stmt, ast.Assign) and isinstance(stmt.value, ast.Call)):
+                    continue
+                func = stmt.value.func
+                called = func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
+                if called not in _OPENERS:
+                    continue
+                if len(stmt.targets) != 1 or not isinstance(stmt.targets[0], ast.Name):
+                    continue
+                var = stmt.targets[0].id
+                # Opened inside a `try` whose own `finally` closes it: closed on
+                # every path by construction.
+                if any(any(_closes(x, var) for x in t.finalbody) for t in enclosing):
+                    continue
+                rest = block[i + 1:] + after
+                guard = next(
+                    (s for s in rest
+                     if isinstance(s, ast.Try) and any(_closes(x, var) for x in s.finalbody)),
+                    None,
                 )
-                continue
-            leaking = [s for s in rest[:rest.index(guard)] if _exits_holding(s, var)]
-            if leaking:
-                found.append(
-                    f"{rel}:{stmt.lineno} {fn.name}() — `{var}` is open at line "
-                    f"{leaking[0].lineno}, which can leave the function before the "
-                    f"try at line {guard.lineno}, so its finally never runs. "
-                    f"Resolve the tenant BEFORE opening the connection."
-                )
+                if guard is None:
+                    found.append(
+                        f"{rel}:{stmt.lineno} {fn.name}() — `{var}` is opened and no "
+                        f"try/finally closes it. Use `with project_db() as {var}:`."
+                    )
+                    continue
+                leaking = [s for s in rest[:rest.index(guard)] if _exits_holding(s, var)]
+                if leaking:
+                    found.append(
+                        f"{rel}:{stmt.lineno} {fn.name}() — `{var}` is open at line "
+                        f"{leaking[0].lineno}, which can leave the function before the "
+                        f"try at line {guard.lineno}, so its finally never runs. "
+                        f"Resolve the tenant BEFORE opening the connection."
+                    )
     return found
+
+
+def _scan(path: pathlib.Path) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return _scan_tree(tree, path.relative_to(_ROOT))
 
 
 def test_no_dashboard_connection_can_escape_unclosed() -> None:
@@ -211,6 +264,51 @@ def project_db():
     finally:
         db.close()
 """, False),
+        # R162: the open nested one level down, no finally anywhere. The first
+        # version walked `fn.body` only and stayed green on exactly this.
+        ("""
+def show():
+    try:
+        db = get_db_connection()
+        use(db)
+    except ValueError:
+        pass
+""", True),
+        # Nested in an `else`, closed on the happy path only (`_check_db_health`).
+        ("""
+def check():
+    if cached:
+        ok = True
+    else:
+        db = get_db_connection()
+        ok = db is not None
+        if db is not None:
+            db.close()
+""", True),
+        # Opened in an `if`, closed by the try/finally that FOLLOWS one level up
+        # (`cache_epoch.bump`). Correct, and the block-only widening reported it.
+        ("""
+def bump(db=None):
+    owned = db is None
+    if owned:
+        db = get_db_connection()
+    if db is None:
+        return
+    try:
+        use(db)
+    finally:
+        if owned:
+            db.close()
+""", False),
+        # Opened inside a try whose own finally closes it.
+        ("""
+def show():
+    try:
+        db = get_db_connection()
+        use(db)
+    finally:
+        db.close()
+""", False),
     ],
 )
 def test_the_predicate_separates_the_defect_from_its_look_alike(
@@ -221,29 +319,7 @@ def test_the_predicate_separates_the_defect_from_its_look_alike(
     Without this, a predicate that simply looked for `st.stop()` would pass the
     suite while reporting `project_db()`, which is right as written.
     """
-    target = tmp_path / "sample.py"
-    target.write_text(source, encoding="utf-8")
-
-    tree = ast.parse(source)
-    rel_scan: list[str] = []
-    for fn in ast.walk(tree):
-        if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            continue
-        for i, stmt in enumerate(fn.body):
-            if not (isinstance(stmt, ast.Assign) and isinstance(stmt.value, ast.Call)):
-                continue
-            func = stmt.value.func
-            if getattr(func, "id", None) not in _OPENERS:
-                continue
-            var = stmt.targets[0].id
-            rest = fn.body[i + 1:]
-            guard = next(
-                (s for s in rest
-                 if isinstance(s, ast.Try) and any(_closes(x, var) for x in s.finalbody)),
-                None,
-            )
-            if guard is None or any(_exits_holding(s, var) for s in rest[:rest.index(guard)]):
-                rel_scan.append(fn.name)
+    rel_scan = _scan_tree(ast.parse(source), "sample.py")
 
     assert bool(rel_scan) is expect_hit, (
         f"predicate returned {rel_scan!r}, expected hit={expect_hit} for:\n{source}"

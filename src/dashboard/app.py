@@ -477,10 +477,14 @@ def _check_db_health():
         ok = cached[1]
     else:
         from src.dashboard.utils import get_db_connection
+        # Not `project_db()`: its failure path is `st.stop()`, and this ping's job is
+        # to render the banner below instead. The `finally` closes on every path.
         db = get_db_connection()
-        ok = db is not None
-        if db is not None:
-            db.close()
+        try:
+            ok = db is not None
+        finally:
+            if db is not None:
+                db.close()
         st.session_state['_db_health_check'] = (time.time(), ok)
     if not ok:
         st.error(t(

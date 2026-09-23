@@ -25,23 +25,10 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R162 | Le garde des connexions ne voit que le PREMIER niveau du corps | P3 | un prédicat qui parcourt `ast.walk(fn)` au lieu de `fn.body` → **1 site** : `app.py:480 _check_db_health` |
 
-**Cet index porte UNE ligne le 2026-09-22 au soir.** Il a été vide trois fois dans la
-journée ; R162 y est entrée en dernier, trouvée en MUTANT un garde neuf.
+**Cet index est vide le 2026-09-23.** R162, entrée le 2026-09-22 au soir en mutant un
+garde neuf, est livrée le lendemain matin — son récit est dans `archive.md`.
 
-⚠️ **R162 — un garde qui ne voit que le premier niveau.**
-`tests/test_a_connection_is_closed_on_every_path.py` parcourt `fn.body`, donc le corps
-de la fonction **au premier niveau seulement**. Une ouverture imbriquée dans un `try`,
-un `if` ou une boucle lui est invisible. Trouvé le 2026-09-22 en mutant : j'ai remplacé
-un `with project_db()` par un `get_db_connection()` posé DANS un `try` sans `finally`,
-et le garde est resté **VERT** — c'est mon test étroit qui l'a attrapé.
-
-Mesuré avec un prédicat élargi à `ast.walk(fn)` sur tout `src/dashboard/` : **1 site**,
-`app.py:480 _check_db_health`. Il **ferme** sur son chemin heureux
-(`if db is not None: db.close()`), donc la fuite est **latente** et non vivante — c'est
-pourquoi ceci est une ligne de roadmap et pas un correctif d'urgence. Le remède est le
-même que partout ailleurs : `with project_db() as db:`.
 Vide à midi ; **R157, R158, R159, R160 et R161** y sont entrées par le travail de
 l'après-midi, toutes nées d'une mesure prise ce jour-là et aucune d'une intuition ; les
 cinq en sont sorties le soir même, livrées. Leur récit est dans `archive.md`.
@@ -186,7 +173,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-22 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R148,R150,R151,R153,R162 -->
+<!-- reprise: open=R151, R148, R150, R153 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers
@@ -201,12 +188,9 @@ la table des gestes humains (R148, R150, R151, R153), et **trois entrées l'apr�
 | **R155** `10a1d61` | dix écrans d'administration en **six sections**, sélecteur paresseux | la section des comptes : **23 requêtes → 1** |
 | **R156** | les trois trous de balayage du catalogue d'erreurs, fermés | **411/411 verdicts lisibles, 0 muet, 0 jamais balayée** |
 
-**Par où reprendre** : R157 est la seule P2 de l'index, et c'est la plus utile — la
-grille de fraîcheur de l'accueil dit « Meta à jour » avec **720 jours** de retard réel,
-pendant que la supervision admin lit déjà la bonne colonne depuis R154. Deux surfaces
-qui répondent différemment à la même question. ⚠️ Sa correction fait virer une tuile au
-rouge pour tous les artistes : c'est la vérité qui apparaît, mais c'est un changement
-d'écran qui se décide.
+**Par où reprendre (2026-09-23)** : l'index actionnable est **vide** — R157 à R162 sont
+livrées. Tout ce qui reste est dans « 🙋 En attente de toi » : quatre gestes que seul le
+propriétaire peut faire, R151 en tête.
 
 **Le P2 est livré.** R146 : la conversion CAPI d'Hypeddit se déclenche quand l'auditeur
 QUITTE le smart link, pas quand il écoute. Le balayage a trouvé **seize grappes de
