@@ -5,6 +5,26 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-23 (clôture) — L'écran de connexion en trois demandes, et la touche Entrée
+
+**Ce qui a changé.** Le bouton Google devient le bouton STANDARD de Google (blanc, « G »
+quatre couleurs), à largeur fixe, sur la ligne du titre « Connexion » ; « Se connecter »
+reste seul sous les champs. Déployé (`982e191`). Pile locale réparée : `AIRFLOW_ADMIN_*`
+recopiés de `.env.local` vers `.env`, le seul que compose lit.
+
+### Ce qu'il faut retenir
+
+- **Une demande de mise en page peut déplacer une frontière fonctionnelle.** Poser Google
+  « à côté de Connexion » l'aurait mis AVANT les champs ; comme bouton de soumission il
+  devenait `submitButtons[0]`, donc la cible de la touche Entrée. Lu dans le JS de
+  Streamlit, pas supposé : il vit hors du formulaire.
+- **Un pourcentage n'est pas une taille.** 25 % du cadre tronquait le libellé à 1 024 px ;
+  une largeur fixe tient partout. Vu en CAPTURANT à trois largeurs, pas en lisant le code.
+- **Reprise demain** : rien d'ouvert côté ingénierie ; le levier est l'activation des
+  artistes bêta (3 sur 4 sans aucun identifiant de plateforme), avant R148.
+
+---
+
 ## 2026-09-23 (nuit) — R153 close : le propriétaire entre par Google, et le bouton passe dans le cadre
 
 **Ce qui a changé.** Premier aller-retour Google réussi en production, par le

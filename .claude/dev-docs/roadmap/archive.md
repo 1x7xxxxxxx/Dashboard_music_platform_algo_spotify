@@ -125,6 +125,7 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 ## 🔑 R153 — La connexion Google en un clic (livrée 2026-09-23)
 
 - [x] **R153 — L'identifiant OAuth Google pour la connexion en un clic.** (P3) ✅ (2026-09-23)
+  - 2026-09-23 soir : **disposition finale de l'écran de connexion**, après trois demandes du propriétaire — le dégradé magenta → violet est remplacé par le bouton STANDARD de Google (fond blanc, bordure #747775, texte #1F1F1F, « G » quatre couleurs en SVG embarqué), largeur fixe 260 px (à 25 % du cadre le libellé se tronquait à 1 024 px), posé sur la ligne du titre « Connexion ». Il est un `st.button` HORS du formulaire : Streamlit valide par Entrée via `submitButtons[0]` (lu dans le JS 1.63.0), et un Google au-dessus des champs aurait volé la touche Entrée. Garde réécrit sur le vrai `_cadre_de_connexion()`, muté rouge. Commits `a95b48d`, `2673c48`, `982e191`, déployés.
 
   ✅ Livrée le 2026-09-23. Client OAuth créé et publié par le propriétaire (scopes
   `openid email profile`, pas de logo) ; secrets posés en local et sur le VPS (volume
