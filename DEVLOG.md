@@ -5,6 +5,36 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-23 (après-midi) — Écrire une ligne de la politique de confidentialité a trouvé un effacement RGPD incomplet
+
+**Ce qui a changé.** Trois commits (`a155887`, `0a1543b`, et celui-ci). R153 avance côté
+propriétaire : client OAuth créé, identifiants posés en local, application publiée.
+
+| unité | ce qu'elle a fait | le chiffre |
+|---|---|---|
+| compose | `${VAR:?…}` sur les 4 secrets sans lesquels la pile ne démarre pas ; compose lit `.env`, **jamais** `.env.local` | `airflow-init` mourait 2 h après un simple avertissement |
+| R153, montage | `./.streamlit:/app/.streamlit:ro` sur `dashboard` ; le runbook affirmait un montage qu'aucun service ne faisait | le bouton Google serait resté masqué en prod, sans erreur |
+| confidentialité | section « Connexion avec Google » FR/EN ; cookies réels (`_streamlit_xsrf`, `_streamlit_user` 30 j) au lieu de `music_dashboard`, que plus rien ne posait depuis le 2026-03-25 ; journal d'usage déclaré | 1 cookie fantôme, 2 cookies réels non déclarés |
+| **effacement RGPD** | portée dérivée du schéma vivant (FK vers `saas_artists` + `artist_id` INTEGER), ordre enfants → parents | **22 tables atteintes sur ~80** ; 57 FK `NO ACTION` pouvaient faire échouer la suppression finale |
+
+### Ce qu'il faut retenir
+
+- **Une promesse écrite est un test qu'on n'a pas lancé.** La page disait « droit à
+  l'effacement » ; écrire la phrase « effacé avec le compte » pour le journal d'usage a
+  obligé à vérifier, et la vérification a trouvé `usage_events` hors de portée — puis 57
+  autres. Le garde existant de l'effacement déclarait lui-même « il ne juge pas si la
+  liste est complète … pas de réponse mécanique ». Il y en avait une.
+- **Le locataire n'est pas toujours `artist_id`** : `tracks.saas_artist_id`,
+  `referral_events.referrer_artist_id`. Une clé étrangère le dit mieux qu'un nom.
+- **Dériver du schéma a failli effacer un tiers.** La première version supprimait la
+  ligne de parrainage d'un AUTRE artiste ; `code-critic`, lancé avant commit, l'a vu.
+  Migration 136 : le parrain devient `NULL`, la ligne du filleul reste. ⚠️ **À appliquer
+  en production** (`make migrate-prod`) avant de déployer le dashboard.
+- **Reste mesuré → R164** : l'export ZIP « toutes tes données » couvre 18 tables sur 79,
+  et le rendre complet demande d'abord de décider ce qu'on n'exporte pas.
+
+---
+
 ## 2026-09-23 — La roadmap d'ingénierie ferme, et un réglage Meta qui n'existait plus
 
 **Ce qui a changé.** Quatre commits poussés (`ad19be5`, `585e869`, `f146f6d`,

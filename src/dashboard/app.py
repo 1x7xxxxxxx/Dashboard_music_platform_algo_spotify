@@ -512,9 +512,9 @@ def _show_cookie_notice():
     """
     st.caption(t(
         "app.cookie_notice",
-        "🍪 Cette plateforme utilise un unique cookie de session (`music_dashboard`) "
-        "strictement nécessaire à l'authentification. Aucun tracking, aucun cookie "
-        "tiers. [Politique de confidentialité](?page=privacy)"
+        "🍪 Cette plateforme ne pose que des cookies strictement nécessaires "
+        "(sécurité, et connexion Google si vous la choisissez). Aucun cookie "
+        "publicitaire ni tiers. [Politique de confidentialité](?page=privacy)"
     ))
 
 

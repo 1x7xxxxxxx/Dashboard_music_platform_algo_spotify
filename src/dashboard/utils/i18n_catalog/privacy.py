@@ -2,7 +2,7 @@
 
 EN = {
     "privacy.title": "Privacy policy",
-    "privacy.last_updated": "Last updated: March 2026",
+    "privacy.last_updated": "Last updated: 23 September 2026",
     "privacy.s1": """
 ## 1. Data controller
 
@@ -18,12 +18,39 @@ For any request regarding your personal data, contact:
 | Artist name, slug | Account identification | Performance of contract |
 | Username | Platform sign-in | Performance of contract |
 | Email address | Account verification, communication | Performance of contract + Consent (marketing) |
-| Password (bcrypt hashed) | Authentication | Performance of contract |
+| Password (bcrypt hashed) — none if you sign in with Google | Authentication | Performance of contract |
+| Google account identifier — only if you use Google sign-in | Recognising you on later sign-ins | Performance of contract |
 | API credentials (encrypted) | Music data collection | Performance of contract |
 | Streaming data (Spotify, YouTube…) | Music performance analysis | Performance of contract |
+| Pages viewed and actions in the app (internal log, no cookie) | Understanding usage to improve the service | Legitimate interest |
+""",
+    "privacy.google": """
+## 3. Sign in with Google (optional)
+
+You can sign in with your Google account instead of a password. It is optional:
+email-and-password registration remains available.
+
+**What we ask Google for**: only your basic identity — the `openid`, `email` and
+`profile` permissions. We have **no access** to your Gmail, Drive, calendar, contacts
+or YouTube channel, and Google never sends us your password.
+
+| Data received from Google | What we do with it | Kept? |
+|---|---|---|
+| Google account identifier | Recognising you on later sign-ins (it never changes, unlike the address) | Yes, as long as the account exists, with the date it was linked |
+| Email address, verified by Google | Linking your existing account the first time, or creating yours | Yes — it is your account's address |
+| Display name | Pre-filling the registration form, which you can edit | No |
+
+We keep **no Google access token** and never contact Google on your behalf after
+sign-in. A Google account bypasses no check: a deactivated account stays deactivated,
+and two-factor authentication is still required if you enabled it.
+
+**Revoking access**: from
+[myaccount.google.com/connections](https://myaccount.google.com/connections). To
+remove the Google identifier from your account, or the account itself, write to us
+(section 7).
 """,
     "privacy.s3": """
-## 3. Use of your email address
+## 4. Use of your email address
 
 Your email is used for:
 - **Account verification** (transactional email, mandatory)
@@ -31,21 +58,23 @@ Your email is used for:
   at registration. You can withdraw this consent at any time.
 """,
     "privacy.s4": """
-## 4. Retention periods
+## 5. Retention periods
 
 - **Account data**: kept as long as the account is active. Deleted upon request.
 - **Streaming data**: kept 3 years for historical analysis purposes.
 - **Technical logs**: 30 days.
+- **Usage log and Google identifier**: as long as the account is active, erased with it.
 """,
     "privacy.s5": """
-## 5. Security
+## 6. Security
 
 - Passwords are **irreversibly hashed** (bcrypt) — nobody can read them.
+- An account created with Google **has no password** on our side: a database leak would expose nothing replayable for it.
 - API tokens are **encrypted** (AES-128 Fernet) before database storage.
 - The database is hosted locally or on a secured server.
 """,
     "privacy.s6": """
-## 6. Your rights (GDPR Art. 15-22)
+## 7. Your rights (GDPR Art. 15-22)
 
 You have the following rights, exercised by email to **1x7xxxxxxx@gmail.com**:
 
@@ -58,21 +87,29 @@ You have the following rights, exercised by email to **1x7xxxxxxx@gmail.com**:
 Response time: 30 days maximum.
 """,
     "privacy.s7": """
-## 7. Cookies
+## 8. Cookies
 
-This platform uses **a single session cookie** (`music_dashboard`) to keep you
-signed in. This cookie is strictly necessary for the service to work —
-it does not track your browsing and is not shared with third parties.
+This platform only sets **strictly necessary** cookies:
+
+| Cookie | Purpose | Lifetime |
+|---|---|---|
+| `_streamlit_xsrf` | Protection against request forgery | Session |
+| `_streamlit_user` | Keeping your **Google** sign-in (signed, not readable by scripts) — absent if you use a password | 30 days, removed on sign-out |
+
+No advertising, audience-measurement or third-party cookie. The usage log of section 2
+is kept server-side and sets no cookie.
 """,
     "privacy.s8": """
-## 8. Data transfers
+## 9. Data transfers
 
 Your data is **neither sold nor transferred** to third parties.
 Third-party APIs (Spotify, YouTube, Meta, SoundCloud) are contacted only with
 your own credentials, in accordance with their respective terms of use.
+If you use Google sign-in, Google acts as **identity provider**: it knows you signed
+in to streaMLytics, under its own privacy policy.
 """,
     "privacy.s9": """
-## 9. Contact & complaints
+## 10. Contact & complaints
 
 **GDPR contact**: 1x7xxxxxxx@gmail.com
 

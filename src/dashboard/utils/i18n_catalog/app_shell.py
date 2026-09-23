@@ -44,9 +44,9 @@ EN = {
         "contact the administrator."
     ),
     # Cookie notice (RGPD Art. 13)
-    "app.cookie_notice": ("🍪 This platform uses a single session cookie (`music_dashboard`) "
-                          "strictly necessary for authentication. No tracking, no "
-                          "third-party cookies. [Privacy Policy](?page=privacy)"),
+    "app.cookie_notice": ("🍪 This platform only sets strictly necessary cookies "
+                          "(security, and Google sign-in if you choose it). No "
+                          "advertising or third-party cookies. [Privacy Policy](?page=privacy)"),
     # Central view error guard
     "app.view_error": ("❌ An error occurred on this page. Please try again; "
                        "the administrator has been notified if the problem persists."),

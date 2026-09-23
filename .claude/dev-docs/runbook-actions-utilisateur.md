@@ -1741,7 +1741,12 @@ docker exec -i $(docker ps -qf name=postgres) psql -U postgres -d spotify_etl -c
 
 ### Ce qui reste ouvert après ça
 
-Rien côté outil. La question ouverte est de MESURE : dans deux semaines,
+Rien côté outil. La politique de confidentialité (`/?page=privacy`, lien déclaré dans
+l'écran de consentement Google) porte depuis le 2026-09-23 une section « Connexion avec
+Google » : ce qui est reçu, ce qui est gardé (`google_sub`, date de liaison), ce qui ne
+l'est pas (nom affiché, jetons), et le cookie `_streamlit_user` de 30 jours. **Ne pas
+importer de logo** dans le branding Google : c'est lui, et non les scopes, qui déclenche
+la validation de la marque. La question ouverte est de MESURE : dans deux semaines,
 ```sql
 SELECT count(DISTINCT session_id) FILTER (WHERE page = 'login')  AS ont_vu,
        count(*)                   FILTER (WHERE event = 'login') AS sont_entres

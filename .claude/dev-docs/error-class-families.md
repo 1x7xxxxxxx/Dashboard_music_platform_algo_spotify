@@ -20,7 +20,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 25 | **3/25** · 12.0 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 30 | **6/30** · 20.0 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 26 | **2/26** · 7.7 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 84 | **10/84** · 11.9 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 84 | **11/84** · 13.1 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | **4/39** · 10.3 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | **0/8** · 0.0 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
@@ -616,4 +616,4 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 <!-- error-class-families: total=411 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=0bb1790463939ac70216911de2bf02df8669f2eef26dd39bb0573b616db86a54 -->
+<!-- error-class-families: sha256=6e648421c40cfa99f351e2035f26424550a1b3951f11b7d3a08c4b3e084c3e41 -->

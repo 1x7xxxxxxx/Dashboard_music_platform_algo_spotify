@@ -30,7 +30,7 @@ import streamlit as st
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.utils.ui import flash
-from src.database.postgres_handler import validate_table
+from src.database.postgres_handler import validate_columns, validate_table
 from src.dashboard.utils.date_format import format_serie
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,9 @@ logger = logging.getLogger(__name__)
 # La liste voyage avec l'effacement qui la lit — elle n'a qu'un lecteur, et
 # une liste de tables à PURGER n'a rien à faire dans un module que d'autres
 # surfaces importent.
-# Platform data tables with artist_id — ordered to satisfy FK constraints
+# Declared tenant tables. NOT the erasure scope any more: `_erasure_scope()` adds every
+# INTEGER-`artist_id` table of the live schema and orders the lot by foreign keys.
+# Dead names stay on purpose — the receipt says `absente de ce déploiement`.
 _GDPR_PLATFORM_TABLES = [
     # Subscriptions / billing
     "artist_subscriptions",
@@ -80,6 +82,82 @@ _GDPR_PLATFORM_TABLES = [
 ]
 
 
+#: Handled by name at the end of the erasure, after every table that points at them.
+_ERASED_LAST = frozenset({"saas_users", "saas_artists"})
+
+
+def _tenant_columns_in_schema(db) -> set[tuple[str, str]]:
+    """Every (table, column) whose value is the tenant id, read from the live schema.
+
+    Two sources, because the tenant is not always spelled `artist_id`:
+    * every column with a FOREIGN KEY to `saas_artists(id)` — `tracks.saas_artist_id`,
+      `referral_events.referrer_artist_id`. A `NO ACTION` one left non-empty makes the
+      final `DELETE FROM saas_artists` fail, so the erasure dies half-way;
+    * every INTEGER `artist_id` of a base table, FK or not — `usage_events` has none.
+      ⚠️ The TYPE is the criterion: on `artists`, `artist_history` and `tracks`,
+      `artist_id` is the Spotify id (VARCHAR), not the tenant.
+
+    Measured 2026-09-23: the hand list alone reached 22 real tables out of ~80.
+    """
+    # Bare `relname` from pg_class, never `regclass::text`: the latter schema-qualifies
+    # under a non-default search_path and every table would read as `non-allowlistée`.
+    # Single-column keys only — a composite one would be mis-mapped by `conkey[1]`.
+    # `SET NULL` / `SET DEFAULT` columns are left to the database: the row belongs to
+    # ANOTHER artist too (`referral_events.referrer_artist_id`, migration 136), and
+    # deleting it would erase someone who asked for nothing.
+    fks = db.fetch_query(
+        "SELECT cl.relname, a.attname FROM pg_constraint c "
+        "JOIN pg_class cl ON cl.oid = c.conrelid "
+        "JOIN pg_namespace ns ON ns.oid = cl.relnamespace AND ns.nspname = 'public' "
+        "JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1] "
+        "WHERE c.contype = 'f' AND c.confrelid = 'public.saas_artists'::regclass "
+        "AND array_length(c.conkey, 1) = 1 AND c.confdeltype NOT IN ('n', 'd')") or []
+    ints = db.fetch_query(
+        "SELECT c.table_name, c.column_name FROM information_schema.columns c "
+        "JOIN information_schema.tables t USING (table_schema, table_name) "
+        "WHERE c.table_schema = 'public' AND c.column_name = 'artist_id' "
+        "AND c.data_type IN ('integer', 'bigint') AND t.table_type = 'BASE TABLE'") or []
+    return {(tb, col) for tb, col in [*fks, *ints] if tb not in _ERASED_LAST}
+
+
+def _children_first(db, tables: set[str]) -> list[str]:
+    """Order `tables` so a table that REFERENCES another is emptied before it.
+
+    With a `NO ACTION` foreign key, deleting the parent row first fails; in a
+    transaction that failure would also abort every delete after it.
+    """
+    edges = db.fetch_query(
+        "SELECT ch.relname, pa.relname FROM pg_constraint c "
+        "JOIN pg_class ch ON ch.oid = c.conrelid "
+        "JOIN pg_class pa ON pa.oid = c.confrelid WHERE c.contype = 'f'") or []
+    referenced_by = {t: set() for t in tables}
+    for child, parent in edges:
+        if child in tables and parent in tables and child != parent:
+            referenced_by[parent].add(child)
+    ordered: list[str] = []
+    remaining = set(tables)
+    while remaining:
+        ready = sorted(t for t in remaining if not (referenced_by[t] & remaining))
+        if not ready:  # a cycle: let the receipt name whatever fails
+            ready = sorted(remaining)
+        ordered += ready
+        remaining -= set(ready)
+    return ordered
+
+
+def _erasure_scope(db) -> list[tuple[str, str]]:
+    """(table, column) pairs: the declared list, kept for the receipt, plus every
+    tenant column of the live schema — children before parents."""
+    schema = _tenant_columns_in_schema(db)
+    # A declared name adds `artist_id` only where the schema knows no tenant column:
+    # `referral_events` has no `artist_id` at all, and the guess made every erasure
+    # write `ÉCHEC: UndefinedColumn` for it until 2026-09-23.
+    known = {tb for tb, _ in schema}
+    pairs = schema | {(tb, "artist_id") for tb in _GDPR_PLATFORM_TABLES if tb not in known}
+    rank = {tb: i for i, tb in enumerate(_children_first(db, {tb for tb, _ in pairs}))}
+    return sorted(pairs, key=lambda p: (rank[p[0]], p[1]))
+
+
 def _erase_artist_gdpr(db, artist_id: int, admin_user_id: int, reason: str) -> dict:
     """RGPD Art. 17 — full erasure of all data for one artist.
 
@@ -113,12 +191,15 @@ def _erase_artist_gdpr(db, artist_id: int, admin_user_id: int, reason: str) -> d
     # Les noms morts sont CONSERVÉS dans la liste à dessein : les retirer effacerait la
     # trace qu'on a un jour cru ces plateformes couvertes. Le reçu dit maintenant
     # laquelle des trois choses s'est produite.
-    for table in _GDPR_PLATFORM_TABLES:
+    for table, column in _erasure_scope(db):
+        # The receipt keys by table; a second tenant column of the same table says so.
+        cle = table if column == "artist_id" else f"{table}.{column}"
         try:
             # CLAUDE.md rule #8 — explicit allowlist check before f-string SQL.
             validate_table(table)
+            validate_columns([column])
         except Exception:
-            deleted[table] = "non-allowlistée"
+            deleted[cle] = "non-allowlistée"
             continue
         try:
             existe = db.fetch_query(
@@ -127,17 +208,17 @@ def _erase_artist_gdpr(db, artist_id: int, admin_user_id: int, reason: str) -> d
         except Exception:
             existe = None
         if not existe:
-            deleted[table] = "absente de ce déploiement"
+            deleted[cle] = "absente de ce déploiement"
             continue
         try:
             rows = db.fetch_query(
-                f"DELETE FROM {table} WHERE artist_id = %s RETURNING 1",
+                f"DELETE FROM {table} WHERE {column} = %s RETURNING 1",
                 (artist_id,),
             )
-            deleted[table] = len(rows) if rows else 0
+            deleted[cle] = len(rows) if rows else 0
         except Exception as exc:
             # LE seul cas qui veut dire « des données personnelles peuvent subsister ».
-            deleted[table] = f"ÉCHEC: {type(exc).__name__}"
+            deleted[cle] = f"ÉCHEC: {type(exc).__name__}"
 
     # Delete user accounts linked to this artist
     user_rows = db.fetch_query(

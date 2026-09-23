@@ -10,7 +10,7 @@ from src.dashboard.utils.i18n import t
 
 def show():
     st.title(t("privacy.title", "Politique de confidentialité"))
-    st.caption(t("privacy.last_updated", "Dernière mise à jour : mars 2026"))
+    st.caption(t("privacy.last_updated", "Dernière mise à jour : 23 septembre 2026"))
 
     st.markdown(t("privacy.s1", """
 ## 1. Responsable du traitement
@@ -30,15 +30,47 @@ Pour toute demande relative à vos données personnelles, contactez :
 | Nom d'artiste, slug | Identification du compte | Exécution du contrat |
 | Nom d'utilisateur | Connexion à la plateforme | Exécution du contrat |
 | Adresse email | Vérification du compte, communication | Exécution du contrat + Consentement (marketing) |
-| Mot de passe (haché bcrypt) | Authentification | Exécution du contrat |
+| Mot de passe (haché bcrypt) — absent si vous vous connectez avec Google | Authentification | Exécution du contrat |
+| Identifiant de compte Google — seulement si vous utilisez la connexion Google | Vous reconnaître aux connexions suivantes | Exécution du contrat |
 | Credentials API (chiffrés) | Collecte de données musicales | Exécution du contrat |
 | Données de streaming (Spotify, YouTube…) | Analyse de performance musicale | Exécution du contrat |
+| Pages consultées et actions dans l'application (journal interne, sans cookie) | Comprendre l'usage pour améliorer le service | Intérêt légitime |
+"""))
+
+    st.markdown("---")
+
+    st.markdown(t("privacy.google", """
+## 3. Connexion avec Google (facultative)
+
+Vous pouvez vous connecter avec votre compte Google au lieu d'un mot de passe. Ce choix
+est facultatif : l'inscription par e-mail et mot de passe reste disponible.
+
+**Ce que nous demandons à Google** : uniquement votre identité de base — les
+autorisations `openid`, `email` et `profile`. Nous n'avons **aucun accès** à votre
+Gmail, votre Drive, votre agenda, vos contacts ni à votre chaîne YouTube, et Google ne
+nous transmet jamais votre mot de passe.
+
+| Donnée reçue de Google | Ce que nous en faisons | Conservée ? |
+|---|---|---|
+| Identifiant de compte Google | Vous reconnaître aux connexions suivantes (il ne change jamais, contrairement à l'adresse) | Oui, tant que le compte existe, avec la date de liaison |
+| Adresse e-mail, vérifiée par Google | Rattacher votre compte existant la première fois, ou créer le vôtre | Oui — c'est l'adresse de votre compte |
+| Nom affiché | Pré-remplir le formulaire d'inscription, que vous pouvez modifier | Non |
+
+Nous ne conservons **aucun jeton d'accès Google** et ne contactons pas Google en votre
+nom après la connexion. Un compte Google ne contourne aucun contrôle : un compte
+désactivé reste désactivé, et la double authentification reste exigée si vous l'avez
+activée.
+
+**Retirer l'accès** : depuis
+[myaccount.google.com/connections](https://myaccount.google.com/connections). Pour
+supprimer l'identifiant Google de votre compte, ou le compte lui-même, écrivez-nous
+(section 7).
 """))
 
     st.markdown("---")
 
     st.markdown(t("privacy.s3", """
-## 3. Utilisation de l'adresse email
+## 4. Utilisation de l'adresse email
 
 Votre email est utilisé pour :
 - La **vérification de votre compte** (email transactionnel, obligatoire)
@@ -49,19 +81,21 @@ Votre email est utilisé pour :
     st.markdown("---")
 
     st.markdown(t("privacy.s4", """
-## 4. Durée de conservation
+## 5. Durée de conservation
 
 - **Données de compte** : conservées tant que le compte est actif. Supprimées sur demande.
 - **Données de streaming** : conservées 3 ans à des fins d'analyse historique.
 - **Logs techniques** : 30 jours.
+- **Journal d'usage et identifiant Google** : tant que le compte est actif, effacés avec lui.
 """))
 
     st.markdown("---")
 
     st.markdown(t("privacy.s5", """
-## 5. Sécurité
+## 6. Sécurité
 
 - Les mots de passe sont **hachés de manière irréversible** (bcrypt) — personne ne peut les lire.
+- Un compte créé avec Google **n'a aucun mot de passe** chez nous : une fuite de base ne livrerait rien de rejouable le concernant.
 - Les tokens API sont **chiffrés** (AES-128 Fernet) avant stockage en base.
 - La base de données est hébergée localement ou sur un serveur sécurisé.
 """))
@@ -69,7 +103,7 @@ Votre email est utilisé pour :
     st.markdown("---")
 
     st.markdown(t("privacy.s6", """
-## 6. Vos droits (RGPD Art. 15-22)
+## 7. Vos droits (RGPD Art. 15-22)
 
 Vous disposez des droits suivants, exercés par email à **1x7xxxxxxx@gmail.com** :
 
@@ -85,27 +119,35 @@ Délai de réponse : 30 jours maximum.
     st.markdown("---")
 
     st.markdown(t("privacy.s7", """
-## 7. Cookies
+## 8. Cookies
 
-Cette plateforme utilise **un seul cookie de session** (`music_dashboard`) pour maintenir
-votre connexion. Ce cookie est strictement nécessaire au fonctionnement du service —
-il ne tracke pas votre navigation et n'est pas partagé avec des tiers.
+Cette plateforme ne pose que des cookies **strictement nécessaires** :
+
+| Cookie | Rôle | Durée |
+|---|---|---|
+| `_streamlit_xsrf` | Protection contre la falsification de requêtes | Session |
+| `_streamlit_user` | Garder votre connexion **Google** (signé, inaccessible aux scripts) — absent si vous utilisez un mot de passe | 30 jours, supprimé à la déconnexion |
+
+Aucun cookie publicitaire, de mesure d'audience ni de tiers. Le journal d'usage de la
+section 2 est tenu côté serveur et ne dépose aucun cookie.
 """))
 
     st.markdown("---")
 
     st.markdown(t("privacy.s8", """
-## 8. Transferts de données
+## 9. Transferts de données
 
 Vos données ne sont **pas vendues ni transmises** à des tiers.
 Les APIs tierces (Spotify, YouTube, Meta, SoundCloud) sont contactées uniquement avec
 vos propres credentials, conformément à leurs conditions d'utilisation respectives.
+Si vous utilisez la connexion Google, Google agit comme **fournisseur d'identité** : il sait
+que vous vous êtes connecté à streaMLytics, selon ses propres règles de confidentialité.
 """))
 
     st.markdown("---")
 
     st.markdown(t("privacy.s9", """
-## 9. Contact & réclamation
+## 10. Contact & réclamation
 
 **Contact RGPD** : 1x7xxxxxxx@gmail.com
 

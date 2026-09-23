@@ -46,6 +46,11 @@ _ALLOWED_TABLES = frozenset({
     'subscription_plans', 'artist_subscriptions',
     'referral_codes', 'referral_events',
     'promo_codes', 'promo_events',
+    # Tenant tables reached ONLY by GDPR erasure, which derives its scope from the
+    # schema since 2026-09-23 — a tenant table missing here shows up on the erasure
+    # receipt as `non-allowlistée` and fails `tests/test_erasure_reaches_every_tenant_table.py`.
+    'usage_events', 'app_error_log', 'data_revisions', 'youtube_daily_views',
+    'artist_cost_entries',
     'etl_run_log', 'etl_circuit_breaker',
     'admin_audit_log',
     's4a_song_playlists',
