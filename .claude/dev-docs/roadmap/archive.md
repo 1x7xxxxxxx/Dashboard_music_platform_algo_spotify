@@ -9,6 +9,22 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 💶 R150 — Trois options chiffrées pour la prestation (livrée 2026-09-23)
+
+- [x] **R150 — poser les trois prix de la prestation d'optimisation.** (P3) ✅ (2026-09-23)
+
+  **Grille choisie par le propriétaire** : Essentiel **150 €** · Standard **300 €** ·
+  Accompagnement **550 €** — l'option basse des trois proposées, pour faciliter les
+  premières ventes. Standard = ×2 Essentiel, conforme au repère du runbook §20.
+  ⚠️ **Aucun de ces chiffres n'est mesuré** : R148 (les trois entretiens Van
+  Westendorp) est ce qui les confirmera ou les corrigera.
+
+  **Posée dans `app_settings`** en local ET en production (SSH, même upsert que
+  `set_setting`) ; aucune variable `SERVICE_PRICE_*` n'impose de valeur dans le
+  conteneur de prod, donc la base fait foi. Vérifié : la page `views/service.py`
+  rendue par AppTest affiche 150, 300 et 550 sans exception, et
+  `test_views_render_smoke.py -k "service or billing"` est vert.
+
 ## 🚫 R151 — La hiérarchie des évènements agrégés Meta : réfutée (close 2026-09-23)
 
 - [x] **R151 — faire glisser la conversion Hypeddit en position 1 de la « Mesure des événements agrégés ».** (P3) ✅ (2026-09-23, réfutée — le réglage n'existe plus chez Meta)

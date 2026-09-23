@@ -1506,7 +1506,7 @@ ce que cette tâche demande — **aucune décision de tarif n'en découle automa
 
 ---
 
-## 20. R150 — Trois options chiffrées pour la prestation
+## 20. ~~R150 — Trois options chiffrées pour la prestation~~ · ✅ FAIT le 2026-09-23 — 150 / 300 / 550 €, posés en local et en production ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 Le panneau de prestation livré le 2026-09-21 nomme quatre arguments et propose un
 appel. Il **ne chiffre rien** — donc chaque appel recommence à zéro, et c'est toi qui
@@ -1690,7 +1690,7 @@ semaines avant de conclure quoi que ce soit.
    personne ne comprendrait pourquoi.
 6. **Publier l'application** (« In production »). Laissée en « Testing », elle
    fonctionne aussi pour les scopes de base, mais l'état est ambigu à relire.
-7. **Poser le fichier de secrets**, en local :
+7. **Poser le fichier de secrets**, en local. ⚠️ **Déjà fait le 2026-09-23** : `.streamlit/secrets.toml` existe, `cookie_secret` est généré, il ne reste que `client_id` et `client_secret` à coller (le bouton reste masqué tant que `client_id` est vide). La commande d'origine, pour mémoire :
    ```bash
    cp .streamlit/secrets.toml.example .streamlit/secrets.toml
    python3 -c "import secrets; print(secrets.token_urlsafe(48))"   # cookie_secret
