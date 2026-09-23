@@ -122,6 +122,22 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
   disjointe sur le schéma vivant + isolation d'un second locataire), muté deux fois
   rouge.
 
+## 🔑 R153 — La connexion Google en un clic (livrée 2026-09-23)
+
+- [x] **R153 — L'identifiant OAuth Google pour la connexion en un clic.** (P3) ✅ (2026-09-23)
+
+  ✅ Livrée le 2026-09-23. Client OAuth créé et publié par le propriétaire (scopes
+  `openid email profile`, pas de logo) ; secrets posés en local et sur le VPS (volume
+  `.streamlit` monté) ; Authlib ajouté à l'image après avoir été trouvé manquant en
+  production ; redirection OAuth réelle vérifiée (client, `redirect_uri` de prod,
+  scopes, PKCE). **Aller-retour Google réussi en production par le propriétaire le
+  2026-09-23.** Le cas « compte désactivé » est couvert par
+  `tests/test_google_sign_in_refuses_what_the_password_path_refuses.py::test_a_deactivated_account_cannot_come_in_through_google`.
+  Même jour : le bouton passe dans le cadre « Connexion », à côté de « Se connecter »,
+  fond dégradé #D4006F → #7B2FF7 (blanc ≥ 5,2:1) — garde
+  `tests/test_the_google_button_sits_beside_sign_in.py`. Mesure ouverte (pas une
+  tâche) : la requête du runbook §23 dans deux semaines.
+
 ## 🩺 R157 — Un verdict de fraîcheur porte sur la date que la donnée porte (livrée 2026-09-22)
 
 - [x] **R157 — la grille de fraîcheur lisait la date d'ÉCRITURE : Meta affichait « 🟢 il y a 0h » avec 722 jours de retard réel.** (P2)

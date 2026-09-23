@@ -579,20 +579,57 @@ def _show_bootstrap_form(db) -> None:
 # Login
 # ─────────────────────────────────────────────
 
-def _bouton_google() -> None:
-    """Le bouton de connexion Google, affiché SEULEMENT s'il peut marcher.
+#: The Google button's look. Asked for on 2026-09-23 — « juste à côté de connexion
+#: avec un fond flashi, qu'on puisse cliquer facilement dessus ». The gradient is
+#: MEASURED, not picked: white text reads at 5.2:1 on #D4006F and 5.9:1 on #7B2FF7
+#: (WCAG AA ≥ 4.5). The first idea, pink → orange, fell to 2.6:1 on the orange end.
+#: `.st-key-<key>` is the class Streamlit puts on any element given a `key`.
+_GOOGLE_BUTTON_KEY = "google_signin"
+_LOGIN_BUTTON_KEY = "login_submit"
+_GOOGLE_BUTTON_CSS = f"""<style>
+.st-key-{_GOOGLE_BUTTON_KEY} button {{
+    background: linear-gradient(135deg, #D4006F 0%, #7B2FF7 100%) !important;
+    color: #FFFFFF !important; border: none !important; min-height: 3rem;
+    box-shadow: 0 4px 14px rgba(123, 47, 247, .40);
+    transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}}
+.st-key-{_GOOGLE_BUTTON_KEY} button:hover {{
+    transform: translateY(-1px); filter: brightness(1.08);
+    box-shadow: 0 6px 20px rgba(212, 0, 111, .50);
+}}
+.st-key-{_GOOGLE_BUTTON_KEY} button p {{ color: #FFFFFF !important; font-weight: 700; }}
+.st-key-{_LOGIN_BUTTON_KEY} button {{ min-height: 3rem; }}
+</style>"""
 
-    Sans `[auth]` dans `.streamlit/secrets.toml`, `st.login()` lève. Afficher le
-    bouton quand même offrirait un chemin qui plante — pire qu'un bouton absent,
-    et c'est la doctrine déjà appliquée au bouton de rendez-vous sans lien.
+
+def _boutons_de_connexion() -> bool:
+    """« Se connecter » et, s'il peut marcher, « Se connecter avec Google » CÔTE À
+    CÔTE, dans le cadre du formulaire. Rend True si le mot de passe a été soumis.
+
+    Google n'apparaît que si `google_auth.configure()` le dit : sans `[auth]` dans
+    `.streamlit/secrets.toml`, ou sans Authlib, `st.login()` lève — un bouton qui
+    mène à un plantage vaut moins qu'un bouton absent. Il est un
+    `form_submit_button` parce que `st.form` n'admet que ça ; il ignore les champs
+    saisis et passe la main à `st.login`.
     """
     from src.dashboard.utils import google_auth
 
     if not google_auth.configure():
-        return
-    st.button(
-        _t("auth.google_signin", "Se connecter avec Google"),
-        width="stretch", on_click=st.login)
+        return st.form_submit_button(_t("auth.signin", "Se connecter"), type="primary",
+                                     key=_LOGIN_BUTTON_KEY, width="stretch")
+    st.markdown(_GOOGLE_BUTTON_CSS, unsafe_allow_html=True)
+    # « Se connecter » à GAUCHE et créé EN PREMIER : Streamlit soumet un formulaire
+    # validé par Entrée comme par son premier bouton, et un mot de passe tapé au
+    # clavier ne doit jamais partir chez Google. Garde :
+    # tests/test_the_google_button_sits_beside_sign_in.py
+    col_login, col_google = st.columns(2)
+    with col_login:
+        submitted = st.form_submit_button(_t("auth.signin", "Se connecter"), type="primary",
+                                          key=_LOGIN_BUTTON_KEY, width="stretch")
+    with col_google:
+        st.form_submit_button(_t("auth.google_signin", "Se connecter avec Google"),
+                              key=_GOOGLE_BUTTON_KEY, width="stretch", on_click=st.login)
+    return submitted
 
 
 def _traiter_retour_google(db) -> bool:
@@ -766,7 +803,7 @@ def require_login() -> bool:
             password  = st.text_input(_t("auth.password", "Mot de passe"), type="password",
                                       key="login_password",
                                       autocomplete="current-password")
-            submitted = st.form_submit_button(_t("auth.signin", "Se connecter"), type="primary")
+            submitted = _boutons_de_connexion()
 
         # UN BOUTON, pas un lien. Signalé le 2026-09-04 : « ça nous ouvre une autre
         # page du navigateur, est-ce qu'on pourrait lancer via le même onglet pour
@@ -787,8 +824,6 @@ def require_login() -> bool:
         # que du texte, et `test_navigation_inside_the_app_opens_no_tab` vérifie
         # justement qu'aucun libellé n'y garde de syntaxe markdown — un crochet dans
         # une traduction s'afficherait tel quel le jour où le rendu changerait.
-        _bouton_google()
-
         if st.button(":blue["
                      + _t("auth.register_link", "Pas encore de compte ? Créez-en un")
                      + "]",

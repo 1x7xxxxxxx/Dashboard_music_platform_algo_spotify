@@ -5,6 +5,27 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-23 (nuit) — R153 close : le propriétaire entre par Google, et le bouton passe dans le cadre
+
+**Ce qui a changé.** Premier aller-retour Google réussi en production, par le
+propriétaire. Le bouton quitte le dessous du formulaire pour le cadre « Connexion », à
+côté de « Se connecter », sur un dégradé vif (#D4006F → #7B2FF7).
+
+### Ce qu'il faut retenir
+
+- **Le dégradé a été MESURÉ avant d'être posé** : le premier réflexe (rose → orange)
+  mettait le texte blanc à 2,6:1 sur l'orange ; celui retenu tient ≥ 5,2:1. Le garde
+  recalcule le contraste depuis la CSS elle-même.
+- **Une mutation qui n'a pas rougi a dit ce que le garde mesurait vraiment** : inverser
+  l'ORDRE DE CRÉATION des boutons laissait le test vert, parce qu'AppTest lit la
+  POSITION. La bonne mutation (colonnes inversées) rougit. Le code tient les deux vraies
+  à la fois — « Se connecter » à gauche ET créé en premier — pour que la touche Entrée
+  ne parte jamais chez Google, quelle que soit la règle interne de Streamlit.
+- Rendu vérifié EN LE REGARDANT, bureau et téléphone, par une capture CDP — le
+  `--screenshot` de Chrome ne rendait que le squelette de chargement.
+
+---
+
 ## 2026-09-23 (soir) — La roadmap d'ingénierie refermée, et une bibliothèque que rien n'installait
 
 **Ce qui a changé.** R164 livrée ; R153 posée en production.

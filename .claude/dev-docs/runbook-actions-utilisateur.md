@@ -1630,7 +1630,7 @@ eu lieu et que la réponse est écrite, y compris si c'est un non.
 
 ---
 
-## 23. R153 — Créer l'identifiant OAuth Google pour la connexion en un clic
+## 23. ~~R153 — Créer l'identifiant OAuth Google pour la connexion en un clic~~ · ✅ FAIT le 2026-09-23 — aller-retour Google réussi en production par le propriétaire ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 Le code est livré et **inerte** : sans `.streamlit/secrets.toml`, le bouton « Se
 connecter avec Google » ne s'affiche pas et le mot de passe reste le seul chemin.
