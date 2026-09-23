@@ -6426,7 +6426,8 @@
       "history_dates_declared": [
         "2026-06-19",
         "2026-09-04",
-        "2026-09-18"
+        "2026-09-18",
+        "2026-09-23"
       ],
       "kind": "deterministic",
       "seen_red": "self-proving",
@@ -6436,8 +6437,8 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-06-20",
-      "revisions": 10,
-      "history_additions": 1,
+      "revisions": 11,
+      "history_additions": 2,
       "renamed_from": null
     },
     "env-resolved-against-cwd": {
@@ -11268,8 +11269,8 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 358,
-      "head_date": "2026-09-22"
+      "catalogue_revisions": 359,
+      "head_date": "2026-09-23"
     },
     "holes": {
       "cause_inferred": 0,
@@ -11296,93 +11297,93 @@
     },
     "recurrence": {
       "window_start": "2026-05-15",
-      "as_of": "2026-09-22",
+      "as_of": "2026-09-23",
       "observed": {
-        "events": 48,
-        "class_days": 10013,
-        "per_class_month": 0.1457,
+        "events": 49,
+        "class_days": 10424,
+        "per_class_month": 0.1429,
         "ci95": [
-          0.1074,
-          0.1932
+          0.1057,
+          0.1889
         ]
       },
-      "class_days_exposed": 10013,
+      "class_days_exposed": 10424,
       "by_guard": {
         "automatique": {
-          "events": 44,
-          "class_days": 9800,
-          "per_class_month": 0.1365,
+          "events": 45,
+          "class_days": 10201,
+          "per_class_month": 0.1341,
           "ci95": [
-            0.0992,
-            0.1832
+            0.0978,
+            0.1794
           ]
         },
         "prose": {
           "events": 4,
-          "class_days": 213,
-          "per_class_month": 0.5709,
+          "class_days": 223,
+          "per_class_month": 0.5453,
           "ci95": [
-            0.1536,
-            1.4616
+            0.1467,
+            1.396
           ]
         }
       },
       "by_seen_red": {
         "daté": {
           "events": 18,
-          "class_days": 3263,
-          "per_class_month": 0.1677,
+          "class_days": 3422,
+          "per_class_month": 0.1599,
           "ci95": [
-            0.0993,
-            0.265
+            0.0947,
+            0.2527
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 30,
-          "class_days": 6750,
-          "per_class_month": 0.1351,
+          "events": 31,
+          "class_days": 7002,
+          "per_class_month": 0.1346,
           "ci95": [
-            0.0911,
-            0.1929
+            0.0914,
+            0.191
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 48,
-          "class_days": 10013,
-          "per_class_month": 0.1457,
+          "events": 49,
+          "class_days": 10424,
+          "per_class_month": 0.1429,
           "ci95": [
-            0.1074,
-            0.1932
+            0.1057,
+            0.1889
           ]
         }
       },
       "by_guard_since": {
         "avec-garde": {
-          "events": 44,
-          "class_days": 9222,
-          "per_class_month": 0.145,
+          "events": 45,
+          "class_days": 9620,
+          "per_class_month": 0.1422,
           "ci95": [
-            0.1054,
-            0.1947
+            0.1037,
+            0.1903
           ]
         },
         "sans-garde": {
           "events": 4,
-          "class_days": 791,
-          "per_class_month": 0.1537,
+          "class_days": 804,
+          "per_class_month": 0.1512,
           "ci95": [
-            0.0414,
-            0.3936
+            0.0407,
+            0.3872
           ]
         }
       },
       "fixed_horizon": {
         "h7": {
-          "at_risk": 332,
-          "recurred": 35,
-          "rate": 0.1054
+          "at_risk": 369,
+          "recurred": 37,
+          "rate": 0.1003
         },
         "h14": {
           "at_risk": 245,
@@ -11390,9 +11391,9 @@
           "rate": 0.1224
         },
         "h30": {
-          "at_risk": 117,
+          "at_risk": 132,
           "recurred": 25,
-          "rate": 0.2137
+          "rate": 0.1894
         }
       }
     },

@@ -61,8 +61,10 @@ def test_every_required_compose_var_is_documented_in_env_example():
         if not f.exists():
             continue
         text = f.read_text()
-        # ${VAR}  → required; ${VAR:-default} → optional (has a baked default)
-        required = set(re.findall(r"\$\{([A-Z0-9_]+)\}", text))
+        # ${VAR} and ${VAR:?msg} → required; ${VAR:-default} → optional (baked default).
+        # `:?` must count: the variables it marks are the MOST required of all, and the
+        # bare-`}` regex alone dropped them from this check the day they were hardened.
+        required = set(re.findall(r"\$\{([A-Z0-9_]+)(?:\}|:\?)", text))
         optional = set(re.findall(r"\$\{([A-Z0-9_]+):-", text))
         required -= optional
         required.discard("VAR")  # placeholder de doc dans l'en-tête
@@ -73,3 +75,28 @@ def test_every_required_compose_var_is_documented_in_env_example():
         "des fichiers compose référencent des ${VAR} requises non documentées dans "
         f".env.example (ajoute-les pour que le déployeur sache quoi poser) : {manquantes}"
     )
+
+
+# A variable without which the stack cannot start must make compose REFUSE, not warn.
+# Compose resolves an unset `${VAR}` to "" with a warning nobody reads: on 2026-09-23
+# `airflow-init` died late on "Airflow Admin password not set" because
+# AIRFLOW_ADMIN_* were missing from `.env` — the file compose reads (never `.env.local`).
+# `${VAR:?msg}` stops `docker compose up` before any container starts, naming the fix.
+_STACK_CANNOT_START_WITHOUT = {
+    "DATABASE_PASSWORD",       # postgres refuses to initialise with an empty superuser password
+    "AIRFLOW_ADMIN_USERNAME",  # airflow-init exits 1
+    "AIRFLOW_ADMIN_PASSWORD",  # airflow-init exits 1
+    "FERNET_KEY",              # every stored tenant credential becomes undecryptable
+}
+
+
+def test_a_variable_the_stack_cannot_start_without_is_mandatory():
+    text = COMPOSE.read_text()
+    faibles = sorted(v for v in _STACK_CANNOT_START_WITHOUT
+                     if re.search(r"\$\{" + v + r"(\}|:-)", text))
+    absentes = sorted(v for v in _STACK_CANNOT_START_WITHOUT
+                      if not re.search(r"\$\{" + v + r":\?", text))
+    assert not faibles and not absentes, (
+        f"{COMPOSE.name} : {faibles or absentes} doivent s'écrire `${{VAR:?message}}`. "
+        "Un `${VAR}` vide devient une chaîne vide avec un simple avertissement, et le "
+        "conteneur meurt plus tard sur un message qui n'accuse pas `.env`.")

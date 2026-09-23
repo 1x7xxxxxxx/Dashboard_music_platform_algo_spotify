@@ -29,7 +29,8 @@ n'attend plus que le client OAuth, que seul le propriétaire peut créer.
   rouges avec Postgres éteint (`/health` 503) ; rejoués sur l'arbre d'origine, ils
   l'étaient aussi, et tous verts une fois Postgres lancé (2 337 verts). En local,
   `airflow-init` échoue faute de `_AIRFLOW_WWW_USER_PASSWORD` — à reposer dans
-  `.env.local`.
+  `.env` (⚠️ corrigé le 2026-09-23 : cette ligne disait `.env.local`, que compose ne lit
+  **jamais** pour interpoler ; `AIRFLOW_ADMIN_*` y est désormais `${VAR:?…}`).
 
 ---
 
