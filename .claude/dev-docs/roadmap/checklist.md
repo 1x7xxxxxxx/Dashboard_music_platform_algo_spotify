@@ -69,7 +69,7 @@ résultat de la matinée :
 | **R149** | ✅ livrée | l'activation, mesurée à **2 sur 5**, posée en tête du panneau admin ; MRR et ARPU passent sous un repli |
 | **R152** | ✅ tranchée | **ADR-028** : pas d'axe de valeur tant que l'activation n'est pas réglée, avec son déclencheur de réouverture |
 | **R151** | 🚫 réfutée le 2026-09-23 | Meta a retiré le classement manuel des 8 évènements — détail dans `archive.md` |
-| **R148 · R150 · R153** | 🙋 en attente de toi | trois gestes humains, chacun avec sa procédure dans le runbook |
+| **R148 · R150 · R153 · R163** | 🙋 en attente de toi | quatre gestes humains, chacun avec sa procédure dans le runbook |
 
 ⚠️ **Et une trouvaille qui n'était dans aucun livre**, tombée en lançant la suite :
 douze modules de test construisaient leur DSN à la main. Sans base ils skippaient, avec
@@ -83,8 +83,8 @@ et la citation sont dans le bloc « 📚 R146-R151 » plus bas. Une ligne dont l
 faisait que confirmer ce qu'on savait déjà n'y est PAS entrée.
 
 **Aucune autre tâche n'est ouverte dans cet index.** R145 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance, close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
-L'ancre `reprise:` ne nomme donc plus que les lignes en attente d'un geste humain — R148, R150 et R153 depuis le 2026-09-23 (R151 réfutée ce jour-là). La table « 🙋 En attente de toi »
-plus bas en porte **trois** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
+L'ancre `reprise:` ne nomme donc plus que les lignes en attente d'un geste humain — R148, R150, R153 et R163 depuis le 2026-09-23 (R151 réfutée ce jour-là, R163 entrée le même jour). La table « 🙋 En attente de toi »
+plus bas en porte **quatre** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
 sont sorties le 2026-09-20 — les dix-sept décisions de la première tranchées et
 intégrées, la deuxième faite par le propriétaire (33 lignes en production), la troisième
 mesurée EN PRODUCTION et close sur son résultat.
@@ -174,7 +174,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-22 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R148, R150, R153 -->
+<!-- reprise: open=R148, R150, R153, R163 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers
@@ -190,8 +190,8 @@ la table des gestes humains (R148, R150, R151, R153), et **trois entrées l'apr�
 | **R156** | les trois trous de balayage du catalogue d'erreurs, fermés | **411/411 verdicts lisibles, 0 muet, 0 jamais balayée** |
 
 **Par où reprendre (2026-09-23)** : l'index actionnable est **vide** — R157 à R162 sont
-livrées. Tout ce qui reste est dans « 🙋 En attente de toi » : trois gestes que seul le
-propriétaire peut faire. R151 est réfutée : le réglage Meta qu'elle visait n'existe plus.
+livrées. Tout ce qui reste est dans « 🙋 En attente de toi » : quatre gestes que seul le
+propriétaire peut faire, dont R163 qui attend le lancement. R151 est réfutée : le réglage Meta qu'elle visait n'existe plus.
 
 **Le P2 est livré.** R146 : la conversion CAPI d'Hypeddit se déclenche quand l'auditeur
 QUITTE le smart link, pas quand il écoute. Le balayage a trouvé **seize grappes de
@@ -241,8 +241,9 @@ deux réordonnancements de R118/R120, chacun sur une mesure — a été **dépla
 dans `archive.md`** le 2026-09-18, sous « Le récit de mesure de R114–R121 ». Il n'est pas
 perdu : il n'appartient simplement pas à un écran qui répond « où j'en suis ».
 
-**La table « 🙋 En attente de toi » porte TROIS lignes** — R148, R150 et R153, entrées
-le 2026-09-22 (R151, entrée avec elles, réfutée le 2026-09-23). Elle avait été vide pour la première fois le 2026-09-20, quand R140,
+**La table « 🙋 En attente de toi » porte QUATRE lignes** — R148, R150 et R153, entrées
+le 2026-09-22 (R151, entrée avec elles, réfutée le 2026-09-23), et R163, entrée le
+2026-09-23 : les gestes Hypeddit à faire au lancement. Elle avait été vide pour la première fois le 2026-09-20, quand R140,
 R125 et R134 en étaient sorties ; le vide a tenu deux jours.
 ⚠️ Vide ne veut pas dire « rien n'attend un humain » pour toujours : inviter la bêta est
 l'usage du produit, pas du travail d'ingénierie, et cette table se remplira de nouveau.
@@ -376,6 +377,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | R148 | Trois conversations « combien tu paierais » | P3 | trois entretiens de vingt minutes, avec des artistes **qui ont vu leurs données** — runbook §19 |
 | R150 | Trois options chiffrées pour la prestation | P3 | **côté outil : livré le 2026-09-22** (page `🎯 Faire piloter mes campagnes`, trois options, prix en réglages). Reste TON geste : saisir les trois montants dans **⚙️ Admin → Réglages** — runbook §20 |
 | R153 | L'identifiant OAuth Google pour la connexion en un clic | P3 | **côté outil : livré le 2026-09-22** (couture OIDC, 4 contrôles, formulaire court, hôte canonique). Reste TON geste : créer le client OAuth dans la console Google Cloud et poser `.streamlit/secrets.toml` — runbook §23. ⚠️ Scopes `openid email profile` **et rien d'autre** : un scope de plus fait basculer dans le régime de R105 |
+| R163 | Brancher Hypeddit sur le pixel et sa Conversions API, au lancement | P3 | **déclencheur : l'app terminée ET une campagne Meta relancée.** Choisir le pixel dans Hypeddit, y coller un jeton CAPI, rattacher le pixel à chaque smart link, vérifier l'évènement en test, puis 48 h après voir `custom_conversions` remonter — runbook §24 |
 
 ⚠️ **R148 vient après l'activation** : demander à
 quelqu'un ce qu'il paierait pour un produit qu'il n'a jamais vu fonctionner ne mesure

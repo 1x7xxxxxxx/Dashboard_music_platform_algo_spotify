@@ -1732,3 +1732,68 @@ FROM usage_events WHERE ts > now() - interval '14 days';
 ```
 Si le rapport ne bouge pas, la connexion Google n'aura rien réglé — et ce sera une
 information, pas un échec.
+
+---
+
+## 24. R163 — Brancher Hypeddit sur le pixel et sa Conversions API, au lancement
+
+**Déclencheur : l'app terminée ET une campagne Meta relancée.** Pas avant — un pixel
+branché sans campagne ne mesure rien, et le jeton CAPI expire si on le laisse dormir
+(à régénérer au moindre doute).
+
+**Pourquoi c'est toi et pas l'app** : streaMLytics n'émet aucun évènement vers Meta.
+C'est **Hypeddit** qui renvoie la conversion par SA Conversions API ; l'app la lit
+ensuite dans l'Ads Insights, sous `custom_conversions`. Si Hypeddit n'est pas branché,
+le coût par résultat de toutes les pages Meta reste vide — et ça se lit comme une
+campagne qui ne convertit pas.
+
+**Ce que ce n'est PAS** : l'ancien « classement des 8 évènements » (R151) — Meta l'a
+supprimé, il n'y a plus rien à classer.
+
+### Les étapes
+
+1. **Choisir LE pixel.** Au 2026-09-23 le compte en porte cinq, tous à 0 évènement.
+   Celui à utiliser est **`Pixel de 1x7xxxxxxx` (ID `6717193515003895`)**, sauf si
+   Hypeddit en porte déjà un autre — auquel cas garder celui d'Hypeddit, pour ne pas
+   casser l'historique. Ignorer `ETL_DASHBOARD_SPOTIFY` et `Spotify ETL Dashboard` :
+   ils appartiennent à l'application Meta de streaMLytics, pas à Hypeddit.
+2. **Générer le jeton CAPI** : business.facebook.com → **Gestionnaire d'évènements** →
+   ce pixel → **Paramètres** → **API Conversions** → *Générer un jeton d'accès*.
+   Le copier tout de suite (il ne se réaffiche pas). **Ne pas le coller dans le fil.**
+3. **Le poser dans Hypeddit** : **Account Settings → Tracking Pixels** → *Facebook* →
+   ID du pixel + jeton CAPI → enregistrer.
+4. **Rattacher le pixel à CHAQUE smart link** de la campagne (onglet *Pixels* /
+   *Tracking* du lien). Un lien sans pixel ne renvoie rien, même si le compte est
+   branché.
+5. **Tester avant de dépenser** : Gestionnaire d'évènements → le pixel → **Tester les
+   évènements** → ouvrir le smart link sur ton téléphone et cliquer vers Spotify.
+   L'évènement doit apparaître, avec la mention **Serveur** (c'est la CAPI) — et
+   idéalement aussi **Navigateur**, dédoublonnés.
+6. **La conversion personnalisée** : dans le Gestionnaire d'évènements →
+   *Conversions personnalisées*, vérifier qu'une règle correspond à l'évènement vu à
+   l'étape 5 (même nom d'évènement). C'est elle que la campagne doit optimiser, et
+   c'est elle que l'app lit sous `custom_conversions`.
+7. **Lancer la campagne** avec cette conversion comme objectif de résultat.
+
+### Vérification — 48 h après le lancement
+
+```bash
+# 1. Des conversions récentes remontent (prod)
+ssh <prod> "docker exec postgres_spotify_airflow psql -U postgres -d spotify_etl -c \
+  \"SELECT day, SUM(link_clicks) AS clics, SUM(custom_conversions) AS conv \
+    FROM v_meta_campaign_daily WHERE artist_id = 1 AND day > CURRENT_DATE - 7 \
+    GROUP BY day ORDER BY day;\""
+```
+
+`conv > 0` sur les derniers jours = c'est branché. `conv = 0` avec des clics = revenir à
+l'étape 4 (un lien sans pixel) ou 5 (l'évènement n'arrive pas côté serveur).
+
+2. Dans l'app, **📣 Meta Ads** : le coût par résultat n'est plus vide, et la tuile de
+   l'accueil porte une date récente.
+3. Gestionnaire d'évènements → **Diagnostics** : aucune alerte de dédoublonnage ou de
+   qualité de correspondance.
+
+### Ce que ça ne change pas
+
+R146 reste vrai : même parfaitement branché, ce chiffre compte l'auditeur qui **quitte**
+le smart link vers Spotify, pas une écoute. L'app le dit déjà sur chaque surface.
