@@ -579,25 +579,42 @@ def _show_bootstrap_form(db) -> None:
 # Login
 # ─────────────────────────────────────────────
 
-#: The Google button's look. Asked for on 2026-09-23 — « juste à côté de connexion
-#: avec un fond flashi, qu'on puisse cliquer facilement dessus ». The gradient is
-#: MEASURED, not picked: white text reads at 5.2:1 on #D4006F and 5.9:1 on #7B2FF7
-#: (WCAG AA ≥ 4.5). The first idea, pink → orange, fell to 2.6:1 on the orange end.
+#: The Google button looks like Google's OWN button, as on every other site: white
+#: background, thin grey border, dark text, the four-colour "G" on the left
+#: (Google Identity branding guidelines — light theme: fill #FFFFFF, stroke #747775,
+#: text #1F1F1F). Asked on 2026-09-23 after a gradient version: « de couleur comme sur
+#: les autres sites internet avec le logo google ». The light button is also the one
+#: the guidelines allow on a dark page, so there is no theme variant to keep in sync.
 #: `.st-key-<key>` is the class Streamlit puts on any element given a `key`.
 _GOOGLE_BUTTON_KEY = "google_signin"
 _LOGIN_BUTTON_KEY = "login_submit"
+_GOOGLE_G_LOGO = (
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'"
+    "%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 "
+    "2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 2"
+    "4 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v"
+    "9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+    "'/%3E%3Cpath fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3."
+    "14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19"
+    "z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2"
+    ".15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14"
+    ".62 48 24 48z'/%3E%3C/svg%3E"
+)
 _GOOGLE_BUTTON_CSS = f"""<style>
 .st-key-{_GOOGLE_BUTTON_KEY} button {{
-    background: linear-gradient(135deg, #D4006F 0%, #7B2FF7 100%) !important;
-    color: #FFFFFF !important; border: none !important; min-height: 3rem;
-    box-shadow: 0 4px 14px rgba(123, 47, 247, .40);
-    transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+    background: #FFFFFF !important; color: #1F1F1F !important;
+    border: 1px solid #747775 !important; border-radius: 4px !important;
+    min-height: 3rem; font-weight: 500;
 }}
 .st-key-{_GOOGLE_BUTTON_KEY} button:hover {{
-    transform: translateY(-1px); filter: brightness(1.08);
-    box-shadow: 0 6px 20px rgba(212, 0, 111, .50);
+    background: #F8F9FA !important; box-shadow: 0 1px 3px rgba(60, 64, 67, .30);
 }}
-.st-key-{_GOOGLE_BUTTON_KEY} button p {{ color: #FFFFFF !important; font-weight: 700; }}
+.st-key-{_GOOGLE_BUTTON_KEY} button p {{ color: #1F1F1F !important; font-weight: 500; }}
+.st-key-{_GOOGLE_BUTTON_KEY} button p::before {{
+    content: ""; display: inline-block; width: 18px; height: 18px;
+    margin-right: 12px; vertical-align: -3px;
+    background: url("{_GOOGLE_G_LOGO}") no-repeat center / contain;
+}}
 .st-key-{_LOGIN_BUTTON_KEY} button {{ min-height: 3rem; }}
 </style>"""
 
@@ -622,7 +639,8 @@ def _boutons_de_connexion() -> bool:
     # validé par Entrée comme par son premier bouton, et un mot de passe tapé au
     # clavier ne doit jamais partir chez Google. Garde :
     # tests/test_the_google_button_sits_beside_sign_in.py
-    col_login, col_google = st.columns(2)
+    # Centred in the frame, side by side: two narrow gutters around the pair.
+    _gauche, col_login, col_google, _droite = st.columns([1, 2, 2, 1])
     with col_login:
         submitted = st.form_submit_button(_t("auth.signin", "Se connecter"), type="primary",
                                           key=_LOGIN_BUTTON_KEY, width="stretch")
