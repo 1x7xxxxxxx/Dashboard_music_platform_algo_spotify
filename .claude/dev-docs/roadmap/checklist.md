@@ -173,7 +173,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-22 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-23 (à lire EN PREMIER au `/resume`)
 
 <!-- reprise: open=R148, R153, R163 -->
 

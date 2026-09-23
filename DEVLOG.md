@@ -5,6 +5,34 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-23 — La roadmap d'ingénierie ferme, et un réglage Meta qui n'existait plus
+
+**Ce qui a changé.** Quatre commits poussés (`ad19be5`, `585e869`, `f146f6d`,
+`305f784`). L'index actionnable est **vide** ; il reste trois gestes humains.
+
+| id | sortie | ce qui l'a tranchée |
+|---|---|---|
+| **R162** | ✅ livrée | le garde des connexions lit enfin les blocs imbriqués. Annoncé à 1 site, le premier élargissement en a rendu **2**, dont un faux positif (`cache_epoch.bump`, fermé par le `try/finally` un niveau au-dessus). Le remède annoncé (`with project_db()`) aurait été une régression : son chemin d'échec est `st.stop()`, et `_check_db_health` existe pour afficher la bannière. |
+| **R151** | 🚫 réfutée | le classement manuel des 8 évènements agrégés Meta a été **retiré par Meta** (annoncé en mai 2023). La ligne venait d'un livre antérieur au changement. Les 5 pixels du compte : 0 évènement sur 28 jours ; dernière conversion en base : 2024-09-30. |
+| **R150** | ✅ livrée | 150 / 300 / 550 €, choisis par le propriétaire, posés en local ET en prod ; la page les rend. |
+| **R163** | 🙋 entrée | les gestes Hypeddit + Conversions API à faire au lancement (runbook §24). L'app n'émet rien vers Meta : c'est la CAPI d'Hypeddit qui renvoie la conversion. |
+
+**R153** : le `.streamlit/secrets.toml` local est posé avec son `cookie_secret` ; il
+n'attend plus que le client OAuth, que seul le propriétaire peut créer.
+
+### Ce qu'il faut retenir
+
+- **Une ligne de roadmap née d'une citation hérite de la date de la citation.** R151
+  aurait fait chercher un écran disparu depuis deux ans ; c'est la capture d'écran du
+  propriétaire qui l'a réfutée, pas une relecture.
+- **Un test rouge sans base n'est pas un verdict.** `make test-changed` a rendu 4
+  rouges avec Postgres éteint (`/health` 503) ; rejoués sur l'arbre d'origine, ils
+  l'étaient aussi, et tous verts une fois Postgres lancé (2 337 verts). En local,
+  `airflow-init` échoue faute de `_AIRFLOW_WWW_USER_PASSWORD` — à reposer dans
+  `.env.local`.
+
+---
+
 ## 2026-09-22 (nuit) — La page de saisie ne disait pas depuis quand elle mentait
 
 **Ce qui a changé.** Deux commits déployés (`2cecff6`, `1263ef3`). La page de saisie
