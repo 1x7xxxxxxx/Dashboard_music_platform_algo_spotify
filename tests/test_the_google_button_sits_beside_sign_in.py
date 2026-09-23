@@ -1,21 +1,25 @@
-"""Garde : « Se connecter avec Google » vit DANS le cadre, à côté de « Se connecter ».
+"""Garde : « Se connecter avec Google » vit sur la ligne du titre « Connexion ».
 
 Type: Utility
 Uses: streamlit.testing.v1.AppTest, src.dashboard.auth
 Triggers: pytest
 Persists in: nothing
 
-Demandé le 2026-09-23 par le propriétaire, après son premier aller-retour Google réussi
-en production : le bouton « juste à côté de connexion, avec un fond flashi, qu'on
-puisse cliquer facilement dessus, intégré dans le cadre ». Il vivait SOUS le
-formulaire, en bouton gris pleine largeur, entre le formulaire et le lien
-d'inscription.
+Demandé le 2026-09-23 par le propriétaire, en trois temps : le bouton dans le cadre,
+à côté du bouton de connexion ; puis le bouton standard de Google, logo « G » compris ;
+puis « juste à côté du bouton "Connexion" et non "Se connecter", qu'on laisse après
+les champs de saisie ».
 
-Ce que ce garde couvre, par un RENDU réel et non une lecture du source :
-* avec Google configuré, les deux boutons sont dans le formulaire, sur la même ligne ;
-* « Se connecter » est le PREMIER bouton de soumission — Streamlit assimile la touche
-  Entrée au premier : un mot de passe validé au clavier ne doit jamais partir chez
-  Google ;
+Le piège que ce garde tient fermé : Streamlit valide un formulaire par la touche
+Entrée en déclenchant `submitButtons[0]`, le premier bouton de soumission AFFICHÉ
+(lu dans le JS de la v1.63.0, `allowFormEnterToSubmit` / `submitForm`). Un bouton
+Google posé au-dessus des champs COMME bouton de soumission aurait volé la touche
+Entrée. Il est donc un `st.button` ordinaire, HORS du formulaire.
+
+Ce que ce garde couvre, par un RENDU réel de `_cadre_de_connexion()` :
+* le bouton Google partage la rangée horizontale du titre « Connexion » ;
+* il n'est PAS dans le formulaire, qui n'a qu'un bouton de soumission : « Se connecter » ;
+* les deux boutons ont la même largeur fixe (courts, jamais tronqués) ;
 * le style est celui du bouton de Google — blanc, texte sombre lisible (AA), « G »
   quatre couleurs ;
 * sans configuration, Google disparaît et « Se connecter » reste seul.
@@ -25,7 +29,10 @@ chez Google, prouvé à la main en production le 2026-09-23.
 """
 from __future__ import annotations
 
+import ast
+import inspect
 import re
+import urllib.parse
 
 from streamlit.testing.v1 import AppTest
 
@@ -38,9 +45,7 @@ from src.dashboard.utils import google_auth
 _real_configure = google_auth.configure
 google_auth.configure = lambda: {configured}
 try:
-    with st.form("login"):
-        st.text_input("user", key="u")
-        submitted = auth._boutons_de_connexion()
+    _u, _p, submitted = auth._cadre_de_connexion()
     st.write("SUBMITTED" if submitted else "IDLE")
 finally:
     # AppTest runs in THIS process: a double left in place leaks into every test after.
@@ -55,68 +60,70 @@ def _run(configured: bool) -> AppTest:
     return at
 
 
-def test_both_buttons_share_the_form_and_sign_in_comes_first() -> None:
-    at = _run(configured=True)
-    keys = [b.key for b in at.button]
-    assert keys[:2] == ["login_submit", "google_signin"], (
-        f"ordre des boutons de soumission : {keys}. « Se connecter » doit être le "
-        "PREMIER — la touche Entrée soumet par lui.")
-    rows = [n for n in _walk(at._tree)
-            if getattr(n, "type", "") == "flex_container"
-            and {getattr(c, "key", None) for c in getattr(n, "children", {}).values()}
-            >= {"login_submit", "google_signin"}]
-    assert rows, "les deux boutons ne partagent pas la même rangée horizontale"
-    assert rows[0].proto.flex_container.direction == 2 or "horizontal" in str(
-        rows[0].proto).lower(), "la rangée des deux boutons n'est pas horizontale"
-
-
 def _walk(node):
     yield node
     for child in (getattr(node, "children", None) or {}).values():
         yield from _walk(child)
 
 
-def test_both_buttons_are_short_and_equal() -> None:
-    """« diminue en longueur horizontale les 2 boutons » — une largeur FIXE, pas un
-    pourcentage : à 25 % du cadre, le libellé Google était tronqué à 1 024 px."""
-    import ast
-    import inspect
-
-    from src.dashboard import auth
-    from src.dashboard.auth import _BUTTON_WIDTH_PX
-
-    # AppTest does not expose an element's width; the call site does, read as a tree.
-    tree = ast.parse(inspect.getsource(auth._boutons_de_connexion))
-    horizontal = [w for w in ast.walk(tree) if isinstance(w, ast.With)
-                  and any(getattr(i.context_expr.func, "attr", "") == "container"
-                          for i in w.items if isinstance(i.context_expr, ast.Call))]
-    assert horizontal, "non-vacuité : la rangée horizontale n'est plus un `st.container`"
-    widths = [kw.value for c in ast.walk(horizontal[0]) if isinstance(c, ast.Call)
-              and getattr(c.func, "attr", "") == "form_submit_button"
-              for kw in c.keywords if kw.arg == "width"]
-    assert len(widths) == 2 and all(
-        isinstance(w, ast.Name) and w.id == "_BUTTON_WIDTH_PX" for w in widths), (
-        "les deux boutons de la rangée doivent porter `width=_BUTTON_WIDTH_PX` — une "
-        f"largeur 'stretch' les rallonge au cadre entier : {[ast.dump(w) for w in widths]}")
-    assert 220 <= _BUTTON_WIDTH_PX <= 320, (
-        f"{_BUTTON_WIDTH_PX} px : sous 220 le libellé Google se tronque, au-dessus de "
-        "320 les boutons redeviennent longs.")
+def _keys_under(node) -> set:
+    return {getattr(n, "key", None) for n in _walk(node)} - {None}
 
 
-def test_enter_or_click_on_sign_in_submits_the_password_path() -> None:
+def test_google_shares_the_row_of_the_connexion_title() -> None:
+    at = _run(configured=True)
+    rows = [n for n in _walk(at._tree) if getattr(n, "type", "") == "flex_container"
+            and "google_signin" in {getattr(c, "key", None)
+                                    for c in (n.children or {}).values()}]
+    assert rows, "le bouton Google n'est dans aucune rangée"
+    row = list(rows[0].children.values())
+    assert [getattr(c, "type", "") for c in row] == ["subheader", "button"], (
+        f"la rangée porte {[getattr(c, 'type', '') for c in row]} : attendu le titre puis "
+        "le bouton Google, et rien entre les deux (un <style> y prendrait une place)")
+    assert "Connexion" in row[0].value, "le bouton Google n'est pas sur la ligne du titre"
+
+
+def test_the_form_has_one_submit_button_and_it_is_sign_in() -> None:
+    """Entrée soumet par `submitButtons[0]` : il ne doit y en avoir qu'un, le bon."""
+    at = _run(configured=True)
+    forms = [n for n in _walk(at._tree) if getattr(n, "type", "") == "form"]
+    assert len(forms) == 1, f"non-vacuité : {len(forms)} formulaire(s)"
+    submitters = [b.key for b in at.button if b.proto.is_form_submitter]
+    assert submitters == ["login_submit"], (
+        f"boutons de soumission : {submitters}. Google en bouton de soumission volerait "
+        "la touche Entrée à un mot de passe validé au clavier.")
+    assert "google_signin" not in _keys_under(forms[0]), "Google est DANS le formulaire"
+    assert "login_submit" in _keys_under(forms[0])
+
+
+def test_sign_in_still_submits_the_password_path() -> None:
     at = _run(configured=True)
     at.button(key="login_submit").click().run()
     assert any("SUBMITTED" in m.value for m in at.markdown), "le mot de passe n'a pas été soumis"
 
 
+def test_both_buttons_are_short_and_equal() -> None:
+    """Une largeur FIXE, pas un pourcentage : à 25 % du cadre, le libellé Google
+    était tronqué à 1 024 px (« Se connecter avec G… »)."""
+    from src.dashboard import auth
+    from src.dashboard.auth import _BUTTON_WIDTH_PX
+
+    for fn, verb in ((auth._bouton_google, "button"),
+                     (auth._bouton_se_connecter, "form_submit_button")):
+        calls = [c for c in ast.walk(ast.parse(inspect.getsource(fn)))
+                 if isinstance(c, ast.Call) and getattr(c.func, "attr", "") == verb]
+        assert calls, f"non-vacuité : aucun `{verb}` dans {fn.__name__}"
+        widths = [kw.value for c in calls for kw in c.keywords if kw.arg == "width"]
+        assert widths and all(isinstance(w, ast.Name) and w.id == "_BUTTON_WIDTH_PX"
+                              for w in widths), (
+            f"{fn.__name__} : le bouton doit porter `width=_BUTTON_WIDTH_PX`")
+    assert 220 <= _BUTTON_WIDTH_PX <= 320, (
+        f"{_BUTTON_WIDTH_PX} px : sous 220 le libellé Google se tronque, au-dessus de "
+        "320 les boutons redeviennent longs.")
+
+
 def test_the_google_button_looks_like_googles_own() -> None:
-    """Fond blanc, bordure grise, texte sombre, « G » quatre couleurs — comme partout.
-
-    Demandé le 2026-09-23 : « de couleur comme sur les autres sites internet avec le
-    logo google ». La version d'avant (dégradé magenta → violet) a vécu une heure.
-    """
-    import urllib.parse
-
+    """Fond blanc, bordure grise, texte sombre, « G » quatre couleurs — comme partout."""
     from src.dashboard.auth import _GOOGLE_BUTTON_CSS, _GOOGLE_G_LOGO
 
     at = _run(configured=True)
@@ -137,7 +144,7 @@ def test_the_google_button_looks_like_googles_own() -> None:
     assert logo.startswith("data:image/svg+xml,<svg"), "le logo n'est pas un SVG embarqué"
     manquantes = [c for c in ("#EA4335", "#4285F4", "#FBBC05", "#34A853") if c not in logo]
     assert not manquantes, f"le « G » de Google a perdu ses couleurs {manquantes}"
-    assert "url(\"data:image/svg+xml," in _GOOGLE_BUTTON_CSS, "le logo n'est pas branché"
+    assert 'url("data:image/svg+xml,' in _GOOGLE_BUTTON_CSS, "le logo n'est pas branché"
 
 
 def test_without_google_configured_sign_in_stands_alone() -> None:

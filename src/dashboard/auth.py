@@ -620,38 +620,64 @@ _GOOGLE_BUTTON_CSS = f"""<style>
 </style>"""
 
 
-def _boutons_de_connexion() -> bool:
-    """« Se connecter » et, s'il peut marcher, « Se connecter avec Google » CÔTE À
-    CÔTE, dans le cadre du formulaire. Rend True si le mot de passe a été soumis.
+def _bouton_google() -> None:
+    """« Se connecter avec Google », sur la ligne du titre « Connexion ».
 
-    Google n'apparaît que si `google_auth.configure()` le dit : sans `[auth]` dans
-    `.streamlit/secrets.toml`, ou sans Authlib, `st.login()` lève — un bouton qui
-    mène à un plantage vaut moins qu'un bouton absent. Il est un
-    `form_submit_button` parce que `st.form` n'admet que ça ; il ignore les champs
-    saisis et passe la main à `st.login`.
+    Affiché SEULEMENT s'il peut marcher : sans `[auth]` dans `.streamlit/secrets.toml`,
+    ou sans Authlib, `st.login()` lève — un bouton qui mène à un plantage vaut moins
+    qu'un bouton absent.
+
+    ⚠️ C'est un `st.button` ORDINAIRE, HORS du formulaire, et c'est voulu. Streamlit
+    valide un formulaire par la touche Entrée en déclenchant `submitButtons[0]` — le
+    premier bouton de soumission AFFICHÉ (lu dans `static/js/index.*.js`,
+    `allowFormEnterToSubmit` / `submitForm`, v1.63.0). Placé au-dessus des champs comme
+    bouton de soumission, Google aurait volé la touche Entrée : un mot de passe validé
+    au clavier serait parti chez Google.
     """
     from src.dashboard.utils import google_auth
 
     if not google_auth.configure():
+        return
+    st.button(_t("auth.google_signin", "Se connecter avec Google"),
+              key=_GOOGLE_BUTTON_KEY, width=_BUTTON_WIDTH_PX, on_click=st.login)
+
+
+def _bouton_se_connecter() -> bool:
+    """« Se connecter », seul bouton de soumission du formulaire, sous les champs."""
+    with st.container(horizontal=True, horizontal_alignment="center"):
         return st.form_submit_button(_t("auth.signin", "Se connecter"), type="primary",
-                                     key=_LOGIN_BUTTON_KEY, width="stretch")
-    st.markdown(_GOOGLE_BUTTON_CSS, unsafe_allow_html=True)
-    # « Se connecter » à GAUCHE et créé EN PREMIER : Streamlit soumet un formulaire
-    # validé par Entrée comme par son premier bouton, et un mot de passe tapé au
-    # clavier ne doit jamais partir chez Google. Garde :
-    # tests/test_the_google_button_sits_beside_sign_in.py
-    # Centred in the frame, side by side, each a FIXED 260 px — « diminue en longueur
-    # horizontale les 2 boutons » (2026-09-23). Columns in percent were tried first:
-    # at 25 % of the frame the Google label truncated to « Se connecter avec G… » on a
-    # 1024 px screen. A fixed width is short everywhere and never truncates; the
-    # horizontal container wraps them one under the other on a phone.
-    with st.container(horizontal=True, horizontal_alignment="center", gap="medium"):
-        submitted = st.form_submit_button(_t("auth.signin", "Se connecter"), type="primary",
-                                          key=_LOGIN_BUTTON_KEY, width=_BUTTON_WIDTH_PX)
-        st.form_submit_button(_t("auth.google_signin", "Se connecter avec Google"),
-                              key=_GOOGLE_BUTTON_KEY, width=_BUTTON_WIDTH_PX,
-                              on_click=st.login)
-    return submitted
+                                     key=_LOGIN_BUTTON_KEY, width=_BUTTON_WIDTH_PX)
+
+
+def _cadre_de_connexion() -> tuple[str, str, bool]:
+    """Le cadre de l'écran de connexion : titre + Google sur une ligne, puis le
+    formulaire. Rend (identifiant, mot de passe, soumis)."""
+    # Le CADRE est un conteneur, pas le formulaire : le titre « Connexion » et le
+    # bouton Google partagent sa première ligne (demandé le 2026-09-23 — « juste à
+    # côté du bouton Connexion »), et Google doit rester HORS du formulaire pour ne
+    # pas voler la touche Entrée (voir `_bouton_google`).
+    from src.dashboard.utils import google_auth
+
+    # The <style> block is an element too: inside the flex row it would take a slot
+    # and push the button off the title. It goes BEFORE the frame.
+    if google_auth.configure():
+        st.markdown(_GOOGLE_BUTTON_CSS, unsafe_allow_html=True)
+    with st.container(border=True):
+        with st.container(horizontal=True, vertical_alignment="center", gap="medium"):
+            st.subheader(_t("auth.signin_title", "Connexion"), width="content")
+            _bouton_google()
+        with st.form("login", border=False):
+            # Login accepts the email OR the username (see _authenticate_user). Users
+            # remember their email — surface it as the primary identifier.
+            username  = st.text_input(_t("auth.username", "Email ou nom d'utilisateur"),
+                                      key="login_username",
+                                      placeholder=_t("auth.username_ph", "vous@exemple.com"),
+                                      autocomplete="username")
+            password  = st.text_input(_t("auth.password", "Mot de passe"), type="password",
+                                      key="login_password",
+                                      autocomplete="current-password")
+            submitted = _bouton_se_connecter()
+    return username, password, submitted
 
 
 def _traiter_retour_google(db) -> bool:
@@ -814,18 +840,7 @@ def require_login() -> bool:
                        "ses accès ont changé. Contactez un administrateur si c'est "
                        "inattendu."))
 
-        with st.form("login"):
-            st.subheader(_t("auth.signin_title", "Connexion"))
-            # Login accepts the email OR the username (see _authenticate_user). Users
-            # remember their email — surface it as the primary identifier.
-            username  = st.text_input(_t("auth.username", "Email ou nom d'utilisateur"),
-                                      key="login_username",
-                                      placeholder=_t("auth.username_ph", "vous@exemple.com"),
-                                      autocomplete="username")
-            password  = st.text_input(_t("auth.password", "Mot de passe"), type="password",
-                                      key="login_password",
-                                      autocomplete="current-password")
-            submitted = _boutons_de_connexion()
+        username, password, submitted = _cadre_de_connexion()
 
         # UN BOUTON, pas un lien. Signalé le 2026-09-04 : « ça nous ouvre une autre
         # page du navigateur, est-ce qu'on pourrait lancer via le même onglet pour
