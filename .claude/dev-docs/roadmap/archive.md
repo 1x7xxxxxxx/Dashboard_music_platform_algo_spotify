@@ -9,6 +9,34 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🚫 R151 — La hiérarchie des évènements agrégés Meta : réfutée (close 2026-09-23)
+
+- [x] **R151 — faire glisser la conversion Hypeddit en position 1 de la « Mesure des événements agrégés ».** (P3) ✅ (2026-09-23, réfutée — le réglage n'existe plus chez Meta)
+
+  **Ce qui l'a tranchée.** En ouvrant le Gestionnaire d'évènements, le propriétaire n'a
+  trouvé ni l'onglet ni le bouton « Configurer les événements Web ». La recherche (règle
+  19) confirme : Meta a **retiré le classement manuel des 8 évènements par domaine** —
+  annoncé en **mai 2023**, onglet retiré compte par compte jusqu'en 2025 au moins
+  (sources en désaccord sur la date, pas sur le fait). La priorisation est désormais
+  automatique, et la vérification de domaine n'est plus requise POUR ce mécanisme.
+  Sources : Meta Business Help Center 721422165168355 et 126789292407737 ; Jon Loomer,
+  « Meta announces big changes to website conversion campaigns ».
+
+  **La prémisse venait d'un livre antérieur au changement** (*La petite boîte à outils
+  Facebook Ads et Instagram Ads*, Pellerin). Une ligne de roadmap née d'une citation
+  hérite de la date de la citation.
+
+  **Et il n'y aurait eu rien à classer.** Les cinq ensembles de données du compte
+  (`Pixel de 1x7xxxxxxx`, `Pixel Podia Anxiete.protocole`, `My Pixel`,
+  `ETL_DASHBOARD_SPOTIFY`, `Spotify ETL Dashboard`) portent **0 évènement sur 28
+  jours** ; la dernière conversion en base (`v_meta_campaign_daily`, artist_id 1) date
+  du **2024-09-30**. Aucune campagne ne tourne.
+
+  **Ce qui reste vrai et n'est pas une tâche** : à la relance d'une campagne, vérifier
+  dans Hypeddit (Account Settings → Tracking Pixels) QUEL pixel est branché, qu'un jeton
+  Conversions API y est posé, et le Diagnostic du Gestionnaire d'évènements. R146
+  (le résultat compte des clics sortants, pas des écoutes) reste entier.
+
 ## 🔌 R162 — Le garde des connexions lit les blocs imbriqués (livrée 2026-09-23)
 
 - [x] **R162 — le garde des connexions ne voyait que le PREMIER niveau du corps.** (P3) ✅ (2026-09-23)

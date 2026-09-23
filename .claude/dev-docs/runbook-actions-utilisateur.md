@@ -1388,7 +1388,9 @@ raison écrite.
 
 ---
 
-## 18. R151 — La hiérarchie des évènements agrégés Meta (limite iOS 14)
+## 18. ~~R151 — La hiérarchie des évènements agrégés Meta (limite iOS 14)~~ · 🚫 RÉFUTÉE le 2026-09-23 — Meta a retiré le classement manuel des 8 évènements (annoncé en mai 2023) ; l'écran décrit ci-dessous n'existe plus. Détail dans `.claude/dev-docs/roadmap/archive.md`
+
+> ⚠️ Ne pas suivre les étapes ci-dessous : elles décrivent un réglage disparu. À la relance d'une campagne, vérifier plutôt dans Hypeddit (Account Settings → Tracking Pixels) quel pixel est branché et qu'un jeton Conversions API y est posé.
 
 **Cinq minutes dans le Gestionnaire d'évènements, et c'est le geste le plus rentable
 des sept ouverts le 2026-09-22.** Il ne change pas une ligne de code : il change la
