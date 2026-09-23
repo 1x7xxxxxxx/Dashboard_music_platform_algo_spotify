@@ -9,7 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin, tenant_scope
-from src.dashboard.utils.csv_exporter import export_all, export_excel, table_names as _all_table_names
+from src.dashboard.utils.csv_exporter import (
+    SOURCE_GROUPS as _SOURCE_GROUPS, export_all, export_excel, table_names as _all_table_names)
 
 
 def _get_artists_list(db) -> list[dict]:
@@ -28,7 +29,10 @@ def show():
         "la plateforme a collectées pour toi. Tu peux l'ouvrir dans Excel, Google "
         "Sheets ou Numbers, et en faire ce que tu veux.\n\n"
         "Le téléchargement est une archive **.zip** : un fichier par source (Spotify, "
-        "YouTube, Meta Ads…). Tes données uniquement."
+        "YouTube, Meta Ads…). Tes données uniquement.\n\n"
+        "Ton compte, ta facturation et les journaux techniques n'y sont pas : ils te "
+        "sont communiqués sur simple demande — voir la [politique de "
+        "confidentialité](?page=privacy)."
     ))
     st.markdown("---")
 
@@ -66,30 +70,10 @@ def show():
         st.markdown("---")
 
         # ── Sélection des sources ─────────────────────────────────────────
-        _SOURCE_GROUPS = {
-            "Spotify for Artists": [
-                "s4a_song_timeline", "s4a_songs_global", "s4a_audience"
-            ],
-            # ⚠️ TROIS TABLES RETIRÉES le 2026-09-20 (R140 §16.10) : `apple_daily_plays`,
-            # `apple_listeners` et `youtube_playlists` portent **0 ligne** et **aucun
-            # chemin de code ne les écrit**. Les deux parseurs Apple qui les
-            # produiraient (`apple_music_csv_parser.py:179` et `:221`) n'ont AUCUN
-            # appelant.
-            # Proposer une case qui livre une feuille vide est pire qu'une absence :
-            # l'artiste coche, attend, et conclut que ses données ont disparu.
-            # Garde : `tests/test_an_export_offers_only_what_something_writes.py`.
-            "Apple Music": ["apple_songs_performance"],
-            "YouTube": [
-                "youtube_channels", "youtube_channel_history", "youtube_videos",
-                "youtube_video_stats"
-            ],
-            "SoundCloud": ["soundcloud_tracks_daily"],
-            "Instagram": ["instagram_daily_stats"],
-            "Meta Ads": ["meta_campaigns", "meta_adsets", "meta_ads", "meta_insights_performance_day"],
-            "Hypeddit": ["hypeddit_campaigns", "hypeddit_daily_stats"],
-            "Distributeur": ["imusician_monthly_revenue"],
-            "Machine Learning": ["ml_song_predictions", "algo_lifecycle_benchmark"],
-        }
+        # `_SOURCE_GROUPS` vient de `csv_exporter.SOURCE_GROUPS` depuis le 2026-09-23
+        # (R164) : une seconde liste ici laissait une table exportable jamais cochable.
+        # Les tables sans écrivain (`apple_daily_plays`, `youtube_playlists`…) sont
+        # dans `csv_exporter._NOT_EXPORTED`, avec leur raison.
 
         st.subheader(t("export_csv.sources_header", "📋 Sources à inclure"))
         col_sel, col_desel = st.columns([1, 5])

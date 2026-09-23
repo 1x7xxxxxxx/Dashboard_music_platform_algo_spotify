@@ -7,7 +7,9 @@ EN = {
         "platform collected for you. Open it in Excel, Google Sheets or Numbers and do "
         "whatever you want with it.\n\n"
         "The download is a **.zip** archive: one file per source (Spotify, YouTube, "
-        "Meta Ads…). Your data only."
+        "Meta Ads…). Your data only.\n\n"
+        "Your account, billing and technical logs are not in it: they are sent to you "
+        "on request — see the [privacy policy](?page=privacy)."
     ),
     "export_csv.no_active_artist": "No active artist in the database.",
     "export_csv.artist_select": "👤 Artist to export",
@@ -34,4 +36,8 @@ EN = {
     "export_csv.source.hypeddit": "Hypeddit",
     "export_csv.source.distributeur": "Distributor",
     "export_csv.source.machine_learning": "Machine Learning",
+    "export_csv.source.spotify": "Spotify",
+    "export_csv.source.sacem": "SACEM",
+    "export_csv.source.catalogue": "Catalogue",
+    "export_csv.source.bilans": "Summaries",
 }

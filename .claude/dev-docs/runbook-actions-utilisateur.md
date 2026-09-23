@@ -1717,6 +1717,18 @@ semaines avant de conclure quoi que ce soit.
    docker compose up -d dashboard
    docker compose exec dashboard test -f /app/.streamlit/secrets.toml && echo MONTE
    ```
+   ✅ **Fait le 2026-09-23** : ligne de volume recopiée (sauvegarde
+   `docker-compose.yml.bak-20260923`), fichier posé en `600` avec le `redirect_uri` de
+   production, conteneur recréé, `MONTE` lu.
+   ⚠️ **Et le même jour, un trou que ni la config ni les tests ne montraient** :
+   `st.login()` exige **Authlib**, que Streamlit n'installe pas (extra
+   `streamlit[auth]`) — déclaré nulle part, absent de l'image. Le bouton s'affichait et
+   levait au clic. Ajouté aux manifestes ; `configure()` masque désormais le bouton si
+   la bibliothèque manque. **L'image doit être reconstruite** (`make deploy
+   SERVICE=dashboard`) pour que la connexion Google marche. Preuve que c'est fait :
+   ```bash
+   docker exec streamlytics_dashboard python3 -c "import authlib; print(authlib.__version__)"
+   ```
 
 ### Vérification
 

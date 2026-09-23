@@ -95,6 +95,33 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
   pourquoi ceci est une ligne de roadmap et pas un correctif d'urgence. Le remède est le
   même que partout ailleurs : `with project_db() as db:`.
 
+## 🔓 R164 — L'export « toutes tes données » atteint toutes les tables du locataire
+
+- [x] **R164 — l'export « toutes tes données » atteint toutes les tables du locataire.** (P2) `_TABLES` de `src/dashboard/utils/csv_exporter.py:34` est une liste
+  tenue à la main : **18 tables de locataire sur 79** (mesure `sibling-sweeper`,
+  2026-09-23, base locale), et une entrée (`algo_lifecycle_benchmark`) n'a même pas
+  d'`artist_id`. La légende promet « tes données uniquement » et la page est le chemin
+  naturel d'une demande de portabilité (Art. 20).
+  **Pourquoi ce n'est pas un ajout de noms** : dériver la liste du schéma, comme
+  `_erasure_scope()` le fait depuis le même jour pour l'effacement, exporterait aussi
+  `saas_users` (haché du mot de passe) et `artist_credentials` (identifiants chiffrés). Il
+  faut d'abord trancher ce qu'on N'exporte PAS, et le garder par une liste d'EXCLUSIONS
+  motivées — la forme de `tests/test_contamination_scope_is_derived.py`, où chaque table est
+  réclamée ou excusée avec une raison.
+  **Fait quand** : un test sur base réelle échoue si une table à colonne de locataire
+  n'est ni exportée ni exclue avec une raison.
+  Classe : `guard-scope-is-a-hand-written-list` (récidive du 2026-09-23).
+
+  ✅ Livrée le 2026-09-23. `csv_exporter._TABLES` passe de 19 à 63 onglets (18 → 62
+  tables de locataire) ; les 23 tables non exportées sont dans `_NOT_EXPORTED`, chacune
+  avec sa raison (secret, compte/facturation, journal technique, aucun écrivain) ;
+  `SOURCE_GROUPS` remplace la seconde liste de `views/export_csv.py` ; `tracks` filtrée
+  sur `saas_artist_id`. La légende de l'export dit ce qui n'y est pas et renvoie à la
+  politique de confidentialité. Garde :
+  `tests/test_the_export_accounts_for_every_tenant_table.py` (partition complète et
+  disjointe sur le schéma vivant + isolation d'un second locataire), muté deux fois
+  rouge.
+
 ## 🩺 R157 — Un verdict de fraîcheur porte sur la date que la donnée porte (livrée 2026-09-22)
 
 - [x] **R157 — la grille de fraîcheur lisait la date d'ÉCRITURE : Meta affichait « 🟢 il y a 0h » avec 722 jours de retard réel.** (P2)

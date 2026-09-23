@@ -5,6 +5,29 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-23 (soir) — La roadmap d'ingénierie refermée, et une bibliothèque que rien n'installait
+
+**Ce qui a changé.** R164 livrée ; R153 posée en production.
+
+| unité | ce qu'elle a fait | le chiffre |
+|---|---|---|
+| **R153 prod** | volume `.streamlit` + `secrets.toml` sur le VPS, conteneur recréé | fichier monté, `redirect_uri` de prod lu |
+| **Authlib** | `st.login()` l'exige, Streamlit ne l'installe pas ; ajouté aux 3 manifestes, bouton masqué s'il manque | bouton visible ET cassé en prod pendant ~15 min |
+| **R164** | l'export ZIP rend compte de CHAQUE table du locataire : exportée, ou exclue avec sa raison | **18 → 62 tables** ; 23 exclusions motivées |
+
+### Ce qu'il faut retenir
+
+- **Un test qui simule ce qui SUIT une bibliothèque ne prouve pas qu'elle est là.** Les
+  douze tests de la connexion Google simulaient `st.user` ; aucun ne passait par
+  `st.login()`. Trouvé en fabriquant un jeton DANS le conteneur de prod.
+- **Dériver ne veut pas dire tout exporter.** R164 ne vide pas le schéma dans un ZIP :
+  `saas_users` et `artist_credentials` portent des secrets. La liste dérivée s'accompagne
+  d'EXCLUSIONS MOTIVÉES, et c'est le garde qui oblige à écrire la raison.
+- Deux listes pour une décision (`_TABLES` et `_SOURCE_GROUPS`) : une table exportable
+  pouvait être impossible à cocher. Il n'en reste qu'une.
+
+---
+
 ## 2026-09-23 (après-midi) — Écrire une ligne de la politique de confidentialité a trouvé un effacement RGPD incomplet
 
 **Ce qui a changé.** Trois commits (`a155887`, `0a1543b`, et celui-ci). R153 avance côté

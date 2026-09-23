@@ -47,10 +47,14 @@ classique — pas par une seconde écriture qui divergerait.
 """
 from __future__ import annotations
 
+import importlib.util
+import logging
 import time
 from typing import NamedTuple
 
 import streamlit as st
+
+logger = logging.getLogger(__name__)
 
 #: La durée de vie de l'état intermédiaire entre le retour de Google et la
 #: soumission du formulaire court.
@@ -104,7 +108,17 @@ def configure() -> bool:
         return False
     if not auth:
         return False
-    return bool(auth.get("client_id") and auth.get("redirect_uri"))
+    if not (auth.get("client_id") and auth.get("redirect_uri")):
+        return False
+    # Secrets are not enough: `st.login()` also needs Authlib, which streamlit does
+    # NOT install. On 2026-09-23 production had the secrets and not the library —
+    # the button showed, and a click raised StreamlitMissingAuthlibError. Missing it
+    # is a DEPLOYMENT defect, so it is logged, but the page fails closed.
+    if importlib.util.find_spec("authlib") is None:
+        logger.error("Google sign-in configured but Authlib is not installed — "
+                     "button hidden. Rebuild the image from requirements.txt.")
+        return False
+    return True
 
 
 def identite_courante() -> Identite | Refus | None:

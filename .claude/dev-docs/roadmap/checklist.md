@@ -25,12 +25,12 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R164 | L'export ZIP « toutes tes données » couvre 18 tables du locataire sur 79 | P2 | `sibling-sweeper` du 2026-09-23 — `src/dashboard/utils/csv_exporter.py:34` |
 
-**Cet index porte une ligne le 2026-09-23 après-midi** : R164, le reste mesuré du balayage
-qui a corrigé l'effacement RGPD le même jour. Il était vide le matin — R162, entrée le
-2026-09-22 au soir en mutant un garde neuf, est livrée le lendemain matin, son récit est
-dans `archive.md`.
+**Cet index est vide de nouveau le 2026-09-23 après-midi** : R164, le reste mesuré du
+balayage qui a corrigé l'effacement RGPD le même jour, y est entrée et en est ressortie
+livrée le même après-midi. Il était vide le matin — R162, entrée le 2026-09-22 au soir
+en mutant un garde neuf, est livrée le lendemain matin, son récit est dans
+`archive.md`.
 
 Vide à midi ; **R157, R158, R159, R160 et R161** y sont entrées par le travail de
 l'après-midi, toutes nées d'une mesure prise ce jour-là et aucune d'une intuition ; les
@@ -178,7 +178,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-23 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R164, R148, R153, R163 -->
+<!-- reprise: open=R148, R153, R163 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers
@@ -193,12 +193,13 @@ la table des gestes humains (R148, R150, R151, R153), et **trois entrées l'apr�
 | **R155** `10a1d61` | dix écrans d'administration en **six sections**, sélecteur paresseux | la section des comptes : **23 requêtes → 1** |
 | **R156** | les trois trous de balayage du catalogue d'erreurs, fermés | **411/411 verdicts lisibles, 0 muet, 0 jamais balayée** |
 
-**Par où reprendre (2026-09-23, après-midi)** : **R164**, seule ligne de l'index
-actionnable — l'export ZIP ne couvre que 18 tables du locataire sur 79. Elle est née du
-balayage qui a corrigé le même jour l'effacement RGPD (portée dérivée du schéma) en
-rédigeant la section Google de la politique de confidentialité. Le matin, l'index était
-**vide** — R157 à R162 sont livrées. Tout ce qui reste est dans « 🙋 En attente de toi » : trois gestes que seul le
-propriétaire peut faire, dont R163 qui attend le lancement. R151 est réfutée : le réglage Meta qu'elle visait n'existe plus.
+**Par où reprendre (2026-09-23, après-midi)** : l'index actionnable est de nouveau
+**vide** — R157 à R162 sont livrées le matin, et R164, née l'après-midi du balayage qui
+a corrigé le même jour l'effacement RGPD (portée dérivée du schéma) en rédigeant la
+section Google de la politique de confidentialité, est livrée le même après-midi. Tout
+ce qui reste est dans « 🙋 En attente de toi » : trois gestes que seul le propriétaire
+peut faire, dont R163 qui attend le lancement. R151 est réfutée : le réglage Meta
+qu'elle visait n'existe plus.
 
 **Le P2 est livré.** R146 : la conversion CAPI d'Hypeddit se déclenche quand l'auditeur
 QUITTE le smart link, pas quand il écoute. Le balayage a trouvé **seize grappes de
@@ -368,23 +369,6 @@ deux questions sont distinctes et la seconde attend ses données.
 
 ---
 
-## 🔓 R164 — L'export « toutes tes données » atteint toutes les tables du locataire
-
-- [ ] **R164** (P2) — `_TABLES` de `src/dashboard/utils/csv_exporter.py:34` est une liste
-  tenue à la main : **18 tables de locataire sur 79** (mesure `sibling-sweeper`,
-  2026-09-23, base locale), et une entrée (`algo_lifecycle_benchmark`) n'a même pas
-  d'`artist_id`. La légende promet « tes données uniquement » et la page est le chemin
-  naturel d'une demande de portabilité (Art. 20).
-  **Pourquoi ce n'est pas un ajout de noms** : dériver la liste du schéma, comme
-  `_erasure_scope()` le fait depuis le même jour pour l'effacement, exporterait aussi
-  `saas_users` (haché du mot de passe) et `artist_credentials` (identifiants chiffrés). Il
-  faut d'abord trancher ce qu'on N'exporte PAS, et le garder par une liste d'EXCLUSIONS
-  motivées — la forme de `tests/test_contamination_scope_is_derived.py`, où chaque table est
-  réclamée ou excusée avec une raison.
-  **Fait quand** : un test sur base réelle échoue si une table à colonne de locataire
-  n'est ni exportée ni exclue avec une raison.
-  Classe : `guard-scope-is-a-hand-written-list` (récidive du 2026-09-23).
-
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 
 Elles restent comptées comme ouvertes — rien n'est supprimé — mais elles ne sont pas dans
@@ -399,7 +383,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
 | R148 | Trois conversations « combien tu paierais » | P3 | trois entretiens de vingt minutes, avec des artistes **qui ont vu leurs données** — runbook §19 |
-| R153 | L'identifiant OAuth Google pour la connexion en un clic | P3 | **côté outil : livré le 2026-09-22** (couture OIDC, 4 contrôles, formulaire court, hôte canonique). Reste TON geste : créer le client OAuth dans la console Google Cloud, coller `client_id`/`client_secret` dans `.streamlit/secrets.toml`, puis en prod recopier la ligne de volume `.streamlit` (ajoutée au template le 2026-09-23 — aucun service ne montait le fichier) et y poser le fichier — runbook §23. ⚠️ Scopes `openid email profile` **et rien d'autre** : un scope de plus fait basculer dans le régime de R105 |
+| R153 | L'identifiant OAuth Google pour la connexion en un clic | P3 | **côté outil ET production : faits le 2026-09-23** — client OAuth créé et publié, secrets posés en local et sur le VPS (volume `.streamlit` monté), Authlib ajouté à l'image. Reste TON geste : la vérification 3 du runbook §23 — te connecter avec Google en production, désactiver ton compte, réessayer, lire « Cet accès a été désactivé ». ⚠️ Scopes `openid email profile` **et rien d'autre**, et **pas de logo** dans le branding : l'un comme l'autre fait basculer dans le régime de R105 |
 | R163 | Brancher Hypeddit sur le pixel et sa Conversions API, au lancement | P3 | **déclencheur : l'app terminée ET une campagne Meta relancée.** Choisir le pixel dans Hypeddit, y coller un jeton CAPI, rattacher le pixel à chaque smart link, vérifier l'évènement en test, puis 48 h après voir `custom_conversions` remonter — runbook §24 |
 
 ⚠️ **R148 vient après l'activation** : demander à
