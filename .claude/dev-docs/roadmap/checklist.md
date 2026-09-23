@@ -376,7 +376,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
 | R148 | Trois conversations « combien tu paierais » | P3 | trois entretiens de vingt minutes, avec des artistes **qui ont vu leurs données** — runbook §19 |
-| R153 | L'identifiant OAuth Google pour la connexion en un clic | P3 | **côté outil : livré le 2026-09-22** (couture OIDC, 4 contrôles, formulaire court, hôte canonique). Reste TON geste : créer le client OAuth dans la console Google Cloud et poser `.streamlit/secrets.toml` — runbook §23. ⚠️ Scopes `openid email profile` **et rien d'autre** : un scope de plus fait basculer dans le régime de R105 |
+| R153 | L'identifiant OAuth Google pour la connexion en un clic | P3 | **côté outil : livré le 2026-09-22** (couture OIDC, 4 contrôles, formulaire court, hôte canonique). Reste TON geste : créer le client OAuth dans la console Google Cloud, coller `client_id`/`client_secret` dans `.streamlit/secrets.toml`, puis en prod recopier la ligne de volume `.streamlit` (ajoutée au template le 2026-09-23 — aucun service ne montait le fichier) et y poser le fichier — runbook §23. ⚠️ Scopes `openid email profile` **et rien d'autre** : un scope de plus fait basculer dans le régime de R105 |
 | R163 | Brancher Hypeddit sur le pixel et sa Conversions API, au lancement | P3 | **déclencheur : l'app terminée ET une campagne Meta relancée.** Choisir le pixel dans Hypeddit, y coller un jeton CAPI, rattacher le pixel à chaque smart link, vérifier l'évènement en test, puis 48 h après voir `custom_conversions` remonter — runbook §24 |
 
 ⚠️ **R148 vient après l'activation** : demander à

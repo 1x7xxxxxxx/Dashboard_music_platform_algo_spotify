@@ -6437,8 +6437,8 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-06-20",
-      "revisions": 11,
-      "history_additions": 2,
+      "revisions": 12,
+      "history_additions": 3,
       "renamed_from": null
     },
     "env-resolved-against-cwd": {
@@ -11269,7 +11269,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 359,
+      "catalogue_revisions": 360,
       "head_date": "2026-09-23"
     },
     "holes": {
@@ -11299,23 +11299,23 @@
       "window_start": "2026-05-15",
       "as_of": "2026-09-23",
       "observed": {
-        "events": 49,
+        "events": 50,
         "class_days": 10424,
-        "per_class_month": 0.1429,
+        "per_class_month": 0.1458,
         "ci95": [
-          0.1057,
-          0.1889
+          0.1082,
+          0.1922
         ]
       },
       "class_days_exposed": 10424,
       "by_guard": {
         "automatique": {
-          "events": 45,
+          "events": 46,
           "class_days": 10201,
-          "per_class_month": 0.1341,
+          "per_class_month": 0.1371,
           "ci95": [
-            0.0978,
-            0.1794
+            0.1004,
+            0.1829
           ]
         },
         "prose": {
@@ -11339,34 +11339,34 @@
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 31,
+          "events": 32,
           "class_days": 7002,
-          "per_class_month": 0.1346,
+          "per_class_month": 0.1389,
           "ci95": [
-            0.0914,
-            0.191
+            0.095,
+            0.1961
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 49,
+          "events": 50,
           "class_days": 10424,
-          "per_class_month": 0.1429,
+          "per_class_month": 0.1458,
           "ci95": [
-            0.1057,
-            0.1889
+            0.1082,
+            0.1922
           ]
         }
       },
       "by_guard_since": {
         "avec-garde": {
-          "events": 45,
+          "events": 46,
           "class_days": 9620,
-          "per_class_month": 0.1422,
+          "per_class_month": 0.1454,
           "ci95": [
-            0.1037,
-            0.1903
+            0.1064,
+            0.1939
           ]
         },
         "sans-garde": {

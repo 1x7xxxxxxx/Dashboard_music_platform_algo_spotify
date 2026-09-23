@@ -1700,6 +1700,23 @@ semaines avant de conclure quoi que ce soit.
    l'image et ne se commite pas. Il est exclu de `.gitignore` ET de `.dockerignore` :
    les deux, parce que ce sont deux frontières distinctes et que le `Dockerfile` porte
    `COPY .streamlit/`. Garde : `tests/test_a_secret_never_rides_into_an_image_layer.py`.
+   ⚠️ **Jusqu'au 2026-09-23, ce « se monte en volume » était FAUX** : aucun service ne
+   montait le fichier, donc le bouton serait resté masqué en production sans une erreur.
+   Le template monte désormais `./.streamlit:/app/.streamlit:ro` sur `dashboard` — le
+   DOSSIER, parce qu'un montage de fichier absent fait créer à Docker un dossier
+   `secrets.toml` sur l'hôte. Le `docker-compose.yml` de production est dérivé à la
+   main : **la ligne doit y être recopiée**. Sur le VPS :
+   ```bash
+   cd ~/streamlytics && git pull
+   # 1. recopier la ligne de volume du service dashboard depuis docker-compose.example.yml
+   grep -n '.streamlit:/app/.streamlit' docker-compose.yml   # attendu : 1 ligne
+   # 2. poser le fichier (depuis ton poste, jamais par git)
+   scp .streamlit/secrets.toml <vps>:~/streamlytics/.streamlit/secrets.toml
+   #    puis, dans le fichier du VPS, redirect_uri = "https://app.streamlytics.fr/oauth2callback"
+   # 3. recréer le conteneur
+   docker compose up -d dashboard
+   docker compose exec dashboard test -f /app/.streamlit/secrets.toml && echo MONTE
+   ```
 
 ### Vérification
 

@@ -312,6 +312,12 @@ services:
       - ./data:/app/data
       # Onboarding guide PDF (welcome-email attachment) — also not baked into the image.
       - ./docs:/app/docs:ro
+      # `.streamlit/secrets.toml` (Google sign-in, R153) is excluded from the image by
+      # `.dockerignore` — so it reaches the container through this mount or not at all.
+      # The DIRECTORY is mounted, not the file: a bind mount of an absent file makes
+      # Docker create a directory named `secrets.toml` on the host, which breaks Streamlit.
+      # Absent file ⇒ the Google button stays hidden, the password path is unchanged.
+      - ./.streamlit:/app/.streamlit:ro
     restart: unless-stopped
     networks:
       - airflow_network

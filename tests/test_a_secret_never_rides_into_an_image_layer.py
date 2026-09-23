@@ -138,3 +138,18 @@ def test_the_dockerfiles_still_copy_something_at_all() -> None:
         "images ne copient plus rien, soit les fichiers ont été renommés. Dans les "
         "deux cas, le garde ci-dessus ne protège plus ce qu'il croit protéger."
     )
+
+
+def test_a_secret_kept_out_of_the_image_is_mounted_into_the_container():
+    """The other half: excluded from the image AND never delivered = a feature that
+    silently never switches on. Found 2026-09-23 — the runbook said `secrets.toml`
+    "is mounted in production", and no service mounted it: the Google button would
+    have stayed hidden in production with no error anywhere."""
+    import yaml
+    compose = yaml.safe_load((_ROOT / "docker-compose.example.yml").read_text())
+    volumes = compose["services"]["dashboard"].get("volumes", [])
+    targets = {str(v).split(":")[1] for v in volumes if ":" in str(v)}
+    assert "/app/.streamlit" in targets or "/app/.streamlit/secrets.toml" in targets, (
+        "`.streamlit/secrets.toml` is excluded from the image (.dockerignore) but the "
+        "`dashboard` service mounts neither it nor `.streamlit/` — Streamlit will never "
+        f"see it in production. Mounted: {sorted(targets)}")
