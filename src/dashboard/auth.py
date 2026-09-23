@@ -588,6 +588,7 @@ def _show_bootstrap_form(db) -> None:
 #: `.st-key-<key>` is the class Streamlit puts on any element given a `key`.
 _GOOGLE_BUTTON_KEY = "google_signin"
 _LOGIN_BUTTON_KEY = "login_submit"
+_BUTTON_WIDTH_PX = 260
 _GOOGLE_G_LOGO = (
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'"
     "%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 "
@@ -639,14 +640,17 @@ def _boutons_de_connexion() -> bool:
     # validé par Entrée comme par son premier bouton, et un mot de passe tapé au
     # clavier ne doit jamais partir chez Google. Garde :
     # tests/test_the_google_button_sits_beside_sign_in.py
-    # Centred in the frame, side by side: two narrow gutters around the pair.
-    _gauche, col_login, col_google, _droite = st.columns([1, 2, 2, 1])
-    with col_login:
+    # Centred in the frame, side by side, each a FIXED 260 px — « diminue en longueur
+    # horizontale les 2 boutons » (2026-09-23). Columns in percent were tried first:
+    # at 25 % of the frame the Google label truncated to « Se connecter avec G… » on a
+    # 1024 px screen. A fixed width is short everywhere and never truncates; the
+    # horizontal container wraps them one under the other on a phone.
+    with st.container(horizontal=True, horizontal_alignment="center", gap="medium"):
         submitted = st.form_submit_button(_t("auth.signin", "Se connecter"), type="primary",
-                                          key=_LOGIN_BUTTON_KEY, width="stretch")
-    with col_google:
+                                          key=_LOGIN_BUTTON_KEY, width=_BUTTON_WIDTH_PX)
         st.form_submit_button(_t("auth.google_signin", "Se connecter avec Google"),
-                              key=_GOOGLE_BUTTON_KEY, width="stretch", on_click=st.login)
+                              key=_GOOGLE_BUTTON_KEY, width=_BUTTON_WIDTH_PX,
+                              on_click=st.login)
     return submitted
 
 

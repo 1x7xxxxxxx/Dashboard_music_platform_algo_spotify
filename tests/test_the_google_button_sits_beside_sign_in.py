@@ -61,7 +61,46 @@ def test_both_buttons_share_the_form_and_sign_in_comes_first() -> None:
     assert keys[:2] == ["login_submit", "google_signin"], (
         f"ordre des boutons de soumission : {keys}. « Se connecter » doit être le "
         "PREMIER — la touche Entrée soumet par lui.")
-    assert len(at.columns) >= 2, "les deux boutons ne sont pas sur la même ligne"
+    rows = [n for n in _walk(at._tree)
+            if getattr(n, "type", "") == "flex_container"
+            and {getattr(c, "key", None) for c in getattr(n, "children", {}).values()}
+            >= {"login_submit", "google_signin"}]
+    assert rows, "les deux boutons ne partagent pas la même rangée horizontale"
+    assert rows[0].proto.flex_container.direction == 2 or "horizontal" in str(
+        rows[0].proto).lower(), "la rangée des deux boutons n'est pas horizontale"
+
+
+def _walk(node):
+    yield node
+    for child in (getattr(node, "children", None) or {}).values():
+        yield from _walk(child)
+
+
+def test_both_buttons_are_short_and_equal() -> None:
+    """« diminue en longueur horizontale les 2 boutons » — une largeur FIXE, pas un
+    pourcentage : à 25 % du cadre, le libellé Google était tronqué à 1 024 px."""
+    import ast
+    import inspect
+
+    from src.dashboard import auth
+    from src.dashboard.auth import _BUTTON_WIDTH_PX
+
+    # AppTest does not expose an element's width; the call site does, read as a tree.
+    tree = ast.parse(inspect.getsource(auth._boutons_de_connexion))
+    horizontal = [w for w in ast.walk(tree) if isinstance(w, ast.With)
+                  and any(getattr(i.context_expr.func, "attr", "") == "container"
+                          for i in w.items if isinstance(i.context_expr, ast.Call))]
+    assert horizontal, "non-vacuité : la rangée horizontale n'est plus un `st.container`"
+    widths = [kw.value for c in ast.walk(horizontal[0]) if isinstance(c, ast.Call)
+              and getattr(c.func, "attr", "") == "form_submit_button"
+              for kw in c.keywords if kw.arg == "width"]
+    assert len(widths) == 2 and all(
+        isinstance(w, ast.Name) and w.id == "_BUTTON_WIDTH_PX" for w in widths), (
+        "les deux boutons de la rangée doivent porter `width=_BUTTON_WIDTH_PX` — une "
+        f"largeur 'stretch' les rallonge au cadre entier : {[ast.dump(w) for w in widths]}")
+    assert 220 <= _BUTTON_WIDTH_PX <= 320, (
+        f"{_BUTTON_WIDTH_PX} px : sous 220 le libellé Google se tronque, au-dessus de "
+        "320 les boutons redeviennent longs.")
 
 
 def test_enter_or_click_on_sign_in_submits_the_password_path() -> None:
