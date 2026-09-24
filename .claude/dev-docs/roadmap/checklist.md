@@ -151,18 +151,18 @@ Diagnostic `build-error-resolver`, run `36046213905`. Deux faits d'environnement
 poste local n'a pas : la CI définit **`DATABASE_URL`**, et sa base est **neuve** (schéma
 + un canari) à chaque run.
 
-- [ ] **A** (10 tests) — `tests/db_gate.py:122` rend `{"dsn": url}` sous `DATABASE_URL` ;
+- [x] **A** (10 tests) — `tests/db_gate.py:122` rend `{"dsn": url}` sous `DATABASE_URL` ;
   `PostgresHandler(**dsn())` le refuse. Découper l'URL comme `PostgresHandler.from_url`.
-- [ ] **E** (2) — `tests/test_health_answers_for_its_database.py` simule la panne sur
+- [x] **E** (2) — `tests/test_health_answers_for_its_database.py` simule la panne sur
   `resolve_kwargs`, que `from_env_or_config()` court-circuite sous `DATABASE_URL`.
-- [ ] **B** (1) — `test_the_ceiling_is_tight_not_slack` : plafond 34 calibré sur la base
+- [x] **B** (1) — `test_the_ceiling_is_tight_not_slack` : plafond 34 calibré sur la base
   locale dérivée, la base neuve de CI en mesure 1. Égalité seulement hors base neuve.
-- [ ] **C** (1) — `test_no_tab_renders_empty[trigger_algo]` fixe `artist_id=1`, vide en CI.
-- [ ] **D** (1) — l'export lit « table vide » comme « personne n'écrit » ; faux sur une
+- [x] **C** (1) — `test_no_tab_renders_empty[trigger_algo]` fixe `artist_id=1`, vide en CI.
+- [x] **D** (1) — l'export lit « table vide » comme « personne n'écrit » ; faux sur une
   base où aucune collecte n'a tourné.
-- [ ] **F** (porte statique) — `gold-coverage.md` périmé, reproduit en local :
+- [x] **F** (porte statique) — `gold-coverage.md` périmé, reproduit en local :
   `make gold-coverage`.
-- [ ] **G** (5 erreurs, rouge EN LOCAL) — `tests/test_every_way_of_asking_gives_one_answer.py:38-55`
+- [x] **G** (5 erreurs, rouge EN LOCAL) — `tests/test_every_way_of_asking_gives_one_answer.py:38-55`
   lit le mot de passe dans l'environnement, jamais dans `config.yaml` ; et le garde
   `test_one_door_onto_the_database.py:227` ne l'inspecte pas (il ne balaie que les fichiers
   qui contiennent le texte `psycopg2.connect`). Trouvé par le balayage de `/capitalise`.
@@ -171,7 +171,18 @@ poste local n'a pas : la CI définit **`DATABASE_URL`**, et sa base est **neuve*
   `guard-predicate-depends-on-the-host-env`). F relève de `a-generated-document-asserts-a-stale-state`.
 - Reproduire AVANT de corriger : `DATABASE_URL=… pytest …` (A, E) ; un `postgres:17`
   neuf provisionné comme `.github/actions/provision-postgres` (B, C, D).
-- ⚠️ B, C, D touchent des portes : feu vert du propriétaire demandé le 2026-09-24.
+- ⚠️ B, C, D touchent des portes : feu vert du propriétaire donné le 2026-09-24.
+- **Livré `0017474` (2026-09-25 00:30)** : A–G corrigés, suite verte sous les deux formes
+  (9 595 CI rejouée, 9 635 poste) ; dans la VRAIE CI (run 36067696272) **les 4 shards sont verts**.
+- [ ] **Reste : la porte statique rougit sur `.test_durations`** — 51 durées désignent des
+  tests que le job statique (sans base) ne collecte pas. Ni la collecte du poste avec base
+  (51 en trop) ni sans base (le fichier d'AVANT la séance y échoue aussi : 90) ne
+  reproduit celle de la CI. Prochain geste : lire la liste complète dans le journal du
+  run, puis générer le fichier DANS la CI (ou collecter avec l'environnement exact du job).
+- [ ] Brouillon de la classe `a-test-that-only-ever-ran-on-its-authors-machine` dans
+  `git stash list` (« 2026-09-24 brouillon ») : il fait monter deux compteurs de trou
+  (`guard_does_not_prove_itself`, `scope_on_a_shared_guard_without_naming_its_tests`) —
+  rendre le garde auto-prouvant et nommer ses tests dans `guard_scope`, puis l'écrire.
 
 ### R166 — un contrôle de santé rouge que personne ne lit (P2)
 
@@ -256,7 +267,7 @@ la table des gestes humains (R148, R150, R151, R153), et **trois entrées l'apr�
 | **R155** `10a1d61` | dix écrans d'administration en **six sections**, sélecteur paresseux | la section des comptes : **23 requêtes → 1** |
 | **R156** | les trois trous de balayage du catalogue d'erreurs, fermés | **411/411 verdicts lisibles, 0 muet, 0 jamais balayée** |
 
-**Par où reprendre (2026-09-25)** : la prod a été COUPÉE le 2026-09-24 par Hetzner pour impayé ; payé, débloquée à 20:51 UTC, et `cf7c02a` déployé dans la minute (« Se connecter » aligné à gauche en ligne). Ensuite **R165** — la CI est rouge depuis le 2026-09-22 pour sept causes diagnostiquées (A–G), feu vert demandé pour B/C/D — puis **R166**, pour qu'un contrôle de santé rouge arrive enfin à quelqu'un.
+**Par où reprendre (2026-09-25)** : prod en ligne (`cf7c02a`). **R165 est presque close** : la CI a ses 4 shards de tests VERTS depuis `0017474` ; il ne reste que la porte statique, rouge sur `.test_durations` (51 durées de tests que le job sans base ne collecte pas), et le brouillon de classe rangé dans `git stash`. Puis **R166** (qu'un rouge arrive à quelqu'un).
 
 **État au soir du 2026-09-23** : l'index actionnable est de nouveau
 **vide** — R157 à R162 sont livrées le matin, et R164, née l'après-midi du balayage qui

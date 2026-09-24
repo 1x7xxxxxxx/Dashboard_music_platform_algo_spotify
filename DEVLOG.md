@@ -5,6 +5,25 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-25 (nuit) — La CI reverdit, sauf son fichier de durées
+
+**Ce qui a changé.** `0017474` : les sept causes de R165 corrigées (A–G), chacune rejouée
+sous la forme CI (`DATABASE_URL` + `postgres:17` neuf) et sous la forme poste. Vraie CI :
+**4 shards verts**. Reste rouge la porte statique, sur `.test_durations`.
+
+### Ce qu'il faut retenir
+
+- **Rejouer la forme CI a trouvé ce que la CI ne voyait pas** : `urlparse` ne décode pas les
+  `%xx` d'une URI (libpq si) — dans les tests ET dans `PostgresHandler.from_url`, le chemin de
+  la prod. La CI passait parce que son mot de passe n'a rien à encoder.
+- **Un document généré périmé cachait une régression** : la carte or disait 12 tuiles sans
+  source ; régénérée, 17 — des tuiles passées en fermetures, dont deux se disant « hors base »
+  en lisant la base. Le traceur est corrigé (17 → 10).
+- **Une base neuve et une base vécue sont deux populations** : on lit la PROVENANCE
+  (`schema_migrations` vide), pas le contenu — la suite écrit elle-même dans les tables.
+
+---
+
 ## 2026-09-24 (soir) — La prod coupée dix heures par un impayé, et personne ne l'a vu
 
 **Ce qui a changé.** Le déploiement de l'alignement a échoué : SSH muet, Cloudflare en 522.
