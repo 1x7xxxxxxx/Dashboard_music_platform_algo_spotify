@@ -5,6 +5,29 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-24 (soir) — La prod coupée dix heures par un impayé, et personne ne l'a vu
+
+**Ce qui a changé.** Le déploiement de l'alignement a échoué : SSH muet, Cloudflare en 522.
+Cause : Hetzner a bloqué l'IP pour **impayé** (carte changée, relances du 18 et du 24 à la
+corbeille). Payé le soir, débloqué à 20:51 UTC, `cf7c02a` déployé dans la minute par une
+boucle d'attente. La CI est rouge depuis le 2026-09-22 : sept causes diagnostiquées (R165).
+Le garde du `kill` par motif est corrigé (`cf7c02a`). R165 et R166 entrent dans l'index.
+
+### Ce qu'il faut retenir
+
+- **La prod était coupée de 11:45 à 20:51 UTC, et le contrôle de santé l'a vu à 11:45.**
+  Son rouge n'est arrivé à personne : il ne part que par les notifications GitHub d'une
+  adresse non lue. Pareil pour la CI, rouge deux jours. Un rouge qui n'arrive nulle part
+  n'est pas une alerte — R166.
+- **Une cause administrative ne laisse aucune trace sur la machine.** J'ai cherché un abus
+  (pare-feu, compromission) pendant une heure ; le motif était dans la boîte mail.
+- **Le crochet `[x]` ne protège un motif que de sa propre écriture.** La forme que le hook
+  recommandait m'a tué le shell : la relance, sur la même ligne, portait le texte en clair.
+- **Sept tests ne passaient que sur la forme du poste** (pas de `DATABASE_URL`, base pleine) ;
+  la CI a les deux autres. Billet `sites:6` acquis, la classe s'écrira avec son garde (R165).
+
+---
+
 ## 2026-09-24 — « Se connecter » aligné sur le bord des champs
 
 **Ce qui a changé.** Le bouton de connexion par mail et mot de passe quitte le centre du
