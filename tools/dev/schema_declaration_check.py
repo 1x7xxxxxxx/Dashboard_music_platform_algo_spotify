@@ -52,7 +52,7 @@ RACINE = pathlib.Path(__file__).resolve().parents[2]
 _TYPE = re.compile(
     r"^(\w+)\s+"
     r"(double\s+precision|character\s+varying|timestamptz|timestamp(?:\s+with(?:out)?\s+time\s+zone)?|\w+)"
-    r"(\s*\(\s*\d+(?:\s*,\s*\d+)?\s*\))?", re.I)
+    r"(\s*\(\s*\d+(?:\s*,\s*\d+)?\s*\))?(\s*\[\s*\])?", re.I)
 _MOTS_CLES = {"UNIQUE", "PRIMARY", "FOREIGN", "CONSTRAINT", "CHECK", "EXCLUDE", "LIKE"}
 
 #: Les alias que Postgres normalise. Comparer `serial` à `integer` sans cette table
@@ -72,7 +72,7 @@ FAMILLE = {
     "numeric": "numeric", "decimal": "numeric", "real": "real", "float4": "real",
     "float": "double precision", "float8": "double precision",
     "double precision": "double precision",
-    "jsonb": "jsonb", "json": "json", "uuid": "uuid",
+    "jsonb": "jsonb", "json": "json", "uuid": "uuid", "array": "ARRAY",
 }
 
 
@@ -119,7 +119,11 @@ def declarations(racine: pathlib.Path = RACINE) -> dict[tuple[str, str], str]:
             for ligne in corps.splitlines():
                 mm = _TYPE.match(ligne.strip().rstrip(","))
                 if mm and mm.group(1).upper() not in _MOTS_CLES:
-                    out[(table, mm.group(1))] = mm.group(2)
+                    # `TEXT[]` est un tableau : `information_schema` le nomme `ARRAY`,
+                    # quel que soit l'élément. Lu comme `text`, `artists.genres`
+                    # ressortait en divergence sur TOUTE base, neuve comprise
+                    # (2026-09-24 — la seule divergence d'une base provisionnée à neuf).
+                    out[(table, mm.group(1))] = "ARRAY" if mm.group(4) else mm.group(2)
     for f in sorted((racine / "migrations").glob("*.sql")):
         for m in re.finditer(
                 r"ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(\w+)[\s\S]{0,200}?"

@@ -320,8 +320,10 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
               --
               -- Mesuré en production le 2026-09-22, artiste 1 : 19 ARCHIVED,
               -- 15 PAUSED, **zéro ACTIVE**.
-              (SELECT COUNT(*) FILTER (WHERE status = 'ACTIVE')
-                 FROM meta_campaigns WHERE artist_id = %s)          AS meta_active,
+              -- La règle `status = 'ACTIVE'` vit dans la vue or (migration 110),
+              -- pas recopiée ici : la carte or l'a vue revenir à la main le 2026-09-22.
+              (SELECT COUNT(*) FROM v_meta_active_budget
+                 WHERE artist_id = %s)                              AS meta_active,
               (SELECT COUNT(*) FROM meta_campaigns
                  WHERE artist_id = %s)                              AS meta_campaigns_known,
               (SELECT p FROM best_algo)                             AS best_algo_p,

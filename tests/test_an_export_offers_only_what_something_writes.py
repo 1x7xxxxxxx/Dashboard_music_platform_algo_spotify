@@ -122,6 +122,15 @@ def test_something_writes_every_table_the_export_offers() -> None:
     except Exception:                          # noqa: BLE001
         pytest.skip("base injoignable — le second étage de l'entonnoir est impossible")
     try:
+        # Le second étage lit « vide ⇒ rien n'écrit », ce qui n'a de sens que dans une
+        # base où la collecte a VÉCU. La base neuve de la CI (schéma + un canari) a
+        # toutes ses tables vides, et l'étage confirmait tous les candidats à tort —
+        # rouge du 2026-09-22 au 24 sur des tables écrites par variable. On lit la
+        # PROVENANCE de la base, pas `etl_run_log` : la suite y écrit elle-même.
+        from tests.db_gate import built_in_one_go
+        if built_in_one_go(db):
+            pytest.skip("base construite d'un seul jet, sans collecte — une table vide "
+                        f"n'y prouve rien ; candidats non tranchés : {candidats}")
         vivants, ecartes = [], []
         for t in candidats:
             try:

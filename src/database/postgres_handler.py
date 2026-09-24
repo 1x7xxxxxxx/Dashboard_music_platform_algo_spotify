@@ -6,7 +6,7 @@ import psycopg2
 from psycopg2 import sql as pgsql
 from psycopg2.extras import execute_batch
 from typing import List, Dict, Any, Optional, Tuple
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 import logging
 from contextlib import contextmanager
 
@@ -305,8 +305,11 @@ class PostgresHandler:
             host=parsed.hostname or "localhost",
             port=parsed.port or 5432,
             database=parsed.path.lstrip("/"),
-            user=parsed.username or "postgres",
-            password=parsed.password or "",
+            # libpq percent-decodes a URI's credentials; `urlparse` does not. A password
+            # holding `@`, `:` or `/` must be encoded in the URL, and was handed to the
+            # server still encoded — found 2026-09-24 replaying the CI shape locally.
+            user=unquote(parsed.username or "postgres"),
+            password=unquote(parsed.password or ""),
         )
 
     @classmethod

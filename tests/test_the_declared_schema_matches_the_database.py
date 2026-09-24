@@ -56,7 +56,9 @@ from tools.dev.schema_declaration_check import (  # noqa: E402
 #: Trouvé en ajoutant une DIXIÈME colonne à la famille — `saas_users.google_linked_at`,
 #: migration 135. Le garde d'alias testait `normaliser()` et passait ; le défaut vivait
 #: entre les deux gardes, chacun vert sur sa moitié.
-_PLAFOND = 34
+_PLAFOND = 33
+#: ⚠️ 34 → 33 le 2026-09-24 : `artists.genres TEXT[]` était lu `text` et ressortait
+#: contre `ARRAY` sur TOUTE base — c'était la SEULE divergence d'une base neuve.
 
 
 def _db():
@@ -83,6 +85,19 @@ def test_the_declaration_parser_reads_types_not_lines() -> None:
         f"{len(mauvais)} type(s) déclaré(s) contenant un MODIFICATEUR : "
         f"{list(mauvais.items())[:3]}.\nLe parseur capture la ligne au lieu du type — "
         "c'est ce qui a rendu 401 au lieu de 44.")
+
+
+def test_an_array_column_is_read_as_an_array() -> None:
+    """`TEXT[]` n'est pas `text` : `information_schema` le nomme `ARRAY`."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        racine = Path(d)
+        (racine / "migrations").mkdir()
+        (racine / "init_db.sql").write_text(
+            "CREATE TABLE t (\n    a TEXT[],\n    b TEXT\n);\n", encoding="utf-8")
+        lu = declarations(racine)
+    assert normaliser(lu[("t", "a")]) == "ARRAY", f"`TEXT[]` lu {lu[('t', 'a')]!r}"
+    assert normaliser(lu[("t", "b")]) == "text", "une colonne simple ne devient pas un tableau"
 
 
 def test_normalising_a_type_drops_its_size() -> None:
@@ -183,8 +198,19 @@ def test_the_ceiling_is_tight_not_slack() -> None:
         pytest.skip("base injoignable — la mesure n'est pas possible")
     try:
         mesure = len(divergences(db))
+        from tests.db_gate import built_in_one_go
+        neuve = built_in_one_go(db)
     finally:
         db.close()
+    if neuve:
+        # Une base née des fichiers du dépôt n'a PAS de dérive : tout écart y est un
+        # désaccord entre `init_db.sql` et les migrations, donc un défaut. Le plafond
+        # d'une base ancienne n'a aucun sens ici — et c'est ce plafond, appliqué à la
+        # base neuve de la CI, qui la tenait rouge depuis le 2026-09-22.
+        assert mesure == 0, (
+            f"{mesure} divergence(s) sur une base construite d'un seul jet depuis "
+            "`init_db.sql` + `migrations/` : le dépôt se contredit lui-même.")
+        return
     assert mesure == _PLAFOND, (
         f"{mesure} divergence(s) mesurée(s) pour un plafond de {_PLAFOND}. Un plafond "
         "au-dessus de la mesure est du MOU : il laisse passer la différence sans rien "

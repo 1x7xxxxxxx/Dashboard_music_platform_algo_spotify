@@ -232,6 +232,11 @@ _DECLARED_RAW_AGGREGATES: dict[tuple[str, str], str] = {
     ("src/dashboard/views/meta_creatives.py", "meta_ads"):
         "même requête : le COUNT des créatives d'une campagne dont les insights "
         "manquent. Un décompte de diagnostic, jamais affiché comme une mesure.",
+    ("src/dashboard/utils/period_side_metrics.py", "meta_campaigns"):
+        "`meta_campaigns_known` : COUNT(*) de TOUTES les campagnes connues d'un "
+        "locataire, pour distinguer « aucune active » de « on ne sait rien de ses "
+        "campagnes » (l'artiste 18). Un inventaire, sans règle métier : la règle "
+        "`status = 'ACTIVE'` passe, elle, par `v_meta_active_budget` (2026-09-24).",
     ("src/utils/freshness_monitor.py", "meta_campaigns"):
         "count(*) FILTER (status = 'ACTIVE') — une sonde de santé. Elle demande "
         "« ce locataire a-t-il des campagnes », pas « combien ont-elles coûté ».",
@@ -841,6 +846,23 @@ class Slicer:
                         work.extend(self._carriers(m))
                 if not cands and node.id in scope.params:
                     self._lift(rel, fn, node.id, out, hop, visited)
+                elif not cands:
+                    # UNE VARIABLE LIBRE : la fonction est imbriquée, sa valeur vit dans
+                    # la fonction ENGLOBANTE. Le 2026-09-22, les tuiles de l'accueil sont
+                    # passées de `render_tiles` à des fermetures (`_u_meta`, `_u_shazam`…)
+                    # et la carte les a perdues : deux « indéterminées », et deux
+                    # « hors base » — une dépense Meta lue en base déclarée sans base.
+                    outer = _enclosing(pf, fn) if fn is not pf.tree else None
+                    key = ("fermeture", id(fn), node.id)
+                    if outer is not None and key not in visited:
+                        # Ancrée sur la FIN de la fonction englobante, pas sur le `def` :
+                        # une fermeture s'exécute après sa définition, et `_ig_d` est
+                        # affectée APRÈS `_u_instagram` mais AVANT son appel.
+                        sub = self.slice(rel, outer, [node], outer.body[-1], hop,
+                                         visited | {key})
+                        out.sources |= sub.sources
+                        out.flags |= sub.flags
+                        out.branched |= sub.branched
                 continue
 
             if isinstance(node, ast.Call):
@@ -862,10 +884,24 @@ class Slicer:
                         key = (trel, tfn.name)
                         if key not in visited:
                             sub = self._returns(trel, tfn, hop + 1, visited | {key})
-                            out.sources |= sub.sources
-                            out.flags |= sub.flags
                             out.branched |= sub.branched
-                            continue
+                            if sub.sources:
+                                out.sources |= sub.sources
+                                out.flags |= sub.flags
+                                continue
+                            # Un formateur (`_n(x)`) ne rend aucune source : la valeur
+                            # vient de ses ARGUMENTS. Sans ce repli, la tuile Instagram
+                            # de l'accueil héritait de « appelants-multiples » — le
+                            # formateur a quarante appelants — et perdait sa source.
+                            # ⚠️ Effet mesuré le 2026-09-24 : trois figures du PDF
+                            # (SoundCloud, entonnoir Meta, engagement Instagram) se
+                            # déclaraient « hors base » faute de suivre l'argument ;
+                            # elles lisent la base, et ressortent désormais
+                            # « indéterminées ». Le compte monte parce que la MESURE
+                            # était fausse, pas parce que le code a régressé.
+                            if sub.flags - {"appelants-multiples", "sans-retour"}:
+                                out.flags |= sub.flags
+
                 work.extend(self._carriers(node))
                 continue
 

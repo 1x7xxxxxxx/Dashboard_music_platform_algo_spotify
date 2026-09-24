@@ -36,22 +36,13 @@ _DB_HOST, _DB_PORT = "127.0.0.1", 5433
 
 
 def _kwargs() -> dict | None:
-    if os.environ.get("DATABASE_URL"):
-        from urllib.parse import urlparse
-        u = urlparse(os.environ["DATABASE_URL"])
-        return {"host": u.hostname or "localhost", "port": u.port or 5432,
-                "database": (u.path or "").lstrip("/"), "user": u.username or "postgres",
-                "password": u.password or ""}
-    try:
-        with socket.create_connection((_DB_HOST, _DB_PORT), timeout=1.5):
-            pass
-    except OSError:
-        return None
-    return {"host": _DB_HOST, "port": _DB_PORT,
-            "database": os.environ.get("DATABASE_NAME", "spotify_etl"),
-            "user": os.environ.get("DATABASE_USER", "postgres"),
-            "password": os.environ.get("DATABASE_PASSWORD")
-            or os.environ.get("DB_PASSWORD", "")}
+    # La porte commune des tests : les TROIS sources de l'application (`DATABASE_URL`,
+    # `DATABASE_*`, `config.yaml`). La version locale ne lisait que l'environnement et
+    # rendait ce module rouge sur tout poste dont le mot de passe vit dans le fichier
+    # de configuration (5 erreurs, 2026-09-24).
+    from tests.db_gate import dsn
+
+    return dsn()
 
 
 _KW = _kwargs()

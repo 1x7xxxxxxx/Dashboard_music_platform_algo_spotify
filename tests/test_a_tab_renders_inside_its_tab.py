@@ -118,9 +118,34 @@ def elements_per_tab(view: str) -> list[int]:
     return counts
 
 
+def _the_view_has_data_to_tab(view: str) -> bool:
+    """Vrai si la vue a de quoi dessiner ses onglets — lu dans la base, pas supposé."""
+    assert view == "trigger_algo", f"condition de données inconnue pour {view}"
+    from src.database.postgres_handler import PostgresHandler
+    from tests.db_gate import dsn
+
+    db = PostgresHandler(**dsn())
+    try:
+        # La requête du rôle admin de `views/trigger_algo/router.py` (tous les titres).
+        rows = db.fetch_query(
+            "SELECT 1 FROM s4a_song_timeline WHERE song NOT ILIKE %s LIMIT 1",
+            ("%1x7xxxxxxx%",))
+    finally:
+        db.close()
+    return bool(rows)
+
+
 @pytest.mark.parametrize("view", TABBED_VIEWS)
 def test_no_tab_renders_empty(view):
     counts = elements_per_tab(view)
+    if not counts and not _the_view_has_data_to_tab(view):
+        # Sans titre à suivre, `trigger_algo` s'arrête sur « Aucune donnée de timeline
+        # disponible » AVANT ses onglets : la question « le contenu d'un onglet se
+        # rend-il dans son onglet » n'a pas d'objet. C'est le cas de la base NEUVE de
+        # la CI (un canari, aucune collecte), où ce test était rouge depuis le
+        # 2026-09-22. La condition est LUE dans la base — la même requête que la vue —
+        # et non supposée : avec des données, zéro onglet reste un échec.
+        pytest.skip(f"{view} : aucune donnée à répartir en onglets dans cette base")
     assert counts, f"{view} renders no tabs at all — is it still a tabbed view?"
     empty = [i for i, n in enumerate(counts) if n == 0]
     assert not empty, (

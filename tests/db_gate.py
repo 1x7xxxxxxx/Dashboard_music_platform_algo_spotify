@@ -26,6 +26,7 @@ from __future__ import annotations
 import os
 import socket
 from functools import lru_cache
+from urllib.parse import unquote, urlparse
 
 import pytest
 
@@ -120,7 +121,18 @@ def dsn() -> dict | None:
     `src/` ; ce helper l'étend aux tests.
     """
     if os.environ.get("DATABASE_URL"):
-        return {"dsn": os.environ["DATABASE_URL"]}
+        # La MÊME forme que `resolve_kwargs()`, jamais `{"dsn": url}` : ce dict est
+        # déballé tel quel dans `psycopg2.connect(**…)` ET dans `PostgresHandler(**…)`,
+        # et le second n'a pas de paramètre `dsn`. Mesuré le 2026-09-24 : la CI (qui
+        # pose `DATABASE_URL`) était rouge sur dix tests depuis le 2026-09-22, le poste
+        # (qui ne la pose pas) vert — la branche n'avait jamais tourné ici.
+        # Même découpe que `PostgresHandler.from_url`.
+        url = urlparse(os.environ["DATABASE_URL"])
+        return {"host": url.hostname or "localhost", "port": url.port or 5432,
+                "database": url.path.lstrip("/"),
+                # libpq décode les `%xx` d'une URI ; `urlparse` non.
+                "user": unquote(url.username or "postgres"),
+                "password": unquote(url.password or "")}
     try:
         with socket.create_connection((DB_HOST, DB_PORT), timeout=1.5):
             pass
@@ -131,3 +143,23 @@ def dsn() -> dict | None:
         return resolve_kwargs()
     except Exception:
         return None
+
+
+def built_in_one_go(db) -> bool:
+    """Vrai si la base n'a jamais été migrée par `tools/migrate.sh`.
+
+    La CI applique `init_db.sql` puis chaque migration DIRECTEMENT
+    (`.github/actions/provision-postgres`) : son registre `schema_migrations` reste
+    vide. Une base qui a VÉCU — le poste, la production — porte une ligne par
+    migration appliquée (134 sur le poste le 2026-09-24).
+
+    On lit la PROVENANCE, pas une variable d'environnement ni un contenu : les tests
+    eux-mêmes écrivent dans les tables de données (`etl_run_log` en portait 13 à la fin
+    d'une suite sur base neuve), jamais dans ce registre. Une base neuve lancée à la
+    main pour rejouer la CI est reconnue de la même façon.
+    """
+    try:
+        rows = db.fetch_query("SELECT count(*) FROM schema_migrations")
+    except Exception:                       # noqa: BLE001 — table absente = jamais migrée
+        return True
+    return not rows or rows[0][0] == 0

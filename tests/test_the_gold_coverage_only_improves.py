@@ -99,7 +99,9 @@ _CEILING: dict[str, int] = {
     # plafond de sauts est passé de 2 à 3, sur une MESURE (le cran suivant
     # n'apporte rien). Un livrable qui déclare « je ne sais pas » là où il sait est
     # aussi trompeur qu'un livrable qui invente.
-    "figures.unknown": 7,
+    # 7 → 6 le 2026-09-24 : le traceur suit désormais l'ARGUMENT d'un formateur
+    # (`_n(x)`) quand le formateur lui-même ne rend aucune source.
+    "figures.unknown": 6,
     # 11 → 10 le 2026-09-21. La tuile disparue est « 📅 Dernière mise à jour »
     # de SoundCloud, retirée à la demande du propriétaire : une date de collecte
     # est un fait de PLOMBERIE, et elle était indéterminée pour le lecteur de la
@@ -125,8 +127,20 @@ _CEILING: dict[str, int] = {
     # brute — parfaitement attribuable, et fausse : l'artiste 1 la porte à
     # « premium » sans aucune ligne d'abonnement. On échange une attribution
     # propre contre un chiffre juste.
-    "tiles.unknown": 12,
-    "pdf.unknown": 5,
+    # 12 → 10 le 2026-09-24, deux correctifs du TRACEUR (`tools/dev/gold_coverage.py`) :
+    # une variable libre de fermeture se résout dans la fonction englobante, et un
+    # formateur sans source passe la main à ses arguments. Les tuiles de l'accueil,
+    # passées dans des fermetures le 2026-09-22, étaient tombées à 17 indéterminées —
+    # et `_u_meta`/`_u_hypeddit` se déclaraient « hors base » en lisant la base. Le
+    # document, périmé depuis, cachait la régression ; la CI rougissait sur sa
+    # fraîcheur, que personne ne lisait.
+    "tiles.unknown": 10,
+    # 5 → 7 le 2026-09-24, et c'est une correction de MESURE, pas une régression :
+    # trois figures du PDF (SoundCloud, entonnoir Meta, engagement Instagram)
+    # étaient classées « hors base » alors qu'elles lisent la base. Le même
+    # correctif du traceur les rend honnêtes — « indéterminées », motif affiché.
+    # Une ligne est sortie dans l'autre sens. 5 + 3 − 1 = 7.
+    "pdf.unknown": 7,
     "gold-objects.orphans": 0,
     # 21 → 18 → 0 le 2026-09-12. Les 12 derniers n'ont pas été « repointés » : ils
     # ont été LUS. Aucun n'était une métrique — des MAX(date), des COUNT(*), des

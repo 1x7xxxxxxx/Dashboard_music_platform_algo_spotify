@@ -224,7 +224,13 @@ def _tests_connecting_without_the_door() -> list[str]:
         if path.name == "db_gate.py" or path.resolve() == moi:
             continue
         txt = path.read_text(encoding="utf-8")
-        if "psycopg2.connect" not in txt:
+        # Une connexion s'ouvre par `psycopg2.connect` OU par `PostgresHandler(**…)`.
+        # Filtrer sur le premier seul laissait passer
+        # `tests/test_every_way_of_asking_gives_one_answer.py`, qui composait son DSN
+        # depuis l'environnement et ouvrait par le second — rouge EN LOCAL (le mot de
+        # passe vit dans `config.yaml`), vu le 2026-09-24 par un balayage, pas par ce
+        # garde.
+        if "psycopg2.connect" not in txt and "PostgresHandler(" not in txt:
             continue
         try:
             tree = ast.parse(txt)
@@ -391,3 +397,24 @@ def test_the_module_reads_no_connection_variable():
         assert var not in code
     assert psycopg2 is not None
 '''), "nommer une variable dans une assertion d'absence n'est pas la lire"
+
+
+def test_the_test_door_speaks_the_handlers_language_under_DATABASE_URL(monkeypatch) -> None:
+    """`dsn()` est déballé dans `PostgresHandler(**…)` ET `psycopg2.connect(**…)`.
+
+    Sous `DATABASE_URL` (la CI) il rendait `{"dsn": url}`, que le premier refuse : dix
+    tests rouges en CI du 2026-09-22 au 24, verts sur le poste qui ne pose pas la
+    variable. Ne demande aucune base : la branche `DATABASE_URL` ne touche pas au réseau.
+    """
+    import inspect
+
+    from src.database.postgres_handler import PostgresHandler
+    from tests.db_gate import dsn
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u%40x:p%3Aw@h:6543/db")  # pragma: allowlist secret
+    kw = dsn()
+    accepte = set(inspect.signature(PostgresHandler.__init__).parameters) - {"self"}
+    assert kw and set(kw) <= accepte, (
+        f"`dsn()` rend {sorted(kw or {})} ; `PostgresHandler` accepte {sorted(accepte)}")
+    assert (kw["user"], kw["password"], kw["port"]) == ("u@x", "p:w", 6543), (
+        "les identifiants d'une URI se décodent comme le fait libpq")

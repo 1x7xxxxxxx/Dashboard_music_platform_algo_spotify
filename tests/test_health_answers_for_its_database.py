@@ -177,7 +177,11 @@ def test_the_probe_works_with_only_a_database_url() -> None:
 def test_the_probe_never_raises() -> None:
     """Une sonde qui lève transforme une base lente en 500, donc en fausse panne."""
     from src.api import main
-    with mock.patch("src.utils.pg_connect.resolve_kwargs",
+    # La panne est simulée sur la porte que la sonde APPELLE, pas sur une étape
+    # qu'elle traverse PARFOIS : sous `DATABASE_URL` (la CI, la prod),
+    # `from_env_or_config` ne passe jamais par `resolve_kwargs`, et ce test tombait
+    # sur une vraie base saine qui répondait `ok` — rouge en CI du 2026-09-22 au 24.
+    with mock.patch("src.database.postgres_handler.PostgresHandler.from_env_or_config",
                     side_effect=RuntimeError("boum")):
         ok, motif = main._sonder_la_base()
     assert ok is False and motif == "database"
@@ -193,7 +197,7 @@ def test_the_reason_is_a_closed_vocabulary_not_an_oracle() -> None:
     """
     from src.api import main
     secret = "host=10.0.0.4 user=postgres password=hunter2"   # pragma: allowlist secret
-    with mock.patch("src.utils.pg_connect.resolve_kwargs",
+    with mock.patch("src.database.postgres_handler.PostgresHandler.from_env_or_config",
                     side_effect=RuntimeError(secret)):
         _, motif = main._sonder_la_base()
     assert motif == "database", (

@@ -81,6 +81,16 @@ def _make_handler():
 # =============================================================================
 
 class TestFromURL:
+    def test_encoded_credentials_are_decoded_like_libpq(self):
+        """`p%40ss%3Aw` is how `p@ss:w` must be written in a URL — and libpq decodes it.
+        Passed through still encoded, authentication failed (found 2026-09-24)."""
+        with patch("src.database.postgres_handler.psycopg2.connect"):
+            h = PostgresHandler.from_url("postgresql://us%2Fer:p%40ss%3Aw@host:5432/db")
+        assert (h.user, h.password) == ("us/er", "p@ss:w")
+        with patch("src.database.postgres_handler.psycopg2.connect"):
+            plain = PostgresHandler.from_url("postgresql://user:plain@host:5432/db")
+        assert plain.password == "plain", "a password with no escape must pass unchanged"  # pragma: allowlist secret — fabricated
+
     def test_postgres_scheme(self):
         with patch("src.database.postgres_handler.psycopg2.connect"):
             h = PostgresHandler.from_url("postgres://user:pass@localhost:5433/mydb")
