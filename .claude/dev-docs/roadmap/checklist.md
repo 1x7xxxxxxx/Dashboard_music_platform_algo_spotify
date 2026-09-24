@@ -25,8 +25,13 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R165 | La CI est rouge depuis le 2026-09-22 (`2cecff6`) : six causes, toutes invisibles en local | P2 | `gh run list --workflow ci.yml` — dernier vert le 2026-09-18 ; run `36046213905` : 15 tests + 1 porte statique |
+| R166 | Le contrôle de santé de la prod a échoué sans que personne le voie — la prod est restée coupée une journée | P2 | `gh run list --workflow prod-health.yml` : rouge le 2026-09-24 à 11:45 UTC, découvert le soir par un `make deploy` en échec |
 
-**Cet index est vide de nouveau le 2026-09-23 après-midi** : R164, le reste mesuré du
+**Deux lignes y sont entrées le 2026-09-24 au soir**, toutes deux nées d'un déploiement
+qui n'a pas pu partir — détail dans « 🧯 R165 · R166 » juste sous cet index.
+
+**Cet index avait été vidé le 2026-09-23 après-midi** : R164, le reste mesuré du
 balayage qui a corrigé l'effacement RGPD le même jour, y est entrée et en est ressortie
 livrée le même après-midi. Il était vide le matin — R162, entrée le 2026-09-22 au soir
 en mutant un garde neuf, est livrée le lendemain matin, son récit est dans
@@ -85,7 +90,7 @@ Chacune croise une phrase d'un livre avec un chiffre déjà mesuré sur ce dép�
 et la citation sont dans le bloc « 📚 R146-R151 » plus bas. Une ligne dont le livre ne
 faisait que confirmer ce qu'on savait déjà n'y est PAS entrée.
 
-**Aucune autre tâche n'est ouverte dans cet index.** R145 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance, close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
+**Deux tâches sont ouvertes dans cet index, R165 et R166.** R145 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance, close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
 L'ancre `reprise:` ne nomme donc plus que les lignes en attente d'un geste humain — R148 et R163 depuis le 2026-09-23 (R151 réfutée, R150 livrée, R163 entrée et R153 livrée ce jour-là). La table « 🙋 En attente de toi »
 plus bas en porte **deux** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
 sont sorties le 2026-09-20 — les dix-sept décisions de la première tranchées et
@@ -122,6 +127,55 @@ Classe `a-prose-claim-that-cannot-be-verified`. La parade tient en une phrase : 
 une phrase de ce fichier compte quelque chose, elle compte ce qui existe, et rien
 d'autre** — et le paragraphe qui l'énonce n'y échappe pas, comme sa propre ligne « trois
 fois » vient de le montrer.
+
+---
+
+## 🧯 R165 · R166 — la soirée du 2026-09-24 (entrées le 2026-09-24)
+
+**Ce qui s'est passé.** `make deploy` de `e910543` (alignement de « Se connecter ») a
+échoué : SSH muet, Cloudflare en **522** sur l'app et l'API. La console Hetzner portait
+« IP address of this server is blocked » — **un blocage pour IMPAYÉ**, pas un abus : la
+carte avait changé, le prélèvement échouait, deux relances de `billing@hetzner.com`
+(2026-09-18, puis « Services blocked » le 2026-09-24 12:31) étaient parties à la
+corbeille. Payé le soir même par le propriétaire ; déblocage en attente.
+⚠️ Diagnostic erroné d'abord : j'ai cherché un abus sortant (pare-feu, compromission)
+pendant une heure. Le motif était dans la boîte mail, pas sur le serveur.
+
+- [ ] **Déployer `e910543`** dès que `ssh root@167.233.92.1 true` rend 0 :
+  `make deploy PROD_SSH=root@167.233.92.1 SERVICE=dashboard` — aucune migration.
+
+### R165 — la CI rouge depuis le 2026-09-22 (P2)
+
+Diagnostic `build-error-resolver`, run `36046213905`. Deux faits d'environnement que le
+poste local n'a pas : la CI définit **`DATABASE_URL`**, et sa base est **neuve** (schéma
++ un canari) à chaque run.
+
+- [ ] **A** (10 tests) — `tests/db_gate.py:122` rend `{"dsn": url}` sous `DATABASE_URL` ;
+  `PostgresHandler(**dsn())` le refuse. Découper l'URL comme `PostgresHandler.from_url`.
+- [ ] **E** (2) — `tests/test_health_answers_for_its_database.py` simule la panne sur
+  `resolve_kwargs`, que `from_env_or_config()` court-circuite sous `DATABASE_URL`.
+- [ ] **B** (1) — `test_the_ceiling_is_tight_not_slack` : plafond 34 calibré sur la base
+  locale dérivée, la base neuve de CI en mesure 1. Égalité seulement hors base neuve.
+- [ ] **C** (1) — `test_no_tab_renders_empty[trigger_algo]` fixe `artist_id=1`, vide en CI.
+- [ ] **D** (1) — l'export lit « table vide » comme « personne n'écrit » ; faux sur une
+  base où aucune collecte n'a tourné.
+- [ ] **F** (porte statique) — `gold-coverage.md` périmé, reproduit en local :
+  `make gold-coverage`.
+- Reproduire AVANT de corriger : `DATABASE_URL=… pytest …` (A, E) ; un `postgres:17`
+  neuf provisionné comme `.github/actions/provision-postgres` (B, C, D).
+- ⚠️ B, C, D touchent des portes : feu vert du propriétaire demandé le 2026-09-24.
+
+### R166 — un contrôle de santé rouge que personne ne lit (P2)
+
+`prod-health.yml` a rendu rouge le 2026-09-24 à 11:45 UTC (tableau de bord, API,
+webhook Stripe) ; la coupure n'a été vue que le soir, par hasard. Et la CI est rouge
+depuis six jours sans qu'on l'ait remarqué non plus : **un rouge qui n'arrive nulle part
+n'est pas une alerte.**
+
+- [ ] Faire arriver l'échec de `prod-health` sur un canal lu (mail au propriétaire sur
+  `timothe.baudry137@gmail.com`, ou notification) — et le prouver en le faisant échouer.
+- [ ] Filtre Gmail : `from:billing@hetzner.com` marqué important, jamais en corbeille
+  (geste du propriétaire).
 
 ---
 
@@ -177,7 +231,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R148, R163 -->
+<!-- reprise: open=R165, R166, R148, R163 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers
@@ -192,7 +246,7 @@ la table des gestes humains (R148, R150, R151, R153), et **trois entrées l'apr�
 | **R155** `10a1d61` | dix écrans d'administration en **six sections**, sélecteur paresseux | la section des comptes : **23 requêtes → 1** |
 | **R156** | les trois trous de balayage du catalogue d'erreurs, fermés | **411/411 verdicts lisibles, 0 muet, 0 jamais balayée** |
 
-**Par où reprendre (2026-09-25)** : rien d'ouvert côté ingénierie, arbre propre, prod à jour sur `main`. La séance du 2026-09-24 a fini l'écran de connexion : « Se connecter » est aligné à GAUCHE, sur le bord des champs (centré, il flottait seul au milieu du cadre) — garde `test_sign_in_is_aligned_on_the_fields_left_edge`, vu rouge en le recentrant. Le prochain vrai levier n'est pas dans ce fichier : c'est l'ACTIVATION — 3 artistes bêta sur 4 n'ont jamais saisi un identifiant de plateforme, et R148 ne se fait qu'après.
+**Par où reprendre (2026-09-25)** : la prod a été COUPÉE le 2026-09-24 par Hetzner pour impayé (payé le soir, déblocage en attente). D'abord : `ssh root@167.233.92.1 true`, puis déployer `e910543` (« Se connecter » aligné à gauche, commité et poussé, jamais déployé). Ensuite **R165** — la CI est rouge depuis le 2026-09-22 pour six causes diagnostiquées, feu vert demandé pour B/C/D — puis **R166**, pour qu'un contrôle de santé rouge arrive enfin à quelqu'un.
 
 **État au soir du 2026-09-23** : l'index actionnable est de nouveau
 **vide** — R157 à R162 sont livrées le matin, et R164, née l'après-midi du balayage qui
