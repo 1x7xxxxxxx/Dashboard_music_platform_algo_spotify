@@ -161,6 +161,13 @@ poste local n'a pas : la CI définit **`DATABASE_URL`**, et sa base est **neuve*
   base où aucune collecte n'a tourné.
 - [ ] **F** (porte statique) — `gold-coverage.md` périmé, reproduit en local :
   `make gold-coverage`.
+- [ ] **G** (5 erreurs, rouge EN LOCAL) — `tests/test_every_way_of_asking_gives_one_answer.py:38-55`
+  lit le mot de passe dans l'environnement, jamais dans `config.yaml` ; et le garde
+  `test_one_door_onto_the_database.py:227` ne l'inspecte pas (il ne balaie que les fichiers
+  qui contiennent le texte `psycopg2.connect`). Trouvé par le balayage de `/capitalise`.
+- À la livraison : écrire la classe `a-test-that-only-ever-ran-on-its-authors-machine`
+  AVEC son garde (billet `sites:6` acquis — note du 2026-09-24 sur
+  `guard-predicate-depends-on-the-host-env`). F relève de `a-generated-document-asserts-a-stale-state`.
 - Reproduire AVANT de corriger : `DATABASE_URL=… pytest …` (A, E) ; un `postgres:17`
   neuf provisionné comme `.github/actions/provision-postgres` (B, C, D).
 - ⚠️ B, C, D touchent des portes : feu vert du propriétaire demandé le 2026-09-24.
@@ -176,6 +183,8 @@ n'est pas une alerte.**
   `timothe.baudry137@gmail.com`, ou notification) — et le prouver en le faisant échouer.
 - [ ] Filtre Gmail : `from:billing@hetzner.com` marqué important, jamais en corbeille
   (geste du propriétaire).
+- À la livraison : écrire la classe `a-red-verdict-delivered-to-an-inbox-nobody-reads`
+  AVEC son garde (billet `p1` acquis — note du 2026-09-24 sur `the-watcher-is-not-watched`).
 
 ---
 

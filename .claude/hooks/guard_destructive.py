@@ -311,7 +311,7 @@ _PKILL_RE = re.compile(r"\bpkill\s+(?:-\w+\s+)*-\w*f\w*\s+(?P<pat>\S+)")
 # sort jamais. Silencieuse, elle passe pour une attente normale — trois ont tourne des
 # heures en surveillant des suites deja finies, et m'ont fait conclure quatre fois
 # qu'une suite etait morte alors qu'elle tournait.
-_PGREP_RE = re.compile(r"\bpgrep\s+(?:-\w+\s+)*-\w*f\w*\s+(?P<pat>\S+)")
+_PGREP_RE = re.compile(r"""\bpgrep\s+(?:-\w+\s+)*-\w*f\w*\s+(?P<pat>"[^"]*"|'[^']*'|\S+)""")
 
 
 def _probe_would_find_its_own_shell(command: str) -> str | None:
@@ -334,11 +334,22 @@ def _probe_would_find_its_own_shell(command: str) -> str | None:
                 head = shlex.split(segment)
             except ValueError:
                 head = segment.split()
-            if not any(t.rsplit("/", 1)[-1] == "pgrep" for t in head[:3]):
+            if not any(t.lstrip("(").rsplit("/", 1)[-1] == "pgrep" for t in head[:3]):
                 continue
             pattern = m.group("pat").strip("\"'")
-            if "[" in pattern:          # deja crante : c'est la forme sure
-                continue
+            if "[" in pattern:
+                # Crante : sur que si le texte n'apparait pas AILLEURS en clair sur la
+                # ligne. Le 2026-09-22, `(pgrep -f "[s]treamlit run" && echo deja) ||
+                # (nohup … streamlit run …)` a conclu « deja lance » sur sa propre
+                # relance. Meme evaluation que `_grep_pattern_matches_its_own_line`.
+                full = _sans_heredocs(command)
+                at = full.find(pattern)
+                rest = full[:at] + full[at + len(pattern):] if at >= 0 else full
+                try:
+                    if not re.search(pattern, rest):
+                        continue
+                except re.error:
+                    continue
             return pattern
     except Exception:  # noqa: BLE001 — un garde qui leve bloquerait chaque commande
         return None
@@ -390,6 +401,66 @@ def _pkill_would_kill_its_own_shell(command: str) -> str | None:
                 continue
             return pattern
     except Exception:  # noqa: BLE001 — un garde qui lève bloquerait chaque commande
+        return None
+    return None
+
+
+# ── Le crochet ne suffit pas, ajoute le 2026-09-24 ───────────────────────────
+#
+# La forme sure que ce hook RECOMMANDE — `ps … | grep "[s]treamlit run app.py"` — m'a
+# tue le shell le 2026-09-24, exit 144, sur cette ligne :
+#
+#     pid=$(ps -eo pid,args | grep "[s]treamlit run src/dashboard/app.py" | awk …);
+#     kill $pid; sleep 2; nohup .venv/bin/streamlit run src/dashboard/app.py … &
+#
+# Le crochet empeche le motif de se trouver dans SA PROPRE ecriture. Il n'empeche pas
+# qu'il se trouve AILLEURS sur la ligne : la relance portait le texte en clair, donc la
+# ligne du shell correspondait, `kill` l'a tue, et la relance n'est jamais partie.
+# La propriete n'est pas « le motif porte un crochet » : c'est « le motif correspond a
+# la ligne de commande qui l'execute ». On l'evalue donc comme grep le ferait : sur la
+# ligne entiere, privee de la seule ecriture du motif.
+_GREP_PAT_RE = re.compile(r"""\bgrep\s+(?:-\w+\s+)*(?P<q>["'])(?P<pat>.+?)(?P=q)""")
+
+
+def _a_kill_follows(segments: list[str]) -> int | None:
+    """L'indice du premier segment dont la COMMANDE est `kill`/`pkill`, ou None."""
+    for i, segment in enumerate(segments):
+        try:
+            head = shlex.split(segment)
+        except ValueError:
+            head = segment.split()
+        if any(t.rsplit("/", 1)[-1] in ("kill", "pkill") for t in head[:3]):
+            return i
+        # `… | xargs kill` : le `|` ne coupe pas un segment, la tete est `ps`.
+        if re.search(r"\|\s*xargs\s+(?:-\S+\s+)*kill\b", segment):
+            return i
+    return None
+
+
+def _grep_pattern_matches_its_own_line(command: str) -> str | None:
+    """Le motif d'un `grep` qui trouvera la ligne du shell, sur une ligne qui tue
+    puis continue — ou None. Ne leve jamais."""
+    try:
+        text = _sans_heredocs(command)
+        segments = [s for s in re.split(r"&&|\|\||;|\n", text)]
+        k = _a_kill_follows(segments)
+        if k is None or not any(s.strip() for s in segments[k + 1:]):
+            return None
+        for m in _GREP_PAT_RE.finditer(text):
+            # Le danger n'existe que si grep lit la LISTE DES PROCESSUS : un grep sur
+            # un fichier de log ne verra jamais la ligne du shell (faux positif mesure
+            # le 2026-09-24 par le balayage de cette classe).
+            amont = re.split(r"&&|\|\||;|\n|\$\(", text[:m.start()])[-1]
+            if not re.search(r"(?:^|[\s'\"(])ps\s", amont):
+                continue
+            pattern = m.group("pat")
+            rest = text[:m.start("pat")] + text[m.end("pat"):]
+            try:
+                if re.search(pattern, rest):
+                    return pattern
+            except re.error:
+                continue
+    except Exception:  # noqa: BLE001 — un garde qui leve bloquerait chaque commande
         return None
     return None
 
@@ -651,6 +722,16 @@ def check_command(cmd: str) -> tuple[str, str] | None:
                 "Forme sûre, où le motif ne se contient plus lui-même :\n"
                 f"  ps -eo pid,cmd | grep \"[{suicidal[:1]}]{suicidal[1:]}\" "
                 "| awk '{print $1}' | while read p; do kill \"$p\"; done")
+    trouve = _grep_pattern_matches_its_own_line(cmd)
+    if trouve:
+        return ("block",
+                f"`grep \"{trouve}\"` trouvera la ligne du shell qui l'execute : ce texte "
+                "y figure AILLEURS, en clair — le crochet n'empeche que l'auto-"
+                "correspondance de sa propre ecriture. Le `kill` qui suit tuera donc ce "
+                "shell (exit 144) et la suite de la ligne ne partira pas. Arrive le "
+                "2026-09-24 : une relance de Streamlit ecrite sur la meme ligne.\n"
+                "Forme sure : tuer dans un appel, relancer dans le suivant — ou tuer par "
+                "PID connu (celui d'une tache de fond).")
     # Puis le garde à ÉTAT. Il ne bloque que si du travail serait réellement perdu,
     # et son message peut NOMMER les fichiers — ce qu'aucun tier littéral ne peut faire.
     lost = _paths_that_would_lose_work(cmd)

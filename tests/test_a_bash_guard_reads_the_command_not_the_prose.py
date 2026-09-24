@@ -268,3 +268,49 @@ def test_the_commit_hook_actually_uses_its_own_predicate() -> None:
         "`main()` n'appelle PAS `_is_really_a_commit` — le prédicat structurel existe "
         "et n'est pas branché. S'il est retombé sur une sous-chaîne, un `grep` sur la "
         "documentation relance un scan complet des fichiers indexés.")
+
+
+# ── 2026-09-24 : le crochet ne protege que sa propre ecriture ────────────────────
+_SEPT_24 = ("pid=$(rtk proxy sh -c 'ps -eo pid,args | grep \"[s]treamlit run "
+            "src/dashboard/app.py\"' | awk '{print $1}'); kill $pid; sleep 2; "
+            "nohup .venv/bin/streamlit run src/dashboard/app.py --server.port 8501 &")
+
+
+def test_the_bracket_does_not_save_a_pattern_written_elsewhere_on_the_line() -> None:
+    """Non-vacuite, dans les deux sens, sur la ligne EXACTE du 2026-09-24."""
+    got = _check(_SEPT_24)
+    assert got and got[0] == "block", (
+        f"la ligne qui a tue le shell le 2026-09-24 passe : {got}")
+    # La forme saine : la relance quitte la ligne — plus rien ne porte le texte en clair.
+    sain = _SEPT_24.split("; sleep")[0] + "; echo termine"
+    got = _check(sain)
+    assert not got or got[0] != "block", (
+        f"un kill par motif CRANTE, sans le texte en clair ailleurs, est bloque : {got}")
+
+
+def test_a_bracketed_probe_without_a_kill_is_left_alone() -> None:
+    """Sonder n'est pas tuer : une sonde crantee suivie d'une relance ne meurt pas."""
+    sonde = ('ps -eo pid,args | grep "[s]treamlit run app.py"; '
+             "nohup streamlit run app.py &")
+    got = _check(sonde)
+    assert not got or got[0] != "block", f"une sonde sans kill est bloquee : {got}"
+
+
+@pytest.mark.parametrize("command,label", [
+    ('(pgrep -f "[s]treamlit run" >/dev/null && echo deja) || '
+     "(nohup .venv/bin/streamlit run src/dashboard/app.py &)", "sonde du 2026-09-22"),
+    ('ps -eo pid,args | grep "[s]treamlit run" | awk \'{print $1}\' | xargs kill; '
+     "nohup streamlit run app.py &", "xargs kill en queue de tube"),
+])
+def test_a_bracketed_pattern_written_in_clear_elsewhere_is_seen(command, label) -> None:
+    got = _check(command)
+    assert got and got[0] == "block", f"{label} : passe — {got}"
+
+
+def test_a_grep_over_a_log_file_is_not_a_process_probe() -> None:
+    """Faux positif mesure le 2026-09-24 : grep lit un fichier, pas la liste des
+    processus ; il ne peut pas trouver la ligne du shell."""
+    cmd = ('pid=$(grep "worker-3" /var/log/app.log | tail -1 | cut -d: -f1); '
+           'kill "$pid"; echo "worker-3 shift done"')
+    got = _check(cmd)
+    assert not got or got[0] != "block", f"un grep sur un log est bloque : {got}"
