@@ -141,8 +141,9 @@ corbeille. Payé le soir même par le propriétaire ; déblocage en attente.
 ⚠️ Diagnostic erroné d'abord : j'ai cherché un abus sortant (pare-feu, compromission)
 pendant une heure. Le motif était dans la boîte mail, pas sur le serveur.
 
-- [ ] **Déployer `e910543`** dès que `ssh root@167.233.92.1 true` rend 0 :
-  `make deploy PROD_SSH=root@167.233.92.1 SERVICE=dashboard` — aucune migration.
+- [x] **Déployer `e910543`** — fait le 2026-09-24 à 20:52 UTC, dès le déblocage, par la
+  boucle d'attente : la prod porte `cf7c02a`, `streamlytics_dashboard` healthy, 0 redémarrage,
+  `https://app.streamlytics.fr/_stcore/health` → 200.
 
 ### R165 — la CI rouge depuis le 2026-09-22 (P2)
 
@@ -255,7 +256,7 @@ la table des gestes humains (R148, R150, R151, R153), et **trois entrées l'apr�
 | **R155** `10a1d61` | dix écrans d'administration en **six sections**, sélecteur paresseux | la section des comptes : **23 requêtes → 1** |
 | **R156** | les trois trous de balayage du catalogue d'erreurs, fermés | **411/411 verdicts lisibles, 0 muet, 0 jamais balayée** |
 
-**Par où reprendre (2026-09-25)** : la prod a été COUPÉE le 2026-09-24 par Hetzner pour impayé (payé le soir, déblocage en attente). D'abord : `ssh root@167.233.92.1 true`, puis déployer `e910543` (« Se connecter » aligné à gauche, commité et poussé, jamais déployé). Ensuite **R165** — la CI est rouge depuis le 2026-09-22 pour six causes diagnostiquées, feu vert demandé pour B/C/D — puis **R166**, pour qu'un contrôle de santé rouge arrive enfin à quelqu'un.
+**Par où reprendre (2026-09-25)** : la prod a été COUPÉE le 2026-09-24 par Hetzner pour impayé ; payé, débloquée à 20:51 UTC, et `cf7c02a` déployé dans la minute (« Se connecter » aligné à gauche en ligne). Ensuite **R165** — la CI est rouge depuis le 2026-09-22 pour sept causes diagnostiquées (A–G), feu vert demandé pour B/C/D — puis **R166**, pour qu'un contrôle de santé rouge arrive enfin à quelqu'un.
 
 **État au soir du 2026-09-23** : l'index actionnable est de nouveau
 **vide** — R157 à R162 sont livrées le matin, et R164, née l'après-midi du balayage qui
