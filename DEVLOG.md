@@ -5,6 +5,24 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-24 — « Se connecter » aligné sur le bord des champs
+
+**Ce qui a changé.** Le bouton de connexion par mail et mot de passe quitte le centre du
+cadre pour le bord gauche des champs ; largeur fixe de 260 px conservée. Garde ajouté
+dans `tests/test_the_google_button_sits_beside_sign_in.py`, vu rouge en recentrant le
+bouton. Rendu vérifié en capture (bouton à 32 px, champs à 33 px ; 260 px avant).
+`auth.py` était déjà à 1 201 lignes, au-dessus du plafond de 1 200 : le style des
+boutons sort dans `src/dashboard/utils/login_buttons.py` (1 166 lignes).
+
+### Ce qu'il faut retenir
+
+- **Un élément centré dans une colonne alignée à gauche se lit comme un défaut.** Titre,
+  libellés, champs et lien d'inscription partaient tous du bord gauche ; seul le bouton
+  était centré.
+- **Reprise** : rien d'ouvert côté ingénierie ; R148 et R163 attendent un geste humain.
+
+---
+
 ## 2026-09-23 (clôture) — L'écran de connexion en trois demandes, et la touche Entrée
 
 **Ce qui a changé.** Le bouton Google devient le bouton STANDARD de Google (blanc, « G »

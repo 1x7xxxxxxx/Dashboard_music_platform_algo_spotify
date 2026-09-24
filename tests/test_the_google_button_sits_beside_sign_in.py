@@ -20,6 +20,8 @@ Ce que ce garde couvre, par un RENDU réel de `_cadre_de_connexion()` :
 * le bouton Google partage la rangée horizontale du titre « Connexion » ;
 * il n'est PAS dans le formulaire, qui n'a qu'un bouton de soumission : « Se connecter » ;
 * les deux boutons ont la même largeur fixe (courts, jamais tronqués) ;
+* « Se connecter » est aligné à GAUCHE, sur le bord des champs (demandé le
+  2026-09-24 : centré, il flottait seul au milieu du cadre) ;
 * le style est celui du bouton de Google — blanc, texte sombre lisible (AA), « G »
   quatre couleurs ;
 * sans configuration, Google disparaît et « Se connecter » reste seul.
@@ -120,6 +122,20 @@ def test_both_buttons_are_short_and_equal() -> None:
     assert 220 <= _BUTTON_WIDTH_PX <= 320, (
         f"{_BUTTON_WIDTH_PX} px : sous 220 le libellé Google se tronque, au-dessus de "
         "320 les boutons redeviennent longs.")
+
+
+def test_sign_in_is_aligned_on_the_fields_left_edge() -> None:
+    """Centré, « Se connecter » flottait seul au milieu d'un cadre dont le titre, les
+    libellés, les champs et le lien d'inscription partent tous du bord gauche."""
+    at = _run(configured=True)
+    rows = [n for n in _walk(at._tree) if getattr(n, "type", "") == "flex_container"
+            and "login_submit" in {getattr(c, "key", None)
+                                   for c in (n.children or {}).values()}]
+    assert rows, "non-vacuité : « Se connecter » n'est dans aucune rangée"
+    justify = rows[0].proto.flex_container.justify
+    assert justify == type(rows[0].proto.flex_container).Justify.JUSTIFY_START, (
+        f"« Se connecter » est justifié {justify} : attendu JUSTIFY_START, le bord "
+        "gauche des champs")
 
 
 def test_the_google_button_looks_like_googles_own() -> None:

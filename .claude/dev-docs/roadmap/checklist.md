@@ -175,7 +175,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-24 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
 <!-- reprise: open=R148, R163 -->
 
@@ -192,7 +192,7 @@ la table des gestes humains (R148, R150, R151, R153), et **trois entrées l'apr�
 | **R155** `10a1d61` | dix écrans d'administration en **six sections**, sélecteur paresseux | la section des comptes : **23 requêtes → 1** |
 | **R156** | les trois trous de balayage du catalogue d'erreurs, fermés | **411/411 verdicts lisibles, 0 muet, 0 jamais balayée** |
 
-**Par où reprendre (2026-09-24)** : rien d'ouvert côté ingénierie, arbre propre, prod à jour sur `main`. La séance du 2026-09-23 s'est close sur l'écran de connexion : bouton Google standard (blanc, « G » quatre couleurs) sur la ligne du titre « Connexion », HORS du formulaire pour que la touche Entrée reste à « Se connecter » — garde `tests/test_the_google_button_sits_beside_sign_in.py`. Le prochain vrai levier n'est pas dans ce fichier : c'est l'ACTIVATION — 3 artistes bêta sur 4 n'ont jamais saisi un identifiant de plateforme, et R148 ne se fait qu'après.
+**Par où reprendre (2026-09-25)** : rien d'ouvert côté ingénierie, arbre propre, prod à jour sur `main`. La séance du 2026-09-24 a fini l'écran de connexion : « Se connecter » est aligné à GAUCHE, sur le bord des champs (centré, il flottait seul au milieu du cadre) — garde `test_sign_in_is_aligned_on_the_fields_left_edge`, vu rouge en le recentrant. Le prochain vrai levier n'est pas dans ce fichier : c'est l'ACTIVATION — 3 artistes bêta sur 4 n'ont jamais saisi un identifiant de plateforme, et R148 ne se fait qu'après.
 
 **État au soir du 2026-09-23** : l'index actionnable est de nouveau
 **vide** — R157 à R162 sont livrées le matin, et R164, née l'après-midi du balayage qui
