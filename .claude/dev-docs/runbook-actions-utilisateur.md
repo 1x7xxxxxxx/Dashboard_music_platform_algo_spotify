@@ -1832,7 +1832,7 @@ l'étape 4 (un lien sans pixel) ou 5 (l'évènement n'arrive pas côté serveur)
 R146 reste vrai : même parfaitement branché, ce chiffre compte l'auditeur qui **quitte**
 le smart link vers Spotify, pas une écoute. L'app le dit déjà sur chaque surface.
 
-## 25. R175 — Mots de passe mail des comptes UC7 (n8n)
+## 25. ~~R175 — Mots de passe mail des comptes UC7 (n8n)~~ · ✅ FAIT le 2026-09-25 — les 4 comptes vérifiés ✓ ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 **Pourquoi c'est toi** : le mot de passe de 1x7 vit dans `~/streamlytics/.env`, que tes
 réglages interdisent à Claude de lire (après une fuite de clés Stripe dans un fil, le
@@ -1853,7 +1853,7 @@ réglages interdisent à Claude de lire (après une fuite de clés Stripe dans u
 `! /mnt/c/Users/timot/Desktop/n8n/scripts/check-rag-mail-accounts.sh` → quatre lignes ✓.
 Tant qu'un compte est ignoré, le relevé du dimanche t'envoie un avertissement par mail.
 
-## 26. R176 — Retirer `AIRFLOW__CORE__DAGS_FOLDER` mort
+## 26. ~~R176 — Retirer `AIRFLOW__CORE__DAGS_FOLDER` mort~~ · ✅ FAIT le 2026-09-25 — les deux `.env` vérifiés à `0` ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 **Pourquoi c'est toi** : les `.env` sont hors de portée de Claude (règle deny). La valeur
 (`C:\Users\timot\Desktop\Dashboard_music_platform_algo_spotify\airflow\dags`) vise l'ancien

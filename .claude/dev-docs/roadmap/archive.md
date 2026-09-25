@@ -42,6 +42,37 @@ propriétaire), livrées le même soir par `5a17b33` puis `6a40f4b`.
 
 ---
 
+## 🧭 R175 — mots de passe mail des trois comptes UC7, n8n (livrée 2026-09-25)
+
+Née le même soir et du même bloc d'audit que R167 · R168 · R174 (« 🧭 R167 – R176 » de
+`checklist.md`).
+
+- [x] **R175 — mots de passe mail des comptes UC7 (n8n) : 1x7 recopié, nineka50130 et
+  127bpmin créés.** (P3) ✅ (2026-09-25)
+
+  Les trois valeurs saisies via la nouvelle fenêtre Windows masquée
+  `tools/dev/secret_prompt.sh` (`eade682`) — jamais par le fil de discussion. Preuve :
+  `bash /mnt/c/Users/timot/Desktop/n8n/scripts/check-rag-mail-accounts.sh` → les 4
+  comptes ✓ (timothe.baudry137, 1x7xxxxxxx, nineka50130, 127bpmin), « tous les comptes
+  de la table sont exploitables ». Procédure : runbook §25.
+
+---
+
+## 🧭 R176 — `AIRFLOW__CORE__DAGS_FOLDER` mort, retiré (livrée 2026-09-25)
+
+Née le même soir et du même bloc d'audit que R167 · R168 · R174 (« 🧭 R167 – R176 » de
+`checklist.md`).
+
+- [x] **R176 — la ligne `AIRFLOW__CORE__DAGS_FOLDER` (chemin Windows mort) retirée de
+  `.env` et `.env.example`.** (P4) ✅ (2026-09-25)
+
+  Geste fait par le propriétaire (`.env` hors de portée de Claude, règle deny) :
+  `sed -i '/^AIRFLOW__CORE__DAGS_FOLDER=/d' ~/streamlytics/.env ~/streamlytics/.env.example`,
+  exit 0. `.env.example` (suivi par git) ressort inchangé — il ne portait déjà plus la
+  ligne — donc rien à commiter pour lui. Procédure : runbook §26.
+
+---
+
 ## 🧭 R170 · R171 · R172 · R173 — décisions de l'audit de surveillance, tranchées (livrées 2026-09-25)
 
 Nées le même soir et du même bloc d'audit que R167 · R168 · R174 (« 🧭 R167 – R176 » de

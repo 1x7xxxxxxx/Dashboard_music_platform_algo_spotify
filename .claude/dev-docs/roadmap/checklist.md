@@ -97,13 +97,13 @@ Chacune croise une phrase d'un livre avec un chiffre déjà mesuré sur ce dép�
 et la citation sont dans le bloc « 📚 R146-R151 » plus bas. Une ligne dont le livre ne
 faisait que confirmer ce qu'on savait déjà n'y est PAS entrée.
 
-**Une tâche est ouverte dans cet index depuis le 2026-09-25 au soir** (R169) — huit y sont entrées ce soir-là, et R167, R168, R174 en sont ressorties livrées le même soir (détail dans `archive.md`, sous « 🧭 R167 · R168 · R174 »), puis R170 à R173 tranchées plus tard le même soir (détail dans `archive.md`, sous « 🧭 R170 · R171 · R172 · R173 »). Avant elles, R165 et R166, qui l'occupaient depuis le
+**Une tâche est ouverte dans cet index depuis le 2026-09-25 au soir** (R169) — huit y sont entrées ce soir-là, et R167, R168, R174 en sont ressorties livrées le même soir (détail dans `archive.md`, sous « 🧭 R167 · R168 · R174 »), puis R170 à R173 tranchées plus tard le même soir (détail dans `archive.md`, sous « 🧭 R170 · R171 · R172 · R173 »). R175, qui attendait un geste humain (mots de passe mail UC7), est livrée le 2026-09-25 — détail et preuve dans `archive.md`, sous « 🧭 R175 ». Avant elles, R165 et R166, qui l'occupaient depuis le
 2026-09-24 au soir, sont livrées le 2026-09-25 ; leur récit est dans `archive.md`. R145
 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance,
 close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et
 qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
-L'ancre `reprise:` nomme l'index ET les lignes en attente d'un geste humain — R148 et R163 depuis le 2026-09-23 (R151 réfutée, R150 livrée, R163 entrée et R153 livrée ce jour-là), R175, R176 et R177 depuis le 2026-09-25. La table « 🙋 En attente de toi »
-plus bas en porte **cinq** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
+L'ancre `reprise:` nomme l'index ET les lignes en attente d'un geste humain — R148 et R163 depuis le 2026-09-23 (R151 réfutée, R150 livrée, R163 entrée et R153 livrée ce jour-là), R177 depuis le 2026-09-25. La table « 🙋 En attente de toi »
+plus bas en porte **trois** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
 sont sorties le 2026-09-20 — les dix-sept décisions de la première tranchées et
 intégrées, la deuxième faite par le propriétaire (33 lignes en production), la troisième
 mesurée EN PRODUCTION et close sur son résultat.
@@ -151,15 +151,15 @@ ENTRER une action dans cette roadmap : ~9 identifiées ce jour-là, 0 inscrite a
 **R167, R168 et R174 sont livrées le même soir** (`5a17b33`, `6a40f4b`) — détail et
 preuve dans `archive.md`, sous « 🧭 R167 · R168 · R174 ». **R170, R171, R172 et R173
 sont tranchées plus tard le même soir** (`d048a5a`) — détail et preuve dans
-`archive.md`, sous « 🧭 R170 · R171 · R172 · R173 ».
+`archive.md`, sous « 🧭 R170 · R171 · R172 · R173 ». **R175 et R176 sont livrées le
+même soir**, chacune par le geste humain qu'elle attendait — détail et preuve dans
+`archive.md`, sous « 🧭 R175 » et « 🧭 R176 ».
 
 - [ ] **R169** — dette : 3 classes par séance, dans l'ordre de `make error-debt` (récidivées sans
   garde auto-prouvant d'abord). Tant que la liste n'est pas vide, cette ligne reste — garde
   `tests/test_a_measured_debt_has_its_roadmap_line.py`.
   - 2026-09-25 : 3 classes payées (a-surgical-restore, a-kill-pattern, audit-scope),
     `guard_does_not_prove_itself` 306 → 303 ; prochaines : `make error-debt`.
-- [ ] **R175** — 🙋 mots de passe mail UC7 (runbook §25).
-- [ ] **R176** — 🙋 `AIRFLOW__CORE__DAGS_FOLDER` mort (runbook §26).
 - [ ] **R177** — 🙋 **P1** : tourner les secrets de l'historique public (runbook §27). Tri
   `security-specialist` du 2026-09-25 (valeurs jamais affichées) : 38 trouvailles `gitleaks`,
   26 faux positifs (écartés par `.gitleaks.toml` + `.gitleaksignore`, par empreinte), **12
@@ -220,7 +220,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R169, R148, R177, R175, R176, R163 -->
+<!-- reprise: open=R169, R148, R177, R163 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers
@@ -298,9 +298,11 @@ deux réordonnancements de R118/R120, chacun sur une mesure — a été **dépla
 dans `archive.md`** le 2026-09-18, sous « Le récit de mesure de R114–R121 ». Il n'est pas
 perdu : il n'appartient simplement pas à un écran qui répond « où j'en suis ».
 
-**La table « 🙋 En attente de toi » porte CINQ lignes** — R177 (secrets exposés, P1), R175 et R176, entrées le 2026-09-25 (mots de passe mail UC7, `DAGS_FOLDER` mort) ; R148, entrée
+**La table « 🙋 En attente de toi » porte TROIS lignes** — R177 (secrets exposés, P1),
+entrée le 2026-09-25 ; R148, entrée
 le 2026-09-22 (R151 réfutée, R150 livrée et R153 livrée le 2026-09-23), et R163, entrée le
-2026-09-23 : les gestes Hypeddit à faire au lancement. Elle avait été vide pour la première fois le 2026-09-20, quand R140,
+2026-09-23 : les gestes Hypeddit à faire au lancement. R175 et R176, entrées le même soir
+que R177, en sont ressorties livrées le 2026-09-25 — détail dans `archive.md`. Elle avait été vide pour la première fois le 2026-09-20, quand R140,
 R125 et R134 en étaient sorties ; le vide a tenu deux jours.
 ⚠️ Vide ne veut pas dire « rien n'attend un humain » pour toujours : inviter la bêta est
 l'usage du produit, pas du travail d'ingénierie, et cette table se remplira de nouveau.
@@ -441,8 +443,6 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 |----|-------|------|--------------------------|
 | R148 | Trois conversations « combien tu paierais » | P3 | trois entretiens de vingt minutes, avec des artistes **qui ont vu leurs données** — runbook §19 |
 | R177 | **Tourner les secrets exposés dans l'historique public** : secret client Spotify et clé API YouTube (encore en service), secret d'app Meta, mot de passe Postgres/Airflow admin | P1 | `gitleaks detect --redact` → 12 trouvailles réelles tant qu'elles ne sont pas tournées ; le mail du nightly repart chaque nuit — runbook §27 |
-| R175 | Mots de passe mail des comptes UC7 (n8n) : 1x7 à recopier, nineka50130 et 127bpmin à créer | P3 | une ligne `!` pour 1x7, deux App Passwords Google, puis `check-rag-mail-accounts.sh` tout en ✓ — runbook §25 |
-| R176 | Retirer `AIRFLOW__CORE__DAGS_FOLDER` (chemin Windows mort) de `.env` et `.env.example` | P4 | deux lignes à supprimer à la main (règle deny sur les `.env`) — runbook §26 |
 | R163 | Brancher Hypeddit sur le pixel et sa Conversions API, au lancement | P3 | **déclencheur : l'app terminée ET une campagne Meta relancée.** Choisir le pixel dans Hypeddit, y coller un jeton CAPI, rattacher le pixel à chaque smart link, vérifier l'évènement en test, puis 48 h après voir `custom_conversions` remonter — runbook §24 |
 
 ⚠️ **R148 vient après l'activation** : demander à
