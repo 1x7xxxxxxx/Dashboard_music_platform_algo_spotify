@@ -41,15 +41,28 @@ def test_every_shell_entrypoint_loads_the_project_env(rel: str) -> None:
     )
 
 
+_CWD_SHAPES = ("exists('.env", 'exists(".env', "load_dotenv('.env", 'load_dotenv(".env')
+
+
+def _cwd_relative_env(text: str) -> list[str]:
+    return [shape for shape in _CWD_SHAPES if shape in text]
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """The exact line of 2026-08-21 (`app.py`), and the root-anchored correction."""
+    assert _cwd_relative_env("if os.path.exists('.env.local'):\n    load_dotenv('.env.local')\n")
+    assert _cwd_relative_env('load_dotenv(".env")')
+    assert not _cwd_relative_env("from src.utils.env_files import load_project_env\nload_project_env()\n")
+
+
 @pytest.mark.parametrize("rel", SHELL_ENTRYPOINTS)
 def test_no_entrypoint_resolves_an_env_file_against_the_cwd(rel: str) -> None:
     """The exact shape that failed: a bare relative '.env' handed to the filesystem."""
-    text = (ROOT / rel).read_text(encoding="utf-8")
-    for bad in ("exists('.env", 'exists(".env', "load_dotenv('.env", 'load_dotenv(".env'):
-        assert bad not in text, (
-            f"{rel} resolves an env file against the CWD ({bad}…). Run from any other "
-            "directory and it loads nothing, without raising."
-        )
+    bad = _cwd_relative_env((ROOT / rel).read_text(encoding="utf-8"))
+    assert not bad, (
+        f"{rel} resolves an env file against the CWD ({bad}…). Run from any other "
+        "directory and it loads nothing, without raising."
+    )
 
 
 def test_the_loader_finds_the_files_from_an_unrelated_cwd() -> None:

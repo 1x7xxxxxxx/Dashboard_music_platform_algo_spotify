@@ -884,7 +884,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: a collector `except` block logs then returns empty (`None`/`[]`/`{}`) → DAG upserts 0 rows, exits SUCCESS, no alert, dashboard silently stale.
 - signature: `python3 .claude/scripts/audit_collectors_ast.py`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_the_collector_audit_sees_a_silent_return.py::test_the_detector_sees_the_defect_it_is_written_for) — `return None`/`[]` dans un except vus, `raise` et le statut booléen exemptés ; muté le 2026-09-26 → rouge
 - root_cause: `except Exception: return []` reads as defensive programming and is indistinguishable, from the DAG's point of view, from a real empty result — an upstream 401 and a genuinely empty account produce the same SUCCESS.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: collectors raise (CLAUDE.md rule #6) and the AST audit blocks in CI, so 'no rows' can only mean the API said so.
@@ -906,7 +906,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: heuristic
 - symptom: a Streamlit view opens >1 DB connection per `show()` instead of one opened-then-closed-in-finally (CLAUDE.md rule #9).
 - signature: `python3 .claude/scripts/audit_python_signatures.py --class db-connection-per-show`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_the_view_connection_audit_sees_a_second_connection.py::test_the_detector_sees_the_defect_it_is_written_for) — deux vues fabriquées, dont une qui NOMME l'appel en commentaire ; muté le 2026-09-26 → rouge
 - root_cause: a helper called from a view opens its own connection because it cannot see the caller's — the cost is invisible in dev where the pool is idle.
 - cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
 - long_term_fix: `view_session()` yields the one connection, and helpers take `db` as a parameter instead of resolving it.
@@ -1554,7 +1554,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: the `.env` file is resolved against the **caller's current working directory** rather than the repository root. `load_dotenv('.env')` returns `False` when the file is not there and raises nothing — the absence is indistinguishable from success. Measured 2026-08-21 on two sites: `make artist-preflight` printed "❌ Spotify central app NOT configured" from a shell where the credentials were merely unloaded, and `src/dashboard/app.py` tested `os.path.exists('.env.local')` from a cwd of `src/dashboard/` — which is exactly the launch documented in CLAUDE.md — loading nothing.
 - cause_evidence: read (src/dashboard/app.py, rétro-portage mécanique 2026-09-16)
 - signature: `! grep -rlE "(exists|load_dotenv)\(['\"]\.env" src/ tools/ --include=*.py | grep -v env_files.py`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_env_is_root_anchored.py::test_the_detector_sees_the_defect_it_is_written_for) — la ligne exacte d'`app.py` du 2026-08-21 et le chargeur ancré ; muté le 2026-09-26 → rouge
 - long_term_fix: `src/utils/env_files.py` resolves `.env.local` then `.env` against `Path(__file__).parent.parent.parent`, so the result does not depend on the caller's cwd. Every shell entrypoint calls `load_project_env()`. An already-injected variable always wins, so a stale file inside a container cannot override the real environment.
 - guard: { type: pytest, ref: tests/test_env_is_root_anchored.py }
 - guard_scope: une-configuration-qui-diverge-de-la-prod — résoudre un chemin de configuration contre le répertoire courant au lieu de la racine du dépôt ; couvre: **cinq fichiers écrits à la main** — quatre de `tools/` plus `src/dashboard/app.py` — et une seule question : le texte contient-il `load_project_env` ; ne couvre pas: (1) tout point d'entrée absent de cette liste de cinq, qu'aucun mécanisme n'alimente — c'est `guard-scope-is-a-hand-written-list` appliqué à lui-même ; (2) ce que le fichier FAIT de l'appel : l'importer sans l'appeler, ou l'appeler après avoir déjà lu une variable, satisfait le garde ; (3) les scripts lancés autrement qu'en ligne de commande — un DAG Airflow, un conteneur, un cron — pour lesquels l'environnement est injecté et la question ne se pose pas ; (4) les autres chemins résolus contre le `cwd` : un CSV, un dossier `data/`, un `config.yaml` relatif.

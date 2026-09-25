@@ -49,7 +49,7 @@ def _calls(tree: ast.AST, name: str) -> list[ast.Call]:
 
 
 # ── db-connection-per-show ──────────────────────────────────────────────────
-def db_connection_per_show() -> list[str]:
+def db_connection_per_show(views: Path | None = None) -> list[str]:
     """Plus d'UN `get_db_connection()` réellement appelé dans un fichier de vue.
 
     Le compteur textuel du catalogue (`grep -c "get_db_connection("`) est le MÊME
@@ -58,13 +58,14 @@ def db_connection_per_show() -> list[str]:
     site n'avait jamais été corrigé.
     """
     out = []
-    for path in sorted(_VIEWS.rglob("*.py")):
+    root = views or _VIEWS   # a directory argument lets a test hand it FABRICATED views
+    for path in sorted(root.rglob("*.py")):
         tree = _tree(path)
         if tree is None:
             continue
         n = len(_calls(tree, "get_db_connection"))
         if n > 1:
-            out.append(f"{path.relative_to(_ROOT)}: {n} appels")
+            out.append(f"{path.relative_to(root.parent if views else _ROOT)}: {n} appels")
     return out
 
 
