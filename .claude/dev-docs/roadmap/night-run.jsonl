@@ -172,3 +172,5 @@
 {"at": "2026-09-25T23:32:18+00:00", "head": "a68049e", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 11"}
 {"at": "2026-09-25T23:34:40+00:00", "head": "165acb5", "kind": "done", "task": "R169", "what": "causes lot 11 : 115 -> 114 (titre undefined : serialise en {} mesure, rendu non verifiable)"}
 {"at": "2026-09-25T23:34:47+00:00", "head": "165acb5", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 12"}
+{"at": "2026-09-25T23:37:15+00:00", "head": "8fcd6f5", "kind": "done", "task": "R169", "what": "causes lot 12 : 114 -> 112"}
+{"at": "2026-09-25T23:37:22+00:00", "head": "8fcd6f5", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 13"}
