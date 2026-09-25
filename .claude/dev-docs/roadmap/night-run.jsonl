@@ -180,3 +180,5 @@
 {"at": "2026-09-25T23:41:59+00:00", "head": "8efc482", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 15"}
 {"at": "2026-09-25T23:44:15+00:00", "head": "5c88a8b", "kind": "done", "task": "R169", "what": "causes lot 15 : 107 -> 104"}
 {"at": "2026-09-25T23:44:22+00:00", "head": "5c88a8b", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 16"}
+{"at": "2026-09-25T23:47:51+00:00", "head": "8ec4cf6", "kind": "done", "task": "R169", "what": "causes lot 16 : 104 -> 101"}
+{"at": "2026-09-25T23:47:58+00:00", "head": "8ec4cf6", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 17"}
