@@ -115,7 +115,7 @@ BINDING CONTEXT (this repo's governance — violating any of these makes your ou
   found a month later).
 - An AST/structural check proves an edge is DRAWN, not that it BINDS (A24). Execution is the proof.
 - You may NOT write to the ROADMAP and you may NOT commit. Return findings only.
-- Read .claude/skills/impact-analysis.md and .claude/dev-docs/error-classes.md before concluding.
+- Read .claude/skills/impact-analysis/SKILL.md and .claude/dev-docs/error-classes.md before concluding.
 `.trim()
 
 // ─── Phase 1+2+3 pipeline. No barrier between them: finding B is being critiqued while finding C is
@@ -137,12 +137,12 @@ const results = await pipeline(
   (finding, _orig, i) => agent(
     `${RULES}
 
-You are running STEP 2 of .claude/workflows/engineering-loop.md — the whole-repo impact analysis —
+You are running STEP 2 of the engineering loop (.claude/workflows/bug-resolution.md, step 2) — the whole-repo impact analysis —
 on this finding:
 
   ${typeof finding === 'string' ? finding : JSON.stringify(finding)}
 
-Follow .claude/skills/impact-analysis.md steps 1-3 EXACTLY, in order:
+Follow .claude/skills/impact-analysis/SKILL.md steps 1-3 EXACTLY, in order:
 
  1. REPRODUCE / CONFIRM. Get the real symptom: a traceback, a failing test, or a measured number.
     Never work from a guess. If the finding does not reproduce, set is_real=false and give the
@@ -151,7 +151,7 @@ Follow .claude/skills/impact-analysis.md steps 1-3 EXACTLY, in order:
     to it, say so in root_cause and set confidence="inferred". Do not dress a hypothesis as a cause.
  3. WHOLE-REPO SIBLING SWEEP — the core step, and the one that is always skipped. grep the symbol
     across EVERY source tree the project has — application code, scripts, tools, tests AND
-    `.claude/` — the config layer is inside the set, it is not exempt (a sweep that skipped
+    \`.claude/\` — the config layer is inside the set, it is not exempt (a sweep that skipped
     .claude/ is how a sensor wrote 735 unread rows for 9 days). Ask the INVERSE question too:
     producer→caller AND artefact→reader (A17 hides in the first direction, A32 in the second).
     List EVERY hit. For each, decide same-bug or false-alarm and WRITE DOWN WHY. A hit you cleared
@@ -244,8 +244,10 @@ ${mods.length ? `  REQUIRED MODIFICATIONS — these are NOT optional, the verdic
 Do all four, in order:
  1. Apply the fix — every sibling marked same_bug too, not just the first instance.
  2. Add the DURABLE GUARD: a signature in .claude/dev-docs/error-classes.md (a shell command,
-    exit != 0 = hit) and/or a test. Follow the existing entry format exactly: status / kind /
-    signature / guard / history, and the history states what was MEASURED, with numbers.
+    exit != 0 = hit) and/or a test. A NEW class needs an admission ticket — \`admitted:\` with
+    recurrence:<d1>,<d2> | sites:<N>=2+ | p1:<prod impact> — else write the TEST and no class
+    (CI: audit_runner.py --admission). Follow the existing entry format exactly: status / kind /
+    admitted / signature / guard / history, and the history states what was MEASURED, with numbers.
  3. MUTATION-VERIFY the guard. Re-introduce the bug, run the guard, confirm it goes RED, then
     restore. Report the exact assertion that fired.
     ⚠️ RESTORE FROM A BACKUP COPY (cp the file aside first). NEVER \`git checkout\` — it clobbered

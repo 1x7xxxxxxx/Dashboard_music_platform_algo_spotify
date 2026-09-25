@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -419,6 +419,12 @@ night-note: ## Un fait à ne pas perdre — make night-note TASK=R122 W="…"
 
 error-families-check: ## Échoue si la taxonomie ne décrit plus le catalogue — geste MANUEL ; le blocage vient de tests/test_the_error_class_families_only_improve.py
 	@python3 tools/dev/error_class_families.py --check
+
+error-debt: ## Les classes à payer d'abord (récidivées sans garde auto-prouvant, puis cause inconnue) + plafonds resserrables
+	@# La dette du catalogue était FIGÉE : 306 gardes non prouvés et 140 causes inconnues,
+	@# inchangés sur six commits (mesuré 2026-09-25). Les cliquets empêchent la hausse ;
+	@# ceci propose la baisse. Aucun plafond n'est resserré automatiquement (code-critic).
+	@python3 tools/dev/error_debt.py $(or $(N),10)
 
 error-health: ## Santé du catalogue de classes → .claude/dev-docs/error-class-health.{json,md}
 	@# UN SEUL COMMIT depuis le 2026-09-18 — et ce qui a change vaut d'etre lu.

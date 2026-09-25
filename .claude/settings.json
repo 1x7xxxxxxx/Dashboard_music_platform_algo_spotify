@@ -153,6 +153,10 @@
           {
             "type": "command",
             "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/pre_commit_scan.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/require_sweep_before_catalogue.py"
           }
         ]
       },

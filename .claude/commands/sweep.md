@@ -90,7 +90,7 @@ gate).
 
 ## Edge cases
 
-1. **No hits** — a one-off. Still catalogue it so the signature exists later.
+1. **No hits** — a one-off. **Do NOT catalogue it** (since 2026-09-19 a new class needs an `admitted:` ticket — `recurrence:`, `sites:≥2` or `p1:` — enforced in CI by `audit_runner.py --admission`). Write the test, and say so.
 2. **Too noisy** (>~50 mostly-false hits) — downgrade `kind` to `heuristic`,
    keep it out of CI, note the false-positive shape.
 3. **Already `guarded`** — re-run the signature; if regressions reappeared,

@@ -15,10 +15,12 @@ only the reported consumer leaves the others wedging silently, 0 rows and no err
 ## Why this exists (honesty)
 
 The harness cannot *deterministically* detect "a bug was found" — that is a model
-judgement. So this skill is the **reliable trigger**: it is auto-injected by
-`inject_context.py` when ≥3 of the keywords above appear, and the CLAUDE.md
-"bug → impact analysis" rule makes invoking it mandatory at the moment a defect is
-identified. It is a playbook, not magic.
+judgement. This skill is the METHOD, not the trigger. ⚠️ It was described here as
+« auto-injected when ≥3 keywords appear » until 2026-09-25 — false: it carries no
+`keywords:` frontmatter, so `inject_context.py` never injects it (1 invocation in 30 days).
+What is injected is `.claude/workflows/bug-resolution.md` (≥2 keywords), whose step 2 is
+`Spawn sibling-sweeper`; and a commit that writes a class or a `(récidive)` line without
+a real sweeper call is blocked by `.claude/hooks/require_sweep_before_catalogue.py`.
 
 ## Playbook (do these in order, do not skip 3)
 

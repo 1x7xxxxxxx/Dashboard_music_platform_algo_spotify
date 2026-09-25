@@ -1,5 +1,5 @@
 ---
-keywords: bug, bogue, régression, regression, drift, silent failure, silently, silencieux, silencieuse, broken, broke, cassé, casse, ne fonctionne pas, ne marche pas, crash, plante, plantage, traceback, exception, échoue, échec, corruption, corrompu, clobber, overwrote, overwrite, écrasé, écrase, desync, désync, désynchronisé, incohérent, incohérence, stale, obsolète, périmé, orphaned, orphelin, red test, test rouge, tests rouges, failing test, went red, root cause, root-cause, cause racine, hotfix, data loss, perte de données, faux positif, false positive, comportement inattendu, unexpected, résultat faux, 500, wedge, wedged
+keywords: bug, bogue, régression, regression, drift, silent failure, silently, silencieux, silencieuse, broken, broke, cassé, casse, ne fonctionne pas, ne marche pas, crash, plante, plantage, traceback, exception, échoue, échec, corruption, corrompu, clobber, overwrote, overwrite, écrasé, écrase, desync, désync, désynchronisé, incohérent, incohérence, stale, obsolète, périmé, orphaned, orphelin, red test, test rouge, tests rouges, failing test, went red, root cause, root-cause, cause racine, hotfix, data loss, perte de données, faux positif, false positive, comportement inattendu, unexpected, résultat faux, 500, wedge, wedged, capitaliser, capitalise, classe d'erreur, classes d'erreur, error class, error_class, récidive, sweep, balayage
 strong_keywords: traceback, stacktrace, corruption, corrompu, data loss, perte de données, silent failure
 rex: []
 ---
@@ -15,7 +15,7 @@ A step that looks automatic but cannot be is marked as such — never disguised.
 |---|------|---------|------|
 | 0 | ~~a hook launches the pipeline~~ | **IMPOSSIBLE.** A hook observes; it cannot spawn an agent. `inject_context.py` injects THIS file on the keywords above — the model then runs it. | ❌ observe-only |
 | 1 | Bug identified | the model, in context (the harness cannot detect "a bug was found") | playbook |
-| 2 | Whole-repo impact sweep | `.claude/skills/impact-analysis/SKILL.md`. The bug is an INSTANCE OF A CLASS: find every sibling before fixing one. | playbook |
+| 2 | Whole-repo impact sweep | **`Spawn sibling-sweeper`** (rule 14) — the carrier that actually runs (77 calls / 30 days, measured 2026-09-25); `.claude/skills/impact-analysis/SKILL.md` is the method it follows. The bug is an INSTANCE OF A CLASS: find every sibling before fixing one. Writing a class or a `(récidive)` line without it is BLOCKED at commit by `.claude/hooks/require_sweep_before_catalogue.py`. | agent + hook |
 | 3 | Seen before? | grep `.claude/dev-docs/error-classes.md` + ADRs + `DEVLOG.md` + `git log` | playbook |
 | 4 | Sweep every catalogued class | `python3 .claude/scripts/audit_runner.py --deterministic` | signature |
 | 5 | Root-cause by READING the code | never from a guess about what is wrong | playbook |

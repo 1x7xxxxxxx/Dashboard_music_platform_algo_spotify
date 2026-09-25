@@ -39,7 +39,7 @@ _REPO = pathlib.Path(__file__).resolve().parents[2]
 # Where configuration lives. `dev-docs/` stays excluded as a directory: the error-class
 # catalogue quotes paths as DATA (signatures, illustrative sites), and resolving those
 # reports defects in prose — the same split `audit_runner.py --prose` draws.
-_ROOTS = ("agents", "commands", "rules", "hooks", "scripts", "skills")
+_ROOTS = ("agents", "commands", "rules", "hooks", "scripts", "skills", "workflows")
 
 # One file inside `dev-docs/` is an exception, and it took two months to notice.
 # `roadmap/checklist.md` is not prose ABOUT the work: it IS the work list, read by
@@ -83,7 +83,10 @@ def _is_archived(path: pathlib.Path) -> bool:
 def _candidates() -> list[pathlib.Path]:
     base = _REPO / ".claude"
     files = [p for root in _ROOTS for p in sorted((base / root).rglob("*"))
-             if p.is_file() and p.suffix in {".py", ".md", ".json"}
+             # `.js` since 2026-09-25: engineering-loop.js told every agent it spawned to
+             # read `.claude/skills/impact-analysis.md`, a path dead for months, and this
+             # scanner never looked at a workflow script.
+             if p.is_file() and p.suffix in {".py", ".md", ".json", ".js"}
              and not _is_archived(p.relative_to(base))]
     for rel in _EXTRA_FILES:
         extra = base / rel
@@ -165,7 +168,8 @@ def main() -> int:
                 continue          # module docstring — prose about the code, not the code
             if num in rex_lines:
                 continue          # a REX entry naming a path that broke IS the lesson
-            if path.suffix == ".py" and line.lstrip().startswith("#"):
+            if (path.suffix == ".py" and line.lstrip().startswith("#")) or \
+                    (path.suffix == ".js" and line.lstrip().startswith("//")):
                 continue          # a comment describing a defect is not the defect
             if "{{" in line:
                 continue          # unsubstituted template — a different class owns that
