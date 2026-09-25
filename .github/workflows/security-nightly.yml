@@ -387,6 +387,50 @@ jobs:
         run: |
           python3 .claude/scripts/audit_runner.py --severity P1 | tee -a "$GITHUB_STEP_SUMMARY"
 
+  # ── Rule 15ter as a machine: mutate the guards added in the last two nights ─────
+  # « Mutate a new guard before believing it » was a hand gesture; done by hand on
+  # 2026-09-26 it found three real defects in guards. Only the ABSENCE of any red is
+  # reported (a red mutation is not proof the class is embodied). Postgres is provisioned
+  # so a guard that needs the database is not mistaken for a blind one.
+  guard-mutation:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    outputs:
+      outcome: ${{ steps.mutate.outcome }}
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres  # pragma: allowlist secret — throwaway CI DB
+          POSTGRES_DB: spotify_etl
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d spotify_etl"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
+      - name: Install dependencies from lockfile
+        run: uv python install 3.11 && uv sync --frozen --extra dev
+      - name: Provision Postgres (schema + migrations)
+        uses: ./.github/actions/provision-postgres
+      - name: Mutate the new guards (exit 1 = a guard nothing turned red)
+        id: mutate
+        continue-on-error: true
+        shell: bash
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/spotify_etl  # pragma: allowlist secret
+        run: python3 tools/dev/nightly_guard_mutation.py | tee -a "$GITHUB_STEP_SUMMARY"
+
   # ── Un rouge qui n'arrive nulle part n'est pas une alerte (2026-09-25, R167) ──
   # Tous les jobs ci-dessus portent `continue-on-error` : le workflow est TOUJOURS vert.
   # `gitleaks` était rouge 5 nuits sur 5 et la suite en ordre aléatoire 4 sur 5, lus par
@@ -394,7 +438,7 @@ jobs:
   # et de l'audit, présents chaque nuit (faux positifs connus), vont dans le corps du mail
   # et ne le déclenchent pas seuls — sinon il partirait chaque nuit et serait ignoré.
   notify:
-    needs: [pip-audit, error-class-audit, action-drift, gitleaks, full-suite-random-order, reopen-check, public-surface-sweep, p1-classes]
+    needs: [pip-audit, error-class-audit, action-drift, gitleaks, full-suite-random-order, reopen-check, public-surface-sweep, p1-classes, guard-mutation]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

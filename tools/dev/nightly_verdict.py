@@ -48,6 +48,9 @@ def verdict(needs: dict) -> str | None:
         lines.append("public-surface-sweep : un secret est lisible HORS de l'historique de ce "
                      "dépôt (autre dépôt public, fork, journal Actions) — le log du job nomme "
                      "où, sans la valeur. Rotation d'abord (runbook §27).")
+    if "guard-mutation" in failed:
+        lines.append("guard-mutation : un garde ajouté ces deux derniers jours n'a rougi sur AUCUNE "
+                     "mutation, ou était rouge avant — le log du job le nomme ; le relire (règle 15ter).")
     if "p1-classes" in failed:
         lines.append("p1-classes : une classe d'erreur CRITIQUE (P1) est touchée, ou une P1 "
                      "n'a plus aucun garde exécutable — `audit_runner.py --severity P1` la nomme.")
