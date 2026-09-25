@@ -1682,6 +1682,7 @@ def send_consolidated_alert(**context):
         task_ids='check_offsite_backup', key='offsite_backup') or []
 
     app_errors = ti.xcom_pull(task_ids='check_app_errors', key='app_errors') or []
+    reopening = ti.xcom_pull(task_ids='nightly_maintenance', key='reopening_triggers') or []
     ops_alerts = ti.xcom_pull(task_ids='check_ops_alerts', key='ops_alerts') or []
 
     # Both checks ask the SAME question — `readiness_stalled_flags` returns the
@@ -1730,7 +1731,7 @@ def send_consolidated_alert(**context):
                   or central_broken or canary or stalled_tenants
                   or canary_preflight or collection_failures or contamination
                   or offsite or app_errors or csv_rejections
-                  or ops_alerts)
+                  or ops_alerts or reopening)
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -2195,6 +2196,14 @@ def send_consolidated_alert(**context):
         from src.utils.ops_alerts import render_html as _ops_html
         sections.append(_ops_html(ops_alerts))
 
+    if reopening:
+        import html as _html
+        items = ''.join(f"<li>{_html.escape(str(t))}</li>" for t in reopening)
+        sections.append(f"""
+        <h3 style="color:#b60">📈 Seuil de réouverture R87 franchi</h3>
+        <p>Un déclencheur écrit dans la roadmap est atteint : la décision parquée se rouvre.</p>
+        <ul>{items}</ul>""")
+
     if app_errors:
         rows = ''
         for a in app_errors:
@@ -2507,7 +2516,11 @@ def nightly_maintenance(**context):
     """Entretien de la nuit. Corps dans `src/utils/nightly_maintenance.py`."""
     from src.utils.nightly_maintenance import run
 
-    run()
+    summary = run() or {}
+    # Les seuils R87 franchis n'allaient qu'en `logger.warning` (2026-09-25) : calculés
+    # chaque soir, lus par personne. Poussés ici, ils entrent dans le mail de 23 h.
+    context['task_instance'].xcom_push(key='reopening_triggers',
+                                       value=summary.get('reopening_triggers') or [])
 
 
 # ─────────────────────────────────────────────────────────────────

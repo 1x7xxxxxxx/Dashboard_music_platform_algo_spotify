@@ -1,0 +1,26 @@
+# gitleaks — configuration du dépôt (2026-09-25, R167).
+#
+# Sans ce fichier, `gitleaks detect` (security-nightly.yml) était rouge 5 nuits sur 5 sur
+# 38 trouvailles, sous un workflow vert que personne ne lisait. Tri (security-specialist,
+# valeurs jamais affichées) : 26 faux positifs, 12 VRAIS secrets dans l'historique public.
+# Ce fichier et `.gitleaksignore` n'écartent QUE les 26 ; les 12 restent rouges tant
+# qu'ils ne sont pas tournés (runbook §27) — leur empreinte n'entre dans `.gitleaksignore`
+# qu'APRÈS rotation.
+title = "streamlytics"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "detect-secrets baseline : uniquement des hachés SHA-1 de correspondances déjà reconnues"
+paths = ['''^\.secrets\.baseline$''']
+
+[[allowlists]]
+description = "clés de widget Streamlit : identifiants snake_case en minuscules, jamais des secrets"
+regexTarget = "line"
+regexes = ['''\bkey\s*=\s*["'][a-z0-9]+(?:_[a-z0-9]+)+["']''']
+
+[[allowlists]]
+description = "admin:admin par défaut d'Airflow, cité comme l'anti-exemple"
+regexTarget = "line"
+regexes = ['''curl -u admin:admin''']

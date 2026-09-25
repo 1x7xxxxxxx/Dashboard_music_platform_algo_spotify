@@ -1868,3 +1868,33 @@ mais elle induit en erreur quiconque lit le fichier.
 ### La preuve
 
 `! grep -c DAGS_FOLDER ~/streamlytics/.env ~/streamlytics/.env.example` → `0` pour les deux.
+
+## 27. R177 — Tourner les secrets exposés dans l'historique public (P1)
+
+**Pourquoi c'est toi** : chaque rotation se fait dans la console du fournisseur, connecté.
+Le dépôt GitHub est PUBLIC : réécrire l'historique ne retire rien (clones, forks, caches) —
+un secret qui y est passé est à considérer comme connu. Tri du 2026-09-25, valeurs jamais
+affichées : 12 trouvailles réelles `gitleaks`, plus un mot de passe trop court pour lui.
+
+### Les étapes, par gravité
+
+1. **Spotify — secret client (CRITIQUE, encore en service)** : developer.spotify.com →
+   Dashboard → l'app → Settings → *Rotate client secret*. Mettre la nouvelle valeur dans le
+   `.env` du serveur, dans `.env.local`, et dans les identifiants d'app en base s'il y en a.
+2. **YouTube — clé API (CRITIQUE, encore en service)** : console.cloud.google.com → APIs &
+   Services → Credentials → régénérer la clé, et la **restreindre** à *YouTube Data API v3*.
+   Mettre à jour `.env` du serveur et `.env.local`.
+3. **Meta — secret d'app (ÉLEVÉ)** : developers.facebook.com → l'ancienne app → Settings →
+   Basic → *Reset* (ou confirmer que l'app est supprimée). Invalide aussi l'ancien jeton.
+4. **Postgres / Airflow admin (ÉLEVÉ)** : le mot de passe de 12 caractères de l'historique
+   est encore le mot de passe local ; si la prod l'utilise, le changer et vérifier que les
+   ports 5432 et 8080 ne sont pas joignables depuis Internet.
+5. **Airflow — clé Fernet et `secret_key` (MOYEN)** : différentes des valeurs actuelles ;
+   vérifier seulement qu'aucun ancien dump `airflow_db` chiffré avec elles ne traîne.
+6. **Puis** : `gitleaks git -f json` → ajouter l'empreinte de chaque secret TOURNÉ à
+   `.gitleaksignore` (jamais avant la rotation), et commiter.
+
+### La preuve
+
+Le job `gitleaks` du nightly repasse au vert, et son mail cesse de partir chaque nuit.
+Localement : `gitleaks detect --redact` → 0 trouvaille.

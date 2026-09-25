@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**415 classes.** Fenêtre observée : `2026-05-15` → `2026-09-25` (370 révisions du catalogue rejouées).
+**415 classes.** Fenêtre observée : `2026-05-15` → `2026-09-25` (371 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 

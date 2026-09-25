@@ -35,6 +35,10 @@ jobs:
   pip-audit:
     runs-on: ubuntu-latest
     continue-on-error: true   # observational — never fail the workflow
+    # `|| true` rendait ce job TOUJOURS `success` : son compte ne pouvait atteindre personne.
+    # Il le publie désormais en sortie, lue par `notify` (2026-09-25, R167).
+    outputs:
+      vulns: ${{ steps.count.outputs.vulns }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -65,26 +69,43 @@ jobs:
             cat pip-audit.md 2>/dev/null || echo "_pip-audit produced no report._"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Count the advisories for the nightly mail
+        id: count
+        run: |
+          pip-audit -r audited-requirements.txt --format json -o pip-audit.json || true
+          n=$(python3 -c "import json;d=json.load(open('pip-audit.json'));print(sum(len(x.get('vulns',[])) for x in d.get('dependencies',[])))" 2>/dev/null || echo "?")
+          echo "VULNS=$n"
+          echo "vulns=$n" >> "$GITHUB_OUTPUT"
+
   error-class-audit:
     # Heuristic sweep of the catalogue's automatable signatures
     # (.claude/dev-docs/error-classes.md). Known false positives (e.g.
     # cosmetic datetime.now()) — triage hits manually, never a gate.
     runs-on: ubuntu-latest
     continue-on-error: true
+    # Même angle mort que pip-audit : `make audit || true` sortait toujours vert, et le
+    # nombre de HITs ne vivait que dans le Job Summary web. Publié en sortie ET au log.
+    outputs:
+      hits: ${{ steps.audit.outputs.hits }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0   # les outils de ce dépôt dérivent de `git log` (voir ci.yml)
 
       - name: Run error-class audit (report to summary)
+        id: audit
         run: |
+          make audit > audit.log 2>&1 || true
           {
             echo "## error-class audit (heuristic, non-blocking)"
             echo
             echo '```'
-            make audit 2>&1 || true
+            cat audit.log
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          n=$(grep -c "⚠ HIT" audit.log || true)
+          echo "HITS=$n"
+          echo "hits=$n" >> "$GITHUB_OUTPUT"
 
   # ── De combien de majeures les actions sont-elles en retard ? (2026-09-16) ──
   #
@@ -235,3 +256,29 @@ jobs:
             | tail -60 | tee -a "$GITHUB_STEP_SUMMARY" || rc=$?
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           exit $rc
+
+  # ── Un rouge qui n'arrive nulle part n'est pas une alerte (2026-09-25, R167) ──
+  # Tous les jobs ci-dessus portent `continue-on-error` : le workflow est TOUJOURS vert.
+  # `gitleaks` était rouge 5 nuits sur 5 et la suite en ordre aléatoire 4 sur 5, lus par
+  # personne. Ce job mail le propriétaire quand un job ÉCHOUE ; les compteurs de pip-audit
+  # et de l'audit, présents chaque nuit (faux positifs connus), vont dans le corps du mail
+  # et ne le déclenchent pas seuls — sinon il partirait chaque nuit et serait ignoré.
+  notify:
+    needs: [pip-audit, error-class-audit, action-drift, gitleaks, full-suite-random-order]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Mail the owner when a nightly job failed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          PROD_HEALTH_MAIL_TO: ${{ secrets.PROD_HEALTH_MAIL_TO }}
+        run: python tools/dev/nightly_verdict.py

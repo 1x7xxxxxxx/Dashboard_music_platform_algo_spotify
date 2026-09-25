@@ -31,8 +31,12 @@ from src.utils.email_identity import from_header  # noqa: E402 — stdlib-only m
 _REQUIRED = ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "PROD_HEALTH_MAIL_TO")
 
 
-def build_message(env: dict) -> EmailMessage:
-    """The mail for a red run, from the Actions environment."""
+def build_message(env: dict, detail: str | None = None) -> EmailMessage:
+    """The mail for a red run, from the Actions environment.
+
+    `detail` replaces the prod-down hint with what actually failed — the nightly security
+    workflow reuses this sender (tools/dev/nightly_verdict.py) and its red is not an outage.
+    """
     run_url = (f"{env.get('GITHUB_SERVER_URL', 'https://github.com')}/"
                f"{env.get('GITHUB_REPOSITORY', '?')}/actions/runs/{env.get('GITHUB_RUN_ID', '?')}")
     workflow = env.get("GITHUB_WORKFLOW", "workflow")
@@ -40,12 +44,19 @@ def build_message(env: dict) -> EmailMessage:
     msg["Subject"] = f"🔴 streaMLytics — {workflow} a échoué"
     msg["From"] = from_header()
     msg["To"] = env["PROD_HEALTH_MAIL_TO"]
-    msg.set_content(
-        f"Le contrôle « {workflow} » est ROUGE.\n\n"
-        f"Détail du run : {run_url}\n\n"
-        "Si l'app ne répond plus, vérifier d'abord le compte Hetzner (impayé, blocage "
-        "d'IP) avant de chercher sur le serveur — c'était la cause le 2026-09-24.\n")
+    hint = (detail if detail is not None else
+            "Si l'app ne répond plus, vérifier d'abord le compte Hetzner (impayé, blocage "
+            "d'IP) avant de chercher sur le serveur — c'était la cause le 2026-09-24.")
+    msg.set_content(f"Le contrôle « {workflow} » est ROUGE.\n\n{hint}\n\n"
+                    f"Détail du run : {run_url}\n")
     return msg
+
+
+def send(env: dict, msg: EmailMessage) -> None:
+    with smtplib.SMTP(env["SMTP_HOST"], int(env.get("SMTP_PORT") or 587), timeout=30) as s:
+        s.starttls()
+        s.login(env["SMTP_USER"], env["SMTP_PASSWORD"])
+        s.send_message(msg)
 
 
 def main() -> int:
@@ -55,10 +66,7 @@ def main() -> int:
               "workflow env. Set them as repo secrets (`gh secret set <NAME>`).")
         return 1
     env = dict(os.environ)
-    with smtplib.SMTP(env["SMTP_HOST"], int(env.get("SMTP_PORT") or 587), timeout=30) as s:
-        s.starttls()
-        s.login(env["SMTP_USER"], env["SMTP_PASSWORD"])
-        s.send_message(build_message(env))
+    send(env, build_message(env))
     print(f"✅ red verdict mailed ({env.get('GITHUB_WORKFLOW', 'workflow')})")
     return 0
 

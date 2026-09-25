@@ -1,0 +1,16 @@
+# Faux positifs historiques, par empreinte exacte (n'écarte rien de neuf) — tri du 2026-09-25, R167.
+# Guides d'exemple, fixture de test, clé Fernet de CI, prose de DAG, jeton Spotify expiré (.cache).
+2cecff640fc344357c355fe5677bd5f77b5f38c9:src/dashboard/views/spotify_s4a_combined.py:generic-api-key:502
+dced3bd26a43749b6968ebba2532a91aa9dd5e4e:tests/test_an_exception_passed_as_an_argument_is_redacted.py:generic-api-key:210
+e79d1851c8b4af89a46582747b8d5b78326c202f:src/utils/airflow_trigger.py:curl-auth-user:81
+08fdb927069a065b8204783accd6b8372d5b2650:.claude/dev-docs/error-classes.md:curl-auth-user:1896
+cf3fcfc17c0dcdb3ac4493966d6381e2f2cbd8b3:src/dashboard/views/spotify_s4a_combined.py:generic-api-key:365
+83d3c63de2c995ced68c1d0a811e807254f71a21:airflow/dags/youtube_daily.py:generic-api-key:242
+329a3bb71d0200a1842b88d5709e9ad9d1d1a7f3:.github/workflows/ci.yml:generic-api-key:115
+1141d022666f2ac157b68c3736ae43a9d4adb37c:src/dashboard/content/credential_guides_en.py:generic-api-key:36
+1141d022666f2ac157b68c3736ae43a9d4adb37c:src/dashboard/content/credential_guides_en.py:generic-api-key:77
+8d17fb3cf7566010e849f850a1203532d7a13f70:src/dashboard/content/credential_guides.py:generic-api-key:92
+8d17fb3cf7566010e849f850a1203532d7a13f70:src/dashboard/content/credential_guides.py:generic-api-key:135
+77c0f985a83be6d7a3056bcd0e5bb6b31fa47e28:airflow/dags/meta_token_refresh.py:generic-api-key:161
+874a4f9b8b75c09b5f82f471a1e96933fb400e8f:.cache:generic-api-key:1
+6e9d9d3f29a19d3cf4cc8b11b19718963f1a545c:.cache:generic-api-key:1
