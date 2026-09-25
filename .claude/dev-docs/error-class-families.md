@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**412 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**413 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -19,7 +19,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **1/20** · 5.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 25 | **3/25** · 12.0 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 30 | **6/30** · 20.0 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
-| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 26 | **2/26** · 7.7 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
+| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 27 | **2/27** · 7.4 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 85 | **12/85** · 14.1 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | **4/39** · 10.3 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
@@ -272,7 +272,7 @@ Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|diver
 
 **Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ?**
 
-Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|outside-its-condition|read-that-failed|failed-read|except.*number|read-through-a-filtering|fallback` sur l'identifiant et le symptôme. 26 classe(s).
+Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|inbox-nobody-reads|outside-its-condition|read-that-failed|failed-read|except.*number|read-through-a-filtering|fallback` sur l'identifiant et le symptôme. 27 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -289,6 +289,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 | [`a-gap-rendered-as-a-zero-by-the-stack`](error-classes.md#a-gap-rendered-as-a-zero-by-the-stack) | la bande d'une plateforme est correctement COUPÉE sur un jour non mesuré, et le total empilé la compte quand même pour zéro — la pile redescend, et ça |
 | [`a-guard-satisfied-by-the-collapse-it-should-catch`](error-classes.md#a-guard-satisfied-by-the-collapse-it-should-catch) | un garde qui affirme une ABSENCE (« cette ligne ne doit pas s'afficher », « ce champ ne doit pas apparaître ») reste vert sur le défaut, parce que le  |
 | [`a-verification-read-through-a-filtering-wrapper`](error-classes.md#a-verification-read-through-a-filtering-wrapper) | une commande de vérification rend une réponse **plausible et fausse**, et la décision qui s'ensuit est prise sur cette réponse. Mesuré le 2026-09-13 : |
+| [`a-red-verdict-delivered-to-an-inbox-nobody-reads`](error-classes.md#a-red-verdict-delivered-to-an-inbox-nobody-reads) | un contrôle tourne, rougit à temps sur une vraie panne, et personne ne le sait. Son verdict ne part que par un canal que le destinataire ne lit pas —  |
 | [`an-optimisation-that-degrades-what-worked`](error-classes.md#an-optimisation-that-degrades-what-worked) | un algorithme « amélioré » se trompe sur des cas qu'il réussissait. Il se trompe **en silence** : aucune exception, aucun compte qui change, juste des |
 | [`unregistered-write-table`](error-classes.md#unregistered-write-table) | a table passed as a literal to `upsert_many`/`insert_many` is absent from `_ALLOWED_TABLES` (postgres_handler) → the SQL-injection allowlist raises a  |
 | [`test-calls-a-real-api`](error-classes.md#test-calls-a-real-api) | la suite consomme du quota d'API réel et échoue en CI dès qu'il n'y a pas de réseau, sans qu'aucun test ne le dise. Contrairement à son jumeau `test-s |
@@ -615,6 +616,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=412 families=18 orphans=3 -->
+<!-- error-class-families: total=413 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=853be81d8b780f4bf9b2f204dc571ae9657b0e6dfafaf28efd60c986366b72f5 -->
+<!-- error-class-families: sha256=5535b4cb628dcc45b37c962673667a79ed0efa67dc6af88e58b99da869d926ff -->

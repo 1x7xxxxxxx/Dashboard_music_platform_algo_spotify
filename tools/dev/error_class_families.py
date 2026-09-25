@@ -192,6 +192,10 @@ FAMILIES: list[tuple[str, str, str]] = [
      "l'utilisateur voit-il la différence ?",
      r"silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|"
      r"empty-bracket|no-op|returns-none|degrade|logged-as-success|"
+     # `inbox-nobody-reads`, ajouté le 2026-09-25 : un verdict rouge rendu mais jamais
+     # livré est la même absence, un étage plus haut — le contrôle a lu, personne
+     # n'a reçu.
+     r"inbox-nobody-reads|"
      # `read-that-failed`, ajouté le 2026-09-12 : la classe atterrissait dans
      # « une configuration qui diverge de la prod » à cause du mot `prod` dans son
      # symptôme. Un motif qui ne nomme pas la forme la laisse au premier venu.

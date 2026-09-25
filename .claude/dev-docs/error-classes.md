@@ -203,6 +203,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | CLASS-ID | sev | kind | status | autofix |
 |---|---|---|---|---|
 | [a-test-that-only-ever-ran-on-its-authors-machine](#a-test-that-only-ever-ran-on-its-authors-machine) | P2 | deterministic | guarded | none |
+| [a-red-verdict-delivered-to-an-inbox-nobody-reads](#a-red-verdict-delivered-to-an-inbox-nobody-reads) | P1 | deterministic | guarded | none |
 | [an-absence-that-becomes-a-nan-because-nan-is-truthy](#an-absence-that-becomes-a-nan-because-nan-is-truthy) | P2 | deterministic | guarded | none |
 | [a-proxy-rendered-under-the-name-of-the-thing-it-proxies](#a-proxy-rendered-under-the-name-of-the-thing-it-proxies) | P2 | deterministic | guarded | none |
 | [a-second-door-that-knows-fewer-sources-than-the-first](#a-second-door-that-knows-fewer-sources-than-the-first) | P3 | deterministic | guarded | none |
@@ -4714,6 +4715,25 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-24: trouvée en diagnostiquant une CI rouge depuis deux jours (`build-error-resolver`). En rejouant la forme CI, deux défauts de plus sont sortis que la CI elle-même ne voyait pas, parce que son mot de passe (`postgres`) ne contient aucun caractère à encoder : `urlparse` ne décode pas les `%xx` d'une URI (libpq si), dans `dsn()` ET dans `PostgresHandler.from_url` — le chemin de la production, dont l'URL a été vérifiée sans `%`.
   - 2026-09-25: la porte statique restait rouge sur `.test_durations` — 51 entrées « non collectables », non reproductibles sur le poste. Rejouée dans un CLONE PROPRE (sans `config/config.yaml`, gitignoré) : deux formes de plus de la même classe. (1) Le job `gates` n'avait ni `FERNET_KEY` ni identifiants Airflow ; `src/dashboard/app.py` lève à l'import, deux fichiers ne se collectaient pas, et le vérificateur comptait leurs 37 durées comme des fantômes. (2) `tests/test_api_db_smoke.py` nommait ses cas `tenant<artist_id>` à la COLLECTE : chaque base (poste, CI neuve, job sans base) produisait d'autres node ids. Corrigé : clé jetable + identifiants factices dans `gates`, erreur de collecte refusée par son nom, cas nommés par rang (`tenant-1st`…) et l'id résolu à l'exécution.
 
+## a-red-verdict-delivered-to-an-inbox-nobody-reads
+- status: guarded
+- severity: P1
+- kind: deterministic
+- admitted: p1:production coupée de 11:45 à 20:51 UTC le 2026-09-24 (app, API, webhook Stripe), vue par la sonde à 11:45 et par un humain le soir, par hasard
+- symptom: un contrôle tourne, rougit à temps sur une vraie panne, et personne ne le sait. Son verdict ne part que par un canal que le destinataire ne lit pas — les notifications natives de GitHub, sur l'adresse du compte. La panne dure jusqu'à ce qu'un geste sans rapport la heurte.
+- root_cause: `.github/workflows/prod-health.yml` n'avait AUCUNE étape de livraison : son en-tête affirmait « GitHub emails the repo owner automatically », ce qui est vrai et ne dit pas que ce mail est lu. Le mail du soir du DAG `alert_monitor`, lui, est lu — mais il vit sur le serveur qui était bloqué, donc il ne pouvait pas annoncer sa propre panne.
+- cause_evidence: measured (2026-09-24 — `gh run list --workflow prod-health.yml` : rouge à 11:45 UTC ; aucune trace de lecture avant le `make deploy` en échec du soir ; la CI sur `main` rouge depuis le 2026-09-22, pareillement non lue)
+- long_term_fix: le workflow porte lui-même sa livraison : une dernière étape `if: failure()` exécute `tools/dev/mail_red_verdict.py`, qui écrit au propriétaire par le relais SMTP de la prod depuis l'EXTÉRIEUR du serveur, et sort 1 en nommant ce qui manque si la configuration est absente. `workflow_dispatch` porte `force_red` pour rejouer la preuve du canal à volonté.
+- signature: `python3 -m pytest tests/test_a_red_prod_check_reaches_the_owner.py -q`
+- seen_red: self-proving (tests/test_a_red_prod_check_reaches_the_owner.py::test_the_detector_sees_the_defect_it_is_written_for) — le garde fabrique le workflow du 2026-09-24 (sonde seule, aucun mail) puis une étape de mail sans `failure()`, et exige que le détecteur refuse les deux. S'y ajoute la mutation à la main du 2026-09-25 (`failure()` → `success()` dans `prod-health.yml`) → 1 échec ; restauré, 4 verts. Et la preuve de bout en bout : run `36149664083` (`force_red=true`) → mail reçu dans la boîte de réception du propriétaire à 14:46:31 UTC.
+- guard: { type: pytest, ref: tests/test_a_red_prod_check_reaches_the_owner.py }
+- guard_scope: une-erreur-avalée-devient-une-absence — un verdict rouge rendu mais jamais livré ; couvre: `test_the_prod_check_mails_its_red_verdict` (une étape `if: failure()`, après la sonde, exécutant le mailer avec ses six variables) et `test_missing_configuration_refuses_loudly` (un mailer sans secrets sort 1 au lieu de se taire) ; ne couvre pas: la CI (`ci.yml`), dont le rouge sur `main` ne part toujours que par les notifications GitHub ; que le mail soit LU — un filtre ou une boîte saturée le rendraient aussi muet que l'ancien canal ; la rotation des secrets SMTP copiés depuis la prod, qui ne les suit pas.
+- siblings: swept:2026-09-25 — **2 sites vivants sur 4 workflows.** Candidats : les 4 fichiers de `.github/workflows/`. Écartés : `cd-release.yml` (déclenché à la main, son rouge est vu par qui l'a lancé) ; `security-nightly.yml` (observationnel, déclaré non bloquant dans son en-tête). Vivants : `prod-health.yml` (corrigé) et `ci.yml` (rouge sur `main` du 2026-09-22 au 2026-09-25, non lu — laissé hors du correctif : chaque push rouge écrirait, et le rythme d'un push n'est pas celui d'une panne).
+- rex_ref: .github/workflows/prod-health.yml
+- first_seen: 2026-09-24
+- History:
+  - 2026-09-25: écrite à la livraison de R166. Diagnostic de la veille coûteux dans l'autre sens aussi : une heure passée à chercher un abus sur le serveur, alors que le motif (impayé Hetzner) était dans une boîte mail — `feedback`, pas cette classe.
+
 ## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site
 
 > Les 206 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
@@ -6176,7 +6196,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-08-28: le seuil a d'abord été écrit **à l'instinct, à 36 h — il n'aurait déclenché 0 fois sur 37 écarts.** Un plafond au-dessus du pire événement jamais survenu n'est pas un plafond. Lire la distribution avant de figer a donné 30 h : déclenche exactement une fois, sur la seule vraie anomalie, avec 4,6 h de marge au-dessus du deuxième plus grand écart. Le test épingle la DISTRIBUTION (médiane 24,0 · 2ᵉ 25,4 · max 34,6) et non la constante — asserter `_MAX_AGE_H == 30` aurait été tout aussi vert à 36.
   - 2026-08-28: le diagnostic initial disait « 30 h sans run » ; c'était de l'arithmétique, pas une mesure (17:07 → 12:10 fait 19 h). La vraie anomalie était l'écart de 34,6 h de la veille, et elle n'est apparue qu'en tirant toute la distribution.
-  - 2026-09-24: **le voisin de cette classe, pas une récidive** : le surveillant TOURNAIT et a rougi — `prod-health.yml` le 2026-09-24 à 11:45 UTC (app, API, webhook Stripe coupés par un blocage Hetzner pour impayé), la CI sur `main` depuis le 2026-09-22 — et personne ne l'a lu : les verdicts ne partent que par les notifications natives de GitHub, sur l'adresse du compte. Prod coupée ~10 h, vue par hasard par un `make deploy` en échec. Billet `p1` acquis ; la classe `a-red-verdict-delivered-to-an-inbox-nobody-reads` s'écrira AVEC son garde (un échec qui écrit lui-même au propriétaire, prouvé en échouant) — R166. Pas avant : ce catalogue refuse une classe sans garde (`test_the_share_of_prose_only_classes_never_grows`).
+  - 2026-09-24: **le voisin de cette classe, pas une récidive** : le surveillant TOURNAIT et a rougi — `prod-health.yml` le 2026-09-24 à 11:45 UTC (app, API, webhook Stripe coupés par un blocage Hetzner pour impayé), la CI sur `main` depuis le 2026-09-22 — et personne ne l'a lu : les verdicts ne partent que par les notifications natives de GitHub, sur l'adresse du compte. Prod coupée ~10 h, vue par hasard par un `make deploy` en échec. Billet `p1` acquis ; classe `a-red-verdict-delivered-to-an-inbox-nobody-reads` écrite le 2026-09-25 avec son garde, à la livraison de R166.
 
 ## download-payload-rebuilt-per-rerun
 - status: guarded

@@ -9,6 +9,80 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🧯 R165 · R166 — la soirée du 2026-09-24 (livrées 2026-09-25)
+
+**Ce qui s'est passé.** `make deploy` de `e910543` (alignement de « Se connecter ») a
+échoué : SSH muet, Cloudflare en **522** sur l'app et l'API. La console Hetzner portait
+« IP address of this server is blocked » — **un blocage pour IMPAYÉ**, pas un abus : la
+carte avait changé, le prélèvement échouait, deux relances de `billing@hetzner.com`
+(2026-09-18, puis « Services blocked » le 2026-09-24 12:31) étaient parties à la
+corbeille. Payé le soir même par le propriétaire ; déblocage en attente.
+⚠️ Diagnostic erroné d'abord : j'ai cherché un abus sortant (pare-feu, compromission)
+pendant une heure. Le motif était dans la boîte mail, pas sur le serveur.
+
+- [x] **Déployer `e910543`** — fait le 2026-09-24 à 20:52 UTC, dès le déblocage, par la
+  boucle d'attente : la prod porte `cf7c02a`, `streamlytics_dashboard` healthy, 0 redémarrage,
+  `https://app.streamlytics.fr/_stcore/health` → 200.
+
+### R165 — la CI rouge depuis le 2026-09-22 (P2), livrée 2026-09-25
+
+- [x] **R165 — la CI est rouge depuis le 2026-09-22 (`2cecff6`), sept causes toutes corrigées.** (P2) ✅ (2026-09-25)
+
+Diagnostic `build-error-resolver`, run `36046213905`. Deux faits d'environnement que le
+poste local n'a pas : la CI définit **`DATABASE_URL`**, et sa base est **neuve** (schéma
++ un canari) à chaque run.
+
+- [x] **A** (10 tests) — `tests/db_gate.py:122` rend `{"dsn": url}` sous `DATABASE_URL` ;
+  `PostgresHandler(**dsn())` le refuse. Découper l'URL comme `PostgresHandler.from_url`.
+- [x] **E** (2) — `tests/test_health_answers_for_its_database.py` simule la panne sur
+  `resolve_kwargs`, que `from_env_or_config()` court-circuite sous `DATABASE_URL`.
+- [x] **B** (1) — `test_the_ceiling_is_tight_not_slack` : plafond 34 calibré sur la base
+  locale dérivée, la base neuve de CI en mesure 1. Égalité seulement hors base neuve.
+- [x] **C** (1) — `test_no_tab_renders_empty[trigger_algo]` fixe `artist_id=1`, vide en CI.
+- [x] **D** (1) — l'export lit « table vide » comme « personne n'écrit » ; faux sur une
+  base où aucune collecte n'a tourné.
+- [x] **F** (porte statique) — `gold-coverage.md` périmé, reproduit en local :
+  `make gold-coverage`.
+- [x] **G** (5 erreurs, rouge EN LOCAL) — `tests/test_every_way_of_asking_gives_one_answer.py:38-55`
+  lit le mot de passe dans l'environnement, jamais dans `config.yaml` ; et le garde
+  `test_one_door_onto_the_database.py:227` ne l'inspecte pas (il ne balaie que les fichiers
+  qui contiennent le texte `psycopg2.connect`). Trouvé par le balayage de `/capitalise`.
+- À la livraison : écrire la classe `a-test-that-only-ever-ran-on-its-authors-machine`
+  AVEC son garde (billet `sites:6` acquis — note du 2026-09-24 sur
+  `guard-predicate-depends-on-the-host-env`). F relève de `a-generated-document-asserts-a-stale-state`.
+- Reproduire AVANT de corriger : `DATABASE_URL=… pytest …` (A, E) ; un `postgres:17`
+  neuf provisionné comme `.github/actions/provision-postgres` (B, C, D).
+- ⚠️ B, C, D touchent des portes : feu vert du propriétaire donné le 2026-09-24.
+- **Livré `0017474` (2026-09-25 00:30)** : A–G corrigés, suite verte sous les deux formes
+  (9 595 CI rejouée, 9 635 poste) ; dans la VRAIE CI (run 36067696272) **les 4 shards sont verts**.
+- [x] **Reste : la porte statique rougit sur `.test_durations`** — **livré `13dd188` (2026-09-25)** : rejoué dans un clone propre, deux causes — le job `gates` sans `FERNET_KEY` ni identifiants Airflow (deux fichiers ne se collectaient pas, 37 durées comptées en fantômes) et `test_api_db_smoke` nommant ses cas `tenant<id>` à la collecte (14). Le vérificateur refuse désormais une erreur de collecte par son nom. **CI verte, run `36148664155`, 5 jobs sur 5** — première fois depuis le 2026-09-18. Détail : — 51 durées désignent des
+  tests que le job statique (sans base) ne collecte pas. Ni la collecte du poste avec base
+  (51 en trop) ni sans base (le fichier d'AVANT la séance y échoue aussi : 90) ne
+  reproduit celle de la CI. Prochain geste : lire la liste complète dans le journal du
+  run, puis générer le fichier DANS la CI (ou collecter avec l'environnement exact du job).
+- [x] Brouillon de la classe `a-test-that-only-ever-ran-on-its-authors-machine` — **écrite le 2026-09-25**, garde auto-prouvant (`test_the_handler_check_sees_the_defect_it_is_written_for`), compteurs de trou inchangés. Était : dans
+  `git stash list` (« 2026-09-24 brouillon ») : il fait monter deux compteurs de trou
+  (`guard_does_not_prove_itself`, `scope_on_a_shared_guard_without_naming_its_tests`) —
+  rendre le garde auto-prouvant et nommer ses tests dans `guard_scope`, puis l'écrire.
+
+### R166 — un contrôle de santé rouge que personne ne lit (P2), livrée 2026-09-25
+
+- [x] **R166 — le contrôle de santé de la prod a échoué sans que personne le voie.** (P2) ✅ (2026-09-25)
+
+`prod-health.yml` a rendu rouge le 2026-09-24 à 11:45 UTC (tableau de bord, API,
+webhook Stripe) ; la coupure n'a été vue que le soir, par hasard. Et la CI est rouge
+depuis six jours sans qu'on l'ait remarqué non plus : **un rouge qui n'arrive nulle part
+n'est pas une alerte.**
+
+- [x] Faire arriver l'échec de `prod-health` sur un canal lu — **livré le 2026-09-25** : étape `if: failure()` → `tools/dev/mail_red_verdict.py` par le relais SMTP de la prod (secrets copiés sans affichage) ; **prouvé** par le run `36149664083` (`force_red=true`), mail reçu dans la boîte de réception à 14:46:31 UTC. Classe `a-red-verdict-delivered-to-an-inbox-nobody-reads` écrite avec son garde. Était : (mail au propriétaire sur
+  `timothe.baudry137@gmail.com`, ou notification) — et le prouver en le faisant échouer.
+- [x] 🚫 **Annulé le 2026-09-25 sur décision du propriétaire** — un autre dépôt s'en charge ; hors du périmètre de streaMLytics. Était : Filtre Gmail : `from:billing@hetzner.com` marqué important, jamais en corbeille
+  (geste du propriétaire).
+- À la livraison : écrire la classe `a-red-verdict-delivered-to-an-inbox-nobody-reads`
+  AVEC son garde (billet `p1` acquis — note du 2026-09-24 sur `the-watcher-is-not-watched`).
+
+---
+
 ## 💶 R150 — Trois options chiffrées pour la prestation (livrée 2026-09-23)
 
 - [x] **R150 — poser les trois prix de la prestation d'optimisation.** (P3) ✅ (2026-09-23)

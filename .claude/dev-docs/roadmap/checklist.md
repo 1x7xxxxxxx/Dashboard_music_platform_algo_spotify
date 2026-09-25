@@ -25,11 +25,11 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R165 | La CI est rouge depuis le 2026-09-22 (`2cecff6`) : six causes, toutes invisibles en local | P2 | `gh run list --workflow ci.yml` — dernier vert le 2026-09-18 ; run `36046213905` : 15 tests + 1 porte statique |
-| R166 | Le contrôle de santé de la prod a échoué sans que personne le voie — la prod est restée coupée une journée | P2 | `gh run list --workflow prod-health.yml` : rouge le 2026-09-24 à 11:45 UTC, découvert le soir par un `make deploy` en échec |
 
-**Deux lignes y sont entrées le 2026-09-24 au soir**, toutes deux nées d'un déploiement
-qui n'a pas pu partir — détail dans « 🧯 R165 · R166 » juste sous cet index.
+**Cet index est de nouveau vide depuis le 2026-09-25** : R165 (la CI rouge depuis le
+2026-09-22) et R166 (le contrôle de santé de la prod qui n'arrivait à personne),
+entrées le 2026-09-24 au soir toutes deux nées d'un déploiement qui n'a pas pu partir,
+sont livrées — détail dans `archive.md`, sous « 🧯 R165 · R166 ».
 
 **Cet index avait été vidé le 2026-09-23 après-midi** : R164, le reste mesuré du
 balayage qui a corrigé l'effacement RGPD le même jour, y est entrée et en est ressortie
@@ -90,7 +90,11 @@ Chacune croise une phrase d'un livre avec un chiffre déjà mesuré sur ce dép�
 et la citation sont dans le bloc « 📚 R146-R151 » plus bas. Une ligne dont le livre ne
 faisait que confirmer ce qu'on savait déjà n'y est PAS entrée.
 
-**Deux tâches sont ouvertes dans cet index, R165 et R166.** R145 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance, close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
+**Aucune tâche n'est ouverte dans cet index** — R165 et R166, qui l'occupaient depuis le
+2026-09-24 au soir, sont livrées le 2026-09-25 ; leur récit est dans `archive.md`. R145
+y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance,
+close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et
+qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
 L'ancre `reprise:` ne nomme donc plus que les lignes en attente d'un geste humain — R148 et R163 depuis le 2026-09-23 (R151 réfutée, R150 livrée, R163 entrée et R153 livrée ce jour-là). La table « 🙋 En attente de toi »
 plus bas en porte **deux** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
 sont sorties le 2026-09-20 — les dix-sept décisions de la première tranchées et
@@ -127,76 +131,6 @@ Classe `a-prose-claim-that-cannot-be-verified`. La parade tient en une phrase : 
 une phrase de ce fichier compte quelque chose, elle compte ce qui existe, et rien
 d'autre** — et le paragraphe qui l'énonce n'y échappe pas, comme sa propre ligne « trois
 fois » vient de le montrer.
-
----
-
-## 🧯 R165 · R166 — la soirée du 2026-09-24 (entrées le 2026-09-24)
-
-**Ce qui s'est passé.** `make deploy` de `e910543` (alignement de « Se connecter ») a
-échoué : SSH muet, Cloudflare en **522** sur l'app et l'API. La console Hetzner portait
-« IP address of this server is blocked » — **un blocage pour IMPAYÉ**, pas un abus : la
-carte avait changé, le prélèvement échouait, deux relances de `billing@hetzner.com`
-(2026-09-18, puis « Services blocked » le 2026-09-24 12:31) étaient parties à la
-corbeille. Payé le soir même par le propriétaire ; déblocage en attente.
-⚠️ Diagnostic erroné d'abord : j'ai cherché un abus sortant (pare-feu, compromission)
-pendant une heure. Le motif était dans la boîte mail, pas sur le serveur.
-
-- [x] **Déployer `e910543`** — fait le 2026-09-24 à 20:52 UTC, dès le déblocage, par la
-  boucle d'attente : la prod porte `cf7c02a`, `streamlytics_dashboard` healthy, 0 redémarrage,
-  `https://app.streamlytics.fr/_stcore/health` → 200.
-
-### R165 — la CI rouge depuis le 2026-09-22 (P2)
-
-Diagnostic `build-error-resolver`, run `36046213905`. Deux faits d'environnement que le
-poste local n'a pas : la CI définit **`DATABASE_URL`**, et sa base est **neuve** (schéma
-+ un canari) à chaque run.
-
-- [x] **A** (10 tests) — `tests/db_gate.py:122` rend `{"dsn": url}` sous `DATABASE_URL` ;
-  `PostgresHandler(**dsn())` le refuse. Découper l'URL comme `PostgresHandler.from_url`.
-- [x] **E** (2) — `tests/test_health_answers_for_its_database.py` simule la panne sur
-  `resolve_kwargs`, que `from_env_or_config()` court-circuite sous `DATABASE_URL`.
-- [x] **B** (1) — `test_the_ceiling_is_tight_not_slack` : plafond 34 calibré sur la base
-  locale dérivée, la base neuve de CI en mesure 1. Égalité seulement hors base neuve.
-- [x] **C** (1) — `test_no_tab_renders_empty[trigger_algo]` fixe `artist_id=1`, vide en CI.
-- [x] **D** (1) — l'export lit « table vide » comme « personne n'écrit » ; faux sur une
-  base où aucune collecte n'a tourné.
-- [x] **F** (porte statique) — `gold-coverage.md` périmé, reproduit en local :
-  `make gold-coverage`.
-- [x] **G** (5 erreurs, rouge EN LOCAL) — `tests/test_every_way_of_asking_gives_one_answer.py:38-55`
-  lit le mot de passe dans l'environnement, jamais dans `config.yaml` ; et le garde
-  `test_one_door_onto_the_database.py:227` ne l'inspecte pas (il ne balaie que les fichiers
-  qui contiennent le texte `psycopg2.connect`). Trouvé par le balayage de `/capitalise`.
-- À la livraison : écrire la classe `a-test-that-only-ever-ran-on-its-authors-machine`
-  AVEC son garde (billet `sites:6` acquis — note du 2026-09-24 sur
-  `guard-predicate-depends-on-the-host-env`). F relève de `a-generated-document-asserts-a-stale-state`.
-- Reproduire AVANT de corriger : `DATABASE_URL=… pytest …` (A, E) ; un `postgres:17`
-  neuf provisionné comme `.github/actions/provision-postgres` (B, C, D).
-- ⚠️ B, C, D touchent des portes : feu vert du propriétaire donné le 2026-09-24.
-- **Livré `0017474` (2026-09-25 00:30)** : A–G corrigés, suite verte sous les deux formes
-  (9 595 CI rejouée, 9 635 poste) ; dans la VRAIE CI (run 36067696272) **les 4 shards sont verts**.
-- [ ] **Reste : la porte statique rougit sur `.test_durations`** — 51 durées désignent des
-  tests que le job statique (sans base) ne collecte pas. Ni la collecte du poste avec base
-  (51 en trop) ni sans base (le fichier d'AVANT la séance y échoue aussi : 90) ne
-  reproduit celle de la CI. Prochain geste : lire la liste complète dans le journal du
-  run, puis générer le fichier DANS la CI (ou collecter avec l'environnement exact du job).
-- [ ] Brouillon de la classe `a-test-that-only-ever-ran-on-its-authors-machine` dans
-  `git stash list` (« 2026-09-24 brouillon ») : il fait monter deux compteurs de trou
-  (`guard_does_not_prove_itself`, `scope_on_a_shared_guard_without_naming_its_tests`) —
-  rendre le garde auto-prouvant et nommer ses tests dans `guard_scope`, puis l'écrire.
-
-### R166 — un contrôle de santé rouge que personne ne lit (P2)
-
-`prod-health.yml` a rendu rouge le 2026-09-24 à 11:45 UTC (tableau de bord, API,
-webhook Stripe) ; la coupure n'a été vue que le soir, par hasard. Et la CI est rouge
-depuis six jours sans qu'on l'ait remarqué non plus : **un rouge qui n'arrive nulle part
-n'est pas une alerte.**
-
-- [ ] Faire arriver l'échec de `prod-health` sur un canal lu (mail au propriétaire sur
-  `timothe.baudry137@gmail.com`, ou notification) — et le prouver en le faisant échouer.
-- [ ] Filtre Gmail : `from:billing@hetzner.com` marqué important, jamais en corbeille
-  (geste du propriétaire).
-- À la livraison : écrire la classe `a-red-verdict-delivered-to-an-inbox-nobody-reads`
-  AVEC son garde (billet `p1` acquis — note du 2026-09-24 sur `the-watcher-is-not-watched`).
 
 ---
 
@@ -252,7 +186,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R165, R166, R148, R163 -->
+<!-- reprise: open=R148, R163 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers
@@ -267,7 +201,11 @@ la table des gestes humains (R148, R150, R151, R153), et **trois entrées l'apr�
 | **R155** `10a1d61` | dix écrans d'administration en **six sections**, sélecteur paresseux | la section des comptes : **23 requêtes → 1** |
 | **R156** | les trois trous de balayage du catalogue d'erreurs, fermés | **411/411 verdicts lisibles, 0 muet, 0 jamais balayée** |
 
-**Par où reprendre (2026-09-25)** : prod en ligne (`cf7c02a`). **R165 est presque close** : la CI a ses 4 shards de tests VERTS depuis `0017474` ; il ne reste que la porte statique, rouge sur `.test_durations` (51 durées de tests que le job sans base ne collecte pas), et le brouillon de classe rangé dans `git stash`. Puis **R166** (qu'un rouge arrive à quelqu'un).
+**Par où reprendre (2026-09-25)** : prod en ligne (`cf7c02a`). **R165 et R166 sont
+livrées** — la CI a ses 5 jobs VERTS (run `36148664155`) et un rouge de `prod-health`
+arrive désormais à une adresse lue (run `36149664083`) ; leur récit est dans
+`archive.md`, sous « 🧯 R165 · R166 ». L'index actionnable est de nouveau vide ; ce qui
+reste dans « 🙋 En attente de toi » (R148, R163) attend un geste humain, pas du code.
 
 **État au soir du 2026-09-23** : l'index actionnable est de nouveau
 **vide** — R157 à R162 sont livrées le matin, et R164, née l'après-midi du balayage qui

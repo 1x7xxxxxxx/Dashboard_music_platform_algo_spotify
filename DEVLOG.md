@@ -5,6 +5,27 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-25 — La CI verte, et un rouge de la prod qui arrive enfin quelque part
+
+**Ce qui a changé.** `13dd188` : la porte statique reverdit, **CI 5/5 verte** (run
+`36148664155`), première fois depuis le 2026-09-18 — R165 close. R166 livrée :
+`prod-health.yml` écrit au propriétaire sur échec, prouvé par un rouge forcé (run
+`36149664083`, mail en boîte de réception à 14:46 UTC). Le filtre Gmail Hetzner est
+annulé ici : un autre dépôt s'en charge. Index actionnable : **0 ligne**.
+
+### Ce qu'il faut retenir
+
+- **Un vérificateur peut déguiser sa propre panne en verdict.** Les 51 « durées
+  fantômes » étaient justes : deux fichiers ne s'importaient pas (pas de `FERNET_KEY` dans
+  le job statique), et 14 node ids portaient l'`artist_id` de la base qui les collectait.
+  Seul un CLONE PROPRE (sans les fichiers gitignorés) l'a reproduit.
+- **Un node id ne doit rien savoir de la base.** Nommer un cas par rang et résoudre l'id
+  à l'exécution rend la collecte identique sur toutes les machines.
+- **Le canal se prouve en échouant**, pas en lisant la config : `force_red` rejoue la
+  preuve à volonté.
+
+---
+
 ## 2026-09-25 (nuit) — La CI reverdit, sauf son fichier de durées
 
 **Ce qui a changé.** `0017474` : les sept causes de R165 corrigées (A–G), chacune rejouée
