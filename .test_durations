@@ -3076,6 +3076,7 @@
     "tests/test_an_instance_names_itself_in_what_it_sends.py::test_no_mail_body_hardcodes_a_localhost_airflow_url": 0.019300162999570603,
     "tests/test_an_instance_names_itself_in_what_it_sends.py::test_the_env_is_read_at_call_time": 0.0012616179992619436,
     "tests/test_an_instance_names_itself_in_what_it_sends.py::test_the_label_is_empty_in_production_and_visible_elsewhere": 0.0013581139992311364,
+    "tests/test_an_old_secret_is_proven_dead.py::test_the_detector_sees_the_defect_it_is_written_for": 0.07392961101140827,
     "tests/test_an_unmeasured_platform_says_so.py::test_a_gold_view_renders_no_row_rather_than_a_zero[Apple Music]": 0.002669945000889129,
     "tests/test_an_unmeasured_platform_says_so.py::test_a_gold_view_renders_no_row_rather_than_a_zero[Hypeddit]": 0.0023465730027965037,
     "tests/test_an_unmeasured_platform_says_so.py::test_a_gold_view_renders_no_row_rather_than_a_zero[Instagram]": 0.0021529469995584805,

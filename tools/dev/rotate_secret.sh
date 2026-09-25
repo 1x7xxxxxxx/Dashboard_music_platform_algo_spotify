@@ -89,7 +89,10 @@ if [ -n "$PROD" ]; then
     echo "▶ prod : recréation des conteneurs pour relire l'environnement"
     ssh -o BatchMode=yes "$PROD" "cd /opt/streamlytics && docker compose up -d --force-recreate api dashboard airflow-scheduler airflow-webserver" >/dev/null
     echo "▶ prod : preuve — authentification de chaque app centrale"
-    ssh -o BatchMode=yes "$PROD" "docker exec airflow_scheduler python3 /opt/airflow/tools/check_central_apps.py --require" \
+    # Containers just restarted: a provider timeout in the first seconds is not a verdict
+    # (SoundCloud ReadTimeout, 2026-09-25, green 20 s later). One retry, then it is.
+    check='docker exec airflow_scheduler python3 /opt/airflow/tools/check_central_apps.py --require'
+    { ssh -o BatchMode=yes "$PROD" "$check" || { echo "   … nouvel essai dans 30 s"; sleep 30; ssh -o BatchMode=yes "$PROD" "$check"; }; } \
         && echo "✅ les apps centrales s'authentifient avec les nouvelles valeurs" \
         || { echo "❌ une app ne s'authentifie pas — sauvegarde : $PROD_ENV.bak-rotate-$stamp"; exit 1; }
 fi
