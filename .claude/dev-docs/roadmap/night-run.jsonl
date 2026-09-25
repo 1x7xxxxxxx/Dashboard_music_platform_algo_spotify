@@ -143,3 +143,8 @@
 {"at": "2026-09-22T16:35:29+00:00", "head": "3d88387", "kind": "done", "task": "R160", "what": "46 sites de date passes a un formateur qui suit la langue (fr 30/09/2024, en 30 Sep 2024) ; 3 exemptions chacune avec son test ; ma transformation avait casse 4 sites, garde refait 3 fois par des gardes existants ; 9482 verts 0 rouge"}
 {"at": "2026-09-22T17:06:32+00:00", "head": "605fa3b", "kind": "start", "task": "R157", "what": "la grille de fraicheur de l accueil lit la date d ECRITURE : Meta dit a jour avec 722 jours de retard"}
 {"at": "2026-09-22T17:23:56+00:00", "head": "9294c60", "kind": "done", "task": "R157", "what": "verdict de fraicheur sur la date de MESURE (Meta 722 j) + alerts qui comparait une COULEUR jamais egale (liste jamais remplie) + echec distingue de absence + libelles traduits ; index d ingenierie VIDE"}
+{"at": "2026-09-25T22:59:10+00:00", "head": "d0f04f0", "kind": "start", "task": "R169", "what": "automatiser : mutation nocturne des gardes modifies dans la semaine"}
+{"at": "2026-09-25T23:01:34+00:00", "head": "23e7704", "kind": "done", "task": "R169", "what": "mutation nocturne des gardes neufs branchee (job guard-mutation)"}
+{"at": "2026-09-25T23:01:40+00:00", "head": "23e7704", "kind": "start", "task": "R169", "what": "automatiser : alerte quand la dette du catalogue ne baisse plus en 14 jours"}
+{"at": "2026-09-25T23:03:27+00:00", "head": "f00d0c3", "kind": "done", "task": "R169", "what": "alerte dette figee 14 j branchee (job debt-trend)"}
+{"at": "2026-09-25T23:03:43+00:00", "head": "f00d0c3", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 1"}
