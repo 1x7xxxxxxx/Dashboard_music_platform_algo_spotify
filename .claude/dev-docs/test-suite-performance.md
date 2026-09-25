@@ -421,3 +421,40 @@ important les modules et en lisant les marques **réellement collectées**, et s
 lui-même en fabriquant à chaque exécution un montage nu, un montage gardé et un montage
 à groupe constant. Classe :
 `a-cache-whose-sharing-depends-on-an-unasserted-scheduler-flag`.
+
+## Le chemin critique n'était pas la suite — 2026-09-25
+
+**Question posée : « 4 shards, c'est peut-être pas assez ? »** Mesuré avant de toucher au
+nombre : sur trois runs verts (`13dd188`, `2c918fe`, `f3593e8`), le mur était **202 · 213 ·
+193 s**, et le job le plus long n'était PAS un shard (95–135 s) mais `gates`
+(189–208 s). Ajouter des shards seul n'aurait rien acheté.
+
+| poste du job `gates` | avant | après |
+|---|---|---|
+| `check_guards_are_env_independent.py` (104 fichiers rejoués sans `.env`) | **100 s en série** | sous xdist, `-n 4` (poste : 117 → 58 s) |
+| `gold_coverage.py --check` | 20 s × **2** (ligne explicite + signature `--static`) | × 1 — garde `tests/test_a_gate_runs_each_check_once.py` |
+| les 48 signatures de `--static` | en file | concurrentes, 4 à la fois (poste : ~130 → 60 s) |
+
+Puis **4 → 6 shards**, parce qu'alors la suite redevenait le chemin critique. Un shard paie
+~60 s fixes (conteneur Postgres 13–23 s, uv 14–18 s, provision 13–22 s) pour ~180 s de
+travail total : 4 ≈ 130 s, 6 ≈ 105 s, 8 ≈ 98 s. Six est le coude.
+
+Mur mesuré sur `e8b20d4` (6 shards + les deux premiers gestes), trois exécutions :
+**125 · 154 · 139 s** contre **193–213 s**. Le parallélisme de `--static` est arrivé après
+ces trois mesures ; il n'est pas compté dedans.
+
+### Le poste : `make test-changed` rendait la suite entière
+
+`select_tests.py` rendait « SUITE ENTIÈRE » dès qu'un fichier non-`.py` bougeait. Ce dépôt
+touche un `.md`, un `.yml` ou `.test_durations` dans presque chaque séance : trois fois
+sur trois le 2026-09-25, soit **9 656 tests et ~280 s** à chaque boucle. Désormais seul
+l'environnement (lock, `requirements*`, `.env*`, `*.sql`, `config/`) force tout ; le reste
+sélectionne par mention, par dossier et par module voisin. Même diff : **66 s**.
+
+### Les workers locaux : mesurés, pas changés
+
+Pic réel en `VmHWM` sur la suite ENTIÈRE à `-n 3` : **573 · 414 · 411 Mo**, 1 753 Mo en
+tout. Un diviseur de 600 au lieu de 700 rendrait toujours **2** workers ici
+(`(6 667 − 5 120) / 600 = 2,6`) : le frein est la réserve de 5 120 Mo, qui protège de
+l'OOM vécu deux fois le 2026-09-17. Elle ne se desserre pas sans une mesure de ce que
+`n8n-ollama` et `knowledge-rag` tiennent au pic.

@@ -230,6 +230,9 @@ _BROKEN_CODES = {2, 5, 126, 127}
 CLEAN, HIT, BROKEN = "clean", "hit", "broken"
 
 
+_SIGNATURE_WORKERS = 4   # the CI runner's vCPU count
+
+
 def run_signature(sig: str) -> tuple[str, str]:
     """Run one signature from the repo root. Returns (verdict, output).
 
@@ -1050,13 +1053,23 @@ def main() -> None:
     if not args.no_batch:
         batched, individual = run_batched(selected)
 
+    # The signatures are independent read-only checks: run them concurrently, report
+    # them in catalogue order. In series, `--static` was the CI's critical path on
+    # 2026-09-25 — 20 s of `gold_coverage.py --check` waited behind ~55 s of
+    # `check_guards_are_env_independent.py`, which has its own workers.
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=_SIGNATURE_WORKERS) as pool:
+        pending = {c["id"]: pool.submit(run_signature, c["signature"])
+                   for c in selected if c["id"] not in batched}
+        verdicts = {cid: f.result() for cid, f in pending.items()}
+
     hits, broken = [], []
     for c in selected:
         if c["id"] in batched:
             was_hit, output = batched[c["id"]]
             verdict = HIT if was_hit else CLEAN
         else:
-            verdict, output = run_signature(c["signature"])
+            verdict, output = verdicts[c["id"]]
         _telemetry_record("error_classes", c["id"], hit=(verdict == HIT))
         mark = {HIT: "⚠ HIT", BROKEN: "⊘ CASSÉE", CLEAN: "✅"}[verdict]
         print(f"  {mark}  {c['id']}  [{c['kind']}/{c['status']}]")

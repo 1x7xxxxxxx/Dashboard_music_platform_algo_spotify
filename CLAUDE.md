@@ -85,7 +85,7 @@ cd src/dashboard && streamlit run app.py          # Dashboard en LOCAL (port 850
 # de rendu l'ouvre — donc au premier rendu, pas au démarrage.
 # ⚠️ JAMAIS `pytest tests/` à la main — les drapeaux de parallélisme vivent dans le
 # Makefile, et la forme nue les perd. Trois cibles, par ordre de fréquence d'usage :
-make test-changed   # Boucle de code : SEULS les tests atteignables depuis le diff (règle 16)
+make test-changed   # Boucle de code : SEULS les tests atteignables depuis le diff (règle 16) — verdict dans .pytest-last.log
 make test-fast      # Avant de commiter : tout sauf les tests de documents
 make test           # La barrière avant de livrer — mêmes drapeaux que la CI
 make test-docs      # Après avoir touché un document généré
@@ -102,7 +102,7 @@ pour décorer :
 
 | geste | ce qu'il lance | coût |
 |---|---|---|
-| `make test-changed` | les tests atteignables depuis le diff | **secondes à ~1 min** |
+| `make test-changed` | les tests atteignables depuis le diff — un `.md`/`.yml` ne force plus la suite entière (2026-09-25) | **secondes à ~2 min** |
 | `make test-fast` | tout sauf les documents | `make test` − ~38 s |
 | `make test` | la suite, `-n $(PYTEST_WORKERS) --dist loadgroup` | **193,5 s** sur ext4 à vide ; **226 s** pile Docker up |
 | `python3 -m pytest tests/` **(à éviter)** | la même suite **en SÉRIE** | 1 146 s mesurés sur `/mnt/c` ; non remesuré ici |
