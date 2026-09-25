@@ -109,6 +109,50 @@ Nées le même soir et du même bloc d'audit que R167 · R168 · R174 (« 🧭 R
 
 ---
 
+## 🔒 R177 — secrets exposés dans l'historique public, tournés (livrée 2026-09-25)
+
+Née le même soir et du même bloc d'audit que R167 · R168 · R174 (« 🧭 R167 – R176 » de
+`checklist.md`).
+
+- [x] **R177 — tourner les secrets de l'historique public (runbook §27) : Spotify,
+  YouTube, Meta et base/admin tous vérifiés.** (P1) ✅ (2026-09-25 ~23:55)
+
+  Tri `security-specialist` du 2026-09-25 (valeurs jamais affichées) : 38 trouvailles
+  `gitleaks`, 26 faux positifs (écartés par `.gitleaks.toml` + `.gitleaksignore`, par
+  empreinte), **12 réelles** — dont le secret client Spotify et la clé YouTube
+  identiques aux valeurs actuelles. Réécrire l'historique ne sert à rien (clones,
+  forks) : seule la rotation compte — réécriture **abandonnée par le propriétaire**,
+  aucun gain de sécurité après rotation.
+  - Balayage des frères (`sibling-sweeper`, 2026-09-25) : **0 site neuf**. L'autre dépôt
+    public (`claude-code-config-deployment`) → 0 ; forks → aucun ; ~20 motifs dans les
+    journaux Actions publics → tous factices (`ci-not-a-real-secret`, `postgres` du
+    conteneur CI) ou déjà `REDACTED` ; HEAD suivi → 1 fixture de test factice ;
+    historique complet (1 258 commits) → les mêmes 12, tous du 2025-10-20 au 27 — rien
+    n'est entré depuis `detect-secrets` (2026-05-14). Ports prod 5432/5433/8080 fermés
+    depuis Internet. Non vérifiable : un commit passé en `--no-verify` (git ne
+    l'enregistre pas) — le gitleaks nocturne sur l'historique complet en couvre l'effet.
+  - Mot de passe base / admin Airflow (étape 4 du runbook §27), tranché par EMPREINTE
+    sha256 (valeurs jamais lues) : `DATABASE_PASSWORD`, `DB_PASSWORD`,
+    `AIRFLOW_ADMIN_PASSWORD` de prod sont **différents** des 5 valeurs de l'historique ;
+    ports 5432/5433/8080 fermés. **Rien à tourner côté base.**
+  - Spotify, YouTube, Meta tournés via `tools/dev/rotate_secret.sh` (fenêtre Windows
+    masquée, valeurs jamais affichées dans le fil) ; prod `check_central_apps --require`
+    → 4/4 ✅. `python3 tools/dev/prove_old_secrets_dead.py` → **toutes** les anciennes
+    valeurs REFUSÉES (Spotify, secret d'app Meta, jeton Meta, YouTube) — l'ancienne clé
+    YouTube a été **supprimée dans Google Cloud par le propriétaire** (elle restait
+    acceptée juste après « Regenerate », par la grâce de 24 h de Google). Fernet et
+    `secret_key` Airflow diffèrent aussi des valeurs de l'historique (comparés par
+    empreinte sha256). `.gitleaksignore` mis à jour avec les 12 empreintes ; `gitleaks
+    git` → **0 trouvaille** (`149083b`).
+
+  Preuve : `python3 tools/dev/prove_old_secrets_dead.py` → 0 valeur acceptée ; `gitleaks
+  git` → 0 ; prod `check_central_apps --require` → 4/4 ✅. Le balayage des frères a
+  trouvé un reste hors du périmètre de cette tâche — **R178**, la P1
+  `migration-ahead-of-its-code` sans garde et la suite aléatoire du nightly rouge 4
+  nuits/5 — ouvert séparément dans `checklist.md`.
+
+---
+
 ## 🧯 R165 · R166 — la soirée du 2026-09-24 (livrées 2026-09-25)
 
 **Ce qui s'est passé.** `make deploy` de `e910543` (alignement de « Se connecter ») a

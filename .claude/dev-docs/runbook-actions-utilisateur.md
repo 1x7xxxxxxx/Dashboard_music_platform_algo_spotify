@@ -1869,7 +1869,7 @@ mais elle induit en erreur quiconque lit le fichier.
 
 `! grep -c DAGS_FOLDER ~/streamlytics/.env ~/streamlytics/.env.example` → `0` pour les deux.
 
-## 27. R177 — Tourner les secrets exposés dans l'historique public (P1)
+## 27. ~~R177 — Tourner les secrets exposés dans l'historique public~~ · ✅ FAIT le 2026-09-25 ~23:55 — Spotify, YouTube, Meta tournés, toutes les anciennes valeurs refusées ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 **Pourquoi c'est toi** : chaque rotation se fait dans la console du fournisseur, connecté.
 Le dépôt GitHub est PUBLIC : réécrire l'historique ne retire rien (clones, forks, caches) —
