@@ -22,7 +22,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import mail_red_verdict as mail  # noqa: E402
 
-_FAILED = {"failure", "cancelled"}
+# `skipped`: no nightly job carries a job-level `if:`, so a skipped outcome step means a
+# step BEFORE it failed (checkout, uv sync, provisioning) — the job died, silently.
+_FAILED = {"failure", "cancelled", "skipped"}
 
 
 def verdict(needs: dict) -> str | None:

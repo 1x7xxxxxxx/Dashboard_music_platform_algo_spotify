@@ -397,3 +397,31 @@ jobs:
         run: >-
           uv run --frozen pytest tests/ -q --tb=short -n auto --dist loadgroup
           --splits 6 --group ${{ matrix.shard }}
+
+  # ── A red main reaches the inbox — once per breakage (2026-09-25) ────────────────
+  # main was red from 2026-09-22 to 2026-09-25 and nobody read it: GitHub notifications
+  # go to an address nobody opens. One mail per red push was rejected (a push is not an
+  # outage) — `ci_break_mail.py` mails the green→red TRANSITION only.
+  notify:
+    needs: [gates, suite]
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Mail the owner when main turns red
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          PROD_HEALTH_MAIL_TO: ${{ secrets.PROD_HEALTH_MAIL_TO }}
+        run: python tools/dev/ci_break_mail.py

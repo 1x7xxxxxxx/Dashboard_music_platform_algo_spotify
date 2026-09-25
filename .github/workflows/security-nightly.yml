@@ -5,10 +5,11 @@ name: Security — Nightly audit
 #   - error-class-audit: heuristic grep sweep (.claude/dev-docs/error-classes.md)
 #   - gitleaks:          full git history secret scan
 #
-# By design every job is NON-BLOCKING: findings are surfaced in the run's
-# Job Summary, the workflow stays green, and no nightly red email is sent.
-# This matches the original intent ("observational, no deploy gate") which
-# the previous hard-fail implementation contradicted.
+# Every job is NON-BLOCKING (the workflow stays green), but since 2026-09-25 a failing
+# job MAILS the owner through the `notify` job: each job publishes its real step
+# `outcome` (needs.<job>.result says `success` under continue-on-error), every `| tee`
+# runs under pipefail, and a step skipped behind a failed one counts as a failure.
+# Guard: tests/test_a_nightly_red_reaches_the_inbox.py.
 #
 # Pre-prod hardening backlog (re-enable blocking selectively before going live):
 #   - pip-audit:  pin apache-airflow-core to the Docker image version, then
@@ -39,6 +40,9 @@ jobs:
     # Il le publie désormais en sortie, lue par `notify` (2026-09-25, R167).
     outputs:
       vulns: ${{ steps.count.outputs.vulns }}
+      # A step skipped because an earlier one failed (uv export…) reads `skipped`, which
+      # notify counts as a failure — the job can no longer die green (2026-09-25).
+      outcome: ${{ steps.count.outcome }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -76,6 +80,9 @@ jobs:
           n=$(python3 -c "import json;d=json.load(open('pip-audit.json'));print(sum(len(x.get('vulns',[])) for x in d.get('dependencies',[])))" 2>/dev/null || echo "?")
           echo "VULNS=$n"
           echo "vulns=$n" >> "$GITHUB_OUTPUT"
+          # Advisories exist every night and ride in the mail body; an audit that produced
+          # NO report is a broken audit, and that must reach the inbox.
+          [ "$n" != "?" ] || { echo "❌ pip-audit produced no JSON report"; exit 1; }
 
   error-class-audit:
     # Heuristic sweep of the catalogue's automatable signatures
@@ -87,6 +94,7 @@ jobs:
     # nombre de HITs ne vivait que dans le Job Summary web. Publié en sortie ET au log.
     outputs:
       hits: ${{ steps.audit.outputs.hits }}
+      outcome: ${{ steps.audit.outcome }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -95,7 +103,11 @@ jobs:
       - name: Run error-class audit (report to summary)
         id: audit
         run: |
-          make audit > audit.log 2>&1 || true
+          # audit_runner exits 0 (clean) or 1 (hits — heuristic, expected); anything else
+          # (2 = a signature that cannot render a verdict, a traceback) is a broken audit.
+          # `make audit || true` hid both: make turns every recipe failure into 2.
+          rc=0
+          python3 .claude/scripts/audit_runner.py --all > audit.log 2>&1 || rc=$?
           {
             echo "## error-class audit (heuristic, non-blocking)"
             echo
@@ -106,6 +118,7 @@ jobs:
           n=$(grep -c "⚠ HIT" audit.log || true)
           echo "HITS=$n"
           echo "hits=$n" >> "$GITHUB_OUTPUT"
+          [ "$rc" -le 1 ] || { echo "❌ audit_runner exited $rc — the audit itself is broken"; exit 1; }
 
   # ── De combien de majeures les actions sont-elles en retard ? (2026-09-16) ──
   #
@@ -122,15 +135,20 @@ jobs:
   action-drift:
     runs-on: ubuntu-latest
     continue-on-error: true   # observational — never fail the workflow
+    outputs:
+      outcome: ${{ steps.drift.outcome }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0   # les outils de ce dépôt dérivent de `git log` (voir ci.yml)
 
       - name: Combien de majeures de retard (report to summary)
+        id: drift
+        shell: bash   # `bash -e` alone has no pipefail: `script | tee` returned tee's 0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -o pipefail
           {
             echo "## Retard des actions GitHub (non bloquant)"
             echo
@@ -285,7 +303,11 @@ jobs:
       - name: Reopening conditions (exit 1 = a parked task must reopen)
         id: reopen
         continue-on-error: true
+        shell: bash
+        # Without pipefail `tee` returned 0 and the script's `exit 1` never reached
+        # `outcome` — wired 2026-09-25 and blind the same day.
         run: |
+          set -o pipefail
           python3 tools/dev/reopen_check.py | tee -a "$GITHUB_STEP_SUMMARY"
 
   # ── Un rouge qui n'arrive nulle part n'est pas une alerte (2026-09-25, R167) ──

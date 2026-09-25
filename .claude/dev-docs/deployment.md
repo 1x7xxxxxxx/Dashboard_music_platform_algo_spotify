@@ -95,8 +95,9 @@ Fait **avant** tout provisioning (0 € engagé, reviewable) :
    sauvegardés → bind-mount ou volume managé + **éviter `docker compose down -v`**.
 3. **HTTPS** : Caddy + Let's Encrypt en reverse proxy (auto-renew).
 4. **Env prod** : injecter les secrets ci-dessus (jamais en clair dans compose).
-5. **CD** : activer le job dans `.github/workflows/cd-release.yml` (aujourd'hui `if: false`) —
-   `docker compose pull && up -d` via SSH.
+5. **CD** : `make deploy` (`deploy.sh`) et `git pull` en prod. `cd-release.yml` a été SUPPRIMÉ le
+   2026-09-25 : ses deux jobs étaient `if: false` depuis mai (90 exécutions en 30 jours sans rien
+   faire) et son script visait `/opt/music-dashboard`, un répertoire qui n'existe pas.
 6. **Backup (C2)** : cron `pg_dump` quotidien → Storage Box + **drill de restauration** vérifié.
 
 ## D2 — Test cyber (sur l'URL déployée)
