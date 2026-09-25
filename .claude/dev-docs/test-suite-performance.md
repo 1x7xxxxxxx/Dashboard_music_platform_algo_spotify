@@ -192,7 +192,7 @@ est un **greffon**, pas un framework :
 
 | Greffon | Ce qu'il résout | État |
 |---|---|---|
-| `pytest-split` | découpe la suite en N shards de durée égale (matrice CI) | **présent** depuis le 2026-09-16 (R109) — 4 shards, `.test_durations` versionné |
+| `pytest-split` | découpe la suite en N shards de durée égale (matrice CI) | **présent** depuis le 2026-09-16 (R109) — 4 shards, **6 depuis le 2026-09-25**, `.test_durations` versionné |
 | `pytest-xdist` | parallélisme par processus | **présent**, `--dist loadgroup` depuis le 2026-09-16 (R110) |
 | `pytest-randomly` | trouve les dépendances accidentelles entre tests | **présent** depuis le 2026-09-16, **désactivé par défaut** (`-p no:randomly`) et lancé chaque nuit |
 | `pytest-testmon` | ne rejoue que les tests touchés, via la couverture | **absent**, et redondant avec `select_tests.py` |
@@ -221,7 +221,7 @@ allant aussi vite dans le même banc.
 | Mesure | Avant | Après |
 |---|---|---|
 | **CI, mur du run** (médiane) | **427 s** sur 18 runs verts (279–504) | **109 s** (run 35035830958) |
-| CI, forme | 1 job, 15 étapes en file | `gates` + 4 shards, en parallèle, sans `needs:` |
+| CI, forme | 1 job, 15 étapes en file | `gates` + 4 shards (6 depuis le 2026-09-25), en parallèle, sans `needs:` |
 | Suite locale, `-n auto --dist loadfile` | **340,2 s** | — |
 | Suite locale, `-n auto --dist loadgroup` | — | **349,6 s** puis 352,0 s |
 | Suite locale, série, ordre aléatoire | — | 751,9 s (référence froide) |

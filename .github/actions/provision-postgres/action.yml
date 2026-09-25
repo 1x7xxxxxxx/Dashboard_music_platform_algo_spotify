@@ -5,7 +5,7 @@ description: >
 
 # Pourquoi une action composite et pas un bloc recopié (2026-09-16)
 # ----------------------------------------------------------------
-# Ce bloc a désormais DEUX appelants : les quatre shards de `ci.yml` (R109) et la
+# Ce bloc a désormais DEUX appelants : les six shards de `ci.yml` (R109) et la
 # passe nocturne en ordre aléatoire de `security-nightly.yml`. Recopié, il aurait
 # dérivé — c'est la forme de dérive que ce dépôt attrape le plus souvent, et la
 # seule que personne ne voit avant qu'un des deux mente.

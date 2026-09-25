@@ -74,6 +74,10 @@ def test_a_help_line_that_names_a_guard_names_one_that_exists():
         )
 
 
+def _CATALOGUE_TEXT() -> str:
+    return (_ROOT / ".claude" / "dev-docs" / "error-classes.md").read_text(encoding="utf-8")
+
+
 def test_the_three_document_checks_point_at_their_real_guard():
     """Les trois cibles de fraicheur nomment le test qui bloque REELLEMENT.
 
@@ -119,7 +123,12 @@ def test_the_three_document_checks_point_at_their_real_guard():
         assert "CI" in seen[target], (
             f"`{target}` ne dit plus que son blocage vient de la CI. Si la barriere a "
             f"redemenage, mettre a jour la ligne d'aide ET cette attente ensemble.")
-        assert commande in ci, (
+        # Since 2026-09-25 a check may run in CI as a `--static` signature instead of
+        # its own line (tests/test_a_gate_runs_each_check_once.py forbids BOTH). Either
+        # way the CI runs it — what stays forbidden is a CI that runs it nowhere.
+        par_signature = ("audit_runner.py --static" in ci
+                         and f"- signature: `python3 {commande}`" in _CATALOGUE_TEXT())
+        assert commande in ci or par_signature, (
             f"`{target}` annonce etre lancee en CI, et `.github/workflows/ci.yml` "
             f"n'appelle pas `{commande}`. C'est exactement la mention fausse que ce "
             f"fichier existe pour interdire : le 2026-09-17, trois cibles annoncaient "

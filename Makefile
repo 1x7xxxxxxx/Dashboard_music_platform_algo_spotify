@@ -217,7 +217,15 @@ test-durations: ## Régénère .test_durations — SORT EN ERREUR 1 QUAND ELLE R
 	$(PYTHON) -m pytest tests/ -q --store-durations
 
 test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — LA cible de la boucle de code (règle 16)
-	@$(PYTHON) .claude/scripts/select_tests.py | grep -v '^#' | xargs $(PYTHON) -m pytest -q $(PYTEST_DIST)
+	@# Journal comme `make test` : le 2026-09-25 le verdict de cette cible a été tronqué
+	@# (« 281 lines truncated ») par un filtre de sortie, même à travers `tee`. Un
+	@# fichier ne se tronque pas ; `tail -3 .pytest-last.log` rend le verdict entier.
+	@# `xargs -r` : une sélection VIDE (aucun fichier modifié) lançait `pytest -q` sans
+	@# cible, c'est-à-dire la suite entière. `|| true` : sous pipefail, un `grep` qui
+	@# ne trouve rien sortirait 1 et ferait passer « rien à tester » pour un échec.
+	@bash -c 'set -o pipefail; $(PYTHON) .claude/scripts/select_tests.py | { grep -v "^#" || true; } \
+	  | xargs -r $(PYTHON) -m pytest -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
+	  rc=$$?; echo "   journal complet : .pytest-last.log"; exit $$rc
 
 check-guide-deps: ## (internal) fail fast if WeasyPrint is unavailable, rule #10
 	@$(GUIDE_PY) -c "import weasyprint" >/dev/null 2>&1 || { \

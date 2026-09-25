@@ -60,7 +60,7 @@ def children_of(root: int) -> set[int]:
                 continue
             try:
                 ppid = int((proc / "status").read_text().split("PPid:")[1].split()[0])
-            except (OSError, IndexError, ValueError):
+            except (OSError, IndexError, ValueError, StopIteration):  # zombie: no VmHWM
                 continue
             if ppid in kids:
                 kids.add(int(proc.name)); changed = True
@@ -74,7 +74,7 @@ def watch(root):
                 hwm = int(next(ln for ln in st.splitlines()
                                if ln.startswith("VmHWM")).split()[1])
                 peaks[pid] = max(peaks.get(pid, 0), hwm // 1024)
-            except (OSError, IndexError, ValueError):
+            except (OSError, IndexError, ValueError, StopIteration):  # zombie: no VmHWM
                 continue
         time.sleep(0.5)
 

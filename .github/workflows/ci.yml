@@ -25,7 +25,7 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# ── Pourquoi DEUX jobs indépendants, et quatre shards (R109, 2026-09-16) ────────
+# ── Pourquoi DEUX jobs indépendants, et six shards (R109 2026-09-16, 6 le 2026-09-25) ─
 #
 # Avant : un seul job `lint-and-test` de quinze étapes en file. Médiane **402 s**
 # sur 177 exécutions par semaine — soit **≈18,5 h d'attente hebdomadaire**. Humble
@@ -38,9 +38,14 @@ concurrency:
 # 1. les portes STATIQUES (manifeste, ruff, REX, signatures de classes d'erreur)
 #    n'ont besoin ni de Postgres ni de la suite. Dans leur propre job, elles
 #    rendent leur verdict en ~2 min au lieu de 7, et sortent du chemin critique ;
-# 2. la suite se découpe en **quatre shards de durée égale** (`pytest-split`, sur
+# 2. la suite se découpe en **six shards de durée égale** (`pytest-split`, sur
 #    `.test_durations` versionné). Le dépôt est PUBLIC : les minutes Actions sont
 #    gratuites, donc R109 achète du temps de mur avec des minutes qu'on ne paie pas.
+#    ⚠️ 4 → 6 le 2026-09-25, et seulement APRÈS avoir raccourci `gates` : jusque-là le
+#    chemin critique était `gates` (~200 s) et non la suite (~130 s par shard) — ajouter
+#    des shards n'aurait rien acheté. Un shard paie ~60 s fixes (conteneur Postgres,
+#    uv, provision) pour ~180 s de travail total : 4 ≈ 130 s, 6 ≈ 105 s, 8 ≈ 98 s. Six
+#    est le coude ; au-delà, on paie du coût fixe pour quelques secondes.
 #
 # **AUCUN `needs:` entre les deux jobs, et c'est la partie non négociable.** Le
 # chaîner recréerait exactement la panne de septembre : les gardes étaient l'étape
@@ -234,7 +239,7 @@ jobs:
           # deux manquaient, pas trois.
           uv run --frozen python .claude/scripts/audit_runner.py --coverage
           uv run --frozen python .claude/scripts/audit_unreachable_tools.py
-          # ⚠️ AJOUTÉ le 2026-09-18. `.test_durations` équilibre les quatre shards de
+          # ⚠️ AJOUTÉ le 2026-09-18. `.test_durations` équilibre les six shards de
           # CI ; une entrée qui ne désigne plus rien gonfle la part d'un shard d'un
           # temps jamais payé, et un test collecté sans durée reçoit de `pytest-split`
           # une durée MOYENNE — ce que ce fichier existe pour empêcher.
@@ -245,7 +250,6 @@ jobs:
           # Ici et pas dans `make test` : une collecte coûte ~8 s, et ce dépôt a déjà
           # sorti les contrôles de fraîcheur de la suite pour ce motif exact.
           uv run --frozen python tools/dev/check_durations_are_collectable.py
-          uv run --frozen python .claude/scripts/check_config_refs.py
           uv run --frozen python .claude/scripts/check_ci_waste.py
           # LA FRAÎCHEUR DES DOCUMENTS GÉNÉRÉS EST REVENUE ICI — 2026-09-18.
           #
@@ -261,22 +265,27 @@ jobs:
           # et `error-health-check` n'étaient lancés par AUCUN workflow (vérifié le
           # 2026-09-17, et le commentaire de `Makefile:290` le disait déjà).
           #
+          # ⚠️ `gold_coverage.py --check` n'a PLUS sa ligne ici (2026-09-25) : il est la
+          # signature de `a-generated-document-asserts-a-stale-state`, donc déjà exécuté
+          # par `audit_runner --static` quelques lignes plus haut — 20 s payées deux fois
+          # sur le chemin critique. Pareil pour `check_config_refs.py`. Garde :
+          # tests/test_a_gate_runs_each_check_once.py.
+          #
           # ⚠️ `error_class_families.py --check` reste hors d'ici : son cliquet dans la
           # suite coûte 0,07 s, donc il n'y a rien à déplacer.
-          uv run --frozen python tools/dev/gold_coverage.py --check
           uv run --frozen python tools/dev/error_class_health.py --check
 
   # ════════════════════════════════════════════════════════════════════════════
   suite:
-    name: Suite ${{ matrix.shard }}/4
+    name: Suite ${{ matrix.shard }}/6
     runs-on: ubuntu-latest
 
     strategy:
-      # Un shard rouge ne doit pas annuler les trois autres : on veut le rapport
+      # Un shard rouge ne doit pas annuler les cinq autres : on veut le rapport
       # COMPLET, pas le premier échec. Même raison que `!cancelled()` ci-dessous.
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
 
     # Postgres service re-added 2026-06-13 — this time ACTUALLY PROVISIONED (init_db.sql
     # + migrations/*.sql, see the composite action), so the render-smoke and the ML DB
@@ -366,8 +375,8 @@ jobs:
         # garde tests/test_local_and_ci_run_the_same_suite.py l'exige — « vert en
         # local » et « vert en CI » doivent être la même affirmation.
         #
-        # `--splits 4 --group N` (R109, 2026-09-16) : la découpe lit `.test_durations`,
-        # versionné, et rend quatre groupes de durée équivalente. SANS ce fichier la
+        # `--splits 6 --group N` (R109, 2026-09-16 ; 6 depuis le 2026-09-25) : la découpe
+        # lit `.test_durations`, versionné, et rend six groupes de durée équivalente. SANS ce fichier la
         # découpe se fait sur le NOMBRE de tests, ce qui déséquilibre gravement ici —
         # un rendu `AppTest` coûte mille fois un garde AST.
         # Régénérer : `.venv/bin/python -m pytest tests/ --store-durations`.
@@ -379,12 +388,12 @@ jobs:
         #
         # ⛔ LA COUVERTURE N'EST PLUS ICI, et ce n'est PAS le retrait qui avait été
         # refusé deux fois. Mesurée sur le runner, elle coûte +8 % (13 s) — ce n'est
-        # pas son coût qui la déplace, c'est que **la couverture d'un quart de la
-        # suite ne veut rien dire**, et que recombiner quatre rapports demanderait
-        # quatre artefacts et un cinquième job sur le chemin critique. Elle vit
+        # pas son coût qui la déplace, c'est que **la couverture d'un sixième de la
+        # suite ne veut rien dire**, et que recombiner six rapports demanderait
+        # six artefacts et un cinquième job sur le chemin critique. Elle vit
         # désormais dans `security-nightly.yml`, où la suite tourne ENTIÈRE, une fois
         # par nuit, hors du chemin critique — et où elle tourne en plus en ordre
         # aléatoire. Le dépôt n'a jamais eu de `--cov-fail-under` : rien ne gatait.
         run: >-
           uv run --frozen pytest tests/ -q --tb=short -n auto --dist loadgroup
-          --splits 4 --group ${{ matrix.shard }}
+          --splits 6 --group ${{ matrix.shard }}

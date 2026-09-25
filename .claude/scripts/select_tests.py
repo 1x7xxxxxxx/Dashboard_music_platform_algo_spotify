@@ -20,8 +20,13 @@ situations forcent la suite entière, et chacune est là parce qu'elle rend le
 graphe d'imports non concluant, pas parce qu'elle est rare :
 
 1. le dépôt n'est pas un dépôt git, ou le diff est illisible ;
-2. un fichier modifié n'est **pas** du `.py` — ce peut être une fixture, un
-   `.json` de configuration, un `.sql`, une donnée de test ;
+2. un fichier modifié configure l'ENVIRONNEMENT de toute la suite sans qu'aucun test
+   ne le nomme : lock (`uv.lock`), `requirements*`, `.env*`, `*.sql`, `config/` ;
+   (jusqu'au 2026-09-25 : TOUT fichier non-`.py`. Ce dépôt modifie un `.md`, un
+   `.yml` ou `.test_durations` dans presque chaque séance, et `make test-changed`
+   rendait alors la suite entière — 9 656 tests, trois fois sur trois ce jour-là.
+   Un autre non-`.py` sélectionne désormais par mention, par DOSSIER et par module
+   VOISIN, chacun avec sa cellule rouge au `--self-test`) ;
 3. un `conftest.py` a bougé — il s'applique à tout un sous-arbre sans qu'aucun
    `import` ne le nomme ;
 4. un fichier de configuration de la suite a bougé (`pyproject.toml`,
@@ -119,6 +124,18 @@ def _EST_ETAT_GENERE(chemin: str) -> bool:
 
 
 SUITE_CONFIG = {"pyproject.toml", "pytest.ini", "setup.cfg", "tox.ini"}
+
+# Non-Python files that configure the suite or the environment every test runs in:
+# nothing names them, yet any test may depend on them. Everything else non-Python is
+# selected by mention, by directory and by neighbouring module (rule 2, 2026-09-25).
+_ENV_NAMES = {"uv.lock", "Pipfile.lock", "poetry.lock", "init_db.sql"}
+
+
+def _FORCE_LA_SUITE(chemin: str) -> bool:
+    c = chemin.replace("\\", "/")
+    n = Path(c).name
+    return (n in _ENV_NAMES or n.startswith(("requirements", ".env"))
+            or c.endswith(".sql") or c.startswith("config/"))
 DYNAMIC = {"importlib", "__import__"}
 
 
@@ -560,7 +577,35 @@ def tests_mentioning(root: Path, changed: list[str], all_tests: set[str],
     return hits
 
 
-def select(root: Path, base: str | None = None, _max_depth: int | None = None) -> dict:
+def tests_reading_the_directory(changed: list[str], all_tests: set[str],
+                                known: dict[str, Path]) -> set[str]:
+    """Tests that NAME the directory of a changed non-Python file.
+
+    A test that reads `sorted((ROOT / ".claude" / "dev-docs").glob("*.md"))` never
+    names the file that changed — only its folder, sometimes split into path parts.
+    Matching the last directory component catches both spellings. A file at the repo
+    root has no folder to name: only its own name (`tests_mentioning`) selects for it.
+    Broad on purpose, like the mention rule: a false positive costs one test.
+    """
+    dossiers = {Path(c).parent.name for c in changed} - {""}
+    if not dossiers:
+        return set()
+    hits: set[str] = set()
+    for mod, p in known.items():
+        if mod not in all_tests:
+            continue
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            hits.add(mod)
+            continue
+        if any(f'"{d}"' in text or f"'{d}'" in text or f"{d}/" in text for d in dossiers):
+            hits.add(mod)
+    return hits
+
+
+def select(root: Path, base: str | None = None, _max_depth: int | None = None,
+           _sans_dossier: bool = False) -> dict:
     """Rend {'all': bool, 'tests': [...], 'reason': str}.
 
     `_max_depth` n'existe que pour `--self-test` : il bride la fermeture
@@ -590,6 +635,7 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None) -
     etat = [c for c in changed if _EST_ETAT_GENERE(c)]
     sources = [c for c in changed if not _EST_ETAT_GENERE(c)]
 
+    non_py: list[str] = []
     for c in sources:
         n = Path(c).name
         if n in SUITE_CONFIG:
@@ -598,8 +644,11 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None) -
             return {"all": True, "tests": [],
                     "reason": "conftest.py modifié — il s'applique sans être importé"}
         if not c.endswith(".py"):
-            return {"all": True, "tests": [],
-                    "reason": f"fichier non-Python modifié ({c}) — fixture, config ou donnée possible"}
+            if _FORCE_LA_SUITE(c):
+                return {"all": True, "tests": [],
+                        "reason": f"fichier d'environnement modifié ({c}) — aucun test ne le nomme, tous en dépendent"}
+            non_py.append(c)
+    sources = [c for c in sources if c not in non_py]
 
     roots = source_roots(root)
     imports, dynamic, unparsable, known = build_graph(root, roots)
@@ -632,6 +681,13 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None) -
             # couverts, l'un par la mention littérale, l'autre par `dynamic`.
             hors_racine.append(c)
 
+    # A data file (template, fixture, CSS) is read by the modules BESIDE it: their
+    # importers are the tests that can see it change.
+    for c in non_py:
+        d = (root / c).parent
+        seeds |= {m for m, p in known.items() if p.parent == d and not is_test(
+            str(p.relative_to(root)).replace("\\", "/"))}
+
     if _max_depth is None:
         reached = importers_closure(imports, seeds)
     else:  # chemin de mutation, --self-test uniquement
@@ -647,8 +703,11 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None) -
     picked = {t for t in all_tests if t in reached}
     picked |= {t for t in all_tests if t in dynamic}   # import dynamique : toujours
     picked |= {t for t in all_tests if t in seeds}     # le test lui-même a changé
-    named = tests_mentioning(root, sources + etat, set(all_tests), known) - picked
+    named = tests_mentioning(root, sources + non_py + etat, set(all_tests), known) - picked
     picked |= named                                    # appel par subprocess
+    par_dossier = set() if _sans_dossier else (
+        tests_reading_the_directory(non_py, set(all_tests), known) - picked)
+    picked |= par_dossier                              # glob du dossier, sans le nom
 
     reason = f"{len(picked)}/{len(all_tests)} tests atteignent {len(seeds)} module(s) modifié(s)"
     if named:
@@ -656,6 +715,9 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None) -
     if hors_racine:
         reason += (f" ; {len(hors_racine)} fichier(s) hors racine d'imports "
                    f"({hors_racine[0]}…) — aucun import ne peut les atteindre")
+    if non_py:
+        reason += (f" ; {len(non_py)} fichier(s) non-Python sélectionné(s) par mention, "
+                   f"dossier ou module voisin ({len(par_dossier)} par dossier)")
     if etat:
         reason += f" ; {len(etat)} fichier(s) d'état généré ignoré(s) comme déclencheur"
     return {"all": False, "tests": sorted(picked),
@@ -862,9 +924,49 @@ def self_test() -> int:
         ]
 
         # Les sept sorties « tout renvoyer » doivent réellement se déclencher.
-        (root / "data.json").write_text("{}")
-        cases.append(("VERT   un fichier non-Python force la suite entière", select(root)["all"]))
-        (root / "data.json").unlink()
+        (root / "uv.lock").write_text("x")
+        cases.append(("VERT   un fichier d'environnement (uv.lock) force la suite entière",
+                      select(root)["all"]))
+        (root / "uv.lock").unlink()
+        (root / "config").mkdir()
+        (root / "config" / "config.yaml").write_text("a: 1\n")
+        cases.append(("VERT   un fichier sous config/ force la suite entière", select(root)["all"]))
+        shutil.rmtree(root / "config")
+
+        # Règle 2 depuis le 2026-09-25 : un non-Python ordinaire SÉLECTIONNE au lieu de
+        # tout rendre. Trois chemins, chacun avec la cellule qui prouve qu'il porte :
+        # le test qui GLOBE le dossier sans nommer le fichier, le module VOISIN d'un
+        # fichier de données, et le test sans rapport qui doit rester dehors.
+        subprocess.run(["git", "-C", str(root), "checkout", "-q", "--", "."], check=True)
+        (root / "notes").mkdir()
+        (root / "notes" / "a.md").write_text("x\n")
+        (root / "tests" / "test_glob.py").write_text(
+            "from pathlib import Path\n"
+            "def test_g(): assert list(Path('notes').glob('*.md'))\n")
+        (root / "pkg" / "template.html").write_text("<p/>\n")
+        subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(root), "-c", "user.email=t@t", "-c", "user.name=t",
+                        "commit", "-qm", "docs"], check=True)
+        (root / "notes" / "a.md").write_text("y\n")
+        s_doc = select(root)
+        s_doc_mute = select(root, _sans_dossier=True)
+        (root / "notes" / "a.md").write_text("x\n")
+        (root / "pkg" / "template.html").write_text("<p>2</p>\n")
+        s_tpl = select(root)
+        cases += [
+            ("VERT   un .md ordinaire ne force plus la suite entière", not s_doc["all"]),
+            ("VERT   ... le test qui globe son DOSSIER sans le nommer est pris",
+             "tests.test_glob" in s_doc["tests"]),
+            ("ROUGE  ... sans la règle du dossier, il est RATÉ (la règle porte)",
+             "tests.test_glob" not in s_doc_mute["tests"]),
+            ("ROUGE  ... et le test sans rapport ne l'est pas",
+             "tests.test_unrelated" not in s_doc["tests"]),
+            ("VERT   un fichier de données sélectionne les importateurs de ses modules VOISINS",
+             not s_tpl["all"] and "tests.test_far" in s_tpl["tests"]),
+            ("ROUGE  ... et pas le test sans rapport",
+             "tests.test_unrelated" not in s_tpl["tests"]),
+        ]
+        (root / "pkg" / "template.html").write_text("<p/>\n")
 
         (root / "conftest.py").write_text("")
         cases.append(("VERT   un conftest.py force la suite entière", select(root)["all"]))

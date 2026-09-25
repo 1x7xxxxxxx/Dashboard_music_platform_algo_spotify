@@ -17,7 +17,7 @@ derrière. Le coût n'a pas été le temps — il a été l'ignorance.
 Ce que ce garde demande, et pourquoi il a changé de forme (2026-09-16)
 ---------------------------------------------------------------------
 Il lisait `jobs["lint-and-test"]["steps"]`, un nom de job en dur. R109 a découpé la
-CI en deux jobs indépendants (`gates` et `suite` en quatre shards) — une forme qui
+CI en deux jobs indépendants (`gates` et `suite` en six shards) — une forme qui
 satisfait la propriété **structurellement** : deux jobs sans `needs:` ne peuvent pas
 se cacher l'un l'autre. Le garde aurait explosé sur un fichier meilleur que celui
 qu'il gardait.

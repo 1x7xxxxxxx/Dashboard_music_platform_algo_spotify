@@ -8,7 +8,7 @@ Persists in: nothing — lecture seule, sortie 0 ou 1
 
 Pourquoi ce contrôle, et pourquoi PAS dans la suite
 -----------------------------------------------------
-`.test_durations` équilibre les quatre shards de CI. Une entrée qui ne désigne plus rien
+`.test_durations` équilibre les six shards de CI. Une entrée qui ne désigne plus rien
 gonfle la part d'un shard avec un temps qui ne sera jamais payé ; un test collecté sans
 durée reçoit de `pytest-split` une durée MOYENNE — exactement ce que ce fichier existe
 pour empêcher.

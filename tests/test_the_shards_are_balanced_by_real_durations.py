@@ -7,7 +7,7 @@ Persists in: nothing
 
 Ce qui est en jeu — mesuré le 2026-09-16
 -----------------------------------------
-La CI découpe la suite en quatre groupes avec `pytest-split --splits 4`. Sans
+La CI découpe la suite en six groupes avec `pytest-split --splits 6` (quatre jusqu'au 2026-09-25). Sans
 `.test_durations`, la découpe se fait sur le NOMBRE de tests, et ici ce serait
 gravement déséquilibré : la suite pèse 907 s en série, dont **172,6 s pour le seul
 `test_views_render_smoke.py`** (19 %) et 82,6 s pour `test_a_render_opens_one_connection.py`.

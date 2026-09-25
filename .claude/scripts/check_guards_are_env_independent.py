@@ -26,12 +26,17 @@ seraient jetés, et la signature ne pourrait plus jamais tirer. Un script sans l
 Mesuré le 2026-09-05 : 22 fichiers, 842 tests, ~41 s, verdict identique dans les deux
 conditions une fois le défaut corrigé.
 
+⚠️ Remesuré le 2026-09-25 : **104 fichiers, 117 s en série** — le script était à lui
+seul le chemin critique de la CI (100 s des ~200 s du job « Portes statiques », quand
+chaque shard de la suite en prend ~130). Il tourne désormais sous xdist, comme la suite.
+
 ---
 rex: []
 ---
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -51,6 +56,12 @@ def _files_loading_a_tool() -> list[str]:
     return out
 
 
+def _workers() -> str:
+    """4 by default — the CI runner's vCPU count, and a ceiling this workstation's
+    memory budget tolerates (`PYTEST_WORKERS` in the Makefile overrides it)."""
+    return os.environ.get("PYTEST_WORKERS") or "4"
+
+
 def main() -> int:
     files = _files_loading_a_tool()
     if not files:
@@ -58,10 +69,11 @@ def main() -> int:
               "détecteur ne mesure plus rien ; vérifier `_files_loading_a_tool`.")
         return 1
 
-    env = {**dict(__import__("os").environ),
-           "PYTHONPATH": f"{_PLUGIN_DIR}:{__import__('os').environ.get('PYTHONPATH', '')}"}
+    env = {**os.environ,
+           "PYTHONPATH": f"{_PLUGIN_DIR}:{os.environ.get('PYTHONPATH', '')}"}
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", *files, "-q", "-p", "pytest_without_dotenv"],
+        [sys.executable, "-m", "pytest", *files, "-q", "-p", "pytest_without_dotenv",
+         "-n", _workers(), "--dist", "loadgroup"],
         cwd=_REPO, env=env, capture_output=True, text=True, timeout=1800,
     )
     if proc.returncode == 0:
