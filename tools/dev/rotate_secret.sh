@@ -57,9 +57,11 @@ if [ -n "$PROD" ]; then
         && echo "💾 prod : sauvegarde $PROD_ENV.bak-rotate-$stamp"
 fi
 
+n=$#; i=0
 for v in "$@"; do
+    i=$((i + 1))
     if [ "${ROTATE_GUI-}" = 1 ]; then
-        val="$(dialog "$v")"          # masked Windows dialog — lets Claude run the script
+        val="$(dialog "$v" "$i/$n")"          # masked Windows dialog — lets Claude run the script
     else
         printf "Nouvelle valeur de %s (masquée, Entrée pour valider) : " "$v" > /dev/tty 2>/dev/null || true
         IFS= read -rs val

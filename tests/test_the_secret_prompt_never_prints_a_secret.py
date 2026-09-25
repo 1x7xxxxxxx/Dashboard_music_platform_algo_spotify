@@ -47,3 +47,29 @@ def test_a_malformed_variable_name_is_refused(tmp_path) -> None:
     f.write_text("")
     r = _run(f, str(f), "X=1;rm")
     assert r.returncode == 2 and f.read_text() == ""
+
+
+def test_every_secret_the_tools_ask_for_names_its_account() -> None:
+    """The dialog says WHICH account and WHERE — a bare variable name left the owner guessing."""
+    lib = _SCRIPT.parent / "secret_dialog.sh"
+    rotate = (_SCRIPT.parent / "rotate_secret.sh").read_text()
+    allowed = rotate.split('ALLOWED="', 1)[1].split('"', 1)[0].split()
+    wanted = allowed + ["GMAIL_APP_PASSWORD_NINEKA", "GMAIL_APP_PASSWORD_127BPMIN",
+                        "GMAIL_APP_PASSWORD_1X7"]
+    for var in wanted + ["UNKNOWN_VAR"]:
+        out = subprocess.run(["bash", "-c", f'source "{lib}"; secret_hint {var}'],
+                             capture_output=True, text=True, timeout=10).stdout.strip()
+        who, _, where = out.partition("|")
+        if var == "UNKNOWN_VAR":
+            assert who == "UNKNOWN_VAR" and not where, "the fallback must stay the bare name"
+        else:
+            assert who != var and where, f"{var}: the dialog would not say which account"
+
+
+def test_the_labels_cross_to_windows() -> None:
+    """Env vars reach powershell.exe only through WSLENV — without it the window is blank."""
+    text = (_SCRIPT.parent / "secret_dialog.sh").read_text()
+    call = text.split("powershell.exe", 1)[0].rsplit("dialog()", 1)[1]
+    for var in ("VAR_LABEL", "VAR_WHO", "VAR_WHERE", "VAR_STEP"):
+        assert 'WSLENV="' in call and var in call.split('WSLENV="', 1)[1].split('"', 1)[0], \
+            f"{var} is not exported through WSLENV — the dialog would show it empty"

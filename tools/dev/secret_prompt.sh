@@ -41,9 +41,11 @@ p.write_text("\n".join(lines) + "\n", encoding="utf-8")
 print("remplacée" if hit else "ajoutée")
 '
 
+n=$#; i=0
 for v in "$@"; do
+    i=$((i + 1))
     [[ "$v" =~ ^[A-Z][A-Z0-9_]*$ ]] || { echo "❌ nom de variable invalide : $v"; exit 2; }
-    val="$(dialog "$v")"
+    val="$(dialog "$v" "$i/$n")"
     val="${val#"${val%%[![:space:]]*}"}"; val="${val%"${val##*[![:space:]]}"}"
     [ "$nospace" = 1 ] && val="${val// /}"
     [ -n "$val" ] || { echo "❌ $v : rien saisi (fenêtre fermée ?) — fichier inchangé"; exit 1; }
