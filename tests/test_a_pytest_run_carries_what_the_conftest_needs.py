@@ -203,3 +203,13 @@ def test_no_function_wears_a_hook_name_pytest_will_never_call():
         "ayant l'air de l'être.\n"
         "Remède : soit le nom exact du hook, soit un nom qui ne le mime pas et un "
         "appel depuis le vrai hook.\n" + "\n".join(f"  {u}" for u in unreachable))
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity: the exact name of the defect (a hook name with a SUFFIX, which the
+    first predicate missed), the bare prefixed form, and names pytest does call."""
+    hooks = {"pytest_terminal_summary", "pytest_configure"}
+    assert _mimics_a_hook("_pytest_terminal_summary_db", hooks), "the real defect, with its suffix"
+    assert _mimics_a_hook("_pytest_configure", hooks)
+    assert not _mimics_a_hook("_terminal_width", hooks)
+    assert not _mimics_a_hook("_pytest_configured_once", hooks), "a word that merely starts alike"

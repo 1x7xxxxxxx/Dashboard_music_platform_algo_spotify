@@ -210,3 +210,20 @@ def test_each_orphan_still_has_the_guard_that_named_it(slug: str, rel: str) -> N
         f"{rel} a disparu, et c'est le seul endroit où la classe `{slug}` est décrite. "
         "La supprimer n'a pas fermé la dette, elle l'a perdue."
     )
+
+
+def _named_in(source: str) -> list[str]:
+    return [slug for _, chunk in _prose_chunks(source) for m in _MARK.finditer(chunk)
+            for slug in _SLUG.findall(m.group(1))]
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity on a FABRICATED tool: a class named in its docstring and in a comment
+    is read — the declaration this guard checks against the catalogue; the same mark in
+    a DATA string (an assertion message) is not a declaration."""
+    source = ('"""A probe. Error class: `a-class-nobody-wrote-yet`."""\n'
+              "# error class: `another-orphan-name`\n"
+              "MSG = \"error class: `only-inside-a-data-string`\"\n")
+    named = _named_in(source)
+    assert sorted(named) == ["a-class-nobody-wrote-yet", "another-orphan-name"], named
+    assert "a-class-nobody-wrote-yet" not in _catalogue_ids(), "the probe must be a real orphan"
