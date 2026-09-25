@@ -100,6 +100,18 @@ jobs:
         with:
           fetch-depth: 0   # les outils de ce dépôt dérivent de `git log` (voir ci.yml)
 
+      # The signatures run `.venv/bin/python …`: without a venv they exit 127 and render NO
+      # verdict (audit_runner exit 2). `make audit || true` hid that on every night until
+      # 2026-09-25 — the first run that could fail found it at once.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
+
+      - name: Install dependencies from lockfile
+        run: uv python install 3.11 && uv sync --frozen --extra dev
+
       - name: Run error-class audit (report to summary)
         id: audit
         run: |
