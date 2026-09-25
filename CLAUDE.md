@@ -273,7 +273,7 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
 2. **Neutrality**: Cold technical feedback. State behavior + consequence. Enumerate ≥2 alternatives with trade-offs before recommending.
 3. **Classification**: Label every new file in its docstring: `Type: Core|Feature|Sub|Hook|Utility` + `Uses/Triggers/Depends on/Persists in`.
 4. **Priority**: P1 (crash/security) > P2 (data integrity) > P3 (UX) > P4 (tech debt). Never address P4 during a P1 session.
-5. **Background agent**: Spawn `strategic-plan-architect` only after ≥3 files changed in one session. Not after single-file edits.
+5. **Retirée le 2026-09-25** — elle nommait un agent de documentation d'arrière-plan sous la forme d'une RESTRICTION (« only after ≥3 files »), sans flèche ni évènement : **0 appel sur 51 sessions** (`usage_report.py`). Ses quatre devoirs ont un propriétaire vivant : DEVLOG → hook `draft_devlog.py` ; roadmap → `roadmap-keeper` (règle 17) ; REX → `draft_rex.py` + `/retro` ; Mermaid → `code-architecture-reviewer` (règle 18). Le numéro est gardé pour ne pas renuméroter 12-21. Pourquoi : `.claude/.retired/agents/POURQUOI-STRATEGIC-PLAN-ARCHITECT.md`. Garde : `tests/test_claude_config_floor.py::test_every_declared_agent_has_a_trigger_that_can_fire`.
 6. **Collectors must raise**: `except Exception` blocks in `src/collectors/` must always `raise` — never `return None`, `return []`, or `break` silently. Any deviation is a P2 data-integrity bug. Run `/audit-collectors` after touching any collector.
 7. **`get_artist_id()` guard**: Never write `get_artist_id() or 1`. New views MUST use the `view_session()` context manager (`src/dashboard/utils/__init__.py`) which encapsulates the guard — `with view_session() as (db, artist_id): ...`. The manual guard below is the legacy form (still valid in not-yet-migrated views):
    ```python
@@ -503,8 +503,8 @@ context, **run it; do not wait to be asked.**
 ### Agents, slash commands, mise en route MCP, RTK
 
 Documentation, pas déclencheurs : `.claude/dev-docs/tooling-reference.md`.
-Les agents réellement invoqués le sont par les règles 5, 12, 13, 14, 17 ci-dessus
-et par la règle de la boucle d'ingénierie — pas par un tableau.
+Les agents réellement invoqués le sont par les règles 12, 13, 14, 17, 18, 19 ci-dessus
+et par la règle de la boucle d'ingénierie (`code-critic`) — pas par un tableau.
 
 ### Hooks
 - **UserPromptSubmit** → `inject_context.py` — keyword-triggered skill injection (domain patterns)

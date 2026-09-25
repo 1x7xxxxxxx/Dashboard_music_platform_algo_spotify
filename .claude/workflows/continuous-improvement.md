@@ -20,9 +20,10 @@ How the config improves itself, honest about what is automatic and what is not.
 
 Measured rather than assumed, in the one repo of this fleet with real telemetry: of 30 declared
 agents, **26 were never invoked** — its own CLAUDE.md calls them "measured theater". What earned its
-place was a small live set (`code-critic`, `Explore`, `strategic-plan-architect`,
-`security-specialist`, `build-error-resolver`, `web-research-specialist`) plus **deterministic
-detectors**.
+place was a small live set (`code-critic`, `Explore`, `security-specialist`,
+`build-error-resolver`, `web-research-specialist`) plus **deterministic detectors**.
+(`strategic-plan-architect` stood in this list until 2026-09-25, when this repo measured it at
+0 calls in 51 sessions and retired it — see `.claude/.retired/agents/POURQUOI-STRATEGIC-PLAN-ARCHITECT.md`.)
 
 Before adding an agent, ask what it does that a grep, a test, or a signature cannot. If the answer
 is "it interprets the output of a script", write the script and read it yourself: an agent that

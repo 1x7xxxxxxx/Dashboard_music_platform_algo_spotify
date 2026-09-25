@@ -607,6 +607,12 @@ config-check: ## Check the .claude/ config itself: dangling paths, class schema,
 	@# chose est couverte. Ce depot l'a mesure ailleurs — 33 spawns pour les agents
 	@# nommes dans une regle imperative, 0 sur 23 pour ceux nommes dans un tableau.
 	@python3 .claude/scripts/audit_unreachable_tools.py
+	@# La meme affirmation pour un AGENT, prouvee par l'EXECUTION et non par le texte :
+	@# `test_every_declared_agent_has_a_trigger_that_can_fire` prouve que l'arete est
+	@# DESSINEE ; ceci prouve qu'elle LIE (un Spawn reel dans les transcriptions). Rouge
+	@# sur « DECLARED, NEVER INVOKED » ; SKIP sans transcriptions (CI). Ajoute le
+	@# 2026-09-25 : strategic-plan-architect etait a 0 sur 51 sessions, rien ne le disait.
+	@python3 .claude/scripts/usage_report.py --check
 	@python3 .claude/scripts/audit_runner.py --prose
 	@python3 .claude/scripts/audit_runner.py --coverage
 	@# ⚠️ Ajoute le 2026-09-16 : le plan de R122 disait « `error-health-check`

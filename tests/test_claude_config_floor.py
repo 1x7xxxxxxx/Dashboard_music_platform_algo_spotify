@@ -314,6 +314,97 @@ def test_the_build_error_threshold_agrees_across_its_three_surfaces():
 
 
 # ---------------------------------------------------------------------------
+# Un agent déclaré a un déclencheur qui peut partir — ajouté le 2026-09-25
+# ---------------------------------------------------------------------------
+
+# A numbered cross-cutting rule of CLAUDE.md starts a line: `12. **…`, `15bis. **…`.
+_RULE_START = re.compile(r"^\d+(?:bis|ter)?\.\s+\*\*")
+# A rule block ends at the next rule, a heading, or a blockquote note between rules.
+_RULE_END = re.compile(r"^(?:\d+(?:bis|ter)?\.\s+\*\*|#|>)")
+# `subagent_type: 'x'` / `agentType: "x"` in a workflow script.
+_WORKFLOW_AGENT = re.compile(r"""\b(?:subagent_type|agentType)\s*:\s*['"`]([a-z0-9-]+)['"`]""")
+
+
+def _claude_md_rule_blocks(text: str) -> list[str]:
+    """Each numbered rule as ONE whitespace-normalised string.
+
+    Read per RULE, not per physical line: rule 18 wraps `→ \\`Spawn` on one line and
+    `code-architecture-reviewer\\`` on the next, and a per-line predicate reported it
+    untriggered (code-critic, 2026-09-25).
+    """
+    blocks: list[str] = []
+    current: list[str] | None = None
+    for line in text.splitlines():
+        if _RULE_END.match(line):
+            if current is not None:
+                blocks.append(" ".join(current))
+            current = [line] if _RULE_START.match(line) else None
+        elif current is not None:
+            current.append(line)
+    if current is not None:
+        blocks.append(" ".join(current))
+    return [re.sub(r"\s+", " ", b) for b in blocks]
+
+
+def _arrow_spawned(blocks: list[str], name: str) -> bool:
+    """`→ \\`Spawn <name>\\`` (backticks optional) inside one rule's full text."""
+    pat = re.compile(r"→\s*`?\s*Spawn\s*`?\s*`?" + re.escape(name) + r"(?![\w-])")
+    return any(pat.search(b) for b in blocks)
+
+
+def _workflow_spawned() -> set[str]:
+    names: set[str] = set()
+    for js in (CLAUDE / "workflows").glob("*.js"):
+        for line in js.read_text(encoding="utf-8").splitlines():
+            if line.lstrip().startswith(("//", "*", "/*")):
+                continue                        # a comment NAMES an agent, it does not spawn it
+            names.update(_WORKFLOW_AGENT.findall(line))
+    return names
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Rule 5 as it was until 2026-09-25 — a restriction, no arrow — must not count as a trigger."""
+    restriction = ["5. **Background agent**: Spawn `strategic-plan-architect` only after ≥3 files "
+                   "changed in one session. Not after single-file edits."]
+    assert not _arrow_spawned(restriction, "strategic-plan-architect")
+    arrow = ["13. **Un endpoint ajouté → `Spawn security-specialist`.** Il renvoie des constats."]
+    assert _arrow_spawned(arrow, "security-specialist")
+    assert not _arrow_spawned(arrow, "security")      # a prefix of the name is not the name
+
+
+def test_every_declared_agent_has_a_trigger_that_can_fire():
+    """Every `.claude/agents/*.md` is spawned by an arrow rule or by a workflow script.
+
+    `strategic-plan-architect` was declared by CLAUDE.md rule 5 as a RESTRICTION (« only
+    after ≥3 files »): no arrow, no event. Measured 2026-09-25 by `usage_report.py`: 0
+    calls over 51 sessions, while `usage_report.py` claimed a test already failed on a
+    declared-but-unused agent — a test that never existed. The form CLAUDE.md imposes
+    (arrow, checkable trigger, literal `Spawn`) is the only one this repo measured as
+    producing invocations.
+
+    ⚠️ Scope: this proves the edge is DRAWN, not that it BINDS. A rule rewritten into the
+    arrow form passes here and can still never fire. The execution proof is
+    `usage_report.py --check`, run by `make config-check`.
+    """
+    agents = sorted(p.stem for p in (CLAUDE / "agents").glob("*.md"))
+    assert len(agents) >= 6, f"only {len(agents)} agents found — the glob measures nothing"
+
+    blocks = _claude_md_rule_blocks((REPO / "CLAUDE.md").read_text(encoding="utf-8"))
+    assert len(blocks) >= 15, f"only {len(blocks)} CLAUDE.md rules parsed — the splitter is blind"
+
+    workflow = _workflow_spawned()
+    triggered = {a for a in agents if _arrow_spawned(blocks, a) or a in workflow}
+    assert len(triggered) >= 6, (
+        f"only {sorted(triggered)} pass — the predicate has gone blind, not the roster")
+
+    untriggered = [a for a in agents if a not in triggered]
+    assert not untriggered, (
+        f"declared agents with no trigger that can fire: {untriggered}. Give each an arrow "
+        "rule in CLAUDE.md (`… → \\`Spawn <name>\\``, CLAUDE.md rule-form note after rule 13) "
+        "or a subagent in .claude/workflows/*.js — or `git mv` it to .claude/.retired/agents/.")
+
+
+# ---------------------------------------------------------------------------
 # Où vivent les règles de permission — mesuré le 2026-08-21
 # ---------------------------------------------------------------------------
 

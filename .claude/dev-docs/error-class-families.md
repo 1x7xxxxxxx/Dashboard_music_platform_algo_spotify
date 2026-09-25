@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**414 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**415 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -20,7 +20,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 25 | **3/25** · 12.0 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 30 | **6/30** · 20.0 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 27 | **3/27** · 11.1 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 86 | **13/86** · 15.1 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 87 | **14/87** · 16.1 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | **4/39** · 10.3 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | **0/8** · 0.0 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
@@ -308,10 +308,11 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|substitution|s'exécute|accent grave|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 86 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|substitution|s'exécute|accent grave|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 87 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`a-declared-agent-whose-trigger-cannot-fire`](error-classes.md#a-declared-agent-whose-trigger-cannot-fire) | un agent est déclaré dans `.claude/agents/` et nommé par une règle de `CLAUDE.md`, donc il se lit comme une couverture — et personne ne le lance jamai |
 | [`a-price-page-that-restates-a-gate-instead-of-reading-it`](error-classes.md#a-price-page-that-restates-a-gate-instead-of-reading-it) | la page qui VEND une fonctionnalité et le verrou qui l'OUVRE se contredisent. Rien ne lève : les deux textes sont valides, ils sont simplement écrits  |
 | [`a-guard-names-a-class-nobody-wrote`](error-classes.md#a-guard-names-a-class-nobody-wrote) | un défaut est parfaitement décrit — symptôme, cause, mesure, date, coût — **dans la docstring d'un test, et nulle part ailleurs**. Le catalogue ne le  |
 | [`a-shared-database-read-while-another-test-writes-it`](error-classes.md#a-shared-database-read-while-another-test-writes-it) | un test est **rouge dans la suite complète et vert quand on le relance seul**. Le rapport ne montre rien d'anormal, la valeur attendue est simplement  |
@@ -617,6 +618,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=414 families=18 orphans=3 -->
+<!-- error-class-families: total=415 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=e15ac1af4df6c07af9e71c549322a9bdbd0f8a0039ddafe1ce0ea4d652c34e0f -->
+<!-- error-class-families: sha256=25e877ce0a129cceb1a3eaf4378a6777cad3d895dc98ac0f27bd267ed74248e2 -->

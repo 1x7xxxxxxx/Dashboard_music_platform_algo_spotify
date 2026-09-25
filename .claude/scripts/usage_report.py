@@ -25,14 +25,23 @@ WHAT IT SAYS TODAY (measured 2026-07-17, all 20 transcripts):
 
 **4 of the 6 agents CLAUDE.md declares have NEVER been invoked, and 85% of real agent traffic
 (77/91) goes to built-ins CLAUDE.md does not mention.** That is the measured answer to "should I
-add 25 more agents", and it is why `tests/test_claude_config.py` now fails on a declared-but-unused
-agent. A 15-line test that prunes the roster IS the Meta-Agent — it never touches product code, and
-unlike msdr's `curator.py` (250 lines, never run, and wrong on first execution) it cannot rot,
-because pytest runs it.
+add 25 more agents".
+
+⚠️ This paragraph said, until 2026-09-25, that `tests/test_claude_config.py` "now fails on a
+declared-but-unused agent". That file was renamed to `test_claude_config_floor.py` and no such test
+ever existed in either — so `strategic-plan-architect` sat at 0 calls over 51 sessions with nothing
+reporting it. The two halves of the check now exist, and they are different proofs:
+
+  * the edge is DRAWN — `tests/test_claude_config_floor.py::test_every_declared_agent_has_a_trigger_that_can_fire`
+    (every agent is named in an arrow rule of CLAUDE.md or as a workflow subagent);
+  * the edge BINDS — `usage_report.py --check`, run by `make config-check`: exit 1 on any
+    `DECLARED, NEVER INVOKED`, exit 0 with a SKIP line when no transcripts exist (CI).
+    `USAGE_TRANSCRIPTS_DIR` overrides the derived directory (a worktree has its own path).
 
 USAGE
     python/.venv/bin/python .claude/scripts/usage_report.py            # human summary
     python/.venv/bin/python .claude/scripts/usage_report.py --json     # machine-readable
+    python/.venv/bin/python .claude/scripts/usage_report.py --check    # exit 1 on a never-invoked agent
 
 ---
 rex:
@@ -41,6 +50,11 @@ rex:
     fix: "Fixed the derivation and made absence EXIT 1 with the reason. Pinned by test_the_sensor_resolves. The data it unlocked: 4 of 6 declared agents never invoked, 84% of traffic to built-ins CLAUDE.md did not mention — which is the measured answer to 'should we add 25 more agents'."
     severity: warn
     ref: "tests/test_claude_config.py::test_the_sensor_resolves"
+  - date: 2026-09-25
+    issue: "The 2026-07-17 entry above and this docstring cited tests/test_claude_config.py as the guard that fails on a declared-but-unused agent. The file was renamed to test_claude_config_floor.py and neither cited test exists — strategic-plan-architect reached 0 calls over 51 sessions and only a manual run said so."
+    fix: "Retired strategic-plan-architect. Added test_every_declared_agent_has_a_trigger_that_can_fire (edge drawn) and --check wired into make config-check (edge binds; skips without transcripts). The 2026-07-17 ref stays as written: REX entries are immutable."
+    ref: "tests/test_claude_config_floor.py::test_every_declared_agent_has_a_trigger_that_can_fire"
+    severity: warn
 ---
 """
 from __future__ import annotations
@@ -48,6 +62,7 @@ from __future__ import annotations
 import argparse
 import collections
 import json
+import os
 import pathlib
 
 # Claude Code stores transcripts per project, outside the repo, in a directory whose name is the
@@ -56,7 +71,9 @@ import pathlib
 # of this file replaced only "/" and printed "no transcripts" while exiting 0: a reader that finds
 # nothing and calls it fine is the silent failure this whole session is about.
 _REPO = pathlib.Path(__file__).resolve().parents[2]
-_TRANSCRIPTS = (pathlib.Path.home() / ".claude" / "projects"
+_TRANSCRIPTS = (pathlib.Path(os.environ["USAGE_TRANSCRIPTS_DIR"])
+                if os.environ.get("USAGE_TRANSCRIPTS_DIR")
+                else pathlib.Path.home() / ".claude" / "projects"
                 / ("-" + str(_REPO).strip("/").replace("/", "-").replace("_", "-")))
 
 # The tool is named `Agent`. `Task` is kept only because an older harness used it and a reader that
@@ -106,15 +123,43 @@ def declared_agents() -> list[str]:
     return sorted(p.stem for p in (_REPO / ".claude" / "agents").glob("*.md"))
 
 
+def check(data: dict) -> int:
+    """The BINDING half of the agent check: was each declared agent really spawned?
+
+    Absent transcripts (CI, a fresh clone) are a SKIP, said out loud — not a pass and not
+    a failure: there is nothing to read, and a gate that is red on every machine without
+    the data gets deleted. A directory that resolves with 0 sessions is a FAILURE: that is
+    the v1 bug of this file (a reader that finds nothing and calls it fine).
+    """
+    if not data["found"]:
+        print(f"⏭  usage check SKIPPED — no transcripts at {data['transcripts_dir']}")
+        return 0
+    if data["sessions"] == 0:
+        print(f"🔴 usage check: {data['transcripts_dir']} exists but holds 0 sessions")
+        return 1
+    dead = sorted(set(declared_agents()) - set(data["agents"]))
+    if not dead:
+        print(f"✅ usage check: every declared agent was invoked ({data['sessions']} sessions)")
+        return 0
+    for name in dead:
+        print(f"🔴 {name}: DECLARED, NEVER INVOKED in {data['sessions']} sessions — "
+              "give it an arrow rule that fires, or retire it to .claude/.retired/agents/")
+    return 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="What actually ran — read from Claude Code transcripts")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--check", action="store_true",
+                    help="exit 1 when a declared agent was never invoked; skip (exit 0) without transcripts")
     args = ap.parse_args()
 
     data = read()
     if args.json:
         print(json.dumps(data, indent=2))
         return 0
+    if args.check:
+        return check(data)
 
     if not data["found"]:
         # EXIT 1, not 0. An absent sensor is a broken sensor, and the first version of this function

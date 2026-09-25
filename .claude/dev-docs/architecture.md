@@ -1,6 +1,6 @@
 # Architecture Diagrams
 
-*Tenu à jour à la main, et par `strategic-plan-architect` quand il est invoqué.*
+*Tenu à jour à la main ; la dérive entre ces diagrammes et le code est auditée par `code-architecture-reviewer` (CLAUDE.md règle 18).*
 
 > ⚠️ **Ce fichier portait « Last updated: 2026-05-30 » jusqu'au 2026-09-18**, alors que
 > `git log -1 -- .claude/dev-docs/architecture.md` rendait **2026-09-16** et que quinze

@@ -15,7 +15,6 @@ Ce qui est ici : ce qui **documente**.
 ### Agents (`.claude/agents/`)
 | Agent | Role |
 |---|---|
-| `strategic-plan-architect` | Background: updates architecture.md, checklist.md, DEVLOG.md + per-tool REX blocks |
 | `code-architecture-reviewer` | Cold audit of modified code vs project patterns |
 | `build-error-resolver` | Diagnoses pytest failures when Stop hook signals ≥5 errors |
 | `web-research-specialist` | Recherche web — rend un résumé ≤500 mots. **À la demande uniquement** : aucun déclencheur automatique, et c'est assumé — inventer une règle pour lui ferait monter un score sans rien changer à son usage réel. |
