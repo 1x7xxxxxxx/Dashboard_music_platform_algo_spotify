@@ -108,9 +108,30 @@ def parse_all_headers(text: str) -> list[dict]:
             if re.search(r"^- first_seen:\s*(20\d\d-\d\d-\d\d)", body, flags=re.M)
             else None,
             "admitted": _prose_field(body, "admitted"),
+            "severity": (re.search(r"^- severity:\s*(P\d)", body, flags=re.M) or [None, None])[1]
+            if re.search(r"^- severity:\s*(P\d)", body, flags=re.M) else None,
+            "guard": _prose_field(body, "guard"),
             "root_cause": _prose_field(body, "root_cause"),
             "long_term_fix": _prose_field(body, "long_term_fix"),
         })
+    return out
+
+
+_GUARD_PATH = re.compile(r"[\w./-]+\.(?:py|sh|yml|yaml)")
+
+
+def unguarded_classes(headers: list[dict], severity: str) -> list[str]:
+    """Classes of `severity` that NOTHING executes: no signature, and no guard file on disk.
+
+    Added 2026-09-25 for the nightly P1 pass: a critical class guarded only by prose is
+    guarded by memory. A `guard:` naming a file that no longer exists counts as no guard."""
+    out = []
+    for h in headers:
+        if h.get("severity") != severity or h["signature"]:
+            continue
+        paths = _GUARD_PATH.findall(h.get("guard") or "")
+        if not any((_REPO / p.split("::")[0]).exists() for p in paths):
+            out.append(h["id"])
     return out
 
 
@@ -974,6 +995,12 @@ def main() -> None:
                     help="Meta-guard: fail if a deterministic signature fires only on comments/docs "
                          "— i.e. on the text that describes the defect instead of the defect")
     ap.add_argument("--all", action="store_true", help="Run every class (default)")
+    ap.add_argument("--severity", metavar="P1",
+                    help="Only the classes of this severity; ALSO fails on one that has no "
+                         "executable guard (no signature, no existing guard file). Nightly: P1.")
+    ap.add_argument("--known-unguarded", default="", metavar="ID,ID",
+                    help="Frozen debt: unguarded classes already on the roadmap. A NEW one fails; "
+                         "one of these that gains a guard must be removed from the list.")
     ap.add_argument("--list", action="store_true", help="List classes and exit")
     ap.add_argument("--no-batch", action="store_true",
                     help="Run each pytest signature in its own invocation (the pre-batching\n                         behaviour). Slower by ~10x; use it to attribute a suspicious batch result.")
@@ -1046,6 +1073,21 @@ def main() -> None:
     else:
         selected = [c for c in classes if c["kind"] not in ("manual", "runtime-manual")]
         mode = "all"
+    unguarded: list[str] = []
+    if args.severity:
+        selected = [c for c in selected if c.get("severity") == args.severity]
+        unguarded = unguarded_classes(headers, args.severity)
+        known = {x for x in args.known_unguarded.split(",") if x}
+        healed = sorted(known - set(unguarded))
+        if healed:   # the list may only shrink: a stale entry would hide a relapse
+            print(f"⊘ --known-unguarded cite des classes désormais gardées : {', '.join(healed)} "
+                  "— les retirer de la liste")
+            sys.exit(1)
+        if known:
+            print(f"▶ dette figée ({len(known)}) : {', '.join(sorted(known))} — en roadmap, "
+                  "tolérée tant qu'elle ne grossit pas\n")
+        unguarded = [u for u in unguarded if u not in known]
+        mode += f", severity {args.severity}"
     print(f"▶ audit_runner ({mode}): {len(selected)} signatures\n")
 
     batched: dict[str, tuple[bool, str]] = {}
@@ -1090,6 +1132,11 @@ def main() -> None:
         print("  Ce n'est PAS une touche. Remède : `audit_runner.py --lint`, qui nomme "
               "le champ fautif.")
         sys.exit(2)
+    if unguarded:
+        print(f"\n⊘ {len(unguarded)} classe(s) {args.severity} sans AUCUN garde exécutable "
+              f"(ni signature, ni fichier de garde existant) : {', '.join(unguarded)}")
+        print("  Une classe critique que rien n'exécute n'est gardée que par la mémoire.")
+        sys.exit(1)
     if hits:
         print(f"\n⚠ {len(hits)} class(es) with hits: {', '.join(hits)}")
         if args.deterministic or args.static:

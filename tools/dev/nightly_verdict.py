@@ -48,6 +48,9 @@ def verdict(needs: dict) -> str | None:
         lines.append("public-surface-sweep : un secret est lisible HORS de l'historique de ce "
                      "dépôt (autre dépôt public, fork, journal Actions) — le log du job nomme "
                      "où, sans la valeur. Rotation d'abord (runbook §27).")
+    if "p1-classes" in failed:
+        lines.append("p1-classes : une classe d'erreur CRITIQUE (P1) est touchée, ou une P1 "
+                     "n'a plus aucun garde exécutable — `audit_runner.py --severity P1` la nomme.")
     if "reopen-check" in failed:
         lines.append("reopen-check : une condition de réouverture d'une tâche parquée est "
                      "remplie — `make reopen-check` la nomme ; la tâche revient à la roadmap.")

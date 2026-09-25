@@ -14,3 +14,16 @@ cf3fcfc17c0dcdb3ac4493966d6381e2f2cbd8b3:src/dashboard/views/spotify_s4a_combine
 77c0f985a83be6d7a3056bcd0e5bb6b31fa47e28:airflow/dags/meta_token_refresh.py:generic-api-key:161
 874a4f9b8b75c09b5f82f471a1e96933fb400e8f:.cache:generic-api-key:1
 6e9d9d3f29a19d3cf4cc8b11b19718963f1a545c:.cache:generic-api-key:1
+# R177, 2026-09-25 — ROTATED and proven refused by tools/dev/prove_old_secrets_dead.py
+# (Spotify, Meta app + token) or no longer in use (Airflow Fernet/secret_key, hash-compared).
+874a4f9b8b75c09b5f82f471a1e96933fb400e8f:airflow/.env:generic-api-key:15
+874a4f9b8b75c09b5f82f471a1e96933fb400e8f:airflow/.env:generic-api-key:20
+874a4f9b8b75c09b5f82f471a1e96933fb400e8f:docker-compose.yml:generic-api-key:22
+874a4f9b8b75c09b5f82f471a1e96933fb400e8f:docker-compose.yml:generic-api-key:46
+d88d859453950d75739f29536d8b99ee232e3064:docker-compose.yml:generic-api-key:65
+d88d859453950d75739f29536d8b99ee232e3064:docker-compose.yml:generic-api-key:70
+d88d859453950d75739f29536d8b99ee232e3064:docker-compose.yml:generic-api-key:71
+d88d859453950d75739f29536d8b99ee232e3064:docker-compose.yml:generic-api-key:113
+d88d859453950d75739f29536d8b99ee232e3064:docker-compose.yml:generic-api-key:118
+d88d859453950d75739f29536d8b99ee232e3064:docker-compose.yml:generic-api-key:119
+19039c2882b82d531857ec4160a709ee57b248b0:airflow/airflow.cfg:generic-api-key:1305

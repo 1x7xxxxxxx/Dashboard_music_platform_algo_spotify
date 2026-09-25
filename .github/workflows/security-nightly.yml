@@ -359,6 +359,35 @@ jobs:
           GITLEAKS: ${{ runner.temp }}/bin/gitleaks
         run: python3 tools/dev/sweep_public_surfaces.py | tee -a "$GITHUB_STEP_SUMMARY"
 
+  # ── The P1 classes, every night, without a model (2026-09-25) ───────────────────
+  # An impact analysis cannot be automated (a hook cannot spawn an agent); the KNOWN
+  # critical classes can. Every `severity: P1` signature runs here, and a P1 that nothing
+  # executes fails the job — except the frozen debt below, which is on the roadmap and may
+  # only shrink (audit_runner refuses a stale entry).
+  p1-classes:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    outputs:
+      outcome: ${{ steps.p1.outcome }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
+      - name: Install dependencies from lockfile
+        run: uv python install 3.11 && uv sync --frozen --extra dev
+      - name: P1 signatures + P1 classes with no executable guard
+        id: p1
+        continue-on-error: true
+        shell: bash
+        run: |
+          python3 .claude/scripts/audit_runner.py --severity P1 \
+            --known-unguarded migration-ahead-of-its-code | tee -a "$GITHUB_STEP_SUMMARY"
+
   # ── Un rouge qui n'arrive nulle part n'est pas une alerte (2026-09-25, R167) ──
   # Tous les jobs ci-dessus portent `continue-on-error` : le workflow est TOUJOURS vert.
   # `gitleaks` était rouge 5 nuits sur 5 et la suite en ordre aléatoire 4 sur 5, lus par
@@ -366,7 +395,7 @@ jobs:
   # et de l'audit, présents chaque nuit (faux positifs connus), vont dans le corps du mail
   # et ne le déclenchent pas seuls — sinon il partirait chaque nuit et serait ignoré.
   notify:
-    needs: [pip-audit, error-class-audit, action-drift, gitleaks, full-suite-random-order, reopen-check, public-surface-sweep]
+    needs: [pip-audit, error-class-audit, action-drift, gitleaks, full-suite-random-order, reopen-check, public-surface-sweep, p1-classes]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
