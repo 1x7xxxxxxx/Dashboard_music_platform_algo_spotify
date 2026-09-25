@@ -18,8 +18,10 @@ only check on a sweep was the `swept:` TEXT of the entry, validated in CI for it
 A hook cannot spawn an agent. It CAN refuse the one gesture that closes the loop without
 it: committing the catalogue entry. So:
 
-  * the diff (working tree vs HEAD — `git add -A && git commit` runs in one command, so
-    the index is still empty when this hook fires) adds >= 1 class or `(récidive)` line
+  * the working-tree catalogue, compared with HEAD's (`git add -A && git commit` runs in
+    one command, so the index is still empty when this hook fires), adds >= 1 class id or
+    (class, date) `(récidive)` pair — counted by SET difference, so a block that only
+    MOVES (the dormant ranking done by `make error-health`) adds nothing
     -> a `sibling-sweeper` Agent call, or an `engineering-loop` Workflow call, must exist
     in the project's transcripts of the last 48 h;
   * it adds >= 2 -> an `engineering-loop` Workflow call must exist.
@@ -44,12 +46,13 @@ import shlex
 import subprocess
 import sys
 import time
+from collections import Counter
 from pathlib import Path
 
 CATALOGUE = ".claude/dev-docs/error-classes.md"
 WINDOW_S = 48 * 3600
-_CLASS_HEAD = re.compile(r"^\+## [a-z0-9][a-z0-9-]+\s*$")
-_RECURRENCE = re.compile(r"^\+\s+- \d{4}-\d{2}-\d{2} \(récidive\):")
+_CLASS_HEAD = re.compile(r"^## ([a-z0-9][a-z0-9-]+)\s*$")
+_RECURRENCE = re.compile(r"^\s+- (\d{4}-\d{2}-\d{2}) \(récidive\):")
 _SPLIT = re.compile(r"&&|\|\||;|\|")
 
 
@@ -71,9 +74,38 @@ def is_git_commit(command: str) -> bool:
     return False
 
 
-def added_entries(diff: str) -> int:
-    return sum(1 for line in diff.splitlines()
-               if _CLASS_HEAD.match(line) or _RECURRENCE.match(line))
+def _entries(text: str) -> tuple[set[str], Counter]:
+    """(class ids, multiset of (class, date) récidive pairs) of one catalogue text."""
+    ids: set[str] = set()
+    pairs: Counter = Counter()
+    current = None
+    for line in text.splitlines():
+        head = _CLASS_HEAD.match(line)
+        if head:
+            current = head.group(1)
+            ids.add(current)
+        elif line.startswith("## "):
+            current = None                           # a section that is not a class
+        elif current:
+            rec = _RECURRENCE.match(line)
+            if rec:
+                pairs[(current, rec.group(1))] += 1
+    return ids, pairs
+
+
+def added_entries(before: str, after: str) -> int:
+    """Classes and récidives ADDED, by SET difference — never by counting `+` lines.
+
+    ⚠️ Counting the `+` lines of a diff counted a MOVED block as an added one: measured
+    on `1be1c8b` (one récidive, the block moved above the dormant separator) the old
+    counter returned **2**; on `f30d724`, **4**. Since `make error-health` ranks the
+    catalogue itself (`rank_catalogue`), every regeneration moves blocks, and a line
+    counter would block or over-count each time. An id that already existed, a
+    récidive already dated, is not added.
+    """
+    ids_before, pairs_before = _entries(before)
+    ids_after, pairs_after = _entries(after)
+    return len(ids_after - ids_before) + sum((pairs_after - pairs_before).values())
 
 
 def transcripts_dir(repo: Path) -> Path:
@@ -153,11 +185,13 @@ def main() -> int:
                              capture_output=True, text=True, timeout=10).stdout.strip()
         if not top:
             return 0
-        diff = subprocess.run(["git", "-C", top, "diff", "HEAD", "-U0", "--", CATALOGUE],
-                              capture_output=True, text=True, timeout=20).stdout
-    except (OSError, subprocess.SubprocessError):
+        committed = subprocess.run(["git", "-C", top, "show", f"HEAD:{CATALOGUE}"],
+                                   capture_output=True, text=True, timeout=20).stdout
+        catalogue = Path(top) / CATALOGUE
+        on_disk = catalogue.read_text(encoding="utf-8") if catalogue.exists() else ""
+    except (OSError, subprocess.SubprocessError, UnicodeDecodeError):
         return 0
-    n = added_entries(diff)
+    n = added_entries(committed, on_disk)
     if n == 0:
         return 0
     m = re.search(r"\bSWEEP_OVERRIDE=(\S+)", command)

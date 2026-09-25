@@ -4,7 +4,9 @@
 Type: Utility
 Uses: .claude/scripts/audit_runner (parse), tools/dev/error_class_families (classify), git
 Triggers: make error-health / make error-health-check
-Persists in: .claude/dev-docs/error-class-health.{json,md} — versionnés
+Persists in: .claude/dev-docs/error-class-health.{json,md} — versionnés ; et l'ORDRE des
+             blocs de .claude/dev-docs/error-classes.md (vivantes / dormantes, voir
+             `rank_catalogue`) — le contenu d'aucun bloc n'est modifié
 
 Pourquoi cet outil existe
 -------------------------
@@ -222,6 +224,116 @@ def _blocks(text: str) -> dict[str, str]:
             continue
         out[cid] = "\n".join(lines[1:])
     return out
+
+
+# ── Le rangement : vivantes d'abord, dormantes ensuite ───────────────────────
+#
+# ⚠️ AVANT LE 2026-09-25, CE RANGEMENT N'ÉTAIT FAIT PAR PERSONNE. Le critère vivait dans
+# UN test (`tests/test_the_dormant_classes_are_ranked_not_lost.py::_dormante`), aucun
+# producteur ne le lisait, et l'en-tête de la section promettait « une classe sort d'ici
+# mécaniquement ». Trois déplacements à la main mesurés (DEVLOG 2026-09-20, f30d724,
+# 1be1c8b), un seul sens vérifié (une classe qui se RÉVEILLE), et 31 classes qui
+# s'étaient ENDORMIES au-dessus du séparateur sans que rien le voie ; l'en-tête disait
+# 206 / 196 quand le catalogue en portait 203 / 211.
+#
+# Le prédicat est RECOPIÉ dans le test, pas importé, et c'est voulu : un oracle importé
+# resterait vert sous une mutation de celui-ci.
+DORMANT_HEADING = "## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site"
+_DORMANT_HEADER = """{heading}
+
+> Les {dormant} classes qui suivent remplissent **toutes** ces conditions, calculées depuis
+> `error-class-health.json` et non au jugé (`tools/dev/error_class_health.py::is_dormant`) :
+>
+> * `history_additions == 0` — jamais récidivé sur la fenêtre observée ;
+> * `siblings_sites == 0` — un balayage **a eu lieu** et n'a trouvé aucun autre site
+>   (« muet » ne compte pas) ;
+> * `status` ∈ {{`guarded`, `resolved`, `fixed`}} ;
+> * un garde AUTOMATIQUE, dont le fichier `tests/…` existe.
+>
+> **Elles ne sont ni archivées ni supprimées.** Elles vivent dans ce fichier, leurs
+> signatures tournent, leurs gardes tournent, `--coverage` les compte. Elles sont
+> seulement RANGÉES APRÈS, pour qu'un humain qui ouvre ce document rencontre d'abord
+> les {live} classes encore vivantes.
+>
+> ⚠️ **Pourquoi pas un second fichier.** C'était le plan, et la mesure l'a écarté : le
+> gain en temps est de **≈ 0 s** — les 8,46 s du cliquet de santé viennent du rejeu de
+> l'historique git, que scinder le fichier ne touche pas — pour un rayon de souffle de
+> **47 sites lecteurs**, chacun devant décider « actif seul ou les deux ? ». Un second
+> fichier qu'un lecteur oublie est la dérive que ce dépôt paie le plus souvent. Un
+> titre de section coûte une ligne et ne peut être oublié par personne.
+>
+> **Ce bloc et l'ordre des classes sont GÉNÉRÉS** par `make error-health` : une classe
+> qui récidive, dont le balayage trouve un site ou dont le garde disparaît remonte en fin
+> de moitié vivante ; une classe qui remplit les quatre conditions descend ici. Les deux
+> nombres ci-dessus sont recalculés à chaque passe. `make error-health-check` (CI) échoue
+> si le catalogue n'est pas rangé — un rangement oublié ne peut plus être commité.
+
+"""
+
+
+def is_dormant(rec: "dict | None", root: Path = ROOT) -> bool:
+    """Une classe DORT : jamais récidivé, balayage à zéro site, close, garde auto existant.
+
+    Un enregistrement absent ou partiel (classe écrite dans la séance, pas encore notée)
+    n'est JAMAIS dormant : `siblings_sites` manque, donc la deuxième clause échoue.
+    """
+    if not rec:
+        return False
+    if rec.get("history_additions", 0) != 0:
+        return False
+    if rec.get("siblings_sites") != 0:
+        return False
+    if rec.get("status") not in ("guarded", "resolved", "fixed"):
+        return False
+    if not rec.get("guard_automatic"):
+        return False
+    g = rec.get("guard_ref") or ""
+    return g.startswith("tests/") and (root / g.split("::")[0]).exists()
+
+
+def _class_id_of(segment: str) -> str | None:
+    """L'id d'un segment `## …`, avec le MÊME critère que `_blocks()`."""
+    head = segment[3:].split("\n", 1)[0]
+    cid = (head.strip().split() or [""])[0]
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]+", cid) or cid == "class-id":
+        return None
+    return cid
+
+
+def rank_catalogue(text: str, classes: dict, root: Path = ROOT) -> str:
+    """Le catalogue rangé : vivantes, puis l'en-tête des dormantes, puis les dormantes.
+
+    Partition STABLE : chaque moitié garde son ordre relatif, donc le diff d'un
+    rangement ne contient que les blocs qui franchissent le séparateur, et une seconde
+    passe ne change rien (point fixe). Un bloc est déplacé OCTET POUR OCTET — `_blocks()`
+    compare les corps révision par révision, et un saut de ligne ajouté à un bloc
+    déplacé se compterait comme une révision de la classe. Seule la fin du fichier est
+    normalisée à UN saut de ligne, ce que le crochet `end-of-file-fixer` imposerait de
+    toute façon.
+    """
+    segments = re.split(r"(?m)^(?=## )", text)
+    first = next((i for i, s in enumerate(segments)
+                  if s.startswith("## ") and _class_id_of(s)), None)
+    if first is None:
+        return text
+    live: list[str] = []
+    dormant: list[str] = []
+    for seg in segments[first:]:
+        if seg.startswith(DORMANT_HEADING.split(" — ")[0]):
+            continue                                    # régénéré plus bas
+        cid = _class_id_of(seg)
+        if cid is None:
+            raise ValueError(
+                f"section non-classe au milieu des classes : {seg.splitlines()[0]!r} — "
+                "le rangement ne sait pas où la mettre ; déplacez-la avant la première "
+                "classe.")
+        if not seg.endswith("\n"):
+            seg += "\n"
+        (dormant if is_dormant(classes.get(cid), root) else live).append(seg)
+    header = _DORMANT_HEADER.format(heading=DORMANT_HEADING,
+                                    dormant=len(dormant), live=len(live))
+    out = "".join(segments[:first]) + "".join(live) + header + "".join(dormant)
+    return out.rstrip("\n") + "\n"
 
 
 def _known_families() -> set[str]:
@@ -1153,8 +1265,11 @@ def main() -> int:
             "   comme la révision COURANTE. L'histoire vient de git, l'état vient du\n"
             "   disque, et les deux décrivent le même catalogue.\n")
     js, md = build()
+    text = CATALOGUE.read_text(encoding="utf-8")
+    ranked = rank_catalogue(text, json.loads(js)["classes"])
     if args.check:
-        for path, fresh, remedy in ((DATA, js, "make error-health"),
+        for path, fresh, remedy in ((CATALOGUE, ranked, "make error-health (rangement)"),
+                                    (DATA, js, "make error-health"),
                                     (DOC, md, "make error-health")):
             current = path.read_text(encoding="utf-8") if path.exists() else ""
             if current == fresh:
@@ -1166,6 +1281,16 @@ def main() -> int:
                              f"Remède : {remedy}\n\n" + diff[:8000] + "\n")
             return 1
         return 0
+    if ranked != text:
+        # L'instantané se CALCULE depuis le catalogue, et le rangement change le
+        # catalogue (une révision en attente de plus) : on range, on recalcule, puis on
+        # exige le point fixe — une seconde passe ne doit rien déplacer.
+        CATALOGUE.write_text(ranked, encoding="utf-8")
+        js, md = build()
+        if rank_catalogue(ranked, json.loads(js)["classes"]) != ranked:
+            sys.stderr.write("rangement instable : une seconde passe déplace encore des "
+                             "blocs. Le prédicat dépend de la position — à corriger.\n")
+            return 1
     DATA.write_text(js, encoding="utf-8")
     DOC.write_text(md, encoding="utf-8")
     print(f"écrit : {DATA.relative_to(ROOT)} + {DOC.relative_to(ROOT)} "

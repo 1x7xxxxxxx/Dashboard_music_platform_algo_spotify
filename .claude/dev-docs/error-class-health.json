@@ -2526,12 +2526,13 @@
       "guard_scope_declared_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
         "2026-09-21",
-        "2026-09-22"
+        "2026-09-22",
+        "2026-09-25"
       ],
       "kind": "deterministic",
       "seen_red": "self-proving",
@@ -2541,8 +2542,8 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-22",
-      "revisions": 0,
-      "history_additions": 0,
+      "revisions": 1,
+      "history_additions": 1,
       "renamed_from": null
     },
     "a-prose-claim-that-cannot-be-verified": {
@@ -11389,7 +11390,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 369,
+      "catalogue_revisions": 370,
       "head_date": "2026-09-25"
     },
     "holes": {
@@ -11411,7 +11412,7 @@
     "population": {
       "automatic_guard": 405,
       "classes": 415,
-      "ever_recurred_observed": 47,
+      "ever_recurred_observed": 48,
       "prose_only": 10,
       "with_signature": 403
     },
@@ -11419,23 +11420,23 @@
       "window_start": "2026-05-15",
       "as_of": "2026-09-25",
       "observed": {
-        "events": 59,
+        "events": 60,
         "class_days": 11246,
-        "per_class_month": 0.1595,
+        "per_class_month": 0.1622,
         "ci95": [
-          0.1214,
-          0.2057
+          0.1238,
+          0.2088
         ]
       },
       "class_days_exposed": 11246,
       "by_guard": {
         "automatique": {
-          "events": 54,
+          "events": 55,
           "class_days": 11003,
-          "per_class_month": 0.1492,
+          "per_class_month": 0.152,
           "ci95": [
-            0.1121,
-            0.1947
+            0.1145,
+            0.1978
           ]
         },
         "prose": {
@@ -11459,34 +11460,34 @@
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 39,
+          "events": 40,
           "class_days": 7506,
-          "per_class_month": 0.158,
+          "per_class_month": 0.162,
           "ci95": [
-            0.1123,
-            0.2159
+            0.1157,
+            0.2206
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
-          "events": 59,
+          "events": 60,
           "class_days": 11246,
-          "per_class_month": 0.1595,
+          "per_class_month": 0.1622,
           "ci95": [
-            0.1214,
-            0.2057
+            0.1238,
+            0.2088
           ]
         }
       },
       "by_guard_since": {
         "avec-garde": {
-          "events": 54,
+          "events": 55,
           "class_days": 10416,
-          "per_class_month": 0.1576,
+          "per_class_month": 0.1605,
           "ci95": [
-            0.1184,
-            0.2056
+            0.1209,
+            0.2089
           ]
         },
         "sans-garde": {

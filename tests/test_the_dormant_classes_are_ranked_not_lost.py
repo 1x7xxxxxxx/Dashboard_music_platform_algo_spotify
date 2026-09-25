@@ -37,6 +37,7 @@ Ce que ce fichier tient
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import pathlib
 import re
@@ -126,3 +127,154 @@ def test_the_live_half_is_not_empty_and_is_the_smaller_one() -> None:
         f"seulement {len(vivantes)} classe(s) avant le séparateur. Soit le critère "
         "s'est élargi au point de tout endormir, soit la lecture est cassée — dans les "
         "deux cas le classement ne dit plus rien.")
+
+
+# ── Le rangement est FAIT par l'outil, et vérifié dans les deux sens (2026-09-25) ──
+#
+# Jusqu'ici ce fichier était le SEUL endroit où vivait le critère : aucun producteur ne
+# le lisait, et chaque classe réveillée a été remontée À LA MAIN après que ce test a
+# rougi (DEVLOG 2026-09-20, f30d724, 1be1c8b). Le sens inverse — une classe qui
+# s'ENDORT au-dessus du séparateur — n'était vérifié par rien : mesuré ce jour-là,
+# **31 classes** y remplissaient le critère, et l'en-tête annonçait 206 / 196 pour
+# 203 / 211 réels. Désormais `tools/dev/error_class_health.py::rank_catalogue` range, et
+# `make error-health-check` échoue sur un catalogue non rangé.
+#
+# ⚠️ `_dormante` ci-dessus reste l'oracle, RECOPIÉ et non importé de l'outil : un
+# prédicat importé resterait vert sous une mutation de celui qu'il garde.
+
+_GEN = ROOT / "tools" / "dev" / "error_class_health.py"
+_GARDE = "tests/test_the_dormant_classes_are_ranked_not_lost.py"
+
+
+def _outil():
+    spec = importlib.util.spec_from_file_location("error_class_health_rank", _GEN)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _ids(texte: str) -> list[str]:
+    return [m.group(1) for b in re.split(r"(?m)^(?=## )", texte)[1:]
+            for m in [_HEAD.match(b.split("\n", 1)[0])] if m]
+
+
+def _rec(**kw) -> dict:
+    base = {"history_additions": 0, "siblings_sites": 0, "status": "guarded",
+            "guard_automatic": True, "guard_ref": _GARDE}
+    base.update(kw)
+    return base
+
+
+def _bloc(cid: str) -> str:
+    return f"## {cid}\n- status: guarded\n- History:\n  - 2026-09-01: {cid} est née\n\n"
+
+
+_AVANT = ("vivante-a", "endormie-b", "vivante-c")
+_APRES = ("reveillee-d", "dormante-e", "jamais-notee-f")
+_RECS = {
+    "vivante-a": _rec(status="open"),
+    "endormie-b": _rec(),                        # remplit tout, AU-DESSUS : doit descendre
+    "vivante-c": _rec(siblings_sites=None),      # balayage muet : vivante
+    "reveillee-d": _rec(history_additions=1),    # a récidivé, EN DESSOUS : doit remonter
+    "dormante-e": _rec(),
+    # `jamais-notee-f` n'a AUCUN enregistrement : écrite dans la séance, pas encore notée.
+}
+
+
+def _catalogue_jouet() -> str:
+    return ("# Catalogue\n\n## Contract\nprose d'en-tête\n\n"
+            + "".join(_bloc(c) for c in _AVANT)
+            + "## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site\n\n"
+            + "> Les 206 classes qui suivent — un nombre périmé.\n\n"
+            + "".join(_bloc(c) for c in _APRES))
+
+
+def _attendu_par_l_oracle(ordre: list[str]) -> tuple[list[str], list[str]]:
+    dort = [c for c in ordre if c in _RECS and _dormante(_RECS[c])]
+    return [c for c in ordre if c not in dort], dort
+
+
+def test_the_tool_ranks_both_directions_as_the_oracle_says() -> None:
+    """(a) Une classe réveillée remonte, une classe endormie descend — et rien ne se perd."""
+    texte = _catalogue_jouet()
+    range_ = _outil().rank_catalogue(texte, _RECS)
+    vivantes, dormantes = _attendu_par_l_oracle(list(_AVANT + _APRES))
+    sep = range_.index(_SEP)
+    assert _ids(range_[:sep]) == vivantes and _ids(range_[sep:]) == dormantes, (
+        f"rangement de l'outil : {_ids(range_[:sep])} | {_ids(range_[sep:])} ; l'oracle "
+        f"de ce test attend {vivantes} | {dormantes}. Une classe réveillée doit remonter "
+        "EN FIN de moitié vivante, une classe endormie descendre, chaque moitié gardant "
+        "son ordre.")
+    for c in _AVANT + _APRES:
+        # La fin du fichier est normalisée à UN saut de ligne (end-of-file-fixer).
+        assert range_.count(_bloc(c).rstrip("\n") + "\n") == 1, (
+            f"le bloc `{c}` n'a pas été déplacé octet pour octet")
+    assert "jamais-notee-f" in _ids(range_[:sep]), (
+        "une classe SANS enregistrement de santé a été rangée parmi les dormantes : une "
+        "classe neuve, jamais auditée, disparaîtrait sous le séparateur à sa première "
+        "régénération.")
+    assert "Les 2 classes qui suivent" in range_ and "les 4 classes encore vivantes" in range_, (
+        "l'en-tête régénéré ne porte pas les nombres mesurés (2 dormantes, 4 vivantes)")
+
+
+def test_the_ranking_is_a_fixed_point() -> None:
+    """(b) Une seconde passe ne déplace rien — sinon chaque régénération réécrit le fichier."""
+    outil = _outil()
+    une = outil.rank_catalogue(_catalogue_jouet(), _RECS)
+    assert outil.rank_catalogue(une, _RECS) == une
+    reel = _CAT.read_text(encoding="utf-8")
+    sante = json.loads(_SANTE.read_text(encoding="utf-8"))["classes"]
+    assert outil.rank_catalogue(reel, sante) == reel, (
+        "le catalogue versionné n'est pas rangé selon l'instantané versionné. "
+        "Remède : make error-health.")
+
+
+def test_main_writes_the_ranking_and_a_second_run_changes_nothing(tmp_path, monkeypatch) -> None:
+    """(b) Le chemin d'ÉCRITURE : `main()` range le catalogue, deux passes sont identiques."""
+    outil = _outil()
+    cat, data, doc = tmp_path / "cat.md", tmp_path / "h.json", tmp_path / "h.md"
+    cat.write_text(_catalogue_jouet(), encoding="utf-8")
+    js = json.dumps({"classes": _RECS})
+    monkeypatch.setattr(outil, "CATALOGUE", cat)
+    monkeypatch.setattr(outil, "DATA", data)
+    monkeypatch.setattr(outil, "DOC", doc)
+    monkeypatch.setattr(outil, "ROOT", tmp_path)   # affichage seul ; is_dormant lit le vrai
+    monkeypatch.setattr(outil, "build", lambda: (js, "doc\n"))
+    monkeypatch.setattr(outil, "_catalogue_differs_from_head", lambda: False)
+    monkeypatch.setattr(outil.sys, "argv", ["error_class_health.py"])
+    assert outil.main() == 0
+    premiere = cat.read_bytes()
+    assert premiere != _catalogue_jouet().encode(), "main() n'a pas écrit le rangement"
+    assert outil.main() == 0
+    assert cat.read_bytes() == premiere, "deux passes de main() ne rendent pas les mêmes octets"
+    monkeypatch.setattr(outil.sys, "argv", ["error_class_health.py", "--check"])
+    assert outil.main() == 0
+    cat.write_text(_catalogue_jouet(), encoding="utf-8")
+    assert outil.main() == 1, "--check reste vert sur un catalogue NON rangé"
+
+
+def test_the_header_counts_are_the_measured_counts() -> None:
+    """(c) L'en-tête dit COMBIEN — et le nombre est le bon, pas seulement un nombre."""
+    texte = _CAT.read_text(encoding="utf-8")
+    i = texte.index(_SEP)
+    entete = texte[i:i + 2500]
+    dit_dormantes = re.search(r"Les (\d+) classes qui suivent", entete)
+    dit_vivantes = re.search(r"les (\d+) classes encore vivantes", entete)
+    assert dit_dormantes and dit_vivantes, "l'en-tête ne porte plus ses deux nombres"
+    mesure = (len(_ids(texte[:i])), len(_ids(texte[i:])))
+    assert (int(dit_vivantes.group(1)), int(dit_dormantes.group(1))) == mesure, (
+        f"l'en-tête dit {dit_vivantes.group(1)} vivantes / {dit_dormantes.group(1)} "
+        f"dormantes, le catalogue en porte {mesure[0]} / {mesure[1]}. Il annonçait 196 / "
+        "206 pour 211 / 203 le 2026-09-25 — un nombre écrit à la main se périme.")
+
+
+def test_no_class_above_the_separator_meets_the_criterion() -> None:
+    """(d) Le sens qui manquait : une classe qui s'ENDORT doit descendre."""
+    texte = _CAT.read_text(encoding="utf-8")
+    sante = json.loads(_SANTE.read_text(encoding="utf-8"))["classes"]
+    endormies = [c for c in _ids(texte[:texte.index(_SEP)])
+                 if c in sante and _dormante(sante[c])]
+    assert not endormies, (
+        f"{len(endormies)} classe(s) au-dessus du séparateur remplissent le critère du "
+        f"sommeil : {endormies[:5]}. 31 le 2026-09-25, invisibles parce que seul le sens "
+        "« réveil » était vérifié. Remède : make error-health.")
