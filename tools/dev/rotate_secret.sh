@@ -22,6 +22,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PROD="${ROTATE_PROD_SSH-root@167.233.92.1}"          # empty = local files only (tests)
 PROD_ENV="${ROTATE_PROD_ENV:-/opt/streamlytics/.env}"
 read -r -a LOCAL_FILES <<< "${ROTATE_ENV_FILES:-$REPO/.env $REPO/.env.local}"
+source "$(dirname "${BASH_SOURCE[0]}")/secret_dialog.sh"
 ALLOWED="SPOTIFY_CLIENT_SECRET YOUTUBE_API_KEY META_APP_SECRET SOUNDCLOUD_CLIENT_SECRET"
 
 [ $# -ge 1 ] || { echo "usage: $0 VAR [VAR…]   (parmi : $ALLOWED)"; exit 2; }
@@ -57,9 +58,13 @@ if [ -n "$PROD" ]; then
 fi
 
 for v in "$@"; do
-    printf "Nouvelle valeur de %s (masquée, Entrée pour valider) : " "$v" > /dev/tty 2>/dev/null || true
-    IFS= read -rs val
-    echo > /dev/tty 2>/dev/null || true
+    if [ "${ROTATE_GUI-}" = 1 ]; then
+        val="$(dialog "$v")"          # masked Windows dialog — lets Claude run the script
+    else
+        printf "Nouvelle valeur de %s (masquée, Entrée pour valider) : " "$v" > /dev/tty 2>/dev/null || true
+        IFS= read -rs val
+        echo > /dev/tty 2>/dev/null || true
+    fi
     [ -n "$val" ] || { echo "❌ $v : valeur vide, rien n'est changé"; exit 1; }
     echo "🔑 $v : ${#val} caractères reçus"
     for f in "${LOCAL_FILES[@]}"; do

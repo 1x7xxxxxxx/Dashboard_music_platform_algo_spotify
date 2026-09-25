@@ -44,3 +44,16 @@ def test_an_empty_value_changes_nothing(tmp_path) -> None:
     (tmp_path / ".env").write_text("YOUTUBE_API_KEY=old\n")
     r = _run(tmp_path, "YOUTUBE_API_KEY", value="")
     assert r.returncode == 1 and "YOUTUBE_API_KEY=old" in (tmp_path / ".env").read_text()
+
+
+def test_the_gui_mode_reads_the_dialog_not_stdin(tmp_path) -> None:
+    """ROTATE_GUI=1 takes the value from the dialog, so Claude can run it with no TTY."""
+    (tmp_path / ".env").write_text("META_APP_SECRET=old\n")
+    r = subprocess.run(["bash", str(_SCRIPT), "META_APP_SECRET"], input="", text=True,
+                       capture_output=True, timeout=30,
+                       env={"PATH": "/usr/bin:/bin", "ROTATE_PROD_SSH": "", "ROTATE_GUI": "1",
+                            "SECRET_PROMPT_CMD": f"printf '%s' '{_NEW}'",
+                            "ROTATE_ENV_FILES": f"{tmp_path}/.env"})
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert f"META_APP_SECRET={_NEW}" in (tmp_path / ".env").read_text()
+    assert _NEW not in r.stdout + r.stderr
