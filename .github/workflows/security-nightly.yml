@@ -140,12 +140,19 @@ jobs:
   gitleaks:
     runs-on: ubuntu-latest
     continue-on-error: true   # historical leaks triaged pre-prod, not here
+    # ⚠️ `continue-on-error` fait rapporter `success` à `needs.gitleaks.result` MÊME quand
+    # le job échoue (mesuré le 2026-09-25 : job `failure`, needs `success`). L'issue réelle
+    # de l'étape est donc publiée ici, et c'est elle que `notify` lit.
+    outputs:
+      outcome: ${{ steps.scan.outcome }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0   # gitleaks needs full history to scan all commits
 
       - name: Run gitleaks
+        id: scan
+        continue-on-error: true
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -175,6 +182,8 @@ jobs:
   full-suite-random-order:
     runs-on: ubuntu-latest
     continue-on-error: true   # observational — never fail the workflow
+    outputs:
+      outcome: ${{ steps.suite.outcome }}   # needs.<job>.result ment sous continue-on-error
 
     services:
       postgres:
@@ -223,6 +232,8 @@ jobs:
           echo "key=$(python3 -c 'import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')" >> "$GITHUB_OUTPUT"
 
       - name: Full suite, random order, with coverage (report to summary)
+        id: suite
+        continue-on-error: true
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/spotify_etl  # pragma: allowlist secret
           AIRFLOW_USERNAME: ci

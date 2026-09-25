@@ -27,7 +27,13 @@ _FAILED = {"failure", "cancelled"}
 
 def verdict(needs: dict) -> str | None:
     """The mail body when a job failed, else None."""
-    failed = sorted(j for j, v in needs.items() if (v or {}).get("result") in _FAILED)
+    # `result` alone LIES: a job under `continue-on-error` reports `success` to `needs` even
+    # when it failed (measured on the first dispatch, 2026-09-25). A job that can fail
+    # publishes its step's real `outcome`; that wins over `result`.
+    def _state(v: dict) -> str:
+        v = v or {}
+        return (v.get("outputs") or {}).get("outcome") or v.get("result") or ""
+    failed = sorted(j for j, v in needs.items() if _state(v) in _FAILED)
     if not failed:
         return None
     out = lambda j, k: ((needs.get(j) or {}).get("outputs") or {}).get(k, "?")  # noqa: E731

@@ -11,16 +11,14 @@ title = "streamlytics"
 [extend]
 useDefault = true
 
-[[allowlists]]
-description = "detect-secrets baseline : uniquement des hachés SHA-1 de correspondances déjà reconnues"
+# ⚠️ `[allowlist]` (une seule table) et NON `[[allowlists]]` : l'action de CI embarque
+# gitleaks 8.24.3, qui ignore la forme plurielle (8.25+). Mesuré le 2026-09-25 : la forme
+# plurielle rendait 12 en local (8.28) et 24 en CI (8.24.3). Chemin OU regex : l'un suffit.
+[allowlist]
+description = "baseline detect-secrets (hachés SHA-1) ; clés de widget Streamlit ; admin:admin cité comme anti-exemple"
 paths = ['''^\.secrets\.baseline$''']
-
-[[allowlists]]
-description = "clés de widget Streamlit : identifiants snake_case en minuscules, jamais des secrets"
 regexTarget = "line"
-regexes = ['''\bkey\s*=\s*["'][a-z0-9]+(?:_[a-z0-9]+)+["']''']
-
-[[allowlists]]
-description = "admin:admin par défaut d'Airflow, cité comme l'anti-exemple"
-regexTarget = "line"
-regexes = ['''curl -u admin:admin''']
+regexes = [
+  '''\bkey\s*=\s*["'][a-z0-9]+(?:_[a-z0-9]+)+["']''',
+  '''curl -u admin:admin''',
+]
