@@ -100,6 +100,37 @@ def _needs_history(job: dict) -> bool:
                for step in job.get("steps", []))
 
 
+def _shallow_jobs(doc: dict) -> list[str]:
+    """Jobs that READ git history but check out at depth 1."""
+    out = []
+    for jname, job in (doc.get("jobs") or {}).items():
+        if not _needs_history(job):
+            continue
+        for step in job.get("steps", []):
+            if not str(step.get("uses", "")).startswith("actions/checkout"):
+                continue
+            if str((step.get("with") or {}).get("fetch-depth", "")) != "0":
+                out.append(jname)
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity on a FABRICATED workflow: a job running the health tool (it reads
+    `git log`) behind a default shallow checkout; the corrected depth; and a job that
+    reads no history, which must not be asked to fetch it."""
+    runs_health = "python3 tools/dev/error_class_health.py --check"
+    defect = {"jobs": {"gates": {"steps": [{"uses": "actions/checkout@v6"},
+                                           {"run": runs_health}]}}}
+    assert _shallow_jobs(defect) == ["gates"], "a history reader at depth 1 must be seen"
+    fixed = {"jobs": {"gates": {"steps": [{"uses": "actions/checkout@v6",
+                                           "with": {"fetch-depth": 0}},
+                                          {"run": runs_health}]}}}
+    assert _shallow_jobs(fixed) == []
+    no_history = {"jobs": {"deploy": {"steps": [{"uses": "actions/checkout@v6"},
+                                                {"run": "railway up --detach"}]}}}
+    assert _shallow_jobs(no_history) == [], "a job that reads no history is exempt"
+
+
 def test_only_the_jobs_that_read_history_are_required_to_fetch_it() -> None:
     """Le garde vise un GESTE (lire `git log`), pas tous les checkout du dépôt.
 
@@ -108,17 +139,8 @@ def test_only_the_jobs_that_read_history_are_required_to_fetch_it() -> None:
     `prod-health::prod-health`, qui n'en lance qu'UN fichier — deux faux positifs
     qui auraient appris à ignorer ce garde.
     """
-    shallow = []
-    for wf in _WORKFLOWS:
-        doc = yaml.safe_load(wf.read_text(encoding="utf-8"))
-        for jname, job in (doc.get("jobs") or {}).items():
-            if not _needs_history(job):
-                continue
-            for step in job.get("steps", []):
-                if not str(step.get("uses", "")).startswith("actions/checkout"):
-                    continue
-                if str((step.get("with") or {}).get("fetch-depth", "")) != "0":
-                    shallow.append(f"{wf.name}::{jname}")
+    shallow = [f"{wf.name}::{j}" for wf in _WORKFLOWS
+               for j in _shallow_jobs(yaml.safe_load(wf.read_text(encoding="utf-8")))]
     assert not shallow, (
         "ces jobs LISENT l'histoire git et clonent en profondeur 1 : "
         + ", ".join(sorted(set(shallow))) + ".\n"

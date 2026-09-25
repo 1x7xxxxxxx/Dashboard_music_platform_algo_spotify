@@ -116,3 +116,16 @@ def test_no_mail_body_hardcodes_a_localhost_airflow_url():
         f"URL Airflow `localhost` écrite en dur dans un corps d'e-mail : {offenders}. "
         "Utiliser `instance_identity.airflow_base_url()`, lu à l'appel."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path) -> None:
+    """Non-vacuity on a FABRICATED sender: a subject without `instance_label()` (a dev
+    instance mailing in production's voice) is seen; the labelled subject is not; the
+    function named only in a COMMENT does not count."""
+    sender = tmp_path / "fake_sender.py"
+    sender.write_text(
+        "def send(msg):\n"
+        "    msg['Subject'] = 'Rapport hebdomadaire'  # instance_label() forgotten\n"
+        "    msg['Subject'] = f'{instance_label()}Rapport hebdomadaire'\n", encoding="utf-8")
+    verdicts = [(ln, _mentions_label(v)) for ln, v in _subject_assignments(sender)]
+    assert verdicts == [(2, False), (3, True)]

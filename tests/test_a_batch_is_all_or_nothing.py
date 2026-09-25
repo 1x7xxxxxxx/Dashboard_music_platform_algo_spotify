@@ -161,3 +161,22 @@ def test_a_failing_row_leaves_none_of_its_batch_behind() -> None:
     finally:
         clean()
         db.close()
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity on FABRICATED methods: a batch outside `_atomic()` (one commit per row,
+    the 2026-09 shape) is refused; the same batch inside it is accepted; a `with` on
+    another context manager does not count."""
+    def fn(src: str) -> ast.FunctionDef:
+        return ast.parse(src).body[0]
+    outside = fn("def upsert_many(self, rows):\n"
+                 "    execute_values(self.cur, SQL, rows)\n")
+    inside = fn("def upsert_many(self, rows):\n"
+                "    with self._atomic():\n"
+                "        execute_values(self.cur, SQL, rows)\n")
+    other = fn("def upsert_many(self, rows):\n"
+               "    with self.lock:\n"
+               "        execute_values(self.cur, SQL, rows)\n")
+    assert not _guards_with_atomic(outside)
+    assert _guards_with_atomic(inside)
+    assert not _guards_with_atomic(other)
