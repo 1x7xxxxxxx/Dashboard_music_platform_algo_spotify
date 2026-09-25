@@ -112,6 +112,15 @@ jobs:
       - name: Install dependencies from lockfile
         run: uv python install 3.11 && uv sync --frozen --extra dev
 
+      # `mermaid-block-does-not-render` needs mmdc; without it the signature rightly exits 2
+      # (« a validator that shrugs when its tool is missing reports clean »). Found by the
+      # first nightly able to fail, 2026-09-25.
+      - name: Install mermaid CLI (for the mermaid signature)
+        run: |
+          npm install -g @mermaid-js/mermaid-cli@11 >/dev/null
+          echo '{"args": ["--no-sandbox"]}' > "$RUNNER_TEMP/puppeteer.json"
+          echo "MMDC_PUPPETEER_CONFIG=$RUNNER_TEMP/puppeteer.json" >> "$GITHUB_ENV"
+
       - name: Run error-class audit (report to summary)
         id: audit
         run: |

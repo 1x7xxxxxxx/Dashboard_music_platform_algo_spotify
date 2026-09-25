@@ -31,6 +31,7 @@ rex:
 """
 from __future__ import annotations
 
+import os
 import pathlib
 import re
 import shutil
@@ -69,7 +70,10 @@ def main() -> int:
         for path, idx, src in blocks:
             f = pathlib.Path(tmp) / f"b{idx}.mmd"
             f.write_text(src, encoding="utf-8")
-            r = subprocess.run([exe, "-i", str(f), "-o", str(f.with_suffix(".svg"))],
+            # MMDC_PUPPETEER_CONFIG: a CI runner (Ubuntu 24) forbids Chrome's sandbox; the
+            # nightly passes `{"args": ["--no-sandbox"]}` there, never on a workstation.
+            extra = ["-p", os.environ["MMDC_PUPPETEER_CONFIG"]] if os.environ.get("MMDC_PUPPETEER_CONFIG") else []
+            r = subprocess.run([exe, "-i", str(f), "-o", str(f.with_suffix(".svg")), *extra],
                                capture_output=True, text=True, timeout=120)
             if r.returncode != 0:
                 err = (r.stderr or r.stdout or "").strip().splitlines()
