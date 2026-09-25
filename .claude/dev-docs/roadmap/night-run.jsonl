@@ -156,3 +156,5 @@
 {"at": "2026-09-25T23:13:04+00:00", "head": "4be2cf3", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 3"}
 {"at": "2026-09-25T23:15:19+00:00", "head": "738e98b", "kind": "done", "task": "R169", "what": "causes lot 3 : 134 -> 131"}
 {"at": "2026-09-25T23:15:19+00:00", "head": "738e98b", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 4"}
+{"at": "2026-09-25T23:18:04+00:00", "head": "4014191", "kind": "done", "task": "R169", "what": "causes lot 4 : 131 -> 129 (stackgaps non verifiable ici, laisse unknown)"}
+{"at": "2026-09-25T23:18:09+00:00", "head": "4014191", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 5"}

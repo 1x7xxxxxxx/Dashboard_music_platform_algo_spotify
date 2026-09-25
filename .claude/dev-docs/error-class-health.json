@@ -1042,7 +1042,7 @@
       "renamed_from": null
     },
     "a-file-whose-tests-share-a-namespace": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-16",
       "guard_automatic": true,
       "guard_ref": ".github/workflows/ci.yml",
@@ -1062,7 +1062,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -1234,7 +1234,7 @@
       "renamed_from": null
     },
     "a-gate-that-can-never-be-green": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-16",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_metrics_server_survives_a_rerun.py",
@@ -1257,7 +1257,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11445,12 +11445,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 389,
+      "catalogue_revisions": 390,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 129,
+      "cause_unknown": 127,
       "guard_does_not_prove_itself": 270,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
