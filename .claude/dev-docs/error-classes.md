@@ -4776,6 +4776,26 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-17: la mémoire du dépôt rangeait ce défaut sous « un problème de `grep` » depuis des semaines. C'était le SYMPTÔME : `grep` est simplement la commande qu'on redirige le plus souvent. La cause était la redirection, et elle touchait toute commande qui réussit. Une classe nommée sur le symptôme envoie corriger le mauvais mécanisme — ici, exclure `grep` a semblé être le fix et n'a rien réparé.
   - 2026-09-25 (récidive): **trois commandes de plus, une seule séance.** `make test-changed | tee f` → « 281 lines truncated », verdict pytest perdu ; `git stash show --name-only stash@{0}` → « Empty stash » sur un stash de 5 fichiers ; `gh run list` → ligne reformatée sans le statut du run. `make`, `git stash`, `gh`, `wc`, `find` ajoutés à `exclude_commands` (ensemble : < 0,3 % du gain ; `rtk read` en porte 99,35 %). Le garde exige désormais `make`, `git stash`, `gh` ; vu rouge en retirant `make` de la config, vert restauré. Côté dépôt, `make test-changed` écrit aussi `.pytest-last.log`.
 
+## config-path-dangling
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a rule, skill or command names a `.claude/` file that is not there. Nothing errors — the instruction is simply unfollowable, and the reader cannot tell an absent file from an unimportant one.
+- signature: `python3 .claude/scripts/check_config_refs.py`
+- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- root_cause: a path in configuration is prose to every tool that reads it; only the model resolves it, at read time, and it has no way to report the miss. `.claude/scripts/check_config_refs.py`
+- cause_evidence: read (.claude/scripts/check_config_refs.py, rétro-portage mécanique 2026-09-16)
+- long_term_fix: resolve every `.claude/` path against the disk in CI — `tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves`. A path that stops resolving now fails a build instead of degrading a session silently.
+- guard: { type: ci-step, ref: tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves + ci.yml }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — un chemin écrit dans la configuration est de la PROSE pour tout outil qui la lit ; seul le modèle le résout, à la lecture, et il n'a aucun moyen de signaler qu'il a manqué ; couvre: par **cinq tests nommés de ce fichier partagé** — `test_every_skill_stays_loadable`, `test_every_loadable_skill_can_actually_trigger`, `test_the_permission_deny_list_does_not_shrink`, `test_bypass_permissions_stays_off` et `test_the_dangerous_command_gates_still_block` — le plancher de la configuration `.claude/` : chaque skill reste chargeable, chaque skill chargeable peut réellement se déclencher (deux questions distinctes : exister et être atteignable), la liste de refus de permissions ne rétrécit pas, le mode permissif reste désactivé, et les portes sur les commandes dangereuses bloquent toujours ; ne couvre pas: (1) **le geste voisin le plus proche — les chemins cités dans la PROSE de `CLAUDE.md` et des `dev-docs`** : l'incident d'origine (des références pointant à côté du fichier pendant des semaines) portait sur des renvois en texte, que ce garde ne lit pas ; (2) les chemins dans les agents, les workflows et les commandes ; (3) un chemin qui EXISTE mais ne contient plus ce que le renvoi annonce ; (4) les chemins construits à l'exécution.
+- siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 .claude/scripts/check_config_refs.py`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
+- rex_ref: .claude/commands/resume.md
+- first_seen: 2026-07-28 (ref: five dead references found in the deployment channel itself)
+- History:
+  - 2026-07-28: guard written; found 5 dead references, incl. a mandatory CLAUDE.md instruction naming a file absent on three repos.
+  - 2026-08-03: signature seen RED on an injected dangling path in `commands/sprint.md` and GREEN after removal. Promoted from hand-run to a pytest case + a blocking ci.yml step — it had been green only because someone remembered to type it. REX-block lines are exempt: naming the path that broke IS the lesson (same exemption `--prose` grants).
+  - 2026-09-25 (récidive): **hors de la portée du garde, dans deux AUTRES dépôts.** Le déplacement de streaMLytics vers ext4 (R117, 2026-09-17) a laissé l'ancien chemin `/mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify` dans `n8n/credentials/rag-mail-accounts.conf` (le relevé mail a ignoré le compte 1x7 huit jours, en silence) et dans `claude_code_deployment_baseline/tools/dev/fleet.json` (l'audit de flotte visait un dossier absent). Ce garde ne résout que les chemins `.claude/` de CE dépôt, dans SA CI : il ne pouvait voir ni un autre dépôt ni la machine. Corrigé par un contrôle QUOTIDIEN sur la machine — `claude_code_deployment_baseline/tools/dev/check_dangling_paths.py` (racines de `fleet.json`, crontab, fichiers vivants de chaque projet ; un chemin dont le DOSSIER a disparu ; `--self-test` auto-prouvant, muté : deux faux positifs et une cellule vacante corrigés), lancé par cron 07:07 + @reboot, qui mail via `n8n/scripts/mail-alert.sh` (canal prouvé, mail reçu). Et la table de comptes n8n accepte désormais un chemin RELATIF et refuse un `.env` hors de son dépôt (n8n `469b4d9`). Pas de classe neuve : son garde ne peut pas vivre dans ce dépôt, et le catalogue refuse à raison un garde qu'il ne peut pas exécuter.
+
 ## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site
 
 > Les 206 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
@@ -5054,25 +5074,6 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-04: swept all 12 DAGs — `check_offsite_backup` was the ONLY site. Fix: receipt-based check + AST guard, verified red by mutation (re-inserting the `'rclone'` literal fails the guard). The class is worth keeping because the failure is silent by construction: a check that can never pass looks exactly like a check that keeps finding a problem.
   - 2026-09-18: défaut remis en place en nommant `rclone` dans `check_offsite_backup` ⇒ 1 rouge. Le garde lit les CONSTANTES de la fonction par AST : il verrait donc aussi un binaire nommé dans une liste d'arguments, pas seulement dans un `subprocess.run` reconnaissable.
-
-## config-path-dangling
-- status: guarded
-- severity: P2
-- kind: deterministic
-- symptom: a rule, skill or command names a `.claude/` file that is not there. Nothing errors — the instruction is simply unfollowable, and the reader cannot tell an absent file from an unimportant one.
-- signature: `python3 .claude/scripts/check_config_refs.py`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
-- root_cause: a path in configuration is prose to every tool that reads it; only the model resolves it, at read time, and it has no way to report the miss. `.claude/scripts/check_config_refs.py`
-- cause_evidence: read (.claude/scripts/check_config_refs.py, rétro-portage mécanique 2026-09-16)
-- long_term_fix: resolve every `.claude/` path against the disk in CI — `tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves`. A path that stops resolving now fails a build instead of degrading a session silently.
-- guard: { type: ci-step, ref: tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves + ci.yml }
-- guard_scope: un-travail-qui-n-arrive-nulle-part — un chemin écrit dans la configuration est de la PROSE pour tout outil qui la lit ; seul le modèle le résout, à la lecture, et il n'a aucun moyen de signaler qu'il a manqué ; couvre: par **cinq tests nommés de ce fichier partagé** — `test_every_skill_stays_loadable`, `test_every_loadable_skill_can_actually_trigger`, `test_the_permission_deny_list_does_not_shrink`, `test_bypass_permissions_stays_off` et `test_the_dangerous_command_gates_still_block` — le plancher de la configuration `.claude/` : chaque skill reste chargeable, chaque skill chargeable peut réellement se déclencher (deux questions distinctes : exister et être atteignable), la liste de refus de permissions ne rétrécit pas, le mode permissif reste désactivé, et les portes sur les commandes dangereuses bloquent toujours ; ne couvre pas: (1) **le geste voisin le plus proche — les chemins cités dans la PROSE de `CLAUDE.md` et des `dev-docs`** : l'incident d'origine (des références pointant à côté du fichier pendant des semaines) portait sur des renvois en texte, que ce garde ne lit pas ; (2) les chemins dans les agents, les workflows et les commandes ; (3) un chemin qui EXISTE mais ne contient plus ce que le renvoi annonce ; (4) les chemins construits à l'exécution.
-- siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 .claude/scripts/check_config_refs.py`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
-- rex_ref: .claude/commands/resume.md
-- first_seen: 2026-07-28 (ref: five dead references found in the deployment channel itself)
-- History:
-  - 2026-07-28: guard written; found 5 dead references, incl. a mandatory CLAUDE.md instruction naming a file absent on three repos.
-  - 2026-08-03: signature seen RED on an injected dangling path in `commands/sprint.md` and GREEN after removal. Promoted from hand-run to a pytest case + a blocking ci.yml step — it had been green only because someone remembered to type it. REX-block lines are exempt: naming the path that broke IS the lesson (same exemption `--prose` grants).
 
 ## identity-read-but-never-collectable
 - status: guarded

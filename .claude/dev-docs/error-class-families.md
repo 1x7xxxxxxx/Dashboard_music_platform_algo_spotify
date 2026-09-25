@@ -14,7 +14,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 |---|---|---|---|
 | [le-locataire](#le-locataire) | 42 | **9/42** · 21.4 % | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 19 | **1/19** · 5.3 % | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
-| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 17 | **1/17** · 5.9 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
+| [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 17 | **2/17** · 11.8 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | **1/20** · 5.0 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **1/20** · 5.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 25 | **3/25** · 12.0 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
@@ -619,4 +619,4 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 <!-- error-class-families: total=414 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=f1526658dec2b04f6eca80a7d0360ae4bb7924f7e3a127f0ffd1748843f268f6 -->
+<!-- error-class-families: sha256=e15ac1af4df6c07af9e71c549322a9bdbd0f8a0039ddafe1ce0ea4d652c34e0f -->
