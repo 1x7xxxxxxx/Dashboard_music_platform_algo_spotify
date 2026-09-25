@@ -293,6 +293,14 @@ Motif d'ADR-007 : un travail dont le bénéfice mesuré est nul n'entre pas dans
 
 #### Mesuré le 2026-09-17 — pourquoi `PYTEST_WORKERS` restera à 2, et ce qui le débloquerait
 
+> ⚠️ **Rectifié le 2026-09-25, par une mesure.** Le raisonnement ci-dessous confond deux
+> choses : les résidents sont DÉJÀ hors de `MemAvailable`, la réserve n'a donc à couvrir
+> que ce qui peut GROSSIR pendant la suite. Les deux croissances de l'époque ont cessé
+> d'être permanentes (n8n le dimanche seulement, modèle knowledge-rag déchargé après
+> 10 min) ; la réserve suit désormais ce qui tourne (`tools/dev/pytest_workers.py`) et
+> rend **4 workers** : 179–180 s contre 269 s à 2, creux de `MemAvailable` ≥ 4 278 Mo sur
+> trois suites complètes alternées. Le texte qui suit reste comme trace de l'ancien calcul.
+
 `PYTEST_DIST` vaut `-n $(PYTEST_WORKERS)`, avec
 `workers = (MemAvailable_Mo − 5120) / 700`, borné à `[2, nproc]`. La constante de
 réserve avait été écrite le matin même après **deux morts par OOM en une heure**,

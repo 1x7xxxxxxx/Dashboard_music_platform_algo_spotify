@@ -458,3 +458,25 @@ tout. Un diviseur de 600 au lieu de 700 rendrait toujours **2** workers ici
 (`(6 667 − 5 120) / 600 = 2,6`) : le frein est la réserve de 5 120 Mo, qui protège de
 l'OOM vécu deux fois le 2026-09-17. Elle ne se desserre pas sans une mesure de ce que
 `n8n-ollama` et `knowledge-rag` tiennent au pic.
+
+### Mise à jour du même jour — les workers ont bougé, avec leur mesure
+
+La réserve de 5 120 Mo couvrait deux croissances possibles en pleine suite : Ollama (n8n)
+et le préchargement du modèle knowledge-rag. Le propriétaire a décidé que n8n ne tourne
+que le dimanche, et le modèle knowledge-rag se décharge désormais après 10 min
+(1 439 → 97 Mo mesurés). `tools/dev/pytest_workers.py` réserve donc selon ce qui tourne ;
+un verrou `~/.cache/heavy-memory.lock` fait sauter aux crons d'ingestion leur passe
+pendant une suite. Porte de sécurité, trois suites complètes alternées :
+
+| workers | durée | creux de `MemAvailable` |
+|---|---|---|
+| 4 | 179 s | 4 454 Mo |
+| 2 | 269 s | 5 228 Mo |
+| 4 | 180 s | 4 278 Mo |
+
+**−33 %** sur `make test`, avec plus de 4 Go de marge au pire moment.
+
+**Écarté le même jour, par sa propre porte** : resserrer la règle « dossier » de
+`select_tests.py`. Un `.md` de `.claude/dev-docs/` sélectionne 159 fichiers de test sur
+533, dont 30 seulement par la règle du dossier — sous le seuil de 50 % fixé avant de
+commencer, et resserrer aurait risqué un faux négatif (`code-critic`).

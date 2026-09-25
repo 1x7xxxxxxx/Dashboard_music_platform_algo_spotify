@@ -34,13 +34,18 @@ runs:
       env:
         PGPASSWORD: postgres  # pragma: allowlist secret — throwaway CI DB
       run: |
-        sudo apt-get install -y --no-install-recommends postgresql-client
-        for i in $(seq 1 30); do
+        # `psql` est déjà sur l'image ubuntu-latest : l'apt ne tirait qu'un métapaquet de
+        # 11,6 kB et coûtait ~4,4 s par shard (mesuré le 2026-09-25). Gardé en REPLI, pour
+        # qu'un changement d'image ne casse pas la provision.
+        command -v psql >/dev/null || sudo apt-get install -y --no-install-recommends postgresql-client
+        psql --version
+        # Double sonde gardée (le serveur d'init redémarre) ; attentes de 2 s → 0,5 s.
+        for i in $(seq 1 120); do
           if psql -h localhost -U postgres -d spotify_etl -tAc "SELECT 1" >/dev/null 2>&1; then
-            sleep 2
+            sleep 0.5
             psql -h localhost -U postgres -d spotify_etl -tAc "SELECT 1" >/dev/null 2>&1 && break
           fi
-          sleep 2
+          sleep 0.5
         done
         psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -f init_db.sql
         for f in $(ls migrations/*.sql | sort); do

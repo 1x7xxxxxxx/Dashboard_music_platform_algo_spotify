@@ -115,10 +115,25 @@ logs:        ## Tail Airflow scheduler logs
 #
 # `nproc` seul serait revenu au defaut ; la memoire seule pourrait demander 14 workers
 # sur 8 coeurs. Les deux bornes comptent.
-PYTEST_WORKERS := $(shell a=$$(awk '/MemAvailable/{print int($$2/1024)}' /proc/meminfo 2>/dev/null || echo 4096); \
-  n=$$(( (a - 5120) / 700 )); c=$$(nproc 2>/dev/null || echo 4); \
-  [ $$n -gt $$c ] && n=$$c; [ $$n -lt 2 ] && n=2; echo $$n)
-PYTEST_DIST := -n $(PYTEST_WORKERS) --dist loadgroup
+#
+# ⚠️ 2026-09-25 : la réserve n'est PLUS fixe. n8n ne tourne plus que le dimanche et
+# knowledge-rag décharge son modèle après 10 min : les 5 120 Mo réservaient pour deux
+# croissances qui ne sont plus permanentes. `tools/dev/pytest_workers.py` réserve 1 536
+# de base, +1 600 par serveur knowledge-rag dont le modèle peut encore charger, +3 600
+# si Ollama ou une ingestion tourne — et imprime son raisonnement sur stderr. Une
+# ingestion qui DÉMARRERAIT pendant la suite est exclue par `HEAVY_LOCK` (ci-dessous),
+# pas détectée. Garde : tests/test_the_worker_count_follows_what_can_grow.py.
+# `=` et non `:=` : calculé quand une cible de test s'en sert, pas à chaque `make`.
+PYTEST_WORKERS = $(shell $(PYTHON) tools/dev/pytest_workers.py 2>/dev/null || echo 2)
+PYTEST_DIST = -n $(PYTEST_WORKERS) --dist loadgroup
+
+# Tenu pendant une suite ; `run_book_drop.sh` (knowledge-rag) et `rag-mail-run.sh` (n8n)
+# sautent leur passe horaire tant qu'il l'est — une ingestion charge 1,5 à 3,5 Go, et un
+# instantané pris au lancement ne peut pas la voir arriver. Non bloquant côté tests :
+# si une ingestion le tient déjà, la suite part quand même, avec la réserve élargie.
+# `$$HOME` résolu par bash, jamais `$(HOME)` : make importe l'environnement dans ses
+# variables (tests/test_a_make_variable_does_not_collide_with_the_environment.py).
+HOLD_HEAVY_LOCK = mkdir -p "$$HOME/.cache"; exec 9>"$$HOME/.cache/heavy-memory.lock"; flock -n 9 || echo "ingestion en cours : verrou non pris, reserve elargie";
 
 # ── Les tests qui ne lisent QUE des documents (2026-09-15) ──
 # Portés par `pytestmark = pytest.mark.docs`. La liste est ici en clair parce que
@@ -143,7 +158,7 @@ DOC_TESTS := tests/test_error_class_index_is_complete.py \
              tests/test_the_views_map_lists_every_view.py
 DOC_IGNORE := $(foreach f,$(DOC_TESTS),--ignore=$(f))
 
-test:        ## [226 s mesuré le 2026-09-17 — ext4, pile Docker up, donc -n 2] Suite COMPLÈTE, drapeaux de la CI — la barrière avant de livrer
+test:        ## [180 s mesuré le 2026-09-25 — 4 workers, pile Docker up] Suite COMPLÈTE, drapeaux de la CI — la barrière avant de livrer
 	@# La sortie va DANS UN FICHIER, et ce n'est pas du confort. Le 2026-09-16, j'ai
 	@# conclu QUATRE FOIS qu'une suite etait « morte en route » ; les quatre fois elle
 	@# tournait encore. Les executions passaient par `| tail -6`, qui ne rend rien avant
@@ -153,12 +168,12 @@ test:        ## [226 s mesuré le 2026-09-17 — ext4, pile Docker up, donc -n 2
 	@# ⚠️ `$${PIPESTATUS[0]}` et bash EXPLICITE : `cmd | tee f` rend le code de `tee`,
 	@# c'est-a-dire 0 quoi qu'il arrive. Une barriere avant de livrer qui rend toujours
 	@# vert serait infiniment pire que lente.
-	@bash -c 'set -o pipefail; $(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
+	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; exit $$rc
 
 test-fast:   ## [= test −38 s] La suite SANS les tests de documents — avant de commiter
 	@echo '⏩ sans les tests de documents — make test-docs les lance, make test lance tout.'
-	$(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) $(DOC_IGNORE)
+	@bash -c '$(HOLD_HEAVY_LOCK) $(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) $(DOC_IGNORE)'
 
 test-docs:   ## [~38 s] Seulement les tests de documents — après avoir touché un document généré
 	$(PYTHON) -m pytest $(DOC_TESTS) -q
@@ -223,7 +238,7 @@ test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — 
 	@# `xargs -r` : une sélection VIDE (aucun fichier modifié) lançait `pytest -q` sans
 	@# cible, c'est-à-dire la suite entière. `|| true` : sous pipefail, un `grep` qui
 	@# ne trouve rien sortirait 1 et ferait passer « rien à tester » pour un échec.
-	@bash -c 'set -o pipefail; $(PYTHON) .claude/scripts/select_tests.py | { grep -v "^#" || true; } \
+	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(PYTHON) .claude/scripts/select_tests.py | { grep -v "^#" || true; } \
 	  | xargs -r $(PYTHON) -m pytest -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; exit $$rc
 

@@ -104,7 +104,7 @@ pour décorer :
 |---|---|---|
 | `make test-changed` | les tests atteignables depuis le diff — un `.md`/`.yml` ne force plus la suite entière (2026-09-25) | **secondes à ~2 min** |
 | `make test-fast` | tout sauf les documents | `make test` − ~38 s |
-| `make test` | la suite, `-n $(PYTEST_WORKERS) --dist loadgroup` | **193,5 s** sur ext4 à vide ; **226 s** pile Docker up |
+| `make test` | la suite, `-n $(PYTEST_WORKERS) --dist loadgroup` | **179–180 s** à 4 workers, pile Docker up (2026-09-25) ; 269 s à 2 |
 | `python3 -m pytest tests/` **(à éviter)** | la même suite **en SÉRIE** | 1 146 s mesurés sur `/mnt/c` ; non remesuré ici |
 
 ⚠️ **La forme nue n'est pas « la même en plus simple » : elle perd `-n auto`.** Elle a été
@@ -121,6 +121,14 @@ atteindre 8** — il faudrait 10 720 Mo disponibles — et il tombe à **2** dè
 Docker tourne. Un lecteur qui croyait la rangée du tableau annonçait à la fois un drapeau
 et un temps que rien ne produisait. Garde :
 `tests/test_local_and_ci_run_the_same_suite.py::test_claude_md_does_not_name_a_worker_count_the_makefile_refuses`.
+
+⚠️ **Depuis le 2026-09-25 la réserve n'est plus fixe.** n8n ne tourne que le dimanche,
+knowledge-rag décharge son modèle après 10 min : `tools/dev/pytest_workers.py` réserve
+1 536 Mo de base, +1 600 par serveur knowledge-rag dont le modèle peut encore charger,
++3 600 si Ollama ou une ingestion tourne, et dit pourquoi sur stderr. Une ingestion qui
+démarrerait PENDANT la suite est exclue par un verrou (`~/.cache/heavy-memory.lock`) que
+les cibles de test tiennent et que les crons d'ingestion respectent. Mesuré en alternance
+4/2/4 workers : **179 · 269 · 180 s**, creux de `MemAvailable` **4 454 · 5 228 · 4 278 Mo**.
 
 Les deux mesures du 2026-09-16 étaient du **même soir, même arbre, même verdict**
 (6 717 verts, 1 rouge) : `make test` **418 s** sur `/mnt/c`, la forme nue **1 146 s**.
