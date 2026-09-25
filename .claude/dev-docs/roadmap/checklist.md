@@ -177,6 +177,17 @@ même soir**, chacune par le geste humain qu'elle attendait — détail et preuv
     EMPREINTE sha256 (valeurs jamais lues) : `DATABASE_PASSWORD`, `DB_PASSWORD`,
     `AIRFLOW_ADMIN_PASSWORD` de prod sont **différents** des 5 valeurs de l'historique ; ports
     5432/5433/8080 fermés. **Rien à tourner côté base.** Reste : Spotify, YouTube, Meta.
+  - 2026-09-25 23:45 — Spotify, YouTube, Meta tournés par `tools/dev/rotate_secret.sh`
+    (fenêtre masquée) ; prod `check_central_apps --require` → 4/4. `prove_old_secrets_dead.py` :
+    Spotify, Meta app, Meta jeton **refusés** → 11 empreintes dans `.gitleaksignore`.
+    **Reste 1** : l'ancienne clé YouTube est ENCORE ACCEPTÉE par Google (grâce de 24 h après
+    « Regenerate », ou ancienne clé non supprimée). Clore quand
+    `python3 tools/dev/prove_old_secrets_dead.py` sort 0, puis ajouter sa dernière empreinte.
+  - Trouvé en route : `migration-ahead-of-its-code` est une P1 que RIEN n'exécute (24
+    migrations touchent une contrainte, aucune ne porte la note d'ordre) — dette figée dans le
+    job nocturne `p1-classes` (`--known-unguarded`), à garder par un test. Et la suite en
+    ordre aléatoire du nightly est rouge 4 nuits sur 5 : `gh run list --workflow
+    security-nightly.yml` → job `full-suite-random-order`.
 
 ---
 
