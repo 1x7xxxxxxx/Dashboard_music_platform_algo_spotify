@@ -130,3 +130,21 @@ def test_the_tool_exits_non_zero_when_something_must_reopen():
         "`main()` ne rend plus un code conditionnel : `make reopen-check` serait vert "
         "même avec une tâche à rouvrir, et ne pourrait bloquer nulle part."
     )
+
+
+def test_a_workstation_condition_is_undecidable_on_a_runner(monkeypatch) -> None:
+    """The first nightly (2026-09-25) said ROUVRIR on « 3ᵉ worker » from the RUNNER's
+    14 667 Mo — a machine the condition does not describe. A condition that cannot see
+    its subject must say so, never answer for another machine."""
+    import importlib.util
+    import pytest
+    spec = importlib.util.spec_from_file_location(
+        "reopen_check_ci", pathlib.Path(__file__).resolve().parents[1] / "tools/dev/reopen_check.py")
+    rc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rc)
+    monkeypatch.setenv("CI", "true")
+    with pytest.raises(RuntimeError, match="runner"):
+        rc._pytest_third_worker()
+    monkeypatch.delenv("CI")
+    state, _ = rc._pytest_third_worker()
+    assert state in (rc.MET, rc.NOT_MET), "on a workstation it measures"

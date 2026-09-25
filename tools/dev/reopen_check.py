@@ -35,6 +35,7 @@ jamais comme satisfaite.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -216,6 +217,12 @@ def _gold_layer() -> tuple[str, str]:
 
 def _pytest_third_worker() -> tuple[str, str]:
     """« Chercher un 3e worker » — rouvre si `MemAvailable` au repos depasse 7 220 Mo."""
+    # The condition is about the OWNER'S workstation. On a CI runner /proc/meminfo is the
+    # runner's (14 667 Mo on the first nightly, 2026-09-25): it reported ROUVRIR for a
+    # machine it never measured.
+    if os.environ.get("CI"):
+        raise RuntimeError("en CI /proc/meminfo est celle du runner, pas du poste — "
+                           "ce contrôle n'a RIEN vérifié")
     for line in pathlib.Path("/proc/meminfo").read_text().splitlines():
         if line.startswith("MemAvailable:"):
             mo = int(line.split()[1]) // 1024
