@@ -44,6 +44,10 @@ def verdict(needs: dict) -> str | None:
         lines.append("gitleaks : des secrets RÉELS de l'historique public attendent leur "
                      "rotation (runbook §27) — ce mail repart chaque nuit tant qu'ils ne "
                      "sont pas tournés et inscrits dans .gitleaksignore.")
+    if "public-surface-sweep" in failed:
+        lines.append("public-surface-sweep : un secret est lisible HORS de l'historique de ce "
+                     "dépôt (autre dépôt public, fork, journal Actions) — le log du job nomme "
+                     "où, sans la valeur. Rotation d'abord (runbook §27).")
     if "reopen-check" in failed:
         lines.append("reopen-check : une condition de réouverture d'une tâche parquée est "
                      "remplie — `make reopen-check` la nomme ; la tâche revient à la roadmap.")

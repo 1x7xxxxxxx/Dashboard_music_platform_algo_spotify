@@ -308,6 +308,10 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     fix.** Il renvoie la liste exhaustive des sites frères en `fichier:ligne`, en
     balayant le code, les tests **et** la couche de configuration. Un correctif
     qui ne balaie pas laisse la classe vivante ailleurs.
+    **Un constat de sécurité (gitleaks, secret exposé, CVE) EST une classe de défaut** :
+    le 2026-09-25, 12 secrets trouvés sont partis en tri `security-specialist` et aucun
+    balayage n'a couru avant que le propriétaire le demande. Ses surfaces publiques sont
+    désormais balayées chaque nuit par `tools/dev/sweep_public_surfaces.py`.
 
 15. **Un défaut corrigé → un TEST. Une CLASSE seulement avec un billet
     d'admission → `/capitalise`.** Depuis le 2026-09-19, une classe neuve porte

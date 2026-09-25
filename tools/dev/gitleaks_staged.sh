@@ -13,4 +13,4 @@
 set -uo pipefail
 g="$(command -v gitleaks || echo "$HOME/.local/bin/gitleaks")"
 [ -x "$g" ] || { echo "❌ gitleaks absent — run: make hooks-install"; exit 1; }
-exec "$g" git --pre-commit --staged --redact --no-banner --config .gitleaks.toml
+exec "$g" git --pre-commit --staged --redact --no-banner -v --config .gitleaks.toml
