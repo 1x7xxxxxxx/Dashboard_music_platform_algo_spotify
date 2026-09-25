@@ -143,7 +143,7 @@ def test_the_counter_still_sees_charts_and_every_budgeted_file_exists():
         "et sept plafonds certifient alors une propriété qu'ils ne vérifient plus.")
 
 
-def test_secondary_analyses_actually_shields_charts():
+def test_secondary_analyses_actually_shields_charts(tmp_path):
     """The counter must respond to the mechanism, or the budget means nothing."""
     src = (
         "import streamlit as st\n"
@@ -153,7 +153,7 @@ def test_secondary_analyses_actually_shields_charts():
         "    st.plotly_chart(b)\n"
         "    st.plotly_chart(c)\n"
     )
-    tmp = _VIEWS / "_chart_budget_probe.py"
+    tmp = tmp_path / "_chart_budget_probe.py"  # tmp_path, never the real tree: a probe written there races the tree's scanners under xdist (2026-09-26)
     tmp.write_text(src, encoding="utf-8")
     try:
         assert _primary_chart_count(tmp) == 1

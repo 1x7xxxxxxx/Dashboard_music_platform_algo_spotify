@@ -2083,6 +2083,8 @@
     "tests/test_a_test_file_is_collectable_without_what_it_watches.py::test_no_new_module_level_read_of_a_watched_file": 0.42830444000173884,
     "tests/test_a_test_file_is_collectable_without_what_it_watches.py::test_the_ratchet_does_not_name_files_that_are_already_clean": 0.45662076699954923,
     "tests/test_a_test_file_is_collectable_without_what_it_watches.py::test_the_sweep_still_sees_something": 0.6954167450021487,
+    "tests/test_a_test_never_writes_into_the_real_tree.py::test_no_test_writes_a_probe_into_the_real_tree": 1.724955930003489,
+    "tests/test_a_test_never_writes_into_the_real_tree.py::test_the_detector_sees_the_defect_it_is_written_for": 0.0013941380093456246,
     "tests/test_a_tile_with_data_comes_first.py::test_a_full_tenant_keeps_the_declared_order": 0.35633858400069585,
     "tests/test_a_tile_with_data_comes_first.py::test_a_pair_is_never_split_across_rows": 0.001333264999630046,
     "tests/test_a_tile_with_data_comes_first.py::test_a_row_is_left_short_rather_than_a_pair_broken": 0.0011088209994341014,

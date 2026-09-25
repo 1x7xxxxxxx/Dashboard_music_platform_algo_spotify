@@ -103,9 +103,9 @@ def _view_files() -> list[str]:
             if "__pycache__" not in str(p) and not p.name.startswith("__")]
 
 
-def _maison(rel: str) -> list[str]:
+def _maison(rel: str, racine: pathlib.Path | None = None) -> list[str]:
     """Les widgets dont le LIBELLÉ annonce un intervalle de temps."""
-    tree = ast.parse((_ROOT / rel).read_text(encoding="utf-8"))
+    tree = ast.parse(((racine or _ROOT) / rel).read_text(encoding="utf-8"))
     out = []
     for n in ast.walk(tree):
         if isinstance(n, ast.Call) and getattr(n.func, "attr", "") in _WIDGETS:
@@ -131,29 +131,29 @@ def test_no_view_rolls_its_own_period_selector(rel: str) -> None:
           "`_HORS_PARCOURS` AVEC sa raison.")
 
 
-def test_the_detector_sees_a_home_made_selector() -> None:
+def test_the_detector_sees_a_home_made_selector(tmp_path) -> None:
     """NON-VACUITÉ. Sans elle, le test passe aussi sur un prédicat mort."""
-    sonde = _VIEWS / "_probe_period.py"
+    sonde = tmp_path / "_probe_period.py"  # tmp_path, never the real tree: a probe written there races the tree's scanners under xdist (2026-09-26)
     sonde.write_text(
         "import streamlit as st\n"
         "def show():\n"
         "    st.selectbox('Période de publication', ['12 derniers mois'])\n",
         encoding="utf-8")
     try:
-        assert _maison(str(sonde.relative_to(_ROOT))), (
+        assert _maison(sonde.name, tmp_path), (
             "le détecteur ne voit plus un sélecteur de période écrit à la main")
     finally:
         sonde.unlink()
 
 
-def test_the_detector_ignores_a_widget_that_is_not_a_period() -> None:
+def test_the_detector_ignores_a_widget_that_is_not_a_period(tmp_path) -> None:
     """Le FAUX POSITIF qui compte, et il est réel.
 
     `trigger_algo/_tab_algo_streams.py` nomme « Fenêtre » un widget qui choisit
     `time_window`, une valeur de colonne. Un prédicat qui cherche le mot l'attrape ;
     celui-ci doit être écartable NOMMÉMENT, et l'être — pas par hasard.
     """
-    sonde = _VIEWS / "_probe_not_period.py"
+    sonde = tmp_path / "_probe_not_period.py"  # tmp_path, never the real tree: a probe written there races the tree's scanners under xdist (2026-09-26)
     sonde.write_text(
         "import streamlit as st\n"
         "def show():\n"
@@ -161,7 +161,7 @@ def test_the_detector_ignores_a_widget_that_is_not_a_period() -> None:
         "    st.slider('Nombre de vidéos', 5, 50, 10)\n",
         encoding="utf-8")
     try:
-        assert not _maison(str(sonde.relative_to(_ROOT))), (
+        assert not _maison(sonde.name, tmp_path), (
             "le détecteur accuse un widget qui n'a rien de temporel")
     finally:
         sonde.unlink()

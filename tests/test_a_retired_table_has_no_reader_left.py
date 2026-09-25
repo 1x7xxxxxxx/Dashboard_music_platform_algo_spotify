@@ -163,9 +163,9 @@ def test_the_detector_sees_a_read_when_there_is_one() -> None:
     assert not _reads("SELECT x FROM v_apple_song_cumulative", "apple_songs_history")
 
 
-def test_the_detector_ignores_a_table_named_in_a_docstring() -> None:
+def test_the_detector_ignores_a_table_named_in_a_docstring(tmp_path) -> None:
     """Et la prose qui EXPLIQUE le retrait ne doit pas le déclencher."""
-    sonde = _ROOT / "src" / "utils" / "_probe_retired_table.py"
+    sonde = tmp_path / "_probe_retired_table.py"  # tmp_path, never the real tree: a probe written there races the tree's scanners under xdist (2026-09-26)
     sonde.write_text(
         'def f():\n'
         '    """On ne lit plus FROM apple_songs_history ici."""\n'

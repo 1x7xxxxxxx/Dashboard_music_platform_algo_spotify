@@ -115,7 +115,7 @@ def _fuites(chemin: Path) -> list:
             protege = (f"type({h.name}).__name__" in c
                        or f"safe_error({h.name}" in c or f"redact({h.name}" in c)
             if brut and not protege:
-                out.append((str(chemin.relative_to(ROOT)), fn.name, h.lineno,
+                out.append((str(chemin.relative_to(ROOT) if chemin.is_relative_to(ROOT) else chemin), fn.name, h.lineno,
                             secret, via or "direct"))
     return out
 
@@ -157,7 +157,7 @@ def test_the_predicate_follows_one_call_level():
         "    except Exception as e:\n"
         "        return False, 'reseau : {err}'.format(err=e)\n"
     )
-    with tempfile.NamedTemporaryFile("w", suffix=".py", dir=ROOT, delete=False) as f:
+    with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
         f.write(src)
         chemin = Path(f.name)
     try:
@@ -184,7 +184,7 @@ def test_the_predicate_accepts_the_corrected_form():
         "    except Exception as e:\n"
         "        return False, 'reseau ({err})'.format(err=type(e).__name__)\n"
     )
-    with tempfile.NamedTemporaryFile("w", suffix=".py", dir=ROOT, delete=False) as f:
+    with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
         f.write(src)
         chemin = Path(f.name)
     try:

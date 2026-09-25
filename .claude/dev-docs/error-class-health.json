@@ -370,14 +370,14 @@
         "2026-09-25"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-17",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -5336,14 +5336,14 @@
         "2026-08-22"
       ],
       "kind": "manual",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-06-20",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 2,
       "renamed_from": null
     },
@@ -11391,13 +11391,13 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 373,
+      "catalogue_revisions": 374,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
       "cause_unknown": 140,
-      "guard_does_not_prove_itself": 302,
+      "guard_does_not_prove_itself": 300,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
       "scope_on_a_shared_guard_without_naming_its_tests": 15,
@@ -11452,21 +11452,21 @@
       },
       "by_seen_red": {
         "daté": {
-          "events": 17,
-          "class_days": 3847,
-          "per_class_month": 0.1343,
+          "events": 14,
+          "class_days": 3740,
+          "per_class_month": 0.1138,
           "ci95": [
-            0.0782,
-            0.2151
+            0.0622,
+            0.1909
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 43,
-          "class_days": 7814,
-          "per_class_month": 0.1673,
+          "events": 46,
+          "class_days": 7921,
+          "per_class_month": 0.1765,
           "ci95": [
-            0.1211,
-            0.2253
+            0.1292,
+            0.2355
           ]
         }
       },

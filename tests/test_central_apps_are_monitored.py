@@ -219,3 +219,19 @@ def test_working_app_credentials_do_not_stop_the_check() -> None:
     assert ok is True
     assert any("debug_token" in u for u in urls), (
         "the token probe was skipped — the app check must not replace it")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(monkeypatch, capsys) -> None:
+    """`central-app-missing`, non-vacuity without network: one shared app's variable
+    emptied → `--require` refuses and NAMES it; every variable present → it passes.
+    (Presence only — `check_all_configured` never calls a provider.)"""
+    from src.utils import central_apps as ca
+    for variables in ca._REQUIRED_ENV.values():
+        for var in variables:
+            monkeypatch.setenv(var, "set-for-the-test")
+    assert ca.check_all_configured(), "every variable present must pass"
+    victim = next(iter(ca._REQUIRED_ENV.values()))[0]
+    monkeypatch.setenv(victim, "")          # empty counts as absent (os.getenv falsy)
+    capsys.readouterr()
+    assert not ca.check_all_configured(), f"{victim} emptied and --require still passes"
+    assert victim in capsys.readouterr().out, "the refusal must name the missing variable"

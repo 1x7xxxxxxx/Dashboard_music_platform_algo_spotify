@@ -49,9 +49,29 @@ def _config() -> dict:
     return tomllib.loads(_CONFIG.read_text(encoding="utf-8"))
 
 
+def _tee_on(cfg: dict) -> bool:
+    return cfg.get("tee", {}).get("enabled") is True
+
+
+def _not_excluded(cfg: dict) -> set[str]:
+    return _MUST_BE_EXCLUDED - set(cfg.get("hooks", {}).get("exclude_commands", []))
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuité, sans dépendre de la machine : les deux défauts du 2026-09-17/25,
+    fabriqués, sont vus ; la configuration corrigée ne l'est pas."""
+    import tomllib
+    defect = tomllib.loads('[tee]\nenabled = true\nmode = "failures"\n'
+                           '[hooks]\nexclude_commands = ["pytest", "grep"]\n')
+    assert _tee_on(defect) and {"make", "gh", "git stash"} <= _not_excluded(defect)
+    fixed = tomllib.loads('[tee]\nenabled = false\n[hooks]\nexclude_commands = '
+                          + str(sorted(_MUST_BE_EXCLUDED)).replace("'", '"') + '\n')
+    assert not _tee_on(fixed) and not _not_excluded(fixed)
+
+
 def test_the_redirect_interceptor_is_off() -> None:
     """`[tee] enabled = true` détruit la sortie de toute commande qui RÉUSSIT."""
-    assert _config().get("tee", {}).get("enabled") is not True, (
+    assert not _tee_on(_config()), (
         "`[tee] enabled = true` est revenu. En mode `failures`, RTK n'écrit le fichier "
         "de redirection QUE si la commande échoue : tout `cmd > f` d'une commande qui "
         "réussit produit un fichier VIDE, en silence.\n"
@@ -60,8 +80,7 @@ def test_the_redirect_interceptor_is_off() -> None:
 
 def test_the_measuring_commands_are_not_rewritten() -> None:
     """Une commande dont la sortie est une décision ne passe pas par le réécriveur."""
-    excluded = set(_config().get("hooks", {}).get("exclude_commands", []))
-    missing = _MUST_BE_EXCLUDED - excluded
+    missing = _not_excluded(_config())
     assert not missing, (
         f"{sorted(missing)} ne sont plus exclus du réécriveur. Leur sortie est une "
         "MESURE, et le réécriveur ne se trompe jamais bruyamment : il rend un "

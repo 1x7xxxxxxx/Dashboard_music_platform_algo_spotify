@@ -142,7 +142,7 @@ def test_the_detector_sees_a_bronze_read_when_there_is_one():
     assert _reads("... JOIN tracks tk ON ...", "tracks")
 
 
-def test_the_detector_ignores_a_table_named_in_prose():
+def test_the_detector_ignores_a_table_named_in_prose(tmp_path):
     """Un nom de table dans un commentaire ou une docstring n'est pas une lecture."""
     src = (
         'def f():\n'
@@ -150,7 +150,7 @@ def test_the_detector_ignores_a_table_named_in_prose():
         '    # ni FROM tracks\n'
         '    return "SELECT day FROM v_s4a_song_daily"\n'
     )
-    tmp = ROOT / "tests" / "_tmp_prose_probe.py"
+    tmp = tmp_path / "_tmp_prose_probe.py"  # tmp_path, never the real tree: a probe written there races the tree's scanners under xdist (2026-09-26)
     tmp.write_text(src, encoding="utf-8")
     try:
         lits = _sql_literals(tmp)
