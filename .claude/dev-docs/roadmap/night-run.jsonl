@@ -152,3 +152,5 @@
 {"at": "2026-09-25T23:08:25+00:00", "head": "35c35ec", "kind": "start", "task": "R169", "what": "debt-trend : repli sur le plus ancien instantane quand le fichier est plus jeune que la fenetre"}
 {"at": "2026-09-25T23:08:35+00:00", "head": "4562e62", "kind": "done", "task": "R169", "what": "debt-trend compare desormais au plus ancien instantane (363 -> 137 causes)"}
 {"at": "2026-09-25T23:08:39+00:00", "head": "4562e62", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 2"}
+{"at": "2026-09-25T23:10:56+00:00", "head": "4be2cf3", "kind": "done", "task": "R169", "what": "causes lot 2 : 137 -> 134"}
+{"at": "2026-09-25T23:13:04+00:00", "head": "4be2cf3", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 3"}
