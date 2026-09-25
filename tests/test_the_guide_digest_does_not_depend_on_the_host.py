@@ -145,3 +145,18 @@ def test_the_shown_token_falls_back_instead_of_leaving_a_hole():
     """Absent id ⇒ the artist is told to ask us, never shown an empty backtick."""
     assert _cg.BUSINESS_ID_SHOWN, "BUSINESS_ID_SHOWN is empty — the guide shows ``"
     assert _en.BUSINESS_ID_SHOWN_EN, "BUSINESS_ID_SHOWN_EN is empty"
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path) -> None:
+    """Non-vacuity: the three ways a guide module reads the environment are seen; a
+    variable only NAMED in a docstring or a comment is not."""
+    mod = tmp_path / "fake_guide.py"
+    mod.write_text(
+        'import os\n'
+        'def render():\n'
+        '    """Reads NOT_A_READ from the environment, says the prose."""\n'
+        '    # os.getenv("ALSO_NOT_A_READ")\n'
+        '    a = os.getenv("META_BUSINESS_ID")\n'
+        '    b = os.environ.get("PUBLIC_BASE_URL", "")\n'
+        '    return a, b, os.environ.get("THIRD_VAR")\n', encoding="utf-8")
+    assert _env_names_read(mod) == {"META_BUSINESS_ID", "PUBLIC_BASE_URL", "THIRD_VAR"}

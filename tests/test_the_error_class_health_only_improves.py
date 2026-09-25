@@ -92,7 +92,7 @@ _CEILINGS = {
     # exécution. À l'introduction : **9 gardes sur 192** le faisaient (5 %), donc 391
     # classes sur 400 n'ont pas cette preuve. Le plafond ne peut que baisser, et il
     # baisse en ÉCRIVANT le test de non-vacuité dans le garde — pas en rédigeant.
-    "guard_does_not_prove_itself": 294,  # 306 → 303 le 2026-09-25 (R169) ; → 300 le 2026-09-26 (migration P1 gardée, central-app + wrapper RTK auto-prouvants) ; → 297 (shared-db, replica, prose-claim) ; → 294 (collector, env, connexion par vue)
+    "guard_does_not_prove_itself": 292,  # 306 → 303 le 2026-09-25 (R169) ; → 300 le 2026-09-26 (migration P1 gardée, central-app + wrapper RTK auto-prouvants) ; → 297 (shared-db, replica, prose-claim) ; → 294 (collector, env, connexion par vue) ; → 292 (digest du guide, porte de dépendances)
     "seen_red_never": 0,
     # 363 → 241 : les causes qui nomment un chemin vérifiable.
     # 241 → 183 le 2026-09-17 : les **58** classes dont le `root_cause` cite un fichier
