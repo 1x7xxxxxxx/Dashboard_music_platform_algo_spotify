@@ -26,15 +26,13 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R169 | Dette du catalogue d'erreurs : gardes non auto-prouvants et causes inconnues, figés sur six commits <!-- anchor: error-debt --> | P3 | `make error-debt` |
-| R170 | `reopen-check` et `night-check` n'ont aucun appelant planifié | P3 | `grep -rn "reopen-check\|night-check" .github/ ` + `crontab -l` |
-| R171 | `error-inbox.md` n'est régénéré par rien (dernier : 2026-09-18) | P4 | en-tête de `.claude/dev-docs/error-inbox.md` |
-| R172 | `/curator` « hebdomadaire » n'est planifié par rien | P4 | `.claude/curator/SCHEDULE.md` vs `crontab -l` / workflows |
-| R173 | Porter vers le baseline les changements de `select_tests.py` et `audit_runner.py` du 2026-09-25 | P4 | `diff` avec `claude_code_deployment_baseline/tools/dev/select_tests.py` |
 
 **Huit lignes y sont entrées le 2026-09-25 au soir**, toutes issues de l'audit de la
 surveillance des classes d'erreur — détail dans « 🧭 R167 – R176 » juste sous cet index.
 Trois en sont ressorties **livrées le même soir** (R167, R168, R174 — détail dans
-`archive.md`, sous « 🧭 R167 · R168 · R174 ») ; **cinq restent ici** (R169 à R173).
+`archive.md`, sous « 🧭 R167 · R168 · R174 ») et quatre autres plus tard le même soir,
+tranchées par `d048a5a` (R170 à R173 — détail dans `archive.md`, sous
+« 🧭 R170 · R171 · R172 · R173 ») ; **une reste ici** (R169).
 Avant elles, l'index avait été vidé le 2026-09-25 : R165 (la CI rouge depuis le
 2026-09-22) et R166 (le contrôle de santé de la prod qui n'arrivait à personne),
 entrées le 2026-09-24 au soir toutes deux nées d'un déploiement qui n'a pas pu partir,
@@ -99,7 +97,7 @@ Chacune croise une phrase d'un livre avec un chiffre déjà mesuré sur ce dép�
 et la citation sont dans le bloc « 📚 R146-R151 » plus bas. Une ligne dont le livre ne
 faisait que confirmer ce qu'on savait déjà n'y est PAS entrée.
 
-**Cinq tâches sont ouvertes dans cet index depuis le 2026-09-25 au soir** (R169 à R173) — huit y sont entrées ce soir-là, et R167, R168, R174 en sont ressorties livrées le même soir (détail dans `archive.md`, sous « 🧭 R167 · R168 · R174 »). Avant elles, R165 et R166, qui l'occupaient depuis le
+**Une tâche est ouverte dans cet index depuis le 2026-09-25 au soir** (R169) — huit y sont entrées ce soir-là, et R167, R168, R174 en sont ressorties livrées le même soir (détail dans `archive.md`, sous « 🧭 R167 · R168 · R174 »), puis R170 à R173 tranchées plus tard le même soir (détail dans `archive.md`, sous « 🧭 R170 · R171 · R172 · R173 »). Avant elles, R165 et R166, qui l'occupaient depuis le
 2026-09-24 au soir, sont livrées le 2026-09-25 ; leur récit est dans `archive.md`. R145
 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance,
 close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et
@@ -151,17 +149,15 @@ propriétaire (le mail de 23 h d'`alert_monitor`, `prod-health.yml`). Et rien ne
 ENTRER une action dans cette roadmap : ~9 identifiées ce jour-là, 0 inscrite avant ce bloc.
 
 **R167, R168 et R174 sont livrées le même soir** (`5a17b33`, `6a40f4b`) — détail et
-preuve dans `archive.md`, sous « 🧭 R167 · R168 · R174 ».
+preuve dans `archive.md`, sous « 🧭 R167 · R168 · R174 ». **R170, R171, R172 et R173
+sont tranchées plus tard le même soir** (`d048a5a`) — détail et preuve dans
+`archive.md`, sous « 🧭 R170 · R171 · R172 · R173 ».
 
 - [ ] **R169** — dette : 3 classes par séance, dans l'ordre de `make error-debt` (récidivées sans
   garde auto-prouvant d'abord). Tant que la liste n'est pas vide, cette ligne reste — garde
   `tests/test_a_measured_debt_has_its_roadmap_line.py`.
-- [ ] **R170** — décider : `reopen-check` / `night-check` dans le DAG du soir, ou retirés.
-- [ ] **R171** — décider : régénérer `error-inbox.md` (CI de prod) ou le retirer — l'alerte
-  réelle passe déjà par le mail de 23 h.
-- [ ] **R172** — décider : planifier `/curator` ou le retirer.
-- [ ] **R173** — porter `select_tests.py` (non-Python sélectif) et `audit_runner.py`
-  (signatures concurrentes) vers le baseline.
+  - 2026-09-25 : 3 classes payées (a-surgical-restore, a-kill-pattern, audit-scope),
+    `guard_does_not_prove_itself` 306 → 303 ; prochaines : `make error-debt`.
 - [ ] **R175** — 🙋 mots de passe mail UC7 (runbook §25).
 - [ ] **R176** — 🙋 `AIRFLOW__CORE__DAGS_FOLDER` mort (runbook §26).
 - [ ] **R177** — 🙋 **P1** : tourner les secrets de l'historique public (runbook §27). Tri
@@ -224,7 +220,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R169, R170, R171, R172, R173, R148, R177, R175, R176, R163 -->
+<!-- reprise: open=R169, R148, R177, R175, R176, R163 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers

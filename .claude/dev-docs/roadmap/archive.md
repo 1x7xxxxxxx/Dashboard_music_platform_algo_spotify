@@ -42,6 +42,42 @@ propriétaire), livrées le même soir par `5a17b33` puis `6a40f4b`.
 
 ---
 
+## 🧭 R170 · R171 · R172 · R173 — décisions de l'audit de surveillance, tranchées (livrées 2026-09-25)
+
+Nées le même soir et du même bloc d'audit que R167 · R168 · R174 (« 🧭 R167 – R176 » de
+`checklist.md`), tranchées plus tard le 2026-09-25 par `d048a5a`.
+
+- [x] **R170 — `reopen-check` branché dans `security-nightly.yml`.** (P3) ✅
+  (2026-09-25, `d048a5a`)
+
+  Job `reopen-check` ajouté au nightly, son outcome lu par `notify` pour arriver dans le
+  mail. `night-check` reste l'outil de la séance longue (règle 15bis, CLAUDE.md) — les
+  deux ne se recouvrent pas, par conception. Le jour du branchement, R122 était déjà
+  déclenchée (48 > 47), vue par personne avant ce garde : acquittée, portée par R169,
+  seuil relevé à 48 dans `tools/dev/reopen_check.py`.
+
+- [x] **R171 — `error-inbox.md` assumé comme instantané de la base LOCALE.** (P4) ✅
+  (2026-09-25, `d048a5a`)
+
+  L'en-tête, écrit par `tools/error_inbox.py`, le dit désormais explicitement : les
+  défauts de production arrivent par le mail de 23 h d'`alert_monitor`, pas par ce
+  fichier. L'artefact de test (le `ValueError` laissé pour vérifier la génération) est
+  fermé.
+
+- [x] **R172 — `/curator` planifié par une date écrite, pas par un vœu.** (P4) ✅
+  (2026-09-25, `d048a5a`)
+
+  `curator.py` écrit désormais `.claude/curator/last-run` à chaque passage ;
+  `session_summary.py` rappelle au-delà de 7 jours sans exécution. Lancé une fois le
+  2026-09-25 pour amorcer la date.
+
+- [x] **R173 — portage baseline (`0dcaa11`).** (P4) ✅ (2026-09-25, `d048a5a`)
+
+  `select_tests.py` (sélection non-Python sélective) et `audit_runner.py` (signatures
+  concurrentes) portés vers `claude_code_deployment_baseline`, à sa version `0dcaa11`.
+
+---
+
 ## 🧯 R165 · R166 — la soirée du 2026-09-24 (livrées 2026-09-25)
 
 **Ce qui s'est passé.** `make deploy` de `e910543` (alignement de « Se connecter ») a
