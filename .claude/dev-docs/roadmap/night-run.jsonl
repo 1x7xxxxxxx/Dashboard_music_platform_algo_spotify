@@ -166,3 +166,5 @@
 {"at": "2026-09-25T23:25:03+00:00", "head": "d58d626", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 8"}
 {"at": "2026-09-25T23:27:43+00:00", "head": "1593385", "kind": "done", "task": "R169", "what": "causes lot 8 : 122 -> 119 ; une reference de fichier corrigee avant commit (grep -h masquait le nom)"}
 {"at": "2026-09-25T23:27:50+00:00", "head": "1593385", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 9"}
+{"at": "2026-09-25T23:29:59+00:00", "head": "78622e8", "kind": "done", "task": "R169", "what": "causes lot 9 : 119 -> 117"}
+{"at": "2026-09-25T23:30:05+00:00", "head": "78622e8", "kind": "start", "task": "R169", "what": "causes unknown -> read : lot 10"}

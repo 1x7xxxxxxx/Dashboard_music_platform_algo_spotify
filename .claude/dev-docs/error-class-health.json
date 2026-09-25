@@ -2271,7 +2271,7 @@
       "renamed_from": null
     },
     "a-partial-bucket-drawn-as-a-full-one": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-08",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_live_chart_matches_the_illustration.py",
@@ -2294,7 +2294,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-08",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2464,7 +2464,7 @@
       "renamed_from": null
     },
     "a-procedural-rule-in-the-database": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": ".claude/scripts/audit_runner.py",
@@ -2486,7 +2486,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11445,12 +11445,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 394,
+      "catalogue_revisions": 395,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 117,
+      "cause_unknown": 115,
       "guard_does_not_prove_itself": 270,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
