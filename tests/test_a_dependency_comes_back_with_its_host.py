@@ -81,10 +81,8 @@ def _policy(service: dict) -> str | None:
     return None if value is None else str(value).strip().strip('"').strip("'")
 
 
-@pytest.mark.parametrize("compose", _COMPOSES)
-def test_a_depended_on_service_declares_a_restart_policy(compose: str) -> None:
-    """Un service requis TOURNANT par un autre remonte au moins aussi durablement."""
-    services = (_load(compose).get("services") or {})
+def _faults(services: dict, compose: str) -> list[str]:
+    """Required services that do not come back at least as durably as their dependents."""
     faults: list[str] = []
 
     for dependent_name, dependent in services.items():
@@ -116,6 +114,13 @@ def test_a_depended_on_service_declares_a_restart_policy(compose: str) -> None:
                     f"Porter `{required_name}` à `{dependent_policy}`."
                 )
 
+    return faults
+
+
+@pytest.mark.parametrize("compose", _COMPOSES)
+def test_a_depended_on_service_declares_a_restart_policy(compose: str) -> None:
+    """Un service requis TOURNANT par un autre remonte au moins aussi durablement."""
+    faults = _faults(_load(compose).get("services") or {}, compose)
     assert not faults, "\n".join(faults)
 
 
@@ -154,3 +159,14 @@ def test_the_project_database_is_covered() -> None:
         "aucun service ne dépend de `postgres` en condition d'exécution : le premier "
         "test ne garde plus rien. Si les dépendances ont changé, revoir ce garde."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity on FABRICATED services: a database with no restart policy under an app
+    that restarts; a weaker policy; the corrected pair; a one-shot launcher (it must exit)."""
+    app = {"restart": "unless-stopped", "depends_on": {"db": {"condition": "service_healthy"}}}
+    assert len(_faults({"app": app, "db": {}}, "c.yml")) == 1, "no policy on the required service"
+    assert len(_faults({"app": app, "db": {"restart": "no"}}, "c.yml")) == 1, "a weaker policy"
+    assert _faults({"app": app, "db": {"restart": "unless-stopped"}}, "c.yml") == []
+    init = {"depends_on": {"db": {"condition": "service_completed_successfully"}}}
+    assert _faults({"init": init, "db": {}}, "c.yml") == [], "a one-shot dependency is exempt"
