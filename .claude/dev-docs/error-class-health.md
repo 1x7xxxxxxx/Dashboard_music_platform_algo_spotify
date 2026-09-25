@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**415 classes.** Fenêtre observée : `2026-05-15` → `2026-09-25` (372 révisions du catalogue rejouées).
+**415 classes.** Fenêtre observée : `2026-05-15` → `2026-09-26` (373 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -46,11 +46,11 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 
 | grandeur | valeur |
 |---|---|
-| `automatic_guard` | 405 |
+| `automatic_guard` | 406 |
 | `classes` | 415 |
 | `ever_recurred_observed` | 48 |
-| `prose_only` | 10 |
-| `with_signature` | 403 |
+| `prose_only` | 9 |
+| `with_signature` | 404 |
 
 ## Les trous — ce que le cliquet fait baisser
 
@@ -60,7 +60,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|
 | `cause_inferred` | 0 |
 | `cause_unknown` | 140 |
-| `guard_does_not_prove_itself` | 303 |
+| `guard_does_not_prove_itself` | 302 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_on_a_shared_guard_without_naming_its_tests` | 15 |
@@ -75,19 +75,19 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 ## Récidive observée
 
-**60 évènements** sur 11246 classe-jours d'exposition — **0.1622** par classe-mois (IC 95 % : 0.1238 – 0.2088)
+**60 évènements** sur 11661 classe-jours d'exposition — **0.1564** par classe-mois (IC 95 % : 0.1194 – 0.2013)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 55 | 0.152 | 0.1145 – 0.1978 | **séparent** |
-| by_guard · prose | 5 | 0.6255 | 0.2016 – 1.4597 | **séparent** |
-| by_guard_since · avec-garde | 55 | 0.1605 | 0.1209 – 0.2089 | insuffisant pour conclure (n=60) |
-| by_guard_since · sans-garde | 5 | 0.1831 | 0.059 – 0.4274 | insuffisant pour conclure (n=60) |
-| by_seen_red · daté | 17 | 0.1387 | 0.0808 – 0.2221 | insuffisant pour conclure (n=60) |
-| by_seen_red · jamais-ou-inconnu | 43 | 0.1738 | 0.1258 – 0.2341 | insuffisant pour conclure (n=60) |
-| by_scope · ne-couvre-pas renseigné | 60 | 0.1622 | 0.1238 – 0.2088 | une seule strate peuplée (n=60) |
+| by_guard · automatique | 55 | 0.1461 | 0.1101 – 0.1902 | **séparent** |
+| by_guard · prose | 5 | 0.7005 | 0.2257 – 1.6346 | **séparent** |
+| by_guard_since · avec-garde | 55 | 0.1546 | 0.1164 – 0.2012 | insuffisant pour conclure (n=60) |
+| by_guard_since · sans-garde | 5 | 0.1803 | 0.0581 – 0.4208 | insuffisant pour conclure (n=60) |
+| by_seen_red · daté | 17 | 0.1343 | 0.0782 – 0.2151 | insuffisant pour conclure (n=60) |
+| by_seen_red · jamais-ou-inconnu | 43 | 0.1673 | 0.1211 – 0.2253 | insuffisant pour conclure (n=60) |
+| by_scope · ne-couvre-pas renseigné | 60 | 0.1564 | 0.1194 – 0.2013 | une seule strate peuplée (n=60) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
@@ -95,8 +95,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 | | avec garde | sans garde | rapport |
 |---|---|---|---|
-| `by_guard` — étiquette d'aujourd'hui, **confondu** | 0.152 | 0.6255 | ×4.1 |
-| `by_guard_since` — découpé au premier garde | 0.1605 | 0.1831 | ×1.1 |
+| `by_guard` — étiquette d'aujourd'hui, **confondu** | 0.1461 | 0.7005 | ×4.8 |
+| `by_guard_since` — découpé au premier garde | 0.1546 | 0.1803 | ×1.2 |
 
 L'écart de la première ligne est un **artefact de mesure**, pas un effet. Écrire un garde automatique reste la bonne pratique ; ce tableau dit seulement que **ce jeu de données ne la démontre pas**, et qu'aucune règle ne devrait citer la première ligne comme preuve.
 
@@ -110,8 +110,8 @@ Une classe **plus jeune que l'horizon est exclue de la colonne**, jamais compté
 
 | horizon | à risque | récidivées | taux |
 |---|---|---|---|
-| 7 j | 403 | 44 | 11 % |
-| 14 j | 279 | 35 | 13 % |
+| 7 j | 404 | 44 | 11 % |
+| 14 j | 315 | 37 | 12 % |
 | 30 j | 141 | 28 | 20 % |
 
 ## Avant la fenêtre git — DÉCLARATIF

@@ -61,7 +61,10 @@ _NO_ENV = {"tools/dev/check_manifest_consistency.py", "tools/dev/graphify_render
            "tools/dev/make_avatar_gif.py",
            "tools/dev/architecture_dossier/main.py",
            "tools/dev/gold_coverage.py",
-           "tools/dev/check_container_bind_address.py"}
+           "tools/dev/check_container_bind_address.py",
+           # Reads git history (gitleaks) and asks the PROVIDERS; the app's environment is
+           # exactly what it must NOT read — it tests the OLD values, not the live ones.
+           "tools/dev/prove_old_secrets_dead.py"}
 
 
 def _documented_tools() -> list[str]:

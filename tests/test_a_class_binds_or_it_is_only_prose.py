@@ -78,7 +78,7 @@ def _is_automatic(kind: str) -> bool:
 # 18 → 10 le 2026-09-17, même cause : huit classes gardées étaient comptées comme
 # prose seule parce que leur `guard:` est écrit en forme nue. Le dépôt n'a pas changé,
 # la mesure oui.
-_PROSE_CEILING = 10
+_PROSE_CEILING = 9   # 10 → 9 le 2026-09-26 : migration-ahead-of-its-code a un garde exécutable
 
 
 # Les en-têtes qui ne sont PAS des classes. Ils ressemblent à des classes à un

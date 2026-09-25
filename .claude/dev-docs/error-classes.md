@@ -1428,24 +1428,6 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-08-20: signature polarity corrected the same day — the `! cmd` idiom fits grep (exit 0 on a hit); this probe already exits 1 when a BOM exists, so the `!` inverted it and reported a permanent false hit. An idiom copied without checking its polarity is a guard that reads backwards.
   - 2026-08-20: discovered while checking that a NEW guard actually went red on the defect it targets — it did not, because `spotify_api_daily.py` carried a BOM and was being skipped. The same BOM explains the "3 fichiers non parsables — graphe incomplet" that `select_tests.py` (CLAUDE.md rule 16) had been printing on every run: the impact graph was silently missing three DAGs. `tests/test_dag_fleet_isolation.py` was unaffected (it already read `utf-8-sig`).
 
-## migration-ahead-of-its-code
-- status: reported
-- severity: P1
-- kind: manual
-- symptom: a migration that changes a **key** (primary key, unique constraint, conflict target) is applied to production while the code that uses the new key is not yet deployed. Every `ON CONFLICT` upsert against the old target then fails with `there is no unique or exclusion constraint matching the ON CONFLICT specification`, and collection stops.
-- root_cause: migrations are treated as independently deployable because most of them are — adding a column, an index, a table is forward-compatible in both directions. A key change is not: it is a contract between the schema and the writer, and applying half a contract breaks the half that is live.
-- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
-- signature: manual — a migration touching PRIMARY KEY / UNIQUE / a conflict target must carry an explicit deployment-order note and be applied AFTER the deploy.
-- seen_red: 2026-09-18 — en déposant une migration `ALTER TABLE saas_artists ADD COLUMN colonne_sans_code`, le garde sort **1** ; **0** une fois la sonde retirée.
-- long_term_fix: two classes of migration, stated at the top of the file. **Additive** (column, index, table, default) → may precede the code. **Key-changing** (PK, UNIQUE, conflict target) → the file must open with an ORDER OF DEPLOYMENT banner and be applied only after `make deploy`. `migrations/065_youtube_surrogate_pk.sql` carries the first such banner.
-- guard: { type: doc-convention, ref: migrations/065_youtube_surrogate_pk.sql }
-- guard_scope: une-écriture-qui-écrase — une migration qui change une CLÉ part avant son code, donc la moitié vivante du contrat casse — l'écriture en cours vise un conflit qui n'existe plus ; couvre: une convention de document : `migrations/065_youtube_surrogate_pk.sql` ouvre sur une bannière ORDRE DE DÉPLOIEMENT et porte la distinction additive / changeant-une-clé ; **c'est une convention, pas un contrôle** — rien ne l'exécute ; ne couvre pas: (1) **le geste voisin le plus proche — les autres migrations changeant une clé** : aucune n'est tenue de porter la bannière, aucun test ne cherche `PRIMARY KEY`, `UNIQUE` ou une cible de conflit pour l'exiger, et `make migrate` applique tout dans l'ordre des numéros sans lire un mot de la bannière ; (2) les changements de contrat qui ne sont pas des clés — type d'une colonne, `NOT NULL`, valeur par défaut ; (3) l'ordre INVERSE, un code déployé avant sa migration ; (4) la prod, où `git pull` du bind-mount et `make migrate` sont deux gestes humains distincts
-- siblings: swept:2026-09-18 — **0 site vivant** sur les **123** migrations. Le garde les parcourt toutes et refuse une colonne ajoutée qu'aucun code du dépôt ne lit — la migration ne peut pas prendre d'avance sur ce qui l'utilisera. ⚠️ Ne couvre pas : l'avance dans l'autre sens, un code qui lit une colonne qu'aucune migration ne crée. Elle se manifeste comme une erreur SQL au premier rendu, donc bruyamment — c'est pourquoi elle n'a pas de garde, pas parce qu'elle est impossible.
-- rex_ref: migrations/065_youtube_surrogate_pk.sql
-- first_seen: 2026-08-20
-- History:
-  - 2026-08-20: caused by me, in production, while fixing the tenant-isolation bugs. Migration 064 (additive indexes) was safe; 065 moved the primary key of `youtube_channels`/`youtube_videos` off the platform id, and the deployed collector still upserted on `ON CONFLICT (channel_id)`. Detected within minutes because the collection run that was meant to PROVE the fix reported `failed` for every tenant with a channel; reverted on the spot and collection was restored (the admin's 67 videos came back under the admin). The lesson is not "test more" — the migration was tested against a clone of the production schema and passed. It is that a key change is only correct in the presence of its writer.
-
 ## column-name-is-not-its-meaning
 - status: guarded
 - severity: P2
@@ -4243,7 +4225,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 ## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site
 
-> Les 233 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
+> Les 234 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
 > `error-class-health.json` et non au jugé (`tools/dev/error_class_health.py::is_dormant`) :
 >
 > * `history_additions == 0` — jamais récidivé sur la fenêtre observée ;
@@ -4255,7 +4237,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > **Elles ne sont ni archivées ni supprimées.** Elles vivent dans ce fichier, leurs
 > signatures tournent, leurs gardes tournent, `--coverage` les compte. Elles sont
 > seulement RANGÉES APRÈS, pour qu'un humain qui ouvre ce document rencontre d'abord
-> les 182 classes encore vivantes.
+> les 181 classes encore vivantes.
 >
 > ⚠️ **Pourquoi pas un second fichier.** C'était le plan, et la mesure l'a écarté : le
 > gain en temps est de **≈ 0 s** — les 8,46 s du cliquet de santé viennent du rejeu de
@@ -4269,6 +4251,25 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > de moitié vivante ; une classe qui remplit les quatre conditions descend ici. Les deux
 > nombres ci-dessus sont recalculés à chaque passe. `make error-health-check` (CI) échoue
 > si le catalogue n'est pas rangé — un rangement oublié ne peut plus être commité.
+
+## migration-ahead-of-its-code
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: a migration that changes a **key** (primary key, unique constraint, conflict target) is applied to production while the code that uses the new key is not yet deployed. Every `ON CONFLICT` upsert against the old target then fails with `there is no unique or exclusion constraint matching the ON CONFLICT specification`, and collection stops.
+- root_cause: migrations are treated as independently deployable because most of them are — adding a column, an index, a table is forward-compatible in both directions. A key change is not: it is a contract between the schema and the writer, and applying half a contract breaks the half that is live.
+- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
+- signature: `python/.venv/bin/python -m pytest tests/test_a_key_changing_migration_declares_its_deploy_order.py -q`
+- seen_red: self-proving (tests/test_a_key_changing_migration_declares_its_deploy_order.py::test_the_detector_sees_the_defect_it_is_written_for) — et muté le 2026-09-26 : seuil de numéro ramené à 0 → rouge sur 24 migrations anciennes sans bannière
+- long_term_fix: two classes of migration, stated at the top of the file. **Additive** (column, index, table, default) → may precede the code. **Key-changing** (PK, UNIQUE, conflict target) → the file must open with an ORDER OF DEPLOYMENT banner and be applied only after `make deploy`. `migrations/065_youtube_surrogate_pk.sql` carries the first such banner.
+- guard: tests/test_a_key_changing_migration_declares_its_deploy_order.py
+- guard_scope: une-écriture-qui-écrase — une migration qui change une CLÉ part avant son code, donc la moitié vivante du contrat casse — l'écriture en cours vise un conflit qui n'existe plus ; couvre: une convention de document : `migrations/065_youtube_surrogate_pk.sql` ouvre sur une bannière ORDRE DE DÉPLOIEMENT et porte la distinction additive / changeant-une-clé ; **c'est une convention, pas un contrôle** — rien ne l'exécute ; ne couvre pas: (1) **le geste voisin le plus proche — les autres migrations changeant une clé** : aucune n'est tenue de porter la bannière, aucun test ne cherche `PRIMARY KEY`, `UNIQUE` ou une cible de conflit pour l'exiger, et `make migrate` applique tout dans l'ordre des numéros sans lire un mot de la bannière ; (2) les changements de contrat qui ne sont pas des clés — type d'une colonne, `NOT NULL`, valeur par défaut ; (3) l'ordre INVERSE, un code déployé avant sa migration ; (4) la prod, où `git pull` du bind-mount et `make migrate` sont deux gestes humains distincts
+- siblings: swept:2026-09-18 — **0 site vivant** sur les **123** migrations. Le garde les parcourt toutes et refuse une colonne ajoutée qu'aucun code du dépôt ne lit — la migration ne peut pas prendre d'avance sur ce qui l'utilisera. ⚠️ Ne couvre pas : l'avance dans l'autre sens, un code qui lit une colonne qu'aucune migration ne crée. Elle se manifeste comme une erreur SQL au premier rendu, donc bruyamment — c'est pourquoi elle n'a pas de garde, pas parce qu'elle est impossible.
+- rex_ref: migrations/065_youtube_surrogate_pk.sql
+- first_seen: 2026-08-20
+- History:
+  - 2026-08-20: caused by me, in production, while fixing the tenant-isolation bugs. Migration 064 (additive indexes) was safe; 065 moved the primary key of `youtube_channels`/`youtube_videos` off the platform id, and the deployed collector still upserted on `ON CONFLICT (channel_id)`. Detected within minutes because the collection run that was meant to PROVE the fix reported `failed` for every tenant with a channel; reverted on the spot and collection was restored (the admin's 67 videos came back under the admin). The lesson is not "test more" — the migration was tested against a clone of the production schema and passed. It is that a key change is only correct in the presence of its writer.
+  - 2026-09-26: garde écrit. Le job nocturne `p1-classes` (2026-09-25) l'avait trouvée P1 sans AUCUN garde exécutable — une convention de document. `tests/test_a_key_changing_migration_declares_its_deploy_order.py` refuse toute migration de numéro > 136 qui change une clé (PK, UNIQUE, contrainte, index unique — SQL hors commentaires) sans la bannière « ORDRE DE DÉPLOIEMENT » dans ses 20 premières lignes. Les 26 migrations ≤ 136 qui changent une clé (2 bannières) sont déjà appliquées en prod, où le risque d'ordre n'existe plus. Ne couvre pas : l'ordre RÉEL d'application (le garde vérifie la déclaration, pas `make deploy` puis `make migrate`).
 
 ## a-guard-names-a-class-nobody-wrote
 - status: guarded

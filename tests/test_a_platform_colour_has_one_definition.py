@@ -79,7 +79,7 @@ def _docstrings(arbre: ast.AST) -> set[int]:
     return out
 
 
-def _compte() -> collections.Counter:
+def _compte(racine: pathlib.Path | None = None) -> collections.Counter:
     """Les constantes de marque par fichier — docstrings EXCLUES.
 
     Par l'AST et non par le texte : ce fichier-ci, et `platform_colors.py`,
@@ -87,8 +87,9 @@ def _compte() -> collections.Counter:
     refusées. Un garde textuel s'accuserait lui-même — c'est arrivé trois fois
     dans ce dépôt, dont deux fois le 2026-09-21.
     """
+    racine = racine or _DASH
     out: collections.Counter = collections.Counter()
-    for p in sorted(_DASH.rglob("*.py")):
+    for p in sorted(racine.rglob("*.py")):
         if "__pycache__" in str(p) or p.name in _PORTEURS:
             continue
         try:
@@ -99,7 +100,7 @@ def _compte() -> collections.Counter:
         for n in ast.walk(arbre):
             if isinstance(n, ast.Constant) and isinstance(n.value, str) \
                     and id(n) not in docs and n.value.strip().lower() in _MARQUES:
-                out[str(p.relative_to(_DASH))] += 1
+                out[str(p.relative_to(racine))] += 1
     return out
 
 
@@ -135,25 +136,28 @@ def test_the_counter_is_not_vacuous() -> None:
         "même commit), soit un compteur cassé.")
 
 
-def test_the_detector_ignores_a_colour_named_in_prose() -> None:
+def test_the_detector_ignores_a_colour_named_in_prose(tmp_path) -> None:
     """Une couleur citée dans une docstring n'est pas une couleur utilisée.
 
     Mutation record — 2026-09-21 : c'est la forme exacte qui a fait rougir deux
     gardes neufs sur leur propre texte le même jour.
     """
-    sonde = _DASH / "_probe_platform_colour.py"
+    # In tmp_path, never in the real `src/dashboard/`: written there, the probe was seen
+    # and then lost by another test's scan under xdist — FileNotFoundError in the random-
+    # order nightly of 2026-09-25 (test_the_archives_are_really_dead).
+    sonde = tmp_path / "_probe_platform_colour.py"
     sonde.write_text(
         'def f():\n'
         '    """Ne jamais écrire #1DB954 à la main."""\n'
         '    return 1\n', encoding="utf-8")
     try:
-        assert str(sonde.relative_to(_DASH)) not in _compte(), (
+        assert str(sonde.relative_to(tmp_path)) not in _compte(tmp_path), (
             "le détecteur compte une couleur citée dans une docstring")
         sonde.write_text(
             'def f():\n'
             '    """Rien à signaler."""\n'
             '    return {"color": "#1DB954"}\n', encoding="utf-8")
-        assert _compte().get(str(sonde.relative_to(_DASH))) == 1, (
+        assert _compte(tmp_path).get(str(sonde.relative_to(tmp_path))) == 1, (
             "le détecteur ne voit plus une couleur RÉELLEMENT écrite")
     finally:
         sonde.unlink()
