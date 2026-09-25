@@ -153,6 +153,33 @@ Née le même soir et du même bloc d'audit que R167 · R168 · R174 (« 🧭 R1
 
 ---
 
+## 🧵 R178 — `migration-ahead-of-its-code` gardée, nightly aléatoire redevenu vert (livrée 2026-09-26)
+
+Née le 2026-09-25 du balayage des frères de R177 (reste hors du périmètre de cette
+tâche-là, ouvert séparément dans `checklist.md`).
+
+- [x] **R178 — P1 `migration-ahead-of-its-code` gardée par un test exécutable ; la suite
+  aléatoire du nightly, dite rouge 4 nuits sur 5, était déjà repassée verte.** (P2) ✅
+  (2026-09-26, `ff0a0d1`, `66e4b43`)
+
+  1. **La P1 a désormais un garde auto-prouvant** :
+     `tests/test_a_key_changing_migration_declares_its_deploy_order.py` (mutée, vue
+     rouge). La classe passe de manuelle à déterministe/gardée, et la dette figée
+     `--known-unguarded` du job nocturne `p1-classes` est retirée. Preuve :
+     `python3 .claude/scripts/audit_runner.py --severity P1` → audit propre (`ff0a0d1`).
+  2. **Le « 4 nuits sur 5 » était une mesure périmée.** Les rouges du 2026-09-23/24
+     avaient déjà été corrigés ; la suite est verte depuis le 2026-09-25 08:13, à
+     l'exception de deux échecs isolés, tous deux corrigés depuis : une sonde écrivait
+     dans le vrai `src/dashboard` (`FileNotFoundError` sous xdist — le balayage des
+     frères a trouvé **5 sites** de plus, 6 au total, tous déplacés vers `tmp_path`,
+     nouveau garde `tests/test_a_test_never_writes_into_the_real_tree.py`, `66e4b43`) et
+     `prove_old_secrets_dead.py`, déclaré indépendant de l'environnement (`ff0a0d1`).
+
+  Preuve : `gh run list --workflow security-nightly.yml` → job `full-suite-random-order`
+  vert depuis le 2026-09-25 08:13.
+
+---
+
 ## 🧯 R165 · R166 — la soirée du 2026-09-24 (livrées 2026-09-25)
 
 **Ce qui s'est passé.** `make deploy` de `e910543` (alignement de « Se connecter ») a

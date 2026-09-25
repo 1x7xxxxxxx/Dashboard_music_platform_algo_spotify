@@ -26,7 +26,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R169 | Dette du catalogue d'erreurs : gardes non auto-prouvants et causes inconnues, figés sur six commits <!-- anchor: error-debt --> | P3 | `make error-debt` |
-| R178 | P1 `migration-ahead-of-its-code` sans garde exécutable (dette figée du job `p1-classes`) + suite aléatoire du nightly rouge 4 nuits/5 | P2 | `python3 .claude/scripts/audit_runner.py --severity P1` / `gh run list --workflow security-nightly.yml` |
 
 **Huit lignes y sont entrées le 2026-09-25 au soir**, toutes issues de l'audit de la
 surveillance des classes d'erreur — détail dans « 🧭 R167 – R176 » juste sous cet index.
@@ -98,13 +97,14 @@ Chacune croise une phrase d'un livre avec un chiffre déjà mesuré sur ce dép�
 et la citation sont dans le bloc « 📚 R146-R151 » plus bas. Une ligne dont le livre ne
 faisait que confirmer ce qu'on savait déjà n'y est PAS entrée.
 
-**Deux tâches sont ouvertes dans cet index depuis le 2026-09-25 au soir** (R169, R178) — huit
+**Une seule tâche est ouverte dans cet index depuis le 2026-09-25 au soir** (R169) — huit
 y sont entrées ce soir-là, et R167, R168, R174 en sont ressorties livrées le même soir
 (détail dans `archive.md`, sous « 🧭 R167 · R168 · R174 »), puis R170 à R173 tranchées plus
 tard le même soir (détail dans `archive.md`, sous « 🧭 R170 · R171 · R172 · R173 »). R175,
 qui attendait un geste humain (mots de passe mail UC7), est livrée le 2026-09-25 — détail et
-preuve dans `archive.md`, sous « 🧭 R175 ». **R178** entre le même soir : c'est le reste
-trouvé par le balayage des frères qui a fermé R177. Avant elles, R165 et R166, qui l'occupaient depuis le
+preuve dans `archive.md`, sous « 🧭 R175 ». **R178**, entrée le même soir — le reste
+trouvé par le balayage des frères qui a fermé R177 — est livrée le 2026-09-26 : détail et
+preuve dans `archive.md`, sous « 🧵 R178 ». Avant elles, R165 et R166, qui l'occupaient depuis le
 2026-09-24 au soir, sont livrées le 2026-09-25 ; leur récit est dans `archive.md`. R145
 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance,
 close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et
@@ -164,18 +164,16 @@ même soir**, chacune par le geste humain qu'elle attendait — détail et preuv
 Spotify, YouTube et Meta tournés, toutes les anciennes valeurs refusées (l'ancienne clé
 YouTube supprimée dans Google Cloud par le propriétaire) — détail et preuve dans
 `archive.md`, sous « 🔒 R177 ». Son balayage des frères a trouvé un reste hors de son
-périmètre, ouvert séparément ci-dessous en **R178**.
+périmètre, ouvert séparément en **R178** et livré le 2026-09-26 — détail et preuve dans
+`archive.md`, sous « 🧵 R178 ».
 
 - [ ] **R169** — dette : 3 classes par séance, dans l'ordre de `make error-debt` (récidivées sans
   garde auto-prouvant d'abord). Tant que la liste n'est pas vide, cette ligne reste — garde
   `tests/test_a_measured_debt_has_its_roadmap_line.py`.
   - 2026-09-25 : 3 classes payées (a-surgical-restore, a-kill-pattern, audit-scope),
     `guard_does_not_prove_itself` 306 → 303 ; prochaines : `make error-debt`.
-- [ ] **R178** — Trouvé en route : `migration-ahead-of-its-code` est une P1 que RIEN n'exécute (24
-  migrations touchent une contrainte, aucune ne porte la note d'ordre) — dette figée dans le
-  job nocturne `p1-classes` (`--known-unguarded`), à garder par un test. Et la suite en
-  ordre aléatoire du nightly est rouge 4 nuits sur 5 : `gh run list --workflow
-  security-nightly.yml` → job `full-suite-random-order`.
+  - 2026-09-26 : central-app-missing et a-command-wrapper-… rendus auto-prouvants,
+    migration-ahead-of-its-code gardée ; `guard_does_not_prove_itself` 303 → 300.
 
 ---
 
@@ -231,7 +229,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R169, R178, R148, R163 -->
+<!-- reprise: open=R169, R148, R163 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers

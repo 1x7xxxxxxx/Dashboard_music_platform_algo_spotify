@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**415 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**417 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -17,10 +17,10 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 17 | **3/17** · 17.6 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | **1/20** · 5.0 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **1/20** · 5.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
-| [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 25 | **3/25** · 12.0 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
+| [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 26 | **3/26** · 11.5 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 30 | **6/30** · 20.0 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 27 | **3/27** · 11.1 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 87 | **14/87** · 16.1 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 88 | **14/88** · 15.9 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | **4/39** · 10.3 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | **0/8** · 0.0 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
@@ -199,7 +199,7 @@ Règle de rattachement : `assumes-a-shell|assumes-visibility|by-direction-not-by
 
 **Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ?**
 
-Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-after-instantiation|per-worker|namespaced-by-another|connection|closes-a-connection|only-inside-a-session|loses-the-race|first-row|session|cache|named-after-an-environment|environment-variable|state-file|leak` sur l'identifiant et le symptôme. 25 classe(s).
+Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-after-instantiation|per-worker|namespaced-by-another|connection|closes-a-connection|only-inside-a-session|loses-the-race|first-row|session|cache|named-after-an-environment|environment-variable|state-file|leak` sur l'identifiant et le symptôme. 26 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -212,6 +212,7 @@ Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-a
 | [`connection-escapes-unclosed`](error-classes.md#connection-escapes-unclosed) | sans charge, rien. Au palier suivant, des connexions s'accumulent contre `max_connections` (100 par défaut, partagé avec Airflow et une API qui peut e |
 | [`a-merged-branch-outlives-its-pull-request`](error-classes.md#a-merged-branch-outlives-its-pull-request) | le dépôt affiche des dizaines de branches « actives » alors qu'une seule ligne de travail existe. Le propriétaire se demande s'il va **perdre des avan |
 | [`a-cache-whose-sharing-depends-on-an-unasserted-scheduler-flag`](error-classes.md#a-cache-whose-sharing-depends-on-an-unasserted-scheduler-flag) | un montage d'optimisation est en place, tous les tests sont verts, et le gain qu'il devait rendre est **nul**. Rien ne rougit, parce que le montage n' |
+| [`a-secret-committed-to-a-public-history`](error-classes.md#a-secret-committed-to-a-public-history) | `gitleaks` rouge 5 nuits sur 5, lu par personne ; un `git clone` suffit à lire des identifiants de production — sans compte, sans trace |
 | [`a-memo-field-written-and-never-consulted`](error-classes.md#a-memo-field-written-and-never-consulted) | un attribut de mémoïsation existe, il est rempli à chaque appel, et le travail est refait quand même. Aucun signal : **un cache sans succès se comport |
 | [`session-wide-stub-of-an-installed-package`](error-classes.md#session-wide-stub-of-an-installed-package) | des tests passent ou échouent selon l'ORDRE d'exécution. Isolés ils sont verts ; groupés, quatre d'entre eux tombent sur « n'est pas un paquet ». Et,  |
 | [`no-db-signature-opens-a-connection`](error-classes.md#no-db-signature-opens-a-connection) | un garde tombe pour une raison qui n'est pas la sienne. Le rapport nomme sa classe d'erreur, et la trace dessous dit `psycopg2.OperationalError` — on  |
@@ -308,7 +309,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|substitution|s'exécute|accent grave|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 87 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|substitution|s'exécute|accent grave|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 88 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -355,6 +356,7 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 | [`guard-satisfied-by-its-own-comment`](error-classes.md#guard-satisfied-by-its-own-comment) | le défaut est remis en place **en entier** et la suite reste VERTE. Rien ne signale quoi que ce soit — c'est un garde qui ne garde plus, dans l'état e |
 | [`a-blocking-gate-red-on-its-own-syntax`](error-classes.md#a-blocking-gate-red-on-its-own-syntax) | une porte bloquante est rouge, et ce qu'elle nomme n'existe pas. Le message dit « ces touches sont réelles » ; on cherche un défaut du produit, il n'y |
 | [`a-test-that-only-ever-ran-on-its-authors-machine`](error-classes.md#a-test-that-only-ever-ran-on-its-authors-machine) | un test vert sur le poste et rouge en CI — ou l'inverse — sur un code identique. Il n'a jamais tourné que dans UNE des deux formes d'environnement : s |
+| [`a-test-writes-a-probe-into-the-real-tree`](error-classes.md#a-test-writes-a-probe-into-the-real-tree) | un test rouge au hasard, en ordre aléatoire ou sous xdist, sur un fichier qu'il n'a jamais écrit : `FileNotFoundError` sur `src/dashboard/_probe_platf |
 | [`a-gate-that-pays-a-check-twice`](error-classes.md#a-gate-that-pays-a-check-twice) | le job critique de la CI est lent sans qu'aucun contrôle ne soit lent en soi. Chaque ligne a une raison d'être, et c'est exactement pourquoi personne  |
 | [`a-guard-names-a-class-nobody-wrote`](error-classes.md#a-guard-names-a-class-nobody-wrote) | un défaut est parfaitement décrit — symptôme, cause, mesure, date, coût — **dans la docstring d'un test, et nulle part ailleurs**. Le catalogue ne le  |
 | [`test-leaves-a-hole-in-sys-modules`](error-classes.md#test-leaves-a-hole-in-sys-modules) | tests are green file by file and red in a full run, on assertions unrelated to whatever changed. The failing test's own monkeypatch appears not to tak |
@@ -618,6 +620,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=415 families=18 orphans=3 -->
+<!-- error-class-families: total=417 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=ffc3c0de3de551a3ccacf6897381395b789b2a31046e499f6b32f79d54b9aa8f -->
+<!-- error-class-families: sha256=282642dcd7a6d239a5f2a7b0f8cbdbc57b61b73d2d95dd1ed75b5be0d63d7856 -->

@@ -205,6 +205,8 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [a-declared-agent-whose-trigger-cannot-fire](#a-declared-agent-whose-trigger-cannot-fire) | P3 | deterministic | guarded | none |
 | [a-test-that-only-ever-ran-on-its-authors-machine](#a-test-that-only-ever-ran-on-its-authors-machine) | P2 | deterministic | guarded | none |
 | [a-red-verdict-delivered-to-an-inbox-nobody-reads](#a-red-verdict-delivered-to-an-inbox-nobody-reads) | P1 | deterministic | guarded | none |
+| [a-test-writes-a-probe-into-the-real-tree](#a-test-writes-a-probe-into-the-real-tree) | P3 | deterministic | guarded | none |
+| [a-secret-committed-to-a-public-history](#a-secret-committed-to-a-public-history) | P1 | deterministic | guarded | none |
 | [a-gate-that-pays-a-check-twice](#a-gate-that-pays-a-check-twice) | P4 | deterministic | guarded | none |
 | [an-absence-that-becomes-a-nan-because-nan-is-truthy](#an-absence-that-becomes-a-nan-because-nan-is-truthy) | P2 | deterministic | guarded | none |
 | [a-proxy-rendered-under-the-name-of-the-thing-it-proxies](#a-proxy-rendered-under-the-name-of-the-thing-it-proxies) | P2 | deterministic | guarded | none |
@@ -4144,6 +4146,26 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-24: trouvée en diagnostiquant une CI rouge depuis deux jours (`build-error-resolver`). En rejouant la forme CI, deux défauts de plus sont sortis que la CI elle-même ne voyait pas, parce que son mot de passe (`postgres`) ne contient aucun caractère à encoder : `urlparse` ne décode pas les `%xx` d'une URI (libpq si), dans `dsn()` ET dans `PostgresHandler.from_url` — le chemin de la production, dont l'URL a été vérifiée sans `%`.
   - 2026-09-25: la porte statique restait rouge sur `.test_durations` — 51 entrées « non collectables », non reproductibles sur le poste. Rejouée dans un CLONE PROPRE (sans `config/config.yaml`, gitignoré) : deux formes de plus de la même classe. (1) Le job `gates` n'avait ni `FERNET_KEY` ni identifiants Airflow ; `src/dashboard/app.py` lève à l'import, deux fichiers ne se collectaient pas, et le vérificateur comptait leurs 37 durées comme des fantômes. (2) `tests/test_api_db_smoke.py` nommait ses cas `tenant<artist_id>` à la COLLECTE : chaque base (poste, CI neuve, job sans base) produisait d'autres node ids. Corrigé : clé jetable + identifiants factices dans `gates`, erreur de collecte refusée par son nom, cas nommés par rang (`tenant-1st`…) et l'id résolu à l'exécution.
 
+## a-test-writes-a-probe-into-the-real-tree
+- status: guarded
+- severity: P3
+- kind: deterministic
+- admitted: sites:6
+- admitted_detail: balayage `sibling-sweeper` du 2026-09-26 sur `tests/` (145 candidats bruts → ~110 sous `tmp_path`, 9 en `tempfile` hors dépôt, 3 écrivains sérialisés par `xdist_group` et déclarés, 1 script non collecté → **6 sites vivants**) : `test_a_platform_colour_has_one_definition.py`, `test_a_period_selector_is_the_shared_one.py` (2 sondes), `test_chart_budget.py`, `test_a_retired_table_has_no_reader_left.py`, `test_the_spotify_page_reads_only_the_gold_layer.py`, `test_a_credential_in_a_query_param_never_reaches_a_message.py` (`NamedTemporaryFile(dir=ROOT)`)
+- symptom: un test rouge au hasard, en ordre aléatoire ou sous xdist, sur un fichier qu'il n'a jamais écrit : `FileNotFoundError` sur `src/dashboard/_probe_platform_colour.py` dans `test_the_archives_are_really_dead` (nightly du 2026-09-25). Relancé, il passe
+- root_cause: un garde de non-vacuité écrit sa sonde DANS le vrai dépôt (`_DASH / "_probe_…py"`, puis `unlink()` en `finally`), là où d'autres tests font `rglob("*.py")` sur le même dossier. Sous xdist, un autre worker liste la sonde puis la lit après sa suppression — ou la COMPTE, ce qui fausse un cliquet. Variante trouvée par le balayage : une liste construite au CHARGEMENT du module (`_PROD = [... rglob ...]`) puis lue à l'exécution — la course est alors collecte contre exécution, sans aucun parallélisme
+- cause_evidence: measured (log du job `full-suite-random-order` du run 36189254600 : le chemin exact de la sonde dans le `FileNotFoundError` ; la sonde écrite par `tests/test_a_platform_colour_has_one_definition.py:144`)
+- long_term_fix: la sonde vit sous `tmp_path`, et le détecteur reçoit le DOSSIER à parcourir (`_compte(racine)`, `_maison(rel, racine)`) au lieu de le lire d'une constante du dépôt. Une écriture dans l'arbre qui reste nécessaire est sérialisée (`xdist_group`) ET déclarée dans le garde avec sa raison
+- signature: `.venv/bin/python -m pytest tests/test_a_test_never_writes_into_the_real_tree.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: self-proving (tests/test_a_test_never_writes_into_the_real_tree.py::test_the_detector_sees_the_defect_it_is_written_for) — et mesuré le 2026-09-26 sur les versions `HEAD` des 6 fichiers avant correctif : 6/6 signalés (lignes 137·146·157·167, 157·161, 169·179, 154·160, 160·187, 145·152·159)
+- guard: { type: pytest, ref: tests/test_a_test_never_writes_into_the_real_tree.py }
+- guard_scope: un-état-qui-déborde-de-sa-portée — écrire, renommer ou supprimer un chemin du dépôt depuis un test ; couvre: par l'AST de chaque `tests/test_*.py`, un `write_text`/`write_bytes`/`touch`/`unlink`/`rename`/`replace`/`mkdir` sur un chemin construit à partir d'un nom de module dérivé de `__file__` (directement ou via une variable locale), et `NamedTemporaryFile`/`TemporaryDirectory`/`mkdtemp`/`mkstemp` avec `dir=` un tel nom ; ne couvre pas: `open(chemin, "w")`, `shutil.copy`/`move`/`rmtree` et `os.remove` vers le dépôt ; un chemin passé par une fonction auxiliaire ou une fixture ; `conftest.py` et `tests/fakes/` ; la variante collecte-contre-exécution quand la sonde n'est plus écrite par un test
+- siblings: swept:2026-09-26 — **6 sites vivants, tous corrigés** (voir `admitted_detail`) ; 3 écrivains dans l'arbre écartés car sérialisés et hors de tout balayage (`README.md` ×2 sous `xdist_group("writes-readme")`, `data/uploads/999999`) et déclarés dans `_DECLARED` ; hors périmètre du balayage : `.claude/scripts/`, `tools/`, `airflow/debug_dag/`
+- rex_ref: tests/test_a_test_never_writes_into_the_real_tree.py
+- first_seen: 2026-09-25
+- History:
+  - 2026-09-26: le premier nightly capable d'échouer (R167, `b06b8e3`) a rendu rouge `test_the_archives_are_really_dead` ; lu dans le log, le chemin était une sonde d'un AUTRE test. Correctif, balayage, 5 sites de plus, garde AST, commit `66e4b43`.
+
 ## a-red-verdict-delivered-to-an-inbox-nobody-reads
 - status: guarded
 - severity: P1
@@ -4153,7 +4175,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - root_cause: `.github/workflows/prod-health.yml` n'avait AUCUNE étape de livraison : son en-tête affirmait « GitHub emails the repo owner automatically », ce qui est vrai et ne dit pas que ce mail est lu. Le mail du soir du DAG `alert_monitor`, lui, est lu — mais il vit sur le serveur qui était bloqué, donc il ne pouvait pas annoncer sa propre panne.
 - cause_evidence: measured (2026-09-24 — `gh run list --workflow prod-health.yml` : rouge à 11:45 UTC ; aucune trace de lecture avant le `make deploy` en échec du soir ; la CI sur `main` rouge depuis le 2026-09-22, pareillement non lue)
 - long_term_fix: le workflow porte lui-même sa livraison : une dernière étape `if: failure()` exécute `tools/dev/mail_red_verdict.py`, qui écrit au propriétaire par le relais SMTP de la prod depuis l'EXTÉRIEUR du serveur, et sort 1 en nommant ce qui manque si la configuration est absente. `workflow_dispatch` porte `force_red` pour rejouer la preuve du canal à volonté.
-- signature: `python3 -m pytest tests/test_a_red_prod_check_reaches_the_owner.py -q`
+- signature: `python3 -m pytest tests/test_a_red_prod_check_reaches_the_owner.py tests/test_a_red_nightly_job_reaches_the_owner.py tests/test_a_red_main_reaches_the_owner_once.py -q`
 - seen_red: self-proving (tests/test_a_red_prod_check_reaches_the_owner.py::test_the_detector_sees_the_defect_it_is_written_for) — le garde fabrique le workflow du 2026-09-24 (sonde seule, aucun mail) puis une étape de mail sans `failure()`, et exige que le détecteur refuse les deux. S'y ajoute la mutation à la main du 2026-09-25 (`failure()` → `success()` dans `prod-health.yml`) → 1 échec ; restauré, 4 verts. Et la preuve de bout en bout : run `36149664083` (`force_red=true`) → mail reçu dans la boîte de réception du propriétaire à 14:46:31 UTC.
 - guard: { type: pytest, ref: tests/test_a_red_prod_check_reaches_the_owner.py }
 - guard_scope: une-erreur-avalée-devient-une-absence — un verdict rouge rendu mais jamais livré ; couvre: `test_the_prod_check_mails_its_red_verdict` (une étape `if: failure()`, après la sonde, exécutant le mailer avec ses six variables) et `test_missing_configuration_refuses_loudly` (un mailer sans secrets sort 1 au lieu de se taire) ; ne couvre pas: la CI (`ci.yml`), dont le rouge sur `main` ne part toujours que par les notifications GitHub ; que le mail soit LU — un filtre ou une boîte saturée le rendraient aussi muet que l'ancien canal ; la rotation des secrets SMTP copiés depuis la prod, qui ne les suit pas.
@@ -4163,6 +4185,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-25: écrite à la livraison de R166. Diagnostic de la veille coûteux dans l'autre sens aussi : une heure passée à chercher un abus sur le serveur, alors que le motif (impayé Hetzner) était dans une boîte mail — `feedback`, pas cette classe.
   - 2026-09-25 (récidive): **un second surveillant, dans le dépôt n8n.** Le relevé mail UC7 (`rag-mail-run.sh`, horaire) échouait à lire le compte 1x7 depuis le 2026-09-17 — son `.env` visait un dépôt déplacé — et l'écrivait dans `rag-mail-run.log`, que personne ne lit ; le rapport n'y partait que s'il existait un reçu d'ingestion. Corrigé dans n8n (`469b4d9`) : un fetch en échec envoie `rag-mail-notify.py --alert`, une fois par jour et par problème distinct ; garde `tests/test_rag_mail_accounts_conf.py::test_the_run_alerts_on_a_failed_fetch` (dans CE dépôt-là). Ce garde-ci ne voit pas un autre dépôt : la forme a traversé la frontière sans que rien ne le signale.
+  - 2026-09-25 (récidive): **six jobs dans le même dépôt, sous un workflow déjà branché sur le mail.** Le correctif R167 avait publié l'`outcome` de trois jobs et laissé trois autres sombres : `pip-audit` et l'audit du catalogue sortaient `success` derrière `|| true`, `action-drift` et `reopen-check` passaient leur verdict par `| tee` sous le shell par défaut de GitHub (`bash -e`, SANS pipefail) — `reopen-check`, branché le jour même, ne pouvait jamais rougir ; `nightly_verdict.py` ignorait `skipped` (un checkout ou un `uv sync` cassé tuait le job sans mail) ; `ci.yml` rouge sur `main` n'écrivait à personne. Corrigé `b06b8e3` : `outcome` partout, `shell: bash`, `skipped` compté, `tools/dev/ci_break_mail.py` (un mail par passage vert → rouge). Gardes STRUCTURELS sur tous les workflows dans `tests/test_a_red_nightly_job_reaches_the_owner.py` (tube sans pipefail, job sombre), mutés rouges. Le premier run capable d'échouer a aussitôt trouvé trois défauts que le vert masquait : l'audit tournait sans venv, la signature mermaid sans `mmdc`, et la condition « 3ᵉ worker » mesurait le runner.
 
 ## a-gate-that-pays-a-check-twice
 - status: guarded
@@ -4225,7 +4248,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 ## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site
 
-> Les 234 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
+> Les 235 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
 > `error-class-health.json` et non au jugé (`tools/dev/error_class_health.py::is_dormant`) :
 >
 > * `history_additions == 0` — jamais récidivé sur la fenêtre observée ;
@@ -4237,7 +4260,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > **Elles ne sont ni archivées ni supprimées.** Elles vivent dans ce fichier, leurs
 > signatures tournent, leurs gardes tournent, `--coverage` les compte. Elles sont
 > seulement RANGÉES APRÈS, pour qu'un humain qui ouvre ce document rencontre d'abord
-> les 181 classes encore vivantes.
+> les 182 classes encore vivantes.
 >
 > ⚠️ **Pourquoi pas un second fichier.** C'était le plan, et la mesure l'a écarté : le
 > gain en temps est de **≈ 0 s** — les 8,46 s du cliquet de santé viennent du rejeu de
@@ -4251,6 +4274,25 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > de moitié vivante ; une classe qui remplit les quatre conditions descend ici. Les deux
 > nombres ci-dessus sont recalculés à chaque passe. `make error-health-check` (CI) échoue
 > si le catalogue n'est pas rangé — un rangement oublié ne peut plus être commité.
+
+## a-secret-committed-to-a-public-history
+- status: guarded
+- severity: P1
+- kind: deterministic
+- admitted: p1:12 secrets réels (secret client Spotify, clé API YouTube, secret d'app et jeton Meta, clé Fernet et secret_key Airflow) lisibles dans l'historique git d'un dépôt PUBLIC depuis les commits du 2025-10-20 au 27, deux encore en service le 2026-09-25
+- symptom: `gitleaks` rouge 5 nuits sur 5, lu par personne ; un `git clone` suffit à lire des identifiants de production — sans compte, sans trace
+- root_cause: les commits de la première semaine du dépôt (`874a4f9`, `19039c2`, `d88d859`, `df38e5e` — `docker-compose.yml`, `airflow/.env`, `airflow/airflow.cfg`) portaient les valeurs en clair, SEPT MOIS avant le premier scanner (`detect-secrets` en pre-commit, 2026-05-14). Supprimer les fichiers ensuite ne retire rien : l'historique garde chaque version
+- cause_evidence: measured (`gitleaks git` 8.28.0 sur 1 258 commits, 2026-09-25 : exactement 12 trouvailles, toutes datées du 2025-10-20 au 27, valeurs jamais affichées ; `tools/dev/prove_old_secrets_dead.py` a vu Spotify et YouTube ACCEPTÉS avant rotation)
+- long_term_fix: trois barrières successives, chacune pour ce que la précédente laisse passer — au commit, `tools/dev/gitleaks_staged.sh` (formats fournisseurs) à côté de `detect-secrets` (entropie), un binaire absent refusant le commit ; au push, le job CI `secrets` bloquant sur les commits poussés (attrape `--no-verify` et un clone sans hooks) ; chaque nuit, `gitleaks` sur tout l'historique et `tools/dev/sweep_public_surfaces.py` (autres dépôts publics, forks, journaux Actions) avec mail. Un secret déjà publié ne se retire pas : il se TOURNE (`tools/dev/rotate_secret.sh`, saisie masquée) et la mort de l'ancienne valeur se PROUVE (`tools/dev/prove_old_secrets_dead.py`)
+- signature: `.venv/bin/python -m pytest tests/test_a_staged_secret_is_refused.py tests/test_the_public_surfaces_are_swept_every_night.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: self-proving (tests/test_a_staged_secret_is_refused.py::test_the_detector_sees_the_defect_it_is_written_for, tests/test_the_public_surfaces_are_swept_every_night.py::test_the_detector_sees_the_defect_it_is_written_for) — et le 2026-09-25, `tools/dev/gitleaks_staged.sh` muté pour toujours sortir 0 → rouge ; le hook a refusé en vrai deux commits de la séance sur des valeurs de test factices
+- guard: { type: pytest, ref: tests/test_a_staged_secret_is_refused.py }
+- guard_scope: la-frontière-avec-le-dehors — une valeur secrète écrite dans un fichier suivi ; couvre: une clé au FORMAT d'un fournisseur connu indexée pour un commit (hook), les commits d'un push (CI), l'historique complet et les surfaces publiques du propriétaire (nightly) ; ne couvre pas: un secret sans format reconnaissable et de faible entropie (un mot de passe court — celui de 12 caractères de l'historique n'était vu par aucun des deux scanners) ; un secret collé dans le CHAT d'un assistant (deux mots de passe Gmail le 2026-09-25 — remède : `tools/dev/secret_prompt.sh`, pas un garde) ; la preuve auto-mutante du hook, qui SAUTE en CI faute du binaire gitleaks dans le job `suite`
+- siblings: swept:2026-09-25 — **0 site vivant** hors des 12 connus. `sibling-sweeper` : l'autre dépôt public du propriétaire (`claude-code-config-deployment`, historique complet) → 0 ; forks → aucun ; ~20 motifs dans les journaux Actions publics → factices (`ci-not-a-real-secret`, `postgres` du conteneur CI) ou déjà `REDACTED` ; HEAD suivi → 1 fixture factice ; historique complet → les mêmes 12. Mots de passe base / admin de prod comparés par empreinte → différents
+- rex_ref: .claude/dev-docs/runbook-actions-utilisateur.md
+- first_seen: 2026-09-25
+- History:
+  - 2026-09-25: trouvée en rendant visible le rouge muet du nightly (R167). Tri sans afficher de valeur : 38 trouvailles, 26 faux positifs, 12 réelles. R177 : rotation Spotify, YouTube, Meta par fenêtre masquée ; prod 4/4 ; anciennes valeurs prouvées refusées (l'ancienne clé YouTube restait acceptée jusqu'à sa suppression dans la console) ; `gitleaks git` → 0 (`149083b`). Réécriture de l'historique écartée par le propriétaire : aucun gain de sécurité après rotation, 245 hash cités rendus morts.
 
 ## migration-ahead-of-its-code
 - status: guarded
