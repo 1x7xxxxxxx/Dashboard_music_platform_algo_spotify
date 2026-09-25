@@ -38,9 +38,17 @@ def _holes_at(rev: str) -> dict | None:
 
 
 def _rev_before(days: int) -> str | None:
+    """The snapshot at the start of the window — or, when the file is YOUNGER than the
+    window, its oldest snapshot. Without that fallback the first nightly (2026-09-26) said
+    « nothing to compare » for a file born eight days earlier: silent for two weeks."""
     r = subprocess.run(["git", "-C", str(_ROOT), "rev-list", "-1", f"--before={days}.days",
                         "HEAD", "--", _FILE], capture_output=True, text=True)
-    return r.stdout.strip() or None
+    if r.stdout.strip():
+        return r.stdout.strip()
+    r = subprocess.run(["git", "-C", str(_ROOT), "rev-list", "--reverse", "HEAD", "--", _FILE],
+                       capture_output=True, text=True)
+    revs = r.stdout.split()
+    return revs[0] if revs else None
 
 
 def frozen(then: dict, now: dict) -> bool:
