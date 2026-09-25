@@ -165,6 +165,14 @@ même soir**, chacune par le geste humain qu'elle attendait — détail et preuv
   26 faux positifs (écartés par `.gitleaks.toml` + `.gitleaksignore`, par empreinte), **12
   réelles** — dont le secret client Spotify et la clé YouTube identiques aux valeurs
   actuelles. Réécrire l'historique ne sert à rien (clones, forks) : seule la rotation compte.
+  - Balayage des frères (`sibling-sweeper`, 2026-09-25) : **0 site neuf**. L'autre dépôt
+    public (`claude-code-config-deployment`) → 0 ; forks → aucun ; ~20 motifs dans les
+    journaux Actions publics → tous factices (`ci-not-a-real-secret`, `postgres` du conteneur
+    CI) ou déjà `REDACTED` ; HEAD suivi → 1 fixture de test factice ; historique complet
+    (1 258 commits) → les mêmes 12, tous du 2025-10-20 au 27 — rien n'est entré depuis
+    `detect-secrets` (2026-05-14). Ports prod 5432/5433/8080 fermés depuis Internet.
+    Non vérifiable : un commit passé en `--no-verify` (git ne l'enregistre pas) — le
+    gitleaks nocturne sur l'historique complet en couvre l'effet.
 
 ---
 
