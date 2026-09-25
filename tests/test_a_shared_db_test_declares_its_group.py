@@ -60,9 +60,14 @@ _SHARED_WRITES = (
     # tables n'était listée ici : le garde regardait ailleurs.
     "INSERT INTO s4a_song_timeline",
     "DELETE FROM data_revisions",
+    # Ajoutée le 2026-09-25 : une table GLOBALE est partagée par construction — aucun
+    # locataire à créer pour s'isoler. Trois tests d'un même fichier écrivaient la clé
+    # `service_calendly_url` ; sous `--dist loadgroup` sans groupe, xdist les a posés
+    # sur trois workers, et l'un a lu la valeur d'un voisin (shard 2/6, 2e passage).
+    "INSERT INTO app_settings",
 )
 # Écrire par le chemin partagé compte autant qu'un INSERT littéral.
-_SHARED_WRITERS = {"write_platform_identity"}
+_SHARED_WRITERS = {"write_platform_identity", "set_setting"}
 
 
 def _creates_its_own_tenant(tree: ast.AST) -> bool:

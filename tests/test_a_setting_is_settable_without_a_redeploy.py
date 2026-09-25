@@ -35,6 +35,11 @@ import pytest
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
 _CLE = "service_calendly_url"
 
+# Every DB test here writes the SAME global row. Without a group, `--dist loadgroup`
+# spreads them over workers and one reads a neighbour's value — red once in CI on
+# 2026-09-25 (shard 2/6), green on rerun. Guard: test_a_shared_db_test_declares_its_group.
+pytestmark = pytest.mark.xdist_group("app_settings")
+
 
 @pytest.fixture
 def db():
