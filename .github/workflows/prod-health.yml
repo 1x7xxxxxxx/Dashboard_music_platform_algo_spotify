@@ -7,7 +7,10 @@ name: Prod — Daily health check
 # running on the canonical schema, structurally cannot see.
 #
 # Unlike security-nightly.yml (observational, non-blocking), this is a real gate:
-# a failing probe makes the run RED, and GitHub emails the repo owner automatically.
+# a failing probe makes the run RED. ⚠️ "GitHub emails the repo owner" was the whole
+# alerting until 2026-09-25, and it reached nobody: on 2026-09-24 prod was down
+# 11:45–20:51 UTC, this run was red at 11:45, and the outage was found that evening by
+# accident. The last step now mails the owner directly (R166).
 #
 # Layer A (liveness) needs no secrets. Layer B (authenticated data-endpoint probe)
 # logs in as a dedicated read-only service account; it self-skips if the two repo
@@ -22,6 +25,11 @@ on:
     # c'est `tests/test_the_monitor_itself_still_runs.py` qui garantit qu'on le SAURA.
     - cron: "17 6 * * *"   # 06:17 UTC daily
   workflow_dispatch:
+    inputs:
+      force_red:
+        description: "Fail on purpose, to prove the red verdict reaches the owner's inbox"
+        type: boolean
+        default: false
 
 jobs:
   prod-health:
@@ -61,3 +69,23 @@ jobs:
           HEALTHCHECK_USER: ${{ secrets.HEALTHCHECK_USER }}
           HEALTHCHECK_PASSWORD: ${{ secrets.HEALTHCHECK_PASSWORD }}
         run: pytest tests/test_prod_health.py -v
+
+      - name: Refuse on purpose (workflow_dispatch force_red)
+        if: ${{ inputs.force_red }}
+        run: |
+          echo "❌ force_red: failing on purpose to prove the red verdict is mailed"
+          exit 1
+
+      # A red that reaches nobody is not an alert (R166). This step runs from OUTSIDE
+      # the server — the on-box `alert_monitor` mail could not report the 2026-09-24
+      # outage, it was on the machine that was down.
+      - name: Mail the red verdict to the owner
+        if: ${{ failure() }}
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          PROD_HEALTH_MAIL_TO: ${{ secrets.PROD_HEALTH_MAIL_TO }}
+        run: python tools/dev/mail_red_verdict.py
