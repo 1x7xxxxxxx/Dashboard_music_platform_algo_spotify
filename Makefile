@@ -487,6 +487,9 @@ u=os.environ.get('DATABASE_URL');\
 host,port=('127.0.0.1',5433) if not u else (u.split('@')[1].split(':')[0], int(u.split('@')[1].split(':')[1].split('/')[0]));\
 s=socket.socket(); s.settimeout(2); sys.exit(s.connect_ex((host,port)))" 2>/dev/null \
 		|| { echo "❌ Database unreachable. Run: make up  (or set DATABASE_URL)"; exit 1; }
+	@# A fresh clone has NO hooks: its first commit would skip both secret scanners.
+	@[ -n "$$CI" ] || [ -f "$$(git rev-parse --git-path hooks/pre-commit)" ] \
+		|| { echo "❌ pre-commit hooks absent — a commit would skip the secret scan. Run: make hooks-install"; exit 1; }
 	@echo "✅ env check passed (imports + base ; pip : voir au-dessus)"
 
 canary:      ## Create/refresh the canary tenant preflight needs. NAME="…" SPOTIFY=… YOUTUBE=… SOUNDCLOUD=… META=…
@@ -795,6 +798,8 @@ hooks-install: ## Install pre-commit hooks (ruff + secret scan + hygiene)
 		echo "   Réparer : pip install pre-commit   (ou ajouter ~/.local/bin au PATH)"; \
 		exit 1; }
 	@pre-commit install
+	@# gitleaks (provider formats) next to detect-secrets (entropy) — pinned, checksummed.
+	@bash tools/dev/install_gitleaks.sh
 	@echo "✅ pre-commit hooks installed. Bypass once with: git commit --no-verify"
 	@echo "   Run on all files manually: pre-commit run --all-files"
 

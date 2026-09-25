@@ -84,6 +84,17 @@ repos:
   # ── Secret leakage detection ──────────────────────────────────────────
   # Catches obvious AWS/GCP/Stripe keys committed by mistake. The .secrets.baseline
   # file (auto-generated on first run) marks pre-existing acknowledged matches.
+  # gitleaks knows provider FORMATS (GCP, Stripe…) where detect-secrets judges entropy.
+  # A missing binary fails the commit and names `make hooks-install` (2026-09-25, R177).
+  - repo: local
+    hooks:
+      - id: gitleaks-staged
+        name: gitleaks (staged changes)
+        entry: tools/dev/gitleaks_staged.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
     hooks:

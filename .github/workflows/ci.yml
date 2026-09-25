@@ -398,12 +398,38 @@ jobs:
           uv run --frozen pytest tests/ -q --tb=short -n auto --dist loadgroup
           --splits 6 --group ${{ matrix.shard }}
 
+  # ── No secret enters main, even past a skipped hook (2026-09-25, R177) ──────────
+  # The 12 secrets of the public history were committed in 2025-10, before any scanner.
+  # The pre-commit hooks are local and `--no-verify` skips them; the nightly rescans the
+  # whole history but only the next morning. This job scans exactly the commits of THIS
+  # push or PR, blocks, and goes through `notify` like every other job.
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install pinned gitleaks
+        run: bash tools/dev/install_gitleaks.sh "$RUNNER_TEMP/bin"
+      - name: Scan the commits of this push / PR (blocking)
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ -n "$BASE_REF" ]; then range="origin/$BASE_REF..HEAD"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then range="$BEFORE..HEAD"
+          else range="HEAD~1..HEAD"; fi
+          echo "range: $range"
+          "$RUNNER_TEMP/bin/gitleaks" git --redact --no-banner --config .gitleaks.toml \
+            --log-opts="$range" .
+
   # ── A red main reaches the inbox — once per breakage (2026-09-25) ────────────────
   # main was red from 2026-09-22 to 2026-09-25 and nobody read it: GitHub notifications
   # go to an address nobody opens. One mail per red push was rejected (a push is not an
   # outage) — `ci_break_mail.py` mails the green→red TRANSITION only.
   notify:
-    needs: [gates, suite]
+    needs: [gates, suite, secrets]
     if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
