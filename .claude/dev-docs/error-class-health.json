@@ -4791,7 +4791,7 @@
       "renamed_from": null
     },
     "api-partial-date-into-date-column": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-21",
       "guard_automatic": true,
       "guard_ref": "tests/test_api_partial_dates.py",
@@ -4814,7 +4814,7 @@
       "siblings_swept": true,
       "status": "fixed",
       "introduced_date": "2026-08-21",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4933,7 +4933,7 @@
       "renamed_from": null
     },
     "ast-guard-blind-to-bom": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-08-20",
       "guard_automatic": true,
       "guard_ref": null,
@@ -4955,7 +4955,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-21",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4987,7 +4987,7 @@
       "renamed_from": null
     },
     "audit-scope-restated-not-derived": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-22",
       "guard_automatic": true,
       "guard_ref": "tests/test_audit_scope_is_derived.py",
@@ -5010,7 +5010,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 2,
       "renamed_from": null
     },
@@ -11445,12 +11445,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 400,
+      "catalogue_revisions": 401,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 104,
+      "cause_unknown": 101,
       "guard_does_not_prove_itself": 270,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
