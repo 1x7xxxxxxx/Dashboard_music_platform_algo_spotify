@@ -67,6 +67,30 @@ def _sql_of(node: ast.AST) -> str | None:
     return None
 
 
+def _bad_calls(tree: ast.AST, rel: str) -> list[str]:
+    """Executor calls whose `%s` count and parameters cannot line up."""
+    out = []
+    for n in ast.walk(tree):
+        if not (isinstance(n, ast.Call)
+                and getattr(n.func, "attr", "") in _EXECUTORS
+                and len(n.args) == 2):
+            continue
+        sql, params = _sql_of(n.args[0]), n.args[1]
+        if sql is None:
+            continue
+        trous = sql.count("%s")
+        if isinstance(params, (ast.Tuple, ast.List)):
+            if len(params.elts) != trous and not any(
+                    isinstance(e, ast.Starred) for e in params.elts):
+                out.append(f"{rel}:{n.lineno} — {trous} `%s` pour "
+                           f"{len(params.elts)} paramètre(s)")
+        elif trous == 1 and isinstance(params, (ast.Name, ast.Constant,
+                                                ast.Attribute)):
+            out.append(f"{rel}:{n.lineno} — paramètre unique NON emballé "
+                       "dans un tuple : `(x)` n'est pas `(x,)`")
+    return out
+
+
 def _offenders() -> list[str]:
     out = []
     for base in _SCANNED:
@@ -81,24 +105,7 @@ def _offenders() -> list[str]:
             except (SyntaxError, UnicodeDecodeError):     # pragma: no cover
                 continue
             rel = str(path.relative_to(_ROOT)).replace("\\", "/")
-            for n in ast.walk(tree):
-                if not (isinstance(n, ast.Call)
-                        and getattr(n.func, "attr", "") in _EXECUTORS
-                        and len(n.args) == 2):
-                    continue
-                sql, params = _sql_of(n.args[0]), n.args[1]
-                if sql is None:
-                    continue
-                trous = sql.count("%s")
-                if isinstance(params, (ast.Tuple, ast.List)):
-                    if len(params.elts) != trous and not any(
-                            isinstance(e, ast.Starred) for e in params.elts):
-                        out.append(f"{rel}:{n.lineno} — {trous} `%s` pour "
-                                   f"{len(params.elts)} paramètre(s)")
-                elif trous == 1 and isinstance(params, (ast.Name, ast.Constant,
-                                                        ast.Attribute)):
-                    out.append(f"{rel}:{n.lineno} — paramètre unique NON emballé "
-                               "dans un tuple : `(x)` n'est pas `(x,)`")
+            out += _bad_calls(tree, rel)
     return out
 
 
@@ -133,3 +140,14 @@ def test_no_query_passes_the_wrong_number_of_parameters() -> None:
         "Mesuré le 2026-09-18 : `get_available_songs` rendait 0 titre au lieu de 11 "
         "dans le PDF, sur ses DEUX branches, sans qu'aucun test ne rougisse.\n  "
         + "\n  ".join(fautifs[:15]))
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity on FABRICATED calls: `(x)` for one `%s` (the 2026-09-18 shape that
+    made `get_available_songs` return 0 titles), a count mismatch, and the corrections."""
+    src = ("db.fetch_query('SELECT * FROM t WHERE a = %s', (artist_id))\n"
+           "db.fetch_query('SELECT * FROM t WHERE a = %s AND b = %s', (artist_id,))\n"
+           "db.fetch_query('SELECT * FROM t WHERE a = %s', (artist_id,))\n"
+           "db.fetch_query('SELECT * FROM t WHERE a = %s AND b = %s', (a, b))\n")
+    bad = _bad_calls(ast.parse(src), "fake.py")
+    assert [b.split(" — ")[0] for b in bad] == ["fake.py:1", "fake.py:2"], bad
