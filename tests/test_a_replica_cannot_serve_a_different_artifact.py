@@ -85,6 +85,7 @@ qui nomment le meme tag ne PEUVENT pas servir deux artefacts.
 """
 
 import pathlib
+import sys
 import subprocess
 
 import yaml
@@ -250,7 +251,9 @@ def test_services_sharing_a_build_share_the_image_they_produce():
         build = body["build"]
         key = (
             path.name,
-            build if isinstance(build, str) else tuple(sorted(build.items())),
+            # repr: a `build: .` string and a `build: {context…}` dict in one file made
+            # `sorted` raise TypeError — found by the self-proving test, 2026-09-26.
+            repr(build if isinstance(build, str) else tuple(sorted(build.items()))),
         )
         by_build.setdefault(key, []).append((path, name, body.get("image")))
 
@@ -267,3 +270,41 @@ def test_services_sharing_a_build_share_the_image_they_produce():
             "nom. Mesure du 2026-09-17 : sept heures et un commit d'ecart entre le "
             "dashboard et sa replique, servis cote a cote derriere Caddy."
         )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path, monkeypatch) -> None:
+    """Non-vacuity on a FABRICATED compose file — the 2026-09-17 shapes, then the fix.
+
+    The three checks above read the repo's compose files; the only way to know they can
+    fail is to hand them the defect."""
+    def run(compose: str) -> list[str]:
+        f = tmp_path / "docker-compose.prod.yml"
+        f.write_text(compose, encoding="utf-8")
+        monkeypatch.setattr(sys.modules[__name__], "_compose_files", lambda: [f])
+        monkeypatch.setattr(sys.modules[__name__], "_ROOT", tmp_path)
+        failed = []
+        for check in (test_every_extended_service_pins_the_image_it_replicates,
+                      test_a_pinned_image_is_not_named_after_the_derived_service,
+                      test_services_sharing_a_build_share_the_image_they_produce):
+            try:
+                check()
+            except AssertionError:
+                failed.append(check.__name__)
+        return failed
+
+    defect = ("services:\n"
+              "  dashboard:\n    build: .\n"
+              "  dashboard2:\n    extends: {service: dashboard}\n    build: .\n"
+              "  scheduler:\n    build: {context: ., dockerfile: Dockerfile.airflow}\n"
+              "  webserver:\n    build: {context: ., dockerfile: Dockerfile.airflow}\n")
+    assert run(defect) == [test_every_extended_service_pins_the_image_it_replicates.__name__,
+                           test_services_sharing_a_build_share_the_image_they_produce.__name__]
+    self_named = defect.replace("    extends: {service: dashboard}\n",
+                                "    extends: {service: dashboard}\n    image: app-dashboard2\n")
+    assert test_a_pinned_image_is_not_named_after_the_derived_service.__name__ in run(self_named)
+    fixed = ("services:\n"
+             "  dashboard:\n    build: .\n    image: app-dashboard\n"
+             "  dashboard2:\n    extends: {service: dashboard}\n    build: .\n    image: app-dashboard\n"
+             "  scheduler:\n    build: {context: ., dockerfile: Dockerfile.airflow}\n    image: app-airflow\n"
+             "  webserver:\n    build: {context: ., dockerfile: Dockerfile.airflow}\n    image: app-airflow\n")
+    assert run(fixed) == [], "the corrected compose must pass all three checks"

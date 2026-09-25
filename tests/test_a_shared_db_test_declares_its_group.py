@@ -182,3 +182,24 @@ def test_every_shared_writer_declares_an_xdist_group() -> None:
           "le même locataire : le lecteur mesure alors entre l'écriture et sa remise "
           "en état. Deux rouges de cette forme le 2026-09-16, chacun vert en "
           "isolation. Ajouter le groupe, ou fabriquer son propre locataire.")
+
+
+def _offends(source: str) -> bool:
+    tree = ast.parse(source)
+    return (_writes_a_shared_tenant(tree) and not _creates_its_own_tenant(tree)
+            and not _declares_a_group(tree))
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuité sur du code FABRIQUÉ — les formes de 2026-09-17 et leurs corrections."""
+    defect = ("def test_x(db):\n"
+              "    db.execute(\"INSERT INTO saas_artists (id, name) VALUES (999471, 'x') "
+              "ON CONFLICT (id) DO NOTHING\")\n"
+              "    db.execute(\"INSERT INTO artist_credentials (artist_id, platform) VALUES (1, 'x')\")\n")
+    assert _offends(defect), "a literal tenant id written in parallel must be refused"
+    assert _offends("def test_y():\n    set_setting('k', 'v')\n"), "a shared writer CALL"
+    grouped = "import pytest\npytestmark = pytest.mark.xdist_group('shared')\n" + defect
+    assert not _offends(grouped), "a declared xdist_group is the correction"
+    minted = defect.replace("ON CONFLICT (id) DO NOTHING", "RETURNING id")
+    assert not _offends(minted), "a tenant MINTED by the test is isolated by construction"
+    assert not _offends("# INSERT INTO artist_credentials in a comment\nx = 1\n")
