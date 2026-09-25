@@ -137,3 +137,14 @@ def test_committed_work_of_the_session_is_seen(hook, tmp_path):
     subprocess.run(["git", "commit", "-qm", "a tool, no roadmap"], cwd=repo, check=True)
     out = "\n".join(hook.check_code_without_a_trace(str(repo)))
     assert "tools/dev/new_check.py" in out and "checklist.md" in out, out
+
+
+def test_a_forgotten_weekly_curator_is_named(hook, tmp_path):
+    """R172: `/curator` « weekly » was a wish nothing checked; the run is now dated."""
+    import datetime as dt
+    stamp = tmp_path / ".claude/curator/last-run"
+    assert hook._check_curator_age(str(tmp_path)) is not None, "never run must be said"
+    stamp.parent.mkdir(parents=True)
+    stamp.write_text("2026-09-10\n", encoding="utf-8")
+    assert "15 j" in hook._check_curator_age(str(tmp_path), today=dt.date(2026, 9, 25))
+    assert hook._check_curator_age(str(tmp_path), today=dt.date(2026, 9, 14)) is None

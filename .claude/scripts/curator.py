@@ -241,6 +241,13 @@ def main() -> None:
 
     print("## 3. Lifecycle\n")
     print("\n".join(_lifecycle(root, usage, args.stale_days)) + "\n")
+    # Dated so a forgotten weekly review becomes VISIBLE (R171/R172, 2026-09-25):
+    # « weekly » was a wish in SCHEDULE.md that nothing ever checked.
+    try:
+        (root / "curator" / "last-run").write_text(
+            __import__("datetime").date.today().isoformat() + "\n", encoding="utf-8")
+    except OSError:
+        pass
     sys.exit(0)
 
 

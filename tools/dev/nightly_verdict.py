@@ -42,6 +42,9 @@ def verdict(needs: dict) -> str | None:
         lines.append("gitleaks : des secrets RÉELS de l'historique public attendent leur "
                      "rotation (runbook §27) — ce mail repart chaque nuit tant qu'ils ne "
                      "sont pas tournés et inscrits dans .gitleaksignore.")
+    if "reopen-check" in failed:
+        lines.append("reopen-check : une condition de réouverture d'une tâche parquée est "
+                     "remplie — `make reopen-check` la nomme ; la tâche revient à la roadmap.")
     lines += [f"pip-audit : {out('pip-audit', 'vulns')} avis · audit du catalogue : "
               f"{out('error-class-audit', 'hits')} HIT(s) — pour information, ils ne "
               "déclenchent pas ce mail seuls."]

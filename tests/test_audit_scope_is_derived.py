@@ -26,9 +26,21 @@ REPO = Path(__file__).resolve().parents[1]
 DAG = REPO / "airflow" / "dags" / "alert_monitor.py"
 
 
+def _scope_is_hand_written(src: str) -> bool:
+    return "MONITORED_PLATFORMS = [" in src
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """The DAG as it was until 2026-08-22 — four names typed by hand — must be caught."""
+    assert _scope_is_hand_written(
+        "MONITORED_PLATFORMS = ['spotify', 'youtube', 'soundcloud', 'meta']\n")
+    assert not _scope_is_hand_written(
+        "MONITORED = sorted(tenant_identity.PLATFORM_IDENTITIES)\n")
+
+
 def test_the_audit_scope_is_not_a_hand_written_list():
     src = DAG.read_text(encoding="utf-8")
-    assert "MONITORED_PLATFORMS = [" not in src, (
+    assert not _scope_is_hand_written(src), (
         "the audit scope is a literal list again. It was four names while the "
         "registry had five, and Instagram went unasked for months. Derive it from "
         "tenant_identity.PLATFORM_IDENTITIES."

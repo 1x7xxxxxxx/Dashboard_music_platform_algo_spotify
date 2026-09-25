@@ -62,3 +62,13 @@ def test_the_gitleaks_allowlist_is_read_by_the_ci_version() -> None:
     assert not _uses_a_form_the_ci_gitleaks_ignores((_ROOT / ".gitleaks.toml").read_text(encoding="utf-8"))
     assert _uses_a_form_the_ci_gitleaks_ignores("[[allowlists]]\npaths = ['x']\n")
     assert not _uses_a_form_the_ci_gitleaks_ignores("[allowlist]\npaths = ['x']\n")
+
+
+def test_a_reopening_condition_reaches_the_owner_every_night() -> None:
+    """R170: `reopen-check` had no scheduled caller; on the day it was wired, R122's condition
+    had been met since the morning, seen by nobody."""
+    wf = yaml.safe_load((_ROOT / ".github/workflows/security-nightly.yml").read_text(encoding="utf-8"))
+    job = wf["jobs"]["reopen-check"]
+    assert "reopen_check.py" in str(job["steps"]) and job.get("outputs", {}).get("outcome")
+    body = nv.verdict({"reopen-check": {"result": "success", "outputs": {"outcome": "failure"}}})
+    assert body and "réouverture" in body

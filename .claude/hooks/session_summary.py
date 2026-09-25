@@ -467,6 +467,28 @@ def _check_pending_rex(repo_root: str) -> str | None:
     )
 
 
+CURATOR_MAX_DAYS = 7
+
+
+def _check_curator_age(repo_root: str, today=None) -> str | None:
+    """`/curator` is meant to run weekly; say so when it has not (R172, 2026-09-25).
+
+    « weekly » lived in `.claude/curator/SCHEDULE.md` as a wish nothing checked. The
+    curator dates each run in `.claude/curator/last-run`; this line reminds, it never blocks.
+    """
+    import datetime as _dt
+    today = today or _dt.date.today()
+    stamp = Path(repo_root) / ".claude" / "curator" / "last-run"
+    try:
+        last = _dt.date.fromisoformat(stamp.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return "\n🧹 /curator n'a jamais été daté — le lancer (revue hebdomadaire de la config)"
+    age = (today - last).days
+    if age <= CURATOR_MAX_DAYS:
+        return None
+    return f"\n🧹 /curator pas lancé depuis {age} j (revue hebdomadaire de la config)"
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -554,6 +576,9 @@ def main():
         sections.append(obs_hint)
 
     # 8. Pending REX drafts
+    curator_hint = _check_curator_age(repo_root)
+    if curator_hint:
+        sections.append(curator_hint)
     rex_hint = _check_pending_rex(repo_root)
     if rex_hint:
         sections.append(rex_hint)

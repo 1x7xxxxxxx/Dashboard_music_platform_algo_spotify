@@ -113,6 +113,12 @@ def render(rows, known: set[str]) -> tuple[str, int]:
         "vingt fois, avant et après un déploiement, reste une seule ligne avec un "
         "compteur.",
         "",
+        "⚠️ **Instantané de la base LOCALE, régénéré à la main** (`make error-inbox`). Les "
+        "défauts de PRODUCTION n'ont pas besoin de ce fichier : ils arrivent chaque soir "
+        "dans le mail de 23 h (`check_app_errors`, DAG `alert_monitor`). Décision R171 du "
+        "2026-09-25 — le fichier était resté 7 jours sans régénération, avec pour seul "
+        "défaut ouvert un artefact de test.",
+        "",
         f"Régénéré le {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC · "
         f"**{len(open_rows)} ouverte(s)** sur {len(rows)} au total.",
         "",

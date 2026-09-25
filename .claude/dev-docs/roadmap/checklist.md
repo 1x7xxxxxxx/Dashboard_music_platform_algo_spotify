@@ -386,8 +386,8 @@ fiable ici.
 > plus tôt) ont été **déplacées** dans `archive.md` le 2026-09-13 : ce fichier avait
 > franchi le plafond de 50 Ko que `/resume` lit à chaque session.
 
-📥 **Erreurs applicatives non triées : 1** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.
-<!-- error-inbox: open=1 -->
+📥 **Erreurs applicatives non triées : 0** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.
+<!-- error-inbox: open=0 -->
 
 ## ⏸️ R131 — Calibrer les trois seuils de charge (sortie de l'index 2026-09-17)
 

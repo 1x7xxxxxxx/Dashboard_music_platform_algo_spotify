@@ -268,6 +268,26 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           exit $rc
 
+  # ── Les conditions de réouverture, évaluées chaque nuit (2026-09-25, R170) ─────
+  # `make reopen-check` n'avait AUCUN appelant planifié : le jour où il a été branché ici,
+  # une condition était remplie depuis le matin (R122, 48 > 47) et personne ne l'avait vue.
+  # Les conditions qui lisent la base ou la prod rendent INDÉCIDABLE ici — c'est dit, pas
+  # compté comme satisfait ; celles qui lisent le dépôt sont tranchées.
+  reopen-check:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    outputs:
+      outcome: ${{ steps.reopen.outcome }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Reopening conditions (exit 1 = a parked task must reopen)
+        id: reopen
+        continue-on-error: true
+        run: |
+          python3 tools/dev/reopen_check.py | tee -a "$GITHUB_STEP_SUMMARY"
+
   # ── Un rouge qui n'arrive nulle part n'est pas une alerte (2026-09-25, R167) ──
   # Tous les jobs ci-dessus portent `continue-on-error` : le workflow est TOUJOURS vert.
   # `gitleaks` était rouge 5 nuits sur 5 et la suite en ordre aléatoire 4 sur 5, lus par
@@ -275,7 +295,7 @@ jobs:
   # et de l'audit, présents chaque nuit (faux positifs connus), vont dans le corps du mail
   # et ne le déclenchent pas seuls — sinon il partirait chaque nuit et serait ignoré.
   notify:
-    needs: [pip-audit, error-class-audit, action-drift, gitleaks, full-suite-random-order]
+    needs: [pip-audit, error-class-audit, action-drift, gitleaks, full-suite-random-order, reopen-check]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

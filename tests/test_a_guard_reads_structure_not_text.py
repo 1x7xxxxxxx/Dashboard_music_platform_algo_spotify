@@ -445,7 +445,7 @@ _TEXT_ASSERTIONS_ON_PY: dict[str, int] = {
     "test_a_view_opens_on_one_decision.py": 1,
     "test_alert_delivery_is_proven.py": 1,
     "test_an_error_leaves_a_row.py": 5,
-    "test_audit_scope_is_derived.py": 2,
+    "test_audit_scope_is_derived.py": 1,  # 2 → 1 le 2026-09-25 (prédicat extrait, R169)
     "test_central_apps_are_monitored.py": 4,
     "test_expected_silence.py": 2,
     "test_freshness_measures_the_right_column.py": 1,

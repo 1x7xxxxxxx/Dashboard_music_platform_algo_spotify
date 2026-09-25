@@ -84,7 +84,13 @@ def _health() -> dict:
 def _r122() -> tuple[str, str]:
     agg = _health()
     n = agg["population"]["ever_recurred_observed"]
-    seuil = 47
+    # 47 → 48 le 2026-09-25 : la condition a tiré (48, récidives du jour), personne ne
+    # l'aurait vu — rien ne lançait ce script avant que le nightly ne le fasse (R170).
+    # ACQUITTÉE : le travail qu'elle rouvre est la liste de `make error-debt` (R169, les
+    # classes récidivées sans garde auto-prouvant d'abord). Le compteur ne fait que
+    # monter : le seuil se relève à chaque acquittement, une nouvelle classe qui récidive
+    # le refait tirer — c'est le signal voulu, pas du bruit.
+    seuil = 48
     verdict = MET if n > seuil else NOT_MET
     return verdict, f"ever_recurred_observed = {n} (seuil : > {seuil})"
 
