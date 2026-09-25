@@ -9,6 +9,39 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🧭 R167 · R168 · R174 — l'audit de la surveillance des classes d'erreur (livrées 2026-09-25)
+
+Nées le 2026-09-25 au soir du bloc d'audit « 🧭 R167 – R176 » de `checklist.md` (23
+surfaces de surveillance passées en revue, 2 seulement arrivant en rouge chez le
+propriétaire), livrées le même soir par `5a17b33` puis `6a40f4b`.
+
+- [x] **R167 — nightly sécurité rouge et muet : `gitleaks` et l'ordre aléatoire
+  tranchés, `notify` lit l'outcome réel.** (P2) ✅ (2026-09-25, `5a17b33` + `6a40f4b`)
+
+  Un job `notify` lit désormais `needs.*.result` **et** les `outputs.hits` des jobs qui
+  avalent leur code de sortie (`pip-audit`, `error-class-audit`) — `needs.*.result` seul
+  ment sous `continue-on-error`. Compteurs `pip-audit`/`audit` publiés en sortie de job.
+  `.gitleaks.toml` et `.gitleaksignore` écartent 26 faux positifs par empreinte ; **12
+  trouvailles réelles** restent — leur rotation est portée par R177, pas cette ligne.
+  Preuve : dispatch manuel du nightly, `leaks found: 12` dans le journal du job, mail
+  rouge reçu dans la boîte du propriétaire à 19:09 UTC.
+
+- [x] **R168 — les seuils R87 (`reopening_triggers`) arrivent dans le mail de 23 h.**
+  (P3) ✅ (2026-09-25, `5a17b33`)
+
+  Le wrapper `nightly_maintenance.py` pousse désormais `reopening_triggers` dans le
+  contexte du mail, qui les rend — avant, `logger.warning` seul les recevait. Garde :
+  `tests/test_a_reopening_threshold_reaches_the_nightly_mail.py`.
+
+- [x] **R174 — mention morte de `check_stale_deliverables.py` corrigée.** (P4) ✅
+  (2026-09-25, `5a17b33`)
+
+  Le `guard_scope`, écrit au présent, citait un script qui n'existe plus. Corrigé ;
+  les autres occurrences du dépôt sont des traces historiques du catalogue d'erreurs et
+  restent telles quelles — elles décrivent un état passé, pas un état courant.
+
+---
+
 ## 🧯 R165 · R166 — la soirée du 2026-09-24 (livrées 2026-09-25)
 
 **Ce qui s'est passé.** `make deploy` de `e910543` (alignement de « Se connecter ») a

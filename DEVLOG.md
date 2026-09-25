@@ -26,6 +26,28 @@ annulé ici : un autre dépôt s'en charge. Index actionnable : **0 ligne**.
 
 ---
 
+## 2026-09-25 (soir) — La surveillance des classes d'erreur : ce qui arrive à quelqu'un
+
+**Ce qui a changé.** Audit de 23 surfaces de surveillance : deux seulement faisaient arriver
+un rouge (le mail de 23 h, `prod-health`). Le nightly sécurité était rouge 5 nuits sur 5 et
+muet ; il mail désormais sur échec — prouvé par un dispatch, mail reçu à 19:09 UTC. Les seuils
+R87 entrent dans le mail de 23 h. La roadmap reçoit enfin ses actions : 11 inscrites (R167 à
+R177), un garde ancré (dette mesurée ⇒ ligne), un rappel de fin de séance. `gitleaks` a
+révélé **12 vrais secrets** dans l'historique public — rotation en R177 (P1).
+
+### Ce qu'il faut retenir
+
+- **`needs.<job>.result` ment sous `continue-on-error`** : `success` pour un job en échec. Le
+  critic affirmait l'inverse ; seul le dispatch l'a tranché.
+- **Une configuration se teste avec la version qui la lit** : `[[allowlists]]` rendait 12 en
+  local (gitleaks 8.28) et 24 en CI (8.24.3).
+- **Un hook ne voit pas l'action oubliée** : l'entrée dans la roadmap est bloquante seulement
+  là où le dépôt MESURE la dette, et suggestive ailleurs.
+- **`engineering-loop` n'avait jamais pu tourner** (accent grave non échappé, « NaN ») ; réparé,
+  il a produit deux correctifs réels le même soir.
+
+---
+
 ## 2026-09-25 (nuit) — La CI reverdit, sauf son fichier de durées
 
 **Ce qui a changé.** `0017474` : les sept causes de R165 corrigées (A–G), chacune rejouée
