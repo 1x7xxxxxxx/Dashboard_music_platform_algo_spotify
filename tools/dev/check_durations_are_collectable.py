@@ -39,6 +39,12 @@ _ROOT = Path(__file__).resolve().parents[2]
 _DUR = _ROOT / ".test_durations"
 
 
+def collection_errors(stdout: str) -> list[str]:
+    """The test files pytest failed to import, from its `--collect-only -q` output."""
+    return sorted({ligne.split()[1] for ligne in stdout.splitlines()
+                   if ligne.startswith("ERROR tests/")})
+
+
 def main() -> int:
     if not _DUR.is_file():
         print("❌ `.test_durations` absent — `pytest-split` répartirait sur le NOMBRE "
@@ -57,6 +63,19 @@ def main() -> int:
               "et ce contrôle serait vert sur n'importe quel fichier de durées.\n"
               f"   code de sortie pytest : {r.returncode}\n"
               f"   {r.stdout[-400:]}")
+        return 1
+
+    # A file that fails to IMPORT is absent from the collection, so every duration it
+    # owns reads as a phantom. On 2026-09-25 that is how a missing FERNET_KEY in this
+    # job was reported: 37 "tests that no longer exist" in two files that exist.
+    erreurs = collection_errors(r.stdout)
+    if erreurs:
+        print(f"❌ la collecte a échoué sur {len(erreurs)} fichier(s) — leurs durées "
+              "passeraient pour des fantômes. Ce n'est pas `.test_durations` qui est "
+              "faux, c'est l'environnement de ce job :")
+        for f in erreurs:
+            print(f"   {f}")
+        print(f"\n{r.stdout[-1500:]}")
         return 1
 
     durees = json.loads(_DUR.read_text(encoding="utf-8"))

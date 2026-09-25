@@ -450,9 +450,9 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 ## Les classes d'erreur
 
-**411 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
+**412 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
 
-**fixed** : 10· **guarded** : 379· **open** : 4· **reported** : 16· **resolved** : 2
+**fixed** : 10· **guarded** : 380· **open** : 4· **reported** : 16· **resolved** : 2
 
 **0 classe(s) nomment un fichier de garde qui n'existe plus** et **11** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
@@ -534,7 +534,7 @@ Le défaut qui a fait naître cette section : `meta_insights_performance` et `me
 
 ## Les étapes de la CI
 
-**12 étapes**, dont **12 bloquantes**. Lu dans `.github/workflows/ci.yml`, jamais récité — une liste d'étapes écrite à la main décrit la CI qu'on croit avoir.
+**13 étapes**, dont **13 bloquantes**. Lu dans `.github/workflows/ci.yml`, jamais récité — une liste d'étapes écrite à la main décrit la CI qu'on croit avoir.
 
 ⚠️ Une CI rouge cache tout ce qui la suit : ce dépôt l'a mesuré deux fois (8 exécutions bloquées à l'étape 3/8, puis 27 à l'étape 10/15). C'est `if: !cancelled()` qui l'a arrêté, pas la leçon écrite entre les deux.
 
@@ -545,13 +545,14 @@ Le défaut qui a fait naître cette section : `meta_insights_performance` et `me
 | 3 | Install dependencies from lockfile | sync | bloquante |
 | 4 | Manifest consistency (blocking) | check_manifest_consistency.py | bloquante |
 | 5 | Lint (ruff) — full project (blocking) | ruff check | bloquante |
-| 6 | REX integrity + static error-class guards (blocking) | validate_rex.py, audit_runner.py, audit_unreachable_tools.py, check_config_refs.py, pytest, check_durations_ar | bloquante |
-| 7 | Install uv | — | bloquante |
-| 8 | Set up Python 3.11 | — | bloquante |
-| 9 | Install dependencies from lockfile | sync | bloquante |
-| 10 | Provision Postgres (schema + migrations) | — | bloquante |
-| 11 | Mint a throwaway Fernet key for this run | — | bloquante |
-| 12 | Run tests | — | bloquante |
+| 6 | Mint a throwaway Fernet key for the collection gates | — | bloquante |
+| 7 | REX integrity + static error-class guards (blocking) | validate_rex.py, audit_runner.py, audit_unreachable_tools.py, check_config_refs.py, pytest, check_durations_ar | bloquante |
+| 8 | Install uv | — | bloquante |
+| 9 | Set up Python 3.11 | — | bloquante |
+| 10 | Install dependencies from lockfile | sync | bloquante |
+| 11 | Provision Postgres (schema + migrations) | — | bloquante |
+| 12 | Mint a throwaway Fernet key for this run | — | bloquante |
+| 13 | Run tests | — | bloquante |
 
 ## Ce qui n'est atteint par rien
 
@@ -635,9 +636,9 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-gold-objects: total=31 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=22 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=411 guard_missing=0 guard_unnamed=11 -->
+<!-- gold-coverage-error-classes: total=412 guard_missing=0 guard_unnamed=11 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=28 unreconciled=0 -->
-<!-- gold-coverage-ci: steps=12 blocking=12 -->
+<!-- gold-coverage-ci: steps=13 blocking=13 -->
 
-<!-- gold-coverage: sha256=942d8324f7764df1c55ac72185aaf1db5cbbd0e997eb3c56a6e6982a42163772 -->
+<!-- gold-coverage: sha256=4f38bd6b08df2975a749967be81fdb97829774d1b2f05560230aeed72c51ec59 -->

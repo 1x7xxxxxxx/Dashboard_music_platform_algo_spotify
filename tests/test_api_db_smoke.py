@@ -12,6 +12,7 @@ test_views_render_smoke: skips cleanly unless the app schema is actually loaded,
 so it runs in CI (provisioned Postgres) and locally (real DB), and is a no-op on
 an unprovisioned DB.
 """
+import functools
 import os
 import socket
 
@@ -77,9 +78,31 @@ def _active_artist_ids(limit: int = 3) -> list:
         return [1]
 
 
-_ROLES = {"admin": {"sub": "smoke-admin", "role": "admin", "artist_id": None}}
-for _aid in _active_artist_ids():
-    _ROLES[f"tenant{_aid}"] = {"sub": f"smoke-tenant-{_aid}", "role": "artist", "artist_id": _aid}
+# The tenant ids are resolved at RUN time, never at collection: a node id carrying the
+# artist id (`tenant471`) named a different test on every database — the CI's fresh
+# one, the workstation's lived one, the no-database static job — so `.test_durations`
+# could never describe the suite the shards collect (51 phantom entries, 2026-09-25).
+# The slot is the stable name; the id behind it is the database's business.
+_TENANT_SLOTS = ("tenant-1st", "tenant-2nd", "tenant-3rd")
+_ROLE_IDS = ("admin",) + _TENANT_SLOTS
+_ADMIN = {"sub": "smoke-admin", "role": "admin", "artist_id": None}
+
+
+@functools.lru_cache(maxsize=1)
+def _tenant_ids() -> tuple:
+    return tuple(_active_artist_ids(limit=len(_TENANT_SLOTS)))
+
+
+def _identity(role: str) -> dict:
+    """The claims for `role`, or a skip when the database has fewer active tenants."""
+    if role == "admin":
+        return dict(_ADMIN)
+    rank = _TENANT_SLOTS.index(role)
+    ids = _tenant_ids()
+    if rank >= len(ids):
+        pytest.skip(f"{role}: only {len(ids)} active tenant(s) in this database")
+    aid = ids[rank]
+    return {"sub": f"smoke-tenant-{aid}", "role": "artist", "artist_id": aid}
 
 # Every data-router endpoint that issues SQL (auth/webhook excluded — no DB read).
 _DATA_ENDPOINTS = [
@@ -106,17 +129,18 @@ def _bypass_user_lookup(request):
     if role is None:
         yield
         return
-    app.dependency_overrides[get_current_user] = lambda: dict(_ROLES[role])
+    claims = _identity(role)
+    app.dependency_overrides[get_current_user] = lambda: dict(claims)
     try:
         yield
     finally:
         app.dependency_overrides.pop(get_current_user, None)
 
 
-@pytest.mark.parametrize("role", list(_ROLES), ids=list(_ROLES))
+@pytest.mark.parametrize("role", _ROLE_IDS, ids=_ROLE_IDS)
 @pytest.mark.parametrize("path", _DATA_ENDPOINTS)
 def test_data_endpoint_no_server_error(client, path, role):
-    token = create_access_token(dict(_ROLES[role]))
+    token = create_access_token(_identity(role))
     r = client.get(path, headers={"Authorization": f"Bearer {token}"})
     # 200 (data or empty) and deliberate 4xx (e.g. /artists → 403 for a tenant) are
     # fine. A 500 means the SQL broke against the real schema = drift / a real bug.
@@ -138,7 +162,7 @@ def test_at_least_one_endpoint_actually_returns_data(client):
     prétend garder est pire qu'absent : il occupe la place du garde.
     """
     from src.api.deps import get_current_user
-    app.dependency_overrides[get_current_user] = lambda: dict(_ROLES["admin"])
+    app.dependency_overrides[get_current_user] = lambda: dict(_ADMIN)
     try:
         codes = {p: client.get(p, headers={"Authorization": "Bearer x"}).status_code
                  for p in _DATA_ENDPOINTS}

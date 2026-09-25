@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**411 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**412 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -20,7 +20,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 25 | **3/25** · 12.0 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 30 | **6/30** · 20.0 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 26 | **2/26** · 7.7 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 84 | **12/84** · 14.3 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 85 | **12/85** · 14.1 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | **4/39** · 10.3 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | **0/8** · 0.0 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
@@ -307,7 +307,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|substitution|s'exécute|accent grave|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 84 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|substitution|s'exécute|accent grave|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 85 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -360,6 +360,7 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 | [`a-parenthesis-is-not-a-tuple`](error-classes.md#a-parenthesis-is-not-a-tuple) | une requête paramétrée ne s'exécute JAMAIS. Elle lève avant d'atteindre la base, un `except` plus haut l'attrape, et l'appelant reçoit une liste vide  |
 | [`guard-satisfied-by-its-own-comment`](error-classes.md#guard-satisfied-by-its-own-comment) | le défaut est remis en place **en entier** et la suite reste VERTE. Rien ne signale quoi que ce soit — c'est un garde qui ne garde plus, dans l'état e |
 | [`a-blocking-gate-red-on-its-own-syntax`](error-classes.md#a-blocking-gate-red-on-its-own-syntax) | une porte bloquante est rouge, et ce qu'elle nomme n'existe pas. Le message dit « ces touches sont réelles » ; on cherche un défaut du produit, il n'y |
+| [`a-test-that-only-ever-ran-on-its-authors-machine`](error-classes.md#a-test-that-only-ever-ran-on-its-authors-machine) | un test vert sur le poste et rouge en CI — ou l'inverse — sur un code identique. Il n'a jamais tourné que dans UNE des deux formes d'environnement : s |
 | [`a-class-that-claims-its-neighbours-guard`](error-classes.md#a-class-that-claims-its-neighbours-guard) | une classe d'erreur annonce une protection plus large que celle qu'elle a. Le champ `guard:` nomme un fichier qui contient bel et bien les tests décri |
 | [`check-calls-a-binary-its-image-lacks`](error-classes.md#check-calls-a-binary-its-image-lacks) | a check running INSIDE a container shells out to a host binary (`rclone`, `git`, `docker`, `psql`) that is not in that image. It never crashes — it ta |
 | [`freshness-measured-on-write-time`](error-classes.md#freshness-measured-on-write-time) | a source is reported FRESH while its data is months or years old. The collector still runs and still writes, so the write timestamp advances nightly — |
@@ -614,6 +615,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=411 families=18 orphans=3 -->
+<!-- error-class-families: total=412 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=4a360762086606b4c3e4b1ce9e4b2b09eadc2552036f6334c32cd3365a050b3a -->
+<!-- error-class-families: sha256=853be81d8b780f4bf9b2f204dc571ae9657b0e6dfafaf28efd60c986366b72f5 -->

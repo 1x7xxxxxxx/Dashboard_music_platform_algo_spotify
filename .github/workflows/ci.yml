@@ -164,8 +164,23 @@ jobs:
         # carried 25 of the 40 findings that cleanup removed.
         run: uv run --frozen ruff check .
 
+      - name: Mint a throwaway Fernet key for the collection gates
+        if: ${{ !cancelled() }}
+        id: gates_fernet
+        # `check_durations_are_collectable.py` COLLECTS the suite, and two test files
+        # import `src/dashboard/app.py`, which raises without FERNET_KEY. Without it
+        # this job saw 37 durations as "phantoms" the shards collect fine (2026-09-25).
+        # Same generation as the suite job's `ci_fernet` — per run, never committed.
+        run: |
+          echo "key=$(python3 -c 'import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')" >> "$GITHUB_OUTPUT"
+
       - name: REX integrity + static error-class guards (blocking)
         env:
+          # The import-time env of `src/dashboard/app.py`, as in the suite job: the
+          # durations gate COLLECTS, and a collection error reads as phantom entries.
+          FERNET_KEY: ${{ steps.gates_fernet.outputs.key }}
+          AIRFLOW_USERNAME: ci
+          AIRFLOW_PASSWORD: ci-not-a-real-secret  # pragma: allowlist secret
           # Le jeton fourni d'office par Actions. Il n'active qu'une chose : la
           # signature de `a-merged-branch-outlives-its-pull-request`, qui interroge
           # `gh api`. Sans lui elle faisait `|| echo true` et passait TOUJOURS — un

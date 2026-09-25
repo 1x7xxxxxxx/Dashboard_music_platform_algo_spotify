@@ -398,6 +398,29 @@ def test_the_module_reads_no_connection_variable():
     assert psycopg2 is not None
 '''), "nommer une variable dans une assertion d'absence n'est pas la lire"
 
+def _handler_kwargs() -> set:
+    import inspect
+
+    from src.database.postgres_handler import PostgresHandler
+    return set(inspect.signature(PostgresHandler.__init__).parameters) - {"self"}
+
+
+def _the_handler_accepts(kw: dict | None) -> bool:
+    """Can `PostgresHandler(**kw)` be called with what the test door returned?"""
+    return bool(kw) and set(kw) <= _handler_kwargs()
+
+
+def test_the_handler_check_sees_the_defect_it_is_written_for() -> None:
+    """The form `tests/db_gate.dsn()` returned in CI until 2026-09-24 must be refused.
+
+    Without this, `_the_handler_accepts` could be loosened into accepting anything and
+    the door test above would stay green on the very defect that kept CI red two days.
+    """
+    assert not _the_handler_accepts({"dsn": "postgresql://u:p@h:5432/db"})  # pragma: allowlist secret
+    assert not _the_handler_accepts({})
+    assert _the_handler_accepts({"host": "h", "port": 5432, "database": "db",
+                                 "user": "u", "password": "p"})  # pragma: allowlist secret
+
 
 def test_the_test_door_speaks_the_handlers_language_under_DATABASE_URL(monkeypatch) -> None:
     """`dsn()` est déballé dans `PostgresHandler(**…)` ET `psycopg2.connect(**…)`.
@@ -406,15 +429,11 @@ def test_the_test_door_speaks_the_handlers_language_under_DATABASE_URL(monkeypat
     tests rouges en CI du 2026-09-22 au 24, verts sur le poste qui ne pose pas la
     variable. Ne demande aucune base : la branche `DATABASE_URL` ne touche pas au réseau.
     """
-    import inspect
-
-    from src.database.postgres_handler import PostgresHandler
     from tests.db_gate import dsn
 
     monkeypatch.setenv("DATABASE_URL", "postgresql://u%40x:p%3Aw@h:6543/db")  # pragma: allowlist secret
     kw = dsn()
-    accepte = set(inspect.signature(PostgresHandler.__init__).parameters) - {"self"}
-    assert kw and set(kw) <= accepte, (
-        f"`dsn()` rend {sorted(kw or {})} ; `PostgresHandler` accepte {sorted(accepte)}")
+    assert _the_handler_accepts(kw), (
+        f"`dsn()` rend {sorted(kw or {})} ; `PostgresHandler` accepte {sorted(_handler_kwargs())}")
     assert (kw["user"], kw["password"], kw["port"]) == ("u@x", "p:w", 6543), (
         "les identifiants d'une URI se décodent comme le fait libpq")
