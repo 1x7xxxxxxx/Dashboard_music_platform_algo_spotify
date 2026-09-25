@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import importlib.util
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -117,3 +118,22 @@ def test_the_watched_trees_are_the_ones_that_ship(hook):
     assert set(hook._CODE_WATCH) >= {"src/", "airflow/"}, hook._CODE_WATCH
     assert "DEVLOG.md" in hook._DOC_TRACES
     assert any("checklist.md" in d for d in hook._DOC_TRACES), hook._DOC_TRACES
+
+
+def test_committed_work_of_the_session_is_seen(hook, tmp_path):
+    """Once committed, `git status` is empty — the session's commits must still count.
+
+    Measured 2026-09-25: 13 commits on `.claude/`, `tools/`, `Makefile`, `.github/`, ~9
+    actions identified, 0 written to the roadmap, and this hook said nothing: the work was
+    committed (invisible to `git status`) and outside `_CODE_WATCH`.
+    """
+    repo = Path(_repo(tmp_path))
+    (repo / ".claude/sessions").mkdir(parents=True, exist_ok=True)
+    time.sleep(1.1)                     # the seed commit belongs to BEFORE the session
+    (repo / ".claude/sessions/.session-start-ts").write_text(f"{time.time()}\n", encoding="utf-8")
+    (repo / "tools/dev").mkdir(parents=True, exist_ok=True)
+    (repo / "tools/dev/new_check.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tools/dev/new_check.py"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "a tool, no roadmap"], cwd=repo, check=True)
+    out = "\n".join(hook.check_code_without_a_trace(str(repo)))
+    assert "tools/dev/new_check.py" in out and "checklist.md" in out, out

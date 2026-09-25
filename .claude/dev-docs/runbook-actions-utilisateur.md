@@ -1831,3 +1831,40 @@ l'étape 4 (un lien sans pixel) ou 5 (l'évènement n'arrive pas côté serveur)
 
 R146 reste vrai : même parfaitement branché, ce chiffre compte l'auditeur qui **quitte**
 le smart link vers Spotify, pas une écoute. L'app le dit déjà sur chaque surface.
+
+## 25. R175 — Mots de passe mail des comptes UC7 (n8n)
+
+**Pourquoi c'est toi** : le mot de passe de 1x7 vit dans `~/streamlytics/.env`, que tes
+réglages interdisent à Claude de lire (après une fuite de clés Stripe dans un fil, le
+2026-08-20) ; les deux autres n'existent pas encore — Google ne les crée que connecté au compte.
+
+### Les étapes
+
+1. **1x7** — taper SEULE dans l'invite de Claude Code (le `!` l'exécute avec tes droits) :
+   `! grep '^SMTP_PASSWORD=' ~/streamlytics/.env | sed 's/^SMTP_PASSWORD=/GMAIL_APP_PASSWORD_1X7=/' >> /mnt/c/Users/timot/Desktop/n8n/.env`
+2. **nineka50130 puis 127bpmin** — connecté à chaque compte : myaccount.google.com/apppasswords
+   (activer d'abord la validation en 2 étapes si l'option manque) → nom « n8n » → Créer →
+   copier les 16 lettres. **Ne pas les coller dans le fil.**
+3. Ouvrir le fichier : `! code /mnt/c/Users/timot/Desktop/n8n/.env` et ajouter, sans espaces :
+   `GMAIL_APP_PASSWORD_NINEKA=…` et `GMAIL_APP_PASSWORD_127BPMIN=…`.
+
+### La preuve
+
+`! /mnt/c/Users/timot/Desktop/n8n/scripts/check-rag-mail-accounts.sh` → quatre lignes ✓.
+Tant qu'un compte est ignoré, le relevé du dimanche t'envoie un avertissement par mail.
+
+## 26. R176 — Retirer `AIRFLOW__CORE__DAGS_FOLDER` mort
+
+**Pourquoi c'est toi** : les `.env` sont hors de portée de Claude (règle deny). La valeur
+(`C:\Users\timot\Desktop\Dashboard_music_platform_algo_spotify\airflow\dags`) vise l'ancien
+emplacement du dépôt ; elle est inerte — `docker-compose.yml:47` impose `/opt/airflow/dags` —
+mais elle induit en erreur quiconque lit le fichier.
+
+### Les étapes
+
+1. `! code ~/streamlytics/.env` → supprimer la ligne `AIRFLOW__CORE__DAGS_FOLDER=…`.
+2. Même geste dans `~/streamlytics/.env.example` (ligne ~58), puis commiter `.env.example`.
+
+### La preuve
+
+`! grep -c DAGS_FOLDER ~/streamlytics/.env ~/streamlytics/.env.example` → `0` pour les deux.

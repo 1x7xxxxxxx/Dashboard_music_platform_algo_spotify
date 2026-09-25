@@ -162,7 +162,25 @@ def get_session_turns(transcript_path: str) -> int:
 # pourtant la séance dont l'oubli coûte le plus cher : le code part en production et
 # le journal n'en garde rien.
 _CODE_WATCH = ("src/", "airflow/")
+# ⚠️ Élargi le 2026-09-25 : une séance entière sur `.claude/`, `tools/`, `Makefile` et
+# `.github/` (13 commits, ~9 actions identifiées, 0 inscrite à la roadmap) ne déclenchait
+# RIEN — hors de `_CODE_WATCH`, et déjà commitée donc invisible à `git status`.
+_CODE_WATCH += (".claude/hooks/", ".claude/scripts/", ".claude/workflows/", "tools/",
+                "Makefile", ".github/")
+_SESSION_MARKER = ".claude/sessions/.session-start-ts"
 _DOC_TRACES = ("DEVLOG.md", ".claude/dev-docs/roadmap/checklist.md")
+
+
+def _committed_this_session(repo_root: str) -> set[str]:
+    """Files touched by the commits of THIS session — `git status` is blind once committed."""
+    try:
+        since = float(Path(repo_root, _SESSION_MARKER).read_text(encoding="utf-8").strip())
+        out = subprocess.run(["git", "log", f"--since=@{int(since)}", "--name-only",
+                              "--format="], cwd=repo_root, capture_output=True, text=True,
+                             timeout=5)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return set()
+    return {ln.strip() for ln in out.stdout.splitlines() if ln.strip()}
 
 
 def check_code_without_a_trace(repo_root: str) -> list[str]:
@@ -186,6 +204,7 @@ def check_code_without_a_trace(repo_root: str) -> list[str]:
         return []
 
     changed = {line[3:].strip().split(" -> ")[-1] for line in out.stdout.splitlines() if line[3:].strip()}
+    changed |= _committed_this_session(repo_root)
     code = sorted(c for c in changed if c.startswith(_CODE_WATCH))
     if not code:
         return []

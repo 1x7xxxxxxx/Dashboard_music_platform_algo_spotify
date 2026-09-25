@@ -25,8 +25,18 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R167 | Le nightly sécurité est rouge et muet : `gitleaks` 5 nuits sur 5, suite en ordre aléatoire 4 sur 5, HITs d'audit vus par personne | P2 | `gh run list --workflow security-nightly.yml` + jobs des 5 derniers runs |
+| R168 | Les seuils R87 (`reopening_triggers`) sont calculés chaque soir et n'arrivent pas dans le mail de 23 h | P3 | `nightly_maintenance.py:96-102` — `logger.warning` seul |
+| R169 | Dette du catalogue d'erreurs : gardes non auto-prouvants et causes inconnues, figés sur six commits <!-- anchor: error-debt --> | P3 | `make error-debt` |
+| R170 | `reopen-check` et `night-check` n'ont aucun appelant planifié | P3 | `grep -rn "reopen-check\|night-check" .github/ ` + `crontab -l` |
+| R171 | `error-inbox.md` n'est régénéré par rien (dernier : 2026-09-18) | P4 | en-tête de `.claude/dev-docs/error-inbox.md` |
+| R172 | `/curator` « hebdomadaire » n'est planifié par rien | P4 | `.claude/curator/SCHEDULE.md` vs `crontab -l` / workflows |
+| R173 | Porter vers le baseline les changements de `select_tests.py` et `audit_runner.py` du 2026-09-25 | P4 | `diff` avec `claude_code_deployment_baseline/tools/dev/select_tests.py` |
+| R174 | `check_stale_deliverables.py` n'existe plus, mais le catalogue le cite encore | P4 | `grep -rn check_stale_deliverables .claude/dev-docs/` |
 
-**Cet index est de nouveau vide depuis le 2026-09-25** : R165 (la CI rouge depuis le
+**Huit lignes y sont entrées le 2026-09-25 au soir**, toutes issues de l'audit de la
+surveillance des classes d'erreur — détail dans « 🧭 R167 – R176 » juste sous cet index.
+Avant elles, l'index avait été vidé le 2026-09-25 : R165 (la CI rouge depuis le
 2026-09-22) et R166 (le contrôle de santé de la prod qui n'arrivait à personne),
 entrées le 2026-09-24 au soir toutes deux nées d'un déploiement qui n'a pas pu partir,
 sont livrées — détail dans `archive.md`, sous « 🧯 R165 · R166 ».
@@ -90,13 +100,13 @@ Chacune croise une phrase d'un livre avec un chiffre déjà mesuré sur ce dép�
 et la citation sont dans le bloc « 📚 R146-R151 » plus bas. Une ligne dont le livre ne
 faisait que confirmer ce qu'on savait déjà n'y est PAS entrée.
 
-**Aucune tâche n'est ouverte dans cet index** — R165 et R166, qui l'occupaient depuis le
+**Huit tâches sont ouvertes dans cet index depuis le 2026-09-25 au soir** (R167 à R174). Avant elles, R165 et R166, qui l'occupaient depuis le
 2026-09-24 au soir, sont livrées le 2026-09-25 ; leur récit est dans `archive.md`. R145
 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance,
 close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et
 qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
-L'ancre `reprise:` ne nomme donc plus que les lignes en attente d'un geste humain — R148 et R163 depuis le 2026-09-23 (R151 réfutée, R150 livrée, R163 entrée et R153 livrée ce jour-là). La table « 🙋 En attente de toi »
-plus bas en porte **deux** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
+L'ancre `reprise:` nomme l'index ET les lignes en attente d'un geste humain — R148 et R163 depuis le 2026-09-23 (R151 réfutée, R150 livrée, R163 entrée et R153 livrée ce jour-là), R175 et R176 depuis le 2026-09-25. La table « 🙋 En attente de toi »
+plus bas en porte **quatre** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
 sont sorties le 2026-09-20 — les dix-sept décisions de la première tranchées et
 intégrées, la deuxième faite par le propriétaire (33 lignes en production), la troisième
 mesurée EN PRODUCTION et close sur son résultat.
@@ -131,6 +141,32 @@ Classe `a-prose-claim-that-cannot-be-verified`. La parade tient en une phrase : 
 une phrase de ce fichier compte quelque chose, elle compte ce qui existe, et rien
 d'autre** — et le paragraphe qui l'énonce n'y échappe pas, comme sa propre ligne « trois
 fois » vient de le montrer.
+
+---
+
+## 🧭 R167 – R176 — l'audit de la surveillance des classes d'erreur (entrées le 2026-09-25)
+
+**D'où elles viennent.** Trois explorations en lecture seule le 2026-09-25 au soir :
+**23 surfaces de surveillance**, dont deux seulement font arriver un rouge dans la boîte du
+propriétaire (le mail de 23 h d'`alert_monitor`, `prod-health.yml`). Et rien ne faisait
+ENTRER une action dans cette roadmap : ~9 identifiées ce jour-là, 0 inscrite avant ce bloc.
+
+- [ ] **R167** — nightly sécurité : causes de `gitleaks` et de l'ordre aléatoire tranchées,
+  puis un job `notify` qui lit `needs.*.result` ET les `outputs.hits` des jobs qui avalent
+  leur code (`pip-audit`, `error-class-audit`).
+- [ ] **R168** — `reopening_triggers` rendu dans le mail de 23 h quand un seuil est franchi.
+- [ ] **R169** — dette : 3 classes par séance, dans l'ordre de `make error-debt` (récidivées sans
+  garde auto-prouvant d'abord). Tant que la liste n'est pas vide, cette ligne reste — garde
+  `tests/test_a_measured_debt_has_its_roadmap_line.py`.
+- [ ] **R170** — décider : `reopen-check` / `night-check` dans le DAG du soir, ou retirés.
+- [ ] **R171** — décider : régénérer `error-inbox.md` (CI de prod) ou le retirer — l'alerte
+  réelle passe déjà par le mail de 23 h.
+- [ ] **R172** — décider : planifier `/curator` ou le retirer.
+- [ ] **R173** — porter `select_tests.py` (non-Python sélectif) et `audit_runner.py`
+  (signatures concurrentes) vers le baseline.
+- [ ] **R174** — retirer les mentions mortes de `check_stale_deliverables.py`.
+- [ ] **R175** — 🙋 mots de passe mail UC7 (runbook §25).
+- [ ] **R176** — 🙋 `AIRFLOW__CORE__DAGS_FOLDER` mort (runbook §26).
 
 ---
 
@@ -186,7 +222,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R148, R163 -->
+<!-- reprise: open=R148, R163, R167, R168, R169, R170, R171, R172, R173, R174, R175, R176 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers
@@ -264,7 +300,7 @@ deux réordonnancements de R118/R120, chacun sur une mesure — a été **dépla
 dans `archive.md`** le 2026-09-18, sous « Le récit de mesure de R114–R121 ». Il n'est pas
 perdu : il n'appartient simplement pas à un écran qui répond « où j'en suis ».
 
-**La table « 🙋 En attente de toi » porte DEUX lignes** — R148, entrée
+**La table « 🙋 En attente de toi » porte QUATRE lignes** — R175 et R176, entrées le 2026-09-25 (mots de passe mail UC7, `DAGS_FOLDER` mort) ; R148, entrée
 le 2026-09-22 (R151 réfutée, R150 livrée et R153 livrée le 2026-09-23), et R163, entrée le
 2026-09-23 : les gestes Hypeddit à faire au lancement. Elle avait été vide pour la première fois le 2026-09-20, quand R140,
 R125 et R134 en étaient sorties ; le vide a tenu deux jours.
@@ -406,6 +442,8 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
 | R148 | Trois conversations « combien tu paierais » | P3 | trois entretiens de vingt minutes, avec des artistes **qui ont vu leurs données** — runbook §19 |
+| R175 | Mots de passe mail des comptes UC7 (n8n) : 1x7 à recopier, nineka50130 et 127bpmin à créer | P3 | une ligne `!` pour 1x7, deux App Passwords Google, puis `check-rag-mail-accounts.sh` tout en ✓ — runbook §25 |
+| R176 | Retirer `AIRFLOW__CORE__DAGS_FOLDER` (chemin Windows mort) de `.env` et `.env.example` | P4 | deux lignes à supprimer à la main (règle deny sur les `.env`) — runbook §26 |
 | R163 | Brancher Hypeddit sur le pixel et sa Conversions API, au lancement | P3 | **déclencheur : l'app terminée ET une campagne Meta relancée.** Choisir le pixel dans Hypeddit, y coller un jeton CAPI, rattacher le pixel à chaque smart link, vérifier l'évènement en test, puis 48 h après voir `custom_conversions` remonter — runbook §24 |
 
 ⚠️ **R148 vient après l'activation** : demander à
