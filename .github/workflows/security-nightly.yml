@@ -130,6 +130,9 @@ jobs:
           n=$(grep -c "⚠ HIT" audit.log || true)
           echo "HITS=$n"
           echo "hits=$n" >> "$GITHUB_OUTPUT"
+          # Name the signatures that rendered no verdict IN THE LOG — the summary alone is
+          # not readable from `gh run view --log`.
+          grep -B1 -A2 '^⊘\|— exit [0-9]' audit.log || true
           [ "$rc" -le 1 ] || { echo "❌ audit_runner exited $rc — the audit itself is broken"; exit 1; }
 
   # ── De combien de majeures les actions sont-elles en retard ? (2026-09-16) ──
