@@ -173,6 +173,10 @@ même soir**, chacune par le geste humain qu'elle attendait — détail et preuv
     `detect-secrets` (2026-05-14). Ports prod 5432/5433/8080 fermés depuis Internet.
     Non vérifiable : un commit passé en `--no-verify` (git ne l'enregistre pas) — le
     gitleaks nocturne sur l'historique complet en couvre l'effet.
+  - Mot de passe base / admin Airflow (étape 4 du runbook §27), tranché le 2026-09-25 par
+    EMPREINTE sha256 (valeurs jamais lues) : `DATABASE_PASSWORD`, `DB_PASSWORD`,
+    `AIRFLOW_ADMIN_PASSWORD` de prod sont **différents** des 5 valeurs de l'historique ; ports
+    5432/5433/8080 fermés. **Rien à tourner côté base.** Reste : Spotify, YouTube, Meta.
 
 ---
 
