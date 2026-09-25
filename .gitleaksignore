@@ -27,3 +27,5 @@ d88d859453950d75739f29536d8b99ee232e3064:docker-compose.yml:generic-api-key:113
 d88d859453950d75739f29536d8b99ee232e3064:docker-compose.yml:generic-api-key:118
 d88d859453950d75739f29536d8b99ee232e3064:docker-compose.yml:generic-api-key:119
 19039c2882b82d531857ec4160a709ee57b248b0:airflow/airflow.cfg:generic-api-key:1305
+# R177, 2026-09-25 — YouTube key: old key deleted in Google Cloud, proven refused.
+df38e5e440b10111a7df0a7792db38457f151a20:docker-compose.yml:gcp-api-key:69
