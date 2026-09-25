@@ -48,6 +48,9 @@ def verdict(needs: dict) -> str | None:
         lines.append("public-surface-sweep : un secret est lisible HORS de l'historique de ce "
                      "dépôt (autre dépôt public, fork, journal Actions) — le log du job nomme "
                      "où, sans la valeur. Rotation d'abord (runbook §27).")
+    if "debt-trend" in failed:
+        lines.append("debt-trend : aucun compteur de dette du catalogue n'a baissé en 14 jours "
+                     "— R169 est à l'arrêt ; `make error-debt` donne les classes à traiter.")
     if "guard-mutation" in failed:
         lines.append("guard-mutation : un garde ajouté ces deux derniers jours n'a rougi sur AUCUNE "
                      "mutation, ou était rouge avant — le log du job le nomme ; le relire (règle 15ter).")
