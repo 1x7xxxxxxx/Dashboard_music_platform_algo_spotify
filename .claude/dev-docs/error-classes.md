@@ -4653,7 +4653,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: un cliquet gelé à zéro passe au vert, et la chose qu'il interdit est toujours là. Mesuré le 2026-09-10 : `_MAX_SECONDARY_AXES = 0` était vert alors que **trois figures** portaient encore un axe secondaire.
 - root_cause: le prédicat ne cherchait que `yaxis2…yaxis9`, la forme produite par `update_layout`. Plotly en a une seconde — `make_subplots(specs=[[{"secondary_y": True}]])` puis `add_trace(..., secondary_y=True)` — qui ne fait apparaître ce nom nulle part. Le cliquet ne disait donc pas « il n'y en a plus », il disait « je n'en vois plus », et les deux phrases se ressemblent au point d'être confondues dans un rapport de test vert.
-- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
+- cause_evidence: read (2026-09-26 — `tests/test_the_visual_rules_only_tighten.py:174-179` : `_count_axes_in` compte désormais les deux formes, `update_layout(yaxis2=…)` et `make_subplots(specs=[[{"secondary_y": True}]])` + `add_trace(..., secondary_y=True)`, qui n'écrit `yaxis2` nulle part)
 - signature: `python3 -m pytest tests/test_the_visual_rules_only_tighten.py -q`
 - seen_red: self-proving (tests/test_the_visual_rules_only_tighten.py::test_the_predicate_sees_both_shapes) — les DEUX formes d'axe secondaire fabriquées, dont `make_subplots`, celle qui avait traversé le cliquet ; lu le 2026-09-26
 - long_term_fix: un cliquet à ZÉRO doit prouver sa non-vacuité sur **chaque forme** qu'il prétend couvrir, et le prédicat du cliquet et celui de sa sonde doivent être **le même objet** — sinon la sonde valide une copie. Règle générale : un cliquet gelé au-dessus de la mesure du jour est du mou (il autorise en silence la croissance qu'il prétend interdire) ; un cliquet gelé à zéro sur un prédicat partiel est pire, il certifie une propriété fausse. Avant de figer à zéro, énumérer les formes que la chose peut prendre dans la bibliothèque employée.
@@ -8011,7 +8011,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: la figure affiche le mot **« undefined »** en gras là où son titre a été retiré. Vu au navigateur le 2026-09-12, immédiatement après avoir supprimé le titre et le sous-titre de la pile.
 - root_cause: `fig.update_layout(title=None)` ne retire pas le titre — Plotly sérialise l'absence vers son moteur JS, qui rend la chaîne `undefined`. Le titre de la pile venait d'être supprimé parce qu'il répétait le filtre de période et le récapitulatif ; le geste était juste, sa forme non.
-- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
+- cause_evidence: unknown (rétro-portage 2026-09-16 ; mesuré le 2026-09-26 : `update_layout(title=None)` sérialise `layout.title` en `{}`, `title_text=''` en `{'text': ''}` — ce que Plotly.js en RENDU fait de `{}` (la chaîne « undefined ») ne se voit pas sans navigateur ; la moitié rendu de la cause reste à mesurer)
 - long_term_fix: un titre qu'on retire est une chaîne **vide** (`title=dict(text="")`), jamais une absence. Le garde rend la figure dans les quatre modes et refuse un `layout.title.text` à `None`.
 - signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py::test_a_removed_title_is_empty_not_none -q`
 - seen_red: self-proving (tests/test_the_live_chart_matches_the_illustration.py::test_a_removed_title_is_empty_not_none)
