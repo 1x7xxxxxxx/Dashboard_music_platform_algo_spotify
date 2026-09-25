@@ -204,6 +204,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 |---|---|---|---|---|
 | [a-test-that-only-ever-ran-on-its-authors-machine](#a-test-that-only-ever-ran-on-its-authors-machine) | P2 | deterministic | guarded | none |
 | [a-red-verdict-delivered-to-an-inbox-nobody-reads](#a-red-verdict-delivered-to-an-inbox-nobody-reads) | P1 | deterministic | guarded | none |
+| [a-gate-that-pays-a-check-twice](#a-gate-that-pays-a-check-twice) | P4 | deterministic | guarded | none |
 | [an-absence-that-becomes-a-nan-because-nan-is-truthy](#an-absence-that-becomes-a-nan-because-nan-is-truthy) | P2 | deterministic | guarded | none |
 | [a-proxy-rendered-under-the-name-of-the-thing-it-proxies](#a-proxy-rendered-under-the-name-of-the-thing-it-proxies) | P2 | deterministic | guarded | none |
 | [a-second-door-that-knows-fewer-sources-than-the-first](#a-second-door-that-knows-fewer-sources-than-the-first) | P3 | deterministic | guarded | none |
@@ -4734,6 +4735,46 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-24
 - History:
   - 2026-09-25: écrite à la livraison de R166. Diagnostic de la veille coûteux dans l'autre sens aussi : une heure passée à chercher un abus sur le serveur, alors que le motif (impayé Hetzner) était dans une boîte mail — `feedback`, pas cette classe.
+  - 2026-09-25 (récidive): **un second surveillant, dans le dépôt n8n.** Le relevé mail UC7 (`rag-mail-run.sh`, horaire) échouait à lire le compte 1x7 depuis le 2026-09-17 — son `.env` visait un dépôt déplacé — et l'écrivait dans `rag-mail-run.log`, que personne ne lit ; le rapport n'y partait que s'il existait un reçu d'ingestion. Corrigé dans n8n (`469b4d9`) : un fetch en échec envoie `rag-mail-notify.py --alert`, une fois par jour et par problème distinct ; garde `tests/test_rag_mail_accounts_conf.py::test_the_run_alerts_on_a_failed_fetch` (dans CE dépôt-là). Ce garde-ci ne voit pas un autre dépôt : la forme a traversé la frontière sans que rien ne le signale.
+
+## a-gate-that-pays-a-check-twice
+- status: guarded
+- severity: P4
+- kind: deterministic
+- admitted: sites:2
+- admitted_detail: balayage du 2026-09-25 sur l'étape « REX integrity + static error-class guards » de `.github/workflows/ci.yml` : `tools/dev/gold_coverage.py --check` et `.claude/scripts/check_config_refs.py` y tournaient chacun comme ligne explicite ET comme signature de `audit_runner.py --static`.
+- symptom: le job critique de la CI est lent sans qu'aucun contrôle ne soit lent en soi. Chaque ligne a une raison d'être, et c'est exactement pourquoi personne ne voit qu'une même vérification est payée deux fois dans la même étape.
+- signature: `.venv/bin/python -m pytest tests/test_a_gate_runs_each_check_once.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: self-proving (tests/test_a_gate_runs_each_check_once.py::test_the_detector_sees_the_defect_it_is_written_for) — le garde fabrique l'étape telle qu'elle était le 2026-09-25 et exige que les deux doublons soient nommés ; la ligne commentée et `--lint`, placé avant `--static` à dessein, n'en sont pas. Vu rouge aussi sur l'arbre réel le 2026-09-25 avant correction (les deux doublons listés), vert après.
+- root_cause: une vérification devient signature d'une classe d'erreur, donc s'exécute dans `audit_runner --static`, sans que sa ligne explicite plus bas soit retirée. `check_ci_waste.py` ne pouvait pas le voir : c'est un outil de la flotte, il ne lit pas le catalogue de ce dépôt.
+- cause_evidence: measured (timeline du job `gates` du run de `2c918fe` : `--static` 114 s dont 20 s pour `gold_coverage --check`, rejoué 15 s plus loin dans la même étape)
+- long_term_fix: la ligne explicite disparaît dès que la commande est une signature `--static` ; seul `--lint` reste en double, par un allow-list nommé et motivé (`_ORDERED_BEFORE_STATIC`).
+- guard: { type: pytest, ref: tests/test_a_gate_runs_each_check_once.py }
+- guard_scope: un-coût-payé-sans-contrepartie — lancer deux fois la même vérification sur le chemin critique ; couvre: `test_no_gate_runs_a_check_twice` (l'étape de `gates` qui lance `--static`, comparée aux signatures `deterministic` non-pytest) ; ne couvre pas: les autres jobs et workflows (`security-nightly.yml`, les shards), un doublon ENTRE deux étapes, et une signature pytest rejouée par la suite elle-même.
+- siblings: swept:2026-09-25 — **2 sites vivants, corrigés**. Candidats : les 13 lignes explicites de l'étape ∩ les 48 signatures `--static` → 3 correspondances → `audit_runner.py --lint` écarté (placé avant `--static` pour signaler d'abord une signature cassée) → `gold_coverage.py --check`, `check_config_refs.py`.
+- rex_ref: .github/workflows/ci.yml
+- first_seen: 2026-09-25
+- History:
+  - 2026-09-25: trouvée en répondant à « 4 shards, c'est peut-être pas assez ? ». Le chemin critique n'était pas la suite mais `gates` ; retirer les doublons, paralléliser `check_guards_are_env_independent.py` et les signatures `--static` l'a fait passer de ~200 à ~105 s.
+
+## a-command-wrapper-that-returns-a-plausible-wrong-measurement
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une commande de vérification rend un résultat **crédible et faux**. Rien n'échoue, aucun message, et le chiffre est du bon ordre de grandeur — donc on le cite. Les conclusions bâties dessus sont fausses sans que rien ne le signale.
+- signature: `python3 -c "import pathlib,sys;p=pathlib.Path.home()/'.config/rtk/config.toml';sys.exit(0) if not p.exists() else None;exec('try:\n import tomllib\nexcept ImportError:\n sys.exit(0)');d=tomllib.loads(p.read_text(encoding='utf-8'));sys.exit(1 if (d.get('tee',{}).get('enabled') is True or not {'grep','diff','ps'} <= set(d.get('hooks',{}).get('exclude_commands',[]))) else 0)"`
+- seen_red: 2026-09-18 — en remettant `[tee] enabled = true` dans `~/.config/rtk/config.toml`, le garde sort **1** ; **0** restauré.
+- root_cause: un hook `PreToolUse` global réécrit **toutes** les commandes Bash (`rtk hook claude`, `~/.claude/settings.json:12`). Deux mécanismes distincts, et c'est la confusion entre les deux qui a coûté des semaines : (a) les wrappers de commande altèrent la sortie — `diff u v | wc -l` rend **5** au lieu de 4 ; (b) **`[tee] mode = "failures"` n'écrit le fichier de redirection QUE si la commande échoue** — donc tout `cmd > f` d'une commande qui RÉUSSIT produit un fichier **vide**.
+- cause_evidence: measured (les quatre gestes reproduits le 2026-09-17 avec leur valeur vraie obtenue par `rtk proxy` ; et surtout : exclure `grep` n'a **rien** changé au cas de la redirection, ce qui a écarté le wrapper et désigné `[tee]`)
+- long_term_fix: **désactiver le mécanisme, pas apprendre à le contourner.** `[tee] enabled = false` et `exclude_commands` étendu aux commandes dont la sortie est une DÉCISION (`grep`, `diff`, `git diff`, `ps`) dans `~/.config/rtk/config.toml`. L'arbitrage est mesuré, pas intuitif : `rtk gain` sur **45 258 commandes** montre que `rtk read` porte **1 178,1 M des 1 184,2 M** de tokens économisés (**99,5 %**) ; les quatre wrappers retirés pèsent **0,2 %**. On rend 0,2 % d'économie contre la fin d'une classe de mesures fausses. ⚠️ Ni un hook, ni une skill, ni un agent : l'outil a un mécanisme d'exclusion natif, et ajouter un hook pour corriger un hook aurait été une façade.
+- guard: { type: pytest, ref: tests/test_the_measurement_wrapper_does_not_lie.py }
+- guard_scope: un-garde-qui-ne-garde-pas — interposer un réécriveur entre une commande de vérification et sa sortie ; couvre: la configuration RTK de CETTE machine, par `test_the_redirect_interceptor_is_off` (le `[tee]`) et `test_the_measuring_commands_are_not_rewritten` (les trois exclusions les plus coûteuses) — lecture TOML, jamais motif textuel ; ne couvre pas: **le cas où le fichier est absent** — les deux tests SKIPPENT alors, et la signature sort 0. En CI ce garde ne démontre donc rien, par construction ; le skip est motivé et visible plutôt que vert et muet. Ne couvre pas non plus les autres réécriveurs du même geste : un alias shell, une fonction dans `.bashrc`, ou un second hook `PreToolUse` sur Bash produiraient la même classe sans toucher ce fichier.
+- siblings: swept:2026-09-18 — **0 site vivant**. Le dépôt n'a qu'un enveloppeur de commandes (RTK), et le garde vérifie les DEUX moitiés du correctif : les quatre commandes de vérification exclues, et `[tee] enabled = false`. ⚠️ Ce qui rend la classe dangereuse est rappelé par son propre `root_cause` : la cause de la redirection vidée n'était PAS le wrapper `grep` mais `[tee] mode = "failures"`, qui n'écrivait le fichier QUE si la commande échouait. Le symptôme et la cause étaient dans deux réglages différents. ⚠️ Ne couvre pas : les autres enveloppeurs que ce poste pourrait acquérir, ni le fait que la configuration soit HORS du dépôt — un poste neuf n'a pas ces exclusions, et rien ne le lui dit.
+- rex_ref: ~/.claude/RTK.md
+- first_seen: 2026-09-17
+- History:
+  - 2026-09-17: la mémoire du dépôt rangeait ce défaut sous « un problème de `grep` » depuis des semaines. C'était le SYMPTÔME : `grep` est simplement la commande qu'on redirige le plus souvent. La cause était la redirection, et elle touchait toute commande qui réussit. Une classe nommée sur le symptôme envoie corriger le mauvais mécanisme — ici, exclure `grep` a semblé être le fix et n'a rien réparé.
+  - 2026-09-25 (récidive): **trois commandes de plus, une seule séance.** `make test-changed | tee f` → « 281 lines truncated », verdict pytest perdu ; `git stash show --name-only stash@{0}` → « Empty stash » sur un stash de 5 fichiers ; `gh run list` → ligne reformatée sans le statut du run. `make`, `git stash`, `gh`, `wc`, `find` ajoutés à `exclude_commands` (ensemble : < 0,3 % du gain ; `rtk read` en porte 99,35 %). Le garde exige désormais `make`, `git stash`, `gh` ; vu rouge en retirant `make` de la config, vert restauré. Côté dépôt, `make test-changed` écrit aussi `.pytest-last.log`.
 
 ## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site
 
@@ -8453,25 +8494,6 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-16: trouvé **par la porte elle-même**, dans le commit qui la posait. C'est le meilleur moment : le coût était une minute de perplexité, pas une semaine de contrôle rouge qu'on finit par ignorer.
   - 2026-09-18: **le remède « deux commits » a été chiffré, et il coûte la moitié du journal.** Sur les 104 commits du 2026-09-18, **50 sont « Regenerer l instantane apres le commit du catalogue »** — 48 %. Sur sept jours : 85 sur 440. Chacun démarre en plus une exécution de CI complète que `cancel-in-progress` tue aussitôt (13 runs annulés sur 60). Le remède est correct et il est cher ; la question rouverte est de savoir pourquoi l'artefact porte un nombre qui change quand on le commite.
   - 2026-09-18 (garde): remède remplacé, et le défaut reproduit à la lettre avant de conclure. Catalogue modifié → `make error-health` → un seul commit → `--check` sortait **1** en nommant exactement deux champs : `classes.<id>.revisions` et `aggregate.generated_from.catalogue_revisions`. Les deux sont de la PROVENANCE, et le seul consommateur est un plancher de non-vacuité (`>= 100`). Après correctif, le même cycle sort **0**. Trois mutations vues rouges : l'arbre de travail cesse de compter ; la révision en attente est comptée sans être LUE (attrapée seulement après avoir refait l'assertion en comportement — la version textuelle cherchait `CATALOGUE.read_text` et trouvait une occurrence sans rapport, `guard-satisfied-by-its-own-comment` pour la troisième fois de la journée) ; le refus exit 3 revient.
-
-## a-command-wrapper-that-returns-a-plausible-wrong-measurement
-- status: guarded
-- severity: P2
-- kind: deterministic
-- symptom: une commande de vérification rend un résultat **crédible et faux**. Rien n'échoue, aucun message, et le chiffre est du bon ordre de grandeur — donc on le cite. Les conclusions bâties dessus sont fausses sans que rien ne le signale.
-- signature: `python3 -c "import pathlib,sys;p=pathlib.Path.home()/'.config/rtk/config.toml';sys.exit(0) if not p.exists() else None;exec('try:\n import tomllib\nexcept ImportError:\n sys.exit(0)');d=tomllib.loads(p.read_text(encoding='utf-8'));sys.exit(1 if (d.get('tee',{}).get('enabled') is True or not {'grep','diff','ps'} <= set(d.get('hooks',{}).get('exclude_commands',[]))) else 0)"`
-- seen_red: 2026-09-18 — en remettant `[tee] enabled = true` dans `~/.config/rtk/config.toml`, le garde sort **1** ; **0** restauré.
-- root_cause: un hook `PreToolUse` global réécrit **toutes** les commandes Bash (`rtk hook claude`, `~/.claude/settings.json:12`). Deux mécanismes distincts, et c'est la confusion entre les deux qui a coûté des semaines : (a) les wrappers de commande altèrent la sortie — `diff u v | wc -l` rend **5** au lieu de 4 ; (b) **`[tee] mode = "failures"` n'écrit le fichier de redirection QUE si la commande échoue** — donc tout `cmd > f` d'une commande qui RÉUSSIT produit un fichier **vide**.
-- cause_evidence: measured (les quatre gestes reproduits le 2026-09-17 avec leur valeur vraie obtenue par `rtk proxy` ; et surtout : exclure `grep` n'a **rien** changé au cas de la redirection, ce qui a écarté le wrapper et désigné `[tee]`)
-- long_term_fix: **désactiver le mécanisme, pas apprendre à le contourner.** `[tee] enabled = false` et `exclude_commands` étendu aux commandes dont la sortie est une DÉCISION (`grep`, `diff`, `git diff`, `ps`) dans `~/.config/rtk/config.toml`. L'arbitrage est mesuré, pas intuitif : `rtk gain` sur **45 258 commandes** montre que `rtk read` porte **1 178,1 M des 1 184,2 M** de tokens économisés (**99,5 %**) ; les quatre wrappers retirés pèsent **0,2 %**. On rend 0,2 % d'économie contre la fin d'une classe de mesures fausses. ⚠️ Ni un hook, ni une skill, ni un agent : l'outil a un mécanisme d'exclusion natif, et ajouter un hook pour corriger un hook aurait été une façade.
-- guard: { type: pytest, ref: tests/test_the_measurement_wrapper_does_not_lie.py }
-- guard_scope: un-garde-qui-ne-garde-pas — interposer un réécriveur entre une commande de vérification et sa sortie ; couvre: la configuration RTK de CETTE machine, par `test_the_redirect_interceptor_is_off` (le `[tee]`) et `test_the_measuring_commands_are_not_rewritten` (les trois exclusions les plus coûteuses) — lecture TOML, jamais motif textuel ; ne couvre pas: **le cas où le fichier est absent** — les deux tests SKIPPENT alors, et la signature sort 0. En CI ce garde ne démontre donc rien, par construction ; le skip est motivé et visible plutôt que vert et muet. Ne couvre pas non plus les autres réécriveurs du même geste : un alias shell, une fonction dans `.bashrc`, ou un second hook `PreToolUse` sur Bash produiraient la même classe sans toucher ce fichier.
-- siblings: swept:2026-09-18 — **0 site vivant**. Le dépôt n'a qu'un enveloppeur de commandes (RTK), et le garde vérifie les DEUX moitiés du correctif : les quatre commandes de vérification exclues, et `[tee] enabled = false`. ⚠️ Ce qui rend la classe dangereuse est rappelé par son propre `root_cause` : la cause de la redirection vidée n'était PAS le wrapper `grep` mais `[tee] mode = "failures"`, qui n'écrivait le fichier QUE si la commande échouait. Le symptôme et la cause étaient dans deux réglages différents. ⚠️ Ne couvre pas : les autres enveloppeurs que ce poste pourrait acquérir, ni le fait que la configuration soit HORS du dépôt — un poste neuf n'a pas ces exclusions, et rien ne le lui dit.
-- rex_ref: ~/.claude/RTK.md
-- first_seen: 2026-09-17
-- History:
-  - 2026-09-17: la mémoire du dépôt rangeait ce défaut sous « un problème de `grep` » depuis des semaines. C'était le SYMPTÔME : `grep` est simplement la commande qu'on redirige le plus souvent. La cause était la redirection, et elle touchait toute commande qui réussit. Une classe nommée sur le symptôme envoie corriger le mauvais mécanisme — ici, exclure `grep` a semblé être le fix et n'a rien réparé.
-
 
 ## a-make-variable-named-after-an-environment-variable
 - status: guarded

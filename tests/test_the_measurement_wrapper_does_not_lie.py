@@ -33,7 +33,10 @@ import pytest
 
 _CONFIG = Path.home() / ".config/rtk/config.toml"
 # Les trois dont la sortie est une DÉCISION, et qui ont menti le 2026-09-17.
-_MUST_BE_EXCLUDED = {"grep", "diff", "ps"}
+# `make`, `git stash`, `gh` ajoutés le 2026-09-25 : trois mensonges de plus en une séance —
+# `make test-changed` tronqué (« 281 lines truncated », verdict perdu), `git stash show`
+# → « Empty stash » sur un stash de 5 fichiers, `gh run list` sans le statut du run.
+_MUST_BE_EXCLUDED = {"grep", "diff", "ps", "make", "git stash", "gh"}
 
 
 def _config() -> dict:

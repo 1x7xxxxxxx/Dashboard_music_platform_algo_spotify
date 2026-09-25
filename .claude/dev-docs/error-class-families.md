@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**413 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**414 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -15,12 +15,12 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [le-locataire](#le-locataire) | 42 | **9/42** · 21.4 % | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 19 | **1/19** · 5.3 % | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 17 | **1/17** · 5.9 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
-| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | **0/20** · 0.0 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
+| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 20 | **1/20** · 5.0 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **1/20** · 5.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 25 | **3/25** · 12.0 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 30 | **6/30** · 20.0 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
-| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 27 | **2/27** · 7.4 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
-| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 85 | **13/85** · 15.3 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
+| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 27 | **3/27** · 11.1 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
+| [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 86 | **13/86** · 15.1 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 39 | **4/39** · 10.3 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 4 | **0/4** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 8 | **0/8** · 0.0 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
@@ -152,6 +152,7 @@ Règle de rattachement : `plausible-wrong-measurement|wrong-measurement|unmeasur
 | [`a-count-taken-before-the-writer-ran`](error-classes.md#a-count-taken-before-the-writer-ran) | une mesure rend zéro, on en conclut qu'il n'y a rien à faire, et le travail correspondant n'est pas fait. Rien n'échoue — le chiffre était juste **à l |
 | [`a-threshold-carried-across-instruments`](error-classes.md#a-threshold-carried-across-instruments) | un déclencheur chiffré se déclenche — ou ne se déclenche pas — et la décision qui en découle repose sur une comparaison qui n'a jamais eu de sens. Rie |
 | [`a-population-chosen-by-a-proxy-for-the-cost`](error-classes.md#a-population-chosen-by-a-proxy-for-the-cost) | une brique d'optimisation énumère précisément **les mauvaises cibles**. La liste est juste selon son propre critère, le travail est réel, et le gain e |
+| [`a-command-wrapper-that-returns-a-plausible-wrong-measurement`](error-classes.md#a-command-wrapper-that-returns-a-plausible-wrong-measurement) | une commande de vérification rend un résultat **crédible et faux**. Rien n'échoue, aucun message, et le chiffre est du bon ordre de grandeur — donc on |
 | [`unmeasured-rendered-as-measured`](error-classes.md#unmeasured-rendered-as-measured) | a status display shows a green indicator for something nobody has checked. The viewer cannot tell "verified and fine" from "never asked", and acts on  |
 | [`empty-table-rendered-as-health`](error-classes.md#empty-table-rendered-as-health) | un panneau affiche « ✅ tout va bien » à partir d'une requête qui ne rend rien — alors que « rien » a deux causes opposées : il n'y a effectivement auc |
 | [`prediction-outranks-the-measurement`](error-classes.md#prediction-outranks-the-measurement) | un artiste voit un ❌ et un 🟢 sur le même écran, pour la même plateforme, et conclut que l'application se contredit. Il n'a pas tort ; ce qui est faux, |
@@ -164,7 +165,6 @@ Règle de rattachement : `plausible-wrong-measurement|wrong-measurement|unmeasur
 | [`an-unmeasured-platform-is-rendered-as-zero`](error-classes.md#an-unmeasured-platform-is-rendered-as-zero) | un artiste qui vient de s'inscrire lit **« 0 écoute »** sur les quatre plateformes. Ça ne se lit pas comme « la collecte n'a pas encore tourné », ça s |
 | [`a-subplan-re-executed-by-a-misestimated-row-count`](error-classes.md#a-subplan-re-executed-by-a-misestimated-row-count) | une vue SQL passe de quelques dizaines de millisecondes à plusieurs minutes sans qu'aucune donnée n'ait changé, et la page qui la lit rend `canceling  |
 | [`a-ratio-between-two-instruments-that-ignores-the-floor-of-one`](error-classes.md#a-ratio-between-two-instruments-that-ignores-the-floor-of-one) | un RAPPORT entre deux grandeurs oriente des semaines de travail, et il est faux **dans le mauvais sens**. Les deux nombres sont justes, aucun calcul n |
-| [`a-command-wrapper-that-returns-a-plausible-wrong-measurement`](error-classes.md#a-command-wrapper-that-returns-a-plausible-wrong-measurement) | une commande de vérification rend un résultat **crédible et faux**. Rien n'échoue, aucun message, et le chiffre est du bon ordre de grandeur — donc on |
 
 ## le-message-parle-au-mauvais-lecteur
 
@@ -308,7 +308,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 
 **Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ?**
 
-Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|substitution|s'exécute|accent grave|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 85 classe(s).
+Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predicate|vacuous|mutation|substitution|s'exécute|accent grave|test-|suite|assert|blind|skips-instead-of-refusing|only-one-of-it|rollback-wider-than-the-failure|fallback-that-runs` sur l'identifiant et le symptôme. 86 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -362,6 +362,7 @@ Règle de rattachement : `guard|gate|porte|cliquet|ratchet|signature|probe|predi
 | [`guard-satisfied-by-its-own-comment`](error-classes.md#guard-satisfied-by-its-own-comment) | le défaut est remis en place **en entier** et la suite reste VERTE. Rien ne signale quoi que ce soit — c'est un garde qui ne garde plus, dans l'état e |
 | [`a-blocking-gate-red-on-its-own-syntax`](error-classes.md#a-blocking-gate-red-on-its-own-syntax) | une porte bloquante est rouge, et ce qu'elle nomme n'existe pas. Le message dit « ces touches sont réelles » ; on cherche un défaut du produit, il n'y |
 | [`a-test-that-only-ever-ran-on-its-authors-machine`](error-classes.md#a-test-that-only-ever-ran-on-its-authors-machine) | un test vert sur le poste et rouge en CI — ou l'inverse — sur un code identique. Il n'a jamais tourné que dans UNE des deux formes d'environnement : s |
+| [`a-gate-that-pays-a-check-twice`](error-classes.md#a-gate-that-pays-a-check-twice) | le job critique de la CI est lent sans qu'aucun contrôle ne soit lent en soi. Chaque ligne a une raison d'être, et c'est exactement pourquoi personne  |
 | [`a-class-that-claims-its-neighbours-guard`](error-classes.md#a-class-that-claims-its-neighbours-guard) | une classe d'erreur annonce une protection plus large que celle qu'elle a. Le champ `guard:` nomme un fichier qui contient bel et bien les tests décri |
 | [`check-calls-a-binary-its-image-lacks`](error-classes.md#check-calls-a-binary-its-image-lacks) | a check running INSIDE a container shells out to a host binary (`rclone`, `git`, `docker`, `psql`) that is not in that image. It never crashes — it ta |
 | [`freshness-measured-on-write-time`](error-classes.md#freshness-measured-on-write-time) | a source is reported FRESH while its data is months or years old. The collector still runs and still writes, so the write timestamp advances nightly — |
@@ -616,6 +617,6 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=413 families=18 orphans=3 -->
+<!-- error-class-families: total=414 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=6d280d1e3f2d29d5d07872ff8e15743271553a6a11ca4e4e63c04b4a47f78572 -->
+<!-- error-class-families: sha256=f1526658dec2b04f6eca80a7d0360ae4bb7924f7e3a127f0ffd1748843f268f6 -->
