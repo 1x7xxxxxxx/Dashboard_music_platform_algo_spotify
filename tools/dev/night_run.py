@@ -395,6 +395,44 @@ def _reopening_conditions_met() -> list[str]:
     return out
 
 
+def red_main(runs: list[dict]) -> "str | None":
+    """What to say when main's CI is red, from `gh run list --json` rows. Pure.
+
+    Counts the consecutive FAILED completed runs from the newest; a cancelled run
+    (superseded by a newer push) neither breaks nor extends the streak. None when the
+    newest verdict is not a failure.
+    """
+    done = [r for r in runs if r.get("status") == "completed"
+            and r.get("conclusion") != "cancelled"]
+    done.sort(key=lambda r: r.get("createdAt", ""), reverse=True)
+    streak = 0
+    for r in done:
+        if r.get("conclusion") != "failure":
+            break
+        streak += 1
+    if not streak:
+        return None
+    return (f"la CI de main est ROUGE depuis {streak} exécution(s) — la plus récente : "
+            f"« {done[0].get('displayTitle', '?')[:60]} ». Lire le job rouge "
+            "(`gh run view <id> --log-failed`) AVANT l'unité suivante")
+
+
+def _main_ci_runs() -> "list[dict] | None":
+    try:
+        r = subprocess.run(
+            ["gh", "run", "list", "--branch", "main", "--limit", "30", "--json",
+             "status,conclusion,createdAt,displayTitle"],
+            capture_output=True, text=True, timeout=30, cwd=str(REPO))
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        return json.loads(r.stdout)
+    except ValueError:
+        return None
+
+
 def cmd_check(_args) -> int:
     """Les invariants d'une séance longue. Sort ≠ 0 quand il y a à redire."""
     problems = _reopening_conditions_met()
@@ -433,6 +471,22 @@ def cmd_check(_args) -> int:
                         "sur l'arbre ni sur les commits non poussés")
     if not PROTOCOL.exists():
         problems.append(f"{PROTOCOL.relative_to(REPO)} absent")
+
+    # ── LA CI DE MAIN ────────────────────────────────────────────────────────────
+    #
+    # Mesuré le 2026-09-26 : main est restée rouge toute une nuit — **plus de 60
+    # exécutions** — pendant que chaque unité passait `make test-changed` au vert et
+    # que ce contrôle rendait 0. Deux causes s'empilaient (une durée manquante, puis
+    # un document généré périmé), la première cachant la seconde. Le verdict qui
+    # compte est celui de la CI : on le lit ici, à chaque fin d'unité.
+    runs = _main_ci_runs()
+    if runs is None:
+        print("ℹ️  CI de main non vérifiée — `gh` absent ou muet ; ce contrôle n'a rien "
+              "dit de la CI")
+    else:
+        rouge = red_main(runs)
+        if rouge:
+            problems.append(rouge)
 
     # ── UNE FERMETURE SANS OUVERTURE ────────────────────────────────────────────
     #
