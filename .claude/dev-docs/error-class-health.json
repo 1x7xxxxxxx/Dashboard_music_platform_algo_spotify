@@ -1769,14 +1769,14 @@
         "2026-09-17"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-17",
+      "seen_red": "self-proving",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-17",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3220,14 +3220,14 @@
         "2026-09-17"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-17",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-17",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11445,13 +11445,13 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 432,
+      "catalogue_revisions": 433,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
       "cause_unknown": 13,
-      "guard_does_not_prove_itself": 263,
+      "guard_does_not_prove_itself": 261,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
       "scope_on_a_shared_guard_without_naming_its_tests": 15,
@@ -11507,20 +11507,20 @@
       "by_seen_red": {
         "daté": {
           "events": 10,
-          "class_days": 3399,
-          "per_class_month": 0.0894,
+          "class_days": 3381,
+          "per_class_month": 0.0899,
           "ci95": [
-            0.0428,
-            0.1645
+            0.043,
+            0.1654
           ]
         },
         "jamais-ou-inconnu": {
           "events": 51,
-          "class_days": 8262,
-          "per_class_month": 0.1877,
+          "class_days": 8280,
+          "per_class_month": 0.1872,
           "ci95": [
-            0.1397,
-            0.2467
+            0.1394,
+            0.2462
           ]
         }
       },

@@ -47,6 +47,32 @@ def _fn(path: Path, name: str) -> ast.FunctionDef | None:
                  if isinstance(n, ast.FunctionDef) and n.name == name), None)
 
 
+def _verdict_reads_the_kernel(tree: ast.AST) -> bool:
+    """`main` calls `_local_load`, and `_local_load` reads `/proc/loadavg`."""
+    fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    load, main = fns.get("_local_load"), fns.get("main")
+    if load is None or main is None:
+        return False
+    reads = any(isinstance(n, ast.Constant) and n.value == "/proc/loadavg" for n in ast.walk(load))
+    called = any(isinstance(n, ast.Call) and getattr(n.func, "id", "") == "_local_load"
+                 for n in ast.walk(main))
+    return reads and called
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity on FABRICATED tools: a refusal that COUNTS process names (nine IDE
+    `node`s refuse a valid measurement) is seen; one that reads the kernel load is not;
+    a `_local_load` that exists but that `main` never calls is still the defect."""
+    counts = ast.parse("def main():\n    if len(pgrep('node')) > 3:\n        raise SystemExit(1)\n")
+    measures = ast.parse("def _local_load():\n    return open('/proc/loadavg').read()\n"
+                         "def main():\n    if float(_local_load().split()[0]) > 4:\n        raise SystemExit(1)\n")
+    orphan = ast.parse("def _local_load():\n    return open('/proc/loadavg').read()\n"
+                       "def main():\n    if len(pgrep('node')) > 3:\n        raise SystemExit(1)\n")
+    assert not _verdict_reads_the_kernel(counts)
+    assert _verdict_reads_the_kernel(measures)
+    assert not _verdict_reads_the_kernel(orphan)
+
+
 def test_the_refusal_is_based_on_a_measurement() -> None:
     """Le verdict lit une grandeur, pas un compte de processus présents."""
     fn = _fn(_TOOL, "_local_load")
@@ -62,6 +88,7 @@ def test_the_refusal_is_based_on_a_measurement() -> None:
 
 def test_the_name_list_is_no_longer_the_verdict() -> None:
     """La liste survit comme PÉRIMÈTRE, mais ne décide plus seule du refus."""
+    assert _verdict_reads_the_kernel(ast.parse(_TOOL.read_text(encoding="utf-8")))
     src = _TOOL.read_text(encoding="utf-8")
     tree = ast.parse(src)
     main = next((n for n in ast.walk(tree)

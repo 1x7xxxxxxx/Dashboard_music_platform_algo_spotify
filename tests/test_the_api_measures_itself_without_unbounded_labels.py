@@ -124,3 +124,16 @@ def test_only_the_dashboard_installs_the_defect_gauge():
         "l'exposeraient, Prometheus verrait deux series pour le meme fait, `sum()` "
         "doublerait — et l'API executerait la requete SQL a chaque scrutation."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path):
+    """Non-vacuity on FABRICATED entry points: an API that NAMES the installer only in a
+    comment and a string (a target that is `up` measuring nothing) is not counted as
+    installing it; the one that calls it is."""
+    silent = tmp_path / "silent_main.py"
+    silent.write_text("# install_http_metrics(app) — see ADR-026\n"
+                      "DOC = 'install_http_metrics'\napp = make_app()\n", encoding="utf-8")
+    wired = tmp_path / "wired_main.py"
+    wired.write_text("app = make_app()\ninstall_http_metrics(app)\n", encoding="utf-8")
+    assert "install_http_metrics" not in _calls(silent)
+    assert "install_http_metrics" in _calls(wired)
