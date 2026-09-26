@@ -55,16 +55,17 @@ _DECLARES = re.compile(
     re.I)
 
 
-def _created_in(table: str) -> Path | None:
-    """La migration qui CRÉE cette table."""
+def _texts() -> list[str]:
+    return [p.read_text(encoding="utf-8") for p in _MIGRATIONS]
+
+
+def _created_in(table: str, texts: list[str] | None = None) -> bool:
+    """Une migration CRÉE-t-elle cette table ?"""
     pat = re.compile(rf"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?{table}\b", re.I)
-    for path in _MIGRATIONS:
-        if pat.search(path.read_text(encoding="utf-8")):
-            return path
-    return None
+    return any(pat.search(t) for t in (_texts() if texts is None else texts))
 
 
-def _retention_comment(table: str) -> str | None:
+def _retention_comment(table: str, texts: list[str] | None = None) -> str | None:
     """Le `COMMENT ON TABLE` de cette table, où qu'il vive dans les migrations.
 
     La déclaration n'est PAS forcément dans la migration qui crée la table : une table
@@ -87,16 +88,28 @@ def _retention_comment(table: str) -> str | None:
     pat = re.compile(rf"COMMENT\s+ON\s+TABLE\s+{table}\s+IS\s+(.*?);\s*$",
                      re.I | re.S | re.M)
     last: str | None = None
-    for path in _MIGRATIONS:                      # `_MIGRATIONS` est trié
-        for m in pat.finditer(path.read_text(encoding="utf-8")):
+    for text in (_texts() if texts is None else texts):     # `_MIGRATIONS` est trié
+        for m in pat.finditer(text):
             last = m.group(1)
     return last
+
+
+def silence(table: str, texts: list[str]) -> str | None:
+    """Ce que les migrations taisent sur les vieilles lignes de `table`, ou None. Pur."""
+    if not _created_in(table, texts):
+        return None                       # table d'un autre âge, ou renommée
+    comment = _retention_comment(table, texts)
+    if comment is None:
+        return f"{table} — aucun COMMENT ON TABLE"
+    if not _DECLARES.search(comment):
+        return f"{table} — commenté, mais ne dit rien de ses vieilles lignes"
+    return None
 
 
 def test_the_migrations_are_readable() -> None:
     """Non-vacuité : un glob vide rendrait l'assertion suivante vraie de rien."""
     assert len(_MIGRATIONS) > 100, f"{len(_MIGRATIONS)} migrations — le chemin a changé ?"
-    assert _created_in("rate_limit_hits") is not None, (
+    assert _created_in("rate_limit_hits"), (
         "la table de référence n'est pas trouvée — la détection de `CREATE TABLE` est "
         "cassée, et tout ce fichier serait vert à vide."
     )
@@ -104,15 +117,8 @@ def test_the_migrations_are_readable() -> None:
 
 def test_every_telemetry_table_declares_what_happens_to_old_rows() -> None:
     """Chaque table de télémétrie DIT ce qu'il advient de ses vieilles lignes."""
-    silent: list[str] = []
-    for table in sorted(_TELEMETRY):
-        if _created_in(table) is None:
-            continue                      # table d'un autre âge, ou renommée
-        comment = _retention_comment(table)
-        if comment is None:
-            silent.append(f"{table} — aucun COMMENT ON TABLE")
-        elif not _DECLARES.search(comment):
-            silent.append(f"{table} — commenté, mais ne dit rien de ses vieilles lignes")
+    texts = _texts()
+    silent = [v for t in sorted(_TELEMETRY) if (v := silence(t, texts))]
     assert not silent, (
         "table(s) de télémétrie dont la migration ne dit RIEN de ses vieilles lignes :\n  "
         + "\n  ".join(silent)
@@ -129,10 +135,22 @@ def test_every_telemetry_table_declares_what_happens_to_old_rows() -> None:
 def test_the_reference_table_really_declares_it() -> None:
     """Contrôle positif : `rate_limit_hits` est l'exemple, il doit passer POUR LA BONNE
     RAISON — sa migration parle vraiment de purge, pas par accident de vocabulaire."""
-    path = _created_in("rate_limit_hits")
-    assert path is not None
-    text = path.read_text(encoding="utf-8")
+    text = next(t for t in _texts() if _created_in("rate_limit_hits", [t]))
     assert "PURGE" in text.upper(), (
         "`122_rate_limit_hits.sql` ne parle plus de purge — le seul exemple correct du "
         "dépôt a disparu, et le détecteur passerait alors sur un autre mot."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuité : la forme de 2026-09-16 (table créée, rien dit) est vue ; une
+    déclaration tardive dans une migration ULTÉRIEURE est acceptée ; et c'est le DERNIER
+    commentaire qui compte, point-virgule du littéral compris."""
+    born = "CREATE TABLE IF NOT EXISTS usage_events (id BIGSERIAL PRIMARY KEY);\n"
+    assert silence("usage_events", [born]) == "usage_events — aucun COMMENT ON TABLE"
+    vague = born + "COMMENT ON TABLE usage_events IS 'Une ligne par clic';\n"
+    assert "ne dit rien" in silence("usage_events", [vague])
+    later = "COMMENT ON TABLE usage_events IS 'Une ligne par clic ; purgée à 90 jours';\n"
+    assert silence("usage_events", [vague, later]) is None
+    assert "ne dit rien" in silence("usage_events", [later.replace("purgée à 90 jours", "x"), vague])
+    assert silence("usage_events", ["SELECT 1;"]) is None
