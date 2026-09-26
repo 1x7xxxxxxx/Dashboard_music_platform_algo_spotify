@@ -34,7 +34,7 @@ from src.utils.collection_outcomes import (
 import os
 import logging
 from html import escape
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
@@ -204,7 +204,7 @@ def check_dag_failures(**context):
         from airflow.utils.session import create_session
         from airflow.utils.state import DagRunState
 
-        cutoff = datetime.now() - timedelta(days=7)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
         failing_dags = {}
 
         with create_session() as session:
