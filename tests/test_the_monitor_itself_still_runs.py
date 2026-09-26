@@ -78,6 +78,48 @@ def resolve_ceiling(raw: str | None) -> int:
 
 _MAX_AGE_H = resolve_ceiling(os.getenv("PROD_HEALTH_MAX_AGE_H"))
 
+def hours_since_newest(runs: list[dict], now: datetime) -> float:
+    """Age in hours of the newest run, from GitHub's `created_at` strings. Pure."""
+    newest = max(datetime.fromisoformat(x["created_at"].replace("Z", "+00:00"))
+                 for x in runs)
+    return (now - newest).total_seconds() / 3600
+
+
+def failure_streak(completed: list[dict]) -> int:
+    """Consecutive `failure` conclusions from the newest run backwards. Pure.
+
+    Any other conclusion ends the streak — `cancelled` included, so a streak of
+    two means two real failures in a row, the threshold of the test below.
+    """
+    streak = 0
+    for x in sorted(completed, key=lambda x: x["created_at"], reverse=True):
+        if x.get("conclusion") != "failure":
+            break
+        streak += 1
+    return streak
+
+
+def test_the_watcher_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, class `the-watcher-is-not-watched`: the 26→27 August gap (34.6 h)
+    is past the ceiling and an ordinary 24 h is not; the nine failed nights of
+    2026-09-07→15 are a streak, one failure followed by a success is not."""
+    now = datetime(2026, 8, 27, 16, 36, tzinfo=timezone.utc)
+    # Several runs, oldest first as nothing guarantees the API order: the NEWEST one
+    # decides, and a success before a failure ends the streak.
+    late = [{"created_at": "2026-08-20T06:00:00Z"}, {"created_at": "2026-08-26T06:00:00Z"}]
+    assert hours_since_newest(late, now) > _MAX_AGE_H
+    fresh = late + [{"created_at": "2026-08-26T16:36:00Z"}]
+    assert hours_since_newest(fresh, now) < _MAX_AGE_H
+    nine = [{"created_at": "2026-09-06T06:00:00Z", "conclusion": "success"}] + [
+        {"created_at": f"2026-09-{d:02d}T06:00:00Z", "conclusion": "failure"}
+        for d in range(7, 16)]
+    assert failure_streak(nine) == 9
+    once = [{"created_at": "2026-09-13T06:00:00Z", "conclusion": "failure"},
+            {"created_at": "2026-09-14T06:00:00Z", "conclusion": "success"},
+            {"created_at": "2026-09-15T06:00:00Z", "conclusion": "failure"}]
+    assert failure_streak(once) == 1
+
+
 # The measured reality, pinned so the calibration above can be re-checked rather than
 # believed. Deliberately the DATA and not the constant: a test that asserts
 # `_MAX_AGE_H == 30` restates the code, and would have been just as green at 36.
@@ -104,8 +146,7 @@ def test_the_daily_production_probe_ran_recently():
         "view of production has never executed."
     )
 
-    newest = max(datetime.fromisoformat(x["created_at"].replace("Z", "+00:00")) for x in runs)
-    age_h = (datetime.now(timezone.utc) - newest).total_seconds() / 3600
+    age_h = hours_since_newest(runs, datetime.now(timezone.utc))
     assert age_h < _MAX_AGE_H, (
         f"{_WORKFLOW} last ran {age_h:.0f}h ago (ceiling {_MAX_AGE_H}h). The sixteen "
         f"probes of tests/test_prod_health.py run THERE AND NOWHERE ELSE — they are the "
@@ -157,12 +198,8 @@ def test_the_daily_probe_is_not_failing_night_after_night():
         pytest.skip("moins de deux exécutions terminées — rien à comparer")
 
     two = completed[:2]
-    if all(x.get("conclusion") == "failure" for x in two):
-        streak = 0
-        for x in completed:
-            if x.get("conclusion") != "failure":
-                break
-            streak += 1
+    streak = failure_streak(completed)
+    if streak >= 2:
         raise AssertionError(
             f"{_WORKFLOW} échoue depuis **{streak} exécution(s) consécutives**, la "
             f"plus récente le {two[0]['created_at'][:10]}. Les seize sondes de "
