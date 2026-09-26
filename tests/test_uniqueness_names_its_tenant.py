@@ -107,7 +107,7 @@ def _ddl_without_preamble() -> str:
 
 _CONN = _dsn()
 
-pytestmark = pytest.mark.skipif(
+_needs_db = pytest.mark.skipif(
     _CONN is None,
     reason=f"No Postgres on {_DB_HOST}:{_DB_PORT} — building the schema is the check",
 )
@@ -175,15 +175,33 @@ def uniqueness_by_table() -> dict[str, list[tuple[str, list[str]]]]:
         conn.close()
 
 
-def test_every_tenant_scoped_table_scopes_its_uniqueness(uniqueness_by_table) -> None:
-    offenders = [
+def unscoped_uniques(indexes, tenant_scoped) -> list[str]:
+    """UNIQUE indexes of a tenant-scoped table that omit the tenant column. Pure."""
+    return [
         f"{table} — UNIQUE index {index} on ({', '.join(columns)}) omits the tenant. "
         f"Two tenants holding the same object cannot each keep a row."
-        for table, index, columns in uniqueness_by_table["indexes"]
-        if table in uniqueness_by_table["tenant_scoped"]
-        and table not in _EXEMPT
+        for table, index, columns in indexes
+        if table in tenant_scoped and table not in _EXEMPT
         and not (set(columns) & _TENANT_COLUMNS)
     ]
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, without a database: the pre-064 `youtube_videos` — UNIQUE on the
+    platform id alone, on a tenant-scoped table — is named; the tenant-scoped index,
+    and a unique index on a table with no tenant column, are not."""
+    tenant = next(iter(_TENANT_COLUMNS))
+    indexes = [("youtube_videos", "ux_video", ["video_id"]),
+               ("youtube_channels", "ux_chan", [tenant, "channel_id"]),
+               ("plans", "ux_plan", ["code"])]
+    got = unscoped_uniques(indexes, {"youtube_videos", "youtube_channels"})
+    assert [g.split(" ")[0] for g in got] == ["youtube_videos"], got
+
+
+@_needs_db
+def test_every_tenant_scoped_table_scopes_its_uniqueness(uniqueness_by_table) -> None:
+    offenders = unscoped_uniques(uniqueness_by_table["indexes"],
+                                 uniqueness_by_table["tenant_scoped"])
     assert not offenders, (
         "A database born from init_db.sql enforces uniqueness on a platform id alone.\n"
         "This is the class migration 064 fixed after two beta artists lost their data,\n"
@@ -193,6 +211,7 @@ def test_every_tenant_scoped_table_scopes_its_uniqueness(uniqueness_by_table) ->
     )
 
 
+@_needs_db
 def test_the_exemption_still_names_a_table_that_exists(uniqueness_by_table) -> None:
     """An exemption for a table that no longer exists silently widens the rule."""
     built = {table for table, _, _ in uniqueness_by_table["indexes"]}
@@ -201,6 +220,7 @@ def test_the_exemption_still_names_a_table_that_exists(uniqueness_by_table) -> N
     assert not stale, f"exempted table(s) the DDL no longer builds: {stale}"
 
 
+@_needs_db
 def test_the_youtube_tables_are_the_ones_that_were_fixed(uniqueness_by_table) -> None:
     """Name the four sites, so a silent regression on them cannot pass as 'no offenders'.
 
