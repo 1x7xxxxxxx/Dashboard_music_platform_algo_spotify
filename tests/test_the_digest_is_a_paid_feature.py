@@ -110,20 +110,38 @@ def test_the_dashboard_and_the_dag_share_one_resolver():
     )
 
 
-def test_the_resolver_imports_no_streamlit():
-    """The condition for a DAG being able to import it at all."""
-    src = (REPO / "src" / "utils" / "plan_resolver.py").read_text(encoding="utf-8")
-    tree = ast.parse(src)
-    for node in ast.walk(tree):
+def _streamlit_imports(source: str) -> list[int]:
+    """Lines that import streamlit, in any form — the module a DAG cannot load."""
+    out = []
+    for node in ast.walk(ast.parse(source)):
         mods = []
         if isinstance(node, ast.Import):
             mods = [a.name for a in node.names]
         elif isinstance(node, ast.ImportFrom) and node.module:
             mods = [node.module]
-        assert not any(m.split(".")[0] == "streamlit" for m in mods), (
-            f"plan_resolver imports streamlit at line {node.lineno}. An Airflow task "
-            "has no session; the import alone is enough to break it."
-        )
+        if any(m.split(".")[0] == "streamlit" for m in mods):
+            out.append(node.lineno)
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity on FABRICATED resolvers: `import streamlit as st` and
+    `from streamlit import session_state` (a capability read from a session, which an
+    Airflow task does not have) are seen; a resolver reading the database is not."""
+    session = "import streamlit as st\nfrom streamlit import session_state\ndef plan(a): ...\n"
+    pure = "from src.database.stripe_schema import PLAN_CAPABILITIES\ndef plan(db, a): ...\n"
+    assert _streamlit_imports(session) == [1, 2]
+    assert _streamlit_imports(pure) == []
+
+
+def test_the_resolver_imports_no_streamlit():
+    """The condition for a DAG being able to import it at all."""
+    src = (REPO / "src" / "utils" / "plan_resolver.py").read_text(encoding="utf-8")
+    lines = _streamlit_imports(src)
+    assert not lines, (
+        f"plan_resolver imports streamlit at line(s) {lines}. An Airflow task "
+        "has no session; the import alone is enough to break it."
+    )
 
 
 def test_the_resolver_does_not_inherit_the_admin_shortcut():
