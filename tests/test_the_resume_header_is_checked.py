@@ -67,8 +67,8 @@ def _text() -> str:
     return ACTIVE.read_text(encoding="utf-8")
 
 
-def _section_ids(heading: str) -> set[str]:
-    text = _text()
+def _section_ids(heading: str, text: str | None = None) -> set[str]:
+    text = _text() if text is None else text
     m0 = re.search(rf"^{re.escape(heading)}", text, re.M)
     assert m0, f"heading {heading!r} not found at the start of a line"
     rest = text[m0.end():]
@@ -76,8 +76,17 @@ def _section_ids(heading: str) -> set[str]:
     return set(_ROW.findall(rest[: nxt.start()] if nxt else rest))
 
 
-def _open_ids() -> set[str]:
-    return _section_ids(_ACTIONABLE_H) | _section_ids(_WAITING_H)
+def _open_ids(text: str | None = None) -> set[str]:
+    return _section_ids(_ACTIONABLE_H, text) | _section_ids(_WAITING_H, text)
+
+
+def header_disagreement(text: str) -> tuple[set[str], set[str]]:
+    """(claimed but closed, open but unclaimed) between the anchor and the index. Pure."""
+    m = _ANCHOR.search(text)
+    assert m, "anchor missing"
+    claimed = {i.strip() for i in m.group(1).split(",") if i.strip()}
+    actual = _open_ids(text)
+    return claimed - actual, actual - claimed
 
 
 # ── The header must not claim what the index denies ──────────────────────────
@@ -97,7 +106,7 @@ def test_the_anchor_matches_the_open_index():
     assert m, "anchor missing (see the test above)"
     claimed = {i.strip() for i in m.group(1).split(",") if i.strip()}
     actual = _open_ids()
-    assert claimed == actual, (
+    assert header_disagreement(_text()) == (set(), set()), (
         f"the REPRISE header claims {sorted(claimed) or '∅'} is open; the index tables "
         f"say {sorted(actual) or '∅'}. Extra in the header: "
         f"{sorted(claimed - actual) or '∅'} — closed work presented as remaining. "
@@ -157,3 +166,13 @@ def test_the_active_file_stays_readable_in_one_sitting():
         "2026-08-28 it reached 88 KB of which 72 % was dated history. Rotate the "
         "oldest sections into archive.md rather than raising this number."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the shape R13/R17/R55 survived in — a header still naming closed
+    work, and silent on open work — is seen on both sides; an agreeing header is not."""
+    body = (f"{_ACTIONABLE_H}\n\n| Id | Tâche |\n|---|---|\n| R20 | x |\n\n"
+            f"{_WAITING_H}\n\n| Id | Geste |\n|---|---|\n| R48 | y |\n\n## Détail\n")
+    stale = "<!-- reprise: open=R13, R48 -->\n" + body
+    assert header_disagreement(stale) == ({"R13"}, {"R20"})
+    assert header_disagreement("<!-- reprise: open=R20, R48 -->\n" + body) == (set(), set())

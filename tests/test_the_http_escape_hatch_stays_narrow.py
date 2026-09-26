@@ -45,7 +45,7 @@ _ALLOWED_REAL_HTTP = {
 }
 
 
-def _marked_real_http(path: pathlib.Path) -> bool:
+def _marked_real_http(path: pathlib.Path | str) -> bool:
     """Le fichier porte-t-il le MARQUEUR `real_http` (pytestmark ou décorateur) ?
 
     AST, jamais une sous-chaîne. La première version de ce test cherchait
@@ -56,7 +56,7 @@ def _marked_real_http(path: pathlib.Path) -> bool:
     et aussitôt réintroduite : le réflexe du `in source` est tenace, et il produit
     ici la pire forme de faux positif — celle qui accuse le garde d'à côté.
     """
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+    tree = ast.parse(path if isinstance(path, str) else path.read_text(encoding="utf-8"))
 
     def _is_the_mark(node) -> bool:
         # `pytest.mark.real_http` — un Attribute dont le nom final est le marqueur
@@ -113,3 +113,14 @@ def test_pytestmark_is_assigned_at_most_once(rel: str):
         "écrase les précédentes sans avertissement : les marqueurs perdus cessent "
         "simplement de s'appliquer. Réunir en une seule LISTE."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, both halves: the mark, as `pytestmark` and as a decorator, is seen;
+    a file that only NAMES it (`_no_real_http`, a docstring) — the false accusation of
+    the first version — is not."""
+    assert _marked_real_http("import pytest\npytestmark = pytest.mark.real_http\n")
+    assert _marked_real_http("import pytest\n@pytest.mark.real_http\ndef test_a(): pass\n")
+    prose = ('"""uses the real_http mark? no: see _no_real_http."""\n'
+             "def test_a_test_cannot_open_a_real_http_connection(_no_real_http): pass\n")
+    assert not _marked_real_http(prose)
