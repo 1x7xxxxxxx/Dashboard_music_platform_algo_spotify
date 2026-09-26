@@ -1,0 +1,27 @@
+{
+  "days": 14,
+  "baseline": false,
+  "git": {
+    "product": 0,
+    "ok": 0,
+    "no_id": 0,
+    "not_open": 0,
+    "undecided": 0,
+    "bypass": 0,
+    "bypasses": []
+  },
+  "critic": {
+    "requis": 0,
+    "with_critic": 0,
+    "without_critic": 0,
+    "missing": []
+  },
+  "open_rows_age_days": {
+    "R197": 0,
+    "R198": 0,
+    "R199": 0,
+    "R200": 0,
+    "R201": 0
+  },
+  "stale": []
+}

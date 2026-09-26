@@ -50,10 +50,29 @@ def probe_prod(url: str = HEALTH_URL, opener=urllib.request.urlopen) -> dict:
     return {"state": "green" if 200 <= code < 300 else "red", "detail": f"HTTP {code}"}
 
 
-def build(verdicts: dict, prod: dict, now: datetime) -> tuple[str, str, bool]:
+def discipline_section(report: dict | None) -> tuple[str, bool]:
+    """R197 — the roadmap discipline of the last 14 days, in the mail the owner reads."""
+    if report is None:
+        return "<p>❔ <b>Roadmap</b> — sonde illisible cette nuit.</p>", False
+    import roadmap_discipline
+    bad = roadmap_discipline.failing(report)
+    g = report["git"]
+    icon = "🔴" if bad else "✅"
+    text = (f"{g['ok']}/{g['product']} commits de code inscrits AVANT dans la roadmap "
+            f"(14 j) · contournements : {g['bypass']} · lignes ouvertes : "
+            f"{len(report['open_rows_age_days'])}")
+    more = "".join(f"<br>{html.escape(b)}" for b in bad)
+    return f"<p>{icon} <b>Roadmap</b> — {html.escape(text)}{more}</p>", bool(bad)
+
+
+def build(verdicts: dict, prod: dict, now: datetime,
+          discipline: dict | None | str = "absent") -> tuple[str, str, bool]:
     """(subject, HTML body, any red). Pure."""
     section, gh_red = nightly_recap.github_section(verdicts)
     red = gh_red or prod["state"] != "green"
+    if discipline != "absent":
+        extra, d_red = discipline_section(discipline)
+        section, red = section + extra, red or d_red
     headline = "🔴 quelque chose demande ton attention" if red else "nuit calme, rien à signaler"
     icon = "✅" if prod["state"] == "green" else "🔴"
     prod_html = (f"<p>{icon} <b>Production</b> (<code>/health</code>) — "
@@ -74,7 +93,13 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001 — the recap still leaves, saying it could not read
         verdicts = {"GitHub": {"state": "unreadable", "since": None, "url": None,
                                "error": safe_error(exc)}}
-    subject, body, red = build(verdicts, probe_prod(), datetime.now(timezone.utc))
+    try:
+        import roadmap_discipline
+        discipline = roadmap_discipline.measure(days=14, calls=None)
+    except Exception as exc:  # noqa: BLE001 — the recap still leaves, saying it could not read
+        print(f"⚠️ roadmap discipline unreadable: {safe_error(exc)}")
+        discipline = None
+    subject, body, red = build(verdicts, probe_prod(), datetime.now(timezone.utc), discipline)
     msg = EmailMessage()
     msg["Subject"], msg["From"], msg["To"] = subject, from_header(), env["PROD_HEALTH_MAIL_TO"]
     msg.set_content("Récap de la nuit — version HTML jointe.")

@@ -51,6 +51,10 @@ def verdict(needs: dict) -> str | None:
     if "debt-trend" in failed:
         lines.append("debt-trend : aucun compteur de dette du catalogue n'a baissé en 14 jours "
                      "— R169 est à l'arrêt ; `make error-debt` donne les classes à traiter.")
+    if "dev-discipline" in failed:
+        lines.append("dev-discipline : un commit de code est passé sans ligne de roadmap ouverte "
+                     "AVANT lui, ou une ligne ouverte a plus de 14 jours — `make "
+                     "roadmap-discipline` les nomme (R197).")
     if "guard-mutation" in failed:
         lines.append("guard-mutation : un garde ajouté ces deux derniers jours n'a rougi sur AUCUNE "
                      "mutation, ou était rouge avant — le log du job le nomme ; le relire (règle 15ter).")
