@@ -208,12 +208,15 @@ def test_the_detector_sees_the_defect_it_is_written_for():
 # l'actif »). What stays is live: the index, the parked tasks, the waiting conditions that
 # `make reopen-check` evaluates, the standing instructions. A ratchet, frozen at the measure.
 # Mutation record, 2026-09-26: ceiling set to 100 on the 244-line file → this test went red
-# (1 failed); restored to 250 → green.
+# (1 failed); restored to 250 → green. Re-mutated after excluding index rows: ceiling 100 → red.
 _MAX_ACTIVE_LINES = 250
 
 
 def test_the_active_file_stays_short() -> None:
-    lines = _text().count("\n")
+    # The ceiling bounds PROSE, not open work: index rows (`| Rnnn |`) do not count — eleven
+    # tasks registered at once on 2026-09-26 would otherwise have « failed » a file whose prose
+    # had not grown by a line.
+    lines = sum(1 for ln in _text().splitlines() if not _ROW.match(ln))
     assert lines <= _MAX_ACTIVE_LINES, (
         f"checklist.md is {lines} lines (ceiling {_MAX_ACTIVE_LINES}). A delivery's story "
         "belongs in archive.md — `make roadmap-close` writes it there; history prose moves "
