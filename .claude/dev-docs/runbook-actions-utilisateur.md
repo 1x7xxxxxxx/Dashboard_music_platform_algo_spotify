@@ -1918,6 +1918,22 @@ ton accord.
    ligne 207, j'ajoute un test qui échoue sur la forme naïve, et je pousse.
 2. En production : `git pull` (le scheduler monte `airflow/dags/`).
 
+**Préparé le 2026-09-26, prêt à poser.** Le correctif fait DEUX lignes, pas une :
+`timezone` n'est importé qu'en local dans une AUTRE fonction (ligne 1195). Changer la
+seule ligne 207 lèverait `NameError` — que le même `except` avalerait, en laissant la
+section vide. Le diff exact :
+```diff
+-from datetime import datetime, timedelta
++from datetime import datetime, timedelta, timezone
+-        cutoff = datetime.now() - timedelta(days=7)
++        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+```
+Le garde qui l'accompagne (`tests/test_a_cutoff_bound_to_airflow_is_tz_aware.py`, écrit,
+non commité pour ne pas rougir la CI avant ton accord) est **rouge** sur le DAG actuel
+(`alert_monitor.py:217`, `:269`) et **vert** sur la copie corrigée. En aval,
+`consecutive_failure_days` accepte les dates conscientes (vérifié). ⚠️ Le garde lit
+la FORME : il ne voit pas l'import manquant — c'est `python -c "import …"` qui le voit.
+
 **La preuve que c'est fait.**
 ```bash
 grep -n "cutoff = datetime.now(timezone.utc)" airflow/dags/alert_monitor.py
