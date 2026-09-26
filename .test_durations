@@ -8411,6 +8411,7 @@
     "tests/test_the_form_only_claims_what_it_has.py::test_the_secret_caption_is_rendered_under_a_condition": 0.009857631001068512,
     "tests/test_the_github_recap_reaches_the_read_inbox.py::test_a_calm_night_still_makes_a_mail_and_a_red_one_says_so": 0.0006812850042479113,
     "tests/test_the_github_recap_reaches_the_read_inbox.py::test_the_detector_sees_the_defect_it_is_written_for": 0.0004602459812304005,
+    "tests/test_the_github_recap_reaches_the_read_inbox.py::test_the_probe_names_itself_to_the_cdn": 0.09752812900114805,
     "tests/test_the_github_recap_reaches_the_read_inbox.py::test_the_workflow_runs_every_night_and_mails_the_read_inbox": 0.0021316929924068972,
     "tests/test_the_gold_coverage_only_improves.py::test_every_declared_raw_aggregate_still_exists": 6.8734245439991355,
     "tests/test_the_gold_coverage_only_improves.py::test_no_counter_of_holes_ever_grows": 0.0016889639955479652,

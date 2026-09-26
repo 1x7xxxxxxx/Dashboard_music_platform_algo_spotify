@@ -39,8 +39,11 @@ HEALTH_URL = os.environ.get("PROD_API_URL", "https://api.streamlytics.fr") + "/h
 
 def probe_prod(url: str = HEALTH_URL, opener=urllib.request.urlopen) -> dict:
     """{state, detail}: 2xx ⇒ green; any other status or no answer ⇒ red."""
+    # A named User-Agent: Cloudflare answers 403 to Python's default `Python-urllib/…`
+    # (measured 2026-09-26 — the first recap reported a healthy production as red).
+    req = urllib.request.Request(url, headers={"User-Agent": "streamlytics-nightly-recap/1.0"})
     try:
-        with opener(url, timeout=20) as resp:
+        with opener(req, timeout=20) as resp:
             code = resp.status
     except Exception as exc:  # noqa: BLE001 — an unreachable production is RED
         return {"state": "red", "detail": safe_error(exc, limit=160)}

@@ -52,6 +52,19 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
     assert recap.probe_prod("http://x/health", opener=lambda *a, **k: _Resp(200))["state"] == "green"
 
 
+def test_the_probe_names_itself_to_the_cdn() -> None:
+    """Cloudflare refuses Python's default User-Agent with a 403: the first recap called a
+    healthy production red. The request must carry a named agent."""
+    seen = []
+
+    def opener(req, timeout):
+        seen.append(req.get_header("User-agent") or "")
+        return _Resp(200)
+
+    recap.probe_prod("http://x/health", opener=opener)
+    assert seen and seen[0] and not seen[0].startswith("Python-urllib")
+
+
 def test_a_calm_night_still_makes_a_mail_and_a_red_one_says_so() -> None:
     subject, body, red = recap.build(_GREEN, {"state": "green", "detail": "HTTP 200"}, _NOW)
     assert not red and "nuit calme" in subject and "Production" in body
