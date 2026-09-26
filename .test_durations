@@ -181,7 +181,7 @@
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[tests/test_i18n_orphans.py-28-test_the_service_offer_says_who_does_the_work]": 0.0009781900007510558,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[tests/test_one_door_onto_the_database.py-231-test_every_way_of_asking_gives_one_answer]": 0.0011120760027552024,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[tests/test_only_production_puts_mail_on_the_wire.py-124-test_writing_to_a_client_is_a_decision]": 0.0010389970047981478,
-    "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[tests/test_the_gold_coverage_only_improves.py-289-test_every_error_class_is_complete]": 0.001013233995763585,
+    "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[tests/test_the_gold_coverage_only_improves.py-290-test_every_error_class_is_complete]": 0.07314840098842978,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[tests/test_the_home_period_selector_drives_both_sections.py-203-test_apple_periods_are_asked_not_guessed]": 0.0009875340037979186,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[tests/test_the_metrics_server_survives_a_rerun.py-159-test_a_guard_reads_structure_not_text]": 0.0010046050083474256,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[tests/test_the_service_offer_says_who_does_the_work.py-68-test_a_reward_is_not_promised_as_automatic]": 0.0010692950017983094,
