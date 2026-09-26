@@ -547,7 +547,7 @@
       "renamed_from": null
     },
     "a-date-that-does-not-say-which-clock-produced-it": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_naive_timestamp_is_not_reinterpreted.py",
@@ -569,7 +569,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-10",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -823,7 +823,7 @@
       "renamed_from": null
     },
     "a-document-slice-bounded-by-the-wrong-heading-level": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-13",
       "guard_automatic": true,
       "guard_ref": "tests/test_roadmap_index_is_honest.py",
@@ -846,7 +846,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-13",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -1700,7 +1700,7 @@
       "renamed_from": null
     },
     "a-late-platform-has-no-tenant-guard": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_quantity_is_summed_and_names_its_tenant.py",
@@ -1722,7 +1722,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11445,12 +11445,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 410,
+      "catalogue_revisions": 411,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 71,
+      "cause_unknown": 68,
       "guard_does_not_prove_itself": 270,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,

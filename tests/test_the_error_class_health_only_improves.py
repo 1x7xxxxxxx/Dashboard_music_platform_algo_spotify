@@ -127,7 +127,7 @@ _CEILINGS = {
     #
     # ⚠️ Les 33 ont été LUES, une par une. La confirmation mécanique choisit QUOI lire ;
     # elle ne remplace pas la lecture, et `read` veut dire « j'ai lu ».
-    "cause_unknown": 71,  # 140 → 71 le 2026-09-26 (R169, causes lues dans le code) ; 182 → 181 le 2026-09-17 : `object-dtype-numeric-op` mesurée — `SUM(bigint)`
+    "cause_unknown": 68,  # 140 → 68 le 2026-09-26 (R169, causes lues dans le code) ; 182 → 181 le 2026-09-17 : `object-dtype-numeric-op` mesurée — `SUM(bigint)`
     # rend `numeric` en PostgreSQL, donc dtype `object` SANS aucun NULL.
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
