@@ -37,7 +37,7 @@ Une attribution n'est publiée que s'il existe un **chemin def-use prouvé** ent
 | `appelants-multiples` | rendu partagé par plus de trois appelants : un site, N jeux de données | 6 |
 | `profondeur` | chaîne de plus de 3 sauts — plafond MESURÉ : le cran suivant n'apporte rien | 37 |
 | `sans-appelant` | fonction dont aucun appel n'est résoluble statiquement | 13 |
-| `clé-à-l-exécution` | argument passé par **kwargs, partial, ou conteneur indexé par une variable | 21 |
+| `clé-à-l-exécution` | argument passé par **kwargs, partial, ou conteneur indexé par une variable | 22 |
 | `receveur-inconnu` | `X.metric(...)` où X n'est lié ni à st.columns ni à st.tabs — compté, pas deviné | 1 |
 | `sans-retour` | fonction traversée qui ne retourne rien d'attribuable | 0 |
 
@@ -91,14 +91,15 @@ Cinq mots de confiance, et rien d'autre :
 
 Une ligne par **site de code**, pas par figure rendue : une figure dans une boucle est un site et N images.
 
-**65 sur 85** portent une source établie ; **5** sont déclarées indéterminées et listées en tête ; 15 sont hors base par nature — la tranche a fini proprement sans lire la base — et 57 des attribuées ont plusieurs amonts.
+**65 sur 85** portent une source établie ; **6** sont déclarées indéterminées et listées en tête ; 14 sont hors base par nature — la tranche a fini proprement sans lire la base — et 57 des attribuées ont plusieurs amonts.
 
 | fichier:ligne | fonction | surface | visible | source établie | couche | confiance | motif | lu dans la même fonction (aucun lien prouvé) |
 |---|---|---|---|---|---|---|---|---|
 | ⚠️ `utils/ml_widgets.py:219` | `render_prerelease_rr_estimator` | plotly_chart | à l'écran | — | — | indéterminée | appelants-multiples · profondeur | — |
 | ⚠️ `views/admin.py:358` | `_render_costs` | plotly_chart | à l'écran | — | — | indéterminée | profondeur | — |
 | ⚠️ `views/db_health.py:252` | `_show_freshness_bar` | plotly_chart | à l'écran | — | — | indéterminée | sql-dynamique | — |
-| ⚠️ `views/meta_breakdowns.py:100` | `_render_performance` | plotly_chart | à l'écran | — | — | indéterminée | clé-à-l-exécution | — |
+| ⚠️ `views/meta_breakdowns.py:124` | `_render_performance` | plotly_chart | à l'écran | — | — | indéterminée | clé-à-l-exécution | — |
+| ⚠️ `views/meta_breakdowns.py:138` | `_render_performance` | plotly_chart | un clic | — | — | indéterminée | clé-à-l-exécution | — |
 | ⚠️ `views/trigger_algo/_common/_pi_gates.py:76` | `_show_pi_gate_section` | plotly_chart | à l'écran | — | — | indéterminée | profondeur · sans-appelant | — |
 | `utils/ml_widgets.py:301` | `render_lever_sensitivity` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | clé-à-l-exécution · profondeur | — |
 | `utils/platform_chart.py:1090` | `render_platform_chart` | plotly_chart | à l'écran | `get()` · `apple_yearly_series()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur · sans-appelant | — |
@@ -166,9 +167,8 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/db_health.py:294` | `_show_heatmap` | plotly_chart | à l'écran | — | — | hors base | — | — |
 | `views/db_health.py:353` | `_show_cumulative` | plotly_chart | à l'écran | — | — | hors base | — | — |
 | `views/db_health.py:421` | `_show_batch_sizes` | plotly_chart | à l'écran | — | — | hors base | — | — |
-| `views/meta_breakdowns.py:94` | `_render_performance` | plotly_chart | à l'écran | — | — | hors base | — | — |
-| `views/meta_breakdowns.py:123` | `_render_engagement` | plotly_chart | à l'écran | — | — | hors base | — | — |
-| `views/meta_breakdowns.py:133` | `_render_engagement` | plotly_chart | à l'écran | — | — | hors base | — | — |
+| `views/meta_breakdowns.py:172` | `_render_engagement` | plotly_chart | à l'écran | — | — | hors base | — | — |
+| `views/meta_breakdowns.py:183` | `_render_engagement` | plotly_chart | un clic | — | — | hors base | — | — |
 | `views/revenue_forecast.py:118` | `_tab_mrr` | plotly_chart | à l'écran | `artist_subscriptions` · `saas_artists` · `subscription_plans` | brut | directe | — | — |
 | `views/revenue_forecast.py:330` | `_tab_ltv` | plotly_chart | à l'écran | — | — | hors base | — | ?`v_artist_monthly_revenue` |
 | `views/soundcloud.py:448` | `_render_catalog_series` | plotly_chart | à l'écran | `v_soundcloud_catalog_daily` | or | directe | — | — |
@@ -299,9 +299,9 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/instagram.py:93` | `show` | instagram.kpi_followers | à l'écran | — | — | hors base | — | ?`instagram_daily_stats` · ?`instagram_media` · ?`instagram_media_insights` · ?`v_instagram_media_monthly` |
 | `views/instagram.py:94` | `show` | instagram.kpi_follows | à l'écran | — | — | hors base | — | ?`instagram_daily_stats` · ?`instagram_media` · ?`instagram_media_insights` · ?`v_instagram_media_monthly` |
 | `views/instagram.py:95` | `show` | instagram.kpi_media | à l'écran | — | — | hors base | — | ?`instagram_daily_stats` · ?`instagram_media` · ?`instagram_media_insights` · ?`v_instagram_media_monthly` |
-| `views/meta_breakdowns.py:72` | `_render_performance` | meta_breakdowns.total_spend | à l'écran | — | — | hors base | — | — |
-| `views/meta_breakdowns.py:74` | `_render_performance` | meta_breakdowns.results | à l'écran | — | — | hors base | — | — |
-| `views/meta_breakdowns.py:76` | `_render_performance` | meta_breakdowns.avg_cpr | à l'écran | — | — | hors base | — | — |
+| `views/meta_breakdowns.py:103` | `_render_performance` | meta_breakdowns.total_spend | à l'écran | — | — | hors base | — | — |
+| `views/meta_breakdowns.py:105` | `_render_performance` | meta_breakdowns.results | à l'écran | — | — | hors base | — | — |
+| `views/meta_breakdowns.py:107` | `_render_performance` | meta_breakdowns.avg_cpr | à l'écran | — | — | hors base | — | — |
 | `views/meta_cpr_optimizer.py:228` | `_render_summary_kpi` | meta_cpr_optimizer.kpi_analyzed | à l'écran | — | — | hors base | — | — |
 | `views/meta_cpr_optimizer.py:229` | `_render_summary_kpi` | meta_cpr_optimizer.kpi_no_cpr | à l'écran | — | — | hors base | — | — |
 | `views/meta_cpr_optimizer.py:231` | `_render_summary_kpi` | meta_cpr_optimizer.kpi_increase | à l'écran | — | — | hors base | — | — |
@@ -636,7 +636,7 @@ Chaque déclaration est vérifiée : le site doit encore exister et encore agré
 
 Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_coverage_only_improves.py` les compare à un plafond posé **à** la mesure, jamais au-dessus.
 
-<!-- gold-coverage-figures: total=85 unknown=5 -->
+<!-- gold-coverage-figures: total=85 unknown=6 -->
 <!-- gold-coverage-tiles: total=169 unknown=10 -->
 <!-- gold-coverage-pdf: total=29 unknown=7 -->
 <!-- gold-coverage-gold-objects: total=33 orphans=0 -->
@@ -647,4 +647,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=30 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=5a5d2557cc8d5395cac9248efa9af75ed983168013949cbecaf6c9cb3f1e56b4 -->
+<!-- gold-coverage: sha256=ff19c2b341aa0305f968e1decc12af67254ad1cc112d1f64a5e34cc1100d0487 -->

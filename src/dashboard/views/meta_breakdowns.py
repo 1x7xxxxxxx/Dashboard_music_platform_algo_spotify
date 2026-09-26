@@ -1,4 +1,4 @@
-"""Vue Breakdowns Meta — pays / placement / âge à tous les grains.
+"""Vue Breakdowns Meta — pays, placement, plateforme et âge CÔTE À CÔTE, à tous les grains.
 
 Type: Feature
 Uses: get_db_connection, get_artist_id, utils.geo, utils.charts
@@ -7,6 +7,12 @@ Persists in: read-only
 
 Les tables breakdown sont des AGRÉGATS sur toute la plage (pas de dimension date) :
 le filtrage se fait par entité (campagne / adset / créative), pas par période.
+
+R208 (2026-09-27) — le propriétaire : « les répartitions placement / âge / plateforme sur une
+même vue ». Un sélecteur de dimension montrait une répartition à la fois, et comparer où
+l'euro rend le mieux demandait de basculer trois fois. Les quatre sont lues en UNE requête
+(`UNION ALL`, cliquet d'allers-retours) et dessinées en grille ; la plateforme est dérivée
+de la table placement (Meta rend la plateforme avec chaque placement).
 """
 import streamlit as st
 import pandas as pd
@@ -27,12 +33,15 @@ from src.dashboard.utils.proxy_disclosure import cpr_help, outbound_help
 # Grain is derived from the deepest specific selection in the campaign→adset→ad cascade.
 _GRAIN_FR = {"campaign": "Campagne", "adset": "Adset", "ad": "Créative"}
 
-# label → (dim_key, [dimension columns])
+# dim_key → [dimension columns] — the three breakdown tables Meta returns.
 _DIMS = {
-    "Pays":      ("country", ["country"]),
-    "Placement": ("placement", ["platform", "placement"]),
-    "Âge":       ("age", ["age_range"]),
+    "country":   ["country"],
+    "placement": ["platform", "placement"],
+    "age":       ["age_range"],
 }
+# The four panels, in reading order. `platform` has no table: it is summed from placement.
+_PANELS = (("country", "Pays"), ("placement", "Placement"),
+           ("platform", "Plateforme"), ("age", "Âge"))
 _FAMILIES = {"Performance": "performance", "Engagement": "engagement"}
 _ENG_COLS = ["page_interactions", "post_reactions", "comments",
              "saves", "shares", "link_clicks", "post_likes"]
@@ -55,19 +64,41 @@ def _table_name(family: str, grain: str, dim: str) -> str:
     return name
 
 
-def _dim_label(df, dim_key):
-    if dim_key == "country":
-        return df['country'].map(iso2_to_name)
-    if dim_key == "placement":
-        return df['platform'].fillna('?') + " / " + df['placement'].fillna('?')
-    return df['age_range']
+def _panel(df, panel: str):
+    """The rows of one panel, with its display label in `dim_label`."""
+    if panel == "platform":
+        part = df[df['dim'] == "placement"].copy()
+        part['k'] = part['platform'].fillna('?')
+        num = [c for c in part.columns if c not in ('dim', 'k', 'platform', 'dim_label')
+               and pd.api.types.is_numeric_dtype(part[c])]
+        part = part.groupby('k', as_index=False)[num].sum(min_count=1)
+    else:
+        part = df[df['dim'] == panel].copy()
+    if panel == "country":
+        part['dim_label'] = part['k'].map(iso2_to_name).fillna(part['k'])
+    elif panel == "placement":
+        # « feed » exists on Facebook AND Instagram: without its platform, two placements
+        # share one bar and the CPR line zigzags between them (seen on the render).
+        # Meta repeats the platform inside the placement (« instagram_reels »): drop it,
+        # the label would otherwise overflow the half-width panel.
+        plat, place = part['platform'].fillna('?'), part['k'].fillna('?')
+        part['dim_label'] = [f"{p} / {q[len(p) + 1:] if q.startswith(p + '_') else q}"
+                             for p, q in zip(plat, place)]
+    else:
+        part['dim_label'] = part['k'].fillna('?')
+    return part
 
 
-def _render_performance(df, dim_key, entity_label):
+def _render_performance(df):
     df = df.copy()
     for c in ('spend', 'results', 'impressions', 'reach'):
-        df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0.0)
-    total_spend, total_res = df['spend'].sum(), df['results'].sum()
+        df[c] = pd.to_numeric(df[c], errors='coerce')
+    # The tiles read ONE dimension (country): the four breakdowns cover the same spend,
+    # so summing all panels would count every euro up to four times.
+    base = df[df['dim'] == "country"]
+    if base.empty:
+        base = df[df['dim'] == df['dim'].iloc[0]]
+    total_spend, total_res = base['spend'].sum(), base['results'].sum()
     c1, c2, c3 = st.columns(3)
     c1.metric(t("meta_breakdowns.total_spend", "Dépense totale"), f"{total_spend:,.2f} €")
     # R146 — « Résultats » nommait un clic sortant comme un aboutissement.
@@ -77,13 +108,26 @@ def _render_performance(df, dim_key, entity_label):
               f"{total_spend / total_res:,.2f} €" if total_res else "—",
               help=cpr_help())
 
-    df['dim_label'] = _dim_label(df, dim_key)
+    for row in (_PANELS[:2], _PANELS[2:]):
+        cols = st.columns(2)
+        for col, (panel, label) in zip(cols, row):
+            with col:
+                fig = pareto_spend_cpr(
+                    _panel(df, panel), 'dim_label',
+                    t(f"meta_breakdowns.dim.{panel}", label), top_n=8)
+                if fig is None:
+                    st.caption(t("meta_breakdowns.panel_empty",
+                                 "{dim} — aucune donnée sur cette sélection.").format(
+                                     dim=t(f"meta_breakdowns.dim.{panel}", label)))
+                else:
+                    fig.update_layout(height=360, margin={'t': 40, 'l': 60, 'r': 60, 'b': 90})
+                    st.plotly_chart(fig, width="stretch")
 
-    if dim_key == "country":
-        geo = df.copy()
-        geo['iso3'] = geo['country'].map(iso2_to_iso3)
-        geo = geo.dropna(subset=['iso3'])
-        if not geo.empty:
+    geo = _panel(df, "country")
+    geo['iso3'] = geo['k'].map(iso2_to_iso3)
+    geo = geo.dropna(subset=['iso3'])
+    if not geo.empty:
+        with st.expander(t("meta_breakdowns.map", "🗺️ Carte de la dépense par pays")):
             fig = px.choropleth(
                 geo, locations='iso3', color='spend', hover_name='dim_label',
                 color_continuous_scale='YlOrRd',
@@ -93,44 +137,50 @@ def _render_performance(df, dim_key, entity_label):
                               geo={'showframe': False})
             st.plotly_chart(fig, width="stretch")
 
-    fig = pareto_spend_cpr(
-        df, 'dim_label',
-        t("meta_breakdowns.pareto_title", "Dépense & CPR — {entity}").format(entity=entity_label))
-    if fig is not None:
-        st.plotly_chart(fig, width="stretch")
 
-
-def _render_engagement(df, dim_key, entity_label):
+def _render_engagement(df):
     df = df.copy()
     for c in _ENG_COLS:
         df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0).astype(int)
-    df['dim_label'] = _dim_label(df, dim_key)
     df['total'] = df[_ENG_COLS].sum(axis=1)
-    df = df.sort_values('total', ascending=False).head(15)
     if df['total'].sum() == 0:
         st.info(t("meta_breakdowns.no_engagement", "Aucune interaction d'engagement sur cette sélection."))
         return
+    var_col = t("meta_breakdowns.type", "Type")
+    val_col = t("meta_breakdowns.volume", "Volume")
+    for row in (_PANELS[:2], _PANELS[2:]):
+        cols = st.columns(2)
+        for col, (panel, label) in zip(cols, row):
+            part = _panel(df, panel)
+            part['total'] = part[_ENG_COLS].sum(axis=1)
+            part = part[part['total'] > 0].sort_values('total', ascending=False).head(8)
+            with col:
+                if part.empty:
+                    st.caption(t("meta_breakdowns.panel_empty",
+                                 "{dim} — aucune donnée sur cette sélection.").format(
+                                     dim=t(f"meta_breakdowns.dim.{panel}", label)))
+                    continue
+                melted = part.melt(id_vars='dim_label', value_vars=_ENG_COLS,
+                                   var_name=var_col, value_name=val_col)
+                fig = px.bar(melted, y='dim_label', x=val_col, color=var_col,
+                             orientation='h',
+                             title=t(f"meta_breakdowns.dim.{panel}", label),
+                             labels={'dim_label': ''})
+                fig.update_layout(barmode='stack', height=340,
+                                  legend={'orientation': 'h', 'y': -0.2},
+                                  margin={'t': 40, 'l': 10, 'r': 10})
+                st.plotly_chart(fig, width="stretch")
 
-    if dim_key == "country":
-        geo = df.copy()
-        geo['iso3'] = geo['country'].map(iso2_to_iso3)
-        geo = geo.dropna(subset=['iso3'])
-        if not geo.empty:
+    geo = _panel(df, "country")
+    geo['iso3'] = geo['k'].map(iso2_to_iso3)
+    geo = geo.dropna(subset=['iso3'])
+    if not geo.empty:
+        with st.expander(t("meta_breakdowns.map_engagement", "🗺️ Carte des interactions par pays")):
             fig = px.choropleth(geo, locations='iso3', color='total', hover_name='dim_label',
                                 color_continuous_scale='Blues',
                                 labels={'total': t("meta_breakdowns.interactions", "Interactions")})
             fig.update_layout(margin={'l': 0, 'r': 0, 't': 10, 'b': 0}, geo={'showframe': False})
             st.plotly_chart(fig, width="stretch")
-
-    var_col = t("meta_breakdowns.type", "Type")
-    val_col = t("meta_breakdowns.volume", "Volume")
-    melted = df.melt(id_vars='dim_label', value_vars=_ENG_COLS,
-                     var_name=var_col, value_name=val_col)
-    fig = px.bar(melted, x='dim_label', y=val_col, color=var_col,
-                 title=t("meta_breakdowns.engagement_title", "Engagement — {entity}").format(entity=entity_label),
-                 labels={'dim_label': ''})
-    fig.update_layout(barmode='stack', height=420)
-    st.plotly_chart(fig, width="stretch")
 
 
 def show() -> None:
@@ -140,19 +190,14 @@ def show() -> None:
     st.title(t("meta_breakdowns.title", "🌍 Breakdowns Meta"))
     st.caption(t(
         "meta_breakdowns.subtitle",
-        "Pays / placement / âge à tous les grains (campagne · adset · créative). "
+        "Pays, placement, plateforme et âge côte à côte, à tous les grains (campagne · adset · créative). "
         "Données agrégées sur tout l'historique — **pas de filtre par période** "
         "(les breakdowns Meta n'ont pas de dimension date)."
     ))
 
-    d1, d2 = st.columns(2)
-    dim_label = d1.selectbox(
-        t("meta_breakdowns.dimension", "Dimension"), list(_DIMS.keys()),
-        format_func=lambda lbl: t(f"meta_breakdowns.dim.{_DIMS[lbl][0]}", lbl))
-    family_label = d2.selectbox(
+    family_label = st.selectbox(
         t("meta_breakdowns.metric", "Métrique"), list(_FAMILIES.keys()),
         format_func=lambda lbl: t(f"meta_breakdowns.family.{_FAMILIES[lbl]}", lbl))
-    dim_key, _ = _DIMS[dim_label]
     family = _FAMILIES[family_label]
 
     with view_session() as (db, artist_id):
@@ -222,46 +267,45 @@ def show() -> None:
 
         st.caption(t(
             "meta_breakdowns.grain_caption",
-            "Grain courant : **{grain}** · données agrégées sur tout "
+            "Grain courant : **{grain}** ({entity}) · données agrégées sur tout "
             "l'historique (pas de filtre par période)."
-        ).format(grain=t(f"meta_breakdowns.grain.{grain_key}", _GRAIN_FR[grain_key])))
+        ).format(grain=t(f"meta_breakdowns.grain.{grain_key}", _GRAIN_FR[grain_key]),
+                 entity=entity_label))
 
-        table = _table_name(family, grain_key, dim_key)
-        # Les tables à la maille AD/ADSET n'ont pas `ad_account_id` (migration 076)
-        # et n'en ont pas besoin : leur clé est un id Meta, globalement unique, donc
-        # deux comptes ne peuvent pas y entrer en collision. Ajouter le prédicat
-        # quand même ferait échouer la requête sur « colonne inconnue ».
-        _acct_tbl = _acct if table_carries_account(table) else ""
-        params = [artist_id, *(_acct_params if _acct_tbl else ())]
-        where_entity = ""
-        if entity_val is not None:
-            where_entity = f" AND {entity_col} = %s"
-            params.append(entity_val)
-
-        dim_cols = ", ".join(_DIMS[dim_label][1])
         if family == "performance":
             metrics = "SUM(spend) AS spend, SUM(results) AS results, " \
                       "SUM(impressions) AS impressions, SUM(reach) AS reach"
         else:
             metrics = ", ".join(f"SUM({c}) AS {c}" for c in _ENG_COLS)
+        # THE THREE BREAKDOWNS IN ONE ROUND TRIP (R208). Each table is normalised to
+        # (dim, k, platform, metrics…) and the three are stacked with UNION ALL: the
+        # round-trip ratchet refuses one query per panel, and the four panels are read
+        # together anyway.
+        #
+        # Les tables à la maille AD/ADSET n'ont pas `ad_account_id` (migration 076)
+        # et n'en ont pas besoin : leur clé est un id Meta, globalement unique, donc
+        # deux comptes ne peuvent pas y entrer en collision. Ajouter le prédicat
+        # quand même ferait échouer la requête sur « colonne inconnue ».
+        parts, params = [], []
+        for dim_key, dim_cols in _DIMS.items():
+            table = _table_name(family, grain_key, dim_key)
+            _acct_tbl = _acct if table_carries_account(table) else ""
+            k_expr = ("placement" if dim_key == "placement" else dim_cols[0])
+            p_expr = "platform" if dim_key == "placement" else "NULL::text"
+            where_entity = f" AND {entity_col} = %s" if entity_val is not None else ""
+            parts.append(
+                f"SELECT '{dim_key}'::text AS dim, {k_expr}::text AS k, {p_expr} AS platform, "
+                f"{metrics} FROM {table} "
+                f"WHERE artist_id = %s{_acct_tbl}{where_entity} GROUP BY {', '.join(dim_cols)}")
+            params += [artist_id, *(_acct_params if _acct_tbl else ())]
+            if entity_val is not None:
+                params.append(entity_val)
+        inner = " UNION ALL ".join(parts)
         # La dépense TOTALE voyage dans la même requête, en sous-requête scalaire.
         #
-        # Elle était d'abord lue par un `fetch_query` séparé, et le cliquet
-        # d'allers-retours l'a refusé — à raison : une note explicative ne vaut pas un
-        # aller-retour de plus sur le chemin chaud. C'est exactement ce que le message
-        # du cliquet demande (« elle la lit dans une requête existante »).
-        #
-        # La sous-requête est posée AUTOUR de l'agrégat et non dedans : dans le SELECT
-        # d'un `GROUP BY`, Postgres exigerait de l'y faire figurer.
-        #
         # Elle lit `v_meta_spend_totals` (migration 101), la définition OR de la
-        # dépense, et non la table brute. Le cliquet de la frontière du bronze a
-        # refusé la première version — 125 couples contre 124 — et il avait raison :
-        # « combien a-t-on dépensé » est une règle métier, et dix fichiers
-        # l'agrégeaient déjà chacun de leur côté. La vue porte `ad_account_id`, donc
-        # `_acct` s'y applique tel quel.
-        inner = (f"SELECT {dim_cols}, {metrics} FROM {table} "
-                 f"WHERE artist_id = %s{_acct_tbl}{where_entity} GROUP BY {dim_cols}")
+        # dépense, et non la table brute — « combien a-t-on dépensé » est une règle
+        # métier. La sous-requête est posée AUTOUR des agrégats, pas dedans.
         if family == "performance":
             sql = (f"SELECT b.*, "
                    f"(SELECT COALESCE(SUM(spend), 0) FROM v_meta_spend_totals "
@@ -284,12 +328,13 @@ def show() -> None:
         return
 
     if family == "performance":
-        _render_coverage(df)
+        # Coverage is judged on ONE breakdown (country): every panel covers the same
+        # spend, so summing the four would count each euro up to four times.
+        _render_coverage(df[df['dim'] == "country"])
         _render_performance(
-            df.drop(columns=["_spend_total", "_results_total"], errors="ignore"),
-            dim_key, entity_label)
+            df.drop(columns=["_spend_total", "_results_total"], errors="ignore"))
     else:
-        _render_engagement(df, dim_key, entity_label)
+        _render_engagement(df)
 
 
 def _render_coverage(df) -> None:

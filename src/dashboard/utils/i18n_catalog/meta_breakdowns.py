@@ -3,15 +3,18 @@
 EN = {
     "meta_breakdowns.title": "🌍 Meta Breakdowns",
     "meta_breakdowns.subtitle": (
-        "Country / placement / age at every grain (campaign · adset · creative). "
+        "Country, placement, platform and age side by side, at every grain (campaign · adset · creative). "
         "Data aggregated over the full history — **no period filter** "
         "(Meta breakdowns have no date dimension)."
     ),
-    "meta_breakdowns.dimension": "Dimension",
     "meta_breakdowns.metric": "Metric",
     "meta_breakdowns.dim.country": "Country",
     "meta_breakdowns.dim.placement": "Placement",
     "meta_breakdowns.dim.age": "Age",
+    "meta_breakdowns.dim.platform": "Platform",
+    "meta_breakdowns.panel_empty": "{dim} — no data for this selection.",
+    "meta_breakdowns.map": "🗺️ Map of spend by country",
+    "meta_breakdowns.map_engagement": "🗺️ Map of interactions by country",
     "meta_breakdowns.family.performance": "Performance",
     "meta_breakdowns.family.engagement": "Engagement",
     "meta_breakdowns.campaign": "Campaign",
@@ -24,7 +27,7 @@ EN = {
     "meta_breakdowns.grain.adset": "Adset",
     "meta_breakdowns.grain.ad": "Creative",
     "meta_breakdowns.grain_caption": (
-        "Current grain: **{grain}** · data aggregated over the full history "
+        "Current grain: **{grain}** ({entity}) · data aggregated over the full history "
         "(no period filter)."
     ),
     "meta_breakdowns.coverage": (
@@ -41,10 +44,8 @@ EN = {
     "meta_breakdowns.results": "Outbound clicks",
     "meta_breakdowns.avg_cpr": "Average CPR",
     "meta_breakdowns.spend_eur": "Spend (€)",
-    "meta_breakdowns.pareto_title": "Spend & CPR — {entity}",
     "meta_breakdowns.no_engagement": "No engagement interaction for this selection.",
     "meta_breakdowns.interactions": "Interactions",
     "meta_breakdowns.type": "Type",
     "meta_breakdowns.volume": "Volume",
-    "meta_breakdowns.engagement_title": "Engagement — {entity}",
 }

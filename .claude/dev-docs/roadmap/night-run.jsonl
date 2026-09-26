@@ -522,3 +522,5 @@
 {"at": "2026-09-26T22:37:54+00:00", "head": "8f8b75c", "kind": "start", "task": "R205", "what": "commit lot R205/R206 apres balayage, puis deploiement R217"}
 {"at": "2026-09-26T23:00:16+00:00", "head": "9ebaba9", "kind": "done", "task": "R205", "what": "R205/R206/R216 livrees, deployees 34f2bf9, archivees ; R219 inscrite (derive NOT NULL)"}
 {"at": "2026-09-26T23:00:16+00:00", "head": "9ebaba9", "kind": "start", "task": "R212", "what": "tresorerie unique, BUILD-MODIFIED : get_roi_data/get_monthly_roi_series passent sur v_artist_monthly_cashflow"}
+{"at": "2026-09-26T23:26:23+00:00", "head": "99f9658", "kind": "done", "task": "R212", "what": "tresorerie unique livree 7af83d6, deployee, verifiee en prod"}
+{"at": "2026-09-26T23:26:28+00:00", "head": "99f9658", "kind": "start", "task": "R208", "what": "repartitions Meta pays/placement/age/plateforme cote a cote"}

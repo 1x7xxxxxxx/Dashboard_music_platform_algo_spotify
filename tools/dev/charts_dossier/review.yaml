@@ -334,7 +334,7 @@ src/dashboard/views/meta_ads_overview.py::_show_meta_ads#3:
   v: garder
   note: "Deux objectifs dont un quasi nul en dépense — la comparaison de CPR est fragile, à marquer."
 src/dashboard/views/meta_breakdowns.py::_render_performance#1:
-  q: "Où ma pub a-t-elle dépensé, dans le monde ?"
+  q: "Pays, placement, plateforme, âge côte à côte : où l'euro rend-il le clic sortant le moins cher ? (R208 — ex-sélecteur de dimension)"
   role: meta
   d: 3
   c: 4
@@ -345,7 +345,7 @@ src/dashboard/views/meta_breakdowns.py::_render_performance#1:
   cause: doublon
   note: "La carte dit « Mexique » ; le graphique pays voisin dit la même chose avec le CPR en plus. Garder l'un des deux."
 src/dashboard/views/meta_breakdowns.py::_render_performance#2:
-  q: "Par pays, combien dépensé et à quel coût par clic sortant ?"
+  q: "Où ma pub a-t-elle dépensé, dans le monde ? (carte, repliée)"
   role: meta
   d: 4
   c: 4
@@ -355,7 +355,7 @@ src/dashboard/views/meta_breakdowns.py::_render_performance#2:
   owner: "À mettre sur la même vue que placement, âge, plateforme (R208)."
   note: "Mexique ≈ 850 € à CPR 0,11 € ; les pays chers se repèrent. Plus utile que la carte."
 src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
-  q: "(répartition par placement / âge — autre choix du sélecteur)"
+  q: "Pays, placement, plateforme, âge côte à côte : où ma pub fait-elle réagir ? (R208)"
   role: meta
   d: 3
   c: 4
@@ -365,7 +365,7 @@ src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
   owner: "Répartition par placement, âge et plateforme sur la MÊME vue : ce sont les paramètres de la campagne (R208)."
   note: "Non rendu : n'apparaît qu'avec un autre choix du sélecteur de dimension."
 src/dashboard/views/meta_breakdowns.py::_render_engagement#2:
-  q: "(répartition — autre choix du sélecteur)"
+  q: "Où ma pub fait-elle réagir, dans le monde ? (carte, repliée)"
   role: meta
   d: 3
   c: 4
