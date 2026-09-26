@@ -84,42 +84,9 @@ def _pulled_task_ids() -> set[str]:
             if kw.arg == "task_ids" and isinstance(kw.value, ast.Constant)}
 
 
-def test_the_dag_actually_has_checks():
-    """Sans quoi tout ce fichier est vrai de l'ensemble vide."""
-    assert len(_checks()) >= 10, f"seulement {len(_checks())} check_* trouvés"
-
-
-@pytest.mark.parametrize("var,task_id", sorted(_checks().items()))
-def test_every_check_is_wired_into_the_dependency_chain(var, task_id):
-    """Déclarer un opérateur ne le fait pas tourner : il faut le brancher."""
-    chain_start = _src().find("] >> t_alert")
-    assert chain_start > 0, "la liste de dépendances a changé de forme"
-    chain = _src()[_src().rfind("[", 0, chain_start):chain_start]
-    assert var in chain, (
-        f"« {task_id} » est déclarée mais absente de la chaîne `>> t_alert` : "
-        "Airflow ne l'exécutera jamais.")
-
-
-@pytest.mark.parametrize("var,task_id", sorted(_checks().items()))
-def test_every_check_result_is_read_back(var, task_id):
-    """Un XCom que personne ne relit est un calcul jeté."""
-    assert task_id in _pulled_task_ids(), (
-        f"aucun `xcom_pull(task_ids='{task_id}')` : le constat est calculé puis "
-        "perdu, et la tâche reste verte.")
-
-
-def test_every_pulled_finding_is_rendered_somewhere():
-    """Le dernier maillon : relire ne suffit pas, il faut RENDRE.
-
-    C'est celui qui a manqué le 2026-09-06. `ruff` l'a signalé comme variable
-    inutilisée — coup de chance : un nom réutilisé ailleurs serait passé.
-    """
-    tree = _tree()
-    builder = next((n for n in ast.walk(tree)
-                    if isinstance(n, ast.FunctionDef)
-                    and n.name == "send_consolidated_alert"), None)
-    assert builder is not None, "le constructeur du rapport a disparu"
-
+def unrendered_findings(builder: ast.FunctionDef) -> list[str]:
+    """Names read from an XCom in `builder` that condition no REACHABLE section,
+    directly or through a derived name. Pure."""
     assigned = {n.targets[0].id for n in ast.walk(builder)
                 if isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name)
                 and any(isinstance(c, ast.Call)
@@ -174,6 +141,76 @@ def test_every_pulled_finding_is_rendered_somewhere():
                     if isinstance(nd, ast.Assign)
                     and isinstance(nd.targets[0], ast.Name)
                     and nd.targets[0].id in tested)))
+    return orphans
+
+
+def alert_chain(source: str) -> "str | None":
+    """The `[...]` list that feeds `>> t_alert`, as text, or None if absent. Pure."""
+    end = source.find("] >> t_alert")
+    if end <= 0:
+        return None
+    return source[source.rfind("[", 0, end):end]
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, classes `finding-computed-but-never-sent` and
+    `refusal-leaves-no-trace`: the 2026-09-06 shape — a finding pulled from its XCom
+    and never rendered — is named, so is one mentioned only under `if False and …`;
+    a finding rendered through a derived name (`freshness` → `stale`) is not. And a
+    check declared outside the `>> t_alert` list is not in the chain."""
+    src = (
+        "def send_consolidated_alert(ti):\n"
+        "    refused = ti.xcom_pull(task_ids='check_refusals')\n"
+        "    dead = ti.xcom_pull(task_ids='check_dead')\n"
+        "    freshness = ti.xcom_pull(task_ids='check_freshness')\n"
+        "    stale = [s for s in freshness if s]\n"
+        "    if stale:\n"
+        "        body.append('stale')\n"
+        "    if False and dead:\n"
+        "        body.append('dead')\n")
+    builder = ast.parse(src).body[0]
+    assert unrendered_findings(builder) == ["dead", "refused"]
+    dag = "t_a = PythonOperator(task_id='check_a')\n[t_a] >> t_alert\n"
+    assert "t_a" in alert_chain(dag) and "t_b" not in alert_chain(dag)
+    assert alert_chain("t_a >> t_alert\n") is None
+
+
+def test_the_dag_actually_has_checks():
+    """Sans quoi tout ce fichier est vrai de l'ensemble vide."""
+    assert len(_checks()) >= 10, f"seulement {len(_checks())} check_* trouvés"
+
+
+@pytest.mark.parametrize("var,task_id", sorted(_checks().items()))
+def test_every_check_is_wired_into_the_dependency_chain(var, task_id):
+    """Déclarer un opérateur ne le fait pas tourner : il faut le brancher."""
+    chain = alert_chain(_src())
+    assert chain is not None, "la liste de dépendances a changé de forme"
+    assert var in chain, (
+        f"« {task_id} » est déclarée mais absente de la chaîne `>> t_alert` : "
+        "Airflow ne l'exécutera jamais.")
+
+
+@pytest.mark.parametrize("var,task_id", sorted(_checks().items()))
+def test_every_check_result_is_read_back(var, task_id):
+    """Un XCom que personne ne relit est un calcul jeté."""
+    assert task_id in _pulled_task_ids(), (
+        f"aucun `xcom_pull(task_ids='{task_id}')` : le constat est calculé puis "
+        "perdu, et la tâche reste verte.")
+
+
+def test_every_pulled_finding_is_rendered_somewhere():
+    """Le dernier maillon : relire ne suffit pas, il faut RENDRE.
+
+    C'est celui qui a manqué le 2026-09-06. `ruff` l'a signalé comme variable
+    inutilisée — coup de chance : un nom réutilisé ailleurs serait passé.
+    """
+    tree = _tree()
+    builder = next((n for n in ast.walk(tree)
+                    if isinstance(n, ast.FunctionDef)
+                    and n.name == "send_consolidated_alert"), None)
+    assert builder is not None, "le constructeur du rapport a disparu"
+
+    orphans = unrendered_findings(builder)
     assert not orphans, (
         f"{orphans} sont lus depuis un XCom et ne conditionnent aucune section : "
         "le constat existe, personne ne le lit. C'est un contrôle qui ne contrôle "
