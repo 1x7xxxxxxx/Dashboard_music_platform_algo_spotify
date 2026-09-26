@@ -180,6 +180,25 @@ tâche-là, ouvert séparément dans `checklist.md`).
 
 ---
 
+## 🎵 R187 · R188 — La page Spotify : la pub jugée, et trois graphes sous un filtre commun (livrées 2026-09-26)
+
+Notes du propriétaire sur la vue S4A + Spotify, 2026-09-26 ; conception revue par
+code-critic (R187 refusée puis reformulée, R188 BUILD-MODIFIED), déployée en prod
+(`f80d26a`, dashboard sain).
+
+- [x] **R187 — « 📣 La pub t'a-t-elle amené des auditeurs ? » remplace « auditeurs-jour ».**
+  (P3) ✅ (2026-09-26, `f80d26a`) Auditeurs/jour (moyenne 7 j, trous non pontés), bandes des
+  jours de pub Meta, verdict de la dernière campagne au-dessus et règle de décision dessous
+  (couper / changer la créa / relancer). Verdict pur `src/dashboard/utils/meta_impact.py` :
+  « auditeurs-jour », non concluant si campagne en cours, < 14 jours mesurés avant, < 7
+  pendant, chevauchement, hausse dans le bruit ; gardé et muté rouge. Sur le locataire 1 il
+  dit « non concluant : deux campagnes se chevauchent » — le cas même qu'il doit refuser.
+- [x] **R188 — trois graphes alignés sous un filtre commun Titre + Période.** (P3) ✅
+  (2026-09-26, `f80d26a`) Filtre sur toute la largeur, puis 3 colonnes égales : ce qui bouge
+  (titre choisi en couleur pleine, « en ce moment » = 28 derniers jours DE la période), détail
+  du titre, engagement (borné à la période). Vérifié en le regardant : 4 captures, 3 défauts
+  corrigés (verdict tronqué, étiquettes superposées, légende sur la barre d'outils).
+
 ## 🧾 R169 — La dette du catalogue d'erreurs soldée (livrée 2026-09-26)
 
 - [x] **R169 — dette du catalogue d'erreurs.** Dette : 3 classes par séance, dans l'ordre de `make error-debt` (récidivées sans
