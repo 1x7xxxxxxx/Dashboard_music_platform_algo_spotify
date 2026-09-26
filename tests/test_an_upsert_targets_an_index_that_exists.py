@@ -155,16 +155,10 @@ def unique_indexes() -> dict[str, set[tuple[str, ...]]]:
     return out
 
 
-pytestmark = pytest.mark.skipif(
-    _CONN is None,
-    reason=f"No Postgres on {_DB_HOST}:{_DB_PORT} — only the catalogue can answer this",
-)
 
 
-def test_every_literal_upsert_target_has_a_matching_unique_index(unique_indexes) -> None:
-    literal, _ = _upsert_targets()
-    assert literal, "no literal upsert_many call found — the AST reader is broken"
-
+def unmatched_targets(literal, unique_indexes: dict) -> list[str]:
+    """ON CONFLICT targets that no unique index of their table matches. Pure."""
     offenders = []
     for site, table, cols in literal:
         if table not in unique_indexes:
@@ -176,6 +170,33 @@ def test_every_literal_upsert_target_has_a_matching_unique_index(unique_indexes)
                 f"{site}: ON CONFLICT ({', '.join(cols)}) on {table} matches no unique "
                 f"index. The table has: {have}"
             )
+    return offenders
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, without a database: admin.py's Apple import of 2026-09-11 — a
+    conflict target that is not the table's unique key — and a table with no unique
+    index are named; the same columns in another ORDER still match."""
+    indexes = {"apple_songs_history": {_normalise(["artist_id", "song", "period_start"])}}
+    literal = [("admin.py:1", "apple_songs_history", ["artist_id", "song"]),
+               ("x.py:2", "no_key_table", ["id"]),
+               ("y.py:3", "apple_songs_history", ["period_start", "artist_id", "song"])]
+    got = unmatched_targets(literal, indexes)
+    assert [o.split(":")[0] for o in got] == ["admin.py", "x.py"], got
+
+
+_needs_db = pytest.mark.skipif(
+    _CONN is None,
+    reason=f"No Postgres on {_DB_HOST}:{_DB_PORT} — only the catalogue can answer this",
+)
+
+
+@_needs_db
+def test_every_literal_upsert_target_has_a_matching_unique_index(unique_indexes) -> None:
+    literal, _ = _upsert_targets()
+    assert literal, "no literal upsert_many call found — the AST reader is broken"
+
+    offenders = unmatched_targets(literal, unique_indexes)
 
     assert not offenders, (
         "An ON CONFLICT target with no matching unique index does not degrade — it\n"
@@ -271,6 +292,7 @@ def test_the_announced_keys_were_really_found() -> None:
         "n'affirme rien. Les écrans ont pu changer de forme.")
 
 
+@_needs_db
 @pytest.mark.parametrize("fichier,ligne,table,cols", _cles_annoncees(),
                          ids=lambda v: str(v) if not isinstance(v, tuple) else "-".join(v))
 def test_a_debug_screen_announces_a_key_that_exists(unique_indexes, fichier, ligne,
