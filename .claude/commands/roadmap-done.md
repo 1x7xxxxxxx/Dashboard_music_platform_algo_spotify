@@ -30,13 +30,17 @@ or, if the task has no top-table row, an unambiguous substring of the task text.
 ## Le geste mécanique est OUTILLÉ — ne le refaites pas à la main
 
 ```bash
-make roadmap-close ID=R128
+make roadmap-close ID=R128 NOTE="Déployée, CI verte."
 ```
 
-Elle retire la ligne d'index **et** recale l'ancre de reprise, et elle **refuse** de
-fermer une tâche dont l'entrée d'archive n'est pas encore écrite dans une forme que le
-test de conservation reconnaît. Écrivez l'entrée d'archive (étape 4 ci-dessous), puis
-lancez-la.
+**C'est LE chemin de livraison depuis R199 (2026-09-26).** Quand l'archive ne porte pas
+encore la tâche, la cible **écrit** son entrée en tête de `archive.md` — le texte de la
+ligne d'index, sa mesure, votre `NOTE`, et les commits qui la **livrent** — puis retire la
+ligne et recale l'ancre de reprise. Elle **refuse** si aucun commit ne livre la tâche (un
+commit qui la cite ET touche autre chose que la roadmap : « Roadmap : R128 inscrite » ne
+livre rien), et une seconde fermeture échoue. Si vous avez déjà écrit l'entrée à la main
+(forme reconnue ci-dessous), elle ne la duplique pas. Les étapes manuelles plus bas ne
+servent plus qu'à enrichir le récit d'une livraison.
 
 ⚠️ **Pourquoi cette cible existe, et c'est mesuré.** Cette procédure est correcte et
 détaillée, et elle a laissé passer **deux erreurs dans une seule séance** le 2026-09-17,

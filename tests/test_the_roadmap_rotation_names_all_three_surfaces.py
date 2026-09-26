@@ -122,3 +122,48 @@ def test_the_prose_procedure_now_names_the_two_things_it_omitted():
         "`/roadmap-done` ne renvoie pas vers `make roadmap-close`, qui fait le geste "
         "mecanique et refuse AVANT plutot que d'echouer apres."
     )
+
+
+# ── R199 (2026-09-26) : LE chemin de rotation ÉCRIT l'archive, preuve de livraison exigée ──
+
+def _git_repo(tmp_path: pathlib.Path) -> pathlib.Path:
+    repo = _fixture(tmp_path, "# archive\n\nEn-tête.\n\n---\n\n## ✅ R1 — ancienne\n\n- [x] **R1**\n")
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    return repo
+
+
+def _commit(repo: pathlib.Path, rel: str, message: str) -> None:
+    (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+    (repo / rel).write_text(message, encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t",
+                    "commit", "-q", "--no-verify", "-m", message], check=True)
+
+
+def test_a_roadmap_only_commit_is_not_a_delivery(tmp_path):
+    """« Roadmap : R900 inscrite » cite l'id sans rien livrer : la fermeture est refusée."""
+    repo = _git_repo(tmp_path)
+    _commit(repo, ".claude/dev-docs/roadmap/checklist.md",
+            (repo / ".claude/dev-docs/roadmap/checklist.md").read_text() + "\nRoadmap : R900 inscrite\n")
+    r = _run_in(repo, "close", "R900")
+    assert r.returncode != 0 and "LIVRE" in r.stderr, r.stderr
+    assert "- [x] **R900" in r.stderr
+
+
+def test_closing_writes_the_archive_entry_at_the_top_then_refuses_twice(tmp_path):
+    repo = _git_repo(tmp_path)
+    _commit(repo, "tools/x.py", "R900 : la livraison")
+    r = _run_in(repo, "close", "R900", "--note", "Déployée.")
+    assert r.returncode == 0, r.stderr
+    archive = (repo / ".claude/dev-docs/roadmap/archive.md").read_text(encoding="utf-8")
+    head, _, rest = archive.partition("\n---\n")
+    assert rest.lstrip().startswith("## ✅ R900 — une tâche"), "the entry is not at the TOP"
+    assert "- [x] **R900 — une tâche** (P3)" in rest and "Déployée." in rest
+    assert "R900 : la livraison" in rest, "the delivering commit is not named"
+    assert rest.index("R900") < rest.index("## ✅ R1"), "older entries must stay below"
+    cl = (repo / ".claude/dev-docs/roadmap/checklist.md").read_text(encoding="utf-8")
+    assert "| R900 |" not in cl and "<!-- reprise: open=R901 -->" in cl
+    again = _run_in(repo, "close", "R900")
+    assert again.returncode != 0 and "pas ouverte" in again.stderr, (
+        "a second close must fail — else it would write a second archive entry")
+    assert archive.count("- [x] **R900") == 1

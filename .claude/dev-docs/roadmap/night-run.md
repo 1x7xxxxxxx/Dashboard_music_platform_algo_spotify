@@ -108,8 +108,9 @@ session ne peut pas se déplacer elle-même. Le dépôt vit sur `~/streamlytics`
 passe de 418 s à **193,5 s**. Il reste la bascule VS Code, qui demande aussi une fenêtre,
 donc un humain. À l'intérieur d'une tâche, l'ordre est écrit dans son bloc de détail.
 
-Une tâche terminée : `Spawn roadmap-keeper` (règle 17) — jamais une suppression à la
-main.
+Une tâche terminée : `make roadmap-close ID=Rnnn NOTE="…"` (règle 17, R199) — elle écrit
+l'entrée d'archive, retire la ligne, recale l'ancre. `roadmap-keeper` pour une brique
+entière à raconter. Jamais une suppression à la main.
 
 ## L'invariant, vérifiable
 

@@ -3,9 +3,11 @@
 Briques et bugs **livrés ou clos**. Fichier passif : rien ici n'est actionnable.
 L'actif est `.claude/dev-docs/roadmap/checklist.md`.
 
-Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un item se
-**déplace**, il ne se duplique ni ne s'efface — `tests/test_roadmap_two_files.py`
-échoue si le total des deux fichiers change.
+Rotation actif → archive : `make roadmap-close ID=Rnnn NOTE="…"` (CLAUDE.md règle 17,
+R199) écrit l'entrée en tête avec les commits qui livrent la tâche ; `roadmap-keeper` pour
+une brique entière à raconter. Un item se **déplace**, il ne se duplique ni ne s'efface —
+`tests/test_roadmap_two_files.py` échoue si un identifiant disparaît des deux fichiers ou
+si le total passe sous son plancher.
 
 ---
 

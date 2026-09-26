@@ -424,9 +424,9 @@ reopen-check-prod: ## Le même, avec les conditions de TRAFIC mesurées en prod.
 	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host"; exit 1; }
 	@PROD_SSH=$(PROD_SSH) python3 tools/dev/reopen_check.py
 
-roadmap-close: ## Ferme une tâche : retire sa ligne d'index et recale l'ancre — make roadmap-close ID=R128
+roadmap-close: ## LE geste de livraison (R199) : écrit l'entrée d'archive si besoin, retire la ligne, recale l'ancre — make roadmap-close ID=R128 [NOTE="…"]
 	@test -n "$(ID)" || { echo "❌ ID= manquant. Ex : make roadmap-close ID=R128"; exit 1; }
-	@python3 tools/dev/roadmap.py close "$(ID)"
+	@python3 tools/dev/roadmap.py close "$(ID)" --note "$(NOTE)"
 
 roadmap-sync: ## Remet l'ancre de reprise d'accord avec les deux tables d'index
 	@python3 tools/dev/roadmap.py sync

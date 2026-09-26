@@ -3,7 +3,7 @@
 
 Type: Utility
 Uses: pathlib, re, argparse
-Triggers: make roadmap-close / make roadmap-open, .claude/commands/roadmap-done.md
+Triggers: make roadmap-close / make roadmap-sync, .claude/commands/roadmap-done.md
 Depends on: .claude/dev-docs/roadmap/{checklist,archive}.md
 Persists in: les deux fichiers de roadmap
 
@@ -31,11 +31,18 @@ La rotation a ete faite a la main. Cet outil la rend mecanique, ce qui retire la
 de lancer un agent pour ca — `roadmap-keeper` reste utile pour une BRIQUE entiere, ou il
 doit juger, pas compter.
 
-Ce que l'outil ne fait PAS
----------------------------
-Il n'ecrit aucun contenu : ni le detail d'une tache, ni le recit d'une livraison. Il
-deplace, coche, retire et met l'ancre d'accord. Le texte reste ecrit a la main, parce
-qu'une rotation qui redige aussi la lecon produirait des lecons de machine.
+R199 (2026-09-26) — LE chemin de rotation, et il DÉPLACE
+----------------------------------------------------------
+Trois chemins se contredisaient (`/roadmap-done`, `roadmap-keeper`, cet outil) et celui-ci
+ne déplaçait rien : il exigeait qu'on ait déjà écrit l'archive à la main. Désormais, quand
+l'archive ne porte pas encore la tâche, `close` ÉCRIT son entrée en tête — le texte de la
+ligne d'index, sa mesure, et les commits qui la LIVRENT — puis retire la ligne et recale
+l'ancre. Preuve de livraison exigée : au moins un commit qui cite l'id ET touche autre chose
+que les deux fichiers de roadmap (« Roadmap : Rnnn inscrite » ne livre rien — code-critic).
+Une seconde fermeture échoue : la ligne n'est plus ouverte.
+
+Ce que l'outil ne fait PAS : il n'écrit pas le RÉCIT d'une livraison (`NOTE=` en ajoute une
+ligne). Une brique entière, avec sa leçon, reste le travail de `roadmap-keeper`.
 """
 from __future__ import annotations
 
@@ -96,14 +103,64 @@ def cmd_sync(_args) -> int:
     return 0
 
 
+_ROADMAP_FILES = {".claude/dev-docs/roadmap/checklist.md", ".claude/dev-docs/roadmap/archive.md"}
+
+
+def delivery_commits(tid: str) -> list[str]:
+    """`<sha court> <sujet>` des commits qui citent `tid` ET touchent autre chose que la
+    roadmap — un commit d'inscription ou d'archive ne livre rien."""
+    import subprocess
+    log = subprocess.run(["git", "-C", str(ROOT), "log", "--format=%H%x1f%h%x1f%s%x1f%b%x1e",
+                          "-n", "3000"], capture_output=True, text=True).stdout
+    out = []
+    for rec in log.split("\x1e"):
+        parts = rec.strip("\n").split("\x1f")
+        if len(parts) < 4 or not re.search(rf"\b{tid}\b", parts[2] + " " + parts[3]):
+            continue
+        files = subprocess.run(["git", "-C", str(ROOT), "diff-tree", "--root", "--no-commit-id",
+                                "--name-only", "-r", parts[0]],
+                               capture_output=True, text=True).stdout.split()
+        if any(f not in _ROADMAP_FILES for f in files):
+            out.append(f"{parts[1]} {parts[2][:70]}")
+    return out
+
+
+def archive_block(row: str, commits: list[str], note: str, today: str) -> str:
+    """L'entrée d'archive d'une ligne d'index. Forme lue par la conservation : `- [x] **Rnnn`."""
+    cells = [c.strip() for c in row.strip().strip("|").split("|")]
+    tid, task = cells[0], re.sub(r"\s*<!--.*?-->", "", cells[1]).strip()
+    prio = cells[2] if len(cells) > 2 else ""
+    measured = cells[3] if len(cells) > 3 else ""
+    shas = ", ".join(c.split()[0] for c in commits)
+    short = task if len(task) <= 90 else task[:87].rstrip() + "…"
+    lines = [f"## ✅ {tid} — {short} (livrée {today})", "",
+             f"- [x] **{tid} — {task}** ({prio}) ✅ ({today}, {shas})"]
+    if measured:
+        lines.append(f"  Mesuré par : {measured}")
+    if note:
+        lines.append(f"  {note}")
+    lines += [f"  Commits : {' · '.join(commits)}", ""]
+    return "\n".join(lines) + "\n"
+
+
+def _insert_at_top(archive: str, block: str) -> str:
+    """Juste après le premier séparateur `---` de l'en-tête : les plus récentes en tête."""
+    marker = "\n---\n"
+    i = archive.find(marker)
+    if i < 0:
+        return archive.rstrip("\n") + "\n\n" + block
+    j = i + len(marker)
+    return archive[:j] + "\n" + block + "\n" + archive[j:].lstrip("\n")
+
+
 def cmd_close(args) -> int:
-    """Retire la ligne d'index, met l'ancre d'accord, et VERIFIE le format d'archive."""
+    """Retire la ligne d'index, ÉCRIT l'entrée d'archive si elle manque, recale l'ancre."""
     tid = args.id.upper()
     text = CHECKLIST.read_text(encoding="utf-8")
 
     rows = [ln for ln in text.splitlines() if re.match(rf"^\|\s*{tid}\s*\|", ln)]
     if not rows:
-        print(f"❌ aucune ligne d'index pour {tid}. Index actuel : "
+        print(f"❌ {tid} n'est pas ouverte (déjà fermée ?). Index actuel : "
               f"{', '.join(_index_ids(text)) or '(vide)'}", file=sys.stderr)
         return 1
     if len(rows) > 1:
@@ -118,6 +175,18 @@ def cmd_close(args) -> int:
     recognised = (re.search(rf"^\|\s*{tid}\s*\|", archive, re.M)
                   or re.search(rf"^- \[[xX]\] \*\*{tid}\b", archive, re.M))
     if not recognised:
+        commits = delivery_commits(tid)
+        if commits:
+            import datetime as _dt
+            block = archive_block(rows[0], commits, getattr(args, "note", "") or "",
+                                  _dt.date.today().isoformat())
+            ARCHIVE.write_text(_insert_at_top(archive, block), encoding="utf-8")
+            print(f"✅ entrée d'archive écrite pour {tid} ({len(commits)} commit(s) de livraison)")
+            recognised = True
+    if not recognised:
+        print(
+            f"❌ {tid} : aucun commit ne la LIVRE (un commit qui la cite et touche autre "
+            "chose que la roadmap), et `archive.md` ne la porte pas encore.\n", file=sys.stderr)
         print(
             f"❌ {tid} n'est pas encore dans `archive.md` SOUS UNE FORME RECONNUE.\n"
             f"\n"
@@ -149,6 +218,7 @@ def main() -> int:
 
     c = sub.add_parser("close", help="retire une tâche de l'index et recale l'ancre")
     c.add_argument("id", help="identifiant, ex. R128")
+    c.add_argument("--note", default="", help="une ligne ajoutée à l'entrée d'archive")
     c.set_defaults(func=cmd_close)
 
     s = sub.add_parser("sync", help="remet l'ancre d'accord avec les deux tables d'index")

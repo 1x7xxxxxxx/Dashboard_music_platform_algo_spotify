@@ -412,7 +412,11 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     depuis ce qui a changé — ou la suite entière quand il ne peut pas conclure.
     Lancer cette liste, pas la suite entière.
 
-17. **Une brique livrée ou abandonnée → `Spawn roadmap-keeper`.** La ROADMAP est en
+17. **Une tâche livrée → `make roadmap-close ID=Rnnn NOTE="…"`** (R199, 2026-09-26) : elle
+    écrit l'entrée d'archive en tête — texte de la ligne, mesure, commits qui la LIVRENT
+    (un commit roadmap seul ne livre rien) — retire la ligne et recale l'ancre ; une
+    seconde fermeture échoue. **Un LOT de briques, ou une brique abandonnée dont il faut
+    raconter la leçon → `Spawn roadmap-keeper`.** La ROADMAP est en
     **deux fichiers** : `.claude/dev-docs/roadmap/checklist.md` (actif — ce qui est
     ouvert) et `.claude/dev-docs/roadmap/archive.md` (livré ou clos). Il renvoie les
     deux mis à jour : la brique retirée de l'actif **et** ajoutée à l'archive, jamais
@@ -580,9 +584,9 @@ lignes ouvertes, rien ne prouve que le diff EST la tâche citée. Mesuré avant 
 commits de code depuis le 2026-09-12 ne citaient aucun id.
 
 **Roadmap flow**: the top `## 📋 Tâches ouvertes` table is the concise index of only
-*still-open* tasks. When a task is completed, run `/roadmap-done <id>` — it ticks the
-detail line, **moves it into `archive.md`**, and retires the row from the index. For a
-whole brick, `Spawn roadmap-keeper` (règle 17). Never hand-delete an item: déplacement,
+*still-open* tasks. When a task is completed, run `make roadmap-close ID=<id> NOTE="…"` (or `/roadmap-done`,
+which calls it) — it **writes the archive entry**, retires the row and realigns the
+anchor. For a batch of bricks, `Spawn roadmap-keeper` (règle 17). Never hand-delete an item: déplacement,
 pas suppression — `tests/test_roadmap_two_files.py` échoue si le total des deux fichiers
 rétrécit.
 
