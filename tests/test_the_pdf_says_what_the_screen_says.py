@@ -53,6 +53,41 @@ def _calls(node: ast.AST) -> set[str]:
     }
 
 
+def second_truth(fn: ast.FunctionDef, source: str) -> list[str]:
+    """Why a collector computes its OWN verdict instead of reading the screen's. Pure."""
+    calls = _calls(fn)
+    why = []
+    if "artist_readiness" not in calls:
+        why.append("ne lit pas artist_readiness")
+    if "app_level_configured" in calls:
+        why.append("lit la configuration de l'admin")
+    if "FROM artist_credentials" in (ast.get_source_segment(source, fn) or ""):
+        why.append("compte des lignes d'artist_credentials")
+    return why
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the 2026-08 collector (rows counted, admin `.env` consulted, readiness
+    never read) is refused on all three counts; one reading readiness is accepted."""
+    defect = ("def _collect_credentials_status(db, aid):\n"
+              "    rows = db.fetch_query('SELECT platform FROM artist_credentials "
+              "WHERE artist_id = %s', (aid,))\n"
+              "    return {p: bool(r) or app_level_configured(p) for p, r in rows}\n")
+    fn = next(n for n in ast.walk(ast.parse(defect)) if isinstance(n, ast.FunctionDef))
+    assert second_truth(fn, defect) == [
+        "ne lit pas artist_readiness", "lit la configuration de l'admin",
+        "compte des lignes d'artist_credentials"]
+    fixed = ("def _collect_credentials_status(db, aid):\n"
+             "    return {m['key']: m['status'] != 'todo' for m in artist_readiness(db, aid)}\n")
+    fn = next(n for n in ast.walk(ast.parse(fixed)) if isinstance(n, ast.FunctionDef))
+    assert second_truth(fn, fixed) == []
+
+
+def test_the_pdf_has_one_truth():
+    source = _PDF.read_text(encoding="utf-8")
+    assert not second_truth(_fn(_PDF, "_collect_credentials_status"), source)
+
+
 def test_the_pdf_reads_the_same_source_as_the_screen():
     fn = _fn(_PDF, "_collect_credentials_status")
     assert "artist_readiness" in _calls(fn), (

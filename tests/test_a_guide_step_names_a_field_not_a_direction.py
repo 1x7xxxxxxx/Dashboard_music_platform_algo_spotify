@@ -48,6 +48,17 @@ def _paste_steps(guide):
             if any(v in str(s.text).lower() for v in verbs)]
 
 
+def directions_only(guide, directions) -> list[tuple[str, list[str]]]:
+    """(step, directions) for paste steps that point by position WITHOUT naming a field."""
+    names = [f.label for f in guide.fields]
+    out = []
+    for text in _paste_steps(guide):
+        used = [d for d in directions if d in text.lower()]
+        if used and not any(name in text for name in names):
+            out.append((text, used))
+    return out
+
+
 def test_the_sweep_sees_the_steps_it_is_about():
     """Sinon toutes les assertions ci-dessous sont vraies de rien."""
     total = sum(len(_paste_steps(g)) for _, cat, _ in _CATALOGUES for g in cat)
@@ -59,17 +70,8 @@ def test_the_sweep_sees_the_steps_it_is_about():
 @pytest.mark.parametrize("lang,catalogue,directions", _CATALOGUES)
 def test_a_step_that_says_where_also_says_what(lang, catalogue, directions):
     """Une direction sans nom de champ ne survit ni au viewport, ni au PDF."""
-    offenders = []
-    for guide in catalogue:
-        names = [f.label for f in guide.fields]
-        for text in _paste_steps(guide):
-            used = [d for d in directions if d in text.lower()]
-            if not used:
-                continue
-            if not any(name in text for name in names):
-                offenders.append(
-                    f"{lang}/{guide.key} : {used} sans nommer un champ "
-                    f"({names}) — {text[:80]}")
+    offenders = [f"{lang}/{guide.key} : {used} sans nommer un champ — {text[:80]}"
+                 for guide in catalogue for text, used in directions_only(guide, directions)]
     assert not offenders, (
         "ces étapes désignent un champ par sa position seule :\n  "
         + "\n  ".join(offenders)
@@ -95,3 +97,16 @@ def test_every_named_field_in_a_step_exists_on_that_guide(lang, catalogue, _d):
     assert checked >= 4, (
         f"{lang} : seulement {checked} étape(s) nomment un champ existant — les "
         "autres désignent le vide ou une position")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: « colle-le dans le champ ci-dessus » (the four steps of 2026-09-06)
+    is named; the same step naming the field — direction kept as a hint — is not."""
+    from types import SimpleNamespace as NS
+
+    fields = [NS(label="Channel ID")]
+    bad = NS(fields=fields, steps=[NS(text="Colle-le dans le champ ci-dessus")])
+    assert directions_only(bad, _DIRECTIONS_FR) == [
+        ("Colle-le dans le champ ci-dessus", ["ci-dessus"])]
+    good = NS(fields=fields, steps=[NS(text="Colle-le dans « Channel ID », ci-dessus")])
+    assert directions_only(good, _DIRECTIONS_FR) == []

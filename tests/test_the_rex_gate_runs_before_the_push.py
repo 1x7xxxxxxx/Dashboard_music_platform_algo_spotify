@@ -41,9 +41,41 @@ _CI = _ROOT / ".github/workflows/ci.yml"
 _SCRIPT = "validate_rex.py"
 
 
-def _precommit_hooks() -> list[dict]:
-    cfg = yaml.safe_load(_PRECOMMIT.read_text(encoding="utf-8"))
+def _precommit_hooks(cfg: dict | None = None) -> list[dict]:
+    cfg = yaml.safe_load(_PRECOMMIT.read_text(encoding="utf-8")) if cfg is None else cfg
     return [h for repo in cfg.get("repos", []) for h in repo.get("hooks", [])]
+
+
+def local_gap(cfg: dict) -> list[str]:
+    """What the local hook lacks to refuse what the CI refuses. Pure over the config."""
+    hooks = [h for h in _precommit_hooks(cfg) if _SCRIPT in str(h.get("entry", ""))]
+    if not hooks:
+        return ["no hook"]
+    h, gap = hooks[0], []
+    if "--strict" not in str(h["entry"]):
+        gap.append("not --strict")
+    if ".claude" not in str(h.get("files", "")):
+        gap.append("not triggered on .claude/")
+    if h.get("pass_filenames") is not False:
+        gap.append("pass_filenames")
+    return gap
+
+
+def test_the_local_hook_refuses_what_the_ci_refuses():
+    assert local_gap(yaml.safe_load(_PRECOMMIT.read_text(encoding="utf-8"))) == []
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the 2026-09-04 state (no local hook — eight red runs on main) and a
+    hook that passes what the CI refuses (no --strict, wrong trigger) are refused; the
+    real hook shape is accepted."""
+    good = {"id": "rex", "entry": f"python3 .claude/scripts/{_SCRIPT} --strict",
+            "files": "^\\.claude/", "pass_filenames": False}
+    assert local_gap({"repos": [{"hooks": [{"id": "ruff", "entry": "ruff"}]}]}) == ["no hook"]
+    lax = {**good, "entry": f"python3 {_SCRIPT}", "files": "^src/"}
+    assert local_gap({"repos": [{"hooks": [lax]}]}) == [
+        "not --strict", "not triggered on .claude/"]
+    assert local_gap({"repos": [{"hooks": [good]}]}) == []
 
 
 def test_pre_commit_runs_the_rex_validator():
