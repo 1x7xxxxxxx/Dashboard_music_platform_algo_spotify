@@ -85,14 +85,14 @@ _CEILINGS = {
     # une preuve. Un garde ne compte comme vu rouge que s'il ÉCHOUE sur le défaut.
     # Historique : 363 → 352 (les `n-a`) → 332 (phase B, traces de mutation) → 330
     # le 2026-09-17 (un défaut remis et vu lever) → 321 ce jour-ci.
-    "seen_red_unknown": 32,  # 140 → 138 le 2026-09-25 ; → 137 le 2026-09-26 (R169) ; → 134 ; → 133 ; → 132 ; → 131 ; → 130 ; → 129 ; → 128 ; → 127 ; → 126 ; → 125 ; → 124 ; → 123 ; → 122 ; → 119 ; → 117 ; → 116 ; → 115 ; → 114 ; → 114 ; → 113 ; → 110 ; → 109 ; → 106 ; → 103 ; → 100 ; → 97 ; → 94 ; → 91 ; → 88 ; → 85 ; → 82 ; → 79 ; → 76 ; → 73 ; → 70 ; → 67 ; → 64 ; → 61 ; → 58 ; → 57 ; → 56 ; → 54 ; → 52 ; → 50 ; → 48 ; → 45 ; → 43 ; → 42 ; → 40 ; → 38 ; → 36 ; → 35 ; → 33 ; → 32
+    "seen_red_unknown": 31,  # 140 → 138 le 2026-09-25 ; → 137 le 2026-09-26 (R169) ; → 134 ; → 133 ; → 132 ; → 131 ; → 130 ; → 129 ; → 128 ; → 127 ; → 126 ; → 125 ; → 124 ; → 123 ; → 122 ; → 119 ; → 117 ; → 116 ; → 115 ; → 114 ; → 114 ; → 113 ; → 110 ; → 109 ; → 106 ; → 103 ; → 100 ; → 97 ; → 94 ; → 91 ; → 88 ; → 85 ; → 82 ; → 79 ; → 76 ; → 73 ; → 70 ; → 67 ; → 64 ; → 61 ; → 58 ; → 57 ; → 56 ; → 54 ; → 52 ; → 50 ; → 48 ; → 45 ; → 43 ; → 42 ; → 40 ; → 38 ; → 36 ; → 35 ; → 33 ; → 32 ; → 31
     # ── Ajouté le 2026-09-18 avec l'état `self-proving` ─────────────────────────
     # Voir une signature rouge UNE fois, à la main, prouve qu'elle mordait CE SOIR-LÀ.
     # Un garde qui porte un test fabriquant la forme interdite se prouve à CHAQUE
     # exécution. À l'introduction : **9 gardes sur 192** le faisaient (5 %), donc 391
     # classes sur 400 n'ont pas cette preuve. Le plafond ne peut que baisser, et il
     # baisse en ÉCRIVANT le test de non-vacuité dans le garde — pas en rédigeant.
-    "guard_does_not_prove_itself": 70,  # 306 → 303 le 2026-09-25 (R169) ; → 300 le 2026-09-26 (migration P1 gardée, central-app + wrapper RTK auto-prouvants) ; → 297 (shared-db, replica, prose-claim) ; → 294 (collector, env, connexion par vue) ; → 292 (digest du guide, porte de dépendances) ; → 288 (4 preuves existantes enfin citées) ; → 285 ; → 284 ; → 281 ; → 278 ; → 276 ; → 274 ; → 270 ; → 268 ; → 266 ; → 264 ; → 263 ; → 261 ; → 259 ; → 258 ; → 257 ; → 256 ; → 255 ; → 253 ; → 249 ; → 247 ; → 245 ; → 244 ; → 243 ; → 242 ; → 240 ; → 238 ; → 237 ; → 236 ; → 235 ; → 234 ; → 231 ; → 228 ; → 225 ; → 222 ; → 219 ; → 216 ; → 213 ; → 210 ; → 207 ; → 204 ; → 201 ; → 198 ; → 195 ; → 192 ; → 189 ; → 186 ; → 185 ; → 182 ; → 179 ; → 176 ; → 173 ; → 170 ; → 167 ; → 164 ; → 161 ; → 158 ; → 156 ; → 153 ; → 150 ; → 147 ; → 144 ; → 141 ; → 138 ; → 135 ; → 132 ; → 129 ; → 126 ; → 123 ; → 121 ; → 119 ; → 117 ; → 115 ; → 112 ; → 110 ; → 108 ; → 105 ; → 102 ; → 99 ; → 97 ; → 93 ; → 91 ; → 89 ; → 86 ; → 84 ; → 82 ; → 80 ; → 79 ; → 78 ; → 76 ; → 74 ; → 73 ; → 72 ; → 70
+    "guard_does_not_prove_itself": 68,  # 306 → 303 le 2026-09-25 (R169) ; → 300 le 2026-09-26 (migration P1 gardée, central-app + wrapper RTK auto-prouvants) ; → 297 (shared-db, replica, prose-claim) ; → 294 (collector, env, connexion par vue) ; → 292 (digest du guide, porte de dépendances) ; → 288 (4 preuves existantes enfin citées) ; → 285 ; → 284 ; → 281 ; → 278 ; → 276 ; → 274 ; → 270 ; → 268 ; → 266 ; → 264 ; → 263 ; → 261 ; → 259 ; → 258 ; → 257 ; → 256 ; → 255 ; → 253 ; → 249 ; → 247 ; → 245 ; → 244 ; → 243 ; → 242 ; → 240 ; → 238 ; → 237 ; → 236 ; → 235 ; → 234 ; → 231 ; → 228 ; → 225 ; → 222 ; → 219 ; → 216 ; → 213 ; → 210 ; → 207 ; → 204 ; → 201 ; → 198 ; → 195 ; → 192 ; → 189 ; → 186 ; → 185 ; → 182 ; → 179 ; → 176 ; → 173 ; → 170 ; → 167 ; → 164 ; → 161 ; → 158 ; → 156 ; → 153 ; → 150 ; → 147 ; → 144 ; → 141 ; → 138 ; → 135 ; → 132 ; → 129 ; → 126 ; → 123 ; → 121 ; → 119 ; → 117 ; → 115 ; → 112 ; → 110 ; → 108 ; → 105 ; → 102 ; → 99 ; → 97 ; → 93 ; → 91 ; → 89 ; → 86 ; → 84 ; → 82 ; → 80 ; → 79 ; → 78 ; → 76 ; → 74 ; → 73 ; → 72 ; → 70 ; → 68
     "seen_red_never": 0,
     # 363 → 241 : les causes qui nomment un chemin vérifiable.
     # 241 → 183 le 2026-09-17 : les **58** classes dont le `root_cause` cite un fichier
@@ -817,3 +817,20 @@ def test_the_header_readers_see_the_defect_they_are_written_for() -> None:
     expected = {"a-first-class", "a-second-class"}
     assert {c["id"] for c in audit_runner.parse_all_headers(doc)} == expected
     assert set(health._blocks(doc)) == expected
+
+
+def test_the_shared_guard_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, class `a-class-that-claims-its-neighbours-guard`: a scope on a
+    shared guard file that names none of its tests is refused; naming one — as a node
+    in the signature or as a backticked test in the scope — is enough."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "_ech_for_shared", _ROOT / "tools" / "dev" / "error_class_health.py")
+    health = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = health
+    spec.loader.exec_module(health)
+
+    vague = "couvre: le croisement Caddy ↔ sonde ; ne couvre pas: x"
+    assert not health._names_a_test(vague, "pytest tests/test_caddy.py -q")
+    assert health._names_a_test(vague, "pytest tests/test_caddy.py::test_the_probe_crosses -q")
+    assert health._names_a_test("couvre: `test_the_probe_crosses`", "pytest tests/x.py")
