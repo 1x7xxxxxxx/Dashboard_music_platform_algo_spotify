@@ -90,6 +90,49 @@ def test_the_collector_skips_the_profile_call_without_a_user_id():
     )
 
 
+def skips_without_claims(source: str) -> "list[str] | None":
+    """Every branch that SKIPS a tenant on `user_id` (an `if` on it holding a
+    `continue`) and does not call `has_claimed_tracks` inside it. None when no such
+    branch exists — the DAG changed shape and this guard is blind. Pure.
+
+    ALL of them, not "at least one": with `any`, this guard stayed green when the
+    COLLECTION lost its call because the PREFLIGHT carried one (2026-09-18).
+    """
+    tree = ast.parse(source)
+    branches = [n for n in ast.walk(tree) if isinstance(n, ast.If)
+                and "user_id" in ast.unparse(n.test)
+                and any(isinstance(x, ast.Continue) for x in ast.walk(n))]
+    if not branches:
+        return None
+    return [ast.unparse(b.test) + f" (ligne {b.lineno})" for b in branches
+            if not any(isinstance(c, ast.Call)
+                       and getattr(c.func, "id", "") == "has_claimed_tracks"
+                       for c in ast.walk(b))]
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, class `the-feature-exists-and-the-path-never-reaches-it`: the
+    2026-09-18 shape — the preflight reads the claims, the collection skips on
+    `user_id` alone — names the collection branch; both reading the claims pass;
+    a DAG with no skipping branch is reported blind, not clean."""
+    dag = ("def preflight(tenants):\n"
+           "    for t in tenants:\n"
+           "        if not t.user_id and not has_claimed_tracks(t):\n"
+           "            continue\n"
+           "def collect(tenants):\n"
+           "    for t in tenants:\n"
+           "        if t.user_id:\n"                      # decides nothing: no skip
+           "            log.info(t.user_id)\n"
+           "        if not t.user_id:\n"
+           "            log.info('no user_id')\n"         # a call, but not the claims
+           "            continue\n")
+    assert skips_without_claims(dag) == ["not t.user_id (ligne 9)"]
+    fixed = dag.replace("        if not t.user_id:\n",
+                        "        if not t.user_id and not has_claimed_tracks(t):\n")
+    assert skips_without_claims(fixed) == []
+    assert skips_without_claims("def collect(t):\n    return t\n") is None
+
+
 def test_the_dag_reads_the_claims_before_skipping():
     src = _DAG.read_text(encoding="utf-8")
     assert "has_claimed_tracks" in src, (
@@ -108,21 +151,10 @@ def test_the_dag_reads_the_claims_before_skipping():
     # COLLECTE. Un garde de présence devient aveugle dès qu'un second site fournit
     # la présence. On exige donc l'appel DANS la branche qui décide de sauter :
     # celle qui teste `user_id` et porte un `continue`.
-    branches = [n for n in ast.walk(tree) if isinstance(n, ast.If)
-                and "user_id" in ast.unparse(n.test)
-                and any(isinstance(x, ast.Continue) for x in ast.walk(n))]
-    assert branches, (
+    nues = skips_without_claims(src)
+    assert nues is not None, (
         "aucune branche ne teste `user_id` pour décider de sauter — la forme du DAG "
         "a changé, et ce test ne sait plus où regarder.")
-    # TOUTES, pas « au moins une ». Avec `any`, ce test est resté vert quand la
-    # COLLECTE a perdu son appel, parce que le PRÉCONTRÔLE en portait un — deux
-    # branches qui posent la même question, et une seule vérifiée. La propriété
-    # juste est : tout endroit qui saute sur un `user_id` vide lit d'abord les
-    # déclarations, sinon il refuse un locataire pour ce qu'il ne peut pas fournir.
-    nues = [ast.unparse(b.test) + f" (ligne {b.lineno})" for b in branches
-            if not any(isinstance(c, ast.Call)
-                       and getattr(c.func, "id", "") == "has_claimed_tracks"
-                       for c in ast.walk(b))]
     assert not nues, (
         f"{nues} sautent sur un `user_id` vide SANS lire les déclarations. Un appel "
         "ailleurs dans le fichier ne protège pas cette branche-là : chaque endroit "
