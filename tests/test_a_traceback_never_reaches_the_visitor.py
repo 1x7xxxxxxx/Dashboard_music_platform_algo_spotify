@@ -34,9 +34,13 @@ def test_the_config_exists():
     assert _CONFIG.is_file(), f"{_CONFIG} manquant — le réglage ne serait pas embarqué"
 
 
+def error_details(toml_text: str) -> str | None:
+    """The configured `client.showErrorDetails`, or None when left to Streamlit. Pure."""
+    return tomllib.loads(toml_text).get("client", {}).get("showErrorDetails")
+
+
 def test_a_visitor_never_sees_a_traceback():
-    cfg = tomllib.loads(_CONFIG.read_text(encoding="utf-8"))
-    value = cfg.get("client", {}).get("showErrorDetails")
+    value = error_details(_CONFIG.read_text(encoding="utf-8"))
     assert value is not None, (
         "client.showErrorDetails n'est pas configuré. Le DÉFAUT de Streamlit est "
         "`full` : une exception non rattrapée rend sa traceback complète dans le "
@@ -48,6 +52,14 @@ def test_a_visitor_never_sees_a_traceback():
         f"peuvent remplir avec le credential qu'ils passent en query string. "
         f"Valeurs acceptées ici : {sorted(_SAFE)}."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the production state of 2026-08-23 (key absent → Streamlit's
+    `full`) and an explicit `full` are both refused; the fix is accepted."""
+    assert error_details("[server]\nmaxUploadSize = 50\n") is None
+    assert error_details('[client]\nshowErrorDetails = "full"\n') not in _SAFE
+    assert error_details('[client]\nshowErrorDetails = "none"\n') in _SAFE
 
 
 def test_the_upload_cap_is_still_there():
