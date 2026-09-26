@@ -43,6 +43,49 @@ def _connect(autocommit: bool = False):
     return connect(autocommit=autocommit)
 
 
+# (stored id key, env id var, stored secret key, env secret var) — the CENTRAL apps.
+_CENTRAL_APPS = {
+    "meta": ("app_id", "META_APP_ID", "app_secret", "META_APP_SECRET"),
+    "spotify": ("client_id", "SPOTIFY_CLIENT_ID", "client_secret", "SPOTIFY_CLIENT_SECRET"),
+    "soundcloud": ("client_id", "SOUNDCLOUD_CLIENT_ID", "client_secret",
+                   "SOUNDCLOUD_CLIENT_SECRET"),
+}
+
+
+def central_app_wins(platform: str, creds: dict, env: "dict | None" = None) -> dict:
+    """A tenant's stored copy of the CENTRAL app's secret never outranks the environment.
+
+    Measured in production on 2026-09-26: after R177 rotated `META_APP_SECRET` in `.env`,
+    artist 1's credentials still carried their own `app_secret` — a copy of the OLD
+    central secret — and every reader does `creds.get('app_secret') or env`. The stored
+    copy won, every Graph call was signed with a dead secret, and Meta answered
+    `#100 Invalid appsecret_proof` for the whole tenant.
+
+    The rule, applied at the single door every reader goes through: when the stored app
+    id IS the central app's (or is absent), the environment's secret is the truth — a
+    rotation lands in one place. A tenant with its OWN app (a different id) keeps its own
+    secret. Pure (`env` defaults to `os.environ`).
+    """
+    spec = _CENTRAL_APPS.get(platform)
+    if not spec or not creds:
+        return creds
+    id_key, id_env, secret_key, secret_env = spec
+    env = os.environ if env is None else env
+    central_id, central_secret = env.get(id_env), env.get(secret_env)
+    if not central_secret or secret_key not in creds:
+        return creds
+    stored_id = creds.get(id_key)
+    # A stored id we cannot COMPARE is not proof it is ours: with the central id unset
+    # (a config gap), a tenant's own app would otherwise get the central secret next to
+    # its own id (security review, 2026-09-26, MEDIUM).
+    if stored_id and (not central_id or str(stored_id) != str(central_id)):
+        return creds                         # the tenant's own app, its own secret
+    if creds[secret_key] != central_secret:
+        logger.info("credential_loader: %s — stored copy of the central %s ignored, "
+                    "the environment's value wins", platform, secret_key)
+    return {**creds, secret_key: central_secret}
+
+
 def load_platform_credentials(artist_id: int, platform: str) -> dict:
     """Retourne les credentials déchiffrés pour (artist_id, platform).
 
@@ -99,7 +142,7 @@ def load_platform_credentials(artist_id: int, platform: str) -> dict:
             except Exception:
                 extra = {}
 
-        return {**extra, **secrets}
+        return central_app_wins(platform, {**extra, **secrets})
 
     except Exception as e:
         # NOT `return {}`: an unreadable store is not an unconnected artist.
