@@ -184,9 +184,14 @@ def probe_hook(root: Path) -> int:
 def probe_terminal_commit(root: Path) -> int:
     """A plain `git commit` of the probe class, outside Claude Code: its exit code."""
     subprocess.run(["git", "add", CATALOGUE], cwd=root, capture_output=True)
+    # An EMPTY transcript folder: the check must find no sweep and refuse. Without one it
+    # stands aside by design (CI, another machine) — which would read as a pass here.
+    empty = root.parent / "empty-transcripts"
+    empty.mkdir(exist_ok=True)
+    env = {**os.environ, "HOOK_TRANSCRIPTS_DIR": str(empty)}
     r = subprocess.run(["git", "-c", "user.email=p@p", "-c", "user.name=probe", "commit", "-q",
                         "-m", "probe", "--", CATALOGUE], cwd=root, capture_output=True, text=True,
-                       timeout=600)
+                       env=env, timeout=600)
     return r.returncode
 
 
