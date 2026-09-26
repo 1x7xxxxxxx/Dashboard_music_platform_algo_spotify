@@ -36,6 +36,16 @@ def _tenants(db) -> list[tuple]:
         "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY id")
 
 
+def isolation_is_testable(active: list, identities: list) -> list[str]:
+    """Why a database cannot exercise tenant isolation, or []. Pure."""
+    why = []
+    if len(active) < MINIMUM:
+        why.append(f"{len(active)} active tenant(s)")
+    if len(set(identities)) != len(identities):
+        why.append("two tenants share one Spotify identity")
+    return why
+
+
 def test_the_database_under_test_holds_at_least_two_tenants() -> None:
     from src.database.postgres_handler import PostgresHandler
     from src.utils.env_files import load_project_env
@@ -47,7 +57,7 @@ def test_the_database_under_test_holds_at_least_two_tenants() -> None:
     finally:
         db.close()
 
-    assert len(rows) >= MINIMUM, (
+    assert not isolation_is_testable(rows, []), (
         f"only {len(rows)} active tenant(s) in the database under test: "
         f"{[r[1] for r in rows]}.\n"
         "A single-tenant database makes every isolation defect look correct — three "
@@ -76,7 +86,18 @@ def test_the_second_tenant_is_not_a_copy_of_the_first() -> None:
         pytest.skip("fewer than two tenants declare a Spotify identity")
 
     identities = [r[1] for r in rows]
-    assert len(set(identities)) == len(identities), (
+    assert not isolation_is_testable(rows, identities), (
         f"two tenants share a Spotify identity: {identities}. A tenant borrowing "
         "another's identity passes every isolation check while proving nothing."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, without a database: a one-tenant base, and a canary borrowing the
+    admin's Spotify id (the 2026-08-20 shape), are both refused; two distinct tenants
+    are accepted."""
+    admin, canary = (1, "1x7"), (14, "Canary")
+    assert isolation_is_testable([admin], []) == ["1 active tenant(s)"]
+    assert isolation_is_testable([admin, canary], ["7sbf", "7sbf"]) == [
+        "two tenants share one Spotify identity"]
+    assert isolation_is_testable([admin, canary], ["7sbf", "3Wq9"]) == []

@@ -26,14 +26,18 @@ from tests.db_gate import requires_live_db
 
 # ── the shape, on every table the collector writes ───────────────────────────
 
+def frozen_clocks(update_cols: dict) -> list[str]:
+    """Tables whose upsert refreshes the row but not `collected_at`. Pure."""
+    return sorted(t for t, cols in update_cols.items() if "collected_at" not in cols)
+
+
 def test_every_meta_upsert_refreshes_collected_at():
     from src.collectors._meta_upsert import _MetaUpsertMixin
 
     insight_cols, _conflict = _MetaUpsertMixin._insight_upsert_maps()
     assert insight_cols, "no insight tables found — the map is not being read"
 
-    missing = sorted(t for t, cols in insight_cols.items()
-                     if "collected_at" not in cols)
+    missing = frozen_clocks(insight_cols)
     assert not missing, (
         f"{len(missing)} insight table(s) refresh their rows without refreshing "
         f"`collected_at`: {missing[:5]}{'…' if len(missing) > 5 else ''}. "
@@ -158,3 +162,12 @@ class TestAgainstPostgres:
                              (campaign_id,))
             db.execute_query("DELETE FROM saas_artists WHERE id = %s", (artist_id,))
             db.close()
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: an update map that refreshes the metrics but not the clock — the
+    three tables of the original defect — is named; one that refreshes both is not."""
+    stale = {"meta_insights_age": ["impressions", "spend"],
+             "meta_insights_country": ["impressions", "spend", "collected_at"]}
+    assert frozen_clocks(stale) == ["meta_insights_age"]
+    assert frozen_clocks({"meta_insights_age": ["impressions", "collected_at"]}) == []
