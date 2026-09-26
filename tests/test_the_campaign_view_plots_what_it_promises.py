@@ -212,7 +212,10 @@ def test_the_absences_are_explained_not_hidden() -> None:
     from src.dashboard.utils.i18n_catalog.meta_x_spotify import EN
     for cle in ("meta_x_spotify.abs_unlinked", "meta_x_spotify.abs_streams",
                 "meta_x_spotify.abs_pi", "meta_x_spotify.abs_hyp",
-                "meta_x_spotify.abs_apple"):
+                # R213 (lot e): Apple's one « not traceable by construction » line is
+                # three cases now — no reading, readings after the window, too sparse.
+                "meta_x_spotify.abs_apple_none", "meta_x_spotify.abs_apple_late",
+                "meta_x_spotify.abs_apple_sparse"):
         assert cle in EN, f"{cle} : une absence sans phrase est un silence"
 
 

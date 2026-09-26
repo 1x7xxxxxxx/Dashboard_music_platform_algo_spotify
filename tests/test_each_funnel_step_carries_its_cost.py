@@ -49,3 +49,40 @@ def test_a_short_baseline_gives_no_step_not_a_zero() -> None:
     short = _daily(_BASELINE_MIN_DAYS - 1, 10, 5, 30, d0)
     assert _streams_gained(short, d0, d0 + dt.timedelta(days=4)) is None
     assert _streams_gained(pd.DataFrame(columns=["date", "streams"]), d0, d0) is None
+
+
+# ── Apple / Shazam around the campaign (R213 lot e) ───────────────────────────
+class _Db:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def fetch_df(self, sql, params=None):
+        return pd.DataFrame(self.rows, columns=["date", "apple_plays", "apple_shazams",
+                                                "days_since_previous"])
+
+
+def _apple(rows, d0=dt.date(2024, 6, 1), d1=dt.date(2024, 6, 30)):
+    from src.dashboard.views.meta_x_spotify import _collect_apple
+    frames, absences = [], []
+    _collect_apple(_Db(rows), 1, "Song", d0, d1, frames, absences)
+    return frames, absences
+
+
+def test_daily_apple_readings_enter_the_figure() -> None:
+    frames, absences = _apple([(dt.date(2024, 6, 2), 5, 1, 1), (dt.date(2024, 6, 3), 7, 2, 1)])
+    assert absences == [] and len(frames[0]) == 2
+
+
+def test_readings_after_the_window_say_when_they_start_not_that_there_are_none() -> None:
+    """Seen on the render 2026-09-27: filtering on the window end in SQL said « no reading »."""
+    _, absences = _apple([(dt.date(2025, 11, 29), None, None, None)])
+    assert absences == [("apple_late", dt.date(2025, 11, 29))], absences
+
+
+def test_sparse_readings_are_not_drawn_as_daily() -> None:
+    frames, absences = _apple([(dt.date(2024, 6, 10), 50, 4, 40)])
+    assert frames == [] and absences == [("apple_sparse", None)]
+
+
+def test_no_reading_at_all_is_said() -> None:
+    assert _apple([])[1] == [("apple_none", None)]

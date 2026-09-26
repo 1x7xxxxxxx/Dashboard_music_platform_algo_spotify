@@ -198,6 +198,8 @@ def _collect(db, artist_id, acct, acct_p, campaign, s4a_song, d0, d1) -> tuple:
     else:
         absences.append(("spotify_unlinked", None))
 
+    _collect_apple(db, artist_id, s4a_song, d0, d1, frames, absences)
+
     hyp = _df(db, """
         SELECT day AS date, clicks AS hypeddit_clicks, visits AS hypeddit_visits
           FROM v_hypeddit_daily
@@ -211,6 +213,42 @@ def _collect(db, artist_id, acct, acct_p, campaign, s4a_song, d0, d1) -> tuple:
         absences.append(("hypeddit", _first_day(first)))
 
     return frames, absences
+
+
+def _collect_apple(db, artist_id, s4a_song, d0, d1, frames: list, absences: list) -> None:
+    """Apple plays and Shazams of the linked track, on the days they are DAILY (R213 e).
+
+    One query: the Apple leg of the same confirmed `match_key` as the S4A title, EVERY
+    reading — not only those before d1: readings that start after the window are the
+    answer « too late », and filtering them in SQL turned it into « no reading ». Only readings one day after the previous one enter the figure — a
+    gap of six months is not « per day ». Otherwise the absence says which case it is:
+    no Apple link, readings that start after the window, or readings too far apart."""
+    if not s4a_song:
+        return
+    rows = _df(db, """
+        SELECT d.day AS date, d.daily_plays AS apple_plays,
+               d.daily_shazams AS apple_shazams, d.days_since_previous
+          FROM track_platform_link s
+          JOIN track_platform_link a
+            ON a.artist_id = s.artist_id AND a.match_key = s.match_key
+           AND a.platform = 'apple' AND a.status = 'confirmed'
+          JOIN v_apple_song_daily d
+            ON d.artist_id = a.artist_id AND d.song_name = a.platform_title
+         WHERE s.artist_id = %s AND s.platform = 's4a' AND s.status = 'confirmed'
+           AND s.platform_title = %s
+    """, (artist_id, s4a_song))
+    if rows.empty:
+        absences.append(("apple_none", None))
+        return
+    rows['date'] = pd.to_datetime(rows['date'])
+    window = rows[(rows['date'] >= pd.Timestamp(d0)) & (rows['date'] <= pd.Timestamp(d1))]
+    daily = window[pd.to_numeric(window['days_since_previous'], errors='coerce') == 1]
+    if not daily.empty:
+        frames.append(daily[['date', 'apple_plays', 'apple_shazams']])
+    elif window.empty:
+        absences.append(("apple_late", rows['date'].min().date()))
+    else:
+        absences.append(("apple_sparse", None))
 
 
 def _first_day(df: pd.DataFrame):
@@ -335,6 +373,10 @@ _SERIES = [
     ("popularity",      "Indice de popularité", "spotify",  "dot",    ",.0f"),
     ("hypeddit_visits", "Visites Hypeddit",     "hypeddit", None,     ",.0f"),
     ("hypeddit_clicks", "Clics vers les stores", "hypeddit", "dash",  ",.0f"),
+    # R213 (lot e) — Apple is a series of CUMULATIVE snapshots; only a gap of ONE day
+    # between two readings is a daily quantity (`v_apple_song_daily.days_since_previous`).
+    ("apple_plays",     "Écoutes Apple / jour", "apple",    None,     ",.0f"),
+    ("apple_shazams",   "Shazams / jour",       "apple",    "dot",    ",.0f"),
 ]
 
 
@@ -466,15 +508,28 @@ def _render_absences(absences: list, d0, d1) -> None:
                   "📱 **Hypeddit** — aucune statistique pour cette campagne."),
                 first, d1))
 
-    # APPLE / SHAZAM : ce n'est pas une absence de données, c'est une absence de
-    # SÉRIE. `apple_songs_performance` est un instantané cumulé par titre, sans
-    # grain quotidien — il ne peut pas se poser sur un axe de temps, quelle que
-    # soit la période. Le dire une fois vaut mieux que le redécouvrir.
-    lignes.append(t("meta_x_spotify.abs_apple",
-                    "🎎 **Apple Music / Shazam** — non traçable ici par "
-                    "construction : l'export Apple est un **instantané cumulé par "
-                    "titre**, pas une série quotidienne. Ses totaux vivent sur "
-                    "**🎎 Apple Music**."))
+        # APPLE / SHAZAM (R213 e) — the old line said « not traceable by construction »
+        # on every campaign. Since `v_apple_song_daily` (migration 131) derives a daily
+        # quantity from consecutive snapshots, it IS traceable when readings are daily;
+        # the absence now says which of the three cases holds.
+        elif quoi == "apple_none":
+            lignes.append(t("meta_x_spotify.abs_apple_none",
+                            "🎎 **Apple Music / Shazam** — aucun relevé Apple pour ce "
+                            "titre (ou pas de lien Apple confirmé dans **🔗 Mapping "
+                            "cross-plateforme**)."))
+        elif quoi == "apple_late":
+            lignes.append(_late(
+                t("meta_x_spotify.abs_apple_late",
+                  "🎎 **Apple Music / Shazam** — les relevés Apple de ce titre "
+                  "commencent le **{d}**, après cette fenêtre."),
+                t("meta_x_spotify.abs_apple_none", "🎎 **Apple Music / Shazam** — aucun relevé."),
+                first, d1))
+        elif quoi == "apple_sparse":
+            lignes.append(t("meta_x_spotify.abs_apple_sparse",
+                            "🎎 **Apple Music / Shazam** — des relevés existent sur cette "
+                            "fenêtre, mais espacés de plus d'un jour : un écart entre deux "
+                            "relevés n'est pas une quantité quotidienne. Importe l'export "
+                            "Apple chaque jour de campagne pour qu'il se trace ici."))
 
     if lignes:
         with st.expander(t("meta_x_spotify.absences_header",
@@ -516,7 +571,7 @@ def _merge(frames: list) -> pd.DataFrame:
         master = pd.merge(master, f, on="date", how="left")
 
     for col in ("spend", "results", "impressions", "reach", "streams", "popularity",
-                "hypeddit_clicks", "hypeddit_visits"):
+                "hypeddit_clicks", "hypeddit_visits", "apple_plays", "apple_shazams"):
         if col in master.columns:
             master[col] = pd.to_numeric(master[col], errors="coerce").astype(float)
 

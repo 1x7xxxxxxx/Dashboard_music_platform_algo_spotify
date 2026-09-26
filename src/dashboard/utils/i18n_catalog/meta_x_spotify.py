@@ -78,10 +78,6 @@ EN = {
     "meta_x_spotify.abs_hyp": "📱 **Hypeddit** — no statistic for this campaign over this "
                               "window (first reading on record: {d}).",
     "meta_x_spotify.abs_hyp_never": "📱 **Hypeddit** — no statistic for this campaign.",
-    "meta_x_spotify.abs_apple": "🎎 **Apple Music / Shazam** — not plottable here by "
-                                "construction: the Apple export is a **cumulative "
-                                "snapshot per track**, not a daily series. Its totals "
-                                "live on **🎎 Apple Music**.",
 
     # Shared empty state
     "meta_x_spotify.no_data": "No data over this window.",
@@ -149,4 +145,9 @@ EN = {
     "meta_x_spotify.funnel_gain_note": "🎧 **{g} streams gained** on Spotify over the window{cost} — compared with the average of the {n} days before ({b} streams/day). A rise that would have happened without the ad is counted too, and a stream is not a funnel step: one visitor streams many times.",
     "meta_x_spotify.funnel_gain_cost": ", i.e. **{c} €** per stream gained",
     "meta_x_spotify.funnel_no_gain": "No « streams gained » step: it needs at least {n} days of streams recorded before the campaign, and a measurable rise.",
+    "meta_x_spotify.series_apple_plays": "Apple plays / day",
+    "meta_x_spotify.series_apple_shazams": "Shazams / day",
+    "meta_x_spotify.abs_apple_none": "🎎 **Apple Music / Shazam** — no Apple reading for this track (or no confirmed Apple link in **🔗 Cross-platform mapping**).",
+    "meta_x_spotify.abs_apple_late": "🎎 **Apple Music / Shazam** — this track's Apple readings start on **{d}**, after this window.",
+    "meta_x_spotify.abs_apple_sparse": "🎎 **Apple Music / Shazam** — readings exist over this window, but more than a day apart: a gap between two readings is not a daily quantity. Import the Apple export every campaign day for it to be drawn here.",
 }
