@@ -45,7 +45,7 @@ def _db_ready() -> bool:
         return False
 
 
-pytestmark = pytest.mark.skipif(not _db_ready(), reason="needs the provisioned DB")
+_needs_db = pytest.mark.skipif(not _db_ready(), reason="needs the provisioned DB")
 
 # Les vues qu'un artiste atteint et qui doivent MONTRER quelque chose. La liste est
 # volontairement celle du parcours — pas toutes les vues : les pages d'action
@@ -74,14 +74,8 @@ show()
 """
 
 
-@pytest.mark.parametrize("view", _VIEWS)
-def test_a_view_shows_data_or_names_its_absence(view):
-    from streamlit.testing.v1 import AppTest
-
-    at = AppTest.from_string(_SCRIPT.format(root=os.getcwd(), view=view))
-    at.run(timeout=240)
-    assert not at.exception, f"{view} a levé : {at.exception}"
-
+def says_something(at) -> tuple[int, int]:
+    """(data elements, messages to the reader) an AppTest run rendered. Pure over `at`."""
     # Ce qui compte comme « montrer » : une donnée rendue, sous n'importe quelle forme.
     substantive = 0
     for kind in ("dataframe", "table", "metric", "line_chart", "bar_chart",
@@ -91,9 +85,21 @@ def test_a_view_shows_data_or_names_its_absence(view):
             substantive += len(at.get(kind))
         except Exception:      # noqa: BLE001 — l'élément n'existe pas dans cette version
             pass
-
     # Ce qui compte comme « dire pourquoi » : un message adressé au lecteur.
     spoken = len(at.info) + len(at.warning) + len(at.error) + len(at.success)
+    return substantive, spoken
+
+
+@_needs_db
+@pytest.mark.parametrize("view", _VIEWS)
+def test_a_view_shows_data_or_names_its_absence(view):
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_string(_SCRIPT.format(root=os.getcwd(), view=view))
+    at.run(timeout=240)
+    assert not at.exception, f"{view} a levé : {at.exception}"
+
+    substantive, spoken = says_something(at)
 
     assert substantive or spoken, (
         f"« {view} » n'affiche NI donnée NI explication — un titre, et rien.\\n"
@@ -102,3 +108,20 @@ def test_a_view_shows_data_or_names_its_absence(view):
         "s'il doit attendre, configurer, ou signaler.\\n"
         "Deux sorties acceptables : rendre la donnée, ou nommer son absence avec "
         "`st.info` / `st.warning`.")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, without a database: a view that renders a TITLE and nothing (the
+    third way of not working) scores zero on both counts; one that names its absence,
+    and one that draws a metric, do not."""
+    from streamlit.testing.v1 import AppTest
+
+    def run(body: str):
+        at = AppTest.from_string("import streamlit as st\n" + body)
+        at.run(timeout=30)
+        assert not at.exception
+        return says_something(at)
+
+    assert run("st.title('YouTube')\n") == (0, 0)
+    assert run("st.title('YouTube')\nst.info('Aucune donnée : connecte ta chaîne')\n") == (0, 1)
+    assert run("st.title('YouTube')\nst.metric('Vues', 12)\n")[0] == 1
