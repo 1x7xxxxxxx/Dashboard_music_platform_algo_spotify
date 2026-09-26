@@ -533,6 +533,41 @@ def test_the_ceiling_names_functions_that_still_exist() -> None:
         "sinon elle autorise un retour silencieux.")
 
 
+def protections(tree: ast.AST, name: str) -> int:
+    """How many sites carry the PROTECTION `name` — its protective value, not its name.
+
+    Until 2026-09-26 this counted the `connectgaps` keyword whatever its value, so
+    flipping one site to `connectgaps=True` — the defect itself — left the count at 2
+    and the guard green (seen by mutation).
+    """
+    def const(node) -> object:
+        return node.value if isinstance(node, ast.Constant) else None
+
+    if name == "_measured":
+        return sum(1 for n in ast.walk(tree) if isinstance(n, ast.Call)
+                   and getattr(n.func, "id", "") == "_measured")
+    if name == "min_count":
+        # `min_count=` est un mot-clé d'appel : un commentaire ne peut pas le produire.
+        return sum(1 for n in ast.walk(tree) if isinstance(n, ast.keyword)
+                   and n.arg == "min_count" and isinstance(const(n.value), int)
+                   and const(n.value) >= 1)
+    return sum(1 for n in ast.walk(tree) if isinstance(n, ast.keyword)
+               and n.arg == name and const(n.value) is False)
+
+
+def test_the_protection_counter_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity: a site flipped back to `connectgaps=True`, and `min_count=0`, no
+    longer count as protected; the protective values do."""
+    def count(src: str, name: str) -> int:
+        return protections(ast.parse(src), name)
+
+    assert count("go.Scatter(y=y, connectgaps=False)\ngo.Scatter(y=z, connectgaps=True)\n",
+                 "connectgaps") == 1
+    assert count("df.groupby('c').sum(min_count=0)\n", "min_count") == 0
+    assert count("df.groupby('c').sum(min_count=1)\n", "min_count") == 1
+    assert count("_measured(s)\n_measured(t)\n", "_measured") == 2
+
+
 def test_the_fixed_sites_did_not_come_back() -> None:
     """Les cinq figures corrigées le 2026-09-12, nommées une par une.
 
@@ -573,18 +608,7 @@ def test_the_fixed_sites_did_not_come_back() -> None:
     }
     short = []
     for path, (name, expected) in fixed.items():
-        tree = ast.parse((_ROOT / path).read_text(encoding="utf-8"))
-        if name == "_measured":
-            seen = sum(1 for n in ast.walk(tree) if isinstance(n, ast.Call)
-                       and getattr(n.func, "id", "") == "_measured")
-        elif name == "min_count":
-            # `min_count=` est un mot-clé d'appel, comme `connectgaps=` : on le
-            # compte de la même façon, et un commentaire ne peut pas le produire.
-            seen = sum(1 for n in ast.walk(tree) if isinstance(n, ast.keyword)
-                       and n.arg == "min_count")
-        else:
-            seen = sum(1 for n in ast.walk(tree) if isinstance(n, ast.keyword)
-                       and n.arg == "connectgaps")
+        seen = protections(ast.parse((_ROOT / path).read_text(encoding="utf-8")), name)
         if seen < expected:
             short.append(f"{path}: {seen} `{name}` au lieu de {expected}")
     assert not short, (
