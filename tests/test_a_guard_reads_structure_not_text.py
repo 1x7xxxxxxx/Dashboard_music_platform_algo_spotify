@@ -455,7 +455,7 @@ _TEXT_ASSERTIONS_ON_PY: dict[str, int] = {
     "test_one_door_onto_the_database.py": 1,
     "test_one_email_path_for_freshness.py": 1,
     "test_tenant_scope_is_not_view_session.py": 2,
-    "test_the_alert_names_a_workable_action.py": 2,
+    "test_the_alert_names_a_workable_action.py": 1,
     "test_the_credentials_page_asks_before_it_reports.py": 2,
     # 2 → 0 le 2026-09-21. Les deux assertions textuelles cherchaient
     # `"def secondary_analyses("` et `"expanded=False"` dans le source de

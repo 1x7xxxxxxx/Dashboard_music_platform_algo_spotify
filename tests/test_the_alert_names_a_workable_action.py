@@ -75,30 +75,9 @@ def test_the_xcom_hop_carries_every_field_the_email_may_read():
     for xcom. Any key produced there and not copied here is invisible to the mail,
     and the mail is the only reader. Mutation-verified by deleting the `fed_by` line.
     """
-    produced = set()
-    tree = ast.parse((REPO / "src/utils/freshness_monitor.py").read_text(encoding="utf-8"))
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Dict) and any(
-                isinstance(k, ast.Constant) and k.value == "stale_h" for k in node.keys):
-            produced |= {k.value for k in node.keys
-                         if isinstance(k, ast.Constant) and isinstance(k.value, str)}
-    assert "fed_by" in produced, "fixture lost: check_freshness no longer builds the row"
-
-    dag = (REPO / "airflow/dags/alert_monitor.py").read_text(encoding="utf-8")
-    tree = ast.parse(dag)
-    carried = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Dict) and any(
-                isinstance(k, ast.Constant) and k.value == "measured_on"
-                for k in node.keys):
-            carried |= {k.value for k in node.keys
-                        if isinstance(k, ast.Constant) and isinstance(k.value, str)}
-    assert carried, "the serialising hop moved — this guard is now blind"
-
-    # `table`/`col`/`metric_col` are inputs to the query, never read by the mail.
-    internal = {"table", "col", "metric_col", "tenant_table", "tenant_col",
-                "tenant_metric_col", "skip_artist_filter", "silence_expected"}
-    lost = produced - carried - internal
+    lost = dropped_at_hop(
+        (REPO / "src/utils/freshness_monitor.py").read_text(encoding="utf-8"),
+        (REPO / "airflow/dags/alert_monitor.py").read_text(encoding="utf-8"))
     assert not lost, (
         f"field(s) produced by check_freshness and dropped at the xcom hop: {lost}. "
         "The email is the only reader; a dropped field is a sentence it cannot write.")
@@ -108,9 +87,69 @@ def test_the_xcom_hop_carries_every_field_the_email_may_read():
 def test_a_csv_source_is_never_told_to_relaunch_its_dag(fed_by, forbidden):
     """The branch exists and says something a human can actually do."""
     dag = (REPO / "airflow/dags/alert_monitor.py").read_text(encoding="utf-8")
-    assert "if r.get('fed_by') == 'csv':" in dag, (
-        "the stale-source action is one sentence for every source again — a CSV "
-        "source is told to relaunch a watcher whose dropbox is empty")
-    branch = dag.split("if r.get('fed_by') == 'csv':", 1)[1].split("else:", 1)[0]
-    assert "Déposer un export" in branch
-    assert forbidden not in branch.replace("relancer son DAG ne collecte rien", "")
+    problems = csv_branch_problems(dag, forbidden)
+    assert not problems, (
+        f"{problems} — the stale-source action is one sentence for every source "
+        "again, or its CSV branch tells a human to relaunch a watcher whose dropbox "
+        "is empty")
+
+
+def _dict_keys_marked_by(source: str, marker: str) -> set[str]:
+    keys: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Dict) and any(
+                isinstance(k, ast.Constant) and k.value == marker for k in node.keys):
+            keys |= {k.value for k in node.keys
+                     if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+    return keys
+
+
+# `table`/`col`/`metric_col` are inputs to the query, never read by the mail.
+_INTERNAL = frozenset({"table", "col", "metric_col", "tenant_table", "tenant_col",
+                       "tenant_metric_col", "skip_artist_filter", "silence_expected"})
+
+
+def dropped_at_hop(producer: str, hop: str) -> set[str]:
+    """Fields the freshness row carries (dict marked by `stale_h`) that the xcom hop
+    (dict marked by `measured_on`) does not copy, internal inputs aside. Pure.
+
+    Raises when either dict is gone: a hop that moved leaves this guard blind.
+    """
+    produced = _dict_keys_marked_by(producer, "stale_h")
+    carried = _dict_keys_marked_by(hop, "measured_on")
+    assert "fed_by" in produced, "fixture lost: check_freshness no longer builds the row"
+    assert carried, "the serialising hop moved — this guard is now blind"
+    return produced - carried - _INTERNAL
+
+
+def csv_branch_problems(dag: str, forbidden: str) -> list[str]:
+    """What is wrong with the CSV branch of the stale-source action. Pure."""
+    head = "if r.get('fed_by') == 'csv':"
+    if head not in dag:
+        return ["no-csv-branch"]
+    branch = dag.split(head, 1)[1].split("else:", 1)[0]
+    out = [] if "Déposer un export" in branch else ["no-human-gesture"]
+    if forbidden in branch.replace("relancer son DAG ne collecte rien", ""):
+        out.append("tells-to-relaunch")
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, class `alert-names-an-action-its-source-cannot-take`: the hop that
+    drops `fed_by` — the field the mail branches on — is named; so are one sentence
+    for every source and a CSV branch that says to relaunch the DAG. The branch that
+    names the human gesture passes."""
+    producer = "row = {'source': s, 'stale_h': h, 'fed_by': f, 'table': t}\n"
+    dropping = "x = {'source': r['source'], 'stale_h': r['stale_h'], 'measured_on': d}\n"
+    assert dropped_at_hop(producer, dropping) == {"fed_by"}
+    carrying = dropping.replace("'measured_on': d", "'measured_on': d, 'fed_by': r['fed_by']")
+    assert dropped_at_hop(producer, carrying) == set()
+    one_sentence = "action = 'relancer le DAG'\n"
+    assert csv_branch_problems(one_sentence, "relancer le DAG") == ["no-csv-branch"]
+    wrong = ("if r.get('fed_by') == 'csv':\n    a = 'relancer le DAG'\n"
+             "else:\n    a = 'relancer le DAG'\n")
+    assert csv_branch_problems(wrong, "relancer le DAG") == ["no-human-gesture",
+                                                           "tells-to-relaunch"]
+    right = ("if r.get('fed_by') == 'csv':\n    a = 'Déposer un export ; relancer son "
+             "DAG ne collecte rien'\nelse:\n    a = 'relancer le DAG'\n")
+    assert csv_branch_problems(right, "relancer le DAG") == []

@@ -72,9 +72,50 @@ def _documented_tools() -> list[str]:
     for doc in DOCS:
         p = ROOT / doc
         if p.is_file():
-            found |= set(re.findall(r"python3 (tools/[a-z0-9_/]+\.py)",
-                                    p.read_text(encoding="utf-8")))
+            found |= tools_named_in(p.read_text(encoding="utf-8"))
     return sorted(found)
+
+
+def tools_named_in(text: str) -> set[str]:
+    """`tools/…py` scripts a document tells an operator to run. Pure."""
+    return set(re.findall(r"python3 (tools/[a-z0-9_/]+\.py)", text))
+
+
+def loads_the_project_env(source: str) -> bool:
+    """Does the module CALL `load_project_env()` — not merely name it? Pure."""
+    return any(isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+               and n.func.id == "load_project_env" for n in ast.walk(ast.parse(source)))
+
+
+def declared_env_order(source: str) -> "tuple | None":
+    """The `_ENV_FILES = (...)` tuple a standalone module restates, or None. Pure."""
+    return next(
+        (tuple(e.value for e in n.value.elts)
+         for n in ast.walk(ast.parse(source))
+         if isinstance(n, ast.Assign) and n.targets
+         and isinstance(n.targets[0], ast.Name) and n.targets[0].id == "_ENV_FILES"
+         and isinstance(n.value, ast.Tuple)),
+        None,
+    )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, class `config-corrected-in-the-file-that-loses`: a documented tool
+    that reads `.env` by itself — or names `load_project_env` only in a comment — is
+    seen as not resolving the app's environment; a mailer restating `('.env',)` is seen
+    as a different order. The corrected forms pass."""
+    doc = "Run `python3 tools/check_central_apps.py --require` then read the table."
+    assert tools_named_in(doc) == {"tools/check_central_apps.py"}
+    bare = "from dotenv import load_dotenv\nload_dotenv('.env')  # not load_project_env()\n"
+    assert not loads_the_project_env(bare)
+    fixed = "from src.utils.env_files import load_project_env\nload_project_env()\n"
+    assert loads_the_project_env(fixed)
+    from src.utils.env_files import ENV_FILES
+
+    assert declared_env_order("_ENV_FILES = ('.env',)\n") != tuple(ENV_FILES)
+    restated = ("_TABLES = ('a', 'b')\n"                  # another tuple, read first
+              "_ENV_FILES = (" + ", ".join(repr(f) for f in ENV_FILES) + ",)\n")
+    assert declared_env_order(restated) == tuple(ENV_FILES)
 
 
 def test_the_documented_tools_are_still_found() -> None:
@@ -92,10 +133,7 @@ def test_an_operator_tool_resolves_the_environment_the_app_resolves(tool: str) -
     path = ROOT / tool
     assert path.is_file(), f"{tool} is documented but does not exist"
 
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    called = {n.func.id for n in ast.walk(tree)
-              if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
-    assert "load_project_env" in called, (
+    assert loads_the_project_env(path.read_text(encoding="utf-8")), (
         f"{tool} never calls load_project_env(). Run from a bare shell it reads a "
         "different environment from the dashboard and the DAGs — so it reports on a "
         "configuration nobody runs, and 'env not set' exits 0 as if all were well."
@@ -112,16 +150,8 @@ def test_the_standalone_mailer_honours_the_same_env_precedence() -> None:
     """
     from src.utils.env_files import ENV_FILES
 
-    src = (ROOT / "tools/notify_schema_drift.py").read_text(encoding="utf-8")
-    tree = ast.parse(src)
-    declared = next(
-        (tuple(e.value for e in n.value.elts)
-         for n in ast.walk(tree)
-         if isinstance(n, ast.Assign) and n.targets
-         and isinstance(n.targets[0], ast.Name) and n.targets[0].id == "_ENV_FILES"
-         and isinstance(n.value, ast.Tuple)),
-        None,
-    )
+    declared = declared_env_order(
+        (ROOT / "tools/notify_schema_drift.py").read_text(encoding="utf-8"))
     assert declared == tuple(ENV_FILES), (
         f"the standalone mailer reads {declared}, the app reads {tuple(ENV_FILES)}. "
         "First loaded wins, so a different order is a different configuration."
