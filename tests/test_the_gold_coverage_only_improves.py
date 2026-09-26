@@ -409,14 +409,48 @@ def test_the_two_declarations_of_the_ratchet_scope_agree(gc) -> None:
     """
     sys.path.insert(0, str(_ROOT / "tests"))
     import test_the_metrics_layer_only_grows as ratchet
-    assert gc._RATCHET_SURFACES == ratchet._SURFACES, (
-        "les répertoires balayés par le cliquet des agrégats ne sont plus ceux que "
-        f"le générateur croit : {gc._RATCHET_SURFACES} vs {ratchet._SURFACES}")
-    assert gc._RATCHET_DOORS == ratchet._DOORS, (
-        f"les portes exemptées diffèrent : {gc._RATCHET_DOORS} vs {ratchet._DOORS}")
-    facts = frozenset(t for tables in ratchet._FACTS.values() for t in tables)
-    assert gc._RATCHET_FACTS == facts, (
-        "la liste des tables de fait a bougé d'un côté seulement. Le document "
-        "compterait « hors cliquet » des agrégats qui sont gardés, ou l'inverse.\n"
-        f"  dans le générateur, en trop : {sorted(gc._RATCHET_FACTS - facts)}\n"
-        f"  dans le cliquet, en trop   : {sorted(facts - gc._RATCHET_FACTS)}")
+    diverged = scope_disagreements(
+        (gc._RATCHET_SURFACES, gc._RATCHET_DOORS, gc._RATCHET_FACTS),
+        (ratchet._SURFACES, ratchet._DOORS, ratchet._FACTS))
+    assert not diverged, (
+        "la portée du cliquet des agrégats et celle que le générateur recopie ont "
+        "divergé. Le document compterait « hors cliquet » des agrégats qui sont "
+        "gardés, ou l'inverse :\n  " + "\n  ".join(diverged))
+
+
+def scope_disagreements(generator: tuple, ratchet: tuple) -> list[str]:
+    """Where the generator's COPY of the ratchet scope differs from the ratchet.
+
+    Both are `(surfaces, doors, facts)`; the ratchet's facts are `{name: tables}`
+    and are flattened before comparing. Pure.
+    """
+    (g_surf, g_doors, g_facts), (r_surf, r_doors, r_facts) = generator, ratchet
+    facts = frozenset(t for tables in r_facts.values() for t in tables)
+    out = []
+    if g_surf != r_surf:
+        out.append(f"répertoires : {g_surf} vs {r_surf}")
+    if g_doors != r_doors:
+        out.append(f"portes exemptées : {g_doors} vs {r_doors}")
+    if g_facts != facts:
+        out.append(f"tables de fait — en trop dans le générateur : "
+                   f"{sorted(g_facts - facts)}, dans le cliquet : {sorted(facts - g_facts)}")
+    return out
+
+
+def test_the_scope_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, class `a-ratchet-at-zero-over-a-scope-that-excludes-the-defect`:
+    a fact table added to the ratchet and not to the generator's copy — the drift
+    that makes "hors cliquet" count guarded aggregates — is named, as are a moved
+    surface and a new door; identical scopes are not."""
+    ratchet = (("src/dashboard",), frozenset({"kpi_helpers.py"}),
+               {"youtube": ("youtube_video_stats",), "hypeddit": ("hypeddit_daily_stats",)})
+    copy = (("src/dashboard",), frozenset({"kpi_helpers.py"}),
+            frozenset({"youtube_video_stats", "hypeddit_daily_stats"}))
+    assert scope_disagreements(copy, ratchet) == []
+    lagging = (copy[0], copy[1], frozenset({"youtube_video_stats"}))
+    assert len(scope_disagreements(lagging, ratchet)) == 1
+    assert "hypeddit_daily_stats" in scope_disagreements(lagging, ratchet)[0]
+    moved = (("src",), copy[1], copy[2])
+    door = (copy[0], frozenset({"kpi_helpers.py", "x.py"}), copy[2])
+    assert len(scope_disagreements(moved, ratchet)) == 1
+    assert len(scope_disagreements(door, ratchet)) == 1
