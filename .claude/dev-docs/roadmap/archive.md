@@ -199,6 +199,59 @@ code-critic (R187 refusée puis reformulée, R188 BUILD-MODIFIED), déployée en
   du titre, engagement (borné à la période). Vérifié en le regardant : 4 captures, 3 défauts
   corrigés (verdict tronqué, étiquettes superposées, légende sur la barre d'outils).
 
+## 🔓 R192 · R193 — L'offre redécoupée : données gratuites, prédictions payantes, aperçu de Road to Algo (livrées 2026-09-26)
+
+Décision du propriétaire le 2026-09-26 (ADR-029) : les données et leur fusion restent
+GRATUITES (Meta × plateformes, créas, répartitions, PDF à la demande) ; les
+PRÉDICTIONS (Road to Algo, optimiseur CPR, prévisions, envoi hebdo) deviennent
+payantes. Déployé `69ae0b5`.
+
+- [x] **R192 — la ligne `free` du plan gating porte `meta_x_spotify` et
+  `algo_preview`, plus `trigger_algo`.** (P2) ✅ (2026-09-26, `69ae0b5`) Migration 137
+  appliquée en production : la ligne `free` contient bien `meta_x_spotify` et
+  `algo_preview`, sans `trigger_algo`. Dashboard `69ae0b52` sain, DAG J-3 sans erreur
+  d'import. Garde `tests/test_plan_gating.py`.
+
+- [x] **R193 — aperçu GRATUIT de Road to Algo, au-dessus de la vue de prédiction
+  verrouillée.** (P2) ✅ (2026-09-26, `69ae0b5`) Pour la dernière sortie : porte la
+  plus proche, actions à faire, valeurs en ordre de grandeur (23 / 7 / 16 €), pas de
+  budget faute de dépense Meta. Vérifié au navigateur : les 3 algos affichent « pas
+  encore d'estimation fiable » plutôt qu'un chiffre halluciné. Garde
+  `tests/test_the_algo_preview_says_only_what_the_model_knows.py`.
+
+---
+
+## 🛡️ R191 — Un `airflow tasks test` en prod lance tout le DAG (livrée 2026-09-26)
+
+- [x] **R191 — classe `a-probe-that-runs-the-whole-dag-in-production` (2 occurrences
+  le 2026-09-26), gardée dans `guard_destructive.py`.** (P3) ✅ (2026-09-26, `dc12bdf`)
+  La seconde occurrence est celle qui a laissé le run temporaire adopté par le
+  planificateur (R179, R183). Contrôle : `python3 .claude/scripts/audit_runner.py
+  --admission`.
+
+---
+
+## 🖼️ R189 · R190 — Les figures rendues sont mesurées, récidive fermée (livrées 2026-09-26)
+
+Récidive de `a-diagram-is-verified-by-looking-at-it` sur les figures Plotly (R188
+avait trouvé 3 défauts vus seulement à l'écran). Commit `fc8ffca`.
+
+- [x] **R189 — contrôle visuel automatique des figures rendues : même hauteur par
+  rangée, titre tronqué, annotations superposées, légende sur la barre d'outils.**
+  (P3) ✅ (2026-09-26, `fc8ffca`) `tests/test_a_rendered_figure_is_laid_out.py`,
+  exécuté par commit (et en CI sur base provisionnée, peu de figures faute de
+  données). **3 défauts vivants corrigés** : rangées Wrapped et Spotify, légende
+  Meta. Garde compagnon : `tests/test_every_routed_view_is_rendered.py`.
+  ⚠️ **Ne pas dire « chaque nuit »** : aucun job nocturne ne lance ce test — c'est un
+  reste ouvert éventuel, pas un fait acquis.
+
+- [x] **R190 — récidive de `a-diagram-is-verified-by-looking-at-it` consignée.**
+  (P3) ✅ (2026-09-26, `fc8ffca`) Ligne `(récidive)` du 2026-09-26 ajoutée au
+  catalogue d'erreurs, balayage `sibling-sweeper` consigné. Mesuré par
+  `make error-health`.
+
+---
+
 ## 🧾 R169 — La dette du catalogue d'erreurs soldée (livrée 2026-09-26)
 
 - [x] **R169 — dette du catalogue d'erreurs.** Dette : 3 classes par séance, dans l'ordre de `make error-debt` (récidivées sans
