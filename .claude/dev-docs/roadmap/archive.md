@@ -9,6 +9,28 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🖼️ R194 · R195 — page Spotify en deux colonnes, le verdict de la pub déplacé (livrées 2026-09-26)
+
+Demandées le 2026-09-26, livrées et déployées le même jour (`c1d4347`, dashboard `c1d43476`
+sain en prod).
+
+- [x] **R194 — page Spotify : « Détail par titre » et « Sauvegardes, playlists et
+  abonnés » fusionnés en UNE figure à deux panneaux (horloge commune, chacun ses deux
+  axes) ; rangée 3 → 2 colonnes.** (P3) ✅ (2026-09-26, `c1d4347`)
+
+  « Ce qui bouge en ce moment » passe de ~390 à 595 px à 1366 px — les noms de titres ne
+  mangent plus les barres. Vérifié au navigateur. Garde :
+  `tests/test_the_spotify_page_shows_and_says_less.py::test_what_is_read_together_sits_together`.
+
+- [x] **R195 — « Ta dernière pub t'a-t-elle amené des auditeurs ? » déplacée de la page
+  Spotify en tête de « 🔀 Impact de mes campagnes » (`meta_x_spotify`), au-dessus du
+  sélecteur.** (P3) ✅ (2026-09-26, `c1d4347`)
+
+  Vérifié au navigateur. Garde : `test_the_listener_verdict_opens_the_campaign_page`.
+  Plafonds de premier écran : Spotify 5 → 3, `meta_x_spotify` 7 → 8 (net −1).
+
+---
+
 ## 🧭 R167 · R168 · R174 — l'audit de la surveillance des classes d'erreur (livrées 2026-09-25)
 
 Nées le 2026-09-25 au soir du bloc d'audit « 🧭 R167 – R176 » de `checklist.md` (23

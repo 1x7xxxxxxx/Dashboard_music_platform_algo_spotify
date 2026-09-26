@@ -25,8 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R194 | Page Spotify : « Détail par titre » et « Sauvegardes, playlists et abonnés » fusionnés en UNE figure ; la rangée passe à 2 colonnes et « Ce qui bouge en ce moment » gagne la largeur (barres mangées par les noms de titres) — demandé 2026-09-26 <!-- anchor: spotify-two-columns --> | P3 | `tests/test_a_rendered_figure_is_laid_out.py` + capture navigateur |
-| R195 | « La pub t'a-t-elle amené des auditeurs ? » (auditeurs/jour + jours de pub Meta) déplacée de la page Spotify vers « 🔀 Impact de mes campagnes (toutes plateformes) » (`meta_x_spotify`) — demandé 2026-09-26 <!-- anchor: meta-impact-moves --> | P3 | `tests/test_the_spotify_page_shows_and_says_less.py` + capture navigateur |
 
 **Huit lignes y sont entrées le 2026-09-25 au soir**, toutes issues de l'audit de la
 surveillance des classes d'erreur — détail dans « 🧭 R167 – R176 » juste sous cet index.
@@ -222,7 +220,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R194, R195 -->
+<!-- reprise: open= -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers
