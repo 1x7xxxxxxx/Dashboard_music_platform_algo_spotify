@@ -43,6 +43,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | R214 | Wrapped : tuiles annuelles repliées au lieu des graphiques, rien retiré (fiches 6-13, après R205) <!-- anchor: r214 --> <!-- critic: non — affichage seul --> | P4 | dossier |
 | R215 | Grafana : la latence de rendu n'a que 1-2 points en 7 jours, et le pool Postgres montre des milliers de replis directs (fiches 119, 121, 125) <!-- anchor: r215 --> <!-- critic: requis --> | P2 | `make charts-dossier` (Grafana) + règles d'alerte |
 | R216 | **ML, les défauts du dossier** : prévisions Release Radar toutes à 0, P(DW) insensible à son levier, probabilités au plancher affichées en % dans le PDF, 44 jauges sur une page, fiches ML non rendues (56-69, 93) — le propriétaire : « intègre toutes tes modifs sur le ML, on commence direct » <!-- anchor: r216 --> <!-- critic: requis --> | P2 | `make charts-dossier` (fiches ML) + scoring vérifié |
+| R217 | **Déployer chaque lot livré** : `make migrate-prod` (138-140 puis suivantes) et `make deploy SERVICE=dashboard` après CI verte ; `/health` vérifié, retour arrière et mise de côté sinon ; jamais `tasks test` — autorisé par le propriétaire le 2026-09-27 pour la séance de nuit <!-- anchor: r217 --> <!-- critic: non — geste de déploiement, pas de code --> | P2 | `/health` + CI de main |
+| R218 | Régénérer le dossier des graphiques sur un instantané frais, vérifier chaque fiche corrigée, puis supprimer l'instantané `spotify_etl_review` et `revue/prod.dump` (données réelles d'artistes) <!-- anchor: r218 --> <!-- critic: non — outillage de revue --> | P3 | `make charts-dossier OUT=revue` |
 
 ---
 
