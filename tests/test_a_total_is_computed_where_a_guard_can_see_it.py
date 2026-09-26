@@ -148,16 +148,17 @@ def _raw_returning_functions(tree: ast.AST, scope: dict[str, ast.AST],
     return out
 
 
-def _sites(facts: frozenset[str]) -> list[str]:
+def _sites(facts: frozenset[str], scanned: pathlib.Path | None = None) -> list[str]:
     out: list[str] = []
-    for path in sorted(_SCANNED.rglob("*.py")):
+    scanned = scanned or _SCANNED
+    for path in sorted(scanned.rglob("*.py")):
         if "__pycache__" in path.parts:
             continue
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
         except (SyntaxError, UnicodeDecodeError):
             continue
-        rel = path.relative_to(_ROOT).as_posix()
+        rel = path.relative_to(_ROOT if scanned == _SCANNED else scanned).as_posix()
         # Les constantes de module : `_QUERY_X = """…"""` juste au-dessus.
         module_scope: dict[str, ast.AST] = {
             t.id: stmt.value
@@ -254,3 +255,23 @@ def test_the_scan_reaches_real_reducers() -> None:
                     reducers += 1
     assert readers >= 50, f"seulement {readers} appels à fetch_df vus — le lecteur est cassé"
     assert reducers >= 30, f"seulement {reducers} réductions pandas vues — idem"
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path) -> None:
+    """Non-vacuity on a FABRICATED view: raw fact rows summed in pandas (read directly,
+    and through a neighbouring function's `return` — the Distributeur shape) are seen;
+    the SQL-aggregated read is not."""
+    (tmp_path / "view.py").write_text(
+        "def show(db, a):\n"
+        "    df = db.fetch_df('SELECT revenue_eur FROM fact_rev WHERE artist_id = %s', (a,))\n"
+        "    total = df['revenue_eur'].sum()\n"
+        "    ok = db.fetch_df('SELECT SUM(revenue_eur) AS t FROM fact_rev WHERE artist_id = %s', (a,))\n"
+        "    return total, ok['t'].sum()\n"
+        "def _load(db, a):\n"
+        "    return db.fetch_df('SELECT revenue_eur FROM fact_rev WHERE artist_id = %s', (a,))\n"
+        "def show2(db, a):\n"
+        "    df = _load(db, a)\n"
+        "    return df['revenue_eur'].sum()\n", encoding="utf-8")
+    found = _sites(frozenset({"fact_rev"}), tmp_path)
+    lines = sorted(int(f.split(":")[1].split(" ")[0]) for f in found)
+    assert lines == [3, 10], found
