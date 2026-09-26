@@ -94,30 +94,46 @@ def _numeric_returns_inside_except() -> list[str]:
             if "__pycache__" in path.parts:
                 continue
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                hits = numeric_fallbacks(path.read_text(encoding="utf-8"))
             except (SyntaxError, UnicodeDecodeError):
                 continue
-            for fn in (n for n in ast.walk(tree)
-                       if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))):
-                reads = any(
-                    isinstance(n, ast.Call)
-                    and getattr(n.func, "attr", "") in _READERS
-                    for n in ast.walk(fn))
-                if not reads:
-                    continue
-                for handler in (n for n in ast.walk(fn)
-                                if isinstance(n, ast.ExceptHandler)):
-                    for node in ast.walk(handler):
-                        if not (isinstance(node, ast.Return)
-                                and isinstance(node.value, ast.Constant)
-                                and isinstance(node.value.value, (int, float))
-                                and not isinstance(node.value.value, bool)):
-                            continue
-                        out.append(
-                            f"{path.relative_to(_ROOT).as_posix()}:{node.lineno} "
-                            f"— `{fn.name}` rend {node.value.value!r} depuis un "
-                            "`except` qui enjambe une lecture")
+            out += [f"{path.relative_to(_ROOT).as_posix()}:{line} — `{fn}` rend "
+                    f"{value!r} depuis un `except` qui enjambe une lecture"
+                    for fn, line, value in hits]
     return sorted(set(out))
+
+
+def numeric_fallbacks(source: str, readers_only: bool = True) -> list[tuple[str, int, object]]:
+    """(function, line, number) for every `return <number>` inside an `except` of a
+    function that reads the database (or of ANY function, `readers_only=False`). Pure."""
+    out = []
+    for fn in (n for n in ast.walk(ast.parse(source))
+               if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))):
+        reads = any(isinstance(n, ast.Call) and getattr(n.func, "attr", "") in _READERS
+                    for n in ast.walk(fn))
+        if readers_only and not reads:
+            continue
+        for handler in (n for n in ast.walk(fn) if isinstance(n, ast.ExceptHandler)):
+            for node in ast.walk(handler):
+                if (isinstance(node, ast.Return)
+                        and isinstance(node.value, ast.Constant)
+                        and isinstance(node.value.value, (int, float))
+                        and not isinstance(node.value.value, bool)):
+                    out.append((fn.name, node.lineno, node.value.value))
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity: « Total Streams » of 2026-09-12 — a read that raised, answered by
+    `return 0` — is named; `return None` and a bool are not, nor a `return 0` in a
+    function that reads nothing."""
+    reader = next(iter(_READERS))
+    defect = (f"def total(db, aid):\n    try:\n        return db.{reader}('q', (aid,))\n"
+              "    except Exception:\n        return 0\n")
+    assert numeric_fallbacks(defect) == [("total", 5, 0)]
+    assert numeric_fallbacks(defect.replace("return 0", "return None")) == []
+    assert numeric_fallbacks(defect.replace("return 0", "return False")) == []
+    assert numeric_fallbacks(defect.replace(f"db.{reader}('q', (aid,))", "compute()")) == []
 
 
 def test_a_swallowed_read_never_returns_a_number() -> None:
@@ -147,17 +163,8 @@ def test_the_door_of_every_platform_survives_a_read_failure() -> None:
     TOUTES les surfaces d'un coup, et c'est ce qui s'est produit.
     """
     door = _ROOT / "src" / "dashboard" / "utils" / "platform_timeseries.py"
-    tree = ast.parse(door.read_text(encoding="utf-8"))
-    bad = []
-    for fn in (n for n in ast.walk(tree)
-               if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))):
-        for handler in (n for n in ast.walk(fn) if isinstance(n, ast.ExceptHandler)):
-            for node in ast.walk(handler):
-                if (isinstance(node, ast.Return)
-                        and isinstance(node.value, ast.Constant)
-                        and isinstance(node.value.value, (int, float))
-                        and not isinstance(node.value.value, bool)):
-                    bad.append(f"{fn.name}:{node.lineno} rend {node.value.value!r}")
+    bad = [f"{fn}:{line} rend {value!r}" for fn, line, value in
+           numeric_fallbacks(door.read_text(encoding="utf-8"), readers_only=False)]
     assert not bad, (
         "La porte des plateformes rend un nombre sur une lecture échouée. ADR-022 : "
         "son travail est de rendre `None` quand rien n'a été mesuré — une lecture "
