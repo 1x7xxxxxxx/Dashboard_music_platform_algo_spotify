@@ -203,10 +203,11 @@ def _feeds_the_empty_state_delegate(fn: ast.AST, call: ast.Call) -> bool:
 
 
 @lru_cache(maxsize=1)
-def _sites() -> list[tuple[bool, bool, str, int, str]]:
+def _sites(root: Path | None = None) -> list[tuple[bool, bool, str, int, str]]:
     """(bornée, dessine une figure, fichier, ligne, fonction) — sous une fenêtre."""
+    root = VIEWS if root is None else root
     found = []
-    for path in sorted(VIEWS.rglob("*.py")):
+    for path in sorted(root.rglob("*.py")):
         text = path.read_text(encoding="utf-8")
         try:
             tree = ast.parse(text)
@@ -259,7 +260,7 @@ def _sites() -> list[tuple[bool, bool, str, int, str]]:
                     if any(_is_a_probe(q) for q in sqls):
                         bounded = True
                 found.append((bounded, bool(_DRAWS.search(after)),
-                              str(path.relative_to(VIEWS)), call.lineno, fn.name))
+                              str(path.relative_to(root)), call.lineno, fn.name))
     return found
 
 
@@ -377,3 +378,32 @@ def test_the_probe_predicate_sees_what_it_is_written_for() -> None:
             f"le détecteur prend une SÉRIE pour une sonde : {serie}. Une requête "
             "qui rend plusieurs lignes peut alimenter une figure, donc doit être "
             "bornée.")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path) -> None:
+    """Non-vacuity on a FABRICATED view: a figure drawn from a query that ignores the
+    window opened above it is unbounded; the same query comparing its date with
+    `window.start` is bounded; a window variable only NAMED in a title is not a bound."""
+    # Two FILES, not two functions: the bound is looked for in the 45 lines after the
+    # query, which would run into a neighbouring function and borrow its comparison.
+    (tmp_path / "v.py").write_text(
+        "def show(db):\n"
+        "    window = smart_period_filter(db, table='t')\n"
+        "    df = db.fetch_df('SELECT d, n FROM t')\n"
+        "    st.caption(f'depuis {window.start}')\n"
+        "    st.plotly_chart(px.bar(df))\n", encoding="utf-8")
+    (tmp_path / "w.py").write_text(
+        "def show2(db):\n"
+        "    window = smart_period_filter(db, table='t')\n"
+        "    df = db.fetch_df('SELECT d, n FROM t WHERE d >= %s', (window.start,))\n"
+        "    st.plotly_chart(px.bar(df))\n", encoding="utf-8")
+    (tmp_path / "x.py").write_text(
+        "def show3(db):\n"
+        "    window = smart_period_filter(db, table='t')\n"
+        "    start_d = window.start\n"
+        "    df = db.fetch_df('SELECT d, n FROM t')\n"
+        "    df = df[df['d'] >= start_d]\n"
+        "    st.plotly_chart(px.bar(df))\n", encoding="utf-8")
+    verdict = {fn: (bounded, draws) for bounded, draws, _f, _ln, fn in _sites(tmp_path)}
+    assert verdict == {"show": (False, True), "show2": (True, True),
+                       "show3": (True, True)}, verdict
