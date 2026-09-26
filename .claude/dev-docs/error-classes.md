@@ -6949,7 +6949,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - rex_ref: src/dashboard/views/credentials/_render.py
 - first_seen: 2026-09-06
 - History:
-  - 2026-09-26 (garde): `test_a_platform_without_secrets_would_not_reach_the_caption` calculait `shows` et `has` avec la MÊME expression écrite deux fois — une tautologie qui ne pouvait pas échouer. Elle évalue désormais la condition RÉELLE lue dans `_render.py` (`secret_gate`) sur les champs de chaque plateforme ; inverser cette condition rend 5 cas rouges, contre 0 avant
+  - 2026-09-26 (garde): `test_a_platform_without_secrets_would_not_reach_the_caption` calculait `shows` et `has` avec la MÊME expression écrite deux fois — une tautologie qui ne pouvait pas échouer. Elle évalue désormais la condition RÉELLE lue dans `_render.py` (`secret_gate`) sur les champs de chaque plateforme ; inverser cette condition rend 5 cas rouges, contre 0 avant. Balayé le même jour (assert comparant deux expressions identiques, AST, `tests/`) : 6 candidats → 6 écartés (listes initialisées vides puis remplies ; lectures avant/après un effet) → 0 site vivant ; pas de garde, le prédicat lisait une FORME (règle 20)
   - 2026-09-06: la demande était « retire, c'est inutile ». Retirer partout aurait supprimé une information vraie sur deux onglets. La question posée au registre — « ce formulaire A-T-IL un secret ? » — donne les deux réponses à la fois.
   - 2026-09-06: vu rouge par deux mutations, `if True` et `if platform_key in ('spotify', 'youtube')`, vert après.
 
