@@ -92,7 +92,7 @@ _CEILINGS = {
     # exécution. À l'introduction : **9 gardes sur 192** le faisaient (5 %), donc 391
     # classes sur 400 n'ont pas cette preuve. Le plafond ne peut que baisser, et il
     # baisse en ÉCRIVANT le test de non-vacuité dans le garde — pas en rédigeant.
-    "guard_does_not_prove_itself": 93,  # 306 → 303 le 2026-09-25 (R169) ; → 300 le 2026-09-26 (migration P1 gardée, central-app + wrapper RTK auto-prouvants) ; → 297 (shared-db, replica, prose-claim) ; → 294 (collector, env, connexion par vue) ; → 292 (digest du guide, porte de dépendances) ; → 288 (4 preuves existantes enfin citées) ; → 285 ; → 284 ; → 281 ; → 278 ; → 276 ; → 274 ; → 270 ; → 268 ; → 266 ; → 264 ; → 263 ; → 261 ; → 259 ; → 258 ; → 257 ; → 256 ; → 255 ; → 253 ; → 249 ; → 247 ; → 245 ; → 244 ; → 243 ; → 242 ; → 240 ; → 238 ; → 237 ; → 236 ; → 235 ; → 234 ; → 231 ; → 228 ; → 225 ; → 222 ; → 219 ; → 216 ; → 213 ; → 210 ; → 207 ; → 204 ; → 201 ; → 198 ; → 195 ; → 192 ; → 189 ; → 186 ; → 185 ; → 182 ; → 179 ; → 176 ; → 173 ; → 170 ; → 167 ; → 164 ; → 161 ; → 158 ; → 156 ; → 153 ; → 150 ; → 147 ; → 144 ; → 141 ; → 138 ; → 135 ; → 132 ; → 129 ; → 126 ; → 123 ; → 121 ; → 119 ; → 117 ; → 115 ; → 112 ; → 110 ; → 108 ; → 105 ; → 102 ; → 99 ; → 97 ; → 93
+    "guard_does_not_prove_itself": 91,  # 306 → 303 le 2026-09-25 (R169) ; → 300 le 2026-09-26 (migration P1 gardée, central-app + wrapper RTK auto-prouvants) ; → 297 (shared-db, replica, prose-claim) ; → 294 (collector, env, connexion par vue) ; → 292 (digest du guide, porte de dépendances) ; → 288 (4 preuves existantes enfin citées) ; → 285 ; → 284 ; → 281 ; → 278 ; → 276 ; → 274 ; → 270 ; → 268 ; → 266 ; → 264 ; → 263 ; → 261 ; → 259 ; → 258 ; → 257 ; → 256 ; → 255 ; → 253 ; → 249 ; → 247 ; → 245 ; → 244 ; → 243 ; → 242 ; → 240 ; → 238 ; → 237 ; → 236 ; → 235 ; → 234 ; → 231 ; → 228 ; → 225 ; → 222 ; → 219 ; → 216 ; → 213 ; → 210 ; → 207 ; → 204 ; → 201 ; → 198 ; → 195 ; → 192 ; → 189 ; → 186 ; → 185 ; → 182 ; → 179 ; → 176 ; → 173 ; → 170 ; → 167 ; → 164 ; → 161 ; → 158 ; → 156 ; → 153 ; → 150 ; → 147 ; → 144 ; → 141 ; → 138 ; → 135 ; → 132 ; → 129 ; → 126 ; → 123 ; → 121 ; → 119 ; → 117 ; → 115 ; → 112 ; → 110 ; → 108 ; → 105 ; → 102 ; → 99 ; → 97 ; → 93 ; → 91
     "seen_red_never": 0,
     # 363 → 241 : les causes qui nomment un chemin vérifiable.
     # 241 → 183 le 2026-09-17 : les **58** classes dont le `root_cause` cite un fichier
@@ -796,3 +796,24 @@ def test_the_sweep_verdict_is_the_first_bold_count_not_the_nearest_zero() -> Non
     assert not faux, (
         "le verdict de balayage n'est plus la PREMIÈRE forme en gras : "
         f"{[(c[:50], got, att) for c, got, att in faux]}")
+
+
+def test_the_header_readers_see_the_defect_they_are_written_for() -> None:
+    """Non-vacuity, class `a-population-that-counts-its-own-headers`: on a FABRICATED
+    catalogue, both readers count the two classes and neither counts the schema
+    heading, the template `class-id`, nor the Index."""
+    sys.path.insert(0, str(_ROOT / ".claude" / "scripts"))
+    import audit_runner
+
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "_ech_for_proof", _ROOT / "tools" / "dev" / "error_class_health.py")
+    health = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = health          # dataclasses resolve their module by name
+    spec.loader.exec_module(health)
+    doc = ("# Catalogue\n## Index\n| … |\n## class-id\n- status: template\n"
+           "## Schéma des champs\n- status: —\n"
+           "## a-first-class\n- status: guarded\n## a-second-class (2026-09-26)\n- status: open\n")
+    expected = {"a-first-class", "a-second-class"}
+    assert {c["id"] for c in audit_runner.parse_all_headers(doc)} == expected
+    assert set(health._blocks(doc)) == expected

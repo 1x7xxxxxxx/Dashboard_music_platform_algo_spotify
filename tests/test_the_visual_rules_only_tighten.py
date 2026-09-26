@@ -302,17 +302,39 @@ def test_the_declared_axis_still_exists_and_still_has_its_axis() -> None:
     `pareto_spend_cpr` est converti en petits multiples, le `1` déclaré ici
     autorise gratuitement le prochain second axe du même fichier.
     """
-    for name, (count, reason) in _DECLARED_AXES.items():
+    found: dict[str, int | None] = {}
+    for name in _DECLARED_AXES:
         matches = [f for f in SCANNED.rglob(name) if "__pycache__" not in f.parts]
-        assert matches, f"{name} est exempté mais n'existe plus sous src/dashboard"
-        found = sum(_count_axes_in(ast.parse(f.read_text(encoding="utf-8")))
-                    for f in matches)
-        assert found == count, (
-            f"{name} : {found} axe(s) secondaire(s) trouvé(s), {count} déclaré(s) "
-            f"— raison : {reason}.\n"
-            "Plus que déclaré : un axe a été ajouté et l'exemption le couvre sans "
-            "l'avoir décidé. Moins : l'exemption est devenue du budget, retire-la."
-        )
+        found[name] = (sum(_count_axes_in(ast.parse(f.read_text(encoding="utf-8")))
+                           for f in matches) if matches else None)
+    drift = exemption_drift(_DECLARED_AXES, found)
+    assert not drift, (
+        "\n".join(drift) + "\nPlus que déclaré : un axe a été ajouté et l'exemption le "
+        "couvre sans l'avoir décidé. Moins, ou fichier disparu : l'exemption est devenue "
+        "du budget, retire-la.")
+
+
+def exemption_drift(declared: dict, found: dict) -> list[str]:
+    """Exemptions whose file is gone (None) or whose count no longer matches. Pure."""
+    out = []
+    for name, (count, reason) in declared.items():
+        got = found.get(name)
+        if got is None:
+            out.append(f"{name} est exempté mais n'existe plus sous src/dashboard")
+        elif got != count:
+            out.append(f"{name} : {got} axe(s) trouvé(s), {count} déclaré(s) — {reason}")
+    return out
+
+
+def test_the_exemption_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, class `an-exemption-that-outlives-what-it-exempted`: the day
+    `pareto_spend_cpr` is converted to small multiples its `1` becomes budget (found
+    0); a vanished file and a second axis added under cover are named too."""
+    declared = {"pareto.py": (1, "axe CPR"), "gone.py": (1, "x"), "grew.py": (1, "y"),
+                "ok.py": (1, "z")}
+    drift = exemption_drift(declared, {"pareto.py": 0, "gone.py": None, "grew.py": 2,
+                                       "ok.py": 1})
+    assert [d.split(" ")[0] for d in drift] == ["pareto.py", "gone.py", "grew.py"], drift
 
 
 def test_the_predicate_sees_both_shapes() -> None:
