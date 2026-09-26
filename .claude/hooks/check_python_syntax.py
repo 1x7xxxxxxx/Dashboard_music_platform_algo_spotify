@@ -136,7 +136,7 @@ def run_ruff(file_path: str) -> int:
 
     if output:
         prefix = "🚨 Syntax error" if has_syntax_error else "⚠️  Ruff warning"
-        print(f"{prefix} in {file_path}:\n{output}")
+        print(f"{prefix} in {file_path}:\n{output}", file=sys.stderr)
 
     # E9 = bloquant, F = informatif (Claude voit mais n'est pas forcé de corriger)
     return 2 if has_syntax_error else 0
@@ -150,8 +150,8 @@ def run_py_compile(file_path: str) -> int:
         text=True,
     )
     if result.returncode != 0:
-        print(f"🚨 Syntax error in {file_path}:\n{result.stderr.strip()}")
-        print("Please fix the syntax error before proceeding.")
+        print(f"🚨 Syntax error in {file_path}:\n{result.stderr.strip()}", file=sys.stderr)
+        print("Please fix the syntax error before proceeding.", file=sys.stderr)
         return 2
     return 0
 

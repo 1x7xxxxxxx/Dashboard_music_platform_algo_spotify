@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**418 classes.** Fenêtre observée : `2026-05-15` → `2026-09-26` (547 révisions du catalogue rejouées).
+**418 classes.** Fenêtre observée : `2026-05-15` → `2026-09-26` (548 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -13,9 +13,9 @@ Le compteur `siblings_never_swept` mesure l'EFFORT. Celui-ci mesure le résultat
 |---|---|
 | balayages faits | **418** |
 | dont le verdict est LISIBLE | **418** |
-| qui ont trouvé au moins un site | **120** |
-| sites vivants trouvés | **499** |
-| taux de trouvaille (sur verdicts lisibles) | **0.287** |
+| qui ont trouvé au moins un site | **121** |
+| sites vivants trouvés | **502** |
+| taux de trouvaille (sur verdicts lisibles) | **0.289** |
 
 ✅ **Aucun des 418 balayages n'est une relance de garde.** Ils étaient **97** le 2026-09-17, et les 97 ont rendu des sites vivants qu'un garde vert ne pouvait pas voir. La porte `audit_runner.py --sweep-verdict` refuse désormais cette forme **au moment de l'écrire**. Reste 0 classe(s) jamais balayée(s) — un trou déclaré, pas un faux balayage.
 
@@ -60,7 +60,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|
 | `cause_inferred` | 0 |
 | `cause_unknown` | 13 |
-| `guard_does_not_prove_itself` | 37 |
+| `guard_does_not_prove_itself` | 36 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_on_a_shared_guard_without_naming_its_tests` | 13 |
@@ -85,8 +85,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | by_guard · prose | 5 | 0.7005 | 0.2257 – 1.6346 | **séparent** |
 | by_guard_since · avec-garde | 56 | 0.1574 | 0.1189 – 0.2044 | insuffisant pour conclure (n=61) |
 | by_guard_since · sans-garde | 5 | 0.1803 | 0.0581 – 0.4208 | insuffisant pour conclure (n=61) |
-| by_seen_red · daté | 4 | 0.1434 | 0.0386 – 0.3671 | insuffisant pour conclure (n=61) |
-| by_seen_red · jamais-ou-inconnu | 57 | 0.1603 | 0.1214 – 0.2076 | insuffisant pour conclure (n=61) |
+| by_seen_red · daté | 4 | 0.1451 | 0.039 – 0.3715 | insuffisant pour conclure (n=61) |
+| by_seen_red · jamais-ou-inconnu | 57 | 0.1601 | 0.1213 – 0.2074 | insuffisant pour conclure (n=61) |
 | by_scope · ne-couvre-pas renseigné | 61 | 0.159 | 0.1216 – 0.2043 | une seule strate peuplée (n=61) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
