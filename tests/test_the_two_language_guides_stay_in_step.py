@@ -41,6 +41,21 @@ _FR = {g.key: g for g in CREDENTIAL_GUIDES}
 _EN = {g.key: g for g in CREDENTIAL_GUIDES_EN}
 
 
+def steps_differ(fr, en) -> bool:
+    """Do the two sources describe a different number of steps? Pure."""
+    return len(fr.steps) != len(en.steps)
+
+
+def orphan_step_keys(key: str, n_steps: int, catalog) -> list[str]:
+    """Catalog keys translating a step beyond the guide's last one. Pure."""
+    return sorted(
+        k for k in catalog
+        if k.startswith(f"credentials.guide.{key}.step_")
+        and k.split("step_")[1].split("_")[0].isdigit()
+        and int(k.split("step_")[1].split("_")[0]) > n_steps
+    )
+
+
 def test_both_languages_cover_the_same_platforms():
     assert set(_FR) == set(_EN), (
         f"un guide existe dans une langue et pas dans l'autre : "
@@ -52,7 +67,7 @@ def test_both_languages_cover_the_same_platforms():
 def test_the_two_sources_describe_the_same_number_of_steps(key):
     """Un écart de comptage EST un guide périmé — jamais une nuance de traduction."""
     fr, en = _FR[key], _EN[key]
-    assert len(fr.steps) == len(en.steps), (
+    assert not steps_differ(fr, en), (
         f"{key} : {len(fr.steps)} étape(s) en français, {len(en.steps)} en anglais. "
         "L'une des deux sources n'a pas suivi la réécriture de l'autre — et le PDF "
         "de chaque langue est rendu depuis SA source, donc l'écart est livré."
@@ -88,13 +103,24 @@ def test_the_catalog_does_not_describe_more_steps_than_the_source(key):
     et la seule preuve serait de lire l'écran en anglais.
     """
     n_steps = len(_FR[key].steps)
-    orphans = sorted(
-        k for k in EN
-        if k.startswith(f"credentials.guide.{key}.step_")
-        and k.split("step_")[1].split("_")[0].isdigit()
-        and int(k.split("step_")[1].split("_")[0]) > n_steps
-    )
+    orphans = orphan_step_keys(key, n_steps, EN)
     assert not orphans, (
         f"{key} n'a que {n_steps} étape(s), et ces traductions décrivent des étapes "
         f"qui n'existent plus : {orphans}. Elles ne sont jamais rendues — donc jamais "
         "relues, et jamais rouges.")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: a rewrite applied to ONE source (3 steps in French, 2 in English)
+    is seen, and so is a catalog key for a step the guide no longer has — the dangerous
+    `step_2` surviving a one-step guide; in-step sources and in-range keys are not."""
+    from types import SimpleNamespace as NS
+
+    fr = NS(steps=[NS(screenshot=None)] * 3)
+    assert steps_differ(fr, NS(steps=[NS(screenshot=None)] * 2))
+    assert not steps_differ(fr, NS(steps=[NS(screenshot=None)] * 3))
+    catalog = {"credentials.guide.yt.step_1": "a", "credentials.guide.yt.step_2": "b",
+               "credentials.guide.yt.step_2_hint": "c", "credentials.guide.sc.step_9": "d"}
+    assert orphan_step_keys("yt", 1, catalog) == [
+        "credentials.guide.yt.step_2", "credentials.guide.yt.step_2_hint"]
+    assert orphan_step_keys("yt", 2, catalog) == []

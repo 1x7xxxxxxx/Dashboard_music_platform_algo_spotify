@@ -83,13 +83,20 @@ def referrers_blob() -> str:
     return "\n".join(parts)
 
 
+def pointed_at(rel: str, own: str, blob: str) -> bool:
+    """Does anything BUT the document itself name it? Pure.
+
+    A doc naming only itself is not reached; its own text is stripped from the haystack.
+    """
+    haystack = blob.replace(own, "")
+    return rel in haystack or rel.rsplit("/", 1)[-1] in haystack
+
+
 @pytest.mark.parametrize("doc", _docs(), ids=lambda p: p.name)
 def test_something_points_at_this_document(doc, referrers_blob):
     rel = str(doc.relative_to(REPO)).replace("\\", "/")
-    # A doc naming only itself is not reached; strip its own text from the haystack.
     own = doc.read_text(encoding="utf-8", errors="replace")
-    haystack = referrers_blob.replace(own, "")
-    assert rel in haystack or doc.name in haystack, (
+    assert pointed_at(rel, own, referrers_blob), (
         f"{rel} is named by no tracked file outside the roadmap. Either index it "
         f"(the reference table in CLAUDE.md is where the others live), point at it "
         f"from the runbook section it serves, or remove it. On 2026-08-28 this state "
@@ -121,3 +128,13 @@ def test_the_exclusion_actually_excludes_something():
         "inert and reachability is now being satisfied by the one file that names "
         "everything."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the 2026-08-28 shape — a runbook whose only mention of its own
+    filename is its own header — is unreached; one line elsewhere naming it reaches it."""
+    rel = ".claude/dev-docs/runbook-artist-test-session.md"
+    own = "# runbook-artist-test-session.md\nStep 1: invite the artist.\n"
+    blob = own + "\n# CLAUDE.md\nsome other text\n"
+    assert not pointed_at(rel, own, blob)
+    assert pointed_at(rel, own, blob + "see `runbook-artist-test-session.md`\n")
