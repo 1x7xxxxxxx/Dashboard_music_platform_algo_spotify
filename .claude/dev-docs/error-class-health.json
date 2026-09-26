@@ -3172,7 +3172,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 3,
+      "revisions": 4,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11445,7 +11445,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 448,
+      "catalogue_revisions": 449,
       "head_date": "2026-09-26"
     },
     "holes": {
