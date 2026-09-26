@@ -188,3 +188,24 @@ measuring command), design note appended to `design-R180-R182.md`.
   faithfully. The binding is by CONTENT instead: some sibling-sweeper / engineering-loop call
   in the window must mention (prompt or result) at least one path the new class cites. The
   pre-commit « git mode » diffs the INDEX (`git show :path`) against HEAD, not the working tree.
+
+## R189–R193 (2026-09-26) — l'offre redécoupée et l'aperçu de Road to Algo
+
+Conception : `/home/timothe/.claude/plans/polymorphic-gathering-pebble.md` (R189–R193).
+Décision du propriétaire : **tes données et leur fusion gratuites ; les prédictions payantes**,
+avec un aperçu gratuit (🔓 vert) de Road to Algo.
+
+### Verdicts de code-critic — R192 BUILD-MODIFIED, R193 BUILD-MODIFIED (adoptés)
+- R192 : rien ne se retire à un abonné Premium (`'*'` inchangé). Copies qui mentiraient : la
+  bannière d'essai de l'onboarding et le mail J-3 (« tu perds … les analyses croisées Meta ×
+  Spotify ») ; billing/upgrade se corrigent seuls (`plan_pitch` lit le verrou). La section PDF
+  `songs` porte `dw/rr/radio_probability` → reste Premium ; `meta_breakdowns` et
+  `meta_x_spotify` sortent de `PREMIUM_SECTIONS`. Le commentaire `export_pdf.py:83` (« Free,
+  no plan gate ») était FAUX depuis le 2026-09-04 — il redevient vrai, on le dit.
+- R193 : **aucun pourcentage affiché tant que la probabilité est au plancher** (« pas encore
+  d'estimation fiable ») — un visiteur sans contexte lit un chiffre comme vrai ; le budget suit
+  le chemin de l'écart de streams 7 j (celui du panneau Premium, un seul chiffre par titre) ;
+  `budget_pour_streams` sort AUSSI de `views/` ; les tests qui épinglent `sur_le_plancher`
+  suivent son déplacement dans le même commit ; l'état vide sera le cas le plus fréquent tant
+  que l'activation n'est pas réglée (ADR-028) — la valeur de conversion de l'aperçu n'est pas
+  prouvée, et la roadmap le dit.

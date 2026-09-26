@@ -130,16 +130,19 @@ def test_every_pitch_line_names_a_page_that_exists() -> None:
 
 # ── 2. Le tiers est LU, jamais écrit ───────────────────────────────────────
 def test_the_tier_is_read_from_the_gate() -> None:
-    """La preuve par le cas qui a produit le défaut : `export_pdf`.
+    """La preuve par les deux sens d'un changement de plan.
 
-    Il a quitté Free le 2026-09-04. Si `tier_of` le rendait encore « free », le
-    module recopierait une décision au lieu de la lire.
+    `export_pdf` a quitté Free le 2026-09-04 puis l'a REJOINT le 2026-09-26 (ADR-029) ;
+    `revenue_forecast` prédit, il reste payant. Si `tier_of` rendait l'un ou l'autre de
+    travers, le module recopierait une décision au lieu de la lire.
     """
     from src.dashboard.utils.plan_pitch import tier_of
 
-    assert tier_of("export_pdf") == "premium", (
-        "`export_pdf` est vendu comme gratuit. Il a quitté Free le 2026-09-04 "
-        "(commit 5fdc65a) : `tier_of` doit LIRE `page_is_locked`.")
+    assert tier_of("revenue_forecast") == "premium", (
+        "`revenue_forecast` est vendu comme gratuit : `tier_of` doit LIRE `page_is_locked`.")
+    assert tier_of("export_pdf") == "free", (
+        "`export_pdf` est vendu comme payant alors qu'ADR-029 l'a rendu gratuit : `tier_of` "
+        "doit LIRE `page_is_locked`.")
     assert tier_of("spotify_s4a_combined") == "free"
     assert tier_of("billing") == "free", "ALWAYS_ACCESSIBLE doit primer"
 
@@ -263,10 +266,10 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
 
     def _colonnes_fautives() -> tuple[set[str], set[str]]:
         """Le catalogue tel qu'il était : le tiers ÉCRIT à la main."""
-        return ({"export_pdf", "spotify_s4a_combined"}, {"trigger_algo"})
+        return ({"revenue_forecast", "spotify_s4a_combined"}, {"trigger_algo"})
 
     def _colonnes_saines() -> tuple[set[str], set[str]]:
-        pages = {"export_pdf", "spotify_s4a_combined", "trigger_algo"}
+        pages = {"revenue_forecast", "spotify_s4a_combined", "trigger_algo"}
         return ({p for p in pages if tier_of(p) == "free"},
                 {p for p in pages if tier_of(p) == "premium"})
 
@@ -276,7 +279,7 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
                    for p in libres | payantes)
 
     assert _detecte(_colonnes_fautives()), (
-        "le détecteur ne voit pas `export_pdf` vendu en Free alors que le verrou "
+        "le détecteur ne voit pas `revenue_forecast` vendu en Free alors que le verrou "
         "le dit payant — c'est le défaut EXACT du 2026-09-21")
     assert not _detecte(_colonnes_saines()), (
         "le détecteur rougit sur la forme CORRIGÉE : un correctif ferait échouer "

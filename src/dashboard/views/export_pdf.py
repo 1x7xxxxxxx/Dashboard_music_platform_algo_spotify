@@ -80,7 +80,10 @@ def _selected_release_date(db, artist_id, tracks):
 # ─── UI ──────────────────────────────────────────────────────────────────────
 
 def show():
-    # Export PDF is a Free-tier feature (no plan gate).
+    # Free again since 2026-09-26 (ADR-029): the on-demand report is a reading of the
+    # artist's own data. ⚠️ This line said « Free » from 2026-09-04 to 2026-09-26 while the
+    # page was Premium — it was false for three weeks. The ML sections stay Premium
+    # (`PREMIUM_SECTIONS`), and so does the weekly e-mailed report (`weekly_digest`).
     st.title(t("export_pdf.title", "📄 Export PDF — Rapport Artiste"))
     st.caption(t(
         "export_pdf.caption",

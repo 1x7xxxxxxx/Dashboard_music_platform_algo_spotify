@@ -16,7 +16,7 @@ STRIPE_SCHEMA = {
 
         INSERT INTO subscription_plans (name, price_monthly, max_artists, features)
         VALUES
-            ('free',    0.00,  1,  '["home","spotify_s4a_combined","youtube","meta_ads_overview","instagram","soundcloud","apple_music","hypeddit","imusician","upload_csv","credentials","export_csv","data_wrapped","meta_mapping","referral"]'),
+            ('free',    0.00,  1,  '["home","spotify_s4a_combined","youtube","meta_ads_overview","instagram","soundcloud","apple_music","hypeddit","imusician","upload_csv","credentials","export_csv","data_wrapped","meta_mapping","referral","meta_x_spotify","meta_creatives","meta_breakdowns","export_pdf","algo_preview"]'),
             ('premium', 10.00, 10, '["*"]')
         ON CONFLICT (name) DO NOTHING;
     """,
@@ -74,6 +74,22 @@ _FREE_FEATURES = {
     # Et la brider se retournait contre nous : ces saisies NOURRISSENT les modèles
     # prédictifs. Les réserver aux payants, c'est dégrader la précision qu'on vend.
     'saisie_s4a',
+    # ── TES DONNÉES SONT GRATUITES, LES PRÉDICTIONS SONT PAYANTES — 2026-09-26 (ADR-029) ──
+    #
+    # Décision du propriétaire, adossée au corpus (*Monetizing Innovation* : faire payer à
+    # un artiste la lecture de SES propres données est un « killer » ; *Product-Led
+    # Growth* : le gratuit doit livrer le « aha » — voir sa pub Meta agir sur ses écoutes)
+    # et à ADR-028 (0 payant, 1 activé sur 4 : le blocage est l'activation, pas le prix).
+    # La fusion des plateformes et le rapport à la demande rejoignent donc Free. Restent
+    # Premium : ce qui PRÉDIT (Road to Algo, l'optimiseur CPR qui lit les prédictions ML,
+    # les prévisions de revenus), l'ENVOI hebdomadaire du rapport (`weekly_digest`) et les
+    # sections ML du PDF (`PREMIUM_SECTIONS`). `algo_preview` est l'APERÇU gratuit de Road
+    # to Algo — ce que les prédictions font, pour la dernière sortie.
+    #
+    # ⚠️ Et la phrase du 2026-09-04 ci-dessus (« export_pdf a quitté Free ») est renversée
+    # ici, sur décision : le rapport à la demande est une lecture de ses données ; ce qui
+    # reste un service, c'est l'envoi automatique.
+    'meta_x_spotify', 'meta_creatives', 'meta_breakdowns', 'export_pdf', 'algo_preview',
 }
 PLAN_FEATURES = {
     'free':  set(_FREE_FEATURES),

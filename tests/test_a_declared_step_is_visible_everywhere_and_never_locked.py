@@ -99,7 +99,10 @@ def test_every_surface_reads_the_declaration_instead_of_its_own_list(module):
 # de prix écrite dans `stripe_schema.py` — « la sortie brute reste gratuite, la mise
 # en forme est le service ». Y ajouter une clé est un geste délibéré, et c'est le
 # but : on ne ferme pas une étape de mise en route par accident.
-_PREMIUM_ONLY_STEPS = {"pdf"}
+# ⚠️ VIDE depuis le 2026-09-26 (ADR-029) : le rapport PDF à la demande est redevenu gratuit
+# — « tes données sont gratuites, les prédictions sont payantes ». Plus aucune étape de mise
+# en route ne mène à une page Premium ; en ajouter une reste un geste délibéré.
+_PREMIUM_ONLY_STEPS: set[str] = set()
 
 
 def test_no_declared_step_is_locked_for_a_free_account():

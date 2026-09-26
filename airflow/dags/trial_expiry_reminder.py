@@ -100,13 +100,15 @@ def _body(artist_name: str, ends_on, lang: str, user_id: int) -> tuple[str, str]
       <p><strong>{_t('email.trial_end.keep_header', "Ce que tu gardes, pour toujours :",
                      lang)}</strong><br>
          {_t('email.trial_end.keep',
-             "Tes données, tes connexions, tes analyses par plateforme, l'export CSV "
-             "de tout ce qui a été collecté. Rien n'est effacé, rien n'est verrouillé.",
+             "Tes données, tes connexions, tes analyses par plateforme et leur fusion "
+             "(pub Meta × écoutes comprise), les exports CSV et PDF. Rien n'est effacé, "
+             "rien n'est verrouillé.",
              lang)}</p>
       <p><strong>{_t('email.trial_end.lose_header', "Ce que tu perds :", lang)}</strong><br>
          {_t('email.trial_end.lose',
-             "La prédiction Discover Weekly, les prévisions de revenus, le croisement "
-             "pub × écoutes, et ton rapport PDF hebdomadaire.", lang)}</p>
+             "Ce qui prédit : Road to Algo (déclencher les algos Spotify et le budget "
+             "pour y arriver), l'optimiseur de coût par résultat, les prévisions de "
+             "revenus — et l'envoi automatique de ton rapport chaque semaine.", lang)}</p>
       <p style="text-align:center;margin:30px 0;">
         <a href="{billing}" style="display:inline-block;background:#1DB954;color:#fff;
            padding:14px 28px;text-decoration:none;border-radius:6px;font-size:16px;">

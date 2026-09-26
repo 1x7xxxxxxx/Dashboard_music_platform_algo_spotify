@@ -155,16 +155,20 @@ def test_the_report_opens_what_the_subscription_sells() -> None:
     Ce qu'on perd est écrit dans `nav_sections.py` : le résumé est désormais loin de ce
     qu'il résume. Les deux placements se défendaient ; celui-ci est le choix fait.
     """
+    # ⚠️ RENVERSÉ LE 2026-09-26 (ADR-029, décision du propriétaire) : le rapport à la
+    # demande est redevenu GRATUIT — c'est une lecture de ses données. Il retourne donc
+    # près de ce qu'il résume, en fin d'« Analytics », et la section Premium s'ouvre sur
+    # l'APERÇU gratuit de ce qu'elle vend, juste au-dessus de Road to Algo.
+    from src.dashboard.utils.nav_badges import FREE_PREVIEW_PAGES
     p = _items("premium")
-    assert p[0] == "export_pdf", (
-        f"le rapport PDF n'ouvre plus la section Premium : {p}. C'est ce que "
-        "l'abonnement donne de plus tangible — un document qu'on emporte.")
+    assert p[0] in FREE_PREVIEW_PAGES and p[1] == "trigger_algo", (
+        f"la section Premium ne s'ouvre plus sur l'aperçu puis Road to Algo : {p}")
+    assert "export_pdf" not in p, (
+        f"le rapport PDF est revenu dans Premium : {p} — ADR-029 l'a rendu gratuit")
     a = _items("analytics")
-    assert "export_pdf" not in a, (
-        f"le rapport PDF est revenu dans Analytics en plus de Premium : {a}. Une entrée "
-        "dans deux sections se sélectionne deux fois et n'en surligne qu'une.")
-    assert a[-1] == "service", (
-        f"« Faire piloter mes campagnes » ne ferme plus Analytics : {a[-2:]}")
+    assert a[-2:] == ["export_pdf", "service"], (
+        f"le rapport ne clôt plus les analyses, juste avant « Faire piloter mes "
+        f"campagnes » : {a[-2:]}")
 
 
 def test_the_raw_export_is_an_account_gesture() -> None:
@@ -279,11 +283,20 @@ def test_the_premium_section_carries_the_padlock_of_the_plan(plan, attendu) -> N
     from src.database.stripe_schema import page_is_locked
     from src.dashboard.utils.nav_badges import badge, section_badge
 
-    keys = _items("premium")
+    from src.dashboard.utils.nav_badges import FREE_PREVIEW, FREE_PREVIEW_PAGES
+
+    all_keys = _items("premium")
+    # L'APERÇU gratuit (R193) est la seule page gratuite admise ici : il porte son propre
+    # cadenas OUVERT vert, pour tous les plans — vérifié à part ci-dessous.
+    keys = [k for k in all_keys if k not in FREE_PREVIEW_PAGES]
     payantes = {k for k in keys if page_is_locked("free", k)}
     assert payantes == set(keys), (
         f"des pages GRATUITES vivent dans la section Premium : {set(keys) - payantes}. "
         "Le critère est le PLAN, pas le thème.")
+    for k in set(all_keys) & FREE_PREVIEW_PAGES:
+        assert badge(k, is_locked=lambda x: page_is_locked(plan, x),
+                     paid_pages=payantes) == FREE_PREVIEW, (
+            f"l'aperçu « {k} » ne porte pas le cadenas ouvert vert en plan « {plan} »")
 
     def _locked(k: str) -> bool:
         return page_is_locked(plan, k)
@@ -344,8 +357,8 @@ def test_the_arrows_skip_the_pages_the_plan_blocks() -> None:
     assert len(vus) >= 8, f"la traversée s'arrête trop tôt : {sorted(vus)}"
 
 
-@pytest.mark.parametrize("page", ["export_pdf", "trigger_algo", "meta_cpr_optimizer",
-                                  "revenue_forecast"])
+# `export_pdf` en est sorti le 2026-09-26 : il est gratuit depuis ADR-029.
+@pytest.mark.parametrize("page", ["trigger_algo", "meta_cpr_optimizer", "revenue_forecast"])
 def test_a_locked_page_is_never_a_dead_end(page: str) -> None:
     """LE DÉFAUT MESURÉ LE 2026-09-22 : les deux flèches mouraient.
 

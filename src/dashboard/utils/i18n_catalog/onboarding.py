@@ -11,7 +11,7 @@ EN = {
         "To replay the whole journey, sign in with the **sandbox** account: that is "
         "the tenant made for it."
     ),
-    "onboarding.trial_offer": "🎁 **Premium free for 1 month** (30 days), until **{date}**.\n\nAfter that your account returns to **Free**: you keep your data, your connections and your exports. You lose **🚀 Road to Algo** (Discover Weekly trigger predictions), **revenue forecasts** and the **Meta × Spotify cross-analyses**.",
+    "onboarding.trial_offer": "🎁 **Premium free for 1 month** (30 days), until **{date}**.\n\nAfter that your account returns to **Free**: you keep your data, your connections, the fusion of all your platforms (Meta ads × streams included) and your CSV and PDF exports. You lose what **predicts**: **🚀 Road to Algo** (triggering Discover Weekly, Release Radar, Radio — and the budget to get there), the **cost-per-result optimizer** and **revenue forecasts**.",
     "onboarding.welcome_body": "Your account has been created with the **{plan}** plan. "
                                "Here is what your current plan includes:",
     "onboarding.your_plan": " ← *your plan*",

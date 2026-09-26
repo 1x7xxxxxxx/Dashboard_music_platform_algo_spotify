@@ -38,9 +38,11 @@ _EMOJI_RE = re.compile(
 )
 
 
-PREMIUM_SECTIONS = frozenset({
-    'songs', 'ml_explain', 'revenue_forecast', 'meta_breakdowns', 'meta_x_spotify',
-})
+# Les sections qui PRÉDISENT restent Premium (ADR-029, 2026-09-26) : `songs` porte les
+# probabilités DW/RR/Radio de `ml_song_predictions`, `ml_explain` et `revenue_forecast` sont
+# des modèles. `meta_breakdowns` et `meta_x_spotify` (des données, pas des prédictions) en
+# sont sorties avec leurs pages.
+PREMIUM_SECTIONS = frozenset({'songs', 'ml_explain', 'revenue_forecast'})
 
 
 ALL_SECTIONS = {

@@ -38,12 +38,13 @@ EN = {
                              "Nothing happens without you: your account simply returns "
                              "to <strong>Free</strong>.",
     "email.trial_end.keep_header": "What you keep, for ever:",
-    "email.trial_end.keep": "Your data, your connections, your per-platform analytics, "
-                            "and the CSV export of everything collected. Nothing is "
-                            "deleted, nothing is locked.",
+    "email.trial_end.keep": "Your data, your connections, your per-platform analytics and "
+                            "their fusion (Meta ads × streams included), CSV and PDF exports. "
+                            "Nothing is deleted, nothing is locked.",
     "email.trial_end.lose_header": "What you lose:",
-    "email.trial_end.lose": "Discover Weekly prediction, revenue forecasts, the "
-                            "ads × streams cross-analysis, and your weekly PDF report.",
+    "email.trial_end.lose": "What predicts: Road to Algo (triggering Spotify's algorithms and "
+                            "the budget to get there), the cost-per-result optimizer, revenue "
+                            "forecasts — and your report e-mailed automatically every week.",
     "email.trial_end.cta": "See my options",
     # --- Welcome email ---
     "email.welcome.subject": "🎵 Welcome to streaMLytics — your getting-started guide",

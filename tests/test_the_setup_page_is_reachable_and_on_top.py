@@ -899,11 +899,14 @@ def test_the_plan_table_does_not_contradict_the_real_gating():
             "que pas de tableau : l'artiste clique sur ce qu'on lui a promis et "
             "trouve un cadenas.")
 
-    # Le cas NOMMÉ qui a produit ce garde : le rapport PDF a quitté Free le
-    # 2026-09-04 (« ce qui se vend n'est pas la donnée, c'est le RAPPORT »).
-    assert "export_pdf" in payantes, (
-        "`export_pdf` a disparu de la colonne Premium. Il a quitté Free le "
-        "2026-09-04 ; s'il n'est vendu nulle part, il n'est plus vendu du tout.")
+    # Le cas NOMMÉ qui a produit ce garde : le rapport PDF a quitté Free le 2026-09-04,
+    # puis l'a REJOINT le 2026-09-26 (ADR-029 — « tes données sont gratuites, les
+    # prédictions sont payantes »). Le tableau doit suivre dans les deux sens.
+    assert "export_pdf" in libres, (
+        "`export_pdf` n'est pas dans la colonne Free alors qu'ADR-029 l'y a remis : le "
+        "tableau des plans promet un cadenas que le verrou n'a plus.")
+    assert "trigger_algo" in payantes, (
+        "Road to Algo a quitté la colonne Premium : c'est ce que l'abonnement vend.")
     assert "export_csv" in libres, (
         "`export_csv` a quitté Free : c'est la contrepartie explicite du PDF "
         "payant — « tes données restent les tiennes dans les deux cas ».")

@@ -31,6 +31,8 @@ EN = {
     "pitch.wrapped": "🎁 **Your yearly Data Wrapped**",
     "pitch.referral": "🎁 **Referrals** — 1 free month per referred artist",
     # ── Premium ─────────────────────────────────────────────────────────────
+    "pitch.preview": ("🔓 **A preview of Road to Algo** on your latest release — the actions "
+                      "to take and the budget to trigger the algorithms"),
     "pitch.trigger": ("🚀 **Know whether a track will trigger Discover Weekly** "
                       "— before spending on promo"),
     "pitch.money": ("💰 **Where your money goes, and when you break even** — "

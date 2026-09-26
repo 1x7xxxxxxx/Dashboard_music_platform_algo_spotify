@@ -2,49 +2,13 @@
 import json
 
 import streamlit as st
+from src.dashboard.utils.algo_preview_data import load_ml_pred as _load_ml_pred  # noqa: F401,E402 — moved (R193)
 
 # Process-global caches for static artifacts (mirror ml_inference._model_cache).
 # The explainability tab calls _load_xgb_model 4x per render and re-reads the JSON
 # tables every render; without memoization each call re-deserialized from disk.
 _xgb_booster_cache: dict = {}
 _json_artifact_cache: dict = {}
-
-
-def _load_ml_pred(db, track: str, artist_id) -> dict | None:
-    try:
-        if artist_id:
-            rows = db.fetch_query(
-                """SELECT dw_probability, rr_probability, radio_probability,
-                          dw_streams_forecast_7d, rr_streams_forecast_7d,
-                          radio_streams_forecast_7d, pi_forecast_7d,
-                          prediction_date, model_version, features_json
-                   FROM ml_song_predictions
-                   WHERE artist_id = %s AND song = %s
-                   ORDER BY prediction_date DESC LIMIT 1""",
-                (artist_id, track)
-            )
-        else:
-            rows = db.fetch_query(
-                """SELECT dw_probability, rr_probability, radio_probability,
-                          dw_streams_forecast_7d, rr_streams_forecast_7d,
-                          radio_streams_forecast_7d, pi_forecast_7d,
-                          prediction_date, model_version, features_json
-                   FROM ml_song_predictions
-                   WHERE song = %s
-                   ORDER BY prediction_date DESC LIMIT 1""",
-                (track,)
-            )
-        if rows:
-            r = rows[0]
-            return {
-                "dw_probability": r[0], "rr_probability": r[1], "radio_probability": r[2],
-                "dw_streams_forecast_7d": r[3], "rr_streams_forecast_7d": r[4],
-                "radio_streams_forecast_7d": r[5], "pi_forecast_7d": r[6],
-                "prediction_date": r[7], "model_version": r[8], "features_json": r[9],
-            }
-    except Exception:
-        pass
-    return None
 
 
 def _load_json_artifact(filename: str) -> dict | None:

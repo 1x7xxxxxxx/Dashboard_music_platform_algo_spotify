@@ -1,7 +1,7 @@
 """Vue Créatives Meta Ads — Classement des créatives par CPR.
 
 Type: Feature
-Uses: get_db_connection, get_artist_id, require_plan
+Uses: get_db_connection, get_artist_id
 Depends on: meta_ads, meta_insights, meta_campaigns tables (API-based)
 Persists in: read-only
 """
@@ -20,7 +20,7 @@ from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.safe_number import entier
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.utils.ui import secondary_analyses
-from src.dashboard.auth import require_plan, is_admin
+from src.dashboard.auth import is_admin
 from src.dashboard.utils.date_format import format_date
 
 # All-creatives daily series (for the heatmap + cumulative-budget charts).
@@ -962,8 +962,8 @@ def _render_activity(ts_all: pd.DataFrame) -> None:
 
 
 def show() -> None:
-    if not require_plan('premium'):
-        return
+    # Gratuite depuis le 2026-09-26 (ADR-029) : cette page lit tes données, elle ne prédit
+    # rien. Le verrou `require_plan('premium')` est retiré avec la ligne de `_FREE_FEATURES`.
 
     st.title(t("meta_creatives.title", "🎨 Créatives Meta Ads"))
     st.caption(t("meta_creatives.subtitle",

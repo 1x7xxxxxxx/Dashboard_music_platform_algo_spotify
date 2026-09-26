@@ -77,6 +77,10 @@ _PITCH: tuple[tuple[str | None, str, str], ...] = (
     ("data_wrapped", "pitch.wrapped", "🎁 **Ton Data Wrapped** annuel"),
     ("referral", "pitch.referral", "🎁 **Parrainage** — 1 mois offert par filleul"),
 
+    ("algo_preview", "pitch.preview",
+     "🔓 **Un aperçu de Road to Algo** sur ta dernière sortie — les actions à faire et "
+     "le budget pour déclencher les algos"),
+
     # ── Ce que l'abonnement ouvre en plus ────────────────────────────────────
     ("trigger_algo", "pitch.trigger",
      "🚀 **Savoir si un titre va déclencher Discover Weekly** — avant de dépenser "

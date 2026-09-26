@@ -635,9 +635,8 @@ def _show_body(db, artist_id) -> None:
 
 
 def show():
-    from src.dashboard.auth import require_plan
-    if not require_plan('premium'):
-        return
+    # Gratuite depuis le 2026-09-26 (ADR-029) : cette page lit tes données, elle ne prédit
+    # rien. Le verrou `require_plan('premium')` est retiré avec la ligne de `_FREE_FEATURES`.
 
     st.title(t("meta_x_spotify.title",
                "🔀 Impact de mes campagnes — toutes plateformes"))

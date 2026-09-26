@@ -38,7 +38,14 @@ REPO = _repo_root()
 sys.path.insert(0, str(REPO))
 
 SCHEMA_PY = REPO / "src" / "database" / "stripe_schema.py"
-MIGRATION = REPO / "migrations" / "085_the_seeded_plan_row_follows_the_code.sql"
+# The LATEST migration that sets the free row is what production holds — 085 first, 137
+# since the 2026-09-26 split (ADR-029). Picked by number, never by name.
+def _latest_free_row_migration() -> Path:
+    """Read lazily, never at import: a vanished file must fail a named test, not collection."""
+    return max((p for p in (REPO / "migrations").glob("[0-9][0-9][0-9]_*.sql")
+                if "UPDATE subscription_plans" in p.read_text(encoding="utf-8")
+                and "name = 'free'" in p.read_text(encoding="utf-8")),
+               key=lambda p: int(p.name[:3]))
 
 
 def _seeded_free() -> set[str]:
@@ -78,7 +85,8 @@ def test_the_seeded_row_matches_the_gate():
 
 def test_the_migration_holds_the_same_list_as_the_seed():
     """Production must not be told something the code stopped saying."""
-    sql = MIGRATION.read_text(encoding="utf-8")
+    migration = _latest_free_row_migration()
+    sql = migration.read_text(encoding="utf-8")
     body = sql[sql.index("SET features ="):sql.index("::jsonb")]
     # `[a-z0-9_]`, pas `[a-z_]` : la première version manquait
     # `spotify_s4a_combined` — un chiffre au milieu d'un nom — et accusait la migration
@@ -86,7 +94,7 @@ def test_the_migration_holds_the_same_list_as_the_seed():
     # un garde qui crie : la sanction est la même, la confiance non.
     listed = set(re.findall(r'"([a-z0-9_]+)"', body))
     assert listed == _seeded_free(), (
-        f"migration 085 and the seed disagree: only in the migration "
+        f"migration {migration.name} and the seed disagree: only in the migration "
         f"{sorted(listed - _seeded_free())}, only in the seed "
         f"{sorted(_seeded_free() - listed)}. Production and a fresh install would "
         "then describe two different offers."

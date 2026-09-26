@@ -237,7 +237,11 @@ def test_the_premium_section_lists_exactly_what_is_sold() -> None:
     sections = {sec: [k for _, k in items] for sec, _, items in NAV_SECTIONS}
     assert "premium" in sections, "la section « premium » a disparu du menu"
 
-    gratuites_dans_premium = [k for k in sections["premium"] if not page_is_locked("free", k)]
+    from src.dashboard.utils.nav_badges import FREE_PREVIEW_PAGES
+    # La SEULE page gratuite admise ici est l'aperçu d'une page payante (R193) : il est
+    # rangé au-dessus de ce qu'il montre, et porte son propre cadenas ouvert.
+    gratuites_dans_premium = [k for k in sections["premium"]
+                              if not page_is_locked("free", k) and k not in FREE_PREVIEW_PAGES]
     assert not gratuites_dans_premium, (
         f"la section « Premium » contient des pages GRATUITES : {gratuites_dans_premium}. "
         "Le critère est le plan, pas le thème.")
@@ -306,9 +310,12 @@ def test_the_prediction_opens_what_the_subscription_sells() -> None:
     p = sections["premium"]
     assert "trigger_algo" in p, (
         f"la prédiction de déclenchement a quitté Premium : {p}")
-    assert p.index("trigger_algo") < p.index("meta_x_spotify"), (
-        f"la prédiction ne précède plus les pages Meta : {p}. C'est la promesse du "
+    assert p.index("trigger_algo") < p.index("meta_cpr_optimizer"), (
+        f"la prédiction ne précède plus l'optimiseur : {p}. C'est la promesse du "
         "produit ; elle vient avant ce qui la raffine.")
+    from src.dashboard.utils.nav_badges import FREE_PREVIEW_PAGES
+    assert p[0] in FREE_PREVIEW_PAGES and p[1] == "trigger_algo", (
+        f"l'aperçu gratuit doit ouvrir la section, juste au-dessus de Road to Algo : {p}")
     assert p.index("trigger_algo") <= 1, (
         f"la prédiction est reléguée au rang {p.index('trigger_algo')} : {p}. Elle "
         "ouvre la section, ou suit immédiatement ce qui l'ouvre.")
@@ -378,10 +385,10 @@ def test_the_app_builds_the_badge_the_same_way() -> None:
     # mais léger ». Les valeurs attendues sont donc du markdown Streamlit, et non
     # l'emoji nu. La couleur enveloppe le seul cadenas : un libellé de menu
     # entièrement teinté se lirait comme une page en panne.
-    payantes = {"meta_x_spotify"}
-    assert badge("meta_x_spotify", is_locked=lambda k: page_is_locked("free", k),
+    payantes = {"revenue_forecast"}
+    assert badge("revenue_forecast", is_locked=lambda k: page_is_locked("free", k),
                  paid_pages=payantes) == ":red[🔒] "
-    assert badge("meta_x_spotify", is_locked=lambda k: page_is_locked("premium", k),
+    assert badge("revenue_forecast", is_locked=lambda k: page_is_locked("premium", k),
                  paid_pages=payantes) == ":green[🔓] "
     assert badge("home", is_locked=lambda k: page_is_locked("free", k),
                  paid_pages=payantes) == ""
@@ -391,13 +398,13 @@ def test_the_app_builds_the_badge_the_same_way() -> None:
     # parle pour la majorité ment à la minorité.
     from src.dashboard.utils.nav_badges import section_badge
 
-    assert section_badge(["meta_x_spotify"],
+    assert section_badge(["revenue_forecast"],
                          is_locked=lambda k: page_is_locked("free", k),
                          paid_pages=payantes) == ":red[🔒]"
-    assert section_badge(["meta_x_spotify"],
+    assert section_badge(["revenue_forecast"],
                          is_locked=lambda k: page_is_locked("premium", k),
                          paid_pages=payantes) == ":green[🔓]"
-    assert section_badge(["home", "meta_x_spotify"],
+    assert section_badge(["home", "revenue_forecast"],
                          is_locked=lambda k: page_is_locked("free", k),
                          paid_pages=payantes) == "", (
         "une section mixte porte une marque : elle affirmerait pour toutes ses "

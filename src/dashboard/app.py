@@ -579,6 +579,7 @@ def _render_page(page):
 
     # Routing
     elif page == "trigger_algo": from views.trigger_algo import show; show()
+    elif page == "algo_preview": from views.algo_preview import show; show()
     elif page == "meta_ads_overview": from views.meta_ads_overview import show; show()
     elif page == "meta_x_spotify": from views.meta_x_spotify import show; show()
     elif page == "spotify_s4a_combined": from views.spotify_s4a_combined import show; show()

@@ -289,9 +289,11 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
             "🎁 **Premium offert pendant 1 mois** (30 jours), "
             "jusqu'au **{date}**.\n\n"
             "Ensuite ton compte repasse en **Free** : tu gardes tes données, tes "
-            "connexions et tes exports. Tu perds **🚀 Road to Algo** (les prédictions "
-            "de déclenchement Discover Weekly), les **prévisions de revenus** et les "
-            "**analyses croisées Meta × Spotify**."
+            "connexions, la fusion de toutes tes plateformes (pub Meta × écoutes "
+            "comprise) et tes exports CSV et PDF. Tu perds ce qui **prédit** : "
+            "**🚀 Road to Algo** (déclencher Discover Weekly, Release Radar, Radio — et "
+            "le budget pour y arriver), l'**optimiseur de coût par résultat** et les "
+            "**prévisions de revenus**."
         ).format(date=deadline))
     else:
         st.markdown(

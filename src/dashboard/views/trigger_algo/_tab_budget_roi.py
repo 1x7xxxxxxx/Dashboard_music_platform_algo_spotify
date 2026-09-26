@@ -16,6 +16,7 @@ from ._common import (
     _show_velocity_budget_advice,
 )
 from src.dashboard.utils.date_format import format_date
+from src.dashboard.utils.algo_preview_data import cout_par_stream as _cout_par_stream  # noqa: F401,E402 — moved (R193)
 
 
 # Maps the cost-target labels to (ml_pred probability key, calibration-band algo key).
@@ -69,29 +70,6 @@ def _render_expected_value(ml_pred: dict, cost_per_stream: float) -> None:
     if note:
         st.caption(t("trigger_algo.roi.score_reliability", "🎯 Fiabilité du score : {note}")
                    .format(note=note))
-
-
-def _cout_par_stream(db, artist_id, date_from, date_to) -> float | None:
-    """Dépense ÷ écoutes sur la fenêtre — agrégé TOUS TITRES, et la vue le dit.
-
-    Extrait pour que le panneau de réglages lise la même valeur que les tuiles de
-    budget plus bas. Deux calculs du même coût finiraient par diverger.
-    """
-    try:
-        dep = db.fetch_query(
-            "SELECT COALESCE(SUM(spend), 0) FROM v_meta_daily "
-            "WHERE artist_id = %s AND day BETWEEN %s AND %s",
-            (artist_id, date_from, date_to)) if artist_id else None
-        st_ = db.fetch_query(
-            "SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily "
-            "WHERE artist_id = %s AND day BETWEEN %s AND %s",
-            (artist_id, date_from, date_to)) if artist_id else None
-    except Exception:                                    # noqa: BLE001
-        return None
-    if not dep or not st_:
-        return None
-    depense, streams = float(dep[0][0] or 0), float(st_[0][0] or 0)
-    return depense / streams if depense > 0 and streams > 0 else None
 
 
 def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=None):

@@ -57,6 +57,7 @@ import pandas as pd
 # changent pas de porte.
 from src.dashboard.utils.meta_confidence import (  # noqa: E402
     MIN_ADS, MIN_DEPENSE)
+from src.dashboard.utils.algo_preview_data import budget_pour_streams  # noqa: F401,E402 — moved (R193)
 
 
 def classer(lignes: list[dict], axe: str) -> pd.DataFrame:
@@ -118,21 +119,3 @@ def recommandation(df: pd.DataFrame) -> dict | None:
         "sur_ads": int(meilleur["ads"]),
         "sur_depense": float(meilleur["depense"]),
     }
-
-
-def budget_pour_streams(streams_manquants: float, cout_par_stream: float | None) -> float | None:
-    """Ce que coûterait d'acheter ces écoutes, au coût observé — ou `None`.
-
-    ⚠️ **Ce nombre porte une limite qu'il faut afficher AVEC lui.** `cout_par_stream`
-    est agrégé sur toutes les campagnes et tous les titres de l'artiste : il ne dit
-    pas ce que coûtent les écoutes de CE titre. L'attribution passerait par
-    `campaign_track_mapping`, qui porte 19 correspondances, et la dépense Meta
-    s'arrête au 2024-09-30 quand les écoutes vont jusqu'en 2026.
-
-    On le rend quand même, parce qu'un ordre de grandeur aide à décider d'un budget
-    — mais la vue doit écrire que c'en est un, et non un devis.
-    """
-    if not cout_par_stream or cout_par_stream <= 0 or streams_manquants is None:
-        return None
-    manque = float(streams_manquants)
-    return manque * float(cout_par_stream) if manque > 0 else 0.0

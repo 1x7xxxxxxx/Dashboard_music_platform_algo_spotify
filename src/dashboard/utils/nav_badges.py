@@ -64,6 +64,13 @@ LOCKED = ":red[🔒] "
 PAID_AND_OPEN = ":green[🔓] "
 FREE = ""
 
+# L'APERÇU GRATUIT D'UNE PAGE PAYANTE (R193, 2026-09-26) : un cadenas OUVERT vert, pour
+# TOUS les plans — il dit « ceci montre ce que Premium fait, et c'est ouvert ». Placé en tête
+# de la section Premium, juste au-dessus de la page qu'il montre. Seule page gratuite
+# admise dans cette section (`tests/test_the_campaign_view_plots_what_it_promises.py`).
+FREE_PREVIEW = ":green[🔓] "
+FREE_PREVIEW_PAGES = frozenset({"algo_preview"})
+
 
 def badge(page_key: str, *, is_locked: Callable[[str], bool],
           paid_pages: Iterable[str]) -> str:
@@ -79,6 +86,8 @@ def badge(page_key: str, *, is_locked: Callable[[str], bool],
     """
     if is_locked(page_key):
         return LOCKED
+    if page_key in FREE_PREVIEW_PAGES:
+        return FREE_PREVIEW
     return PAID_AND_OPEN if page_key in set(paid_pages) else FREE
 
 

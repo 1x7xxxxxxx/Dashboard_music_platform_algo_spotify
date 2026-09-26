@@ -49,6 +49,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 # grandit par `test_no_new_derivable_list_escapes_this_guard`.
 _DERIVABLE = {
     "KNOWN_PREMIUM_PAGES": "tests/test_plan_gating.py",
+    "KNOWN_FREE_DATA_PAGES": "tests/test_plan_gating.py",
     "_VIEWS": "tests/test_a_view_says_something_or_says_why.py",
     "_NON_ANALYTICS": "tests/test_pdf_coverage.py",
     "TENANT_VIEWS": "tests/test_stray_session_reads_nothing.py",

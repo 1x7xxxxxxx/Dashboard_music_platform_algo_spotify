@@ -41,11 +41,11 @@ chansons : les inclure donnerait le même rang à tout le monde. Voir `LEVER_SCO
 from __future__ import annotations
 
 import json
-import math
 
 import pandas as pd
 
 from src.dashboard.utils.algo_knowledge import nearest_gate, split_coach_actions
+from src.dashboard.utils.algo_preview_data import BRUT_NEGLIGEABLE, sur_le_plancher  # noqa: F401,E402 — moved (R193)
 
 #: Les colonnes de la trame, dans l'ordre d'affichage. La probabilité vient EN
 #: DERNIER : elle est vraie, et inutile pour comparer deux titres (voir le module).
@@ -55,13 +55,6 @@ COLONNES = [
     "streams_28d", "dw_probability", "rr_probability", "radio_probability",
 ]
 
-#: Le score BRUT en dessous duquel on considère que le modèle n'a rien tranché.
-#:
-#: Le seuil vit dans l'espace brut et non dans l'espace calibré, parce que c'est là
-#: que le sens est. Il faut un score brut de **0,49 à 0,62** pour atteindre 50 %
-#: après calibration ; 0,05 en est le douzième. En production le 2026-09-22, les dix
-#: titres de l'artiste 1 sont entre **0,0013 et 0,028** — tous largement dessous.
-BRUT_NEGLIGEABLE = 0.05
 
 
 def _feats(valeur) -> dict:
@@ -74,37 +67,6 @@ def _feats(valeur) -> dict:
         except (ValueError, TypeError):
             return {}
     return {}
-
-
-def sur_le_plancher(algo: str, proba) -> bool:
-    """Cette probabilité traduit-elle un score brut négligeable ?
-
-    C'est ce qui permet d'écrire « ≈ plancher » à côté du chiffre au lieu de le
-    présenter comme une mesure qui distingue ce titre des autres.
-
-    ⚠️ L'inversion passe par les coefficients que `ml_inference._calibrate` UTILISE,
-    jamais par une copie. Une constante recopiée diverge le jour où le modèle est
-    réentraîné, et le dépôt appelle ça
-    `a-second-door-that-knows-fewer-sources-than-the-first`.
-    """
-    if proba is None:
-        return False
-    try:
-        p = float(proba)
-    except (TypeError, ValueError):
-        return False
-    if not 0.0 < p < 1.0:
-        return False
-    try:
-        from src.utils.ml_inference import _load_json
-
-        c = (_load_json("calibration.json") or {}).get(algo.lower())
-    except Exception:                                    # noqa: BLE001
-        return False
-    if not c or not c.get("coef"):
-        return False
-    brut = (math.log(p / (1.0 - p)) - c["intercept"]) / c["coef"]
-    return brut <= BRUT_NEGLIGEABLE
 
 
 def construire(lignes: list[dict]) -> pd.DataFrame:

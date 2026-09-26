@@ -19,16 +19,31 @@ from src.database.stripe_schema import (
     normalize_plan,
 )
 
-# Pages that MUST stay behind the paywall (Road to Algo + revenue forecast + advanced
-# Meta). meta_ads_overview is intentionally FREE — only the advanced Meta views are paid.
-# ⚠️ **6 des 45 vues du produit** — un SOUS-ENSEMBLE assumé : les pages facturées.
-# La note est là pour qu'on ne lise jamais cette liste comme « toutes les vues sont
-# contrôlées ». Une page premium NEUVE n'y entre pas toute seule ; c'est le prix de
-# l'énumération, et il se paie en la relisant quand on ajoute une page.
-KNOWN_PREMIUM_PAGES = {
-    "revenue_forecast", "meta_x_spotify", "meta_breakdowns",
-    "meta_cpr_optimizer", "meta_creatives", "trigger_algo",
-}
+# ADR-029 (2026-09-26) : TES DONNÉES SONT GRATUITES, LES PRÉDICTIONS SONT PAYANTES.
+# Pages that MUST stay behind the paywall — the ones that PREDICT: Road to Algo, the CPR
+# optimizer (it reads `ml_song_predictions`) and revenue forecasts.
+# ⚠️ Un sous-ensemble assumé des vues du produit : les pages facturées. Une page premium
+# NEUVE n'y entre pas toute seule ; c'est le prix de l'énumération, et il se paie en la
+# relisant quand on ajoute une page.
+KNOWN_PREMIUM_PAGES = {"revenue_forecast", "meta_cpr_optimizer", "trigger_algo"}
+
+# And the other side of the decision, pinned just as hard: pages that READ the artist's
+# own data (their fusion included) and the free preview of Road to Algo must stay OPEN to
+# Free. A sous-ensemble too: the pages ADR-029 moved, not every free page. Re-locking one of them is a pricing decision, not a refactor — it fails here.
+KNOWN_FREE_DATA_PAGES = {"meta_x_spotify", "meta_creatives", "meta_breakdowns",
+                         "meta_ads_overview", "export_pdf", "algo_preview"}
+
+
+def test_the_data_and_the_preview_stay_free() -> None:
+    for key in KNOWN_FREE_DATA_PAGES:
+        assert not _is_locked("free", key), (
+            f"{key!r} is locked for Free — ADR-029 made the artist's data and its fusion free")
+
+
+def test_the_weekly_report_stays_a_paid_capability() -> None:
+    from src.database.stripe_schema import PLAN_CAPABILITIES
+    assert "weekly_digest" in PLAN_CAPABILITIES["premium"]
+    assert "weekly_digest" not in PLAN_CAPABILITIES.get("free", frozenset())
 
 
 def _is_locked(plan: str, key: str) -> bool:

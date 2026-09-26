@@ -1,7 +1,7 @@
 """Vue Breakdowns Meta — pays / placement / âge à tous les grains.
 
 Type: Feature
-Uses: get_db_connection, get_artist_id, require_plan, utils.geo, utils.charts
+Uses: get_db_connection, get_artist_id, utils.geo, utils.charts
 Depends on: meta_insights_{performance,engagement}[_ad|_adset]_{country,placement,age}
 Persists in: read-only
 
@@ -22,7 +22,6 @@ from src.dashboard.utils.geo import iso2_to_iso3, iso2_to_name
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import cpr_help, outbound_help
-from src.dashboard.auth import require_plan
 
 
 # Grain is derived from the deepest specific selection in the campaign→adset→ad cascade.
@@ -135,8 +134,8 @@ def _render_engagement(df, dim_key, entity_label):
 
 
 def show() -> None:
-    if not require_plan('premium'):
-        return
+    # Gratuite depuis le 2026-09-26 (ADR-029) : cette page lit tes données, elle ne prédit
+    # rien. Le verrou `require_plan('premium')` est retiré avec la ligne de `_FREE_FEATURES`.
 
     st.title(t("meta_breakdowns.title", "🌍 Breakdowns Meta"))
     st.caption(t(

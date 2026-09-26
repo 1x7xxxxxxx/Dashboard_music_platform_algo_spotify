@@ -69,6 +69,7 @@ _PDF_MAP = {
                                     # l'e-mail de vérification.
     "meta_creatives":       None,   # creative-level detail, summarised by 'meta'
     "meta_cpr_optimizer":   None,   # interactive optimiser tool
+    "algo_preview":         None,   # free preview of Road to Algo (R193), not a report
 }
 
 
