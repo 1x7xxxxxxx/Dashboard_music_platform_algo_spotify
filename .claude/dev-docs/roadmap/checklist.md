@@ -25,6 +25,11 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R197 | Audit de la gestion de la roadmap + sonde qui MESURE les actions de dev faites sans inscription préalable (et sans code-critic quand il était dû), intégrée au suivi de nuit ; améliorations proposées au propriétaire — demandé 2026-09-26 <!-- anchor: roadmap-health-probe --> <!-- critic: requis --> | P3 | `tests/test_the_roadmap_discipline_is_measured.py` |
+| R198 | Le code-critic décidé PAR TÂCHE : chaque ligne d'index porte `critic: requis` ou `critic: non — raison` ; commit de code refusé si la ligne ne décide pas, ou si « requis » sans appel code-critic la nommant <!-- anchor: critic-per-task --> <!-- critic: requis --> | P3 | `tests/test_an_action_is_on_the_roadmap_before_it_runs.py` |
+| R199 | Un seul chemin de rotation qui DÉPLACE vraiment : `make roadmap-close ID=Rnnn` retire la ligne, écrit le bloc livré (avec les commits qui citent l'id) en tête de l'archive, réaligne la reprise <!-- anchor: one-rotation-path --> <!-- critic: non — outil de doc, protégé par le test de conservation --> | P3 | `tests/test_the_roadmap_rotation_names_all_three_surfaces.py` |
+| R200 | Alléger `checklist.md` : la prose d'historique (~95 %) déménage mot pour mot vers l'archive ; plafond de lignes de l'actif <!-- anchor: light-active-file --> <!-- critic: non — déplacement de texte, protégé par le test de conservation --> | P4 | `tests/test_the_resume_header_is_checked.py` |
+| R201 | Retirer les 2 rappels redondants (`check_roadmap_update.py`, `draft_roadmap.py`) et corriger ~15 références périmées de la gestion de roadmap <!-- anchor: roadmap-stale-refs --> <!-- critic: non — retrait réversible et corrections de texte --> | P4 | `tests/test_roadmap_two_files.py` |
 
 **Huit lignes y sont entrées le 2026-09-25 au soir**, toutes issues de l'audit de la
 surveillance des classes d'erreur — détail dans « 🧭 R167 – R176 » juste sous cet index.
@@ -220,7 +225,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R197, R198, R199, R200, R201 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers
