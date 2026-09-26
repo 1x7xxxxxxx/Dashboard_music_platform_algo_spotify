@@ -132,6 +132,24 @@ correctif laissait vivants — dont le fichier copié tel quel en production. **
 comme un TROU, jamais comme un zéro. « Je n'ai rien trouvé » et « je n'ai pas cherché » se ressemblent dans un
 catalogue et pas du tout dans un dépôt.
 
+## Ce qui est REFUSÉ, et par quoi — ajouté le 2026-09-26 (R185, R186)
+
+Une classe NEUVE (`first_seen` ≥ la date `admission-since`) est refusée, par classe et non
+par un plafond, par `audit_runner.py --admission` (CI bloquante) si :
+
+- `siblings:` n'est pas `swept:<date> — … **N site(s) vivant(s)**` (compte lisible) ;
+- `root_cause` fait moins de 30 caractères ;
+- `cause_evidence` n'est pas read / measured / inferred / retracted **avec sa
+  justification** — et `read` ou `inferred` doit citer un fichier du dépôt qui existe ;
+- `seen_red` n'est ni une date, ni `self-proving (<fichier>::<test>)`, ni `never`/`n-a`
+  **avec la raison**.
+
+Et au commit (hook Claude Code **et** pre-commit `catalogue-sweep`, donc aussi un `git
+commit` tapé au terminal) : un appel `sibling-sweeper` (ou `engineering-loop`) des 48 h
+doit **mentionner cette classe** — son id, ou un fichier qu'elle cite, dans le prompt ou le
+résultat. Un balayage fait pour un autre défaut ne compte plus. La chaîne entière est
+sondée chaque nuit : `make error-management-probe`.
+
 ## Le garde porte SA PROPRE mutation — ajouté le 2026-09-18
 
 Voir une signature rouge UNE fois, à la main, dans une séance, prouve moins qu'on ne

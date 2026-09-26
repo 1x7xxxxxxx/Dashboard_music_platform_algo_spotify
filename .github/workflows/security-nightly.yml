@@ -334,6 +334,36 @@ jobs:
           set -o pipefail
           python3 tools/dev/reopen_check.py | tee -a "$GITHUB_STEP_SUMMARY"
 
+  # ── The whole error-class chain, probed (R184, 2026-09-26) ───────────────────────
+  # One fabricated defect per gate, in a scratch worktree, against the REAL gates: a gate
+  # still wired but no longer refusing reads exactly like one that works. Nightly because it
+  # costs minutes (the health document is regenerated per probe); the per-commit suite keeps
+  # the cheap part (tests/test_the_error_management_chain_refuses_every_defect.py).
+  error-management-probe:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    outputs:
+      outcome: ${{ steps.probe.outcome }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # error_class_health derives from `git log`
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
+      - name: Install dependencies from lockfile
+        run: uv python install 3.11 && uv sync --frozen --extra dev
+      - name: Probe every gate (exit 1 = a gate no longer refuses its defect)
+        id: probe
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          git config --global user.email probe@ci && git config --global user.name probe
+          .venv/bin/python tools/dev/probe_error_management.py | tee -a "$GITHUB_STEP_SUMMARY"
+
   # ── The impact sweep of a leak, as a machine (2026-09-25) ───────────────────────
   # The 12 secrets of this repo's history had siblings to look for — the owner's other
   # public repos, forks, the public logs of Actions runs. That sweep was done by hand,
@@ -455,7 +485,7 @@ jobs:
   # et de l'audit, présents chaque nuit (faux positifs connus), vont dans le corps du mail
   # et ne le déclenchent pas seuls — sinon il partirait chaque nuit et serait ignoré.
   notify:
-    needs: [pip-audit, error-class-audit, action-drift, gitleaks, full-suite-random-order, reopen-check, public-surface-sweep, p1-classes, guard-mutation, debt-trend]
+    needs: [pip-audit, error-class-audit, action-drift, gitleaks, full-suite-random-order, reopen-check, public-surface-sweep, p1-classes, guard-mutation, debt-trend, error-management-probe]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

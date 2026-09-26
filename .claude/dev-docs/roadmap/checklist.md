@@ -25,6 +25,9 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R184 | Sonder toute la chaîne de gestion des classes d'erreur : fabriquer un défaut par porte (famille, billet, balayage, cause, seen_red, documents générés, commit sans balayage) et exiger le rouge ; chaque nuit (conception : `.claude/dev-docs/roadmap/design-R180-R182.md` §R184) <!-- anchor: error-probe --> | P2 | `make error-management-probe` |
+| R185 | Refus d'une classe NEUVE sans balayage lisible, sans cause ancrée en `fichier:ligne` (même `inferred`), sans `seen_red` daté/auto-prouvé ou `never` motivé, ou dont le billet `sites:N` dépasse le balayage — indépendamment des plafonds <!-- anchor: new-class-proofs --> | P2 | `python3 .claude/scripts/audit_runner.py --admission` |
+| R186 | Le balayage lié à SA classe (un appel sibling-sweeper qui NOMME un fichier cité par la classe) et plus de contournement par un `git commit` hors Claude Code (hook pre-commit) <!-- anchor: sweep-ref --> | P2 | `tests/test_the_catalogue_needs_a_real_sweep.py` |
 | R169 | Dette du catalogue d'erreurs : gardes non auto-prouvants et causes inconnues, figés sur six commits <!-- anchor: error-debt --> | P3 | `make error-debt` |
 
 **Huit lignes y sont entrées le 2026-09-25 au soir**, toutes issues de l'audit de la
@@ -229,7 +232,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R183, R169, R148, R163 -->
+<!-- reprise: open=R184, R185, R186, R183, R169, R148, R163 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers

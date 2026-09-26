@@ -99,7 +99,14 @@ def test_the_hook_blocks_end_to_end(tmp_path) -> None:
                                    "HOOK_TRANSCRIPTS_DIR": str(transcripts)}).returncode
 
     assert run(empty) == 2
-    assert run(_transcripts(tmp_path, _tool_use("Agent", subagent_type="sibling-sweeper"))) == 0
+    other = tmp_path / "other"
+    other.mkdir()
+    # R186: a sweep made for ANOTHER defect no longer lets this class through…
+    assert run(_transcripts(other, _tool_use("Agent", subagent_type="sibling-sweeper",
+                                             prompt="sweep class some-other-defect"))) == 2
+    # …a sweep that names it does.
+    assert run(_transcripts(tmp_path, _tool_use("Agent", subagent_type="sibling-sweeper",
+                                                prompt="sweep class a-brand-new-class"))) == 0
 
 
 # ── A block that MOVES is not a block that is ADDED (2026-09-25) ─────────────
@@ -151,3 +158,63 @@ def test_the_real_commit_counts_once() -> None:
     if not before or not after:
         pytest.skip("1be1c8b is not in this checkout's history (shallow clone)")
     assert hook.added_entries(before, after) == 1
+
+
+
+# ── R186 (2026-09-26): the sweep bound to ITS class, and the terminal commit ─────────
+
+def _result(tool_use_id: str, text: str) -> str:
+    return json.dumps({"message": {"content": [
+        {"type": "tool_result", "tool_use_id": tool_use_id, "content": text}]}})
+
+
+def test_the_detector_sees_a_sweep_made_for_another_class(tmp_path) -> None:
+    """Bound by content: the class id or a file the class cites, in the sweep's prompt OR
+    its result. A sweep about something else leaves the class unbound."""
+    body = "- root_cause: `src/utils/credential_loader.py:88` reads the stored copy first\n"
+    bodies = {"a-stored-copy-wins": body}
+    call = json.dumps({"message": {"content": [{"type": "tool_use", "id": "t1",
+                       "name": "Agent", "input": {"subagent_type": "sibling-sweeper",
+                                                  "prompt": "sweep the mail senders"}}]}})
+    unrelated = hook.sweep_texts(_transcripts(tmp_path, call, _result("t1", "tools/x.py:3")))
+    assert hook.unbound(bodies, unrelated) == ["a-stored-copy-wins"]
+    related = hook.sweep_texts(_transcripts(tmp_path / "b", call,
+                                            _result("t1", "credential_loader.py:88 — 1 site")))
+    assert hook.unbound(bodies, related) == []
+    assert hook.unbound(bodies, ["prompt names a-stored-copy-wins"]) == []
+
+
+def test_added_bodies_include_a_class_given_a_new_recurrence() -> None:
+    bodies = hook.added_bodies(_CLASS, _BOTH)
+    assert set(bodies) == {"an-old-class"}
+    assert "(récidive)" in bodies["an-old-class"]
+    assert set(hook.added_bodies(_BASE, _CLASS)) == {"a-brand-new-class"}
+
+
+def test_a_terminal_commit_is_checked_by_the_pre_commit_hook(tmp_path) -> None:
+    """`--git` reads the STAGED catalogue: blocked with no bound sweep, passes with one; the
+    pre-commit config wires it on the catalogue."""
+    repo = tmp_path / "repo"
+    cat = repo / ".claude/dev-docs/error-classes.md"
+    cat.parent.mkdir(parents=True)
+    cat.write_text("# catalogue\n", encoding="utf-8")
+    for cmd in (["init", "-q"], ["add", "-A"],
+                ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base"]):
+        subprocess.run(["git", "-C", str(repo), *cmd], check=True)
+    cat.write_text("# catalogue\n\n## a-brand-new-class\n- status: guarded\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    def run(transcripts: Path) -> int:
+        return subprocess.run(["python3", str(_HOOK), "--git"], cwd=repo, text=True,
+                              capture_output=True, timeout=30,
+                              env={"PATH": "/usr/bin:/bin", "HOME": str(tmp_path),
+                                   "HOOK_TRANSCRIPTS_DIR": str(transcripts)}).returncode
+
+    assert run(empty) == 1
+    assert run(_transcripts(tmp_path, _tool_use("Agent", subagent_type="sibling-sweeper",
+                                                prompt="a-brand-new-class"))) == 0
+    cfg = (Path(__file__).resolve().parents[1] / ".pre-commit-config.yaml").read_text(
+        encoding="utf-8")
+    assert "require_sweep_before_catalogue.py --git" in cfg

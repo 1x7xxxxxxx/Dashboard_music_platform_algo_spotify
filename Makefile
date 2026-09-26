@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: error-management-probe error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -237,6 +237,12 @@ catalogue-sync: error-health error-families gold-coverage test-durations-missing
 	@# moins une fois, un par un — santé, familles, carte or, durées. Les régénérer
 	@# ensemble est le geste ; les oublier un par un était le défaut.
 	@echo "✅ catalogue-sync : santé, familles, carte or et durées régénérées — commiter les quatre"
+
+error-management-probe: ## [MINUTES] Chaque porte du catalogue d'erreurs refuse-t-elle son défaut ? (R184)
+	@# Un défaut fabriqué par porte, dans un worktree jetable, contre les VRAIES portes. Tourne
+	@# aussi chaque nuit (security-nightly.yml, job error-management-probe).
+	@[ -x "$(PYTHON)" ] || { echo "❌ $(PYTHON) introuvable. Run: make sync"; exit 1; }
+	@$(PYTHON) tools/dev/probe_error_management.py
 
 test-durations-missing: ## [SECONDES] Durées des SEULS fichiers de tests inconnus de .test_durations
 	@# Le 2026-09-26, la CI de main est restée ROUGE toute une nuit — 60 exécutions —

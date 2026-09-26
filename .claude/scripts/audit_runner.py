@@ -114,6 +114,9 @@ def parse_all_headers(text: str) -> list[dict]:
             "guard": _prose_field(body, "guard"),
             "root_cause": _prose_field(body, "root_cause"),
             "long_term_fix": _prose_field(body, "long_term_fix"),
+            "siblings": _prose_field(body, "siblings"),
+            "cause_evidence": _prose_field(body, "cause_evidence"),
+            "seen_red": _prose_field(body, "seen_red"),
         })
     return out
 
@@ -495,6 +498,57 @@ def _admission_verdict(billet: str | None) -> str | None:
     return None
 
 
+_EVIDENCE = re.compile(r"^(read|measured|inferred|retracted)\b\s*(.*)$", re.S)
+_REPO_PATH = re.compile(
+    r"((?:src|tools|tests|airflow|\.claude|\.github|migrations|deploy|docs)/[\w./-]+\.\w+)")
+_SEEN = re.compile(r"^(?:\d{4}-\d{2}-\d{2}|self-proving \()")
+_NEVER = re.compile(r"^(never|n-a)\b\W*(.*)$", re.S)
+
+
+def proof_gaps(h: dict, exists=lambda p: (_REPO / p).exists()) -> list[str]:
+    """What a NEW class must prove, independently of any ceiling (R185, 2026-09-26). Pure
+    but for `exists`.
+
+    The hole counters of `error_class_health` refuse the same defects only while their
+    ceiling holds — two of them were already full (`cause_unknown` 7,
+    `guard_does_not_prove_itself` 34), so raising a number would have silently re-opened
+    the door. Here the rule is per class. Honest terminal states stay allowed (rule 15):
+    `inferred` and `never`/`n-a` pass — never BARE: an inferred cause names the file it was
+    inferred from, a `never` says why the guard cannot be seen red yet. What is NOT
+    compared: a `sites:N` ticket with the sweep's count — measured on the 14 classes
+    admitted since 2026-09-19, the ticket counts sites AT admission and the sweep the sites
+    still LIVE after the fix (4/1, 6/0, 4/1): the two numbers are different moments.
+    """
+    sys.path.insert(0, str(_REPO / "tools" / "dev"))
+    try:
+        from error_class_health import _swept_sites  # noqa: PLC0415 — ONE definition of a sweep
+    finally:
+        sys.path.pop(0)
+    gaps = []
+    if _swept_sites(h.get("siblings") or "") is None:
+        gaps.append("no whole-repo sweep with a readable verdict — `siblings: swept:<date> — … "
+                    "**N site(s) vivant(s)**` (Spawn sibling-sweeper)")
+    if len((h.get("root_cause") or "").strip()) < 30:
+        gaps.append("`root_cause` missing or too short to name a cause (< 30 characters)")
+    ev = _EVIDENCE.match((h.get("cause_evidence") or "").strip())
+    if not ev:
+        gaps.append("`cause_evidence` must be read / measured / inferred / retracted")
+    elif len(ev.group(2).strip(" ()—-")) < 20:
+        gaps.append(f"`cause_evidence: {ev.group(1)}` without the justification (what was "
+                    "read, run or inferred, and when)")
+    elif ev.group(1) in ("read", "inferred") and not any(
+            exists(p) for p in _REPO_PATH.findall(
+                (h.get("cause_evidence") or "") + " " + (h.get("root_cause") or ""))):
+        gaps.append(f"`cause_evidence: {ev.group(1)}` cites no existing repository file — a "
+                    "cause read in the code names where")
+    seen = (h.get("seen_red") or "").strip()
+    never = _NEVER.match(seen)
+    if not _SEEN.match(seen) and not (never and len(never.group(2).strip()) >= 10):
+        gaps.append("`seen_red` must be a date, `self-proving (<file>::<test>)`, or "
+                    "`never`/`n-a` WITH the reason")
+    return gaps
+
+
 def _sweep_verdict(headers: list[dict]) -> int:
     """Un `siblings:` qui dit `swept:` doit porter un VERDICT lisible.
 
@@ -724,6 +778,11 @@ def _admission(headers: list[dict]) -> int:
     fautives = [(h["id"], _admission_verdict(h.get("admitted")))
                 for h in neuves]
     fautives = [(cid, why) for cid, why in fautives if why]
+    # R185 — the proofs a new class carries, refused per class, not through a ceiling.
+    for h in neuves:
+        gaps = proof_gaps(h)
+        if gaps:
+            fautives.append((h["id"], " · ".join(gaps)))
 
     print(f"▶ admission: bascule au {since} — {len(neuves)} classe(s) neuve(s), "
           f"{len(neuves) - len(fautives)} avec un billet valide")

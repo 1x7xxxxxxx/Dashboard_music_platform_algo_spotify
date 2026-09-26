@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 
 _CATALOGUE = "error-classes.md"
-_REQUIRED = ("seen_red", "cause_evidence", "guard_scope")
+_REQUIRED = ("seen_red", "cause_evidence", "guard_scope", "siblings")  # siblings: R185
 _CLASS = re.compile(r"^## ([a-z0-9][a-z0-9-]+)\s*$", re.M)
 
 

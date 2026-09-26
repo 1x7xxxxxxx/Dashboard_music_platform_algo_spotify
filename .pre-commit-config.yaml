@@ -33,6 +33,16 @@ repos:
         files: '^(pyproject\.toml|requirements\.txt|uv\.lock)$'
         pass_filenames: false
 
+      # R186 (2026-09-26): the same check as the Claude Code Bash hook, for a `git commit`
+      # typed in a terminal — which the hook never saw. A new class (or récidive) must be
+      # bound to a sibling-sweeper / engineering-loop call that mentions it.
+      - id: catalogue-sweep
+        name: error-class catalogue — a new class is bound to its sweep
+        language: system
+        entry: python3 .claude/hooks/require_sweep_before_catalogue.py --git
+        files: '^\.claude/dev-docs/error-classes\.md$'
+        pass_filenames: false
+
   # ── REX schema (error class: ci-gate-with-no-local-counterpart) ───────
   # `validate_rex.py --strict` is a BLOCKING ci.yml step and had no local
   # counterpart: two `rex[0].issue` written past the 350-char cap on

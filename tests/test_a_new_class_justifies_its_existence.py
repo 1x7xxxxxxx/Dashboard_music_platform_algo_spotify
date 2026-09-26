@@ -131,3 +131,38 @@ def test_every_class_declares_one_of_the_families(runner) -> None:
     missing = runner.undeclared_families(runner.parse_all_headers(catalogue), runner._family_slugs())
     assert not missing, (f"{len(missing)} classe(s) sans famille déclarée : "
                          f"{[cid for cid, _ in missing[:10]]}")
+
+
+# R185 (2026-09-26) — the proofs a NEW class carries, refused per class and not through a
+# ceiling: two of the hole counters that refused them were already full, so raising a
+# number would have re-opened the door in silence.
+_COMPLETE = {
+    "id": "fabricated",
+    "siblings": "swept:2026-09-26 — `sibling-sweeper` : 9 candidates → **2 sites vivants**",
+    "root_cause": "the loader reads the stored copy before the environment, whatever its app",
+    "cause_evidence": "read (src/utils/credential_loader.py — central_app_wins, 2026-09-26)",
+    "seen_red": "self-proving (tests/test_x.py::test_the_detector_sees_the_defect_it_is_written_for)",
+}
+
+
+def test_the_detector_sees_a_new_class_without_its_proofs(runner) -> None:
+    """Each missing proof is named; the complete class passes; honest terminal states
+    (`inferred` citing a file, `never` with a reason) pass — rule 15 allows them."""
+    exists = lambda p: p.startswith("src/")  # noqa: E731
+    assert runner.proof_gaps(dict(_COMPLETE), exists) == []
+    broken = {
+        "siblings": "not-swept",
+        "root_cause": "it broke",
+        "cause_evidence": "unknown",
+        "seen_red": "never",
+    }
+    for key, bad in broken.items():
+        gaps = runner.proof_gaps({**_COMPLETE, key: bad}, exists)
+        assert len(gaps) == 1, (key, gaps)
+    assert runner.proof_gaps({**_COMPLETE, "siblings": "swept:2026-09-26 — looked"}, exists)
+    assert runner.proof_gaps({**_COMPLETE, "cause_evidence": "measured"}, exists)
+    assert runner.proof_gaps({**_COMPLETE, "cause_evidence": "read (the code, trust me, really)"},
+                             exists)
+    honest = {**_COMPLETE, "cause_evidence": "inferred (from src/a.py — not reproduced yet)",
+              "seen_red": "never — no fixture can reach the branch yet"}
+    assert runner.proof_gaps(honest, exists) == []

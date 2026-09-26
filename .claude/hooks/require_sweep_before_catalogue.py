@@ -155,6 +155,89 @@ def proof(root: Path, now: float | None = None) -> set[str]:
     return found
 
 
+# ── R186 (2026-09-26): the sweep bound to ITS class, by content ─────────────────────────
+# Until then ANY sweeper call in the window let ANY class through — a sweep made for
+# another defect counted. An agent id copied into the entry was rejected (nothing proves it
+# is transcribed faithfully); the binding is by CONTENT instead: the sweep's prompt or its
+# result must mention the new class's id or one of the files the class cites.
+_CITED = re.compile(r"(?:^|[\s`(])((?:src|tools|tests|airflow|\.claude|\.github|migrations|"
+                    r"deploy|docs)/[\w./-]+\.\w+)")
+_GENERIC = {"__init__.py", "conftest.py", "Makefile", "README.md", "error-classes.md"}
+
+
+def added_bodies(before: str, after: str) -> dict[str, str]:
+    """{class id: its body in `after`} for every class ADDED or given a NEW récidive. Pure."""
+    ids_before, pairs_before = _entries(before)
+    ids_after, pairs_after = _entries(after)
+    touched = (ids_after - ids_before) | {c for c, _ in (pairs_after - pairs_before)}
+    bodies: dict[str, str] = {}
+    current, buf = None, []
+    for line in after.splitlines() + ["## "]:
+        head = _CLASS_HEAD.match(line)
+        if head or line.startswith("## "):
+            if current in touched:
+                bodies[current] = "\n".join(buf)
+            current, buf = (head.group(1) if head else None), []
+        elif current:
+            buf.append(line)
+    return bodies
+
+
+def anchors(cid: str, body: str) -> set[str]:
+    """What a sweep of this class must mention: its id, the files it cites. Pure."""
+    out = {cid}
+    for path in _CITED.findall(body):
+        name = path.rsplit("/", 1)[-1]
+        out.add(path)
+        if name not in _GENERIC and len(name) > 6:
+            out.add(name)
+    return out
+
+
+def sweep_texts(root: Path, now: float | None = None) -> list[str]:
+    """Prompt + result of every sibling-sweeper / engineering-loop call in the window."""
+    now = time.time() if now is None else now
+    if not root.is_dir():
+        return []
+    prompts: dict[str, str] = {}
+    results: dict[str, str] = {}
+    for f in root.rglob("*.jsonl"):
+        try:
+            if now - f.stat().st_mtime > WINDOW_S:
+                continue
+            lines = f.read_text(encoding="utf-8", errors="ignore").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            if '"tool_use"' not in line and '"tool_result"' not in line:
+                continue
+            try:
+                content = (json.loads(line).get("message") or {}).get("content")
+            except (json.JSONDecodeError, ValueError, AttributeError):
+                continue
+            for c in content if isinstance(content, list) else []:
+                if not isinstance(c, dict):
+                    continue
+                inp = c.get("input") or {}
+                if c.get("type") == "tool_use" and (
+                        (c.get("name") in ("Agent", "Task")
+                         and inp.get("subagent_type") == "sibling-sweeper")
+                        or (c.get("name") == "Workflow"
+                            and (inp.get("name") == "engineering-loop"
+                                 or "engineering-loop" in str(inp.get("scriptPath", ""))))):
+                    prompts[c.get("id", "")] = json.dumps(inp, ensure_ascii=False)
+                elif c.get("type") == "tool_result":
+                    results[c.get("tool_use_id", "")] = json.dumps(c.get("content"),
+                                                                   ensure_ascii=False)
+    return [p + "\n" + results.get(i, "") for i, p in prompts.items()]
+
+
+def unbound(bodies: dict[str, str], texts: list[str]) -> list[str]:
+    """Classes whose anchors appear in NO sweep text. Pure."""
+    return sorted(cid for cid, body in bodies.items()
+                  if not any(a in t for a in anchors(cid, body) for t in texts))
+
+
 def verdict(n_entries: int, invoked: set[str]) -> str | None:
     """None when the commit may go; otherwise the message that blocks it."""
     if n_entries == 0:
@@ -171,7 +254,47 @@ def verdict(n_entries: int, invoked: set[str]) -> str | None:
     return None
 
 
+def main_git() -> int:
+    """pre-commit mode (R186): the STAGED catalogue against HEAD — a `git commit` typed in a
+    terminal is checked too. The index, not the working tree: pre-commit runs after staging.
+    Without a transcript folder (CI, another machine) there is nothing to bind against: it
+    says so and lets the commit through — the check lives where the sweeps are recorded."""
+    try:
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True,
+                             text=True, timeout=10).stdout.strip()
+        committed = subprocess.run(["git", "-C", top, "show", f"HEAD:{CATALOGUE}"],
+                                   capture_output=True, text=True, timeout=20).stdout
+        staged = subprocess.run(["git", "-C", top, "show", f":{CATALOGUE}"],
+                                capture_output=True, text=True, timeout=20).stdout
+    except (OSError, subprocess.SubprocessError):
+        return 0
+    if not added_entries(committed, staged):
+        return 0
+    tdir = transcripts_dir(Path(top))
+    if not tdir.is_dir():
+        print(f"▶ catalogue-sweep: no Claude Code transcripts at {tdir} — nothing to bind "
+              "the new class to on this machine; not checked here.")
+        return 0
+    msg = verdict(added_entries(committed, staged), proof(tdir))
+    loose = [] if msg else unbound(added_bodies(committed, staged), sweep_texts(tdir))
+    if msg or loose:
+        print(f"🚫 catalogue-sweep — {msg or ', '.join(loose) + ' : no sweep in the window mentions this class (id or cited file).'}"
+              "\n   Spawn sibling-sweeper on it first. Escape, logged: SWEEP_OVERRIDE=<reason> in the environment.",
+              file=sys.stderr)
+        if os.environ.get("SWEEP_OVERRIDE"):
+            log = Path(top) / ".claude" / "sessions" / "sweep-override.log"
+            log.parent.mkdir(parents=True, exist_ok=True)
+            with log.open("a", encoding="utf-8") as fh:
+                fh.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')} git-mode "
+                         f"reason={os.environ['SWEEP_OVERRIDE']}\n")
+            return 0
+        return 1
+    return 0
+
+
 def main() -> int:
+    if "--git" in sys.argv:
+        return main_git()
     try:
         data = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
@@ -201,9 +324,16 @@ def main() -> int:
         with log.open("a", encoding="utf-8") as fh:
             fh.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')} entries={n} reason={m.group(1)}\n")
         return 0
-    msg = verdict(n, proof(transcripts_dir(Path(top))))
+    tdir = transcripts_dir(Path(top))
+    msg = verdict(n, proof(tdir))
     if msg is None:
-        return 0
+        loose = unbound(added_bodies(committed, on_disk), sweep_texts(tdir))
+        if not loose:
+            return 0
+        msg = (f"{', '.join(loose)} : aucun sibling-sweeper (ni engineering-loop) de la "
+               "fenêtre ne mentionne cette classe — ni son id, ni un fichier qu'elle cite. "
+               "Un balayage fait pour un AUTRE défaut ne prouve rien sur celui-ci : "
+               "Spawn sibling-sweeper sur cette classe.")
     print(f"🚫 BLOCKED — {msg}\n   Échappatoire consignée : SWEEP_OVERRIDE=<raison> git commit …",
           file=sys.stderr)
     return 2
