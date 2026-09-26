@@ -1,6 +1,9 @@
 """EN strings for the CPR Optimizer view."""
 
 EN = {
+    "meta_cpr_optimizer.ml_neutral": ("ℹ️ The ML factor is **neutral** in this score: "
+        "at least one campaign carries a track with no reliable estimate (probabilities "
+        "on the calibration floor). The ranking rests on CPR, confidence and age."),
     "meta_cpr_optimizer.subtitle": (
         "Composite ML × CPR score for each campaign. "
         "Based on `campaign_track_mapping` + `ml_song_predictions` + `meta_insights_performance`."

@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**419 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**420 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -18,12 +18,12 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 32 | **3/32** · 9.4 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **0/20** · 0.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 26 | **1/26** · 3.8 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
-| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 25 | **5/25** · 20.0 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
+| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 26 | **5/26** · 19.2 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 23 | **2/23** · 8.7 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 62 | **9/62** · 14.5 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 35 | **6/35** · 17.1 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 13 | **0/13** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
-| [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 16 | **1/16** · 6.2 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
+| [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 16 | **2/16** · 12.5 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 11 | **0/11** · 0.0 % | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 7 | **1/7** · 14.3 % | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 19 | **0/19** · 0.0 % | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
@@ -225,11 +225,12 @@ Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-a
 
 **Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ?**
 
-Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 25 classe(s).
+Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 26 classe(s).
 
 | classe | symptôme |
 |---|---|
 | [`a-second-door-that-knows-fewer-sources-than-the-first`](error-classes.md#a-second-door-that-knows-fewer-sources-than-the-first) | un module recopie la résolution d'une ressource partagée en n'en connaissant qu'une partie des sources. Le défaut est INVISIBLE tant que la source man |
+| [`a-surface-that-draws-a-forecast-its-gate-suppresses`](error-classes.md#a-surface-that-draws-a-forecast-its-gate-suppresses) | le produit a décidé qu'un volume n'est pas prédictible et le masque — et une autre surface le dessine quand même. L'onglet Modèle traçait la prévision |
 | [`image-sized-for-a-layout-it-no-longer-has`](error-classes.md#image-sized-for-a-layout-it-no-longer-has) | une image déborde de son cadre, ou devient floue. Rien ne casse ; c'est simplement laid, et personne ne le signale avant qu'un utilisateur le dise. |
 | [`song-name-convention-mismatch`](error-classes.md#song-name-convention-mismatch) | an exact-match join on a song/track title between a FILENAME-derived table (`s4a_song_timeline`, `ml_song_predictions`, manual-entry tables — they car |
 | [`state-path-namespaced-by-another-project`](error-classes.md#state-path-namespaced-by-another-project) | a writer and its readers disagree on where shared state lives, because one of them hardcodes a project name in the path. Nothing errors — the reader s |
@@ -621,6 +622,6 @@ _Aucune._
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=419 families=18 orphans=0 -->
+<!-- error-class-families: total=420 families=18 orphans=0 -->
 
-<!-- error-class-families: sha256=5431bfe46a6da4463aa72c5fa6e8e4b24f4f2fc033b6d947982161193ccd2189 -->
+<!-- error-class-families: sha256=de770917664cdfcf89ea3e8dc5d286362c4daedc029ff340a862a300d1eda7ca -->

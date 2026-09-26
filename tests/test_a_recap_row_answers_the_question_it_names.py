@@ -218,16 +218,18 @@ def test_an_empty_box_names_its_last_reading():
 #     _prediction ÉCHOUE en nommant les « — » affichés.
 
 _RELEASE = {"release_song": "Ô Chiotte l'arbitre", "release_age": 743,
-            "release_dw": 0.07002, "release_rr": 0.06554, "release_radio": 0.11068}
+            "release_dw": 0.60, "release_rr": 0.65, "release_radio": 0.70}
+# Off the calibration floor on purpose (2026-09-26): the gate tiles now refuse a floor
+# probability (« pas d'estimation fiable », R216) — 0.07/0.066/0.11 were all on it.
 
 
 def test_the_three_gates_are_three():
     """Trois portes distinctes, trois chiffres — jamais leur maximum."""
     rows = _tiles({"spotify": 20_000}, side={**_SIDE, **_RELEASE})
     labels = [r[0] for r in rows if r[0] != "caption"]
-    for needle, pct in (("Discover Weekly", "7,0 %"),
-                        ("Radio", "11,1 %"),
-                        ("Release Radar", "6,6 %")):
+    for needle, pct in (("Discover Weekly", "60,0 %"),
+                        ("Radio", "70,0 %"),
+                        ("Release Radar", "65,0 %")):
         box = next((r for r in rows if needle in r[0]), None)
         assert box, (
             f"la porte « {needle} » n'a pas sa boîte. Libellés rendus : {labels}. "

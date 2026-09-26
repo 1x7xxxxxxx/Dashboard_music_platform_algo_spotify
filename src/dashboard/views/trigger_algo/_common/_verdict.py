@@ -12,50 +12,10 @@ ELBOW_THRESHOLDS_28D = {"DW": 137, "RR": 130, "RADIO": 639}
 
 
 
-def _display_prob_bar(label: str, prob: float | None, forecast: int | None = None):
-    if prob is None:
-        st.write(t("trigger_algo.common.prob_insufficient", "**{label}** — données insuffisantes")
-                 .format(label=label))
-        return
-    pct = min(max(prob, 0.0), 1.0)
-    badge = "✅" if pct >= 0.6 else ("⚠️" if pct >= 0.3 else "❌")
-    st.write(t("trigger_algo.common.prob_bar", "**{label}** {badge} — {pct:.0f}%")
-             .format(label=label, badge=badge, pct=pct * 100))
-    st.progress(pct)
-    if forecast is not None and forecast > 0:
-        ml_widgets.render_floor_forecast(
-            t("trigger_algo.common.estimated_volume", "Volume estimé"), forecast)
-
-
-def _show_ml_section(pred: dict):
-    pred_date = pred.get("prediction_date", "—")
-    model_v = pred.get("model_version", "v1")
-    st.caption(t("trigger_algo.common.ml_pred_date", "Prédiction ML du **{date}** — modèle `{ver}`")
-               .format(date=pred_date, ver=model_v))
-    # RR volume regressor is unreliable (R²=0.32, notification-CTR noise) — gate the
-    # forecast OUT and show the classification-only status caption instead.
-    _rr_forecast = (pred.get("rr_streams_forecast_7d")
-                    if ak.volume_forecast_reliable("RR") else None)
-    _display_prob_bar("📡 Release Radar", pred.get("rr_probability"), _rr_forecast)
-    _rr_note = ml_widgets.suppressed_note_text("RR")
-    if _rr_note and pred.get("rr_probability") is not None:
-        st.caption(f"📨 {_rr_note}")
-    # DW volume is also suppressed in v3 (R²<0 group-CV) — gate the forecast OUT and
-    # show the classification-only status, same pattern as RR.
-    _dw_forecast = (pred.get("dw_streams_forecast_7d")
-                    if ak.volume_forecast_reliable("DW") else None)
-    _display_prob_bar("💎 Discover Weekly", pred.get("dw_probability"), _dw_forecast)
-    ml_widgets.render_calibration_badge("DW", pred.get("dw_probability"))
-    _dw_note = ml_widgets.suppressed_note_text("DW")
-    if _dw_note and pred.get("dw_probability") is not None:
-        st.caption(f"💎 {_dw_note}")
-    # Calibration is now populated for RR + Radio too (v3) — surface it.
-    ml_widgets.render_calibration_badge("RR", pred.get("rr_probability"))
-    _display_prob_bar("📻 Radio Spotify", pred.get("radio_probability"),
-                      pred.get("radio_streams_forecast_7d"))
-    ml_widgets.render_calibration_badge("RADIO", pred.get("radio_probability"))
-
-
+# `_display_prob_bar` and `_show_ml_section` were DELETED on 2026-09-26: nothing
+# called them, and they printed every probability — floor values included — as a
+# `{pct:.0f}%` next to a ✅/⚠️/❌ badge. Dead code that prints a floor as a measure is
+# the next surface that gets rewired (`feedback_unwired_code_rots`).
 
 
 def show_no_prediction_yet() -> None:
@@ -84,6 +44,58 @@ def show_no_prediction_yet() -> None:
               "nuit dès qu'un titre a au moins une écoute sur les 35 derniers jours."))
 
 
+_VERDICT_LABELS = {"DW": "Discover Weekly", "RR": "Release Radar", "RADIO": "Radio"}
+
+
+def _verdict_message(ml_pred: dict | None) -> tuple[str, str, str | None, float | None] | None:
+    """The banner as data — `(kind, text, algo, prob)`, or `None` with nothing to say. Pure.
+
+    The argmax runs ONLY over probabilities that pass the shared floor door
+    (`proba_affichable`). When all three are on the calibration floor there is no
+    percentage and no STOP/OPTIMISER/SCALER verdict: kind `"floor"`. Before
+    2026-09-26 the max of three floors was always Radio's intercept (~10,7 %), and
+    the banner told the artist to STOP their ads on it.
+    """
+    from src.dashboard.utils.algo_preview_data import proba_affichable
+
+    if not ml_pred:
+        return None
+    raw = {"DW": ml_pred.get("dw_probability"), "RR": ml_pred.get("rr_probability"),
+           "RADIO": ml_pred.get("radio_probability")}
+    if all(v is None for v in raw.values()):
+        return None
+    scored = {k: p for k, v in raw.items()
+              if (p := proba_affichable(k.lower(), v)) is not None}
+    if not scored:
+        return ("floor", t(
+            "trigger_algo.common.verdict_floor",
+            "⚪ **Pas d'estimation fiable** — pour ce titre, le modèle n'a rien tranché "
+            "sur aucun des trois algorithmes (score au plancher de la calibration). "
+            "Aucun verdict STOP / SCALER ne peut en être tiré."), None, None)
+    best_algo = max(scored, key=scored.get)
+    best_prob = scored[best_algo]
+    label = _VERDICT_LABELS[best_algo]
+    if best_prob < 0.20:
+        return ("stop", t(
+            "trigger_algo.common.verdict_stop",
+            "🔴 **STOP** — signaux algorithmiques faibles (meilleure piste : "
+            "{algo} {prob:.0%}). Stoppez vos Meta Ads sur ce titre "
+            "pour préserver votre budget."
+        ).format(algo=label, prob=best_prob), best_algo, best_prob)
+    if best_prob < 0.50:
+        return ("optimize", t(
+            "trigger_algo.common.verdict_optimize",
+            "🟠 **OPTIMISER** — potentiel détecté ({algo} {prob:.0%}), "
+            "mais il manque un déclencheur."
+        ).format(algo=label, prob=best_prob), best_algo, best_prob)
+    return ("scale", t(
+        "trigger_algo.common.verdict_scale",
+        "🟢 **SCALER** — ADN de hit détecté ({algo} {prob:.0%}). "
+        "L'algorithme est prêt à prendre le relais : augmentez votre budget quotidien "
+        "de ~20 % pour maximiser l'effet boule de neige."
+    ).format(algo=label, prob=best_prob), best_algo, best_prob)
+
+
 def _show_verdict_banner(ml_pred: dict | None) -> None:
     """Consolidated kill / optimize / scale decision at the top of the algos tab.
 
@@ -108,38 +120,23 @@ def _show_verdict_banner(ml_pred: dict | None) -> None:
     2026-09-22 — RR y va de 0,0654 à 0,0656, soit un écart de score brut de 0,0007.
     Garde : `tests/test_a_calibrated_floor_is_not_a_ranking.py`.
     """
-    if not ml_pred:
+    verdict = _verdict_message(ml_pred)
+    if verdict is None:
         return
-    labels = {"DW": "Discover Weekly", "RR": "Release Radar", "RADIO": "Radio"}
-    scored = {
-        "DW": ml_pred.get("dw_probability"),
-        "RR": ml_pred.get("rr_probability"),
-        "RADIO": ml_pred.get("radio_probability"),
-    }
-    scored = {k: v for k, v in scored.items() if v is not None}
-    if not scored:
+    kind, text, best_algo, best_prob = verdict
+    if kind == "floor":
+        st.info(text)
         return
-    best_algo = max(scored, key=scored.get)
-    best_prob = scored[best_algo]
 
     try:
         feats = json.loads(ml_pred.get("features_json") or "{}")
     except (ValueError, TypeError):
         feats = {}
 
-    if best_prob < 0.20:
-        st.error(t(
-            "trigger_algo.common.verdict_stop",
-            "🔴 **STOP** — signaux algorithmiques faibles (meilleure piste : "
-            "{algo} {prob:.0%}). Stoppez vos Meta Ads sur ce titre "
-            "pour préserver votre budget."
-        ).format(algo=labels[best_algo], prob=best_prob))
-    elif best_prob < 0.50:
-        st.warning(t(
-            "trigger_algo.common.verdict_optimize",
-            "🟠 **OPTIMISER** — potentiel détecté ({algo} {prob:.0%}), "
-            "mais il manque un déclencheur."
-        ).format(algo=labels[best_algo], prob=best_prob))
+    if kind == "stop":
+        st.error(text)
+    elif kind == "optimize":
+        st.warning(text)
         actions = ak.build_coach_actions(best_algo, feats)
         if actions:
             a = actions[0]
@@ -148,12 +145,7 @@ def _show_verdict_banner(ml_pred: dict | None) -> None:
             st.caption(t("trigger_algo.common.verdict_lever1", "🎯 Levier #1 — {label} : {lever}")
                        .format(label=_label, lever=_lever))
     else:
-        st.success(t(
-            "trigger_algo.common.verdict_scale",
-            "🟢 **SCALER** — ADN de hit détecté ({algo} {prob:.0%}). "
-            "L'algorithme est prêt à prendre le relais : augmentez votre budget quotidien "
-            "de ~20 % pour maximiser l'effet boule de neige."
-        ).format(algo=labels[best_algo], prob=best_prob))
+        st.success(text)
     note = ml_widgets.calibration_note_text(best_algo, best_prob)
     if note:
         st.caption(t("trigger_algo.common.verdict_reliability", "ℹ️ Fiabilité du score : {note}")

@@ -1,7 +1,7 @@
 """Aperçu : déclencher les algos — ce que Road to Algo fait, pour ta dernière sortie. GRATUIT.
 
 Type: Feature
-Uses: view_session, algo_preview_data (load_ml_pred, sur_le_plancher, cout_par_stream,
+Uses: view_session, algo_preview_data (load_ml_pred, proba_affichable, cout_par_stream,
       budget_pour_streams), algo_knowledge (split_coach_actions), artist_cashflow
       (trigger_value, track_stream_rate), plan_gate.bouton_vers, i18n
 Depends on: ml_song_predictions, v_meta_daily, v_s4a_song_daily
@@ -33,7 +33,7 @@ import streamlit as st
 from src.dashboard.utils import view_session
 from src.dashboard.utils.algo_knowledge import split_coach_actions
 from src.dashboard.utils.algo_preview_data import (
-    budget_pour_streams, cout_par_stream, load_ml_pred, sur_le_plancher)
+    budget_pour_streams, cout_par_stream, load_ml_pred, proba_affichable)
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.plan_gate import bouton_vers
 
@@ -59,7 +59,7 @@ def compose(pred: dict | None, feats: dict, eur_per_stream: float | None,
     rows, gaps = [], []
     for code, name, col in _ALGOS:
         proba = (pred or {}).get(col)
-        reliable = proba is not None and not sur_le_plancher(code.lower(), proba)
+        kept = proba_affichable(code.lower(), proba)
         track, _artist = split_coach_actions(code, feats) if feats else ([], [])
         first = track[0] if track else None
         for a in track:
@@ -67,7 +67,7 @@ def compose(pred: dict | None, feats: dict, eur_per_stream: float | None,
                 gaps.append(float(a["gap"]))
         rows.append({
             "code": code, "name": name,
-            "proba": float(proba) if reliable else None,
+            "proba": kept,
             "next": first,
             "worth": worth.get(code),
         })

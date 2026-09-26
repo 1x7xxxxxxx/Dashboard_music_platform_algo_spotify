@@ -32,7 +32,9 @@ import streamlit as st
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.semantic_colors import ATTENTION, BON, MAUVAIS, NEUTRE
 
-from ._catalogue import construire, leviers_artiste, sur_le_plancher
+from src.dashboard.utils.algo_preview_data import format_proba
+
+from ._catalogue import construire, leviers_artiste
 
 _Q_CATALOGUE = """
 SELECT song, days_since_release, streams_28d,
@@ -200,14 +202,12 @@ def _render_table(df: pd.DataFrame) -> None:
     )
     st.caption(t(
         "trigger_algo.cat.table_note",
-        "⚠️ **« ≈ plancher »** signale une probabilité dont le score brut est "
-        "négligeable : le modèle n'a pas tranché pour ce titre, il n'hésite pas. "
-        "Deux titres marqués ainsi ne se comparent pas entre eux — c'est pourquoi "
-        "le tableau est trié sur l'avancement, pas sur ces colonnes."))
+        "⚠️ **« pas d'estimation fiable »** remplace une probabilité dont le score "
+        "brut est négligeable : le modèle n'a pas tranché pour ce titre, il n'hésite "
+        "pas, et ce chiffre ne distinguerait rien — c'est pourquoi il n'est pas "
+        "affiché, et pourquoi le tableau est trié sur l'avancement."))
 
 
 def _proba(algo: str, valeur) -> str:
-    if valeur is None or pd.isna(valeur):
-        return "—"
-    marque = " ≈ plancher" if sur_le_plancher(algo, valeur) else ""
-    return f"{float(valeur):.1%}{marque}"
+    """REFUSE, not mark (2026-09-26): one policy for every surface — the shared door."""
+    return format_proba(algo, valeur, decimals=1)

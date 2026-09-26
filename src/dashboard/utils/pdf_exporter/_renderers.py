@@ -183,8 +183,33 @@ def _render_roi(roi, from_date, to_date):
     </div>"""
 
 
-def _prob_bar(pct):
-    """Barre de progression HTML pour une probabilité (0–1)."""
+def _floor_text() -> str:
+    from src.dashboard.utils.algo_preview_data import PLANCHER_TEXTE
+
+    return _t("common.ml_floor", PLANCHER_TEXTE)
+
+
+def _pdf_proba(algo, v, absent="—") -> str:
+    """An ML probability in the report — through the shared floor door, refuse policy."""
+    from src.dashboard.utils.algo_preview_data import format_proba
+
+    return format_proba(algo, v, absent=absent, floor_text=_floor_text())
+
+
+def _prob_bar(pct, algo=None):
+    """Barre de progression HTML pour une probabilité (0–1).
+
+    Floor-aware: a probability on the calibration floor (or absent) draws NO bar and
+    NO percentage — the model said nothing for this algo (2026-09-26, 33/33 prod
+    probabilities on the floor). `algo` is required for that test; without it the
+    value cannot be checked, so it is refused too.
+    """
+    from src.dashboard.utils.algo_preview_data import proba_affichable
+
+    if algo is None or proba_affichable(algo, pct) is None:
+        return (f'<span style="font-size:8pt;color:#999;">'
+                f'{_floor_text() if pct is not None else "—"}</span>')
+    pct = float(pct)
     w = int(min(max(pct * 100, 0), 100))
     color = "#1DB954" if pct >= 0.5 else ("#FFA500" if pct >= 0.3 else "#FF4444")
     return (
@@ -194,16 +219,44 @@ def _prob_bar(pct):
     )
 
 
+def _ml_forecast_cells(forecast: dict, word_streams: str) -> tuple[str, str]:
+    """Header and body cells of the volume forecasts the single-source gate allows.
+
+    The template used to hard-code "Forecast DW 7j" and "Forecast RR 7j": the two
+    volumes the product suppresses everywhere else (R² < 0 and 0.23), and no Radio
+    column at all. Each column is now drawn only when `volume_forecast_reliable` says
+    so, whatever the collector handed over, and says what the number is: a floor of
+    algo-sourced streams on a 28-day target, not "7j".
+    Guard: tests/test_pdf_ml_block_reads_real_columns.py
+    """
+    from src.dashboard.utils import algo_knowledge as ak
+
+    headers = {
+        "DW": lambda: _t("pdf.col.forecast_dw_floor", "Plancher DW prévu (28 j)"),
+        "RR": lambda: _t("pdf.col.forecast_rr_floor", "Plancher RR prévu (28 j)"),
+        "RADIO": lambda: _t("pdf.col.forecast_radio_floor", "Plancher Radio prévu (28 j)"),
+    }
+    th, td = [], []
+    for algo, make_header in headers.items():
+        if algo not in forecast or not ak.volume_forecast_reliable(algo):
+            continue
+        value = forecast[algo]
+        th.append(f"<th>{make_header()}</th>")
+        td.append("<td>—</td>" if value is None
+                  else f"<td><b>{int(round(value)):,}</b> {word_streams}</td>")
+    return "".join(th), "".join(td)
+
+
 def _render_songs_focus(songs_data):
     if not songs_data:
         return f'<p class="no-data">{_t("pdf.nodata.no_song_selected", "Aucune chanson sélectionnée.")}</p>'
     th_dw = _t("pdf.col.dw_playlist", "DW Playlist")
     th_rr = _t("pdf.col.release_radar", "Release Radar")
     th_radio = _t("pdf.col.radio", "Radio")
-    th_fc_dw = _t("pdf.col.forecast_dw_7d", "Forecast DW 7j")
-    th_fc_rr = _t("pdf.col.forecast_rr_7d", "Forecast RR 7j")
     word_streams = _t("pdf.word.streams", "streams")
     no_ml = _t("pdf.nodata.no_ml_prediction", "Pas de prédiction ML disponible.")
+    ml_unreadable = _t("pdf.nodata.ml_unreadable",
+                       "Prédiction ML illisible (erreur de lecture) : ce n'est pas une absence.")
     lbl_period = _t("pdf.label.streams_period", "Streams (période)")
     lbl_last7 = _t("pdf.label.streams_last7d", "Streams 7 derniers jours")
     parts = []
@@ -212,25 +265,24 @@ def _render_songs_focus(songs_data):
         if ml:
             pred_on = _t("pdf.label.prediction_on", "Prédiction du {date}").format(
                 date=ml['prediction_date'])
+            fc_th, fc_td = _ml_forecast_cells(ml.get('forecast') or {}, word_streams)
             ml_html = f"""
             <table style="width:100%;margin-top:8px;">
               <thead><tr>
-                <th>{th_dw}</th><th>{th_rr}</th><th>{th_radio}</th>
-                <th>{th_fc_dw}</th><th>{th_fc_rr}</th>
+                <th>{th_dw}</th><th>{th_rr}</th><th>{th_radio}</th>{fc_th}
               </tr></thead>
               <tbody><tr>
-                <td>{_prob_bar(ml['dw_prob'])}</td>
-                <td>{_prob_bar(ml['rr_prob'])}</td>
-                <td>{_prob_bar(ml['radio_prob'])}</td>
-                <td><b>{int(ml['dw_forecast']):,}</b> {word_streams}</td>
-                <td><b>{int(ml['rr_forecast']):,}</b> {word_streams}</td>
+                <td>{_prob_bar(ml['dw_prob'], 'dw')}</td>
+                <td>{_prob_bar(ml['rr_prob'], 'rr')}</td>
+                <td>{_prob_bar(ml['radio_prob'], 'radio')}</td>{fc_td}
               </tr></tbody>
             </table>
             <p style="font-size:7.5pt;color:#aaa;margin-top:4px;">
               {pred_on}
             </p>"""
         else:
-            ml_html = f'<p class="no-data" style="margin-top:6px;">{no_ml}</p>'
+            ml_html = (f'<p class="no-data" style="margin-top:6px;">'
+                       f'{ml_unreadable if s.get("ml_unreadable") else no_ml}</p>')
 
         parts.append(f"""
         <div class="song-block">
@@ -413,20 +465,27 @@ def _render_trigger_then_now(cmp_):
         return (f'<p class="no-data">{_t("pdf.nodata.trigger_then_now", "Taux de trigger indisponible")} '
                 f'— {cmp_.get("reason", "")}</p>')
 
-    def _pct(v):
+    def _pct(algo, v):
         # Une absence n'est PAS un zéro : c'est le défaut corrigé le 2026-08-24 sur le
-        # graphique des portes, où un panier n=0 se dessinait à hauteur zéro.
-        return f"{v * 100:.0f}%" if v is not None else _t("pdf.cell.not_measured", "non mesuré")
+        # graphique des portes, où un panier n=0 se dessinait à hauteur zéro. Et un
+        # plancher n'est pas une mesure : refusé par la porte commune (2026-09-26).
+        return _pdf_proba(algo, v, absent=_t("pdf.cell.not_measured", "non mesuré"))
 
-    def _delta(v):
-        if v is None:
+    def _delta(p):
+        # No delta when EITHER endpoint is on the floor: floor minus floor is the
+        # calibration intercept minus itself, not a movement of this title.
+        from src.dashboard.utils.algo_preview_data import proba_affichable
+
+        v = p["delta"]
+        if (v is None or proba_affichable(p["algo"], p["early"]) is None
+                or proba_affichable(p["algo"], p["now"]) is None):
             return "—"
         arrow = "▲" if v > 0 else ("▼" if v < 0 else "=")
         return f"{arrow} {abs(v) * 100:.0f} pts"
 
     body = "".join(
-        f"<tr><td>{p['gate']}</td><td>{_pct(p['early'])}</td>"
-        f"<td><b>{_pct(p['now'])}</b></td><td>{_delta(p['delta'])}</td></tr>"
+        f"<tr><td>{p['gate']}</td><td>{_pct(p['algo'], p['early'])}</td>"
+        f"<td><b>{_pct(p['algo'], p['now'])}</b></td><td>{_delta(p)}</td></tr>"
         for p in as_points(cmp_)
     )
     early = cmp_.get("early") or {}
@@ -456,16 +515,20 @@ def _render_score20(rows):
     def _pct(v):
         return "—" if v is None else f"{float(v) * 100:.0f}%"
 
+    def _proba(algo, v):
+        return _pdf_proba(algo, v)
+
     def _manque(gap, unit):
         return "—" if gap is None else f"{float(gap):,.0f} {unit or ''}".replace(",", " ")
 
     body = "".join(
         f"<tr><td>{_trunc(s, 38)}</td><td><b>{_pct(av)}</b></td>"
         f"<td>{_trunc(lab or '—', 26)}</td><td>{_manque(gap, unit)}</td>"
-        f"<td>{_pct(dw)}</td><td>{_pct(rr)}</td><td>{_pct(ra)}</td></tr>"
+        f"<td>{_proba('dw', dw)}</td><td>{_proba('rr', rr)}</td>"
+        f"<td>{_proba('radio', ra)}</td></tr>"
         for s, av, lab, gap, unit, dw, rr, ra in rows
     )
-    note = (f"<p class='subtitle'>{_t('pdf.note.score20', 'Avancement = où en est le titre sur le levier le plus proche de sa cible. Les pourcentages DW/RR/Radio sont des probabilités calibrées ; une valeur proche de 6,5 % est le plancher de la calibration et ne distingue pas deux titres.')}</p>")
+    note = (f"<p class='subtitle'>{_t('pdf.note.score20', 'Avancement = où en est le titre sur le levier le plus proche de sa cible. Les colonnes DW/RR/Radio sont des probabilités calibrées ; « pas d’estimation fiable » signale un score au plancher de la calibration, qui ne distingue pas deux titres.')}</p>")
     return note + _html_table(
         [_t("pdf.col.title", "Titre"), _t("pdf.col.progress", "Avancement"),
          _t("pdf.col.lever", "Levier le plus proche"), _t("pdf.col.gap", "Il manque"),

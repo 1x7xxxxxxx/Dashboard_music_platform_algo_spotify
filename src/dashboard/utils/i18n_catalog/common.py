@@ -3,6 +3,9 @@
 EN = {
     # Months (selectboxes, period labels) — t("common.month.5", "Mai")
     "common.remove": "Remove",
+    # The single wording for an ML probability on the calibration floor
+    # (algo_preview_data.texte_plancher / format_proba — refuse, never mark).
+    "common.ml_floor": "no reliable estimate",
     "common.month.1": "January",
     "common.month.2": "February",
     "common.month.3": "March",

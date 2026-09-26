@@ -181,12 +181,14 @@ EN = {
     # ML predictions
     "revenue_forecast.no_ml": (
         'No prediction yet. They are recomputed every day, late morning, from the data already collected.'),
+    "revenue_forecast.ml_unreadable": (
+        "The ML scores could not be read ({err}): this is not an absence of prediction."),
     "revenue_forecast.ml_caption": (
         "🛡️ The *floor* columns are **worst-case estimates**: the volume model "
         "underestimates hits, the real potential is often higher. "
-        "Release Radar has no volume column: its throughput depends on the notification "
-        "open rate (not predictable) — we rely on its "
-        "classification (AUC 0.94, validated per song)."
+        "Release Radar and Discover Weekly have no volume column: their volume is not "
+        "predictable (notification open rate for RR, R²<0 for DW) — we rely on their "
+        "classification (AUC 0.94 and 0.92, validated per song)."
     ),
     "revenue_forecast.col_track": "Track",
     "revenue_forecast.col_last_prediction": "Last prediction",

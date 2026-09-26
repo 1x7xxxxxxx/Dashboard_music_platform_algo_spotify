@@ -220,12 +220,16 @@ def test_a_cross_version_comparison_shows_both_values_and_no_delta():
 
 
 def test_a_real_comparison_shows_its_delta_and_its_count():
+    # Radio values are OFF the calibration floor (0.40 → 0.35): until 2026-09-26 this
+    # test used 0.10 → 0.05, two floor values whose « ▼ 5 pts » was the intercept
+    # minus itself. The floor case is guarded in
+    # tests/test_a_floor_probability_is_never_shown_as_a_measure.py.
     html = _renderer()({
         "song": "T", "comparable": True, "reason": None,
         "early": {"n": 4, "as_of": _D, "model_version": "v3",
-                  "dw_probability": 0.20, "rr_probability": None, "radio_probability": 0.10},
+                  "dw_probability": 0.20, "rr_probability": None, "radio_probability": 0.40},
         "now": {"n": 1, "as_of": _D, "model_version": "v3",
-                "dw_probability": 0.50, "rr_probability": None, "radio_probability": 0.05},
+                "dw_probability": 0.50, "rr_probability": None, "radio_probability": 0.35},
     })
     assert "▲ 30 pts" in html and "▼ 5 pts" in html
     assert "4" in html, "l'effectif de la fenêtre initiale doit voyager avec la valeur"

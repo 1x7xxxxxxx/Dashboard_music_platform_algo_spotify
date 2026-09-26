@@ -48,6 +48,30 @@ from src.dashboard.utils.date_format import format_date
 # Tab 1 — MRR Actuel
 # ─────────────────────────────────────────────
 
+
+def _format_ml_table(ml_df: pd.DataFrame) -> pd.DataFrame:
+    """The « scores ML » table: sorted and formatted through the shared floor door. Pure.
+
+    A floor probability (`proba_affichable` → None) prints `texte_plancher()`, never
+    « 6.5% », and sorts LAST: sorting on raw floor values ranked titles on the
+    calibration intercept (2026-09-26 — 33 of 33 production values on the floor).
+    NULL (a model that failed to score) still prints « — ».
+    """
+    from src.dashboard.utils.algo_preview_data import format_proba, proba_affichable
+
+    out = ml_df.copy()
+    if 'dw_probability' in out.columns:
+        key = [proba_affichable("dw", v) for v in out['dw_probability']]
+        out['_sort'] = pd.to_numeric(pd.Series(key, index=out.index, dtype=object),
+                                     errors='coerce')
+        out = (out.sort_values('_sort', ascending=False, na_position='last')
+               .drop(columns=['_sort']).reset_index(drop=True))
+    for col in ['dw_probability', 'rr_probability', 'radio_probability']:
+        if col in out.columns:
+            algo = col.split("_", 1)[0]
+            out[col] = [format_proba(algo, v, decimals=1) for v in out[col]]
+    return out
+
 def _tab_mrr(db) -> None:
     st.subheader(t("revenue_forecast.mrr_header", "MRR actuel"))
 
@@ -807,6 +831,23 @@ def _breakeven_gap(mensuel: pd.DataFrame) -> float | None:
     return -cumul if cumul < 0 else None
 
 
+_FLOOR_COLUMNS = (("DW", "dw_streams_forecast_7d"),
+                  ("RR", "rr_streams_forecast_7d"),
+                  ("RADIO", "radio_streams_forecast_7d"))
+
+
+def drop_suppressed_floor_columns(ml_df: pd.DataFrame) -> pd.DataFrame:
+    """Drop every floor column whose volume regressor the single-source gate suppresses.
+
+    This read only `"RR"` until 2026-09-26, so the DW floor column (DW volume R²<0,
+    suppressed since v3) stayed in the ROI table.
+    Guard: tests/test_a_suppressed_forecast_is_never_drawn.py
+    """
+    return ml_df.drop(columns=[col for algo, col in _FLOOR_COLUMNS
+                               if not ak.volume_forecast_reliable(algo)],
+                      errors='ignore')
+
+
 def _tab_artist_forecast(db, artist_id: int | None) -> None:
     # ⚠️ `show_infra` a été RETIRÉ le 2026-09-21, pas mis en commentaire. Il ne
     # servait qu'au champ « Coût infra VPS (€/mois) » du waterfall de marge, que
@@ -994,37 +1035,33 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
                 """,
                 (target_id,),
             )
-        except Exception:
-            ml_df = pd.DataFrame()
+            ml_read_failed = False
+        except Exception as exc:  # noqa: BLE001 — shown below, never as an absence
+            ml_df, ml_read_failed = pd.DataFrame(), True
+            st.warning(t("revenue_forecast.ml_unreadable",
+                         "Les scores ML n'ont pas pu être lus ({err}) : ce n'est pas une "
+                         "absence de prédiction.").format(err=type(exc).__name__))
 
-        if ml_df.empty:
+        if ml_read_failed:
+            pass
+        elif ml_df.empty:
             st.info(t("revenue_forecast.no_ml",
                       "Pas encore de prédiction. Elles sont recalculées chaque jour en fin de "
                       "matinée, à partir des données déjà collectées."))
         else:
-            ml_df = ml_df.sort_values('dw_probability', ascending=False).reset_index(drop=True)
+            ml_df = _format_ml_table(ml_df)
             ml_df['prediction_date'] = pd.to_datetime(ml_df['prediction_date']).dt.strftime('%Y-%m-%d')
 
-            # Probabilities can be NULL (a model that fails to score writes None →
-            # the Series becomes object dtype, and .round() would raise TypeError).
-            # Coerce to numeric and render NaN as a dash. Mirrors ml_performance.py.
-            for col in ['dw_probability', 'rr_probability', 'radio_probability']:
-                if col in ml_df.columns:
-                    pct = (pd.to_numeric(ml_df[col], errors='coerce') * 100).round(1)
-                    ml_df[col] = pct.map(lambda v: f"{v}%" if pd.notna(v) else "—")
-
-            # RR volume regressor is unreliable (R²=0.32) — drop its floor column so the ROI
-            # table never shows a Release Radar stream forecast (classification-only by design).
-            if not ak.volume_forecast_reliable("RR"):
-                ml_df = ml_df.drop(columns=['rr_streams_forecast_7d'], errors='ignore')
+            ml_df = drop_suppressed_floor_columns(ml_df)
 
             st.caption(
                 t("revenue_forecast.ml_caption",
                   "🛡️ Les colonnes *plancher* sont des **estimations worst-case** : le modèle "
                   "de volume sous-estime les hits, le potentiel réel est souvent supérieur. "
-                  "Le Release Radar n'a pas de colonne volume : son débit dépend du taux "
-                  "d'ouverture des notifications (non prédictible) — on s'appuie sur sa "
-                  "classification (AUC 0.94, validée par chanson).")
+                  "Release Radar et Discover Weekly n'ont pas de colonne volume : leur "
+                  "volume n'est pas prédictible (taux d'ouverture des notifications pour RR, "
+                  "R²<0 pour DW) — on s'appuie sur leur classification (AUC 0.94 et 0.92, "
+                  "validée par chanson).")
             )
             st.dataframe(
                 ml_df.rename(columns={

@@ -14,11 +14,6 @@ import plotly.graph_objects as go
 from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.utils.i18n import t
 
-_VERDICT_FILL = {
-    "malus": "rgba(255,107,107,0.35)",
-    "neutral": "rgba(150,150,150,0.30)",
-    "bonus": "rgba(29,185,84,0.35)",
-}
 _VERDICT_BADGE = {"malus": "🔴", "neutral": "⬜", "bonus": "🟢"}
 
 
@@ -262,7 +257,9 @@ def render_lever_sensitivity(algo: str, feats: dict) -> None:
     choice = st.selectbox(t("ml_widgets.sens_select", "Levier à simuler"),
                           list(levers), key=f"sens_sel_{algo}")
     fid, spec = levers[choice]
-    res = local_sensitivity(algo, spec["json_key"], feats)
+    target = spec.get("target")
+    res = local_sensitivity(algo, spec["json_key"], feats,
+                            targets=(target,) if target else ())
     if res is None:
         st.caption(t("ml_widgets.sens_unavailable",
                      "Sensibilité indisponible (modèle ou features absents)."))
@@ -270,16 +267,26 @@ def render_lever_sensitivity(algo: str, feats: dict) -> None:
     xs = res["x_human"]
     probs = [p * 100 for p in res["probs"]]
     cur = res["current"]
+    # `cur` and `target` are exact grid points (local_sensitivity inserts them), so
+    # these reads are model values, not interpolations across a coarse segment.
     cur_p = float(np.interp(cur, xs, probs))
     unit = spec.get("unit", "")
+    # A `_log` lever spans 0..~221k streams: on a linear axis 0..10k (where the model
+    # responds) would take 4 % of the width. Plot against log1p with human ticks.
+    to_ax = (lambda v: float(np.log1p(max(v, 0.0)))) if res.get("log_scale") else float
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=xs, y=probs, mode="lines", line=dict(color="#1DB954", width=3)))
-    fig.add_vline(x=cur, line_color="#ffffff", line_dash="dash", line_width=2)
-    target = spec.get("target")
+    fig.add_trace(go.Scatter(x=[to_ax(x) for x in xs], y=probs, customdata=xs, mode="lines",
+                             line=dict(color="#1DB954", width=3),
+                             hovertemplate="%{customdata:,.0f} → %{y:.1f} %<extra></extra>"))
+    fig.add_vline(x=to_ax(cur), line_color="#ffffff", line_dash="dash", line_width=2)
+    if res.get("log_scale"):
+        ticks = [v for v in (0, 10, 100, 1_000, 10_000, 100_000, 1_000_000) if v <= xs[-1]]
+        fig.update_xaxes(tickvals=[to_ax(v) for v in ticks],
+                         ticktext=[f"{v:,.0f}".replace(",", " ") for v in ticks])
     gain_msg = ""
     if target:
         tp = float(np.interp(target, xs, probs))
-        fig.add_vline(x=target, line_color="orange", line_dash="dot", line_width=2)
+        fig.add_vline(x=to_ax(target), line_color="orange", line_dash="dot", line_width=2)
         gain_msg = t("ml_widgets.sens_gain",
                      " Passer de **{cur:,.0f}** à la cible **{target:,.0f}** {unit} : "
                      "P({algo}) **{cur_p:.0f}% → {tp:.0f}%** ({delta:+.0f} pts)."
@@ -307,51 +314,91 @@ def render_calibration_badge(algo: str, raw) -> None:
         st.caption(t("ml_widgets.calibration", "🎯 Calibration : {note}").format(note=note))
 
 
-# ── Feature decision gauges ───────────────────────────────────────────────────
-def _axis_max(spec: dict, live):
-    highs = [h for _lo, h, _v, _n in spec["zones"] if h is not None]
-    amax = max(highs) * 1.25 if highs else 1.0
-    if live is not None:
-        amax = max(amax, live * 1.1)
-    if spec.get("target"):
-        amax = max(amax, spec["target"] * 1.2)
-    return amax or 1.0
+# ── Feature decision tables ───────────────────────────────────────────────────
+# ONE table per (algo, registry), never one figure per feature. Until 2026-09-26 each
+# registry entry drew its own zone-bar figure: 38 figures on one tab of ml_performance
+# (13+6+9 entry + 4+6 volume), a count that grew with the knowledge registry and that
+# no first-screen ceiling could see, because it counts call sites, not calls. The rows
+# carry the same facts — value, gates, gap, verdict, lever — and add none.
+# Guard: tests/test_a_helper_does_not_draw_one_figure_per_registry_entry.py.
+def _num(x) -> str:
+    """Compact human number: thousands separated, small ratios keep their decimals."""
+    if abs(x) >= 100 or float(x).is_integer():
+        return f"{x:,.0f}"
+    return f"{x:.2g}"
 
 
-def _zone_bar_fig(spec: dict, live):
-    amax = _axis_max(spec, live)
-    fig = go.Figure()
+def _gates_text(spec: dict) -> str:
+    """The zone bounds of a spec, badge by badge — read from spec['zones'], nothing new."""
+    parts = []
     for low, high, verdict, _note in spec["zones"]:
-        fig.add_shape(type="rect", layer="below", line_width=0,
-                      x0=(low or 0), x1=(high if high is not None else amax),
-                      y0=0, y1=1, fillcolor=_VERDICT_FILL[verdict])
-    if live is not None:
-        fig.add_vline(x=min(live, amax), line_color="#ffffff", line_width=3)
-    fig.update_xaxes(range=[0, amax], showgrid=False, zeroline=False)
-    fig.update_yaxes(range=[0, 1], showticklabels=False, showgrid=False, zeroline=False)
-    fig.update_layout(height=80, margin=dict(l=0, r=0, t=8, b=22), showlegend=False)
-    return fig
+        badge = _VERDICT_BADGE.get(verdict, "▫️")
+        if high is None:
+            parts.append(f"{badge} ≥ {_num(low or 0)}")
+        else:
+            parts.append(f"{badge} {_num(low or 0)}–{_num(high)}")
+    return " · ".join(parts)
 
 
-def _render_one_gauge(algo: str, fid: str, spec: dict, live, *,
-                      registry: dict | None = None, key_prefix: str = "gauge") -> None:
-    head = f"**{label_text(fid, spec)}**"
-    if live is not None:
-        verdict = ak.zone_for_value(algo, fid, live, registry=registry)
-        head += f" — {live:,.0f} {spec['unit']} {_VERDICT_BADGE.get(verdict, '▫️')}"
-    elif spec.get("divergent"):
-        head += t("ml_widgets.gauge_divergent",
-                  " — ⚠️ signal divergent (proxy, non-actionnable)")
-    elif spec.get("volume_flat"):
-        head += t("ml_widgets.gauge_volume_flat",
-                  " — ⬜ plat pour le volume (levier d'entrée)")
-    else:
-        head += t("ml_widgets.gauge_no_live", " — valeur live indisponible")
-    st.markdown(head)
-    st.plotly_chart(_zone_bar_fig(spec, live), width="stretch", key=f"{key_prefix}_{algo}_{fid}")
-    st.caption(f"→ {lever_text(algo, fid, spec, registry=registry)}")
+def _gap_to_bonus(spec: dict, live) -> float | None:
+    """Signed distance from `live` to the nearest bonus zone bound (0 inside one).
+
+    None when there is no live value or the spec has no bonus zone. Positive = to add,
+    negative = to remove. Reads the same bounds `ak.zone_for_value` reads.
+    """
+    if live is None:
+        return None
+    gaps = []
+    for low, high, verdict, _note in spec["zones"]:
+        if verdict != "bonus":
+            continue
+        lo = low if low is not None else float("-inf")
+        hi = high if high is not None else float("inf")
+        gaps.append(0.0 if lo <= live < hi else (lo - live if live < lo else hi - live))
+    return min(gaps, key=abs) if gaps else None
+
+
+def _note_text(algo: str, fid: str, spec: dict) -> str:
+    notes = []
+    if spec.get("divergent"):
+        notes.append(t("ml_widgets.note_divergent",
+                       "⚠️ signal divergent (proxy, non-actionnable)"))
+    if spec.get("volume_flat"):
+        notes.append(t("ml_widgets.note_volume_flat", "⬜ plat pour le volume (levier d'entrée)"))
     if spec.get("divergent_note"):
-        st.caption(f"⚠️ {divergent_note_text(algo, fid, spec)}")
+        notes.append(divergent_note_text(algo, fid, spec))
+    return " ".join(notes)
+
+
+def _gauge_row(algo: str, fid: str, spec: dict, live, registry: dict | None) -> dict:
+    unit = spec.get("unit", "")
+    verdict = ak.zone_for_value(algo, fid, live, registry=registry)
+    gap = _gap_to_bonus(spec, live)
+    if gap is None:
+        gap_txt = "—"
+    elif gap == 0:
+        gap_txt = t("ml_widgets.gap_reached", "✓ en zone bonus")
+    else:
+        gap_txt = f"{'+' if gap > 0 else '−'}{_num(abs(gap))} {unit}"
+    return {
+        t("ml_widgets.col_indicator", "Indicateur"): label_text(fid, spec),
+        t("ml_widgets.col_value", "Valeur"): "—" if live is None else f"{_num(live)} {unit}",
+        t("ml_widgets.col_gates", "Portes"): _gates_text(spec),
+        t("ml_widgets.col_gap", "Écart au bonus"): gap_txt,
+        t("ml_widgets.col_verdict", "Verdict"): _VERDICT_BADGE.get(verdict, "▫️"),
+        t("ml_widgets.col_lever", "Levier"): lever_text(algo, fid, spec, registry=registry),
+        t("ml_widgets.col_note", "Note"): _note_text(algo, fid, spec),
+    }
+
+
+def _render_gauge_table(algo: str, rows: list, registry: dict | None) -> None:
+    """ONE st.dataframe for every (fid, spec, live) of a registry — live rows first."""
+    import pandas as pd
+
+    ordered = sorted(rows, key=lambda r: r[2] is None)  # stable: registry order kept
+    st.dataframe(pd.DataFrame([_gauge_row(algo, fid, spec, live, registry)
+                               for fid, spec, live in ordered]),
+                 hide_index=True, width="stretch")
 
 
 def _live_value(algo: str, fid: str, spec: dict, feats: dict, registry: dict | None = None):
@@ -371,24 +418,17 @@ def render_feature_gauges(algo: str, feats: dict) -> None:
         return
     zones = ak.ALGO_FEATURE_ZONES[algo]
     st.markdown(t("ml_widgets.gauges_title", "#### 🎚️ Curseurs de décision par variable"))
-    st.caption(t("ml_widgets.gauges_legend",
-                 "Zones : 🔴 malus · ⬜ neutre · 🟢 bonus · trait blanc = valeur de ce titre."))
-
-    available, pedagogic = [], []
-    for fid in ids:
-        spec = zones[fid]
-        live = _live_value(algo, fid, spec, feats)
-        (available if live is not None else pedagogic).append((fid, spec, live))
-
-    for fid, spec, live in available:
-        _render_one_gauge(algo, fid, spec, live)
-
-    if pedagogic:
-        with st.expander(t("ml_widgets.gauges_pedagogic",
-                           "Variables sans valeur live ({n}) — pédagogique"
-                           ).format(n=len(pedagogic))):
-            for fid, spec, live in pedagogic:
-                _render_one_gauge(algo, fid, spec, None)
+    st.caption(t("ml_widgets.gauges_table_legend",
+                 "Une ligne par variable. Verdict : 🔴 malus · ⬜ neutre · 🟢 bonus. "
+                 "Écart = ce qu'il manque (+) ou ce qui dépasse (−) pour atteindre la "
+                 "zone bonus la plus proche."))
+    rows = [(fid, zones[fid], _live_value(algo, fid, zones[fid], feats)) for fid in ids]
+    _render_gauge_table(algo, rows, None)
+    n_ped = sum(1 for _fid, _spec, live in rows if live is None)
+    if n_ped:
+        st.caption(t("ml_widgets.gauges_pedagogic",
+                     "Variables sans valeur live ({n}) — pédagogique").format(n=n_ped)
+                   + " : « — ».")
 
 
 # ── Volume forecast: floor reframing + hungry-model badge ─────────────────────
@@ -431,8 +471,8 @@ def render_volume_gauges(algo: str, feats: dict) -> None:
 
     Surfaces the 'quality buys the ticket, volume writes the cheque' insight:
     raw-fuel levers (recent streams, organic traffic) drive volume; saves/playlist
-    adds are flagged flat-for-volume. Imputed features (NonAlgoStreams) go to the
-    pédagogique expander exactly like the entry gauges.
+    adds are flagged flat-for-volume. Imputed features (NonAlgoStreams) sit in the
+    same table with value « — », exactly like the entry table.
     """
     feats = feats or {}
     ids = ak.volume_feature_ids(algo)
@@ -447,29 +487,21 @@ def render_volume_gauges(algo: str, feats: dict) -> None:
                  "La qualité (saves, rétention) achète le **ticket d'entrée** ; le "
                  "carburant brut (organique, étincelle récente) écrit le **chèque**."))
     render_regressor_badge(algo)
-
-    available, pedagogic = [], []
-    for fid in ids:
-        spec = zones[fid]
-        live = _live_value(algo, fid, spec, feats, registry=zones)
-        (available if live is not None else pedagogic).append((fid, spec, live))
-
-    for fid, spec, live in available:
-        _render_one_gauge(algo, fid, spec, live, registry=zones, key_prefix="volgauge")
-
+    rows = [(fid, zones[fid], _live_value(algo, fid, zones[fid], feats, registry=zones))
+            for fid in ids]
+    _render_gauge_table(algo, rows, zones)
+    pedagogic = [(fid, spec) for fid, spec, live in rows if live is None]
     if pedagogic:
-        with st.expander(t("ml_widgets.volume_gauges_pedagogic",
-                           "Variables volume sans valeur live ({n}) — pédagogique"
-                           ).format(n=len(pedagogic))):
-            _imputed = ", ".join(label_text(_fid, spec) for _fid, spec, _live in pedagogic)
-            st.caption(t("ml_widgets.volume_imputed",
-                         "⚠️ {names} : pas de valeur live pour ce titre — affichées comme "
-                         "**cibles**, pas valeurs live. Les variables à source manuelle "
-                         "(non-algo, Radio) s'affichent en live dès qu'elles sont saisies "
-                         "dans « 🎯 Vue Globale »."
-                         ).format(names=_imputed))
-            for fid, spec, live in pedagogic:
-                _render_one_gauge(algo, fid, spec, None, registry=zones, key_prefix="volgauge")
+        _imputed = ", ".join(label_text(_fid, spec) for _fid, spec in pedagogic)
+        st.caption(t("ml_widgets.volume_gauges_pedagogic",
+                     "Variables volume sans valeur live ({n}) — pédagogique"
+                     ).format(n=len(pedagogic)) + " — " +
+                   t("ml_widgets.volume_imputed",
+                     "⚠️ {names} : pas de valeur live pour ce titre — affichées comme "
+                     "**cibles**, pas valeurs live. Les variables à source manuelle "
+                     "(non-algo, Radio) s'affichent en live dès qu'elles sont saisies "
+                     "dans « 🎯 Vue Globale »."
+                     ).format(names=_imputed))
 
 
 # ── SHAP waterfall narrative (natural-language autopsy) ───────────────────────

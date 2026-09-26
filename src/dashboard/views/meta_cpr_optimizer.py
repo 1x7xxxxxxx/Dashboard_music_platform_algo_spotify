@@ -5,12 +5,18 @@ Uses: get_db_connection, get_artist_id, require_plan
 Depends on: meta_insights_performance, campaign_track_mapping, ml_song_predictions
 Score: max(dw_prob, rr_prob, radio_prob) × (cpr_median / cpr_campaign)
        → normalisé 0-10. Seuils: ≥7 → +30%, 5-7 → +10%, 3-5 → neutre, <3 → -30%.
+       ⚠️ The ML factor is the max of the OFF-floor probabilities only
+       (`algo_preview_data.proba_affichable`); when any scored campaign has no
+       off-floor probability, the ML factor is NEUTRAL (1.0) for every campaign —
+       see `_ml_factor` / `_compute_scores` (2026-09-26).
 """
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
 from src.dashboard.utils import view_session
+from src.dashboard.utils.algo_preview_data import (
+    format_proba, proba_affichable, texte_plancher)
 from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
@@ -50,9 +56,11 @@ SELECT
     COALESCE(mip.total_spend, 0)    AS total_spend,
     COALESCE(mip.total_results, 0)  AS total_results,
     mip.cpr,
-    COALESCE(ml.dw_probability,    0) AS dw_prob,
-    COALESCE(ml.rr_probability,    0) AS rr_prob,
-    COALESCE(ml.radio_probability, 0) AS radio_prob
+    -- NO COALESCE to 0: an absent prediction is « no estimate », like a floor
+    -- value, not a 0 %% that zeroes the score (2026-09-26).
+    ml.dw_probability    AS dw_prob,
+    ml.rr_probability    AS rr_prob,
+    ml.radio_probability AS radio_prob
 FROM campaign_track_mapping ctm
 LEFT JOIN (
     SELECT
@@ -113,6 +121,25 @@ def _facteur_confiance(resultats: float, k: float) -> float:
     return confidence_factor(resultats, k)
 
 
+def _ml_factor(dw, rr, radio) -> float | None:
+    """The ML part of a campaign's score: max of the OFF-floor probabilities, or None.
+
+    Before 2026-09-26 it was `max(dw, rr, radio)` on raw values. With the three on
+    the calibration floor (33 of 33 production values that day) the max is always
+    Radio's intercept (~10,7 %) — an artefact of calibration, not a signal about the
+    track — and it multiplied a real ad-spend recommendation. Pure.
+    """
+    kept = [p for a, v in (("dw", dw), ("rr", rr), ("radio", radio))
+            if (p := proba_affichable(a, v)) is not None]
+    return max(kept) if kept else None
+
+
+def _ml_label(dw, rr, radio) -> str:
+    """The displayed « ML max » — through the shared door; floor → texte_plancher."""
+    m = _ml_factor(dw, rr, radio)
+    return f"{m:.0%}" if m is not None else texte_plancher()
+
+
 def _compute_scores(df: pd.DataFrame, cpr_median: float,
                     affinite_age: dict | None = None,
                     k_confiance: float = _K_DEFAUT) -> pd.DataFrame:
@@ -142,11 +169,29 @@ def _compute_scores(df: pd.DataFrame, cpr_median: float,
     réfutent. L'affinité est donc calculée à partir du CPR OBSERVÉ par tranche :
     une campagne est récompensée d'avoir touché les tranches qui convertissent
     bien CHEZ CET ARTISTE, quelles qu'elles soient.
+
+    ⚠️ **LE FACTEUR ML EST NEUTRE QUAND IL N'EST PAS UNE MESURE** — 2026-09-26.
+    `_ml_factor` ne garde que les probabilités hors plancher. Si UNE campagne
+    scorée n'en a aucune, le facteur ML vaut 1,0 pour TOUTES (`ml_in_score` =
+    False) : mélanger des campagnes pondérées par une vraie probabilité et
+    d'autres par un neutre classerait les secondes devant les premières.
     """
+    df = df.copy()
+    ml = [_ml_factor(a, b, c) for a, b, c in zip(
+        df.get('dw_prob', []), df.get('rr_prob', []), df.get('radio_prob', []))]
+    # dtype=object: a float column would turn None into NaN, and `is not None`
+    # would then count « no estimate » as a measure (seen red 2026-09-26).
+    df['ml_factor'] = pd.Series(ml if len(ml) == len(df) else [None] * len(df),
+                                index=df.index, dtype=object)
+    scored = df['cpr'].notna() & (df['cpr'] > 0)
+    ml_in_score = bool(scored.any()) and all(
+        m is not None and pd.notna(m) for m, ok in zip(df['ml_factor'], scored) if ok)
+    df.attrs['ml_in_score'] = ml_in_score
+
     def _score_row(row) -> float:
         if pd.isna(row['cpr']) or row['cpr'] <= 0 or cpr_median <= 0:
             return 0.0
-        ml_prob = max(row['dw_prob'], row['rr_prob'], row['radio_prob'])
+        ml_prob = row['ml_factor'] if ml_in_score else 1.0
         efficacite = cpr_median / float(row['cpr'])
         confiance = _facteur_confiance(row.get('total_results'), k_confiance)
         age = 1.0
@@ -154,8 +199,8 @@ def _compute_scores(df: pd.DataFrame, cpr_median: float,
             age = float(affinite_age.get(row['campaign_name'], 1.0))
         return float(ml_prob) * efficacite * confiance * age
 
-    df = df.copy()
-    df['score_raw'] = df.apply(_score_row, axis=1)
+    df['score_raw'] = (df.apply(_score_row, axis=1) if len(df)
+                       else pd.Series(dtype=float))
     df['confiance'] = (df['total_results'].apply(
         lambda n: _facteur_confiance(n, k_confiance))
         if 'total_results' in df.columns else 0.0)
@@ -196,9 +241,8 @@ def _render_table(df: pd.DataFrame) -> None:
     )
     display['Dépense'] = display['total_spend'].apply(lambda x: f"{x:.2f}€")
     display['Résultats'] = display['total_results'].astype(int)
-    display['ML max'] = display[['dw_prob', 'rr_prob', 'radio_prob']].max(axis=1).apply(
-        lambda x: f"{x:.0%}"
-    )
+    display['ML max'] = [_ml_label(a, b, c) for a, b, c in zip(
+        display['dw_prob'], display['rr_prob'], display['radio_prob'])]
 
     st.dataframe(
         display[[
@@ -224,7 +268,7 @@ def _render_table(df: pd.DataFrame) -> None:
 def _render_detail_cards(df: pd.DataFrame) -> None:
     """Expandable cards per campaign with full explanation."""
     for _, row in df.iterrows():
-        ml_max = max(row['dw_prob'], row['rr_prob'], row['radio_prob'])
+        ml_txt = _ml_label(row['dw_prob'], row['rr_prob'], row['radio_prob'])
         cpr_str = (f"{row['cpr']:.2f}€" if pd.notna(row['cpr'])
                    else t("meta_cpr_optimizer.unknown", "inconnu"))
         score = row['score_10']
@@ -240,8 +284,9 @@ def _render_detail_cards(df: pd.DataFrame) -> None:
                 "meta_cpr_optimizer.ml_prob",
                 "**Probabilité ML max** : {ml_max} "
                 "(DW: {dw} | RR: {rr} | Radio: {radio})"
-            ).format(ml_max=f"{ml_max:.0%}", dw=f"{row['dw_prob']:.0%}",
-                     rr=f"{row['rr_prob']:.0%}", radio=f"{row['radio_prob']:.0%}"))
+            ).format(ml_max=ml_txt, dw=format_proba("dw", row['dw_prob']),
+                     rr=format_proba("rr", row['rr_prob']),
+                     radio=format_proba("radio", row['radio_prob'])))
 
             if pd.isna(row['cpr']):
                 st.warning(t(
@@ -254,7 +299,7 @@ def _render_detail_cards(df: pd.DataFrame) -> None:
                     "meta_cpr_optimizer.msg_performing",
                     "✅ **Campagne performante** : CPR bas ({cpr}) + fort potentiel ML ({ml}). "
                     "Augmenter le budget de 30% pour maximiser la fenêtre algo."
-                ).format(cpr=cpr_str, ml=f"{ml_max:.0%}"))
+                ).format(cpr=cpr_str, ml=ml_txt))
             elif score >= 5:
                 st.info(t(
                     "meta_cpr_optimizer.msg_good",
@@ -268,7 +313,7 @@ def _render_detail_cards(df: pd.DataFrame) -> None:
                     "meta_cpr_optimizer.msg_under",
                     "🔴 **Sous-performante** : CPR élevé ({cpr}) et/ou faible potentiel ML ({ml}). "
                     "Réduire le budget de 30% ou revoir la créative et le ciblage."
-                ).format(cpr=cpr_str, ml=f"{ml_max:.0%}"))
+                ).format(cpr=cpr_str, ml=ml_txt))
 
 
 def show() -> None:
@@ -329,6 +374,12 @@ def show() -> None:
               float(df['total_results'].median()) if 'total_results' in df.columns
               else _K_DEFAUT) or _K_DEFAUT
     df = _compute_scores(df, cpr_median, affinite_age=affinite, k_confiance=k_conf)
+    if not df.attrs.get('ml_in_score'):
+        st.caption(t(
+            "meta_cpr_optimizer.ml_neutral",
+            "ℹ️ Le facteur ML est **neutre** dans ce score : au moins une campagne "
+            "porte un titre sans estimation fiable (probabilités au plancher de la "
+            "calibration). Le classement repose sur le CPR, la confiance et l'âge."))
     _render_age_panel(ages, k_conf)
 
     st.markdown(t("meta_cpr_optimizer.account_median",

@@ -61,7 +61,9 @@ def _sample_data():
         "songs_data": [{
             "song": "Hit Song", "total_streams": 9000, "last7d_streams": 700,
             "ml": {"dw_prob": 0.62, "rr_prob": 0.31, "radio_prob": 0.12,
-                   "dw_forecast": 5400, "rr_forecast": 1200,
+                   # Only the gate-allowed forecast reaches the report (DW/RR are
+                   # suppressed product-wide), keyed by algo — see _read_ml_prediction.
+                   "forecast": {"RADIO": 240.0},
                    "prediction_date": "2026-01-14"},
         }],
     }

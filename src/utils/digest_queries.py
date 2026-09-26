@@ -123,6 +123,37 @@ WHERE artist_id = %s
 """
 
 
+# Every title of the latest scoring day, with its DW probability. NO `LIMIT 1`: the
+# top candidate is chosen in Python, AFTER the calibration-floor door, because the
+# SQL max of floor values is just the title whose floor is a hair higher.
+ML_TOP_CANDIDATES_SQL = """
+    SELECT song, dw_probability
+    FROM ml_song_predictions
+    WHERE artist_id = %s
+      AND prediction_date = (SELECT MAX(prediction_date) FROM ml_song_predictions
+                             WHERE artist_id = %s)
+    ORDER BY dw_probability DESC NULLS LAST
+"""
+
+
+def ml_top_candidate(rows) -> tuple[str, str] | None:
+    """`(song, "12.3% probability")` for the best OFF-floor DW probability, or None.
+
+    Through the shared door (`algo_preview_data.proba_affichable`). On 2026-09-26
+    33 of 33 production probabilities were on the calibration floor: the digest
+    mailed a « Top Discovery Weekly candidate — 6.5% probability » that was the
+    intercept, not a candidate. With nothing off the floor, the section is omitted.
+    """
+    from src.dashboard.utils.algo_preview_data import proba_affichable
+
+    kept = [(str(r[0]), p) for r in (rows or [])
+            if (p := proba_affichable("dw", r[1])) is not None]
+    if not kept:
+        return None
+    song, p = max(kept, key=lambda x: x[1])
+    return song, f"{p * 100:.1f}% probability"
+
+
 def fmt_value(val, spec: str = ",", suffix: str = "") -> str:
     """Une quantité, ou « N/A » — jamais un zéro fabriqué.
 

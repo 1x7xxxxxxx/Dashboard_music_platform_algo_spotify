@@ -94,6 +94,10 @@ def get_artists_list(db):
         return []
 
 
+def _opt_float(v) -> float | None:
+    return None if v is None else float(v)
+
+
 def _collect_songs_focus(db, artist_id, songs, from_date, to_date):
     """
     Pour chaque chanson sélectionnée, retourne un dict avec :
@@ -150,41 +154,66 @@ def _collect_songs_focus(db, artist_id, songs, from_date, to_date):
             logger.warning("PDF: _collect_songs_focus unreadable: %s", type(exc).__name__)
             pass
 
-        # ML predictions
-        try:
-            if artist_id is not None:
-                row = db.fetch_query(
-                    """SELECT dw_prob, rr_prob, radio_prob,
-                              dw_forecast_7d, rr_forecast_7d, prediction_date
-                       FROM ml_song_predictions
-                       WHERE song = %s AND artist_id = %s
-                       ORDER BY prediction_date DESC LIMIT 1""",
-                    (song, artist_id)
-                )
-            else:
-                row = db.fetch_query(
-                    """SELECT dw_prob, rr_prob, radio_prob,
-                              dw_forecast_7d, rr_forecast_7d, prediction_date
-                       FROM ml_song_predictions
-                       WHERE song = %s
-                       ORDER BY prediction_date DESC LIMIT 1""",
-                    (song,)
-                )
-            if row and row[0][0] is not None:
-                entry['ml'] = {
-                    'dw_prob':       float(row[0][0] or 0),
-                    'rr_prob':       float(row[0][1] or 0),
-                    'radio_prob':    float(row[0][2] or 0),
-                    'dw_forecast':   float(row[0][3] or 0),
-                    'rr_forecast':   float(row[0][4] or 0),
-                    'prediction_date': str(row[0][5]),
-                }
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("PDF: _collect_songs_focus unreadable: %s", type(exc).__name__)
-            pass
+        entry['ml'], entry['ml_unreadable'] = _read_ml_prediction(db, song, artist_id)
 
         result.append(entry)
     return result
+
+
+# The volume forecast column of each algo, in ml_song_predictions (src/database/ml_schema.py).
+_ML_FORECAST_COLUMNS = {
+    "DW": "dw_streams_forecast_7d",
+    "RR": "rr_streams_forecast_7d",
+    "RADIO": "radio_streams_forecast_7d",
+}
+
+
+def _read_ml_prediction(db, song, artist_id):
+    """Latest ML prediction of one song for the PDF: ``(ml_dict | None, unreadable)``.
+
+    Until 2026-09-26 this read selected ``dw_prob, rr_prob, radio_prob, dw_forecast_7d,
+    rr_forecast_7d``, none of which exists (the columns are ``*_probability`` and
+    ``*_streams_forecast_7d``). The ``UndefinedColumn`` was swallowed by a bare
+    ``except Exception`` with a warning, so EVERY PDF printed « Pas de prédiction ML
+    disponible. » for every song: a failed read rendered as an absence.
+
+    Two changes close that:
+      * a database error is logged at ERROR and returned as ``unreadable=True``, so the
+        renderer says « illisible », not « absente » (python.md, Erreurs et absences);
+        any other exception is a code defect and propagates;
+      * only the volume forecasts the single-source gate allows are read — the others
+        (DW, RR today) are suppressed product-wide and must not reach a client report.
+    Guard: tests/test_pdf_ml_block_reads_real_columns.py
+    """
+    import psycopg2
+    from src.dashboard.utils import algo_knowledge as ak
+
+    shown = [a for a in _ML_FORECAST_COLUMNS if ak.volume_forecast_reliable(a)]
+    cols = ", ".join(["dw_probability", "rr_probability", "radio_probability",
+                      "prediction_date"] + [_ML_FORECAST_COLUMNS[a] for a in shown])
+    where = "song = %s" + (" AND artist_id = %s" if artist_id is not None else "")
+    params = (song, artist_id) if artist_id is not None else (song,)
+    try:
+        row = db.fetch_query(
+            f"SELECT {cols} FROM ml_song_predictions WHERE {where} "  # noqa: S608 — constant columns
+            "ORDER BY prediction_date DESC LIMIT 1",
+            params,
+        )
+    except psycopg2.Error as exc:
+        logger.error("PDF: ML prediction UNREADABLE for a song (%s): %s",
+                     type(exc).__name__, exc)
+        return None, True
+    if not row or row[0][0] is None:
+        return None, False
+    r = row[0]
+    return {
+        'dw_prob': _opt_float(r[0]),
+        'rr_prob': _opt_float(r[1]),
+        'radio_prob': _opt_float(r[2]),
+        'prediction_date': str(r[3]),
+        'forecast': {a: (None if r[4 + i] is None else float(r[4 + i]))
+                     for i, a in enumerate(shown)},
+    }, False
 
 
 def _collect_s4a_top_songs(db, artist_id, from_date, to_date, songs_filter=None):

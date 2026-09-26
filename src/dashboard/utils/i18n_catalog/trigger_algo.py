@@ -94,27 +94,29 @@ EN = {
     # _tab_model.py
     "trigger_algo.model.caption": (
         "📈 **Under the hood** — the technical reliability of the ML model: classification "
-        "accuracy per algo, and a \"predicted vs actual\" comparison. To judge how much "
-        "you can trust the probabilities shown in the other tabs."
+        "accuracy per algo, and the forecast volume next to the observed streams. To judge "
+        "how much you can trust the probabilities shown in the other tabs."
     ),
-    "trigger_algo.model.actual_vs_pred": "📊 Actual vs Predicted — Streams 7d",
+    "trigger_algo.model.actual_vs_pred": "📊 Model volume forecast and observed streams",
     "trigger_algo.model.insufficient_history": (
         "Insufficient history (minimum 2 predictions with streams_7d filled in)."
     ),
     "trigger_algo.model.dw_forecast": "**DW forecast**",
-    "trigger_algo.model.dw_frozen": (
-        "DW volume not predicted — the DW regressor is frozen (R²<0 in honest "
-        "validation, worse than an average). This is **intentional**, not a lack "
-        "of data: trust the DW probability, not the volume."
-    ),
     "trigger_algo.model.rr_forecast": "**RR forecast**",
-    "trigger_algo.model.rr_r2_caption": (
-        "⚠️ R²=0.32 — diagnostic only, NOT a forecast. Release Radar volume is "
-        "not predictable (noise tied to notification open rate)."
-    ),
-    "trigger_algo.model.no_rr_pred": "No RR predictions available for this track.",
     "trigger_algo.model.radio_forecast": "**Radio forecast**",
-    "trigger_algo.model.no_radio_pred": "No Radio predictions available for this track.",
+    "trigger_algo.model.volume_suppressed": (
+        "Volume not predicted: the volume regressor is not reliable enough to be "
+        "shown. Trust the probability, not the volume."
+    ),
+    "trigger_algo.model.no_volume_pred": "No {label} volume forecast for this track.",
+    "trigger_algo.model.x_floor": "Predicted {label} floor ({label}-sourced streams, 28 d)",
+    "trigger_algo.model.y_all_streams": "Observed streams, all sources (7 d)",
+    "trigger_algo.model.axes_differ": (
+        "The two axes do not measure the same thing: the model predicts a floor of "
+        "{label}-sourced streams over 28 days, the vertical axis counts every stream of "
+        "the track over 7 days. No data measures {label}-sourced streams alone: this view "
+        "shows a trend, not the model's error."
+    ),
     "trigger_algo.model.residuals_header": "📉 Residuals over time (Actual − DW Forecast)",
     "trigger_algo.model.residuals_expander": "📉 Model diagnostics — residuals (optional)",
     "trigger_algo.model.no_residuals": (
@@ -304,10 +306,6 @@ EN = {
     "trigger_algo.roi.breakeven_unavailable": "Breakeven chart unavailable: {err}",
 
     # _common.py
-    "trigger_algo.common.prob_insufficient": "**{label}** — insufficient data",
-    "trigger_algo.common.prob_bar": "**{label}** {badge} — {pct:.0f}%",
-    "trigger_algo.common.estimated_volume": "Estimated volume",
-    "trigger_algo.common.ml_pred_date": "ML prediction from **{date}** — model `{ver}`",
     "trigger_algo.common.heuristic_mode": (
         "⚠️ **Heuristic mode** — no prediction for this track yet. The model's probabilities arrive at the next computation, late morning."),
     "trigger_algo.common.key_factors_header": "🔍 Key factors & marketing levers",
@@ -368,6 +366,15 @@ EN = {
     "trigger_algo.common.gate_reached": "✅ door reached",
     "trigger_algo.common.gate_requires": "⛔ requires PI {gate}",
     "trigger_algo.common.gate_line": "- **{label}**: door at PI **{gate}** — {status}",
+    "trigger_algo.algos.floor_points_hidden": ("Points missing from the curve are "
+        "probabilities on the calibration floor: no reliable estimate, the model decided "
+        "nothing on those days."),
+    "trigger_algo.roi.ml_proba_floor": ("No reliable estimate for this track: its "
+        "three probabilities are on the calibration floor. Dividing a cost by that floor "
+        "would invent a « best bet » the model never gave."),
+    "trigger_algo.common.verdict_floor": ("⚪ **No reliable estimate** — for this "
+        "track the model decided nothing on any of the three algorithms (score on the "
+        "calibration floor). No STOP / SCALE verdict can be drawn from it."),
     "trigger_algo.common.verdict_stop": (
         "🔴 **STOP** — weak algorithmic signals (best lead: "
         "{algo} {prob:.0%}). Stop your Meta Ads on this track "
@@ -827,10 +834,10 @@ EN = {
     "trigger_algo.cat.col_adds": "Playlist adds 28d",
     "trigger_algo.cat.col_streams": "Streams 28d",
     "trigger_algo.cat.table_note": (
-        "⚠️ **« ≈ plancher »** flags a probability whose raw score is negligible: the "
-        "model did not decide for that track, it is not hesitating. Two tracks flagged "
-        "this way cannot be compared with each other — which is why the table is "
-        "sorted on progress, not on those columns."),
+        "⚠️ **« no reliable estimate »** replaces a probability whose raw score is "
+        "negligible: the model did not decide for that track, it is not hesitating, "
+        "and the number would tell nothing apart — which is why it is not shown, and "
+        "why the table is sorted on progress."),
     # ── 🎧 Ce titre : ce qu'il reste à faire (2026-09-22) ────────────────────
     "trigger_algo.tab_titre": "🎧 This track: what's left to do",
     "trigger_algo.titre.nothing_left": (
@@ -839,7 +846,6 @@ EN = {
     "trigger_algo.titre.tile_gate": "Closest gate",
     "trigger_algo.titre.tile_value": "What it's worth if it opens",
     "trigger_algo.titre.tile_expect": "Expected value today",
-    "trigger_algo.titre.floor": "≈ floor",
     "trigger_algo.titre.smooth": "🐢 **{label}** is too high ({cur:,.2f} {unit}) — {lever}",
     "trigger_algo.titre.pareto_header": "🪜 What's left to do",
     "trigger_algo.titre.col_lever": "Lever",

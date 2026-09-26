@@ -86,7 +86,7 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
 def test_every_chart_has_its_graded_review() -> None:
     sys.path.insert(0, str(_DOSSIER))
     import inventory
-    sites = {s["site"] for s in inventory.sites() if s["kind"] == "figure"}
+    sites = {s["key"] for s in inventory.sites() if s["kind"] == "figure"}
     report = _ROOT / "src" / "dashboard" / "utils" / "pdf_exporter" / "_report.py"
     with open(report, encoding="utf-8") as fh:
         pdf_keys = _pdf_chart_keys(ast.parse(fh.read()))

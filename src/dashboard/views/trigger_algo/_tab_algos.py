@@ -5,6 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from src.dashboard.utils import ml_widgets
+from src.dashboard.utils.algo_preview_data import proba_affichable
 from src.dashboard.utils.i18n import t
 from src.utils.track_matching import canonical_song_sql
 from ._common import (
@@ -18,6 +19,26 @@ from ._common import (
     _show_resurrection_radar,
     _show_verdict_banner,
 )
+
+
+
+# One colour per algorithm for the probability panel (row 2). At module scope, not in the
+# loop header: the contrast sweep (tools/dev/figure_contrast_report.py) groups a figure's
+# hex literals by the trace that PRECEDES them, and a loop header before `add_trace` put
+# these three under the row-1 bar (a false ΔE alarm, 2026-09-26).
+_PCT_COLOR = {"dw": "#FF6B6B", "rr": "#4ECDC4", "radio": "#FFE66D"}
+
+def _proba_series(algo: str, values) -> list[float | None]:
+    """One probability curve in %, with every floor value turned into a GAP. Pure.
+
+    Through the shared door (`proba_affichable`): a floor point drawn at 6,5 % reads
+    as a level the title sits at; it is the model saying nothing (2026-09-26).
+    """
+    out = []
+    for v in values:
+        p = proba_affichable(algo, v)
+        out.append(None if p is None else p * 100)
+    return out
 
 
 def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, release_date=None):
@@ -97,21 +118,21 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
 
             if not df_proba.empty:
                 df_proba["prediction_date"] = pd.to_datetime(df_proba["prediction_date"])
-                fig.add_trace(go.Scatter(
-                    x=df_proba["prediction_date"], y=df_proba["dw_probability"] * 100,
-                    name="Discover Weekly %", mode="lines+markers",
-                    line=dict(color="#FF6B6B", width=2)
-                ), row=2, col=1)
-                fig.add_trace(go.Scatter(
-                    x=df_proba["prediction_date"], y=df_proba["rr_probability"] * 100,
-                    name="Release Radar %", mode="lines+markers",
-                    line=dict(color="#4ECDC4", width=2)
-                ), row=2, col=1)
-                fig.add_trace(go.Scatter(
-                    x=df_proba["prediction_date"], y=df_proba["radio_probability"] * 100,
-                    name="Radio %", mode="lines+markers",
-                    line=dict(color="#FFE66D", width=2)
-                ), row=2, col=1)
+                _floored = 0
+                for algo, name in (("dw", "Discover Weekly %"), ("rr", "Release Radar %"),
+                                   ("radio", "Radio %")):
+                    ys = _proba_series(algo, df_proba[f"{algo}_probability"])
+                    _floored += sum(1 for y in ys if y is None)
+                    fig.add_trace(go.Scatter(
+                        x=df_proba["prediction_date"], y=ys, name=name,
+                        mode="lines+markers", line=dict(color=_PCT_COLOR[algo], width=2)
+                    ), row=2, col=1)
+                if _floored:
+                    st.caption(t(
+                        "trigger_algo.algos.floor_points_hidden",
+                        "Les points absents de la courbe sont des probabilités au "
+                        "plancher de la calibration : pas d'estimation fiable, le "
+                        "modèle n'a rien tranché ces jours-là."))
             else:
                 st.caption(t("trigger_algo.algos.no_ml_history",
                              "Aucun historique de probabilités ML sur cette période."))

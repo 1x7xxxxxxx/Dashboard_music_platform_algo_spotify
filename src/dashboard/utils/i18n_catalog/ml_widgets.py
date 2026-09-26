@@ -50,14 +50,22 @@ EN = {
     "ml_widgets.sens_local_caveat": "⚠️ *Local* sensitivity to this track — not a general rule "
                                     "(the model is non-linear; the effect depends on the other "
                                     "variables).",
-    # Feature decision gauges
-    "ml_widgets.gauge_divergent": " — ⚠️ divergent signal (proxy, non-actionable)",
-    "ml_widgets.gauge_volume_flat": " — ⬜ flat for volume (entry lever)",
-    "ml_widgets.gauge_no_live": " — live value unavailable",
+    # Feature decision tables — one table per (algo, registry), never a figure per feature
+    "ml_widgets.note_divergent": "⚠️ divergent signal (proxy, non-actionable)",
+    "ml_widgets.note_volume_flat": "⬜ flat for volume (entry lever)",
+    "ml_widgets.gap_reached": "✓ in the bonus zone",
+    "ml_widgets.col_indicator": "Indicator",
+    "ml_widgets.col_value": "Value",
+    "ml_widgets.col_gates": "Gates",
+    "ml_widgets.col_gap": "Gap to bonus",
+    "ml_widgets.col_verdict": "Verdict",
+    "ml_widgets.col_lever": "Lever",
+    "ml_widgets.col_note": "Note",
     "ml_widgets.no_feature_rules": "No feature rule available for this algorithm.",
     "ml_widgets.gauges_title": "#### 🎚️ Per-variable decision sliders",
-    "ml_widgets.gauges_legend": "Zones: 🔴 malus · ⬜ neutral · 🟢 bonus · "
-                                "white line = this track's value.",
+    "ml_widgets.gauges_table_legend": "One row per variable. Verdict: 🔴 malus · ⬜ neutral · "
+                                      "🟢 bonus. Gap = what is missing (+) or in excess (−) "
+                                      "to reach the nearest bonus zone.",
     "ml_widgets.gauges_pedagogic": "Variables without a live value ({n}) — educational",
     # Volume forecast / regressor
     "ml_widgets.floor_forecast": "🛡️ {label}: **≥ ~{val:,} streams 7d** (guaranteed floor). "

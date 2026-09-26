@@ -403,24 +403,44 @@ def ml_probabilities(db, artist_id, song) -> str | None:
         return None
     if not row or row[0][0] is None:
         return None
+    return _draw_ml_probabilities(row[0])
+
+
+def _draw_ml_probabilities(pred) -> str:
+    """The three bars — each through the shared floor door (`proba_affichable`).
+
+    On the calibration floor a bar is NOT drawn and no percentage is printed: the
+    model said nothing for that algo, and a « 7% » against a STOP line read as a
+    verdict (measured 2026-09-26: 33 of 33 production probabilities on the floor).
+    The STOP/SCALER lines are drawn only when at least one bar is a real measure.
+    """
+    from src.dashboard.utils.algo_preview_data import proba_affichable
+
     labels = ["Discover\nWeekly", "Release\nRadar", "Radio"]
-    vals = [float(row[0][i] or 0) * 100 for i in range(3)]
+    kept = [proba_affichable(a, pred[i]) for i, a in enumerate(("dw", "rr", "radio"))]
+    vals = [p * 100 if p is not None else 0.0 for p in kept]
     colors = [_GREEN if v >= 50 else ("#FFA500" if v >= 30 else _RED) for v in vals]
     fig, ax = plt.subplots(figsize=(5.2, 3.0))
     bars = ax.bar(labels, vals, color=colors, width=0.55)
     ax.set_ylim(0, 100)
     _style(ax)
-    # Decision thresholds: <20 STOP, 20-50 OPTIMISER, >=50 SCALER.
-    ax.axhline(20, color="#FFA500", linewidth=1, linestyle=":")
-    ax.axhline(50, color=_GREEN, linewidth=1, linestyle="--")
-    ax.text(2.55, 20, _t("pdf.chart.stop", "STOP"), fontsize=7, color="#FFA500", va="center")
-    ax.text(2.55, 50, _t("pdf.chart.scale", "SCALER"), fontsize=7, color=_GREEN, va="center")
+    if any(p is not None for p in kept):
+        # Decision thresholds: <20 STOP, 20-50 OPTIMISER, >=50 SCALER.
+        ax.axhline(20, color="#FFA500", linewidth=1, linestyle=":")
+        ax.axhline(50, color=_GREEN, linewidth=1, linestyle="--")
+        ax.text(2.55, 20, _t("pdf.chart.stop", "STOP"), fontsize=7, color="#FFA500",
+                va="center")
+        ax.text(2.55, 50, _t("pdf.chart.scale", "SCALER"), fontsize=7, color=_GREEN,
+                va="center")
     ax.set_title(_t("pdf.chart.algo_probabilities", "Probabilités algorithmes (J+28)"),
                  color=_DARK, fontsize=11, fontweight="bold", loc="left")
     ax.set_ylabel("%", color="#666", fontsize=8)
-    for b, v in zip(bars, vals):
-        ax.text(b.get_x() + b.get_width() / 2, v, f"{v:.0f}%", ha="center",
-                va="bottom", fontsize=9, color="#444", fontweight="bold")
+    floor = _t("common.ml_floor", "pas d'estimation fiable").replace(" ", "\n", 1)
+    for b, v, p in zip(bars, vals, kept):
+        ax.text(b.get_x() + b.get_width() / 2, v if p is not None else 2,
+                f"{v:.0f}%" if p is not None else floor, ha="center",
+                va="bottom", fontsize=9 if p is not None else 7, color="#444",
+                fontweight="bold" if p is not None else "normal")
     return _fig_to_uri(fig)
 
 

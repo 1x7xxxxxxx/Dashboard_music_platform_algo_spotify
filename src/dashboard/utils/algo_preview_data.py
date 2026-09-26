@@ -28,8 +28,9 @@ BRUT_NEGLIGEABLE = 0.05
 def sur_le_plancher(algo: str, proba) -> bool:
     """Cette probabilité traduit-elle un score brut négligeable ?
 
-    C'est ce qui permet d'écrire « ≈ plancher » à côté du chiffre au lieu de le
-    présenter comme une mesure qui distingue ce titre des autres.
+    A bare predicate: no surface calls it directly any more — they go through
+    `proba_affichable` / `format_proba` below, which REFUSE a floor value instead of
+    presenting it as a measure that distinguishes this title from the others.
 
     ⚠️ L'inversion passe par les coefficients que `ml_inference._calibrate` UTILISE,
     jamais par une copie. Une constante recopiée diverge le jour où le modèle est
@@ -54,6 +55,63 @@ def sur_le_plancher(algo: str, proba) -> bool:
         return False
     brut = (math.log(p / (1.0 - p)) - c["intercept"]) / c["coef"]
     return brut <= BRUT_NEGLIGEABLE
+
+
+#: What every surface writes INSTEAD of a floor probability. One wording, one policy.
+PLANCHER_TEXTE = "pas d'estimation fiable"
+
+
+def proba_affichable(algo: str, proba) -> float | None:
+    """THE single door between an ML probability and a display or a decision.
+
+    Returns the probability as a float in [0, 1] when it is a measure that
+    distinguishes this title, and `None` when it is absent, unreadable, or on the
+    calibration floor (`sur_le_plancher`). The policy is REFUSE, never mark: a floor
+    value is the model saying nothing, so no surface prints it, compares it, ranks on
+    it or draws a threshold verdict from it. Before this door, the preview refused,
+    the catalogue marked « ≈ plancher », and eleven other surfaces printed the floor
+    as a distinguishing percentage (class `two-surfaces-two-truths`, 2026-09-26).
+    """
+    if proba is None:
+        return None
+    try:
+        p = float(proba)
+    except (TypeError, ValueError):
+        return None
+    if p != p:                                            # NaN
+        return None
+    if sur_le_plancher(algo, p):
+        return None
+    return p
+
+
+def texte_plancher() -> str:
+    """`PLANCHER_TEXTE` in the viewer's language (key `common.ml_floor`)."""
+    try:
+        from src.dashboard.utils.i18n import t
+
+        return t("common.ml_floor", PLANCHER_TEXTE)
+    except Exception:                                    # noqa: BLE001 — headless caller
+        return PLANCHER_TEXTE
+
+
+def format_proba(algo: str, proba, decimals: int = 0, absent: str = "—",
+                 floor_text: str | None = None) -> str:
+    """The text of an ML probability: `'60%'`, the floor text, or `absent`.
+
+    `floor_text` lets a surface with its own language channel (the PDF's `_t`, a
+    mail) pass its translation; by default the viewer's `t()` is used.
+    """
+    p = proba_affichable(algo, proba)
+    if p is not None:
+        return f"{p * 100:.{decimals}f}%"
+    try:
+        present = proba is not None and float(proba) == float(proba)
+    except (TypeError, ValueError):
+        present = False
+    if not present:
+        return absent
+    return floor_text if floor_text is not None else texte_plancher()
 
 
 def budget_pour_streams(streams_manquants: float, cout_par_stream: float | None) -> float | None:

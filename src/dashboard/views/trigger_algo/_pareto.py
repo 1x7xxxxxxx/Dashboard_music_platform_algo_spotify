@@ -2,7 +2,7 @@
 
 Type: Sub
 Uses: src.dashboard.utils.algo_knowledge (pur), src.utils.ml_inference (modèle)
-Depends on: ALGO_FEATURE_ZONES, local_sensitivity
+Depends on: ALGO_FEATURE_ZONES, lever_probability
 Triggers: views/trigger_algo/_tab_titre.py
 Persists in: nothing
 
@@ -17,9 +17,9 @@ disent ce qu'une porte VAUT ; le troisième dit ce que le prochain geste RAPPORT
 « passer de 24 à 165 saves fait passer ta chance DW de 7 % à 23 % — +16 points ×
 37,49 €, soit +6,00 € d'espérance. »
 
-Il n'existe qu'ici parce qu'il demande `ml_inference.local_sensitivity`, le seul
+Il n'existe qu'ici parce qu'il demande `ml_inference.lever_probability`, le seul
 endroit du dépôt qui convertit un écart de levier en écart de probabilité. C'est une
-dépendance lourde — 25 `predict_proba` par levier — d'où les deux bornes ci-dessous.
+dépendance au modèle — 2 `predict_proba` par levier — d'où la borne ci-dessous.
 
 ⚠️ CE QUI N'EST PAS CALCULÉ, ET POURQUOI
 -----------------------------------------
@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from src.dashboard.utils.algo_knowledge import nearest_gate, split_coach_actions
 
-#: Combien de leviers reçoivent leur valeur en euros. `local_sensitivity` fait 25
+#: Combien de leviers reçoivent leur valeur en euros. `lever_probability` fait 2
 #: appels au modèle par levier ; trois suffisent à décider du prochain geste, et
 #: c'est le prochain geste qu'on cherche.
 LEVIERS_CHIFFRES = 3
@@ -47,7 +47,7 @@ def _colonne_modele(algo: str, feature_id: str) -> str | None:
 
     ⚠️ Trouvé en exécutant, pas en relisant. `ALGO_FEATURE_ZONES` nomme un levier
     `SavesLast28Days` ; la colonne du modèle s'appelle `SavesLast28Days_adj`, et
-    `StreamsLast7Days` devient `StreamsLast7Days_log`. `local_sensitivity` rejette
+    `StreamsLast7Days` devient `StreamsLast7Days_log`. `lever_probability` rejette
     silencieusement (`feature not in FEATURE_COLUMNS` → `None`) tout nom qui n'est
     pas le sien : passer l'identifiant de zone rendait donc **zéro euro sur tous
     les leviers**, sans le moindre message.
@@ -65,36 +65,20 @@ def _delta_proba(algo: str, feature: str, feats: dict,
                  courant: float, cible: float) -> float | None:
     """Le gain de probabilité entre la valeur actuelle et la cible, ou `None`.
 
-    L'interpolation se fait sur la courbe que `local_sensitivity` rend déjà — on ne
-    refait pas de prédiction, on lit deux points de la même courbe. Non linéaire par
-    construction (XGBoost) : c'est pourquoi la courbe est locale à CE titre et ne
-    donne aucune règle générale du type « +10 saves = +1 point ».
+    Deux appels DIRECTS au modèle, à la valeur actuelle et à la cible. Ce n'est plus
+    une lecture interpolée de la courbe d'affichage : cette courbe échantillonnait
+    `StreamsLast7Days` linéairement de 0 à 221 460 écoutes (pas de 9 227), et la
+    cible de 2 000 tombait dans le premier segment — +2,3 points DW affichés pour
+    +6,8 réels, +16 RADIO pour +73. Non linéaire par construction (XGBoost) : le
+    chiffre est local à CE titre et ne donne aucune règle générale.
     """
     try:
-        from src.utils.ml_inference import local_sensitivity
+        from src.utils.ml_inference import lever_probability
 
-        courbe = local_sensitivity(algo, feature, feats)
+        a = lever_probability(algo, feature, feats, float(courant))
+        b = lever_probability(algo, feature, feats, float(cible))
     except Exception:                                    # noqa: BLE001
         return None
-    if not courbe or not courbe.get("x_human"):
-        return None
-    xs, ps = courbe["x_human"], courbe["probs"]
-
-    def _lire(x: float) -> float | None:
-        if x <= xs[0]:
-            return ps[0]
-        if x >= xs[-1]:
-            return ps[-1]
-        for i in range(1, len(xs)):
-            if xs[i] >= x:
-                largeur = xs[i] - xs[i - 1]
-                if largeur <= 0:
-                    return ps[i]
-                part = (x - xs[i - 1]) / largeur
-                return ps[i - 1] + part * (ps[i] - ps[i - 1])
-        return ps[-1]
-
-    a, b = _lire(float(courant)), _lire(float(cible))
     if a is None or b is None:
         return None
     return max(0.0, b - a)

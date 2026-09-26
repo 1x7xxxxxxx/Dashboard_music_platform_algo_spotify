@@ -188,6 +188,21 @@ def render_completeness(db, artist_id: int, tracks: list[str]) -> None:
         ).format(n=len(manquants), tot=len(tracks)))
 
 
+def _bar_label(dw, rr, radio) -> str:
+    """The label of one « probabilité prédite » bar — via the shared floor door. Pure.
+
+    The label is the best OFF-floor probability; when all three are on the
+    calibration floor it reads « pas d'estimation fiable », never « 7% » (the bar
+    length and the sum caption below are unchanged — the caption already says it
+    judges the bet, not the title).
+    """
+    from src.dashboard.utils.algo_preview_data import proba_affichable, texte_plancher
+
+    kept = [p for a, v in (("dw", dw), ("rr", rr), ("radio", radio))
+            if (p := proba_affichable(a, v)) is not None]
+    return f"{max(kept):.0%}" if kept else texte_plancher()
+
+
 def render_prediction_vs_reality(db, artist_id: int) -> None:
     """Ce que le modèle pariait, et ce qui est arrivé — avec l'effectif en face."""
     st.subheader(t("s4a_insight.bet_header", "🎲 Le pari du modèle, et ce qui est arrivé"))
@@ -243,7 +258,9 @@ def render_prediction_vs_reality(db, artist_id: int) -> None:
     fig.add_trace(go.Bar(
         x=d["proba_max"], y=court, orientation="h", showlegend=False,
         marker_color=ATTENTION,
-        text=[f"{v:.0%}" for v in d["proba_max"]], textposition="outside",
+        text=[_bar_label(dw, rr, ra)
+              for dw, rr, ra in zip(d["dw_p"], d["rr_p"], d["radio_p"])],
+        textposition="outside",
         cliponaxis=False,
         hovertemplate="%{y}<br>prédit : %{text}<extra></extra>"), row=1, col=1)
     fig.add_trace(go.Bar(

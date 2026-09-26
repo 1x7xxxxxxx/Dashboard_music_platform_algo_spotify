@@ -37,7 +37,8 @@ from src.dashboard.utils.artist_cashflow import track_stream_rate, trigger_value
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import secondary_analyses
 
-from ._catalogue import sur_le_plancher
+from src.dashboard.utils.algo_preview_data import (
+    format_proba, proba_affichable, texte_plancher)
 from ._pareto import LEVIERS_CHIFFRES, pareto
 
 _NOMS = {"DW": "Discover Weekly", "RR": "Release Radar", "RADIO": "Radio"}
@@ -83,18 +84,17 @@ def _show_tab_titre(db, track: str, artist_id, ml_pred: dict | None) -> None:
     plan = pareto(feats, valeur_porte=valeur_algo)
 
     # ── L'en-tête : la porte, sa valeur, l'espérance ─────────────────────────
-    proba = ml_pred.get(f"{algo.lower()}_probability")
+    proba = proba_affichable(algo.lower(), ml_pred.get(f"{algo.lower()}_probability"))
     c1, c2, c3 = st.columns(3)
     c1.metric(t("trigger_algo.titre.tile_gate", "Porte la plus proche"), _NOMS.get(algo, algo))
     if valeur_algo:
         c2.metric(t("trigger_algo.titre.tile_value", "Ce que ça vaut si ça s'ouvre"),
                   f"{valeur_algo:,.0f} €".replace(",", " "))
-        if proba is not None:
-            c3.metric(t("trigger_algo.titre.tile_expect", "Espérance aujourd'hui"),
-                      f"{float(proba) * valeur_algo:,.2f} €".replace(",", " "),
-                      delta=(t("trigger_algo.titre.floor", "≈ plancher")
-                             if sur_le_plancher(algo.lower(), proba) else None),
-                      delta_color="off")
+        # REFUSE, not mark (2026-09-26): an expected value computed from a floor
+        # probability is the calibration intercept times a price — not a forecast.
+        c3.metric(t("trigger_algo.titre.tile_expect", "Espérance aujourd'hui"),
+                  (f"{proba * valeur_algo:,.2f} €".replace(",", " ")
+                   if proba is not None else texte_plancher()))
 
     if plan["smooth"]:
         st.warning(t("trigger_algo.titre.smooth",
@@ -132,16 +132,18 @@ def _render_trois_portes(valeurs, ml_pred: dict, feats: dict) -> None:
     intéressante — ce que la mesure dément : Discover Weekly vaut **3,4 fois** un
     Release Radar, et c'est souvent la porte la plus lointaine.
 
-    ⚠️ La colonne « chance » porte la marque « ≈ plancher » quand le score brut est
-    négligeable. Sur les dix titres de production, **les trente probabilités** le
-    sont : la colonne existe, et elle dit qu'elle ne distingue rien.
+    ⚠️ La colonne « chance » REFUSE une probabilité au plancher (score brut
+    négligeable) et écrit « pas d'estimation fiable » — même règle que l'aperçu
+    (2026-09-26, porte commune `proba_affichable`). L'espérance aussi : un plancher
+    multiplié par une valeur n'est pas une espérance.
     """
     if not isinstance(valeurs, pd.DataFrame) or valeurs.empty:
         return
     lignes = []
     for _, r in valeurs.iterrows():
         algo = r["algo"]
-        proba = ml_pred.get(f"{algo.lower()}_probability")
+        raw = ml_pred.get(f"{algo.lower()}_probability")
+        proba = proba_affichable(algo.lower(), raw)
         valeur = float(r["valeur_eur"])
         # On relit les leviers de CHAQUE algo : `pareto` ne rend que la porte la
         # plus proche, et les trois lignes afficheraient alors le même levier.
@@ -150,15 +152,13 @@ def _render_trois_portes(valeurs, ml_pred: dict, feats: dict) -> None:
         premier = next((a for a in titre if a.get("kind") != "smooth"), None)
         lignes.append({
             t("trigger_algo.titre.col_algo", "Algorithme"): _NOMS.get(algo, algo),
-            t("trigger_algo.titre.col_chance", "Ta chance"): (
-                "—" if proba is None else
-                f"{float(proba):.1%}" + (" ≈ plancher"
-                                         if sur_le_plancher(algo.lower(), proba) else "")),
+            t("trigger_algo.titre.col_chance", "Ta chance"):
+                format_proba(algo.lower(), raw, decimals=1),
             t("trigger_algo.titre.col_worth", "Vaut si ça s'ouvre"):
                 f"{valeur:,.0f} €".replace(",", " "),
             t("trigger_algo.titre.col_expect", "Espérance"): (
-                "—" if proba is None
-                else f"{float(proba) * valeur:,.2f} €".replace(",", " ")),
+                ("—" if raw is None else texte_plancher()) if proba is None
+                else f"{proba * valeur:,.2f} €".replace(",", " ")),
             t("trigger_algo.titre.col_next", "Prochain levier"): (
                 "—" if premier is None
                 else f"{premier['label']} · {premier['gap']:,.0f} {premier['unit']}"
@@ -172,10 +172,13 @@ def _render_trois_portes(valeurs, ml_pred: dict, feats: dict) -> None:
     # production : Radio a la MEILLEURE espérance (1,74 €) tout en valant MOINS
     # que Discover Weekly (16 € contre 23 €) — sa chance est plus haute. Une vue
     # qui n'affichait que la porte la plus proche montrait DW et masquait ça.
+    # Only OFF-floor probabilities enter the argmax (2026-09-26): among three
+    # floors, « meilleure espérance » named the algo with the highest intercept.
     esperances = [
-        (a, float(ml_pred.get(f"{a.lower()}_probability") or 0) * float(v))
+        (a, p * float(v))
         for a, v in zip(valeurs["algo"], valeurs["valeur_eur"])
-        if ml_pred.get(f"{a.lower()}_probability") is not None
+        if (p := proba_affichable(a.lower(), ml_pred.get(f"{a.lower()}_probability")))
+        is not None
     ]
     if esperances:
         meilleur, valeur_max = max(esperances, key=lambda x: x[1])

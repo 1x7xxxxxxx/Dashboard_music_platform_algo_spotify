@@ -502,42 +502,92 @@ def score_song(features: dict) -> dict:
 _ALGO_CLF_KEY = {"DW": "dw", "RR": "rr", "RADIO": "radio"}
 
 
-def local_sensitivity(algo: str, feature: str, feats: dict, n_points: int = 25) -> dict | None:
-    """Per-song local sensitivity: sweep ONE feature, recompute the calibrated probability.
+def _lever_vector(feats: dict, feature: str, x_human: float) -> list:
+    """The model row for THIS song with one lever set to `x_human` (human units)."""
+    vec = [float(feats.get(c, 0.0)) for c in FEATURE_COLUMNS]
+    is_log = feature.endswith("_log")
+    x = max(0.0, float(x_human)) if is_log else float(x_human)
+    vec[FEATURE_COLUMNS.index(feature)] = float(np.log1p(x)) if is_log else x
+    return vec
 
-    This is honest *local* partial dependence — "for THIS song, if you move this lever, the
-    odds move like so" — NOT a global "+X = +Y%" rule (XGBoost is non-linear, so the curve is
-    specific to this song's other features). Sweeps the lever in human units (expm1 for _log
-    features), holding everything else fixed. Returns {x_human, probs, current} or None.
+
+def lever_probability(algo: str, feature: str, feats: dict, x_human: float) -> float | None:
+    """Calibrated probability for THIS song with one lever at `x_human` — a direct call.
+
+    The exact value a lever curve can only approximate. Pricing a lever (the Pareto)
+    reads two of these instead of interpolating a display curve. None when the algo,
+    the feature name or the model is unknown — never a guessed number.
     """
     key = _ALGO_CLF_KEY.get(algo)
     if key is None or feature not in FEATURE_COLUMNS or not feats:
         return None
-    base = [float(feats.get(c, 0.0)) for c in FEATURE_COLUMNS]
-    idx = FEATURE_COLUMNS.index(feature)
+    try:
+        clf = load_model(f"{key}_classifier")
+    except Exception as e:
+        logger.warning(f"lever_probability {algo}/{feature} indisponible: {e}")
+        return None
+    X = pd.DataFrame([_lever_vector(feats, feature, x_human)], columns=FEATURE_COLUMNS)
+    return _calibrate(key, float(clf.predict_proba(X)[0, 1]))
+
+
+def _lever_grid(feature: str, base_value: float, n_points: int, extra: list) -> np.ndarray:
+    """The x values (human units) at which a lever curve is sampled.
+
+    The upper bound is the bulk of the training distribution (mean+3σ, capped by the
+    max), taken in MODEL space. A `_log` lever is sampled evenly in MODEL space and
+    mapped back with expm1, because the model sees log1p(x) and that is where its
+    resolution is. Sampling linearly in human units put every point but x=0 at or above
+    9 227 streams for StreamsLast7Days (hi = expm1(12.308) = 221 460), so the whole
+    0..10k response, target 2 000 included, was drawn as ONE straight segment.
+    `extra` (the current value, a caller's target) is inserted as exact grid points.
+    """
     is_log = feature.endswith("_log")
-    cur_human = float(np.expm1(base[idx])) if is_log else base[idx]
     stats = _load_json("metrics.json").get("feature_stats", {}).get(feature, {})
-    # Upper bound = the bulk of the training distribution (mean+3σ), capped by the max, so
-    # the curve has resolution in the meaningful range instead of a long flat tail.
-    hi_model = stats.get("max", base[idx] * 2 or 1.0)
+    hi_model = stats.get("max", base_value * 2 or 1.0)
     if "mean" in stats and "std" in stats:
         hi_model = min(hi_model, stats["mean"] + 3.0 * stats["std"])
-    hi_human = float(np.expm1(hi_model)) if is_log else float(hi_model)
-    hi_human = max(hi_human, cur_human * 1.5, 1.0)
+    pts = [float(v) for v in extra if v is not None and np.isfinite(float(v))]
+    if is_log:
+        cur_human = float(np.expm1(base_value))
+        hi_model = max(float(hi_model), float(np.log1p(max(cur_human * 1.5, 1.0))))
+        xs = np.expm1(np.linspace(0.0, hi_model, n_points))
+        pts = [max(0.0, v) for v in pts]
+    else:
+        xs = np.linspace(0.0, max(float(hi_model), base_value * 1.5, 1.0), n_points)
+    return np.unique(np.concatenate([xs, np.asarray(pts, dtype=float)]))
+
+
+def local_sensitivity(algo: str, feature: str, feats: dict, n_points: int = 25,
+                      targets: tuple = ()) -> dict | None:
+    """Per-song local sensitivity: sweep ONE feature, recompute the calibrated probability.
+
+    This is honest *local* partial dependence — "for THIS song, if you move this lever, the
+    odds move like so" — NOT a global "+X = +Y%" rule (XGBoost is non-linear, so the curve is
+    specific to this song's other features). A `_log` lever is sampled evenly in model
+    space (`_lever_grid`), holding everything else fixed. The current value and every
+    value of `targets` are exact grid points. Only the display caller
+    (`ml_widgets.render_lever_sensitivity`) passes a target: the Pareto prices a lever
+    with `lever_probability`, never from this curve.
+
+    Returns {feature, x_human, probs, current, log_scale} or None.
+    """
+    key = _ALGO_CLF_KEY.get(algo)
+    if key is None or feature not in FEATURE_COLUMNS or not feats:
+        return None
+    base_value = float(feats.get(feature, 0.0))
+    is_log = feature.endswith("_log")
+    cur_human = float(np.expm1(base_value)) if is_log else base_value
     try:
         clf = load_model(f"{key}_classifier")
     except Exception as e:
         logger.warning(f"local_sensitivity {algo}/{feature} indisponible: {e}")
         return None
-    xs = np.linspace(0.0, hi_human, n_points)
-    probs = []
-    for xh in xs:
-        vec = base.copy()
-        vec[idx] = float(np.log1p(xh)) if is_log else float(xh)
-        X = pd.DataFrame([vec], columns=FEATURE_COLUMNS)
-        probs.append(_calibrate(key, float(clf.predict_proba(X)[0, 1])))
-    return {"feature": feature, "x_human": xs.tolist(), "probs": probs, "current": cur_human}
+    xs = _lever_grid(feature, base_value, n_points, [cur_human, *targets])
+    rows = [_lever_vector(feats, feature, xh) for xh in xs]
+    raw = clf.predict_proba(pd.DataFrame(rows, columns=FEATURE_COLUMNS))[:, 1]
+    probs = [_calibrate(key, float(p)) for p in raw]
+    return {"feature": feature, "x_human": xs.tolist(), "probs": probs,
+            "current": cur_human, "log_scale": is_log}
 
 
 def estimate_rr_prerelease(followers: float, days_since_release: float,

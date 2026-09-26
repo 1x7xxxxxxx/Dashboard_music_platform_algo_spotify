@@ -27,6 +27,31 @@ _EV_ALGO_KEYS = {
 }
 
 
+def _expected_value_rows(ml_pred: dict, cost_per_stream: float) -> tuple[list[tuple], int]:
+    """`(rows, n_floor)` — one row per algo whose probability is a real measure. Pure.
+
+    A floor probability (`proba_affichable` → None) is EXCLUDED from the rows, hence
+    from the P display and from « Meilleur pari »: dividing a cost by the calibration
+    intercept ranked Radio first for every title (2026-09-26, 33/33 prod values on
+    the floor). `n_floor` counts the excluded ones so the view can say why.
+    """
+    from src.dashboard.utils.algo_preview_data import proba_affichable
+
+    rows, n_floor = [], 0
+    for label, seuil in _TRIGGER_STREAM_TARGETS.items():
+        key, algo = _EV_ALGO_KEYS[label]
+        raw = ml_pred.get(key)
+        p = proba_affichable(algo.lower(), raw)
+        if p is None:
+            n_floor += raw is not None
+            continue
+        if p <= 0:
+            continue
+        cost_est = cost_per_stream * seuil
+        rows.append((label, algo, p, cost_est, cost_est / p))
+    return rows, n_floor
+
+
 def _render_expected_value(ml_pred: dict, cost_per_stream: float) -> None:
     """Risk-adjusted cost-per-trigger = nominal cost / P(trigger).
 
@@ -37,14 +62,13 @@ def _render_expected_value(ml_pred: dict, cost_per_stream: float) -> None:
     """
     st.markdown(t("trigger_algo.roi.risk_adjusted_header",
                   "**Coût ajusté au risque (coût ÷ probabilité de déclenchement) :**"))
-    rows = []
-    for label, seuil in _TRIGGER_STREAM_TARGETS.items():
-        key, algo = _EV_ALGO_KEYS[label]
-        p = ml_pred.get(key)
-        if p is None or p <= 0:
-            continue
-        cost_est = cost_per_stream * seuil
-        rows.append((label, algo, float(p), cost_est, cost_est / float(p)))
+    rows, n_floor = _expected_value_rows(ml_pred, cost_per_stream)
+    if not rows and n_floor:
+        st.caption(t("trigger_algo.roi.ml_proba_floor",
+                     "Pas d'estimation fiable pour ce titre : ses trois probabilités sont "
+                     "au plancher de la calibration. Diviser un coût par ce plancher "
+                     "inventerait un « meilleur pari » que le modèle n'a pas donné."))
+        return
     if not rows:
         # L'artiste ne peut PAS lancer un DAG : le message nommait une action que
         # son lecteur ne peut pas prendre. Il dit maintenant QUAND ça arrive.

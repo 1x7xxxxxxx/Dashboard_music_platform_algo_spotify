@@ -19,18 +19,25 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 def sites() -> list[dict]:
-    """[{site, kind ('figure'|'pdf'), fn, visible, layer, sources}] — one per code site."""
+    """[{site, key, kind ('figure'|'pdf'), fn, visible, layer, sources}] — one per code site.
+
+    `key` is STABLE: `file::function#n`, the n-th figure of that function in source order.
+    `site` (`file:line`) moves at every edit above it; keyed by it, the owner's comments
+    detached from their chart after the first merge (2026-09-26, R205/R216)."""
     sys.path.insert(0, str(ROOT / "tools" / "dev"))
     import gold_coverage as gc
     gold, known = gc.scan_sql()
     files = gc.load_python()
     calls = gc.build_call_index(files)
     slicer = gc.Slicer(files, calls, gold, known, gc.sql_wrappers(files))
-    out = []
-    for s in gc.collect_surfaces(files, slicer) + gc.collect_pdf(files, slicer):
-        if s.kind not in ("figure", "pdf"):
-            continue
-        out.append({"site": f"{s.rel}:{s.line}", "kind": s.kind, "fn": s.fn,
-                    "visible": s.visible, "layer": gc.layer_of(s.sl),
+    import collections
+    out, nth = [], collections.Counter()
+    surfaces = [s for s in gc.collect_surfaces(files, slicer) + gc.collect_pdf(files, slicer)
+                if s.kind in ("figure", "pdf")]
+    for s in sorted(surfaces, key=lambda s: (s.rel, s.line)):
+        nth[(s.rel, s.fn)] += 1
+        out.append({"site": f"{s.rel}:{s.line}", "key": f"{s.rel}::{s.fn}#{nth[(s.rel, s.fn)]}",
+                    "kind": s.kind, "fn": s.fn, "visible": s.visible,
+                    "layer": gc.layer_of(s.sl),
                     "sources": sorted(name for _, name in s.sl.sources)})
     return out

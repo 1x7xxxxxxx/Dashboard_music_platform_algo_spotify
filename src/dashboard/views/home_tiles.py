@@ -34,8 +34,21 @@ import html as _html
 
 import streamlit as st
 
+from src.dashboard.utils.algo_preview_data import proba_affichable, texte_plancher
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import cpr_help
+
+
+def _format_gate(algo: str, val) -> str:
+    """One gate tile's value: a percentage only when it is OFF the calibration floor.
+
+    A floor probability (`sur_le_plancher`) is the model saying nothing; printed as
+    « 6,5 % » it read as a measure that distinguishes this release. Pure.
+    """
+    p = proba_affichable(algo, val)
+    if p is None:
+        return texte_plancher() if val else "—"
+    return f"{p * 100:.1f}".replace(".", ",") + " %"
 
 
 def agencer(unites: list, par_rangee: int = 2) -> list[list]:
@@ -443,6 +456,7 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
     _gates = (("release_dw", t("home.gate_dw", "🎯 Discover Weekly")),
               ("release_radio", t("home.gate_radio", "📻 Radio")),
               ("release_rr", t("home.gate_rr", "🆕 Release Radar")))
+    _gate_algo = {"release_dw": "dw", "release_radio": "radio", "release_rr": "rr"}
     if any(_s.get(k) for k, _lab in _gates):
         # LE TITRE EST NOMMÉ AU-DESSUS, UNE FOIS. Trois pourcentages sans le titre
         # auquel ils se rapportent seraient trois nombres orphelins ; le répéter
@@ -456,9 +470,7 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
         for col, (key, label) in zip((g1, g2, g3), _gates):
             val = _s.get(key)
             with col.container(border=True):
-                st.metric(label,
-                          (f"{val * 100:.1f}".replace(".", ",") + " %")
-                          if val else "—",
+                st.metric(label, _format_gate(_gate_algo[key], val),
                           help=t("home.gate_help",
                                  "Probabilité PRÉDITE par le modèle que ce titre "
                                  "entre dans cette playlist algorithmique. Ce n'est "

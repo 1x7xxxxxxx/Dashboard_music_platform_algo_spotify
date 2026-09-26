@@ -128,6 +128,7 @@ def as_points(comparison: dict) -> list[dict]:
         b = now.get(col) if now else None
         points.append({
             "gate": label,
+            "algo": col.split("_", 1)[0],
             "early": a,
             "now": b,
             "delta": (b - a) if (a is not None and b is not None

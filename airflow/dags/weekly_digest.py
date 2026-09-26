@@ -23,8 +23,8 @@ sys.path.insert(0, '/opt/airflow')
 from src.utils.safe_error import safe_error
 from src.utils.dag_timeouts import dagrun_timeout_for
 from src.utils.digest_queries import (
-    META_WEEKLY_SPEND_SQL, SOUNDCLOUD_WEEKLY_DELTA_SQL, SPOTIFY_WEEKLY_STREAMS_SQL,
-    fmt_delta, fmt_value,
+    META_WEEKLY_SPEND_SQL, ML_TOP_CANDIDATES_SQL, SOUNDCLOUD_WEEKLY_DELTA_SQL,
+    SPOTIFY_WEEKLY_STREAMS_SQL, fmt_delta, fmt_value, ml_top_candidate,
 )
 
 logger = logging.getLogger(__name__)
@@ -181,19 +181,13 @@ def send_weekly_digest(**context):
             sc_delta = (sc_latest - sc_week_ago) if (sc_latest is not None and sc_week_ago is not None) else None
 
             # ── ML top prediction ─────────────────────────────────────────────
-            ml_rows = db.fetch_query(
-                """
-                SELECT song, dw_probability, rr_probability
-                FROM ml_song_predictions
-                WHERE artist_id = %s
-                  AND prediction_date = (SELECT MAX(prediction_date) FROM ml_song_predictions WHERE artist_id = %s)
-                ORDER BY dw_probability DESC NULLS LAST
-                LIMIT 1
-                """,
-                (artist_id, artist_id)
-            )
-            ml_song = escape(str(ml_rows[0][0])) if ml_rows else None
-            ml_dw = round(float(ml_rows[0][1]) * 100, 1) if (ml_rows and ml_rows[0][1]) else None
+            # Chosen AFTER the calibration-floor door (`ml_top_candidate`): a floor
+            # value is the model saying nothing, and the mail must not name it a
+            # « candidate ». Nothing off the floor ⇒ the section is omitted.
+            ml_rows = db.fetch_query(ML_TOP_CANDIDATES_SQL, (artist_id, artist_id))
+            _ml_top = ml_top_candidate(ml_rows)
+            ml_song = escape(_ml_top[0]) if _ml_top else None
+            ml_dw_txt = _ml_top[1] if _ml_top else None
 
             # ── Build HTML email ──────────────────────────────────────────────
             streams_delta_str = fmt_delta(streams_delta)
@@ -258,7 +252,7 @@ def send_weekly_digest(**context):
             <table style="width:100%;border-collapse:collapse;">
               <tr style="background:#f5f5f5;">
                 <td style="padding:8px;">Top Discovery Weekly candidate</td>
-                <td style="padding:8px;" colspan="2"><b>{ml_song}</b> — {f"{ml_dw}% probability" if ml_dw else "N/A"}</td>
+                <td style="padding:8px;" colspan="2"><b>{ml_song}</b> — {ml_dw_txt}</td>
               </tr>
             </table>
             '''}

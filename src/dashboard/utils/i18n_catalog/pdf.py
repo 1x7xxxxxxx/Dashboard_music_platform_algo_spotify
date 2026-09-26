@@ -45,8 +45,9 @@ EN = {
     # ── Subtitles & notes ──
     "pdf.subtitle.full_catalog": "Full catalogue — {n} tracks (independent of selected songs).",
     "pdf.note.score20": ("Progress = where the track stands on the lever closest to its "
-        "target. DW/RR/Radio percentages are calibrated probabilities; a value near "
-        "6.5% is the calibration floor and does not tell two tracks apart."),
+        "target. DW/RR/Radio columns are calibrated probabilities; « no reliable "
+        "estimate » marks a score on the calibration floor, which does not tell two "
+        "tracks apart."),
     "pdf.note.j28": "Curve = cumulative streams of the track over its first 28 days. "
                     "As a reference, when an algorithmic playlist triggers it generates "
                     "its own volume of algo-streams (over 28d) starting around "
@@ -114,8 +115,9 @@ EN = {
     "pdf.col.dw_playlist": "DW Playlist",
     "pdf.col.release_radar": "Release Radar",
     "pdf.col.radio": "Radio",
-    "pdf.col.forecast_dw_7d": "Forecast DW 7d",
-    "pdf.col.forecast_rr_7d": "Forecast RR 7d",
+    "pdf.col.forecast_dw_floor": "Predicted DW floor (28 d)",
+    "pdf.col.forecast_rr_floor": "Predicted RR floor (28 d)",
+    "pdf.col.forecast_radio_floor": "Predicted Radio floor (28 d)",
     "pdf.col.campaign": "Campaign",
     "pdf.col.campaign_meta": "Meta campaign",
     "pdf.col.spend": "Spend",
@@ -157,6 +159,7 @@ EN = {
     # ── No-data / empty states ──
     "pdf.nodata.no_song_selected": "No song selected.",
     "pdf.nodata.no_ml_prediction": "No ML prediction available.",
+    "pdf.nodata.ml_unreadable": "ML prediction unreadable (read error): this is not an absence.",
     "pdf.nodata.s4a": "No S4A data available.",
     "pdf.nodata.youtube": "No YouTube data available.",
     "pdf.nodata.youtube_song": "No YouTube video identified for this song.",

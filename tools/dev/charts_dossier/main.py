@@ -37,8 +37,7 @@ _COLOR = {"garder": "#1f8a4c", "corriger": "#c0392b", "fusionner": "#b7791f",
 RECOMMENDATIONS = [
     ("Une figure, une décision, lue d'un coup d'œil",
      "Stephen Few, <i>Information Dashboard Design</i>, p. 147",
-     "Un tableau de bord se surveille et se comprend d'un regard. Les 44 jauges de la page "
-     "modèle, les quatre barres de « gain » du Wrapped et les trois panneaux de la chronologie "
+     "Un tableau de bord se surveille et se comprend d'un regard. {ml_page}, les quatre barres de « gain » du Wrapped et les trois panneaux de la chronologie "
      "de créa en sont l'inverse : chaque verdict « fusionner » ou « retirer » ci-dessous "
      "applique ce critère."),
     ("Les quatre signaux d'or : latence, trafic, erreurs, saturation",
@@ -106,6 +105,21 @@ n'entre dans la roadmap avant ton arbitrage.</li>
 un coup d'œil dans l'app vaut mieux que ce document.</p>"""
 
 
+def page_phrase(cap: dict, view: str = "ml_performance") -> str:
+    """How many figures a page drew, COUNTED from capture.json — never typed by hand.
+
+    The dossier said « 44 jauges » for a page that drew 44 figures of which 38 were
+    gauges from one line of code (2026-09-26): a count written in prose drifts from the
+    render it describes. This one is recomputed at every build.
+    """
+    per_site = collections.Counter(f["site"] for f in cap["figures"] if f["view"] == view)
+    n, top = sum(per_site.values()), max(per_site.values(), default=0)
+    if top > 1:
+        return (f"Les {n} figures de la page modèle (dont {top} dessinées par une seule "
+                "ligne de code)")
+    return f"Les {n} figures de la page modèle"
+
+
 def numbering(review: dict) -> dict[str, int]:
     """Fiche numbers: the ORDER of review.yaml — stable across rebuilds, written to fiches.json."""
     return {k: i for i, k in enumerate(review, start=1)}
@@ -121,14 +135,24 @@ def build(out: Path) -> Path:
     pdfj = json.loads((out / "pdf_figures.json").read_text(encoding="utf-8"))
     gra_path = out / "grafana.json"
     gra = json.loads(gra_path.read_text(encoding="utf-8")) if gra_path.exists() else None
-    inv = {s["site"]: s for s in json.loads((out / "inventory.json").read_text(encoding="utf-8"))}
+    inv_rows = json.loads((out / "inventory.json").read_text(encoding="utf-8"))
+    if inv_rows and "key" not in inv_rows[0]:          # artefacts captured before stable keys
+        nth: collections.Counter = collections.Counter()
+        for r in sorted(inv_rows, key=lambda r: (r["site"].rsplit(":", 1)[0],
+                                                  int(r["site"].rsplit(":", 1)[1]))):
+            rel = r["site"].rsplit(":", 1)[0]
+            nth[(rel, r["fn"])] += 1
+            r["key"] = f"{rel}::{r['fn']}#{nth[(rel, r['fn'])]}"
+    key_of = {s["site"]: s["key"] for s in inv_rows}   # file:line → stable key
+    inv = {key_of[s["site"]]: s for s in inv_rows}
 
     first, views_of, count = {}, collections.defaultdict(list), collections.Counter()
     for f in cap["figures"]:
-        first.setdefault(f["site"], f)
-        count[f["site"]] += 1
-        if f["view"] not in views_of[f["site"]]:
-            views_of[f["site"]].append(f["view"])
+        k = key_of.get(f["site"], f["site"])
+        first.setdefault(k, f)
+        count[k] += 1
+        if f["view"] not in views_of[k]:
+            views_of[k].append(f["view"])
 
     app_keys = [k for k in review if not k.startswith(("pdf:", "grafana:"))]
     by_view: dict[str, list[str]] = collections.defaultdict(list)
@@ -165,7 +189,8 @@ connectée au rendu. Réglages par défaut des pages.</p>
                            f"<td>{VERDICTS.get(review[k].get('v'))}</td><td>{esc(review[k].get('q'))}</td></tr>"
                            for k in meta_keys) + "</table>")
     parts.append("<h2>Recommandations du corpus</h2>" + "".join(
-        f"<h3>{t}</h3><p class='src'>{s}</p><p>{b}</p>" for t, s, b in RECOMMENDATIONS))
+        f"<h3>{t}</h3><p class='src'>{s}</p><p>{b.replace('{ml_page}', page_phrase(cap))}</p>"
+        for t, s, b in RECOMMENDATIONS))
     parts.append("<h2>Méthode et limites</h2><ul>"
                  "<li>Chaque graphique a été REGARDÉ ; les notes sont un jugement écrit dans "
                  "<code>tools/dev/charts_dossier/review.yaml</code>, relisible et corrigeable.</li>"

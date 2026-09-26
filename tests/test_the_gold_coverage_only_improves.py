@@ -101,7 +101,7 @@ _CEILING: dict[str, int] = {
     # aussi trompeur qu'un livrable qui invente.
     # 7 → 6 le 2026-09-24 : le traceur suit désormais l'ARGUMENT d'un formateur
     # (`_n(x)`) quand le formateur lui-même ne rend aucune source.
-    "figures.unknown": 6,
+    "figures.unknown": 5,  # 6 → 5 le 2026-09-26 (R216) : la jauge indéterminée de ml_widgets consolidée
     # 11 → 10 le 2026-09-21. La tuile disparue est « 📅 Dernière mise à jour »
     # de SoundCloud, retirée à la demande du propriétaire : une date de collecte
     # est un fait de PLOMBERIE, et elle était indéterminée pour le lecteur de la
@@ -218,7 +218,12 @@ _FLOOR: dict[str, int] = {
     # où des noms de 90 caractères étaient illisibles), et trois Pareto retirés
     # comme redondants avec « 🌍 Qui a vu tes pubs » — moins une figure nette une
     # fois le funnel et le croisement pays recréés ailleurs.
-    "figures.total": 88,
+    # 88 → 87 le 2026-09-26 (la carte en comptait 89 juste avant) : l'onglet Modèle de
+    # `trigger_algo` portait trois appels `st.plotly_chart` par algo (DW, RR, Radio),
+    # désormais UN appel dans `_show_volume_scatter`, en boucle sur les trois. Ce qui
+    # s'affiche a baissé à dessein : un volume que `volume_forecast_reliable` masque
+    # n'est plus dessiné (classe `a-surface-that-draws-a-forecast-its-gate-suppresses`).
+    "figures.total": 86,  # 87 → 86 le 2026-09-26 (R216) : _tab_model, 4 appels par algo → 2
     # 207 → 204 le 2026-09-16, et la baisse est LEGITIME : `views/perf_monitor.py` a
     # ete supprime (R115 etape 6), avec ses tuiles « Dernier rendu », « DB ping »,
     # « RAM process » et « CPU process ». Grafana les porte desormais, apres une
