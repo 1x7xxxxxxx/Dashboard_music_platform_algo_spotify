@@ -157,6 +157,28 @@ def test_the_tab_shows_every_column_of_the_matrix():
         assert glyph and tip, "une pastille sans glyphe ou sans infobulle est un carré muet"
 
 
+def callers_of(source: str, callee: str) -> set[str]:
+    """Names of the functions of `source` that CALL `callee` (by bare name). Pure."""
+    return {f.name for f in ast.walk(ast.parse(source))
+            if isinstance(f, ast.FunctionDef)
+            and any(isinstance(n, ast.Call) and getattr(n.func, "id", "") == callee
+                    for n in ast.walk(f))}
+
+
+def test_the_callers_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, classes `extracted-rule-with-one-caller-rewired` and
+    `prediction-outranks-the-measurement`: a surface that recomputes (or renders a
+    probe verdict without reconciling) is absent from the callers; one that calls the
+    shared rule — not merely NAMES it in a docstring — is present."""
+    src = ("def render_status_matrix(db):\n    return row_cells(db)\n"
+           "def render_platform_state(db):\n"
+           '    "Should call row_cells."\n    return {"ok": db.ok}\n'
+           "def render_save_verdict(v):\n    return v\n"
+           "def _render_platform_tab(v, db):\n    return _data_already_landed(db) or v\n")
+    assert callers_of(src, "row_cells") == {"render_status_matrix"}
+    assert callers_of(src, "_data_already_landed") == {"_render_platform_tab"}
+
+
 def test_the_matrix_row_is_computed_in_one_place():
     """La matrice et l'onglet appellent `row_cells` — pas deux copies de la règle.
 
@@ -165,12 +187,7 @@ def test_the_matrix_row_is_computed_in_one_place():
     `_box` seul ne l'aurait pas empêché : ce sont les ÉTATS qui doivent être calculés
     une fois, pas seulement leur mise en forme.
     """
-    src = _MATRIX.read_text(encoding="utf-8")
-    tree = ast.parse(src)
-    callers = {f.name for f in ast.walk(tree)
-               if isinstance(f, ast.FunctionDef)
-               and any(isinstance(n, ast.Call) and getattr(n.func, "id", "") == "row_cells"
-                       for n in ast.walk(f))}
+    callers = callers_of(_MATRIX.read_text(encoding="utf-8"), "row_cells")
     assert {"render_platform_state", "render_status_matrix"} <= callers, (
         f"`row_cells` n'est appelée que par {sorted(callers)} : l'autre surface "
         "recalcule les états, et les deux peuvent diverger sans que rien ne le voie")
@@ -250,13 +267,11 @@ def test_a_failing_probe_yields_to_data_that_actually_landed():
     # Chaque nom listé rend un verdict issu de `probes` / `VERDICT_KEY`. Ajouter une
     # troisième surface sans la réconciliation fait rougir ce test, pas la prod.
     _VERDICT_SURFACES = ("_render_platform_tab", "render_save_verdict")
+    reconciled = callers_of(render, "_data_already_landed")
     for name in _VERDICT_SURFACES:
-        fn = next((f for f in ast.walk(tree)
-                   if isinstance(f, ast.FunctionDef) and f.name == name), None)
-        assert fn is not None, f"{name} a disparu — la liste des surfaces est périmée"
-        uses = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
-                and getattr(n.func, "id", "") == "_data_already_landed"]
-        assert uses, (
+        assert any(isinstance(f, ast.FunctionDef) and f.name == name
+                   for f in ast.walk(tree)), f"{name} a disparu — la liste est périmée"
+        assert name in reconciled, (
             f"{name} rend un verdict de sonde sans demander si des données sont "
             "arrivées : il contredira les pastilles, qui lisent la même source")
 
