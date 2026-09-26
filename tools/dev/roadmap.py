@@ -139,7 +139,7 @@ def archive_block(row: str, commits: list[str], note: str, today: str) -> str:
         lines.append(f"  Mesuré par : {measured}")
     if note:
         lines.append(f"  {note}")
-    lines += [f"  Commits : {' · '.join(commits)}", ""]
+    lines.append(f"  Commits : {' · '.join(commits)}")
     return "\n".join(lines) + "\n"
 
 

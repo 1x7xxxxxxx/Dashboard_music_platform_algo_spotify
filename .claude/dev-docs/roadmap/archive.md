@@ -11,6 +11,42 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R201 — Retirer les 2 rappels redondants (`check_roadmap_update.py`, `draft_roadmap.py`) et cor… (livrée 2026-09-26)
+
+- [x] **R201 — Retirer les 2 rappels redondants (`check_roadmap_update.py`, `draft_roadmap.py`) et corriger ~15 références périmées de la gestion de roadmap** (P4) ✅ (2026-09-26, e18f785)
+  Mesuré par : `tests/test_roadmap_two_files.py`
+  Livrée le 2026-09-26, CI verte (e18f785) ; vérifiée en séance.
+  Commits : e18f785 R201 : les 2 rappels de roadmap retires, ~15 references perimees corri
+
+## ✅ R200 — Alléger `checklist.md` : la prose d'historique (~95 %) déménage mot pour mot vers l'arc… (livrée 2026-09-26)
+
+- [x] **R200 — Alléger `checklist.md` : la prose d'historique (~95 %) déménage mot pour mot vers l'archive ; plafond de lignes de l'actif** (P4) ✅ (2026-09-26, f2af9a0)
+  Mesuré par : `tests/test_the_resume_header_is_checked.py`
+  Livrée le 2026-09-26, CI verte (e18f785) ; vérifiée en séance.
+  Commits : f2af9a0 R200 : checklist.md allege - 503 -> 244 lignes, la prose d'historique 
+
+## ✅ R199 — Un seul chemin de rotation qui DÉPLACE vraiment : `make roadmap-close ID=Rnnn` retire l… (livrée 2026-09-26)
+
+- [x] **R199 — Un seul chemin de rotation qui DÉPLACE vraiment : `make roadmap-close ID=Rnnn` retire la ligne, écrit le bloc livré (avec les commits qui citent l'id) en tête de l'archive, réaligne la reprise** (P3) ✅ (2026-09-26, f2af9a0, 811c1bb)
+  Mesuré par : `tests/test_the_roadmap_rotation_names_all_three_surfaces.py`
+  Livrée le 2026-09-26, CI verte (e18f785) ; vérifiée en séance.
+  Commits : f2af9a0 R200 : checklist.md allege - 503 -> 244 lignes, la prose d'historique  · 811c1bb R199 : un seul chemin de rotation, et il DEPLACE - make roadmap-close 
+
+## ✅ R198 — Le code-critic décidé PAR TÂCHE : chaque ligne d'index porte `critic: requis` ou `criti… (livrée 2026-09-26)
+
+- [x] **R198 — Le code-critic décidé PAR TÂCHE : chaque ligne d'index porte `critic: requis` ou `critic: non — raison` ; commit de code refusé si la ligne ne décide pas, ou si « requis » sans appel code-critic la nommant** (P3) ✅ (2026-09-26, f2af9a0, 0b0dc85)
+  Mesuré par : `tests/test_an_action_is_on_the_roadmap_before_it_runs.py`
+  Livrée le 2026-09-26, CI verte (e18f785) ; vérifiée en séance.
+  Commits : f2af9a0 R200 : checklist.md allege - 503 -> 244 lignes, la prose d'historique  · 0b0dc85 R198 : le code-critic decide PAR TACHE - une ligne ouverte sans decisi
+
+## ✅ R197 — Audit de la gestion de la roadmap + sonde qui MESURE les actions de dev faites sans ins… (livrée 2026-09-26)
+
+- [x] **R197 — Audit de la gestion de la roadmap + sonde qui MESURE les actions de dev faites sans inscription préalable (et sans code-critic quand il était dû), intégrée au suivi de nuit ; améliorations proposées au propriétaire — demandé 2026-09-26** (P3) ✅ (2026-09-26, e18f785, 6bae555, 0b0dc85)
+  Mesuré par : `tests/test_the_roadmap_discipline_is_measured.py`
+  Livrée le 2026-09-26, CI verte (e18f785) ; vérifiée en séance.
+  Commits : e18f785 R201 : les 2 rappels de roadmap retires, ~15 references perimees corri · 6bae555 R197 : sonde de discipline de roadmap - combien d'actions de dev sans  · 0b0dc85 R198 : le code-critic decide PAR TACHE - une ligne ouverte sans decisi
+
+
 ## 🗄️ Historique de l'actif (déplacé le 2026-09-26, R200)
 
 Prose qui vivait dans `checklist.md` autour d'un index d'une ligne — 95 % du fichier actif.
