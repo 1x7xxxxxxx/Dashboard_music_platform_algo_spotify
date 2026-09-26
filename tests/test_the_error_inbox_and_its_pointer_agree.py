@@ -85,3 +85,21 @@ def test_the_document_and_the_pointer_agree_on_the_count():
         f"chiffre périmé. Seul `make error-inbox-check` voit la base, et il rend 2 "
         f"quand il ne la voit pas."
     )
+
+
+def _counts_disagree(doc: str, roadmap: str) -> bool | None:
+    """True when both surfaces state a count and the counts differ; None when one of
+    them states nothing (the guard cannot compare — the other test then fails)."""
+    d, r = _DOC_COUNT.search(doc), _ANCHOR.search(roadmap)
+    if not d or not r:
+        return None
+    return d.group(1) != r.group(1)
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """A pointer frozen at 1 while the document says 3 (a surface regenerated without the
+    other) is seen; the same count is not; an absent anchor is not silently equal."""
+    doc = "# Boîte\n**3 ouverte(s)**\n"
+    assert _counts_disagree(doc, "<!-- error-inbox: open=1 -->") is True
+    assert _counts_disagree(doc, "<!-- error-inbox: open=3 -->") is False
+    assert _counts_disagree(doc, "pas d'ancre") is None
