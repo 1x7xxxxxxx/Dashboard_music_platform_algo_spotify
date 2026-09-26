@@ -198,3 +198,18 @@ def test_the_detector_sees_the_defect_it_is_written_for():
     stale = "<!-- reprise: open=R13, R48 -->\n" + body
     assert header_disagreement(stale) == ({"R13"}, {"R20"})
     assert header_disagreement("<!-- reprise: open=R20, R48 -->\n" + body) == (set(), set())
+
+
+# R200 (2026-09-26): the active file had grown to 499 lines, 95 % of it history prose around
+# a one-row index; that prose moved, word for word, into archive.md (« 🗄️ Historique de
+# l'actif »). What stays is live: the index, the parked tasks, the waiting conditions that
+# `make reopen-check` evaluates, the standing instructions. A ratchet, frozen at the measure.
+_MAX_ACTIVE_LINES = 250
+
+
+def test_the_active_file_stays_short() -> None:
+    lines = _text().count("\n")
+    assert lines <= _MAX_ACTIVE_LINES, (
+        f"checklist.md is {lines} lines (ceiling {_MAX_ACTIVE_LINES}). A delivery's story "
+        "belongs in archive.md — `make roadmap-close` writes it there; history prose moves "
+        "under « 🗄️ Historique de l'actif ».")

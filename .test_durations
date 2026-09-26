@@ -9574,6 +9574,7 @@
     "tests/test_the_resume_header_is_checked.py::test_no_history_block_remains_in_the_active_file": 0.0016789770015748218,
     "tests/test_the_resume_header_is_checked.py::test_only_one_resume_block": 0.0018919399990409147,
     "tests/test_the_resume_header_is_checked.py::test_the_active_file_stays_readable_in_one_sitting": 0.0013713720018131426,
+    "tests/test_the_resume_header_is_checked.py::test_the_active_file_stays_short": 0.09477681999851484,
     "tests/test_the_resume_header_is_checked.py::test_the_anchor_exists": 0.0016129370014823508,
     "tests/test_the_resume_header_is_checked.py::test_the_anchor_matches_the_open_index": 0.0020478559999901336,
     "tests/test_the_resume_header_is_checked.py::test_the_detector_sees_the_defect_it_is_written_for": 0.0009828319889493287,

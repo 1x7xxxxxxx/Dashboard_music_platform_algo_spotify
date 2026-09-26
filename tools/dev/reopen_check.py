@@ -264,9 +264,9 @@ TRIGGERS = [
     Trigger("R122", "rouvrir si `ever_recurred_observed` repasse au-dessus de 47",
             "archive.md:170", _r122),
     Trigger("R116", "14 jours `complete` dans `daily_ops_metrics`",
-            "checklist.md:204", _r116),
+            "checklist.md — ⏸️ R116", _r116),
     Trigger("R131", "30 jours de `daily_ops_metrics`",
-            "checklist.md:432", _r131),
+            "checklist.md — ⏸️ R131", _r131),
     Trigger("R114", "un des deux seuils de `tools/scale_check.sh`",
             "archive.md:6461", _r114),
     Trigger("data_quality", "le jour où `freshness_monitor` cesse de marquer "
