@@ -67,12 +67,20 @@ def session_start_ts(repo_root: Path) -> float:
 def commit_actions(repo_root: Path, since: float) -> list[str]:
     """`Ouvert :` / `Reste :` lines of the commit messages written since `since`."""
     try:
-        out = subprocess.run(["git", "-C", str(repo_root), "log", f"--since=@{int(since)}",
-                              "--format=%B%x1e"], capture_output=True, text=True,
-                             timeout=20).stdout
-    except (OSError, subprocess.SubprocessError):
+        r = subprocess.run(["git", "-C", str(repo_root), "log", f"--since=@{int(since)}",
+                            "--format=%B%x1e"], capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError) as e:
+        # A hook must not crash the session, but « git could not answer » is not
+        # « no commit carries an open action ». Said on stderr, never swallowed:
+        # a test of this function went red once under load (2026-09-26) with nothing
+        # to say why.
+        print(f"draft_roadmap: git log unreadable ({type(e).__name__})", file=sys.stderr)
         return []
-    return [m.group(1) for m in _OPEN_LINE.finditer(out)]
+    if r.returncode != 0:
+        print(f"draft_roadmap: git log exited {r.returncode}: {r.stderr.strip()[:200]}",
+              file=sys.stderr)
+        return []
+    return [m.group(1) for m in _OPEN_LINE.finditer(r.stdout)]
 
 
 def missing(candidates: list[str], checklist_text: str) -> list[str]:

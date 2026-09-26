@@ -39,3 +39,10 @@ def test_the_detector_sees_the_defect_it_is_written_for(tmp_path) -> None:
 def test_a_commit_without_open_lines_proposes_nothing(tmp_path) -> None:
     repo = _repo(tmp_path, "fix Y\n\nRien ne reste ouvert ici.\n")
     assert hook.commit_actions(repo, since=0) == []
+
+
+def test_an_unreadable_history_says_so_instead_of_proposing_nothing(tmp_path, capsys) -> None:
+    """A directory that is not a git repo returns no action — AND says git failed.
+    Until 2026-09-26 both cases returned `[]` in silence, indistinguishable."""
+    assert hook.commit_actions(tmp_path, since=0) == []
+    assert "git log exited" in capsys.readouterr().err
