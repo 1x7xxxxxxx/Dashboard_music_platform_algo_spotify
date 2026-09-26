@@ -535,7 +535,8 @@
       "has_signature": true,
       "history_dates_declared": [
         "2026-09-08",
-        "2026-09-18"
+        "2026-09-18",
+        "2026-09-26"
       ],
       "kind": "deterministic",
       "seen_red": "self-proving",
@@ -545,7 +546,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-08",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -1715,7 +1716,8 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-12"
+        "2026-09-12",
+        "2026-09-26"
       ],
       "kind": "deterministic",
       "seen_red": "self-proving",
@@ -1725,7 +1727,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11493,7 +11495,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 561,
+      "catalogue_revisions": 562,
       "head_date": "2026-09-26"
     },
     "holes": {

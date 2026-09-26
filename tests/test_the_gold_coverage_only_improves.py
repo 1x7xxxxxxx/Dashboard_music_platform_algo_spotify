@@ -202,8 +202,12 @@ _CEILING: dict[str, int] = {
     # Familles déclarées, le vrai état apparaît : `le-locataire` × Apple Music,
     # Instagram, Spotify S4A, YouTube, et `un-cumul…` × Meta Ads — la sonde
     # `tools/tenant_contamination_check.py` couvre bien ces tables, mais par une liste,
-    # que ce détecteur (littéraux SQL) ne lit pas. Redescend à 0 avec R180 étape 5.
-    "guard-matrix.holes": 5,
+    # que ce détecteur (littéraux SQL) ne lit pas.
+    # 5 → 0 le même jour. Deux cases (S4A, YouTube) étaient gardées et invisibles : la
+    # matrice lisait le champ `guard:` COUPÉ à 90 caractères (`test_a_guard_field_is_read_whole.py`).
+    # Les trois autres ont reçu un garde : `test_a_gold_view_is_blind_to_another_tenants_rows.py`
+    # (Apple Music, Instagram) et `test_a_meta_lifetime_row_is_not_a_day.py` (Meta Ads).
+    "guard-matrix.holes": 0,
 }
 
 # Les populations, pour qu'un compteur ne puisse pas baisser en SUPPRIMANT la

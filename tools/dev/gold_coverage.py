@@ -1347,7 +1347,7 @@ def scan_error_classes() -> list[ErrClass]:
             r"((?:tests|\.claude|tools|src|\.github|deploy)/[\w./-]+\.\w+)", guard)
         exists = None if not paths else all((ROOT / p).exists() for p in paths)
         out.append(ErrClass(cid, field("severity"), field("kind"),
-                            field("status"), guard[:90], exists))
+                            field("status"), guard, exists))
     return out
 
 
@@ -1835,7 +1835,9 @@ def render(gold, surfaces, files, reads) -> str:
           f"et **{len(unnamed)}** ne nomment aucun chemin (leur garde est une règle "
           "transverse, un hook, ou rien).", ""]
     if broken:
-        L += _table([[f"`{c.cid}`", c.status, c.guard] for c in broken],
+        # Cut for display HERE, never in `ErrClass`: the matrix reads guard paths from that
+        # field, and a cut at 90 chars hid every guard named after the first (2026-09-26).
+        L += _table([[f"`{c.cid}`", c.status, c.guard[:90]] for c in broken],
                     ["classe", "statut", "garde annoncé"])
     else:
         L += ["_Aucune classe ne nomme un garde disparu._", ""]
