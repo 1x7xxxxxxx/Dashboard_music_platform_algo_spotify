@@ -21,6 +21,15 @@ i.e. written and committed before the work. An ARCHIVED id does not count (code-
 at hand to launder unrelated work. Merges and reverts are exempt — their messages are
 generated, and refusing them would teach `--no-verify`.
 
+R198 (same day): every open row DECIDES whether a code-critic review is due —
+`<!-- critic: requis -->` or `<!-- critic: non — <raison> -->` in its Task cell, the decision
+being mine (owner: « à ta convenance »). A product commit whose cited open row carries no
+decision is refused — a structural check, it cannot misfire. Whether a `requis` critic really
+RAN is only WARNED here and measured by `tools/dev/roadmap_discipline.py`: the proof lives in
+local Claude transcripts, absent on another machine or after a compaction, and the
+engineering-loop's internal critic does not carry the Rnnn — three false refusals for one true
+one (code-critic, 2026-09-26). Promote to blocking once the probe shows the false rate.
+
 What it does NOT prove: that the diff IS the cited task. With several open rows, any of them
 passes. It binds a commit to an inscribed action, not a diff to its meaning.
 
@@ -55,10 +64,24 @@ def is_product(path: str) -> bool:
     return path.startswith(PRODUCT_PREFIXES)
 
 
+_CRITIC = re.compile(r"<!--\s*critic:\s*(requis|non)\b[^>]*-->")
+
+
+def critic_decision(row: str) -> str | None:
+    """`requis`, `non`, or None when the row decides nothing. Reads ONE row's text."""
+    m = _CRITIC.search(row)
+    return m.group(1) if m else None
+
+
 def open_ids(checklist: str) -> set[str]:
-    """The `Rnnn` rows of the FIRST table under the open-tasks title — structure, not text:
-    an id cited in prose, a comment or another table is not an open row."""
-    ids: set[str] = set()
+    return set(open_rows(checklist))
+
+
+def open_rows(checklist: str) -> dict[str, str]:
+    """{Rnnn: row text} for the rows of the FIRST table under the open-tasks title —
+    structure, not text: an id cited in prose, a comment or another table is not an open
+    row, and each row keeps its OWN text (a decision is never borrowed from a neighbour)."""
+    ids: dict[str, str] = {}
     lines = checklist.splitlines()
     try:
         start = next(i for i, ln in enumerate(lines) if ln.startswith(INDEX_TITLE))
@@ -72,7 +95,7 @@ def open_ids(checklist: str) -> set[str]:
             in_table = True
             m = _ROW.match(ln)
             if m:
-                ids.add(m.group(1))
+                ids[m.group(1)] = ln
         elif in_table:
             break
     return ids
@@ -99,13 +122,23 @@ def verdict(files: list[str], message: str, parent_checklist: str,
     if is_exempt(message, parents) or not any(is_product(f) for f in files):
         return None
     ids = cited(message)
-    open_before = open_ids(parent_checklist)
+    rows = open_rows(parent_checklist)
     if not ids:
         return "le message ne cite aucun Rnnn"
-    if not ids & open_before:
+    live = sorted(ids & set(rows))
+    if not live:
         return (f"{', '.join(sorted(ids))} n'est pas une ligne OUVERTE de l'index dans le "
                 "commit précédent (une ligne archivée ne compte pas)")
+    if not any(critic_decision(rows[i]) for i in live):
+        return (f"la ligne {', '.join(live)} ne décide pas du code-critic — ajoute "
+                "`<!-- critic: requis -->` ou `<!-- critic: non — <raison> -->` (R198)")
     return None
+
+
+def requis_ids(message: str, parent_checklist: str) -> list[str]:
+    """The cited open rows whose decision is `requis` — for the advisory check."""
+    rows = open_rows(parent_checklist)
+    return sorted(i for i in cited(message) & set(rows) if critic_decision(rows[i]) == "requis")
 
 
 def _git(*args: str) -> str:
@@ -130,11 +163,31 @@ def check_staged(msg_file: str) -> int:
     message = open(msg_file, encoding="utf-8").read()
     files = _git("diff", "--cached", "--name-only").split()
     merging = bool(_git("rev-parse", "-q", "--verify", "MERGE_HEAD").strip())
-    reason = verdict(files, message, _show("HEAD", CHECKLIST), 2 if merging else 1)
+    parent = _show("HEAD", CHECKLIST)
+    reason = verdict(files, message, parent, 2 if merging else 1)
     if reason:
         print(_gesture(reason), file=sys.stderr)
         return 1
+    if any(is_product(f) for f in files):
+        _warn_missing_critic(requis_ids(message, parent))
     return 0
+
+
+def _warn_missing_critic(ids: list[str]) -> None:
+    """Advisory (R198): a `requis` row whose critic is not found in the local transcripts."""
+    if not ids:
+        return
+    try:
+        from claude_transcripts import critic_calls_naming
+    except ImportError:
+        sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+        from claude_transcripts import critic_calls_naming
+    for i in ids:
+        calls = critic_calls_naming(i)
+        if calls is not None and not calls:
+            print(f"⚠️  R198 — {i} demande un code-critic et aucun appel ne le nomme dans les "
+                  "transcriptions locales des 7 derniers jours. Non bloquant ; compté par "
+                  "`make roadmap-discipline`.", file=sys.stderr)
 
 
 def check_range(rng: str) -> int:

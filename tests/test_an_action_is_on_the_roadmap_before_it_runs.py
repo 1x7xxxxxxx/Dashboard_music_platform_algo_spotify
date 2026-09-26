@@ -48,8 +48,8 @@ Prose citing R900 is not a row.
 """
 
 
-def _checklist(*ids: str) -> str:
-    return _INDEX.format(rows="".join(f"| {i} | action | P3 | test |\n" for i in ids))
+def _checklist(*ids: str, decision: str = "<!-- critic: non — texte seul -->") -> str:
+    return _INDEX.format(rows="".join(f"| {i} | action {decision} | P3 | test |\n" for i in ids))
 
 
 def test_the_detector_sees_the_defect_it_is_written_for() -> None:
@@ -70,6 +70,21 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
     assert gate.verdict(code, 'Revert "R1 : x"', empty) is None, "a revert was refused"
     assert gate.verdict(code, "Merge branch 'x'", empty, parents=2) is None, "a merge refused"
     assert gate.next_id(_checklist("R196"), "R12 archived") == "R902"  # 901 is in the fixture
+
+
+def test_a_row_that_does_not_decide_the_critic_is_refused() -> None:
+    """R198: the cited open row must decide `critic: requis` or `critic: non — …`; a
+    decision written on ANOTHER row is never borrowed."""
+    code = ["src/x.py"]
+    undecided = _checklist("R196", decision="")
+    assert gate.verdict(code, "R196 : tweak", undecided), "an undecided row passed"
+    two = _INDEX.format(rows="| R196 | action | P3 | t |\n| R197 | x <!-- critic: requis --> | P3 | t |\n")
+    assert gate.verdict(code, "R196 : tweak", two), "R197's decision was borrowed by R196"
+    assert gate.verdict(code, "R197 : tweak", two) is None
+    assert gate.critic_decision("| R1 | a <!-- critic: requis --> |") == "requis"
+    assert gate.critic_decision("| R1 | a <!-- critic: non — texte --> |") == "non"
+    assert gate.critic_decision("| R1 | a critic: requis in prose |") is None
+    assert gate.requis_ids("R197 : x", two) == ["R197"]
 
 
 CHK = ".claude/dev-docs/roadmap/checklist.md"
