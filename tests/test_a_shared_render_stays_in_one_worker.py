@@ -101,10 +101,21 @@ def test_le_rendu_partage_ne_retient_pas_lobjet_apptest():
     """La rétention d'`AppTest` est ce qui a fait sortir la suite par l'OOM le 2026-09-17."""
     from tests.render_harness import _Rendu
 
-    assert _Rendu._fields == ("erreur", "connexions"), (
+    assert _Rendu._fields == ("erreur", "connexions", "figures"), (
         "`render_once` doit retenir des SCALAIRES. Un `AppTest` mis en cache pour 39 "
         f"vues retient l'arbre de rendu entier : {_Rendu._fields}"
     )
+    # `figures` (R189, 2026-09-26) : un tuple de `Fig`, chacun fait de scalaires et de
+    # tuples de scalaires — jamais un nœud de l'arbre ni la spec Plotly entière.
+    from tests.render_harness import _fig_facts
+    spec = {"data": [{"x": ["2026-01-01", "2026-01-31"], "name": "a"}],
+            "layout": {"annotations": [{"x": "2026-01-10", "text": "t"}]}}
+    fig = _fig_facts(spec, 1, 0, 0.5, "{}")
+
+    def _scalaire(v) -> bool:
+        return (v is None or isinstance(v, (str, int, float, bool))
+                or (isinstance(v, tuple) and all(_scalaire(x) for x in v)))
+    assert all(_scalaire(v) for v in fig), f"un fait de figure n'est pas scalaire : {fig}"
 
 
 def test_le_predicat_separe_un_montage_garde_dun_montage_nu(tmp_path):

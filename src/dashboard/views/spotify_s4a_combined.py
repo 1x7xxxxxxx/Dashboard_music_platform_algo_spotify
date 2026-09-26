@@ -216,7 +216,9 @@ def _render_releases(db, frag: str, params: tuple) -> None:
             text=labels, textposition="middle left",
             textfont=dict(size=13), cliponaxis=False))
     fig.update_layout(
-        height=420, hovermode="x unified",
+        # `_ROW_HEIGHT` : elle partage sa rangée avec le verdict Meta (R189 — 420 à côté de
+        # 380, les deux bas décalés de 31 px à l'écran).
+        height=_ROW_HEIGHT, hovermode="x unified",
         # Le dernier point porte son nombre : sans marge à droite, il sort du cadre.
         margin=dict(r=90),
         xaxis_title=t("spotify_s4a_combined.days_since_release", "Jours depuis la sortie"),
@@ -320,7 +322,10 @@ def _render_meta_impact(db, frag: str, params: tuple) -> None:
         height=_ROW_HEIGHT,
         hovermode="x unified", xaxis_range=[x0, full.index.max()],
         yaxis_title=t("spotify_s4a_combined.listeners_axis", "Auditeurs / jour"),
-        legend=dict(orientation="h", y=1.12), margin=dict(t=40))
+        # Légende posée JUSTE au-dessus du tracé, sous la barre d'outils : à y=1.12 avec
+        # t=40 elle montait à ~9 px du bord, et « Meta » passait sous l'icône appareil
+        # photo (vu à 1366 px le 2026-09-26, R189).
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0), margin=dict(t=70))
     st.plotly_chart(fig, width="stretch")
     st.caption(t("spotify_s4a_combined.meta_impact_rule",
                  "La bande (jours de pub) ne soulève pas la courbe ? La pub achète des clics, "

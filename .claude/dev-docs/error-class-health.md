@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**419 classes.** Fenêtre observée : `2026-05-15` → `2026-09-26` (564 révisions du catalogue rejouées).
+**419 classes.** Fenêtre observée : `2026-05-15` → `2026-09-26` (565 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -48,7 +48,7 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 |---|---|
 | `automatic_guard` | 411 |
 | `classes` | 419 |
-| `ever_recurred_observed` | 48 |
+| `ever_recurred_observed` | 49 |
 | `prose_only` | 8 |
 | `with_signature` | 408 |
 
@@ -75,19 +75,19 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 ## Récidive observée
 
-**61 évènements** sur 11661 classe-jours d'exposition — **0.159** par classe-mois (IC 95 % : 0.1216 – 0.2043)
+**62 évènements** sur 11661 classe-jours d'exposition — **0.1616** par classe-mois (IC 95 % : 0.1239 – 0.2072)
 
 ### Par strate
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 58 | 0.1539 | 0.1168 – 0.1989 | insuffisant pour conclure (n=61) |
-| by_guard · prose | 3 | 0.4515 | 0.0907 – 1.3191 | insuffisant pour conclure (n=61) |
-| by_guard_since · avec-garde | 56 | 0.1574 | 0.1189 – 0.2044 | insuffisant pour conclure (n=61) |
-| by_guard_since · sans-garde | 5 | 0.1803 | 0.0581 – 0.4208 | insuffisant pour conclure (n=61) |
-| by_seen_red · daté | 0 | 0.0 | 0.0 – 0.2061 | insuffisant pour conclure (n=61) |
-| by_seen_red · jamais-ou-inconnu | 61 | 0.1668 | 0.1276 – 0.2142 | insuffisant pour conclure (n=61) |
-| by_scope · ne-couvre-pas renseigné | 61 | 0.159 | 0.1216 – 0.2043 | une seule strate peuplée (n=61) |
+| by_guard · automatique | 58 | 0.1539 | 0.1168 – 0.1989 | insuffisant pour conclure (n=62) |
+| by_guard · prose | 4 | 0.602 | 0.162 – 1.5412 | insuffisant pour conclure (n=62) |
+| by_guard_since · avec-garde | 57 | 0.1602 | 0.1213 – 0.2075 | insuffisant pour conclure (n=62) |
+| by_guard_since · sans-garde | 5 | 0.1803 | 0.0581 – 0.4208 | insuffisant pour conclure (n=62) |
+| by_seen_red · daté | 0 | 0.0 | 0.0 – 0.2061 | insuffisant pour conclure (n=62) |
+| by_seen_red · jamais-ou-inconnu | 62 | 0.1695 | 0.1299 – 0.2173 | insuffisant pour conclure (n=62) |
+| by_scope · ne-couvre-pas renseigné | 62 | 0.1616 | 0.1239 – 0.2072 | une seule strate peuplée (n=62) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
 
@@ -95,8 +95,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 | | avec garde | sans garde | rapport |
 |---|---|---|---|
-| `by_guard` — étiquette d'aujourd'hui, **confondu** | 0.1539 | 0.4515 | ×2.9 |
-| `by_guard_since` — découpé au premier garde | 0.1574 | 0.1803 | ×1.1 |
+| `by_guard` — étiquette d'aujourd'hui, **confondu** | 0.1539 | 0.602 | ×3.9 |
+| `by_guard_since` — découpé au premier garde | 0.1602 | 0.1803 | ×1.1 |
 
 L'écart de la première ligne est un **artefact de mesure**, pas un effet. Écrire un garde automatique reste la bonne pratique ; ce tableau dit seulement que **ce jeu de données ne la démontre pas**, et qu'aucune règle ne devrait citer la première ligne comme preuve.
 
@@ -110,8 +110,8 @@ Une classe **plus jeune que l'horizon est exclue de la colonne**, jamais compté
 
 | horizon | à risque | récidivées | taux |
 |---|---|---|---|
-| 7 j | 404 | 44 | 11 % |
-| 14 j | 315 | 37 | 12 % |
+| 7 j | 404 | 45 | 11 % |
+| 14 j | 315 | 38 | 12 % |
 | 30 j | 141 | 28 | 20 % |
 
 ## Avant la fenêtre git — DÉCLARATIF

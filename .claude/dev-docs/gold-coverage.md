@@ -105,14 +105,14 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `utils/s4a_entry_insight.py:259` | `render_prediction_vs_reality` | plotly_chart | à l'écran | `ml_song_predictions` · `s4a_song_algo_outcomes` | brut | plusieurs amonts | identifiant-non-résolu | — |
 | `utils/s4a_entry_insight.py:318` | `render_playlist_history` | plotly_chart | à l'écran | `s4a_song_playlist_adds` | brut | plusieurs amonts | — | — |
 | `views/alerts.py:440` | `_section_plan_evolution` | plotly_chart | à l'écran | `artist_subscriptions` · `saas_artists` · `subscription_plan_history` · `subscription_plans` | brut | plusieurs amonts | profondeur | — |
-| `views/data_wrapped.py:339` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
-| `views/data_wrapped.py:346` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | — | — |
-| `views/data_wrapped.py:353` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | — | — |
-| `views/data_wrapped.py:370` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
-| `views/data_wrapped.py:376` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
-| `views/data_wrapped.py:384` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
-| `views/data_wrapped.py:390` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
-| `views/data_wrapped.py:404` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
+| `views/data_wrapped.py:353` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
+| `views/data_wrapped.py:362` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | — | — |
+| `views/data_wrapped.py:371` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | — | — |
+| `views/data_wrapped.py:388` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
+| `views/data_wrapped.py:394` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
+| `views/data_wrapped.py:402` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
+| `views/data_wrapped.py:408` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
+| `views/data_wrapped.py:422` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
 | `views/etl_logs.py:231` | `_section_trend` | plotly_chart | à l'écran | `etl_run_log` | brut | plusieurs amonts | — | — |
 | `views/hypeddit.py:303` | `_render_campaign_series` | plotly_chart | à l'écran | `v_hypeddit_daily` | or | plusieurs amonts | — | — |
 | `views/imusician.py:329` | `show` | plotly_chart | à l'écran | `get_monthly_roi_series()` | or | plusieurs amonts | sql-dynamique | ?`saas_artists` |
@@ -144,10 +144,10 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/soundcloud.py:279` | `show` | plotly_chart | à l'écran | `v_soundcloud_track_latest` · `instagram_daily_stats` · `instagram_media` · `soundcloud_tracks_daily` · `track_release_reference` | mixte | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur · sql-dynamique | ?`v_soundcloud_catalog_daily` |
 | `views/soundcloud.py:302` | `show` | plotly_chart | à l'écran | `v_soundcloud_track_daily` | or | plusieurs amonts | — | ?`soundcloud_tracks_daily` · ?`v_soundcloud_catalog_daily` · ?`v_soundcloud_track_latest` |
 | `views/soundcloud.py:498` | `_render_top_chart` | plotly_chart | à l'écran | `v_soundcloud_track_latest` · `soundcloud_tracks_daily` | mixte | plusieurs amonts | — | — |
-| `views/spotify_s4a_combined.py:324` | `_render_meta_impact` | plotly_chart | à l'écran | `v_s4a_audience_daily` | or | plusieurs amonts | — | ?`v_meta_daily` |
-| `views/spotify_s4a_combined.py:435` | `_render_momentum` | plotly_chart | à l'écran | `v_s4a_song_daily` · `v_s4a_song_measured_span` · `v_spotify_track_pi_daily` | or | plusieurs amonts | profondeur | — |
-| `views/spotify_s4a_combined.py:506` | `_render_secondary` | plotly_chart | à l'écran | `v_s4a_song_daily` · `v_spotify_track_pi_daily` | or | plusieurs amonts | — | — |
-| `views/spotify_s4a_combined.py:512` | `_render_secondary` | plotly_chart | à l'écran | `v_s4a_audience_monthly` · `v_s4a_song_daily` · `v_spotify_followers_daily` · `v_spotify_track_pi_daily` | or | plusieurs amonts | — | — |
+| `views/spotify_s4a_combined.py:329` | `_render_meta_impact` | plotly_chart | à l'écran | `v_s4a_audience_daily` | or | plusieurs amonts | — | ?`v_meta_daily` |
+| `views/spotify_s4a_combined.py:440` | `_render_momentum` | plotly_chart | à l'écran | `v_s4a_song_daily` · `v_s4a_song_measured_span` · `v_spotify_track_pi_daily` | or | plusieurs amonts | profondeur | — |
+| `views/spotify_s4a_combined.py:511` | `_render_secondary` | plotly_chart | à l'écran | `v_s4a_song_daily` · `v_spotify_track_pi_daily` | or | plusieurs amonts | — | — |
+| `views/spotify_s4a_combined.py:517` | `_render_secondary` | plotly_chart | à l'écran | `v_s4a_audience_monthly` · `v_s4a_song_daily` · `v_spotify_followers_daily` · `v_spotify_track_pi_daily` | or | plusieurs amonts | — | — |
 | `views/trigger_algo/_tab_algo_streams.py:80` | `_show_tab_algo_streams` | plotly_chart | à l'écran | `s4a_song_algo_outcomes` | brut | plusieurs amonts | — | — |
 | `views/trigger_algo/_tab_algos.py:138` | `_show_tab_algos` | plotly_chart | à l'écran | `ml_song_predictions` · `s4a_song_timeline` · `track_popularity_history` | brut | plusieurs amonts | — | — |
 | `views/trigger_algo/_tab_algos.py:228` | `_show_tab_algos` | plotly_chart | à l'écran | `s4a_song_timeline` · `track_popularity_history` | brut | plusieurs amonts | sans-appelant | ?`ml_song_predictions` |
@@ -176,7 +176,7 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/revenue_forecast.py:94` | `_tab_mrr` | plotly_chart | à l'écran | `artist_subscriptions` · `saas_artists` · `subscription_plans` | brut | directe | — | — |
 | `views/revenue_forecast.py:306` | `_tab_ltv` | plotly_chart | à l'écran | — | — | hors base | — | ?`v_artist_monthly_revenue` |
 | `views/soundcloud.py:429` | `_render_catalog_series` | plotly_chart | à l'écran | `v_soundcloud_catalog_daily` | or | directe | — | — |
-| `views/spotify_s4a_combined.py:225` | `_render_releases` | plotly_chart | à l'écran | `v_s4a_release_cohort` | or | directe | — | ?`v_s4a_release_reach` |
+| `views/spotify_s4a_combined.py:227` | `_render_releases` | plotly_chart | à l'écran | `v_s4a_release_cohort` | or | directe | — | ?`v_s4a_release_reach` |
 | `views/trigger_algo/_tab_explainability.py:104` | `_show_tab_explainability` | pyplot | un clic | — | — | hors base | — | — |
 | `views/trigger_algo/_tab_explainability.py:135` | `_show_tab_explainability` | pyplot | un clic | — | — | hors base | — | — |
 | `views/trigger_algo/_tab_explainability.py:169` | `_show_tab_explainability` | pyplot | un clic | — | — | hors base | — | — |
@@ -283,10 +283,10 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/billing.py:173` | `_show_current_plan` | billing.metric_plan | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | directe | — | ?`saas_artists` |
 | `views/billing.py:174` | `_show_current_plan` | billing.metric_price | à l'écran | — | — | hors base | — | ?`artist_subscriptions` · ?`saas_artists` · ?`subscription_plans` |
 | `views/billing.py:175` | `_show_current_plan` | billing.metric_status | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | directe | — | ?`saas_artists` |
-| `views/data_wrapped.py:291` | `_tab_charts` | data_wrapped.field_listeners | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
-| `views/data_wrapped.py:294` | `_tab_charts` | data_wrapped.col_streams | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
-| `views/data_wrapped.py:297` | `_tab_charts` | data_wrapped.field_saves | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
-| `views/data_wrapped.py:300` | `_tab_charts` | data_wrapped.kpi_countries | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
+| `views/data_wrapped.py:300` | `_tab_charts` | data_wrapped.field_listeners | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
+| `views/data_wrapped.py:303` | `_tab_charts` | data_wrapped.col_streams | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
+| `views/data_wrapped.py:306` | `_tab_charts` | data_wrapped.field_saves | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
+| `views/data_wrapped.py:309` | `_tab_charts` | data_wrapped.kpi_countries | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
 | `views/db_health.py:175` | `_show_health_table` | db_health.kpi_active | à l'écran | — | — | hors base | — | — |
 | `views/db_health.py:176` | `_show_health_table` | db_health.kpi_empty | à l'écran | — | — | hors base | — | — |
 | `views/etl_logs.py:78` | `_section_kpis` | etl_logs.kpi_runs | à l'écran | `etl_run_log` | brut | directe | — | — |
@@ -645,4 +645,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=28 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=16 blocking=16 -->
 
-<!-- gold-coverage: sha256=3e3d87177ef1d179f3f9a7ddb16a07b573db8fd7870ed67cb49da70dee9c0b21 -->
+<!-- gold-coverage: sha256=44ffb7f5a6538133742f6b9a249be58943609b89e1a6400bc99addbb528cc9e0 -->

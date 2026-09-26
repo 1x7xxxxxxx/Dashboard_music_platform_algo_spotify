@@ -21,7 +21,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 25 | **5/25** · 20.0 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 23 | **2/23** · 8.7 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 62 | **9/62** · 14.5 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 35 | **5/35** · 14.3 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 35 | **6/35** · 17.1 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 13 | **0/13** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 16 | **1/16** · 6.2 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 11 | **0/11** · 0.0 % | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
@@ -623,4 +623,4 @@ _Aucune._
 
 <!-- error-class-families: total=419 families=18 orphans=0 -->
 
-<!-- error-class-families: sha256=e9a15c6d03423417df5e4f47bf69890cdd95768a2fd3e3898fd0b21395441f13 -->
+<!-- error-class-families: sha256=5431bfe46a6da4463aa72c5fa6e8e4b24f4f2fc033b6d947982161193ccd2189 -->

@@ -44,7 +44,7 @@ EN = {
     "data_wrapped.log_scale": "Logarithmic scale",
     "data_wrapped.log_scale_help": "Recommended if volumes differ strongly "
                                    "(e.g.: streams ≫ saves), to see all curves.",
-    "data_wrapped.chart_combined_title": "Listeners · Streams · Saves · Playlist adds",
+    "data_wrapped.chart_combined_title": "Volumes",
     "data_wrapped.chart_countries_reached": "Countries reached",
     "data_wrapped.chart_hours_listened": "Hours listened",
     "data_wrapped.annual_gains_header": "#### Annual gains (%)",

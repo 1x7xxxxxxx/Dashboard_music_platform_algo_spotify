@@ -137,7 +137,14 @@ def _fmt_pct(v):
     return f"{float(v):+.1f}%"
 
 
-def _line_chart(df, col, title, color="#1DB954", fmt_fn=None):
+# One height for the three figures of the Wrapped row (R189, 2026-09-26): the combined
+# chart was 400 next to two 260, so the row ended at three different levels — seen on
+# screen, never by a test. `tests/test_a_rendered_figure_is_laid_out.py` now measures it.
+_ROW_HEIGHT = 320
+_ROW_BOTTOM = 90
+
+
+def _line_chart(df, col, title, color="#1DB954", fmt_fn=None, height=260):
     df_plot = df[['year', col]].dropna().sort_values('year')
     if df_plot.empty:
         return None
@@ -165,7 +172,7 @@ def _line_chart(df, col, title, color="#1DB954", fmt_fn=None):
         showlegend=False,
         hovermode='x unified',
         margin=dict(t=40, b=20),
-        height=260,
+        height=height,
     )
     return fig
 
@@ -195,7 +202,7 @@ def _bar_gain_chart(df, col, title, pos_color="#1DB954", neg_color="#e63946",
     return fig
 
 
-def _multi_line_chart(df, series, title, log_scale=False):
+def _multi_line_chart(df, series, title, log_scale=False, height=400):
     """Combine several volume metrics on one chart. series: list of (col, label, color)."""
     df_s = df.sort_values('year')
     fig = go.Figure()
@@ -220,9 +227,11 @@ def _multi_line_chart(df, series, title, log_scale=False):
         xaxis=dict(dtick=1, tickformat='d'),
         yaxis=dict(title='', type='log' if log_scale else 'linear'),
         hovermode='x unified',
-        margin=dict(t=60, b=20),
-        height=400,
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0),
+        # The legend goes UNDER the plot: above it, four entries wrapped over the title
+        # in a third of the page (R189, measured in the browser: legend 0-86 px, title 30-51).
+        margin=dict(t=40, b=20),
+        height=height,
+        legend=dict(orientation='h', yanchor='top', y=-0.15, xanchor='left', x=0),
     )
     return fig
 
@@ -319,9 +328,10 @@ def _tab_charts(artist_options: dict) -> None:
                     ('saves', 'Saves', '#e9c46a'),
                     ('playlist_adds', 'Playlist adds', '#f4a261'),
                 ],
-                t("data_wrapped.chart_combined_title",
-                  "Listeners · Streams · Saves · Playlist adds"),
-                log_scale=log_scale,
+                # « Volumes », not the four names: the legend already carries them, and the
+                # 43-character title was wider than its column (288 px in 227).
+                t("data_wrapped.chart_combined_title", "Volumes"),
+                log_scale=log_scale, height=_ROW_HEIGHT,
             )
             # ── LES TROIS SUR UNE LIGNE — 2026-09-22 ────────────────────────
             #
@@ -336,20 +346,28 @@ def _tab_charts(artist_options: dict) -> None:
             c_vol, c_pays, c_heures = st.columns(3)
             with c_vol:
                 if fig:
+                    # the legend lives under this plot; the same bottom margin on the three
+                    # keeps their x axes on one line (seen at 1366 px: y=-0.12 with b=20
+                    # covered the year labels).
+                    fig.update_layout(margin=dict(b=_ROW_BOTTOM))
                     st.plotly_chart(fig, width="stretch")
             with c_pays:
                 fig_p = _line_chart(df, 'countries',
                                     t("data_wrapped.chart_countries_reached",
                                       "Pays touchés"),
-                                    color="#457b9d", fmt_fn=_fmt_big)
+                                    color="#457b9d", fmt_fn=_fmt_big,
+                                    height=_ROW_HEIGHT)
                 if fig_p:
+                    fig_p.update_layout(margin=dict(b=_ROW_BOTTOM))
                     st.plotly_chart(fig_p, width="stretch")
             with c_heures:
                 fig_h = _line_chart(df, 'hours_listened',
                                     t("data_wrapped.chart_hours_listened",
                                       "Heures d'écoute"),
-                                    color="#e9c46a", fmt_fn=_fmt_big)
+                                    color="#e9c46a", fmt_fn=_fmt_big,
+                                    height=_ROW_HEIGHT)
                 if fig_h:
+                    fig_h.update_layout(margin=dict(b=_ROW_BOTTOM))
                     st.plotly_chart(fig_h, width="stretch")
 
             # Quatre graphiques de GAIN : ils raffinent la lecture des volumes
