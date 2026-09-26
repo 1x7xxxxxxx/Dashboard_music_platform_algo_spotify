@@ -180,6 +180,33 @@ tâche-là, ouvert séparément dans `checklist.md`).
 
 ---
 
+## 🐛 R179 — Le mail du soir ne voyait aucun DAG en échec (livrée 2026-09-26)
+
+Née le 2026-09-25 au soir du bloc d'audit « 🧭 R167 – R176 » de `checklist.md`, entrée
+dans « 🙋 En attente de toi » le 2026-09-26 en attendant l'accord du propriétaire pour
+modifier un DAG de production.
+
+- [x] **R179 — le mail du soir ne voit aucun DAG en échec — `cutoff` naïf refusé par
+  Airflow.** (P2) ✅ (2026-09-26, `5831f896`)
+
+  `alert_monitor.py` calculait `cutoff = datetime.now() - timedelta(days=7)`, un
+  `datetime` **naïf**, contre des colonnes `UtcDateTime` d'Airflow — la comparaison
+  levait, l'`except` l'avalait, et le mail rendait zéro DAG en échec depuis le
+  2026-03-25. Corrigé par l'import `timezone` (ligne 37) et
+  `cutoff = datetime.now(timezone.utc) - timedelta(days=7)` (ligne 207). Garde :
+  `tests/test_a_cutoff_bound_to_airflow_is_tz_aware.py` (rouge sur l'ancien DAG, vert
+  après).
+
+  Accord du propriétaire donné le 2026-09-26 (« oui intègre tout ce que tu as
+  proposé »). Déployé par `git pull --ff-only` sur `/opt/streamlytics` (le scheduler
+  bind-monte `airflow/dags/`) ; `airflow dags list-import-errors` → « No data found » ;
+  `airflow tasks test alert_monitor check_dag_failures` rend
+  `{'meta_ads_api_daily': {'failure_count': 1, 'last_failure': '2026-09-25 05:00', …}}`
+  — un échec qui était INVISIBLE avant. Les journaux de prod portaient
+  `naive datetime is disallowed` jusqu'au run du 2026-09-24.
+
+---
+
 ## 🧯 R165 · R166 — la soirée du 2026-09-24 (livrées 2026-09-25)
 
 **Ce qui s'est passé.** `make deploy` de `e910543` (alignement de « Se connecter ») a

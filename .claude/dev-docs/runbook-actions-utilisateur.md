@@ -1899,7 +1899,7 @@ affichées : 12 trouvailles réelles `gitleaks`, plus un mot de passe trop court
 Le job `gitleaks` du nightly repasse au vert, et son mail cesse de partir chaque nuit.
 Localement : `gitleaks detect --redact` → 0 trouvaille.
 
-## 28. R179 — Le mail du soir ne voit aucun DAG en échec
+## 28. ~~R179 — Le mail du soir ne voit aucun DAG en échec~~ · ✅ FAIT le 2026-09-26 — `datetime.now(timezone.utc)`, garde `test_a_cutoff_bound_to_airflow_is_tz_aware.py`, déployé en prod par `git pull` ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 **Ce qui se passe.** `check_dag_failures` (`airflow/dags/alert_monitor.py:198`) calcule
 `cutoff = datetime.now() - timedelta(days=7)` — une date NAÏVE — et la compare à
