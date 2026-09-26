@@ -124,3 +124,17 @@ def test_the_freshness_xcom_carries_the_error() -> None:
         "`measured_on` distinguishes 'written this morning' from 'describes a recent "
         "day'. Confusing the two is what hid Meta Ads for months."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(monkeypatch) -> None:
+    """Behaviour, not the AST: Benken's YouTube of 2026-08-23 — collected, then stopped
+    (STALE) — must come out of the REAL `readiness_red_flags` next to NO_DATA and
+    BROKEN; OK, QUIET and TODO must not."""
+    import src.utils.artist_readiness as ar
+
+    rows = [{"key": k, "status": s} for k, s in (
+        ("youtube", ar.STALE), ("soundcloud", ar.NO_DATA), ("meta", ar.BROKEN),
+        ("spotify", ar.OK), ("instagram", ar.QUIET), ("apple", ar.TODO))]
+    monkeypatch.setattr(ar, "artist_readiness", lambda db, aid, probe=None: rows)
+    assert {m["key"] for m in ar.readiness_red_flags(None, 12)} == {
+        "youtube", "soundcloud", "meta"}
