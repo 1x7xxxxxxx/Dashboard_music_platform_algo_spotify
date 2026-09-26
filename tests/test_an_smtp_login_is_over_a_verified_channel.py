@@ -22,11 +22,17 @@ _TREES = ("src", "tools", "airflow")
 
 
 def unverified_starttls(source: str) -> list[int]:
-    """Lines calling `.starttls(...)` without a `context=` keyword. Pure."""
+    """Lines calling `.starttls(...)` without a verifying context. Pure.
+
+    `context=None` is the unverified default spelled out, and a positional argument does
+    not set `context` — both are refused (code-critic, 2026-09-26)."""
+    def verified(call: ast.Call) -> bool:
+        ctx = next((k.value for k in call.keywords if k.arg == "context"), None)
+        return (not call.args and ctx is not None
+                and not (isinstance(ctx, ast.Constant) and ctx.value is None))
     return [n.lineno for n in ast.walk(ast.parse(source))
             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-            and n.func.attr == "starttls"
-            and not any(k.arg == "context" for k in n.keywords) and not n.args]
+            and n.func.attr == "starttls" and not verified(n)]
 
 
 def test_every_starttls_verifies_the_server() -> None:
@@ -45,4 +51,6 @@ def test_every_starttls_verifies_the_server() -> None:
 def test_the_detector_sees_the_defect_it_is_written_for() -> None:
     """The bare call is caught; the verified call is not."""
     assert unverified_starttls("s.starttls()\n") == [1]
+    assert unverified_starttls("s.starttls(context=None)\n") == [1]
+    assert unverified_starttls("s.starttls(keyfile)\n") == [1]
     assert unverified_starttls("import ssl\ns.starttls(context=ssl.create_default_context())\n") == []

@@ -5659,6 +5659,7 @@
     "tests/test_every_ranking_call_names_the_artist.py::test_a_ranking_call_declares_the_artist_noise[src/dashboard/views/meta_mapping/_tracks.py:86:rank_track_candidates]": 0.0020550720018945867,
     "tests/test_every_ranking_call_names_the_artist.py::test_the_detector_sees_the_call_it_is_written_for": 0.004051007997986744,
     "tests/test_every_ranking_call_names_the_artist.py::test_the_rankers_are_actually_called_somewhere": 0.0017111859997385181,
+    "tests/test_every_session_starts_by_reading_the_ops_mails.py::test_a_missing_recap_night_is_said_at_session_start": 0.09353969100629911,
     "tests/test_every_session_starts_by_reading_the_ops_mails.py::test_the_detector_sees_the_defect_it_is_written_for": 0.05234552799083758,
     "tests/test_every_session_starts_by_reading_the_ops_mails.py::test_the_hook_is_registered_and_prints_the_banner": 0.0302337649918627,
     "tests/test_every_setup_choice_has_a_destination.py::test_a_csv_platform_is_never_announced_as_the_next_tab": 0.0008169889988494106,

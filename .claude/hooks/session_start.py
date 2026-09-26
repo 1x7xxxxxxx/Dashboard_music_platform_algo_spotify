@@ -77,7 +77,12 @@ def _write_session_marker(repo_root: Path) -> None:
         pass
 
 
-def mail_banner(journal_text: str) -> str:
+def _date(iso: str):
+    from datetime import date
+    return date.fromisoformat(iso)
+
+
+def mail_banner(journal_text: str, today: str | None = None) -> str:
     """The instruction that opens every session: read and sort the streaMLytics mails
     received since the journal's newest row. Pure.
 
@@ -87,11 +92,20 @@ def mail_banner(journal_text: str) -> str:
     dates = re.findall(r"^\| (\d{4}-\d{2}-\d{2})", journal_text, re.M)
     since = max(dates) if dates else None
     query = "from:noreply@streamlytics.fr" + (f" after:{since.replace('-', '/')}" if since else "")
+    recaps = re.findall(r"^\| (\d{4}-\d{2}-\d{2})[^|]*\| 📋 Récap de la nuit", journal_text, re.M)
+    gap = ""
+    if recaps and today:
+        days = (_date(today) - _date(max(recaps))).days
+        if days >= 2:
+            gap = (f" ⚠️ No « 📋 Récap de la nuit » logged for {days} days: if none is in the "
+                   "inbox either, the recap itself stopped — `gh run list --workflow "
+                   "nightly-recap.yml`.")
     return ("📬 Session start — read and sort the streaMLytics mails, ONLY those: Gmail "
             f"`{query}`, then one row per mail in `.claude/dev-docs/ops-mail-journal.md` "
             "(real / expected / false alarm / test, with its fix). Never open, quote or keep "
             "any other mail — the inbox is personal. "
-            + (f"Newest journal row: {since}." if since else "The journal has no dated row."))
+            + (f"Newest journal row: {since}." if since else "The journal has no dated row.")
+            + gap)
 
 
 def main():
@@ -105,7 +119,9 @@ def main():
 
     journal = repo_root / ".claude" / "dev-docs" / "ops-mail-journal.md"
     if journal.is_file():
-        print(mail_banner(journal.read_text(encoding="utf-8", errors="ignore")))
+        from datetime import date
+        print(mail_banner(journal.read_text(encoding="utf-8", errors="ignore"),
+                          date.today().isoformat()))
 
     if not latest.exists():
         sys.exit(0)

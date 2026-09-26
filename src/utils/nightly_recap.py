@@ -27,7 +27,10 @@ REPO = os.environ.get("STREAMLYTICS_GITHUB_REPO",
                       "1x7xxxxxxx/Dashboard_music_platform_algo_spotify")
 WORKFLOWS = (("ci.yml", "CI (main)", "main"),
              ("security-nightly.yml", "Sécurité — nuit", None),
-             ("prod-health.yml", "Santé prod", None))
+             ("prod-health.yml", "Santé prod", None),
+             # The recap watches itself (code-critic, 2026-09-26): a night whose own send
+             # failed shows up red in the next recap and in the 23:00 production mail.
+             ("nightly-recap.yml", "Récap de la nuit (GitHub)", None))
 _NO_VERDICT = {"cancelled", "skipped", None, ""}
 
 

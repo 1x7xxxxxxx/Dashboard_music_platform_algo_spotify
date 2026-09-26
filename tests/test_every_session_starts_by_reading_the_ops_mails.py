@@ -34,6 +34,14 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
     assert "after:" not in hook.mail_banner("no rows\n")
 
 
+def test_a_missing_recap_night_is_said_at_session_start() -> None:
+    """The recap cannot report its own failure to send; the journal can. Two days without a
+    logged recap is said; the day after a logged one is not."""
+    text = "| 2026-09-26 13:15 | 📋 Récap de la nuit — nuit calme | test | x | — |\n"
+    assert "No « 📋 Récap de la nuit » logged for 3 days" in hook.mail_banner(text, "2026-09-29")
+    assert "⚠️" not in hook.mail_banner(text, "2026-09-27")
+
+
 def test_the_hook_is_registered_and_prints_the_banner(tmp_path) -> None:
     settings = json.loads((_ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
     commands = [h["command"] for e in settings["hooks"]["SessionStart"] for h in e["hooks"]]
