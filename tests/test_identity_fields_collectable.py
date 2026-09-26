@@ -42,6 +42,12 @@ def _form_field_keys(platform_key: str) -> set[str]:
     return {f["key"] for f in PLATFORMS[platform_key]["fields"]}
 
 
+def is_typable(field: str, platforms: dict) -> bool:
+    """Can an artist type `field` in SOME credential tab? Pure over the registry."""
+    return any(field in {f["key"] for f in info.get("fields", [])}
+               for info in platforms.values())
+
+
 @pytest.mark.parametrize("readiness_key", [p["key"] for p in ar._PLATFORMS])
 def test_identity_has_a_form_field(readiness_key):
     tab, field = _IDENTITY_FIELD[readiness_key]
@@ -49,8 +55,7 @@ def test_identity_has_a_form_field(readiness_key):
     # stockage : 📸 Instagram est un onglet à part depuis le 2026-09-05, alors que
     # `ig_user_id` reste dans la ligne `meta`. La question — « un artiste peut-il le
     # saisir ? » — est inchangée ; c'est l'ancrage qui l'était.
-    _typable = set().union(*(_form_field_keys(k) for k in _all_tabs()))
-    assert field in _typable, (
+    assert is_typable(field, PLATFORMS), (
         f"artist_readiness treats '{field}' as the {readiness_key} identity, but the "
         f"'{tab}' credential form has no such field — the artist cannot connect it."
     )
@@ -67,3 +72,13 @@ def test_instagram_dag_selects_on_a_collectable_field():
     keys = set(re.findall(r"\.get\('([a-z_]+)'\)", dag))
     assert "ig_user_id" in keys
     assert "ig_user_id" in set().union(*(_form_field_keys(k) for k in _all_tabs()))
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: readiness reading `ig_user_id` while no tab offers that field (the
+    beta-session shape) is refused; the same field on its OWN tab — not the storage
+    row's tab — is accepted."""
+    without = {"meta": {"fields": [{"key": "account_id"}]}}
+    assert not is_typable("ig_user_id", without)
+    with_tab = {**without, "instagram": {"fields": [{"key": "ig_user_id"}]}}
+    assert is_typable("ig_user_id", with_tab)

@@ -28,8 +28,8 @@ pytestmark = pytest.mark.docs
 CATALOGUE = Path(__file__).resolve().parent.parent / ".claude/dev-docs/error-classes.md"
 
 
-def _index_and_entries() -> tuple[set[str], list[str]]:
-    src = CATALOGUE.read_text(encoding="utf-8")
+def _index_and_entries(src: str | None = None) -> tuple[set[str], list[str]]:
+    src = CATALOGUE.read_text(encoding="utf-8") if src is None else src
     start = src.index("## Index")
     end = src.index("\n---\n", start)
     index = set(re.findall(r"^\| \[([a-z0-9-]+)\]", src[start:end], re.M))
@@ -58,3 +58,17 @@ def test_the_index_lists_nothing_that_has_no_entry() -> None:
         f"Index rows with no matching entry: {orphans}. The anchor link is dead and "
         "the class reads as catalogued while nothing describes it."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, both directions, on a fabricated catalogue: the 2026-08-21 shape (the
+    newest entries absent from the index) and a dead index row are both seen; a class
+    NAMED only in prose or in the schema section above the index is not an entry."""
+    doc = ("# Catalogue\n## schema-field-names\n\n## Index\n\n"
+           "| Class |\n|---|\n| [old-class](#old-class) |\n| [renamed-away](#renamed-away) |\n"
+           "\n---\n\n## old-class\n- status: guarded\n\n## newest-class\n"
+           "- status: open\n  see also ## not-a-heading-in-prose\n")
+    index, entries = _index_and_entries(doc)
+    assert entries == ["old-class", "newest-class"]
+    assert [e for e in entries if e not in index] == ["newest-class"]
+    assert sorted(i for i in index if i not in entries) == ["renamed-away"]
