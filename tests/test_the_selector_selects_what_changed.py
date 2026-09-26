@@ -197,3 +197,26 @@ def test_a_directory_without_git_still_says_so(st, tmp_path):
         f"la raison doit toujours nommer `git` quand c'est lui qui refuse : "
         f"{verdict['reason']!r}"
     )
+
+
+def test_a_tree_scanner_is_selected_when_its_tree_changes(st, tmp_path) -> None:
+    """A guard that walks `.py` files imports none of them (code-critic, 2026-09-26: a
+    naive-datetime guard over `_ROOT.rglob("*.py")` was left out when a source file gained
+    `datetime.now()`). The directory it walks decides; unresolvable means the whole repo."""
+    whole = tmp_path / "test_whole.py"
+    whole.write_text("from pathlib import Path\n_ROOT = Path(__file__).parents[1]\n"
+                     "def test_a(): list(_ROOT.rglob('*.py'))\n")
+    docs = tmp_path / "test_docs.py"
+    docs.write_text("from pathlib import Path\n_ROOT = Path(__file__).parents[1]\n"
+                    "def test_b(): list((_ROOT / 'docs').rglob('*.py'))\n")
+    loop_source = ("from pathlib import Path\n_ROOT = Path(__file__).parents[1]\n"
+                   "_TREES = ('src', 'airflow')\n"
+                   "def test_c():\n    for t in _TREES:\n        root = _ROOT / t\n"
+                   "        list(root.rglob('*.py'))\n")
+    loop = tmp_path / "test_loop.py"
+    loop.write_text(loop_source)
+    known = {"tests.test_whole": whole, "tests.test_docs": docs, "tests.test_loop": loop}
+    picked = st.tests_scanning_the_tree(["src/utils/jobs.py"], set(known), known)
+    assert picked == {"tests.test_whole", "tests.test_loop"}
+    assert st.tests_scanning_the_tree(["README.md"], set(known), known) == set()
+    assert st.scanned_directories(loop_source) == {"src", "airflow"}
