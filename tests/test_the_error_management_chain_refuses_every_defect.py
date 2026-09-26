@@ -77,5 +77,9 @@ def test_the_nightly_probe_runs_and_reaches_the_owner() -> None:
     wf = yaml.safe_load((_ROOT / ".github" / "workflows" / "security-nightly.yml").open(
         encoding="utf-8"))
     job = wf["jobs"]["error-management-probe"]
-    assert any("probe_error_management.py" in (s.get("run") or "") for s in job["steps"])
+    run = "\n".join(s.get("run") or "" for s in job["steps"])
+    assert "probe_error_management.py" in run
+    # Without installed git hooks the terminal-commit probe has nothing to refuse it — the
+    # first CI run said exactly that (2026-09-26).
+    assert run.index("pre-commit install") < run.index("probe_error_management.py")
     assert "error-management-probe" in wf["jobs"]["notify"]["needs"]

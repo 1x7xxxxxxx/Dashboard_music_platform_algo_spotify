@@ -362,6 +362,10 @@ jobs:
         run: |
           set -o pipefail
           git config --global user.email probe@ci && git config --global user.name probe
+          # A fresh checkout has no git hooks: a terminal `git commit` would be checked by
+          # nothing, and the probe said so on its first CI run (2026-09-26). Install them as
+          # `make hooks-install` does on a developer machine.
+          .venv/bin/pre-commit install >/dev/null
           .venv/bin/python tools/dev/probe_error_management.py | tee -a "$GITHUB_STEP_SUMMARY"
 
   # ── The impact sweep of a leak, as a machine (2026-09-25) ───────────────────────
