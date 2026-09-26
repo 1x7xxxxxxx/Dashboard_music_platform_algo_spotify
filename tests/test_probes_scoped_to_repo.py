@@ -114,6 +114,26 @@ def test_no_foreign_project_container_names_hardcoded(path: Path):
         )
 
 
+_NAMESPACE_LITERAL = re.compile(
+    r'"homunculus"\s*/\s*"[A-Za-z0-9_]+"|homunculus/[A-Za-z0-9_]+/')
+
+
+def hardcoded_namespaces(source: str) -> list[tuple[int, str]]:
+    """(line, text) where a project name is typed under `homunculus/`. Pure."""
+    return [(i, line.strip()) for i, line in enumerate(source.splitlines(), 1)
+            if _NAMESPACE_LITERAL.search(line)]
+
+
+def test_state_path_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, class `state-path-namespaced-by-another-project`: the writer of
+    2026-07-28 (`homunculus/msdr/`, both spellings) is named; the derived form is not."""
+    defect = ('OUT = ROOT / "homunculus" / "msdr" / "observations.jsonl"\n'
+              'LOG = ".claude/homunculus/msdr/x.jsonl"\n')
+    assert [ln for ln, _ in hardcoded_namespaces(defect)] == [1, 2]
+    fixed = 'OUT = ROOT / "homunculus" / repo_root.name / "observations.jsonl"\n'
+    assert hardcoded_namespaces(fixed) == []
+
+
 def test_observation_stream_is_not_namespaced_by_another_project():
     """Writer and readers of the observation stream must agree on the directory.
 
@@ -122,14 +142,10 @@ def test_observation_stream_is_not_namespaced_by_another_project():
     reading a file frozen since 2026-07-28, which is why `pending-devlog.md` sat
     stale with unfilled `?` fields.
     """
-    literal = re.compile(
-        r'"homunculus"\s*/\s*"[A-Za-z0-9_]+"|homunculus/[A-Za-z0-9_]+/'
-    )
     offenders = []
     for py in sorted(HOOKS.glob("*.py")) + sorted(SCRIPTS.glob("*.py")):
-        for i, line in enumerate(py.read_text(encoding="utf-8").splitlines(), 1):
-            if literal.search(line):
-                offenders.append(f"{py.relative_to(REPO)}:{i}: {line.strip()}")
+        offenders += [f"{py.relative_to(REPO)}:{i}: {line}"
+                      for i, line in hardcoded_namespaces(py.read_text(encoding="utf-8"))]
     assert not offenders, (
         "a literal directory name under .claude/homunculus/ — derive it from the "
         "repo (`repo_root.name`) so writer and readers cannot diverge:\n  "

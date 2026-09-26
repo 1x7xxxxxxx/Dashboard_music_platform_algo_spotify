@@ -135,7 +135,7 @@ def _retains_for_an_outer_gate(stmts) -> bool:
     return False
 
 
-def _uncovered_continues(path: Path) -> list[int]:
+def _uncovered_continues(path: Path | str) -> list[int]:
     """Every `continue` in a per-tenant loop that leaves no ledger row behind.
 
     Checking only "is a recorder called somewhere in this file" is not enough, and the
@@ -154,7 +154,7 @@ def _uncovered_continues(path: Path) -> list[int]:
     l'échec d'un locataire et passait au suivant, sans rien écrire. Dans un run de
     flotte, cet artiste n'était nulle part — la tâche restait SUCCESS.
     """
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+    tree = ast.parse(path if isinstance(path, str) else path.read_text(encoding="utf-8"))
     bad: list[int] = []
 
     def walk_block(stmts, in_tenant_loop: bool) -> None:
@@ -192,3 +192,22 @@ def test_no_tenant_loop_exit_leaves_the_ledger_silent(dag_file: str) -> None:
         f"recording anything. That tenant is then indistinguishable from one the DAG "
         f"never looked at — which is the whole defect this ledger exists to remove."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity: the 2026-09-18 shape — a per-tenant loop whose `except` logs and
+    `continue`s without writing a ledger row — is named; the same `except` recording
+    the failure, and one retaining the error for an outer gate, are not."""
+    head = ("def collect(tenants):\n"
+            "    errors = []\n"
+            "    for t in tenants:\n"
+            "        try:\n"
+            "            fetch(t)\n"
+            "            record_tenant_success(t)\n"
+            "        except Exception as e:\n")
+    silent = head + "            log.error(e)\n            continue\n"
+    assert _uncovered_continues(silent) == [9]
+    recorded = head + "            record_tenant_failure(t, e)\n            continue\n"
+    assert _uncovered_continues(recorded) == []
+    retained = head + "            errors.append(e)\n            continue\n"
+    assert _uncovered_continues(retained) == []
