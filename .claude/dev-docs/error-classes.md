@@ -3000,7 +3000,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: l'artiste choisit « 30 jours » et la figure lui montre autre chose, sans que rien ne le dise. Aucune erreur, aucun trou : des barres pleines, sur une période qui n'est pas celle qu'il a demandée.
 - root_cause: une vue Streamlit est un seul `show()` de plusieurs centaines de lignes. Le sélecteur de période y ouvre une fenêtre, et chaque requête écrite ensuite doit la reprendre — en SQL par un fragment, ou en pandas par un masque. Rien ne l'imposait : 29 vues dessinent des figures, 12 portent un sélecteur, et une seule — l'accueil — avait un garde sur leur cohérence.
-- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
+- cause_evidence: measured (2026-09-10, consigné dans `tests/test_a_chart_is_bounded_by_the_period_it_announces.py:8-12` — 29 vues dessinent des figures, 12 portent un sélecteur de période, et une seule, l'accueil, avait un garde sur leur cohérence ; rien n'imposait qu'une requête écrite sous le sélecteur reprenne sa fenêtre ; relu le 2026-09-26)
 - signature: `python3 -m pytest tests/test_a_chart_is_bounded_by_the_period_it_announces.py -q`
 - seen_red: 2026-09-12 (via la trace de mutation de `tests/test_a_chart_is_bounded_by_the_period_it_announces.py`, consignée par l'auteur du garde)
 - long_term_fix: un prédicat AST qui, pour chaque requête placée SOUS une ouverture de fenêtre, exige que la borne apparaisse — en SQL ou dans une COMPARAISON pandas. Cliquet à zéro. Règle générale : dans une vue mono-fonction, la portée d'un réglage se lit par la POSITION, pas par la fonction englobante.
@@ -5188,7 +5188,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: a view opens on several charts that all bear on the same decision. Nothing is wrong with any single chart; together they leave the artist unable to say what to do next, and the view reads as a report rather than a tool.
 - root_cause: charts accumulate additively — each is defensible when added, and no surface ever states a budget, so nobody is the one who removes.
-- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
+- cause_evidence: read (2026-09-26 — `tests/test_chart_budget.py:1-8` : retour bêta du 2026-08-12, « réduire le nombre de graphs qui permettent de prendre décision » ; les graphiques n'étaient pas faux, ils se disputaient la même décision, et aucune surface n'énonçait de budget)
 - signature: `python3 -m pytest tests/test_chart_budget.py -q`
 - seen_red: 2026-09-18 — en ajoutant un `st.plotly_chart` non protégé à `views/soundcloud.py` (budget de 1), le garde sort **1** ; **0** restauré.
 - long_term_fix: a chart is PRIMARY only if, alone, it can change what the artist does next; everything that refines goes inside `secondary_analyses()` (`src/dashboard/utils/ui.py`), collapsed — relocation, never deletion. `tests/test_chart_budget.py` holds a per-view first-paint budget that ratchets down: lowering is free, raising requires a deliberate edit.
