@@ -77,9 +77,9 @@ def test_the_label_never_lies_about_a_binary():
     )
 
 
-def _log_inserts() -> list[ast.Call]:
+def _log_inserts(source: str | None = None) -> list[ast.Call]:
     """Tout appel qui écrit dans `csv_upload_log`, lu sur l'AST et non sur le texte."""
-    tree = ast.parse(_VIEW.read_text(encoding="utf-8"))
+    tree = ast.parse(_VIEW.read_text(encoding="utf-8") if source is None else source)
     found = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not node.args:
@@ -102,20 +102,35 @@ def _log_inserts() -> list[ast.Call]:
     return found
 
 
+def serialization_missing(status: str, source: str | None = None) -> bool | None:
+    """Does the first `status` insert into csv_upload_log omit the serialization?
+    None when no insert of that status exists. Pure over `source`."""
+    for call in _log_inserts(source):
+        sql = ast.literal_eval(call.args[0])
+        if f"'{status}'" in sql:
+            return "serialization" not in sql
+    return None
+
+
 @pytest.mark.parametrize("status", ["rejected", "success"])
 def test_every_csv_log_insert_carries_the_serialization(status):
-    inserts = _log_inserts()
-    assert inserts, "aucune écriture dans csv_upload_log — garde à repointer"
-
-    for call in inserts:
-        sql = ast.literal_eval(call.args[0])
-        if f"'{status}'" not in sql:
-            continue
-        assert "serialization" in sql, (
-            f"l'écriture `{status}` n'enregistre pas la sérialisation retenue. "
-            "Les colonnes vues disent ce qu'on a lu, jamais avec quel encodage ni "
-            "quel séparateur — c'est exactement ce qui manquait le 2026-09-06."
-        )
-        break
-    else:
+    assert _log_inserts(), "aucune écriture dans csv_upload_log — garde à repointer"
+    missing = serialization_missing(status)
+    if missing is None:
         pytest.fail(f"aucune écriture de statut {status!r} dans csv_upload_log")
+    assert not missing, (
+        f"l'écriture `{status}` n'enregistre pas la sérialisation retenue. "
+        "Les colonnes vues disent ce qu'on a lu, jamais avec quel encodage ni "
+        "quel séparateur — c'est exactement ce qui manquait le 2026-09-06."
+    )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the 2026-09-06 insert (status and columns, no serialization) is
+    seen; the corrected insert is not; an f-string insert is skipped, not guessed."""
+    defect = ("db.execute(\"INSERT INTO csv_upload_log (artist_id, status, columns) "
+              "VALUES (%s, 'rejected', %s)\", args)\n")
+    assert serialization_missing("rejected", defect) is True
+    fixed = defect.replace("columns)", "columns, serialization)").replace("%s)", "%s, %s)")
+    assert serialization_missing("rejected", fixed) is False
+    assert serialization_missing("success", defect) is None

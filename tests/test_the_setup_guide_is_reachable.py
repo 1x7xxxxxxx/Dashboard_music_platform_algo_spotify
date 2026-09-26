@@ -47,6 +47,28 @@ def _nav_keys() -> set[str]:
     return menu_pages()
 
 
+def always_accessible(plans_source: str) -> set[str]:
+    """The page keys of `ALWAYS_ACCESSIBLE`, read off the AST. Pure."""
+    node = next(n for n in ast.walk(ast.parse(plans_source))
+                if isinstance(n, ast.Assign)
+                and any(getattr(t, "id", "") == "ALWAYS_ACCESSIBLE" for t in n.targets))
+    return {c.value for c in ast.walk(node.value)
+            if isinstance(c, ast.Constant) and isinstance(c.value, str)}
+
+
+def unreachable_because(page: str, nav: set[str], app_source: str,
+                        plans_source: str) -> list[str]:
+    """Every reason `page` cannot be reached by a free artist. Pure."""
+    why = []
+    if page not in nav:
+        why.append("absent du menu")
+    if f'page == "{page}"' not in app_source:
+        why.append("aucune branche de routage")
+    if page not in always_accessible(plans_source):
+        why.append("verrouillée par le plan")
+    return why
+
+
 def test_the_wizard_is_in_the_navigation():
     assert "onboarding" in _nav_keys(), (
         "`onboarding` n'est dans aucune section de navigation. C'est la page qui dit à "
@@ -65,14 +87,7 @@ def test_the_wizard_is_routed():
 
 def test_no_plan_locks_the_wizard():
     """Faire payer le droit de brancher ses propres comptes n'a pas de sens."""
-    text = _PLANS.read_text(encoding="utf-8")
-    tree = ast.parse(text)
-    node = next(n for n in ast.walk(tree)
-                if isinstance(n, ast.Assign)
-                and any(getattr(t, "id", "") == "ALWAYS_ACCESSIBLE" for t in n.targets))
-    keys = {c.value for c in ast.walk(node.value)
-            if isinstance(c, ast.Constant) and isinstance(c.value, str)}
-    assert "onboarding" in keys, (
+    assert "onboarding" in always_accessible(_PLANS.read_text(encoding="utf-8")), (
         "`onboarding` doit être dans ALWAYS_ACCESSIBLE : sinon un artiste au plan Free "
         "voit 🔒 sur la page qui lui explique comment se configurer."
     )
@@ -121,3 +136,25 @@ def test_the_navigation_rule_lives_in_one_place():
         "onboarding.py doit déléguer au helper partagé plutôt que reporter sa propre "
         "règle de navigation"
     )
+
+
+def test_the_wizard_is_reachable_on_every_count():
+    """The three conditions together, through the same predicate the proof below runs."""
+    assert unreachable_because("onboarding", _nav_keys(), _APP.read_text(encoding="utf-8"),
+                               _PLANS.read_text(encoding="utf-8")) == []
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: a page that exists but is off the menu, unrouted and plan-locked —
+    the setup guide before 2026-08 — is refused on all three counts; each fix clears
+    exactly its own reason."""
+    plans_locked = "ALWAYS_ACCESSIBLE = frozenset({'home', 'account'})\n"
+    plans_open = "ALWAYS_ACCESSIBLE = frozenset({'home', 'account', 'onboarding'})\n"
+    routed = 'if page == "home": pass\nelif page == "onboarding": pass\n'
+    assert unreachable_because("onboarding", {"home"}, 'if page == "home": pass\n',
+                               plans_locked) == [
+        "absent du menu", "aucune branche de routage", "verrouillée par le plan"]
+    assert unreachable_because("onboarding", {"home", "onboarding"}, routed,
+                               plans_locked) == ["verrouillée par le plan"]
+    assert unreachable_because("onboarding", {"home", "onboarding"}, routed,
+                               plans_open) == []

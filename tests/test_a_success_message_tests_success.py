@@ -172,3 +172,24 @@ def test_a_refused_trigger_is_remembered_and_rendered():
             "Mémoriser sans afficher — ou afficher sans mémoriser — remplace un faux "
             "vert par un silence, ce qui est le même défaut."
         )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, with the trap the docstring above names: the faulty « Lancé ! »
+    already lived under an `if` — the BUTTON's. That shape must be refused; the same
+    message under `if launched:` accepted."""
+    def stray(src: str) -> list[int]:
+        tree = ast.parse(src)
+        guarded = _guarded_lines(tree)
+        return [c.lineno for c in _success_calls(tree) if c.lineno not in guarded]
+
+    defect = ("if st.sidebar.button('Lancer'):\n"
+              "    for p in platforms:\n"
+              "        trigger(p)\n"
+              "    st.sidebar.success(t('app.launched'))\n")
+    assert stray(defect) == [4]
+    fixed = ("if st.sidebar.button('Lancer'):\n"
+             "    launched = [p for p in platforms if trigger(p)]\n"
+             "    if launched:\n"
+             "        st.sidebar.success(t('app.launched'))\n")
+    assert stray(fixed) == []
