@@ -82,6 +82,41 @@ def test_no_artist_facing_text_asks_for_operator_access():
     )
 
 
+def meta_step_defects(texts: list[str]) -> list[str]:
+    """What is wrong with the Meta steps, from the ARTIST's screen. Pure.
+
+    `no-share`: no step asks them to share their ad account with us.
+    `asks-for-our-app`: a step sends them to their own apps list, where an app owned
+    by our Business Manager cannot appear (the 2026-06-19 blocker).
+    `share-after-test`: the connection test comes before the sharing it needs.
+    """
+    share = [i for i, t in enumerate(texts)
+             if "Donner à un partenaire" in t or "Give a partner access" in t]
+    joined = " ".join(texts)
+    test_step = [i for i, t in enumerate(texts)
+                 if "Tester la connexion" in t or "Test connection" in t
+                 or "API Credentials → Meta" in t or "Credentials API → Meta" in t]
+    defects = [] if share else ["no-share"]
+    if "Applications" in joined or "→ Apps" in joined:
+        defects.append("asks-for-our-app")
+    if share and test_step and min(share) >= min(test_step):
+        defects.append("share-after-test")
+    return defects
+
+
+def test_the_meta_step_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, class `instruction-assumes-visibility-the-reader-does-not-have`:
+    the pre-2026-09-05 guide — look for our app in YOUR Business Manager, then test —
+    is named; the sharing step placed before the test is not."""
+    old = ["Business Manager → Applications → cherche ETL_DASHBOARD_SPOTIFY",
+           "Tester la connexion"]
+    assert meta_step_defects(old) == ["no-share", "asks-for-our-app"]
+    late = ["Tester la connexion", "Donner à un partenaire l'accès : notre Business ID"]
+    assert meta_step_defects(late) == ["share-after-test"]
+    good = ["Donner à un partenaire l'accès : notre Business ID", "Tester la connexion"]
+    assert meta_step_defects(good) == []
+
+
 def test_the_meta_sharing_step_is_the_artists_and_comes_before_the_test():
     """The step that blocked the 2026-06-19 session, in both languages."""
     for lang, guide in _catalogues():
@@ -108,27 +143,13 @@ def test_the_meta_sharing_step_is_the_artists_and_comes_before_the_test():
         # Un garde qui interroge l'environnement de son exécution n'interroge pas le
         # code. On cherche donc le vocabulaire du partage, présent dans les deux
         # branches et dans les deux langues, et rien d'autre.
-        share = [i for i, t in enumerate(texts)
-                 if "Donner à un partenaire" in t or "Give a partner access" in t]
-        assert share, (
-            f"{lang}/meta ne dit plus à l'artiste de nous PARTAGER son compte "
-            "publicitaire. Sans ce partage la collecte ne lit rien, quel que soit "
-            "l'identifiant collé."
-        )
-        # Et jamais l'ancienne consigne : elle envoyait chercher, dans SON Business
-        # Manager, une application qui ne peut pas y être.
-        joined = " ".join(texts)
-        assert "Applications" not in joined and "→ Apps" not in joined, (
-            f"{lang}/meta renvoie l'artiste chercher notre app dans SA liste "
-            "d'applications — elle ne peut pas y apparaître")
-        test_step = [i for i, t in enumerate(texts)
-                     if "Tester la connexion" in t or "Test connection" in t
-                     or "API Credentials → Meta" in t or "Credentials API → Meta" in t]
-        if test_step:
-            assert min(share) < min(test_step), (
-                f"{lang}/meta puts the sharing step AFTER the connection test. The "
-                "test fails without it, so the artist meets the failure before the fix."
-            )
+        defects = meta_step_defects(texts)
+        assert not defects, (
+            f"{lang}/meta : {defects}. `no-share` — l'artiste n'est plus invité à nous "
+            "PARTAGER son compte publicitaire, et sans ce partage la collecte ne lit rien ; "
+            "`asks-for-our-app` — il est renvoyé chercher notre app dans SA liste "
+            "d'applications, où elle ne peut pas apparaître ; `share-after-test` — le "
+            "test échoue sans le partage, donc l'artiste rencontre l'échec avant le remède.")
 
 
 def test_admin_note_is_gated_on_screen_and_absent_from_the_pdf():
