@@ -25,6 +25,9 @@ graph TD
     C -->|upsert_many| D[(PostgreSQL<br/>spotify_etl<br/>port 5433)]
     C -->|metadata| E[(PostgreSQL<br/>airflow_db<br/>port 5433)]
 
+    %% Les services 8501 et 8502 sont ceux de la PRODUCTION (docker-compose.example.yml,
+    %% `dashboard:` et `api:`) ; le docker-compose.yml local ne porte que postgres et
+    %% Airflow — en local, le dashboard se lance à la main (`make dashboard`).
     D -->|fetch_df| F[streaMLytics<br/>Streamlit — port 8501]
 
     %% Les CSV n'entrent PAS par Airflow. Les 4 `*_csv_watcher` ont ete supprimes le
@@ -247,6 +250,10 @@ flowchart TD
     %% Ce que le flux ci-dessus NE montrait PAS jusqu'au 2026-09-18, et qui existe.
     SUCCESS --> LOG[record_tenant_success/failure/skip<br/>etl_run_log]
     FINAL --> LOG
+    %% Second chemin, absent jusqu'au 2026-09-26 : un DAG qui ouvre `with DagRunLogger(…)`
+    %% (meta_ads_api_daily) atteint le même journal et le même disjoncteur sans appeler
+    %% record_tenant_* (revue d'architecture du 2026-09-26).
+    DRL[with DagRunLogger — meta_ads_api_daily] -->|__exit__| LOG
     LOG -->|_record_on_the_breaker| CB[(etl_circuit_breaker)]
     CB -.->|ouvre apres N echecs| A
 ```
