@@ -130,6 +130,12 @@ def test_the_extraction_is_not_vacuous():
     assert len(_views()) > 20, "views/ yielded almost nothing — check the listing"
 
 
+def named_as(view: str, body: str) -> tuple[bool, bool]:
+    """(named as a FILE `x.py`, named as a PACKAGE `x/`) in the map. Pure."""
+    return (re.search(rf"`{re.escape(view)}\.py`", body) is not None,
+            re.search(rf"`{re.escape(view)}/`", body) is not None)
+
+
 @pytest.mark.parametrize("view", sorted(_views()))
 def test_the_map_says_whether_a_view_is_a_file_or_a_package(view):
     r"""Le NOM ne suffit pas : la carte doit dire la FORME.
@@ -148,8 +154,7 @@ def test_the_map_says_whether_a_view_is_a_file_or_a_package(view):
     """
     body = _views_map_text()
     paquet = _is_package(view)
-    comme_fichier = re.search(rf"`{re.escape(view)}\.py`", body) is not None
-    comme_paquet = re.search(rf"`{re.escape(view)}/`", body) is not None
+    comme_fichier, comme_paquet = named_as(view, body)
     if paquet:
         assert comme_paquet and not comme_fichier, (
             f"`{view}` est un PAQUET sur le disque "
@@ -175,8 +180,10 @@ def test_the_form_predicate_separates_the_two_shapes():
     serait vert sur l'arbre réel et aveugle le jour où il compte.
     """
     corps = "| `foo.py` | une vue | - | all |\n| `bar/` (package) | une autre | - | all |"
-    assert re.search(r"`foo\.py`", corps) and not re.search(r"`foo/`", corps)
-    assert re.search(r"`bar/`", corps) and not re.search(r"`bar\.py`", corps)
+    # The guard's own predicate — this proof ran literal regexes of its own until
+    # 2026-09-26 (class `a-proof-that-tests-a-copy-of-its-detector`).
+    assert named_as("foo", corps) == (True, False)
+    assert named_as("bar", corps) == (False, True)
     # Et le motif de l'ANCIEN garde ne les separe PAS — c'est le defaut lui-meme.
     def ancien(v):
         return re.search(rf"`{v}(?:\.py|/)?`", corps) is not None

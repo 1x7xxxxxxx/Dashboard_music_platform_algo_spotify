@@ -131,6 +131,20 @@ def test_the_api_imports_with_the_excluded_packages_blocked():
     )
 
 
+def excluded_imports(source: str) -> list[tuple[int, str]]:
+    """(line, package) of every import of an excluded package, at ANY scope. Pure."""
+    out = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import):
+            names = [a.name.split(".")[0] for a in node.names]
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            names = [node.module.split(".")[0]]
+        else:
+            continue
+        out += [(node.lineno, n) for n in names if n in EXCLUDED_MODULES]
+    return out
+
+
 def test_no_api_module_imports_an_excluded_package_at_any_scope():
     """Lexical backstop for the shape a runtime import test can still miss.
 
@@ -139,19 +153,9 @@ def test_no_api_module_imports_an_excluded_package_at_any_scope():
     tree is read as well — an import statement anywhere under src/api naming an
     excluded package is a defect regardless of when it would execute.
     """
-    offenders = []
-    for path in sorted((_ROOT / "src" / "api").rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                names = [a.name.split(".")[0] for a in node.names]
-            elif isinstance(node, ast.ImportFrom) and node.module:
-                names = [node.module.split(".")[0]]
-            else:
-                continue
-            for n in names:
-                if n in EXCLUDED_MODULES:
-                    offenders.append(f"{path.relative_to(_ROOT)}:{node.lineno} -> {n}")
+    offenders = [f"{path.relative_to(_ROOT)}:{line} -> {n}"
+                 for path in sorted((_ROOT / "src" / "api").rglob("*.py"))
+                 for line, n in excluded_imports(path.read_text(encoding="utf-8"))]
     assert not offenders, (
         "These API modules import a package the API image no longer ships:\n  "
         + "\n  ".join(offenders)
@@ -160,15 +164,14 @@ def test_no_api_module_imports_an_excluded_package_at_any_scope():
 
 def test_the_lexical_backstop_goes_red_on_a_lazy_import(tmp_path):
     """Mutation: the shape the runtime proof cannot see must still be caught."""
-    mutant = tmp_path / "handler.py"
-    mutant.write_text(
-        "def endpoint():\n"
-        "    import shap\n"
-        "    return shap\n", encoding="utf-8")
-    tree = ast.parse(mutant.read_text(encoding="utf-8"))
-    hits = [n for n in ast.walk(tree) if isinstance(n, ast.Import)
-            and any(a.name.split(".")[0] in EXCLUDED_MODULES for a in n.names)]
-    assert hits, "the lexical rule does not see a function-scope import"
+    # The guard's OWN predicate, not a copy of it: until 2026-09-26 this proof rebuilt
+    # the rule inline, so breaking `excluded_imports` would have left it green
+    # (class `a-proof-that-tests-a-copy-of-its-detector`).
+    pkg = sorted(EXCLUDED_MODULES)[0]
+    lazy = f"def endpoint():\n    import {pkg}\n    return {pkg}\n"
+    assert excluded_imports(lazy) == [(2, pkg)], "a function-scope import is not seen"
+    assert excluded_imports(f"def endpoint():\n    from {pkg}.x import y\n") == [(2, pkg)]
+    assert excluded_imports("import json\n") == []
 
 
 # ── Les CONTRAINTES, pas seulement les NOMS — 2026-09-18 ─────────────────────

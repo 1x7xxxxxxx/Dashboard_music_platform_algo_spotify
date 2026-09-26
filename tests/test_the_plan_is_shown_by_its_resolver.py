@@ -59,10 +59,14 @@ def _chaines(path: pathlib.Path) -> list[str]:
             and id(n) not in docs]
 
 
+def selects_raw_tier(sql: str) -> bool:
+    """Does this string SELECT the raw `tier` column instead of asking the resolver?"""
+    return bool(re.search(r"\bSELECT\b", sql, re.I)
+                and re.search(r"\b(?:a|sa)\.tier\b|\btier\s+AS\b", sql, re.I))
+
+
 def test_the_account_page_does_not_select_the_raw_tier() -> None:
-    fautifs = [" ".join(s.split())[:100] for s in _chaines(_VUE)
-               if re.search(r"\bSELECT\b", s, re.I)
-               and re.search(r"\b(?:a|sa)\.tier\b|\btier\s+AS\b", s, re.I)]
+    fautifs = [" ".join(s.split())[:100] for s in _chaines(_VUE) if selects_raw_tier(s)]
     assert not fautifs, (
         "`account.py` sélectionne la colonne `tier` :\n  " + "\n  ".join(fautifs)
         + "\nC'est le REPLI de `get_artist_plan()`, pas la réponse. L'artiste 1 "
@@ -105,7 +109,9 @@ def test_the_detector_sees_the_query_it_was_written_for() -> None:
     """La requête EXACTE qui vivait dans la page, et la version saine."""
     fautive = ("SELECT u.id, u.username, a.name AS artist_name, "
                "a.slug AS artist_slug, a.tier AS artist_tier FROM saas_users u")
-    assert re.search(r"\b(?:a|sa)\.tier\b|\btier\s+AS\b", fautive, re.I)
+    # The guard's own predicate — until 2026-09-26 this proof carried its own copy of
+    # the regex (class `a-proof-that-tests-a-copy-of-its-detector`).
+    assert selects_raw_tier(fautive)
     saine = ("SELECT u.id, u.username, a.name AS artist_name FROM saas_users u "
              "LEFT JOIN saas_artists a ON u.artist_id = a.id")
-    assert not re.search(r"\b(?:a|sa)\.tier\b|\btier\s+AS\b", saine, re.I)
+    assert not selects_raw_tier(saine)

@@ -15,13 +15,16 @@ Sweep the same day (rule 20 funnel): 19 proofs referenced no helper by a naive p
 → 18 called through a module alias (`import x as mod`, `mod.frozen(...)`) → 1 called the
 guard's own `test_*` checks → 0 live sites beyond the fixed one. This guard keeps it at 0.
 
-Does NOT cover: a proof under ANOTHER name — the 2026-09-26 one was called
-`test_the_predicate_sees_the_lazy_form`, and this guard reads only the canonical name
-(renamed when fixed). Nor a proof that calls a helper AND rebuilds the predicate beside it.
+Covers the canonical proof name AND proof-like names (`_PROOF_LIKE`) — widened the same
+day after four more sites were found under other names. Does NOT cover: a proof named
+like an ordinary test; a proof that calls a helper AND rebuilds the predicate beside it.
+Nor a proof that writes its fabricated source to `tmp_path` and READS it back — the
+read-a-file exemption lets it through (`test_the_api_image_…` before 2026-09-26 was one).
 """
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 _TESTS = Path(__file__).resolve().parent
@@ -45,18 +48,34 @@ def _module_names(tree: ast.Module) -> set[str]:
     return out - _STDLIB_NOISE - {_PROOF}
 
 
+# Proof-like names, not only the canonical one: four of the first five sites carried
+# another name (`…lazy_form`, `…would_reject…`, `…goes_red_on_a_lazy_import`,
+# `…separates_the_two_shapes`) — the first version of this guard read only `_PROOF`.
+_PROOF_LIKE = re.compile(
+    r"detector|vacu|goes_red|would_reject|sees_|actually_|separates|really_")
+
+
 def proofs_over_a_copy(source: str) -> list[int]:
-    """Lines of proofs that touch nothing the module defines or imports. Pure."""
+    """Lines of proofs that touch nothing the module defines or imports. Pure.
+
+    A proof that imports locally, or reads a real source file, is exercising the real
+    thing and is not a copy.
+    """
     tree = ast.parse(source)
     known = _module_names(tree)
     hits = []
     for fn in tree.body:
-        if not (isinstance(fn, ast.FunctionDef) and fn.name == _PROOF):
+        if not (isinstance(fn, ast.FunctionDef) and fn.name.startswith("test_")
+                and (fn.name == _PROOF or _PROOF_LIKE.search(fn.name))):
             continue
-        if any(isinstance(n, ast.ImportFrom) for n in ast.walk(fn)):
+        if any(isinstance(n, (ast.ImportFrom, ast.Import)) for n in ast.walk(fn)):
             continue                      # imports the detector locally: it calls it
+        if any(isinstance(n, ast.Call)
+               and getattr(n.func, "attr", "") in ("read_text", "read_bytes", "open")
+               for n in ast.walk(fn)):
+            continue                      # reads the real source: not a copy
         used = {n.id for n in ast.walk(fn) if isinstance(n, ast.Name)}
-        if not used & known:
+        if not used & (known - {fn.name}):
             hits.append(fn.lineno)
     return hits
 

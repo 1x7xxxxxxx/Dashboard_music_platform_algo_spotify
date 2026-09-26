@@ -54,16 +54,23 @@ def _open_coded_fallbacks() -> list[str]:
             tree = ast.parse(f.read_text(encoding="utf-8"))
         except SyntaxError:
             continue
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.If):
-                continue
-            test = ast.dump(node.test)
-            if "artist_id" not in test or "NotEq" in test:
-                continue
-            body = ast.dump(ast.Module(body=node.body, type_ignores=[]))
-            if "value=1" in body and "artist_id" in body:
-                sites.append(f"{f.relative_to(VIEWS)}:{node.lineno}")
+        sites += [f"{f.relative_to(VIEWS)}:{ln}" for ln in fallback_lines(tree)]
     return sites
+
+
+def fallback_lines(tree: ast.AST) -> list[int]:
+    """Lines of `if <artist_id> is None:` blocks that reset the id to 1. Pure."""
+    out = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.If):
+            continue
+        test = ast.dump(node.test)
+        if "artist_id" not in test or "NotEq" in test:
+            continue
+        body = ast.dump(ast.Module(body=node.body, type_ignores=[]))
+        if "value=1" in body and "artist_id" in body:
+            out.append(node.lineno)
+    return out
 
 
 def test_no_view_rewrites_the_admin_fallback_by_hand() -> None:
@@ -85,17 +92,12 @@ def test_the_predicate_still_sees_the_shape_it_was_written_for() -> None:
         "    if not is_admin():\n"
         "        st.stop()\n"
         "    artist_id = 1\n")
-    seen = 0
-    for node in ast.walk(probe):
-        if not isinstance(node, ast.If):
-            continue
-        test = ast.dump(node.test)
-        if "artist_id" not in test or "NotEq" in test:
-            continue
-        body = ast.dump(ast.Module(body=node.body, type_ignores=[]))
-        if "value=1" in body and "artist_id" in body:
-            seen += 1
-    assert seen == 1, "le prédicat du repli admin est devenu aveugle à sa propre forme"
+    # The guard's own predicate — this proof carried a copy of the loop until
+    # 2026-09-26 (class `a-proof-that-tests-a-copy-of-its-detector`).
+    assert fallback_lines(probe) == [2], (
+        "le prédicat du repli admin est devenu aveugle à sa propre forme")
+    helper = ast.parse("artist_id = _resolve_artist_id()\n")
+    assert fallback_lines(helper) == []
 
 
 def test_the_two_hypeddit_helpers_share_one_decision() -> None:
