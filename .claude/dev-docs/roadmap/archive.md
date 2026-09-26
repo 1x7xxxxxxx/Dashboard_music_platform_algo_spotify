@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R203 — Dossier PDF de TOUS les graphiques (Streamlytics + Grafana) pour une revue avec le prop… (livrée 2026-09-26)
+
+- [x] **R203 — Dossier PDF de TOUS les graphiques (Streamlytics + Grafana) pour une revue avec le propriétaire avant déploiement : chaque figure rendue sur données réelles, sa question de décision, une note d'impact/pertinence (robustesse d'archi, KPI de monitoring par plateforme, prédictions), et les recommandations du corpus** (P2) ✅ (2026-09-26, 61e1a93)
+  Mesuré par : le PDF généré + `tests/test_the_charts_dossier_covers_every_figure.py`
+  PDF de 95 pages livré dans C:\Users\timot\streamlytics-revue\dossier-graphiques.pdf ; 133 graphiques notés ; les verdicts deviennent des lignes de roadmap après la revue avec le propriétaire.
+  Commits : 61e1a93 R203 : dossier PDF de tous les graphiques (app, PDF artiste, Grafana),
+
 ## ✅ R201 — Retirer les 2 rappels redondants (`check_roadmap_update.py`, `draft_roadmap.py`) et cor… (livrée 2026-09-26)
 
 - [x] **R201 — Retirer les 2 rappels redondants (`check_roadmap_update.py`, `draft_roadmap.py`) et corriger ~15 références périmées de la gestion de roadmap** (P4) ✅ (2026-09-26, e18f785)

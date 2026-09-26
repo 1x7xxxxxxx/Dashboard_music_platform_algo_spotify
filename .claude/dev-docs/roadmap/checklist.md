@@ -31,7 +31,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R202 | R122 à rouvrir : `ever_recurred_observed` = 49, au-dessus de son seuil (les récidives R190 et R191 du 2026-09-26) — et le libellé du déclencheur dit « au-dessus de 47 » quand l'évaluateur teste 48 <!-- anchor: r122-reopened --> <!-- critic: non — relecture de catalogue, pas de code produit --> | P3 | `make reopen-check` |
-| R203 | Dossier PDF de TOUS les graphiques (Streamlytics + Grafana) pour une revue avec le propriétaire avant déploiement : chaque figure rendue sur données réelles, sa question de décision, une note d'impact/pertinence (robustesse d'archi, KPI de monitoring par plateforme, prédictions), et les recommandations du corpus <!-- anchor: charts-review-dossier --> <!-- critic: requis --> | P2 | le PDF généré + `tests/test_the_charts_dossier_covers_every_figure.py` |
 
 ---
 
@@ -87,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R202, R203 -->
+<!-- reprise: open=R202 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
