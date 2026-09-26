@@ -306,3 +306,52 @@ def test_python_reads_the_levels_instead_of_rebuilding_them() -> None:
     assert not rebuilt, (
         f"{len(rebuilt)} requête(s) du module refont le report en avant que la vue "
         "porte déjà — c'est une seconde définition du même niveau.")
+
+
+# ── Une surcharge qui rend l'ancien appel ambigu ─────────────────────────────
+# Classe `an-overload-makes-the-old-call-ambiguous`. La migration 103 a ajouté
+# `gold_apple_lifetime(integer, text DEFAULT 'plays')` à côté de la version à un
+# argument : un appel à UN argument matche les deux, Postgres lève `AmbiguousFunction`,
+# et l'`except` d'affichage le rend en zéro affirmé. La règle se lit dans le catalogue :
+# deux surcharges dont les PLAGES d'arité se chevauchent.
+
+
+def ambiguous_overloads(procs: list[tuple[str, int, int]]) -> list[str]:
+    """Names with two overloads whose arity ranges overlap. Each proc is
+    `(name, nargs, ndefaults)`; it accepts `nargs - ndefaults .. nargs` arguments. Pure.
+
+    Overlapping ranges are what Postgres cannot resolve by count alone — the
+    catalogue signature's `(a.nargs - a.defaults) <= b.nargs AND (b.nargs -
+    b.defaults) <= a.nargs`.
+    """
+    out = set()
+    for i, (name_a, n_a, d_a) in enumerate(procs):
+        for name_b, n_b, d_b in procs[i + 1:]:
+            if name_a == name_b and n_a - d_a <= n_b and n_b - d_b <= n_a:
+                out.add(name_a)
+    return sorted(out)
+
+
+def test_the_overload_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity: migration 103's pair — `(int)` beside `(int, text DEFAULT …)` —
+    is ambiguous; two overloads whose arities do not overlap are not, nor are two
+    different names."""
+    assert ambiguous_overloads([("gold_apple_lifetime", 1, 0),
+                                ("gold_apple_lifetime", 2, 1)]) == ["gold_apple_lifetime"]
+    assert ambiguous_overloads([("gold_x", 1, 0), ("gold_x", 3, 1)]) == []
+    assert ambiguous_overloads([("gold_x", 1, 0), ("gold_y", 1, 0)]) == []
+
+
+def test_no_gold_function_has_an_ambiguous_overload(scratch) -> None:
+    scratch.execute(
+        "SELECT p.proname, p.pronargs, p.pronargdefaults FROM pg_proc p "
+        "JOIN pg_namespace n ON n.oid = p.pronamespace "
+        "WHERE n.nspname = 'public' AND p.proname LIKE 'gold_%%'")
+    procs = [(r[0], int(r[1]), int(r[2])) for r in scratch.fetchall()]
+    assert procs, "aucune fonction gold_* dans la base — la couche or n'est pas là"
+    bad = ambiguous_overloads(procs)
+    assert not bad, (
+        f"{bad} : deux surcharges dont les plages d'arité se chevauchent. Un appel "
+        "existant devient `AmbiguousFunction`, que l'`except` d'affichage rend en "
+        "zéro affirmé. Ajouter un paramètre à défaut n'est PAS rétrocompatible en "
+        "SQL : supprimer l'ancienne signature dans la même migration.")
