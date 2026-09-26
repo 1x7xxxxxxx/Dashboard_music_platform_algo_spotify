@@ -186,3 +186,21 @@ def test_the_host_clock_check_measures_drift_not_zone():
         "That requirement came from another deployment; this one only needs the "
         "clock synchronised."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path):
+    """Non-vacuity on FABRICATED repos: each probe must name what THAT repo declares —
+    a hardcoded or host-wide list answers the same for both, and is refused here."""
+    mod = _load(HOOKS / "session_summary.py")
+    a, b = tmp_path / "a", tmp_path / "b"
+    for root, names in ((a, ["alpha_pg", "alpha_web"]), (b, ["beta_pg"])):
+        root.mkdir()
+        (root / "docker-compose.yml").write_text(
+            "services:\n" + "".join(f"  s{i}:\n    container_name: {n}\n"
+                                    for i, n in enumerate(names)), encoding="utf-8")
+    assert set(mod._expected_containers(str(a))) == {"alpha_pg", "alpha_web"}
+    assert set(mod._expected_containers(str(b))) == {"beta_pg"}
+    empty = tmp_path / "none"
+    empty.mkdir()
+    assert mod._expected_containers(str(empty)) == (), (
+        "a repo declaring nothing must observe nothing, never fall back to the host")

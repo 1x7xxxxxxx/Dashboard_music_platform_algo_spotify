@@ -72,6 +72,13 @@ def _packages_the_dags_import() -> set:
     return {p for p in wanted if (REPO / p).is_dir()} - _RUNTIME_PROVIDED
 
 
+def under_mounted(packages: set, compose_text: str) -> dict:
+    """{package: services mounting it} for every package NOT in all DAG services. Pure."""
+    mounted = [t for _, t in _MOUNT.findall(compose_text)]
+    return {p: mounted.count(p) for p in sorted(packages)
+            if mounted.count(p) != len(_DAG_SERVICES)}
+
+
 def test_the_scope_is_not_empty():
     """Non-vacuity: everything below iterates these two sets."""
     found = _packages_the_dags_import()
@@ -92,7 +99,7 @@ def test_the_exclusion_list_stays_small_and_justified():
 @pytest.mark.parametrize("pkg", sorted(_packages_the_dags_import()))
 def test_the_template_mounts_every_package_a_dag_imports(pkg):
     mounted = [t for _, t in _mounts(TEMPLATE)]
-    assert mounted.count(pkg) == len(_DAG_SERVICES), (
+    assert not under_mounted({pkg}, TEMPLATE.read_text(encoding="utf-8")), (
         f"`{pkg}` is imported by a DAG and mounted into {mounted.count(pkg)} of "
         f"{len(_DAG_SERVICES)} Airflow services in docker-compose.example.yml. The "
         "checks that use it will answer 'could not run', and that reaches the alert "
@@ -120,3 +127,18 @@ def test_the_local_copy_has_not_drifted_from_the_template(pkg):
         f"your local docker-compose.yml mounts `{pkg}` into {mounted.count(pkg)} of "
         f"{len(_DAG_SERVICES)} Airflow services; the template mounts it into all "
         "three. Re-derive it from docker-compose.example.yml.")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: `tools` mounted into two of the three Airflow services — the checks
+    answering « could not run » in the scheduler — is named; three of three is not."""
+    def compose(tools_in: int) -> str:
+        out = "services:\n"
+        for i, svc in enumerate(_DAG_SERVICES):
+            out += f"  {svc}:\n    volumes:\n      - ./src:/opt/airflow/src:ro\n"
+            if i < tools_in:
+                out += "      - ./tools:/opt/airflow/tools:ro\n"
+        return out
+
+    assert under_mounted({"src", "tools"}, compose(2)) == {"tools": 2}
+    assert under_mounted({"src", "tools"}, compose(3)) == {}

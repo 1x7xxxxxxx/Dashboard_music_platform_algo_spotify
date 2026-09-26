@@ -119,6 +119,27 @@ def test_the_architecture_diagram_names_no_phantom_table() -> None:
     )
 
 
+def sql_mentions(source: str, table: str) -> list[int]:
+    """Lines of string literals naming `table` that are NOT docstrings. Pure.
+
+    Docstrings are EXCLUDED by construction: this guard went red on its own explanation
+    of the fix on its first run — what the repo catalogues as « a textual guard is
+    blind ». Only strings that can actually leave as SQL are kept.
+    """
+    import ast
+
+    tree = ast.parse(source)
+    docstrings = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            doc = ast.get_docstring(node, clean=False)
+            if doc is not None:
+                docstrings.add(doc)
+    return [node.lineno for node in ast.walk(tree)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
+            and table in node.value and node.value not in docstrings]
+
+
 def test_no_dashboard_view_reads_the_unwritten_metrics_table() -> None:
     """`etl_daily_metrics` n'a aucun écrivain : personne ne doit la lire.
 
@@ -132,27 +153,23 @@ def test_no_dashboard_view_reads_the_unwritten_metrics_table() -> None:
     readers = []
     for f in (REPO / "src").rglob("*.py"):
         try:
-            tree = ast.parse(f.read_text(encoding="utf-8", errors="ignore"))
+            lines = sql_mentions(f.read_text(encoding="utf-8", errors="ignore"),
+                                 "etl_daily_metrics")
         except SyntaxError:
             continue
-        # Les docstrings sont EXCLUES par construction : ce garde a rougi sur sa propre
-        # explication du correctif à sa première exécution — le motif exact que le
-        # dépôt catalogue sous « un garde textuel est aveugle ». On ne regarde donc que
-        # les chaînes qui ne sont pas la docstring d'un module, d'une classe ou d'une
-        # fonction, c'est-à-dire celles qui peuvent réellement partir en SQL.
-        docstrings = set()
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.Module, ast.ClassDef,
-                                 ast.FunctionDef, ast.AsyncFunctionDef)):
-                doc = ast.get_docstring(node, clean=False)
-                if doc is not None:
-                    docstrings.add(doc)
-        for node in ast.walk(tree):
-            if (isinstance(node, ast.Constant) and isinstance(node.value, str)
-                    and "etl_daily_metrics" in node.value
-                    and node.value not in docstrings):
-                readers.append(f"{f.relative_to(REPO)}:{node.lineno}")
+        readers += [f"{f.relative_to(REPO)}:{ln}" for ln in lines]
     assert not readers, (
         "lecture de `etl_daily_metrics`, que rien n'écrit dans ce dépôt : "
         + ", ".join(readers) + ". Le registre écrit à chaque collecte est "
         "`etl_run_log` (`src/utils/dag_run_logger.py`).")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity: the quality page reading the unwritten table in SQL is named; the
+    docstring explaining why it must not — the first run's false alarm — is not."""
+    defect = ('def panel(db):\n'
+              '    """Reads etl_run_log, never etl_daily_metrics."""\n'
+              '    return db.fetch_df("SELECT * FROM etl_daily_metrics")\n')
+    assert sql_mentions(defect, "etl_daily_metrics") == [3]
+    fixed = defect.replace('FROM etl_daily_metrics', 'FROM etl_run_log')
+    assert sql_mentions(fixed, "etl_daily_metrics") == []
