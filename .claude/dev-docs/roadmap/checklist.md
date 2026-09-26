@@ -31,6 +31,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R202 | R122 à rouvrir : `ever_recurred_observed` = 49, au-dessus de son seuil (les récidives R190 et R191 du 2026-09-26) — et le libellé du déclencheur dit « au-dessus de 47 » quand l'évaluateur teste 48 <!-- anchor: r122-reopened --> <!-- critic: non — relecture de catalogue, pas de code produit --> | P3 | `make reopen-check` |
+| R204 | Retours du propriétaire sur le dossier des graphiques : fiches numérotées + guide de dictée dans le PDF, avis rattachés dans `review.yaml`, tri par CAUSE (une ligne de roadmap corrige plusieurs graphiques), arbitrage AVANT toute inscription d'action <!-- anchor: charts-review-feedback --> <!-- critic: non — outillage de revue, aucun code produit --> | P2 | `tests/test_the_charts_dossier_covers_every_figure.py` |
 
 ---
 
@@ -86,7 +87,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R202 -->
+<!-- reprise: open=R202, R204 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
