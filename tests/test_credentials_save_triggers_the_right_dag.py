@@ -69,6 +69,31 @@ def test_single_identity_tabs_are_unchanged() -> None:
     assert dags_for_save("soundcloud", {"user_id": "377065610"}) == ["soundcloud_daily"]
 
 
+def unreachable_dags(platforms: dict, dag_map: dict, dags_for) -> set[str]:
+    """DAGs of the map that no field of any tab can start — walked by FIELD. Pure."""
+    reachable = set()
+    for tab, info in platforms.items():
+        for field in (f["key"] for f in info.get("fields", [])):
+            reachable.update(dags_for(tab, {field: "probe"}))
+    return set(dag_map.values()) - reachable
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity: the original map keyed on an `'instagram'` TAB that no longer
+    existed — `instagram_daily` promised, nothing able to start it — is named; once a
+    tab carries the field, it is not."""
+    dag_map = {"meta": "meta_ads_api_daily", "instagram": "instagram_daily"}
+    field_to_dag = {"account_id": "meta_ads_api_daily", "ig_user_id": "instagram_daily"}
+
+    def dags_for(_tab, extra):
+        return [field_to_dag[k] for k in extra if k in field_to_dag]
+
+    one_tab = {"meta": {"fields": [{"key": "account_id"}]}}
+    assert unreachable_dags(one_tab, dag_map, dags_for) == {"instagram_daily"}
+    two_tabs = {**one_tab, "instagram": {"fields": [{"key": "ig_user_id"}]}}
+    assert unreachable_dags(two_tabs, dag_map, dags_for) == set()
+
+
 def test_no_dag_map_key_is_unreachable() -> None:
     """The assertion that would have failed on the original `'instagram'` tab key.
 
@@ -80,11 +105,7 @@ def test_no_dag_map_key_is_unreachable() -> None:
     # partagent la ligne `meta`, ce calcul déclarait `instagram_daily` inatteignable
     # alors qu'il est atteint par l'onglet Instagram. Le test mesurait le modèle
     # d'hier, pas la question qu'il pose.
-    reachable = set()
-    for tab, info in PLATFORMS.items():
-        for field in (f["key"] for f in info.get("fields", [])):
-            reachable.update(dags_for_save(tab, {field: "probe"}))
-    unreachable = set(_IDENTITY_DAG_MAP.values()) - reachable
+    unreachable = unreachable_dags(PLATFORMS, _IDENTITY_DAG_MAP, dags_for_save)
     assert not unreachable, (
         f"DAG(s) declared but unreachable from any tab: {sorted(unreachable)}"
     )

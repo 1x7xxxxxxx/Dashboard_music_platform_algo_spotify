@@ -51,9 +51,30 @@ _MAX_SAFE_INTERVAL_S = 60
 _MIN_SANE_INTERVAL_S = 5
 
 
-def _server_config() -> dict:
+def _server_config(text: str | None = None) -> dict:
+    if text is not None:
+        return tomllib.loads(text).get("server", {})
     with _CONFIG.open("rb") as fh:
         return tomllib.load(fh).get("server", {})
+
+
+def ping_problem(server: dict) -> str | None:
+    """Why this `[server]` section lets Cloudflare close an idle websocket, or None."""
+    interval = server.get("websocketPingInterval")
+    if interval is None:
+        return "no keepalive"
+    if not _MIN_SANE_INTERVAL_S <= interval <= _MAX_SAFE_INTERVAL_S:
+        return f"interval {interval}s out of range"
+    return None
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the default of 2026-08-30 (no keepalive) and a 90 s ping are refused;
+    the shipped value is accepted."""
+    assert ping_problem(_server_config("[server]\nport = 8501\n")) == "no keepalive"
+    assert ping_problem(_server_config("[server]\nwebsocketPingInterval = 90\n"))
+    assert ping_problem(_server_config("[server]\nwebsocketPingInterval = 30\n")) is None
+    assert ping_problem(_server_config()) is None
 
 
 def test_the_websocket_ping_is_configured():

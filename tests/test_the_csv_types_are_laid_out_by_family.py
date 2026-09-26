@@ -63,6 +63,29 @@ def test_the_two_listening_platforms_come_first():
         f"Ordre lu : {families}")
 
 
+def hand_written_key_lists(tree: ast.Module, keys: set) -> list[str]:
+    """Assignments whose literal strings enumerate guide keys. Pure."""
+    out = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        literals = {n.value for n in ast.walk(node.value)
+                    if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+        if literals & keys:
+            out.append(f"{ast.unparse(node.targets[0])} ({sorted(literals & keys)})")
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the exact `_SIDE_BY_SIDE = ("s4a", "apple")` is named; the layout
+    derived from `family` is not."""
+    keys = {"s4a", "apple", "distrokid"}
+    defect = ast.parse('_SIDE_BY_SIDE = ("s4a", "apple")\n')
+    assert hand_written_key_lists(defect, keys) == ["_SIDE_BY_SIDE (['apple', 's4a'])"]
+    fixed = ast.parse("side = [g for g in CSV_GUIDES if g.family == FAMILY_PLATFORM]\n")
+    assert hand_written_key_lists(fixed, keys) == []
+
+
 def test_the_renderer_reads_the_family_and_not_a_list_of_keys():
     """The regression that matters: a hard-coded tuple coming back."""
     src = inspect.getsource(csv_guides_st)
@@ -70,18 +93,11 @@ def test_the_renderer_reads_the_family_and_not_a_list_of_keys():
 
     # Aucune constante du module ne doit énumérer des clés de guides. C'est la forme
     # exacte de `_SIDE_BY_SIDE = ("s4a", "apple")`.
-    keys = {g.key for g in CSV_GUIDES}
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Assign):
-            continue
-        literals = {n.value for n in ast.walk(node.value)
-                    if isinstance(n, ast.Constant) and isinstance(n.value, str)}
-        offending = literals & keys
-        assert not offending, (
-            f"{ast.unparse(node.targets[0])} énumère des clés de guides "
-            f"({sorted(offending)}) : la mise en page redevient une liste tenue à la "
-            "main, et un guide ajouté demain tombera dans le mauvais groupe sans que "
-            "rien ne le dise. Lis `PlatformGuide.family`.")
+    offending = hand_written_key_lists(tree, {g.key for g in CSV_GUIDES})
+    assert not offending, (
+        f"{offending} énumère(nt) des clés de guides : la mise en page redevient une "
+        "liste tenue à la main, et un guide ajouté demain tombera dans le mauvais "
+        "groupe sans que rien ne le dise. Lis `PlatformGuide.family`.")
 
     names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
     assert {"FAMILY_PLATFORM", "FAMILY_DISTRIBUTOR"} <= names, (
