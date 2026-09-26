@@ -153,6 +153,39 @@ def _prose_cutoff(path: pathlib.Path, text: str) -> int:
     return 0
 
 
+def dangling_refs(path, text: str, repo=None) -> list[str]:
+    """`path:line:target` for every `.claude/` path this text names that does not exist.
+
+    Split out of `main` on 2026-09-26 so a test can hand it a FABRICATED config and see
+    it fire — a checker nobody has seen fail could be blind (R169)."""
+    repo = repo or _REPO
+    try:
+        shown = path.relative_to(repo)
+    except ValueError:
+        shown = path.name
+    out = []
+    lines = text.splitlines()
+    cutoff = _prose_cutoff(path, text)
+    rex_lines = _rex_lines(path, text)
+    for num, line in enumerate(lines, 1):
+        if num <= cutoff:
+            continue          # module docstring — prose about the code, not the code
+        if num in rex_lines:
+            continue          # a REX entry naming a path that broke IS the lesson
+        if (path.suffix == ".py" and line.lstrip().startswith("#")) or \
+                (path.suffix == ".js" and line.lstrip().startswith("//")):
+            continue          # a comment describing a defect is not the defect
+        if "{{" in line:
+            continue          # unsubstituted template — a different class owns that
+        for match in _REF.finditer(line):
+            target = match.group(0)
+            if target.startswith(_RUNTIME):
+                continue
+            if not (repo / target).exists():
+                out.append(f"{shown}:{num}:{target}")
+    return out
+
+
 def main() -> int:
     dangling = []
     for path in _candidates():
@@ -160,25 +193,7 @@ def main() -> int:
             text = path.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        lines = text.splitlines()
-        cutoff = _prose_cutoff(path, text)
-        rex_lines = _rex_lines(path, text)
-        for num, line in enumerate(lines, 1):
-            if num <= cutoff:
-                continue          # module docstring — prose about the code, not the code
-            if num in rex_lines:
-                continue          # a REX entry naming a path that broke IS the lesson
-            if (path.suffix == ".py" and line.lstrip().startswith("#")) or \
-                    (path.suffix == ".js" and line.lstrip().startswith("//")):
-                continue          # a comment describing a defect is not the defect
-            if "{{" in line:
-                continue          # unsubstituted template — a different class owns that
-            for match in _REF.finditer(line):
-                target = match.group(0)
-                if target.startswith(_RUNTIME):
-                    continue
-                if not (_REPO / target).exists():
-                    dangling.append(f"{path.relative_to(_REPO)}:{num}:{target}")
+        dangling += dangling_refs(path, text)
 
     # Hits go to stdout as bare `path:line:target`, nothing else. `audit_runner.py --prose`
     # reads this output to decide whether a signature fires on real config or on the text

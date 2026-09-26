@@ -443,3 +443,22 @@ def test_routine_permissions_live_in_project_settings_not_local():
         "réécrit le fichier dès qu'une permission est approuvée en séance, et "
         "l'écrasement est silencieux."
     )
+
+
+def test_the_path_checker_sees_the_defect_it_is_written_for(tmp_path):
+    """`config-path-dangling`, non-vacuity on a FABRICATED config: a `.claude/` path that
+    does not exist is named with its line; one that exists is not; the same dead path in
+    a Python COMMENT (prose about a defect) is not a reference."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "check_config_refs", REPO / ".claude" / "scripts" / "check_config_refs.py")
+    ccr = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ccr)
+    (tmp_path / ".claude" / "scripts").mkdir(parents=True)
+    (tmp_path / ".claude" / "scripts" / "real.py").write_text("x = 1\n", encoding="utf-8")
+    cfg = tmp_path / "settings.json"
+    text = ('{"a": ".claude/scripts/real.py",\n'
+            ' "b": ".claude/scripts/gone.py"}\n')
+    assert ccr.dangling_refs(cfg, text, tmp_path) == ["settings.json:2:.claude/scripts/gone.py"]
+    hook = tmp_path / "hook.py"
+    assert ccr.dangling_refs(hook, "x = 1\n# see .claude/scripts/gone.py\n", tmp_path) == []

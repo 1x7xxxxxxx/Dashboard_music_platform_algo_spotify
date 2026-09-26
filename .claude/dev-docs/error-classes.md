@@ -4232,7 +4232,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: a rule, skill or command names a `.claude/` file that is not there. Nothing errors — the instruction is simply unfollowable, and the reader cannot tell an absent file from an unimportant one.
 - signature: `python3 .claude/scripts/check_config_refs.py`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_claude_config_floor.py::test_the_path_checker_sees_the_defect_it_is_written_for) — config fabriquée : un chemin `.claude/` mort nommé avec sa ligne, un chemin vivant non, le même chemin mort dans un COMMENTAIRE Python non ; muté le 2026-09-26 (existence non vérifiée) → rouge. `dangling_refs` extrait de `main` pour cela
 - root_cause: a path in configuration is prose to every tool that reads it; only the model resolves it, at read time, and it has no way to report the miss. `.claude/scripts/check_config_refs.py`
 - cause_evidence: read (.claude/scripts/check_config_refs.py, rétro-portage mécanique 2026-09-16)
 - long_term_fix: resolve every `.claude/` path against the disk in CI — `tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves`. A path that stops resolving now fails a build instead of degrading a session silently.
