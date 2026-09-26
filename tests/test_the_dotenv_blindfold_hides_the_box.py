@@ -31,15 +31,28 @@ def _plugin():
     return mod
 
 
+def _fresh_env_files():
+    """A NEW copy of `src/utils/env_files.py`, whose loader is the real one — even when
+    this file itself runs under the plugin, as the CI's env-independence replay does
+    (it selects every test that names `tools/`, and this docstring does)."""
+    spec = importlib.util.spec_from_file_location(
+        "env_files_fresh", Path(env_files.__file__))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def test_the_detector_sees_the_defect_it_is_written_for(tmp_path, monkeypatch) -> None:
     """Non-vacuity: a value that lives ONLY in a `.env` reaches a guard through the
     real loader — the 2026-09-05 shape, green on the workstation; under the plugin the
     same loader brings nothing, so that guard would go red, as it does on a runner."""
     (tmp_path / ".env").write_text(f"{_KEY}=operator@example.test\n", encoding="utf-8")
+    real = _fresh_env_files()
+    monkeypatch.setattr(real, "PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(env_files, "PROJECT_ROOT", tmp_path)
     monkeypatch.delenv(_KEY, raising=False)
 
-    assert env_files.load_project_env() == [".env"]
+    assert real.load_project_env() == [".env"]
     assert os.environ.get(_KEY) == "operator@example.test"
 
     monkeypatch.delenv(_KEY)
