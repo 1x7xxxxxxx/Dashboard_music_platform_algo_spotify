@@ -87,6 +87,45 @@ def test_only_our_own_timestamps_are_convertible() -> None:
             "justes — mesuré : 267 lignes pré-019 partiraient d'une journée entière.")
 
 
+def publisher_dates_converted(source: str, publisher_cols: set) -> list:
+    """(line, columns) of SQL strings that run `AT TIME ZONE` over a publisher's
+    column — a calendar day, not an instant. Docstrings are prose. Pure."""
+    tree = ast.parse(source)
+    docs = {id(p.body[0].value) for p in ast.walk(tree)
+            if isinstance(p, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                              ast.AsyncFunctionDef))
+            and p.body and isinstance(p.body[0], ast.Expr)
+            and isinstance(p.body[0].value, ast.Constant)
+            and isinstance(p.body[0].value.value, str)}
+    out = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                and id(node) not in docs):
+            continue
+        if "AT TIME ZONE" not in node.value.upper():
+            continue
+        hit = sorted(c for c in publisher_cols if c in node.value)
+        if hit:
+            out.append((node.lineno, hit))
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity: the "harmonisation" this file exists to refuse — a publisher's
+    calendar day pushed through a timezone — is named, lower-case SQL included; our own
+    instant converted, and a docstring describing the refused gesture, are not."""
+    cols = {"reporting_date", "period_start"}
+    harmonised = ('Q = "SELECT reporting_date AT TIME ZONE \'Europe/Paris\' FROM t"\n'
+                  'R = "select period_start at time zone \'UTC\' from s"\n')
+    assert publisher_dates_converted(harmonised, cols) == [(1, ["reporting_date"]),
+                                                         (2, ["period_start"])]
+    ours = 'Q = "SELECT collected_at AT TIME ZONE \'Europe/Paris\' FROM t"\n'
+    prose = ('def f():\n    """Never write reporting_date AT TIME ZONE."""\n'
+             '    return 1\n')
+    assert publisher_dates_converted(ours, cols) == []
+    assert publisher_dates_converted(prose, cols) == []
+
+
 def test_no_surface_converts_a_publisher_date_through_a_timezone() -> None:
     """Le seul chemin connu pour casser cette zone : « harmoniser » les fuseaux."""
     publisher_cols = {c for c, k in COLUMN_CLOCK.items() if k != Clock.OURS}
@@ -96,29 +135,12 @@ def test_no_surface_converts_a_publisher_date_through_a_timezone() -> None:
             rel = str(path.relative_to(ROOT))
             if rel.endswith("clocks.py") or "/tests/" in rel:
                 continue
-            text = path.read_text(encoding="utf-8")
             try:
-                tree = ast.parse(text)
+                hits = publisher_dates_converted(path.read_text(encoding="utf-8"),
+                                                 publisher_cols)
             except SyntaxError:
                 continue
-            docs = {id(p.body[0].value) for p in ast.walk(tree)
-                    if isinstance(p, (ast.Module, ast.ClassDef, ast.FunctionDef,
-                                      ast.AsyncFunctionDef))
-                    and p.body and isinstance(p.body[0], ast.Expr)
-                    and isinstance(p.body[0].value, ast.Constant)
-                    and isinstance(p.body[0].value.value, str)}
-            for node in ast.walk(tree):
-                # Une chaîne SQL qui convertit le fuseau d'une colonne d'éditeur.
-                if not (isinstance(node, ast.Constant)
-                        and isinstance(node.value, str)
-                        and id(node) not in docs):
-                    continue
-                sql = node.value
-                if "AT TIME ZONE" not in sql.upper():
-                    continue
-                hit = sorted(c for c in publisher_cols if c in sql)
-                if hit:
-                    offenders.append(f"{rel}:{node.lineno} → {hit}")
+            offenders += [f"{rel}:{line} → {hit}" for line, hit in hits]
     assert not offenders, (
         "une conversion de fuseau est appliquée à une date d'éditeur, qui est un jour "
         "calendaire et non un instant : elle déplacerait des jours déjà justes d'une "
