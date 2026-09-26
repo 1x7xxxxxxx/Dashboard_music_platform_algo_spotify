@@ -38,8 +38,8 @@ def _public_functions() -> list[str]:
             if isinstance(n, ast.FunctionDef) and not n.name.startswith("_")]
 
 
-def _is_called_somewhere(name: str) -> bool:
-    for root in _CONSUMERS:
+def _is_called_somewhere(name: str, consumers: tuple | None = None) -> bool:
+    for root in (consumers if consumers is not None else _CONSUMERS):
         for path in root.rglob("*.py"):
             if path == MODULE:
                 continue
@@ -96,3 +96,14 @@ def test_the_deleted_detector_stays_deleted():
         "the note explaining why it was removed went with it. Without the note the "
         "next person re-adds it, which is how a decision becomes a cycle."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path):
+    """Non-vacuity on FABRICATED consumers: a detector named only in a comment and a
+    string is NOT called — the orphan this guard exists for; one real call is."""
+    (tmp_path / "dag.py").write_text(
+        "# silent_zero_findings(db) would go here\nNOTE = 'silent_zero_findings'\n",
+        encoding="utf-8")
+    assert not _is_called_somewhere("silent_zero_findings", (tmp_path,))
+    (tmp_path / "dag2.py").write_text("x = silent_zero_findings(db)\n", encoding="utf-8")
+    assert _is_called_somewhere("silent_zero_findings", (tmp_path,))
