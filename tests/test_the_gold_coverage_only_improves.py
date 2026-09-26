@@ -347,13 +347,25 @@ def test_the_ceiling_is_not_slack(counters) -> None:
     )
 
 
+def below_floor(counters: dict, floors: dict) -> list[str]:
+    """Populations that shrank under their measured floor (absent = 0). Pure."""
+    return [f"{key} : {counters.get(key, 0)}, il y en avait {floor} le 2026-09-12"
+            for key, floor in sorted(floors.items()) if counters.get(key, 0) < floor]
+
+
+def test_the_floor_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, class `a-ratchet-with-no-floor-under-its-population`: the
+    2026-09-12 collapse — holes at 0 because the scanned figures fell from 42 to 0,
+    and a counter missing altogether — is named; a population at its floor is not."""
+    floors = {"figures": 42, "tiles": 12}
+    assert [x.split(" :")[0] for x in below_floor({"figures": 0}, floors)] == [
+        "figures", "tiles"]
+    assert below_floor({"figures": 42, "tiles": 15}, floors) == []
+
+
 def test_the_scan_is_not_vacuous(counters) -> None:
     """Un compteur de trous baisse aussi quand la population disparaît."""
-    shrunk = [
-        f"{key} : {counters.get(key, 0)}, il y en avait {floor} le 2026-09-12"
-        for key, floor in sorted(_FLOOR.items())
-        if counters.get(key, 0) < floor
-    ]
+    shrunk = below_floor(counters, _FLOOR)
     assert not shrunk, (
         "La population balayée a rétréci. « Zéro indéterminée » sur zéro figure est "
         "vrai et ne dit rien — c'est ainsi qu'un contrôle cesse de contrôler sans "

@@ -47,7 +47,7 @@ _WAITING_H = "## 🙋 En attente de toi"
 _ROW = re.compile(r"^\| (R\d+) \|(.*)$")
 
 
-def _section(name: str) -> list[str]:
+def _section(name: str, text: str | None = None) -> list[str]:
     """Lines between this heading and the next `## ` one.
 
     Anchored at line start on purpose. A plain `text.index(name)` finds the first
@@ -58,7 +58,7 @@ def _section(name: str) -> list[str]:
     list. This test shipped that way for about ten minutes on 2026-08-21;
     `test_the_sections_are_not_empty` is what caught it, and is why it exists.
     """
-    text = ACTIVE.read_text(encoding="utf-8")
+    text = ACTIVE.read_text(encoding="utf-8") if text is None else text
     m0 = re.search(rf"^{re.escape(name)}", text, re.M)
     assert m0, f"heading {name!r} not found at the start of a line"
     rest = text[m0.end():]
@@ -105,6 +105,17 @@ def test_the_extraction_still_finds_rows_when_there_are_rows():
     # DÉBUT d'une ligne, pas dans la prose qui les mentionne deux paragraphes plus haut.
     for heading in (_ACTIONABLE_H, _WAITING_H):
         _section(heading)  # lève si le titre n'est pas ancré en début de ligne
+
+
+def test_the_slice_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, class `a-document-slice-bounded-by-the-wrong-heading-level`: a `###`
+    sub-heading INSIDE a section must not end it; the next `##` must. And a heading
+    named in prose above is not the heading."""
+    doc = (f"Intro qui cite `{_ACTIONABLE_H}` en prose.\n\n"
+           f"{_ACTIONABLE_H}\n| R1 | a | P2 | m |\n### Sous-partie\n| R2 | b | P3 | m |\n"
+           f"{_WAITING_H}\n| R3 | c | P2 | m |\n")
+    ids = [m.group(1) for line in _section(_ACTIONABLE_H, doc) if (m := _ROW.match(line))]
+    assert ids == ["R1", "R2"], ids
 
 
 def test_both_sections_exist():
