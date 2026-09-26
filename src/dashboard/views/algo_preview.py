@@ -1,4 +1,4 @@
-"""🔓 Aperçu : déclencher les algos — ce que Road to Algo fait, pour ta dernière sortie. GRATUIT.
+"""Aperçu : déclencher les algos — ce que Road to Algo fait, pour ta dernière sortie. GRATUIT.
 
 Type: Feature
 Uses: view_session, algo_preview_data (load_ml_pred, sur_le_plancher, cout_par_stream,
@@ -10,7 +10,7 @@ Persists in: — (lecture seule)
 R193 (2026-09-26), décision du propriétaire : « tes données sont gratuites, les prédictions
 sont payantes » (ADR-029) — et un APERÇU gratuit qui montre la valeur ajoutée de Road to
 Algo : les actions à faire et le budget pour déclencher les algos. Placé juste au-dessus de
-la page payante, avec un cadenas OUVERT vert.
+la page payante — sans cadenas, comme toute page gratuite (propriétaire, 2026-09-26).
 
 CE QU'IL MONTRE, ET CE QU'IL REFUSE DE MONTRER (code-critic, même jour)
 - La porte la plus proche par algorithme et l'ÉCART à combler, avec le levier — c'est ce
@@ -98,7 +98,7 @@ def _worth(db, artist_id, song) -> dict[str, float]:
 
 def show() -> None:
     with view_session() as (db, artist_id):
-        st.subheader(t("algo_preview.title", "🔓 Aperçu : déclencher les algos Spotify"))
+        st.subheader(t("algo_preview.title", "Aperçu : déclencher les algos Spotify"))
         song = _latest_scored_song(db, artist_id) if artist_id else None
         if song is None:
             st.info(t("trigger_algo.cat.empty",

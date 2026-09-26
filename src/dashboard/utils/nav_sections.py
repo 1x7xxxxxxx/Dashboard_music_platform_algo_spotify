@@ -168,7 +168,7 @@ NAV_SECTIONS: list = [
     # (`tests/test_the_campaign_view_plots_what_it_promises.py`) : cette liste et le
     # catalogue de prix ne peuvent plus diverger en silence.
     # ⚠️ 2026-09-26 (ADR-029) : la section ne garde que ce qui PRÉDIT. L'aperçu gratuit
-    # (`algo_preview`, badge 🔓 vert) est en tête, juste au-dessus de la page qu'il montre.
+    # (`algo_preview`, sans marque : gratuit) est en tête, juste au-dessus de la page qu'il montre.
     ("premium",   "💎 Premium — les prédictions",
      # ⚠️ LE RAPPORT OUVRE LA SECTION — déplacé le 2026-09-22 au soir, quelques heures
      # après l'avoir mis en dernier d'« Analytics ». Les deux placements se défendent, et

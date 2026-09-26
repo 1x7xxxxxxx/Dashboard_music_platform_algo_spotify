@@ -283,11 +283,11 @@ def test_the_premium_section_carries_the_padlock_of_the_plan(plan, attendu) -> N
     from src.database.stripe_schema import page_is_locked
     from src.dashboard.utils.nav_badges import badge, section_badge
 
-    from src.dashboard.utils.nav_badges import FREE_PREVIEW, FREE_PREVIEW_PAGES
+    from src.dashboard.utils.nav_badges import FREE, FREE_PREVIEW_PAGES
 
     all_keys = _items("premium")
-    # L'APERÇU gratuit (R193) est la seule page gratuite admise ici : il porte son propre
-    # cadenas OUVERT vert, pour tous les plans — vérifié à part ci-dessous.
+    # L'APERÇU gratuit (R193) est la seule page gratuite admise ici. Il ne porte AUCUNE
+    # marque (propriétaire, 2026-09-26), et il ne doit pas éteindre celle de l'en-tête.
     keys = [k for k in all_keys if k not in FREE_PREVIEW_PAGES]
     payantes = {k for k in keys if page_is_locked("free", k)}
     assert payantes == set(keys), (
@@ -295,13 +295,15 @@ def test_the_premium_section_carries_the_padlock_of_the_plan(plan, attendu) -> N
         "Le critère est le PLAN, pas le thème.")
     for k in set(all_keys) & FREE_PREVIEW_PAGES:
         assert badge(k, is_locked=lambda x: page_is_locked(plan, x),
-                     paid_pages=payantes) == FREE_PREVIEW, (
-            f"l'aperçu « {k} » ne porte pas le cadenas ouvert vert en plan « {plan} »")
+                     paid_pages=payantes) == FREE, (
+            f"l'aperçu « {k} » porte une marque en plan « {plan} » — une page gratuite n'en a pas")
 
     def _locked(k: str) -> bool:
         return page_is_locked(plan, k)
 
-    entete = section_badge(keys, is_locked=_locked, paid_pages=payantes)
+    # TOUTES les pages de la section, comme `app.py` les passe : filtrer l'aperçu ICI
+    # cachait que l'en-tête avait perdu son cadenas depuis R193 (vu le 2026-09-26).
+    entete = section_badge(all_keys, is_locked=_locked, paid_pages=payantes)
     assert attendu in entete, (
         f"l'en-tête Premium ne porte pas {attendu} pour un plan « {plan} » : {entete!r}")
     for k in keys:

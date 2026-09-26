@@ -1,7 +1,7 @@
 """EN strings for the free Road to Algo preview (R193)."""
 
 EN = {
-    "algo_preview.title": "🔓 Preview: trigger Spotify's algorithms",
+    "algo_preview.title": "Preview: trigger Spotify's algorithms",
     "algo_preview.intro": "Your latest release, **{song}** — what Road to Algo computes for it. "
                           "Premium does it for your whole catalogue, with the simulations and "
                           "the detailed budget.",

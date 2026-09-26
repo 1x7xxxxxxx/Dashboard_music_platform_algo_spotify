@@ -24,7 +24,7 @@ payantes.**
   résultat (`meta_cpr_optimizer`, il lit `ml_song_predictions`), les prévisions de revenus
   (`revenue_forecast`), les sections ML du PDF (`songs`, `ml_explain`, `revenue_forecast`) et
   l'ENVOI automatique du rapport chaque semaine (`weekly_digest`).
-- **Un aperçu gratuit de ce qui est payant** — `algo_preview` (🔓 vert, juste au-dessus de Road
+- **Un aperçu gratuit de ce qui est payant** — `algo_preview` (sans cadenas — une page gratuite ne porte aucune marque ; juste au-dessus de Road
   to Algo) : pour la dernière sortie, la porte la plus proche, les actions et un budget en
   ordre de grandeur. Il ne montre aucune probabilité que le modèle ne tient pas (toutes au
   plancher en production ce jour-là).

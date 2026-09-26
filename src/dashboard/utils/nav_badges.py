@@ -68,7 +68,11 @@ FREE = ""
 # TOUS les plans — il dit « ceci montre ce que Premium fait, et c'est ouvert ». Placé en tête
 # de la section Premium, juste au-dessus de la page qu'il montre. Seule page gratuite
 # admise dans cette section (`tests/test_the_campaign_view_plots_what_it_promises.py`).
-FREE_PREVIEW = ":green[🔓] "
+# Free pages ADMITTED in the Premium section: a preview sits right above what it shows.
+# They carry NO mark — like every free page (owner, 2026-09-26: « garder l'aperçu, sans
+# son cadenas » — a 🔓 on a free page said « paid and open », which it is not). And they
+# are left out of the SECTION mark: counting them made the Premium header « mixed », so
+# it lost its 🔒/🔓 from R193 until this fix.
 FREE_PREVIEW_PAGES = frozenset({"algo_preview"})
 
 
@@ -86,8 +90,6 @@ def badge(page_key: str, *, is_locked: Callable[[str], bool],
     """
     if is_locked(page_key):
         return LOCKED
-    if page_key in FREE_PREVIEW_PAGES:
-        return FREE_PREVIEW
     return PAID_AND_OPEN if page_key in set(paid_pages) else FREE
 
 
@@ -125,7 +127,7 @@ def section_badge(page_keys: Iterable[str], *, is_locked: Callable[[str], bool],
     libellé de menu coloré se lit comme un état d'erreur. Un en-tête de section,
     lui, est un `st.markdown` à part — la couleur n'y déborde sur rien.
     """
-    cles = [k for k in (page_keys or [])]
+    cles = [k for k in (page_keys or []) if k not in FREE_PREVIEW_PAGES]
     if not cles:
         return SECTION_AUCUNE
     payantes = set(paid_pages)

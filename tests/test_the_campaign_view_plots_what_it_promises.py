@@ -239,7 +239,7 @@ def test_the_premium_section_lists_exactly_what_is_sold() -> None:
 
     from src.dashboard.utils.nav_badges import FREE_PREVIEW_PAGES
     # La SEULE page gratuite admise ici est l'aperçu d'une page payante (R193) : il est
-    # rangé au-dessus de ce qu'il montre, et porte son propre cadenas ouvert.
+    # rangé au-dessus de ce qu'il montre, sans marque (gratuit).
     gratuites_dans_premium = [k for k in sections["premium"]
                               if not page_is_locked("free", k) and k not in FREE_PREVIEW_PAGES]
     assert not gratuites_dans_premium, (

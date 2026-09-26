@@ -6,7 +6,7 @@ Uses: src.utils.ml_inference (calibration), v_meta_daily, v_s4a_song_daily, ml_s
 Depends on: nothing from views/
 Persists in: nothing
 
-R193 (2026-09-26). The free « 🔓 Aperçu : déclencher les algos » page needs the same floor test,
+R193 (2026-09-26). The free « Aperçu : déclencher les algos » page needs the same floor test,
 budget and prediction loader as the Premium `trigger_algo` package. They lived there as private
 helpers; moved HERE so both read one definition (a copy would drift — the class
 `a-second-door-that-knows-fewer-sources-than-the-first`). The old modules re-export them under
