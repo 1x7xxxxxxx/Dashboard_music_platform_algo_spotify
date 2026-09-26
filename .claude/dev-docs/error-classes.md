@@ -206,6 +206,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [a-test-that-only-ever-ran-on-its-authors-machine](#a-test-that-only-ever-ran-on-its-authors-machine) | P2 | deterministic | guarded | none |
 | [a-red-verdict-delivered-to-an-inbox-nobody-reads](#a-red-verdict-delivered-to-an-inbox-nobody-reads) | P1 | deterministic | guarded | none |
 | [a-test-writes-a-probe-into-the-real-tree](#a-test-writes-a-probe-into-the-real-tree) | P3 | deterministic | guarded | none |
+| [a-proof-that-tests-a-copy-of-its-detector](#a-proof-that-tests-a-copy-of-its-detector) | P3 | deterministic | guarded | none |
 | [a-secret-committed-to-a-public-history](#a-secret-committed-to-a-public-history) | P1 | deterministic | guarded | none |
 | [a-gate-that-pays-a-check-twice](#a-gate-that-pays-a-check-twice) | P4 | deterministic | guarded | none |
 | [an-absence-that-becomes-a-nan-because-nan-is-truthy](#an-absence-that-becomes-a-nan-because-nan-is-truthy) | P2 | deterministic | guarded | none |
@@ -4147,6 +4148,26 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-24: trouvée en diagnostiquant une CI rouge depuis deux jours (`build-error-resolver`). En rejouant la forme CI, deux défauts de plus sont sortis que la CI elle-même ne voyait pas, parce que son mot de passe (`postgres`) ne contient aucun caractère à encoder : `urlparse` ne décode pas les `%xx` d'une URI (libpq si), dans `dsn()` ET dans `PostgresHandler.from_url` — le chemin de la production, dont l'URL a été vérifiée sans `%`.
   - 2026-09-25: la porte statique restait rouge sur `.test_durations` — 51 entrées « non collectables », non reproductibles sur le poste. Rejouée dans un CLONE PROPRE (sans `config/config.yaml`, gitignoré) : deux formes de plus de la même classe. (1) Le job `gates` n'avait ni `FERNET_KEY` ni identifiants Airflow ; `src/dashboard/app.py` lève à l'import, deux fichiers ne se collectaient pas, et le vérificateur comptait leurs 37 durées comme des fantômes. (2) `tests/test_api_db_smoke.py` nommait ses cas `tenant<artist_id>` à la COLLECTE : chaque base (poste, CI neuve, job sans base) produisait d'autres node ids. Corrigé : clé jetable + identifiants factices dans `gates`, erreur de collecte refusée par son nom, cas nommés par rang (`tenant-1st`…) et l'id résolu à l'exécution.
 
+## a-proof-that-tests-a-copy-of-its-detector
+- status: guarded
+- severity: P3
+- kind: deterministic
+- admitted: sites:4
+- admitted_detail: quatre sites vivants le 2026-09-26, dans quatre fichiers — `test_a_shared_path_does_not_drag_a_view_behind_it.py` (la preuve reconstruisait le prédicat d'import paresseux), `test_a_dimension_table_carries_no_quantity.py` (le critère de quantité écrit deux fois), `test_roadmap_two_files.py` (regex + `Counter` du détecteur de doublons écrits deux fois), `test_the_total_row_filter_has_one_home.py` (la boucle de `_constantes` recopiée dans sa preuve — trouvé par `sibling-sweeper`)
+- symptom: un garde porte une preuve de non-vacuité VERTE, et le garde est pourtant aveugle : casser son prédicat laisse la preuve verte. Rien ne le signale ; on ne le voit qu'en mutant le prédicat du garde et en regardant la preuve ne pas bouger.
+- root_cause: la preuve RÉÉCRIT le prédicat (sa propre regex, sa propre compréhension, sa propre boucle) au lieu d'APPELER la fonction que le garde utilise ; elle prouve donc la copie. Lu dans les quatre fichiers ci-dessus, et mesuré : sur chacun, la mutation du prédicat du garde laissait la preuve verte avant correction
+- cause_evidence: measured (2026-09-26 — mutation du prédicat réel sur les quatre sites : preuve verte avant, rouge après extraction)
+- long_term_fix: le prédicat vit dans UNE fonction pure appelée par le garde ET par sa preuve ; la preuve lui donne une entrée fabriquée (source, liste, dépôt `tmp_path`) au lieu de relire l'arbre
+- signature: `.venv/bin/python -m pytest tests/test_a_proof_calls_the_detector_it_proves.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: self-proving (tests/test_a_proof_calls_the_detector_it_proves.py::test_the_detector_sees_the_defect_it_is_written_for) — et, sur l'arbre d'avant correction, le garde nomme la preuve de `test_a_shared_path_…` (renommée pour le test, 2026-09-26)
+- guard: { type: pytest, ref: tests/test_a_proof_calls_the_detector_it_proves.py }
+- guard_scope: un-garde-qui-ne-garde-pas — écrire la preuve d'un détecteur ; couvre: toute preuve nommée `test_the_detector_sees_the_defect_it_is_written_for` qui ne référence AUCUN nom défini ou importé par son module ; ne couvre pas: (1) **une preuve sous un AUTRE nom** — trois des quatre sites en portaient un (`…lazy_form`, `…would_reject_a_fact_table`, `…is_not_vacuous`, `…separates_the_filter…`) ; (2) une preuve qui appelle un helper ET recopie le prédicat à côté ; (3) un doublon d'expression entre deux tests — mesuré 50 sites, presque tous des extracteurs de données répétés et non des preuves : écarté comme garde (règle 20)
+- siblings: swept:2026-09-26 — `sibling-sweeper` : 87 fichiers à mots-clés de preuve → 20 à expression littérale répétée → 5 lus → **1 site vivant** (`test_the_total_row_filter_has_one_home.py`, corrigé), 4 écartés (appel du helper partagé, deux sources de données voulues, deux comportements distincts) ; ~15 fichiers à doublons de fixtures échantillonnés au grep seulement. Balayage propre au prédicat du garde : 19 preuves canoniques sans helper → 18 appels par alias de module, 1 appel des vrais contrôles → 0
+- rex_ref: tests/test_a_proof_calls_the_detector_it_proves.py
+- first_seen: 2026-09-26
+- History:
+  - 2026-09-26: trouvé en rendant les gardes auto-prouvants (R169) : muter le prédicat d'un garde « déjà prouvé » laissait sa preuve verte. Corrigé sur les quatre sites, garde posé sur le nom canonique.
+
 ## a-test-writes-a-probe-into-the-real-tree
 - status: guarded
 - severity: P3
@@ -4261,7 +4282,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > **Elles ne sont ni archivées ni supprimées.** Elles vivent dans ce fichier, leurs
 > signatures tournent, leurs gardes tournent, `--coverage` les compte. Elles sont
 > seulement RANGÉES APRÈS, pour qu'un humain qui ouvre ce document rencontre d'abord
-> les 182 classes encore vivantes.
+> les 183 classes encore vivantes.
 >
 > ⚠️ **Pourquoi pas un second fichier.** C'était le plan, et la mesure l'a écarté : le
 > gain en temps est de **≈ 0 s** — les 8,46 s du cliquet de santé viennent du rejeu de

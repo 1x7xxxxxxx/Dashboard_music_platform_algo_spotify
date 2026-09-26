@@ -53,7 +53,7 @@ def _est_une_constante(nom: str) -> bool:
     return bool(corps) and corps == corps.upper() and corps[0].isalpha()
 
 
-def _constantes() -> dict[str, list[int]]:
+def _constantes(root: Path | None = None, motif: str = "src/**/*.py") -> dict[str, list[int]]:
     """{fichier: lignes} pour toute CONSTANTE de module valant le littéral.
 
     ⚠️ Lu à l'AST, jamais au texte. Trois méta-gardes du dépôt ont refusé la première
@@ -61,13 +61,14 @@ def _constantes() -> dict[str, list[int]]:
     et ils avaient raison : un commentaire, une docstring ou un exemple auraient suffi
     à la satisfaire, y compris la prose de CE fichier, qui cite le littéral six fois.
     """
+    root = ROOT if root is None else root
     out: dict[str, list[int]] = {}
-    for p in sorted(ROOT.glob("src/**/*.py")):
+    for p in sorted(root.glob(motif)):
         try:
             arbre = ast.parse(p.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, SyntaxError):
             continue
-        rel = str(p.relative_to(ROOT))
+        rel = str(p.relative_to(root))
         for n in arbre.body:                       # niveau MODULE seulement
             if not isinstance(n, ast.Assign):
                 continue
@@ -153,17 +154,12 @@ def test_the_predicate_separates_the_filter_from_the_contact_address(tmp_path):
         f'minuscule = "{_LITTERAL}"\n'
         f'_SQL = "SELECT 1 WHERE song NOT ILIKE \'%{_LITTERAL}%\'"\n',
         encoding="utf-8")
-    arbre = ast.parse(f.read_text(encoding="utf-8"))
-    vus = []
-    for n in arbre.body:
-        if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant) \
-                and isinstance(n.value.value, str) \
-                and _LITTERAL in n.value.value and _COURRIEL not in n.value.value:
-            noms = [t.id for t in n.targets if isinstance(t, ast.Name)]
-            if n.value.value.strip("%") != _LITTERAL:
-                continue
-            if any(_est_une_constante(x) for x in noms):
-                vus.append(noms[0])
+    # Le VRAI prédicat du garde, pas une copie : le 2026-09-26 cette preuve portait
+    # sa propre boucle, et retirer l'exclusion de l'adresse de contact dans
+    # `_constantes` la laissait verte (balayage `sibling-sweeper`).
+    trouve = _constantes(tmp_path, "*.py")
+    lignes = trouve.get("exemple.py", [])
+    vus = [f.read_text(encoding="utf-8").splitlines()[ln - 1].split(" =")[0] for ln in lignes]
     assert vus == ["_ARTIST_FILTER"], (
         f"le prédicat ne sépare plus les CINQ formes : {vus}. Il doit voir la "
         "CONSTANTE qui EST le filtre, et ignorer l'adresse de contact, le commentaire, "
