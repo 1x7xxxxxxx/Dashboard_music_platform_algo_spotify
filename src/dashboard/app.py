@@ -230,6 +230,16 @@ _SETUP_PAGES = frozenset({'onboarding', 'credentials', 'upload_csv', 'process_gu
 _LANDING_LINKS = frozenset({'onboarding'})
 
 
+def url_is_detoured(page_param, first_run, mirrored) -> bool:
+    """Does the setup landing override this `?page=`? Pure — the ONE copy of the rule.
+
+    Only on a first arrival, only for a parameter we did not write ourselves (the
+    mirror), and never for a link we send (`_LANDING_LINKS`). Tested by calling it:
+    until 2026-09-26 the tests restated this expression instead of exercising it.
+    """
+    return bool(first_run) and page_param != mirrored and page_param not in _LANDING_LINKS
+
+
 def resolve_nav_page(role: str = 'artist'):
     """Decide the active page and repair nav state — WITHOUT drawing anything.
 
@@ -782,9 +792,9 @@ def _main_body():
         # mais « ce paramètre vient-il d'ailleurs ? ». Un artiste qui NAVIGUE dans son
         # installation navigue ; seul un onglet resté ouvert détourne.
         _own_mirror = _page_param == st.session_state.get('_page_mirrored')
-        _setup_landing = (bool(st.session_state.get(FIRST_RUN_FOCUS))
-                          and not _own_mirror
-                          and _page_param not in _LANDING_LINKS)
+        _setup_landing = url_is_detoured(_page_param,
+                                         st.session_state.get(FIRST_RUN_FOCUS),
+                                         st.session_state.get('_page_mirrored'))
         if (_page_param in _nav_keys and not _setup_landing and not _own_mirror):
             st.session_state['_nav_page'] = _page_param
         elif _setup_landing:

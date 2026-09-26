@@ -40,7 +40,7 @@ from pathlib import Path
 
 import pytest
 
-from src.dashboard.app import _LANDING_LINKS, _NAV_SECTIONS, _SETUP_PAGES
+from src.dashboard.app import _LANDING_LINKS, _NAV_SECTIONS, _SETUP_PAGES, url_is_detoured
 
 _ROOT = Path(__file__).resolve().parents[1]
 _APP = _ROOT / "src" / "dashboard" / "app.py"
@@ -148,7 +148,14 @@ def _url_block_names() -> set[str]:
     node = next(n for n in ast.walk(fn)
                 if isinstance(n, ast.If)
                 and isinstance(n.test, ast.Name) and n.test.id == "_page_param")
-    return {x.id for x in ast.walk(node) if isinstance(x, ast.Name)}
+    names = {x.id for x in ast.walk(node) if isinstance(x, ast.Name)}
+    # The rule moved into `url_is_detoured` (2026-09-26) so the tests could CALL it:
+    # the block's names include what that function reads.
+    if "url_is_detoured" in names:
+        rule = next(f for f in ast.walk(tree)
+                    if isinstance(f, ast.FunctionDef) and f.name == "url_is_detoured")
+        names |= {x.id for x in ast.walk(rule) if isinstance(x, ast.Name)}
+    return names
 
 
 def test_the_url_block_consults_the_first_run_flag():
@@ -327,8 +334,7 @@ def test_the_url_block_arbitrates_on_the_narrow_set():
     ("credentials", False, True),    # configuration finie : l'URL reprend ses droits
 ])
 def test_which_links_survive_a_first_arrival(page, first_run, honoured):
-    detourned = first_run and page not in _LANDING_LINKS
-    assert (not detourned) is honoured
+    assert (not url_is_detoured(page, first_run, None)) is honoured
 
 
 def test_navigating_inside_the_setup_does_not_bounce_back():
@@ -363,7 +369,10 @@ def test_navigating_inside_the_setup_does_not_bounce_back():
                   None)
     assert assign is not None, "`_setup_landing` n'est plus calculé dans le bloc d'URL"
     names = {x.id for x in ast.walk(assign.value) if isinstance(x, ast.Name)}
-    assert "_own_mirror" in names, (
+    # Either inline (`_own_mirror`) or through the rule's one copy, which receives the
+    # mirror as an argument — the own-mirror cases of `test_the_two_cases_stay_distinct`
+    # exercise it by calling it.
+    assert "_own_mirror" in names or "url_is_detoured" in names, (
         "l'atterrissage ne regarde pas si le paramètre vient de notre propre miroir : "
         "toute navigation interne pendant la mise en route rebondit sur l'assistant"
     )
@@ -383,7 +392,5 @@ def test_navigating_inside_the_setup_does_not_bounce_back():
     ("credentials", False, None,           True),
 ])
 def test_the_two_cases_stay_distinct(page, first_run, mirrored, honoured):
-    own = page == mirrored
-    detourned = first_run and not own and page not in _LANDING_LINKS
-    assert (not detourned) is honoured, (
+    assert (not url_is_detoured(page, first_run, mirrored)) is honoured, (
         f"page={page!r} première_arrivée={first_run} miroir={mirrored!r}")
