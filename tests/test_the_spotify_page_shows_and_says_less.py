@@ -168,19 +168,31 @@ def test_the_detail_is_permanent_not_a_drawer() -> None:
 
 
 def test_what_is_read_together_sits_together() -> None:
-    """Trois paires côte à côte, chacune une question posée de deux côtés."""
+    """Les sorties et l'effet de la pub côte à côte dans `show()` ; puis UN filtre commun
+    au-dessus de TROIS colonnes — ce qui bouge, le détail du titre, l'engagement — dans cet
+    ordre (R188, 2026-09-26 : « alignés, ordonnés, avec un filtre commun pour les 3 »)."""
     tree = ast.parse(_SPOTIFY.read_text(encoding="utf-8"))
-    fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
-               and n.name == "show"), None)
-    assert fn is not None, "`show()` a disparu"
-    colonnes = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
-                and getattr(n.func, "attr", None) == "columns"]
-    assert len(colonnes) >= 2, (
-        f"seulement {len(colonnes)} `st.columns` dans `show()` : sorties/audience et "
-        "ce-qui-bouge/détail ne sont plus côte à côte.")
-    appels = {ast.unparse(n.func) for n in ast.walk(fn) if isinstance(n, ast.Call)}
-    for f in ("_render_momentum", "_render_secondary"):
-        assert f in appels, f"`{f}` n'est plus appelée depuis `show()`"
+    fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    show, row = fns.get("show"), fns.get("_render_secondary")
+    assert show is not None and row is not None, "`show()` ou `_render_secondary()` a disparu"
+
+    def calls(fn):
+        return [n for n in ast.walk(fn) if isinstance(n, ast.Call)]
+
+    assert any(getattr(c.func, "attr", None) == "columns" for c in calls(show)), (
+        "`show()` ne pose plus les sorties et l'effet de la pub côte à côte")
+    shown = {ast.unparse(c.func) for c in calls(show)}
+    for f in ("_frag_releases", "_render_meta_impact", "_render_secondary"):
+        assert f in shown, f"`{f}` n'est plus appelée depuis `show()`"
+    three = [c for c in calls(row) if getattr(c.func, "attr", None) == "columns"
+             and c.args and isinstance(c.args[0], ast.Constant) and c.args[0].value == 3]
+    assert three, "la rangée n'est plus en TROIS colonnes égales"
+    order = sorted((c.lineno, ast.unparse(c.func)) for c in calls(row)
+                   if ast.unparse(c.func) in {"_common_filter", "_render_momentum",
+                                              "_song_detail", "_engagement_fig"})
+    assert [f for _, f in order] == ["_common_filter", "_render_momentum", "_song_detail",
+                                     "_engagement_fig"], order
+    assert order[0][0] < three[0].lineno, "le filtre commun doit être AU-DESSUS des colonnes"
 
 
 def test_the_three_wrapped_charts_share_one_row() -> None:

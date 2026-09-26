@@ -1,6 +1,14 @@
 """EN strings for the Spotify & Spotify for Artists view."""
 
 EN = {
+    "spotify_s4a_combined.ad_days": 'Meta ad days',
+    "spotify_s4a_combined.meta_impact_header": '📣 Did your ads bring you listeners?',
+    "spotify_s4a_combined.no_campaign": "No Meta campaign with spend: this chart judges an ad's effect on your listeners once a campaign has run.",
+    "spotify_s4a_combined.goto_meta": '📣 See my Meta campaigns',
+    "spotify_s4a_combined.listeners_7d": 'Listeners / day (7-day average)',
+    "spotify_s4a_combined.listeners_axis": 'Listeners / day',
+    "spotify_s4a_combined.meta_impact_rule": 'The band (ad days) does not lift the curve? The ad buys clicks, not listeners: stop it or change the creative. It lifts it? Compare the € per listener-day gained with what you are willing to pay — below it, run it again.',
+    "spotify_s4a_combined.engagement_scope": 'Artist-wide figures: the chosen track does not apply here, the period does.',
     # ── L'ALERTE DE DIVERGENCE (2026-09-23) ────────────────────────────────────
     # La figure ne trace plus QU'UNE courbe d'abonnés, parce que les deux sources se
     # recouvrent sur 32 jours sans jamais s'ecarter de plus d'un abonne. Cette phrase
@@ -34,9 +42,6 @@ EN = {
     "spotify_s4a_combined.no_audience": "No audience report imported. Import it from "
                                         "**📂 Add my Spotify for Artists & Apple "
                                         "figures**.",
-    "spotify_s4a_combined.listener_days": "Listener-days",
-    "spotify_s4a_combined.ratio_short": "Streams / listener-day",
-    "spotify_s4a_combined.ratio_axis": "× per listener-day",
 
     # §3 — momentum
     "spotify_s4a_combined.momentum_header": "🔥 What is moving right now",

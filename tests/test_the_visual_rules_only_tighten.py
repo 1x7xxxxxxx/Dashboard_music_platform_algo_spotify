@@ -138,8 +138,8 @@ _DECLARED_AXES: dict[str, tuple[int, str]] = {
            "natures ; c'est le croisement qui a révélé 0,002 €/écoute en Colombie "
            "contre 0,181 € au Brésil"),
     "spotify_s4a_combined.py": (
-        9, "§2 : comptes (auditeurs-jour, streams) vs TAUX (écoutes/auditeur-jour) ; "
-           "détail par titre : compte (streams/jour) vs INDICE borné 0-100 (PI), "
+        6, "(9 → 6 le 2026-09-26, R187 : le §2 « auditeurs-jour » et son axe du ratio ont "
+           "été remplacés par une figure à UN axe) — détail par titre : compte (streams/jour) vs INDICE borné 0-100 (PI), "
            "dont l'axe est fixé et ne peut donc pas être calé pour fabriquer un "
            "croisement ; §figure d'engagement (2026-09-22) : FLUX MENSUELS "
            "(sauvegardes, ajouts en playlist — « combien ce mois-ci ») vs NIVEAU "

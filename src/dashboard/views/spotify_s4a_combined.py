@@ -1,8 +1,8 @@
 """Page Spotify & Spotify for Artists — une figure par décision.
 
 Type: Feature
-Uses: project_db, secondary_analyses, smart_period_filter, goto, i18n
-Depends on: v_s4a_song_daily (105), v_s4a_audience_* (117), v_s4a_song_measured_span
+Uses: project_db, secondary_analyses, smart_period_filter, goto, i18n, meta_impact
+Depends on: v_s4a_song_daily (105), v_s4a_audience_* (117), v_meta_daily, v_s4a_song_measured_span
             (118), v_s4a_release_cohort / _reach (119), v_spotify_followers_daily (120),
             v_spotify_track_pi_daily (130)
 Persists in: — (lecture seule)
@@ -20,8 +20,10 @@ le PDF exporté et jamais à l'écran. Ils disaient ceci : un auditeur écoutait
 fois en 2024, il écoute **1,14** fois en 2026. Il passe et ne revient pas.
 
 La règle de composition : une section = une décision.
-  §1 comparer mes sorties  ·  §2 mon audience grandit-elle  — les deux CÔTE À CÔTE,
-  parce qu'elles sont les deux moitiés d'une même question  ·  §3 pousser ou laisser.
+  §1 comparer mes sorties  ·  §2 la pub m'a-t-elle amené des auditeurs (R187,
+  2026-09-26 : remplace « auditeurs-jour », qui ne tranchait rien) — CÔTE À CÔTE  ·
+  puis UN filtre commun Titre + Période au-dessus de trois colonnes égales : §3 ce qui
+  bouge (pousser ou laisser), le détail du titre, l'engagement (R188, 2026-09-26).
 
 Le §4 — un renvoi vers META x Spotify — a été retiré le 2026-09-21 : c'était un
 paragraphe et un bouton, pas une figure, et la barre de navigation le disait déjà.
@@ -87,6 +89,10 @@ _FOLLOWER_INK = "#D81B60"
 # fenêtre de Spotify for Artists elle-même — on parle la langue de la source plutôt
 # que d'inventer un horizon.
 _MOMENTUM_DAYS = 28
+
+# La hauteur COMMUNE des trois figures posées côte à côte sous le filtre commun (R188,
+# 2026-09-26) : trois hauteurs différentes sur une rangée se lisent comme un désordre.
+_ROW_HEIGHT = 380
 
 
 def _df(db, sql: str, params: tuple) -> pd.DataFrame:
@@ -235,89 +241,96 @@ def _render_releases(db, frag: str, params: tuple) -> None:
     # revenir. Le seuil n'est pas gardé : c'est un jugement, et il est écrit ici.
 
 
-def _render_audience(db, frag: str, params: tuple) -> None:
-    """Auditeurs, écoutes, et le rapport des deux.
+def _render_meta_impact(db, frag: str, params: tuple) -> None:
+    """📣 La pub t'a-t-elle amené des auditeurs ? — R187, 2026-09-26.
 
-    ⚠️ `listeners` compte les auditeurs UNIQUES PAR JOUR. Les sommer compte une fois
-    par jour celui qui revient : le dénominateur est un nombre d'AUDITEURS-JOUR, pas
-    de personnes. Le libellé le dit, et un garde le vérifie — appeler ce ratio
-    « par auditeur » serait exact au calcul et faux au sens.
+    Remplace « auditeurs-jour », qui montrait trois séries et ne tranchait rien : le
+    propriétaire ne voyait pas quelle décision en tirer. Celle-ci en porte UNE — relancer,
+    couper ou changer la créa — en posant les jours de dépense Meta (bandes) sur la courbe des
+    auditeurs par jour (moyenne 7 j), et en écrivant le verdict de la dernière campagne dans
+    le titre. Le verdict est calculé par `meta_impact.verdict`, qui REFUSE de conclure quand
+    la donnée ne le permet pas (campagne en cours, trop peu de jours mesurés, campagnes qui se
+    chevauchent, hausse dans le bruit) — code-critic l'a exigé : le chiffre se lit comme un
+    jugement sur la pub.
 
-    UN SEUL PANNEAU, un axe à droite pour le ratio — changé le 2026-09-21 à la
-    demande du propriétaire, et le compromis mérite d'être écrit.
-
-    La forme d'avant était deux panneaux empilés, exactement pour que rien n'invite
-    à lire un « croisement » entre un COMPTE (auditeurs-jour, streams) et un RATIO
-    (écoutes par auditeur-jour) : deux séries sur deux échelles se croisent à
-    l'endroit que choisit l'échelle, pas à un endroit qui existe. Ce risque n'a pas
-    disparu, il est assumé — ce qu'on achète en échange est une légende unique et
-    un seul axe de temps, donc une lecture d'un coup d'œil au lieu de deux.
-
-    Ce qui rend le double axe lisible ici, et pas seulement toléré : le ratio est
-    la SEULE série de droite, tracée en pointillé et dans une couleur qui n'est
-    utilisée nulle part ailleurs sur la page, et son axe porte son unité. Un
-    croisement reste possible à l'œil ; rien dans la figure ne le présente comme un
-    évènement.
+    `meta_x_spotify` compare déjà dépense et écoutes campagne par campagne : cette figure ne
+    le refait pas, elle répond à la question de la page Spotify — est-ce que ça m'a amené
+    des gens ?
     """
-    # ⚠️ SOUS-TITRE ET DEUX JAUGES RETIRÉS le 2026-09-22, demandé en regardant
-    # l'écran. La question « je gagne des auditeurs ou les mêmes réécoutent ? » est
-    # exactement ce que la figure MONTRE — les barres d'auditeurs-jour contre la
-    # courbe pointillée du ratio — et les deux tuiles répétaient en chiffre le
-    # dernier point de ces deux séries. Trois éléments pour une seule lecture.
-    mon = _df(db, f"""
-        SELECT month, streams, listener_days, streams_per_listener_day,
-               streams_per_listener_day_prev, followers_end, is_complete
-          FROM v_s4a_audience_monthly
-         WHERE TRUE {frag}
-         ORDER BY month
+    from src.dashboard.utils import meta_impact
+
+    st.subheader(t("spotify_s4a_combined.meta_impact_header",
+                   "📣 La pub t'a-t-elle amené des auditeurs ?"))
+    aud = _df(db, f"""
+        SELECT day, SUM(listeners) AS listeners FROM v_s4a_audience_daily
+         WHERE listeners IS NOT NULL {frag}
+         GROUP BY day ORDER BY day
     """, params)
-    if mon.empty:
+    spend = _df(db, f"""
+        SELECT ad_account_id, campaign_name, day, SUM(spend) AS spend
+          FROM v_meta_daily
+         WHERE spend > 0 {frag}
+         GROUP BY ad_account_id, campaign_name, day
+         ORDER BY day
+    """, params)
+    camps = meta_impact.campaigns(spend)
+    if not camps:
+        st.info(t("spotify_s4a_combined.no_campaign",
+                  "Aucune campagne Meta avec dépense : cette figure juge l'effet d'une pub "
+                  "sur tes auditeurs dès qu'une campagne a tourné."))
+        if st.button(t("spotify_s4a_combined.goto_meta", "📣 Voir mes campagnes Meta")):
+            goto("meta_x_spotify")
+        return
+    if aud.empty:
         st.info(t("spotify_s4a_combined.no_audience",
                   "Aucun rapport d'audience importé. Il s'importe depuis "
                   "**📂 Ajouter mes chiffres Spotify for Artists & Apple**."))
         return
 
-    mon = mon.copy()
-    mon["month"] = pd.to_datetime(mon["month"])
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(go.Bar(x=mon["month"], y=mon["listener_days"],
-                         name=t("spotify_s4a_combined.listener_days", "Auditeurs-jour"),
-                         marker_color=_LISTENER_INK, opacity=0.85),
-                  secondary_y=False)
-    fig.add_trace(go.Scatter(x=mon["month"], y=mon["streams"], mode="lines",
-                             name=t("common.streams", "Streams"),
-                             line=dict(color=_SPOTIFY_GREEN, width=2.5)),
-                  secondary_y=False)
-    fig.add_trace(go.Scatter(x=mon["month"], y=mon["streams_per_listener_day"],
-                             mode="lines+markers",
-                             name=t("spotify_s4a_combined.ratio_short", "Écoutes / auditeur-jour"),
-                             line=dict(color=_RATIO_INK, width=2.5, dash="dot"),
-                             marker=dict(size=7)),
-                  secondary_y=True)
-    fig.update_yaxes(title_text=t("common.count", "Nombre"), secondary_y=False)
-    # L'axe de droite est TEINTÉ de la couleur de sa seule série : sans ça, deux
-    # échelles se lisent comme une, et c'est là que naît le faux croisement.
-    fig.update_yaxes(title_text=t("spotify_s4a_combined.ratio_axis", "× par auditeur-jour"),
-                     secondary_y=True, showgrid=False,
-                     title_font=dict(color=_RATIO_INK), tickfont=dict(color=_RATIO_INK))
-    fig.update_layout(height=470, hovermode="x unified",
-                      legend=dict(orientation="h", y=1.12))
-    st.plotly_chart(fig, width="stretch")
+    aud = aud.copy()
+    aud["day"] = pd.to_datetime(aud["day"])
+    listeners = aud.set_index("day")["listeners"].astype(float)
+    v = meta_impact.verdict(listeners, camps, date.today())
 
-    # ⚠️ LÉGENDE RETIRÉE le 2026-09-22, demandé en regardant l'écran. Elle
-    # expliquait ce qu'est un auditeur-jour et ce que dit la courbe pointillée —
-    # six lignes sous une figure de trois séries.
-    #
-    # Ce qui PORTE le sens reste en place et c'est là qu'il doit être : le libellé de
-    # la série dit « Écoutes / auditeur-jour », l'axe de droite porte son unité
-    # « × par auditeur-jour » et la couleur de cet axe est celle de sa seule série.
-    # Nommer le denominateur DANS le libellé était déjà la décision — appeler ce
-    # ratio « par auditeur » serait exact au calcul et faux au sens — et c'est elle
-    # qui survit, pas sa paraphrase.
+    # Les jours NON mesurés restent des trous (reindex → NaN, `connectgaps=False`) : une
+    # moyenne glissante qui enjamberait un import manquant dessinerait une tendance inventée.
+    full = listeners.reindex(pd.date_range(listeners.index.min(), listeners.index.max()))
+    smooth = full.rolling(7, min_periods=4).mean()
+    last = camps[-1]
+    x0 = max(pd.Timestamp(last.start) - pd.Timedelta(days=60), full.index.min())
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=smooth.index, y=smooth.values, mode="lines", connectgaps=False,
+        name=t("spotify_s4a_combined.listeners_7d", "Auditeurs / jour (moyenne 7 j)"),
+        line=dict(color=_LISTENER_INK, width=2.5)))
+    # Les bandes ne portent PAS de texte : deux campagnes voisines superposaient leurs noms
+    # (vu à l'écran le 2026-09-26). Le nom et la dépense sont dans le verdict ; la bande
+    # a son entrée de légende, portée par une trace vide — une forme sans donnée.
+    for c in camps:
+        fig.add_vrect(x0=pd.Timestamp(c.start), x1=pd.Timestamp(c.end) + pd.Timedelta(days=1),
+                      fillcolor=_RATIO_INK, opacity=0.14, line_width=0, layer="below")
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], mode="markers",
+        marker=dict(symbol="square", size=12, color=_RATIO_INK, opacity=0.35),
+        name=t("spotify_s4a_combined.ad_days", "Jours de pub Meta")))
+    # Le VERDICT au-dessus de la figure, en texte qui passe à la ligne : en titre Plotly il
+    # était coupé net sur une demi-largeur d'écran (vu à l'écran le 2026-09-26).
+    st.markdown(f"**{v.text}**")
+    fig.update_layout(
+        height=_ROW_HEIGHT,
+        hovermode="x unified", xaxis_range=[x0, full.index.max()],
+        yaxis_title=t("spotify_s4a_combined.listeners_axis", "Auditeurs / jour"),
+        legend=dict(orientation="h", y=1.12), margin=dict(t=40))
+    st.plotly_chart(fig, width="stretch")
+    st.caption(t("spotify_s4a_combined.meta_impact_rule",
+                 "La bande (jours de pub) ne soulève pas la courbe ? La pub achète des clics, "
+                 "pas des auditeurs : coupe ou change la créa. Elle la soulève ? Compare le € "
+                 "par auditeur-jour gagné à ce que tu es prêt à payer — en dessous, relance."))
 
 
 # ── §3 — décision A : pousser ou laisser ───────────────────────────────────────
-def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple) -> None:
+def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple, window,
+                     song) -> None:
     """Ce qui bouge MAINTENANT, devant le cumul à vie en fantôme.
 
     Remplace le Top 10 all-time, qui est exact et ne décide rien : il classe
@@ -325,13 +338,20 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple) -> None:
     pleine et la barre fantôme est précisément ce qu'on vient chercher — un gros
     catalogue qui ne bouge plus ne se distinguait pas d'un titre qui monte.
     """
-    st.subheader(t("spotify_s4a_combined.momentum_header",
-                   "🔥 Ce qui bouge en ce moment"))
+    # Même niveau de titre que ses deux voisines de rangée (R188) : un `subheader` plus
+    # haut décalait sa figure vers le bas — vu à l'écran le 2026-09-26.
+    st.markdown(f"##### {t('spotify_s4a_combined.momentum_header', '🔥 Ce qui bouge en ce moment')}")
     if spans.empty:
         st.info(t("spotify_s4a_combined.no_data", "Pas de données disponibles."))
         return
 
+    # « EN CE MOMENT » GARDE SON SENS SOUS LE FILTRE COMMUN (R188, code-critic) : la
+    # fenêtre récente est les 28 derniers jours mesurés DE LA PÉRIODE choisie — pas la
+    # période entière, sans quoi « tout l'historique » rendrait la barre récente égale au
+    # cumul et la figure ne dirait plus rien.
     horizon = pd.to_datetime(spans["last_measured"]).max().date()
+    if not window.is_all_history:
+        horizon = min(horizon, window.end)
     since = horizon - pd.Timedelta(days=_MOMENTUM_DAYS - 1)
 
     recent = _df(db, f"""
@@ -401,12 +421,17 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple) -> None:
         y=merged["song"], x=merged["recent"], orientation="h",
         name=t("spotify_s4a_combined.recent_window", "{n} derniers jours mesurés")
               .format(n=_MOMENTUM_DAYS),
-        marker_color=_SPOTIFY_GREEN,
+        # Le titre choisi dans le filtre commun est en couleur pleine, les autres atténués :
+        # c'est le lien visuel entre cette figure et le détail posé à côté.
+        marker_color=[_SPOTIFY_GREEN if x == song else "#A5D6A7" for x in merged["song"]],
         hovertemplate="%{x:,.0f}<extra>fenêtre récente</extra>"))
-    fig.update_layout(barmode="overlay", height=max(320, 42 * len(merged)),
+    fig.update_layout(barmode="overlay", height=_ROW_HEIGHT,
                       xaxis_title=t("common.streams", "Streams"),
-                      margin=dict(r=80),
-                      legend=dict(orientation="h", y=1.1))
+                      margin=dict(r=80, t=30, b=90),
+                      # SOUS l'axe : dans le cadre elle recouvrait l'étiquette PI de la barre
+                      # du haut, au-dessus elle recouvrait la barre d'outils (vu à l'écran le
+                      # 2026-09-26, deux captures).
+                      legend=dict(orientation="h", y=-0.28, x=0))
     st.plotly_chart(fig, width="stretch")
 
     # ⚠️ LÉGENDE RETIRÉE le 2026-09-22, demandé en regardant l'écran. Elle disait
@@ -427,7 +452,7 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple) -> None:
 
 
 def _render_secondary(db, spans: pd.DataFrame, frag: str, params: tuple) -> None:
-    """Le tiroir. Les `st.plotly_chart` sont LEXICALEMENT dans le `with`.
+    """La rangée sous le filtre commun. Les `st.plotly_chart` sont LEXICALEMENT ici.
 
     Ce n'est pas un détail de style : `tests/test_chart_budget.py` et
     `test_a_view_opens_on_one_decision.py` lisent la STRUCTURE du fichier pour
@@ -457,43 +482,70 @@ def _render_secondary(db, spans: pd.DataFrame, frag: str, params: tuple) -> None
     # depuis le 2026-09-21. Le plafond de cette page est donc relevé à leur vraie
     # valeur, dans le même commit, et l'ancien chiffre était l'angle mort que le
     # commentaire du 2026-09-21 annonçait déjà.
-    st.markdown(f"#### {t('ui.secondary_analyses', '📊 Analyses détaillées')}")
-
-    # ── CÔTE À CÔTE, ET NON FUSIONNÉES — 2026-09-23 ───────────────────────────
+    # ── UN FILTRE COMMUN, TROIS COLONNES ÉGALES — R188, 2026-09-26 ─────────────────
     #
-    # Demandé : « regroupe-moi les 2 graph en 1 seul SI POSSIBLE : détail par titre et
-    # sauvegardes playlist et abonnés ». Ce n'est pas possible sans rendre la figure
-    # trompeuse, et la raison qui tranche n'est pas le nombre d'axes.
+    # Demandé : « que les 3 graphs soient alignés et ordonnés pour que ça rende beau, avec
+    # un filtre commun pour les 3 ». Le Titre et la Période n'existaient que dans le détail
+    # par titre, et ne pilotaient que lui. Ils montent au-dessus de la rangée et pilotent
+    # les trois : ce qui bouge (titre choisi en couleur pleine ; « en ce moment » = les 28
+    # derniers jours de la période), le détail du titre, et l'engagement (borné à la
+    # période ; le titre ne s'y applique pas, ce sont des chiffres de l'artiste — dit en
+    # une ligne sous la figure). Même hauteur pour les trois (`_ROW_HEIGHT`).
     #
-    # ⚠️ LES DEUX FIGURES N'ONT PAS LA MÊME PORTÉE. « Détail par titre » montre UN titre
-    # choisi dans un sélecteur ; l'engagement montre TOUT l'artiste. Superposer la courbe
-    # d'abonnés de l'artiste aux écoutes d'un seul titre invite une lecture causale que
-    # la donnée ne soutient pas — « mes abonnés montent parce que ce titre monte » —
-    # alors que la courbe d'abonnés est EXACTEMENT LA MÊME quel que soit le titre
-    # sélectionné. Une figure qui suggère un lien inexistant est pire que deux figures.
-    #
-    # S'y ajoute un obstacle mécanique : cinq séries pour QUATRE natures — un flux
-    # quotidien (écoutes/jour), un indice BORNÉ 0-100 (popularité), un flux mensuel
-    # (sauvegardes, playlists) et un niveau quotidien (abonnés). Plotly rend deux axes
-    # lisibles, pas quatre, et ce dépôt plafonne les axes secondaires à zéro nouveau.
-    #
-    # Ce qui EST faisable, et qui répond au besoin derrière la demande — tout voir d'un
-    # regard — c'est de les poser sur la MÊME RANGÉE. C'est déjà deux fois le geste de
-    # cette page : §1/§2 le 2026-09-21, ce-qui-bouge/détail le 2026-09-22.
-    g, d = st.columns(2)
-    with g:
-        fig, note = _song_detail(db, spans, frag, params)
+    # Le titre « 📊 Analyses détaillées » et la colonne imbriquée disparaissent : la rangée
+    # n'est plus un tiroir secondaire, c'est la seconde moitié de la page.
+    song, window = _common_filter(db, spans)
+    if song is None:
+        return
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        _render_momentum(db, spans, frag, params, window, song)
+    with c2:
+        fig, note = _song_detail(db, spans, frag, params, song, window)
         if fig is not None:
             st.plotly_chart(fig, width="stretch")
             if note:
                 st.caption(note)
-    with d:
-        fig = _engagement_fig(db, frag, params)
+    with c3:
+        fig = _engagement_fig(db, frag, params, window)
         if fig is not None:
             st.plotly_chart(fig, width="stretch")
+            st.caption(t("spotify_s4a_combined.engagement_scope",
+                         "Chiffres de tout l'artiste : le titre choisi ne s'applique pas ici, "
+                         "la période oui."))
 
 
-def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple):
+def _common_filter(db, spans: pd.DataFrame):
+    """Le Titre et la Période PARTAGÉS par les trois figures de la rangée (R188).
+
+    LA DERNIÈRE SORTIE EST PROPOSÉE D'OFFICE (2026-09-21) : `spans` arrive trié par cumul à
+    vie, donc le premier choix était le plus GROS titre — celui qu'on connaît déjà ; on
+    classe par `first_streamed` décroissant. La période s'ancre sur la première écoute du
+    titre choisi (Spotify exporte la timeline du COMPTE avec des 0 avant la sortie).
+
+    ⚠️ La clé de période est COMMUNE (`s4a_common`), plus `s4a_detail_{titre}` : un filtre
+    partagé par trois figures garde sa période quand on change de titre.
+    """
+    if spans.empty:
+        st.info(t("spotify_s4a_combined.no_data", "Pas de données disponibles."))
+        return None, None
+    ordered = spans.sort_values("first_streamed", ascending=False, na_position="last")
+    f_song, f_period = st.columns([2, 3])
+    with f_song:
+        song = st.selectbox(t("spotify_s4a_combined.select_song", "Titre"),
+                            ordered["song"].tolist(), key="s4a_detail_song")
+    row = spans[spans["song"] == song].iloc[0]
+    start = row["first_streamed"] or row["first_measured"]
+    with f_period:
+        window = smart_period_filter(
+            db, table="v_s4a_song_daily", date_column="day",
+            artist_id=None, key="s4a_common",
+            latest_release=start if isinstance(start, date) else None,
+            default_override="last_release")
+    return song, window
+
+
+def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple, song, window):
     st.markdown(f"##### {t('spotify_s4a_combined.detail_header', '🎸 Détail par titre')}")
     if spans.empty:
         return None, None
@@ -509,21 +561,12 @@ def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple):
     #
     # `sort_values(na_position="last")` : un titre sans première écoute connue ne
     # doit pas remonter en tête par l'effet d'un NULL.
-    ordered = spans.sort_values("first_streamed", ascending=False, na_position="last")
-    song = st.selectbox(t("spotify_s4a_combined.select_song", "Titre"),
-                        ordered["song"].tolist(), key="s4a_detail_song")
+    # Le titre et la période viennent du FILTRE COMMUN (R188) : ce graphe n'a plus de
+    # widgets à lui.
+    if song is None or song not in set(spans["song"]):
+        return None, None
     row = spans[spans["song"] == song].iloc[0]
-
-    # La fenêtre proposée est celle DU TITRE choisi, et elle démarre à sa première
-    # écoute. Spotify exporte la timeline du COMPTE et y met 0 avant la sortie :
-    # partir du premier jour du fichier dessinerait des mois de plat à zéro pour un
-    # morceau qui n'était pas publié.
     start = row["first_streamed"] or row["first_measured"]
-    window = smart_period_filter(
-        db, table="v_s4a_song_daily", date_column="day",
-        artist_id=None, key=f"s4a_detail_{song}",
-        latest_release=start if isinstance(start, date) else None,
-        default_override="last_release")
     wfrag, wparams = window.sql_between("day")
 
     df = _df(db, f"""
@@ -575,7 +618,7 @@ def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple):
     fig.update_yaxes(title_text=t("spotify_s4a_combined.pi_axis", "Indice de popularité"),
                      secondary_y=True, range=[0, 100], showgrid=False,
                      title_font=dict(color=_PI_INK), tickfont=dict(color=_PI_INK))
-    fig.update_layout(height=340, hovermode="x unified",
+    fig.update_layout(height=_ROW_HEIGHT, hovermode="x unified",
                       legend=dict(orientation="h", y=1.15))
 
     # ⚠️ DEUX TIERS DE CETTE LÉGENDE SONT RETIRÉS — 2026-09-22, demandé en regardant
@@ -599,7 +642,7 @@ def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple):
     return fig, note
 
 
-def _engagement_fig(db, frag: str, params: tuple):
+def _engagement_fig(db, frag: str, params: tuple, window):
     """Sauvegardes, ajouts en playlist et ABONNÉS sur une seule figure.
 
     Demandé le 2026-09-22 : « ajoute sur le même graphique les sauvegardes et ajouts en
@@ -637,14 +680,24 @@ def _engagement_fig(db, frag: str, params: tuple):
     """
     st.markdown(f"##### {t('spotify_s4a_combined.engagement_header', '💾 Sauvegardes, playlists et abonnés')}")
 
+    # BORNÉE À LA PÉRIODE COMMUNE (R188). Les sauvegardes sont MENSUELLES et la période
+    # est au jour : un mois entre dès qu'il CHEVAUCHE la période (début du mois ≤ fin, et
+    # fin du mois ≥ début) — un mois coupé par la période est montré entier plutôt que
+    # tronqué, parce que ses chiffres ne sont pas découpables au jour. Les abonnés sont
+    # quotidiens : bornés au jour. Le TITRE ne s'applique pas ici — données de l'artiste.
+    mfrag, mparams = ("", ())
+    if not window.is_all_history:
+        mfrag = " AND month <= %s AND month + INTERVAL '1 month' > %s "
+        mparams = (window.end, window.start)
+    dfrag, dparams = window.sql_between("day")
     flux = _df(db, f"""
         SELECT month, saves, playlist_adds FROM v_s4a_audience_monthly
-         WHERE TRUE {frag} ORDER BY month
-    """, params)
+         WHERE TRUE {frag} {mfrag} ORDER BY month
+    """, (*params, *mparams))
     abo = _df(db, f"""
         SELECT day, followers, source FROM v_spotify_followers_daily
-         WHERE TRUE {frag} ORDER BY day
-    """, params)
+         WHERE TRUE {frag} {dfrag} ORDER BY day
+    """, (*params, *dparams))
     if flux.empty and abo.empty:
         st.info(t("spotify_s4a_combined.no_data", "Pas de données disponibles."))
         return None
@@ -710,7 +763,7 @@ def _engagement_fig(db, frag: str, params: tuple):
                      secondary_y=True, showgrid=False,
                      title_font=dict(color=_FOLLOWER_INK),
                      tickfont=dict(color=_FOLLOWER_INK))
-    fig.update_layout(height=380, barmode="group", hovermode="x unified",
+    fig.update_layout(height=_ROW_HEIGHT, barmode="group", hovermode="x unified",
                       legend=dict(orientation="h", y=1.14))
     return fig
 
@@ -746,21 +799,13 @@ def show():
         with left:
             _frag_releases(frag, params)
         with right:
-            _render_audience(db, frag, params)
+            _render_meta_impact(db, frag, params)
 
         st.markdown("---")
-        # §3 ET LE DÉTAIL CÔTE À CÔTE — 2026-09-22, demandé en regardant l'écran :
-        # « mets sur la même ligne le graph ce qui bouge en ce moment et analyses
-        # détaillées ».
-        #
-        # C'est le même geste, pour la même raison, que §1 et §2 le 2026-09-21 : on
-        # voit quel titre bouge, puis on veut son détail — les lire l'un SOUS l'autre
-        # demandait de faire défiler entre les deux moitiés d'une même question.
-        gauche, droite = st.columns(2)
-        with gauche:
-            _render_momentum(db, spans, frag, params)
-        with droite:
-            _render_secondary(db, spans, frag, params)
+        # §3, LE DÉTAIL ET L'ENGAGEMENT — trois colonnes égales sous UN filtre commun
+        # (R188, 2026-09-26). Ce qui bouge, puis le détail du titre, puis ce que l'artiste
+        # garde : la lecture va de gauche à droite, du catalogue au titre à l'audience.
+        _render_secondary(db, spans, frag, params)
         st.markdown("---")
         _render_wrapped(db)
 

@@ -30,7 +30,6 @@ EN = {
     "common.error": "Error: {err}",
     "common.no_data": "No data for this selection.",
     "common.streams": "Streams",
-    "common.count": "Count",
     "common.revenue_eur": "Revenue (€)",
     "common.filter_by_year": "Filter by year",
     "common.filter_by_month": "Filter by month",

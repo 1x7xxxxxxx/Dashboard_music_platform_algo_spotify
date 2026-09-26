@@ -25,6 +25,8 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R187 | Page Spotify (S4A) : remplacer « auditeurs-jour » par « 📣 La pub t'a-t-elle amené des auditeurs ? » — auditeurs/jour + bandes des jours de pub Meta + € par auditeur gagné, et la décision écrite (relancer / couper / changer la créa) — note du propriétaire, 2026-09-26 <!-- anchor: s4a-meta-impact --> | P3 | `tests/test_views_render_smoke.py` + capture navigateur |
+| R188 | Page Spotify (S4A) : « 🔥 Ce qui bouge », « 🎸 Détail par titre », « 💾 Sauvegardes » alignés en 3 colonnes égales sous UN filtre commun Titre + Période — note du propriétaire, 2026-09-26 <!-- anchor: s4a-common-filter --> | P3 | `tests/test_views_render_smoke.py` + capture navigateur |
 
 **Huit lignes y sont entrées le 2026-09-25 au soir**, toutes issues de l'audit de la
 surveillance des classes d'erreur — détail dans « 🧭 R167 – R176 » juste sous cet index.
@@ -220,7 +222,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R187, R188 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers
