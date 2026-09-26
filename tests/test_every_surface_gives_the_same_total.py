@@ -151,7 +151,6 @@ def _channel_counter_reads() -> tuple[list[str], list[str]]:
     Rend `(lus, non_nommés)` — les deux listes, parce que la seconde vide ne prouve
     rien si la première l'est aussi.
     """
-    import ast
     import pathlib
 
     reads, offenders = [], []
@@ -161,44 +160,80 @@ def _channel_counter_reads() -> tuple[list[str], list[str]]:
             if rel in _DDL_FILES:
                 continue
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                r, o = channel_counter_reads_in(path.read_text(encoding="utf-8"))
             except (SyntaxError, UnicodeDecodeError):
                 continue
-            # Les DOCSTRINGS sont exclues : ce garde a rougi sur l'explication du
-            # correctif qu'il venait de garder. Un garde qui oblige à cesser de
-            # documenter apprend que le rouge est du bruit.
-            docstrings = {
-                d for n in ast.walk(tree)
-                if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef,
-                                  ast.AsyncFunctionDef))
-                for d in [ast.get_docstring(n, clean=False)] if d is not None
-            }
-            for node in ast.walk(tree):
-                if not (isinstance(node, ast.Constant)
-                        and isinstance(node.value, str)):
-                    continue
-                sql = node.value
-                if sql in docstrings:
-                    continue
-                low = sql.lower()
-                if "youtube_channel_history" not in low or "view_count" not in low:
-                    continue
-                # ÉCRIRE le compteur n'est pas le LIRE. Le collecteur doit l'insérer :
-                # c'est ce que YouTube annonce, et les abonnés viennent de la même
-                # ligne. La classe de défaut est de le lire COMME étant « les vues ».
-                # Le premier prédicat épousait le symptôme (« la colonne apparaît »)
-                # plutôt que la question, et rapportait le DAG de collecte et son
-                # script de débogage — deux sites corrects.
-                if "insert into youtube_channel_history" in low:
-                    continue
-                if "select" not in low:
-                    continue
-                site = f"{rel}:{node.lineno}"
-                reads.append(site)
-                if "as channel_" in low:
-                    continue
-                offenders.append(site)
+            reads += [f"{rel}:{n}" for n in r]
+            offenders += [f"{rel}:{n}" for n in o]
     return reads, offenders
+
+
+def channel_counter_reads_in(source: str) -> tuple[list[int], list[int]]:
+    """(lines READING the channel counter, lines reading it UNNAMED) in one module.
+    Pure — the tree walk above only feeds it files."""
+    import ast
+
+    tree = ast.parse(source)
+    reads, offenders = [], []
+    # Les DOCSTRINGS sont exclues : ce garde a rougi sur l'explication du
+    # correctif qu'il venait de garder. Un garde qui oblige à cesser de
+    # documenter apprend que le rouge est du bruit.
+    docstrings = {
+        d for n in ast.walk(tree)
+        if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                          ast.AsyncFunctionDef))
+        for d in [ast.get_docstring(n, clean=False)] if d is not None
+    }
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Constant)
+                and isinstance(node.value, str)):
+            continue
+        sql = node.value
+        if sql in docstrings:
+            continue
+        low = sql.lower()
+        if "youtube_channel_history" not in low or "view_count" not in low:
+            continue
+        # ÉCRIRE le compteur n'est pas le LIRE. Le collecteur doit l'insérer :
+        # c'est ce que YouTube annonce, et les abonnés viennent de la même
+        # ligne. La classe de défaut est de le lire COMME étant « les vues ».
+        # Le premier prédicat épousait le symptôme (« la colonne apparaît »)
+        # plutôt que la question, et rapportait le DAG de collecte et son
+        # script de débogage — deux sites corrects.
+        if "insert into youtube_channel_history" in low:
+            continue
+        if "select" not in low:
+            continue
+        reads.append(node.lineno)
+        if "as channel_" in low:
+            continue
+        offenders.append(node.lineno)
+    return reads, offenders
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, class `a-rule-copied-is-a-rule-that-will-diverge`: the copy
+    that drifted in `views/youtube.py` — the channel counter read as "views" — is
+    named; the same read aliased `channel_views`, the collector's INSERT and a
+    docstring explaining the fix are not."""
+    drifted = ('q = "SELECT view_count FROM youtube_channel_history '
+               'WHERE artist_id = %s"\n')
+    assert channel_counter_reads_in(drifted) == ([1], [1])
+    named = drifted.replace("SELECT view_count", "SELECT view_count AS channel_views")
+    assert channel_counter_reads_in(named) == ([1], [])
+    # An alias that does not say WHICH views is still the defect.
+    vague = drifted.replace("SELECT view_count", "SELECT view_count AS views")
+    assert channel_counter_reads_in(vague) == ([1], [1])
+    # Writing it is not reading it — even when the write copies a SELECT.
+    copy = ('q = "INSERT INTO youtube_channel_history (view_count) '
+            'SELECT view_count FROM staging"\n')
+    update = 'q = "UPDATE youtube_channel_history SET view_count = %s"\n'
+    assert channel_counter_reads_in(copy) == ([], [])
+    assert channel_counter_reads_in(update) == ([], [])
+    write = ('q = "INSERT INTO youtube_channel_history (view_count) VALUES (%s)"\n')
+    doc = ('def f():\n    """Never SELECT view_count FROM youtube_channel_history."""\n')
+    assert channel_counter_reads_in(write) == ([], [])
+    assert channel_counter_reads_in(doc) == ([], [])
 
 
 def _sweep_the_channel_counter() -> None:
