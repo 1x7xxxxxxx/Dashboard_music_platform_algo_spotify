@@ -50,20 +50,41 @@ _BAND_LIGHT = (0.43, 0.77)
 _BAND_DARK = (0.48, 0.67)
 
 
-@pytest.mark.parametrize("theme,pal,floor,band", [
-    ("clair", _PALETTE_LIGHT, _FLOOR_LIGHT, _BAND_LIGHT),
-    ("sombre", _PALETTE_DARK, _FLOOR_DARK, _BAND_DARK),
-])
-def test_every_pair_of_areas_can_be_told_apart(theme, pal, floor, band) -> None:
-    """Chaque paire, en vision normale ET dichromate. Une seule suffit à casser."""
-    bad = []
+def unattributable_pairs(pal: dict, floor: float) -> list[tuple[str, str, str, float]]:
+    """(vision, a, b, ΔE) for every pair below `floor`, in normal AND dichromat vision."""
+    out = []
     for a, b in itertools.combinations(sorted(pal), 2):
         for vision, ca, cb in (("normale", pal[a], pal[b]),
                                ("deutan", simulate(pal[a], "deutan"), simulate(pal[b], "deutan")),
                                ("protan", simulate(pal[a], "protan"), simulate(pal[b], "protan"))):
             d = de2000(ca, cb)
             if d < floor:
-                bad.append(f"  {theme}/{vision:<8} {a} ↔ {b}  ΔE {d:4.1f}  < {floor}")
+                out.append((vision, a, b, d))
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity through the guard's own loop: the exact brand colours refused on
+    2026-09-08 (YouTube red, SoundCloud orange) are named as a deutan pair; the shipped
+    light palette is not."""
+    brand = {"youtube": "#FF0000", "soundcloud": "#FF5500"}
+    pairs = unattributable_pairs(brand, _FLOOR_LIGHT)
+    assert ("deutan", "soundcloud", "youtube") in [(v, a, b) for v, a, b, _ in pairs]
+    # A pair only a DICHROMAT confuses — ΔE 67 in normal vision, 9 in deutan. Without
+    # it, a loop that forgot to simulate would still pass on red vs orange above.
+    only_deutan = {"soundcloud": "#FF5500", "spotify": "#1DB954"}
+    assert [v for v, *_ in unattributable_pairs(only_deutan, _FLOOR_LIGHT)] == ["deutan"]
+    assert unattributable_pairs(_PALETTE_LIGHT, _FLOOR_LIGHT) == []
+
+
+@pytest.mark.parametrize("theme,pal,floor,band", [
+    ("clair", _PALETTE_LIGHT, _FLOOR_LIGHT, _BAND_LIGHT),
+    ("sombre", _PALETTE_DARK, _FLOOR_DARK, _BAND_DARK),
+])
+def test_every_pair_of_areas_can_be_told_apart(theme, pal, floor, band) -> None:
+    """Chaque paire, en vision normale ET dichromate. Une seule suffit à casser."""
+    bad = [f"  {theme}/{vision:<8} {a} ↔ {b}  ΔE {d:4.1f}  < {floor}"
+           for vision, a, b, d in unattributable_pairs(pal, floor)]
     assert not bad, (
         f"deux aires de la figure ne peuvent pas être attribuées en thème {theme} :\n"
         + "\n".join(bad)
