@@ -11,6 +11,27 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R216 — **ML, les défauts du dossier** : prévisions Release Radar toutes à 0, P(DW) insensible… (livrée 2026-09-27)
+
+- [x] **R216 — **ML, les défauts du dossier** : prévisions Release Radar toutes à 0, P(DW) insensible à son levier, probabilités au plancher affichées en % dans le PDF, 44 jauges sur une page, fiches ML non rendues (56-69, 93) — le propriétaire : « intègre toutes tes modifs sur le ML, on commence direct »** (P2) ✅ (2026-09-27, f6a0721, 2088a18)
+  Mesuré par : `make charts-dossier` (fiches ML) + scoring vérifié
+  livre f6a0721, deploye 2026-09-27 : prevision supprimee jamais tracee, levier echantillonne sur grille log, plancher refuse sur 11 surfaces, jauges en tableau ; reste dev-only debug_ml_scoring.py (hors garde)
+  Commits : f6a0721 R216 : les defauts ML du dossier des graphiques - prevision supprimee  · 2088a18 Roadmap : R205 a R216 inscrites depuis les retours du proprietaire sur
+
+## ✅ R206 — SoundCloud : le cumul qui tombe à 0 puis remonte (fiches 16, 18) — cause lue + classe (… (livrée 2026-09-27)
+
+- [x] **R206 — SoundCloud : le cumul qui tombe à 0 puis remonte (fiches 16, 18) — cause lue + classe (famille « absence écrite comme zéro »)** (P2) ✅ (2026-09-27, 269f8cc)
+  Mesuré par : `make charts-dossier` (fiches 16, 18)
+  livre 269f8cc, deploye 2026-09-27 : le graphique SoundCloud par titre lit la lisibilite par metrique (migration 138), plus de chute a 0 d'un cumul non releve
+  Commits : 269f8cc R205 · R206 : un chiffre juste partout - CTR recalcule depuis ses comp
+
+## ✅ R205 — **Un chiffre juste partout** : mesurer les 18 chiffres suspects du dossier sur un insta… (livrée 2026-09-27)
+
+- [x] **R205 — **Un chiffre juste partout** : mesurer les 18 chiffres suspects du dossier sur un instantané frais, cause lue dans le code, une classe par FAMILLE (billet `sites:≥2`) ; méthode : une définition par KPI dans la couche or, test de réconciliation « même KPI, même valeur sur chaque surface », contrat d'absence (jamais 0 pour « pas de donnée ») — retour du propriétaire 2026-09-26** (P2) ✅ (2026-09-27, 34f2bf9, 269f8cc, 2088a18)
+  Mesuré par : test de réconciliation + `make charts-dossier`
+  livre 269f8cc+34f2bf9, deploye en prod 2026-09-27 (migrations 138-140, dashboard sain) ; CTR recalcule depuis ses comptes, jointure Meta au grain de l'annonce, evenement sortant compte une fois, zero invente retire (Wrapped, moniteur de DAG), verdict ROI refuse sans croisement ; 5 classes balayees
+  Commits : 34f2bf9 R205 : les fixtures des gardes de taux et de fan-out nomment leurs ann · 269f8cc R205 · R206 : un chiffre juste partout - CTR recalcule depuis ses comp · 2088a18 Roadmap : R205 a R216 inscrites depuis les retours du proprietaire sur
+
 ## ✅ R204 — Retours du propriétaire sur le dossier des graphiques : fiches numérotées + guide de di… (livrée 2026-09-26)
 
 - [x] **R204 — Retours du propriétaire sur le dossier des graphiques : fiches numérotées + guide de dictée dans le PDF, avis rattachés dans `review.yaml`, tri par CAUSE (une ligne de roadmap corrige plusieurs graphiques), arbitrage AVANT toute inscription d'action** (P2) ✅ (2026-09-26, e67e802)

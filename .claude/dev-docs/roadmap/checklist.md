@@ -31,8 +31,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R202 | R122 à rouvrir : `ever_recurred_observed` = 49, au-dessus de son seuil (les récidives R190 et R191 du 2026-09-26) — et le libellé du déclencheur dit « au-dessus de 47 » quand l'évaluateur teste 48 <!-- anchor: r122-reopened --> <!-- critic: non — relecture de catalogue, pas de code produit --> | P3 | `make reopen-check` |
-| R205 | **Un chiffre juste partout** : mesurer les 18 chiffres suspects du dossier sur un instantané frais, cause lue dans le code, une classe par FAMILLE (billet `sites:≥2`) ; méthode : une définition par KPI dans la couche or, test de réconciliation « même KPI, même valeur sur chaque surface », contrat d'absence (jamais 0 pour « pas de donnée ») — retour du propriétaire 2026-09-26 <!-- anchor: r205 --> <!-- critic: requis --> | P2 | test de réconciliation + `make charts-dossier` |
-| R206 | SoundCloud : le cumul qui tombe à 0 puis remonte (fiches 16, 18) — cause lue + classe (famille « absence écrite comme zéro ») <!-- anchor: r206 --> <!-- critic: requis --> | P2 | `make charts-dossier` (fiches 16, 18) |
 | R212 | **Trésorerie unique** : ventes iMusician + SACEM + dépenses Meta + solde cumulé en un graphique lisible comme une compta ; remplace le « point d'équilibre » et la « régression R²=1 » trompeurs (fiches 26-28, 54, 55, 75, pdf roi) <!-- anchor: r212 --> <!-- critic: requis --> | P2 | `make charts-dossier` |
 | R213 | **« Tout mon funnel » en tête du menu** : refonte d'« Impact de mes campagnes » — créas → Meta → landing Hypeddit → streams → Shazam/Apple → revenus, coût et perte à chaque étape, coût par stream incrémental par créa, âge × placement × résultat, engagement pendant la campagne <!-- anchor: r213 --> <!-- critic: requis --> | P2 | `make charts-dossier` + capture navigateur |
 | R208 | Répartitions Meta sur une même vue : pays, placement, âge, plateforme côte à côte, sans sélecteur (fiches 33-36) <!-- anchor: r208 --> <!-- critic: non — mise en page d'une vue existante --> | P3 | capture navigateur |
@@ -42,7 +40,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | R211 | Hypeddit : anneaux de conversion au lieu de barres (fiches 25, 102) <!-- anchor: r211 --> <!-- critic: non — affichage seul --> | P3 | dossier |
 | R214 | Wrapped : tuiles annuelles repliées au lieu des graphiques, rien retiré (fiches 6-13, après R205) <!-- anchor: r214 --> <!-- critic: non — affichage seul --> | P4 | dossier |
 | R215 | Grafana : la latence de rendu n'a que 1-2 points en 7 jours, et le pool Postgres montre des milliers de replis directs (fiches 119, 121, 125) <!-- anchor: r215 --> <!-- critic: requis --> | P2 | `make charts-dossier` (Grafana) + règles d'alerte |
-| R216 | **ML, les défauts du dossier** : prévisions Release Radar toutes à 0, P(DW) insensible à son levier, probabilités au plancher affichées en % dans le PDF, 44 jauges sur une page, fiches ML non rendues (56-69, 93) — le propriétaire : « intègre toutes tes modifs sur le ML, on commence direct » <!-- anchor: r216 --> <!-- critic: requis --> | P2 | `make charts-dossier` (fiches ML) + scoring vérifié |
 | R217 | **Déployer chaque lot livré** : `make migrate-prod` (138-140 puis suivantes) et `make deploy SERVICE=dashboard` après CI verte ; `/health` vérifié, retour arrière et mise de côté sinon ; jamais `tasks test` — autorisé par le propriétaire le 2026-09-27 pour la séance de nuit <!-- anchor: r217 --> <!-- critic: non — geste de déploiement, pas de code --> | P2 | `/health` + CI de main |
 | R218 | Régénérer le dossier des graphiques sur un instantané frais, vérifier chaque fiche corrigée, puis supprimer l'instantané `spotify_etl_review` et `revue/prod.dump` (données réelles d'artistes) <!-- anchor: r218 --> <!-- critic: non — outillage de revue --> | P3 | `make charts-dossier OUT=revue` |
 | R219 | Dérive de schéma : `meta_ads.ad_name` et `meta_adsets.adset_name` sont NULLables en prod et en local, NOT NULL dans `init_db.sql`, `meta_ads_schema.py` et donc en CI — aucune migration ne l'explique ; deux fixtures R205 passaient en local et rougissaient en CI (2026-09-27). Mesurer l'écart complet (toutes colonnes, prod vs init_db) et décider du sens <!-- anchor: r219 --> <!-- critic: requis --> | P3 | `information_schema.columns` prod vs CI |
@@ -101,7 +98,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R202, R205, R206, R212, R213, R208, R207, R209, R210, R211, R214, R215, R216, R217, R218, R219 -->
+<!-- reprise: open=R202, R212, R213, R208, R207, R209, R210, R211, R214, R215, R217, R218, R219 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
