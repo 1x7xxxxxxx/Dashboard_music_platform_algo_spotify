@@ -31,3 +31,35 @@ def test_the_test_selector_proves_itself() -> None:
     st = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(st)
     assert st.self_test() == 0, "select_tests' own self-test went red"
+
+
+def _orphan_self_tests(root: Path) -> list[str]:
+    """Scripts defining `self_test()` that no test module both imports by file and calls."""
+    tests = [p.read_text(encoding="utf-8") for p in (root / "tests").glob("test_*.py")]
+    out = []
+    for folder in (root / ".claude" / "scripts", root / "tools"):
+        for script in folder.rglob("*.py"):
+            if "def self_test" not in script.read_text(encoding="utf-8", errors="ignore"):
+                continue
+            if not any(script.name in t and "self_test()" in t for t in tests):
+                out.append(str(script.relative_to(root)))
+    return sorted(out)
+
+
+def test_every_self_test_is_run_by_the_suite() -> None:
+    """Found twice on 2026-09-26: a proof that exists and that nothing executes. The
+    suite is the only thing that runs on every commit, so it is where a self-test lives."""
+    root = Path(__file__).resolve().parents[1]
+    assert _orphan_self_tests(root) == [], (
+        "these scripts carry a self_test() the suite never runs — add a test that calls "
+        f"it: {_orphan_self_tests(root)}")
+
+
+def test_the_orphan_detector_sees_an_orphan(tmp_path) -> None:
+    (tmp_path / "tests").mkdir()
+    (tmp_path / ".claude" / "scripts").mkdir(parents=True)
+    (tmp_path / "tools").mkdir()
+    (tmp_path / ".claude" / "scripts" / "probe.py").write_text("def self_test():\n    return 0\n")
+    assert _orphan_self_tests(tmp_path) == [".claude/scripts/probe.py"]
+    (tmp_path / "tests" / "test_probe.py").write_text("# probe.py\nassert m.self_test() == 0\n")
+    assert _orphan_self_tests(tmp_path) == []
