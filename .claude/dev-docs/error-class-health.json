@@ -2936,7 +2936,7 @@
       "renamed_from": null
     },
     "a-removed-title-becomes-the-word-undefined": {
-      "cause_evidence": "retracted",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_live_chart_matches_the_illustration.py",
@@ -2960,7 +2960,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11487,7 +11487,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 553,
+      "catalogue_revisions": 554,
       "head_date": "2026-09-26"
     },
     "holes": {
