@@ -245,6 +245,41 @@ def test_the_menu_selection_is_reasserted_on_every_run():
 NAV = REPO / "src" / "dashboard" / "utils" / "navigation.py"
 
 
+def widget_key_writes(fn: ast.AST) -> list[str]:
+    """`st.session_state[<key>] = …` writes other than the plain `_nav_page`. Pure."""
+    writes = []
+    for node in ast.walk(fn):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if not (isinstance(target, ast.Subscript)
+                    and isinstance(target.value, ast.Attribute)
+                    and target.value.attr == "session_state"):
+                continue
+            key = target.slice
+            # `_nav_page` is plain state, not a widget — it is the one legal write.
+            if isinstance(key, ast.Constant) and key.value == "_nav_page":
+                continue
+            if isinstance(key, ast.Name) and key.id == "_PAGE_KEY":
+                continue
+            writes.append(ast.dump(key)[:60])
+    return writes
+
+
+def test_the_widget_key_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the `goto` of before 2026-09-04 — resetting every `_nav_<section>`
+    radio key — is named, literal and computed keys alike; writing `_nav_page` alone
+    is not."""
+    old = ast.parse("def goto(page):\n"
+                    "    st.session_state['_nav_page'] = page\n"
+                    "    for s in SECTIONS:\n"
+                    "        st.session_state[f'_nav_{s}'] = None\n"
+                    "    st.session_state['_nav_reports'] = None\n")
+    assert len(widget_key_writes(old)) == 2
+    new = ast.parse("def goto(page):\n    st.session_state['_nav_page'] = page\n")
+    assert widget_key_writes(new) == []
+
+
 def test_goto_does_not_write_widget_keys():
     """Error class: writing a widget's session key after the widget exists.
 
@@ -263,23 +298,7 @@ def test_goto_does_not_write_widget_keys():
     Menu/page agreement now belongs to `app.resolve_nav_page`, which runs before the
     widgets exist. Nothing else may touch those keys.
     """
-    fn = _fn(NAV, "goto")
-    writes = []
-    for node in ast.walk(fn):
-        if not isinstance(node, ast.Assign):
-            continue
-        for target in node.targets:
-            if not (isinstance(target, ast.Subscript)
-                    and isinstance(target.value, ast.Attribute)
-                    and target.value.attr == "session_state"):
-                continue
-            key = target.slice
-            # `_nav_page` is plain state, not a widget — it is the one legal write.
-            if isinstance(key, ast.Constant) and key.value == "_nav_page":
-                continue
-            if isinstance(key, ast.Name) and key.id == "_PAGE_KEY":
-                continue
-            writes.append(ast.dump(key)[:60])
+    writes = widget_key_writes(_fn(NAV, "goto"))
     assert not writes, (
         f"goto() writes session keys other than _nav_page: {writes}. Called from a "
         "view, that raises StreamlitAPIException on any key that is a widget's."
