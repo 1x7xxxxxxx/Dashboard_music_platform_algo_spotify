@@ -236,3 +236,5 @@
 {"at": "2026-09-26T00:45:50+00:00", "head": "d0277ae", "kind": "start", "task": "R169", "what": "causes unknown : second passage, lot 18 (dernier lisible)"}
 {"at": "2026-09-26T00:47:42+00:00", "head": "897605a", "kind": "done", "task": "R169", "what": "second passage lot 18 : 15 -> 13 ; les 13 restantes demandent un rendu, une prod ou un jugement humain"}
 {"at": "2026-09-26T00:47:51+00:00", "head": "897605a", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot A"}
+{"at": "2026-09-26T00:50:42+00:00", "head": "e536253", "kind": "done", "task": "R169", "what": "gardes lot A : 270 -> 268"}
+{"at": "2026-09-26T00:50:50+00:00", "head": "e536253", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot B"}

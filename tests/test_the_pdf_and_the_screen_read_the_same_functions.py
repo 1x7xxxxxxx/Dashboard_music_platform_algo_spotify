@@ -50,9 +50,23 @@ _SHARED = {"daily_streams_by_platform", "cumulative_by_platform"}
 
 
 def _names_called(path: pathlib.Path) -> set[str]:
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return _called_in(path.read_text(encoding="utf-8"))
+
+
+def _called_in(source: str) -> set[str]:
+    """Every function name CALLED in the source — a name only mentioned does not count."""
     return {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
-            for n in ast.walk(tree) if isinstance(n, ast.Call)}
+            for n in ast.walk(ast.parse(source)) if isinstance(n, ast.Call)}
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity on FABRICATED renderers: a copy that recomputes the series (the
+    2026-09-12 shape — a literal palette and its own sum) misses the shared functions;
+    the renderer that calls them does not; a name only cited in a string is not a call."""
+    copy = "def fig(rows):\n    return sum(r['streams'] for r in rows)\nDOC = 'cumulative_by_platform'\n"
+    shared = "def fig(db):\n    a = daily_streams_by_platform(db)\n    return cumulative_by_platform(a)\n"
+    assert _SHARED - _called_in(copy) == _SHARED
+    assert _SHARED - _called_in(shared) == set()
 
 
 def test_the_report_feeds_the_figure_from_the_shared_series_functions() -> None:

@@ -41,14 +41,26 @@ def _calls(tree: ast.AST, name: str) -> list[ast.Call]:
             and isinstance(n.func, ast.Name) and n.func.id == name]
 
 
+def _naked_successes(tree: ast.AST) -> list[int]:
+    """Lines of `record_tenant_success(...)` calls that carry no `duration_ms`."""
+    return [c.lineno for c in _calls(tree, "record_tenant_success")
+            if not any(kw.arg == "duration_ms" for kw in c.keywords)]
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity on a FABRICATED DAG body: a success recorded with no timer (the zero
+    written by construction) is seen; the timed call is not."""
+    src = ("record_tenant_success('d', artist_id=1, platform='x')\n"
+           "record_tenant_success('d', artist_id=1, platform='x', duration_ms=1200)\n")
+    assert _naked_successes(ast.parse(src)) == [1]
+
+
 def test_every_recorded_success_carries_a_measured_duration() -> None:
     """Un enregistrement sans chronomètre réinstalle le zéro, en silence."""
     naked = []
     for path in _DAGS:
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        for call in _calls(tree, "record_tenant_success"):
-            if not any(kw.arg == "duration_ms" for kw in call.keywords):
-                naked.append(f"{path.name}:{call.lineno}")
+        naked += [f"{path.name}:{ln}" for ln in _naked_successes(tree)]
     assert not naked, (
         "ces appels enregistrent un succès sans mesurer sa durée, donc écrivent "
         f"un zéro que rien ne distingue d'une collecte instantanée : {naked}")
