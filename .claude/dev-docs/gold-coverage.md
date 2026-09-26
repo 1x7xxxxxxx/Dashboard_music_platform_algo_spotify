@@ -417,7 +417,7 @@ Une ligne par plateforme. « Lectures brutes » compte les lectures de ses table
 
 ## Les cliquets
 
-**22 valeurs gelées** dans 16 fichiers. Un cliquet pose deux questions, et la seconde est celle qu'on oublie : le plafond est-il **serré** (égal à la mesure — un plafond au-dessus est du mou qui autorise en silence ce qu'il interdit), et la population est-elle **plancherée** ? « Zéro indéterminée » sur zéro figure est vrai et ne dit rien.
+**23 valeurs gelées** dans 17 fichiers. Un cliquet pose deux questions, et la seconde est celle qu'on oublie : le plafond est-il **serré** (égal à la mesure — un plafond au-dessus est du mou qui autorise en silence ce qu'il interdit), et la population est-elle **plancherée** ? « Zéro indéterminée » sur zéro figure est vrai et ne dit rien.
 
 **0 sans test de non-vacuité** et **0 sans trace de mutation** dans leur fichier. Une trace de mutation est une phrase qui dit que le garde a été VU rouge sur le défaut qu'il vise ; sans elle, rien ne distingue un garde d'un test qui ne peut pas échouer.
 
@@ -427,6 +427,7 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 |---|---|---|---|---|
 | `test_a_chart_is_bounded_by_the_period_it_announces.py` | `_MAX_UNBOUNDED_FIGURES` | 0 | — | — |
 | `test_a_failed_read_is_not_an_absence.py` | `_CEILING` | 0 | — | — |
+| `test_a_gold_rule_is_declarative.py` | `_CEILING` | 1 | — | — |
 | `test_a_page_asks_the_same_question_once.py` | `_MAX_QUERIES` | 2 entrées | — | — |
 | `test_a_platform_colour_has_one_definition.py` | `_PLAFOND` | 42 | — | — |
 | `test_a_sql_identifier_comes_from_a_closed_set.py` | `_MAX_UNSOURCED` | 0 | — | — |
@@ -638,10 +639,10 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-pdf: total=29 unknown=7 -->
 <!-- gold-coverage-gold-objects: total=31 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
-<!-- gold-coverage-ratchets: total=22 without_nonvacuity=0 without_mutation=0 -->
+<!-- gold-coverage-ratchets: total=23 without_nonvacuity=0 without_mutation=0 -->
 <!-- gold-coverage-error-classes: total=418 guard_missing=0 guard_unnamed=10 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=28 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=16 blocking=16 -->
 
-<!-- gold-coverage: sha256=f589660916e85b3bcb4c410daaa6cd27ff6755c02f526e914cf0e0a069540ae9 -->
+<!-- gold-coverage: sha256=543af5dff78e42a998cccd84aae5cc49606d82ff5d893ff8030ccd61e7d768cf -->
