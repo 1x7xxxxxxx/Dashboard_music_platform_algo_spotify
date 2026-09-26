@@ -215,3 +215,14 @@ def test_every_raised_ceiling_is_still_needed(rel: str):
         f"« {rel} » ne rend plus que {n} graphiques au premier écran, sous le plafond "
         f"général de {_MAX_FIRST_SCREEN} : son exemption n'a plus d'objet et masquerait "
         f"une régression jusqu'à {plafond}. La retirer.")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path):
+    """Non-vacuity on a FABRICATED view: charts on the first screen are counted, the
+    ones folded under `secondary_analyses` are not."""
+    view = tmp_path / "wall.py"
+    view.write_text("import streamlit as st\n"
+                    "st.plotly_chart(a)\nst.plotly_chart(b)\nst.bar_chart(c)\n"
+                    "with secondary_analyses('Détail'):\n"
+                    "    st.plotly_chart(d)\n    st.plotly_chart(e)\n", encoding="utf-8")
+    assert len(_first_screen_charts(view)) == 3
