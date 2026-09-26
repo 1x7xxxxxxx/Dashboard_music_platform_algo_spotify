@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R212 — **Trésorerie unique** : ventes iMusician + SACEM + dépenses Meta + solde cumulé en un g… (livrée 2026-09-27)
+
+- [x] **R212 — **Trésorerie unique** : ventes iMusician + SACEM + dépenses Meta + solde cumulé en un graphique lisible comme une compta ; remplace le « point d'équilibre » et la « régression R²=1 » trompeurs (fiches 26-28, 54, 55, 75, pdf roi)** (P2) ✅ (2026-09-27, 7af83d6)
+  Mesuré par : `make charts-dossier`
+  livre 7af83d6, deploye 2026-09-27, verifie en prod (artiste 1 : 40 mois, cumul -2833,43 EUR) : une tresorerie (treasury_chart.py) sur iMusician, SACEM, Mes revenus et le PDF, une porte v_artist_monthly_cashflow ; ROI net contre toutes les depenses
+  Commits : 7af83d6 R212 : une seule tresorerie - ventes, SACEM, pub et couts saisis sur u
+
 ## ✅ R216 — **ML, les défauts du dossier** : prévisions Release Radar toutes à 0, P(DW) insensible… (livrée 2026-09-27)
 
 - [x] **R216 — **ML, les défauts du dossier** : prévisions Release Radar toutes à 0, P(DW) insensible à son levier, probabilités au plancher affichées en % dans le PDF, 44 jauges sur une page, fiches ML non rendues (56-69, 93) — le propriétaire : « intègre toutes tes modifs sur le ML, on commence direct »** (P2) ✅ (2026-09-27, f6a0721, 2088a18)
