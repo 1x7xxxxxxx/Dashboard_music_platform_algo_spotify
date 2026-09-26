@@ -641,10 +641,15 @@ def tests_scanning_the_test_files(changed: list[str], all_tests: set[str],
 # the import graph never reaches it. The meta-guard rule above only knew the literal
 # `glob("test_*.py")` — a FORM — and missed the property: code-critic reproduced it on
 # 2026-09-26 with a naive-datetime guard (`_ROOT.rglob("*.py")`) that `select_tests` left
-# out when `app/jobs.py` gained a `datetime.now()`. The directory scanned is resolved
-# statically from the call's receiver (`_ROOT / "src"`, a module-level name bound to one);
-# anything unresolvable counts as the whole repository — over-selecting is the safe side.
+# out when `app/jobs.py` gained a `datetime.now()`. The directory walked is resolved
+# statically: literals, names bound to them (module-level or local, a name assigned twice
+# standing for both), loop variables over a tuple, and `Path(__file__)` anchors resolved
+# from the test file's OWN location (`.parent`, `.parents[k]`). Anything unresolvable is
+# the whole repository — and stays so when a literal is joined to it: code-critic's
+# second finding, where `Path(__file__).parent / "fixtures"` in `tests/foo/` had resolved
+# to a top-level `fixtures/` because « root » and « unknown » shared one value.
 _TREE_SCAN_HINT = re.compile(r"\.rglob\(|\bos\.walk\(|glob\(\s*[\"']\*\*")
+_UNKNOWN = None   # the whole repository — never joined to anything
 
 
 def _strings(node: ast.AST, names: dict[str, list[ast.AST]], depth: int = 0) -> list[str] | None:
@@ -662,39 +667,71 @@ def _strings(node: ast.AST, names: dict[str, list[ast.AST]], depth: int = 0) -> 
     return None
 
 
+def _up(parts: tuple[str, ...] | None, levels: int) -> tuple[str, ...] | None:
+    if parts is None or levels > len(parts):
+        return None   # above the repository: unknown
+    return parts[:len(parts) - levels]
+
+
+def _anchor(node: ast.AST, names: dict[str, list[ast.AST]], here: tuple[str, ...] | None,
+            depth: int = 0) -> tuple[str, ...] | None:
+    """Repo-relative parts of a `Path(__file__)`-derived expression, or None."""
+    if depth > 8 or here is None:
+        return None
+    if isinstance(node, ast.Call):
+        if getattr(node.func, "id", "") == "Path" and node.args and \
+                getattr(node.args[0], "id", "") == "__file__":
+            return here
+        if isinstance(node.func, ast.Attribute) and node.func.attr in ("resolve", "absolute"):
+            return _anchor(node.func.value, names, here, depth + 1)
+        return None
+    if isinstance(node, ast.Attribute) and node.attr == "parent":
+        return _up(_anchor(node.value, names, here, depth + 1), 1)
+    if (isinstance(node, ast.Subscript) and isinstance(node.value, ast.Attribute)
+            and node.value.attr == "parents" and isinstance(node.slice, ast.Constant)
+            and isinstance(node.slice.value, int)):
+        return _up(_anchor(node.value.value, names, here, depth + 1), node.slice.value + 1)
+    if isinstance(node, ast.Name) and len(names.get(node.id, ())) == 1:
+        return _anchor(names[node.id][0], names, here, depth + 1)
+    return None
+
+
 def _literal_paths(node: ast.AST, names: dict[str, list[ast.AST]], loops: dict[str, ast.AST],
-                   depth: int = 0) -> set[str]:
-    """Repo-relative directories an expression designates; {""} = the whole repo."""
+                   here: tuple[str, ...] | None, depth: int = 0) -> set[str | None]:
+    """Repo-relative directories an expression designates ("" = the repo root itself);
+    `_UNKNOWN` when it cannot be resolved."""
     if depth > 8:
-        return {""}
+        return {_UNKNOWN}
+    anchored = _anchor(node, names, here)
+    if anchored is not None:
+        return {"/".join(anchored)}
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
-        lefts = _literal_paths(node.left, names, loops, depth + 1)
+        lefts = _literal_paths(node.left, names, loops, here, depth + 1)
         rights = _strings(node.right, names)
         if rights is None and isinstance(node.right, ast.Name) and node.right.id in loops:
             rights = _strings(loops[node.right.id], names)
-        if rights is None:
-            return lefts
-        return {f"{a}/{b}".strip("/") if a else b.strip("/") for a in lefts for b in rights}
+        if rights is None or _UNKNOWN in lefts:
+            return lefts if rights is not None else {_UNKNOWN}
+        return {f"{a}/{b.strip('/')}".strip("/") for a in lefts for b in rights}
     if isinstance(node, ast.Name) and node.id in names:
-        return set().union(*(_literal_paths(v, names, loops, depth + 1)
+        return set().union(*(_literal_paths(v, names, loops, here, depth + 1)
                              for v in names[node.id]))
     if (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "Path" and node.args
             and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str)
             and not node.args[0].value.startswith("/")):
         return {node.args[0].value.strip("/").lstrip("./")}
-    return {""}
+    return {_UNKNOWN}
 
 
-def scanned_directories(source: str) -> set[str]:
+def scanned_directories(source: str, rel: str | None = None) -> set[str | None]:
     """Repo-relative directories whose `.py` files this test walks. Pure.
 
-    Empty set = the test walks no `.py` tree; {""} = the whole repository."""
+    `rel` is the test file's repo-relative path, which resolves `Path(__file__)` anchors.
+    Empty set = the test walks no `.py` tree; `_UNKNOWN` (None) = the whole repository."""
     try:
         tree = ast.parse(source)
     except SyntaxError:
         return set()
-    # Every simple assignment, module-level or local: a name assigned twice stands for
-    # the union of its values (over-selecting is the safe side).
     names: dict[str, list[ast.AST]] = {}
     for n in ast.walk(tree):
         if isinstance(n, ast.Assign):
@@ -703,23 +740,24 @@ def scanned_directories(source: str) -> set[str]:
                     names.setdefault(t.id, []).append(n.value)
     loops = {n.target.id: n.iter for n in ast.walk(tree)
              if isinstance(n, (ast.For, ast.comprehension)) and isinstance(n.target, ast.Name)}
-    out: set[str] = set()
+    here = tuple(rel.split("/")) if rel else None
+    out: set[str | None] = set()
     for n in ast.walk(tree):
         if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)):
             continue
         pattern = (n.args[0].value if n.args and isinstance(n.args[0], ast.Constant)
                    and isinstance(n.args[0].value, str) else "")
         if n.func.attr == "rglob" and pattern.endswith(".py"):
-            out |= _literal_paths(n.func.value, names, loops)
+            out |= _literal_paths(n.func.value, names, loops, here)
         elif n.func.attr == "glob" and pattern.startswith("**") and pattern.endswith(".py"):
-            out |= _literal_paths(n.func.value, names, loops)
+            out |= _literal_paths(n.func.value, names, loops, here)
         elif n.func.attr == "walk" and getattr(n.func.value, "id", "") == "os" and n.args:
-            out |= _literal_paths(n.args[0], names, loops)
+            out |= _literal_paths(n.args[0], names, loops, here)
     return out
 
 
 def tests_scanning_the_tree(changed: list[str], all_tests: set[str],
-                            known: dict[str, Path]) -> set[str]:
+                            known: dict[str, Path], root: Path | None = None) -> set[str]:
     """Tests that walk a `.py` tree containing a changed `.py` file."""
     changed_py = [c for c in changed if c.endswith(".py")]
     if not changed_py:
@@ -735,8 +773,13 @@ def tests_scanning_the_tree(changed: list[str], all_tests: set[str],
             continue
         if not _TREE_SCAN_HINT.search(text):
             continue
-        dirs = scanned_directories(text)
-        if any(d == "" or c == d or c.startswith(d + "/") for d in dirs for c in changed_py):
+        try:
+            rel = path.resolve().relative_to(root.resolve()).as_posix() if root else None
+        except ValueError:
+            rel = None
+        dirs = scanned_directories(text, rel)
+        if any(d is _UNKNOWN or d == "" or c == d or c.startswith(d + "/")
+               for d in dirs for c in changed_py):
             hits.add(mod)
     return hits
 
@@ -848,7 +891,7 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None,
     meta = set() if _sans_dossier else (
         tests_scanning_the_test_files(sources, set(all_tests), known) - picked)
     picked |= meta                                     # gardes qui balaient tests/
-    tree = tests_scanning_the_tree(sources, set(all_tests), known) - picked
+    tree = tests_scanning_the_tree(sources, set(all_tests), known, root) - picked
     picked |= tree                                     # gardes qui balaient un arbre de .py
 
     reason = f"{len(picked)}/{len(all_tests)} tests atteignent {len(seeds)} module(s) modifié(s)"

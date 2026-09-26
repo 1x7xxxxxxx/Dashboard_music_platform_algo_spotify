@@ -199,24 +199,42 @@ def test_a_directory_without_git_still_says_so(st, tmp_path):
     )
 
 
+
 def test_a_tree_scanner_is_selected_when_its_tree_changes(st, tmp_path) -> None:
     """A guard that walks `.py` files imports none of them (code-critic, 2026-09-26: a
     naive-datetime guard over `_ROOT.rglob("*.py")` was left out when a source file gained
-    `datetime.now()`). The directory it walks decides; unresolvable means the whole repo."""
-    whole = tmp_path / "test_whole.py"
-    whole.write_text("from pathlib import Path\n_ROOT = Path(__file__).parents[1]\n"
-                     "def test_a(): list(_ROOT.rglob('*.py'))\n")
-    docs = tmp_path / "test_docs.py"
-    docs.write_text("from pathlib import Path\n_ROOT = Path(__file__).parents[1]\n"
-                    "def test_b(): list((_ROOT / 'docs').rglob('*.py'))\n")
-    loop_source = ("from pathlib import Path\n_ROOT = Path(__file__).parents[1]\n"
-                   "_TREES = ('src', 'airflow')\n"
-                   "def test_c():\n    for t in _TREES:\n        root = _ROOT / t\n"
-                   "        list(root.rglob('*.py'))\n")
-    loop = tmp_path / "test_loop.py"
-    loop.write_text(loop_source)
-    known = {"tests.test_whole": whole, "tests.test_docs": docs, "tests.test_loop": loop}
-    picked = st.tests_scanning_the_tree(["src/utils/jobs.py"], set(known), known)
-    assert picked == {"tests.test_whole", "tests.test_loop"}
-    assert st.tests_scanning_the_tree(["README.md"], set(known), known) == set()
-    assert st.scanned_directories(loop_source) == {"src", "airflow"}
+    `datetime.now()`). The directory it walks decides; unresolvable means the whole repo.
+    Second finding the same day: `Path(__file__).parent / "fixtures"` in `tests/foo/` walks
+    `tests/foo/fixtures/`, and had resolved to a top-level `fixtures/`."""
+    (tmp_path / "tests" / "foo").mkdir(parents=True)
+    root_anchor = "from pathlib import Path\n_ROOT = Path(__file__).resolve().parents[1]\n"
+    sources = {
+        "tests/test_whole.py": root_anchor + "def test_a(): list(_ROOT.rglob('*.py'))\n",
+        "tests/test_docs.py": root_anchor + "def test_b(): list((_ROOT / 'docs').rglob('*.py'))\n",
+        "tests/test_loop.py": root_anchor + "_TREES = ('src', 'airflow')\n"
+                              "def test_c():\n    for t in _TREES:\n        root = _ROOT / t\n"
+                              "        list(root.rglob('*.py'))\n",
+        "tests/foo/test_fixtures.py": "from pathlib import Path\n"
+                                      "def test_d(): list((Path(__file__).resolve().parent"
+                                      " / 'fixtures').rglob('*.py'))\n",
+        "tests/test_param.py": "def scan(root): return list(root.rglob('*.py'))\n",
+        # An UNKNOWN base joined to a literal stays unknown — the whole repo — and never
+        # becomes a top-level `lib/`.
+        "tests/test_param_join.py": "def scan(root): return list((root / 'lib').rglob('*.py'))\n",
+    }
+    known = {}
+    for rel, text in sources.items():
+        (tmp_path / rel).write_text(text)
+        known[rel[:-3].replace("/", ".")] = tmp_path / rel
+
+    def picked(change):
+        return st.tests_scanning_the_tree([change], set(known), known, tmp_path)
+
+    unknown = {"tests.test_param", "tests.test_param_join"}
+    assert picked("src/utils/jobs.py") == {"tests.test_whole", "tests.test_loop"} | unknown
+    assert picked("tests/foo/fixtures/seed.py") == ({"tests.test_whole",
+                                                     "tests.foo.test_fixtures"} | unknown)
+    assert "tests.foo.test_fixtures" not in picked("fixtures/seed.py")
+    assert picked("README.md") == set()
+    assert st.scanned_directories(sources["tests/test_loop.py"], "tests/test_loop.py") == {
+        "src", "airflow"}
