@@ -91,18 +91,25 @@ def _view_imports() -> list[str]:
         if rel in _ALLOWED:
             continue
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            hits = view_imports_in(path.read_text(encoding="utf-8"))
         except (SyntaxError, UnicodeDecodeError):
             continue
-        for node in ast.walk(tree):
-            module = None
-            if isinstance(node, ast.ImportFrom):
-                module = node.module or ""
-            elif isinstance(node, ast.Import):
-                module = next((a.name for a in node.names
-                               if ".views." in a.name or a.name.endswith(".views")), None)
-            if module and (".views." in module or module.endswith(".views")):
-                out.append(f"{rel}:{node.lineno} → {module}")
+        out += [f"{rel}:{line} → {module}" for line, module in hits]
+    return out
+
+
+def view_imports_in(source: str) -> list[tuple[int, str]]:
+    """(line, module) of every import of `views.*` in `source`, lazy ones included. Pure."""
+    out = []
+    for node in ast.walk(ast.parse(source)):
+        module = None
+        if isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+        elif isinstance(node, ast.Import):
+            module = next((a.name for a in node.names
+                           if ".views." in a.name or a.name.endswith(".views")), None)
+        if module and (".views." in module or module.endswith(".views")):
+            out.append((node.lineno, module))
     return out
 
 
@@ -120,19 +127,21 @@ def test_no_shared_module_imports_a_view() -> None:
         "est le précédent — jamais recopier, jamais faire monter l'utilitaire.")
 
 
-def test_the_predicate_sees_the_lazy_form() -> None:
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
     """Non-vacuité : un prédicat aveugle aux imports de fonction verrait zéro.
 
     C'est LA forme du défaut — l'import était dans un corps de fonction, pas dans
     l'en-tête. Un garde qui ne lit que les imports de module aurait été vert sur le
     jour où l'accueil a quadruplé.
     """
-    tree = ast.parse(
-        "def f():\n    from src.dashboard.views.upload_csv import _PLATFORMS\n"
-        "    return _PLATFORMS\n")
-    found = [n for n in ast.walk(tree)
-             if isinstance(n, ast.ImportFrom) and ".views." in (n.module or "")]
-    assert found, "le lecteur AST ne voit pas un import écrit dans une fonction"
+    lazy = ("def f():\n    from src.dashboard.views.upload_csv import _PLATFORMS\n"
+            "    return _PLATFORMS\n")
+    assert view_imports_in(lazy) == [(2, "src.dashboard.views.upload_csv")], (
+        "le lecteur AST ne voit pas un import écrit dans une fonction")
+    assert view_imports_in("import src.dashboard.views.home\n") == [
+        (1, "src.dashboard.views.home")]
+    # Et la forme corrigée : la donnée descendue dans un module partagé.
+    assert view_imports_in("from src.dashboard.utils.csv_platforms import PLATFORMS\n") == []
 
 
 def test_the_allowlist_names_files_that_exist() -> None:

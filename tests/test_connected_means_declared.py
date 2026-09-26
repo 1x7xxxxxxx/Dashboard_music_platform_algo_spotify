@@ -33,6 +33,12 @@ def test_a_blank_identity_is_not_a_connection() -> None:
     assert declared_identities({"spotify": {"spotify_artist_id": "   "}}) == set()
     assert declared_identities({"youtube": {}}) == set()
     assert declared_identities({}) == set()
+    # A platform WITHOUT a mirror: Spotify's blanks above are reset by the mirror
+    # fallback before the final check ever runs, so they cannot prove that check.
+    # Measured 2026-09-26: `if str(value or "").strip()` weakened to `if value is not
+    # None` left every assertion above green; these two turn it red.
+    assert declared_identities({"youtube": {"channel_id": ""}}) == set()
+    assert declared_identities({"youtube": {"channel_id": "   "}}) == set()
 
 
 def test_a_meta_row_with_only_instagram_connects_instagram_not_meta() -> None:
