@@ -85,14 +85,14 @@ _CEILINGS = {
     # une preuve. Un garde ne compte comme vu rouge que s'il ÉCHOUE sur le défaut.
     # Historique : 363 → 352 (les `n-a`) → 332 (phase B, traces de mutation) → 330
     # le 2026-09-17 (un défaut remis et vu lever) → 321 ce jour-ci.
-    "seen_red_unknown": 67,  # 140 → 138 le 2026-09-25 ; → 137 le 2026-09-26 (R169) ; → 134 ; → 133 ; → 132 ; → 131 ; → 130 ; → 129 ; → 128 ; → 127 ; → 126 ; → 125 ; → 124 ; → 123 ; → 122 ; → 119 ; → 117 ; → 116 ; → 115 ; → 114 ; → 114 ; → 113 ; → 110 ; → 109 ; → 106 ; → 103 ; → 100 ; → 97 ; → 94 ; → 91 ; → 88 ; → 85 ; → 82 ; → 79 ; → 76 ; → 73 ; → 70 ; → 67
+    "seen_red_unknown": 64,  # 140 → 138 le 2026-09-25 ; → 137 le 2026-09-26 (R169) ; → 134 ; → 133 ; → 132 ; → 131 ; → 130 ; → 129 ; → 128 ; → 127 ; → 126 ; → 125 ; → 124 ; → 123 ; → 122 ; → 119 ; → 117 ; → 116 ; → 115 ; → 114 ; → 114 ; → 113 ; → 110 ; → 109 ; → 106 ; → 103 ; → 100 ; → 97 ; → 94 ; → 91 ; → 88 ; → 85 ; → 82 ; → 79 ; → 76 ; → 73 ; → 70 ; → 67 ; → 64
     # ── Ajouté le 2026-09-18 avec l'état `self-proving` ─────────────────────────
     # Voir une signature rouge UNE fois, à la main, prouve qu'elle mordait CE SOIR-LÀ.
     # Un garde qui porte un test fabriquant la forme interdite se prouve à CHAQUE
     # exécution. À l'introduction : **9 gardes sur 192** le faisaient (5 %), donc 391
     # classes sur 400 n'ont pas cette preuve. Le plafond ne peut que baisser, et il
     # baisse en ÉCRIVANT le test de non-vacuité dans le garde — pas en rédigeant.
-    "guard_does_not_prove_itself": 186,  # 306 → 303 le 2026-09-25 (R169) ; → 300 le 2026-09-26 (migration P1 gardée, central-app + wrapper RTK auto-prouvants) ; → 297 (shared-db, replica, prose-claim) ; → 294 (collector, env, connexion par vue) ; → 292 (digest du guide, porte de dépendances) ; → 288 (4 preuves existantes enfin citées) ; → 285 ; → 284 ; → 281 ; → 278 ; → 276 ; → 274 ; → 270 ; → 268 ; → 266 ; → 264 ; → 263 ; → 261 ; → 259 ; → 258 ; → 257 ; → 256 ; → 255 ; → 253 ; → 249 ; → 247 ; → 245 ; → 244 ; → 243 ; → 242 ; → 240 ; → 238 ; → 237 ; → 236 ; → 235 ; → 234 ; → 231 ; → 228 ; → 225 ; → 222 ; → 219 ; → 216 ; → 213 ; → 210 ; → 207 ; → 204 ; → 201 ; → 198 ; → 195 ; → 192 ; → 189 ; → 186
+    "guard_does_not_prove_itself": 185,  # 306 → 303 le 2026-09-25 (R169) ; → 300 le 2026-09-26 (migration P1 gardée, central-app + wrapper RTK auto-prouvants) ; → 297 (shared-db, replica, prose-claim) ; → 294 (collector, env, connexion par vue) ; → 292 (digest du guide, porte de dépendances) ; → 288 (4 preuves existantes enfin citées) ; → 285 ; → 284 ; → 281 ; → 278 ; → 276 ; → 274 ; → 270 ; → 268 ; → 266 ; → 264 ; → 263 ; → 261 ; → 259 ; → 258 ; → 257 ; → 256 ; → 255 ; → 253 ; → 249 ; → 247 ; → 245 ; → 244 ; → 243 ; → 242 ; → 240 ; → 238 ; → 237 ; → 236 ; → 235 ; → 234 ; → 231 ; → 228 ; → 225 ; → 222 ; → 219 ; → 216 ; → 213 ; → 210 ; → 207 ; → 204 ; → 201 ; → 198 ; → 195 ; → 192 ; → 189 ; → 186 ; → 185
     "seen_red_never": 0,
     # 363 → 241 : les causes qui nomment un chemin vérifiable.
     # 241 → 183 le 2026-09-17 : les **58** classes dont le `root_cause` cite un fichier

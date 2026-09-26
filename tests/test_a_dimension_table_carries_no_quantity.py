@@ -104,6 +104,15 @@ def _registry() -> dict[str, str]:
     return _gc()._DIMENSION_TABLES
 
 
+def additive_quantities(cols) -> list[str]:
+    """Numeric columns not declared « not a quantity » — what makes a FACT table. Pure.
+
+    The ONE copy of the criterion: the registry check and both proofs call it, so
+    breaking it cannot leave a proof green over a copy that still works.
+    """
+    return [c for c, t in cols if t in _NUMERIC and c not in _NOT_A_QUANTITY]
+
+
 def test_the_registry_is_not_empty():
     """Un registre vide passerait silencieusement tous les tests ci-dessous."""
     assert len(_registry()) >= 3
@@ -130,8 +139,7 @@ def test_a_registered_table_carries_no_additive_quantity(table):
     finally:
         conn.close()
     assert cols, f"{table} n'existe pas — une exemption survit à ce qu'elle exemptait"
-    offenders = [c for c, t in cols
-                 if t in _NUMERIC and c not in _NOT_A_QUANTITY]
+    offenders = additive_quantities(cols)
     assert not offenders, (
         f"`{table}` porte {offenders} — des colonnes numériques qui ne sont pas "
         f"déclarées « pas une quantité ». Soit la table a cessé d'être une dimension "
@@ -157,8 +165,7 @@ def test_the_criterion_would_reject_a_fact_table():
             cols = cur.fetchall()
     finally:
         conn.close()
-    offenders = [c for c, t in cols if t in _NUMERIC and c not in _NOT_A_QUANTITY]
-    assert offenders, (
+    assert additive_quantities(cols), (
         "`s4a_song_timeline` porte `streams` : le critère devrait la REFUSER comme "
         "dimension. S'il ne la refuse pas, il ne refuse rien.")
 
@@ -170,3 +177,14 @@ def test_no_registered_table_is_also_declared_site_by_site():
     assert not both, (
         f"{sorted(both)} sont déclarées DEUX fois — par la table et par le site. "
         f"La déclaration de site est morte : elle survivra à ce qu'elle exemptait.")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity without a database: a fact table (`streams`) is refused, a dimension
+    (text, dates, an id declared not-a-quantity) is accepted."""
+    numeric = next(iter(_NUMERIC))
+    fact = [("song", "text"), ("date", "date"), ("streams", numeric)]
+    assert additive_quantities(fact) == ["streams"]
+    not_a_qty = next(iter(_NOT_A_QUANTITY))
+    dimension = [("title", "text"), ("release_date", "date"), (not_a_qty, numeric)]
+    assert additive_quantities(dimension) == []
