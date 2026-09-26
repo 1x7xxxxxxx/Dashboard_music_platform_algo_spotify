@@ -8146,7 +8146,7 @@
       "renamed_from": null
     },
     "mixed-date-timestamp": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-05-15",
       "guard_automatic": true,
       "guard_ref": ".claude/skills/dashboard-view/SKILL.md",
@@ -8168,7 +8168,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8313,7 +8313,7 @@
       "renamed_from": null
     },
     "nan-written-as-a-value": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_nan_is_never_written_as_a_value.py",
@@ -8335,7 +8335,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-07",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8368,7 +8368,7 @@
       "renamed_from": null
     },
     "nonprod-instance-puts-mail-on-the-wire": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-26",
       "guard_automatic": true,
       "guard_ref": "tests/test_only_production_puts_mail_on_the_wire.py",
@@ -8390,7 +8390,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-26",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11445,12 +11445,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 406,
+      "catalogue_revisions": 407,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 84,
+      "cause_unknown": 81,
       "guard_does_not_prove_itself": 270,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
