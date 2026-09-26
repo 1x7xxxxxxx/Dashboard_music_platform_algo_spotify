@@ -95,6 +95,21 @@ def test_a_trigger_without_an_evaluator_is_undecidable():
     assert verdict == mod.UNKNOWN
 
 
+def _written_sites(text: str) -> int:
+    """Lines that WRITE a reopening condition — one per line, however often it matches."""
+    return sum(1 for line in text.splitlines() if _WRITTEN.search(line))
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Both spellings the roadmap uses are counted, a line matching twice counts once
+    (the over-count that would have forced the threshold up), prose about something
+    else counts zero."""
+    text = ("- R122 : condition de réouverture — le compteur dépasse 48\n"
+            "- R131 : Condition d'attente, déclencheur de réouverture calculable\n"
+            "- R140 : livrée, rien à rouvrir\n")
+    assert _written_sites(text) == 2
+
+
 def test_every_task_that_writes_a_condition_is_in_the_registry():
     """Ce que la roadmap ÉCRIT et ce que l'outil ÉVALUE ne divergent pas en silence.
 
@@ -107,10 +122,8 @@ def test_every_task_that_writes_a_condition_is_in_the_registry():
     # tournure « Condition d'attente, déclencheur calculable » matche DEUX fois et
     # comptait une condition pour deux. Un garde qui sur-compte crie pour rien, puis on
     # relève son seuil, et il cesse de garder.
-    written = 0
-    for path in sorted(_ROADMAP.glob("*.md")):
-        written += sum(1 for line in path.read_text(encoding="utf-8").splitlines()
-                       if _WRITTEN.search(line))
+    written = sum(_written_sites(path.read_text(encoding="utf-8"))
+                  for path in sorted(_ROADMAP.glob("*.md")))
     known = len(_module().TRIGGERS)
     assert written <= known + 2, (
         f"La roadmap écrit {written} conditions de réouverture, le registre de "
