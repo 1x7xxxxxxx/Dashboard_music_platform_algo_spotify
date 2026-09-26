@@ -442,15 +442,16 @@ def test_the_scope_detector_sees_the_defect_it_is_written_for() -> None:
     a fact table added to the ratchet and not to the generator's copy — the drift
     that makes "hors cliquet" count guarded aggregates — is named, as are a moved
     surface and a new door; identical scopes are not."""
-    ratchet = (("src/dashboard",), frozenset({"kpi_helpers.py"}),
+    ratchet = (("src/dashboard",), frozenset({"door_a"}),
                {"youtube": ("youtube_video_stats",), "hypeddit": ("hypeddit_daily_stats",)})
-    copy = (("src/dashboard",), frozenset({"kpi_helpers.py"}),
+    copy = (("src/dashboard",), frozenset({"door_a"}),
             frozenset({"youtube_video_stats", "hypeddit_daily_stats"}))
     assert scope_disagreements(copy, ratchet) == []
     lagging = (copy[0], copy[1], frozenset({"youtube_video_stats"}))
-    assert len(scope_disagreements(lagging, ratchet)) == 1
-    assert "hypeddit_daily_stats" in scope_disagreements(lagging, ratchet)[0]
+    assert scope_disagreements(lagging, ratchet) == [
+        "tables de fait — en trop dans le générateur : [], dans le cliquet : "
+        "['hypeddit_daily_stats']"]
     moved = (("src",), copy[1], copy[2])
-    door = (copy[0], frozenset({"kpi_helpers.py", "x.py"}), copy[2])
+    door = (copy[0], frozenset({"door_a", "door_b"}), copy[2])
     assert len(scope_disagreements(moved, ratchet)) == 1
     assert len(scope_disagreements(door, ratchet)) == 1

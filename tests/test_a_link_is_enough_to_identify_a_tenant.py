@@ -124,20 +124,60 @@ def test_the_resolver_raises_no_rendered_sentence():
 
 # ── One rule, and both entry points go through it ────────────────────────────
 
+def save_path_problems(source: str) -> list[str]:
+    """What lets `_handle_save` store a link it did not resolve. Pure.
+
+    `no-save`: the function is gone and this guard points at air.
+    `stores-unresolved`: the save path never calls the resolver.
+    `no-handler`: nothing catches `ResolutionError` on the save path.
+    `falls-through`: a `ResolutionError` branch does not `return`, so execution
+    continues to the write with the unresolved value.
+    """
+    save = next((n for n in ast.walk(ast.parse(source))
+                 if isinstance(n, ast.FunctionDef) and n.name == "_handle_save"), None)
+    if save is None:
+        return ["no-save"]
+    out = []
+    called = {n.func.id for n in ast.walk(save)
+              if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    if "soundcloud_user_id_from_url" not in called:
+        out.append("stores-unresolved")
+    handlers = [h for h in ast.walk(save) if isinstance(h, ast.ExceptHandler)
+                and isinstance(h.type, ast.Name) and h.type.id == "ResolutionError"]
+    if not handlers:
+        out.append("no-handler")
+    elif not all(any(isinstance(n, ast.Return) for n in ast.walk(h)) for h in handlers):
+        out.append("falls-through")
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, class `setup-step-asks-for-a-developer-gesture`: the save that
+    stored what was typed is named twice over; a resolver whose failure falls through
+    to the write is named; the fixed save is not."""
+    typed = ("def _handle_save(db, aid, link):\n"
+             "    write(db, aid, user_id=link)\n")
+    assert save_path_problems(typed) == ["stores-unresolved", "no-handler"]
+    through = ("def _handle_save(db, aid, link):\n"
+               "    try:\n        uid = soundcloud_user_id_from_url(link)\n"
+               "    except ResolutionError as e:\n        st.error(render(e))\n"
+               "    write(db, aid, user_id=uid)\n")
+    assert save_path_problems(through) == ["falls-through"]
+    fixed = through.replace("st.error(render(e))\n",
+                            "st.error(render(e))\n        return\n")
+    assert save_path_problems(fixed) == []
+    assert save_path_problems("def other():\n    pass\n") == ["no-save"]
+
+
 def test_the_save_path_normalises_before_writing():
     """AST: the save path must resolve, not store what was typed.
 
     Resolving only in the connection test would prove the link good and still persist
     the URL — and `soundcloud_daily` reads the column, not the test.
     """
-    tree = ast.parse(RENDER.read_text(encoding="utf-8"))
-    save = next((n for n in ast.walk(tree)
-                 if isinstance(n, ast.FunctionDef) and n.name == "_handle_save"),
-                None)
-    assert save is not None, "_handle_save is gone — this guard points at air"
-    called = {n.func.id for n in ast.walk(save)
-              if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
-    assert "soundcloud_user_id_from_url" in called, (
+    problems = save_path_problems(RENDER.read_text(encoding="utf-8"))
+    assert not {"no-save"} & set(problems), "_handle_save is gone — this guard points at air"
+    assert not {"stores-unresolved"} & set(problems), (
         "the save path no longer resolves the SoundCloud link. A URL would be written "
         "into a column the collector reads as a numeric user id: the row looks filled, "
         "counts as connected on every surface, and collects nothing."
@@ -150,18 +190,12 @@ def test_a_bad_link_aborts_the_save_instead_of_storing_it():
     A row that looks filled but cannot collect is worse than an empty one — every
     surface that counts rows instead of identities reads it as connected.
     """
-    src = RENDER.read_text(encoding="utf-8")
-    tree = ast.parse(src)
-    save = next(n for n in ast.walk(tree)
-                if isinstance(n, ast.FunctionDef) and n.name == "_handle_save")
-    handlers = [h for h in ast.walk(save) if isinstance(h, ast.ExceptHandler)
-                and isinstance(h.type, ast.Name) and h.type.id == "ResolutionError"]
-    assert handlers, "no ResolutionError handler on the save path"
-    for h in handlers:
-        assert any(isinstance(n, ast.Return) for n in ast.walk(h)), (
-            "the ResolutionError branch does not return: execution continues to the "
-            "write and stores the unresolved value."
-        )
+    problems = save_path_problems(RENDER.read_text(encoding="utf-8"))
+    assert not {"no-handler"} & set(problems), "no ResolutionError handler on the save path"
+    assert not {"falls-through"} & set(problems), (
+        "the ResolutionError branch does not return: execution continues to the "
+        "write and stores the unresolved value."
+    )
 
 
 def test_the_connection_test_shares_the_same_resolver():
