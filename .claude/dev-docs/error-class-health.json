@@ -6473,7 +6473,7 @@
       "renamed_from": null
     },
     "df-na-rep": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-05-14",
       "guard_automatic": true,
       "guard_ref": ".claude/hooks/lint_dashboard_view.py",
@@ -6497,7 +6497,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -6529,7 +6529,7 @@
       "renamed_from": null
     },
     "empty-list-blames-the-most-common-cause": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_an_empty_list_names_its_real_cause.py",
@@ -6551,7 +6551,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -6641,7 +6641,7 @@
       "renamed_from": null
     },
     "environment-failure-worn-as-a-code-failure": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-26",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_dependency_gate_cannot_hide_a_break.py",
@@ -6664,7 +6664,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-26",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -7218,7 +7218,7 @@
       "renamed_from": null
     },
     "guide-addresses-the-wrong-reader": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-30",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_guide_tells_the_artist_only_what_is_theirs.py",
@@ -7240,12 +7240,12 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-30",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
     "guide-single-os-shortcut": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_os_hints.py",
@@ -7268,7 +7268,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-21",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11445,12 +11445,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 418,
+      "catalogue_revisions": 419,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 48,
+      "cause_unknown": 43,
       "guard_does_not_prove_itself": 270,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
