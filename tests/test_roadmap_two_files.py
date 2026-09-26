@@ -160,6 +160,14 @@ def test_no_brick_id_vanishes_from_both_files() -> None:
         "l'archive ; la retirer des deux efface le travail et l'explication avec.")
 
 
+def duplicated_tasks(text: str) -> list[str]:
+    """Brick ids declared more than once — the ONE copy of the detector. Pure."""
+    import collections
+
+    tasks = re.findall(r"^- \[[ x]\] \*\*(R\d+)\b", text, re.M)
+    return [t for t, n in collections.Counter(tasks).items() if n > 1]
+
+
 def test_the_active_file_does_not_carry_a_section_twice() -> None:
     """La rotation ne peut que RÉTRÉCIR le fichier — la duplication, elle, le grossit.
 
@@ -187,8 +195,7 @@ def test_the_active_file_does_not_carry_a_section_twice() -> None:
     dup_h = [h for h, n in collections.Counter(headings).items() if n > 1]
     assert not dup_h, f"titre(s) de section en double dans {ACTIVE.name} : {dup_h}"
 
-    tasks = re.findall(r"^- \[[ x]\] \*\*(R\d+)\b", text, re.M)
-    dup_t = [t for t, n in collections.Counter(tasks).items() if n > 1]
+    dup_t = duplicated_tasks(text)
     assert not dup_t, (
         f"brique(s) déclarée(s) deux fois dans {ACTIVE.name} : {dup_t}. Deux blocs pour "
         "une même brique divergent, et on corrige celui que la recherche trouve en "
@@ -212,8 +219,7 @@ def test_the_duplication_detector_is_not_vacuous() -> None:
 
     doubled = text + text
     assert len(re.findall(r"<!--\s*reprise:\s*open=", doubled)) > 1
-    tasks = re.findall(r"^- \[[ x]\] \*\*(R\d+)\b", doubled, re.M)
-    assert [t for t, n in collections.Counter(tasks).items() if n > 1], (
+    assert duplicated_tasks(doubled), (
         "un fichier concaténé avec lui-même ne produit aucun doublon détecté")
 
 
