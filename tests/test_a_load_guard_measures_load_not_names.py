@@ -101,6 +101,32 @@ def test_the_name_list_is_no_longer_the_verdict() -> None:
         "et la mesure redevient impossible depuis un terminal d'IDE")
 
 
+def gate_and_seam(src: str) -> tuple[int | None, int | None]:
+    """(line of `require_login()`, line of the metrics seam `end_chrome(`). Pure.
+
+    A comment or an import naming the seam is not the seam.
+    """
+    lines = src.splitlines()
+    gate = next((i for i, ln in enumerate(lines, 1) if "require_login()" in ln), None)
+    seam = next((i for i, ln in enumerate(lines, 1) if "end_chrome(" in ln
+                 and not ln.strip().startswith("#")
+                 and "import" not in ln), None)
+    return gate, seam
+
+
+def test_the_seam_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, class `two-instruments-that-do-not-observe-the-same-path`: a seam
+    placed BEFORE the login gate is seen as such; a comment or an import naming
+    `end_chrome(` above the gate is not mistaken for the seam."""
+    before = "def main():\n    end_chrome(t0)\n    require_login()\n"
+    gate, seam = gate_and_seam(before)
+    assert (gate, seam) == (3, 2) and not seam > gate
+    after = ("from x import end_chrome  # end_chrome(\n"
+             "# end_chrome( runs after the gate\n"
+             "def main():\n    require_login()\n    end_chrome(t0)\n")
+    assert gate_and_seam(after) == (4, 5)
+
+
 def test_the_instrumented_path_is_behind_the_login_gate() -> None:
     """La couture est APRÈS `require_login` — donc le mode anonyme n'est pas observé.
 
@@ -109,12 +135,7 @@ def test_the_instrumented_path_is_behind_the_login_gate() -> None:
     passait un jour AVANT la porte, ce test rougirait — et ce serait la bonne nouvelle
     à examiner, pas un faux positif.
     """
-    src = _APP.read_text(encoding="utf-8")
-    lines = src.splitlines()
-    gate = next((i for i, ln in enumerate(lines, 1) if "require_login()" in ln), None)
-    seam = next((i for i, ln in enumerate(lines, 1) if "end_chrome(" in ln
-                 and not ln.strip().startswith("#")
-                 and "import" not in ln), None)
+    gate, seam = gate_and_seam(_APP.read_text(encoding="utf-8"))
     assert gate is not None and seam is not None, (
         f"porte d'authentification ({gate}) ou couture ({seam}) introuvable dans app.py")
     assert seam > gate, (

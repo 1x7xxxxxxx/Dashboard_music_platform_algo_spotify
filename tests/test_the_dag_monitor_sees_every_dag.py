@@ -139,9 +139,18 @@ def test_no_global_page_window_is_used_to_answer_a_per_dag_question():
     answer "latest run of each DAG" is only correct when every DAG runs at the same
     rate. Here they differ by 100x (96/day against 1/week).
     """
-    body = _MONITOR.read_text(encoding="utf-8")
-    tree = ast.parse(body)
-    for node in ast.walk(tree):
+    lines = fleet_windows(_MONITOR.read_text(encoding="utf-8"))
+    assert not lines, (
+        f"{_MONITOR.name}:{lines} POSTs a fleet-wide `page_limit` window "
+        "again. That is the 2026-08-30 defect: 4 of 16 DAGs returned, and `home` "
+        "showed the other 12 as 'no run'."
+    )
+
+
+def fleet_windows(source: str) -> list[int]:
+    """Lines of `.post(..., json={... "page_limit": ...})` — a fleet-wide window. Pure."""
+    out = []
+    for node in ast.walk(ast.parse(source)):
         if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
             continue
         if node.func.attr != "post":
@@ -149,9 +158,17 @@ def test_no_global_page_window_is_used_to_answer_a_per_dag_question():
         payload = next((kw.value for kw in node.keywords if kw.arg == "json"), None)
         if payload is None or not isinstance(payload, ast.Dict):
             continue
-        keys = {k.value for k in payload.keys if isinstance(k, ast.Constant)}
-        assert "page_limit" not in keys, (
-            f"{_MONITOR.name}:{node.lineno} POSTs a fleet-wide `page_limit` window "
-            "again. That is the 2026-08-30 defect: 4 of 16 DAGs returned, and `home` "
-            "showed the other 12 as 'no run'."
-        )
+        if "page_limit" in {k.value for k in payload.keys if isinstance(k, ast.Constant)}:
+            out.append(node.lineno)
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the 2026-08-30 call — one `page_limit` window over every DAG's
+    runs — is named; a per-DAG request is not."""
+    defect = ("r = session.post(f'{base}/dags/~/dagRuns/list',\n"
+              "                 json={'order_by': '-start_date', 'page_limit': 100})\n")
+    assert fleet_windows(defect) == [1]
+    fixed = ("r = session.post(f'{base}/dags/~/dagRuns/list',\n"
+             "                 json={'dag_ids': [dag_id], 'order_by': '-start_date'})\n")
+    assert fleet_windows(fixed) == []

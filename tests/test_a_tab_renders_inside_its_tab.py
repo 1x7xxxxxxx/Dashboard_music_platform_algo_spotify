@@ -106,6 +106,11 @@ def elements_per_tab(view: str) -> list[int]:
 
     at = AppTest.from_string(_SCRIPT.format(root=os.getcwd(), view=view))
     at.run(timeout=300)
+    return widgets_per_tab(at)
+
+
+def widgets_per_tab(at) -> list[int]:
+    """How many widgets each tab of a rendered AppTest contains. Pure over `at`."""
     counts = []
     for tab in at.tabs:
         n = 0
@@ -116,6 +121,25 @@ def elements_per_tab(view: str) -> list[int]:
                 pass
         counts.append(n)
     return counts
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, without a database: a body extracted out of its `with tab_b:` —
+    content on the page, tab B empty — gives a zero for B; the body kept inside its
+    tab does not."""
+    from streamlit.testing.v1 import AppTest
+
+    assert "metric" in _PROBES
+    widget = "st.metric('Écoutes', 12)"      # not an input: no duplicate-key collision
+    moved = ("import streamlit as st\ntab_a, tab_b = st.tabs(['A', 'B'])\n"
+             f"with tab_a:\n    {widget}\n{widget}\n")
+    at = AppTest.from_string(moved)
+    at.run(timeout=30)
+    assert widgets_per_tab(at)[1] == 0, widgets_per_tab(at)
+    kept = moved.replace(f"\n{widget}\n", f"\nwith tab_b:\n    {widget}\n")
+    at = AppTest.from_string(kept)
+    at.run(timeout=30)
+    assert 0 not in widgets_per_tab(at), widgets_per_tab(at)
 
 
 def _the_view_has_data_to_tab(view: str) -> bool:
