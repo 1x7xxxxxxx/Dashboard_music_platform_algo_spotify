@@ -5617,7 +5617,7 @@
       "renamed_from": null
     },
     "collector-silent-success": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-03-25",
       "guard_automatic": true,
       "guard_ref": ".claude/scripts/audit_collectors_ast.py",
@@ -5641,7 +5641,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 11,
+      "revisions": 12,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -6119,7 +6119,7 @@
       "renamed_from": null
     },
     "dag-trigger-without-tenant-scope": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-20",
       "guard_automatic": true,
       "guard_ref": null,
@@ -6142,7 +6142,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-21",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11445,12 +11445,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 417,
+      "catalogue_revisions": 418,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 50,
+      "cause_unknown": 48,
       "guard_does_not_prove_itself": 270,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,

@@ -886,7 +886,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 .claude/scripts/audit_collectors_ast.py`
 - seen_red: self-proving (tests/test_the_collector_audit_sees_a_silent_return.py::test_the_detector_sees_the_defect_it_is_written_for) — `return None`/`[]` dans un except vus, `raise` et le statut booléen exemptés ; muté le 2026-09-26 → rouge
 - root_cause: `except Exception: return []` reads as defensive programming and is indistinguishable, from the DAG's point of view, from a real empty result — an upstream 401 and a genuinely empty account produce the same SUCCESS.
-- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
+- cause_evidence: read (2026-09-26 — `.claude/scripts/audit_collectors_ast.py:42-53` `_silent_returns` relève tout `return` d'un `except` qui ne relève pas, exemption faite du statut booléen ; un `return []` sur un 401 et un compte réellement vide rendaient le même SUCCESS au DAG)
 - long_term_fix: collectors raise (CLAUDE.md rule #6) and the AST audit blocks in CI, so 'no rows' can only mean the API said so.
 - guard: { type: ci-step, ref: .claude/scripts/audit_collectors_ast.py via audit_runner.py --deterministic (ci.yml) }
 - guard_scope: une-erreur-avalée-devient-une-absence — un `except` qui rend une valeur au lieu de lever ; couvre: `return None`/`[]`/`{}` et `break` dans un `except` sous `src/collectors/` ; ne couvre pas: le même geste **hors de `src/collectors/`** — un transformer, un utilitaire, une tâche de DAG — ni un `except` qui LÈVE mais dont l'appelant avale, ni un `continue` dans une boucle par locataire, qui saute un artiste en le journalisant proprement.
@@ -1395,7 +1395,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: a dashboard action triggers a DAG without `conf={'artist_id': …}`. The API collectors then run fleet-wide, and the CSV watchers — which defaulted to `artist_id = 1` — parse the SHARED drop directory into the admin's tenant. Reachable by any logged-in artist.
 - root_cause: the sidebar "🚀 Lancer TOUTES les collectes" button predates multi-tenancy and was never revisited; it was also rendered before any role gate. The verification e-mail sent at sign-up tells every new artist to press it.
-- cause_evidence: unknown (rétro-portage mécanique 2026-09-16 — aucun chemin vérifiable dans `root_cause`)
+- cause_evidence: read (2026-09-26 — `src/dashboard/app.py:437` : le bouton « 🚀 Lancer TOUTES les collectes », antérieur au multi-locataire et rendu avant toute porte de rôle, a été RETIRÉ le 2026-09-08 ; `src/dashboard/utils/collection_trigger.py` déclenche désormais par locataire)
 - signature: `python3 .claude/scripts/check_dag_trigger_scope.py`
 - seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - long_term_fix: every trigger carries the tenant; a non-admin without a resolved `artist_id` triggers nothing; the CSV watchers have no default tenant — a manual trigger without `artist_id` raises, and a *scheduled* run (which legitimately has no conf) reports the unattributable files and writes nothing.
