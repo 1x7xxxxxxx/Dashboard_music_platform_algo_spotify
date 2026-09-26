@@ -52,15 +52,32 @@ def test_the_pattern_sees_the_makefile() -> None:
         "ce garde ne démontre plus rien")
 
 
-def test_no_make_variable_shadows_an_environment_variable() -> None:
-    offenders = []
-    for i, line in enumerate(_MAKEFILE.read_text(encoding="utf-8").splitlines(), 1):
+def _shadowing_refs(makefile: str) -> list[str]:
+    """`Makefile:<line>: $(NAME)` for every reference to a name the environment defines."""
+    out = []
+    for i, line in enumerate(makefile.splitlines(), 1):
         bare = line.lstrip()
         if bare.startswith("#") or bare.startswith("@#"):
             continue
         for name in _REF.findall(line):
             if name in _ENV_NAMES:
-                offenders.append(f"Makefile:{i}: $({name})")
+                out.append(f"Makefile:{i}: $({name})")
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """The exact reference of the defect — `$(USER)`, worth `timothe`, which switched a
+    load test to its AUTHENTICATED mode — is seen; a commented one and a project-scoped
+    name are not."""
+    mk = ("loadtest:\n"
+          "\tpython tools/loadtest.py --user $(USER)\n"
+          "\t@# never $(USER) here\n"
+          "\tpython tools/loadtest.py --user $(LOADTEST_USER)\n")
+    assert _shadowing_refs(mk) == ["Makefile:2: $(USER)"]
+
+
+def test_no_make_variable_shadows_an_environment_variable() -> None:
+    offenders = _shadowing_refs(_MAKEFILE.read_text(encoding="utf-8"))
     assert not offenders, (
         "ces références prennent la valeur de l'ENVIRONNEMENT, pas une absence :\n  "
         + "\n  ".join(offenders) + "\n\n"

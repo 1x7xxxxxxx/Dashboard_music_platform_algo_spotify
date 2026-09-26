@@ -40,13 +40,31 @@ _HELP = re.compile(r"^([a-zA-Z0-9_.-]+):.*?##\s*(.+)$")
 _TEST_REF = re.compile(r"tests/[A-Za-z0-9_./-]+\.py")
 
 
-def _help_lines() -> list[tuple[str, str]]:
+def _help_lines(makefile: str | None = None) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
-    for line in (_ROOT / "Makefile").read_text(encoding="utf-8").splitlines():
+    text = makefile if makefile is not None else (_ROOT / "Makefile").read_text(encoding="utf-8")
+    for line in text.splitlines():
         m = _HELP.match(line)
         if m:
             out.append((m.group(1), m.group(2)))
     return out
+
+
+def _dead_barriers(makefile: str, root) -> list[tuple[str, str]]:
+    """(target, test path) for each help line naming a guard file that does not exist."""
+    return [(t, ref) for t, text in _help_lines(makefile) for ref in _TEST_REF.findall(text)
+            if not (root / ref).exists()]
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path):
+    """A help line promising a guard that does not exist is seen; one naming a real file
+    is not; a help line naming no guard has nothing to verify."""
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_real.py").write_text("def test_x():\n    pass\n")
+    mk = ("gold-check: ## (CI) blocks on tests/test_gone.py\n"
+          "docs-check: ## blocks on tests/test_real.py\n"
+          "clean: ## remove caches\n")
+    assert _dead_barriers(mk, tmp_path) == [("gold-check", "tests/test_gone.py")]
 
 
 def test_a_help_line_that_names_a_guard_names_one_that_exists():
