@@ -5373,7 +5373,7 @@
       "renamed_from": null
     },
     "central-app-missing": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-06-19",
       "guard_automatic": false,
       "guard_ref": "tools/check_central_apps.py",
@@ -5397,12 +5397,12 @@
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-06-20",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 2,
       "renamed_from": null
     },
     "check-calls-a-binary-its-image-lacks": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-04",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_backup_survives_its_disk.py",
@@ -5425,7 +5425,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-04",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5869,7 +5869,7 @@
       "renamed_from": null
     },
     "connection-test-proves-app-not-tenant": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-06-15",
       "guard_automatic": true,
       "guard_ref": "tests/test_connection_test_proves_tenant.py",
@@ -5894,7 +5894,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-21",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -6174,7 +6174,7 @@
       "renamed_from": null
     },
     "db-connection-per-show": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-03-27",
       "guard_automatic": true,
       "guard_ref": null,
@@ -6198,7 +6198,7 @@
       "siblings_swept": true,
       "status": "open",
       "introduced_date": "2026-05-15",
-      "revisions": 13,
+      "revisions": 14,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -11445,12 +11445,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 416,
+      "catalogue_revisions": 417,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 54,
+      "cause_unknown": 50,
       "guard_does_not_prove_itself": 270,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
