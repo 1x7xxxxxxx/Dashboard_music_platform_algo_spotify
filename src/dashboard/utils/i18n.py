@@ -66,7 +66,7 @@ _TR: dict[str, dict[str, str]] = {
         "nav.item.onboarding_health": "🚦 Onboarding health",
         "nav.item.db_health": "🗄️ Data health",
         "nav.item.spotify_s4a_combined": "🎵 Spotify + Spotify for Artists",
-        "nav.item.meta_x_spotify": "🎵 Meta × Spotify",
+        "nav.item.meta_x_spotify": "🔀 My whole funnel",
         "nav.item.sacem": "🎼 SACEM royalties",
         "nav.item.apple_music": "🎎 Apple Music",
         "nav.item.youtube": "🎬 YouTube",

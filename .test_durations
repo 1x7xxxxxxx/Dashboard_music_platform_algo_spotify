@@ -148,7 +148,7 @@
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/utils/metrics_seam.py-32-test_process_state_is_declared_for_a_second_instance]": 0.0011090180050814524,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/utils/ml_widgets.py-323-test_a_helper_does_not_draw_one_figure_per_registry_entry]": 0.05222038895590231,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/utils/nav_badges.py-70-test_the_campaign_view_plots_what_it_promises]": 0.05692380599793978,
-    "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/utils/nav_sections.py-168-test_the_campaign_view_plots_what_it_promises]": 0.001454725002986379,
+    "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/utils/nav_sections.py-176-test_the_campaign_view_plots_what_it_promises]": 0.07300941299763508,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/utils/platform_colors.py-112-test_the_palette_can_be_attributed]": 0.0014633359969593585,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/utils/revenue_forecast.py-68-test_the_money_has_one_definition]": 0.0010884380026254803,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/utils/roi_verdicts.py-118-test_a_figure_never_draws_a_zero_it_did_not_measure]": 0.06791256798896939,

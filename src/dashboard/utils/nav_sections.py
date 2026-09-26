@@ -107,8 +107,16 @@ NAV_SECTIONS: list = [
     # raconte quelque chose : voilà ta carrière en un document, et voilà qui peut
     # s'en occuper. Elle quitte donc « 👤 Compte », où elle était rangée par
     # facturation plutôt que par usage.
+    # ── « TOUT MON FUNNEL » EN TÊTE — 2026-09-27 (R213) ────────────────────────
+    #
+    # Le propriétaire : « la valeur du produit, ce sont les données JOINTES ». La page
+    # qui joint Meta, le smart link, Spotify et le reste s'appelait « Impact de mes
+    # campagnes » et vivait en troisième ligne d'« Analytics ». Elle monte juste sous
+    # l'accueil, sous son nom de parcours. La ROUTE `meta_x_spotify` ne change pas —
+    # des liens la visent.
     ("start",     "",
-     [("🏠 Accueil", "home")]),
+     [("🏠 Accueil", "home"),
+      ("🔀 Tout mon funnel", "meta_x_spotify")]),
     ("data",      "⚙️ Configuration de streaMLytics",
      [("🚀 Mise en route (assistant)", "onboarding"),
       ("🚦 Santé onboarding", "onboarding_health"),
@@ -136,9 +144,9 @@ NAV_SECTIONS: list = [
     ("analytics", "📊 Analytics plateformes",
      [("🎵 Spotify + Spotify for Artists", "spotify_s4a_combined"),
       ("📣 Publicité Meta Ads", "meta_ads_overview"),
-      # La FUSION des plateformes est gratuite depuis le 2026-09-26 (ADR-029) : ces trois
-      # pages lisent tes données, elles ne prédisent rien.
-      ("🔀 Impact de mes campagnes (toutes plateformes)", "meta_x_spotify"),
+      # La FUSION des plateformes est gratuite depuis le 2026-09-26 (ADR-029) : ces
+      # pages lisent tes données, elles ne prédisent rien. « Tout mon funnel »
+      # (`meta_x_spotify`) est monté sous l'accueil le 2026-09-27 (R213).
       ("🎨 Visuels de campagne", "meta_creatives"),
       ("🌍 Qui a vu tes pubs (pays, âge, placement)", "meta_breakdowns"),
       ("🎎 Apple Music", "apple_music"),

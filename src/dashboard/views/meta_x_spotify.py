@@ -735,7 +735,7 @@ def show():
     # rien. Le verrou `require_plan('premium')` est retiré avec la ligne de `_FREE_FEATURES`.
 
     st.title(t("meta_x_spotify.title",
-               "🔀 Impact de mes campagnes — toutes plateformes"))
+               "🔀 Tout mon funnel — de la pub à l'écoute"))
     st.markdown("---")
 
     with view_session() as (db, artist_id):

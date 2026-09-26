@@ -1,7 +1,7 @@
 """EN strings for the cross-platform campaign impact view (route key `meta_x_spotify`)."""
 
 EN = {
-    "meta_x_spotify.title": "🔀 My campaigns' impact — every platform",
+    "meta_x_spotify.title": "🔀 My whole funnel — from the ad to the stream",
 
     # Campaign + window pickers
     "meta_x_spotify.choose_campaign": "Pick the campaign",
