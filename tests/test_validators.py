@@ -238,11 +238,25 @@ def test_the_collector_actually_calls_the_validators():
     AST, pas une recherche de texte : un import mentionné dans un commentaire ou
     une docstring satisferait un `grep` sans rien exécuter.
     """
-    import ast
     import pathlib
 
-    tree = ast.parse(pathlib.Path("src/collectors/_meta_upsert.py")
-                     .read_text(encoding="utf-8"))
+    missing, applied = wiring_gaps(pathlib.Path("src/collectors/_meta_upsert.py")
+                                   .read_text(encoding="utf-8"))
+    assert not missing, (
+        "les validateurs ne sont plus importés par le collecteur : la couche est "
+        f"redevenue décorative (manquants : {sorted(missing)})"
+    )
+    assert applied, "les modèles sont importés mais jamais appliqués"
+
+
+_MODELS = frozenset({"MetaCampaign", "MetaAdset", "MetaAd", "MetaInsight"})
+
+
+def wiring_gaps(source: str) -> tuple[set[str], bool]:
+    """(models the collector does NOT import, whether it calls `._validate`). Pure."""
+    import ast
+
+    tree = ast.parse(source)
     imported = {
         alias.name
         for node in ast.walk(tree)
@@ -250,14 +264,26 @@ def test_the_collector_actually_calls_the_validators():
         and node.module == "src.models.meta_ads_validators"
         for alias in node.names
     }
-    assert {"MetaCampaign", "MetaAdset", "MetaAd", "MetaInsight"} <= imported, (
-        "les validateurs ne sont plus importés par le collecteur : la couche est "
-        f"redevenue décorative (importés : {sorted(imported)})"
-    )
-
     called = {
         node.func.attr
         for node in ast.walk(tree)
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
     }
-    assert "_validate" in called, "les modèles sont importés mais jamais appliqués"
+    return set(_MODELS - imported), "_validate" in called
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the layer of before the wiring — named only in a comment and a
+    docstring — is seen as unimported; imported-but-never-applied is seen as unapplied;
+    the wired collector is neither."""
+    names = ", ".join(sorted(_MODELS))
+    decorative = (f"# from src.models.meta_ads_validators import {names}\n"
+                  f'def upsert(rows):\n    """Validated by {names}."""\n    return rows\n')
+    assert wiring_gaps(decorative) == (set(_MODELS), False)
+    imported = f"from src.models.meta_ads_validators import {names}\n"
+    assert wiring_gaps(imported + "def upsert(rows):\n    return rows\n") == (set(), False)
+    wired = imported + "def upsert(self, rows):\n    return self._validate(MetaAd, rows)\n"
+    # The same names from a local stand-in are not the layer.
+    stand_in = wired.replace("src.models.meta_ads_validators", "src.collectors._stubs")
+    assert wiring_gaps(stand_in) == (set(_MODELS), True)
+    assert wiring_gaps(wired) == (set(), True)

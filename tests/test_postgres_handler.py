@@ -33,15 +33,16 @@ Deux remèdes, et il en faut deux
   façon de contourner le patch redeviendrait silencieuse, et le silence est le
   défaut. Un test qui ment sur ce qu'il mesure est pire qu'un test absent.
 """
+import contextlib
 import pytest
 from unittest.mock import MagicMock, patch, PropertyMock
 
 from src.database.postgres_handler import PostgresHandler
 
 
-@pytest.fixture(autouse=True)
-def _no_pool_behind_the_mock():
-    """Le pool du processus est écarté : un mock ne doit pas tomber sur une vraie base."""
+@contextlib.contextmanager
+def _pool_set_aside():
+    """Le pool du processus est écarté le temps du bloc, puis remis — jamais fermé."""
     from src.database import postgres_handler as _ph
     saved, saved_limits = _ph._POOL, _ph._POOL_LIMITS
     _ph._POOL, _ph._POOL_LIMITS = None, None
@@ -49,6 +50,13 @@ def _no_pool_behind_the_mock():
         yield
     finally:
         _ph._POOL, _ph._POOL_LIMITS = saved, saved_limits
+
+
+@pytest.fixture(autouse=True)
+def _no_pool_behind_the_mock():
+    """Le pool du processus est écarté : un mock ne doit pas tomber sur une vraie base."""
+    with _pool_set_aside():
+        yield
 
 
 # =============================================================================
@@ -74,6 +82,34 @@ def _make_handler():
         "La fixture `_no_pool_behind_the_mock` existe pour ça — a-t-elle été retirée ?"
     )
     return handler
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, class `a-unit-test-that-borrows-a-real-connection-from-the-pool`,
+    without depending on which neighbour ran first: a pool ARMED behind the patch —
+    the 2026-09-16 state — makes `_make_handler` refuse its handler; the same pool set
+    aside by `_pool_set_aside` lets the mock through."""
+    from src.database import postgres_handler as _ph
+
+    class _ArmedPool:
+        def getconn(self):
+            conn = type("RealLooking", (), {})()
+            conn.closed = False
+            conn.cursor = lambda *a, **k: object()
+            conn.autocommit = True
+            return conn
+
+        def putconn(self, *a, **k):
+            pass
+
+    _ph._POOL = _ArmedPool()
+    try:
+        with pytest.raises(AssertionError, match="CONTOURNÉ"):
+            _make_handler()
+        with _pool_set_aside():
+            assert isinstance(_make_handler().cursor, MagicMock)
+    finally:
+        _ph._POOL = None
 
 
 # =============================================================================
