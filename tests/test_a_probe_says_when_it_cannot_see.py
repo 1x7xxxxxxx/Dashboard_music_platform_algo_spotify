@@ -134,3 +134,26 @@ def test_a_tenant_without_a_user_row_is_refused_not_rendered():
         "the refusal no longer names the command that WOULD work. A refusal that does "
         "not say what to do next is half a refusal."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Behaviour: the 2026-09-03 page — an AppTest with NO `file_uploader` accessor
+    (Streamlit 1.54) — must come back as UNREADABLE, never as « nothing to upload »;
+    an accessor present and empty is a real « no »."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("_first_look", TOOL)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    class OldAppTest:                     # no `file_uploader` attribute at all
+        button = []
+
+    assert mod._has_any(OldAppTest(), ["button", "file_uploader"]) == (
+        False, ["file_uploader"])
+
+    class NewAppTest:
+        button = []
+        file_uploader = []
+
+    assert mod._has_any(NewAppTest(), ["button", "file_uploader"]) == (False, [])

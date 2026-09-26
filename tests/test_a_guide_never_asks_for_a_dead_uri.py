@@ -49,14 +49,15 @@ def test_the_guides_exist():
         assert (_CONTENT / name).is_file(), f"{name} a disparu"
 
 
+def dead_steps(text: str) -> list[tuple[int, str]]:
+    """(line, text) of every step asking the artist for a Redirect URI / Web API box."""
+    return [(ln, line.strip()) for ln, line in enumerate(text.splitlines(), 1)
+            if any(p.search(line) for p in _BANNED)]
+
+
 def test_no_artist_guide_asks_for_a_redirect_uri():
-    offenders = []
-    for name in _ARTIST_GUIDES:
-        text = (_CONTENT / name).read_text(encoding="utf-8")
-        for line_no, line in enumerate(text.splitlines(), 1):
-            for pattern in _BANNED:
-                if pattern.search(line):
-                    offenders.append(f"{name}:{line_no} → {line.strip()[:70]}")
+    offenders = [f"{name}:{ln} → {line[:70]}" for name in _ARTIST_GUIDES
+                 for ln, line in dead_steps((_CONTENT / name).read_text(encoding="utf-8"))]
     assert not offenders, (
         "un guide artiste demande une Redirect URI ou la case Web API :\n  "
         + "\n  ".join(offenders)
@@ -134,3 +135,14 @@ def test_a_prefilled_portal_link_is_a_template_that_can_resolve():
             f"{guide.key}: {tpl!r} degenerates to a bare /artist/ path, which answers "
             "500. That exact URL was proposed and withdrawn during the 2026-08-30 test."
         )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the stale English guide's steps — tick Web API, paste a
+    `127.0.0.1:<port>` redirect — are named in both languages; the central-app step
+    (the artist pastes a profile link, creates nothing) is not."""
+    stale = ("1. Tick **Web API**\n"
+             "2. Redirect URI: http://127.0.0.1:8501/callback\n"
+             "3. Cocher **Web API**\n")
+    assert [ln for ln, _ in dead_steps(stale)] == [1, 2, 3]
+    assert dead_steps("1. Colle le lien de ton profil artiste Spotify\n") == []
