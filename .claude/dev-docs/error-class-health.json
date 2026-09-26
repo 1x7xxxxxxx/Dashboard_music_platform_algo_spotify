@@ -4028,7 +4028,7 @@
       "renamed_from": null
     },
     "a-verification-read-through-a-filtering-wrapper": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-09-13",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_commit_message_is_not_fed_through_stdin.py",
@@ -4050,7 +4050,7 @@
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-09-13",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11190,7 +11190,7 @@
       "renamed_from": null
     },
     "view-renders-nothing-and-says-nothing": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-06",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_view_says_something_or_says_why.py",
@@ -11212,7 +11212,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-06",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11445,12 +11445,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 426,
+      "catalogue_revisions": 427,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 17,
+      "cause_unknown": 15,
       "guard_does_not_prove_itself": 270,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
