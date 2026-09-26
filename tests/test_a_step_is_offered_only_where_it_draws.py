@@ -171,3 +171,19 @@ def test_the_step_bar_is_really_gone():
 # Les deux autres gardes de ce fichier sont intacts : `_step_for` vérifie la règle
 # elle-même, `test_the_step_bar_is_really_gone` qu'aucun widget ne prétend encore
 # choisir le pas. Ce sont eux qui empêchent la règle de dériver.
+
+
+def _year_step_reachable(max_buckets: int, huge: int) -> bool:
+    return max_buckets < huge / 30
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, and the class itself: with the FIXED input a raised ceiling (the
+    2026-09-12 mutation, 99 999) is refused; with the input DERIVED from the ceiling it
+    stays green whatever the ceiling — the exact blindness this test was rewritten for."""
+    fixed = 7_300
+    assert _year_step_reachable(60, fixed)
+    assert not _year_step_reachable(99_999, fixed), "a fixed input must catch the raise"
+    derived = lambda mb: (mb + 1) * 30 + 1  # noqa: E731 — the shape that was retired
+    assert _year_step_reachable(99_999, derived(99_999)), \
+        "the derived input is blind by construction — kept to show why it was retired"

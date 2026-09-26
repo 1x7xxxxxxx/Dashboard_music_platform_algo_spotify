@@ -360,3 +360,17 @@ def test_the_gold_views_still_carry_the_column(carriers) -> None:
             f"{view} ne porte plus {_COLUMN}. C'est le défaut de la migration 108 : "
             "la vue or a perdu une colonne que ses lecteurs filtrent, et la page "
             "tombe dès qu'un locataire choisit un compte.")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity on FABRICATED code: the 2026-09-12 shape — `account_clause(_, "ma.")`
+    pasted into a query that reads ONE view and declares no `ma` — is seen; the query
+    that declares the alias is not; an unqualified fragment carries no alias at all."""
+    tree = ast.parse("frag, params = account_clause(acct, 'ma.')\n"
+                     "bare, p2 = account_clause(acct)\n")
+    bound = _aliased_names(tree)
+    assert bound == {"frag": "ma"}, bound
+    one_view = "SELECT day, spend FROM v_meta_creative_daily WHERE artist_id = %s"
+    joined = "SELECT ma.day FROM meta_ads ma JOIN meta_campaigns mc ON mc.id = ma.cid"
+    assert "ma" not in _declared_aliases(one_view)
+    assert "ma" in _declared_aliases(joined)
