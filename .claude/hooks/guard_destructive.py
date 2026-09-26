@@ -659,6 +659,46 @@ def _serial_full_suite(command: str) -> str | None:
     return None
 
 
+# R191 (2026-09-26) — l'hôte de production. `make deploy PROD_SSH=root@167.233.92.1`.
+_PROD_HOSTS = ("167.233.92.1", "streamlytics.fr")
+_TASKS_TEST_RE = re.compile(r"\bairflow\s+tasks\s+test\b")
+
+
+def _tasks_test_on_prod(command: str) -> str | None:
+    """Un `airflow tasks test` lancé en PRODUCTION par ssh. Rend l'hôte visé, ou None.
+
+    Mesuré deux fois le 2026-09-26 (11:27 et 16:58, `alert_monitor`) : sur Airflow 2.11,
+    `tasks test` laisse un DagRun `__airflow_temporary_run_…` que le planificateur ADOPTE et
+    exécute EN ENTIER — toutes les tâches du DAG, et leurs mails. La seconde fois, juste après
+    un redémarrage du planificateur, trois tâches se sont bloquées sur la base d'Airflow et un
+    faux « task check_billing_sync FAILED » est parti à la boîte du propriétaire.
+
+    Lu sur la STRUCTURE (`shlex` sur la commande entière, guillemets respectés) : le geste
+    est un jeton `ssh` suivi d'un hôte de prod, et la commande distante contient
+    `airflow tasks test`. Une phrase qui en PARLE (`echo "… tasks test …"`) est un seul jeton
+    et ne déclenche rien — la leçon de `a-bash-hook-that-blocks-the-prose-about-the-gesture`.
+    """
+    try:
+        argv = shlex.split(_sans_heredocs(command), comments=True)
+    except ValueError:
+        return None
+    for i, tok in enumerate(argv):
+        if tok.rsplit("/", 1)[-1] != "ssh":
+            continue
+        j = i + 1
+        while j < len(argv) and argv[j].startswith("-"):
+            j += 2 if argv[j] in ("-o", "-i", "-p", "-l", "-J", "-F") else 1
+        if j >= len(argv):
+            continue
+        host = argv[j]
+        if not any(h in host for h in _PROD_HOSTS):
+            continue
+        remote = " ".join(argv[j + 1:])
+        if _TASKS_TEST_RE.search(remote):
+            return host
+    return None
+
+
 def check_command(cmd: str) -> tuple[str, str] | None:
     """
     Returns (level, message) if the command matches a dangerous pattern.
@@ -680,6 +720,21 @@ def check_command(cmd: str) -> tuple[str, str] | None:
                 "second appel ;\n"
                 "     • ou reparer le code de sortie : set -o pipefail; <cmd> | tail -3\n"
                 "     • ou n'affirmer rien : remplacer `&&` par `;` devant la livraison.")
+
+    prod = _tasks_test_on_prod(cmd)
+    if prod:
+        return ("block",
+                f"`airflow tasks test` en PRODUCTION ({prod}) : sur Airflow 2.11 il laisse un "
+                "DagRun temporaire que le planificateur exécute EN ENTIER — toutes les tâches, "
+                "et leurs mails. Mesuré deux fois le 2026-09-26 ; la seconde a mailé un faux "
+                "« FAILED ».\n"
+                "   Forme sûre : appeler la FONCTION de la tâche avec un `ti` minimal qui "
+                "affiche ce qu'elle pousse (voir le runbook, R57) :\n"
+                "     docker compose exec -T airflow-scheduler python -c \"import sys; "
+                "sys.path.insert(0, '/opt/airflow/dags'); import alert_monitor as m; "
+                "T = type('T', (), {'xcom_push': lambda self, **k: print(k)}); "
+                "m.check_offsite_backup(ti=T())\"\n"
+                "   ou déclencher le DAG normalement (`airflow dags trigger`).")
 
     # La suite en SÉRIE d'abord : elle ne détruit rien, elle vole quinze minutes, et
     # c'est le seul de ces gardes dont la forme sûre est plus COURTE à taper.

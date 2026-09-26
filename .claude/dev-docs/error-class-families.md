@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**418 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**419 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -27,7 +27,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 11 | **0/11** · 0.0 % | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 7 | **1/7** · 14.3 % | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 19 | **0/19** · 0.0 % | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
-| [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 25 | **3/25** · 12.0 % | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
+| [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 26 | **3/26** · 11.5 % | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
 | [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 43 | **4/43** · 9.3 % | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | [l-instrument-ment-sur-ce-qu-il-mesure](#l-instrument-ment-sur-ce-qu-il-mesure) | 4 | **0/4** · 0.0 % | Ce que cet instrument AFFICHE est-il ce qu'il a mesuré ? |
 | _sans famille_ | 0 | — | — |
@@ -517,7 +517,7 @@ Règle de rattachement : `date|time|clock|tz|utc|timezone|fresh|schedule|cron|wi
 
 **Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ?**
 
-Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhook|stripe|payment|url|cors|redact|external|api-|fstring-identifier|string-substitution|untrusted|privileged|access-gate|is-not-an-identity|rendered-to-the-visitor|bare-except|containment` sur l'identifiant et le symptôme. 25 classe(s).
+Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhook|stripe|payment|url|cors|redact|external|api-|fstring-identifier|string-substitution|untrusted|privileged|access-gate|is-not-an-identity|rendered-to-the-visitor|bare-except|containment` sur l'identifiant et le symptôme. 26 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -530,6 +530,7 @@ Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhoo
 | [`sender-identity-composed-twice`](error-classes.md#sender-identity-composed-twice) | les e-mails du produit arrivent sous un nom d'expéditeur qui n'est pas le sien — ici « Music Cross Platform Dashboard & Trigger Spotify » au lieu de « |
 | [`a-dev-instance-sends-production-shaped-mail`](error-classes.md#a-dev-instance-sends-production-shaped-mail) | une alerte arrive dans une vraie boîte mail, annonce une panne, et **la production va très bien**. Elle vient d'une instance de développement. Rien da |
 | [`containment-ignores-what-it-leaves-out`](error-classes.md#containment-ignores-what-it-leaves-out) | un titre court s'associe tout seul à un libellé long qui le contient — un mix DJ, un set, un morceau d'un autre artiste. Le score est le même que pour |
+| [`a-probe-that-runs-the-whole-dag-in-production`](error-classes.md#a-probe-that-runs-the-whole-dag-in-production) | une « vérification d'une seule tâche » (`airflow tasks test <dag> <task>`) lancée en production exécute en réalité TOUT le DAG, mails compris ; juste  |
 | [`a-secret-committed-to-a-public-history`](error-classes.md#a-secret-committed-to-a-public-history) | `gitleaks` rouge 5 nuits sur 5, lu par personne ; un `git clone` suffit à lire des identifiants de production — sans compte, sans trace |
 | [`sql-fstring-identifier`](error-classes.md#sql-fstring-identifier) | a table/column name interpolated into SQL via f-string without `frozenset` allowlist validation (CLAUDE.md rule #8) → SQL injection. |
 | [`bare-except`](error-classes.md#bare-except) | un `except:` nu avale aussi `KeyboardInterrupt` et `SystemExit` — donc une interruption volontaire et l'arrêt du processus — et il ne dit jamais QUELL |
@@ -620,6 +621,6 @@ _Aucune._
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=418 families=18 orphans=0 -->
+<!-- error-class-families: total=419 families=18 orphans=0 -->
 
-<!-- error-class-families: sha256=7d8bb7728b387b4d60bd5517d7a6991aa6a2acd33ba3c28bd49f9586e2e14b48 -->
+<!-- error-class-families: sha256=e9a15c6d03423417df5e4f47bf69890cdd95768a2fd3e3898fd0b21395441f13 -->

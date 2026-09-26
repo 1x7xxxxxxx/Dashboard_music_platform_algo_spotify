@@ -1683,7 +1683,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pretooluse-hook",
       "has_signature": true,
       "history_dates_declared": [
@@ -1699,7 +1699,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 13,
+      "revisions": 14,
       "history_additions": 2,
       "renamed_from": null
     },
@@ -2466,6 +2466,33 @@
       "status": "guarded",
       "introduced_date": "2026-09-22",
       "revisions": 1,
+      "history_additions": 0,
+      "renamed_from": null
+    },
+    "a-probe-that-runs-the-whole-dag-in-production": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-26",
+      "guard_automatic": true,
+      "guard_ref": ".claude/hooks/guard_destructive.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "la-frontière-avec-le-dehors",
+      "guard_scope_derived_family": "la-frontière-avec-le-dehors",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": true,
+      "guard_type": "pretooluse-hook",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-26"
+      ],
+      "kind": "deterministic",
+      "seen_red": "self-proving",
+      "severity": "P2",
+      "siblings_is_a_guard_rerun": false,
+      "siblings_sites": 3,
+      "siblings_swept": true,
+      "status": "guarded",
+      "introduced_date": "2026-09-26",
+      "revisions": 0,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11495,7 +11522,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 563,
+      "catalogue_revisions": 564,
       "head_date": "2026-09-26"
     },
     "holes": {
@@ -11515,11 +11542,11 @@
       "swept_by_rerunning_the_guard": 0
     },
     "population": {
-      "automatic_guard": 410,
-      "classes": 418,
+      "automatic_guard": 411,
+      "classes": 419,
       "ever_recurred_observed": 48,
       "prose_only": 8,
-      "with_signature": 407
+      "with_signature": 408
     },
     "recurrence": {
       "window_start": "2026-05-15",
@@ -11624,11 +11651,11 @@
       }
     },
     "sweep_yield": {
-      "sweeps_done": 418,
-      "sweeps_with_a_verdict": 418,
-      "sweeps_that_found_something": 121,
-      "live_sites_found": 502,
-      "hit_rate_on_verdicts": 0.289,
+      "sweeps_done": 419,
+      "sweeps_with_a_verdict": 419,
+      "sweeps_that_found_something": 122,
+      "live_sites_found": 505,
+      "hit_rate_on_verdicts": 0.291,
       "note": "Le taux porte sur les balayages dont le verdict est LISIBLE. Les autres sont comptés dans holes.sites_unknown — un balayage muet n'est pas un balayage sans trouvaille."
     }
   }

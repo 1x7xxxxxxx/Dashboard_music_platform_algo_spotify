@@ -25,6 +25,11 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R192 | L'offre redécoupée : tes données et leur fusion GRATUITES (Meta × plateformes, créas, répartitions, PDF à la demande), les PRÉDICTIONS payantes (Road to Algo, optimiseur CPR, prévisions, envoi hebdo) — ADR-029, décision du propriétaire 2026-09-26 <!-- anchor: free-data-paid-predictions --> | P2 | `tests/test_plan_gating.py` |
+| R193 | Aperçu GRATUIT de Road to Algo (🔓 vert, au-dessus de la vue de prédiction) : pour la dernière sortie, porte la plus proche, actions à faire, budget en ordre de grandeur, valeur de la porte <!-- anchor: algo-preview --> | P2 | rendu + capture navigateur |
+| R191 | Classe « un `airflow tasks test` en prod lance tout le DAG » (2 occurrences le 2026-09-26) + garde dans `guard_destructive.py` <!-- anchor: tasks-test-prod --> | P3 | `python3 .claude/scripts/audit_runner.py --admission` |
+| R190 | Récidive de `a-diagram-is-verified-by-looking-at-it` sur les figures (R188 : 3 défauts vus seulement à l'écran), balayage lié <!-- anchor: looked-at-figures --> | P3 | `make error-health` |
+| R189 | Contrôle visuel automatique des figures rendues : même hauteur par rangée, titre tronqué, annotations superposées, légende sur la barre d'outils — par commit et chaque nuit <!-- anchor: figure-lint --> | P3 | `tests/test_a_rendered_figure_is_laid_out.py` |
 
 **Huit lignes y sont entrées le 2026-09-25 au soir**, toutes issues de l'audit de la
 surveillance des classes d'erreur — détail dans « 🧭 R167 – R176 » juste sous cet index.
@@ -220,7 +225,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R192, R193, R191, R190, R189 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers

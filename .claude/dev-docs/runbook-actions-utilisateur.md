@@ -468,8 +468,13 @@ ssh root@167.233.92.1 'cd /opt/streamlytics && bash tools/db_backup.sh 2>&1 | ta
 # ✅ Hors-site OK — N archive(s) distante(s) chiffrée(s), rétention 30 j.
 
 # 2. le contrôle nocturne le voit — il ne le pouvait PAS avant (voir plus bas)
-ssh root@167.233.92.1 'docker exec airflow_scheduler airflow tasks test \
-  alert_monitor check_offsite_backup 2026-09-04 2>&1 | grep Offsite'
+#    ⚠️ PAS `airflow tasks test` (2026-09-26, R191) : il laisse un run que le planificateur
+#    exécute EN ENTIER, mails compris. On appelle la FONCTION de la tâche, avec un `ti`
+#    minimal qui affiche ce qu'elle pousse (elle lit `context['ti']`) :
+ssh root@167.233.92.1 'docker exec airflow_scheduler python -c "import sys; \
+  sys.path.insert(0, \"/opt/airflow/dags\"); import alert_monitor as m; \
+  T = type(\"T\", (), {\"xcom_push\": lambda self, **k: print(k)}); \
+  m.check_offsite_backup(ti=T())" 2>&1 | grep -i offsite'
 # INFO - Offsite backup: 22 archive(s) on git@github-backup:…, proven 0 h ago
 
 # 3. la seule preuve qui compte : restaurer SANS le serveur
