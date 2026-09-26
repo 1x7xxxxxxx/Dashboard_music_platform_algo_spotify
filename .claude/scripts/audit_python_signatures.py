@@ -70,7 +70,15 @@ def db_connection_per_show(views: Path | None = None) -> list[str]:
 
 
 # ── view-session-adoption ───────────────────────────────────────────────────
-def view_session_adoption() -> list[str]:
+def _rel(path: Path) -> str:
+    """Repo-relative when the file is in the repo, else its name (fabricated fixtures)."""
+    try:
+        return str(path.relative_to(_ROOT))
+    except ValueError:
+        return path.name
+
+
+def view_session_adoption(views: Path | None = None) -> list[str]:
     """Une vue qui ouvre la connexion à la main sans passer par `view_session`.
 
     Le `grep -q view_session` du catalogue excluait un fichier dès qu'un COMMENTAIRE
@@ -78,7 +86,7 @@ def view_session_adoption() -> list[str]:
     retirer de la dette qu'il incarne.
     """
     out = []
-    for path in sorted(_VIEWS.rglob("*.py")):
+    for path in sorted((views or _VIEWS).rglob("*.py")):
         tree = _tree(path)
         if tree is None:
             continue
@@ -89,19 +97,19 @@ def view_session_adoption() -> list[str]:
             if isinstance(n, ast.withitem) and "view_session" in ast.dump(n.context_expr)
         ]
         if not uses:
-            out.append(str(path.relative_to(_ROOT)))
+            out.append(_rel(path))
     return out
 
 
 # ── csv-formula-injection ───────────────────────────────────────────────────
-def csv_formula_injection() -> list[str]:
+def csv_formula_injection(root: Path | None = None) -> list[str]:
     """Un `to_csv`/`to_excel` dont la valeur n'est pas passée par `defang_formulas`.
 
     Le grep excluait TOUTE ligne contenant `#` — donc un vrai export non défangé
     suivi d'un commentaire inoffensif. Sur une classe CWE-1236.
     """
     out = []
-    for path in sorted((_ROOT / "src" / "dashboard").rglob("*.py")):
+    for path in sorted((root or _ROOT / "src" / "dashboard").rglob("*.py")):
         tree = _tree(path)
         if tree is None:
             continue
@@ -110,7 +118,7 @@ def csv_formula_injection() -> list[str]:
             recv = ast.dump(call.func)
             if defanged or "defang" in recv:
                 continue
-            out.append(f"{path.relative_to(_ROOT)}:{call.lineno}")
+            out.append(f"{_rel(path)}:{call.lineno}")
     return out
 
 
@@ -118,7 +126,7 @@ def csv_formula_injection() -> list[str]:
 _OS_SHORTCUT = re.compile(r"Ctrl\+[A-Z]|F12")
 
 
-def guide_single_os_shortcut() -> list[str]:
+def guide_single_os_shortcut(targets: list | None = None) -> list[str]:
     """Un raccourci clavier figé dans une CHAÎNE rendue à l'artiste.
 
     Polarité inverse des trois au-dessus : le grep échouait dès que le motif
@@ -126,7 +134,7 @@ def guide_single_os_shortcut() -> list[str]:
     retrait. `deterministic`, donc la CI cassait en faux positif, et la seule façon
     de la garder verte était d'arrêter de documenter le correctif.
     """
-    targets = [
+    targets = targets or [
         _ROOT / "src" / "dashboard" / "content",
         _ROOT / "src" / "dashboard" / "views" / "credentials",
         _ROOT / "src" / "dashboard" / "utils" / "i18n_catalog" / "credentials.py",
@@ -156,19 +164,19 @@ def guide_single_os_shortcut() -> list[str]:
                 if (isinstance(node, ast.Constant) and isinstance(node.value, str)
                         and id(node) not in docstrings
                         and _OS_SHORTCUT.search(node.value)):
-                    out.append(f"{path.relative_to(_ROOT)}:{node.lineno}")
+                    out.append(f"{_rel(path)}:{node.lineno}")
     return out
 
 
 # ── api-partial-date-into-date-column ───────────────────────────────────────
-def api_partial_date_into_date_column() -> list[str]:
+def api_partial_date_into_date_column(path: Path | None = None) -> list[str]:
     """`release_date` lu brut de l'API Spotify, sans normalisation.
 
     L'API rend `"2019"` ou `"2019-03"` selon la précision ; une colonne DATE les
     refuse. Le grep cherchait la ligne fautive EXACTE — donc une citation de cette
     ligne en commentaire (la documentation du bug) cassait la CI.
     """
-    path = _ROOT / "src" / "collectors" / "spotify_api.py"
+    path = path or _ROOT / "src" / "collectors" / "spotify_api.py"
     tree = _tree(path)
     if tree is None:
         return []
@@ -181,7 +189,7 @@ def api_partial_date_into_date_column() -> list[str]:
         dumped = ast.dump(node.value)
         # Normalisé = le résultat passe par un helper, pas par un indexage direct.
         if "Subscript" in dumped and "Call" not in dumped:
-            out.append(f"{path.relative_to(_ROOT)}:{node.lineno}")
+            out.append(f"{_rel(path)}:{node.lineno}")
     return out
 
 
