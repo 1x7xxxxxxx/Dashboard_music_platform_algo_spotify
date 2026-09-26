@@ -180,6 +180,27 @@ tâche-là, ouvert séparément dans `checklist.md`).
 
 ---
 
+## 🔬 R184 · R185 · R186 — La chaîne des classes d'erreur sondée, et la preuve exigée par classe (livrées 2026-09-26)
+
+Entrées le 2026-09-26 sur la question du propriétaire : « tout fonctionne-t-il, quels tests le
+garantissent, une classe sans analyse d'impact ni de cause est-elle refusée ? ». Conception
+revue par code-critic (BUILD-MODIFIED ×3, verdicts dans `design-R180-R182.md`).
+
+- [x] **R184 — sonder toute la chaîne.** (P2) ✅ (2026-09-26, `e234c6b`, `f02fba4`)
+  `tools/dev/probe_error_management.py` : un défaut fabriqué par porte dans un worktree
+  jetable, contre les VRAIES portes. Mesuré avant correctifs : **17/21**, après : **21/21**
+  (`make error-management-probe`). Chaque nuit : job `error-management-probe` → `notify`.
+  Par commit : `tests/test_the_error_management_chain_refuses_every_defect.py`.
+- [x] **R185 — refus PAR CLASSE neuve, plus seulement via un plafond.** (P2) ✅ (2026-09-26,
+  `e234c6b`) `audit_runner --admission` : balayage sans verdict lisible, cause < 30 car.,
+  `cause_evidence` sans justification ou `read`/`inferred` sans fichier existant, `seen_red`
+  ni daté ni auto-prouvé ni `never` motivé. Les 14 classes admises passent. Porté dans le
+  preset de la baseline (`1da565a`).
+- [x] **R186 — le balayage lié à SA classe, et le commit terminal contrôlé.** (P2) ✅
+  (2026-09-26, `e234c6b`) Un sibling-sweeper des 48 h doit mentionner l'id ou un fichier
+  cité par la classe ; même contrôle en pre-commit (`catalogue-sweep`, index vs HEAD) ;
+  gardes ajoutés pour `--prose` et le hook d'avertissement.
+
 ## 📋 R181 — Un seul mail récapitulatif par nuit, dans la boîte lue (livrée 2026-09-26)
 
 Entrée le 2026-09-26 ; conception validée par code-critic
