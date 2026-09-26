@@ -54,6 +54,25 @@ def _assigned_names() -> set[str]:
             for t in n.targets if isinstance(t, ast.Name)}
 
 
+def _covered_end_is_a_min(tree: ast.AST) -> bool | None:
+    """True when `covered_end` is `min(...)`, False when it is anything else, None when
+    it is not assigned at all."""
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == "covered_end" for t in node.targets)):
+            return (isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name)
+                    and node.value.func.id == "min")
+    return None
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity on FABRICATED sources: no bound at all (the 2026-09-10 shape), a MAX
+    that looks like a fix and bounds nothing, and the correction."""
+    assert _covered_end_is_a_min(ast.parse("end = max(a_end, b_end)\n")) is None
+    assert _covered_end_is_a_min(ast.parse("covered_end = max(a_end, b_end)\n")) is False
+    assert _covered_end_is_a_min(ast.parse("covered_end = min(a_end, b_end)\n")) is True
+
+
 def test_the_overlap_is_computed_from_both_series() -> None:
     """Sans borne commune, la fenêtre du verdict est celle de la plus longue des deux."""
     assert "covered_end" in _assigned_names(), (
