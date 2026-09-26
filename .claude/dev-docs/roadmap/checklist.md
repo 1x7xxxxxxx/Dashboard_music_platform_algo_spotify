@@ -27,7 +27,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 |---|---|---|---|
 | R180 | Familles d'erreurs, unité vivante : champ `family:` DÉCLARÉ sur chaque classe (fin du classement par regex sur l'identifiant), et un détecteur ou une sonde par règle de `error-family-rules.md` (conception et verdicts de code-critic : `.claude/dev-docs/roadmap/design-R180-R182.md`) <!-- anchor: family-field --> | P3 | `python3 -c` qui compte les classes sans `family:` → 0 |
 | R181 | Un seul mail récapitulatif par nuit : `alert_monitor` (prod, 23 h) ajoute une section GitHub (CI main, nightly sécurité, santé prod — dépôt public, API sans jeton) et les mails GitHub par cassure passent en résumé <!-- anchor: nightly-recap --> | P3 | un mail par nuit dans `ops-mail-journal.md` pendant 7 nuits |
-| R182 | Preset `error-classes` dans `claude_code_deployment_baseline` (choix du propriétaire, 2026-09-26, sur l'avis de code-critic : pas de nouveau dépôt — une troisième copie des outils dériverait) — brique « gestion des classes d'erreur » : les 18 règles génériques, l'outillage (select_tests, night-check CI, catalogue-sync, durées --fix, mail CI), les gardes de départ, et la mise à jour du payload d'installation <!-- anchor: baseline-rev1 --> | P3 | un projet vide installé par le payload passe ses gardes de départ |
 | R169 | Dette du catalogue d'erreurs : gardes non auto-prouvants et causes inconnues, figés sur six commits <!-- anchor: error-debt --> | P3 | `make error-debt` |
 
 **Huit lignes y sont entrées le 2026-09-25 au soir**, toutes issues de l'audit de la
@@ -112,7 +111,7 @@ preuve dans `archive.md`, sous « 🧵 R178 ». Avant elles, R165 et R166, qui l
 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance,
 close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et
 qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
-L'ancre `reprise:` nomme l'index ET les lignes en attente d'un geste humain — R148 et R163 depuis le 2026-09-23 (R151 réfutée, R150 livrée, R163 entrée et R153 livrée ce jour-là). R177, entrée le 2026-09-25, est livrée le même soir (~23:55) — détail et preuve dans `archive.md`, sous « 🔒 R177 ». R179, entrée le 2026-09-26 en attendant l'accord du propriétaire pour toucher un DAG de production, est livrée le même jour — détail et preuve dans `archive.md`, sous « 🐛 R179 ». La table « 🙋 En attente de toi »
+L'ancre `reprise:` nomme l'index ET les lignes en attente d'un geste humain — R148 et R163 depuis le 2026-09-23 (R151 réfutée, R150 livrée, R163 entrée et R153 livrée ce jour-là). R177, entrée le 2026-09-25, est livrée le même soir (~23:55) — détail et preuve dans `archive.md`, sous « 🔒 R177 ». R182, entrée le 2026-09-26, est livrée le même jour — détail sous « 🧰 R182 » dans `archive.md`. R179, entrée le 2026-09-26 en attendant l'accord du propriétaire pour toucher un DAG de production, est livrée le même jour — détail et preuve dans `archive.md`, sous « 🐛 R179 ». La table « 🙋 En attente de toi »
 plus bas en porte **deux** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
 sont sorties le 2026-09-20 — les dix-sept décisions de la première tranchées et
 intégrées, la deuxième faite par le propriétaire (33 lignes en production), la troisième
@@ -232,7 +231,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R180, R181, R182, R169, R148, R163 -->
+<!-- reprise: open=R180, R181, R169, R148, R163 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers

@@ -180,6 +180,25 @@ tâche-là, ouvert séparément dans `checklist.md`).
 
 ---
 
+## 🧰 R182 — Le preset `error-classes` de la baseline (livrée 2026-09-26)
+
+Entrée le 2026-09-26 dans l'index de `checklist.md`. Forme tranchée par le propriétaire le
+même jour sur l'avis de code-critic : un preset dans `claude_code_deployment_baseline`,
+pas un nouveau dépôt (une troisième copie des outils dériverait).
+
+- [x] **R182 — brique « gestion des classes d'erreur » installable dans un projet neuf.**
+  (P3) ✅ (2026-09-26, baseline `003e598`, branche `fleet-config-audit`)
+
+  `presets/error-classes/` : les 18 règles de famille marquées « commit » ou « nuit »,
+  `error_class_families.py`, un squelette de catalogue dont les classes DÉCLARENT leur
+  famille, deux gardes de départ auto-prouvants ; câblé dans `setup-claude-code.sh`,
+  payload `setup-payload-error-classes.tar.gz.b64`. Preuve :
+  `tools/dev/check_preset_error_classes.sh` — dépôt vide → installation → gardes verts →
+  chaque défaut planté les rend rouges, 3/3. L'auto-test a trouvé deux défauts, corrigés
+  avant le commit : le catalogue générique VIDE, installé d'abord, masquait celui du
+  preset ; et le garde de famille passait sur zéro classe lue. REX R62 et R63 ajoutés
+  à la baseline.
+
 ## 🐛 R179 — Le mail du soir ne voyait aucun DAG en échec (livrée 2026-09-26)
 
 Née le 2026-09-25 au soir du bloc d'audit « 🧭 R167 – R176 » de `checklist.md`, entrée

@@ -278,3 +278,242 @@
 {"at": "2026-09-26T01:52:12+00:00", "head": "214adfc", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot U"}
 {"at": "2026-09-26T01:54:25+00:00", "head": "d1901c1", "kind": "done", "task": "R169", "what": "gardes lot U : 237 -> 236"}
 {"at": "2026-09-26T01:54:30+00:00", "head": "d1901c1", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot V"}
+{"at": "2026-09-26T01:56:44+00:00", "head": "2895b12", "kind": "done", "task": "R169", "what": "gardes lot V : 236 -> 235"}
+{"at": "2026-09-26T01:56:50+00:00", "head": "2895b12", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot W"}
+{"at": "2026-09-26T02:00:21+00:00", "head": "448f33e", "kind": "done", "task": "R169", "what": "gardes lot W : 235 -> 234"}
+{"at": "2026-09-26T02:00:24+00:00", "head": "448f33e", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot X"}
+{"at": "2026-09-26T02:03:25+00:00", "head": "79f38f5", "kind": "done", "task": "R169", "what": "gardes lot X : 234 -> 231"}
+{"at": "2026-09-26T02:03:31+00:00", "head": "79f38f5", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot Y"}
+{"at": "2026-09-26T02:06:55+00:00", "head": "8f1d31e", "kind": "done", "task": "R169", "what": "gardes lot Y : 231 -> 228"}
+{"at": "2026-09-26T02:07:00+00:00", "head": "8f1d31e", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot Z"}
+{"at": "2026-09-26T02:09:24+00:00", "head": "b80f684", "kind": "done", "task": "R169", "what": "gardes lot Z : 228 -> 225"}
+{"at": "2026-09-26T02:09:28+00:00", "head": "b80f684", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AA"}
+{"at": "2026-09-26T02:12:43+00:00", "head": "8a11df8", "kind": "done", "task": "R169", "what": "gardes lot AA : 225 -> 222"}
+{"at": "2026-09-26T02:12:56+00:00", "head": "8a11df8", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AB"}
+{"at": "2026-09-26T02:15:32+00:00", "head": "db0cd08", "kind": "done", "task": "R169", "what": "gardes lot AB : 222 -> 219"}
+{"at": "2026-09-26T02:16:18+00:00", "head": "e3a4cd8", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AC"}
+{"at": "2026-09-26T02:19:27+00:00", "head": "a78d067", "kind": "done", "task": "R169", "what": "gardes lot AC : 219 -> 216"}
+{"at": "2026-09-26T02:19:31+00:00", "head": "a78d067", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AD"}
+{"at": "2026-09-26T02:22:50+00:00", "head": "d60684f", "kind": "done", "task": "R169", "what": "gardes lot AD : 216 -> 213"}
+{"at": "2026-09-26T02:22:55+00:00", "head": "d60684f", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AE"}
+{"at": "2026-09-26T02:25:36+00:00", "head": "c7a42ae", "kind": "done", "task": "R169", "what": "gardes lot AE : 213 -> 210"}
+{"at": "2026-09-26T02:25:43+00:00", "head": "c7a42ae", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AF"}
+{"at": "2026-09-26T02:28:39+00:00", "head": "37fa7ce", "kind": "done", "task": "R169", "what": "gardes lot AF : 210 -> 207"}
+{"at": "2026-09-26T02:28:43+00:00", "head": "37fa7ce", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AG"}
+{"at": "2026-09-26T02:31:23+00:00", "head": "02c73af", "kind": "done", "task": "R169", "what": "gardes lot AG : 207 -> 204"}
+{"at": "2026-09-26T02:31:31+00:00", "head": "02c73af", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AH"}
+{"at": "2026-09-26T02:34:21+00:00", "head": "8a3542c", "kind": "done", "task": "R169", "what": "gardes lot AH : 204 -> 201"}
+{"at": "2026-09-26T02:34:27+00:00", "head": "8a3542c", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AI"}
+{"at": "2026-09-26T02:37:06+00:00", "head": "348c8f3", "kind": "done", "task": "R169", "what": "gardes lot AI : 201 -> 198"}
+{"at": "2026-09-26T02:37:10+00:00", "head": "348c8f3", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AJ"}
+{"at": "2026-09-26T02:40:06+00:00", "head": "ab15ce1", "kind": "done", "task": "R169", "what": "gardes lot AJ : 198 -> 195 (2 gardes aveugles corriges)"}
+{"at": "2026-09-26T02:41:14+00:00", "head": "ab15ce1", "kind": "start", "task": "R169", "what": "garde : une preuve appelle le detecteur qu'elle prouve"}
+{"at": "2026-09-26T02:42:54+00:00", "head": "7f88d16", "kind": "done", "task": "R169", "what": "garde preuve-sur-copie : 0 site vivant, garde en place"}
+{"at": "2026-09-26T02:42:58+00:00", "head": "7f88d16", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AK"}
+{"at": "2026-09-26T02:46:35+00:00", "head": "cb820d9", "kind": "done", "task": "R169", "what": "gardes lot AK : 195 -> 192"}
+{"at": "2026-09-26T02:46:43+00:00", "head": "cb820d9", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AL"}
+{"at": "2026-09-26T02:49:23+00:00", "head": "9dbe466", "kind": "done", "task": "R169", "what": "gardes lot AL : 192 -> 189"}
+{"at": "2026-09-26T02:49:27+00:00", "head": "9dbe466", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AM"}
+{"at": "2026-09-26T02:52:18+00:00", "head": "3bc2f4e", "kind": "done", "task": "R169", "what": "gardes lot AM : 189 -> 186"}
+{"at": "2026-09-26T02:52:23+00:00", "head": "3bc2f4e", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AN"}
+{"at": "2026-09-26T02:55:17+00:00", "head": "29386ce", "kind": "done", "task": "R169", "what": "gardes lot AN : 186 -> 185, seen_red 67 -> 64"}
+{"at": "2026-09-26T02:55:45+00:00", "head": "29386ce", "kind": "start", "task": "R169", "what": "preuve sur copie : detecteur de doublons de la roadmap"}
+{"at": "2026-09-26T02:56:45+00:00", "head": "79d4157", "kind": "done", "task": "R169", "what": "preuve sur copie : roadmap corrigee"}
+{"at": "2026-09-26T02:56:49+00:00", "head": "79d4157", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AO"}
+{"at": "2026-09-26T02:59:39+00:00", "head": "a6eec1f", "kind": "done", "task": "R169", "what": "gardes lot AO : 185 -> 182"}
+{"at": "2026-09-26T03:00:23+00:00", "head": "a6eec1f", "kind": "start", "task": "R169", "what": "classe : une preuve qui teste une copie de son detecteur (sites:4)"}
+{"at": "2026-09-26T03:02:31+00:00", "head": "8791c2b", "kind": "done", "task": "R169", "what": "classe preuve-sur-copie : 4 sites corriges, garde en place"}
+{"at": "2026-09-26T03:02:38+00:00", "head": "8791c2b", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AP"}
+{"at": "2026-09-26T03:05:14+00:00", "head": "f657769", "kind": "done", "task": "R169", "what": "gardes lot AP : 182 -> 179"}
+{"at": "2026-09-26T03:05:20+00:00", "head": "f657769", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AQ"}
+{"at": "2026-09-26T03:07:51+00:00", "head": "c35910e", "kind": "done", "task": "R169", "what": "gardes lot AQ : 179 -> 176"}
+{"at": "2026-09-26T03:07:55+00:00", "head": "c35910e", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AR"}
+{"at": "2026-09-26T03:11:21+00:00", "head": "0334d0f", "kind": "done", "task": "R169", "what": "gardes lot AR : 176 -> 173 (1 tautologie)"}
+{"at": "2026-09-26T03:12:14+00:00", "head": "0613625", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AS"}
+{"at": "2026-09-26T03:14:55+00:00", "head": "eae4f7d", "kind": "done", "task": "R169", "what": "gardes lot AS : 173 -> 170"}
+{"at": "2026-09-26T03:14:59+00:00", "head": "eae4f7d", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AT"}
+{"at": "2026-09-26T03:18:04+00:00", "head": "360acb7", "kind": "done", "task": "R169", "what": "gardes lot AT : 170 -> 167"}
+{"at": "2026-09-26T03:18:08+00:00", "head": "360acb7", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AU"}
+{"at": "2026-09-26T03:20:37+00:00", "head": "86b237e", "kind": "done", "task": "R169", "what": "gardes lot AU : 167 -> 164"}
+{"at": "2026-09-26T03:20:41+00:00", "head": "86b237e", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AV"}
+{"at": "2026-09-26T03:23:32+00:00", "head": "70a46ea", "kind": "done", "task": "R169", "what": "gardes lot AV : 164 -> 161"}
+{"at": "2026-09-26T03:23:37+00:00", "head": "70a46ea", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AW"}
+{"at": "2026-09-26T03:26:18+00:00", "head": "c96fd2d", "kind": "done", "task": "R169", "what": "gardes lot AW : 161 -> 158"}
+{"at": "2026-09-26T03:26:22+00:00", "head": "c96fd2d", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AX"}
+{"at": "2026-09-26T03:29:02+00:00", "head": "2877b69", "kind": "done", "task": "R169", "what": "gardes lot AX : 158 -> 156"}
+{"at": "2026-09-26T03:29:06+00:00", "head": "2877b69", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AY"}
+{"at": "2026-09-26T03:31:40+00:00", "head": "af79960", "kind": "done", "task": "R169", "what": "gardes lot AY : 156 -> 153"}
+{"at": "2026-09-26T03:31:45+00:00", "head": "af79960", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot AZ"}
+{"at": "2026-09-26T03:34:28+00:00", "head": "d01cf0a", "kind": "done", "task": "R169", "what": "gardes lot AZ : 153 -> 150"}
+{"at": "2026-09-26T03:34:33+00:00", "head": "d01cf0a", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BA"}
+{"at": "2026-09-26T03:36:54+00:00", "head": "6f3aa9d", "kind": "done", "task": "R169", "what": "gardes lot BA : 150 -> 147"}
+{"at": "2026-09-26T03:37:01+00:00", "head": "6f3aa9d", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BB"}
+{"at": "2026-09-26T03:39:55+00:00", "head": "99b8b3c", "kind": "done", "task": "R169", "what": "gardes lot BB : 147 -> 144"}
+{"at": "2026-09-26T03:40:00+00:00", "head": "99b8b3c", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BC"}
+{"at": "2026-09-26T03:42:55+00:00", "head": "f68c493", "kind": "done", "task": "R169", "what": "gardes lot BC : 144 -> 141"}
+{"at": "2026-09-26T03:43:00+00:00", "head": "f68c493", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BD"}
+{"at": "2026-09-26T03:46:14+00:00", "head": "a620e19", "kind": "done", "task": "R169", "what": "gardes lot BD : 141 -> 138"}
+{"at": "2026-09-26T03:46:21+00:00", "head": "a620e19", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BE"}
+{"at": "2026-09-26T03:49:26+00:00", "head": "e318567", "kind": "done", "task": "R169", "what": "gardes lot BE : 138 -> 135"}
+{"at": "2026-09-26T03:49:30+00:00", "head": "e318567", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BF"}
+{"at": "2026-09-26T03:52:06+00:00", "head": "c7834ff", "kind": "done", "task": "R169", "what": "gardes lot BF : 135 -> 132"}
+{"at": "2026-09-26T03:52:12+00:00", "head": "c7834ff", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BG"}
+{"at": "2026-09-26T03:54:48+00:00", "head": "9359251", "kind": "done", "task": "R169", "what": "gardes lot BG : 132 -> 129"}
+{"at": "2026-09-26T03:54:54+00:00", "head": "9359251", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BH"}
+{"at": "2026-09-26T03:57:59+00:00", "head": "805bc20", "kind": "done", "task": "R169", "what": "gardes lot BH : 129 -> 126"}
+{"at": "2026-09-26T03:58:07+00:00", "head": "805bc20", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BI"}
+{"at": "2026-09-26T04:00:34+00:00", "head": "909dbe8", "kind": "done", "task": "R169", "what": "gardes lot BI : 126 -> 123"}
+{"at": "2026-09-26T04:00:54+00:00", "head": "909dbe8", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BJ"}
+{"at": "2026-09-26T04:03:23+00:00", "head": "c412f3b", "kind": "done", "task": "R169", "what": "gardes lot BJ : 123 -> 121"}
+{"at": "2026-09-26T04:03:27+00:00", "head": "c412f3b", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BK"}
+{"at": "2026-09-26T04:05:49+00:00", "head": "25de6fd", "kind": "done", "task": "R169", "what": "gardes lot BK : 121 -> 119"}
+{"at": "2026-09-26T04:05:54+00:00", "head": "25de6fd", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BL"}
+{"at": "2026-09-26T04:10:27+00:00", "head": "ef2b4bf", "kind": "done", "task": "R169", "what": "gardes lot BL : 119 -> 117 (1 rouge instable note)"}
+{"at": "2026-09-26T04:10:40+00:00", "head": "ef2b4bf", "kind": "start", "task": "R169", "what": "draft_roadmap : un echec git se dit au lieu de rendre []"}
+{"at": "2026-09-26T04:11:39+00:00", "head": "e6e2013", "kind": "done", "task": "R169", "what": "draft_roadmap : echec git explicite"}
+{"at": "2026-09-26T04:11:43+00:00", "head": "e6e2013", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BM"}
+{"at": "2026-09-26T04:14:28+00:00", "head": "3ffd19f", "kind": "done", "task": "R169", "what": "gardes lot BM : 117 -> 115"}
+{"at": "2026-09-26T04:14:33+00:00", "head": "3ffd19f", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BN"}
+{"at": "2026-09-26T04:17:08+00:00", "head": "13f0726", "kind": "done", "task": "R169", "what": "gardes lot BN : 115 -> 112"}
+{"at": "2026-09-26T04:17:12+00:00", "head": "13f0726", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BO"}
+{"at": "2026-09-26T04:19:47+00:00", "head": "334b95f", "kind": "done", "task": "R169", "what": "gardes lot BO : 112 -> 110"}
+{"at": "2026-09-26T04:19:51+00:00", "head": "334b95f", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BP"}
+{"at": "2026-09-26T04:24:08+00:00", "head": "a761992", "kind": "done", "task": "R169", "what": "gardes lot BP : 110 -> 108 + 4 preuves-sur-copie"}
+{"at": "2026-09-26T04:24:12+00:00", "head": "a761992", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BQ"}
+{"at": "2026-09-26T04:27:00+00:00", "head": "b3bce20", "kind": "done", "task": "R169", "what": "gardes lot BQ : 108 -> 105"}
+{"at": "2026-09-26T04:27:06+00:00", "head": "b3bce20", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BR"}
+{"at": "2026-09-26T04:30:08+00:00", "head": "bccb981", "kind": "done", "task": "R169", "what": "gardes lot BR : 105 -> 102"}
+{"at": "2026-09-26T04:30:12+00:00", "head": "bccb981", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BS"}
+{"at": "2026-09-26T04:32:50+00:00", "head": "e80b3ee", "kind": "done", "task": "R169", "what": "gardes lot BS : 102 -> 99"}
+{"at": "2026-09-26T04:32:54+00:00", "head": "e80b3ee", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BT"}
+{"at": "2026-09-26T04:35:29+00:00", "head": "6acaedb", "kind": "done", "task": "R169", "what": "gardes lot BT : 99 -> 97"}
+{"at": "2026-09-26T04:35:34+00:00", "head": "6acaedb", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BU"}
+{"at": "2026-09-26T04:38:26+00:00", "head": "13de53d", "kind": "done", "task": "R169", "what": "gardes lot BU : 97 -> 93"}
+{"at": "2026-09-26T04:38:32+00:00", "head": "13de53d", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BV"}
+{"at": "2026-09-26T04:41:24+00:00", "head": "339246c", "kind": "done", "task": "R169", "what": "gardes lot BV : 93 -> 91"}
+{"at": "2026-09-26T04:41:30+00:00", "head": "339246c", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BW"}
+{"at": "2026-09-26T04:44:47+00:00", "head": "9184a2c", "kind": "done", "task": "R169", "what": "gardes lot BW : 91 -> 89"}
+{"at": "2026-09-26T04:44:54+00:00", "head": "9184a2c", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BX"}
+{"at": "2026-09-26T04:47:44+00:00", "head": "653a2af", "kind": "done", "task": "R169", "what": "gardes lot BX : 89 -> 86"}
+{"at": "2026-09-26T04:47:48+00:00", "head": "653a2af", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BY"}
+{"at": "2026-09-26T04:50:09+00:00", "head": "f87b0a9", "kind": "done", "task": "R169", "what": "gardes lot BY : 86 -> 84"}
+{"at": "2026-09-26T04:50:14+00:00", "head": "f87b0a9", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot BZ"}
+{"at": "2026-09-26T04:52:45+00:00", "head": "ed2a286", "kind": "done", "task": "R169", "what": "gardes lot BZ : 84 -> 82"}
+{"at": "2026-09-26T04:52:50+00:00", "head": "ed2a286", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CA"}
+{"at": "2026-09-26T04:55:45+00:00", "head": "4f2a089", "kind": "done", "task": "R169", "what": "gardes lot CA : 82 -> 80"}
+{"at": "2026-09-26T04:55:51+00:00", "head": "4f2a089", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CB"}
+{"at": "2026-09-26T04:58:27+00:00", "head": "8d9bc50", "kind": "done", "task": "R169", "what": "gardes lot CB : 80 -> 79 (1 garde aveugle corrige)"}
+{"at": "2026-09-26T04:58:35+00:00", "head": "8d9bc50", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CC"}
+{"at": "2026-09-26T05:01:51+00:00", "head": "cb3a642", "kind": "done", "task": "R169", "what": "gardes lot CC : 79 -> 78 (regle extraite)"}
+{"at": "2026-09-26T05:01:58+00:00", "head": "cb3a642", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CD"}
+{"at": "2026-09-26T05:11:57+00:00", "head": "78069f8", "kind": "done", "task": "R169", "what": "gardes lot CD : 78 -> 76"}
+{"at": "2026-09-26T05:12:02+00:00", "head": "78069f8", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CE"}
+{"at": "2026-09-26T05:14:40+00:00", "head": "a608382", "kind": "done", "task": "R169", "what": "gardes lot CE : 76 -> 74"}
+{"at": "2026-09-26T05:14:44+00:00", "head": "a608382", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CF"}
+{"at": "2026-09-26T05:16:59+00:00", "head": "ac438a2", "kind": "done", "task": "R169", "what": "gardes lot CF : 74 -> 73 (1 garde aveugle corrige)"}
+{"at": "2026-09-26T05:17:05+00:00", "head": "ac438a2", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CG"}
+{"at": "2026-09-26T05:19:19+00:00", "head": "d97e443", "kind": "done", "task": "R169", "what": "gardes lot CG : 73 -> 72"}
+{"at": "2026-09-26T05:19:24+00:00", "head": "d97e443", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CH"}
+{"at": "2026-09-26T05:22:19+00:00", "head": "7a49db4", "kind": "done", "task": "R169", "what": "gardes lot CH : 72 -> 70 (1 garde qui n'atteignait pas son sujet)"}
+{"at": "2026-09-26T05:23:06+00:00", "head": "430c3af", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CI"}
+{"at": "2026-09-26T05:25:36+00:00", "head": "27bbdfc", "kind": "done", "task": "R169", "what": "gardes lot CI : 70 -> 68"}
+{"at": "2026-09-26T05:25:42+00:00", "head": "27bbdfc", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CJ"}
+{"at": "2026-09-26T05:29:28+00:00", "head": "241bab8", "kind": "done", "task": "R169", "what": "gardes lot CJ : 68 -> 67"}
+{"at": "2026-09-26T05:29:31+00:00", "head": "241bab8", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CK"}
+{"at": "2026-09-26T05:32:40+00:00", "head": "baa492e", "kind": "done", "task": "R169", "what": "gardes lot CK : 67 -> 65"}
+{"at": "2026-09-26T05:32:44+00:00", "head": "baa492e", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CL"}
+{"at": "2026-09-26T05:35:55+00:00", "head": "1c8111b", "kind": "done", "task": "R169", "what": "gardes lot CL : 65 -> 64"}
+{"at": "2026-09-26T05:36:12+00:00", "head": "1c8111b", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CM"}
+{"at": "2026-09-26T05:38:36+00:00", "head": "4ad3e8a", "kind": "done", "task": "R169", "what": "gardes lot CM : 64 -> 63"}
+{"at": "2026-09-26T05:38:39+00:00", "head": "4ad3e8a", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CN"}
+{"at": "2026-09-26T05:41:03+00:00", "head": "e805dd6", "kind": "done", "task": "R169", "what": "gardes lot CN : 63 -> 62"}
+{"at": "2026-09-26T05:41:08+00:00", "head": "e805dd6", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CO"}
+{"at": "2026-09-26T05:43:47+00:00", "head": "7521db9", "kind": "done", "task": "R169", "what": "gardes lot CO : seen_red 26 -> 25, garde premier seau sans base"}
+{"at": "2026-09-26T05:43:51+00:00", "head": "7521db9", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CP"}
+{"at": "2026-09-26T05:46:37+00:00", "head": "787d64f", "kind": "done", "task": "R169", "what": "gardes lot CP : 62 -> 61"}
+{"at": "2026-09-26T05:46:42+00:00", "head": "787d64f", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CQ"}
+{"at": "2026-09-26T05:50:02+00:00", "head": "86fbe97", "kind": "done", "task": "R169", "what": "gardes lot CQ : 61 -> 59"}
+{"at": "2026-09-26T05:50:11+00:00", "head": "86fbe97", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CR"}
+{"at": "2026-09-26T05:52:35+00:00", "head": "db681f1", "kind": "done", "task": "R169", "what": "gardes lot CR : 59 -> 57"}
+{"at": "2026-09-26T05:52:38+00:00", "head": "db681f1", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CS"}
+{"at": "2026-09-26T05:57:44+00:00", "head": "35ef58a", "kind": "done", "task": "R169", "what": "gardes lot CS : 57 -> 55"}
+{"at": "2026-09-26T05:57:48+00:00", "head": "35ef58a", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CT"}
+{"at": "2026-09-26T06:00:23+00:00", "head": "6e40bc0", "kind": "done", "task": "R169", "what": "gardes lot CT : 55 -> 54"}
+{"at": "2026-09-26T06:00:27+00:00", "head": "6e40bc0", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CU"}
+{"at": "2026-09-26T06:00:55+00:00", "head": "6e40bc0", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CV"}
+{"at": "2026-09-26T06:03:03+00:00", "head": "948418d", "kind": "done", "task": "R169", "what": "gardes lot CV : 54 -> 53"}
+{"at": "2026-09-26T06:03:13+00:00", "head": "948418d", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CW"}
+{"at": "2026-09-26T06:06:34+00:00", "head": "d21c7ad", "kind": "done", "task": "R169", "what": "gardes lot CW : 53 -> 52, garde neuf requete par substitution"}
+{"at": "2026-09-26T06:07:05+00:00", "head": "512379f", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CX"}
+{"at": "2026-09-26T06:09:29+00:00", "head": "0da4e68", "kind": "done", "task": "R169", "what": "gardes lot CX : 52 -> 51"}
+{"at": "2026-09-26T06:09:33+00:00", "head": "0da4e68", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CY"}
+{"at": "2026-09-26T06:12:01+00:00", "head": "4fc9875", "kind": "done", "task": "R169", "what": "gardes lot CY : 51 -> 50"}
+{"at": "2026-09-26T06:12:05+00:00", "head": "4fc9875", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot CZ"}
+{"at": "2026-09-26T06:16:51+00:00", "head": "5684b97", "kind": "done", "task": "R169", "what": "gardes lot CZ : 50 -> 49"}
+{"at": "2026-09-26T06:18:37+00:00", "head": "a4dba33", "kind": "done", "task": "R169", "what": "automatisation : selection des meta-gardes de tests/"}
+{"at": "2026-09-26T06:18:44+00:00", "head": "a4dba33", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot DA (hooks/scripts)"}
+{"at": "2026-09-26T06:34:25+00:00", "head": "60b96ff", "kind": "done", "task": "R169", "what": "lot DA : CI main reverdie (durees) + df-na-rep ; 49 -> 48"}
+{"at": "2026-09-26T06:55:16+00:00", "head": "ec4a5af", "kind": "done", "task": "R169", "what": "automatisation : night-check lit la CI de main"}
+{"at": "2026-09-26T06:58:08+00:00", "head": "ec4a5af", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot DB"}
+{"at": "2026-09-26T07:02:02+00:00", "head": "fc1796c", "kind": "done", "task": "R169", "what": "gardes lot DB : 48 -> 47"}
+{"at": "2026-09-26T07:02:07+00:00", "head": "fc1796c", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot DC"}
+{"at": "2026-09-26T07:08:31+00:00", "head": "6db49bb", "kind": "done", "task": "R169", "what": "gardes lot DC : 47 -> 45"}
+{"at": "2026-09-26T07:11:36+00:00", "head": "6db49bb", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot DD"}
+{"at": "2026-09-26T07:18:53+00:00", "head": "6e45dca", "kind": "done", "task": "R169", "what": "gardes lot DD : 45 -> 42"}
+{"at": "2026-09-26T07:21:20+00:00", "head": "8ed69a9", "kind": "done", "task": "R169", "what": "automatisation : make catalogue-sync"}
+{"at": "2026-09-26T07:21:24+00:00", "head": "8ed69a9", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot DE"}
+{"at": "2026-09-26T07:25:06+00:00", "head": "ffd3e82", "kind": "done", "task": "R169", "what": "gardes lot DE : 42 -> 41"}
+{"at": "2026-09-26T07:25:13+00:00", "head": "ffd3e82", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot DF (workflows)"}
+{"at": "2026-09-26T07:31:13+00:00", "head": "3426a22", "kind": "done", "task": "R169", "what": "gardes lot DF : 41 -> 39"}
+{"at": "2026-09-26T07:36:19+00:00", "head": "badda01", "kind": "done", "task": "R169", "what": "automatisation : test-changed rejoue les tests modifies sans .env"}
+{"at": "2026-09-26T07:39:21+00:00", "head": "badda01", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot DG"}
+{"at": "2026-09-26T07:44:08+00:00", "head": "6a0ff4f", "kind": "done", "task": "R169", "what": "gardes lot DG : 39 -> 38"}
+{"at": "2026-09-26T07:44:15+00:00", "head": "6a0ff4f", "kind": "start", "task": "R169", "what": "lot DH : dates de mutation reelles"}
+{"at": "2026-09-26T07:52:17+00:00", "head": "e1109c7", "kind": "done", "task": "R169", "what": "lot DH : seen_red inconnu 11 -> 10"}
+{"at": "2026-09-26T07:52:26+00:00", "head": "e1109c7", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot DI"}
+{"at": "2026-09-26T07:56:27+00:00", "head": "305f4bd", "kind": "done", "task": "R169", "what": "gardes lot DI : 38 -> 37"}
+{"at": "2026-09-26T07:56:36+00:00", "head": "305f4bd", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot DJ"}
+{"at": "2026-09-26T08:07:49+00:00", "head": "f00189a", "kind": "done", "task": "R169", "what": "lot DJ : hook bloquant muet corrige ; 37 -> 36"}
+{"at": "2026-09-26T08:07:53+00:00", "head": "f00189a", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot DK"}
+{"at": "2026-09-26T08:11:58+00:00", "head": "bb32bdc", "kind": "done", "task": "R169", "what": "gardes lot DK : 36 -> 35"}
+{"at": "2026-09-26T08:12:03+00:00", "head": "bb32bdc", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot DL"}
+{"at": "2026-09-26T08:15:26+00:00", "head": "431980a", "kind": "done", "task": "R169", "what": "gardes lot DL : 35 -> 34"}
+{"at": "2026-09-26T08:15:31+00:00", "head": "431980a", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot DM"}
+{"at": "2026-09-26T08:20:44+00:00", "head": "404b929", "kind": "done", "task": "R169", "what": "lot DM : causes 13 -> 11"}
+{"at": "2026-09-26T08:20:51+00:00", "head": "404b929", "kind": "start", "task": "R169", "what": "causes : lot DN"}
+{"at": "2026-09-26T08:23:50+00:00", "head": "e039d1e", "kind": "done", "task": "R169", "what": "lot DN : causes 11 -> 10"}
+{"at": "2026-09-26T08:23:55+00:00", "head": "e039d1e", "kind": "start", "task": "R169", "what": "causes : lot DO"}
+{"at": "2026-09-26T08:24:03+00:00", "head": "e039d1e", "kind": "done", "task": "R169", "what": "lot DO : titre retire -> undefined : la moitie rendu exige un navigateur, laissee unknown (pas inferred)"}
+{"at": "2026-09-26T08:24:36+00:00", "head": "e039d1e", "kind": "start", "task": "R169", "what": "causes : lot DP (titre undefined, mesure navigateur)"}
+{"at": "2026-09-26T08:28:08+00:00", "head": "1ffc691", "kind": "done", "task": "R169", "what": "lot DP : cause retractee par mesure ; 10 -> 9"}
+{"at": "2026-09-26T08:31:21+00:00", "head": "fb1fcb7", "kind": "done", "task": "R169", "what": "lot DP : cause titre mesuree via Streamlit"}
+{"at": "2026-09-26T08:31:47+00:00", "head": "fb1fcb7", "kind": "start", "task": "R169", "what": "causes : lot DQ"}
+{"at": "2026-09-26T08:35:45+00:00", "head": "6f3812e", "kind": "done", "task": "R169", "what": "lot DQ : causes 9 -> 7"}
+{"at": "2026-09-26T08:35:52+00:00", "head": "6f3812e", "kind": "start", "task": "R169", "what": "causes : lot DR"}
+{"at": "2026-09-26T08:36:06+00:00", "head": "6f3812e", "kind": "done", "task": "R169", "what": "lot DR : cause operator-guidance introuvable dans le DEVLOG, laissee unknown"}
+{"at": "2026-09-26T08:36:06+00:00", "head": "6f3812e", "kind": "start", "task": "R169", "what": "triage : naive-datetime-now (27 sites)"}
+{"at": "2026-09-26T08:39:23+00:00", "head": "6f3812e", "kind": "park", "task": "R169", "what": "P2 à trancher par un humain : airflow/dags/alert_monitor.py:207 cutoff = datetime.now() naïf, comparé à DagRun.execution_date (UtcDateTime) lignes 217 et 269 ; Airflow 2.11 lève ValueError('naive datetime is disallowed') (source lue), l'except rend failing_dags={} : le mail du soir ne rapporte probablement AUCUN DAG en échec depuis 2026-03-25. Correctif d'une ligne : datetime.now(timezone.utc). DAG de prod : non modifié sans accord."}
+{"at": "2026-09-26T08:45:55+00:00", "head": "21616fb", "kind": "done", "task": "R169", "what": "triage naive-datetime-now : 1 vivant parque en R179"}
+{"at": "2026-09-26T08:46:28+00:00", "head": "21616fb", "kind": "start", "task": "R169", "what": "triage des heuristiques rouges"}
+{"at": "2026-09-26T08:52:21+00:00", "head": "a99eb35", "kind": "done", "task": "R169", "what": "architecture.md : 1 schema reparé + 5 derives corrigees"}
+{"at": "2026-09-26T08:55:20+00:00", "head": "b1a3820", "kind": "done", "task": "R169", "what": "tri heuristiques : 2 classes, 0 vivant"}
+{"at": "2026-09-26T08:55:41+00:00", "head": "b1a3820", "kind": "start", "task": "R169", "what": "triage tz-aware-naive-mix"}
+{"at": "2026-09-26T08:58:35+00:00", "head": "d905414", "kind": "done", "task": "R169", "what": "tz-aware : mesure des types de colonnes, tri confirme"}
+{"at": "2026-09-26T09:00:51+00:00", "head": "d4a4ed6", "kind": "done", "task": "R169", "what": "schema #2 : 2 derives LOW corrigees, verifie au rendu"}
+{"at": "2026-09-26T09:01:09+00:00", "head": "d4a4ed6", "kind": "start", "task": "R169", "what": "architecture.md : schemas #1 et #3"}
+{"at": "2026-09-26T09:02:59+00:00", "head": "3e8966f", "kind": "done", "task": "R169", "what": "architecture.md schemas #1 #3 : derives corrigees"}
+{"at": "2026-09-26T09:05:06+00:00", "head": "21485db", "kind": "done", "task": "R169", "what": "schema #2 complete (serve, API, fragment_db)"}
+{"at": "2026-09-26T09:07:03+00:00", "head": "c0f535e", "kind": "start", "task": "R169", "what": "gardes : lot DS"}
+{"at": "2026-09-26T09:07:39+00:00", "head": "c0f535e", "kind": "done", "task": "R169", "what": "lot DS : count-before-writer = discipline sans garde possible ; view-session-adoption = 15 vues, migration risquee (admin -> artiste 1), non faite sans humain"}
+{"at": "2026-09-26T09:07:39+00:00", "head": "c0f535e", "kind": "note", "task": "R169", "what": "Etat 2026-09-26 ~10h : 34 gardes non auto-prouvants, 7 causes inconnues. Le reste est du code reel (date de mutation, pas preuve), de la discipline, ou exige un humain (R179). Rendement decroissant : un lot n'avance plus d'un cran sans jugement."}
+{"at": "2026-09-26T10:07:28+00:00", "head": "f44d705", "kind": "start", "task": "R179", "what": "appliquer le correctif du cutoff naif (accord donne)"}
+{"at": "2026-09-26T10:11:38+00:00", "head": "5831f89", "kind": "start", "task": "R169", "what": "mail CI : un run annule n'est pas un main rouge"}
+{"at": "2026-09-26T10:13:57+00:00", "head": "14d9827", "kind": "done", "task": "R169", "what": "mail CI : faux rouge sur run annule corrige"}
+{"at": "2026-09-26T10:16:00+00:00", "head": "14d9827", "kind": "start", "task": "R169", "what": "P1 prod : secret Meta perime stocke par locataire apres rotation R177"}
+{"at": "2026-09-26T10:26:23+00:00", "head": "9324722", "kind": "done", "task": "R169", "what": "P1 Meta post-rotation corrige et deploye ; R179 archivee"}
+{"at": "2026-09-26T11:03:56+00:00", "head": "a4f8a6d", "kind": "start", "task": "R180", "what": "famille declaree : enumeration des candidates d'abord"}
+{"at": "2026-09-26T11:22:32+00:00", "head": "2de4a99", "kind": "done", "task": "R180", "what": "famille declaree sur 418 classes + admission + regle adossee a une garde prouvee ; reste : 5 trous de la matrice"}
+{"at": "2026-09-26T11:22:37+00:00", "head": "2de4a99", "kind": "start", "task": "R181", "what": "recap du soir : figer la decision d'envoi d'abord"}
+{"at": "2026-09-26T11:28:07+00:00", "head": "b26e765", "kind": "done", "task": "R181", "what": "recap chaque nuit livre, deploye, verifie (mail parti) ; reste : ALERT_EMAIL pointe une autre boite"}
+{"at": "2026-09-26T11:33:40+00:00", "head": "b26e765", "kind": "start", "task": "R182", "what": "preset error-classes dans la baseline"}
+{"at": "2026-09-26T11:33:40+00:00", "head": "b26e765", "kind": "done", "task": "R182", "what": "preset livre baseline 003e598 (fleet-config-audit), auto-test projet vide 3/3 vert, REX R62-R63"}
