@@ -5623,7 +5623,7 @@
       "renamed_from": null
     },
     "collector-shipped-dag-not-rerun": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-05-15",
       "guard_automatic": true,
       "guard_ref": ".claude/dev-docs/error-classes.md",
@@ -5646,7 +5646,7 @@
       "siblings_swept": true,
       "status": "open",
       "introduced_date": "2026-05-15",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -7502,7 +7502,7 @@
       "renamed_from": null
     },
     "identity-read-but-never-collectable": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-08-20",
       "guard_automatic": true,
       "guard_ref": "tests/test_identity_fields_collectable.py",
@@ -7524,7 +7524,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-21",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11487,12 +11487,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 554,
+      "catalogue_revisions": 555,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 9,
+      "cause_unknown": 7,
       "guard_does_not_prove_itself": 34,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
