@@ -528,6 +528,102 @@ def _merge(frames: list) -> pd.DataFrame:
     return master
 
 
+# The inks of the listener-verdict figure, moved with it from the Spotify page (R195):
+# the same two colours an artist already learned there for listeners and ad days.
+_VERDICT_LISTENER_INK = "#7C4DFF"
+_VERDICT_AD_INK = "#FF6D00"
+
+
+def _render_listener_verdict(db, artist_id) -> None:
+    """📣 La pub t'a-t-elle amené des auditeurs ? — R187, 2026-09-26.
+
+    Remplace « auditeurs-jour », qui montrait trois séries et ne tranchait rien : le
+    propriétaire ne voyait pas quelle décision en tirer. Celle-ci en porte UNE — relancer,
+    couper ou changer la créa — en posant les jours de dépense Meta (bandes) sur la courbe des
+    auditeurs par jour (moyenne 7 j), et en écrivant le verdict de la dernière campagne dans
+    le titre. Le verdict est calculé par `meta_impact.verdict`, qui REFUSE de conclure quand
+    la donnée ne le permet pas (campagne en cours, trop peu de jours mesurés, campagnes qui se
+    chevauchent, hausse dans le bruit) — code-critic l'a exigé : le chiffre se lit comme un
+    jugement sur la pub.
+
+    Déménagée le 2026-09-26 (R195) de la page Spotify vers celle-ci, à la demande du
+    propriétaire : c'est une question sur la PUB, et c'est ici qu'on vient la poser. Elle
+    juge la DERNIÈRE campagne de tous les comptes — pas celle choisie plus bas — parce que
+    deux campagnes qui se chevauchent, quel que soit leur compte, ne se séparent pas : elle
+    vit donc AU-DESSUS du sélecteur, et son titre le dit.
+    """
+    from src.dashboard.utils import meta_impact
+
+    st.subheader(t("meta_x_spotify.meta_impact_header",
+                   "📣 Ta dernière pub t'a-t-elle amené des auditeurs ?"))
+    aud = _df(db, """
+        SELECT day, SUM(listeners) AS listeners FROM v_s4a_audience_daily
+         WHERE listeners IS NOT NULL AND artist_id = %s
+         GROUP BY day ORDER BY day
+    """, (artist_id,))
+    spend = _df(db, """
+        SELECT ad_account_id, campaign_name, day, SUM(spend) AS spend
+          FROM v_meta_daily
+         WHERE spend > 0 AND artist_id = %s
+         GROUP BY ad_account_id, campaign_name, day
+         ORDER BY day
+    """, (artist_id,))
+    camps = meta_impact.campaigns(spend)
+    if not camps:
+        st.info(t("meta_x_spotify.verdict_no_campaign",
+                  "Aucune campagne Meta avec dépense : cette figure juge l'effet d'une pub "
+                  "sur tes auditeurs dès qu'une campagne a tourné."))
+        return
+    if aud.empty:
+        st.info(t("meta_x_spotify.no_audience",
+                  "Aucun rapport d'audience importé. Il s'importe depuis "
+                  "**📂 Ajouter mes chiffres Spotify for Artists & Apple**."))
+        return
+
+    aud = aud.copy()
+    aud["day"] = pd.to_datetime(aud["day"])
+    listeners = aud.set_index("day")["listeners"].astype(float)
+    v = meta_impact.verdict(listeners, camps, _dt.date.today())
+
+    # Les jours NON mesurés restent des trous (reindex → NaN, `connectgaps=False`) : une
+    # moyenne glissante qui enjamberait un import manquant dessinerait une tendance inventée.
+    full = listeners.reindex(pd.date_range(listeners.index.min(), listeners.index.max()))
+    smooth = full.rolling(7, min_periods=4).mean()
+    last = camps[-1]
+    x0 = max(pd.Timestamp(last.start) - pd.Timedelta(days=60), full.index.min())
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=smooth.index, y=smooth.values, mode="lines", connectgaps=False,
+        name=t("meta_x_spotify.listeners_7d", "Auditeurs / jour (moyenne 7 j)"),
+        line=dict(color=_VERDICT_LISTENER_INK, width=2.5)))
+    # Les bandes ne portent PAS de texte : deux campagnes voisines superposaient leurs noms
+    # (vu à l'écran le 2026-09-26). Le nom et la dépense sont dans le verdict ; la bande
+    # a son entrée de légende, portée par une trace vide — une forme sans donnée.
+    for c in camps:
+        fig.add_vrect(x0=pd.Timestamp(c.start), x1=pd.Timestamp(c.end) + pd.Timedelta(days=1),
+                      fillcolor=_VERDICT_AD_INK, opacity=0.14, line_width=0, layer="below")
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], mode="markers",
+        marker=dict(symbol="square", size=12, color=_VERDICT_AD_INK, opacity=0.35),
+        name=t("meta_x_spotify.ad_days", "Jours de pub Meta")))
+    # Le VERDICT au-dessus de la figure, en texte qui passe à la ligne : en titre Plotly il
+    # était coupé net sur une demi-largeur d'écran (vu à l'écran le 2026-09-26).
+    st.markdown(f"**{v.text}**")
+    fig.update_layout(
+        height=380,
+        hovermode="x unified", xaxis_range=[x0, full.index.max()],
+        yaxis_title=t("meta_x_spotify.listeners_axis", "Auditeurs / jour"),
+        # Légende posée JUSTE au-dessus du tracé, sous la barre d'outils : à y=1.12 avec
+        # t=40 elle montait à ~9 px du bord, et « Meta » passait sous l'icône appareil
+        # photo (vu à 1366 px le 2026-09-26, R189).
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0), margin=dict(t=70))
+    st.plotly_chart(fig, width="stretch")
+    st.caption(t("meta_x_spotify.meta_impact_rule",
+                 "La bande (jours de pub) ne soulève pas la courbe ? La pub achète des clics, "
+                 "pas des auditeurs : coupe ou change la créa. Elle la soulève ? Compare le € "
+                 "par auditeur-jour gagné à ce que tu es prêt à payer — en dessous, relance."))
+
+
 def _show_body(db, artist_id) -> None:
     """Le corps — `db.close()` est tenu par `show()`."""
     # Compte publicitaire d'abord : le même nom de campagne peut exister dans deux
@@ -643,6 +739,10 @@ def show():
     st.markdown("---")
 
     with view_session() as (db, artist_id):
+        # En TÊTE, au-dessus du sélecteur de campagne (R195) : elle juge la dernière
+        # campagne de tous les comptes, pas celle qu'on choisit plus bas.
+        _render_listener_verdict(db, artist_id)
+        st.markdown("---")
         _show_body(db, artist_id)
 
 

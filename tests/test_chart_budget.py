@@ -61,7 +61,10 @@ _BUDGET = {
     # 6 → 5 le même soir : deux figures du bandeau ont fusionné (sauvegardes,
     # playlists et abonnés sur une seule, les abonnés sur un axe secondaire). Un
     # budget qu'on laisse au-dessus de la mesure est du crédit pour une régression.
-    "spotify_s4a_combined.py": 5,
+    # 5 → 3 le 2026-09-26 : le verdict de la pub est parti vers `meta_x_spotify` (R195),
+    # et le détail du titre et l'engagement ne font plus qu'UNE figure à deux panneaux
+    # (R194). Descendu à la mesure, pour que le plafond reste serré.
+    "spotify_s4a_combined.py": 3,
     "apple_music.py": 2,
     "imusician.py": 2,
     # 1 → 3 le 2026-09-21, DÉLIBÉRÉMENT, et les trois répondent à trois questions
@@ -75,7 +78,10 @@ _BUDGET = {
     #   🌍 le croisement PAYS : dépense Meta × écoutes du distributeur. C'est lui
     #      qui rend visible 0,002 €/écoute en Colombie contre 0,181 € au Brésil,
     #      **93×**, que ni la page Meta ni la page Spotify ne pouvaient dire.
-    "meta_x_spotify.py": 3,
+    # 3 → 4 le 2026-09-26, DÉLIBÉRÉMENT (R195) : « Ta dernière pub t'a-t-elle amené des
+    # auditeurs ? » est arrivée en tête de page depuis la page Spotify, à la demande du
+    # propriétaire — la figure déménage, elle ne s'ajoute pas (Spotify descend de 5 à 3).
+    "meta_x_spotify.py": 4,
 }
 
 

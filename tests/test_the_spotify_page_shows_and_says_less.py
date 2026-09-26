@@ -88,7 +88,9 @@ def _appels(path: pathlib.Path, attr: str) -> list[ast.Call]:
 def test_the_page_still_draws_and_still_speaks() -> None:
     """Une page vidée rendrait toutes les absences ci-dessous vraies pour rien."""
     figures = _appels(_SPOTIFY, "plotly_chart")
-    assert len(figures) >= 5, f"seulement {len(figures)} figures — la page a fondu"
+    # 5 → 3 le 2026-09-26 : deux figures en sont sorties par DÉCISION (R194 fusion, R195
+    # déménagement), pas par fonte — le plancher suit la page, il reste un plancher.
+    assert len(figures) >= 3, f"seulement {len(figures)} figures — la page a fondu"
     legendes = _appels(_SPOTIFY, "caption")
     assert len(legendes) >= 2, (
         f"seulement {len(legendes)} légendes : les trois réserves qui DEVAIENT rester "
@@ -168,9 +170,11 @@ def test_the_detail_is_permanent_not_a_drawer() -> None:
 
 
 def test_what_is_read_together_sits_together() -> None:
-    """Les sorties et l'effet de la pub côte à côte dans `show()` ; puis UN filtre commun
-    au-dessus de TROIS colonnes — ce qui bouge, le détail du titre, l'engagement — dans cet
-    ordre (R188, 2026-09-26 : « alignés, ordonnés, avec un filtre commun pour les 3 »)."""
+    """UN filtre commun au-dessus de DEUX colonnes — ce qui bouge, puis le titre et son
+    audience en UNE figure à deux panneaux (R194, 2026-09-26 : « combiner détail par titre
+    et sauvegardes/playlists/abonnés ; les barres ne seront plus mangées par le nom des
+    titres »). Et le verdict de la pub n'est plus ici : il vit en tête d'« Impact de mes
+    campagnes » (R195)."""
     tree = ast.parse(_SPOTIFY.read_text(encoding="utf-8"))
     fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
     show, row = fns.get("show"), fns.get("_render_secondary")
@@ -179,20 +183,36 @@ def test_what_is_read_together_sits_together() -> None:
     def calls(fn):
         return [n for n in ast.walk(fn) if isinstance(n, ast.Call)]
 
-    assert any(getattr(c.func, "attr", None) == "columns" for c in calls(show)), (
-        "`show()` ne pose plus les sorties et l'effet de la pub côte à côte")
     shown = {ast.unparse(c.func) for c in calls(show)}
-    for f in ("_frag_releases", "_render_meta_impact", "_render_secondary"):
+    for f in ("_frag_releases", "_render_secondary"):
         assert f in shown, f"`{f}` n'est plus appelée depuis `show()`"
-    three = [c for c in calls(row) if getattr(c.func, "attr", None) == "columns"
-             and c.args and isinstance(c.args[0], ast.Constant) and c.args[0].value == 3]
-    assert three, "la rangée n'est plus en TROIS colonnes égales"
+    assert "_render_meta_impact" not in fns, (
+        "le verdict de la pub est revenu sur la page Spotify — R195 l'a déplacé vers "
+        "« Impact de mes campagnes »")
+    two = [c for c in calls(row) if getattr(c.func, "attr", None) == "columns"
+           and c.args and isinstance(c.args[0], ast.Constant) and c.args[0].value == 2]
+    assert two, "la rangée n'est plus en DEUX colonnes : « Ce qui bouge » reperd sa largeur"
     order = sorted((c.lineno, ast.unparse(c.func)) for c in calls(row)
                    if ast.unparse(c.func) in {"_common_filter", "_render_momentum",
                                               "_song_detail", "_engagement_fig"})
     assert [f for _, f in order] == ["_common_filter", "_render_momentum", "_song_detail",
                                      "_engagement_fig"], order
-    assert order[0][0] < three[0].lineno, "le filtre commun doit être AU-DESSUS des colonnes"
+    assert order[0][0] < two[0].lineno, "le filtre commun doit être AU-DESSUS des colonnes"
+    charts = [c for c in calls(row) if getattr(c.func, "attr", None) == "plotly_chart"]
+    assert len(charts) == 1, (
+        f"le détail et l'engagement ne partagent plus UNE figure : {len(charts)} "
+        "`st.plotly_chart` dans la rangée (hors « Ce qui bouge », tracé dans sa fonction)")
+
+
+def test_the_listener_verdict_opens_the_campaign_page() -> None:
+    """R195 : « auditeurs/jour + jours de pub Meta » en TÊTE de `meta_x_spotify`, avant le
+    sélecteur de campagne — elle juge la DERNIÈRE campagne, pas celle qu'on choisit."""
+    page = _SPOTIFY.parent / "meta_x_spotify.py"
+    tree = ast.parse(page.read_text(encoding="utf-8"))
+    show = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "show")
+    order = [ast.unparse(c.func) for c in ast.walk(show) if isinstance(c, ast.Call)
+             and ast.unparse(c.func) in {"_render_listener_verdict", "_show_body"}]
+    assert order == ["_render_listener_verdict", "_show_body"], order
 
 
 def test_the_three_wrapped_charts_share_one_row() -> None:

@@ -1,14 +1,6 @@
 """EN strings for the Spotify & Spotify for Artists view."""
 
 EN = {
-    "spotify_s4a_combined.ad_days": 'Meta ad days',
-    "spotify_s4a_combined.meta_impact_header": '📣 Did your ads bring you listeners?',
-    "spotify_s4a_combined.no_campaign": "No Meta campaign with spend: this chart judges an ad's effect on your listeners once a campaign has run.",
-    "spotify_s4a_combined.goto_meta": '📣 See my Meta campaigns',
-    "spotify_s4a_combined.listeners_7d": 'Listeners / day (7-day average)',
-    "spotify_s4a_combined.listeners_axis": 'Listeners / day',
-    "spotify_s4a_combined.meta_impact_rule": 'The band (ad days) does not lift the curve? The ad buys clicks, not listeners: stop it or change the creative. It lifts it? Compare the € per listener-day gained with what you are willing to pay — below it, run it again.',
-    "spotify_s4a_combined.engagement_scope": 'Artist-wide figures: the chosen track does not apply here, the period does.',
     # ── L'ALERTE DE DIVERGENCE (2026-09-23) ────────────────────────────────────
     # La figure ne trace plus QU'UNE courbe d'abonnés, parce que les deux sources se
     # recouvrent sur 32 jours sans jamais s'ecarter de plus d'un abonne. Cette phrase
@@ -22,7 +14,6 @@ EN = {
     # Les abonnés sont un NIVEAU quotidien, les deux autres des FLUX mensuels : d'où
     # l'axe secondaire, et d'où ces deux libellés d'axe qui nomment la NATURE de ce
     # qu'ils portent plutôt que son unité.
-    "spotify_s4a_combined.engagement_header": "\U0001F4BE Saves, playlists and followers",
     "spotify_s4a_combined.monthly_flow": "Per month",
     # Le trait distingue les deux sources (plein = API quotidienne, pointillé = CSV qui
     # s'arrête au dernier import) ; le libellé les nomme.
@@ -39,9 +30,6 @@ EN = {
     "spotify_s4a_combined.cumulative_streams": "Cumulative streams",
 
     # §2 — audience
-    "spotify_s4a_combined.no_audience": "No audience report imported. Import it from "
-                                        "**📂 Add my Spotify for Artists & Apple "
-                                        "figures**.",
 
     # §3 — momentum
     "spotify_s4a_combined.momentum_header": "🔥 What is moving right now",
@@ -51,7 +39,9 @@ EN = {
     "spotify_s4a_combined.pi_tag": "PI {v}",
 
     # The drawer
-    "spotify_s4a_combined.detail_header": "🎸 Track detail",
+    "spotify_s4a_combined.detail_header": "🎸 The track and your audience",
+    "spotify_s4a_combined.song_panel": "The chosen track",
+    "spotify_s4a_combined.engagement_panel": "Saves, playlists and followers — whole artist",
     "spotify_s4a_combined.select_song": "Track",
     "spotify_s4a_combined.streams_per_day": "Streams / day",
     "spotify_s4a_combined.pi_series": "Popularity index (0-100)",

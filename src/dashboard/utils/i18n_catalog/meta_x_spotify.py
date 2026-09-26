@@ -132,4 +132,14 @@ EN = {
                                         "statement's delay. The spend comes from Meta. "
                                         "The left scale is **logarithmic** — without it, "
                                         "a country at 56,000 listens crushes every other.",
+    # R195 — the listener verdict, moved from the Spotify page
+    "meta_x_spotify.ad_days": 'Meta ad days',
+    "meta_x_spotify.meta_impact_header": "📣 Did your latest ad bring you listeners?",
+    "meta_x_spotify.verdict_no_campaign": "No Meta campaign with spend: this chart judges an ad's effect on your listeners once a campaign has run.",
+    "meta_x_spotify.listeners_7d": 'Listeners / day (7-day average)',
+    "meta_x_spotify.listeners_axis": 'Listeners / day',
+    "meta_x_spotify.meta_impact_rule": 'The band (ad days) does not lift the curve? The ad buys clicks, not listeners: stop it or change the creative. It lifts it? Compare the € per listener-day gained with what you are willing to pay — below it, run it again.',
+    "meta_x_spotify.no_audience": "No audience report imported. Import it from "
+                                        "**📂 Add my Spotify for Artists & Apple "
+                                        "figures**.",
 }
