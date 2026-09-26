@@ -65,15 +65,43 @@ def test_the_threshold_is_narrower_than_a_half_page():
 @pytest.mark.parametrize("surface", _SURFACES)
 def test_no_surface_calls_st_image_with_a_bare_pixel_cap(surface):
     """Un `width=<constante>` ne connaît pas la largeur du conteneur."""
-    for call in _image_calls(_CONTENT / surface):
+    caps = pixel_caps((_CONTENT / surface).read_text(encoding="utf-8"))
+    assert not caps, (
+        f"{surface}: `st.image(width=…)` avec un plafond en dur {caps} — il ignore la "
+        "colonne dans laquelle l'image est rendue. C'est ce que faisait "
+        "`_MAX_IMG_WIDTH = 720`.")
+
+
+def pixel_caps(source: str) -> list[int]:
+    """Fixed pixel widths passed to `st.image` — literal OR through a module constant.
+
+    The literal-only version of this check (until 2026-09-26) could not see the very
+    shape it names: `width=_MAX_IMG_WIDTH` with `_MAX_IMG_WIDTH = 720` at module level.
+    """
+    tree = ast.parse(source)
+    consts = {t.id: n.value.value for n in tree.body if isinstance(n, ast.Assign)
+              and isinstance(n.value, ast.Constant) and isinstance(n.value.value, int)
+              for t in n.targets if isinstance(t, ast.Name)}
+    caps = []
+    for call in (n for n in ast.walk(tree) if isinstance(n, ast.Call)
+                 and isinstance(n.func, ast.Attribute) and n.func.attr == "image"):
         for kw in call.keywords:
             if kw.arg != "width":
                 continue
-            assert not (isinstance(kw.value, ast.Constant)
-                        and isinstance(kw.value.value, int)), (
-                f"{surface}: `st.image(width={kw.value.value})` — un plafond en dur "
-                "ignore la colonne dans laquelle l'image est rendue. C'est ce que "
-                "faisait `_MAX_IMG_WIDTH = 720`.")
+            if isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, int):
+                caps.append(kw.value.value)
+            elif isinstance(kw.value, ast.Name) and kw.value.id in consts:
+                caps.append(consts[kw.value.id])
+    return caps
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the 2026-09 shape — `_MAX_IMG_WIDTH = 720` passed by name — and a
+    bare literal are named; a width computed from the column is not."""
+    named = "_MAX_IMG_WIDTH = 720\nst.image(p, width=_MAX_IMG_WIDTH)\n"
+    assert pixel_caps(named) == [720]
+    assert pixel_caps("st.image(p, width=640)\n") == [640]
+    assert pixel_caps("st.image(p, width=min(natural, column_px))\n") == []
 
 
 def test_no_dashboard_file_uses_the_removed_container_flag():
