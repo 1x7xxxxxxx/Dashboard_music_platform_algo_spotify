@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R204 — Retours du propriétaire sur le dossier des graphiques : fiches numérotées + guide de di… (livrée 2026-09-26)
+
+- [x] **R204 — Retours du propriétaire sur le dossier des graphiques : fiches numérotées + guide de dictée dans le PDF, avis rattachés dans `review.yaml`, tri par CAUSE (une ligne de roadmap corrige plusieurs graphiques), arbitrage AVANT toute inscription d'action** (P2) ✅ (2026-09-26, e67e802)
+  Mesuré par : `tests/test_the_charts_dossier_covers_every_figure.py`
+  Retours du propriétaire intégrés : 97 avis versés, 12 chantiers inscrits (R205-R216).
+  Commits : e67e802 R204 : la revue du dossier des graphiques par le proprietaire est outi
+
 ## ✅ R203 — Dossier PDF de TOUS les graphiques (Streamlytics + Grafana) pour une revue avec le prop… (livrée 2026-09-26)
 
 - [x] **R203 — Dossier PDF de TOUS les graphiques (Streamlytics + Grafana) pour une revue avec le propriétaire avant déploiement : chaque figure rendue sur données réelles, sa question de décision, une note d'impact/pertinence (robustesse d'archi, KPI de monitoring par plateforme, prédictions), et les recommandations du corpus** (P2) ✅ (2026-09-26, 61e1a93)

@@ -31,7 +31,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R202 | R122 à rouvrir : `ever_recurred_observed` = 49, au-dessus de son seuil (les récidives R190 et R191 du 2026-09-26) — et le libellé du déclencheur dit « au-dessus de 47 » quand l'évaluateur teste 48 <!-- anchor: r122-reopened --> <!-- critic: non — relecture de catalogue, pas de code produit --> | P3 | `make reopen-check` |
-| R204 | Retours du propriétaire sur le dossier des graphiques : fiches numérotées + guide de dictée dans le PDF, avis rattachés dans `review.yaml`, tri par CAUSE (une ligne de roadmap corrige plusieurs graphiques), arbitrage AVANT toute inscription d'action <!-- anchor: charts-review-feedback --> <!-- critic: non — outillage de revue, aucun code produit --> | P2 | `tests/test_the_charts_dossier_covers_every_figure.py` |
 | R205 | **Un chiffre juste partout** : mesurer les 18 chiffres suspects du dossier sur un instantané frais, cause lue dans le code, une classe par FAMILLE (billet `sites:≥2`) ; méthode : une définition par KPI dans la couche or, test de réconciliation « même KPI, même valeur sur chaque surface », contrat d'absence (jamais 0 pour « pas de donnée ») — retour du propriétaire 2026-09-26 <!-- anchor: r205 --> <!-- critic: requis --> | P2 | test de réconciliation + `make charts-dossier` |
 | R206 | SoundCloud : le cumul qui tombe à 0 puis remonte (fiches 16, 18) — cause lue + classe (famille « absence écrite comme zéro ») <!-- anchor: r206 --> <!-- critic: requis --> | P2 | `make charts-dossier` (fiches 16, 18) |
 | R212 | **Trésorerie unique** : ventes iMusician + SACEM + dépenses Meta + solde cumulé en un graphique lisible comme une compta ; remplace le « point d'équilibre » et la « régression R²=1 » trompeurs (fiches 26-28, 54, 55, 75, pdf roi) <!-- anchor: r212 --> <!-- critic: requis --> | P2 | `make charts-dossier` |
@@ -99,7 +98,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R202, R204, R205, R206, R212, R213, R208, R207, R209, R210, R211, R214, R215, R216 -->
+<!-- reprise: open=R202, R205, R206, R212, R213, R208, R207, R209, R210, R211, R214, R215, R216 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
