@@ -92,7 +92,7 @@ _CEILINGS = {
     # exécution. À l'introduction : **9 gardes sur 192** le faisaient (5 %), donc 391
     # classes sur 400 n'ont pas cette preuve. Le plafond ne peut que baisser, et il
     # baisse en ÉCRIVANT le test de non-vacuité dans le garde — pas en rédigeant.
-    "guard_does_not_prove_itself": 34,  # 306 → 303 le 2026-09-25 (R169) ; → 300 le 2026-09-26 (migration P1 gardée, central-app + wrapper RTK auto-prouvants) ; → 297 (shared-db, replica, prose-claim) ; → 294 (collector, env, connexion par vue) ; → 292 (digest du guide, porte de dépendances) ; → 288 (4 preuves existantes enfin citées) ; → 285 ; → 284 ; → 281 ; → 278 ; → 276 ; → 274 ; → 270 ; → 268 ; → 266 ; → 264 ; → 263 ; → 261 ; → 259 ; → 258 ; → 257 ; → 256 ; → 255 ; → 253 ; → 249 ; → 247 ; → 245 ; → 244 ; → 243 ; → 242 ; → 240 ; → 238 ; → 237 ; → 236 ; → 235 ; → 234 ; → 231 ; → 228 ; → 225 ; → 222 ; → 219 ; → 216 ; → 213 ; → 210 ; → 207 ; → 204 ; → 201 ; → 198 ; → 195 ; → 192 ; → 189 ; → 186 ; → 185 ; → 182 ; → 179 ; → 176 ; → 173 ; → 170 ; → 167 ; → 164 ; → 161 ; → 158 ; → 156 ; → 153 ; → 150 ; → 147 ; → 144 ; → 141 ; → 138 ; → 135 ; → 132 ; → 129 ; → 126 ; → 123 ; → 121 ; → 119 ; → 117 ; → 115 ; → 112 ; → 110 ; → 108 ; → 105 ; → 102 ; → 99 ; → 97 ; → 93 ; → 91 ; → 89 ; → 86 ; → 84 ; → 82 ; → 80 ; → 79 ; → 78 ; → 76 ; → 74 ; → 73 ; → 72 ; → 70 ; → 68 ; → 67 ; → 65 ; → 64 ; → 63 ; → 62 ; → 61 ; → 59 ; → 57 ; → 55 ; → 54 ; → 53 ; → 52 ; → 51 ; → 50 ; → 49 ; → 48 ; → 47 ; → 45 ; → 42 ; → 41 ; → 39 ; → 38 ; → 37 ; → 36 ; → 35 ; → 34
+    "guard_does_not_prove_itself": 29,  # 34 → 29 le 2026-09-26 : R169 soldée (5 gardes rendus auto-prouvants)  # 306 → 303 le 2026-09-25 (R169) ; → 300 le 2026-09-26 (migration P1 gardée, central-app + wrapper RTK auto-prouvants) ; → 297 (shared-db, replica, prose-claim) ; → 294 (collector, env, connexion par vue) ; → 292 (digest du guide, porte de dépendances) ; → 288 (4 preuves existantes enfin citées) ; → 285 ; → 284 ; → 281 ; → 278 ; → 276 ; → 274 ; → 270 ; → 268 ; → 266 ; → 264 ; → 263 ; → 261 ; → 259 ; → 258 ; → 257 ; → 256 ; → 255 ; → 253 ; → 249 ; → 247 ; → 245 ; → 244 ; → 243 ; → 242 ; → 240 ; → 238 ; → 237 ; → 236 ; → 235 ; → 234 ; → 231 ; → 228 ; → 225 ; → 222 ; → 219 ; → 216 ; → 213 ; → 210 ; → 207 ; → 204 ; → 201 ; → 198 ; → 195 ; → 192 ; → 189 ; → 186 ; → 185 ; → 182 ; → 179 ; → 176 ; → 173 ; → 170 ; → 167 ; → 164 ; → 161 ; → 158 ; → 156 ; → 153 ; → 150 ; → 147 ; → 144 ; → 141 ; → 138 ; → 135 ; → 132 ; → 129 ; → 126 ; → 123 ; → 121 ; → 119 ; → 117 ; → 115 ; → 112 ; → 110 ; → 108 ; → 105 ; → 102 ; → 99 ; → 97 ; → 93 ; → 91 ; → 89 ; → 86 ; → 84 ; → 82 ; → 80 ; → 79 ; → 78 ; → 76 ; → 74 ; → 73 ; → 72 ; → 70 ; → 68 ; → 67 ; → 65 ; → 64 ; → 63 ; → 62 ; → 61 ; → 59 ; → 57 ; → 55 ; → 54 ; → 53 ; → 52 ; → 51 ; → 50 ; → 49 ; → 48 ; → 47 ; → 45 ; → 42 ; → 41 ; → 39 ; → 38 ; → 37 ; → 36 ; → 35 ; → 34
     "seen_red_never": 0,
     # 363 → 241 : les causes qui nomment un chemin vérifiable.
     # 241 → 183 le 2026-09-17 : les **58** classes dont le `root_cause` cite un fichier
@@ -127,7 +127,7 @@ _CEILINGS = {
     #
     # ⚠️ Les 33 ont été LUES, une par une. La confirmation mécanique choisit QUOI lire ;
     # elle ne remplace pas la lecture, et `read` veut dire « j'ai lu ».
-    "cause_unknown": 7,  # 140 → 13 le 2026-09-26 (R169, causes lues dans le code) ; → 11 (mesurées : constante disparue, défaut de stackgaps) ; → 10 (40 trous au jour, 5 à la semaine) ; → 9 (titre : cause d'origine réfutée, vraie cause mesurée à travers Streamlit) ; → 8 (ig_user_id retiré 11 jours avant d'être exigé, lu dans git) ; → 7 (montage de src/ et planification lus) ; 182 → 181 le 2026-09-17 : `object-dtype-numeric-op` mesurée — `SUM(bigint)`
+    "cause_unknown": 0,  # 7 → 0 le 2026-09-26 : R169 soldée (6 causes lues ou mesurées, 1 inférée à moitié et dite)  # 140 → 13 le 2026-09-26 (R169, causes lues dans le code) ; → 11 (mesurées : constante disparue, défaut de stackgaps) ; → 10 (40 trous au jour, 5 à la semaine) ; → 9 (titre : cause d'origine réfutée, vraie cause mesurée à travers Streamlit) ; → 8 (ig_user_id retiré 11 jours avant d'être exigé, lu dans git) ; → 7 (montage de src/ et planification lus) ; 182 → 181 le 2026-09-17 : `object-dtype-numeric-op` mesurée — `SUM(bigint)`
     # rend `numeric` en PostgreSQL, donc dtype `object` SANS aucun NULL.
     "cause_inferred": 0,
     "scope_unknown": 0,               # 363 → 0 : la famille est dérivable pour toutes
@@ -834,3 +834,31 @@ def test_the_shared_guard_detector_sees_the_defect_it_is_written_for() -> None:
     assert not health._names_a_test(vague, "pytest tests/test_caddy.py -q")
     assert health._names_a_test(vague, "pytest tests/test_caddy.py::test_the_probe_crosses -q")
     assert health._names_a_test("couvre: `test_the_probe_crosses`", "pytest tests/x.py")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, class `a-sweep-predicate-that-matches-a-form-not-a-property`: a
+    sweep that publishes only the RAW count of its predicate — the form's hits, no
+    verdict — is a hole (`sites_unknown`), never a yield; a funnel ending on a bold
+    verdict is read at that verdict, and a retracted first count does not replace it.
+
+    Built from a fabricated catalogue through the same reader as `build()`, then the
+    same two aggregations — so a reader that took « 112 candidats » for 112 sites, or
+    read a mute sweep as zero, would move the published figures and fail here.
+    """
+    sys.path.insert(0, str(_ROOT / ".claude" / "scripts"))
+    from tools.dev.error_class_health import _declared, _is_a_mute_sweep, sweep_yield
+
+    doc = ("## raw-form-count\n- status: open\n"
+           "- siblings: swept:2026-09-18 — le prédicat `page ==` rend 112 candidats.\n"
+           "## funnel-to-a-verdict\n- status: open\n"
+           "- siblings: swept:2026-09-18 — 385 candidats → 367 écartés (commentaires) "
+           "→ **18 sites vivants**.\n"
+           "## verdict-then-retraction\n- status: open\n"
+           "- siblings: swept:2026-09-18 — **0 site vivant** ; le premier prédicat en "
+           "rendait **112 sites vivants**, tous des formes.\n")
+    classes = _declared(doc)
+    assert [c for c, rec in classes.items() if _is_a_mute_sweep(rec)] == ["raw-form-count"]
+    got = sweep_yield(classes)
+    assert (got["sweeps_done"], got["sweeps_with_a_verdict"],
+            got["sweeps_that_found_something"], got["live_sites_found"]) == (3, 2, 1, 18), got

@@ -506,6 +506,34 @@ def _prose_des_trous(h: dict, a: dict) -> list[str]:
     return out
 
 
+def sweep_yield(classes: dict) -> dict:
+    """What sweeping YIELDS, read only from the sweeps whose verdict is legible. Pure.
+
+    A sweep with no bold count (`siblings_sites is None`) is left out of every
+    figure here and counted in `holes.sites_unknown` instead — see `_is_a_mute_sweep`.
+    Reading it as zero would turn « I do not know what I found » into « nothing found ».
+    """
+    _swept = [c for c in classes.values() if c["siblings_swept"]]
+    _avec_verdict = [c for c in _swept if c["siblings_sites"] is not None]
+    _productifs = [c for c in _avec_verdict if c["siblings_sites"] > 0]
+    return {
+        "sweeps_done": len(_swept),
+        "sweeps_with_a_verdict": len(_avec_verdict),
+        "sweeps_that_found_something": len(_productifs),
+        "live_sites_found": sum(c["siblings_sites"] for c in _avec_verdict),
+        "hit_rate_on_verdicts": (round(len(_productifs) / len(_avec_verdict), 3)
+                                 if _avec_verdict else None),
+        "note": ("Le taux porte sur les balayages dont le verdict est LISIBLE. "
+                 "Les autres sont comptés dans holes.sites_unknown — un balayage "
+                 "muet n'est pas un balayage sans trouvaille."),
+    }
+
+
+def _is_a_mute_sweep(c: dict) -> bool:
+    """A sweep was done and its prose does not say what it found — a declared hole."""
+    return bool(c["siblings_swept"]) and c["siblings_sites"] is None
+
+
 def _swept_by_rerunning_the_guard(champ: str) -> bool:
     """Le champ décrit-il une RELANCE du garde plutôt qu'un balayage de frères ?"""
     return champ.strip().startswith("swept:") and bool(_RERUN.search(champ))
@@ -931,9 +959,7 @@ def build() -> tuple[str, str]:
         # Un balayage FAIT dont on ne sait pas ce qu'il a trouvé. Distinct de
         # `siblings_never_swept` : là, la question n'a pas été posée ; ici, elle l'a
         # été et la réponse s'est perdue en prose.
-        "sites_unknown": sum(
-            1 for c in classes.values()
-            if c["siblings_swept"] and c["siblings_sites"] is None),
+        "sites_unknown": sum(1 for c in classes.values() if _is_a_mute_sweep(c)),
         # ⚠️ `swept_by_rerunning_the_guard` est un SOUS-ENSEMBLE de `sites_unknown` : une
         # relance de garde ne porte jamais de compte en gras, donc elle est muette par
         # construction. Au 2026-09-17 l'intersection valait **97 sur 100**, et les deux
@@ -996,20 +1022,7 @@ def build() -> tuple[str, str]:
     # sur TOUS les balayages diviserait par un nombre qui contient 242 balayages muets,
     # et sortirait un taux artificiellement bas — la faute même que ce dépôt appelle
     # `anchor-a-number-to-its-population`.
-    _swept = [c for c in classes.values() if c["siblings_swept"]]
-    _avec_verdict = [c for c in _swept if c["siblings_sites"] is not None]
-    _productifs = [c for c in _avec_verdict if c["siblings_sites"] > 0]
-    yield_ = {
-        "sweeps_done": len(_swept),
-        "sweeps_with_a_verdict": len(_avec_verdict),
-        "sweeps_that_found_something": len(_productifs),
-        "live_sites_found": sum(c["siblings_sites"] for c in _avec_verdict),
-        "hit_rate_on_verdicts": (round(len(_productifs) / len(_avec_verdict), 3)
-                                 if _avec_verdict else None),
-        "note": ("Le taux porte sur les balayages dont le verdict est LISIBLE. "
-                 "Les autres sont comptés dans holes.sites_unknown — un balayage "
-                 "muet n'est pas un balayage sans trouvaille."),
-    }
+    yield_ = sweep_yield(classes)
 
     payload = {
         "classes": classes,

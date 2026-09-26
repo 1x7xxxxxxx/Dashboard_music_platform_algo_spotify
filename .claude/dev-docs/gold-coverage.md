@@ -455,12 +455,12 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 **fixed** : 10· **guarded** : 387· **open** : 4· **reported** : 15· **resolved** : 2
 
-**0 classe(s) nomment un fichier de garde qui n'existe plus** et **9** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
+**0 classe(s) nomment un fichier de garde qui n'existe plus** et **8** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
 _Aucune classe ne nomme un garde disparu._
 
 
-Sans chemin de garde : `db-connection-per-show` · `view-session-adoption` · `snapshot-fixture-hook-reflow` · `dag-trigger-without-tenant-scope` · `repo-copy-of-a-config-is-not-what-runs` · `mermaid-block-does-not-render` · `guard-anchored-on-shape-not-question` · `a-filtered-test-run-proves-nothing` · `a-guard-that-sees-the-binding-not-the-application`.
+Sans chemin de garde : `db-connection-per-show` · `view-session-adoption` · `snapshot-fixture-hook-reflow` · `dag-trigger-without-tenant-scope` · `repo-copy-of-a-config-is-not-what-runs` · `mermaid-block-does-not-render` · `guard-anchored-on-shape-not-question` · `a-guard-that-sees-the-binding-not-the-application`.
 
 
 ## Ce qui n'est gardé par rien
@@ -640,9 +640,9 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-gold-objects: total=31 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=23 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=418 guard_missing=0 guard_unnamed=9 -->
+<!-- gold-coverage-error-classes: total=418 guard_missing=0 guard_unnamed=8 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=28 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=16 blocking=16 -->
 
-<!-- gold-coverage: sha256=23cd2a3d9e58cfb8a56adabb644ed4a7a29ba13b237a42541c760f9b1a8b6aa7 -->
+<!-- gold-coverage: sha256=1aa76915b2217c779d48e244a310d7c2a352c4739622ad873aecd9b2a0a1c51e -->

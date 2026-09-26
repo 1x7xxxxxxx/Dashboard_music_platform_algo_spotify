@@ -48,9 +48,14 @@ _SRC = _REPO / "src"
 
 
 def _load(path: str) -> dict[str, set[str]]:
-    """Split a dump into {columns, keys, unique indexes}."""
+    """Split a dump file into {columns, keys, unique indexes}."""
+    return parse_dump(Path(path).read_text())
+
+
+def parse_dump(text: str) -> dict[str, set[str]]:
+    """Split a dump's text into {columns, keys, unique indexes}. Pure."""
     buckets: dict[str, set[str]] = {"col": set(), "key": set(), "uix": set()}
-    for raw in Path(path).read_text().splitlines():
+    for raw in text.splitlines():
         line = raw.strip()
         if not line:
             continue
@@ -63,6 +68,26 @@ def _load(path: str) -> dict[str, set[str]]:
         elif "." in line:
             buckets["col"].add(line)   # bare line = a column (pre-2026-08 dumps)
     return buckets
+
+
+def find_drift(live: dict[str, set[str]], canon: dict[str, set[str]]) -> dict:
+    """Every difference between a live dump and the canonical one, both sides. Pure.
+
+    `found` is the gate's decision: a column, table, constraint or unique index present
+    on ONE side only. Names, not types — see `schema_fingerprint.sql` for why.
+    """
+    live_tables = {x.split(".", 1)[0] for x in live["col"]}
+    canon_tables = {x.split(".", 1)[0] for x in canon["col"]}
+    out: dict = {
+        "live_extra": sorted(live["col"] - canon["col"]),
+        "canon_extra": sorted(canon["col"] - live["col"]),
+        "tables_live_only": sorted(live_tables - canon_tables),
+    }
+    for kind in ("key", "uix"):
+        out[f"{kind}_live_only"] = sorted(live[kind] - canon[kind])
+        out[f"{kind}_canon_only"] = sorted(canon[kind] - live[kind])
+    out["found"] = any(out.values())
+    return out
 
 
 def _used_in_src(column: str) -> bool:
@@ -91,10 +116,9 @@ def main() -> None:
     prod, canon = prod_all["col"], canon_all["col"]
     prod_tables = {x.split(".", 1)[0] for x in prod}
     canon_tables = {x.split(".", 1)[0] for x in canon}
-
-    prod_extra = sorted(prod - canon)
-    canon_extra = sorted(canon - prod)
-    tables_prod_only = sorted(prod_tables - canon_tables)
+    drift = find_drift(prod_all, canon_all)
+    prod_extra, canon_extra = drift["live_extra"], drift["canon_extra"]
+    tables_prod_only = drift["tables_live_only"]
 
     print(f"{side}: {len(prod)} cols / {len(prod_tables)} tables · "
           f"canonical: {len(canon)} cols / {len(canon_tables)} tables\n")
@@ -123,14 +147,11 @@ def main() -> None:
         print()
 
     # ── Constraints and unique indexes — what ON CONFLICT actually resolves ──
-    key_drift = False
     for kind, label in (("key", "CONSTRAINTS (PK / UNIQUE / FK)"),
                         ("uix", "UNIQUE INDEXES")):
-        only_prod = sorted(prod_all[kind] - canon_all[kind])
-        only_canon = sorted(canon_all[kind] - prod_all[kind])
+        only_prod, only_canon = drift[f"{kind}_live_only"], drift[f"{kind}_canon_only"]
         if not (only_prod or only_canon):
             continue
-        key_drift = True
         print(f"## {label} — divergent (compared by definition, not by name):")
         for item in only_prod:
             print(f"  [{side} only]{' ' * max(1, 12 - len(side))}{item}")
@@ -140,7 +161,7 @@ def main() -> None:
               "`ON CONFLICT` targets resolve. Reconcile before deploying code that "
               "upserts on them.\n")
 
-    if prod_extra or canon_extra or key_drift:
+    if drift["found"]:
         print("⚠ schema drift found — triage above (report-only; never auto-ALTER prod). "
               "USED items belong in the version-controlled schema; orphans can be dropped/documented.")
         sys.exit(1)

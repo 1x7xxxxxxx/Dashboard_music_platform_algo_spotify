@@ -4,9 +4,10 @@ Type: Doc (appended by the assistant at the start of a session; the owner does n
 Uses: Gmail (Claude session connector) — **only** `from:noreply@streamlytics.fr`; nothing personal is read or kept
 Persists in: this file
 
-⚠️ **Two inboxes (measured 2026-09-26).** GitHub-side mails (CI break, security nightly, prod
-health) reach the inbox read here. The production nightly mail (`alert_monitor`, now the
-R181 recap) goes to `ALERT_EMAIL` on the server — another address, unreadable from here.
+**Inboxes (2026-09-26, R183).** GitHub-side mails reach the inbox read here. Since
+2026-09-26 16:58 CEST the production mails (`alert_monitor` recap, DAG failure alerts) do too:
+`ALERT_EMAIL` on the server now lists both addresses (the owner's request; `.env` backed up as
+`.env.bak-2026-09-26-alert-email`).
 
 Why this exists: the owner does not read the automated mails, and some signals only exist
 there. Each session starts by searching `from:noreply@streamlytics.fr newer_than:<since last
@@ -28,3 +29,5 @@ The last-entry date is read by `make night-status`, which says when the journal 
 | 2026-09-26 12:38 | CI a échoué | real | a new test function (`test_a_tree_scanner_is_selected_when_its_tree_changes`) had no recorded duration — the check runs only in CI; third time that day | `80ec58d` (duration), `913b52e` (`make test-changed` now records missing durations itself) |
 | 2026-09-26 13:11 | 📋 Récap de la nuit — 🔴 quelque chose demande ton attention | false alarm | first GitHub-side recap (`nightly-recap.yml`, dispatched): `/health` answered 403 — Cloudflare refuses Python's default `Python-urllib` agent; production was healthy | `ce932d6` (named User-Agent, guarded) |
 | 2026-09-26 13:15 | 📋 Récap de la nuit — nuit calme, rien à signaler | test | R181 proven end to end: the recap reaches THIS inbox (CI, security, prod health all green, `/health` 200). From now on it arrives every night at 06:47 UTC | — |
+| 2026-09-26 14:58 | 🚨 Dashboard Alert: 📋 Récap de la nuit — nuit calme | test | R183 proven: the PRODUCTION recap now reaches this inbox (`airflow tasks test alert_monitor send_consolidated_alert`) | — |
+| 2026-09-26 14:59 | 🚨 Dashboard Alert: DAG alert_monitor — task check_billing_sync FAILED | false alarm | an artefact of the test above: `airflow tasks test` leaves a temporary DagRun that the freshly restarted scheduler then ran IN FULL — every task at once — and three of them deadlocked on Airflow's own metadata DB (`DeadlockDetected` in the task runner). The scheduled runs of `check_billing_sync` all succeed (09-21 → 09-24) | lesson: never `tasks test` a whole-DAG-scheduled task in production right after a scheduler restart — call the function instead (memory `feedback_tasks_test_leaves_a_run_the_scheduler_executes`) |

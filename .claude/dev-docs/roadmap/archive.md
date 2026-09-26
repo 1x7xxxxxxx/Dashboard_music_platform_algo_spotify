@@ -180,6 +180,42 @@ tâche-là, ouvert séparément dans `checklist.md`).
 
 ---
 
+## 🧾 R169 — La dette du catalogue d'erreurs soldée (livrée 2026-09-26)
+
+- [x] **R169 — dette du catalogue d'erreurs.** Dette : 3 classes par séance, dans l'ordre de `make error-debt` (récidivées sans
+  garde auto-prouvant d'abord). Tant que la liste n'est pas vide, cette ligne reste — garde
+  `tests/test_a_measured_debt_has_its_roadmap_line.py`.
+  - 2026-09-25 : 3 classes payées (a-surgical-restore, a-kill-pattern, audit-scope),
+    `guard_does_not_prove_itself` 306 → 303 ; prochaines : `make error-debt`.
+  - 2026-09-26 : central-app-missing et a-command-wrapper-… rendus auto-prouvants,
+    migration-ahead-of-its-code gardée ; `guard_does_not_prove_itself` 303 → 300.
+  - 2026-09-26 (soldée) : les 12 dernières payées — 5 gardes rendus auto-prouvants (sélecteur,
+    balayage, fraîcheur, dérive de schéma, rendu à deux locataires ; chacun muté rouge), 7 causes
+    établies (6 lues ou mesurées, une à moitié inférée et dite), et la seule classe sans
+    détecteur honnête (`guard-anchored-on-shape-not-question`) déclarée en revue manuelle avec
+    ses preuves (`error_debt.manual_by_design`, gardé). `make error-debt` : **0** ; plafonds
+    `guard_does_not_prove_itself` 34 → 29, `cause_unknown` 7 → 0.
+
+
+## 📬 R183 — Le récap de production arrive dans la boîte lue (livrée 2026-09-26)
+
+- [x] **R183 — `ALERT_EMAIL` de prod liste la boîte lue.** (P4) ✅ (2026-09-26, geste fait
+  sur demande du propriétaire) `.env` sauvegardé (`.env.bak-2026-09-26-alert-email`), la
+  boîte lue AJOUTÉE à l'ancienne (les deux reçoivent), planificateur recréé seul
+  (`up -d --no-deps airflow-scheduler`), variable vue dans le conteneur. Prouvé : récap de
+  production reçu à 16:58 CEST (`ops-mail-journal.md`). Leçon payée au passage : un `airflow
+  tasks test` en prod laisse un run temporaire que le planificateur exécute en entier.
+
+## 📦 R148 · R163 — sorties de la roadmap vers le backlog produit (2026-09-26)
+
+Décision du propriétaire le 2026-09-26 (« sortir vers un backlog produit »), pour que la
+roadmap d'ingénierie ne porte que ce qu'une séance peut faire.
+
+- [x] **R148 — trois conversations « combien tu paierais ».** Déplacée (pas faite) vers
+  `.claude/dev-docs/product-backlog.md` : elle attend des artistes qui ont vu leurs données.
+- [x] **R163 — Hypeddit sur le pixel et sa Conversions API.** Déplacée (pas faite) : elle
+  attend le lancement (app terminée ET campagne Meta relancée).
+
 ## 🔬 R184 · R185 · R186 — La chaîne des classes d'erreur sondée, et la preuve exigée par classe (livrées 2026-09-26)
 
 Entrées le 2026-09-26 sur la question du propriétaire : « tout fonctionne-t-il, quels tests le

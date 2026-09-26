@@ -40,3 +40,19 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
 
 def test_the_ceilings_are_read_from_the_ratchet() -> None:
     assert "guard_does_not_prove_itself" in debt.ceilings()
+
+
+
+def test_a_manual_class_is_exempt_only_with_its_evidence() -> None:
+    """2026-09-26: a recurred class that cannot have a detector leaves the self-proving list
+    only when it declares manual + n-a + a sweep + an uncovered scope; one missing fact and
+    it stays. Its unknown cause still ranks."""
+    full = {"kind": "manual", "seen_red": "n-a", "siblings_swept": True,
+            "guard_scope_has_not_covered": True, "cause_evidence": "read"}
+    recur = {"m": 2}
+    assert debt.work_list({"m": full}, recur, 10) == []
+    for key in ("kind", "seen_red", "siblings_swept", "guard_scope_has_not_covered"):
+        partial = {**full, key: {"kind": "heuristic", "seen_red": "never"}.get(key, False)}
+        assert [c for c, _ in debt.work_list({"m": partial}, recur, 10)] == ["m"], key
+    assert [c for c, _ in debt.work_list({"m": {**full, "cause_evidence": "unknown"}},
+                                         recur, 10)] == ["m"]

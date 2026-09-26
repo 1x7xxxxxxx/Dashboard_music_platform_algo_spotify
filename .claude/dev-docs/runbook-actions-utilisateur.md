@@ -1456,7 +1456,7 @@ mesure, l'autre dit ce qu'elle mesure.
 
 ---
 
-## 19. R148 — Trois conversations « combien tu paierais »
+## 19. ~~R148 — Trois conversations « combien tu paierais »~~ · 📦 DÉPLACÉE le 2026-09-26 vers `.claude/dev-docs/product-backlog.md` — la procédure ci-dessous reste valable
 
 **Le prix de 10 €/mois a été posé, jamais mesuré.** *Monetizing Innovation*
 (Ramanujam & Tacke) dit de parler du prix AVANT de construire ; ici l'ordre a été
@@ -1769,7 +1769,7 @@ information, pas un échec.
 
 ---
 
-## 24. R163 — Brancher Hypeddit sur le pixel et sa Conversions API, au lancement
+## 24. ~~R163 — Brancher Hypeddit sur le pixel et sa Conversions API, au lancement~~ · 📦 DÉPLACÉE le 2026-09-26 vers `.claude/dev-docs/product-backlog.md` — la procédure ci-dessous reste valable
 
 **Déclencheur : l'app terminée ET une campagne Meta relancée.** Pas avant — un pixel
 branché sans campagne ne mesure rien, et le jeton CAPI expire si on le laisse dormir
@@ -1941,7 +1941,7 @@ grep -n "cutoff = datetime.now(timezone.utc)" airflow/dags/alert_monitor.py
 et, en production, les journaux de la tâche `check_dag_failures` ne portent plus
 `naive datetime is disallowed`.
 
-## 29. R183 — Recevoir aussi le récap de PRODUCTION dans la boîte que tu lis
+## 29. ~~R183 — Recevoir aussi le récap de PRODUCTION dans la boîte que tu lis~~ · ✅ FAIT le 2026-09-26 — `ALERT_EMAIL` liste les deux boîtes, récap de prod reçu ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 **Ce qui est déjà là (R181, livrée)** : un récap part de GitHub chaque nuit à 06:47 UTC et
 arrive dans ta boîte. Ce qui reste est le récap de PRODUCTION (détail des DAG en échec) :

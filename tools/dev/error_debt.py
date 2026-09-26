@@ -49,11 +49,26 @@ def recurrences(text: str) -> dict[str, int]:
     return out
 
 
+def manual_by_design(c: dict) -> bool:
+    """A class that CANNOT carry a self-proving guard, and says so with evidence (2026-09-26).
+
+    `guard-anchored-on-shape-not-question` recurred, so it sat at the top of this list for
+    ever: its defect is a judgement about a test (does it check a form or a behaviour?), and
+    its own sweep found 1 real defect among 15 candidates of the right shape — any detector
+    would be mostly false positives. Asking it to « become self-proving » asked for a fake.
+    Exempt ONLY when all four hold, so that « manual » is not a way out of the list: declared
+    `kind: manual`, `seen_red: n-a`, a sweep on record, and a scope that names what it does
+    NOT cover. Its cause is still required (the elif below), and it is listed apart in `main`.
+    """
+    return (c.get("kind") == "manual" and c.get("seen_red") == "n-a"
+            and bool(c.get("siblings_swept")) and bool(c.get("guard_scope_has_not_covered")))
+
+
 def work_list(classes: dict, recur: dict[str, int], n: int) -> list[tuple[str, str]]:
     ranked = []
     for cid, c in classes.items():
         r = recur.get(cid, 0)
-        if r and c.get("seen_red") != "self-proving":
+        if r and c.get("seen_red") != "self-proving" and not manual_by_design(c):
             ranked.append((0, -r, cid, f"récidivée {r}× — rendre le garde auto-prouvant "
                                        "(test_the_detector_sees_the_defect_it_is_written_for)"))
         elif c.get("cause_evidence") == "unknown":
@@ -79,6 +94,11 @@ def main() -> int:
     print(f"▶ {len(todo)} classe(s) à traiter en premier (unité : 3 par séance)")
     for cid, why in todo:
         print(f"   {cid}\n      → {why}")
+    manual = sorted(cid for cid, c in health["classes"].items()
+                    if recur.get(cid) and manual_by_design(c))
+    if manual:
+        print(f"\n▶ {len(manual)} classe(s) récidivée(s) en revue MANUELLE par conception "
+              "(aucun détecteur honnête — voir leur guard_scope) : " + ", ".join(manual))
     holes = health["aggregate"]["holes"]
     slack = {k: (c, holes[k]) for k, c in ceilings().items() if k in holes and holes[k] < c}
     if slack:

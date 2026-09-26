@@ -238,3 +238,28 @@ def test_a_tree_scanner_is_selected_when_its_tree_changes(st, tmp_path) -> None:
     assert picked("README.md") == set()
     assert st.scanned_directories(sources["tests/test_loop.py"], "tests/test_loop.py") == {
         "src", "airflow"}
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(st, graph) -> None:
+    """Non-vacuity, class `a-filtered-test-run-proves-nothing`: the transverse guards a
+    hand-picked run leaves out ARE selected from the change that concerns them.
+
+    Both recurrences, replayed on this repo's real graph. 2026-09-13: four test files
+    named by hand after writing a new test, and the meta-guard that walks every test
+    file (`test_a_guard_reads_structure_not_text`) was not among them — it went red in
+    CI. 2026-09-24: `src/dashboard/auth.py` grew past its ceiling and one test file was
+    run; `test_a_file_only_gets_shorter`, which walks `src/`, was already red. Neither
+    guard imports nor names the changed file, so only the two widening rules of
+    `select_tests.py` can reach them. The corrected input — a change neither guard
+    judges — must leave them out, or the rules would simply select everything.
+    """
+    imports, _, known = graph
+    tests = {m for m in imports if st.is_test(m.replace(".", "/") + ".py")}
+    meta, walker = "test_a_guard_reads_structure_not_text", "test_a_file_only_gets_shorter"
+    assert {meta, walker} <= tests, "the two guards of the recurrences are gone"
+
+    assert meta in st.tests_scanning_the_test_files(["tests/test_brand_new.py"], tests, known)
+    assert walker in st.tests_scanning_the_tree(["src/dashboard/auth.py"], tests, known, REPO)
+
+    assert meta not in st.tests_scanning_the_test_files(["src/dashboard/auth.py"], tests, known)
+    assert walker not in st.tests_scanning_the_tree(["README.md"], tests, known, REPO)

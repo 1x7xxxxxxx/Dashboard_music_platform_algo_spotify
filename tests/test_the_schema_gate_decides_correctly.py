@@ -145,3 +145,30 @@ def test_the_report_names_the_side_it_compared(monkeypatch, tmp_path) -> None:
         "« prod » en comparant la base LOCALE.")
     assert "prod" not in sortie.replace("prod_extra", ""), (
         "le rapport dit encore « prod » alors qu'on lui a passé « local ».")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(monkeypatch, tmp_path) -> None:
+    """Non-vacuity, class `local-db-drifts-from-canonical`: the LOCAL development base
+    carrying tables no migration declares — `youtube_daily_views` and `probe_batch`,
+    found on this machine on 2026-09-18 — is drift, and `schema-check-local` exits 1
+    naming them; the same base once cleaned equals canonical and exits 0.
+
+    ⚠️ The fingerprint compares NAMES, not types, on purpose (24 of 26 type
+    differences were `text` vs `varchar` noise). The class's first instance — a
+    `bigint` `track_id` against canonical `VARCHAR(50)` — is therefore NOT something
+    this detector can see; only the name-level form of the drift is proven here.
+    """
+    mod = _module()
+    canon = ["col:soundcloud_tracks_daily.artist_id", "col:soundcloud_tracks_daily.track_id",
+             "key:soundcloud_tracks_daily:PRIMARY KEY (id)"]
+    local = canon + ["col:youtube_daily_views.video_id", "col:youtube_daily_views.views",
+                     "col:probe_batch.id"]
+
+    drift = mod.find_drift(mod.parse_dump("\n".join(local)), mod.parse_dump("\n".join(canon)))
+    assert drift["found"] and drift["tables_live_only"] == ["probe_batch", "youtube_daily_views"]
+    code, out = _run(monkeypatch, tmp_path, local, canon, "local")
+    assert code == 1 and "youtube_daily_views" in out and "probe_batch" in out, out
+
+    cleaned = mod.find_drift(mod.parse_dump("\n".join(canon)), mod.parse_dump("\n".join(canon)))
+    assert not cleaned["found"], cleaned
+    assert _run(monkeypatch, tmp_path, canon, canon, "local")[0] == 0

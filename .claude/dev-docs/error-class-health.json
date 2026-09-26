@@ -743,7 +743,7 @@
       "renamed_from": null
     },
     "a-diagram-is-verified-by-looking-at-it": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": false,
       "guard_ref": null,
@@ -767,7 +767,7 @@
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-09-10",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -1073,14 +1073,14 @@
     "a-filtered-test-run-proves-nothing": {
       "cause_evidence": "read",
       "first_seen_declared": "2026-09-11",
-      "guard_automatic": false,
-      "guard_ref": null,
-      "guard_ref_exists": false,
+      "guard_automatic": true,
+      "guard_ref": "tests/test_the_selector_selects_what_changed.py",
+      "guard_ref_exists": true,
       "guard_scope_declared_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
-      "guard_type": "aucun",
+      "guard_scope_names_a_test": true,
+      "guard_type": "pytest",
       "has_signature": false,
       "history_dates_declared": [
         "2026-09-11",
@@ -1088,14 +1088,14 @@
         "2026-09-24"
       ],
       "kind": "manual",
-      "seen_red": "n-a",
+      "seen_red": "self-proving",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-09-11",
-      "revisions": 12,
+      "revisions": 13,
       "history_additions": 2,
       "renamed_from": null
     },
@@ -1949,7 +1949,7 @@
       "renamed_from": null
     },
     "a-measurement-taken-under-self-inflicted-load": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-15",
       "guard_automatic": true,
       "guard_ref": ".claude/dev-docs/test-suite-performance.md",
@@ -1971,7 +1971,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2086,7 +2086,7 @@
       "renamed_from": null
     },
     "a-metric-computed-outside-the-metrics-layer": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_metrics_layer_only_grows.py",
@@ -2108,7 +2108,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-11",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2388,7 +2388,7 @@
       "renamed_from": null
     },
     "a-population-chosen-by-a-proxy-for-the-cost": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-16",
       "guard_automatic": false,
       "guard_ref": ".claude/dev-docs/roadmap/checklist.md",
@@ -2411,7 +2411,7 @@
       "siblings_swept": true,
       "status": "resolved",
       "introduced_date": "2026-09-16",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3158,7 +3158,7 @@
       "renamed_from": null
     },
     "a-rule-that-was-right-for-quantities-applied-to-counters": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-11",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_gold_coverage_only_improves.py",
@@ -3180,7 +3180,7 @@
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-09-12",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3613,14 +3613,14 @@
         "2026-09-22"
       ],
       "kind": "heuristic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 10,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-18",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -5641,14 +5641,14 @@
         "2026-09-18"
       ],
       "kind": "heuristic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 1,
       "siblings_swept": true,
       "status": "open",
       "introduced_date": "2026-05-15",
-      "revisions": 10,
+      "revisions": 11,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -6982,7 +6982,7 @@
       "renamed_from": null
     },
     "guard-anchored-on-shape-not-question": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-04",
       "guard_automatic": false,
       "guard_ref": null,
@@ -7005,7 +7005,7 @@
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-09-05",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -7904,14 +7904,14 @@
         "2026-09-18"
       ],
       "kind": "manual",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 2,
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-08-21",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -8289,14 +8289,14 @@
         "2026-08-20"
       ],
       "kind": "manual",
-      "seen_red": "n-a",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-06-20",
-      "revisions": 11,
+      "revisions": 12,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -8660,7 +8660,7 @@
       "renamed_from": null
     },
     "operator-guidance-phantom-or-wrong-auth": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-05-15",
       "guard_automatic": true,
       "guard_ref": ".claude/dev-docs/error-classes.md",
@@ -8682,7 +8682,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11495,13 +11495,13 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 562,
+      "catalogue_revisions": 563,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 7,
-      "guard_does_not_prove_itself": 34,
+      "cause_unknown": 0,
+      "guard_does_not_prove_itself": 29,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
       "scope_on_a_shared_guard_without_naming_its_tests": 13,
@@ -11515,10 +11515,10 @@
       "swept_by_rerunning_the_guard": 0
     },
     "population": {
-      "automatic_guard": 409,
+      "automatic_guard": 410,
       "classes": 418,
       "ever_recurred_observed": 48,
-      "prose_only": 9,
+      "prose_only": 8,
       "with_signature": 407
     },
     "recurrence": {
@@ -11536,41 +11536,41 @@
       "class_days_exposed": 11661,
       "by_guard": {
         "automatique": {
-          "events": 56,
-          "class_days": 11444,
-          "per_class_month": 0.1488,
+          "events": 58,
+          "class_days": 11459,
+          "per_class_month": 0.1539,
           "ci95": [
-            0.1124,
-            0.1932
+            0.1168,
+            0.1989
           ]
         },
         "prose": {
-          "events": 5,
-          "class_days": 217,
-          "per_class_month": 0.7005,
+          "events": 3,
+          "class_days": 202,
+          "per_class_month": 0.4515,
           "ci95": [
-            0.2257,
-            1.6346
+            0.0907,
+            1.3191
           ]
         }
       },
       "by_seen_red": {
         "daté": {
-          "events": 3,
-          "class_days": 719,
-          "per_class_month": 0.1268,
+          "events": 0,
+          "class_days": 541,
+          "per_class_month": 0.0,
           "ci95": [
-            0.0255,
-            0.3706
+            0.0,
+            0.2061
           ]
         },
         "jamais-ou-inconnu": {
-          "events": 58,
-          "class_days": 10942,
-          "per_class_month": 0.1611,
+          "events": 61,
+          "class_days": 11120,
+          "per_class_month": 0.1668,
           "ci95": [
-            0.1224,
-            0.2083
+            0.1276,
+            0.2142
           ]
         }
       },
