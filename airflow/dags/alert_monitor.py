@@ -1459,22 +1459,6 @@ def check_canary_preflight(**context):
 # Task 4 — Build and send consolidated alert email
 # ─────────────────────────────────────────────────────────────────
 
-def _record_quiet_run():
-    """A run that found nothing. `delivery_expected = FALSE` — no mail is owed."""
-    try:
-        from src.database.postgres_handler import PostgresHandler
-        db = PostgresHandler.from_env_or_config()
-        try:
-            return db.fetch_query(
-                "INSERT INTO monitoring_run (subject, issues_count, delivery_expected) "
-                "VALUES (%s, 0, FALSE) RETURNING id", ("(rien à signaler)",))[0][0]
-        finally:
-            db.close()
-    except Exception as e:  # noqa: BLE001
-        logger.error("could not record the quiet run: %s", safe_error(e))
-        return None
-
-
 def _record_alert_attempt(subject: str, issues_count: int, digest: str = None):
     """Open a `monitoring_run` row before attempting delivery. Never raises.
 
@@ -1735,12 +1719,28 @@ def send_consolidated_alert(**context):
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
+    # ── GitHub, and ONE mail every night (R181, 2026-09-26) ─────────────────────
+    # The owner reads none of the automated mails; one recap a night carries the
+    # production findings AND the three GitHub workflows. A quiet night used to send
+    # nothing — which read exactly like a dead monitor. It now sends a short recap.
+    from src.utils import nightly_recap
+    github_html, github_red = nightly_recap.github_section(nightly_recap.github_verdicts())
+
+    def _send_recap(headline: str) -> None:
+        subject, body = nightly_recap.short_recap(now_str, headline, github_html)
+        if github_red:
+            subject += " | 🔴 GitHub"
+        run_id = _record_alert_attempt(subject, 0)
+        try:
+            deliver_or_raise(subject, body)
+        except AlertDeliveryError as exc:
+            _close_alert_attempt(run_id, delivered=False, error=safe_error(exc))
+            raise
+        _close_alert_attempt(run_id, delivered=True, error=None)
+        logger.info("Nightly recap delivered: %s", subject)
+
     if not has_issues:
-        # Record the quiet night as well. Without a row, "nothing to report" and
-        # "the scheduler never ran" look identical to any external reader — and the
-        # second is the one that hides everything else.
-        _close_alert_attempt(_record_quiet_run(), delivered=True, error=None)
-        logger.info(f"✅ All systems OK at {now_str} — no alert sent.")
+        _send_recap("nuit calme, rien à signaler")
         return
 
     # ── Build HTML body ──────────────────────────────────────────
@@ -2378,6 +2378,7 @@ def send_consolidated_alert(**context):
     <div style="font-family:Arial,sans-serif;max-width:900px;margin:0 auto">
       <h1 style="color:#2c3e50">📊 Monitoring Music Platform — {now_str}</h1>
       {central_html}
+      {github_html}
       {''.join(sections)}
       {ok_line}
       <hr style="border:none;border-top:1px solid #eee;margin-top:24px">
@@ -2496,7 +2497,12 @@ def send_consolidated_alert(**context):
     suppressed = suppression_reason(digest, _last_digest, _last_at)
     if suppressed:
         _record_suppressed_repeat(subject, len(sections), digest, suppressed)
-        logger.info("✉️  not re-sent (%s): %s", suppressed, subject)
+        logger.info("✉️  full mail not re-sent (%s): %s", suppressed, subject)
+        # The full mail is not repeated (a mail identical every night stops being
+        # read), but the night still gets its recap — short, saying nothing changed.
+        _since = _last_at.strftime('%d/%m') if hasattr(_last_at, 'strftime') else "?"
+        _send_recap(f"{len(sections)} constat(s) inchangé(s) depuis le mail du {_since} "
+                    f"— {subject}")
         return
 
     run_id = _record_alert_attempt(subject, len(sections), digest)
