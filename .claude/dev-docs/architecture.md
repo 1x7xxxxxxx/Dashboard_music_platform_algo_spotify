@@ -68,11 +68,11 @@ graph LR
     CL -->|reads| DB
     COL -->|upsert_many via| PH
 
-    ML[ml_scoring_daily DAG] -->|loads model| MLR[machine_learning/models/v3/]
-    ML -->|scores via| INF[ml_inference.py]
+    INF -->|loads model| MLR[machine_learning/models/v3/]
+    ML[ml_scoring_daily DAG] -->|"score_all_songs()"| INF[utils/ml_inference.py]
     INF -->|writes| DB
 
-    V[views/*.py] -->|"with view_session()"| VS[dashboard/utils/view_session]
+    V[views/*.py] -->|"with view_session()"| VS["dashboard/utils/__init__.py · view_session()"]
     VS -->|ouvre UNE connexion, la ferme a la sortie| GDB[get_db_connection]
 
     TA[trigger_algo/ package] -->|renders via| MW[utils/ml_widgets.py]
