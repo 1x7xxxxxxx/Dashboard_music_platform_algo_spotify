@@ -10947,7 +10947,8 @@
       "guard_type": "posttooluse-hook",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-06-01"
+        "2026-06-01",
+        "2026-09-26"
       ],
       "kind": "heuristic",
       "seen_red": "unknown",
@@ -10957,7 +10958,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-06-01",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11491,7 +11492,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 558,
+      "catalogue_revisions": 559,
       "head_date": "2026-09-26"
     },
     "holes": {

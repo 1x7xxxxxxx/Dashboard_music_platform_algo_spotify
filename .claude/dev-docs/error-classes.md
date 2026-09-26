@@ -5121,6 +5121,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-06-01 (ref: DEVLOG#2026-06-01)
 - History:
   - 2026-06-01: `airflow_kpi.py` `df_runs` `start_date`/`end_date` (Airflow REST ISO strings, mixed offsets across old vs recent runs) → `pd.to_datetime` + `px.timeline` raised "at position 26". Surfaced by the render-smoke harness on fresh live data. Fixed by normalising both columns once at source: `pd.to_datetime(col, utc=True, errors='coerce').dt.tz_localize(None)`. Durable fix: when building a datetime column from heterogeneous string sources, always pass `utc=True` then drop the tz (`.dt.tz_localize(None)`) so every consumer sees uniform naive-UTC. Heuristic + report-only (the grep matches benign `to_datetime` calls). Related: `mixed-date-timestamp`.
+  - 2026-09-26: mesuré sur la base locale (`information_schema.columns`, 1 260 colonnes) : **aucune** colonne de date n'est stockée en texte — 54 `date`, 87 `timestamp`, 43 `timestamptz`. psycopg2 rend chaque colonne typée d'un seul genre (naïve OU consciente) : le mélange ne peut donc naître que de chaînes ISO venues de l'EXTÉRIEUR (l'instance d'origine : l'API REST d'Airflow) ou d'une colonne de DataFrame qui réunit un `timestamp` et un `timestamptz`. La signature (52 `pd.to_datetime` sans `utc=True`) reste rouge sur des lectures SQL typées qui ne peuvent pas mélanger ; le tri du 2026-09-17 tient.
 
 ## api-router-schema-drift
 - status: guarded
