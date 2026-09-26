@@ -52,7 +52,7 @@ def _module_names(tree: ast.Module) -> set[str]:
 # another name (`…lazy_form`, `…would_reject…`, `…goes_red_on_a_lazy_import`,
 # `…separates_the_two_shapes`) — the first version of this guard read only `_PROOF`.
 _PROOF_LIKE = re.compile(
-    r"detector|vacu|goes_red|would_reject|sees_|actually_|separates|really_")
+    r"detector|vacu|goes_red|would_reject|sees_|can_see|actually_|separates|really_")
 
 
 def proofs_over_a_copy(source: str) -> list[int]:

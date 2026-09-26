@@ -55,18 +55,19 @@ def _modules_reading_dsn_env() -> dict:
             if path in _ALLOWED_TO_RESOLVE:
                 continue
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                found = dsn_reads(path.read_text(encoding="utf-8"))
             except SyntaxError:
                 continue
-            found = []
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
-                    continue
-                if node.value in _DSN_VARS:
-                    found.append(f"{node.value}:{node.lineno}")
             if found:
                 out[str(path.relative_to(REPO))] = found
     return out
+
+
+def dsn_reads(source: str) -> list[str]:
+    """`VAR:line` for every DSN variable a module names itself. Pure."""
+    return [f"{n.value}:{n.lineno}" for n in ast.walk(ast.parse(source))
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)
+            and n.value in _DSN_VARS]
 
 
 def test_the_dashboard_uses_the_shared_door():
@@ -153,10 +154,11 @@ def test_the_known_list_has_not_rotted():
 
 def test_the_sweep_can_see_a_direct_read():
     """Non-vacuity: prove the AST walk recognises the shape it forbids."""
-    tree = ast.parse('import os\nx = os.getenv("DATABASE_HOST")\n')
-    hits = [n for n in ast.walk(tree)
-            if isinstance(n, ast.Constant) and n.value == "DATABASE_HOST"]
-    assert hits, "the walk does not see a DSN variable — it guards nothing"
+    # The sweep's OWN predicate — this proof walked the AST with a copy of the rule
+    # until 2026-09-26 (class `a-proof-that-tests-a-copy-of-its-detector`).
+    assert dsn_reads('import os\nx = os.getenv("DATABASE_HOST")\n') == ["DATABASE_HOST:2"], (
+        "the walk does not see a DSN variable — it guards nothing")
+    assert dsn_reads("from src.database.connection import dsn\nx = dsn()\n") == []
 
 
 def test_the_shared_door_still_knows_all_three_sources():
