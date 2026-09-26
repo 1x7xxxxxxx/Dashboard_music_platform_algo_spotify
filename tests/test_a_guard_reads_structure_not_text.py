@@ -534,3 +534,27 @@ def test_the_text_assertion_inventory_does_not_rot():
         + "\n\nLaissé tel quel, l'écart est du budget pour une régression que "
           "personne n'aurait décidé d'admettre."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path):
+    """Non-vacuity on FABRICATED guards: one that reads a Python FILE and searches its
+    text (the shape that went green on its own comment four times) is flagged; the same
+    read through `ast.parse` is not; a guard reading a Makefile has no tree to prefer."""
+    textual = tmp_path / "test_textual.py"
+    textual.write_text(
+        "from pathlib import Path\n"
+        "def test_x():\n"
+        "    body = (Path('src') / 'app.py').read_text()\n"
+        "    assert 'view_session(' in body\n", encoding="utf-8")
+    structural = tmp_path / "test_structural.py"
+    structural.write_text(textual.read_text(encoding="utf-8").replace(
+        "    assert 'view_session(' in body\n",
+        "    import ast\n    assert ast.parse(body)\n"), encoding="utf-8")
+    makefile = tmp_path / "test_makefile.py"
+    makefile.write_text(
+        "from pathlib import Path\n"
+        "def test_x():\n"
+        "    assert 'check-env' in Path('Makefile').read_text()\n", encoding="utf-8")
+    assert _reads_source_textually(textual)
+    assert not _reads_source_textually(structural)
+    assert not _reads_source_textually(makefile)
