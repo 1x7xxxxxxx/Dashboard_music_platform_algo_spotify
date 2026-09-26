@@ -239,12 +239,11 @@ test-durations-missing: ## [SECONDES] Durées des SEULS fichiers de tests inconn
 	@# que les fichiers manquants. `pytest-split` FUSIONNE (sans `--clean-durations`) :
 	@# les durées connues restent, les neuves s'ajoutent. En série, comme l'autre.
 	@test -x $(PYTHON) || { echo "❌ interpréteur absent. Run: make sync"; exit 1; }
-	@missing=$$($(PYTHON) -c "import sys; sys.path.insert(0, 'tests'); \
-	  from test_the_shards_are_balanced_by_real_durations import files_without_duration as f; \
-	  print(' '.join(f()))"); \
-	if [ -z "$$missing" ]; then echo "✅ aucun fichier de tests sans durée"; exit 0; fi; \
-	echo "→ durées à enregistrer : $$missing"; \
-	$(PYTHON) -m pytest $$missing -q -p no:randomly --store-durations
+	@# Au niveau du TEST, pas du fichier : la CI vérifie aussi chaque node-id
+	@# (`check_durations_are_collectable.py`), et un test ajouté à un fichier connu,
+	@# ou renommé, n'est vu que là. `--fix` retire les fantômes, mesure les manquants,
+	@# puis REFAIT la collecte pour rendre le verdict.
+	$(PYTHON) tools/dev/check_durations_are_collectable.py --fix
 
 test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — LA cible de la boucle de code (règle 16)
 	@# Journal comme `make test` : le 2026-09-25 le verdict de cette cible a été tronqué

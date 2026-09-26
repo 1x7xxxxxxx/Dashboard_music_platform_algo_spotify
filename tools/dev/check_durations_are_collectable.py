@@ -45,6 +45,29 @@ def collection_errors(stdout: str) -> list[str]:
                    if ligne.startswith("ERROR tests/")})
 
 
+def fix(fantomes: dict, sans: list[str]) -> int:
+    """Repair `.test_durations` in place: drop the phantom entries, then run ONLY the
+    uncollected-without-duration node-ids, in series, with `--store-durations` —
+    pytest-split merges, so every other entry stays. Seconds, where `make
+    test-durations` re-runs the whole suite in series (297 s).
+
+    Added 2026-09-26: main's CI was red all night on this check and on its file-level
+    twin, and the only remedy named was the full serial run.
+    """
+    durees = json.loads(_DUR.read_text(encoding="utf-8"))
+    for k in fantomes:
+        durees.pop(k, None)
+    _DUR.write_text(json.dumps(durees, sort_keys=True, indent=4) + "\n", encoding="utf-8")
+    print(f"   {len(fantomes)} entrée(s) fantôme(s) retirée(s)")
+    if not sans:
+        return 0
+    print(f"   {len(sans)} test(s) à mesurer, en série…")
+    r = subprocess.run(
+        [sys.executable, "-m", "pytest", *sans, "-q", "-p", "no:randomly",
+         "--store-durations"], cwd=str(_ROOT), timeout=1200)
+    return 0 if r.returncode in (0, 1) else r.returncode
+
+
 def main() -> int:
     if not _DUR.is_file():
         print("❌ `.test_durations` absent — `pytest-split` répartirait sur le NOMBRE "
@@ -102,10 +125,19 @@ def main() -> int:
             print(f"   {k}")
         if len(sans) > 10:
             print(f"   … et {len(sans) - 10} autre(s)")
-    print("\n   Remède : relancer les fichiers concernés EN SÉRIE avec "
-          "`--store-durations` (pytest-split FUSIONNE sans `--clean-durations`), ou "
+    if "--fix" in sys.argv:
+        print("\n→ --fix")
+        return fix(fantomes, sans) or main_check_again()
+    print("\n   Remède : `make test-durations-missing` — retire les fantômes et mesure "
+          "les SEULS tests sans durée, en série (pytest-split FUSIONNE) ; ou "
           "`make test-durations` pour tout régénérer.")
     return 1
+
+
+def main_check_again() -> int:
+    """After a fix, the verdict comes from a fresh collection, not from the fix."""
+    sys.argv = [a for a in sys.argv if a != "--fix"]
+    return main()
 
 
 if __name__ == "__main__":
