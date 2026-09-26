@@ -264,3 +264,5 @@
 {"at": "2026-09-26T01:22:29+00:00", "head": "421b426", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot N (gardes-scripts)"}
 {"at": "2026-09-26T01:34:56+00:00", "head": "51affc3", "kind": "done", "task": "R169", "what": "gardes lot N : 247 -> 245"}
 {"at": "2026-09-26T01:35:00+00:00", "head": "51affc3", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot O"}
+{"at": "2026-09-26T01:37:12+00:00", "head": "3c9f25c", "kind": "done", "task": "R169", "what": "gardes lot O : 245 -> 244"}
+{"at": "2026-09-26T01:37:17+00:00", "head": "3c9f25c", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot P"}

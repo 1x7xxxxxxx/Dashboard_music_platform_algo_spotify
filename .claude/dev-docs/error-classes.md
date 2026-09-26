@@ -847,7 +847,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - kind: deterministic
 - symptom: a package pinned `==X` in one manifest while another manifest / the lockfile / the installed env pins `==Y` → prod≠dev, "works locally breaks in Docker".
 - signature: `python3 tools/dev/check_manifest_consistency.py`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- seen_red: self-proving (tests/test_a_pin_says_the_same_thing_in_every_manifest.py::test_the_detector_sees_the_defect_it_is_written_for) — manifestes fabriqués : trois sources en désaccord, DEUX sources en désaccord, accord, nom présent dans une seule ; muté le 2026-09-26 (seuil à 3 sources) → rouge. Une première version du test restait VERTE sur cette mutation (son exemple avait trois sources) — corrigée avant d'être crue
 - root_cause: three manifests (`pyproject.toml`, `requirements.txt`, `uv.lock`) each state the same pin, and nothing compared them — the Dockerfile installs from one, the dev venv from another.
 - cause_evidence: read (`tools/dev/check_manifest_consistency.py` est appelé aux DEUX endroits qui comptent — `Makefile:505` et `.github/workflows/ci.yml:157`, en étape bloquante. Les trois manifestes sont donc comparés, ce qui est le correctif décrit. Vérifié le 2026-09-17)
 - long_term_fix: one manifest is canonical (`pyproject.toml`) and the others are DERIVED from it; until they are, `check_manifest_consistency.py` blocking in CI is the fix.
