@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import smtplib
+import ssl
 import sys
 from email.message import EmailMessage
 from pathlib import Path
@@ -54,7 +55,7 @@ def build_message(env: dict, detail: str | None = None) -> EmailMessage:
 
 def send(env: dict, msg: EmailMessage) -> None:
     with smtplib.SMTP(env["SMTP_HOST"], int(env.get("SMTP_PORT") or 587), timeout=30) as s:
-        s.starttls()
+        s.starttls(context=ssl.create_default_context())
         s.login(env["SMTP_USER"], env["SMTP_PASSWORD"])
         s.send_message(msg)
 

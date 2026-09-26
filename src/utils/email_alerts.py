@@ -1,6 +1,7 @@
 """Envoi d'alertes email depuis les DAGs Airflow et le monitor de fraîcheur."""
 import os
 import smtplib
+import ssl
 import logging
 from email import encoders
 from email.mime.base import MIMEBase
@@ -124,7 +125,7 @@ class EmailAlert:
             # répond pas. Mesuré en production le 2026-09-04, la poignée de main coûte
             # 0,24 s ; ce plafond ne borne donc que la panne, jamais le cas nominal.
             with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=_SMTP_TIMEOUT_S) as server:
-                server.starttls()
+                server.starttls(context=ssl.create_default_context())
                 server.login(self.smtp_user, self.smtp_password)
                 server.send_message(msg)
 
@@ -202,7 +203,7 @@ class EmailAlert:
             # répond pas. Mesuré en production le 2026-09-04, la poignée de main coûte
             # 0,24 s ; ce plafond ne borne donc que la panne, jamais le cas nominal.
             with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=_SMTP_TIMEOUT_S) as server:
-                server.starttls()
+                server.starttls(context=ssl.create_default_context())
                 server.login(self.smtp_user, self.smtp_password)
                 server.send_message(msg)
 

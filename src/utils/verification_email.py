@@ -6,6 +6,7 @@ Depends on: smtp section in config/config.yaml
 """
 import os
 import smtplib
+import ssl
 import logging
 
 from src.utils.instance_identity import instance_label
@@ -152,7 +153,7 @@ def _send_html(to_email: str, subject: str, html: str,
         # répond pas. Mesuré en production le 2026-09-04, la poignée de main coûte
         # 0,24 s ; ce plafond ne borne donc que la panne, jamais le cas nominal.
         with smtplib.SMTP(smtp_host, smtp_port, timeout=_SMTP_TIMEOUT_S) as server:
-            server.starttls()
+            server.starttls(context=ssl.create_default_context())
             server.login(smtp_user, smtp_pass)
             server.send_message(msg)
 
@@ -486,7 +487,7 @@ def send_verification_email(to_email: str, username: str, token: str,
         # répond pas. Mesuré en production le 2026-09-04, la poignée de main coûte
         # 0,24 s ; ce plafond ne borne donc que la panne, jamais le cas nominal.
         with smtplib.SMTP(smtp_host, smtp_port, timeout=_SMTP_TIMEOUT_S) as server:
-            server.starttls()
+            server.starttls(context=ssl.create_default_context())
             server.login(smtp_user, smtp_pass)
             server.send_message(msg)
 

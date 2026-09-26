@@ -1,0 +1,38 @@
+# Nightly recap — ONE mail every night to the inbox the owner reads (R181, 2026-09-26).
+#
+# The production recap (`alert_monitor`, 23:00) goes to ALERT_EMAIL, an inbox nobody reads;
+# GitHub-side mails reach the read one. This sends, every night, the verdicts of CI main,
+# the security nightly and the production health check (cancelled ≠ red, unreadable ≠
+# green) plus a probe of production's /health. Calm nights too: the absence of this mail
+# means the recap itself stopped. Runs after prod-health (06:17) and the security nightly
+# (03:00). Guard: tests/test_the_github_recap_reaches_the_read_inbox.py.
+name: Nightly recap
+
+on:
+  schedule:
+    - cron: "47 6 * * *"   # 06:47 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  recap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6 — pinned: this job holds the SMTP secrets
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.11"
+
+      - name: Send the nightly recap
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          PROD_HEALTH_MAIL_TO: ${{ secrets.PROD_HEALTH_MAIL_TO }}
+        run: python tools/dev/github_nightly_recap.py

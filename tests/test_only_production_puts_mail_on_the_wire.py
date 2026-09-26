@@ -62,7 +62,7 @@ def wired(monkeypatch):
         def __exit__(self, *a):
             return False
 
-        def starttls(self):
+        def starttls(self, *_a, **_k):
             pass
 
         def login(self, *a):

@@ -17,6 +17,7 @@ Exit: 0 sent · 1 not-configured or send failure (caller logs the message).
 import argparse
 import os
 import smtplib
+import ssl
 import sys
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -155,7 +156,7 @@ def main() -> int:
 
     try:
         with smtplib.SMTP(host, port, timeout=20) as server:
-            server.starttls()
+            server.starttls(context=ssl.create_default_context())
             server.login(user, password)
             # `from_addr=` explicite quand l'en-tête manque : sans lui,
             # `send_message` va CHERCHER `msg["From"]` et lève sur son absence.

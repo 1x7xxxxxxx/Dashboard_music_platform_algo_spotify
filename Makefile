@@ -259,15 +259,16 @@ test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — 
 	@# `xargs -r` : une sélection VIDE (aucun fichier modifié) lançait `pytest -q` sans
 	@# cible, c'est-à-dire la suite entière. `|| true` : sous pipefail, un `grep` qui
 	@# ne trouve rien sortirait 1 et ferait passer « rien à tester » pour un échec.
+	@if git status --porcelain -- 'tests/test_*.py' | grep -q . \
+	   || git diff --name-only @{u}.. -- 'tests/test_*.py' 2>/dev/null | grep -q .; then \
+	  $(MAKE) --no-print-directory test-durations-missing; fi
 	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(PYTHON) .claude/scripts/select_tests.py | { grep -v "^#" || true; } \
 	  | xargs -r $(PYTHON) -m pytest -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; [ $$rc -eq 0 ] || exit $$rc; \
 	  bash -c 'set -o pipefail; $(PYTHON) .claude/scripts/check_guards_are_env_independent.py \
-	    --changed 2>&1 | tee -a .pytest-last.log'; \
-	  if git status --porcelain -- 'tests/test_*.py' | grep -q . \
-	     || git diff --name-only @{u}.. -- 'tests/test_*.py' 2>/dev/null | grep -q .; then \
-	    $(MAKE) --no-print-directory test-durations-missing; fi
-	@# ^ 2026-09-26 : main est passée ROUGE trois fois en un jour sur « test collecté sans
+	    --changed 2>&1 | tee -a .pytest-last.log'
+	@# Durations BEFORE the tests (2026-09-26): the suite's own file-level check fails first,
+	@# so a step after a green run never ran. Main went ROUGE three times that day on « test collecté sans
 	@# durée » — un test neuf que seule la CI mesurait. Dès qu'un fichier de test a bougé
 	@# (arbre ou commits non poussés), la boucle enregistre la durée manquante : une
 	@# collecte (~8 s) et les seuls tests neufs.

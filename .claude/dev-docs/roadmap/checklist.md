@@ -454,7 +454,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 |----|-------|------|--------------------------|
 | R148 | Trois conversations « combien tu paierais » | P3 | trois entretiens de vingt minutes, avec des artistes **qui ont vu leurs données** — runbook §19 |
 | R163 | Brancher Hypeddit sur le pixel et sa Conversions API, au lancement | P3 | **déclencheur : l'app terminée ET une campagne Meta relancée.** Choisir le pixel dans Hypeddit, y coller un jeton CAPI, rattacher le pixel à chaque smart link, vérifier l'évènement en test, puis 48 h après voir `custom_conversions` remonter — runbook §24 |
-| R181 | Un seul mail récapitulatif par nuit — livré et déployé le 2026-09-26, mais il part vers `ALERT_EMAIL` = une autre boîte que celle lue <!-- anchor: nightly-recap --> | P3 | **changer `ALERT_EMAIL` dans le `.env` de prod** puis recréer le planificateur — runbook §29 ; se ferme après 7 nuits consignées dans `ops-mail-journal.md` |
+| R181 | Un seul mail récapitulatif par nuit — livré le 2026-09-26. Le récap **lisible** part désormais de GitHub Actions (`nightly-recap.yml`, 06:47 UTC, vers la boîte lue) ; celui de prod (`alert_monitor`) part encore vers `ALERT_EMAIL` = une autre boîte <!-- anchor: nightly-recap --> | P3 | **changer `ALERT_EMAIL` dans le `.env` de prod** pour recevoir aussi le détail des DAG — runbook §29 ; se ferme après 7 nuits consignées dans `ops-mail-journal.md` |
 
 ⚠️ **R148 vient après l'activation** : demander à
 quelqu'un ce qu'il paierait pour un produit qu'il n'a jamais vu fonctionner ne mesure
