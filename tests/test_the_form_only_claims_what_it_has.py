@@ -40,6 +40,22 @@ _RENDER = _repo_root() / "src" / "dashboard" / "views" / "credentials" / "_rende
 _CAPTION_KEY = "credentials.form.caption"
 
 
+def caption_holders(source: str) -> list[ast.If]:
+    """Every `if` whose body renders the secret caption. Pure."""
+    return [node for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.If)
+            and _CAPTION_KEY in " ".join(ast.unparse(n) for n in node.body)]
+
+
+def secret_gate(source: str) -> str | None:
+    """The condition, among the caption's `if`s, that reads this form's secret fields."""
+    for node in caption_holders(source):
+        test = ast.unparse(node.test)
+        if "secret" in test and "fields_def" in test:
+            return test
+    return None
+
+
 def test_some_platforms_have_secrets_and_some_do_not():
     """Sans les deux cas, une condition ne se distingue pas d'un `if True`."""
     with_secret = [k for k, i in PLATFORMS.items()
@@ -58,15 +74,7 @@ def test_the_secret_caption_is_rendered_under_a_condition():
     commentaire — celui qui explique ce correctif, par exemple — contient le mot
     `secret` et suffirait à une recherche de chaîne.
     """
-    tree = ast.parse(_RENDER.read_text(encoding="utf-8"))
-
-    holders = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.If):
-            continue
-        body_text = " ".join(ast.unparse(n) for n in node.body)
-        if _CAPTION_KEY in body_text:
-            holders.append(node)
+    holders = caption_holders(_RENDER.read_text(encoding="utf-8"))
 
     assert holders, (
         f"« {_CAPTION_KEY} » n'est plus rendu sous aucun `if` : il s'affiche donc "
@@ -91,7 +99,25 @@ def test_the_secret_caption_is_rendered_under_a_condition():
 @pytest.mark.parametrize("platform", sorted(PLATFORMS))
 def test_a_platform_without_secrets_would_not_reach_the_caption(platform):
     """La condition, évaluée sur les données réelles de chaque plateforme."""
+    # The REAL condition, read from `_render.py` and evaluated on this platform's
+    # fields. Until 2026-09-26 this test computed `shows` and `has` with the same
+    # expression written twice — a tautology that could not fail.
+    gate = secret_gate(_RENDER.read_text(encoding="utf-8"))
+    assert gate, "no caption condition reads the form's secret fields"
     fields_def = PLATFORMS[platform].get("fields", [])
-    shows = any(f.get("secret") for f in fields_def)
+    shows = eval(gate, {"any": any}, {"fields_def": fields_def})  # noqa: S307
     has = any(f.get("secret") for f in fields_def)
-    assert shows == has, f"{platform} : la condition ne suit pas ses champs"
+    assert bool(shows) == has, f"{platform} : la condition ne suit pas ses champs"
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the caption under `if True:` (or under a hand-typed platform list)
+    offers no secret gate; under the registry-derived condition it does."""
+    def render(cond: str) -> str:
+        return (f"if existing_row:\n    if {cond}:\n"
+                f"        st.caption(t('{_CAPTION_KEY}'))\n")
+
+    assert secret_gate(render("True")) is None
+    assert secret_gate(render("platform in ('meta', 'youtube')")) is None
+    good = "any(f.get('secret') for f in fields_def)"
+    assert secret_gate(render(good)) is not None

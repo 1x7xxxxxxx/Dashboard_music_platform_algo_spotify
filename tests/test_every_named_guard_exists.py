@@ -82,14 +82,28 @@ def test_every_test_a_class_names_still_exists(rel, node):
     depend on the test passing today — only on it being there to fail."""
     path = REPO / rel
     assert path.exists(), f"{rel} is gone, and a class points at {node} inside it"
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+    assert node in defined_nodes(path.read_text(encoding="utf-8")), (
+        f"{rel}::{node} is named by an error class and no longer exists. Deleting a "
+        "guard silently re-opens the class it was closing; if the guard is genuinely "
+        "obsolete, retire the class in the same change.")
+
+
+def defined_nodes(source: str) -> set[str]:
+    """Every function or class a pytest node id could name in `source`. Pure."""
+    tree = ast.parse(source)
     # `ClassDef` aussi : `tests/x.py::TestFoo` est un nœud pytest parfaitement
     # valide, et ne collecter que les fonctions faisait échouer ce garde sur une
     # référence PARFAITEMENT bonne — un faux positif dans le garde qui traque les
     # références mortes aurait été la meilleure façon de le faire désactiver.
-    names = {n.name for n in ast.walk(tree)
-             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))}
-    assert node in names, (
-        f"{rel}::{node} is named by an error class and no longer exists. Deleting a "
-        "guard silently re-opens the class it was closing; if the guard is genuinely "
-        "obsolete, retire the class in the same change.")
+    return {n.name for n in ast.walk(tree)
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))}
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: a node renamed away is not found, nor one named only in a comment
+    or a docstring; a test function and a `TestFoo` class are."""
+    src = ("class TestFoo:\n    def test_a(self): pass\n"
+           'def test_b():\n    "was test_old_name"\n# test_older_name\n')
+    nodes = defined_nodes(src)
+    assert {"TestFoo", "test_a", "test_b"} <= nodes
+    assert "test_old_name" not in nodes and "test_older_name" not in nodes
