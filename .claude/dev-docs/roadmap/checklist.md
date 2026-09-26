@@ -25,7 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R196 | Aucune action sans ligne de roadmap AVANT : hook PreToolUse sur le code produit (index vide ⇒ refus), hook `commit-msg` (Rnnn présent dans la roadmap de HEAD), même contrôle en CI sur les commits poussés — décision du propriétaire 2026-09-26 <!-- anchor: roadmap-before-action --> | P3 | `tests/test_an_action_is_on_the_roadmap_before_it_runs.py` |
 
 **Huit lignes y sont entrées le 2026-09-25 au soir**, toutes issues de l'audit de la
 surveillance des classes d'erreur — détail dans « 🧭 R167 – R176 » juste sous cet index.
@@ -221,7 +220,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R196 -->
+<!-- reprise: open= -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers

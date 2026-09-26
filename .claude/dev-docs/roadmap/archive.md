@@ -9,6 +9,27 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+## 🚧 R196 — aucune action sans ligne de roadmap AVANT (livrée 2026-09-26)
+
+Décision du propriétaire 2026-09-26 : toutes les actions, micro-demandes comprises,
+avant d'écrire le code. Livrée le même jour, CI verte, job `roadmap` exécuté et vert sur
+le push (`2a266fc`).
+
+- [x] **R196 — trois barrières : hook PreToolUse `.claude/hooks/require_roadmap_entry.py`
+  (index sans ligne ouverte ⇒ modification de `src/`, `airflow/dags/`, `migrations/`
+  refusée, prochain id donné) ; hook git `commit-msg` `roadmap-before-code`
+  (`tools/dev/require_roadmap_id.py` : Rnnn OUVERT dans le commit précédent, une ligne
+  archivée ne compte pas — code-critic) ; job CI `roadmap` en `--range` (prouvé : un
+  commit `--no-verify` sans id est refusé, exit 1, dans un clone jetable).** (P3) ✅
+  (2026-09-26, `2a266fc`)
+
+  Mesuré avant : 41 des 118 commits de code depuis le 2026-09-12 sans id. Garde :
+  `tests/test_an_action_is_on_the_roadmap_before_it_runs.py`, auto-prouvé, 5 mutations
+  rouges. Limite déclarée : avec plusieurs lignes ouvertes, rien ne prouve que le diff
+  EST la tâche citée.
+
+---
+
 ## 🖼️ R194 · R195 — page Spotify en deux colonnes, le verdict de la pub déplacé (livrées 2026-09-26)
 
 Demandées le 2026-09-26, livrées et déployées le même jour (`c1d4347`, dashboard `c1d43476`
