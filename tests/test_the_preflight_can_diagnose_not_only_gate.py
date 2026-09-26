@@ -58,21 +58,42 @@ def test_the_stop_message_names_the_way_out():
     )
 
 
-def test_the_gate_still_stops_by_default():
+def _grinch_steps():
+    """The 2026-08-24 shape: step 2 red, and the step that mattered comes AFTER it."""
+    return [("central apps", lambda: True),
+            ("tenant identity", lambda: False),
+            ("connection tests", lambda: True)]
+
+
+def test_the_gate_still_stops_by_default(capsys):
     """La porte reste une porte : `--diagnose` est une option, jamais le défaut."""
-    src = _source()
-    assert "if not args.diagnose:" in src, (
-        "l'arrêt au premier rouge n'est plus conditionné à l'ABSENCE de "
-        "`--diagnose` : soit la porte a disparu, soit le diagnostic est devenu le "
-        "comportement par défaut. Les deux sont des régressions."
-    )
-    assert "return 1" in src, "un préflight rouge doit sortir non-zéro"
+    from tools.artist_preflight import run_steps
+
+    rc, ran, failed = run_steps(_grinch_steps())
+    assert rc == 1 and failed == ["tenant identity"], "un préflight rouge sort non-zéro"
+    assert ran == ["central apps", "tenant identity"], (
+        f"le mode par défaut a joué {ran} : il ne s'arrête plus au premier rouge, "
+        "donc la porte a disparu")
+    assert "--diagnose" in capsys.readouterr().out, "l'arrêt ne nomme plus la sortie"
 
 
 def test_diagnose_mode_still_returns_a_red_verdict():
     """Tout mesurer ne veut pas dire tout excuser."""
-    src = _source()
-    assert "failed_steps" in src and "Diagnostic terminé" in src, (
-        "le mode diagnostic ne récapitule plus les étapes rouges — il rendrait un "
-        "vert sur un locataire cassé."
-    )
+    from tools.artist_preflight import run_steps
+
+    rc, ran, failed = run_steps(_grinch_steps(), diagnose=True)
+    assert ran == [label for label, _ in _grinch_steps()], (
+        f"`--diagnose` n'a joué que {ran} : le test de connexion de GRiNCH ne tourne "
+        "toujours pas")
+    assert rc == 1 and failed == ["tenant identity"], (
+        "le mode diagnostic rend un vert sur un locataire cassé")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the green path returns 0 in both modes — the two tests above are
+    red because of the red step, not because `run_steps` always returns 1."""
+    from tools.artist_preflight import run_steps
+
+    green = [("a", lambda: True), ("b", lambda: True)]
+    assert run_steps(green)[:2] == (0, ["a", "b"])
+    assert run_steps(green, diagnose=True)[:2] == (0, ["a", "b"])

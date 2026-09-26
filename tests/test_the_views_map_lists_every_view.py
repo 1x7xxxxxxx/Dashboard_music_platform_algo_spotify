@@ -81,10 +81,21 @@ def _is_package(view: str) -> bool:
     return (VIEWS_DIR / view).is_dir()
 
 
+def is_named(view: str, body: str) -> bool:
+    """Does the map name this view anywhere? Pure."""
+    return re.search(rf"`{re.escape(view)}(?:\.py|/)?`", body) is not None
+
+
+def ghosts_in(body: str, views: set[str]) -> list[str]:
+    """Views the map gives a ROW to (first cell only) that no longer exist. Pure."""
+    first_cells = re.findall(r"^\| `([a-z_0-9]+)(?:\.py|/)?`", body, re.M)
+    return sorted(set(first_cells) - views)
+
+
 @pytest.mark.parametrize("view", sorted(_views()))
 def test_every_view_is_named_in_the_views_map(view):
     body = _views_map_text()
-    assert re.search(rf"`{re.escape(view)}(?:\.py|/)?`", body), (
+    assert is_named(view, body), (
         f"`{view}` exists under src/dashboard/views/ but the Dashboard Views Map in "
         f"architecture.md does not name it. Add a row: file, page name, data sources, "
         f"role. The map is what a reader consults instead of listing the directory — "
@@ -99,8 +110,7 @@ def test_the_map_does_not_name_views_that_are_gone():
     prose (`saisie_s4a.py` mentions the deleted `reglages.py` on purpose, to record
     what replaced it) is not mistaken for a live entry.
     """
-    first_cells = re.findall(r"^\| `([a-z_0-9]+)(?:\.py|/)?`", _views_map_text(), re.M)
-    ghosts = sorted(set(first_cells) - _views())
+    ghosts = ghosts_in(_views_map_text(), _views())
     assert not ghosts, (
         f"the Views Map has rows for {ghosts}, which no longer exist under "
         "src/dashboard/views/. A map that points at deleted modules sends readers "
@@ -182,3 +192,16 @@ def test_at_least_one_view_of_each_shape_exists():
     assert formes == {True, False}, (
         f"l'arbre ne porte plus qu'une seule forme de vue ({formes}) — "
         "`test_the_map_says_whether_a_view_is_a_file_or_a_package` ne prouve plus rien")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, both directions: a view absent from the map is seen, a row for a
+    deleted view is seen, and a deleted view named in ANOTHER row's prose (the
+    `saisie_s4a` → `reglages` case) is not mistaken for a row."""
+    body = ("| `home.py` | Accueil | - | all |\n"
+            "| `reglages.py` | Réglages | - | all |\n"
+            "| `saisie_s4a.py` | Saisie (remplace `reglages.py`) | - | all |\n")
+    assert not is_named("youtube", body) and is_named("home", body)
+    assert ghosts_in(body, {"home", "saisie_s4a"}) == ["reglages"]
+    assert ghosts_in(body.replace("| `reglages.py` | Réglages | - | all |\n", ""),
+                     {"home", "saisie_s4a"}) == []

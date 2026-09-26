@@ -228,6 +228,35 @@ def step_contamination(db, artist_id: int) -> bool:
     return not findings
 
 
+def run_steps(steps, diagnose: bool = False) -> tuple[int, list[str], list[str]]:
+    """Play the steps; (exit code, labels RUN, labels RED). The default is the GATE.
+
+    Gate: stop at the first red — everything after it is unproven, and saying so is this
+    tool's job. `diagnose`: play every step and still return red — measured 2026-08-24 on
+    GRiNCH, the gate stopped at step 2 and the SoundCloud connection test, the one
+    platform declared and the one not collecting, never ran.
+    """
+    ran, failed_steps = [], []
+    for label, step in steps:
+        ran.append(label)
+        if step():
+            continue
+        failed_steps.append(label)
+        if not diagnose:
+            print(f"\n{_KO} STOP — «{label}» is red. Fix it before inviting an "
+                  "artist; everything after it is untested.\n"
+                  "    Pour un artiste DÉJÀ inscrit, relance avec `--diagnose` : "
+                  "toutes les étapes sont jouées, y compris les plateformes "
+                  "qu'il a réellement configurées.")
+            return 1, ran, failed_steps
+    if failed_steps:
+        print(f"\n{_KO} Diagnostic terminé — étape(s) rouge(s) : "
+              f"{', '.join(failed_steps)}. Rien n'est prouvé au-delà de la "
+              "première, mais tout a été mesuré.")
+        return 1, ran, failed_steps
+    return 0, ran, failed_steps
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--artist", type=int, default=None,
@@ -301,24 +330,9 @@ def main() -> int:
         # `--diagnose` parcourt donc toutes les étapes et rend le même verdict
         # global, sans rien cacher : on ne relâche pas la porte, on ajoute la
         # lampe.
-        failed_steps = []
-        for label, step in steps:
-            ok = step()
-            if ok:
-                continue
-            failed_steps.append(label)
-            if not args.diagnose:
-                print(f"\n{_KO} STOP — «{label}» is red. Fix it before inviting an "
-                      "artist; everything after it is untested.\n"
-                      "    Pour un artiste DÉJÀ inscrit, relance avec `--diagnose` : "
-                      "toutes les étapes sont jouées, y compris les plateformes "
-                      "qu'il a réellement configurées.")
-                return 1
-        if failed_steps:
-            print(f"\n{_KO} Diagnostic terminé — étape(s) rouge(s) : "
-                  f"{', '.join(failed_steps)}. Rien n'est prouvé au-delà de la "
-                  "première, mais tout a été mesuré.")
-            return 1
+        rc = run_steps(steps, diagnose=args.diagnose)[0]
+        if rc:
+            return rc
     finally:
         db.close()
 

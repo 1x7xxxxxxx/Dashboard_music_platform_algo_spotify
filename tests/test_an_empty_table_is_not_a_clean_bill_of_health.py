@@ -29,13 +29,13 @@ _PANELS = [
 ]
 
 
-def _success_calls_near_circuit_table(path: pathlib.Path) -> list:
+def _success_calls_near_circuit_table(source: str) -> list:
     """`st.success(...)` dans une fonction qui interroge `etl_circuit_breaker`.
 
     AST : la question est « cette fonction affirme-t-elle une bonne santé ? », et un
     `grep` sur `st.success` répondrait pour toute la page.
     """
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+    tree = ast.parse(source)
     out = []
     for fn in ast.walk(tree):
         if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -52,15 +52,18 @@ def _success_calls_near_circuit_table(path: pathlib.Path) -> list:
     return out
 
 
+def unguarded_health_claims(source: str) -> list:
+    """The ✅ claims on the circuit table, when nothing checks the table is written. Pure."""
+    hits = _success_calls_near_circuit_table(source)
+    return [] if not hits or "circuit_mechanism_is_recording" in source else hits
+
+
 @pytest.mark.parametrize("rel", _PANELS, ids=_PANELS)
 def test_a_health_claim_is_guarded_by_evidence(rel: str):
     """Un ✅ sur cette table doit être conditionné à « la table est écrite »."""
-    path = ROOT / rel
-    hits = _success_calls_near_circuit_table(path)
-    if not hits:
-        return  # aucun ✅ affirmé : rien à garder
-    source = path.read_text(encoding="utf-8")
-    assert "circuit_mechanism_is_recording" in source, (
+    source = (ROOT / rel).read_text(encoding="utf-8")
+    hits = unguarded_health_claims(source)
+    assert not hits, (
         f"{rel} affirme une bonne santé (st.success, ligne(s) "
         f"{[h[1] for h in hits]}) à partir d'une requête qui ne rend rien aussi bien "
         "quand tout va bien que quand personne n'écrit dans la table. Conditionner à "
@@ -99,3 +102,18 @@ def test_a_recorded_failure_never_persists_a_raw_credential():
     assert "EAAG_SUPER_SECRET" not in out
     assert "access_token=***" in out
     assert len(out) <= 500
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: a ✅ drawn from an EMPTY `etl_circuit_breaker` query is refused; the
+    same ✅ conditioned on the recorder, and a ✅ in a function that never reads the
+    table, are accepted."""
+    defect = ("import streamlit as st\n"
+              "def show_circuits(db):\n"
+              "    rows = db.fetch_query('SELECT * FROM etl_circuit_breaker')\n"
+              "    if not rows:\n"
+              "        st.success('Aucun circuit ouvert')\n")
+    assert unguarded_health_claims(defect) == [("show_circuits", 5)]
+    fixed = defect.replace("    if not rows:", "    if not rows and circuit_mechanism_is_recording(db):")
+    assert unguarded_health_claims(fixed) == []
+    assert unguarded_health_claims("import streamlit as st\ndef f():\n    st.success('ok')\n") == []
