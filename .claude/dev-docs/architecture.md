@@ -118,7 +118,7 @@ graph LR
 | `src/api/routers/*.py` | Feature | `api/deps.py` — 7 routeurs : artists, auth, kpis, ml, streams, stripe_webhook, youtube |
 | `src/dashboard/serve.py` | Core | l'ENTRÉE du conteneur (`CMD`) — démarre l'exportateur de métriques PUIS `streamlit run`, même processus |
 | `src/dashboard/utils/__init__.py` | Core | `view_session()` — le gabarit obligatoire d'une vue neuve (règle transverse #7) |
-| `src/utils/*.py` | Utility | 69 modules (`ls src/utils/*.py | grep -v __init__ | wc -l`, 2026-09-26) — dont `metrics.py`, `request_throttle.py`, `dag_run_logger.py`, `circuit_breaker.py` |
+| `src/utils/*.py` | Utility | 69 modules hors `__init__` (recompté le 2026-09-26) — dont `metrics.py`, `request_throttle.py`, `dag_run_logger.py`, `circuit_breaker.py` |
 | `retry.py` | Utility | — |
 | `config_loader.py` | Utility | config/config.yaml |
 | `credential_loader.py` | Utility | PostgresHandler, Fernet |
