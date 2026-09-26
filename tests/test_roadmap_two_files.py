@@ -39,10 +39,11 @@ ARCHIVE = ROADMAP / "archive.md"
 _OPEN = re.compile(r"^\s*- \[ \]", re.M)
 _DONE = re.compile(r"^\s*- \[[xX]\]", re.M)
 
-# Measured at the 2026-08-03 split: 19 open + 221 done = 240 items total,
-# of which 214 delivered ones landed in the archive.
-_TOTAL_ITEMS_FLOOR = 240
-_ARCHIVE_DONE_FLOOR = 214
+# Measured at the 2026-08-03 split: 19 open + 221 done = 240 items total, of which 214
+# delivered ones landed in the archive. Raised to the measure on 2026-09-26 (R201): at 240
+# for 469 real items, ~229 could vanish before this floor noticed. Raised, never lowered.
+_TOTAL_ITEMS_FLOOR = 469
+_ARCHIVE_DONE_FLOOR = 467
 
 
 def _counts(p: Path) -> tuple[int, int]:
@@ -138,8 +139,8 @@ def test_no_brick_id_vanishes_from_both_files() -> None:
         bloc R92 restait verte. On ne compte donc qu'un bloc (`- [ ] **R92 —`,
         coché ou non) ou une ligne d'index (`| R92 |`).
         """
-        return (set(re.findall(r"^- \[[ x]\] \*\*(R\d{1,3}) ", text, re.M))
-                | set(re.findall(r"^\|\s*(R\d{1,3})\s*\|", text, re.M)))
+        return (set(re.findall(r"^- \[[ x]\] \*\*(R\d+) ", text, re.M))
+                | set(re.findall(r"^\|\s*(R\d+)\s*\|", text, re.M)))
 
     here = _ids(code_of(ACTIVE)) | _ids(code_of(ARCHIVE))
 

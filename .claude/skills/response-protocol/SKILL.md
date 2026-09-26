@@ -85,7 +85,7 @@ After every substantive response (file created, file edited, architectural decis
    - Fill `entry.fix` (≤200 chars, the concrete action)
    - Add `entry.ref` if there's a DEVLOG/brick anchor
    The Stop-hook chain (`draft_rex.py` → `promote_rex.py`) will then auto-inject validated drafts into each tool's `rex:` frontmatter list. Drafts left with `issue: "?"` stay pending. Replaces the legacy `retro.md` log.
-3. **`.claude/dev-docs/roadmap/checklist.md`** — mark completed items, add newly discovered work items
+3. **`.claude/dev-docs/roadmap/checklist.md`** — add newly discovered work as index rows (R196); a delivered row leaves by `make roadmap-close ID=Rnnn`, never by ticking it in place
 4. **`DEVLOG.md`** — append session summary entry (Why, What changed, Technical choices, Status)
 
 The agent must complete all 4 updates in a single execution pass before exiting.

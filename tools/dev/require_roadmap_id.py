@@ -12,7 +12,8 @@ Owner, 2026-09-26: « comment peut-on se garantir d'inscrire une action en roadm
 l'exécuter ? ». Measured over the 118 product-code commits since 2026-09-12: 41 cited no
 roadmap id, 15 wrote their id in the SAME commit as the code — after the fact. Every
 existing mechanism only reminded (`check_roadmap_update.py`) or suggested
-(`draft_roadmap.py`); a note does not hold a reflex, a gate does.
+(`draft_roadmap.py`) — both retired to `.claude/.retired/hooks/` by R201; a note does not
+hold a reflex, a gate does.
 
 The rule, for a commit that touches product code (`src/`, `airflow/dags/`, `migrations/`):
 its message cites >= 1 `Rnnn` that is an OPEN row of the index table in the PARENT commit —

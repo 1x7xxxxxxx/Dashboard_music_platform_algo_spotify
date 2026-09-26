@@ -58,8 +58,8 @@ un déplacement — le baisser est exactement la régression que ce test attrape
 
 ## Quand il n'y a rien à recompter
 
-Une ROADMAP sans compteur agrégé est un cas réel, pas un défaut : `n8n` a deux
-sections — `## Bricks — backlog` et `## Completed` — et aucune statistique. J'y
+Une ROADMAP sans compteur agrégé est un cas réel, pas un défaut : c'est le cas de
+celle-ci (`checklist.md` / `archive.md` n'en portent aucune). J'y
 déplace la brique, et je réponds « aucune statistique agrégée dans ce fichier :
 rien à recompter ».
 

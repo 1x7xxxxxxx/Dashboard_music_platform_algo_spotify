@@ -3,7 +3,7 @@
 
 Type: Utility
 Uses: git, .claude/dev-docs/roadmap/checklist.md
-Triggers: `make night-status` / `make night-log` / `make night-park`, à chaque réveil
+Triggers: `make night-status` / `make night-note` / `make night-park`, à chaque réveil
 Persists in: .claude/dev-docs/roadmap/night-run.jsonl (append-only)
 
 Le problème que ça résout, et le seul

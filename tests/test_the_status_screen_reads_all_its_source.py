@@ -2,7 +2,7 @@
 
 Type: Test
 Uses: ast, tools.dev.night_run
-Depends on: tools/dev/night_run.py, .claude/hooks/check_roadmap_update.py
+Depends on: tools/dev/night_run.py
 Persists in: nothing
 
 Les deux défauts
@@ -35,7 +35,6 @@ from pathlib import Path
 
 _REPO = Path(__file__).resolve().parents[1]
 _NIGHT = _REPO / "tools" / "dev" / "night_run.py"
-_HOOK = _REPO / ".claude" / "hooks" / "check_roadmap_update.py"
 _ROADMAP = _REPO / ".claude" / "dev-docs" / "roadmap" / "checklist.md"
 
 
@@ -114,33 +113,6 @@ def test_git_unavailable_is_not_a_clean_tree() -> None:
     assert fn is not None, "`_git` a disparu"
     raises = [n for n in ast.walk(fn) if isinstance(n, ast.Raise)]
     assert raises, "`_git` ne lève plus : son échec redevient indistinguable d'un succès vide"
-
-
-def test_the_roadmap_hook_filters_on_a_path_that_exists() -> None:
-    """Un filtre d'entrée qui vise un répertoire absent est un hook mort."""
-    tree = ast.parse(_HOOK.read_text(encoding="utf-8"))
-    include = None
-    for node in ast.walk(tree):
-        if not (isinstance(node, ast.Assign) and node.targets):
-            continue
-        tgt = node.targets[0]
-        if isinstance(tgt, ast.Name) and tgt.id == "_INCLUDE":
-            call = node.value
-            if isinstance(call, ast.Call):
-                include = [a.value for a in call.args if isinstance(a, ast.Constant)]
-    assert include is not None, "`_INCLUDE` a disparu de check_roadmap_update.py"
-    # ⚠️ La première version ne testait que `include[0]` — donc `src`, qui existe.
-    # Muter le filtre en `src/Application` la laissait VERTE : elle gardait le préfixe,
-    # pas le chemin. C'est le défaut du hook, commis dans le garde du hook.
-    # On teste le chemin JOINT, celui que le hook compare vraiment.
-    joined = Path(*[c for c in include if c])
-    assert (_REPO / joined).is_dir(), (
-        f"le hook filtre sur `{joined}` qui n'est pas un répertoire de ce dépôt — "
-        f"il sortira 0 sur chaque édition, comme `src/Application` l'a fait "
-        f"jusqu'au 2026-09-17")
-
-
-# ── Trois défauts de plus, fermés le 2026-09-17 après l'audit REX ─────────────
 
 
 def test_an_index_row_without_a_priority_is_still_seen() -> None:

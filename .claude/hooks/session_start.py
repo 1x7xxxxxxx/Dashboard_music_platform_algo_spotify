@@ -49,7 +49,7 @@ def _brick_banner(repo_root: Path) -> str | None:
             f"\n=== Active brick session ===\n"
             f"Brick {bid} — iteration {it}, last step: {last_step}\n"
             f"Status: running. Working tree: {fc} file(s) touched.\n"
-            f"To resume: type `/work-brick {bid}`\n"
+            f"To resume: reopen task {bid} from .claude/dev-docs/roadmap/checklist.md\n"
             f"To abandon: edit .claude/sessions/brick_session.json → status=paused\n"
             f"=== End brick session ===\n"
         )
@@ -60,7 +60,7 @@ def _brick_banner(repo_root: Path) -> str | None:
             f"Brick {bid} — status: {status}\n"
             f"Reason: {reason}\n"
             f"Inspect .claude/sessions/brick_session.json, then either:\n"
-            f"  - fix the blocker and re-launch `/work-brick {bid}`\n"
+            f"  - fix the blocker and resume task {bid}\n"
             f"  - delete the state file to start fresh\n"
             f"=== End brick session ===\n"
         )

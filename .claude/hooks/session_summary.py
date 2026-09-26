@@ -78,7 +78,7 @@ def format_git_summary(lines: list[str]) -> str:
     detail = "\n  ".join([""] + lines[:5])
     if len(lines) > 5:
         detail += f"\n  … et {len(lines) - 5} autre(s)"
-    reminder = '\n💡 Before /clear : update DEVLOG.md, check off ROADMAP.md items, run /retro to promote pending REX drafts'
+    reminder = '\n💡 Before /clear : update DEVLOG.md, close delivered roadmap rows (make roadmap-close ID=Rnnn), run /retro to promote pending REX drafts'
     return header + detail + reminder
 
 
@@ -567,7 +567,7 @@ def main():
         sections.append(
             "\n📋 Post-session deliverables not updated:\n"
             + "\n".join(deliverable_warnings)
-            + "\n  → Update ROADMAP.md, DEVLOG.md before /clear; run /retro to promote pending REX drafts"
+            + "\n  → make roadmap-close for delivered rows, update DEVLOG.md before /clear; run /retro to promote pending REX drafts"
         )
 
     # 7. Observations visibility

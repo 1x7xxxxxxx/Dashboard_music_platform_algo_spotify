@@ -361,7 +361,7 @@ return {
   completeness: improve,
   deploy_order: [
     '1. ROADMAP first — every item above, each with the command that measured it and its OUTPUT (rule 4)',
-    '2. then the deferred batch, ONCE: pytest tests/ -q · audit_invariants.py · audit_runner --deterministic --coverage · validate_rex.py · roadmap_stats.py --write',
+    '2. then the deferred batch, ONCE: pytest tests/ -q · audit_invariants.py · audit_runner --deterministic --coverage · validate_rex.py · make roadmap-discipline',
     '3. then commit the approved fixes and push origin master (the VPS pulls — an unpushed commit is invisible to prod)',
     '4. DEVLOG: Why / What changed / Backtest evidence',
     '⚠️ never edit a tracked file while the suite runs — such a run is contaminated, not green',

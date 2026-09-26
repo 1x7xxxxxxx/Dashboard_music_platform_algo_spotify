@@ -22,7 +22,7 @@ Generate a concise session start-up summary from the active roadmap.
 Date: YYYY-MM-DD
 
 Actionable now:
-- <items from the `## 📋 Tâches ouvertes` index whose statut is neither BLOQUÉ nor DIFFÉRÉ>
+- <rows of the `## 📋 Tâches ouvertes` index, in order — id, task, P>
 
 Waiting on you (not startable by a session):
 - <items from the `## 🙋 En attente de toi` index, each with the gesture it awaits>
@@ -30,11 +30,11 @@ Waiting on you (not startable by a session):
   table sur deux et pouvait annoncer un sprint vide alors qu'une tâche attendait le
   propriétaire. Classe `a-status-screen-that-reads-half-its-source`.
 
-Blocked (and on what):
-- <id — the blocker named in the statut column, verbatim; never paraphrase a blocker>
+Parked (and on what):
+- <the `## ⏸️ Rnnn` sections, each with its reopening condition, verbatim>
 
-Open bugs:
-- <unchecked items under `## Open Bugs`, highest priority first>
+Discipline:
+- <the summary line of `make roadmap-discipline` (R197)>
 
 State of play:
 - <2 lines max from `## 🔖 REPRISE`>

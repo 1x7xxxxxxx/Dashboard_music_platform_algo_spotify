@@ -12,7 +12,7 @@ first product-code edit is refused while the index table of the roadmap has no o
 the refusal names the next free id and the gesture. The commit half
 (`tools/dev/require_roadmap_id.py`, git commit-msg + CI) binds each commit to an open id.
 
-Why this is not the hook code-critic rejected on 2026-09-25 (see draft_roadmap.py): that one
+Why this is not the hook code-critic rejected on 2026-09-25 (see .claude/.retired/hooks/draft_roadmap.py): that one
 fired on a line the model must first write, so it never saw the action the model FORGOT.
 This one fires on the gesture itself — editing product code — which cannot be forgotten.
 

@@ -67,8 +67,8 @@ a tourné **31 minutes sans rien écrire** sur une rotation d'un item, qui a dû
 1. Read `.claude/dev-docs/roadmap/checklist.md`.
 
 2. **Locate the task.** Find the row in `## 📋 Tâches ouvertes` whose `id` equals `<id>`,
-   and its matching detailed `- [ ]` line further down (match by the task wording — the
-   `R*` ids live only in the top index, the detail lines are prose, so match on content).
+   and its matching detailed `- [ ]` line further down (match by the id first — `- [ ] **Rnnn` —
+   then by the task wording when a detail line carries no id).
    If the id is ambiguous or not found, stop and list the candidate rows — do not guess.
 
 3. **Tick the detail line:** change its `- [ ]` to `- [x]` and append ` ✅ (YYYY-MM-DD<,

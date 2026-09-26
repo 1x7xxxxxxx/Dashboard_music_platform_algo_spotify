@@ -115,8 +115,11 @@ def test_the_anchor_matches_the_open_index():
     )
 
 
-def test_the_index_is_not_empty_of_both_sections():
-    """Non-vacuity: two empty tables would make the comparison above trivially true."""
+def test_the_row_pattern_still_reads_a_roadmap_row():
+    """Non-vacuity of the PATTERN, not of the roadmap — an empty index is legitimate.
+
+    Renamed 2026-09-26 (R201): it was called « index is not empty », which it never
+    checked, deliberately (see below)."""
     text = _text()
     assert _ACTIONABLE_H in text and _WAITING_H in text
     # DÉPLACÉE le 2026-09-10 — troisième garde du dépôt à ancrer sa non-vacuité sur
@@ -204,6 +207,8 @@ def test_the_detector_sees_the_defect_it_is_written_for():
 # a one-row index; that prose moved, word for word, into archive.md (« 🗄️ Historique de
 # l'actif »). What stays is live: the index, the parked tasks, the waiting conditions that
 # `make reopen-check` evaluates, the standing instructions. A ratchet, frozen at the measure.
+# Mutation record, 2026-09-26: ceiling set to 100 on the 244-line file → this test went red
+# (1 failed); restored to 250 → green.
 _MAX_ACTIVE_LINES = 250
 
 

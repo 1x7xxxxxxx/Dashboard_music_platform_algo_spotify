@@ -9,7 +9,7 @@
 | guard_destructive.py | PreToolUse Bash | Blocks/warns dangerous commands | 2 = block, 0 = warn |
 | pre_commit_scan.py | PreToolUse git commit | Blocks secrets + debug artifacts | 2 = block, 0 = warn |
 | check_python_syntax.py | PostToolUse Write/Edit | ruff syntax check | 2 = block, 0 = warn |
-| check_roadmap_update.py | PostToolUse Write/Edit | Reminds if ROADMAP stale | 0 = remind |
+| ~~check_roadmap_update.py~~ | retiré 2026-09-26 (R201) | remplacé par les barrières R196 | `.claude/.retired/hooks/` |
 | observe.py | PostToolUse Write/Edit | Appends to observations.jsonl | 0 = ok |
 | context_monitor.py | PostToolUse (all) | Warns at high turn count | 0 = warn |
 | pre_compact.py | PreCompact | Saves session snapshot | 0 = ok |
