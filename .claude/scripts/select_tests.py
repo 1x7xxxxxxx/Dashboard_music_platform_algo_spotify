@@ -604,6 +604,38 @@ def tests_reading_the_directory(changed: list[str], all_tests: set[str],
     return hits
 
 
+_SCANS_TEST_FILES = re.compile(r"""glob\(\s*["']test_\*\.py["']\s*\)""")
+
+
+def tests_scanning_the_test_files(changed: list[str], all_tests: set[str],
+                                  known: dict[str, Path]) -> set[str]:
+    """Meta-guards that walk `tests/` — selected whenever a TEST file changes.
+
+    A guard like `_TESTS.glob("test_*.py")` judges every test file (no text
+    assertion on source, no `.py` path read by text, every proof calling its
+    detector…). It imports nothing the changed test imports and names neither the
+    file nor, usually, its folder: the three rules above never pick it. Measured on
+    2026-09-26: a fixture literal `"kpi_helpers.py"` added to one test passed
+    `make test-changed` green and was caught one commit later by
+    `test_a_guard_reads_structure_not_text`, selected by accident. 17 files scan
+    this way.
+    """
+    if not any(is_test(c) for c in changed):
+        return set()
+    hits: set[str] = set()
+    for mod, p in known.items():
+        if mod not in all_tests:
+            continue
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            hits.add(mod)
+            continue
+        if _SCANS_TEST_FILES.search(text):
+            hits.add(mod)
+    return hits
+
+
 def select(root: Path, base: str | None = None, _max_depth: int | None = None,
            _sans_dossier: bool = False) -> dict:
     """Rend {'all': bool, 'tests': [...], 'reason': str}.
@@ -708,6 +740,9 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None,
     par_dossier = set() if _sans_dossier else (
         tests_reading_the_directory(non_py, set(all_tests), known) - picked)
     picked |= par_dossier                              # glob du dossier, sans le nom
+    meta = set() if _sans_dossier else (
+        tests_scanning_the_test_files(sources, set(all_tests), known) - picked)
+    picked |= meta                                     # gardes qui balaient tests/
 
     reason = f"{len(picked)}/{len(all_tests)} tests atteignent {len(seeds)} module(s) modifié(s)"
     if named:
@@ -720,6 +755,8 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None,
                    f"dossier ou module voisin ({len(par_dossier)} par dossier)")
     if etat:
         reason += f" ; {len(etat)} fichier(s) d'état généré ignoré(s) comme déclencheur"
+    if meta:
+        reason += f" ; {len(meta)} garde(s) qui balaient tests/ (un test a changé)"
     return {"all": False, "tests": sorted(picked),
             "paths": _chemins(root, sorted(picked), known), "reason": reason}
 
@@ -967,6 +1004,25 @@ def self_test() -> int:
              "tests.test_unrelated" not in s_tpl["tests"]),
         ]
         (root / "pkg" / "template.html").write_text("<p/>\n")
+
+        # A meta-guard walks every test file: a changed TEST must select it, and a
+        # changed source module must not drag it in.
+        (root / "tests" / "test_meta.py").write_text(
+            "from pathlib import Path\n"
+            "def test_m(): assert list(Path(__file__).parent.glob('test_*.py'))\n")
+        subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(root), "-c", "user.email=t@t", "-c", "user.name=t",
+                        "commit", "-qm", "meta"], check=True)
+        (root / "tests" / "test_unrelated.py").write_text("def test_y(): assert 1\n")
+        s_meta = select(root)
+        s_meta_mute = select(root, _sans_dossier=True)
+        subprocess.run(["git", "-C", str(root), "checkout", "-q", "--", "."], check=True)
+        cases += [
+            ("VERT   un test modifié sélectionne les gardes qui balaient tests/",
+             "tests.test_meta" in s_meta["tests"]),
+            ("ROUGE  ... sans la règle, le garde est RATÉ (la règle porte)",
+             "tests.test_meta" not in s_meta_mute["tests"]),
+        ]
 
         (root / "conftest.py").write_text("")
         cases.append(("VERT   un conftest.py force la suite entière", select(root)["all"]))
