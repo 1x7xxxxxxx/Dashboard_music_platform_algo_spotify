@@ -119,6 +119,17 @@ def resolves(repo: str, ref: str) -> bool | None:
     return None if out is None and _gh("api", f"repos/{repo}") is None else bool(out)
 
 
+def row_marks(behind: int, resolves_upstream: bool | None) -> tuple[str, str]:
+    """(retard, résolution) as the report prints them — the two signatures of the
+    catalogue grep these marks (`🔴`, `INTROUVABLE`). Pure, so a test can fabricate them.
+
+    An unanswered API call is `❓`, never `INTROUVABLE`: « could not ask » is not
+    « does not exist »."""
+    mark = "🔴" if behind >= 2 else ("🟠" if behind == 1 else "✅")
+    res = "✅" if resolves_upstream else ("❓" if resolves_upstream is None else "🚫 INTROUVABLE")
+    return mark, res
+
+
 def main() -> int:
     rows = []
     unknown = []
@@ -139,8 +150,7 @@ def main() -> int:
     print("|---|---|---|---|---|")
     broken = []
     for behind, repo, v, tag, ok in rows:
-        mark = "🔴" if behind >= 2 else ("🟠" if behind == 1 else "✅")
-        res = "✅" if ok else ("❓" if ok is None else "🚫 INTROUVABLE")
+        mark, res = row_marks(behind, ok)
         if ok is False:
             broken.append(f"{repo}@{v}")
         suggestion = f"`{repo}@{tag}`" if behind else "—"
