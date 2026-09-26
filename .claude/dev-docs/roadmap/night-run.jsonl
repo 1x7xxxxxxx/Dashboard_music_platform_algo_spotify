@@ -272,3 +272,5 @@
 {"at": "2026-09-26T01:42:31+00:00", "head": "d4be3df", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot R (gardes a regex)"}
 {"at": "2026-09-26T01:44:49+00:00", "head": "4850bd5", "kind": "done", "task": "R169", "what": "gardes lot R : 242 -> 240"}
 {"at": "2026-09-26T01:44:56+00:00", "head": "4850bd5", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot S"}
+{"at": "2026-09-26T01:47:42+00:00", "head": "7e0ef14", "kind": "done", "task": "R169", "what": "gardes lot S : 240 -> 238"}
+{"at": "2026-09-26T01:47:49+00:00", "head": "7e0ef14", "kind": "start", "task": "R169", "what": "gardes auto-prouvants : lot T"}

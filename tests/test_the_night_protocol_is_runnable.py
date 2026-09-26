@@ -40,13 +40,22 @@ MAKEFILE = REPO / "Makefile"
 _MAKE_CALL = re.compile(r"\bmake\s+(night-[a-z-]+)")
 
 
-def _named_targets() -> set[str]:
-    return set(_MAKE_CALL.findall(PROTOCOL.read_text(encoding="utf-8")))
+def _named_targets(text: str | None = None) -> set[str]:
+    return set(_MAKE_CALL.findall(text if text is not None
+                                  else PROTOCOL.read_text(encoding="utf-8")))
 
 
-def _declared_targets() -> set[str]:
-    return set(re.findall(r"^(night-[a-z-]+):", MAKEFILE.read_text(encoding="utf-8"),
-                          re.M))
+def _declared_targets(text: str | None = None) -> set[str]:
+    return set(re.findall(r"^(night-[a-z-]+):", text if text is not None
+                          else MAKEFILE.read_text(encoding="utf-8"), re.M))
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """A protocol that tells a waking session to run a target the Makefile does not
+    declare (a command nobody can run) is seen; a declared one is not."""
+    protocol = "make night-status puis make night-resume, puis make night-done\n"
+    makefile = "night-status: ## x\n\t@true\nnight-done: ## y\n\t@true\n"
+    assert _named_targets(protocol) - _declared_targets(makefile) == {"night-resume"}
 
 
 def test_the_protocol_and_the_script_are_both_there() -> None:
