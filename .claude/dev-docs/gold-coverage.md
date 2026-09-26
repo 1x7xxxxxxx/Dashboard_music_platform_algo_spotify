@@ -450,16 +450,16 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 ## Les classes d'erreur
 
-**415 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
+**418 classes** au catalogue. Le regroupement en familles vit dans `error-class-families.md` ; ici on ne pose qu'une question, celle qui se périme : **le garde que la classe nomme existe-t-il encore ?** Une classe `guarded` dont le garde a été supprimé se lit exactement comme une classe gardée.
 
-**fixed** : 10· **guarded** : 383· **open** : 4· **reported** : 16· **resolved** : 2
+**fixed** : 10· **guarded** : 387· **open** : 4· **reported** : 15· **resolved** : 2
 
-**0 classe(s) nomment un fichier de garde qui n'existe plus** et **11** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
+**0 classe(s) nomment un fichier de garde qui n'existe plus** et **10** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
 _Aucune classe ne nomme un garde disparu._
 
 
-Sans chemin de garde : `db-connection-per-show` · `view-session-adoption` · `snapshot-fixture-hook-reflow` · `dag-trigger-without-tenant-scope` · `ast-guard-blind-to-bom` · `migration-ahead-of-its-code` · `repo-copy-of-a-config-is-not-what-runs` · `mermaid-block-does-not-render` · `guard-anchored-on-shape-not-question` · `a-filtered-test-run-proves-nothing` · `a-guard-that-sees-the-binding-not-the-application`.
+Sans chemin de garde : `db-connection-per-show` · `view-session-adoption` · `snapshot-fixture-hook-reflow` · `dag-trigger-without-tenant-scope` · `ast-guard-blind-to-bom` · `repo-copy-of-a-config-is-not-what-runs` · `mermaid-block-does-not-render` · `guard-anchored-on-shape-not-question` · `a-filtered-test-run-proves-nothing` · `a-guard-that-sees-the-binding-not-the-application`.
 
 
 ## Ce qui n'est gardé par rien
@@ -472,9 +472,9 @@ Le chiffre d'une case est le nombre de fichiers de garde qui NOMMENT une relatio
 
 | famille | Apple Music | Hypeddit | Instagram | Meta Ads | Revenu | SoundCloud | Spotify S4A | YouTube |
 |---|---|---|---|---|---|---|---|---|
-| [le-locataire](error-class-families.md#le-locataire) | 2 | 1 | 2 | 2 | 2 | 3 | 5 | 3 |
+| [le-locataire](error-class-families.md#le-locataire) | 2 | 1 | 2 | 3 | 2 | 3 | 5 | 3 |
 | [un-cumul-pris-pour-un-quotidien](error-class-families.md#un-cumul-pris-pour-un-quotidien) | 2 | 1 | 1 | 1 | 1 | 4 | 4 | 3 |
-| [deux-surfaces-deux-nombres](error-class-families.md#deux-surfaces-deux-nombres) | 4 | 1 | 3 | 3 | 2 | 4 | 5 | 4 |
+| [deux-surfaces-deux-nombres](error-class-families.md#deux-surfaces-deux-nombres) | 5 | 1 | 3 | 3 | 2 | 5 | 6 | 5 |
 | [une-erreur-avalée-devient-une-absence](error-class-families.md#une-erreur-avalée-devient-une-absence) | 2 | 1 | 2 | 1 | 1 | 2 | 5 | 2 |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](error-class-families.md#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 2 | 1 | 2 | 1 | 1 | 2 | 3 | 2 |
 
@@ -534,7 +534,7 @@ Le défaut qui a fait naître cette section : `meta_insights_performance` et `me
 
 ## Les étapes de la CI
 
-**13 étapes**, dont **13 bloquantes**. Lu dans `.github/workflows/ci.yml`, jamais récité — une liste d'étapes écrite à la main décrit la CI qu'on croit avoir.
+**16 étapes**, dont **16 bloquantes**. Lu dans `.github/workflows/ci.yml`, jamais récité — une liste d'étapes écrite à la main décrit la CI qu'on croit avoir.
 
 ⚠️ Une CI rouge cache tout ce qui la suit : ce dépôt l'a mesuré deux fois (8 exécutions bloquées à l'étape 3/8, puis 27 à l'étape 10/15). C'est `if: !cancelled()` qui l'a arrêté, pas la leçon écrite entre les deux.
 
@@ -553,6 +553,9 @@ Le défaut qui a fait naître cette section : `meta_insights_performance` et `me
 | 11 | Provision Postgres (schema + migrations) | — | bloquante |
 | 12 | Mint a throwaway Fernet key for this run | — | bloquante |
 | 13 | Run tests | — | bloquante |
+| 14 | Install pinned gitleaks | install_gitleaks.sh | bloquante |
+| 15 | Scan the commits of this push / PR (blocking) | — | bloquante |
+| 16 | Mail the owner when main turns red | ci_break_mail.py | bloquante |
 
 ## Ce qui n'est atteint par rien
 
@@ -636,9 +639,9 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-gold-objects: total=31 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=22 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=415 guard_missing=0 guard_unnamed=11 -->
+<!-- gold-coverage-error-classes: total=418 guard_missing=0 guard_unnamed=10 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=28 unreconciled=0 -->
-<!-- gold-coverage-ci: steps=13 blocking=13 -->
+<!-- gold-coverage-ci: steps=16 blocking=16 -->
 
-<!-- gold-coverage: sha256=dca3385bd7d26ee7be572b772a8a6be4af4cb84d29aa02945430e04d0e18fb3e -->
+<!-- gold-coverage: sha256=f589660916e85b3bcb4c410daaa6cd27ff6755c02f526e914cf0e0a069540ae9 -->
