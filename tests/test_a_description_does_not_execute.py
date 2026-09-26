@@ -72,12 +72,26 @@ def test_the_scan_sees_shell_files() -> None:
         "avait 14 le 2026-09-18. Le balayage est cassé, ou les scripts ont déménagé.")
 
 
+def _executes(line: str) -> bool:
+    """An `echo`/`printf` whose text Bash would run: a backtick outside single quotes."""
+    return bool(_RISQUE.search(line)) and not _SIMPLE.search(line)
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """The exact shape of 2026-09-18 (a description quoting a command between backticks,
+    in double quotes — Bash ran it), and the single-quoted correction."""
+    assert _executes('echo "▶ nettoyage : `make clean` puis relance"')
+    assert _executes("printf \"voir `.env`\\n\"")
+    assert not _executes("echo '▶ nettoyage : `make clean` puis relance'")
+    assert not _executes('echo "rien à exécuter ici"')
+
+
 def test_no_description_string_can_execute() -> None:
     fautifs = []
     for path in _shell_files():
         for n, line in enumerate(path.read_text(encoding="utf-8",
                                                 errors="replace").splitlines(), 1):
-            if _RISQUE.search(line) and not _SIMPLE.search(line):
+            if _executes(line):
                 rel = str(path.relative_to(_ROOT)).replace("\\", "/")
                 fautifs.append(f"{rel}:{n}  {line.strip()[:100]}")
     assert not fautifs, (
