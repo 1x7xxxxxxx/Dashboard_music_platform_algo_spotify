@@ -84,6 +84,14 @@ def test_a_neutral_filename_still_produces_rows(expected_key, content, answers):
     assert all(r.get("artist_id") == _ARTIST for r in rows), (
         "toute ligne écrite nomme son locataire (règle transverse)"
     )
+    # La réponse de l'artiste doit ARRIVER dans les lignes. Ajouté le 2026-09-26 : la
+    # réponse `song` pouvait être perdue en route sans que rien ne rougisse — le parseur
+    # retombait alors sur le NOM du fichier, et `export.csv` écrivait ses lignes sous un
+    # titre « export ». Des lignes existaient, donc ce test passait.
+    if "song" in answers:
+        assert {r.get("song") for r in rows} == {answers["song"]}, (
+            f"le titre saisi {answers['song']!r} n'est pas celui des lignes écrites : "
+            f"{sorted({r.get('song') for r in rows})}")
 
 
 def test_a_missing_title_is_a_question_not_a_dead_end():
