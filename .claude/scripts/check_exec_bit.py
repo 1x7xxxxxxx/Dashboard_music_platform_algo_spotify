@@ -43,11 +43,12 @@ import sys
 _SOURCED_ONLY: set[str] = set()
 
 
-def non_executable_scripts() -> list[str]:
-    """Tracked `*.sh` whose stored mode is 100644, in path order."""
+def non_executable_scripts(repo=None) -> list[str]:
+    """Tracked `*.sh` whose stored mode is 100644, in path order. `repo` lets a test
+    hand it a fabricated repository."""
     out = subprocess.run(
         ["git", "ls-files", "-s", "--", "*.sh"],
-        capture_output=True, text=True, check=True).stdout
+        capture_output=True, text=True, check=True, cwd=repo).stdout
     found = []
     for line in out.splitlines():
         if not line.strip():

@@ -44,7 +44,10 @@ def unscoped_triggers(root: Path = _DASHBOARD) -> list[str]:
             conf = next((k.value for k in node.keywords if k.arg == "conf"), None)
             if conf is not None and _mentions_tenant(conf, tree):
                 continue
-            rel = path.relative_to(_ROOT)
+            try:
+                rel = path.relative_to(_ROOT)
+            except ValueError:          # a fabricated tree, in a test
+                rel = path.relative_to(root)
             out.append(f"{rel}:{node.lineno}")
     return out
 
