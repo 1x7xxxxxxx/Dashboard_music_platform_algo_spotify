@@ -104,15 +104,33 @@ def test_an_uncomputable_window_is_empty_not_the_whole_history() -> None:
 
     source = (_ROOT / "src" / "dashboard" / "utils" / "airflow_monitor.py").read_text(
         encoding="utf-8")
-    tree = ast.parse(source)
-    fautifs = []
-    for handler in [n for n in ast.walk(tree) if isinstance(n, ast.ExceptHandler)]:
-        for node in ast.walk(handler):
-            if (isinstance(node, ast.Assign)
-                    and any(getattr(t, "id", "") == "df_24h" for t in node.targets)
-                    and getattr(node.value, "id", "") == "df"):
-                fautifs.append(node.lineno)
+    fautifs = whole_history_fallbacks(source)
     assert not fautifs, (
         f"ligne {fautifs} : le repli rend `df` ENTIER, donc tout l'historique passe "
         "pour « dernières 24 h ». Un repli qui fabrique un chiffre est pire que pas "
         "de repli — rendre `df.iloc[0:0]` et le journaliser.")
+
+
+def whole_history_fallbacks(source: str) -> list[int]:
+    """Lines where an `except` answers the 24 h window with the WHOLE frame. Pure."""
+    import ast
+
+    out = []
+    for handler in [n for n in ast.walk(ast.parse(source)) if isinstance(n, ast.ExceptHandler)]:
+        for node in ast.walk(handler):
+            if (isinstance(node, ast.Assign)
+                    and any(getattr(t, "id", "") == "df_24h" for t in node.targets)
+                    and getattr(node.value, "id", "") == "df"):
+                out.append(node.lineno)
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity: the fallback that passed the whole history off as « last 24 h » is
+    named; the empty-frame fallback, and the same assignment OUTSIDE an except, are not."""
+    defect = ("try:\n    df_24h = df[df['start_date'] >= last_24h]\n"
+              "except TypeError:\n    df_24h = df\n")
+    assert whole_history_fallbacks(defect) == [4]
+    fixed = defect.replace("    df_24h = df\n", "    df_24h = df.iloc[0:0]\n")
+    assert whole_history_fallbacks(fixed) == []
+    assert whole_history_fallbacks("df_24h = df\n") == []
