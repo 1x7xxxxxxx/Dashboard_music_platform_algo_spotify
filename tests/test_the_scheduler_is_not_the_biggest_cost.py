@@ -63,6 +63,34 @@ DAGS = REPO / "airflow" / "dags"
 COMPOSE = REPO / "docker-compose.example.yml"
 
 
+def subhourly_schedules(source: str) -> list[str]:
+    """`schedule=` literals of a DAG file that fire more than once an hour. Pure."""
+    tree = ast.parse(source)
+    out = []
+    for sched in (kw.value.value for node in ast.walk(tree) if isinstance(node, ast.Call)
+                  for kw in node.keywords
+                  if kw.arg == "schedule" and isinstance(kw.value, ast.Constant)
+                  and isinstance(kw.value.value, str)):
+        if not sched or " " not in sched:
+            continue  # `@daily` & co : par construction jamais infra-horaires
+        minute_field = sched.split()[0]
+        # `*/N` with N < 60, or a bare `*`, means more than once an hour.
+        if minute_field == "*" or (minute_field.startswith("*/")
+                                   and int(minute_field[2:]) < 60):
+            out.append(sched)
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the quarter-hourly CSV watchers of 2026-09-04 (`*/15`) and a bare
+    `*` are named; hourly, daily and a schedule named only in a comment are not."""
+    assert subhourly_schedules("DAG('w', schedule='*/15 * * * *')\n") == ["*/15 * * * *"]
+    assert subhourly_schedules("DAG('x', schedule='* * * * *')\n") == ["* * * * *"]
+    clean = ("# schedule='*/15 * * * *' was the watcher\n"
+             "DAG('a', schedule='0 * * * *')\nDAG('b', schedule='@daily')\n")
+    assert subhourly_schedules(clean) == []
+
+
 def test_no_watcher_polls_more_than_hourly():
     """A quarter-hourly poll on a directory nobody writes to is 98 % of the metadata."""
     # TOUS les DAGs, pas seulement les `*_csv_watcher` : ceux-ci ont été supprimés le
@@ -76,22 +104,8 @@ def test_no_watcher_polls_more_than_hourly():
         # comment, a docstring, or a second DAG object. `test_a_guard_reads_structure_
         # not_text` flagged the first version of this file for exactly that — the
         # ratchet doing its job on the guard that had just been written.
-        tree = ast.parse(dag.read_text(encoding="utf-8"))
-        schedules = [kw.value.value for node in ast.walk(tree)
-                     if isinstance(node, ast.Call)
-                     for kw in node.keywords
-                     if kw.arg == "schedule" and isinstance(kw.value, ast.Constant)
-                     and isinstance(kw.value.value, str)]
-        if not schedules:
-            continue  # DAG sans schedule (déclenché à la main)
-        for sched in schedules:
-            if not sched or " " not in sched:
-                continue  # `@daily` & co : par construction jamais infra-horaires
-            minute_field = sched.split()[0]
-            # `*/N` with N < 60, or a bare `*`, means more than once an hour.
-            if minute_field == "*" or (minute_field.startswith("*/")
-                                       and int(minute_field[2:]) < 60):
-                offenders.append(f"{dag.name}: {sched}")
+        offenders += [f"{dag.name}: {sched}"
+                      for sched in subhourly_schedules(dag.read_text(encoding="utf-8"))]
     assert not offenders, (
         f"{offenders} run more than once an hour. On 2026-09-04 four such DAGs "
         "produced 97,2 % of all dag_run rows and 98,4 % of all task_instance rows, "

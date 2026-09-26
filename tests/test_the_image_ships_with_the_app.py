@@ -57,10 +57,11 @@ _RUNTIME_DIRS = {
 }
 
 
-def _copied_dirs() -> set[str]:
+def _copied_dirs(dockerfile: str | None = None) -> set[str]:
     """Les répertoires de premier niveau que le Dockerfile copie dans l'image."""
     out: set[str] = set()
-    for line in _DOCKERFILE.read_text(encoding="utf-8").splitlines():
+    text = _DOCKERFILE.read_text(encoding="utf-8") if dockerfile is None else dockerfile
+    for line in text.splitlines():
         m = re.match(r"\s*COPY\s+(?!--)(\S+)\s+", line)
         if m:
             out.add(m.group(1).strip("./").split("/")[0])
@@ -216,3 +217,13 @@ def test_the_guide_still_carries_it():
         f"le guide Spotify ne porte plus exactement une capture : {shots}")
     assert spotify.steps[0].screenshot, (
         "la capture n'est plus sur l'étape qu'elle illustre — le clic sur `•••`")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: a Dockerfile that copies `src/` but not the screenshots directory
+    (what shipped a guide without its images) does not list it; `COPY --from` of a
+    build stage is not a repo directory."""
+    df = ("FROM python:3.12\nCOPY src/ ./src/\nCOPY --from=build /x /x\n"
+          "COPY requirements.txt .\n")
+    assert "src" in _copied_dirs(df) and "assets" not in _copied_dirs(df)
+    assert "assets" in _copied_dirs(df + "COPY assets/ ./assets/\n")
