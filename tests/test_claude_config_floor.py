@@ -284,6 +284,28 @@ def test_the_rex_writer_survives_rst_underlines_too():
         "de sa cécité ne tient plus et ce test doit être relu.")
 
 
+def red_test_thresholds(claude_md: str, agent: str, hook: str) -> dict:
+    """The red-test threshold as each of the three surfaces states it (None = unstated)."""
+    rule = re.search(r"≥(\d+) tests rouges dans une même exécution", claude_md)
+    desc = re.search(r"description:.*?≥(\d+) tests? (?:are |is )?failing", agent, re.S)
+    signal = re.search(r"failures\s*>=\s*(\d+)", hook)
+    return {"CLAUDE.md rule 12": rule and rule.group(1),
+            "build-error-resolver description": desc and desc.group(1),
+            "session_summary.py": signal and signal.group(1)}
+
+
+def test_the_threshold_reader_sees_the_split_it_is_written_for():
+    """Non-vacuity, class `trigger-threshold-split`: the original split (≥5 in the
+    rule, ≥1 in the agent, 5 in the hook) reads as two values; agreeing surfaces read
+    as one."""
+    rule = "12. **≥5 tests rouges dans une même exécution → `Spawn build-error-resolver`.**"
+    agent = "---\ndescription: Spawn when ≥1 test is failing in a single run.\n---"
+    hook = "if failures >= 5:\n    hint()"
+    assert set(red_test_thresholds(rule, agent, hook).values()) == {"5", "1"}
+    agent_ok = agent.replace("≥1 test is", "≥5 tests are")
+    assert set(red_test_thresholds(rule, agent_ok, hook).values()) == {"5"}
+
+
 def test_the_build_error_threshold_agrees_across_its_three_surfaces():
     """The rule, the agent that the rule spawns, and the hook that signals it.
 
@@ -296,18 +318,8 @@ def test_the_build_error_threshold_agrees_across_its_three_surfaces():
     agent = (CLAUDE / "agents" / "build-error-resolver.md").read_text(encoding="utf-8")
     hook = (CLAUDE / "hooks" / "session_summary.py").read_text(encoding="utf-8")
 
-    rule = re.search(r"≥(\d+) tests rouges dans une même exécution", claude_md)
-    assert rule, "CLAUDE.md no longer states a red-test threshold for build-error-resolver"
-
-    desc = re.search(r"description:.*?≥(\d+) tests? (?:are |is )?failing", agent, re.S)
-    assert desc, "build-error-resolver's description no longer states its threshold"
-
-    signal = re.search(r"failures\s*>=\s*(\d+)", hook)
-    assert signal, "session_summary.py no longer signals a failure count"
-
-    found = {"CLAUDE.md rule 12": rule.group(1),
-             "build-error-resolver description": desc.group(1),
-             "session_summary.py": signal.group(1)}
+    found = red_test_thresholds(claude_md, agent, hook)
+    assert None not in found.values(), f"a surface no longer states its threshold: {found}"
     assert len(set(found.values())) == 1, (
         f"the red-test threshold disagrees across surfaces: {found}. "
         "A trigger nobody can verify mechanically does not fire.")
