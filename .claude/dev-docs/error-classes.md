@@ -940,6 +940,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
   - 2026-05-15: catalogued. Heuristic — cosmetic strftime/filename/pdf/email uses are exempt per python.md; the `grep -vi` is a coarse exemption filter, manual triage on hits.
+  - 2026-09-26: tri SITE PAR SITE de la signature, rouge en permanence. Entonnoir (AST : `datetime.now()`/`utcnow()`/`today()` sans argument, `src/` + `airflow/dags/`) : **27** candidats → **~20** cosmétiques écartés (`strftime` d'un e-mail, d'un nom de fichier, d'un en-tête PDF, valeur par défaut d'un `st.date_input`) → **4** persistés en UTC NAÏF dans des colonnes `TIMESTAMP` naïves et comparés à `utcnow()` (`circuit_breaker.py:98,118` ↔ `etl_circuit_breaker.reset_at`, jeton Meta `instagram_api_collector.py:138,206` et `meta_token_refresh.py:121,153` ↔ `expires_at`) : convention cohérente, pas un mélange, écartés → **1 défaut VIVANT** : `airflow/dags/alert_monitor.py:207`, `cutoff` naïf lié à `DagRun.execution_date`, un `UtcDateTime` d'Airflow qui REFUSE toute date naïve (source 2.11.0 lue) ; l'`except` rend `{}` et la section « DAG en échec » du mail du soir est vide depuis le 2026-03-25. DAG de production : parqué en **R179**, en attente d'accord. ⚠️ Ce tri est un relevé, pas un garde : la signature reste heuristique et rouge.
 
 ## view-session-adoption
 - status: open

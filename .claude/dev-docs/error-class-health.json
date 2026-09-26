@@ -8309,7 +8309,8 @@
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-05-15"
+        "2026-05-15",
+        "2026-09-26"
       ],
       "kind": "heuristic",
       "seen_red": "unknown",
@@ -8319,7 +8320,7 @@
       "siblings_swept": true,
       "status": "open",
       "introduced_date": "2026-05-15",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11487,7 +11488,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 555,
+      "catalogue_revisions": 556,
       "head_date": "2026-09-26"
     },
     "holes": {
