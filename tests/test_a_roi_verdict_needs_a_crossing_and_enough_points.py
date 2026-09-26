@@ -92,12 +92,13 @@ def test_t3_a_revenue_month_without_sacem_keeps_its_revenue() -> None:
 
     class _Db:
         def fetch_df(self, sql, params=None):
-            if "FROM v_artist_monthly_revenue" in sql:
-                return pd.DataFrame({"period_date": [pd.Timestamp("2023-09-01")],
-                                     "distributor_revenue": [13.03],
-                                     "sacem_revenue": [None]})
+            # R212: ONE scan of v_artist_monthly_cashflow returns every column.
+            assert "FROM v_artist_monthly_cashflow" in sql
             return pd.DataFrame({"period_date": [pd.Timestamp("2023-09-01")],
-                                 "meta_spend": [41.78]})
+                                 "distributor_revenue": [13.03],
+                                 "sacem_revenue": [None],
+                                 "meta_spend": [41.78],
+                                 "other_costs": [None]})
 
     fn = getattr(kpi_helpers.get_monthly_roi_series, "__wrapped__",
                  kpi_helpers.get_monthly_roi_series)

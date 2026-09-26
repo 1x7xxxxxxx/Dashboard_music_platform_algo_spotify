@@ -83,9 +83,13 @@ def test_both_sides_of_the_ratio_are_bounded_the_same_way() -> None:
     eff_from, eff_to = month_window(since, until)
     try:
         roi = get_roi_data(db, 1, since, until)
+        # R212: both sides come through `v_artist_monthly_cashflow` (net revenue, Meta
+        # spend summed from the same daily grain) — the test still checks that the two
+        # sides share ONE month-aligned window.
         rev = db.fetch_query(
-            "SELECT SUM(revenue_eur) FROM v_artist_monthly_revenue "
-            "WHERE artist_id = %s AND make_date(year, month, 1) BETWEEN %s AND %s",
+            "SELECT SUM(amount_eur) FROM v_artist_monthly_cashflow "
+            "WHERE flux = 'revenu' AND artist_id = %s "
+            "AND make_date(year, month, 1) BETWEEN %s AND %s",
             (1, eff_from, eff_to))[0][0]
         spend = db.fetch_query(
             "SELECT SUM(spend) FROM meta_insights_performance_day "

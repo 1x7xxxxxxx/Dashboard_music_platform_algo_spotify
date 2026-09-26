@@ -223,7 +223,7 @@ _FLOOR: dict[str, int] = {
     # désormais UN appel dans `_show_volume_scatter`, en boucle sur les trois. Ce qui
     # s'affiche a baissé à dessein : un volume que `volume_forecast_reliable` masque
     # n'est plus dessiné (classe `a-surface-that-draws-a-forecast-its-gate-suppresses`).
-    "figures.total": 86,  # 87 → 86 le 2026-09-26 (R216) : _tab_model, 4 appels par algo → 2
+    "figures.total": 85,  # 86 → 85 le 2026-09-27 (R212) : imusician, ventes + ROI → une trésorerie ; 87 → 86 le 2026-09-26 (R216)
     # 207 → 204 le 2026-09-16, et la baisse est LEGITIME : `views/perf_monitor.py` a
     # ete supprime (R115 etape 6), avec ses tuiles « Dernier rendu », « DB ping »,
     # « RAM process » et « CPU process ». Grafana les porte desormais, apres une

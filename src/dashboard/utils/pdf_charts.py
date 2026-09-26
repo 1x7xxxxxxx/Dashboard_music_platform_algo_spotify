@@ -942,18 +942,56 @@ def pi_gate(tables, here=None) -> str | None:
     return _fig_to_uri(fig)
 
 
-def roi_breakeven(roi: dict) -> str | None:
-    rev = float(roi.get("revenue_eur") or 0)
-    spend = float(roi.get("meta_spend") or 0)
-    if rev <= 0 and spend <= 0:
+def treasury(cashflow) -> str | None:
+    """The PDF twin of `treasury_chart.treasury_figure` (R212): every month's money in
+    (above zero) and out (below), by source, and the running balance under it.
+
+    Fed by the SAME rows as the app (`treasury_chart.load_cashflow`, i.e.
+    `v_artist_monthly_cashflow`). It replaced a two-bar « revenue vs Meta » chart that
+    read gross revenue beside net figures and wrote an unread side as 0 € (`or 0`)."""
+    import pandas as pd
+    from src.dashboard.utils.artist_cashflow import monthly_net
+    from src.dashboard.utils.treasury_chart import FLUX_COLOURS, FLUX_NAMES
+
+    mensuel = monthly_net(cashflow)
+    if mensuel.empty:
         return None
-    fig, ax = plt.subplots(figsize=(5.2, 3.0))
-    bars = ax.bar([_t("pdf.chart.revenue", "Revenus"), _t("pdf.chart.meta_spend", "Dépenses Meta")],
-                  [rev, spend], color=[_GREEN, _RED], width=0.5)
-    _style(ax)
-    ax.set_title(_t("pdf.chart.roi_revenue_vs_spend", "ROI — Revenus vs Dépenses"),
-                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
-    for b, v in zip(bars, [rev, spend]):
-        ax.text(b.get_x() + b.get_width() / 2, v, f"{v:,.0f} €", ha="center",
-                va="bottom", fontsize=9, color="#444")
+    d = cashflow.copy()
+    d['date'] = pd.to_datetime(d['year'].astype(int).astype(str) + "-"
+                               + d['month'].astype(int).astype(str).str.zfill(2) + "-01")
+    d['amount_eur'] = pd.to_numeric(d['amount_eur'], errors='coerce')
+    fig, (top, low) = plt.subplots(2, 1, figsize=(7.2, 5.0), sharex=True,
+                                   gridspec_kw={'height_ratios': [1, 1]})
+    for flux, sign in (("revenu", 1), ("depense", -1)):
+        # Stack only the months a source HAS: a source absent a month draws no bar,
+        # and the calendar is never widened and filled (see the zero-fill guard).
+        stacked: dict = {}
+        part = d[d['flux'] == flux]
+        for source in sorted(part['source'].unique()):
+            serie = (part[part['source'] == source].groupby('date')['amount_eur']
+                     .sum(min_count=1).dropna() * sign)
+            bottoms = [stacked.get(day, 0.0) for day in serie.index]
+            top.bar(serie.index, serie.values, bottom=bottoms, width=20,
+                    color=FLUX_COLOURS.get(source, "#8A8A8A"),
+                    label=_t(f"revenue_forecast.source.{source}", FLUX_NAMES.get(source, source)))
+            for day, low_, v in zip(serie.index, bottoms, serie.values):
+                stacked[day] = low_ + v
+    top.axhline(0, color="#888", linewidth=0.8)
+    _style(top)
+    top.set_title(_t("pdf.chart.treasury_flows", "Trésorerie — ce qui rentre et ce qui sort (€)"),
+                  color=_DARK, fontsize=11, fontweight="bold", loc="left")
+    handles, labels = top.get_legend_handles_labels()
+    colour = _GREEN if mensuel['cumul'].iloc[-1] >= 0 else _RED
+    low.plot(mensuel['date'], mensuel['cumul'], color=colour, linewidth=2)
+    low.fill_between(mensuel['date'], mensuel['cumul'], 0, color=colour, alpha=0.12)
+    low.axhline(0, color="#888", linewidth=0.8, linestyle=":")
+    _style(low)
+    low.set_title(_t("pdf.chart.treasury_balance", "Où j'en suis au total (€)"),
+                  color=_DARK, fontsize=10, loc="left")
+    low.text(mensuel['date'].iloc[-1], mensuel['cumul'].iloc[-1],
+             f"{float(mensuel['cumul'].iloc[-1]):+,.0f} €".replace(",", " "),
+             ha="right", va="bottom", fontsize=9, color=colour)
+    fig.legend(handles, labels, fontsize=7, ncol=5, loc="lower center",
+               bbox_to_anchor=(0.5, 0.0), frameon=False)
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
     return _fig_to_uri(fig)

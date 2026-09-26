@@ -1,8 +1,6 @@
 """Vue Distributeur — revenus mensuels iMusician + DistroKid (saisie manuelle, import, ROI)."""
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 from datetime import date, datetime, timezone
 import sys
 from pathlib import Path
@@ -14,7 +12,7 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import flash, smart_date_range
 from src.dashboard.utils.cache_invalidation import purge_after_write
 from src.dashboard.auth import is_admin, tenant_scope
-from src.dashboard.utils.kpi_helpers import get_roi_data, get_monthly_roi_series
+from src.dashboard.utils.kpi_helpers import get_roi_data
 from src.database.postgres_handler import validate_table
 
 # Label affiché → table de revenus mensuels (une table par distributeur, pattern iMusician).
@@ -23,7 +21,6 @@ DISTRIBUTOR_TABLES = {
     'DistroKid': 'distrokid_monthly_revenue',
 }
 _ALL_DISTRIBUTORS = 'Tous'
-_DISTRIBUTOR_COLORS = {'iMusician': '#1DB954', 'DistroKid': '#F5C518'}
 
 
 def _roi_data_span(db, artist_id):
@@ -294,7 +291,6 @@ def show():
                     if df.empty:
                         st.info(t("common.no_data", "Aucune donnée pour cette sélection."))
                     else:
-                        df_sorted = df.sort_values('date_sort')
 
                         # KPI total
                         total = df['revenue_eur'].sum()
@@ -307,26 +303,12 @@ def show():
 
                         st.markdown("---")
 
-                        # Graphique (empilé par distributeur quand "Tous")
-                        fig = px.bar(
-                            df_sorted, x='date_sort', y='revenue_eur',
-                            color='distributor',
-                            labels={
-                                'date_sort': '',
-                                'revenue_eur': t("common.revenue_eur", "Revenus (€)"),
-                                'distributor': t("imusician.distributor", "Distributeur"),
-                            },
-                            color_discrete_map=_DISTRIBUTOR_COLORS,
-                            text='revenue_eur'
-                        )
-                        fig.update_traces(texttemplate='%{text:.2f} €', textposition='outside')
-                        fig.update_layout(
-                            xaxis_tickformat='%b %Y',
-                            yaxis_title=t("common.revenue_eur", "Revenus (€)"),
-                            showlegend=(len(tables) > 1),
-                            hovermode="x unified"
-                        )
-                        st.plotly_chart(fig, width="stretch")
+                        # R212 — the sales-per-month chart merged into the treasury (tab
+                        # « ROI »): the same months, NET of distributor fees, beside SACEM and
+                        # the spend. The figures and the table below stay.
+                        st.caption(t("imusician.sales_in_treasury",
+                                     "📊 Le graphique de ces ventes est dans l'onglet ROI, "
+                                     "avec la SACEM et les dépenses sur une même trésorerie."))
 
                         st.markdown("---")
                         st.subheader(t("imusician.detail_header", "Détail"))
@@ -401,8 +383,8 @@ def show():
             st.subheader(t("imusician.roi_header", "💹 ROI Breakheaven"))
             st.caption(t(
                 "imusician.roi_caption",
-                "Revenus (iMusician + DistroKid + royalties SACEM) vs dépenses Meta Ads "
-                "sur la période sélectionnée"
+                "Revenus nets (iMusician + DistroKid + royalties SACEM) contre toutes les "
+                "dépenses (Meta Ads + coûts saisis) sur la période sélectionnée"
             ))
 
             span_min, span_max = _roi_data_span(db, artist_id)
@@ -442,7 +424,7 @@ def show():
                         "📊 ROI", roi_label, roi_delta,
                         delta_color="normal" if roi['profitable'] else "inverse",
                         help=t("imusician.roi_total_help",
-                               "ROI sur la dépense Meta Ads = {total}").format(
+                               "ROI sur toutes les dépenses (Meta Ads + coûts saisis) = {total}").format(
                                    total=fmt_eur(roi['total_spend']))
                     )
                 elif roi['unreadable']:
@@ -457,35 +439,16 @@ def show():
                               help=t("imusician.roi_no_spend_help",
                                      "Aucune dépense promo sur la période — élargissez le filtre"))
 
-                df_series = get_monthly_roi_series(db, artist_id, from_date, to_date)
-                if not df_series.empty:
-                    # Revenue column = distributors (green) + SACEM royalties stacked on
-                    # top (purple), beside the Meta-spend column (red).
-                    fig = go.Figure()
-                    fig.add_trace(go.Bar(
-                        x=df_series['period_date'], y=df_series['distributor_revenue'],
-                        name=t("imusician.dist_revenue_eur", "Revenus distributeurs (€)"),
-                        marker_color="#1DB954", offsetgroup='rev'
-                    ))
-                    fig.add_trace(go.Bar(
-                        x=df_series['period_date'], y=df_series['sacem_revenue'],
-                        base=df_series['distributor_revenue'],
-                        name=t("imusician.sacem_revenue_eur", "Royalties SACEM (€)"),
-                        marker_color="#8E44AD", offsetgroup='rev'
-                    ))
-                    fig.add_trace(go.Bar(
-                        x=df_series['period_date'], y=df_series['meta_spend'],
-                        name=t("imusician.meta_spend_eur", "Dépenses Meta (€)"),
-                        marker_color="#FF4444", offsetgroup='spend'
-                    ))
-                    fig.update_layout(
-                        barmode='group',
-                        xaxis_tickformat='%b %Y',
-                        yaxis_title=t("imusician.euros_axis", "Euros (€)"),
-                        hovermode="x unified",
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                    )
-                    st.plotly_chart(fig, width="stretch")
+                # R212 — the ONE treasury figure (shared with « Mes revenus » and SACEM):
+                # sales, SACEM, Meta and entered costs on one ledger, from the same door
+                # as the tiles above.
+                from src.dashboard.utils.artist_cashflow import monthly_net
+                from src.dashboard.utils.treasury_chart import (
+                    load_cashflow, treasury_figure, within)
+                cashflow = within(load_cashflow(db, artist_id), from_date, to_date)
+                mensuel = monthly_net(cashflow)
+                if not mensuel.empty:
+                    st.plotly_chart(treasury_figure(cashflow, mensuel), width="stretch")
                 else:
                     st.info(t("imusician.roi_empty_period",
                               "Aucune donnée de revenus ou dépenses sur cette période."))

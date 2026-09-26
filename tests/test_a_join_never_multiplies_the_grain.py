@@ -212,7 +212,6 @@ _SURFACES = ("src/dashboard", "src/api")
 # NOT read one by one for the uniqueness of their right key — they are unexamined risks,
 # not known defects. The ceiling only goes down: add `validate=` to one, lower its number.
 _GRANDFATHERED: dict[str, int] = {
-    "src/dashboard/utils/kpi_helpers.py": 1,
     "src/dashboard/views/airflow_kpi.py": 1,
     "src/dashboard/views/meta_x_spotify.py": 2,
     "src/dashboard/views/soundcloud.py": 1,

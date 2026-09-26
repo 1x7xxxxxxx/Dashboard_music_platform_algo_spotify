@@ -219,7 +219,6 @@ EN = {
         "n = number of tracks; bar dimmed below {min_n} tracks, \"n/a\" if none."
     ),
     "pdf.chart.no_data": "n/a",
-    "pdf.chart.roi_revenue_vs_spend": "ROI — Revenue vs Spend",
 
     # ── Chart axis / legend / series labels ──
     "pdf.chart.listeners": "Listeners",
@@ -253,8 +252,6 @@ EN = {
     "pdf.chart.budget_eur": "Budget €",
     "pdf.chart.cpr_eur": "CPR €",
     "pdf.chart.budget_cpr_eur": "Budget / CPR (€)",
-    "pdf.chart.revenue": "Revenue",
-    "pdf.chart.meta_spend": "Meta spend",
     "pdf.chart.series.meta_budget": "Meta Budget",
     "pdf.chart.series.results": "Outbound clicks",
     "proxy.pdf": (
@@ -263,4 +260,6 @@ EN = {
     "pdf.chart.series.cpr": "CPR",
     "pdf.chart.series.spotify_streams": "Spotify Streams",
     "pdf.chart.series.popularity": "Popularity",
+    "pdf.chart.treasury_flows": "Treasury — money in and money out (€)",
+    "pdf.chart.treasury_balance": "Where I stand overall (€)",
 }

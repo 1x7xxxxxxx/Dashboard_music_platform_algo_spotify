@@ -1,4 +1,5 @@
 """PDF export — report layer (move-only split of pdf_exporter)."""
+import logging
 from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 from src.dashboard.utils.kpi_helpers import (
@@ -15,6 +16,8 @@ from ._renderers import (
     _chart, _render_apple, _render_completeness, _render_credentials, _render_freshness, _render_hypeddit, _render_instagram, _render_mapping, _render_meta, _render_overview, _render_revenue_forecast, _render_roi, _render_trigger_then_now, _render_s4a_top_songs, _render_score20, _render_songs_focus, _render_soundcloud_tracks, _render_youtube,
 )
 from src.dashboard.utils.date_format import format_date, format_datetime
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -61,6 +64,12 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None,
     # collectors below keep the user-selected period.
     _ad_from = date(2015, 1, 1)
     roi   = get_roi_data(db, artist_id, _ad_from, to_date)
+    from src.dashboard.utils.treasury_chart import load_cashflow
+    try:
+        _cashflow = load_cashflow(db, artist_id)
+    except Exception as exc:      # noqa: BLE001 — one figure never sinks the report
+        logger.warning("treasury unreadable: %s", type(exc).__name__)
+        _cashflow = None
 
     # Selected report tracks. N==1 → per-song views; N>=2 → top-N filtered; N==0 → catalogue.
     _sel = list(dict.fromkeys(s4a_songs_filter or []))
@@ -138,7 +147,8 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None,
         'platform_evo': pdf_charts.platform_evolution(_evo_series, _evo_cumulative),
         'ml':       pdf_charts.ml_probabilities(db, artist_id, latest_release) if latest_release else None,
         'j28':      pdf_charts.j28_trajectory(j28),
-        'roi':      pdf_charts.roi_breakeven(roi),
+        # R212 — the treasury, from the same rows as the app's treasury figure.
+        'roi':      pdf_charts.treasury(_cashflow) if _cashflow is not None else None,
         's4a_top':  pdf_charts.top_songs_bar(
             s4a_top_songs,
             _t("pdf.chart.top_songs_spotify", "Top chansons Spotify (période)")),

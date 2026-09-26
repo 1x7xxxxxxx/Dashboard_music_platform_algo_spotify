@@ -277,7 +277,7 @@ src/dashboard/views/hypeddit.py::_render_campaign_series#1:
   owner: "Au lieu des barres, des ronds pour la lisibilité (R211)."
   note: "Une seule campagne sur la période par défaut ; le taux de conversion (46 %) est la bonne donnée."
 src/dashboard/views/imusician.py::show#1:
-  q: "Combien me rapportent mes ventes, mois par mois ?"
+  q: "Ma trésorerie — ventes, SACEM et dépenses, où j'en suis au total ? (fusion R212 des anciens show#1 ventes et show#2 pub couverte)"
   role: business
   d: 4
   c: 4
@@ -286,18 +286,8 @@ src/dashboard/views/imusician.py::show#1:
   owner_v: fusionner
   owner: "Un seul graphique de trésorerie : toutes les charges et toutes les recettes (ventes, SACEM, pub), lisible comme une compta (R212)."
   note: "Revenus mensuels 0–25 €, avec deux mois négatifs (régularisations) — lisible."
-src/dashboard/views/imusician.py::show#2:
-  q: "Ce que je dépense en pub est-il couvert par ce que je gagne ?"
-  role: meta
-  d: 5
-  c: 4
-  p: 5
-  v: garder
-  owner_v: fusionner
-  owner: "Un seul graphique de trésorerie : toutes les charges et toutes les recettes (ventes, SACEM, pub), lisible comme une compta (R212)."
-  note: "LA réponse à « qu'apporte Meta » côté argent — 1 500 €/mois de pub contre ~20 € de revenus. Même axe, donc la disproportion se voit."
 src/dashboard/views/sacem.py::show#1:
-  q: "Combien la SACEM me reverse-t-elle par trimestre ?"
+  q: "Ma trésorerie, SACEM comprise (fusion R212 de l'ancien graphique REPARTITION par trimestre)"
   role: business
   d: 3
   c: 4
@@ -931,7 +921,7 @@ pdf:j28:
   v: garder
   note: "Lisible ; sans repère de cohorte."
 pdf:roi:
-  q: "Mes revenus couvrent-ils ma pub ?"
+  q: "Ma trésorerie — tout ce qui rentre et sort, et le cumul (fusion R212 des barres revenus vs Meta)"
   role: meta
   d: 5
   c: 4

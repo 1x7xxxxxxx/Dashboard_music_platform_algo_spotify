@@ -201,4 +201,5 @@ EN = {
     "revenue_forecast.col_streams_7d": "Streams 7d (actual)",
     "revenue_forecast.col_streams_28d": "Streams 28d (actual)",
     # Net margin
+    "revenue_forecast.net_month": "Month balance",
 }

@@ -38,8 +38,8 @@ EN = {
     # ROI tab
     "imusician.roi_header": "💹 ROI Breakheaven",
     "imusician.roi_caption": (
-        "Revenue (iMusician + DistroKid + SACEM royalties) vs Meta Ads spend "
-        "over the selected period"
+        "Net revenue (iMusician + DistroKid + SACEM royalties) versus all spend "
+        "(Meta Ads + entered costs) over the selected period"
     ),
     "imusician.roi_no_data": (
         "No distributor revenue or Meta Ads spend data for this artist. "
@@ -53,7 +53,7 @@ EN = {
     # lève `ValueError: Unknown format code 'f' for object of type 'str'`.
     # Mesuré le 2026-09-18 : le gabarit FR rend « … = 1 234,56 € », l'anglais LÈVE.
     # Un artiste anglophone ouvrant la tuile ROI obtenait donc une exception.
-    "imusician.roi_total_help": "ROI on Meta Ads spend = {total}",
+    "imusician.roi_total_help": "ROI on all spend (Meta Ads + entered costs) = {total}",
     "imusician.roi_profitable": "✅ Profitable",
     "imusician.roi_unprofitable": "⚠️ Unprofitable",
     "imusician.roi_no_spend_help": "No promo spend over the period — widen the filter",
@@ -62,9 +62,6 @@ EN = {
         "rounded to whole months."),
     "imusician.roi_unavailable_help": (
         "Figures unavailable — the read failed. This is not \u201cno spend\u201d."),
-    "imusician.meta_spend_eur": "Meta spend (€)",
-    "imusician.dist_revenue_eur": "Distributor revenue (€)",
-    "imusician.sacem_revenue_eur": "SACEM royalties (€)",
-    "imusician.euros_axis": "Euros (€)",
     "imusician.roi_empty_period": "No revenue or spend data over this period.",
+    "imusician.sales_in_treasury": "📊 The chart of these sales is in the ROI tab, with SACEM and spend on one treasury.",
 }

@@ -26,13 +26,11 @@ EN = {
                             "{pending}.",
     "sacem.payout_pending": " — {p:,.2f} € distributed and awaiting the next quarterly "
                             "transfer",
-    "sacem.chart_header": "📈 Gross royalties over time",
-    "sacem.chart_title": "REPARTITION per quarter",
-    "sacem.cumul": "Cumulative (€)",
     "sacem.ledger": "▸ Detailed statement",
     "sacem.col_date": "Date",
     "sacem.col_label": "Label",
     "sacem.col_movement": "Movement (€)",
     "sacem.col_balance": "Balance (€)",
     "sacem.col_type": "Type",
+    "sacem.treasury_header": "💶 My treasury — SACEM, sales and spend",
 }

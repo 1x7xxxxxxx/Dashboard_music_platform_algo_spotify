@@ -132,20 +132,17 @@ def show():
                                      "prochain virement trimestriel").format(p=pending)
                                    if round(pending, 2) > 0 else "")))
 
-        # ── Royalty income over time (REPARTITION) ──
-        rep = df[df.line_type == 'repartition'].sort_values('line_date')
-        if not rep.empty:
-            import plotly.express as px
-            rep = rep.copy()
-            rep['date'] = pd.to_datetime(rep['line_date'])
-            rep['cumul'] = rep['mouvement_eur'].cumsum()
-            st.subheader(t("sacem.chart_header", "📈 Royalties brutes dans le temps"))
-            fig = px.bar(rep, x='date', y='mouvement_eur',
-                         labels={'mouvement_eur': '€', 'date': ''},
-                         title=t("sacem.chart_title", "REPARTITION par trimestre"))
-            fig.add_scatter(x=rep['date'], y=rep['cumul'], mode='lines+markers',
-                            name=t("sacem.cumul", "Cumulé (€)"))
-            st.plotly_chart(fig, width="stretch")
+        # ── The treasury (R212) ──
+        # The quarterly royalty chart merged into the ONE treasury figure the owner asked
+        # for: SACEM (net) beside sales and every spend, from `v_artist_monthly_cashflow`.
+        # The gross figures above and the full ledger below stay.
+        from src.dashboard.utils.artist_cashflow import monthly_net
+        from src.dashboard.utils.treasury_chart import load_cashflow, treasury_figure
+        cashflow = load_cashflow(db, artist_id)
+        mensuel = monthly_net(cashflow)
+        if not mensuel.empty:
+            st.subheader(t("sacem.treasury_header", "💶 Ma trésorerie — SACEM, ventes et dépenses"))
+            st.plotly_chart(treasury_figure(cashflow, mensuel), width="stretch")
 
         # ── Full ledger ──
         with st.expander(t("sacem.ledger", "▸ Relevé détaillé")):

@@ -399,106 +399,18 @@ def _frag_artist_forecast(artist_id: int | None) -> None:
 # Deux cadres, un objet, un axe du temps, une légende : ce que la demande veut
 # dire — ne plus avoir à rapprocher trois figures pour savoir où on en est.
 
-# La couleur de chaque source d'argent. Les revenus tirent vers le vert, les
-# dépenses vers le chaud — la lecture du signe ne doit pas dépendre de la lecture
-# du signe.
-_FLUX_COULEURS = {
-    "imusician":    "#1DB954",
-    "distrokid":    "#57C785",
-    "sacem":        "#8E44AD",
-    "meta_ads":     "#FF6B35",
-    "distribution": "#B07C4F",
-    "mastering":    "#C9A227",
-    "visuel":       "#C96A9B",
-    "promo":        "#E0723C",
-    "materiel":     "#9C6B4F",
-    "autre":        "#8A8A8A",
-}
-_FLUX_NOMS = {
-    "imusician": "iMusician", "distrokid": "DistroKid", "sacem": "SACEM",
-    "meta_ads": "Publicité Meta", "distribution": "Distribution",
-    "mastering": "Mastering", "visuel": "Visuel", "promo": "Promo",
-    "materiel": "Matériel", "autre": "Autre",
-}
+# The colours and names live with the treasury figure (R212) — one definition for
+# every page that draws money. The names are re-exported: the cost-entry labels read them.
+from src.dashboard.utils.treasury_chart import FLUX_NAMES as _FLUX_NOMS  # noqa: E402
 
 
 def _render_money_chart(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
                         pm: dict, horizon: int) -> None:
-    """Les flux du mois en haut, le cumul et son point mort en bas."""
-    from plotly.subplots import make_subplots
+    """The treasury (shared with iMusician and SACEM), plus the premium projection."""
     from src.dashboard.utils.artist_cashflow import project
+    from src.dashboard.utils.treasury_chart import treasury_figure
 
-    fig = make_subplots(
-        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.09,
-        row_heights=[0.44, 0.56],
-        subplot_titles=[
-            t("revenue_forecast.frame_flows", "Ce qui rentre et ce qui sort, chaque mois (€)"),
-            t("revenue_forecast.frame_cumul", "Où j'en suis au total (€) — le point mort est à zéro"),
-        ])
-
-    d = cashflow.copy()
-    d['date'] = pd.to_datetime(
-        d['year'].astype(int).astype(str) + "-"
-        + d['month'].astype(int).astype(str).str.zfill(2) + "-01")
-    d['amount_eur'] = pd.to_numeric(d['amount_eur'], errors='coerce').fillna(0.0)
-
-    # Les revenus vers le haut, les dépenses vers le bas. Le SIGNE porte le sens,
-    # la couleur porte la source : un lecteur qui ne distingue pas les teintes lit
-    # quand même de quel côté va l'argent.
-    for flux, signe in (("revenu", 1), ("depense", -1)):
-        part = d[d['flux'] == flux]
-        for source in sorted(part['source'].unique()):
-            serie = part[part['source'] == source].groupby('date')['amount_eur'].sum()
-            fig.add_trace(go.Bar(
-                x=serie.index, y=serie.values * signe,
-                name=t(f"revenue_forecast.source.{source}",
-                       _FLUX_NOMS.get(source, source)),
-                marker={'color': _FLUX_COULEURS.get(source, "#8A8A8A")},
-                hovertemplate="%{x|%m/%Y}<br>%{fullData.name} : %{y:.2f} €<extra></extra>",
-            ), row=1, col=1)
-
-    # Le cumul — la seule courbe qui réponde « est-ce que je suis rentré dans mes frais ».
-    fig.add_trace(go.Scatter(
-        x=mensuel['date'], y=mensuel['cumul'], mode='lines',
-        name=t("revenue_forecast.line_cumul", "Cumul net"),
-        line={'color': "#1DB954" if mensuel['cumul'].iloc[-1] >= 0 else "#C0392B",
-              'width': 3},
-        fill='tozeroy',
-        fillcolor="rgba(29,185,84,0.12)" if mensuel['cumul'].iloc[-1] >= 0
-        else "rgba(192,57,43,0.10)",
-        hovertemplate="%{x|%m/%Y}<br>cumul : %{y:.2f} €<extra></extra>",
-    ), row=2, col=1)
-
-    proj = project(mensuel, horizon)
-    if not proj.empty:
-        fig.add_trace(go.Scatter(
-            x=[mensuel['date'].iloc[-1], *proj['date']],
-            y=[mensuel['cumul'].iloc[-1], *proj['cumul']],
-            mode='lines', name=t("revenue_forecast.line_proj", "Projection"),
-            line={'color': "#FF6B35", 'width': 2, 'dash': 'dash'},
-            hovertemplate="%{x|%m/%Y}<br>projeté : %{y:.2f} €<extra></extra>",
-        ), row=2, col=1)
-
-    fig.add_hline(y=0, line={'color': "#888", 'width': 1, 'dash': 'dot'}, row=2, col=1)
-    fig.add_annotation(
-        xref="x2 domain", yref="y2", x=0.01, y=0,
-        text=t("revenue_forecast.breakeven_line", "point mort"),
-        showarrow=False, yshift=9, font={'size': 11, 'color': "#888"})
-
-    # LE POINT MORT, ÉCRIT SUR LA FIGURE — c'est la demande, mot pour mot.
-    fig.add_annotation(
-        xref="paper", yref="paper", x=0.99, y=0.30, xanchor="right",
-        text=_breakeven_text(pm), showarrow=False, align="right",
-        bgcolor="rgba(0,0,0,0.55)", bordercolor="#FF6B35", borderwidth=1,
-        borderpad=7, font={'size': 13, 'color': "#FFFFFF"})
-
-    fig.update_layout(
-        barmode='relative', hovermode='x unified', height=640,
-        legend={'orientation': 'h', 'yanchor': 'bottom', 'y': 1.06,
-                'xanchor': 'right', 'x': 1},
-        margin={'t': 90, 'b': 20})
-    fig.update_yaxes(title_text="€", row=1, col=1)
-    fig.update_yaxes(title_text="€", row=2, col=1)
+    fig = treasury_figure(cashflow, mensuel, project(mensuel, horizon), _breakeven_text(pm))
     st.plotly_chart(fig, width='stretch')
 
 

@@ -520,3 +520,5 @@
 {"at": "2026-09-26T11:57:32+00:00", "head": "6e907c7", "kind": "done", "task": "R180", "what": "matrice 0 trou, revue code-critic ACCEPT ; R181 en attente ALERT_EMAIL (runbook 29)"}
 {"at": "2026-09-26T11:57:50+00:00", "head": "3180ac6", "kind": "done", "task": "R179", "what": "deja livree 2026-09-26 (archive) - unite restee ouverte au journal"}
 {"at": "2026-09-26T22:37:54+00:00", "head": "8f8b75c", "kind": "start", "task": "R205", "what": "commit lot R205/R206 apres balayage, puis deploiement R217"}
+{"at": "2026-09-26T23:00:16+00:00", "head": "9ebaba9", "kind": "done", "task": "R205", "what": "R205/R206/R216 livrees, deployees 34f2bf9, archivees ; R219 inscrite (derive NOT NULL)"}
+{"at": "2026-09-26T23:00:16+00:00", "head": "9ebaba9", "kind": "start", "task": "R212", "what": "tresorerie unique, BUILD-MODIFIED : get_roi_data/get_monthly_roi_series passent sur v_artist_monthly_cashflow"}

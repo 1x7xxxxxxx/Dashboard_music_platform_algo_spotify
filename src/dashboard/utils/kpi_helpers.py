@@ -728,8 +728,9 @@ def fmt_eur(val, digits: int = 2) -> str:
 @st.cache_data(ttl=_KPI_TTL)
 def get_roi_data(_db, artist_id, from_date, to_date):
     """
-    Calcule le ROI iMusician / Meta Ads pour une période donnée.
-    Retourne revenue_eur, meta_spend, roi_pct, profitable.
+    Calcule le ROI de l'artiste pour une période : revenus NETS contre TOUTES les
+    dépenses (Meta Ads + coûts saisis), depuis `v_artist_monthly_cashflow` (R212).
+    Retourne revenue_eur, meta_spend, other_costs, total_spend, roi_pct, profitable.
     roi_pct = VRAI ROI = (revenus − dépenses) / dépenses × 100
     (0 % = équilibre, négatif = perte). Pas un ratio revenus/dépenses.
     """
@@ -740,6 +741,7 @@ def get_roi_data(_db, artist_id, from_date, to_date):
         # par une panne de base (règle .claude/rules/python.md § Erreurs et absences).
         'revenue_eur': None,
         'meta_spend': None,
+        'other_costs': None,
         'total_spend': None,
         'roi_pct': None,
         'profitable': None,
@@ -752,49 +754,44 @@ def get_roi_data(_db, artist_id, from_date, to_date):
         'unreadable': [],
     }
 
-    # Revenus distributeurs (iMusician + DistroKid, aggregation sur year+month)
+    # R212 — ONE door for money: `v_artist_monthly_cashflow`, the view the treasury
+    # figure and the break-even read. Revenue is NET (distributors + SACEM after
+    # deductions), spend is Meta Ads PLUS the costs the artist entered. Reading gross
+    # revenue from `v_artist_monthly_revenue` and Meta from `v_meta_daily` here put a
+    # gross KPI next to a net chart on the same screen.
+    where = "make_date(year, month, 1) BETWEEN %s AND %s"
+    params: tuple = (eff_from, eff_to)
+    if artist_id is not None:
+        where = "artist_id = %s AND " + where
+        params = (artist_id, eff_from, eff_to)
+
     try:
-        if artist_id is not None:
-            row = _db.fetch_query(
-                """SELECT SUM(revenue_eur) FROM v_artist_monthly_revenue
-                   WHERE artist_id = %s AND make_date(year, month, 1) BETWEEN %s AND %s""",
-                (artist_id, eff_from, eff_to)
-            )
-        else:
-            row = _db.fetch_query(
-                """SELECT SUM(revenue_eur) FROM v_artist_monthly_revenue
-                   WHERE make_date(year, month, 1) BETWEEN %s AND %s""",
-                (eff_from, eff_to)
-            )
+        row = _db.fetch_query(
+            "SELECT SUM(amount_eur) FROM v_artist_monthly_cashflow "
+            f"WHERE flux = 'revenu' AND {where}", params)
         raw = row[0][0] if row else None
         result['revenue_eur'] = float(raw) if raw is not None else None
     except Exception as exc:      # noqa: BLE001 — une tuile ne fait pas tomber la page
         logger.warning("ROI revenue unreadable: %s", type(exc).__name__)
         result['unreadable'].append('revenue')
 
-    # Dépenses Meta Ads
     try:
-        if artist_id is not None:
-            row = _db.fetch_query(
-                """SELECT SUM(spend) FROM v_meta_daily
-                   WHERE artist_id = %s AND day BETWEEN %s AND %s""",
-                (artist_id, eff_from, eff_to)
-            )
-        else:
-            row = _db.fetch_query(
-                """SELECT SUM(spend) FROM v_meta_daily
-                   WHERE day BETWEEN %s AND %s""",
-                (eff_from, eff_to)
-            )
-        raw = row[0][0] if row else None
-        result['meta_spend'] = float(raw) if raw is not None else None
+        row = _db.fetch_query(
+            "SELECT SUM(amount_eur) FILTER (WHERE source = 'meta_ads'), "
+            "       SUM(amount_eur) FILTER (WHERE source <> 'meta_ads') "
+            f"FROM v_artist_monthly_cashflow WHERE flux = 'depense' AND {where}", params)
+        meta = row[0][0] if row else None
+        other = row[0][1] if row and len(row[0]) > 1 else None
+        result['meta_spend'] = float(meta) if meta is not None else None
+        result['other_costs'] = float(other) if other is not None else None
     except Exception as exc:      # noqa: BLE001
         logger.warning("ROI spend unreadable: %s", type(exc).__name__)
         result['unreadable'].append('spend')
 
-    # Promo spend = Meta Ads only (the Hypeddit "budget" the user enters is in fact the
-    # Meta-ad budget, not a separate Hypeddit spend — so it must not be double-counted).
-    result['total_spend'] = result['meta_spend']
+    # Every expense counts — the owner's « toutes les charges ». Unknown only when
+    # BOTH sides are unknown; a missing cost category is not a missing spend.
+    spends = [v for v in (result['meta_spend'], result.get('other_costs')) if v is not None]
+    result['total_spend'] = sum(spends) if spends else None
     # Un ROI ne se calcule QUE si les deux côtés sont connus. Un côté inconnu rend le
     # verdict inconnu — il ne le rend pas « déficitaire ».
     known = result['revenue_eur'] is not None and result['total_spend'] is not None
@@ -808,85 +805,46 @@ def get_roi_data(_db, artist_id, from_date, to_date):
 
 @st.cache_data(ttl=_KPI_TTL)
 def get_monthly_roi_series(_db, artist_id, from_date, to_date):
-    """Monthly revenue vs Meta spend for the period.
-    Columns: period_date, distributor_revenue, sacem_revenue, revenue_eur (= the two
-    summed), meta_spend. SACEM is kept distinct so the chart can stack it. No Hypeddit
-    (the entered Hypeddit budget is in fact the Meta-ad budget — not a real spend)."""
+    """Monthly revenue vs spend for the period, from `v_artist_monthly_cashflow` (R212).
+
+    Columns: period_date, distributor_revenue, sacem_revenue, revenue_eur (the two summed),
+    meta_spend, other_costs. NET revenue, like the treasury figure and `get_roi_data` —
+    one door for money. No Hypeddit (the entered Hypeddit budget is the Meta-ad budget)."""
     import pandas as pd
 
-    # LES DEUX SÉRIES SUR LES MÊMES BORNES. Le revenu est mensuel, la dépense
-    # quotidienne ; les borner différemment faisait comparer deux périodes.
     eff_from, eff_to = month_window(from_date, to_date)
-
-    def _q(sql_artist, sql_all, cols):
-        try:
-            if artist_id is not None:
-                return _db.fetch_df(sql_artist, (artist_id, eff_from, eff_to))
-            return _db.fetch_df(sql_all, (eff_from, eff_to))
-        except Exception as exc:      # noqa: BLE001 — une courbe absente ne tue pas la page
-            logger.warning("ROI series unreadable (%s): %s", cols[1], type(exc).__name__)
-            return pd.DataFrame(columns=cols)
-
-    # Revenue per month — distributor (iMusician + DistroKid) and SACEM split in ONE
-    # scan of the revenue view via conditional aggregation (was two separate scans).
-    df_rev = _q(
-        """SELECT make_date(year, month, 1) AS period_date,
-                  SUM(revenue_eur) FILTER (WHERE source IN ('imusician', 'distrokid'))
-                      AS distributor_revenue,
-                  SUM(revenue_eur) FILTER (WHERE source = 'sacem') AS sacem_revenue
-           FROM v_artist_monthly_revenue
-           WHERE artist_id = %s AND make_date(year, month, 1) BETWEEN %s AND %s
-           GROUP BY year, month ORDER BY year, month""",
-        """SELECT make_date(year, month, 1) AS period_date,
-                  SUM(revenue_eur) FILTER (WHERE source IN ('imusician', 'distrokid'))
-                      AS distributor_revenue,
-                  SUM(revenue_eur) FILTER (WHERE source = 'sacem') AS sacem_revenue
-           FROM v_artist_monthly_revenue
-           WHERE make_date(year, month, 1) BETWEEN %s AND %s
-           GROUP BY year, month ORDER BY year, month""",
-        ['period_date', 'distributor_revenue', 'sacem_revenue'])
-
-    # Meta spend per month
-    df_spend = _q(
-        """SELECT DATE_TRUNC('month', day)::date AS period_date, SUM(spend) AS meta_spend
-           FROM v_meta_daily
-           WHERE artist_id = %s AND day BETWEEN %s AND %s
-           GROUP BY 1 ORDER BY 1""",
-        """SELECT DATE_TRUNC('month', day)::date AS period_date, SUM(spend) AS meta_spend
-           FROM v_meta_daily WHERE day BETWEEN %s AND %s
-           GROUP BY 1 ORDER BY 1""",
-        ['period_date', 'meta_spend'])
-
-    if df_rev.empty and df_spend.empty:
+    cols = ['period_date', 'distributor_revenue', 'sacem_revenue', 'meta_spend',
+            'other_costs']
+    where = "make_date(year, month, 1) BETWEEN %s AND %s"
+    params: tuple = (eff_from, eff_to)
+    if artist_id is not None:
+        where = "artist_id = %s AND " + where
+        params = (artist_id, eff_from, eff_to)
+    try:
+        # One scan, both sides on the SAME month grain and the same bounds. A FILTER sum
+        # over no row is NULL: « no SACEM this month » stays absent, never 0.
+        df = _db.fetch_df(
+            "SELECT make_date(year, month, 1) AS period_date, "
+            "  SUM(amount_eur) FILTER (WHERE flux = 'revenu' "
+            "                          AND source IN ('imusician', 'distrokid')) "
+            "      AS distributor_revenue, "
+            "  SUM(amount_eur) FILTER (WHERE flux = 'revenu' AND source = 'sacem') "
+            "      AS sacem_revenue, "
+            "  SUM(amount_eur) FILTER (WHERE flux = 'depense' AND source = 'meta_ads') "
+            "      AS meta_spend, "
+            "  SUM(amount_eur) FILTER (WHERE flux = 'depense' AND source <> 'meta_ads') "
+            "      AS other_costs "
+            f"FROM v_artist_monthly_cashflow WHERE {where} "
+            "GROUP BY year, month ORDER BY year, month", params)
+    except Exception as exc:      # noqa: BLE001 — une courbe absente ne tue pas la page
+        logger.warning("ROI series unreadable: %s", type(exc).__name__)
+        return pd.DataFrame(columns=cols)
+    if df is None or df.empty:
         return pd.DataFrame()
-
-    if df_rev.empty:
-        df_rev = pd.DataFrame(columns=['period_date', 'distributor_revenue', 'sacem_revenue'])
-    if df_spend.empty:
-        df_spend = pd.DataFrame(columns=['period_date', 'meta_spend'])
-
-    # PAS de `.fillna(0)` : un mois présent côté revenu et absent côté Meta n'a pas
-    # « 0 € dépensé », il n'a pas de mesure. Les deux appelants pandas
-    # (`revenue_forecast.py`, `_tab_budget_roi.py`) étaient DÉJÀ écrits pour l'absence
-    # — `.sum()` saute les NaN et l'un fait même un `dropna` explicite ; c'est le
-    # helper qui la leur cachait.
-    df = pd.merge(df_rev, df_spend, on='period_date', how='outer')
-    # LE TYPE, pas seulement la valeur. `.fillna(0)` coerçait accessoirement ces
-    # colonnes en float64 ; en le retirant, psycopg2 les laisse en `object` porteuses
-    # de `decimal.Decimal`, et le premier `float - Decimal` d'un appelant lève
-    # (`revenue_forecast.py:453`, vu rouge le 2026-09-10). C'est la classe
-    # `object-dtype-numeric-op` du catalogue. `errors='coerce'` garde les NaN NaN :
-    # on convertit le type, on ne remplit pas l'absence.
-    for _col in ('distributor_revenue', 'sacem_revenue', 'meta_spend'):
-        if _col in df.columns:
-            df[_col] = pd.to_numeric(df[_col], errors='coerce')
-    # ⚠️ The no-fillna rule above is about the spend/revenue OUTER merge. It does NOT
-    # carry over INSIDE the revenue side: `SUM(...) FILTER (WHERE source = 'sacem')` is
-    # NULL in every month without a SACEM row, and that NULL means "no SACEM", not
-    # "revenue unmeasured". A plain `a + b` turned it into NaN and wiped the whole month:
-    # measured 2026-09-26, artist 1, 10 of the 12 months with spend AND distributor revenue
-    # vanished, and the ROI regression ran on the 2 SACEM months (R² = 1 by construction).
-    # `min_count=1` keeps NaN only when BOTH sources are absent.
+    for c in cols[1:]:
+        df[c] = pd.to_numeric(df[c], errors='coerce')
+    # `min_count=1`: a month with distributor revenue and no SACEM keeps its revenue
+    # (measured 2026-09-26: a plain `a + b` wiped 10 of 12 months to NaN).
     df['revenue_eur'] = df[['distributor_revenue', 'sacem_revenue']].sum(
         axis=1, min_count=1)
     df['period_date'] = pd.to_datetime(df['period_date'])
