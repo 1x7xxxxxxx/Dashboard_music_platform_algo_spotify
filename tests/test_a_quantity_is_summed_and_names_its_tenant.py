@@ -136,6 +136,88 @@ def test_no_quantity_source_is_treated_as_a_counter() -> None:
         "veut dire « rien ce jour-là », pas « collecte ratée ».")
 
 
+def unscoped_tenant_reads(source: str) -> list[tuple[int, list[str]]]:
+    """(line, relations) of tenant-relation reads that name no `artist_id`, outside
+    a tenant branch and outside docstrings. Pure."""
+    tree = ast.parse(source)
+    out = []
+    # LA BRANCHE FLOTTE EST LÉGITIME, et la reconnaître structurellement est
+    # la moitié du prédicat. Le dépôt écrit partout :
+    #
+    #     if artist_id is not None:  <requête scopée>
+    #     else:                      <requête flotte, admin>
+    #
+    # Une lecture sans `artist_id` dans cette seconde branche n'est pas un
+    # défaut, c'est la vue admin. La première version de ce test nommait
+    # quatre sites de ce genre — un garde qui crie sur le cas normal est un
+    # garde qu'on désactive.
+    parent = {}
+    for node in ast.walk(tree):
+        for child in ast.iter_child_nodes(node):
+            parent[id(child)] = node
+
+    def _under_a_tenant_branch(node) -> bool:
+        cur, child = parent.get(id(node)), node
+        while cur is not None:
+            if isinstance(cur, ast.If) and "artist_id" in ast.dump(cur.test):
+                return True
+            # LA SECONDE FORME DU MÊME IDIOME. `kpi_helpers._q` prend
+            # `(sql_scopé, sql_flotte, colonnes)` et choisit selon
+            # `artist_id is not None`. La branche vit donc dans le HELPER,
+            # pas autour du littéral — et le littéral flotte est, par
+            # construction, celui qui suit un littéral scopé sur la même
+            # relation. Reconnaître l'appariement est la seule façon de ne
+            # pas crier sur l'idiome que ce dépôt emploie partout.
+            if isinstance(cur, ast.Call) and child in cur.args:
+                pos = cur.args.index(child)
+                if pos > 0:
+                    first = cur.args[0]
+                    if (isinstance(first, ast.Constant)
+                            and isinstance(first.value, str)
+                            and "artist_id" in first.value
+                            and set(_FROM.findall(first.value))
+                            & set(_FROM.findall(text))):
+                        return True
+            child, cur = cur, parent.get(id(cur))
+        return False
+
+    docs = {id(n.body[0].value) for n in ast.walk(tree)
+            if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                              ast.AsyncFunctionDef))
+            and n.body and isinstance(n.body[0], ast.Expr)
+            and isinstance(n.body[0].value, ast.Constant)}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if id(node) in docs:
+                continue
+            text = node.value
+        elif isinstance(node, ast.JoinedStr):
+            text = "".join(v.value if isinstance(v, ast.Constant) else "{}"
+                           for v in node.values)
+        else:
+            continue
+        if not any(r in _FROM.findall(text) for r in _TENANT_RELATIONS):
+            continue
+        if "artist_id" in text or _under_a_tenant_branch(node):
+            continue
+        out.append((node.lineno,
+                    [r for r in _FROM.findall(text) if r in _TENANT_RELATIONS]))
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, class `a-late-platform-has-no-tenant-guard`: a Hypeddit read with
+    no `artist_id` is named; the scoped read, the fleet branch under an
+    `if artist_id …`, and a docstring quoting the query are not."""
+    rel = sorted(_TENANT_RELATIONS)[0]
+    bad = f'def f(db):\n    return db.fetch_df("SELECT * FROM {rel}")\n'
+    assert [line for line, _ in unscoped_tenant_reads(bad)] == [2]
+    good = (f'def f(db, artist_id):\n    """Never SELECT * FROM {rel} unscoped."""\n'
+            f'    if artist_id is None:\n        return db.fetch_df("SELECT * FROM {rel}")\n'
+            f'    return db.fetch_df("SELECT * FROM {rel} WHERE artist_id = %s", (artist_id,))\n')
+    assert unscoped_tenant_reads(good) == []
+
+
 def test_every_read_of_these_relations_names_its_tenant() -> None:
     """La règle transverse, sur la seule plateforme qu'aucun garde ne couvrait.
 
@@ -149,72 +231,11 @@ def test_every_read_of_these_relations_names_its_tenant() -> None:
             if "__pycache__" in path.parts or "i18n_catalog" in path.parts:
                 continue
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                hits = unscoped_tenant_reads(path.read_text(encoding="utf-8"))
             except (SyntaxError, UnicodeDecodeError):
                 continue
-            # LA BRANCHE FLOTTE EST LÉGITIME, et la reconnaître structurellement est
-            # la moitié du prédicat. Le dépôt écrit partout :
-            #
-            #     if artist_id is not None:  <requête scopée>
-            #     else:                      <requête flotte, admin>
-            #
-            # Une lecture sans `artist_id` dans cette seconde branche n'est pas un
-            # défaut, c'est la vue admin. La première version de ce test nommait
-            # quatre sites de ce genre — un garde qui crie sur le cas normal est un
-            # garde qu'on désactive.
-            parent = {}
-            for node in ast.walk(tree):
-                for child in ast.iter_child_nodes(node):
-                    parent[id(child)] = node
-
-            def _under_a_tenant_branch(node) -> bool:
-                cur, child = parent.get(id(node)), node
-                while cur is not None:
-                    if isinstance(cur, ast.If) and "artist_id" in ast.dump(cur.test):
-                        return True
-                    # LA SECONDE FORME DU MÊME IDIOME. `kpi_helpers._q` prend
-                    # `(sql_scopé, sql_flotte, colonnes)` et choisit selon
-                    # `artist_id is not None`. La branche vit donc dans le HELPER,
-                    # pas autour du littéral — et le littéral flotte est, par
-                    # construction, celui qui suit un littéral scopé sur la même
-                    # relation. Reconnaître l'appariement est la seule façon de ne
-                    # pas crier sur l'idiome que ce dépôt emploie partout.
-                    if isinstance(cur, ast.Call) and child in cur.args:
-                        pos = cur.args.index(child)
-                        if pos > 0:
-                            first = cur.args[0]
-                            if (isinstance(first, ast.Constant)
-                                    and isinstance(first.value, str)
-                                    and "artist_id" in first.value
-                                    and set(_FROM.findall(first.value))
-                                    & set(_FROM.findall(text))):
-                                return True
-                    child, cur = cur, parent.get(id(cur))
-                return False
-
-            docs = {id(n.body[0].value) for n in ast.walk(tree)
-                    if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef,
-                                      ast.AsyncFunctionDef))
-                    and n.body and isinstance(n.body[0], ast.Expr)
-                    and isinstance(n.body[0].value, ast.Constant)}
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Constant) and isinstance(node.value, str):
-                    if id(node) in docs:
-                        continue
-                    text = node.value
-                elif isinstance(node, ast.JoinedStr):
-                    text = "".join(v.value if isinstance(v, ast.Constant) else "{}"
-                                   for v in node.values)
-                else:
-                    continue
-                if not any(r in _FROM.findall(text) for r in _TENANT_RELATIONS):
-                    continue
-                if "artist_id" in text or _under_a_tenant_branch(node):
-                    continue
-                offenders.append(
-                    f"{path.relative_to(_ROOT).as_posix()}:{node.lineno} — lit "
-                    f"{[r for r in _FROM.findall(text) if r in _TENANT_RELATIONS]} "
-                    "sans nommer son locataire")
+            offenders += [f"{path.relative_to(_ROOT).as_posix()}:{line} — lit {rels} "
+                          "sans nommer son locataire" for line, rels in hits]
     assert not offenders, (
         "Une lecture de données de locataire sans `artist_id`, HORS d'une branche "
         "flotte explicite. C'est la classe que la migration 064 a payée sur "
