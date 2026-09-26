@@ -56,13 +56,34 @@ def test_the_live_renderer_is_the_one_the_tabs_use():
     )
 
 
+def calls_in(fn: ast.FunctionDef) -> set[str]:
+    """Names CALLED inside `fn` — a mention in a docstring or a comment is not a call. Pure."""
+    return {(getattr(n.func, "id", "") or getattr(n.func, "attr", ""))
+            for n in ast.walk(fn) if isinstance(n, ast.Call)}
+
+
 def test_the_live_renderer_offers_the_os_switch():
     fn = _fn(_ST, _LIVE_RENDERER)
     assert fn is not None, f"{_LIVE_RENDERER} introuvable"
-    calls = {(getattr(n.func, "id", "") or getattr(n.func, "attr", ""))
-             for n in ast.walk(fn) if isinstance(n, ast.Call)}
-    assert "os_selector" in calls, (
+    assert "os_selector" in calls_in(fn), (
         "le rendu vivant des guides n'appelle pas `os_selector()` : l'OS est deviné par "
         "User-Agent, **Windows par défaut**, sans moyen de corriger. C'est ce qu'un "
         "artiste Mac a subi le 12/08."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the 2026-08-23 shape — the selector wired to a DEAD renderer, the
+    live one sniffing the User-Agent and only NAMING `os_selector` in its docstring — is
+    refused; the live renderer calling it is accepted."""
+    def fn(src: str) -> ast.FunctionDef:
+        return next(n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.FunctionDef)
+                    and n.name == _LIVE_RENDERER)
+
+    defect = (f"def {_LIVE_RENDERER}(p):\n"
+              '    "Tokens resolved by UA, see os_selector()."\n'
+              "    return resolve(p, guess_os(ua()) or 'windows')\n"
+              "def render_credential_guides():\n    os_selector()\n")
+    assert "os_selector" not in calls_in(fn(defect))
+    fixed = f"def {_LIVE_RENDERER}(p):\n    return resolve(p, os_selector())\n"
+    assert "os_selector" in calls_in(fn(fixed))

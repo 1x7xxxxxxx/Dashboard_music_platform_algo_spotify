@@ -23,18 +23,35 @@ def _allowed_tables() -> set[str]:
     return set(re.findall(r"'([a-z0-9_]+)'", block.group(1)))
 
 
+def unregistered(text: str, allowed: set[str]) -> list[tuple[str, int]]:
+    """(table, line) written by `text` and absent from `allowed`. Pure."""
+    return [(m.group(1), text[: m.start()].count("\n") + 1)
+            for m in (*_CALL_RE.finditer(text), *_CFG_RE.finditer(text))
+            if m.group(1) not in allowed]
+
+
 def test_every_write_table_is_registered():
     allowed = _allowed_tables()
     offenders: dict[str, list[str]] = {}
     for path in _SRC.rglob("*.py"):
         text = path.read_text(encoding="utf-8", errors="ignore")
-        for m in (*_CALL_RE.finditer(text), *_CFG_RE.finditer(text)):
-            table = m.group(1)
-            if table not in allowed:
-                line = text[: m.start()].count("\n") + 1
-                offenders.setdefault(table, []).append(f"{path.relative_to(_ROOT)}:{line}")
+        for table, line in unregistered(text, allowed):
+            offenders.setdefault(table, []).append(f"{path.relative_to(_ROOT)}:{line}")
     assert not offenders, (
         "Tables written via upsert_many/insert_many but absent from "
         "_ALLOWED_TABLES (postgres_handler.py) — add them or the write raises "
         f"the SQL-injection guard and the DAG silently fails: {offenders}"
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, both halves: a literal write and a registry-dispatched write to an
+    unregistered table are named; the same writes to a registered table are not."""
+    allowed = {"youtube_videos"}
+    defect = ("db.upsert_many('hypeddit_clicks', rows, ['id'])\n"
+              "_PLATFORMS = {'x': {'table': 'apple_new_stats'}}\n")
+    assert unregistered(defect, allowed) == [("hypeddit_clicks", 1), ("apple_new_stats", 2)]
+    fixed = ("db.upsert_many('youtube_videos', rows, ['id'])\n"
+             "_PLATFORMS = {'x': {'table': 'youtube_videos'}}\n")
+    assert unregistered(fixed, allowed) == []
+    assert "youtube_videos" in _allowed_tables(), "the allowlist parser reads nothing"

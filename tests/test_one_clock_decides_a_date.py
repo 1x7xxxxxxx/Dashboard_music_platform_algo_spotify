@@ -37,9 +37,28 @@ from src.dashboard.utils.kpi_helpers import freshness_status
 
 
 def test_a_naive_timestamp_is_read_as_utc_not_as_local_time() -> None:
-    """23 h doit s'afficher 23 h, quel que soit le fuseau de la machine qui affiche."""
-    naive_utc = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) - dt.timedelta(hours=23)
-    emoji, _, label = freshness_status(naive_utc)
+    """23 h doit s'afficher 23 h, quel que soit le fuseau de la machine qui affiche.
+
+    Le fuseau de l'hôte est FORCÉ loin d'UTC : sur un runner CI en UTC, heure locale et
+    UTC coïncident, et ce test resterait vert sur le défaut exact qu'il nomme — un garde
+    qui ne mord que sur le poste de son auteur. Restauré dans le `finally`, `tzset()`
+    compris : sinon le fuseau fuit vers les tests suivants du même worker.
+    """
+    import os
+    import time
+
+    saved = os.environ.get("TZ")
+    os.environ["TZ"] = "Asia/Tokyo"                 # UTC+9, sans heure d'été
+    time.tzset()
+    try:
+        naive_utc = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) - dt.timedelta(hours=23)
+        emoji, _, label = freshness_status(naive_utc)
+    finally:
+        if saved is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = saved
+        time.tzset()
     assert "23h" in label, (
         f"« {label} » pour un relevé vieux de 23 h exactement. Une heure locale moins "
         "un horodatage UTC décale l'âge d'une à deux heures — assez pour faire "
