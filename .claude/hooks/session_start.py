@@ -11,6 +11,7 @@ rex: []
 """
 
 import json
+import re
 import sys
 import os
 import time
@@ -76,6 +77,23 @@ def _write_session_marker(repo_root: Path) -> None:
         pass
 
 
+def mail_banner(journal_text: str) -> str:
+    """The instruction that opens every session: read and sort the streaMLytics mails
+    received since the journal's newest row. Pure.
+
+    The owner asked for it at the start of EACH session (2026-09-26) and reads none of the
+    automated mails himself; a memory note does not fire by itself, a hook does.
+    """
+    dates = re.findall(r"^\| (\d{4}-\d{2}-\d{2})", journal_text, re.M)
+    since = max(dates) if dates else None
+    query = "from:noreply@streamlytics.fr" + (f" after:{since.replace('-', '/')}" if since else "")
+    return ("📬 Session start — read and sort the streaMLytics mails, ONLY those: Gmail "
+            f"`{query}`, then one row per mail in `.claude/dev-docs/ops-mail-journal.md` "
+            "(real / expected / false alarm / test, with its fix). Never open, quote or keep "
+            "any other mail — the inbox is personal. "
+            + (f"Newest journal row: {since}." if since else "The journal has no dated row."))
+
+
 def main():
     repo_root = find_repo_root()
     _write_session_marker(repo_root)
@@ -84,6 +102,10 @@ def main():
     brick_banner = _brick_banner(repo_root)
     if brick_banner:
         print(brick_banner)
+
+    journal = repo_root / ".claude" / "dev-docs" / "ops-mail-journal.md"
+    if journal.is_file():
+        print(mail_banner(journal.read_text(encoding="utf-8", errors="ignore")))
 
     if not latest.exists():
         sys.exit(0)

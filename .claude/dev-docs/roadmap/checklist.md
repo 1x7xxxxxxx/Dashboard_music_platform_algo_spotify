@@ -109,8 +109,8 @@ preuve dans `archive.md`, sous « 🧵 R178 ». Avant elles, R165 et R166, qui l
 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance,
 close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et
 qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
-L'ancre `reprise:` nomme l'index ET les lignes en attente d'un geste humain — R148 et R163 depuis le 2026-09-23, R181 depuis le 2026-09-26 (R151 réfutée, R150 livrée, R163 entrée et R153 livrée ce jour-là). R177, entrée le 2026-09-25, est livrée le même soir (~23:55) — détail et preuve dans `archive.md`, sous « 🔒 R177 ». R182, entrée le 2026-09-26, est livrée le même jour — détail sous « 🧰 R182 » dans `archive.md`. R179, entrée le 2026-09-26 en attendant l'accord du propriétaire pour toucher un DAG de production, est livrée le même jour — détail et preuve dans `archive.md`, sous « 🐛 R179 ». La table « 🙋 En attente de toi »
-plus bas en porte **trois** (R181 entrée le 2026-09-26) ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
+L'ancre `reprise:` nomme l'index ET les lignes en attente d'un geste humain — R148 et R163 depuis le 2026-09-23, R183 depuis le 2026-09-26 (R151 réfutée, R150 livrée, R163 entrée et R153 livrée ce jour-là). R177, entrée le 2026-09-25, est livrée le même soir (~23:55) — détail et preuve dans `archive.md`, sous « 🔒 R177 ». R182, entrée le 2026-09-26, est livrée le même jour — détail sous « 🧰 R182 » dans `archive.md`. R179, entrée le 2026-09-26 en attendant l'accord du propriétaire pour toucher un DAG de production, est livrée le même jour — détail et preuve dans `archive.md`, sous « 🐛 R179 ». La table « 🙋 En attente de toi »
+plus bas en porte **trois** (R183 entrée le 2026-09-26) ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
 sont sorties le 2026-09-20 — les dix-sept décisions de la première tranchées et
 intégrées, la deuxième faite par le propriétaire (33 lignes en production), la troisième
 mesurée EN PRODUCTION et close sur son résultat.
@@ -229,7 +229,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R181, R169, R148, R163 -->
+<!-- reprise: open=R183, R169, R148, R163 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers
@@ -307,7 +307,7 @@ deux réordonnancements de R118/R120, chacun sur une mesure — a été **dépla
 dans `archive.md`** le 2026-09-18, sous « Le récit de mesure de R114–R121 ». Il n'est pas
 perdu : il n'appartient simplement pas à un écran qui répond « où j'en suis ».
 
-**La table « 🙋 En attente de toi » porte TROIS lignes** — R181, entrée le 2026-09-26 (le récap de nuit part vers une boîte que personne ne lit), R148, entrée
+**La table « 🙋 En attente de toi » porte TROIS lignes** — R183, entrée le 2026-09-26 (le récap de PRODUCTION part vers une autre boîte ; R181, le récap lisible, est livrée), R148, entrée
 le 2026-09-22 (R151 réfutée, R150 livrée et R153 livrée le 2026-09-23), et R163, entrée le
 2026-09-23 : les gestes Hypeddit à faire au lancement. R175, R176 et R177, entrées le même soir
 du 2026-09-25, en sont ressorties livrées le même soir — détail dans `archive.md`, sous
@@ -454,7 +454,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 |----|-------|------|--------------------------|
 | R148 | Trois conversations « combien tu paierais » | P3 | trois entretiens de vingt minutes, avec des artistes **qui ont vu leurs données** — runbook §19 |
 | R163 | Brancher Hypeddit sur le pixel et sa Conversions API, au lancement | P3 | **déclencheur : l'app terminée ET une campagne Meta relancée.** Choisir le pixel dans Hypeddit, y coller un jeton CAPI, rattacher le pixel à chaque smart link, vérifier l'évènement en test, puis 48 h après voir `custom_conversions` remonter — runbook §24 |
-| R181 | Un seul mail récapitulatif par nuit — livré le 2026-09-26. Le récap **lisible** part désormais de GitHub Actions (`nightly-recap.yml`, 06:47 UTC, vers la boîte lue) ; celui de prod (`alert_monitor`) part encore vers `ALERT_EMAIL` = une autre boîte <!-- anchor: nightly-recap --> | P3 | **changer `ALERT_EMAIL` dans le `.env` de prod** pour recevoir aussi le détail des DAG — runbook §29 ; se ferme après 7 nuits consignées dans `ops-mail-journal.md` |
+| R183 | Recevoir AUSSI le récap de production (détail des DAG en échec, `alert_monitor`, 23 h) — il part vers `ALERT_EMAIL` = une autre boîte ; le récap GitHub (R181) arrive déjà dans la boîte lue <!-- anchor: alert-email --> | P4 | **changer `ALERT_EMAIL` dans le `.env` de prod** puis recréer le planificateur — runbook §29 |
 
 ⚠️ **R148 vient après l'activation** : demander à
 quelqu'un ce qu'il paierait pour un produit qu'il n'a jamais vu fonctionner ne mesure

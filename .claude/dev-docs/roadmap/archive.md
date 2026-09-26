@@ -180,6 +180,24 @@ tâche-là, ouvert séparément dans `checklist.md`).
 
 ---
 
+## 📋 R181 — Un seul mail récapitulatif par nuit, dans la boîte lue (livrée 2026-09-26)
+
+Entrée le 2026-09-26 ; conception validée par code-critic
+(`.claude/dev-docs/roadmap/design-R180-R182.md`).
+
+- [x] **R181 — un récap CHAQUE nuit, nuit calme comprise, que le propriétaire reçoit.**
+  (P3) ✅ (2026-09-26, `c8db4ba`, `c2e6cae`, `ce932d6`)
+
+  `alert_monitor` envoie un récap chaque nuit (section GitHub, annulé ≠ rouge, illisible ≠
+  vert) — mais vers `ALERT_EMAIL`, une autre boîte (suite : R183, geste du propriétaire).
+  Le récap LISIBLE part donc de GitHub Actions (`nightly-recap.yml`, 06:47 UTC) : verdicts
+  CI / sécurité / santé prod + sonde `/health` (injoignable = rouge). Prouvé deux fois le
+  jour même dans la boîte lue (`ops-mail-journal.md`) ; la première a trouvé que Cloudflare
+  refuse l'agent `Python-urllib` (fausse alerte, corrigée et gardée). La revue
+  security-specialist a trouvé `starttls()` sans vérification du certificat sur 6 envois :
+  corrigé et gardé. Chaque séance s'ouvre sur la consigne de trier ces mails (hook
+  `session_start.py`).
+
 ## 🧬 R180 — Les familles d'erreurs, déclarées et adossées à un garde (livrée 2026-09-26)
 
 Entrée le 2026-09-26 dans l'index de `checklist.md` ; conception validée par code-critic
