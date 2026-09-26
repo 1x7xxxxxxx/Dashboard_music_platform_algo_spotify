@@ -1209,7 +1209,7 @@
       "renamed_from": null
     },
     "a-gap-rendered-as-a-zero-by-the-stack": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py",
@@ -1232,7 +1232,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 10,
+      "revisions": 11,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3375,7 +3375,7 @@
       "renamed_from": null
     },
     "a-signature-anchored-on-a-location": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "measured",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": ".claude/scripts/audit_runner.py",
@@ -3398,7 +3398,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11486,12 +11486,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 550,
+      "catalogue_revisions": 551,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 13,
+      "cause_unknown": 11,
       "guard_does_not_prove_itself": 34,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
