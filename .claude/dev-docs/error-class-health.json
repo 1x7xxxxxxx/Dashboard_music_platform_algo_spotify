@@ -10256,7 +10256,7 @@
       "renamed_from": null
     },
     "the-application-connects-as-a-superuser": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_application_is_not_a_superuser.py",
@@ -10279,7 +10279,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-10",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -10477,7 +10477,7 @@
       "renamed_from": null
     },
     "too-many-charts-competing-for-one-decision": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-23",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_view_opens_on_one_decision.py",
@@ -10499,7 +10499,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-23",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -10971,7 +10971,7 @@
       "renamed_from": null
     },
     "unguarded-drop-replayed-alone": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-08-21",
       "guard_automatic": true,
       "guard_ref": "tests/test_migrations_are_replay_safe.py",
@@ -10994,7 +10994,7 @@
       "siblings_swept": true,
       "status": "fixed",
       "introduced_date": "2026-08-21",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11445,12 +11445,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 408,
+      "catalogue_revisions": 409,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 76,
+      "cause_unknown": 73,
       "guard_does_not_prove_itself": 270,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
