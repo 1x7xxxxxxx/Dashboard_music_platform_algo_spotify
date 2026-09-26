@@ -63,13 +63,57 @@ def _dag_literal_tables() -> set[str]:
     `s4a_song_timeline` in prose, explaining the very defect this guards. A textual
     signature would go red on the explanation of its own fix.
     """
-    tree = ast.parse((REPO / "airflow/dags/alert_monitor.py").read_text(encoding="utf-8"))
-    fn = next(n for n in ast.walk(tree)
-              if isinstance(n, ast.FunctionDef) and n.name == "check_canary_health")
     known = {t["table"] for t in MONITOR_TARGETS}
     known |= {t["tenant_table"] for t in MONITOR_TARGETS if t.get("tenant_table")}
+    return literal_tables(
+        (REPO / "airflow/dags/alert_monitor.py").read_text(encoding="utf-8"),
+        "check_canary_health", known)
+
+
+def literal_tables(source: str, function: str, known: set[str]) -> set[str]:
+    """Known table names written as string literals in `function`'s CODE. Pure.
+
+    Comments are not in the AST, so prose explaining the fix cannot trip it.
+    """
+    fn = next(n for n in ast.walk(ast.parse(source))
+              if isinstance(n, ast.FunctionDef) and n.name == function)
     return {n.value for n in ast.walk(fn)
             if isinstance(n, ast.Constant) and isinstance(n.value, str) and n.value in known}
+
+
+def disagreements(panel: list[dict], targets: list[dict]) -> tuple[dict, set[str]]:
+    """(label → (panel table, monitor table)) where the two registries name the same
+    source with different tables, and the set of labels they share. Pure."""
+    by_source = {t["source"]: t["table"] for t in targets}
+    mismatched = {s["label"]: (s["table"], by_source[s["label"]])
+                  for s in panel
+                  if s["label"] in by_source and s["table"] != by_source[s["label"]]}
+    return mismatched, {s["label"] for s in panel} & set(by_source)
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, class `same-platform-judged-on-different-tables`: the 2026-08
+    shapes — the watchdog restating its own pair of tables, the panel judging
+    "Spotify S4A" on another table than the monitor — are named; a watchdog that
+    derives its tables and names them only in a comment, and an agreeing panel, are
+    not."""
+    known = {"track_popularity_history", "s4a_song_timeline"}
+    restated = ("def check_canary_health(db):\n"
+                "    for t in ('track_popularity_history', 's4a_song_timeline'):\n"
+                "        db.count(t)\n")
+    assert literal_tables(restated, "check_canary_health", known) == known
+    derived = ("def check_canary_health(db):\n"
+               "    # was: track_popularity_history, s4a_song_timeline\n"
+               "    for t in tables_for_platform('spotify'):\n"
+               "        db.count(t)\n")
+    assert literal_tables(derived, "check_canary_health", known) == set()
+    targets = [{"source": "Spotify S4A", "table": "s4a_song_timeline"}]
+    drifted = [{"label": "Spotify S4A", "table": "track_popularity_history"}]
+    assert disagreements(drifted, targets) == (
+        {"Spotify S4A": ("track_popularity_history", "s4a_song_timeline")},
+        {"Spotify S4A"})
+    agreeing = [{"label": "Spotify S4A", "table": "s4a_song_timeline"}]
+    assert disagreements(agreeing, targets) == ({}, {"Spotify S4A"})
 
 
 def test_the_canary_watchdog_hardcodes_no_table() -> None:
@@ -92,12 +136,7 @@ def test_the_kpi_panel_agrees_on_every_shared_source() -> None:
     """
     from src.dashboard.utils.kpi_helpers import SOURCES_CONFIG
 
-    by_source = {t["source"]: t["table"] for t in MONITOR_TARGETS}
-    mismatched = {
-        s["label"]: (s["table"], by_source[s["label"]])
-        for s in SOURCES_CONFIG
-        if s["label"] in by_source and s["table"] != by_source[s["label"]]
-    }
+    mismatched, shared = disagreements(SOURCES_CONFIG, MONITOR_TARGETS)
     assert not mismatched, (
         "the KPI panel and the freshness monitor disagree on which table proves a "
         f"source: {mismatched}"
@@ -112,7 +151,6 @@ def test_the_kpi_panel_agrees_on_every_shared_source() -> None:
     # the panel carries sources readiness has no opinion on, and it feeds a UNION ALL
     # with its own allowlists. Agreement is the contract, so the SIZE of the
     # agreement is part of it.
-    shared = {s["label"] for s in SOURCES_CONFIG} & set(by_source)
     assert len(shared) >= 4, (
         f"only {len(shared)} label(s) are shared by the KPI panel and the freshness "
         f"monitor ({sorted(shared)}). Below this, the check above compares almost "
