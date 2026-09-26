@@ -29,17 +29,25 @@ MODULE = REPO / "src" / "utils" / "freshness_monitor.py"
 
 # ── structural: the second clock must not come back ──────────────────────────
 
-def test_the_module_does_not_read_a_second_clock():
-    """`datetime.now()` anywhere in the age path is the defect, by construction."""
-    tree = ast.parse(MODULE.read_text(encoding="utf-8"))
+def second_clocks(source: str) -> list[str]:
+    """Every argument-less `now()` / `utcnow()` / `today()` a module calls. Pure.
+
+    AST, so the SQL string `now()` Postgres evaluates — the ONE clock — is not a call.
+    """
     offenders = []
-    for node in ast.walk(tree):
+    for node in ast.walk(ast.parse(source)):
         if not isinstance(node, ast.Call):
             continue
         f = node.func
         name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
         if name in ("now", "utcnow", "today") and not node.args:
             offenders.append(f"line {node.lineno}: {name}()")
+    return offenders
+
+
+def test_the_module_does_not_read_a_second_clock():
+    """`datetime.now()` anywhere in the age path is the defect, by construction."""
+    offenders = second_clocks(MODULE.read_text(encoding="utf-8"))
     assert not offenders, (
         "freshness_monitor reads a clock of its own: " + ", ".join(offenders) + ".\n"
         "The rows live in Postgres and are stored in ITS session timezone; any other "
@@ -52,6 +60,18 @@ def test_the_age_is_asked_of_postgres():
     assert "EXTRACT(EPOCH FROM (now() -" in src, (
         "the age is no longer computed in SQL — whatever replaced it is a second clock"
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the Python clock subtracted from a Postgres row is named, in both
+    spellings; the age asked of Postgres — `now()` inside SQL — is not."""
+    defect = ("from datetime import datetime, date\n"
+              "def age(last):\n    return datetime.now() - last\n"
+              "def day():\n    return date.today()\n")
+    assert sorted(second_clocks(defect)) == ["line 3: now()", "line 5: today()"]
+    fixed = ("def age(db, t):\n"
+             "    return db.fetch_query('SELECT EXTRACT(EPOCH FROM (now() - MAX(c)))')\n")
+    assert second_clocks(fixed) == []
 
 
 # ── behavioural: against the real database ───────────────────────────────────

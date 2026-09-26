@@ -50,15 +50,29 @@ _METRIC_NAMES = ("day_date", "date", "day", "metric_date", "report_date",
 
 def test_every_declared_metric_column_is_named_like_one():
     """A typo here silently falls back to the write timestamp."""
-    for target in MONITOR_TARGETS:
-        for key in ("metric_col", "tenant_metric_col"):
-            col = target.get(key)
-            if col:
-                assert col in _METRIC_NAMES, (
-                    f"{target['source']}: {key}={col!r} is not a recognised metric-date "
-                    "name. If it is one, add it to _METRIC_NAMES here; if it is a typo, "
-                    "freshness has quietly gone back to measuring the write time."
-                )
+    bad = unrecognised_metric_cols(MONITOR_TARGETS)
+    assert not bad, (
+        f"{bad}: not a recognised metric-date name. If it is one, add it to "
+        "_METRIC_NAMES here; if it is a typo, freshness has quietly gone back to "
+        "measuring the write time.")
+
+
+def unrecognised_metric_cols(targets) -> list[str]:
+    """`source: key=col` for every declared metric column that is not a metric date. Pure."""
+    return [f"{t['source']}: {key}={t[key]!r}" for t in targets
+            for key in ("metric_col", "tenant_metric_col")
+            if t.get(key) and t[key] not in _METRIC_NAMES]
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: Meta Ads measured on `collected_at` (the write time the collector
+    advances nightly — green for two years) and a typo are named; `day_date` is not."""
+    targets = [{"source": "Meta Ads", "metric_col": "collected_at"},
+               {"source": "YouTube", "tenant_metric_col": "dat"},
+               {"source": "S4A", "metric_col": "date"}]
+    assert unrecognised_metric_cols(targets) == [
+        "Meta Ads: metric_col='collected_at'", "YouTube: tenant_metric_col='dat'"]
+    assert unrecognised_metric_cols([{"source": "Meta Ads", "metric_col": "day_date"}]) == []
 
 
 def test_the_result_says_which_column_answered():
