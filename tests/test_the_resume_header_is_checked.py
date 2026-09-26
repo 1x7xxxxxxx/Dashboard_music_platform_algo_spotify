@@ -136,9 +136,31 @@ def test_the_index_is_not_empty_of_both_sections():
 
 # ── The state file must not accumulate its own history ───────────────────────
 
+def accumulated_history(text: str) -> tuple[list[str], list[str]]:
+    """(REPRISE blocks, « Historique » blocks) of a state file. Pure.
+
+    A state file carries exactly one REPRISE and no history; the rest is archive.
+    """
+    return (re.findall(r"^## 🔖 REPRISE.*$", text, re.M),
+            re.findall(r"^## 🔖 Historique.*$", text, re.M))
+
+
+def test_accumulation_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, class `state-file-accumulates-its-own-history`: the 2026-08-28 file
+    — several REPRISE blocks, two claiming « à lire EN PREMIER », plus a dated history
+    block — is seen on both counts; a one-block file is clean."""
+    grown = ("## 🔖 REPRISE — à lire EN PREMIER (2026-08-28)\n\n"
+             "## 🔖 REPRISE — à lire EN PREMIER (2026-08-20)\n\n"
+             "## 🔖 Historique des séances\n")
+    blocks, history = accumulated_history(grown)
+    assert len(blocks) == 2 and len(history) == 1
+    assert accumulated_history("## 🔖 REPRISE — état\n\n## 📋 Tâches ouvertes\n") == (
+        ["## 🔖 REPRISE — état"], [])
+
+
 def test_only_one_resume_block():
     """Seven blocks, two both saying « à lire EN PREMIER ». Both cannot be true."""
-    blocks = re.findall(r"^## 🔖 REPRISE.*$", _text(), re.M)
+    blocks = accumulated_history(_text())[0]
     assert len(blocks) == 1, (
         f"{len(blocks)} REPRISE blocks in checklist.md:\n  "
         + "\n  ".join(b[:90] for b in blocks)
@@ -149,7 +171,7 @@ def test_only_one_resume_block():
 
 
 def test_no_history_block_remains_in_the_active_file():
-    stale = re.findall(r"^## 🔖 Historique.*$", _text(), re.M)
+    stale = accumulated_history(_text())[1]
     assert not stale, (
         f"{len(stale)} « Historique » block(s) still in the ACTIVE roadmap:\n  "
         + "\n  ".join(s[:90] for s in stale)

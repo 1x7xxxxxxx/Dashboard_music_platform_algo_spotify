@@ -47,6 +47,11 @@ def test_a_comma_inside_a_title_does_not_beat_the_real_separator():
     """Counted on the HEADER line: a song called "Hello, Goodbye" is ordinary data."""
     text = 'song;streams\n"Hello, Goodbye";120\n"Come, Together";90'
     assert sniff_separator(text) == ";"
+    # Commas OUTNUMBER semicolons over the whole file here (4 against 3): only a
+    # count on the header line gets it right. Added 2026-09-26 — the case above has
+    # fewer commas than semicolons, so counting the whole text passed it too.
+    busy = 'song;streams\n"Hello, Goodbye, Again";120\n"Come, Together, Now";90'
+    assert sniff_separator(busy) == ";"
 
 
 def test_a_bom_does_not_hide_the_first_column():
