@@ -217,6 +217,18 @@ pas un nouveau dépôt (une troisième copie des outils dériverait).
   preset ; et le garde de famille passait sur zéro classe lue. REX R62 et R63 ajoutés
   à la baseline.
 
+  **Rev2, le même jour (baseline `8065a50`)** — sur la revue de code-critic (« la plus grande
+  part de la brique conçue n'est pas livrée »), tout ce que la rev1 déclarait absent est
+  livré, rendu agnostique : sondes de nuit (gitleaks sur tout l'historique, CI de main,
+  santé prod) et UN récap par nuit (`night_check.py --mail`, workflow
+  `error-classes-nightly.yml`) ; `ci_verdict.py`, `error_class_health.py`,
+  `check_test_durations.py --fix`, `secret_precedence.py` ; cinq gardes de départ de plus
+  (horodatage tz, structure-pas-texte, document généré à jour, copie stockée d'un secret
+  tourné, récap honnête), chacun auto-prouvé et adossé à une classe exemple ; la règle des
+  méta-gardes portée dans le `select_tests.py` canonique et le payload générique (qui
+  divergeait déjà de son canon). Auto-test : 18 fichiers, 22 tests verts, chacun des 7
+  gardes ROUGE sur son défaut planté.
+
 ## 🐛 R179 — Le mail du soir ne voyait aucun DAG en échec (livrée 2026-09-26)
 
 Née le 2026-09-25 au soir du bloc d'audit « 🧭 R167 – R176 » de `checklist.md`, entrée
