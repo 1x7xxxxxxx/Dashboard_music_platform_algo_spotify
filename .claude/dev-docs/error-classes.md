@@ -288,7 +288,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [i18n-untranslated-key](#i18n-untranslated-key) | P3 | deterministic | guarded | none |
 | [api-router-schema-drift](#api-router-schema-drift) | P3 | heuristic | guarded | none |
 | [csv-formula-injection](#csv-formula-injection) | P3 | heuristic | guarded | none |
-| [config-not-env](#config-not-env) | P2 | heuristic | guarded | none |
+| [config-not-env](#config-not-env) | P2 | deterministic | guarded | none |
 | [prod-canonical-schema-drift](#prod-canonical-schema-drift) | P2 | manual | reported | none |
 | [multitenant-dag-fleet-poisoning](#multitenant-dag-fleet-poisoning) | P2 | deterministic | guarded | none |
 | [collector-import-dotenv-crash](#collector-import-dotenv-crash) | P2 | deterministic | guarded | none |
@@ -1092,24 +1092,6 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-06-13: found via dashboard red-team — `export_all` (csv), `export_excel` (xlsx) and the admin opt-in export (`admin.py`) wrote raw values. Fix: `defang_formulas()` prefixes any string cell starting with `=,+,-,@,\t,\r` with `'` (OWASP), applied to all 3 export paths + guard test `test_defang_formulas_neutralizes_injection`. Durable rule: every new `to_csv`/`to_excel` export of DB/user data must route through `defang_formulas()`.
   - 2026-09-04 (garde): `grep -viE 'defang_formulas|#'` excluait TOUTE ligne contenant `#` — donc un vrai `to_csv()` non défangé suivi d'un commentaire inoffensif, sur une classe CWE-1236. Mutation comparée sur le même défaut : **ancien `exit=0`** (aveugle), **nouveau `exit=1`**.
 
-## config-not-env
-- status: guarded
-- severity: P2
-- kind: heuristic
-- symptom: a bootstrap/runtime path subscripts `config['…']` directly (config.yaml-only) instead of reading env first → `KeyError` in prod where there is no `config.yaml` (SMTP, DATABASE_URL, FERNET_KEY, Airflow URL, DB schema bootstraps). 4 REX recurrences; this session fixed 11 `*_schema.py` bootstraps.
-- signature: `! grep -rnE "config(_loader\.load\(\))?\[" src/database/*_schema.py`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
-- root_cause: `config.yaml` exists in dev and not in prod, so `config['x']` is correct on the machine where the code is written and a `KeyError` on the machine where it runs.
-- cause_evidence: read (`src/utils/config_loader.py:70-78` — tous les accès passent par `self._config.get('<section>', {})`, jamais par `config['x']` : le `KeyError` que la classe décrit ne peut plus se produire à ce niveau. Vérifié le 2026-09-17)
-- long_term_fix: env-first resolution with config.yaml as the local fallback (the `_smtp_config()` shape), so the dev path is the exceptional one.
-- guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view/SKILL.md (pitfall: config env-fallback) }
-- guard_scope: un-état-qui-déborde-de-sa-portée — `config.yaml` existe en développement et pas en production, donc `config['x']` est correct sur la machine où le code est ÉCRIT et lève `KeyError` là où il TOURNE ; couvre: une signature shell restreinte à `src/database/*_schema.py`, qui refuse tout accès indexé à la configuration dans les définitions de schéma — l'endroit précis où le défaut s'est produit ; ne couvre pas: (1) **le geste voisin le plus proche, et c'est un trou large — tout le reste de `src/`** : vues, collecteurs, utilitaires et DAG lisent aussi la configuration, et la signature ne les regarde pas ; le périmètre a été choisi sur le site du défaut, pas sur la classe ; (2) les accès par `.get()` sans défaut utile, qui rendent `None` et échouent plus loin ; (3) la présence RÉELLE de la clé en production — la signature lit du code, elle n'interroge aucun environnement ; (4) les autres asymétries dev↔prod (variables d'environnement, fichiers montés, secrets), qui partagent exactement la cause.
-- siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `! grep -rnE "config(_loader\.load\(\))?\[" src/database/*_schema.py`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
-- rex_ref: .claude/skills/dashboard-view/SKILL.md
-- first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite15)
-- History:
-  - 2026-06-13: the 11 `src/database/*_schema.py` `__main__` bootstraps did `PostgresHandler(**config['database'])` → `KeyError` when launched in prod (no config.yaml; `config_loader.load()` returns `{}`). Fixed via `PostgresHandler.from_env_or_config()` (env DATABASE_URL → config.yaml → explicit RuntimeError). Catalogued **scoped to `*_schema.py`** (0 hits today) to flag regressions; kept `heuristic`/nightly — a project-wide `config[` sweep false-positives on the dashboard, which reads config.yaml *by design* (CLAUDE.md). The narrow scope IS the precision.
-
 ## prod-canonical-schema-drift
 - status: reported
 - severity: P2
@@ -1391,26 +1373,6 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-04 (garde): la signature était un `grep … | grep -v "conf="`. Un commentaire en fin de ligne mentionnant `conf=` sur un appel réellement non scopé — `trigger_dag(dag_id)  # TODO conf=` — supprimait le hit **en silence** : la classe la plus grave du catalogue reposait sur une correspondance de texte, et elle est `deterministic`, donc bloquante en CI. Remplacée par `.claude/scripts/check_dag_trigger_scope.py`, qui lit l'arbre. Comparé sur le même défaut : ancien `exit=0` (aveugle), nouveau `exit=1`. Trouvé par un balayage `sibling-sweeper` sur la classe `guard-matches-its-own-comment`.
   - 2026-09-04 (garde): la PREMIÈRE version du détecteur AST accusait `src/dashboard/utils/collection_trigger.py:39` — un faux positif : `conf` y est une variable (`conf = {'artist_id': artist_id} if … else {}`), pas un littéral. Vérifié avant de conclure, et le `else {}` est correct : `artist_id is None` n'est atteignable que pour un **admin** (garde `app.py:668`, et `tenant_scope()` documente « None = every tenant »). Le détecteur suit désormais l'assignation. Un faux positif use un garde aussi sûrement qu'un faux négatif.
 
-
-## ast-guard-blind-to-bom
-- status: guarded
-- severity: P2
-- kind: deterministic
-- symptom: a source file starts with a UTF-8 BOM (`\xef\xbb\xbf`). `ast.parse` on text read with plain `encoding="utf-8"` raises `SyntaxError: invalid non-printable character U+FEFF`, so every AST-based guard **silently scans nothing** in that file. The file looks covered; it is not.
-- root_cause: files edited on Windows acquire a BOM; Python tolerates it at runtime (the interpreter strips it) but `ast.parse` on an already-decoded string does not. A guard that catches `SyntaxError` and moves on turns the blind spot into a pass.
-- cause_evidence: measured (2026-09-26 — `ast.parse` d'une chaîne DÉJÀ décodée qui commence par U+FEFF lève `SyntaxError: invalid non-printable character U+FEFF` ; un garde qui attrape `SyntaxError` et passe au suivant fait de ce fichier un vert)
-- signature: `python3 -c "import sys;from pathlib import Path;bad=[str(p) for d in ('src','airflow','tests','.claude/scripts') for p in Path(d).rglob('*.py') if p.read_bytes()[:3]==b'\xef\xbb\xbf'];print(chr(10).join(bad));sys.exit(1 if bad else 0)"`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
-- long_term_fix: no BOM in the repo (3 removed), AST tools read with `encoding="utf-8-sig"`, and an unparsable file is REPORTED as a failure rather than skipped — a file the scanner could not read is not a file that passed.
-- autofix: safe
-- guard: { type: error-class-signature, ref: audit_runner --deterministic }
-- guard_scope: une-erreur-avalée-devient-une-absence — un fichier qu'un analyseur ne peut pas LIRE est compté comme un fichier qui PASSE ; couvre: la signature `audit_runner --deterministic` vérifie l'absence de BOM dans `src/`, `airflow/`, `tests/` et `.claude/scripts/`, c'est-à-dire la CAUSE (le marqueur d'octets) et non la conséquence ; ne couvre pas: (1) **le geste voisin le plus proche, et c'est le vrai trou — les autres façons dont un analyseur AST devient aveugle** : un fichier au `SyntaxError` franc, un encodage non-UTF-8, un fichier illisible faute de droits produisent exactement le même « rien à signaler », et aucune signature ne les cherche ; le long_term_fix demande qu'un fichier illisible soit RAPPORTÉ comme un échec, mais **rien ne vérifie que les ~30 gardes AST du dépôt le font** ; (2) les arbres hors des quatre balayés — `tools/`, `.claude/hooks/`, `migrations/` ; (3) les fichiers non-`.py` analysés par un autre parseur (YAML, JSON, Markdown), où l'équivalent existe ; (4) la RÉAPPARITION d'un BOM entre deux exécutions de la signature, qui n'est lancée par aucun automate.
-- siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import sys;from pathlib import Path;bad=[str(p) for d in ('src','airflow','tests','.claude/scripts') for p in Path(d).rglob('*.py') if p.r`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
-- rex_ref: .claude/scripts/audit_tenant_writes.py
-- first_seen: 2026-08-20
-- History:
-  - 2026-08-20: signature polarity corrected the same day — the `! cmd` idiom fits grep (exit 0 on a hit); this probe already exits 1 when a BOM exists, so the `!` inverted it and reported a permanent false hit. An idiom copied without checking its polarity is a guard that reads backwards.
-  - 2026-08-20: discovered while checking that a NEW guard actually went red on the defect it targets — it did not, because `spotify_api_daily.py` carried a BOM and was being skipped. The same BOM explains the "3 fichiers non parsables — graphe incomplet" that `select_tests.py` (CLAUDE.md rule 16) had been printing on every run: the impact graph was silently missing three DAGs. `tests/test_dag_fleet_isolation.py` was unaffected (it already read `utf-8-sig`).
 
 ## column-name-is-not-its-meaning
 - status: guarded
@@ -3698,24 +3660,6 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
   - 2026-09-16: **P1 et non P3.** Une porte qui ne peut pas échouer ne coûte pas du temps, elle coûte la confiance : tout ce qu'elle a laissé passer depuis qu'elle existe est inconnu. C'est la même gravité que les 27 exécutions où la suite n'a pas tourné derrière un signal rouge sans rapport — sauf qu'ici il n'y avait même pas de rouge à voir. Mutation : `--frozen` retiré d'une seule étape → le garde la nomme, avec sa ligne ; remis → vert.
   - 2026-09-18: défaut remis en place en retirant `--frozen` d'une étape de CI (.github/workflows/ci.yml:157) ⇒ 1 rouge. `uv run` sans `--frozen` re-verrouille et re-synchronise AVANT d'exécuter : la porte corrige la dérive qu'elle est censée détecter.
 
-## a-limiter-consumed-in-two-steps
-- status: guarded
-- severity: P1
-- kind: deterministic
-- symptom: un limiteur ATOMIQUE ne borne que les tentatives séquentielles. N requêtes simultanées obtiennent toutes l'autorisation, le budget affiché est respecté à la lecture et dépassé dans les faits. Aucun test ne le voit : chaque tentative, prise seule, est correcte.
-- root_cause: l'atomicité est construite dans le magasin et **contournée au site d'appel**. Mesuré le 2026-09-16 : `src/utils/request_throttle.py` sérialise `DELETE / count / INSERT` sous `pg_advisory_xact_lock`, mais `src/dashboard/auth.py` appelait `throttle_check()` (qui ne consomme PAS), vérifiait le code TOTP, puis `throttle_record()` seulement en cas d'échec. Entre la lecture et l'écriture tient tout le travail. Streamlit sert des sessions distinctes en parallèle : ouvrir N onglets suffisait. Le seau de 10 codes par 15 min ne bornait donc rien de simultané. Même forme sur `login` et `register`. Le découpage `check`/`record` existait pour une bonne raison — ne pas facturer deux fois — et c'est cette raison qui a rendu le défaut invisible.
-- cause_evidence: read (src/utils/request_throttle.py, rétro-portage mécanique 2026-09-16)
-- long_term_fix: **une décision et sa consommation sont la MÊME opération, ou ce n'est pas une décision.** `throttle_consume()` appelle `hit()`, qui décide et consomme indivisiblement ; `throttle_check()` reste, réservé à l'AFFICHAGE, et son docstring dit désormais qu'il ne doit pas décider. Le corollaire général : quand on ajoute de l'atomicité à une couche basse, **balayer les appelants** — une primitive indivisible appelée en deux temps n'est pas indivisible.
-- signature: `python3 -c "import pathlib,sys; bad=[f'{p}:{i}' for p in pathlib.Path('src').rglob('*.py') if p.name!='throttle.py' for i,l in enumerate(p.read_text(encoding='utf-8').splitlines(),1) if 'throttle_record(' in l and not l.strip().startswith('#')]; print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
-- guard: { type: script, ref: la signature ci-dessus ; comportement couvert par tests/test_the_login_budget_holds_across_instances.py }
-- guard_scope: deux-surfaces-deux-nombres — l'atomicité est construite dans le MAGASIN et contournée au SITE D'APPEL, qui lit puis écrit en deux temps ; couvre: une signature shell qui balaie `src/` à la recherche de la consommation en deux étapes, plus le comportement du magasin lui-même vérifié ailleurs ; ne couvre pas: (1) **le geste voisin le plus proche — les autres atomicités contournées au site d'appel** : un compteur, un stock, un verrou peuvent être atomiques dans leur magasin et consommés en deux temps par l'appelant, et c'est la même cause que `check-then-insert-loses-the-race` vue depuis l'autre bout ; (2) les appels hors `src/` ; (3) la concurrence entre INSTANCES, où même un site correct dépend de l'atomicité du magasin ; (4) le comportement sous charge réelle, qu'aucune exécution ne reproduit ici.
-- siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import pathlib,sys; bad=[f'{p}:{i}' for p in pathlib.Path('src').rglob('*.py') if p.name!='throttle.py' for i,l in enumerate(p.read_text(e`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
-- rex_ref: src/dashboard/utils/throttle.py
-- first_seen: 2026-09-16
-- History:
-  - 2026-09-16: trouvée par `security-specialist` sur un changement dont le message de commit affirmait avoir supprimé le check-then-act. Il l'avait supprimé CÔTÉ BASE et laissé vivant côté appelant. La signature interdit tout appel à `throttle_record(` hors de son module, ce qui force le passage par `throttle_consume()`. Mutation vue dans les deux sens : `throttle_record("totp")` remis dans `auth.py` → rc=1 avec `src/dashboard/auth.py:426` ; retiré → rc=0.
-
 ## a-count-taken-before-the-writer-ran
 - status: reported
 - severity: P2
@@ -4255,7 +4199,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 ## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site
 
-> Les 236 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
+> Les 239 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
 > `error-class-health.json` et non au jugé (`tools/dev/error_class_health.py::is_dormant`) :
 >
 > * `history_additions == 0` — jamais récidivé sur la fenêtre observée ;
@@ -4267,7 +4211,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > **Elles ne sont ni archivées ni supprimées.** Elles vivent dans ce fichier, leurs
 > signatures tournent, leurs gardes tournent, `--coverage` les compte. Elles sont
 > seulement RANGÉES APRÈS, pour qu'un humain qui ouvre ce document rencontre d'abord
-> les 182 classes encore vivantes.
+> les 179 classes encore vivantes.
 >
 > ⚠️ **Pourquoi pas un second fichier.** C'était le plan, et la mesure l'a écarté : le
 > gain en temps est de **≈ 0 s** — les 8,46 s du cliquet de santé viennent du rejeu de
@@ -4281,6 +4225,62 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > de moitié vivante ; une classe qui remplit les quatre conditions descend ici. Les deux
 > nombres ci-dessus sont recalculés à chaque passe. `make error-health-check` (CI) échoue
 > si le catalogue n'est pas rangé — un rangement oublié ne peut plus être commité.
+
+## config-not-env
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a bootstrap/runtime path subscripts `config['…']` directly (config.yaml-only) instead of reading env first → `KeyError` in prod where there is no `config.yaml` (SMTP, DATABASE_URL, FERNET_KEY, Airflow URL, DB schema bootstraps). 4 REX recurrences; this session fixed 11 `*_schema.py` bootstraps.
+- signature: `python3 -m pytest tests/test_a_schema_reads_the_env_not_the_config_file.py -q`. Avant : `! grep -rnE "config(_loader\.load\(\))?\[" src/database/*_schema.py`
+- seen_red: self-proving (tests/test_a_schema_reads_the_env_not_the_config_file.py::test_the_detector_sees_the_defect_it_is_written_for) — prédicat pur `config_subscripts` lu à l'AST ; `config['database']` et `config_loader.load()['smtp']` sont nommés, un repli `config.get(...)` après l'environnement et un commentaire ou une docstring qui montrent la forme interdite ne le sont pas. Muté rouge le 2026-09-26 (chacune des deux formes retirée ; tout attribut de `config` compté). Avant : unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- root_cause: `config.yaml` exists in dev and not in prod, so `config['x']` is correct on the machine where the code is written and a `KeyError` on the machine where it runs.
+- cause_evidence: read (`src/utils/config_loader.py:70-78` — tous les accès passent par `self._config.get('<section>', {})`, jamais par `config['x']` : le `KeyError` que la classe décrit ne peut plus se produire à ce niveau. Vérifié le 2026-09-17)
+- long_term_fix: env-first resolution with config.yaml as the local fallback (the `_smtp_config()` shape), so the dev path is the exceptional one.
+- guard: { type: pytest, ref: tests/test_a_schema_reads_the_env_not_the_config_file.py } + { type: cross-cutting-rule, ref: .claude/skills/dashboard-view/SKILL.md (pitfall: config env-fallback) }
+- guard_scope: un-état-qui-déborde-de-sa-portée — `config.yaml` existe en développement et pas en production, donc `config['x']` est correct sur la machine où le code est ÉCRIT et lève `KeyError` là où il TOURNE ; couvre: une signature shell restreinte à `src/database/*_schema.py`, qui refuse tout accès indexé à la configuration dans les définitions de schéma — l'endroit précis où le défaut s'est produit ; ne couvre pas: (1) **le geste voisin le plus proche, et c'est un trou large — tout le reste de `src/`** : vues, collecteurs, utilitaires et DAG lisent aussi la configuration, et la signature ne les regarde pas ; le périmètre a été choisi sur le site du défaut, pas sur la classe ; (2) les accès par `.get()` sans défaut utile, qui rendent `None` et échouent plus loin ; (3) la présence RÉELLE de la clé en production — la signature lit du code, elle n'interroge aucun environnement ; (4) les autres asymétries dev↔prod (variables d'environnement, fichiers montés, secrets), qui partagent exactement la cause.
+- siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `! grep -rnE "config(_loader\.load\(\))?\[" src/database/*_schema.py`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
+- rex_ref: .claude/skills/dashboard-view/SKILL.md
+- first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite15)
+- History:
+  - 2026-06-13: the 11 `src/database/*_schema.py` `__main__` bootstraps did `PostgresHandler(**config['database'])` → `KeyError` when launched in prod (no config.yaml; `config_loader.load()` returns `{}`). Fixed via `PostgresHandler.from_env_or_config()` (env DATABASE_URL → config.yaml → explicit RuntimeError). Catalogued **scoped to `*_schema.py`** (0 hits today) to flag regressions; kept `heuristic`/nightly — a project-wide `config[` sweep false-positives on the dashboard, which reads config.yaml *by design* (CLAUDE.md). The narrow scope IS the precision.
+
+## ast-guard-blind-to-bom
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a source file starts with a UTF-8 BOM (`\xef\xbb\xbf`). `ast.parse` on text read with plain `encoding="utf-8"` raises `SyntaxError: invalid non-printable character U+FEFF`, so every AST-based guard **silently scans nothing** in that file. The file looks covered; it is not.
+- root_cause: files edited on Windows acquire a BOM; Python tolerates it at runtime (the interpreter strips it) but `ast.parse` on an already-decoded string does not. A guard that catches `SyntaxError` and moves on turns the blind spot into a pass.
+- cause_evidence: measured (2026-09-26 — `ast.parse` d'une chaîne DÉJÀ décodée qui commence par U+FEFF lève `SyntaxError: invalid non-printable character U+FEFF` ; un garde qui attrape `SyntaxError` et passe au suivant fait de ce fichier un vert)
+- signature: `python3 -m pytest tests/test_no_source_file_carries_a_bom.py -q`. Avant : `python3 -c "import sys;from pathlib import Path;bad=[str(p) for d in ('src','airflow','tests','.claude/scripts') for p in Path(d).rglob('*.py') if p.read_bytes()[:3]==b'\xef\xbb\xbf'];print(chr(10).join(bad));sys.exit(1 if bad else 0)"`
+- seen_red: self-proving (tests/test_no_source_file_carries_a_bom.py::test_the_detector_sees_the_defect_it_is_written_for) — prédicat pur `bom_files` ; un fichier enregistré par un éditeur Windows (BOM en tête) est nommé, le même code sans BOM et un BOM LITTÉRAL au milieu du texte ne le sont pas. Muté rouge le 2026-09-26 (BOM cherché n'importe où), et vu rouge sur le vrai arbre en préfixant `src/utils/clocks.py` d'un BOM. Portée élargie à `.claude/hooks/` et `tools/`. Avant : unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- long_term_fix: no BOM in the repo (3 removed), AST tools read with `encoding="utf-8-sig"`, and an unparsable file is REPORTED as a failure rather than skipped — a file the scanner could not read is not a file that passed.
+- autofix: safe
+- guard: { type: pytest, ref: tests/test_no_source_file_carries_a_bom.py } + { type: error-class-signature, ref: audit_runner --deterministic }
+- guard_scope: une-erreur-avalée-devient-une-absence — un fichier qu'un analyseur ne peut pas LIRE est compté comme un fichier qui PASSE ; couvre: la signature `audit_runner --deterministic` vérifie l'absence de BOM dans `src/`, `airflow/`, `tests/` et `.claude/scripts/`, c'est-à-dire la CAUSE (le marqueur d'octets) et non la conséquence ; ne couvre pas: (1) **le geste voisin le plus proche, et c'est le vrai trou — les autres façons dont un analyseur AST devient aveugle** : un fichier au `SyntaxError` franc, un encodage non-UTF-8, un fichier illisible faute de droits produisent exactement le même « rien à signaler », et aucune signature ne les cherche ; le long_term_fix demande qu'un fichier illisible soit RAPPORTÉ comme un échec, mais **rien ne vérifie que les ~30 gardes AST du dépôt le font** ; (2) les arbres hors des quatre balayés — `tools/`, `.claude/hooks/`, `migrations/` ; (3) les fichiers non-`.py` analysés par un autre parseur (YAML, JSON, Markdown), où l'équivalent existe ; (4) la RÉAPPARITION d'un BOM entre deux exécutions de la signature, qui n'est lancée par aucun automate.
+- siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import sys;from pathlib import Path;bad=[str(p) for d in ('src','airflow','tests','.claude/scripts') for p in Path(d).rglob('*.py') if p.r`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
+- rex_ref: .claude/scripts/audit_tenant_writes.py
+- first_seen: 2026-08-20
+- History:
+  - 2026-08-20: signature polarity corrected the same day — the `! cmd` idiom fits grep (exit 0 on a hit); this probe already exits 1 when a BOM exists, so the `!` inverted it and reported a permanent false hit. An idiom copied without checking its polarity is a guard that reads backwards.
+  - 2026-08-20: discovered while checking that a NEW guard actually went red on the defect it targets — it did not, because `spotify_api_daily.py` carried a BOM and was being skipped. The same BOM explains the "3 fichiers non parsables — graphe incomplet" that `select_tests.py` (CLAUDE.md rule 16) had been printing on every run: the impact graph was silently missing three DAGs. `tests/test_dag_fleet_isolation.py` was unaffected (it already read `utf-8-sig`).
+
+## a-limiter-consumed-in-two-steps
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: un limiteur ATOMIQUE ne borne que les tentatives séquentielles. N requêtes simultanées obtiennent toutes l'autorisation, le budget affiché est respecté à la lecture et dépassé dans les faits. Aucun test ne le voit : chaque tentative, prise seule, est correcte.
+- root_cause: l'atomicité est construite dans le magasin et **contournée au site d'appel**. Mesuré le 2026-09-16 : `src/utils/request_throttle.py` sérialise `DELETE / count / INSERT` sous `pg_advisory_xact_lock`, mais `src/dashboard/auth.py` appelait `throttle_check()` (qui ne consomme PAS), vérifiait le code TOTP, puis `throttle_record()` seulement en cas d'échec. Entre la lecture et l'écriture tient tout le travail. Streamlit sert des sessions distinctes en parallèle : ouvrir N onglets suffisait. Le seau de 10 codes par 15 min ne bornait donc rien de simultané. Même forme sur `login` et `register`. Le découpage `check`/`record` existait pour une bonne raison — ne pas facturer deux fois — et c'est cette raison qui a rendu le défaut invisible.
+- cause_evidence: read (src/utils/request_throttle.py, rétro-portage mécanique 2026-09-16)
+- long_term_fix: **une décision et sa consommation sont la MÊME opération, ou ce n'est pas une décision.** `throttle_consume()` appelle `hit()`, qui décide et consomme indivisiblement ; `throttle_check()` reste, réservé à l'AFFICHAGE, et son docstring dit désormais qu'il ne doit pas décider. Le corollaire général : quand on ajoute de l'atomicité à une couche basse, **balayer les appelants** — une primitive indivisible appelée en deux temps n'est pas indivisible.
+- signature: `python3 -m pytest tests/test_a_limiter_is_consumed_in_one_step.py -q`. Avant : `python3 -c "import pathlib,sys; bad=[f'{p}:{i}' for p in pathlib.Path('src').rglob('*.py') if p.name!='throttle.py' for i,l in enumerate(p.read_text(encoding='utf-8').splitlines(),1) if 'throttle_record(' in l and not l.strip().startswith('#')]; print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
+- seen_red: self-proving (tests/test_a_limiter_is_consumed_in_one_step.py::test_the_detector_sees_the_defect_it_is_written_for) — prédicat pur `split_consumers` lu à l'AST ; le login du 2026-09-16 (lire, vérifier, enregistrer sur échec), en appel nu ou par le module, est nommé ; un appel à `throttle_consume` et un commentaire ou une docstring qui nomment `throttle_record` ne le sont pas — la signature textuelle, elle, excluait les commentaires mais pas les docstrings. Muté rouge le 2026-09-26 (forme `module.throttle_record` ignorée ; recherche textuelle). Avant : unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- guard: { type: pytest, ref: tests/test_a_limiter_is_consumed_in_one_step.py } + { type: script, ref: la signature ci-dessus ; comportement couvert par tests/test_the_login_budget_holds_across_instances.py }
+- guard_scope: deux-surfaces-deux-nombres — l'atomicité est construite dans le MAGASIN et contournée au SITE D'APPEL, qui lit puis écrit en deux temps ; couvre: une signature shell qui balaie `src/` à la recherche de la consommation en deux étapes, plus le comportement du magasin lui-même vérifié ailleurs ; ne couvre pas: (1) **le geste voisin le plus proche — les autres atomicités contournées au site d'appel** : un compteur, un stock, un verrou peuvent être atomiques dans leur magasin et consommés en deux temps par l'appelant, et c'est la même cause que `check-then-insert-loses-the-race` vue depuis l'autre bout ; (2) les appels hors `src/` ; (3) la concurrence entre INSTANCES, où même un site correct dépend de l'atomicité du magasin ; (4) le comportement sous charge réelle, qu'aucune exécution ne reproduit ici.
+- siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import pathlib,sys; bad=[f'{p}:{i}' for p in pathlib.Path('src').rglob('*.py') if p.name!='throttle.py' for i,l in enumerate(p.read_text(e`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
+- rex_ref: src/dashboard/utils/throttle.py
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: trouvée par `security-specialist` sur un changement dont le message de commit affirmait avoir supprimé le check-then-act. Il l'avait supprimé CÔTÉ BASE et laissé vivant côté appelant. La signature interdit tout appel à `throttle_record(` hors de son module, ce qui force le passage par `throttle_consume()`. Mutation vue dans les deux sens : `throttle_record("totp")` remis dans `auth.py` → rc=1 avec `src/dashboard/auth.py:426` ; retiré → rc=0.
 
 ## df-na-rep
 - status: guarded

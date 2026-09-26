@@ -455,12 +455,12 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 **fixed** : 10· **guarded** : 387· **open** : 4· **reported** : 15· **resolved** : 2
 
-**0 classe(s) nomment un fichier de garde qui n'existe plus** et **10** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
+**0 classe(s) nomment un fichier de garde qui n'existe plus** et **9** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
 _Aucune classe ne nomme un garde disparu._
 
 
-Sans chemin de garde : `db-connection-per-show` · `view-session-adoption` · `snapshot-fixture-hook-reflow` · `dag-trigger-without-tenant-scope` · `ast-guard-blind-to-bom` · `repo-copy-of-a-config-is-not-what-runs` · `mermaid-block-does-not-render` · `guard-anchored-on-shape-not-question` · `a-filtered-test-run-proves-nothing` · `a-guard-that-sees-the-binding-not-the-application`.
+Sans chemin de garde : `db-connection-per-show` · `view-session-adoption` · `snapshot-fixture-hook-reflow` · `dag-trigger-without-tenant-scope` · `repo-copy-of-a-config-is-not-what-runs` · `mermaid-block-does-not-render` · `guard-anchored-on-shape-not-question` · `a-filtered-test-run-proves-nothing` · `a-guard-that-sees-the-binding-not-the-application`.
 
 
 ## Ce qui n'est gardé par rien
@@ -640,9 +640,9 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-gold-objects: total=31 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=23 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=418 guard_missing=0 guard_unnamed=10 -->
+<!-- gold-coverage-error-classes: total=418 guard_missing=0 guard_unnamed=9 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=28 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=16 blocking=16 -->
 
-<!-- gold-coverage: sha256=543af5dff78e42a998cccd84aae5cc49606d82ff5d893ff8030ccd61e7d768cf -->
+<!-- gold-coverage: sha256=a982a07439d97bce99e76f6b444a54f7181621bad3ec582c307ac76938861455 -->

@@ -176,7 +176,8 @@ _CEILING: dict[str, int] = {
     # signature (`grep -q "DEUX COMMITS" Makefile`) a été vue rouge.
     # 11 → 10 le 2026-09-26 : `migration-ahead-of-its-code` nomme désormais son
     # fichier de garde. Resserré dans le commit qui régénère le document.
-    "error-classes.guard_unnamed": 10,
+    # → 9 le même jour : `a-limiter-consumed-in-two-steps` nomme son garde pytest.
+    "error-classes.guard_unnamed": 9,
     # Un objet or que rien ne confronte est le premier à dériver en silence : le
     # spend Meta l'a fait pendant des semaines. Zéro, et ça ne remonte pas.
     "invariants.unreconciled": 0,
