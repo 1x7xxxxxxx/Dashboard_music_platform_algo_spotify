@@ -121,7 +121,8 @@ def _seed_creative(db, tenant: int, tag: str) -> None:
     db.execute_query("INSERT INTO meta_campaigns (campaign_id, campaign_name, artist_id) "
                      "VALUES (%s, %s, %s)", (camp, f"Campaign {tag}", tenant))
     db.execute_query("INSERT INTO meta_adsets (adset_id, campaign_id, artist_id, "
-                     "optimization_goal) VALUES (%s, %s, %s, 'OFFSITE_CONVERSIONS')",
+                     "adset_name, optimization_goal) "
+                     "VALUES (%s, %s, %s, 'Rate guard adset', 'OFFSITE_CONVERSIONS')",
                      (adset, camp, tenant))
     for ad, imp, clk, ctr in (("A", 1, 1, 100.0), ("B", 1000, 10, 1.0)):
         ad_id = f"rg-ad-{ad}-{tag}"

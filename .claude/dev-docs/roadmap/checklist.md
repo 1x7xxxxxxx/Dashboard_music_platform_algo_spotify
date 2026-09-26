@@ -45,6 +45,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | R216 | **ML, les défauts du dossier** : prévisions Release Radar toutes à 0, P(DW) insensible à son levier, probabilités au plancher affichées en % dans le PDF, 44 jauges sur une page, fiches ML non rendues (56-69, 93) — le propriétaire : « intègre toutes tes modifs sur le ML, on commence direct » <!-- anchor: r216 --> <!-- critic: requis --> | P2 | `make charts-dossier` (fiches ML) + scoring vérifié |
 | R217 | **Déployer chaque lot livré** : `make migrate-prod` (138-140 puis suivantes) et `make deploy SERVICE=dashboard` après CI verte ; `/health` vérifié, retour arrière et mise de côté sinon ; jamais `tasks test` — autorisé par le propriétaire le 2026-09-27 pour la séance de nuit <!-- anchor: r217 --> <!-- critic: non — geste de déploiement, pas de code --> | P2 | `/health` + CI de main |
 | R218 | Régénérer le dossier des graphiques sur un instantané frais, vérifier chaque fiche corrigée, puis supprimer l'instantané `spotify_etl_review` et `revue/prod.dump` (données réelles d'artistes) <!-- anchor: r218 --> <!-- critic: non — outillage de revue --> | P3 | `make charts-dossier OUT=revue` |
+| R219 | Dérive de schéma : `meta_ads.ad_name` et `meta_adsets.adset_name` sont NULLables en prod et en local, NOT NULL dans `init_db.sql`, `meta_ads_schema.py` et donc en CI — aucune migration ne l'explique ; deux fixtures R205 passaient en local et rougissaient en CI (2026-09-27). Mesurer l'écart complet (toutes colonnes, prod vs init_db) et décider du sens <!-- anchor: r219 --> <!-- critic: requis --> | P3 | `information_schema.columns` prod vs CI |
 
 ---
 
@@ -100,7 +101,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R202, R205, R206, R212, R213, R208, R207, R209, R210, R211, R214, R215, R216, R217, R218 -->
+<!-- reprise: open=R202, R205, R206, R212, R213, R208, R207, R209, R210, R211, R214, R215, R216, R217, R218, R219 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

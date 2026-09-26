@@ -96,8 +96,8 @@ def _seed_ad(db, owner: int, sandbox: int, ad_id: str, camp_id: str) -> None:
     """One ad owned by `owner`; `sandbox` carries insights for the SAME ad_id."""
     db.execute_query("INSERT INTO meta_campaigns (campaign_id, campaign_name, objective, "
                      "artist_id) VALUES (%s, 'c1', 'OUTCOME_ENGAGEMENT', %s)", (camp_id, owner))
-    db.execute_query("INSERT INTO meta_ads (ad_id, campaign_id, title, call_to_action, "
-                     "artist_id) VALUES (%s, %s, 'T', 'LISTEN_NOW', %s)", (ad_id, camp_id, owner))
+    db.execute_query("INSERT INTO meta_ads (ad_id, campaign_id, ad_name, title, call_to_action, "
+                     "artist_id) VALUES (%s, %s, 'Fan-out guard ad', 'T', 'LISTEN_NOW', %s)", (ad_id, camp_id, owner))
     day = dt.date.today() - dt.timedelta(days=1)
     for tenant, spend in ((owner, 7), (sandbox, 11)):
         db.execute_query("INSERT INTO meta_insights (artist_id, ad_id, date, spend, clicks, "
