@@ -54,21 +54,39 @@ def test_the_compose_inventory_is_not_empty():
         "c'est une décision, pas un effet de bord.")
 
 
+def undocumented(compose_text: str, documented: set) -> list[str]:
+    """Required `${VAR}` of a compose file that `.env.example` does not document. Pure.
+
+    ${VAR} and ${VAR:?msg} → required; ${VAR:-default} → optional (baked default).
+    `:?` must count: the variables it marks are the MOST required of all, and the
+    bare-`}` regex alone dropped them from this check the day they were hardened.
+    """
+    required = set(re.findall(r"\$\{([A-Z0-9_]+)(?:\}|:\?)", compose_text))
+    required -= set(re.findall(r"\$\{([A-Z0-9_]+):-", compose_text))
+    required.discard("VAR")  # placeholder de doc dans l'en-tête
+    return sorted(required - documented)
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: a `${VAR:?}` hardened the day it was added — dropped by the first
+    regex — and a bare `${VAR}` are both named when undocumented; a `${VAR:-default}`
+    and a documented variable are not."""
+    compose = ("environment:\n"
+               "  - PASSWORD=${DATABASE_PASSWORD:?set it in .env}\n"
+               "  - KEY=${FERNET_KEY}\n"
+               "  - PORT=${PORT:-8080}\n"
+               "  - USER=${DB_USER}\n")
+    assert undocumented(compose, {"DB_USER"}) == ["DATABASE_PASSWORD", "FERNET_KEY"]
+    assert undocumented(compose, {"DB_USER", "DATABASE_PASSWORD", "FERNET_KEY"}) == []
+
+
 def test_every_required_compose_var_is_documented_in_env_example():
     documented = set(re.findall(r"^([A-Z0-9_]+)=", ENV_EXAMPLE.read_text(), re.M))
     manquantes = {}
     for f in _COMPOSE_FILES:
         if not f.exists():
             continue
-        text = f.read_text()
-        # ${VAR} and ${VAR:?msg} → required; ${VAR:-default} → optional (baked default).
-        # `:?` must count: the variables it marks are the MOST required of all, and the
-        # bare-`}` regex alone dropped them from this check the day they were hardened.
-        required = set(re.findall(r"\$\{([A-Z0-9_]+)(?:\}|:\?)", text))
-        optional = set(re.findall(r"\$\{([A-Z0-9_]+):-", text))
-        required -= optional
-        required.discard("VAR")  # placeholder de doc dans l'en-tête
-        absentes = sorted(required - documented)
+        absentes = undocumented(f.read_text(), documented)
         if absentes:
             manquantes[f.name] = absentes
     assert not manquantes, (

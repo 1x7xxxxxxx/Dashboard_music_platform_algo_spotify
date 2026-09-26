@@ -52,9 +52,10 @@ def _tree() -> ast.Module:
     return ast.parse(_VIEW.read_text(encoding="utf-8"))
 
 
-def _import_loop() -> ast.For:
+def _import_loop(tree: ast.Module | None = None) -> ast.For:
     """La boucle qui écrit les fichiers en base, trouvée par son appel à upsert_many."""
-    for loop in [n for n in ast.walk(_tree()) if isinstance(n, ast.For)]:
+    for loop in [n for n in ast.walk(_tree() if tree is None else tree)
+                 if isinstance(n, ast.For)]:
         for node in ast.walk(loop):
             if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
                     and node.func.attr == "upsert_many"):
@@ -107,3 +108,45 @@ def test_the_count_helper_validates_its_table():
         "un nom de table interpolé dans du SQL se valide contre l'allowlist avant "
         "exécution, même quand il vient d'une constante du module"
     )
+
+
+def count_is_claimed(loop: ast.For) -> list[str]:
+    """Why the number shown is the one SENT, not the one the base RECEIVED. Pure."""
+    why = []
+    counts = [n for n in ast.walk(loop) if isinstance(n, ast.Call)
+              and isinstance(n.func, ast.Name) and n.func.id == "_rows_in_table"]
+    if len(counts) < 2:
+        why.append("destination not counted before AND after")
+    shown = any(isinstance(sub, ast.Name) and sub.id == "added"
+                for d in ast.walk(loop) if isinstance(d, ast.Dict)
+                for v in d.values for sub in ast.walk(v))
+    if not shown:
+        why.append("measured delta never reaches the result row")
+    return why
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the import loop before the fix — `len(rows)` shown as « importées »
+    — is refused on both counts; the measured form is accepted."""
+    claimed = ("for f in files:\n"
+               "    rows = parse(f)\n"
+               "    db.upsert_many(table, rows, keys)\n"
+               "    results.append({'file': f.name, 'rows': len(rows)})\n")
+    assert count_is_claimed(_import_loop(ast.parse(claimed))) == [
+        "destination not counted before AND after",
+        "measured delta never reaches the result row"]
+    measured = ("for f in files:\n"
+                "    rows = parse(f)\n"
+                "    before = _rows_in_table(db, table, aid)\n"
+                "    db.upsert_many(table, rows, keys)\n"
+                "    added = _rows_in_table(db, table, aid) - before\n"
+                "    results.append({'file': f.name, 'rows': added})\n")
+    assert count_is_claimed(_import_loop(ast.parse(measured))) == []
+    once = measured.replace("    added = _rows_in_table(db, table, aid) - before\n",
+                            "    added = len(rows)\n")
+    assert count_is_claimed(_import_loop(ast.parse(once))) == [
+        "destination not counted before AND after"]
+
+
+def test_the_real_import_loop_measures_what_it_shows():
+    assert count_is_claimed(_import_loop()) == []
