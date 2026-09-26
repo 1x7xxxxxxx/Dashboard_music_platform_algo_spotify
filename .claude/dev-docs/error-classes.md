@@ -5033,6 +5033,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - rex_ref: tools/dev/error_class_health.py
 - first_seen: 2026-09-17
 - History:
+  - 2026-09-26: rencontrée en mutant les gardes (R169) — `a-cache-key-that-can-never-be-hit-twice` nommait `test_a_page_asks_the_same_question_once.py`, qui ne l'atteint pas (purge des caches entre rendus). Garde repointé vers un test comportemental neuf. Note de travail, pas une récidive comptée : aucun balayage dédié n'a été lancé ; la campagne de mutation R169 couvre classe par classe
   - 2026-09-17: **deux instances en deux lots avant d'être vue comme une classe.** La première a été prise pour une inattention, la seconde a montré la forme. C'est exactement ce que la règle transverse #14 demande d'éviter — balayer la classe avant de corriger l'instance — et je ne l'ai appliquée qu'au troisième passage. Le balayage a rendu 17,5 % du parc de gardes concerné, ce qu'aucune des deux corrections ponctuelles n'aurait montré.
   - 2026-09-17: le compteur est gelé à sa PREMIÈRE mesure (20), pas à zéro. Geler à zéro aurait demandé de réécrire vingt portées dans le même commit, donc de les écrire vite — et c'est précisément ce qui produit les emprunts. Le plafond dit la dette ; il ne la maquille pas.
 
