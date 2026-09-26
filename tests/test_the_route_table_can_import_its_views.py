@@ -54,9 +54,9 @@ def _parent_depth(node: ast.AST) -> int | None:
     return None
 
 
-def _path_insert_depths() -> set[int]:
+def _path_insert_depths(tree: ast.Module | None = None) -> set[int]:
     """`.parent` depths of every module-level path added to sys.path."""
-    tree = _tree()
+    tree = _tree() if tree is None else tree
     bound: dict[str, int] = {}
     for node in tree.body:
         if isinstance(node, ast.Assign) and len(node.targets) == 1 \
@@ -120,3 +120,17 @@ def test_every_routed_view_module_exists():
         f"the route table imports view module(s) that do not exist: {missing}. "
         f"A lazy route fails on the click, never at boot."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the app.py of 2026-08-30 — only the repo root on `sys.path`, so
+    `from views.x import show` resolved under Streamlit's bootstrap and nowhere else —
+    yields {3}; the fixed file yields {1, 3}. A path bound but never inserted counts
+    for nothing."""
+    before = ("import sys\nfrom pathlib import Path\n"
+              "_ROOT = str(Path(__file__).resolve().parent.parent.parent)\n"
+              "_HERE = str(Path(__file__).resolve().parent)\n"
+              "sys.path.insert(0, _ROOT)\n")
+    assert _path_insert_depths(ast.parse(before)) == {3}
+    after = before + "sys.path.insert(0, _HERE)\n"
+    assert _path_insert_depths(ast.parse(after)) == {1, 3}

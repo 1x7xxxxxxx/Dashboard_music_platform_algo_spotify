@@ -103,6 +103,23 @@ def test_every_nav_item_key_has_en():
 _T_KEY_RE = re.compile(r'(?<![A-Za-z0-9])_?t\(\s*"([a-z][a-z0-9_]*(?:\.[a-zA-Z0-9_]+)+)"')
 
 
+def untranslated(source: str, en: dict) -> list[str]:
+    """Static `t("ns.key", …)` keys of `source` with no EN entry. Pure."""
+    return sorted(k for k in set(_T_KEY_RE.findall(source)) if k not in en)
+
+
+def test_the_untranslated_key_detector_sees_the_defect():
+    """Non-vacuity: a new `t("ns.key", "FR")` without EN, and the PDF's `_t(...)`
+    spelling, are named; `.get("a.b")`, a dynamic f-string key and a translated key
+    are not."""
+    src = ('st.title(t("home.new_title", "Nouveau"))\n'
+           'label = _t("pdf.new_label", "Libellé")\n'
+           'x = cfg.get("home.not_a_t_call")\n'
+           'y = t(f"home.{name}", "dyn")\n'
+           'z = t("home.known", "Connu")\n')
+    assert untranslated(src, {"home.known": "Known"}) == ["home.new_title", "pdf.new_label"]
+
+
 def test_every_static_t_key_has_en_entry():
     en = i18n._TR["en"]
     dashboard = Path(__file__).resolve().parents[1] / "src" / "dashboard"
@@ -110,9 +127,9 @@ def test_every_static_t_key_has_en_entry():
     for py in dashboard.rglob("*.py"):
         if py.name == "i18n.py":
             continue  # its module docstring shows an example key (home.total)
-        for key in set(_T_KEY_RE.findall(py.read_text(encoding="utf-8"))):
-            if key not in en:
-                missing.setdefault(py.name, []).append(key)
+        gaps = untranslated(py.read_text(encoding="utf-8"), en)
+        if gaps:
+            missing[py.name] = gaps
     assert not missing, (
         "t() keys with no EN catalog entry (would render FR in EN mode): "
         f"{missing}. Add them under src/dashboard/utils/i18n_catalog/."

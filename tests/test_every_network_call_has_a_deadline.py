@@ -53,8 +53,8 @@ COLLECTORS = REPO / "src" / "collectors"
 _NET_CALLS = {"get", "post", "put", "patch", "delete", "head"}
 
 
-def _calls_without_timeout(path: Path) -> list[str]:
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+def _calls_without_timeout(path: Path, source: str | None = None) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8") if source is None else source)
     out = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
@@ -143,3 +143,15 @@ def test_a_socket_timeout_is_retried_and_a_missing_file_is_not():
             f"{never.__name__} is retriable. The list has been widened to OSError; "
             "waiting does not make a missing file appear."
         )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: a collector's `requests.get` with no deadline is named; the same
+    call with `timeout=`, and a non-network `requests` attribute, are not."""
+    path = COLLECTORS / "fake_collector.py"
+    defect = "import requests\nr = requests.get(url, params=p)\n"
+    assert _calls_without_timeout(path, defect) == [
+        "src/collectors/fake_collector.py:2 requests.get(…)"]
+    fixed = "import requests\nr = requests.get(url, params=p, timeout=30)\n"
+    assert _calls_without_timeout(path, fixed) == []
+    assert _calls_without_timeout(path, "import requests\ns = requests.Session()\n") == []
