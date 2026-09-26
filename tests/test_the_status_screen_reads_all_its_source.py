@@ -247,3 +247,17 @@ def test_every_roadmap_reader_names_both_index_tables() -> None:
         "commençable par une séance. Un lecteur qui n'en voit qu'une annonce « aucune "
         "tâche » sur un dépôt qui en a une, et c'est ce qu'on lit en premier après une "
         "compaction.")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path, monkeypatch) -> None:
+    """Non-vacuity on a FABRICATED roadmap: the 2026-09-17 shape — the only open task
+    sits in « En attente de toi » — must still be counted by the real `_open_tasks`;
+    a screen reading one table would announce « 0 tâche(s) ouverte(s) »."""
+    mod = _night_run()
+    road = tmp_path / "checklist.md"
+    road.write_text("## 📋 Tâches ouvertes\n\n| Id | Tâche | P | Mesure |\n|---|---|---|---|\n"
+                    "\n## 🙋 En attente de toi\n\n| Id | Geste | P | Mesure |\n|---|---|---|---|\n"
+                    "| R124 | session authentifiée en prod | P2 | mesurée |\n\n## Détail\n",
+                    encoding="utf-8")
+    monkeypatch.setattr(mod, "ROADMAP", road)
+    assert [r[0] for r in mod._open_tasks()] == ["R124"]
