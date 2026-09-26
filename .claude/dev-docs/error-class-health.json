@@ -1113,14 +1113,14 @@
         "2026-09-12"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-26",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 1,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11483,7 +11483,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 526,
+      "catalogue_revisions": 527,
       "head_date": "2026-09-26"
     },
     "holes": {
@@ -11496,7 +11496,7 @@
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 26,
+      "seen_red_unknown": 25,
       "siblings_never_swept": 0,
       "sites_unknown": 0,
       "sites_unknown_hors_relance": 0,
@@ -11545,20 +11545,20 @@
       "by_seen_red": {
         "daté": {
           "events": 5,
-          "class_days": 1056,
-          "per_class_month": 0.1439,
+          "class_days": 1070,
+          "per_class_month": 0.1421,
           "ci95": [
-            0.0464,
-            0.3359
+            0.0458,
+            0.3315
           ]
         },
         "jamais-ou-inconnu": {
           "events": 56,
-          "class_days": 10605,
-          "per_class_month": 0.1605,
+          "class_days": 10591,
+          "per_class_month": 0.1607,
           "ci95": [
-            0.1213,
-            0.2085
+            0.1214,
+            0.2087
           ]
         }
       },

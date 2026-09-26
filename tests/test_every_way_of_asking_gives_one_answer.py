@@ -101,6 +101,31 @@ def _drawn_total(series, cumulative, mode, step, since, until) -> dict:
     return out
 
 
+@pytest.mark.parametrize("step", ["week", "month", "year"])
+def test_the_first_bucket_counts_the_growth_observed_inside_it(step) -> None:
+    """The same question without a database, on a counter that STARTS mid-bucket.
+
+    Class `a-first-bucket-declared-unknown-when-it-was-observed`: the first bucket was
+    rendered `None` — "no bucket before, so growth unknown" — although the series
+    begins inside it and its growth is observed. The live-base test above found it at
+    12 % on the month step; this one needs no tenant, so it cannot skip in CI.
+    """
+    import datetime as dt
+
+    from src.dashboard.utils.platform_timeseries import PLATFORM_LABELS
+
+    d0 = dt.date(2026, 1, 7)                              # a Wednesday, mid-month
+    levels = [(d0 + dt.timedelta(days=i), 1000 + 100 * i) for i in range(28)]
+    daily = [(levels[i][0], levels[i][1] - levels[i - 1][1]) for i in range(1, 28)]
+    drawn = _drawn_total({"spotify": [], "youtube": daily, "soundcloud": []},
+                         {"youtube": levels, "soundcloud": []},
+                         "absolute", step, None, None)
+    growth = levels[-1][1] - levels[0][1]
+    assert drawn.get(PLATFORM_LABELS["youtube"]) == growth, (
+        f"pas={step} : la figure dessine {drawn}, le compteur a gagné {growth:,} — "
+        "le premier seau, où la série commence, a perdu sa croissance observée")
+
+
 @pytest.mark.parametrize("step", ["week", "year"])
 def test_the_period_mode_totals_what_the_lifetime_total_says(db, step) -> None:
     """« Par période » sur TOUT l'historique doit valoir le total « depuis le début ».
