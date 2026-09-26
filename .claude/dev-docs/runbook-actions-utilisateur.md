@@ -1940,3 +1940,25 @@ grep -n "cutoff = datetime.now(timezone.utc)" airflow/dags/alert_monitor.py
 ```
 et, en production, les journaux de la tâche `check_dag_failures` ne portent plus
 `naive datetime is disallowed`.
+
+## 29. R181 — Faire arriver le récap de nuit dans la boîte que tu lis
+
+**Ce qui est fait** : depuis le 2026-09-26, `alert_monitor` envoie un récapitulatif CHAQUE
+nuit (nuit calme comprise), avec la section GitHub. Il est parti — mais vers `ALERT_EMAIL`
+du serveur, `1x7…@gmail.com`, **pas** `timothe.baudry137@gmail.com`, la boîte que je lis.
+Les mails de nuit n'y sont donc jamais arrivés. Je ne modifie pas le `.env` de production.
+
+### Les étapes
+
+1. `ssh root@167.233.92.1`, puis `cd /opt/streamlytics`.
+2. Ouvrir `.env` avec ton éditeur et remplacer la valeur de `ALERT_EMAIL` par l'adresse que
+   tu lis (ou les deux, séparées par une virgule, si `1x7…` doit continuer à recevoir).
+3. Recharger l'environnement du planificateur : `docker compose up -d airflow-scheduler`
+   (la variable est lue au démarrage du conteneur ; un `restart` ne la relit pas).
+
+### Vérification
+
+- `docker compose exec airflow-scheduler sh -c 'echo "$ALERT_EMAIL" | sed "s/^\(...\).*@/\1…@/"'`
+  affiche le début de la nouvelle adresse, masquée.
+- Le lendemain matin : un mail « 📋 Récap de la nuit » dans ta boîte. Je le consigne dans
+  `ops-mail-journal.md` à la séance suivante ; R181 se ferme après **7 nuits** consignées.

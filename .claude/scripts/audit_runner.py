@@ -703,6 +703,10 @@ def _admission(headers: list[dict]) -> int:
     Les classes antérieures à la bascule sont acquises — on ne réécrit pas
     l'histoire, on arrête d'en produire au même rythme.
     """
+    # ALL classes, not only the new ones — deliberate (code-critic, 2026-09-26, asked why):
+    # every one of the 418 carries a family since R180, so an old class losing it is an edit
+    # that broke the catalogue, and the matrix and the family document would silently
+    # misfile it. Refusing the whole admission names it on the next commit.
     sans_famille = undeclared_families(headers, _family_slugs())
     if sans_famille:
         for cid, why in sans_famille[:20]:

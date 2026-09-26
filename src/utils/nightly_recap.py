@@ -75,7 +75,7 @@ def github_section(verdicts: dict) -> "tuple[str, bool]":
         state = v["state"]
         red = red or state == "red"
         text = {"green": "vert",
-                "red": f"ROUGE depuis le {v['since']} — un mail l'a signalé à la cassure",
+                "red": f"ROUGE depuis le {v['since']} — le mail de cassure devait partir ce jour-là (sa livraison n'est pas vérifiée ici)",
                 "unreadable": "GitHub illisible cette nuit — état INCONNU, pas vert",
                 "unknown": "aucune exécution jugée"}[state]
         link = f' — <a href="{html.escape(v["url"])}">dernier run</a>' if v.get("url") else ""

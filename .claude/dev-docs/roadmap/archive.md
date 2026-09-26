@@ -180,6 +180,24 @@ tâche-là, ouvert séparément dans `checklist.md`).
 
 ---
 
+## 🧬 R180 — Les familles d'erreurs, déclarées et adossées à un garde (livrée 2026-09-26)
+
+Entrée le 2026-09-26 dans l'index de `checklist.md` ; conception validée par code-critic
+(`.claude/dev-docs/roadmap/design-R180-R182.md`), livraison revue par code-critic le même
+jour : ACCEPT.
+
+- [x] **R180 — `family:` déclaré sur les 418 classes, une règle par famille, un garde
+  prouvé par famille.** (P3) ✅ (2026-09-26, `93b29d0`, `2de4a99`, `6e907c7`)
+
+  Le classement par regex prenait le premier motif (213 classes sur 418 en matchaient
+  2+). Famille déclarée partout, `--admission` refuse une classe sans famille, chaque
+  règle de `error-family-rules.md` est adossée à au moins une garde auto-prouvante
+  vivante. La matrice plateforme × famille est à **0 trou** (cliquet 5 → 0) : deux cases
+  étaient gardées et invisibles (la carte lisait le champ `guard:` coupé à 90 caractères),
+  trois ont reçu un garde — `test_a_gold_view_is_blind_to_another_tenants_rows.py` (13
+  vues or, deux locataires sur les mêmes clés) et `test_a_meta_lifetime_row_is_not_a_day.py`
+  (lignes à vie de Meta). Tous mutés rouges.
+
 ## 🧰 R182 — Le preset `error-classes` de la baseline (livrée 2026-09-26)
 
 Entrée le 2026-09-26 dans l'index de `checklist.md`. Forme tranchée par le propriétaire le

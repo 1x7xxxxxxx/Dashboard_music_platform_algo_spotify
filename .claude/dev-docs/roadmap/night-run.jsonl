@@ -517,3 +517,4 @@
 {"at": "2026-09-26T11:28:07+00:00", "head": "b26e765", "kind": "done", "task": "R181", "what": "recap chaque nuit livre, deploye, verifie (mail parti) ; reste : ALERT_EMAIL pointe une autre boite"}
 {"at": "2026-09-26T11:33:40+00:00", "head": "b26e765", "kind": "start", "task": "R182", "what": "preset error-classes dans la baseline"}
 {"at": "2026-09-26T11:33:40+00:00", "head": "b26e765", "kind": "done", "task": "R182", "what": "preset livre baseline 003e598 (fleet-config-audit), auto-test projet vide 3/3 vert, REX R62-R63"}
+{"at": "2026-09-26T11:57:32+00:00", "head": "6e907c7", "kind": "done", "task": "R180", "what": "matrice 0 trou, revue code-critic ACCEPT ; R181 en attente ALERT_EMAIL (runbook 29)"}

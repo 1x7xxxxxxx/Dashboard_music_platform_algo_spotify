@@ -43,7 +43,7 @@ def test_the_section_never_renders_unreadable_as_green() -> None:
     assert "INCONNU" in html and "pas vert" in html
     html, red = nr.github_section({"CI": {"state": "red", "since": "2026-09-24",
                                           "url": None}})
-    assert red and "signalé à la cassure" in html
+    assert red and "mail de cassure devait partir" in html
 
 
 def test_an_unreachable_github_reads_as_unreadable_not_green() -> None:
