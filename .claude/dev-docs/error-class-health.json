@@ -2767,7 +2767,7 @@
       "renamed_from": null
     },
     "a-ratchet-with-no-floor-under-its-population": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_gold_coverage_only_improves.py",
@@ -2789,7 +2789,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4517,7 +4517,7 @@
       "renamed_from": null
     },
     "an-alert-that-never-changes-stops-being-read": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_block_of_ninety_three_nights_does_not_read_like_tonight.py",
@@ -4539,7 +4539,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-10",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11163,7 +11163,7 @@
       "renamed_from": null
     },
     "verified-locally-observed-in-prod": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-04",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_image_ships_with_the_app.py",
@@ -11185,7 +11185,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-04",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11445,12 +11445,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 423,
+      "catalogue_revisions": 424,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 26,
+      "cause_unknown": 23,
       "guard_does_not_prove_itself": 270,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,

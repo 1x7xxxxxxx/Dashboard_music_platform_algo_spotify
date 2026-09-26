@@ -224,3 +224,5 @@
 {"at": "2026-09-26T00:33:01+00:00", "head": "1b1490e", "kind": "start", "task": "R169", "what": "causes unknown : second passage, lot 12"}
 {"at": "2026-09-26T00:35:06+00:00", "head": "9656446", "kind": "done", "task": "R169", "what": "second passage lot 12 : 35 -> 30"}
 {"at": "2026-09-26T00:35:14+00:00", "head": "9656446", "kind": "start", "task": "R169", "what": "causes unknown : second passage, lot 13"}
+{"at": "2026-09-26T00:37:29+00:00", "head": "62ed7a8", "kind": "done", "task": "R169", "what": "second passage lot 13 : 30 -> 26"}
+{"at": "2026-09-26T00:37:34+00:00", "head": "62ed7a8", "kind": "start", "task": "R169", "what": "causes unknown : second passage, lot 14"}
