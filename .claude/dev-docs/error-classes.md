@@ -2114,25 +2114,6 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-08-24: défaut commis pendant l'écriture de la brique, pas hérité. Le garde a été écrit dans la foulée et vu rouge sur le défaut réel avant d'être vert.
 
-## audit-reads-the-constraints-not-the-installed-set
-- status: guarded
-- severity: P3
-- kind: deterministic
-- symptom: l'audit de vulnérabilités rend un rapport propre pendant que le parc réellement installé porte des dizaines d'avis. Il lit un fichier de **contraintes** (des planchers `>=`) que rien n'installe tel quel.
-- root_cause: `.github/workflows/security-nightly.yml` exécutait `pip-audit -r requirements.txt`. Ce fichier porte des planchers (`weasyprint>=62.0`, `cryptography>=42.0.0`), donc pip-audit résolvait des versions récentes — pendant que la CI installait `uv.lock` via `uv sync --frozen`, qui épinglait `pyjwt 2.12.1` (notre authentification), `starlette 1.0.0`, `python-multipart 0.0.28` : **127 avis sur 18 paquets**.
-- cause_evidence: read (.github/workflows/security-nightly.yml, rétro-portage mécanique 2026-09-16)
-- signature: `! grep -nE 'pip-audit -r requirements.txt' .github/workflows/security-nightly.yml`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
-- long_term_fix: l'audit résout le lock avant de le lire — `uv export --frozen --no-dev --no-hashes` — donc il regarde exactement ce que `uv sync --frozen` installe. Règle générale : **on n'audite jamais un fichier de contraintes, on audite l'ensemble résolu**.
-- guard: { type: ci-step, ref: .github/workflows/security-nightly.yml }
-- guard_scope: un-garde-qui-ne-garde-pas — un audit lit le fichier de CONTRAINTES au lieu de l'ensemble RÉSOLU, donc il déclare sain ce qui n'est pas installé ; couvre: par la signature bloquante `! grep -nE 'pip-audit -r requirements.txt' security-nightly.yml` : l'audit de dépendances passe par `uv export --frozen --no-dev --no-hashes`, donc il regarde exactement ce que `uv sync --frozen` installe — le retour arrière est refusé par un grep, pas seulement documenté ; ne couvre pas: (1) **le geste voisin le plus proche — les autres lectures de contraintes du dépôt** : `check_manifest_consistency.py`, `gitleaks`, le compte de majeures de retard et la construction Docker (qui lit `requirements.txt`, pas le lock) raisonnent encore sur des planchers ; (2) l'ensemble résolu du conteneur de PROD, qui n'est pas celui du runner ; (3) les extras `--dev`, exclus de l'export ; (4) les dépendances système, hors de portée de pip-audit
-- siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `! grep -nE 'pip-audit -r requirements.txt' .github/workflows/security-nightly.yml`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
-- rex_ref: .github/workflows/security-nightly.yml
-- first_seen: 2026-08-24
-- History:
-  - 2026-08-24: après régénération du lock, 127 avis sur 18 paquets → 12 sur 2. Les deux restants sont assumés : `apache-airflow` (pin délibéré sur la version de l'image Docker, suivi en R49b) et `ecdsa` (sans correctif amont).
-
-
 ## boundary-with-no-named-exit-kills-what-must-pass
 - status: guarded
 - severity: P2
@@ -3622,24 +3603,6 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - History:
   - 2026-09-16: `kind: manual` et non `deterministic`, à dessein : la signature a besoin du RÉSEAU et d'un `gh` authentifié. Elle ne peut donc pas vivre dans la porte de PR — la même séance a mesuré que le jeton par défaut d'Actions est en lecture seule et ne répond pas à tout. Elle tourne dans la passe nocturne, où le réseau est disponible et où rien ne bloque. Mutation vue dans les deux sens : `@v10` remis → `🚫 INTROUVABLE` nommé, rc=1 ; retiré → rc=0.
 
-## a-major-upgrade-that-moves-a-default
-- status: guarded
-- severity: P2
-- kind: deterministic
-- symptom: une montée de MAJEURE laisse le build vert et rend une de ses garanties fausse. Rien n'échoue, rien n'avertit : le seul endroit où le changement existe est le log de l'outil, dans une ligne que personne ne lit quand tout est vert.
-- root_cause: la majeure change une valeur PAR DÉFAUT dont on dépendait sans l'avoir écrite. Mesuré le 2026-09-16 sur `astral-sh/setup-uv` : la v4 clé le cache sur `**/uv.lock`, la v10 sur `**/*requirements*.txt`. Or ce dépôt installe par `uv sync --frozen`, qui n'installe QUE ce que dit `uv.lock` — après la montée, le cache s'invalidait quand `requirements.txt` bougeait (donc pas quand les dépendances installées changeaient) et survivait quand `uv.lock` changeait. Vert dans les deux cas, faux dans les deux cas.
-- cause_evidence: read (2026-09-26 — `.github/workflows/ci.yml:118` et `:334` fixent désormais `cache-dependency-glob: "**/uv.lock"` explicitement ; la v10 de `setup-uv` avait déplacé le défaut vers `**/*requirements*.txt`, que `uv sync --frozen` n'installe pas)
-- long_term_fix: **écrire ce dont on dépend, plutôt que d'en hériter.** Toute option d'une action tierce sur laquelle une garantie repose est déclarée explicitement, même quand le défaut la donne — c'est le seul état qu'une montée de majeure ne peut pas déplacer sous nos pieds. Corollaire pour la relecture : une majeure se lit dans le CHANGELOG des défauts, pas seulement dans sa liste de ruptures d'API ; un défaut déplacé n'est pas une rupture et n'y figure donc pas.
-- signature: `python3 -c "import sys,yaml,pathlib; bad=[str(p) for p in pathlib.Path('.github').rglob('*.y*ml') for job in ((yaml.safe_load(p.read_text(encoding='utf-8')) or {}).get('jobs') or {}).values() for st in (job.get('steps') or []) if 'setup-uv' in str(st.get('uses','')) and (st.get('with') or {}).get('enable-cache') and 'cache-dependency-glob' not in (st.get('with') or {})]; sys.exit(1 if bad else 0)"`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
-- guard: { type: script, ref: .github/workflows/ci.yml (cache-dependency-glob explicite sur les 3 sites) }
-- guard_scope: une-configuration-qui-diverge-de-la-prod — une montée de majeure change une valeur PAR DÉFAUT dont on dépendait sans l'avoir écrite, donc rien ne casse à l'installation et tout change au comportement ; couvre: une signature qui balaie les workflows `.github/**` à la recherche de la dépendance implicite mesurée le 2026-09-16 ; ne couvre pas: (1) **le geste voisin le plus proche — les défauts implicites hors CI** : Postgres (`max_connections = 100`, supposé et jamais vérifié), Streamlit, pandas, Airflow ont chacun des valeurs par défaut dont ce dépôt dépend sans les écrire ; (2) les défauts qui bougent sans montée de majeure ; (3) ce que le nouveau défaut PRODUIT, seulement la dépendance implicite ; (4) les dépendances implicites qu'on n'a pas encore identifiées — par définition, la signature ne cherche que celles qu'on connaît.
-- siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import sys,yaml,pathlib; bad=[str(p) for p in pathlib.Path('.github').rglob('*.y*ml') for job in ((yaml.safe_load(p.read_text(encoding='ut`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
-- rex_ref: .github/workflows/ci.yml
-- first_seen: 2026-09-16
-- History:
-  - 2026-09-16: la classe est née DU correctif d'une autre — la montée v4 → v10 faite pour réparer un cache à 0 % de succès. La clause « majeures manuelles » de `.github/dependabot.yml` visait exactement ce risque et avait raison ; ce qui lui manquait, et qui existe maintenant, est de DIRE ce qu'elle refuse (`tools/dev/check_action_drift.py`). Signature structurelle (YAML analysé, pas de texte) donc `deterministic` : elle ne peut pas matcher un commentaire. Mutation vue dans les deux sens : glob retiré → rc=1 ; remis → rc=0.
-
 ## a-gate-that-repairs-what-it-judges
 - status: guarded
 - severity: P1
@@ -4199,7 +4162,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 ## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site
 
-> Les 239 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
+> Les 241 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
 > `error-class-health.json` et non au jugé (`tools/dev/error_class_health.py::is_dormant`) :
 >
 > * `history_additions == 0` — jamais récidivé sur la fenêtre observée ;
@@ -4211,7 +4174,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > **Elles ne sont ni archivées ni supprimées.** Elles vivent dans ce fichier, leurs
 > signatures tournent, leurs gardes tournent, `--coverage` les compte. Elles sont
 > seulement RANGÉES APRÈS, pour qu'un humain qui ouvre ce document rencontre d'abord
-> les 179 classes encore vivantes.
+> les 177 classes encore vivantes.
 >
 > ⚠️ **Pourquoi pas un second fichier.** C'était le plan, et la mesure l'a écarté : le
 > gain en temps est de **≈ 0 s** — les 8,46 s du cliquet de santé viennent du rejeu de
@@ -4225,6 +4188,43 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > de moitié vivante ; une classe qui remplit les quatre conditions descend ici. Les deux
 > nombres ci-dessus sont recalculés à chaque passe. `make error-health-check` (CI) échoue
 > si le catalogue n'est pas rangé — un rangement oublié ne peut plus être commité.
+
+## a-major-upgrade-that-moves-a-default
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une montée de MAJEURE laisse le build vert et rend une de ses garanties fausse. Rien n'échoue, rien n'avertit : le seul endroit où le changement existe est le log de l'outil, dans une ligne que personne ne lit quand tout est vert.
+- root_cause: la majeure change une valeur PAR DÉFAUT dont on dépendait sans l'avoir écrite. Mesuré le 2026-09-16 sur `astral-sh/setup-uv` : la v4 clé le cache sur `**/uv.lock`, la v10 sur `**/*requirements*.txt`. Or ce dépôt installe par `uv sync --frozen`, qui n'installe QUE ce que dit `uv.lock` — après la montée, le cache s'invalidait quand `requirements.txt` bougeait (donc pas quand les dépendances installées changeaient) et survivait quand `uv.lock` changeait. Vert dans les deux cas, faux dans les deux cas.
+- cause_evidence: read (2026-09-26 — `.github/workflows/ci.yml:118` et `:334` fixent désormais `cache-dependency-glob: "**/uv.lock"` explicitement ; la v10 de `setup-uv` avait déplacé le défaut vers `**/*requirements*.txt`, que `uv sync --frozen` n'installe pas)
+- long_term_fix: **écrire ce dont on dépend, plutôt que d'en hériter.** Toute option d'une action tierce sur laquelle une garantie repose est déclarée explicitement, même quand le défaut la donne — c'est le seul état qu'une montée de majeure ne peut pas déplacer sous nos pieds. Corollaire pour la relecture : une majeure se lit dans le CHANGELOG des défauts, pas seulement dans sa liste de ruptures d'API ; un défaut déplacé n'est pas une rupture et n'y figure donc pas.
+- signature: `python3 -m pytest tests/test_a_cache_names_what_it_depends_on.py -q`. Avant (même question, en `python3 -c`) : `python3 -c "import sys,yaml,pathlib; bad=[str(p) for p in pathlib.Path('.github').rglob('*.y*ml') for job in ((yaml.safe_load(p.read_text(encoding='utf-8')) or {}).get('jobs') or {}).values() for st in (job.get('steps') or []) if 'setup-uv' in str(st.get('uses','')) and (st.get('with') or {}).get('enable-cache') and 'cache-dependency-glob' not in (st.get('with') or {})]; sys.exit(1 if bad else 0)"`
+- seen_red: self-proving (tests/test_a_cache_names_what_it_depends_on.py::test_the_detector_sees_the_defect_it_is_written_for) — prédicat pur `unkeyed_caches(document)` ; le pas d'après la montée v10 (cache activé, sans clé) est nommé, le pas qui nomme `uv.lock`, un cache désactivé et une AUTRE action aux mêmes entrées ne le sont pas. Muté rouge le 2026-09-26 sur ses trois conditions. Avant : unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- guard: { type: pytest, ref: tests/test_a_cache_names_what_it_depends_on.py } + { type: script, ref: .github/workflows/ci.yml (cache-dependency-glob explicite sur les 3 sites) }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — une montée de majeure change une valeur PAR DÉFAUT dont on dépendait sans l'avoir écrite, donc rien ne casse à l'installation et tout change au comportement ; couvre: une signature qui balaie les workflows `.github/**` à la recherche de la dépendance implicite mesurée le 2026-09-16 ; ne couvre pas: (1) **le geste voisin le plus proche — les défauts implicites hors CI** : Postgres (`max_connections = 100`, supposé et jamais vérifié), Streamlit, pandas, Airflow ont chacun des valeurs par défaut dont ce dépôt dépend sans les écrire ; (2) les défauts qui bougent sans montée de majeure ; (3) ce que le nouveau défaut PRODUIT, seulement la dépendance implicite ; (4) les dépendances implicites qu'on n'a pas encore identifiées — par définition, la signature ne cherche que celles qu'on connaît.
+- siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `python3 -c "import sys,yaml,pathlib; bad=[str(p) for p in pathlib.Path('.github').rglob('*.y*ml') for job in ((yaml.safe_load(p.read_text(encoding='ut`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
+- rex_ref: .github/workflows/ci.yml
+- first_seen: 2026-09-16
+- History:
+  - 2026-09-16: la classe est née DU correctif d'une autre — la montée v4 → v10 faite pour réparer un cache à 0 % de succès. La clause « majeures manuelles » de `.github/dependabot.yml` visait exactement ce risque et avait raison ; ce qui lui manquait, et qui existe maintenant, est de DIRE ce qu'elle refuse (`tools/dev/check_action_drift.py`). Signature structurelle (YAML analysé, pas de texte) donc `deterministic` : elle ne peut pas matcher un commentaire. Mutation vue dans les deux sens : glob retiré → rc=1 ; remis → rc=0.
+
+## audit-reads-the-constraints-not-the-installed-set
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: l'audit de vulnérabilités rend un rapport propre pendant que le parc réellement installé porte des dizaines d'avis. Il lit un fichier de **contraintes** (des planchers `>=`) que rien n'installe tel quel.
+- root_cause: `.github/workflows/security-nightly.yml` exécutait `pip-audit -r requirements.txt`. Ce fichier porte des planchers (`weasyprint>=62.0`, `cryptography>=42.0.0`), donc pip-audit résolvait des versions récentes — pendant que la CI installait `uv.lock` via `uv sync --frozen`, qui épinglait `pyjwt 2.12.1` (notre authentification), `starlette 1.0.0`, `python-multipart 0.0.28` : **127 avis sur 18 paquets**.
+- cause_evidence: read (.github/workflows/security-nightly.yml, rétro-portage mécanique 2026-09-16)
+- signature: `python3 -m pytest tests/test_an_audit_reads_what_is_installed.py -q`. Avant (la seule commande littérale) : `! grep -nE 'pip-audit -r requirements.txt' .github/workflows/security-nightly.yml`
+- seen_red: self-proving (tests/test_an_audit_reads_what_is_installed.py::test_the_detector_sees_the_defect_it_is_written_for) — prédicat pur `audits_of_constraints(workflow)` sur la PROPRIÉTÉ : tout fichier passé à `pip-audit -r` a été écrit par `uv export` plus tôt dans le même job (ou plus haut dans le même script). Le nightly d'avant (deux audits de `requirements.txt`) et un audit placé AVANT son export sont nommés ; l'ordre export→audit passe, en `-o` comme en redirection. Muté rouge le 2026-09-26 (audits ignorés ; fichier audité compté comme exporté — survivant de la première preuve), et vu rouge sur le vrai `security-nightly.yml` en remettant `-r requirements.txt`. Avant : unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- long_term_fix: l'audit résout le lock avant de le lire — `uv export --frozen --no-dev --no-hashes` — donc il regarde exactement ce que `uv sync --frozen` installe. Règle générale : **on n'audite jamais un fichier de contraintes, on audite l'ensemble résolu**.
+- guard: { type: pytest, ref: tests/test_an_audit_reads_what_is_installed.py } + { type: ci-step, ref: .github/workflows/security-nightly.yml }
+- guard_scope: un-garde-qui-ne-garde-pas — un audit lit le fichier de CONTRAINTES au lieu de l'ensemble RÉSOLU, donc il déclare sain ce qui n'est pas installé ; couvre: par la signature bloquante `! grep -nE 'pip-audit -r requirements.txt' security-nightly.yml` : l'audit de dépendances passe par `uv export --frozen --no-dev --no-hashes`, donc il regarde exactement ce que `uv sync --frozen` installe — le retour arrière est refusé par un grep, pas seulement documenté ; ne couvre pas: (1) **le geste voisin le plus proche — les autres lectures de contraintes du dépôt** : `check_manifest_consistency.py`, `gitleaks`, le compte de majeures de retard et la construction Docker (qui lit `requirements.txt`, pas le lock) raisonnent encore sur des planchers ; (2) l'ensemble résolu du conteneur de PROD, qui n'est pas celui du runner ; (3) les extras `--dev`, exclus de l'export ; (4) les dépendances système, hors de portée de pip-audit
+- siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `! grep -nE 'pip-audit -r requirements.txt' .github/workflows/security-nightly.yml`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
+- rex_ref: .github/workflows/security-nightly.yml
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: après régénération du lock, 127 avis sur 18 paquets → 12 sur 2. Les deux restants sont assumés : `apache-airflow` (pin délibéré sur la version de l'image Docker, suivi en R49b) et `ecdsa` (sans correctif amont).
+
 
 ## config-not-env
 - status: guarded
