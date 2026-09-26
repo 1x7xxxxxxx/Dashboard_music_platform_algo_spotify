@@ -50,8 +50,13 @@ def pf():
     return period_filter
 
 
+def bornable_but_filtered(allowed) -> set[str]:
+    """Tables `_data_span` may bound although they carry a mandatory filter. Pure."""
+    return _MANDATORY_FILTER_TABLES & set(allowed)
+
+
 def test_no_table_with_a_mandatory_filter_is_bornable(pf):
-    bad = _MANDATORY_FILTER_TABLES & set(pf._ALLOWED_TABLES)
+    bad = bornable_but_filtered(pf._ALLOWED_TABLES)
     assert not bad, (
         f"{sorted(bad)} porte(nt) un filtre obligatoire et ne peu(ven)t pas être "
         f"bornée(s) : `_data_span` lit MIN/MAX sans prédicat, donc l'étendue "
@@ -140,3 +145,12 @@ def test_the_textual_guard_really_cannot_see_this_sql():
     assert "s4a_song_timeline" not in " ".join(stitched), (
         "le nom de la table apparaît désormais en clair : un garde textuel pourrait "
         "le voir, donc ce garde structurel n'est plus le seul recours")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: an allowlist that still lists `s4a_song_timeline` (whose MIN/MAX
+    without `song NOT ILIKE` spans the « Total » row) is refused; the gold replacement
+    alone is accepted."""
+    assert bornable_but_filtered({"v_s4a_song_daily", "s4a_song_timeline"}) == {
+        "s4a_song_timeline"}
+    assert bornable_but_filtered({"v_s4a_song_daily", "youtube_channel_history"}) == set()
