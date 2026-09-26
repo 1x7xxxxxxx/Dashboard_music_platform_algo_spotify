@@ -194,7 +194,7 @@
       "cause_evidence": "read",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": true,
-      "guard_ref": "tests/test_a_page_asks_the_same_question_once.py",
+      "guard_ref": "tests/test_a_cache_key_is_stable_within_its_ttl.py",
       "guard_ref_exists": true,
       "guard_scope_declared_family": "un-état-qui-déborde-de-sa-portée",
       "guard_scope_derived_family": "un-état-qui-déborde-de-sa-portée",
@@ -203,17 +203,18 @@
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
-        "2026-09-10"
+        "2026-09-10",
+        "2026-09-26"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "self-proving",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-10",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -342,14 +343,14 @@
         "2026-09-18"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11480,20 +11481,20 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 518,
+      "catalogue_revisions": 519,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
       "cause_unknown": 13,
-      "guard_does_not_prove_itself": 72,
+      "guard_does_not_prove_itself": 70,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
       "scope_on_a_shared_guard_without_naming_its_tests": 15,
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 33,
+      "seen_red_unknown": 32,
       "siblings_never_swept": 0,
       "sites_unknown": 0,
       "sites_unknown_hors_relance": 0,
@@ -11542,20 +11543,20 @@
       "by_seen_red": {
         "daté": {
           "events": 5,
-          "class_days": 1089,
-          "per_class_month": 0.1396,
+          "class_days": 1079,
+          "per_class_month": 0.1409,
           "ci95": [
-            0.045,
-            0.3257
+            0.0454,
+            0.3287
           ]
         },
         "jamais-ou-inconnu": {
           "events": 56,
-          "class_days": 10572,
-          "per_class_month": 0.161,
+          "class_days": 10582,
+          "per_class_month": 0.1609,
           "ci95": [
-            0.1216,
-            0.2091
+            0.1215,
+            0.2089
           ]
         }
       },
