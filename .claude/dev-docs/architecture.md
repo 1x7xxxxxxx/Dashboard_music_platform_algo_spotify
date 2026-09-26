@@ -59,12 +59,17 @@ graph TD
 
 ```mermaid
 graph LR
+    SERVE[dashboard/serve.py<br/>entrée du conteneur] -->|exportateur puis streamlit run| app.py
     app.py -->|routes to| V[views/]
     app.py -->|uses| auth.py
     auth.py -->|depends on| PH[PostgresHandler]
     V -->|uses| GDB[get_db_connection]
     GDB -->|wraps| PH
     PH -->|psycopg2| DB[(spotify_etl)]
+    API[src/api/routers/*<br/>FastAPI] -->|"Depends(get_db)"| DEPS[api/deps.py]
+    DEPS -->|wraps| GDB
+    V -->|"@st.fragment"| FDB[utils/fragment_db.py]
+    FDB -->|réutilise la connexion de la page| GDB
 
     DAG[airflow/dags/*.py] -->|calls| COL[src/collectors/*]
     DAG -->|calls| CL[credential_loader]
