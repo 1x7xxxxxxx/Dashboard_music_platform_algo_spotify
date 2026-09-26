@@ -260,3 +260,19 @@ def test_the_identity_predicate_is_not_vacuous() -> None:
         "— soit le module a changé, soit le prédicat ne trouve rien nulle part et le "
         "test ci-dessus est vert pour une raison qui n'a rien à voir avec la propriété."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path) -> None:
+    """Non-vacuity on FABRICATED modules: a second mailer composing its own sender name
+    from the environment (both spellings) is seen; one that asks the owner module, and
+    one that only NAMES the variable in a docstring, are not."""
+    second = tmp_path / "mailer.py"
+    second.write_text("import os\n"
+                      "name = os.getenv('SMTP_FROM_NAME', 'Music Cross Platform')\n"
+                      "addr = os.environ.get('SMTP_FROM')\n", encoding="utf-8")
+    assert _reads_identity_env(second) == [2, 3]
+    clean = tmp_path / "clean.py"
+    clean.write_text('"""Never read SMTP_FROM_NAME here."""\n'
+                     "from src.utils.email_identity import sender\n"
+                     "hdr = sender()\n", encoding="utf-8")
+    assert _reads_identity_env(clean) == []
