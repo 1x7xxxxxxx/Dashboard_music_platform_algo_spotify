@@ -61,15 +61,19 @@ def _catalogues():
     return out
 
 
+def operator_phrases(guide) -> list[str]:
+    """Operator-only wording in what the ARTIST reads (`note` + `steps`). Pure.
+
+    `admin_note` is deliberately not read: it is where such a sentence belongs.
+    """
+    artist_text = " ".join([guide.note or ""] + [str(s.text) for s in (guide.steps or [])])
+    return [phrase for phrase in _OPERATOR_ONLY if phrase in artist_text]
+
+
 def test_no_artist_facing_text_asks_for_operator_access():
     """`note` and `steps` are what the artist reads. They must be actionable BY them."""
-    offenders = []
-    for lang, guide in _catalogues():
-        artist_text = " ".join(
-            [guide.note or ""] + [str(s.text) for s in (guide.steps or [])])
-        for phrase in _OPERATOR_ONLY:
-            if phrase in artist_text:
-                offenders.append(f"{lang}/{guide.key}: {phrase!r}")
+    offenders = [f"{lang}/{guide.key}: {phrase!r}" for lang, guide in _catalogues()
+                 for phrase in operator_phrases(guide)]
     assert not offenders, (
         "These ask the artist for access only the operator has:\n  "
         + "\n  ".join(sorted(offenders))
@@ -151,3 +155,16 @@ def test_every_guide_still_tells_the_artist_something():
     """The fix must not have emptied the guides while silencing them."""
     thin = [f"{lang}/{g.key}" for lang, g in _catalogues() if not g.steps]
     assert not thin, f"these guides now have no steps at all: {thin}"
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: a step asking the artist to open developer.spotify.com (an access
+    only the operator has) is named; the same sentence moved to `admin_note` is not."""
+    from types import SimpleNamespace as NS
+
+    wrong = NS(note="", admin_note="", steps=[
+        NS(text="Ouvre developer.spotify.com et copie SPOTIFY_CLIENT_ID")])
+    assert operator_phrases(wrong) == ["developer.spotify.com", "SPOTIFY_CLIENT_ID"]
+    moved = NS(note="", admin_note="Ouvre developer.spotify.com",
+               steps=[NS(text="Colle l'identifiant de ton profil artiste")])
+    assert operator_phrases(moved) == []

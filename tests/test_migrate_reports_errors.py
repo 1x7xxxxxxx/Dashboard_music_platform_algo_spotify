@@ -24,7 +24,10 @@ captures psql's output, and it inspects that output for ERROR/FATAL.
 """
 from __future__ import annotations
 
+import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -180,3 +183,51 @@ def test_re_run_noise_is_classified_not_mixed_in():
         "the report no longer distinguishes the two kinds. Counting noise and "
         "naming the rest is the whole point."
     )
+
+
+_FAKE_DOCKER = """#!/usr/bin/env bash
+# `docker ps` names a container; `-c <sql>` queries answer nothing (empty ledger);
+# a file on stdin answers what its `-- PSQL_SAYS:` lines say psql would print.
+if [ "$1" = ps ]; then echo postgres_spotify_fake; exit 0; fi
+for a in "$@"; do [ "$a" = "-c" ] && exit 0; done
+sed -n 's/^-- PSQL_SAYS: //p'
+"""
+
+
+def run_migrate(tmp_path: Path, migrations: dict[str, str]) -> subprocess.CompletedProcess:
+    """Run the REAL tools/migrate.sh against a fake psql and fabricated migrations."""
+    (tmp_path / "tools").mkdir()
+    shutil.copy(SCRIPT, tmp_path / "tools" / "migrate.sh")
+    (tmp_path / "migrations").mkdir()
+    for name, body in migrations.items():
+        (tmp_path / "migrations" / name).write_text(body, encoding="utf-8")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "docker").write_text(_FAKE_DOCKER, encoding="utf-8")
+    (bin_dir / "docker").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}"}
+    env.pop("PG_CONT", None)
+    return subprocess.run(["bash", str(tmp_path / "tools" / "migrate.sh")], env=env,
+                          capture_output=True, text=True, timeout=60)
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(tmp_path):
+    """Behaviour, not wording: the 2026-08-21 run — 024 failing on its dropped key among
+    re-run noise — must NAME 024 with its message, COUNT the noise without naming it,
+    and still exit 0 (stopping would leave the schema half-applied)."""
+    r = run_migrate(tmp_path, {
+        "002_x.sql": '-- PSQL_SAYS: ERROR:  relation "x" already exists\n',
+        "024_s4a_song_playlist_adds_redesign.sql":
+            '-- PSQL_SAYS: ERROR:  could not create unique index "pk"\n',
+        "044_playlist_adds_windows.sql": "-- PSQL_SAYS: ALTER TABLE\n",
+    })
+    assert r.returncode == 0, r.stderr
+    named = r.stdout.split("NOT a re-run artefact", 1)[-1]
+    assert "024_s4a_song_playlist_adds_redesign.sql" in named, r.stdout
+    assert "could not create unique index" in named, r.stdout
+    assert "002_x.sql" not in named, "re-run noise named alongside the real error"
+    assert "1 file(s) re-applied over existing objects" in r.stdout, r.stdout
+
+    (tmp_path / "clean").mkdir()
+    clean = run_migrate(tmp_path / "clean", {"001_a.sql": "-- PSQL_SAYS: CREATE TABLE\n"})
+    assert "no unexpected psql error" in clean.stdout, clean.stdout
