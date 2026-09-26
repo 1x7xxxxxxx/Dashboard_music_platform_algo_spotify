@@ -9990,6 +9990,7 @@
     "tests/test_tracks_hosted_elsewhere_are_collected.py::test_the_database_refuses_it_too": 0.0788681819994963,
     "tests/test_two_checks_one_question.py::test_both_checks_really_do_read_the_same_predicate": 0.0027426500000728993,
     "tests/test_two_checks_one_question.py::test_the_credentials_section_subtracts_what_was_already_said": 0.001024052999127889,
+    "tests/test_two_checks_one_question.py::test_the_detector_sees_the_defect_it_is_written_for": 0.0795087890146533,
     "tests/test_two_checks_one_question.py::test_the_removal_is_announced": 0.0015270809999492485,
     "tests/test_two_checks_one_question.py::test_the_subject_counts_what_the_section_shows": 0.0013867189991287887,
     "tests/test_two_checks_one_question.py::test_the_subtraction_keys_on_the_logical_platform_not_the_label": 0.026449492999745416,

@@ -478,7 +478,7 @@ _TEXT_ASSERTIONS_ON_PY: dict[str, int] = {
     "test_the_setup_page_is_reachable_and_on_top.py": 23,
     "test_the_soundcloud_ask_is_one_thing.py": 1,
     "test_the_trigger_rate_compares_the_same_ruler.py": 1,
-    "test_two_checks_one_question.py": 7,
+    "test_two_checks_one_question.py": 2,
 }
 
 
