@@ -71,22 +71,52 @@ def esc(s) -> str:
     return html.escape(str(s or ""))
 
 
-def fiche(key: str, r: dict, img: str | None, meta_line: str, extra: str = "") -> str:
+def fiche(key: str, r: dict, img: str | None, meta_line: str, extra: str = "",
+          no: int | None = None) -> str:
     v = r.get("v", "a-trancher")
+    owner = ""
+    if r.get("owner_v") or r.get("owner"):
+        ov = r.get("owner_v", "")
+        owner = (f'<p class="owner"><b>Ton avis</b> — {VERDICTS.get(ov, ov)}'
+                 f'{" : " + esc(r.get("owner")) if r.get("owner") else ""}</p>')
     img_html = (f'<img class="fig" src="{esc(img)}">' if img
                 else '<div class="nr">Non rendu — voir la note.</div>')
     return f"""<div class="fiche">
-<div class="head"><span class="verdict" style="background:{_COLOR.get(v, '#444')}">{VERDICTS.get(v, v)}</span>
+<div class="head"><span class="no">Fiche {no}</span><span class="verdict" style="background:{_COLOR.get(v, '#444')}">{VERDICTS.get(v, v)}</span>
 <span class="q">{esc(r.get('q'))}</span></div>
 {img_html}
 <table class="notes"><tr><td>Décision <b>{r.get('d')}/5</b></td><td>Confiance <b>{r.get('c')}/5</b></td>
 <td>Pertinence <b>{r.get('p')}/5</b></td><td>{esc(ROLES.get(r.get('role'), r.get('role')))}</td></tr></table>
-<p class="note">{esc(r.get('note'))}</p>
+<p class="note">{esc(r.get('note'))}</p>{owner}
 <p class="site"><code>{esc(key)}</code> {meta_line}{extra}</p></div>"""
+
+
+GUIDE = """<h2>Comment me faire tes retours</h2>
+<ol>
+<li><b>Dis le numéro de la fiche</b> — « fiche 42 » (en haut à gauche de chaque graphique).</li>
+<li><b>Commence par un verdict</b> : garder, corriger, fusionner, retirer — ou « à trancher ».</li>
+<li>Puis le pourquoi, librement. <b>Un graphique par commentaire.</b></li>
+<li>« Même chose pour les fiches 12 à 15 » marche. Un « oui » global sur la liste des chiffres
+probablement faux (ci-dessous) suffit : je vérifie chacun avant de toucher au code.</li>
+<li>Envoie-moi la transcription telle quelle. Je la rattache aux fiches, je te rends un tableau
+trié PAR CAUSE (une correction répare souvent plusieurs graphiques), tu arbitres — et rien
+n'entre dans la roadmap avant ton arbitrage.</li>
+</ol>
+<p>Les fiches « à trancher » n'ont pas pu être rendues (onglet, sélecteur ou clic) : pour elles,
+un coup d'œil dans l'app vaut mieux que ce document.</p>"""
+
+
+def numbering(review: dict) -> dict[str, int]:
+    """Fiche numbers: the ORDER of review.yaml — stable across rebuilds, written to fiches.json."""
+    return {k: i for i, k in enumerate(review, start=1)}
 
 
 def build(out: Path) -> Path:
     review = load()
+    no_of = numbering(review)
+    (out / "fiches.json").write_text(
+        json.dumps({str(n): k for k, n in no_of.items()}, ensure_ascii=False, indent=1),
+        encoding="utf-8")
     cap = json.loads((out / "capture.json").read_text(encoding="utf-8"))
     pdfj = json.loads((out / "pdf_figures.json").read_text(encoding="utf-8"))
     gra_path = out / "grafana.json"
@@ -123,15 +153,16 @@ connectée au rendu. Réglages par défaut des pages.</p>
 <tr><th>… de Grafana</th><td>{sum(1 for k in review if k.startswith('grafana:'))}</td></tr>
 """ + "".join(f"<tr><th>{VERDICTS[v]}</th><td>{verdicts.get(v, 0)}</td></tr>" for v in VERDICTS)
              + "</table>"]
+    parts.append(GUIDE)
     parts.append("<h3>À vérifier en premier — des chiffres probablement FAUX (confiance ≤ 2)</h3><ul>"
-                 + "".join(f"<li><code>{esc(k)}</code> — {esc(review[k].get('note'))}</li>"
+                 + "".join(f"<li><b>Fiche {no_of[k]}</b> — {esc(review[k].get('note'))}</li>"
                            for k in suspects) + "</ul>")
     parts.append("<h2>Qu'apporte la campagne Meta Ads ? — les graphiques qui répondent</h2>"
                  "<p>Classés par note de décision. Les réponses les plus sûres : l'argent (point mort "
                  "à 242 ans, 261 € de revenus pour 3 088 € de pub) et le verdict d'auditeurs, qui "
                  "refuse de conclure quand il ne le peut pas.</p><table class='idx'>"
-                 + "".join(f"<tr><td>{review[k].get('d')}/5</td><td>{VERDICTS.get(review[k].get('v'))}</td>"
-                           f"<td>{esc(review[k].get('q'))}</td><td><code>{esc(k)}</code></td></tr>"
+                 + "".join(f"<tr><td>Fiche {no_of[k]}</td><td>{review[k].get('d')}/5</td>"
+                           f"<td>{VERDICTS.get(review[k].get('v'))}</td><td>{esc(review[k].get('q'))}</td></tr>"
                            for k in meta_keys) + "</table>")
     parts.append("<h2>Recommandations du corpus</h2>" + "".join(
         f"<h3>{t}</h3><p class='src'>{s}</p><p>{b}</p>" for t, s, b in RECOMMENDATIONS))
@@ -156,18 +187,25 @@ connectée au rendu. Réglages par défaut des pages.</p>
                 extra += f" · {count[k]} images (boucle)"
             if len(views_of.get(k, [])) > 1:
                 extra += " · aussi sur : " + esc(", ".join(views_of[k][1:]))
-            parts.append(fiche(k, review[k], f"figures/{f['png']}" if f else None, meta_line, extra))
+            parts.append(fiche(k, review[k], f"figures/{f['png']}" if f else None, meta_line, extra,
+                               no_of[k]))
 
     parts.append("<h2 class='page'>Rapport PDF de l'artiste</h2>")
     pdf_png = {f["key"]: f["png"] for f in pdfj["figures"]}
     for k in [k for k in review if k.startswith("pdf:")]:
-        parts.append(fiche(k, review[k], pdf_png.get(k[4:]), "· figure matplotlib du rapport"))
+        parts.append(fiche(k, review[k], pdf_png.get(k[4:]), "· figure matplotlib du rapport",
+                           no=no_of[k]))
 
     parts.append("<h2 class='page'>Grafana — robustesse de l'app</h2>")
     gpng = {f"grafana:{p['id']}": (p["png"], p.get("points")) for p in (gra or {}).get("panels", [])}
     for k in [k for k in review if k.startswith("grafana:")]:
         png, pts = gpng.get(k, (None, None))
-        parts.append(fiche(k, review[k], png, f"· {pts if pts is not None else '?'} points mesurés en 7 jours"))
+        parts.append(fiche(k, review[k], png,
+                           f"· {pts if pts is not None else '?'} points mesurés en 7 jours",
+                           no=no_of[k]))
+    parts.append("<h2 class='page'>Index des fiches</h2><table class='idx'>" + "".join(
+        f"<tr><td>{n}</td><td>{VERDICTS.get(review[k].get('v'))}</td><td>{esc(review[k].get('q'))}</td></tr>"
+        for k, n in no_of.items()) + "</table>")
 
     from style import CSS
     css = CSS.replace("streaMLytics — architecture et qualité des données",
@@ -179,6 +217,8 @@ connectée au rendu. Réglages par défaut des pages.</p>
 img.fig { width: 100%; max-height: 105mm; object-fit: contain; margin: 2mm 0; }
 .nr { color: #777; font-style: italic; padding: 3mm 0; }
 table.notes td { font-size: 8.5pt; padding: .5mm 3mm .5mm 0; }
+.no { font-weight: bold; font-size: 11pt; margin-right: 2mm; }
+.owner { background: #eef4ff; border-left: 3px solid #2c5282; padding: 1.5mm 3mm; margin: 1mm 0; }
 .note { margin: 1mm 0; } .site { color: #888; font-size: 7.5pt; margin: 0; }
 h2.page { page-break-before: always; } .src { color: #666; font-size: 8.5pt; margin: 0; }
 table.idx td, table.sum td, table.sum th { font-size: 8.5pt; padding: .6mm 2mm; text-align: left; }
@@ -194,6 +234,15 @@ table.idx td, table.sum td, table.sum th { font-size: 8.5pt; padding: .6mm 2mm; 
 
 
 def main(argv: list[str]) -> int:
+    if len(argv) > 2 and argv[1] == "--rebuild":
+        # From the artefacts already captured — no snapshot, no Prometheus (R204).
+        out = Path(argv[2]).resolve()
+        if not _outside_git(out):
+            print("❌ dossier dans le dépôt et non ignoré par git", file=sys.stderr)
+            return 2
+        dest = build(out)
+        print(f"✅ {dest} ({dest.stat().st_size / 1024:.0f} Ko)")
+        return 0
     out = Path(argv[1]).resolve() if len(argv) > 1 else None
     if out is None or not _outside_git(out):
         print("❌ donner le dossier de sortie de capture.py, HORS du dépôt", file=sys.stderr)
@@ -214,9 +263,6 @@ def main(argv: list[str]) -> int:
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(main(sys.argv))
-
 
 def _outside_git(out: Path) -> bool:
     """Outside the repository, or inside a folder git IGNORES (`revue/`, .gitignore) — the
@@ -226,3 +272,7 @@ def _outside_git(out: Path) -> bool:
         return True
     probe = out / "dossier-graphiques.pdf"
     return subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q", str(probe)]).returncode == 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

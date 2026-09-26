@@ -20,6 +20,7 @@ src/dashboard/utils/platform_chart.py:1090:
   c: 3
   p: 5
   v: corriger
+  cause: arrivee-historique-lue-comme-hausse
   note: "Cumul empilé Spotify + YouTube + SoundCloud. La marche de YouTube fin 2025 (+118 k) est l'arrivée de son HISTORIQUE, pas une hausse — elle se lit comme un pic d'audience. Marquer le jour du premier relevé de chaque plateforme."
 src/dashboard/utils/platform_chart.py:1200:
   q: "(variante par plateforme du graphique d'accueil)"
@@ -46,6 +47,7 @@ src/dashboard/views/spotify_s4a_combined.py:353:
   c: 4
   p: 5
   v: corriger
+  cause: lisibilite
   note: "Les barres « 28 derniers jours » sont presque invisibles quand la fenêtre est calme ; noms de titres coupés à gauche dans l'export. Afficher la valeur récente en texte."
 src/dashboard/views/spotify_s4a_combined.py:445:
   q: "Le titre choisi est-il encore écouté, encore vu par Spotify ; mon audience grandit-elle ?"
@@ -72,6 +74,7 @@ src/dashboard/views/data_wrapped.py:362:
   c: 4
   p: 2
   v: fusionner
+  cause: doublon
   note: "Un chiffre par an — une tuile suffirait. Fusionner avec « Heures d'écoute » en deux tuiles."
 src/dashboard/views/data_wrapped.py:371:
   q: "Écoute-t-on plus d'heures ?"
@@ -80,6 +83,7 @@ src/dashboard/views/data_wrapped.py:371:
   c: 4
   p: 2
   v: fusionner
+  cause: doublon
   note: "Idem « Pays touchés »."
 src/dashboard/views/data_wrapped.py:388:
   q: "De combien mes auditeurs ont-ils progressé cette année ?"
@@ -88,6 +92,7 @@ src/dashboard/views/data_wrapped.py:388:
   c: 2
   p: 3
   v: corriger
+  cause: absence-ecrite-zero
   note: "« +0,0 % » en 2025 alors que les volumes chutent de 107 k à 17 k streams — probablement un gain absent affiché comme zéro. À vérifier ; les quatre figures de gain partagent le calcul."
 src/dashboard/views/data_wrapped.py:394:
   q: "De combien mes streams ont-ils progressé ?"
@@ -96,6 +101,7 @@ src/dashboard/views/data_wrapped.py:394:
   c: 2
   p: 3
   v: corriger
+  cause: absence-ecrite-zero
   note: "Même défaut que « Gain listeners » (+0,0 % en 2025)."
 src/dashboard/views/data_wrapped.py:402:
   q: "De combien mes sauvegardes ont-elles progressé ?"
@@ -104,6 +110,7 @@ src/dashboard/views/data_wrapped.py:402:
   c: 2
   p: 2
   v: fusionner
+  cause: absence-ecrite-zero
   note: "Même défaut ; quatre barres de gain pour une seule idée — les réunir en une figure groupée."
 src/dashboard/views/data_wrapped.py:408:
   q: "De combien mes ajouts en playlist ont-ils progressé ?"
@@ -112,6 +119,7 @@ src/dashboard/views/data_wrapped.py:408:
   c: 2
   p: 2
   v: fusionner
+  cause: absence-ecrite-zero
   note: "Voir « Gain saves »."
 src/dashboard/views/data_wrapped.py:422:
   q: "Combien de fans m'ont eu dans leur top ?"
@@ -120,6 +128,7 @@ src/dashboard/views/data_wrapped.py:422:
   c: 2
   p: 2
   v: corriger
+  cause: absence-ecrite-zero
   note: "11 → 0 en 2025 — un Wrapped non saisi se lit comme « plus aucun fan ». Une absence doit rester une absence."
 
 # ── Plateformes ──────────────────────────────────────────────────────────────
@@ -130,6 +139,7 @@ src/dashboard/views/apple_music.py:143:
   c: 3
   p: 3
   v: corriger
+  cause: libelles-tronques
   note: "Noms de titres coupés à gauche (« en le français »). Un instantané cumulé, pas une série."
 src/dashboard/views/apple_music.py:312:
   q: "Ce titre gagne-t-il encore des écoutes Apple / Shazam ?"
@@ -146,6 +156,7 @@ src/dashboard/views/soundcloud.py:279:
   c: 1
   p: 3
   v: corriger
+  cause: absence-ecrite-zero
   note: "Un cumul qui tombe à 0 un jour de juin puis remonte — un relevé manquant écrit comme zéro. Classe « l'absence devient un pixel », à balayer."
 src/dashboard/views/soundcloud.py:302:
   q: "Quelle métrique SoundCloud bouge depuis la sortie ?"
@@ -154,6 +165,7 @@ src/dashboard/views/soundcloud.py:302:
   c: 3
   p: 2
   v: retirer
+  cause: graphique-sans-decision
   note: "Base 100 sur des cumuls quasi plats (99,5–100,5) : rien à décider. Le top titres en dit plus."
 src/dashboard/views/soundcloud.py:429:
   q: "Mes écoutes et mon engagement SoundCloud progressent-ils ?"
@@ -162,6 +174,7 @@ src/dashboard/views/soundcloud.py:429:
   c: 1
   p: 3
   v: corriger
+  cause: absence-ecrite-zero
   note: "L'engagement cumulé plonge à 0 en avril puis revient — même défaut que la croissance. Doublon partiel de « Croissance »."
 src/dashboard/views/soundcloud.py:498:
   q: "Quels titres SoundCloud marchent, et engagent ?"
@@ -186,6 +199,7 @@ src/dashboard/views/youtube.py:364:
   c: 4
   p: 3
   v: corriger
+  cause: lisibilite
   note: "Quatre sous-graphes dont un toujours à 0 (commentaires) ; titres de vidéos illisibles en biais. Un top en barres horizontales suffit."
 src/dashboard/views/instagram.py:438:
   q: "Ma communauté Instagram grandit-elle ?"
@@ -202,6 +216,7 @@ src/dashboard/views/instagram.py:251:
   c: 3
   p: 2
   v: corriger
+  cause: lisibilite
   note: "Likes et commentaires tracés dans la MÊME couleur (noir) — la légende ne distingue rien."
 src/dashboard/views/instagram.py:300:
   q: "Mon taux d'engagement tient-il ?"
@@ -260,6 +275,7 @@ src/dashboard/views/meta_ads_overview.py:370:
   c: 1
   p: 4
   v: corriger
+  cause: double-comptage
   note: "≈ 9 000 € de budget et 65 k clics pour la MÊME campagne que la figure voisine (756 €, 5 963 clics) — barres empilées de nombreux segments. Probable double comptage (lignes par jour ou par créa sommées). À vérifier en premier (P2)."
 src/dashboard/views/meta_ads_overview.py:473:
   q: "Au jour le jour, la dépense produit-elle des clics, à quel coût ?"
@@ -284,6 +300,7 @@ src/dashboard/views/meta_breakdowns.py:94:
   c: 4
   p: 3
   v: fusionner
+  cause: doublon
   note: "La carte dit « Mexique » ; le graphique pays voisin dit la même chose avec le CPR en plus. Garder l'un des deux."
 src/dashboard/views/meta_breakdowns.py:100:
   q: "Par pays, combien dépensé et à quel coût par clic sortant ?"
@@ -324,6 +341,7 @@ src/dashboard/views/meta_creatives.py:473:
   c: 1
   p: 5
   v: corriger
+  cause: ctr-echelle
   note: "CTR à 233 %, 387 %, 1 111 % — un taux de clic ne dépasse pas 100 %. Probable pourcentage multiplié deux fois. Le classement CPR, lui, est lisible. À vérifier (P2)."
 src/dashboard/views/meta_creatives.py:518:
   q: "Les créas avec « hook » coûtent-elles moins cher que sans ?"
@@ -340,6 +358,7 @@ src/dashboard/views/meta_creatives.py:740:
   c: 2
   p: 3
   v: corriger
+  cause: graphique-vide-ou-axe-casse
   note: "Le panneau « Taux (%) » est vide ; CPR tracé à zéro sur l'échelle en euros. Trois panneaux pour ce qu'en dit un."
 src/dashboard/views/meta_creatives.py:775:
   q: "Où sont mes créas en dépense × coût ?"
@@ -356,6 +375,7 @@ src/dashboard/views/meta_creatives.py:810:
   c: 1
   p: 3
   v: retirer
+  cause: ctr-echelle
   note: "CTR jusqu'à 1 100 % (même défaut d'échelle) et doublon du classement en tête de page."
 src/dashboard/views/meta_creatives.py:852:
   q: "Où se perdent les gens entre l'impression et le clic sortant ?"
@@ -364,6 +384,7 @@ src/dashboard/views/meta_creatives.py:852:
   c: 2
   p: 4
   v: corriger
+  cause: entonnoir-incoherent
   note: "60 clics SORTANTS pour 48 clics — un entonnoir qui s'élargit. Définitions Meta à vérifier (clic lien vs clic)."
 src/dashboard/views/meta_creatives.py:919:
   q: "Ma pub fatigue-t-elle mon audience (fréquence, CTR) ?"
@@ -372,6 +393,7 @@ src/dashboard/views/meta_creatives.py:919:
   c: 2
   p: 4
   v: corriger
+  cause: ctr-echelle
   note: "Fréquence 1,01–1,07 (bonne donnée) ; CTR 100–370 % (défaut d'échelle)."
 src/dashboard/views/meta_creatives.py:949:
   q: "Quelle créa a tourné quand ?"
@@ -380,6 +402,7 @@ src/dashboard/views/meta_creatives.py:949:
   c: 4
   p: 3
   v: garder
+  cause: libelles-tronques
   note: "Carte de chaleur lisible ; noms de créas coupés à gauche."
 src/dashboard/views/meta_creatives.py:961:
   q: "Combien chaque créa a-t-elle dépensé au total ?"
@@ -388,6 +411,7 @@ src/dashboard/views/meta_creatives.py:961:
   c: 1
   p: 3
   v: corriger
+  cause: cumul-qui-decroit
   note: "Une « dépense cumulée » qui redescend à 0 — un cumul ne décroît jamais. Tracé non trié, ou cumul remis à zéro par période. Illisible en l'état."
 
 # ── Impact de mes campagnes (toutes plateformes) ─────────────────────────────
@@ -414,6 +438,7 @@ src/dashboard/views/meta_x_spotify.py:881:
   c: 3
   p: 5
   v: corriger
+  cause: entonnoir-illisible
   note: "Libellés d'étapes tronqués (« s », « b », « k ») ; les étapes sous les impressions sont invisibles à l'échelle. Échelle log ou pourcentages d'étape à étape."
 src/dashboard/views/meta_x_spotify.py:991:
   q: "Dans quel pays l'euro de pub rapporte-t-il le plus d'écoutes ?"
@@ -440,6 +465,7 @@ src/dashboard/views/trigger_algo/_tab_algo_streams.py:80:
   c: 1
   p: 4
   v: corriger
+  cause: graphique-vide-ou-axe-casse
   note: "Graphique VIDE, axe du temps réduit à une seconde (23:59:59,9996 → 00:00:00,0004) — la série est vide et l'axe se replie. Afficher « aucune donnée » au lieu d'un axe cassé."
 src/dashboard/views/trigger_algo/_tab_lifecycle.py:48:
   q: "Mon titre suit-il la courbe de vie de la cohorte ?"
@@ -456,6 +482,7 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py:321:
   c: 1
   p: 4
   v: corriger
+  cause: ajustement-trompeur
   note: "Une régression « R² = 1,00 » tracée sur UN point (2024-04) — trompeur. Refuser la droite sous un minimum de points."
 src/dashboard/views/trigger_algo/_tab_budget_roi.py:513:
   q: "Quand la pub aura-t-elle été remboursée ?"
@@ -464,6 +491,7 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py:513:
   c: 2
   p: 5
   v: corriger
+  cause: ajustement-trompeur
   note: "« Breakeven 25/08/2023 » affiché alors que la dépense cumulée (3 000 €) écrase le revenu (~200 €) — le point mort est au DÉBUT (0 = 0), pas atteint. Doublon de revenue_forecast:478 qui, lui, dit « 242 ans »."
 src/dashboard/views/trigger_algo/_tab_algos.py:138:
   q: "(probabilités par algorithme — onglet non atteint par défaut)"
@@ -504,6 +532,7 @@ src/dashboard/views/trigger_algo/_tab_model.py:116:
   c: 2
   p: 5
   v: corriger
+  cause: modele-degenere
   note: "TOUTES les prévisions RR valent 0 (points alignés sur l'axe) — le modèle rend une constante. À vérifier dans le scoring avant d'afficher."
 src/dashboard/views/trigger_algo/_tab_model.py:152:
   q: "La prévision Radio colle-t-elle au réel ?"
@@ -568,6 +597,7 @@ src/dashboard/utils/ml_widgets.py:294:
   c: 2
   p: 4
   v: corriger
+  cause: modele-degenere
   note: "P(DW) plate à ~15 % de 0 à 200 k streams/7 j — le modèle ne réagit pas au levier qu'il prétend mesurer. Cohérent avec des probabilités au plancher ; à ne pas montrer tel quel."
 src/dashboard/utils/ml_widgets.py:351:
   q: "Où en est chaque indicateur par rapport à sa porte ?"
@@ -576,6 +606,7 @@ src/dashboard/utils/ml_widgets.py:351:
   c: 3
   p: 3
   v: corriger
+  cause: trop-de-jauges
   note: "44 jauges sur une page ; bande rouge/verte sans curseur visible dans l'export. Trop de jauges pour un coup d'œil (Few)."
 src/dashboard/utils/s4a_entry_insight.py:259:
   q: "La prédiction d'hier s'est-elle vérifiée ?"
@@ -592,6 +623,7 @@ src/dashboard/utils/s4a_entry_insight.py:318:
   c: 3
   p: 2
   v: retirer
+  cause: graphique-sans-decision
   note: "Trois points en deux jours, axe en heures — rien à lire ; les chiffres sont déjà en tuiles."
 
 # ── Revenus et abonnement ────────────────────────────────────────────────────
@@ -676,6 +708,7 @@ src/dashboard/views/usage_analytics.py:83:
   c: 4
   p: 2
   v: retirer
+  cause: graphique-sans-decision
   note: "Quatre barres dont deux nulles — une ligne de tuiles suffit."
 src/dashboard/views/db_health.py:252:
   q: "Quelle source n'a pas été importée depuis longtemps ?"
@@ -692,6 +725,7 @@ src/dashboard/views/db_health.py:294:
   c: 3
   p: 3
   v: corriger
+  cause: libelles-tronques
   note: "Carte de chaleur sans libellés de lignes : on ne sait pas quelle table est quelle ligne."
 src/dashboard/views/db_health.py:353:
   q: "Mes tables grossissent-elles normalement ?"
@@ -708,6 +742,7 @@ src/dashboard/views/db_health.py:421:
   c: 4
   p: 3
   v: fusionner
+  cause: doublon
   note: "Doublon en flux de la figure cumulée ; garder l'un des deux."
 src/dashboard/views/etl_logs.py:231:
   q: "Quelles collectes échouent ?"
@@ -758,6 +793,7 @@ pdf:platform:
   c: 2
   p: 3
   v: corriger
+  cause: absence-ecrite-zero
   note: "Apple affiché à « 0 » alors qu'il n'a qu'un instantané — une absence écrite comme un zéro."
 pdf:platform_evo:
   q: "Toutes mes plateformes, en cumul"
@@ -766,6 +802,7 @@ pdf:platform_evo:
   c: 3
   p: 4
   v: corriger
+  cause: arrivee-historique-lue-comme-hausse
   note: "Même marche YouTube que l'accueil (arrivée d'historique)."
 pdf:ml:
   q: "Mes chances de déclencher les algorithmes (J+28)"
@@ -774,6 +811,7 @@ pdf:ml:
   c: 2
   p: 4
   v: corriger
+  cause: probabilite-au-plancher-affichee
   note: "7 %, 7 %, 11 % affichés comme des pourcentages alors qu'ils sont au plancher du calibrage — l'aperçu gratuit refuse déjà de les montrer (R193). Même règle ici."
 pdf:j28:
   q: "Ma trajectoire des 28 premiers jours"
@@ -798,6 +836,7 @@ pdf:s4a_top:
   c: 3
   p: 3
   v: corriger
+  cause: libelles-superposes
   note: "Deux nombres superposés (« 3 442 » dans la barre de 60 032, « 2 431 » sur « 2 219 »)."
 pdf:youtube:
   q: "Mes vidéos les plus vues"
@@ -806,6 +845,7 @@ pdf:youtube:
   c: 3
   p: 3
   v: corriger
+  cause: libelles-superposes
   note: "Nombres superposés (« 7 503 » sur « 7 507 »)."
 pdf:soundcloud:
   q: "Mes titres SoundCloud les plus écoutés"
@@ -822,6 +862,7 @@ pdf:apple:
   c: 3
   p: 3
   v: corriger
+  cause: libelles-superposes
   note: "Nombres superposés (« 305 » dans la barre de 422)."
 pdf:instagram:
   q: "Mes abonnés Instagram"
@@ -902,6 +943,7 @@ pdf:meta_funnel:
   c: 4
   p: 4
   v: corriger
+  cause: entonnoir-illisible
   note: "Échelle linéaire : tout sous les impressions est invisible. Pourcentages d'étape à étape."
 pdf:meta_daily:
   q: "Budget, clics sortants, CPR au jour le jour"
@@ -984,6 +1026,7 @@ grafana:1:
   c: 1
   p: 5
   v: corriger
+  cause: grafana-latence-aveugle
   note: "DEUX points mesurés en 7 jours alors que le trafic existe — le signal d'or « latence » est aveugle. Vérifier que l'histogramme de rendu est bien observé en prod (couture metrics_seam)."
 grafana:2:
   q: "SATURATION — des rendus s'empilent-ils ?"
@@ -1000,6 +1043,7 @@ grafana:3:
   c: 2
   p: 5
   v: corriger
+  cause: pool-replis
   note: "« REPLIS directs » grimpe jusqu'à ~8 000 en dents de scie (remis à zéro à chaque déploiement) — soit le pool n'est presque jamais utilisé en prod, soit la jauge compte un cumul. La règle ConnectionPoolExhausted (direct_fallback > 0) devrait alors être en feu. À vérifier en PREMIER côté archi."
 grafana:4:
   q: "ERREURS — quelles pages lèvent ?"
@@ -1032,6 +1076,7 @@ grafana:7:
   c: 1
   p: 5
   v: corriger
+  cause: grafana-latence-aveugle
   note: "UN seul point en 7 jours — même cécité que le panneau 1."
 grafana:8:
   q: "SATURATION — mémoire des processus"
@@ -1096,4 +1141,5 @@ grafana:15:
   c: 4
   p: 2
   v: fusionner
+  cause: doublon
   note: "WARNING ≈ 0 et un « plancher » constant tracé deux fois — rien à décider ; fusionner dans le panneau des erreurs."

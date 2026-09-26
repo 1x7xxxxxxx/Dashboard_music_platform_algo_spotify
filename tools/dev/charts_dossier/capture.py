@@ -185,9 +185,6 @@ def main(argv: list[str]) -> int:
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(main(sys.argv))
-
 
 def _outside_git(out: Path) -> bool:
     """Outside the repository, or inside a folder git IGNORES (`revue/`, .gitignore) — the
@@ -197,3 +194,7 @@ def _outside_git(out: Path) -> bool:
         return True
     probe = out / "dossier-graphiques.pdf"
     return subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q", str(probe)]).returncode == 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
