@@ -433,7 +433,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [stopped-collecting-is-not-a-status-anyone-reads](#stopped-collecting-is-not-a-status-anyone-reads) | P2 | deterministic | guarded | none |
 | [mandatory-filter-with-no-guard](#mandatory-filter-with-no-guard) | P2 | deterministic | guarded | none |
 | [detector-with-no-scheduler](#detector-with-no-scheduler) | P2 | deterministic | guarded | none |
-| [script-replaced-while-it-runs](#script-replaced-while-it-runs) | P2 | manual | reported | none |
+| [script-replaced-while-it-runs](#script-replaced-while-it-runs) | P2 | deterministic | reported | none |
 | [test-leaves-a-hole-in-sys-modules](#test-leaves-a-hole-in-sys-modules) | P2 | deterministic | guarded | none |
 | [second-factor-budget-refunded-by-the-first](#second-factor-budget-refunded-by-the-first) | P2 | deterministic | guarded | none |
 | [guard-scope-is-a-hand-written-list](#guard-scope-is-a-hand-written-list) | P2 | deterministic | guarded | none |
@@ -1908,12 +1908,12 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## script-replaced-while-it-runs
 - status: reported
 - severity: P2
-- kind: manual
+- kind: deterministic
 - symptom: a deploy script is updated, pushed, and the very deploy that pulls the update does not run it. The run reports success, so the change looks deployed — and it is, on disk, for NEXT time. Nothing says the new step was skipped.
 - root_cause: `tools/deploy.sh` begins with `git pull --ff-only origin main` and therefore rewrites ITSELF mid-execution. bash reads a script incrementally rather than into memory, so the running process keeps executing the bytes it already read while the file underneath has been replaced. Measured 2026-08-23: the env-parity gate was added in the same commit that was being deployed, `deploy.sh` on the box contained it afterwards (`grep -c` = 1), and the gate produced no output during that run. The deployment succeeded and the new guard silently did not fire.
 - cause_evidence: read (tools/deploy.sh, rétro-portage mécanique 2026-09-16)
-- signature: `grep -qE 'DEPLOY_REEXECED' tools/deploy.sh`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- signature: `python3 -m pytest tests/test_a_script_that_pulls_itself_restarts.py -q`. Avant (le NOM de la variable de garde seulement) : `grep -qE 'DEPLOY_REEXECED' tools/deploy.sh`
+- seen_red: self-proving (tests/test_a_script_that_pulls_itself_restarts.py::test_the_detector_sees_the_defect_it_is_written_for) — prédicat pur `old_bytes_run(script)` sur la PROPRIÉTÉ : entre le premier `git pull` et la ré-exécution de `$0`, rien d'autre que de la comptabilité (commentaire, `echo`, `rev-parse`, le `if`/`fi` du garde). Le déploiement du 2026-08-23 (pull puis build) et une porte glissée entre le pull et la ré-exécution sont nommés ; la forme actuelle passe, et un `echo` qui ANNONCE le pull n'est pas le pull. Muté rouge le 2026-09-26 (liste vidée ; `no-reexec` effacé) ; retirer l'ancre `^\s*` reste VERT et c'est une mutation équivalente — `re.match` ancre déjà au début de la ligne, seule l'indentation diffère ; vu rouge sur le vrai `tools/deploy.sh` en glissant une commande après le pull. Avant : unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
   <!-- NO leading `!`: here the pattern searched for is the FIX, not the defect.
        The catalogue contract is "exit non-zero when the ANTI-PATTERN is present",
        and the anti-pattern is the re-exec being ABSENT — so a bare grep is right.
@@ -1921,7 +1921,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
        code, i.e. it would have reported the fix as the defect. Verified both ways
        by mutation: 0 on the fixed script, 1 once the re-exec is removed. -->
 - long_term_fix: re-exec after the pull when HEAD moved — `DEPLOY_REEXECED=1 exec bash "$0" "$@"`, guarded by the variable so it cannot loop. The general shape: a script that updates its own source must restart from the new source, or it is running one version while claiming to have deployed another. `kind: manual` because the only conclusive proof is a real deploy that changes the script — a signature can check the re-exec is present, not that it works.
-- guard: { type: signature, ref: tools/deploy.sh }
+- guard: { type: pytest, ref: tests/test_a_script_that_pulls_itself_restarts.py } + { type: signature, ref: tools/deploy.sh }
 - guard_scope: le-temps-et-l-horloge — le script commence par `git pull` et se RÉÉCRIT donc lui-même en pleine exécution : bash relit le fichier au fil des lignes ; couvre: une signature qui vérifie la présence du garde de ré-exécution (`DEPLOY_REEXECED`) dans `tools/deploy.sh` — le motif qui fait repartir le script proprement après s'être remplacé ; ne couvre pas: (1) **le geste voisin le plus proche — les autres scripts qui se modifient ou modifient leurs dépendances en cours de route** : un script qui met à jour un outil qu'il appelle ensuite, un `make sync` qui change l'interpréteur ; seul `deploy.sh` est vérifié ; (2) les FICHIERS que le script lit après le `pull` — un compose ou un Dockerfile changé sous lui ; (3) la présence du garde ne dit pas qu'il FONCTIONNE ; (4) l'exécution interrompue entre le `pull` et la ré-exécution.
 - siblings: swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `grep -qE 'DEPLOY_REEXECED' tools/deploy.sh`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
 - rex_ref: tools/deploy.sh
