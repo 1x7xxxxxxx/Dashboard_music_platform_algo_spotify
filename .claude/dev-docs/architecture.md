@@ -277,6 +277,8 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 
 ## Dashboard Views Map
 
+> **Role ≠ plan.** The `Role` column says who may OPEN a page (`all` / `admin`). A second, independent gate is the PLAN: `page_is_locked(plan, key)` (`src/database/stripe_schema.py:151`) locks for Free every key outside `_FREE_FEATURES` and `ALWAYS_ACCESSIBLE`. Checked 2026-09-26, Premium-only pages marked `all` here: `trigger_algo`, `meta_creatives`, `meta_breakdowns`, `meta_x_spotify`, `export_pdf`. The lists live in `stripe_schema.py`, not in this table.
+
 | View file | Page name | Data sources | Role |
 |---|---|---|---|
 | `home.py` | Home | All tables (KPI + freshness) | all |
