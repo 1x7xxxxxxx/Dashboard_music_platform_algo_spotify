@@ -35,3 +35,16 @@ def test_ci_wires_notify_to_every_job_on_push_to_main() -> None:
     cond = str(notify["if"])
     assert "always()" in cond and "refs/heads/main" in cond
     assert "ci_break_mail.py" in str(notify["steps"])
+
+
+def test_a_cancelled_run_is_not_a_red_main() -> None:
+    """2026-09-26: two runs superseded by a newer push (`cancel-in-progress`) mailed
+    « main vient de passer au ROUGE — job(s) : gates, suite ». A cancelled job judged
+    nothing; a cancelled previous run says nothing about whether main was red."""
+    cancelled = {"gates": {"result": "cancelled"}, "suite": {"result": "cancelled"},
+                 "secrets": {"result": "success"}}
+    assert cbm.failed_jobs(cancelled) == []
+    runs = [{"id": 3, "conclusion": None}, {"id": 2, "conclusion": "cancelled"},
+            {"id": 1, "conclusion": "failure"}, {"id": 0, "conclusion": "success"}]
+    assert cbm.last_verdict(runs, "3") == "failure", "the cancelled run hid a red main"
+    assert cbm.last_verdict([{"id": 1, "conclusion": "cancelled"}], "9") is None

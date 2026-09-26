@@ -25,7 +25,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import mail_red_verdict as mail  # noqa: E402
 
-_FAILED = {"failure", "cancelled"}
+# `cancelled` is NOT red. `ci.yml` runs with `cancel-in-progress: true`: every push
+# cancels the run before it, and `notify` (`always()`) still runs on the cancelled
+# one. Counting it as a failure mailed « main vient de passer au ROUGE — job(s) :
+# gates, suite » for runs nobody had judged — twice on 2026-09-26, both cancelled.
+_FAILED = {"failure"}
+# A verdict is a run that FINISHED judging: cancelled or skipped runs say nothing.
+_NO_VERDICT = {"cancelled", "skipped", None}
 
 
 def failed_jobs(needs: dict) -> list[str]:
@@ -49,9 +55,15 @@ def previous_conclusion(env: dict) -> str | None:
             runs = json.load(r).get("workflow_runs", [])
     except (OSError, ValueError, KeyError):
         return None
-    me = str(env.get("GITHUB_RUN_ID", ""))
+    return last_verdict(runs, str(env.get("GITHUB_RUN_ID", "")))
+
+
+def last_verdict(runs: list[dict], me: str) -> str | None:
+    """Conclusion of the newest OTHER run that reached a verdict (newest first, as the
+    API returns them). A cancelled run on top would otherwise read as « main was not
+    red » and mail again on a main that never stopped being red. Pure."""
     for run in runs:
-        if str(run.get("id")) != me:
+        if str(run.get("id")) != me and run.get("conclusion") not in _NO_VERDICT:
             return run.get("conclusion")
     return None
 
