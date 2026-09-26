@@ -2936,7 +2936,7 @@
       "renamed_from": null
     },
     "a-removed-title-becomes-the-word-undefined": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "retracted",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_live_chart_matches_the_illustration.py",
@@ -2949,7 +2949,8 @@
       "has_signature": true,
       "history_dates_declared": [
         "2026-09-12",
-        "2026-09-18"
+        "2026-09-18",
+        "2026-09-26"
       ],
       "kind": "deterministic",
       "seen_red": "self-proving",
@@ -2959,7 +2960,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11486,12 +11487,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 552,
+      "catalogue_revisions": 553,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 10,
+      "cause_unknown": 9,
       "guard_does_not_prove_itself": 34,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
