@@ -3478,7 +3478,7 @@
       "renamed_from": null
     },
     "a-subplan-re-executed-by-a-misestimated-row-count": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-14",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_spotify_page_reads_only_the_gold_layer.py",
@@ -3501,7 +3501,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-14",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3617,7 +3617,7 @@
       "renamed_from": null
     },
     "a-telemetry-table-that-nothing-ever-purges": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-16",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_telemetry_table_declares_its_retention.py",
@@ -3639,7 +3639,7 @@
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-09-16",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4000,7 +4000,7 @@
       "renamed_from": null
     },
     "a-verdict-whose-validator-lives-outside-the-repo": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-12",
       "guard_automatic": true,
       "guard_ref": "tests/test_the_palette_can_be_attributed.py",
@@ -4023,7 +4023,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 4,
+      "revisions": 5,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4109,7 +4109,7 @@
       "renamed_from": null
     },
     "a-window-applied-to-the-wrong-date": {
-      "cause_evidence": "unknown",
+      "cause_evidence": "read",
       "first_seen_declared": "2026-09-10",
       "guard_automatic": true,
       "guard_ref": "tests/test_a_period_bound_is_on_the_right_column.py",
@@ -4131,7 +4131,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-10",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11445,12 +11445,12 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 413,
+      "catalogue_revisions": 414,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
-      "cause_unknown": 64,
+      "cause_unknown": 60,
       "guard_does_not_prove_itself": 270,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
