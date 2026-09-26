@@ -142,4 +142,11 @@ EN = {
     "meta_x_spotify.no_audience": "No audience report imported. Import it from "
                                         "**📂 Add my Spotify for Artists & Apple "
                                         "figures**.",
+    "meta_x_spotify.f_kept": "{p} % of the previous step",
+    "meta_x_spotify.f_cpm": "{c} € per 1,000",
+    "meta_x_spotify.f_cost": "{c} € each",
+    "meta_x_spotify.funnel_cost_note": "Each step carries its cost: the **{s} €** spent over the window, divided by the step's volume.",
+    "meta_x_spotify.funnel_gain_note": "🎧 **{g} streams gained** on Spotify over the window{cost} — compared with the average of the {n} days before ({b} streams/day). A rise that would have happened without the ad is counted too, and a stream is not a funnel step: one visitor streams many times.",
+    "meta_x_spotify.funnel_gain_cost": ", i.e. **{c} €** per stream gained",
+    "meta_x_spotify.funnel_no_gain": "No « streams gained » step: it needs at least {n} days of streams recorded before the campaign, and a measurable rise.",
 }
