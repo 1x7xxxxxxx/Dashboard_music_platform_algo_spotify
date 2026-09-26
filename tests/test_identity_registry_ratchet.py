@@ -57,3 +57,39 @@ def test_uniqueness_map_covers_the_whole_registry() -> None:
         "find_identity_conflict consults, so a platform absent from it can be "
         "claimed by two tenants with no refusal"
     )
+
+
+def expectation_is_literal(source: str, name: str = "_EXPECTED") -> bool:
+    """Is `name` bound to a literal set of strings — not DERIVED from anything? Pure.
+
+    The class this file guards is precisely an expectation computed from the thing under
+    test. `_EXPECTED = frozenset(PLATFORM_IDENTITIES)` would keep every test here green
+    while `instagram` vanished from both sides at once.
+    """
+    import ast
+
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == name for t in node.targets):
+            value = node.value
+            if isinstance(value, ast.Call) and not value.keywords and len(value.args) == 1:
+                value = value.args[0]
+            return isinstance(value, (ast.Set, ast.List, ast.Tuple)) and all(
+                isinstance(e, ast.Constant) and isinstance(e.value, str) for e in value.elts)
+    return False
+
+
+def test_the_expectation_is_written_not_derived() -> None:
+    from pathlib import Path
+
+    assert expectation_is_literal(Path(__file__).read_text(encoding="utf-8")), (
+        "_EXPECTED is no longer a literal list of platform names — an expectation "
+        "derived from the registry cannot fail when the registry loses an entry.")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, both halves: the derived form is refused, the literal one accepted."""
+    assert not expectation_is_literal("_EXPECTED = frozenset(PLATFORM_IDENTITIES)\n")
+    assert not expectation_is_literal("_EXPECTED = set(UNIQUE_IDENTITY_FIELDS)\n")
+    assert not expectation_is_literal("_EXPECTED = frozenset({SPEC.name, 'meta'})\n")
+    assert expectation_is_literal("_EXPECTED = frozenset({'soundcloud', 'meta'})\n")

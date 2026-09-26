@@ -53,7 +53,7 @@ def _db():
         return None
 
 
-pytestmark = pytest.mark.skipif(_db() is None, reason="needs the provisioned DB")
+_needs_db = pytest.mark.skipif(_db() is None, reason="needs the provisioned DB")
 
 # Les colonnes auxquelles le repère de session est comparé. Une seule aujourd'hui ;
 # la liste est ici pour que l'ajout d'une comparaison ailleurs vienne s'y déclarer
@@ -61,6 +61,12 @@ pytestmark = pytest.mark.skipif(_db() is None, reason="needs the provisioned DB"
 _COMPARED_TO = [("saas_artists", "created_at")]
 
 
+def comparable(recorded, data_type: str) -> bool:
+    """Can a Python datetime be compared to a column of this SQL type? Pure."""
+    return (recorded.tzinfo is not None) == ("with time zone" in data_type)
+
+
+@_needs_db
 def test_the_session_start_was_recorded_at_all():
     """Sinon le filtre est inerte et le test suivant ne prouve rien."""
     from tests.conftest import _DB_SESSION_START
@@ -70,6 +76,7 @@ def test_the_session_start_was_recorded_at_all():
         "retombe sur son ancien comportement sans le dire")
 
 
+@_needs_db
 @pytest.mark.parametrize("table,column", _COMPARED_TO)
 def test_the_session_start_is_comparable_to_that_column(table, column):
     """Les deux doivent être naïfs, ou les deux avertis. Jamais un de chaque."""
@@ -88,7 +95,7 @@ def test_the_session_start_is_comparable_to_that_column(table, column):
     recorded = _DB_SESSION_START[0]
     recorded_is_aware = recorded.tzinfo is not None
 
-    assert recorded_is_aware == column_is_aware, (
+    assert comparable(recorded, kind[0][0]), (
         f"le repère de session est {'averti' if recorded_is_aware else 'naïf'} et "
         f"{table}.{column} est {'averti' if column_is_aware else 'naïf'} : les "
         "comparer lève `TypeError: can't compare offset-naive and offset-aware "
@@ -100,6 +107,20 @@ def test_the_session_start_is_comparable_to_that_column(table, column):
     # rester vraie sur deux types comparables séparément mais pas entre eux.
     from datetime import timedelta
     assert (recorded - timedelta(days=1)) < recorded
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, without a database: the 2026-09-06 pair — `CURRENT_TIMESTAMP`
+    (aware) against `saas_artists.created_at` (naive) — is refused, and it is refused
+    because the comparison REALLY raises; the matching pairs are accepted."""
+    from datetime import datetime, timezone
+
+    aware, naive = datetime(2026, 9, 6, tzinfo=timezone.utc), datetime(2026, 9, 6)
+    assert not comparable(aware, "timestamp without time zone")
+    with pytest.raises(TypeError):
+        _ = aware < naive                      # the premise: the defect is a crash
+    assert comparable(naive, "timestamp without time zone")
+    assert comparable(aware, "timestamp with time zone")
 
 
 # ── Le repère est UNIQUE pour toute l'exécution, pas un par worker ───────────

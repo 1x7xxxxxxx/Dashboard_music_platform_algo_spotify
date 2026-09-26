@@ -50,6 +50,12 @@ def _counts(p: Path) -> tuple[int, int]:
     return len(_OPEN.findall(t)), len(_DONE.findall(t))
 
 
+def carries_its_floor(active: str, archive: str) -> bool:
+    """Do the two files, together, still hold the measured item floor? Pure."""
+    total = sum(len(rx.findall(t)) for t in (active, archive) for rx in (_OPEN, _DONE))
+    return total >= _TOTAL_ITEMS_FLOOR
+
+
 def test_both_roadmap_files_exist():
     """Rule 17 names two files. A rotation into a file that is not there is a no-op."""
     assert ACTIVE.exists(), f"active roadmap missing: {ACTIVE}"
@@ -65,7 +71,8 @@ def test_the_rotation_does_not_shrink_the_denominator():
     a_open, a_done = _counts(ACTIVE)
     r_open, r_done = _counts(ARCHIVE)
     total = a_open + a_done + r_open + r_done
-    assert total >= _TOTAL_ITEMS_FLOOR, (
+    assert carries_its_floor(ACTIVE.read_text(encoding="utf-8"),
+                             ARCHIVE.read_text(encoding="utf-8")), (
         f"the two roadmap files now hold {total} items, below the {_TOTAL_ITEMS_FLOOR} "
         f"measured at the split (actif {a_open + a_done}, archive {r_open + r_done}). "
         "An item was deleted rather than rotated — or a floor was lowered to hide it."
@@ -208,3 +215,16 @@ def test_the_duplication_detector_is_not_vacuous() -> None:
     tasks = re.findall(r"^- \[[ x]\] \*\*(R\d+)\b", doubled, re.M)
     assert [t for t, n in collections.Counter(tasks).items() if n > 1], (
         "un fichier concaténé avec lui-même ne produit aucun doublon détecté")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, class `config-status-file-unrendered`: the 2026-08-03 shape — a
+    status file that RESOLVES but is an un-expanded bootstrap template — must fail the
+    floor; the real pair must pass it, and so must the real pair after a rotation."""
+    template = "# Roadmap — $(date +%Y-%m-%d)\n\nTODO: fill in\n"
+    assert not carries_its_floor(template, template)
+    active, archive = ACTIVE.read_text(encoding="utf-8"), ARCHIVE.read_text(encoding="utf-8")
+    assert carries_its_floor(active, archive)
+    line = next(m.group(0) for m in re.finditer(r"^\s*- \[ \].*$", active, re.M))
+    rotated = active.replace(line, "", 1), archive + "\n" + line.replace("[ ]", "[x]", 1)
+    assert carries_its_floor(*rotated), "a rotation (move, not delete) must stay green"
