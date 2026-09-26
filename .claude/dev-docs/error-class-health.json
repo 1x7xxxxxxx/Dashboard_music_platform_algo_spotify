@@ -948,14 +948,14 @@
         "2026-09-08"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-08",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9591,14 +9591,14 @@
         "2026-08-28"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-28",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -10414,14 +10414,14 @@
         "2026-09-04"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 2,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-04",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11478,20 +11478,20 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 493,
+      "catalogue_revisions": 494,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
       "cause_unknown": 13,
-      "guard_does_not_prove_itself": 126,
+      "guard_does_not_prove_itself": 123,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
       "scope_on_a_shared_guard_without_naming_its_tests": 15,
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 58,
+      "seen_red_unknown": 57,
       "siblings_never_swept": 0,
       "sites_unknown": 0,
       "sites_unknown_hors_relance": 0,
@@ -11540,20 +11540,20 @@
       "by_seen_red": {
         "daté": {
           "events": 6,
-          "class_days": 1636,
-          "per_class_month": 0.1115,
+          "class_days": 1585,
+          "per_class_month": 0.1151,
           "ci95": [
-            0.0407,
-            0.2427
+            0.042,
+            0.2505
           ]
         },
         "jamais-ou-inconnu": {
           "events": 55,
-          "class_days": 10025,
-          "per_class_month": 0.1668,
+          "class_days": 10076,
+          "per_class_month": 0.1659,
           "ci95": [
-            0.1256,
-            0.2171
+            0.125,
+            0.216
           ]
         }
       },
