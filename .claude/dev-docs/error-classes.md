@@ -2363,6 +2363,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-03
 - History:
   - 2026-09-03: câblé pour la première fois depuis son écriture. 4/4 après correction. Chez msdr, le premier passage après un mois avait trouvé 19 diagrammes non rendables sur 238 — le même outil, la même absence d'appelant.
+  - 2026-09-26 (garde): **un bloc vivant qui ne se rendait pas** — `.claude/dev-docs/architecture.md`, bloc #2, étiquette d'arête `|with view_session()|` : les parenthèses sont lues comme une forme de nœud (`Parse error on line 18 … got 'PS'`). Trouvé en triant les signatures heuristiques rouges en permanence ; la sienne l'était, personne ne la lisait. Corrigé en citant l'étiquette (`|"with view_session()"|`) — 4/4 blocs rendus.
 
 ## retry-blind-to-the-exception-its-client-raises
 - status: guarded

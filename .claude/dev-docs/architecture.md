@@ -72,7 +72,7 @@ graph LR
     ML -->|scores via| INF[ml_inference.py]
     INF -->|writes| DB
 
-    V[views/*.py] -->|with view_session()| VS[dashboard/utils/view_session]
+    V[views/*.py] -->|"with view_session()"| VS[dashboard/utils/view_session]
     VS -->|ouvre UNE connexion, la ferme a la sortie| GDB[get_db_connection]
 
     TA[trigger_algo/ package] -->|renders via| MW[utils/ml_widgets.py]
