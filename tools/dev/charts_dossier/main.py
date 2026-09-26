@@ -195,7 +195,7 @@ table.idx td, table.sum td, table.sum th { font-size: 8.5pt; padding: .6mm 2mm; 
 
 def main(argv: list[str]) -> int:
     out = Path(argv[1]).resolve() if len(argv) > 1 else None
-    if out is None or ROOT in out.parents or out == ROOT:
+    if out is None or not _outside_git(out):
         print("❌ donner le dossier de sortie de capture.py, HORS du dépôt", file=sys.stderr)
         return 2
     import capture
@@ -216,3 +216,13 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
+
+
+def _outside_git(out: Path) -> bool:
+    """Outside the repository, or inside a folder git IGNORES (`revue/`, .gitignore) — the
+    dossier carries real artist data and the repository history is public."""
+    import subprocess
+    if ROOT not in out.parents and out != ROOT:
+        return True
+    probe = out / "dossier-graphiques.pdf"
+    return subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q", str(probe)]).returncode == 0

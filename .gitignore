@@ -127,3 +127,6 @@ tools/dev/architecture_dossier/dossier.pdf
 tools/dev/architecture_dossier/mermaid.json
 tools/dev/architecture_dossier/svg/
 docs/streamlytics-architecture-et-qualite-des-donnees.pdf
+
+# R203 (2026-09-26): review dossiers built on real artist data — local only, never committed.
+revue/

@@ -435,7 +435,7 @@ night-status: ## Où j'en suis : unité en cours, arbre, roadmap, parkings, jour
 	@python3 tools/dev/night_run.py status
 	@python3 tools/dev/roadmap_discipline.py || true
 
-charts-dossier: ## R203 — PDF de revue de TOUS les graphiques (app + PDF artiste + Grafana), sur un instantané local de la prod. OUT=<dossier hors dépôt> [PROM=http://127.0.0.1:19090]
+charts-dossier: ## R203 — PDF de revue de TOUS les graphiques (app + PDF artiste + Grafana), sur un instantané local de la prod. OUT=revue (ignoré par git) ou un dossier hors dépôt [PROM=http://127.0.0.1:19090]
 	@test -n "$(OUT)" || { echo "❌ OUT= manquant — un dossier HORS du dépôt (le PDF contient des données d'artiste)"; exit 1; }
 	@.venv/bin/python -c "import kaleido" 2>/dev/null || { echo "❌ kaleido absent. Run: uv sync --frozen --extra dev"; exit 1; }
 	@docker exec postgres_spotify_airflow psql -U postgres -tAc "select 1 from pg_database where datname='spotify_etl_review'" 2>/dev/null | grep -q 1 || { \

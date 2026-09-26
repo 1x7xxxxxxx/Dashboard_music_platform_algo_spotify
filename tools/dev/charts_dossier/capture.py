@@ -160,7 +160,7 @@ def _write(records: list[dict], errors: dict, figs_dir: Path, out: Path) -> dict
 
 def main(argv: list[str]) -> int:
     out = Path(argv[1]).resolve() if len(argv) > 1 else None
-    if out is None or ROOT in out.parents or out == ROOT:
+    if out is None or not _outside_git(out):
         print("❌ donner un dossier de sortie HORS du dépôt (le dossier contient des données "
               "d'artiste)", file=sys.stderr)
         return 2
@@ -187,3 +187,13 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
+
+
+def _outside_git(out: Path) -> bool:
+    """Outside the repository, or inside a folder git IGNORES (`revue/`, .gitignore) — the
+    dossier carries real artist data and the repository history is public."""
+    import subprocess
+    if ROOT not in out.parents and out != ROOT:
+        return True
+    probe = out / "dossier-graphiques.pdf"
+    return subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q", str(probe)]).returncode == 0
