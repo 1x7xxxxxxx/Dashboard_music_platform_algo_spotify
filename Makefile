@@ -261,7 +261,9 @@ test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — 
 	@# ne trouve rien sortirait 1 et ferait passer « rien à tester » pour un échec.
 	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(PYTHON) .claude/scripts/select_tests.py | { grep -v "^#" || true; } \
 	  | xargs -r $(PYTHON) -m pytest -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
-	  rc=$$?; echo "   journal complet : .pytest-last.log"; exit $$rc
+	  rc=$$?; echo "   journal complet : .pytest-last.log"; [ $$rc -eq 0 ] || exit $$rc; \
+	  bash -c 'set -o pipefail; $(PYTHON) .claude/scripts/check_guards_are_env_independent.py \
+	    --changed 2>&1 | tee -a .pytest-last.log'
 
 check-guide-deps: ## (internal) fail fast if WeasyPrint is unavailable, rule #10
 	@$(GUIDE_PY) -c "import weasyprint" >/dev/null 2>&1 || { \

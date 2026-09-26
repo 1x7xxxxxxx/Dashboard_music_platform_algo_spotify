@@ -62,8 +62,26 @@ def _workers() -> str:
     return os.environ.get("PYTEST_WORKERS") or "4"
 
 
+def _changed_tests() -> list[str]:
+    """Test files modified or added in the working tree, relative to HEAD."""
+    out = subprocess.run(["git", "status", "--porcelain", "--", "tests/"], cwd=_REPO,
+                         capture_output=True, text=True, timeout=30).stdout
+    names = {line[3:].strip() for line in out.splitlines() if len(line) > 3}
+    return sorted(n for n in names if Path(n).name.startswith("test_") and n.endswith(".py"))
+
+
 def main() -> int:
     files = _files_loading_a_tool()
+    # `--changed` : only the test files this working tree touches — the replay the CI
+    # static gate runs on 127 files, cut to what a loop just wrote. Added 2026-09-26:
+    # a proof written that night passed `make test-changed` and went red in CI, where
+    # this replay runs it under the very plugin it proves.
+    if "--changed" in sys.argv:
+        changed = set(_changed_tests())
+        files = [f for f in files if f in changed]
+        if not files:
+            print("✅ aucun test modifié ne charge un module de `tools/` — rien à rejouer")
+            return 0
     if not files:
         print("❌ aucun fichier de test ne charge un module de `tools/` — le "
               "détecteur ne mesure plus rien ; vérifier `_files_loading_a_tool`.")
@@ -88,6 +106,8 @@ def main() -> int:
     for line in proc.stdout.splitlines():
         if line.startswith(("FAILED", "ERROR")):
             print(f"   {line}")
+    tail = [ln for ln in proc.stdout.splitlines() if ln.strip()][-1:]
+    print(f"   sans .env : {tail[0] if tail else '(pas de verdict pytest)'}")
     return 1
 
 
