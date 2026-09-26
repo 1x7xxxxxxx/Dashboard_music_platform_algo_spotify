@@ -104,6 +104,7 @@ def test_the_gate_refuses_a_fabricated_class_without_a_ticket(runner) -> None:
     """
     since = runner._admission_since()
     neuve = {"id": "une-classe-neuve", "first_seen": since, "admitted": None,
+             "family": "le-locataire",
              "kind": "deterministic", "status": "open", "signature": None}
     assert runner._admission([neuve]) == 2, (
         "une classe datée du jour de la bascule, sans billet, passe la porte.")
@@ -113,3 +114,20 @@ def test_the_gate_refuses_a_fabricated_class_without_a_ticket(runner) -> None:
         "une classe ANTÉRIEURE à la bascule est refusée : la porte réécrit "
         "l'histoire au lieu d'arrêter la production. Les 402 classes existantes "
         "deviendraient une dette impossible à solder.")
+
+
+def test_the_detector_sees_a_class_without_a_declared_family(runner) -> None:
+    """Non-vacuity, R180: a class with no `family:`, and one naming something that is not
+    a family, are refused; a declared real family passes."""
+    slugs = frozenset({"le-locataire", "un-garde-qui-ne-garde-pas"})
+    headers = [{"id": "a", "family": ""}, {"id": "b", "family": "not-a-family"},
+               {"id": "c", "family": "le-locataire"}]
+    assert [cid for cid, _ in runner.undeclared_families(headers, slugs)] == ["a", "b"]
+
+
+def test_every_class_declares_one_of_the_families(runner) -> None:
+    """The real catalogue: every entry names a family (R180)."""
+    catalogue = runner._CATALOGUE.read_text(encoding="utf-8")
+    missing = runner.undeclared_families(runner.parse_all_headers(catalogue), runner._family_slugs())
+    assert not missing, (f"{len(missing)} classe(s) sans famille déclarée : "
+                         f"{[cid for cid, _ in missing[:10]]}")

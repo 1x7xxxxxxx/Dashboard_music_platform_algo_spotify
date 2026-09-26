@@ -630,6 +630,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-declared-agent-whose-trigger-cannot-fire
 - status: guarded
 - severity: P3
+- family: un-travail-qui-n-arrive-nulle-part
 - admitted: recurrence:2026-07-17,2026-09-25
 - admitted_detail: 2026-07-17 — `usage_report.py` (sa docstring, lignes 20-27, dans git) relève **4 des 6 agents déclarés jamais invoqués**, ce qui a mené aux retraits de `.claude/.retired/agents/`. 2026-09-25 — le même lecteur, sur 51 sessions, rend `strategic-plan-architect 0 🔴 DECLARED, NEVER INVOKED` (1/8) ; un grep brut de `"subagent_type":"strategic-plan-architect"` sur les transcriptions, sidechains comprises, rend 0.
 - kind: deterministic
@@ -651,6 +652,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-absence-that-becomes-a-nan-because-nan-is-truthy
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - admitted: sites:8
 - kind: deterministic
 - symptom: une valeur absente traverse DEUX filets successifs et ressort en `NaN`. Selon le site, elle s'affiche « nan € » sans que rien ne lève, ou elle fait planter la page sur `ValueError: cannot convert float NaN to integer`. Le code a l'air de se protéger — deux fois — et ne se protège pas du tout.
@@ -670,6 +672,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-proxy-rendered-under-the-name-of-the-thing-it-proxies
 - status: guarded
 - severity: P2
+- family: l-instrument-ment-sur-ce-qu-il-mesure
 - admitted: sites:16
 - kind: deterministic
 - symptom: une figure, une tuile ou un tableau affiche un indicateur INTERMÉDIAIRE sous le nom du résultat final qu'on aimerait mesurer. Rien ne lève : le chiffre est exact, c'est son NOM qui ment. Le coût se paie deux fois — en lecture (on croit comprendre) et en décision (une page recommande d'augmenter un budget sur ce chiffre).
@@ -689,6 +692,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-second-door-that-knows-fewer-sources-than-the-first
 - status: guarded
 - severity: P3
+- family: deux-surfaces-deux-nombres
 - admitted: sites:12
 - kind: deterministic
 - symptom: un module recopie la résolution d'une ressource partagée en n'en connaissant qu'une partie des sources. Le défaut est INVISIBLE tant que la source manquante n'est pas celle qui porte la valeur — puis il apparaît d'un coup, sur un poste où elle l'est, sans qu'on ait rien touché.
@@ -708,6 +712,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-price-page-that-restates-a-gate-instead-of-reading-it
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - admitted: sites:4
 - kind: deterministic
 - symptom: la page qui VEND une fonctionnalité et le verrou qui l'OUVRE se contredisent. Rien ne lève : les deux textes sont valides, ils sont simplement écrits à deux endroits, et l'un des deux a suivi une décision que l'autre n'a jamais apprise. Le coût se paie en confiance — l'artiste clique sur ce qu'on lui a promis et trouve un cadenas.
@@ -728,6 +733,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-promise-with-no-mechanism-behind-it
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - admitted: sites:6
 - kind: deterministic
 - symptom: l'interface promet, au futur et à la voix passive, une action qu'aucun code n'exécute — « ils **seront appliqués** avant votre prochain cycle de facturation ». La donnée qui la fonde existe bien, elle est écrite et affichée ; seul le geste manque. Rien ne lève, aucun test ne rougit, et le défaut ne se découvre qu'au moment où quelqu'un s'y fie : sur une facture.
@@ -749,6 +755,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-runbook-that-names-a-command-nobody-can-run
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: une procédure dit de lancer une commande ; la commande n'existe pas, ou plus. Rien ne le signale, parce qu'une procédure est de la prose. Le coût n'est payé qu'au moment où quelqu'un s'y fie — c'est-à-dire au pire moment, seul, sur un geste qu'il ne connaît pas.
 - root_cause: un document et le `Makefile` (ou le script) qu'il nomme vivent dans deux fichiers que rien ne relie. Renommer la cible, la retirer, ou écrire une faute de frappe dans le document sont trois gestes que la suite laisse passer. Vérifié le 2026-09-16 en écrivant `.claude/dev-docs/roadmap/night-run.md` : sur six cibles `make night-*` déclarées, **une (`night-note`) n'était citée nulle part dans le protocole** — donc rien ne l'aurait jamais lancée. Le dépôt a déjà payé la même forme plus cher : la règle transverse #11 a nommé `.claude/skills/impact-analysis/SKILL.md` pendant des semaines alors que le fichier n'existait pas.
@@ -768,6 +775,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-shared-database-read-while-another-test-writes-it
 - status: guarded
 - severity: P2
+- family: le-locataire
 - kind: deterministic
 - symptom: un test est **rouge dans la suite complète et vert quand on le relance seul**. Le rapport ne montre rien d'anormal, la valeur attendue est simplement une autre. On relance, c'est vert, on passe à autre chose — et le test a cessé de décrire le code pour décrire l'ordonnancement.
 - root_cause: deux fichiers de tests touchent le MÊME locataire préexistant de la base partagée, et `-n auto` ne les tient sur aucun worker commun. L'un écrit puis remet en état dans un `finally` ; l'autre lit entre les deux. Mesuré le 2026-09-16, **deux instances le même soir, sans rapport entre elles** : (1) `test_the_hypeddit_ratio_is_the_ratio_of_sums` — la fixture `staged_empty_rival` insère une campagne rivale sur l'artiste 1 pendant que trois tests du même fichier le lisent ; (2) `test_the_signup_links_become_credentials::test_an_identity_already_taken_by_another_tenant_is_refused` — il cherche « un autre locataire déclarant une identité Spotify » et vérifie qu'un doublon est refusé, pendant que `test_tenant_identity_mirrors` écrit une identité sonde sur le canari et la restaure. Les deux passent seuls ; le premier a été relancé cinq fois de suite en vert.
@@ -789,6 +797,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-fallback-that-runs-when-the-first-branch-succeeded
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un `A || B` livre le résultat de A alors qu'on attendait B — ou l'inverse. Rien n'échoue, rien ne s'affiche : la commande sort 0 et le mauvais effet est en place. On ne s'en aperçoit qu'en relisant le résultat, souvent bien plus tard.
 - root_cause: `||` ne branche pas sur « ai-je obtenu ce que je voulais », il branche sur le **code de sortie**. Une commande qui réussit *mal* n'active jamais le repli. Mesuré deux fois le 2026-09-16, dans les deux sens : (1) un `git commit … || git commit -m "…"` où le premier ÉCHOUAIT, si bien que le repli a remplacé le message en silence ; (2) le symétrique quelques heures plus tard — `git commit -C ORIG_HEAD 2>/dev/null || git commit -F -` écrit pour retomber sur le message préparé, sauf que `-C ORIG_HEAD` a RÉUSSI et a copié le message *et la date d'auteur* d'un vieux commit de fusion. Le contenu du commit était juste ; son message décrivait une autre livraison. Le `2>/dev/null` a en plus masqué la seule trace.
@@ -808,6 +817,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## image-sized-for-a-layout-it-no-longer-has
 - status: guarded
 - severity: P3
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: une image déborde de son cadre, ou devient floue. Rien ne casse ; c'est simplement laid, et personne ne le signale avant qu'un utilisateur le dise.
 - root_cause: une largeur a été choisie pour une mise en page qui n'existe plus. `csv_guides_st` plafonnait chaque capture à **720 px** — un chiffre de l'époque où un guide occupait toute la zone de contenu. Les deux surfaces de guides rendent maintenant dans des COLONNES : `csv_guides_st` en `st.columns(2)`, les guides d'identifiants dans `_col_guide` d'un `st.columns([3, 2])`, la moitié la plus étroite. Mesuré le 2026-09-06 sur les 16 captures CSV : **huit font entre 1257 et 1693 px de large, et les huit débordaient**. Signalé par l'utilisateur, pas par un test : « certaines captures dépassent du cadre, c'est pas beau ».
@@ -827,6 +837,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-scoring-call-that-omits-its-context
 - status: guarded
 - severity: P2
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: un rapprochement correct cesse d'être proposé tout seul, et rien ne le signale. Pas d'exception, pas de compte qui change : le score passe simplement sous le seuil d'auto-acceptation, et la suggestion disparaît de l'écran.
 - root_cause: SoundCloud et YouTube préfixent le nom de l'artiste au titre (« 1x7xxxxxxx - Kimono À Semelle De Fer »). Depuis que l'inclusion est pondérée par la COUVERTURE — elle rendait un 0,90 plat quel que soit le bruit, donc au-dessus du seuil de 0,80 — ce nom compte comme un mot du titre s'il n'est pas déclaré en `noise_tokens`. Mesuré le 2026-09-06 en écrivant le correctif : sans `noise_tokens`, la couverture tombe à **5/6 et le score à 0,75**, sous le seuil. Le moteur est délibérément moins sûr sans le contexte ; la production doit donc toujours le donner.
@@ -846,6 +857,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## streamlit-pin-drift
 - status: guarded
 - severity: P1
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: a package pinned `==X` in one manifest while another manifest / the lockfile / the installed env pins `==Y` → prod≠dev, "works locally breaks in Docker".
 - signature: `python3 tools/dev/check_manifest_consistency.py`
@@ -865,6 +877,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## make-fail-late
 - status: reported
 - severity: P3
+- family: un-contrôle-qui-ne-peut-jamais-passer
 - kind: heuristic
 - symptom: a Makefile target invokes a runtime dependency (Docker / venv / Postgres / `uv` / `streamlit`) and crashes mid-execution instead of failing fast with an actionable message.
 - signature: `! grep -nE "^\t.*(docker|streamlit|psql|uv )" Makefile | grep -vE "check-env|check-manifest"`
@@ -883,6 +896,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## collector-silent-success
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: a collector `except` block logs then returns empty (`None`/`[]`/`{}`) → DAG upserts 0 rows, exits SUCCESS, no alert, dashboard silently stale.
 - signature: `python3 .claude/scripts/audit_collectors_ast.py`
@@ -905,6 +919,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## db-connection-per-show
 - status: open
 - severity: P3
+- family: un-état-qui-déborde-de-sa-portée
 - kind: heuristic
 - symptom: a Streamlit view opens >1 DB connection per `show()` instead of one opened-then-closed-in-finally (CLAUDE.md rule #9).
 - signature: `python3 .claude/scripts/audit_python_signatures.py --class db-connection-per-show`
@@ -926,6 +941,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## naive-datetime-now
 - status: open
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: heuristic
 - symptom: bare `datetime.now()` persisted to DB / returned from API → host-TZ-naïve, mis-orders vs aware `+00:00` siblings (`.claude/rules/python.md`).
 - signature: `! grep -rnE "[^.a-z]datetime\.now\(\)" src/ --include=*.py | grep -viE "strftime|filename|pdf|email"`
@@ -945,6 +961,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## view-session-adoption
 - status: open
 - severity: P4
+- family: le-locataire
 - kind: heuristic
 - symptom: a view uses raw `get_db_connection()` + the manual `get_artist_id()` guard instead of the `view_session()` context manager. The manual form is correct but not structurally enforced — every copy is a fresh chance to reintroduce `db-connection-per-show` / `artist-id-or-1`. Adoption backlog tracker.
 - signature: `python3 .claude/scripts/audit_python_signatures.py --class view-session-adoption`
@@ -964,6 +981,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## mixed-date-timestamp
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: heuristic
 - symptom: a collection mixes psycopg2 `datetime.date` (raw DATE column) and `pd.Timestamp` (a `pd.to_datetime`'d Series); `sorted()` / `pd.merge` on `date` / any `<`/`==` then raises `TypeError: Cannot compare Timestamp with datetime.date`. Data-dependent — only fires when ≥2 sources contribute and only one was converted.
 - signature: `! grep -rnE "sorted\(" src/dashboard/views/ | grep -iE "date|_dates" | grep -v "pd\.to_datetime"`
@@ -982,6 +1000,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## collector-shipped-dag-not-rerun
 - status: open
 - severity: P3
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: heuristic
 - symptom: a new collector method + table ship (migration applied, code volume-mounted) but the owning DAG hasn't re-run since, so the table stays empty and the view shows "no data" — looks like a bug, is actually a stale-schedule. (Instagram `instagram_media`: collector committed 13:52 UTC, DAG last ran 10:00 UTC → 0 rows.)
 - signature: `PG=$(docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1); [ -n "$PG" ] && ! docker exec "$PG" psql -U postgres -d spotify_etl -tc "SELECT 1 WHERE (SELECT COUNT(*) FROM instagram_media)=0 AND to_regclass('instagram_media') IS NOT NULL" | grep -q 1`
@@ -1002,6 +1021,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## ingest-time-as-release-date
 - status: guarded
 - severity: P3
+- family: le-temps-et-l-horloge
 - kind: heuristic
 - symptom: an `entity_period_filter`/`EntitySpec` orders "latest release" by `MIN(date_column)` where `date_column` is the ingest timestamp (`collected_at`) → default entity = first one WE collected, not the most recently released; "Depuis dernière release" anchors wrong. SoundCloud default track was visibly the wrong one.
 - signature: `python3 -c "import ast,pathlib,sys; bad=[f'{f}:{n.lineno}' for f in pathlib.Path('src/dashboard/views').rglob('*.py') for n in ast.walk(ast.parse(f.read_text(encoding=chr(117)+chr(116)+chr(102)+chr(45)+chr(56)))) if isinstance(n,ast.Call) and getattr(n.func,chr(105)+chr(100),'')=='EntitySpec' and 'collected_at' in [a.value for a in n.args if isinstance(a,ast.Constant)] and not any(k.arg=='release_column' for k in n.keywords)]; print(*bad,sep=chr(10)); sys.exit(1 if bad else 0)"`
@@ -1022,6 +1042,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## operator-guidance-phantom-or-wrong-auth
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: heuristic
 - symptom: operator-facing text (failure-alert root-cause map, Credentials help UI, setup guides) instructs running a script that does not exist, or describes an auth model the collector does not use (e.g. "renew the Spotify refresh_token" / "YouTube OAuth refresh" when Spotify = client_credentials and YouTube = static API key) → at incident time the operator follows a dead end, the real fix (re-paste a rotated secret / regenerate an API key) is never surfaced, MTTR balloons.
 - signature: `! grep -rnE "spotify_auth\.py|youtube_auth\.py|test_youtube_auth|check_api_keys_meta|create_missing_tables|Refresh Token (Spotify|YouTube)|YouTube — OAuth" src/utils/alert_root_cause.py src/dashboard/views/useful_links.py src/dashboard/views/credentials.py .claude/dev-docs/*guide*.md`
@@ -1040,6 +1061,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## snapshot-fixture-hook-reflow
 - status: guarded
 - severity: P3
+- family: une-écriture-qui-écrase
 - kind: deterministic
 - symptom: a byte-exact golden/snapshot fixture under `tests/fixtures/` is silently reflowed by the `trailing-whitespace` / `end-of-file-fixer` pre-commit hooks → the committed golden no longer matches the producer's real output, so the snapshot test that compares against it fails (or, worse, the golden gets regenerated to match the mangled bytes and the test then passes against wrong data).
 - signature: `! { test -d tests/fixtures && [ "$(grep -cE '^[[:space:]]*exclude:.*tests/fixtures' .pre-commit-config.yaml)" -lt 2 ]; }`
@@ -1058,6 +1080,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## song-name-convention-mismatch
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: heuristic
 - symptom: an exact-match join on a song/track title between a FILENAME-derived table (`s4a_song_timeline`, `ml_song_predictions`, manual-entry tables — they carry `_` because S4A replaces `< > : " / \ | ? *` with `_` in export filenames) and a CSV/API-derived table (`s4a_songs_global`, `tracks`, `track_popularity_history`, `campaign_track_mapping` — they keep the real chars) silently returns 0 rows / empty for every title containing one of those chars. The dashboard shows "—" or imputes a 0 ML feature; no error is raised.
 - signature: `! { grep -rnE "track_name *=|track_name\)" src/dashboard --include=*.py | grep -iE "%s|LOWER\(" | grep -viE "translate|canonical_song_sql|REPLACE"; }`
@@ -1078,6 +1101,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## csv-formula-injection
 - status: guarded
 - severity: P3
+- family: la-frontière-avec-le-dehors
 - kind: heuristic
 - symptom: user-controlled values (song/campaign names, usernames) exported via `to_csv`/`to_excel` without defang → a cell like `=cmd|'/c calc'!A1` executes when the victim opens the file in Excel/Sheets (CWE-1236); worst case the admin multi-tenant export.
 - signature: `python3 .claude/scripts/audit_python_signatures.py --class csv-formula-injection`
@@ -1097,6 +1121,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## prod-canonical-schema-drift
 - status: reported
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: manual
 - symptom: the live prod DB has a table/column the version-controlled schema (`init_db.sql` + `migrations/*.sql`) lacks, or vice-versa. Code reading/writing the drifted column works in prod but 500s on a fresh install / in CI (e.g. `youtube_videos.view_count`). Cause: a manual `ALTER` on prod, an old schema version never migrated, or a migration never applied to prod.
 - signature: `make schema-check PROD_SSH=user@host`
@@ -1116,6 +1141,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## multitenant-dag-fleet-poisoning
 - status: guarded
 - severity: P2
+- family: le-locataire
 - kind: deterministic
 - symptom: a collector/processing DAG iterates `get_active_artists()` and a per-tenant `raise` (or a precheck that raises on ANY incomplete artist) is NOT caught per-iteration → ONE bad tenant fails the whole DAG for ALL tenants. Benken's empty YouTube channel (404) failed `youtube_daily` for everyone; soundcloud/instagram prechecks raised on his missing creds.
 - signature: `python3 -m pytest tests/test_dag_fleet_isolation.py -q`
@@ -1137,6 +1163,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## collector-import-dotenv-crash
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: a module-level `load_dotenv()` in a collector (not wrapped in try/except) raises `PermissionError` at import when the mounted `/opt/airflow/.env` is root-owned 600 (unreadable by the airflow uid 50000) → the collector crashes the moment a DAG imports it. The env is already injected by compose, so reading `.env` is redundant but fatal.
 - signature: `python3 -m pytest tests/test_collectors_dotenv_guarded.py -q`
@@ -1155,6 +1182,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## env-not-wired-to-service
 - status: guarded
 - severity: P1
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: a service's CODE reads a central-app env var (`os.getenv('SOUNDCLOUD_CLIENT_ID')` …) that the service's `docker-compose` block does NOT declare → empty in that container. A silent `''` default hides it. The dashboard ran the credential connection tests but was deployed WITHOUT the central-app env, so EVERY test failed (the Benken incident); SoundCloud was wired to no service at all.
 - root_cause: `os.getenv('X')` returns `None`/`''` when the variable is absent, so a container missing an env var behaves like one holding an empty value — no exception, no log, no difference at the call site. The declaration lives in a different file (`docker-compose`) from the read (`src/…`), and nothing joined the two.
@@ -1177,6 +1205,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## prod-compose-drift
 - status: reported
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: heuristic
 - symptom: the live prod `docker-compose.yml` is UNTRACKED (gitignored) and hand-derived, so it silently diverges from the canonical `docker-compose.example.yml` — a service or env var present in the template is missing on prod (or vice-versa). No test sees it; surfaces only when a user hits the gap. Root structural cause of `env-not-wired-to-service`.
 - root_cause: the file that actually runs production is gitignored — it holds secrets, so it cannot be tracked — and the tracked `docker-compose.example.yml` is only a template someone copies once. Nothing compares the two afterwards, and the divergence is invisible from either side: CI reads the example, prod reads its own copy, and no test can reach both at the same time.
@@ -1196,6 +1225,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## central-app-missing
 - status: reported
 - severity: P2
+- family: la-frontière-avec-le-dehors
 - kind: manual
 - symptom: a shared central-app credential (SPOTIFY_CLIENT_ID/SECRET, YOUTUBE_API_KEY, SOUNDCLOUD_CLIENT_ID/SECRET, META_ACCESS_TOKEN) is absent or expired in prod → every tenant's connection test + collection for that platform fails at once, but nothing detects it until a user hits it.
 - root_cause: the central-app model (ADR-006) concentrates one credential per platform for the whole fleet, so a single absent variable is a fleet-wide outage — and it is read with `os.getenv(name, '')`, whose empty default makes absence indistinguishable from a wrong value at the call site. Nothing probed the apps themselves; the first detector was a human failing to connect.
@@ -1216,6 +1246,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## multitenant-mono-test-blindspot
 - status: reported
 - severity: P2
+- family: le-locataire
 - kind: manual
 - symptom: every smoke/integration test runs with `artist_id=1` only → a bug that appears only for tenant #2 (per-tenant SQL scoping, NULL handling, missing identity, fleet-poisoning) ships green. The whole Benken incident class was invisible because nothing exercised a second/new tenant.
 - seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
@@ -1234,6 +1265,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## config-status-file-unrendered
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: a file the tooling treats as the status source is an un-expanded bootstrap template — literal `$(date +%Y-%m-%d)`, `TODO: fill in` — so every reader of it reports a clean state that was never measured.
 - root_cause: the path resolves, so a path-existence guard passes. Existence was checked; content was not. `.claude/dev-docs/ROADMAP.md` (deleted 2026-08-03)
@@ -1254,6 +1286,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## trigger-threshold-split
 - status: guarded
 - severity: P3
+- family: un-seuil-écrit-d-instinct
 - kind: deterministic
 - symptom: a rule, the agent it spawns, and the hook that signals it state different thresholds. The agent's `description` wins, because it is the only one the router reads — so the effective trigger is the one no other surface agrees with.
 - root_cause: the threshold was written three times in three files with nothing comparing them; the agent description also cited "CLAUDE.md rule 1", which resolves to an unrelated rule. `.claude/agents/build-error-resolver.md`
@@ -1272,6 +1305,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## rex-delimiter-unanchored
 - status: guarded
 - severity: P3
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: a validator reports a tool as carrying no `rex:` block when the block is present and correct — it could not parse, and said "absent". The reader is sent to add something that is already there.
 - root_cause: `_DOCSTRING_FM_RE` matched an unanchored `---\n`, so an RST section underline (a line of dashes) opened a false frontmatter block and the prose after it went to `yaml.safe_load`. `.claude/scripts/validate_rex.py:66`
@@ -1289,6 +1323,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 ## ci-runs-twice-for-one-commit
 - status:    guarded
+- family: un-coût-payé-sans-contrepartie
 - kind:      deterministic
 - signature: `bash -c '! python3 .claude/scripts/check_ci_waste.py 2>/dev/null | grep -q "ci-runs-twice-for-one-commit"'`
 - seen_red: self-proving (tests/test_the_ci_waste_checker_proves_itself.py::test_the_detector_sees_the_defect_it_is_written_for) — exécute `check_ci_waste.self_test()`, qui fabrique le défaut et sa correction ; le self-test existait et RIEN ne le lançait (2026-09-26). Muté ce jour-là (règle de concurrence neutralisée) → rouge
@@ -1302,6 +1337,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 ## ci-has-no-concurrency-group
 - status:    guarded
+- family: un-coût-payé-sans-contrepartie
 - kind:      deterministic
 - signature: `bash -c '! python3 .claude/scripts/check_ci_waste.py 2>/dev/null | grep -q "ci-has-no-concurrency-group"'`
 - seen_red: self-proving (tests/test_the_ci_waste_checker_proves_itself.py::test_the_detector_sees_the_defect_it_is_written_for) — exécute `check_ci_waste.self_test()`, qui fabrique le défaut et sa correction ; le self-test existait et RIEN ne le lançait (2026-09-26). Muté ce jour-là (règle de concurrence neutralisée) → rouge
@@ -1316,6 +1352,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## connection-test-proves-app-not-tenant
 - status: guarded
 - severity: P2
+- family: le-locataire
 - kind: deterministic
 - symptom: a "Test the connection" button validates the **platform's shared admin app** (Spotify client_credentials, YouTube API key, Meta `/me`, SoundCloud OAuth token) and returns ✅ without ever exercising the tenant's own identifier — or returns ✅ on an empty result set. The artist reads "Connecté", the DAG upserts 0 rows and exits SUCCESS, the view stays empty for a day. It is `collector-silent-success` moved one layer up, into the form, where it is worse: the artist has been told it works.
 - root_cause: the shared-app (central credential) model made the app credentials env-owned, so the tests were written against the only thing that was always present — the app — and the per-artist identifier stayed optional in the test path even though the collector cannot run without it.
@@ -1337,6 +1374,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## tenant-identity-falls-back-to-admin
 - status: guarded
 - severity: P1
+- family: le-locataire
 - kind: deterministic
 - symptom: a per-tenant IDENTITY (`user_id`, `channel_id`, `account_id`, `ig_user_id`, `spotify_artist_id`) resolves to an environment variable, a hardcoded default or another tenant's value when the tenant's own is missing. The env vars hold the ADMIN's identity, so the tenant receives the admin's data — written under the tenant's own `artist_id`, where their dashboard renders it as theirs.
 - root_cause: the central-app model (ADR-006) legitimately falls back to env for the shared APP credentials (`client_id`, `api_key`, `access_token`). The same `x or os.getenv(...)` shape was then applied to the tenant identity, where it means something entirely different. Amplified by three reads that returned an empty value on failure — `load_platform_credentials` returned `{}` on any DB error, `get_active_artists` returned `[]` on a DB error *and* on an unknown/inactive `artist_id`, and an empty-string identity is falsy — so an outage, a typo, or an artist saving a blank form all landed on the same fallback.
@@ -1358,6 +1396,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## dag-trigger-without-tenant-scope
 - status: guarded
 - severity: P1
+- family: le-locataire
 - kind: deterministic
 - symptom: a dashboard action triggers a DAG without `conf={'artist_id': …}`. The API collectors then run fleet-wide, and the CSV watchers — which defaulted to `artist_id = 1` — parse the SHARED drop directory into the admin's tenant. Reachable by any logged-in artist.
 - root_cause: the sidebar "🚀 Lancer TOUTES les collectes" button predates multi-tenancy and was never revisited; it was also rendered before any role gate. The verification e-mail sent at sign-up tells every new artist to press it.
@@ -1379,6 +1418,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## column-name-is-not-its-meaning
 - status: guarded
 - severity: P2
+- family: le-locataire
 - kind: deterministic
 - symptom: a sweep, a migration or a guard treats every column sharing a NAME as sharing a MEANING. In this schema `artist_id` is the tenant (INTEGER) on ~55 tables and the **Spotify artist id** (VARCHAR) on three legacy ones — `artists`, `artist_history`, `tracks`, where the tenant is `saas_artist_id`.
 - root_cause: the multi-tenant migration reused the `artist_id` name for the new tenant column while the old single-tenant tables kept it for the platform id. Two meanings, one name, and nothing in the schema says which is which except the type.
@@ -1400,6 +1440,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## identity-claimed-by-two-tenants
 - status: guarded
 - severity: P2
+- family: le-locataire
 - kind: deterministic
 - symptom: two artists declare the same platform identity (SoundCloud user_id, YouTube channel, Meta ad account, Spotify artist). Nothing refuses it. Both accounts then collect the same upstream data, and any consumer that resolves a tenant FROM the identity has to guess.
 - root_cause: the identity is stored per-artist in `artist_credentials.extra_config` (JSONB) with no cross-tenant constraint, and the form validated the value's shape but never its exclusivity.
@@ -1419,6 +1460,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## probe-scoped-to-the-machine-not-the-repo
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: a health probe enumerates every container or process on the HOST instead of the ones this repo declares. It reports on neighbouring projects — and can read **green** because a neighbour is running while this repo is down.
 - root_cause: `.claude/hooks/session_summary.py` carried `_MSDR_CONTAINERS = ("msdr_api", "msdr_dashboard", "msdr_receiver")`, a literal list from the repo the baseline payload was cut from; `.claude/scripts/check_env.py::check_docker_tz_utc` iterated `docker ps` with no filter at all.
@@ -1438,6 +1480,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## state-path-namespaced-by-another-project
 - status: guarded
 - severity: P3
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: a writer and its readers disagree on where shared state lives, because one of them hardcodes a project name in the path. Nothing errors — the reader simply reads a file that stopped growing, and the feature built on it goes quietly inert.
 - root_cause: `.claude/hooks/observe.py` wrote to `.claude/homunculus/msdr/observations.jsonl` while `.claude/hooks/draft_devlog.py` read `.claude/homunculus/<repo name>/observations.jsonl`. Both are correct in isolation; only together are they a bug.
@@ -1456,6 +1499,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## migrate-heals-only-if-run-to-completion
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: `make migrate` prints success while `psql` errors scroll past. The full run is self-consistent, so nothing looks wrong — but a run interrupted at the wrong file leaves production without a constraint, and nobody is told.
 - root_cause: `psql` without `ON_ERROR_STOP` exits 0 even when statements failed, and the `migrate` recipe discarded that output. The individual files are not idempotent: `migrations/024` drops `s4a_song_playlist_adds_pkey` unconditionally and fails to recreate it (the key became window-aware in `044`, which restores it). 001..N is correct; 001..024 is a table with no primary key.
@@ -1475,6 +1519,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## local-db-drifts-from-canonical
 - status: reported
 - severity: P3
+- family: deux-surfaces-deux-nombres
 - kind: manual
 - symptom: tests pass in CI and against a throwaway database, and fail on the developer's own machine — with type errors, not logic errors.
 - root_cause: `make schema-check` compares PRODUCTION against canonical (`init_db.sql` + `migrations/*.sql`). Nothing compares the LOCAL development database, which predates several migrations and drifted silently. Measured 2026-08-21: `soundcloud_tracks_daily.track_id` was `bigint` locally against `VARCHAR(50)` canonical, breaking 7 tests with `invalid input syntax for type bigint`.
@@ -1495,6 +1540,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## env-resolved-against-cwd
 - status: fixed
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: a tool reports "credential NOT configured" for a credential that is configured, or a process silently runs with no configuration at all. The red names the wrong cause, so the fix is attempted on the wrong thing.
 - root_cause: the `.env` file is resolved against the **caller's current working directory** rather than the repository root. `load_dotenv('.env')` returns `False` when the file is not there and raises nothing — the absence is indistinguishable from success. Measured 2026-08-21 on two sites: `make artist-preflight` printed "❌ Spotify central app NOT configured" from a shell where the credentials were merely unloaded, and `src/dashboard/app.py` tested `os.path.exists('.env.local')` from a cwd of `src/dashboard/` — which is exactly the launch documented in CLAUDE.md — loading nothing.
@@ -1515,6 +1561,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## identity-mirrored-but-written-once
 - status: fixed
 - severity: P1
+- family: le-locataire
 - kind: deterministic
 - symptom: a tenant shows as connected on every screen, passes its connection test, and collects nothing. The DAG succeeds in under a second.
 - root_cause: one tenant identity is stored in TWO places — `artist_credentials.extra_config` (read by every screen and every readiness check) and `saas_artists.spotify_artist_id` (read by `spotify_api_daily` to decide whose catalogue to collect). The credentials form wrote both; `tools/create_canary.py` wrote only the first. Measured 2026-08-21: canary tenant 471 reported "Connecté — artiste « Daft Punk » ✅" everywhere while its DAG logged "aucun spotify_artist_id déclaré" and wrote 0 rows. The tenant whose entire purpose is to catch a false green WAS the false green.
@@ -1536,6 +1583,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## unguarded-drop-replayed-alone
 - status: fixed
 - severity: P1
+- family: une-écriture-qui-écrase
 - kind: deterministic
 - symptom: a table silently loses its primary key. Nothing errors visibly at the application level; duplicate rows become possible and `ON CONFLICT` upserts start failing or silently inserting.
 - root_cause: a migration whose first statement is an unguarded `DROP CONSTRAINT`, replayed on its own. Measured 2026-08-21 while introducing the `schema_migrations` ledger: `024` drops `s4a_song_playlist_adds_pkey` then fails to create its three-column replacement (impossible since `044` made the key window-aware, so the same song legitimately holds several rows per `recorded_at`). That failure was survivable ONLY while the whole set was replayed in order, because `044` ran afterwards and restored the right key. The ledger changed the premise: a file that never succeeds is never recorded, so it is retried ALONE on every run — and each retry destroyed `044`'s key. **The ledger's own introduction is what left the table keyless.** A safety mechanism whose first act is to break the thing it protects.
@@ -1557,6 +1605,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## finding-rendered-but-not-alerted
 - status: fixed
 - severity: P1
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: a monitoring check runs, finds a real problem, writes it to xcom — and no alert is ever sent. The dashboard of checks looks complete; the inbox stays empty.
 - root_cause: the finding takes part in the email BODY and even the SUBJECT line, but not in the boolean that decides whether to send an email at all. Measured 2026-08-21 in `airflow/dags/alert_monitor.py`: `central_apps_broken` was rendered at line ~794 and placed FIRST in the subject at ~829, while `has_issues` at ~533 listed eight other sources and not it. A shared app that stopped authenticating, as the only problem, produced nothing — the function returned early. It was masked purely by coincidence: Meta happened to be broken *and* stale at once, and staleness was in the decision. The check written specifically to end a months-long silence was itself silent under exactly the condition it targeted.
@@ -1578,6 +1627,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## canary-tenant-unwatched
 - status: fixed
 - severity: P2
+- family: le-locataire
 - kind: deterministic
 - symptom: every global freshness light is green while every real artist collects nothing.
 - root_cause: freshness is measured per SOURCE across the fleet, and a source stays fresh as long as ONE tenant collects — which is almost always the admin, whose data path differs from a tenant's. A break in the per-tenant path (a lost identity mirror, a DAG that stops honouring `dag_run.conf`, an isolation regression) is therefore invisible to every existing check. The canary tenant exists precisely to be that second data point, and until 2026-08-21 nothing read it: a watchdog with no reader.
@@ -1598,6 +1648,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## map-key-unreachable-by-construction
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: a config dict carries an entry no caller can ever select. The behaviour it declares never runs, and the file reads as though the feature exists. Measured 2026-08-22: saving an Instagram Business Account ID triggered `meta_ads_api_daily` and never `instagram_daily`, so the artist connected Instagram, saw the toast promising data "in ~2 min", and no first collection ever ran.
 - signature: `python3 -m pytest tests/test_credentials_save_triggers_the_right_dag.py -q`
@@ -1623,6 +1674,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## guard-derived-from-the-thing-it-guards
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: a test is GREEN while the thing it guards is wrong, because it derives its own scope or its own expectation from that thing. Two shapes, both measured 2026-08-22: (a) an assertion that two copies are EQUAL, passing while both are wrong; (b) a parametrised suite whose cases come from the registry under test, so a missing entry removes test cases instead of failing one — the run goes from "N passed" to "N-3 passed", both green.
 - signature: `python3 -m pytest tests/test_identity_registry_ratchet.py tests/test_canary_identity_map_is_derived.py -q`
@@ -1653,6 +1705,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## gate-with-no-test-of-its-own
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: a tool whose entire job is to answer go/no-go has no test and no schedule. Its greenness is trusted by a runbook, its logic is verified by nobody, and it only runs when a human remembers — so it reports on the days you did not need it.
 - signature: `python3 -m pytest tests/test_artist_preflight.py -q`
@@ -1676,6 +1729,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## tenant-identity-reaches-a-url-unvalidated
 - status: guarded
 - severity: P1
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: a free-text field a tenant controls is interpolated into a REST path, and the raw response is echoed back to them. `requests` does not percent-encode `/` in a path you build yourself, so the tenant chooses the endpoint — while the call carries the PLATFORM's shared credential.
 - signature: `python3 -m pytest tests/test_credentials_security.py -q`
@@ -1702,6 +1756,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## secret-in-an-exception-message
 - status: guarded
 - severity: P1
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: a credential is passed as a QUERY PARAMETER, so a `requests` exception message embeds the full prepared URL. Surfacing the exception — to a user, or into a log — surfaces the credential. No attacker action required: a DNS blip is enough.
 - signature: `python3 -m pytest tests/test_credentials_security.py -q -k exception`
@@ -1727,6 +1782,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## server-side-render-fetches-tenant-chosen-urls
 - status: guarded
 - severity: P1
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: a renderer that runs on the SERVER builds a document from tenant data and then resolves the resources it references. Any markup surviving into that document becomes a request made by the server, from inside the network, with the server's own reachability.
 - signature: `python3 -m pytest tests/test_pdf_export_cannot_fetch.py -q`
@@ -1752,6 +1808,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## guard-scope-is-a-hand-written-list
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: a check is correct on everything it looks at, and what it looks at is a list somebody typed. It never reports the things it does not cover, so its silence reads as coverage and its scope shrinks every time the codebase grows.
 - signature: `python3 -m pytest tests/test_contamination_scope_is_derived.py tests/test_roadmap_index_is_honest.py -q`
@@ -1772,6 +1829,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## repo-copy-of-a-config-is-not-what-runs
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: a config file lives in the repo, looks authoritative, and is not the one the service loads. Editing it changes nothing, reading it describes a deployment that no longer exists, and applying it would undo months of production changes nobody wrote down.
 - signature: `grep -q 'caddy-drift' Makefile`
@@ -1791,6 +1849,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## detector-written-and-never-called
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: a function exists whose docstring names an error class, it has unit tests, and nothing in production calls it. The catalogue and the module both read as though the class is covered.
 - signature: `python3 -m pytest tests/test_no_detector_is_written_and_never_called.py -q`
@@ -1809,6 +1868,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## audit-scope-restated-not-derived
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: a check iterates a hand-typed list of the things it audits while a registry of those things already exists. The list is a subset, and the difference is invisible — the audit reports cleanly on what it never looked at.
 - signature: `python3 -m pytest tests/test_audit_scope_is_derived.py -q`
@@ -1829,6 +1889,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## two-doors-onto-one-database
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: two halves of one application resolve the same database by two different precedences, and neither works in the other's configuration. Moving a variable that looks standard breaks one half in silence.
 - signature: `python3 -m pytest tests/test_one_door_onto_the_database.py -q`
@@ -1852,6 +1913,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## per-tenant-outcome-not-recorded
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: a multi-tenant job reports SUCCESS while one tenant collected nothing. The per-tenant `try/except/continue` that keeps one bad tenant from aborting the fleet is correct — but its only witness is a WARNING line in a task log, and the task's return value lists the tenants that WORKED, so the failing one is absent rather than named. No surface can then answer "did collection run for this tenant?".
 - root_cause: the run ledger existed and was wired to one DAG. Measured 2026-08-23: over its entire history `etl_run_log` held rows for exactly two dag_ids — `meta_ads_api_daily` (195) and `meta_insights_watcher` (13, stopped in May). Spotify, YouTube, SoundCloud and Instagram had **never written a row**, and `src/utils/dag_run_logger.py::DagRunLogger` had exactly one caller. Three dashboard surfaces that read the ledger (`views/etl_logs.py`, `views/alerts.py`, the `has_runs` KPI in `views/home.py`) were blind on four platforms out of five. Concretely: `youtube_daily` was SUCCESS every night while tenant 12 failed inside the loop; freshness eventually turned that tenant `stale`, and `readiness_red_flags` excludes `stale`, so nobody was ever told.
@@ -1870,6 +1932,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## stopped-collecting-is-not-a-status-anyone-reads
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: a tenant whose collection worked and then stopped produces no signal anywhere. The credential is valid, rows exist from before, the DAG reports SUCCESS, and every screen is green except the artist's own, which quietly stops moving.
 - root_cause: three independent doors, all shut. (a) The per-tenant `try/except/continue` that stops one bad tenant aborting the fleet leaves the task SUCCESS, so `check_dag_failures` sees no FAILED run. (b) `artist_readiness` computes STALE correctly, and `readiness_red_flags` returned only `NO_DATA + BROKEN` — dropping 🟡 on the floor, although "collected, then stopped" is the ONLY shape a working credential can take when it breaks. (c) `alert_monitor.check_data_freshness` did not serialise `error` into its xcom, so a probe that FAILED rendered in the nightly email as "🟡 stale · Airflow UI → relancer le DAG". Measured on Benken (tenant 12) 2026-08-23: two nights, zero signal.
@@ -1892,6 +1955,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## mandatory-filter-with-no-guard
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: a rule stated in bold in `CLAUDE.md` is enforced by memory alone. It holds for months, then one query forgets it and the number shown to a user is silently wrong by a factor of ~2.
 - root_cause: Spotify for Artists CSVs carry a summary row whose `song` is the artist's own name, so every read of `s4a_song_timeline` must add `AND song NOT ILIKE '%1x7xxxxxxx%'`. The 2026-06-11 audit found two unfiltered queries in `trigger_algo/_tab_budget_roi.py` and the displayed cost per stream had been halved. **The two sites were fixed and no guard was written.** Measured 2026-08-23: the table is named 109 times across `src/` and `airflow/`, the filter appears 30 times, and `data_quality_check.py` queries it five times with the filter zero times.
@@ -1910,6 +1974,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## script-replaced-while-it-runs
 - status: reported
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: a deploy script is updated, pushed, and the very deploy that pulls the update does not run it. The run reports success, so the change looks deployed — and it is, on disk, for NEXT time. Nothing says the new step was skipped.
 - root_cause: `tools/deploy.sh` begins with `git pull --ff-only origin main` and therefore rewrites ITSELF mid-execution. bash reads a script incrementally rather than into memory, so the running process keeps executing the bytes it already read while the file underneath has been replaced. Measured 2026-08-23: the env-parity gate was added in the same commit that was being deployed, `deploy.sh` on the box contained it afterwards (`grep -c` = 1), and the gate produced no output during that run. The deployment succeeded and the new guard silently did not fire.
@@ -1934,6 +1999,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## tool-imports-the-app-without-a-path
 - status: guarded
 - severity: P1
+- family: un-contrôle-qui-ne-peut-jamais-passer
 - kind: deterministic
 - symptom: a standalone script under `tools/` dies at startup with `ModuleNotFoundError: No module named 'src'`, however it is invoked — including from the repo root. Downstream, the crash is read as the script's own verdict: `audit_runner` saw `check_manifest_consistency.py` exit 1 and reported a `streamlit-pin-drift` hit that did not exist, and the 04h production drift cron `notify_schema_drift.py` was silenced by the very import meant to harden it.
 - root_cause: Python seeds `sys.path` with the SCRIPT's own directory, never the caller's cwd, so a file under `tools/` (or `tools/dev/`) cannot import the app package unless it puts the repo root on the path itself. Measured 2026-08-23: widening the credential-redaction guard to `tools/` added `from src.utils.safe_error import safe_error` to six scripts; five already had the path line and two did not. The defect was the SCOPE of the widening — the newly covered files had a different runtime contract than the files the guard was written against — for the fourth time in three days.
@@ -1953,6 +2019,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## unattributable-payment-link
 - status: guarded
 - severity: P2
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: un client paie et n'est jamais provisionné. Le paiement réussit côté Stripe, le webhook renvoie 200, et le compte reste sur son ancien plan. Rien n'échoue nulle part : ni la vue, ni le webhook, ni un test.
 - root_cause: les deux surfaces de paiement construisaient l'URL du Payment Link en `f"{checkout_url}?client_reference_id={_aid}" if _aid else checkout_url`, donc une session ayant perdu son identifiant de locataire rendait quand même un bouton **payable**, sans le paramètre qui nomme le bénéficiaire. En face, `stripe_webhook.py:140` exécute `if artist_id and customer_id:` — sans `client_reference_id`, il ne fait RIEN et sort en 200. Mesuré 2026-08-23 (R40) sur `views/upgrade.py:125` et `views/billing.py:244`, trouvés ensemble par balayage de la classe.
@@ -1972,6 +2039,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## sender-identity-composed-twice
 - status: guarded
 - severity: P3
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: les e-mails du produit arrivent sous un nom d'expéditeur qui n'est pas le sien — ici « Music Cross Platform Dashboard & Trigger Spotify » au lieu de « streaMLytics ». Rien n'échoue : les mails partent, sont délivrés, et personne dans le code ne peut dire d'où vient ce nom.
 - root_cause: deux chemins d'envoi composaient leur propre en-tête `From`. `verification_email.py` faisait `f"{from_name} <{from_email}>"` — correct ; `email_alerts.py` posait **`self.smtp_user`**, l'identifiant de connexion au relais, sans nom d'affichage et sur le mauvais domaine (`ae8df8001@smtp-brevo.com` en prod, quand `SMTP_FROM` vaut `noreply@streamlytics.fr`). Brevo, qui exige un expéditeur validé, y substitue l'expéditeur par défaut du compte. Et la valeur affichée par l'autre chemin venait de la clé `smtp.from_name` de `config/config.yaml` — le repli que le code lit AVANT son défaut.
@@ -1990,6 +2058,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## two-surfaces-two-truths
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: deux surfaces du produit répondent différemment à la MÊME question, et l'utilisateur croit celle qui a tort. Ici : le PDF exporté annonçait « Spotify ✅ configuré » pendant que la matrice à l'écran disait « ⚪ À connecter », pour le même artiste au même instant.
 - root_cause: `_collect_credentials_status` (`src/dashboard/utils/pdf_exporter/_collectors.py`) recalculait son propre verdict au lieu de lire celui de l'écran — `(key in have) or app_level_configured(key)`. Deux faux verts indépendants : `key in have` teste l'existence d'une LIGNE dans `artist_credentials` (un onglet ouvert puis enregistré vide la crée, ce que `declared_identities` existe pour empêcher), et `app_level_configured` rend la plateforme verte **à partir du `.env` de l'administrateur**, pour un locataire qui n'a rien déclaré. Son docstring promettait pourtant de refléter « the green status shown in the app ». Remonté par un artiste en test le 2026-08-23 (« Configuré api alors qu'on avait fait que youtube »).
@@ -2009,6 +2078,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## the-feature-is-wired-to-the-function-nobody-calls
 - status: guarded
 - severity: P3
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: une fonctionnalité est écrite, traduite, complète — et ne s'affiche nulle part. Aucun test ne tombe : la fonction qui la rend existe et fonctionne, elle n'a simplement pas d'appelant.
 - root_cause: `utils/os_hints.os_selector()` (bascule Mac/Windows des notices) n'était appelé que depuis `render_credential_guides()`, **sans appelant**. Le chemin réellement emprunté par les onglets, `render_credential_guide_for()`, se contentait de résoudre les jetons par **reniflage du User-Agent avec WINDOWS par défaut**, sans laisser corriger. Un artiste Mac lisait des raccourcis Windows (GRiNCH, 12/08).
@@ -2027,6 +2097,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## the-feature-exists-and-the-path-never-reaches-it
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: un utilisateur ne peut pas faire une chose que le produit sait faire. La fonctionnalité est écrite, testée, documentée — et le chemin qui y mène s'arrête avant. Rien n'échoue : le journal dit « sauté », avec une raison exacte.
 - root_cause: `soundcloud_daily.py` sautait le locataire dès que `user_id` était vide, **avant** d'avoir lu ses titres déclarés, et le constructeur du collecteur levait sur le même critère. Or pour un artiste signé sur un label, le profil personnel n'existe pas et n'existera jamais : l'unité collectable est le TITRE, et `GET /tracks/{id}` rend ses écoutes quel que soit le compte hôte. La fonctionnalité « Mes titres hébergés sur d'autres comptes » existait pourtant en entier — widget, résolution d'URL, `track_platform_link`, `migrations/074`, `fetch_claimed_tracks`. Mesuré sur le cas GRiNCH, 2026-08-23.
@@ -2047,6 +2118,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## too-many-charts-competing-for-one-decision
 - status: guarded
 - severity: P3
+- family: un-coût-payé-sans-contrepartie
 - kind: deterministic
 - symptom: une vue s'ouvre sur un mur de graphiques. Aucun n'est faux, aucun n'est de trop pris isolément, et l'utilisateur ne sait pas où regarder.
 - root_cause: le motif de correction — `ui.secondary_analyses()`, un dépliant appliquant « une décision par écran » — a été écrit le 2026-08-12, le jour même où un artiste en test a dit « réduire le nombre de graphs qui permettent de prendre décision », avec la remarque citée dans son propre commentaire de module. Onze jours plus tard il était appliqué sur quatre sites et sur **aucune** des cinq vues les plus denses : Road to Algo (~35 figures), Data Wrapped (9), Créatives (8), Meta Ads (8), Prévisions (6). Le correctif existait, le diagnostic était juste, et la distance entre les deux n'était mesurée nulle part.
@@ -2065,6 +2137,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## absence-rendered-as-a-measurement
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: un graphique ou un tableau affiche `0` là où la donnée dit « aucune observation ». Le lecteur y lit une mesure — « 0 % de chance » — c'est-à-dire l'inverse de « on ne sait pas ». Aucune erreur, aucune trace : le rendu est parfaitement réussi.
 - root_cause: `pdf_charts.pi_gate` (`src/dashboard/utils/pdf_charts.py`) calculait `float((data.get(b) or {}).get("prob") or 0)`. L'idiome `or 0` confond `None` (jamais mesuré) et `0` (mesuré à zéro). Cas réel dans `machine_learning/models/v3/threshold_tables.json` : Release Radar, panier « 50+ », `prob: null`, `n: 0` — dessiné comme une barre à 0 % dans un PDF envoyé à des tiers. Volet jumeau : le graphique n'affichait pas l'effectif, si bien que 66,7 % mesuré sur **3** titres s'affichait aussi haut et aussi net que 99,4 % sur 172.
@@ -2083,6 +2156,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## leak-via-an-exception-received-as-an-argument
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un credential part dans un journal, un mail ou une base, depuis un module que le garde anti-fuite ne surveille pas — et il a raison de ne pas le surveiller selon sa propre question.
 - root_cause: `test_credentials_security.py::test_no_probe_surfaces_a_whole_exception` demande « une exception née d'un appel HTTP peut-elle atteindre ce module ? » et répond en suivant le **graphe d'imports**. C'est juste pour une exception capturée sur place, et aveugle à celle qu'on reçoit en ARGUMENT : `error_alert._maybe_email(page, exc)` (`src/dashboard/utils/error_alert.py`) n'importe aucun client HTTP et n'en est importé par aucun, et envoyait la traceback complète **par Brevo**, un tiers, dans une boîte mail. Le message d'une exception `requests` embarque l'URL préparée — donc `access_token=`, `key=`.
@@ -2101,6 +2175,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## format-marker-in-a-plain-string
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un marqueur `{...}` destiné à une f-string se retrouve dans une chaîne ordinaire et part **tel quel** dans le SQL. Postgres reçoit huit caractères littéraux au lieu d'un prédicat — soit une erreur de syntaxe, soit, quand le marqueur est optionnel, un filtre qui ne filtre rien.
 - root_cause: en ajoutant le filtre de compte publicitaire aux vues Meta, une requête de `src/dashboard/views/meta_creatives.py` a reçu `{acct}` sans que le `f` soit ajouté au littéral. `ruff` ne le voit pas (une chaîne avec des accolades est valide), un test de rendu non plus (la vue ne s'affiche qu'avec deux comptes déclarés, et la flotte est mono-compte).
@@ -2119,6 +2194,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## boundary-with-no-named-exit-kills-what-must-pass
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une frontière posée pour borner le rayon de souffle de la suite éteint aussi **ce qui doit sortir**. Le composant tué est un moniteur : son rouge quotidien se lit comme du bruit, et personne ne remarque qu'il ne mesure plus rien.
 - root_cause: `tests/conftest.py::_no_real_http` est `autouse` et refuse toute connexion sortante sur 80/443, sans exception nommée. `tests/test_prod_health.py` — dont le rôle est de sonder l'application LIVE **à travers Cloudflare**, l'une des trois épaisseurs du filet de surveillance, celle qui voit ce que les contrôles internes ne voient pas (le 403 Bot Fight Mode du webhook Stripe, 2026-06-14) — rendait **14 failed, 14 errors** chaque matin depuis le 2026-08-23. La suite se gardait pourtant déjà elle-même (`RUN_PROD_HEALTH=1`, sinon skip, « so a push never hammers prod ») : la frontière l'écrasait au niveau SOCKET, sous son propre garde.
@@ -2139,6 +2215,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-dev-instance-sends-production-shaped-mail
 - status: guarded
 - severity: P2
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: une alerte arrive dans une vraie boîte mail, annonce une panne, et **la production va très bien**. Elle vient d'une instance de développement. Rien dans le message ne le dit ; seuls l'adresse d'expéditeur et un lien `localhost` la distinguent — et personne ne les regarde à 1 h du matin.
 - root_cause: aucun mécanisme ne nommait l'instance émettrice, et **quatre** chemins d'envoi existent (`email_alerts.send_alert`, `email_alerts.send_email`, deux dans `verification_email`). Mesuré le 2026-08-24 : un scheduler Airflow local a rejoué un run planifié, échoué sur le credential SoundCloud partagé — que la production venait de faire tourner 28 minutes plus tôt, SoundCloud faisant tourner ses `refresh_token` — et envoyé deux alertes. Trois sites écrivaient de surcroît `http://localhost:8080` **littéralement** dans un corps d'e-mail, sans lire aucune variable. Nuance mesurée, contre un premier diagnostic trop rapide : ces trois mails vont à l'ADMINISTRATEUR et l'UI Airflow est liée à `127.0.0.1` seulement, donc `localhost` y est l'adresse juste — ce n'était PAS le défaut de `APP_BASE_URL`, où le lien partait à un artiste. Ce qui restait faux, c'est qu'elle n'était pas configurable.
@@ -2157,6 +2234,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## compose-omits-a-package-the-dags-import
 - status: guarded
 - severity: P3
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: un contrôle répond honnêtement « je n'ai pas pu tourner » (`ModuleNotFoundError`), et cette honnêteté remonte en ligne de sujet comme une alarme métier. On enquête sur la donnée ; le défaut est dans le montage.
 - root_cause: le `docker-compose.yml` **local et non suivi** (gitignoré) montait `./airflow/dags` et `./src` dans les trois services Airflow, mais pas `./tools`. Le gabarit SUIVI `docker-compose.example.yml` le montait déjà, et la production aussi. `check_canary_preflight` et `check_tenant_contamination` shellent tous deux vers `tools/`, donc tous deux renvoyaient UNAVAILABLE, et le sujet portait `🐤 PRÉFLIGHT ROUGE` et `🧬 CONTAMINATION : 1` sur une instance dont la seule anomalie était son propre compose. C'était donc une **copie de travail** en retard sur le gabarit, ni la prod ni le dépôt — la variante la plus discrète, car aucun garde ne peut lire un fichier gitignoré en CI, et l'alarme ne se déclenche QUE hors production, précisément là où personne ne la poursuit.
@@ -2177,6 +2255,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## import-refused-without-naming-the-reason
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: un fichier déposé par un artiste n'importe rien, et le refus ne nomme rien. « Mon CSV ne marche pas » est alors tout le diagnostic disponible — pour lui comme pour nous.
 - root_cause: `s4a_csv_parser.parse_csv_file` lisait `pd.read_csv(file_path)`, virgule seule. Un export téléchargé sur une machine en locale française est séparé par `;` (Excel écrit le séparateur de liste du système), donc la trame revenait en UNE colonne, aucun en-tête attendu n'était trouvé, et un **`except:` nu** rendait `{'type': None, 'data': []}` — indiscernable d'un fichier vide. `distrokid_parser._sniff_sep` avait l'angle mort symétrique : il tranchait entre tabulation et virgule et n'a jamais envisagé `;`. Deux lecteurs d'une même question, la forme cataloguée en `two-checks-one-question-reported-twice`.
@@ -2198,6 +2277,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## environment-failure-worn-as-a-code-failure
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: la suite rend des dizaines de rouges qui disent « mauvais interpréteur », pas « code cassé ». On apprend à ne plus lire le récapitulatif, et un vrai échec arrive habillé pareil.
 - root_cause: `python3 -m pytest tests/` rendait **32 échecs sur arbre propre** : 28 en `ImportError: cannot import name 'DAG' from 'airflow'` et `ModuleNotFoundError` sur `googleapiclient` / `spotipy`, parce que `/usr/bin/python3` n'a pas les dépendances du projet. **Quatre classes bloquantes en CI** remontaient HIT pour cette seule raison. Piège aggravant : le dépôt porte un dossier `airflow/` à la racine, capté comme paquet-espace-de-noms depuis la racine — donc l'erreur ressemble à une installation CORROMPUE et non ABSENTE.
@@ -2217,6 +2297,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## views-map-drifts-from-the-views
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: la carte d'architecture décrit un sous-ensemble du produit et rien ne le dit. Le lecteur la consulte AU LIEU de lister le répertoire — c'est sa fonction — donc une vue absente est une vue que personne ne sait aller voir.
 - root_cause: aucun contrôle mécanique ne comparait `## Dashboard Views Map` à `src/dashboard/views/`. `CLAUDE.md` portait depuis le 2026-08-21 la phrase « La Views Map a déjà divergé deux fois sans que rien ne le signale », et la règle 18 demande un `code-architecture-reviewer` au-delà de cinq modules changés — une REVUE, donc quelque chose qu'il faut penser à demander. Trois dérives se sont produites pendant qu'elle existait. Mesuré le 2026-08-28 : **15 vues sur 44 absentes**, dont `onboarding` et `onboarding_health`, deux des premières surfaces qu'un artiste rencontre. La même carte annonçait par ailleurs « Billing — 3-column Free/Basic/Premium » et un rôle `basic+` alors que `basic` est retiré depuis la migration 048.
@@ -2235,6 +2316,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## dev-doc-nothing-points-at
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: un document utile existe et reste introuvable, parce qu'aucun index ne le nomme. Symétriquement, des gabarits vides survivent des mois sans que personne s'en aperçoive.
 - root_cause: aucun contrôle d'atteignabilité. Mesuré le 2026-08-28 : **huit** fichiers de `.claude/dev-docs/` n'étaient nommés par rien hors de ce dossier. Quatre étaient des gabarits vides — `system-invariants.md` s'annonçait « Source of truth for thresholds, anti-patterns, and deployment rules » et ne contenait que des `TODO`, donc pire qu'absent : il aurait été cru. Deux décrivaient l'amorçage d'un AUTRE dépôt (`tools/setup-claude-code.sh` absent ici, `.claude/skills/domain_{1,2,3}.md` inexistants, trois agents cités qui ne sont aucun des huit). Et deux étaient utiles : `runbook-artist-test-session.md` est la procédure de **R1, la seule tâche ouverte**.
@@ -2251,6 +2333,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## image-ships-what-it-never-imports
 - status: guarded
 - severity: P4
+- family: un-coût-payé-sans-contrepartie
 - kind: deterministic
 - symptom: une image Docker embarque des centaines de mégaoctets qu'aucun de ses processus n'importera jamais. Rien ne casse : le build est plus long, le déploiement plus lourd, le disque se remplit.
 - root_cause: un seul `requirements.txt` installé dans TOUTES les images. Mesuré en production le 2026-08-30, l'image FastAPI — qui sert du JSON — portait 454 MB de `nvidia-nccl-cu12` (bibliothèque de communication collective multi-GPU, sur un VPS sans GPU, tirée par `xgboost`), plus `xgboost` 228 MB, `plotly` 188 MB, `llvmlite` 173 MB, `googleapiclient` 97 MB, `sklearn`, `skimage`, `matplotlib`, `weasyprint`.
@@ -2271,6 +2354,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## helper-closes-a-connection-it-did-not-open
 - status: guarded
 - severity: P3
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: une vue ouvre deux connexions par rendu au lieu d'une, sans qu'aucun deuxième `get_db_connection()` n'existe dans son fichier. Rien ne casse : la page s'affiche.
 - root_cause: `views/hypeddit.py:190`, `_render_history()` appelait `db.close()` sur la connexion que `show()` possède et ferme déjà dans son propre `finally`. `_render_entry_form()`, appelé juste après, continuait d'interroger un handle fermé, et `PostgresHandler._ensure_connection()` **reconnectait en silence**. Vestige d'avant le 2026-08-21, quand chaque helper possédait sa connexion : la migration a retiré les ouvertures et laissé une fermeture.
@@ -2290,6 +2374,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## cache-not-invalidated-by-the-event-that-stales-it
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: l'utilisateur déclenche une action, l'interface lui confirme qu'elle est lancée, puis affiche l'état d'AVANT son clic — jusqu'à l'expiration du TTL. La page semble dire que rien ne s'est passé.
 - root_cause: `cached_last_run_per_dag()` a été ajouté le 2026-08-30 pour éviter 16 allers-retours HTTP par interaction, **sans invalidation**. Or `views/credentials/_render.py:404` enregistre les credentials, déclenche le DAG et affiche « 🚀 Collecte lancée » ; l'artiste regarde le statut juste après. `app.py:422` fait pareil depuis la barre latérale. Les deux servaient une vue cachée des runs antérieurs au clic de l'artiste.
@@ -2311,6 +2396,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## guide-addresses-the-wrong-reader
 - status: guarded
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: un guide montre à l'utilisateur du travail qu'il ne peut pas faire, ou étiquette « admin » une action qui n'appartient qu'à lui. Dans les deux cas il ne fait pas ce qu'il devrait, et l'échec qui suit ne dit pas pourquoi.
 - root_cause: `PlatformCred.note` ne distinguait pas le destinataire, et le rendu l'affichait sans condition — sur l'écran ET dans le PDF joint à l'e-mail de bienvenue. Deux conséquences opposées, trouvées le 2026-08-30 par `make artist-firstlook` : **(1)** la note Spotify disait « **Admin (une seule fois)** : créer une app sur developer.spotify.com… renseigner `SPOTIFY_CLIENT_ID` en variables d'environnement » — sa dernière phrase (« Les artistes n'ont alors qu'à coller le lien ») prouve qu'elle est écrite pour l'exploitant, et elle s'affichait à l'artiste sur la page où il doit justement coller un lien ; **(2)** le partage du compte publicitaire Meta, qui est l'action de l'artiste sur SON compte dans SON Business Manager, était en note de bas de page sous l'étiquette « **Prérequis admin** ». Il ne le faisait donc pas, le test de connexion échouait, et rien ne disait pourquoi — la séance du 2026-06-19.
@@ -2330,6 +2416,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## shipped-artifact-lags-its-source
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: tous les gardes sont verts, la source est juste, et l'utilisateur reçoit quand même les instructions d'il y a trois mois.
 - root_cause: `docs/guides/onboarding_guide.pdf` est construit **à la main** (`python -m src.dashboard.guides.guide_pdf`) puis commité. Rien ne le reconstruit : ni le `Makefile`, ni la CI, ni un Dockerfile. Et rien ne le **lit** : les six gardes du guide (`test_a_guide_never_asks_for_a_dead_uri`, `test_the_guide_tells_the_artist_only_what_is_theirs`, `test_guides_render_per_os`, `test_the_guide_is_fetchable_not_only_mailed`, `test_the_setup_guide_is_reachable`, `test_guide_pdf`) inspectent tous les modules **source**, aucun n'ouvre le PDF. Or c'est le PDF que `verification_email._guide_pdf_paths()` attache à l'e-mail de bienvenue et que les deux boutons de téléchargement servent, depuis un montage `./docs:/app/docs:ro`. Mesuré le 2026-09-03 : le fichier commité datait du 2026-06-13 (`1141d02`), ses sources avaient changé le 2026-08-30 — **82 jours** — et `/opt/streamlytics/docs/guides/` en production portait toujours la date `Jun 13 00:00`. `pdftotext` sur le fichier livré : `127.0.0.1:8888` ×2, `Client Secret` ×2, `Web API` ×1, **zéro** dans la source. Ces trois chaînes sont exactement les remarques d'artiste « uri non bonne », « rajout de s sur uri », « web api pas cochée », corrigées dans le code en juin et **toujours livrées** en septembre. La chaîne complète est la classe : *construit à la main → commité → reconstruit par aucune automatisation → rendu par aucun test → monté dans le conteneur → servi.*
@@ -2350,6 +2437,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## mermaid-block-does-not-render
 - status: guarded
 - severity: P3
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: heuristic
 - symptom: un diagramme s'affiche en boîte d'erreur, ou pas du tout, chez le lecteur — et rien ne rougit, parce que rien dans le dépôt ne rend du markdown.
 - root_cause: `.claude/scripts/check_mermaid.py` **existait dans le dépôt sans aucun appelant** : sa seule occurrence était son propre docstring, ligne 21. Aucun `Makefile`, aucun workflow, aucun hook. Premier passage le 2026-09-03 : **1 bloc sur 4 ne rendait pas**. Le coupable est `.claude/dev-docs/GANTT.md`, un **template généré par `tools/generate-dev-docs.py`** dont les lignes de tâches portent des `YYYY-MM-DD` littéraux — parsables comme déclaration de `dateFormat`, pas comme dates. Un template livré cassé se propage à chaque dépôt que le baseline déploie. Le commit `2e36105` (2026-08-03) avait déjà nommé ce fichier « un template jamais rendu » sans que son diagramme soit corrigé.
@@ -2369,6 +2457,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## retry-blind-to-the-exception-its-client-raises
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un décorateur `@retry` est en place, visible, jamais retiré — et **aucune tentative n'a jamais été rejouée**. Un blip réseau fait échouer la tâche du premier coup, là où le collecteur voisin en rejoue trois.
 - root_cause: `src/utils/retry.py` ne listait que `psycopg2.OperationalError`, `requests.exceptions.Timeout` et `ConnectionError`. Or `src/collectors/youtube_collector.py` n'utilise pas `requests` : il passe par `googleapiclient`, donc `httplib2`, qui lève **`socket.timeout`** — aucune des trois. Les cinq méthodes du collecteur portent `@retry(max_attempts=3)` depuis toujours (`:27,77,156,207,261`) et le décorateur ne pouvait attraper aucune de leurs pannes réseau. Le défaut est invisible parce que le symptôme — un run YouTube rouge — se lit comme une panne d'API, pas comme un retry qui n'a pas eu lieu.
@@ -2388,6 +2477,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## orchestrator-costs-more-than-what-it-orchestrates
 - status: guarded
 - severity: P3
+- family: un-coût-payé-sans-contrepartie
 - kind: deterministic
 - symptom: l'outil qui coordonne le travail consomme plus que le travail lui-même, et personne ne le remarque parce que tout est vert.
 - root_cause: mesuré le 2026-09-04. **La base de métadonnées Airflow pesait 246 Mo — six fois la base applicative (43 Mo)** — avec 83 jours d'historique depuis le 2026-06-13 et **`airflow db clean` jamais lancé** (`task_instance` 115 160 lignes / 106 Mo, `log` 320 765 / 80 Mo). Et la répartition était sans appel : les 4 `*_csv_watcher` produisaient **97,2 % des `dag_run` et 98,4 % des `task_instance`** — 113 296 lignes sur 115 160 — pour **1 536 exécutions par jour, toutes `skipped`**, contre quatre répertoires **vides** où `find` n'a jamais trouvé un fichier. Cause plus profonde et plus coûteuse : `min_file_process_interval` était au **défaut de 30 s**, donc les 16 fichiers de DAG étaient reparsés deux fois par minute — **scheduler à 28,9 % de CPU en continu** quand le webserver était à 0,33 %.
@@ -2408,6 +2498,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## the-only-copy-is-consumed-on-read
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: un import réussit, produit des chiffres douteux une semaine plus tard, et **il n'existe plus aucune copie de ce qui a été envoyé** pour trancher.
 - root_cause: `src/dashboard/views/upload_csv.py` lisait le fichier téléversé en mémoire (`raw = file.read()`), le parsait, faisait l'upsert, et laissait les octets partir. `csv_upload_log` enregistrait qu'un fichier nommé X avait produit N lignes ; il ne pouvait pas répondre **« qu'y avait-il dans X »**. Toute la classe des défauts d'import — une colonne renommée en amont, un séparateur mal lu, une fenêtre d'export erronée — devenait indiagnosticable après coup. C'est précisément ce manque qui faisait paraître les quatre `*_csv_watcher` nécessaires : ils surveillaient un répertoire, donc un fichier déposé y **restait**. Mais ils sondaient des répertoires où `find` n'a jamais trouvé un seul fichier, coûtaient **97,2 % des `dag_run` et 98,4 % des `task_instance`** de toute l'instance Airflow, et couvraient **moins** que la page — `parse_csv_file` ne construit aucune ligne `songs_global`, `parse_songs_global` si. La moitié utile d'un watcher de répertoire n'a jamais été le sondage : c'était la survie du fichier.
@@ -2428,6 +2519,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## guard-matches-its-own-comment
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un test de garde est VERT sur le défaut qu'il existe pour attraper, ou ROUGE sur le commentaire qui explique le correctif. Les deux erreurs viennent de la même cause et se ressemblent si peu qu'on les traite séparément.
 - root_cause: le garde inspecte du code Python en cherchant une sous-chaîne dans le TEXTE du fichier (`assert "<nom>" in source`). Un nom présent dans un fichier ne dit rien de ce que le code en fait : un commentaire, une docstring ou une autre fonction suffisent à satisfaire la comparaison. Trois occurrences le 2026-09-04, toutes sur des gardes NEUFS : `test_navigation_inside_the_app_opens_no_tab` a accusé `auth.py` sur le commentaire expliquant pourquoi le lien avait été retiré ; `test_the_soundcloud_ask_is_one_thing` a accusé `guide_pdf.py` sur un commentaire disant « `cred.admin_note` n'est délibérément PAS rendu » ; `test_the_setup_landing_beats_a_stale_url` cherchait `"_SETUP_PAGES"` dans le source du bloc d'URL et se satisfaisait du commentaire disant que le test valait `_SETUP_PAGES` AVANT le correctif. Le cliquet `test_a_guard_reads_structure_not_text` existait déjà et n'en a vu aucune : son prédicat est au niveau du FICHIER — dès qu'un `ast.parse` y apparaît, tout le fichier est exempté, assertions textuelles comprises.
@@ -2447,6 +2539,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## guard-anchored-on-shape-not-question
 - status: reported
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: manual
 - symptom: un garde vire au rouge sur un changement qui n'altère AUCUN comportement — un renommage de variable, une branche inversée, une factorisation. Le réflexe est de revenir en arrière, donc le garde argumente pour l'ancienne écriture.
 - root_cause: l'assertion est ancrée sur la FORME du code plutôt que sur la question qu'elle protège. Sept occurrences en deux jours, quatre formes distinctes : le NOM d'une variable (`_focus` renommé `_bare` → deux gardes rouges sur un comportement inchangé) ; la POLARITÉ d'une branche (`if _focus: … else:` devenu `if not _bare:`) ; le CHEMIN d'appel (`_responds_cell` appelée directement puis via `row_cells` — le garde exigeait l'appel direct et rougissait sur la factorisation qu'il aurait dû encourager) ; et l'ENDROIT (« aucun `st.image` dans l'onglet », vrai tant que le guide les rendait — la meilleure disposition l'aurait rendu rouge). S'y ajoutent les gardes qui lisent une FENÊTRE DE TEXTE autour d'un appel (200 caractères), donc les commentaires.
@@ -2468,6 +2561,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## ci-gate-with-no-local-counterpart
 - status: guarded
 - severity: P3
+- family: un-contrôle-qui-ne-peut-jamais-passer
 - kind: deterministic
 - symptom: `main` est rouge et personne ne le sait avant le mail de GitHub. Le commit est passé sur le poste — `pre-commit` était installé et vert — parce que le garde qui refuse le défaut ne tourne QUE sur le runner.
 - root_cause: le garde était correct et il a trouvé le défaut ; ce qui manquait est **l'endroit où il tourne**. `.github/workflows/ci.yml` lance `validate_rex.py --strict` en étape bloquante ; `.pre-commit-config.yaml` ne lançait que `ruff` et `check_manifest_consistency.py`. Le 2026-09-04, le commit `8176e97` a ajouté deux blocs `rex:` dont le champ `issue` faisait 376 et 399 caractères pour un plafond de 350 (`.claude/scripts/audit_python_signatures.py`, `.claude/scripts/check_dag_trigger_scope.py`) — **huit** runs CI consécutifs rouges sur `main`, du commit fautif (`8176e97b`) à `a0cd505a`, découverts treize heures plus tard par notification, sept commits ayant été poussés par-dessus une CI déjà rouge. Le plafond n'est écrit nulle part que l'auteur d'une entrée REX lise au moment où il l'écrit : le seul rappel est le refus du validateur.
@@ -2487,6 +2581,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## guard-reads-the-box-not-its-subject
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un garde est vert sur le poste où il a été écrit et rouge — ou vide — partout ailleurs. Il n'a jamais mesuré son sujet : son verdict vient de la configuration de la machine, un `.env` sur le disque, un service qui tourne, une variable héritée du shell.
 - root_cause: `tests/test_a_tool_that_reads_the_env_loads_it.py::test_the_sandbox_default_address_is_deliverable` chargeait `tools/create_sandbox.py`, dont l'import appelle `load_project_env()`, puis affirmait que `_default_email()` rend un alias `+` et non `@sandbox.local`. L'adresse de l'opérateur n'était **posée nulle part** : elle venait du `.env` du dépôt. Sur ce poste le fichier existe et le test passait ; sur un runner GitHub il n'existe pas, `SANDBOX_EMAIL`/`ALERT_EMAIL`/`SMTP_USER` sont absentes, le repli sort et le test échoue. Son propre docstring énonçait la condition — « quand l'environnement est chargé » — sans jamais l'établir. Découvert le 2026-09-05 : la CI n'atteignait plus l'étape « Run tests » depuis huit runs (classe `ci-gate-with-no-local-counterpart`), et le défaut est apparu à la seconde où elle l'a atteinte.
@@ -2505,6 +2600,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## printed-command-assumes-a-shell-the-reader-does-not-have
 - status: guarded
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: une page donne au lecteur une commande à coller, il la colle, elle échoue — et rien dans le message ne dit laquelle des deux hypothèses tacites a lâché. La commande est juste ; le shell dans lequel elle est lue n'a ni l'interpréteur ni le droit d'exécution qu'elle suppose.
 - root_cause: la bannière `credentials.fernet_missing` (`src/dashboard/views/credentials/router.py`, page « 🔑 Credentials API ») affichait `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` en code Markdown inline, dans le corps du `st.warning`. Deux hypothèses non écrites : que `python` soit celui du `venv/` — seul à porter `cryptography` — et que le shell puisse l'activer. Sur ce poste le venv est un venv Windows (`venv/Scripts/`, aucun `venv/bin/`) et PowerShell refuse `Activate.ps1` sous sa politique par défaut. La commande était donc **non exécutable telle qu'affichée**, et le Markdown inline faisait en plus repartir le lecteur avec les backticks collés à la commande.
@@ -2524,6 +2620,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## guard-asserts-presence-not-reachability
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un garde structurel passe au vert sur le défaut qu'il devait attraper. Il demande « cet appel est-il là ? » et l'appel EST là — sous une branche morte, dans la mauvaise boucle, ou après une sortie anticipée qui l'empêche d'être atteint. Le code est présent et ne s'exécute jamais ; le test le déclare bon.
 - root_cause: trois occurrences en une soirée, le 2026-09-05, toutes sur des gardes écrits le jour même. **(a)** `test_both_calls_can_reach_the_fallback` cherchait un appel à `_discover` dans `fetch_media` ; remplacer la condition par `if False:` laisse l'appel dans l'AST — vert. **(b)** `test_the_dag_collects_both_channels` exigeait « il existe un `for` qui contient l'appel » ; remplacer la boucle des CHAÎNES par `if True:` laisse la boucle des ARTISTES, qui contient l'appel elle aussi — vert. **(c)** `test_an_unreadable_state_never_claims_the_share_is_done` appelait `share_state` sans `META_BUSINESS_ID` dans l'environnement : la fonction sort AVANT le moindre appel Graph et rend `unknown` pour une tout autre raison — vert sur la mutation de la branche d'erreur. Une quatrième, le 2026-09-06 : « il existe un `st.columns` dans la fonction » était satisfait par la rangée des distributeurs, pas par celle qu'on gardait.
@@ -2544,6 +2641,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## guard-predicate-depends-on-the-host-env
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un garde est vert sur le poste où on l'écrit et rouge partout ailleurs, sur un code identique. Il n'interroge pas le code : il interroge l'environnement de la machine qui l'exécute, et la réponse dit d'abord si cette machine a un `.env`.
 - root_cause: `src/dashboard/content/credential_guides.py:56` résout `META_BUSINESS_ID` **à l'import** — depuis `os.environ`, et à défaut depuis le `.env` du projet, que le module charge lui-même. Deux surfaces le lisaient. **(1)** L'étape de partage Meta disait une phrase quand la valeur était là et une AUTRE quand elle ne l'était pas : `tests/test_the_guide_tells_the_artist_only_what_is_theirs.py:96` cherchait donc la valeur, et ses deux replis textuels (« Attribuer un partenaire », « Assign partner ») n'étaient plus dans aucune des deux langues depuis la réécriture du 2026-09-05 — le garde ne tenait plus que par la variable d'environnement. **(2)** `guide_pdf.source_fingerprint` normalisait `APP_BASE_URL` et rien d'autre, par une liste écrite à la main : le digest « des sources actuelles du guide » valait une chose sur la machine qui a un `.env` et une autre sur celle qui n'en a pas. Coût mesuré avec `gh run list` : **27 exécutions CI consécutives rouges** du 2026-09-04T22:36 au 2026-09-06T07:19, et la CI s'arrêtant à l'étape des gardes (10 sur 15), `Run tests` n'a pas tourné une seule fois de ces deux jours.
@@ -2565,6 +2663,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## two-widgets-for-one-gesture
 - status: guarded
 - severity: P3
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: l'utilisateur fait une chose à un endroit, la retrouve absente à l'autre, et rien n'est en panne. Le produit a deux surfaces pour un seul geste, chacune avec son état, et aucune ne mentionne l'autre.
 - root_cause: `st.file_uploader` était instancié par `views/upload_csv.py::show()` **et**, via le même `render_uploader`, par l'onglet « 📂 Mes fichiers » de la page Credentials. Streamlit garde un état par widget : un fichier déposé d'un côté n'existait pas de l'autre. La page `upload_csv` avait quitté le menu le 2026-09-04 mais restait routée, et `platform_value.CSV` y envoyait encore l'artiste depuis le sélecteur de mise en route — le doublon était donc la route **recommandée**, pas un vestige.
@@ -2585,6 +2684,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## page-that-nothing-routes-to
 - status: guarded
 - severity: P3
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: une vue rend parfaitement, son test de rendu est vert, elle figure dans une liste intitulée « ce qu'un artiste peut atteindre » — et aucun artiste ne peut l'atteindre. On la compte, on la maintient, on la corrige.
 - root_cause: `app.py` route `?page=upload_csv` vers `views.credentials` depuis la fusion du 2026-09-04, et n'importe `views.upload_csv` nulle part. `views/upload_csv.py::show()` — 54 lignes, un titre, une légende et une `st.file_uploader` — n'était donc appelée que par `tests/test_views_render_smoke.py`, qui l'importe **directement** (`from src.dashboard.views.{view} import show`). Le test prouvait qu'elle rend ; personne ne demandait si on y arrive. Elle était de surcroît listée dans `_TENANT_VIEWS`, dont le commentaire dit « views an artist can actually reach ». J'ai commencé par la CORRIGER — en y écrivant un renvoi vers l'onglet — avant de mesurer qu'elle était morte.
@@ -2604,6 +2704,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## guard-branch-only-reached-when-it-fails
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un garde est vert sur une base propre et rouge dans la grande exécution, et le rouge ne parle pas du sujet gardé — un `TypeError`, un `KeyError`, une comparaison impossible. On le lit comme de l'instabilité de la suite.
 - root_cause: `tests/conftest.py::pytest_sessionstart` enregistrait `SELECT CURRENT_TIMESTAMP`, un `timestamptz` **averti**, et `test_no_synthetic_track_survives_into_the_freshness_computation` le comparait à `saas_artists.created_at`, un `timestamp without time zone` **naïf** — `TypeError: can't compare offset-naive and offset-aware datetimes`. La comparaison vit dans le `if` d'une compréhension de liste qui n'est évaluée que pour les lignes DÉJÀ suspectes : sur une base sans coupable, la branche n'est jamais exécutée. Le garde était donc vert sur son propre défaut partout sauf dans l'exécution parallèle complète, la seule où un locataire vivant fabrique une ligne candidate.
@@ -2624,6 +2725,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## page-that-restates-what-the-app-already-shows
 - status: guarded
 - severity: P4
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: une page « guide » explique en prose ce que l'application montre déjà en agissant. Elle vieillit plus vite que ce qu'elle décrit, et deux surfaces finissent par se contredire sans que rien ne le signale.
 - root_cause: « 📋 Guide de démarrage » (`views/process_guide.py`, 300 lignes) rendait quatre listes à puces décrivant les étapes que l'assistant fait parcourir, les identifiants que les onglets de Credentials déplient avec leurs captures, et l'état des plateformes que la matrice mesure. Trois surfaces pour la même information, dont une seule est calculée sur les données réelles. Signalé le 2026-09-06 : « l'app est bien mieux faite et ça rajoute de l'inutile ». Elle coûtait en plus 1034 ms par rerun, dont 721 ms de génération de PDF, sur la première page qu'un nouvel artiste lisait.
@@ -2642,6 +2744,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## module-level-read-turns-a-deletion-into-a-collection-error
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: on supprime un fichier et le rapport de tests annonce « N errors » au lieu de « N failed ». Les propriétés que ces tests défendaient disparaissent de l'exécution sans qu'aucune ne soit nommée — et avec elles TOUS les autres tests du même module.
 - root_cause: `tests/test_the_guide_is_fetchable_not_only_mailed.py:33` faisait `SRC = GUIDE_PAGE.read_text(...)` au niveau MODULE, sur `views/process_guide.py`. Cette vue supprimée le 2026-09-06, pytest a levé `FileNotFoundError` pendant l'IMPORT du module de test — donc avant la moindre assertion. Quatre tests ont cessé d'être collectés. Un échec aurait dit « la page qui porte le PDF du guide a quitté la navigation » et désigné la surface à réancrer ; une erreur de collecte dit un chemin et un type d'exception.
@@ -2661,6 +2764,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## intermediate-state-named-like-a-final-one
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: l'utilisateur croit l'opération faite et s'en va. Rien n'est écrit, rien n'est en panne, et le rapport qu'il a sous les yeux dit « ✅ ».
 - root_cause: l'écran d'import affichait « ✅ Prêt » dans la colonne « Statut » à l'issue de la DÉTECTION, puis attendait un clic sur « ✅ Importer N fichier(s) » plus bas. Les deux portent une coche verte. Mesuré le 2026-09-06 : l'artiste a déposé quinze fichiers, lu « ✅ Prêt » sur trois d'entre eux, et le journal de production ne portait aucune ligne du jour — l'import n'avait jamais eu lieu. Le tableau ne mentait pas ; il nommait un état intermédiaire comme un état final.
@@ -2679,6 +2783,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## containment-ignores-what-it-leaves-out
 - status: guarded
 - severity: P2
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: un titre court s'associe tout seul à un libellé long qui le contient — un mix DJ, un set, un morceau d'un autre artiste. Le score est le même que pour un vrai rapprochement.
 - root_cause: `title_similarity` rendait `CONTAINMENT_SCORE` (0,90) dès qu'un jeu de jetons était inclus dans l'autre, SANS regarder ce qui restait. Mesuré le 2026-09-06 : « Mix » ⊆ « house music mix 3 back to old school » valait 0,90, « Feet » ⊆ « 1x7xxxxxxx feet first free download » aussi, et « Kimono à semelle de fer » ⊆ « Kimono à semelle de fer II » également. Inoffensif tant que les titres sont longs et distinctifs ; un artiste dont un morceau s'appelle « Solo » ou « Nuit » verrait un mix DJ auto-associé.
@@ -2698,6 +2803,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-exemption-on-one-surface-reads-as-a-failure-on-another
 - status: guarded
 - severity: P3
+- family: le-locataire
 - kind: deterministic
 - symptom: une fonctionnalité reste vide pour un locataire, et le message d'explication — pourtant mesuré et exact — se termine par « rien à faire de ton côté ». L'utilisateur conclut à une panne. Signalé le 2026-09-08 : « j'ai aucune suggestion automatique de campagnes meta, c'est pas normal ». C'était normal.
 - root_cause: le bac à sable (`saas_artists.is_sandbox`, migration 080) est **exempté du garde d'unicité d'identité** — c'est sa raison d'être : rejouer la mise en route avec les identifiants de l'opérateur. L'exemption a été accordée sur une surface (la saisie) sans que sa CONSÉQUENCE sur une autre soit nommée : `meta_campaigns` a pour clé de conflit `campaign_id` seul et un upsert ne transfère jamais la propriété d'une ligne, donc le bac à sable, qui déclare toujours le compte publicitaire du profil principal, n'obtient jamais une seule campagne. Mesuré en production : locataire 18, 224 lignes d'insights, 12 titres de référence, **0 campagne**, les 34 étant sur le locataire 1 sous le même `ad_account_id`. Le diagnostic existant rendait `CAMPAIGNS_ELSEWHERE`, une phrase écrite pour deux VRAIS locataires — cas que le garde d'identité rend désormais impossible.
@@ -2717,6 +2823,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-surface-reads-a-table-nobody-writes
 - status: guarded
 - severity: P3
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: un panneau de tableau de bord reste vide sans rien dire. La table qu'il lit existe, le SQL est valide, et personne ne l'écrit.
 - root_cause: `views/airflow_kpi.py` lisait `etl_daily_metrics` — **2 lignes** — pendant que `etl_run_log`, écrit à chaque collecte par `dag_run_logger.py`, en portait **2 196** juste à côté. La table avait été créée en prod hors de toute migration, puis rétro-inscrite dans `migrations/062_reconcile_schema_drift.sql` dans le seul but de faire taire `make schema-check`. Elle est classée « USED-but-undeclared » dans `.claude/dev-docs/schema-drift-2026-06-13.md:22` **depuis le 2026-06-13** : le défaut n'était pas ignoré, il était documenté et laissé en l'état, et la seule trace visible avait été de faire taire le détecteur qui le signalait.
@@ -2736,6 +2843,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-rule-copied-is-a-rule-that-will-diverge
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: le même locataire lit trois nombres différents pour la même métrique, au même instant, sur trois surfaces du même produit. Mesuré le 2026-09-10 : le total de vues YouTube de l'artiste 1 valait **120 627** sur « Data Wrapped » et dans le PDF client, **118 219** sur l'accueil et dans l'API.
 - root_cause: la règle « le total d'une plateforme est la somme des compteurs PAR ENTITÉ, jamais le compteur agrégé » était correcte et **recopiée** à quatre endroits. Deux copies ont dérivé vers `youtube_channel_history.view_count`, le compteur de chaîne prouvé ~10× faux le 2026-09-08 ; une troisième avait porté un défaut distinct (`ORDER BY collected_at DESC LIMIT 1` rendait le cumul d'UNE vidéo comme total d'un catalogue de 67) avant d'être corrigée sur place. Le garde existant, `test_no_surface_reads_the_channel_counter_as_streams`, ne regardait que `platform_timeseries` et `src/api/routers/kpis.py` — **sa portée était le défaut**, et c'est pourquoi les deux copies fausses ont survécu à sa création.
@@ -2756,6 +2864,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-glyph-with-no-font-vanishes-without-a-trace
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: un document généré perd des caractères — sans erreur, sans avertissement, sans carré de substitution. Reproduit le 2026-09-10 : rendu le golden HTML du rapport, un seul émoji sur vingt-neuf s'imprimait.
 - root_cause: l'image de production (`python:3.11-slim`) n'embarque **aucune police** — vérifié, zéro entrée — et le `Dockerfile` installe la pile de rendu de WeasyPrint sans une seule fonte. **Correction du constat initial :** le chemin de PRODUCTION retire déjà tous les émojis du HTML avant d'appeler WeasyPrint. J'avais mesuré sur le golden, un artefact d'AMONT dont le rendu direct contourne ce filtre — le rapport livré n'a donc jamais porté d'émoji invisible. Ce qui restait vrai et fragile : la source COMPTAIT sur ce filtre d'aval, au point que `_badge` indexait un dictionnaire par le glyphe de fraîcheur, c'est-à-dire par un caractère que le filtre effaçait de la sortie. Un émoji portait une décision.
@@ -2775,6 +2884,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-zero-that-was-never-measured-passes-for-a-measurement
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: une colonne de mesure est remplie sur toutes les lignes, donc elle a l'air mesurée, et toute moyenne calculée dessus est fausse — pas approximative, fausse. Mesuré en production le 2026-09-10 : **515 lignes d'`etl_run_log` sur 587** (30 j) portaient une durée de zéro ; seule la plateforme Meta était réellement chronométrée.
 - root_cause: `record_tenant_run` écrivait `started_at = ended_at = now()`. Quatre des cinq DAGs de collecte passent par elle. Un zéro écrit par construction est indiscernable d'un zéro observé : il n'y a ni valeur manquante, ni exception, ni journal — la colonne est simplement pleine de nombres qui ne viennent d'aucune horloge.
@@ -2793,6 +2903,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-truncated-read-recorded-as-a-complete-one
 - status: guarded
 - severity: P2
+- family: le-locataire
 - kind: deterministic
 - symptom: la collecte d'un locataire s'enregistre `success`, et une partie de ses données n'a pas été lue. L'artiste voit un historique amputé sans que rien ne le lui dise.
 - root_cause: `fetch_media` plafonne à 10 pages ; au-delà, les publications les plus anciennes ne sont pas relues, et le seul signal était un `logger.warning` dans le journal d'un conteneur. Ce plafond n'est pas une erreur — c'est une lecture bornée, et le collecteur a raison de ne pas lever — mais son résultat est un fait sur les DONNÉES, et un fait sur les données ne se dit pas dans un log.
@@ -2816,6 +2927,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-date-that-does-not-say-which-clock-produced-it
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: aucun, tant qu'on ne compare pas deux périodes — et alors l'écart est de quelques heures, change avec la saison, et personne ne peut dire s'il est réel. Quatre horloges cohabitaient sur le même axe de la figure d'accueil et rien, nulle part, ne déclarait laquelle avait produit une date donnée.
 - root_cause: une date entre dans le produit par quatre chemins — un instant écrit par nos collecteurs (UTC), un jour calendaire lu dans une colonne de CSV (fuseau de publication de Spotify), un jour calendaire lu dans un NOM de fichier (fuseau d'Apple), un jour choisi par le lecteur (fuseau d'affichage) — et circulait ensuite sans distinction. Une même colonne en portait deux selon l'âge de la ligne : `DATE` avant la migration 019, instant après.
@@ -2836,6 +2948,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-confirmation-thrown-away-by-the-rerun-that-follows-it
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - admitted: sites:23
 - admitted_detail: balayés à l'AST sur `src/dashboard/` le 2026-09-20, dont les QUATRE boutons de « Saisie S4A »
@@ -2856,6 +2969,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-create-if-not-exists-that-declares-nothing
 - status: guarded
 - severity: P3
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - admitted: sites:2
 - admitted_detail: `soundcloud_tracks_daily.track_id` (bigint en PROD) et `instagram_daily_stats.ig_user_id` (bigint en LOCAL, identité de locataire), trouvés le 2026-09-19 par le même balayage
@@ -2878,6 +2992,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-surgical-restore-erases-work-nothing-will-give-back
 - status: guarded
 - severity: P2
+- family: une-écriture-qui-écrase
 - kind: deterministic
 - symptom: du travail non commité disparaît sans trace ni message. Aucune erreur, aucun avertissement : la commande réussit, et ce qu'elle a écrasé n'est ni dans un commit, ni dans un stash, ni dans le reflog. Mesuré **deux fois dans la même séance** le 2026-09-10, à quelques heures d'intervalle — un correctif de rendu et deux clés i18n la première fois, la conversion de deux figures et l'élargissement d'un cliquet la seconde.
 - root_cause: `git checkout -- <un fichier>` pour défaire une mutation de test. Le garde du dépôt bloquait déjà `git checkout -- .` et `git restore .` par correspondance de chaîne, c'est-à-dire les formes qui ont l'air dangereuses. La forme qui coûte est la forme **chirurgicale** : elle nomme un seul fichier, elle a l'air maîtrisée, et elle écrase exactement le même travail. Aggravant, mesuré le même jour : l'un des fichiers visés était **gitignoré**, donc pas même restaurable par cette voie.
@@ -2906,6 +3021,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-diagram-is-verified-by-looking-at-it
 - status: reported
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: manual
 - symptom: un schéma généré est syntaxiquement valide, son SVG contient tout le texte attendu, et il est faux à l'œil. Mesuré le 2026-09-10 sur sept schémas neufs : **six défauts**, aucun visible dans le code ni dans le HTML rendu.
 - root_cause: deux causes distinctes, et c'est ce qui rend la vérification par lecture insuffisante. (1) **Le placement est calculé, pas écrit.** Une arête directe bronze → or fait remonter la boîte OR au rang 1, donc à GAUCHE de l'argent : le schéma censé montrer trois couches dans l'ordre les montrait à l'envers, alors que chaque nœud et chaque arête étaient corrects. (2) **La mise en forme du texte est calculée aussi** : mermaid casse un mot plus long que sa boîte, et un identifiant SQL n'a pas d'espace où casser — `youtube_channel_histor/y`, `apple_songs_performanc/e`, `meta_insights_performa/nce_day`, `v_artist_monthly_revenu/e`. Plus un schéma de sept nœuds en ligne illisible à l'échelle de la colonne, et un nœud orphelin relié à rien.
@@ -2926,6 +3042,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-figure-under-a-period-selector-that-ignores-it
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: l'artiste choisit « 30 jours » et la figure lui montre autre chose, sans que rien ne le dise. Aucune erreur, aucun trou : des barres pleines, sur une période qui n'est pas celle qu'il a demandée.
 - root_cause: une vue Streamlit est un seul `show()` de plusieurs centaines de lignes. Le sélecteur de période y ouvre une fenêtre, et chaque requête écrite ensuite doit la reprendre — en SQL par un fragment, ou en pandas par un masque. Rien ne l'imposait : 29 vues dessinent des figures, 12 portent un sélecteur, et une seule — l'accueil — avait un garde sur leur cohérence.
@@ -2947,6 +3064,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-window-applied-to-the-wrong-date
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: le filtre de période EST appliqué, et la figure répond quand même à une autre question. Aucun garde ne peut le voir : tous demandent *que* la fenêtre soit appliquée, jamais *sur quoi*. Mesuré le 2026-09-10 : « Engagement par mois » d'Instagram bornait sur `timestamp`, la date de PUBLICATION du post, alors que `like_count` est un compteur cumulé lu aujourd'hui — la barre de janvier portait les likes donnés en juin à un post de janvier.
 - root_cause: une colonne de date porte DEUX informations que le code ne distinguait pas : quelle horloge l'a produite, et de quoi elle est la date. La seconde décide si une figure bornée sur elle répond à ce qu'elle annonce — un jour d'événement, un jour de mesure, ou un jour de SORTIE. Borner sur une date de sortie construit une cohorte, ce qui est légitime et souvent la seule lecture possible ; ne pas le dire ne l'est pas.
@@ -2967,6 +3085,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## connection-escapes-unclosed
 - status: guarded
 - severity: P3
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: sans charge, rien. Au palier suivant, des connexions s'accumulent contre `max_connections` (100 par défaut, partagé avec Airflow et une API qui peut en tenir 40), et le symptôme n'est pas une lenteur : c'est un refus de connexion, donc une page en erreur.
 - root_cause: `st.stop()` lève `StopException`, et il était levé ENTRE l'ouverture de la connexion et le `try` qui la referme — donc le `finally` ne s'exécutait jamais. Quatre sites : `src/dashboard/utils/__init__.py:110` (`view_session`), `views/alerts.py:329`, `views/db_health.py:384`, plus `views/spotify_s4a_combined.py:23` dont le `close()` vivait à l'indentation du corps, ~290 lignes après l'ouverture, hors de tout `finally`.
@@ -2987,6 +3106,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## write-path-without-cache-invalidation
 - status: guarded
 - severity: P3
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: le locataire enregistre, l'écran confirme (« ✅ Importé »), et le chiffre affiché reste l'ancien pendant jusqu'à 600 s, sans que rien n'explique pourquoi. Aucune erreur, aucun journal.
 - root_cause: `kpi_helpers` garde ses lectures 600 s, et cette durée longue n'est sûre que parce que les gestes qui changent la donnée en pleine journée purgent explicitement (`collection_trigger.py:46`, `credentials/_render.py:1135`). Trois chemins d'écriture n'étaient pas câblés : `views/upload_csv.py` (le seul point de purge qu'il pouvait atteindre, `autostart_if_journey_complete`, ne s'exécute qu'une fois dans la vie du locataire), `views/admin.py` (import pour le compte d'un artiste ; le cache Streamlit étant global au processus, c'est la seule purge qui puisse l'atteindre) et `views/imusician.py` (saisie manuelle, upsert et suppression).
@@ -3007,6 +3127,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## cumulative-counter-drawn-as-its-own-history
 - status: guarded
 - severity: P2
+- family: un-cumul-pris-pour-un-quotidien
 - kind: deterministic
 - symptom: la courbe « Cumulé » et la tuile de la même plateforme, sur le MÊME écran, donnent deux totaux. Mesuré en production le 2026-09-11 pour l'artiste 1 : YouTube **136** tracés contre **118 334** annoncés (×870), SoundCloud **77** contre **23 563** (×306). Spotify, lui, tombe juste au point près (165 065 = 165 065).
 - root_cause: le mode « Cumulé » fait un `cumsum` de la série QUOTIDIENNE (`platform_chart._as_mode`). Pour Spotify c'est la vérité — le CSV S4A porte l'historique jour par jour. Pour YouTube et SoundCloud, cette série est un ÉCART entre deux relevés d'un compteur, calculé uniquement entre jours consécutifs : elle ne contient rien d'avant notre première collecte, et rien des trous. Son cumul répond donc à « ce que nous avons vu croître depuis qu'on regarde », jamais à « combien au total ». La même racine explique les autres symptômes : YouTube n'est mesuré que 115 jours et SoundCloud 95, contre 1 344 pour Spotify, donc le plancher de seau (`_BUCKET_FLOOR = 0.5`, posé à raison) élimine presque tous les seaux dès qu'on agrège — au pas ANNUEL, YouTube en garde **0**.
@@ -3035,6 +3156,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-filtered-test-run-proves-nothing
 - status: reported
 - severity: P3
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: manual
 - symptom: annoncer « N tests verts » après une exécution filtrée par `-k`. Le 2026-09-11 : **931 verts** annoncés, puis la sélection officielle en a trouvé **4 rouges** que le filtre ne couvrait pas — deux catalogues i18n incomplets et le cliquet d'allers-retours de l'accueil, tous causés par les changements de la même séance.
 - seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
@@ -3055,6 +3177,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## two-generations-of-rows-in-one-fact-table
 - status: guarded
 - severity: P2
+- family: un-cumul-pris-pour-un-quotidien
 - kind: deterministic
 - symptom: un total affiché vaut **le double** du même total lu ailleurs, sans qu'aucune requête soit fausse. Mesuré le 2026-09-12 : la tuile « Dépenses » de la page Meta Ads affichait 6 165,65 € quand la couche or en comptait 3 087,82.
 - root_cause: `meta_insights_performance` porte 231 lignes QUOTIDIENNES (une par campagne et par jour, écrites par la boucle `time_increment=1` de `_meta_insight_fetch.py`) **et** 21 lignes de CUMUL À VIE d'un collecteur antérieur, `date_start` valant le jour de la collecte. Les sommer ensemble compte chaque euro deux fois. La contrainte d'unicité ne l'empêche pas : les deux générations ont des clés distinctes. C'est la forme Apple (`period_start IS NULL` vs périodes bornées) sur une autre plateforme.
@@ -3074,6 +3197,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-generated-document-asserts-a-stale-state
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: un document généré décrit un dépôt qui n'existe plus. Il ne porte aucune marque de péremption — il se lit exactement comme une mesure fraîche, et c'est ce qui le rend plus cher qu'un document absent.
 - root_cause: un générateur sans mode `--check` câblé. `error-inbox.md` n'a aucun test de fraîcheur et `.claude/scripts/check_stale_deliverables.py` n'était appelé de nulle part. Aggravant : un document horodaté ne PEUT pas être comparé octet pour octet, donc l'horodatage lui-même interdit le seul contrôle qui marche.
@@ -3093,6 +3217,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-procedural-rule-in-the-database
 - status: guarded
 - severity: P3
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: une règle métier vit en PL/pgSQL. Elle n'est ni testable par pytest, ni lisible dans une revue de diff Python, ni déplaçable — et le jour où elle est fausse, le correctif est une migration.
 - root_cause: la tentation est réelle et légitime une fois : `gold_apple_lifetime()` fait une sélection gloutonne d'intervalles non chevauchants, qu'aucun `GROUP BY` n'exprime. Le risque n'est pas cette fonction, c'est la SUIVANTE — celle qu'on écrira « comme la précédente » pour une règle qu'une vue déclarative exprimerait très bien.
@@ -3111,6 +3236,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-signature-anchored-on-a-location
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une signature de classe d'erreur rougit sur un arbre sain, deux fois en deux jours, parce que le correctif a déplacé ou renommé ce qu'elle nommait. On finit par la desserrer — donc par retirer la garde — pour faire taire la CI.
 - root_cause: une signature qui nomme un EMPLACEMENT (`fichier:ligne`, une constante, un nom de fonction précis) est couplée à la forme du code, pas à la propriété. Vu le 2026-09-12 : une signature ancrée sur `_SQL_CUMULATIVE_ALL`, constante retirée par un correctif ultérieur.
@@ -3130,6 +3256,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-guard-that-sees-the-binding-not-the-application
 - status: reported
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: manual
 - symptom: un garde reste vert sur le défaut exact qu'il décrit, parce qu'il vérifie qu'une valeur est CALCULÉE et non qu'elle est UTILISÉE.
 - seen_red: n-a (pas de signature ; rétro-portage 2026-09-16)
@@ -3147,6 +3274,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-exemption-that-outlives-what-it-exempted
 - status: guarded
 - severity: P3
+- family: un-seuil-écrit-d-instinct
 - kind: deterministic
 - symptom: une exemption reste dans une liste après la disparition de ce qu'elle exemptait. Elle ne casse rien le jour où ça arrive — elle devient du **budget** pour la prochaine occurrence, que plus personne n'a décidé d'autoriser.
 - root_cause: une exemption est écrite avec une raison, puis la raison disparaît sans que la ligne bouge. Deux formes, symétriques et toutes deux vues ici : un axe secondaire déclaré dans `utils/charts.py` qui serait converti en petits multiples (l'exemption couvrirait alors gratuitement le prochain), et un SECOND axe ajouté dans ce même fichier que l'exemption couvrirait sans qu'on l'ait voulu.
@@ -3165,6 +3293,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-read-that-failed-is-rendered-as-a-number
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: une tuile affiche un chiffre alors que la requête a LEVÉ. Quatre occurrences en deux jours, aucune n'a produit d'erreur visible : « Total Streams : **0** » pendant que Shazams affichait 1 770 · `platform_totals` rendant 0 sur une exception · un top 5 du PDF passé de 11 lignes à 0 · une figure Data Wrapped disparue.
 - root_cause: un `except` qui enjambe une lecture de base et rend un NOMBRE. Le motif est partout défendable localement — « une tuile absente ne fait pas tomber la page » — et faux globalement : un chiffre faux se lit comme un chiffre, alors qu'un `None` se lit comme une absence. Le cas le plus cher était `_lifetime` dans la porte des plateformes : un seul `return 0` couvrait à la fois « jamais mesuré », « mesuré à zéro » et « lecture échouée », pour les QUATRE plateformes de streaming à la fois.
@@ -3184,6 +3313,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-quantity-mistaken-for-a-counter
 - status: guarded
 - severity: P3
+- family: un-cumul-pris-pour-un-quotidien
 - kind: deterministic
 - symptom: l'erreur SYMÉTRIQUE de celle qui a coûté un facteur 151 — traiter une quantité du jour comme un compteur cumulé. Le report en avant inventerait des visites qui n'ont pas eu lieu, et un retour à zéro déclencherait une alerte sur un jour normal : 93 alertes sur 1 254 jours, mesuré.
 - root_cause: le dépôt a un garde solide pour « un cumul tracé comme un quotidien » et aucun pour l'inverse. Mesuré le 2026-09-12 via le tableau `plateforme × famille` : **Hypeddit n'était couvert par aucune famille de forme plateforme**, et le revenu par aucune des deux concernées. Ce sont les deux sources les plus récentes de la couche or, et les moins gardées — la page Hypeddit n'a été repointée que ce jour-là.
@@ -3202,6 +3332,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-first-bucket-declared-unknown-when-it-was-observed
 - status: guarded
 - severity: P2
+- family: un-cumul-pris-pour-un-quotidien
 - kind: deterministic
 - symptom: la figure totalise MOINS que ce que le compteur a gagné, sans qu'aucun message ne le dise. Mesuré sur un locataire réel le 2026-09-12 : **182 432 dessinés contre 206 555 gagnés**, soit 12 % perdus, sur une plateforme servie par la couche or en mode « Par période ».
 - root_cause: `platform_chart.py` calculait la croissance d'un seau comme « niveau de fin moins niveau de fin du seau précédent », et rendait le PREMIER seau `None` — « pas de seau avant, donc croissance inconnue ». C'est faux dès que la série cumulée COMMENCE dans ce seau : entre son premier relevé et la fin du seau, la croissance est **observée**, pas inconnue. Le raisonnement confondait « pas de prédécesseur » et « pas de baseline ».
@@ -3224,6 +3355,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-shared-module-drags-a-view-behind-it
 - status: guarded
 - severity: P3
+- family: un-coût-payé-sans-contrepartie
 - kind: deterministic
 - symptom: le premier rendu d'une page quadruple, et rien dans le code ne le montre. Mesuré le 2026-09-12 : `setup_completion` — lu dans le chemin de la barre latérale, donc à chaque page — mettait **1 073 ms au premier appel et 2 ms au second**. L'écart est l'IMPORT, pas la requête.
 - root_cause: `setup_completion._csv_detail` avait besoin des huit LIBELLÉS de `views/upload_csv._PLATFORMS` et les lisait par un import paresseux de la vue, qui tire pandas, les transformateurs CSV et Streamlit — pour huit chaînes, contre un budget de page de 287 ms. Le balayage a trouvé un frère VIVANT sur l'accueil : `status_matrix._requires_sharing` importait `views.credentials._registry` (1 950 ms) pour un booléen, et `render_status_matrix` est rendu pour tout artiste dont la mise en route n'est pas finie.
@@ -3244,6 +3376,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## two-silences-one-message
 - status: guarded
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: l'écran dit « Pas encore assez d'historique pour tracer une évolution » à un locataire qui en a **quatre ans**. Vu au navigateur le 2026-09-12 sur « 90 jours · Jour · Par période ».
 - root_cause: `views/home.py` n'avait qu'un message pour l'absence de figure, et la figure ne dessine rien dans deux cas très différents — un compte NEUF (rien n'a encore été collecté) et une FENÊTRE VIDE (tout a été collecté, mais rien dans la période demandée). Ici le CSV Spotify n'avait pas été déposé depuis 92 jours, ce qui est exactement le sujet de la séance, et le message envoyait chercher le mauvais geste.
@@ -3266,6 +3399,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-visual-constant-copied-into-a-second-renderer
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: la même plateforme porte **deux couleurs** dans le même produit — Spotify en vert à l'écran, en bleu dans le PDF du même artiste, le même jour.
 - root_cause: `pdf_charts._PLATFORM_COLORS` était une COPIE littérale de `platform_chart._PALETTE_LIGHT`, écrite quand un seul rendu en avait besoin. Le 2026-09-12 l'écran est passé aux familles de marque ; la copie n'a pas suivi, et rien dans le PDF ne pouvait le signaler — il était cohérent avec lui-même. C'est la forme visuelle de `two-definitions-that-must-coincide-are-never-compared`.
@@ -3284,6 +3418,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-threshold-true-at-one-grain-and-false-at-another
 - status: guarded
 - severity: P3
+- family: un-seuil-écrit-d-instinct
 - kind: deterministic
 - symptom: un garde rougit alors que rien n'est cassé, uniquement parce que la figure a changé de PAS. Le sien exigeait « au moins 30 pas non mesurés couverts » ; au pas semaine, les 40 jours de la mise en scène font 5 seaux, et il accusait un code correct.
 - root_cause: le seuil avait été écrit en regardant le pas JOUR, où la mise en scène détermine 40 trous — un nombre vrai, mais vrai d'UN grain. Le même garde tournait sur quatre modes × deux pas sans que le nombre suive le pas. C'est `un-seuil-écrit-d-instinct` retourné contre son auteur, et il a été commis en écrivant le garde d'une AUTRE classe le même jour.
@@ -3303,6 +3438,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-kill-pattern-that-matches-its-own-shell
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une commande composée s'arrête au milieu, sans message, et rend le code **144**. Ce qui suit n'a jamais tourné — relancer la suite, écrire le script, lister ce qui reste. Le code ressemble à un échec de la cible ; la cible a très bien été tuée.
   **Et une seconde forme, ajoutée le 2026-09-16** : le motif n'a pas besoin de TUER pour nuire. `until ! pgrep -f "pytest tests/ -q"; do sleep 10; done` **ne sort jamais** — la ligne du shell qui porte la boucle contient le motif, donc `pgrep` se trouve toujours lui-même. Le crochet à la grep (`"[p]attern"`) **protège** cette forme — vérifié par exécution le 2026-09-16 : `ps -eo cmd | grep -c "[x]marker"` rend 0 alors que sa propre ligne porte le motif entre crochets. `pgrep -f` n'a pas d'équivalent : il reçoit le motif SANS crochets et sa ligne d'appel le contient tel quel. Trois boucles bloquées à vie le même jour, par moi, sur une classe que ce dépôt avait déjà écrite. ⚠️ Et la conséquence VÉRITABLE de ces boucles n'est pas celle que j'ai d'abord écrite : elles n'ont tué aucune suite, elles m'ont fait croire qu'elles en surveillaient une. Le coût est d'avoir conclu QUATRE FOIS « la suite est morte » sur du silence — elle tournait à chaque fois.
@@ -3327,6 +3463,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-verdict-from-a-tree-that-moved-under-it
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: la suite complète rend des échecs qui **n'existent pas** — verts dès qu'on les rejoue. Mesuré le 2026-09-12 : quatre signalés sur deux exécutions, **trois faux**.
 - root_cause: la suite met 6 min 35, et j'ai édité des modules, régénéré des documents et ajouté des fichiers de test pendant qu'elle tournait. pytest lit les fichiers au fil de la collecte et de l'exécution : un arbre qui bouge sous elle produit un verdict qui ne décrit aucun état réel du dépôt.
@@ -3350,6 +3487,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-bash-hook-that-blocks-the-prose-about-the-gesture
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: **écrire sur un défaut devient impossible.** Trois commandes bloquées d'affilée le 2026-09-12, toutes en train d'écrire la classe d'erreur du geste concerné. Le hook comparait des sous-chaînes : nommer le geste suffisait à déclencher le garde du geste.
 - root_cause: `guard_destructive.py` cherchait `pkill -f` et `git checkout -- ` n'importe où dans la commande, sans vérifier que le geste en soit la COMMANDE. Un `echo` d'une phrase, un heredoc de documentation ou l'édition du hook lui-même suffisaient. **Le mode d'échec du volet rétablissement est pire qu'un faux positif** : les jetons de la phrase deviennent des chemins passés à `git status`, et l'un d'eux peut être `:` — en syntaxe de pathspec git cela désigne TOUS les fichiers, donc une phrase en prose faisait croire au garde que le dépôt entier allait être écrasé. Vérifié par mutation : la phrase de documentation faisait lister de vrais fichiers modifiés.
@@ -3370,6 +3508,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-counter-drawn-from-zero-before-anyone-was-looking
 - status: guarded
 - severity: P2
+- family: un-cumul-pris-pour-un-quotidien
 - kind: deterministic
 - symptom: une bande de plateforme est **plate à zéro pendant des années**, puis saute d'un coup au niveau du compteur. Mesuré le 2026-09-12 sur « depuis le début · cumulé · par mois », artiste 1 : YouTube et SoundCloud tracées depuis 2023-01-01 alors que leur collecte démarre les 2025-11-29 et 2025-12-16, et un saut de **0 à 99 594 vues** d'un mois sur l'autre. La figure affirme deux choses fausses — que le compteur valait zéro, et qu'il a gagné 99 594 en un mois.
 - root_cause: `known(values, i)` rend délibérément `True` avant la première mesure d'une série — « zéro est vrai, la plateforme n'était pas collectée ». C'était juste, et c'est ce qui empêche SoundCloud de couper les 1 142 jours de Spotify. Mais ce raisonnement vaut pour une QUANTITÉ du jour, pas pour un niveau de COMPTEUR : le premier niveau d'un cumul n'est pas « zéro plus la croissance », c'est un stock hérité d'années qu'on n'a jamais regardées. `stackgroup` complète alors les index sans point à zéro (`stackgaps` par défaut), et la bande descend au sol.
@@ -3392,6 +3531,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-rule-that-was-right-for-quantities-applied-to-counters
 - status: reported
 - severity: P2
+- family: un-cumul-pris-pour-un-quotidien
 - kind: manual
 - symptom: la famille. Une règle écrite pour une quantité du jour — « la somme du seau », « zéro avant la première mesure », « le total de la période » — est appliquée à un niveau de compteur, où elle rend un chiffre faux d'un ordre de grandeur, jamais un plantage. **Quatre instances en deux jours** : le ×151 des seaux (`a-bucket-sums-deltas-instead-of-deriving-the-counter`), le ×887 des totaux bornés, le premier seau d'un compteur rendu `None` (×0,88 sur douze mois, invisible au pas jour), et la préhistoire à zéro ci-dessus.
 - root_cause: rien dans le code ne dit de quelle ESPÈCE est une série. `s4a_song_timeline.streams` est une quantité, `youtube_channel_history.view_count` et `soundcloud_tracks_daily.playback_count` sont des cumuls, `apple_music` n'a qu'un instantané — et toutes arrivent dans la même liste de `(date, valeur)`. Une règle qui traverse cette frontière sans la nommer est correcte sur la moitié des plateformes et fausse sur l'autre, pour toujours.
@@ -3412,6 +3552,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-empty-group-wins-a-desc-ranking
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: une surface qui affiche « le meilleur X » montre `—` alors qu'un vrai chiffre existe en base. Aucune erreur, aucune trace : la requête a bien rendu une ligne, et cette ligne est vide.
 - root_cause: dans PostgreSQL, `ORDER BY <expr> DESC` place les `NULL` **EN PREMIER** (`NULLS FIRST` est le défaut de `DESC`). Un classement dont l'expression peut valoir `NULL` — typiquement un ratio bâti sur `NULLIF(dénominateur, 0)` — élit donc le groupe VIDE avant tous ceux qui ont une valeur. Vérifié en base le 2026-09-13 sur `period_side_metrics` : une campagne Hypeddit à zéro visite passait devant une campagne à 46 pour cent.
@@ -3432,6 +3573,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-merged-branch-outlives-its-pull-request
 - status: guarded
 - severity: P4
+- family: un-document-qui-affirme-un-état-périmé
 - kind: manual
 - symptom: le dépôt affiche des dizaines de branches « actives » alors qu'une seule ligne de travail existe. Le propriétaire se demande s'il va **perdre des avancées** — mesuré le 2026-09-13 : « c'est bizarre qu'on ait 26 branches d'active sur github ? … là on va perdre nos avancées non ? ». Le coût n'est pas technique, il est cognitif : on ne sait plus distinguer ce qui porte du travail de ce qui n'en porte plus.
 - root_cause: le réglage GitHub `delete_branch_on_merge` valait **false** (vérifié par `gh api` le 2026-09-13). Chaque PR fusionnée laissait donc sa branche derrière elle. Aucune ne portait le moindre commit absent de `main` — les 24 ont été vérifiées **une par une** par `git rev-list --count origin/main..<branche>`, toutes à 0. Le flux de travail était correct depuis le début ; c'est le ramassage qui manquait.
@@ -3465,6 +3607,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-verification-read-through-a-filtering-wrapper
 - status: reported
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: manual
 - symptom: une commande de vérification rend une réponse **plausible et fausse**, et la décision qui s'ensuit est prise sur cette réponse. Mesuré le 2026-09-13 : `git log --oneline -1` a rendu `ee3cda9` alors que `git rev-parse HEAD` rendait `5682fb8` — deux commits différents, dans la même seconde, sur le même arbre.
 - seen_red: self-proving (tests/test_a_commit_message_is_not_fed_through_stdin.py::test_the_predicate_sees_the_forms_it_forbids) — test de non-vacuité existant, lu le 2026-09-26 : il FABRIQUE la forme fautive (six écritures de `git commit -F -`)
@@ -3484,6 +3627,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-timeout-reported-as-a-missing-thing
 - status: guarded
 - severity: P3
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: un outil annonce qu'une chose N'EXISTE PAS alors qu'il a seulement cessé de l'attendre. Mesuré le 2026-09-15 : `.claude/scripts/select_tests.py --dry` a répondu « **pas un dépôt git**, ou diff illisible » **dans ce dépôt git**, pendant qu'un `audit_runner --deterministic` lançait sur /mnt/c son lot de signatures déterministes — **297**, dont 287 sont des pytest. `git diff --name-only HEAD` y dépassait les 30 s du `timeout`, et la même valeur de repli qu'un répertoire sans `.git` remontait jusqu'au message.
 - root_cause: `_git()` attrapait `subprocess.SubprocessError` — dont `TimeoutExpired` est une sous-classe — et rendait `None`, la valeur qui signifiait déjà « pas de dépôt ». Deux pannes de natures opposées écrasées sur un seul repli : l'une est PERMANENTE et se corrige en changeant de répertoire, l'autre est TRANSITOIRE et se corrige en relançant au calme. Le VERDICT restait juste (suite entière, la direction sûre exigée par la règle transverse #16) ; c'est la RAISON qui mentait, et c'est elle qu'on lit.
@@ -3508,6 +3652,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-measurement-taken-under-self-inflicted-load
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un chiffre de performance est mesuré pendant que d'autres processus LANCÉS PAR MOI occupent la machine, puis lu comme une propriété du système. **Trois occurrences le 2026-09-15, toutes le même jour** : (1) `pytest --collect-only` annoncé à **386,9 s** avec trois sous-agents Explore et un `audit_runner` en fond — **30,1 s** machine au repos, facteur **12,8** ; (2) un micro-banc donnant « `/mnt/c` est **3 568×** plus lent qu'ext4 », rapport ordinaire une fois seul ; (3) une suite `--dist loadgroup` annoncée **7× plus lente**, alors que **DEUX suites tournaient en même temps** — 16 workers xdist sur 8 cœurs logiques.
 - root_cause: le profil d'une machine SURCHARGÉE est indiscernable de celui d'une machine LENTE. `user 0m37s / sys 0m24s` pour 387 s de chronomètre ressemble exactement à un goulot d'entrées-sorties légitime — c'en est un, mais la file d'attente est la mienne. Et le déclencheur de la troisième occurrence est un piège en deux temps : **le log de pytest ne montre rien pendant les ~30 s de collecte**, ce qui ressemble à un processus mort, ce qui pousse à en relancer un second. Les deux tournent alors ensemble et se mesurent l'un l'autre.
@@ -3529,6 +3674,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-blocking-hook-that-writes-its-reason-to-stdout
 - status: guarded
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: un hook PreToolUse bloque une commande et l'appelant ne voit AUCUN motif : l'outil rapporte « No stderr output ». La porte est fermée, la raison est invisible, et il faut relancer le hook à la main — avec une ligne de commande construite pour ne pas se redéclencher elle-même — juste pour lire le message.
 - root_cause: le contrat PreToolUse de Claude Code est : `exit 2` bloque, et c'est **stderr** qui remonte le motif au modèle. `pre_commit_scan.py` écrivait son bloc « 🚫 BLOCKED » avec un `print()` nu, donc sur stdout, où il est avalé. Le défaut est resté invisible tant qu'aucun fichier ne déclenchait le scanner ; il est apparu le 2026-09-16 sur un faux positif — un mot de passe littéral, argument d'un mock passé à un `psycopg2.connect` patché.
@@ -3548,6 +3694,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-file-whose-tests-share-a-namespace
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: sous une distribution test-par-test (`--dist loadgroup`, ou des shards), deux tests d'un MÊME fichier tournent en parallèle et se disputent un nom qu'ils croyaient à eux. L'échec est intermittent et, pire, il se déguise : l'assertion rouge parle d'autre chose que de la course.
 - root_cause: le fichier partage un espace de noms entre ses propres tests — un dossier du dépôt, un préfixe de slug, un identifiant de locataire, un nom de fichier horodaté à la seconde. Sous `--dist loadfile` l'ordre du fichier le masquait. Quatre occurrences mesurées le 2026-09-15, et la plus instructive est `test_registration_is_not_an_oracle` : le nom d'artiste par défaut de son helper est fixe, le slug en dérive et se déduplique en `oracle-probe-N`, Postgres rend `duplicate key … (slug)=(oracle-probe-12)`, l'inscription échoue — et le test lit cet échec comme « un code invalide a annulé l'inscription », **le contraire de la vérité**.
@@ -3564,6 +3711,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-prudence-rule-with-no-expiry-becomes-a-freeze
 - status: guarded
 - severity: P3
+- family: un-coût-payé-sans-contrepartie
 - kind: manual
 - symptom: une dépendance reste gelée des ANNÉES sur une version que personne n'a choisie, et rien ne le signale. Le symptôme visible est ailleurs et ne ressemble pas à une dépendance : ici, 20 s perdues par job de CI.
 - root_cause: une clause de prudence sans ÉCHÉANCE ni VISIBILITÉ. `.github/dependabot.yml` ignore les mises à jour MAJEURES pour `github-actions`, et la raison est bonne — une majeure change le runner sous la CI, la seule chose qui parle avant un déploiement. Mais une action qui ne publie QUE des majeures ne produit alors AUCUNE PR, et le silence est indiscernable d'« à jour ». Mesuré le 2026-09-16 : `astral-sh/setup-uv` était épinglé en **v4** quand la **v10** était publiée — six majeures. La v4 parle à l'API de cache que GitHub a retirée, d'où `Failed to restore: Cache service responded with 400` sur chaque exécution, un taux de succès de cache de **0 %**, et `Install uv` à 20 s par job — le plus gros poste fixe une fois la suite shardée. Le même jour, le rapport a trouvé trois autres actions à une majeure de retard, dont personne ne savait rien non plus.
@@ -3593,6 +3741,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-action-pin-derived-from-a-version-number
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: manual
 - symptom: les CINQ jobs d'un workflow échouent en **neuf secondes**, à « Prepare all required actions », avant la moindre mise en route : `Unable to resolve action owner/repo@vN, unable to find version vN`. Aucun test du dépôt ne peut le voir — il n'y a pas d'exécution où le voir.
 - root_cause: un épinglage DÉDUIT d'un numéro de version au lieu d'être vérifié contre les tags amont. Mesuré le 2026-09-16 : un rapport annonçait « setup-uv est en retard, dernière version v10.1.0 », j'ai écrit `@v10`, et ce tag n'existe pas — `astral-sh/setup-uv` publie des versions exactes et PAS de tag majeur flottant, alors que `@v4`, lui, en avait un. La convention « les actions publient un tag majeur » est vraie de `actions/checkout` et fausse ici, et rien ne distingue les deux sans interroger le dépôt amont. Le rapport qui a induit l'erreur est le correctif d'une AUTRE classe, écrit deux heures plus tôt : `a-prudence-rule-with-no-expiry-becomes-a-freeze`.
@@ -3611,6 +3760,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-gate-that-repairs-what-it-judges
 - status: guarded
 - severity: P1
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une porte BLOQUANTE de la CI passe au vert sur un arbre qui porte exactement le défaut qu'elle cherche. Elle n'a jamais pu échouer, et rien dans son texte ne le laisse voir — elle a un nom juste, une commande juste, et un verdict sans valeur.
 - root_cause: la commande de la porte MODIFIE l'arbre avant de le juger. Mesuré le 2026-09-16 : `Manifest consistency (blocking)` lance `uv run python tools/dev/check_manifest_consistency.py`, or **`uv run` re-verrouille et re-synchronise avant d'exécuter**. Le contrôle lisait donc un `uv.lock` que sa propre commande venait de réparer. Cas vivant : la PR #161 (Dependabot) bumpait `pyproject.toml` et `requirements.txt` sans toucher `uv.lock` — Dependabot ne connaît pas ce format. Au commit testé (`1efcab9`), `uv.lock` disait streamlit **1.62.0** et `pyproject.toml` **1.63.0** ; la porte est passée VERTE et la PR a été mergée. Rejoué à la main sur le même arbre : `.venv/bin/python …` sort **rc=1** avec trois lignes `MANIFEST-DRIFT`, `uv run …` sort **rc=0** et laisse `uv.lock` MODIFIÉ derrière lui.
@@ -3631,6 +3781,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-count-taken-before-the-writer-ran
 - status: reported
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: manual
 - symptom: une mesure rend zéro, on en conclut qu'il n'y a rien à faire, et le travail correspondant n'est pas fait. Rien n'échoue — le chiffre était juste **à l'instant où il a été pris**, et faux dès la minute suivante.
 - root_cause: la mesure a été prise AVANT que l'écrivain n'ait tourné. Mesuré le 2026-09-16, deux fois dans la même séance : (1) « la suite écrit-elle dans `rate_limit_hits` ? » — compté **en cours de suite**, réponse 0, conclusion « pas de rayon de souffle, rien à faire ». `tests/test_api.py` n'avait simplement pas encore tourné ; il consomme dix `POST /auth/token` sur un budget de dix par cinq minutes, et le lancement suivant tombait en `assert 429 == 200`. (2) « quel est le gain d'ext4 ? » — chronométré sur un arbre où la copie ext4 collectait 11 erreurs de plus, donc faisait MOINS de travail : le rapport annoncé comparait deux populations.
@@ -3649,6 +3800,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-threshold-carried-across-instruments
 - status: guarded
 - severity: P2
+- family: un-seuil-écrit-d-instinct
 - kind: manual
 - symptom: un déclencheur chiffré se déclenche — ou ne se déclenche pas — et la décision qui en découle repose sur une comparaison qui n'a jamais eu de sens. Rien n'échoue : les deux nombres existent, sont justes, et ne mesurent pas la même chose.
 - root_cause: le SEUIL a été défini avec un instrument, et LU avec un autre. Mesuré le 2026-09-16 par `code-critic` sur R87/R114 : le déclencheur disait « `loadtest_dashboard.py -n 12` rend un p50 > 200 ms ». Cet outil sature lui-même la mesure (352 ms à un fil, 2 144 ms à six, sous `AppTest`) — c'est précisément pourquoi il a été remplacé par `tools/loadtest_concurrency.py`, qui passe par un vrai navigateur. Le nouvel outil rend **329 ms à N=1**, donc sans aucune concurrence, déjà au-dessus d'un seuil écrit pour l'ancien. Le remplacement de l'instrument était un progrès ; ce qui a été oublié est que **le seuil appartenait à l'instrument**, pas au phénomène.
@@ -3668,6 +3820,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## correct-because-there-is-only-one-of-it
 - status: guarded
 - severity: P1
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: du code exact aujourd'hui devient faux le jour où une seconde instance existe — **sans qu'une seule ligne change**. Rien n'échoue au moment du changement : c'est une phrase de commentaire qui cesse d'être vraie, et personne ne relit les commentaires en ajoutant un conteneur.
 - root_cause: un état vit dans la mémoire du PROCESSUS, et son exactitude repose sur le fait qu'il n'y a qu'un processus par surface. Mesuré le 2026-09-16, **quatre fois dans la même séance**, chacune trouvée par un chemin différent : (1) les seaux anti-force-brute — `budget × N` sur un chemin d'authentification, trouvé en écrivant le garde des répliques ; (2) `clear_kpi_caches()` — purge son propre interpréteur, donc dix minutes de chiffres périmés sur l'autre instance, trouvé en lisant le code ; (3) la sonde de santé du déploiement — `*) continue` sur un service inconnu, trouvé par `code-critic` ; (4) le retour arrière — reconstruit `$SERVICES` au lieu du service en panne, trouvé par `code-critic`. Les quatre ont été ÉCRITS CORRECTS. Le dénominateur commun n'est pas la négligence, c'est qu'à un exemplaire les deux comportements sont indiscernables.
@@ -3687,6 +3840,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-reload-that-does-not-reload-what-you-changed
 - status: resolved
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: manual
 - symptom: on pose un fichier de configuration, on recharge le service, la commande sort en 0, le fichier est bien là — et **le réglage n'est pas appliqué**. Rien n'échoue. La seule façon de s'en apercevoir est de mesurer l'EFFET, ce qu'on ne fait pas quand tout indique le succès.
 - root_cause: **`reload` et `restart` ne reprennent pas le même sous-ensemble de la configuration**, et la documentation d'un démon le dit rarement. Mesuré le 2026-09-16 : `/etc/docker/daemon.json` posé avec `log-opts.max-size`, `systemctl reload docker` exécuté sans erreur, `docker info` rendant bien `json-file`. Un conteneur témoin écrivant 400 000 lignes a produit **un seul fichier de 65 Mo**, sans aucun `…-json.log.1` : la rotation n'était pas active. Les options de journalisation demandent un `restart`.
@@ -3707,6 +3861,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-telemetry-table-that-nothing-ever-purges
 - status: reported
 - severity: P2
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: une table écrite à chaque événement grossit sans borne. Rien n'échoue jamais — jusqu'au jour où une requête de tableau de bord ralentit, ou où le disque se remplit, et la cause a alors des mois d'avance sur le symptôme.
 - root_cause: une table de télémétrie est ajoutée pour répondre à un besoin de traçabilité, et **la question « qui l'efface ? » n'est jamais posée** parce qu'elle n'a pas de propriétaire naturel. Mesuré le 2026-09-16 sur ce dépôt : **13 tables de télémétrie, UNE SEULE purgée** (`rate_limit_hits`, et seulement parce que `code-critic` l'avait exigé en condition bloquante). `usage_events` (une ligne par interaction), `etl_run_log` (2 196 lignes), `app_error_log` et `monitoring_run` croissent indéfiniment. Aucune n'a de rétention déclarée.
@@ -3725,6 +3880,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-ratchet-that-only-watches-the-direction-it-was-burned-in
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un garde passe VERT sur un défaut qui appartient pourtant très exactement à son sujet. En le relisant on ne trouve rien à redire : il fait ce qu'il dit. Il ne dit simplement qu'une moitié.
 - root_cause: un cliquet est écrit le jour où l'on s'est trompé, donc il surveille **la direction de cette erreur-là**. Mesuré le 2026-09-16 : `test_roadmap_two_files.py` échoue quand la somme des deux fichiers de ROADMAP **diminue** — écrit après une rotation qui perdait un item. Une réécriture a recopié toute la fin du fichier actif (664 → 1 104 lignes, R117 et le bloc de reprise en double) : la somme AUGMENTE, donc les six gardes du fichier sont passés verts. `/resume` aurait lu le premier bloc de reprise et ignoré tout ce qui suit.
@@ -3744,6 +3900,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-docstring-exclusion-that-compares-dedented-text
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un garde qui lit l'AST — donc écrit précisément pour ne PAS être textuel — reste malgré tout vert sur sa propre mutation. Il a l'air rigoureux et il ne garde rien.
 - root_cause: pour ignorer les docstrings, on compare la valeur d'un `ast.Constant` à `ast.get_docstring(node)` **en laissant `clean` à son défaut**. Or `clean=True` nettoie et DÉSINDENTE, alors que le `Constant` porte le texte brut, indentation comprise : les deux ne sont jamais égaux, l'exclusion ne retire rien, et la docstring du module suffit à satisfaire n'importe quelle recherche de littéral. Mesuré le 2026-09-16 : la mutation « `_get("/api/v1/rules")` → `_get("/api/v1/alerts")` » est passée inaperçue parce que la docstring du module cite `/api/v1/rules`.
@@ -3763,6 +3920,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-identifier-that-is-referenced-but-never-declared
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: **une interface entière rend « No data », et rien n'est en erreur.** Aucun journal ne se plaint, la source de données répond, les requêtes sont justes, les cibles sont vertes. Le lecteur conclut « il n'y a rien à montrer » — la lecture exactement inverse de la vérité.
 - root_cause: une moitié du système **référence** un identifiant fixe pendant que l'autre le **laisse générer**. Mesuré le 2026-09-16 : les neuf panneaux de `deploy/grafana/dashboards/streamlytics-ops.json` portent `datasource: {type: prometheus, uid: PROM}`, et `deploy/grafana/provisioning/datasources/prometheus.yml` ne déclarait aucun `uid` — Grafana en génère alors un aléatoire au premier démarrage. Les panneaux visaient une source inexistante. Parent de la classe [`config-path-dangling`](#config-path-dangling) : là c'était un chemin absent, ici c'est un identifiant qui existe sous un autre nom. Le résultat est le même — une référence que rien ne résout, et aucun outil pour le dire.
@@ -3781,6 +3939,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-population-chosen-by-a-proxy-for-the-cost
 - status: resolved
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: manual
 - symptom: une brique d'optimisation énumère précisément **les mauvaises cibles**. La liste est juste selon son propre critère, le travail est réel, et le gain est nul — parce que le critère n'était pas la grandeur qu'on voulait réduire.
 - root_cause: on ne sait pas mesurer ce qui coûte, alors on énumère ce qui se COMPTE. Mesuré le 2026-09-16 : R118 (« `st.fragment` sur les 11 vues à filtres ») avait choisi sa population par **nombre de widgets**, faute d'instrument. La première session mesurée a montré que les trois pages les plus chères — `meta_mapping` 777 ms, `soundcloud` 515 ms, `home` 316 ms — **n'ont presque aucun filtre**, et qu'un fragment ne borne que le travail refait quand un filtre bouge. Une seule des huit pages mesurées justifiait la brique. Le proxy n'était pas absurde, il était simplement décorrélé.
@@ -3800,6 +3959,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-status-screen-that-reads-half-its-source
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: un écran d'état annonce un TOTAL faux, sans erreur et sans trou visible. Il dit « 0 » là où la source en porte une, parce qu'il ne lit qu'une partie de cette source. Personne ne vérifie un total : c'est ce qu'on lit à la place de vérifier.
 - signature: `.venv/bin/python -m pytest tests/test_the_status_screen_reads_all_its_source.py -q -p no:cacheprovider >/dev/null 2>&1`
@@ -3819,6 +3979,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## two-instruments-that-do-not-observe-the-same-path
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: deux instruments censés mesurer la même chose rendent des résultats incompatibles, et l'un des deux rend **zéro**. Le zéro se lit comme « rien ne s'est passé » alors qu'il signifie « je n'ai rien observé ». C'est la lecture, pas l'écart, qui coûte.
 - signature: `.venv/bin/python -m pytest tests/test_a_load_guard_measures_load_not_names.py::test_the_instrumented_path_is_behind_the_login_gate -q -p no:cacheprovider >/dev/null 2>&1`
@@ -3841,6 +4002,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-replica-that-builds-its-own-image
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: une seconde instance d'un service, définie par `extends`, sert un artefact DIFFÉRENT de celui qu'elle réplique — code applicatif d'un autre commit, autre commande de démarrage — et rien ne le signale. Derrière un répartiteur de charge, un visiteur sur deux reçoit une version du logiciel que personne n'a déployée.
 - root_cause: `deploy/docker-compose.replica.yml:42` dérive `dashboard2` de `dashboard` par `extends`. **`extends` reprend aussi la clé `build:`**, et Compose tague alors le résultat d'après le nom du SERVICE — `streamlytics-dashboard2`, pas `streamlytics-dashboard`. Deux tags, donc deux artefacts. Et `docker compose up -d` ne reconstruit JAMAIS une image dont le tag existe déjà : il sert celle qui traîne. Le service n'a pas non plus de bind-mount sur `src/` (vérifié : seuls `machine_learning`, `docs`, `data` sont montés), donc le code EST dans l'image — ce n'est pas seulement la commande qui vieillit, c'est l'application.
@@ -3863,6 +4025,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-sweep-predicate-that-matches-a-form-not-a-property
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: heuristic
 - symptom: un balayage annonce un nombre de sites, et ce nombre est faux d'un facteur 3 à 25 — toujours dans le sens du SUR-COMPTAGE. Rien ne le signale : le prédicat tourne, rend une liste, et la liste a l'air d'un résultat. Le défaut n'apparaît qu'en LISANT les sites un par un, ce qu'un chiffre dispense justement de faire.
 - signature: `grep -c "un-tiers-des-predicats" .claude/dev-docs/error-class-health.md` — heuristique, report-only : la mesure vit dans le champ `siblings:` de chaque classe, pas dans une commande.
@@ -3883,6 +4046,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-backtick-in-a-shell-string-is-executed
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: heuristic
 - symptom: une commande destinée à être AFFICHÉE s'exécute. Le message qui décrit un geste devient le geste. Rien n'avertit : la sortie ressemble à celle de la commande qu'on croyait lancer, plus celle qu'on ne voulait pas.
 - signature: `python3 -m pytest tests/test_a_description_does_not_execute.py -q`
@@ -3902,6 +4066,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-parenthesis-is-not-a-tuple
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: une requête paramétrée ne s'exécute JAMAIS. Elle lève avant d'atteindre la base, un `except` plus haut l'attrape, et l'appelant reçoit une liste vide — qui se lit comme « il n'y a rien à montrer ». Aucune surface ne distingue les deux.
 - signature: `.venv/bin/python -m pytest tests/test_a_query_parameter_is_really_a_tuple.py -q`
@@ -3920,6 +4085,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## guard-satisfied-by-its-own-comment
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: le défaut est remis en place **en entier** et la suite reste VERTE. Rien ne signale quoi que ce soit — c'est un garde qui ne garde plus, dans l'état exact où l'on se croit couvert. Le symptôme n'existe donc pas : il faut aller le chercher par mutation.
 - root_cause: une assertion de PRÉSENCE (`assert "<mot>" in <texte lu d'un fichier>`) ne distingue pas le code de la prose du fichier visé. `tests/test_the_spotify_page_reads_only_the_gold_layer.py` affirmait `"MATERIALIZED" in sql` sur `migrations/119_gold_s4a_release_cohort.sql`, où le mot vit **deux fois** : dans la CTE `WITH linked AS MATERIALIZED (` (ligne 61) et dans le commentaire qui explique pourquoi elle l'est (ligne 57). Inliner la CTE laissait le commentaire, donc l'assertion.
@@ -3940,6 +4106,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-blocking-gate-red-on-its-own-syntax
 - status: guarded
 - severity: P2
+- family: un-contrôle-qui-ne-peut-jamais-passer
 - kind: deterministic
 - symptom: une porte bloquante est rouge, et ce qu'elle nomme n'existe pas. Le message dit « ces touches sont réelles » ; on cherche un défaut du produit, il n'y en a pas. Au bout de quelques jours, l'équipe apprend qu'un rouge de cette porte est du bruit — et c'est la porte entière qui cesse de compter.
 - root_cause: `run_signature` (`.claude/scripts/audit_runner.py:190`) posait `hit = proc.returncode != 0`. Ce prédicat confond un VERDICT (« j'ai cherché, j'ai trouvé ») avec une PANNE D'OUTILLAGE : `sh` qui ne sait pas parser la commande (2), `grep` qui ne peut pas lire un fichier (2), `pytest` qui ne collecte aucun test parce que la signature pointe un test renommé (5), une commande absente de l'image (127), un dépassement de délai. Aucun de ces cinq ne parle du produit.
@@ -3961,6 +4128,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-cache-whose-sharing-depends-on-an-unasserted-scheduler-flag
 - status: guarded
 - severity: P4
+- family: un-coût-payé-sans-contrepartie
 - kind: deterministic
 - admitted: sites:2
 - symptom: un montage d'optimisation est en place, tous les tests sont verts, et le gain qu'il devait rendre est **nul**. Rien ne rougit, parce que le montage n'a supprimé aucune propriété : il a seulement cessé de partager ce qu'il partageait. Le symptôme est une facture de temps, et une facture ne fait pas échouer de test.
@@ -3980,6 +4148,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-prose-claim-that-cannot-be-verified
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: un document dont les TABLEAUX sont justes affirme le contraire dans la prose posée à côté, et rien ne le voit. Mesuré le 2026-09-15 sur `.claude/dev-docs/roadmap/checklist.md` : **trois phrases** annonçaient « R1 reste en attente, dans « 🙋 En attente de toi » plus bas » alors que cette table était vide depuis le 2026-09-10 et le disait elle-même quatre cents lignes plus bas, R1 ayant été rotée dans `archive.md`. Le même fichier portait aussi « 7,9 % des lignes YouTube changent de jour selon le fuseau », un chiffre **retiré comme faux le 2026-09-10 même** dans trois autres fichiers. C'est le premier fichier que lit `/resume` : la séance part donc d'un état faux, énoncé à voix haute.
 - root_cause: les gardes de ce dépôt lisent des STRUCTURES — tableaux, ancres, cases à cocher, AST. La prose n'est structurée par rien, donc elle n'est lue par rien, et elle est pourtant ce qu'un humain croit en premier. Quand une ligne est rotée d'une table, la table devient juste immédiatement et la phrase qui la commentait devient fausse au même instant, sans qu'aucune des deux ne change de forme. Le 2026-09-12 le même fichier annonçait « quatre tâches rouvertes » contre un index vide ; il nommait déjà cette classe dans son propre texte, **sans qu'elle existe dans ce catalogue** — nommer n'est pas garder.
@@ -4004,6 +4173,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-local-measurement-presented-as-a-production-fact
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - admitted: sites:2
 - admitted_detail: `tools/dev/reopen_check.py::_r116`/`_r131` (corrigé le 2026-09-20) et `tools/error_inbox.py` (VIVANT). Plus quatre occurrences datées du même jour, dont trois dans mes propres rapports.
@@ -4024,6 +4194,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-test-that-only-ever-ran-on-its-authors-machine
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - admitted: sites:7
 - admitted_detail: balayage `sibling-sweeper` du 2026-09-24, chaque site rejoué dans la forme qui le fait rougir. F1 (résolveur à deux portes) : `tests/db_gate.py` → `PostgresHandler(**dsn())` dans `tests/test_a_curve_ends_where_its_tile_says.py` et `tests/test_the_pool_keeps_what_a_direct_connection_promised.py` ; `tests/test_health_answers_for_its_database.py` (deux tests) ; `tests/test_every_way_of_asking_gives_one_answer.py` (rouge EN LOCAL). F2 (vérité calibrée sur la base du poste) : `tests/test_the_declared_schema_matches_the_database.py`, `tests/test_an_export_offers_only_what_something_writes.py`, `tests/test_a_tab_renders_inside_its_tab.py`.
@@ -4045,6 +4216,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-proof-that-tests-a-copy-of-its-detector
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - admitted: sites:4
 - admitted_detail: quatre sites vivants le 2026-09-26, dans quatre fichiers — `test_a_shared_path_does_not_drag_a_view_behind_it.py` (la preuve reconstruisait le prédicat d'import paresseux), `test_a_dimension_table_carries_no_quantity.py` (le critère de quantité écrit deux fois), `test_roadmap_two_files.py` (regex + `Counter` du détecteur de doublons écrits deux fois), `test_the_total_row_filter_has_one_home.py` (la boucle de `_constantes` recopiée dans sa preuve — trouvé par `sibling-sweeper`)
@@ -4068,6 +4240,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-test-writes-a-probe-into-the-real-tree
 - status: guarded
 - severity: P3
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - admitted: sites:6
 - admitted_detail: balayage `sibling-sweeper` du 2026-09-26 sur `tests/` (145 candidats bruts → ~110 sous `tmp_path`, 9 en `tempfile` hors dépôt, 3 écrivains sérialisés par `xdist_group` et déclarés, 1 script non collecté → **6 sites vivants**) : `test_a_platform_colour_has_one_definition.py`, `test_a_period_selector_is_the_shared_one.py` (2 sondes), `test_chart_budget.py`, `test_a_retired_table_has_no_reader_left.py`, `test_the_spotify_page_reads_only_the_gold_layer.py`, `test_a_credential_in_a_query_param_never_reaches_a_message.py` (`NamedTemporaryFile(dir=ROOT)`)
@@ -4088,6 +4261,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-red-verdict-delivered-to-an-inbox-nobody-reads
 - status: guarded
 - severity: P1
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - admitted: p1:production coupée de 11:45 à 20:51 UTC le 2026-09-24 (app, API, webhook Stripe), vue par la sonde à 11:45 et par un humain le soir, par hasard
 - symptom: un contrôle tourne, rougit à temps sur une vraie panne, et personne ne le sait. Son verdict ne part que par un canal que le destinataire ne lit pas — les notifications natives de GitHub, sur l'adresse du compte. La panne dure jusqu'à ce qu'un geste sans rapport la heurte.
@@ -4109,6 +4283,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-gate-that-pays-a-check-twice
 - status: guarded
 - severity: P4
+- family: un-coût-payé-sans-contrepartie
 - kind: deterministic
 - admitted: sites:2
 - admitted_detail: balayage du 2026-09-25 sur l'étape « REX integrity + static error-class guards » de `.github/workflows/ci.yml` : `tools/dev/gold_coverage.py --check` et `.claude/scripts/check_config_refs.py` y tournaient chacun comme ligne explicite ET comme signature de `audit_runner.py --static`.
@@ -4129,6 +4304,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-command-wrapper-that-returns-a-plausible-wrong-measurement
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une commande de vérification rend un résultat **crédible et faux**. Rien n'échoue, aucun message, et le chiffre est du bon ordre de grandeur — donc on le cite. Les conclusions bâties dessus sont fausses sans que rien ne le signale.
 - signature: `python3 -c "import pathlib,sys;p=pathlib.Path.home()/'.config/rtk/config.toml';sys.exit(0) if not p.exists() else None;exec('try:\n import tomllib\nexcept ImportError:\n sys.exit(0)');d=tomllib.loads(p.read_text(encoding='utf-8'));sys.exit(1 if (d.get('tee',{}).get('enabled') is True or not {'grep','diff','ps'} <= set(d.get('hooks',{}).get('exclude_commands',[]))) else 0)"`
@@ -4148,6 +4324,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## config-path-dangling
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: a rule, skill or command names a `.claude/` file that is not there. Nothing errors — the instruction is simply unfollowable, and the reader cannot tell an absent file from an unimportant one.
 - signature: `python3 .claude/scripts/check_config_refs.py`
@@ -4197,6 +4374,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-major-upgrade-that-moves-a-default
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: une montée de MAJEURE laisse le build vert et rend une de ses garanties fausse. Rien n'échoue, rien n'avertit : le seul endroit où le changement existe est le log de l'outil, dans une ligne que personne ne lit quand tout est vert.
 - root_cause: la majeure change une valeur PAR DÉFAUT dont on dépendait sans l'avoir écrite. Mesuré le 2026-09-16 sur `astral-sh/setup-uv` : la v4 clé le cache sur `**/uv.lock`, la v10 sur `**/*requirements*.txt`. Or ce dépôt installe par `uv sync --frozen`, qui n'installe QUE ce que dit `uv.lock` — après la montée, le cache s'invalidait quand `requirements.txt` bougeait (donc pas quand les dépendances installées changeaient) et survivait quand `uv.lock` changeait. Vert dans les deux cas, faux dans les deux cas.
@@ -4215,6 +4393,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## audit-reads-the-constraints-not-the-installed-set
 - status: guarded
 - severity: P3
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: l'audit de vulnérabilités rend un rapport propre pendant que le parc réellement installé porte des dizaines d'avis. Il lit un fichier de **contraintes** (des planchers `>=`) que rien n'installe tel quel.
 - root_cause: `.github/workflows/security-nightly.yml` exécutait `pip-audit -r requirements.txt`. Ce fichier porte des planchers (`weasyprint>=62.0`, `cryptography>=42.0.0`), donc pip-audit résolvait des versions récentes — pendant que la CI installait `uv.lock` via `uv sync --frozen`, qui épinglait `pyjwt 2.12.1` (notre authentification), `starlette 1.0.0`, `python-multipart 0.0.28` : **127 avis sur 18 paquets**.
@@ -4234,6 +4413,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## config-not-env
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: a bootstrap/runtime path subscripts `config['…']` directly (config.yaml-only) instead of reading env first → `KeyError` in prod where there is no `config.yaml` (SMTP, DATABASE_URL, FERNET_KEY, Airflow URL, DB schema bootstraps). 4 REX recurrences; this session fixed 11 `*_schema.py` bootstraps.
 - signature: `python3 -m pytest tests/test_a_schema_reads_the_env_not_the_config_file.py -q`. Avant : `! grep -rnE "config(_loader\.load\(\))?\[" src/database/*_schema.py`
@@ -4252,6 +4432,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## ast-guard-blind-to-bom
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: a source file starts with a UTF-8 BOM (`\xef\xbb\xbf`). `ast.parse` on text read with plain `encoding="utf-8"` raises `SyntaxError: invalid non-printable character U+FEFF`, so every AST-based guard **silently scans nothing** in that file. The file looks covered; it is not.
 - root_cause: files edited on Windows acquire a BOM; Python tolerates it at runtime (the interpreter strips it) but `ast.parse` on an already-decoded string does not. A guard that catches `SyntaxError` and moves on turns the blind spot into a pass.
@@ -4272,6 +4453,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-limiter-consumed-in-two-steps
 - status: guarded
 - severity: P1
+- family: une-écriture-qui-écrase
 - kind: deterministic
 - symptom: un limiteur ATOMIQUE ne borne que les tentatives séquentielles. N requêtes simultanées obtiennent toutes l'autorisation, le budget affiché est respecté à la lecture et dépassé dans les faits. Aucun test ne le voit : chaque tentative, prise seule, est correcte.
 - root_cause: l'atomicité est construite dans le magasin et **contournée au site d'appel**. Mesuré le 2026-09-16 : `src/utils/request_throttle.py` sérialise `DELETE / count / INSERT` sous `pg_advisory_xact_lock`, mais `src/dashboard/auth.py` appelait `throttle_check()` (qui ne consomme PAS), vérifiait le code TOTP, puis `throttle_record()` seulement en cas d'échec. Entre la lecture et l'écriture tient tout le travail. Streamlit sert des sessions distinctes en parallèle : ouvrir N onglets suffisait. Le seau de 10 codes par 15 min ne bornait donc rien de simultané. Même forme sur `login` et `register`. Le découpage `check`/`record` existait pour une bonne raison — ne pas facturer deux fois — et c'est cette raison qui a rendu le défaut invisible.
@@ -4290,6 +4472,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## df-na-rep
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: `df.style.format({...})` without `na_rep=` → `TypeError` when a formatted column is NULL (LEFT JOIN / empty window).
 - signature: `python3 -m pytest tests/test_a_styled_table_names_its_missing_values.py -q` — le prédicat d'ARBRE du hook, appliqué à toutes les vues. Avant (textuelle, heuristique) : `! grep -rnE "\.style\.format\(" src/dashboard/views/ | grep -v "na_rep"`
@@ -4311,6 +4494,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-secret-committed-to-a-public-history
 - status: guarded
 - severity: P1
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - admitted: p1:12 secrets réels (secret client Spotify, clé API YouTube, secret d'app et jeton Meta, clé Fernet et secret_key Airflow) lisibles dans l'historique git d'un dépôt PUBLIC depuis les commits du 2025-10-20 au 27, deux encore en service le 2026-09-25
 - symptom: `gitleaks` rouge 5 nuits sur 5, lu par personne ; un `git clone` suffit à lire des identifiants de production — sans compte, sans trace
@@ -4330,6 +4514,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## migration-ahead-of-its-code
 - status: guarded
 - severity: P1
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: a migration that changes a **key** (primary key, unique constraint, conflict target) is applied to production while the code that uses the new key is not yet deployed. Every `ON CONFLICT` upsert against the old target then fails with `there is no unique or exclusion constraint matching the ON CONFLICT specification`, and collection stops.
 - root_cause: migrations are treated as independently deployable because most of them are — adding a column, an index, a table is forward-compatible in both directions. A key change is not: it is a contract between the schema and the writer, and applying half a contract breaks the half that is live.
@@ -4349,6 +4534,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-guard-names-a-class-nobody-wrote
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: un défaut est parfaitement décrit — symptôme, cause, mesure, date, coût — **dans la docstring d'un test, et nulle part ailleurs**. Le catalogue ne le connaît pas, `error-class-families.md` ne le range pas, `make error-health` ne le compte pas. Sa prochaine occurrence passera pour neuve, et on écrira une seconde classe sous un autre nom.
 - root_cause: la cohérence entre le catalogue et les gardes n'était vérifiée que dans UN sens. `tests/test_every_named_guard_exists.py` (2026-08-26) vérifie **classe → garde** : si une classe nomme un fichier de test, ce fichier est sur le disque. Rien ne vérifiait **garde → classe**. Or la marque `Error class \`<id>\`` en tête de docstring est la convention du dépôt, écrite 81 fois dans `tests/`, `.claude/hooks`, `.claude/scripts` et `tools/` — et **7 de ces 81 nommaient une classe absente du catalogue** (mesuré le 2026-09-16 pendant la revue R122). Deux étaient des renommages où la docstring était restée en arrière ; les cinq autres sont des classes que personne n'a jamais écrites : l'auteur a nommé la classe dans le seul endroit que rien ne relit, et `/capitalise` n'a jamais tourné.
@@ -4368,6 +4554,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-memo-field-written-and-never-consulted
 - status: guarded
 - severity: P3
+- family: un-coût-payé-sans-contrepartie
 - kind: deterministic
 - symptom: un attribut de mémoïsation existe, il est rempli à chaque appel, et le travail est refait quand même. Aucun signal : **un cache sans succès se comporte exactement comme pas de cache**. Le code se relit comme s'il gardait quelque chose, et c'est précisément pour ça que personne ne le rouvre.
 - root_cause: la méthode qui REND la valeur est aussi celle qui la calcule, et elle ne teste jamais si le mémo est déjà rempli avant de refaire le travail. `src/utils/config_loader.py:22` — `ConfigLoader.load()` écrivait `self._config` puis le retournait, sans aucun court-circuit ; seuls les trois `get_*_config()` consultaient le champ. Mesuré le 2026-09-17 : **4,92 ms par appel** (médiane de 30, min 4,42, max 8,34) pour reparser **2 424 octets** de YAML. Le fichier est minuscule — le coût est l'OUVERTURE : ce dépôt vit sur `/mnt/c`, monté par `drvfs`, où chaque `open()` est un message 9P à travers la frontière VM/hôte. C'est le même fait que R117 mesure à ×69 sur l'écriture de petits fichiers.
@@ -4388,6 +4575,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## artist-id-or-1
 - status: guarded
 - severity: P1
+- family: le-locataire
 - kind: deterministic
 - symptom: `get_artist_id() or 1` coerces an unhydrated session onto artist 1 → cross-tenant data leak (CLAUDE.md rule #7).
 - signature: `python3 -m pytest tests/test_a_tenant_scoped_action_names_its_tenant.py::test_a_missing_tenant_never_falls_back_to_a_hardcoded_one -q`
@@ -4412,6 +4600,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## sql-fstring-identifier
 - status: guarded
 - severity: P1
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: a table/column name interpolated into SQL via f-string without `frozenset` allowlist validation (CLAUDE.md rule #8) → SQL injection.
 - signature: `python3 -m pytest tests/test_a_sql_identifier_comes_from_a_closed_set.py -q`
@@ -4435,6 +4624,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## i18n-untranslated-key
 - status: guarded
 - severity: P3
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: a `t("ns.key", "FR …")` / `_t("ns.key", "FR …")` call has no EN entry in `i18n_catalog/` → EN mode silently renders the French default (untranslated surface), no error.
 - signature: `python3 -m pytest tests/test_i18n.py::test_every_static_t_key_has_en_entry -q`
@@ -4453,6 +4643,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## delivery-failure-logged-as-success
 - status: guarded
 - severity: P1
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: the code path that sends a notification returns a "did not send" value, the very next line logs that it was sent, and the task ends green. The findings inside the message were computed correctly and rendered correctly; nobody received them.
 - signature: `python3 -m pytest tests/test_alert_delivery_is_proven.py -q`
@@ -4472,6 +4663,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## pipeline-writes-to-the-copy-nobody-reads
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: an automated capture → validate → publish loop runs, reports success, and produces nothing anyone sees. Each stage is individually correct; the output lands in a duplicate of the target file that stopped being read months earlier. The loop cannot report the problem, because from where it stands it wrote the file it was told to write.
 - root_cause: two files carry the same name and the same role. `DEVLOG.md` at the repo root is the living journal — `/resume` step 3 reads it, `pre_compact.py` and `session_summary.py` (4 sites) point at it. `.claude/dev-docs/DEVLOG.md` is a copy frozen at 2026-06-11. `draft_devlog.py:27` (`_DEVLOG_PATH`) tested the frozen copy for "does today already have an entry?", and `/devlog-promote` inserted promoted entries into it. Measured 2026-08-23: two entire sessions (2026-08-21 afternoon→night, 45 commits; and the night of 2026-08-21→22) had no DEVLOG page anywhere, and the 2026-08-21 draft sat in `pending-devlog.md` with its `issue`/`fix` slots unfilled for two days with nothing signalling it.
@@ -4490,6 +4682,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## test-leaves-a-hole-in-sys-modules
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: tests are green file by file and red in a full run, on assertions unrelated to whatever changed. The failing test's own monkeypatch appears not to take effect — the real implementation runs instead of the fake one — and the failure moves between runs as the order changes.
 - root_cause: a test replaced `sys.modules["…"]` with a stub and, in its `finally`, called `del` instead of restoring the previous value. Deleting the key EVICTS the real module for the rest of the session: the next import re-executes it from disk and hands out a SECOND module object, while every module that already did `from … import NAME` still holds the first. A later `monkeypatch.setattr("pkg.mod.NAME", …)` then patches one object while the code under test reads the other. Measured 2026-08-23 in `tests/test_readiness_carries_the_live_diagnosis.py:192` on `src.dashboard.views.credentials._registry`; CI failed on `test_a_raising_probe_becomes_a_red_not_a_traceback`, whose output showed the five REAL probes running despite a monkeypatch to a single fake one.
@@ -4509,6 +4702,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## guard-seeded-by-prose-not-by-code
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un garde marque en faute un module qui vient d'appliquer son propre correctif. Le module ne fait rien de risqué : il a seulement **importé le remède**, et le remède est marqué dangereux parce que sa documentation nomme le danger.
 - root_cause: `tests/test_credentials_security.py::_modules_that_call_http` amorçait sa portée en cherchant `"requests."`, `"googleapiclient"`, `"urlopen"` **en sous-chaîne dans le texte du fichier**, docstrings comprises. `src/utils/safe_error.py` — dont le rôle est précisément de rédiger ces messages — nomme les deux APIs dans sa prose pour expliquer pourquoi il existe. Il était donc « touche un client HTTP », et **tout module l'important héritait de la marque**. Mesuré le 2026-08-24 : ajouter `from src.utils.safe_error import redact` à `circuit_breaker.py` l'a fait entrer dans la portée et échouer sur trois lignes sans rapport.
@@ -4528,6 +4722,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## dead-argument-from-a-major-version-ago
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: un paramètre d'une version majeure précédente traîne dans le code. Il ne fait **rien** sur la version qui tourne, donc rien ne le signale — et il rend la montée de version impossible, ce qu'on découvre le jour où on la tente.
 - root_cause: les 16 DAGs portaient `schedule_interval=` (l'orthographe d'Airflow 1/2.3, remplacée par `schedule=` en 2.4) et 7 d'entre eux `provide_context=True` (un argument d'Airflow **1.x**, sans effet depuis la 2.0 où le contexte est passé automatiquement). Airflow 2.8.1 — la version de production — les accepte en silence ; Airflow 3 les **rejette**. Conséquence directe : la PR Dependabot #100 (`apache/airflow` 2.8.1 → 3.3.0), ouverte depuis le 2026-08-01 et qui ressemble exactement au correctif de sécurité attendu, aurait fait échouer l'import des **16** DAGs, donc arrêté toute la collecte.
@@ -4547,6 +4742,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## session-wide-stub-of-an-installed-package
 - status: guarded
 - severity: P2
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: des tests passent ou échouent selon l'ORDRE d'exécution. Isolés ils sont verts ; groupés, quatre d'entre eux tombent sur « n'est pas un paquet ». Et, plus discrètement, des tests qui croient exercer un vrai client travaillent contre un mock.
 - root_cause: `tests/test_e2e_two_tenants.py` et `tests/test_collectors_errors.py` posaient `sys.modules["spotipy"] = MagicMock()`, idem pour `googleapiclient`, `airflow`, `airflow.operators` — **à l'import du fichier, donc dès la COLLECTE**, et sans jamais restaurer. La justification écrite (« ils vivent dans l'image Airflow, pas dans le venv de dev ou de CI ») a cessé d'être vraie sans que personne le remarque : les quatre paquets sont des dépendances déclarées et installées. `airflow.operators` devenu MagicMock, tout `from airflow.operators.empty import EmptyOperator` ultérieur échouait.
@@ -4567,6 +4763,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## handler-built-without-its-arguments
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une tâche planifiée lève `TypeError: X.__init__() missing N required positional arguments` à sa première exécution réelle, des heures après le commit. Le mail d'échec est le symptôme visible ; le vrai coût est en dessous — la tâche ne produit plus rien, `xcom_pull` renvoie `None`, et **la section qu'elle alimentait disparaît en silence** du rapport en aval, qui continue de paraître complet.
 - root_cause: `airflow/dags/alert_monitor.py:111` a reçu `db = PostgresHandler()` le 2026-08-26 (`350ed8d`), dans `_mirrored_identities` — le lecteur ajouté justement pour éteindre un faux positif. Le constructeur demande cinq arguments positionnels. Rien entre l'écriture et 01 h 00 ne pouvait le dire : le fichier n'est ni importé par la suite au point d'exécuter cette ligne, ni couvert par un test qui appelle la fonction, et `ruff` ne vérifie pas l'arité d'un appel. Deux nuits d'audit de credentials aveugle, sous une alerte qui avait l'air complète, et le dé-bruitage par le miroir jamais exécuté.
@@ -4585,6 +4782,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## alert-names-the-class-and-drops-the-reason
 - status: guarded
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: une panne de collecte est correctement détectée, correctement isolée, correctement alertée — et le message reçu ne dit pas quoi faire, parce que la phrase de l'API qui porte le geste est restée dans le conteneur.
 - root_cause: `src/collectors/meta_ads_api_collector.py:182` agrégeait ses échecs par compte publicitaire en `failures.append((account, type(exc).__name__))`. Ce couple part dans le `RuntimeError` du collecteur, donc dans `etl_run_log.error_message` **et** dans le mail nocturne consolidé. Mesuré en prod le 2026-09-03 : cinq nuits d'affilée, le locataire 12 (Benken) recevait `act_65390907 (FacebookRequestError)`. La cause réelle — `(#200) Ad account owner has NOT grant ads_management or ads_read permission` — n'existait que dans le log de la tâche Airflow. Le nom de classe est identique pour un token expiré, un throttle et un partage d'asset manquant : trois gestes différents sous une seule étiquette. L'exclusion de `str(exc)` était, elle, **délibérée et juste** — la SDK Meta stringifie la requête préparée, donc le token System User partagé — mais la contrainte de sécurité avait emporté l'information d'exploitation avec elle.
@@ -4605,6 +4803,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## bare-except
 - status: guarded
 - severity: P2
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: un `except:` nu avale aussi `KeyboardInterrupt` et `SystemExit` — donc une interruption volontaire et l'arrêt du processus — et il ne dit jamais QUELLE classe il a mangée, ce qui rend le défaut suivant indiagnosticable.
 - root_cause: 4 sites vivants au 2026-09-03 : `scripts/manage_mapping.py:76,92,131` — un outil d'exploitation interactif qui écrit la table de mapping Meta, où avaler `Ctrl-C` signifie qu'on ne peut pas abandonner une invite — et `airflow/debug_dag/debug_s4a.py:70`, qui journalisait « Impossible de créer le dossier » **sans jamais dire pourquoi**. Ce n'est pas une question de style ici : c'est le mécanisme qui a produit la classe phare du dépôt. Deux commentaires le disent encore, dans l'arbre : `src/transformers/s4a_csv_parser.py:184` (« le `except:` nu ci-dessous renvoyait `{'type': None}` ») et `src/transformers/csv_dialect.py:20` (« the S4A path answered `{'type': None, 'data': []}` out of a bare `except:` »). Autrement dit `collector-silent-success` — une famille entière de gardes, une règle transverse (#6) et un auditeur AST dédié — **a été produite par un `except:` nu**, corrigé deux fois au site d'appel et jamais enregistré comme classe.
@@ -4625,6 +4824,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## no-db-signature-opens-a-connection
 - status: guarded
 - severity: P3
+- family: un-contrôle-qui-ne-peut-jamais-passer
 - kind: deterministic
 - symptom: un garde tombe pour une raison qui n'est pas la sienne. Le rapport nomme sa classe d'erreur, et la trace dessous dit `psycopg2.OperationalError` — on cherche le défaut gardé, il n'y en a pas.
 - root_cause: `tests/test_instagram_collects_without_business_manager.py:93` interroge une branche **pure** de `InstagramCollector._discover` (pas de pseudo ⇒ on lève avec le geste). Mais `src/collectors/instagram_api_collector.py:87` ouvre une connexion Postgres dans le constructeur (`self.db = PostgresHandler.from_env_or_config()`), qu'aucune de ces assertions n'utilise. Or `.github/workflows/ci.yml` exécute les signatures de classes à l'étape 10, **avant** `Provision Postgres` (étape 12) et sans le `DATABASE_URL` qui n'est posé que sur `Run tests`. Le garde échouait donc là sur l'absence de base, et remontait au rapport sous l'étiquette `guard-asserts-presence-not-reachability` — une classe qui n'avait rien à voir.
@@ -4645,6 +4845,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## nan-written-as-a-value
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: une colonne censée être vide contient la chaîne `'nan'`. Les requêtes `IS NULL` ne la voient pas, les regroupements la comptent comme une valeur, et une clé absente devient une clé partagée.
 - root_cause: `str(row[col] or '').strip() or None` — le motif employé dans tout `imusician_csv_parser`. Il paraît sûr et ne l'est pas : **un NaN pandas est VRAI** en contexte booléen, donc `nan or ''` rend `nan` et `str(nan)` rend `'nan'`. Mesuré en production le 2026-09-06 : 2 533 lignes de `track_version`, deux `isrc` et deux `track_title`.
@@ -4664,6 +4865,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## consumed-state-hides-its-own-widget
 - status: guarded
 - severity: P2
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: un bouton s'affiche, on clique, et il ne se passe rien. Aucune erreur, aucune trace : le bloc qui portait le bouton disparaît simplement de l'écran. Signalé le 2026-09-08 en fin de mise en route — « quand je clique sur configurer le mapping, ça me renvoie nulle part ».
 - root_cause: `st.rerun()` efface tout ce qui a été écrit avant lui, donc un compte rendu d'action voyage par `st.session_state`, et on le CONSOMME au rendu (`session_state.pop`) pour qu'il ne réapparaisse pas indéfiniment en contredisant l'état. Ce motif est juste pour un message et faux dès que le bloc porte un widget : un clic ne se lit pas au moment du clic, il déclenche un rerun, et `st.button(...)` ne rend `True` que si le widget est **ré-instancié pendant ce rerun**. La valeur ayant été consommée au rendu précédent, `pop` rend `None`, le bloc est sauté, le widget n'existe pas, et le geste est jeté. Deux sites en production, tous deux au bout d'un parcours de mise en route : `upload_csv._render_after_import` → `_render_mapping_cta` (« 🔗 Confirmer le nom des titres », après un import réussi) et `credentials/_render.render_save_verdict` → `_render_next_step` (« 🏠 Aller au dashboard → », après la dernière plateforme connectée).
@@ -4683,6 +4885,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-ratchet-frozen-on-a-partial-predicate
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un cliquet gelé à zéro passe au vert, et la chose qu'il interdit est toujours là. Mesuré le 2026-09-10 : `_MAX_SECONDARY_AXES = 0` était vert alors que **trois figures** portaient encore un axe secondaire.
 - root_cause: le prédicat ne cherchait que `yaxis2…yaxis9`, la forme produite par `update_layout`. Plotly en a une seconde — `make_subplots(specs=[[{"secondary_y": True}]])` puis `add_trace(..., secondary_y=True)` — qui ne fait apparaître ce nom nulle part. Le cliquet ne disait donc pas « il n'y en a plus », il disait « je n'en vois plus », et les deux phrases se ressemblent au point d'être confondues dans un rapport de test vert.
@@ -4702,6 +4905,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## on-conflict-target-without-index
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: l'import ne se dégrade pas, il LÈVE — `ERROR: there is no unique or exclusion constraint matching the ON CONFLICT specification`. Prouvé en production le 2026-09-11 par un INSERT réel dans une transaction annulée, sur le chemin d'import Apple de `views/admin.py`.
 - root_cause: PostgreSQL exige que `ON CONFLICT (cols)` corresponde EXACTEMENT à un index unique existant. Les migrations 093-095 ont déplacé la clé d'`apple_songs_performance` vers `(artist_id, song_name, snapshot_date, period_start, period_end)` ; `views/upload_csv.py:53` a suivi, `views/admin.py` non — un même geste déclaré à deux endroits, dont un seul corrigé.
@@ -4722,6 +4926,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-account-filter-that-names-no-single-column
 - status: guarded
 - severity: P2
+- family: le-locataire
 - kind: deterministic
 - symptom: une page tombe — pas un chiffre faux, une exception — et **seulement chez les locataires multi-comptes**. `column "ad_account_id" does not exist` ou `column reference "ad_account_id" is ambiguous`. Mesuré le 2026-09-12 : cinq requêtes de `meta_creatives.py` et `meta_ads_overview.py`, toutes rendues par la page Créatives.
 - root_cause: `account_clause()` (`src/dashboard/utils/meta_accounts.py:115`) rend ` AND ad_account_id = %s` — **et rend la chaîne vide quand aucun compte n'est choisi**. Un développeur mono-compte ne l'atteint jamais. Deux façons de casser : (1) la migration 106 a fait descendre la jointure créative dans `v_meta_creative_daily` et le repointage a été fait colonne par colonne sur la liste du SELECT, sans regarder le WHERE — la vue ne portait pas `ad_account_id` ; (2) `meta_ads`, `meta_adsets` et `meta_campaigns` portent toutes les trois cette colonne, donc un filtre non qualifié sur leur jointure ne désigne rien.
@@ -4740,6 +4945,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-aggregate-computed-in-pandas-escapes-every-sql-guard
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un cliquet certifie « zéro agrégat hors de la couche or » pendant qu'une tuile affiche un total faux. Les deux affirmations sont vraies : le total n'est pas dans le SQL.
 - root_cause: `df = db.fetch_df("SELECT campaign_name, spend, … FROM <fait>")` puis `df['spend'].sum()`. Aucun `SUM(` n'apparaît dans la requête, donc aucun garde qui lit le SQL ne peut voir cet agrégat — ni `test_the_metrics_layer_only_grows.py`, ni `gold_coverage.py`, ni une signature grep. Deux sites mesurés le 2026-09-12 : la page Meta Ads (6 165,65 € au lieu de 3 087,82) et les quatre tuiles de la page SoundCloud (justes, mais sur un `DISTINCT ON (track_id)` sans locataire).
@@ -4758,6 +4964,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-late-platform-has-no-tenant-guard
 - status: guarded
 - severity: P2
+- family: le-locataire
 - kind: deterministic
 - symptom: une plateforme arrivée tard dans le produit n'est couverte par AUCUN garde de tenance. Aucun symptôme visible — jusqu'au jour où une lecture sans `artist_id` rend les chiffres d'un autre artiste, ce que la migration 064 a payé sur YouTube avec deux artistes bêta.
 - root_cause: les gardes de tenance ont été écrits plateforme par plateforme, au fil des incidents. Hypeddit est arrivé après, sa page n'a été repointée sur `v_hypeddit_daily` que le 2026-09-12, et personne n'a repassé la liste. Le trou n'était pas visible parce que rien ne mesurait la COUVERTURE — c'est le tableau `plateforme × famille` qui l'a nommé, pas une relecture.
@@ -4776,6 +4983,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-gap-rendered-as-a-zero-by-the-stack
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: la bande d'une plateforme est correctement COUPÉE sur un jour non mesuré, et le total empilé la compte quand même pour zéro — la pile redescend, et ça se lit comme une chute d'audience. Le rattrapage était une phrase sous la figure, pas un pixel dedans. Signalé le 2026-09-12 : « ne pas visualiser 0 mais genre (absence de data) quand on a pas importé le csv de spotify des derniers jours ».
 - root_cause: `stackgroup` de Plotly infère **zéro** pour une trace qui n'a pas de point à un index (`stackgaps` vaut « infer zero » par défaut). Couper la série par `known()` — réglé le 2026-09-10 — ne suffit donc pas : la coupure est invisible dans une pile, seul le total bouge. Même famille côté pandas : `df.reindex(pd.date_range(...)).fillna(0)` fabrique des jours puis les remplit de zéros, sur cinq figures (`meta_x_spotify:207`, `meta_ads_overview:416`, `hypeddit:149`, `pdf_charts:171,216,322`).
@@ -4800,6 +5008,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-marker-shared-by-several-sites-guards-none
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un test de non-régression qui cherche la PRÉSENCE d'un marqueur dans un fichier reste vert quand un seul des sites qui l'utilisent perd son correctif. Il ressemble à un garde et ne garde rien.
 - root_cause: `tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py` vérifiait que la chaîne `_measured(` apparaissait dans `pdf_charts.py`. Quatre courbes l'utilisent : casser l'une d'elles laisse les trois autres, donc le marqueur, donc le vert. Mutation exécutée le 2026-09-12 — le correctif de la courbe S4A retiré, le test est resté vert.
@@ -4820,6 +5029,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-guard-satisfied-by-the-collapse-it-should-catch
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un garde qui affirme une ABSENCE (« cette ligne ne doit pas s'afficher », « ce champ ne doit pas apparaître ») reste vert sur le défaut, parce que le défaut fait tomber le bloc ENTIER et qu'une surface effondrée est vide — donc conforme. Le garde est mutation-testé, il rougit sur d'autres mutations, et il ne verra jamais celle-là.
 - root_cause: la surface testée vit sous un `try/except` qui dégrade en silence — ici `render_platform_chart`, qui journalise « recap metrics unavailable » et rend la figure sans ses métriques. Mesuré le 2026-09-12 : la mutation `if prev_total and now_total` → `if prev_total is not None and now_total` lève une `ZeroDivisionError` sur `prev_total=0`, l'exception est avalée, les CINQ métriques disparaissent, et l'assertion « la ligne de variation est absente » passe. Le harnais mentait, pas le prédicat.
@@ -4837,6 +5047,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-percent-sign-in-a-parameterised-query
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: une requête paramétrée échoue en bloc sur `IndexError: tuple index out of range`, alors que le nombre d'emplacements `%s` et le nombre de valeurs passées sont EXACTEMENT égaux. Le message accuse les paramètres ; le compte des paramètres est juste. Rien dans la trace ne nomme le vrai coupable, et on relit dix fois le tuple.
 - root_cause: `psycopg2` interpole le signe pour cent dans TOUTE la chaîne, **commentaires SQL compris** — un `--` n'est pas un échappement pour lui. Mesuré le 2026-09-13, `src/dashboard/utils/period_side_metrics.py` : « afficherait 33 % » écrit dans le commentaire d'une CTE a fait tomber une requête de 35 emplacements et 35 valeurs. Le dépôt avait déjà la parade sous les yeux — le filtre S4A s'écrit `'%%1x7xxxxxxx%%'` depuis toujours — mais elle était comprise comme une règle sur les VALEURS, pas sur la prose.
@@ -4857,6 +5068,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-hook-shaped-function-pytest-never-calls
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une fonction porte la signature exacte d'un hook pytest, son corps fait le travail d'un hook, et elle n'est JAMAIS appelée. Rien ne le signale : il n'y a ni erreur, ni avertissement, ni test rouge — seulement un comportement qui n'arrive pas.
 - root_cause: pytest collecte ses hooks sur le nom EXACT. `_pytest_terminal_summary_db` porte un préfixe `_` et un suffixe `_db` : les deux suffisent à le rendre invisible. Ce qu'il devait crier est documenté vingt lignes au-dessus de lui : « 163 skipped défile et vert ne défile pas », après quatre vagues de correctifs d'isolation locataire écrites, gardées et COMMITÉES contre un vert obtenu sans base, puis démenties dès Postgres démarré (« 1065 passed » → « 1217 passed, 1 FAILED »). Le garde écrit contre ce défaut était lui-même débranché.
@@ -4873,6 +5085,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-fragment-that-outlives-the-connection-it-captured
 - status: guarded
 - severity: P2
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: **rien ne plante**, et c'est ce qui coûte. Une page admin se met à consommer une connexion de plus par session, sans message qui relie la fuite au geste qui la cause. Le journal affiche « Connexion PostgreSQL perdue — reconnexion automatique », ce qui est faux : rien n'a été perdu, on l'avait fermée exprès.
 - root_cause: `@st.fragment` change **QUAND** une fonction s'exécute, pas ce qu'elle fait. Le corps décoré est rejoué SEUL, des minutes après que la vue est rentrée et que son `finally` a fermé la connexion. Une fonction qui prend `db` en argument est donc correcte au premier rendu et fausse au second. Mesuré le 2026-09-16 sur `airflow_kpi._section_insertion_test`, **le seul `@st.fragment` que le dépôt avait** : `PostgresHandler._ensure_connection()` voit `conn.closed` et **ré-emprunte au pool**, sans que personne ne rende. Une connexion par session admin, sur `maxconn=10`. Le commentaire du fichier disait « no outer try/finally here any more: it existed only to close a connection this function no longer owns » — il décrivait l'état d'AVANT le décorateur, et les deux changements sont incompatibles.
@@ -4891,6 +5104,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-ci-checkout-too-shallow-for-the-guard-that-reads-git
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un garde passe en local et échoue en CI, **toujours**, sans que rien dans son code ne diffère. On relance, on suspecte un aléa, on finit par lire le rouge comme du bruit. Sept exécutions rouges d'affilée sur `main` le 2026-09-17 avant que quelqu'un ouvre le log.
 - signature: `.venv/bin/python -m pytest tests/test_ci_checks_out_the_history_its_guards_read.py::test_only_the_jobs_that_read_history_are_required_to_fetch_it -q -p no:cacheprovider >/dev/null 2>&1`
@@ -4910,6 +5124,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-population-that-counts-its-own-headers
 - status: guarded
 - severity: P3
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: un compteur sur un document porte un dénominateur trop grand, et tous les pourcentages qui en découlent sont faux **dans le sens rassurant** — une part de défauts paraît plus petite qu'elle n'est. Rien n'échoue : le nombre existe, il est stable, et il compte des choses qui ne sont pas des membres.
 - signature: `.venv/bin/python -m pytest tests/test_the_error_class_health_only_improves.py::test_the_two_readers_of_the_catalogue_agree -q -p no:cacheprovider >/dev/null 2>&1`
@@ -4928,6 +5143,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-renderer-that-recomputes-what-its-caller-already-has
 - status: guarded
 - severity: P3
+- family: un-coût-payé-sans-contrepartie
 - kind: deterministic
 - symptom: une page fait exactement deux fois le même travail, et rien ne le montre. Les deux appels sont à quelques lignes l'un de l'autre et se lisent comme deux étapes différentes — calculer, puis afficher. Il faut ouvrir la seconde fonction pour voir qu'elle refait la première.
 - root_cause: une fonction de rendu recharge ses propres données pour être autonome — ce qui est sa QUALITÉ, pas son défaut — et l'appelant qui a déjà la réponse n'a aucun moyen de la lui passer. Deux instances mesurées le 2026-09-17, dans deux fichiers sans rapport : `views/onboarding_health.py:82` calcule `artist_readiness(db, aid)` pour composer l'en-tête de chaque artiste puis appelle `render_status_matrix(db, aid)`, qui la recalcule — **24 calculs pour 12 locataires, 324 requêtes de rendu** ; et `views/db_health.py:427` appelait `_load_weekly_activity()` puis `_load_cumulative()`, qui la rechargeait — **22 `fetch_df` au lieu de 11**, une par dataset.
@@ -4947,6 +5163,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## setup-step-asks-for-a-developer-gesture
 - status: guarded
 - severity: P2
+- family: le-message-parle-au-mauvais-lecteur
 - kind: manual
 - symptom: une étape de mise en route est écrite, testée, et **personne ne la franchit**. Aucune erreur, aucun signal : le locataire abandonne en silence, et on lit ce silence comme « il n'a pas encore eu le temps ».
 - root_cause: l'étape demande un geste de DÉVELOPPEUR à quelqu'un qui n'en est pas un. Mesuré le 2026-09-03 sur SoundCloud : l'étape disait « affichez le CODE SOURCE de la page (Ctrl+U), cherchez `soundcloud:users:`, collez le nombre ». Confronté à la production : sur les **6 locataires jamais connectés, 3 ont ouvert la page d'identifiants et 0 n'a jamais produit une ligne SoundCloud**. Et `runbook-artist-test-session.md:127` le disait DÉJÀ par écrit — *« YouTube (créer une clé API Google Cloud) et SoundCloud (afficher le code source d'une page) ne sont pas des gestes d'artiste. Attends-toi à les faire AVEC lui, en partage d'écran »* — sans que personne en tire la conséquence : une étape qu'on doit faire À LA PLACE de l'artiste n'est pas une étape, c'est une panne.
@@ -4966,6 +5183,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## two-shapes-summed-as-one
 - status: guarded
 - severity: P2
+- family: un-cumul-pris-pour-un-quotidien
 - kind: deterministic
 - symptom: un total est faux d'un facteur qui ressemble à un vrai chiffre. Aucune exception, aucune ligne perdue : deux grandeurs de NATURES différentes ont été additionnées, et le résultat a la bonne unité.
 - root_cause: **l'export Apple Music n'a aucune colonne de date.** C'est le sélecteur de leur interface qui choisit la période, et le fichier n'en garde pas la trace. Trois conséquences, toutes du même défaut — on ne sait pas ce que couvre le fichier qu'on somme : (1) sans le demander, trois exports annuels déposés le même jour s'écrasent, même clé ; (2) deux exports annuels sont des périodes **disjointes** — les soustraire l'un de l'autre comme deux photos d'un cumul n'a aucun sens ; (3) un cumul « depuis le début » CONTIENT déjà les années, donc les additionner compte les mêmes écoutes deux fois. Question posée le 2026-09-08 : *« y a-t-il un intérêt de demander à l'artiste d'importer les CSV de chaque année ? »* — oui, et c'est ce fait-là qui décide de tout.
@@ -4986,6 +5204,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-optimisation-that-degrades-what-worked
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un algorithme « amélioré » se trompe sur des cas qu'il réussissait. Il se trompe **en silence** : aucune exception, aucun compte qui change, juste des chiffres faux en aval — les écoutes d'un morceau attribuées à un autre.
 - root_cause: on modifie un algorithme de rapprochement sans filet sur ce qui MARCHE déjà. Le seuil d'auto-acceptation est à 0,80 : au-dessus, personne ne relit. Mesuré le 2026-09-06 sur les titres RÉELS du locataire 18 en production : **21 rapprochements corrects sur 21**, et les 6 intrus (edits DJ d'autres artistes, mix maison) écartés sous 0,21. Le risque d'une passe d'optimisation sur un algorithme à 21/21 n'est pas de rater un gain : c'est de DÉGRADER.
@@ -5005,6 +5224,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-parser-that-knows-one-of-two-syntaxes
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: un compteur dérivé est faux, et sa valeur fausse est une réponse **parfaitement plausible**. Rien ne signale l'erreur : le champ vaut sa valeur par défaut, qui se trouve être aussi une réponse légitime.
 - root_cause: le document source écrit un champ de DEUX façons et le parseur n'en connaît qu'une. `tools/dev/error_class_health.py::_guard_path()` ne lisait que la forme structurée `guard: { type: …, ref: … }` — 365 classes sur 376. La forme NUE, `- guard: tests/x.py — explication`, rendait `guard_type: 'aucun'` et `guard_ref: None`. **Neuf classes nomment ainsi un garde parfaitement réel**, dont `cumulative-counter-drawn-as-its-own-history`, qui pointe un fichier de 15 tests verts.
@@ -5026,6 +5246,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-class-that-claims-its-neighbours-guard
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: une classe d'erreur annonce une protection plus large que celle qu'elle a. Le champ `guard:` nomme un fichier qui contient bel et bien les tests décrits — mais ils gardent une AUTRE classe. Rien ne le signale : le fichier existe, les tests passent, et le champ est identique chez la voisine.
 - root_cause: plusieurs classes partagent un même fichier de test, et le champ `guard:` ne porte qu'un chemin. Une portée écrite sans nommer SES tests se lit donc comme « cette classe possède tout ce fichier ». Mesuré le 2026-09-17 : **50 fichiers de garde sur 286 sont partagés** par deux classes ou plus (17,5 %), un seul en porte six. Deux instances en deux lots consécutifs : `a-rollback-wider-than-la-failure` s'était attribué le croisement Caddy ↔ sonde de santé, qui répond à la question de `a-default-branch-that-skips-instead-of-refusing` — vérifié, le seul test qui protège le rollback lit le corps de `rollback()` et rien d'autre, donc **le rollback pourrait reconstruire `$SERVICES` en entier sans que ce test bouge**. Et `a-measurement-that-cannot-say-why-it-failed` revendiquait le taux de censure, qui est le test de `a-percentile-computed-on-survivors`.
@@ -5046,6 +5267,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## exempt-row-hides-others-conflict
 - status: guarded
 - severity: P2
+- family: le-locataire
 - kind: deterministic
 - symptom: une recherche d'unicité trouve une ligne EXEMPTÉE, s'arrête donc là, puis retire l'exemptée du résultat — et répond « aucun conflit » alors que deux locataires non exemptés se disputent bien la valeur.
 - signature: `python3 -m pytest tests/test_a_sandbox_tenant_may_hold_its_owners_identity.py::test_a_sandbox_row_does_not_hide_a_conflict_between_two_real_tenants -q`
@@ -5066,6 +5288,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## unregistered-write-table
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: a table passed as a literal to `upsert_many`/`insert_many` is absent from `_ALLOWED_TABLES` (postgres_handler) → the SQL-injection allowlist raises a cryptic `ValueError` at write time, the DAG fails or silently leaves a data gap.
 - signature: `python3 -c "import re,pathlib,sys; ph=pathlib.Path('src/database/postgres_handler.py').read_text(); a=set(re.findall(r\"'([a-z0-9_]+)'\", re.search(r'_ALLOWED_TABLES = frozenset\(\{(.*?)\}\)', ph, re.S).group(1))); bad={m.group(1) for p in pathlib.Path('src').rglob('*.py') for m in re.finditer(r'(?:upsert_many|insert_many)\(\s*[\\'\\\"]([a-z0-9_]+)', p.read_text(errors='ignore'))}-a; sys.exit(1 if bad else 0)"`
@@ -5085,6 +5308,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## object-dtype-numeric-op
 - status: guarded
 - severity: P3
+- family: un-seuil-écrit-d-instinct
 - kind: heuristic
 - symptom: a numeric DB column that contains a NULL loads as pandas `object` dtype; subsequent arithmetic + `Series.round(n)` then raises `TypeError: Expected numeric dtype, got object instead.` at render → the view crashes. Data-dependent — only fires once a row is NULL (LEFT JOIN, empty window, a model that failed to score).
 - signature: `! grep -rnE "\)\.round\(" src/dashboard/views/ | grep -v "to_numeric"`
@@ -5107,6 +5331,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## tz-aware-naive-mix
 - status: guarded
 - severity: P3
+- family: le-temps-et-l-horloge
 - kind: heuristic
 - symptom: a column of ISO timestamp strings where some carry a tz offset (`+00:00`) and some are naive → `pd.to_datetime(series)` or a Plotly datetime coercion (`px.timeline`, scatter x-axis) raises `ValueError: Cannot mix tz-aware with tz-naive values, at position N`. Data-dependent (only fires when old naive rows and new tz-aware rows coexist). Sibling of `mixed-date-timestamp` (that one mixes `datetime.date` vs `pd.Timestamp`; this one mixes tz-aware vs naive inside one `to_datetime`).
 - signature: `! grep -rnE "pd\.to_datetime\(" src/dashboard/views/ | grep -vE "utc=True|errors="`
@@ -5126,6 +5351,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## api-router-schema-drift
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: heuristic
 - symptom: a FastAPI data router (Brick-14) SELECTs a column renamed/dropped by a later migration → the endpoint 500s for every tenant (no client stack-trace leak, but fully broken). The mocked `test_api.py` cannot see it because the DB is a MagicMock.
 - signature: `python3 -m pytest tests/test_api_db_smoke.py -q` (DB-gated: runs every data endpoint against the real schema with a forged admin+tenant token, asserts no 500; skips cleanly with no provisioned Postgres)
@@ -5147,6 +5373,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## widget-key-written-after-instantiation
 - status: guarded
 - severity: P2
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: a helper called from a VIEW writes `st.session_state[<key>]` for a key that is a sidebar widget's, and Streamlit raises `StreamlitAPIException: st.session_state.<key> cannot be modified after the widget with key <key> is instantiated`. The page renders the central error banner instead of navigating. Found 2026-09-04 in a browser: `utils.navigation.goto()` set every `_nav_<section>` radio to None, so EVERY programmatic navigation from a view raised — the home page's four setup steps included. It was masked on the assistant by an early `?page=onboarding` route that rendered no sidebar at all; deleting that route is what exposed it.
 - root_cause: Streamlit has two phases in one script run — the sidebar is built first, the view second — and the repo's navigation rule ("point the menu at the new page") was written where the navigation happens (the view) rather than where the widgets are created (before them). The helper's own docstring asserted the write was legal "because show_navigation_menu repairs state BEFORE creating them", which is true of the menu's own callback and false of every view.
@@ -5165,6 +5392,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## check-calls-a-binary-its-image-lacks
 - status: guarded
 - severity: P2
+- family: un-contrôle-qui-ne-peut-jamais-passer
 - kind: deterministic
 - symptom: a check running INSIDE a container shells out to a host binary (`rclone`, `git`, `docker`, `psql`) that is not in that image. It never crashes — it takes its own `except OSError` branch and reports the neutral-sounding state (`unreadable`, `unavailable`, `skipped`) every single run, so the check looks like it is working and can never go green. Found 2026-09-04: `alert_monitor.check_offsite_backup` ran `subprocess.run(['rclone', 'lsjson', …])` from an Airflow task; `command -v rclone` and `command -v git` both return nothing in that image, so it would have reported `unreadable` every night INCLUDING once R2 was correctly configured on the host.
 - root_cause: the code was written against the host's environment (where the operator tested it by hand) and deployed into a container's. Nothing joins "what this code invokes" to "what this image contains" — the Dockerfile and the check live in different files, and a missing binary raises the same exception class as a genuinely unreachable remote, so the two are indistinguishable at the call site.
@@ -5184,6 +5412,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## identity-read-but-never-collectable
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: a consumer (DAG tenant filter, readiness matrix, collector) reads an identity key from `artist_credentials.extra_config` that **no credential form field ever writes**. The platform is permanently ⚪ "À connecter" with no path to connect it, and the error message may even point at the non-existent field.
 - root_cause: consumer and form evolved separately — `instagram_daily` was written to select tenants on `creds['meta']['ig_user_id']` while the Meta form only ever exposed `account_id`. Nothing tied the two ends together, so the gap was invisible to every test.
@@ -5202,6 +5431,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## guide-single-os-shortcut
 - status: guarded
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: setup-guide prose spells a keyboard shortcut for one OS family (`Ctrl+U`, `Ctrl+F`, `F12`). A macOS artist following the guide literally is blocked at that step — those keys do nothing there — and the guide gives no alternative.
 - root_cause: guides were written on the machine the author had. Nothing in the content model could express "this differs per platform", so the first spelling written became the only one.
@@ -5222,6 +5452,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## first-paint-chart-overload
 - status: guarded
 - severity: P3
+- family: un-coût-payé-sans-contrepartie
 - kind: deterministic
 - symptom: a view opens on several charts that all bear on the same decision. Nothing is wrong with any single chart; together they leave the artist unable to say what to do next, and the view reads as a report rather than a tool.
 - root_cause: charts accumulate additively — each is defensible when added, and no surface ever states a budget, so nobody is the one who removes.
@@ -5240,6 +5471,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## write-without-explicit-artist-id
 - status: guarded
 - severity: P1
+- family: le-locataire
 - kind: deterministic
 - symptom: an upsert payload omits the `artist_id` key on a tenant-scoped table. `upsert_many` derives the INSERT column list from the payload keys (`postgres_handler.py:332`), so the column is absent from the statement and Postgres applies `DEFAULT 1` — every tenant's rows silently accumulate under the admin. No error, no warning, no alert.
 - root_cause: ~80 tables declare `artist_id INTEGER DEFAULT 1`, a single-tenant leftover. The default turns "the developer forgot the tenant" into "the admin owns it" instead of into a constraint violation.
@@ -5247,7 +5479,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - signature: `python3 .claude/scripts/audit_tenant_writes.py`
 - seen_red: self-proving (tests/test_e2e_two_tenants.py::test_every_write_names_its_tenant_explicitly)
 - long_term_fix: every write names its tenant. The guard walks the payload of each `upsert_many` call made during a real collection run and fails when a tenant-scoped table receives a payload without an `artist_id` key. Removing the `DEFAULT 1` from the schema is the durable follow-up (a dedicated migration, after the write paths are correct).
-- guard: { type: test, ref: tests/test_e2e_two_tenants.py }
+- guard: { type: test, ref: tests/test_e2e_two_tenants.py } + tests/test_tenant_contamination_check.py (the probe that finds rows ALREADY written to the wrong tenant, every platform — R180, 2026-09-26)
 - guard_scope: le-locataire — écrire une ligne sans nommer à qui elle appartient. couvre: le scanner AST `.claude/scripts/audit_tenant_writes.py` sur DEUX formes — `upsert_many(table=…, data=…)` dont la table est une CONSTANTE de chaîne et dont les clés de charge utile se résolvent statiquement, et l'`INSERT INTO <table> (colonnes…)` littéral dont la liste de colonnes omet `artist_id` ; plus la preuve de bout en bout `tests/test_e2e_two_tenants.py::test_every_write_names_its_tenant_explicitly`. ne couvre pas: TROIS formes voisines, qui partagent la cause et que le scanner abandonne EN SILENCE (`continue`, pas d'avertissement) — un nom de table qui n'est pas un littéral (f-string, variable, indexation), une charge utile imbriquée au-delà de `depth > 4`, et tout `UPDATE` (le mot n'apparaît nulle part dans le scanner). L'abandon silencieux est le vrai risque : un site non scanné se lit comme un site propre.
 - siblings: swept:2026-09-17 — **0 site vivant.** `python3 .claude/scripts/audit_tenant_writes.py` exécuté : **81 tables scopées-locataire, 0 manquante, 9 non résolubles**. ⚠️ Le balayage a d'abord servi à trouver un défaut DANS l'outil lui-même — il matchait sur le NOM de la colonne au lieu du TYPE, voir `column-name-is-not-its-meaning` — donc les chiffres d'avant le 2026-09-17 portaient sur un périmètre faux (83 tables, dont deux sans locataire). Les 9 non résolubles sont des payloads construits dynamiquement, à confirmer à la main.
 - rex_ref: airflow/dags/spotify_api_daily.py
@@ -5260,6 +5492,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## upsert-transfers-row-ownership
 - status: guarded
 - severity: P1
+- family: le-locataire
 - kind: deterministic
 - symptom: an upsert whose `conflict_columns` is a global PLATFORM id carries `artist_id` in its `update_columns`. Two tenants touching the same object do not get a row each — the second collection re-assigns the existing row, and the first tenant's data vanishes from their (artist-scoped) views. `youtube_videos` even declared `UNIQUE(video_id)`, making single ownership structural.
 - root_cause: the tables were designed single-tenant, where the platform id *is* the natural key. `artist_id` was later added to `update_columns` so it could be backfilled — which turned every conflict into a transfer of ownership.
@@ -5279,6 +5512,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## freshness-measured-on-write-time
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: a source is reported FRESH while its data is months or years old. The collector still runs and still writes, so the write timestamp advances nightly — it simply writes the same old rows.
 - root_cause: `freshness_monitor.MONITOR_TARGETS` measured `MAX(collected_at)` for all seven sources, including the three tables that record the day their data is ABOUT separately from the day it landed (`meta_insights_performance_day.day_date`, `s4a_song_timeline.date`, `track_popularity_history.date`). "Written recently" was being read as "describes a recent day"; they are different claims.
@@ -5297,6 +5531,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## dag-conf-honoured-by-one-task-only
 - status: guarded
 - severity: P3
+- family: le-locataire
 - kind: deterministic
 - symptom: a per-tenant trigger from the dashboard (`conf={'artist_id': …}`) scopes the first task of a DAG and runs the next one over the whole fleet. Nothing fails, nothing is misfiled — the work is simply done for everyone, on every click.
 - root_cause: `spotify_api_daily.collect_spotify_artists` reads `dag_run.conf['artist_id']`; `collect_spotify_top_tracks`, in the same DAG, never looked at the context and selected its work with `SELECT artist_id FROM artists` — the entire Spotify catalogue.
@@ -5316,6 +5551,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## api-partial-date-into-date-column
 - status: fixed
 - severity: P2
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: a collector fails with `invalid input syntax for type date: "2013"` and the artist loses EVERY row of that run, not just the offending one. Latent for years, then fires the first time a second tenant is collected.
 - root_cause: Spotify returns `album.release_date` at a precision it declares separately in `album.release_date_precision` — `"2013"`, `"2013-05"` or `"2013-05-21"`. `tracks.release_date` is `DATE`, and the value was passed through raw. Because `upsert_many` writes one batch per artist, a single year-precision album aborts the artist's whole batch, after which the DAG raises "collected 0 tracks". A comment sat directly above the line reading *"Gestion sécurisée de la date de sortie (parfois YYYY seulement)"* — describing a handling that did not exist. Measured 2026-08-21.
@@ -5336,6 +5572,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## suite-runs-against-one-tenant
 - status: fixed
 - severity: P1
+- family: le-locataire
 - kind: deterministic
 - symptom: the whole suite is green, CI is green, and multi-tenant defects ship anyway. They surface later, in front of a real artist, as "connected but no data".
 - root_cause: a fresh canonical database (`init_db.sql` + every migration) contains exactly ONE tenant — `Artist Default` — and that is what CI has always tested against. With one tenant, "collect for this tenant" and "collect for the whole fleet" return the same rows, so every isolation defect reads as correct behaviour. Measured 2026-08-21: three real defects were found within an hour of a second tenant existing (`identity-mirrored-but-written-once`, `api-partial-date-into-date-column`, `dag-conf-honoured-by-one-task-only`), and NONE of them was reachable before that.
@@ -5355,6 +5592,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## script-unreachable-from-its-dependencies
 - status: fixed
 - severity: P2
+- family: un-contrôle-qui-ne-peut-jamais-passer
 - kind: deterministic
 - symptom: a runbook step that reads perfectly cannot be executed anywhere. `can't open file '/app/tools/<script>.py'` from a container, `ModuleNotFoundError: psycopg2` from the host.
 - root_cause: the script and its runtime dependency live in different places. `tools/` is on the HOST and is not mounted into any container; `psycopg2` is installed IN the containers and not on the host. Measured 2026-08-21 on the live server while running the documented production procedure for the canary tenant. This is the same split that had already been diagnosed once — `src/utils/central_apps.py` was moved out of `tools/` precisely because `tools/` is not importable inside Airflow — but the lesson was applied to one script and not to its neighbours, which is how a class survives its own fix.
@@ -5373,6 +5611,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## watchdog-becomes-the-noise
 - status: fixed
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: a daily alert email that always contains the same findings, calls for no action, and is therefore skimmed and then ignored — taking the real findings down with it.
 - root_cause: a tenant added FOR monitoring is then counted by the tenant-oriented checks as if it were a customer. Measured 2026-08-21, hours after creating the production canary: `check_credentials_all` and `check_onboarding_readiness` both enumerate `get_active_artists()`, so the canary would have emitted "3 missing credentials" (SoundCloud, Meta, Instagram — which it can never declare; Meta demands real ad-account ownership) plus a permanent "connected but no data" for Spotify, whose readiness signal measures an S4A CSV a canary will never have. `missing_creds` is part of the send decision, so this would have forced an email EVERY night, forever, for a tenant in its correct state.
@@ -5393,6 +5632,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## app-id-confused-with-ad-account-id
 - status: fixed
 - severity: P2
+- family: la-frontière-avec-le-dehors
 - kind: heuristic
 - symptom: `Error validating application. Cannot get application info due to a system error.` on every Meta call, which reads as "the token expired" — so the investigation goes to the token and never to the app.
 - root_cause: `META_APP_ID` held the admin tenant's **ad account** id (`567214713853881`) instead of the **application** id (`2200684950508458`). Both are plain numbers of similar length, they live in adjacent menus of the same Business Settings page (Accounts → Ad accounts vs Accounts → Apps), and no API payload distinguishes them. Measured 2026-08-21, after three separate investigations had blamed the token. The stored token was ALSO wrong in two independent ways — a stray leading `E` from a paste, and `type=USER` where a `SYSTEM_USER` token was required — so each investigation found a real defect and stopped there, without the app credentials ever being tested against the right app.
@@ -5412,6 +5652,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## suppressed-alert-renders-as-health
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: an alert correctly suppressed for a source that has nothing to send is then rendered as 🟢 / ✅ by every surface that reads the same flag. "Quiet because there is nothing to collect" and "quiet because everything is fine" become the same green — beside a two-year-old date.
 - root_cause: `check_freshness` answers one question with one flag. `stale=False` means "do not fire", and four readers rendered it as health: `airflow_kpi._section_source_status` (🟢 OK), `artist_readiness.platform_status` (which also feeds `readiness_red_flags`, the onboarding view and `tools/artist_preflight.py`), the `✅ Sources OK` footer of `alert_monitor.send_consolidated_alert`, and `airflow/debug_dag/debug_alert_monitor.py` (`✅ OK (16577h)`). The suppression written on 2026-08-21 for Meta Ads — no ACTIVE campaign, so no insight row can exist — therefore converted a nightly false RED into a permanent false GREEN. The second failure is worse: a red that fires every night is eventually read as noise, a green is never questioned at all.
@@ -5430,6 +5671,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## catalogue-index-omits-its-own-entries
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: the Index table at the top of a catalogue stops listing the entries below it. Every reader who scans the index concludes a class does not exist — and catalogues the same defect a second time under a new name.
 - root_cause: `.claude/dev-docs/error-classes.md` keeps a hand-maintained Index table while `/capitalise` appends entries at the end of the file. Nothing tied the two together, and nothing failed when they diverged. Measured 2026-08-21: **63** entries, **51** index rows. The twelve missing were the twelve most recent, four of them written the same day.
@@ -5448,6 +5690,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## config-corrected-in-the-file-that-loses
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: manual
 - symptom: a credential is investigated, found wrong, and corrected — and nothing changes. Every later look at the corrected file confirms the fix, so the investigation closes and the integration stays broken.
 - root_cause: the value lives in two env files and the fix went into the one that does NOT win. `src/utils/env_files.ENV_FILES` loads `.env.local` first with `override=False`, so **the local file wins**; the correction of 2026-08-21 went into `.env`. Measured 2026-08-22: `.env` held the correct app (`2200684950508458`, ETL_DASHBOARD_SPOTIFY) and a valid System User token — 43 scopes, `expires_at=0` — while `.env.local` still held the **ad account** id in `META_APP_ID` and a token carrying one stray pasted `E`. Locally every Meta call had been failing on the fixed configuration for a day, and the roadmap still described R13 as blocked on a human regenerating a token that was already valid.
@@ -5468,6 +5711,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## same-platform-judged-on-different-tables
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: several surfaces each decide whether a platform is "collecting" by reading a different table, so the same tenant is 🟢 on one screen and 🔴 on another — both truthfully. Measured 2026-08-22: Spotify was judged on FOUR tables. An artist who entered their Spotify artist id, passed a connection test that named the artist back to them, and whose `spotify_api_daily` was filling rows normally, still read 🔴 "Connecté — aucune donnée" until they uploaded a CSV. Spotify is the platform onboarding recommends first, so this was most artists' first impression of the product.
 - signature: `python3 -m pytest tests/test_platform_sources_agree.py -q`
@@ -5497,6 +5741,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## broken-probe-rendered-as-user-fault
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: a check that FAILED (missing table, bad identifier, dead connection) renders identically to "connected, no data", so the user is told to fix something that is not theirs. They change a working setting and the screen still says red.
 - signature: `python3 -m pytest tests/test_broken_probe_is_not_the_artists_fault.py -q`
@@ -5521,6 +5766,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## row-existence-read-as-connection
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: a surface decides "connected" from the presence of a credentials row rather than from the identity value, so a tab opened and saved blank reads as ✅ — beside a readiness matrix showing ⚪ for the same tenant on the same data.
 - signature: `python3 -m pytest tests/test_connected_means_declared.py -q`
@@ -5546,6 +5792,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## trusted-value-read-from-an-untrusted-header
 - status: guarded
 - severity: P1
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: a security control keys on a value taken from a request header the caller controls, so the caller varies the key and the control never fires. It looks present in code review and in the logs.
 - signature: `python3 -m pytest tests/test_rate_limit_client_ip.py -q`
@@ -5570,6 +5817,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## anonymous-surface-answers-a-private-question
 - status: guarded
 - severity: P1
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: a page reachable without authentication behaves differently depending on private state, so a visitor reads that state one request at a time. The page looks correct: every individual message is true and helpful.
 - signature: `python3 -m pytest tests/test_registration_is_not_an_oracle.py -q`
@@ -5589,6 +5837,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## revocation-written-but-never-read
 - status: guarded
 - severity: P1
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: an administrative gesture that is supposed to cut access writes a column nothing reads on the live path. The UI confirms, the row changes, and the holder keeps working until their session expires on its own.
 - signature: `python3 -m pytest tests/test_revocation_actually_revokes.py -q`
@@ -5608,6 +5857,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## sentinel-means-privileged-and-missing
 - status: guarded
 - severity: P2
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: one sentinel value carries two unrelated meanings — "this caller may see everything" and "this caller has no scope" — so the branch written for the first is taken by the second. Every call site is asked to remember the disambiguation, and the ones that forget read as ordinary code.
 - signature: `python3 -m pytest tests/test_stray_session_reads_nothing.py -q`
@@ -5626,6 +5876,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## second-factor-budget-refunded-by-the-first
 - status: guarded
 - severity: P2
+- family: un-seuil-écrit-d-instinct
 - kind: deterministic
 - symptom: a multi-factor flow rate-limits each step, and the earlier step's success resets the later step's budget. The attacker holds the earlier factor by assumption, so the later one has no budget at all.
 - signature: `python3 -m pytest tests/test_second_factor_is_not_brute_forceable.py -q`
@@ -5644,6 +5895,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## input-nobody-would-type-reaches-the-driver
 - status: guarded
 - severity: P3
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: a caller-supplied string reaches the database driver in a shape the driver refuses, and the refusal is an unhandled exception rather than a rejected request. The endpoint answers 500 to anyone who asks that way, and no test in the repo produces it — every existing test passes a plausible value.
 - signature: `python3 -m pytest tests/test_api_survives_hostile_input.py -q`
@@ -5662,6 +5914,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## resave-erases-a-secret-the-form-cannot-show
 - status: guarded
 - severity: P1
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: pressing "save" on a form destroys a stored secret the form has no field for. The UI reports success, nothing logs a warning, and the loss only surfaces one collection cycle later as a credential that "stopped working".
 - signature: `python3 -m pytest tests/test_saving_a_tab_never_destroys_a_secret.py -q`
@@ -5681,6 +5934,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## static-hint-contradicts-the-live-probe
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: two layers answer the same question about a tenant. One reads the database and guesses at the cause from a fixed string; the other calls the platform API and knows. The guess is the one that runs automatically, so the operator and the artist are told something that is not true.
 - signature: `python3 -m pytest tests/test_readiness_carries_the_live_diagnosis.py -q`
@@ -5700,6 +5954,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## age-computed-against-another-clock
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: a staleness check compares a stored timestamp against a clock that is not the one that wrote it. The verdict is wrong by the offset between the two, in the OPTIMISTIC direction — a genuinely stale source keeps reading fresh — and in the extreme it reports a row in the future.
 - signature: `python3 -m pytest tests/test_freshness_uses_one_clock.py -q`
@@ -5718,6 +5973,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## upsert-freezes-its-own-timestamp
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: an upsert refreshes a row's data and leaves its `collected_at` at the value of the first insert. The rows are current; every reader of `MAX(collected_at)` reports the date of the first collection, forever.
 - signature: `python3 -m pytest tests/test_upsert_refreshes_its_timestamp.py -q`
@@ -5736,6 +5992,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## unmeasured-rendered-as-measured
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: a status display shows a green indicator for something nobody has checked. The viewer cannot tell "verified and fine" from "never asked", and acts on the first reading.
 - signature: `python3 -m pytest tests/test_status_matrix.py -q`
@@ -5754,6 +6011,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## decision-made-on-a-string-truncated-for-display
 - status: guarded
 - severity: P2
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: a branch written to handle a known, valid edge case never executes. The code reads correctly, the condition names the right thing, and reviewers confirm the case is handled — but in production the exception is raised anyway, every time.
 - root_cause: control flow was decided by searching a string that had been shortened for DISPLAY. `src/collectors/youtube_collector.py` tested `'playlistNotFound' in safe_error(he)`; `src/utils/safe_error.py::safe_error` truncates at 300 characters for LOG HYGIENE, and in a real googleapiclient repr the URL alone is ~170 characters, putting the token at index **455 of 531**. Measured 2026-08-23: `youtube_daily` retried 3x and raised nightly for tenant 12, whose channel simply has no videos, and the channel snapshot already fetched was lost with the exception. The DAG stayed SUCCESS, the tenant went `stale`, and `readiness_red_flags` excludes `stale` — so nobody was told for two nights.
@@ -5772,6 +6030,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## detector-with-no-scheduler
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: a detector is written, tested, documented — and nothing ever runs it. It reports on the day a human happens to type its command, which is never the day the defect appears.
 - root_cause: `tools/tenant_contamination_check.py::scan()` was reachable only from `make tenant-check` and from step 5 of `artist_preflight`, and `alert_monitor.check_canary_preflight` runs steps 2-4 only. So the ONE class this repository has actually been bitten by — every tenant's Spotify popularity history filed under `artist_id = 1` for months in production — was the one class with no watchdog. The other checks cannot see it by construction: rows ARE arriving, so freshness, readiness and the canary are all green; they just belong to somebody else.
@@ -5790,6 +6049,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## test-sends-real-mail-to-real-people
 - status: guarded
 - severity: P1
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: real email arrives in a real inbox after a test run, from the project's own SMTP account, carrying a `http://localhost:8501` link that no recipient can use. The suite reports all-green: nothing failed, because nothing was asserting about the send.
 - root_cause: `tests/conftest.py` had no network boundary of any kind, so a test that presses a UI button reaches the real relay with the credentials in `.env` and a recipient read from whatever database the run points at — locally, the migrated copy of production. Measured 2026-08-23: `test_admin_hypeddit_buttons.py::test_every_button_survives_a_click[admin]` presses every button on the admin view, one of which is `📧 Renvoyer vérification` (`admin.py:685` → `send_verification_email(sel_user['email'], …)`). Three suite runs that day delivered three verification emails to `timothe.baudry137@gmail.com`; had the selected row been a beta tester, it would have been theirs. The `localhost` link is the same default that `env-not-wired-to-service` covers — no local process sets `APP_BASE_URL` — but here the defect is that the mail left at all.
@@ -5809,6 +6069,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## partial-collection-invisible
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: la collecte d'un locataire s'effondre sans que rien ne le dise. Des données arrivent — donc la fraîcheur est verte — mais bien moins que d'habitude : 3 titres là où 40 atterrissent. Le DAG est vert, l'e-mail nocturne est muet, et c'est un humain qui finit par le remarquer.
 - root_cause: le pilier **Volume** (Moses/Gavish/Vorwerck, *Data Quality Fundamentals* p.144 — « Has all the data arrived? ») n'était surveillé que dans un sens. `check_row_anomalies` ne détecte que le PIC et son docstring délègue explicitement l'autre sens à la fraîcheur : « freshness already covers the opposite (no recent data) ». Vrai de ZÉRO ligne, faux de TROP PEU. Entre les deux il y a un trou, et streaMLytics y est tombé deux fois — SoundCloud « ✅ sur 0 titre » au test GRiNCH, chaîne YouTube vide chez Benken.
@@ -5828,6 +6089,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## test-calls-a-real-api
 - status: guarded
 - severity: P2
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: la suite consomme du quota d'API réel et échoue en CI dès qu'il n'y a pas de réseau, sans qu'aucun test ne le dise. Contrairement à son jumeau `test-sends-real-mail-to-real-people`, ce défaut ne laisse **aucune trace** côté opérateur : pas de mail dans une boîte, juste des appels sortants silencieux avec les credentials de `.env`, susceptibles d'écrire sur un vrai compte.
 - root_cause: `tests/conftest.py` ne portait aucune frontière réseau. Mesuré 2026-08-23 avec un mouchard sur `socket.connect` pendant une exécution complète : `test_artist_preflight.py::test_a_scoped_run_still_requires_its_own_platform` ouvrait quatre connexions réelles (Meta 157.240.196.17, Google 35.186.224.24, SoundCloud 3.164.85.105) parce que `step_central_apps` sonde les QUATRE plateformes, hors périmètre comprises. Khorikov (*Unit Testing Principles* p.213/221) nomme la ligne : les dépendances *unmanaged* font partie du comportement observable et se mockent ; les *managed* (la base) non.
@@ -5846,6 +6108,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## traceback-rendered-to-the-visitor
 - status: guarded
 - severity: P2
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: une exception non rattrapée affiche sa **traceback complète dans le navigateur** du visiteur — chemins de fichiers, lignes de code, et le message de l'exception. Aucun log ne le signale : de la machine, tout va bien.
 - root_cause: `client.showErrorDetails` n'était pas configuré dans `.streamlit/config.toml`, et le défaut de Streamlit est `full`. Ne pas régler l'option n'est pas neutre. Mesuré en production le 2026-08-23 (`streamlit 1.58.0`, valeur effective `full`). Ce dépôt sait ce que ce message peut contenir : Meta et YouTube passent leur credential en QUERY STRING, ce qui est toute la raison d'être de `secret-in-an-exception-message` et de `safe_error()`. Le travail fait pour empêcher un credential d'atteindre un LOG était donc contourné par la surface la plus exposée de toutes.
@@ -5865,6 +6128,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## boundary-narrower-than-the-surface
 - status: guarded
 - severity: P2
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: une frontière d'exception EXISTE, elle est documentée, elle fonctionne — et le défaut passe quand même, parce qu'elle n'entoure qu'une partie du code. Le symptôme est indiscernable d'une absence de frontière, sauf sur les chemins couverts.
 - root_cause: `app.py` portait un « central view guard » autour de `_render_page` seulement, soit **10 des 90 lignes** de `main()`. Les 80 restantes portaient huit appels de vue, dont les surfaces **non authentifiées** : page vie privée, onboarding, barres latérales. Mesuré end-to-end dans un navigateur le 2026-08-23 avec `showErrorDetails=full` (la valeur EFFECTIVE en production ce jour-là, faute d'avoir été réglée) : une exception sur ces chemins rendait dans la page la clé API YouTube en clair — elle voyage dans la query string, donc dans le message de l'exception — plus les chemins de fichiers et le code.
@@ -5883,6 +6147,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## success-message-outside-its-condition
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: l'utilisateur voit défiler des erreurs, puis un message de succès. Il retient le dernier. Ici : sept déclenchements de collecte en échec affichaient sept ❌ **puis** « Lancé ! », et l'artiste repartait attendre des données qui ne viendraient jamais.
 - root_cause: dans `show_data_collection_panel` (`src/dashboard/app.py`), chaque déclenchement était correctement testé (`if result.get('success')`), mais le `st.sidebar.success("Lancé !")` final vivait **après la boucle, hors de toute condition de résultat**. Le soin mis sur chaque itération masquait l'absence de conclusion. Même famille que la croix verte de collecte qui atteste un état SUCCESS d'Airflow plutôt que l'arrivée de lignes.
@@ -5901,6 +6166,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## the-page-that-tells-you-what-to-do-is-unreachable
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: l'utilisateur ne sait pas quoi faire, et la page qui le lui dirait existe — mais aucun chemin de l'application n'y mène. Rien ne casse, rien ne lève : une page injoignable est silencieuse.
 - root_cause: `views/onboarding.py`, seule surface portant la sélection par plateforme et la matrice, n'était dans **aucune section de `_NAV_SECTIONS`** et n'était pas une clé de page valide. Il n'était joignable que par le lien profond `?page=onboarding`, produit à deux endroits : l'écran post-inscription et l'e-mail de vérification. **Mail fermé, onglet fermé : la page n'existait plus.** Et sur l'accueil, les quatre étapes de mise en route nommaient leur destination sans y mener — `for done, label, _page in steps:`, la clé liée puis jetée, rendue en `st.markdown`. Enfin l'atterrissage était inconditionnel sur `home`, qui pour un artiste neuf est un tableau d'état vide.
@@ -5920,6 +6186,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## dead-content-that-still-ships
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: un utilisateur suit une consigne que le produit ne demande plus, et échoue. La consigne vient d'un contenu maintenu, traduit, et que plus rien n'affiche — sauf sur une surface qu'on avait oubliée.
 - root_cause: deux corpus de guides d'identifiants coexistaient. Les quatre `_guide_*` des modules plateforme et leur dispatcher `_render_platform_guide` n'avaient **aucun appelant** depuis le passage au modèle central (ADR-006) — 180 lignes et 36 traductions. Ils **contredisaient** le corpus vivant : sur Spotify le vivant dit « tu n'as rien à créer, colle le lien de ta page artiste », le mort disait « crée une app, coche Web API, saisis une Redirect URI ». Et le guide **anglais**, lui, n'était pas mort : miroir périmé du même modèle, il est **expédié dans le PDF d'onboarding** pour `lang == "en"`, avec `http://127.0.0.1:8888/callback` — un `8888` hérité du défaut de `spotipy`, décliné en trois orthographes dans le dépôt, dont la forme `localhost` que le tableau de bord Spotify **refuse désormais**.
@@ -5938,6 +6205,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## detect-then-reject-with-the-wrong-advice
 - status: guarded
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: un fichier est accepté par la détection puis refusé plus bas, avec un conseil qui ne corrige rien. L'utilisateur applique le conseil, réessaie, échoue à l'identique.
 - root_cause: l'export « Depuis le début » de S4A (`…-songs-all.csv`) était détecté par son propre nom de fichier, puis rejeté trois couches plus bas par `_detect_window` avec un message conseillant de **renommer le fichier**. Renommer ne corrige rien : Spotify renvoie auditeurs et sauvegardes à ZÉRO sur cet export — c'est la donnée qui est inutilisable, pas son nom. Deuxième cause du même symptôme : le séparateur `;`, celui que produit Excel en configuration française, n'était pas testé — la ligne d'en-tête se lisait comme une colonne géante et le message disait « type non reconnu » sans nommer le séparateur.
@@ -5956,6 +6224,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## prune-scoped-wider-than-what-it-refreshed
 - status: guarded
 - severity: P1
+- family: une-écriture-qui-écrase
 - kind: deterministic
 - symptom: des données de production disparaissent, sans erreur, sans trace. Le nettoyage qui suit une collecte supprime plus large que ce que cette collecte vient d'écrire, donc il emporte le travail d'une autre.
 - root_cause: `_prune_renamed_campaigns` (`src/collectors/_meta_upsert.py`) exécute `DELETE FROM <table> WHERE artist_id = %s AND campaign_name <> ALL(%s)` — le `DELETE` est scopé au LOCATAIRE, la liste de campagnes ne couvre qu'un COMPTE PUBLICITAIRE. Tant qu'un artiste n'a qu'un compte, les deux portées coïncident et le défaut est invisible. Le jour où la boucle passe sur deux comptes — le cas d'une agence, demandé par un vrai utilisateur — la passe du second efface tout ce que le premier vient d'écrire. Ce n'est pas une collision d'upsert, c'est une suppression de masse.
@@ -5976,6 +6245,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## layer-written-but-never-wired
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: une couche que l'architecture décrit comme porteuse — validation, gestion d'erreur — existe, a des tests verts, et **aucun code de production ne l'appelle**. Le jour où on la branche, elle casse la production : ce qu'elle supposait du reste du code n'est plus vrai depuis des mois, et rien ne pouvait le signaler tant que personne ne l'appelait.
 - root_cause: `src/models/meta_ads_validators.py` définissait quatre modèles Pydantic décrits par `CLAUDE.md` comme la couche de validation du projet ; seul `tests/test_validators.py` les importait. Quatre divergences avec les payloads réels s'étaient accumulées : aucun modèle ne déclarait `artist_id` (le champ du locataire, le seul dont ce dépôt ait souffert), `status` était obligatoire alors que le collecteur écrit `.get('status')`, `targeting` était typé `dict` alors que `_fetch_adsets` écrit `json.dumps(...)`, et `MetaInsight` exigeait dix métriques que Meta ne rend pas sur un objectif d'engagement. Le test passait **parce que** rien n'exécutait les modèles : il les confrontait à des payloads inventés par le test.
@@ -5994,6 +6264,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## counter-includes-our-own-robots
 - status: guarded
 - severity: P3
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: un compteur affiché à des visiteurs — « N artistes utilisent le produit » — inclut les comptes de service que nous créons nous-mêmes. Le nombre est faux, et le lecteur n'a aucun moyen de le recouper.
 - root_cause: `live_pulse.get_registered_count_public` et `get_live_pulse` (`src/dashboard/utils/live_pulse.py`) et le KPI admin (`src/dashboard/views/admin.py`) comptaient `SELECT COUNT(*) FROM saas_artists WHERE active = TRUE`. Le canari de surveillance porte `is_canary = TRUE` depuis la migration 064 et `credential_loader.load_all_artists(exclude_canaries=True)` faisait déjà la distinction — les compteurs, non. Le plus exposé des trois est sur la **page d'inscription publique**.
@@ -6012,6 +6283,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## validation-bound-invented-not-read-from-the-schema
 - status: guarded
 - severity: P2
+- family: un-seuil-écrit-d-instinct
 - kind: deterministic
 - symptom: un validateur qui **lève** refuse une donnée parfaitement légitime, parce qu'une de ses bornes a été tapée à la main au lieu d'être lue dans le schéma. La collecte du locataire s'arrête, et le message parle d'une limite qui n'existe nulle part.
 - root_cause: `src/models/meta_ads_validators.py` déclarait `max_length=255` sur `campaign_name`, `adset_name` et `ad_name`. Les colonnes correspondantes sont des `text`, sans limite, et la production contient une campagne de **313 caractères** (nom généré, avec emoji). Le modèle venait d'être branché (R47) et **lève** : la première collecte Meta de ce locataire se serait arrêtée. Second cas dans le même fichier : `targeting` typé `str` alors que la colonne est `jsonb` — le collecteur y écrit `json.dumps(...)` et psycopg2 le relit en `dict`, donc 69 lignes sur 69 étaient refusées à la relecture.
@@ -6030,6 +6302,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## empty-table-rendered-as-health
 - status: guarded
 - severity: P3
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: un panneau affiche « ✅ tout va bien » à partir d'une requête qui ne rend rien — alors que « rien » a deux causes opposées : il n'y a effectivement aucun problème, ou **personne n'écrit jamais dans cette table**.
 - root_cause: `views/alerts.py::_section_circuit_breakers` et `views/etl_logs.py` interrogent `etl_circuit_breaker` avec `WHERE state != 'closed'` et affichaient `st.success("✅ … fonctionnement normal")` sur zéro ligne. Or `CircuitBreaker` (`src/utils/circuit_breaker.py`) n'a **aucun appelant de production** — il n'est instancié que dans son propre exemple de docstring et dans son helper `reset_circuit` — et la table est vide. Les deux panneaux affirmaient une bonne santé qu'aucune mesure ne soutenait, dont un sur la page d'alertes.
@@ -6050,6 +6323,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-fail-fast-gate-cannot-diagnose
 - status: guarded
 - severity: P3
+- family: l-instrument-ment-sur-ce-qu-il-mesure
 - kind: deterministic
 - symptom: l'outil que le runbook fait lancer pour comprendre pourquoi une plateforme ne collecte pas s'arrête AVANT de la tester, et rend un verdict qui ne parle pas du problème.
 - root_cause: `tools/artist_preflight.py` s'arrête à la première étape rouge — délibérément, deux sessions de test artiste ayant brûlé une heure chacune à découvrir en direct des apps mal configurées. Mais pour un artiste **déjà inscrit et à moitié configuré**, l'arrêt tombe sur « identités manquantes » et le test de connexion n'est jamais joué. Mesuré le 2026-08-24 sur GRiNCH (artist_id=13), dont l'alerte nocturne dit « NE COLLECTE PAS : SoundCloud » : quatre identités absentes → arrêt à l'étape 2 → SoundCloud, la seule plateforme déclarée et justement celle en panne, non testée.
@@ -6069,6 +6343,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## automation-gap-between-two-ecosystems
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une règle de sécurité existe, elle est écrite, elle est commentée — et elle ne couvre qu'un des écosystèmes auxquels elle s'applique. La proposition dangereuse arrive donc par celui qui n'est pas gardé, et elle ressemble exactement à ce qu'on attendait.
 - root_cause: `.github/dependabot.yml` portait « Manual review for majors — high blast radius » sur l'écosystème **pip** seulement. `docker` et `github-actions` n'avaient rien. C'est par là qu'est passée la PR #100 — `apache/airflow` 2.8.1 → 3.3.0, puis rebasée en 2.11.2 → 3.3.1 — qui ressemble au correctif de sécurité attendu et qui aurait fait échouer l'import des **16** DAGs (`schedule_interval` et `provide_context`, supprimés en 3.x), donc arrêté toute la collecte. Une majeure d'image de base est le plus large rayon de souffle du fichier : elle change le runtime SOUS l'application, et aucun test du dépôt ne s'exécute dedans avant le déploiement.
@@ -6087,6 +6362,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## message-flattened-for-the-narrowest-renderer
 - status: guarded
 - severity: P2
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: un diagnostic en deux moitiés — le symptôme, puis le geste qui le répare — arrive sur ses surfaces automatiques amputé de la seconde. L'alerte nomme le problème et retient la solution ; pire, la phrase conservée annonce une énumération (« Deux cas : ») et n'énumère rien.
 - root_cause: `src/utils/platform_probes.py` renvoyait `str(message).splitlines()[0][:300]`. Les sondes rédigent leur diagnostic pour `st.error` (markdown) ; la couture réconciliait TROIS lecteurs — un formulaire markdown, un `<td>` HTML, un terminal — en aplatissant pour le plus étroit. Or les sondes placent le SYMPTÔME en ligne 1 et le GESTE après une ligne vide : la coupe tombait systématiquement sur la moitié actionnable. Mesuré le 2026-08-26 sur l'alerte de production de 01h00 : **les 2 lignes rouges sur 2** de la section « À regarder » avaient perdu leur geste, dont l'instruction de partage Business Manager qui débloque `act_65390907` — le blocage opérationnel ouvert depuis juin.
@@ -6107,6 +6383,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## alert-names-an-action-its-source-cannot-take
 - status: guarded
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: une alerte vraie nomme une action qui ne peut pas changer l'état qu'elle signale. Le lecteur l'exécute, rien ne bouge, et le même message repart la nuit suivante.
 - root_cause: `airflow/dags/alert_monitor.py` composait **une seule phrase pour toute source stale** — « Airflow UI → relancer le DAG correspondant » — sans distinguer les sources alimentées par une collecte planifiée de celles alimentées par un dépôt humain. Relancer `s4a_csv_watcher` sur une boîte vide n'upserte rien et sort SUCCESS. Le 2026-08-26 les **2 sources stale sur 2** (Spotify S4A 1921h, Apple Music 1709h) étaient de ce type : le geste nommé était impossible deux fois sur deux. La péremption, elle, est VRAIE (R46 : S4A muette depuis ~80 j, seul l'admin a jamais déposé) — donc taire la ligne serait le mauvais correctif ; c'est l'action qui était fausse.
@@ -6126,6 +6403,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## two-checks-one-question-reported-twice
 - status: guarded
 - severity: P3
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: deux contrôles portant des noms différents évaluent le MÊME prédicat, et le rapport imprime chaque fait deux fois, sous deux formulations du même geste — puis le recompte dans le sujet. La ligne unique qui méritait une question se noie dans ses propres doublons.
 - root_cause: `readiness_stalled_flags` (`src/utils/artist_readiness.py`) renvoie les plateformes au statut `TODO` ; `check_credentials_all` (`airflow/dags/alert_monitor.py`) renvoie celles absentes de `declared_identities()`. Or `TODO` **est** « aucune identité déclarée » : `stalled` est donc `missing_creds` restreint aux comptes de plus de 7 jours — un sous-ensemble strict par construction, pas par coïncidence. Mesuré le 2026-08-26 : section « Inscrits sans rien connecter » = 11 lignes, section « Credentials manquants » = 12, dont **les mêmes 11**. Une seule ligne (l'identité Spotify de l'admin) n'était pas déjà dite au-dessus, et c'était la seule intéressante.
@@ -6145,6 +6423,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## mirror-visible-to-one-reader-only
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: une identité stockée à DEUX endroits (une ligne de credentials et une colonne miroir sur `saas_artists`) n'est vue que par l'un des lecteurs. Le lecteur aveugle annonce « manquant » ce qui est présent — et il se trouve que c'est celui qui tourne sans personne devant.
 - root_cause: `declared_identities()` (`src/utils/tenant_identity.py`) ne lisait que `extra_by_platform`, alors que `PLATFORM_IDENTITIES['spotify']` déclare `mirror='spotify_artist_id'` et que `artist_readiness._identity()` honore ce miroir explicitement. Mesuré sur la PROD le 2026-08-26 : le propriétaire (id=1) n'a **aucune** ligne `spotify` dans `artist_credentials` et porte `saas_artists.spotify_artist_id = 7sbfafbLjNZGZJZjZ3xoPB` — le mail nocturne réclamait donc chaque nuit un credential déjà renseigné.
@@ -6165,6 +6444,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## nonprod-instance-puts-mail-on-the-wire
 - status: guarded
 - severity: P2
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: une instance hors production expédie de vrais e-mails à de vraies boîtes. Ils ressemblent à une panne, il faut les ouvrir, les lire et les écarter — et à force, on écarte aussi les vrais.
 - root_cause: `EmailAlert.send_alert` et `EmailAlert.send_email` n'ont jamais consulté l'identité de l'instance avant de composer avec le serveur SMTP. **Troisième occurrence en trois jours**, et les deux correctifs précédents avaient chacun une portée trop étroite : le 2026-08-23, une frontière SMTP posée dans `conftest` (donc la SUITE bornée, jamais le scheduler) ; le 2026-08-24, le préfixe `[LOCAL]` sur le sujet (un correctif d'AFFICHAGE pour un problème d'ENVOI). Le 2026-08-26 à 19h48, une session a redémarré le Postgres local pour faire tourner les tests sur une vraie base ; le scheduler local, inactif faute de base, l'a retrouvée et a rejoué ses runs planifiés. Le préfixe `[LOCAL]` a parfaitement fonctionné — et les deux mails sont arrivés quand même.
@@ -6185,6 +6465,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## named-guard-deleted-while-the-class-reads-guarded
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: une classe d'erreur affiche `status: guarded` et nomme un test qui n'existe plus. La classe est rouverte, le catalogue dit le contraire, et rien n'échoue.
 - root_cause: `error-classes.md` est de la PROSE : elle pointe des chemins et des identifiants de nœuds pytest, et rien ne vérifiait qu'ils résolvent. Mesuré le 2026-08-26 : l'arbre de travail portait un changement non commité retirant **4 tests** de `tests/test_claude_config_floor.py`, dont **trois sont le `guard:` ou la `signature:`** de classes cataloguées (`trigger-threshold-split`, `rex-delimiter-unanchored`, `config-path-dangling`). Seul `audit_runner`, lancé à la main, l'a vu. C'est `config-path-dangling` d'un cran au-dessus : une référence qui rate sans se plaindre.
@@ -6205,6 +6486,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## alert-repeats-an-unactionable-verdict
 - status: guarded
 - severity: P3
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: la même alerte arrive chaque nuit avec le même contenu, sur un problème dont le geste correctif est une action humaine dans une interface tierce. Le lecteur ne peut rien en faire le soir même ; au bout de quelques nuits il cesse de l'ouvrir, et c'est le mail SUIVANT — celui qui aurait changé — qu'il ne lira pas.
 - root_cause: `alert_monitor.send_consolidated_alert` envoyait à chaque exécution, sans jamais comparer aux constats précédents. Mesuré le 2026-08-28 sur les XCom de production des runs du 25 et du 26 août : **identiques à deux champs près**, `age_h` (1945.0 → 1969.0, une source qui vieillit) et `when` (l'horodatage du dernier échec Meta). Le registre `monitoring_run` montre **cinq** nuits consécutives au même sujet. Une comparaison naïve sur le corps ou le sujet ne pouvait pas marcher : le sujet tronque à trois noms et un « +2 », et le corps porte les mesures qui bougent seules.
@@ -6226,6 +6508,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## procedure-outlives-its-task
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: un document de procédure présente comme À FAIRE, priorité comprise, une tâche close depuis des jours ou des semaines. Le lecteur ouvre une séance en croyant avoir cinq gestes en attente alors qu'il en a un.
 - root_cause: la cohérence entre l'index de la roadmap et le runbook n'était vérifiée QUE dans un sens. `test_every_waiting_row_names_the_gesture_it_waits_on` demandait « chaque tâche ouverte a-t-elle sa procédure ? » ; personne ne demandait « chaque procédure a-t-elle encore une tâche ouverte ? ». Une ligne qui quitte l'index emporte sa preuve et laisse la procédure intacte, avec son `· P2`. Mesuré le 2026-08-28 : `## 1. R13 · P2`, `## 4. R17 · P3` et `## 9. R55 · P3` étaient vivantes pour des tâches closes les 22, 21 et 26 août. Même journée, même classe, un cran plus haut : l'en-tête `## 🔖 REPRISE` de la checklist nommait les trois mêmes ids.
@@ -6244,6 +6527,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## selector-blind-to-the-import-prefix
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un sélecteur de tests rend un ensemble qui a l'air restreint — 19 sur 169, 11 % — et qui est en réalité CONSTANT : le même, octet pour octet, pour un collecteur, une vue et un util. Il exclut le test du module qu'on vient de modifier. Suivre la règle qui prescrit de lancer cette liste revient donc à sauter exactement les tests qui couvrent le changement.
 - root_cause: `source_roots()` retient `src/` comme racine d'imports (elle contient des paquets), donc `module_name()` indexe `src/utils/x.py` sous `utils.x` — alors que ce dépôt écrit `from src.utils.x import …`, la forme relative à la racine git. Les deux noms ne se rencontrent jamais : **59 arêtes résolues sur 979**, 94 % du graphe perdu, tous les tests avec zéro dépendance. Les 19 fichiers venaient uniquement de `dynamic` et des mentions littérales ; l'atteignabilité ne contribuait à rien. C'est le MÊME défaut que `source_roots()` avait été écrite pour corriger le 2026-07-30, dans l'autre sens : ce jour-là un dépôt écrivait `from app import repo` et `src/` fut ajoutée pour lui. Choisir UN nom casse l'autre style.
@@ -6262,6 +6546,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## boundary-wider-than-its-docstring
 - status: guarded
 - severity: P2
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: une frontière de test annonce une portée étroite dans son docstring et l'applique à tout le processus. Symptôme observable : des tests deviennent ROUGES sans que le code testé ait changé, et la suite RALENTIT au lieu d'accélérer.
 - root_cause: `conftest._retry_backoff_costs_no_wall_clock` faisait `monkeypatch.setattr(_retry.time, "sleep", …)` pour éviter le backoff de `src.utils.retry`. Or `retry.py` fait `import time` : `_retry.time` **EST** le module `time` global, donc la fixture neutralisait tous les `sleep` du processus. Mesuré : suite de 275 s → **608 s**, et les deux tests les plus lents rouges — les attentes de rendu Streamlit `AppTest` et WeasyPrint retournaient instantanément et lisaient une page pas encore prête. Le docstring affirmait l'inverse dans le même paragraphe.
@@ -6280,6 +6565,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## resume-header-claims-what-the-index-denies
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: l'en-tête d'un fichier d'état énumère des tâches comme restant à faire alors que le corps du même fichier les dit closes. Le lecteur ouvre sa séance avec cinq gestes en attente au lieu d'un.
 - root_cause: l'affirmation vivait en PROSE et rien ne pouvait la comparer à l'index. Mesuré le 2026-08-28 : `## 🔖 REPRISE` ouvrait sur « ne restent que des gestes humains : R1, R13, R17, R54, R55 » — R13 close le 22, R17 le 21, R55 le 26. Le tableau `🙋` du même fichier listait deux lignes. Seul l'en-tête n'avait pas suivi, et c'est la partie que `/resume` recopie sans la relire.
@@ -6298,6 +6584,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## state-file-accumulates-its-own-history
 - status: guarded
 - severity: P3
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: le fichier lu en PREMIER à chaque séance grossit sans fin parce qu'on empile les états successifs au lieu de les faire tourner. Le coût est payé à chaque ouverture, pour du contenu qui n'est plus vrai.
 - root_cause: rien ne bornait `checklist.md`. Mesuré le 2026-08-28 : **88 Ko, ~22 600 tokens, dont 72 % d'historique** — sept blocs REPRISE/Historique remontant au 21 août, **deux portant tous les deux « à lire EN PREMIER au `/resume` »** (ce qui ne peut pas être vrai des deux), plus deux sections dupliquées mot pour mot. Après rotation vers `archive.md` : 34 Ko.
@@ -6314,6 +6601,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## code-ships-without-a-trace
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une séance modifie du code de production et se termine sans entrée de journal ni mise à jour de roadmap. Le code part ; le raisonnement qui l'a produit ne reste nulle part.
 - root_cause: le rappel de fin de séance (`session_summary.check_config_devlog_sync`) ne surveillait que la CONFIGURATION Claude Code — `.claude/rules`, `tools`, `CLAUDE.md`, `.claude/hooks`, `.claude/skills`. **`src/` et `airflow/` en étaient absents**, donc la séance dont l'oubli coûte le plus cher ne déclenchait rien. Il comparait de surcroît des `mtime`, qui mentent dans les deux sens : un `git checkout` remet une date à zéro sans rien changer, et toucher `DEVLOG.md` pour une virgule éteignait l'alerte sans rien journaliser.
@@ -6332,6 +6620,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## the-watcher-is-not-watched
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: un contrôle planifié cesse de tourner et tout reste vert, parce que rien ne surveille le surveillant. L'absence d'échec est lue comme une absence de problème, alors qu'elle est l'absence de la question.
 - root_cause: `.github/workflows/prod-health.yml` est planifié à 06:00 UTC et rien ne vérifiait qu'il tournait. Mesuré le 2026-08-28 sur 38 exécutions depuis le 21 juillet : les écarts tenaient 22,7–25,4 h, sauf **un à 34,6 h** — un créneau entier abandonné, puis un run à 17:07 au lieu de 06:00. Le cron de GitHub Actions est best-effort. Ce workflow porte les 16 sondes de `test_prod_health.py`, qui tournent **là et nulle part ailleurs** : c'est la seule surface qui regarde la production comme un vrai client, À TRAVERS Cloudflare. Tout le reste tourne sur la machine et est structurellement aveugle aux régressions d'edge, de certificat, de DNS et de routage — le 403 Bot Fight Mode du 2026-06-14 sur le webhook Stripe l'a prouvé.
@@ -6352,6 +6641,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## download-payload-rebuilt-per-rerun
 - status: guarded
 - severity: P3
+- family: un-coût-payé-sans-contrepartie
 - kind: deterministic
 - symptom: une page Streamlit reconstruit à chaque rerun le fichier qu'elle propose au téléchargement. Déplier un accordéon suffit à repayer le rendu complet d'un PDF que personne n'a demandé. Rien ne casse — la page est simplement lente, et le coût est invisible dans les logs.
 - root_cause: `show()` est ré-exécuté à CHAQUE interaction, et `st.download_button` exige son payload présent au rendu. `src/dashboard/views/process_guide.py` appelait donc `HTML(...).write_pdf()` deux fois par rerun. Mesuré dans le conteneur de prod le 2026-08-30 : **573 ms** (guide des identifiants, avec captures) + **148 ms** (guide de démarrage) = 721 ms des 1034 ms de la vue — sur la première page qu'un artiste neuf ouvre.
@@ -6374,6 +6664,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## dag-without-dagrun-timeout
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: un DAG qui se bloque ne se termine jamais, garde son créneau, et peut être enregistré **success**. Aucune alerte : Airflow n'a rien à signaler tant que la tâche n'a pas échoué.
 - root_cause: `dagrun_timeout` vaut `None` par défaut et aucun des 16 DAGs ne le déclarait. Lu sur tout l'historique de `dag_run` en production le 2026-08-30 : `alert_monitor` (p50 **3,4 s**) porte un run de **47 287 s — 13,1 h — en état success**, et `data_quality_check` un de **63 655 s (17,7 h)**. Le premier EST le canal d'alerte nocturne : pendant treize heures rien ne pouvait dire qu'il était bloqué, parce qu'un moniteur muet et une nuit calme se ressemblent trait pour trait.
@@ -6393,6 +6684,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## tests-run-a-different-core-than-prod
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: la suite valide le code contre une version majeure d'un socle que la production n'exécute pas, et rend vert. Rien ne signale l'écart : les deux moitiés fonctionnent, chacune dans son monde.
 - root_cause: aucun fichier n'épinglait le CŒUR Airflow pour l'environnement de dev. `requirements.txt` et `pyproject.toml` listaient `apache-airflow-providers-*` sans version, et le résolveur est libre d'emmener un cœur avec eux — il l'a fait. Mesuré le 2026-08-30 : `uv.lock` résolvait **apache-airflow 3.2.2** quand la production tourne en **2.11.2**. `Dockerfile.airflow` défend l'IMAGE par un `--constraint` d'une ligne et son commentaire explique pourquoi ; il ne peut rien pour l'interpréteur de la suite. La PR Dependabot #100 (3.3.0) aurait cassé l'import des 16 DAGs — le garde de l'image l'aurait attrapée au build, APRÈS que la suite soit passée au vert.
@@ -6412,6 +6704,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## timestamptz-parsed-across-a-dst-change
 - status: guarded
 - severity: P1
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: une page plante avec `ValueError: Tz-aware datetime.datetime cannot be converted to datetime64 unless utc=True, at position N`. Elle marchait la veille : le déclencheur n'est pas un chemin de code, c'est **une date au calendrier**.
 - root_cause: toute colonne `timestamptz` relue par psycopg2 rend des datetimes portant le décalage **en vigueur à cet instant-là**. Une table qui contient des lignes de mars et de juin contient donc `+01:00` et `+02:00` côte à côte, et `pd.to_datetime` sur cette Series refuse. Mesuré en production le 2026-08-30 sur `saas_users.created_at` : ids 1-2 en `+01`, id 10 et suivants en `+02` — « position 2 » exactement. `views/admin.py:652` plantait **en production** sur la liste des utilisateurs ; quatre autres sites avaient la forme identique et n'avaient simplement jamais reçu une fenêtre franchissant un changement d'heure.
@@ -6433,6 +6726,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## page-window-answers-a-per-entity-question
 - status: guarded
 - severity: P2
+- family: un-seuil-écrit-d-instinct
 - kind: deterministic
 - symptom: une vue de supervision affiche une fraction des entités et présente l'absence comme une donnée — « aucun run » au lieu de « je n'ai pas regardé ». Tout répond 200, aucune erreur nulle part.
 - root_cause: `airflow_monitor.get_all_dags_last_state()` répondait « le dernier run de chaque DAG » par **une fenêtre globale** (`POST /dags/~/dagRuns/list`, `page_limit=200`) et prenait ce qui revenait. Son propre docstring énonçait l'hypothèse : « with daily schedules each DAG's latest run sits well within 200 ». La production l'a démentie — mesuré le 2026-08-30 : **392 runs en 24 h, dont 384 pour les 4 watchers CSV** (96 chacun, toutes les 15 min). La fenêtre couvrait donc ~12 h et 98 % de quatre DAGs. `views/home.py` en tire la santé des DAGs : **12 DAGs sur 16 s'affichaient « sans run »** sur la page d'accueil.
@@ -6453,6 +6747,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## content-rendered-outside-its-container
 - status: guarded
 - severity: P3
+- family: un-contrôle-qui-ne-peut-jamais-passer
 - kind: deterministic
 - symptom: le contenu d'un onglet (ou de tout conteneur Streamlit) se rend **à côté** au lieu de dedans. Aucune exception, tous les éléments présents, tous les tests verts — seul l'œil sur la page voit que l'onglet est vide.
 - root_cause: extraire le corps d'un `with tab_x:` dans une fonction et appeler cette fonction **sans le `with`**. Commis le 2026-08-30 en découpant `admin.show()` (401 lignes) : `with tab_gdpr:` + 85 lignes remplacé par `_tab_gdpr(db)` nu. Streamlit n'a rien à signaler — le contexte de conteneur est implicite, son absence est un placement, pas une erreur.
@@ -6473,6 +6768,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## verdict-exists-but-not-when-it-is-needed
 - status: guarded
 - severity: P3
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: le contrôle qui répondrait à la question de l'utilisateur existe, tourne, et donne la bonne réponse — mais à un moment où plus personne ne la lit. L'utilisateur agit, l'interface confirme l'action, et il apprend huit heures plus tard que ça n'a pas marché. Ou jamais.
 - root_cause: deux mécanismes répondaient déjà à « ce locataire fonctionne-t-il ? » — `make artist-preflight` (cinq contrôles, **commande d'opérateur sur la machine**, qu'un artiste ne peut pas lancer) et le DAG nocturne `alert_monitor` à **23 h**. Un artiste qui connecte une plateforme à 15 h n'avait donc aucune réponse pendant huit heures, alors que l'app venait de lui afficher « 🚀 Collecte lancée ». Le moment de la vérification d'e-mail, lui, est **trop tôt** : sans credentials ni identité ni données, les cinq contrôles sont rouges et aucun rouge ne signifie quoi que ce soit.
@@ -6492,6 +6788,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## websocket-dies-behind-the-proxy
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: « je clique sur un bouton et il ne se passe rien, je dois recliquer ». Pas UN bouton — **tous**, par intermittence, et avec **aucune réaction** : ni spinner, ni « Running… ». Rapporté par un artiste en test le 2026-08-30.
 - root_cause: Streamlit parle au navigateur par un **websocket**, et `server.websocketPingInterval` valait `None` — **aucun keepalive**. Le dashboard est servi à travers Cloudflare (`server: cloudflare`, `cf-ray` présents sur `app.streamlytics.fr`), qui ferme un websocket resté inactif. Un artiste qui lit une page deux minutes perd la connexion en silence ; le clic suivant ne part nulle part, celui d'après fonctionne parce que le navigateur s'est reconnecté entre-temps. L'aide de Streamlit pour cette option nomme la situation : *« if you're experiencing frequent disconnections in certain proxy setups »*.
@@ -6511,6 +6808,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## snapshot-keyed-by-a-per-row-timestamp
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: un agrégat sur « le dernier relevé » ne somme qu'**une** ligne du lot, et le delta qui en découle part à l'utilisateur comme un effondrement.
 - root_cause: `airflow/dags/weekly_digest.py:158` identifiait le relevé SoundCloud par `collected_at = (SELECT MAX(collected_at) …)`. Le collecteur horodate **chaque ligne** du même lot : mesuré en prod le 2026-08-31, un run de 19 titres portait 19 timestamps distincts (`11:00:04.101372`, `.101370`, `.101367`…). L'égalité ne retenait donc que la **dernière ligne insérée**. L'artiste a reçu `Plays delta (7d) -21,324` sur `2,229 total` quand les vrais totaux étaient 23 557 aujourd'hui et 23 553 sept jours plus tôt — un delta réel de **+4**. La table déclarait pourtant le grain elle-même : `UNIQUE (artist_id, track_id, (collected_at::date))`. Les deux moitiés d'un même delta étaient calculées à deux grains différents : la moitié « semaine passée » clavait sur `collected_at::date` et était juste.
@@ -6531,6 +6829,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## route-depends-on-an-unstated-import-path
 - status: guarded
 - severity: P3
+- family: un-contrôle-qui-ne-peut-jamais-passer
 - kind: deterministic
 - symptom: l'application démarre proprement puis meurt au **premier clic**, sur un `ModuleNotFoundError` qui nomme un paquet présent sur le disque.
 - root_cause: `src/dashboard/app.py` insérait la racine du dépôt dans `sys.path` (pour `src.*`) mais **jamais son propre répertoire**, dont dépendent ses 44 routes `from views.<page> import show`. Cette entrée n'arrivait que par effet de bord du bootstrap Streamlit (`sys.path.insert(0, dirname(abspath(main_script_path)))`) : chaque route reposait donc sur un détail d'implémentation tiers que le fichier n'affirmait nulle part. Les routes étant importées **paresseusement**, l'absence ne se voit pas au démarrage. Une instance locale a produit `ModuleNotFoundError: No module named 'views'` sur la page `credentials` le 2026-08-30 à 22:34.
@@ -6550,6 +6849,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## assertion-wider-than-the-question-it-asks
 - status: guarded
 - severity: P3
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un test accuse une régression de destruction de données qui n'a jamais eu lieu, et bloque une PR sans rapport.
 - root_cause: `tests/test_admin_hypeddit_buttons.py::test_gdpr_erasure_refuses_without_a_reason` lisait `SELECT count(*) FROM saas_artists` avant et après le clic. La question posée est « **ce** clic a-t-il effacé **cet** artiste ? » ; le prédicat demandait « la table a-t-elle rétréci ? ». **Douze** modules de test suppriment des `saas_artists` en teardown de fixture : sous `pytest-xdist`, n'importe lequel peut atterrir entre les deux lectures. Sur la CI 33356700452 (PR #103, bump de dépendances), après 14 exécutions vertes consécutives, le test a rapporté « went from 3 to 2 rows … The two-step guard is gone » alors que la porte RGPD est prouvée close par lecture : `_confirm_gdpr` n'est posé que si le motif est non vide, et `_erase_artist_gdpr` n'est atteignable que derrière un second bouton.
@@ -6570,6 +6870,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## exec-bit-lost-outside-the-index
 - status: guarded
 - severity: P1
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: un script du dépôt refuse de s'exécuter depuis un clone frais — et son propre mode d'emploi dit de le lancer ainsi.
 - root_cause: **7 des 12 `.sh` suivis étaient stockés en `100644` dans l'index git** — dont `tools/migrate.sh` (appelé par `Makefile:46`, et par SSH contre la PRODUCTION à `Makefile:52`), `tools/dev/check_prod_ledger.sh` (`Makefile:228`, dans `sync-check`), `scripts/backup_db.sh`, et `tools/prod_introspect.sh` dont le bloc d'usage ligne 22 écrit `./tools/prod_introspect.sh` — invocation **impossible depuis un clone frais**. Le dépôt vit sur `/mnt/c`, un montage DrvFs : les bits de mode de l'arbre de travail sont synthétisés par le pilote et ne remontent jamais à git. **Sur cette machine le disque ment, l'index non.** Le défaut ne s'était jamais manifesté parce que chaque appelant écrit `bash tools/…`, immunisé aux permissions — la forme inversée du défaut d'origine : le garde passe parce que l'appelant contourne ce qu'il devait vérifier. Et le dépôt avait déjà payé une fois : `tools/infra_health_cron.sh:7` le dit lui-même — *« would have caught the 2026-06-14 incident: db_backup.sh lost its exec bit → no pg_dump since 06-12 »*. L'incident a eu lieu, un détecteur voisin a été écrit, la classe n'a jamais été enregistrée : `exec bit`, `chmod`, `100644` renvoyaient **0 occurrence** sur les 2909 lignes du catalogue.
@@ -6589,6 +6890,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## capability-resolved-only-inside-a-session
 - status: guarded
 - severity: P2
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: une fonctionnalité facturée ne peut pas être livrée par un travail de fond, parce que la seule façon de savoir qui y a droit exige une session de navigateur.
 - root_cause: **aucun DAG n'avait jamais lu les tables de plan pour un droit d'accès.** La précédence complète — promo → abonnement Stripe actif → `saas_artists.tier` hérité → `free` — n'existait qu'une fois, dans `src/dashboard/auth.py:711-787`, derrière `@st.cache_data` et `st.session_state`. `alert_monitor.check_billing_sync` touche bien `artist_subscriptions`, mais seulement pour signaler une dérive Stripe à l'exploitant : il ne demande jamais si un locataire a droit à une fonctionnalité. Conséquence directe : le digest hebdomadaire, devenu payant le 2026-09-03, n'avait aucun moyen de poser la question. Et le contrat de `PLAN_FEATURES` (`stripe_schema.py` : *« Keys must match page route keys defined in app.py »*) interdit d'y glisser une fonctionnalité qui n'est pas une page — `tests/test_plan_gating.py` itère l'ensemble gratuit **comme des pages**.
@@ -6609,6 +6911,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## probe-reads-unreadable-as-absent
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: un outil de diagnostic accuse le produit d'un défaut qu'il n'a pas — et il vise précisément la page où un vrai défaut coûterait le plus cher.
 - root_cause: `make artist-firstlook` a rapporté `upload_csv` en **CUL-DE-SAC** — « rien à cliquer, saisir ou télécharger » — alors que la page porte un `st.file_uploader` et détient un taux de complétion de **0 sur 4** chez les artistes invités. La chaîne : le `Makefile` lançait l'outil sous le `python3` **système**, qui porte Streamlit **1.54**, quand le venv de la suite porte **1.62** ; sur 1.54, `AppTest` n'a **aucun** attribut `file_uploader`, donc `getattr` lève ; `_has_any` attrapait ça par un `except: continue` et rendait `False` ; ce `False` alimentait directement `dead_end`. **« Je ne sais pas lire » était devenu « il n'y en a pas ».** Deux défauts distincts en un : l'interpréteur (`tests-run-a-different-core-than-prod`) et l'effondrement de *inconnu* sur *non*. Second constat de la même séance : `--artist 17` contre la base LOCALE rendait chaque page sous `user_id=0` et sortait « Utilisateur introuvable » — l'artiste 17 a une ligne utilisateur en production et aucune en local, donc l'outil décrivait la base, pas le produit.
@@ -6628,6 +6931,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## backup-shares-the-fate-of-what-it-protects
 - status: guarded
 - severity: P1
+- family: un-contrôle-qui-ne-peut-jamais-passer
 - kind: deterministic
 - symptom: les sauvegardes tournent chaque nuit, réussissent, et ne survivraient pas à l'incident contre lequel elles existent.
 - root_cause: mesuré sur l'hôte de production le 2026-09-03 — **21 archives quotidiennes, toutes sous `/opt/streamlytics/backups` sur `/dev/sda1`, c'est-à-dire le disque de la base qu'elles sauvegardent**. `crontab -l` ne contenait ni `rsync`, ni `s3`, ni `rclone` : aucune copie hors-site. L'en-tête de `tools/db_backup.sh` annonçait pourtant *« Phase D wires it to a Storage Box »* — une intention écrite en juin et jamais câblée. Second volet : **`tools/db_restore_test.sh` existait sans aucun appelant planifié** (3 crons : sauvegarde 03:00, dérive de schéma 04:00, santé infra 05:00 — aucun ne restaure), et sa seule assertion était `TABLES >= 1`. Il **affichait** un compte de lignes sans jamais le comparer : un dump tronqué à sa première table, ou un `pg_dump --schema-only`, passait au vert. C'était un contrôle de `gunzip` portant le nom d'un contrôle de sauvegarde.
@@ -6650,6 +6954,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## verified-locally-observed-in-prod
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: un utilisateur signale plusieurs fois la même absence ; chaque vérification confirme que la chose est là ; les corrections successives portent sur le texte et la mise en page et ne changent rien.
 - root_cause: l'observation est faite en PRODUCTION, la vérification en LOCAL. Ce sont deux questions différentes, et la seconde ressemble assez à une preuve pour clore la première. Cas mesuré le 2026-09-04, cinq signalements de « il n'y a pas le screen » : le `Dockerfile` copiait `src/`, `config/` et `.streamlit/`, pas `assets/` — 240 Ko. `docker exec … ls /app/assets/credential_guide/spotify/` → `No such file or directory`. Les **huit** captures des guides manquaient, pas une : celles de YouTube et de Meta n'avaient jamais été affichées en production non plus. La classe est silencieuse parce que les deux surfaces qui rendent ces images traitent l'absence comme « rien à montrer » (`screenshot_path()` rend un chemin inexistant, l'étape se dessine sans image) — comportement correct pour un artiste, et qui transforme un fichier manquant en page simplement plus courte.
@@ -6670,6 +6975,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## one-set-answers-two-questions
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: manual
 - symptom: un correctif juste en produit un autre dans l'heure, à l'endroit exact qu'il venait de toucher.
 - root_cause: une constante ou un prédicat sert d'entrée à deux décisions qui ne posent pas la même question. Tant que les deux réponses coïncident, rien ne le montre. `src/dashboard/app.py` : `_SETUP_PAGES` répondait à « le mode première connexion survit-il à cette page ? » **et** à « ce paramètre d'URL peut-il battre l'atterrissage ? ». Un `?page=credentials` resté d'une session précédente était donc honoré — signalé le 2026-09-04. Le correctif a introduit `_LANDING_LINKS = {onboarding}`, et **a produit une régression dans l'heure** : un clic dans le menu écrivait `?page=upload_csv`, que l'atterrissage jetait à son tour. La garde qui répond exactement à ça (`_page_mirrored`, « c'est nous qui avons écrit ce paramètre ») n'était consultée que dans la branche qui HONORE le paramètre, pas dans celle qui le jette — une garde posée sur une seule des deux branches qui décident du même fait.
@@ -6691,6 +6997,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## one-guide-three-sources
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: un lecteur anglophone reçoit une procédure abandonnée côté français ; le PDF d'une langue décrit plus d'étapes que l'autre. Personne ne le voit : ces surfaces ne sont jamais rouges.
 - root_cause: un guide de credentials vit dans TROIS fichiers — `credential_guides.py` (FR), `credential_guides_en.py` (EN), et `i18n_catalog/credentials.py` que le rendu PRÉFÈRE aux deux (`t(f"credentials.guide.{k}.step_{n}", step.text)`). Rien ne les compare. Réécrire l'une laisse les autres en place. Deux occurrences le 2026-09-04 : le catalogue EN de SoundCloud décrivait encore « affiche le code source de /discover et cherche `soundcloud:users:` », abandonné la veille ; et la source EN de Spotify portait TROIS étapes quand le français en avait UNE — restée à l'ancienne version tout un lot parce qu'un `str.replace` de mon script d'édition n'avait pas mordu et n'avait rien dit. Le catalogue masquait l'écart à l'écran ; le PDF anglais est rendu depuis la source et livrait l'écart.
@@ -6709,6 +7016,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## ui-state-not-addressable
 - status: guarded
 - severity: P3
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: chaque demande de « rediriger vers X » produit un bug de mise en page — la barre bouge sous l'utilisateur, un message s'affiche dans un panneau fermé, un rechargement perd la position. Les rapports arrivent séparés et se corrigent séparément ; aucun ne guérit.
 - root_cause: le widget de navigation n'expose PAS son état actif, donc « ouvrir X » ne peut être obtenu qu'en simulant — ici, en RÉORDONNANT la liste pour que X tombe en première position. `st.tabs` (Streamlit 1.54) rend tous ses panneaux et n'a pas d'index actif ; son paramètre `default` n'agit qu'au premier MONTAGE du widget, et un enregistrement passe par un rerun. Trois symptômes mesurés le 2026-09-05, tous du même mécanisme : la barre réordonnée au rerun d'un enregistrement puis revenue à sa place au suivant (« ça nous ramène sur Spotify au lieu de Meta ») ; le verdict rendu par un panneau que le réordonnancement venait de fermer, d'où une rustine `verdict_owner` qui a fini par **masquer le verdict entièrement** quand l'appelant a cessé de la passer ; et rien d'adressable — ni lien profond, ni bouton Précédent.
@@ -6727,6 +7035,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## extracted-rule-with-one-caller-rewired
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: une règle est factorisée pour être partagée, la factorisation est annoncée dans les commentaires — et les deux copies coexistent, parce qu'un seul appelant a été rebranché.
 - root_cause: extraire une fonction et l'utiliser sont deux gestes, et le premier donne le sentiment d'avoir fait le second. `status_matrix.row_cells` a été extraite le 2026-09-05 pour que l'onglet de saisie et la matrice calculent les quatre états au MÊME endroit ; seul l'onglet a été rebranché, la matrice a continué de les calculer dans sa boucle d'affichage. Une heure de coexistence silencieuse — les deux copies étaient d'accord, donc rien ne pouvait le montrer à l'écran.
@@ -6746,6 +7055,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## prediction-outranks-the-measurement
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: un artiste voit un ❌ et un 🟢 sur le même écran, pour la même plateforme, et conclut que l'application se contredit. Il n'a pas tort ; ce qui est faux, c'est le rang qu'on donne aux deux.
 - root_cause: une SONDE affirme une conséquence qu'elle ne peut pas connaître, et l'écran la traite à égalité avec une COLLECTE qui a réellement eu lieu. Mesuré en production le 2026-09-05 : la sonde SoundCloud lit `/users/{id}/tracks` avec le jeton d'application, ne voit aucun titre, et conclut « il n'y aura donc rien à collecter » — alors que `soundcloud_tracks_daily` portait **17 titres collectés le matin même** pour ce locataire. Les deux chemins lisent le même compte et se contredisent ; la sonde est une prédiction, la collecte est un fait. Rapporté comme « j'ai les barres vertes alors que ça ne marche pas » : les barres avaient raison, et c'est le message d'erreur qui mentait sur la conséquence.
@@ -6764,6 +7074,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## headline-asserts-a-cause-the-probe-did-not-measure
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un écran affiche, l'un sous l'autre, un verdict et le détail qui le contredit — et des indicateurs verts qui contredisent les deux. Le titre est un rendu de booléen : il nomme une cause qu'aucune mesure n'a établie, pendant que le corps juste en dessous, lui, dit ce qui s'est réellement passé.
 - root_cause: `render_save_verdict` (`src/dashboard/views/credentials/_render.py`) traduisait `ok is False` par UNE phrase — « ❌ {plateforme} : enregistré, mais la plateforme ne répond pas encore ». Or `ok` recouvre **huit situations réparties sur cinq sondes**, et aucune ne signifie « ne répond pas » : SoundCloud et YouTube rendent `False` **à l'intérieur** d'une branche `status_code == 200` (profil joignable sans titre public, chaîne trouvée mais vide), YouTube rend `False` sur un handle **résolu avec succès**, Spotify/Meta/Instagram sur une app qui fonctionne et une identité non saisie. Second défaut, indépendant : la règle « une mesure qui a eu lieu bat une prédiction » était implémentée dans `_responds_cell` (`status_matrix.py`, qui rend sur `status` AVANT de lire `probes`) et sous le bouton « Tester » (`_data_already_landed`, un seul appelant), et **absente des deux autres surfaces** — le verdict d'enregistrement et la colonne « Prochaine étape » (`status_matrix.py`, qui écrasait `next_action` par la raison d'une sonde sans regarder le statut). Mesuré le 2026-09-05 : le locataire concerné portait **358 lignes** dans `soundcloud_tracks_daily` ; les pastilles avaient raison, le titre avait tort.
@@ -6782,6 +7093,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## probe-does-not-ask-the-collectors-question
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une sonde de configuration annonce à l'utilisateur que sa source est vide, pendant que le collecteur en ramène le contenu tous les jours. Les deux interrogent la même API et le même compte, et se contredisent — parce qu'ils ne lui posent pas la même question.
 - root_cause: `_test_soundcloud` (`src/dashboard/views/credentials/_platform_soundcloud.py`) demandait `GET /users/{id}/tracks?limit=1&linked_partitioning=1` et concluait « aucun titre public » sur `len(collection) == 0`. Le collecteur (`src/collectors/soundcloud_api_collector.py`) demande `limit: 50`. Mesuré le 2026-09-05 contre le profil réel `377065610` avec le jeton d'application : `limit=1 → 0` titre, `limit=2 → 1`, `limit=5 → 4`, `limit=10 → 8`, `limit=50 → **17**`. SoundCloud écarte certains titres APRÈS avoir appliqué la limite : une page de 1 revient vide dès que le premier élément est filtré. La sonde envoyait donc un artiste ayant dix-sept titres publics « déclarer ses sorties hébergées sur d'autres comptes » — lui faire réparer la seule chose qui était juste. Le `next_href` renvoyé avec la page vide disait déjà que la collection ne l'était pas ; il n'était pas lu.
@@ -6801,6 +7113,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## instruction-assumes-visibility-the-reader-does-not-have
 - status: guarded
 - severity: P2
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: une consigne nomme un objet que son lecteur ne peut pas voir depuis sa place. Il ouvre l'écran indiqué, n'y trouve rien, et s'arrête. Rien n'échoue : ni erreur, ni test rouge, ni alerte — l'utilisateur abandonne en silence, et le support reçoit « je ne trouve pas ».
 - root_cause: le guide Meta disait « Business Manager → Applications → cherche `ETL_DASHBOARD_SPOTIFY` » (`src/dashboard/content/credential_guides.py`), et le message d'échec de la sonde nommait le même chemin (`_platform_meta.py`, « Apps → ETL_DASHBOARD_SPOTIFY → Business Assets »). Or **chez Meta une application n'apparaît que dans le Business Manager qui la POSSÈDE** : la nôtre appartient au nôtre, donc cette liste est vide chez tout artiste. La consigne était infaisable pour son seul lecteur possible. Elle a survécu des mois parce que l'auteur, lui, la voyait — il regardait depuis le Business Manager propriétaire. C'est l'étape qui a bloqué la session Benken du 2026-06-19 ; le geste qui marche est l'inverse et se fait avec un numéro (`META_BUSINESS_ID` → « Attribuer un partenaire »).
@@ -6820,6 +7133,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-handle-is-not-an-identity
 - status: guarded
 - severity: P1
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: un artiste colle l'adresse de son profil, l'app résout un identifiant, l'enregistre, et collecte les chiffres de quelqu'un d'autre. Rien n'échoue : la résolution a réussi, le compte existe, les chiffres arrivent. Ils ne sont pas les siens.
 - root_cause: le pseudo qu'un artiste porte sur une plateforme n'est pas garanti être le sien. Mesuré le 2026-09-05 : `youtube.com/@fjaak` résout vers `UCC0p-CFOPuJeRWzk3nVSU3A`, une chaîne **vide** (0 vidéo, 0 vue) titrée « fJAAK » ; la chaîne de l'artiste FJAAK est `UCiMOvinn6mbmAwbXTS_nHPg`, sous `@fjaakberlin`. Le même dépôt avait déjà mesuré, sans en tirer la règle, que la recherche par nom est non fiable : pour Benken, quatre homonymes SoundCloud précédaient le bon compte et la bonne chaîne YouTube n'était pas dans les cinq premiers résultats. Une identité de locataire devinée fait écrire le catalogue d'un autre sous son `artist_id` — la famille `identity-claimed-by-two-tenants` / `tenant-identity-falls-back-to-admin`, atteinte cette fois par la porte d'entrée plutôt que par un repli.
@@ -6839,6 +7153,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## instruction-given-without-reading-the-state-it-asks-to-change
 - status: guarded
 - severity: P2
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: l'app prescrit un geste que l'utilisateur ne peut pas accomplir parce qu'il est **déjà fait**, ou sans objet dans sa situation. Il suit la consigne à la lettre, l'écran ne réagit pas comme annoncé, et il conclut que l'installation est cassée — alors qu'elle marche. Rien n'échoue : ni erreur, ni test rouge. Le support reçoit « ça ne marche pas, je ne trouve pas ».
 - root_cause: `render_partner_share_block` (`src/dashboard/views/credentials/_platform_meta.py`) affichait « colle notre numéro dans Attribuer un partenaire » à **tout locataire**, sans jamais lire l'état du partage. Le compte publicitaire `567214713853881` du locataire 1 est **possédé par notre propre Business** (`GET 212173878482503/owned_ad_accounts` le liste) ; or Meta exclut du sélecteur de partenaires le business qui possède déjà le compte, donc `212173878482503` ne pouvait pas y apparaître. La consigne était infaisable par construction. Les trois arêtes qui répondent à la question — `owned_ad_accounts`, `client_ad_accounts`, `pending_client_ad_accounts` — étaient lisibles depuis toujours et servaient déjà, dans `ADR-017` rédigé le matin même, à prouver autre chose. Cet ADR concluait « le guide garde le geste manuel — **qui, lui, fonctionne** » : une affirmation qu'aucune mesure ne soutenait, contredite dans l'heure.
@@ -6857,6 +7172,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## red-gate-hides-every-step-behind-it
 - status: guarded
 - severity: P2
+- family: un-contrôle-qui-ne-peut-jamais-passer
 - kind: deterministic
 - symptom: la CI est rouge et le reste des jours. Chaque exécution rapporte le même échec, à la même étape, et **rien de ce qui vient après n'a tourné** — donc rien ne dit si le produit marche encore. Le rouge devient une constante de fond, et on pousse au travers.
 - root_cause: `.github/workflows/ci.yml` place les gardes de classes d'erreur à l'étape 10 sur 15. GitHub Actions saute par défaut toute étape suivant un échec : `Provision Postgres`, `Run tests` et le reste étaient donc `skipped`. Mesuré avec `gh run list` le 2026-09-06 : **27 exécutions consécutives** entre le 2026-09-04T22:36 et le 2026-09-06T07:19, une seule verte au milieu, et la suite (3700+ tests) n'a pas tourné une fois. Les 27 commits sont partis sur `main` sur un unique signal, toujours le même, et sans rien derrière. La cause du rouge — deux gardes lisant le `.env` du poste, `guard-predicate-depends-on-the-host-env` — n'avait aucun rapport avec ce que la suite aurait dit.
@@ -6877,6 +7193,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## layout-keyed-by-a-hand-written-list
 - status: guarded
 - severity: P4
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: une mise en page range correctement ce que son auteur avait en tête, et range tout le reste dans un groupe par défaut — qui porte un titre. L'élément suivant hérite donc d'un intitulé faux, en silence.
 - root_cause: `csv_guides_st.py` portait `_SIDE_BY_SIDE = ("s4a", "apple")` et rendait `rest = [tout le reste]` en dessous. Tant que ce bas de page n'avait pas d'intitulé, l'erreur était bénigne. Le 2026-09-06 il en reçoit un — « 💿 Mon distributeur (revenus) » — et un guide de plateforme d'écoute ajouté demain y serait rangé sous un titre qui ment sur son contenu, sans que rien ne le signale : la constante est dans le RENDU, où l'auteur du nouveau guide ne va pas.
@@ -6896,6 +7213,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## check-then-insert-loses-the-race
 - status: guarded
 - severity: P2
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: une page qui « récupère ou crée » plante sur une contrainte d'unicité — pas toujours, pas pour tout le monde, et jamais quand on la regarde. Le message parle de doublon alors qu'il n'y a qu'un utilisateur.
 - root_cause: `src/dashboard/views/referral.py::_get_or_create_code` faisait un `SELECT code FROM referral_codes WHERE artist_id = %s`, puis, si le résultat était vide, un `INSERT`. Deux exécutions qui se croisent lisent toutes les deux « aucun code », insèrent toutes les deux, et la seconde viole `referral_codes_artist_id_key`. Ce n'est pas une condition de test : **Streamlit ré-exécute le script entier à chaque interaction**, donc un double-clic, un second onglet ou un `st.rerun` qui chevauche suffisent. Mesuré le 2026-09-06 sur six appels concurrents pour un locataire neuf : l'ancienne forme rend **3 codes et lève 3 `UniqueViolation`**, la nouvelle rend 6 codes identiques et ne lève rien. Trouvé par la CI (`referral.show()` en erreur dans le render-smoke) après 27 exécutions où la suite n'avait pas tourné.
@@ -6914,6 +7232,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## test-pinned-to-a-row-of-the-authors-database
 - status: guarded
 - severity: P3
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: un test est vert chez son auteur et rouge partout ailleurs, sur une erreur de base de données qui ne parle pas du sujet gardé — une clé étrangère, une ligne absente. On lit le rouge comme un problème d'infrastructure.
 - root_cause: `tests/test_the_verdict_does_not_assert_an_unmeasured_cause.py:101` déclarait `_TENANT_WITHOUT_DATA = 23702`, l'identifiant d'un locataire de la base de développement de son auteur. Les usages en LECTURE s'en accommodent — sur une base où la ligne n'existe pas, lire rend « rien », ce qui est justement la situation décrite. Mais `test_the_category_survives_the_round_trip_through_the_database` ÉCRIVAIT dessus, et la CI provisionne une base neuve à deux locataires : `insert or update on table "tenant_platform_probe" violates foreign key constraint`. Le garde de la migration 086 ne prouvait donc rien là où il comptait le plus, et son rouge ne parlait pas de la migration.
@@ -6933,6 +7252,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## instruction-points-by-direction-not-by-name
 - status: guarded
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: une consigne dit « colle-la au-dessus » et le champ est à gauche — ou l'inverse. Deux lecteurs de bonne foi se contredisent sur la même phrase, et chacun a raison sur son écran.
 - root_cause: `src/dashboard/content/credential_guides.py` désignait le champ de saisie par sa POSITION dans quatre étapes (spotify, youtube, meta, instagram) et dans les deux langues, soit huit occurrences. Or `views/credentials/_render.py:650` rend `st.columns([3, 2])` : le formulaire est à GAUCHE du guide sur un écran large et AU-DESSUS de lui dès que Streamlit empile les colonnes sur un écran étroit. Une direction est une propriété du VIEWPORT, pas du guide. Et ce même texte part en PDF à l'inscription, où il n'y a aucun formulaire : ni « au-dessus » ni « à gauche » n'y désigne quoi que ce soit. Signalé le 2026-09-06 (« c'est à gauche, pas au-dessus ») ; le commentaire qui défendait la formulation en place affirmait le contraire du commentaire qu'il avait lui-même remplacé (« au-dessus » et non « ⬅ ») — quatrième formulation de la même étape, quatrième péremption.
@@ -6952,6 +7272,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## header-announces-a-field-the-form-does-not-have
 - status: guarded
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: un en-tête de formulaire décrit des champs qui n'y sont pas. Le lecteur cherche ce qu'on lui annonce, ne le trouve pas, et doute du reste de la page.
 - root_cause: `views/credentials/_render.py` rendait « 🔒 Champs secrets chiffrés • Laissez vide pour conserver la valeur actuelle » sous le titre de TOUT formulaire en mise à jour. Mesuré sur le registre le 2026-09-06 : `meta`, `soundcloud` et `instagram` déclarent **zéro** champ secret — leur formulaire porte un seul champ, un lien public. Trois onglets sur cinq annonçaient donc une propriété fausse et une consigne sans objet. Signalé sur Meta Ads comme « inutile » ; la mesure dit plus que ça — c'était faux.
@@ -6972,6 +7293,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## per-worker-reference-point-for-shared-state
 - status: guarded
 - severity: P3
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: un garde qui lit un état partagé est vert seul et rouge en exécution parallèle, sur des données que rien n'a changé. Le rouge se déplace d'un fichier à l'autre selon la répartition des workers.
 - root_cause: `tests/conftest.py::pytest_sessionstart` lisait l'horloge de la base **dans chaque worker xdist**. Les workers ne démarrent pas ensemble : un locataire créé par le worker A à T est ANTÉRIEUR au `sessionstart` du worker B démarré à T+2 s. Le filtre « créé pendant la session », qui devait exclure les locataires appartenant à un test en cours, ne les excluait donc pas chez B — qui les dénonçait pendant qu'un test voisin s'en servait. Le décalage se compte en secondes et n'existe QUE dans l'exécution parallèle.
@@ -6992,6 +7314,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## view-state-outlives-the-visit
 - status: guarded
 - severity: P3
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: on rouvre un écran et il s'ouvre là où on l'avait laissé, alors qu'on y revient pour le reprendre depuis le début. Rien n'est en panne, et la page semble ignorer qu'on vient de cliquer sur son entrée de menu.
 - root_cause: `views/onboarding.py` gardait l'étape courante dans `st.session_state['_onboarding_step']`, qui survit à la navigation. Un artiste passé une fois à l'étape 2 rouvrait l'assistant sur « Où tu en es » pour le reste de sa session, y compris au premier clic d'une visite ultérieure — c'est-à-dire exactement quand il voulait revoir « Bienvenue & choix ». Signalé le 2026-09-06 : « quand je me balade sur l'app et que je reclique sur mise en route, je n'ai pas automatiquement redirection vers le bienvenu ». La cause profonde est que **Streamlit ré-exécute le script entier à chaque interaction** : une vue ne peut pas distinguer « il vient de cliquer sur mon entrée de menu » de « il est déjà dessus et a cliqué sur un bouton » — les deux produisent des runs identiques.
@@ -7011,6 +7334,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## menu-filter-mistaken-for-an-access-gate
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une page réservée n'apparaît pas dans le menu et s'affiche quand même — il suffit d'en connaître l'adresse. La liste qui devait la protéger existe, elle est correcte, et personne ne la lit au bon endroit.
 - root_cause: `src/dashboard/app.py::_ADMIN_ONLY` était consultée dans UN seul endroit, le constructeur de la barre latérale. `_render_page` aiguillait sans demander qui demandait, donc `?page=<clé>` — un signet, un lien dans un vieux mail, une URL tapée — atteignait la vue. Les dix pages concernées se gardent chacune elles-mêmes, vérifié une par une le 2026-09-06 ; le défaut n'est donc pas une fuite constatée mais une garantie qui repose sur dix copies au lieu d'une, avec trois orthographes différentes (`is_admin()`, `not is_admin()`, `session_state['role'] != 'admin'`). `db_health`, ajoutée à la liste le même jour, n'avait AUCUN garde interne.
@@ -7030,6 +7354,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## journey-completes-and-nothing-happens
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: l'utilisateur finit tout ce qu'on lui a demandé et l'écran ne bouge pas. La dernière étape reste ⬜, et l'action qui la coche est ailleurs — derrière un bouton qu'il n'a aucune raison de chercher.
 - root_cause: la mise en route de streaMLytics a quatre étapes ; les trois premières sont des gestes de l'artiste (identifiants, CSV S4A, CSV Apple) et la quatrième — « une collecte a réussi » — est un geste de la MACHINE. Rien ne la déclenchait : l'artiste devait trouver, dans la barre latérale, un panneau « lancer la collecte » qui ne se présentait jamais comme la suite de ce qu'il venait de faire. Deux séances de test artiste se sont terminées sur une configuration complète et zéro donnée.
@@ -7048,6 +7373,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## bom-survives-the-encoding-fallback
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: un export parfaitement valide est refusé, et le message d'erreur affiche la BONNE colonne. « Type non reconnu — colonnes vues : date, streams » alors que `date` est exactement ce qu'on attend. Rien à l'écran ne distingue l'en-tête qu'on a de celui qu'on veut.
 - root_cause: `views/upload_csv.py::_read_headers` essayait les encodages dans l'ordre `('utf-8', 'utf-8-sig', …)`. Un fichier UTF-8 portant un BOM **décode sans erreur** en `utf-8` : la boucle s'arrêtait au premier essai et le BOM survivait, collé au premier en-tête (`\ufeffdate`). Seconde condition, nécessaire pour que ça casse : `_detect_platform` normalisait par `c.lower().strip()`, et `\ufeff` n'est PAS un blanc — `strip()` ne le retire pas. Mesuré le 2026-09-06 sur un import réel : **12 fichiers Spotify for Artists sur 14 refusés**. Spotify exporte avec BOM ; Excel en ajoute un en réenregistrant, ce qui touche aussi les artistes qui ouvrent leur CSV avant de le déposer.
@@ -7069,6 +7395,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## detection-keyed-on-the-filename
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: un fichier valide est refusé, ou pire, un fichier invalide est accepté — selon comment il s'appelle. Renommer corrige ou casse, ce qui apprend à l'utilisateur que le nom compte alors qu'il ne devrait rien décider.
 - root_cause: `views/upload_csv.py::_detect_platform` portait trois conditions sur le NOM de fichier. **(1)** La timeline S4A exigeait `'audience' not in name` : un titre contenant le mot (« … - Audience-timeline.csv ») était refusé, et un export d'audience renommé serait passé pour une timeline. La condition était inutile — la branche audience passe avant et retient déjà tout ce qui porte `listeners`. **(2)** L'audience pouvait être reconnue par le seul jeton `audience` du nom. **(3)** L'export « Depuis le début », inexploitable parce que Spotify y renvoie auditeurs et sauvegardes à ZÉRO, était refusé sur `'songs-all' in name` — donc un renommage, ou le suffixe `(1)` qu'ajoute un navigateur, le faisait accepter comme un catalogue valide.
@@ -7089,6 +7416,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## refusal-leaves-no-trace
 - status: guarded
 - severity: P2
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: l'utilisateur voit un refus à l'écran, nous ne le voyons jamais. Le journal n'enregistre que ce qui a réussi, donc un défaut qui bloque tout un parcours peut vivre des mois sans qu'une alerte parte.
 - root_cause: `csv_upload_log` recevait une ligne à l'IMPORT — `success` ou `error` d'écriture. Un fichier écarté plus tôt, à la détection (« type non reconnu »), n'atteignait jamais ce code et ne laissait donc aucune trace. Mesuré le 2026-09-06 : douze exports Spotify for Artists refusés depuis juin à cause d'un BOM, zéro alerte. L'artiste l'avait vu quinze fois ; l'exploitant zéro. Le déséquilibre est structurel — on journalise ce qu'on réussit, jamais ce qu'on refuse.
@@ -7108,6 +7436,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## finding-computed-but-never-sent
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: une tâche de surveillance tourne, calcule un constat juste, et reste verte. Personne n'est prévenu. Le contrôle a l'apparence exacte d'un contrôle qui fonctionne.
 - root_cause: dans `alert_monitor.py`, un constat doit franchir CINQ maillons pour valoir quelque chose — déclaré comme tâche, câblé dans la chaîne `>> t_alert`, relu par `xcom_pull`, rendu dans une section, et compté dans `has_issues` (le prédicat qui décide s'il y a un e-mail à envoyer). Chaque maillon rompu laisse la tâche verte. En écrivant `check_csv_rejections` le 2026-09-06, le quatrième manquait — `ruff` l'a signalé comme variable inutilisée, ce qui est un coup de chance : un nom réutilisé ailleurs serait passé. Puis le cinquième manquait aussi, et c'est un garde VOISIN qui l'a rattrapé.
@@ -7126,6 +7455,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## view-renders-nothing-and-says-nothing
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: une page s'affiche, ne lève pas, et ne montre rien. L'utilisateur ne sait pas s'il doit attendre, configurer, ou signaler — et aucune alerte ne se déclenche, parce qu'il n'y a rien à déclencher.
 - root_cause: une fonctionnalité cesse de servir de trois façons, et une seule alerte toute seule. Elle plante (exception → frontière centrale → e-mail : couvert). Elle refuse en silence (couvert depuis `refusal-leaves-no-trace`). Ou elle rend VIDE : une requête qui ne remonte plus rien, une table renommée, un graphique dont la donnée est partie. Le render-smoke du dépôt demandait « la vue lève-t-elle ? », jamais « la vue montre-t-elle quelque chose ? ».
@@ -7144,6 +7474,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## filename-dependency-survives-below-detection
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: un fichier est reconnu à l'écran puis n'importe rien, sous un message qui accuse son CONTENU (« Aucune ligne valide détectée après parsing ») ou qui demande de le RENOMMER. Le correctif de la couche visible fait croire le problème réglé.
 - root_cause: le 2026-09-06, « tous les fichiers, peu importe leur nom, doivent être reconnus » a été tenu dans `_detect_platform`, qui ne lit plus que les colonnes — et le garde écrit ce jour-là s'arrête à la détection. Deux couches plus bas, `s4a_csv_parser.parse_timeline` prenait toujours le titre du morceau dans le nom de fichier (et rendait `[]` sinon) et `_detect_window` levait toujours si le nom ne portait ni `28d` ni `12m`. Le sibling le plus coûteux était `admin._upload_s4a`, qui n'a JAMAIS passé le nom : il affichait « ✅ 0 ligne(s) importée(s) », un succès vert pour un geste sans effet.
@@ -7164,6 +7495,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## bulk-write-reads-only-the-first-row
 - status: guarded
 - severity: P2
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: aucun. La requête est valide, la transaction réussit, le compte renvoyé est juste — et une colonne n'a jamais été écrite. Le défaut ne se voit qu'en relisant la base des semaines plus tard.
 - root_cause: `insert_many` et `upsert_many` (`src/database/postgres_handler.py`) construisaient la liste des colonnes avec `list(data[0].keys())`. Toute colonne absente de la PREMIÈRE ligne était donc omise pour TOUT le lot, sans erreur ni journal. Un lot hétérogène est la norme dès qu'un parseur n'émet un champ que lorsqu'il le trouve.
@@ -7182,6 +7514,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-guess-that-leaves-no-trace
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: un fichier est refusé, ou pire, importé avec des chiffres faux — et rien nulle part ne dit comment il a été LU. Le diagnostic après coup est impossible, y compris quand le message d'erreur portait déjà la réponse.
 - root_cause: l'ingestion CSV devine trois choses (encodage, séparateur, type) et n'en enregistrait aucune. Reis & Housley, *Fundamentals of Data Engineering* p. 374 : « Autodetection […] is **inappropriate for production ingestion**. As a best practice, engineers should **record CSV encoding and schema details** in file metadata. » On ne peut pas cesser de deviner — les fichiers viennent de Spotify, d'Apple, parfois d'un Excel français, et rien ne nous laisse configurer la source ; mais la seconde phrase, elle, était applicable et ne l'était pas. Le 2026-09-06, douze exports refusés à cause d'un BOM : l'écran disait « Colonnes vues : ﻿date, streams » et le BOM ne se rend pas, donc personne ne pouvait voir la différence entre l'en-tête qu'on avait et celui qu'on voulait.
@@ -7201,6 +7534,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-count-that-is-claimed-not-measured
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: l'écran annonce « ✅ N ligne(s) importée(s) » et le journal enregistre N. Personne ne sait si la base en a reçu N. Le chiffre a exactement l'apparence d'une mesure.
 - root_cause: `upsert_many` renvoie `len(data)` — le nombre de lignes ENVOYÉES, après déduplication — et son propre commentaire dit pourquoi : le `rowcount` d'`execute_batch` ne reflète que le dernier lot. Ce chiffre remonte jusqu'à l'écran et jusqu'à `csv_upload_log.row_count` sans que rien, nulle part, n'interroge la destination. Densmore (*Data Pipelines Pocket Reference* p. 218) prescrit de « check row count growth in the data model » en fin de pipeline ; Petrella (*Fundamentals of Data Observability* p. 180) nomme les deux chiffres à confronter — « emitted record count » et « committed record count ». Nous n'avions que le premier.
@@ -7219,6 +7553,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## message-written-before-a-rerun
 - status: guarded
 - severity: P3
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: une action réussit, son message est écrit, et l'écran est vide. Le code est correct, la fonction appelée a fait son travail, et aucun test de rendu ne voit rien — le rendu EST produit, puis jeté.
 - root_cause: Streamlit ré-exécute le script de zéro sur `st.rerun()`. Tout `st.success` / `st.warning` / `st.caption` / `st.dataframe` posé avant lui dans le même passage n'est jamais vu. Ce dépôt l'a payé trois fois : le verdict de sauvegarde des credentials, le démarrage automatique de la collecte, puis le 2026-09-06 six messages du bloc d'import CSV (collecte démarrée, référentiel de sorties, agrégations iMusician et DistroKid) — au moment précis où vider la zone de dépôt a imposé un rerun à la fin du même bloc. Les deux premières occurrences avaient été corrigées une par une, sans garde : la troisième était donc inévitable.
@@ -7237,6 +7572,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## empty-list-blames-the-most-common-cause
 - status: guarded
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: une liste vide affiche un message écrit d'avance qui demande à l'utilisateur des gestes qu'il vient de faire. Il ne peut ni corriger ce qu'on lui reproche, ni comprendre ce qui manque, et il conclut que la fonctionnalité est cassée.
 - root_cause: « Aucune campagne. Connecte Meta Ads dans 🔑 Credentials API, puis lance 🚀 Lancer TOUTES les collectes » était affiché quelle que soit la cause. Mesuré le 2026-09-06 sur un artiste dont Meta était branché (pastille verte, sonde OK, 224 lignes d'insights, collecte réussie vingt minutes plus tôt avec 879 lignes) : les deux gestes demandés étaient faits. La vraie cause était la cinquième — `meta_campaigns` a pour clé de conflit `campaign_id` SEUL, délibérément (sa clé primaire porte quinze clés étrangères, et un upsert ne transfère jamais la propriété d'une ligne), donc deux profils déclarant le MÊME compte publicitaire se partagent les identifiants et le second n'en reçoit aucun. Aggravants trouvés au même endroit : la clé i18n `meta_mapping.no_campaigns` portait DEUX phrases françaises différentes selon le site d'appel (l'anglais n'en traduisait qu'une), et « ✅ Toutes les campagnes Meta sont déjà traitées » s'affichait sur ZÉRO campagne, juste au-dessus du message qui demandait de connecter Meta.
@@ -7256,6 +7592,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## one-version-marker-out-of-many
 - status: guarded
 - severity: P2
+- family: l-instrument-ment-sur-ce-qu-il-mesure
 - kind: deterministic
 - symptom: les écoutes d'un radio edit, d'un live ou d'un instrumental s'ajoutent à celles du titre original, sous la mauvaise date de sortie. Aucune erreur, aucun compte qui change : juste des chiffres faux en aval.
 - root_cause: `normalize_track_title` traitait `remix` comme un marqueur de version, et RIEN d'autre. Tous les autres marqueurs devenaient des mots ordinaires du titre, puis étaient absorbés par la règle d'inclusion de `title_similarity`, qui rendait 0,90 — au-dessus du seuil d'auto-acceptation de 0,80, donc appliqué sans qu'un humain le voie. Mesuré le 2026-09-06, chacun à 0,90 contre son propre titre de base : `(Radio Edit)`, `(Extended Mix)`, `(Sped Up)`, `(Live)`, `(Instrumental)`, `- VIP`. Défaut jumeau : la forme à tiret exigeait `remix\b`, donc « - Remixed by Bob » n'était pas reconnu du tout — le titre restait « base » face à un « remix », les statuts divergeaient et le score tombait à 0,0, sans aucun candidat.
@@ -7275,6 +7612,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## one-identity-two-readers
 - status: guarded
 - severity: P3
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: deux colonnes de la MÊME ligne se contredisent — « Saisi ✅ » à côté de « Format ? — forme non vérifiable pour cette plateforme ». Signalé le 2026-09-08 sur Santé onboarding, pour Spotify.
 - root_cause: l'identité Spotify vit à DEUX endroits — `artist_credentials.extra_config.spotify_artist_id` et le miroir `saas_artists.spotify_artist_id`. `artist_readiness._identity` accepte l'un OU l'autre pour dire « Saisi » ; `status_matrix.read_identities`, écrite le 2026-09-04 pour la colonne « Format », ne lisait que le premier. L'état est atteignable : `clear_platform_identities` — le `--reset` du bac à sable — efface les lignes de credentials, et un ré-onboarding réécrit le miroir avant la ligne. **Troisième lecture à faire l'erreur** : `declared_identities` l'avait faite, corrigée le 2026-08-26, sa docstring dit déjà « two readers, one question, two answers ».
@@ -7293,6 +7631,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-cumulative-counter-charted-as-a-daily-figure
 - status: guarded
 - severity: P2
+- family: un-cumul-pris-pour-un-quotidien
 - kind: deterministic
 - symptom: une courbe « par jour » affiche des valeurs absurdes et plates, ou un pic vertical isolé. Aucune erreur : le graphique a l'air d'un graphique. Signalé le 2026-09-08 — « les datas sont incohérentes ».
 - root_cause: toutes les sources ne mesurent pas la même chose. `s4a_song_timeline.streams` est une quantité du JOUR ; `soundcloud_tracks_daily.playback_count` et `youtube_channel_history.view_count` sont des cumuls depuis toujours. La figure de bienvenue les additionnait dans un `UNION ALL` : **23 560 « écoutes » le 8 septembre** pour l'artiste 1, chaque jour, contre un maximum réel de 1 605 streams/jour. Convertir naïvement le cumul en écart (`LAG`) déplace le défaut sans le retirer, et trois artefacts réels le prouvent : une collecte ratée qui écrit 0 (2026-06-01, 19 titres) rend 23 480 le lendemain ; un trou de 104 jours pose 104 jours de gain sur un seul ; et un locataire portant plusieurs `channel_id` (le bac à sable en a trois, dont une à 155 vues) saute de 155 à 120 627 en une nuit.
@@ -7313,6 +7652,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-step-that-nothing-routes-to
 - status: guarded
 - severity: P3
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: une étape d'un parcours existe, se rend correctement, et aucun chemin n'y mène. Signalé le 2026-09-08 : « quand je clique sur mise en route (assistant), je n'arrive pas sur la page d'onboarding, j'ai uniquement les 2 onglets bienvenue / offre ».
 - root_cause: les deux boutons d'étape de la barre latérale n'étaient rendus que sous `_bare`, c'est-à-dire uniquement en mode première connexion. Sur un compte configuré, `FIRST_RUN_FOCUS` n'est jamais armé, donc les boutons n'existaient pas — et les deux autres chemins ne mènent nulle part non plus : `sync_step_on_arrival()` remet à l'étape 1 dès qu'on arrive d'ailleurs, et le seul bouton qui pose l'étape 2 quitte l'assistant dans la même action. Le commentaire du site disait pourtant l'intention — « les étapes restent, MÊME en barre nue » — mais le code écrivait « seulement si ».
@@ -7331,6 +7671,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## the-live-chart-drifted-from-its-illustration
 - status: guarded
 - severity: P3
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: l'artiste voit une figure d'exemple, puis « la sienne », et ce n'est pas la même chose — autre forme, autres couleurs. La seconde se lit comme une régression. Signalé le 2026-09-08 : « ce n'est plus le même graphique, tu m'avais fait un plot qui montre des courbes superposées des différentes plateformes avec différentes couleurs ».
 - root_cause: l'illustration committée (`assets/examples/dashboard-global.png`, générée par `tools/dev/make_example_charts.py`) est un `stackplot` aux couleurs `BLUE/ORANGE/AQUA` — déjà passées par le validateur `dataviz`. La figure live, écrite plus tard et sans la regarder, était faite de lignes qui se croisent aux couleurs de MARQUE — lesquelles ont d'ailleurs été refusées par le même validateur. Deux formes, deux palettes, une seule promesse. L'empilement n'est pas cosmétique : il répond à « combien au total, et qui y contribue », là où des lignes superposées répondent « laquelle est la plus haute » — qui n'est pas la question de l'accueil.
@@ -7352,6 +7693,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-key-that-forbids-history
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: on conclut qu'une source « ne fournit pas d'historique », et on l'écrit dans le produit. Signalé le 2026-09-08 : « pour Apple je ne comprends pas, je viens de refaire le process avec le CSV d'aujourd'hui et rien ne s'est actualisé ».
 - root_cause: `apple_songs_performance` portait `UNIQUE(artist_id, song_name)` — sans date. Chaque dépôt de CSV écrasait donc le précédent, et la table n'a JAMAIS porté plus d'un relevé : 11 lignes pour l'artiste 1, toutes au même horodatage. Aucune période n'était découpable, et re-déposer le même export ne pouvait rien changer. La source fournissait bien une donnée par période ; c'est la clé qui interdisait de la garder. La conclusion « Apple n'a pas de série » a ensuite été écrite dans un message affiché à l'artiste, transformant notre contrainte en propriété de la plateforme.
@@ -7372,6 +7714,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-aggregate-counter-is-not-the-sum-of-its-parts
 - status: guarded
 - severity: P2
+- family: un-cumul-pris-pour-un-quotidien
 - kind: deterministic
 - symptom: un chiffre affiché est faux d'un facteur cinq à dix, sans erreur ni trou. Signalé le 2026-09-08 : « les données de YouTube sont fausses, voici celles que j'obtiens via YouTube Studio » — 64 vues sur la période, contre 360 attribuées à une seule journée par l'app.
 - root_cause: `youtube_channel_history.view_count` est le compteur de la CHAÎNE. Mesuré : figé à 120 627 du 2026-08-28 au 2026-09-07, puis 120 987 d'un coup. Il est mis à jour par paliers et porte autre chose que la somme des vidéos — vidéos privées ou supprimées, agrégats internes. La série lui prenait son écart quotidien, donc un palier de +360 devenait « 360 vues le 8 septembre ». La somme des compteurs PAR VIDÉO (`youtube_video_stats`) donne +3, 0, +3, 0, +1… soit 44 sur 28 jours — le même ordre de grandeur que Studio.
@@ -7393,6 +7736,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## overlapping-readings-summed-as-one
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: un total gonfle sans raison visible, d'autant plus que l'utilisateur a fourni PLUS de données. Aucune erreur : chaque relevé est juste, c'est leur addition qui ment.
 - root_cause: des relevés de période qui se RECOUVRENT sont additionnés comme s'ils étaient disjoints. Apparu le 2026-09-08 en conséquence directe d'un correctif : dès que la période d'un export Apple se lit dans le nom du fichier, un artiste a naturellement l'export « depuis le début » (2015-06-30 → 2026-09-04) ET celui de 2024. Les sommer compte 2024 deux fois — une fois seul, une fois dans le cumul qui le contient. C'est la même faute que `a-cumulative-counter-charted-as-a-daily-figure`, sur des périodes au lieu de grandeurs : additionner deux mesures qui se recouvrent.
@@ -7413,6 +7757,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## conflict-target-an-index-cannot-match
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: tout upsert sur la table échoue, en bloc, avec un message qui parle d'une contrainte ABSENTE alors qu'elle est là. Signalé le 2026-09-08 sur cinq fichiers à la fois : « there is no unique or exclusion constraint matching the ON CONFLICT specification » — 11 titres détectés, 0 ligne écrite, cinq fois.
 - root_cause: la migration 094 a créé l'index unique sur des EXPRESSIONS — `(artist_id, song_name, snapshot_date, COALESCE(period_start, DATE '0001-01-01'), COALESCE(period_end, DATE '0001-01-01'))` — pendant que l'upsert désignait des COLONNES : `ON CONFLICT (artist_id, song_name, snapshot_date, period_start, period_end)`. Postgres n'apparie une cible `ON CONFLICT` à un index que si les expressions coïncident, donc la contrainte existait et l'upsert ne pouvait pas la voir. Le `COALESCE` avait une vraie raison : un index unique ordinaire tient deux NULL pour différents, et deux relevés « depuis le début » n'auraient plus été dédupliqués — l'idempotence acquise en 093 aurait été perdue.
@@ -7435,6 +7780,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-gap-in-one-series-erases-every-other
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: un artiste voit un trou dans une plateforme qui n'en a AUCUN. Signalé le 2026-09-08 : « il y a un gros trou dans les données de S4A ». Mesuré le même jour : S4A a 365 / 366 / 365 / 248 jours consécutifs depuis le 2023-01-01, pas un seul manquant. Le trou était dans la figure.
 - root_cause: `platform_chart._segments` calculait des tranches COMMUNES — un pas n'était tracé que si TOUTES les plateformes empilées y avaient une mesure. Une aire empilée n'a pas de trou, donc couper la bande entière semblait la seule réponse honnête à un jour non mesuré. Conséquence chiffrée sur l'artiste 1, au pas hebdomadaire : **19 semaines** de Spotify effacées, dont **13** dont YouTube était le seul responsable, et **0** où Spotify manquait. La règle `stackable` qui écartait les plateformes clairsemées était le correctif de ce même défaut, et elle excluait YouTube (24 jours mesurés sur 195) et SoundCloud (12 sur 74) de TOUTES les vues — c'est la plainte « je ne vois que Spotify ».
@@ -7456,6 +7802,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-total-that-sums-the-display-instead-of-the-data
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: un total affiché est faux d'un ou deux ordres de grandeur, sans erreur ni trou. Vu au rendu le 2026-09-08 : **16 568 594 écoutes** en sous-titre de la vue par défaut, pour un artiste qui en a 163 102 — un facteur 89.
 - root_cause: le sous-titre lisait `aligned`, c'est-à-dire la série APRÈS `_as_mode`. En mode cumulé chaque point porte le total depuis le début, donc les additionner somme des cumuls. Le correctif précédent du même jour avait déplacé le calcul de `series` (la série brute, qui ignorait le filtre de sources et comparait des dates du jour à des clés de seau) vers `aligned` — plus près, toujours faux, et sur une variable dont le nom ne dit pas qu'elle a été transformée.
@@ -7477,6 +7824,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-partial-bucket-drawn-as-a-full-one
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: une agrégation sous-estime silencieusement, d'un facteur qui dépend de la collecte. Mesuré le 2026-09-08 : **38 %** des semaines YouTube et **31 %** des semaines SoundCloud n'étaient mesurées que sur une partie de leurs jours, et étaient tracées comme des semaines pleines — jusqu'à un facteur 7.
 - root_cause: `_aggregate` sommait ce qu'il trouvait dans chaque seau sans jamais compter combien de jours ce seau CONTENAIT. Une semaine à un jour mesuré et une semaine à sept produisaient un point de même nature. La conversion cumul → quotidien ne rattrape rien : un delta n'est calculé qu'entre deux jours CONSÉCUTIFS, donc les jours sautés ne sont pas reportés sur le suivant, ils manquent. Le verdict d'empilement était en outre pris APRÈS agrégation, où un seau partiel comptait pour un seau mesuré : la couverture paraissait meilleure au pas hebdomadaire qu'au pas quotidien, sur les mêmes données.
@@ -7497,6 +7845,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-failed-collection-writes-zeros
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: des lignes arrivent, à l'heure, en nombre normal — et leurs valeurs sont fausses. Mesuré le 2026-09-08 : le 2026-06-01, `soundcloud_tracks_daily` a reçu 19 titres dont **19 compteurs cumulés à zéro**, pour des titres qui portaient plusieurs milliers la veille.
 - root_cause: aucun pilier ne regardait les VALEURS. La fraîcheur compte des lignes ; `check_row_anomalies` ne surveille que le sens du pic ; `is_partial_collection` (pilier Volume, R39) exclut explicitement zéro **en nombre de lignes** — il y en avait dix-neuf, toutes fausses. La figure absorbe déjà le cas en refusant les deltas négatifs, ce qui rendait l'incident invisible à celui qui regardait le plus.
@@ -7517,6 +7866,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-form-constraint-checked-on-the-series-not-on-the-axis
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une combinaison de réglages rend une figure entièrement VIDE, sans message, alors que les données sont là. Signalé au rendu le 2026-09-08 : « je vois aucune data dans cumulé par année cette année, Spotify YouTube SoundCloud ».
 - root_cause: le pas annuel appliqué à une période d'un an ne produit qu'UN seul seau, donc un seul point par plateforme — et sous un point isolé il n'y a pas de surface. La contrainte de forme était pourtant déjà écrite dans le module (`_MIN_POINTS = 2`, « une aire a besoin de deux points »), mais appliquée aux SÉRIES uniquement, jamais à l'AXE. La figure se rendait donc « avec succès », traces comprises, et ne dessinait rien. C'est mon propre changement de la même séance qui l'a rendu atteignable, en resserrant `stackable` sur cette contrainte sans la propager au `span`.
@@ -7537,6 +7887,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-window-widened-to-its-bucket-instead-of-the-bucket-clipped
 - status: guarded
 - severity: P2
+- family: un-seuil-écrit-d-instinct
 - kind: deterministic
 - symptom: une figure ou un total bornés par une période affichent PLUS que ce que la période contient. Mesuré le 2026-09-10 sur l'accueil : « 12 mois · Par année » dessinait **23 251** écoutes pour **8 490** mesurées dans la fenêtre — ×2,7 — et « Cette année · semaine » +2,5 %.
 - root_cause: deux gestes qui se composent. (1) `platform_chart._aggregate` sommait TOUTE la série dans ses seaux ; `since`/`until` ne servaient qu'au calcul du plancher, jamais à la somme. (2) `_bucket_key(since, step)` ramène la borne basse EN ARRIÈRE, au lundi ou au 1ᵉʳ janvier — geste ajouté pour une vraie raison (sans lui les fenêtres ne tombaient sur aucune clé de seau et deux périodes n'empilaient plus rien), qui a réglé l'alignement et ouvert le débordement. Le seau de bord était donc rempli de jours hors fenêtre au lieu d'être découpé. Même forme dans `kpi_helpers.get_roi_data`, où le revenu était comparé sur `make_date(year, month, 1)` — une fenêtre 15 janvier → 10 septembre excluait janvier en entier et comptait tout septembre.
@@ -7558,6 +7909,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-symmetric-guard-for-an-asymmetric-truth
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: en mode « Cumulé » — l'affichage par défaut de l'accueil — la bande d'une plateforme dont la collecte s'arrête MONTE puis **retombe à zéro** et y reste, ce qui se lit « cette plateforme a perdu toutes ses écoutes ». En mode « Par période », les mêmes jours sont tracés `0` avec l'infobulle « compteur inchangé », qui affirme une mesure que personne n'a faite.
 - root_cause: `platform_chart.known()` rendait `True` **avant la première mesure ET après la dernière**, avec un seul et même argument dans sa docstring (« la plateforme n'était pas encore collectée, 0 est la bonne valeur »). Les deux extrémités ne sont pas symétriques : avant la première mesure, zéro est vrai — la plateforme n'existait pas dans nos données ; après la dernière, la plateforme existe toujours, c'est NOUS qui avons cessé de mesurer. Les index concernés entraient donc dans une tranche continue, et le rendu écrit `y=[aligned[k][i] or 0 …]`. Corollaire : `gap_counts` ne les comptait pas non plus, donc la note `t_missing` promettait « un blanc, jamais un zéro » à propos de jours qu'elle ne voyait pas.
@@ -7579,6 +7931,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-verdict-computed-from-a-value-nobody-read
 - status: guarded
 - severity: P1
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: un document PAYANT affirme « ✅ Rentable » à un artiste alors que la base était injoignable. Le chiffre affiché est `0,00 €` des deux côtés, le net vaut 0, et `net >= 0` imprime le verdict.
 - root_cause: trois couches qui se couvrent. `kpi_helpers.get_roi_data` initialisait `revenue_eur: 0.0` et `profitable: False`, et avalait toute exception par `except Exception: pass` — une panne rendait donc « rien gagné, non rentable ». Puis `pdf_exporter/_renderers._render_roi` faisait `float(roi.get('revenue_eur') or 0)` et **recalculait son propre statut**, donc corriger le helper seul ne l'aurait pas protégé. Enfin `imusician.py` affichait, pour une panne, le texte prévu pour une absence légitime (« Aucune dépense promo sur la période — élargissez le filtre ») : il n'existait aucun troisième état.
@@ -7601,6 +7954,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-fabricated-zero-mailed-as-a-measurement
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: un artiste premium sans dépôt S4A reçoit par e-mail « Streams (last 7 days) : 0 · +0 vs prev week », « Spend : 0.00 € » et « CTR : 0.00 % ». Trois affirmations qu'on n'a pas mesurées, dont une arithmétiquement fausse : sans impression, le taux de clic n'est pas nul, il est indéfini (0/0).
 - root_cause: `COALESCE(SUM(…), 0)` sur les streams et la dépense, `ELSE 0` sur le CTR, dans `weekly_digest.py`. Le même fichier écrivait vingt lignes plus bas, à propos de SoundCloud : « No COALESCE: an absent snapshot must read "N/A", not a fabricated 0. » La règle était connue, écrite, appliquée à trois sources sur cinq, et contredite sur les deux autres — parce que rien ne la vérifiait.
@@ -7619,6 +7973,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## two-clocks-subtracted-from-each-other
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: un âge, une durée ou une borne de période est faux d'une à deux heures, et le décalage change avec la saison. Mesuré le 2026-09-10 : une source collectée il y a **23 h** s'affichait « il y a 1j », faisant basculer son voyant de vert à orange sans que rien n'ait vieilli.
 - root_cause: `freshness_status` faisait `datetime.now() - last_dt` — `datetime.now()` nu rend l'heure LOCALE de l'hôte, tandis que `last_dt` sort d'une colonne sans fuseau où les collecteurs écrivent `datetime.now(timezone.utc)`. Deux référentiels soustraits l'un de l'autre. Même forme sur les bornes de période, qui suivaient `date.today()` — une TROISIÈME horloge, après celle des données et celle du lecteur. Les deux classes tz déjà au catalogue (`tz-aware-naive-mix`, `mixed-date-timestamp`) ne pouvaient pas le voir : leurs signatures visent `pd.to_datetime` et `sorted()` dans `views/`, pas l'arithmétique de `datetime` dans `utils/`.
@@ -7640,6 +7995,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-discarded-measurement-is-discarded-in-silence
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: heuristic
 - symptom: une figure montre une fraction du volume réel d'une plateforme, sans le dire, ce qui se lit comme une plateforme morte. Mesuré le 2026-09-10 : l'accueil traçait **21** écoutes YouTube et en écartait **167** — un neuvième affiché.
 - root_cause: la conversion cumul → quotidien n'émet un écart que si le relevé précédent date de la VEILLE (`jour - veille = 1`). La règle est juste : entre deux relevés distants de neuf jours on sait ce qui s'est passé en tout, jamais quel jour, et l'attribuer au dernier inventerait un pic. Ce qui manquait n'était pas la donnée, c'était l'aveu — YouTube n'est mesurée que 39 % des jours, donc la majorité de ses écoutes n'entrait ni dans la courbe ni dans les totaux de période, et rien ne le signalait.
@@ -7661,6 +8017,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-alert-that-never-changes-stops-being-read
 - status: guarded
 - severity: P2
+- family: un-coût-payé-sans-contrepartie
 - kind: heuristic
 - symptom: une alerte quotidienne signale correctement un problème réel, à l'identique, pendant des mois. Le lecteur cesse de l'ouvrir, et le soir où une VRAIE panne s'y ajoute, personne ne la voit. Mesuré en production le 2026-09-10 : le locataire 12 tenait la ligne d'objet du mail nocturne **depuis le 2026-06-19 — 93 nuits consécutives**, toujours `(#200) Ad account owner has NOT grant ads_management or ads_read permission`.
 - root_cause: la tâche ne lisait que le DERNIER état par (locataire, plateforme) et le rendait sans son ancienneté. Une panne de cette nuit et un blocage de trois mois produisaient donc exactement la même ligne, la même couleur et la même place dans le sujet. Or les deux appellent des gestes opposés : l'une peut être corrigée par une exécution, l'autre attend une main chez un tiers et aucune relance ne la retirera.
@@ -7680,6 +8037,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-cache-key-that-can-never-be-hit-twice
 - status: guarded
 - severity: P3
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: un cache est posé, le code a l'air correct, et la requête part quand même à chaque rendu. Aucun signal : un cache sans succès se comporte exactement comme pas de cache.
 - root_cause: la clé contient une valeur qui change à chaque appel. Ici `get_live_pulse` calculait `cutoff = now() - 5 min` et le passait au helper caché : deux rendus séparés d'une milliseconde produisent deux clés distinctes, donc zéro succès de cache pour toujours.
@@ -7700,6 +8058,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## the-application-connects-as-a-superuser
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: aucun. Tout fonctionne — c'est le propre de cette classe : elle ne se manifeste que le jour où autre chose échoue.
 - root_cause: le dashboard, l'API et les DAGs se connectaient en `postgres`. Ce que cela donne à une injection ou à une fuite de DSN n'est pas « la lecture des tables » : c'est `COPY … TO PROGRAM`, donc l'exécution de commandes sur l'hôte de la base, plus `pg_authid` (les empreintes de mots de passe de tous les rôles), plus la désactivation de n'importe quel garde en base. Entre une erreur applicative et la machine, il n'y avait aucune couche.
@@ -7721,6 +8080,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-batch-that-commits-one-row-at-a-time
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: une écriture de lot est lente, et — le vrai défaut — un échec en cours de route laisse la première moitié en base. Mesuré le 2026-09-10 : sur 1 001 lignes dont la 501ᵉ viole une contrainte, **500 lignes restaient committées**.
 - root_cause: la connexion est en `autocommit = True`, bon défaut pour une écriture isolée. `insert_many` appelait `executemany`, donc une instruction ET une transaction par ligne. La lenteur est le symptôme visible ; ce qui compte est qu'une collecte à moitié appliquée soit **indiscernable d'une collecte complète** — pas d'erreur en base, pas de marqueur, juste moins de lignes.
@@ -7740,6 +8100,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-non-vacuity-check-anchored-on-the-data-instead-of-the-parser
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: le jour où le travail est réellement terminé, **trois gardes tombent ensemble** — et ils tombent sur la seule chose qu'ils n'avaient pas prévue : le succès. Mesuré le 2026-09-10, à la rotation de la dernière tâche de la roadmap : `test_the_sections_are_not_empty`, `test_the_live_heading_pattern_actually_distinguishes_the_two_forms` et `test_the_index_is_not_empty_of_both_sections`, dans trois fichiers différents.
 - root_cause: chacun protégeait, à raison, contre une extraction qui vise à côté — un titre markdown qui apparaît aussi dans la prose, un renommage, une réorganisation rendent une liste vide plutôt qu'une erreur, et une liste vide satisfait `assert not offenders` parfaitement. Mais tous les trois ont ancré cette preuve sur le CONTENU du fichier de production (« la roadmap a au moins une ligne ») au lieu du PARSEUR. Une assertion de non-vacuité assise sur des données réelles confond deux propositions : « mon prédicat fonctionne » et « il y a du travail en cours ». Les deux sont vraies pendant deux ans, et se séparent le jour où l'on finit.
@@ -7759,6 +8120,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-verdict-computed-past-the-end-of-its-evidence
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: une page affiche un verdict en vert — « breakeven atteint le … » — sur un croisement de courbes garanti par construction. Mesuré le 2026-09-10 pour l'artiste 1 : la dépense Meta s'arrête au 2024-09-30, le revenu du distributeur continue **458 jours** de plus.
 - root_cause: la frise court du premier au dernier jour des DEUX séries réunies, et les trous sont comblés par des zéros. Ces zéros sont JUSTES au milieu d'une série — un jour sans dépense publicitaire a bien dépensé zéro — et FAUX après sa fin : celle qui s'arrête la première continue en ligne plate, non parce qu'elle vaut zéro sur cette période, mais parce que personne ne l'a encore rapportée. Sur ces 458 jours un cumul monte pendant que l'autre est figé : les deux courbes se croisent nécessairement, et le verdict lit ce croisement.
@@ -7778,6 +8140,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-caption-written-beside-the-behaviour-instead-of-derived-from-it
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: la légende sous une figure affirme trois choses fausses en même temps, sans qu'aucune ne soit un bug de calcul. Vu au rendu le 2026-09-10 en « Chacune à son échelle · Par année · 12 mois » : « Écoutes **du jour**, plateforme par plateforme. Un blanc dans la bande veut dire qu'on n'a pas de mesure ce jour-là. » Or les points portaient des totaux ANNUELS, il n'y avait pas de bande mais des facettes, et un blanc ne parlait pas d'un jour.
 - root_cause: la légende était une constante dans `views/home.py`, écrite quand la figure n'avait qu'un mode et qu'un pas. Chaque menu ajouté depuis l'a rendue fausse dans un cas de plus, sans jamais la casser — un texte fixe ne lève pas. Et elle ne POUVAIT pas être juste depuis là : la vue connaît le pas DEMANDÉ, et « Automatique » n'en est pas un ; seul le module de la figure sait lequel a été retenu. C'est la cause (E) de l'audit de cette figure, nommée et restée ouverte.
@@ -7800,6 +8163,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## ddl-resurrects-a-migrated-fix
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: la production est correcte, et toute base NEUVE renaît avec le défaut — CI, poste de développeur, reconstruction après sinistre — jusqu'à ce que quelqu'un rejoue les migrations. Un correctif qui ne vit que dans une migration est un correctif que la prochaine base annule.
 - root_cause: `init_db.sql` est monté en `docker-entrypoint-initdb.d` et le même DDL est déclaré une seconde fois dans `src/database/*_schema.py`. La migration 064 avait remplacé `UNIQUE(video_id)` / `UNIQUE(channel_id)` par des uniques par locataire — parce que deux artistes partageant une vidéo se volaient la ligne — et ces deux déclarations sont restées à la forme globale (4 sites, 2 fichiers).
@@ -7820,6 +8184,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-query-assembled-by-string-substitution
 - status: guarded
 - severity: P2
+- family: la-frontière-avec-le-dehors
 - kind: deterministic
 - symptom: une requête SQL fabriquée en appliquant `.replace()` à une autre requête. Elle se compile, s'exécute, et rend **zéro ligne**. Comme la lecture est enveloppée d'un `except` qui dégrade (« une courbe absente vaut mieux qu'une page morte »), rien n'apparaît : ni erreur, ni log, ni test rouge — les deux courbes disparaissent de la figure et la page reste verte.
 - root_cause: `_SQL_CUMULATIVE_ALL` (`src/dashboard/utils/platform_timeseries.py`) a d'abord été construite par substitutions en chaîne sur `_SQL_YT_CUMULATIVE` et `_SQL_SC_CUMULATIVE` pour les fusionner en un `UNION ALL` — remplacer les noms de CTE, la projection, le `WITH`. Les CTE des deux branches se sont mélangées : `per_day` renommé dans une branche et pas dans l'autre, `grid`/`filled`/`carried` idem. Le SQL produit était syntaxiquement valide et sémantiquement vide. Aucun humain ne pouvait le relire, puisqu'il n'existait nulle part sous forme lisible.
@@ -7842,6 +8207,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-document-slice-bounded-by-the-wrong-heading-level
 - status: guarded
 - severity: P2
+- family: une-écriture-qui-écrase
 - kind: deterministic
 - symptom: un découpage de document Markdown emporte **plus que ce qu'il visait**, et rien dans le résultat ne le dit. Le 2026-09-13 : la rotation de trois sections `###` datées de `checklist.md` vers `archive.md` a aussi emporté `## 🙋 En attente de toi`, `## 🔍 Ce que le graphe de code a sorti` et `## 🎨 Notes des tests artistes`. **7 gardes rouges d'un coup.** Les deux fichiers restaient du Markdown valide, et `test_roadmap_two_files` restait vert puisque la SOMME n'avait pas rétréci — seuls les gardes qui nomment une section précise l'ont vu.
 - root_cause: les bornes du découpage étaient deux titres de niveau `###` (`c.index(debut_###)` → `c.index(fin_###)`), choisis dans une liste obtenue par `grep -n "^### "`. Cette liste **ne montre pas les titres `##`**, donc rien n'indiquait qu'un titre de niveau supérieur vivait entre les deux bornes. Un intervalle borné par un niveau N traverse silencieusement tout titre de niveau < N qu'il contient : la hiérarchie du document dit que la section `##` se termine au `##` suivant, pas au `###` suivant.
@@ -7863,6 +8229,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-note-outlives-the-figure-it-explains
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: la figure est juste et le lecteur croit qu'elle est vide, parce que la légende sous elle décrit l'ancienne figure. Signalé le 2026-09-11 **après** le déploiement du correctif : « je n'ai aucune data sur youtube depuis le début ». Mesuré dans le conteneur de production le même soir, filtre « Depuis le début », à tous les pas : la courbe traçait YouTube à **118 334**, SoundCloud à 23 563, Spotify à 165 065. Les trois bandes étaient là. Ce qui disait le contraire : « 🎬 YouTube 26 [semaines non mesurées], **leur aire s'interrompt là** » et « ⏸️ Écoutes mesurées mais **non traçables** : 🎬 YouTube 167 ».
 - root_cause: les deux notes sont calculées sur `aligned_raw`, la série QUOTIDIENNE, et elles étaient exactes tant que la courbe en venait. Le correctif de `cumulative-counter-drawn-as-its-own-history` a fait lire la couche or au mode cumulé : une plateforme à compteur n'a alors plus de trou — entre deux relevés son niveau est connu — et les 167 vues « non traçables » sont DANS la courbe, puisque le compteur les porte. Le correctif a donc rendu sa propre explication fausse, et personne ne relit une note quand on corrige une figure.
@@ -7889,6 +8256,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-bucket-sums-deltas-instead-of-deriving-the-counter
 - status: guarded
 - severity: P2
+- family: un-cumul-pris-pour-un-quotidien
 - kind: deterministic
 - symptom: un agrégat de période sur une plateforme à COMPTEUR vaut une fraction de la réalité, et la bande devient invisible. Mesuré en production le 2026-09-11, artiste 1, « Depuis le début » au pas hebdomadaire : la somme des seaux YouTube valait **124** quand le compteur avait gagné **18 740** — facteur **151**, et 0,14 % de la hauteur de Spotify, c'est-à-dire sous le pixel. Rapporté comme « je n'ai aucune data sur YouTube ».
 - root_cause: la série quotidienne d'un compteur est une DIFFÉRENCE, et elle n'existe qu'entre deux jours consécutifs (`_SQL_YOUTUBE`, `jour - veille = 1`) — c'est la seule attribution honnête au pas du jour. YouTube n'étant relevée que 39 % des jours, additionner ce qui reste par semaine ne totalise presque rien. L'erreur est d'avoir traité un agrégat de SEAU comme un agrégat de JOURS : à l'échelle du seau, aucune attribution n'est nécessaire, la croissance est la différence des niveaux aux deux bornes.
@@ -7909,6 +8277,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-metric-computed-outside-the-metrics-layer
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: deux surfaces du même produit répondent deux nombres à la même question, sans qu'aucune soit « en panne ». Instances mesurées : trois définitions incompatibles du total YouTube avant la migration 097 (120 627 sur deux surfaces, 118 219 sur trois, au même instant) ; le mode Cumulé à 21 contre 118 219 ; le total borné à 21 contre 18 625, imprimé sur la MÊME page de PDF que la courbe qui le contredisait ; « Par période » à 124 contre 18 740. Aucun de ces nombres n'était rouge dans son propre test.
 - root_cause: la logique métier — « combien d'écoutes », « combien dépensé », « quelle croissance » — est recalculée par chaque surface au lieu d'être maintenue à un seul endroit. Reis & Housley appellent cet endroit une **metrics layer** (*Fundamentals of Data Engineering*, p. 482) : « a tool for maintaining and computing business logic ». ADR-019 en est la version locale. Inventaire du 2026-09-11 : **62 agrégats** posés sur une table de fait depuis une surface d'affichage, répartis en Spotify S4A 33, Meta Ads 22, Instagram 3, Apple 2, Hypeddit 1, Revenu 1 — et YouTube 0, SoundCloud 0, les deux repointées le jour même.
@@ -7930,6 +8299,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-overload-makes-the-old-call-ambiguous
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: une tuile passe à **0** après une migration qui n'a rien retiré. Mesuré le 2026-09-12 : « Total Streams (Cumul) » affichait **0** sur la page Apple Music pendant que « Total Shazams » affichait 1 770, et la page ne signalait rien.
 - root_cause: la migration 103 a ajouté `gold_apple_lifetime(integer, text DEFAULT 'plays')` à côté de `gold_apple_lifetime(integer)` créée par la 102. Un appel à UN argument matche alors les deux, et Postgres rend `AmbiguousFunction` — pas « fonction absente », pas un résultat faux : une erreur. Elle tombe dans l'`except` qui protège la page (« une tuile absente ne fait pas tomber la page ») et ressort en **zéro affirmé**. Ajouter un paramètre à défaut n'est donc PAS rétrocompatible en SQL, contrairement à Python.
@@ -7958,6 +8328,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-ratchet-at-zero-over-a-scope-that-excludes-the-defect
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un cliquet affiche zéro et la propriété qu'il annonce est fausse. Le prédicat est juste, la portée ne l'est pas — et rien dans le message ne distingue « zéro trouvé » de « zéro cherché ».
 - root_cause: `tests/test_the_metrics_layer_only_grows.py` a certifié « huit plateformes à zéro agrégat hors de la couche or » le 2026-09-12 avec un `_SURFACES` qui ne nommait pas `src/dashboard/utils`. `kpi_helpers.py` (onze agrégats) et `pdf_charts.py` (un) étaient dehors. Deuxième forme le même jour : `_FACTS` ne listait pas `meta_insights_performance`, et `\b` fait que `meta_insights\b` ne le matche pas.
@@ -7977,6 +8348,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-ratchet-with-no-floor-under-its-population
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un cliquet à zéro reste vert alors que la propriété qu'il annonce n'est plus vérifiée — parce qu'il ne mesure plus rien. Mesuré le 2026-09-12 : **5 des 17 valeurs gelées du dépôt** n'avaient aucun plancher sous leur population.
 - root_cause: `total <= plafond` est vrai pour `total = 0`, et zéro arrive de trois façons qui n'ont rien d'exceptionnel — le prédicat cesse de matcher (un nom de fonction renommé), la population disparaît (un fichier budgété supprimé), ou le rendu échoue en silence (une page qui ne s'affiche plus émet zéro requête). Dans les trois cas le cliquet passe au vert en ne vérifiant plus rien, et rien dans son message ne distingue « zéro trouvé » de « zéro cherché ».
@@ -7996,6 +8368,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## two-definitions-that-must-coincide-are-never-compared
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: deux chemins qui répondent à la même question rendent deux nombres différents, chacun cohérent avec lui-même, pendant des semaines. Mesuré en PRODUCTION le 2026-09-12 : 6 165,65 € contre 3 087,82 € pour le même locataire et la même dépense Meta.
 - root_cause: une couche sémantique garantit qu'une métrique a **une seule définition** (ADR-019). C'est une propriété du CODE, et elle ne dit rien de la donnée : deux définitions *censées* coïncider peuvent diverger parce que la SOURCE porte deux générations de lignes, parce qu'une jointure en perd, ou parce qu'un prédicat a été recopié d'un seul côté. Aucune revue de diff ne le voit — les deux côtés sont justes séparément. Moses/Gavish/Vorwerck (*Data Quality Fundamentals* p. 107) distinguent explicitement le suivi d'une DISTRIBUTION (un seuil) de l'ASSERTION (une égalité) ; c'est une assertion, et elle manquait.
@@ -8015,6 +8388,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-partial-collection-becomes-a-baseline-level
 - status: guarded
 - severity: P2
+- family: un-cumul-pris-pour-un-quotidien
 - kind: deterministic
 - symptom: une figure sous-déclare d'un facteur **3 049**. Mesuré le 2026-09-12 sur l'artiste 471 : « par semaine » totalisait 11 053 écoutes là où le compteur YouTube avait gagné 33 697 394.
 - root_cause: le 2026-08-20, la collecte a écrit **1 vidéo sur 200**. Le niveau de ce jour vaut 5 vues, contre 33 490 844 le lendemain. Ce 5 n'est pas une donnée fausse — cette vidéo avait bien 5 vues — il est faux **en tant que niveau du locataire**, et il devient la ligne de base de tout ce qui se dérive ensuite. `is_partial_collection` (pilier Volume, R39) connaît cette forme et compte les LIGNES d'une collecte ; la couche or, elle, voyait un jour avec des lignes valides et en faisait un point de courbe. Aggravant : la série quotidienne n'ayant que 2 jours consécutifs, le pas demandé DÉGRADAIT vers le jour, où la dérivation par les niveaux est désactivée par construction — le correctif du facteur 151 était donc annulé pour ce locataire.
@@ -8034,6 +8408,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-unmeasured-platform-is-rendered-as-zero
 - status: guarded
 - severity: P2
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: un artiste qui vient de s'inscrire lit **« 0 écoute »** sur les quatre plateformes. Ça ne se lit pas comme « la collecte n'a pas encore tourné », ça se lit comme un produit qui ne marche pas.
 - root_cause: `platform_totals(db, <locataire sans données>)` rendait `{'spotify': 0, 'youtube': 0, 'soundcloud': 0, 'apple': 0}` pendant que les vues or rendaient correctement « aucune ligne ». Trois `COALESCE(..., 0)` empilés effaçaient la distinction : un dans `_SQL_LIFETIME`, un dans le `or 0` de `_lifetime`, un troisième dans `gold_apple_lifetime`. Chacun était défendable seul — ensemble ils transformaient une absence en mesure. Et le même `return 0` couvrait l'EXCEPTION, donc une lecture échouée s'affichait aussi en zéro.
@@ -8053,6 +8428,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-removed-title-becomes-the-word-undefined
 - status: guarded
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: la figure affiche le mot **« undefined »** en gras là où son titre a été retiré. Vu au navigateur le 2026-09-12, immédiatement après avoir supprimé le titre et le sous-titre de la pile.
 - root_cause: `fig.update_layout(title=None)` ne retire pas le titre — Plotly sérialise l'absence vers son moteur JS, qui rend la chaîne `undefined`. Le titre de la pile venait d'être supprimé parce qu'il répétait le filtre de période et le récapitulatif ; le geste était juste, sa forme non.
@@ -8074,6 +8450,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## one-scale-for-two-contracts
 - status: guarded
 - severity: P3
+- family: un-seuil-écrit-d-instinct
 - kind: deterministic
 - symptom: une tuile de fraîcheur passe au **rouge** pour un comportement parfaitement normal. Signalé le 2026-09-12 : « c'est en rouge alors qu'on a que 3 jours de retard », sur un CSV que personne ne dépose quotidiennement.
 - root_cause: `freshness_status` appliquait un seul barème — 24 h vert, 72 h orange, au-delà rouge — à deux contrats opposés. Une API tourne chaque matin (deux nuits manquées = panne) ; un CSV est déposé à la main et Spotify for Artists publie par semaine. Le `kind` existait déjà dans `SOURCES_CONFIG` depuis le 2026-09-11 et rien ne le lisait pour décider de la couleur.
@@ -8093,6 +8470,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-verdict-whose-validator-lives-outside-the-repo
 - status: guarded
 - severity: P3
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: une règle est écrite dans un commentaire avec son chiffre, et personne ne peut la rejouer. La palette portait « refusé : ΔE 4.5 (deutan) » depuis le 2026-09-08 ; le verdict venait de `node scripts/validate_palette.js`, un script de la skill `dataviz` **absent de ce dépôt**.
 - root_cause: la mesure vivait dans un outil externe et son RÉSULTAT dans un commentaire. Conséquence mesurée : la palette a changé deux fois (2026-09-08, 2026-09-12) sans qu'aucune exécution ne puisse dire si elle passait encore, et le second changement — demandé, « youtube rouge… » — a d'abord produit un quatuor à ΔE 10,5 en vision normale, invisible.
@@ -8114,6 +8492,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-dependency-that-does-not-come-back
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: après un redémarrage de l'hôte (WSL, Docker Desktop, la machine), les services qui DÉPENDENT d'un autre remontent et celui dont ils dépendent reste à terre. Le symptôme visible n'est donc pas « la base est tombée » mais « le scheduler tourne et ne voit rien » — ce qui envoie chercher la panne du côté de l'applicatif, pas de l'infrastructure.
 - root_cause: dans `docker-compose.yml`, le service `postgres` ne déclarait AUCUNE ligne `restart:` — le seul des quatre dans ce cas — alors que `airflow-webserver` et `airflow-scheduler`, qui en dépendent en `condition: service_healthy`, portaient tous deux `unless-stopped`. La valeur par défaut de Compose est `no`. `docker-compose.example.yml`, le fichier de PRODUCTION, portait la ligne depuis toujours : c'est une divergence entre les deux composes, et `tests/test_compose_parity.py` ne la voyait pas parce qu'il compare les services et les montages, pas les politiques de reprise.
@@ -8131,6 +8510,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-test-whose-input-derives-from-its-subject
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un garde reste VERT quand on mute la constante qu'il prétend garder. Il n'échoue sur aucune valeur, si extrême soit-elle, parce que l'entrée qu'il construit grandit avec la constante — le test suit son sujet au lieu de le contredire.
 - root_cause: l'entrée du test est CALCULÉE à partir de la valeur testée. Mesuré le 2026-09-12 : `huge = (_MAX_BUCKETS + 1) * 30 + 1` puis `assert _step_for(huge) == "year"`. Porter `_MAX_BUCKETS` de 60 à 99 999 laisse le test vert — `huge` devient 3 000 031 jours, et la règle bascule toujours. La constante n'est gardée sur AUCUNE valeur. C'est la parenté directe de `a-guard-satisfied-by-the-collapse-it-should-catch`, trouvée la même journée : dans les deux cas, le mécanisme qui devait produire l'échec produit le succès.
@@ -8148,6 +8528,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-method-change-counted-as-growth
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: une figure ou un total affiche un pic énorme et parfaitement faux, à une date où rien n'est arrivé. Le chiffre est DÉRIVÉ correctement d'une série correcte — c'est la série qui a changé de sens ce jour-là. Aucun test ne le voit : les données sont cohérentes avec elles-mêmes.
 - root_cause: la croissance d'un compteur est calculée comme une différence de niveaux, ce qui suppose que les deux niveaux mesurent la MÊME chose. Quand la collecte change de définition entre les deux, la différence est une marche, pas une quantité. Mesuré le 2026-09-12, artiste 1 : le niveau YouTube passe de 99 778 à 118 216 dans la nuit du 2026-06-11 — le jour où la collecte est passée du compteur de CHAÎNE (plafonné, comptant des vidéos tierces, prouvé ~10× faux le 2026-09-08) à la somme des compteurs PAR VIDÉO. +18 438 quand le plus gros écart quotidien de la série vaut 7 et sa médiane 1.
@@ -8165,6 +8546,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-stack-that-mixes-two-baselines
 - status: guarded
 - severity: P2
+- family: un-cumul-pris-pour-un-quotidien
 - kind: deterministic
 - symptom: une série disparaît d'un graphique empilé alors qu'elle y est bien tracée. Elle n'est ni absente ni à zéro — elle est ÉCRASÉE, parce qu'une série voisine porte des valeurs d'un autre ordre de grandeur. Le lecteur signale « je n'ai pas X », et une lecture du code conclut que tout va bien : la trace existe, ses valeurs sont justes.
 - root_cause: deux séries de la même pile sont exprimées dans deux RÉFÉRENCES différentes. Mesuré le 2026-09-13, artiste 1, fenêtre de 30 jours : Spotify portait 545 — sa somme courante DANS la fenêtre — pendant que YouTube portait 118 300 et SoundCloud 23 500, leurs compteurs À VIE. Une source quotidienne repart de zéro au début d'une fenêtre bornée ; un compteur non. Les empiler revient à additionner un écart et un total, et la part de la série bornée tombe à 0,4 % de la pile, sous le pixel.
@@ -8182,6 +8564,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## one-fact-two-answers-by-display-mode
 - status: guarded
 - severity: P2
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: la même phrase de l'interface affiche deux valeurs différentes selon un réglage d'affichage que l'utilisateur vient de changer. Aucune des deux n'est absurde, donc rien ne signale l'erreur — c'est en comparant deux captures d'écran qu'on la voit.
 - root_cause: le texte est dérivé d'une variable dont la NATURE change avec le mode, et non de la source du fait. Mesuré le 2026-09-13 : « SoundCloud mesurée depuis le 31/03/2026 » au pas du jour contre « depuis décembre 2025 » au pas du mois — trois mois et demi d'écart. `_late_starts` lisait `aligned`, qui porte la série quotidienne en mode « par période » au pas du jour et les niveaux partout ailleurs. Or la série quotidienne d'un compteur est une DIFFÉRENCE entre deux relevés CONSÉCUTIFS : elle ne peut pas commencer avant le deuxième jour où deux relevés se suivent.
@@ -8200,6 +8583,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-deduction-subtracted-from-the-wrong-base
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: une surface affiche un montant NET manifestement faux, sans erreur ni trace. Mesuré le 2026-09-14 : la page Royalties SACEM annonçait « ✅ Net estimé **21,49 €** » à un artiste dont le compte en banque avait reçu **36,49 €** — 15,00 € d'écart, 41 %, sur le seul chiffre qu'il pouvait vérifier lui-même sur son relevé.
 - root_cause: `src/dashboard/views/sacem.py` calculait `net = gross + charges + tva` en Python, en sommant TOUTES les lignes d'un type. Or un type de ligne dit ce qu'une ligne EST, jamais **de quoi elle se retranche** : les 9 lignes `tva` du relevé mêlent 8 `FORFAIT TVA` positifs reversés avec chaque répartition (+0,33 € au total) et une TVA de frais d'adhésion de 2023 (−15,00 €), qui appartient à un bloc se soldant à zéro et ne concerne aucune royaltie. Le calcul retranchait donc d'un revenu un frais payé un an avant la première répartition.
@@ -8222,6 +8606,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-diagnostic-that-reads-a-name-not-a-route
 - status: guarded
 - severity: P3
+- family: l-instrument-ment-sur-ce-qu-il-mesure
 - kind: deterministic
 - symptom: un outil de diagnostic rapporte des pannes que le produit n'a pas. Mesuré le 2026-09-12 par `make artist-firstlook-prod ARTIST=1` : **2 pages sur 6 en ERREUR** — `process_guide` (`ModuleNotFoundError`) et `upload_csv` (`ImportError: cannot import name 'show'`). Les deux pages fonctionnent en production.
 - root_cause: `tools/artist_first_look.py` importait `src.dashboard.views.<nom de page>`, alors que le nom d'une page et le module qui la sert ont cessé d'être la même chose à la fusion du 2026-09-04 : `app.py` route `upload_csv` → `views.credentials` et `process_guide` → `views.onboarding_health`, délibérément, pour que les anciens pointeurs ne deviennent pas des culs-de-sac.
@@ -8241,6 +8626,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-join-on-a-display-name-loses-what-the-name-normalises
 - status: guarded
 - severity: P2
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: une figure ou un total ne montre qu'une partie du catalogue, sans erreur ni ligne manquante visible. Mesuré le 2026-09-14 : joindre `track_release_reference.title` à `s4a_song_timeline.song` rendait **6 titres sur 11 et 67 402 écoutes sur 163 088 — 41 %**. Le titre perdu le plus gros, « Ca te dérange pas si je joue avec ton tapis? », vaut **59 926 écoutes**, plus du double du suivant.
 - root_cause: les deux colonnes portent le MÊME titre dans deux orthographes. Le nom du morceau ne figure pas dans le CSV S4A — Spotify ne le met que dans le NOM DU FICHIER — et un système de fichiers ne peut pas porter « ? », qui devient « _ ». Une jointure par égalité stricte sur un nom d'AFFICHAGE échoue donc dès qu'un caractère est normalisé quelque part dans la chaîne, et elle échoue en silence : une jointure qui ne matche pas ne lève pas, elle rend moins de lignes.
@@ -8261,6 +8647,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-span-read-from-a-table-that-carries-a-mandatory-filter
 - status: guarded
 - severity: P3
+- family: deux-surfaces-deux-nombres
 - kind: deterministic
 - symptom: un sélecteur de période propose une fenêtre plus large que ce que la figure d'à côté peut tracer. L'utilisateur choisit dans un intervalle qui existe, et obtient une figure vide sur ses bords. Mesuré le 2026-09-14 : un titre mesuré sur 646 jours se voyait offrir l'étendue de 1 254.
 - root_cause: `src/dashboard/utils/period_filter._data_span` interpole un nom de table dans un `SELECT MIN(...), MAX(...) FROM {table} WHERE 1=1` **sans aucun prédicat métier**. Tant qu'une table à filtre obligatoire figure dans `_ALLOWED_TABLES`, l'étendue rendue viole la règle par construction — ici `s4a_song_timeline`, dont toute lecture doit porter `AND song NOT ILIKE '%1x7xxxxxxx%'` (règle transverse #8) — et ne se restreint pas non plus à l'entité tracée.
@@ -8281,6 +8668,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-zero-that-predates-the-thing-it-measures
 - status: guarded
 - severity: P3
+- family: le-temps-et-l-horloge
 - kind: deterministic
 - symptom: une courbe dessine des mois de plat à zéro avant que l'objet mesuré n'existe. Mesuré le 2026-09-14 : « Ô Chiotte l'arbitre Tucome Back », sorti le 30/08/2024, portait **20 mois** de `streams = 0` remontant au 01/01/2023. **6 365 lignes** de cette forme dans la table.
 - root_cause: la source exporte la timeline du COMPTE, pas celle du titre : Spotify inscrit 0 pour un morceau qui n'était pas publié. **Le parseur n'invente rien** — vérifié dans `src/transformers/s4a_csv_parser.py`, il écrit exactement ce que le CSV porte. Le zéro est donc réel dans le fichier et FAUX à l'écran : « la chose n'existait pas » n'est pas « la chose a fait zéro ». Parente de `an-unmeasured-platform-is-rendered-as-zero`, mais à l'envers — là-bas l'absence devient un zéro, ici un zéro réel affirme une existence.
@@ -8302,6 +8690,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-subplan-re-executed-by-a-misestimated-row-count
 - status: guarded
 - severity: P3
+- family: un-coût-payé-sans-contrepartie
 - kind: deterministic
 - symptom: une vue SQL passe de quelques dizaines de millisecondes à plusieurs minutes sans qu'aucune donnée n'ait changé, et la page qui la lit rend `canceling statement due to statement timeout`. Mesuré le 2026-09-14 : `v_s4a_release_reach` dépassait **2 minutes** quand la cohorte qu'elle résume tourne en **51 ms**.
 - root_cause: deux causes qui se composent. (1) Le planificateur estime **1 ligne** là où la relation en rend **9 335** — le filtre de jointure (`match_key` + une inégalité de date) lui est opaque —, choisit donc une boucle imbriquée et **réexécute tout le sous-plan une fois par ligne**. (2) Une CTE référencée deux fois, ou un `LATERAL`, offre précisément la prise pour que cette réexécution se produise. Le coût n'est pas dans la donnée : elle tient en 13 794 lignes.
@@ -8324,6 +8713,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-exemption-declared-per-site-never-stops-growing
 - status: guarded
 - severity: P4
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une liste d'exemptions grossit à chaque changement sans rapport avec elle. Mesuré le 2026-09-14 : `saas_artists` est passée de **0 à 4 déclarations en UNE migration**, et trois migrations d'affilée — 116, 120, la sonde de fraîcheur — ont produit le même geste. Rien n'était faux ; le geste se répétait, et rien n'annonçait qu'il s'arrêterait.
 - root_cause: l'exemption était déclarée par SITE (fichier, table) alors que la raison de l'exempter appartient à la TABLE. Donner une vue or à une table rend visibles toutes ses lectures d'un coup — et chacune redemande la même décision, qu'on reprend à la main. Le nombre d'exemptions suit alors le nombre de LECTEURS, qui n'a aucune raison de se stabiliser.
@@ -8345,6 +8735,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## an-alert-judged-on-time-for-a-manual-source
 - status: guarded
 - severity: P3
+- family: le-message-parle-au-mauvais-lecteur
 - kind: deterministic
 - symptom: une alerte de fraîcheur est rouge presque en permanence pour un pipeline correct. Mesuré le 2026-09-14 : le CSV Spotify for Artists a déclenché **85 nuits d'affilée**. `csv_upload_log` ne porte que DEUX imports réussis pour le locataire 1 — 2026-06-08 et 2026-09-08, **92 jours d'écart** — contre un seuil de 7 jours.
 - root_cause: le seuil de fraîcheur suppose une CADENCE. Un DAG en a une ; un humain qui dépose un fichier n'en a pas — il importe quand quelque chose le justifie. Juger une source manuelle au temps écoulé la déclare donc fautive presque tout le temps, et un lecteur qui voit la même ligne rouge 85 fois apprend à sauter l'alerte entière, y compris le soir où elle dit vrai.
@@ -8365,6 +8756,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-unit-test-that-borrows-a-real-connection-from-the-pool
 - status: guarded
 - severity: P2
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: un fichier de tests UNITAIRES, qui patche `psycopg2.connect` et se croit entièrement simulé, parle en réalité à la base de production locale. Il passe quand même — jusqu'au jour où un test pose un `.return_value` sur une méthode réelle : `AttributeError: 'builtin_function_or_method' object has no attribute 'return_value'`.
 - root_cause: `PostgresHandler._connect()` demande d'abord `_borrow_from_pool()`. Le pool existe dès qu'un test ANTÉRIEUR du même worker a appelé `get_db_connection()` — ce que font des dizaines de fichiers — et ses sockets ont été ouverts par `ThreadedConnectionPool` AVANT que le patch existe. Le patch est donc contourné sans rien dire. Mesuré dans pytest le 2026-09-16 : `POOL= True  CURSOR= cursor`. 23 des 24 tests du fichier passaient quand même, un vrai curseur répondant à `execute` et à `fetchall` : ils affirmaient sur la BASE ce qu'ils croyaient affirmer sur un mock.
@@ -8381,6 +8773,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-cold-measurement-that-clears-caches-by-name
 - status: guarded
 - severity: P2
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: un cliquet qui affirme mesurer « à froid » rend un nombre DIFFÉRENT selon ce qui a tourné avant lui dans le même processus. Il passe en ordre de fichier et tombe en ordre aléatoire — ou l'inverse.
 - root_cause: sa purge énumère les caches PAR LEUR NOM. L'énumération se périme dès qu'un cache est ajouté au chemin chaud, et le cliquet se remet alors à mesurer son voisinage. Mesuré le 2026-09-16, trois rendus successifs dans un processus neuf : l'accueil `artist` rend **14, 13, 13** — `_cached_plan_row` (`auth.py`, `@st.cache_data`, écrit le 2026-09-03 avec `plan_resolver`) n'était dans aucune liste. Le plafond de 13 avait donc été gelé sur un cache CHAUD. `admin` rend 13, 13, 13 : `get_artist_plan()` répond `premium` sans toucher la base pour un admin, et cette asymétrie EST la preuve de la cause. Troisième fois pour ce fichier — les deux précédentes avaient été corrigées en AJOUTANT un nom à la liste.
@@ -8398,6 +8791,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-gate-that-counts-instead-of-comparing-sets
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une porte compare deux NOMBRES là où la question porte sur deux ENSEMBLES. Elle est verte, les deux totaux sont justes, et l'élément qui manque d'un côté est compensé par un intrus de l'autre. Elle ne peut pas nommer ce qui manque, puisqu'elle ne le regarde pas.
 - root_cause: mesuré le 2026-09-16 sur la porte de migrations de `tools/deploy.sh` (écrite la veille). Elle lisait `SELECT count(*) FROM schema_migrations` et le comparait à `ls migrations/*.sql | wc -l`. Le dépôt portait 119 fichiers, la base 119 lignes : verte. Or `106_gold_remaining_grains.sql` n'était PAS enregistrée — elle échouait à chaque rejeu — et sa ligne au compte était occupée par `create_missing_tables.sql`, qui n'est pas une migration numérotée. Deux erreurs qui s'annulent donnent un total juste et un verdict faux.
@@ -8416,6 +8810,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-repair-that-reverts-what-a-successor-widened
 - status: guarded
 - severity: P1
+- family: une-écriture-qui-écrase
 - kind: manual
 - symptom: un correctif de rejouabilité fait DISPARAÎTRE une colonne, une contrainte ou un index qu'une migration ultérieure avait ajoutés. Le fichier corrigé passe enfin, le registre se complète, et le schéma recule — sans erreur, puisque tout a « réussi ».
 - root_cause: le correctif remplace `CREATE OR REPLACE` par `DROP` + `CREATE` pour contourner « cannot drop columns from view ». Mais l'erreur ne disait pas que le fichier était mal écrit : elle disait qu'**un successeur avait élargi l'objet**. Mesuré le 2026-09-16 : `106_gold_remaining_grains.sql` recrée `v_meta_creative_daily`, que `108_*` élargit de `ad_account_id` et `adset_name` ; 108 étant DÉJÀ au registre, elle ne repasse pas, donc le DROP+CREATE de 106 rendait la vue à sa forme étroite. Deux tests sont tombés dans la minute. C'est la classe `unguarded-drop-replayed-alone` reproduite en croyant la refermer.
@@ -8436,6 +8831,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-default-branch-that-skips-instead-of-refusing
 - status: guarded
 - severity: P1
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: un script de déploiement met un service EN SERVICE sans l'avoir vérifié une seule fois, et sort en 0. Rien n'échoue, rien n'avertit : le service demandé n'a simplement croisé aucune branche qui le connaisse.
 - root_cause: la branche par DÉFAUT d'un aiguillage passe son tour au lieu de refuser. Mesuré le 2026-09-16 par `code-critic` sur le design de R114, avant qu'une ligne soit écrite : `tools/deploy.sh` choisissait la sonde de santé par un `case` se terminant par `*) continue`. Tant que `$SERVICES` ne contenait que `api` et `dashboard`, les deux branches existaient et le trou était invisible. Une seconde réplique `dashboard2` y serait tombée : reconstruite, remise en service, **jamais sondée, jamais couverte par le retour arrière** — et Caddy lui envoyant du trafic par cookie. Le défaut n'est pas le `case` incomplet, c'est que l'incomplétude était SILENCIEUSE.
@@ -8456,6 +8852,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-rollback-wider-than-the-failure
 - status: guarded
 - severity: P1
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: un retour arrière déclenché par la panne d'UNE instance reconstruit tout ce qui tourne. Le remède coupe ce qui marchait encore, et la coupure est plus large que l'incident qu'elle répare.
 - root_cause: la fonction reçoit l'objet en cause en argument et ne s'en sert pas pour agir. Mesuré le 2026-09-16 : `rollback()` prenait `_svc` (`tools/deploy.sh:106`) pour l'afficher dans son message, puis reconstruisait la variable globale `$SERVICES`. À une instance par surface, les deux sont identiques et le défaut n'existe pas. À deux répliques, l'échec de la santé sur l'une aurait reconstruit **les deux sous trafic** — c'est-à-dire coupé le site pour réparer une moitié. Même forme que la classe précédente : un code correct tant qu'il n'y a qu'un exemplaire de chaque chose.
@@ -8476,6 +8873,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-bind-address-that-hides-the-service
 - status: guarded
 - severity: P2
+- family: une-configuration-qui-diverge-de-la-prod
 - kind: deterministic
 - symptom: un service démarre, son conteneur est `healthy`, aucun journal ne se plaint — et **rien ne peut l'atteindre**. Le symptôme arrive à l'autre bout de la chaîne : un tableau de bord vide, qu'on lit comme « il n'y a rien à montrer » plutôt que « la source est injoignable ».
 - root_cause: on confond la restriction d'accès posée par le MAPPAGE DE PORT avec celle posée par le BINAIRE. Mesuré le 2026-09-16, en écrivant la pile d'observabilité : `--web.listen-address=127.0.0.1:9090` avait été mis dans la commande de Prometheus pour « ne pas l'exposer ». Mais c'est la loopback **du conteneur** : ni `ports: ['127.0.0.1:9090:9090']` ni Grafana, qui l'atteint par `streamlytics_prometheus:9090` sur le réseau Docker, n'auraient pu s'y connecter. La restriction voulue venait déjà du mappage ; celle du binaire coupait tout le monde, y compris nous.
@@ -8495,6 +8893,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-metric-registered-twice-kills-the-import
 - status: guarded
 - severity: P1
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: l'application **ne démarre plus du tout** — `Duplicated timeseries in CollectorRegistry` à l'import, avant qu'une ligne ne s'affiche. Rien de progressif, rien de dégradé : une page blanche.
 - root_cause: `prometheus_client` LÈVE si un nom de métrique est enregistré deux fois dans le registre par défaut, et un module d'instrumentation est exactement le genre de module qu'on importe depuis partout. Mesuré le 2026-09-16 : ce dépôt met `src/dashboard` sur `sys.path` et importe ses vues comme `views.x`, donc **un même fichier peut être chargé sous deux noms** (`src.utils.metrics` et `utils.metrics`) — Python le considère alors comme deux modules distincts, exécute son corps deux fois, et la seconde déclaration lève. La classe voisine `selector-blind-to-the-import-prefix` décrit le même double chemin, vu d'un autre angle.
@@ -8514,6 +8913,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-gate-that-can-never-be-green
 - status: guarded
 - severity: P2
+- family: un-contrôle-qui-ne-peut-jamais-passer
 - kind: deterministic
 - symptom: une porte de comparaison rapporte une divergence **à chaque exécution**, quoi qu'on fasse. On la lit deux fois, on la contourne la troisième, et le jour où elle décrit une vraie dérive personne ne la croit. Le coût n'est pas la fausse alerte : c'est l'attention qu'elle consomme puis qu'elle perd.
 - root_cause: la comparaison prépare ses deux côtés DIFFÉREMMENT, et rapporte donc sa propre asymétrie. Mesuré le 2026-09-16 : `make sync-check` dépliait le Caddyfile du dépôt à partir du premier `{` (`sed -n '/^{/,$p'`) et comparait au fichier de la cible **entier**. Tant que la prod n'avait pas d'en-tête, ça marchait par coïncidence ; la procédure de déploiement écrite en tête du fichier fait un `scp` du fichier COMPLET, donc dès le premier déploiement conforme la porte a vu **89 lignes de divergence pour ZÉRO ligne fonctionnelle**. La variante voisine : une cible de scrutation Prometheus laissée sur un service volontairement arrêté — `down` pour toujours, parce que Prometheus n'a pas de notion de « arrêté volontairement ».
@@ -8534,6 +8934,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-measurement-that-cannot-say-why-it-failed
 - status: guarded
 - severity: P1
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: un instrument rend une colonne d'échecs — « perdus », « timeouts », « erreurs » — et **on ne peut pas savoir ce qu'elle décrit**. Le chiffre a l'air d'un fait, il sert de signal de décision, et il n'est pas réfutable : on ne peut ni le confirmer ni l'infirmer sans refaire la mesure avec un autre outil.
 - root_cause: **un `except Exception` nu autour de plusieurs attentes successives**, plus un marqueur que le sujet ne possède pas en propre. Mesuré le 2026-09-16 sur `tools/loadtest_concurrency.py`, dont la colonne « reruns perdus » a servi de signal de décision à R114 : elle fusionnait *(a)* un clic jamais devenu actionnable — défaut CLIENT, *(b)* un rerun jamais démarré — transport, *(c)* un rerun jamais terminé — **la seule cause qui parle du serveur**. Et le marqueur guetté (`stStatusWidget`) est monté par Streamlit pour `stConnectionStatus` aussi : un websocket dégradé faisait compter « perdu » un rerun qui avait pu être servi. Le symptôme qui aurait dû alerter était l'absence de MONOTONIE — 9 → 33 → **24** → 98 : aucune saturation serveur ne produit cette inversion, et la vraie cause était la RAM du navigateur (175-217 Mo par onglet, 24 onglets ≈ 4,2 Go contre 4,0 disponibles).
@@ -8553,6 +8954,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-percentile-computed-on-survivors
 - status: guarded
 - severity: P1
+- family: un-nombre-affirmé-qui-n-a-pas-été-mesuré
 - kind: deterministic
 - symptom: un quantile publié **sous-estime** ce qu'il décrit, et toujours dans le sens rassurant. Plus le système se dégrade, plus le chiffre paraît bon — parce que les cas les pires sortent de l'échantillon au lieu d'y entrer.
 - root_cause: les échecs sont écartés de la liste avant le calcul, au lieu d'être comptés comme **censurés à droite**. Mesuré le 2026-09-16 : `tools/loadtest_concurrency.py` calculait son p50 sur les seuls reruns aboutis, et à 24 onglets **68 à 82 % des échantillons étaient censurés** — le chiffre publié décrivait le quart qui avait réussi. La dégradation réelle était donc pire que la courbe, exactement là où la courbe servait à décider. Le rapprochement avec [`a-measurement-that-cannot-say-why-it-failed`](#a-measurement-that-cannot-say-why-it-failed) est direct : on ne peut pas censurer honnêtement ce qu'on ne sait pas classer.
@@ -8573,6 +8975,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-ratio-between-two-instruments-that-ignores-the-floor-of-one
 - status: guarded
 - severity: P1
+- family: un-seuil-écrit-d-instinct
 - kind: deterministic
 - symptom: un RAPPORT entre deux grandeurs oriente des semaines de travail, et il est faux **dans le mauvais sens**. Les deux nombres sont justes, aucun calcul n'est erroné, et personne ne peut pointer l'erreur — parce qu'elle n'est pas dans les nombres mais dans le droit de les diviser.
 - root_cause: les deux mesures viennent d'INSTRUMENTS différents, et l'un a un plancher qu'on n'a pas retranché. Mesuré le 2026-09-16 : ce dépôt affirmait dans **dix fichiers** que la barre latérale pesait « un facteur 8 » de plus que le rendu d'une vue, à partir de `61 ms` (une vue, mesurée en Python) et `468-538 ms` (une page complète, mesurée **sous `AppTest`**). Or `tools/loadtest_dashboard.py` documente **vingt lignes au-dessus du second chiffre** le plancher de ce harnais, pris dans le même conteneur le même jour : **352 ms pour `st.write('hello')`**, deux lignes, sans app ni base ni plotly. Le coût réel de l'application valait ~116-186 ms. La mesure serveur a fini par montrer l'INVERSE : chrome 11-13 ms, vue 50 à 777 ms. Cousine de [`a-threshold-carried-across-instruments`](#a-threshold-carried-across-instruments) : là un seuil voyageait d'un instrument à l'autre, ici c'est un rapport qui enjambe les deux.
@@ -8594,6 +8997,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-document-that-cannot-be-current-in-its-own-commit
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: un document généré est **périmé à l'instant même où on le commite**. Son contrôle de fraîcheur est rouge juste après un `make` qui vient de le produire, et relancer le `make` ne le rend pas vert. On conclut que le générateur est cassé ; il ne l'est pas.
 - signature: `python3 -m pytest tests/test_a_snapshot_survives_the_commit_of_its_source.py -q`
@@ -8614,6 +9018,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-make-variable-named-after-an-environment-variable
 - status: guarded
 - severity: P2
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: une cible `make` prend une option qu'on ne lui a pas donnée. La commande affichée montre l'argument, mais personne ne le lit — on a tapé la ligne, on connaît son contenu.
 - signature: `.venv/bin/python -m pytest tests/test_a_make_variable_does_not_collide_with_the_environment.py -q -p no:cacheprovider >/dev/null 2>&1`
@@ -8632,6 +9037,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-load-guard-that-counts-names-instead-of-measuring-load
 - status: guarded
 - severity: P3
+- family: un-contrôle-qui-ne-peut-jamais-passer
 - kind: deterministic
 - symptom: un garde de qualité de mesure refuse systématiquement, sur une machine objectivement inactive. On finit par lui passer `--force`, ce qui le retire pour de bon — y compris le jour où il avait raison.
 - signature: `.venv/bin/python -m pytest tests/test_a_load_guard_measures_load_not_names.py -q -p no:cacheprovider >/dev/null 2>&1`
@@ -8650,6 +9056,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-make-target-that-claims-a-barrier-it-does-not-hold
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: une cible `make` annonce dans son aide qu'elle est la barrière — « (CI) » — alors qu'aucun workflow ne la lance. Le document EST gardé, mais par un autre mécanisme. Rien ne casse ; le coût est différé et arrive quand quelqu'un supprime le vrai garde en le croyant redondant.
 - root_cause: `Makefile` — `gold-coverage-check`, `error-families-check` et `error-health-check` portaient `## Échoue si … (CI)`. Vérifié le 2026-09-17 : `grep -rn` sur `.github/workflows/` et `.pre-commit-config.yaml` rend **zéro occurrence** de ces trois noms. Ce qui bloque réellement, ce sont trois tests pytest (`test_the_gold_coverage_only_improves.py` et ses deux frères) qui tournent sous `make test`, donc en CI — mais par la suite, pas par la cible. La mention n'était pas fausse sur le RÉSULTAT (le document est bien gardé en CI), elle était fausse sur le PORTEUR, et c'est la forme la plus difficile à repérer : tout fonctionne, la phrase se vérifie en apparence, et l'erreur ne se paie qu'au moment d'un nettoyage.
@@ -8668,6 +9075,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-generated-document-with-no-freshness-guard
 - status: guarded
 - severity: P4
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: un document **généré** n'a ni contrôle de fraîcheur ni test jumeau, là où tous ses pairs en ont. Il se périme en silence et continue d'être lu comme une mesure. Mesuré le 2026-09-17 : `.claude/dev-docs/error-inbox.md` affirmait « **0 ouverte(s)** sur 0 » et datait du 2026-09-04, alors que `app_error_log` en portait 1.
 - root_cause: `tools/error_inbox.py` n'exposait que `main()` — pas de `--check` — et aucun `tests/test_the_error_inbox_*` n'existait. Ses trois pairs en ont un de chaque (`gold_coverage`, `error_class_families`, `error_class_health`). La raison de l'écart n'est pas un oubli mais une difficulté réelle : **les trois pairs dérivent du DÉPÔT et peuvent donc recalculer leur rendu n'importe où, celui-ci dérive de la BASE**. Un contrôle naïf aurait été vert par abstention partout où `app_error_log` est absente — c'est-à-dire vert en CI, là où il compte.
@@ -8686,6 +9094,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-scrape-target-that-is-up-measuring-nothing
 - status: guarded
 - severity: P2
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: une cible de scrutation répond `up`, sa page `/metrics` se sert correctement, et elle ne mesure **rien** de ce qu'elle est censée mesurer. La couverture est apparente : le tableau de surveillance montre une cible verte, et personne ne cherche plus.
 - root_cause: `src/api/main.py` importait `metrics_payload()` (`src/utils/metrics.py:259`), qui fait `generate_latest()` sur le registre PAR DÉFAUT du processus. Les quatre familles de `_build()` y sont bien enregistrées par import transitif — mais **aucun `.inc()`, `.observe()` ni `.set()` ne tournait jamais dans ce processus**. L'API servait donc quatre familles à zéro échantillon. Elle appelait même `enable_pool(minconn=1, maxconn=8)` (`main.py:94`) sans jamais appeler `publish_pool_metrics()`, si bien que `streamlytics_postgres_pool_connections` ne décrivait que le dashboard alors que les deux processus se partagent `max_connections`.
@@ -8704,6 +9113,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-gauge-that-reports-zero-when-it-cannot-read
 - status: guarded
 - severity: P2
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: une jauge alimentée depuis une ressource externe tombe à 0 quand cette ressource est injoignable. Le tableau affiche alors un chiffre rassurant — « aucun défaut », « aucun utilisateur », « aucune erreur » — au moment précis où l'on ne sait plus rien. C'est le sens dangereux du mensonge : il rassure.
 - root_cause: une `Gauge` de `prometheus_client` est **toujours** émise une fois ses labels créés, et sa valeur par défaut est 0. L'implémentation naïve d'une jauge adossée à une base met donc `0` dans la branche `except`, ou — variante à peine meilleure — garde la dernière valeur connue, qui est servie avec l'horodatage de la scrutation courante et se lit donc comme fraîche. Dans les deux cas **une seule série porte deux informations** (la valeur, et le fait qu'on la connaisse), ce qui est structurellement impossible.
@@ -8722,6 +9132,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-metric-label-whose-cardinality-is-unbounded
 - status: guarded
 - severity: P3
+- family: un-état-qui-déborde-de-sa-portée
 - kind: deterministic
 - symptom: un label de métrique prend ses valeurs dans un ensemble que l'application ne contrôle pas — une URL, un identifiant de ressource, un nom de fichier. Le nombre de séries suit alors le TRAFIC au lieu de l'activité mesurée. Prometheus ralentit, puis refuse la cible ; la métrique disparaît exactement quand la charge monte, c'est-à-dire quand on la lit.
 - root_cause: sur une API REST, `request.url.path` rend `/artists/4177`, pas `/artists/{artist_id}`. Étiqueter avec lui crée une série par ressource visitée. Starlette ne pose le patron dans `request.scope["route"]` **qu'après** le routage, donc un middleware qui lit le chemin au début de la requête obtient forcément l'URL brute : l'erreur est naturelle et le code correct demande de lire la route dans le `finally`.
@@ -8740,6 +9151,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-log-counter-whose-cardinality-follows-the-codebase
 - status: guarded
 - severity: P3
+- family: un-coût-payé-sans-contrepartie
 - kind: deterministic
 - symptom: un compteur de lignes de journal étiqueté par nom de logger complet crée une série par MODULE et par niveau. Le nombre de séries suit alors la taille du code, pas l'activité : ajouter un fichier ajoute cinq séries, et le compteur devient plus coûteux que ce qu'il mesure.
 - root_cause: `logging.LogRecord.name` porte le nom complet du module (`src.collectors.spotify_api_collector`). Le passer tel quel en label paraît juste — c'est bien l'origine de la ligne — mais le dépôt compte plus de 150 modules pour 5 niveaux, soit ~750 séries possibles pour une information que ~10 valeurs rendent aussi bien.
@@ -8759,6 +9171,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-retention-declared-in-a-comment-and-applied-by-nobody
 - status: guarded
 - severity: P3
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: une politique de conservation est écrite quelque part — commentaire SQL, ADR, migration — et **rien ne l'exécute**. Rien n'échoue jamais ; la table grossit, et le jour où un tableau ralentit ou où le disque se remplit, la cause a des mois d'avance sur le symptôme.
 - root_cause: `migrations/124_every_telemetry_table_declares_its_retention.sql:21-22` déclare les rétentions de 13 tables dans des `COMMENT ON TABLE` et affirme que « les purges correspondantes vivent dans `src/utils/telemetry_retention.py`, appelé par le DAG `alert_monitor` ». **Ce fichier n'a jamais été écrit.** `src/utils/nightly_maintenance.py` n'appelait que `purge_rate_limit_hits`. La migration était donc la description d'une intention, présentée au présent — et une migration est exactement le genre de document qu'on relit en croyant qu'il décrit l'état du système.
@@ -8777,6 +9190,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-procedure-that-omits-a-surface-it-must-touch
 - status: guarded
 - severity: P3
+- family: un-document-qui-affirme-un-état-périmé
 - kind: deterministic
 - symptom: une procédure écrite est correcte, détaillée, et **omet une des surfaces que le geste doit toucher**. Celui qui la suit fait le travail et laisse une incohérence derrière lui. Le défaut ne se voit qu'au contrôle suivant, quand le lien avec le geste est déjà perdu.
 - root_cause: `.claude/commands/roadmap-done.md` décrit la rotation d'une tâche en huit étapes et ne nommait **ni** l'ancre `<!-- reprise: open=… -->` — une troisième surface à côté des deux tables d'index — **ni** le format que `tests/test_roadmap_two_files.py::test_no_brick_id_vanishes_from_both_files` exige d'une entrée d'archive (une ligne de tableau ou une case cochée ; un **titre** `## R128 — …` lui est invisible). Les deux omissions ont produit une erreur chacune le 2026-09-17, dans la même séance, sur des tâches différentes.
@@ -8795,6 +9209,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-reopening-condition-nothing-ever-evaluates
 - status: guarded
 - severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
 - kind: deterministic
 - symptom: une tâche close se donne une **condition de réouverture calculable**, écrite noir sur blanc — et rien ne l'évalue jamais. La condition se remplit, la tâche reste close, et le dépôt continue comme si de rien n'était. Rien n'échoue ; c'est un travail qui n'arrive nulle part.
 - root_cause: écrire un déclencheur et le VÉRIFIER sont **deux gestes**, et le second n'avait jamais été fait. Le dépôt portait **onze** conditions de réouverture réparties sur deux surfaces d'écriture différentes : la prose (« Déclencheur de réouverture, calculable : … ») et une table de `checklist.md` (« Ce qu'on ne fait pas | Ce qui le rouvrirait, calculable », sept lignes d'un coup). Aucune n'était lue par un test, un contrôle, une cible `make` ou un rapport nocturne. Le cliquet des classes d'erreur, souvent cité comme le garant de R122, ne vérifie que `ever_recurred_observed >= 1` — « le détecteur détecte-t-il encore » — jamais le seuil de réouverture.
@@ -8813,6 +9228,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-verdict-swallowed-by-the-pipe-that-abbreviated-it
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une vérification est lancée, son verdict est ROUGE, il s'affiche à l'écran — et la livraison qui suit sur le même `&&` part quand même. Rien n'échoue, rien n'avertit : le shell rend le code du dernier étage du tube, et `tail` réussit toujours.
 - signature: `.venv/bin/python -m pytest tests/test_a_verdict_is_not_swallowed_by_a_pipe.py -q -p no:cacheprovider >/dev/null 2>&1`
@@ -8831,6 +9247,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-fallback-that-answers-the-whole-question
 - status: guarded
 - severity: P3
+- family: une-erreur-avalée-devient-une-absence
 - kind: deterministic
 - symptom: une tuile annonce « N sur les dernières 24 h » et donne le total de TOUT l'historique. Aucune erreur, aucun trou : le chiffre est simplement celui d'une autre question. Le repli d'un calcul impossible rend l'ensemble NON FILTRÉ au lieu de rien.
 - signature: `.venv/bin/python -m pytest tests/test_a_window_that_cannot_be_computed_shows_nothing.py -q -p no:cacheprovider >/dev/null 2>&1`
@@ -8850,6 +9267,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-view-body-behind-a-non-default-filter
 - status: guarded
 - severity: P2
+- family: un-garde-qui-ne-garde-pas
 - kind: deterministic
 - symptom: une vue rend sans erreur dans la suite, et lève chez l'utilisateur dès qu'il élargit un filtre. Le bloc fautif vit derrière une condition de TAILLE de sélection (`if len(df) > 1`), et le `default=` du widget ne sélectionne qu'un élément — donc aucun rendu de test n'exécute ce bloc.
 - signature: `.venv/bin/python -m pytest tests/test_a_widened_filter_still_renders.py -q`

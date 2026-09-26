@@ -195,7 +195,15 @@ _CEILING: dict[str, int] = {
     # Une plateforme neuve ajoute cinq cases d'un coup et fera rougir ce plafond.
     # C'est voulu : brancher une source sans la garder est ce qui a coûté le plus
     # cher ici, et c'est le seul mécanisme qui l'empêche sans relecture humaine.
-    "guard-matrix.holes": 0,
+    # 0 → 5 le 2026-09-26 (R180), et ce n'est PAS un relâchement : la mesure a changé de
+    # définition. La matrice lit les gardes des classes de chaque famille ; les familles
+    # étaient DEVINÉES par regex (213 classes sur 418 correspondaient à 2+ familles), et
+    # 4 plateformes paraissaient gardées côté locataire par des classes mal rangées.
+    # Familles déclarées, le vrai état apparaît : `le-locataire` × Apple Music,
+    # Instagram, Spotify S4A, YouTube, et `un-cumul…` × Meta Ads — la sonde
+    # `tools/tenant_contamination_check.py` couvre bien ces tables, mais par une liste,
+    # que ce détecteur (littéraux SQL) ne lit pas. Redescend à 0 avec R180 étape 5.
+    "guard-matrix.holes": 5,
 }
 
 # Les populations, pour qu'un compteur ne puisse pas baisser en SUPPRIMANT la

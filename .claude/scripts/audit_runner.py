@@ -108,6 +108,7 @@ def parse_all_headers(text: str) -> list[dict]:
             if re.search(r"^- first_seen:\s*(20\d\d-\d\d-\d\d)", body, flags=re.M)
             else None,
             "admitted": _prose_field(body, "admitted"),
+            "family": _prose_field(body, "family"),
             "severity": (re.search(r"^- severity:\s*(P\d)", body, flags=re.M) or [None, None])[1]
             if re.search(r"^- severity:\s*(P\d)", body, flags=re.M) else None,
             "guard": _prose_field(body, "guard"),
@@ -644,6 +645,34 @@ def _sweep_verdict(headers: list[dict]) -> int:
     return 1
 
 
+def _family_slugs() -> frozenset:
+    """The 18 family slugs, from the generator that renders them (one source)."""
+    import importlib.util
+    path = Path(__file__).resolve().parents[2] / "tools" / "dev" / "error_class_families.py"
+    spec = importlib.util.spec_from_file_location("error_class_families_slugs", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.SLUGS
+
+
+def undeclared_families(headers: list[dict], slugs: frozenset) -> list[tuple[str, str]]:
+    """`(id, reason)` for every class whose `family:` is absent or not a family. Pure.
+
+    R180 (2026-09-26): the family was GUESSED by a regex on the id — 213 of 418 classes
+    matched two or more families and the first hit won in silence. It is now declared on
+    every entry, and this keeps it that way: a class belongs to a family, or it is not in
+    the catalogue.
+    """
+    out = []
+    for h in headers:
+        fam = (h.get("family") or "").strip()
+        if not fam:
+            out.append((h["id"], "aucun champ `- family:`"))
+        elif fam not in slugs:
+            out.append((h["id"], f"`family: {fam}` n'est pas l'une des familles"))
+    return out
+
+
 def _admission(headers: list[dict]) -> int:
     """Une classe NEUVE doit dire pourquoi elle mérite d'exister.
 
@@ -674,6 +703,13 @@ def _admission(headers: list[dict]) -> int:
     Les classes antérieures à la bascule sont acquises — on ne réécrit pas
     l'histoire, on arrête d'en produire au même rythme.
     """
+    sans_famille = undeclared_families(headers, _family_slugs())
+    if sans_famille:
+        for cid, why in sans_famille[:20]:
+            print(f"  ⊘  {cid}\n       {why}")
+        print(f"\n⊘ {len(sans_famille)} classe(s) sans famille déclarée — une classe entre "
+              "comme instance d'une des familles de `error-family-rules.md`, ou pas du tout.")
+        return 2
     since = _admission_since()
     if since is None:
         print("▶ admission: aucune date de bascule posée — rien à exiger.\n"

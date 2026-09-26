@@ -154,7 +154,7 @@ def test_no_quantity_source_is_treated_as_a_counter() -> None:
         "veut dire « rien ce jour-là », pas « collecte ratée ».")
 
 
-def unscoped_tenant_reads(source: str) -> list[tuple[int, list[str]]]:
+def unscoped_tenant_reads(source: str, relations=_TENANT_RELATIONS) -> list[tuple[int, list[str]]]:
     """(line, relations) of tenant-relation reads that name no `artist_id`, outside
     a tenant branch and outside docstrings. Pure."""
     tree = ast.parse(source)
@@ -214,12 +214,12 @@ def unscoped_tenant_reads(source: str) -> list[tuple[int, list[str]]]:
                            for v in node.values)
         else:
             continue
-        if not any(r in _FROM.findall(text) for r in _TENANT_RELATIONS):
+        if not any(r in _FROM.findall(text) for r in relations):
             continue
         if "artist_id" in text or _under_a_tenant_branch(node):
             continue
         out.append((node.lineno,
-                    [r for r in _FROM.findall(text) if r in _TENANT_RELATIONS]))
+                    [r for r in _FROM.findall(text) if r in relations]))
     return out
 
 

@@ -55,7 +55,8 @@ _DOC = _ROOT / ".claude" / "dev-docs" / "error-class-families.md"
 #
 # Les trois qui restent sont des cas isolés, et les laisser dehors est plus honnête
 # qu'une famille inventée pour trois membres.
-_MAX_ORPHANS = 3
+# 3 → 0 le 2026-09-26 (R180) : chaque classe DÉCLARE sa famille (`- family:`).
+_MAX_ORPHANS = 0
 _MIN_TOTAL = 296
 _MIN_FAMILIES = 17
 
@@ -117,3 +118,15 @@ def test_the_taxonomy_is_not_vacuous(counters) -> None:
         "famille fait baisser mécaniquement… rien : ses classes deviennent "
         "orphelines. Mais une taxonomie qui maigrit n'en est plus une."
     )
+
+
+def test_the_detector_sees_every_candidate_not_the_first(families) -> None:
+    """Non-vacuity, R180: a class whose id matches TWO families is proposed both — the
+    pre-R180 `classify()` stopped at the first hit, and 213 of 418 classes matched ≥2
+    families without anyone seeing it. A declared `family:` must name a real family."""
+    both = families.candidate_families("a-stale-tenant-row", "")
+    assert {"le-locataire", "un-document-qui-affirme-un-état-périmé"} <= set(both)
+    assert families.candidate_families("zzz-nothing-matches-qqq", "") == []
+    assert families.declared_family("- family: le-locataire\n") == "le-locataire"
+    assert families.declared_family("- family: not-a-family\n") is None
+    assert families.declared_family("- symptom: x\n") is None

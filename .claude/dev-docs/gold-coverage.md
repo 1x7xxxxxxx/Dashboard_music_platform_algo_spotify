@@ -436,7 +436,7 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 | `test_chart_budget.py` | `_BUDGET` | 7 entrées | — | — |
 | `test_the_bronze_boundary_only_tightens.py` | `_CEILING` | 81 | — | — |
 | `test_the_declared_schema_matches_the_database.py` | `_PLAFOND` | 33 | — | — |
-| `test_the_error_class_families_only_improve.py` | `_MAX_ORPHANS` | 3 | — | — |
+| `test_the_error_class_families_only_improve.py` | `_MAX_ORPHANS` | 0 | — | — |
 | `test_the_error_class_families_only_improve.py` | `_MIN_TOTAL` | 296 | — | — |
 | `test_the_error_class_families_only_improve.py` | `_MIN_FAMILIES` | 17 | — | — |
 | `test_the_gold_coverage_only_improves.py` | `_CEILING` | 11 entrées | — | — |
@@ -473,11 +473,11 @@ Le chiffre d'une case est le nombre de fichiers de garde qui NOMMENT une relatio
 
 | famille | Apple Music | Hypeddit | Instagram | Meta Ads | Revenu | SoundCloud | Spotify S4A | YouTube |
 |---|---|---|---|---|---|---|---|---|
-| [le-locataire](error-class-families.md#le-locataire) | 2 | 1 | 2 | 3 | 2 | 3 | 5 | 3 |
-| [un-cumul-pris-pour-un-quotidien](error-class-families.md#un-cumul-pris-pour-un-quotidien) | 2 | 1 | 1 | 1 | 1 | 4 | 4 | 3 |
-| [deux-surfaces-deux-nombres](error-class-families.md#deux-surfaces-deux-nombres) | 5 | 1 | 3 | 3 | 2 | 5 | 6 | 5 |
-| [une-erreur-avalée-devient-une-absence](error-class-families.md#une-erreur-avalée-devient-une-absence) | 2 | 1 | 2 | 1 | 1 | 2 | 5 | 2 |
-| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](error-class-families.md#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 2 | 1 | 2 | 1 | 1 | 2 | 3 | 2 |
+| [le-locataire](error-class-families.md#le-locataire) | **—** | 1 | **—** | 1 | 1 | 1 | **—** | **—** |
+| [un-cumul-pris-pour-un-quotidien](error-class-families.md#un-cumul-pris-pour-un-quotidien) | 2 | 1 | 1 | **—** | 1 | 2 | 2 | 3 |
+| [deux-surfaces-deux-nombres](error-class-families.md#deux-surfaces-deux-nombres) | 6 | 1 | 3 | 3 | 2 | 6 | 10 | 6 |
+| [une-erreur-avalée-devient-une-absence](error-class-families.md#une-erreur-avalée-devient-une-absence) | 1 | 1 | 1 | 1 | 1 | 1 | 2 | 1 |
+| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](error-class-families.md#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 3 | 1 | 3 | 5 | 3 | 4 | 5 | 3 |
 
 Pourquoi ces familles et pas les autres :
 
@@ -489,9 +489,9 @@ Pourquoi ces familles et pas les autres :
 | `une-erreur-avalée-devient-une-absence` | chaque plateforme a son `except` autour de sa lecture, et chacun peut rendre zéro à la place d'une panne. |
 | `un-nombre-affirmé-qui-n-a-pas-été-mesuré` | une collecte ratée écrit des zéros, et ce qu'un zéro VEUT DIRE dépend de la plateforme — c'est tout l'objet de `value_monitor`. |
 
-**0 case(s) vide(s)** — la liste des tests à écrire :
+**5 case(s) vide(s)** — la liste des tests à écrire :
 
-_aucune._
+`Apple Music · le-locataire` · `Instagram · le-locataire` · `Spotify S4A · le-locataire` · `YouTube · le-locataire` · `Meta Ads · un-cumul-pris-pour-un-quotidien`
 
 
 ## Les invariants
@@ -641,8 +641,8 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=23 without_nonvacuity=0 without_mutation=0 -->
 <!-- gold-coverage-error-classes: total=418 guard_missing=0 guard_unnamed=9 -->
-<!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
+<!-- gold-coverage-guard-matrix: cells=40 holes=5 -->
 <!-- gold-coverage-invariants: pairs=28 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=16 blocking=16 -->
 
-<!-- gold-coverage: sha256=a982a07439d97bce99e76f6b444a54f7181621bad3ec582c307ac76938861455 -->
+<!-- gold-coverage: sha256=bc5cc6080dbbac8f8046eb5e3c8ec06129af21e1369c50177dea601cfbcdec89 -->

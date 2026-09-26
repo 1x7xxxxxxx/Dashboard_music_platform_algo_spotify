@@ -379,20 +379,42 @@ def _one_line(body: str, field: str) -> str:
     return m.group(1).strip() if m else ""
 
 
+SLUGS = frozenset(slug for slug, _, _ in FAMILIES)
+
+
+def candidate_families(cid: str, symptom: str) -> list[str]:
+    """EVERY family whose regex matches the class id + symptom, in table order. Pure.
+
+    R180 (2026-09-26): `classify()` stopped at the FIRST hit, so a class matching two
+    families could never be seen — the regexes GUESSED, silently. They now only PROPOSE:
+    the family is declared on the entry (`- family:`), and this list is the evidence a
+    human reads when the regexes disagree (0 or ≥2 candidates).
+    """
+    # Le SYMPTÔME entre dans le texte classé, pas la cause : la cause nomme des
+    # fichiers, et un chemin ferait tomber toute une famille dans une autre le jour
+    # d'un renommage.
+    hay = f"{cid} {symptom}".lower()
+    return [slug for slug, _, pattern in FAMILIES if re.search(pattern, hay)]
+
+
+def declared_family(body: str) -> "str | None":
+    """The `- family:` a class DECLARES, if it names one of the families. Pure."""
+    value = _one_line(body, "family")
+    return value if value in SLUGS else None
+
+
 def classify() -> tuple[dict[str, list[tuple[str, str]]], list[tuple[str, str]]]:
+    """Declared family first; a class not yet declared falls back to its FIRST candidate
+    (the pre-R180 behaviour) so the document stays whole during the seeding."""
     buckets: dict[str, list[tuple[str, str]]] = {slug: [] for slug, _, _ in FAMILIES}
     orphans: list[tuple[str, str]] = []
     for cid, body in _entries():
-        # Le SYMPTÔME entre dans le texte classé, pas la cause : la cause nomme
-        # des fichiers, et un chemin ferait tomber toute une famille dans une
-        # autre le jour d'un renommage.
-        hay = f"{cid} {_one_line(body, 'symptom')}".lower()
-        for slug, _, pattern in FAMILIES:
-            if re.search(pattern, hay):
-                buckets[slug].append((cid, _one_line(body, "symptom")))
-                break
+        symptom = _one_line(body, "symptom")
+        family = declared_family(body) or next(iter(candidate_families(cid, symptom)), None)
+        if family:
+            buckets[family].append((cid, symptom))
         else:
-            orphans.append((cid, _one_line(body, "symptom")))
+            orphans.append((cid, symptom))
     return buckets, orphans
 
 

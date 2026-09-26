@@ -1428,7 +1428,9 @@ def platform_guard_matrix(gold, families_module) -> tuple[list[list[str]], list[
                     mod = node.module
                 elif isinstance(node, ast.Import):
                     mod = node.names[0].name
-                if not mod or not mod.startswith("src."):
+                # `tools.` too (R180, 2026-09-26): the cross-tenant contamination probe lives in
+                # `tools/tenant_contamination_check.py` and names every platform's tables.
+                if not mod or not mod.startswith(("src.", "tools.")):
                     continue
                 # DEUX formes, et la seconde est celle qui manquait :
                 # `from src.utils.gold_invariants import run` donne le module dans

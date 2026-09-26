@@ -25,9 +25,9 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R180 | Familles d'erreurs, unité vivante : champ `family:` DÉCLARÉ sur chaque classe (fin du classement par regex sur l'identifiant), et un détecteur ou une sonde par règle de `error-family-rules.md` <!-- anchor: family-field --> | P3 | `python3 -c` qui compte les classes sans `family:` → 0 |
+| R180 | Familles d'erreurs, unité vivante : champ `family:` DÉCLARÉ sur chaque classe (fin du classement par regex sur l'identifiant), et un détecteur ou une sonde par règle de `error-family-rules.md` (conception et verdicts de code-critic : `.claude/dev-docs/roadmap/design-R180-R182.md`) <!-- anchor: family-field --> | P3 | `python3 -c` qui compte les classes sans `family:` → 0 |
 | R181 | Un seul mail récapitulatif par nuit : `alert_monitor` (prod, 23 h) ajoute une section GitHub (CI main, nightly sécurité, santé prod — dépôt public, API sans jeton) et les mails GitHub par cassure passent en résumé <!-- anchor: nightly-recap --> | P3 | un mail par nuit dans `ops-mail-journal.md` pendant 7 nuits |
-| R182 | `Deployment_baseline.rév1` — brique « gestion des classes d'erreur » : les 18 règles génériques, l'outillage (select_tests, night-check CI, catalogue-sync, durées --fix, mail CI), les gardes de départ, et la mise à jour du payload d'installation <!-- anchor: baseline-rev1 --> | P3 | un projet vide installé par le payload passe ses gardes de départ |
+| R182 | Preset `error-classes` dans `claude_code_deployment_baseline` (choix du propriétaire, 2026-09-26, sur l'avis de code-critic : pas de nouveau dépôt — une troisième copie des outils dériverait) — brique « gestion des classes d'erreur » : les 18 règles génériques, l'outillage (select_tests, night-check CI, catalogue-sync, durées --fix, mail CI), les gardes de départ, et la mise à jour du payload d'installation <!-- anchor: baseline-rev1 --> | P3 | un projet vide installé par le payload passe ses gardes de départ |
 | R169 | Dette du catalogue d'erreurs : gardes non auto-prouvants et causes inconnues, figés sur six commits <!-- anchor: error-debt --> | P3 | `make error-debt` |
 
 **Huit lignes y sont entrées le 2026-09-25 au soir**, toutes issues de l'audit de la
