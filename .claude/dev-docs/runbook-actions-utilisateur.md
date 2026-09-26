@@ -1898,3 +1898,29 @@ affichées : 12 trouvailles réelles `gitleaks`, plus un mot de passe trop court
 
 Le job `gitleaks` du nightly repasse au vert, et son mail cesse de partir chaque nuit.
 Localement : `gitleaks detect --redact` → 0 trouvaille.
+
+## 28. R179 — Le mail du soir ne voit aucun DAG en échec
+
+**Ce qui se passe.** `check_dag_failures` (`airflow/dags/alert_monitor.py:198`) calcule
+`cutoff = datetime.now() - timedelta(days=7)` — une date NAÏVE — et la compare à
+`DagRun.execution_date` (lignes 217 et 269). Cette colonne est un `UtcDateTime` d'Airflow,
+dont `process_bind_param` lève `ValueError("naive datetime is disallowed")` sur toute date
+sans fuseau (source d'Airflow 2.11.0, `airflow/utils/sqlalchemy.py`, lue le 2026-09-26).
+Le `except Exception` qui entoure la requête journalise l'erreur et rend `failing_dags = {}`.
+La section « DAG en échec » du mail du soir est donc **toujours vide**, depuis l'écriture de
+ces lignes le 2026-03-25 (`076c283`).
+
+**Pourquoi ce n'est pas corrigé.** C'est un DAG de production, et je n'en modifie pas sans
+ton accord.
+
+**Le geste.**
+1. Dire « vas-y » : je remplace `datetime.now()` par `datetime.now(timezone.utc)` à la
+   ligne 207, j'ajoute un test qui échoue sur la forme naïve, et je pousse.
+2. En production : `git pull` (le scheduler monte `airflow/dags/`).
+
+**La preuve que c'est fait.**
+```bash
+grep -n "cutoff = datetime.now(timezone.utc)" airflow/dags/alert_monitor.py
+```
+et, en production, les journaux de la tâche `check_dag_failures` ne portent plus
+`naive datetime is disallowed`.

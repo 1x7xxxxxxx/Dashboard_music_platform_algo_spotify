@@ -109,8 +109,8 @@ preuve dans `archive.md`, sous « 🧵 R178 ». Avant elles, R165 et R166, qui l
 y est entrée et en est sortie le 2026-09-20 : ouverte sur une mesure en fin de séance,
 close le soir même parce que le cliquet de la carte or a REFUSÉ la régression — et
 qu'un plafond ne se desserre pas pour faire taire un garde qui a raison.
-L'ancre `reprise:` nomme l'index ET les lignes en attente d'un geste humain — R148 et R163 depuis le 2026-09-23 (R151 réfutée, R150 livrée, R163 entrée et R153 livrée ce jour-là). R177, entrée le 2026-09-25, est livrée le même soir (~23:55) — détail et preuve dans `archive.md`, sous « 🔒 R177 ». La table « 🙋 En attente de toi »
-plus bas en porte **deux** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
+L'ancre `reprise:` nomme l'index ET les lignes en attente d'un geste humain — R148 et R163 depuis le 2026-09-23, R179 depuis le 2026-09-26 (R151 réfutée, R150 livrée, R163 entrée et R153 livrée ce jour-là). R177, entrée le 2026-09-25, est livrée le même soir (~23:55) — détail et preuve dans `archive.md`, sous « 🔒 R177 ». La table « 🙋 En attente de toi »
+plus bas en porte **trois** ; elle avait été vide du 2026-09-20 au 2026-09-22. R140, R125 et R134 en
 sont sorties le 2026-09-20 — les dix-sept décisions de la première tranchées et
 intégrées, la deuxième faite par le propriétaire (33 lignes en production), la troisième
 mesurée EN PRODUCTION et close sur son résultat.
@@ -229,7 +229,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R169, R148, R163 -->
+<!-- reprise: open=R169, R148, R163, R179 -->
 
 **Journée du 2026-09-22 : sept lignes ouvertes le matin, sept ouvertes le soir — mais
 ce ne sont pas les mêmes.** Quatre closes (R146, R147, R149, R152), quatre migrées vers
@@ -307,7 +307,7 @@ deux réordonnancements de R118/R120, chacun sur une mesure — a été **dépla
 dans `archive.md`** le 2026-09-18, sous « Le récit de mesure de R114–R121 ». Il n'est pas
 perdu : il n'appartient simplement pas à un écran qui répond « où j'en suis ».
 
-**La table « 🙋 En attente de toi » porte DEUX lignes** — R148, entrée
+**La table « 🙋 En attente de toi » porte TROIS lignes** — R179, entrée le 2026-09-26 (un DAG de production à corriger sur ton accord), R148, entrée
 le 2026-09-22 (R151 réfutée, R150 livrée et R153 livrée le 2026-09-23), et R163, entrée le
 2026-09-23 : les gestes Hypeddit à faire au lancement. R175, R176 et R177, entrées le même soir
 du 2026-09-25, en sont ressorties livrées le même soir — détail dans `archive.md`, sous
@@ -450,6 +450,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
+| R179 | Le mail du soir ne voit aucun DAG en échec — `cutoff` naïf refusé par Airflow | P2 | **ton accord pour modifier un DAG de production** : une ligne, `datetime.now()` → `datetime.now(timezone.utc)` dans `airflow/dags/alert_monitor.py:207`, puis `git pull` en prod — runbook §28 |
 | R148 | Trois conversations « combien tu paierais » | P3 | trois entretiens de vingt minutes, avec des artistes **qui ont vu leurs données** — runbook §19 |
 | R163 | Brancher Hypeddit sur le pixel et sa Conversions API, au lancement | P3 | **déclencheur : l'app terminée ET une campagne Meta relancée.** Choisir le pixel dans Hypeddit, y coller un jeton CAPI, rattacher le pixel à chaque smart link, vérifier l'évènement en test, puis 48 h après voir `custom_conversions` remonter — runbook §24 |
 
