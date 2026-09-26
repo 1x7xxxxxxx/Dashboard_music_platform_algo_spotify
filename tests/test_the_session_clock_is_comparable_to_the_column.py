@@ -143,39 +143,80 @@ def _conftest_tree():
     return ast.parse((_P(__file__).parent / "conftest.py").read_text(encoding="utf-8"))
 
 
-def test_the_controller_hands_the_reference_point_to_every_worker():
-    """`pytest_configure_node` ne tourne que sur le contrôleur — c'est le point."""
+def reference_point_defects(tree) -> set[str]:
+    """What stops the controller's reference point from reaching every worker. Pure.
+
+    `no-configure-node` / `node-sends-nothing`: the controller never hands it over.
+    `no-sessionstart` / `worker-ignores-it`: the worker never reads it.
+    `own-clock-first`: the worker reads its own clock before the shared one.
+    """
     import ast
 
-    tree = _conftest_tree()
-    fn = next((n for n in ast.walk(tree)
-               if isinstance(n, ast.FunctionDef) and n.name == "pytest_configure_node"),
-              None)
-    assert fn is not None, (
-        "conftest n'a plus de `pytest_configure_node` : chaque worker relit l'horloge "
-        "à son propre démarrage, et un locataire créé par un worker voisin quelques "
-        "secondes plus tôt échappe au filtre « créé pendant la session ».")
-    body = ast.unparse(fn)
-    assert "workerinput" in body, (
-        "`pytest_configure_node` ne pose rien dans `workerinput` : les workers ne "
-        "reçoivent pas le repère du contrôleur")
+    fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    out = set()
+    node = fns.get("pytest_configure_node")
+    if node is None:
+        out.add("no-configure-node")
+    elif "workerinput" not in ast.unparse(node):
+        out.add("node-sends-nothing")
+    start = fns.get("pytest_sessionstart")
+    if start is None:
+        out.add("no-sessionstart")
+        return out
+    if "workerinput" not in ast.unparse(start):
+        out.add("worker-ignores-it")
+        return out
+    # Order of EVALUATION, not of text: `_read_db_clock() or wi.get(...)` names
+    # `workerinput` first and still reads its own clock first.
+    def first(pred):
+        calls = [(c.lineno, c.col_offset) for c in ast.walk(start)
+                 if isinstance(c, ast.Call) and pred(c.func)]
+        return min(calls) if calls else None
+    own = first(lambda f: getattr(f, "id", "") == "_read_db_clock")
+    shared = first(lambda f: isinstance(f, ast.Attribute) and f.attr == "get")
+    if own is not None and (shared is None or own < shared):
+        out.add("own-clock-first")
+    return out
+
+
+def test_the_reference_point_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, class `per-worker-reference-point-for-shared-state`: the conftest
+    of before 2026-09-06 — each worker reads its own clock — is named, so is a worker
+    that reads its own clock BEFORE the shared one; the fixed shape is not."""
+    import ast
+
+    old = ast.parse("def pytest_sessionstart(session):\n"
+                    "    session.config._t0 = _read_db_clock()\n")
+    assert reference_point_defects(old) == {"no-configure-node", "worker-ignores-it"}
+    fixed = ("def pytest_configure_node(node):\n"
+             "    node.workerinput['t0'] = _T0\n"
+             "def pytest_sessionstart(session):\n"
+             "    wi = getattr(session.config, 'workerinput', {})\n"
+             "    t0 = wi.get('t0') or _read_db_clock()\n")
+    assert reference_point_defects(ast.parse(fixed)) == set()
+    inverted = fixed.replace("wi.get('t0') or _read_db_clock()",
+                             "_read_db_clock() or wi.get('t0')")
+    assert reference_point_defects(ast.parse(inverted)) == {"own-clock-first"}
+    silent = fixed.replace("node.workerinput['t0'] = _T0", "node.log('started')")
+    assert reference_point_defects(ast.parse(silent)) == {"node-sends-nothing"}
+
+
+def test_the_controller_hands_the_reference_point_to_every_worker():
+    """`pytest_configure_node` ne tourne que sur le contrôleur — c'est le point."""
+    found = reference_point_defects(_conftest_tree()) & {"no-configure-node",
+                                                          "node-sends-nothing"}
+    assert not found, (
+        f"{found} : `pytest_configure_node` manque ou ne pose rien dans `workerinput`. "
+        "Chaque worker relit alors l'horloge à son propre démarrage, et un locataire "
+        "créé par un worker voisin quelques secondes plus tôt échappe au filtre "
+        "« créé pendant la session ».")
 
 
 def test_the_worker_prefers_the_shared_reference_point_over_its_own():
-    """Le poser ne suffit pas : encore faut-il le préférer."""
-    import ast
-
-    tree = _conftest_tree()
-    fn = next((n for n in ast.walk(tree)
-               if isinstance(n, ast.FunctionDef) and n.name == "pytest_sessionstart"),
-              None)
-    assert fn is not None, "conftest n'a plus de `pytest_sessionstart`"
-    body = ast.unparse(fn)
-    assert "workerinput" in body, (
-        "`pytest_sessionstart` ne lit pas `workerinput` : le repère du contrôleur "
-        "est envoyé et ignoré, ce qui est le défaut d'origine avec une étape de plus.")
-
-    # Et il doit le lire AVANT de fabriquer le sien, sinon la préférence est inverse.
-    assert body.index("workerinput") < body.index("_read_db_clock"), (
-        "le worker lit son horloge avant de regarder ce que le contrôleur lui a "
-        "donné — la valeur partagée arrive trop tard pour servir")
+    """Le poser ne suffit pas : encore faut-il le préférer, et le lire AVANT de
+    fabriquer le sien."""
+    found = reference_point_defects(_conftest_tree()) & {
+        "no-sessionstart", "worker-ignores-it", "own-clock-first"}
+    assert not found, (
+        f"{found} : le repère du contrôleur est envoyé et ignoré, ou lu après que le "
+        "worker a lu sa propre horloge — le défaut d'origine avec une étape de plus.")
