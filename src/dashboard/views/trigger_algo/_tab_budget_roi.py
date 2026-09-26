@@ -289,7 +289,19 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
 
     st.markdown("---")
 
-    # 3. ROI regression
+    _show_roi_regression(db, artist_id)
+    st.markdown("---")
+    _show_breakeven(db, track, artist_id, ml_pred)
+
+
+def _show_roi_regression(db, artist_id) -> None:
+    """Monthly spend→revenue fit — refused below `MIN_FIT_POINTS` months (2026-09-26).
+
+    It used to fit from 2 points: a line through two points is exact, so the page printed
+    R² = 1.000 and p = 0.000 as an artefact of n. `n` is now shown next to R² and p.
+    """
+    from src.dashboard.utils.roi_verdicts import MIN_FIT_POINTS, fit_spend_revenue
+
     st.subheader(t("trigger_algo.roi.regression_header", "📉 ROI — Régression linéaire (mensuel)"))
     st.caption(t(
         "trigger_algo.roi.regression_caption",
@@ -298,246 +310,237 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
         "plusieurs mois, qu'une fenêtre J+28 ne peut pas fournir."
     ))
     try:
-        from scipy import stats as sp_stats
         from src.dashboard.utils.kpi_helpers import get_monthly_roi_series
 
         # All-time window on purpose — monthly ROI is a long-horizon analysis, decoupled
         # from the J+28 period selector (date_from/date_to) which captures ≤ 1 month.
         df_roi = get_monthly_roi_series(db, artist_id, date(2000, 1, 1), date.today())
-        if df_roi is not None and not df_roi.empty:
-            df_roi = df_roi.dropna(subset=["meta_spend", "revenue_eur"])
-            # Both signals must be present in the month — a spend→revenue regression is
-            # meaningless on revenue-only months (spend = 0 cloud) or spend-only months.
-            df_valid = df_roi[(df_roi["meta_spend"] > 0) & (df_roi["revenue_eur"] > 0)]
-            if len(df_valid) >= 2:
-                x = df_valid["meta_spend"].astype(float).values
-                y = df_valid["revenue_eur"].astype(float).values
-                slope, intercept, r_value, p_value, _ = sp_stats.linregress(x, y)
-                r2 = r_value ** 2
-                x_line = np.linspace(x.min(), x.max(), 100)
-                y_line = slope * x_line + intercept
-
-                labels = df_valid["period_date"].astype(str).str[:7] if "period_date" in df_valid.columns else None
-                fig_roi = go.Figure()
-                fig_roi.add_trace(go.Scatter(
-                    x=x, y=y, mode="markers+text",
-                    text=labels, textposition="top center",
-                    name=t("trigger_algo.roi.trace_monthly", "Mensuel"),
-                    marker=dict(color="#1DB954", size=10)
-                ))
-                fig_roi.add_trace(go.Scatter(
-                    x=x_line, y=y_line, mode="lines",
-                    name=t("trigger_algo.roi.trace_regression", "Régression (R²={r2:.2f})").format(r2=r2),
-                    line=dict(color="#FF6B6B", width=2, dash="dash")
-                ))
-                fig_roi.add_annotation(
-                    x=x.max(), y=y_line[-1],
-                    text=f"y = {slope:.2f}x + {intercept:.2f}<br>R² = {r2:.2f}",
-                    showarrow=False, bgcolor="#222", font=dict(color="white"), bordercolor="#555"
-                )
-                fig_roi.update_layout(
-                    title=t("trigger_algo.roi.regression_chart_title",
-                            "Revenue iMusician (€) vs Spend Meta Ads (€)"),
-                    xaxis_title=t("trigger_algo.roi.axis_meta_spend", "Dépenses Meta Ads (€)"),
-                    yaxis_title=t("trigger_algo.roi.axis_imusician_revenue", "Revenus iMusician (€)"),
-                    height=420, hovermode="closest"
-                )
-                st.plotly_chart(fig_roi, width='stretch')
-                rc1, rc2, rc3 = st.columns(3)
-                rc1.metric("R²", f"{r2:.3f}",
-                           help=t("trigger_algo.roi.r2_help", "1.0 = corrélation parfaite spend↔revenue"))
-                rc2.metric(t("trigger_algo.roi.slope_metric", "Pente"), f"{slope:.2f} €/€",
-                           help=t("trigger_algo.roi.slope_help", "Revenue généré par € investi en Meta Ads"))
-                rc3.metric("p-value", f"{p_value:.3f}",
-                           help=t("trigger_algo.roi.pvalue_help",
-                                  "< 0.05 = corrélation statistiquement significative"))
-            else:
-                st.info(t("trigger_algo.roi.insufficient_data",
-                          "Données insuffisantes : il faut au moins 2 mois où coexistent un "
-                          "spend Meta Ads ET un revenue iMusician."))
-        else:
+        if df_roi is None or df_roi.empty:
             st.info(t("trigger_algo.roi.no_revenue_spend",
                       "Pas de données revenue/spend pour calculer la régression ROI "
                       "(aucun mois avec spend Meta Ads + revenue iMusician dans l'historique)."))
+            return
+        fit = fit_spend_revenue(df_roi)
+        if fit is None:
+            st.info(t("trigger_algo.roi.insufficient_data",
+                      "Données insuffisantes : il faut au moins {n} mois où coexistent un "
+                      "spend Meta Ads ET un revenu distributeur. En dessous, une droite "
+                      "passe presque exactement par les points et le R² ne mesure rien."
+                      ).format(n=MIN_FIT_POINTS))
+            return
+        _render_fit(fit)
     except ImportError:
         st.warning(t("trigger_algo.roi.scipy_unavailable", "scipy non disponible — régression désactivée."))
     except Exception as e:
         st.warning(t("trigger_algo.roi.regression_unavailable",
                      "Graphique ROI indisponible : {err}").format(err=e))
 
-    st.markdown("---")
 
-    # 4. Breakeven
+def _render_fit(fit: dict) -> None:
+    x, y = fit["x"], fit["y"]
+    slope, intercept, r2 = fit["slope"], fit["intercept"], fit["r2"]
+    x_line = np.linspace(x.min(), x.max(), 100)
+    y_line = slope * x_line + intercept
+    fig_roi = go.Figure()
+    fig_roi.add_trace(go.Scatter(
+        x=x, y=y, mode="markers+text", text=fit["labels"], textposition="top center",
+        name=t("trigger_algo.roi.trace_monthly", "Mensuel"),
+        marker=dict(color="#1DB954", size=10)))
+    fig_roi.add_trace(go.Scatter(
+        x=x_line, y=y_line, mode="lines",
+        name=t("trigger_algo.roi.trace_regression", "Régression (R²={r2:.2f})").format(r2=r2),
+        line=dict(color="#FF6B6B", width=2, dash="dash")))
+    fig_roi.add_annotation(
+        x=x.max(), y=y_line[-1],
+        text=f"y = {slope:.2f}x + {intercept:.2f}<br>R² = {r2:.2f} · n = {fit['n']}",
+        showarrow=False, bgcolor="#222", font=dict(color="white"), bordercolor="#555")
+    fig_roi.update_layout(
+        title=t("trigger_algo.roi.regression_chart_title",
+                "Revenue iMusician (€) vs Spend Meta Ads (€)"),
+        xaxis_title=t("trigger_algo.roi.axis_meta_spend", "Dépenses Meta Ads (€)"),
+        yaxis_title=t("trigger_algo.roi.axis_imusician_revenue", "Revenus iMusician (€)"),
+        height=420, hovermode="closest")
+    st.plotly_chart(fig_roi, width='stretch')
+    rc1, rc2, rc3, rc4 = st.columns(4)
+    rc1.metric("R²", f"{r2:.3f}",
+               help=t("trigger_algo.roi.r2_help", "1.0 = corrélation parfaite spend↔revenue"))
+    rc2.metric(t("trigger_algo.roi.slope_metric", "Pente"), f"{slope:.2f} €/€",
+               help=t("trigger_algo.roi.slope_help", "Revenue généré par € investi en Meta Ads"))
+    rc3.metric("p-value", f"{fit['p_value']:.3f}",
+               help=t("trigger_algo.roi.pvalue_help",
+                      "< 0.05 = corrélation statistiquement significative"))
+    rc4.caption(t("trigger_algo.roi.n_months_caption", "Ajusté sur n = {n} mois").format(n=fit["n"]))
+
+
+def _load_breakeven_frames(db, track: str, artist_id):
+    if artist_id:
+        df_spend_d = db.fetch_df(
+            "SELECT day AS date, SUM(spend) AS spend FROM v_meta_daily WHERE artist_id = %s GROUP BY day ORDER BY day",
+            (artist_id,)
+        )
+        df_rev = db.fetch_df(
+            "SELECT make_date(year, month, 1) AS date, revenue_eur FROM imusician_monthly_revenue WHERE artist_id = %s ORDER BY year, month",
+            (artist_id,)
+        )
+        df_pop_be = db.fetch_df(
+            # ⚠️ `canonical_song_sql` des DEUX côtés. `track` vient de
+            # `s4a_song_timeline.song`, dérivé d'un NOM DE FICHIER — S4A y
+            # remplace `< > : " / \\ | ? *` par `_`. `track_popularity_history`
+            # est écrite par l'API Spotify, donc avec les vrais caractères.
+            # L'égalité exacte rendait la courbe MUETTE pour tout titre
+            # ponctué : 5 titres concernés sur cette base, mesuré le
+            # 2026-09-17. Le routeur normalisait déjà pour SA jointure
+            # (`router.py:94`) — c'est ici que la convention se perdait.
+            f"SELECT date, popularity FROM track_popularity_history "
+            f"WHERE {canonical_song_sql('track_name')} = %s AND artist_id = %s "
+            f"ORDER BY date",
+            (track, artist_id)
+        )
+    else:
+        df_spend_d = db.fetch_df(
+            "SELECT day AS date, SUM(spend) AS spend FROM v_meta_daily GROUP BY day ORDER BY day"
+        )
+        df_rev = db.fetch_df(
+            "SELECT make_date(year, month, 1) AS date, SUM(revenue_eur) AS revenue_eur FROM v_artist_monthly_revenue GROUP BY year, month ORDER BY year, month"
+        )
+        df_pop_be = db.fetch_df(
+            f"SELECT date, popularity FROM track_popularity_history "
+            f"WHERE {canonical_song_sql('track_name')} = %s ORDER BY date",
+            (track,)
+        )
+    return df_spend_d, df_rev, df_pop_be
+
+
+def _show_breakeven(db, track: str, artist_id, ml_pred) -> None:
+    """Cumulative spend vs cumulative revenue, judged on the OVERLAP only.
+
+    Two bounds, both computed by `roi_verdicts.cumulative_breakeven`:
+    * the END (2026-09-10): past `covered_end` only one series is reported, and a flat
+      cumul there guarantees a crossing that says nothing;
+    * the START (2026-09-26): revenue began 7 months before the first ad euro for artist
+      1, so a level test fired on the first spend day (0.48 € spent, 3.75 € earned) and
+      the page said "breakeven reached" while spend led 3 087.82 € to 172.62 € at the end.
+      Both cumuls now start at `covered_start`, and the date is a crossing from below
+      that HOLDS up to `covered_end`.
+    """
+    from src.dashboard.utils.roi_verdicts import cumulative_breakeven
+
     st.subheader(t("trigger_algo.roi.breakeven_header", "⚖️ Breakeven — Cumul spend vs Cumul revenue"))
     _show_pi_breakeven(ml_pred)
     try:
-        if artist_id:
-            df_spend_d = db.fetch_df(
-                "SELECT day AS date, SUM(spend) AS spend FROM v_meta_daily WHERE artist_id = %s GROUP BY day ORDER BY day",
-                (artist_id,)
-            )
-            df_rev = db.fetch_df(
-                "SELECT make_date(year, month, 1) AS date, revenue_eur FROM imusician_monthly_revenue WHERE artist_id = %s ORDER BY year, month",
-                (artist_id,)
-            )
-            df_pop_be = db.fetch_df(
-                # ⚠️ `canonical_song_sql` des DEUX côtés. `track` vient de
-                # `s4a_song_timeline.song`, dérivé d'un NOM DE FICHIER — S4A y
-                # remplace `< > : " / \\ | ? *` par `_`. `track_popularity_history`
-                # est écrite par l'API Spotify, donc avec les vrais caractères.
-                # L'égalité exacte rendait la courbe MUETTE pour tout titre
-                # ponctué : 5 titres concernés sur cette base, mesuré le
-                # 2026-09-17. Le routeur normalisait déjà pour SA jointure
-                # (`router.py:94`) — c'est ici que la convention se perdait.
-                f"SELECT date, popularity FROM track_popularity_history "
-                f"WHERE {canonical_song_sql('track_name')} = %s AND artist_id = %s "
-                f"ORDER BY date",
-                (track, artist_id)
-            )
-        else:
-            df_spend_d = db.fetch_df(
-                "SELECT day AS date, SUM(spend) AS spend FROM v_meta_daily GROUP BY day ORDER BY day"
-            )
-            df_rev = db.fetch_df(
-                "SELECT make_date(year, month, 1) AS date, SUM(revenue_eur) AS revenue_eur FROM v_artist_monthly_revenue GROUP BY year, month ORDER BY year, month"
-            )
-            df_pop_be = db.fetch_df(
-                f"SELECT date, popularity FROM track_popularity_history "
-                f"WHERE {canonical_song_sql('track_name')} = %s ORDER BY date",
-                (track,)
-            )
-
-        if not df_spend_d.empty and not df_rev.empty:
-            df_spend_d["date"] = pd.to_datetime(df_spend_d["date"])
-            df_rev["date"] = pd.to_datetime(df_rev["date"])
-            all_dates = pd.date_range(
-                start=min(df_spend_d["date"].min(), df_rev["date"].min()),
-                end=max(df_spend_d["date"].max(), df_rev["date"].max()),
-                freq="D"
-            )
-            df_tl = pd.DataFrame({"date": all_dates})
-            df_tl = df_tl.merge(df_spend_d, on="date", how="left")
-            df_tl = df_tl.merge(df_rev.rename(columns={"revenue_eur": "revenue"}), on="date", how="left")
-            # ⚠️ CE `fillna(0)`-CI EST JUSTE, et il est le seul du dépôt à l'être
-            # en contexte temporel — écrit ici pour qu'un balayage de la classe
-            # « un trou rendu comme un zéro » ne le corrige pas par symétrie.
-            #
-            # La valeur ne va pas dans la figure : elle va dans un `cumsum`. Un jour
-            # sans dépense n'ajoute rien au cumul, et c'est exactement ce que 0
-            # exprime ; `NaN` propagerait à TOUTE la suite du cumul et effacerait la
-            # courbe. Ce qui est faux, c'est de PROLONGER un cumul au-delà de sa
-            # dernière mesure — et c'est le sujet du bloc juste en dessous.
-            df_tl["spend"] = df_tl["spend"].fillna(0)
-            df_tl["revenue"] = df_tl["revenue"].fillna(0)
-            df_tl["cumul_spend"] = df_tl["spend"].cumsum()
-            df_tl["cumul_revenue"] = df_tl["revenue"].cumsum()
-
-            # UN CUMUL NE SE PROLONGE PAS AU-DELÀ DE CE QU'IL COUVRE.
-            #
-            # La frise court du premier au dernier jour des DEUX séries réunies. Celle
-            # qui s'arrête la première continue donc en ligne plate — non pas parce
-            # qu'elle vaut zéro sur cette période, mais parce que personne ne l'a
-            # encore rapportée. Mesuré pour l'artiste 1 le 2026-09-10 : la dépense
-            # Meta s'arrête au 2024-09-30 et le revenu continue **458 jours** de plus.
-            # Le croisement des deux courbes y est donc garanti, et il ne dit rien.
-            #
-            # C'est la même famille que le compteur cumulé qui retombe à zéro après la
-            # dernière mesure : après le dernier relevé, on ne sait pas — et « on ne
-            # sait pas » ne se dessine pas comme une valeur.
-            #
-            # Le verdict ne se prononce donc que sur le RECOUVREMENT, et la période
-            # au-delà est nommée sous la figure au lieu d'être tracée en silence.
-            _spend_end = df_spend_d["date"].max()
-            _rev_end = df_rev["date"].max()
-            covered_end = min(_spend_end, _rev_end)
-            _tail_days = int((max(_spend_end, _rev_end) - covered_end).days)
-            _tail_side = ("le revenu" if _rev_end > _spend_end else "la dépense")
-
-            breakeven_date = None
-            for _, row in df_tl[df_tl["date"] <= covered_end].iterrows():
-                if row["cumul_spend"] > 0 and row["cumul_revenue"] >= row["cumul_spend"]:
-                    breakeven_date = row["date"]
-                    break
-
-            # Les deux séries en euros PARTAGENT un axe — c'est précisément la
-            # comparaison qu'on demande au lecteur de faire, et l'unité est la même.
-            # La popularité, elle, n'est pas des euros : elle prend son panneau.
-            fig_be = make_subplots(
-                rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                row_heights=[0.65, 0.35])
-            fig_be.add_trace(go.Scatter(
-                x=df_tl["date"], y=df_tl["cumul_spend"],
-                name=t("trigger_algo.roi.trace_cumul_spend", "Cumul Spend Meta"),
-                mode="lines", line=dict(color="#FF6B6B", width=2),
-                fill="tozeroy", fillcolor="rgba(255,107,107,0.08)"
-            ), row=1, col=1)
-            fig_be.add_trace(go.Scatter(
-                x=df_tl["date"], y=df_tl["cumul_revenue"],
-                name=t("trigger_algo.roi.trace_cumul_revenue", "Cumul Revenue iMusician"),
-                mode="lines", line=dict(color="#1DB954", width=2),
-                fill="tozeroy", fillcolor="rgba(29,185,84,0.08)"
-            ), row=1, col=1)
-
-            if not df_pop_be.empty:
-                df_pop_be["date"] = pd.to_datetime(df_pop_be["date"])
-                fig_be.add_trace(go.Scatter(
-                    x=df_pop_be["date"], y=df_pop_be["popularity"],
-                    name=t("trigger_algo.roi.trace_popularity", "Popularité (0-100)"), mode="lines",
-                    line=dict(color="#FFE66D", width=1, dash="dot"),
-                    connectgaps=False
-                ), row=2, col=1)
-
-            # La zone que le verdict ne couvre pas, ombrée : le lecteur voit où la
-            # comparaison cesse d'être une comparaison.
-            if _tail_days > 0:
-                fig_be.add_vrect(
-                    x0=covered_end.timestamp() * 1000,
-                    x1=max(_spend_end, _rev_end).timestamp() * 1000,
-                    fillcolor="rgba(120,120,120,0.10)", line_width=0,
-                    annotation_text=t("trigger_algo.roi.one_series_only",
-                                      "une seule série renseignée"),
-                    annotation_position="top left", row="all", col=1)
-
-            if breakeven_date:
-                fig_be.add_vline(
-                    x=breakeven_date.timestamp() * 1000,
-                    line_dash="dash", line_color="white",
-                    annotation_text=t("trigger_algo.roi.breakeven_annotation", "Breakeven : {date}")
-                    .format(date=format_date(breakeven_date)),
-                    annotation_position="top right", row="all", col=1
-                )
-                st.success(t("trigger_algo.roi.breakeven_reached", "✅ Breakeven atteint le **{date}**")
-                           .format(date=format_date(breakeven_date)))
-            else:
-                st.warning(t("trigger_algo.roi.breakeven_not_reached",
-                             "⚠️ Breakeven non atteint sur la période disponible."))
-
-            # La borne du verdict, dite plutôt que sous-entendue. Sans cette ligne, un
-            # « non atteint » se lit comme un constat définitif alors qu'il ne porte
-            # que sur la fenêtre où les deux séries existent.
-            if _tail_days > 0:
-                st.caption(t(
-                    "trigger_algo.roi.breakeven_window",
-                    "Verdict arrêté au {date} — au-delà, seul {side} est renseigné "
-                    "({days} jours). Comparer un cumul à une courbe que personne n'a "
-                    "encore rapportée ferait dire au croisement ce qu'il ne dit pas."
-                ).format(date=format_date(covered_end),
-                         side=_tail_side, days=_tail_days))
-
-            fig_be.update_layout(
-                title=t("trigger_algo.roi.breakeven_chart_title",
-                        "Cumul spend Meta vs Cumul revenue iMusician"),
-                hovermode="x unified", height=460,
-                legend=dict(orientation="h", y=1.12)
-            )
-            fig_be.update_yaxes(title_text=t("trigger_algo.roi.axis_cumul_amount", "Montant cumulé (€)"),
-                                row=1, col=1)
-            fig_be.update_yaxes(title_text=t("trigger_algo.roi.trace_popularity", "Popularité (0-100)"),
-                                range=[0, 100], row=2, col=1)
-            st.plotly_chart(fig_be, width='stretch')
-        else:
+        df_spend_d, df_rev, df_pop_be = _load_breakeven_frames(db, track, artist_id)
+        if df_spend_d.empty or df_rev.empty:
             st.info(t("trigger_algo.roi.breakeven_missing_data",
                       "Données spend ou revenue manquantes pour le graphique breakeven."))
+            return
+        be = cumulative_breakeven(df_spend_d, df_rev)
+        if be["etat"] == "aucun_recouvrement":
+            st.info(t(
+                "trigger_algo.roi.breakeven_no_overlap",
+                "Pas de verdict de breakeven : la dépense Meta et le revenu ne couvrent "
+                "aucune période commune (dépense du {spend_start} au {spend_end}, revenu "
+                "du {rev_start} au {rev_end}). Comparer deux cumuls qui ne se recouvrent "
+                "pas ne dit rien."
+            ).format(spend_start=format_date(pd.to_datetime(df_spend_d["date"]).min()),
+                     spend_end=format_date(pd.to_datetime(df_spend_d["date"]).max()),
+                     rev_start=format_date(pd.to_datetime(df_rev["date"]).min()),
+                     rev_end=format_date(pd.to_datetime(df_rev["date"]).max())))
+            return
+        _render_breakeven(be, df_spend_d, df_rev, df_pop_be)
     except Exception as e:
         st.warning(t("trigger_algo.roi.breakeven_unavailable",
                      "Graphique breakeven indisponible : {err}").format(err=e))
+
+
+def _shade(fig_be, x0, x1) -> None:
+    """La zone que le verdict ne couvre pas, ombrée : le lecteur voit où la comparaison
+    cesse d'être une comparaison."""
+    fig_be.add_vrect(
+        x0=x0.timestamp() * 1000, x1=x1.timestamp() * 1000,
+        fillcolor="rgba(120,120,120,0.10)", line_width=0,
+        annotation_text=t("trigger_algo.roi.one_series_only", "une seule série renseignée"),
+        annotation_position="top left", row="all", col=1)
+
+
+def _render_breakeven(be: dict, df_spend_d, df_rev, df_pop_be) -> None:
+    df_tl = be["timeline"]
+    covered_start, covered_end = be["covered_start"], be["covered_end"]
+    _spend_end = pd.to_datetime(df_spend_d["date"]).max()
+    _rev_end = pd.to_datetime(df_rev["date"]).max()
+    _first = df_tl["date"].min()
+    _tail_days = int((max(_spend_end, _rev_end) - covered_end).days)
+    _tail_side = ("le revenu" if _rev_end > _spend_end else "la dépense")
+    _head_days = int((covered_start - _first).days)
+
+    # Les deux séries en euros PARTAGENT un axe — c'est précisément la
+    # comparaison qu'on demande au lecteur de faire, et l'unité est la même.
+    # La popularité, elle, n'est pas des euros : elle prend son panneau.
+    fig_be = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                           row_heights=[0.65, 0.35])
+    fig_be.add_trace(go.Scatter(
+        x=df_tl["date"], y=df_tl["cumul_spend"],
+        name=t("trigger_algo.roi.trace_cumul_spend", "Cumul Spend Meta"),
+        mode="lines", line=dict(color="#FF6B6B", width=2),
+        fill="tozeroy", fillcolor="rgba(255,107,107,0.08)"), row=1, col=1)
+    fig_be.add_trace(go.Scatter(
+        x=df_tl["date"], y=df_tl["cumul_revenue"],
+        name=t("trigger_algo.roi.trace_cumul_revenue", "Cumul Revenue iMusician"),
+        mode="lines", line=dict(color="#1DB954", width=2),
+        fill="tozeroy", fillcolor="rgba(29,185,84,0.08)"), row=1, col=1)
+    if not df_pop_be.empty:
+        df_pop_be["date"] = pd.to_datetime(df_pop_be["date"])
+        fig_be.add_trace(go.Scatter(
+            x=df_pop_be["date"], y=df_pop_be["popularity"],
+            name=t("trigger_algo.roi.trace_popularity", "Popularité (0-100)"), mode="lines",
+            line=dict(color="#FFE66D", width=1, dash="dot"), connectgaps=False), row=2, col=1)
+    if _head_days > 0:
+        _shade(fig_be, _first, covered_start)
+    if _tail_days > 0:
+        _shade(fig_be, covered_end, max(_spend_end, _rev_end))
+
+    if be["etat"] == "croise":
+        fig_be.add_vline(
+            x=be["date"].timestamp() * 1000, line_dash="dash", line_color="white",
+            annotation_text=t("trigger_algo.roi.breakeven_annotation", "Breakeven : {date}")
+            .format(date=format_date(be["date"])),
+            annotation_position="top right", row="all", col=1)
+        st.success(t("trigger_algo.roi.breakeven_reached", "✅ Breakeven atteint le **{date}**")
+                   .format(date=format_date(be["date"])))
+    else:
+        st.warning(t("trigger_algo.roi.breakeven_not_reached",
+                     "⚠️ Breakeven non atteint sur la période disponible."))
+    _caption_window(covered_start, covered_end, _head_days, _tail_days, _tail_side)
+
+    fig_be.update_layout(
+        title=t("trigger_algo.roi.breakeven_chart_title",
+                "Cumul spend Meta vs Cumul revenue iMusician"),
+        hovermode="x unified", height=460, legend=dict(orientation="h", y=1.12))
+    fig_be.update_yaxes(title_text=t("trigger_algo.roi.axis_cumul_amount", "Montant cumulé (€)"),
+                        row=1, col=1)
+    fig_be.update_yaxes(title_text=t("trigger_algo.roi.trace_popularity", "Popularité (0-100)"),
+                        range=[0, 100], row=2, col=1)
+    st.plotly_chart(fig_be, width='stretch')
+
+
+def _caption_window(covered_start, covered_end, head_days: int, tail_days: int,
+                    tail_side: str) -> None:
+    """Les DEUX bornes du verdict, dites plutôt que sous-entendues.
+
+    Sans elles, un « non atteint » se lit comme un constat définitif, et un cumul remis à
+    zéro au début du recouvrement se lit comme un revenu plus faible qu'avant.
+    """
+    if head_days > 0:
+        st.caption(t(
+            "trigger_algo.roi.breakeven_start",
+            "Les deux cumuls partent de zéro le {date}, premier jour où dépense et revenu "
+            "sont tous deux renseignés. Ce qui a été gagné ou dépensé avant ({days} jours) "
+            "n'entre pas dans la comparaison : une avance prise avant le premier euro de "
+            "pub n'est pas un retour sur cette pub."
+        ).format(date=format_date(covered_start), days=head_days))
+    if tail_days > 0:
+        st.caption(t(
+            "trigger_algo.roi.breakeven_window",
+            "Verdict arrêté au {date} — au-delà, seul {side} est renseigné "
+            "({days} jours). Comparer un cumul à une courbe que personne n'a "
+            "encore rapportée ferait dire au croisement ce qu'il ne dit pas."
+        ).format(date=format_date(covered_end), side=tail_side, days=tail_days))

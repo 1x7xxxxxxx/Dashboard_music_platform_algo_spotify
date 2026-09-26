@@ -120,8 +120,19 @@ def is_reportable(entities: int, total: int, floor: int = MIN_ENTITIES) -> bool:
 # ou pour l'autre.
 #
 # Mesuré : SoundCloud 18,4 entités/locataire/jour, Instagram 1,0.
+#
+# ⚠️ SoundCloud `likes_count` JOINED on 2026-09-26, with its replay. The likes can
+# fail ALONE — client_credentials returns 0 for them (the collector's docstring
+# says so) while plays stay right — and `playback_count` cannot see that. Replayed
+# over the whole local history (19 collection days, tenant 1): **6 hit days, all
+# real** — 2026-03-30, 03-31, 04-01, 04-03, 05-14 at 17/17 tracks, and 2026-06-01 at
+# 17/19 — and **0 on the 13 normal days**. A single un-like drops ONE track and
+# stays under the floor of 3. Reposts and comments were replayed too and are NOT
+# added: their only hit day is 2026-06-01 (14/19, 13/19), which plays already
+# reports — a second finding for the same incident is noise, not coverage.
 ZERO_RESET_TARGETS = [
     ("soundcloud_tracks_daily", "playback_count", "track_id", "collected_at", 3),
+    ("soundcloud_tracks_daily", "likes_count", "track_id", "collected_at", 3),
     ("youtube_video_stats", "view_count", "video_id", "collected_at", 3),
     ("instagram_daily_stats", "followers_count", "ig_user_id", "collected_at", 1),
 ]

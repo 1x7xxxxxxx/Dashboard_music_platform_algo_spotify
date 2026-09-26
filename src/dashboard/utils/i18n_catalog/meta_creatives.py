@@ -119,8 +119,11 @@ EN = {
     # Efficiency / funnel / fatigue / activity
     "meta_creatives.indicator": "Indicator",
     "meta_creatives.no_creative": "No creative.",
-    "meta_creatives.clicks": "Clicks",
     "meta_creatives.results": "Outbound clicks",
+    "meta_creatives.link_clicks": "Link clicks",
+    "meta_creatives.clicks_all": "Clicks (all types)",
+    "meta_creatives.funnel_thin": "Not enough measured stages to draw this creative's journey.",
+    "meta_creatives.funnel_campaigns": "Summed over {n} campaigns running this creative.",
     "meta_creatives.frequency": "Frequency",
     "meta_creatives.fatigue_caption": (
         "Rising frequency **and** falling CTR = saturated audience (fatigue) → refresh the creative."

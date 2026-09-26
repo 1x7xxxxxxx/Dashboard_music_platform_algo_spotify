@@ -83,7 +83,12 @@ REPO = Path(__file__).resolve().parent.parent
 # règle recopiée. Les 23 lectures concernées existent toujours et vont toujours
 # bien. Le nombre qui reste veut désormais dire une seule chose : des lectures
 # de tables de FAIT hors de la couche or.
-_CEILING = 81
+#
+# 2026-09-26 : 81 → 66, mesuré. Quatre couples retirés par la migration 138 —
+# `meta_ads_overview` × `meta_insights_engagement`, et `_tab_reglages` × `meta_ads`,
+# `meta_campaigns`, `meta_insights` (70 → 66) ; les onze autres étaient déjà de la marge
+# que ce test tolère (`_CEILING - 12`).
+_CEILING = 66
 
 # Les surfaces qui montrent des chiffres à quelqu'un.
 # ⚠️ LA PORTÉE ÉTAIT L'ANGLE MORT. Elle ne nommait que `pdf_exporter` sous

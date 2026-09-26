@@ -45,6 +45,10 @@ EN = {
                                   "below its own maximum there — a collection that "
                                   "answered wrong, not an audience loss. Plotting them "
                                   "would draw a fall that never happened.",
+    "soundcloud.catalog_likes_dropped": "⚠️ **{k} day(s) without readable likes**: at "
+                                        "least one track read 0 likes there after "
+                                        "having counted some — a failed read, not "
+                                        "likes withdrawn. The likes curve skips them.",
     "soundcloud.catalog_unreadable": "No readable reading: every collected day carries a "
                                      "receding cumulative, which signals a broken "
                                      "collection.",

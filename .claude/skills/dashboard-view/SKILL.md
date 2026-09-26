@@ -185,12 +185,18 @@ arithmetic + `Series.round(n)` then raises `TypeError: Expected numeric dtype, g
 object instead.` at render. Data-dependent — green until a row goes NULL (LEFT JOIN,
 empty window, a model that failed to score).
 
-Coerce **every** DB numeric column before any arithmetic/`.round()`:
+Coerce **every** DB numeric column before any arithmetic/`.round()` — and coerce to
+`NaN`, never to `0`: a NULL counter is *not measured*, and `.fillna(0)` turns it into
+a measurement that a chart then draws and a sum then counts (class
+`an-unmeasured-platform-is-rendered-as-zero`). Plotly and matplotlib cut a line on
+`NaN`; they draw a `0`.
 ```python
-likes = pd.to_numeric(df["likes_count"], errors="coerce").fillna(0)
+likes = pd.to_numeric(df["likes_count"], errors="coerce")      # NULL → NaN, NOT 0
 pc    = pd.to_numeric(df["playback_count"], errors="coerce")
 df["eng_rate"] = (likes / pc.where(pc != 0) * 100).round(1)   # 0/NULL → NaN, never crashes
 ```
+The example is EXECUTED by `tests/test_a_form_default_is_not_a_measurement.py`: a
+`fillna(0)` put back here turns it red.
 Precedents: `soundcloud.py` eng_rate, `revenue_forecast.py` ML probs. Error class
 `object-dtype-numeric-op`; the render-smoke harness is the net.
 

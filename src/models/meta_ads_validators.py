@@ -151,6 +151,8 @@ class MetaInsight(_TenantScoped):
     ctr: Optional[Decimal] = Field(None, ge=0, le=100)
     conversions: Optional[int] = Field(None, ge=0)
     cost_per_conversion: Optional[Decimal] = Field(None, ge=0)
+    link_clicks: Optional[int] = Field(None, ge=0)
+    custom_conversions: Optional[int] = Field(None, ge=0)
 
     @field_validator('clicks', 'reach')
     @classmethod

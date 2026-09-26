@@ -242,6 +242,7 @@ class _MetaUpsertMixin:
                 'meta_insights': [
                     'impressions', 'clicks', 'spend', 'reach', 'frequency',
                     'cpc', 'cpm', 'ctr', 'conversions', 'cost_per_conversion',
+                    'link_clicks', 'custom_conversions', 'offsite_actions',
                 ],
             }
 

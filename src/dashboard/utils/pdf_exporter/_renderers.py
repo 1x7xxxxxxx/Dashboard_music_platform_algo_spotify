@@ -365,8 +365,8 @@ def _render_soundcloud_tracks(tracks):
     if not tracks:
         return f'<p class="no-data">{_t("pdf.nodata.soundcloud", "Aucune donnée SoundCloud disponible.")}</p>'
     rows = "".join(
-        f"<tr><td>{t[0]}</td><td>{t[1]:,}</td><td>{t[2]:,}</td>"
-        f"<td>{t[3]:,}</td><td>{t[4]:,}</td></tr>"
+        f"<tr><td>{t[0]}</td><td>{_fmt_count(t[1])}</td><td>{_fmt_count(t[2])}</td>"
+        f"<td>{_fmt_count(t[3])}</td><td>{_fmt_count(t[4])}</td></tr>"
         for t in tracks[:5]
     )
     return _html_table(

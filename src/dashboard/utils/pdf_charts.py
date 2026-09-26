@@ -258,18 +258,36 @@ def youtube_channel_growth(rows) -> str | None:
 
 
 def platform_breakdown(streams: dict) -> str | None:
+    """One bar per MEASURED platform; an unmeasured one draws no bar and says so.
+
+    ⚠️ It wrote `int(streams.get(k, 0) or 0)` until 2026-09-26, the one surface
+    the fix of `an-unmeasured-platform-is-rendered-as-zero` missed. Measured:
+    `platform_totals(db, 1, 2025-09-26, 2026-09-26)` returns `apple: None` —
+    Apple only exists as yearly snapshots — and this chart drew bars
+    [9875, 328, 340, 0] with Apple labelled « 0 », while the KPI cards of the
+    same PDF already printed « — ». A measured 0 still draws a bar at 0.
+    """
     labels = ["Spotify", "YouTube", "SoundCloud", "Apple"]
-    vals = [int(streams.get(k, 0) or 0)
-            for k in ("s4a", "youtube", "soundcloud", "apple")]
-    if sum(vals) <= 0:
+    raw = [streams.get(k) for k in ("s4a", "youtube", "soundcloud", "apple")]
+    measured = [v for v in raw if v is not None]
+    if not measured or sum(int(v) for v in measured) <= 0:
         return None
     fig, ax = plt.subplots(figsize=(5.2, 3.0))
-    bars = ax.bar(labels, vals, color=_PLATFORM_COLORS, width=0.6)
+    # An unmeasured platform keeps its slot on the axis — its absence is the
+    # information — but gets a zero-height, invisible bar and a « — » label.
+    heights = [int(v) if v is not None else 0 for v in raw]
+    bars = ax.bar(labels, heights, color=_PLATFORM_COLORS, width=0.6)
     _style(ax)
     ax.set_title(_t("pdf.chart.streams_per_platform", "Streams par plateforme"),
                  color=_DARK, fontsize=11, fontweight="bold", loc="left")
-    for b, v in zip(bars, vals):
-        ax.text(b.get_x() + b.get_width() / 2, v, f"{v:,}", ha="center",
+    for b, v in zip(bars, raw):
+        if v is None:
+            b.set_visible(False)
+            ax.text(b.get_x() + b.get_width() / 2, 0,
+                    _t("pdf.chart.not_measured", "— non mesuré"), ha="center",
+                    va="bottom", fontsize=8, color="#999", style="italic")
+            continue
+        ax.text(b.get_x() + b.get_width() / 2, int(v), f"{int(v):,}", ha="center",
                 va="bottom", fontsize=8, color="#444")
     return _fig_to_uri(fig)
 

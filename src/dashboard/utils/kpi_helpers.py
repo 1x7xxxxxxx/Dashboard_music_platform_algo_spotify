@@ -880,7 +880,15 @@ def get_monthly_roi_series(_db, artist_id, from_date, to_date):
     for _col in ('distributor_revenue', 'sacem_revenue', 'meta_spend'):
         if _col in df.columns:
             df[_col] = pd.to_numeric(df[_col], errors='coerce')
-    df['revenue_eur'] = df['distributor_revenue'] + df['sacem_revenue']
+    # ⚠️ The no-fillna rule above is about the spend/revenue OUTER merge. It does NOT
+    # carry over INSIDE the revenue side: `SUM(...) FILTER (WHERE source = 'sacem')` is
+    # NULL in every month without a SACEM row, and that NULL means "no SACEM", not
+    # "revenue unmeasured". A plain `a + b` turned it into NaN and wiped the whole month:
+    # measured 2026-09-26, artist 1, 10 of the 12 months with spend AND distributor revenue
+    # vanished, and the ROI regression ran on the 2 SACEM months (R² = 1 by construction).
+    # `min_count=1` keeps NaN only when BOTH sources are absent.
+    df['revenue_eur'] = df[['distributor_revenue', 'sacem_revenue']].sum(
+        axis=1, min_count=1)
     df['period_date'] = pd.to_datetime(df['period_date'])
     return df.sort_values('period_date')
 

@@ -183,12 +183,99 @@ def _render_global_perf(df_perf: pd.DataFrame) -> None:
         st.caption(disclosure_caption())
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# UNE LIGNE PAR CAMPAGNE, des deux côtés d'une jointure — 2026-09-26.
+# ═══════════════════════════════════════════════════════════════════════════
+# L'engagement se lisait en brut dans `meta_insights_engagement`, une ligne par
+# campagne ET PAR JOUR, plus 21 lignes de cumul à vie. Trois défauts, une cause :
+#
+#   * fusionné sur `campaign_name` avec un cadre d'une ligne par campagne, il
+#     changeait 21 campagnes en 252 lignes ; « les 12 plus dépensières »
+#     dessinaient 12 copies de la même campagne (12 × 755,52 €) ;
+#   * les tuiles Saves / Shares / Interactions sommaient cumuls ET jours : le
+#     double exact (1 094 saves pour 547) ;
+#   * le tableau récapitulatif le joignait jour × jour sous `SUM(p.spend)` :
+#     24 176,64 € pour une campagne de 755,52 € (× 32).
+#
+# La vue or `v_meta_engagement_daily` (migration 138) écarte les cumuls ; les
+# requêtes ci-dessous REGROUPENT par campagne AVANT toute jointure. Classe :
+# `a-join-that-multiplies-the-grain`. Garde :
+# `tests/test_a_join_never_multiplies_the_grain.py`.
+_ENG_COLS = ("page_interactions", "post_reactions", "comments", "saves", "shares")
+
+
+def _perf_query(campaign_in: str) -> str:
+    """Performance per campaign, from the gold view: one row per campaign_name."""
+    return (
+        "SELECT campaign_name, SUM(spend) AS spend, SUM(results) AS results, "
+        "SUM(custom_conversions) AS custom_conversions, SUM(lp_views) AS lp_views, "
+        "SUM(impressions) AS impressions, SUM(reach) AS reach, "
+        "AVG(frequency) AS frequency, SUM(link_clicks) AS link_clicks "
+        f"FROM v_meta_campaign_daily WHERE artist_id = %s{campaign_in} "
+        "GROUP BY campaign_name ORDER BY SUM(spend) DESC"
+    )
+
+
+def _engagement_query(campaign_in: str) -> str:
+    """Engagement per campaign, from the gold view: one row per campaign_name."""
+    sums = ", ".join(f"SUM({c}) AS {c}" for c in _ENG_COLS)
+    return (f"SELECT campaign_name, {sums} FROM v_meta_engagement_daily "
+            f"WHERE artist_id = %s{campaign_in} GROUP BY campaign_name")
+
+
+def _summary_query(campaign_in: str) -> str:
+    """The summary table: both sides aggregated per campaign, THEN joined 1:1.
+
+    Takes the (artist_id, *account, *campaigns) parameters twice, once per side.
+    """
+    # ⚠️ %% in the CTR alias: psycopg2 reads a lone % as a placeholder.
+    return (
+        'SELECT p.campaign_name, p.spend AS "Dépenses",'
+        ' p.custom_conversions AS "Clics Spotify",'
+        ' p.lp_views AS "Vues LP", p.link_clicks AS "Clics pub",'
+        ' CASE WHEN p.custom_conversions > 0'
+        '      THEN p.spend / p.custom_conversions END AS "CPR (€/clic sortant)",'
+        ' p.impressions AS "Impressions",'
+        ' CASE WHEN p.impressions > 0'
+        '      THEN p.spend / p.impressions * 1000 END AS "CPM",'
+        ' CASE WHEN p.impressions > 0'
+        '      THEN p.link_clicks::numeric / p.impressions * 100 END AS "CTR (%%)",'
+        ' e.saves AS "Saves", e.shares AS "Shares",'
+        ' e.page_interactions AS "Interactions",'
+        ' p.collected_at AS "Mise à jour"'
+        " FROM (SELECT campaign_name, SUM(spend) AS spend,"
+        "              SUM(custom_conversions) AS custom_conversions,"
+        "              SUM(lp_views) AS lp_views, SUM(link_clicks) AS link_clicks,"
+        "              SUM(impressions) AS impressions, MAX(collected_at) AS collected_at"
+        "         FROM v_meta_campaign_daily"
+        f"       WHERE artist_id = %s{campaign_in} GROUP BY campaign_name) p"
+        f" LEFT JOIN ({_engagement_query(campaign_in)}) e"
+        "        ON e.campaign_name = p.campaign_name"
+        " ORDER BY p.spend DESC"
+    )
+
+
+def _campaign_frame(df_perf: pd.DataFrame) -> pd.DataFrame:
+    """The chart frame: one row per campaign, with its three cost ratios. Pure.
+
+    `df_perf` is already one row per campaign (GROUP BY in SQL). Nothing is merged
+    into it: the engagement column the old merge brought in was never plotted, and
+    it is the merge that multiplied the rows.
+    """
+    df = df_perf.copy()
+    df['cpr'] = df.apply(lambda x: x['spend'] / x['results'] if x['results'] > 0 else 0, axis=1)
+    df['cpm'] = df.apply(
+        lambda x: x['spend'] / x['impressions'] * 1000 if x['impressions'] > 0 else 0, axis=1)
+    df['cpc'] = df.apply(
+        lambda x: x['spend'] / x['link_clicks'] if x['link_clicks'] > 0 else 0, axis=1)
+    return df
+
+
 def _show_meta_ads(db, artist_id):
     # Le compte AVANT les campagnes : deux comptes peuvent porter la même campagne
     # « Release FR », donc la liste offerte dépend du compte choisi, jamais l'inverse.
     _account = account_scope(db, artist_id, key="meta_overview_acct")
     _acct, _acct_params = account_clause(_account)
-    _acct_p, _ = account_clause(_account, "p.")
     _acct_s, _ = account_clause(_account, "s.")
     try:
         # Sort campaigns by launch date (MIN(day_date)) descending — most recent release first.
@@ -248,21 +335,9 @@ def _show_meta_ads(db, artist_id):
     #
     # La vue les écarte ET rend une ligne par campagne, ce que le tableau des taux
     # plus bas supposait déjà : il affichait 252 lignes pour 21 campagnes.
-    query_perf = (
-        "SELECT campaign_name, SUM(spend) AS spend, SUM(results) AS results, "
-        "SUM(custom_conversions) AS custom_conversions, SUM(lp_views) AS lp_views, "
-        "SUM(impressions) AS impressions, SUM(reach) AS reach, "
-        "AVG(frequency) AS frequency, SUM(link_clicks) AS link_clicks "
-        f"FROM v_meta_campaign_daily WHERE artist_id = %s{_campaign_in} "
-        "GROUP BY campaign_name ORDER BY SUM(spend) DESC"
-    )
-    df_perf = db.fetch_df(query_perf, params)
+    df_perf = db.fetch_df(_perf_query(_campaign_in), params)
 
-    query_eng = (
-        "SELECT campaign_name, page_interactions, post_reactions, comments, saves, shares "
-        f"FROM meta_insights_engagement WHERE artist_id = %s{_campaign_in}"
-    )
-    df_eng = db.fetch_df(query_eng, params)
+    df_eng = db.fetch_df(_engagement_query(_campaign_in), params)
 
     if not df_perf.empty:
         # Nettoyage
@@ -316,16 +391,7 @@ def _show_meta_ads(db, artist_id):
     st.subheader(t("meta_ads_overview.perf_by_campaign", "📊 Performance par Campagne"))
 
     if not df_perf.empty:
-        df_chart = df_perf.copy()
-        if not df_eng.empty:
-            df_chart = pd.merge(df_chart, df_eng[['campaign_name', 'page_interactions']], on='campaign_name', how='left').fillna(0)
-        else:
-            df_chart['page_interactions'] = 0
-
-        # Ratios
-        df_chart['cpr'] = df_chart.apply(lambda x: x['spend']/x['results'] if x['results']>0 else 0, axis=1)
-        df_chart['cpm'] = df_chart.apply(lambda x: x['spend']/x['impressions']*1000 if x['impressions']>0 else 0, axis=1)
-        df_chart['cpc'] = df_chart.apply(lambda x: x['spend']/x['link_clicks'] if x['link_clicks']>0 else 0, axis=1)
+        df_chart = _campaign_frame(df_perf)
 
         # UNE FIGURE, PAS DEUX — et des noms de campagne LISIBLES. 2026-09-21.
         #
@@ -525,34 +591,7 @@ def _show_meta_ads(db, artist_id):
     with secondary_analyses(t("meta_ads_overview.summary_table",
                               "🗃️ Tableau récapitulatif — le détail chiffré")):
 
-        # ⚠️ %% in CTR column alias avoids Python IndexError in format strings
-        _campaign_in_p = _acct_p + (
-            f" AND p.campaign_name IN ({','.join(['%s'] * len(selected_campaigns))})"
-            if selected_campaigns else ""
-        )
-        # La jointure d'engagement ne nommait pas le locataire : deux artistes ayant une
-        # campagne du même nom mélangeaient leurs saves et leurs partages.
-        query_full = (
-            'SELECT p.campaign_name, SUM(p.spend) as "Dépenses",'
-            ' SUM(p.custom_conversions) as "Clics Spotify",'
-            ' SUM(p.lp_views) as "Vues LP", SUM(p.link_clicks) as "Clics pub",'
-            ' CASE WHEN SUM(p.custom_conversions) > 0'
-            '      THEN SUM(p.spend) / SUM(p.custom_conversions) END as "CPR (€/clic sortant)",'
-            ' SUM(p.impressions) as "Impressions",'
-            ' CASE WHEN SUM(p.impressions) > 0'
-            '      THEN SUM(p.spend) / SUM(p.impressions) * 1000 END as "CPM",'
-            ' CASE WHEN SUM(p.impressions) > 0'
-            '      THEN SUM(p.link_clicks)::numeric / SUM(p.impressions) * 100 END as "CTR (%%)",'
-            ' MAX(e.saves) as "Saves", MAX(e.shares) as "Shares",'
-            ' MAX(e.page_interactions) as "Interactions",'
-            ' MAX(p.collected_at) as "Mise à jour"'
-            " FROM v_meta_campaign_daily p"
-            " LEFT JOIN meta_insights_engagement e ON e.campaign_name = p.campaign_name"
-            "                                     AND e.artist_id = p.artist_id"
-            f" WHERE p.artist_id = %s{_campaign_in_p}"
-            ' GROUP BY p.campaign_name ORDER BY SUM(p.spend) DESC'
-        )
-        df_full = db.fetch_df(query_full, params)
+        df_full = db.fetch_df(_summary_query(_campaign_in), params + params)
 
         if not df_full.empty:
             st.dataframe(

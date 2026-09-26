@@ -178,12 +178,20 @@ FROM campaign_track_mapping ctm
 LEFT JOIN (
     SELECT campaign_name, SUM(spend) AS spend, SUM(results) AS results,
            CASE WHEN SUM(results) > 0 THEN SUM(spend)::numeric / SUM(results) END AS cpr,
-           AVG(NULLIF(ctr, 0)) AS ctr, SUM(link_clicks) AS link_clicks
+           -- LINK-click rate, recomputed from its counts. It used to be a mean of the
+           -- stored daily rates: a 1-impression day weighed like a 10 000-impression
+           -- one, and zero-click days were dropped, inflating it further (max 1.46 pt
+           -- off over 42 campaigns on spotify_etl_review). The view has no all-click
+           -- `clicks`, so this is a link CTR and its column label says so.
+           -- Guard: tests/test_a_rate_is_recomputed_from_its_counts.py
+           100.0 * SUM(link_clicks) / NULLIF(SUM(impressions), 0) AS ctr,
+           SUM(link_clicks) AS link_clicks
     FROM v_meta_campaign_daily WHERE artist_id = %s GROUP BY campaign_name
 ) perf ON LOWER(perf.campaign_name) = LOWER(ctm.campaign_name)
 LEFT JOIN (
     SELECT mc.campaign_name, string_agg(DISTINCT a.call_to_action, ', ') AS ctas
     FROM meta_campaigns mc JOIN meta_ads a ON a.campaign_id = mc.campaign_id
+                                          AND a.artist_id = mc.artist_id
     WHERE mc.artist_id = %s AND a.call_to_action IS NOT NULL
     GROUP BY mc.campaign_name
 ) cta ON LOWER(cta.campaign_name) = LOWER(ctm.campaign_name)
@@ -228,7 +236,9 @@ def _show_meta_lever_scoring(db, track: str, artist_id) -> None:
         "campaign_name": t("trigger_algo.common.meta_col_campaign", "Campagne"),
         # R146 — « Results » nommait un clic sortant comme un aboutissement.
         "spend": "Spend €", "results": "Clics sortants",
-        "cpr": "CPR € (/clic sortant)", "ctr": "CTR %",
+        "cpr": "CPR € (/clic sortant)",
+        # A LINK-click rate: it is not the all-click CTR of the Créatives page.
+        "ctr": t("trigger_algo.common.meta_col_link_ctr", "CTR lien %"),
         "link_clicks": t("trigger_algo.common.meta_col_clicks", "Clics"), "ctas": "CTA",
     })
     st.dataframe(show, hide_index=True, width='stretch')

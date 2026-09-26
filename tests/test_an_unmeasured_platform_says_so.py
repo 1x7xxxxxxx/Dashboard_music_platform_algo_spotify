@@ -206,3 +206,84 @@ def test_a_measured_zero_is_still_a_zero(cursor) -> None:
         f"{nulls} ligne(s) de `v_platform_totals` portent NULL. Une LIGNE veut dire "
         "« mesuré » ; sa valeur doit donc être un nombre, fût-il zéro. Rendre NULL "
         "ici déplacerait l'ambiguïté au lieu de la lever.")
+
+
+# ── The PDF bar chart: the surface the fix above missed (2026-09-26) ──────────
+
+def _breakdown_axes(monkeypatch, streams: dict):
+    """The Axes `platform_breakdown` draws — captured before it becomes a PNG."""
+    from src.dashboard.utils import pdf_charts
+
+    captured = {}
+
+    def _keep(fig):
+        captured["ax"] = fig.axes[0]
+        return "data:image/png;base64,"
+
+    monkeypatch.setattr(pdf_charts, "_fig_to_uri", _keep)
+    uri = pdf_charts.platform_breakdown(streams)
+    return captured.get("ax") if uri else None
+
+
+def _bars(ax) -> dict:
+    """{label: (visible, height)} per bar, read off the drawn patches."""
+    labels = [t.get_text() for t in ax.get_xticklabels()]
+    return {lbl: (p.get_visible(), p.get_height()) for lbl, p in zip(labels, ax.patches)}
+
+
+def test_the_pdf_platform_chart_draws_no_bar_for_an_unmeasured_platform(monkeypatch) -> None:
+    """Measured: `platform_totals(db, 1, 2025-09-26, 2026-09-26)` → apple None. The
+    chart drew [9875, 328, 340, 0] and labelled Apple « 0 » while the KPI cards of the
+    same PDF printed « — »."""
+    ax = _breakdown_axes(monkeypatch, {"s4a": 9875, "youtube": 328,
+                                       "soundcloud": 340, "apple": None})
+    assert ax is not None, "three measured platforms must still draw the chart"
+    bars = _bars(ax)
+    assert bars["Spotify"] == (True, 9875), bars
+    assert not bars["Apple"][0], f"an unmeasured Apple drew a visible bar: {bars}"
+    texts = [t.get_text() for t in ax.texts]
+    assert "0" not in texts, f"an unmeasured platform is labelled as a measured 0: {texts}"
+    assert any("—" in t for t in texts), f"the absence must be SAID on the chart: {texts}"
+
+
+def test_the_pdf_platform_chart_keeps_a_measured_zero(monkeypatch) -> None:
+    """The reverse: a platform MEASURED at 0 still draws its bar at 0, labelled 0."""
+    ax = _breakdown_axes(monkeypatch, {"s4a": 9875, "youtube": 328,
+                                       "soundcloud": 340, "apple": 0})
+    assert _bars(ax)["Apple"] == (True, 0), _bars(ax)
+    assert "0" in [t.get_text() for t in ax.texts]
+
+
+# ── A lookup dict read with a zero default (sweep 2026-09-27, airflow_kpi.py:290) ─────────────
+# The sweep found the class under a form its COALESCE/fillna grep could not see: a dict filled
+# inside `except: pass`, then read by `.get(dag, 0) or 0`. A DAG nobody measured — or every
+# DAG, when the read failed — showed « 0 ligne insérée », identical to a run that inserted none.
+
+def _zero_default_gets(tree) -> list[int]:
+    """Lines where a `.get(key, 0)` result is assigned into a table row — the defect form."""
+    import ast
+    hits = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Subscript)):
+            continue
+        for sub in ast.walk(node.value):
+            if (isinstance(sub, ast.Call) and isinstance(sub.func, ast.Attribute)
+                    and sub.func.attr == "get" and len(sub.args) == 2
+                    and isinstance(sub.args[1], ast.Constant) and sub.args[1].value == 0):
+                hits.append(node.lineno)
+    return hits
+
+
+def test_the_detector_sees_the_zero_default_it_is_written_for() -> None:
+    import ast
+    defect = ast.parse('row["n"] = int(d.get(row["DAG"], 0) or 0)')
+    assert _zero_default_gets(defect), "the defect form is not seen"
+    fixed = ast.parse('n = d.get(row["DAG"])\nrow["n"] = None if n is None else int(n)')
+    assert not _zero_default_gets(fixed), "the fix would turn the guard red"
+
+
+def test_the_dag_monitor_shows_no_zero_for_an_unmeasured_dag() -> None:
+    import ast
+    src = (_ROOT / "src/dashboard/views/airflow_kpi.py").read_text(encoding="utf-8")
+    assert not _zero_default_gets(ast.parse(src)), (
+        "airflow_kpi.py writes a `.get(dag, 0)` into a row: an unmeasured DAG reads as 0 rows")

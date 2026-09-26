@@ -55,9 +55,10 @@ RECOMMENDATIONS = [
     ("Corrélation n'est pas causalité",
      "Majors et al., <i>Observability Engineering</i>, p. 49",
      "Pour « qu'apporte Meta », les figures qui REFUSENT de conclure (le verdict d'auditeurs "
-     "quand deux campagnes se chevauchent) sont les plus sûres ; celles qui tracent une droite "
-     "« R² = 1,00 » sur un point, ou un « point d'équilibre » atteint à zéro, affirment une "
-     "causalité que la donnée ne porte pas."),
+     "quand deux campagnes se chevauchent) sont les plus sûres ; celles qui traçaient une "
+     "droite « R² = 1,00 » sur deux points, ou un « point d'équilibre » lu sur l'avance prise "
+     "avant le premier euro de pub, affirmaient une causalité que la donnée ne porte pas "
+     "(corrigé le 2026-09-26 : 12 mois, R² = 0,17, p = 0,18 ; équilibre jamais atteint)."),
 ]
 
 

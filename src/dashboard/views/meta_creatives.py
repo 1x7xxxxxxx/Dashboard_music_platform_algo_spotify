@@ -17,7 +17,6 @@ from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
-from src.dashboard.utils.safe_number import entier
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import is_admin
@@ -39,8 +38,8 @@ ORDER BY day
 # Each metric gets its own Y-axis (scales differ wildly: € vs thousands of impressions).
 # (label, column, weekly-resample aggregation, colour, visible-by-default, derived)
 # Non-default metrics start as 'legendonly' → the chart opens readable; click the
-# legend to toggle any metric (and its axis) on/off. `derived` metrics (CPR) are NOT
-# fetched/resampled directly — they are recomputed from aggregated columns afterwards.
+# legend to toggle any metric (and its axis) on/off. `derived` metrics (CTR, CPR) are
+# NOT fetched/resampled directly — they are recomputed from aggregated columns afterwards.
 # Labels are FR sources, translated at render time via t(f"meta_creatives.metric.{col}").
 _TIMELINE_METRICS = [
     ("Dépense (€)", "spend",       "sum",  "#ff6b35", True,  False),
@@ -48,7 +47,7 @@ _TIMELINE_METRICS = [
     ("Clics",       "clicks",      "sum",  "#2ca02c", False, False),
     ("Reach",       "reach",       "sum",  "#9467bd", False, False),
     ("Résultats",   "conversions", "sum",  "#d62728", False, False),
-    ("CTR (%)",     "ctr",         "mean", "#e6b800", False, False),
+    ("CTR (%)",     "ctr",         None,   "#e6b800", False, True),
     ("CPR (€)",     "cpr",         None,   "#17becf", True,  True),
 ]
 
@@ -65,9 +64,26 @@ _CONVERSION_GOALS_SQL = "('OFFSITE_CONVERSIONS','ONSITE_CONVERSIONS','LEAD_GENER
 # avec `column reference "ad_account_id" is ambiguous`. Une vue n'a qu'une colonne
 # de ce nom : le défaut ne peut plus se poser.
 #
-# `SUM(ctr_sum) / SUM(ctr_n)` et pas `AVG(ctr)` : la vue porte la moyenne du JOUR,
-# et un nom de créative couvre plusieurs `ad_id` en nombre variable. Re-moyenner
-# des moyennes donnait 163,41 % là où les lignes brutes donnent 168,68 %.
+# THE CTR IS RECOMPUTED FROM ITS COUNTS, NEVER AVERAGED OR RESCALED.
+#
+# Meta's `ctr` field is ALREADY a percent (0-100): the collector stores it unchanged
+# (`_meta_parsers.py`) and the validator bounds it at `le=100`. Measured on
+# `meta_insights` of `spotify_etl_review` on 2026-09-26: 2 023 rows, 2 015 with
+# impressions > 0 (the N the formula below actually uses), and on those
+# corr(ctr, 100*clicks/impressions) = 0.99999999999, same mean (1.6967) on both sides.
+#
+# This page used to read `SUM(ctr_sum) / SUM(ctr_n) * 100` here, `AVG(ctr) * 100` in
+# the fatigue chart and `ctr * 100` in the timeline. Two defects stacked: a second
+# x100, and a mean of per-ad rates in which a 1-impression / 1-click ad weighs as much
+# as a 1 000-impression one. On artist 1: 32 of 61 creatives displayed above 100 %
+# (max 1 111 %), while the ratio of sums peaks at 10.25 %. The "163,41 % / 168,68 %"
+# this comment used to quote as the right figures were both products of that defect.
+#
+# One definition for the three reads: 100 * Sum(clicks) / Sum(impressions). `clicks` is
+# the all-clicks numerator Meta uses for its own `ctr`.
+# Guard: tests/test_a_rate_is_recomputed_from_its_counts.py
+_CTR_SQL = "ROUND(100.0 * SUM(clicks) / NULLIF(SUM(impressions), 0), 2)"
+
 _QUERY_CREATIVES = f"""
 SELECT
     creative_name,
@@ -78,10 +94,14 @@ SELECT
               AND SUM(conversions) > 0
          THEN ROUND(SUM(spend)::numeric / SUM(conversions), 2)
          ELSE NULL END                                                  AS cpr,
-    ROUND((SUM(ctr_sum) / NULLIF(SUM(ctr_n), 0)) * 100, 2)              AS avg_ctr,
+    {_CTR_SQL}              AS avg_ctr,
     SUM(reach)                                                          AS total_reach,
     SUM(impressions)                                                    AS total_impressions,
     SUM(clicks)                                                         AS total_clicks,
+    -- Migration 138. NULL tant qu'une seule ligne du groupe a été collectée avant
+    -- elle : une somme partielle se lirait comme une mesure complète.
+    CASE WHEN SUM(measured_n) = SUM(rows_n) THEN SUM(link_clicks) END   AS total_link_clicks,
+    CASE WHEN SUM(measured_n) = SUM(rows_n) THEN SUM(custom_conversions) END AS total_outbound,
     MAX(campaign_start)                                                 AS campaign_start,
     MAX(creative_created)                                               AS creative_created
 FROM v_meta_creative_daily
@@ -102,8 +122,10 @@ SELECT mc.campaign_name,
        COUNT(DISTINCT ma.ad_id)        AS ads,
        COALESCE(cl.campaign_spend, 0)  AS campaign_spend
 FROM meta_campaigns mc
-JOIN meta_ads ma ON ma.campaign_id = mc.campaign_id
-LEFT JOIN meta_insights mi ON mi.ad_id = ma.ad_id
+-- The tenant is named at EVERY join (2026-09-26): on `ad_id` alone, a sandbox
+-- tenant's copy of the same ad gave it spend and hid the campaign from this list.
+JOIN meta_ads ma ON ma.campaign_id = mc.campaign_id AND ma.artist_id = mc.artist_id
+LEFT JOIN meta_insights mi ON mi.ad_id = ma.ad_id AND mi.artist_id = ma.artist_id
 LEFT JOIN (
     -- La dépense par campagne vient de la couche or (`v_meta_daily`, migration 106)
     -- et non de la table brute : c'est la même question que celle de l'onglet
@@ -316,6 +338,15 @@ def _a_couper(d: pd.DataFrame) -> pd.Series | None:
     haut et fait passer les grosses dépenses pour bonnes. Mesuré le même jour :
     médian **0,310 €** contre coût d'ensemble **0,130 €** — un facteur 2,4, qui
     plafonnait tous les surcoûts sous 20 € et enterrait le vrai.
+
+    ⚠️ Correction du 2026-09-26 : ces **0,130 €** (reproduits : 0,1296 € =
+    3 006,77 € / 23 206 résultats, 55 couples créative × campagne à objectif de
+    conversion, artiste 1, spotify_etl_review) ont un dénominateur DOUBLÉ — le
+    collecteur comptait l'évènement sortant d'Hypeddit sous deux action_type. Le coût
+    par clic sortant à la maille campagne, mesuré le même jour, est **0,2627 €**
+    (Σdépense / Σcustom_conversions, 196 jours). Le chiffre à la maille créative
+    n'existe qu'après la re-collecte `full_history` (migration 138) ; les 220 € /
+    0,19 € / 70 € ci-dessous sont du même régime doublé et restent à re-mesurer.
 
     La référence est donc le coût d'ENSEMBLE, `Σdépense / Σrésultats` : ce que
     l'artiste paie réellement en moyenne, pondéré par l'argent. Avec elle, la
@@ -568,6 +599,86 @@ def _render_table(df: pd.DataFrame) -> None:
             ).format(low=f"{median_cpr * 0.75:.2f}", high=f"{median_cpr * 1.25:.2f}"))
 
 
+# The timeline of ONE creative: counts only. CTR and CPR are not fetched — they are
+# derived by `_prepare_timeline()` from these sums, after any weekly resample.
+_QUERY_TIMELINE = """
+SELECT day AS date,
+       SUM(spend)       AS spend,
+       SUM(impressions) AS impressions,
+       SUM(clicks)      AS clicks,
+       SUM(reach)       AS reach,
+       SUM(conversions) AS conversions
+FROM v_meta_creative_daily
+WHERE artist_id = %s{acct} AND creative_name = %s{campaign_clause}
+GROUP BY day ORDER BY day
+"""
+
+# The fatigue chart. `frequency` is still a mean of daily means: daily reach is not
+# additive, so it cannot be recomputed from summed counts (not covered by the guard).
+_QUERY_FATIGUE = f"""
+SELECT day AS date, AVG(frequency) AS frequency, {_CTR_SQL} AS ctr
+FROM v_meta_creative_daily
+WHERE artist_id = %s{{acct}} AND creative_name = %s
+GROUP BY day ORDER BY day
+"""
+
+
+def _prepare_timeline(tsf: pd.DataFrame) -> tuple[pd.DataFrame, int, bool]:
+    """Numeric coercion, weekly resample past 120 days, then the derived rates.
+
+    Returns (frame, number of masked partial weeks, whether it was resampled).
+    """
+    tsf = tsf.copy()
+    # Decimal (Postgres NUMERIC) → float, else Plotly mis-types the columns.
+    for _, col, _, _, _, derived in _TIMELINE_METRICS:
+        if not derived:
+            tsf[col] = pd.to_numeric(tsf[col], errors='coerce').astype(float)
+
+    # Smart granularity: weekly down-sampling past ~120 days keeps the lines readable.
+    span_days = int((tsf['date'].max() - tsf['date'].min()).days)
+    partial_weeks = 0
+    weekly = span_days > 120
+    if weekly:
+        agg_map = {col: agg for _, col, agg, _, _, derived in _TIMELINE_METRICS if not derived}
+        _idx = tsf.set_index('date')
+        _measured = _idx.resample('W').size()
+        tsf = _idx.resample('W').agg(agg_map)
+
+        # UNE SEMAINE MESURÉE 3 JOURS SUR 7 N'EST PAS UNE SEMAINE.
+        #
+        # `resample('W').sum()` additionne ce qui EXISTE dans la semaine et le trace à
+        # pleine hauteur. Une semaine mesurée trois jours sur sept sous-dessine donc
+        # d'environ moitié, et rien ne le dit — la courbe se lit comme un effondrement
+        # de la campagne.
+        #
+        # Mesuré sur l'artiste 1 le 2026-09-10 : **37 semaines sur 59 (63 %)** ont
+        # moins de sept jours mesurés, avec une MÉDIANE de trois. C'est la vue par
+        # défaut au-delà de 120 jours, donc celle que l'artiste voit en premier.
+        #
+        # Même règle que la figure d'accueil (`_BUCKET_FLOOR`) : sous la moitié des
+        # jours, le seau est rendu INCONNU plutôt que faux. La courbe s'y interrompt,
+        # ce qui est la lecture juste — on ne sait pas.
+        _floor = _measured.reindex(tsf.index).fillna(0) >= 3.5
+        partial_weeks = int((~_floor).sum())
+        tsf = tsf.where(_floor, other=float("nan"))
+        tsf = tsf.reset_index()
+
+    # ⚠️ ORDER MATTERS — keep the two derived rates HERE, after the weekly resample and
+    # after the partial-week floor mask. Derived from the masked counts, a masked week
+    # yields NaN and the line gaps. Derived before the resample, they would have to be
+    # re-aggregated per week, i.e. a mean of daily ratios — the defect this replaced.
+    # Derived anywhere that skips the mask (e.g. from pre-mask sums), a 3-day week
+    # would draw a full-height point. The guard checks values on fixed inputs, not
+    # this position: a partial-week case would only catch it if its fixture has one.
+    # CPR derived from AGGREGATED spend/results (never an average of daily CPRs).
+    # NaN where no result on the period → the line simply gaps there.
+    tsf['cpr'] = (tsf['spend'] / tsf['conversions'].where(tsf['conversions'] != 0)).astype(float)
+    # CTR the same way: 100 * Σclicks / Σimpressions, never a mean of daily rates.
+    tsf['ctr'] = (100.0 * tsf['clicks']
+                  / tsf['impressions'].where(tsf['impressions'] != 0)).astype(float)
+    return tsf, partial_weeks, weekly
+
+
 @st.fragment
 def _tab_creative_timeline(selected_campaign: str, acct: str = "", acct_params: tuple = ()) -> None:
     """La chronologie d'une créative — rejoué SEUL quand son sélecteur change.
@@ -622,16 +733,7 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
                             names['ad_name'].tolist(), key="tl_creative")
 
     ts = db.fetch_df(
-        f"""SELECT day AS date,
-                   SUM(spend)       AS spend,
-                   SUM(impressions) AS impressions,
-                   SUM(clicks)      AS clicks,
-                   SUM(reach)       AS reach,
-                   SUM(conversions) AS conversions,
-                   AVG(ctr)         AS ctr
-            FROM v_meta_creative_daily
-            WHERE artist_id = %s{acct} AND creative_name = %s{campaign_clause}
-            GROUP BY day ORDER BY day""",
+        _QUERY_TIMELINE.format(acct=acct, campaign_clause=campaign_clause),
         (artist_id, *acct_params, creative) if selected_campaign == "Toutes"
         else (artist_id, *acct_params, creative, selected_campaign),
     )
@@ -648,46 +750,9 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
         st.info(t("meta_creatives.no_data_period", "Aucune donnée sur la période sélectionnée."))
         return
 
-    # Decimal (Postgres NUMERIC) → float, else Plotly mis-types the columns.
-    for _, col, _, _, _, derived in _TIMELINE_METRICS:
-        if not derived:
-            tsf[col] = pd.to_numeric(tsf[col], errors='coerce').astype(float)
-    tsf['ctr'] = tsf['ctr'] * 100  # match the ranking table's CTR % convention
-
-    # Smart granularity: weekly down-sampling past ~120 days keeps the lines readable.
-    span_days = int((tsf['date'].max() - tsf['date'].min()).days)
-    partial_weeks = 0
-    if span_days > 120:
-        agg_map = {col: agg for _, col, agg, _, _, derived in _TIMELINE_METRICS if not derived}
-        _idx = tsf.set_index('date')
-        _measured = _idx.resample('W').size()
-        tsf = _idx.resample('W').agg(agg_map)
-
-        # UNE SEMAINE MESURÉE 3 JOURS SUR 7 N'EST PAS UNE SEMAINE.
-        #
-        # `resample('W').sum()` additionne ce qui EXISTE dans la semaine et le trace à
-        # pleine hauteur. Une semaine mesurée trois jours sur sept sous-dessine donc
-        # d'environ moitié, et rien ne le dit — la courbe se lit comme un effondrement
-        # de la campagne.
-        #
-        # Mesuré sur l'artiste 1 le 2026-09-10 : **37 semaines sur 59 (63 %)** ont
-        # moins de sept jours mesurés, avec une MÉDIANE de trois. C'est la vue par
-        # défaut au-delà de 120 jours, donc celle que l'artiste voit en premier.
-        #
-        # Même règle que la figure d'accueil (`_BUCKET_FLOOR`) : sous la moitié des
-        # jours, le seau est rendu INCONNU plutôt que faux. La courbe s'y interrompt,
-        # ce qui est la lecture juste — on ne sait pas.
-        _floor = _measured.reindex(tsf.index).fillna(0) >= 3.5
-        partial_weeks = int((~_floor).sum())
-        tsf = tsf.where(_floor, other=float("nan"))
-        tsf = tsf.reset_index()
-        granularity = t("meta_creatives.granularity_weekly", "hebdomadaire")
-    else:
-        granularity = t("meta_creatives.granularity_daily", "journalière")
-
-    # CPR derived from AGGREGATED spend/results (never an average of daily CPRs).
-    # NaN where no result on the period → the line simply gaps there.
-    tsf['cpr'] = (tsf['spend'] / tsf['conversions'].where(tsf['conversions'] != 0)).astype(float)
+    tsf, partial_weeks, weekly = _prepare_timeline(tsf)
+    granularity = (t("meta_creatives.granularity_weekly", "hebdomadaire") if weekly
+                   else t("meta_creatives.granularity_daily", "journalière"))
 
     # TROIS PANNEAUX, UN PAR UNITÉ — et non sept axes superposés.
     #
@@ -810,6 +875,53 @@ def _render_efficiency(df: pd.DataFrame) -> None:
         st.plotly_chart(fig, width="stretch")
 
 
+def _measured_sum(rows: pd.DataFrame, col: str) -> int | None:
+    """The column's sum over `rows`, or None when ANY row did not measure it."""
+    if col not in rows or rows.empty:
+        return None
+    vals = pd.to_numeric(rows[col], errors='coerce')
+    if vals.isna().any():
+        return None
+    return int(vals.sum())
+
+
+def funnel_stages(rows: pd.DataFrame) -> list[tuple[str, str, int]]:
+    """(i18n key, default label, value) for each MEASURED stage of one creative's funnel.
+
+    `rows` = every (creative, campaign) row of ONE creative name; they are summed, so a
+    creative run in two campaigns shows both (the old `.iloc[0]` showed one campaign's
+    funnel under the bare creative name).
+
+    Measured 2026-09-26 on spotify_etl_review, artist 1: the funnel drew
+    impressions → `clicks` → `conversions` as « Clics sortants ». `clicks` is Meta
+    clicks (all) and `conversions` is the ad set goal's result — the Hypeddit outbound
+    event counted twice, or a VIDEO VIEW under THRUPLAY. 18 of 61 creative rows widened
+    (2 732 → 48 → 60 ; 2 028 → 7 → 1 670 under THRUPLAY).
+
+    The stages are now the three that nest by construction:
+      impressions → link clicks (`inline_link_clicks`) → outbound clicks
+      (`custom_conversions`, the offsite_conversion.custom family — whatever the goal).
+    The goal's `total_results` is never a stage. Until the ad grain is re-collected
+    (migration 138), link clicks are unmeasured; stage 2 then falls back to clicks (all)
+    UNDER THAT NAME. A zero or unmeasured stage is dropped, never drawn at 0.
+    """
+    imp = _measured_sum(rows, 'total_impressions')
+    link = _measured_sum(rows, 'total_link_clicks')
+    out = _measured_sum(rows, 'total_outbound')
+    stages: list[tuple[str, str, int]] = []
+    if imp:
+        stages.append(("meta_creatives.impressions", "Impressions", imp))
+    if link:
+        stages.append(("meta_creatives.link_clicks", "Clics sur le lien", link))
+    else:
+        clk = _measured_sum(rows, 'total_clicks')
+        if clk:
+            stages.append(("meta_creatives.clicks_all", "Clics (tous types)", clk))
+    if out:
+        stages.append(("meta_creatives.results", "Clics sortants", out))
+    return stages
+
+
 @st.fragment
 def _render_funnel(df: pd.DataFrame) -> None:
     """L'entonnoir d'une créative — rejoué SEUL quand on en choisit une autre.
@@ -834,19 +946,28 @@ def _render_funnel(df: pd.DataFrame) -> None:
             st.info(t("meta_creatives.no_creative", "Aucune créative."))
             return
         sel = st.selectbox(t("meta_creatives.creative", "Créative"), names, key="funnel_creative")
-        r = df[df['creative_name'] == sel].iloc[0]
-        imp = entier(r['total_impressions'])
-        clk = entier(r['total_clicks'])
-        res = entier(r['total_results'])
+        rows = df[df['creative_name'] == sel]
+        stages = funnel_stages(rows)
+        if len(stages) < 2:
+            st.info(t("meta_creatives.funnel_thin",
+                      "Pas assez d'étapes mesurées pour dessiner le parcours de cette créative."))
+            return
+        if rows['campaign_name'].nunique() > 1:
+            st.caption(t("meta_creatives.funnel_campaigns",
+                         "Somme sur {n} campagnes qui diffusent cette créative.").format(
+                             n=rows['campaign_name'].nunique()))
+        # Literal t() calls, so the i18n orphan sweep sees every key the stages use.
+        labels = {
+            "meta_creatives.impressions": t("meta_creatives.impressions", "Impressions"),
+            "meta_creatives.link_clicks": t("meta_creatives.link_clicks", "Clics sur le lien"),
+            "meta_creatives.clicks_all": t("meta_creatives.clicks_all", "Clics (tous types)"),
+            "meta_creatives.results": t("meta_creatives.results", "Clics sortants"),
+        }
         fig = go.Figure(go.Funnel(
-            # R146 — l'étape terminale portait « Résultats », ce qui donnait à un
-            # clic sortant l'allure d'un aboutissement. Même anti-motif que le
-            # funnel de `meta_x_spotify`, corrigé le 2026-09-21 : le fix n'avait
-            # pas balayé ce fichier.
-            y=[t("meta_creatives.impressions", "Impressions"),
-               t("meta_creatives.clicks", "Clics"),
-               t("meta_creatives.results", "Clics sortants")], x=[imp, clk, res],
-            textinfo="value+percent initial", marker={'color': ['#1f77b4', '#2ca02c', '#ff6b35']},
+            y=[labels[key] for key, _, _ in stages],
+            x=[v for _, _, v in stages],
+            textinfo="value+percent previous",
+            marker={'color': ['#1f77b4', '#2ca02c', '#ff6b35'][:len(stages)]},
         ))
         fig.update_layout(height=400)
         st.plotly_chart(fig, width="stretch")
@@ -886,10 +1007,7 @@ def _render_fatigue(db, artist_id: int, acct: str = "",
         return
     sel = st.selectbox(t("meta_creatives.creative", "Créative"), names['ad_name'].tolist(), key="fatigue_creative")
     ts = db.fetch_df(
-        f"""SELECT day AS date, AVG(frequency) AS frequency, AVG(ctr) * 100 AS ctr
-           FROM v_meta_creative_daily
-           WHERE artist_id = %s{acct} AND creative_name = %s
-           GROUP BY day ORDER BY day""",
+        _QUERY_FATIGUE.format(acct=acct),
         (artist_id, *acct_params, sel),
     )
     if ts.empty:
@@ -950,15 +1068,49 @@ def _render_activity(ts_all: pd.DataFrame) -> None:
 
         st.markdown("---")
         st.markdown(t("meta_creatives.cumulative_title", "**💰 Dépense cumulée par créative**"))
-        g = weekly.sort_values('week').copy()
-        g['cum'] = g.groupby('creative_name')['spend'].cumsum()
-        top12 = g.groupby('creative_name')['cum'].max().nlargest(12).index
-        g = g[g['creative_name'].isin(top12)]
-        fig2 = px.area(g, x='week', y='cum', color='creative_name',
-                       labels={'week': '', 'cum': t("meta_creatives.cumulative_spend_eur", "Dépense cumulée (€)"),
-                               'creative_name': t("meta_creatives.creative", "Créative")})
-        fig2.update_layout(height=480)
-        st.plotly_chart(fig2, width="stretch")
+        st.plotly_chart(_cumulative_spend_figure(weekly), width="stretch")
+
+
+def _cumulative_spend_frame(weekly: pd.DataFrame, top_n: int = 12) -> pd.DataFrame:
+    """Long frame (creative_name, week, cum) that is DENSE on a weekly grid.
+
+    `px.area` stacks every trace in one `stackgroup`, and Plotly's `stackgaps`
+    default is "infer zero": a creative with no row at a week is drawn at 0 there.
+    For a cumulative LEVEL that is false — a week without spend leaves the level
+    unchanged. So the absent week is filled on the SPEND (spent 0, which is true)
+    before the cumsum, which carries the level forward and gives every trace a
+    point at every x. Filling the LEVEL with 0 instead would be the defect again.
+
+    Order matters for width, not correctness: the top creatives are picked on the
+    sparse frame first, and only that subset is pivoted onto the dense grid.
+    """
+    if weekly is None or weekly.empty:
+        return pd.DataFrame(columns=['creative_name', 'week', 'cum'])
+    sparse = weekly.sort_values('week').copy()
+    sparse['cum'] = sparse.groupby('creative_name')['spend'].cumsum()
+    top = sparse.groupby('creative_name')['cum'].max().nlargest(top_n).index
+    sub = weekly[weekly['creative_name'].isin(top)]
+    grid = pd.date_range(sub['week'].min(), sub['week'].max(), freq='W-MON')
+    wide = (sub.pivot_table(index='week', columns='creative_name', values='spend',
+                            aggfunc='sum')
+            .reindex(grid)
+            # Zero on the weekly SPEND: an absent week is a week that spent nothing.
+            .fillna(0.0)
+            .cumsum())
+    wide.index.name = 'week'
+    long = wide.reset_index().melt(id_vars='week', var_name='creative_name',
+                                   value_name='cum')
+    return long[['creative_name', 'week', 'cum']]
+
+
+def _cumulative_spend_figure(weekly: pd.DataFrame) -> go.Figure:
+    """Stacked cumulative spend per creative, drawn from the dense frame."""
+    g = _cumulative_spend_frame(weekly)
+    fig = px.area(g, x='week', y='cum', color='creative_name',
+                  labels={'week': '', 'cum': t("meta_creatives.cumulative_spend_eur", "Dépense cumulée (€)"),
+                          'creative_name': t("meta_creatives.creative", "Créative")})
+    fig.update_layout(height=480)
+    return fig
 
 
 def show() -> None:

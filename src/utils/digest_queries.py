@@ -3,7 +3,7 @@ can be tested.
 
 Type: Utility
 Uses: nothing (pure string constants)
-Depends on: the `soundcloud_tracks_daily` schema
+Depends on: v_soundcloud_catalog_daily (migrations 132, 138)
 Persists in: nothing
 
 Why this module exists rather than a literal inside `airflow/dags/weekly_digest.py`:
@@ -30,32 +30,37 @@ from __future__ import annotations
 # (11:00:04.101372, .101370, .101367 …). Equality against MAX(collected_at)
 # therefore selects the LAST ROW INSERTED, not the batch.
 #
-# DISTINCT ON keeps the sum correct even if a day ever receives two runs, and the
+# The gold view keeps the last reading per track and day, so the sum stays correct
+# even if a day ever receives two runs, and the
 # absence of COALESCE is deliberate: no snapshot must render "N/A", never a 0 that
 # reads as a real measurement.
+#
+# ⚠️ AND ONLY A READABLE DAY (2026-09-26). The snapshot was the last day in bronze,
+# whatever it held: a collection that writes every counter at 0 (the 2026-06-01
+# shape, 19 tracks at 0) on the last day would have mailed "-23 486 plays this
+# week". The gold view `v_soundcloud_catalog_daily` already sums the last reading
+# of each track per day AND says whether that day is `lisible`; both snapshots are
+# now its last readable day on each side of the week. Four placeholders, as the
+# DAG passes them.
 SOUNDCLOUD_WEEKLY_DELTA_SQL = """
 WITH latest AS (
-    SELECT DISTINCT ON (track_id) playback_count
-    FROM soundcloud_tracks_daily
-    WHERE artist_id = %s
-      AND collected_at::date = (
-          SELECT MAX(collected_at::date) FROM soundcloud_tracks_daily
-          WHERE artist_id = %s
+    SELECT plays FROM v_soundcloud_catalog_daily
+    WHERE artist_id = %s AND lisible
+      AND day = (
+          SELECT MAX(day) FROM v_soundcloud_catalog_daily
+          WHERE artist_id = %s AND lisible
       )
-    ORDER BY track_id, collected_at DESC
 ),
 week_ago AS (
-    SELECT DISTINCT ON (track_id) playback_count
-    FROM soundcloud_tracks_daily
-    WHERE artist_id = %s
-      AND collected_at::date = (
-          SELECT MAX(collected_at::date) FROM soundcloud_tracks_daily
-          WHERE artist_id = %s AND collected_at::date <= CURRENT_DATE - 7
+    SELECT plays FROM v_soundcloud_catalog_daily
+    WHERE artist_id = %s AND lisible
+      AND day = (
+          SELECT MAX(day) FROM v_soundcloud_catalog_daily
+          WHERE artist_id = %s AND lisible AND day <= CURRENT_DATE - 7
       )
-    ORDER BY track_id, collected_at DESC
 )
-SELECT (SELECT SUM(playback_count) FROM latest)   AS latest_total,
-       (SELECT SUM(playback_count) FROM week_ago) AS week_ago_total
+SELECT (SELECT plays FROM latest)   AS latest_total,
+       (SELECT plays FROM week_ago) AS week_ago_total
 """
 
 

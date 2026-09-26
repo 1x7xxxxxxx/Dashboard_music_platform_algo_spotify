@@ -24,6 +24,15 @@ Les deux chiffres déjà au dossier, qui ne parlent pas de la même chose :
 chez le distributeur de l'autre. Un facteur cent, et la page ne le disait nulle
 part.
 
+⚠️ Correction du 2026-09-26 : les 0,130 € avaient un dénominateur DOUBLÉ. Le
+collecteur sommait tous les action_type `offsite_conversion.*`, et Meta rend le même
+clic sortant sous plusieurs noms (résultats / custom_conversions entre 1,977 et 2,574
+sur les 196 jours de l'artiste 1). Le coût par clic sortant mesuré à la maille
+campagne est **0,2627 €** (Σdépense / Σcustom_conversions, spotify_etl_review). L'écart
+avec l'écoute réelle est donc d'un facteur ~200, pas cent. Les PDF déjà envoyés
+portaient l'ancien chiffre : une re-collecte ne les rappelle pas, et la décision de
+le dire aux artistes appartient au propriétaire.
+
 La sortie choisie
 -----------------
 Deux issues étaient possibles. Adosser une conversion à une écoute RÉELLE suppose

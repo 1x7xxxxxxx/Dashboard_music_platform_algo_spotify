@@ -207,3 +207,161 @@ def test_the_finding_reaches_the_email_and_the_digest() -> None:
     names = {n.id for n in ast.walk(send) if isinstance(n, ast.Name)}
     assert "zero_resets" in names, (
         "l'envoi ne lit pas le constat : il serait calculé chaque nuit et jeté")
+
+
+# ═══ READER SIDE (2026-09-26) — a zero already written is never drawn or mailed ═══
+#
+# The detector above SEES a zeroed collection; the gold views (migrations 132, 138)
+# mark it unreadable. Four readers still went around that verdict:
+#
+#   * the per-track chart of the SoundCloud page read bronze and drew the 19 zeros of
+#     2026-06-01 — the only figure of the page that still did;
+#   * the catalog engagement panel filtered on `lisible`, decided on PLAYS alone, and
+#     drew likes 1 333 → 0 → 1 309 over 2026-03-30 … 05-14;
+#   * the PDF track table and the weekly digest mail took the LAST bronze day,
+#     whatever it held.
+#
+# The fixture below replays both failure shapes on a synthetic tenant, INSIDE A
+# TRANSACTION that also applies migration 138 and is rolled back: nothing persists,
+# and the test proves the migration's SQL at the same time.
+
+import datetime as _dt  # noqa: E402
+
+import pandas as _pd  # noqa: E402
+import pytest  # noqa: E402
+
+from tests.db_gate import requires_live_db  # noqa: E402
+
+_MIGRATION = pathlib.Path("migrations/138_gold_soundcloud_catalog_per_metric_readability.sql")
+
+# (offset from CURRENT_DATE, plays per track, likes per track); None = every counter
+# written at 0, the 2026-06-01 shape. -6 … -4 is the likes-only era.
+_TIMELINE = [(-9, 100, 400), (-8, 101, 400), (-7, 102, 401),
+             (-6, 103, 0), (-5, 104, 0), (-4, 105, 0),
+             (-3, 106, 390), (-2, None, None), (-1, 108, 391), (0, None, None)]
+_TRACKS = 3
+
+
+class _TxDb:
+    """The two reads the readers use, on ONE connection held in a transaction."""
+
+    def __init__(self, conn):
+        self.conn = conn
+
+    def fetch_query(self, query, params=None):
+        with self.conn.cursor() as cur:
+            cur.execute(query, params)
+            return cur.fetchall()
+
+    def fetch_df(self, query, params=None):
+        with self.conn.cursor() as cur:
+            cur.execute(query, params)
+            cols = [d[0] for d in cur.description]
+            return _pd.DataFrame(cur.fetchall(), columns=cols)
+
+    def close(self):
+        pass
+
+
+@pytest.fixture
+def zeroed_tenant():
+    import psycopg2
+
+    from tests.db_gate import dsn
+
+    conn = psycopg2.connect(**dsn())
+    conn.autocommit = False
+    try:
+        with conn.cursor() as cur:
+            cur.execute(_MIGRATION.read_text(encoding="utf-8"))
+            cur.execute("INSERT INTO saas_artists (name, slug, tier, active) "
+                        "VALUES ('zeroed', 'zeroed-' || md5(random()::text), 'free', FALSE) "
+                        "RETURNING id")
+            tenant = cur.fetchone()[0]
+            for off, plays, likes in _TIMELINE:
+                for i in range(_TRACKS):
+                    cur.execute(
+                        "INSERT INTO soundcloud_tracks_daily (track_id, title, "
+                        "playback_count, likes_count, reposts_count, comment_count, "
+                        "collected_at, artist_id) VALUES (%s, %s, %s, %s, %s, %s, "
+                        "(CURRENT_DATE + %s) + time '11:00', %s)",
+                        (987650 + i, f"zeroed track {i}", plays or 0, likes or 0,
+                         0 if plays is None else 10, 0 if plays is None else 5,
+                         off, tenant))
+            cur.execute("SELECT CURRENT_DATE")
+            today = cur.fetchone()[0]
+        yield _TxDb(conn), tenant, today
+    finally:
+        conn.rollback()
+        conn.close()
+
+
+def _days(today, offsets):
+    return {today + _dt.timedelta(days=o) for o in offsets}
+
+
+@requires_live_db()
+@pytest.mark.xdist_group("soundcloud-gold-views")
+def test_the_per_track_chart_reads_only_readable_days(zeroed_tenant) -> None:
+    from src.dashboard.views.soundcloud import _track_history
+
+    db, tenant, today = zeroed_tenant
+    df = _track_history(db, tenant)
+    assert not df.empty, "the seeded tenant must have a history — else this is vacuous"
+    drawn = set(df["day"])
+    failed = _days(today, (-2, 0))
+    assert not (drawn & failed), (
+        f"the per-track chart draws the failed collections {sorted(drawn & failed)}; "
+        "the gold view marks them `lisible = FALSE`")
+    assert (df["playback_count"] > 0).all(), df[df["playback_count"] <= 0]
+
+
+@requires_live_db()
+@pytest.mark.xdist_group("soundcloud-gold-views")
+def test_the_catalog_panel_skips_a_metric_its_own_verdict_rejects(zeroed_tenant,
+                                                                   monkeypatch) -> None:
+    import streamlit as st
+
+    from src.dashboard.views import soundcloud as sc
+
+    db, tenant, today = zeroed_tenant
+    figs = []
+    monkeypatch.setattr(st, "plotly_chart", lambda fig, **k: figs.append(fig))
+    sc._render_catalog_series(db, tenant)
+    assert figs, "the catalog panel drew nothing on a seeded tenant"
+    traces = {tr.name: tr for tr in figs[0].data}
+    likes = next(tr for name, tr in traces.items() if "Like" in name)
+    points = dict(zip(_pd.to_datetime(list(likes.x)).date, likes.y))
+    assert points, "no likes point at all — the assertion below would be vacuous"
+    zeros = sorted(d for d, v in points.items() if v == 0)
+    assert not zeros, (
+        f"the likes curve draws 0 on {zeros}: likes read 0 after being positive — a "
+        "failed read that `lisible` (plays) cannot see")
+    assert not (set(points) & _days(today, (-6, -5, -4))), sorted(points)
+    for tr in figs[0].data:
+        assert all(v != 0 for v in tr.y), f"trace {tr.name} draws a 0: {list(tr.y)}"
+
+
+@requires_live_db()
+@pytest.mark.xdist_group("soundcloud-gold-views")
+def test_the_pdf_track_table_reads_the_last_readable_day(zeroed_tenant) -> None:
+    from src.dashboard.utils.pdf_exporter._collectors import _collect_soundcloud_tracks
+
+    db, tenant, _today = zeroed_tenant
+    rows = _collect_soundcloud_tracks(db, tenant)
+    assert len(rows) == _TRACKS, rows
+    assert all(r[1:] == (108, 391, 10, 5) for r in rows), (
+        f"the PDF table must print the last READABLE day (day -1: 108 plays, 391 "
+        f"likes), not the zeroed last day: {rows}")
+
+
+@requires_live_db()
+@pytest.mark.xdist_group("soundcloud-gold-views")
+def test_the_weekly_mail_compares_readable_days(zeroed_tenant) -> None:
+    from src.utils.digest_queries import SOUNDCLOUD_WEEKLY_DELTA_SQL
+
+    db, tenant, _today = zeroed_tenant
+    latest, week_ago = db.fetch_query(SOUNDCLOUD_WEEKLY_DELTA_SQL, (tenant,) * 4)[0]
+    assert (latest, week_ago) == (108 * _TRACKS, 102 * _TRACKS), (
+        f"latest={latest} week_ago={week_ago}: a zeroed last day mails a collapse of "
+        "the whole catalog; the snapshot is the last READABLE day on each side")

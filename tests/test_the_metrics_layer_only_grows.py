@@ -74,7 +74,7 @@ _GOLD_VIEWS = frozenset({
     "v_platform_totals", "v_artist_monthly_revenue", "v_meta_spend_totals",
     "v_platform_levels", "v_s4a_song_daily", "v_meta_daily",
     "v_meta_creative_daily", "v_instagram_media_monthly", "v_hypeddit_daily",
-    "v_soundcloud_track_latest",
+    "v_soundcloud_track_latest", "v_meta_engagement_daily", "v_meta_ad_daily",
 })
 
 # Les tables de FAIT, par plateforme. Une surface qui les agrège elle-même recopie
@@ -89,8 +89,13 @@ _FACTS: dict[str, tuple[str, ...]] = {
     # défaut : la tuile « Dépenses » y sommait 6 165,65 € pour 3 087,82 € réels, et
     # `\b` fait que `meta_insights\b` ne matche PAS `meta_insights_performance`.
     # Une liste de faits incomplète rend le cliquet vert sur le défaut qu'il vise.
+    #
+    # L'engagement est entré le 2026-09-26, pour la même raison : absent de cette
+    # liste, `meta_insights_engagement` était sommé en pandas (tuiles au double) et
+    # joint jour × jour sous un `SUM(p.spend)` (× 32) sans qu'aucun garde le nomme.
     "Meta Ads":    ("meta_insights", "meta_insights_performance_day",
-                    "meta_insights_performance"),
+                    "meta_insights_performance", "meta_insights_engagement",
+                    "meta_insights_engagement_day"),
     "Hypeddit":    ("hypeddit_daily_stats",),
     "Revenu":      ("imusician_monthly_revenue", "distrokid_monthly_revenue",
                     "sacem_statement"),
@@ -158,9 +163,17 @@ def fact_aggregates(source: str) -> list[tuple[str, int]]:
         if any(v in text for v in _GOLD_VIEWS):
             continue                        # lit la couche or : c'est le but
         for platform, tables in _FACTS.items():
-            if any(re.search(rf"\bfrom\s+{t}\b", text, re.I) for t in tables):
+            if any(re.search(_READS.format(t=t), text, re.I) for t in tables):
                 out.append((platform, node.lineno))
     return out
+
+
+# `FROM` OU `JOIN` — élargi le 2026-09-26. Un fait lu par une jointure était
+# invisible : `_tab_reglages.py` sommait `meta_insights` derrière
+# `FROM meta_ads a JOIN meta_insights i` (deux locataires additionnés, 6 168,70 € pour
+# 3 087,82 €), et `meta_ads_overview` joignait `meta_insights_engagement` jour × jour
+# sous un `SUM(p.spend)` (× 32). Classe : `a-join-that-multiplies-the-grain`.
+_READS = r"\b(?:from|join)\s+{t}\b"
 
 
 def test_the_detector_sees_the_defect_it_is_written_for() -> None:
@@ -172,6 +185,20 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
     good = ('def f(db):\n    """Was: SELECT SUM(views) FROM youtube_video_stats."""\n'
             '    return db.fetch_query("SELECT SUM(total) FROM v_platform_totals")\n')
     assert fact_aggregates(good) == []
+
+
+def test_the_detector_sees_a_fact_read_through_a_join() -> None:
+    """Non-vacuity of the 2026-09-26 widening: a fact summed behind a JOIN is named —
+    the `_tab_reglages` shape (`meta_insights`) and the summary-table shape
+    (`meta_insights_engagement`); the same query on the gold views is not."""
+    reglages = ('Q = """SELECT SUM(i.spend) FROM meta_ads a\n'
+                '       JOIN meta_insights i ON i.ad_id = a.ad_id"""\n')
+    assert fact_aggregates(reglages) == [("Meta Ads", 1)]
+    summary = ('Q = ("SELECT SUM(p.spend), MAX(e.saves) FROM some_rollup p"\n'
+               '     " LEFT JOIN meta_insights_engagement e ON e.campaign_name = p.campaign_name")\n')
+    assert fact_aggregates(summary) == [("Meta Ads", 1)]
+    gold = 'Q = "SELECT SUM(spend) FROM v_meta_ad_daily WHERE artist_id = %s"\n'
+    assert fact_aggregates(gold) == []
 
 
 def test_no_platform_gains_a_metric_computed_outside_the_gold_layer() -> None:

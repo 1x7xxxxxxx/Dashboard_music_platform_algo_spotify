@@ -82,6 +82,35 @@ INVARIANTS: tuple[Invariant, ...] = (
             "les écarte — cet invariant est ce qui le prouve chaque nuit.",
     ),
     Invariant(
+        name="meta_engagement_view_vs_day_table",
+        left_sql="SELECT artist_id, SUM(saves) + SUM(shares) + SUM(page_interactions) "
+                 "FROM v_meta_engagement_daily GROUP BY 1",
+        right_sql="SELECT artist_id, SUM(saves) + SUM(shares) + SUM(page_interactions) "
+                  "FROM meta_insights_engagement_day GROUP BY 1",
+        left_label="v_meta_engagement_daily",
+        right_label="meta_insights_engagement_day",
+        why="Le défaut du 2026-09-26, jumeau de celui de 109 : l'engagement n'avait "
+            "pas de vue or, et `meta_insights_engagement` porte 21 lignes de cumul à "
+            "vie à côté de ses jours. Les tuiles affichaient 1 094 saves pour 547 et "
+            "957 320 interactions pour 478 968 — le double exact. La vue écarte les "
+            "cumuls par la règle de la jumelle ; cet invariant prouve qu'elle n'en "
+            "garde aucun et ne perd aucun jour.",
+    ),
+    Invariant(
+        name="meta_ad_settings_view_loses_and_adds_nothing",
+        left_sql="SELECT artist_id, SUM(spend) FROM v_meta_ad_daily GROUP BY 1",
+        right_sql="SELECT mi.artist_id, SUM(mi.spend) FROM meta_insights mi "
+                  "WHERE EXISTS (SELECT 1 FROM meta_ads ma WHERE ma.ad_id = mi.ad_id "
+                  "AND ma.artist_id = mi.artist_id) GROUP BY 1",
+        left_label="v_meta_ad_daily",
+        right_label="meta_insights[annonce connue du locataire]",
+        why="Le défaut du 2026-09-26 dans l'onglet Réglages : `meta_ads × "
+            "meta_insights` joint sur `ad_id` seul additionnait le locataire 1 et "
+            "sa copie de bac à sable — 6 168,70 € pour 3 087,82 €. Le côté droit ne "
+            "joint rien (EXISTS) : une jointure de la vue qui multiplie une ligne, "
+            "ou qui en perd une, fait diverger les deux sommes.",
+    ),
+    Invariant(
         name="meta_spend_creative_vs_adset",
         left_sql="SELECT artist_id, SUM(spend) FROM v_meta_creative_daily GROUP BY 1",
         right_sql="SELECT artist_id, SUM(spend) FROM v_meta_adset_daily GROUP BY 1",

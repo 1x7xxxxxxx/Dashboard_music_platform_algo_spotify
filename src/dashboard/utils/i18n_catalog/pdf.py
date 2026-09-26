@@ -197,6 +197,7 @@ EN = {
     "pdf.chart.streams_s4a_song": "S4A streams — {song}",
     "pdf.chart.s4a_audience": "S4A audience — listeners & followers",
     "pdf.chart.streams_per_platform": "Streams per platform",
+    "pdf.chart.not_measured": "— not measured",
     "pdf.chart.youtube_channel_growth": "YouTube — channel growth",
     "pdf.chart.algo_probabilities": "Algorithm probabilities (D+28)",
     "pdf.chart.spend_per_meta_campaign": "Spend per Meta Ads campaign",

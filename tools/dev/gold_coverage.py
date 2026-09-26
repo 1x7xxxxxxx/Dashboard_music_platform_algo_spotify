@@ -105,7 +105,8 @@ _RATCHET_FACTS = frozenset({
     "apple_songs_performance", "apple_songs_history",
     "instagram_daily_stats", "instagram_media",
     "meta_insights", "meta_insights_performance_day",
-    "meta_insights_performance",
+    "meta_insights_performance", "meta_insights_engagement",
+    "meta_insights_engagement_day",
     "hypeddit_daily_stats",
     "imusician_monthly_revenue", "distrokid_monthly_revenue", "sacem_statement",
 })
@@ -691,6 +692,19 @@ def _sql_text(node: ast.AST, scope: Scope, pf: PyFile, depth: int = 0) -> str | 
             cands = [pf.consts[node.id]]
         texts = [t for t in (_sql_text(v, scope, pf, depth + 1) for v in cands) if t]
         return texts[-1] if texts else None
+    if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) \
+            and isinstance(pf.consts.get(node.value.id), ast.Dict):
+        # `_Q_AXE[axe]` (2026-09-26) : un dictionnaire de requêtes de module, indexé
+        # par une variable. Sans cette branche la lecture était `sql-dynamique`, et
+        # `v_meta_ad_daily` passait pour une vue or sans lecteur alors que trois axes
+        # de l'onglet Réglages la lisent. Clé littérale → sa requête ; clé variable →
+        # TOUTES les requêtes, puisque chacune peut être lue.
+        d = pf.consts[node.value.id]
+        key = node.slice.value if isinstance(node.slice, ast.Constant) else None
+        vals = [v for k, v in zip(d.keys, d.values)
+                if key is None or (isinstance(k, ast.Constant) and k.value == key)]
+        texts = [t for t in (_sql_text(v, scope, pf, depth + 1) for v in vals) if t]
+        return "\n UNION ALL \n".join(texts) if texts else None
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
             and node.func.attr == "format":
         # `_QUERY_CREATIVES.format(acct=acct)` est un LITTÉRAL avec des trous, pas

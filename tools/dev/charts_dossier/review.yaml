@@ -555,7 +555,7 @@ src/dashboard/views/trigger_algo/_tab_lifecycle.py::_show_tab_lifecycle#1:
   p: 4
   v: garder
   note: "Médiane + P25–P75 ; « Ce titre » n'est pas tracé (seulement nommé) — à vérifier."
-src/dashboard/views/trigger_algo/_tab_budget_roi.py::_show_tab_budget_roi#1:
+src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_fit#1:
   q: "Mes revenus suivent-ils ma dépense Meta ?"
   role: meta
   d: 1
@@ -566,7 +566,7 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py::_show_tab_budget_roi#1:
   owner: "Vérifie tous les chiffres faux ; une méthode pour avoir les bonnes valeurs dans tous les dashboards, avec des error classes — l'archi bronze/argent/or devait l'empêcher (R205)."
   cause: ajustement-trompeur
   note: "Une régression « R² = 1,00 » tracée sur UN point (2024-04) — trompeur. Refuser la droite sous un minimum de points."
-src/dashboard/views/trigger_algo/_tab_budget_roi.py::_show_tab_budget_roi#2:
+src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_breakeven#1:
   q: "Quand la pub aura-t-elle été remboursée ?"
   role: meta
   d: 2

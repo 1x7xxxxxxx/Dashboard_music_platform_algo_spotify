@@ -120,8 +120,31 @@ def _delete_wrapped(db, artist_id, year):
 # Chart helpers
 # ---------------------------------------------------------------------------
 
+def _absent(v) -> bool:
+    """None, or the NaN pandas makes of a NULL in a numeric column (`nan != nan`)."""
+    return v is None or v != v
+
+
+def _prefill(value, cast):
+    """The stored value for a form field — or None, never a widget default.
+
+    ⚠️ A FORM DEFAULT IS NOT A MEASUREMENT (2026-09-26). Every field of this form
+    was built with `value=int(g(col) or 0)`, and the save writes every widget
+    value. A field nobody filled therefore went into `artist_wrapped` as **0**:
+    measured on artist 1, the 2025 row carries saves 0, playlist adds 0, the four
+    gains at 0.00 and top_fans_count 0 — next to 5 210 saves, +475 % and 11 fans
+    in 2024. The charts drew +0.0 % where the volumes say −84 %, because a stored
+    0 is not NA and the readers' `dropna()` cannot see it. `hypeddit.py` met the
+    same form default on 2026-09-21 : a typed 0 and an unmeasured 0 are
+    indistinguishable once in the base, so the distinction is kept HERE, where
+    it can still be made. Streamlit renders `value=None` as an empty field and
+    returns None for it.
+    """
+    return None if _absent(value) else cast(value)
+
+
 def _fmt_big(n):
-    if n is None:
+    if _absent(n):
         return "—"
     n = int(n)
     if abs(n) >= 1_000_000:
@@ -132,7 +155,7 @@ def _fmt_big(n):
 
 
 def _fmt_pct(v):
-    if v is None:
+    if _absent(v):
         return "—"
     return f"{float(v):+.1f}%"
 
@@ -512,19 +535,19 @@ def _render_wrapped_body(db, artist_options: dict) -> None:
         with c1:
             listeners = st.number_input(
                 t("data_wrapped.field_listeners", "Listeners"),
-                min_value=0, value=int(g('listeners') or 0), step=1000
+                min_value=0, value=_prefill(g('listeners'), int), step=1000
             )
         with c2:
             listener_gain_pct = st.number_input(
                 t("data_wrapped.field_listener_gain", "Gain listeners (%)"),
-                value=float(g('listener_gain_pct') or 0.0),
+                value=_prefill(g('listener_gain_pct'), float),
                 step=0.1, format="%.1f",
                 help=t("data_wrapped.gain_help", "Croissance annuelle en %, ex: 45.3")
             )
         with c3:
             countries = st.number_input(
                 t("data_wrapped.field_countries", "Pays"),
-                min_value=0, value=int(g('countries') or 0), step=1
+                min_value=0, value=_prefill(g('countries'), int), step=1
             )
 
         st.markdown(t("data_wrapped.section_streams", "**Streams**"))
@@ -532,12 +555,12 @@ def _render_wrapped_body(db, artist_options: dict) -> None:
         with c4:
             streams = st.number_input(
                 t("data_wrapped.field_total_streams", "Streams totaux"),
-                min_value=0, value=int(g('streams') or 0), step=10000
+                min_value=0, value=_prefill(g('streams'), int), step=10000
             )
         with c5:
             stream_gain_pct = st.number_input(
                 t("data_wrapped.field_stream_gain", "Gain streams (%)"),
-                value=float(g('stream_gain_pct') or 0.0),
+                value=_prefill(g('stream_gain_pct'), float),
                 step=0.1, format="%.1f",
                 help=t("data_wrapped.gain_help", "Croissance annuelle en %, ex: 45.3")
             )
@@ -545,7 +568,7 @@ def _render_wrapped_body(db, artist_options: dict) -> None:
             hours_listened = st.number_input(
                 t("data_wrapped.field_hours_listened", "Heures d'écoute"),
                 min_value=0.0,
-                value=float(g('hours_listened') or 0.0), step=100.0, format="%.1f"
+                value=_prefill(g('hours_listened'), float), step=100.0, format="%.1f"
             )
 
         st.markdown(t("data_wrapped.section_engagement", "**Engagement**"))
@@ -553,24 +576,24 @@ def _render_wrapped_body(db, artist_options: dict) -> None:
         with c7:
             saves = st.number_input(
                 t("data_wrapped.field_saves", "Saves"),
-                min_value=0, value=int(g('saves') or 0), step=100
+                min_value=0, value=_prefill(g('saves'), int), step=100
             )
         with c8:
             save_gain_pct = st.number_input(
                 t("data_wrapped.field_save_gain", "Gain saves (%)"),
-                value=float(g('save_gain_pct') or 0.0),
+                value=_prefill(g('save_gain_pct'), float),
                 step=0.1, format="%.1f",
                 help=t("data_wrapped.gain_help", "Croissance annuelle en %, ex: 45.3")
             )
         with c9:
             playlist_adds = st.number_input(
                 t("data_wrapped.field_playlist_adds", "Playlist adds"),
-                min_value=0, value=int(g('playlist_adds') or 0), step=100
+                min_value=0, value=_prefill(g('playlist_adds'), int), step=100
             )
         with c10:
             playlist_add_gain_pct = st.number_input(
                 t("data_wrapped.field_playlist_add_gain", "Gain playlist adds (%)"),
-                value=float(g('playlist_add_gain_pct') or 0.0),
+                value=_prefill(g('playlist_add_gain_pct'), float),
                 step=0.1, format="%.1f",
                 help=t("data_wrapped.gain_help", "Croissance annuelle en %, ex: 45.3")
             )
@@ -582,7 +605,7 @@ def _render_wrapped_body(db, artist_options: dict) -> None:
             top_fans_count = st.number_input(
                 t("data_wrapped.field_fans_count", "Nombre de fans"),
                 min_value=0,
-                value=int(g('top_fans_count') or 0), step=1,
+                value=_prefill(g('top_fans_count'), int), step=1,
                 help=t("data_wrapped.fans_count_help",
                        "Fans qui vous avaient en top artiste, ex: 11")
             )
@@ -590,29 +613,39 @@ def _render_wrapped_body(db, artist_options: dict) -> None:
             top_fans_rank = st.number_input(
                 t("data_wrapped.field_fans_rank", "Rang (vous dans leur top N)"),
                 min_value=1,
-                value=int(g('top_fans_rank') or 5), step=1,
+                value=_prefill(g('top_fans_rank'), int), step=1,
                 help=t("data_wrapped.fans_rank_help", "Ex: 5 = vous étiez dans leur top 5")
             )
 
         st.markdown("---")
         if st.button(t("data_wrapped.btn_save", "💾 Enregistrer"), type="primary"):
-            try:
-                _upsert_wrapped(db, target_artist_id, int(year), {
-                    'listeners': listeners, 'streams': streams,
-                    'hours_listened': hours_listened, 'countries': countries,
-                    'listener_gain_pct': listener_gain_pct,
-                    'stream_gain_pct': stream_gain_pct,
-                    'save_gain_pct': save_gain_pct,
-                    'playlist_add_gain_pct': playlist_add_gain_pct,
-                    'saves': saves, 'playlist_adds': playlist_adds,
-                    'top_fans_count': top_fans_count,
-                    'top_fans_rank': top_fans_rank,
-                })
-                flash(t("data_wrapped.save_success",
-                             "✅ Données {year} enregistrées.").format(year=int(year)))
-                st.rerun()
-            except Exception as e:
-                st.error(t("data_wrapped.error_generic", "Erreur : {err}").format(err=e))
+            # An empty field is written as NULL — every column is NULLABLE — and a
+            # typed 0 stays 0. A form with nothing typed writes nothing at all.
+            values = {
+                'listeners': listeners, 'streams': streams,
+                'hours_listened': hours_listened, 'countries': countries,
+                'listener_gain_pct': listener_gain_pct,
+                'stream_gain_pct': stream_gain_pct,
+                'save_gain_pct': save_gain_pct,
+                'playlist_add_gain_pct': playlist_add_gain_pct,
+                'saves': saves, 'playlist_adds': playlist_adds,
+                'top_fans_count': top_fans_count,
+                'top_fans_rank': top_fans_rank,
+            }
+            if all(v is None for v in values.values()):
+                st.warning(t(
+                    "data_wrapped.nothing_to_save",
+                    "Rien à enregistrer : aucun champ n'est rempli. Un champ laissé "
+                    "vide reste vide en base — il ne devient pas un zéro."))
+            else:
+                try:
+                    _upsert_wrapped(db, target_artist_id, int(year), values)
+                    flash(t("data_wrapped.save_success",
+                            "✅ Données {year} enregistrées.").format(year=int(year)))
+                    st.rerun()
+                except Exception as e:
+                    st.error(t("data_wrapped.error_generic",
+                               "Erreur : {err}").format(err=e))
 
     # ── Évolution, sous la saisie ───────────────────────────────────────
     st.markdown("---")

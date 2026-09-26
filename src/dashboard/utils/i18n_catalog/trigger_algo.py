@@ -282,9 +282,11 @@ EN = {
     "trigger_algo.roi.slope_help": "Revenue generated per € invested in Meta Ads",
     "trigger_algo.roi.pvalue_help": "< 0.05 = statistically significant correlation",
     "trigger_algo.roi.insufficient_data": (
-        "Insufficient data: at least 2 months are needed where Meta Ads spend "
-        "AND iMusician revenue coexist."
+        "Insufficient data: at least {n} months are needed where Meta Ads spend "
+        "AND distributor revenue coexist. Below that, a line passes almost exactly "
+        "through the points and R² measures nothing."
     ),
+    "trigger_algo.roi.n_months_caption": "Fitted on n = {n} months",
     "trigger_algo.roi.no_revenue_spend": (
         "No revenue/spend data to compute the ROI regression "
         "(no month with Meta Ads spend + iMusician revenue in the history)."
@@ -300,6 +302,8 @@ EN = {
     "trigger_algo.roi.breakeven_not_reached": "⚠️ Breakeven not reached over the available period.",
     "trigger_algo.roi.breakeven_window": "Verdict cut off at {date} — beyond it only {side} is reported ({days} days). Comparing a cumulative total against a curve nobody has reported yet would make the crossing say what it does not say.",
     "trigger_algo.roi.one_series_only": "only one series reported",
+    "trigger_algo.roi.breakeven_start": "Both cumulative totals start from zero on {date}, the first day both spend and revenue are reported. What was earned or spent before ({days} days) is left out of the comparison: a lead taken before the first ad euro is not a return on that ad.",
+    "trigger_algo.roi.breakeven_no_overlap": "No breakeven verdict: Meta spend and revenue cover no common period (spend from {spend_start} to {spend_end}, revenue from {rev_start} to {rev_end}). Comparing two cumulative totals that never overlap says nothing.",
     "trigger_algo.roi.breakeven_chart_title": "Cumulative Meta spend vs Cumulative iMusician revenue",
     "trigger_algo.roi.axis_cumul_amount": "Cumulative amount (€)",
     "trigger_algo.roi.breakeven_missing_data": "Spend or revenue data missing for the breakeven chart.",
@@ -481,6 +485,7 @@ EN = {
     ),
     "trigger_algo.common.meta_col_campaign": "Campaign",
     "trigger_algo.common.meta_col_clicks": "Clicks",
+    "trigger_algo.common.meta_col_link_ctr": "Link CTR %",
     "trigger_algo.common.meta_best_lever": "✅ Best lever: **{name}** — CPR {cpr:.3f} € ({cta})",
     "trigger_algo.common.cta_na": "CTA n/a",
     "trigger_algo.common.meta_worst_lever": (

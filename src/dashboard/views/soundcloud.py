@@ -47,7 +47,7 @@ from src.dashboard.utils import view_session
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import EntitySpec, entity_period_filter
-from src.dashboard.utils.tz import to_local_datetime, to_local_naive
+from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.utils.platform_colors import PALETTE_LIGHT
 from src.dashboard.views.soundcloud_claims import render_claimed_tracks
 from src.dashboard.utils.date_format import format_date, format_serie
@@ -227,21 +227,11 @@ def show():
             start_d, end_d = window.start, window.end
 
             # On récupère l'historique large (on filtre en Pandas pour plus de souplesse UI)
-            query_hist = """
-                SELECT collected_at, title, playback_count,
-                       likes_count, reposts_count, comment_count
-                FROM soundcloud_tracks_daily
-                WHERE artist_id = %s
-                ORDER BY collected_at ASC
-            """
-            df_history = db.fetch_df(query_hist, (artist_id,))
+            df_history = _track_history(db, artist_id)
 
             if not df_history.empty:
-                # Conversion types
-                df_history['collected_at'] = to_local_naive(df_history['collected_at']).dt.date
-
                 # APPLICATION DES FILTRES
-                mask_date = (df_history['collected_at'] >= start_d) & (df_history['collected_at'] <= end_d)
+                mask_date = (df_history['day'] >= start_d) & (df_history['day'] <= end_d)
                 mask_track = df_history['title'].isin(selected_tracks)
 
                 df_filtered = df_history[mask_date & mask_track]
@@ -261,7 +251,7 @@ def show():
                     # où une différence de teinte ne survit pas.
                     fig = px.line(
                         df_filtered,
-                        x='collected_at',
+                        x='day',
                         y='playback_count',
                         color='title',
                         color_discrete_sequence=_nuances(
@@ -357,6 +347,27 @@ if __name__ == "__main__":
     show()
 
 
+def _track_history(db, artist_id) -> "pd.DataFrame":
+    """Per-track cumulative plays, one row per (track, day) — READABLE days only.
+
+    ⚠️ This chart read BRONZE `soundcloud_tracks_daily` until 2026-09-26 and was
+    the only SoundCloud figure left drawing the failed collection of 2026-06-01:
+    19 tracks written at 0 that day, which the gold view already marks
+    `lisible = FALSE` and every other figure of the page already skips. A reader
+    that goes around an existing verdict redraws the defect the verdict was
+    written for. The column is `day` — a DATE, never the `collected_at` timestamptz.
+    """
+    df = db.fetch_df("""
+        SELECT day, title, plays AS playback_count
+          FROM v_soundcloud_track_daily
+         WHERE artist_id = %s AND lisible
+         ORDER BY day ASC
+    """, (artist_id,))
+    if not df.empty:
+        df["day"] = pd.to_datetime(df["day"]).dt.date
+    return df
+
+
 def _render_catalog_series(db, artist_id) -> None:
     """Les quatre compteurs du CATALOGUE sur un axe de temps.
 
@@ -377,7 +388,8 @@ def _render_catalog_series(db, artist_id) -> None:
     et on DIT combien, avec la date.
     """
     df = db.fetch_df("""
-        SELECT day, tracks, plays, likes, reposts, comments, lisible
+        SELECT day, tracks, plays, likes, reposts, comments, lisible,
+               likes_lisibles, reposts_lisibles, comments_lisibles
           FROM v_soundcloud_catalog_daily
          WHERE artist_id = %s
          ORDER BY day
@@ -412,13 +424,20 @@ def _render_catalog_series(db, artist_id) -> None:
     # UNE SEULE TEINTE, TROIS TRAITS. Les trois séries du bas sont de la même
     # plateforme : leur donner trois couleurs inventerait trois familles là où il
     # y en a une. Le trait distingue, et il survit à la deutéranopie.
-    for col, lbl, dash in (
-        ("likes", t("soundcloud.likes", "Likes"), None),
-        ("reposts", t("soundcloud.reposts", "Reposts"), "dash"),
-        ("comments", t("soundcloud.comments", "Commentaires"), "dot"),
+    #
+    # ⚠️ EACH SERIES KEEPS ONLY ITS OWN READABLE DAYS (migration 138). `lisible`
+    # is decided on PLAYS: it said nothing about likes, and the panel drew the
+    # likes of 2026-03-30 → 05-14, read as 0 before the OAuth switch, as a
+    # collapse 1 333 → 0 → 1 309 that never happened.
+    for col, lbl, dash, flag in (
+        ("likes", t("soundcloud.likes", "Likes"), None, "likes_lisibles"),
+        ("reposts", t("soundcloud.reposts", "Reposts"), "dash", "reposts_lisibles"),
+        ("comments", t("soundcloud.comments", "Commentaires"), "dot",
+         "comments_lisibles"),
     ):
+        serie = ok[ok[flag].fillna(True).astype(bool)]
         fig.add_trace(go.Scatter(
-            x=ok["day"], y=ok[col], mode="lines+markers", name=lbl,
+            x=serie["day"], y=serie[col], mode="lines+markers", name=lbl,
             line=dict(color=_SC, width=2, dash=dash)), row=2, col=1)
 
     fig.update_layout(height=560, hovermode="x unified",
@@ -440,6 +459,13 @@ def _render_catalog_series(db, artist_id) -> None:
             "Les tracer dessinerait une chute qui n'a pas eu lieu.").format(
                 k=len(ecartes),
                 d=", ".join(format_serie(pd.to_datetime(ecartes["day"]))))
+    _likes_ko = ok[~ok["likes_lisibles"].fillna(True).astype(bool)]
+    if not _likes_ko.empty:
+        legende += " " + t(
+            "soundcloud.catalog_likes_dropped",
+            "⚠️ **{k} jour(s) sans likes lisibles** : un titre au moins y lisait 0 "
+            "like après en avoir compté — une lecture ratée, pas des likes "
+            "retirés. La courbe des likes les saute.").format(k=len(_likes_ko))
     st.caption(legende)
 
 

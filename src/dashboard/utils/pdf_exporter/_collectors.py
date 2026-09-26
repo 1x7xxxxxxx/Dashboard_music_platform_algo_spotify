@@ -417,16 +417,27 @@ def _collect_meta(db, artist_id, from_date, to_date, ad_account=None):
 
 
 def _collect_soundcloud_tracks(db, artist_id, single_song=None):
-    """Latest snapshot per track (sorted by plays). Fetch-all then Python-filter to
-    the selected track via the robust cross-platform matcher (reliable vs ILIKE)."""
+    """Latest READABLE snapshot per track (sorted by plays). Fetch-all then
+    Python-filter to the selected track via the robust cross-platform matcher.
+
+    ⚠️ It read the LAST row of bronze `soundcloud_tracks_daily` until 2026-09-26:
+    a failed collection on the last day (the 2026-06-01 shape — every counter
+    written at 0) would have printed a table of zeros. It now reads the gold view
+    on its last `lisible` day, and a metric that is not readable there (likes read
+    0 after being positive) comes back as None, printed « — », never 0.
+    """
     if artist_id is None:
         return None
     try:
         rows = db.fetch_query(
             """SELECT DISTINCT ON (track_id)
-                   title, playback_count, likes_count, reposts_count, comment_count
-               FROM soundcloud_tracks_daily WHERE artist_id = %s
-               ORDER BY track_id, collected_at DESC""",
+                   title, plays,
+                   CASE WHEN likes_lisibles    THEN likes    END,
+                   CASE WHEN reposts_lisibles  THEN reposts  END,
+                   CASE WHEN comments_lisibles THEN comments END
+               FROM v_soundcloud_track_daily
+               WHERE artist_id = %s AND lisible
+               ORDER BY track_id, day DESC""",
             (artist_id,),
         )
     except Exception as exc:  # noqa: BLE001
@@ -436,9 +447,8 @@ def _collect_soundcloud_tracks(db, artist_id, single_song=None):
     if single_song:
         rows = [r for r in rows if track_title_matches(single_song, r[0])]
     return sorted(
-        [(r[0], int(r[1] or 0), int(r[2] or 0), int(r[3] or 0), int(r[4] or 0))
-         for r in rows],
-        key=lambda x: -x[1],
+        [(r[0], *(None if v is None else int(v) for v in r[1:5])) for r in rows],
+        key=lambda x: -(x[1] or 0),
     )
 
 

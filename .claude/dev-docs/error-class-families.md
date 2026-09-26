@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**420 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**424 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -15,11 +15,11 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [le-locataire](#le-locataire) | 21 | **8/21** · 38.1 % | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 12 | **1/12** · 8.3 % | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 24 | **5/24** · 20.8 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
-| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 32 | **3/32** · 9.4 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
+| [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 33 | **5/33** · 15.2 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **0/20** · 0.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 26 | **1/26** · 3.8 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
-| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 26 | **5/26** · 19.2 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
-| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 23 | **2/23** · 8.7 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
+| [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | **5/29** · 17.2 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
+| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 23 | **3/23** · 13.0 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 62 | **9/62** · 14.5 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 35 | **6/35** · 17.1 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 13 | **0/13** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
@@ -120,7 +120,7 @@ Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|noth
 
 **Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ?**
 
-Règle de rattachement : `plausible-wrong-measurement|wrong-measurement|unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|rendered-as-health|sums-the-display|discarded-in-silence|erases-every-other|past-the-end-of-its-evidence|renders-nothing|named-like-a-final-one|imput|estimat|wins-a-desc-ranking|taken-before-the-writer-ran|carried-across-instruments|chosen-by-a-proxy|ignores-the-floor` sur l'identifiant et le symptôme. 32 classe(s).
+Règle de rattachement : `plausible-wrong-measurement|wrong-measurement|unmeasured|claimed-not-measured|outranks-the-measurement|nan-written|rendered-as-health|sums-the-display|discarded-in-silence|erases-every-other|past-the-end-of-its-evidence|renders-nothing|named-like-a-final-one|imput|estimat|wins-a-desc-ranking|taken-before-the-writer-ran|carried-across-instruments|chosen-by-a-proxy|ignores-the-floor` sur l'identifiant et le symptôme. 33 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -132,8 +132,10 @@ Règle de rattachement : `plausible-wrong-measurement|wrong-measurement|unmeasur
 | [`a-population-chosen-by-a-proxy-for-the-cost`](error-classes.md#a-population-chosen-by-a-proxy-for-the-cost) | une brique d'optimisation énumère précisément **les mauvaises cibles**. La liste est juste selon son propre critère, le travail est réel, et le gain e |
 | [`two-instruments-that-do-not-observe-the-same-path`](error-classes.md#two-instruments-that-do-not-observe-the-same-path) | deux instruments censés mesurer la même chose rendent des résultats incompatibles, et l'un des deux rend **zéro**. Le zéro se lit comme « rien ne s'es |
 | [`a-sweep-predicate-that-matches-a-form-not-a-property`](error-classes.md#a-sweep-predicate-that-matches-a-form-not-a-property) | un balayage annonce un nombre de sites, et ce nombre est faux d'un facteur 3 à 25 — toujours dans le sens du SUR-COMPTAGE. Rien ne le signale : le pré |
-| [`nan-written-as-a-value`](error-classes.md#nan-written-as-a-value) | une colonne censée être vide contient la chaîne `'nan'`. Les requêtes `IS NULL` ne la voient pas, les regroupements la comptent comme une valeur, et u |
 | [`a-gap-rendered-as-a-zero-by-the-stack`](error-classes.md#a-gap-rendered-as-a-zero-by-the-stack) | la bande d'une plateforme est correctement COUPÉE sur un jour non mesuré, et le total empilé la compte quand même pour zéro — la pile redescend, et ça |
+| [`an-unmeasured-platform-is-rendered-as-zero`](error-classes.md#an-unmeasured-platform-is-rendered-as-zero) | un artiste qui vient de s'inscrire lit **« 0 écoute »** sur les quatre plateformes. Ça ne se lit pas comme « la collecte n'a pas encore tourné », ça s |
+| [`a-form-default-persisted-as-a-measurement`](error-classes.md#a-form-default-persisted-as-a-measurement) | une saisie manuelle enregistre un chiffre que personne n'a tapé. Mesuré le 2026-09-26 sur `artist_wrapped` (artiste 1, 2025) : saves 0, playlist adds  |
+| [`nan-written-as-a-value`](error-classes.md#nan-written-as-a-value) | une colonne censée être vide contient la chaîne `'nan'`. Les requêtes `IS NULL` ne la voient pas, les regroupements la comptent comme une valeur, et u |
 | [`a-population-that-counts-its-own-headers`](error-classes.md#a-population-that-counts-its-own-headers) | un compteur sur un document porte un dénominateur trop grand, et tous les pourcentages qui en découlent sont faux **dans le sens rassurant** — une par |
 | [`a-parser-that-knows-one-of-two-syntaxes`](error-classes.md#a-parser-that-knows-one-of-two-syntaxes) | un compteur dérivé est faux, et sa valeur fausse est une réponse **parfaitement plausible**. Rien ne signale l'erreur : le champ vaut sa valeur par dé |
 | [`suppressed-alert-renders-as-health`](error-classes.md#suppressed-alert-renders-as-health) | an alert correctly suppressed for a source that has nothing to send is then rendered as 🟢 / ✅ by every surface that reads the same flag. "Quiet becaus |
@@ -152,7 +154,6 @@ Règle de rattachement : `plausible-wrong-measurement|wrong-measurement|unmeasur
 | [`a-fabricated-zero-mailed-as-a-measurement`](error-classes.md#a-fabricated-zero-mailed-as-a-measurement) | un artiste premium sans dépôt S4A reçoit par e-mail « Streams (last 7 days) : 0 · +0 vs prev week », « Spend : 0.00 € » et « CTR : 0.00 % ». Trois aff |
 | [`a-discarded-measurement-is-discarded-in-silence`](error-classes.md#a-discarded-measurement-is-discarded-in-silence) | une figure montre une fraction du volume réel d'une plateforme, sans le dire, ce qui se lit comme une plateforme morte. Mesuré le 2026-09-10 : l'accue |
 | [`a-verdict-computed-past-the-end-of-its-evidence`](error-classes.md#a-verdict-computed-past-the-end-of-its-evidence) | une page affiche un verdict en vert — « breakeven atteint le … » — sur un croisement de courbes garanti par construction. Mesuré le 2026-09-10 pour l' |
-| [`an-unmeasured-platform-is-rendered-as-zero`](error-classes.md#an-unmeasured-platform-is-rendered-as-zero) | un artiste qui vient de s'inscrire lit **« 0 écoute »** sur les quatre plateformes. Ça ne se lit pas comme « la collecte n'a pas encore tourné », ça s |
 | [`a-verdict-whose-validator-lives-outside-the-repo`](error-classes.md#a-verdict-whose-validator-lives-outside-the-repo) | une règle est écrite dans un commentaire avec son chiffre, et personne ne peut la rejouer. La palette portait « refusé : ΔE 4.5 (deutan) » depuis le 2 |
 | [`a-measurement-that-cannot-say-why-it-failed`](error-classes.md#a-measurement-that-cannot-say-why-it-failed) | un instrument rend une colonne d'échecs — « perdus », « timeouts », « erreurs » — et **on ne peut pas savoir ce qu'elle décrit**. Le chiffre a l'air d |
 | [`a-percentile-computed-on-survivors`](error-classes.md#a-percentile-computed-on-survivors) | un quantile publié **sous-estime** ce qu'il décrit, et toujours dans le sens rassurant. Plus le système se dégrade, plus le chiffre paraît bon — parce |
@@ -225,10 +226,11 @@ Règle de rattachement : `outlives-the-visit|outlives-its-pull-request|written-a
 
 **Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ?**
 
-Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 26 classe(s).
+Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|divergen|recopi|restated|duplicat|escapes-every-sql-guard|drift|desync|hand-synced|span-read-from|étendue|sélecteur de période` sur l'identifiant et le symptôme. 29 classe(s).
 
 | classe | symptôme |
 |---|---|
+| [`a-prefix-sum-that-counts-one-event-under-two-names`](error-classes.md#a-prefix-sum-that-counts-one-event-under-two-names) | un compteur additionne tous les libellés qui partagent un PRÉFIXE, alors que la source rapporte le même évènement sous plusieurs de ces libellés. Le c |
 | [`a-second-door-that-knows-fewer-sources-than-the-first`](error-classes.md#a-second-door-that-knows-fewer-sources-than-the-first) | un module recopie la résolution d'une ressource partagée en n'en connaissant qu'une partie des sources. Le défaut est INVISIBLE tant que la source man |
 | [`a-surface-that-draws-a-forecast-its-gate-suppresses`](error-classes.md#a-surface-that-draws-a-forecast-its-gate-suppresses) | le produit a décidé qu'un volume n'est pas prédictible et le masque — et une autre surface le dessine quand même. L'onglet Modèle traçait la prévision |
 | [`image-sized-for-a-layout-it-no-longer-has`](error-classes.md#image-sized-for-a-layout-it-no-longer-has) | une image déborde de son cadre, ou devient floue. Rien ne casse ; c'est simplement laid, et personne ne le signale avant qu'un utilisateur le dise. |
@@ -241,6 +243,8 @@ Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|diver
 | [`two-surfaces-two-truths`](error-classes.md#two-surfaces-two-truths) | deux surfaces du produit répondent différemment à la MÊME question, et l'utilisateur croit celle qui a tort. Ici : le PDF exporté annonçait « Spotify  |
 | [`two-widgets-for-one-gesture`](error-classes.md#two-widgets-for-one-gesture) | l'utilisateur fait une chose à un endroit, la retrouve absente à l'autre, et rien n'est en panne. Le produit a deux surfaces pour un seul geste, chacu |
 | [`a-visual-constant-copied-into-a-second-renderer`](error-classes.md#a-visual-constant-copied-into-a-second-renderer) | la même plateforme porte **deux couleurs** dans le même produit — Spotify en vert à l'écran, en bleu dans le PDF du même artiste, le même jour. |
+| [`a-join-that-multiplies-the-grain`](error-classes.md#a-join-that-multiplies-the-grain) | un graphique « les 12 plus dépensières » ne montre qu'UNE campagne, à 9 066 € au lieu de 755,52 € ; un tableau dit 24 176,64 € pour la même campagne ; |
+| [`a-rate-rescaled-or-averaged-instead-of-recomputed-from-its-counts`](error-classes.md#a-rate-rescaled-or-averaged-instead-of-recomputed-from-its-counts) | la page Créatives affiche un CTR au-dessus de 100 % pour la moitié des créatives ; sous 100 %, un chiffre faux sans signe, tiré par les publicités min |
 | [`identity-read-but-never-collectable`](error-classes.md#identity-read-but-never-collectable) | a consumer (DAG tenant filter, readiness matrix, collector) reads an identity key from `artist_credentials.extra_config` that **no credential form fie |
 | [`same-platform-judged-on-different-tables`](error-classes.md#same-platform-judged-on-different-tables) | several surfaces each decide whether a platform is "collecting" by reading a different table, so the same tenant is 🟢 on one screen and 🔴 on another — |
 | [`row-existence-read-as-connection`](error-classes.md#row-existence-read-as-connection) | a surface decides "connected" from the presence of a credentials row rather than from the identity value, so a tab opened and saved blank reads as ✅ — |
@@ -275,6 +279,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 | [`a-timeout-reported-as-a-missing-thing`](error-classes.md#a-timeout-reported-as-a-missing-thing) | un outil annonce qu'une chose N'EXISTE PAS alors qu'il a seulement cessé de l'attendre. Mesuré le 2026-09-15 : `.claude/scripts/select_tests.py --dry` |
 | [`a-parenthesis-is-not-a-tuple`](error-classes.md#a-parenthesis-is-not-a-tuple) | une requête paramétrée ne s'exécute JAMAIS. Elle lève avant d'atteindre la base, un `except` plus haut l'attrape, et l'appelant reçoit une liste vide  |
 | [`a-red-verdict-delivered-to-an-inbox-nobody-reads`](error-classes.md#a-red-verdict-delivered-to-an-inbox-nobody-reads) | un contrôle tourne, rougit à temps sur une vraie panne, et personne ne le sait. Son verdict ne part que par un canal que le destinataire ne lit pas —  |
+| [`a-failed-collection-writes-zeros`](error-classes.md#a-failed-collection-writes-zeros) | des lignes arrivent, à l'heure, en nombre normal — et leurs valeurs sont fausses. Mesuré le 2026-09-08 : le 2026-06-01, `soundcloud_tracks_daily` a re |
 | [`ast-guard-blind-to-bom`](error-classes.md#ast-guard-blind-to-bom) | a source file starts with a UTF-8 BOM (`\xef\xbb\xbf`). `ast.parse` on text read with plain `encoding="utf-8"` raises `SyntaxError: invalid non-printa |
 | [`i18n-untranslated-key`](error-classes.md#i18n-untranslated-key) | a `t("ns.key", "FR …")` / `_t("ns.key", "FR …")` call has no EN entry in `i18n_catalog/` → EN mode silently renders the French default (untranslated s |
 | [`delivery-failure-logged-as-success`](error-classes.md#delivery-failure-logged-as-success) | the code path that sends a notification returns a "did not send" value, the very next line logs that it was sent, and the task ends green. The finding |
@@ -283,7 +288,6 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 | [`the-watcher-is-not-watched`](error-classes.md#the-watcher-is-not-watched) | un contrôle planifié cesse de tourner et tout reste vert, parce que rien ne surveille le surveillant. L'absence d'échec est lue comme une absence de p |
 | [`probe-reads-unreadable-as-absent`](error-classes.md#probe-reads-unreadable-as-absent) | un outil de diagnostic accuse le produit d'un défaut qu'il n'a pas — et il vise précisément la page où un vrai défaut coûterait le plus cher. |
 | [`filename-dependency-survives-below-detection`](error-classes.md#filename-dependency-survives-below-detection) | un fichier est reconnu à l'écran puis n'importe rien, sous un message qui accuse son CONTENU (« Aucune ligne valide détectée après parsing ») ou qui d |
-| [`a-failed-collection-writes-zeros`](error-classes.md#a-failed-collection-writes-zeros) | des lignes arrivent, à l'heure, en nombre normal — et leurs valeurs sont fausses. Mesuré le 2026-09-08 : le 2026-06-01, `soundcloud_tracks_daily` a re |
 | [`a-default-branch-that-skips-instead-of-refusing`](error-classes.md#a-default-branch-that-skips-instead-of-refusing) | un script de déploiement met un service EN SERVICE sans l'avoir vérifié une seule fois, et sort en 0. Rien n'échoue, rien n'avertit : le service deman |
 | [`a-gauge-that-reports-zero-when-it-cannot-read`](error-classes.md#a-gauge-that-reports-zero-when-it-cannot-read) | une jauge alimentée depuis une ressource externe tombe à 0 quand cette ressource est injoignable. Le tableau affiche alors un chiffre rassurant — « au |
 | [`a-fallback-that-answers-the-whole-question`](error-classes.md#a-fallback-that-answers-the-whole-question) | une tuile annonce « N sur les dernières 24 h » et donne le total de TOUT l'historique. Aucune erreur, aucun trou : le chiffre est simplement celui d'u |
@@ -622,6 +626,6 @@ _Aucune._
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=420 families=18 orphans=0 -->
+<!-- error-class-families: total=424 families=18 orphans=0 -->
 
-<!-- error-class-families: sha256=de770917664cdfcf89ea3e8dc5d286362c4daedc029ff340a862a300d1eda7ca -->
+<!-- error-class-families: sha256=edd6a5b5669856db8eb93bb92da2a58cb32e823136304f858c6aa742184d765d -->

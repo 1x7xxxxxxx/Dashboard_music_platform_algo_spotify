@@ -33,6 +33,9 @@ EN = {
     "data_wrapped.fans_rank_help": "E.g.: 5 = you were in their top 5",
     "data_wrapped.btn_save": "💾 Save",
     "data_wrapped.save_success": "✅ {year} data saved.",
+    "data_wrapped.nothing_to_save": "Nothing to save: no field is filled. A field left "
+                                    "empty stays empty in the database — it does not "
+                                    "become a zero.",
     "data_wrapped.error_generic": "Error: {err}",
     "data_wrapped.expander_delete": "🗑️ Delete a year",
     "data_wrapped.btn_delete": "🗑️ Delete",

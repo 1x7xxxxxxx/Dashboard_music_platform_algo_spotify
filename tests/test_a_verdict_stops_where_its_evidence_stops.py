@@ -2,7 +2,8 @@
 
 Type: Test
 Uses: pytest, ast
-Depends on: src/dashboard/views/trigger_algo/_tab_budget_roi.py
+Depends on: src/dashboard/views/trigger_algo/_tab_budget_roi.py,
+            src/dashboard/utils/roi_verdicts.py (the verdict moved there on 2026-09-26)
 Persists in: nothing
 
 Ce qui a été mesuré (2026-09-10)
@@ -41,16 +42,21 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 _REL = "src/dashboard/views/trigger_algo/_tab_budget_roi.py"
+# The overlap and the crossing are computed in a pure helper since 2026-09-26 (the START
+# side of the overlap was missing too). Its behaviour is pinned by execution in
+# `tests/test_a_roi_verdict_needs_a_crossing_and_enough_points.py`; this file keeps the
+# structural checks on the END bound.
+_HELPER = "src/dashboard/utils/roi_verdicts.py"
 
 
-@lru_cache(maxsize=1)
-def _tree() -> ast.Module:
+@lru_cache(maxsize=2)
+def _tree(rel: str = _REL) -> ast.Module:
     """Lu à l'appel, pas à l'import : le fichier de test reste collectable sans sa cible."""
-    return ast.parse((ROOT / _REL).read_text(encoding="utf-8"))
+    return ast.parse((ROOT / rel).read_text(encoding="utf-8"))
 
 
 def _assigned_names() -> set[str]:
-    return {t.id for n in ast.walk(_tree()) if isinstance(n, ast.Assign)
+    return {t.id for n in ast.walk(_tree(_HELPER)) if isinstance(n, ast.Assign)
             for t in n.targets if isinstance(t, ast.Name)}
 
 
@@ -81,7 +87,7 @@ def test_the_overlap_is_computed_from_both_series() -> None:
         "fabriquée. Pour l'artiste 1, cela représente 458 jours où le croisement est "
         "garanti par construction.")
     # Et elle doit être un MINIMUM des deux fins — un maximum ne bornerait rien.
-    for node in ast.walk(_tree()):
+    for node in ast.walk(_tree(_HELPER)):
         if (isinstance(node, ast.Assign)
                 and any(isinstance(t, ast.Name) and t.id == "covered_end"
                         for t in node.targets)):
@@ -94,21 +100,22 @@ def test_the_overlap_is_computed_from_both_series() -> None:
 
 
 def test_the_breakeven_search_is_restricted_to_the_overlap() -> None:
-    """Le calcul doit LIRE la borne, pas seulement la poser à côté."""
-    tree = _tree()
-    guarded = False
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.For):
-            continue
-        body = ast.dump(ast.Module(body=node.body, type_ignores=[]))
-        if "breakeven_date" not in body:
-            continue
-        if "covered_end" in ast.dump(node.iter):
-            guarded = True
-    assert guarded, (
-        "la boucle qui cherche la date de breakeven ne filtre plus sur `covered_end` : "
-        "la borne est calculée et ignorée, ce qui est pire qu'absente — elle donne "
-        "l'apparence d'un correctif.")
+    """Le calcul doit LIRE la borne, pas seulement la poser à côté — et la vue doit
+    appeler ce calcul au lieu d'en refaire un."""
+    helper = next(n for n in ast.walk(_tree(_HELPER))
+                  if isinstance(n, ast.FunctionDef) and n.name == "cumulative_breakeven")
+    read = any(isinstance(n, ast.Compare)
+               and "covered_end" in {x.id for x in ast.walk(n) if isinstance(x, ast.Name)}
+               for n in ast.walk(helper))
+    assert read, (
+        "`cumulative_breakeven` ne compare plus rien à `covered_end` : la borne est "
+        "calculée et ignorée, ce qui est pire qu'absente — elle donne l'apparence d'un "
+        "correctif.")
+    called = {n.func.id for n in ast.walk(_tree())
+              if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    assert "cumulative_breakeven" in called, (
+        "la vue n'appelle plus `cumulative_breakeven` : elle recalcule son propre "
+        "verdict, que rien ne borne.")
 
 
 def test_the_uncovered_window_is_named_not_merely_cropped() -> None:
@@ -141,5 +148,7 @@ def test_the_note_is_translated() -> None:
     declared = {n.value for n in ast.walk(catalog)
                 if isinstance(n, ast.Constant) and isinstance(n.value, str)}
     for key in ("trigger_algo.roi.breakeven_window",
+                "trigger_algo.roi.breakeven_start",
+                "trigger_algo.roi.breakeven_no_overlap",
                 "trigger_algo.roi.one_series_only"):
         assert key in declared, f"`{key}` n'a pas d'entrée EN — la clé s'afficherait brute"

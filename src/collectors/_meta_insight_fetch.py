@@ -13,7 +13,14 @@ from datetime import date, datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 
 from ._meta_constants import _META_INSIGHTS_RETENTION_MONTHS
-from ._meta_parsers import _extract_eng, _extract_perf, _is_conversion_goal, _results_for_goal
+from ._meta_parsers import (
+    _custom_conversions,
+    _extract_eng,
+    _extract_perf,
+    _is_conversion_goal,
+    _results_for_goal,
+    offsite_action_types,
+)
 from ._meta_retry import _meta_list
 
 logger = logging.getLogger(__name__)
@@ -388,6 +395,10 @@ class _MetaInsightFetchMixin:
             fields = [
                 'ad_id', 'date_start', 'impressions', 'clicks', 'spend', 'reach',
                 'frequency', 'cpc', 'cpm', 'ctr', 'actions',
+                # `clicks` is Meta "clicks (all)" — likes, expands, profile taps
+                # included. The funnel's second stage is the LINK click; without
+                # this field the ad grain could not hold it (2026-09-26).
+                'inline_link_clicks',
             ]
             params = {
                 'level': 'ad',
@@ -422,6 +433,12 @@ class _MetaInsightFetchMixin:
                     'cpm':                 float(insight.get('cpm') or 0),
                     'ctr':                 float(insight.get('ctr') or 0),
                     'conversions':         conversions,
+                    # The two funnel stages the campaign grain already had and the
+                    # ad grain lacked, plus the raw offsite action_types so the
+                    # result-family rule stays auditable (migration 138).
+                    'link_clicks':         int(insight.get('inline_link_clicks') or 0),
+                    'custom_conversions':  _custom_conversions(actions),
+                    'offsite_actions':     offsite_action_types(actions),
                     'cost_per_conversion': (round(spend / conversions, 4)
                                             if (is_conversion and conversions > 0) else 0),
                     # Explicite, comme les trois autres payloads. C'était la seule

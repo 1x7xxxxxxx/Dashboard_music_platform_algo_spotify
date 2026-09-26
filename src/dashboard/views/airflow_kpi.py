@@ -267,7 +267,9 @@ def _section_last_runs(db):
                 })
 
     # Rows inserted from etl_run_log (last day per DAG) — see get_quality_metrics
-    rows_inserted: dict = {}
+    # None = not measured (no etl_run_log row, or the read failed) — shown as an empty cell, never 0:
+    # a DAG that inserted nothing and a DAG nobody measured must not look the same.
+    rows_inserted: dict | None = None
     if db:
         try:
             df_metrics = db.fetch_df(
@@ -281,13 +283,13 @@ def _section_last_runs(db):
                 GROUP BY dag_id
                 """
             )
-            if not df_metrics.empty:
-                rows_inserted = dict(zip(df_metrics['dag_id'], df_metrics['rows_inserted']))
-        except Exception:
-            pass
+            rows_inserted = dict(zip(df_metrics['dag_id'], df_metrics['rows_inserted']))
+        except Exception as exc:
+            st.caption(f"⚠️ Lignes insérées illisibles : {type(exc).__name__}")
 
     for row in rows:
-        row["Lignes insérées"] = int(rows_inserted.get(row["DAG"], 0) or 0)
+        n = (rows_inserted or {}).get(row["DAG"])
+        row["Lignes insérées"] = None if n is None or pd.isna(n) else int(n)
 
     df = pd.DataFrame(rows).drop(columns=["_state"])
 

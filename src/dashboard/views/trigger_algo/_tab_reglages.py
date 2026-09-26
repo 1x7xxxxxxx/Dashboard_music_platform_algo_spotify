@@ -2,7 +2,7 @@
 
 Type: Sub
 Uses: streamlit, pandas, ._reglages, src.dashboard.utils.artist_cashflow
-Depends on: meta_campaigns, meta_ads, meta_insights, v_meta_daily, v_s4a_song_daily
+Depends on: v_meta_ad_daily, v_meta_daily, v_s4a_song_daily
 Triggers: views/trigger_algo/_tab_budget_roi.py
 Persists in: nothing
 
@@ -42,29 +42,38 @@ from src.dashboard.utils.ui import secondary_analyses
 
 from ._reglages import budget_pour_streams, classer, recommandation
 
+# ⚠️ LES TROIS AXES LISENT `v_meta_ad_daily` (migration 138), plus la jointure
+# `meta_ads × meta_insights` sur `ad_id` SEUL. Celle-ci ne nommait le locataire que
+# sur la première table : le bac à sable (locataire 18) porte des copies des `ad_id`
+# du locataire 1, et leurs dépenses s'additionnaient — 6 168,70 € affichés pour
+# 3 087,82 € dépensés, mesuré le 2026-09-26. Les chiffres de production du docstring
+# ci-dessus ont été relevés AVANT ce correctif : les dépenses y sont gonflées par le
+# locataire copié ; les coûts par clic, dont dépense et clics gonflaient ensemble, à
+# peine (LISTEN_NOW : 0,1177 → 0,1177 €/clic sur cette base).
+# Classe : `a-join-that-multiplies-the-grain`.
+# Three literals, not one template: `tools/dev/gold_coverage.py` reads the view name
+# from each query's text, and a `.format()` hides it.
 _Q_AXE = {
     "cta": """
-        SELECT a.call_to_action AS valeur, COUNT(DISTINCT a.ad_id) AS ads,
-               SUM(i.spend) AS depense, SUM(i.clicks) AS clics,
-               SUM(i.impressions) AS impressions
-          FROM meta_ads a JOIN meta_insights i ON i.ad_id = a.ad_id
-         WHERE a.artist_id = %s GROUP BY 1
+        SELECT call_to_action AS valeur, COUNT(DISTINCT ad_id) AS ads,
+               SUM(spend) AS depense, SUM(clicks) AS clics,
+               SUM(impressions) AS impressions
+          FROM v_meta_ad_daily
+         WHERE artist_id = %s GROUP BY 1
     """,
     "objectif": """
-        SELECT c.objective AS valeur, COUNT(DISTINCT a.ad_id) AS ads,
-               SUM(i.spend) AS depense, SUM(i.clicks) AS clics,
-               SUM(i.impressions) AS impressions
-          FROM meta_campaigns c
-          JOIN meta_ads a ON a.campaign_id = c.campaign_id
-          JOIN meta_insights i ON i.ad_id = a.ad_id
-         WHERE c.artist_id = %s GROUP BY 1
+        SELECT objective AS valeur, COUNT(DISTINCT ad_id) AS ads,
+               SUM(spend) AS depense, SUM(clicks) AS clics,
+               SUM(impressions) AS impressions
+          FROM v_meta_ad_daily
+         WHERE artist_id = %s GROUP BY 1
     """,
     "creative": """
-        SELECT a.title AS valeur, COUNT(DISTINCT a.ad_id) AS ads,
-               SUM(i.spend) AS depense, SUM(i.clicks) AS clics,
-               SUM(i.impressions) AS impressions
-          FROM meta_ads a JOIN meta_insights i ON i.ad_id = a.ad_id
-         WHERE a.artist_id = %s GROUP BY 1
+        SELECT title AS valeur, COUNT(DISTINCT ad_id) AS ads,
+               SUM(spend) AS depense, SUM(clicks) AS clics,
+               SUM(impressions) AS impressions
+          FROM v_meta_ad_daily
+         WHERE artist_id = %s GROUP BY 1
     """,
 }
 
