@@ -41,3 +41,13 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
     assert night_run.red_main(green) is None
     running = green + [_run("2026-09-26T06:45", "", status="in_progress")]
     assert night_run.red_main(running) is None
+
+
+def test_a_stale_mail_journal_is_seen() -> None:
+    """The owner does not read the automated mails; the journal's age is what tells a
+    session to go read them. Newest row wins; no row at all is unknown, not fresh."""
+    text = ("| received | subject |\n|---|---|\n"
+            "| 2026-09-21 08:00 | a |\n| 2026-09-25 14:46 | b |\n")
+    assert night_run.mail_journal_age_days(text, "2026-09-26") == 1
+    assert night_run.mail_journal_age_days(text, "2026-09-25") == 0
+    assert night_run.mail_journal_age_days("| received |\n|---|\n", "2026-09-26") is None

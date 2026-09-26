@@ -263,6 +263,18 @@ def open_questions(entries: list[dict]) -> list[dict]:
             if e.get("kind") == "park" and e.get("task") not in answered]
 
 
+MAIL_JOURNAL = REPO / ".claude" / "dev-docs" / "ops-mail-journal.md"
+
+
+def mail_journal_age_days(text: str, today: str) -> "int | None":
+    """Days since the newest `| YYYY-MM-DD` row of the ops mail journal, or None. Pure."""
+    dates = re.findall(r"^\| (\d{4}-\d{2}-\d{2})", text, re.M)
+    if not dates:
+        return None
+    newest = max(datetime.fromisoformat(d) for d in dates)
+    return (datetime.fromisoformat(today) - newest).days
+
+
 def cmd_status(_args) -> int:
     entries = _entries()
     tasks = _open_tasks()
@@ -336,6 +348,17 @@ def cmd_status(_args) -> int:
     if not entries:
         print("              (vide — première unité de la séance)")
     print()
+    # ── Les mails automatiques, que le propriétaire ne lit pas (2026-09-26) ──────
+    try:
+        age = mail_journal_age_days(MAIL_JOURNAL.read_text(encoding="utf-8"),
+                                    _now()[:10])
+    except OSError:
+        age = None
+    if age is None or age >= 1:
+        print(f"\n▶ MAILS     📬 journal {'absent' if age is None else f'vieux de {age} j'} — "
+              "chercher `from:noreply@streamlytics.fr` depuis la dernière ligne et trier "
+              f"dans {MAIL_JOURNAL.relative_to(REPO)}")
+
     return 0
 
 
