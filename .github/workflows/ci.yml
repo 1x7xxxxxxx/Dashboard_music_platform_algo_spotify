@@ -424,12 +424,35 @@ jobs:
           "$RUNNER_TEMP/bin/gitleaks" git --redact --no-banner --config .gitleaks.toml \
             --log-opts="$range" .
 
+  # ── No product code without an OPEN roadmap line written BEFORE it (R196) ────────
+  # The commit-msg hook is local and `--no-verify` skips it. This job re-judges exactly the
+  # commits of THIS push or PR, each against its PARENT's open index. Commits made before the
+  # gate existed are not judged (the script skips any whose parent lacks it).
+  roadmap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Every product-code commit cites an open roadmap row (blocking)
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ -n "$BASE_REF" ]; then range="origin/$BASE_REF..HEAD"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then range="$BEFORE..HEAD"
+          elif base=$(git merge-base origin/main HEAD 2>/dev/null) && [ "$base" != "$(git rev-parse HEAD)" ]; then range="$base..HEAD"
+          else range="HEAD~1..HEAD"; fi
+          echo "range: $range"
+          python3 tools/dev/require_roadmap_id.py --range "$range"
+
   # ── A red main reaches the inbox — once per breakage (2026-09-25) ────────────────
   # main was red from 2026-09-22 to 2026-09-25 and nobody read it: GitHub notifications
   # go to an address nobody opens. One mail per red push was rejected (a push is not an
   # outage) — `ci_break_mail.py` mails the green→red TRANSITION only.
   notify:
-    needs: [gates, suite, secrets]
+    needs: [gates, suite, secrets, roadmap]
     if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:

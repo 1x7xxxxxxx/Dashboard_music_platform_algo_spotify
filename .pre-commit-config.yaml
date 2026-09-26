@@ -9,7 +9,25 @@
 # The CI workflow at .github/workflows/ci.yml runs `ruff check` as a blocking
 # step. These hooks catch the same problems (and more) locally before push.
 
+# R196 (2026-09-26): `pre-commit install` also installs the commit-msg hook, and every
+# existing hook stays on the pre-commit stage only.
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit]
+
 repos:
+  # ── R196: no product-code commit without an OPEN roadmap row written BEFORE it ──
+  # Owner, 2026-09-26: « se garantir d'inscrire une action en roadmap avant de l'exécuter ».
+  # The pre-edit half is the Claude Code PreToolUse hook require_roadmap_entry.py; the CI
+  # job `roadmap` re-judges pushed commits (a `--no-verify` does not pass there).
+  - repo: local
+    hooks:
+      - id: roadmap-before-code
+        name: roadmap — a product-code commit cites an open Rnnn written before it
+        language: system
+        entry: python3 tools/dev/require_roadmap_id.py
+        stages: [commit-msg]
+        always_run: true
+
   # ── Ruff: Python lint (matches CI baseline 2026-05-14 = 0 errors) ─────
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.5      # keep in sync with pyproject.toml dev extras

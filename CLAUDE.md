@@ -520,6 +520,9 @@ et par la règle de la boucle d'ingénierie (`code-critic`) — pas par un table
   un rétablissement git sur un fichier portant du travail non commité, et un `kill` par
   motif suivi d'autre chose sur la même ligne (le motif matche la ligne du shell, qui se
   tue, et la suite ne part jamais — code 144).
+- **PreToolUse (Edit|Write|MultiEdit|NotebookEdit)** → `require_roadmap_entry.py` —
+  refuse une modification de code produit tant que l'index de la roadmap n'a aucune ligne
+  ouverte, et donne le prochain id libre (R196).
 - **PostToolUse** → `check_python_syntax.py` — ruff après chaque Write/Edit ; exit 2 bloque
   sur E9. Avertit aussi quand une **suite complète tourne** : le fichier qu'on vient
   d'écrire n'y sera pas, donc son verdict décrira un arbre qui n'existe plus.
@@ -563,6 +566,18 @@ All MCPs are declared at project level in `.mcp.json` — **gitignored, local-on
 | `.claude/dev-docs/roadmap/archive.md` | briques livrées, bugs clos — **passif** | personne en routine |
 
 Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and continue with the next unchecked item."*
+
+**Une action entre dans la roadmap AVANT d'être exécutée — et c'est gardé, pas conseillé
+(R196, 2026-09-26).** Séquence, micro-demandes comprises : (1) ligne `| Rnnn | … |` dans
+l'index + commit « Roadmap : Rnnn inscrite » ; (2) le code, commité avec « Rnnn : … » ;
+(3) l'archive à la livraison. Trois barrières : le hook PreToolUse
+`require_roadmap_entry.py` refuse toute modification de `src/`, `airflow/dags/`,
+`migrations/` tant que l'index n'a aucune ligne ouverte ; le hook git `commit-msg`
+(`tools/dev/require_roadmap_id.py`) refuse un commit de code produit qui ne cite pas un
+Rnnn OUVERT dans le commit précédent — une ligne archivée ne compte pas ; le job CI
+`roadmap` rejuge les commits poussés (`--no-verify` n'y passe pas). Limite : avec plusieurs
+lignes ouvertes, rien ne prouve que le diff EST la tâche citée. Mesuré avant : 41 des 118
+commits de code depuis le 2026-09-12 ne citaient aucun id.
 
 **Roadmap flow**: the top `## 📋 Tâches ouvertes` table is the concise index of only
 *still-open* tasks. When a task is completed, run `/roadmap-done <id>` — it ticks the

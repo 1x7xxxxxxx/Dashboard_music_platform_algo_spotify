@@ -117,3 +117,16 @@ All hooks configured in `.claude/settings.json`. Scripts in `.claude/hooks/`.
   }
 }
 ```
+
+## PreToolUse (Edit|Write|MultiEdit|NotebookEdit) — `require_roadmap_entry.py` (R196, 2026-09-26)
+
+| Property | Value |
+|---|---|
+| Event | `PreToolUse`, matcher `Edit\|Write\|MultiEdit\|NotebookEdit` |
+| Script | `.claude/hooks/require_roadmap_entry.py` (logic in `tools/dev/require_roadmap_id.py`) |
+| Acts on | a target under `src/`, `airflow/dags/`, `migrations/` |
+| Exit code | `2` (blocks) when the `## 📋 Tâches ouvertes` table of the TARGET's repository has no `\| Rnnn \|` row — the message names the next free id and the three gestures; `0` otherwise |
+
+Its commit half is the git `commit-msg` hook `roadmap-before-code` (`.pre-commit-config.yaml`)
+and the CI job `roadmap`: a product-code commit must cite an Rnnn that is an OPEN row in its
+parent commit. Guard: `tests/test_an_action_is_on_the_roadmap_before_it_runs.py`.

@@ -534,7 +534,7 @@ Le défaut qui a fait naître cette section : `meta_insights_performance` et `me
 
 ## Les étapes de la CI
 
-**16 étapes**, dont **16 bloquantes**. Lu dans `.github/workflows/ci.yml`, jamais récité — une liste d'étapes écrite à la main décrit la CI qu'on croit avoir.
+**17 étapes**, dont **17 bloquantes**. Lu dans `.github/workflows/ci.yml`, jamais récité — une liste d'étapes écrite à la main décrit la CI qu'on croit avoir.
 
 ⚠️ Une CI rouge cache tout ce qui la suit : ce dépôt l'a mesuré deux fois (8 exécutions bloquées à l'étape 3/8, puis 27 à l'étape 10/15). C'est `if: !cancelled()` qui l'a arrêté, pas la leçon écrite entre les deux.
 
@@ -555,7 +555,8 @@ Le défaut qui a fait naître cette section : `meta_insights_performance` et `me
 | 13 | Run tests | — | bloquante |
 | 14 | Install pinned gitleaks | install_gitleaks.sh | bloquante |
 | 15 | Scan the commits of this push / PR (blocking) | — | bloquante |
-| 16 | Mail the owner when main turns red | ci_break_mail.py | bloquante |
+| 16 | Every product-code commit cites an open roadmap row (blocking) | require_roadmap_id.py | bloquante |
+| 17 | Mail the owner when main turns red | ci_break_mail.py | bloquante |
 
 ## Ce qui n'est atteint par rien
 
@@ -642,6 +643,6 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-error-classes: total=419 guard_missing=0 guard_unnamed=8 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=28 unreconciled=0 -->
-<!-- gold-coverage-ci: steps=16 blocking=16 -->
+<!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=78afc9f46348a4e70189acd73e81eae47d5a54554322f7da6c42fbc61971e808 -->
+<!-- gold-coverage: sha256=e3456928d3f899219da36c3995a92484c7c8e25a3d2f28958de54e707641fac4 -->
