@@ -146,3 +146,16 @@ def test_the_owner_id_is_not_read_from_a_tenant_identity_variable():
              if isinstance(n, ast.Constant) and isinstance(n.value, str)}
     assert "META_IG_DISCOVERY_ID" in names
     assert "IG_USER_ID" not in names
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity on FABRICATED functions: a call under `if False:` is PRESENT and
+    unreachable — the mutant this guard was blind to; the same call under a real
+    condition is reachable."""
+    def first_call(src: str):
+        fn = ast.parse(src).body[0]
+        return fn, next(n for n in ast.walk(fn) if isinstance(n, ast.Call))
+    dead_fn, dead_call = first_call("def f(x):\n    if False:\n        fallback(x)\n")
+    live_fn, live_call = first_call("def f(x):\n    if not x.ok:\n        fallback(x)\n")
+    assert _unreachable_parents(dead_fn, dead_call), "a present-but-dead call must be seen"
+    assert not _unreachable_parents(live_fn, live_call)
