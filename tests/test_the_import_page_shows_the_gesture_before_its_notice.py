@@ -177,6 +177,42 @@ def test_both_columns_are_rendered_side_by_side():
             "sont de nouveau empilés au lieu d'être côte à côte")
 
 
+def import_gate(fn: ast.AST) -> tuple[bool, bool]:
+    """(button rendered as a statement, import also starts WITHOUT the click). Pure."""
+    clicked_names = {
+        t.id
+        for n in ast.walk(fn) if isinstance(n, ast.Assign)
+        and isinstance(n.value, ast.Call)
+        and getattr(n.value.func, "attr", "") == "button"
+        for t in n.targets if isinstance(t, ast.Name)
+    }
+    alternative = any(
+        isinstance(n, ast.If) and isinstance(n.test, ast.BoolOp)
+        and isinstance(n.test.op, ast.Or)
+        and any(isinstance(v, ast.Name) and v.id in clicked_names for v in n.test.values)
+        and any(not (isinstance(v, ast.Name) and v.id in clicked_names)
+                for v in n.test.values)
+        for n in ast.walk(fn))
+    return bool(clicked_names), alternative
+
+
+def test_the_import_gate_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, class `intermediate-state-named-like-a-final-one`: the three shapes
+    of 2026-09-06 — click-only (« ✅ Prêt » and nothing happens), the button hidden in
+    the `or`, and the fixed form."""
+    def gate(src: str) -> tuple[bool, bool]:
+        return import_gate(ast.parse(src))
+
+    assert gate("if st.button('Importer'):\n    run()\n") == (False, False)
+    assert gate("if auto or st.button('Importer'):\n    run()\n") == (False, False)
+    fixed = "clicked = st.button('Importer')\nif auto or clicked:\n    run()\n"
+    assert gate(fixed) == (True, True)
+    assert gate("clicked = st.button('Importer')\nif clicked:\n    run()\n") == (True, False)
+    # Two buttons joined by `or` are still click-only: the alternative must be something
+    # other than a click.
+    assert gate("a = st.button('A')\nb = st.button('B')\nif a or b:\n    run()\n") == (True, False)
+
+
 def test_a_fully_recognised_batch_imports_without_a_second_click():
     """« ✅ Prêt » et « ✅ Importer » portaient la même coche verte.
 
@@ -206,29 +242,15 @@ def test_a_fully_recognised_batch_imports_without_a_second_click():
     fn = _fn(_UPLOAD, "render_uploader")
     src = ast.unparse(fn)
 
+    button_rendered, auto_alternative = import_gate(fn)
     # 1. Le bouton est rendu au niveau instruction, hors de toute condition d'import.
-    clicked_names = {
-        t.id
-        for n in ast.walk(fn) if isinstance(n, ast.Assign)
-        and isinstance(n.value, ast.Call)
-        and getattr(n.value.func, "attr", "") == "button"
-        for t in n.targets if isinstance(t, ast.Name)
-    }
-    assert clicked_names, (
+    assert button_rendered, (
         "`st.button` n'est plus appelé au niveau instruction : placé dans un `or`, "
         "il n'est pas évalué quand le démarrage automatique est vrai — donc le "
         "bouton DISPARAÎT de l'écran précisément les jours où tout est reconnu.")
 
     # 2. …et l'import part aussi sans lui.
-    guarded = [n for n in ast.walk(fn)
-               if isinstance(n, ast.If)
-               and isinstance(n.test, ast.BoolOp)
-               and isinstance(n.test.op, ast.Or)
-               and any(isinstance(v, ast.Name) and v.id in clicked_names
-                       for v in n.test.values)
-               and any(not (isinstance(v, ast.Name) and v.id in clicked_names)
-                       for v in n.test.values)]
-    assert guarded, (
+    assert auto_alternative, (
         "l'import ne part QUE sur un clic : un lot entièrement reconnu n'offre "
         "aucun arbitrage, donc le bouton y est une étape de plus, pas une décision. "
         "Attendu `if <auto> or <résultat du bouton>:`.")

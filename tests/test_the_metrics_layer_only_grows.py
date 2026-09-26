@@ -128,29 +128,50 @@ def _sites() -> dict[str, list[str]]:
             if path.relative_to(_ROOT).as_posix() in _DOORS:
                 continue
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                hits = fact_aggregates(path.read_text(encoding="utf-8"))
             except (SyntaxError, UnicodeDecodeError):
                 continue
-            docs = {d for n in ast.walk(tree)
-                    if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef,
-                                      ast.AsyncFunctionDef))
-                    for d in [ast.get_docstring(n, clean=False)] if d}
-            for node in ast.walk(tree):
-                text = None
-                if isinstance(node, ast.JoinedStr):
-                    text = "".join(v.value if isinstance(v, ast.Constant) else "{}"
-                                   for v in node.values)
-                elif isinstance(node, ast.Constant) and isinstance(node.value, str):
-                    text = node.value
-                if not text or text in docs or not _AGG.search(text):
-                    continue
-                if any(v in text for v in _GOLD_VIEWS):
-                    continue                        # lit la couche or : c'est le but
-                for platform, tables in _FACTS.items():
-                    if any(re.search(rf"\bfrom\s+{t}\b", text, re.I) for t in tables):
-                        rel = path.relative_to(_ROOT).as_posix()
-                        out[platform].append(f"{rel}:{node.lineno}")
+            rel = path.relative_to(_ROOT).as_posix()
+            for platform, line in hits:
+                out[platform].append(f"{rel}:{line}")
     return out
+
+
+def fact_aggregates(source: str) -> list[tuple[str, int]]:
+    """(platform, line) of every SQL aggregate over a raw fact table, outside the gold
+    layer and outside docstrings. Pure."""
+    tree = ast.parse(source)
+    docs = {d for n in ast.walk(tree)
+            if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                              ast.AsyncFunctionDef))
+            for d in [ast.get_docstring(n, clean=False)] if d}
+    out = []
+    for node in ast.walk(tree):
+        text = None
+        if isinstance(node, ast.JoinedStr):
+            text = "".join(v.value if isinstance(v, ast.Constant) else "{}"
+                           for v in node.values)
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            text = node.value
+        if not text or text in docs or not _AGG.search(text):
+            continue
+        if any(v in text for v in _GOLD_VIEWS):
+            continue                        # lit la couche or : c'est le but
+        for platform, tables in _FACTS.items():
+            if any(re.search(rf"\bfrom\s+{t}\b", text, re.I) for t in tables):
+                out.append((platform, node.lineno))
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity: a view summing `youtube_video_stats` itself — the second YouTube
+    total of before 097 — is named; the same total read from `v_platform_totals`, and a
+    docstring quoting the old query, are not."""
+    bad = 'def f(db):\n    return db.fetch_query("SELECT SUM(views) FROM youtube_video_stats")\n'
+    assert fact_aggregates(bad) == [("YouTube", 2)]
+    good = ('def f(db):\n    """Was: SELECT SUM(views) FROM youtube_video_stats."""\n'
+            '    return db.fetch_query("SELECT SUM(total) FROM v_platform_totals")\n')
+    assert fact_aggregates(good) == []
 
 
 def test_no_platform_gains_a_metric_computed_outside_the_gold_layer() -> None:
