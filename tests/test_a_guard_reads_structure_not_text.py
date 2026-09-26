@@ -88,7 +88,6 @@ _TEXTUAL_GUARDS = {
     "test_canary_onboarding_walk.py",
     "test_claude_config_floor.py",
     "test_env_is_root_anchored.py",
-    "test_every_dag_imports.py",
     "test_every_dev_doc_is_reachable.py",
     "test_i18n.py",
     # `test_i18n_orphans.py` est sorti de cette liste le 2026-09-18 : ses deux gardes

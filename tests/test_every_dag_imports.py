@@ -22,6 +22,7 @@ Ce que ce garde vaut : il échoue sur une faute de frappe dans un DAG, sur un im
 cassé, sur un opérateur mal construit — au moment du commit, plus au réveil du
 scheduler.
 """
+import ast
 import importlib.util
 import logging
 import pathlib
@@ -38,7 +39,7 @@ from tests.dep_gate import requires
 # dépôt est capté comme paquet-espace-de-noms, donc l'erreur ressemble à une
 # installation corrompue. `dep_gate` distingue les deux, et `CI` ne peut pas
 # emprunter ce chemin (voir `test_ci_never_skips_a_dependency_gate`).
-pytestmark = requires("airflow")
+_needs_airflow = requires("airflow")
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DAGS = ROOT / "airflow" / "dags"
@@ -57,7 +58,24 @@ def test_the_scope_is_not_empty():
     )
 
 
-@pytest.fixture(scope="module", autouse=True)
+_DEAD_KWARGS = {
+    "provide_context": "Airflow 1.x, sans effet depuis 2.0, rejeté par la 3.x",
+    "schedule_interval": "supprimé en Airflow 3 ; `schedule=` marche des deux côtés",
+}
+
+
+def dead_arguments(source: str) -> list[tuple[str, int]]:
+    """(keyword, line) of every Airflow argument dead in 3.x PASSED to a call. Pure.
+
+    AST, not text: a comment or a docstring explaining why the argument was removed
+    must not fail the guard of that removal.
+    """
+    return sorted((kw.arg, node.lineno) for node in ast.walk(ast.parse(source))
+                  if isinstance(node, ast.Call) for kw in node.keywords
+                  if kw.arg in _DEAD_KWARGS)
+
+
+@pytest.fixture(scope="module")
 def _quiet_airflow():
     """Airflow parle beaucoup au premier import ; ça ne regarde pas ce test."""
     logging.disable(logging.CRITICAL)
@@ -67,8 +85,9 @@ def _quiet_airflow():
     logging.disable(logging.NOTSET)
 
 
+@_needs_airflow
 @pytest.mark.parametrize("name", _DAG_FILES, ids=_DAG_FILES)
-def test_dag_imports(name: str):
+def test_dag_imports(name: str, _quiet_airflow):
     for extra in (str(ROOT), str(ROOT / "airflow")):
         if extra not in sys.path:
             sys.path.insert(0, extra)
@@ -85,21 +104,23 @@ def test_dag_imports(name: str):
 
 
 @pytest.mark.parametrize("name", _DAG_FILES, ids=_DAG_FILES)
-def test_no_dead_airflow_1_argument(name: str):
-    """`provide_context` ne fait rien depuis Airflow 2.0 et casse la 3.x."""
-    source = (DAGS / name).read_text(encoding="utf-8")
-    assert "provide_context" not in source, (
-        f"{name} passe `provide_context`, un argument d'Airflow 1.x : sans effet sur "
-        "l'Airflow 2.8.1 de production, et rejeté par la 3.x — il rendrait la montée "
-        "de version impossible sans que rien ne le signale d'ici là."
-    )
+def test_no_argument_that_airflow_3_rejects(name: str):
+    """`provide_context` (1.x) and `schedule_interval` (removed in 3.x) — the two
+    vestiges that would have failed the import of all 16 DAGs on Dependabot's #100."""
+    dead = dead_arguments((DAGS / name).read_text(encoding="utf-8"))
+    assert not dead, (
+        f"{name} passe {[f'{k} (ligne {ln}) — {_DEAD_KWARGS[k]}' for k, ln in dead]}. "
+        "Sans effet visible sur la production d'aujourd'hui, et c'est ce qui rendrait "
+        "la montée de version impossible sans que rien ne le signale d'ici là.")
 
 
-@pytest.mark.parametrize("name", _DAG_FILES, ids=_DAG_FILES)
-def test_schedule_uses_the_spelling_that_survives(name: str):
-    """`schedule_interval` est supprimé en Airflow 3 ; `schedule` marche des deux côtés."""
-    source = (DAGS / name).read_text(encoding="utf-8")
-    assert "schedule_interval" not in source, (
-        f"{name} utilise `schedule_interval=`, supprimé en Airflow 3. `schedule=` est "
-        "accepté depuis la 2.4, donc par la production comme par une future 3.x."
-    )
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, without Airflow: both vestiges passed as arguments are named; the
+    surviving spelling, and a comment naming the dead one, are not."""
+    defect = ("DAG('x', schedule_interval='@daily')\n"
+              "PythonOperator(task_id='t', python_callable=f, provide_context=True)\n")
+    assert dead_arguments(defect) == [("provide_context", 2), ("schedule_interval", 1)]
+    fixed = ("# schedule_interval= was removed in Airflow 3; provide_context too\n"
+             "DAG('x', schedule='@daily')\n"
+             "PythonOperator(task_id='t', python_callable=f)\n")
+    assert dead_arguments(fixed) == []

@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**417 classes.** Fenêtre observée : `2026-05-15` → `2026-09-26` (459 révisions du catalogue rejouées).
+**417 classes.** Fenêtre observée : `2026-05-15` → `2026-09-26` (460 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -60,14 +60,14 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|
 | `cause_inferred` | 0 |
 | `cause_unknown` | 13 |
-| `guard_does_not_prove_itself` | 216 |
+| `guard_does_not_prove_itself` | 213 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_on_a_shared_guard_without_naming_its_tests` | 15 |
 | `scope_unknown` | 0 |
 | `scope_without_not_covered` | 0 |
 | `seen_red_never` | 0 |
-| `seen_red_unknown` | 97 |
+| `seen_red_unknown` | 94 |
 | `siblings_never_swept` | 0 |
 | `sites_unknown` | 0 |
 | `sites_unknown_hors_relance` | 0 |

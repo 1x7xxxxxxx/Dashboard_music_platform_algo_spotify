@@ -47,7 +47,7 @@ def _is_devlog_path(value: object) -> bool:
     )
 
 
-def _devlog_path_constants(py_file: Path) -> list[tuple[str, str]]:
+def _devlog_path_constants(py_file: Path | str) -> list[tuple[str, str]]:
     """Every DEVLOG *path* literal a tool names, read off the AST.
 
     Covers both `NAME = "…/DEVLOG.md"` and dict values (`{...: "DEVLOG.md"}`),
@@ -55,7 +55,8 @@ def _devlog_path_constants(py_file: Path) -> list[tuple[str, str]]:
     merely mention DEVLOG.md are excluded by `_PATHLIKE` — this guard must not
     fail on a reminder message.
     """
-    tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+    source = py_file if isinstance(py_file, str) else py_file.read_text(encoding="utf-8")
+    tree = ast.parse(source)
     found: list[tuple[str, str]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign) and _is_devlog_path(getattr(node.value, "value", None)):
@@ -115,3 +116,16 @@ def test_the_archive_says_it_is_an_archive() -> None:
     assert "ARCHIVE" in head, (
         f".claude/dev-docs/DEVLOG.md must announce itself as frozen; first line is {head!r}"
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity: the 2026-08 shape — a hook writing into the frozen copy, as a
+    constant and as a dict value — is named; the live path, and PROSE that merely
+    mentions the archive, are not."""
+    defect = ('DEVLOG = ".claude/dev-docs/DEVLOG.md"\n'
+              'WATCH = {"log": ".claude/dev-docs/DEVLOG.md"}\n')
+    found = [v for _, v in _devlog_path_constants(defect) if v != LIVE_DEVLOG]
+    assert found == [".claude/dev-docs/DEVLOG.md"] * 2
+    fixed = ('DEVLOG = "DEVLOG.md"\n'
+             'MSG = "never write to .claude/dev-docs/DEVLOG.md, it is frozen"\n')
+    assert [v for _, v in _devlog_path_constants(fixed) if v != LIVE_DEVLOG] == []

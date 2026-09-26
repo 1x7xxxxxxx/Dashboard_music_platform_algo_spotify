@@ -42,15 +42,16 @@ _ACCEPTED = {
 }
 
 
-def _module_level_reads(path: Path) -> list[int]:
+def _module_level_reads(path: Path | str) -> list[int]:
     """Lignes des AFFECTATIONS de module qui lisent un fichier.
 
     Les `def` et `class` du niveau module ne comptent pas : leur corps ne s'exécute
     pas à l'import, donc un fichier manquant y produit un échec de test — ce qu'on
     veut — et non une erreur de collecte.
     """
+    source = path if isinstance(path, str) else path.read_text(encoding="utf-8")
     try:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = ast.parse(source)
     except SyntaxError:                     # pragma: no cover
         return []
     out = []
@@ -96,3 +97,18 @@ def test_the_sweep_still_sees_something():
     assert _offenders(), (
         "aucune lecture de module trouvée alors que le cliquet en déclare : le "
         "détecteur ne voit plus le motif qu'il surveille")
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, both halves: a read in a module-level ASSIGNMENT (runs at import,
+    a missing file becomes a collection error) is seen; the same read inside a test,
+    a fixture or a helper `def` (runs at call, becomes a named failure) is not."""
+    defect = ("from pathlib import Path\n"
+              "_DOC = (Path(__file__).parent / 'x.md').read_text()\n"
+              "def test_a():\n    assert _DOC\n")
+    assert _module_level_reads(defect) == [2]
+    fixed = ("from pathlib import Path\n"
+             "def _doc():\n    return (Path(__file__).parent / 'x.md').read_text()\n"
+             "def test_a():\n    doc = (Path(__file__).parent / 'x.md').read_text()\n"
+             "    assert doc and _doc()\n")
+    assert _module_level_reads(fixed) == []
