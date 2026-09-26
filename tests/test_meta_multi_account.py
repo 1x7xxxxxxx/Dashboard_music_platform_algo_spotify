@@ -368,3 +368,21 @@ class TestFailureReasonReachesTheOperator:
         with pytest.raises(RuntimeError) as exc:
             c.run()
         assert '_Broken' in str(exc.value)
+
+
+def test_the_marker_detector_sees_the_defect_it_is_written_for(tmp_path):
+    """Non-vacuity, class `format-marker-in-a-plain-string`: `{acct}` in a plain string
+    passed straight to a query is named; the same text as an f-string, and a module
+    constant `.format()`-ed before use, are not."""
+    bad = tmp_path / "bad.py"
+    bad.write_text("def f(db):\n"
+                   "    return db.fetch_df('SELECT 1 FROM t WHERE {acct_filter}')\n",
+                   encoding="utf-8")
+    assert _plain_string_markers(bad) == [("bad.py", 2)]
+    good = tmp_path / "good.py"
+    good.write_text("_Q = 'SELECT 1 FROM t WHERE {acct_filter}'\n"
+                    "def f(db, acct_filter):\n"
+                    "    db.fetch_df(f'SELECT 1 FROM t WHERE {acct_filter}')\n"
+                    "    return db.fetch_df(_Q.format(acct_filter=acct_filter))\n",
+                    encoding="utf-8")
+    assert _plain_string_markers(good) == []
